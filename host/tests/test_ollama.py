@@ -739,6 +739,22 @@ def test_keep_alive(report):
     report.check('keep_alive=None leaves the field out',
                  'keep_alive' not in sent[-1][1])
 
+    # The card is not free to sit on. A prompt loop earns a long hold - the KV
+    # cache is what makes turn nine quick - and a single question does not:
+    # measured here, a one-shot left 9.69 GB resident for another 27 minutes at
+    # 1 % utilisation, on a card whose desktop then had 3.8 GB to work in.
+    from coaxial_ollama import debug as dbgmod
+    report.check('a prompt loop keeps the model, a one-shot does not',
+                 dbgmod.keep_alive_for(dbgmod.parse(['--repl'])) == dbgmod.KEEP_ALIVE_REPL
+                 and dbgmod.keep_alive_for(dbgmod.parse(['q'])) == dbgmod.KEEP_ALIVE_ONCE)
+    report.check('the one-shot hold is the shorter of the two',
+                 dbgmod.KEEP_ALIVE_ONCE != dbgmod.KEEP_ALIVE_REPL,
+                 '%s against %s' % (dbgmod.KEEP_ALIVE_ONCE, dbgmod.KEEP_ALIVE_REPL))
+    report.check('an explicit --keep-alive wins in either mode',
+                 dbgmod.keep_alive_for(dbgmod.parse(['--keep-alive', '0', 'q'])) == '0'
+                 and dbgmod.keep_alive_for(
+                     dbgmod.parse(['--keep-alive', '1h', '--repl'])) == '1h')
+
     shaped = Ollama('gemma4:12b', fmt='json')
     capture(shaped)
     shaped.chat([{'role': 'user', 'content': 'hello'}])
@@ -774,8 +790,10 @@ def test_keep_alive(report):
     # reach it from the bench.
     from coaxial_ollama import debug
     import coaxial_ollama.__main__ as runner
-    report.check('dbg defaults to holding the model',
-                 debug.parse(['why?']).keep_alive == '30m')
+    # Not a constant any more: the parsed value is None and the mode decides,
+    # so check what actually reaches the daemon rather than the flag's default.
+    report.check('dbg holds the model for a question, briefly',
+                 debug.keep_alive_for(debug.parse(['why?'])) == debug.KEEP_ALIVE_ONCE)
     report.check('dbg --keep-alive is settable',
                  debug.parse(['--keep-alive', '1h', 'why?']).keep_alive == '1h')
     report.check('the runner defaults to holding the model',

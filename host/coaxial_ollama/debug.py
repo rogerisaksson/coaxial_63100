@@ -71,6 +71,26 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
   /help  /q"""
 
 
+# How long ollama holds the weights after the last turn. Two numbers, because
+# the two modes want opposite things.
+#
+# In a prompt loop the model is about to be asked again, and the KV cache of
+# the prefix is what makes turn nine as quick as turn two - worth 8 GB of VRAM.
+# After a single -q question it is not: measured on this bench, a one-shot left
+# 9.69 GB resident and expiring 27 minutes later at 1 % utilisation, on a card
+# whose desktop then had 3.8 GB to work in. That is the cost of a cache nobody
+# is going to hit.
+KEEP_ALIVE_REPL = '30m'
+KEEP_ALIVE_ONCE = '2m'
+
+
+def keep_alive_for(args):
+    """What the caller asked for, or what the mode implies."""
+    if args.keep_alive is not None:
+        return args.keep_alive
+    return KEEP_ALIVE_REPL if args.repl else KEEP_ALIVE_ONCE
+
+
 def _printable(stream):
     """Make a Windows console survive an answer in somebody else's alphabet.
 
@@ -331,10 +351,14 @@ def parse(argv):
                              " schema checked - but a model told to answer in"
                              " JSON calls fewer of them, so -t none is usually"
                              " what you want with it")
-    parser.add_argument('--keep-alive', default='30m',
+    parser.add_argument('--keep-alive', default=None,
                         help="how long ollama holds the model, and with it the"
-                             " cached prompt prefix: '30m', '1h', 0 to unload"
-                             " between questions")
+                             " cached prompt prefix. Default depends on the"
+                             " mode: %s in a prompt loop, %s for one question,"
+                             " because a question already answered is rarely"
+                             " followed by another within the half hour. '0'"
+                             " hands the VRAM back at once."
+                             % (KEEP_ALIVE_REPL, KEEP_ALIVE_ONCE))
     parser.add_argument('--num-gpu', type=int, default=None,
                         help='layers on the GPU; the rest run on the CPU.'
                              ' Set for you by -m auto and by board_prompt.ps1')
@@ -393,7 +417,7 @@ def build(args):
                     num_ctx=args.num_ctx, num_predict=args.words,
                     think=True if args.think else False,
                     remote_ok=args.allow_remote,
-                    keep_alive=args.keep_alive, fmt=args.fmt,
+                    keep_alive=keep_alive_for(args), fmt=args.fmt,
                     num_gpu=gpu_layers)
     if args.no_board:
         session = NoBoard()

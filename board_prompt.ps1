@@ -75,6 +75,13 @@
 .PARAMETER KeepAlive
     How long ollama holds the model in memory after the last turn.
 
+.PARAMETER Hold
+    Leave the model resident when this script exits. By default the weights are
+    handed back the moment the prompt closes: measured here, a finished session
+    left 9.69 GB on a 16 GB card for another 27 minutes at 1 % utilisation,
+    which is a cache nobody is going to hit and a desktop with 3.8 GB to work
+    in. Use -Hold when the next question really is imminent.
+
 .PARAMETER Reserve
     VRAM in GB to hold back for the desktop, overriding what capability.py works
     out on its own. Raise it if the screens stutter while the model answers: on
@@ -109,7 +116,8 @@ param(
     [string]$KeepAlive = '30m',
     [int]$NumCtx = 8192,
     [double]$Reserve = 0,
-    [switch]$Normal
+    [switch]$Normal,
+    [switch]$Hold
 )
 
 $ErrorActionPreference = 'Continue'
@@ -297,6 +305,13 @@ try {
     Invoke-RestMethod -Uri ($Api + '/api/generate') -Method Post -Body $body `
                       -ContentType 'application/json' -TimeoutSec 600 | Out-Null
     Say 'ok' 'model' ('{0}  loaded in {1:n1} s, held {2}' -f $Model, $clock.Elapsed.TotalSeconds, $KeepAlive)
+    try {
+        $free = (nvidia-smi --query-gpu=memory.total,memory.used --format=csv,noheader,nounits) -split ','
+        Say 'ok' 'card' ('{0:n1} GB free of {1:n1}' `
+            -f (([double]$free[0] - [double]$free[1]) / 1024), ([double]$free[0] / 1024))
+    } catch {
+        # No nvidia-smi is not a problem worth a line of its own.
+    }
 } catch {
     Say 'warn' 'model' ("could not preload: " + $_.Exception.Message)
 }
@@ -340,12 +355,18 @@ if (-not $Normal) {
 
 # ---- the prompt itself -----------------------------------------------------
 
+# Set when a prompt loop was opened, so the exit path knows whether the card is
+# being left behind by somebody who has finished, or by a one-shot question that
+# may well be followed by another in ten seconds.
+$script:Interactive = $false
+
 Push-Location (Join-Path $Root 'host')
 try {
     if ($Plain) {
         Write-Host ''
         Write-Host '  plain chat: no tools, no board. /bye leaves.' -ForegroundColor DarkGray
         Write-Host ''
+        $script:Interactive = $true
         & $ollama.Source run $Model
         return
     }
@@ -366,7 +387,28 @@ try {
     Write-Host ('  tools: ' + $Tools + '   /py CODE runs against the board, /sh runs a program,') -ForegroundColor DarkGray
     Write-Host '  both cost no tokens. /tools NAME repriced, /ctx, /clear, /q to leave.' -ForegroundColor DarkGray
     Write-Host ''
+    $script:Interactive = $true
     & python @call --repl
 } finally {
     Pop-Location
+
+    # Leaving the prompt hands the card back, at once. The keep_alive that made
+    # turn nine quick has no further job once the window is closed, and until
+    # this existed it parked the whole model on the GPU for the rest of its half
+    # hour - measured at 9.69 GB of 16, at 1 % utilisation, with the desktop
+    # left 3.8 GB to work in. A reload costs about seven seconds next time, and
+    # only if there is a next time.
+    #
+    # A one-shot -Ask is deliberately not unloaded here: it is usually one of
+    # several, and dbg.py already holds it for two minutes rather than thirty.
+    if ($script:Interactive -and -not $Hold) {
+        try {
+            $body = @{ model = $Model; prompt = ''; keep_alive = 0 } | ConvertTo-Json
+            Invoke-RestMethod -Uri ($Api + '/api/generate') -Method Post -Body $body `
+                              -ContentType 'application/json' -TimeoutSec 30 | Out-Null
+            Say 'ok' 'released' ($Model + ' unloaded - -Hold keeps it resident')
+        } catch {
+            Say 'warn' 'released' ('could not unload: ' + $_.Exception.Message)
+        }
+    }
 }

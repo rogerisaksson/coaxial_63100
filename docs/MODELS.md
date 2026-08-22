@@ -165,12 +165,28 @@ bench that is the worse trade, so the codepage is left alone.
 
 ### Keeping the model loaded
 
-`keep_alive` goes on **every** request, default `30m`. Ollama caches the KV
-state of a prefix it has already processed — that is what makes turn nine as
-quick as turn two — and throws it away when the model unloads, five minutes
-after the last request by default. A bench session is mostly gaps: you read a
-number, move a probe, think. `--keep-alive 0` hands the VRAM straight back on a
-shared machine.
+`keep_alive` goes on **every** request. Ollama caches the KV state of a prefix
+it has already processed — that is what makes turn nine as quick as turn two —
+and throws it away when the model unloads. A bench session is mostly gaps: you
+read a number, move a probe, think.
+
+But the hold is not free, and the two modes want opposite things:
+
+| | hold | why |
+|---|---|---|
+| prompt loop (`--repl`) | 30 min | the next turn is coming, and it reuses the prefix |
+| one question (`-Ask`, `-q`) | 2 min | enough for an immediate follow-up, then the card is somebody else's |
+| **leaving the prompt** | **released at once** | the cache has no further job |
+
+That last row is the one that matters on a workstation. Measured before it
+existed: a finished session left **9.69 GB of a 16 GB card resident for another
+27 minutes at 1 % utilisation**, with the desktop given 3.8 GB to work in — a
+cache nobody was going to hit. `board_prompt.ps1` now unloads on the way out,
+and the card goes back to 2.1 GB used. A reload costs about seven seconds, and
+only if there is a next time; `-Hold` keeps it resident when there is.
+
+`--keep-alive 0` hands the VRAM back immediately on any path, and an explicit
+value always beats the mode's default.
 
 `preload()` sends `options` with the empty message list. Without `num_ctx` the
 daemon loads the model's own default context — 128k on llama3.1, a 7 GB KV
