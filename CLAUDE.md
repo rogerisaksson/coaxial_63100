@@ -113,17 +113,25 @@ port for a quarter of an hour, producing numbers the free one standing next to
 the board could have produced. A rule with no stop in it is a preference.
 
 So the stop is explicit. When the request is *measure something* — read a
-channel, fetch data, check the AFE, take a burst, log values over time — put the
-question to the user before running anything:
+channel, fetch data, check the AFE, take a burst, log values over time — ask
+before running anything, and ask **minimally**:
 
 > **Local model, or here?**
-> *the local model* — `board_prompt -Ask "..."`, free, standing at the board
-> *here* — I drive the library, which costs tokens and is worth it when the
-> answer feeds code I am writing
+> *Local model* — board_prompt
+> *Here* — I drive the library
 
-On *the local model*: print the exact command and **stop**. Do not run it, do
-not paraphrase what it would say, do not take the reading anyway to check. The
-user has a terminal.
+Two options, a few words each. No paragraph about what tokens cost, no preview
+of what the output might look like, no third option. The user knows what the
+two are; the question exists to record which one, not to explain them.
+
+On *Local model*: emit the command, on one line, and **stop**.
+
+    board_prompt -Ask "read all channels, the DC link and the NTC"
+
+Nothing else. No preamble, no alternative spellings of the same command, no
+closing line about having released it, no summary. Do not run it, do not
+paraphrase what it would say, do not take the reading anyway to check. The user
+has a terminal and is already looking at it.
 
 This does not apply when the board is instrumentation for work already agreed:
 verifying a change just made to `host/`, reproducing a bug, writing a capture
