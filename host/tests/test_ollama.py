@@ -473,6 +473,13 @@ def test_prompt(report):
                  '%d frames' % len(frames))
     report.check('the dot moves between frames',
                  frames[0] != frames[1], repr(frames[:2]))
+    report.check('the orbit is three columns wide, and no wider',
+                 {len(f) for f in debug.ORBIT} == {3},
+                 ' '.join(repr(f) for f in debug.ORBIT))
+    report.check('it is a cycle: right along the floor, back along the ceiling',
+                 debug.ORBIT[0].strip() == '.' and debug.ORBIT[-1].strip() == "'"
+                 and [f.index(f.strip()) for f in debug.ORBIT] == [0, 1, 2, 2, 1, 0])
+
     report.check('every frame carries the board name',
                  all(debug.PROMPT in f for f in frames))
     report.check('it ends static, with nothing left animating',

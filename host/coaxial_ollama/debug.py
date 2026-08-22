@@ -85,7 +85,16 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
 # window this appears in is usually one of several, and 'dbg>' says which
 # program is running where the useful thing to know is which bench.
 PROMPT = 'Coaxial_63100'
-BOUNCE = 8          # how far the dot travels
+
+# The dot goes round: three steps right along the floor, up, three back along
+# the ceiling, down. Three columns wide and no more - the earlier eight-wide
+# bounce pushed the prompt across a quarter of the line for no extra meaning.
+#
+# The height is a baseline dot against a raised apostrophe. Braille would give
+# a true orbit inside a single cell and cannot be used here: this console
+# encodes cp1252 (see _printable), where every braille character becomes a
+# question mark.
+ORBIT = ('.  ', ' . ', '  .', "  '", " ' ", "'  ")
 TICK = 0.12         # seconds per step
 
 
@@ -115,17 +124,13 @@ def bouncing_prompt(out=None, prompt=PROMPT):
         out.flush()
         return
 
-    width = BOUNCE
-    position, step = 0, 1
+    width = len(ORBIT[0])
+    frame = 0
     try:
         while not msvcrt.kbhit():
-            trail = [' '] * width
-            trail[position] = '.'
-            out.write('\r%s %s>' % (prompt, ''.join(trail)))
+            out.write('\r%s %s>' % (prompt, ORBIT[frame % len(ORBIT)]))
             out.flush()
-            position += step
-            if position in (0, width - 1):
-                step = -step
+            frame += 1
             time.sleep(TICK)
     except (OSError, ValueError):
         pass
