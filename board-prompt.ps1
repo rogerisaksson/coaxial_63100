@@ -75,6 +75,19 @@
 .PARAMETER KeepAlive
     How long ollama holds the model in memory after the last turn.
 
+.PARAMETER Reserve
+    VRAM in GB to hold back for the desktop, overriding what capability.py works
+    out on its own. Raise it if the screens stutter while the model answers: on
+    a 16 GB card, 8 steps the choice down from a 14B to a 12B and leaves about
+    5.5 GB free with the desktop's own 2.6 GB already counted. It is also
+    settable once per machine, for every entry point, with the environment
+    variable COAXIAL_VRAM_RESERVE_GB.
+
+.PARAMETER Normal
+    Leave ollama at normal process priority. By default this script drops the
+    daemon to BelowNormal while it is being driven from here, because a bench PC
+    is also the machine you are reading the schematic on.
+
 .PARAMETER NumCtx
     Context window. It is passed to the preload as well as to the prompt, and
     that is not a detail: load the model at one context size and question it at
@@ -94,7 +107,9 @@ param(
     [switch]$Plain,
     [switch]$NewWindow,
     [string]$KeepAlive = '30m',
-    [int]$NumCtx = 8192
+    [int]$NumCtx = 8192,
+    [double]$Reserve = 0,
+    [switch]$Normal
 )
 
 $ErrorActionPreference = 'Continue'
@@ -136,7 +151,9 @@ function Get-Choice {
 
     Push-Location (Join-Path $Root 'host')
     try {
-        $json = (& python '-m' 'coaxial_ollama.capability' '--json' '--prefer' $Prefer) -join ''
+        $argv = @('-m', 'coaxial_ollama.capability', '--json', '--prefer', $Prefer)
+        if ($Reserve -gt 0) { $argv += @('--reserve-gb', [string]$Reserve) }
+        $json = (& python @argv) -join ''
     } catch {
         $json = ''
     } finally {
@@ -194,6 +211,13 @@ Say 'ok' 'ollama' $ollama.Source
 $tags = Get-Tags
 if ($null -eq $tags) {
     Say 'wait' 'ollama serve' 'nothing on 11434 - starting the daemon'
+    # One model, one context. Two of either is how a 16 GB card ends up asked
+    # for two copies of the weights at once - measured here as a 500 from the
+    # daemon, 'cudaMalloc failed', with nothing obviously wrong on either side.
+    # Only reachable when this script starts the daemon; an already-running one
+    # keeps the environment it was started with.
+    $env:OLLAMA_MAX_LOADED_MODELS = '1'
+    $env:OLLAMA_NUM_PARALLEL = '1'
     Start-Process -FilePath $ollama.Source -ArgumentList 'serve' -WindowStyle Hidden `
                   -ErrorAction SilentlyContinue
     $tags = Get-Tags -Tries 10
@@ -287,6 +311,30 @@ if ($NoBoard) {
     } else {
         Say 'warn' 'board' ("no $Port. Present: " + (($ports -join ', ') -replace '^$', 'none') +
                             '. Questions needing the board will fail.')
+    }
+}
+
+# ---- who gets the machine --------------------------------------------------
+
+if (-not $Normal) {
+    # BelowNormal on the daemon, and be honest about what that buys: it governs
+    # CPU scheduling, not the GPU's. With the model wholly on the card the work
+    # that this deprioritises is tokenisation, sampling and the serial I/O, not
+    # the matrix multiplies - so it helps the desktop stay responsive while a
+    # question is being prepared and answered, and does nothing about the card
+    # being busy. The other half of that problem is VRAM headroom: -Reserve.
+    $lowered = @()
+    foreach ($proc in (Get-Process -Name 'ollama*' -ErrorAction SilentlyContinue)) {
+        try {
+            $proc.PriorityClass = [Diagnostics.ProcessPriorityClass]::BelowNormal
+            $lowered += $proc.Name
+        } catch {
+            # A process started by another user, or already gone. Not worth a
+            # failure: the prompt below works either way.
+        }
+    }
+    if ($lowered.Count -gt 0) {
+        Say 'ok' 'priority' (($lowered | Sort-Object -Unique) -join ', ') 
     }
 }
 

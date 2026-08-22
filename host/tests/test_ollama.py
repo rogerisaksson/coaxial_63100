@@ -874,6 +874,34 @@ def test_capability(report):
     report.check('a quarter of the card is held back, floor 2 GB',
                  cap.reserve_for(16) == 4.0 and cap.reserve_for(4) == 2.0
                  and cap.reserve_for(0) == 0.0)
+
+    # And what the card already holds counts. Measured on this bench: a
+    # two-screen desktop was using 2.6 GB before anything of ours ran, so a
+    # flat quarter of a 16 GB card left it 1.4 GB to grow into - which is not
+    # an error, it is a stutter, which is worse because nobody can read it.
+    report.check('what the desktop already uses raises the reserve',
+                 cap.reserve_for(16, 2.6) == 2.6 + cap.HEADROOM_GB,
+                 '%.1f GB' % cap.reserve_for(16, 2.6))
+    report.check('an empty card still gets the flat reserve',
+                 cap.reserve_for(16, 0.1) == 4.0)
+    report.check('the reserve never exceeds the card',
+                 cap.reserve_for(8, 20) <= 8 + cap.HEADROOM_GB)
+
+    import os
+    os.environ[cap.RESERVE_ENV] = '8'
+    try:
+        report.check('a machine can say how much to hold back',
+                     cap.reserve_for(16, 2.6) == 8.0)
+        stingy = cap.choose(machine(32, 64, 16))
+        report.check('and that changes the model, not just the number',
+                     stingy.entry['gb'] <= 8.0, stingy.tag)
+        os.environ[cap.RESERVE_ENV] = 'nonsense'
+        report.check('an unreadable override falls back rather than crashing',
+                     cap.reserve_for(16, 2.6) == 2.6 + cap.HEADROOM_GB)
+    finally:
+        del os.environ[cap.RESERVE_ENV]
+    report.check('without the override the measurement decides again',
+                 cap.reserve_for(16, 2.6) == 2.6 + cap.HEADROOM_GB)
     fits = [e for e in cap.CATALOGUE if e['gb'] <= 16 - cap.reserve_for(16)]
     report.check('nothing recommended for a 16 GB card fills it',
                  all(e['gb'] < 16 for e in fits))

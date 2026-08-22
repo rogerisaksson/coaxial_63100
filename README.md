@@ -103,6 +103,7 @@ drivers as submodules — a zipball of the tag has none of the sources in it.
 | `-CubeMXInstaller PATH` | run an STM32CubeMX installer downloaded from st.com, instead of taking the 308 MB bundle |
 | `-Repository PATH` | where CubeMX keeps its packages, if yours is not the default |
 | `-Model TAG` | overrule the automatic choice with a tag of your own |
+| `-Reserve N` (board-prompt) | VRAM in GB to keep for the desktop; raise it if the screens stutter. `COAXIAL_VRAM_RESERVE_GB` sets it per machine |
 | `-Prefer speed\|capability` | `speed` fits the card whole; `capability` allows a bigger model to spill onto the CPU |
 | `-WingetToolchain` | cmake, ninja and Arm's gcc from winget instead of the ST bundles |
 | `-AllowScripts` | set the CurrentUser execution policy so `. .\env.ps1` works in a plain shell |

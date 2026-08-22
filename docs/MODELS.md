@@ -61,6 +61,54 @@ On a 16 GB card it is also unnecessary: the whole 12B fits in 7.8 GB and still
 leaves 8 GB free. So hybrid is what happens when nothing fits, not a target.
 `--prefer capability` opts into it deliberately and says what it costs.
 
+### Leaving the desktop somewhere to live
+
+The reserve is the VRAM the picker deliberately does not spend, and the default
+is the largest of three numbers: 2 GB, a quarter of the card, or **what the card
+is already holding plus 2 GB to grow into**. That third one is the one that
+matters on a workstation. Measured here with nothing of ours running:
+
+```
+card 16.0 GB, desktop alone 2.6 GB, 0 % utilisation
+```
+
+A flat quarter of the card would hold back 4.0 GB, of which the desktop already
+occupies 2.6 — leaving it 1.4 GB for a second 4K surface, a video that starts
+playing, a browser tab with a canvas in it. When that is not enough the driver
+evicts to satisfy the allocation, and what you see is not an error but a
+momentary hang. Counting what is already there gives 4.6 GB instead.
+
+That still is not much on a busy machine, so the number is settable:
+
+| | reserve | model | free with the desktop counted |
+|---|---|---|---|
+| default here | 4.6 GB | qwen2.5:14b, 9.7 GB | ~3.6 GB |
+| `-Reserve 8` | 8.0 GB | gemma4:12b, 7.8 GB | ~5.6 GB |
+| `-Reserve 11` | 11.0 GB | qwen2.5:7b, 4.7 GB | ~8.7 GB |
+
+`board-prompt -Reserve N` for one run; `COAXIAL_VRAM_RESERVE_GB` in the
+environment for a machine, once, honoured by every entry point. On a card of
+this size the step from 14B to 12B costs little — both were within half a degree
+of the board's own NTC reading, and 12B is the tag that checks the AFE before it
+answers.
+
+### Priority
+
+`board-prompt.ps1` drops the ollama processes to BelowNormal unless `-Normal`
+says otherwise, and starts the daemon with `OLLAMA_MAX_LOADED_MODELS=1` and
+`OLLAMA_NUM_PARALLEL=1` when it starts it at all.
+
+Be clear about what each of those buys. The priority is **CPU** scheduling: with
+the model wholly on the card it deprioritises tokenisation, sampling and the
+serial I/O, not the matrix multiplies, so it helps the desktop stay responsive
+around a question rather than during one. The single-model, single-context
+limits are about memory: two contexts is how a 16 GB card ends up asked for two
+copies of the weights, which was measured here as a 500 from the daemon reading
+`cudaMalloc failed` with nothing obviously wrong at either end.
+
+The lever that actually reduces GPU contention is the model's size, which is the
+table above.
+
 ### Threads
 
 Raising `num_thread` on 64 threads bought nothing and cost a little, CPU-only:

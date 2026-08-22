@@ -94,6 +94,14 @@ class Machine(object):
         self.notes = notes          # how each number was arrived at
 
     @property
+    def vram_used_gb(self):
+        """What is on the largest card already - the desktop, mostly."""
+        if not self.gpus:
+            return 0.0
+        largest = max(self.gpus, key=lambda g: g['vram_gb'])
+        return largest.get('used_gb', 0.0)
+
+    @property
     def vram_gb(self):
         """The largest single card. Ollama does not split one model across two
         by default, so the total across cards would be a number that flatters
@@ -105,8 +113,8 @@ class Machine(object):
     def as_dict(self):
         return {'cores': self.cores, 'threads': self.threads,
                 'ram_gb': self.ram_gb, 'gpus': self.gpus,
-                'vram_gb': self.vram_gb, 'system': self.system,
-                'notes': self.notes}
+                'vram_gb': self.vram_gb, 'vram_used_gb': self.vram_used_gb,
+                'system': self.system, 'notes': self.notes}
 
     def line(self):
         gpu = 'no GPU'
@@ -185,9 +193,18 @@ def _ram_gb():
 
 
 def _gpus_nvidia_smi():
+    """Cards, and what is already on them.
+
+    `memory.used` matters as much as the total. A card is not empty before the
+    model loads: measured on this bench, a two-screen Windows desktop with the
+    usual browser and editor open was holding 2.6 GB of a 16 GB card at 0 %
+    utilisation, before anything of ours ran. A reserve computed as a flat
+    fraction of the total quietly assumes that space is free, and the machine
+    pays for the assumption in compositor stutter rather than in an error.
+    """
     try:
         out = subprocess.check_output(
-            ['nvidia-smi', '--query-gpu=name,memory.total',
+            ['nvidia-smi', '--query-gpu=name,memory.total,memory.used',
              '--format=csv,noheader,nounits'],
             stderr=subprocess.DEVNULL, universal_newlines=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
@@ -195,14 +212,15 @@ def _gpus_nvidia_smi():
     found = []
     for line in out.strip().splitlines():
         parts = line.split(',')
-        if len(parts) != 2:
+        if len(parts) < 2:
             continue
         try:
-            mib = float(parts[1].strip())
+            total = float(parts[1].strip())
+            used = float(parts[2].strip()) if len(parts) > 2 else 0.0
         except ValueError:
             continue
-        found.append({'name': parts[0].strip(), 'vram_gb': mib / 1024.0,
-                      'via': 'nvidia-smi'})
+        found.append({'name': parts[0].strip(), 'vram_gb': total / 1024.0,
+                      'used_gb': used / 1024.0, 'via': 'nvidia-smi'})
     return found
 
 
@@ -270,16 +288,42 @@ def probe():
 
 # ---- choosing a model ------------------------------------------------------
 
-def reserve_for(vram_gb):
+# What the desktop is allowed to grow by, over what it is using right now: a
+# second 4K surface, a video that starts playing, a browser tab with a canvas
+# in it. Transient allocations are what the stutter is - the driver has to
+# evict something to satisfy them, and the something is the model.
+HEADROOM_GB = 2.0
+
+# One machine's desktop is not another's. A workstation driving two 4K screens
+# with a browser, an editor and a video call has a different transient appetite
+# than a headless bench PC, and no formula gets both right. COAXIAL_VRAM_RESERVE_GB
+# is how a machine says "hold back this much", once, for every entry point.
+RESERVE_ENV = 'COAXIAL_VRAM_RESERVE_GB'
+
+
+def reserve_for(vram_gb, used_gb=0.0):
     """VRAM this picks deliberately not to use.
 
-    A quarter of the card, never less than 2 GB. The desktop, the browser and
-    a 4K screen or two live in there, and a model that leaves nothing behind
-    makes the machine unpleasant long before it makes it fast.
+    Three numbers, whichever is largest: a quarter of the card, 2 GB, or what
+    the card is *already* holding plus room to grow. That third one is the one
+    that matters on a workstation - measured here, the desktop alone was using
+    2.6 GB, so a flat quarter of a 16 GB card left it 1.4 GB of slack for
+    everything it might do next, which is not enough and shows up as momentary
+    hangs rather than as an error anyone can read.
     """
     if vram_gb <= 0:
         return 0.0
-    return max(2.0, vram_gb * 0.25)
+    override = os.environ.get(RESERVE_ENV)
+    if override:
+        try:
+            return max(0.0, min(float(override), vram_gb))
+        except ValueError:
+            pass
+    # Clamped to the card. A reading where the card is already fuller than it
+    # is large is not a reason to print a reserve larger than the hardware; it
+    # is a reason for the budget to be zero, which sends the choice to the CPU
+    # on its own.
+    return min(vram_gb, max(2.0, vram_gb * 0.25, used_gb + HEADROOM_GB))
 
 
 def choose(machine, prefer='speed', reserve_gb=None, catalogue=None):
@@ -293,15 +337,16 @@ def choose(machine, prefer='speed', reserve_gb=None, catalogue=None):
     catalogue = catalogue or CATALOGUE
     vram = machine.vram_gb
     if reserve_gb is None:
-        reserve_gb = reserve_for(vram)
+        reserve_gb = reserve_for(vram, machine.vram_used_gb)
     budget = max(0.0, vram - reserve_gb)
 
     fits = [e for e in catalogue if e['gb'] <= budget and e['ram_gb'] <= machine.ram_gb]
     if fits:
         best = max(fits, key=lambda e: e['gb'])
-        why = ('%.0f GB card, %.1f GB held back for the desktop, so %.1f GB to '
-               'spend: %s fits whole and runs entirely on the GPU'
-               % (vram, reserve_gb, budget, best['tag']))
+        why = ('%.0f GB card with %.1f GB already on it, %.1f GB held back for '
+               'the desktop, so %.1f GB to spend: %s fits whole and runs '
+               'entirely on the GPU'
+               % (vram, machine.vram_used_gb, reserve_gb, budget, best['tag']))
         choice = Choice(best['tag'], {}, why, entry=best)
         if prefer != 'capability':
             return choice
@@ -367,10 +412,10 @@ def _hybrid(entry, budget, machine, vram, reserve_gb, warnings):
     return Choice(entry['tag'], {'num_gpu': layers}, why, warnings, entry)
 
 
-def report(machine=None, prefer='speed'):
+def report(machine=None, prefer='speed', reserve_gb=None):
     """The whole thing as text, for a human at a bench."""
     machine = machine or probe()
-    choice = choose(machine, prefer=prefer)
+    choice = choose(machine, prefer=prefer, reserve_gb=reserve_gb)
     lines = ['machine: ' + machine.line(),
              '         (%s)' % ', '.join('%s via %s' % (k, v)
                                          for k, v in sorted(machine.notes.items())),
@@ -409,18 +454,23 @@ def main(argv=None):
                         help='speed: the largest model that fits the card '
                              'whole. capability: allow a bigger one to spill '
                              'onto the CPU, measured ~5x slower per token.')
+    parser.add_argument('--reserve-gb', type=float, default=None,
+                        help='VRAM to hold back for the desktop. Overrides both'
+                             ' the measured default and %s. Raise it if the'
+                             ' desktop stutters while the model is answering.'
+                             % RESERVE_ENV)
     parser.add_argument('--json', action='store_true',
                         help='machine readable, for setup.ps1')
     args = parser.parse_args(argv)
 
     machine = probe()
     if args.json:
-        choice = choose(machine, prefer=args.prefer)
+        choice = choose(machine, prefer=args.prefer, reserve_gb=args.reserve_gb)
         out = choice.as_dict()
         out['machine'] = machine.as_dict()
         print(json.dumps(out, indent=2, sort_keys=True))
         return 0
-    print(report(machine, prefer=args.prefer))
+    print(report(machine, prefer=args.prefer, reserve_gb=args.reserve_gb))
     return 0
 
 
