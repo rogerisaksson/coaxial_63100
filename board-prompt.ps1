@@ -2,9 +2,9 @@
 .SYNOPSIS
     One window with the model and the board in it.
 
-        . .\env.ps1 ; .\bench.ps1
-        .\bench.ps1 -NewWindow          the same, in its own window
-        .\bench.ps1 -Plain              plain ollama chat, no board, no tools
+        . .\env.ps1 ; .\board-prompt.ps1
+        .\board-prompt.ps1 -NewWindow          the same, in its own window
+        .\board-prompt.ps1 -Plain              plain ollama chat, no board, no tools
 
 .DESCRIPTION
     You asked for a terminal that talks to gemma. `ollama run gemma4:12b` is
@@ -34,8 +34,20 @@
     still comes from the board itself.
 
 .PARAMETER Model
-    Ollama tag. Local only - the Python refuses a :cloud tag and a daemon on
+    Ollama tag. Left alone, this machine decides: cores, RAM and the size of the
+    graphics card are measured and the largest tools-capable model that fits the
+    card whole is chosen, then pulled if it is not here yet. See
+    host/coaxial_ollama/capability.py, or ask it directly with
+
+        python -m coaxial_ollama.capability
+
+    Local only either way - the Python refuses a :cloud tag and a daemon on
     another machine unless you pass --allow-remote to it yourself.
+
+.PARAMETER Prefer
+    What the automatic choice optimises for: 'speed' takes the largest model
+    that fits the card whole, 'capability' allows a bigger one to spill onto the
+    CPU, which measured about five times slower per token.
 
 .PARAMETER Port
     The board's VCP. COM4 on this bench.
@@ -62,10 +74,18 @@
 
 .PARAMETER KeepAlive
     How long ollama holds the model in memory after the last turn.
+
+.PARAMETER NumCtx
+    Context window. It is passed to the preload as well as to the prompt, and
+    that is not a detail: load the model at one context size and question it at
+    another and the daemon reloads it, so the wait this script exists to make
+    visible happens again inside your first question.
 #>
 [CmdletBinding()]
 param(
-    [string]$Model = 'gemma4:12b',
+    [string]$Model,
+    [ValidateSet('speed', 'capability')]
+    [string]$Prefer = 'speed',
     [string]$Port = 'COM4',
     [ValidateSet('read', 'code', 'pins', 'all', 'none')]
     [string]$Tools = 'code',
@@ -73,7 +93,8 @@ param(
     [switch]$NoBoard,
     [switch]$Plain,
     [switch]$NewWindow,
-    [string]$KeepAlive = '30m'
+    [string]$KeepAlive = '30m',
+    [int]$NumCtx = 8192
 )
 
 $ErrorActionPreference = 'Continue'
@@ -102,6 +123,39 @@ function Get-Tags {
         }
     }
     return $null
+}
+
+function Get-Choice {
+    <#  Which model this machine should run, and how much of it fits the card.
+
+        capability.py owns the answer - the same answer setup.ps1 and
+        `dbg -m auto` get - so a bench does not end up with three opinions
+        about which tag is right. A machine where the probe fails is not a
+        reason to stop: fall back to the tag this bench was built on and say
+        so.  #>
+
+    Push-Location (Join-Path $Root 'host')
+    try {
+        $json = (& python '-m' 'coaxial_ollama.capability' '--json' '--prefer' $Prefer) -join ''
+    } catch {
+        $json = ''
+    } finally {
+        Pop-Location
+    }
+    if ([string]::IsNullOrWhiteSpace($json)) {
+        Say 'warn' 'model choice' 'could not measure this machine - falling back'
+        return @{ model = 'gemma4:12b'; num_gpu = $null; why = 'fallback' }
+    }
+    try {
+        $picked = $json | ConvertFrom-Json
+    } catch {
+        Say 'warn' 'model choice' 'capability.py said something unreadable'
+        return @{ model = 'gemma4:12b'; num_gpu = $null; why = 'fallback' }
+    }
+    return @{ model = $picked.model
+              num_gpu = $picked.options.num_gpu
+              why = $picked.why
+              machine = $picked.machine }
 }
 
 # ---- the new window, if that is what was asked -----------------------------
@@ -157,17 +211,49 @@ if ($null -ne $tags.models) {
     $names = $tags.models | ForEach-Object { $_.name } |
              Where-Object { ($_ -split ':')[-1] -ne 'cloud' }
 }
+# Nobody said which model, so the machine decides - and the same measurement
+# decides how many layers go on the card.
+$layers = $null
+if (-not $Model) {
+    $choice = Get-Choice
+    $Model = $choice.model
+    $layers = $choice.num_gpu
+    if ($choice.machine) {
+        Say 'ok' 'this machine' ('{0} cores, {1:n0} GB RAM, {2:n0} GB VRAM' `
+            -f $choice.machine.cores, $choice.machine.ram_gb, $choice.machine.vram_gb)
+    }
+    Say 'ok' 'model choice' ('{0}  ({1})' -f $Model, $choice.why)
+}
+
 $stem = ($Model -split ':')[0]
 $resolved = $names | Where-Object { $_ -eq $Model } | Select-Object -First 1
 if ($null -eq $resolved) {
     $resolved = $names | Where-Object { ($_ -split ':')[0] -eq $stem } | Select-Object -First 1
 }
 if ($null -eq $resolved) {
-    Say 'fail' 'model' ("$Model is not pulled. Have: " + (($names -join ', ')))
+    # Pull it rather than printing the command and quitting. This script exists
+    # so a question can be asked without a detour, and "run this and come back"
+    # is a detour. Several GB the first time on a given machine, once.
+    Say 'wait' 'model' ("$Model is not here yet - pulling it")
     Write-Host ''
-    Write-Host "    ollama pull $Model" -ForegroundColor Yellow
+    & $ollama.Source pull $Model
     Write-Host ''
-    exit 1
+    if ($LASTEXITCODE -ne 0) {
+        Say 'fail' 'model' ("ollama pull $Model exited $LASTEXITCODE")
+        exit 1
+    }
+    $tags = Get-Tags -Tries 5
+    $names = @()
+    if ($null -ne $tags -and $null -ne $tags.models) {
+        $names = $tags.models | ForEach-Object { $_.name } |
+                 Where-Object { ($_ -split ':')[-1] -ne 'cloud' }
+    }
+    $resolved = $names | Where-Object { ($_ -split ':')[0] -eq $stem } | Select-Object -First 1
+    if ($null -eq $resolved) {
+        Say 'fail' 'model' ("pulled, but $Model is still not in the list")
+        exit 1
+    }
+    Say 'ok' 'model' ("pulled $resolved")
 }
 $Model = $resolved
 
@@ -175,7 +261,14 @@ $Model = $resolved
 # the 8 GB wait is visible and timed, instead of hiding inside question one.
 $clock = [Diagnostics.Stopwatch]::StartNew()
 try {
-    $body = @{ model = $Model; prompt = ''; stream = $false; keep_alive = $KeepAlive } |
+    # options, and not just the tag. Without num_ctx the daemon loads the
+    # model's own default context - 32k on qwen2.5, 128k on llama3.1 - and
+    # answers 500 trying to allocate the KV cache for it. Measured here, twice:
+    # once in Python (see Ollama.preload) and once from this script.
+    $options = @{ num_ctx = $NumCtx; temperature = 0.0 }
+    if ($null -ne $layers) { $options['num_gpu'] = $layers }
+    $body = @{ model = $Model; prompt = ''; stream = $false;
+               keep_alive = $KeepAlive; options = $options } |
             ConvertTo-Json
     Invoke-RestMethod -Uri ($Api + '/api/generate') -Method Post -Body $body `
                       -ContentType 'application/json' -TimeoutSec 600 | Out-Null
@@ -209,7 +302,11 @@ try {
         return
     }
 
-    $call = @('dbg.py', '-m', $Model, '-t', $Tools, '--port', $Port)
+    $call = @('dbg.py', '-m', $Model, '-t', $Tools, '--port', $Port,
+              '--num-ctx', [string]$NumCtx, '--keep-alive', $KeepAlive)
+    # A split model needs its layer count on every call, or the daemon reloads
+    # it whole on the first question and the preflight above bought nothing.
+    if ($null -ne $layers) { $call += @('--num-gpu', [string]$layers) }
     if ($NoBoard) { $call += '--no-board' }
 
     if ($Ask) {

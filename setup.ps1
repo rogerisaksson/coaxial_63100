@@ -1252,14 +1252,14 @@ if ($script:Todo.Count -eq 0) {
 
 Write-Host ''
 Write-Host '  every shell:' -ForegroundColor White
-Write-Host '    . .\env.ps1                 tools on PATH, plus bench/dbg/board/cbuild/cflash/cubemx'
+Write-Host '    . .\env.ps1                 tools on PATH, plus board-prompt/dbg/board/cbuild/cflash/cubemx'
 Write-Host ''
 Write-Host '  then:' -ForegroundColor White
 Write-Host '    cbuild                      build, zero warnings expected'
 Write-Host '    cflash                      flash over SWD and start'
 Write-Host '    board all                   measure, no model involved'
 Write-Host '    dbg "why is the NTC 25.00?" ask the local model, cheaply'
-Write-Host '    bench                       a prompt with the model and the board in it'
+Write-Host '    board-prompt                a prompt with the model and the board in it'
 Write-Host '    cubemx                      open the .ioc in STM32CubeMX'
 Write-Host ''
 if ($Check) {

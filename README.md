@@ -122,7 +122,7 @@ window it was made in. It also defines the six commands the project is driven
 with:
 
 ```
-bench    the model, the board and a prompt in one window
+board-prompt  the model, the board and a prompt in one window
 dbg      one question to the local model            (host/dbg.py)
 board    the plain CLI, no model                    (python -m coaxial)
 cubemx   open coaxial_63100.ioc in STM32CubeMX
@@ -161,14 +161,17 @@ line, beside the calibrated instruments.
 ### 5. The model in the loop
 
 ```powershell
-bench                       # daemon started, model preloaded, board checked, prompt open
-bench -Ask "read the NTC and give me the temperature"
-bench -Plain                # a bare ollama chat: no tools, no board
+board-prompt                # daemon started, model preloaded, board checked, prompt open
+board-prompt -Ask "read the NTC and give me the temperature"
+board-prompt -Plain         # a bare ollama chat: no tools, no board
 ```
 
-`bench.ps1` is preflight plus `host/dbg.py --repl`: the local model with the
-board's tools, `/py` against a live session and `/sh` for a build, both of which
-cost no tokens, and a token meter on every turn.
+`board-prompt.ps1` is preflight plus `host/dbg.py --repl`: the local model with
+the board's tools, `/py` against a live session and `/sh` for a build, both of
+which cost no tokens, and a token meter on every turn. It measures the machine,
+picks the model that fits it, **pulls that model if it is not here yet**, loads
+it before the prompt opens and says which COM port answered — so "the model is
+not installed" is never the reason a question goes unanswered.
 
 The model can read this repository's documents while it works — `docs()` for the
 index, `docs(find='25.00')` to search, `docs(doc='HARDWARE', section=...)` for

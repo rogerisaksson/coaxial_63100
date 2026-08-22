@@ -35,7 +35,14 @@ has somewhere to live. Only tools-capable tags are candidates: everything here
 reaches the board through tool calls, and a tag without them describes a
 measurement instead of taking one.
 
-`setup.ps1` pulls whatever the picker chooses. `-Model TAG` overrules it.
+`setup.ps1` pulls whatever the picker chooses, and so does `board-prompt.ps1` on
+a machine where the tag is missing — it asks the picker, pulls, loads and only
+then opens the prompt. `-Model TAG` overrules it everywhere.
+
+Anything driving this from outside — including Claude Code, see the routing
+table in [../CLAUDE.md](../CLAUDE.md) — should reach for `board-prompt -Ask` or
+`dbg -m auto -q` rather than reason about the board from memory. The local model
+is free per token and standing next to the hardware; the expensive one is not.
 
 ### Layers on the GPU, and why hybrid is a fallback
 

@@ -53,7 +53,7 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes     # install the lot:
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -FirmwarePackage X.zip
                                            # STM32Cube FW_H7 into CubeMX's repository.
                                            # Only CubeMX needs it; Drivers/ is in git.
-. .\env.ps1                                # tools on PATH: bench, dbg, board, cbuild,
+. .\env.ps1                                # tools on PATH: board-prompt, dbg, board,
                                            # cflash, cubemx
 ```
 
@@ -73,6 +73,8 @@ python -m coaxial_mcp --port COM4          # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml   # local model drives the bench
 python -m coaxial_ollama.capability        # which local model this machine should run
 python dbg.py -m auto "..."                # that model, picked from cores/RAM/VRAM
+python dbg.py -m auto -q "read the NTC"    # ask the local model instead of
+                                           # reasoning: it is free and it measures
 python dbg.py "why does the NTC read exactly 25.00?"   # cheap one-off question
 python dbg.py --repl                       # prompt loop; /py and /sh cost no tokens
 ```
@@ -88,6 +90,36 @@ newest of each and puts them on PATH for one shell; `setup.ps1 -Check` says
 which are absent. The board's VCP is **COM4**; the
 ST-Link is an STLINK-V3SET.
 
+## Ask the board, do not reason about it
+
+There is a local model on this machine with the board's eleven tools wired to
+it. It costs nothing per token and it is standing next to the hardware. Use it
+instead of spending context on questions it can answer by measuring:
+
+```powershell
+board-prompt -Ask "read the NTC and give me the temperature"
+```
+
+Or, from `host/`, the same thing one layer down: `python dbg.py -m auto -q "..."`.
+Both pick the model this machine can run and **pull it if it is not here yet**,
+so "the model is not installed" is not a reason to answer from memory instead.
+
+| Question | Who answers |
+|---|---|
+| What does the board read right now? Is the AFE on? What is the temperature, the DC link, the frame counters? | **the local model** — one `-Ask`, then relay the number |
+| Is this channel behaving oddly? What does `self_test` say? | **the local model**, then read `docs/FINDINGS.md` before investigating |
+| Why is this C function written this way? Should this go in `Board/` or `Comms/`? Is this a protocol MAJOR? | **you** — it is bad at code and design, and FINDINGS records it inventing hardware constants |
+| What is the wire format of command 0x41? | **you**, from `docs/PROTOCOL.md` |
+
+Relay what it measured; do not re-derive it, and do not decorate it with a
+verdict. If it is wrong about the hardware, that is a finding worth writing
+down — see `docs/MODELS.md`, which is the chapter about what it is allowed to
+conclude and which failure modes have already been measured.
+
+The one thing to keep in mind: it is a **dumb-slave interface to a dumb slave**.
+It reports; it does not judge. Invariant 10 applies to it exactly as it applies
+to the firmware.
+
 ## Layout
 
 ```
@@ -100,7 +132,7 @@ host/        Python: coaxial/ library, coaxial_mcp/ MCP server,
              coaxial_ollama/ model-driven runner and dbg.py, testline/,
              tests, tools
 setup.ps1    one-time environment setup; -Check changes nothing
-env.ps1      per-shell PATH and the bench/dbg/board/cbuild/cflash/cubemx commands
+env.ps1      per-shell PATH and the board-prompt/dbg/board/cbuild/cflash/cubemx commands
 docs/        this documentation
 ```
 

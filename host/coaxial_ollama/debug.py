@@ -312,6 +312,9 @@ def parse(argv):
                         help="how long ollama holds the model, and with it the"
                              " cached prompt prefix: '30m', '1h', 0 to unload"
                              " between questions")
+    parser.add_argument('--num-gpu', type=int, default=None,
+                        help='layers on the GPU; the rest run on the CPU.'
+                             ' Set for you by -m auto and by board-prompt.ps1')
     parser.add_argument('--num-ctx', type=int, default=8192)
     parser.add_argument('--keep', type=int, default=6,
                         help='recent messages sent whole; older ones are stubbed')
@@ -353,12 +356,13 @@ def build(args):
     from .client import Ollama
     from .tools import Toolbox
 
-    tag, gpu_layers = args.model, None
+    tag, gpu_layers = args.model, args.num_gpu
     if args.model == 'auto':
         from .capability import choose, probe
         picked = choose(probe())
         tag = picked.tag
-        gpu_layers = picked.options.get('num_gpu')
+        if gpu_layers is None:
+            gpu_layers = picked.options.get('num_gpu')
         if not args.quiet:
             print('model: %s  (%s)' % (tag, picked.why))
 

@@ -25,7 +25,7 @@
 
     It also defines the six commands this project is actually driven with:
 
-        bench    the model, the board and a prompt            (bench.ps1)
+        board-prompt  the model, the board and a prompt     (board-prompt.ps1)
         dbg      ask the local model about the board          (host/dbg.py)
         board    the plain CLI, no model                      (python -m coaxial)
         cbuild   build the firmware, zero warnings expected
@@ -157,10 +157,10 @@ function cubemx {
     Start-Process -FilePath $found -ArgumentList (Join-Path $script:CoaxialRoot $Ioc)
 }
 
-function bench {
+function board-prompt {
     <# The prompt loop, with the daemon started and the model already loaded.
-       bench.ps1 does the preflight; this is just the short way to say it. #>
-    & (Join-Path $script:CoaxialRoot 'bench.ps1') @args
+       board-prompt.ps1 does the preflight; this is the short way to say it. #>
+    & (Join-Path $script:CoaxialRoot 'board-prompt.ps1') @args
 }
 
 function dbg {
@@ -200,5 +200,5 @@ if (-not $Quiet) {
         Write-Host ("absent: " + ($missing -join ', ') + "  -> run .\setup.ps1") `
             -ForegroundColor Yellow
     }
-    Write-Host 'commands: bench, dbg, board, cbuild, cflash, cubemx' -ForegroundColor DarkGray
+    Write-Host 'commands: board-prompt, dbg, board, cbuild, cflash, cubemx' -ForegroundColor DarkGray
 }
