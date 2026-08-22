@@ -428,6 +428,65 @@ def test_scope_repairs(report):
                  scope.run('board.afe.enable()').strip() == 'True')
 
 
+def test_prompt(report):
+    """The prompt animates while it waits and stops the moment you type."""
+    from coaxial_ollama import debug
+
+    class Tty(io.StringIO):
+        def isatty(self):
+            return True
+
+    class Keyboard:
+        """kbhit() is False for a few polls, then True - somebody typed."""
+        def __init__(self, quiet):
+            self.left = quiet
+
+        def kbhit(self):
+            if self.left <= 0:
+                return True
+            self.left -= 1
+            return False
+
+    real_import, real_sleep, real_stdin = __import__, debug.time.sleep, sys.stdin
+
+    def fake_import(name, *args, **kw):
+        if name == 'msvcrt':
+            return keyboard
+        return real_import(name, *args, **kw)
+
+    keyboard = Keyboard(6)
+    screen = Tty()
+    builtins = sys.modules['builtins']
+    sys.stdin = Tty()
+    builtins.__import__ = fake_import
+    debug.time.sleep = lambda _seconds: None
+    try:
+        debug.bouncing_prompt(out=screen)
+    finally:
+        builtins.__import__ = real_import
+        debug.time.sleep = real_sleep
+        sys.stdin = real_stdin
+
+    drawn = screen.getvalue()
+    frames = [f for f in drawn.split('\r') if f]
+    report.check('the prompt animates while it waits', len(frames) >= 6,
+                 '%d frames' % len(frames))
+    report.check('the dot moves between frames',
+                 frames[0] != frames[1], repr(frames[:2]))
+    report.check('every frame carries the board name',
+                 all(debug.PROMPT in f for f in frames))
+    report.check('it ends static, with nothing left animating',
+                 frames[-1].strip().endswith('>')
+                 and '.' not in frames[-1], repr(frames[-1]))
+
+    # A pipe has no console to poll and no eye to catch: one static prompt.
+    quiet = io.StringIO()
+    debug.bouncing_prompt(out=quiet)
+    report.check('a redirected prompt is written once, static',
+                 quiet.getvalue().count(debug.PROMPT) == 1
+                 and '\r' not in quiet.getvalue(), repr(quiet.getvalue()))
+
+
 def test_shell(report):
     shell = Shell(['python'], timeout=60)
 
@@ -1228,7 +1287,7 @@ def main():
     report = Report()
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
-                 test_scope_repairs, test_policy, test_transcript,
+                 test_scope_repairs, test_prompt, test_policy, test_transcript,
                  test_debug, test_cli,
                  test_local_only, test_keep_alive, test_coerce,
                  test_capability, test_docs):

@@ -116,6 +116,7 @@ class Ollama:
         self.fmt = fmt
         self.timeout = timeout
         self.calls = 0
+        self.truncated = False
         self.eval_tokens = 0
         self.prompt_tokens = 0
 
@@ -206,6 +207,10 @@ class Ollama:
         self.calls += 1
         self.prompt_tokens += reply.get('prompt_eval_count', 0)
         self.eval_tokens += reply.get('eval_count', 0)
+        # 'length' means num_predict cut the answer off mid-sentence. The
+        # caller has to know: a table that stops in the middle of a row looks
+        # like a complete answer to everything except a reader who counts rows.
+        self.truncated = reply.get('done_reason') == 'length'
 
         message = reply.get('message')
         if not isinstance(message, dict):

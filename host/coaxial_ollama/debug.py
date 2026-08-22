@@ -31,6 +31,7 @@ is a budget nobody keeps.
 import json
 import re
 import sys
+import time
 
 sys.path.insert(0, __file__.rsplit('coaxial_ollama', 1)[0])
 
@@ -83,7 +84,57 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
 # What the prompt loop shows. The board's name rather than the script's: the
 # window this appears in is usually one of several, and 'dbg>' says which
 # program is running where the useful thing to know is which bench.
-PROMPT = 'Coaxial_63100> '
+PROMPT = 'Coaxial_63100'
+BOUNCE = 8          # how far the dot travels
+TICK = 0.12         # seconds per step
+
+
+def bouncing_prompt(out=None, prompt=PROMPT):
+    """Draw the prompt with a dot that walks back and forth, until a key.
+
+    Why bother: this prompt sits in the same docked panel as a PowerShell one,
+    and two terminals with a `>` in them look identical at a glance. A moving
+    dot says which window is waiting for a question and which is waiting for a
+    command, without a banner or a colour scheme to remember.
+
+    It stops at the first keypress and redraws the line static, so nothing is
+    animating while there is text on it - an animation that repaints under
+    typed characters is how a prompt eats an argument. Where there is no
+    console to poll (piped input, no msvcrt, output redirected) it prints the
+    static prompt once and returns, which is what a script wants anyway.
+    """
+    out = out or sys.stdout
+    static = '%s >' % prompt
+
+    try:
+        import msvcrt
+    except ImportError:
+        msvcrt = None
+    if msvcrt is None or not sys.stdin.isatty() or not out.isatty():
+        out.write(static + ' ')
+        out.flush()
+        return
+
+    width = BOUNCE
+    position, step = 0, 1
+    try:
+        while not msvcrt.kbhit():
+            trail = [' '] * width
+            trail[position] = '.'
+            out.write('\r%s %s>' % (prompt, ''.join(trail)))
+            out.flush()
+            position += step
+            if position in (0, width - 1):
+                step = -step
+            time.sleep(TICK)
+    except (OSError, ValueError):
+        pass
+    # Static for the typing: same text every time, so what the user sees while
+    # they type is what they would have seen without any of this.
+    out.write('\r%s%s ' % (static, ' ' * (width + 2)))
+    out.write('\r%s ' % static)
+    out.flush()
+
 
 KEEP_ALIVE_REPL = '30m'
 KEEP_ALIVE_ONCE = '2m'
@@ -293,6 +344,13 @@ class Chat:
                                      'name': name,
                                      'content': '%s: %s' % (name, result)})
 
+        # An answer that hit the token cap stops mid-sentence, and a table that
+        # stops mid-row reads as complete to everyone except a reader counting
+        # rows. Say so rather than letting the cap look like the end.
+        if getattr(self.client, 'truncated', False) and answer:
+            answer += ('%s[cut off at --words %s. Ask again with more, or ask '
+                       'for fewer channels.]'
+                       % (chr(10), self.client.options.get('num_predict', '?')))
         return answer
 
     # ---- the parts that cost nothing ---------------------------------------
@@ -514,7 +572,8 @@ def repl(chat):
         print('(reading commands from stdin)')
     while True:
         try:
-            line = input(PROMPT).strip()
+            bouncing_prompt()
+            line = input().strip()
         except (EOFError, KeyboardInterrupt):
             print()
             break

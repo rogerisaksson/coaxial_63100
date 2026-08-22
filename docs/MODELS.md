@@ -150,6 +150,25 @@ Decode is bandwidth-bound, not core-bound, and filling both SMT siblings of
 every core makes it worse. Nothing in this repository sets `num_thread`; the
 daemon's own choice beat everything tried against it.
 
+### The prompt, and what stops an answer short
+
+Two things a reader of a transcript will notice before anything else.
+
+The prompt animates while it waits — a dot walking back and forth beside the
+board's name — and goes static the moment a key is pressed. It sits in the same
+docked panel as a PowerShell prompt, and two terminals with a `>` in them look
+identical at a glance; a moving dot says which one is waiting for a question
+without a banner or a colour to remember. Nothing animates while there is text
+on the line, because an animation repainting under typed characters is how a
+prompt eats an argument. Redirected output gets one static prompt and no
+animation at all.
+
+And an answer that hits `--words` now says so. Measured from the prompt: a
+seven-channel table stopped mid-row at exactly 180 generated tokens, which
+reads as a complete answer to everyone except a reader counting rows. The reply
+carries `done_reason`, so a truncated answer is marked *[cut off at --words
+180]* rather than quietly ending.
+
 ### The language of the answer
 
 The bench prompt is English and the answer follows **the question**, not the

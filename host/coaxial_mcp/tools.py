@@ -285,6 +285,12 @@ def _resolve(session, wanted):
     """
     wanted = _names(wanted)
     _, _, channels = session.info()
+
+    # The schema says "omit for all", so a model that wants everything writes
+    # ch=['all'] instead - which is the same request in the words the schema
+    # used. Seen from the prompt, costing a turn.
+    if len(wanted) == 1 and _key(wanted[0]) in ('all', 'every', 'everything'):
+        return list(range(len(channels)))
     by_name = {_key(render.short(c['signal'], c['index'])): c['index']
                for c in channels}
 
