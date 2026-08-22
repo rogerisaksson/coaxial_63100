@@ -29,21 +29,21 @@ And it prints what each turn cost, in and out, because a budget nobody can see
 is a budget nobody keeps.
 """
 import json
+import re
 import sys
 
 sys.path.insert(0, __file__.rsplit('coaxial_ollama', 1)[0])
 
 from coaxial.errors import RigError                  # noqa: E402
 
+from . import language
 from . import tools as toolmod                       # noqa: E402
 from .sandbox import Scope, Shell, clip              # noqa: E402
 
 # Deliberately terse, and every line of it earns its place. No restating the
 # protocol, no channel map - board_info carries that, once, when asked.
 SYSTEM = """You debug a coaxial BLDC inverter test board over a serial link.
-Use tools; do not guess. Answer in one or two sentences, no preamble, in the
-language the question was asked in. Units and channel names stay as the board
-prints them.
+Use tools; do not guess. Answer in one or two sentences, no preamble.
 The front end switch (afe_power) also powers the ADC reference: with it off
 every channel reads mid-scale and the NTC reads exactly 25.00 C, which is not a
 measurement. Phase channels sit behind unknown gain, so pin volts is as far as
@@ -89,6 +89,42 @@ def keep_alive_for(args):
     if args.keep_alive is not None:
         return args.keep_alive
     return KEEP_ALIVE_REPL if args.repl else KEEP_ALIVE_ONCE
+
+
+TOOL_TAG = re.compile(r'</?tool_call>', re.I)
+CALL_JSON = re.compile(r'\{.*?"name"\s*:.*?\}\s*\}?', re.S)
+
+
+def _salvage_call(text):
+    """A tool call the model wrote as text, and what is left of the text.
+
+    Deliberately narrow. It fires only when the content is *nothing but* a
+    tool-call shape - tags, whitespace and one JSON object carrying `name` -
+    because a legitimate answer may quote JSON and turning that into a board
+    command would be far worse than printing it. Returns (call, remaining
+    text): no call means the text was an answer after all.
+    """
+    stripped = TOOL_TAG.sub('', text).strip()
+    if '"name"' not in stripped:
+        # No call in it, but a bare `</tool_call>` is not an answer either:
+        # hand back what is left once the tag is gone, which may be nothing.
+        return None, stripped if stripped != text.strip() else text
+
+    match = CALL_JSON.search(stripped)
+    if not match:
+        return None, text
+    if len(stripped) - len(match.group(0)) > 8:
+        # Prose around it: an answer that mentions a call, not a call.
+        return None, text
+    try:
+        parsed = json.loads(match.group(0))
+    except ValueError:
+        return None, text
+    name = parsed.get('name')
+    if not name:
+        return None, text
+    return ({'function': {'name': name,
+                          'arguments': parsed.get('arguments') or {}}}, '')
 
 
 def _printable(stream):
@@ -166,7 +202,22 @@ class Chat:
         head = self.history[:-self.keep] if self.keep else self.history
         tail = self.history[-self.keep:] if self.keep else []
 
-        sent = [{'role': 'system', 'content': SYSTEM}]
+        # The language line is built per turn from the last thing the user
+        # actually typed, rather than asked of the model. See language.py: told
+        # to work out the language itself, qwen2.5:14b answered a European
+        # question in Chinese, Japanese and Thai. Naming it removes the step
+        # that was going wrong.
+        #
+        # It changes only when the user changes language, so the cached prefix
+        # survives an ordinary conversation and pays a reload exactly when the
+        # conversation genuinely switched.
+        asked = ''
+        for message in reversed(self.history):
+            if message['role'] == 'user':
+                asked = message.get('content') or ''
+                break
+        sent = [{'role': 'system',
+                 'content': SYSTEM + '\n' + language.instruction(asked)}]
         for message in head:
             content = (message.get('content') or '').strip()
             if message['role'] == 'tool':
@@ -203,9 +254,26 @@ class Chat:
                         after['eval_tokens'] - before['eval_tokens'])
 
             message.pop('thinking', None)
-            self.history.append(message)
             calls = message.get('tool_calls') or []
             answer = (message.get('content') or '').strip()
+
+            # A tool call written as prose is still a tool call. qwen2.5 emits
+            # one as text often enough to matter - measured here, "vad ar
+            # temperaturen" came back as the literal string
+            #
+            #     {"name": "docs", "arguments": {"find": "temperature"}}
+            #     </tool_call>
+            #
+            # with no tool_calls field, which this loop then printed as the
+            # answer. The model was right about what to do; the shape was
+            # wrong. Recovering it costs a JSON parse.
+            if not calls:
+                salvaged, answer = _salvage_call(answer)
+                if salvaged:
+                    calls = [salvaged]
+                    message = dict(message, content='', tool_calls=calls)
+
+            self.history.append(message)
             if not calls:
                 break
 

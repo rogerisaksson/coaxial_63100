@@ -151,6 +151,27 @@ names stay as the board prints them — `NTC`, `DCbus`, `V`, `C` — because tho
 are what appears in `board_info`, in the CSVs and in these documents, and a
 translated channel name is a channel name nobody can grep for.
 
+**The language is decided here, not by the model.** The first attempt told the
+model to "answer in the language the question was asked in", which asks it to
+do two things: work out what language that was, and then answer. The first is
+where it drifts — reported on this bench with `qwen2.5:14b`, a model whose
+training leans heavily Chinese, answering European questions in Chinese,
+Japanese and Thai.
+
+`host/coaxial_ollama/language.py` decides instead, and the turn's system message
+says it plainly: *The question is in Swedish. Answer in Swedish and in no other
+language.* Two stages, both small on purpose — script ranges settle Chinese,
+Japanese, Korean, Thai, Greek, Cyrillic, Hebrew and Arabic outright, and a short
+stop-word count separates the Latin ones. It abstains when the winner is not
+strictly ahead: Danish and Norwegian score identically on most of the list, and
+telling a Dane to answer in Norwegian is worse than saying nothing. An
+abstention falls back to the old instruction, where the model mirroring the
+question is usually right.
+
+The line is rebuilt per turn from the last thing the user typed, so switching
+language mid-conversation works and costs one cache miss — exactly when the
+conversation genuinely switched.
+
 One consequence worth knowing, because it is a Windows console and not a
 choice: standard output encodes with the locale codepage, cp1252 on this bench.
 Swedish and German are inside it and render correctly. A Polish `ł`, an ohm sign

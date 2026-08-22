@@ -579,7 +579,9 @@ def test_debug(report):
     sent = session.trim()
     blob = json.dumps(sent)
     report.check('the system prompt leads every turn',
-                 sent[0]['role'] == 'system' and sent[0]['content'] == debug.SYSTEM)
+                 sent[0]['role'] == 'system'
+                 and sent[0]['content'].startswith(debug.SYSTEM),
+                 sent[0]['content'][-60:].replace('\n', ' '))
     report.check('an old tool result is stubbed to its first line',
                  '128 smp' in sent[2]['content'] and 'xxxx' not in blob,
                  sent[2]['content'][:44])
@@ -1098,8 +1100,26 @@ def test_docs(report):
 
     # The bench prompt has to point at the tool, or nothing above matters.
     from coaxial_ollama import debug, runner
-    report.check('the answer follows the question, not the prompt',
-                 'language the question was asked in' in debug.SYSTEM)
+    # Not in SYSTEM any more: the language is worked out here and named in the
+    # turn's system message, because a model asked to work it out itself
+    # answered a European question in Chinese. See language.py.
+    from coaxial_ollama import language
+    talk = debug.Chat.__new__(debug.Chat)
+    talk.keep = 6
+    for question, expect in (('Vad är temperaturen på kortet?', 'Swedish'),
+                             ('What is the board temperature?', 'English'),
+                             ('Was macht der AFE-Schalter?', 'German')):
+        talk.history = [{'role': 'user', 'content': question}]
+        head = talk.trim()[0]['content']
+        report.check('the turn names the language: ' + expect,
+                     ('in %s' % expect) in head, head.splitlines()[-1][:56])
+
+    talk.history = [{'role': 'user', 'content': 'status?'}]
+    report.check('an undetectable question falls back to mirroring',
+                 'language the question was asked in' in talk.trim()[0]['content'])
+    report.check('and the board keeps its own words either way',
+                 'stay exactly as the board prints them'
+                 in language.instruction('Vad är temperaturen?'))
 
     # A console that cannot encode the answer must not lose it. cp1252 holds
     # Swedish and German; it does not hold a Polish l-stroke or an ohm sign,
