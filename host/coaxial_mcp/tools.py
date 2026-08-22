@@ -234,6 +234,49 @@ def _key(text):
     return re.sub(r'[^a-z0-9]', '', str(text).strip().lower())
 
 
+# The same three phases, under the other convention. A drive is labelled U/V/W
+# or A/B/C depending on which tradition the author grew up in, and both appear
+# in the same datasheets; `phase_a` for `phaseu` is not a mistake, it is the
+# other spelling. Measured: a model asked for ch=['ntc','dc_bus','phase_a',
+# 'phase_b','phase_c'] and lost all five readings to the one it spelled the
+# other way.
+#
+# The single letters are in here because this repository already uses them -
+# the CSVs that tools/analyze_phase_log.py reads have columns U, V and W - and
+# because no channel on this board is one letter, so there is nothing for them
+# to collide with.
+PHASE_ALIASES = {
+    'phasea': 'phaseu', 'phaseb': 'phasev', 'phasec': 'phasew',
+    'a': 'phaseu', 'b': 'phasev', 'c': 'phasew',
+    'u': 'phaseu', 'v': 'phasev', 'w': 'phasew',
+}
+
+
+def _alias(key, by_name):
+    """The name this board knows, for a name somebody else's board uses.
+
+    Only ever maps onto a channel that exists: a board without a Phase U has
+    no business turning `a` into one.
+    """
+    target = PHASE_ALIASES.get(key)
+    if target and target in by_name:
+        return target
+    return key
+
+
+def _closest(key, by_name):
+    """The name a typo was probably reaching for, or None.
+
+    Prefix and containment only - no edit distance. The failures worth catching
+    here are `dcbusvoltage` and `phas`, not `ntx`, and a suggestion that is
+    wrong is worse than none: it sends the next call somewhere confident.
+    """
+    for name in sorted(by_name):
+        if name.startswith(key) or key.startswith(name):
+            return name
+    return None
+
+
 def _resolve(session, wanted):
     """Turn ['4', 'DC bus'] into channel indices.
 
@@ -248,13 +291,17 @@ def _resolve(session, wanted):
     indices = []
     for item in wanted:
         text = str(item).strip()
+        key = _alias(_key(text), by_name)
         if text.isdigit():
             index = int(text)
-        elif _key(text) in by_name:
-            index = by_name[_key(text)]
+        elif key in by_name:
+            index = by_name[key]
         else:
-            raise ValueError('unknown channel %r; names are %s'
-                             % (text, ','.join(sorted(by_name))))
+            near = _closest(key, by_name)
+            raise ValueError('unknown channel %r%s; names are %s'
+                             % (text,
+                                ' - did you mean %r?' % near if near else '',
+                                ','.join(sorted(by_name))))
         if not 0 <= index < len(channels):
             raise ValueError('channel %d out of range 0..%d'
                              % (index, len(channels) - 1))

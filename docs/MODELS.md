@@ -276,6 +276,16 @@ sends `ch="ntc"`, or the string `"['NTC']"`, or `samples="100"`. Unhandled,
 'n'` — which tells the model nothing it can act on, and what it does next is
 answer from memory.
 
+The same goes for the name of a thing. `dc_bus` for `dcbus` is a separator, not
+a mistake, and `phase_a` for `phaseu` is not a mistake either — A/B/C and U/V/W
+are two conventions for the same three phases and both appear in the same
+datasheets. Measured: a model asked for `['ntc','dc_bus','phase_a','phase_b',
+'phase_c']` and lost all five readings to the two it spelled the other way. So
+punctuation is stripped before matching, the phase conventions are aliases of
+each other — but only onto channels the board actually has, since a board
+without a Phase W has no Phase C — and a near miss is named in the error:
+*unknown channel 'dcbusvoltage' - did you mean 'dcbus'?*
+
 `coaxial_mcp.tools.coerce` converts every argument to the type the tool's own
 `inputSchema` declares, and refuses what will not convert **by field name and
 wanted type**. Ollama path only: the MCP server gets the same protection from

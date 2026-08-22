@@ -839,6 +839,44 @@ def test_coerce(report):
               for spelling in ('dc_bus', 'DC bus', 'DCbus', 'dcbus')]
     report.check('every spelling of the DC link resolves to one channel',
                  len({tuple(w) for w in wanted}) == 1, str(wanted[0]))
+    # A/B/C and U/V/W are two conventions for the same three phases, and both
+    # appear in the same datasheets. Measured: a model asked for
+    # ['ntc','dc_bus','phase_a','phase_b','phase_c'] and lost all five readings
+    # to the two it spelled the other way.
+    class ThreePhase:
+        def info(self, refresh=False):
+            names = ['Phase U', 'Phase V', 'Phase W', None, 'NTC', 'DC bus', None]
+            return None, None, [{'index': i, 'signal': n}
+                                for i, n in enumerate(names)]
+
+    board = ThreePhase()
+    report.check('A, B and C are U, V and W',
+                 _resolve(board, ['phase_a', 'phase_b', 'phase_c'])
+                 == _resolve(board, ['phaseu', 'phasev', 'phasew'])
+                 == [0, 1, 2])
+    report.check('and so are the bare letters, in either convention',
+                 _resolve(board, ['A', 'B', 'C']) == _resolve(board, ['u', 'v', 'w'])
+                 == [0, 1, 2])
+    report.check('the call that failed now resolves whole',
+                 _resolve(board, ['ntc', 'dc_bus', 'phase_a', 'phase_b', 'phase_c'])
+                 == [4, 5, 0, 1, 2])
+
+    # The alias must never invent a channel: a board without a Phase W has no
+    # Phase C either, and saying otherwise would return somebody else's data.
+    try:
+        _resolve(session, ['phase_c'])       # the fixture has U and V only
+        report.check('an alias cannot point at a channel that is absent', False)
+    except ValueError as exc:
+        report.check('an alias cannot point at a channel that is absent',
+                     'unknown channel' in str(exc), str(exc)[:46])
+
+    try:
+        _resolve(board, ['dcbusvoltage'])
+        report.check('a near miss is named in the error', False)
+    except ValueError as exc:
+        report.check('a near miss is named in the error',
+                     "did you mean 'dcbus'" in str(exc), str(exc)[:56])
+
     report.check('a mixed list still resolves in order',
                  _resolve(session, ['phase_u', 'NTC', 'dc-bus'])
                  == _resolve(session, ['phaseu', 'ntc', 'dcbus']))
