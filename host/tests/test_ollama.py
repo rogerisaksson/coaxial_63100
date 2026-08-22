@@ -461,7 +461,7 @@ def test_prompt(report):
     builtins.__import__ = fake_import
     debug.time.sleep = lambda _seconds: None
     try:
-        debug.bouncing_prompt(out=screen)
+        debug.spinning_prompt(out=screen)
     finally:
         builtins.__import__ = real_import
         debug.time.sleep = real_sleep
@@ -473,12 +473,12 @@ def test_prompt(report):
                  '%d frames' % len(frames))
     report.check('the dot moves between frames',
                  frames[0] != frames[1], repr(frames[:2]))
-    report.check('the orbit is three columns wide, and no wider',
-                 {len(f) for f in debug.ORBIT} == {3},
-                 ' '.join(repr(f) for f in debug.ORBIT))
-    report.check('it is a cycle: right along the floor, back along the ceiling',
-                 debug.ORBIT[0].strip() == '.' and debug.ORBIT[-1].strip() == "'"
-                 and [f.index(f.strip()) for f in debug.ORBIT] == [0, 1, 2, 2, 1, 0])
+    report.check('the spinner is one column wide, and no wider',
+                 {len(f) for f in debug.SPINNER} == {1},
+                 ''.join(debug.SPINNER))
+    report.check('it is the classic four glyphs, all different',
+                 len(set(debug.SPINNER)) == 4
+                 and set(debug.SPINNER) == set('|/-' + chr(92)))
 
     report.check('every frame carries the board name',
                  all(debug.PROMPT in f for f in frames))
@@ -488,7 +488,7 @@ def test_prompt(report):
 
     # A pipe has no console to poll and no eye to catch: one static prompt.
     quiet = io.StringIO()
-    debug.bouncing_prompt(out=quiet)
+    debug.spinning_prompt(out=quiet)
     report.check('a redirected prompt is written once, static',
                  quiet.getvalue().count(debug.PROMPT) == 1
                  and '\r' not in quiet.getvalue(), repr(quiet.getvalue()))

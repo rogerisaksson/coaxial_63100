@@ -72,39 +72,28 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
   /help  /q"""
 
 
-# How long ollama holds the weights after the last turn. Two numbers, because
-# the two modes want opposite things.
-#
-# In a prompt loop the model is about to be asked again, and the KV cache of
-# the prefix is what makes turn nine as quick as turn two - worth 8 GB of VRAM.
-# After a single -q question it is not: measured on this bench, a one-shot left
-# 9.69 GB resident and expiring 27 minutes later at 1 % utilisation, on a card
-# whose desktop then had 3.8 GB to work in. That is the cost of a cache nobody
-# is going to hit.
 # What the prompt loop shows. The board's name rather than the script's: the
 # window this appears in is usually one of several, and 'dbg>' says which
 # program is running where the useful thing to know is which bench.
 PROMPT = 'Coaxial_63100'
 
-# The dot goes round: three steps right along the floor, up, three back along
-# the ceiling, down. Three columns wide and no more - the earlier eight-wide
-# bounce pushed the prompt across a quarter of the line for no extra meaning.
-#
-# The height is a baseline dot against a raised apostrophe. Braille would give
-# a true orbit inside a single cell and cannot be used here: this console
-# encodes cp1252 (see _printable), where every braille character becomes a
-# question mark.
-ORBIT = ('.  ', ' . ', '  .', "  '", " ' ", "'  ")
+# The classic spinner, one column. It went from an eight-wide bounce to a
+# three-column orbit to this: a prompt is not a place to spend line width, and
+# four ASCII glyphs turning in a single cell is the shape every terminal has
+# used for this since before any of us. Braille would be smoother and cannot be
+# used - this console encodes cp1252 (see _printable), where every braille
+# character becomes a question mark.
+SPINNER = ('|', '/', '-', '\\')
 TICK = 0.12         # seconds per step
 
 
-def bouncing_prompt(out=None, prompt=PROMPT):
-    """Draw the prompt with a dot that walks back and forth, until a key.
+def spinning_prompt(out=None, prompt=PROMPT):
+    """Draw the prompt with a spinner turning in it, until a key is pressed.
 
     Why bother: this prompt sits in the same docked panel as a PowerShell one,
-    and two terminals with a `>` in them look identical at a glance. A moving
-    dot says which window is waiting for a question and which is waiting for a
-    command, without a banner or a colour scheme to remember.
+    and two terminals with a `>` in them look identical at a glance. Something
+    turning says which window is waiting for a question and which is waiting
+    for a command, without a banner or a colour scheme to remember.
 
     It stops at the first keypress and redraws the line static, so nothing is
     animating while there is text on it - an animation that repaints under
@@ -124,11 +113,11 @@ def bouncing_prompt(out=None, prompt=PROMPT):
         out.flush()
         return
 
-    width = len(ORBIT[0])
+    width = len(SPINNER[0])
     frame = 0
     try:
         while not msvcrt.kbhit():
-            out.write('\r%s %s>' % (prompt, ORBIT[frame % len(ORBIT)]))
+            out.write('\r%s %s>' % (prompt, SPINNER[frame % len(SPINNER)]))
             out.flush()
             frame += 1
             time.sleep(TICK)
@@ -141,6 +130,15 @@ def bouncing_prompt(out=None, prompt=PROMPT):
     out.flush()
 
 
+# How long ollama holds the weights after the last turn. Two numbers, because
+# the two modes want opposite things.
+#
+# In a prompt loop the model is about to be asked again, and the KV cache of
+# the prefix is what makes turn nine as quick as turn two - worth 8 GB of VRAM.
+# After a single -q question it is not: measured on this bench, a one-shot left
+# 9.69 GB resident and expiring 27 minutes later at 1 % utilisation, on a card
+# whose desktop then had 3.8 GB to work in. That is the cost of a cache nobody
+# is going to hit.
 KEEP_ALIVE_REPL = '30m'
 KEEP_ALIVE_ONCE = '2m'
 
@@ -577,7 +575,7 @@ def repl(chat):
         print('(reading commands from stdin)')
     while True:
         try:
-            bouncing_prompt()
+            spinning_prompt()
             line = input().strip()
         except (EOFError, KeyboardInterrupt):
             print()

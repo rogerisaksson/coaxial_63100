@@ -154,12 +154,11 @@ daemon's own choice beat everything tried against it.
 
 Two things a reader of a transcript will notice before anything else.
 
-The prompt animates while it waits — a dot going round beside the board's name,
-three steps right along the floor and three back along the ceiling — and goes
-static the moment a key is pressed. Three columns wide, because a prompt is not
-a place to spend a quarter of the line, and the height is a baseline dot
-against a raised apostrophe: braille would orbit inside a single cell, and this
-console encodes cp1252, where every braille character becomes a question mark. It sits in the same
+The prompt spins while it waits — `|`, `/`, `-`, `\` turning in one column
+beside the board's name — and goes static the moment a key is pressed. One
+column, because a prompt is not a place to spend line width; ASCII, because
+this console encodes cp1252 and every braille character in a nicer spinner
+would arrive as a question mark. It sits in the same
 docked panel as a PowerShell prompt, and two terminals with a `>` in them look
 identical at a glance; a moving dot says which one is waiting for a question
 without a banner or a colour to remember. Nothing animates while there is text
