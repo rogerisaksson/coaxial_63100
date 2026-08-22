@@ -144,6 +144,15 @@ class Scope:
         """Attach the board once the session has opened it."""
         self.namespace['board'] = board
 
+    def available(self):
+        """What this namespace holds, for a snippet that reached past it."""
+        names = sorted(n for n in self.namespace if not n.startswith('__'))
+        return ('This namespace has no third-party packages - no pandas, no '
+                'numpy, by decision. It holds: %s. Means and standard '
+                'deviations arrive from board.analog.burst() already computed '
+                'on the board; statistics covers the rest.'
+                % ', '.join(names))
+
     def run(self, code):
         """Execute `code`, return its output.
 
@@ -155,10 +164,28 @@ class Scope:
 
         self.runs += 1
         buffer = io.StringIO()
+        source = str(code)
         try:
-            tree = ast.parse(str(code))
-        except SyntaxError as exc:
-            return 'SyntaxError: %s (line %s)' % (exc.msg, exc.lineno)
+            tree = ast.parse(source)
+        except SyntaxError as first:
+            # A snippet that arrived with its newlines still escaped. Seen from
+            # the prompt: a whole program on one line, with a literal backslash
+            # and n where the line breaks belonged, which python reads as a
+            # line continuation followed by something that is not a newline.
+            # The model wrote a correct multi-line program; a layer between
+            # here and there failed to unescape it.
+            #
+            # Repaired only after the code has already failed to compile, and
+            # only when it holds no real newline - so a working one-liner with
+            # an escape inside a string literal is never touched.
+            repaired = source.replace('\\n', chr(10))
+            if chr(10) in source or repaired == source:
+                return 'SyntaxError: %s (line %s)' % (first.msg, first.lineno)
+            try:
+                tree = ast.parse(repaired)
+            except SyntaxError:
+                return 'SyntaxError: %s (line %s)' % (first.msg, first.lineno)
+            source = repaired
 
         tail = None
         if tree.body and isinstance(tree.body[-1], ast.Expr):
@@ -186,6 +213,26 @@ class Scope:
             buffer.write('\n' + ''.join(traceback.format_exception(
                 etype, value, tb.tb_next if tb and tb.tb_next else tb,
                 limit=4)).strip())
+            if isinstance(value, AttributeError) and 'board' in self.namespace:
+                # The tool names and the library names are not the same words:
+                # `analog_read` is a tool, `board.analog.read_all` is the
+                # method behind it, and a model that has been calling the first
+                # all session reaches for it here too. Seen from the prompt.
+                board = self.namespace.get('board')
+                parts = sorted(n for n in dir(board or ())
+                               if not n.startswith('_')
+                               and not callable(getattr(board, n, None)))
+                if parts:
+                    buffer.write('\nboard has: %s. The tool names are not the '
+                                 'method names - analog_read is a tool, '
+                                 'board.analog.read_all() is the method.'
+                                 % ', '.join('board.' + p for p in parts))
+            if isinstance(value, ImportError):
+                # Say what is here, not only what is not. pandas and numpy
+                # are absent by decision - see host/requirements.txt - and a
+                # model that reached for one needs the alternative rather
+                # than a refusal.
+                buffer.write('\n' + self.available())
 
         out = buffer.getvalue().strip()
         return clip(out) if out else '(no output)'

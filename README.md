@@ -235,7 +235,7 @@ purpose.
 
 ```powershell
 cd host
-python tests/test_ollama.py         # 196 checks, no board and no ollama needed
+python tests/test_ollama.py         # 202 checks, no board and no ollama needed
 python tests/test_conformance.py    # 40 Modbus conformance checks, needs the board
 python tests/test_mcp.py            # 36 MCP server checks
 ```

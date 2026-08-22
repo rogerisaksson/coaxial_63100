@@ -31,6 +31,8 @@ from coaxial_ollama import runner as runmod                # noqa: E402
 from coaxial_ollama import tools as toolmod                # noqa: E402
 from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
 
+BSLASH = chr(92)
+
 
 # ---- the fake bench --------------------------------------------------------
 
@@ -388,6 +390,42 @@ def test_scope(report):
                  scope.run('x = 1') == '(no output)')
     report.check('long output is clipped',
                  'characters cut' in scope.run('print("x" * 20000)'))
+
+
+def test_scope_repairs(report):
+    """Code that arrived mangled, and imports that were never going to be here."""
+    scope = Scope(board=FakeBoard())
+
+    # Seen from the prompt: a whole program on one line with a literal
+    # backslash-n where the newlines belonged. Python reads that as a line
+    # continuation and refuses; the model had written valid code.
+    escaped = 'x = 1' + BSLASH + 'ny = 2' + BSLASH + 'nx + y'
+    report.check('escaped newlines are repaired, once compilation has failed',
+                 scope.run(escaped).strip() == '3', repr(scope.run(escaped)))
+
+    # And never before: a working one-liner with an escape inside a string
+    # literal must come out as it went in.
+    printed = scope.run('print("a' + BSLASH + 'nb")')
+    report.check('an escape inside a string literal is left alone',
+                 printed.splitlines()[:2] == ['a', 'b'], repr(printed))
+    report.check('a real syntax error is still a syntax error',
+                 'SyntaxError' in scope.run('x = ('))
+
+    # pandas is absent by decision, so the failure has to name the alternative
+    # rather than only the refusal.
+    missing = scope.run('import pandas as pd')
+    report.check('a missing package says what is here instead',
+                 'no pandas' in missing and 'statistics' in missing,
+                 missing.splitlines()[-1][:52])
+
+    # The tool names and the method names are different words, and a model
+    # that has called analog_read all session reaches for it here too.
+    confused = scope.run('board.analog_read(ch=["ntc"])')
+    report.check('a tool name used as a method is corrected',
+                 'board.analog' in confused and 'read_all' in confused,
+                 confused.splitlines()[-1][:52])
+    report.check('and the real method still works',
+                 scope.run('board.afe.enable()').strip() == 'True')
 
 
 def test_shell(report):
@@ -1190,7 +1228,8 @@ def main():
     report = Report()
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
-                 test_policy, test_transcript, test_debug, test_cli,
+                 test_scope_repairs, test_policy, test_transcript,
+                 test_debug, test_cli,
                  test_local_only, test_keep_alive, test_coerce,
                  test_capability, test_docs):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
