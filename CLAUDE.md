@@ -132,7 +132,15 @@ Two options, a few words each. No paragraph about what tokens cost, no preview
 of what the output might look like, no third option. The user knows what the
 two are; the question exists to record which one, not to explain them.
 
-On *Local model*: emit the command, on one line, and **stop**.
+On *Local model*: hand the user the shortest way to the prompt, and **stop**.
+The shortest way is a click, not a command to retype:
+
+    Terminal panel > the v beside + > Board prompt
+
+That profile is in .vscode/settings.json and opens the prompt loop in the
+docked terminal. For a single question without leaving the keyboard,
+Ctrl+Shift+B runs the "Ask the board" task in the same panel. Only when the
+user is not in VS Code is the command itself the answer:
 
     board_prompt -Ask "read all channels, the DC link and the NTC"
 

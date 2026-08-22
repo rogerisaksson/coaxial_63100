@@ -21,6 +21,13 @@ drops cloud tags from the candidate list so a bare stem cannot resolve onto one.
 
 ## Which tag, and who decides
 
+From inside the editor there are two ways to the prompt, both in the docked
+terminal panel: the **Board prompt** profile in the terminal dropdown for a
+conversation, and **Ctrl+Shift+B** for one question. Both are checked in, in
+`.vscode/settings.json` and `.vscode/tasks.json`. Nothing outside VS Code can
+type into a terminal that is already open, which is why these exist rather than
+something that pushes a command into the one you are looking at.
+
 `host/coaxial_ollama/capability.py` measures the machine and picks. Ask it:
 
 ```powershell

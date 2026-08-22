@@ -1,4 +1,26 @@
 {
+    // A terminal profile, so the local model is one click away in the docked
+    // panel rather than a command to remember and type. Terminal panel, the
+    // dropdown next to +, "Board prompt": it opens there, beside the build
+    // output, and closing it hands the graphics memory back.
+    //
+    // A profile rather than a task because a task terminal is a task's
+    // terminal - it is read-only once the command exits, and this one is a
+    // prompt you type into. Both exist; the task is for one question
+    // (Ctrl+Shift+B), the profile for a conversation.
+    "terminal.integrated.profiles.windows": {
+        "Board prompt": {
+            "path": "powershell.exe",
+            "args": [
+                "-NoExit",
+                "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}\\board_prompt.ps1"
+            ],
+            "icon": "circuit-board",
+            "color": "terminal.ansiGreen"
+        },
+        "PowerShell": { "source": "PowerShell", "icon": "terminal-powershell" }
+    },
     "cmake.cmakePath": "cube-cmake",
     "cmake.configureArgs": [
         "-DCMAKE_COMMAND=cube-cmake"
