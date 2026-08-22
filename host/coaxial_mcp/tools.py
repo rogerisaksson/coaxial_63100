@@ -1,9 +1,17 @@
 """Tool schemas and handlers.
 
-SEVEN tools, not twenty. Every tool costs its name, its description and its
+EIGHT tools, not twenty. Every tool costs its name, its description and its
 schema on every single turn, so the set is deliberately coarse: one per thing a
 fixture actually does, with a small enum where a family of operations would
 otherwise become a family of tools.
+
+The eighth is `docs`, and it is the exception that proves the rule: it touches
+no hardware. It exists because the documents in docs/ are what stop a reading
+being misinterpreted - the AFE gate, the unknown phase gain, what has already
+been ruled out - and until it existed the one reader who could not open them was
+the model standing at the bench. Its schema is three optional strings, and it
+answers with an index rather than a document, for the same token reason as
+everything else here.
 
 Descriptions are one line. Property names are short. There are no titles, no
 prose defaults and no examples in the schema - a model that needs the channel
@@ -13,6 +21,7 @@ that. Paying for the map on every turn is the waste this design avoids.
 from coaxial import DividerParams, NtcParams, protocol, scaling
 
 from . import render
+from .docs import docs as _docs
 
 _PIN = {'type': 'string', 'description': 'Pin as PORT+NUMBER, e.g. B2 or E15'}
 _PORT = {'type': 'string', 'description': 'Port letter A-K'}
@@ -39,6 +48,19 @@ TOOLS = [
                 'ntc_beta': {'type': 'number', 'description': 'Override thermistor B'},
                 'ntc_r25': {'type': 'number'},
                 'vref': {'type': 'number', 'description': 'Measured reference, default 3.3'},
+            },
+        },
+    },
+    {
+        'name': 'docs',
+        'description': "This board's own documents. To answer a question use find=TEXT; doc= alone returns headings, which are titles and not answers.",
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'doc': {'type': 'string',
+                        'description': 'README|CLAUDE|ARCHITECTURE|PROTOCOL|HARDWARE|FINDINGS|MODELS'},
+                'section': {'type': 'string', 'description': 'A heading from that document'},
+                'find': {'type': 'string', 'description': 'Search all of them instead'},
             },
         },
     },
@@ -343,6 +365,7 @@ def link(session, op='stats', text='ping', **_):
 
 HANDLERS = {
     'board_info': board_info,
+    'docs': _docs,
     'self_test': self_test,
     'analog_read': analog_read,
     'afe_power': afe_power,

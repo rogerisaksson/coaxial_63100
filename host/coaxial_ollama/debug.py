@@ -45,14 +45,17 @@ Use tools; do not guess. Answer in one or two sentences, no preamble.
 The front end switch (afe_power) also powers the ADC reference: with it off
 every channel reads mid-scale and the NTC reads exactly 25.00 C, which is not a
 measurement. Phase channels sit behind unknown gain, so pin volts is as far as
-the data goes. Say plainly when you do not know."""
+the data goes. Say plainly when you do not know.
+The docs tool has this board's own HARDWARE and FINDINGS: read before guessing."""
 
 # Named subsets, because a debug job knows roughly what it is about to touch.
 SETS = {
-    'read': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link'),
+    'read': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
+             'docs'),
     'code': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
-             'run_python'),
-    'pins': ('board_info', 'gpio_pin', 'gpio_port', 'test_gate', 'afe_power'),
+             'docs', 'run_python'),
+    'pins': ('board_info', 'gpio_pin', 'gpio_port', 'test_gate', 'afe_power',
+             'docs'),
     'all': tuple(spec['name'] for spec in toolmod.TOOLS if spec['name'] != 'report'),
     'none': (),
 }

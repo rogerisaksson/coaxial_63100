@@ -43,6 +43,10 @@ How to work:
   reach for run_python only when no tool does the job: statistics over a burst,
   a sweep, a comparison across channels.
 - Call board_info once if you need the channel map. It does not change.
+- The docs tool holds this board's own documents. HARDWARE says what a channel
+  is and what it is behind; FINDINGS records what has already been ruled out,
+  so a surprise you are about to investigate may already have an answer there.
+  Prefer what they say to what you remember about hardware in general.
 - Analog reads need the front end on: call afe_power {"action":"on"} first. With
   it off every channel reads exact mid-scale and the NTC reports exactly
   25.00 C. That number is not a measurement, and reporting it as one is the

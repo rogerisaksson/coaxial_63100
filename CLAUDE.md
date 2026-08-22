@@ -40,6 +40,7 @@ first will save you re-deriving things that took real measurements to establish.
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | before touching any source layout |
 | [docs/PROTOCOL.md](docs/PROTOCOL.md) | before changing anything on the wire |
 | [docs/HARDWARE.md](docs/HARDWARE.md) | before interpreting any measurement |
+| [docs/MODELS.md](docs/MODELS.md) | before changing the local model, its tag, or its tools |
 | [docs/FINDINGS.md](docs/FINDINGS.md) | **before investigating anything** — it records what has already been ruled out |
 
 ## Commands
@@ -65,8 +66,8 @@ STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --s
 cd host
 python -m coaxial all                      # CLI against the board
 python tests/test_conformance.py           # 40 Modbus conformance checks
-python tests/test_mcp.py                   # 35 MCP server checks
-python tests/test_ollama.py                # 134 runner and dbg checks, offline
+python tests/test_mcp.py                   # 36 MCP server checks
+python tests/test_ollama.py                # 161 runner and dbg checks, offline
 python examples/read_board.py                # measure, judge nothing
 python -m coaxial_mcp --port COM4          # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml   # local model drives the bench

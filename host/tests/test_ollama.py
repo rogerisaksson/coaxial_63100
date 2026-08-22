@@ -353,7 +353,7 @@ def test_board_tools(report):
                  'PLL lock' in results[3]['result'],
                  results[3]['result'].splitlines()[0])
     report.check('the tool surface is the MCP set plus three',
-                 len(toolmod.TOOLS) == 11, '%d tools' % len(toolmod.TOOLS))
+                 len(toolmod.TOOLS) == 12, '%d tools' % len(toolmod.TOOLS))
 
     schemas = toolmod.schemas()
     shapes = all(s['type'] == 'function' and s['function']['parameters']['type']
@@ -901,13 +901,95 @@ def test_capability(report):
                  'machine:' in cap.report(found) and 'model:' in cap.report(found))
 
 
+# ---- the documents are reachable from a prompt ----------------------------
+
+def test_docs(report):
+    """The one reader who could not open docs/ was the model at the bench."""
+    from coaxial_mcp import docs as docmod
+    from coaxial_mcp.tools import HANDLERS, TOOLS
+
+    report.check('docs is a tool the model can call',
+                 'docs' in HANDLERS
+                 and any(spec['name'] == 'docs' for spec in TOOLS))
+
+    index = docmod.docs()
+    for name in ('README', 'CLAUDE', 'ARCHITECTURE', 'PROTOCOL', 'HARDWARE',
+                 'FINDINGS', 'MODELS'):
+        report.check('the index lists ' + name, name in index)
+    report.check('the index is headings, not documents',
+                 len(index) < 4000, '%d chars' % len(index))
+    report.check('the index says how to go deeper',
+                 'section=' in index and 'find=' in index)
+
+    outline = docmod.docs(doc='MODELS')
+    report.check('one document lists its own headings',
+                 'Threads' in outline and 'Why a local model at all' in outline)
+
+    body = docmod.docs(doc='MODELS', section='Threads')
+    report.check('a section returns its text', 'bandwidth-bound' in body)
+    report.check('a section stops at the next heading of its level',
+                 'Keeping the model loaded' not in body)
+
+    # A parent section keeps its children: asking for the chapter should not
+    # silently return only its first paragraph.
+    parent = docmod.docs(doc='MODELS', section='Which tag, and who decides')
+    report.check('a parent section carries its subsections',
+                 'Threads' in parent or 'clipped' in parent)
+
+    report.check('heading matching is loose enough to be usable',
+                 'bandwidth-bound' in docmod.docs(doc='MODELS', section='threads'))
+
+    # The AFE number is the one a weak model invents. It has to be findable.
+    hits = docmod.docs(find='25.00')
+    report.check('search reaches the AFE-off number', 'FINDINGS' in hits
+                 or 'HARDWARE' in hits or 'CLAUDE' in hits)
+    report.check('search says where it found it, not just that it did',
+                 len(hits.splitlines()) >= 2)
+    # A hit without its chapter can say the opposite of what the document says:
+    # the phase V entry that matches lives under "Refuted", and a model that
+    # cannot see that reports a dead end as the explanation. Measured.
+    refuted = docmod.docs(find='PCSEL accumulation explains')
+    report.check('a search hit carries the chapter it sits under',
+                 'Refuted' in refuted, refuted.splitlines()[0][:70])
+
+    report.check('search is capped rather than dumping a document',
+                 len(docmod.docs(find='the').splitlines()) <= docmod.FIND_HITS + 1)
+
+    report.check('a long section is clipped and says so',
+                 len(docmod.docs(doc='FINDINGS',
+                                 section='Confirmed and fixed')) <= docmod.CLIP + 200)
+
+    for bad, expect in ((dict(doc='NOPE'), 'no document'),
+                        (dict(doc='MODELS', section='no such heading'), 'no section'),
+                        (dict(find='   '), 'something to look for')):
+        try:
+            docmod.docs(**bad)
+            report.check('a bad docs call is refused by name', False, str(bad))
+        except ValueError as exc:
+            report.check('a bad docs call is refused by name', expect in str(exc),
+                         str(exc)[:54])
+
+    report.check('every document named is actually on disk',
+                 set(docmod.paths()) == set(docmod.NAMES),
+                 ', '.join(sorted(set(docmod.NAMES) - set(docmod.paths()))) or 'all')
+
+    # The bench prompt has to point at the tool, or nothing above matters.
+    from coaxial_ollama import debug, runner
+    report.check('dbg tells the model the documents exist',
+                 'docs' in debug.SYSTEM and 'FINDINGS' in debug.SYSTEM)
+    report.check('the runner tells it too',
+                 'docs' in runner.SYSTEM and 'FINDINGS' in runner.SYSTEM)
+    report.check('docs is in the default tool set',
+                 'docs' in debug.SETS['read'] and 'docs' in debug.SETS['code'])
+
+
 def main():
     report = Report()
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_policy, test_transcript, test_debug, test_cli,
                  test_local_only, test_keep_alive, test_coerce,
-                 test_capability):
+                 test_capability, test_docs):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

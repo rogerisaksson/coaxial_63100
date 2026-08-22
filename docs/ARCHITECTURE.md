@@ -134,12 +134,22 @@ importing pyserial — `board.py`, `cli.py`.
 ### `host/coaxial_mcp/` — the MCP server
 
 Built with the token budget as the design constraint, so a small model can run a
-long test sequence. Seven coarse tools rather than one per firmware command,
+long test sequence. Eight coarse tools rather than one per firmware command,
 because the whole tool list is re-read every turn. Dense fixed-column text
 results rather than JSON: the same seven-channel reading is 278 characters here
 against 2457 as indented JSON, a factor of 8.8. Uses
 `mcp.server.lowlevel.Server` with hand-written schemas — deliberately not
 FastMCP, because schema size is the thing being optimised.
+
+The eighth tool, `docs`, touches no hardware. It hands the model this
+repository's own documents, because they are what stop a reading being
+misinterpreted — the AFE gate, the unknown phase gain, what has already been
+ruled out — and the one reader who could not open them was the model standing at
+the bench. It answers with an index rather than a document for the same token
+reason as everything else here, and a search hit carries the chapter it sits
+under: in FINDINGS the chapter is the meaning, and an entry quoted out of
+*Refuted* says the opposite of what the document says. See
+[MODELS.md](MODELS.md).
 
 ## Where scaling lives
 

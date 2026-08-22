@@ -170,6 +170,12 @@ bench -Plain                # a bare ollama chat: no tools, no board
 board's tools, `/py` against a live session and `/sh` for a build, both of which
 cost no tokens, and a token meter on every turn.
 
+The model can read this repository's documents while it works — `docs()` for the
+index, `docs(find='25.00')` to search, `docs(doc='HARDWARE', section=...)` for
+the text. That is not decoration: the documents are what stop a reading being
+misinterpreted, and a model that cannot reach them answers from memory instead.
+[docs/MODELS.md](docs/MODELS.md) is the chapter about the model itself.
+
 Structured output is not done with Ollama's json mode here, and that is a
 decision rather than an omission. `format='json'` constrains the *content* of a
 reply — the one part of it this bench does not parse. Every number that reaches
@@ -225,9 +231,9 @@ purpose.
 
 ```powershell
 cd host
-python tests/test_ollama.py         # 134 checks, no board and no ollama needed
+python tests/test_ollama.py         # 161 checks, no board and no ollama needed
 python tests/test_conformance.py    # 40 Modbus conformance checks, needs the board
-python tests/test_mcp.py            # 35 MCP server checks
+python tests/test_mcp.py            # 36 MCP server checks
 ```
 
 ### Where to read next
@@ -237,6 +243,7 @@ python tests/test_mcp.py            # 35 MCP server checks
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | before touching any source layout |
 | [docs/PROTOCOL.md](docs/PROTOCOL.md) | before changing anything on the wire |
 | [docs/HARDWARE.md](docs/HARDWARE.md) | before interpreting any measurement |
+| [docs/MODELS.md](docs/MODELS.md) | before changing anything about the local model |
 | [docs/FINDINGS.md](docs/FINDINGS.md) | **before investigating anything** — it records what has already been ruled out |
 
 ---
