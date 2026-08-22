@@ -112,9 +112,17 @@ a request for measurement data turned into an expensive model driving the serial
 port for a quarter of an hour, producing numbers the free one standing next to
 the board could have produced. A rule with no stop in it is a preference.
 
-So the stop is explicit. When the request is *measure something* — read a
-channel, fetch data, check the AFE, take a burst, log values over time — ask
-before running anything, and ask **minimally**:
+So the stop is explicit. It covers two shapes of request, and the second is
+easy to miss because it does not sound like a measurement:
+
+  * *measure something* — read a channel, fetch data, check the AFE, take a
+    burst, log values over time;
+  * *reach the local model at all* — "I want to prompt the local model", "how
+    do I ask it", "start the bench model". Answering that with instructions is
+    the same mistake in a different coat: the user is not asking to be taught
+    the command, they are asking to be at the prompt.
+
+Either way, ask before running anything, and ask **minimally**:
 
 > **Local model, or here?**
 > *Local model* — board_prompt
