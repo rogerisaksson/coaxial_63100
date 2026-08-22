@@ -799,6 +799,36 @@ def test_coerce(report):
                          'vref': 3.3})
     report.check('a list that arrived as text is a list',
                  coerce('analog_read', {'ch': "['NTC']"})['ch'] == ['NTC'])
+    # The separator a model puts in a name is not information. board_info
+    # prints "DC bus", the short form is "DCbus", and gemma4:12b sent "dc_bus"
+    # and was told `unknown channel 'dc_bus'; names are ch3,ch6,dcbus,...` - a
+    # refusal listing a name one underscore away from the one it used.
+    from coaxial_mcp.tools import _key
+    report.check('the separator in a channel name is not information',
+                 len({_key(n) for n in ('dc_bus', 'DC bus', 'dc-bus', 'DCbus',
+                                        'dcbus', ' DCBUS ')}) == 1)
+    report.check('and the same holds for the phases',
+                 _key('phase_u') == _key('Phase U') == _key('PHASEU') == 'phaseu')
+    report.check('an index is left alone', _key('4') == '4')
+
+    # And the whole path, not just the key: the resolver has to turn every
+    # spelling into the same channel index against a real channel table.
+    from coaxial_mcp.tools import _resolve
+    session = FakeSession()
+    wanted = [_resolve(session, [spelling])
+              for spelling in ('dc_bus', 'DC bus', 'DCbus', 'dcbus')]
+    report.check('every spelling of the DC link resolves to one channel',
+                 len({tuple(w) for w in wanted}) == 1, str(wanted[0]))
+    report.check('a mixed list still resolves in order',
+                 _resolve(session, ['phase_u', 'NTC', 'dc-bus'])
+                 == _resolve(session, ['phaseu', 'ntc', 'dcbus']))
+    try:
+        _resolve(session, ['not_a_channel'])
+        report.check('a name that is not a separator away is still refused', False)
+    except ValueError as exc:
+        report.check('a name that is not a separator away is still refused',
+                     'unknown channel' in str(exc), str(exc)[:50])
+
     report.check('a comma separated string is several',
                  coerce('analog_read', {'ch': 'ntc,dcbus'})['ch']
                  == ['ntc', 'dcbus'])

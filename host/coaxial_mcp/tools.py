@@ -18,6 +18,8 @@ prose defaults and no examples in the schema - a model that needs the channel
 map calls board_info once and refers to channels by index or short name after
 that. Paying for the map on every turn is the waste this design avoids.
 """
+import re
+
 from coaxial import DividerParams, NtcParams, protocol, scaling
 
 from . import render
@@ -219,15 +221,28 @@ def _names(wanted):
     return [str(item).strip().strip(quotes) for item in wanted if str(item).strip()]
 
 
-def _resolve(session, wanted):
-    """Turn ['4', 'DCbus'] into channel indices.
+def _key(text):
+    """A channel name with the punctuation an author might put in it removed.
 
-    Both forms are accepted because a model that has seen board_info knows the
-    names, and one that has not can still count.
+    board_info prints the signal as `DC bus`, the short form is `DCbus`, and a
+    model writing that back has to guess which of `dc_bus`, `dc-bus`, `DC bus`
+    and `dcbus` this tool wanted. Measured: gemma4:12b sent `dc_bus` and got
+    `unknown channel 'dc_bus'; names are ch3,ch6,dcbus,...` - a refusal listing
+    a name one underscore away from the one it used, which is a tool being
+    fussy rather than a model being wrong. All four collapse to the same key.
+    """
+    return re.sub(r'[^a-z0-9]', '', str(text).strip().lower())
+
+
+def _resolve(session, wanted):
+    """Turn ['4', 'DC bus'] into channel indices.
+
+    Indices and names are both accepted because a model that has seen
+    board_info knows the names, and one that has not can still count.
     """
     wanted = _names(wanted)
     _, _, channels = session.info()
-    by_name = {render.short(c['signal'], c['index']).lower(): c['index']
+    by_name = {_key(render.short(c['signal'], c['index'])): c['index']
                for c in channels}
 
     indices = []
@@ -235,8 +250,8 @@ def _resolve(session, wanted):
         text = str(item).strip()
         if text.isdigit():
             index = int(text)
-        elif text.lower() in by_name:
-            index = by_name[text.lower()]
+        elif _key(text) in by_name:
+            index = by_name[_key(text)]
         else:
             raise ValueError('unknown channel %r; names are %s'
                              % (text, ','.join(sorted(by_name))))
