@@ -26,6 +26,17 @@ Four things are deliberate:
     here needs that, so a cloud tag or a non-loopback host raises instead of
     quietly working. `remote_ok=True` is the way to mean it on purpose.
 
+  * `format` is not set by the runner, and that is a decision rather than an
+    omission. Ollama's `format='json'` constrains the *content* field, which is
+    the one part of a reply this bench does not parse: every number that
+    reaches a verdict arrives as an argument to the `report` tool, against a
+    JSON Schema the daemon already enforces, and `plan.Limit` judges it in
+    Python. Turning on json mode as well would either do nothing or compete
+    with the tool path - a model told to answer in JSON tends to describe a
+    tool call in the content instead of making one. It is here as a parameter
+    because a caller outside the runner may genuinely want machine-readable
+    prose, and then it should be one argument rather than a fork of this file.
+
   * `stream` is off. Streaming buys a nicer terminal and costs the guarantee
     that a tool call arrives whole; the runner needs the whole message before it
     can dispatch anything, so there is nothing to gain.
@@ -64,7 +75,8 @@ def is_cloud(model):
 class Ollama:
     def __init__(self, model, host='http://localhost:11434', temperature=0.0,
                  num_ctx=8192, seed=7, timeout=600.0, num_predict=None,
-                 think=None, remote_ok=False, keep_alive='30m'):
+                 think=None, remote_ok=False, keep_alive='30m',
+                 fmt=None):
         self.remote_ok = remote_ok
         if not remote_ok:
             if not is_local(host):
@@ -91,6 +103,11 @@ class Ollama:
         # authority on what it accepts, and a wrong value should fail loudly at
         # the first request rather than quietly here.
         self.keep_alive = keep_alive
+        # 'json', or a JSON Schema as a dict for ollama's structured outputs.
+        # Named fmt because `format` is a builtin, and passed through untouched
+        # for the same reason keep_alive is: the daemon is the authority on what
+        # it accepts.
+        self.fmt = fmt
         self.timeout = timeout
         self.calls = 0
         self.eval_tokens = 0
@@ -162,6 +179,8 @@ class Ollama:
                    'stream': False, 'options': self.options}
         if self.keep_alive is not None:
             payload['keep_alive'] = self.keep_alive
+        if self.fmt is not None:
+            payload['format'] = self.fmt
         if tools:
             payload['tools'] = tools
         if self.think is not None:

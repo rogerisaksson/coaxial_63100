@@ -739,6 +739,22 @@ def test_keep_alive(report):
     report.check('keep_alive=None leaves the field out',
                  'keep_alive' not in sent[-1][1])
 
+    shaped = Ollama('gemma4:12b', fmt='json')
+    capture(shaped)
+    shaped.chat([{'role': 'user', 'content': 'hello'}])
+    report.check("format is sent only when a caller asked for it",
+                 sent[-1][1].get('format') == 'json')
+    plain = Ollama('gemma4:12b')
+    capture(plain)
+    plain.chat([{'role': 'user', 'content': 'hello'}])
+    report.check('the runner does not turn json mode on',
+                 'format' not in sent[-1][1])
+
+    from coaxial_ollama import debug as dbgmod
+    report.check('dbg --format reaches the client',
+                 dbgmod.parse(['--format', 'json', 'q']).fmt == 'json'
+                 and dbgmod.parse(['q']).fmt is None)
+
     client.preload()
     path, payload = sent[-1]
     report.check('preload loads without generating',

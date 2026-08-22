@@ -45,7 +45,7 @@ list rather than dying half-installed.
 | pyserial, PyYAML, mcp, anyio, pytest | `host/requirements.txt`, via pip |
 | arm-none-eabi-gcc, gdb, cmake, ninja | STM32 bundles, via `cube.exe` |
 | STM32_Programmer_CLI | same |
-| STM32CubeMX | same — the `stm32cubemx-application` bundle |
+| STM32CubeMX | same — the `stm32cubemx-application` bundle, or st.com's installer if you would rather |
 | ST-Link gdbserver, server and USB driver | same |
 | cube-cmake | the STM32 VS Code extension |
 | VS Code extensions: the STM32 pack, cpptools, python, ollama | `code --install-extension`, mirroring [.vscode/extensions.json](.vscode/extensions.json) |
@@ -100,6 +100,7 @@ drivers as submodules — a zipball of the tag has none of the sources in it.
 | `-SkipDriver` | leave the ST-Link USB driver alone (no elevation prompt) |
 | `-FirmwarePackage PATH` | install a `STM32Cube_FW_H7_*.zip`, or an unpacked copy, into the CubeMX repository |
 | `-SkipFirmware` | do not look for FW_H7 at all — a machine that only builds and flashes |
+| `-CubeMXInstaller PATH` | run an STM32CubeMX installer downloaded from st.com, instead of taking the 308 MB bundle |
 | `-Repository PATH` | where CubeMX keeps its packages, if yours is not the default |
 | `-Model TAG` | a different Ollama tag; the default is `gemma4:12b` |
 | `-WingetToolchain` | cmake, ninja and Arm's gcc from winget instead of the ST bundles |
@@ -168,6 +169,16 @@ bench -Plain                # a bare ollama chat: no tools, no board
 board's tools, `/py` against a live session and `/sh` for a build, both of which
 cost no tokens, and a token meter on every turn.
 
+Structured output is not done with Ollama's json mode here, and that is a
+decision rather than an omission. `format='json'` constrains the *content* of a
+reply — the one part of it this bench does not parse. Every number that reaches
+a verdict arrives as an argument to the `report` tool, against a JSON Schema the
+daemon enforces, and `plan.Limit` judges it in Python. A model told to answer in
+JSON tends to describe a tool call in its content instead of making one, so json
+mode would compete with that rather than help it. It is available for callers
+outside the runner — `dbg.py --format json`, usually with `-t none` — and off
+everywhere else.
+
 The model is **local and that is enforced, not assumed**. Ollama will happily
 proxy a `:cloud` tag to somebody else's GPU, which on a bench means register
 dumps and pin names leaving the building; a cloud tag or a non-loopback host
@@ -178,7 +189,7 @@ purpose.
 
 ```powershell
 cd host
-python tests/test_ollama.py         # 114 checks, no board and no ollama needed
+python tests/test_ollama.py         # 117 checks, no board and no ollama needed
 python tests/test_conformance.py    # 40 Modbus conformance checks, needs the board
 python tests/test_mcp.py            # 35 MCP server checks
 ```

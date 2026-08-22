@@ -80,10 +80,16 @@
     Skips the binary, the model pull and the VS Code extension alike.
 
 .PARAMETER SkipCubeMX
-    Do not install the STM32CubeMX bundle. It is 308 MB down and 835 MB on disk
-    and nothing in the build needs it - only regenerating Core/ from the .ioc
-    does. On a bench that never opens the .ioc, this is the switch that saves
-    the disk.
+    Do not install STM32CubeMX at all. The bundle is 308 MB down and 835 MB on
+    disk and nothing in the build needs it - only regenerating Core/ from the
+    .ioc does. On a bench that never opens the .ioc, this is the switch that
+    saves the disk.
+
+.PARAMETER CubeMXInstaller
+    Run an STM32CubeMX installer that is already on disk, instead of taking the
+    bundle. This is the other end of the download page: the script opens
+    st.com's CubeMX page when CubeMX is absent and the bundle was not taken,
+    you download the installer, and this switch runs it on the next pass.
 
 .PARAMETER SkipDriver
     Do not touch the ST-Link USB driver. Installing it is the one step in this
@@ -125,6 +131,7 @@ param(
     [switch]$SkipDriver,
     [switch]$SkipFirmware,
     [string]$FirmwarePackage,
+    [string]$CubeMXInstaller,
     [string]$Repository = (Join-Path $env:USERPROFILE 'STM32Cube\Repository'),
     [switch]$WingetToolchain,
     [switch]$AllowScripts
@@ -135,6 +142,7 @@ $Root = $PSScriptRoot
 $Host_ = Join-Path $Root 'host'
 $BundleRoot = Join-Path $env:LOCALAPPDATA 'stm32cube\bundles'
 $CubeH7Url = 'https://www.st.com/en/embedded-software/stm32cubeh7.html'
+$CubeMXUrl = 'https://www.st.com/en/development-tools/stm32cubemx.html'
 $script:Todo = @()
 
 # ---- reporting -------------------------------------------------------------
@@ -450,6 +458,19 @@ function Test-Bundles {
     $absent = @()
     foreach ($name in $BundleNeeds.Keys) {
         $bundle = Get-NewestBundle $name
+
+        # CubeMX is the one entry here that has a second, equally valid home:
+        # st.com's installer puts it under Program Files. Asking for a 308 MB
+        # bundle of something the machine already has is the kind of thing that
+        # makes a setup script get skipped.
+        if (($null -eq $bundle) -and ($name -eq 'stm32cubemx-application')) {
+            $standalone = Find-CubeMX
+            if ($null -ne $standalone) {
+                Write-Item $name 'ok' ('installed from st.com: ' + $standalone)
+                continue
+            }
+        }
+
         if ($null -eq $bundle) {
             Write-Item $name 'missing' ''
             $absent += $name
@@ -606,6 +627,86 @@ function Install-StLinkDriver {
         Write-Item 'st-link usb driver' 'failed' $_.Exception.Message
         Add-Todo 'cube stlink-usb-driver-adm-install   (run from an elevated shell)'
     }
+}
+
+function Find-CubeMX {
+    <#  STM32CubeMX.exe, from either kind of install.
+
+        The bundle is the tidy one and what this script installs. But somebody
+        who took the installer from st.com has it under Program Files instead,
+        and telling that machine CubeMX is missing would be this script being
+        wrong in a way the user can see.  #>
+
+    $bundle = Get-NewestBundle 'stm32cubemx-application'
+    if ($null -ne $bundle) {
+        $exe = Get-ChildItem $bundle.FullName -Recurse -Filter 'STM32CubeMX.exe' `
+                             -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -ne $exe) { return $exe.FullName }
+    }
+    $candidates = @(
+        (Join-Path $env:ProgramFiles 'STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe'),
+        (Join-Path ${env:ProgramFiles(x86)} 'STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe')
+    )
+    foreach ($c in $candidates) {
+        if (($null -ne $c) -and (Test-Path $c)) { return $c }
+    }
+    return $null
+}
+
+function Install-CubeMXFromInstaller {
+    <#  The other way to get CubeMX: st.com's own installer.
+
+        The bundle above is 308 MB and needs nothing but cube.exe, so it is
+        what this script reaches for first. This is the path for a machine
+        where that failed, or where the bundle is not wanted - and for the
+        person who would rather see the licence they are agreeing to.
+
+        -CubeMXInstaller runs an installer already on disk. Without it, the
+        download page is opened and the run carries on: a missing CubeMX stops
+        nothing here. It is not needed to build, flash, measure or drive the
+        model - only to regenerate Core/ from the .ioc.  #>
+
+    if ($SkipCubeMX) { return }
+    if ($null -ne (Find-CubeMX)) { return }
+
+    if ($CubeMXInstaller) {
+        if (-not (Test-Path $CubeMXInstaller)) {
+            Write-Item 'STM32CubeMX' 'failed' ('no such path: ' + $CubeMXInstaller)
+            Add-Todo ('-CubeMXInstaller pointed at ' + $CubeMXInstaller + ', which does not exist')
+            return
+        }
+        if ($Check) {
+            Write-Item 'STM32CubeMX' 'missing' ('would run ' + $CubeMXInstaller)
+            return
+        }
+        # ST's installer is a GUI with a licence page in it. Waited on rather
+        # than fired and forgotten, so the check below means something.
+        Write-Item 'STM32CubeMX' 'missing' ('running ' + $CubeMXInstaller)
+        try {
+            Start-Process -FilePath $CubeMXInstaller -Wait
+        } catch {
+            Write-Item 'STM32CubeMX' 'failed' $_.Exception.Message
+            Add-Todo ('running ' + $CubeMXInstaller + ' failed - read the error above')
+            return
+        }
+        $found = Find-CubeMX
+        if ($null -ne $found) {
+            Write-Item 'STM32CubeMX' 'done' $found
+        } else {
+            Write-Item 'STM32CubeMX' 'failed' 'the installer ran, but no STM32CubeMX.exe was found'
+            Add-Todo 'STM32CubeMX still not found after running the installer - check where it put itself'
+        }
+        return
+    }
+
+    Write-Item 'STM32CubeMX' 'missing' 'not as a bundle, not under Program Files'
+    if (Confirm-Step 'open the STM32CubeMX download page in a browser ?') {
+        Start-Process $CubeMXUrl
+        Write-Item 'download page' 'done' $CubeMXUrl
+    }
+    Add-Todo ($CubeMXUrl + '  -> download the installer, then: setup.ps1 -CubeMXInstaller <the exe>' +
+              '   (or let the bundle route fetch it: cube bundle install --yes stm32cubemx-application)')
 }
 
 function Get-FirmwareVersion {
@@ -1003,19 +1104,14 @@ function Test-Setup {
     }
 
     if (-not $SkipCubeMX) {
-        $mx = Get-NewestBundle 'stm32cubemx-application'
-        if ($null -eq $mx) {
+        # Find-CubeMX, so a standalone install from st.com counts as much as the
+        # bundle. The bundle's internal layout is ST's business and has moved
+        # before, which is why it is searched rather than assumed.
+        $mxExe = Find-CubeMX
+        if ($null -eq $mxExe) {
             Write-Item 'STM32CubeMX' 'missing' 'cube bundle install --yes stm32cubemx-application'
         } else {
-            # The bundle's internal layout is ST's business and has moved
-            # before, so find the executable rather than assuming where it is.
-            $mxExe = Get-ChildItem $mx.FullName -Recurse -Filter 'STM32CubeMX.exe' `
-                                   -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($null -eq $mxExe) {
-                Write-Item 'STM32CubeMX' 'ok' ($mx.Name + ' (no STM32CubeMX.exe found)')
-            } else {
-                Write-Item 'STM32CubeMX' 'ok' $mxExe.FullName
-            }
+            Write-Item 'STM32CubeMX' 'ok' $mxExe
         }
     }
 }
@@ -1068,6 +1164,10 @@ if ($WingetToolchain) {
     Install-StLinkDriver
 }
 
+# Outside the branch above on purpose: -WingetToolchain is the case where no
+# bundle route exists, so the installer and the download page are the only ways
+# CubeMX arrives at all.
+Install-CubeMXFromInstaller
 Install-FirmwarePackage
 
 if (-not $SkipOllama) {

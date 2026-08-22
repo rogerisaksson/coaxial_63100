@@ -133,19 +133,28 @@ function cubemx {
        because it walks 800 MB of bundle and nobody wants that in every shell. #>
     param([string]$Ioc = 'coaxial_63100.ioc')
 
+    $found = $null
     $dir = Join-Path $env:LOCALAPPDATA 'stm32cube\bundles\stm32cubemx-application'
-    if (-not (Test-Path $dir)) {
+    if (Test-Path $dir) {
+        $exe = Get-ChildItem $dir -Recurse -Filter 'STM32CubeMX.exe' -ErrorAction SilentlyContinue |
+               Select-Object -First 1
+        if ($null -ne $exe) { $found = $exe.FullName }
+    }
+    if ($null -eq $found) {
+        # A standalone install from st.com counts too - setup.ps1 offers that
+        # route when the bundle is not wanted, so this has to know about it.
+        foreach ($c in @(
+            (Join-Path $env:ProgramFiles 'STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Programs\STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe'))) {
+            if (($null -ne $c) -and (Test-Path $c)) { $found = $c; break }
+        }
+    }
+    if ($null -eq $found) {
         Write-Host 'STM32CubeMX is not installed: run .\setup.ps1' -ForegroundColor Yellow
         return
     }
-    $exe = Get-ChildItem $dir -Recurse -Filter 'STM32CubeMX.exe' -ErrorAction SilentlyContinue |
-           Select-Object -First 1
-    if ($null -eq $exe) {
-        Write-Host 'the stm32cubemx-application bundle has no STM32CubeMX.exe in it' `
-            -ForegroundColor Yellow
-        return
-    }
-    Start-Process -FilePath $exe.FullName -ArgumentList (Join-Path $script:CoaxialRoot $Ioc)
+    Start-Process -FilePath $found -ArgumentList (Join-Path $script:CoaxialRoot $Ioc)
 }
 
 function bench {
