@@ -75,6 +75,14 @@
 .PARAMETER KeepAlive
     How long ollama holds the model in memory after the last turn.
 
+.PARAMETER KeepOthers
+    Leave models that are already resident where they are. By default this
+    script unloads them before loading its own: a session that was killed, one
+    that exited with -Hold, or a plain `ollama run` in another window all leave
+    weights on the card, and the second model is what turns a 16 GB card into a
+    500 reading `cudaMalloc failed`. The model this run wants is never unloaded
+    when it is already there - that is warm, not stale.
+
 .PARAMETER Hold
     Leave the model resident when this script exits. By default the weights are
     handed back the moment the prompt closes: measured here, a finished session
@@ -117,7 +125,8 @@ param(
     [int]$NumCtx = 8192,
     [double]$Reserve = 0,
     [switch]$Normal,
-    [switch]$Hold
+    [switch]$Hold,
+    [switch]$KeepOthers
 )
 
 $ErrorActionPreference = 'Continue'
@@ -146,6 +155,52 @@ function Get-Tags {
         }
     }
     return $null
+}
+
+function Get-Resident {
+    <#  What ollama is holding on the card, as returned by /api/ps. #>
+    try {
+        $ps = Invoke-RestMethod -Uri ($Api + '/api/ps') -TimeoutSec 10
+    } catch {
+        return @()
+    }
+    if ($null -eq $ps.models) { return @() }
+    return @($ps.models)
+}
+
+function Clear-Resident {
+    <#  Unload anything still on the card, except the model about to be used.
+
+        A prompt that exits cleanly hands its weights back, but not every exit
+        is clean: a killed window, a -Hold from last time, an `ollama run` in
+        another terminal. Those sit there until their keep_alive runs out, and
+        the next load then asks a card that is already full - which on this
+        bench was a 500 from the daemon reading 'cudaMalloc failed', with
+        nothing obviously wrong at either end.
+
+        Keeping a matching model is not an exception to the rule, it is the
+        rule: what is being cleared is VRAM nobody is going to use, and weights
+        this run is about to load are not that.  #>
+    param([string]$Except)
+
+    if ($KeepOthers) { return }
+
+    foreach ($entry in (Get-Resident)) {
+        if ($entry.name -eq $Except) {
+            Say 'ok' 'resident' ('{0} already loaded, {1:n1} GB - kept' `
+                -f $entry.name, ($entry.size_vram / 1GB))
+            continue
+        }
+        try {
+            $body = @{ model = $entry.name; prompt = ''; keep_alive = 0 } | ConvertTo-Json
+            Invoke-RestMethod -Uri ($Api + '/api/generate') -Method Post -Body $body `
+                              -ContentType 'application/json' -TimeoutSec 60 | Out-Null
+            Say 'ok' 'unloaded' ('{0} was still resident, {1:n1} GB freed' `
+                -f $entry.name, ($entry.size_vram / 1GB))
+        } catch {
+            Say 'warn' 'unloaded' ('could not unload ' + $entry.name + ': ' + $_.Exception.Message)
+        }
+    }
 }
 
 function Get-Choice {
@@ -288,6 +343,10 @@ if ($null -eq $resolved) {
     Say 'ok' 'model' ("pulled $resolved")
 }
 $Model = $resolved
+
+# Anything left on the card from a killed window, a -Hold, or somebody's
+# `ollama run` goes now - before this run adds its own.
+Clear-Resident -Except $Model
 
 # An empty prompt loads the weights and generates nothing. Doing it here means
 # the 8 GB wait is visible and timed, instead of hiding inside question one.

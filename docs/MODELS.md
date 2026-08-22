@@ -198,6 +198,7 @@ But the hold is not free, and the two modes want opposite things:
 | prompt loop (`--repl`) | 30 min | the next turn is coming, and it reuses the prefix |
 | one question (`-Ask`, `-q`) | 2 min | enough for an immediate follow-up, then the card is somebody else's |
 | **leaving the prompt** | **released at once** | the cache has no further job |
+| **entering the prompt** | **anything else is unloaded first** | a card with two models on it is how a load fails |
 
 That last row is the one that matters on a workstation. Measured before it
 existed: a finished session left **9.69 GB of a 16 GB card resident for another
@@ -208,6 +209,24 @@ only if there is a next time; `-Hold` keeps it resident when there is.
 
 `--keep-alive 0` hands the VRAM back immediately on any path, and an explicit
 value always beats the mode's default.
+
+The entry side matters as much as the exit. Not every exit is clean — a killed
+window, a `-Hold` from last time, somebody's own `ollama run` in another
+terminal — and each leaves weights on the card until their keep_alive expires.
+The next load then asks a card that is already full, which on this bench was a
+500 from the daemon reading `cudaMalloc failed` with nothing obviously wrong at
+either end. So `board_prompt.ps1` sweeps before it loads, and says what it
+freed:
+
+```
+  ok    unloaded    llama3.1:8b was still resident, 4.9 GB freed
+  ok    model       gemma4:12b  loaded in 7.0 s, held 30m
+```
+
+A model that is already the one this run wants is kept, not reloaded — that is
+warm, not stale, and it reports `loaded in 0.0 s`. `-KeepOthers` leaves
+everything where it is, for a machine deliberately running something else on
+the card.
 
 `preload()` sends `options` with the empty message list. Without `num_ctx` the
 daemon loads the model's own default context — 128k on llama3.1, a 7 GB KV
