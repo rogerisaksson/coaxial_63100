@@ -342,10 +342,16 @@ def test_board_tools(report):
     report.check('the MCP board tools are reachable unchanged',
                  record.verdict == 'record' and len(results) == 4,
                  ','.join(record.calls))
-    report.check('an analog read with the front end off is refused with the way out',
-                 results[0]['result'].startswith('ERR')
-                 and 'afe_power' in results[0]['result'],
+    # Labelled rather than refused. A refusal did not stop a fabricated
+    # reading, it caused one: with no numbers to report, a model wrote
+    # "Mid-scale ... 25.00 C" straight out of the warning text.
+    report.check('an analog read with the front end off is labelled, not refused',
+                 results[0]['result'].startswith('AFE OFF')
+                 and 'afe_power on' in results[0]['result'],
                  results[0]['result'][:52])
+    report.check('and it still carries the codes it read',
+                 'smp' in results[0]['result'],
+                 results[0]['result'].splitlines()[-1][:52])
     report.check('the front end switch is not write-gated',
                  'on=1' in results[1]['result'], results[1]['result'])
     report.check('a reading comes back in the compact renderer',

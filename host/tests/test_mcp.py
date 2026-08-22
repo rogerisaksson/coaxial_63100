@@ -203,12 +203,22 @@ def error_paths(server, report):
     report.check('reserved pin refused with a reason',
                  text.startswith('ERR') and 'USART3' in text, text[:70])
 
+    # Not refused: labelled. Refusing produced a fabricated reading rather
+    # than preventing one - asked for the codes with the AFE deliberately off,
+    # a model with no numbers wrote "Mid-scale ... 25.00 C" out of the warning
+    # text. The codes come back, under a line that cannot be read as one.
     server.tool('afe_power', {'action': 'off'})
     text = server.tool('analog_read')
-    report.check('AFE off refused with the way out',
-                 text.startswith('ERR') and 'afe_power' in text,
+    report.check('AFE off is labelled, not refused',
+                 not text.startswith('ERR') and text.startswith('AFE OFF'),
                  '%d tok  %s' % (approx_tokens(text), text[:56]))
+    report.check('and the codes are actually there to read',
+                 'NTC' in text and 'smp' in text, text.splitlines()[-1][:56])
+    report.check('the label says how to make it a measurement',
+                 'afe_power on' in text)
     server.tool('afe_power', {'action': 'on'})
+    report.check('with the AFE on there is no banner',
+                 not server.tool('analog_read').startswith('AFE OFF'))
 
     text = server.tool('nonexistent_tool')
     report.check('unknown tool', 'ERR unknown tool' in text, text[:50])

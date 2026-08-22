@@ -337,7 +337,18 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
     _, _, channels = session.info()
     indices = _resolve(session, ch) if ch else [c['index'] for c in channels]
 
-    board.afe.require()
+    # Read whether or not the front end is on, and say which it was.
+    #
+    # Refusing was worse than it looked. Asked for the raw codes with the AFE
+    # deliberately off, the tool raised, and the model - having no numbers -
+    # produced "PhaseU: Mid-scale ... NTC: 25.00 C" from the warning text
+    # itself. A refusal did not prevent a fabricated reading, it caused one.
+    #
+    # It is also the wrong shape for this repository. The board is a dumb slave
+    # that reports codes and judges nothing (invariant 10); deciding a
+    # measurement is not worth taking is a judgement. So the codes come back,
+    # with a line that cannot be mistaken for one of them.
+    afe_on = bool(board.afe.state().get('on'))
 
     mask = 0
     for index in indices:
@@ -370,7 +381,12 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
         elif meta['signal'] == 'DC bus':
             derived[index] = '%.3fV bus' % divider.volts(stats['mean_raw'])
 
-    return render.analog({'samples': burst['samples'],
+    banner = ('' if afe_on else
+              'AFE OFF - the ADC reference is unpowered. These are the codes '
+              'the converter returned, not measurements: every channel sits '
+              'near mid-scale and the NTC figure below is arithmetic on that, '
+              'not a temperature. Call afe_power on to measure.' + chr(10))
+    return banner + render.analog({'samples': burst['samples'],
                           'rate_hz': burst['rate_hz'],
                           'channels': rows}, derived)
 

@@ -120,8 +120,17 @@ With it off, every channel reads exact mid-scale: differential codes exactly 0,
 single-ended exactly 32768. The NTC then reports **exactly 25.00 C**, because
 mid-scale puts its divider at R25, which is 25 C by definition. That is a
 plausible-looking number which is not a measurement — which is why it gets its
-own subsystem in the host library and why every analog reader raises rather than
-returning it.
+own subsystem in the host library.
+
+What to do about it turned out to be two different answers. The library's
+cooked readings — `read_all`, `ntc_temperature`, `dcbus_voltage` — still raise,
+because each claims a physical quantity and with the reference unpowered there
+is none to claim. The `analog_read` **tool** does not: it returns the codes
+under a line saying what they are. Refusing there was tried, and it caused the
+thing it was meant to prevent — asked for the raw codes with the AFE
+deliberately off, a model with no numbers to report wrote "Mid-scale … 25.00 C"
+out of the warning text itself. Codes under a label beat a refusal that gets
+paraphrased into data.
 
 **PE15 follows AFE_ON inversely** — measured, not assumed: 1 while the AFE is off,
 0 once it is on. That makes the discrete input an independent witness that a write

@@ -66,8 +66,8 @@ STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --s
 cd host
 python -m coaxial all                      # CLI against the board
 python tests/test_conformance.py           # 40 Modbus conformance checks
-python tests/test_mcp.py                   # 36 MCP server checks
-python tests/test_ollama.py                # 211 runner and dbg checks, offline
+python tests/test_mcp.py                   # 39 MCP server checks
+python tests/test_ollama.py                # 212 runner and dbg checks, offline
 python examples/read_board.py                # measure, judge nothing
 python -m coaxial_mcp --port COM4          # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml   # local model drives the bench
@@ -224,9 +224,17 @@ Break one of these and something works until it doesn't.
    further.
 8. **Nothing in the Python library returns a status code or None-for-failure.**
    Every call produces its result or raises from `coaxial.errors`.
-9. **AFE_ON gates every analog reading**, because it powers the ADC reference and
-   not just the signal path. With it off, channels read exact mid-scale and the
-   NTC reports exactly 25.00 °C — a plausible number that is not a measurement.
+9. **AFE_ON decides what a reading means**, because it powers the ADC reference
+   and not just the signal path. With it off, channels read exact mid-scale and
+   the NTC reports exactly 25.00 °C — a plausible number that is not a
+   measurement. The gate is a **label, not a refusal**: `analog_read` returns
+   the codes either way, under a line that cannot be mistaken for one of them.
+   Refusing was tried and was worse — asked for the raw codes with the AFE
+   deliberately off, a model with no numbers to report wrote "Mid-scale …
+   25.00 C" out of the warning text itself, so the refusal caused the invented
+   reading it was meant to prevent. The library's cooked readings
+   (`read_all`, `ntc_temperature`, `dcbus_voltage`) still refuse, because those
+   claim a physical quantity and there is none to claim.
 10. **The board is a dumb slave. No limits, no expected values, anywhere in
     the firmware or in this repository's tests.** It reports raw codes; pass/fail
     against real thresholds belongs to a test executive on the line, beside the
