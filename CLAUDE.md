@@ -104,15 +104,42 @@ Or, from `host/`, the same thing one layer down: `python dbg.py -m auto -q "..."
 Both pick the model this machine can run and **pull it if it is not here yet**,
 so "the model is not installed" is not a reason to answer from memory instead.
 
+### Stop and ask first
+
+**Before touching the board to answer a question, ask whether it is worth
+tokens.** The rule above was in this file already and was walked straight past:
+a request for measurement data turned into an expensive model driving the serial
+port for a quarter of an hour, producing numbers the free one standing next to
+the board could have produced. A rule with no stop in it is a preference.
+
+So the stop is explicit. When the request is *measure something* — read a
+channel, fetch data, check the AFE, take a burst, log values over time — put the
+question to the user before running anything:
+
+> **Local model, or here?**
+> *the local model* — `board_prompt -Ask "..."`, free, standing at the board
+> *here* — I drive the library, which costs tokens and is worth it when the
+> answer feeds code I am writing
+
+On *the local model*: print the exact command and **stop**. Do not run it, do
+not paraphrase what it would say, do not take the reading anyway to check. The
+user has a terminal.
+
+This does not apply when the board is instrumentation for work already agreed:
+verifying a change just made to `host/`, reproducing a bug, writing a capture
+tool that needs a live link. Then the board is a test fixture, not the subject
+of a question, and asking each time would be noise. The test is who the answer
+is for — the user, or the code.
+
 | Question | Who answers |
 |---|---|
-| What does the board read right now? Is the AFE on? What is the temperature, the DC link, the frame counters? | **the local model** — one `-Ask`, then relay the number |
+| What does the board read right now? Is the AFE on? What is the temperature, the DC link, the frame counters? | **the local model** — offer the command, then stop |
 | Is this channel behaving oddly? What does `self_test` say? | **the local model**, then read `docs/FINDINGS.md` before investigating |
 | Why is this C function written this way? Should this go in `Board/` or `Comms/`? Is this a protocol MAJOR? | **you** — it is bad at code and design, and FINDINGS records it inventing hardware constants |
 | What is the wire format of command 0x41? | **you**, from `docs/PROTOCOL.md` |
 
-Relay what it measured; do not re-derive it, and do not decorate it with a
-verdict. If it is wrong about the hardware, that is a finding worth writing
+Where the user chose *here*, relay what was measured; do not re-derive it, and
+do not decorate it with a verdict. If it is wrong about the hardware, that is a finding worth writing
 down — see `docs/MODELS.md`, which is the chapter about what it is allowed to
 conclude and which failure modes have already been measured.
 
