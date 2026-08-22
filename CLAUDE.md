@@ -49,6 +49,9 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes     # install the lot: winget,
                                            # python packages, ST bundles via cube.exe,
                                            # STM32CubeMX, the ST-Link driver, ollama
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -FirmwarePackage X.zip
+                                           # STM32Cube FW_H7 into CubeMX's repository.
+                                           # Only CubeMX needs it; Drivers/ is in git.
 . .\env.ps1                                # tools on PATH: bench, dbg, board, cbuild,
                                            # cflash, cubemx
 ```

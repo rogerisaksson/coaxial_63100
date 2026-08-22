@@ -24,6 +24,8 @@
       the VS Code extensions            code --install-extension: the STM32
                                         pack, cpptools, python, and Ollama's
                                         own - see .vscode/extensions.json
+      STM32Cube FW_H7                   st.com, and only for CubeMX. The build
+                                        has Drivers/ in the repository.
 
     The ST half used to be the awkward half. ST publishes nothing to winget and
     the installers on st.com sit behind a login and a click-through licence, so
@@ -88,6 +90,22 @@
     script that needs administrator rights, so it is asked for on its own and
     skipped outright here.
 
+.PARAMETER SkipFirmware
+    Do not look for the STM32Cube FW_H7 package. Nothing in the build needs it -
+    Drivers/ is in this repository - so a machine that only builds and flashes
+    can ignore it entirely.
+
+.PARAMETER FirmwarePackage
+    A STM32Cube_FW_H7_Vx.y.z.zip, or an already unpacked copy of one, to install
+    into the CubeMX repository. This is the way in if you have the package from
+    somewhere other than st.com - a share, a memory stick, another bench - and
+    it is the only path here that needs no browser and no account.
+
+.PARAMETER Repository
+    Where CubeMX keeps its firmware packages. Defaults to
+    %USERPROFILE%\STM32Cube\Repository, which is CubeMX's own default; pass this
+    if yours was moved.
+
 .PARAMETER WingetToolchain
     Install cmake, ninja and arm-none-eabi-gcc from winget instead of relying on
     the VS Code extension's bundles.
@@ -105,6 +123,9 @@ param(
     [switch]$SkipOllama,
     [switch]$SkipCubeMX,
     [switch]$SkipDriver,
+    [switch]$SkipFirmware,
+    [string]$FirmwarePackage,
+    [string]$Repository = (Join-Path $env:USERPROFILE 'STM32Cube\Repository'),
     [switch]$WingetToolchain,
     [switch]$AllowScripts
 )
@@ -113,6 +134,7 @@ $ErrorActionPreference = 'Continue'
 $Root = $PSScriptRoot
 $Host_ = Join-Path $Root 'host'
 $BundleRoot = Join-Path $env:LOCALAPPDATA 'stm32cube\bundles'
+$CubeH7Url = 'https://www.st.com/en/embedded-software/stm32cubeh7.html'
 $script:Todo = @()
 
 # ---- reporting -------------------------------------------------------------
@@ -586,6 +608,123 @@ function Install-StLinkDriver {
     }
 }
 
+function Get-FirmwareVersion {
+    <#  Which FW_H7 the .ioc was generated against.
+
+        Read from the project rather than pinned here, because CubeMX writes it
+        and CubeMX is the thing that will complain about it. The line looks like
+
+            ProjectManager.FirmwarePackage=STM32Cube FW_H7 V1.13.0  #>
+
+    $ioc = Join-Path $Root 'coaxial_63100.ioc'
+    if (-not (Test-Path $ioc)) { return $null }
+    $line = Select-String -Path $ioc -Pattern '^ProjectManager\.FirmwarePackage=' `
+                          -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $line) { return $null }
+    if ($line.Line -match 'V([0-9]+\.[0-9]+\.[0-9]+)') { return $Matches[1] }
+    return $null
+}
+
+function Install-FirmwarePackage {
+    <#  The STM32Cube FW_H7 package, which is the one thing here that ST still
+        puts behind a login.
+
+        First, what it is and is not for. The build does not need it: Drivers/
+        is in this repository, so gcc has its HAL and CMSIS whether or not this
+        step ever runs. What needs it is CubeMX - opening the .ioc against a
+        repository that has no FW_H7 V1.13.0 in it means CubeMX offers to
+        download one, and regenerating against a different version is a
+        different Core/ than the one in git.
+
+        Three ways in, in the order they are worth trying:
+
+          1. -FirmwarePackage <zip or folder>. If the package is already on a
+             share, a stick or another bench, this needs no browser and no
+             account. It is the only fully automatic path.
+          2. CubeMX itself. Its package manager downloads FW packages, and it
+             is already installed by the bundle step above. It may ask for an
+             st.com account; if it does, so be it - that is ST's decision, not
+             this script's.
+          3. The web page, opened in the default browser. A human agrees to the
+             licence, downloads the zip, and hands it back through 1.
+
+        What this function will not do is scrape a download out of st.com with
+        a fabricated user agent. The URLs that used to serve these unauthenticated
+        (sw-center.st.com) answer 404 now, and the GitHub mirror is submodules -
+        `Drivers/STM32H7xx_HAL_Driver` is a gitlink there, so a zipball of the
+        tag contains none of the sources that matter.  #>
+
+    if ($SkipFirmware) { return }
+
+    Write-Head 'STM32Cube FW_H7 (CubeMX only - the build does not need it)'
+
+    $version = Get-FirmwareVersion
+    if ($null -eq $version) {
+        Write-Item 'firmware package' 'ok' 'the .ioc names none'
+        return
+    }
+    $name = 'STM32Cube_FW_H7_V' + $version
+    $target = Join-Path $Repository $name
+
+    if (Test-Path $target) {
+        Write-Item $name 'ok' $target
+        return
+    }
+    Write-Item $name 'missing' ('not in ' + $Repository)
+
+    # 1. handed to us
+    if ($FirmwarePackage) {
+        if (-not (Test-Path $FirmwarePackage)) {
+            Write-Item 'firmware package' 'failed' ('no such path: ' + $FirmwarePackage)
+            Add-Todo ('-FirmwarePackage pointed at ' + $FirmwarePackage + ', which does not exist')
+            return
+        }
+        if ($Check) {
+            Write-Item 'firmware package' 'missing' ('would install from ' + $FirmwarePackage)
+            return
+        }
+        if (-not (Test-Path $Repository)) {
+            New-Item -ItemType Directory -Path $Repository -Force | Out-Null
+        }
+        try {
+            if ((Get-Item $FirmwarePackage) -is [System.IO.DirectoryInfo]) {
+                Copy-Item $FirmwarePackage -Destination $target -Recurse -Force
+            } else {
+                # The zip carries its own STM32Cube_FW_H7_Vx.y.z top directory,
+                # so it expands into the repository rather than into the target.
+                Expand-Archive -Path $FirmwarePackage -DestinationPath $Repository -Force
+            }
+        } catch {
+            Write-Item 'firmware package' 'failed' $_.Exception.Message
+            Add-Todo ('unpacking ' + $FirmwarePackage + ' failed - read the error above')
+            return
+        }
+        if (Test-Path $target) {
+            Write-Item $name 'done' $target
+        } else {
+            Write-Item $name 'failed' ('unpacked, but there is no ' + $name + ' in ' + $Repository)
+            Add-Todo ('the package unpacked under a different name - rename it to ' + $name)
+        }
+        return
+    }
+
+    # 2. CubeMX, if it is here
+    $mx = Get-NewestBundle 'stm32cubemx-application'
+    if ($null -ne $mx) {
+        Write-Item 'STM32CubeMX' 'ok' 'its package manager can fetch this one'
+        Add-Todo ('open CubeMX (the `cubemx` command) and let it install ' + $name +
+                  ' - Help > Manage embedded software packages')
+    }
+
+    # 3. the page
+    if (Confirm-Step 'open the STM32CubeH7 download page in a browser ?') {
+        Start-Process $CubeH7Url
+        Write-Item 'download page' 'done' $CubeH7Url
+    }
+    Add-Todo ($CubeH7Url + '  -> download ' + $name +
+              ', then: setup.ps1 -FirmwarePackage <the zip>')
+}
+
 function Install-WingetToolchain {
     Write-Head 'toolchain from winget'
     $packages = [ordered]@{
@@ -928,6 +1067,8 @@ if ($WingetToolchain) {
     Install-VsCodeExtensions -Absent $absent
     Install-StLinkDriver
 }
+
+Install-FirmwarePackage
 
 if (-not $SkipOllama) {
     Install-Ollama

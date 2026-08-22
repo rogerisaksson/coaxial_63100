@@ -50,6 +50,7 @@ list rather than dying half-installed.
 | cube-cmake | the STM32 VS Code extension |
 | VS Code extensions: the STM32 pack, cpptools, python, ollama | `code --install-extension`, mirroring [.vscode/extensions.json](.vscode/extensions.json) |
 | ollama and `gemma4:12b` | winget or `ollama.com/install.ps1`, then `ollama pull` |
+| STM32Cube FW_H7 | st.com — the one thing still behind a login, and only CubeMX needs it |
 
 None of the ST tools land on the system PATH: they install as "bundles" under
 `%LOCALAPPDATA%\stm32cube\bundles`, which is why plain `cmake` and
@@ -63,11 +64,32 @@ same bundles from developer.st.com with no account and no browser. That is what
 the script drives, so a fresh machine needs no human in the middle of the
 toolchain install.
 
-Two things still cannot be helped. A winget install only reaches the PATH of
+Three things still cannot be helped. A winget install only reaches the PATH of
 shells opened *after* it, so on a bare machine the first run installs Python and
-VS Code and asks to be run once more — the second run finishes. And installing
-the ST-Link USB driver needs administrator rights, so it comes with an elevation
-prompt of its own.
+VS Code and asks to be run once more — the second run finishes. Installing the
+ST-Link USB driver needs administrator rights, so it comes with an elevation
+prompt of its own. And the STM32Cube FW_H7 package is still behind an st.com
+login.
+
+That last one matters less than it sounds. **The build does not need it** —
+`Drivers/` is in this repository, so gcc has its HAL and CMSIS either way. What
+needs it is CubeMX: opening the `.ioc` against a repository without
+`STM32Cube_FW_H7_V1.13.0` in it means CubeMX offers to fetch its own, and
+regenerating against a different version is a different `Core/` than the one in
+git. The script reads the required version out of the `.ioc`, looks in CubeMX's
+repository, and if it is absent offers three ways in:
+
+```powershell
+# 1. you already have it - a share, a stick, another bench. No browser, no account.
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -FirmwarePackage D:\STM32Cube_FW_H7_V1.13.0.zip
+
+# 2. CubeMX's own package manager: cubemx, then Help > Manage embedded software packages
+# 3. the download page, opened for you when asked
+```
+
+What it will not do is scrape the download out of st.com. The URLs that used to
+serve these unauthenticated answer 404 now, and the GitHub mirror keeps its
+drivers as submodules — a zipball of the tag has none of the sources in it.
 
 | Switch | Why |
 |---|---|
@@ -76,6 +98,9 @@ prompt of its own.
 | `-SkipOllama` | a machine that only builds and flashes |
 | `-SkipCubeMX` | skip STM32CubeMX — 308 MB down, 835 MB on disk, and only the `.ioc` needs it |
 | `-SkipDriver` | leave the ST-Link USB driver alone (no elevation prompt) |
+| `-FirmwarePackage PATH` | install a `STM32Cube_FW_H7_*.zip`, or an unpacked copy, into the CubeMX repository |
+| `-SkipFirmware` | do not look for FW_H7 at all — a machine that only builds and flashes |
+| `-Repository PATH` | where CubeMX keeps its packages, if yours is not the default |
 | `-Model TAG` | a different Ollama tag; the default is `gemma4:12b` |
 | `-WingetToolchain` | cmake, ninja and Arm's gcc from winget instead of the ST bundles |
 | `-AllowScripts` | set the CurrentUser execution policy so `. .\env.ps1` works in a plain shell |
