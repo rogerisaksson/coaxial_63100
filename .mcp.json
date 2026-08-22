@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "coaxial": {
+      "command": "python",
+      "args": ["-m", "coaxial_mcp", "--port", "COM4"],
+      "cwd": "${workspaceFolder}/host",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/host",
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}

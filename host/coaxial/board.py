@@ -1,0 +1,198 @@
+"""The board, as one object with one subsystem per functional area.
+
+    board.system    identity, versions, clock tree, releasing the console
+    board.link      echo and the protocol's frame counters
+    board.afe       the analog front end switch, which also powers the reference
+    board.analog    channels, bursts, temperature, DC bus
+    board.gpio      raw pin access for a fixture, behind a gate
+
+The split follows the hardware rather than the protocol: someone reading a test
+script should be able to tell which part of the board a line touches without
+knowing a single function code.
+"""
+import time
+
+from .afe import Afe
+from .analog import Analog
+from .errors import ConnectError, RigError, UnsupportedProtocolError
+from .gpio import Gpio
+from .link import Link
+from .system import System
+from .transport import Transport
+
+
+class Board:
+    """One unit on one transport. Every method raises rather than reporting."""
+
+    def __init__(self, transport, unit=1):
+        self.transport = transport
+        self.unit = unit
+        self.version_info = None
+
+        self.system = System(self)
+        self.link = Link(self)
+        self.afe = Afe(self)
+        self.analog = Analog(self)
+        self.gpio = Gpio(self)
+
+    def __repr__(self):
+        firmware = (self.version_info or {}).get('firmware', 'unknown fw')
+        return '<Board unit=%d %s@%d %s>' % (self.unit, self.transport.port,
+                                             self.transport.baud, firmware)
+
+    # -- the single point where a transaction happens ----------------------
+
+    def request(self, function, payload=b'', exact_payload=None, timeout=None):
+        return self.transport.request(self.unit, function, payload,
+                                      exact_payload, timeout)
+
+    def broadcast(self, function, payload=b''):
+        """Acted on by every unit on the wire, answered by none."""
+        self.transport.broadcast(function, payload)
+
+    # -- getting the link open and shut ------------------------------------
+
+    def open_binary(self, settle=0.5):
+        """Hand USART3 from the text console to the binary protocol.
+
+        The board boots into its console because that is how a human drives it;
+        'm' is the console key that gives the line up. Not part of Modbus.
+        """
+        self.transport.write_text('m')
+        time.sleep(settle)
+        self.transport.discard_input()
+
+    def close_binary(self):
+        """Give the line back to the console."""
+        self.system.release_console()
+
+    def probe(self):
+        """Read and remember the version record. Returns it."""
+        self.version_info = self.system.version()
+        return self.version_info
+
+
+# Protocol major -> the client class that speaks it. THIS is the lookup: a
+# firmware that bumps to major 2 gets a Board subclass on a new line here, and
+# every call site stays as it is. Nothing keys off the firmware version, because
+# binding a host to firmware numbers means every rebuild breaks the host.
+BOARD_CLASSES = {1: Board}
+
+
+def _build(probe):
+    """Probe with the frozen prefix, then instantiate the matching class.
+
+    The link is already open by the time this runs: handing the UART over is a
+    precondition for any traffic at all, not part of verification.
+    """
+    transport, unit = probe.transport, probe.unit
+    info = probe.probe()
+
+    board_class = BOARD_CLASSES.get(info['proto_major'])
+    if board_class is None:
+        raise UnsupportedProtocolError(
+            'unit %d on %s@%d speaks protocol %d.%d; this host implements %s'
+            % (unit, transport.port, transport.baud,
+               info['proto_major'], info['proto_minor'],
+               ', '.join(str(major) for major in sorted(BOARD_CLASSES))))
+
+    if board_class is Board:
+        return probe
+
+    # A class registered for another major brings its own codec, so let it read
+    # the record itself rather than handing it one decoded by this one.
+    board = board_class(transport, unit)
+    board.probe()
+    return board
+
+
+def _normalise(entry, default_port, default_baud):
+    """Accept 1, (1, 19200) or (1, 19200, 'COM7') and return a full triple."""
+    if isinstance(entry, int):
+        return entry, default_baud, default_port
+    if isinstance(entry, (tuple, list)) and len(entry) == 2:
+        return entry[0], entry[1], default_port
+    if isinstance(entry, (tuple, list)) and len(entry) == 3:
+        return entry[0], entry[1], entry[2]
+    raise ValueError('bad unit spec %r: expected unit, (unit, baud) or '
+                     '(unit, baud, port)' % (entry,))
+
+
+def connect(units, port='COM4', baud=115200, verify=True):
+    """Open the links and return one Board per entry, in the order given.
+
+    units   a list of unit ids, or of (unit, baud), or of (unit, baud, port).
+            Entries sharing a port and bitrate share one Transport; a different
+            bitrate gets its own, because one UART cannot run two at once.
+
+    verify  probe each unit and raise if it does not answer, or speaks a
+            protocol major this host has no codec for. On by default: a rig that
+            silently proceeds with a dead board produces results that look real.
+
+    There is no partial success. A caller holding the returned list knows every
+    board in it answered.
+    """
+    specs = [_normalise(entry, port, baud) for entry in units]
+    transports = {}
+    boards = []
+
+    try:
+        for unit, unit_baud, unit_port in specs:
+            key = (unit_port, unit_baud)
+            fresh = key not in transports
+            if fresh:
+                transports[key] = Transport(unit_port, unit_baud)
+
+            board = Board(transports[key], unit)
+
+            # The board boots into its text console, so the line has to be
+            # handed over before any framing - once per port rather than once
+            # per unit, and whether or not this call is going to probe. Skipping
+            # it would return boards that cannot talk at all.
+            if fresh:
+                board.open_binary()
+
+            if not verify:
+                boards.append(board)
+                continue
+
+            try:
+                boards.append(_build(board))
+            except UnsupportedProtocolError:
+                raise
+            except RigError as exc:
+                raise ConnectError('unit %d on %s@%d did not answer: %s'
+                                   % (unit, unit_port, unit_baud, exc)) from exc
+    except Exception:
+        # No partial success: every transport opened here gets closed, even if
+        # one of them refuses, and the original failure is what propagates.
+        for transport in transports.values():
+            try:
+                transport.close()
+            except RigError:
+                pass
+        raise
+
+    return boards
+
+
+def disconnect(boards):
+    """Return every UART to its console and close the ports. Idempotent."""
+    seen = set()
+    for board in boards:
+        if id(board.transport) in seen:
+            continue
+        seen.add(id(board.transport))
+        try:
+            try:
+                # A port already closed has nothing to hand back, which is what
+                # makes a second call to this function a no-op rather than an
+                # error from pyserial.
+                if board.transport.is_open:
+                    board.close_binary()
+            finally:
+                board.transport.close()
+        except RigError:
+            # Shutting down. A board that will not answer, or a port that will
+            # not close, must not strand the ports of every board after it.
+            pass

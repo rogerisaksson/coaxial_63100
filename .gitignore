@@ -1,0 +1,58 @@
+# ---- build output ----------------------------------------------------------
+# cube-cmake writes per-preset trees here; everything in it is regenerated.
+build/
+out/
+cmake-build-*/
+
+# ---- CubeMX scratch --------------------------------------------------------
+# .mxproject is the generator's own state and is tracked deliberately: without
+# it CubeMX re-generates from scratch and loses the user-code blocks. These are
+# the ones that are pure noise.
+mx.scratch
+*.bak
+*.ioc.bak
+.mxproject.old
+
+# ---- editor / IDE ----------------------------------------------------------
+# .vscode and .settings ARE tracked: the STM32 extension keeps its bundle
+# manifests in .settings, and c_cpp_properties.json is what makes IntelliSense
+# find the HAL. Only the per-user parts are ignored.
+.vscode/*.log
+.vscode/ipch/
+.idea/
+*.code-workspace
+.cache/
+compile_commands.json
+
+# ---- Python (host/) --------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build-python/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- bench output ----------------------------------------------------------
+# host/data/*.csv is tracked: those are the captures the documents refer to.
+# Anything a run drops elsewhere is not.
+*.log
+!docs/**/*.log
+capture_*.csv
+scratch/
+
+# ---- toolchain / OS --------------------------------------------------------
+*.elf.map
+*.su
+*.gcno
+*.gcda
+Thumbs.db
+desktop.ini
+.DS_Store

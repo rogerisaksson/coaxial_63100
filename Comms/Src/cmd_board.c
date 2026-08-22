@@ -1,0 +1,299 @@
+/**
+  ******************************************************************************
+  * @file    cmd_board.c
+  * @brief   The command table for this board: the old ASCII reports, in binary.
+  *
+  * Every handler is a flat run of statements. That is not a style preference:
+  * the reader and writer in wire.h are total, so there is nothing to branch on
+  * between fields, and cmd_dispatch checks their sticky flags once afterwards.
+  * A handler only branches where the BOARD can genuinely fail.
+  ******************************************************************************
+  */
+#include "cmd.h"
+#include "board.h"
+#include "link.h"
+#include "version.h"
+
+/* The version query, and the one command whose layout is frozen. The protocol
+   major comes FIRST so that a host of any vintage can read two bytes, decide
+   whether it understands this device at all, and stop. Fields may only ever be
+   appended after that; anything else is a new major by definition. */
+static cmd_status_t h_version(rd_t *in, wr_t *out)
+{
+  (void)in;
+
+  wr_u8(out, CMD_PROTO_MAJOR);
+  wr_u8(out, CMD_PROTO_MINOR);
+  wr_u8(out, FW_VERSION_MAJOR);
+  wr_u8(out, FW_VERSION_MINOR);
+  wr_u8(out, FW_VERSION_PATCH);
+  wr_str(out, FW_DEVICE_NAME);
+  wr_str(out, FW_MCU_NAME);
+  wr_str(out, FW_BUILD_STRING);
+  wr_u16(out, cmd_count());
+
+  return CMD_OK;
+}
+
+static cmd_status_t h_adc_table(rd_t *in, wr_t *out)
+{
+  (void)in;
+
+  const uint8_t n = Board_AdcCount();
+
+  wr_u8(out, n);
+
+  for (uint8_t i = 0U; i < n; i++)
+  {
+    board_chan_t c;
+    int32_t raw = 0;
+    int32_t uv = 0;
+    int32_t scaled = 0;
+
+    if (!Board_AdcChan(i, &c))
+    {
+      return CMD_ERR_DEVICE;
+    }
+
+    if (!Board_AdcRead(i, &raw, &uv, &scaled))
+    {
+      return CMD_ERR_DEVICE;
+    }
+
+    wr_u8(out, c.adc_index);
+    wr_u8(out, c.channel);
+    wr_str(out, c.pin);
+    wr_u8(out, c.differential ? 1U : 0U);
+    wr_str(out, c.signal);
+    wr_i32(out, raw);
+    wr_i32(out, uv);
+    wr_u8(out, c.unit);
+    wr_i32(out, scaled);
+  }
+
+  return CMD_OK;
+}
+
+static cmd_status_t h_adc_scan(rd_t *in, wr_t *out)
+{
+  (void)in;
+
+  int32_t u = 0;
+  int32_t v = 0;
+  int32_t w = 0;
+  int32_t dc_raw = 0;
+  int32_t dc_mv = 0;
+  int32_t ntc_raw = 0;
+  int32_t ntc_cc = 0;
+
+  if (!Board_PhaseRaw(&u, &v, &w))
+  {
+    return CMD_ERR_DEVICE;
+  }
+
+  if (!Board_DcBus(&dc_raw, &dc_mv))
+  {
+    return CMD_ERR_DEVICE;
+  }
+
+  /* The NTC needs the reference, which the AFE powers. Reporting a temperature
+     with the AFE off would be reporting exactly 25.00 C every time, because
+     mid-scale puts the divider at R25 by definition. Let it fail instead. */
+  const bool ntc_ok = Board_Ntc(&ntc_raw, &ntc_cc);
+
+  wr_i32(out, u);
+  wr_i32(out, v);
+  wr_i32(out, w);
+  wr_i32(out, dc_raw);
+  wr_i32(out, dc_mv);
+  wr_i32(out, ntc_raw);
+  wr_i32(out, ntc_ok ? ntc_cc : 0);
+  wr_u8(out, Board_AfeOn() ? 1U : 0U);
+  wr_u8(out, Board_Pe15() ? 1U : 0U);
+
+  return CMD_OK;
+}
+
+static cmd_status_t h_adc_noise(rd_t *in, wr_t *out)
+{
+  const uint8_t  adc     = rd_u8(in);
+  const uint16_t samples = rd_u16(in);
+
+  if ((adc < 1U) || (adc > 3U))
+  {
+    return CMD_ERR_VALUE;
+  }
+
+  if ((samples < 1U) || (samples > 1000U))
+  {
+    return CMD_ERR_VALUE;
+  }
+
+  int32_t  mean_uv = 0;
+  int32_t  min_raw = 0;
+  int32_t  max_raw = 0;
+  uint32_t span    = 0U;
+  uint32_t sd_uv   = 0U;
+
+  if (!Board_AdcNoise(adc, samples, &mean_uv, &min_raw, &max_raw, &span, &sd_uv))
+  {
+    return CMD_ERR_DEVICE;
+  }
+
+  wr_u16(out, samples);
+  wr_i32(out, mean_uv);
+  wr_i32(out, min_raw);
+  wr_i32(out, max_raw);
+  wr_u32(out, span);
+  wr_u32(out, sd_uv);
+
+  return CMD_OK;
+}
+
+static cmd_status_t h_clock(rd_t *in, wr_t *out)
+{
+  (void)in;
+
+  wr_u32(out, Board_SysClkHz());
+  wr_u32(out, Board_HclkHz());
+  wr_u32(out, Board_Cycles());
+  wr_u32(out, link_ticks_per_us());
+  wr_u8(out, Board_SysClkSource());
+
+  return CMD_OK;
+}
+
+static cmd_status_t h_afe(rd_t *in, wr_t *out)
+{
+  const uint8_t action = rd_u8(in);
+
+  if (action > 3U)
+  {
+    return CMD_ERR_VALUE;
+  }
+
+  /* 0 read, 1 off, 2 on, 3 toggle. Flat because the table is the branch. */
+  static const int8_t NEXT[4] = { -1, 0, 1, -2 };
+  const int8_t want = NEXT[action];
+
+  if (want == 0)
+  {
+    Board_SetAfeOn(false);
+  }
+
+  if (want == 1)
+  {
+    Board_SetAfeOn(true);
+  }
+
+  if (want == -2)
+  {
+    Board_SetAfeOn(!Board_AfeOn());
+  }
+
+  wr_u8(out, Board_AfeOn() ? 1U : 0U);
+  wr_u8(out, Board_Pe15() ? 1U : 0U);
+
+  return CMD_OK;
+}
+
+static cmd_status_t h_analog_burst(rd_t *in, wr_t *out)
+{
+  const uint16_t mask     = rd_u16(in);
+  const uint16_t samples  = rd_u16(in);
+  const uint32_t interval = rd_u32(in);
+
+  board_burst_t stats[16];
+  uint8_t       count = 0U;
+  uint32_t      elapsed = 0U;
+
+  if (!Board_AdcBurst(mask, samples, interval, stats, &count, &elapsed))
+  {
+    return CMD_ERR_VALUE;
+  }
+
+  wr_u16(out, samples);
+  wr_u32(out, elapsed);
+  wr_u8(out, count);
+
+  for (uint8_t i = 0U; i < count; i++)
+  {
+    wr_u8(out, stats[i].index);
+    wr_i32(out, stats[i].mean_milliraw);
+    wr_i32(out, stats[i].min_raw);
+    wr_i32(out, stats[i].max_raw);
+    wr_u32(out, stats[i].sd_milliraw);
+  }
+
+  return CMD_OK;
+}
+
+static cmd_status_t h_self_test(rd_t *in, wr_t *out)
+{
+  (void)in;
+
+  board_check_t checks[BOARD_SELFTEST_MAX];
+  const uint8_t count = Board_SelfTest(checks, BOARD_SELFTEST_MAX);
+
+  wr_u8(out, count);
+
+  for (uint8_t i = 0U; i < count; i++)
+  {
+    wr_str(out, checks[i].name);
+    wr_u8(out, checks[i].status);
+    wr_i32(out, checks[i].value);
+  }
+
+  return CMD_OK;
+}
+
+static cmd_status_t h_link_stats(rd_t *in, wr_t *out)
+{
+  (void)in;
+
+  link_stats_t s;
+  link_stats(&s);
+
+  wr_u8(out, s.unit_id);
+  wr_u32(out, s.t15_ticks);
+  wr_u32(out, s.t35_ticks);
+  wr_u32(out, s.bus_message);
+  wr_u32(out, s.bus_comm_error);
+  wr_u32(out, s.server_message);
+  wr_u32(out, s.server_exception);
+  wr_u32(out, s.server_no_response);
+  wr_u32(out, s.char_overrun);
+
+  return CMD_OK;
+}
+
+static cmd_status_t h_console(rd_t *in, wr_t *out)
+{
+  (void)in;
+  (void)out;
+
+  Board_RequestConsoleMode();
+  return CMD_OK;
+}
+
+/* The whole command set, in one place. Adding a command is one row and one
+   function; there is no switch to keep in step and no registration call. */
+static const cmd_desc_t CMD_TABLE[] =
+{
+  { CMD_VERSION,    "version",    0U,               h_version    },
+  { CMD_ADC_TABLE,  "adc_table",  0U,               h_adc_table  },
+  { CMD_ADC_SCAN,   "adc_scan",   0U,               h_adc_scan   },
+  { CMD_ADC_NOISE,  "adc_noise",  3U,               h_adc_noise  },
+  { CMD_CLOCK,      "clock",      0U,               h_clock      },
+  { CMD_AFE,        "afe",        1U,               h_afe        },
+  { CMD_LINK_STATS, "link_stats", 0U,               h_link_stats },
+  { CMD_ANALOG_BURST, "analog_burst", 8U,          h_analog_burst },
+  { CMD_SELF_TEST,  "self_test",  0U,               h_self_test  },
+  { CMD_CONSOLE,    "console",    0U,               h_console    },
+};
+
+const cmd_desc_t *cmd_board_table(uint8_t *count)
+{
+  *count = (uint8_t)(sizeof(CMD_TABLE) / sizeof(CMD_TABLE[0]));
+  return CMD_TABLE;
+}

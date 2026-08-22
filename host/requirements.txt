@@ -1,0 +1,24 @@
+# Host-side dependencies. Four packages, and each one is here for a reason:
+#
+#   pyserial   the only way to the board. Nothing else in this tree talks to a
+#              COM port.
+#   pyyaml     test plans are YAML because a process engineer has to be able to
+#              read and review one without reading Python.
+#   mcp        the Model Context Protocol server in coaxial_mcp/.
+#   anyio      what mcp's low-level server runs on; pinned here because
+#              coaxial_mcp/server.py imports it directly rather than through mcp.
+#
+# Deliberately absent: numpy, pandas, reportlab, requests, the ollama client.
+# The statistics this repository computes are means and standard deviations over
+# a few hundred samples, its PDF writer is 172 lines of PDF 1.4, and its Ollama
+# client is urllib. A bench PC at a contract manufacturer keeps working through
+# the next OS image in proportion to how little it needs installed.
+pyserial>=3.5
+PyYAML>=6.0
+mcp>=1.2
+anyio>=4.0
+
+# Only for examples/pytest_production_line.py. Nothing else in tests/ needs it:
+# the conformance, MCP and runner suites are plain scripts with their own
+# reporters, so they run on a machine with nothing but the four above.
+pytest>=8.0

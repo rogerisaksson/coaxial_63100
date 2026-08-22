@@ -1,0 +1,84 @@
+# Functional test plan, coaxial_63100 inverter PCBA.
+#
+# EVERY NUMBER BELOW IS A PLACEHOLDER. They are shaped like real limits so the
+# sequence and the report can be exercised end to end, but none of them was
+# established by a study and none may be shipped.
+#
+# A real plan replaces them with limits from a GRR/MSA study run on the bench
+# that will run the test, with the instruments that will make the measurements.
+# The study says how much of each tolerance the measurement system itself
+# consumes; a limit chosen without one is a guess with a decimal point on it.
+# Change the DMM and the study - and therefore this file - no longer applies.
+#
+# Note what is NOT here: the product's 24-63 V input range. That is a design
+# characteristic of the board, not a test limit. Test limits are about what this
+# bench can resolve; the operating range is about what the hardware does.
+
+product: coaxial_63100 BLDC inverter
+revision: PCBA rev C
+plan_version: 0.1-TEMPLATE
+measurement_system_study: NONE - placeholder limits, not qualified for production
+description: >
+  Functional test of the control and sense section. Verifies the board's own
+  integrity checks first, then compares each analog channel against a calibrated
+  instrument on the same node. The board is a dumb slave throughout: it reports,
+  the instruments define truth, this plan defines pass.
+
+steps:
+  # ---- what the board can prove about itself, no instrument needed ----
+  - id: T010
+    name: Board self test reports no failures
+    source: board.self_test
+    limit: {high: 0, unit: failures}
+
+  - id: T020
+    name: Link echo round trips 250 bytes
+    source: board.echo_bytes
+    args: {length: 250}
+    limit: {low: 250, high: 250, unit: bytes}
+
+  - id: T030
+    name: Receiver overrun count
+    source: board.char_overrun
+    limit: {high: 0, unit: frames}
+
+  - id: T040
+    name: Firmware image CRC
+    source: board.image_crc
+    record_only: true
+
+  # ---- the board against calibrated instruments ----
+  - id: T100
+    name: DC link, board reading versus DMM
+    source: compare.dc_link
+    args: {node: TP1_VBUS}
+    limit: {low: -0.25, high: 0.25, unit: V error}
+
+  - id: T110
+    name: DC link ripple, oscilloscope
+    source: scope.dc_link_ripple
+    args: {channel: CH1}
+    limit: {high: 0.5, unit: V pp}
+
+  - id: T120
+    name: Thermistor, board reading versus reference
+    source: compare.thermistor
+    args: {reference_celsius: 25.0}
+    limit: {low: -5.0, high: 5.0, unit: C error}
+
+  - id: T130
+    name: Phase U sense, board versus injected level
+    source: compare.phase_pin
+    args: {channel: PhaseU, node: TP4_PHU, drive_volts: 0.15}
+    limit: {low: -0.02, high: 0.02, unit: V error}
+
+  # ---- structural checks that need no limit from a study ----
+  - id: T200
+    name: No ADC channel is stuck
+    source: board.channels_alive
+    limit: {low: 1, high: 1, unit: bool}
+
+  - id: T210
+    name: AFE switch reaches the pin (PE15 witness)
+    source: board.afe_witness
+    limit: {low: 1, high: 1, unit: bool}

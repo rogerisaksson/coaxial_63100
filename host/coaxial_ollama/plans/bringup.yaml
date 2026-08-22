@@ -1,0 +1,124 @@
+# Bring-up plan for the coaxial_63100 inverter, driven by a local model.
+#
+# READ THIS BEFORE ADDING A LIMIT.
+#
+# Almost every step below is record_only, and that is not laziness. This board is
+# a dumb slave: it reports raw codes and holds no thresholds, and this repository
+# holds none either. A limit belongs in a plan file on the line, next to the
+# calibrated instruments, and traceable to a GRR/MSA study run on THAT bench with
+# THOSE instruments. A number typed in here because one board on one desk read it
+# is how a sample becomes a specification by accident.
+#
+# The two limits that do appear are the exception the rule allows: they judge only
+# what the board can prove from its own registers, flash and link. No external
+# reference, so no external study.
+#
+# Analog steps here therefore RECORD. Judging them needs a DMM on the same node,
+# which is testline/'s job, not this file's.
+
+product: coaxial_63100 BLDC inverter
+revision: PCBA rev C
+plan_version: 0.1-bringup
+measurement_system_study: >
+  NOT APPLICABLE - this plan records analog values and judges only the board's
+  own self checks. Not qualified for production, and no analog limit may be added
+  to it without a study.
+model: qwen3:8b
+
+description: >
+  Bring-up sweep of the sense and control section. Establishes that the link is
+  sound and the board's own checks pass, then records what every analog channel
+  reads with the front end powered. Nothing here is compared against truth.
+
+context: >
+  The front end switch on PB2 also powers the ADC reference. With it off every
+  channel reads exact mid-scale and the NTC reports exactly 25.00 C - a plausible
+  number that is not a measurement. Nothing on this board is driving a motor:
+  there is no PWM in this firmware, so the phases are at rest.
+
+tasks:
+  # ---- what the board and the link can settle without an instrument ----
+  - id: L010
+    name: Link echoes cleanly
+    ask: >
+      Use the link tool to echo a string of at least 40 characters and confirm
+      what came back is what went out. Report the number of characters that
+      round tripped intact.
+    unit: chars
+    limit: {low: 40, unit: chars}
+
+  - id: L020
+    name: Board self test
+    ask: >
+      Run the board's own self test and count the checks that failed. These are
+      the checks the firmware can prove from its own registers and flash, so a
+      failure here is real regardless of any instrument.
+    unit: failures
+    limit: {high: 0, unit: failures}
+
+  - id: L030
+    name: Identity and clock tree
+    ask: >
+      Read the board identity: firmware version, protocol version and the system
+      clock. Report the system clock in MHz and put the firmware and protocol
+      versions in the note.
+    unit: MHz
+    record_only: true
+
+  # ---- what the board reads, recorded and not judged ----
+  - id: A010
+    name: Front end powered
+    ask: >
+      Turn the analog front end on and confirm from the tool's reply that it is
+      on. Report 1 if it is on, 0 if it is not.
+    unit: state
+    record_only: true
+
+  - id: A020
+    name: NTC temperature
+    ask: >
+      With the front end on, read the NTC channel over at least 128 samples and
+      report the temperature in degrees C. If it comes back as exactly 25.00,
+      say so in the note and treat it as suspect rather than as a reading - that
+      is what an unpowered reference looks like.
+    unit: degC
+    record_only: true
+
+  - id: A030
+    name: DC link sense
+    ask: >
+      Read the DC link channel and report the bus volts the host derives from the
+      divider. Say in the note what the raw code and the pin volts were, and
+      whether anything is connected to the link.
+    unit: V
+    record_only: true
+
+  - id: A040
+    name: Phase channel rest offsets
+    ask: >
+      Read the three differential phase sense channels at rest over at least 256
+      samples. Report the largest absolute deviation from mid-scale across the
+      three, in volts at the ADC pin. Name the channel it belongs to in the note.
+      Do not convert to a phase voltage or a current: the front end gain is
+      unknown to you.
+    unit: V
+    record_only: true
+
+  - id: A050
+    name: Noise floor at rest
+    ask: >
+      Pick the noisiest channel of the ones you have read, then use run_python to
+      take a burst of at least 512 samples on it and compute the standard
+      deviation of the raw codes. Report that standard deviation in LSB and name
+      the channel in the note.
+    unit: LSB
+    record_only: true
+    max_turns: 14
+
+  - id: L040
+    name: Link counters after the sweep
+    ask: >
+      Read the link frame counters now that traffic has run, and report the
+      number of receiver overruns. Put the other counters in the note.
+    unit: frames
+    record_only: true
