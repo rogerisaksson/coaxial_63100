@@ -46,7 +46,11 @@ first will save you re-deriving things that took real measurements to establish.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
-. .\env.ps1                                # tools on PATH: dbg, board, cbuild, cflash
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes     # install the lot: winget,
+                                           # python packages, ST bundles via cube.exe,
+                                           # STM32CubeMX, the ST-Link driver, ollama
+. .\env.ps1                                # tools on PATH: bench, dbg, board, cbuild,
+                                           # cflash, cubemx
 ```
 
 ```bash
@@ -59,7 +63,7 @@ cd host
 python -m coaxial all                      # CLI against the board
 python tests/test_conformance.py           # 40 Modbus conformance checks
 python tests/test_mcp.py                   # 31 MCP server checks
-python tests/test_ollama.py                # 83 runner and dbg checks, offline
+python tests/test_ollama.py                # 93 runner and dbg checks, offline
 python examples/read_board.py                # measure, judge nothing
 python -m coaxial_mcp --port COM4          # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml   # local model drives the bench
@@ -70,9 +74,12 @@ python dbg.py --repl                       # prompt loop; /py and /sh cost no to
 `STM32_Programmer_CLI` lives at
 `~/AppData/Local/stm32cube/bundles/programmer/2.23.0/bin/`. Nothing in the ST
 toolchain is on the system PATH — arm-gcc, cmake, ninja and the programmer all
-live under `%LOCALAPPDATA%\stm32cube\bundles\`, downloaded by the STM32 VS Code
-extension. `env.ps1` finds the newest of each and puts them on PATH for one
-shell; `setup.ps1 -Check` says which are absent. The board's VCP is **COM4**; the
+live under `%LOCALAPPDATA%\stm32cube\bundles\`, fetched by `cube.exe` - the
+bundle manager inside the STM32 VS Code extension. `cube bundle install --yes
+NAME` needs no ST account, which is what lets `setup.ps1` install the whole
+toolchain, STM32CubeMX and the ST-Link driver unattended. `env.ps1` finds the
+newest of each and puts them on PATH for one shell; `setup.ps1 -Check` says
+which are absent. The board's VCP is **COM4**; the
 ST-Link is an STLINK-V3SET.
 
 ## Layout
@@ -87,7 +94,7 @@ host/        Python: coaxial/ library, coaxial_mcp/ MCP server,
              coaxial_ollama/ model-driven runner and dbg.py, testline/,
              tests, tools
 setup.ps1    one-time environment setup; -Check changes nothing
-env.ps1      per-shell PATH and the dbg/board/cbuild/cflash commands
+env.ps1      per-shell PATH and the bench/dbg/board/cbuild/cflash/cubemx commands
 docs/        this documentation
 ```
 

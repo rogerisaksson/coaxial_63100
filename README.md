@@ -16,31 +16,56 @@ exercised near 63 V or 100 A.
 
 ### 1. What the machine needs
 
-Windows, Python 3.9+, and the ST toolchain. None of the ST tools are on the
-system PATH — arm-gcc, cmake, ninja and STM32_Programmer_CLI are downloaded as
-"bundles" by the STM32 VS Code extension, which is why the setup script leans on
-that extension rather than on st.com: the direct downloads are behind a login
-and a click-through licence, and a script cannot agree to one for you.
+Windows and winget. Everything else `setup.ps1` installs:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # changes nothing
-powershell -ExecutionPolicy Bypass -File .\setup.ps1          # installs what is missing
+powershell -ExecutionPolicy Bypass -File .\setup.ps1          # asks, then installs
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes -AllowScripts   # the lot, unattended
 ```
 
-`-Check` prints what is present, what is absent and what each absent thing will
-cost to fix. Run it first. Useful switches:
+| What | From |
+|---|---|
+| Python, git, VS Code | winget |
+| pyserial, PyYAML, mcp, anyio, pytest | `host/requirements.txt`, via pip |
+| arm-none-eabi-gcc, gdb, cmake, ninja | STM32 bundles, via `cube.exe` |
+| STM32_Programmer_CLI | same |
+| STM32CubeMX | same — the `stm32cubemx-application` bundle |
+| ST-Link gdbserver, server and USB driver | same |
+| cube-cmake | the STM32 VS Code extension |
+| ollama and `gemma4:12b` | winget or `ollama.com/install.ps1`, then `ollama pull` |
+
+None of the ST tools land on the system PATH: they install as "bundles" under
+`%LOCALAPPDATA%\stm32cube\bundles`, which is why plain `cmake` and
+`STM32_Programmer_CLI` are nowhere to be found until `env.ps1` has run.
+
+The ST half used to be the manual half — st.com is behind a login and a
+click-through licence, so the honest instruction was "open VS Code once and let
+its bundle manager download the toolchain". It is not any more. The STM32 VS
+Code extension ships `cube.exe`, and `cube bundle install --yes NAME` pulls the
+same bundles from developer.st.com with no account and no browser. That is what
+the script drives, so a fresh machine needs no human in the middle of the
+toolchain install.
+
+Two things still cannot be helped. A winget install only reaches the PATH of
+shells opened *after* it, so on a bare machine the first run installs Python and
+VS Code and asks to be run once more — the second run finishes. And installing
+the ST-Link USB driver needs administrator rights, so it comes with an elevation
+prompt of its own.
 
 | Switch | Why |
 |---|---|
+| `-Check` | report only: what is present, what is absent, what each absent thing costs |
 | `-Yes` | do not ask before each install |
 | `-SkipOllama` | a machine that only builds and flashes |
+| `-SkipCubeMX` | skip STM32CubeMX — 308 MB down, 835 MB on disk, and only the `.ioc` needs it |
+| `-SkipDriver` | leave the ST-Link USB driver alone (no elevation prompt) |
 | `-Model TAG` | a different Ollama tag; the default is `gemma4:12b` |
-| `-WingetToolchain` | cmake, ninja and Arm's gcc from winget instead of the VS Code bundles |
+| `-WingetToolchain` | cmake, ninja and Arm's gcc from winget instead of the ST bundles |
 | `-AllowScripts` | set the CurrentUser execution policy so `. .\env.ps1` works in a plain shell |
 
-The one step a script cannot finish is the bundle download: the extension fetches
-those itself, on the first build, from inside VS Code. `setup.ps1` says so when
-they are absent rather than leaving you to find out at flashing time.
+Re-running is free: every step checks before it installs, and a finished machine
+prints `nothing outstanding` and changes nothing.
 
 ### 2. Every shell
 
@@ -50,13 +75,14 @@ they are absent rather than leaving you to find out at flashing time.
 
 This puts the newest of each bundle on PATH **for that shell only** — nothing is
 written to the system PATH or the registry, so a stale entry cannot outlive the
-window it was made in. It also defines the five commands the project is driven
+window it was made in. It also defines the six commands the project is driven
 with:
 
 ```
 bench    the model, the board and a prompt in one window
 dbg      one question to the local model            (host/dbg.py)
 board    the plain CLI, no model                    (python -m coaxial)
+cubemx   open coaxial_63100.ioc in STM32CubeMX
 cbuild   build the firmware, zero warnings expected
 cflash   flash over SWD and start the core
 ```

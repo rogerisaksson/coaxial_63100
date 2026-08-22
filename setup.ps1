@@ -12,21 +12,40 @@
 
     What this project needs, and where each part comes from:
 
-      Python 3.9+ and four packages     host/requirements.txt, via pip
-      ARM gcc, cmake, ninja             STM32 VS Code extension "bundles"
+      Python, git and VS Code           winget
+      four python packages              host/requirements.txt, via pip
+      ARM gcc, cmake, ninja             STM32 "bundles", fetched by cube.exe
       STM32_Programmer_CLI             same
-      cube-cmake                        the extension itself
+      STM32CubeMX                       same - the stm32cubemx-application bundle
+      ST-Link gdbserver, server, driver same
+      cube-cmake                        the STM32 VS Code extension
       ollama and one model              winget or ollama.com/install.ps1,
                                         then `ollama pull`
       the Ollama VS Code extension      code --install-extension
 
-    The ST half is the awkward half, and it is worth knowing why. ST does not
-    publish its tools to winget, and the direct downloads from st.com are behind
-    a login and a click-through licence - so a script cannot fetch them without
-    either shipping credentials or lying about having agreed to something. What
-    it CAN do is install the VS Code extension, which has its own bundle manager
-    and downloads the toolchain itself on first use. That is the path this script
-    takes, and the one this machine was built on.
+    The ST half used to be the awkward half. ST publishes nothing to winget and
+    the installers on st.com sit behind a login and a click-through licence, so
+    for a while the honest answer was "open VS Code once and let its bundle
+    manager download the toolchain". It is not any more. The STM32 VS Code
+    extension ships `cube.exe`, and
+
+        cube bundle install --yes gnu-tools-for-stm32 programmer ...
+
+    pulls exactly the same bundles from developer.st.com with no account, no
+    browser and no click. That is what this script drives now, and it is why a
+    fresh machine no longer needs a human in the middle of the toolchain
+    install. The one thing that still has to arrive first is the extension
+    itself, which `code --install-extension` handles.
+
+    The whole of it, on a machine with nothing but Windows and winget:
+
+        powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes -AllowScripts
+
+    Python and VS Code arrive through winget, and a winget install only reaches
+    the PATH of shells opened after it - so on a bare machine the first run
+    installs those and asks to be run once more. The second run is the one that
+    finishes; every run after that reports 'nothing outstanding' and changes
+    nothing.
 
     If you would rather not have VS Code in the loop, -WingetToolchain installs
     cmake, ninja and Arm's own gcc from winget instead. The build works; the
@@ -54,6 +73,17 @@
     Leave the model side alone - for a machine that only builds and flashes.
     Skips the binary, the model pull and the VS Code extension alike.
 
+.PARAMETER SkipCubeMX
+    Do not install the STM32CubeMX bundle. It is 308 MB down and 835 MB on disk
+    and nothing in the build needs it - only regenerating Core/ from the .ioc
+    does. On a bench that never opens the .ioc, this is the switch that saves
+    the disk.
+
+.PARAMETER SkipDriver
+    Do not touch the ST-Link USB driver. Installing it is the one step in this
+    script that needs administrator rights, so it is asked for on its own and
+    skipped outright here.
+
 .PARAMETER WingetToolchain
     Install cmake, ninja and arm-none-eabi-gcc from winget instead of relying on
     the VS Code extension's bundles.
@@ -69,6 +99,8 @@ param(
     [switch]$Yes,
     [string]$Model = 'gemma4:12b',
     [switch]$SkipOllama,
+    [switch]$SkipCubeMX,
+    [switch]$SkipDriver,
     [switch]$WingetToolchain,
     [switch]$AllowScripts
 )
@@ -138,6 +170,76 @@ function Invoke-Python {
     }
 }
 
+function Install-WingetPackage {
+    <#  One winget install, with the three flags that make it non-interactive
+        and the one exit code that is not a failure.
+
+        winget answers -1978335189 (0x8A15002B) for "already installed", which
+        happens whenever a package is on the machine but its shim has not
+        reached this shell's PATH - the exact situation this script is in half
+        the time. Treating that as failure would send a working machine away
+        with a todo it does not need.  #>
+    param([string]$Id, [string]$Why = '')
+
+    if ($null -eq (Get-Tool 'winget')) {
+        Add-Todo ("install $Id by hand - winget is absent on this machine")
+        return $false
+    }
+    $prompt = "winget install $Id ?"
+    if ($Why -ne '') { $prompt = $prompt + "  ($Why)" }
+    if (-not (Confirm-Step $prompt)) {
+        Add-Todo "winget install --id $Id --exact"
+        return $false
+    }
+    winget install --id $Id --exact --silent `
+                   --accept-package-agreements --accept-source-agreements
+    return ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq -1978335189)
+}
+
+function Find-Code {
+    <#  `code` is a .cmd shim, and the installer adds its directory to the user
+        PATH - which reaches shells opened afterwards, never this one. Look
+        where both the user and the machine installer put it before concluding
+        VS Code is absent.  #>
+    $found = Get-Tool 'code'
+    if ($null -ne $found) { return $found }
+
+    $candidates = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft VS Code\bin\code.cmd'),
+        (Join-Path $env:ProgramFiles 'Microsoft VS Code\bin\code.cmd'),
+        (Join-Path ${env:ProgramFiles(x86)} 'Microsoft VS Code\bin\code.cmd')
+    )
+    foreach ($c in $candidates) {
+        if (($null -ne $c) -and (Test-Path $c)) {
+            $env:PATH = (Split-Path $c) + ';' + $env:PATH
+            return $c
+        }
+    }
+    return $null
+}
+
+function Find-Cube {
+    <#  cube.exe is the bundle manager, and it is the whole reason this script
+        can install the ST toolchain without a browser. It is not a bundle
+        itself: it ships inside the stm32cube-ide-core VS Code extension, which
+        is why the extension has to be installed before the toolchain can be.  #>
+    $roots = @(
+        (Join-Path $env:USERPROFILE '.vscode\extensions'),
+        (Join-Path $env:USERPROFILE '.vscode-insiders\extensions'),
+        (Join-Path $env:USERPROFILE '.vscode-server\extensions')
+    )
+    foreach ($root in $roots) {
+        if (-not (Test-Path $root)) { continue }
+        $ext = Get-ChildItem $root -Directory -Filter 'stmicroelectronics.stm32cube-ide-core-*' `
+                             -ErrorAction SilentlyContinue |
+               Sort-Object Name -Descending | Select-Object -First 1
+        if ($null -eq $ext) { continue }
+        $exe = Join-Path $ext.FullName 'resources\binaries\win32\x86_64\cube.exe'
+        if (Test-Path $exe) { return $exe }
+    }
+    return $null
+}
+
 function Get-NewestBundle {
     param([string]$Name)
     $dir = Join-Path $BundleRoot $Name
@@ -156,11 +258,27 @@ function Test-Machine {
     Write-Item 'windows' 'ok' ((Get-CimInstance Win32_OperatingSystem).Caption)
     Write-Item 'powershell' 'ok' $PSVersionTable.PSVersion.ToString()
 
+    # winget first: everything below asks it for the thing it is missing.
+    if ($null -eq (Get-Tool 'winget')) {
+        Write-Item 'winget' 'missing' 'nothing can be installed automatically'
+        Add-Todo 'install App Installer from the Microsoft Store to get winget'
+    } else {
+        Write-Item 'winget' 'ok' ''
+    }
+
     $python = Get-Tool 'python'
     if ($null -eq $python) { $python = Get-Tool 'py' }
     if ($null -eq $python) {
-        Write-Item 'python' 'missing' 'winget install Python.Python.3.13'
-        Add-Todo 'install python 3.9 or newer, then run this script again'
+        Write-Item 'python' 'missing' 'Python.Python.3.13'
+        if (Install-WingetPackage -Id 'Python.Python.3.13' -Why 'the host library, the CLI and every test') {
+            # The installer edits the user PATH, which this process read at
+            # start-up and will not read again. Nothing below can use the
+            # interpreter that now exists, so say so and stop here.
+            Write-Item 'python' 'done' 'installed - not on this shell PATH yet'
+            Add-Todo 'open a NEW shell and run this script again - python is installed but only new shells can see it'
+        } else {
+            Add-Todo 'install python 3.9 or newer, then run this script again'
+        }
         return $null
     }
     $version = Invoke-Python -Python $python -Code @'
@@ -172,17 +290,12 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
 
     $git = Get-Tool 'git'
     if ($null -eq $git) {
-        Write-Item 'git' 'missing' 'winget install Git.Git'
+        Write-Item 'git' 'missing' 'Git.Git'
+        if (Install-WingetPackage -Id 'Git.Git' -Why 'to update this checkout') {
+            Write-Item 'git' 'done' 'installed - new shells only'
+        }
     } else {
         Write-Item 'git' 'ok' $git
-    }
-
-    $winget = Get-Tool 'winget'
-    if ($null -eq $winget) {
-        Write-Item 'winget' 'missing' 'nothing can be installed automatically'
-        Add-Todo 'install App Installer from the Microsoft Store to get winget'
-    } else {
-        Write-Item 'winget' 'ok' ''
     }
 
     $policy = Get-ExecutionPolicy -Scope CurrentUser
@@ -244,14 +357,29 @@ print(','.join(dist for module, dist in WANTED.items()
 
 # ---- 3. the ST toolchain ---------------------------------------------------
 
+# Bundle name -> the executable that proves it arrived whole. An empty string
+# means the bundle has no bin/ worth checking; its presence is the whole test.
+#
+# The names are cube's own, as `cube bundle list-online` prints them, which is
+# also how they appear as directories under %LOCALAPPDATA%\stm32cube\bundles.
+# That double duty is deliberate: one name serves both the install and the
+# check, so a bundle cannot be installed under one spelling and looked for
+# under another.
 $BundleNeeds = [ordered]@{
     'gnu-tools-for-stm32' = 'arm-none-eabi-gcc.exe'
     'cmake'               = 'cmake.exe'
     'ninja'               = 'ninja.exe'
     'programmer'          = 'STM32_Programmer_CLI.exe'
     'gnu-gdb-for-stm32'   = 'arm-none-eabi-gdb.exe'
+    'stlink-gdbserver'    = ''
     'stlink-server'       = ''
+    'stlink-usb-driver'   = ''
 }
+
+# Not in the table above because it is 835 MB on disk and nothing in the build
+# reaches for it: CubeMX regenerates Core/ from the .ioc and is otherwise idle.
+# -SkipCubeMX is how a bench that never opens the .ioc says so.
+if (-not $SkipCubeMX) { $BundleNeeds['stm32cubemx-application'] = '' }
 
 $Extensions = @(
     'stmicroelectronics.stm32-vscode-extension'
@@ -281,13 +409,22 @@ function Test-Bundles {
 function Install-VsCodeExtensions {
     param([string[]]$Absent)
 
-    $code = Get-Tool 'code'
+    $code = Find-Code
     if ($null -eq $code) {
-        Write-Item 'vs code' 'missing' 'winget install Microsoft.VisualStudioCode'
-        Add-Todo 'install VS Code, or re-run with -WingetToolchain for a toolchain without it'
-        return
+        Write-Item 'vs code' 'missing' 'Microsoft.VisualStudioCode'
+        if (Install-WingetPackage -Id 'Microsoft.VisualStudioCode' `
+                                  -Why 'it carries cube.exe, which fetches the ST toolchain') {
+            $code = Find-Code
+        }
+        if ($null -eq $code) {
+            Add-Todo ('install VS Code and run this script again - or re-run with ' +
+                      '-WingetToolchain for a build toolchain that does not need it')
+            return
+        }
+        Write-Item 'vs code' 'done' $code
+    } else {
+        Write-Item 'vs code' 'ok' $code
     }
-    Write-Item 'vs code' 'ok' $code
 
     $installed = (& $code --list-extensions)
     foreach ($id in $Extensions) {
@@ -308,14 +445,102 @@ function Install-VsCodeExtensions {
         }
     }
 
-    if ($Absent.Count -gt 0) {
-        # The extension downloads its own bundles, and only when VS Code is
-        # running. There is no supported CLI for it, so this is a step a script
-        # can set up and cannot finish.
-        Write-Item 'bundles' 'manual' ($Absent -join ', ')
-        Add-Todo ('open this folder in VS Code once and let the STM32 bundles ' +
-                  'manager download: ' + ($Absent -join ', ') +
-                  '. It prompts on the first build; cube-cmake --build --preset Debug triggers it.')
+    Install-Bundles -Absent $Absent
+}
+
+function Install-Bundles {
+    <#  The ST toolchain, without a browser.
+
+        `cube bundle install --yes NAME` downloads from developer.st.com and
+        unpacks under %LOCALAPPDATA%, no account and no click-through, and the
+        --yes answers the licence question the same way opening the bundles
+        manager in VS Code would. This used to be the one step the script could
+        set up and not finish; it finishes it now.
+
+        One bundle at a time on purpose. A single invocation with eight names
+        fails whole, and the failure that matters here is a 300 MB download
+        dropping at 90% on bench wifi - the other seven should still be in
+        place afterwards.  #>
+    param([string[]]$Absent)
+
+    if ($Absent.Count -eq 0) { return }
+
+    $cube = Find-Cube
+    if ($null -eq $cube) {
+        Write-Item 'cube' 'missing' 'comes with the stm32cube-ide-core extension'
+        Add-Todo ('the STM32 extension was just installed but its cube.exe is not ' +
+                  'on disk yet - open VS Code once to let it unpack, then run this ' +
+                  'script again to fetch: ' + ($Absent -join ', '))
+        return
+    }
+    Write-Item 'cube' 'ok' $cube
+
+    if ($Check) {
+        Write-Item 'bundles' 'missing' ($Absent -join ', ')
+        Add-Todo ('run without -Check to fetch: ' + ($Absent -join ', ') +
+                  '  (cube bundle install --yes ...)')
+        return
+    }
+
+    foreach ($name in $Absent) {
+        $size = ''
+        if ($name -eq 'stm32cubemx-application') { $size = '308 MB down, 835 MB on disk' }
+        $prompt = "cube bundle install $name ?"
+        if ($size -ne '') { $prompt = $prompt + "  ($size)" }
+        if (-not (Confirm-Step $prompt)) {
+            Add-Todo "cube bundle install --yes $name"
+            continue
+        }
+        & $cube bundle install --yes $name
+        # cube's exit code is not the whole answer: it is 0 for "nothing to do"
+        # as well as for a completed install. The directory is.
+        if ($null -ne (Get-NewestBundle $name)) {
+            Write-Item $name 'done' (Get-NewestBundle $name).Name
+        } else {
+            Write-Item $name 'failed' "cube exit $LASTEXITCODE"
+            Add-Todo "cube bundle install --yes $name   (failed once already)"
+        }
+    }
+}
+
+function Install-StLinkDriver {
+    <#  The USB driver, which is the one thing here that needs administrator
+        rights - so it is asked for on its own rather than folded into the
+        bundle loop above, and -SkipDriver turns it off outright.
+
+        Without it Windows enumerates the ST-Link as an unknown device: the VCP
+        appears, so `board all` finds a COM port, while SWD does not, so
+        flashing fails with a probe error that reads like a cable fault. Worth
+        the elevation prompt.  #>
+
+    if ($SkipDriver) { return }
+
+    $cube = Find-Cube
+    if ($null -eq $cube) { return }
+    if ($null -eq (Get-NewestBundle 'stlink-usb-driver')) { return }
+
+    $out = (& $cube stlink-usb-driver-install-check 2>&1) -join "`n"
+    if ($out -match 'stlink') {
+        Write-Item 'st-link usb driver' 'ok' 'installed'
+        return
+    }
+    Write-Item 'st-link usb driver' 'missing' 'needs administrator'
+    if (-not (Confirm-Step 'install the ST-Link USB driver ?  (elevation prompt)')) {
+        Add-Todo "cube stlink-usb-driver-adm-install   (run from an elevated shell)"
+        return
+    }
+    try {
+        $proc = Start-Process -FilePath $cube -ArgumentList 'stlink-usb-driver-adm-install' `
+                              -Verb RunAs -Wait -PassThru
+        if ($proc.ExitCode -eq 0) {
+            Write-Item 'st-link usb driver' 'done' 'installed'
+        } else {
+            Write-Item 'st-link usb driver' 'failed' ("exit " + $proc.ExitCode)
+            Add-Todo 'cube stlink-usb-driver-adm-install   (run from an elevated shell)'
+        }
+    } catch {
+        Write-Item 'st-link usb driver' 'failed' $_.Exception.Message
+        Add-Todo 'cube stlink-usb-driver-adm-install   (run from an elevated shell)'
     }
 }
 
@@ -564,11 +789,41 @@ function Test-Setup {
         Write-Item 'serial ports' 'missing' 'no COM port - is the ST-Link plugged in?'
     }
 
-    $cube = Get-Tool 'cube-cmake'
-    if ($null -eq $cube) {
+    # Not Get-Tool: cube-cmake is only on PATH after env.ps1 has run, and this
+    # script deliberately does not touch PATH. Look where it lives instead, the
+    # same way env.ps1 does, or a fresh machine is told it is missing when it is
+    # sitting right there.
+    $cmake = $null
+    $ext = Get-ChildItem (Join-Path $env:USERPROFILE '.vscode\extensions') -Directory `
+                         -Filter 'stmicroelectronics.stm32cube-ide-build-cmake-*' `
+                         -ErrorAction SilentlyContinue |
+           Sort-Object Name -Descending | Select-Object -First 1
+    if ($null -ne $ext) {
+        $candidate = Join-Path $ext.FullName 'resources\cube-cmake\win32\x86_64\cube-cmake.exe'
+        if (Test-Path $candidate) { $cmake = $candidate }
+    }
+    if ($null -eq $cmake) { $cmake = Get-Tool 'cube-cmake' }
+    if ($null -eq $cmake) {
         Write-Item 'cube-cmake' 'missing' 'comes with the VS Code extension'
     } else {
-        Write-Item 'cube-cmake' 'ok' $cube
+        Write-Item 'cube-cmake' 'ok' $cmake
+    }
+
+    if (-not $SkipCubeMX) {
+        $mx = Get-NewestBundle 'stm32cubemx-application'
+        if ($null -eq $mx) {
+            Write-Item 'STM32CubeMX' 'missing' 'cube bundle install --yes stm32cubemx-application'
+        } else {
+            # The bundle's internal layout is ST's business and has moved
+            # before, so find the executable rather than assuming where it is.
+            $mxExe = Get-ChildItem $mx.FullName -Recurse -Filter 'STM32CubeMX.exe' `
+                                   -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -eq $mxExe) {
+                Write-Item 'STM32CubeMX' 'ok' ($mx.Name + ' (no STM32CubeMX.exe found)')
+            } else {
+                Write-Item 'STM32CubeMX' 'ok' $mxExe.FullName
+            }
+        }
     }
 }
 
@@ -589,6 +844,7 @@ if ($WingetToolchain) {
 } else {
     $absent = Test-Bundles
     Install-VsCodeExtensions -Absent $absent
+    Install-StLinkDriver
 }
 
 if (-not $SkipOllama) {
@@ -610,7 +866,7 @@ if ($script:Todo.Count -eq 0) {
 
 Write-Host ''
 Write-Host '  every shell:' -ForegroundColor White
-Write-Host '    . .\env.ps1                 tools on PATH, plus dbg/board/cbuild/cflash'
+Write-Host '    . .\env.ps1                 tools on PATH, plus bench/dbg/board/cbuild/cflash/cubemx'
 Write-Host ''
 Write-Host '  then:' -ForegroundColor White
 Write-Host '    cbuild                      build, zero warnings expected'
@@ -618,6 +874,7 @@ Write-Host '    cflash                      flash over SWD and start'
 Write-Host '    board all                   measure, no model involved'
 Write-Host '    dbg "why is the NTC 25.00?" ask the local model, cheaply'
 Write-Host '    bench                       a prompt with the model and the board in it'
+Write-Host '    cubemx                      open the .ioc in STM32CubeMX'
 Write-Host ''
 if ($Check) {
     Write-Host '  run again without -Check to install what is missing.' -ForegroundColor DarkGray

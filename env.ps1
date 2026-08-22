@@ -23,13 +23,14 @@
     first time it does. Both naming schemes are handled - 2.23.0 as well as
     2.22.0+st.1.
 
-    It also defines the five commands this project is actually driven with:
+    It also defines the six commands this project is actually driven with:
 
         bench    the model, the board and a prompt            (bench.ps1)
         dbg      ask the local model about the board          (host/dbg.py)
         board    the plain CLI, no model                      (python -m coaxial)
         cbuild   build the firmware, zero warnings expected
         cflash   flash over SWD and start the core
+        cubemx   open the .ioc in STM32CubeMX
 
 .PARAMETER Quiet
     Print nothing on success.
@@ -78,6 +79,20 @@ foreach ($name in $Wanted.Keys) {
     $added += ($name + ' ' + (Split-Path $bin -Parent | Split-Path -Leaf))
 }
 
+# cube.exe is the bundle manager - `cube bundle install`, `cube stlink-detect`
+# and the rest. It ships inside the extension too, and setup.ps1 drives it to
+# fetch the toolchain in the first place.
+$core = Get-ChildItem (Join-Path $env:USERPROFILE '.vscode\extensions') -Directory `
+        -Filter 'stmicroelectronics.stm32cube-ide-core-*' -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending | Select-Object -First 1
+if ($null -ne $core) {
+    $cubeBin = Join-Path $core.FullName 'resources\binaries\win32\x86_64'
+    if ((Test-Path $cubeBin) -and ($env:Path -notlike "*$cubeBin*")) {
+        $env:Path = "$cubeBin;$env:Path"
+        $added += 'cube'
+    }
+}
+
 # cube-cmake itself ships inside the VS Code extension, not as a bundle.
 $ext = Get-ChildItem (Join-Path $env:USERPROFILE '.vscode\extensions') -Directory `
         -Filter 'stmicroelectronics.stm32cube-ide-build-cmake-*' -ErrorAction SilentlyContinue |
@@ -108,6 +123,29 @@ if ($null -eq (Get-Command 'ollama' -ErrorAction SilentlyContinue)) {
     }
 } else {
     $added += 'ollama'
+}
+
+function cubemx {
+    <# Open the .ioc in STM32CubeMX.
+
+       The bundle's own layout is ST's business, so the executable is searched
+       for rather than assumed - and the search is here, not at dot-source time,
+       because it walks 800 MB of bundle and nobody wants that in every shell. #>
+    param([string]$Ioc = 'coaxial_63100.ioc')
+
+    $dir = Join-Path $env:LOCALAPPDATA 'stm32cube\bundles\stm32cubemx-application'
+    if (-not (Test-Path $dir)) {
+        Write-Host 'STM32CubeMX is not installed: run .\setup.ps1' -ForegroundColor Yellow
+        return
+    }
+    $exe = Get-ChildItem $dir -Recurse -Filter 'STM32CubeMX.exe' -ErrorAction SilentlyContinue |
+           Select-Object -First 1
+    if ($null -eq $exe) {
+        Write-Host 'the stm32cubemx-application bundle has no STM32CubeMX.exe in it' `
+            -ForegroundColor Yellow
+        return
+    }
+    Start-Process -FilePath $exe.FullName -ArgumentList (Join-Path $script:CoaxialRoot $Ioc)
 }
 
 function bench {
@@ -153,5 +191,5 @@ if (-not $Quiet) {
         Write-Host ("absent: " + ($missing -join ', ') + "  -> run .\setup.ps1") `
             -ForegroundColor Yellow
     }
-    Write-Host 'commands: bench, dbg, board, cbuild, cflash' -ForegroundColor DarkGray
+    Write-Host 'commands: bench, dbg, board, cbuild, cflash, cubemx' -ForegroundColor DarkGray
 }
