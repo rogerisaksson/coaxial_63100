@@ -59,7 +59,9 @@
     Report only. No installs, no downloads, no writes.
 
 .PARAMETER Yes
-    Do not ask before each install.
+    Do not ask before each install. Without it the script opens by asking once
+    whether to run unattended, so this switch is the way to answer that question
+    from a command line - in a scheduled run, or from another script.
 
 .PARAMETER Model
     The ollama tag to pull. Default gemma4:12b, about 8 GB - the model this
@@ -142,7 +144,25 @@ function Confirm-Step {
     param([string]$Text)
     if ($Check) { return $false }
     if ($Yes)   { return $true }
-    $answer = Read-Host "  $Text  [y/N]"
+    return (Read-YesNo ("  " + $Text + "  [y/N]"))
+}
+
+function Read-YesNo {
+    <#  y or n, and no on anything else - including no console at all.
+
+        Read-Host throws when stdin is at end of file, which is what a piped or
+        scheduled run looks like. Left unhandled that kills the script halfway
+        through, with some things installed and some not; caught, it is simply
+        the answer 'no', and the run finishes with the rest on the todo list.
+        A run that wants everything says so with -Yes.  #>
+    param([string]$Prompt)
+
+    try {
+        $answer = Read-Host $Prompt
+    } catch {
+        Write-Host '  (no console to ask on - taking that as no)' -ForegroundColor DarkGray
+        return $false
+    }
     return ($answer -match '^(y|yes)$')
 }
 
@@ -834,6 +854,34 @@ Write-Host 'coaxial_63100 setup' -ForegroundColor White
 Write-Host ("  " + $Root) -ForegroundColor DarkGray
 if ($Check) {
     Write-Host '  -Check: reporting only, nothing will be installed' -ForegroundColor DarkGray
+}
+
+# Asked once, at the top, rather than left to be discovered a dozen prompts in.
+# A setup of this length is either something you are watching or something you
+# started and walked away from, and the difference should be a decision rather
+# than a habit of hitting y.
+#
+# -Check never asks: there is nothing to consent to when nothing installs. -Yes
+# has already answered.
+if ((-not $Check) -and (-not $Yes)) {
+    Write-Host ''
+    Write-Host '  Unattended, or one question per step?' -ForegroundColor White
+    Write-Host '    y  install everything that is missing without asking again' -ForegroundColor DarkGray
+    Write-Host '    n  ask before each install  (default)' -ForegroundColor DarkGray
+    if (-not $SkipCubeMX) {
+        Write-Host '    note: unattended includes STM32CubeMX, 308 MB down and 835 MB on disk.' -ForegroundColor DarkGray
+        Write-Host '          -SkipCubeMX leaves it out.' -ForegroundColor DarkGray
+    }
+    if (-not $SkipDriver) {
+        Write-Host '    note: the ST-Link USB driver still raises its own elevation prompt.' -ForegroundColor DarkGray
+        Write-Host '          Windows asks that one; this script cannot answer it for you.' -ForegroundColor DarkGray
+    }
+    if (Read-YesNo '  unattended? [y/N]') {
+        $Yes = $true
+        Write-Host '  unattended: nothing below will ask.' -ForegroundColor Green
+    } else {
+        Write-Host '  interactive: every install is a separate y/N.' -ForegroundColor DarkGray
+    }
 }
 
 $python = Test-Machine

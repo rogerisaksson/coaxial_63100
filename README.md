@@ -24,6 +24,21 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1          # asks, then insta
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes -AllowScripts   # the lot, unattended
 ```
 
+Run without switches and the first question is which kind of run this is:
+
+```
+  Unattended, or one question per step?
+    y  install everything that is missing without asking again
+    n  ask before each install  (default)
+  unattended? [y/N]
+```
+
+`y` there is the same as passing `-Yes`, and it is asked once at the top rather
+than discovered a dozen prompts in. The default is `n`. `-Check` never asks —
+there is nothing to consent to when nothing installs — and a run with no console
+to ask on (piped, scheduled) takes silence as `n` and puts the rest on the todo
+list rather than dying half-installed.
+
 | What | From |
 |---|---|
 | Python, git, VS Code | winget |
@@ -56,7 +71,7 @@ prompt of its own.
 | Switch | Why |
 |---|---|
 | `-Check` | report only: what is present, what is absent, what each absent thing costs |
-| `-Yes` | do not ask before each install |
+| `-Yes` | answer the opening question from the command line: install everything, ask nothing |
 | `-SkipOllama` | a machine that only builds and flashes |
 | `-SkipCubeMX` | skip STM32CubeMX — 308 MB down, 835 MB on disk, and only the `.ioc` needs it |
 | `-SkipDriver` | leave the ST-Link USB driver alone (no elevation prompt) |
