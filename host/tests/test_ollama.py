@@ -701,12 +701,72 @@ def test_local_only(report):
                  allowed.require_model() == 'minimax-m3:cloud')
 
 
+# ---- the model stays loaded, and so does its prompt cache -----------------
+
+def test_keep_alive(report):
+    """A pause between two questions must not cost a reload."""
+    from coaxial_ollama.client import Ollama
+
+    sent = []
+
+    def capture(client, reply=None):
+        def _post(path, payload):
+            sent.append((path, payload))
+            return reply or {'message': {'role': 'assistant', 'content': 'ok'}}
+        client._post = _post
+
+    client = Ollama('gemma4:12b')
+    report.check('keep_alive defaults to something non-zero',
+                 client.keep_alive == '30m')
+
+    capture(client)
+    client.chat([{'role': 'user', 'content': 'hello'}])
+    report.check('every turn re-arms the unload timer',
+                 sent[-1][1].get('keep_alive') == '30m')
+
+    # An explicit 0 is how a shared machine gives the VRAM straight back, and
+    # None is how a caller says 'do not mention it at all' - the daemon then
+    # applies its own default. The two must not collapse into each other.
+    zero = Ollama('gemma4:12b', keep_alive=0)
+    capture(zero)
+    zero.chat([{'role': 'user', 'content': 'hello'}])
+    report.check('keep_alive=0 is sent, not dropped as falsy',
+                 sent[-1][1].get('keep_alive') == 0)
+
+    absent = Ollama('gemma4:12b', keep_alive=None)
+    capture(absent)
+    absent.chat([{'role': 'user', 'content': 'hello'}])
+    report.check('keep_alive=None leaves the field out',
+                 'keep_alive' not in sent[-1][1])
+
+    client.preload()
+    path, payload = sent[-1]
+    report.check('preload loads without generating',
+                 path == '/api/chat' and payload['messages'] == []
+                 and payload['keep_alive'] == '30m')
+    report.check('preload is not counted as a turn', client.calls == 1)
+
+    # Both front ends have to offer it, or the flag exists and nobody can
+    # reach it from the bench.
+    from coaxial_ollama import debug
+    import coaxial_ollama.__main__ as runner
+    report.check('dbg defaults to holding the model',
+                 debug.parse(['why?']).keep_alive == '30m')
+    report.check('dbg --keep-alive is settable',
+                 debug.parse(['--keep-alive', '1h', 'why?']).keep_alive == '1h')
+    report.check('the runner defaults to holding the model',
+                 runner.parse(['--plan', 'p.yaml']).keep_alive == '30m')
+    report.check('the runner --keep-alive is settable',
+                 runner.parse(['--plan', 'p.yaml',
+                               '--keep-alive', '0']).keep_alive == '0')
+
+
 def main():
     report = Report()
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_policy, test_transcript, test_debug, test_cli,
-                 test_local_only):
+                 test_local_only, test_keep_alive):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

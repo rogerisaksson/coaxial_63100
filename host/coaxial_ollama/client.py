@@ -6,7 +6,18 @@ whole API surface needed here is one POST to /api/chat plus one GET to /api/tags
 to find out whether the model is actually pulled. That is fifty lines of urllib,
 against a dependency to keep working through the next OS image.
 
-Three things are deliberate:
+Four things are deliberate:
+
+  * `keep_alive` is sent on every turn. Ollama caches the KV state of the
+    prompt prefix it has already processed, which is what makes turn nine of a
+    bench session as quick as turn two - and it throws that cache away the
+    moment the model unloads, five minutes after the last request by default.
+    A bench session has long gaps in it: you read a number, you move a probe,
+    you think. Sending keep_alive on each request restarts that timer, so the
+    pause between two questions cannot cost an 8 GB reload and a reprocessed
+    context. It buys nothing on a busy machine and costs nothing on an idle
+    one, except the VRAM being held - which is what `--keep-alive 0` gives
+    back.
 
   * The daemon is local, and that is enforced rather than assumed. Ollama will
     happily proxy a `:cloud` tag to somebody else's GPU, which on a bench means
@@ -53,7 +64,7 @@ def is_cloud(model):
 class Ollama:
     def __init__(self, model, host='http://localhost:11434', temperature=0.0,
                  num_ctx=8192, seed=7, timeout=600.0, num_predict=None,
-                 think=None, remote_ok=False):
+                 think=None, remote_ok=False, keep_alive='30m'):
         self.remote_ok = remote_ok
         if not remote_ok:
             if not is_local(host):
@@ -75,6 +86,11 @@ class Ollama:
             # and an unbounded reasoning model will write one.
             self.options['num_predict'] = num_predict
         self.think = think
+        # Ollama's own duration syntax: '30m', '1h', 0 to unload at once, -1 to
+        # hold forever. Passed through rather than parsed - the daemon is the
+        # authority on what it accepts, and a wrong value should fail loudly at
+        # the first request rather than quietly here.
+        self.keep_alive = keep_alive
         self.timeout = timeout
         self.calls = 0
         self.eval_tokens = 0
@@ -144,6 +160,8 @@ class Ollama:
         """One turn. Returns the assistant message dict, verbatim."""
         payload = {'model': self.model, 'messages': messages,
                    'stream': False, 'options': self.options}
+        if self.keep_alive is not None:
+            payload['keep_alive'] = self.keep_alive
         if tools:
             payload['tools'] = tools
         if self.think is not None:
@@ -174,3 +192,14 @@ class Ollama:
     def usage(self):
         return {'calls': self.calls, 'prompt_tokens': self.prompt_tokens,
                 'eval_tokens': self.eval_tokens}
+
+    def preload(self):
+        """Load the model and start the keep_alive clock, before it is needed.
+
+        An empty message list is Ollama's documented way to say "load this and
+        do nothing" - no generation, no tokens counted, and it returns once the
+        weights are resident. Worth a call before the first question so the
+        8 GB wait lands somewhere visible instead of inside it.
+        """
+        self._post('/api/chat', {'model': self.model, 'messages': [],
+                                 'keep_alive': self.keep_alive})

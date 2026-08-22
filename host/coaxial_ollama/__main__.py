@@ -47,6 +47,9 @@ def parse(argv):
     parser.add_argument('--allow-remote', action='store_true',
                         help='permit a cloud tag or a daemon on another machine;'
                              ' the prompts leave this bench if you do')
+    parser.add_argument('--keep-alive', default='30m',
+                        help='how long ollama holds the model between tasks,'
+                             ' and with it the cached prompt prefix')
     parser.add_argument('--num-ctx', type=int, default=8192)
     parser.add_argument('--temperature', type=float, default=0.0)
 
@@ -117,7 +120,8 @@ def main(argv=None):
     try:
         client = Ollama(args.model or plan.model or DEFAULT_MODEL,
                         host=args.ollama_host, temperature=args.temperature,
-                        num_ctx=args.num_ctx, remote_ok=args.allow_remote)
+                        num_ctx=args.num_ctx, remote_ok=args.allow_remote,
+                        keep_alive=args.keep_alive)
         client.model = client.require_model()
     except OllamaError as exc:
         print('ollama: %s' % exc, file=sys.stderr)

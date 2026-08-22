@@ -296,6 +296,10 @@ def parse(argv):
                              ' with it')
     parser.add_argument('--words', type=int, default=180,
                         help='cap on generated tokens per turn')
+    parser.add_argument('--keep-alive', default='30m',
+                        help="how long ollama holds the model, and with it the"
+                             " cached prompt prefix: '30m', '1h', 0 to unload"
+                             " between questions")
     parser.add_argument('--num-ctx', type=int, default=8192)
     parser.add_argument('--keep', type=int, default=6,
                         help='recent messages sent whole; older ones are stubbed')
@@ -340,7 +344,8 @@ def build(args):
     client = Ollama(args.model, host=args.ollama_host,
                     num_ctx=args.num_ctx, num_predict=args.words,
                     think=True if args.think else False,
-                    remote_ok=args.allow_remote)
+                    remote_ok=args.allow_remote,
+                    keep_alive=args.keep_alive)
     if args.no_board:
         session = NoBoard()
     else:
