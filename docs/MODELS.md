@@ -143,6 +143,26 @@ Decode is bandwidth-bound, not core-bound, and filling both SMT siblings of
 every core makes it worse. Nothing in this repository sets `num_thread`; the
 daemon's own choice beat everything tried against it.
 
+### The language of the answer
+
+The bench prompt is English and the answer follows **the question**, not the
+prompt: ask in Swedish and the reading comes back in Swedish. Units and channel
+names stay as the board prints them — `NTC`, `DCbus`, `V`, `C` — because those
+are what appears in `board_info`, in the CSVs and in these documents, and a
+translated channel name is a channel name nobody can grep for.
+
+One consequence worth knowing, because it is a Windows console and not a
+choice: standard output encodes with the locale codepage, cp1252 on this bench.
+Swedish and German are inside it and render correctly. A Polish `ł`, an ohm sign
+or anything Cyrillic is not, and the default error handler turns that into a
+`UnicodeEncodeError` — which loses the whole answer *after* the measurement was
+taken. `dbg.py` sets `errors='replace'` on stdout and stderr instead, so an
+alphabet the console cannot hold costs a glyph rather than the reading.
+
+Forcing UTF-8 would fix the encode and hand a legacy console mojibake for every
+character it *could* have displayed. For the languages actually spoken at this
+bench that is the worse trade, so the codepage is left alone.
+
 ### Keeping the model loaded
 
 `keep_alive` goes on **every** request, default `30m`. Ollama caches the KV

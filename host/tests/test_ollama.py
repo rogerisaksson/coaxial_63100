@@ -1080,6 +1080,28 @@ def test_docs(report):
 
     # The bench prompt has to point at the tool, or nothing above matters.
     from coaxial_ollama import debug, runner
+    report.check('the answer follows the question, not the prompt',
+                 'language the question was asked in' in debug.SYSTEM)
+
+    # A console that cannot encode the answer must not lose it. cp1252 holds
+    # Swedish and German; it does not hold a Polish l-stroke or an ohm sign,
+    # and the default handler turns that into a UnicodeEncodeError after the
+    # measurement has already been taken.
+    import io as _io
+    raw = _io.BytesIO()
+    narrow = _io.TextIOWrapper(raw, encoding='cp1252', newline='')
+    debug._printable(narrow)
+    try:
+        narrow.write('resistans 6487 ohm, Ω och ł')
+        narrow.flush()
+        report.check('an alphabet the console lacks costs a glyph, not the answer',
+                     b'resistans 6487 ohm' in raw.getvalue())
+    except UnicodeEncodeError as exc:
+        report.check('an alphabet the console lacks costs a glyph, not the answer',
+                     False, str(exc)[:50])
+    report.check('and a stream that cannot be reconfigured is left alone',
+                 debug._printable(object()) is not None)
+
     report.check('dbg tells the model the documents exist',
                  'docs' in debug.SYSTEM and 'FINDINGS' in debug.SYSTEM)
     report.check('the runner tells it too',

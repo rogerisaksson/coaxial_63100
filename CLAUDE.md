@@ -54,7 +54,7 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -FirmwarePackage X.zip
                                            # STM32Cube FW_H7 into CubeMX's repository.
                                            # Only CubeMX needs it; Drivers/ is in git.
 . .\env.ps1                                # tools on PATH: board_prompt, dbg, board,
-                                           # cflash, cubemx
+                                           # cbuild, cflash, cubemx
 ```
 
 ```bash
@@ -67,7 +67,7 @@ cd host
 python -m coaxial all                      # CLI against the board
 python tests/test_conformance.py           # 40 Modbus conformance checks
 python tests/test_mcp.py                   # 36 MCP server checks
-python tests/test_ollama.py                # 175 runner and dbg checks, offline
+python tests/test_ollama.py                # 184 runner and dbg checks, offline
 python examples/read_board.py                # measure, judge nothing
 python -m coaxial_mcp --port COM4          # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml   # local model drives the bench

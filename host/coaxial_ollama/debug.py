@@ -41,7 +41,9 @@ from .sandbox import Scope, Shell, clip              # noqa: E402
 # Deliberately terse, and every line of it earns its place. No restating the
 # protocol, no channel map - board_info carries that, once, when asked.
 SYSTEM = """You debug a coaxial BLDC inverter test board over a serial link.
-Use tools; do not guess. Answer in one or two sentences, no preamble.
+Use tools; do not guess. Answer in one or two sentences, no preamble, in the
+language the question was asked in. Units and channel names stay as the board
+prints them.
 The front end switch (afe_power) also powers the ADC reference: with it off
 every channel reads mid-scale and the NTC reads exactly 25.00 C, which is not a
 measurement. Phase channels sit behind unknown gain, so pin volts is as far as
@@ -69,6 +71,27 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
   /help  /q"""
 
 
+def _printable(stream):
+    """Make a Windows console survive an answer in somebody else's alphabet.
+
+    The model answers in the language it was asked in, and the console here
+    encodes with the locale codepage - cp1252 on this bench. Swedish and German
+    are inside it and render correctly; an ohm sign, a Polish l-stroke or any
+    Cyrillic is not, and the default error handler turns that into a
+    UnicodeEncodeError that kills the answer after the measurement was already
+    taken. Replacing the character loses a glyph; raising loses the reading.
+
+    The codepage is left alone on purpose. Forcing UTF-8 would fix the encode
+    and hand a legacy console mojibake for the characters it *can* display,
+    which is a worse trade for the languages actually spoken at this bench.
+    """
+    try:
+        stream.reconfigure(errors='replace')
+    except (AttributeError, OSError, ValueError):
+        pass
+    return stream
+
+
 def approx_tokens(text):
     """Rough but honest: about four characters per token for dense ASCII."""
     return max(1, len(str(text)) // 4)
@@ -88,7 +111,7 @@ class Chat:
         self.keep = keep
         self.budget = budget
         self.quiet = quiet
-        self.out = out or sys.stdout
+        self.out = out or _printable(sys.stdout)
         self.history = []
         self.turn_cost = []
         self.set_tools(tools)
@@ -414,6 +437,11 @@ def main(argv=None):
     from .client import OllamaError
 
     args = parse(argv)
+    # Before anything prints: every path out of here, including the error
+    # branches below, goes through a console that may not hold the alphabet
+    # the answer arrives in.
+    _printable(sys.stdout)
+    _printable(sys.stderr)
     question = ' '.join(args.question).strip()
     if not question and not args.repl and not sys.stdin.isatty():
         # `sed -n 1,40p log | dbg` is a question about a log. Draining stdin
