@@ -288,7 +288,10 @@ def parse(argv):
                         help='answer only: no tool trace, no token meter')
     parser.add_argument('-t', '--tools', default='code',
                         help='read|code|pins|all|none or a comma separated list')
-    parser.add_argument('-m', '--model', default='gemma4:12b')
+    parser.add_argument('-m', '--model', default='gemma4:12b',
+                        help="ollama tag, or 'auto' to pick one from this"
+                             " machine's cores, RAM and VRAM - see"
+                             " coaxial_ollama/capability.py")
     parser.add_argument('--ollama-host', default='http://localhost:11434')
     parser.add_argument('--allow-remote', action='store_true',
                         help='permit a cloud tag or a remote daemon; off by'
@@ -347,11 +350,21 @@ def build(args):
     from .client import Ollama
     from .tools import Toolbox
 
-    client = Ollama(args.model, host=args.ollama_host,
+    tag, gpu_layers = args.model, None
+    if args.model == 'auto':
+        from .capability import choose, probe
+        picked = choose(probe())
+        tag = picked.tag
+        gpu_layers = picked.options.get('num_gpu')
+        if not args.quiet:
+            print('model: %s  (%s)' % (tag, picked.why))
+
+    client = Ollama(tag, host=args.ollama_host,
                     num_ctx=args.num_ctx, num_predict=args.words,
                     think=True if args.think else False,
                     remote_ok=args.allow_remote,
-                    keep_alive=args.keep_alive, fmt=args.fmt)
+                    keep_alive=args.keep_alive, fmt=args.fmt,
+                    num_gpu=gpu_layers)
     if args.no_board:
         session = NoBoard()
     else:

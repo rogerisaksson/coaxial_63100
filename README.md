@@ -49,7 +49,7 @@ list rather than dying half-installed.
 | ST-Link gdbserver, server and USB driver | same |
 | cube-cmake | the STM32 VS Code extension |
 | VS Code extensions: the STM32 pack, cpptools, python, ollama | `code --install-extension`, mirroring [.vscode/extensions.json](.vscode/extensions.json) |
-| ollama and `gemma4:12b` | winget or `ollama.com/install.ps1`, then `ollama pull` |
+| ollama, and a model this machine can actually run | winget or `ollama.com/install.ps1`, then `ollama pull` |
 | STM32Cube FW_H7 | st.com — the one thing still behind a login, and only CubeMX needs it |
 
 None of the ST tools land on the system PATH: they install as "bundles" under
@@ -102,7 +102,8 @@ drivers as submodules — a zipball of the tag has none of the sources in it.
 | `-SkipFirmware` | do not look for FW_H7 at all — a machine that only builds and flashes |
 | `-CubeMXInstaller PATH` | run an STM32CubeMX installer downloaded from st.com, instead of taking the 308 MB bundle |
 | `-Repository PATH` | where CubeMX keeps its packages, if yours is not the default |
-| `-Model TAG` | a different Ollama tag; the default is `gemma4:12b` |
+| `-Model TAG` | overrule the automatic choice with a tag of your own |
+| `-Prefer speed\|capability` | `speed` fits the card whole; `capability` allows a bigger model to spill onto the CPU |
 | `-WingetToolchain` | cmake, ninja and Arm's gcc from winget instead of the ST bundles |
 | `-AllowScripts` | set the CurrentUser execution policy so `. .\env.ps1` works in a plain shell |
 
@@ -179,6 +180,41 @@ mode would compete with that rather than help it. It is available for callers
 outside the runner — `dbg.py --format json`, usually with `-t none` — and off
 everywhere else.
 
+**The tag is chosen from the machine, not from whoever wrote this file.** A
+bench PC is whatever was on the shelf, and one hardcoded model means a laptop
+crawls or a workstation idles. `setup.ps1` measures cores, RAM and the size of
+the graphics card and pulls the largest tools-capable model that fits the card
+*whole*, keeping a quarter of the VRAM back so the desktop still has somewhere
+to live. Ask it yourself:
+
+```powershell
+cd host
+python -m coaxial_ollama.capability                    # what this machine gets, and why
+python -m coaxial_ollama.capability --prefer capability
+dbg -m auto "what is the board temperature?"           # same choice, from the prompt
+```
+
+Three things there were measured on this bench rather than assumed, and two of
+them contradict the usual advice — RTX 4080 SUPER 16 GB, Threadripper 3970X,
+`gemma4:12b` Q4_K_M at 48 layers:
+
+| | VRAM | tok/s |
+|---|---|---|
+| all 48 layers on the GPU | 7.8 GB | **64.3** |
+| 24 layers (the "hybrid") | 4.3 GB | 12.7 |
+| CPU only | 0 GB | 6.7 |
+
+So a split model costs about **five times** the speed for half the VRAM back,
+which makes hybrid the fallback when nothing fits — not a target. `num_gpu`
+needs no Modelfile either; it is an ordinary entry in `options` on a normal
+call, which beats a Modelfile because a Modelfile is a second tag to keep in
+step. And raising `num_thread` on 64 threads bought nothing and cost a little
+(6.4 → 5.7 tok/s at 64), because decode is bandwidth-bound, not core-bound.
+
+Only tools-capable tags are candidates. Everything here reaches the board
+through tool calls, and a tag without them describes a measurement instead of
+taking one.
+
 The model is **local and that is enforced, not assumed**. Ollama will happily
 proxy a `:cloud` tag to somebody else's GPU, which on a bench means register
 dumps and pin names leaving the building; a cloud tag or a non-loopback host
@@ -189,7 +225,7 @@ purpose.
 
 ```powershell
 cd host
-python tests/test_ollama.py         # 117 checks, no board and no ollama needed
+python tests/test_ollama.py         # 134 checks, no board and no ollama needed
 python tests/test_conformance.py    # 40 Modbus conformance checks, needs the board
 python tests/test_mcp.py            # 35 MCP server checks
 ```

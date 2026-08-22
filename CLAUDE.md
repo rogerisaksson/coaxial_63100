@@ -66,10 +66,12 @@ cd host
 python -m coaxial all                      # CLI against the board
 python tests/test_conformance.py           # 40 Modbus conformance checks
 python tests/test_mcp.py                   # 35 MCP server checks
-python tests/test_ollama.py                # 117 runner and dbg checks, offline
+python tests/test_ollama.py                # 134 runner and dbg checks, offline
 python examples/read_board.py                # measure, judge nothing
 python -m coaxial_mcp --port COM4          # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml   # local model drives the bench
+python -m coaxial_ollama.capability        # which local model this machine should run
+python dbg.py -m auto "..."                # that model, picked from cores/RAM/VRAM
 python dbg.py "why does the NTC read exactly 25.00?"   # cheap one-off question
 python dbg.py --repl                       # prompt loop; /py and /sh cost no tokens
 ```

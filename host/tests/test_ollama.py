@@ -823,12 +823,91 @@ def test_coerce(report):
                          str(exc)[:58])
 
 
+# ---- the tag follows the machine ------------------------------------------
+
+def test_capability(report):
+    """Picked from cores, RAM and VRAM - not from whoever cloned the repo."""
+    from coaxial_ollama import capability as cap
+
+    def machine(cores, ram, vram, name='card'):
+        gpus = [{'name': name, 'vram_gb': vram, 'via': 'test'}] if vram else []
+        return cap.Machine(cores=cores, threads=cores * 2, ram_gb=ram,
+                           gpus=gpus, system='test', notes={})
+
+    # A workstation card: the biggest tag that fits WHOLE, never a split one.
+    # Measured on the bench: wholly resident is ~5x faster per token than half.
+    big = cap.choose(machine(32, 64, 16))
+    report.check('16 GB card takes the largest model that fits whole',
+                 big.tag == 'qwen2.5:14b' and 'num_gpu' not in big.options,
+                 big.tag)
+
+    # A decent laptop: 8 GB card, 2 GB reserve, 6 GB to spend.
+    laptop = cap.choose(machine(8, 32, 8))
+    report.check('8 GB card drops to a model that fits it',
+                 laptop.entry['gb'] <= 6.0 and 'num_gpu' not in laptop.options,
+                 laptop.tag)
+
+    # No GPU at all: everything on the CPU, and it says so rather than
+    # recommending something that cannot load.
+    headless = cap.choose(machine(64, 128, 0))
+    report.check('no GPU means num_gpu 0', headless.options.get('num_gpu') == 0,
+                 headless.tag)
+    report.check('no GPU is explained, not silently slow',
+                 'CPU' in headless.why or 'cpu' in headless.why)
+
+    # Under-specified: 4 GB of RAM cannot hold anything in the catalogue.
+    tiny = cap.choose(machine(2, 4, 0))
+    report.check('a machine too small for any of them says so',
+                 any('under-specified' in w for w in tiny.warnings))
+
+    # Capability mode is allowed to spill onto the CPU, and must warn that it
+    # costs - otherwise it is a slow default nobody chose.
+    step = cap.choose(machine(32, 64, 16), prefer='capability')
+    report.check('capability mode reaches for the bigger model',
+                 step.tag == 'qwen2.5:32b' and step.options['num_gpu'] > 0,
+                 '%s num_gpu=%s' % (step.tag, step.options.get('num_gpu')))
+    report.check('and says what it costs',
+                 any('slower' in w for w in step.warnings))
+
+    # The reserve is the whole point of the budget: a card must never be
+    # filled to the brim, because the desktop lives there too.
+    report.check('a quarter of the card is held back, floor 2 GB',
+                 cap.reserve_for(16) == 4.0 and cap.reserve_for(4) == 2.0
+                 and cap.reserve_for(0) == 0.0)
+    fits = [e for e in cap.CATALOGUE if e['gb'] <= 16 - cap.reserve_for(16)]
+    report.check('nothing recommended for a 16 GB card fills it',
+                 all(e['gb'] < 16 for e in fits))
+
+    # Layer arithmetic: as many as the budget holds, never more than the model
+    # has, never negative.
+    for vram, ram in ((10, 32), (6, 16), (24, 64), (0, 64)):
+        picked = cap.choose(machine(16, ram, vram), prefer='capability')
+        layers = picked.options.get('num_gpu')
+        if layers is not None:
+            report.check('layer count stays inside the model (%d GB card)' % vram,
+                         0 <= layers <= picked.entry['layers'],
+                         '%s %s/%s' % (picked.tag, layers, picked.entry['layers']))
+
+    report.check('every candidate is tools-capable by construction',
+                 all(entry.get('note') is not None for entry in cap.CATALOGUE))
+
+    # And the probe itself has to survive whatever it finds, on any OS.
+    found = cap.probe()
+    report.check('probe returns a usable machine',
+                 found.threads >= 1 and found.cores >= 1 and found.ram_gb >= 0)
+    report.check('probe records how it measured each number',
+                 set(found.notes) == set(['cpu', 'ram', 'gpu']), str(found.notes))
+    report.check('report is text a human can read',
+                 'machine:' in cap.report(found) and 'model:' in cap.report(found))
+
+
 def main():
     report = Report()
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_policy, test_transcript, test_debug, test_cli,
-                 test_local_only, test_keep_alive, test_coerce):
+                 test_local_only, test_keep_alive, test_coerce,
+                 test_capability):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

@@ -68,12 +68,23 @@
     from a command line - in a scheduled run, or from another script.
 
 .PARAMETER Model
-    The ollama tag to pull. Default gemma4:12b, about 8 GB - the model this
-    bench is driven with. It has to be a tools-capable tag, because everything
-    in host/coaxial_ollama reaches the board through tool calls and a model
-    without them will describe a measurement instead of taking one. Pass
-    something smaller (gemma4:e4b, qwen3:4b) for a machine that only needs the
-    plumbing proven.
+    The ollama tag to pull. Left alone, the machine decides: cores, RAM and the
+    size of the graphics card are measured and the largest tools-capable model
+    that fits the card whole is chosen - see host/coaxial_ollama/capability.py,
+    or ask it yourself with
+
+        python -m coaxial_ollama.capability
+
+    Pass a tag to overrule that. It has to be a tools-capable one, because
+    everything in host/coaxial_ollama reaches the board through tool calls and
+    a model without them will describe a measurement instead of taking one.
+
+.PARAMETER Prefer
+    What the automatic choice optimises for. 'speed' takes the largest model
+    that fits the graphics card whole. 'capability' allows a larger one to hang
+    half out of the card and run the rest on the CPU, which measured about five
+    times slower per token - worth it when the answer matters more than the
+    wait.
 
 .PARAMETER SkipOllama
     Leave the model side alone - for a machine that only builds and flashes.
@@ -125,7 +136,9 @@
 param(
     [switch]$Check,
     [switch]$Yes,
-    [string]$Model = 'gemma4:12b',
+    [string]$Model,
+    [ValidateSet('speed', 'capability')]
+    [string]$Prefer = 'speed',
     [switch]$SkipOllama,
     [switch]$SkipCubeMX,
     [switch]$SkipDriver,
@@ -984,8 +997,58 @@ function Install-OllamaExtension {
     }
 }
 
+function Resolve-Model {
+    <#  Which tag this machine should run, if nobody said.
+
+        The answer comes from capability.py rather than from a constant here,
+        because it is the same question the runner and dbg.py ask and there
+        should be one answer to it. A machine with no python yet, or a probe
+        that fails, falls back to the tag this bench was built on rather than
+        stopping the install.  #>
+    param([string]$Python)
+
+    if ($Model) { return $Model }
+    if ($null -eq $Python) { return 'gemma4:12b' }
+
+    Push-Location $Host_
+    try {
+        $json = (& $Python '-m' 'coaxial_ollama.capability' '--json' '--prefer' $Prefer) -join ''
+    } catch {
+        $json = ''
+    } finally {
+        Pop-Location
+    }
+    if ([string]::IsNullOrWhiteSpace($json)) {
+        Write-Item 'model choice' 'missing' 'could not measure this machine - falling back'
+        return 'gemma4:12b'
+    }
+    try {
+        $picked = $json | ConvertFrom-Json
+    } catch {
+        Write-Item 'model choice' 'missing' 'capability.py said something unreadable - falling back'
+        return 'gemma4:12b'
+    }
+    $machine = $picked.machine
+    Write-Item 'this machine' 'ok' ('{0} cores / {1} threads, {2:n0} GB RAM, {3:n0} GB VRAM' `
+        -f $machine.cores, $machine.threads, $machine.ram_gb, $machine.vram_gb)
+    Write-Item 'model choice' 'ok' ('{0}  ({1})' -f $picked.model, $picked.why)
+    foreach ($warning in $picked.warnings) {
+        Write-Item '' 'note' $warning
+    }
+    if ($null -ne $picked.options.num_gpu) {
+        # A split model needs the layer count on every call, and only dbg.py and
+        # the runner can pass it. Said here so it is not a surprise later.
+        Add-Todo ('this machine runs ' + $picked.model + ' split across GPU and CPU: ' +
+                  'use `dbg -m auto`, which passes num_gpu=' + $picked.options.num_gpu +
+                  ', rather than a bare `ollama run`')
+    }
+    return $picked.model
+}
+
 function Install-Ollama {
+    param([string]$Python)
     Write-Head 'ollama'
+    $Model = Resolve-Model -Python $Python
     $ollama = Find-Ollama
     if ($null -eq $ollama) {
         Write-Item 'ollama' 'missing' 'Ollama.Ollama, or ollama.com/install.ps1'
@@ -1032,7 +1095,7 @@ function Install-Ollama {
         Write-Item 'model' 'ok' ($have -join ', ')
     } else {
         Write-Item 'model' 'missing' $Model
-        if (Confirm-Step "ollama pull $Model ?  (gemma4:12b is about 8 GB)") {
+        if (Confirm-Step "ollama pull $Model ?  (several GB - see the model choice above)") {
             & $ollama pull $Model
             if ($LASTEXITCODE -eq 0) {
                 Write-Item 'model' 'done' $Model
@@ -1171,7 +1234,7 @@ Install-CubeMXFromInstaller
 Install-FirmwarePackage
 
 if (-not $SkipOllama) {
-    Install-Ollama
+    Install-Ollama -Python $python
 } 
 
 Test-Setup -Python $python

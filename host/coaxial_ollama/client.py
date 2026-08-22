@@ -76,7 +76,7 @@ class Ollama:
     def __init__(self, model, host='http://localhost:11434', temperature=0.0,
                  num_ctx=8192, seed=7, timeout=600.0, num_predict=None,
                  think=None, remote_ok=False, keep_alive='30m',
-                 fmt=None):
+                 fmt=None, num_gpu=None):
         self.remote_ok = remote_ok
         if not remote_ok:
             if not is_local(host):
@@ -93,6 +93,12 @@ class Ollama:
         self.host = host.rstrip('/')
         self.options = {'temperature': temperature, 'num_ctx': num_ctx,
                         'seed': seed}
+        if num_gpu is not None:
+            # Layers on the GPU; the rest run on the CPU. capability.py picks
+            # this from the size of the card, and it is an ordinary option
+            # rather than a Modelfile - which would be a second tag to keep in
+            # step with this one.
+            self.options['num_gpu'] = num_gpu
         if num_predict:
             # A cap on generated tokens. Nothing on this bench needs an essay,
             # and an unbounded reasoning model will write one.
