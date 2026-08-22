@@ -240,20 +240,35 @@ function Get-Choice {
 
 # ---- the new window, if that is what was asked -----------------------------
 
+function Quote-Argument {
+    <#  One argument, safe to hand to Start-Process.
+
+        -ArgumentList joins an array with spaces and quotes nothing, so a value
+        with a space in it arrives as several arguments. Measured the hard way:
+        `-NewWindow -Ask "read the NTC"` reached the new window as -Ask read,
+        the, NTC - and `NTC` then bound to -Prefer, which rejected it against
+        its ValidateSet. The error named a parameter nobody had typed.  #>
+    param([string]$Text)
+
+    if ($Text -match '^[-\w:.\/]+$') { return $Text }
+    return '"' + ($Text -replace '"', '\"') + '"'
+}
+
 if ($NewWindow) {
     # Rebuild the call rather than forwarding $args: a switch is '-Name' and a
     # value is two elements, and getting that wrong silently drops a parameter.
-    $forward = @('-NoExit', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath)
+    $forward = @('-NoExit', '-ExecutionPolicy', 'Bypass',
+                 '-File', (Quote-Argument $PSCommandPath))
     foreach ($name in $PSBoundParameters.Keys) {
         if ($name -eq 'NewWindow') { continue }
         $value = $PSBoundParameters[$name]
         if ($value -is [switch]) {
             if ($value.IsPresent) { $forward += ('-' + $name) }
         } else {
-            $forward += @(('-' + $name), [string]$value)
+            $forward += @(('-' + $name), (Quote-Argument ([string]$value)))
         }
     }
-    Start-Process -FilePath 'powershell.exe' -ArgumentList $forward `
+    Start-Process -FilePath 'powershell.exe' -ArgumentList ($forward -join ' ') `
                   -WorkingDirectory $Root
     return
 }

@@ -1,0 +1,71 @@
+{
+    // Ways to reach the board from inside the editor, in the docked terminal
+    // panel rather than a window of their own.
+    //
+    // Why a task and not something that types into the terminal you already
+    // have open: there is no interface for that. The VS Code CLI can open
+    // files, diff them and install extensions; it cannot run a command in a
+    // running terminal, and nothing outside the editor can. A task is the
+    // supported way in, and it lands in the same docked panel.
+    //
+    // Ctrl+Shift+B runs "Ask the board" - it is the default build task, which
+    // on a repository whose build is `cbuild` is a deliberate choice: asking
+    // the board is the thing done twenty times an hour.
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Ask the board",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/board_prompt.ps1",
+                "-Ask", "${input:question}"
+            ],
+            "group": { "kind": "build", "isDefault": true },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Board prompt",
+            "detail": "The prompt loop: the local model with the board's tools",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/board_prompt.ps1"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Read the board",
+            "detail": "Every channel, the NTC, the link stats - no model involved",
+            "type": "shell",
+            "command": "python",
+            "args": ["-m", "coaxial", "all"],
+            "options": { "cwd": "${workspaceFolder}/host" },
+            "presentation": { "reveal": "always", "panel": "shared" },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "question",
+            "type": "promptString",
+            "description": "Ask the board",
+            "default": "read all channels, the DC link and the NTC"
+        }
+    ]
+}

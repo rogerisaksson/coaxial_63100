@@ -133,6 +133,14 @@ closing line about having released it, no summary. Do not run it, do not
 paraphrase what it would say, do not take the reading anyway to check. The user
 has a terminal and is already looking at it.
 
+And **do not spawn a window.** `Start-Process powershell` puts the answer in a
+new window in front of the editor, which is not where the user is working. There
+is no interface that reaches the terminal docked in VS Code - the CLI opens
+files, diffs and extensions, and nothing outside the editor can type into a
+running terminal - so the two honest routes are the line above, pasted, or
+`.vscode/tasks.json`, which runs in that docked panel: **Ctrl+Shift+B** for one
+question, *Run Task > Board prompt* for the loop.
+
 This does not apply when the board is instrumentation for work already agreed:
 verifying a change just made to `host/`, reproducing a bug, writing a capture
 tool that needs a live link. Then the board is a test fixture, not the subject
