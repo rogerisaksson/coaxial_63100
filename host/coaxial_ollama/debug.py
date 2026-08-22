@@ -39,6 +39,7 @@ from coaxial.errors import RigError                  # noqa: E402
 
 from . import language
 from . import tools as toolmod                       # noqa: E402
+from .spinner import spinning_prompt                 # noqa: E402
 from .sandbox import Scope, Shell, clip              # noqa: E402
 
 # Deliberately terse, and every line of it earns its place. No restating the
@@ -76,59 +77,6 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
 # window this appears in is usually one of several, and 'dbg>' says which
 # program is running where the useful thing to know is which bench.
 PROMPT = 'Coaxial_63100'
-
-# The classic spinner, one column. It went from an eight-wide bounce to a
-# three-column orbit to this: a prompt is not a place to spend line width, and
-# four ASCII glyphs turning in a single cell is the shape every terminal has
-# used for this since before any of us. Braille would be smoother and cannot be
-# used - this console encodes cp1252 (see _printable), where every braille
-# character becomes a question mark.
-SPINNER = ('|', '/', '-', '\\')
-TICK = 0.12         # seconds per step
-
-
-def spinning_prompt(out=None, prompt=PROMPT):
-    """Draw the prompt with a spinner turning in it, until a key is pressed.
-
-    Why bother: this prompt sits in the same docked panel as a PowerShell one,
-    and two terminals with a `>` in them look identical at a glance. Something
-    turning says which window is waiting for a question and which is waiting
-    for a command, without a banner or a colour scheme to remember.
-
-    It stops at the first keypress and redraws the line static, so nothing is
-    animating while there is text on it - an animation that repaints under
-    typed characters is how a prompt eats an argument. Where there is no
-    console to poll (piped input, no msvcrt, output redirected) it prints the
-    static prompt once and returns, which is what a script wants anyway.
-    """
-    out = out or sys.stdout
-    static = '%s >' % prompt
-
-    try:
-        import msvcrt
-    except ImportError:
-        msvcrt = None
-    if msvcrt is None or not sys.stdin.isatty() or not out.isatty():
-        out.write(static + ' ')
-        out.flush()
-        return
-
-    width = len(SPINNER[0])
-    frame = 0
-    try:
-        while not msvcrt.kbhit():
-            out.write('\r%s %s>' % (prompt, SPINNER[frame % len(SPINNER)]))
-            out.flush()
-            frame += 1
-            time.sleep(TICK)
-    except (OSError, ValueError):
-        pass
-    # Static for the typing: same text every time, so what the user sees while
-    # they type is what they would have seen without any of this.
-    out.write('\r%s%s ' % (static, ' ' * (width + 2)))
-    out.write('\r%s ' % static)
-    out.flush()
-
 
 # How long ollama holds the weights after the last turn. Two numbers, because
 # the two modes want opposite things.
@@ -575,8 +523,13 @@ def repl(chat):
         print('(reading commands from stdin)')
     while True:
         try:
-            spinning_prompt()
-            line = input().strip()
+            stop = spinning_prompt(PROMPT, sys.stdout)
+            try:
+                line = input().strip()
+            finally:
+                # Before anything else is printed: a frame landing in the
+                # middle of an answer puts a glyph inside the text.
+                stop()
         except (EOFError, KeyboardInterrupt):
             print()
             break

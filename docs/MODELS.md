@@ -154,11 +154,24 @@ daemon's own choice beat everything tried against it.
 
 Two things a reader of a transcript will notice before anything else.
 
-The prompt spins while it waits — `|`, `/`, `-`, `\` turning in one column
-beside the board's name — and goes static the moment a key is pressed. One
-column, because a prompt is not a place to spend line width; ASCII, because
-this console encodes cp1252 and every braille character in a nicer spinner
-would arrive as a question mark. It sits in the same
+The prompt spins beside the board's name — `|`, `/`, `–`, `\` in one column —
+**and keeps spinning while you type**. The first version stopped at the first
+keypress, because a spinner that redraws its line repaints under the characters
+being typed, which is how a prompt eats an argument. Stopping made it useless
+exactly when you are looking at it, so `spinner.py` repaints only its own cell
+and puts the cursor back: `ESC 7`, column, glyph, `ESC 8`. The typed text is
+never written over because it is never written to.
+
+The bar is an en dash, not a hyphen: at the size a terminal draws them a hyphen
+is a third the width of `|` and the spinner visibly limps. cp1252 has it at
+0x96, so this console renders it; a console that cannot encode it is asked
+first and gets the ASCII set rather than a question mark in the corner of your
+eye.
+
+What can still go wrong is a line long enough to wrap, since the column is on
+the current row. A bench question is not that long, and the alternative is
+writing a terminal emulator. Redirected output gets one static prompt, no
+escapes and no thread. It sits in the same
 docked panel as a PowerShell prompt, and two terminals with a `>` in them look
 identical at a glance; a moving dot says which one is waiting for a question
 without a banner or a colour to remember. Nothing animates while there is text

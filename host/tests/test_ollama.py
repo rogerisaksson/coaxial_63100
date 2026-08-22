@@ -429,69 +429,53 @@ def test_scope_repairs(report):
 
 
 def test_prompt(report):
-    """The prompt animates while it waits and stops the moment you type."""
-    from coaxial_ollama import debug
+    """The spinner keeps turning while you type, and never over what you typed."""
+    import time as clock
+    from coaxial_ollama import spinner as spin
 
     class Tty(io.StringIO):
+        encoding = 'cp1252'
+
         def isatty(self):
             return True
 
-    class Keyboard:
-        """kbhit() is False for a few polls, then True - somebody typed."""
-        def __init__(self, quiet):
-            self.left = quiet
-
-        def kbhit(self):
-            if self.left <= 0:
-                return True
-            self.left -= 1
-            return False
-
-    real_import, real_sleep, real_stdin = __import__, debug.time.sleep, sys.stdin
-
-    def fake_import(name, *args, **kw):
-        if name == 'msvcrt':
-            return keyboard
-        return real_import(name, *args, **kw)
-
-    keyboard = Keyboard(6)
     screen = Tty()
-    builtins = sys.modules['builtins']
-    sys.stdin = Tty()
-    builtins.__import__ = fake_import
-    debug.time.sleep = lambda _seconds: None
-    try:
-        debug.spinning_prompt(out=screen)
-    finally:
-        builtins.__import__ = real_import
-        debug.time.sleep = real_sleep
-        sys.stdin = real_stdin
-
+    stop = spin.spinning_prompt('Coaxial_63100', screen, tick=0.01)
+    clock.sleep(0.08)
+    stop()
     drawn = screen.getvalue()
-    frames = [f for f in drawn.split('\r') if f]
-    report.check('the prompt animates while it waits', len(frames) >= 6,
-                 '%d frames' % len(frames))
-    report.check('the dot moves between frames',
-                 frames[0] != frames[1], repr(frames[:2]))
-    report.check('the spinner is one column wide, and no wider',
-                 {len(f) for f in debug.SPINNER} == {1},
-                 ''.join(debug.SPINNER))
-    report.check('it is the classic four glyphs, all different',
-                 len(set(debug.SPINNER)) == 4
-                 and set(debug.SPINNER) == set('|/-' + chr(92)))
 
-    report.check('every frame carries the board name',
-                 all(debug.PROMPT in f for f in frames))
-    report.check('it ends static, with nothing left animating',
-                 frames[-1].strip().endswith('>')
-                 and '.' not in frames[-1], repr(frames[-1]))
+    report.check('the prompt is written whole, once',
+                 drawn.startswith('Coaxial_63100 ')
+                 and drawn.count('Coaxial_63100') == 1, repr(drawn[:20]))
+    report.check('it keeps painting after the prompt is up',
+                 drawn.count(spin.SAVE) >= 3, '%d frames' % drawn.count(spin.SAVE))
+    report.check('every frame saves the cursor and puts it back',
+                 drawn.count(spin.SAVE) == drawn.count(spin.RESTORE))
+    report.check('nothing is redrawn except the spinner column',
+                 chr(13) not in drawn and 'Coaxial' not in drawn[20:])
+    report.check('stopping is final - no frame lands in the next answer',
+                 drawn == screen.getvalue())
 
-    # A pipe has no console to poll and no eye to catch: one static prompt.
-    quiet = io.StringIO()
-    debug.spinning_prompt(out=quiet)
-    report.check('a redirected prompt is written once, static',
-                 quiet.getvalue().count(debug.PROMPT) == 1
-                 and '\r' not in quiet.getvalue(), repr(quiet.getvalue()))
+    report.check('the bar is an en dash, wider than a hyphen',
+                 spin.GLYPHS[2] == chr(0x2013)
+                 and spin.GLYPHS[2].encode('cp1252') == bytes([0x96]))
+    report.check('a console that cannot hold it gets ASCII, not a question mark',
+                 spin._frames(Tty()) == spin.GLYPHS
+                 and spin.FALLBACK == ('|', '/', '-', chr(92)))
+
+    class Ascii(Tty):
+        encoding = 'ascii'
+
+    report.check('and that fallback is chosen by asking the stream',
+                 spin._frames(Ascii()) == spin.FALLBACK)
+
+    # A pipe has no cursor to save: one static prompt, no escapes, no thread.
+    piped = io.StringIO()
+    noop = spin.spinning_prompt('Coaxial_63100', piped)
+    noop()
+    report.check('a redirected prompt is static and escape-free',
+                 piped.getvalue() == 'Coaxial_63100 | > ', repr(piped.getvalue()))
 
 
 def test_shell(report):
