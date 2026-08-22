@@ -103,7 +103,7 @@ drivers as submodules — a zipball of the tag has none of the sources in it.
 | `-CubeMXInstaller PATH` | run an STM32CubeMX installer downloaded from st.com, instead of taking the 308 MB bundle |
 | `-Repository PATH` | where CubeMX keeps its packages, if yours is not the default |
 | `-Model TAG` | overrule the automatic choice with a tag of your own |
-| `-Reserve N` (board-prompt) | VRAM in GB to keep for the desktop; raise it if the screens stutter. `COAXIAL_VRAM_RESERVE_GB` sets it per machine |
+| `-Reserve N` (board_prompt) | VRAM in GB to keep for the desktop; raise it if the screens stutter. `COAXIAL_VRAM_RESERVE_GB` sets it per machine |
 | `-Prefer speed\|capability` | `speed` fits the card whole; `capability` allows a bigger model to spill onto the CPU |
 | `-WingetToolchain` | cmake, ninja and Arm's gcc from winget instead of the ST bundles |
 | `-AllowScripts` | set the CurrentUser execution policy so `. .\env.ps1` works in a plain shell |
@@ -123,7 +123,7 @@ window it was made in. It also defines the six commands the project is driven
 with:
 
 ```
-board-prompt  the model, the board and a prompt in one window
+board_prompt  the model, the board and a prompt in one window
 dbg      one question to the local model            (host/dbg.py)
 board    the plain CLI, no model                    (python -m coaxial)
 cubemx   open coaxial_63100.ioc in STM32CubeMX
@@ -162,12 +162,12 @@ line, beside the calibrated instruments.
 ### 5. The model in the loop
 
 ```powershell
-board-prompt                # daemon started, model preloaded, board checked, prompt open
-board-prompt -Ask "read the NTC and give me the temperature"
-board-prompt -Plain         # a bare ollama chat: no tools, no board
+board_prompt                # daemon started, model preloaded, board checked, prompt open
+board_prompt -Ask "read the NTC and give me the temperature"
+board_prompt -Plain         # a bare ollama chat: no tools, no board
 ```
 
-`board-prompt.ps1` is preflight plus `host/dbg.py --repl`: the local model with
+`board_prompt.ps1` is preflight plus `host/dbg.py --repl`: the local model with
 the board's tools, `/py` against a live session and `/sh` for a build, both of
 which cost no tokens, and a token meter on every turn. It measures the machine,
 picks the model that fits it, **pulls that model if it is not here yet**, loads
@@ -235,7 +235,7 @@ purpose.
 
 ```powershell
 cd host
-python tests/test_ollama.py         # 161 checks, no board and no ollama needed
+python tests/test_ollama.py         # 175 checks, no board and no ollama needed
 python tests/test_conformance.py    # 40 Modbus conformance checks, needs the board
 python tests/test_mcp.py            # 36 MCP server checks
 ```

@@ -30,17 +30,39 @@ dbg -m auto "what is the board temperature?"            # same choice, from the 
 ```
 
 The rule is **the largest tools-capable model that fits the graphics card
-whole**, keeping a quarter of the VRAM back (floor 2 GB) so the desktop still
-has somewhere to live. Only tools-capable tags are candidates: everything here
+whole**, keeping enough VRAM back that the desktop still has somewhere to live.
+What gets measured, every run:
+
+| Measured | Used for | How |
+|---|---|---|
+| physical cores, threads | whether a CPU-bound choice is slow or hopeless | `Win32_Processor.NumberOfCores` |
+| CPU busy % | a warning, never the tag | `Win32_Processor.LoadPercentage` |
+| RAM installed **and free** | which models can be held at all | `GlobalMemoryStatusEx` |
+| VRAM total | the budget | `nvidia-smi`, else the registry's `qwMemorySize` |
+| VRAM **in use by anything else** | the reserve | `nvidia-smi memory.used`, minus what ollama itself holds |
+
+Two of those are worth dwelling on. **Free RAM, not installed RAM**: a 64 GB
+workstation with 8 GB left cannot hold a 42 GB model however impressive the
+sticker is, and the failure mode is the machine swapping rather than an error
+anyone can read. **VRAM in use minus ollama's own**: the probe usually runs
+while the last question's model is still resident, and counting our own 7.8 GB
+as somebody else's desktop reserved 12.8 GB of a 16 GB card and picked something
+smaller — which became the new baseline next time. A ratchet, measured before it
+was fixed.
+
+CPU load is deliberately *not* an input to the choice. A snapshot says nothing
+about the next ten minutes, and the tag is chosen for the session; a busy machine
+gets a warning that the CPU half of a split choice will be slower than the
+figures below, which were all measured idle. Only tools-capable tags are candidates: everything here
 reaches the board through tool calls, and a tag without them describes a
 measurement instead of taking one.
 
-`setup.ps1` pulls whatever the picker chooses, and so does `board-prompt.ps1` on
+`setup.ps1` pulls whatever the picker chooses, and so does `board_prompt.ps1` on
 a machine where the tag is missing — it asks the picker, pulls, loads and only
 then opens the prompt. `-Model TAG` overrules it everywhere.
 
 Anything driving this from outside — including Claude Code, see the routing
-table in [../CLAUDE.md](../CLAUDE.md) — should reach for `board-prompt -Ask` or
+table in [../CLAUDE.md](../CLAUDE.md) — should reach for `board_prompt -Ask` or
 `dbg -m auto -q` rather than reason about the board from memory. The local model
 is free per token and standing next to the hardware; the expensive one is not.
 
@@ -86,7 +108,7 @@ That still is not much on a busy machine, so the number is settable:
 | `-Reserve 8` | 8.0 GB | gemma4:12b, 7.8 GB | ~5.6 GB |
 | `-Reserve 11` | 11.0 GB | qwen2.5:7b, 4.7 GB | ~8.7 GB |
 
-`board-prompt -Reserve N` for one run; `COAXIAL_VRAM_RESERVE_GB` in the
+`board_prompt -Reserve N` for one run; `COAXIAL_VRAM_RESERVE_GB` in the
 environment for a machine, once, honoured by every entry point. On a card of
 this size the step from 14B to 12B costs little — both were within half a degree
 of the board's own NTC reading, and 12B is the tag that checks the AFE before it
@@ -94,7 +116,7 @@ answers.
 
 ### Priority
 
-`board-prompt.ps1` drops the ollama processes to BelowNormal unless `-Normal`
+`board_prompt.ps1` drops the ollama processes to BelowNormal unless `-Normal`
 says otherwise, and starts the daemon with `OLLAMA_MAX_LOADED_MODELS=1` and
 `OLLAMA_NUM_PARALLEL=1` when it starts it at all.
 

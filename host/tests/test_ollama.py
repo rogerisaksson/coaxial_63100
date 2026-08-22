@@ -829,10 +829,12 @@ def test_capability(report):
     """Picked from cores, RAM and VRAM - not from whoever cloned the repo."""
     from coaxial_ollama import capability as cap
 
-    def machine(cores, ram, vram, name='card'):
-        gpus = [{'name': name, 'vram_gb': vram, 'via': 'test'}] if vram else []
+    def machine(cores, ram, vram, name='card', used=0.0, free=None, busy=None):
+        gpus = ([{'name': name, 'vram_gb': vram, 'used_gb': used, 'via': 'test'}]
+                if vram else [])
         return cap.Machine(cores=cores, threads=cores * 2, ram_gb=ram,
-                           gpus=gpus, system='test', notes={})
+                           ram_free_gb=ram if free is None else free,
+                           cpu_busy=busy, gpus=gpus, system='test', notes={})
 
     # A workstation card: the biggest tag that fits WHOLE, never a split one.
     # Measured on the bench: wholly resident is ~5x faster per token than half.
@@ -915,6 +917,51 @@ def test_capability(report):
             report.check('layer count stays inside the model (%d GB card)' % vram,
                          0 <= layers <= picked.entry['layers'],
                          '%s %s/%s' % (picked.tag, layers, picked.entry['layers']))
+
+    # Free RAM, not the sticker. A 64 GB workstation with 8 GB left cannot hold
+    # a 42 GB model, and the failure mode is swapping rather than an error.
+    squeezed = cap.choose(machine(32, 64, 0, free=8))
+    report.check('the choice is made on free RAM, not installed RAM',
+                 squeezed.entry['ram_gb'] <= 8, squeezed.tag)
+    report.check('a roomy machine still reaches the big models',
+                 cap.choose(machine(32, 64, 0, free=64)).entry['gb']
+                 >= squeezed.entry['gb'])
+
+    # A busy machine gets a warning, not a different tag: load now says nothing
+    # about load in ten minutes, and the tag is chosen for the session.
+    busy = cap.choose(machine(32, 64, 0, free=64, busy=90))
+    idle = cap.choose(machine(32, 64, 0, free=64, busy=1))
+    report.check('a busy machine is warned, not quietly downgraded',
+                 busy.tag == idle.tag
+                 and any('busy' in w for w in busy.warnings)
+                 and not any('busy' in w for w in idle.warnings))
+
+    # The ratchet: our own resident model must not count as somebody's desktop,
+    # or every run reserves more than the last and walks the choice downhill.
+    real_smi, real_ours = cap._gpus_nvidia_smi, cap._ollama_vram_gb
+    try:
+        # A 16 GB card reading 10.8 used, of which 7.8 is the model we loaded
+        # ourselves. The desktop is 3.0, and that is what the reserve is for.
+        cap._gpus_nvidia_smi = lambda: [{'name': 'test', 'vram_gb': 16.0,
+                                         'used_gb': 10.8, 'via': 'test'}]
+        cap._ollama_vram_gb = lambda host='': 7.8
+        probed = cap.probe()
+        report.check("ollama's own VRAM is not counted as the desktop's",
+                     abs(probed.vram_used_gb - 3.0) < 0.01,
+                     '%.1f GB' % probed.vram_used_gb)
+        report.check('and the probe says it did that',
+                     'minus ollama' in probed.notes['gpu'])
+        report.check('so the reserve does not ratchet upwards',
+                     cap.reserve_for(16, probed.vram_used_gb)
+                     < cap.reserve_for(16, 10.8),
+                     '%.1f against %.1f' % (cap.reserve_for(16, probed.vram_used_gb),
+                                            cap.reserve_for(16, 10.8)))
+
+        cap._ollama_vram_gb = lambda host='': 0.0
+        report.check('a card with nothing of ours on it is unchanged',
+                     abs(cap.probe().vram_used_gb - 10.8) < 0.01)
+    finally:
+        cap._gpus_nvidia_smi, cap._ollama_vram_gb = real_smi, real_ours
 
     report.check('every candidate is tools-capable by construction',
                  all(entry.get('note') is not None for entry in cap.CATALOGUE))

@@ -53,7 +53,7 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes     # install the lot:
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -FirmwarePackage X.zip
                                            # STM32Cube FW_H7 into CubeMX's repository.
                                            # Only CubeMX needs it; Drivers/ is in git.
-. .\env.ps1                                # tools on PATH: board-prompt, dbg, board,
+. .\env.ps1                                # tools on PATH: board_prompt, dbg, board,
                                            # cflash, cubemx
 ```
 
@@ -67,7 +67,7 @@ cd host
 python -m coaxial all                      # CLI against the board
 python tests/test_conformance.py           # 40 Modbus conformance checks
 python tests/test_mcp.py                   # 36 MCP server checks
-python tests/test_ollama.py                # 161 runner and dbg checks, offline
+python tests/test_ollama.py                # 175 runner and dbg checks, offline
 python examples/read_board.py                # measure, judge nothing
 python -m coaxial_mcp --port COM4          # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml   # local model drives the bench
@@ -97,7 +97,7 @@ it. It costs nothing per token and it is standing next to the hardware. Use it
 instead of spending context on questions it can answer by measuring:
 
 ```powershell
-board-prompt -Ask "read the NTC and give me the temperature"
+board_prompt -Ask "read the NTC and give me the temperature"
 ```
 
 Or, from `host/`, the same thing one layer down: `python dbg.py -m auto -q "..."`.
@@ -132,7 +132,7 @@ host/        Python: coaxial/ library, coaxial_mcp/ MCP server,
              coaxial_ollama/ model-driven runner and dbg.py, testline/,
              tests, tools
 setup.ps1    one-time environment setup; -Check changes nothing
-env.ps1      per-shell PATH and the board-prompt/dbg/board/cbuild/cflash/cubemx commands
+env.ps1      per-shell PATH and the board_prompt/dbg/board/cbuild/cflash/cubemx commands
 docs/        this documentation
 ```
 

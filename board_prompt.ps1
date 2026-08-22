@@ -2,9 +2,9 @@
 .SYNOPSIS
     One window with the model and the board in it.
 
-        . .\env.ps1 ; .\board-prompt.ps1
-        .\board-prompt.ps1 -NewWindow          the same, in its own window
-        .\board-prompt.ps1 -Plain              plain ollama chat, no board, no tools
+        . .\env.ps1 ; .\board_prompt.ps1
+        .\board_prompt.ps1 -NewWindow          the same, in its own window
+        .\board_prompt.ps1 -Plain              plain ollama chat, no board, no tools
 
 .DESCRIPTION
     You asked for a terminal that talks to gemma. `ollama run gemma4:12b` is

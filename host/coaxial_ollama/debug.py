@@ -314,7 +314,7 @@ def parse(argv):
                              " between questions")
     parser.add_argument('--num-gpu', type=int, default=None,
                         help='layers on the GPU; the rest run on the CPU.'
-                             ' Set for you by -m auto and by board-prompt.ps1')
+                             ' Set for you by -m auto and by board_prompt.ps1')
     parser.add_argument('--num-ctx', type=int, default=8192)
     parser.add_argument('--keep', type=int, default=6,
                         help='recent messages sent whole; older ones are stubbed')

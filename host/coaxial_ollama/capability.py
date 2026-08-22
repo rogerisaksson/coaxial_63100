@@ -85,10 +85,13 @@ CPU_CEILING_GB = 8.0
 class Machine(object):
     """What was found, with how it was found kept alongside it."""
 
-    def __init__(self, cores, threads, ram_gb, gpus, system, notes):
+    def __init__(self, cores, threads, ram_gb, gpus, system, notes,
+                 ram_free_gb=None, cpu_busy=None):
         self.cores = cores          # physical, when the OS will say
         self.threads = threads      # logical
         self.ram_gb = ram_gb
+        self.ram_free_gb = ram_gb if ram_free_gb is None else ram_free_gb
+        self.cpu_busy = cpu_busy    # percent, or None when not measured
         self.gpus = gpus            # [{'name':..., 'vram_gb':..., 'via':...}]
         self.system = system
         self.notes = notes          # how each number was arrived at
@@ -112,7 +115,8 @@ class Machine(object):
 
     def as_dict(self):
         return {'cores': self.cores, 'threads': self.threads,
-                'ram_gb': self.ram_gb, 'gpus': self.gpus,
+                'ram_gb': self.ram_gb, 'ram_free_gb': self.ram_free_gb,
+                'cpu_busy': self.cpu_busy, 'gpus': self.gpus,
                 'vram_gb': self.vram_gb, 'vram_used_gb': self.vram_used_gb,
                 'system': self.system, 'notes': self.notes}
 
@@ -123,8 +127,11 @@ class Machine(object):
             gpu = '%s %.0f GB' % (first['name'], first['vram_gb'])
             if len(self.gpus) > 1:
                 gpu += ' (+%d more)' % (len(self.gpus) - 1)
-        return '%d cores / %d threads, %.0f GB RAM, %s' % (
-            self.cores, self.threads, self.ram_gb, gpu)
+        load = ''
+        if self.cpu_busy is not None:
+            load = ' (%.0f%% busy)' % self.cpu_busy
+        return '%d cores / %d threads%s, %.0f GB RAM (%.0f free), %s' % (
+            self.cores, self.threads, load, self.ram_gb, self.ram_free_gb, gpu)
 
 
 class Choice(object):
@@ -182,14 +189,63 @@ def _ram_gb():
         status = Status()
         status.dwLength = ctypes.sizeof(Status)
         if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
-            return status.ullTotalPhys / float(2 ** 30), 'GlobalMemoryStatusEx'
-        return 0.0, 'GlobalMemoryStatusEx failed'
+            return (status.ullTotalPhys / float(2 ** 30),
+                    status.ullAvailPhys / float(2 ** 30), 'GlobalMemoryStatusEx')
+        return 0.0, 0.0, 'GlobalMemoryStatusEx failed'
     try:
-        pages = os.sysconf('SC_PHYS_PAGES')
         size = os.sysconf('SC_PAGE_SIZE')
-        return pages * size / float(2 ** 30), 'sysconf'
+        total = os.sysconf('SC_PHYS_PAGES') * size / float(2 ** 30)
+        try:
+            free = os.sysconf('SC_AVPHYS_PAGES') * size / float(2 ** 30)
+        except (ValueError, OSError, AttributeError):
+            free = total
+        return total, free, 'sysconf'
     except (ValueError, OSError, AttributeError):
-        return 0.0, 'unknown'
+        return 0.0, 0.0, 'unknown'
+
+
+def _cpu_busy():
+    """How much of the machine is already spoken for, as a percentage.
+
+    Only ever a warning. A snapshot of CPU load is the wrong thing to choose a
+    model tag with - the build that is running now finishes in a minute and the
+    tag stays for the session - but it is the right thing to say out loud when
+    the choice is about to be a CPU-bound one, because every tok/s figure in
+    this file was measured on an idle machine.
+    """
+    if platform.system() != 'Windows':
+        try:
+            return min(100.0, 100.0 * os.getloadavg()[0] / (os.cpu_count() or 1))
+        except (OSError, AttributeError):
+            return None
+    try:
+        out = subprocess.check_output(
+            ['powershell', '-NoProfile', '-Command',
+             '(Get-CimInstance Win32_Processor | '
+             'Measure-Object -Property LoadPercentage -Average).Average'],
+            stderr=subprocess.DEVNULL, universal_newlines=True, timeout=30)
+        return float(out.strip())
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+def _ollama_vram_gb(host='http://localhost:11434'):
+    """What ollama is holding on the card right now.
+
+    This has to come off the 'already used' figure or the reserve ratchets: the
+    probe runs while a model from the last question is still resident, counts
+    our own 7.8 GB as somebody else's desktop, reserves 12.8 GB of a 16 GB card
+    and picks something smaller - which then becomes the new baseline next
+    time. Measured exactly that way before this function existed.
+    """
+    try:
+        with urllib.request.urlopen(host.rstrip('/') + '/api/ps',
+                                    timeout=5) as reply:
+            data = json.loads(reply.read().decode('utf-8'))
+    except Exception:
+        return 0.0
+    return sum(entry.get('size_vram', 0) or 0
+               for entry in data.get('models', [])) / float(2 ** 30)
 
 
 def _gpus_nvidia_smi():
@@ -272,16 +328,29 @@ def _gpus_registry():
     return found
 
 
-def probe():
-    """Measure this machine. No network, no ollama, no board."""
+def probe(host='http://localhost:11434'):
+    """Measure this machine: what it has, and what is left of it.
+
+    The daemon is asked one question - what is it holding on the card - and a
+    machine with no daemon simply reports zero. Nothing here touches the board.
+    """
     cores, threads, cpu_note = _cpu()
-    ram, ram_note = _ram_gb()
+    ram, ram_free, ram_note = _ram_gb()
     gpus = _gpus_nvidia_smi()
     how = 'nvidia-smi'
     if not gpus:
         gpus = _gpus_registry()
         how = 'registry' if gpus else 'none found'
-    return Machine(cores=cores, threads=threads, ram_gb=ram, gpus=gpus,
+
+    ours = _ollama_vram_gb(host)
+    if ours > 0 and gpus:
+        largest = max(gpus, key=lambda g: g['vram_gb'])
+        largest['used_gb'] = max(0.0, largest.get('used_gb', 0.0) - ours)
+        largest['ollama_gb'] = ours
+        how += ' minus ollama'
+
+    return Machine(cores=cores, threads=threads, ram_gb=ram,
+                   ram_free_gb=ram_free, cpu_busy=_cpu_busy(), gpus=gpus,
                    system='%s %s' % (platform.system(), platform.machine()),
                    notes={'cpu': cpu_note, 'ram': ram_note, 'gpu': how})
 
@@ -340,7 +409,12 @@ def choose(machine, prefer='speed', reserve_gb=None, catalogue=None):
         reserve_gb = reserve_for(vram, machine.vram_used_gb)
     budget = max(0.0, vram - reserve_gb)
 
-    fits = [e for e in catalogue if e['gb'] <= budget and e['ram_gb'] <= machine.ram_gb]
+    # Free RAM, not installed RAM. A workstation with 64 GB and 20 free cannot
+    # hold a 42 GB model however impressive the sticker is, and the failure
+    # mode is the machine swapping rather than an error worth reading. Total is
+    # the fallback for a probe that could not measure the free figure.
+    ram = machine.ram_free_gb or machine.ram_gb
+    fits = [e for e in catalogue if e['gb'] <= budget and e['ram_gb'] <= ram]
     if fits:
         best = max(fits, key=lambda e: e['gb'])
         why = ('%.0f GB card with %.1f GB already on it, %.1f GB held back for '
@@ -365,13 +439,13 @@ def choose(machine, prefer='speed', reserve_gb=None, catalogue=None):
             'this is the capability choice, not the quick one' % best['tag']])
 
     # Nothing fits whole. Either hybrid, or the CPU.
-    affordable = [e for e in catalogue if e['ram_gb'] <= machine.ram_gb]
+    affordable = [e for e in catalogue if e['ram_gb'] <= ram]
     if not affordable:
         smallest = min(catalogue, key=lambda e: e['gb'])
         return Choice(smallest['tag'], {'num_gpu': 0},
-                      'nothing in the catalogue fits %.0f GB of RAM; %s is the '
-                      'smallest and it will be tight'
-                      % (machine.ram_gb, smallest['tag']),
+                      'nothing in the catalogue fits %.0f GB of free RAM; %s '
+                      'is the smallest and it will be tight'
+                      % (ram, smallest['tag']),
                       warnings=['this machine is under-specified for a local '
                                 'model - consider --ollama-host on a bench '
                                 'server, or a smaller quantisation'],
@@ -407,6 +481,14 @@ def _hybrid(entry, budget, machine, vram, reserve_gb, warnings):
                % (entry['tag'], budget, layers, entry['layers'], machine.cores))
         warnings.append('a split model measured about five times slower per '
                         'token than one wholly on the GPU')
+    # Every tok/s figure in this file was measured on an idle machine, and the
+    # part of this choice that runs on the CPU is the part a busy machine slows
+    # down. Say so rather than letting the numbers read as a promise.
+    if machine.cpu_busy is not None and machine.cpu_busy >= 40:
+        warnings.append('this machine is %.0f%% busy right now, and the CPU '
+                        'half of this choice will be slower than the figures '
+                        'in capability.py, which were measured idle'
+                        % machine.cpu_busy)
     if entry.get('note'):
         warnings.append(entry['tag'] + ': ' + entry['note'])
     return Choice(entry['tag'], {'num_gpu': layers}, why, warnings, entry)
