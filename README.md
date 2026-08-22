@@ -48,6 +48,7 @@ list rather than dying half-installed.
 | STM32CubeMX | same — the `stm32cubemx-application` bundle |
 | ST-Link gdbserver, server and USB driver | same |
 | cube-cmake | the STM32 VS Code extension |
+| VS Code extensions: the STM32 pack, cpptools, python, ollama | `code --install-extension`, mirroring [.vscode/extensions.json](.vscode/extensions.json) |
 | ollama and `gemma4:12b` | winget or `ollama.com/install.ps1`, then `ollama pull` |
 
 None of the ST tools land on the system PATH: they install as "bundles" under

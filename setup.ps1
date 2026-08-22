@@ -21,7 +21,9 @@
       cube-cmake                        the STM32 VS Code extension
       ollama and one model              winget or ollama.com/install.ps1,
                                         then `ollama pull`
-      the Ollama VS Code extension      code --install-extension
+      the VS Code extensions            code --install-extension: the STM32
+                                        pack, cpptools, python, and Ollama's
+                                        own - see .vscode/extensions.json
 
     The ST half used to be the awkward half. ST publishes nothing to winget and
     the installers on st.com sit behind a login and a click-through licence, so
@@ -401,9 +403,25 @@ $BundleNeeds = [ordered]@{
 # -SkipCubeMX is how a bench that never opens the .ioc says so.
 if (-not $SkipCubeMX) { $BundleNeeds['stm32cubemx-application'] = '' }
 
-$Extensions = @(
-    'stmicroelectronics.stm32-vscode-extension'
-)
+# The editor side, and only what this repository actually configures. Each one
+# earns its place, because an extension installed "just in case" is a thing to
+# keep updated on every bench for no reason:
+#
+#   the STM32 pack   carries cube.exe and cube-cmake, and pulls in cmake-tools,
+#                    the serial monitor, the memory inspector, clangd and the
+#                    debug adapters as a pack. Installing it installs fifteen.
+#   cpptools         .vscode/c_cpp_properties.json is written for it; without it
+#                    nothing in Core/ or Drivers/ resolves.
+#   python           host/ is the other half of this project.
+#
+# Ollama.ollama is not here: it belongs to the model half and is installed with
+# it, so -SkipOllama leaves it out. Anything the pack already brings is left to
+# the pack rather than listed twice.
+$Extensions = [ordered]@{
+    'stmicroelectronics.stm32-vscode-extension' = 'the toolchain, the debuggers and cube.exe'
+    'ms-vscode.cpptools'                        = 'IntelliSense over the HAL'
+    'ms-python.python'                          = 'host/'
+}
 
 function Test-Bundles {
     Write-Head 'ST toolchain (bundles under %LOCALAPPDATA%\stm32cube)'
@@ -446,19 +464,23 @@ function Install-VsCodeExtensions {
         Write-Item 'vs code' 'ok' $code
     }
 
+    # --list-extensions is one call and it is not a fast one, so it is asked
+    # once here rather than per extension.
     $installed = (& $code --list-extensions)
-    foreach ($id in $Extensions) {
+    foreach ($id in $Extensions.Keys) {
+        $why = $Extensions[$id]
         if ($installed -contains $id) {
-            Write-Item $id 'ok' ''
+            Write-Item $id 'ok' $why
             continue
         }
-        Write-Item $id 'missing' ''
-        if (Confirm-Step "code --install-extension $id ?") {
+        Write-Item $id 'missing' $why
+        if (Confirm-Step "code --install-extension $id ?  ($why)") {
             & $code --install-extension $id --force
             if ($LASTEXITCODE -eq 0) {
                 Write-Item $id 'done' 'installed'
             } else {
                 Write-Item $id 'failed' "code exit $LASTEXITCODE"
+                Add-Todo "code --install-extension $id"
             }
         } else {
             Add-Todo "code --install-extension $id"
@@ -585,13 +607,22 @@ function Install-WingetToolchain {
             Add-Todo "winget install --id $id --exact"
         }
     }
-    # No winget package publishes STM32CubeProgrammer, and the ST download is
-    # behind an account. Say so here rather than at flashing time.
-    Write-Item 'STM32_Programmer_CLI' 'manual' 'not on winget'
-    Add-Todo ('STM32CubeProgrammer has to come from st.com by hand (free ' +
-              'account, click-through licence). Install it, then add its bin ' +
-              'directory to PATH - or use the VS Code extension route, where ' +
-              'the bundle manager fetches it for you.')
+    # No winget package publishes STM32CubeProgrammer. But -WingetToolchain
+    # means "do not make me use VS Code", not "pretend cube.exe is not there":
+    # if the extension is on this machine anyway, the programmer is a bundle
+    # like any other and there is no reason to send anyone to st.com for it.
+    $programmer = Get-NewestBundle 'programmer'
+    if ($null -ne $programmer) {
+        Write-Item 'STM32_Programmer_CLI' 'ok' $programmer.Name
+    } elseif ($null -ne (Find-Cube)) {
+        Install-Bundles -Absent @('programmer')
+    } else {
+        Write-Item 'STM32_Programmer_CLI' 'manual' 'not on winget, and no cube.exe here'
+        Add-Todo ('STM32CubeProgrammer has to come from st.com by hand (free ' +
+                  'account, click-through licence). Install it, then add its bin ' +
+                  'directory to PATH - or drop -WingetToolchain and let the ' +
+                  'bundle manager fetch it.')
+    }
 }
 
 # ---- 4. ollama, the model, and the editor extension ------------------------
@@ -684,7 +715,10 @@ function Install-OllamaExtension {
         server all speak HTTP, so a machine with no VS Code gets a note here
         and not a failure.  #>
 
-    $code = Get-Tool 'code'
+    # Find-Code, not Get-Tool: an editor installed a minute ago by the step
+    # above is on disk but not on this shell's PATH, and reporting it missing
+    # here would be this script disagreeing with itself.
+    $code = Find-Code
     if ($null -eq $code) {
         Write-Item 'vs code' 'missing' 'no editor to install Ollama.ollama into'
         Add-Todo 'code --install-extension Ollama.ollama   (once VS Code is installed)'

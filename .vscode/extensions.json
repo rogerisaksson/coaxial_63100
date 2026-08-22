@@ -1,0 +1,16 @@
+{
+    // What this project is edited with. setup.ps1 installs the same list from a
+    // shell; this file is what makes VS Code offer it when the folder is opened
+    // on a machine that has not been set up yet.
+    //
+    // The STM32 extension is a pack: it brings cube.exe and cube-cmake, the
+    // clangd and debug adapters, cmake-tools, the serial monitor and the memory
+    // inspector with it. Those are deliberately not listed here - the pack owns
+    // them, and a second list of the same ids goes stale on ST's schedule.
+    "recommendations": [
+        "stmicroelectronics.stm32-vscode-extension",
+        "ms-vscode.cpptools",
+        "ms-python.python",
+        "ollama.ollama"
+    ]
+}
