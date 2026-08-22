@@ -16,8 +16,9 @@
       ARM gcc, cmake, ninja             STM32 VS Code extension "bundles"
       STM32_Programmer_CLI             same
       cube-cmake                        the extension itself
-      ollama and one small model        winget or ollama.com/install.ps1,
+      ollama and one model              winget or ollama.com/install.ps1,
                                         then `ollama pull`
+      the Ollama VS Code extension      code --install-extension
 
     The ST half is the awkward half, and it is worth knowing why. ST does not
     publish its tools to winget, and the direct downloads from st.com are behind
@@ -42,10 +43,16 @@
     Do not ask before each install.
 
 .PARAMETER Model
-    The ollama tag to pull. Small is the point: it runs beside the bench.
+    The ollama tag to pull. Default gemma4:12b, about 8 GB - the model this
+    bench is driven with. It has to be a tools-capable tag, because everything
+    in host/coaxial_ollama reaches the board through tool calls and a model
+    without them will describe a measurement instead of taking one. Pass
+    something smaller (gemma4:e4b, qwen3:4b) for a machine that only needs the
+    plumbing proven.
 
 .PARAMETER SkipOllama
     Leave the model side alone - for a machine that only builds and flashes.
+    Skips the binary, the model pull and the VS Code extension alike.
 
 .PARAMETER WingetToolchain
     Install cmake, ninja and arm-none-eabi-gcc from winget instead of relying on
@@ -60,7 +67,7 @@
 param(
     [switch]$Check,
     [switch]$Yes,
-    [string]$Model = 'qwen3:4b',
+    [string]$Model = 'gemma4:12b',
     [switch]$SkipOllama,
     [switch]$WingetToolchain,
     [switch]$AllowScripts
@@ -342,7 +349,7 @@ function Install-WingetToolchain {
               'the bundle manager fetches it for you.')
 }
 
-# ---- 4. ollama and one small model ----------------------------------------
+# ---- 4. ollama, the model, and the editor extension ------------------------
 
 function Find-Ollama {
     <#  Both installers put ollama.exe under LOCALAPPDATA, and neither reaches
@@ -402,6 +409,62 @@ function Install-OllamaBinary {
     return $null
 }
 
+function Get-OllamaTags {
+    <#  The API answering matters more than the binary existing: everything in
+        host/coaxial_ollama talks to the HTTP endpoint, not to the CLI.
+
+        Retried, because a daemon started a second ago has not bound 11434 yet
+        and a single failed probe would send a working machine away with a
+        manual step it does not need.  #>
+    param([int]$Tries = 1)
+
+    for ($i = 0; $i -lt $Tries; $i++) {
+        try {
+            return (Invoke-RestMethod -Uri 'http://localhost:11434/api/tags' -TimeoutSec 5)
+        } catch {
+            if ($i -lt ($Tries - 1)) { Start-Sleep -Seconds 2 }
+        }
+    }
+    return $null
+}
+
+function Install-OllamaExtension {
+    <#  The editor half of the same daemon. Ollama.ollama is Ollama's own
+        extension: it registers the locally pulled models with VS Code's chat
+        model picker, so the model answering in the editor is the one on 11434
+        that dbg.py and the runner already talk to - no second copy of the
+        weights, no second configuration to keep in step.
+
+        Nothing in this repository needs it. dbg.py, the runner and the MCP
+        server all speak HTTP, so a machine with no VS Code gets a note here
+        and not a failure.  #>
+
+    $code = Get-Tool 'code'
+    if ($null -eq $code) {
+        Write-Item 'vs code' 'missing' 'no editor to install Ollama.ollama into'
+        Add-Todo 'code --install-extension Ollama.ollama   (once VS Code is installed)'
+        return
+    }
+
+    $id = 'Ollama.ollama'
+    if ((& $code --list-extensions) -contains $id) {
+        Write-Item $id 'ok' ''
+        return
+    }
+    Write-Item $id 'missing' ''
+    if (Confirm-Step "code --install-extension $id ?") {
+        & $code --install-extension $id --force
+        if ($LASTEXITCODE -eq 0) {
+            Write-Item $id 'done' 'installed'
+        } else {
+            Write-Item $id 'failed' "code exit $LASTEXITCODE"
+            Add-Todo "code --install-extension $id"
+        }
+    } else {
+        Add-Todo "code --install-extension $id"
+    }
+}
+
 function Install-Ollama {
     Write-Head 'ollama'
     $ollama = Find-Ollama
@@ -411,6 +474,7 @@ function Install-Ollama {
         if ($null -eq $ollama) {
             Add-Todo 'winget install --id Ollama.Ollama --exact   (or: irm https://ollama.com/install.ps1 | iex)'
             Add-Todo "ollama pull $Model"
+            Install-OllamaExtension
             return
         }
         Write-Item 'ollama' 'done' $ollama
@@ -418,19 +482,21 @@ function Install-Ollama {
         Write-Item 'ollama' 'ok' $ollama
     }
 
-    # The API answering matters more than the binary existing: everything in
-    # host/coaxial_ollama talks to the HTTP endpoint, not to the CLI.
-    $reachable = $false
-    try {
-        $tags = Invoke-RestMethod -Uri 'http://localhost:11434/api/tags' -TimeoutSec 5
-        $reachable = $true
-    } catch {
-        $tags = $null
+    $tags = Get-OllamaTags
+    if (($null -eq $tags) -and (-not $Check)) {
+        # A fresh install has not started its daemon, and the install that just
+        # ran did not put one in this session. Start it rather than making the
+        # pull below a manual step; -Check never gets here, by design.
+        Write-Item 'ollama serve' 'missing' 'nothing on 11434 - starting the daemon'
+        Start-Process -FilePath $ollama -ArgumentList 'serve' -WindowStyle Hidden `
+                      -ErrorAction SilentlyContinue
+        $tags = Get-OllamaTags -Tries 10
     }
 
-    if (-not $reachable) {
+    if ($null -eq $tags) {
         Write-Item 'ollama serve' 'missing' 'nothing answering on 11434'
         Add-Todo ('start ollama - it normally runs as a service after install - then: ollama pull ' + $Model)
+        Install-OllamaExtension
         return
     }
 
@@ -438,24 +504,29 @@ function Install-Ollama {
     if ($null -ne $tags.models) { $names = $tags.models | ForEach-Object { $_.name } }
     Write-Item 'ollama serve' 'ok' ("$($names.Count) model(s): " + ($names -join ', '))
 
+    # Stem matching, not tag matching, and deliberately so: it is the same
+    # looseness Ollama.have() applies in host/coaxial_ollama/client.py, so a
+    # machine this script calls ready is one the runner will also accept.
     $stem = ($Model -split ':')[0]
     $have = $names | Where-Object { ($_ -split ':')[0] -eq $stem }
     if ($null -ne $have) {
         Write-Item 'model' 'ok' ($have -join ', ')
-        return
+    } else {
+        Write-Item 'model' 'missing' $Model
+        if (Confirm-Step "ollama pull $Model ?  (gemma4:12b is about 8 GB)") {
+            & $ollama pull $Model
+            if ($LASTEXITCODE -eq 0) {
+                Write-Item 'model' 'done' $Model
+            } else {
+                Write-Item 'model' 'failed' "ollama exit $LASTEXITCODE"
+                Add-Todo "ollama pull $Model"
+            }
+        } else {
+            Add-Todo "ollama pull $Model"
+        }
     }
 
-    Write-Item 'model' 'missing' $Model
-    if (Confirm-Step "ollama pull $Model ?  (a few GB)") {
-        ollama pull $Model
-        if ($LASTEXITCODE -eq 0) {
-            Write-Item 'model' 'done' $Model
-        } else {
-            Write-Item 'model' 'failed' "ollama exit $LASTEXITCODE"
-        }
-    } else {
-        Add-Todo "ollama pull $Model"
-    }
+    Install-OllamaExtension
 }
 
 # ---- 5. does any of it work -----------------------------------------------
@@ -546,6 +617,7 @@ Write-Host '    cbuild                      build, zero warnings expected'
 Write-Host '    cflash                      flash over SWD and start'
 Write-Host '    board all                   measure, no model involved'
 Write-Host '    dbg "why is the NTC 25.00?" ask the local model, cheaply'
+Write-Host '    bench                       a prompt with the model and the board in it'
 Write-Host ''
 if ($Check) {
     Write-Host '  run again without -Check to install what is missing.' -ForegroundColor DarkGray

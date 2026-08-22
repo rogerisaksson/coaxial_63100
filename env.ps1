@@ -23,8 +23,9 @@
     first time it does. Both naming schemes are handled - 2.23.0 as well as
     2.22.0+st.1.
 
-    It also defines the four commands this project is actually driven with:
+    It also defines the five commands this project is actually driven with:
 
+        bench    the model, the board and a prompt            (bench.ps1)
         dbg      ask the local model about the board          (host/dbg.py)
         board    the plain CLI, no model                      (python -m coaxial)
         cbuild   build the firmware, zero warnings expected
@@ -90,6 +91,31 @@ if ($null -ne $ext) {
     $missing += 'cube-cmake (VS Code extension)'
 }
 
+# ollama installs per-user under LOCALAPPDATA and reaches the PATH of shells
+# opened after the install, which is never the one you are standing in. Same
+# treatment as the bundles, and for the same reason: this shell only.
+if ($null -eq (Get-Command 'ollama' -ErrorAction SilentlyContinue)) {
+    $ollamaBin = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Ollama'),
+        (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links')
+    ) | Where-Object { Test-Path (Join-Path $_ 'ollama.exe') } | Select-Object -First 1
+
+    if ($null -eq $ollamaBin) {
+        $missing += 'ollama'
+    } else {
+        $env:Path = "$ollamaBin;$env:Path"
+        $added += 'ollama'
+    }
+} else {
+    $added += 'ollama'
+}
+
+function bench {
+    <# The prompt loop, with the daemon started and the model already loaded.
+       bench.ps1 does the preflight; this is just the short way to say it. #>
+    & (Join-Path $script:CoaxialRoot 'bench.ps1') @args
+}
+
 function dbg {
     <# Ask the local model about the board. See host/coaxial_ollama/debug.py. #>
     Push-Location (Join-Path $script:CoaxialRoot 'host')
@@ -127,5 +153,5 @@ if (-not $Quiet) {
         Write-Host ("absent: " + ($missing -join ', ') + "  -> run .\setup.ps1") `
             -ForegroundColor Yellow
     }
-    Write-Host 'commands: dbg, board, cbuild, cflash' -ForegroundColor DarkGray
+    Write-Host 'commands: bench, dbg, board, cbuild, cflash' -ForegroundColor DarkGray
 }

@@ -47,6 +47,8 @@ htmlcov/
 # takes a path, so nothing here needs them checked in.
 *.csv
 *.log
+# Runner transcripts are the same thing in another format.
+host/data/
 !docs/**/*.log
 scratch/
 

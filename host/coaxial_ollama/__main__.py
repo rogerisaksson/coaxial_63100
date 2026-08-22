@@ -31,7 +31,7 @@ from .plan import Plan, PlanError                    # noqa: E402
 from .sandbox import Scope, Shell                    # noqa: E402
 from .tools import TOOLS, Toolbox                    # noqa: E402
 
-DEFAULT_MODEL = 'qwen3:8b'
+DEFAULT_MODEL = 'gemma4:12b'
 DEFAULT_ALLOW = 'python'
 
 
@@ -44,6 +44,9 @@ def parse(argv):
 
     parser.add_argument('--model', help='ollama tag; the plan may name one')
     parser.add_argument('--ollama-host', default='http://localhost:11434')
+    parser.add_argument('--allow-remote', action='store_true',
+                        help='permit a cloud tag or a daemon on another machine;'
+                             ' the prompts leave this bench if you do')
     parser.add_argument('--num-ctx', type=int, default=8192)
     parser.add_argument('--temperature', type=float, default=0.0)
 
@@ -111,10 +114,10 @@ def main(argv=None):
         print('plan: %s' % exc, file=sys.stderr)
         return 2
 
-    client = Ollama(args.model or plan.model or DEFAULT_MODEL,
-                    host=args.ollama_host, temperature=args.temperature,
-                    num_ctx=args.num_ctx)
     try:
+        client = Ollama(args.model or plan.model or DEFAULT_MODEL,
+                        host=args.ollama_host, temperature=args.temperature,
+                        num_ctx=args.num_ctx, remote_ok=args.allow_remote)
         client.model = client.require_model()
     except OllamaError as exc:
         print('ollama: %s' % exc, file=sys.stderr)

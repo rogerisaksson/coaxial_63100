@@ -23,7 +23,7 @@ measurement_system_study: >
   NOT APPLICABLE - this plan records analog values and judges only the board's
   own self checks. Not qualified for production, and no analog limit may be added
   to it without a study.
-model: qwen3:8b
+model: gemma4:12b
 
 description: >
   Bring-up sweep of the sense and control section. Establishes that the link is

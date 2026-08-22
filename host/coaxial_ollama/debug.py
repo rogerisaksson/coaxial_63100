@@ -288,8 +288,12 @@ def parse(argv):
                         help='answer only: no tool trace, no token meter')
     parser.add_argument('-t', '--tools', default='code',
                         help='read|code|pins|all|none or a comma separated list')
-    parser.add_argument('-m', '--model', default='qwen3:8b')
+    parser.add_argument('-m', '--model', default='gemma4:12b')
     parser.add_argument('--ollama-host', default='http://localhost:11434')
+    parser.add_argument('--allow-remote', action='store_true',
+                        help='permit a cloud tag or a remote daemon; off by'
+                             ' default, because the question carries the board'
+                             ' with it')
     parser.add_argument('--words', type=int, default=180,
                         help='cap on generated tokens per turn')
     parser.add_argument('--num-ctx', type=int, default=8192)
@@ -335,7 +339,8 @@ def build(args):
 
     client = Ollama(args.model, host=args.ollama_host,
                     num_ctx=args.num_ctx, num_predict=args.words,
-                    think=True if args.think else False)
+                    think=True if args.think else False,
+                    remote_ok=args.allow_remote)
     if args.no_board:
         session = NoBoard()
     else:
@@ -384,7 +389,13 @@ def main(argv=None):
         # here would also swallow the prompt loop's input, so --repl skips it.
         question = sys.stdin.read().strip()
 
-    client, session, chat = build(args)
+    try:
+        client, session, chat = build(args)
+    except OllamaError as exc:
+        # A refused host or a cloud tag is a wiring mistake, not a bench fault:
+        # there is no prompt loop worth opening against a model we will not use.
+        print('ollama: %s' % exc, file=sys.stderr)
+        return 2
     interactive = args.repl or not question
     try:
         client.model = client.require_model()

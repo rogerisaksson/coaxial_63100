@@ -647,11 +647,66 @@ def test_debug(report):
                  attached.splitlines()[0][:60])
 
 
+# ---- the daemon is on this machine ----------------------------------------
+
+def test_local_only(report):
+    """No prompt leaves the bench PC unless somebody asked for that."""
+    from coaxial_ollama.client import Ollama, OllamaError, is_cloud, is_local
+
+    report.check('loopback in its usual spellings is local',
+                 all(is_local(url) for url in
+                     ('http://localhost:11434', 'http://127.0.0.1:11434',
+                      'http://[::1]:11434')))
+    report.check('another machine is not local',
+                 not is_local('http://bench-gpu.lan:11434')
+                 and not is_local('https://ollama.com'))
+    report.check('a cloud tag is recognised as one',
+                 is_cloud('minimax-m3:cloud') and not is_cloud('gemma4:12b'))
+
+    for host in ('http://bench-gpu.lan:11434', 'https://ollama.com'):
+        try:
+            Ollama('gemma4:12b', host=host)
+            report.check('a remote host is refused', False, host)
+        except OllamaError as exc:
+            report.check('a remote host is refused', 'not this machine' in str(exc))
+
+    try:
+        Ollama('minimax-m3:cloud')
+        report.check('a cloud tag is refused', False)
+    except OllamaError as exc:
+        report.check('a cloud tag is refused', 'off this machine' in str(exc))
+
+    remote = Ollama('minimax-m3:cloud', host='https://ollama.com', remote_ok=True)
+    report.check('--allow-remote still means yes', remote.host == 'https://ollama.com')
+
+    # require_model resolves a bare stem against `ollama list`. The cloud tag is
+    # in that list like any other, so the loose match has to skip it.
+    local = Ollama('minimax-m3')
+    local.models = lambda: ['gemma4:12b', 'minimax-m3:cloud']
+    try:
+        local.require_model()
+        report.check('stem matching cannot land on a cloud tag', False)
+    except OllamaError as exc:
+        report.check('stem matching cannot land on a cloud tag',
+                     'not pulled' in str(exc))
+
+    picked = Ollama('gemma4')
+    picked.models = lambda: ['gemma4:12b', 'minimax-m3:cloud']
+    report.check('a local stem still resolves to its tag',
+                 picked.require_model() == 'gemma4:12b')
+
+    allowed = Ollama('minimax-m3', remote_ok=True)
+    allowed.models = lambda: ['gemma4:12b', 'minimax-m3:cloud']
+    report.check('with --allow-remote the cloud tag is a candidate again',
+                 allowed.require_model() == 'minimax-m3:cloud')
+
+
 def main():
     report = Report()
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
-                 test_policy, test_transcript, test_debug, test_cli):
+                 test_policy, test_transcript, test_debug, test_cli,
+                 test_local_only):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

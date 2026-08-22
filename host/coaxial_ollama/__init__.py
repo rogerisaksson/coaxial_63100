@@ -21,13 +21,14 @@ is how a bench script turns into a second firmware. Why local specifically: a
 transcript of a board under test is measurement data, and it stays on the bench
 PC.
 """
-from .client import Ollama, OllamaError
+from .client import Ollama, OllamaError, is_cloud, is_local
 from .plan import Limit, Plan, PlanError, Task
 from .runner import Record, Runner, Transcript, report_text
 from .sandbox import Scope, Shell
 from .tools import TOOLS, Toolbox
 
-__all__ = ['Ollama', 'OllamaError', 'Plan', 'PlanError', 'Task', 'Limit',
+__all__ = ['Ollama', 'OllamaError', 'is_cloud', 'is_local',
+           'Plan', 'PlanError', 'Task', 'Limit',
            'Runner', 'Record', 'Transcript', 'report_text', 'Scope', 'Shell',
            'Toolbox', 'TOOLS']
 

@@ -6,7 +6,14 @@ whole API surface needed here is one POST to /api/chat plus one GET to /api/tags
 to find out whether the model is actually pulled. That is fifty lines of urllib,
 against a dependency to keep working through the next OS image.
 
-Two things are deliberate:
+Three things are deliberate:
+
+  * The daemon is local, and that is enforced rather than assumed. Ollama will
+    happily proxy a `:cloud` tag to somebody else's GPU, which on a bench means
+    the register dumps, the pin names and whatever a plan says about unreleased
+    hardware leave the building over TLS to be logged at the other end. Nothing
+    here needs that, so a cloud tag or a non-loopback host raises instead of
+    quietly working. `remote_ok=True` is the way to mean it on purpose.
 
   * `stream` is off. Streaming buys a nicer terminal and costs the guarantee
     that a tool call arrives whole; the runner needs the whole message before it
@@ -22,17 +29,43 @@ deciding what counts as a pass is plan.py's.
 """
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
+
+LOOPBACK = ('localhost', '127.0.0.1', '::1')
 
 
 class OllamaError(Exception):
     """Ollama was unreachable, refused the request, or has no such model."""
 
 
+def is_local(host):
+    """True when this URL can only reach a daemon on this machine."""
+    parsed = urllib.parse.urlsplit(host)
+    return (parsed.hostname or '') in LOOPBACK
+
+
+def is_cloud(model):
+    """Ollama's own marker for a tag it runs on their hardware, not yours."""
+    return model.split(':')[-1] == 'cloud'
+
+
 class Ollama:
     def __init__(self, model, host='http://localhost:11434', temperature=0.0,
                  num_ctx=8192, seed=7, timeout=600.0, num_predict=None,
-                 think=None):
+                 think=None, remote_ok=False):
+        self.remote_ok = remote_ok
+        if not remote_ok:
+            if not is_local(host):
+                raise OllamaError(
+                    'host %r is not this machine. The bench runs against a local'
+                    ' daemon; pass remote_ok=True (--allow-remote) to mean it.'
+                    % (host,))
+            if is_cloud(model):
+                raise OllamaError(
+                    'model %r is an ollama cloud tag: the prompt, and every'
+                    ' register value in it, would be sent off this machine.'
+                    ' Pull a local tag, or pass --allow-remote.' % (model,))
         self.model = model
         self.host = host.rstrip('/')
         self.options = {'temperature': temperature, 'num_ctx': num_ctx,
@@ -87,10 +120,16 @@ class Ollama:
     def require_model(self):
         """Fail before the board is touched rather than three steps in.
 
-        Tag matching is loose on purpose: `ollama list` shows qwen3:8b, and a
-        plan that says qwen3 should not fail over a missing suffix.
+        Tag matching is loose on purpose: `ollama list` shows gemma4:12b, and
+        a plan that says gemma4 should not fail over a missing suffix. Cloud
+        tags are not candidates unless remote_ok says so.
         """
         available = self.models()
+        if not self.remote_ok:
+            # A cloud tag is in `ollama list` like any other, and stem matching
+            # would resolve a bare 'minimax-m3' straight onto it. Drop them here
+            # so the loose match cannot silently pick one.
+            available = [name for name in available if not is_cloud(name)]
         if self.model in available:
             return self.model
         stem = self.model.split(':')[0]
