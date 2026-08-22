@@ -80,6 +80,11 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
 # 9.69 GB resident and expiring 27 minutes later at 1 % utilisation, on a card
 # whose desktop then had 3.8 GB to work in. That is the cost of a cache nobody
 # is going to hit.
+# What the prompt loop shows. The board's name rather than the script's: the
+# window this appears in is usually one of several, and 'dbg>' says which
+# program is running where the useful thing to know is which bench.
+PROMPT = 'Coaxial_63100> '
+
 KEEP_ALIVE_REPL = '30m'
 KEEP_ALIVE_ONCE = '2m'
 
@@ -509,7 +514,7 @@ def repl(chat):
         print('(reading commands from stdin)')
     while True:
         try:
-            line = input('dbg> ').strip()
+            line = input(PROMPT).strip()
         except (EOFError, KeyboardInterrupt):
             print()
             break

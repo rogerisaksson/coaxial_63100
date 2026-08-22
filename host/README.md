@@ -164,12 +164,12 @@ while it is being run up, and `--budget` stops the session at a number.
 
 Then there are the commands that cost nothing at all:
 
-    dbg> /py round(board.analog.ntc_temperature()["celsius"], 2)
+    Coaxial_63100> /py round(board.analog.ntc_temperature()["celsius"], 2)
     37.12
-    dbg> /sh cube-cmake --build --preset Debug
-    dbg> /tools read        # reprice the turn
-    dbg> /ctx               # what the next turn will cost
-    dbg> /clear             # the cheapest command there is
+    Coaxial_63100> /sh cube-cmake --build --preset Debug
+    Coaxial_63100> /tools read        # reprice the turn
+    Coaxial_63100> /ctx               # what the next turn will cost
+    Coaxial_63100> /clear             # the cheapest command there is
 
 Half of what one asks a model at a bench is really just "run this and show me",
 and `/py` does that with no model in the loop. `/py` and `/sh` work even when
