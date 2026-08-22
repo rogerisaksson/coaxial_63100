@@ -33,6 +33,7 @@ from coaxial.errors import RigError                       # noqa: E402
 from coaxial_mcp import render                            # noqa: E402
 from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
 from coaxial_mcp.tools import TOOLS as BOARD_TOOLS         # noqa: E402
+from coaxial_mcp.tools import coerce as board_coerce       # noqa: E402
 
 EXTRA_TOOLS = [
     {
@@ -203,4 +204,6 @@ class Toolbox:
         return self.shell.run(cmd, args.get('timeout_s'))
 
     def _board(self, name, args):
-        return BOARD_HANDLERS[name](self.session, **args)
+        # Coerced against the tool's own schema first: see
+        # coaxial_mcp.tools.coerce for what a small model sends instead.
+        return BOARD_HANDLERS[name](self.session, **board_coerce(name, args))

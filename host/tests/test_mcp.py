@@ -214,6 +214,29 @@ def error_paths(server, report):
     report.check('unknown tool', 'ERR unknown tool' in text, text[:50])
 
 
+def weak_model_arguments(server, report):
+    """An argument of the wrong type never reaches a handler here.
+
+    A smaller model sends ch as a bare string and the numbers as strings -
+    measured with llama3.1:8b on this board. On the ollama side that is
+    coaxial_mcp.tools.coerce's problem, because nothing sits between the model
+    and the handler there. On this side something does: the protocol validates
+    against inputSchema first. What matters is that the answer is a refusal
+    naming the field, not a TypeError from three frames down - the latter is
+    what sends a model off to answer from memory.
+    """
+    print('\n-- arguments of the wrong type --')
+    for name, args in [
+        ('a channel as a bare string', {'ch': 'ntc'}),
+        ('samples as a string', {'samples': '32'}),
+        ('samples as a word', {'samples': 'many'}),
+    ]:
+        text = server.tool('analog_read', args)
+        report.check('analog_read refuses ' + name,
+                     'not of type' in text or text.startswith('ERR'),
+                     text[:60])
+
+
 def main():
     server = ServerProcess(['--port', 'COM4'])
     report = Report()
@@ -221,6 +244,7 @@ def main():
         handshake(server, report)
         tools = tool_list(server, report)
         exercise(server, report)
+        weak_model_arguments(server, report)
         error_paths(server, report)
         server.tool('link', {'op': 'release'})
     finally:

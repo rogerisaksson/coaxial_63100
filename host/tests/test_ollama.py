@@ -744,6 +744,14 @@ def test_keep_alive(report):
     report.check('preload loads without generating',
                  path == '/api/chat' and payload['messages'] == []
                  and payload['keep_alive'] == '30m')
+    # Measured, not guessed: a preload without num_ctx asks for the model's own
+    # default context - 128k on llama3.1 - and the daemon answers 500 trying to
+    # allocate 7 GB for the KV cache. When it does fit, it is worse: the model
+    # is resident at one context size and the first question arrives at
+    # another, so it reloads and the preload has cost a wait rather than saved
+    # one.
+    report.check('preload loads at the size the questions will use',
+                 payload.get('options') is client.options)
     report.check('preload is not counted as a turn', client.calls == 1)
 
     # Both front ends have to offer it, or the flag exists and nobody can
@@ -761,12 +769,50 @@ def test_keep_alive(report):
                                '--keep-alive', '0']).keep_alive == '0')
 
 
+# ---- arguments as a weaker model spells them ------------------------------
+
+def test_coerce(report):
+    """A tool that is hard to call is a tool that gets guessed around."""
+    from coaxial_mcp.tools import coerce
+
+    got = coerce('analog_read', {'ch': 'ntc', 'samples': '100',
+                                 'rate_hz': '1000', 'vref': '3.3'})
+    report.check('a bare string channel is one channel', got['ch'] == ['ntc'])
+    report.check('a numeric string becomes a number',
+                 got == {'ch': ['ntc'], 'samples': 100, 'rate_hz': 1000.0,
+                         'vref': 3.3})
+    report.check('a list that arrived as text is a list',
+                 coerce('analog_read', {'ch': "['NTC']"})['ch'] == ['NTC'])
+    report.check('a comma separated string is several',
+                 coerce('analog_read', {'ch': 'ntc,dcbus'})['ch']
+                 == ['ntc', 'dcbus'])
+    report.check('a boolean spelled as a word',
+                 coerce('board_info', {'refresh': 'true'})['refresh'] is True
+                 and coerce('board_info', {'refresh': 'no'})['refresh'] is False)
+    report.check('null stays null - it means "use the default"',
+                 coerce('analog_read', {'ntc_beta': None})['ntc_beta'] is None)
+    report.check('what the schema does not name is passed through',
+                 coerce('analog_read', {'nonsense': object}) is not None)
+
+    # The point of all of it: what cannot be converted has to say so by name,
+    # because the alternative measured here was a TypeError deep in the handler
+    # and a model answering from memory.
+    for args in ({'samples': 'many'}, {'vref': 'three'}, {'samples': True}):
+        try:
+            coerce('analog_read', args)
+            report.check('a bad argument is refused by name', False, repr(args))
+        except ValueError as exc:
+            report.check('a bad argument is refused by name',
+                         'analog_read' in str(exc) and 'should be' in str(exc),
+                         str(exc)[:58])
+
+
 def main():
     report = Report()
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_policy, test_transcript, test_debug, test_cli,
-                 test_local_only, test_keep_alive):
+                 test_local_only, test_keep_alive, test_coerce):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

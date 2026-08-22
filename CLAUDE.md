@@ -62,8 +62,8 @@ STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --s
 cd host
 python -m coaxial all                      # CLI against the board
 python tests/test_conformance.py           # 40 Modbus conformance checks
-python tests/test_mcp.py                   # 31 MCP server checks
-python tests/test_ollama.py                # 93 runner and dbg checks, offline
+python tests/test_mcp.py                   # 35 MCP server checks
+python tests/test_ollama.py                # 114 runner and dbg checks, offline
 python examples/read_board.py                # measure, judge nothing
 python -m coaxial_mcp --port COM4          # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml   # local model drives the bench

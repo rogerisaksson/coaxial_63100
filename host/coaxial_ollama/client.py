@@ -200,6 +200,14 @@ class Ollama:
         do nothing" - no generation, no tokens counted, and it returns once the
         weights are resident. Worth a call before the first question so the
         8 GB wait lands somewhere visible instead of inside it.
+
+        `options` goes with it, and that is not decoration. num_ctx sizes the KV
+        cache, so a preload without it asks for the model's own default context
+        - which for llama3.1 is 128k and 7 GB of buffer, and fails outright on
+        this machine. Worse when it succeeds: the model would be resident at one
+        context size and the first real question at another, so the daemon
+        reloads and the preload has bought a wait rather than saved one.
         """
         self._post('/api/chat', {'model': self.model, 'messages': [],
+                                 'options': self.options,
                                  'keep_alive': self.keep_alive})

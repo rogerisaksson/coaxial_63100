@@ -90,6 +90,48 @@ result. **Keep that catch narrow.**
 
 ---
 
+### A weaker model answered from memory when a tool call failed
+
+**Measured, 2026-08-22, board at 36.3 °C by `board temp`.** `llama3.1:8b` was
+tried against `gemma4:12b` on the bench. It is genuinely faster — three
+questions through `dbg.py` in **24.0 s against 31.3 s**, two model calls per
+question against three, and ~1.2k prompt tokens against ~2.9k. That is not why
+it lost.
+
+Asked for the board temperature it called `analog_read` with `ch="ntc"`, a bare
+string where the schema says array. `for item in "ntc"` iterates characters, so
+the tool answered `unknown channel 'n'`. The model, given nothing it could act
+on, replied: **"The board temperature is 25.00 C."** Three runs, same answer.
+25.00 °C is the number this board reports with the AFE off — see the AFE entry
+below. It was invented, it was wrong by 11 °C, and it was wrong in the one shape
+a reader is least likely to question.
+
+Two fixes came out of it, both in `coaxial_mcp/tools.py`:
+
+- `_names` accepts a bare string, a comma separated string, and a list that
+  arrived as text (`"['NTC']"`).
+- `coerce` converts every argument to what the tool's own `inputSchema`
+  declares, so `samples="100"` and `refresh="true"` work, and what cannot be
+  converted is refused *by field name and wanted type* rather than as a
+  `TypeError` three frames down. It is on the ollama path only: the MCP server
+  gets the same protection from the protocol library, which validates against
+  `inputSchema` before a handler is reached.
+
+After the fix `llama3.1:8b` reads the board correctly. It still lost, for a
+second reason: it passes thermistor parameters it was never given, sending
+`ntc_beta=3950` where the onboard part is a Murata NCU18XH103 at **B=3380**
+(`coaxial/scaling.py:94`). The reading came back **34.6 °C** against 36.3 by the
+board's own path — a 1.7 °C bias, silent, from a plausible-looking number the
+model supplied itself. `gemma4:12b` overrode nothing and landed within 0.5 °C,
+and when asked whether the AFE was on it answered by reasoning that the NTC was
+*not* reading exactly 25.00.
+
+So: the default stays `gemma4:12b`. The 23 % that `llama3.1:8b` saves is real,
+and worth having on a machine that cannot hold 8 GB — but on this bench a model
+that invents hardware constants is the expensive kind of fast.
+
+---
+
 ## Confirmed, not a fault, do not fix
 
 ### JTAG connect-under-reset fails; the cabling is fine

@@ -153,9 +153,9 @@ purpose.
 
 ```powershell
 cd host
-python tests/test_ollama.py         # 93 checks, no board and no ollama needed
+python tests/test_ollama.py         # 114 checks, no board and no ollama needed
 python tests/test_conformance.py    # 40 Modbus conformance checks, needs the board
-python tests/test_mcp.py            # 31 MCP server checks
+python tests/test_mcp.py            # 35 MCP server checks
 ```
 
 ### Where to read next
