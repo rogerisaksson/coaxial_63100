@@ -41,11 +41,13 @@ env/
 htmlcov/
 
 # ---- bench output ----------------------------------------------------------
-# host/data/*.csv is tracked: those are the captures the documents refer to.
-# Anything a run drops elsewhere is not.
+# Captures stay on the bench machine. They are one board on one bench on one
+# day, and a reader cannot tell that from a file in a repo - which is the same
+# reason invariant 10 keeps thresholds out. host/tools/analyze_phase_log.py
+# takes a path, so nothing here needs them checked in.
+*.csv
 *.log
 !docs/**/*.log
-capture_*.csv
 scratch/
 
 # ---- toolchain / OS --------------------------------------------------------
