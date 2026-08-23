@@ -479,25 +479,34 @@ class Chat:
             if not calls:
                 # Three shapes of the same problem: the model answering "it
                 # doesn't work" from memory instead of checking again, the
-                # model answering nothing at all, and the model quietly
-                # retyping the last reading instead of taking a new one. All
-                # three are gated on self.last_channels - a real reading
-                # having actually succeeded at some point THIS session - not
-                # on link_ok alone. Measured here: without that gate, this
-                # fired on the very first question of a session that started
-                # with the board unreachable, discarding a plain "what is
-                # 2+2" answer that had no call and nothing to do with the
-                # board, because link_ok was already False from the startup
-                # probe. Nothing was ever read successfully to be stale about;
-                # there is no fact here worth rechecking a board for.
+                # model quietly retyping the last reading instead of taking a
+                # new one, and the model answering nothing at all. The first
+                # two are gated on self.last_channels - a real reading having
+                # actually succeeded at some point THIS session - not on
+                # link_ok alone. Measured here: without that gate, this fired
+                # on the very first question of a session that started with
+                # the board unreachable, discarding a plain "what is 2+2"
+                # answer that had no call and nothing to do with the board,
+                # because link_ok was already False from the startup probe.
+                # Nothing was ever read successfully to be stale about; there
+                # is no fact here worth rechecking a board for.
                 #
-                # `not last_channels` (the turn-local copy) keeps this out of
-                # the way of a retype of a reading THIS turn already took: that
-                # case is fresh, not stale, and the plain silencer below deals
-                # with it more cheaply than a probe and a nudge would.
-                stale = (not last_channels) and self.last_channels and (
-                    not self.link_ok or not answer
-                    or _is_retype(answer, self.last_channels))
+                # A blank answer is different: it is never a valid answer to
+                # anything, board-related or not, so it gets the same check
+                # even with no last_channels to compare against - measured
+                # here, the FIRST question of a session asking for a reading
+                # got a blank line and nothing else, because nothing existed
+                # yet for the gated checks to compare it to.
+                #
+                # `not last_channels` (the turn-local copy, both places) keeps
+                # this out of the way of a retype of a reading THIS turn
+                # already took: that case is fresh, not stale, and the plain
+                # silencer below deals with it more cheaply than a probe and a
+                # nudge would.
+                stale = not last_channels and (
+                    not answer or (self.last_channels and (
+                        not self.link_ok
+                        or _is_retype(answer, self.last_channels))))
                 if stale:
                     probe = self._probe_link()
                     if not self.link_ok:

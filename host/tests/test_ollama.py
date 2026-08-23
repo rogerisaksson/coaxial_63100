@@ -935,6 +935,42 @@ def test_debug(report):
     report.check('an unrelated answer survives even if link_ok started False',
                  answer == '2+2 is 4.', answer)
 
+    # ---- a blank FIRST answer is checked even with nothing to compare it to
+    # Measured on this bench: "ge mig en lista over matvardena" as the very
+    # first question of a session got a blank line and nothing else - the
+    # gate above correctly stayed out of the way (self.last_channels was
+    # None, nothing stale to protect against), but a blank answer is never a
+    # legitimate answer to anything, so it needs the same check regardless.
+    first_blank_session = SimulatedSession()
+    first_blank_box = toolmod.Toolbox(first_blank_session,
+                                      shell=Shell(['python']), scope=Scope())
+    first_blank_hits = []
+    real_first_blank_call = first_blank_box.call
+    first_blank_box.call = lambda name, args: (
+        first_blank_hits.append(name), real_first_blank_call(name, args))[1]
+    first_blank = debug.Chat(ScriptedModel([
+        {'role': 'assistant', 'content': ''},
+        call('afe_power', action='on'), call('analog_read')]),
+        first_blank_box, out=io.StringIO())
+    first_blank.ask('ge mig en lista over matvardena')
+    report.check('a blank first answer is nudged into a real reading',
+                 first_blank_hits == ['link', 'afe_power', 'analog_read'],
+                 first_blank_hits)
+
+    # ---- ...and if the board really is down from the start, that is what
+    # gets reported - not silence.
+    first_blank_down_session = SimulatedSession()
+    first_blank_down_box = toolmod.Toolbox(first_blank_down_session,
+                                           shell=Shell(['python']),
+                                           scope=Scope())
+    first_blank_down_session.board.broken = True
+    first_blank_down = debug.Chat(ScriptedModel(
+        [{'role': 'assistant', 'content': ''}]), first_blank_down_box,
+        out=io.StringIO())
+    answer = first_blank_down.ask('ge mig en lista over matvardena')
+    report.check('a blank first answer with the board actually down says so',
+                 answer.startswith('link is down, not answered:'), answer)
+
     # ---- naming a tool instead of calling it gets nudged into calling it ----
     # Measured on this bench: asked for a table, gemma4:12b answered "jeg ma
     # utfore en `analog_read`" and stopped - it named the exact call needed
