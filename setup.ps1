@@ -12,8 +12,9 @@
 
     What this project needs, and where each part comes from:
 
-      Python, git and VS Code           winget
-      four python packages              host/requirements.txt, via pip
+      Python                             python.org, per-user installer
+      git and VS Code                    winget
+      five python packages              host/requirements.txt, via pip
       ARM gcc, cmake, ninja             STM32 "bundles", fetched by cube.exe
       STM32_Programmer_CLI             same
       STM32CubeMX                       same - the stm32cubemx-application bundle
@@ -26,6 +27,9 @@
                                         own - see .vscode/extensions.json
       STM32Cube FW_H7                   st.com, and only for CubeMX. The build
                                         has Drivers/ in the repository.
+      STM32CubeIDE                      st.com - optional, not part of this
+                                        project's own workflow (that is VS
+                                        Code); offered for whoever wants it.
 
     The ST half used to be the awkward half. ST publishes nothing to winget and
     the installers on st.com sit behind a login and a click-through licence, so
@@ -45,11 +49,11 @@
 
         powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes -AllowScripts
 
-    Python and VS Code arrive through winget, and a winget install only reaches
-    the PATH of shells opened after it - so on a bare machine the first run
-    installs those and asks to be run once more. The second run is the one that
-    finishes; every run after that reports 'nothing outstanding' and changes
-    nothing.
+    Python arrives from its own python.org installer and VS Code through winget.
+    Both PATH edits only reach shells opened after they run - so on a bare
+    machine the first run installs those and asks to be run once more. The
+    second run is the one that finishes; every run after that reports 'nothing
+    outstanding' and changes nothing.
 
     If you would rather not have VS Code in the loop, -WingetToolchain installs
     cmake, ninja and Arm's own gcc from winget instead. The build works; the
@@ -102,6 +106,18 @@
     st.com's CubeMX page when CubeMX is absent and the bundle was not taken,
     you download the installer, and this switch runs it on the next pass.
 
+.PARAMETER SkipCubeIDE
+    Do not look for or offer STM32CubeIDE at all. Nothing in this project uses
+    it - the documented workflow is VS Code plus cube-cmake - so this is purely
+    for whoever wants the Eclipse-based IDE on the machine as well.
+
+.PARAMETER CubeIDEInstaller
+    Run an STM32CubeIDE installer that is already on disk. Like CubeMX, ST puts
+    this behind a login and a click-through licence on st.com, so there is no
+    unattended download route: the script opens the download page when
+    STM32CubeIDE is absent, you download the installer by hand, and this switch
+    runs it on the next pass.
+
 .PARAMETER SkipDriver
     Do not touch the ST-Link USB driver. Installing it is the one step in this
     script that needs administrator rights, so it is asked for on its own and
@@ -127,6 +143,12 @@
     Install cmake, ninja and arm-none-eabi-gcc from winget instead of relying on
     the VS Code extension's bundles.
 
+.PARAMETER PythonVersion
+    The CPython release to install from python.org when python is absent, e.g.
+    '3.13.1'. Left alone, the script asks python.org's own ftp index for the
+    newest 3.x release that ships a windows amd64 installer, so this only needs
+    setting to pin a specific version instead of the latest one.
+
 .PARAMETER AllowScripts
     Set the CurrentUser execution policy to RemoteSigned, so that `. .\env.ps1`
     works in an ordinary shell afterwards. Off by default: it is a change to how
@@ -145,8 +167,11 @@ param(
     [switch]$SkipFirmware,
     [string]$FirmwarePackage,
     [string]$CubeMXInstaller,
+    [switch]$SkipCubeIDE,
+    [string]$CubeIDEInstaller,
     [string]$Repository = (Join-Path $env:USERPROFILE 'STM32Cube\Repository'),
     [switch]$WingetToolchain,
+    [string]$PythonVersion,
     [switch]$AllowScripts
 )
 
@@ -156,6 +181,7 @@ $Host_ = Join-Path $Root 'host'
 $BundleRoot = Join-Path $env:LOCALAPPDATA 'stm32cube\bundles'
 $CubeH7Url = 'https://www.st.com/en/embedded-software/stm32cubeh7.html'
 $CubeMXUrl = 'https://www.st.com/en/development-tools/stm32cubemx.html'
+$CubeIDEUrl = 'https://www.st.com/en/development-tools/stm32cubeide.html'
 $script:Todo = @()
 
 # ---- reporting -------------------------------------------------------------
@@ -283,6 +309,118 @@ function Find-Code {
     return $null
 }
 
+function Find-Python {
+    <#  python.exe, from a python.org per-user install.
+
+        The installer writes under %LOCALAPPDATA%\Programs\Python\PythonXXX and
+        only adds itself to the *user* PATH - which, like every PATH edit in
+        this script, reaches shells opened after it and not this one. Look in
+        the well-known install directory before concluding python is absent, so
+        an install this same run just performed does not get reported as
+        missing a moment later.  #>
+    $found = Get-Tool 'python'
+    if ($null -ne $found) { return $found }
+
+    $root = Join-Path $env:LOCALAPPDATA 'Programs\Python'
+    if (-not (Test-Path $root)) { return $null }
+    $dir = Get-ChildItem $root -Directory -Filter 'Python3*' -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending | Select-Object -First 1
+    if ($null -eq $dir) { return $null }
+    $exe = Join-Path $dir.FullName 'python.exe'
+    if (-not (Test-Path $exe)) { return $null }
+    $env:PATH = $dir.FullName + ';' + (Join-Path $dir.FullName 'Scripts') + ';' + $env:PATH
+    return $exe
+}
+
+function Resolve-PythonVersion {
+    <#  The newest CPython release that ships a windows amd64 installer, asked
+        of python.org's own ftp index rather than pinned as a constant here -
+        the same reasoning as Resolve-Model: one source of truth, asked live,
+        rather than a version number that goes stale the day it is written.
+
+        -PythonVersion overrides this outright, which is also the fallback
+        when the index cannot be reached at all - a bench with no internet to
+        python.org has nowhere else this number could come from.  #>
+
+    if ($PythonVersion) { return $PythonVersion }
+
+    try {
+        $index = Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/' -UseBasicParsing -TimeoutSec 15
+    } catch {
+        Write-Item 'python.org index' 'failed' $_.Exception.Message
+        return '3.13.1'
+    }
+    $versions = [regex]::Matches($index.Content, 'href="(3\.\d+\.\d+)/"') |
+        ForEach-Object { $_.Groups[1].Value } |
+        Sort-Object -Property @{ Expression = { [version]$_ } } -Descending
+
+    foreach ($v in $versions) {
+        $url = "https://www.python.org/ftp/python/$v/python-$v-amd64.exe"
+        try {
+            $head = Invoke-WebRequest -Uri $url -Method Head -UseBasicParsing -TimeoutSec 15
+            if ($head.StatusCode -eq 200) { return $v }
+        } catch {
+            continue
+        }
+    }
+    return '3.13.1'
+}
+
+function Install-PythonFromOrg {
+    <#  Python, from python.org rather than winget.
+
+        A per-user install (InstallAllUsers=0) needs no administrator, which
+        matters here because nothing else in this script does either.
+        PrependPath=1 is what makes `python` resolve in shells opened after
+        this one; Include_test=0 skips the standard library test suite, which
+        this project never imports.  #>
+
+    $version = Resolve-PythonVersion
+    $url = "https://www.python.org/ftp/python/$version/python-$version-amd64.exe"
+    $installer = Join-Path $env:TEMP "python-$version-amd64.exe"
+
+    Write-Item 'python' 'missing' "python.org $version"
+    if (-not (Confirm-Step "download and run the python.org $version installer ?  (per-user, no admin)")) {
+        Add-Todo "download $url and run it, or: setup.ps1 -Yes -PythonVersion $version"
+        return $null
+    }
+
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
+    } catch {
+        Write-Item 'python' 'failed' ('download failed: ' + $_.Exception.Message)
+        Add-Todo "download $url by hand and run it with: /quiet InstallAllUsers=0 PrependPath=1"
+        return $null
+    }
+
+    try {
+        $proc = Start-Process -FilePath $installer -ArgumentList @(
+            '/quiet', 'InstallAllUsers=0', 'PrependPath=1', 'Include_test=0'
+        ) -Wait -PassThru
+    } catch {
+        Write-Item 'python' 'failed' $_.Exception.Message
+        Add-Todo "run $installer by hand: /quiet InstallAllUsers=0 PrependPath=1"
+        return $null
+    } finally {
+        Remove-Item $installer -Force -ErrorAction SilentlyContinue
+    }
+
+    if ($proc.ExitCode -ne 0) {
+        Write-Item 'python' 'failed' ("installer exit " + $proc.ExitCode)
+        Add-Todo "run the python.org $version installer by hand - it exited $($proc.ExitCode)"
+        return $null
+    }
+
+    $python = Find-Python
+    if ($null -eq $python) {
+        Write-Item 'python' 'failed' 'installer reported success but python.exe was not found'
+        Add-Todo "python installed but not found under $(Join-Path $env:LOCALAPPDATA 'Programs\Python') - check the install"
+        return $null
+    }
+    Write-Item 'python' 'done' $python
+    return $python
+}
+
 function Find-Cube {
     <#  cube.exe is the bundle manager, and it is the whole reason this script
         can install the ST toolchain without a browser. It is not a bundle
@@ -331,20 +469,18 @@ function Test-Machine {
         Write-Item 'winget' 'ok' ''
     }
 
-    $python = Get-Tool 'python'
-    if ($null -eq $python) { $python = Get-Tool 'py' }
+    $python = Find-Python
     if ($null -eq $python) {
-        Write-Item 'python' 'missing' 'Python.Python.3.13'
-        if (Install-WingetPackage -Id 'Python.Python.3.13' -Why 'the host library, the CLI and every test') {
-            # The installer edits the user PATH, which this process read at
-            # start-up and will not read again. Nothing below can use the
-            # interpreter that now exists, so say so and stop here.
-            Write-Item 'python' 'done' 'installed - not on this shell PATH yet'
-            Add-Todo 'open a NEW shell and run this script again - python is installed but only new shells can see it'
-        } else {
-            Add-Todo 'install python 3.9 or newer, then run this script again'
+        if ($Check) {
+            Write-Item 'python' 'missing' 'would install from python.org - see -PythonVersion'
+            Add-Todo 'run without -Check to install python from python.org, or install python 3.9+ by hand'
+            return $null
         }
-        return $null
+        $python = Install-PythonFromOrg
+        if ($null -eq $python) { return $null }
+        # Find-Python already spliced the new install's directory into this
+        # process's PATH, so the interpreter is usable immediately - no new
+        # shell needed, unlike the winget install this replaced.
     }
     $version = Invoke-Python -Python $python -Code @'
 import sys
@@ -720,6 +856,90 @@ function Install-CubeMXFromInstaller {
     }
     Add-Todo ($CubeMXUrl + '  -> download the installer, then: setup.ps1 -CubeMXInstaller <the exe>' +
               '   (or let the bundle route fetch it: cube bundle install --yes stm32cubemx-application)')
+}
+
+function Find-CubeIDE {
+    <#  stm32cubeide.exe, the Eclipse-based IDE - not the STM32 VS Code
+        extension, and not a cube.exe bundle. ST ships its own installer for
+        it, which defaults to C:\ST\STM32CubeIDE_x.y.z but lets the user pick
+        anywhere, so this searches rather than assumes a single path.  #>
+
+    $roots = @(
+        'C:\ST',
+        $env:ProgramFiles,
+        ${env:ProgramFiles(x86)}
+    )
+    foreach ($root in $roots) {
+        if (($null -eq $root) -or (-not (Test-Path $root))) { continue }
+        $exe = Get-ChildItem $root -Recurse -Depth 3 -Filter 'stm32cubeide.exe' `
+                             -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -ne $exe) { return $exe.FullName }
+    }
+    return $null
+}
+
+function Install-CubeIDE {
+    <#  STM32CubeIDE, which nothing in this project's own workflow needs - the
+        documented route is VS Code plus cube-cmake. This exists purely because
+        it was asked for: whoever wants the Eclipse-based IDE alongside that
+        workflow can have this step fetch it, the same way Install-CubeMXFromInstaller
+        does for CubeMX.
+
+        ST puts this behind a login and a click-through licence on st.com, the
+        same as CubeMX, so there is no unattended download here either: the
+        page opens, a human takes it from there, and -CubeIDEInstaller is the
+        way back in once the installer is on disk.  #>
+
+    if ($SkipCubeIDE) { return }
+
+    Write-Head 'STM32CubeIDE (optional - not part of this project''s own workflow)'
+
+    $found = Find-CubeIDE
+    if ($null -ne $found) {
+        Write-Item 'STM32CubeIDE' 'ok' $found
+        return
+    }
+
+    if ($CubeIDEInstaller) {
+        if (-not (Test-Path $CubeIDEInstaller)) {
+            Write-Item 'STM32CubeIDE' 'failed' ('no such path: ' + $CubeIDEInstaller)
+            Add-Todo ('-CubeIDEInstaller pointed at ' + $CubeIDEInstaller + ', which does not exist')
+            return
+        }
+        if ($Check) {
+            Write-Item 'STM32CubeIDE' 'missing' ('would run ' + $CubeIDEInstaller)
+            return
+        }
+        # ST's installer is a GUI with a licence page in it. Waited on rather
+        # than fired and forgotten, so the check below means something.
+        Write-Item 'STM32CubeIDE' 'missing' ('running ' + $CubeIDEInstaller)
+        try {
+            Start-Process -FilePath $CubeIDEInstaller -Wait
+        } catch {
+            Write-Item 'STM32CubeIDE' 'failed' $_.Exception.Message
+            Add-Todo ('running ' + $CubeIDEInstaller + ' failed - read the error above')
+            return
+        }
+        $found = Find-CubeIDE
+        if ($null -ne $found) {
+            Write-Item 'STM32CubeIDE' 'done' $found
+        } else {
+            Write-Item 'STM32CubeIDE' 'failed' 'the installer ran, but no stm32cubeide.exe was found'
+            Add-Todo 'STM32CubeIDE still not found after running the installer - check where it put itself'
+        }
+        return
+    }
+
+    Write-Item 'STM32CubeIDE' 'missing' 'needs a login on st.com'
+    if ($Check) {
+        Add-Todo ($CubeIDEUrl + '  -> download the installer, then: setup.ps1 -CubeIDEInstaller <the exe>')
+        return
+    }
+    if (Confirm-Step 'open the STM32CubeIDE download page in a browser ?') {
+        Start-Process $CubeIDEUrl
+        Write-Item 'download page' 'done' $CubeIDEUrl
+    }
+    Add-Todo ($CubeIDEUrl + '  -> download the installer, then: setup.ps1 -CubeIDEInstaller <the exe>')
 }
 
 function Get-FirmwareVersion {
@@ -1232,6 +1452,7 @@ if ($WingetToolchain) {
 # CubeMX arrives at all.
 Install-CubeMXFromInstaller
 Install-FirmwarePackage
+Install-CubeIDE
 
 if (-not $SkipOllama) {
     Install-Ollama -Python $python
