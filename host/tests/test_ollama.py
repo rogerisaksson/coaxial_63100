@@ -836,6 +836,11 @@ def test_debug(report):
     recover_session = SimulatedSession()
     recover_box = toolmod.Toolbox(recover_session, shell=Shell(['python']),
                                   scope=Scope())
+    recovered = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'), call('analog_read')]), recover_box,
+        out=io.StringIO())
+    recovered.ask('tabellera')            # succeeds first - sets last_channels
+
     recover_session.board.broken = True
     hits = []
     real_recover_call = recover_box.call
@@ -847,10 +852,10 @@ def test_debug(report):
         return real_recover_call(name, args)
     recover_box.call = recover_call
 
-    recovered = debug.Chat(ScriptedModel([
+    recovered.client.turns = [
         call('analog_read'),
         {'role': 'assistant', 'content': 'Jag kan inte lasa av kortet just nu.'},
-        call('analog_read')]), recover_box, out=io.StringIO())
+        call('analog_read')]
     recovered.ask('tabellera igen')
     report.check('a stale refusal triggers a real check instead of repeating',
                  hits == ['analog_read', 'link', 'analog_read'], hits)
@@ -872,18 +877,23 @@ def test_debug(report):
                  and 'fortfarande' not in answer, answer)
 
     # ---- a blank answer with no call at all is not taken at face value ----
-    # Measured on this bench: the FIRST question asked after the programmer
-    # was unplugged got a blank line and nothing else - link_ok was still
-    # True right up to that turn (nothing had failed yet to set it False), so
-    # the "stale refusal" check above never triggered, and the model's own
-    # empty content, no call, printed as silence with no error in sight.
+    # Measured on this bench: the SECOND question asked (the first had
+    # already succeeded) after the programmer was unplugged got a blank line
+    # and nothing else - link_ok was still True right up to that turn
+    # (nothing had failed yet to set it False), so the "stale refusal" check
+    # above never triggered, and the model's own empty content, no call,
+    # printed as silence with no error in sight.
     blank_session = SimulatedSession()
     blank_box = toolmod.Toolbox(blank_session, shell=Shell(['python']),
                                 scope=Scope())
+    blank = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'), call('analog_read')]), blank_box,
+        out=io.StringIO())
+    blank.ask('ge mig en tabell')          # succeeds first - sets last_channels
+
     blank_session.board.broken = True
-    blank = debug.Chat(ScriptedModel([{'role': 'assistant', 'content': ''}]),
-                       blank_box, out=io.StringIO())
-    answer = blank.ask('ge mig en tabell')
+    blank.client.turns = [{'role': 'assistant', 'content': ''}]
+    answer = blank.ask('ge mig en tabell igen')
     report.check('a blank answer with no call still gets a real check',
                  answer.startswith('link is down, not answered:')
                  and blank.link_ok is False, answer)
@@ -892,17 +902,38 @@ def test_debug(report):
     blank_ok_session = SimulatedSession()
     blank_ok_box = toolmod.Toolbox(blank_ok_session, shell=Shell(['python']),
                                    scope=Scope())
+    blank_ok = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'), call('analog_read')]), blank_ok_box,
+        out=io.StringIO())
+    blank_ok.ask('ge mig en tabell')       # succeeds first - sets last_channels
+
     ok_hits = []
     real_blank_ok_call = blank_ok_box.call
     blank_ok_box.call = lambda name, args: (
         ok_hits.append(name), real_blank_ok_call(name, args))[1]
-    blank_ok = debug.Chat(ScriptedModel([
-        {'role': 'assistant', 'content': ''}, call('analog_read')]),
-        blank_ok_box, out=io.StringIO())
-    blank_ok.ask('ge mig en tabell')
+    blank_ok.client.turns = [
+        {'role': 'assistant', 'content': ''}, call('analog_read')]
+    blank_ok.ask('ge mig en tabell igen')
     report.check('a blank answer when the link is fine gets a real turn too',
                  ok_hits == ['link', 'analog_read'] and blank_ok.link_ok is True,
                  ok_hits)
+
+    # ---- ...but an unrelated question with no call is never touched ----
+    # Measured on this bench: link_ok can start False from the startup probe
+    # alone, before any question at all - and without this gate, a plain "vad
+    # ar 2+2" with no call and a perfectly good answer got discarded and
+    # replaced with "link is down", because nothing had ever been read
+    # successfully to make that check meaningful.
+    untouched_session = SimulatedSession()
+    untouched_box = toolmod.Toolbox(untouched_session, shell=Shell(['python']),
+                                    scope=Scope())
+    untouched_session.board.broken = True
+    untouched = debug.Chat(ScriptedModel([
+        {'role': 'assistant', 'content': '2+2 is 4.'}]), untouched_box,
+        out=io.StringIO(), link_ok=False)
+    answer = untouched.ask('what is 2+2?')
+    report.check('an unrelated answer survives even if link_ok started False',
+                 answer == '2+2 is 4.', answer)
 
     # ---- a failed read is not answered from an old context ----
     stale_session = SimulatedSession()

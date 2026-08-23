@@ -49,14 +49,15 @@ from .sandbox import Scope, Shell, clip              # noqa: E402
 # protocol, no channel map - board_info carries that, once, when asked.
 SYSTEM = """You are an expert with a serial communication link to a coaxial
 BLDC inverter.
-Use tools; do not guess. Answer in one or two sentences, no preamble.
-Asked for a table or list, call analog_read once - its grid already covers
-every channel. Never write one yourself in markdown, and never restate rows a
-tool result already printed - one short line, not a second listing.
+Use tools for the board, never to guess a reading; a non-board question needs
+no tool. Answer in one or two sentences, no preamble.
+A table or list means analog_read once - its grid covers every channel
+already. Never write one in markdown, and never restate rows a tool already
+printed - one line, not a second listing.
 If a call errors, say so - not a guess, not an old reading.
-afe_power also powers the ADC reference: off, every channel reads mid-scale
-and the NTC reads exactly 25.00 C - not a measurement. Phase channels sit
-behind unknown gain - pin volts only.
+afe_power powers the ADC reference too: off, every channel reads mid-scale and
+NTC reads exactly 25.00 C - not a measurement. Phase channels: unknown gain,
+pin volts only.
 Values come from analog_read, never docs - HARDWARE and FINDINGS explain a
 reading; they don't produce one."""
 
@@ -466,18 +467,18 @@ class Chat:
             self.history.append(message)
             if not calls:
                 # Two shapes of the same problem: the model answering "it
-                # doesn't work" from memory instead of checking again (caught
-                # by link_ok already being False - see below), and the model
-                # answering nothing at all, blank content and no call, which
-                # measured here was the FIRST question asked after the
-                # programmer was disconnected - link_ok was still True right
-                # up to that turn, so nothing had flagged the link as down
-                # yet, and a blank line printed with no error at all. Neither
-                # is a fact worth trusting from a turn that never touched the
-                # board, so either one gets the same real check in code:
-                # `link` needs no AFE and no sample, the cheapest call that
-                # settles it.
-                if not self.link_ok or not answer:
+                # doesn't work" from memory instead of checking again, and
+                # the model answering nothing at all, blank content and no
+                # call. Both are gated on self.last_channels - a real reading
+                # having actually succeeded at some point THIS session - not
+                # on link_ok alone. Measured here: without that gate, this
+                # fired on the very first question of a session that started
+                # with the board unreachable, discarding a plain "what is
+                # 2+2" answer that had no call and nothing to do with the
+                # board, because link_ok was already False from the startup
+                # probe. Nothing was ever read successfully to be stale about;
+                # there is no fact here worth rechecking a board for.
+                if self.last_channels and (not self.link_ok or not answer):
                     probe = self._probe_link()
                     if not self.link_ok:
                         return 'link is down, not answered: %s' % probe
@@ -835,36 +836,51 @@ def build(args):
     return client, session, chat
 
 
-def repl(chat):
+def repl(chat, hold=False):
+    from .client import OllamaError
+
     print('%s, tools: %s (%d tok/turn). /help, /q to leave.'
           % (chat.client.model, ', '.join(chat.tool_names) or 'none',
              chat.tool_cost()))
     if not sys.stdin.isatty():
         print('(reading commands from stdin)')
-    while True:
-        try:
-            # Read fresh every time, not captured once: /reconnect flips this
-            # mid-loop and the very next prompt is what should show it.
-            stop = spinning_prompt(PROMPT, sys.stdout, ok=chat.link_ok)
+    try:
+        while True:
             try:
-                line = input().strip()
-            finally:
-                # Before anything else is printed: a frame landing in the
-                # middle of an answer puts a glyph inside the text.
-                stop()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            break
-        if not line:
-            continue
-        try:
-            done = chat.command(line)
-            print(done if done is not None else chat.ask(line))
-        except SystemExit:
-            break
-        except (RigError, ValueError) as exc:
-            print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)))
-    print(chat.cost_line())
+                # Read fresh every time, not captured once: /reconnect flips
+                # this mid-loop and the very next prompt is what should show it.
+                stop = spinning_prompt(PROMPT, sys.stdout, ok=chat.link_ok)
+                try:
+                    line = input().strip()
+                finally:
+                    # Before anything else is printed: a frame landing in the
+                    # middle of an answer puts a glyph inside the text.
+                    stop()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                break
+            if not line:
+                continue
+            try:
+                done = chat.command(line)
+                print(done if done is not None else chat.ask(line))
+            except SystemExit:
+                break
+            except (RigError, ValueError) as exc:
+                print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)))
+        print(chat.cost_line())
+    finally:
+        # The 30-minute keep_alive that makes turn nine as quick as turn two
+        # is exactly wrong once there is no turn ten coming. Measured on this
+        # bench: a session left running unattended held 9.69 GB for another
+        # 27 minutes at 1% utilisation. `--keep-alive` is how to say "no,
+        # really, leave it" - anything explicit there means the operator
+        # already decided, and this leaves that alone.
+        if not hold:
+            try:
+                chat.client.unload()
+            except OllamaError:
+                pass
 
 
 def main(argv=None):
@@ -935,7 +951,7 @@ def main(argv=None):
             if not args.quiet:
                 print(chat.cost_line(), file=sys.stderr)
         else:
-            repl(chat)
+            repl(chat, hold=args.keep_alive is not None)
     except OllamaError as exc:
         print('ollama: %s' % exc, file=sys.stderr)
         return 2
