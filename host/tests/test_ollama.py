@@ -494,8 +494,10 @@ def test_prompt(report):
     report.check('the prompt is written whole, once, glyph flush against it',
                  drawn.startswith('Coaxial_63100' + spin.GREEN)
                  and drawn.count('Coaxial_63100') == 1, repr(drawn[:24]))
-    report.check('no space pads the spinner on either side',
-                 ' | ' not in drawn and ' > ' not in drawn, repr(drawn[:24]))
+    report.check('no space pads the face on either side',
+                 drawn.startswith('Coaxial_63100%s%s%s> '
+                                   % (spin.GREEN, spin.OK_GLYPHS[0], spin.RESET)),
+                 repr(drawn[:32]))
     report.check('it keeps painting after the prompt is up',
                  drawn.count(spin.SAVE) >= 3, '%d frames' % drawn.count(spin.SAVE))
     report.check('every frame saves the cursor and puts it back',
@@ -512,33 +514,40 @@ def test_prompt(report):
     clock.sleep(0.08)
     stop()
     unwell = down.getvalue()
-    report.check('a dead link paints the glyph red, not green',
+    report.check('a dead link paints the face red, not green',
                  unwell.count(spin.RED) >= 3 and spin.GREEN not in unwell)
-    forward_glyphs = [spin.GLYPHS[f % len(spin.GLYPHS)] for f in range(1, 4)]
-    backward_glyphs = [spin.GLYPHS[-f % len(spin.GLYPHS)] for f in range(1, 4)]
-    report.check('and turns the other way through the same four glyphs',
-                 forward_glyphs != backward_glyphs)
+    report.check('and it is a different face, not the same one recoloured',
+                 not set(spin.OK_GLYPHS) & set(spin.BAD_GLYPHS)
+                 and any(g in unwell for g in spin.BAD_GLYPHS))
 
-    report.check('the bar is an en dash, wider than a hyphen',
-                 spin.GLYPHS[2] == chr(0x2013)
-                 and spin.GLYPHS[2].encode('cp1252') == bytes([0x96]))
+    report.check('the eye is a real bullet, not a look-alike',
+                 spin.OK_GLYPHS[0][1] == chr(0x2022)
+                 and spin.OK_GLYPHS[0][1].encode('cp1252') == bytes([0x95]))
+    report.check('every frame in a state is the same width, so a repaint '
+                 'never leaves a stray character behind',
+                 len(set(len(g) for g in spin.OK_GLYPHS)) == 1
+                 and len(set(len(g) for g in spin.BAD_GLYPHS)) == 1)
     report.check('a console that cannot hold it gets ASCII, not a question mark',
-                 spin._frames(Tty()) == spin.GLYPHS
-                 and spin.FALLBACK == ('|', '/', '-', chr(92)))
+                 spin._frames(Tty(), ok=True) == spin.OK_GLYPHS
+                 and spin.OK_FALLBACK == ('[o_o]', '[o_O]'))
 
     class Ascii(Tty):
         encoding = 'ascii'
 
     report.check('and that fallback is chosen by asking the stream',
-                 spin._frames(Ascii()) == spin.FALLBACK)
+                 spin._frames(Ascii(), ok=True) == spin.OK_FALLBACK)
+    report.check('the error face is plain ASCII already, no fallback needed',
+                 spin._frames(Ascii(), ok=False) == spin.BAD_GLYPHS)
 
     # A pipe has no cursor to save: one static prompt, no escapes, no thread.
+    # It has no .encoding either, so it gets the ASCII face same as Ascii().
     piped = io.StringIO()
     noop = spin.spinning_prompt('Coaxial_63100', piped)
     noop()
     report.check('a redirected prompt is static and escape-free',
                  piped.getvalue() ==
-                 'Coaxial_63100%s|%s> ' % (spin.GREEN, spin.RESET),
+                 'Coaxial_63100%s%s%s> ' % (spin.GREEN, spin.OK_FALLBACK[0],
+                                            spin.RESET),
                  repr(piped.getvalue()))
 
 
