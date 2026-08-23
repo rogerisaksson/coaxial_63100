@@ -55,8 +55,8 @@ A table or list means analog_read once - its grid covers every channel
 already. Never write one in markdown, and never restate rows a tool already
 printed - one line, not a second listing.
 If a call errors, say so - not a guess, not an old reading.
-afe_power powers the ADC reference too: off, every channel reads mid-scale and
-NTC reads exactly 25.00 C - not a measurement. Phase channels: unknown gain,
+afe_power: on or off as asked, never refused. analog_read's output is the
+reading either way - it says when AFE is off. Phase channels: unknown gain,
 pin volts only.
 Values come from analog_read, never docs - HARDWARE and FINDINGS explain a
 reading; they don't produce one."""

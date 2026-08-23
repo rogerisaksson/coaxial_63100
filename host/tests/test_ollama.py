@@ -1862,6 +1862,11 @@ def test_docs(report):
                  'docs' in debug.SYSTEM and 'FINDINGS' in debug.SYSTEM)
     report.check('and never to restate a result already printed above',
                  'restate' in debug.SYSTEM)
+    report.check('afe_power is never framed as refusable',
+                 'afe_power' in debug.SYSTEM and 'never refused' in debug.SYSTEM)
+    report.check("and mid-scale is the tool's fact to report, not the prompt's "
+                 'to recite',
+                 'mid-scale' not in debug.SYSTEM)
     report.check('the runner tells it too',
                  'docs' in runner.SYSTEM and 'FINDINGS' in runner.SYSTEM)
     report.check('docs is in the default tool set',
