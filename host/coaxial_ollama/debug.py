@@ -46,14 +46,15 @@ from .sandbox import Scope, Shell, clip              # noqa: E402
 # protocol, no channel map - board_info carries that, once, when asked.
 SYSTEM = """You debug a coaxial BLDC inverter test board over a serial link.
 Use tools; do not guess. Answer in one or two sentences, no preamble.
-This is a plain terminal: never a markdown table. A result already shown
-above needs no second list in your answer - one short line is enough.
+This is a plain terminal: never a markdown table, and never restate the rows a
+tool result already printed above - one short line, not a second listing.
 If a call errors, say so; never answer with an older reading or a guess.
 The front end switch (afe_power) also powers the ADC reference: with it off
 every channel reads mid-scale and the NTC reads exactly 25.00 C, which is not a
 measurement. Phase channels sit behind unknown gain, so pin volts is as far as
 the data goes.
-The docs tool has this board's own HARDWARE and FINDINGS: read before guessing."""
+Values come from analog_read, never docs - docs is HARDWARE and FINDINGS, for
+explaining a reading, not producing one."""
 
 # Named subsets, because a debug job knows roughly what it is about to touch.
 SETS = {
@@ -103,7 +104,7 @@ def keep_alive_for(args):
 
 
 TOOL_TAG = re.compile(r'</?tool_call>', re.I)
-CALL_JSON = re.compile(r'\{.*?"name"\s*:.*?\}\s*\}?', re.S)
+BACKSLASH = chr(92)
 ERR_CLASS = re.compile(r'^ERR (\w+):')
 
 # Tools that actually reach the board - not 'docs', which reads local files and
@@ -118,42 +119,139 @@ LINK_TOOLS = set(toolmod.BOARD_HANDLERS) - {'docs'}
 CONTACT_LOST = {'ConnectError', 'NoReplyError', 'CrcError', 'FrameError',
                 'PayloadError'}
 
-# Rows of a tool result shown in full, beyond the first. Generous enough for
-# every channel this board has, or a full self_test list, without an
-# unbounded dump if run_python prints something much longer.
+# Rows of a tool result shown in full. Generous enough for every channel this
+# board has, or a full self_test list, without an unbounded dump if run_python
+# prints something much longer.
 TRACE_ROWS = 24
 
+# Tools where the same call twice is meaningful - a reading changes with time,
+# and code is trusted to know why it is running again. Everything else answers
+# the same question with the same fact each time, so a repeat within one turn
+# is not new information; it is the model unable to tell that it already has
+# the answer. Measured on this bench: asked to tabulate the channels,
+# qwen2.5:14b turned the front end on, then on again three more times in a
+# row, each one a full round trip through the model and the board for a
+# result it had already seen.
+REPEATABLE = {'analog_read', 'run_python', 'run_command'}
 
-def _salvage_call(text):
-    """A tool call the model wrote as text, and what is left of the text.
+# The channel names off the front of an analog_read row: "0  PhaseU  diff ..."
+# -> 'phaseu'. Anchored on the mode column (diff/SE) rather than just a
+# leading digit, or this matches render.analog's own header line too - "64
+# smp @2000Hz" starts with a number and a word exactly like a row does, and
+# without the anchor 'smp' was recognised as a seventh channel of its own.
+READING_ROW = re.compile(r'^\d+\s+(\S+)\s+(?:diff|SE)\b', re.M)
 
-    Deliberately narrow. It fires only when the content is *nothing but* a
-    tool-call shape - tags, whitespace and one JSON object carrying `name` -
-    because a legitimate answer may quote JSON and turning that into a board
-    command would be far worse than printing it. Returns (call, remaining
-    text): no call means the text was an answer after all.
+# Fewer than this many channels and a short answer naming all of them is
+# plausibly synthesis ("NTC and DCbus both read low") rather than a mechanical
+# restatement - the case this exists to catch always names a full table's
+# worth. Below this the override stays out of the way.
+RESTATE_MIN_CHANNELS = 3
+
+
+# Words a chat template leaks around a call the model wrote as text instead of
+# in the tool_calls field. Measured on this bench: asked "vad ar temperaturen",
+# the model answered 'CallCheckFunction' and a JSON object, twice over, and the
+# prompt printed all four lines as the answer - which reads as the board having
+# stopped giving values. A residue of nothing but these words is still a tool
+# call; one word of real prose is not, and vetoes the salvage.
+MARKERS = frozenset(('tool', 'tool_call', 'toolcall', 'call', 'calls',
+                     'function', 'functions', 'check', 'json', 'assistant',
+                     'commentary', 'to', 'and', 'then'))
+WORD = re.compile(r'[^\W\d_]+')
+# Those words arrive run together as often as spaced - 'CallCheckFunction' is
+# one word to any tokeniser and three markers to a reader - so a residue word
+# is split at its capitals before being looked up.
+CAMEL = re.compile(r'[^\W\d_][a-z]*')
+
+
+def _is_marker_noise(text):
+    """True when nothing in `text` is a word of prose.
+
+    This is the whole safety of the salvage: a message that is a tool call
+    wearing a template's clothes has only marker words around the JSON, and a
+    message that is an answer has real ones.
     """
-    stripped = TOOL_TAG.sub('', text).strip()
+    for word in WORD.findall(text):
+        parts = CAMEL.findall(word) or [word]
+        if any(part.lower() not in MARKERS for part in parts):
+            return False
+    return True
+
+
+def _json_objects(text):
+    """Every balanced top-level {...} in `text`, as (start, end, parsed).
+
+    Brace counting rather than a regex, because `{.*?}` stops at the first
+    closing brace - which in a tool call is the one that ends `arguments`, so
+    anything with a nested object in it either fails to parse or parses as half
+    of itself. Strings are tracked so a brace inside a value cannot unbalance
+    the count. An object that is not JSON is skipped, not fatal.
+    """
+    found = []
+    depth = start = 0
+    in_string = escaped = False
+    for index, char in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == BACKSLASH:
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == '{':
+            if not depth:
+                start = index
+            depth += 1
+        elif char == '}' and depth:
+            depth -= 1
+            if not depth:
+                try:
+                    parsed = json.loads(text[start:index + 1])
+                except ValueError:
+                    continue
+                found.append((start, index + 1, parsed))
+    return found
+
+
+def _salvage_calls(text):
+    """The tool calls a model wrote as text, and what is left of the text.
+
+    Deliberately narrow. A legitimate answer may quote JSON, and turning that
+    into a board command would be far worse than printing it - so the test is
+    that once the tool tags and the call objects are taken out, no word of
+    prose is left, only the marker words above. Returns (calls, remaining
+    text): an empty list means the text was an answer after all.
+
+    More than one call in one message is the case that made this a list. The
+    single-call version printed a two-call message verbatim, which at the
+    prompt looks exactly like the model having stopped taking readings.
+    """
+    stripped = TOOL_TAG.sub(' ', text)
     if '"name"' not in stripped:
         # No call in it, but a bare `</tool_call>` is not an answer either:
         # hand back what is left once the tag is gone, which may be nothing.
-        return None, stripped if stripped != text.strip() else text
+        clean = stripped.strip()
+        return [], clean if clean != text.strip() else text
 
-    match = CALL_JSON.search(stripped)
-    if not match:
-        return None, text
-    if len(stripped) - len(match.group(0)) > 8:
+    calls, residue, cursor = [], [], 0
+    for start, end, parsed in _json_objects(stripped):
+        if not isinstance(parsed, dict) or not parsed.get('name'):
+            continue
+        calls.append({'function': {'name': parsed['name'],
+                                   'arguments': parsed.get('arguments') or {}}})
+        residue.append(stripped[cursor:start])
+        cursor = end
+    residue.append(stripped[cursor:])
+
+    if not calls:
+        return [], text
+    if not _is_marker_noise(' '.join(residue)):
         # Prose around it: an answer that mentions a call, not a call.
-        return None, text
-    try:
-        parsed = json.loads(match.group(0))
-    except ValueError:
-        return None, text
-    name = parsed.get('name')
-    if not name:
-        return None, text
-    return ({'function': {'name': name,
-                          'arguments': parsed.get('arguments') or {}}}, '')
+        return [], text
+    return calls, ''
 
 
 def _printable(stream):
@@ -278,6 +376,9 @@ class Chat:
 
         self.history.append({'role': 'user', 'content': question})
         answer = ''
+        link_error = None
+        last_channels = None      # names in the most recent analog_read table
+        seen = {}          # (name, args) this turn -> its rendered result
 
         for _ in range(max_calls + 1):
             before = self.client.usage()
@@ -301,9 +402,9 @@ class Chat:
             # answer. The model was right about what to do; the shape was
             # wrong. Recovering it costs a JSON parse.
             if not calls:
-                salvaged, answer = _salvage_call(answer)
+                salvaged, answer = _salvage_calls(answer)
                 if salvaged:
-                    calls = [salvaged]
+                    calls = salvaged
                     message = dict(message, content='', tool_calls=calls)
 
             self.history.append(message)
@@ -313,25 +414,72 @@ class Chat:
             for call in calls:
                 name = (call.get('function') or {}).get('name', '?')
                 args = _arguments(call)
-                result = self.toolbox.call(name, args)
-                if isinstance(result, toolmod.Reported):
-                    result = 'noted: %s' % result.note
+                key = (name, json.dumps(args, sort_keys=True, default=str))
+
+                if name not in REPEATABLE and key in seen:
+                    # Do not spend a board round trip re-asking a question
+                    # this turn already has the answer to - and say so plainly
+                    # rather than repeating the same line, which is what asked
+                    # for the repeat in the first place. `raw` stays the
+                    # original result so a repeated failure is still read as
+                    # one below, not laundered into a fresh-looking success by
+                    # the sentence wrapped around it.
+                    raw = seen[key]
+                    result = 'unchanged this turn, already asked: %s' % raw
+                else:
+                    raw = self.toolbox.call(name, args)
+                    if isinstance(raw, toolmod.Reported):
+                        raw = 'noted: %s' % raw.note
+                    seen[key] = raw
+                    result = raw
                 if name in LINK_TOOLS:
                     # Every call that actually reaches the board is a live
                     # reading on the link itself, not just on this run's
                     # question - the spinner is wrong the moment this call's
                     # verdict disagrees with what it is currently showing.
-                    lost = ERR_CLASS.match(str(result))
+                    lost = ERR_CLASS.match(str(raw))
                     self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
-                self._trace('  %s %s' % (name, _short(args)), str(result))
+                    # A call that reached the board clears an earlier failure
+                    # in the same turn; one that did not reach it sets the
+                    # error that gates the answer below, whatever the model
+                    # goes on to write about it.
+                    link_error = str(raw) if not self.link_ok else None
+                if name == 'analog_read' and not str(raw).startswith('ERR'):
+                    # A fresh table replaces the last one remembered; an error
+                    # leaves the previous table in place rather than wiping it,
+                    # since link_error already takes priority below either way.
+                    last_channels = set(m.lower()
+                                        for m in READING_ROW.findall(str(raw)))
+                self._trace(result)
                 self.history.append({'role': 'tool', 'tool_name': name,
                                      'name': name,
                                      'content': '%s: %s' % (name, result)})
 
+        # A read that failed on the wire is ground truth this loop already
+        # has; the model does not get a vote on it. Measured on this bench:
+        # asked again after the ST-Link (which carries this board's VCP - see
+        # HARDWARE.md) was unplugged, qwen2.5:14b answered with the NTC value
+        # from three questions earlier instead of the ConnectError sitting
+        # right there in its own context. The system prompt already tells it
+        # not to; this is the case where telling it was not enough.
+        if link_error is not None:
+            answer = 'link is down, not answered: %s' % link_error
+        # The system prompt already says not to retype a table just shown -
+        # measured here, qwen2.5:14b did it anyway, every time, across three
+        # separate bench sessions. Telling it was not enough, so this is the
+        # same backstop as the line above: not a smarter prompt, a fact the
+        # loop already has that the model does not get a vote on. The bar is
+        # deliberately narrow - every channel just read, named again by an
+        # answer with nothing else in it - so a real one-line finding ("NTC
+        # is running hot") that happens to name a channel or two is untouched.
+        elif (last_channels and len(last_channels) >= RESTATE_MIN_CHANNELS
+              and answer and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
+                                 for ch in last_channels)):
+            answer = 'table above, not restated.'
         # An answer that hit the token cap stops mid-sentence, and a table that
         # stops mid-row reads as complete to everyone except a reader counting
         # rows. Say so rather than letting the cap look like the end.
-        if getattr(self.client, 'truncated', False) and answer:
+        elif getattr(self.client, 'truncated', False) and answer:
             answer += ('%s[cut off at --words %s. Ask again with more, or ask '
                        'for fewer channels.]'
                        % (chr(10), self.client.options.get('num_predict', '?')))
@@ -412,25 +560,32 @@ class Chat:
             print('  [%d in / %d out]' % (prompt_tokens, eval_tokens),
                   file=self.out, flush=True)
 
-    def _trace(self, head, result):
+    def _trace(self, result):
         """Print what a call returned, as the grid render.py already built it.
 
-        The old version joined every line with ' | ' and cut the whole thing
-        at 96 characters, which turned a channel table into a single ragged
-        line - the very thing this was supposed to show plainly. A table's
-        rows go one per line instead, each clipped on its own so a long value
-        does not push the row after it off screen, with a count for whatever
-        does not fit rather than a table that quietly stops.
+        No header, and that is the point of the last revision. It used to print
+        the call above the result - name and arguments - and on the call this
+        exists for, that header was the worst line on screen:
+
+            analog_read samples=100 ch=['dc_bus', 'ntc', 'phase_a', 'phas
+            ... [17 more characters cut] -> 100 smp @2000Hz
+
+        The argument clip put a newline inside the header, which pushed the
+        ' -> ' and the first row of the table onto the end of the cut notice.
+        And it was restating the result badly while it did it: the table names
+        every channel it read, one per row. What is left is the rows.
+
+        Each row is clipped on its own so a long value does not push the row
+        after it off screen, with a count for whatever does not fit rather than
+        a table that quietly stops.
         """
         if self.quiet:
             return
         lines = str(result).splitlines() or ['']
-        print('%s -> %s' % (head, lines[0][:96]), file=self.out, flush=True)
-        rest = lines[1:]
-        for line in rest[:TRACE_ROWS]:
-            print('     %s' % line[:96], file=self.out, flush=True)
-        if len(rest) > TRACE_ROWS:
-            print('     ... [%d more rows]' % (len(rest) - TRACE_ROWS),
+        for line in lines[:TRACE_ROWS]:
+            print('  %s' % line[:96], file=self.out, flush=True)
+        if len(lines) > TRACE_ROWS:
+            print('  ... [%d more rows]' % (len(lines) - TRACE_ROWS),
                   file=self.out, flush=True)
 
 
@@ -442,11 +597,6 @@ def _arguments(call):
         except ValueError:
             return {}
     return args if isinstance(args, dict) else {}
-
-
-def _short(args):
-    text = ' '.join('%s=%s' % (k, v) for k, v in (args or {}).items())
-    return clip(' '.join(text.split()), 60)
 
 
 class NoBoard:

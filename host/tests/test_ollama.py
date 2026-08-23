@@ -792,6 +792,120 @@ def test_debug(report):
     report.check('and a call that succeeds turns it green again, no /reconnect',
                  watch.link_ok is True)
 
+    # ---- a failed read is not answered from an old context ----
+    stale_session = FakeSession()
+    stale_box = toolmod.Toolbox(stale_session, shell=Shell(['python']),
+                                scope=Scope())
+    stale = debug.Chat(ScriptedModel([
+        call('analog_read', ch=['NTC']),
+        {'role': 'assistant', 'content': 'NTC is 24.9 C.'}]), stale_box,
+        out=io.StringIO())
+    stale.ask('what is the temperature?')
+
+    stale_session.board.analog.broken = True
+    stale.client.turns = [
+        call('analog_read', ch=['NTC']),
+        # A model is free to write this; the runner does not have to believe
+        # it, because the failed read in its own history already says otherwise.
+        {'role': 'assistant', 'content': 'NTC is still 24.9 C.'}]
+    answer = stale.ask('what is the temperature now?')
+    report.check('a link failure this turn overrides a stale-looking answer',
+                 answer.startswith('link is down, not answered:')
+                 and '24.9' not in answer, answer)
+    report.check('and the spinner agrees',
+                 stale.link_ok is False)
+
+    # ---- an identical call repeated in one turn does not re-hit the board --
+    spam_session = FakeSession()
+    spam_box = toolmod.Toolbox(spam_session, shell=Shell(['python']),
+                               scope=Scope())
+    hits = []
+    real_call = spam_box.call
+    spam_box.call = lambda name, args: (hits.append(name), real_call(name, args))[1]
+    spam = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'), call('afe_power', action='on'),
+        call('afe_power', action='on'), call('afe_power', action='on'),
+        call('analog_read'),
+        {'role': 'assistant', 'content': 'table above'}]), spam_box,
+        out=io.StringIO())
+    spam.ask('tabulate everything')
+    report.check('four identical afe_power calls reach the board once',
+                 hits.count('afe_power') == 1, hits)
+    report.check('a repeatable tool still reaches the board every time',
+                 hits.count('analog_read') == 1, hits)
+    report.check('the model is told plainly rather than shown the same line',
+                 'unchanged this turn' in json.dumps(spam.history))
+
+    # ---- ...but a dedup cannot launder a failure back into a success ------
+    stuck_session = FakeSession()
+    stuck_box = toolmod.Toolbox(stuck_session, shell=Shell(['python']),
+                                scope=Scope())
+    stuck_session.board.analog.broken = True
+    stuck = debug.Chat(ScriptedModel([
+        {'role': 'assistant', 'content': '',
+         'tool_calls': [{'function': {'name': 'analog_read', 'arguments': {}}}]},
+        {'role': 'assistant', 'content': '',
+         'tool_calls': [{'function': {'name': 'analog_read', 'arguments': {}}}]},
+        {'role': 'assistant', 'content': 'reading holds at 24.9 C'}]), stuck_box,
+        out=io.StringIO())
+    answer = stuck.ask('read it again')
+    report.check('a repeated failing call keeps failing, not clean the second time',
+                 answer.startswith('link is down, not answered:')
+                 and stuck.link_ok is False, answer)
+
+    # ---- a call outside the plain question is not deduped across turns ----
+    fresh = debug.Chat(ScriptedModel([call('afe_power', action='on')]), box,
+                       out=io.StringIO())
+    fresh.ask('turn the front end on')
+    fresh.client.turns = [call('afe_power', action='on')]
+    hits2 = []
+    real2 = fresh.toolbox.call
+    fresh.toolbox.call = lambda name, args: (hits2.append(name), real2(name, args))[1]
+    fresh.ask('is it still on?')
+    report.check('dedup is per question, not across the whole session',
+                 hits2 == ['afe_power'], hits2)
+
+    # ---- a table read is not typed out again as the answer -----------------
+    report.check('the header row is not mistaken for a channel called smp',
+                 'smp' not in debug.READING_ROW.findall(
+                     '64 smp @2000Hz\n0  PhaseU  diff   1427.1  +0.1437V'))
+
+    retype_session = FakeSession()
+    retype_box = toolmod.Toolbox(retype_session, shell=Shell(['python']),
+                                 scope=Scope())
+    retyped = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'),
+        call('analog_read', ch=['phA']),          # the bad guess from FINDINGS
+        call('analog_read'),
+        {'role': 'assistant', 'content':
+            'PhaseU: +0.1398V, PhaseV: -0.8226V, '
+            'NTC: 2.0567V (38.85C), DCbus: 1.1197V (26.518V)'}]), retype_box,
+        out=io.StringIO())
+    answer = retyped.ask('tabellera alla AFE-kanaler')
+    report.check('a full retype of the table just shown is replaced',
+                 answer == 'table above, not restated.', answer)
+
+    insight_session = FakeSession()
+    insight_box = toolmod.Toolbox(insight_session, shell=Shell(['python']),
+                                  scope=Scope())
+    insight = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'), call('analog_read'),
+        {'role': 'assistant', 'content':
+            'NTC is running warm at 38.9 C; DCbus looks nominal.'}]),
+        insight_box, out=io.StringIO())
+    answer = insight.ask('does anything look off?')
+    report.check('a real finding that names a couple of channels survives',
+                 'running warm' in answer, answer)
+
+    one_session = FakeSession()
+    one_box = toolmod.Toolbox(one_session, shell=Shell(['python']), scope=Scope())
+    one = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'), call('analog_read', ch=['ntc']),
+        {'role': 'assistant', 'content': 'NTC is 24.9 C.'}]), one_box,
+        out=io.StringIO())
+    report.check('a single-channel question keeps its single-channel answer',
+                 one.ask('what is the temperature?') == 'NTC is 24.9 C.')
+
     # ---- a multi-row result prints as rows, not one squashed line ----
     grid = io.StringIO()
     shown = debug.Chat(ScriptedModel([call('board_info')]), box, out=grid)
@@ -800,6 +914,63 @@ def test_debug(report):
     report.check('every row of a table lands on its own line',
                  ' | ' not in printed and printed.count(chr(10)) >= len(CHANNELS),
                  printed[:120].replace(chr(10), ' / '))
+
+    # ---- the trace is the table, not a header that clips it apart ----
+    long_args = io.StringIO()
+    traced = debug.Chat(ScriptedModel([
+        call('analog_read', samples=100,
+             ch=['dc_bus', 'ntc', 'phase_a', 'phase_b', 'phase_c'])]),
+        box, out=long_args)
+    traced.ask('read everything')
+    printed = long_args.getvalue()
+    report.check('a call with long arguments does not print a header at all',
+                 'analog_read' not in printed.split(chr(10))[0]
+                 and 'more characters cut' not in printed,
+                 printed.splitlines()[:2])
+    report.check('the result rows print whole, un-clipped by the call header',
+                 'smp @' in printed or 'ERR' in printed, printed[:80])
+
+    # ---- a call the model wrote as text is still a call ----
+    pasted = ('CallCheckFunction' + chr(10)
+              + '{"name": "analog_read", "arguments": {"ch": ["NTC"],'
+                ' "rate_hz": 100, "samples": 10}}' + chr(10)
+              + 'CallCheckFunction' + chr(10)
+              + '{"name": "afe_power", "arguments": {"action": "read"}}')
+    calls, rest = debug._salvage_calls(pasted)
+    report.check('two calls written as text are both salvaged',
+                 [c['function']['name'] for c in calls]
+                 == ['analog_read', 'afe_power'] and rest == '',
+                 '%d calls' % len(calls))
+    report.check('and their nested arguments survive the parse',
+                 calls[0]['function']['arguments'].get('samples') == 10,
+                 str(calls[0]['function']['arguments']))
+
+    one, rest = debug._salvage_calls(
+        '<tool_call>{"name":"analog_read","arguments":{"ch":["NTC"]}}</tool_call>')
+    report.check('a single tagged call still works',
+                 len(one) == 1 and rest == '')
+
+    for prose in ('The NTC reads 27.4 C.',
+                  'I would call {"name": "docs"} but the front end is off.',
+                  'Set it with board.afe.on() {no tool needed}.'):
+        calls, rest = debug._salvage_calls(prose)
+        report.check('an answer is never turned into a board command',
+                     not calls and rest == prose, prose[:40])
+
+    report.check('a stray closing tag is not an answer on its own',
+                 debug._salvage_calls('done.</tool_call>') == ([], 'done.'))
+
+    spoken = debug.Chat(ScriptedModel([
+        {'role': 'assistant', 'content':
+            'CallFunction' + chr(10)
+            + '{"name": "afe_power", "arguments": {"action": "read"}}'},
+        {'role': 'assistant', 'content': 'The front end is on.'}]),
+        box, out=io.StringIO())
+    answer = spoken.ask('is the front end on?')
+    report.check('the prompt runs it rather than printing the JSON',
+                 answer == 'The front end is on.'
+                 and any(m.get('role') == 'tool' for m in spoken.history),
+                 answer[:60])
 
     attached = debug.attach(['coaxial_ollama/plans/bringup.yaml'], 300)
     report.check('an attached file is clipped, and says so',
@@ -1338,6 +1509,8 @@ def test_docs(report):
 
     report.check('dbg tells the model the documents exist',
                  'docs' in debug.SYSTEM and 'FINDINGS' in debug.SYSTEM)
+    report.check('and never to restate a result already printed above',
+                 'restate' in debug.SYSTEM)
     report.check('the runner tells it too',
                  'docs' in runner.SYSTEM and 'FINDINGS' in runner.SYSTEM)
     report.check('docs is in the default tool set',

@@ -367,6 +367,118 @@ AFE was on answered by reasoning that the NTC was *not* reading exactly 25.00.
 
 The full entry, with the numbers, is in [FINDINGS.md](FINDINGS.md).
 
+### Telling it was not enough
+
+The previous entry reworded `SYSTEM` to say, plainly, never retype a table
+already shown. Restarted with the new prompt loaded, `qwen2.5:14b` still ended
+"tabellera alla AFE-kanaler" by writing out every channel it had just read as a
+comma-separated sentence - a different shape than the markdown table the
+original rule named, same act the reworded rule named directly. Three separate
+bench sessions, three restatements. The prompt was not the fix; it was another
+sentence the model would read and then not follow.
+
+`Chat.ask` now keeps the channel names from the most recent successful
+`analog_read` in the turn, and if the final answer names all of them and
+nothing else, the answer is replaced with `table above, not restated.` - the
+same move as the link-down override two entries up: a fact the loop already
+has, that the model does not get a vote on. The bar is deliberately narrow
+(`RESTATE_MIN_CHANNELS = 3`, and every single one of that reading's channels
+has to appear) so a real one-line finding that happens to name a channel or two
+- "NTC is running warm, DCbus looks nominal" - is left alone.
+
+Building this caught a bug in itself before it shipped: the row-matching regex
+keyed on a leading digit and a word, which is also the shape of `analog`'s own
+header line, `64 smp @2000Hz` - `smp` was briefly a channel of its own count.
+Anchoring on the mode column (`diff`/`SE`) that only a real row has fixed it.
+This is why the reproduction ran against a real render before the fix was
+called done, not just against a hand-written string shaped like one.
+
+### The dedup worked, and the transcript still looked busy
+
+After the repeat-call dedup above, the same "tabulate everything" question still
+opened with a guessed channel name (`phase_1` - not in the enum, and the schema
+already says "omit for all") and closed with the model retyping every value
+`analog_read` had just printed, as a comma-separated sentence, right after
+being told not to.
+
+The middle of that transcript was not a bug: `on=1 pe15=0` real, then real
+again, then two calls caught by the dedup, is a model checking the AFE state
+before turning it on and then losing count - one legitimate check-then-act
+pair followed by two accidental repeats, exactly what the dedup exists to
+catch. The bad channel guess is the model not reading its own tool schema; it
+recovered in the same turn by omitting `ch` as documented, and nothing in that
+recovery was wrong, just one call wasted getting there.
+
+The closing restatement was the fixable half. `SYSTEM` said "never a markdown
+table" and "no second list," and the model complied with both literally -
+comma-separated prose is neither - while doing exactly the thing the rule was
+for. Reworded to say what the rule actually means: never restate the rows a
+tool result already printed above, table or not.
+
+### The same call, asked again, and again
+
+Asked to tabulate every channel, `qwen2.5:14b` turned the front end on, saw
+`on=1 pe15=0`, and turned it on again - three more times, identical call,
+identical result, each one a full round trip through the model and the board
+for a fact it already had. Nothing was wrong with the board; the model just
+could not tell it had already asked.
+
+`Chat.ask` now remembers, per question, the (name, arguments) of every call it
+has made and the result it got back. A call outside `REPEATABLE` - anything but
+`analog_read`, `run_python`, `run_command` - that repeats exactly is answered
+from that memory instead of reaching the board again, with a line that says so
+plainly: `unchanged this turn, already asked: on=1 pe15=0`. `analog_read` stays
+out of the dedup on purpose - a second reading is a new sample, not a repeat,
+and the DC bus does not hold still for a cache.
+
+The one trap in this: a repeated call after a *failed* one must not read as a
+fresh success. The dedup keeps the original result under the wrapping sentence
+and classifies the link from that, not from the sentence - otherwise
+`unchanged this turn, already asked: ERR ConnectError: ...` would not match the
+`ERR ` prefix `link is down, not answered` looks for, and a cable pulled mid-turn
+would go quiet exactly where the previous entry says it must not.
+
+### The call header, clipped, ate its own result
+
+`_trace` used to print the call above its result: name, then arguments, then
+`->`, then the first line of what came back. Fine for a short call. Asked for
+five channels at once, the arguments themselves were long enough that `clip`
+cut them, and the cut notice landed a newline into the middle of the header:
+
+    analog_read samples=100 ch=['dc_bus', 'ntc', 'phase_a', 'phase_b', 'phas
+    ... [17 more characters cut] -> 100 smp @2000Hz
+
+The `->` and the first row of the actual table were now stuck onto the end of
+a truncation notice, and the header restated something the table already says
+better - it names every channel it read, one per row. The header is gone. What
+prints now is the result, row for row, nothing above it.
+
+### A call written as text, more than one at a time
+
+`dbg.py` recovers a tool call the model typed into `content` instead of putting
+in `tool_calls` — the shape was wrong, the intent was right, and a JSON parse is
+cheaper than a wasted turn. The first version recovered exactly one call from a
+message that was *nothing but* that call, and asked "vad ar temperaturen" the
+model sent two:
+
+    CallCheckFunction
+    {"name": "analog_read", "arguments": {"ch": ["NTC"], "rate_hz": 100, "samples": 10}}
+    CallCheckFunction
+    {"name": "afe_power", "arguments": {"action": "read"}}
+
+Nothing ran, and the prompt printed all four lines as the answer. At a bench
+that does not read as a parse failure — it reads as the board having stopped
+giving values, which is the wrong thing to go and check.
+
+`_salvage_calls` now takes every call in the message, matches braces rather than
+running a non-greedy regex (`{.*?}` ends at the brace that closes `arguments`,
+so a nested argument parsed as half of itself), and keeps the old veto: with the
+tags and the call objects removed, anything left has to be marker noise —
+`tool`, `call`, `function`, `check`, split at capitals so `CallCheckFunction`
+counts as three. One word of real prose and the message is printed as the answer
+it probably is. Turning a sentence that happens to quote JSON into a board
+command is a far worse failure than showing the JSON.
+
 ### A model that stops in prose
 
 The runner nudges twice â€” "either call a tool, or call report to finish this

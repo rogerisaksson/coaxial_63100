@@ -55,7 +55,7 @@ TOOLS = [
     },
     {
         'name': 'docs',
-        'description': "This board's own documents. To answer a question use find=TEXT; doc= alone returns headings, which are titles and not answers.",
+        'description': "This board's own documents: background, not a live reading. find=TEXT to answer a question; doc= alone returns headings, not answers.",
         'inputSchema': {
             'type': 'object',
             'properties': {
