@@ -871,6 +871,39 @@ def test_debug(report):
                  answer.startswith('link is down, not answered:')
                  and 'fortfarande' not in answer, answer)
 
+    # ---- a blank answer with no call at all is not taken at face value ----
+    # Measured on this bench: the FIRST question asked after the programmer
+    # was unplugged got a blank line and nothing else - link_ok was still
+    # True right up to that turn (nothing had failed yet to set it False), so
+    # the "stale refusal" check above never triggered, and the model's own
+    # empty content, no call, printed as silence with no error in sight.
+    blank_session = SimulatedSession()
+    blank_box = toolmod.Toolbox(blank_session, shell=Shell(['python']),
+                                scope=Scope())
+    blank_session.board.broken = True
+    blank = debug.Chat(ScriptedModel([{'role': 'assistant', 'content': ''}]),
+                       blank_box, out=io.StringIO())
+    answer = blank.ask('ge mig en tabell')
+    report.check('a blank answer with no call still gets a real check',
+                 answer.startswith('link is down, not answered:')
+                 and blank.link_ok is False, answer)
+
+    # ---- ...and if the link turns out fine, the model gets a real turn ----
+    blank_ok_session = SimulatedSession()
+    blank_ok_box = toolmod.Toolbox(blank_ok_session, shell=Shell(['python']),
+                                   scope=Scope())
+    ok_hits = []
+    real_blank_ok_call = blank_ok_box.call
+    blank_ok_box.call = lambda name, args: (
+        ok_hits.append(name), real_blank_ok_call(name, args))[1]
+    blank_ok = debug.Chat(ScriptedModel([
+        {'role': 'assistant', 'content': ''}, call('analog_read')]),
+        blank_ok_box, out=io.StringIO())
+    blank_ok.ask('ge mig en tabell')
+    report.check('a blank answer when the link is fine gets a real turn too',
+                 ok_hits == ['link', 'analog_read'] and blank_ok.link_ok is True,
+                 ok_hits)
+
     # ---- a failed read is not answered from an old context ----
     stale_session = SimulatedSession()
     stale_box = toolmod.Toolbox(stale_session, shell=Shell(['python']),
