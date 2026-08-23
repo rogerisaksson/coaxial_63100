@@ -59,8 +59,11 @@ ICON_WAIT_FALLBACK = '.'
 ICON_BUSY_FALLBACK = '~'
 ICON_ERROR_FALLBACK = 'X'
 
-BARS = ('|', '/', '–', '\\')
-BARS_FALLBACK = ('|', '/', '-', '\\')
+# No '|' here on purpose: the bookends either side of the icon group are
+# literal pipes, and a bar frozen on '|' read as a stray fourth one rather
+# than something turning.
+BARS = ('/', '–', '\\')
+BARS_FALLBACK = ('/', '-', '\\')
 
 SAVE = '\x1b7'
 RESTORE = '\x1b8'
