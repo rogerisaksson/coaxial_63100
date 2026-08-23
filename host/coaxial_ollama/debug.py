@@ -42,7 +42,7 @@ from coaxial_mcp import render                        # noqa: E402
 
 from . import language
 from . import tools as toolmod                       # noqa: E402
-from .spinner import spinning_prompt                 # noqa: E402
+from . import spinner as spin                        # noqa: E402
 from .sandbox import Scope, Shell, clip              # noqa: E402
 
 # Deliberately terse, and every line of it earns its place. No restating the
@@ -883,21 +883,18 @@ def repl(chat, hold=False):
             try:
                 # Read fresh every time, not captured once: /reconnect flips
                 # this mid-loop and the very next prompt is what should show it.
-                stop = spinning_prompt(PROMPT, sys.stdout, ok=chat.link_ok)
-                try:
-                    line = input().strip()
-                finally:
-                    # Before anything else is printed: a frame landing in the
-                    # middle of an answer puts a glyph inside the text.
-                    stop()
+                face = spin.prompt(PROMPT, sys.stdout, ok=chat.link_ok)
+                line = input().strip()
             except (EOFError, KeyboardInterrupt):
                 print()
                 break
             if not line:
                 continue
+            face.recolor(spin.CYAN)
             try:
                 done = chat.command(line)
                 print(done if done is not None else chat.ask(line))
+                face.recolor(spin.GREEN if chat.link_ok else spin.RED)
             except SystemExit:
                 break
             except (RigError, ValueError, OllamaError) as exc:
@@ -906,6 +903,7 @@ def repl(chat, hold=False):
                 # mid-turn. One bad turn is not a reason to lose the rest of
                 # the conversation - ollama respawns llama-server on the next
                 # request, same as the board answers again once reconnected.
+                face.recolor(spin.RED)
                 print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)))
         print(chat.cost_line())
     finally:
@@ -957,10 +955,9 @@ def main(argv=None):
         print('ollama: %s' % exc, file=sys.stderr)
         print('slash commands still work; questions will not.', file=sys.stderr)
 
-    # Also what the prompt's spinner shows in the REPL below: green and
-    # turning forward once this is True, red and turning backward once it
-    # is not - --no-board counts as not, since board tools will fail there
-    # by design, same as a dead cable.
+    # Also what the prompt's face shows in the REPL below: green once this is
+    # True, red once it is not - --no-board counts as not, since board tools
+    # will fail there by design, same as a dead cable.
     link_ok = False
     if not args.no_board:
         # Opened here rather than left to the first board tool call, so a dead

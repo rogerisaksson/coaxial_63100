@@ -474,82 +474,91 @@ def test_scope_repairs(report):
 
 
 def test_prompt(report):
-    """The spinner keeps turning while you type, and never over what you typed."""
-    import time as clock
+    """The prompt's face is static; only its colour changes, in place."""
     from coaxial_ollama import spinner as spin
 
+    # A real robot ("\U0001F916") is outside cp1252 entirely - not a wide or
+    # combining character, just absent - so the fixture used for the "normal"
+    # behaviour tests below has to be genuinely Unicode-capable, same as this
+    # bench's actual console would need to be to show it for real. cp1252 gets
+    # its own fixture further down, where the fallback itself is under test.
     class Tty(io.StringIO):
-        encoding = 'cp1252'
+        encoding = 'utf-8'
 
         def isatty(self):
             return True
 
     screen = Tty()
-    stop = spin.spinning_prompt('Coaxial_63100', screen, tick=0.01)
-    clock.sleep(0.08)
-    stop()
-    drawn = screen.getvalue()
-    header_end = drawn.index('> ') + 2
+    face = spin.prompt('Coaxial_63100', screen)
+    written = screen.getvalue()
 
+    # ascii(), not repr(): this bench's own console is cp1252 (confirmed
+    # below), and a detail string is printed on PASS too - a raw robot in it
+    # would crash the very report that is supposed to say the check passed.
     report.check('the face leads, the prompt text follows it',
-                 drawn.startswith(spin.GREEN + spin.OK_GLYPHS[0])
-                 and drawn.count('Coaxial_63100') == 1, repr(drawn[:24]))
+                 written.startswith(spin.GREEN + spin.ROBOT)
+                 and written.count('Coaxial_63100') == 1, ascii(written[:16]))
     report.check('one space separates the face from the prompt, nothing else',
-                 drawn.startswith('%s%s%s %s> '
-                                   % (spin.GREEN, spin.OK_GLYPHS[0], spin.RESET,
-                                      'Coaxial_63100')),
-                 repr(drawn[:32]))
-    report.check('it keeps painting after the prompt is up',
-                 drawn.count(spin.SAVE) >= 3, '%d frames' % drawn.count(spin.SAVE))
-    report.check('every frame saves the cursor and puts it back',
-                 drawn.count(spin.SAVE) == drawn.count(spin.RESTORE))
-    report.check('a working link paints the glyph green',
-                 drawn.count(spin.GREEN) >= 3 and spin.RED not in drawn)
-    report.check('nothing is redrawn except the spinner column',
-                 chr(13) not in drawn and 'Coaxial' not in drawn[header_end:])
-    report.check('stopping is final - no frame lands in the next answer',
-                 drawn == screen.getvalue())
+                 written == '%s%s%s %s> ' % (spin.GREEN, spin.ROBOT, spin.RESET,
+                                             'Coaxial_63100'),
+                 ascii(written))
 
-    down = Tty()
-    stop = spin.spinning_prompt('Coaxial_63100', down, tick=0.01, ok=False)
-    clock.sleep(0.08)
-    stop()
-    unwell = down.getvalue()
+    down = spin.prompt('Coaxial_63100', Tty(), ok=False)
     report.check('a dead link paints the face red, not green',
-                 unwell.count(spin.RED) >= 3 and spin.GREEN not in unwell)
-    report.check('and it is a different face, not the same one recoloured',
-                 not set(spin.OK_GLYPHS) & set(spin.BAD_GLYPHS)
-                 and any(g in unwell for g in spin.BAD_GLYPHS))
+                 down.out.getvalue().startswith(spin.RED + spin.ROBOT))
 
-    report.check('the eye is a real bullet, not a look-alike',
-                 spin.OK_GLYPHS[0][1] == chr(0x2022)
-                 and spin.OK_GLYPHS[0][1].encode('cp1252') == bytes([0x95]))
-    report.check('every frame in a state is the same width, so a repaint '
-                 'never leaves a stray character behind',
-                 len(set(len(g) for g in spin.OK_GLYPHS)) == 1
-                 and len(set(len(g) for g in spin.BAD_GLYPHS)) == 1)
-    report.check('a console that cannot hold it gets ASCII, not a question mark',
-                 spin._frames(Tty(), ok=True) == spin.OK_GLYPHS
-                 and spin.OK_FALLBACK == ('[o_o]', '[o_O]'))
+    # ---- recoloring repaints in place, one row up, never the line itself --
+    live = Tty()
+    face = spin.prompt('Coaxial_63100', live, ok=True)
+    before = live.getvalue()
+    face.recolor(spin.CYAN)
+    after = live.getvalue()
 
-    class Ascii(Tty):
+    report.check('recolor adds a repaint, it does not touch what was written',
+                 after.startswith(before), ascii(after))
+    added = after[len(before):]
+    report.check('the repaint saves the cursor, goes up one row to column 1, '
+                 'and comes back',
+                 added == spin.SAVE + spin.UP + spin.COLUMN + spin.CYAN
+                 + spin.ROBOT + spin.RESET + spin.RESTORE, ascii(added))
+
+    face.recolor(spin.RED)
+    face.recolor(spin.GREEN)
+    report.check('a face can be recoloured more than once - each turn ends '
+                 'in exactly one state',
+                 live.getvalue().count(spin.SAVE) == 3)
+
+    report.check('the robot is a real emoji, not a look-alike run of glyphs',
+                 spin.ROBOT == '\U0001F916')
+
+    class Cp1252(io.StringIO):
+        encoding = 'cp1252'
+
+    report.check("this bench's own console cannot hold the robot at all - "
+                 'it gets ASCII, not a question mark',
+                 spin._glyph(Cp1252()) == spin.ROBOT_FALLBACK)
+
+    class Ascii(Cp1252):
         encoding = 'ascii'
 
-    report.check('and that fallback is chosen by asking the stream',
-                 spin._frames(Ascii(), ok=True) == spin.OK_FALLBACK)
-    report.check('the error face is plain ASCII already, no fallback needed',
-                 spin._frames(Ascii(), ok=False) == spin.BAD_GLYPHS)
+    report.check('and the same fallback covers a plain ASCII stream too',
+                 spin._glyph(Ascii()) == spin.ROBOT_FALLBACK)
+    report.check('a genuinely Unicode-capable stream gets the real robot',
+                 spin._glyph(Tty()) == spin.ROBOT)
 
-    # A pipe has no cursor to save: one static prompt, no escapes, no thread.
-    # It has no .encoding either, so it gets the ASCII face same as Ascii().
+    # A pipe has no cursor to save: one static prompt, no escapes, recolor
+    # is a no-op. It has no .encoding either, so it gets the ASCII fallback
+    # same as Ascii() does.
     piped = io.StringIO()
-    noop = spin.spinning_prompt('Coaxial_63100', piped)
-    noop()
+    quiet = spin.prompt('Coaxial_63100', piped)
+    before_pipe = piped.getvalue()
+    quiet.recolor(spin.RED)
     report.check('a redirected prompt is static and escape-free',
-                 piped.getvalue() ==
-                 '%s%s%s %s> ' % (spin.GREEN, spin.OK_FALLBACK[0], spin.RESET,
-                                  'Coaxial_63100'),
-                 repr(piped.getvalue()))
+                 before_pipe == '%s%s%s %s> ' % (spin.GREEN, spin.ROBOT_FALLBACK,
+                                                 spin.RESET, 'Coaxial_63100'),
+                 repr(before_pipe))
+    report.check('and recolor on a redirected stream does nothing',
+                 piped.getvalue() == before_pipe)
 
 
 def test_shell(report):
