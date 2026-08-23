@@ -53,6 +53,18 @@ ambiguity to inherit in the first place.
 ticking for the busy phase - the caller passes in the same lock both sides
 write through, so a tick and a trace line never interleave into garbage.
 
+How many rows "up" actually means is not fixed at 1 the moment Enter is
+pressed, either - trace output between busy() and stop() can be one tool
+result or five, a single line or a whole table, and the answer itself can
+run to several lines before stop() ever runs. Measured live: a repaint that
+still thought it was one row up landed inside a channel table mid-print,
+overwriting the start of a data row with the prompt group instead of
+climbing back to the actual prompt line above it. Prompt wraps whatever
+stream it is given in a small counter that everything else - _trace(),
+the final answer, an error line - writes through as well, so "up" is
+recomputed from how many newlines have actually gone by since busy(), not
+guessed at once and trusted for however long the question takes.
+
 No console, no VT, or output redirected: the prompt is printed once, static,
 and busy()/stop() only change state, painting nothing further. A script
 piping commands in gets exactly what it would have got before any of this
@@ -123,15 +135,51 @@ def _vt(out):
         return False
 
 
+class _Tracked:
+    """A stream that counts the newlines passed through it, otherwise
+    behaving exactly like the one it wraps.
+
+    Anything can print between busy() and stop() - the caller does not have
+    to be the one telling this how much. Wrapping the stream is the only way
+    to know the true row count without every future caller remembering to
+    report it themselves, and a caller that forgets is exactly how the bar
+    ends up climbing to a row that no longer holds the prompt.
+    """
+
+    def __init__(self, real):
+        self.real = real
+        self.lines = 0
+
+    def write(self, text):
+        self.lines += text.count('\n')
+        return self.real.write(text)
+
+    def flush(self):
+        return self.real.flush()
+
+    def isatty(self):
+        try:
+            return self.real.isatty()
+        except (AttributeError, ValueError):
+            return False
+
+    @property
+    def encoding(self):
+        return getattr(self.real, 'encoding', None)
+
+
 class Prompt:
     """One prompt line: a robot/icon/pager group up front, and a bar that
     ticks on its own thread until stop()ped - inside the text's own '1' if
     it has one, appended after it otherwise. Every repaint rewrites the
     whole group from column 1; see the module docstring for why that,
-    rather than an absolute column, is what makes this correct."""
+    rather than an absolute column, is what makes this correct. `out` is
+    wrapped so a caller (debug.py's repl()) can point Chat's own output at
+    the same tracked stream and have "how far up" stay correct regardless
+    of what prints while the bar is busy."""
 
     def __init__(self, text, out, lock=None, ok=True, tick=TICK):
-        self.out = out
+        self.out = _Tracked(out)
         self.lock = lock or threading.Lock()
         self.vt = _vt(out)
         self.tick = tick
@@ -168,7 +216,12 @@ class Prompt:
                                        self.head, self.color, glyph, RESET)
 
     def _paint(self):
-        up = (UP % self.rows_up) if self.rows_up else ''
+        # rows_up is the fixed "Enter moved to a fresh row" step; out.lines
+        # is however many more rows whatever else printed since busy() -
+        # both together are the true climb back to the prompt line, not a
+        # number decided once and trusted for as long as the question takes.
+        rows = self.rows_up + self.out.lines if self.rows_up else 0
+        up = (UP % rows) if rows else ''
         try:
             with self.lock:
                 self.out.write(SAVE + up + '\r' + self._prefix() + RESTORE)
@@ -184,7 +237,12 @@ class Prompt:
             self._paint()
 
     def busy(self):
-        """Call once input() has returned: yellow, icon and bar both."""
+        """Call once input() has returned: yellow, icon and bar both.
+
+        Resets the line count first: this is the moment "one row up" starts
+        being true, and it stays true only until the first thing prints.
+        """
+        self.out.lines = 0
         self.color = YELLOW
         self.icon = self.icon_busy
         self.rows_up = 1

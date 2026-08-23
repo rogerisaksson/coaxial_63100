@@ -516,14 +516,14 @@ def test_prompt(report):
     no_digit = spin.prompt('no-ones-here', Tty(), tick=10)
     report.check("text with no '1' gets the bar appended after it instead, "
                  'same as the very first version of this',
-                 no_digit.out.getvalue().endswith(
+                 no_digit.out.real.getvalue().endswith(
                      'no-ones-here%s%s%s> ' % (spin.GREEN, spin.BARS[0],
                                                spin.RESET)),
-                 ascii(no_digit.out.getvalue()))
+                 ascii(no_digit.out.real.getvalue()))
     no_digit.stop(True)
 
     down = spin.prompt(text, Tty(), tick=10, ok=False)
-    down_written = down.out.getvalue()
+    down_written = down.out.real.getvalue()
     report.check('a dead link starts with the error icon, red, not waiting',
                  down_written == '|%s%s%s| %s%s%s%s%s> '
                  % (spin.ROBOT, spin.ICON_ERROR, spin.PAGER, head, spin.RED,
@@ -580,6 +580,32 @@ def test_prompt(report):
                  added2 == spin.SAVE + '\r' + still_waiting._prefix()
                  + spin.RESTORE,
                  ascii(added2))
+
+    # ---- reported live: a tick landed inside a channel table mid-print,   -
+    # ---- because "one row up" was fixed at busy() time, not recomputed ---
+    # ---- as _trace() kept printing more of it. -----------------------------
+    busy_screen = Tty()
+    drifting = spin.prompt(text, busy_screen, tick=10, ok=True)
+    drifting.busy()
+    report.check('right after busy(), before anything else prints, up is '
+                 'exactly one row',
+                 drifting.rows_up + drifting.out.lines == 1)
+    # Chat.out is repointed at face.out for exactly this reason - whatever
+    # _trace() or the final answer prints goes through the same counter.
+    drifting.out.write('0  PhaseU  diff    899.2  +0.0906V\n')
+    drifting.out.write('1  PhaseV  diff  -8672.5  -0.8734V\n'
+                       '2  PhaseW  diff    -65.3  -0.0066V\n')
+    report.check('the tracked stream counts every newline written through '
+                 'it, from any number of separate writes',
+                 drifting.out.lines == 3)
+    before3 = busy_screen.getvalue()
+    drifting.stop(True)
+    added3 = busy_screen.getvalue()[len(before3):]
+    report.check("stop() climbs 1 (Enter) + 3 (what printed since) = 4 "
+                 'rows, not the 1 it would have used before this fix',
+                 added3 == spin.SAVE + (spin.UP % 4) + '\r'
+                 + drifting._prefix() + spin.RESTORE,
+                 ascii(added3))
 
     # ---- it actually ticks on a real thread when the stream is a terminal -
     ticking = Tty()

@@ -898,9 +898,13 @@ def repl(chat, hold=False):
             # Read fresh every time, not captured once: /reconnect flips this
             # mid-loop and the very next prompt is what should show it. The
             # lock is shared with Chat._trace() so a tick and a trace line
-            # printed mid-question never interleave on the same stream.
+            # printed mid-question never interleave on the same stream, and
+            # chat.out is pointed at the same tracked stream so the prompt
+            # knows how many rows whatever _trace() prints actually add -
+            # not a number decided once and trusted for the whole question.
             face = spin.prompt(PROMPT, sys.stdout, lock=chat.print_lock,
                                ok=chat.link_ok)
+            chat.out = face.out
             try:
                 line = input().strip()
             except (EOFError, KeyboardInterrupt):
@@ -913,7 +917,8 @@ def repl(chat, hold=False):
             face.busy()
             try:
                 done = chat.command(line)
-                print(done if done is not None else chat.ask(line))
+                print(done if done is not None else chat.ask(line),
+                      file=face.out)
                 face.stop(chat.link_ok)
             except SystemExit:
                 face.stop(chat.link_ok)
@@ -925,7 +930,8 @@ def repl(chat, hold=False):
                 # the conversation - ollama respawns llama-server on the next
                 # request, same as the board answers again once reconnected.
                 face.stop(False)
-                print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)))
+                print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)),
+                      file=face.out)
         print(chat.cost_line())
     finally:
         # The 30-minute keep_alive that makes turn nine as quick as turn two
