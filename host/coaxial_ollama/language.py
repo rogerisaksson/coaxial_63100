@@ -50,7 +50,8 @@ SCRIPTS = (
 # questions, and every entry is a chance to collide with another language.
 STOPWORDS = {
     'Swedish':    ('och', 'är', 'för', 'inte', 'att', 'det', 'som', 'på',
-                   'med', 'vad', 'hur', 'kortet', 'läs', 'jag', 'kan', 'ska'),
+                   'med', 'vad', 'hur', 'kortet', 'läs', 'jag', 'kan', 'ska',
+                   'över', 'från'),
     'English':    ('the', 'and', 'is', 'what', 'how', 'does', 'are', 'of',
                    'to', 'read', 'why', 'can', 'this', 'board'),
     'German':     ('und', 'ist', 'nicht', 'das', 'der', 'die', 'was', 'wie',

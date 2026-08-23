@@ -935,6 +935,37 @@ def test_debug(report):
     report.check('an unrelated answer survives even if link_ok started False',
                  answer == '2+2 is 4.', answer)
 
+    # ---- naming a tool instead of calling it gets nudged into calling it ----
+    # Measured on this bench: asked for a table, gemma4:12b answered "jeg ma
+    # utfore en `analog_read`" and stopped - it named the exact call needed
+    # and never made it. There is no fact yet to substitute for a call that
+    # never happened, so this nudges rather than overriding.
+    narrate_session = SimulatedSession()
+    narrate_box = toolmod.Toolbox(narrate_session, shell=Shell(['python']),
+                                  scope=Scope())
+    narrate_hits = []
+    real_narrate_call = narrate_box.call
+    narrate_box.call = lambda name, args: (
+        narrate_hits.append(name), real_narrate_call(name, args))[1]
+    narrate = debug.Chat(ScriptedModel([
+        {'role': 'assistant', 'content': 'Jeg ma utfore en `analog_read`.'},
+        call('afe_power', action='on'), call('analog_read')]), narrate_box,
+        out=io.StringIO())
+    narrate.ask('ger du mig en tabell over matvarden')
+    report.check('a narrated tool name is nudged into an actual call',
+                 narrate_hits == ['afe_power', 'analog_read'], narrate_hits)
+
+    # ---- ...but nudging is not an open invitation to loop forever ----
+    stuck_narrate_session = SimulatedSession()
+    stuck_narrate_box = toolmod.Toolbox(stuck_narrate_session,
+                                        shell=Shell(['python']), scope=Scope())
+    stuck_narrate = debug.Chat(ScriptedModel([
+        {'role': 'assistant', 'content': 'Jeg ma utfore en `analog_read`.'}] * 3),
+        stuck_narrate_box, out=io.StringIO())
+    answer = stuck_narrate.ask('ger du mig en tabell over matvarden')
+    report.check('two nudges and no more: the narration is left to stand',
+                 answer == 'Jeg ma utfore en `analog_read`.', answer)
+
     # ---- a failed read is not answered from an old context ----
     stale_session = SimulatedSession()
     stale_box = toolmod.Toolbox(stale_session, shell=Shell(['python']),

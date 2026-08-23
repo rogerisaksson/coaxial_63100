@@ -163,6 +163,16 @@ RESTATE_MIN_CHANNELS = 3
 # exactly as surely as a complete one.
 MARKDOWN_TABLE_ROW = re.compile(r'^\s*\|.*\|\s*$', re.M)
 
+# A tool name distinctive enough that seeing one in prose is real evidence the
+# model described the call it should have made instead of making it - not
+# 'link' or 'docs', ordinary words that turn up in unrelated sentences too
+# often to mean anything. Measured on this bench: asked for a table, gemma4:12b
+# answered "jeg ma utfore en `analog_read`" and stopped there - it knew
+# exactly what to do and did not do it.
+NAMED_TOOL = re.compile(r'\b(analog_read|afe_power|board_info|self_test|'
+                        r'gpio_pin|gpio_port|test_gate|run_python|'
+                        r'run_command)\b')
+
 
 def _is_retype(answer, channels):
     """Whether `answer` is a mechanical restatement of a reading's `channels`.
@@ -436,6 +446,7 @@ class Chat:
         last_channels = None      # names in the most recent analog_read table
         read_attempted = False    # analog_read was called this turn, win or lose
         seen = {}          # (name, args) this turn -> its rendered result
+        nudges = 0         # times told to call the tool it just named instead
 
         for _ in range(max_calls + 1):
             before = self.client.usage()
@@ -483,6 +494,17 @@ class Chat:
                     if not self.link_ok:
                         return 'link is down, not answered: %s' % probe
                     continue    # confirmed up - give the model a real turn
+                # It knew exactly what to do and did not do it. Nudged, not
+                # silenced or replaced: there is no fact in hand yet to
+                # substitute, only a call worth actually making. Bounded the
+                # same as the runner's own prose-stop nudge, so a model that
+                # keeps narrating instead of calling still ends the turn
+                # rather than spending it forever asking nicely.
+                if answer and NAMED_TOOL.search(answer) and nudges < 2:
+                    nudges += 1
+                    self.history.append({'role': 'user', 'content':
+                        'Call the tool now - do not describe it.'})
+                    continue
                 break
 
             for call in calls:
