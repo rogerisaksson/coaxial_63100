@@ -90,6 +90,19 @@ newest of each and puts them on PATH for one shell; `setup.ps1 -Check` says
 which are absent. The board's VCP is **COM4**; the
 ST-Link is an STLINK-V3SET.
 
+## After a change lands
+
+Once a change is made, tested and verified, ask — do not assume either way:
+
+> **Continue, or commit and push?**
+> *Continue* — keep working in this session
+> *Commit and push* — stage, commit, push to origin/main
+
+Two options, nothing else, same shape as the question below. A session here
+runs several small fix-test cycles in a row; asking after each one is what
+keeps the tree from either committing mid-investigation or piling up
+unpushed work nobody asked to hold onto.
+
 ## Ask the board, do not reason about it
 
 There is a local model on this machine with the board's eleven tools wired to
