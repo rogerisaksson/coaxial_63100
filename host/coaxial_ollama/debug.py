@@ -303,15 +303,21 @@ def _printable(stream):
     """Make a Windows console survive an answer in somebody else's alphabet.
 
     The model answers in the language it was asked in, and the console here
-    encodes with the locale codepage - cp1252 on this bench. Swedish and German
-    are inside it and render correctly; an ohm sign, a Polish l-stroke or any
+    encodes with whatever codepage it started with - cp1252 for a bare
+    `python dbg.py`, UTF-8 for board_prompt.ps1, which sets its own console's
+    codepage before Python ever starts (see there for why that is safe to do
+    in that one place and not here). Under cp1252, Swedish and German are
+    inside it and render correctly; an ohm sign, a Polish l-stroke or any
     Cyrillic is not, and the default error handler turns that into a
-    UnicodeEncodeError that kills the answer after the measurement was already
-    taken. Replacing the character loses a glyph; raising loses the reading.
+    UnicodeEncodeError that kills the answer after the measurement was
+    already taken. Replacing the character loses a glyph; raising loses the
+    reading.
 
-    The codepage is left alone on purpose. Forcing UTF-8 would fix the encode
-    and hand a legacy console mojibake for the characters it *can* display,
-    which is a worse trade for the languages actually spoken at this bench.
+    This never forces an encoding of its own - it reads whichever one Python
+    already detected from the console. Forcing UTF-8 here regardless of what
+    the console itself is set to would fix the encode and hand a mismatched
+    console mojibake for the characters it *can* display, which is a worse
+    trade for the languages actually spoken at this bench.
     """
     try:
         stream.reconfigure(errors='replace')

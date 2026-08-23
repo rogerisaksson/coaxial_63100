@@ -133,6 +133,25 @@ $ErrorActionPreference = 'Continue'
 $Root = $PSScriptRoot
 $Api = 'http://localhost:11434'
 
+# UTF-8, console and all: dbg.py's prompt has a robot and a pager either side
+# of its spinner, and Python auto-detects its own stdout encoding from this
+# console's codepage at startup, not from anything Python-side. Left as the
+# legacy default (cp1252 on this bench), forcing Python's side to UTF-8
+# without also changing this would turn every multi-byte character it writes
+# into mojibake instead of the plain UnicodeEncodeError it started as - which
+# is why dbg.py's own _printable() deliberately never forces this. Doing it
+# here instead is safe precisely because it is scoped to this one console:
+# the task that launches this script passes -NoProfile, so nothing here
+# reaches a shell the user already had open, and a bare `python dbg.py` run
+# from an unrelated console is untouched and keeps falling back to ASCII.
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+} catch {
+    # Not fatal - the robot and pager fall back to ASCII either way, and
+    # _printable()'s errors='replace' still covers whatever text can't be
+    # helped by this.
+}
+
 function Say {
     param([string]$State, [string]$Text, [string]$Detail = '')
     $colour = 'Gray'
