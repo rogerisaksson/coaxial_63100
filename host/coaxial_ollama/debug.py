@@ -152,6 +152,35 @@ READING_ROW = re.compile(r'^\d+\s+(\S+)\s+(?:diff|SE)\b', re.M)
 # worth. Below this the override stays out of the way.
 RESTATE_MIN_CHANNELS = 3
 
+# Two or more pipe-delimited lines, the shape of a markdown table row or its
+# `| :--- |` header separator. Measured on this bench: asked to "tabellera",
+# gemma4:12b wrote the real reading as a markdown table and then hit the
+# --words cap partway through the last row - which meant it had not yet named
+# every channel, so the all-channels-present check below never matched and
+# the cut-off table printed anyway. This checks the SHAPE of a table instead
+# of waiting for it to finish naming channels, so a truncated one is caught
+# exactly as surely as a complete one.
+MARKDOWN_TABLE_ROW = re.compile(r'^\s*\|.*\|\s*$', re.M)
+
+
+def _is_retype(answer, channels):
+    """Whether `answer` is a mechanical restatement of a reading's `channels`.
+
+    Two shapes count, either being enough on its own: every channel named
+    (the original catch, for a restatement written out as prose), or the
+    answer has the shape of a markdown table at all (which catches one that
+    got cut off before naming the last channel - see MARKDOWN_TABLE_ROW).
+    A real table is never a legitimate answer here regardless of length,
+    since SYSTEM already says not to write one.
+    """
+    if not (answer and channels):
+        return False
+    if MARKDOWN_TABLE_ROW.search(answer):
+        return True
+    return (len(channels) >= RESTATE_MIN_CHANNELS
+           and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
+                  for ch in channels))
+
 
 # Words a chat template leaks around a call the model wrote as text instead of
 # in the tool_calls field. Measured on this bench: asked "vad ar temperaturen",
@@ -489,9 +518,7 @@ class Chat:
         # Silence, not a line saying so: the table is the trace directly above
         # this, on the same screen, and a reader looking at it does not need
         # to be told it is not being typed out again.
-        elif (last_channels and len(last_channels) >= RESTATE_MIN_CHANNELS
-              and answer and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
-                                 for ch in last_channels)):
+        elif _is_retype(answer, last_channels):
             answer = ''
         # The two backstops above only look at *this* turn's analog_read calls,
         # so a turn that never calls it at all slips past both. Measured on
@@ -506,10 +533,7 @@ class Chat:
         # survives across turns for exactly this - the turn-local
         # `last_channels` above is always None here, since a successful
         # analog_read this turn would have set it too.
-        elif (not read_attempted and self.last_channels
-              and len(self.last_channels) >= RESTATE_MIN_CHANNELS and answer
-              and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
-                     for ch in self.last_channels)):
+        elif not read_attempted and _is_retype(answer, self.last_channels):
             answer = 'no reading taken this turn - ask again.'
         # An answer that hit the token cap stops mid-sentence, and a table that
         # stops mid-row reads as complete to everyone except a reader counting

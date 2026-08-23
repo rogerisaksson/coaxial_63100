@@ -910,6 +910,26 @@ def test_debug(report):
     report.check('a full retype of the table just shown is silenced, not '
                  'echoed back', answer == '', answer)
 
+    # Measured on this bench: cut off by --words before naming every channel,
+    # a markdown-table retype used to slip past the all-channels-present check
+    # entirely - the very shape SYSTEM already forbids, printed anyway because
+    # it never finished. The shape alone is now enough to catch it.
+    truncated_session = FakeSession()
+    truncated_box = toolmod.Toolbox(truncated_session, shell=Shell(['python']),
+                                    scope=Scope())
+    truncated = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'),
+        call('analog_read'),
+        {'role': 'assistant', 'content':
+            '| Kanal | Typ | Raw | Volt |\n'
+            '| :--- | :--- | :--- | :--- |\n'
+            '| 0 | PhaseU | 911.6 | +0.0918V |\n'
+            '| 1 | PhaseV | -8633.4 | -0.8695V |'}]),   # cut off: no NTC, DCbus
+        truncated_box, out=io.StringIO())
+    answer = truncated.ask('kan du tabellera alla analoga matvarden')
+    report.check('a markdown table is silenced even cut off before every '
+                 'channel is named', answer == '', answer)
+
     insight_session = FakeSession()
     insight_box = toolmod.Toolbox(insight_session, shell=Shell(['python']),
                                   scope=Scope())
