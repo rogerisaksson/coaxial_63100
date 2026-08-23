@@ -79,13 +79,14 @@ ROBOT_FALLBACK = 'o'
 PAGER = '\U0001F4DF'                     # "📟"
 PAGER_FALLBACK = '#'
 
-# U+FE0F (the variation selector after the pause mark) forces emoji
-# presentation on it, which - unlike the other two - is text-presentation by
-# default in most fonts. Matching their rendered width no longer matters for
-# the column math (there is none any more), but it still matters for not
-# looking like a plain punctuation mark sitting between two full-colour
-# pictures.
-ICON_WAIT = '⏸️'               # "⏸️"
+# All three need to be full-colour by default, not text glyphs forced into
+# colour with a variation selector - a forced one sits at a slightly
+# different advance width in some fonts, which reads as uneven spacing next
+# to the other two even though there is no actual space character anywhere
+# in this string. ⏸ PAUSE BUTTON is text-presentation by default and
+# needs U+FE0F to become one; ⌛/⏳ (hourglass) do not, so waiting
+# uses one of those instead.
+ICON_WAIT = '⏳'                     # "⏳"
 ICON_BUSY = '\U0001F504'                 # "🔄"
 ICON_ERROR = '❌'                    # "❌"
 ICON_WAIT_FALLBACK = '.'

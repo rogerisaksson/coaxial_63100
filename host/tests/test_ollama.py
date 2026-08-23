@@ -646,9 +646,11 @@ def test_prompt(report):
                  spin.ROBOT == '\U0001F916' and spin.PAGER == '\U0001F4DF'
                  and spin.ICON_BUSY == '\U0001F504'
                  and spin.ICON_ERROR == '❌')
-    report.check('the waiting icon carries a variation selector forcing '
-                 'emoji presentation, unlike the other two by default',
-                 spin.ICON_WAIT == '⏸️')
+    report.check('the waiting icon is emoji-presentation by default too - '
+                 'a single codepoint, no variation selector needed unlike '
+                 'the pause mark it replaced',
+                 spin.ICON_WAIT == '⏳' and len(spin.ICON_WAIT) == 1
+                 and ord(spin.ICON_WAIT) == 0x23F3)
     report.check('none of that matters for positioning any more - every '
                  'repaint rewrites from column 1, not a computed one',
                  not hasattr(face, 'icon_column')
