@@ -444,9 +444,9 @@ class Chat:
         answer = ''
         link_error = None
         last_channels = None      # names in the most recent analog_read table
-        read_attempted = False    # analog_read was called this turn, win or lose
         seen = {}          # (name, args) this turn -> its rendered result
-        nudges = 0         # times told to call the tool it just named instead
+        nudges = 0         # times told to call the tool it just named, or to
+                           # take a fresh reading instead of an old one
 
         for _ in range(max_calls + 1):
             before = self.client.usage()
@@ -477,10 +477,11 @@ class Chat:
 
             self.history.append(message)
             if not calls:
-                # Two shapes of the same problem: the model answering "it
-                # doesn't work" from memory instead of checking again, and
-                # the model answering nothing at all, blank content and no
-                # call. Both are gated on self.last_channels - a real reading
+                # Three shapes of the same problem: the model answering "it
+                # doesn't work" from memory instead of checking again, the
+                # model answering nothing at all, and the model quietly
+                # retyping the last reading instead of taking a new one. All
+                # three are gated on self.last_channels - a real reading
                 # having actually succeeded at some point THIS session - not
                 # on link_ok alone. Measured here: without that gate, this
                 # fired on the very first question of a session that started
@@ -489,11 +490,31 @@ class Chat:
                 # board, because link_ok was already False from the startup
                 # probe. Nothing was ever read successfully to be stale about;
                 # there is no fact here worth rechecking a board for.
-                if self.last_channels and (not self.link_ok or not answer):
+                #
+                # `not last_channels` (the turn-local copy) keeps this out of
+                # the way of a retype of a reading THIS turn already took: that
+                # case is fresh, not stale, and the plain silencer below deals
+                # with it more cheaply than a probe and a nudge would.
+                stale = (not last_channels) and self.last_channels and (
+                    not self.link_ok or not answer
+                    or _is_retype(answer, self.last_channels))
+                if stale:
                     probe = self._probe_link()
                     if not self.link_ok:
                         return 'link is down, not answered: %s' % probe
-                    continue    # confirmed up - give the model a real turn
+                    # Confirmed up. Measured here: told just that much, the
+                    # turn still ended on "ask again" and the operator had to
+                    # retype the same question two more times before the model
+                    # finally measured - each one correctly reported, none of
+                    # them useful. A nudge spends a turn this loop already
+                    # owns instead of one the operator has to spend for it.
+                    if nudges < 2:
+                        nudges += 1
+                        self.history.append({'role': 'user', 'content':
+                            'The link just answered - call analog_read for a '
+                            'fresh reading, do not reuse the old one.'})
+                        continue
+                    return 'no reading taken this turn - ask again.'
                 # It knew exactly what to do and did not do it. Nudged, not
                 # silenced or replaced: there is no fact in hand yet to
                 # substitute, only a call worth actually making. Bounded the
@@ -509,8 +530,6 @@ class Chat:
 
             for call in calls:
                 name = (call.get('function') or {}).get('name', '?')
-                if name == 'analog_read':
-                    read_attempted = True
                 args = _arguments(call)
                 key = (name, json.dumps(args, sort_keys=True, default=str))
 
@@ -577,31 +596,13 @@ class Chat:
         # to be told it is not being typed out again.
         elif _is_retype(answer, last_channels):
             answer = ''
-        # The two backstops above only look at *this* turn's analog_read calls,
-        # so a turn that never calls it at all slips past both. Measured on
-        # this bench: asked "tabellera ADC-värdena" again after the link was
-        # cut, gemma4:12b answered with a full table of plausible values one
-        # round trip later - no analog_read in the trace, just a
-        # slightly-perturbed rewrite of the real table from earlier in the
-        # conversation. SYSTEM already says never to answer with an older
-        # reading; this is the same class of "telling it was not enough" as
-        # the two checks above, just for the turn that skips the read rather
-        # than one that makes it and gets an error. `self.last_channels`
-        # survives across turns for exactly this - the turn-local
-        # `last_channels` above is always None here, since a successful
-        # analog_read this turn would have set it too.
-        #
-        # Which of those two it is - board fine but the model just did not
-        # bother, or board actually unreachable - is worth knowing rather
-        # than guessing, so this checks instead of picking one. Measured
-        # here: the generic "ask again" line was itself the complaint, on a
-        # bench where the honest answer was that the board was not connected
-        # or not powered - not "ask again", but "go look at the cable".
-        elif not read_attempted and _is_retype(answer, self.last_channels):
-            probe = self._probe_link()
-            answer = ('link is down, not answered: %s' % probe
-                      if not self.link_ok else
-                      'no reading taken this turn - ask again.')
+        # A turn that never calls analog_read at all and answers with an old
+        # reading instead used to slip past the check above (which only looks
+        # at *this* turn's call) and land here as a bare "ask again" or
+        # "link is down" - now handled, and retried, inside the loop itself
+        # (see the `stale` check up there): a turn that skips the read is
+        # nudged into a real one before this code ever gets a say, rather
+        # than ending the question and asking the operator to repeat it.
         # An answer that hit the token cap stops mid-sentence, and a table that
         # stops mid-row reads as complete to everyone except a reader counting
         # rows. Say so rather than letting the cap look like the end.

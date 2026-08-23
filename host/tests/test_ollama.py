@@ -1111,15 +1111,23 @@ def test_debug(report):
             'NTC: 2.0567V (38.85C), DCbus: 1.1197V (26.518V)'}]), skip_box,
         out=io.StringIO())
     skip.ask('tabellera ADC-värdena')
-    skip.client.turns = [{'role': 'assistant', 'content':
-        # A rewrite, not a copy - a model confabulating a fresh reading does
-        # not retype the old numbers verbatim, which is exactly why the
-        # verbatim-restate check above cannot be the thing that catches this.
-        'PhaseU: +0.1415V, PhaseV: -0.8232V, '
-        'NTC: 2.0726V (39.45C), DCbus: 1.1195V (26.511V)'}]
-    answer = skip.ask('tabellera ADC-värdena igen')
-    report.check('a fresh-looking table with no tool call this turn is refused',
-                 answer == 'no reading taken this turn - ask again.', answer)
+    skip_hits = []
+    real_skip_call = skip_box.call
+    skip_box.call = lambda name, args: (
+        skip_hits.append(name), real_skip_call(name, args))[1]
+    skip.client.turns = [
+        {'role': 'assistant', 'content':
+            # A rewrite, not a copy - a model confabulating a fresh reading
+            # does not retype the old numbers verbatim, which is exactly why
+            # the verbatim-restate check above cannot be the thing that
+            # catches this.
+            'PhaseU: +0.1415V, PhaseV: -0.8232V, '
+            'NTC: 2.0726V (39.45C), DCbus: 1.1195V (26.511V)'},
+        call('analog_read')]     # the nudge, taken - a real reading follows
+    skip.ask('tabellera ADC-värdena igen')
+    report.check('a fresh-looking table with no tool call this turn is '
+                 'nudged into a real one',
+                 skip_hits == ['link', 'analog_read'], skip_hits)
 
     # ...and when the board really is unreachable, that refusal says so -
     # measured here: the generic "ask again" line was itself the complaint,
@@ -1141,6 +1149,40 @@ def test_debug(report):
     answer = unplugged.ask('tabellera ADC-värdena igen')
     report.check('a skipped call refuses correctly when the board is really gone',
                  answer.startswith('link is down, not answered:'), answer)
+
+    # ---- the whole reported sequence: works, unplugged, replugged, works
+    # again - not stuck repeating "ask again" forever. Measured on this
+    # bench: works, unplug, "link is down" (correct) - replug, and it kept
+    # answering "no reading taken this turn - ask again" no matter how many
+    # times the same question was repeated, because nothing ever prompted the
+    # model to actually read again once the link was confirmed back up.
+    saga_session = SimulatedSession()
+    saga_box = toolmod.Toolbox(saga_session, shell=Shell(['python']),
+                               scope=Scope())
+    saga_hits = []
+    real_saga_call = saga_box.call
+    saga_box.call = lambda name, args: (
+        saga_hits.append(name), real_saga_call(name, args))[1]
+
+    saga = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'), call('analog_read')]), saga_box,
+        out=io.StringIO())
+    saga.ask('ger du mig en tabell over de analoga matvardena')  # 1) works
+
+    saga_session.board.broken = True
+    saga.client.turns = [call('link', op='stats')]     # 2) it checks, fails
+    answer = saga.ask('ger du mig en tabell over de analoga matvardena')
+    report.check('unplugged: reported plainly, not guessed',
+                 answer.startswith('link is down, not answered:'), answer)
+
+    saga_session.board.broken = False                  # 3) replugged
+    saga.client.turns = [
+        {'role': 'assistant', 'content': 'Kommunikationen fungerar '
+                                         'fortfarande inte.'},
+        call('analog_read')]
+    saga.ask('ger du mig en tabell over de analoga matvardena')
+    report.check('replugged: measures again instead of looping "ask again"',
+                 saga_hits[-2:] == ['link', 'analog_read'], saga_hits)
 
     # ---- a multi-row result prints as rows, not one squashed line ----
     grid = io.StringIO()
