@@ -1776,6 +1776,18 @@ def test_docs(report):
         report.check('the turn names the language: ' + expect,
                      ('in %s' % expect) in head, head.splitlines()[-1][:56])
 
+    # Measured on this bench: this exact question has only one word from the
+    # rest of Swedish's list ('over') against two from Dutch's ('en', 'de'),
+    # so Dutch outscored Swedish outright and the model answered in a Dutch/
+    # Norwegian mix instead. 'en' and 'de' are now in both lists on purpose -
+    # see the comment on STOPWORDS - which cancels them as a discriminator
+    # rather than leaving them to favour whichever list happened to claim
+    # them first.
+    report.check('a Swedish question is not lost to Dutch on "en"/"de" alone',
+                 language.detect(
+                     'ger du mig en tabell över de analoga mätvärdena?')
+                 == 'Swedish')
+
     talk.history = [{'role': 'user', 'content': 'status?'}]
     report.check('an undetectable question falls back to mirroring',
                  'language the question was asked in' in talk.trim()[0]['content'])

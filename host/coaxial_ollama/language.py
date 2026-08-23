@@ -48,10 +48,21 @@ SCRIPTS = (
 # Words common enough to appear in one sentence and rare enough elsewhere.
 # Kept short on purpose: a longer list is not more accurate on bench-length
 # questions, and every entry is a chance to collide with another language.
+#
+# 'en' and 'de' are in Swedish's own list even though Dutch also claims them,
+# and that repetition is the point, not an oversight. Measured on this bench:
+# "ger du mig en tabell over de analoga matvardena?" has only one word from
+# the rest of the Swedish list ('over') against two from Dutch's ('en', 'de'),
+# so Dutch outscored Swedish outright and the model answered in a Dutch/
+# Norwegian mix. A word missing from Swedish's list does not make a sentence
+# less Swedish - it just leaves Swedish's score lower than it should be
+# whenever that word is the one doing the work. Adding the same word to both
+# lists cancels it as a discriminator rather than leaving it to favour
+# whichever list happened to claim it first.
 STOPWORDS = {
     'Swedish':    ('och', 'är', 'för', 'inte', 'att', 'det', 'som', 'på',
                    'med', 'vad', 'hur', 'kortet', 'läs', 'jag', 'kan', 'ska',
-                   'över', 'från'),
+                   'över', 'från', 'en', 'de'),
     'English':    ('the', 'and', 'is', 'what', 'how', 'does', 'are', 'of',
                    'to', 'read', 'why', 'can', 'this', 'board'),
     'German':     ('und', 'ist', 'nicht', 'das', 'der', 'die', 'was', 'wie',
