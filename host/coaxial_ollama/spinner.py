@@ -1,22 +1,29 @@
-"""A prompt with a robot, a state icon and the board's own pager up front,
-and the actual spinner where a spinner has always lived: right before ">".
+"""A prompt with a robot, a state icon and the board's own pager up front -
+and the spinner is the "1" in "Coaxial_63100" itself.
 
 The point is telling two terminals apart. This prompt shares a docked panel
 with a PowerShell one, and two of those with a `>` in them look identical at a
-glance; something turning right before the prompt says which is waiting for
-a question, and its colour says what kind of waiting: green for "nothing
+glance; something turning in the name itself says which is waiting for a
+question, and its colour says what kind of waiting: green for "nothing
 submitted yet", yellow for "working on it", red for "that just failed". The
 icon in the bookend group up front says the same thing a second way, in case
 the colour alone does not survive whatever the terminal does to it.
 
-    |<robot><icon><pager>| Coaxial_63100<bar>>
-           ^^^^^          ^^^^ these are the only two things that ever
-            state           move or change colour - one discrete, on
-            icon            state change; one ticking, on a timer
+    |<robot><icon><pager>| Coaxial_63<bar>00>
+           ^^^^^                     ^^^^ these are the only two things that
+            state                       ever move or change colour - one
+            icon                        discrete, on state change; one
+                                         ticking, on a timer, resting on
+                                         '1' when idle so the name reads
+                                         normally between ticks
+
+If the text has no '1' to spin - not this board's, but Prompt takes whatever
+it is given - the bar is appended after it instead, exactly where the very
+first version of this put it.
 
 The robot and the pager are static for the whole prompt, printed once and
-never touched again. The icon between them and the bar at the end both
-repaint in place, on the same two-step trick:
+never touched again. The icon and the bar both repaint in place, on the same
+two-step trick:
 
     ESC 7            save the cursor, wherever input() has got to
     ESC [ <n> A      up n rows, onto the prompt line (0 while still typing,
@@ -28,11 +35,14 @@ repaint in place, on the same two-step trick:
 Typed text is never written over, because it is never written to; only
 those two columns are. Every icon and every bar frame is the same width for
 exactly this reason - a repaint only overwrites its own cell, so an uneven
-one would leave a stray character behind. The one thing this cannot get
-right is a bookend wide enough to render as two terminal columns on a stream
-that also renders it at all: both columns are computed from Python string
-length, not terminal cell width, same limitation the very first version of
-this had for a prompt long enough to wrap.
+one would leave a stray character behind. The bar is plain ASCII ('1', '/',
+'-', '\\') on purpose, unlike the robot/pager/icon group: it sits inside the
+board's own name, and a console capable of the name is capable of digits and
+punctuation regardless of what it can do with an emoji. The one thing this
+cannot get right is a bookend wide enough to render as two terminal columns
+on a stream that also renders it at all: both columns are computed from
+Python string length, not terminal cell width, same limitation the very
+first version of this had for a prompt long enough to wrap.
 
 `_trace()` in debug.py can print mid-question, while the bar is still
 ticking for the busy phase - the caller passes in the same lock both sides
@@ -59,11 +69,11 @@ ICON_WAIT_FALLBACK = '.'
 ICON_BUSY_FALLBACK = '~'
 ICON_ERROR_FALLBACK = 'X'
 
-# No '|' here on purpose: the bookends either side of the icon group are
-# literal pipes, and a bar frozen on '|' read as a stray fourth one rather
-# than something turning.
-BARS = ('/', '–', '\\')
-BARS_FALLBACK = ('/', '-', '\\')
+# Rests on '1' - the digit it replaces - so the name reads normally between
+# ticks; the other three frames are what makes that digit's position turn.
+# Plain ASCII throughout: this sits inside the board's own name, not next to
+# an emoji, so there is no separate fallback set to pick between.
+BARS = ('1', '/', '-', '\\')
 
 SAVE = '\x1b7'
 RESTORE = '\x1b8'
@@ -85,14 +95,14 @@ def _encodable(out, text):
 
 
 def _capable(out):
-    """Whether this stream can hold every real glyph the prompt might show.
+    """Whether this stream can hold the robot, pager and state icons.
 
     Decided once, for the whole set together: switching some bookends to the
     real glyph and others to ASCII mid-line would look like a bug, not a
-    feature, so the fallback is all-or-nothing.
+    feature, so the fallback is all-or-nothing. The bar is not part of this
+    check - it is plain ASCII regardless.
     """
-    return _encodable(out, ROBOT + PAGER + ICON_WAIT + ICON_BUSY + ICON_ERROR
-                       + ''.join(BARS))
+    return _encodable(out, ROBOT + PAGER + ICON_WAIT + ICON_BUSY + ICON_ERROR)
 
 
 def _vt(out):
@@ -105,7 +115,8 @@ def _vt(out):
 
 class Prompt:
     """One prompt line: a static robot/icon/pager group up front, and a bar
-    right before ">" that ticks on its own thread until stop()ped."""
+    that ticks on its own thread until stop()ped - inside the text's own
+    '1' if it has one, appended after it otherwise."""
 
     def __init__(self, text, out, lock=None, ok=True, tick=TICK):
         self.out = out
@@ -113,7 +124,6 @@ class Prompt:
         self.vt = _vt(out)
         self.tick = tick
         real = _capable(out)
-        self.bars = BARS if real else BARS_FALLBACK
         robot = ROBOT if real else ROBOT_FALLBACK
         pager = PAGER if real else PAGER_FALLBACK
         self.icon_wait = ICON_WAIT if real else ICON_WAIT_FALLBACK
@@ -122,10 +132,13 @@ class Prompt:
 
         self.icon = self.icon_wait if ok else self.icon_error
         self.icon_column = len('|' + robot) + 1
-        # icon_wait/_busy/_error (and their ASCII equivalents) are always
-        # exactly one Python character, so the bar's column does not shift
-        # depending on which icon happens to be showing.
-        self.bar_column = len('|' + robot + self.icon + pager + '| ' + text) + 1
+
+        spin_at = text.find('1')
+        if spin_at == -1:
+            head, tail = text, ''
+        else:
+            head, tail = text[:spin_at], text[spin_at + 1:]
+        self.bar_column = len('|' + robot + self.icon + pager + '| ' + head) + 1
         self.rows_up = 0                 # 0 while still on this row, 1 after
         self.color = GREEN if ok else RED
         self.frame = 0
@@ -133,9 +146,9 @@ class Prompt:
         self.thread = None
 
         with self.lock:
-            self.out.write('|%s%s%s| %s%s%s%s> '
-                            % (robot, self.icon, pager, text, self.color,
-                               self.bars[0], RESET))
+            self.out.write('|%s%s%s| %s%s%s%s%s> '
+                            % (robot, self.icon, pager, head, self.color,
+                               BARS[0], RESET, tail))
             self.out.flush()
         if self.vt:
             self.thread = threading.Thread(target=self._run, daemon=True)
@@ -156,7 +169,7 @@ class Prompt:
         self._at(self.icon_column, self.color + self.icon + RESET)
 
     def _paint_bar(self):
-        glyph = self.bars[self.frame % len(self.bars)]
+        glyph = BARS[self.frame % len(BARS)]
         self._at(self.bar_column, self.color + glyph + RESET)
 
     def _run(self):

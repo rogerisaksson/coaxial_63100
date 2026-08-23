@@ -475,8 +475,8 @@ def test_scope_repairs(report):
 
 
 def test_prompt(report):
-    """|robot icon pager| Coaxial_63100<bar>> - icon and bar both repaint in
-    place on state changes; the bar also ticks on a timer."""
+    """|robot icon pager| Coaxial_63<bar>00> - the bar spins in place of the
+    text's own '1'; the icon repaints on state changes next to it."""
     import time as clock
     from coaxial_ollama import spinner as spin
 
@@ -496,25 +496,38 @@ def test_prompt(report):
             return True
 
     text = 'Coaxial_63100'
+    head, tail = 'Coaxial_63', '00'      # text split around its own '1'
 
     screen = Tty()
     face = spin.prompt(text, screen, tick=10)
     written = screen.getvalue()
     face.stop(True)
 
-    report.check('the robot, icon and pager lead; the bar sits right '
-                 'before ">"',
-                 written == '|%s%s%s| %s%s%s%s> '
-                 % (spin.ROBOT, spin.ICON_WAIT, spin.PAGER, text, spin.GREEN,
-                    spin.BARS[0], spin.RESET),
+    report.check("the bar takes the text's own '1', not a character "
+                 'appended after it',
+                 written == '|%s%s%s| %s%s%s%s%s> '
+                 % (spin.ROBOT, spin.ICON_WAIT, spin.PAGER, head, spin.GREEN,
+                    spin.BARS[0], spin.RESET, tail),
                  ascii(written))
+    report.check("and it rests on '1' itself, so the name reads normally "
+                 'between ticks',
+                 spin.BARS[0] == '1')
+
+    no_digit = spin.prompt('no-ones-here', Tty(), tick=10)
+    report.check("text with no '1' gets the bar appended after it instead, "
+                 'same as the very first version of this',
+                 no_digit.out.getvalue().endswith(
+                     'no-ones-here%s%s%s> ' % (spin.GREEN, spin.BARS[0],
+                                               spin.RESET)),
+                 ascii(no_digit.out.getvalue()))
+    no_digit.stop(True)
 
     down = spin.prompt(text, Tty(), tick=10, ok=False)
     down_written = down.out.getvalue()
     report.check('a dead link starts with the error icon, red, not waiting',
-                 down_written == '|%s%s%s| %s%s%s%s> '
-                 % (spin.ROBOT, spin.ICON_ERROR, spin.PAGER, text, spin.RED,
-                    spin.BARS[0], spin.RESET),
+                 down_written == '|%s%s%s| %s%s%s%s%s> '
+                 % (spin.ROBOT, spin.ICON_ERROR, spin.PAGER, head, spin.RED,
+                    spin.BARS[0], spin.RESET, tail),
                  ascii(down_written))
     down.stop(False)
 
@@ -606,12 +619,14 @@ def test_prompt(report):
     report.check('every bar frame is one column, so a repaint never leaves '
                  'a stray character behind',
                  all(len(b) == 1 for b in spin.BARS))
+    report.check('the bar is plain ASCII - no fallback set needed for it',
+                 all(ord(b) < 128 for b in spin.BARS))
 
     class Cp1252(io.StringIO):
         encoding = 'cp1252'
 
-    report.check("this bench's own console cannot hold any of it - "
-                 'it gets ASCII, not a question mark',
+    report.check("this bench's own console cannot hold the robot/pager/icons "
+                 '- they get ASCII, not a question mark',
                  not spin._capable(Cp1252()))
 
     class Ascii(Cp1252):
@@ -631,10 +646,10 @@ def test_prompt(report):
     quiet.busy()
     quiet.stop(False)
     report.check('a redirected prompt is static and escape-free',
-                 before_pipe == '|%s%s%s| %s%s%s%s> '
+                 before_pipe == '|%s%s%s| %s%s%s%s%s> '
                  % (spin.ROBOT_FALLBACK, spin.ICON_WAIT_FALLBACK,
-                    spin.PAGER_FALLBACK, text, spin.GREEN,
-                    spin.BARS_FALLBACK[0], spin.RESET),
+                    spin.PAGER_FALLBACK, head, spin.GREEN, spin.BARS[0],
+                    spin.RESET, tail),
                  repr(before_pipe))
     report.check('and busy()/stop() on a redirected stream paint nothing '
                  'further',
