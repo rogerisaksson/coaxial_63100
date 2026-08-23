@@ -379,9 +379,13 @@ sentence the model would read and then not follow.
 
 `Chat.ask` now keeps the channel names from the most recent successful
 `analog_read` in the turn, and if the final answer names all of them and
-nothing else, the answer is replaced with `table above, not restated.` - the
-same move as the link-down override two entries up: a fact the loop already
-has, that the model does not get a vote on. The bar is deliberately narrow
+nothing else, the answer is replaced with silence - the same move as the
+link-down override two entries up: a fact the loop already has, that the
+model does not get a vote on. Silence rather than a line saying so ("table
+above, not restated.", an earlier version of this) because that line was its
+own small version of the same complaint: the table is the trace directly
+above it, on the same screen, and does not need a caption confirming it is
+not being typed out again. The bar is deliberately narrow
 (`RESTATE_MIN_CHANNELS = 3`, and every single one of that reading's channels
 has to appear) so a real one-line finding that happens to name a channel or two
 - "NTC is running warm, DCbus looks nominal" - is left alone.

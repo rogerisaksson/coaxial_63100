@@ -907,8 +907,8 @@ def test_debug(report):
             'NTC: 2.0567V (38.85C), DCbus: 1.1197V (26.518V)'}]), retype_box,
         out=io.StringIO())
     answer = retyped.ask('tabellera alla AFE-kanaler')
-    report.check('a full retype of the table just shown is replaced',
-                 answer == 'table above, not restated.', answer)
+    report.check('a full retype of the table just shown is silenced, not '
+                 'echoed back', answer == '', answer)
 
     insight_session = FakeSession()
     insight_box = toolmod.Toolbox(insight_session, shell=Shell(['python']),

@@ -25,8 +25,10 @@ the cost turned down:
      `/sh cube-cmake --build --preset Debug` cost zero tokens, and half of what
      one asks a model at a bench is really just "run this and show me".
 
-And it prints what each turn cost, in and out, because a budget nobody can see
-is a budget nobody keeps.
+And it tracks what each turn cost, in and out - `/cost` for the running total,
+`--budget` to stop asking once it is spent - without printing a line after
+every single turn: measured in daily use, that was screen noise nobody was
+reading, sitting between the question and the answer it was about.
 """
 import json
 import re
@@ -48,15 +50,15 @@ from .sandbox import Scope, Shell, clip              # noqa: E402
 SYSTEM = """You are an expert with a serial communication link to a coaxial
 BLDC inverter.
 Use tools; do not guess. Answer in one or two sentences, no preamble.
-This is a plain terminal: never a markdown table, and never restate the rows a
-tool result already printed above - one short line, not a second listing.
-If a call errors, say so; never answer with an older reading or a guess.
-The front end switch (afe_power) also powers the ADC reference: with it off
-every channel reads mid-scale and the NTC reads exactly 25.00 C, which is not a
-measurement. Phase channels sit behind unknown gain, so pin volts is as far as
-the data goes.
-Values come from analog_read, never docs - docs is HARDWARE and FINDINGS, for
-explaining a reading, not producing one."""
+Asked for a table or list, call analog_read once - its grid already covers
+every channel. Never write one yourself in markdown, and never restate rows a
+tool result already printed - one short line, not a second listing.
+If a call errors, say so - not a guess, not an old reading.
+afe_power also powers the ADC reference: off, every channel reads mid-scale
+and the NTC reads exactly 25.00 C - not a measurement. Phase channels sit
+behind unknown gain - pin volts only.
+Values come from analog_read, never docs - HARDWARE and FINDINGS explain a
+reading; they don't produce one."""
 
 # Named subsets, because a debug job knows roughly what it is about to touch.
 SETS = {
@@ -483,10 +485,14 @@ class Chat:
         # deliberately narrow - every channel just read, named again by an
         # answer with nothing else in it - so a real one-line finding ("NTC
         # is running hot") that happens to name a channel or two is untouched.
+        #
+        # Silence, not a line saying so: the table is the trace directly above
+        # this, on the same screen, and a reader looking at it does not need
+        # to be told it is not being typed out again.
         elif (last_channels and len(last_channels) >= RESTATE_MIN_CHANNELS
               and answer and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
                                  for ch in last_channels)):
-            answer = 'table above, not restated.'
+            answer = ''
         # The two backstops above only look at *this* turn's analog_read calls,
         # so a turn that never calls it at all slips past both. Measured on
         # this bench: asked "tabellera ADC-värdena" again after the link was
@@ -584,10 +590,8 @@ class Chat:
         return text + (' of %d' % self.budget if self.budget else '')
 
     def _meter(self, prompt_tokens, eval_tokens):
+        """Record the cost of one turn. Not printed - see /cost and /ctx."""
         self.turn_cost.append((prompt_tokens, eval_tokens))
-        if not self.quiet:
-            print('  [%d in / %d out]' % (prompt_tokens, eval_tokens),
-                  file=self.out, flush=True)
 
     def _trace(self, result):
         """Print what a call returned, as the grid render.py already built it.
