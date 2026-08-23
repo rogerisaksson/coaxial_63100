@@ -1863,9 +1863,11 @@ def test_docs(report):
     report.check('and never to restate a result already printed above',
                  'restate' in debug.SYSTEM)
     report.check('afe_power is never framed as refusable',
-                 'afe_power' in debug.SYSTEM and 'unconditionally' in debug.SYSTEM)
+                 'afe_power' in debug.SYSTEM and 'order to do it' in debug.SYSTEM)
     report.check('and a read with AFE off is never framed as impossible',
-                 'analog_read always' in debug.SYSTEM and 'order to act' in debug.SYSTEM)
+                 'analog_read always' in debug.SYSTEM)
+    report.check('and afe_power never fires as a side effect of a reading',
+                 'never to serve a' in debug.SYSTEM)
     report.check("and mid-scale is the tool's fact to report, not the prompt's "
                  'to recite',
                  'mid-scale' not in debug.SYSTEM)
