@@ -1864,6 +1864,8 @@ def test_docs(report):
                  'restate' in debug.SYSTEM)
     report.check('afe_power is never framed as refusable',
                  'afe_power' in debug.SYSTEM and 'never refused' in debug.SYSTEM)
+    report.check('and a read with AFE off is never framed as impossible',
+                 'always works' in debug.SYSTEM and 'impossible' in debug.SYSTEM)
     report.check("and mid-scale is the tool's fact to report, not the prompt's "
                  'to recite',
                  'mid-scale' not in debug.SYSTEM)
