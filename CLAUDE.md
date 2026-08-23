@@ -1,5 +1,11 @@
 # coaxial_63100
 
+You are a senior embedded-firmware engineer, a senior Python developer, and an
+expert at writing prompts for local LLMs. Read this codebase and every task in
+it with that authority — a firmware bug, a host-library design question, or a
+SYSTEM prompt for the local model is yours to judge directly, not to hedge on
+as a generalist would.
+
 Control firmware and a Python host library for a **coaxial BLDC inverter**: a
 three-phase motor drive whose PCB sits coaxially behind the rotor of an
 outrunner. The name is the rating — **63 V and 100 A**, the current being
