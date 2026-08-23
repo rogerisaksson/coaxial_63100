@@ -23,6 +23,7 @@ import json
 import os
 import sys
 import tempfile
+import threading
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -474,7 +475,9 @@ def test_scope_repairs(report):
 
 
 def test_prompt(report):
-    """The prompt's face is static; only its colour changes, in place."""
+    """|robot bar pager| - the bar ticks and changes colour; the rest is
+    printed once and never touched again."""
+    import time as clock
     from coaxial_ollama import spinner as spin
 
     # A real robot ("\U0001F916") is outside cp1252 entirely - not a wide or
@@ -482,6 +485,10 @@ def test_prompt(report):
     # behaviour tests below has to be genuinely Unicode-capable, same as this
     # bench's actual console would need to be to show it for real. cp1252 gets
     # its own fixture further down, where the fallback itself is under test.
+    # ascii(), not repr(), in every detail string below: this bench's own
+    # console is cp1252 (confirmed further down), and a detail string prints
+    # on PASS too - a raw robot in it would crash the report that is supposed
+    # to say the check passed.
     class Tty(io.StringIO):
         encoding = 'utf-8'
 
@@ -489,76 +496,145 @@ def test_prompt(report):
             return True
 
     screen = Tty()
-    face = spin.prompt('Coaxial_63100', screen)
+    face = spin.prompt('Coaxial_63100', screen, tick=10)
     written = screen.getvalue()
+    face.stop(True)
+    prefix = '|' + spin.ROBOT
+    suffix = spin.PAGER + '| '
 
-    # ascii(), not repr(): this bench's own console is cp1252 (confirmed
-    # below), and a detail string is printed on PASS too - a raw robot in it
-    # would crash the very report that is supposed to say the check passed.
-    report.check('the face leads, the prompt text follows it',
-                 written.startswith(spin.GREEN + spin.ROBOT)
-                 and written.count('Coaxial_63100') == 1, ascii(written[:16]))
-    report.check('one space separates the face from the prompt, nothing else',
-                 written == '%s%s%s %s> ' % (spin.GREEN, spin.ROBOT, spin.RESET,
-                                             'Coaxial_63100'),
+    report.check('the robot leads, the pager and prompt text follow the bar',
+                 written == '%s%s%s%s%s%s> '
+                 % (prefix, spin.GREEN, spin.BARS[0], spin.RESET, suffix,
+                    'Coaxial_63100'),
                  ascii(written))
 
-    down = spin.prompt('Coaxial_63100', Tty(), ok=False)
-    report.check('a dead link paints the face red, not green',
-                 down.out.getvalue().startswith(spin.RED + spin.ROBOT))
+    down = spin.prompt('Coaxial_63100', Tty(), tick=10, ok=False)
+    report.check('a dead link paints the bar red, not green',
+                 down.out.getvalue().startswith(prefix + spin.RED),
+                 ascii(down.out.getvalue()[:len(prefix) + len(spin.RED) + 4]))
+    down.stop(False)
 
-    # ---- recoloring repaints in place, one row up, never the line itself --
+    # ---- busy() moves the target up one row; stop() freezes the final frame
     live = Tty()
-    face = spin.prompt('Coaxial_63100', live, ok=True)
+    face = spin.prompt('Coaxial_63100', live, tick=10, ok=True)
     before = live.getvalue()
-    face.recolor(spin.CYAN)
+    report.check('still on this row while nothing has been submitted',
+                 face.rows_up == 0)
+    face.busy()
+    report.check('busy() turns the bar yellow and targets one row up',
+                 face.color == spin.YELLOW and face.rows_up == 1)
+    face.stop(True)
     after = live.getvalue()
 
-    report.check('recolor adds a repaint, it does not touch what was written',
-                 after.startswith(before), ascii(after))
+    report.check("stop() adds exactly one repaint, it doesn't touch what "
+                 'was already written',
+                 after.startswith(before) and len(after) > len(before),
+                 ascii(after[len(before):]))
     added = after[len(before):]
-    report.check('the repaint saves the cursor, goes up one row to column 1, '
-                 'and comes back',
-                 added == spin.SAVE + spin.UP + spin.COLUMN + spin.CYAN
-                 + spin.ROBOT + spin.RESET + spin.RESTORE, ascii(added))
+    # tick=10 guarantees the background thread never fires in this test's
+    # lifetime, so the frame is still 0 - the expected repaint is exact.
+    report.check('the repaint saves the cursor, goes up one row, over to '
+                 "the bar's column, and back",
+                 added == spin.SAVE + (spin.UP % 1) + (spin.COLUMN % face.column)
+                 + spin.GREEN + spin.BARS[0] + spin.RESET + spin.RESTORE,
+                 ascii(added))
+    report.check('stop() freezes green on success even though busy() had '
+                 'turned it yellow',
+                 spin.GREEN in added and spin.YELLOW not in added)
 
-    face.recolor(spin.RED)
-    face.recolor(spin.GREEN)
-    report.check('a face can be recoloured more than once - each turn ends '
-                 'in exactly one state',
-                 live.getvalue().count(spin.SAVE) == 3)
+    same_row = Tty()
+    still_waiting = spin.prompt('Coaxial_63100', same_row, tick=10, ok=True)
+    before2 = same_row.getvalue()
+    still_waiting.stop(False)          # never went busy() - still row 0
+    added2 = same_row.getvalue()[len(before2):]
+    report.check('stopping before busy() repaints this row, not one up',
+                 added2 == spin.SAVE + (spin.COLUMN % still_waiting.column)
+                 + spin.RED + still_waiting.bars[0] + spin.RESET + spin.RESTORE,
+                 ascii(added2))
 
-    report.check('the robot is a real emoji, not a look-alike run of glyphs',
-                 spin.ROBOT == '\U0001F916')
+    # ---- it actually ticks on a real thread when the stream is a terminal -
+    ticking = Tty()
+    live_face = spin.prompt('Coaxial_63100', ticking, tick=0.01, ok=True)
+    clock.sleep(0.08)
+    live_face.stop(True)
+    report.check('a real terminal gets more than the first frame - it ticks',
+                 ticking.getvalue().count(spin.SAVE) >= 3,
+                 '%d repaints' % ticking.getvalue().count(spin.SAVE))
+
+    # ---- a shared lock keeps a tick and a trace print from interleaving ---
+    # Real Chat._trace() output while the bar is still ticking for the busy
+    # phase is exactly the race this lock exists for - proved here by holding
+    # it ourselves and showing a tick cannot get past it, not by hoping a
+    # timing-based race never happens to interleave in the test run.
+    shared = threading.Lock()
+    locked = Tty()
+    guarded = spin.prompt('Coaxial_63100', locked, tick=0.01, ok=True,
+                          lock=shared)
+    report.check('the caller-supplied lock is the one actually used',
+                 guarded.lock is shared)
+
+    before_lock = locked.getvalue()
+    shared.acquire()
+    try:
+        clock.sleep(0.05)          # several tick intervals, all held off
+        report.check('a tick blocks on the shared lock instead of racing '
+                     'past it',
+                     locked.getvalue() == before_lock)
+    finally:
+        shared.release()
+    clock.sleep(0.05)
+    guarded.stop(True)
+    report.check('and ticking resumes once the lock is free again',
+                 locked.getvalue() != before_lock)
+
+    report.check('the robot and pager are real emoji, not look-alike glyphs',
+                 spin.ROBOT == '\U0001F916' and spin.PAGER == '\U0001F4DF')
+    report.check('every bar frame is one column, so a repaint never leaves '
+                 'a stray character behind',
+                 all(len(b) == 1 for b in spin.BARS))
 
     class Cp1252(io.StringIO):
         encoding = 'cp1252'
 
     report.check("this bench's own console cannot hold the robot at all - "
                  'it gets ASCII, not a question mark',
-                 spin._glyph(Cp1252()) == spin.ROBOT_FALLBACK)
+                 spin._bookend(Cp1252(), spin.ROBOT, spin.ROBOT_FALLBACK)
+                 == spin.ROBOT_FALLBACK)
 
     class Ascii(Cp1252):
         encoding = 'ascii'
 
     report.check('and the same fallback covers a plain ASCII stream too',
-                 spin._glyph(Ascii()) == spin.ROBOT_FALLBACK)
-    report.check('a genuinely Unicode-capable stream gets the real robot',
-                 spin._glyph(Tty()) == spin.ROBOT)
+                 spin._bookend(Ascii(), spin.PAGER, spin.PAGER_FALLBACK)
+                 == spin.PAGER_FALLBACK)
+    report.check('a genuinely Unicode-capable stream gets the real bookends',
+                 spin._bookend(Tty(), spin.ROBOT, spin.ROBOT_FALLBACK)
+                 == spin.ROBOT
+                 and spin._bookend(Tty(), spin.PAGER, spin.PAGER_FALLBACK)
+                 == spin.PAGER)
+    report.check('the en dash bar falls back to a hyphen on cp1252... no - '
+                 'cp1252 can hold it, ASCII cannot',
+                 spin._bars(Cp1252()) == spin.BARS
+                 and spin._bars(Ascii()) == spin.BARS_FALLBACK)
 
-    # A pipe has no cursor to save: one static prompt, no escapes, recolor
-    # is a no-op. It has no .encoding either, so it gets the ASCII fallback
-    # same as Ascii() does.
+    # A pipe has no cursor to save: one static prompt, no escapes, no thread -
+    # busy()/stop() change state but paint nothing further. It has no
+    # .encoding either, so it gets the ASCII fallback same as Ascii() does.
     piped = io.StringIO()
-    quiet = spin.prompt('Coaxial_63100', piped)
+    quiet = spin.prompt('Coaxial_63100', piped, tick=10)
     before_pipe = piped.getvalue()
-    quiet.recolor(spin.RED)
+    quiet.busy()
+    quiet.stop(False)
     report.check('a redirected prompt is static and escape-free',
-                 before_pipe == '%s%s%s %s> ' % (spin.GREEN, spin.ROBOT_FALLBACK,
-                                                 spin.RESET, 'Coaxial_63100'),
+                 before_pipe == '|%s%s%s%s%s| Coaxial_63100> '
+                 % (spin.ROBOT_FALLBACK, spin.GREEN, spin.BARS_FALLBACK[0],
+                    spin.RESET, spin.PAGER_FALLBACK),
                  repr(before_pipe))
-    report.check('and recolor on a redirected stream does nothing',
+    report.check('and busy()/stop() on a redirected stream paint nothing '
+                 'further',
                  piped.getvalue() == before_pipe)
+    report.check('no background thread was even started for it',
+                 quiet.thread is None)
 
 
 def test_shell(report):

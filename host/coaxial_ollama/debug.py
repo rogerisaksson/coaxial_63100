@@ -33,6 +33,7 @@ reading, sitting between the question and the answer it was about.
 import json
 import re
 import sys
+import threading
 import time
 
 sys.path.insert(0, __file__.rsplit('coaxial_ollama', 1)[0])
@@ -339,6 +340,13 @@ class Chat:
         self.budget = budget
         self.quiet = quiet
         self.out = out or _printable(sys.stdout)
+        # Shared with the REPL's spinner: the bar it ticks in place can be
+        # mid-repaint on its own thread exactly when a tool result below
+        # wants to print, and unsynchronised writes to the same stream would
+        # interleave into garbage on screen. A Chat used outside the REPL
+        # never contends for it - locking a private, never-shared Lock costs
+        # nothing worth avoiding.
+        self.print_lock = threading.Lock()
         self.history = []
         self.turn_cost = []
         # What the prompt's spinner shows: read fresh on every prompt, so
@@ -718,11 +726,12 @@ class Chat:
         if self.quiet:
             return
         lines = str(result).splitlines() or ['']
-        for line in lines[:TRACE_ROWS]:
-            print('  %s' % line[:96], file=self.out, flush=True)
-        if len(lines) > TRACE_ROWS:
-            print('  ... [%d more rows]' % (len(lines) - TRACE_ROWS),
-                  file=self.out, flush=True)
+        with self.print_lock:
+            for line in lines[:TRACE_ROWS]:
+                print('  %s' % line[:96], file=self.out, flush=True)
+            if len(lines) > TRACE_ROWS:
+                print('  ... [%d more rows]' % (len(lines) - TRACE_ROWS),
+                      file=self.out, flush=True)
 
 
 def _arguments(call):
@@ -880,22 +889,28 @@ def repl(chat, hold=False):
         print('(reading commands from stdin)')
     try:
         while True:
+            # Read fresh every time, not captured once: /reconnect flips this
+            # mid-loop and the very next prompt is what should show it. The
+            # lock is shared with Chat._trace() so a tick and a trace line
+            # printed mid-question never interleave on the same stream.
+            face = spin.prompt(PROMPT, sys.stdout, lock=chat.print_lock,
+                               ok=chat.link_ok)
             try:
-                # Read fresh every time, not captured once: /reconnect flips
-                # this mid-loop and the very next prompt is what should show it.
-                face = spin.prompt(PROMPT, sys.stdout, ok=chat.link_ok)
                 line = input().strip()
             except (EOFError, KeyboardInterrupt):
+                face.stop(chat.link_ok)
                 print()
                 break
             if not line:
+                face.stop(chat.link_ok)
                 continue
-            face.recolor(spin.CYAN)
+            face.busy()
             try:
                 done = chat.command(line)
                 print(done if done is not None else chat.ask(line))
-                face.recolor(spin.GREEN if chat.link_ok else spin.RED)
+                face.stop(chat.link_ok)
             except SystemExit:
+                face.stop(chat.link_ok)
                 break
             except (RigError, ValueError, OllamaError) as exc:
                 # A dead board and a dead model backend are the same shape of
@@ -903,7 +918,7 @@ def repl(chat, hold=False):
                 # mid-turn. One bad turn is not a reason to lose the rest of
                 # the conversation - ollama respawns llama-server on the next
                 # request, same as the board answers again once reconnected.
-                face.recolor(spin.RED)
+                face.stop(False)
                 print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)))
         print(chat.cost_line())
     finally:
