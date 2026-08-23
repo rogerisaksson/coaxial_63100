@@ -73,7 +73,9 @@ cd host
 python -m coaxial all                      # CLI against the board
 python tests/test_conformance.py           # 40 Modbus conformance checks
 python tests/test_mcp.py                   # 39 MCP server checks
-python tests/test_ollama.py                # 212 runner and dbg checks, offline
+python tests/test_ollama.py                # 284 runner and dbg checks, offline
+python tests/test_simulated.py             # 17 checks, real MCP handlers against a fake board
+python dbg.py --repl --simulated           # the tools work, board tools included, no cable
 python examples/read_board.py                # measure, judge nothing
 python -m coaxial_mcp --port COM4          # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml   # local model drives the bench

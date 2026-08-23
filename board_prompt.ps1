@@ -5,6 +5,8 @@
         . .\env.ps1 ; .\board_prompt.ps1
         .\board_prompt.ps1 -NewWindow          the same, in its own window
         .\board_prompt.ps1 -Plain              plain ollama chat, no board, no tools
+        .\board_prompt.ps1 -Simulated          board tools work, against invented data
+        .\board_prompt.ps1 -AutodetectComport  tries -Port, then every other COM port
 
 .DESCRIPTION
     You asked for a terminal that talks to gemma. `ollama run gemma4:12b` is
@@ -50,7 +52,24 @@
     CPU, which measured about five times slower per token.
 
 .PARAMETER Port
-    The board's VCP. COM4 on this bench.
+    The board's VCP. COM4 on this bench. Ignored if -AutodetectComport finds
+    one, and if -Simulated is given, never even looked at.
+
+.PARAMETER AutodetectComport
+    Try -Port first, then every other COM port Windows reports, oldest-
+    enumerated first, opening each just long enough to see whether this board
+    answers on it - a few seconds per port it does not. For "which port did I
+    just plug the programmer into" instead of checking Device Manager. Silent
+    when it finds nothing: the ordinary -Port warning below still fires, and
+    -Port is whatever it was, unchanged.
+
+.PARAMETER Simulated
+    Run against coaxial.simulated instead of a real port - no cable, no COM
+    port, every board tool still answers, with invented values instead of
+    measured ones. -Port and -AutodetectComport are pointless with this and
+    are skipped rather than acted on. For a machine with nothing plugged in
+    that still wants to see the tools actually work, not just be told they
+    would fail - which is what -NoBoard gives you instead.
 
 .PARAMETER Tools
     Which tool subset the model gets: read, code, pins, all or none. The list is
@@ -115,6 +134,8 @@ param(
     [ValidateSet('speed', 'capability')]
     [string]$Prefer = 'speed',
     [string]$Port = 'COM4',
+    [switch]$AutodetectComport,
+    [switch]$Simulated,
     [ValidateSet('read', 'code', 'pins', 'all', 'none')]
     [string]$Tools = 'code',
     [string]$Ask,
@@ -152,6 +173,13 @@ try {
     # helped by this.
 }
 
+if ($NoBoard -and $Simulated) {
+    Write-Host '-NoBoard and -Simulated contradict each other: one stubs the' -ForegroundColor Red
+    Write-Host 'board tools out, the other makes them work against invented' -ForegroundColor Red
+    Write-Host 'data. Pick one.' -ForegroundColor Red
+    exit 1
+}
+
 function Say {
     param([string]$State, [string]$Text, [string]$Detail = '')
     $colour = 'Gray'
@@ -162,6 +190,75 @@ function Say {
     Write-Host ('  {0,-6}' -f $State) -ForegroundColor $colour -NoNewline
     Write-Host ('{0,-22} ' -f $Text) -NoNewline
     Write-Host $Detail -ForegroundColor DarkGray
+}
+
+function Test-BoardPort {
+    <#  Open one COM port from Python's own side, exactly the way dbg.py
+        would, and see whether this board answers on it.
+
+        A .NET SerialPort.Open() would only prove the port exists and
+        nothing else has it - a USB mouse dongle opens fine and is not this
+        board. Going through coaxial.connect() is the same Modbus round
+        trip a real session makes, so a wrong port fails for the same reason
+        it would fail then, not a different, weaker check that passes here
+        and fails a moment later inside dbg.py itself.  #>
+    param([string]$CandidatePort, [string]$HostDir, [int]$TimeoutSec = 6)
+
+    $probe = "from coaxial import connect, disconnect$([Environment]::NewLine)" +
+             "b = connect([(1, 115200, '$CandidatePort')])$([Environment]::NewLine)" +
+             "disconnect(b)$([Environment]::NewLine)"
+    $tmp = [System.IO.Path]::GetTempFileName() + '.py'
+    Set-Content -Path $tmp -Value $probe -Encoding utf8
+
+    try {
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = 'python'
+        $psi.Arguments = '"' + $tmp + '"'
+        $psi.WorkingDirectory = $HostDir
+        $psi.UseShellExecute = $false
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+
+        $proc = [System.Diagnostics.Process]::Start($psi)
+        if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
+            try { $proc.Kill() } catch {}
+            return $false
+        }
+        return $proc.ExitCode -eq 0
+    } finally {
+        Remove-Item $tmp -ErrorAction SilentlyContinue
+    }
+}
+
+function Find-BoardPort {
+    <#  Try -Port first if Windows even lists it, then every other COM port
+        in whatever order Windows enumerates them - there is no way to ask
+        which one a programmer was just plugged into short of opening each
+        and finding out.  #>
+    param([string]$PreferredPort, [string]$HostDir)
+
+    $ports = @()
+    try { $ports = [System.IO.Ports.SerialPort]::GetPortNames() } catch { $ports = @() }
+    if ($ports.Count -eq 0) {
+        Say 'fail' 'autodetect' 'no COM ports at all - nothing to try'
+        return $null
+    }
+
+    $ordered = @()
+    if ($PreferredPort -and ($ports -contains $PreferredPort)) {
+        $ordered += $PreferredPort
+    }
+    $ordered += ($ports | Where-Object { $_ -ne $PreferredPort })
+
+    foreach ($candidate in $ordered) {
+        Say 'wait' 'autodetect' "trying $candidate..."
+        if (Test-BoardPort -CandidatePort $candidate -HostDir (Join-Path $Root 'host')) {
+            Say 'ok' 'autodetect' "$candidate answered"
+            return $candidate
+        }
+    }
+    Say 'warn' 'autodetect' ('none of ' + ($ports -join ', ') + ' answered')
+    return $null
 }
 
 function Get-Tags {
@@ -411,7 +508,13 @@ try {
 
 if ($NoBoard) {
     Say 'warn' 'board' '--no-board: tools are stubbed, nothing is measured'
+} elseif ($Simulated) {
+    Say 'warn' 'board' '--simulated: no port opened, every reading is invented'
 } else {
+    if ($AutodetectComport) {
+        $found = Find-BoardPort -PreferredPort $Port -HostDir (Join-Path $Root 'host')
+        if ($found) { $Port = $found }
+    }
     $ports = @()
     try { $ports = [System.IO.Ports.SerialPort]::GetPortNames() } catch { $ports = @() }
     if ($ports -contains $Port) {
@@ -464,12 +567,14 @@ try {
         return
     }
 
-    $call = @('dbg.py', '-m', $Model, '-t', $Tools, '--port', $Port,
+    $call = @('dbg.py', '-m', $Model, '-t', $Tools,
               '--num-ctx', [string]$NumCtx, '--keep-alive', $KeepAlive)
+    if ($Simulated) { $call += '--simulated' }
+    elseif ($NoBoard) { $call += '--no-board' }
+    else { $call += @('--port', $Port) }
     # A split model needs its layer count on every call, or the daemon reloads
     # it whole on the first question and the preflight above bought nothing.
     if ($null -ne $layers) { $call += @('--num-gpu', [string]$layers) }
-    if ($NoBoard) { $call += '--no-board' }
 
     if ($Ask) {
         & python @call $Ask

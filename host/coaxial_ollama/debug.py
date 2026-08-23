@@ -828,7 +828,13 @@ def parse(argv):
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--baud', type=int, default=115200)
     parser.add_argument('--unit', type=int, default=1)
-    parser.add_argument('--no-board', action='store_true')
+    board_mode = parser.add_mutually_exclusive_group()
+    board_mode.add_argument('--no-board', action='store_true',
+                            help='stub the board tools out; every one refuses')
+    board_mode.add_argument('--simulated', action='store_true',
+                            help='board tools work, against an invented '
+                                 'board that never opens a port - see '
+                                 'coaxial.simulated')
     parser.add_argument('--allow', default='python,cube-cmake',
                         help='programs /sh and run_command may launch')
     parser.add_argument('--allow-writes', action='store_true')
@@ -873,6 +879,9 @@ def build(args):
                     num_gpu=gpu_layers)
     if args.no_board:
         session = NoBoard()
+    elif args.simulated:
+        from coaxial.simulated import SimulatedSession
+        session = SimulatedSession()
     else:
         from coaxial_mcp.session import Session
         session = Session(args.port, args.baud, args.unit)
@@ -969,6 +978,13 @@ def main(argv=None):
         # there is no prompt loop worth opening against a model we will not use.
         print('ollama: %s' % exc, file=sys.stderr)
         return 2
+    if args.simulated:
+        # Loud on purpose, before the model ever answers a thing: board_info
+        # says the same ("firmware": "simulated"), but a line here means
+        # nobody has to ask a tool first to find out these readings are
+        # invented, not measured.
+        print('SIMULATED - no port opened, every board reading is invented',
+              file=sys.stderr)
     interactive = args.repl or not question
     try:
         client.model = client.require_model()
