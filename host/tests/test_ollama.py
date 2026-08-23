@@ -1564,6 +1564,25 @@ def test_debug(report):
                  'OllamaError' in transcript and 'boom' in transcript)
     report.check('the loop survives it and answers the next question',
                  'still here' in transcript, transcript[-200:])
+    report.check('and every question starts fresh - history is cleared '
+                 'after each one, growing prompts being what feeds the '
+                 'crash just recovered from',
+                 crashy.history == [])
+
+    # ---- confirmed on the ordinary path too, not just after a crash -------
+    clean = chat([call('afe_power', action='on')])
+    clean_out = io.StringIO()
+    old_stdin, old_stdout = sys.stdin, sys.stdout
+    sys.stdin = io.StringIO('turn one\n/tools\nturn two\n')
+    sys.stdout = clean_out
+    try:
+        debug.repl(clean, hold=True)
+    finally:
+        sys.stdin, sys.stdout = old_stdin, old_stdout
+    report.check('a clean answer clears history too, not only a recovered '
+                 'crash, and a slash command in between (/tools) does not '
+                 'stop it clearing on the question right after',
+                 clean.history == [])
 
 
 # ---- the daemon is on this machine ----------------------------------------

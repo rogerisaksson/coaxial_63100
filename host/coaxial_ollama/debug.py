@@ -931,10 +931,13 @@ def repl(chat, hold=False):
                 face.stop(chat.link_ok)
                 continue
             face.busy()
+            asked = False
             try:
                 done = chat.command(line)
-                print(done if done is not None else chat.ask(line),
-                      file=face.out)
+                if done is None:
+                    asked = True
+                    done = chat.ask(line)
+                print(done, file=face.out)
                 face.stop(chat.link_ok)
             except SystemExit:
                 face.stop(chat.link_ok)
@@ -945,9 +948,18 @@ def repl(chat, hold=False):
                 # mid-turn. One bad turn is not a reason to lose the rest of
                 # the conversation - ollama respawns llama-server on the next
                 # request, same as the board answers again once reconnected.
+                asked = True
                 face.stop(False)
                 print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)),
                       file=face.out)
+            if asked:
+                # Every question starts from nothing, on purpose: a growing
+                # history is a growing prompt, and a growing prompt is more
+                # for llama-server's own prompt cache to hold onto right up
+                # to the std::bad_alloc it has crashed with more than once
+                # this session. A slash command never touched history in the
+                # first place, so it is left alone here.
+                chat.history = []
         print(chat.cost_line())
     finally:
         # The 30-minute keep_alive that makes turn nine as quick as turn two
