@@ -795,8 +795,11 @@ def parse(argv):
                         help='permit a cloud tag or a remote daemon; off by'
                              ' default, because the question carries the board'
                              ' with it')
-    parser.add_argument('--words', type=int, default=180,
-                        help='cap on generated tokens per turn')
+    parser.add_argument('--words', type=int, default=300,
+                        help='cap on generated tokens per turn - 180 clipped '
+                             'an open-ended question often enough to be '
+                             'annoying; this costs a bit more per turn and '
+                             'clips less often')
     parser.add_argument('--format', dest='fmt',
                         help="'json' to make the answer machine readable. The"
                              " board tools are unaffected - they are already"
