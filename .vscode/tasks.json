@@ -50,6 +50,27 @@
             "problemMatcher": []
         },
         {
+            "label": "Build & flash (model)",
+            "detail": "The local model builds and flashes over SWD - host/tools/build_and_flash.py, one human confirm before it writes to the chip",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/board_prompt.ps1",
+                "-Tools", "build",
+                "-Confirm",
+                "-Ask", "Bygg och flasha kortet."
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "Read the board",
             "detail": "Every channel, the NTC, the link stats - no model involved",
             "type": "shell",

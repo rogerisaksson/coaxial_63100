@@ -22,7 +22,7 @@ the cost turned down:
   5. Old turns are stubbed, not resent whole. A tool result from four questions
      ago is worth its first line, not its forty.
   6. Slash commands run without the model at all. `/py board.afe.state()` and
-     `/sh cube-cmake --build --preset Debug` cost zero tokens, and half of what
+     `/sh python tools/build_and_flash.py` cost zero tokens, and half of what
      one asks a model at a bench is really just "run this and show me".
 
 And it tracks what each turn cost, in and out - `/cost` for the running total,
@@ -61,6 +61,16 @@ off. Phase channels: unknown gain, pin volts only.
 Values come from analog_read, never docs - HARDWARE and FINDINGS explain,
 they don't produce one."""
 
+# Appended only when run_command is actually offered (see trim() below), so
+# every other tool set pays nothing for it. Spelled out rather than left to
+# guesswork: measured on this bench, gemma4:12b's first two tries were
+# `python3` (not on the allowlist - only `python` is) and `python
+# build_and_flash.py` from host/, one directory short of tools/.
+BUILD_HINT = ("To build or flash: run_command with cmd exactly "
+             "'python tools/build_and_flash.py' (add --build-only or "
+             "--flash-only). Not python3 - only python is allowlisted. "
+             "No other command compiles or programs this board.")
+
 # Named subsets, because a debug job knows roughly what it is about to touch.
 SETS = {
     'read': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
@@ -69,6 +79,7 @@ SETS = {
              'docs', 'run_python'),
     'pins': ('board_info', 'gpio_pin', 'gpio_port', 'test_gate', 'afe_power',
              'docs'),
+    'build': ('board_info', 'docs', 'run_command'),
     'all': tuple(spec['name'] for spec in toolmod.TOOLS if spec['name'] != 'report'),
     'none': (),
 }
@@ -413,8 +424,10 @@ class Chat:
             if message['role'] == 'user':
                 asked = message.get('content') or ''
                 break
+        hint = ('\n' + BUILD_HINT
+               if 'run_command' in getattr(self, 'tool_names', ()) else '')
         sent = [{'role': 'system',
-                 'content': SYSTEM + '\n' + language.instruction(asked)}]
+                 'content': SYSTEM + hint + '\n' + language.instruction(asked)}]
         for message in head:
             content = (message.get('content') or '').strip()
             if message['role'] == 'tool':
@@ -472,6 +485,7 @@ class Chat:
         self.history.append({'role': 'user', 'content': question})
         answer = ''
         link_error = None
+        code_error = None  # last run_python/run_command result, if it failed
         last_channels = None      # names in the most recent analog_read table
         seen = {}          # (name, args) this turn -> its rendered result
         nudges = 0         # times told to call the tool it just named, or to
@@ -614,6 +628,16 @@ class Chat:
                         # next turn's question - gets a fresh connect()
                         # instead of the same dead handle.
                         self.toolbox.session.reset()
+                if name in toolmod.CODE_CALLS:
+                    # A build that failed, or a --confirm the operator
+                    # declined, is a fact this loop already has. Measured on
+                    # this bench: told to build and flash, and refused at the
+                    # --confirm prompt, gemma4:12b still answered "kortet har
+                    # byggts och flashats" - a plain invention, and on the one
+                    # tool call in this whole codebase that writes to a real
+                    # 63V/100A board over SWD. Cleared by a later successful
+                    # call in the same turn, same as link_error below.
+                    code_error = str(raw) if str(raw).startswith('ERR') else None
                 if name == 'analog_read' and not str(raw).startswith('ERR'):
                     # A fresh table replaces the last one remembered; an error
                     # leaves the previous table in place rather than wiping it,
@@ -635,6 +659,9 @@ class Chat:
         # not to; this is the case where telling it was not enough.
         if link_error is not None:
             answer = 'link is down, not answered: %s' % link_error
+        elif code_error is not None:
+            answer = 'the last run_python/run_command call failed, nothing ' \
+                     'was done: %s' % code_error
         # The system prompt already says not to retype a table just shown -
         # measured here, qwen2.5:14b did it anyway, every time, across three
         # separate bench sessions. Telling it was not enough, so this is the
@@ -813,7 +840,7 @@ def parse(argv):
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='answer only: no tool trace, no token meter')
     parser.add_argument('-t', '--tools', default='code',
-                        help='read|code|pins|all|none or a comma separated list')
+                        help='read|code|pins|build|all|none or a comma separated list')
     parser.add_argument('-m', '--model', default='gemma4:12b',
                         help="ollama tag, or 'auto' to pick one from this"
                              " machine's cores, RAM and VRAM - see"
@@ -866,10 +893,31 @@ def parse(argv):
                             help='board tools work, against an invented '
                                  'board that never opens a port - see '
                                  'coaxial.simulated')
-    parser.add_argument('--allow', default='python,cube-cmake',
-                        help='programs /sh and run_command may launch')
+    parser.add_argument('--allow', default='python',
+                        help='programs /sh and run_command may launch. '
+                             'cube-cmake and STM32_Programmer_CLI are '
+                             'deliberately not here - tools/build_and_flash.py '
+                             'wraps both with fixed arguments, and python is '
+                             'the only program that needs to be on this list '
+                             'to reach it.')
     parser.add_argument('--allow-writes', action='store_true')
+    parser.add_argument('--confirm', action='store_true',
+                        help='ask before every state change - a pin write, '
+                             'run_python, run_command. Off by default, same '
+                             'as board_prompt without the flag; the two tools '
+                             'this loop is actually built for, analog_read '
+                             'and docs, are reads and never ask.')
     return parser.parse_args(argv)
+
+
+def ask_operator(name, args):
+    """The --confirm gate. Anything but y is a no, including a closed stdin."""
+    print('\n  %s %s' % (name, json.dumps(args)[:400]))
+    try:
+        return input('  run it? [y/N] ').strip().lower() in ('y', 'yes')
+    except (EOFError, KeyboardInterrupt):
+        print('  declined')
+        return False
 
 
 def attach(paths, chars):
@@ -919,7 +967,8 @@ def build(args):
 
     allow = [a for a in args.allow.split(',') if a.strip()]
     toolbox = Toolbox(session, shell=Shell(allow), scope=Scope(),
-                      allow_writes=args.allow_writes)
+                      allow_writes=args.allow_writes,
+                      confirm=ask_operator if args.confirm else None)
     chat = Chat(client, toolbox, tools=args.tools, keep=args.keep,
                 budget=args.budget, quiet=args.quiet)
     return client, session, chat

@@ -72,11 +72,19 @@
     would fail - which is what -NoBoard gives you instead.
 
 .PARAMETER Tools
-    Which tool subset the model gets: read, code, pins, all or none. The list is
-    re-sent every turn, so it is the cost that scales with the conversation.
+    Which tool subset the model gets: read, code, pins, build, all or none. The
+    list is re-sent every turn, so it is the cost that scales with the
+    conversation. `build` is board_info, docs and run_command - the model's
+    only path to host/tools/build_and_flash.py, which is in turn the only path
+    to cube-cmake and STM32_Programmer_CLI. Pair it with -Confirm.
 
 .PARAMETER Ask
     One question, printed, then exit. No prompt loop.
+
+.PARAMETER Confirm
+    Ask before every state change - a pin write, run_python, run_command. Off
+    by default. Matters most with -Tools build: without it, the model builds
+    and flashes the real board the moment it decides to, no human in the loop.
 
 .PARAMETER NoBoard
     Open the prompt with the board tools stubbed out - for a machine with
@@ -136,9 +144,10 @@ param(
     [string]$Port = 'COM4',
     [switch]$AutodetectComport,
     [switch]$Simulated,
-    [ValidateSet('read', 'code', 'pins', 'all', 'none')]
+    [ValidateSet('read', 'code', 'pins', 'build', 'all', 'none')]
     [string]$Tools = 'code',
     [string]$Ask,
+    [switch]$Confirm,
     [switch]$NoBoard,
     [switch]$Plain,
     [switch]$NewWindow,
@@ -356,7 +365,7 @@ function Get-Choice {
 
 # ---- the new window, if that is what was asked -----------------------------
 
-function Quote-Argument {
+function Format-Argument {
     <#  One argument, safe to hand to Start-Process.
 
         -ArgumentList joins an array with spaces and quotes nothing, so a value
@@ -374,14 +383,14 @@ if ($NewWindow) {
     # Rebuild the call rather than forwarding $args: a switch is '-Name' and a
     # value is two elements, and getting that wrong silently drops a parameter.
     $forward = @('-NoExit', '-ExecutionPolicy', 'Bypass',
-                 '-File', (Quote-Argument $PSCommandPath))
+                 '-File', (Format-Argument $PSCommandPath))
     foreach ($name in $PSBoundParameters.Keys) {
         if ($name -eq 'NewWindow') { continue }
         $value = $PSBoundParameters[$name]
         if ($value -is [switch]) {
             if ($value.IsPresent) { $forward += ('-' + $name) }
         } else {
-            $forward += @(('-' + $name), (Quote-Argument ([string]$value)))
+            $forward += @(('-' + $name), (Format-Argument ([string]$value)))
         }
     }
     Start-Process -FilePath 'powershell.exe' -ArgumentList ($forward -join ' ') `
@@ -569,6 +578,7 @@ try {
 
     $call = @('dbg.py', '-m', $Model, '-t', $Tools,
               '--num-ctx', [string]$NumCtx, '--keep-alive', $KeepAlive)
+    if ($Confirm) { $call += '--confirm' }
     if ($Simulated) { $call += '--simulated' }
     elseif ($NoBoard) { $call += '--no-board' }
     else { $call += @('--port', $Port) }
