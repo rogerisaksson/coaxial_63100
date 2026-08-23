@@ -50,6 +50,15 @@ class SimulatedLink:
         self.stats_reads += 1
         if self.board.broken:
             raise ConnectError('cable pulled')
+        if self.board.dead_handle:
+            # Distinct from `broken`: a real cable pull can leave the OS
+            # handle Session.board cached permanently invalid, since a USB
+            # VCP re-enumerates on replug rather than reviving the same
+            # handle - measured directly against real hardware. Unlike
+            # `broken`, nothing but session.reset() clears this one; the
+            # tests using it are the ones proving debug.py actually calls
+            # reset() rather than just retrying on the same dead handle.
+            raise ConnectError('Attempting to use a port that is not open')
         return {'unit_id': 1, 'bus_message': 42, 'char_overrun': 0}
 
 
@@ -105,6 +114,8 @@ class SimulatedAnalog:
     def burst(self, mask, samples, rate=None):
         if self.board.broken:
             raise ConnectError('cable pulled mid-burst')
+        if self.board.dead_handle:
+            raise ConnectError('Attempting to use a port that is not open')
         chosen = {}
         for channel in CHANNELS:
             if mask >> channel['index'] & 1:
@@ -121,6 +132,7 @@ class SimulatedBoard:
         # SimulatedLink fails the same way analog does. One flag, shared, the
         # way a real dead Transport actually behaves.
         self.broken = False
+        self.dead_handle = False
         self.link = SimulatedLink(self)
         self.system = SimulatedSystem()
         self.afe = SimulatedAfe()
@@ -133,6 +145,7 @@ class SimulatedBoard:
 class SimulatedSession:
     def __init__(self):
         self.board = SimulatedBoard()
+        self.resets = 0
 
     def info(self, refresh=False):
         version = {'device': 'coaxial_63100', 'mcu': 'STM32H753',
@@ -141,7 +154,8 @@ class SimulatedSession:
         return version, self.board.system.clock(), CHANNELS
 
     def reset(self):
-        pass
+        self.resets += 1
+        self.board.dead_handle = False
 
     def close(self):
         pass
@@ -1454,6 +1468,49 @@ def test_debug(report):
     saga.ask('ger du mig en tabell over de analoga matvardena')
     report.check('replugged: measures again instead of looping "ask again"',
                  saga_hits[-2:] == ['link', 'analog_read'], saga_hits)
+
+    # ---- a pulled cable can leave the cached handle dead - session.reset()
+    # is what actually recovers it, not just retrying. Measured directly
+    # against real hardware: unplugging left Session.board's cached serial
+    # handle permanently invalid ("Attempting to use a port that is not
+    # open"), because a USB VCP re-enumerates on replug rather than reviving
+    # the same handle - retrying on the same cached board failed forever,
+    # no matter how many times, until something called session.reset(). The
+    # saga test above never exercises this: it flips `broken` back to False
+    # by hand, which a real replug does not do to a dead handle by itself.
+    dead_session = SimulatedSession()
+    dead_box = toolmod.Toolbox(dead_session, shell=Shell(['python']),
+                               scope=Scope())
+    dead_hits = []
+    real_dead_call = dead_box.call
+    dead_box.call = lambda name, args: (
+        dead_hits.append(name), real_dead_call(name, args))[1]
+
+    dead = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'), call('analog_read')]), dead_box,
+        out=io.StringIO())
+    dead.ask('ger du mig en tabell over de analoga matvardena')  # 1) works
+
+    dead_session.board.dead_handle = True                # 2) cable pulled
+    dead.client.turns = [call('link', op='stats')]
+    answer = dead.ask('ger du mig en tabell over de analoga matvardena')
+    report.check('a dead cached handle is reported plainly, same as any '
+                 'other lost link',
+                 answer.startswith('link is down, not answered:'), answer)
+    report.check("debug.py itself calls session.reset() on that failure - "
+                 'not left for a human to notice and type /reconnect',
+                 dead_session.resets >= 1)
+    report.check('and the reset is what actually cleared the dead handle, '
+                 'not the cable coming back on its own',
+                 dead_session.board.dead_handle is False)
+
+    # 3) no further "replug" step needed - the automatic reset already
+    # fixed it, so the very next question measures again on its own.
+    dead.client.turns = [call('link', op='stats'), call('analog_read')]
+    dead.ask('ger du mig en tabell over de analoga matvardena')
+    report.check('so the next question actually reaches analog_read, not '
+                 'stuck retrying a dead handle forever',
+                 dead_hits[-2:] == ['link', 'analog_read'], dead_hits)
 
     # ---- a multi-row result prints as rows, not one squashed line ----
     grid = io.StringIO()

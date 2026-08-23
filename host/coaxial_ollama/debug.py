@@ -450,6 +450,15 @@ class Chat:
         probe = self.toolbox.call('link', {'op': 'stats'})
         lost = ERR_CLASS.match(str(probe))
         self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
+        if not self.link_ok:
+            # Same reasoning as the main loop's own LINK_TOOLS handling: a
+            # cable pulled and replugged can leave the cached board's serial
+            # handle permanently dead, since a USB VCP re-enumerates on
+            # replug rather than reviving the same handle. Reset here too,
+            # or this exact probe - the one this whole recovery path exists
+            # for - keeps failing forever on the same dead handle even once
+            # the cable is back.
+            self.toolbox.session.reset()
         self.history.append({'role': 'tool', 'tool_name': 'link',
                              'name': 'link', 'content': 'link: %s' % probe})
         return probe
@@ -590,6 +599,21 @@ class Chat:
                     # error that gates the answer below, whatever the model
                     # goes on to write about it.
                     link_error = str(raw) if not self.link_ok else None
+                    if not self.link_ok:
+                        # A cable pulled and replugged does not just leave a
+                        # silent board - it can leave the OS-level serial
+                        # handle Session.board cached permanently invalid,
+                        # since a USB VCP re-enumerates on replug rather than
+                        # coming back on the same handle. Measured directly:
+                        # once that happens, retrying on the same cached
+                        # board fails forever with "Attempting to use a port
+                        # that is not open", no matter how many times - only
+                        # /reconnect's session.reset() ever recovered it,
+                        # because nothing else called it. Every future
+                        # attempt - a nudge below, the model trying again,
+                        # next turn's question - gets a fresh connect()
+                        # instead of the same dead handle.
+                        self.toolbox.session.reset()
                 if name == 'analog_read' and not str(raw).startswith('ERR'):
                     # A fresh table replaces the last one remembered; an error
                     # leaves the previous table in place rather than wiping it,
