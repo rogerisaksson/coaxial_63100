@@ -531,7 +531,7 @@ def test_prompt(report):
                  ascii(down_written))
     down.stop(False)
 
-    # ---- busy() repaints the icon at once; stop() repaints icon and bar ---
+    # ---- every repaint rewrites the whole group from column 1, via CR ------
     live = Tty()
     face = spin.prompt(text, live, tick=10, ok=True)
     before = live.getvalue()
@@ -544,37 +544,41 @@ def test_prompt(report):
                  face.color == spin.YELLOW and face.icon == spin.ICON_BUSY
                  and face.rows_up == 1)
     added_busy = after_busy[len(before):]
-    report.check('busy() repaints only the icon column, at once - the bar '
-                 'is left for its own tick',
-                 added_busy == spin.SAVE + (spin.UP % 1)
-                 + (spin.COLUMN % face.icon_column) + spin.YELLOW
-                 + spin.ICON_BUSY + spin.RESET + spin.RESTORE,
+    report.check('busy() repaints the whole group at once, from column 1 - '
+                 'not a jump to a computed column',
+                 added_busy == spin.SAVE + (spin.UP % 1) + '\r'
+                 + face._prefix() + spin.RESTORE,
                  ascii(added_busy))
+    report.check('and the rewritten prefix carries the busy icon and the '
+                 "bar's new colour - the icon's own shape is the signal, "
+                 'not a colour on top of it',
+                 spin.ICON_BUSY in face._prefix()
+                 and spin.YELLOW in face._prefix())
 
     face.stop(True)
     after_stop = live.getvalue()
     added_stop = after_stop[len(after_busy):]
     # tick=10 guarantees the background thread never fires in this test's
-    # lifetime, so the bar's frame is still 0 - the expected repaint is exact.
-    report.check('stop() repaints the icon back to waiting and the bar '
-                 'green, one row up, in that order',
-                 added_stop == spin.SAVE + (spin.UP % 1)
-                 + (spin.COLUMN % face.icon_column) + spin.GREEN
-                 + spin.ICON_WAIT + spin.RESET + spin.RESTORE
-                 + spin.SAVE + (spin.UP % 1) + (spin.COLUMN % face.bar_column)
-                 + spin.GREEN + spin.BARS[0] + spin.RESET + spin.RESTORE,
+    # lifetime, so the bar's frame is still 0 throughout.
+    report.check('stop() repaints the same way - one rewrite, back to '
+                 'waiting and green',
+                 added_stop == spin.SAVE + (spin.UP % 1) + '\r'
+                 + face._prefix() + spin.RESTORE,
                  ascii(added_stop))
+    report.check('and the rewritten prefix carries the waiting icon and '
+                 'green again',
+                 spin.ICON_WAIT in face._prefix()
+                 and spin.GREEN in face._prefix())
 
     same_row = Tty()
     still_waiting = spin.prompt(text, same_row, tick=10, ok=True)
     before2 = same_row.getvalue()
     still_waiting.stop(False)          # never went busy() - still row 0
     added2 = same_row.getvalue()[len(before2):]
-    report.check('stopping before busy() repaints this row, not one up',
-                 added2 == spin.SAVE + (spin.COLUMN % still_waiting.icon_column)
-                 + spin.RED + spin.ICON_ERROR + spin.RESET + spin.RESTORE
-                 + spin.SAVE + (spin.COLUMN % still_waiting.bar_column)
-                 + spin.RED + spin.BARS[0] + spin.RESET + spin.RESTORE,
+    report.check('stopping before busy() repaints this row, not one up - '
+                 'no UP sequence at all',
+                 added2 == spin.SAVE + '\r' + still_waiting._prefix()
+                 + spin.RESTORE,
                  ascii(added2))
 
     # ---- it actually ticks on a real thread when the stream is a terminal -
@@ -614,13 +618,18 @@ def test_prompt(report):
     report.check('the robot, pager and icons are real glyphs, not '
                  'look-alike runs of ASCII',
                  spin.ROBOT == '\U0001F916' and spin.PAGER == '\U0001F4DF'
-                 and len(spin.ICON_WAIT) == len(spin.ICON_BUSY)
-                 == len(spin.ICON_ERROR) == 1)
-    report.check('every bar frame is one column, so a repaint never leaves '
-                 'a stray character behind',
-                 all(len(b) == 1 for b in spin.BARS))
-    report.check('the bar is plain ASCII - no fallback set needed for it',
-                 all(ord(b) < 128 for b in spin.BARS))
+                 and spin.ICON_BUSY == '\U0001F504'
+                 and spin.ICON_ERROR == '❌')
+    report.check('the waiting icon carries a variation selector forcing '
+                 'emoji presentation, unlike the other two by default',
+                 spin.ICON_WAIT == '⏸️')
+    report.check('none of that matters for positioning any more - every '
+                 'repaint rewrites from column 1, not a computed one',
+                 not hasattr(face, 'icon_column')
+                 and not hasattr(face, 'bar_column'))
+    report.check('the bar is plain ASCII - no width question to inherit '
+                 'in the first place',
+                 all(len(b) == 1 and ord(b) < 128 for b in spin.BARS))
 
     class Cp1252(io.StringIO):
         encoding = 'cp1252'
