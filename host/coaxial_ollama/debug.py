@@ -448,6 +448,28 @@ class Chat:
 
             self.history.append(message)
             if not calls:
+                if not self.link_ok:
+                    # The model answered from memory of an earlier failure
+                    # instead of checking again. Measured here: told once
+                    # that the link was down, the next "again" got the same
+                    # sentence back with no new tool call at all, even though
+                    # the cable could have been reconnected in between - an
+                    # honest answer, not a fabrication, but a stale one all
+                    # the same, and SYSTEM's "not an old reading" applies to a
+                    # stale verdict as much as a stale number. Checked in
+                    # code rather than trusted to the model: `link` needs no
+                    # AFE and no sample, so it is the cheapest call that
+                    # settles this either way.
+                    probe = self.toolbox.call('link', {'op': 'stats'})
+                    lost = ERR_CLASS.match(str(probe))
+                    self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
+                    self._trace(probe)
+                    self.history.append({'role': 'tool', 'tool_name': 'link',
+                                         'name': 'link',
+                                         'content': 'link: %s' % probe})
+                    if not self.link_ok:
+                        return 'link is down, not answered: %s' % probe
+                    continue    # back up - let the model answer with it
                 break
 
             for call in calls:

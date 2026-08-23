@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Offline test of the Ollama runner: no board, no ollama, no network.
 
-The board and the model are both faked, on purpose. What is under test here is
-not whether a language model can read a thermistor - that is what a bench is for
-- but whether this runner keeps its promises when the model behaves badly:
+The board and the model are both simulated, on purpose. What is under test
+here is not whether a language model can read a thermistor - that is what a
+bench is for - but whether this runner keeps its promises when the model
+behaves badly:
 
   * the limit never reaches the model;
   * the verdict never comes from the model;
@@ -34,10 +35,11 @@ from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
 BSLASH = chr(92)
 
 
-# ---- the fake bench --------------------------------------------------------
+# ---- the simulated bench ---------------------------------------------------
 
-class FakeLink:
-    def __init__(self):
+class SimulatedLink:
+    def __init__(self, board):
+        self.board = board
         self.stats_reads = 0
 
     def echo(self, data):
@@ -45,10 +47,12 @@ class FakeLink:
 
     def stats(self):
         self.stats_reads += 1
+        if self.board.broken:
+            raise ConnectError('cable pulled')
         return {'unit_id': 1, 'bus_message': 42, 'char_overrun': 0}
 
 
-class FakeSystem:
+class SimulatedSystem:
     def self_test(self):
         return [{'name': 'PLL lock', 'status': 'pass', 'value': 0},
                 {'name': 'ADC calibrated', 'status': 'pass', 'value': 0},
@@ -58,7 +62,7 @@ class FakeSystem:
         return {'sysclk_hz': 475000000, 'hclk_hz': 237500000, 'source': 'PLL1'}
 
 
-class FakeAfe:
+class SimulatedAfe:
     def __init__(self):
         self.on = False
 
@@ -90,15 +94,15 @@ CHANNELS = [
 ]
 
 
-class FakeAnalog:
-    def __init__(self):
-        self.broken = False    # flips a burst to a ConnectError, cable-pulled
+class SimulatedAnalog:
+    def __init__(self, board):
+        self.board = board
 
     def channels(self, refresh=False):
         return CHANNELS
 
     def burst(self, mask, samples, rate=None):
-        if self.broken:
+        if self.board.broken:
             raise ConnectError('cable pulled mid-burst')
         chosen = {}
         for channel in CHANNELS:
@@ -108,20 +112,26 @@ class FakeAnalog:
         return {'samples': samples, 'rate_hz': rate or 0.0, 'channels': chosen}
 
 
-class FakeBoard:
+class SimulatedBoard:
     def __init__(self):
-        self.link = FakeLink()
-        self.system = FakeSystem()
-        self.afe = FakeAfe()
-        self.analog = FakeAnalog()
+        # A cable pull is a transport-level failure: it takes down every
+        # subsystem's calls at once, not just the one a test happens to be
+        # driving - so this lives here, not on SimulatedAnalog alone, and
+        # SimulatedLink fails the same way analog does. One flag, shared, the
+        # way a real dead Transport actually behaves.
+        self.broken = False
+        self.link = SimulatedLink(self)
+        self.system = SimulatedSystem()
+        self.afe = SimulatedAfe()
+        self.analog = SimulatedAnalog(self)
 
     def close_binary(self):
         pass
 
 
-class FakeSession:
+class SimulatedSession:
     def __init__(self):
-        self.board = FakeBoard()
+        self.board = SimulatedBoard()
 
     def info(self, refresh=False):
         version = {'device': 'coaxial_63100', 'mcu': 'STM32H753',
@@ -182,7 +192,7 @@ def build(tasks, turns, allow_writes=False, confirm=None, allow=('python',),
         'product': 'coaxial_63100 BLDC inverter', 'revision': 'test',
         'plan_version': 'test', 'measurement_system_study': 'none, a unit test',
         'tasks': tasks})
-    session = FakeSession()
+    session = SimulatedSession()
     toolbox = toolmod.Toolbox(session, shell=Shell(allow, timeout=60),
                               scope=Scope(), allow_writes=allow_writes,
                               allow_code=allow_code, confirm=confirm)
@@ -401,7 +411,7 @@ def test_board_tools(report):
 # ---- code and commands -----------------------------------------------------
 
 def test_scope(report):
-    scope = Scope(board=FakeBoard())
+    scope = Scope(board=SimulatedBoard())
 
     report.check('the last expression is the result',
                  scope.run('2 + 3') == '5')
@@ -429,7 +439,7 @@ def test_scope(report):
 
 def test_scope_repairs(report):
     """Code that arrived mangled, and imports that were never going to be here."""
-    scope = Scope(board=FakeBoard())
+    scope = Scope(board=SimulatedBoard())
 
     # Seen from the prompt: a whole program on one line with a literal
     # backslash-n where the newlines belonged. Python reads that as a line
@@ -684,7 +694,7 @@ def test_cli(report):
 def test_debug(report):
     from coaxial_ollama import debug
 
-    box = toolmod.Toolbox(FakeSession(), shell=Shell(['python']), scope=Scope())
+    box = toolmod.Toolbox(SimulatedSession(), shell=Shell(['python']), scope=Scope())
 
     def chat(turns, **kw):
         kw.setdefault('out', io.StringIO())
@@ -801,24 +811,68 @@ def test_debug(report):
                  'no-board' in text, text[:60])
 
     # ---- link status tracks every call, not just /reconnect ----
-    flaky_session = FakeSession()
+    flaky_session = SimulatedSession()
     flaky_box = toolmod.Toolbox(flaky_session, shell=Shell(['python']),
                                 scope=Scope())
     watch = debug.Chat(ScriptedModel([call('analog_read')]), flaky_box,
                        out=io.StringIO())
-    flaky_session.board.analog.broken = True
+    flaky_session.board.broken = True
     watch.ask('read everything')
     report.check('a cable pulled mid-turn turns the spinner red on its own',
                  watch.link_ok is False)
 
-    flaky_session.board.analog.broken = False
+    flaky_session.board.broken = False
     watch.client.turns = [call('analog_read')]
     watch.ask('try again')
     report.check('and a call that succeeds turns it green again, no /reconnect',
                  watch.link_ok is True)
 
+    # ---- asked again, a stale "it doesn't work" gets a fresh check ----
+    # Measured on this bench: told the link was down, gemma4:12b answered
+    # "again" with the same sentence from memory and no new tool call at all
+    # - an honest answer, not a fabrication, but stale, and the operator had
+    # to say "I plugged it back in" before it tried again. A zero-call answer
+    # while link_ok is already False now gets a real link check first.
+    recover_session = SimulatedSession()
+    recover_box = toolmod.Toolbox(recover_session, shell=Shell(['python']),
+                                  scope=Scope())
+    recover_session.board.broken = True
+    hits = []
+    real_recover_call = recover_box.call
+
+    def recover_call(name, args):
+        hits.append(name)
+        if name == 'link':
+            recover_session.board.broken = False  # reconnected, right now
+        return real_recover_call(name, args)
+    recover_box.call = recover_call
+
+    recovered = debug.Chat(ScriptedModel([
+        call('analog_read'),
+        {'role': 'assistant', 'content': 'Jag kan inte lasa av kortet just nu.'},
+        call('analog_read')]), recover_box, out=io.StringIO())
+    recovered.ask('tabellera igen')
+    report.check('a stale refusal triggers a real check instead of repeating',
+                 hits == ['analog_read', 'link', 'analog_read'], hits)
+    report.check('and the link is marked up again from that check alone',
+                 recovered.link_ok is True)
+
+    # ---- ...and if it is still down, the fresh check says so, not the model --
+    stuck_recover_session = SimulatedSession()
+    stuck_recover_box = toolmod.Toolbox(stuck_recover_session,
+                                        shell=Shell(['python']), scope=Scope())
+    stuck_recover_session.board.broken = True
+    stuck_recovered = debug.Chat(ScriptedModel([
+        call('analog_read'),
+        {'role': 'assistant', 'content': 'Det gar fortfarande inte att lasa.'}]),
+        stuck_recover_box, out=io.StringIO())
+    answer = stuck_recovered.ask('tabellera igen')
+    report.check('still down: the fresh check speaks, not the stale sentence',
+                 answer.startswith('link is down, not answered:')
+                 and 'fortfarande' not in answer, answer)
+
     # ---- a failed read is not answered from an old context ----
-    stale_session = FakeSession()
+    stale_session = SimulatedSession()
     stale_box = toolmod.Toolbox(stale_session, shell=Shell(['python']),
                                 scope=Scope())
     stale = debug.Chat(ScriptedModel([
@@ -827,7 +881,7 @@ def test_debug(report):
         out=io.StringIO())
     stale.ask('what is the temperature?')
 
-    stale_session.board.analog.broken = True
+    stale_session.board.broken = True
     stale.client.turns = [
         call('analog_read', ch=['NTC']),
         # A model is free to write this; the runner does not have to believe
@@ -841,7 +895,7 @@ def test_debug(report):
                  stale.link_ok is False)
 
     # ---- an identical call repeated in one turn does not re-hit the board --
-    spam_session = FakeSession()
+    spam_session = SimulatedSession()
     spam_box = toolmod.Toolbox(spam_session, shell=Shell(['python']),
                                scope=Scope())
     hits = []
@@ -862,10 +916,10 @@ def test_debug(report):
                  'unchanged this turn' in json.dumps(spam.history))
 
     # ---- ...but a dedup cannot launder a failure back into a success ------
-    stuck_session = FakeSession()
+    stuck_session = SimulatedSession()
     stuck_box = toolmod.Toolbox(stuck_session, shell=Shell(['python']),
                                 scope=Scope())
-    stuck_session.board.analog.broken = True
+    stuck_session.board.broken = True
     stuck = debug.Chat(ScriptedModel([
         {'role': 'assistant', 'content': '',
          'tool_calls': [{'function': {'name': 'analog_read', 'arguments': {}}}]},
@@ -895,7 +949,7 @@ def test_debug(report):
                  'smp' not in debug.READING_ROW.findall(
                      '64 smp @2000Hz\n0  PhaseU  diff   1427.1  +0.1437V'))
 
-    retype_session = FakeSession()
+    retype_session = SimulatedSession()
     retype_box = toolmod.Toolbox(retype_session, shell=Shell(['python']),
                                  scope=Scope())
     retyped = debug.Chat(ScriptedModel([
@@ -914,7 +968,7 @@ def test_debug(report):
     # a markdown-table retype used to slip past the all-channels-present check
     # entirely - the very shape SYSTEM already forbids, printed anyway because
     # it never finished. The shape alone is now enough to catch it.
-    truncated_session = FakeSession()
+    truncated_session = SimulatedSession()
     truncated_box = toolmod.Toolbox(truncated_session, shell=Shell(['python']),
                                     scope=Scope())
     truncated = debug.Chat(ScriptedModel([
@@ -930,7 +984,7 @@ def test_debug(report):
     report.check('a markdown table is silenced even cut off before every '
                  'channel is named', answer == '', answer)
 
-    insight_session = FakeSession()
+    insight_session = SimulatedSession()
     insight_box = toolmod.Toolbox(insight_session, shell=Shell(['python']),
                                   scope=Scope())
     insight = debug.Chat(ScriptedModel([
@@ -942,7 +996,7 @@ def test_debug(report):
     report.check('a real finding that names a couple of channels survives',
                  'running warm' in answer, answer)
 
-    one_session = FakeSession()
+    one_session = SimulatedSession()
     one_box = toolmod.Toolbox(one_session, shell=Shell(['python']), scope=Scope())
     one = debug.Chat(ScriptedModel([
         call('afe_power', action='on'), call('analog_read', ch=['ntc']),
@@ -952,7 +1006,7 @@ def test_debug(report):
                  one.ask('what is the temperature?') == 'NTC is 24.9 C.')
 
     # ---- a turn that skips the tool call entirely is not taken on faith ----
-    skip_session = FakeSession()
+    skip_session = SimulatedSession()
     skip_box = toolmod.Toolbox(skip_session, shell=Shell(['python']),
                                scope=Scope())
     skip = debug.Chat(ScriptedModel([
@@ -1229,7 +1283,7 @@ def test_coerce(report):
     # And the whole path, not just the key: the resolver has to turn every
     # spelling into the same channel index against a real channel table.
     from coaxial_mcp.tools import _resolve
-    session = FakeSession()
+    session = SimulatedSession()
     wanted = [_resolve(session, [spelling])
               for spelling in ('dc_bus', 'DC bus', 'DCbus', 'dcbus')]
     report.check('every spelling of the DC link resolves to one channel',
