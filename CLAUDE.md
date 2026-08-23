@@ -103,6 +103,12 @@ runs several small fix-test cycles in a row; asking after each one is what
 keeps the tree from either committing mid-investigation or piling up
 unpushed work nobody asked to hold onto.
 
+Every time, not just when it comes to mind: the end of a text summary is the
+trigger, not a reminder to wait for. Measured on this bench — the rule was
+added, and the very next change landed with a summary and no question,
+because asking was never made part of finishing the change. Treat the
+question as the last step of the change, the same way running the tests is.
+
 ## Ask the board, do not reason about it
 
 There is a local model on this machine with the board's eleven tools wired to
