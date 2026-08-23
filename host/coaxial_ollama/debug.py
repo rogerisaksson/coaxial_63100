@@ -900,7 +900,12 @@ def repl(chat, hold=False):
                 print(done if done is not None else chat.ask(line))
             except SystemExit:
                 break
-            except (RigError, ValueError) as exc:
+            except (RigError, ValueError, OllamaError) as exc:
+                # A dead board and a dead model backend are the same shape of
+                # failure here: something the session doesn't own crashed
+                # mid-turn. One bad turn is not a reason to lose the rest of
+                # the conversation - ollama respawns llama-server on the next
+                # request, same as the board answers again once reconnected.
                 print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)))
         print(chat.cost_line())
     finally:

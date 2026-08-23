@@ -1299,6 +1299,45 @@ def test_debug(report):
                  'characters cut' in attached and '300 attached' in attached,
                  attached.splitlines()[0][:60])
 
+    # ---- a crashed model backend loses one turn, not the session ----------
+    # Reported live: llama-server hit std::bad_alloc mid-conversation, ollama
+    # answered 500, and the whole --repl process died with it - a single
+    # OllamaError wasn't in repl()'s per-turn catch, so it rode all the way
+    # out to main()'s handler. The board gets a reconnect story; the model
+    # backend deserves the same one, since ollama respawns llama-server on
+    # the next request same as the board answers again once plugged back in.
+    from coaxial_ollama.client import OllamaError
+
+    class Flaky:
+        model = 'flaky'
+
+        def __init__(self):
+            self.calls = 0
+
+        def chat(self, messages, tools=None):
+            self.calls += 1
+            if self.calls == 1:
+                raise OllamaError('ollama: /api/chat 500: boom')
+            return {'role': 'assistant', 'content': 'still here'}
+
+        def usage(self):
+            return {'calls': self.calls, 'prompt_tokens': 0, 'eval_tokens': 0}
+
+    crash_out = io.StringIO()
+    crashy = debug.Chat(Flaky(), box, out=crash_out)
+    old_stdin, old_stdout = sys.stdin, sys.stdout
+    sys.stdin = io.StringIO('first question\nsecond question\n')
+    sys.stdout = crash_out
+    try:
+        debug.repl(crashy, hold=True)
+    finally:
+        sys.stdin, sys.stdout = old_stdin, old_stdout
+    transcript = crash_out.getvalue()
+    report.check('the crash is reported, not swallowed',
+                 'OllamaError' in transcript and 'boom' in transcript)
+    report.check('the loop survives it and answers the next question',
+                 'still here' in transcript, transcript[-200:])
+
 
 # ---- the daemon is on this machine ----------------------------------------
 
