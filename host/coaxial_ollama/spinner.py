@@ -20,10 +20,10 @@ The typed text is never written over, because it is never written to. Every
 frame within a state is the same width for exactly this reason: the repaint
 only writes over the glyph's own columns, so a shorter frame following a
 longer one would leave a stray character behind, and a longer one would eat
-into the "> " that follows it on the same line. What can still go wrong is a
-line long enough to wrap: the column is on the current row, so a wrapped line
-puts the face on the wrong one. A bench question is not that long, and the
-alternative - tracking the wrap - is a terminal emulator.
+into the prompt text that follows it on the same line. What can still go
+wrong is a line long enough to wrap: the column is on the current row, so a
+wrapped line puts the face on the wrong one. A bench question is not that
+long, and the alternative - tracking the wrap - is a terminal emulator.
 
 No console, no VT, or output redirected: the prompt is printed once, static,
 and `stop()` does nothing. A script piping commands in gets exactly what it
@@ -127,7 +127,8 @@ def spinning_prompt(prompt, out, tick=TICK, ok=True):
     """Write the prompt, start the face blinking in it, return something to stop.
 
     The prompt is written whole and once, so `input()` reads a line that is
-    already on screen; only the face's own columns are touched afterwards.
+    already on screen; only the face's own columns, at the very start of the
+    line, are touched afterwards.
 
     `ok` is whether the board link is up: a green, blinking face when it is,
     a red one glitching between an error and a crying face when it is not -
@@ -136,12 +137,12 @@ def spinning_prompt(prompt, out, tick=TICK, ok=True):
     """
     glyphs = _frames(out, ok)
     color = GREEN if ok else RED
-    line = '%s%s%s%s> ' % (prompt, color, glyphs[0], RESET)
+    line = '%s%s%s %s> ' % (color, glyphs[0], RESET, prompt)
     out.write(line)
     out.flush()
 
     if not _vt(out):
         return lambda: None
 
-    # 1-based column of the face: right after the prompt, no space between.
-    return Spinner(out, len(prompt) + 1, glyphs, tick, ok=ok).start().stop
+    # 1-based column of the face: the very first thing on the line.
+    return Spinner(out, 1, glyphs, tick, ok=ok).start().stop

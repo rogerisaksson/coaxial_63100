@@ -491,12 +491,13 @@ def test_prompt(report):
     drawn = screen.getvalue()
     header_end = drawn.index('> ') + 2
 
-    report.check('the prompt is written whole, once, glyph flush against it',
-                 drawn.startswith('Coaxial_63100' + spin.GREEN)
+    report.check('the face leads, the prompt text follows it',
+                 drawn.startswith(spin.GREEN + spin.OK_GLYPHS[0])
                  and drawn.count('Coaxial_63100') == 1, repr(drawn[:24]))
-    report.check('no space pads the face on either side',
-                 drawn.startswith('Coaxial_63100%s%s%s> '
-                                   % (spin.GREEN, spin.OK_GLYPHS[0], spin.RESET)),
+    report.check('one space separates the face from the prompt, nothing else',
+                 drawn.startswith('%s%s%s %s> '
+                                   % (spin.GREEN, spin.OK_GLYPHS[0], spin.RESET,
+                                      'Coaxial_63100')),
                  repr(drawn[:32]))
     report.check('it keeps painting after the prompt is up',
                  drawn.count(spin.SAVE) >= 3, '%d frames' % drawn.count(spin.SAVE))
@@ -546,8 +547,8 @@ def test_prompt(report):
     noop()
     report.check('a redirected prompt is static and escape-free',
                  piped.getvalue() ==
-                 'Coaxial_63100%s%s%s> ' % (spin.GREEN, spin.OK_FALLBACK[0],
-                                            spin.RESET),
+                 '%s%s%s %s> ' % (spin.GREEN, spin.OK_FALLBACK[0], spin.RESET,
+                                  'Coaxial_63100'),
                  repr(piped.getvalue()))
 
 
