@@ -232,18 +232,23 @@ def test_verdicts(report):
     limited = [{'id': 'T1', 'name': 'inside', 'ask': 'a',
                 'limit': {'low': 0.0, 'high': 10.0, 'unit': 'V'}}]
 
-    runner, _, _ = build(limited, [call('report', value=5.0, unit='V',
-                                        note='measured')])
+    # Every scenario below touches the board (link stats) before reporting -
+    # a report with nothing behind it is refused, see test_misbehaviour.
+    touch = call('link', op='stats')
+
+    runner, _, _ = build(limited, [touch, call('report', value=5.0, unit='V',
+                                               note='measured')])
     record = runner.run_task(runner.plan.tasks[0])
     report.check('inside the limit passes', record.verdict == 'pass',
                  record.line().strip())
 
-    runner, _, _ = build(limited, [call('report', value=11.0, unit='V',
-                                        note='measured')])
+    runner, _, _ = build(limited, [touch, call('report', value=11.0, unit='V',
+                                               note='measured')])
     report.check('outside the limit fails',
                  runner.run_task(runner.plan.tasks[0]).verdict == 'fail')
 
-    runner, _, _ = build(limited, [call('report', unit='V', note='no reading')])
+    runner, _, _ = build(limited, [touch,
+                                   call('report', unit='V', note='no reading')])
     record = runner.run_task(runner.plan.tasks[0])
     report.check('a limited step with no number fails',
                  record.verdict == 'fail' and record.warnings,
@@ -251,13 +256,14 @@ def test_verdicts(report):
 
     runner, _, _ = build([{'id': 'T1', 'name': 'record', 'ask': 'a',
                            'unit': 'degC', 'record_only': True}],
-                         [call('report', value=1e6, unit='degC', note='odd')])
+                         [touch,
+                          call('report', value=1e6, unit='degC', note='odd')])
     record = runner.run_task(runner.plan.tasks[0])
     report.check('a record_only step is never failed',
                  record.verdict == 'record' and record.value == 1e6)
 
-    runner, _, _ = build(limited, [call('report', value=5.0, unit='mV',
-                                        note='wrong unit')])
+    runner, _, _ = build(limited, [touch, call('report', value=5.0, unit='mV',
+                                               note='wrong unit')])
     record = runner.run_task(runner.plan.tasks[0])
     report.check('a unit mismatch is warned, not silently judged',
                  record.verdict == 'pass' and any('expects' in w
@@ -268,7 +274,8 @@ def test_verdicts(report):
 def test_model_never_sees_limits(report):
     tasks = [{'id': 'T1', 'name': 'dc link error', 'ask': 'measure the link',
               'limit': {'low': -0.25, 'high': 0.25, 'unit': 'V error'}}]
-    runner, model, _ = build(tasks, [call('report', value=0.1, unit='V error',
+    runner, model, _ = build(tasks, [call('link', op='stats'),
+                                     call('report', value=0.1, unit='V error',
                                           note='ok')])
     runner.run_task(runner.plan.tasks[0])
     blob = json.dumps(model.prompts)
@@ -299,18 +306,35 @@ def test_misbehaviour(report):
                  '%d turns, %d calls' % (record.turns, len(record.calls)))
 
     runner, _, _ = build(task, [call('no_such_tool', x=1),
+                                call('link', op='stats'),
                                 call('report', value=0.5, unit='V', note='n')])
     record = runner.run_task(runner.plan.tasks[0])
     report.check('an unknown tool is an answer, not a crash',
                  record.verdict == 'pass' and 'no_such_tool' in record.calls)
 
-    runner, _, _ = build(task, [{'role': 'assistant', 'content': '',
-                                 'tool_calls': [{'function': {
-                                     'name': 'report',
-                                     'arguments': '{"value": 0.4, "unit": "V"}'}}]}])
+    runner, _, _ = build(task, [
+        call('link', op='stats'),
+        {'role': 'assistant', 'content': '',
+         'tool_calls': [{'function': {
+             'name': 'report',
+             'arguments': '{"value": 0.4, "unit": "V"}'}}]}])
     record = runner.run_task(runner.plan.tasks[0])
     report.check('arguments as a JSON string are parsed',
                  record.verdict == 'pass' and record.value == 0.4)
+
+    # A report with no board tool called this step is refused, not accepted -
+    # the same class of fabrication debug.py hardened against, here gated
+    # before it becomes a signed verdict. Three identical attempts (task's own
+    # max_turns is 3) so the refusal itself is what ends the step, rather than
+    # the model running out of scripted turns and falling into the separate
+    # prose-stop path.
+    runner, _, _ = build(task, [call('report', value=9.0, unit='V',
+                                     note='never measured')] * 3)
+    record = runner.run_task(runner.plan.tasks[0])
+    report.check('report with nothing behind it is refused, not accepted',
+                 record.verdict == 'unfinished'
+                 and 'no board measurement' in record.warnings[0],
+                 record.warnings[0] if record.warnings else '')
 
     runner, model, _ = build(task, [
         {'role': 'assistant', 'content': 'hm',
@@ -604,6 +628,7 @@ def test_transcript(report):
         runner, _, _ = build(tasks, [call('link', op='stats'),
                                      call('report', value=0.5, unit='V',
                                           note='one'),
+                                     call('link', op='stats'),
                                      call('report', value=2, note='two')],
                              transcript=path)
         summary = runner.run()
@@ -905,6 +930,27 @@ def test_debug(report):
         out=io.StringIO())
     report.check('a single-channel question keeps its single-channel answer',
                  one.ask('what is the temperature?') == 'NTC is 24.9 C.')
+
+    # ---- a turn that skips the tool call entirely is not taken on faith ----
+    skip_session = FakeSession()
+    skip_box = toolmod.Toolbox(skip_session, shell=Shell(['python']),
+                               scope=Scope())
+    skip = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'), call('analog_read'),
+        {'role': 'assistant', 'content':
+            'PhaseU: +0.1398V, PhaseV: -0.8226V, '
+            'NTC: 2.0567V (38.85C), DCbus: 1.1197V (26.518V)'}]), skip_box,
+        out=io.StringIO())
+    skip.ask('tabellera ADC-värdena')
+    skip.client.turns = [{'role': 'assistant', 'content':
+        # A rewrite, not a copy - a model confabulating a fresh reading does
+        # not retype the old numbers verbatim, which is exactly why the
+        # verbatim-restate check above cannot be the thing that catches this.
+        'PhaseU: +0.1415V, PhaseV: -0.8232V, '
+        'NTC: 2.0726V (39.45C), DCbus: 1.1195V (26.511V)'}]
+    answer = skip.ask('tabellera ADC-värdena igen')
+    report.check('a fresh-looking table with no tool call this turn is refused',
+                 answer == 'no reading taken this turn - ask again.', answer)
 
     # ---- a multi-row result prints as rows, not one squashed line ----
     grid = io.StringIO()
@@ -1244,8 +1290,25 @@ def test_coerce(report):
 
 def test_capability(report):
     """Picked from cores, RAM and VRAM - not from whoever cloned the repo."""
+    import os
+
     from coaxial_ollama import capability as cap
 
+    # This bench itself runs with COAXIAL_VRAM_RESERVE_GB set - see MODELS.md's
+    # own `-Reserve 8` example - so a test that leaves the real environment in
+    # place fails every unoverridden assertion below on the exact machine these
+    # docs were measured on. Cleared for the whole function, not just around the
+    # override scenario further down, and restored after.
+    had_override = cap.RESERVE_ENV in os.environ
+    saved_override = os.environ.pop(cap.RESERVE_ENV, None)
+    try:
+        _test_capability(report, cap)
+    finally:
+        if had_override:
+            os.environ[cap.RESERVE_ENV] = saved_override
+
+
+def _test_capability(report, cap):
     def machine(cores, ram, vram, name='card', used=0.0, free=None, busy=None):
         gpus = ([{'name': name, 'vram_gb': vram, 'used_gb': used, 'via': 'test'}]
                 if vram else [])

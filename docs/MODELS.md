@@ -456,7 +456,7 @@ prints now is the result, row for row, nothing above it.
 ### A call written as text, more than one at a time
 
 `dbg.py` recovers a tool call the model typed into `content` instead of putting
-in `tool_calls` — the shape was wrong, the intent was right, and a JSON parse is
+in `tool_calls` ï¿½ the shape was wrong, the intent was right, and a JSON parse is
 cheaper than a wasted turn. The first version recovered exactly one call from a
 message that was *nothing but* that call, and asked "vad ar temperaturen" the
 model sent two:
@@ -467,13 +467,13 @@ model sent two:
     {"name": "afe_power", "arguments": {"action": "read"}}
 
 Nothing ran, and the prompt printed all four lines as the answer. At a bench
-that does not read as a parse failure — it reads as the board having stopped
+that does not read as a parse failure ï¿½ it reads as the board having stopped
 giving values, which is the wrong thing to go and check.
 
 `_salvage_calls` now takes every call in the message, matches braces rather than
 running a non-greedy regex (`{.*?}` ends at the brace that closes `arguments`,
 so a nested argument parsed as half of itself), and keeps the old veto: with the
-tags and the call objects removed, anything left has to be marker noise —
+tags and the call objects removed, anything left has to be marker noise ï¿½
 `tool`, `call`, `function`, `check`, split at capitals so `CallCheckFunction`
 counts as three. One word of real prose and the message is printed as the answer
 it probably is. Turning a sentence that happens to quote JSON into a board
@@ -485,3 +485,32 @@ The runner nudges twice â€” "either call a tool, or call report to finish this
 step" â€” and then records the step as `unfinished` rather than accepting the
 prose as a result. An unfinished step is a visible hole in the report; a
 paragraph accepted as a measurement is not.
+
+### A turn that skipped the read entirely
+
+Both backstops above - the link-down override and the no-restating-a-table
+override - only look at tool calls made *that turn*. Measured on this bench
+with `dbg.py`: the ST-Link's JTAG connector, which carries this board's VCP
+(`docs/HARDWARE.md` - USART3 is bridged through the probe, not a separate
+on-board USB-UART chip), was pulled mid-conversation. Asked "tabellera
+ADC-vÃ¤rdena" again, `gemma4:12b` answered one round trip later with a full
+table of plausible values - PhaseU, PhaseV, NTC, DCbus all present, each a
+few counts off the real table from earlier in the same conversation. No
+`analog_read` in the trace: it never touched the board that turn, just
+rewrote the old numbers slightly and presented them as current.
+
+Neither existing backstop caught this, because both are keyed off calls made
+in the current turn, and this turn made none - `link_error` stays `None` with
+nothing to report, and the turn-local `last_channels` used for the
+restate-check stays `None` since no `analog_read` ran. SYSTEM already says
+"never answer with an older reading or a guess," which is the same sentence
+that did not stop the two failures above either.
+
+`Chat` now keeps `self.last_channels` across turns, separate from the
+turn-local copy. If a turn calls no `analog_read` at all and the final answer
+still names every channel from the last real reading - the same
+`RESTATE_MIN_CHANNELS` bar as the restate check - the answer is replaced with
+`no reading taken this turn - ask again.` A turn that calls `analog_read` and
+gets a channel-name or argument error still passes through undisturbed: that
+model reached the board and got a real (if unhelpful) answer, which is a
+different failure than never asking at all.

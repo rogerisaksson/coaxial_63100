@@ -36,6 +36,7 @@ import time
 sys.path.insert(0, __file__.rsplit('coaxial_ollama', 1)[0])
 
 from coaxial.errors import RigError                  # noqa: E402
+from coaxial_mcp import render                        # noqa: E402
 
 from . import language
 from . import tools as toolmod                       # noqa: E402
@@ -44,7 +45,8 @@ from .sandbox import Scope, Shell, clip              # noqa: E402
 
 # Deliberately terse, and every line of it earns its place. No restating the
 # protocol, no channel map - board_info carries that, once, when asked.
-SYSTEM = """You debug a coaxial BLDC inverter test board over a serial link.
+SYSTEM = """You are an expert with a serial communication link to a coaxial
+BLDC inverter.
 Use tools; do not guess. Answer in one or two sentences, no preamble.
 This is a plain terminal: never a markdown table, and never restate the rows a
 tool result already printed above - one short line, not a second listing.
@@ -108,8 +110,9 @@ BACKSLASH = chr(92)
 ERR_CLASS = re.compile(r'^ERR (\w+):')
 
 # Tools that actually reach the board - not 'docs', which reads local files and
-# proves nothing about the link either way.
-LINK_TOOLS = set(toolmod.BOARD_HANDLERS) - {'docs'}
+# proves nothing about the link either way. Shared with runner.py's own use of
+# the same set, for the same reason: a docs call proves nothing either way.
+LINK_TOOLS = toolmod.LINK_TOOLS
 
 # render.error's class name, for the calls that report through it. Not every
 # RigError means the cable is out: DeviceStateError, UnsupportedProtocolError
@@ -301,6 +304,10 @@ class Chat:
         # /reconnect changes it on the very next line rather than needing a
         # restart to notice the cable was plugged back in.
         self.link_ok = link_ok
+        # Names from the most recent successful analog_read, kept across turns
+        # (unlike the turn-local copy in `ask`) so a later turn that answers
+        # with no tool call at all can still be checked against it.
+        self.last_channels = None
         self.set_tools(tools)
 
     # ---- what the model is allowed to see ----------------------------------
@@ -378,6 +385,7 @@ class Chat:
         answer = ''
         link_error = None
         last_channels = None      # names in the most recent analog_read table
+        read_attempted = False    # analog_read was called this turn, win or lose
         seen = {}          # (name, args) this turn -> its rendered result
 
         for _ in range(max_calls + 1):
@@ -413,6 +421,8 @@ class Chat:
 
             for call in calls:
                 name = (call.get('function') or {}).get('name', '?')
+                if name == 'analog_read':
+                    read_attempted = True
                 args = _arguments(call)
                 key = (name, json.dumps(args, sort_keys=True, default=str))
 
@@ -450,6 +460,7 @@ class Chat:
                     # since link_error already takes priority below either way.
                     last_channels = set(m.lower()
                                         for m in READING_ROW.findall(str(raw)))
+                    self.last_channels = last_channels
                 self._trace(result)
                 self.history.append({'role': 'tool', 'tool_name': name,
                                      'name': name,
@@ -476,6 +487,24 @@ class Chat:
               and answer and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
                                  for ch in last_channels)):
             answer = 'table above, not restated.'
+        # The two backstops above only look at *this* turn's analog_read calls,
+        # so a turn that never calls it at all slips past both. Measured on
+        # this bench: asked "tabellera ADC-värdena" again after the link was
+        # cut, gemma4:12b answered with a full table of plausible values one
+        # round trip later - no analog_read in the trace, just a
+        # slightly-perturbed rewrite of the real table from earlier in the
+        # conversation. SYSTEM already says never to answer with an older
+        # reading; this is the same class of "telling it was not enough" as
+        # the two checks above, just for the turn that skips the read rather
+        # than one that makes it and gets an error. `self.last_channels`
+        # survives across turns for exactly this - the turn-local
+        # `last_channels` above is always None here, since a successful
+        # analog_read this turn would have set it too.
+        elif (not read_attempted and self.last_channels
+              and len(self.last_channels) >= RESTATE_MIN_CHANNELS and answer
+              and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
+                     for ch in self.last_channels)):
+            answer = 'no reading taken this turn - ask again.'
         # An answer that hit the token cap stops mid-sentence, and a table that
         # stops mid-row reads as complete to everyone except a reader counting
         # rows. Say so rather than letting the cap look like the end.
@@ -762,7 +791,7 @@ def repl(chat):
         except SystemExit:
             break
         except (RigError, ValueError) as exc:
-            print('%s: %s' % (type(exc).__name__, exc))
+            print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)))
     print(chat.cost_line())
 
 
@@ -815,10 +844,11 @@ def main(argv=None):
         try:
             session.board
         except RigError as exc:
+            message = 'board: %s%s' % (exc, render.hint(exc))
             if not interactive:
-                print('board: %s' % exc, file=sys.stderr)
+                print(message, file=sys.stderr)
                 return 2
-            print('board: %s' % exc, file=sys.stderr)
+            print(message, file=sys.stderr)
             print('slash commands still work; board tools will fail until the '
                   'link is up.', file=sys.stderr)
         else:

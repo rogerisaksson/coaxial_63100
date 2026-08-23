@@ -84,14 +84,36 @@ def port_bits(port, value, reserved):
         port, value, ','.join(str(p) for p in high) or '-', note)
 
 
+NO_CONTACT = (' -> check the board is powered, and that a JTAG programmer or '
+             'a dedicated serial adapter is connected between it and this PC')
+
+# ConnectError and NoReplyError both mean no data came back, from different
+# places - ConnectError is the port itself not existing, NoReplyError is the
+# port opening fine and the board staying silent - but a first identify wraps
+# either one as ConnectError (`coaxial.board._build`), so both need the same
+# troubleshooting line: there is no reliable way to tell a caller which of the
+# two actually happened.
+HINTS = {
+    'DeviceStateError': ' -> afe_power(action=on)',
+    'ConnectError': NO_CONTACT,
+    'NoReplyError': NO_CONTACT,
+    'UnsupportedProtocolError': ' -> host library is older than the firmware',
+}
+
+
+def hint(exc):
+    """The suffix error() appends for this exception, or ''.
+
+    Exposed separately so a caller building its own message around the same
+    exception - dbg.py's own startup banner, not just a tool result - gets the
+    same troubleshooting line rather than a second, differently-worded one.
+    """
+    return HINTS.get(type(exc).__name__, '')
+
+
 def error(exc):
     """One line. Names the exception type and, where known, the way out."""
-    hint = {
-        'DeviceStateError': ' -> afe_power(action=on)',
-        'ConnectError': ' -> check the cable and the port name',
-        'UnsupportedProtocolError': ' -> host library is older than the firmware',
-    }.get(type(exc).__name__, '')
-    return 'ERR %s: %s%s' % (type(exc).__name__, exc, hint)
+    return 'ERR %s: %s%s' % (type(exc).__name__, exc, hint(exc))
 
 
 def checks(results):

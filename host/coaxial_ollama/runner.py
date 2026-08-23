@@ -176,6 +176,8 @@ class Runner:
         schemas = self.toolbox.schemas()
         nudges = 0
         reported = None
+        board_touched = False  # a real board tool was called this step
+        giving_up = False
 
         while record.turns < task.max_turns and reported is None:
             record.turns += 1
@@ -212,7 +214,37 @@ class Runner:
                 result = self.toolbox.call(name, args)
                 record.calls.append(name)
 
+                if name in toolmod.LINK_TOOLS:
+                    board_touched = True
+
                 if isinstance(result, toolmod.Reported):
+                    if not board_touched:
+                        # The same failure debug.py hardened against, here with
+                        # higher stakes: this report becomes a signed pass/fail,
+                        # and SYSTEM already says not to invent a number - which
+                        # did not stop the model in debug.py either. Refused
+                        # like a prose stop: nudged twice, then unfinished.
+                        nudges += 1
+                        text = ('refused: no board tool was called this step, '
+                                'so there is nothing behind that value. '
+                                'Measure something, or call report with no '
+                                'value and say what stopped you.')
+                        self._say('   %-12s %s' % (name, text))
+                        self.transcript.write('tool', id=task.id,
+                                              turn=record.turns, name=name,
+                                              args=args, result=text)
+                        if nudges > 2:
+                            record.note = text
+                            record.verdict = 'unfinished'
+                            record.warnings.append(
+                                'called report with no board measurement '
+                                'this step')
+                            giving_up = True
+                            break
+                        messages.append({'role': 'tool', 'tool_name': name,
+                                         'name': name,
+                                         'content': '%s: %s' % (name, text)})
+                        continue
                     reported = result
                     self.transcript.write('report', id=task.id,
                                           value=result.value, unit=result.unit,
@@ -225,6 +257,9 @@ class Runner:
                 messages.append({'role': 'tool', 'tool_name': name,
                                  'name': name,
                                  'content': '%s: %s' % (name, result)})
+
+            if giving_up:
+                break
 
         record.seconds = time.time() - started
         if reported is not None:

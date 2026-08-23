@@ -377,7 +377,15 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
         rows.append(row)
 
         if meta['signal'] == 'NTC':
-            derived[index] = '%.2fC' % ntc.celsius(stats['mean_raw'])
+            try:
+                derived[index] = '%.2fC' % ntc.celsius(stats['mean_raw'])
+            except ValueError as exc:
+                # A rail reading (a genuinely open or shorted thermistor, not
+                # the AFE-off case - that lands at mid-scale, not a rail) makes
+                # the conversion undefined. One bad derived value must not cost
+                # every other channel's raw code in the same burst: invariant 9
+                # says analog_read returns the codes either way.
+                derived[index] = 'no conversion: %s' % exc
         elif meta['signal'] == 'DC bus':
             derived[index] = '%.3fV bus' % divider.volts(stats['mean_raw'])
 

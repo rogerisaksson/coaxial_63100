@@ -88,6 +88,12 @@ WRITE_CALLS = {
 # gpio tools do, so code is either trusted for this run or it is not available.
 CODE_CALLS = ('run_python', 'run_command')
 
+# Calls that actually reach the board - not `docs`, which reads local files and
+# proves nothing about a measurement having happened. Shared by debug.py (to
+# tell a live link failure from one three turns stale) and runner.py (to tell
+# a real report from one nobody measured).
+LINK_TOOLS = set(BOARD_HANDLERS) - {'docs'}
+
 
 def schemas(tools=TOOLS):
     """MCP tool specs in the shape Ollama's /api/chat wants."""
