@@ -702,7 +702,8 @@ def test_debug(report):
                  sent[-1]['content'] == 'new question')
     report.check('trimming is what the cost estimate measures',
                  session.context_cost() < debug.approx_tokens(
-                     json.dumps(session.history)) + session.tool_cost() + 40)
+                     json.dumps(session.history)) + session.tool_cost()
+                 + debug.approx_tokens(debug.SYSTEM) + 40)
 
     # ---- a turn ----
     session = chat([call('afe_power', action='on'),

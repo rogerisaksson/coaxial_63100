@@ -46,6 +46,7 @@ from .sandbox import Scope, Shell, clip              # noqa: E402
 # protocol, no channel map - board_info carries that, once, when asked.
 SYSTEM = """You debug a coaxial BLDC inverter test board over a serial link.
 Use tools; do not guess. Answer in one or two sentences, no preamble.
+This is a plain terminal: never a markdown table, one value per short line.
 The front end switch (afe_power) also powers the ADC reference: with it off
 every channel reads mid-scale and the NTC reads exactly 25.00 C, which is not a
 measurement. Phase channels sit behind unknown gain, so pin volts is as far as

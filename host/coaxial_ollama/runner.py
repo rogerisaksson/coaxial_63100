@@ -64,6 +64,8 @@ What you must not do:
   channels sit behind analog front end gain that neither you nor the host knows.
   Volts at the ADC pin is as far as the data goes.
 - Do not retry a call the operator declined.
+- Do not use a pipe table or markdown in the note. This is a plain terminal;
+  a table wider than it or cut off mid-row reads as garbage, not data.
 """
 
 
