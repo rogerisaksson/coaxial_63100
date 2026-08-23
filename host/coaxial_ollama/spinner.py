@@ -1,42 +1,47 @@
-"""A prompt with a robot on one side, the board on the other, and a spinner
-between them that actually turns.
+"""A prompt with a robot, a state icon and the board's own pager up front,
+and the actual spinner where a spinner has always lived: right before ">".
 
 The point is telling two terminals apart. This prompt shares a docked panel
 with a PowerShell one, and two of those with a `>` in them look identical at a
-glance; something turning says which is waiting for a question, and its
-colour says what kind of waiting: green for "nothing submitted yet", yellow
-for "working on it", red for "that just failed".
+glance; something turning right before the prompt says which is waiting for
+a question, and its colour says what kind of waiting: green for "nothing
+submitted yet", yellow for "working on it", red for "that just failed". The
+icon in the bookend group up front says the same thing a second way, in case
+the colour alone does not survive whatever the terminal does to it.
 
-    |<robot><bar><pager>| Coaxial_63100>
-           ^^^ this is the only thing that ever moves or changes colour
+    |<robot><icon><pager>| Coaxial_63100<bar>>
+           ^^^^^          ^^^^ these are the only two things that ever
+            state           move or change colour - one discrete, on
+            icon            state change; one ticking, on a timer
 
-The robot and the pager either side of it are static bookends, printed once
-and never touched again - only the bar between them is repainted, on a timer,
-in place:
+The robot and the pager are static for the whole prompt, printed once and
+never touched again. The icon between them and the bar at the end both
+repaint in place, on the same two-step trick:
 
     ESC 7            save the cursor, wherever input() has got to
     ESC [ <n> A      up n rows, onto the prompt line (0 while still typing,
                      1 once Enter has moved the cursor to a fresh row)
-    ESC [ <col> G    to the bar's column on that row
-    <bar>            one frame, in the current colour
+    ESC [ <col> G    to that repaint's own column on that row
+    <glyph>          one frame, in the current colour
     ESC 8            back to where the cursor was
 
-Typed text is never written over, because it is never written to; only the
-bar's own column is. Every bar frame is the same width for exactly this
-reason - a repaint only overwrites the bar's own cell, so an uneven frame
-would leave a stray character behind. The one thing this cannot get right is
-a robot or pager wide enough to render as two terminal columns on a stream
-that also renders them at all: the bar's column is computed from Python
-string length, not terminal cell width, same limitation the very first
-version of this had for a prompt long enough to wrap.
+Typed text is never written over, because it is never written to; only
+those two columns are. Every icon and every bar frame is the same width for
+exactly this reason - a repaint only overwrites its own cell, so an uneven
+one would leave a stray character behind. The one thing this cannot get
+right is a bookend wide enough to render as two terminal columns on a stream
+that also renders it at all: both columns are computed from Python string
+length, not terminal cell width, same limitation the very first version of
+this had for a prompt long enough to wrap.
 
 `_trace()` in debug.py can print mid-question, while the bar is still
 ticking for the busy phase - the caller passes in the same lock both sides
 write through, so a tick and a trace line never interleave into garbage.
 
 No console, no VT, or output redirected: the prompt is printed once, static,
-and start()/busy()/stop() all do nothing further. A script piping commands in
-gets exactly what it would have got before any of this existed.
+and busy()/stop() only change state, painting nothing further. A script
+piping commands in gets exactly what it would have got before any of this
+existed.
 """
 import threading
 
@@ -46,6 +51,13 @@ ROBOT = '\U0001F916'                     # "🤖"
 ROBOT_FALLBACK = 'o'
 PAGER = '\U0001F4DF'                     # "📟"
 PAGER_FALLBACK = '#'
+
+ICON_WAIT = '⏸'                     # "⏸"
+ICON_BUSY = '\U0001F504'                 # "🔄"
+ICON_ERROR = '❌'                    # "❌"
+ICON_WAIT_FALLBACK = '.'
+ICON_BUSY_FALLBACK = '~'
+ICON_ERROR_FALLBACK = 'X'
 
 BARS = ('|', '/', '–', '\\')
 BARS_FALLBACK = ('|', '/', '-', '\\')
@@ -69,12 +81,15 @@ def _encodable(out, text):
         return False
 
 
-def _bookend(out, real, fallback):
-    return real if _encodable(out, real) else fallback
+def _capable(out):
+    """Whether this stream can hold every real glyph the prompt might show.
 
-
-def _bars(out):
-    return BARS if _encodable(out, ''.join(BARS)) else BARS_FALLBACK
+    Decided once, for the whole set together: switching some bookends to the
+    real glyph and others to ASCII mid-line would look like a bug, not a
+    feature, so the fallback is all-or-nothing.
+    """
+    return _encodable(out, ROBOT + PAGER + ICON_WAIT + ICON_BUSY + ICON_ERROR
+                       + ''.join(BARS))
 
 
 def _vt(out):
@@ -86,20 +101,28 @@ def _vt(out):
 
 
 class Prompt:
-    """One prompt line: static robot and pager, a bar between them that
-    ticks on its own thread until stop()ped."""
+    """One prompt line: a static robot/icon/pager group up front, and a bar
+    right before ">" that ticks on its own thread until stop()ped."""
 
     def __init__(self, text, out, lock=None, ok=True, tick=TICK):
         self.out = out
         self.lock = lock or threading.Lock()
         self.vt = _vt(out)
         self.tick = tick
-        self.bars = _bars(out)
-        robot = _bookend(out, ROBOT, ROBOT_FALLBACK)
-        pager = _bookend(out, PAGER, PAGER_FALLBACK)
-        self.prefix = '|' + robot
-        self.suffix = pager + '| '
-        self.column = len(self.prefix) + 1
+        real = _capable(out)
+        self.bars = BARS if real else BARS_FALLBACK
+        robot = ROBOT if real else ROBOT_FALLBACK
+        pager = PAGER if real else PAGER_FALLBACK
+        self.icon_wait = ICON_WAIT if real else ICON_WAIT_FALLBACK
+        self.icon_busy = ICON_BUSY if real else ICON_BUSY_FALLBACK
+        self.icon_error = ICON_ERROR if real else ICON_ERROR_FALLBACK
+
+        self.icon = self.icon_wait if ok else self.icon_error
+        self.icon_column = len('|' + robot) + 1
+        # icon_wait/_busy/_error (and their ASCII equivalents) are always
+        # exactly one Python character, so the bar's column does not shift
+        # depending on which icon happens to be showing.
+        self.bar_column = len('|' + robot + self.icon + pager + '| ' + text) + 1
         self.rows_up = 0                 # 0 while still on this row, 1 after
         self.color = GREEN if ok else RED
         self.frame = 0
@@ -107,47 +130,57 @@ class Prompt:
         self.thread = None
 
         with self.lock:
-            self.out.write('%s%s%s%s%s%s> '
-                            % (self.prefix, self.color, self.bars[0], RESET,
-                               self.suffix, text))
+            self.out.write('|%s%s%s| %s%s%s%s> '
+                            % (robot, self.icon, pager, text, self.color,
+                               self.bars[0], RESET))
             self.out.flush()
         if self.vt:
             self.thread = threading.Thread(target=self._run, daemon=True)
             self.thread.start()
 
-    def _paint(self):
-        glyph = self.bars[self.frame % len(self.bars)]
+    def _at(self, column, text):
         up = (UP % self.rows_up) if self.rows_up else ''
         try:
             with self.lock:
-                self.out.write(SAVE + up + (COLUMN % self.column)
-                                + self.color + glyph + RESET + RESTORE)
+                self.out.write(SAVE + up + (COLUMN % column) + text + RESTORE)
                 self.out.flush()
         except (OSError, ValueError):
             # The stream closed under us - the prompt is over, and a spinner
             # is not worth an exception on the way out.
             self.done.set()
 
+    def _paint_icon(self):
+        self._at(self.icon_column, self.color + self.icon + RESET)
+
+    def _paint_bar(self):
+        glyph = self.bars[self.frame % len(self.bars)]
+        self._at(self.bar_column, self.color + glyph + RESET)
+
     def _run(self):
         while not self.done.wait(self.tick):
             self.frame += 1
-            self._paint()
+            self._paint_bar()
 
     def busy(self):
-        """Call once input() has returned: yellow, one row up from here on."""
+        """Call once input() has returned: yellow, icon and bar both."""
         self.color = YELLOW
+        self.icon = self.icon_busy
         self.rows_up = 1
+        if self.vt:
+            self._paint_icon()
 
     def stop(self, ok):
-        """Stop ticking and freeze the bar green or red - the last thing a
+        """Stop ticking and freeze both icon and bar - the last thing a
         scrolled-past line says about the question it carried."""
         self.done.set()
         if self.thread is not None:
             self.thread.join(timeout=1.0)
             self.thread = None
         self.color = GREEN if ok else RED
+        self.icon = self.icon_wait if ok else self.icon_error
         if self.vt:
-            self._paint()
+            self._paint_icon()
+            self._paint_bar()
 
 
 def prompt(text, out, lock=None, ok=True, tick=TICK):

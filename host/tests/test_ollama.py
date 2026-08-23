@@ -475,8 +475,8 @@ def test_scope_repairs(report):
 
 
 def test_prompt(report):
-    """|robot bar pager| - the bar ticks and changes colour; the rest is
-    printed once and never touched again."""
+    """|robot icon pager| Coaxial_63100<bar>> - icon and bar both repaint in
+    place on state changes; the bar also ticks on a timer."""
     import time as clock
     from coaxial_ollama import spinner as spin
 
@@ -495,66 +495,78 @@ def test_prompt(report):
         def isatty(self):
             return True
 
+    text = 'Coaxial_63100'
+
     screen = Tty()
-    face = spin.prompt('Coaxial_63100', screen, tick=10)
+    face = spin.prompt(text, screen, tick=10)
     written = screen.getvalue()
     face.stop(True)
-    prefix = '|' + spin.ROBOT
-    suffix = spin.PAGER + '| '
 
-    report.check('the robot leads, the pager and prompt text follow the bar',
-                 written == '%s%s%s%s%s%s> '
-                 % (prefix, spin.GREEN, spin.BARS[0], spin.RESET, suffix,
-                    'Coaxial_63100'),
+    report.check('the robot, icon and pager lead; the bar sits right '
+                 'before ">"',
+                 written == '|%s%s%s| %s%s%s%s> '
+                 % (spin.ROBOT, spin.ICON_WAIT, spin.PAGER, text, spin.GREEN,
+                    spin.BARS[0], spin.RESET),
                  ascii(written))
 
-    down = spin.prompt('Coaxial_63100', Tty(), tick=10, ok=False)
-    report.check('a dead link paints the bar red, not green',
-                 down.out.getvalue().startswith(prefix + spin.RED),
-                 ascii(down.out.getvalue()[:len(prefix) + len(spin.RED) + 4]))
+    down = spin.prompt(text, Tty(), tick=10, ok=False)
+    down_written = down.out.getvalue()
+    report.check('a dead link starts with the error icon, red, not waiting',
+                 down_written == '|%s%s%s| %s%s%s%s> '
+                 % (spin.ROBOT, spin.ICON_ERROR, spin.PAGER, text, spin.RED,
+                    spin.BARS[0], spin.RESET),
+                 ascii(down_written))
     down.stop(False)
 
-    # ---- busy() moves the target up one row; stop() freezes the final frame
+    # ---- busy() repaints the icon at once; stop() repaints icon and bar ---
     live = Tty()
-    face = spin.prompt('Coaxial_63100', live, tick=10, ok=True)
+    face = spin.prompt(text, live, tick=10, ok=True)
     before = live.getvalue()
     report.check('still on this row while nothing has been submitted',
                  face.rows_up == 0)
     face.busy()
-    report.check('busy() turns the bar yellow and targets one row up',
-                 face.color == spin.YELLOW and face.rows_up == 1)
-    face.stop(True)
-    after = live.getvalue()
+    after_busy = live.getvalue()
+    report.check('busy() turns yellow, switches to the busy icon and '
+                 'targets one row up',
+                 face.color == spin.YELLOW and face.icon == spin.ICON_BUSY
+                 and face.rows_up == 1)
+    added_busy = after_busy[len(before):]
+    report.check('busy() repaints only the icon column, at once - the bar '
+                 'is left for its own tick',
+                 added_busy == spin.SAVE + (spin.UP % 1)
+                 + (spin.COLUMN % face.icon_column) + spin.YELLOW
+                 + spin.ICON_BUSY + spin.RESET + spin.RESTORE,
+                 ascii(added_busy))
 
-    report.check("stop() adds exactly one repaint, it doesn't touch what "
-                 'was already written',
-                 after.startswith(before) and len(after) > len(before),
-                 ascii(after[len(before):]))
-    added = after[len(before):]
+    face.stop(True)
+    after_stop = live.getvalue()
+    added_stop = after_stop[len(after_busy):]
     # tick=10 guarantees the background thread never fires in this test's
-    # lifetime, so the frame is still 0 - the expected repaint is exact.
-    report.check('the repaint saves the cursor, goes up one row, over to '
-                 "the bar's column, and back",
-                 added == spin.SAVE + (spin.UP % 1) + (spin.COLUMN % face.column)
+    # lifetime, so the bar's frame is still 0 - the expected repaint is exact.
+    report.check('stop() repaints the icon back to waiting and the bar '
+                 'green, one row up, in that order',
+                 added_stop == spin.SAVE + (spin.UP % 1)
+                 + (spin.COLUMN % face.icon_column) + spin.GREEN
+                 + spin.ICON_WAIT + spin.RESET + spin.RESTORE
+                 + spin.SAVE + (spin.UP % 1) + (spin.COLUMN % face.bar_column)
                  + spin.GREEN + spin.BARS[0] + spin.RESET + spin.RESTORE,
-                 ascii(added))
-    report.check('stop() freezes green on success even though busy() had '
-                 'turned it yellow',
-                 spin.GREEN in added and spin.YELLOW not in added)
+                 ascii(added_stop))
 
     same_row = Tty()
-    still_waiting = spin.prompt('Coaxial_63100', same_row, tick=10, ok=True)
+    still_waiting = spin.prompt(text, same_row, tick=10, ok=True)
     before2 = same_row.getvalue()
     still_waiting.stop(False)          # never went busy() - still row 0
     added2 = same_row.getvalue()[len(before2):]
     report.check('stopping before busy() repaints this row, not one up',
-                 added2 == spin.SAVE + (spin.COLUMN % still_waiting.column)
-                 + spin.RED + still_waiting.bars[0] + spin.RESET + spin.RESTORE,
+                 added2 == spin.SAVE + (spin.COLUMN % still_waiting.icon_column)
+                 + spin.RED + spin.ICON_ERROR + spin.RESET + spin.RESTORE
+                 + spin.SAVE + (spin.COLUMN % still_waiting.bar_column)
+                 + spin.RED + spin.BARS[0] + spin.RESET + spin.RESTORE,
                  ascii(added2))
 
     # ---- it actually ticks on a real thread when the stream is a terminal -
     ticking = Tty()
-    live_face = spin.prompt('Coaxial_63100', ticking, tick=0.01, ok=True)
+    live_face = spin.prompt(text, ticking, tick=0.01, ok=True)
     clock.sleep(0.08)
     live_face.stop(True)
     report.check('a real terminal gets more than the first frame - it ticks',
@@ -568,8 +580,7 @@ def test_prompt(report):
     # timing-based race never happens to interleave in the test run.
     shared = threading.Lock()
     locked = Tty()
-    guarded = spin.prompt('Coaxial_63100', locked, tick=0.01, ok=True,
-                          lock=shared)
+    guarded = spin.prompt(text, locked, tick=0.01, ok=True, lock=shared)
     report.check('the caller-supplied lock is the one actually used',
                  guarded.lock is shared)
 
@@ -587,8 +598,11 @@ def test_prompt(report):
     report.check('and ticking resumes once the lock is free again',
                  locked.getvalue() != before_lock)
 
-    report.check('the robot and pager are real emoji, not look-alike glyphs',
-                 spin.ROBOT == '\U0001F916' and spin.PAGER == '\U0001F4DF')
+    report.check('the robot, pager and icons are real glyphs, not '
+                 'look-alike runs of ASCII',
+                 spin.ROBOT == '\U0001F916' and spin.PAGER == '\U0001F4DF'
+                 and len(spin.ICON_WAIT) == len(spin.ICON_BUSY)
+                 == len(spin.ICON_ERROR) == 1)
     report.check('every bar frame is one column, so a repaint never leaves '
                  'a stray character behind',
                  all(len(b) == 1 for b in spin.BARS))
@@ -596,39 +610,31 @@ def test_prompt(report):
     class Cp1252(io.StringIO):
         encoding = 'cp1252'
 
-    report.check("this bench's own console cannot hold the robot at all - "
+    report.check("this bench's own console cannot hold any of it - "
                  'it gets ASCII, not a question mark',
-                 spin._bookend(Cp1252(), spin.ROBOT, spin.ROBOT_FALLBACK)
-                 == spin.ROBOT_FALLBACK)
+                 not spin._capable(Cp1252()))
 
     class Ascii(Cp1252):
         encoding = 'ascii'
 
     report.check('and the same fallback covers a plain ASCII stream too',
-                 spin._bookend(Ascii(), spin.PAGER, spin.PAGER_FALLBACK)
-                 == spin.PAGER_FALLBACK)
-    report.check('a genuinely Unicode-capable stream gets the real bookends',
-                 spin._bookend(Tty(), spin.ROBOT, spin.ROBOT_FALLBACK)
-                 == spin.ROBOT
-                 and spin._bookend(Tty(), spin.PAGER, spin.PAGER_FALLBACK)
-                 == spin.PAGER)
-    report.check('the en dash bar falls back to a hyphen on cp1252... no - '
-                 'cp1252 can hold it, ASCII cannot',
-                 spin._bars(Cp1252()) == spin.BARS
-                 and spin._bars(Ascii()) == spin.BARS_FALLBACK)
+                 not spin._capable(Ascii()))
+    report.check('a genuinely Unicode-capable stream is the real thing',
+                 spin._capable(Tty()))
 
     # A pipe has no cursor to save: one static prompt, no escapes, no thread -
     # busy()/stop() change state but paint nothing further. It has no
     # .encoding either, so it gets the ASCII fallback same as Ascii() does.
     piped = io.StringIO()
-    quiet = spin.prompt('Coaxial_63100', piped, tick=10)
+    quiet = spin.prompt(text, piped, tick=10)
     before_pipe = piped.getvalue()
     quiet.busy()
     quiet.stop(False)
     report.check('a redirected prompt is static and escape-free',
-                 before_pipe == '|%s%s%s%s%s| Coaxial_63100> '
-                 % (spin.ROBOT_FALLBACK, spin.GREEN, spin.BARS_FALLBACK[0],
-                    spin.RESET, spin.PAGER_FALLBACK),
+                 before_pipe == '|%s%s%s| %s%s%s%s> '
+                 % (spin.ROBOT_FALLBACK, spin.ICON_WAIT_FALLBACK,
+                    spin.PAGER_FALLBACK, text, spin.GREEN,
+                    spin.BARS_FALLBACK[0], spin.RESET),
                  repr(before_pipe))
     report.check('and busy()/stop() on a redirected stream paint nothing '
                  'further',
