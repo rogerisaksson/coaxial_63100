@@ -22,6 +22,11 @@ that long, and the alternative - tracking the wrap - is a terminal emulator.
 No console, no VT, or output redirected: the prompt is printed once, static,
 and `stop()` does nothing. A script piping commands in gets exactly what it
 would have got before any of this existed.
+
+Colour and direction both carry the same one bit: whether the board link came
+up. Green and turning the way the glyphs are listed reads as "normal"; red and
+turning backward reads as "something is off" without a word of text - useful
+exactly at the moment you are not looking at the last error line any more.
 """
 import threading
 import time
@@ -39,6 +44,9 @@ FALLBACK = ('|', '/', '-', '\\')
 SAVE = '\x1b7'
 RESTORE = '\x1b8'
 COLUMN = '\x1b[%dG'
+GREEN = '\x1b[32m'
+RED = '\x1b[31m'
+RESET = '\x1b[0m'
 
 
 def _frames(out):
@@ -62,13 +70,22 @@ def _vt(out):
 class Spinner:
     """Paints one cell of the prompt on a timer. Stop it before printing."""
 
-    def __init__(self, out, column, glyphs, tick=TICK):
+    def __init__(self, out, column, glyphs, tick=TICK, ok=True):
         self.out = out
         self.column = column
         self.glyphs = glyphs
         self.tick = tick
+        self.ok = ok
+        self.color = GREEN if ok else RED
         self.done = threading.Event()
         self.thread = None
+
+    def _glyph(self, frame):
+        # Forward through the tuple when the link is up, backward when it is
+        # not - the same four glyphs, read the other way round, is a spinner
+        # turning the other way with no extra frames to draw.
+        step = frame if self.ok else -frame
+        return self.glyphs[step % len(self.glyphs)]
 
     def start(self):
         self.thread = threading.Thread(target=self._run, daemon=True)
@@ -78,10 +95,11 @@ class Spinner:
     def _run(self):
         frame = 0
         while not self.done.wait(self.tick):
-            glyph = self.glyphs[frame % len(self.glyphs)]
             frame += 1
+            glyph = self._glyph(frame)
             try:
-                self.out.write(SAVE + (COLUMN % self.column) + glyph + RESTORE)
+                self.out.write(SAVE + (COLUMN % self.column) +
+                               self.color + glyph + RESET + RESTORE)
                 self.out.flush()
             except (OSError, ValueError):
                 # The stream closed under us - the prompt is over, and a
@@ -101,19 +119,24 @@ class Spinner:
             self.thread = None
 
 
-def spinning_prompt(prompt, out, tick=TICK):
+def spinning_prompt(prompt, out, tick=TICK, ok=True):
     """Write the prompt, start the spinner in it, return something to stop.
 
     The prompt is written whole and once, so `input()` reads a line that is
     already on screen; only the spinner's own column is touched afterwards.
+
+    `ok` is whether the board link is up: green and forward when it is, red
+    and backward when it is not, so the state is visible without a line of
+    text competing with whatever the last answer already said about it.
     """
     glyphs = _frames(out)
-    line = '%s %s > ' % (prompt, glyphs[0])
+    color = GREEN if ok else RED
+    line = '%s%s%s%s> ' % (prompt, color, glyphs[0], RESET)
     out.write(line)
     out.flush()
 
     if not _vt(out):
         return lambda: None
 
-    # 1-based column of the glyph: the prompt, a space, then the glyph.
-    return Spinner(out, len(prompt) + 2, glyphs, tick).start().stop
+    # 1-based column of the glyph: right after the prompt, no space between.
+    return Spinner(out, len(prompt) + 1, glyphs, tick, ok=ok).start().stop

@@ -66,6 +66,7 @@ SETS = {
 
 HELP = """  /py CODE      run python against the board, no model, no tokens
   /sh CMD       run an allowlisted command, no model
+  /reconnect    drop and reopen the board link, no model
   /tools [set]  read|code|pins|all|none, or a comma separated list
   /ctx          what the next turn will cost
   /clear        forget the conversation - the cheapest thing here
@@ -168,7 +169,7 @@ class Chat:
     """
 
     def __init__(self, client, toolbox, tools='read', keep=6, budget=0,
-                 quiet=False, out=None):
+                 quiet=False, out=None, link_ok=True):
         self.client = client
         self.toolbox = toolbox
         self.keep = keep
@@ -177,6 +178,10 @@ class Chat:
         self.out = out or _printable(sys.stdout)
         self.history = []
         self.turn_cost = []
+        # What the prompt's spinner shows: read fresh on every prompt, so
+        # /reconnect changes it on the very next line rather than needing a
+        # restart to notice the cable was plugged back in.
+        self.link_ok = link_ok
         self.set_tools(tools)
 
     # ---- what the model is allowed to see ----------------------------------
@@ -325,6 +330,8 @@ class Chat:
             return self.toolbox.call('run_python', {'code': rest})
         if verb == 'sh':
             return self.toolbox.call('run_command', {'cmd': rest})
+        if verb == 'reconnect':
+            return self._reconnect()
         if verb == 'clear':
             self.history = []
             return 'context cleared'
@@ -339,6 +346,25 @@ class Chat:
         if verb == 'cost':
             return self.cost_line()
         return 'no such command. /help'
+
+    def _reconnect(self):
+        """Drop the link and try to reopen it - for a cable that was plugged
+        back in without restarting this whole prompt loop.
+
+        Session.reset() forgets the cached board (a no-op on NoBoard); the
+        board property that follows is what actually reopens the port, and
+        catching its RigError here is the same eager check main() runs at
+        startup, just runnable again on demand.
+        """
+        session = self.toolbox.session
+        session.reset()
+        try:
+            session.board
+        except RigError as exc:
+            self.link_ok = False
+            return 'board: %s' % exc
+        self.link_ok = True
+        return 'board: link is up'
 
     def over_budget(self):
         usage = self.client.usage()
@@ -523,7 +549,9 @@ def repl(chat):
         print('(reading commands from stdin)')
     while True:
         try:
-            stop = spinning_prompt(PROMPT, sys.stdout)
+            # Read fresh every time, not captured once: /reconnect flips this
+            # mid-loop and the very next prompt is what should show it.
+            stop = spinning_prompt(PROMPT, sys.stdout, ok=chat.link_ok)
             try:
                 line = input().strip()
             finally:
@@ -579,6 +607,30 @@ def main(argv=None):
             return 2
         print('ollama: %s' % exc, file=sys.stderr)
         print('slash commands still work; questions will not.', file=sys.stderr)
+
+    # Also what the prompt's spinner shows in the REPL below: green and
+    # turning forward once this is True, red and turning backward once it
+    # is not - --no-board counts as not, since board tools will fail there
+    # by design, same as a dead cable.
+    link_ok = False
+    if not args.no_board:
+        # Opened here rather than left to the first board tool call, so a dead
+        # link is a clear failure before any tokens are spent - not a tool
+        # error the model reads and, with nothing telling it to stop, may
+        # answer past anyway. Session.board is lazy, so this is the same
+        # connect that would happen on first use, just moved earlier.
+        try:
+            session.board
+        except RigError as exc:
+            if not interactive:
+                print('board: %s' % exc, file=sys.stderr)
+                return 2
+            print('board: %s' % exc, file=sys.stderr)
+            print('slash commands still work; board tools will fail until the '
+                  'link is up.', file=sys.stderr)
+        else:
+            link_ok = True
+    chat.link_ok = link_ok
 
     extra = attach(args.file, args.chars) if args.file else ''
     try:

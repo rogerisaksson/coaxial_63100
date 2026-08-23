@@ -129,6 +129,17 @@ def main(argv=None):
 
     allow = [a for a in args.allow.split(',') if a.strip()] + plan.allow
     session = Session(args.port, args.baud, args.unit)
+    try:
+        # Opened here rather than left to the first board tool call inside a
+        # step. Session.board is lazy, so without this the model would burn a
+        # turn on a step it cannot complete, read the connect error as a tool
+        # result, and - with nothing telling it to stop - may still try to
+        # finish the step instead of the run failing where it actually failed.
+        session.board
+    except RigError as exc:
+        print('board: %s' % exc, file=sys.stderr)
+        return 2
+
     toolbox = Toolbox(session, shell=Shell(allow), scope=Scope(),
                       allow_writes=args.allow_writes or plan.allow_writes,
                       allow_code=not args.read_only,

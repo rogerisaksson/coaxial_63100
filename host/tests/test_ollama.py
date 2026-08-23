@@ -450,18 +450,35 @@ def test_prompt(report):
     clock.sleep(0.08)
     stop()
     drawn = screen.getvalue()
+    header_end = drawn.index('> ') + 2
 
-    report.check('the prompt is written whole, once',
-                 drawn.startswith('Coaxial_63100 ')
-                 and drawn.count('Coaxial_63100') == 1, repr(drawn[:20]))
+    report.check('the prompt is written whole, once, glyph flush against it',
+                 drawn.startswith('Coaxial_63100' + spin.GREEN)
+                 and drawn.count('Coaxial_63100') == 1, repr(drawn[:24]))
+    report.check('no space pads the spinner on either side',
+                 ' | ' not in drawn and ' > ' not in drawn, repr(drawn[:24]))
     report.check('it keeps painting after the prompt is up',
                  drawn.count(spin.SAVE) >= 3, '%d frames' % drawn.count(spin.SAVE))
     report.check('every frame saves the cursor and puts it back',
                  drawn.count(spin.SAVE) == drawn.count(spin.RESTORE))
+    report.check('a working link paints the glyph green',
+                 drawn.count(spin.GREEN) >= 3 and spin.RED not in drawn)
     report.check('nothing is redrawn except the spinner column',
-                 chr(13) not in drawn and 'Coaxial' not in drawn[20:])
+                 chr(13) not in drawn and 'Coaxial' not in drawn[header_end:])
     report.check('stopping is final - no frame lands in the next answer',
                  drawn == screen.getvalue())
+
+    down = Tty()
+    stop = spin.spinning_prompt('Coaxial_63100', down, tick=0.01, ok=False)
+    clock.sleep(0.08)
+    stop()
+    unwell = down.getvalue()
+    report.check('a dead link paints the glyph red, not green',
+                 unwell.count(spin.RED) >= 3 and spin.GREEN not in unwell)
+    forward_glyphs = [spin.GLYPHS[f % len(spin.GLYPHS)] for f in range(1, 4)]
+    backward_glyphs = [spin.GLYPHS[-f % len(spin.GLYPHS)] for f in range(1, 4)]
+    report.check('and turns the other way through the same four glyphs',
+                 forward_glyphs != backward_glyphs)
 
     report.check('the bar is an en dash, wider than a hyphen',
                  spin.GLYPHS[2] == chr(0x2013)
@@ -481,7 +498,9 @@ def test_prompt(report):
     noop = spin.spinning_prompt('Coaxial_63100', piped)
     noop()
     report.check('a redirected prompt is static and escape-free',
-                 piped.getvalue() == 'Coaxial_63100 | > ', repr(piped.getvalue()))
+                 piped.getvalue() ==
+                 'Coaxial_63100%s|%s> ' % (spin.GREEN, spin.RESET),
+                 repr(piped.getvalue()))
 
 
 def test_shell(report):
@@ -703,6 +722,19 @@ def test_debug(report):
                  and not session.client.prompts, 'no model call')
     report.check('/sh runs without asking the model',
                  'exit=0' in session.command('/sh python -c "print(1)"'))
+    session.link_ok = False
+    report.check('/reconnect reports success and flips the spinner back on',
+                 session.command('/reconnect') == 'board: link is up'
+                 and session.link_ok is True)
+
+    broken = debug.Chat(ScriptedModel([]),
+                        toolmod.Toolbox(debug.NoBoard(), scope=Scope()),
+                        out=io.StringIO())
+    report.check('/reconnect on a dead link says so and keeps the spinner red',
+                 broken.command('/reconnect') ==
+                 'board: this run was started with --no-board'
+                 and broken.link_ok is False,
+                 broken.command('/reconnect'))
     report.check('/tools reprices the turn',
                  'tok/turn' in session.command('/tools read')
                  and session.tool_names == debug.SETS['read'])
