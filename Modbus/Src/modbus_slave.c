@@ -300,6 +300,24 @@ static size_t do_write_multi_regs(mb_slave_t *s, const uint8_t *req, size_t req_
     return make_exception(rsp, MB_FC_WRITE_MULTIPLE_REGS, ex);
   }
 
+  /* check_span only proves every address in the span is writable, not that
+     every VALUE in the request is. Without this pass, a span covering a
+     register this model rejects by value - not by address - would already
+     have applied write_reg() to the registers before it, leaving the device
+     half written under a response that reports the whole request failed. */
+  if (s->model->validate_reg_value != NULL)
+  {
+    for (uint16_t i = 0U; i < qty; i++)
+    {
+      ex = s->model->validate_reg_value(s->model->ctx, (uint16_t)(addr + i),
+                                        rd_u16(&req[6U + (i * 2U)]));
+      if (ex != MB_EX_NONE)
+      {
+        return make_exception(rsp, MB_FC_WRITE_MULTIPLE_REGS, ex);
+      }
+    }
+  }
+
   for (uint16_t i = 0U; i < qty; i++)
   {
     ex = s->model->write_reg(s->model->ctx, (uint16_t)(addr + i),

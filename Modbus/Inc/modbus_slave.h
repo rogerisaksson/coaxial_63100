@@ -84,6 +84,22 @@ typedef struct
   mb_exception_t (*read_bit)(void *ctx, mb_table_t table, uint16_t addr, bool *out);
   mb_exception_t (*write_bit)(void *ctx, uint16_t addr, bool value);
 
+  /**
+    * @brief Optional: would write_reg accept this value, without applying it?
+    *
+    * validate_range only checks addressability, so a multi-register write
+    * (FC 0x10) spanning several registers can apply the first few through
+    * write_reg() and only then discover the last one's VALUE is illegal -
+    * leaving the device half written despite the client seeing one exception
+    * for the whole request. If this is set, the engine calls it for every
+    * item in a multi-register write before applying any of them, so a bad
+    * value anywhere in the span refuses the whole write instead of applying
+    * a prefix of it. May be NULL: a model with no per-value rule beyond
+    * addressability, or one whose writes are side-effect-free enough that a
+    * partial apply cannot matter, has nothing to gain from it.
+    */
+  mb_exception_t (*validate_reg_value)(void *ctx, uint16_t addr, uint16_t value);
+
   /** Report Server ID (FC 0x11) payload. Return the id string; set *run to
       0xFF for "running" or 0x00 for "stopped". May be NULL. */
   const char *(*server_id)(void *ctx, uint8_t *run);

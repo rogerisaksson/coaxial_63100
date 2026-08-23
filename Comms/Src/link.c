@@ -58,10 +58,23 @@ static mb_exception_t user_function(void *ctx, uint8_t fc,
 
 static void build(void)
 {
+  /* mb_rtu_init memsets the whole mb_rtu_t, counters included - right for the
+     very first call from link_init(), where s_rtu is still its static
+     zero-initialised self, but not for a later call from link_open(): the
+     counters are this run's diagnostic history, not framing state, and
+     link_close() already leaves them alone on the way OUT of binary mode. A
+     console round trip - 'm' to enter, 0x0001 to leave, 'm' again - silently
+     zeroed them on the way back in, with nothing in link_open()'s own comment
+     saying so. Saved and restored here rather than in mb_rtu_init itself,
+     since that file has no notion of "this is a reopen, not a cold start". */
+  const mb_rtu_counters_t saved = s_rtu.counters;
+
   mb_slave_init(&s_slave, modbus_map_model(&s_rtu, user_function));
   mb_rtu_init(&s_rtu, &s_slave, modbus_map_unit_id(),
               dev_usart3_baud(), LINK_BITS_PER_CHAR,
               s_dev->ticks_per_us(s_dev->ctx));
+
+  s_rtu.counters = saved;
 }
 
 void link_init(void)

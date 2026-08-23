@@ -100,7 +100,12 @@ static cmd_status_t h_version(rd_t *in, wr_t *out)
 
   wr_u8(out, CMD_PROTO_MAJOR);
   wr_u8(out, CMD_PROTO_MINOR);
+  wr_u8(out, FW_VERSION_MAJOR);
+  wr_u8(out, FW_VERSION_MINOR);
+  wr_u8(out, FW_VERSION_PATCH);
   wr_str(out, FW_DEVICE_NAME);
+  wr_str(out, FW_MCU_NAME);
+  wr_str(out, FW_BUILD_STRING);
   wr_u16(out, cmd_count());
 
   return CMD_OK;

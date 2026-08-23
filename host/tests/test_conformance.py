@@ -309,6 +309,26 @@ def map_tests(run):
     run.check('FC0F one coil',
               p is not None and p[3] and p[1] == 0x0F, 'got %s' % r.hex(' '))
 
+    print('\n-- a bad value later in a multi-write span refuses the whole write --')
+    # addr 0 (unit id, 99 - a legal value) then addr 1 (command, 999 - not
+    # one of the ones this map accepts) in a single FC10. Before this was
+    # fixed, write_reg() applied the unit id before discovering the command
+    # value was bad, so the device answered exc 03 for the whole request
+    # while unit id had already changed underneath it - a real violation of
+    # modbus_slave.h's own "must not leave the device half written" promise.
+    run.expect_exception('FC10 bad value later in the span answers exc 03',
+                         pdu_w_multi_reg(0x0000, [99, 999]), 0x10, 0x03)
+    r = b.request(pdu_read(0x03, 0x0000, 1))
+    p = parse(r)
+    unit_unchanged = p is not None and p[3] and regs_from(p[2]) == [1]
+    run.check('and unit id was not changed by the refused write',
+              unit_unchanged,
+              'got %s' % (r.hex(' ') if r else '<silence - unit id may have changed>'))
+    if not unit_unchanged:
+        # The board would now be answering on 99, not 1: put it back before
+        # the rest of this run, or the next one, loses the server entirely.
+        b.request(pdu_w_single_reg(0x0000, 1), slave=99)
+
     print('\n-- map-specific exceptions --')
     run.expect_exception('FC04 addr 0x0007 is a hole -> exc 02',
                          pdu_read(0x04, 0x0007, 1), 0x04, 0x02)
@@ -350,6 +370,24 @@ def map_tests(run):
                   'bus=%d comm_err=%d srv=%d exc=%d no_rsp=%d ovr=%d' % tuple(c))
         run.check('bus_comm_error counted the bad-CRC frames', c[1] >= 1,
                   'bus_comm_error=%d' % c[1])
+
+        print('\n-- counters survive leaving and re-entering binary mode --')
+        # link_open() used to memset the whole mb_rtu_t on every 'm', counters
+        # included - so a console round trip ('0x0001=1' out, 'm' back in)
+        # silently zeroed this run's diagnostic history. link_close() already
+        # left them alone; link_open() now does too.
+        before = c[0]
+        leave_modbus(bus)
+        enter_modbus(bus)
+        p3 = parse(b.request(pdu_read(0x04, 0x0030, 12)))
+        if p3 is None or not p3[3]:
+            run.check('bus_message survives a console round trip', False,
+                      'bad reply after re-entering binary mode')
+        else:
+            v3 = regs_from(p3[2])
+            after = (v3[0] << 16) | v3[1]
+            run.check('bus_message survives a console round trip',
+                      after >= before, 'before=%d after=%d' % (before, after))
 
 
 if __name__ == '__main__':

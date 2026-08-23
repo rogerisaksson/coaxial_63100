@@ -211,7 +211,7 @@ not reserved — was legitimately cleared.
 
 ## Versions
 
-Firmware **1.3.0**, protocol **1.1**. `Comms/Inc/version.h` holds both and
+Firmware **1.4.1**, protocol **1.2**. `Comms/Inc/version.h` holds both and
 documents the rules. The build string comes from `__DATE__`/`__TIME__`, which
 makes the binary non-reproducible. That is paid deliberately: a production rig
 that cannot tell which build a board carries cannot investigate a failure after

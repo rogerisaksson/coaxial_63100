@@ -285,27 +285,64 @@ static mb_exception_t read_bit(void *ctx, mb_table_t table, uint16_t addr, bool 
 
 /* ---- writes ------------------------------------------------------------ */
 
+/* Whether write_reg would accept this value, with no side effect - shared by
+   the actual write and by validate_reg_value, so a multi-register write (FC
+   0x10) can check every value in its span before applying any of them. Keeping
+   one copy of the legality rule is the point: two copies are two places for
+   the unit-id range or the command enum to drift apart. */
+static mb_exception_t check_hreg_value(uint16_t addr, uint16_t value)
+{
+  switch (addr)
+  {
+    case MB_HREG_UNIT_ID:
+      /* 0 and 248..255 are not addresses. The register exists and is
+         writable, so this is a bad value rather than a bad address. */
+      return ((value >= 1U) && (value <= 247U))
+             ? MB_EX_NONE : MB_EX_ILLEGAL_DATA_VALUE;
+
+    case MB_HREG_COMMAND:
+      switch (value)
+      {
+        case 0U:                    /* no-op, so a block write spanning this
+                                        register does not have to invent one */
+        case MB_CMD_CONSOLE_MODE:
+        case MB_CMD_CLEAR_COUNTERS:
+          return MB_EX_NONE;
+        default:
+          return MB_EX_ILLEGAL_DATA_VALUE;
+      }
+
+    default:
+      return MB_EX_ILLEGAL_DATA_ADDRESS;
+  }
+}
+
+static mb_exception_t validate_reg_value(void *ctx, uint16_t addr, uint16_t value)
+{
+  (void)ctx;
+  return check_hreg_value(addr, value);
+}
+
 static mb_exception_t write_reg(void *ctx, uint16_t addr, uint16_t value)
 {
   mb_rtu_t *rtu = (mb_rtu_t *)ctx;
+  const mb_exception_t bad = check_hreg_value(addr, value);
+
+  if (bad != MB_EX_NONE)
+  {
+    return bad;
+  }
 
   switch (addr)
   {
     case MB_HREG_UNIT_ID:
-      if (!modbus_map_set_unit_id((uint8_t)value))
-      {
-        /* 0 and 248..255 are not addresses. The register exists and is
-           writable, so this is a bad value rather than a bad address. */
-        return MB_EX_ILLEGAL_DATA_VALUE;
-      }
+      (void)modbus_map_set_unit_id((uint8_t)value);   /* known valid: above */
       return MB_EX_NONE;
 
     case MB_HREG_COMMAND:
       switch (value)
       {
         case 0U:
-          /* Writing 0 is a no-op, so a block write that spans the command
-             register does not have to invent a command. */
           return MB_EX_NONE;
 
         case MB_CMD_CONSOLE_MODE:
@@ -326,11 +363,13 @@ static mb_exception_t write_reg(void *ctx, uint16_t addr, uint16_t value)
           return MB_EX_NONE;
 
         default:
-          return MB_EX_ILLEGAL_DATA_VALUE;
+          return MB_EX_ILLEGAL_DATA_VALUE;   /* unreachable: check_hreg_value
+                                                 above already refused this */
       }
 
     default:
-      return MB_EX_ILLEGAL_DATA_ADDRESS;
+      return MB_EX_ILLEGAL_DATA_ADDRESS;     /* unreachable: check_span
+                                                 already gated the address */
   }
 }
 
@@ -368,14 +407,15 @@ const mb_data_model_t *modbus_map_model(
                                     const uint8_t *req, size_t req_len,
                                     uint8_t *rsp, size_t rsp_cap, size_t *rsp_len))
 {
-  s_model.user_function = user_function;
-  s_model.validate_range = validate_range;
-  s_model.read_reg       = read_reg;
-  s_model.write_reg      = write_reg;
-  s_model.read_bit       = read_bit;
-  s_model.write_bit      = write_bit;
-  s_model.server_id      = server_id;
-  s_model.ctx            = rtu_ctx;
+  s_model.user_function      = user_function;
+  s_model.validate_range     = validate_range;
+  s_model.read_reg           = read_reg;
+  s_model.write_reg          = write_reg;
+  s_model.validate_reg_value = validate_reg_value;
+  s_model.read_bit           = read_bit;
+  s_model.write_bit          = write_bit;
+  s_model.server_id          = server_id;
+  s_model.ctx                = rtu_ctx;
 
   return &s_model;
 }

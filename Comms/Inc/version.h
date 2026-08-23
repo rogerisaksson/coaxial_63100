@@ -27,9 +27,9 @@
 
 #define FW_VERSION_MAJOR 1U
 #define FW_VERSION_MINOR 4U
-#define FW_VERSION_PATCH 0U
+#define FW_VERSION_PATCH 1U
 
-#define FW_VERSION_STRING "1.4.0"
+#define FW_VERSION_STRING "1.4.1"
 
 /* __DATE__ and __TIME__ make the binary non-reproducible, which is a real cost.
    It is paid deliberately: a production rig that cannot tell which build a

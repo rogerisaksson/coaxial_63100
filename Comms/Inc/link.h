@@ -44,7 +44,8 @@ const char *link_proto_name(void);
 
 bool link_active(void);
 
-/** Take the line. Anything already in the receiver is discarded. */
+/** Take the line. Anything already in the receiver is discarded, and framing
+    state starts clean; the diagnostic counters survive, same as link_close(). */
 void link_open(void);
 
 /** Give the line back to the console at once. */
