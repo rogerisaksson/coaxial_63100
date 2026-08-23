@@ -9,7 +9,7 @@ submitted yet", yellow for "working on it", red for "that just failed". The
 icon in the bookend group up front says the same thing a second way, in case
 the colour alone does not survive whatever the terminal does to it.
 
-    |<robot><icon><pager>| Coaxial_63<bar>00>
+    «<robot><icon><pager>» Coaxial_63<bar>00>
            ^^^^^                     ^^^^ these are the only two things that
             state                       ever move or change colour - one
             icon                        discrete, on state change; one
@@ -79,25 +79,37 @@ ROBOT_FALLBACK = 'o'
 PAGER = '\U0001F4DF'                     # "📟"
 PAGER_FALLBACK = '#'
 
-# All three need to be full-colour by default, not text glyphs forced into
-# colour with a variation selector - a forced one sits at a slightly
-# different advance width in some fonts, which reads as uneven spacing next
-# to the other two even though there is no actual space character anywhere
-# in this string. ⏸ PAUSE BUTTON is text-presentation by default and
-# needs U+FE0F to become one; ⌛/⏳ (hourglass) do not, so waiting
-# uses one of those instead.
-ICON_WAIT = '⏳'                     # "⏳"
-ICON_BUSY = '\U0001F504'                 # "🔄"
-ICON_ERROR = '❌'                    # "❌"
-ICON_WAIT_FALLBACK = '.'
+# Ideally full-colour by default, not text glyphs forced into colour with a
+# variation selector - a forced one can sit at a slightly different advance
+# width than a native one in some fonts, which reads as uneven spacing next
+# to the others even though there is no actual space character anywhere in
+# this string (this is exactly what the pause mark used to do here).
+# WARNING SIGN is the one exception still in this set: it is
+# text-presentation by default like the pause mark was, and needs the same
+# U+FE0F to render in colour - if the spacing looks uneven again, this is
+# the glyph to suspect first.
+ICON_WAIT = '\U0001F4A4'                 # "💤"
+ICON_BUSY = '⌛'                    # "⌛"
+ICON_ERROR = '⚠️'                # "⚠️"
+ICON_WAIT_FALLBACK = 'z'
 ICON_BUSY_FALLBACK = '~'
-ICON_ERROR_FALLBACK = 'X'
+ICON_ERROR_FALLBACK = '!'
 
 # Rests on '1' - the digit it replaces - so the name reads normally between
 # ticks; the other three frames are what makes that digit's position turn.
 # Plain ASCII throughout: this sits inside the board's own name, not next to
 # an emoji, so there is no width question to inherit in the first place.
 BARS = ('1', '/', '-', '\\')
+
+# Guillemets rather than plain pipes framing the bookend group - narrower
+# footprint than an emoji bracket would be, and already inside cp1252 (0x AB
+# / 0xBB), so this bench's own console gets them too even though it cannot
+# hold the robot or pager they sit around. A stream that cannot even manage
+# that - plain ASCII - gets the pipes back.
+OPEN = '«'
+CLOSE = '»'
+OPEN_FALLBACK = '|'
+CLOSE_FALLBACK = '|'
 
 SAVE = '\x1b7'
 RESTORE = '\x1b8'
@@ -123,9 +135,22 @@ def _capable(out):
     Decided once, for the whole set together: switching some bookends to the
     real glyph and others to ASCII mid-line would look like a bug, not a
     feature, so the fallback is all-or-nothing. The bar is not part of this
-    check - it is plain ASCII regardless.
+    check - it is plain ASCII regardless. Neither are the guillemets - see
+    _brackets_capable(): they ask less of the stream than an emoji does, so
+    they get to succeed on their own where the emoji group cannot.
     """
     return _encodable(out, ROBOT + PAGER + ICON_WAIT + ICON_BUSY + ICON_ERROR)
+
+
+def _brackets_capable(out):
+    """Whether this stream can hold the guillemets framing the group.
+
+    A separate, easier question from _capable(): « and » are cp1252, so
+    this bench's own console answers yes to this and no to that - real
+    brackets around ASCII bookends rather than falling all the way back
+    to plain pipes just because the robot cannot render.
+    """
+    return _encodable(out, OPEN + CLOSE)
 
 
 def _vt(out):
@@ -190,6 +215,8 @@ class Prompt:
         self.icon_wait = ICON_WAIT if real else ICON_WAIT_FALLBACK
         self.icon_busy = ICON_BUSY if real else ICON_BUSY_FALLBACK
         self.icon_error = ICON_ERROR if real else ICON_ERROR_FALLBACK
+        self.open = OPEN if _brackets_capable(out) else OPEN_FALLBACK
+        self.close = CLOSE if _brackets_capable(out) else CLOSE_FALLBACK
 
         spin_at = text.find('1')
         if spin_at == -1:
@@ -213,8 +240,9 @@ class Prompt:
 
     def _prefix(self):
         glyph = BARS[self.frame % len(BARS)]
-        return '|%s%s%s| %s%s%s%s' % (self.robot, self.icon, self.pager,
-                                       self.head, self.color, glyph, RESET)
+        return '%s%s%s%s%s %s%s%s%s' % (self.open, self.robot, self.icon,
+                                         self.pager, self.close, self.head,
+                                         self.color, glyph, RESET)
 
     def _paint(self):
         # rows_up is the fixed "Enter moved to a fresh row" step; out.lines

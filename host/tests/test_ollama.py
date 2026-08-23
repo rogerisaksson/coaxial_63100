@@ -505,9 +505,10 @@ def test_prompt(report):
 
     report.check("the bar takes the text's own '1', not a character "
                  'appended after it',
-                 written == '|%s%s%s| %s%s%s%s%s> '
-                 % (spin.ROBOT, spin.ICON_WAIT, spin.PAGER, head, spin.GREEN,
-                    spin.BARS[0], spin.RESET, tail),
+                 written == '%s%s%s%s%s %s%s%s%s%s> '
+                 % (spin.OPEN, spin.ROBOT, spin.ICON_WAIT, spin.PAGER,
+                    spin.CLOSE, head, spin.GREEN, spin.BARS[0], spin.RESET,
+                    tail),
                  ascii(written))
     report.check("and it rests on '1' itself, so the name reads normally "
                  'between ticks',
@@ -525,9 +526,10 @@ def test_prompt(report):
     down = spin.prompt(text, Tty(), tick=10, ok=False)
     down_written = down.out.real.getvalue()
     report.check('a dead link starts with the error icon, red, not waiting',
-                 down_written == '|%s%s%s| %s%s%s%s%s> '
-                 % (spin.ROBOT, spin.ICON_ERROR, spin.PAGER, head, spin.RED,
-                    spin.BARS[0], spin.RESET, tail),
+                 down_written == '%s%s%s%s%s %s%s%s%s%s> '
+                 % (spin.OPEN, spin.ROBOT, spin.ICON_ERROR, spin.PAGER,
+                    spin.CLOSE, head, spin.RED, spin.BARS[0], spin.RESET,
+                    tail),
                  ascii(down_written))
     down.stop(False)
 
@@ -641,16 +643,15 @@ def test_prompt(report):
     report.check('and ticking resumes once the lock is free again',
                  locked.getvalue() != before_lock)
 
-    report.check('the robot, pager and icons are real glyphs, not '
-                 'look-alike runs of ASCII',
+    report.check('the robot, pager, busy and waiting icons are real emoji, '
+                 'not look-alike runs of ASCII',
                  spin.ROBOT == '\U0001F916' and spin.PAGER == '\U0001F4DF'
-                 and spin.ICON_BUSY == '\U0001F504'
-                 and spin.ICON_ERROR == '❌')
-    report.check('the waiting icon is emoji-presentation by default too - '
-                 'a single codepoint, no variation selector needed unlike '
-                 'the pause mark it replaced',
-                 spin.ICON_WAIT == '⏳' and len(spin.ICON_WAIT) == 1
-                 and ord(spin.ICON_WAIT) == 0x23F3)
+                 and spin.ICON_WAIT == '\U0001F4A4'
+                 and spin.ICON_BUSY == '⌛')
+    report.check('the error icon is the one exception still needing a '
+                 'variation selector - flagged, not hidden, in case the '
+                 'spacing looks uneven again',
+                 spin.ICON_ERROR == '⚠️' and len(spin.ICON_ERROR) == 2)
     report.check('none of that matters for positioning any more - every '
                  'repaint rewrites from column 1, not a computed one',
                  not hasattr(face, 'icon_column')
@@ -658,6 +659,10 @@ def test_prompt(report):
     report.check('the bar is plain ASCII - no width question to inherit '
                  'in the first place',
                  all(len(b) == 1 and ord(b) < 128 for b in spin.BARS))
+    report.check('the guillemets are cp1252, not something else risking a '
+                 'question mark of their own',
+                 spin.OPEN.encode('cp1252') == b'\xab'
+                 and spin.CLOSE.encode('cp1252') == b'\xbb')
 
     class Cp1252(io.StringIO):
         encoding = 'cp1252'
@@ -665,27 +670,43 @@ def test_prompt(report):
     report.check("this bench's own console cannot hold the robot/pager/icons "
                  '- they get ASCII, not a question mark',
                  not spin._capable(Cp1252()))
+    report.check('but it can hold the guillemets on their own - a real '
+                 'frame around ASCII bookends, not pipes just because the '
+                 'robot cannot render',
+                 spin._brackets_capable(Cp1252()))
 
     class Ascii(Cp1252):
         encoding = 'ascii'
 
     report.check('and the same fallback covers a plain ASCII stream too',
-                 not spin._capable(Ascii()))
+                 not spin._capable(Ascii())
+                 and not spin._brackets_capable(Ascii()))
     report.check('a genuinely Unicode-capable stream is the real thing',
-                 spin._capable(Tty()))
+                 spin._capable(Tty()) and spin._brackets_capable(Tty()))
+
+    cp1252_face = spin.prompt(text, Cp1252(), tick=10)
+    report.check('cp1252 gets real guillemets around ASCII bookends, not '
+                 'plain pipes',
+                 cp1252_face.open == spin.OPEN
+                 and cp1252_face.close == spin.CLOSE
+                 and cp1252_face.robot == spin.ROBOT_FALLBACK,
+                 ascii(cp1252_face._prefix()))
+    cp1252_face.stop(True)
 
     # A pipe has no cursor to save: one static prompt, no escapes, no thread -
     # busy()/stop() change state but paint nothing further. It has no
-    # .encoding either, so it gets the ASCII fallback same as Ascii() does.
+    # .encoding either, so it gets the ASCII fallback same as Ascii() does,
+    # brackets included.
     piped = io.StringIO()
     quiet = spin.prompt(text, piped, tick=10)
     before_pipe = piped.getvalue()
     quiet.busy()
     quiet.stop(False)
     report.check('a redirected prompt is static and escape-free',
-                 before_pipe == '|%s%s%s| %s%s%s%s%s> '
-                 % (spin.ROBOT_FALLBACK, spin.ICON_WAIT_FALLBACK,
-                    spin.PAGER_FALLBACK, head, spin.GREEN, spin.BARS[0],
+                 before_pipe == '%s%s%s%s%s %s%s%s%s%s> '
+                 % (spin.OPEN_FALLBACK, spin.ROBOT_FALLBACK,
+                    spin.ICON_WAIT_FALLBACK, spin.PAGER_FALLBACK,
+                    spin.CLOSE_FALLBACK, head, spin.GREEN, spin.BARS[0],
                     spin.RESET, tail),
                  repr(before_pipe))
     report.check('and busy()/stop() on a redirected stream paint nothing '
