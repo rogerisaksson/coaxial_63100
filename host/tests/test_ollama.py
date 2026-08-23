@@ -505,7 +505,7 @@ def test_prompt(report):
 
     report.check("the bar takes the text's own '1', not a character "
                  'appended after it',
-                 written == '%s%s%s%s%s %s%s%s%s%s> '
+                 written == '%s%s%s%s%s%s%s%s%s%s>'
                  % (spin.OPEN, spin.ROBOT, spin.ICON_WAIT, spin.PAGER,
                     spin.CLOSE, head, spin.GREEN, spin.BARS[0], spin.RESET,
                     tail),
@@ -518,15 +518,15 @@ def test_prompt(report):
     report.check("text with no '1' gets the bar appended after it instead, "
                  'same as the very first version of this',
                  no_digit.out.real.getvalue().endswith(
-                     'no-ones-here%s%s%s> ' % (spin.GREEN, spin.BARS[0],
-                                               spin.RESET)),
+                     'no-ones-here%s%s%s>' % (spin.GREEN, spin.BARS[0],
+                                              spin.RESET)),
                  ascii(no_digit.out.real.getvalue()))
     no_digit.stop(True)
 
     down = spin.prompt(text, Tty(), tick=10, ok=False)
     down_written = down.out.real.getvalue()
     report.check('a dead link starts with the error icon, red, not waiting',
-                 down_written == '%s%s%s%s%s %s%s%s%s%s> '
+                 down_written == '%s%s%s%s%s%s%s%s%s%s>'
                  % (spin.OPEN, spin.ROBOT, spin.ICON_ERROR, spin.PAGER,
                     spin.CLOSE, head, spin.RED, spin.BARS[0], spin.RESET,
                     tail),
@@ -704,7 +704,7 @@ def test_prompt(report):
     quiet.busy()
     quiet.stop(False)
     report.check('a redirected prompt is static and escape-free',
-                 before_pipe == '%s%s%s%s%s %s%s%s%s%s> '
+                 before_pipe == '%s%s%s%s%s%s%s%s%s%s>'
                  % (spin.OPEN_FALLBACK, spin.ROBOT_FALLBACK,
                     spin.ICON_WAIT_FALLBACK, spin.PAGER_FALLBACK,
                     spin.CLOSE_FALLBACK, head, spin.GREEN, spin.BARS[0],

@@ -9,13 +9,18 @@ submitted yet", yellow for "working on it", red for "that just failed". The
 icon in the bookend group up front says the same thing a second way, in case
 the colour alone does not survive whatever the terminal does to it.
 
-    «<robot><icon><pager>» Coaxial_63<bar>00>
-           ^^^^^                     ^^^^ these are the only two things that
-            state                       ever move or change colour - one
-            icon                        discrete, on state change; one
-                                         ticking, on a timer, resting on
-                                         '1' when idle so the name reads
-                                         normally between ticks
+    «<robot><icon><pager>»Coaxial_63<bar>00>
+           ^^^^^                    ^^^^ these are the only two things that
+            state                      ever move or change colour - one
+            icon                       discrete, on state change; one
+                                        ticking, on a timer, resting on
+                                        '1' when idle so the name reads
+                                        normally between ticks
+
+No space anywhere in this - not after the closing guillemet, not after the
+final ">" - on purpose: asked for, and it also means every column after the
+bookend group is exactly where the text's own characters put it, nothing
+this file added shifting it over.
 
 If the text has no '1' to spin - not this board's, but Prompt takes whatever
 it is given - the bar is appended after it instead, exactly where the very
@@ -232,7 +237,7 @@ class Prompt:
         self.thread = None
 
         with self.lock:
-            self.out.write(self._prefix() + self.tail + '> ')
+            self.out.write(self._prefix() + self.tail + '>')
             self.out.flush()
         if self.vt:
             self.thread = threading.Thread(target=self._run, daemon=True)
@@ -240,9 +245,9 @@ class Prompt:
 
     def _prefix(self):
         glyph = BARS[self.frame % len(BARS)]
-        return '%s%s%s%s%s %s%s%s%s' % (self.open, self.robot, self.icon,
-                                         self.pager, self.close, self.head,
-                                         self.color, glyph, RESET)
+        return '%s%s%s%s%s%s%s%s%s' % (self.open, self.robot, self.icon,
+                                        self.pager, self.close, self.head,
+                                        self.color, glyph, RESET)
 
     def _paint(self):
         # rows_up is the fixed "Enter moved to a fresh row" step; out.lines

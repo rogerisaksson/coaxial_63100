@@ -412,6 +412,22 @@ if ($null -eq $tags) {
     # keeps the environment it was started with.
     $env:OLLAMA_MAX_LOADED_MODELS = '1'
     $env:OLLAMA_NUM_PARALLEL = '1'
+    # llama-server's own prompt cache (llama.cpp PR #16391) crashed twice on
+    # this bench with "libc++abi: ... std::bad_alloc" while saving a
+    # checkpoint under memory pressure - a real crash, survived because
+    # debug.py's repl() now catches OllamaError per turn, but a crash all
+    # the same. Its own startup log names the fix: "use --cache-ram 0 to
+    # disable the prompt cache". Ollama forwards any LLAMA_ARG_<FLAG> env var
+    # straight to llama-server (see `ollama serve --help`, which lists
+    # LLAMA_ARG_FIT/LLAMA_ARG_FIT_TARGET the same way) - LLAMA_ARG_CACHE_RAM
+    # follows that same naming convention, but is not itself documented
+    # anywhere this script could confirm it against; that inference, not a
+    # verified flag name, is what this line rests on. The trade is losing
+    # the KV-cache reuse across conversation branches (turn nine costs what
+    # turn two did instead of being nearly free), for not crashing at all.
+    # Only takes effect on a daemon this script starts fresh - an ollama
+    # already running keeps whatever environment started it.
+    $env:LLAMA_ARG_CACHE_RAM = '0'
     Start-Process -FilePath $ollama.Source -ArgumentList 'serve' -WindowStyle Hidden `
                   -ErrorAction SilentlyContinue
     $tags = Get-Tags -Tries 10
