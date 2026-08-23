@@ -948,14 +948,22 @@ def test_debug(report):
     real_first_blank_call = first_blank_box.call
     first_blank_box.call = lambda name, args: (
         first_blank_hits.append(name), real_first_blank_call(name, args))[1]
+    first_blank_out = io.StringIO()
     first_blank = debug.Chat(ScriptedModel([
         {'role': 'assistant', 'content': ''},
         call('afe_power', action='on'), call('analog_read')]),
-        first_blank_box, out=io.StringIO())
+        first_blank_box, out=first_blank_out)
     first_blank.ask('ge mig en lista over matvardena')
     report.check('a blank first answer is nudged into a real reading',
                  first_blank_hits == ['link', 'afe_power', 'analog_read'],
                  first_blank_hits)
+    # The probe itself is plumbing, not a reading - measured here, its raw
+    # counters ("unit_id=1 t15_ticks=...") printed on screen for a question
+    # that only asked for a list of ADC values, nothing to do with the link.
+    report.check('the probe itself is not traced - nobody asked for link stats',
+                 'unit_id=' not in first_blank_out.getvalue()
+                 and 'on=1' in first_blank_out.getvalue(),
+                 first_blank_out.getvalue())
 
     # ---- ...and if the board really is down from the start, that is what
     # gets reported - not silence.

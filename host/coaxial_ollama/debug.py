@@ -424,12 +424,15 @@ class Chat:
         fresh call: the result is the fact, not whatever the model believes
         or last knew. Updates link_ok and the transcript exactly as a real
         model-issued `link` call would, so the two are indistinguishable to
-        anything reading the history afterwards.
+        anything reading the history afterwards - except on screen. Not
+        traced: nobody asked for link stats, they asked for a reading, and
+        the counters are not that. A failure is not lost either way - it
+        becomes the turn's own "link is down, not answered: ..." line, so
+        printing it here first would only say the same thing twice.
         """
         probe = self.toolbox.call('link', {'op': 'stats'})
         lost = ERR_CLASS.match(str(probe))
         self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
-        self._trace(probe)
         self.history.append({'role': 'tool', 'tool_name': 'link',
                              'name': 'link', 'content': 'link: %s' % probe})
         return probe
