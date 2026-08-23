@@ -643,15 +643,16 @@ def test_prompt(report):
     report.check('and ticking resumes once the lock is free again',
                  locked.getvalue() != before_lock)
 
-    report.check('the robot, pager, busy and waiting icons are real emoji, '
-                 'not look-alike runs of ASCII',
+    report.check('the robot, pager and all three icons are real emoji, not '
+                 'look-alike runs of ASCII - none of them need a variation '
+                 'selector to render in colour, unlike the pause mark and '
+                 'the warning sign that each sat here before',
                  spin.ROBOT == '\U0001F916' and spin.PAGER == '\U0001F4DF'
                  and spin.ICON_WAIT == '\U0001F4A4'
-                 and spin.ICON_BUSY == '⌛')
-    report.check('the error icon is the one exception still needing a '
-                 'variation selector - flagged, not hidden, in case the '
-                 'spacing looks uneven again',
-                 spin.ICON_ERROR == '⚠️' and len(spin.ICON_ERROR) == 2)
+                 and spin.ICON_BUSY == '⌛'
+                 and spin.ICON_ERROR == '❌'
+                 and len(spin.ICON_WAIT) == len(spin.ICON_BUSY)
+                 == len(spin.ICON_ERROR) == 1)
     report.check('none of that matters for positioning any more - every '
                  'repaint rewrites from column 1, not a computed one',
                  not hasattr(face, 'icon_column')

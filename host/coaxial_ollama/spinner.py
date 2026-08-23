@@ -79,21 +79,21 @@ ROBOT_FALLBACK = 'o'
 PAGER = '\U0001F4DF'                     # "📟"
 PAGER_FALLBACK = '#'
 
-# Ideally full-colour by default, not text glyphs forced into colour with a
-# variation selector - a forced one can sit at a slightly different advance
-# width than a native one in some fonts, which reads as uneven spacing next
-# to the others even though there is no actual space character anywhere in
-# this string (this is exactly what the pause mark used to do here).
-# WARNING SIGN is the one exception still in this set: it is
-# text-presentation by default like the pause mark was, and needs the same
-# U+FE0F to render in colour - if the spacing looks uneven again, this is
-# the glyph to suspect first.
+# All three need to be full-colour by default, not text glyphs forced into
+# colour with a variation selector - a forced one can sit at a slightly
+# different advance width than a native one in some fonts, which reads as
+# uneven spacing next to the others even though there is no actual space
+# character anywhere in this string. Confirmed twice now, not just
+# suspected: the pause mark did this, and so did WARNING SIGN when it
+# stood in for error - both are text-presentation by default and need
+# U+FE0F to become colour; ❌ CROSS MARK does not, and was the original
+# choice for exactly this reason.
 ICON_WAIT = '\U0001F4A4'                 # "💤"
 ICON_BUSY = '⌛'                    # "⌛"
-ICON_ERROR = '⚠️'                # "⚠️"
+ICON_ERROR = '❌'                    # "❌"
 ICON_WAIT_FALLBACK = 'z'
 ICON_BUSY_FALLBACK = '~'
-ICON_ERROR_FALLBACK = '!'
+ICON_ERROR_FALLBACK = 'X'
 
 # Rests on '1' - the digit it replaces - so the name reads normally between
 # ticks; the other three frames are what makes that digit's position turn.
