@@ -350,9 +350,13 @@ class Chat:
         # mid-repaint on its own thread exactly when a tool result below
         # wants to print, and unsynchronised writes to the same stream would
         # interleave into garbage on screen. A Chat used outside the REPL
-        # never contends for it - locking a private, never-shared Lock costs
-        # nothing worth avoiding.
-        self.print_lock = threading.Lock()
+        # never contends for it - locking a private, never-shared RLock
+        # costs nothing worth avoiding. RLock, not Lock: _trace() below holds
+        # this for its whole loop of print()s, and spinner._Tracked.write()
+        # - what self.out becomes once repl() points it at the same tracked
+        # stream the prompt uses - re-enters the same lock on every one of
+        # them. A plain Lock would deadlock that against itself.
+        self.print_lock = threading.RLock()
         self.history = []
         self.turn_cost = []
         # What the prompt's spinner shows: read fresh on every prompt, so

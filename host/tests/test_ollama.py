@@ -623,7 +623,7 @@ def test_prompt(report):
     # phase is exactly the race this lock exists for - proved here by holding
     # it ourselves and showing a tick cannot get past it, not by hoping a
     # timing-based race never happens to interleave in the test run.
-    shared = threading.Lock()
+    shared = threading.RLock()
     locked = Tty()
     guarded = spin.prompt(text, locked, tick=0.01, ok=True, lock=shared)
     report.check('the caller-supplied lock is the one actually used',
@@ -642,6 +642,58 @@ def test_prompt(report):
     guarded.stop(True)
     report.check('and ticking resumes once the lock is free again',
                  locked.getvalue() != before_lock)
+
+    # ---- _Tracked's own lock protects a caller who never wraps their write
+    # Reported live: the answer text came back with the prompt group spliced
+    # into the middle of a sentence - print(answer, file=face.out) never
+    # wrapped itself in the lock, so nothing stopped a tick writing at the
+    # same time. _Tracked now holds the lock around every write it is given,
+    # whether the caller asked for that or not. Proved with a deliberately
+    # slow underlying stream, so a second write demonstrably waits for the
+    # first one's write() call to finish rather than hoping a fast race
+    # never happens to land badly in the time a test happens to run.
+    class SlowReal:
+        def __init__(self):
+            self.log = []
+
+        def write(self, text):
+            self.log.append(('start', text))
+            clock.sleep(0.06)
+            self.log.append(('end', text))
+
+        def flush(self):
+            pass
+
+        def isatty(self):
+            return True
+        encoding = 'utf-8'
+
+    slow_real = SlowReal()
+    tracked = spin._Tracked(slow_real, threading.RLock())
+
+    first = threading.Thread(target=lambda: tracked.write('FIRST'))
+    first.start()
+    clock.sleep(0.02)                  # first is now inside its slow write()
+
+    second_done = []
+    second = threading.Thread(
+        target=lambda: (tracked.write('SECOND'), second_done.append(True)))
+    second.start()
+    clock.sleep(0.02)                  # well within FIRST's write, before it ends
+
+    report.check("a second write through _Tracked - unguarded by the "
+                 "caller, exactly how print(answer, file=face.out) is - "
+                 "waits for the first one's write() call to finish, not "
+                 'just start',
+                 not second_done and slow_real.log == [('start', 'FIRST')],
+                 slow_real.log)
+    first.join()
+    second.join()
+    report.check('and completes cleanly once the first is done, never '
+                 'interleaved',
+                 slow_real.log == [('start', 'FIRST'), ('end', 'FIRST'),
+                                   ('start', 'SECOND'), ('end', 'SECOND')],
+                 slow_real.log)
 
     report.check('the robot, pager and all three icons are real emoji, not '
                  'look-alike runs of ASCII - none of them need a variation '

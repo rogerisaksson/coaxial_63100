@@ -175,18 +175,30 @@ class _Tracked:
     to know the true row count without every future caller remembering to
     report it themselves, and a caller that forgets is exactly how the bar
     ends up climbing to a row that no longer holds the prompt.
+
+    The lock lives here too, not just around _paint()'s own writes - every
+    write through this object holds it, including debug.py's own
+    print(answer, file=face.out). Measured live: a tick landed mid-print of
+    the actual answer, splicing the prompt group into the middle of a
+    sentence, because that print() call was never part of the same critical
+    section a tick's write already was. A caller-side lock only protects the
+    calls someone remembered to wrap; a lock the stream itself holds
+    protects all of them, including the one this bug was.
     """
 
-    def __init__(self, real):
+    def __init__(self, real, lock):
         self.real = real
+        self.lock = lock
         self.lines = 0
 
     def write(self, text):
-        self.lines += text.count('\n')
-        return self.real.write(text)
+        with self.lock:
+            self.lines += text.count('\n')
+            return self.real.write(text)
 
     def flush(self):
-        return self.real.flush()
+        with self.lock:
+            return self.real.flush()
 
     def isatty(self):
         try:
@@ -210,8 +222,12 @@ class Prompt:
     of what prints while the bar is busy."""
 
     def __init__(self, text, out, lock=None, ok=True, tick=TICK):
-        self.out = _Tracked(out)
-        self.lock = lock or threading.Lock()
+        # RLock, not Lock: _trace() in debug.py already holds this lock for
+        # its whole loop of print()s, each of which re-enters it again
+        # inside _Tracked.write() - a plain Lock would deadlock the second
+        # of those against itself, on the same thread, over nothing.
+        self.lock = lock or threading.RLock()
+        self.out = _Tracked(out, self.lock)
         self.vt = _vt(out)
         self.tick = tick
         real = _capable(out)
