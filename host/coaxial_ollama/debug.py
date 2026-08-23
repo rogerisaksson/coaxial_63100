@@ -102,6 +102,24 @@ def keep_alive_for(args):
 
 TOOL_TAG = re.compile(r'</?tool_call>', re.I)
 CALL_JSON = re.compile(r'\{.*?"name"\s*:.*?\}\s*\}?', re.S)
+ERR_CLASS = re.compile(r'^ERR (\w+):')
+
+# Tools that actually reach the board - not 'docs', which reads local files and
+# proves nothing about the link either way.
+LINK_TOOLS = set(toolmod.BOARD_HANDLERS) - {'docs'}
+
+# render.error's class name, for the calls that report through it. Not every
+# RigError means the cable is out: DeviceStateError, UnsupportedProtocolError
+# and a Modbus exception all mean the board answered - just refused, or was
+# not in a state the request could mean anything in. Only these five mean the
+# round trip itself did not happen.
+CONTACT_LOST = {'ConnectError', 'NoReplyError', 'CrcError', 'FrameError',
+                'PayloadError'}
+
+# Rows of a tool result shown in full, beyond the first. Generous enough for
+# every channel this board has, or a full self_test list, without an
+# unbounded dump if run_python prints something much longer.
+TRACE_ROWS = 24
 
 
 def _salvage_call(text):
@@ -296,6 +314,13 @@ class Chat:
                 result = self.toolbox.call(name, args)
                 if isinstance(result, toolmod.Reported):
                     result = 'noted: %s' % result.note
+                if name in LINK_TOOLS:
+                    # Every call that actually reaches the board is a live
+                    # reading on the link itself, not just on this run's
+                    # question - the spinner is wrong the moment this call's
+                    # verdict disagrees with what it is currently showing.
+                    lost = ERR_CLASS.match(str(result))
+                    self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
                 self._trace('  %s %s' % (name, _short(args)), str(result))
                 self.history.append({'role': 'tool', 'tool_name': name,
                                      'name': name,
@@ -386,10 +411,25 @@ class Chat:
                   file=self.out, flush=True)
 
     def _trace(self, head, result):
+        """Print what a call returned, as the grid render.py already built it.
+
+        The old version joined every line with ' | ' and cut the whole thing
+        at 96 characters, which turned a channel table into a single ragged
+        line - the very thing this was supposed to show plainly. A table's
+        rows go one per line instead, each clipped on its own so a long value
+        does not push the row after it off screen, with a count for whatever
+        does not fit rather than a table that quietly stops.
+        """
         if self.quiet:
             return
-        print('%s -> %s' % (head, ' | '.join(result.splitlines()[:2])[:96]),
-              file=self.out, flush=True)
+        lines = str(result).splitlines() or ['']
+        print('%s -> %s' % (head, lines[0][:96]), file=self.out, flush=True)
+        rest = lines[1:]
+        for line in rest[:TRACE_ROWS]:
+            print('     %s' % line[:96], file=self.out, flush=True)
+        if len(rest) > TRACE_ROWS:
+            print('     ... [%d more rows]' % (len(rest) - TRACE_ROWS),
+                  file=self.out, flush=True)
 
 
 def _arguments(call):

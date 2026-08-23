@@ -25,7 +25,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial.errors import DeviceStateError                # noqa: E402
+from coaxial.errors import ConnectError, DeviceStateError   # noqa: E402
 from coaxial_ollama import plan as planmod                 # noqa: E402
 from coaxial_ollama import runner as runmod                # noqa: E402
 from coaxial_ollama import tools as toolmod                # noqa: E402
@@ -91,10 +91,15 @@ CHANNELS = [
 
 
 class FakeAnalog:
+    def __init__(self):
+        self.broken = False    # flips a burst to a ConnectError, cable-pulled
+
     def channels(self, refresh=False):
         return CHANNELS
 
     def burst(self, mask, samples, rate=None):
+        if self.broken:
+            raise ConnectError('cable pulled mid-burst')
         chosen = {}
         for channel in CHANNELS:
             if mask >> channel['index'] & 1:
@@ -769,6 +774,32 @@ def test_debug(report):
     text = offline.call('analog_read', {})
     report.check('--no-board answers instead of hanging on a serial port',
                  'no-board' in text, text[:60])
+
+    # ---- link status tracks every call, not just /reconnect ----
+    flaky_session = FakeSession()
+    flaky_box = toolmod.Toolbox(flaky_session, shell=Shell(['python']),
+                                scope=Scope())
+    watch = debug.Chat(ScriptedModel([call('analog_read')]), flaky_box,
+                       out=io.StringIO())
+    flaky_session.board.analog.broken = True
+    watch.ask('read everything')
+    report.check('a cable pulled mid-turn turns the spinner red on its own',
+                 watch.link_ok is False)
+
+    flaky_session.board.analog.broken = False
+    watch.client.turns = [call('analog_read')]
+    watch.ask('try again')
+    report.check('and a call that succeeds turns it green again, no /reconnect',
+                 watch.link_ok is True)
+
+    # ---- a multi-row result prints as rows, not one squashed line ----
+    grid = io.StringIO()
+    shown = debug.Chat(ScriptedModel([call('board_info')]), box, out=grid)
+    shown.ask('what channels does this board have?')
+    printed = grid.getvalue()
+    report.check('every row of a table lands on its own line',
+                 ' | ' not in printed and printed.count(chr(10)) >= len(CHANNELS),
+                 printed[:120].replace(chr(10), ' / '))
 
     attached = debug.attach(['coaxial_ollama/plans/bringup.yaml'], 300)
     report.check('an attached file is clipped, and says so',
