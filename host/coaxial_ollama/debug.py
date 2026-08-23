@@ -46,11 +46,13 @@ from .sandbox import Scope, Shell, clip              # noqa: E402
 # protocol, no channel map - board_info carries that, once, when asked.
 SYSTEM = """You debug a coaxial BLDC inverter test board over a serial link.
 Use tools; do not guess. Answer in one or two sentences, no preamble.
-This is a plain terminal: never a markdown table, one value per short line.
+This is a plain terminal: never a markdown table. A result already shown
+above needs no second list in your answer - one short line is enough.
+If a call errors, say so; never answer with an older reading or a guess.
 The front end switch (afe_power) also powers the ADC reference: with it off
 every channel reads mid-scale and the NTC reads exactly 25.00 C, which is not a
 measurement. Phase channels sit behind unknown gain, so pin volts is as far as
-the data goes. Say plainly when you do not know.
+the data goes.
 The docs tool has this board's own HARDWARE and FINDINGS: read before guessing."""
 
 # Named subsets, because a debug job knows roughly what it is about to touch.

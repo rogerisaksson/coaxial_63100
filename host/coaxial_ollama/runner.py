@@ -59,7 +59,9 @@ What you must not do:
   Never say a value is good, in spec, nominal or acceptable.
 - Do not invent a number. If a measurement did not happen, report with no value
   and say in the note what stopped you. An honest gap is a useful result; a
-  plausible guess is a wrong verdict that nobody catches.
+  plausible guess is a wrong verdict that nobody catches. A tool call that
+  errors is a measurement that did not happen too - do not report an earlier
+  turn's reading in its place, even if it looks close enough.
 - Do not report a sensed current or a phase voltage at the motor. The phase
   channels sit behind analog front end gain that neither you nor the host knows.
   Volts at the ADC pin is as far as the data goes.
