@@ -1059,6 +1059,27 @@ def test_debug(report):
     report.check('a fresh-looking table with no tool call this turn is refused',
                  answer == 'no reading taken this turn - ask again.', answer)
 
+    # ...and when the board really is unreachable, that refusal says so -
+    # measured here: the generic "ask again" line was itself the complaint,
+    # on a bench where the honest answer was "not connected or not powered".
+    unplugged_session = SimulatedSession()
+    unplugged_box = toolmod.Toolbox(unplugged_session, shell=Shell(['python']),
+                                    scope=Scope())
+    unplugged = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'), call('analog_read'),
+        {'role': 'assistant', 'content':
+            'PhaseU: +0.1398V, PhaseV: -0.8226V, '
+            'NTC: 2.0567V (38.85C), DCbus: 1.1197V (26.518V)'}]), unplugged_box,
+        out=io.StringIO())
+    unplugged.ask('tabellera ADC-värdena')
+    unplugged_session.board.broken = True
+    unplugged.client.turns = [{'role': 'assistant', 'content':
+        'PhaseU: +0.1415V, PhaseV: -0.8232V, '
+        'NTC: 2.0726V (39.45C), DCbus: 1.1195V (26.511V)'}]
+    answer = unplugged.ask('tabellera ADC-värdena igen')
+    report.check('a skipped call refuses correctly when the board is really gone',
+                 answer.startswith('link is down, not answered:'), answer)
+
     # ---- a multi-row result prints as rows, not one squashed line ----
     grid = io.StringIO()
     shown = debug.Chat(ScriptedModel([call('board_info')]), box, out=grid)

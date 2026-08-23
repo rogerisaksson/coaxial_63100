@@ -406,6 +406,23 @@ class Chat:
 
     # ---- a turn ------------------------------------------------------------
 
+    def _probe_link(self):
+        """A live, free-standing check of the link - no AFE, no sample.
+
+        Used wherever a turn is about to answer from memory instead of a
+        fresh call: the result is the fact, not whatever the model believes
+        or last knew. Updates link_ok and the transcript exactly as a real
+        model-issued `link` call would, so the two are indistinguishable to
+        anything reading the history afterwards.
+        """
+        probe = self.toolbox.call('link', {'op': 'stats'})
+        lost = ERR_CLASS.match(str(probe))
+        self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
+        self._trace(probe)
+        self.history.append({'role': 'tool', 'tool_name': 'link',
+                             'name': 'link', 'content': 'link: %s' % probe})
+        return probe
+
     def ask(self, question, max_calls=6):
         """One question, however many tool calls it takes. Returns the answer."""
         if self.over_budget():
@@ -461,13 +478,7 @@ class Chat:
                 # `link` needs no AFE and no sample, the cheapest call that
                 # settles it.
                 if not self.link_ok or not answer:
-                    probe = self.toolbox.call('link', {'op': 'stats'})
-                    lost = ERR_CLASS.match(str(probe))
-                    self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
-                    self._trace(probe)
-                    self.history.append({'role': 'tool', 'tool_name': 'link',
-                                         'name': 'link',
-                                         'content': 'link: %s' % probe})
+                    probe = self._probe_link()
                     if not self.link_ok:
                         return 'link is down, not answered: %s' % probe
                     continue    # confirmed up - give the model a real turn
@@ -556,8 +567,18 @@ class Chat:
         # survives across turns for exactly this - the turn-local
         # `last_channels` above is always None here, since a successful
         # analog_read this turn would have set it too.
+        #
+        # Which of those two it is - board fine but the model just did not
+        # bother, or board actually unreachable - is worth knowing rather
+        # than guessing, so this checks instead of picking one. Measured
+        # here: the generic "ask again" line was itself the complaint, on a
+        # bench where the honest answer was that the board was not connected
+        # or not powered - not "ask again", but "go look at the cable".
         elif not read_attempted and _is_retype(answer, self.last_channels):
-            answer = 'no reading taken this turn - ask again.'
+            probe = self._probe_link()
+            answer = ('link is down, not answered: %s' % probe
+                      if not self.link_ok else
+                      'no reading taken this turn - ask again.')
         # An answer that hit the token cap stops mid-sentence, and a table that
         # stops mid-row reads as complete to everyone except a reader counting
         # rows. Say so rather than letting the cap look like the end.
