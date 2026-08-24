@@ -3030,6 +3030,32 @@ def test_docs(report):
                  'the question itself is written in the locked language',
                  talk.language == 'English', talk.language)
 
+    # Measured at the prompt: "forklara pa japanska ..." named a language
+    # next to a verb that was not in the list, so the request was missed and
+    # the turn went out under *Answer in Swedish and in no other language* -
+    # the host contradicting the operator in the same system prompt. The
+    # answer that came back was a channel table.
+    talk.history = [{'role': 'user',
+                     'content': 'förklara på japanska vad detta '
+                                'projektet handlar om'}]
+    head = talk.trim()[0]['content']
+    report.check('a language asked for with a verb other than "answer" is '
+                 'still a request', 'in Japanese' in head, talk.language)
+
+    # ...and it is that turn's request, not a new session language: the next
+    # Swedish question takes the lock straight back.
+    talk.history = [{'role': 'user', 'content': 'och vad läser NTC:n nu?'}]
+    talk.trim()
+    report.check('and the next question in the session language takes it back',
+                 talk.language == 'Swedish', talk.language)
+
+    for question in ('the German firmware bug is back',
+                     'varför är dokumentationen på engelska?',
+                     'vad heter skruv på japanska?'):
+        got = language.requested_language(question)
+        report.check('a language named in passing is not a request: %s'
+                     % question[:34], got is None, str(got))
+
     # Measured live: a Swedish question that named a tool without calling it
     # triggered the "call the tool now" nudge - appended to history with
     # role=='user', for the model's benefit - and the language flipped to

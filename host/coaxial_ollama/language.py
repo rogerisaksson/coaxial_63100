@@ -187,7 +187,7 @@ LANGUAGE_NAMES = {
     'German':     ('german', 'tyska'),
     'Danish':     ('danish', 'danska'),
     'Norwegian':  ('norwegian', 'norska'),
-    'Dutch':      ('dutch', 'nederlandska'),
+    'Dutch':      ('dutch', 'nederländska'),
     'French':     ('french', 'franska'),
     'Spanish':    ('spanish', 'spanska'),
     'Italian':    ('italian', 'italienska'),
@@ -198,7 +198,7 @@ LANGUAGE_NAMES = {
     'Chinese':    ('chinese', 'kinesiska'),
     'Japanese':   ('japanese', 'japanska'),
     'Korean':     ('korean', 'koreanska'),
-    'Thai':       ('thai', 'thailandska'),
+    'Thai':       ('thai', 'thailändska'),
     'Greek':      ('greek', 'grekiska'),
     'Hebrew':     ('hebrew', 'hebreiska'),
     'Arabic':     ('arabic', 'arabiska'),
@@ -438,9 +438,23 @@ def greeting(model, name=None, encoding=None):
 # A language's own name has to sit next to one of these to count as a
 # request rather than a mention - "the German firmware bug" is not a
 # request for German, and this is what keeps it from reading as one.
-_RESPONSE_VERBS = ('svara', 'svarar', 'answer', 'respond', 'reply',
-                   'antworte', 'antworten', 'reponds', 'répondre',
-                   'responde', 'rispondi')
+#
+# Every verb that asks for text, not just the ones that mean "answer".
+# Measured: "forklara pa japanska vad detta projektet handlar om" matched
+# nothing here, so the session stayed locked to Swedish and the turn went
+# out under *Answer in Swedish and in no other language* - the host
+# contradicting the operator in the same prompt. The Swedish and English
+# sets are complete because this bench is spoken in those two; the rest
+# keep the one verb they already had.
+_OUTPUT_VERBS = (
+    'svara', 'svarar', 'förklara', 'skriv', 'skriva', 'beskriv',
+    'berätta', 'översätt', 'sammanfatta', 'säg',
+    'answer', 'respond', 'reply', 'explain', 'write', 'describe', 'tell',
+    'translate', 'summarise', 'summarize', 'say',
+    'antworte', 'antworten', 'erkläre', 'schreibe',
+    'reponds', 'répondre', 'explique', 'écris',
+    'responde', 'explica', 'escribe', 'rispondi', 'spiega',
+)
 
 
 def requested_language(text):
@@ -457,7 +471,7 @@ def requested_language(text):
     callers fall back to `detect()` for that.
     """
     words = [w.lower() for w in WORD.findall(text or '')]
-    if not any(w in _RESPONSE_VERBS for w in words):
+    if not any(w in _OUTPUT_VERBS for w in words):
         return None
     for word in words:
         if word in _NAME_TO_LANGUAGE:

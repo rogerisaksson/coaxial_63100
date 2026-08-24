@@ -224,9 +224,14 @@ turn. That matters for more than tidiness: a one-word follow-up like
 flipped the instruction back and forth — a real prefix change, so a KV cache
 miss on every short follow-up. Two things move it: the question switching
 language for real (`detect()` disagrees), or the question naming one outright
-— "svara på engelska" — via `language.requested_language()`, independent of
-what language it is itself written in. `/lang [NAME]` sets it by hand,
-`/lang auto` hands it back to detection.
+— "svara på engelska", "förklara på japanska" — via
+`language.requested_language()`, independent of what language it is itself
+written in. The name has to sit next to a verb that asks for text, which is
+what keeps "the German firmware bug" from reading as a request; that list is
+complete for Swedish and English. Measured: with only "answer" verbs in it,
+"förklara på japanska" was missed and the turn went out under *Answer in
+Swedish and in no other language*. `/lang [NAME]` sets it by hand, `/lang
+auto` hands it back to detection.
 
 Tests build a `Chat` with no session language at all, deliberately: a suite
 whose expectations depend on the Windows locale passes on one machine and
