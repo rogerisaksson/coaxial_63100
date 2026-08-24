@@ -176,6 +176,22 @@ finding worth writing down — docs/MODELS.md.
 It is a **dumb-slave interface to a dumb slave**. It reports; it does not judge.
 Invariant 10 applies to it exactly as it applies to the firmware.
 
+## How to write here
+
+Terse, friendly, and never at the cost of a fact. A comment earns its place by
+saying something the code cannot: a measured number, why an obvious approach was
+rejected, a failure that has already happened. It loses its place by restating
+the code, telling the story twice, or hedging.
+
+```python
+# Measured: ch=['bus'] was refused with the channel it meant in the refusal.   # good
+# We should probably consider that a model might, in some cases, spell it...   # cut
+```
+
+Three lines is a long comment. A docstring says what the function is for and
+what a caller has to know — not a narrative of how it came to be. Keep the
+measurement, drop the paragraph around it.
+
 ## Layout
 
 ```

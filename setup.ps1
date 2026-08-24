@@ -183,6 +183,12 @@ $CubeH7Url = 'https://www.st.com/en/embedded-software/stm32cubeh7.html'
 $CubeMXUrl = 'https://www.st.com/en/development-tools/stm32cubemx.html'
 $CubeIDEUrl = 'https://www.st.com/en/development-tools/stm32cubeide.html'
 $script:Todo = @()
+$script:Optional = @()
+
+# The daemon settings, shared with board_prompt.ps1 rather than written twice.
+# That file prints nothing and needs nothing in scope, which is what lets both
+# a launcher and an installer use it.
+. (Join-Path $PSScriptRoot 'board_prompt\Tuning.ps1')
 
 # ---- reporting -------------------------------------------------------------
 
@@ -207,8 +213,17 @@ function Write-Item {
 }
 
 function Add-Todo {
-    param([string]$Text)
-    $script:Todo += $Text
+    <#  Something the operator still has to do. -Optional keeps it out of the
+        numbered list and out of the exit code: STM32CubeIDE needs an st.com
+        login and is not part of this project's workflow, and printing it as
+        step 1 of "next" made a finished setup read as an unfinished one -
+        to a person, and to anything automating this.  #>
+    param([string]$Text, [switch]$Optional)
+    if ($Optional) {
+        $script:Optional += $Text
+    } else {
+        $script:Todo += $Text
+    }
 }
 
 function Confirm-Step {
@@ -932,14 +947,14 @@ function Install-CubeIDE {
 
     Write-Item 'STM32CubeIDE' 'missing' 'needs a login on st.com'
     if ($Check) {
-        Add-Todo ($CubeIDEUrl + '  -> download the installer, then: setup.ps1 -CubeIDEInstaller <the exe>')
+        Add-Todo -Optional ($CubeIDEUrl + '  -> download the installer, then: setup.ps1 -CubeIDEInstaller <the exe>')
         return
     }
     if (Confirm-Step 'open the STM32CubeIDE download page in a browser ?') {
         Start-Process $CubeIDEUrl
         Write-Item 'download page' 'done' $CubeIDEUrl
     }
-    Add-Todo ($CubeIDEUrl + '  -> download the installer, then: setup.ps1 -CubeIDEInstaller <the exe>')
+    Add-Todo -Optional ($CubeIDEUrl + '  -> download the installer, then: setup.ps1 -CubeIDEInstaller <the exe>')
 }
 
 function Get-FirmwareVersion {
@@ -1284,6 +1299,22 @@ function Install-Ollama {
         Write-Item 'ollama' 'ok' $ollama
     }
 
+    # Before the daemon is started or asked anything: the settings that keep
+    # llama-server from dying of std::bad_alloc partway through a bench
+    # session. board_prompt.ps1 applies the same four (one file, dot-sourced
+    # by both) and restarts a daemon that predates them; here they go in
+    # first, so a machine set up by this script never needs that restart.
+    # See board_prompt/Tuning.ps1 and docs/FINDINGS.md.
+    $tuned = @()
+    if (-not $Check) { $tuned = @(Set-DaemonEnvironment) }
+    if ($tuned.Count -gt 0) {
+        Write-Item 'daemon tuning' 'done' (($tuned -join ', ') + ' - prompt cache off, checkpoints capped')
+    } elseif ((Test-DaemonTuned) -eq $false) {
+        Write-Item 'daemon tuning' 'missing' 'the running daemon predates it - board_prompt.ps1 restarts it once'
+    } else {
+        Write-Item 'daemon tuning' 'ok' 'prompt cache off, checkpoints capped'
+    }
+
     $tags = Get-OllamaTags
     if (($null -eq $tags) -and (-not $Check)) {
         # A fresh install has not started its daemon, and the install that just
@@ -1470,6 +1501,13 @@ if ($script:Todo.Count -eq 0) {
         Write-Host ("  {0}. {1}" -f $n, $item) -ForegroundColor Yellow
     }
 }
+if ($script:Optional.Count -gt 0) {
+    Write-Host ''
+    Write-Host '  optional, nothing here needs them:' -ForegroundColor DarkGray
+    foreach ($item in $script:Optional) {
+        Write-Host ("    - " + $item) -ForegroundColor DarkGray
+    }
+}
 
 Write-Host ''
 Write-Host '  every shell:' -ForegroundColor White
@@ -1487,3 +1525,9 @@ if ($Check) {
     Write-Host '  run again without -Check to install what is missing.' -ForegroundColor DarkGray
     Write-Host ''
 }
+
+# The exit code is the whole answer for anything driving this without reading
+# it: 0 means the environment is ready, non-zero means the numbered list above
+# is not empty. Optional items never count - a machine without STM32CubeIDE can
+# build, flash, test and prompt.
+exit $(if ($script:Todo.Count -gt 0) { 1 } else { 0 })

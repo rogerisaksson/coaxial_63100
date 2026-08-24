@@ -2069,9 +2069,24 @@ def test_identity(report):
     report.check('a set without build_firmware claims nothing about building',
                  'gemma4:12b' in read_system and 'build system' not in read_system)
 
-    report.check('the prompt says what it is before what it costs',
-                 'inverter' in debug.ROLE
-                 and 'builds and programs' in debug.BUILDS)
+    # One line in, in the operator's own language. Everything else - the tool
+    # list, the detail level, the cost - is /help, and printing it on the way
+    # in was three lines nobody read twice.
+    from coaxial_ollama import language
+    hello = language.greeting('gemma4:12b', 'Swedish')
+    report.check('the prompt opens with one line, in the machine language',
+                 hello.count(chr(10)) == 0 and 'gemma4:12b' in hello
+                 and '/help' in hello and 'expert' in hello, hello)
+    report.check('a language with no greeting written falls back to English',
+                 language.greeting('x', 'Thai') == language.greeting('x', 'English'))
+    report.check('and this machine resolves to a language it can print',
+                 language.system_language() in language.LANGUAGE_NAMES,
+                 language.system_language())
+    report.check('/help carries what the banner no longer does',
+                 all(part in talk.command('/help')
+                     for part in ('gemma4:12b', 'terse', 'tok/turn',
+                                  'analog_read', '/q')),
+                 talk.command('/help').splitlines()[2][:60])
 
 
 # ---- documentation sized for whoever is reading it -------------------------

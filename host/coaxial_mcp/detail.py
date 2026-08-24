@@ -1,40 +1,25 @@
 """How much documentation a reader gets, decided from who is reading.
 
-Every tool's description and every schema property description is re-sent on
-every single turn. That is the cost this package has always been designed
-around - coarse tools, short property names, no examples - but "short" was one
-number for every reader, and the readers are not alike:
+Every tool description is re-sent every turn. Claude over MCP reads it out of
+a window of hundreds of thousands of tokens; gemma4:12b pays for the same text
+out of 8192 shared with the conversation and the readings. Writing for the
+smaller reader shortchanges the larger one, so the text comes from code: one
+spec carries both forms.
 
-  * Claude, over MCP, has a context window measured in hundreds of thousands
-    of tokens and reads the whole description as background it can afford.
-  * gemma4:12b, standing at the bench, pays for the same text out of 8192
-    tokens shared with the conversation, the readings and the answer.
-
-The wrong fix is to write the descriptions for the smaller reader and let the
-larger one work with less than it could have. The fix here is that the text
-comes from code: one spec carries both forms, and whoever assembles the tool
-list says which one this run wants.
-
-    detail.resolve('auto', model='gemma4:12b')   -> 'terse'
+    detail.resolve('auto', model='gemma4:12b')         -> 'terse'
     detail.resolve('auto', model='minimax-m3:cloud')   -> 'full'
-    detail.resolve('full', model='gemma4:12b')   -> 'full'    (the operator said)
+    detail.resolve('full', model='gemma4:12b')         -> 'full'   (operator said)
 
-`auto` is the default everywhere and reads the model's own tag, because that
-is the one piece of information every entry point already has. A tag naming
-its parameter count decides on the count; a cloud tag is somebody else's
-hardware and by definition not short of room; a tag that says nothing
-recognisable is assumed small, since the local daemon is where the unnamed
-tags live and being wrong in that direction costs a sentence rather than a
-session.
+`auto` reads the model tag - the one thing every entry point already has. A
+parameter count decides on the count, a cloud tag is not short of room, and an
+unrecognised tag is assumed small: the local daemon is where unnamed tags
+live, and being wrong that way costs a sentence, not a session.
+`COAXIAL_DETAIL` overrides for a whole machine.
 
-`COAXIAL_DETAIL` overrides the lot, for a machine that wants one answer for
-every entry point without a flag on each of them.
-
-What is deliberately NOT gated on this: the behavioural hints in debug.py
-(call the tool, do not describe it; python not python3; analog_read works with
-the AFE either way). Those exist because a small model needed telling, so
-trimming them for small models would remove them exactly where they earn their
-place. This module shortens documentation, not instructions.
+Deliberately NOT gated on this: the behavioural hints in debug.py. Each exists
+because a small model needed telling, so trimming them for small models would
+delete them where they earn their place. This shortens documentation, not
+instructions.
 """
 import os
 import re
@@ -47,11 +32,9 @@ LEVELS = (AUTO, TERSE, FULL)
 # The environment's way to say it once for every entry point.
 ENV = 'COAXIAL_DETAIL'
 
-# Parameters, in billions, at or above which a model gets the full text. Set
-# between the largest tag this bench actually runs locally (14B, and 12B by
-# default - see capability.py) and the frontier models reached over MCP or a
-# cloud tag. It is a judgement about who has room to read, not a benchmark
-# result: the local tags are the ones paying for context out of 8 GB of VRAM.
+# Parameters in billions at or above which a reader gets the full text. Set
+# between the largest tag run locally here (14B) and the frontier models
+# reached over MCP. A judgement about who has room to read, not a benchmark.
 FULL_MODEL_B = 30.0
 
 # A parameter count in an ollama tag: gemma4:12b, qwen2.5:14b, llama3.1:8b,
@@ -61,11 +44,8 @@ _SIZE = re.compile(r'(?:^|[:\-_])(\d+(?:\.\d+)?)b(?:$|[:\-_])', re.I)
 
 
 def parse_billions(tag):
-    """Parameter count from a tag, or None when it does not say.
-
-    The last match, not the first: `llama3.1:8b` names a version before it
-    names a size, and only one of the two is a parameter count.
-    """
+    """Parameter count from a tag, or None when it does not say. The last
+    match, not the first: `llama3.1:8b` names a version before a size."""
     if not tag:
         return None
     found = _SIZE.findall(str(tag))
@@ -78,9 +58,8 @@ def parse_billions(tag):
 
 
 def is_cloud(tag):
-    """Ollama's marker for a tag that runs on their hardware, not yours -
-    duplicated from client.py rather than imported, so this module stays
-    importable from coaxial_mcp with no coaxial_ollama underneath it."""
+    """Ollama's marker for a tag that runs on their hardware. Duplicated from
+    client.py so coaxial_mcp needs nothing from coaxial_ollama."""
     return bool(tag) and str(tag).split(':')[-1] == 'cloud'
 
 
@@ -95,15 +74,13 @@ def for_model(tag):
 
 
 def resolve(level=AUTO, model=None, default=FULL):
-    """One level, from what the caller said, the environment, and the model.
+    """One level, from the caller, the environment, then the model.
 
-    Order: an explicit terse/full wins, then COAXIAL_DETAIL, then the model's
-    own tag, then `default` - which is FULL, because a caller with no model to
-    read is the MCP server, and the reader there is not the one short of room.
-
-    An unrecognised value is not an error. This decides how long a sentence
-    is; refusing to answer a bench question over a typo in an environment
-    variable would be a worse trade than ignoring it.
+    An explicit terse/full wins, then COAXIAL_DETAIL, then the tag, then
+    `default` - FULL, since a caller with no model is the MCP server and its
+    reader is not the one short of room. An unrecognised value is ignored:
+    this decides how long a sentence is, and a typo in an environment
+    variable should not refuse a bench question.
     """
     if level in (TERSE, FULL):
         return level
@@ -116,11 +93,9 @@ def resolve(level=AUTO, model=None, default=FULL):
 
 
 def text(spec, level, key='description'):
-    """The description this level asks for, falling back to the full one.
-
-    A spec with no terse form written for it is not a mistake: most of the
-    descriptions in this package are already one line, and a second, shorter
-    line for those would be two things to keep in step for no saving.
+    """The description this level asks for, falling back to the full one. A
+    spec with no terse form is not a mistake - most descriptions here are
+    already one line, and a second copy would be two things to keep in step.
     """
     if level == TERSE:
         short = spec.get(key + '_terse')
@@ -131,10 +106,9 @@ def text(spec, level, key='description'):
 
 def _properties(schema, level):
     """Property descriptions are documentation too, and there are more of them
-    than there are tools. In terse they go, except where the description is
-    the only place a value's allowed spelling appears - a property whose
-    description names the choices keeps it, since dropping that would not be
-    shortening the documentation but deleting it."""
+    than tools. Terse drops them, except where the description is the only
+    place an allowed spelling appears - dropping that is deleting, not
+    shortening."""
     if level != TERSE:
         return schema
     properties = schema.get('properties')
@@ -154,17 +128,15 @@ def _properties(schema, level):
 
 
 def _names_values(description):
-    """Whether a property description carries the values themselves rather
-    than prose about them - `README|CLAUDE|...`, `Pin as PORT+NUMBER, e.g.
-    B2`. Those are the schema, spelled in the only place it is spelled."""
+    """Whether a description carries the values themselves rather than prose
+    about them - `README|CLAUDE|...`, `Pin as PORT+NUMBER, e.g. B2`."""
     return '|' in description or 'e.g.' in description
 
 
 def apply(specs, level):
-    """A tool list at one level. The specs are copied, never edited: TOOLS is
-    module state shared by every session in the process, and a server that
-    answered one terse request must not have quietly shortened itself for
-    everybody after it."""
+    """A tool list at one level. Copied, never edited: TOOLS is shared by
+    every session in the process, and one terse request must not shorten the
+    server for everybody after it."""
     level = level if level in (TERSE, FULL) else FULL
     out = []
     for spec in specs:

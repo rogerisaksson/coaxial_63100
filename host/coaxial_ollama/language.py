@@ -206,6 +206,74 @@ LANGUAGE_NAMES = {
 _NAME_TO_LANGUAGE = {alias: name for name, aliases in LANGUAGE_NAMES.items()
                      for alias in aliases}
 
+# ISO code -> the name above. Only the languages this bench is actually spoken
+# in; anything else falls back to English, which is what the documents are in.
+_LOCALE_CODES = {
+    'sv': 'Swedish', 'en': 'English', 'de': 'German', 'da': 'Danish',
+    'nb': 'Norwegian', 'nn': 'Norwegian', 'no': 'Norwegian', 'nl': 'Dutch',
+    'fr': 'French', 'es': 'Spanish', 'it': 'Italian', 'fi': 'Finnish',
+    'pl': 'Polish', 'pt': 'Portuguese',
+}
+
+
+def system_language(default='English'):
+    """The language this machine is set up in.
+
+    Windows answers `Swedish_Sweden` through the locale module and `sv-SE`
+    through the API; both are handled, first match wins. Never raises - a
+    greeting is not worth an exception.
+    """
+    import locale
+    candidates = []
+    try:
+        candidates.append(locale.getlocale()[0] or '')
+    except (ValueError, TypeError):
+        pass
+    try:
+        import ctypes
+        buffer = ctypes.create_unicode_buffer(85)
+        if ctypes.windll.kernel32.GetUserDefaultLocaleName(buffer, 85):
+            candidates.append(buffer.value)
+    except Exception:                                        # noqa: BLE001
+        pass
+    for text in candidates:
+        low = str(text).lower()
+        code = re.split(r'[-_]', low)[0]
+        if code in _LOCALE_CODES:
+            return _LOCALE_CODES[code]
+        for name, aliases in LANGUAGE_NAMES.items():
+            if low.startswith(aliases[0]):
+                return name
+    return default
+
+
+# One line, in the operator's own language: who is answering, and where the
+# rest is. Everything else a session used to print on the way in - the tool
+# list, the detail level, the per-turn cost - is a /help away and was three
+# lines nobody read twice.
+GREETINGS = {
+    'Swedish': 'Jag är %s och är experten i det här projektet. Skriv /help.',
+    'English': "I'm %s, the expert on this project. Type /help.",
+    'German':  'Ich bin %s, der Experte für dieses Projekt. /help für mehr.',
+    'Danish':  'Jeg er %s og eksperten i dette projekt. Skriv /help.',
+    'Norwegian': 'Jeg er %s og eksperten i dette prosjektet. Skriv /help.',
+    'Dutch':   'Ik ben %s, de expert in dit project. Typ /help.',
+    'French':  "Je suis %s, l'expert de ce projet. Tapez /help.",
+    'Spanish': 'Soy %s, el experto de este proyecto. Escribe /help.',
+    'Italian': 'Sono %s, l\'esperto di questo progetto. Scrivi /help.',
+    'Finnish': 'Olen %s, tämän projektin asiantuntija. Kirjoita /help.',
+    'Polish':  'Jestem %s, ekspertem w tym projekcie. Wpisz /help.',
+    'Portuguese': 'Sou %s, o especialista deste projeto. Escreva /help.',
+}
+
+
+def greeting(model, name=None):
+    """The one line a session opens with, in `name` or in this machine's own
+    language. English where there is no translation - a greeting in a language
+    the reader does not have is worse than one they do."""
+    name = name or system_language()
+    return (GREETINGS.get(name) or GREETINGS['English']) % model
+
 # A language's own name has to sit next to one of these to count as a
 # request rather than a mention - "the German firmware bug" is not a
 # request for German, and this is what keeps it from reading as one.

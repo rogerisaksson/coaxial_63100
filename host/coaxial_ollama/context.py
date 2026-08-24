@@ -1,55 +1,38 @@
-"""How much of the model's window a prompt may take, and what goes when it
-takes more.
+"""How much of the model window a prompt may take, and what goes when it takes
+more.
 
-Both loops in this package grow a message list and hand it to the same daemon:
-`debug.Chat` for a bench question, `runner.Runner` for a plan step. Both used
-to bound it by counting messages - `keep=6` in one, `max_turns` in the other -
-and a message count is not a bound on anything. Six messages is a small prompt
-right up until one of them is a build log, a document section or a hundred
-sample rows.
+Both loops here grow a message list for the same daemon - `debug.Chat` for a
+question, `runner.Runner` for a plan step - and both used to bound it by
+counting messages. A message count is not a bound: six messages is a small
+prompt right up until one of them is a build log.
 
-What it is a bound on is `num_ctx`, because that number is what the daemon
-allocates a KV cache for. A prompt that runs past it does not come back as a
-polite refusal: it comes back as a 500 with `cudaMalloc failed`, or as
-llama-server dying of `std::bad_alloc` while saving its own prompt cache and
-ollama respawning it underneath the question. That is the failure this module
-exists to make structurally impossible from this side - the client's own
-recovery ladder is for when the machine is short of memory for reasons that
-have nothing to do with how long the conversation got.
+`num_ctx` is a bound, because that is what the daemon allocates a KV cache
+for. Past it there is no polite refusal - there is a 500, or llama-server
+dying while saving its prompt cache. The client's own ladder is for a machine
+short of memory; this is for a conversation that simply got long.
 
-The order things are given up in is the same in both loops, and it is ordered
-by what is least missed:
+What is given up, in order, least missed first:
 
-  1. tool results, squeezed to their first line, oldest first. A channel
-     table's first row is enough to remember that it was read, and the model
-     can read it again for the price of one call.
-  2. whole messages from the front - the system prompt and the live question
-     excepted. This is the conversation actually being forgotten, which is
-     why it is second and not first.
-  3. the newest message itself, clipped. Only reachable when one message is
-     larger than the whole window: a pasted log, an attached file, a step
-     brief somebody wrote at length.
+  1. tool results, squeezed to their first line, oldest first. The model can
+     read one again for the price of a call.
+  2. whole messages from the front, system prompt and live question aside.
+  3. the newest message itself, clipped - only when one message is larger than
+     the window: a pasted log, an attached file.
 
-Nothing here is silent. Every cut leaves the notice `clip` writes, so a model
-reading a stub can tell that it is one, and `/ctx` shows the budget beside the
-cost so an operator can see a turn being trimmed rather than wondering why it
-stopped growing.
+Nothing is silent: every cut leaves the notice `clip` writes, and `/ctx` shows
+the budget beside the cost.
 """
 import json
 
 from .sandbox import clip
 
-# What the prompt may take of the window, before the reply cap comes off the
-# top of it. Seven tenths rather than all of it, for two reasons: the estimate
-# below is an estimate - four characters per token is right for English prose
-# and optimistic for a register dump or a Swedish question - and llama-server
+# The prompt's share of the window, before the reply cap comes off the top.
+# Seven tenths, not all: the estimate below is an estimate, and llama-server
 # wants working room beside the context it was asked for.
 CTX_SHARE = 0.7
 
-# The floor under that share. A window small enough that seven tenths of it is
-# less than this is a window nothing useful was going to fit in anyway, and
-# clipping to nothing turns "the answer is short" into "there was no
-# question", which is the worse failure of the two.
+# The floor under that share. Clipping to nothing turns "the answer is short"
+# into "there was no question", which is the worse failure.
 MIN_PROMPT_TOKENS = 512
 
 # What a stubbed tool result keeps, in characters, before the marker that says
@@ -66,9 +49,8 @@ def budget_for(options):
     """Tokens a prompt may take, from a client's own options.
 
     0 means "no window to speak of, enforce nothing" - a scripted stand-in, a
-    caller that built a client bare. A guess would be worse than none here,
-    since guessing low silently deletes a conversation nobody asked to
-    shorten.
+    bare client. Guessing low would silently delete a conversation nobody
+    asked to shorten.
     """
     options = options or {}
     try:
@@ -89,9 +71,8 @@ def cost(messages, extra_tokens=0):
 
 
 def _stub(message):
-    """A tool result reduced to the fact that it happened. Returns None when
-    there is nothing left to gain - a result already at or below stub length
-    would only grow by having the marker added to it."""
+    """A tool result reduced to the fact that it happened. None when there is
+    nothing to gain - a short result would only grow by being marked."""
     content = (message.get('content') or '').strip()
     first = content.splitlines()[0] if content else ''
     stubbed = clip(first, STUB_CHARS) + ' [...]'
@@ -103,10 +84,9 @@ def _stub(message):
 def _droppable(messages):
     """The oldest message that may go, or None when nothing may.
 
-    Three are protected: the system prompt, whatever was said last - mid-turn
-    a tool result the model is waiting on, between turns the question itself -
-    and the most recent user message, which is the question a mid-turn prompt
-    would otherwise lose while keeping the tool results taken to answer it.
+    Three are protected: the system prompt, whatever was said last, and the
+    most recent user message - which a mid-turn prompt would otherwise lose
+    while keeping the tool results taken to answer it.
     """
     last_user = None
     for index, message in enumerate(messages):
@@ -121,9 +101,8 @@ def _droppable(messages):
 def fit(messages, budget, extra_tokens=0):
     """Make a message list fit the window. Returns the list, shortened.
 
-    Mutates and returns the same list rather than copying: both callers hand
-    over a list they are done deciding about, and a copy would leave the
-    original growing behind it - which is the bug this is here to prevent.
+    Mutates rather than copies: a copy would leave the original growing
+    behind it, which is the bug this exists to prevent.
     """
     if not budget or cost(messages, extra_tokens) <= budget:
         return messages
@@ -156,9 +135,8 @@ def fit(messages, budget, extra_tokens=0):
 
 
 def _droppable_user(messages):
-    """The last user message, when it is not already the last message - the
-    one thing step three above would otherwise leave uncut while clipping a
-    tool result beside it."""
+    """The last user message when it is not already the last message - what
+    step three would otherwise leave uncut beside a clipped tool result."""
     for index in range(len(messages) - 2, -1, -1):
         if messages[index].get('role') == 'user':
             return index

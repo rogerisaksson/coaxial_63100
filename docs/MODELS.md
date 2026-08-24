@@ -152,16 +152,21 @@ daemon's own choice beat everything tried against it.
 
 ### The prompt, and what stops an answer short
 
-A session opens with what this prompt *is*, before what it costs: a senior
-engineer for this inverter — firmware, the analog front end, the Modbus link —
-and, when the tools are actually loaded, the thing that builds and programs the
-unit. Printed by the host (`ROLE`, `BUILDS` in `debug.py`), not generated: it is
-the same two sentences every session, and asking a model to write them would
-cost a load, a turn and the chance of getting them wrong. The build sentence is
-conditional on `build_firmware` being in the set, because a prompt claiming a
-tool it does not have is the same invention this loop exists to prevent. The
-system message carries the second half of that identity — the running tag, and
-the build capability under the same condition.
+A session opens with one line, in the machine's own language:
+
+```
+Jag är gemma4:12b och är experten i det här projektet. Skriv /help.
+```
+
+`language.system_language()` reads the Windows locale, `language.greeting()`
+picks the sentence, and anything without a translation gets English. Printed by
+the host, not generated — asking a model to write its own greeting costs a load,
+a turn and the chance of getting it wrong.
+
+Everything a session used to print on the way in — the role, the tool list, the
+detail level, the per-turn cost — is `/help`, which builds it live from the set
+this session actually started with. Three lines nobody read twice is worse than
+one line and a pointer.
 
 Two more things a reader of a transcript will notice before anything else.
 
@@ -332,7 +337,7 @@ LLAMA_ARG_CTX_CHECKPOINTS = 2   # instead of 32; checkpoint 1 is restored next t
 restarts the daemon once if it was already running — an existing daemon keeps
 the environment it started with, so setting them is otherwise inert. `-NoTune`
 opts out; `-KeepOthers` blocks the restart rather than taking somebody else's
-loaded model with it. See `$DaemonTuning` in `board_prompt/Ollama.ps1`.
+loaded model with it. See `$DaemonTuning` in `board_prompt/Tuning.ps1`.
 
 ### When there really is no room
 

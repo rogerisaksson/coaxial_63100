@@ -158,7 +158,7 @@ environment remove both. Twelve questions, 36 model calls, **zero**
 `std::bad_alloc` and one model load; the same session untuned crashed in both
 attempts. `board_prompt.ps1` now sets them and restarts the daemon once if it
 has to — see [MODELS.md](MODELS.md) and `$DaemonTuning` in
-`board_prompt/Ollama.ps1`.
+`board_prompt/Tuning.ps1`.
 
 Two things worth keeping from how this was found. The variables are
 `LLAMA_ARG_*`, not `OLLAMA_*`: `ollama serve --help` does not list them,

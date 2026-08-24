@@ -1,61 +1,39 @@
 """A small Ollama chat client, stdlib only.
 
-No `ollama` package, no `openai` shim, no `requests`. The same reasoning as
-testline/pdfwriter.py: this runs on whatever PC is bolted to the bench, and the
-whole API surface needed here is one POST to /api/chat plus one GET to /api/tags
-to find out whether the model is actually pulled. That is fifty lines of urllib,
-against a dependency to keep working through the next OS image.
+No `ollama` package, no `openai` shim, no `requests`: this runs on whatever PC
+is bolted to the bench, and the whole API surface needed is one POST to
+/api/chat plus one GET to /api/tags. Fifty lines of urllib against a dependency
+to keep working through the next OS image.
 
-Four things are deliberate:
+What is deliberate:
 
-  * `keep_alive` is sent on every turn. Ollama caches the KV state of the
-    prompt prefix it has already processed, which is what makes turn nine of a
-    bench session as quick as turn two - and it throws that cache away the
-    moment the model unloads, five minutes after the last request by default.
-    A bench session has long gaps in it: you read a number, you move a probe,
-    you think. Sending keep_alive on each request restarts that timer, so the
-    pause between two questions cannot cost an 8 GB reload and a reprocessed
-    context. It buys nothing on a busy machine and costs nothing on an idle
-    one, except the VRAM being held - which is what `--keep-alive 0` gives
-    back.
+  * `keep_alive` on every turn. Ollama throws the cached prompt prefix away
+    when the model unloads, five minutes after the last request by default,
+    and a bench session has long gaps in it. Re-arming the timer each turn
+    keeps a pause from costing an 8 GB reload. `--keep-alive 0` hands it back.
 
-  * The daemon is local, and that is enforced rather than assumed. Ollama will
-    happily proxy a `:cloud` tag to somebody else's GPU, which on a bench means
-    the register dumps, the pin names and whatever a plan says about unreleased
-    hardware leave the building over TLS to be logged at the other end. Nothing
-    here needs that, so a cloud tag or a non-loopback host raises instead of
-    quietly working. `remote_ok=True` is the way to mean it on purpose.
+  * The daemon is local, enforced rather than assumed. A `:cloud` tag proxies
+    to somebody else's GPU - register dumps and unreleased hardware leaving
+    the building over TLS. `remote_ok=True` is how to mean it on purpose.
 
-  * `format` is not set by the runner, and that is a decision rather than an
-    omission. Ollama's `format='json'` constrains the *content* field, which is
-    the one part of a reply this bench does not parse: every number that
-    reaches a verdict arrives as an argument to the `report` tool, against a
-    JSON Schema the daemon already enforces, and `plan.Limit` judges it in
-    Python. Turning on json mode as well would either do nothing or compete
-    with the tool path - a model told to answer in JSON tends to describe a
-    tool call in the content instead of making one. It is here as a parameter
-    because a caller outside the runner may genuinely want machine-readable
-    prose, and then it should be one argument rather than a fork of this file.
+  * `format` is not set by the runner. json mode constrains `content`, the one
+    part of a reply this bench does not parse: every number reaching a verdict
+    arrives as a `report` argument against a schema the daemon enforces. A
+    model told to answer in JSON tends to describe a tool call instead of
+    making one. It stays a parameter for callers outside the runner.
 
-  * `stream` is off. Streaming buys a nicer terminal and costs the guarantee
-    that a tool call arrives whole; the runner needs the whole message before it
-    can dispatch anything, so there is nothing to gain.
-  * `temperature` defaults to 0. A test runner that takes a different path
-    through the same plan on every invocation cannot be audited. The model still
-    is not deterministic across versions or context lengths - but nothing is
-    gained by adding sampling noise on top of that.
+  * `stream` off - the runner needs a whole message before it can dispatch,
+    and streaming trades that guarantee for a nicer terminal.
 
-Running out of memory is handled here rather than reported. A bench machine
-shares its card with a desktop, and the model is the largest thing on it: the
-failure is not rare and it is not the operator's mistake, so an allocation
-that loses gets the card cleared of anything else resident, this model's own
-caches dropped, and - only if that was not enough - a smaller context window,
-in that order. Each rung is recorded in `notes` for the caller to show;
-nothing here prints. See `_make_room`.
+  * `temperature` 0 - a runner taking a different path through the same plan
+    on every invocation cannot be audited.
 
-Model output is never trusted here. This module returns whatever the model said;
-deciding what of it is allowed to touch the board is tools.py's problem, and
-deciding what counts as a pass is plan.py's.
+Running out of memory is handled here, not reported: the card is shared with a
+desktop and the model is the largest thing on it. See `_make_room`, and
+`notes` for what it did.
+
+Model output is never trusted here. What may touch the board is tools.py's
+problem; what counts as a pass is plan.py's.
 """
 import json
 import time
@@ -65,11 +43,9 @@ import urllib.request
 
 LOOPBACK = ('localhost', '127.0.0.1', '::1')
 
-# How often to re-ask after ollama's own model runner has crashed, and how
-# long to wait before the first retry (doubling, then tripling). Two is
-# enough for every crash measured here - the runner is respawned by the
-# time the first retry lands - and small enough that a machine genuinely
-# out of memory fails in seconds rather than looping.
+# How often to re-ask after ollama's runner crashed, and the first backoff.
+# Two is enough for every crash measured here, and small enough that a machine
+# genuinely out of memory fails in seconds rather than looping.
 RUNNER_RETRIES = 2
 RUNNER_RETRY_WAIT = 1.5
 
@@ -80,25 +56,18 @@ RUNNER_RETRY_WAIT = 1.5
 _RUNNER_CRASH = ('model runner has unexpectedly stopped',
                  'llama runner process has terminated')
 
-# What it says when the machine, rather than the request, is the problem.
-# Distinct from the crash above and handled differently: a crashed runner
-# comes back on its own and the fix is to ask again, while a card that is
-# full stays full - asking again just collects the same error a second and
-# third time. Something has to be given back first.
-#
-# The wording is the daemon's, the driver's and llama.cpp's, in that order,
-# which is why the list is longer than one line: the same condition surfaces
-# as a CUDA allocation failure, as a C++ bad_alloc from the host side, and
-# as ollama's own prose depending on which allocation lost.
+# When the machine, not the request, is the problem. A crashed runner comes
+# back on its own; a full card stays full, so something has to be given back
+# first. Three vocabularies - the driver's, llama.cpp's and ollama's - because
+# the same condition surfaces differently depending on which allocation lost.
 _OUT_OF_MEMORY = ('out of memory', 'cudamalloc failed', 'std::bad_alloc',
                   'bad_alloc', 'failed to allocate', 'unable to allocate',
                   'cannot allocate memory', 'not enough memory',
                   'insufficient memory', 'no available memory')
 
-# The floor a context window is not shrunk below when making room. Under
-# this the tool schemas alone stop fitting, and a model that cannot be told
-# what its tools are is not a smaller session - it is a different, worse one
-# that answers from memory instead of measuring.
+# The floor a context window is not shrunk below. Under this the tool schemas
+# stop fitting, and a model that cannot be told what its tools are answers
+# from memory instead of measuring.
 MIN_NUM_CTX = 2048
 
 
@@ -192,14 +161,10 @@ class Ollama:
         self.truncated = False
         self.eval_tokens = 0
         self.prompt_tokens = 0
-        # What this client had to do to the machine to keep answering: VRAM
-        # taken back off another model, a context window shrunk. Recorded
-        # rather than printed - a library that writes to somebody's terminal
-        # is a library that cannot be used quietly - and drained by the
-        # caller, which in debug.py's case puts them in the same trace the
-        # tool results go to. Empty on a healthy machine, which is the point:
-        # a session that answered without any of this leaves no line saying
-        # so.
+        # What this client had to do to the machine to keep answering.
+        # Recorded, not printed - a library that writes to a terminal cannot
+        # be embedded - and drained by the caller. Empty on a healthy
+        # machine, which is the point.
         self.notes = []
 
     def __repr__(self):
@@ -280,19 +245,11 @@ class Ollama:
     def free_others(self):
         """Hand back the VRAM held by every model that is not this one.
 
-        The same job board_prompt.ps1 does before it loads anything, here for
-        the paths that never go through it - `dbg.py`, the runner, a plan on
-        a machine somebody left an `ollama run` open on. Those weights sit
-        there until their own keep_alive expires, and the next load then asks
-        a card that is already full.
-
-        Not done at startup, on purpose: a model already resident is one this
-        machine can run and possibly the one the operator is talking to in
-        another window, and evicting it to load a second copy is how a 16 GB
-        card ends up asked for two sets of weights. Here it is different -
-        the allocation has already failed, so something is going to give
-        either way, and it should be the model nobody in this process is
-        using.
+        What board_prompt.ps1 does before loading, here for the paths that do
+        not go through it. Not done at startup, on purpose: a resident model
+        may be the one the operator is talking to in another window. By the
+        time this runs the allocation has already failed, so something gives
+        either way - and it should be the model nobody here is using.
         """
         freed = []
         for entry in self.resident():
@@ -313,12 +270,10 @@ class Ollama:
         return freed
 
     def flush(self):
-        """Drop this model too, and with it everything cached around it.
+        """Drop this model too, and its caches with it.
 
-        The KV cache, the prompt cache llama-server writes beside it and
-        whatever the runner had fragmented on the card all go with the
-        weights. Reloading costs a wait; carrying on against a heap that has
-        already refused an allocation costs the session.
+        Reloading costs a wait; carrying on against a heap that has already
+        refused an allocation costs the session.
         """
         try:
             self.unload()
@@ -327,13 +282,12 @@ class Ollama:
             return False
 
     def _shrink_context(self):
-        """Halve the window, once, down to the floor. Returns what it became,
-        or 0 when there is nothing left to give.
+        """Halve the window, once, down to the floor. 0 when there is nothing
+        left to give.
 
-        Last resort and deliberately blunt: by the time this runs, the card
-        has been cleared of everything else and the model reloaded, and the
-        allocation still did not fit. The KV cache is the largest thing left
-        that this side controls.
+        Blunt, and last: the card has already been cleared and the model
+        reloaded. The KV cache is the largest thing left that this side
+        controls.
         """
         try:
             ctx = int(self.options.get('num_ctx') or 0)
@@ -346,13 +300,11 @@ class Ollama:
 
     def _make_room(self, attempt):
         """One rung of the out-of-memory ladder. False when there are none
-        left, and then the original error is what the caller sees.
+        left, and the original error is then what the caller sees.
 
-        Ordered by what it costs to be wrong about it. Freeing another
-        model's VRAM costs that model a reload and nothing else. Flushing
-        this one costs this session a reload. Shrinking the window costs
-        every turn after it, quietly, which is why it is last and why it
-        says so.
+        Ordered by what it costs to be wrong: another model reloads, then
+        this one reloads, then every later turn is quietly smaller - which is
+        why the window is last and why it says so.
         """
         if attempt == 0:
             freed = self.free_others()
@@ -378,18 +330,12 @@ class Ollama:
     def _chat_once(self, payload):
         """POST /api/chat, retrying a crashed model runner in silence.
 
-        Measured repeatedly on this bench: llama-server dies mid-session
-        with `std::bad_alloc` while saving its own prompt cache, and ollama
-        answers 500 `model runner has unexpectedly stopped, this may be due
-        to resource limitations`. The daemon respawns the runner on the very
-        next request, so the recovery was always just "ask again" - which
-        until now the operator had to do by hand, retyping a question that
-        had already been answered everywhere except in the reply.
-
-        Silent on purpose: a retry that worked is not news, and the token
-        counters below only count replies that actually arrived. A retry
-        that does not work raises the original error, so a genuinely
-        out-of-memory machine still fails loudly rather than looping.
+        Measured repeatedly: llama-server dies with `std::bad_alloc` while
+        saving its prompt cache, ollama answers 500, and the daemon respawns
+        it on the next request - so recovery was always "ask again", by hand.
+        Silent because a retry that worked is not news; the counters below
+        only count replies that arrived. A retry that fails raises the
+        original error rather than looping.
         """
         for attempt in range(RUNNER_RETRIES + 1):
             try:
@@ -460,17 +406,13 @@ class Ollama:
     def preload(self):
         """Load the model and start the keep_alive clock, before it is needed.
 
-        An empty message list is Ollama's documented way to say "load this and
-        do nothing" - no generation, no tokens counted, and it returns once the
-        weights are resident. Worth a call before the first question so the
-        8 GB wait lands somewhere visible instead of inside it.
+        An empty message list is Ollama's documented "load and do nothing".
+        Worth a call so the 8 GB wait lands somewhere visible.
 
-        `options` goes with it, and that is not decoration. num_ctx sizes the KV
-        cache, so a preload without it asks for the model's own default context
-        - which for llama3.1 is 128k and 7 GB of buffer, and fails outright on
-        this machine. Worse when it succeeds: the model would be resident at one
-        context size and the first real question at another, so the daemon
-        reloads and the preload has bought a wait rather than saved one.
+        `options` goes with it: num_ctx sizes the KV cache, and a preload
+        without it asks for the model default - 128k and 7 GB for llama3.1,
+        which fails here. Worse when it succeeds, since the first question
+        then reloads at a different size.
         """
         self._post('/api/chat', {'model': self.model, 'messages': [],
                                  'options': self.options,
@@ -479,14 +421,10 @@ class Ollama:
     def unload(self):
         """Hand the model's VRAM back at once, whatever keep_alive was.
 
-        Same empty-messages trick as preload(), with keep_alive=0 instead:
-        the daemon evicts the moment this reply lands rather than waiting out
-        the 30 minutes a prompt loop holds it for. Measured on this bench:
-        a session left running unattended held 9.69 GB resident for another
-        27 minutes at 1% utilisation - a card the desktop needed back, doing
-        nothing for anyone. Call this on the way out of anything that set a
-        long keep_alive to survive a loop, not after a one-shot question,
-        which already asked for a short hold on purpose.
+        preload()'s empty-messages trick with keep_alive=0. Measured: a
+        session left running held 9.69 GB for another 27 minutes at 1 %
+        utilisation. Call it leaving anything that set a long keep_alive -
+        not after a one-shot, which already asked for a short hold.
         """
         self._post('/api/chat', {'model': self.model, 'messages': [],
                                  'options': self.options, 'keep_alive': 0})

@@ -1,34 +1,21 @@
 """A lean prompt loop for debug jobs: fewest tokens in, fewest tokens out.
 
     python dbg.py "the NTC reads exactly 25.00 - what is wrong?"
-    python dbg.py                      # interactive
     python dbg.py -q "which channel is the DC link?"
+    python dbg.py --repl                 # interactive
 
-The runner in runner.py is built for a test plan: a long system prompt, eleven
-tools, a fresh conversation per step, a transcript of everything. Every one of
-those is right for a report somebody signs and wrong for a question you ask
-sixty times an afternoon. This module is the same board and the same tools with
-the cost turned down:
+runner.py is built for a test plan a person signs; this is the same board and
+tools for a question asked sixty times an afternoon. What makes it cheap:
 
-  1. A system prompt of about seventy tokens instead of three hundred and fifty.
-  2. Five tools by default, not eleven. The tool list is re-sent on every single
-     turn, so it is the one cost that scales with turns no matter how short the
-     question is - `--tools` picks the subset the job needs.
-  3. `num_predict` caps the answer. Debug answers are one or two sentences; a
-     reasoning model asked an open question will happily produce eight hundred
-     tokens of deliberation instead.
-  4. `think` off where the model supports it, which removes that deliberation
-     rather than just truncating it.
-  5. Old turns are stubbed, not resent whole. A tool result from four questions
-     ago is worth its first line, not its forty.
-  6. Slash commands run without the model at all. `/py board.afe.state()` and
-     `/sh python tools/build_and_flash.py` cost zero tokens, and half of what
-     one asks a model at a bench is really just "run this and show me".
+  * ~70 tokens of system prompt, not 350.
+  * five tools by default, not eleven - the list is re-sent every turn, so it
+    is the cost that scales with the conversation. `--tools` picks the subset.
+  * `num_predict` caps the answer, `think` off where supported.
+  * old turns stubbed, not resent whole (trim, and context.fit behind it).
+  * slash commands run without the model at all: `/py`, `/sh` cost nothing.
 
-And it tracks what each turn cost, in and out - `/cost` for the running total,
-`--budget` to stop asking once it is spent - without printing a line after
-every single turn: measured in daily use, that was screen noise nobody was
-reading, sitting between the question and the answer it was about.
+Turn cost is tracked, not printed - `/cost`, and `--budget` to stop. Printing
+it every turn was noise between the question and its answer.
 """
 import json
 import os
@@ -68,28 +55,17 @@ with the AFE on or off and reports which. Turning the AFE on or off itself
 is the order to do it, not to discuss. Phase channels: unknown gain, pin
 volts only."""
 
-# Appended only when `docs` is actually offered - which no default tool set
-# does any more. Measured on this bench: asked to *measure* the analog
-# channels, gemma4:12b called docs, pulled several thousand tokens of
-# HARDWARE.md into the context, and answered with the channel table
-# transcribed out of the document - a plausible-looking answer containing
-# no measurement at all. The board is the authority on what the board
-# reads; the documents explain what a reading means, which is a different
-# question and a rarer one. `-t docs` (or /tools docs) is how to ask it.
+# Sent only when `docs` is offered, which no default set does. Measured:
+# asked to *measure* the channels, gemma4:12b read HARDWARE.md instead and
+# answered with that document's channel table - no measurement in it.
 DOCS_HINT = ("Values come from analog_read, never docs - HARDWARE and "
              "FINDINGS explain what a reading means, they do not produce "
              "one.")
 
-# Appended only when build_firmware is actually offered (see trim() below),
-# so a tool set without it pays nothing for this. Needed because the model's
-# own training says a chat assistant cannot compile or flash real hardware,
-# and that assumption is simply wrong here - it overrode the tool schema
-# outright. Measured on this bench: "bygger du och programmerar firmware"
-# got "Nej, jag programmerar inte firmwaren själv" from gemma4:12b with
-# build_firmware sitting right there in its own tool list, never called -
-# a flat refusal from a prior belief, the same shape of mistake as an
-# invented reading, just answered from training instead of from a stale
-# fact in this conversation.
+# Sent only when build_firmware is offered. The model's training says a chat
+# assistant cannot flash hardware, and that belief beat the schema: measured,
+# gemma4:12b answered "Nej, jag programmerar inte firmwaren sjalv" with
+# build_firmware sitting in its own tool list, never called.
 BUILD_FIRMWARE_HINT = ("A question about building, compiling or flashing "
                        "this board's firmware - including 'can you' or "
                        "'do you' - is answered by calling build_firmware, "
@@ -97,25 +73,19 @@ BUILD_FIRMWARE_HINT = ("A question about building, compiling or flashing "
                        "what the tool is for. Never claim you cannot "
                        "compile or program this board.")
 
-# Appended only when run_command is actually offered (see trim() below), so
-# every other tool set pays nothing for it. Spelled out rather than left to
-# guesswork: measured on this bench, gemma4:12b's first two tries were
-# `python3` (not on the allowlist - only `python` is) and `python
-# build_and_flash.py` from host/, one directory short of tools/.
+# Sent only when run_command is offered. Spelled out because guessing failed:
+# measured, the first two tries were `python3` (not allowlisted) and
+# `python build_and_flash.py`, one directory short of tools/.
 BUILD_HINT = ("To build or flash: run_command with cmd exactly "
              "'python tools/build_and_flash.py' (add --build-only or "
              "--flash-only). Not python3 - only python is allowlisted. "
              "No other command compiles or programs this board.")
 
-# Appended only when link_diagnose is actually offered. Needed for the same
-# reason as the hint above: a tool existing in the schema does not mean the
-# model reaches for it. Measured on this bench: asked directly "why can't
-# you reach the board" with the link genuinely down, gemma4:12b called
-# build_firmware instead - a real guess at a fix, not a diagnosis, and not
-# what was asked. The automatic path (a failed board call this turn) never
-# needed this: debug.py's own Chat.ask() calls link_diagnose itself and
-# folds the result into the answer. This is for the question asked on its
-# own, with no failed call in the same turn to trigger that.
+# Sent only when link_diagnose is offered. A tool in the schema is not a tool
+# the model reaches for: asked why the board was silent, it called
+# build_firmware - a guess at a fix, not a diagnosis. The automatic path (a
+# board call that failed this turn) is handled in ask(); this is for the
+# question asked on its own.
 LINK_DIAGNOSE_HINT = ("A question about why the board is not answering, or "
                       "whether the link is down, is answered by calling "
                       "link_diagnose - not by guessing, not by trying "
@@ -126,11 +96,8 @@ LINK_DIAGNOSE_HINT = ("A question about why the board is not answering, or "
                       "check or do, in order, one step at a time - not the "
                       "raw step text back at the operator.")
 
-# Named subsets, because a debug job knows roughly what it is about to touch.
-# `docs` is deliberately in none of these but `docs` itself and `all` - see
-# DOCS_HINT above for the measurement it replaced with a transcription. A
-# bench question is nearly always about what the board reads now; reading
-# this repository's own documents is a different job, asked for by name.
+# Named subsets: a debug job knows roughly what it will touch. `docs` is in
+# none of them but its own and `all` - see DOCS_HINT.
 SETS = {
     'read': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
              'link_diagnose'),
@@ -163,35 +130,19 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
   /help  /q"""
 
 
-# What the prompt loop shows. The board's name rather than the script's: the
-# window this appears in is usually one of several, and 'dbg>' says which
-# program is running where the useful thing to know is which bench.
+# The board's name, not the script's: the useful thing to know in a window
+# among several is which bench, not which program.
 PROMPT = 'Coaxial 63100'
 
-# The first two lines of a session, and the second one only when the tools
-# behind it are actually loaded. A model list and a token count say what this
-# costs; neither says what it is for, and "senior firmware engineer at a
-# bench" is the half an operator can guess. The half nobody guesses is that
-# the same prompt compiles the firmware and puts it on the board - measured:
-# asked directly whether it builds and flashes, the model had said no with
-# build_firmware sitting in its own tool list (see BUILD_FIRMWARE_HINT), and
-# an operator who never asks is simply never told.
-ROLE = ('Senior engineer for this coaxial BLDC inverter: firmware, the analog '
-        'front end,\nand the Modbus link, over a live serial connection to '
-        'the board.')
-BUILDS = ('It also builds and programs this unit: `build_firmware` compiles '
-          'the firmware\nand flashes it over SWD, and `run_tests` runs the '
-          'suites - ask in plain language.')
+# What /help opens with. The second line only when the tools behind it are
+# loaded: measured, the model denied being able to flash with build_firmware
+# sitting in its own list, and an operator who never asks is never told.
+ROLE = 'Senior engineer for this inverter: firmware, AFE, Modbus, live link.'
+BUILDS = 'Builds and flashes it too: build_firmware, run_tests.'
 
-# How long ollama holds the weights after the last turn. Two numbers, because
-# the two modes want opposite things.
-#
-# In a prompt loop the model is about to be asked again, and the KV cache of
-# the prefix is what makes turn nine as quick as turn two - worth 8 GB of VRAM.
-# After a single -q question it is not: measured on this bench, a one-shot left
-# 9.69 GB resident and expiring 27 minutes later at 1 % utilisation, on a card
-# whose desktop then had 3.8 GB to work in. That is the cost of a cache nobody
-# is going to hit.
+# Two numbers, because the modes want opposite things. A prompt loop is about
+# to be asked again and the cached prefix is worth 8 GB of VRAM; a one-shot is
+# not - measured, it left 9.69 GB resident for 27 minutes at 1 % use.
 KEEP_ALIVE_REPL = '30m'
 KEEP_ALIVE_ONCE = '2m'
 
@@ -218,58 +169,35 @@ LINK_TOOLS = toolmod.LINK_TOOLS
 CONTACT_LOST = {'ConnectError', 'NoReplyError', 'CrcError', 'FrameError',
                 'PayloadError'}
 
-# Rows of a tool result shown in full. Generous enough for every channel this
-# board has, or a full self_test list, without an unbounded dump if run_python
-# prints something much longer.
+# Rows of a tool result shown in full - every channel, or a whole self_test,
+# without an unbounded dump from run_python.
 TRACE_ROWS = 24
 
-# How wide a traced row is before it continues on the next line, and how many
-# lines one row may take. Wrapped rather than cut: the renderers' own output is
-# fixed-column and comfortably inside this, so wrapping never touches a
-# reading - but link_diagnose's checklist is prose, and a hard cut took a
-# sentence off mid-word ("...and that the last program") while the same text
-# arrived whole in the answer below it. The line cap keeps the bound TRACE_ROWS
-# is there for.
+# Width before a row continues on the next line, and the lines one row may
+# take. Wrapped, not cut: readings are fixed-column and inside this, but
+# link_diagnose's prose was being cut mid-word.
 TRACE_WIDTH = 96
 TRACE_LINES = 3
 
-# Tools where the same call twice is meaningful - a reading changes with time,
-# and code is trusted to know why it is running again. Everything else answers
-# the same question with the same fact each time, so a repeat within one turn
-# is not new information; it is the model unable to tell that it already has
-# the answer. Measured on this bench: asked to tabulate the channels,
-# qwen2.5:14b turned the front end on, then on again three more times in a
-# row, each one a full round trip through the model and the board for a
-# result it had already seen.
+# Tools where the same call twice means something: a reading changes with
+# time, and code knows why it is running again. Everything else repeated in
+# one turn is the model not noticing it already has the answer - measured,
+# qwen2.5:14b turned the AFE on four times in a row.
 REPEATABLE = {'analog_read', 'run_python', 'run_command'}
 
 
 def _printable(stream):
-    """Make a Windows console survive an answer in somebody else's alphabet.
+    """Make a console survive an answer in somebody else's alphabet.
 
-    The model answers in the language it was asked in, and the console here
-    encodes with whatever codepage it started with - cp1252 for a bare
-    `python dbg.py`, UTF-8 for board_prompt.ps1, which sets its own console's
-    codepage before Python ever starts (see there for why that is safe to do
-    in that one place and not here). Under cp1252, Swedish and German are
-    inside it and render correctly; an ohm sign, a Polish l-stroke or any
-    Cyrillic is not, and the default error handler turns that into a
-    UnicodeEncodeError that kills the answer after the measurement was
-    already taken. Replacing the character loses a glyph; raising loses the
-    reading.
+    A console keeps its own codepage and only gains errors='replace': under
+    cp1252 an ohm sign or any Cyrillic would otherwise raise
+    UnicodeEncodeError and lose a reading already taken. Forcing UTF-8 on a
+    console that is not set to it trades that for mojibake in the languages
+    this bench actually speaks.
 
-    This never forces an encoding on a console - it reads whichever one Python
-    already detected from it. Forcing UTF-8 there regardless of what the
-    console itself is set to would fix the encode and hand a mismatched
-    console mojibake for the characters it *can* display, which is a worse
-    trade for the languages actually spoken at this bench.
-
-    A stream that is not a console is the opposite case and gets UTF-8
-    outright: a file or a pipe has no codepage to mismatch, and the locale
-    default is cp1252 here, so `dbg.py > session.txt` turned every Swedish
-    answer in the capture into 'ppnat' and 'skerstll'. Nothing reads that
-    back with a codepage in mind - not a later session, not a bug report, not
-    whoever is grepping it.
+    A file or a pipe is the opposite case and gets UTF-8: no codepage to
+    mismatch, and the locale default here turned every Swedish answer in
+    `dbg.py > session.txt` into question marks.
     """
     try:
         if stream.isatty():
@@ -284,9 +212,9 @@ def _printable(stream):
 def _wrapped(line):
     """One traced row as the lines it takes on screen, indented.
 
-    A row that fits comes back untouched, which is every row of every reading
-    this board produces. Only prose wraps, and the continuation keeps the
-    row's own leading indentation so a numbered checklist still reads as one.
+    A row that fits comes back untouched - every reading this board produces
+    is one. Only prose wraps, and the continuation keeps the row's own indent
+    so a numbered checklist still reads as one.
     """
     body = '  %s' % line.rstrip()
     if len(body) <= TRACE_WIDTH:
@@ -349,17 +277,13 @@ def _hide(path):
 
 
 class IOLog:
-    """A small, hidden, per-session log of every question, tool call and
-    answer - not for the operator, for debugging this loop itself
-    afterwards without a terminal transcript to paste in. Overwritten each
-    session, not appended: a log answering for what a session three runs
-    ago did is worse than none at all when what matters is this one.
+    """A hidden per-session log of every question, call and answer - for
+    debugging this loop afterwards, not for the operator.
 
-    Captures more than the screen does on purpose - `Chat._trace()` skips
-    an afe_power call refused for not being asked for, because the operator
-    does not need to see a mistake the model already recovered from in the
-    same turn; this log keeps it, because that is exactly the kind of thing
-    worth seeing when the question is "why did that turn cost four calls".
+    Overwritten each session, not appended: a log covering three runs ago is
+    worse than none when what matters is this one. It keeps more than the
+    screen does - a refused afe_power call is hidden from the trace and kept
+    here, because that is what answers "why did that turn cost four calls".
     """
 
     def __init__(self, path=IO_LOG_PATH, enabled=True):
@@ -427,16 +351,10 @@ class Chat:
         self.budget = budget
         self.quiet = quiet
         self.out = out or _printable(sys.stdout)
-        # Shared with the REPL's spinner: the bar it ticks in place can be
-        # mid-repaint on its own thread exactly when a tool result below
-        # wants to print, and unsynchronised writes to the same stream would
-        # interleave into garbage on screen. A Chat used outside the REPL
-        # never contends for it - locking a private, never-shared RLock
-        # costs nothing worth avoiding. RLock, not Lock: _trace() below holds
-        # this for its whole loop of print()s, and spinner._Tracked.write()
-        # - what self.out becomes once repl() points it at the same tracked
-        # stream the prompt uses - re-enters the same lock on every one of
-        # them. A plain Lock would deadlock that against itself.
+        # Shared with the REPL's spinner: it repaints on its own thread, and
+        # unsynchronised writes to one stream interleave into garbage. RLock,
+        # not Lock: _trace() holds it across its print()s and
+        # spinner._Tracked.write() re-enters it on each one.
         self.print_lock = threading.RLock()
         self.history = []
         self.turn_cost = []
@@ -453,16 +371,11 @@ class Chat:
         # ambiguous locks it.
         self.language = None
         # Every question typed this session, in order - independent of
-        # self.history, which the REPL clears after each answered turn on
-        # purpose (a growing history is a growing prompt). /history reads
-        # this back; /clear_history empties it. Not written here: a Chat
-        # built for a test should not need to remember it was ever asked
-        # anything just to be constructed.
+        # self.history, which the REPL clears after each answered turn.
+        # /history reads it back, /clear_history empties it.
         self.prompt_history = []
-        # Off by default for the same reason: constructing a Chat is
-        # something dozens of tests do, and none of them should touch the
-        # filesystem to do it. repl() and the one-shot path in main() are
-        # what turn this on, right after building the real one.
+        # Off by default: dozens of tests build a Chat and none should touch
+        # the filesystem. repl() and main() turn it on for the real one.
         self.io_log = IOLog(enabled=False)
         self.set_tools(tools)
 
@@ -512,33 +425,16 @@ class Chat:
         head = self.history[:-self.keep] if self.keep else self.history
         tail = self.history[-self.keep:] if self.keep else []
 
-        # The language is decided here, not asked of the model. See
-        # language.py: told to work out the language itself, qwen2.5:14b
-        # answered a European question in Chinese, Japanese and Thai. Naming
-        # it removes the step that was going wrong.
+        # The language is named here, not worked out by the model: told to
+        # do it itself, qwen2.5:14b answered a European question in Chinese.
+        # It locks on the first unambiguous question and stays - a later
+        # "tabellera" detects as nothing and would otherwise flip the prompt
+        # back, reloading the cached prefix. Only a real switch (detect
+        # disagrees) or a named language ("svara pa engelska") moves it.
         #
-        # It locks on the first question that is not itself ambiguous, and
-        # stays there - a later short follow-up ("tabellera", "ja") detects
-        # as nothing on its own and would otherwise flip the prompt back to
-        # "mirror the question" every time one came up, which is a real
-        # prefix change, not a cosmetic one: a cached KV prefix reloads on
-        # it. Two things move the lock once it is set: the question actually
-        # switching language (detect() disagrees with it), or the question
-        # naming a language outright ("svara pa engelska") independent of
-        # what language it is itself written in - see
-        # language.requested_language().
-        # self.prompt_history[-1], not a scan of self.history for the last
-        # role=='user' message - a nudge ("Call the tool now - do not
-        # describe it.") is appended with that same role, for the model's
-        # benefit, and is not what the operator actually typed. Measured
-        # live: a Swedish question that triggered a nudge mid-turn had its
-        # language flip to English on the next trim(), because the nudge's
-        # own English words were the last "user" message in history by
-        # then. prompt_history is only ever appended once, at the top of
-        # ask(), so it cannot be polluted by anything this loop adds later
-        # in the same turn. Falls back to the old scan when prompt_history
-        # is empty - a test that pokes self.history directly, bypassing
-        # ask() entirely, never populates it.
+        # Read from prompt_history, not from the last role=='user' message:
+        # a nudge is appended with that role too, and measured live, its
+        # English words flipped a Swedish session on the next trim().
         asked = ''
         prompt_history = getattr(self, 'prompt_history', None)
         if prompt_history:
@@ -566,14 +462,9 @@ class Chat:
             hint += '\n' + LINK_DIAGNOSE_HINT
         if 'docs' in names:
             hint += '\n' + DOCS_HINT
-        # Every earlier question this session, not just the trimmed model
-        # history that gets wiped after each answered turn - self.clear
-        # empties that for token cost, but a troubleshooting conversation
-        # is exactly the case where the second and third question are not
-        # standalone: "tabellera", then "varfor kan du inte na kortet",
-        # then "provade det, fortfarande inget" only reads as a sequence
-        # with the earlier ones in view. Capped at five, and only sent once
-        # there is more than the question just asked to show.
+        # The earlier questions, not the wiped history: "tabellera", then
+        # "varfor kan du inte na kortet", then "provade det, fortfarande
+        # inget" only reads as a sequence with them in view. Five at most.
         prior = getattr(self, 'prompt_history', [])[-6:-1]
         if prior:
             hint += ('\nEarlier this session, in order: %s. Treat these as '
@@ -648,15 +539,10 @@ class Chat:
     def _probe_link(self):
         """A live, free-standing check of the link - no AFE, no sample.
 
-        Used wherever a turn is about to answer from memory instead of a
-        fresh call: the result is the fact, not whatever the model believes
-        or last knew. Updates link_ok and the transcript exactly as a real
-        model-issued `link` call would, so the two are indistinguishable to
-        anything reading the history afterwards - except on screen. Not
-        traced: nobody asked for link stats, they asked for a reading, and
-        the counters are not that. A failure is not lost either way - it
-        becomes the turn's own "link is down, not answered: ..." line, so
-        printing it here first would only say the same thing twice.
+        For a turn about to answer from memory: the result is the fact, not
+        what the model believes. Updates link_ok and the history exactly as a
+        model-issued `link` call would. Not traced - nobody asked for link
+        counters, and a failure becomes the turn's own answer anyway.
         """
         probe = self.toolbox.call('link', {'op': 'stats'})
         lost = ERR_CLASS.match(str(probe))
@@ -772,32 +658,14 @@ class Chat:
 
             self.history.append(message)
             if not calls:
-                # Three shapes of the same problem: the model answering "it
-                # doesn't work" from memory instead of checking again, the
-                # model quietly retyping the last reading instead of taking a
-                # new one, and the model answering nothing at all. The first
-                # two are gated on self.last_channels - a real reading having
-                # actually succeeded at some point THIS session - not on
-                # link_ok alone. Measured here: without that gate, this fired
-                # on the very first question of a session that started with
-                # the board unreachable, discarding a plain "what is 2+2"
-                # answer that had no call and nothing to do with the board,
-                # because link_ok was already False from the startup probe.
-                # Nothing was ever read successfully to be stale about; there
-                # is no fact here worth rechecking a board for.
-                #
-                # A blank answer is different: it is never a valid answer to
-                # anything, board-related or not, so it gets the same check
-                # even with no last_channels to compare against - measured
-                # here, the FIRST question of a session asking for a reading
-                # got a blank line and nothing else, because nothing existed
-                # yet for the gated checks to compare it to.
-                #
-                # `not last_channels` (the turn-local copy, both places) keeps
-                # this out of the way of a retype of a reading THIS turn
-                # already took: that case is fresh, not stale, and the plain
-                # silencer below deals with it more cheaply than a probe and a
-                # nudge would.
+                # Three shapes of one problem: answering from memory instead
+                # of checking, retyping the last reading instead of taking a
+                # new one, and answering nothing at all. The first two are
+                # gated on last_channels - a reading having actually succeeded
+                # this session - not on link_ok: without that, a plain "what
+                # is 2+2" was discarded on the first question of a session
+                # that opened with the board unreachable. A blank answer is
+                # never valid and needs no such gate.
                 stale = not last_channels and (
                     not answer or (self.last_channels and (
                         not self.link_ok
@@ -806,12 +674,9 @@ class Chat:
                     probe = self._probe_link()
                     if not self.link_ok:
                         return self._link_down_message(probe)
-                    # Confirmed up. Measured here: told just that much, the
-                    # turn still ended on "ask again" and the operator had to
-                    # retype the same question two more times before the model
-                    # finally measured - each one correctly reported, none of
-                    # them useful. A nudge spends a turn this loop already
-                    # owns instead of one the operator has to spend for it.
+                    # Confirmed up. Told only that, the turn still ended on
+                    # "ask again" and the operator retyped it twice. A nudge
+                    # spends a turn this loop already owns.
                     if nudges < 2:
                         nudges += 1
                         self.history.append({'role': 'user', 'content':
@@ -866,19 +731,10 @@ class Chat:
                     # goes on to write about it.
                     link_error = str(raw) if not self.link_ok else None
                     if not self.link_ok:
-                        # A cable pulled and replugged does not just leave a
-                        # silent board - it can leave the OS-level serial
-                        # handle Session.board cached permanently invalid,
-                        # since a USB VCP re-enumerates on replug rather than
-                        # coming back on the same handle. Measured directly:
-                        # once that happens, retrying on the same cached
-                        # board fails forever with "Attempting to use a port
-                        # that is not open", no matter how many times - only
-                        # /reconnect's session.reset() ever recovered it,
-                        # because nothing else called it. Every future
-                        # attempt - a nudge below, the model trying again,
-                        # next turn's question - gets a fresh connect()
-                        # instead of the same dead handle.
+                        # A replugged cable re-enumerates the VCP, so the
+                        # cached handle stays dead: measured, every retry then
+                        # fails with "Attempting to use a port that is not
+                        # open" until session.reset() drops it.
                         self.toolbox.session.reset()
                 if name == 'link_diagnose' and not str(raw).startswith('ERR'):
                     # Its checklist is on screen from the trace below. What
@@ -886,14 +742,11 @@ class Chat:
                     # see _link_down_message.
                     diagnosed = True
                 if name in toolmod.CODE_CALLS:
-                    # A build that failed, or a --confirm the operator
-                    # declined, is a fact this loop already has. Measured on
-                    # this bench: told to build and flash, and refused at the
-                    # --confirm prompt, gemma4:12b still answered "kortet har
-                    # byggts och flashats" - a plain invention, and on the one
-                    # tool call in this whole codebase that writes to a real
-                    # 63V/100A board over SWD. Cleared by a later successful
-                    # call in the same turn, same as link_error below.
+                    # A failed build, or a --confirm the operator declined,
+                    # is a fact this loop holds. Measured: refused at the
+                    # prompt, gemma4:12b still answered "kortet har byggts och
+                    # flashats" - on the one call that writes to a 63 V board.
+                    # Cleared by a later success in the same turn.
                     code_error = str(raw) if str(raw).startswith('ERR') else None
                 if name == 'analog_read' and not str(raw).startswith('ERR'):
                     # A fresh table replaces the last one remembered; an error
@@ -902,15 +755,10 @@ class Chat:
                     last_channels = set(m.lower()
                                         for m in replies.READING_ROW.findall(str(raw)))
                     self.last_channels = last_channels
-                # An afe_power call refused for not being asked for is the
-                # model trying the exact thing SYSTEM and LINK_DIAGNOSE_HINT-
-                # style guidance already say never to do, in a turn it goes
-                # on to recover from correctly one call later - the refusal
-                # is still in history for it to actually read and learn
-                # from, but the operator does not need this specific,
-                # already-handled line cluttering the reading it asked for.
-                # Any other afe_power result - a real state change, a plain
-                # `read` - traces exactly as before.
+                # An afe_power refused for not being asked for is a mistake
+                # the model recovers from one call later. The refusal stays in
+                # history for it to read; the operator does not need it on
+                # screen. Every other afe_power result traces as before.
                 if not (name == 'afe_power'
                        and str(raw).startswith('ERR not asked for')):
                     self._trace(result)
@@ -919,13 +767,10 @@ class Chat:
                                      'name': name,
                                      'content': '%s: %s' % (name, result)})
 
-        # A read that failed on the wire is ground truth this loop already
-        # has; the model does not get a vote on it. Measured on this bench:
-        # asked again after the ST-Link (which carries this board's VCP - see
-        # HARDWARE.md) was unplugged, qwen2.5:14b answered with the NTC value
-        # from three questions earlier instead of the ConnectError sitting
-        # right there in its own context. The system prompt already tells it
-        # not to; this is the case where telling it was not enough.
+        # A read that failed on the wire is ground truth; the model gets no
+        # vote. Measured: with the ST-Link unplugged, qwen2.5:14b answered
+        # with an NTC value from three questions earlier. SYSTEM already says
+        # not to - this is where saying it was not enough.
         if link_error is not None:
             # `and not self.quiet`: with the trace off there is nothing on
             # screen above this, so the checklist has to come with the answer
@@ -935,30 +780,16 @@ class Chat:
         elif code_error is not None:
             answer = 'the last run_python/run_command call failed, nothing ' \
                      'was done: %s' % code_error
-        # The system prompt already says not to retype a table just shown -
-        # measured here, qwen2.5:14b did it anyway, every time, across three
-        # separate bench sessions. Telling it was not enough, so this is the
-        # same backstop as the line above: not a smarter prompt, a fact the
-        # loop already has that the model does not get a vote on. The bar is
-        # deliberately narrow - every channel just read, named again by an
-        # answer with nothing else in it - so a real one-line finding ("NTC
-        # is running hot") that happens to name a channel or two is untouched.
-        #
-        # Silence, not a line saying so: the table is the trace directly above
-        # this, on the same screen, and a reader looking at it does not need
-        # to be told it is not being typed out again.
+        # Same backstop for a retyped table: SYSTEM says not to, qwen2.5:14b
+        # did it every time across three sessions. The bar is narrow - every
+        # channel just read, named again by an answer with nothing else in it
+        # - so a real one-line finding is untouched. Silence rather than a
+        # line saying so: the table is directly above on the same screen.
         elif replies.is_retype(answer, last_channels):
             answer = ''
-        # A turn that never calls analog_read at all and answers with an old
-        # reading instead used to slip past the check above (which only looks
-        # at *this* turn's call) and land here as a bare "ask again" or
-        # "link is down" - now handled, and retried, inside the loop itself
-        # (see the `stale` check up there): a turn that skips the read is
-        # nudged into a real one before this code ever gets a say, rather
-        # than ending the question and asking the operator to repeat it.
-        # An answer that hit the token cap stops mid-sentence, and a table that
-        # stops mid-row reads as complete to everyone except a reader counting
-        # rows. Say so rather than letting the cap look like the end.
+        # An answer that hit the token cap stops mid-sentence, and a table
+        # that stops mid-row reads as complete to everyone except a reader
+        # counting rows. Say so rather than letting the cap look like the end.
         elif getattr(self.client, 'truncated', False) and answer:
             answer += ('%s[cut off at --words %s. Ask again with more, or ask '
                        'for fewer channels.]'
@@ -981,7 +812,16 @@ class Chat:
         if verb in ('q', 'quit', 'exit'):
             raise SystemExit(0)
         if verb in ('help', '?'):
-            return HELP
+            # Live, not a fixed string: what it can do depends on the tool set
+            # this session started with, what it costs on the detail level.
+            lines = [ROLE]
+            if {'build_firmware', 'run_command'} & set(self.tool_names):
+                lines.append(BUILDS)
+            lines.append('%s, %s, %d tok/turn: %s'
+                         % (getattr(self.client, 'model', '?'), self.detail,
+                            self.tool_cost(),
+                            ', '.join(self.tool_names) or 'no tools'))
+            return '\n'.join(lines + [HELP])
         if verb == 'py':
             return self.toolbox.call('run_python', {'code': rest})
         if verb == 'sh':
@@ -1324,17 +1164,10 @@ def build(args):
 def repl(chat, hold=False):
     from .client import OllamaError
 
-    # What this prompt is, before what it costs. Printed by the host, not
-    # generated: it is the same two sentences every session, and asking a
-    # model to write them would cost a load, a turn and the chance of it
-    # getting them wrong. The second sentence is conditional on the tools
-    # actually being there - see the note under `who` in trim().
-    print(ROLE)
-    if {'build_firmware', 'run_command'} & set(chat.tool_names):
-        print(BUILDS)
-    print('%s, tools: %s (%s, %d tok/turn). /help, /q to leave.'
-          % (chat.client.model, ', '.join(chat.tool_names) or 'none',
-             chat.detail, chat.tool_cost()))
+    # One line, in this machine's language. What the tools are, what the
+    # detail level is and what a turn costs are all a /help away; printed on
+    # the way in they were three lines nobody read twice.
+    print(language.greeting(chat.client.model))
     if not ({'run_command', 'build_firmware'} & set(chat.tool_names)):
         # Printed once, here, by this host - not sent to the model, so it
         # costs nothing per turn. Measured on this bench: asked three times

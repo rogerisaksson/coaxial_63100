@@ -1,62 +1,32 @@
 """A prompt with a robot and a state icon up front - and the spinner is the
 "1" in "Coaxial 63100" itself.
 
-The point is telling two terminals apart. This prompt shares a docked panel
-with a PowerShell one, and two of those with a `>` in them look identical at a
-glance; something turning in the name itself says which is waiting for a
-question, and its colour says what kind of waiting: green for "nothing
-submitted yet", yellow for "working on it", red for "that just failed". The
-icon in the bookend group up front says the same thing a second way, in case
-the colour alone does not survive whatever the terminal does to it.
+The point is telling two terminals apart: this shares a docked panel with a
+PowerShell prompt, and two `>` look identical at a glance. Something turning
+in the name says which one is waiting for a question, and its colour says what
+kind - green idle, yellow working, red just failed. The icon says it a second
+way, in case the colour does not survive the terminal.
 
     «<robot><icon>»Coaxial 63<bar>00>
-           ^^^^^                    ^^^^ these are the only two things that
-            state                      ever move or change colour - one
-            icon                       discrete, on state change; one
-                                        ticking, on a timer, resting on
-                                        '1' when idle so the name reads
-                                        normally between ticks
+           ^^^^^                    ^^^^ the only two things that move: one
+            state                        on state change, one on a timer,
+            icon                         resting on '1' when idle
 
-No space anywhere in this - not after the closing guillemet, not after the
-final ">" - on purpose: asked for, and it also means every column after the
-bookend group is exactly where the text's own characters put it, nothing
-this file added shifting it over.
+No space anywhere in it, so every column after the bookend group is where the
+text's own characters put it. Text with no '1' to spin gets the bar appended
+instead.
 
-If the text has no '1' to spin - not this board's, but Prompt takes whatever
-it is given - the bar is appended after it instead, exactly where the very
-first version of this put it.
+Every repaint rewrites the whole group from column 1 - ESC 7, ESC [ n A, CR,
+the prefix, ESC 8 - rather than jumping to a computed column. Not cosmetic:
+len() counts 🤖 as one column and most terminals draw it as two, so the
+first two versions landed two short and span the "6" instead of the "1", once
+real emoji reached a real terminal instead of a StringIO fixture. Rewriting
+from column 1 never asks how wide anything is. What this file still has to get
+right by hand is that the icon options render at one consistent width; the
+bar's frames are ASCII so there is no width to inherit.
 
-Every repaint rewrites the whole bookend-and-bar group from column 1, using
-carriage return rather than an absolute-column escape:
-
-    ESC 7            save the cursor, wherever input() has got to
-    ESC [ <n> A      up n rows, onto the prompt line (0 while still typing,
-                     1 once Enter has moved the cursor to a fresh row)
-    CR               to column 1 of that row - always exactly column 1,
-                     never a number this module has to get right
-    <the whole       robot, icon, the text up to where the bar
-     prefix>         sits, and the bar itself, one frame, in colour
-    ESC 8            back to where the cursor was
-
-This is not the cosmetic choice it looks like. The first two versions of
-this computed an absolute column with Python's len() and jumped straight to
-it - which is exactly wrong the moment 🤖 or 📟 render as two terminal
-columns instead of the one len() counts, and most terminals render pictured
-emoji exactly that wide. Landing two columns short of where '1' actually
-sits is not a rounding error, it is a different character - measured on
-this bench as the bar spinning "6" instead of "1", once real emoji reached
-a real terminal instead of a StringIO fixture. A rewrite from column 1 does
-not have this problem because it never asks how wide anything is: the
-terminal advances the cursor by however many columns each glyph actually
-costs, and the write always starts and ends at the same place as long as
-the icon options themselves render at one consistent width - which is the
-one thing this file still has to get right on purpose, not compute. The
-bar's own frames are plain ASCII for exactly this reason: no width
-ambiguity to inherit in the first place.
-
-`_trace()` in debug.py can print mid-question, while the bar is still
-ticking for the busy phase - the caller passes in the same lock both sides
-write through, so a tick and a trace line never interleave into garbage.
+`_trace()` in debug.py can print mid-question while the bar is ticking - the
+caller passes in the lock both sides write through.
 
 How many rows "up" actually means is not fixed at 1 the moment Enter is
 pressed, either - trace output between busy() and stop() can be one tool

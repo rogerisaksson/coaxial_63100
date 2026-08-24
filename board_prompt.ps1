@@ -134,7 +134,7 @@
     Leave the daemon's own settings alone. By default this script makes sure
     ollama is running with llama-server's prompt cache off and its context
     checkpoints capped, restarting the daemon once if it has to - see
-    $DaemonTuning in board_prompt/Ollama.ps1 for the measurements. Without
+    $DaemonTuning in board_prompt/Tuning.ps1 for the measurements. Without
     that, a bench session of eight or ten questions reliably kills the model
     runner with std::bad_alloc partway through and reloads eight gigabytes
     mid-answer. Use this to reproduce that, or when something else on the
@@ -178,7 +178,7 @@ $Api = 'http://localhost:11434'
 # actually matter: nothing in any of these files runs until well after all
 # five are dot-sourced, and PowerShell resolves a function call by name at
 # call time, not at definition time.
-foreach ($part in 'Say', 'ComPort', 'Ollama', 'ModelChoice', 'Relaunch') {
+foreach ($part in 'Say', 'Tuning', 'ComPort', 'Ollama', 'ModelChoice', 'Relaunch') {
     . (Join-Path (Join-Path $Root 'board_prompt') "$part.ps1")
 }
 
@@ -248,7 +248,7 @@ if ($null -eq $tags) {
     $startedHere = $true
     Say 'wait' 'ollama serve' 'nothing on 11434 - starting the daemon'
     # The daemon inherits this shell's environment, so the tuning has to be in
-    # it before the process starts - see $DaemonTuning in board_prompt/Ollama.ps1
+    # it before the process starts - see $DaemonTuning in board_prompt/Tuning.ps1
     # for what each variable is worth and what was measured without it.
     Set-DaemonEnvironment | Out-Null
     Start-Process -FilePath $ollama.Source -ArgumentList 'serve' -WindowStyle Hidden `
