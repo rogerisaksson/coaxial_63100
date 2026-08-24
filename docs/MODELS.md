@@ -686,6 +686,29 @@ the same turn. `Chat._trace` skips that one shape of result. It stays in
 unconditionally, since "why did that turn cost four calls" is exactly the
 question that log exists to answer.
 
+### A description question answered with a channel table, then silence
+
+`prompt_io.tmp`, verbatim: "Beskriv hårdvaran i detta projektet för en novis"
+→ `analog_read {"ch": ["all"]}`, the table, and `A:` with nothing after it.
+Two faults on one screen.
+
+The silence was `_ask_inner`: its comment said *a blank answer is never valid
+and needs no such gate*, and the code had `not answer` inside the
+`not last_channels` gate — closed by the very call that had just succeeded.
+A turn now nudges once for words and ends on a line rather than on nothing.
+
+The table was SYSTEM saying when to call `analog_read` and never when not to.
+One line added — *Describe, explain or compare means words, from what you
+know: analog_read answers what a channel reads now, never what a thing is.*
+Re-measured on gemma4:12b with the same question: no tool call, an answer in
+words.
+
+That answer also placed the serial link "över koaxialkabel". There is no
+coaxial cable — the name is the PCB sitting coaxially behind the stator. It
+invented the cable from the word, which is the same shape as the invented
+hardware constants FINDINGS already records: plausible, wrong, and stated
+with no hedge.
+
 ### A nudge stole the language lock from what was actually asked
 
 `trim()` read `asked` as the last `role=='user'` message in history - which is

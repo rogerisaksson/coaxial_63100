@@ -3090,6 +3090,39 @@ def test_docs(report):
     # now the last "user" message in history. self.prompt_history exists
     # precisely so this cannot happen: it is appended once, at the top of
     # ask(), and nothing added to history later in the same turn can reach it.
+    # Measured from prompt_io.tmp: "Beskriv hardvaran i detta projektet for
+    # en novis" logged `analog_read {"ch": ["all"]}`, its table, and then
+    # `A:` with nothing after it. The blank answer reached the operator as a
+    # blank line under the table - the stale gate is closed by last_channels,
+    # which that same call had just set, so nothing caught it. A turn never
+    # ends on silence: nudged for words first, then a line saying so.
+    blank_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    blank = debug.Chat(ScriptedModel([
+        call('analog_read'),
+        {'role': 'assistant', 'content': ''},
+        {'role': 'assistant', 'content': 'Kortet är en trefas BLDC-drivare.'},
+    ]), blank_box, out=io.StringIO())
+    said = blank.ask('beskriv hårdvaran för en novis')
+    report.check('a reading followed by silence is nudged into an answer',
+                 said == 'Kortet är en trefas BLDC-drivare.', repr(said))
+    report.check('and the nudge asks for words, not for another reading',
+                 any('in words' in (m.get('content') or '')
+                     for m in blank.history), 'no such nudge')
+
+    mute_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    mute = debug.Chat(ScriptedModel([
+        call('analog_read'),
+        {'role': 'assistant', 'content': ''},
+        {'role': 'assistant', 'content': ''},
+        {'role': 'assistant', 'content': ''},
+    ]), mute_box, out=io.StringIO())
+    said = mute.ask('beskriv hårdvaran för en novis')
+    # Swedish, because the question was: the fallback is host-authored text
+    # reaching the screen, so it goes through PHRASES like every other line
+    # the operator reads. A blank line was the one thing it must not be.
+    report.check('a model that stays silent still ends the turn with words',
+                 'fråga igen' in said, repr(said))
+
     nudge_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     nudged = debug.Chat(ScriptedModel([
         {'role': 'assistant', 'content': 'jag ska nu anropa analog_read'},

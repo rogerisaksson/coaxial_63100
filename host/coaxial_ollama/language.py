@@ -312,6 +312,8 @@ PHRASES = {
             'länken är nere, obesvarad: %s',
         'no reading taken this turn - ask again.':
             'ingen avläsning gjordes denna tur - fråga igen.',
+        'the reading above is all that came back - ask again.':
+            'avläsningen ovan är allt som kom tillbaka - fråga igen.',
         'the last run_python/run_command call failed, nothing was done: %s':
             'det senaste run_python/run_command-anropet misslyckades, inget '
             'gjordes: %s',

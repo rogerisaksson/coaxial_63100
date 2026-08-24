@@ -49,6 +49,8 @@ Tools for the board, never to guess; off-topic needs none. Answer briefly,
 no preamble.
 A table or list means analog_read once - its grid is every channel already.
 Never markdown it, never restate a tool's own rows - one line, not two.
+Describe, explain or compare means words, from what you know: analog_read
+answers what a channel reads now, never what a thing is.
 A call error is reported, never guessed or hidden behind an old reading.
 Any reading: analog_read only, never afe_power first - analog_read works
 with the AFE on or off and reports which. Turning the AFE on or off itself
@@ -689,6 +691,23 @@ class Chat:
                             'fresh reading, do not reuse the old one.'})
                         continue
                     return 'no reading taken this turn - ask again.'
+                # A reading did succeed this turn and the model still wrote
+                # nothing. Measured: "Beskriv hardvaran i detta projektet for
+                # en novis" - gemma4:12b called analog_read, returned empty
+                # content, and the operator got the table and a blank line
+                # where the answer goes. The gate above cannot catch it: it
+                # is closed by last_channels, which that very call had just
+                # set. Nothing about the reading is wrong here, so the nudge
+                # asks for the answer rather than for a fresh table.
+                if not answer:
+                    if nudges < 2:
+                        nudges += 1
+                        self.history.append({'role': 'user', 'content':
+                            'Answer the question in words now. The tool '
+                            'output is already on screen - do not repeat '
+                            'it.'})
+                        continue
+                    return 'the reading above is all that came back - ask again.'
                 # It knew exactly what to do and did not do it. Nudged, not
                 # silenced or replaced: there is no fact in hand yet to
                 # substitute, only a call worth actually making. Bounded the
