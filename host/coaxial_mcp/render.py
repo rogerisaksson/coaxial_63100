@@ -55,6 +55,22 @@ def digital_map(pins, what='digital'):
     return lines
 
 
+def digital_levels(rows):
+    """What each digital channel reads right now.
+
+    A `level` column beside the map's own, because "list the channels" and
+    "give me their values" are two questions and answering the first with
+    the second is what board_info alone could do.
+    """
+    lines = ['digital: %d pin%s' % (len(rows), '' if len(rows) == 1 else 's'),
+             'pin  dir   level name']
+    for row in rows:
+        lines.append('%-4s %-5s %-5d %s'
+                     % (row['pin'], row['direction'], row['level'],
+                        row['signal']))
+    return chr(10).join(lines)
+
+
 def board_info(version, clock, channels, digital=None, kind='all'):
     """Identity, clock and the map - or one section of it.
 

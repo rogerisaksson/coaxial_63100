@@ -122,6 +122,12 @@ def main():
                     toolmod.HANDLERS['analog_read'](board, samples=16),
                     toolmod.HANDLERS['analog_read'](stand_in, samples=16))
 
+            # The digital levels move with the AFE on both sides, so this
+            # runs inside the same loop and under the same state.
+            compare(report, 'digital_read, AFE %s' % state,
+                    toolmod.HANDLERS['digital_read'](board),
+                    toolmod.HANDLERS['digital_read'](stand_in))
+
         # One named channel, the path a question about the NTC takes.
         compare(report, "analog_read ch=['NTC']",
                 toolmod.HANDLERS['analog_read'](board, ch=['NTC'], samples=16),

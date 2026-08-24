@@ -94,6 +94,12 @@ TOOLS = [
         },
     },
     {
+        'name': 'digital_read',
+        'description': 'Read the digital channels: the value, 0 or 1, of every one, now. Values, not the list - board_info lists them.',
+        'description_terse': 'Values of every digital channel, 0 or 1, now. Not the list.',
+        'inputSchema': {'type': 'object', 'properties': {}},
+    },
+    {
         'name': 'gpio_pin',
         'description': 'Read, drive or configure one pin. Writing and configuring need test_gate open.',
         'description_terse': 'Read, drive or configure one pin. Write and mode need test_gate.',
@@ -496,6 +502,25 @@ def gpio_pin(session, op='read', pin='B2', level=False, mode='input',
     return '%s mode=%s pull=%s' % (pin.upper(), mode, pull)
 
 
+def digital_read(session, **_):
+    """The level of every digital I/O channel, from the board's own map.
+
+    One call for the question "what are the digital values", which
+    otherwise took a gpio_pin per pin, or a gpio_port and the model picking
+    bits out of a register - arithmetic this library exists not to hand it.
+    Reads only: no gate, nothing driven.
+    """
+    pins = session.board.system.channel_map()['digital']
+    gpio = session.board.gpio
+    rows = []
+    for entry in pins:
+        # The map spells them "PB2"; _split_pin takes "B2".
+        name = entry['pin']
+        port, number = _split_pin(name[1:] if name[:1] == 'P' else name)
+        rows.append(dict(entry, level=int(bool(gpio.pin_read(port, number)))))
+    return render.digital_levels(rows)
+
+
 def gpio_port(session, op='read', port='E', mask=0, value=0, **_):
     letter = str(port).strip().upper()[:1]
     gpio = session.board.gpio
@@ -528,6 +553,7 @@ HANDLERS = {
     'self_test': self_test,
     'analog_read': analog_read,
     'afe_power': afe_power,
+    'digital_read': digital_read,
     'gpio_pin': gpio_pin,
     'gpio_port': gpio_port,
     'test_gate': test_gate,

@@ -422,8 +422,13 @@ def test_board_tools(report):
     report.check('self test reaches the renderer',
                  'PLL lock' in results[3]['result'],
                  results[3]['result'].splitlines()[0])
+    # Counted against the MCP set rather than a number written here, so
+    # adding a tool on that side does not fail this for the wrong reason.
+    from coaxial_mcp.tools import TOOLS as MCP_TOOLS
     report.check('the tool surface is the MCP set plus six',
-                 len(toolmod.TOOLS) == 15, '%d tools' % len(toolmod.TOOLS))
+                 len(toolmod.TOOLS) == len(MCP_TOOLS) + 6,
+                 '%d tools, MCP has %d' % (len(toolmod.TOOLS),
+                                           len(MCP_TOOLS)))
 
     schemas = toolmod.schemas()
     shapes = all(s['type'] == 'function' and s['function']['parameters']['type']
@@ -1130,6 +1135,53 @@ def test_map_retype(report):
     finding = 'Sju analoga kanaler, och NTC är den enda med en temperatur.'
     report.check('an answer that is not just the list survives',
                  turn(finding) == finding, repr(turn(finding))[:52])
+
+
+def test_digital_read(report):
+    """Listing the channels and reading them are two questions.
+
+    Measured: "ge mig en lista over alla digitala varden" - values - was
+    answered with the channel list, because that is all there was. gpio_pin
+    reads one pin and gpio_port hands back a register for the model to pick
+    bits out of, which is arithmetic this library exists not to hand it.
+    """
+    from coaxial.simulated import SimulatedSession as Sim
+    from coaxial_mcp import tools as mcp
+
+    session = Sim()
+
+    mcp.HANDLERS['afe_power'](session, action='on')
+    hot = mcp.HANDLERS['digital_read'](session)
+    mcp.HANDLERS['afe_power'](session, action='off')
+    cold = mcp.HANDLERS['digital_read'](session)
+
+    report.check('it has a level column the map does not',
+                 'level' in hot.splitlines()[1]
+                 and 'level' not in mcp.HANDLERS['board_info'](
+                     session, kind='digital'),
+                 hot.splitlines()[1])
+    report.check('and the levels move with the board, not with the map',
+                 hot != cold, '%r vs %r' % (hot.splitlines()[2][:22],
+                                            cold.splitlines()[2][:22]))
+    report.check('PB2 follows the AFE switch',
+                 'PB2  out   1' in hot and 'PB2  out   0' in cold)
+    report.check('and PE15 reads back inversely, as the board wires it',
+                 'PE15 in    0' in hot and 'PE15 in    1' in cold)
+    report.check('every pin the map calls digital I/O is read, and only those',
+                 len(hot.splitlines()) == 2 + len(
+                     Sim().board.system.channel_map()['digital']),
+                 '%d rows' % (len(hot.splitlines()) - 2))
+    report.check('a bus pin is not among them - it is not a channel',
+                 'PB10' not in hot and 'PA13' not in hot)
+
+    # A tool the model cannot call is a tool that does not exist. Measured:
+    # digital_read worked and the question still came back with the list,
+    # because it was in no named set and the default one is `code`.
+    from coaxial_ollama import debug as debugmod
+    missing = [name for name in ('read', 'code', 'pins')
+               if 'digital_read' not in debugmod.SETS[name]]
+    report.check('and the sets a bench session runs actually offer it',
+                 not missing, ', '.join(missing) or 'read, code, pins')
 
 
 def test_map_sections(report):
@@ -3989,7 +4041,7 @@ def main():
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_link_recovery, test_channel_map, test_map_sections, test_map_retype, test_port_state,
+                 test_link_diagnose, test_link_recovery, test_channel_map, test_digital_read, test_map_sections, test_map_retype, test_port_state,
                  test_retype_with_the_trace_off,
                  test_power_check_cannot_halt,
                  test_transcript,
