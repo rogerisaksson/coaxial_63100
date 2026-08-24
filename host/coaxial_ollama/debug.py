@@ -613,6 +613,16 @@ class Chat:
         answer - logs it to IOLog too, from the one place every path
         through _ask_inner's several returns ends up, rather than at each
         of them and risking a future one added without it."""
+        # A message that is nothing but a language request never reaches the
+        # model: the lock is host state, and the answer is one word. History
+        # is left alone too, so the switch costs no prompt prefix either.
+        switch = language.bare_switch(question)
+        if switch:
+            self.language = switch
+            answer = language.okay(switch, getattr(self.out, 'encoding', None))
+            self.io_log.turn(question)
+            self.io_log.answer(answer)
+            return answer
         answer = language.localise(self._ask_inner(question, max_calls),
                                    self.screen_language())
         self.io_log.answer(answer)
@@ -1259,18 +1269,13 @@ def repl(chat, hold=False):
                     # its old, permissive default instead of needing "afe"
                     # in every unrelated fixture question.
                     chat.toolbox.afe_mentioned = 'afe' in line.lower()
-                    before_lang = chat.language
+                    # No note when the lock moves. It used to print
+                    # "sprak: bytt till Swedish (last)" above the
+                    # answer - a host line, in a mix of two languages,
+                    # saying what the answer itself already shows by
+                    # being in the new one. A bare switch answers
+                    # "Okej" and nothing else, without a model turn.
                     done = chat.ask(line)
-                    if chat.language != before_lang:
-                        # Printed once, on the turn that actually set or
-                        # moved the lock - not sent to the model, so it
-                        # costs nothing per turn either.
-                        note = language.localise(
-                            'language: %s (locked - /lang to change)'
-                            % chat.language if before_lang is None else
-                            'language: switched to %s (locked)'
-                            % chat.language, chat.language)
-                        done = note + '\n' + done
                 # Stop ticking before the answer prints, not after. stop()'s
                 # own repaint climbs back to the prompt row by the same
                 # newline count _paint() uses, and a long answer with no

@@ -53,6 +53,7 @@ python -m coaxial all                    # CLI against the board
 python examples/read_board.py            # measure, judge nothing
 python tools/run_tests.py                # every suite, one parsed tally
 python tools/run_tests.py --offline      #   ...minus the ones needing the board
+python tools/run_tests.py --live         #   ...plus the real model, minutes
 python tools/build_and_flash.py          # build (+flash): --build-only, --flash-only
 python -m coaxial_mcp --port COM4        # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml
@@ -63,9 +64,10 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_ollama.py` (402, offline), `test_simulated.py` (34, offline),
+Suites: `test_ollama.py` (426, offline), `test_simulated.py` (34, offline),
 `test_mcp.py` (39, **needs the board**), `test_conformance.py` (43, needs the
-board, `--conformance`).
+board, `--conformance`), `test_live_model.py` (24, needs the board **and**
+ollama, `--live`) - the only one where the model itself is under test.
 
 The ST toolchain is not on the system PATH — arm-gcc, cmake, ninja and
 `STM32_Programmer_CLI` live under `%LOCALAPPDATA%\stm32cube\bundles\`, fetched by

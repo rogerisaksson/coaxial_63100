@@ -3083,6 +3083,54 @@ def test_docs(report):
                  'unless the operator asks for another'
                  in language.instruction_for('Korean'))
 
+    # A message that is nothing but a language request is host business.
+    # It used to cost a model turn that answered "Jag har andrat spraket
+    # till svenska. Hur kan jag hjalpa dig med din BLDC-inverter?" - and a
+    # host note above it saying the same thing again, in a mix of two
+    # languages. One word, no round trip, history untouched.
+    switch_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    switcher = debug.Chat(ScriptedModel([]), switch_box, out=io.StringIO())
+    switcher.language = 'Swedish'
+    said = switcher.ask('byt språk till japanska')
+    report.check('a bare switch never reaches the model',
+                 not switcher.client.prompts and not switcher.history,
+                 '%d turns' % len(switcher.client.prompts))
+    report.check('and is answered with one word in the language asked for',
+                 said == language.OKAY['Japanese'] == 'わかりました',
+                 said.encode('unicode_escape').decode())
+    report.check('which is what the lock moved to',
+                 switcher.language == 'Japanese', switcher.language)
+
+    # The same cp1252 case greeting() documents: Japanese renders as a row
+    # of question marks on a console that cannot hold it, and "Okay" beats
+    # five of those.
+    narrow = io.TextIOWrapper(io.BytesIO(), encoding='cp1252')
+    plain = debug.Chat(ScriptedModel([]), switch_box, out=narrow)
+    report.check('an alphabet the console lacks falls back to English',
+                 plain.ask('byt språk till japanska') == 'Okay')
+
+    # ...but a request with a question attached is still the model's turn,
+    # in the new language. This is the line between the two.
+    asked_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    with_question = debug.Chat(ScriptedModel([
+        {'role': 'assistant', 'content': 'このプロジェクトはBLDCインバータです。'}]),
+        asked_box, out=io.StringIO())
+    with_question.language = 'Swedish'
+    said = with_question.ask('förklara på japanska vad detta projektet '
+                             'handlar om')
+    report.check('a request with a question attached still goes to the model',
+                 with_question.client.prompts and said.startswith('この'),
+                 said[:12].encode('unicode_escape').decode())
+
+    for question, bare in (('svenska tack', 'Swedish'),
+                           ('switch to Swedish please', 'Swedish'),
+                           ('kan du prata svenska?', 'Swedish'),
+                           ('läs NTC:n', None),
+                           ('förklara på japanska vad detta handlar om', None)):
+        got = language.bare_switch(question)
+        report.check('bare switch or a real question: %s' % question[:32],
+                     got == bare, str(got))
+
     # Measured live: a Swedish question that named a tool without calling it
     # triggered the "call the tool now" nudge - appended to history with
     # role=='user', for the model's benefit - and the language flipped to

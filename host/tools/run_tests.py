@@ -12,6 +12,7 @@ running these files directly, and repeats only what it counted.
 
     python tools/run_tests.py                 # test_ollama, test_mcp, test_simulated
     python tools/run_tests.py --conformance    # + test_conformance.py (needs a real board)
+    python tools/run_tests.py --live           # + test_live_model.py (board AND ollama)
     python tools/run_tests.py --file test_mcp.py
 
 Exit code is 0 only if every requested suite ran and nothing in it failed.
@@ -26,6 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]           # host/
 DEFAULT_SUITES = ('test_ollama.py', 'test_mcp.py', 'test_simulated.py')
 CONFORMANCE = 'test_conformance.py'
+LIVE = 'test_live_model.py'
 
 # Suites that talk to the hardware. test_mcp.py says so in its own docstring
 # - it drives the real server over stdio against a real port - but this script
@@ -33,7 +35,7 @@ CONFORMANCE = 'test_conformance.py'
 # unplugged board turned into '22 failed' in a verify loop that was meant to
 # be checking a code change. A cable is not a regression, and the tally has to
 # be able to tell the difference.
-NEEDS_BOARD = ('test_mcp.py', CONFORMANCE)
+NEEDS_BOARD = ('test_mcp.py', CONFORMANCE, LIVE)
 
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed$')
 FAIL_RE = re.compile(r'^\s*FAIL\s+(.+?)\s{2,}')
@@ -96,6 +98,10 @@ def main(argv=None):
     parser.add_argument('--conformance', action='store_true',
                         help='also run test_conformance.py - needs a real '
                              'board on COM4, not just simulated')
+    parser.add_argument('--live', action='store_true',
+                        help='also run test_live_model.py - a real ollama '
+                             'model against the real board, minutes not '
+                             'seconds')
     parser.add_argument('--file', action='append', default=[],
                         help='run only this test file (repeatable), instead '
                              'of the default set')
@@ -108,6 +114,8 @@ def main(argv=None):
     suites = list(args.file) if args.file else list(DEFAULT_SUITES)
     if args.conformance and not args.file:
         suites.append(CONFORMANCE)
+    if args.live and not args.file:
+        suites.append(LIVE)
     if args.offline:
         suites = [name for name in suites if name not in NEEDS_BOARD]
 
@@ -120,7 +128,8 @@ def main(argv=None):
             print('%-20s MISSING %s' % (name, path))
             ok = False
             continue
-        tally, code, failing, elapsed, crash = run_one(path)
+        tally, code, failing, elapsed, crash = run_one(
+            path, timeout=1200 if name == LIVE else 300)
         if tally is None:
             print('%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed))
             if crash:

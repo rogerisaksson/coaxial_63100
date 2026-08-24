@@ -325,10 +325,6 @@ PHRASES = {
             'budgeten på %d tokens är förbrukad; /clear eller höj --budget',
         'link re-established':
             'länken återupprättad',
-        'language: %s (locked - /lang to change)':
-            'språk: %s (låst - /lang för att ändra)',
-        'language: switched to %s (locked)':
-            'språk: bytt till %s (låst)',
         ' -> check the board is powered, and that a JTAG programmer or '
         'a dedicated serial adapter is connected between it and this PC':
             ' -> kontrollera att kortet har ström, och att en JTAG-programmerare '
@@ -447,6 +443,39 @@ def greeting(model, name=None, encoding=None):
             return GREETINGS['English'] % model
     return text
 
+# One word, in the language just asked for. A bare switch is answered by the
+# host and never reaches the model: the lock is host state, and a model turn
+# to say so costs a round trip and gets a paragraph. Measured: asked to
+# switch, gemma4:12b answered "Jag har andrat spraket till svenska. Hur kan
+# jag hjalpa dig med din BLDC-inverter?" - two sentences where one word does,
+# above a host line saying the same thing a third time.
+OKAY = {
+    'Swedish': 'Okej', 'English': 'Okay', 'German': 'In Ordnung',
+    'Danish': 'Okay', 'Norwegian': 'Greit', 'Dutch': 'Oké',
+    'French': "D'accord", 'Spanish': 'De acuerdo', 'Italian': 'Va bene',
+    'Finnish': 'Selvä', 'Polish': 'Dobrze', 'Portuguese': 'Está bem',
+    'Russian': 'Хорошо', 'Greek': 'Εντάξει', 'Chinese': '好的',
+    'Japanese': 'わかりました', 'Korean': '알겠습니다', 'Thai': 'ตกลง',
+    'Hebrew': 'בסדר', 'Arabic': 'حسنًا',
+}
+
+
+def okay(name, encoding=None):
+    """The acknowledgement for a bare language switch.
+
+    English where there is no translation, and English where the console
+    cannot encode the one there is - the same cp1252 case `greeting()`
+    documents, where Japanese renders as a row of question marks.
+    """
+    text = OKAY.get(name or '') or OKAY['English']
+    if encoding:
+        try:
+            text.encode(encoding)
+        except (UnicodeEncodeError, LookupError):
+            return OKAY['English']
+    return text
+
+
 # A language's own name has to sit next to one of these to count as a
 # request rather than a mention - "the German firmware bug" is not a
 # request for German, and this is what keeps it from reading as one.
@@ -512,3 +541,36 @@ def requested_language(text):
     if any(w in _REQUEST_VERBS for w in words):
         return named
     return named if detect(text) is None else None
+
+
+# What can sit around a language name without the message being about
+# anything else: the switch itself, the word "language", and the politeness.
+# A word outside this set means there is a real question in there too - and
+# that one is answered by the model, in the new language, not with "Okej".
+_SWITCH_FILLER = (
+    'språk', 'språket', 'language', 'sprache', 'langue', 'idioma', 'lingua',
+    'till', 'to', 'på', 'in', 'auf', 'en', 'a', 'nu', 'now', 'igen',
+    'again', 'tillbaka', 'back', 'tack', 'please', 'snälla', 'bitte',
+    'du', 'you', 'kan', 'can', 'är', 'is', 'det', 'the', 'mitt', 'ditt',
+)
+
+
+def bare_switch(text):
+    """The language `text` asks for, when it asks for nothing else.
+
+    "byt språk till svenska" is a request the host can answer on its own;
+    "förklara på japanska vad detta projektet handlar om" names the same
+    kind of request with a question attached, and only the model can answer
+    that one. The difference is whether anything is left over once the
+    language name, the request verb and the filler are taken out - an
+    unknown word means there is, so this abstains and the turn goes to the
+    model as before.
+    """
+    named = requested_language(text)
+    if not named:
+        return None
+    for word in (w.lower() for w in WORD.findall(text or '')):
+        if not (word in _NAME_TO_LANGUAGE or word in _REQUEST_VERBS
+                or word in _SWITCH_FILLER):
+            return None
+    return named

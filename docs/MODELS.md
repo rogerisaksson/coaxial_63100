@@ -241,6 +241,17 @@ also names the operator's request as the one thing that overrides the lock, so
 the next phrasing the host misses costs a wrong language rather than a trap.
 `/lang [NAME]` sets it by hand, `/lang auto` hands it back to detection.
 
+A message that asks for *nothing but* the switch — `language.bare_switch()`,
+which is `requested_language()` plus "and there is no other word in it" — is
+answered by the host with one word from `language.OKAY`, and never reaches the
+model at all. It used to cost a model turn that answered "Jag har ändrat
+språket till svenska. Hur kan jag hjälpa dig med din BLDC-inverter?", under a
+host line reading `språk: bytt till Swedish (låst)` — the same fact three
+times, in two languages, one of them a lock nobody asked to be told about. The
+answer being in the new language *is* the acknowledgement. A request with a
+question attached ("förklara på japanska vad detta projektet handlar om") is
+still the model's turn; the leftover-word test is the line between the two.
+
 Tests build a `Chat` with no session language at all, deliberately: a suite
 whose expectations depend on the Windows locale passes on one machine and
 fails on the next. The locale is read in `build()`, at the entry point.
@@ -548,6 +559,28 @@ Off on a bare `Chat()`, since dozens of tests build one.
 
 ---
 
+## The live suite
+
+`tests/test_live_model.py` is the only suite here that does not script the
+model. Six turns against the real tag and the real board, checking the three
+things a scripted double cannot:
+
+| Turn | Reaches the board | Answer |
+|---|---|---|
+| "läs NTC:n och DC-länken" | yes, `analog_read` | Swedish |
+| "beskriv hårdvaran i detta projektet för en novis" | no | Swedish |
+| "byt språk till engelska" | no, and no model turn | `Okay` |
+| "read the NTC" | yes | English |
+| "what is this project about" | no | English |
+| "byt språk till svenska" | no, and no model turn | `Okej` |
+
+It asserts *that* `analog_read` was called, never what it returned —
+invariant 10. Measured 2026-08-24, gemma4:12b on COM4: 24 passed, 0 failed.
+
+`python tools/run_tests.py --live`, or the file directly with `--simulated`
+for the model half without a cable. It is not in the default set: a model load
+plus six turns is minutes, and the other suites are seconds.
+
 ## Measured failure modes
 
 One lesson runs through almost all of these, and it is why the loop is built
@@ -686,7 +719,7 @@ the same turn. `Chat._trace` skips that one shape of result. It stays in
 unconditionally, since "why did that turn cost four calls" is exactly the
 question that log exists to answer.
 
-### A description question answered with a channel table, then silence
+### Describe, answered with a table and then silence
 
 `prompt_io.tmp`, verbatim: "Beskriv hårdvaran i detta projektet för en novis"
 → `analog_read {"ch": ["all"]}`, the table, and `A:` with nothing after it.
