@@ -4020,6 +4020,20 @@ def test_docs(report):
                  'restate' in debug.SYSTEM)
     report.check('afe_power is never framed as refusable',
                  'afe_power' in debug.SYSTEM and 'order to do it' in debug.SYSTEM)
+
+    # The line that taught the error. "A table or list means analog_read
+    # once" was written about tabulating readings and read as "a list means
+    # analog_read", so a question asking for a list of channels fetched a
+    # full analog table - measured 6 times out of 24 in test_live_model.py,
+    # in both languages. That suite needs ollama and minutes; this catches
+    # the wording coming back in seconds.
+    report.check('SYSTEM does not tell the model a list is a reading',
+                 'table or list' not in debug.SYSTEM,
+                 [l for l in debug.SYSTEM.splitlines() if 'analog_read' in l][:1])
+    report.check('it names board_info for listing channels',
+                 'list of channels is board_info' in debug.SYSTEM)
+    report.check('and digital_read for a pin, beside analog_read',
+                 'digital_read' in debug.SYSTEM and 'analog_read' in debug.SYSTEM)
     report.check('and a read with AFE off is never framed as impossible',
                  'AFE on or off and reports' in debug.SYSTEM)
     report.check('and afe_power never fires as a side effect of a reading',

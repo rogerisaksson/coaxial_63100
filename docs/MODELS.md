@@ -638,6 +638,20 @@ complied with both - comma-separated prose is neither - while doing exactly
 what the rule existed to prevent. Reworded to name the act rather than its
 shapes: never restate rows a tool already printed, table or not.
 
+**And the same line, read the other way.** *A table or list means analog_read
+once* was written about tabulating readings. Read plainly it says a **list**
+means `analog_read` - so "ge mig en lista över alla analoga kanaler" fetched a
+full analog table, in both languages, every time. Not the model disobeying:
+the model obeying a sentence that said the wrong thing.
+
+`tests/test_live_model.py` crosses the two axes it kept confusing - list or
+read, analog or digital - and asserts the tool called *and the tools not
+called*. Twelve questions, twenty-four checks. Measured before the rewrite:
+**6 failed**. After *A table of readings means analog_read once* and *A list of
+channels is board_info. A value is analog_read, or digital_read for a pin*:
+**0 failed**. The suite is what says which of those two sentences was doing
+the work.
+
 Building the backstop caught a bug in itself before it shipped: the row-matching
 regex keyed on a leading digit and a word, which is also the shape of
 `analog`'s own header line, `64 smp @2000Hz` - `smp` was briefly a channel of

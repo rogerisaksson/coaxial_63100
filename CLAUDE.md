@@ -76,10 +76,16 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_ollama.py` (505), `test_simulated.py` (34), `test_mcp.py` (39),
-`test_parity.py` (13), `test_conformance.py` (67, `--conformance`),
-`test_live_model.py` (24, needs ollama, `--live`) - the only one where the
+Suites: `test_ollama.py` (537), `test_simulated.py` (34), `test_mcp.py` (40),
+`test_parity.py` (17), `test_conformance.py` (67, `--conformance`),
+`test_live_model.py` (48, needs ollama, `--live`) - the only one where the
 model itself is under test.
+
+`test_live_model.py` crosses the two axes the model kept confusing - list or
+read, analog or digital - and asserts which tool it called **and which it did
+not**. That half is the point: an answer that is right after the wrong call is
+not this suite passing. It caught the SYSTEM line that read as *a list means
+analog_read* - 6 of 24 failing, 0 after the rewrite.
 
 `test_parity.py` runs the same calls against the board and against the
 stand-in and compares them with every number masked out: same channels, same

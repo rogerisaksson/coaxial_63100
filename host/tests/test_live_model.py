@@ -47,6 +47,46 @@ READING = 'analog_read'
 # English one is testing the desktop. Locked here.
 START = 'Swedish'
 
+# question -> the tool it must call, and the tools it must not.
+#
+# Four questions crossed two ways: list or read, analog or digital. Every
+# one of these is a transcript from the bench, and every wrong cell was one
+# the operator saw before this suite existed:
+#
+#   "lista alla digitala kanaler"  -> analog_read, and a full analog table
+#   "lista alla analoga kanaler"   -> the map, then the model typing it out
+#   "ge mig alla digitala varden"  -> the digital list, no values
+#
+# `must_not` is the half that matters. Calling nothing is a different
+# failure from calling the wrong thing, and the answer being right by luck
+# after the wrong call is not this suite passing.
+TOOL_CHOICE = (
+    # question, must call, must not call
+    ('ge mig en lista över alla analoga kanaler', 'board_info',
+     ('analog_read', 'digital_read')),
+    ('ge mig en lista över alla digitala kanaler', 'board_info',
+     ('analog_read', 'digital_read')),
+    ('list every analog channel', 'board_info',
+     ('analog_read', 'digital_read')),
+    ('list every digital channel', 'board_info',
+     ('analog_read', 'digital_read')),
+
+    ('läs alla analoga kanaler', 'analog_read', ('digital_read',)),
+    ('read every analog channel', 'analog_read', ('digital_read',)),
+    ('vad läser NTC:n?', 'analog_read', ('digital_read',)),
+
+    ('ge mig alla digitala värden', 'digital_read', ('analog_read',)),
+    ('read the digital values', 'digital_read', ('analog_read',)),
+    ('vilket värde har PB2 nu?', 'digital_read', ('analog_read',)),
+
+    # Neither: a question about what a thing is, answered in words.
+    ('beskriv hårdvaran i detta projektet för en novis', None,
+     ('analog_read', 'digital_read')),
+    ('what is this project about', None,
+     ('analog_read', 'digital_read')),
+)
+
+
 # question, must it reach the board, what language the answer is in
 TURNS = (
     ('läs NTC:n och DC-länken', True, 'Swedish'),
@@ -120,6 +160,28 @@ def main(argv=None):
     print('-- %s, %s --'
           % (args.model, found.label if found.real else 'SIMULATED board'))
     try:
+        # Tool choice first, and each question from a clean history: what is
+        # under test is which tool this question reaches for, not which one
+        # the last question left in view.
+        print(chr(10) + '-- which tool the question reaches for --')
+        for question, must, must_not in TOOL_CHOICE:
+            before = len(chat.toolbox.log)
+            chat.ask(question)
+            called = [name for name, _ in chat.toolbox.log[before:]]
+            chat.history = []
+
+            if must is None:
+                report.check('%s -> no board call' % safe(question, 40),
+                             not called, ', '.join(called) or 'none')
+            else:
+                report.check('%s -> %s' % (safe(question, 40), must),
+                             must in called, ', '.join(called) or 'no calls')
+            wrong = [name for name in must_not if name in called]
+            report.check('%s -> not %s' % (safe(question, 40),
+                                           '/'.join(must_not)),
+                         not wrong, ', '.join(wrong) or 'none')
+
+        print(chr(10) + '-- language, and reading against describing --')
         for question, needs_board, expect in TURNS:
             before = len(chat.toolbox.log)
             spent = chat.client.usage()['eval_tokens']
