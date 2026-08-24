@@ -196,12 +196,16 @@ session was started without that flag on purpose. `run_tests` is not gated
 at all — it never touches the board's state or its flash, so it is as free
 to call as `docs` or `board_info`.
 
-When the board is not answering, `link_diagnose` finds out why at the OS
-level — which COM ports Windows actually sees right now, and whether the
-one this session was told to use is even among them — rather than the model
-guessing or repeating the raw exception. It runs automatically the moment a
-board call fails mid-turn, and it is a plain tool otherwise: ask "why can't
-you reach the board?" directly and it is called on its own.
+When the board is not answering, `link_diagnose` works through an ordered
+checklist rather than guessing or repeating the raw exception — target power
+over SWD via the ST-Link first (the one thing the serial side cannot check
+on its own; an unplugged ST-Link cable reads `0.00V` there, where the serial
+side alone only ever says "silence"), then which COM ports Windows sees,
+whether the configured one is among them, and whether the board actually
+answers on it right now. It stops at whichever step explains the silence,
+runs automatically the moment a board call fails mid-turn, and is a plain
+tool otherwise: ask "why can't you reach the board?" directly and it is
+called on its own.
 
 Structured output is not done with Ollama's json mode here, and that is a
 decision rather than an omission. `format='json'` constrains the *content* of a

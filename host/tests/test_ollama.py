@@ -911,11 +911,12 @@ def test_policy(report):
 def test_link_diagnose(report):
     """OS-level, not another board round trip - see tools.py's own docstring
     for why. Ports come from a fake serial.tools.list_ports.comports() here,
-    never from real hardware - and coaxial.connect is faked too, or "present
-    but silent" would actually probe whatever is really on this bench's own
-    COM4 and pass for the wrong reason on a machine where it happens to
-    answer."""
+    never from real hardware; coaxial.connect and find_board.check_power are
+    faked too, for the same reason - both would otherwise probe whatever is
+    really plugged into this bench and pass (or fail) for the wrong reason
+    on a machine where it happens to answer."""
     import coaxial
+    import find_board
     import serial.tools.list_ports as list_ports
     from types import SimpleNamespace
 
@@ -925,26 +926,28 @@ def test_link_diagnose(report):
 
     real_comports = list_ports.comports
     real_connect = coaxial.connect
+    real_check_power = find_board.check_power
     try:
         list_ports.comports = lambda: [FakePort('COM4'), FakePort('COM7')]
         coaxial.connect = lambda *a, **kw: (_ for _ in ()).throw(
             ConnectError('nothing answered'))
+        find_board.check_power = lambda timeout=15: (3.30, 'fake: powered')
 
         missing = toolmod.Toolbox(SimpleNamespace(port='COM9', baud=115200, unit=1))
         result = missing.call('link_diagnose', {})
-        report.check('a configured port absent from the OS list is named as '
-                     'such, not folded into a generic error',
+        report.check('powered, but a configured port absent from the OS '
+                     'list is named as such, not folded into a generic '
+                     'error',
                      'COM9' in result and 'not among' in result, result)
 
         present = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
         result2 = present.call('link_diagnose', {})
-        report.check('a configured port present but silent points at power '
-                     'or wiring, not the cable being unplugged',
-                     'COM4' in result2 and 'not answering' in result2, result2)
+        report.check('powered and present, but silent, points at nothing '
+                     'else having the port open, not the cable',
+                     'COM4' in result2
+                     and 'answers on COM4 right now: no' in result2, result2)
 
-        coaxial.connect = lambda *a, **kw: real_connect_stub()
-        def real_connect_stub():
-            return []                            # "answers", trivially
+        coaxial.connect = lambda *a, **kw: []                # "answers"
         result2b = present.call('link_diagnose', {})
         report.check('and a port that actually answers says the link is '
                      'up, not "silent" just because it exists',
@@ -954,21 +957,34 @@ def test_link_diagnose(report):
         empty = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
         result3 = empty.call('link_diagnose', {})
         report.check('no COM ports at all is named plainly',
-                     'no COM ports at all' in result3, result3)
+                     'Nothing is enumerating' in result3, result3)
+
+        find_board.check_power = lambda timeout=15: (0.0, 'fake: no power')
+        unpowered = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
+        result4 = unpowered.call('link_diagnose', {})
+        report.check('no target power stops the checklist at step 1, before '
+                     'even listing COM ports - later steps cannot explain '
+                     'more than the first one already does',
+                     'no power sensed' in result4
+                     and 'COM ports Windows sees' not in result4, result4)
+        find_board.check_power = lambda timeout=15: (3.30, 'fake: powered')
+
+        report.check('and a run with no configured port (--no-board, '
+                     '--simulated) says so, after confirming power - '
+                     'nothing to check past that',
+                     'no configured port'
+                     in toolmod.Toolbox(SimulatedSession()).call(
+                         'link_diagnose', {}))
+
+        # Ungated: no --allow-writes, no --confirm, no --read-only. It never
+        # touches the board's state or its flash, same reasoning as `docs`.
+        ro = toolmod.Toolbox(SimulatedSession(), allow_code=False)
+        report.check('link_diagnose works even with --read-only',
+                     not str(ro.call('link_diagnose', {})).startswith('ERR'))
     finally:
         list_ports.comports = real_comports
         coaxial.connect = real_connect
-
-    report.check('and a run with no configured port (--no-board, '
-                 '--simulated) says so rather than crashing',
-                 'no configured port'
-                 in toolmod.Toolbox(SimulatedSession()).call('link_diagnose', {}))
-
-    # Ungated: no --allow-writes, no --confirm, no --read-only. It never
-    # touches the board's state or its flash, same reasoning as `docs`.
-    ro = toolmod.Toolbox(SimulatedSession(), allow_code=False)
-    report.check('link_diagnose works even with --read-only',
-                 not str(ro.call('link_diagnose', {})).startswith('ERR'))
+        find_board.check_power = real_check_power
 
 
 # ---- the record of it all --------------------------------------------------

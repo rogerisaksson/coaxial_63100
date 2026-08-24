@@ -1,30 +1,28 @@
 <#
     Finding which COM port this board is actually on - board_prompt.ps1's
     -AutodetectComport path. Needs Say (Say.ps1) to be dot-sourced already.
+
+    Both functions here call into host/tools/find_board.py rather than
+    probing a port themselves - that script is also what
+    coaxial_ollama/tools.py's link_diagnose tool imports directly, mid-
+    session, so "does this port answer" is one implementation, not two that
+    can drift apart. This side reaches it as a subprocess, once per
+    candidate port, because PowerShell cannot import Python.
 #>
 
 function Test-BoardPort {
-    <#  Open one COM port from Python's own side, exactly the way dbg.py
-        would, and see whether this board answers on it.
-
-        A .NET SerialPort.Open() would only prove the port exists and
-        nothing else has it - a USB mouse dongle opens fine and is not this
-        board. Going through coaxial.connect() is the same Modbus round
-        trip a real session makes, so a wrong port fails for the same reason
-        it would fail then, not a different, weaker check that passes here
-        and fails a moment later inside dbg.py itself.  #>
+    <#  Does this board answer on $CandidatePort? find_board.py --probe
+        does the actual work: open the port the same way coaxial.connect()
+        would, the same Modbus round trip a real session makes, so a wrong
+        port fails for the same reason it would fail a moment later inside
+        dbg.py itself - not a different, weaker check that passes here.  #>
     param([string]$CandidatePort, [string]$HostDir, [int]$TimeoutSec = 6)
-
-    $probe = "from coaxial import connect, disconnect$([Environment]::NewLine)" +
-             "b = connect([(1, 115200, '$CandidatePort')])$([Environment]::NewLine)" +
-             "disconnect(b)$([Environment]::NewLine)"
-    $tmp = [System.IO.Path]::GetTempFileName() + '.py'
-    Set-Content -Path $tmp -Value $probe -Encoding utf8
 
     try {
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName = 'python'
-        $psi.Arguments = '"' + $tmp + '"'
+        $psi.Arguments = 'tools' + [System.IO.Path]::DirectorySeparatorChar +
+                         'find_board.py --probe ' + $CandidatePort
         $psi.WorkingDirectory = $HostDir
         $psi.UseShellExecute = $false
         $psi.RedirectStandardOutput = $true
@@ -36,8 +34,8 @@ function Test-BoardPort {
             return $false
         }
         return $proc.ExitCode -eq 0
-    } finally {
-        Remove-Item $tmp -ErrorAction SilentlyContinue
+    } catch {
+        return $false
     }
 }
 
@@ -45,7 +43,10 @@ function Find-BoardPort {
     <#  Try -Port first if Windows even lists it, then every other COM port
         in whatever order Windows enumerates them - there is no way to ask
         which one a programmer was just plugged into short of opening each
-        and finding out.  #>
+        and finding out. Loops here, one Test-BoardPort call per candidate,
+        rather than a single find_board.py --find, so each attempt gets its
+        own "trying COMn..." line instead of one silent wait for all of
+        them.  #>
     param([string]$PreferredPort, [string]$HostDir)
 
     $ports = @()

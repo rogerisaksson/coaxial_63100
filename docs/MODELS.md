@@ -363,13 +363,32 @@ scripts:
 |---|---|---|
 | `build_firmware` | `host/tools/build_and_flash.py` - build, flash, or both | `--confirm` (always a write) |
 | `run_tests` | `host/tools/run_tests.py` - the offline suites' own tally, never a model paraphrase | nothing - read-only |
-| `link_diagnose` | COM ports Windows actually sees right now, vs. the configured one | nothing - read-only |
+| `link_diagnose` | `host/tools/find_board.py` - an ordered checklist, most fundamental fact first | nothing - read-only |
 
 `build_firmware` and `run_tests` are in the default `code` set; all three are
 in `read`/`pins`/`build` too. Each has a matching, conditional line appended
 to `SYSTEM` only when it is actually offered (`BUILD_FIRMWARE_HINT`,
 `BUILD_HINT`, `LINK_DIAGNOSE_HINT` in `debug.py`) - existing in the schema is
 not enough on its own, see the entries below.
+
+`link_diagnose` stops at whichever step actually explains the silence,
+rather than running every later one regardless:
+
+1. Target power over SWD, via the ST-Link (`find_board.check_power()`) - the
+   one check the serial side cannot make on its own, and the most
+   fundamental: nothing past it can work without it. Measured live on this
+   bench, an unplugged ST-Link cable read `Voltage: 0.00V`, where the
+   serial side alone only ever said "silence."
+2. COM ports Windows currently sees.
+3. Whether the configured one is among them.
+4. Whether the board actually answers on it right now - measured directly,
+   so this also correctly says "up" if the link had already recovered.
+5. `probe_other_ports: true` tries every other port, for a board that moved.
+
+Both `link_diagnose` (imported, in-process) and `board_prompt/ComPort.ps1`'s
+`Test-BoardPort`/`Find-BoardPort` (subprocess, since PowerShell cannot
+import Python) call the same `find_board.py` - one implementation of "does
+this port answer," not two that can drift apart.
 
 ---
 

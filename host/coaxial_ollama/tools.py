@@ -40,13 +40,16 @@ import subprocess
 import sys
 import time
 
-sys.path.insert(0, __file__.rsplit('coaxial_ollama', 1)[0])
+_HOST = __file__.rsplit('coaxial_ollama', 1)[0]
+sys.path.insert(0, _HOST)
+sys.path.insert(0, os.path.join(_HOST, 'tools'))
 
 from coaxial.errors import RigError                       # noqa: E402
 from coaxial_mcp import render                            # noqa: E402
 from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
 from coaxial_mcp.tools import TOOLS as BOARD_TOOLS         # noqa: E402
 from coaxial_mcp.tools import coerce as board_coerce       # noqa: E402
+import find_board                                          # noqa: E402
 
 # host/tools/build_and_flash.py and host/tools/run_tests.py, resolved from
 # this file's own location rather than the caller's cwd - dbg.py and the
@@ -99,7 +102,7 @@ EXTRA_TOOLS = [
     },
     {
         'name': 'link_diagnose',
-        'description': "The board is not answering (ConnectError, NoReplyError, 'link is down'): call this to find out why, instead of just repeating the raw error. Lists the COM ports Windows actually sees right now and whether the configured one is among them - a missing port is a cable or driver problem, a present-but-silent one is a power or wiring problem. 'probe_other_ports' also tries every other port for a few seconds each, for a board that answers somewhere other than where it was told to look.",
+        'description': "The board is not answering (ConnectError, NoReplyError, 'link is down'): call this to find out why, instead of just repeating the raw error. Checks in order, most fundamental first, stopping at whichever step actually explains it: 1) target power over SWD via the ST-Link, 2) COM ports Windows sees, 3) whether the configured one is among them, 4) whether the board actually answers on it right now. 'probe_other_ports' adds a step 5, trying every other port for a board that answers somewhere other than where it was told to look.",
         'inputSchema': {
             'type': 'object',
             'properties': {
@@ -403,82 +406,99 @@ class Toolbox:
         return text if done.returncode == 0 else 'ERR %s' % text
 
     def _link_diagnose(self, args):
-        """OS-level, not another Modbus call - the dead link would fail that
-        too, and repeating the same failed round trip is not a diagnosis.
-        `Test-BoardPort`/`Find-BoardPort` in board_prompt/ComPort.ps1 do the
-        same probe for -AutodetectComport before this process even starts;
-        this is that logic reachable mid-session, once, so a cable that came
-        loose does not need a restart to find out why.
-        """
-        import serial.tools.list_ports
+        """A step-by-step checklist, most fundamental first, stopping at the
+        first step that explains the silence rather than running every
+        later one regardless - `de mest logiska alternativen`, in the order
+        that actually rules each one out or in.
 
-        ports = [p.device for p in serial.tools.list_ports.comports()]
+        `host/tools/find_board.py` does the actual work (port listing,
+        probing, and the SWD power check) - the same module
+        `board_prompt/ComPort.ps1`'s Test-BoardPort/Find-BoardPort call out
+        to, as a subprocess, for -AutodetectComport before a Python session
+        even exists. One implementation, imported here rather than shelled
+        out to since this call is already inside the same process, so "does
+        this port answer" cannot drift between what a live session finds
+        and what the preflight found.
+
+        Step 1, target power over SWD, is the one this tool could not check
+        before and the board's own serial side cannot check at all - see
+        find_board.check_power(). Measured live on this bench: an unplugged
+        ST-Link cable read `Voltage: 0.00V`, where the serial side alone
+        only ever said "silence" - a real fact, but a far less specific one
+        pointing at the same actual cause.
+        """
         configured = getattr(self.session, 'port', None)
-        lines = []
-
-        if not ports:
-            lines.append('no COM ports at all - nothing is enumerating as a '
-                         'serial device. Check the cable, and that the '
-                         'ST-Link or serial adapter is plugged in.')
-        elif configured is None:
-            lines.append('no configured port to check (--no-board or '
-                         '--simulated this run).')
-        elif configured not in ports:
-            lines.append("%s is not among the COM ports Windows currently "
-                         "sees (%s) - the cable may be unplugged, or the "
-                         "adapter's driver did not enumerate it."
-                         % (configured, ', '.join(ports)))
-        elif self._probe_board_port(configured):
-            # The port exists and the board actually answers on it right
-            # now - measured directly, not inferred from the port merely
-            # being present. Calling this "not answering" regardless would
-            # be wrong exactly when the link had already recovered, or when
-            # the model reaches for this tool on a link nobody has actually
-            # confirmed is down.
-            lines.append('%s is present and the board answers on it right '
-                         'now - the link is up.' % configured)
-        else:
-            lines.append('%s is present in the OS port list (%s), so the '
-                         'adapter itself is there - the board is not '
-                         'answering on it. Check it is powered, and that '
-                         'nothing else has the port open.'
-                         % (configured, ', '.join(ports)))
-
-        if args.get('probe_other_ports') and ports:
-            others = [p for p in ports if p != configured]
-            found = next((p for p in others if self._probe_board_port(p)),
-                        None)
-            if found:
-                lines.append('%s answered as this board - it may have moved '
-                             'there. /reconnect after changing --port to it.'
-                             % found)
-            elif others:
-                lines.append('tried %s, none answered as this board.'
-                             % ', '.join(others))
-
-        return '\n'.join(lines)
-
-    def _probe_board_port(self, candidate):
-        """True if this board answers on `candidate` - the same round trip
-        Session.board makes on first use, just against a port that is not
-        the configured one and closed again either way. The transport's own
-        0.5s read timeout (coaxial/transport.py) is what keeps a silent port
-        from hanging this - a handful of candidates costs a few seconds, not
-        a stall.
-        """
-        from coaxial import connect, disconnect
-
         baud = getattr(self.session, 'baud', 115200)
         unit = getattr(self.session, 'unit', 1)
-        try:
-            boards = connect([(unit, baud, candidate)])
-        except Exception:                                    # noqa: BLE001
-            return False
-        try:
-            disconnect(boards)
-        except Exception:                                     # noqa: BLE001
-            pass
-        return True
+
+        if configured is None:
+            # Not step 1 - this isn't a rung on the checklist, it's whether
+            # there is a real board to run one against at all. A
+            # --no-board/--simulated run has no SWD to check power over
+            # either, and checking it anyway would spend several real
+            # seconds proving nothing about a session that was never going
+            # to have a board.
+            return ('no configured port to check (--no-board or '
+                   '--simulated this run).')
+
+        steps = []
+        voltage, detail = find_board.check_power()
+        if voltage is None:
+            steps.append('1. Target power (ST-Link/SWD): could not check - %s'
+                         % detail)
+        elif voltage < 1.0:
+            steps.append(
+                '1. Target power (ST-Link/SWD): %.2fV - no power sensed. '
+                'Check the ST-Link USB cable is connected, and that the '
+                'board itself is powered. Nothing past this point can work '
+                'without it.' % voltage)
+            return '\n'.join(steps)
+        else:
+            steps.append('1. Target power (ST-Link/SWD): %.2fV - powered, '
+                         'cable seated.' % voltage)
+
+        ports = find_board.list_ports()
+        steps.append('2. COM ports Windows sees: %s' % (', '.join(ports)
+                                                         or 'none'))
+        if not ports:
+            steps.append('   Nothing is enumerating as a serial device - '
+                         "check the ST-Link or serial adapter's driver.")
+            return '\n'.join(steps)
+
+        if configured not in ports:
+            steps.append("3. Configured port %s: not among the ports above "
+                         "- the cable may be unplugged from this PC's side, "
+                         "or the driver did not enumerate it." % configured)
+            return '\n'.join(steps)
+        steps.append('3. Configured port %s: present.' % configured)
+
+        if find_board.probe(configured, baud, unit):
+            # Measured directly, not inferred from the port merely being
+            # present - so this also correctly says "up" when the link had
+            # already recovered by the time anything reached for this tool.
+            steps.append('4. Board answers on %s right now: yes - the link '
+                         'is up.' % configured)
+            return '\n'.join(steps)
+        steps.append('4. Board answers on %s right now: no.' % configured)
+        steps.append('   Powered and the port is right, so check nothing '
+                     'else has %s open, and that the last programmer run '
+                     'ended with --start, not -hardRst (a halted core '
+                     'answers nothing).' % configured)
+
+        if args.get('probe_other_ports'):
+            others = [p for p in ports if p != configured]
+            found = next((p for p in others
+                         if find_board.probe(p, baud, unit)), None)
+            if found:
+                steps.append('5. Tried every other port: %s answered as '
+                             'this board - it may have moved there. '
+                             '/reconnect after changing --port to it.'
+                             % found)
+            elif others:
+                steps.append('5. Tried every other port (%s): none '
+                             'answered.' % ', '.join(others))
+
+        return '\n'.join(steps)
 
     def _board(self, name, args):
         # Coerced against the tool's own schema first: see
