@@ -986,6 +986,102 @@ def test_power_check_cannot_halt(report):
                  str(seen.get('timeout')))
 
 
+def test_retype_with_the_trace_off(report):
+    """A silenced retype must not leave an empty screen.
+
+    SYSTEM says never to restate a tool's own rows, and `is_retype` replaces
+    an answer that does it with silence - right, because the trace put the
+    table directly above. With `--quiet` there is no trace, and "read every
+    analog channel" then answered with nothing at all. The board's own rows
+    go out instead: the same table, not the model's typing of it.
+    """
+    from coaxial_ollama import debug
+
+    retyped = ('PhaseU, PhaseV, PhaseW, ch3, NTC, DCbus and ch6 were all '
+               'read just now.')
+
+    def turn(quiet):
+        chat = debug.Chat(ScriptedModel([
+            call('analog_read'),
+            {'role': 'assistant', 'content': retyped},
+        ]), toolmod.Toolbox(SimulatedSession(), scope=Scope()),
+            out=io.StringIO(), quiet=quiet)
+        return chat.ask('read every analog channel')
+
+    loud = turn(quiet=False)
+    report.check('with the trace on, a retyped table is still silenced',
+                 loud == '', repr(loud)[:52])
+
+    hushed = turn(quiet=True)
+    report.check('with --quiet it is replaced, not silenced',
+                 hushed.strip() != '', repr(hushed)[:52])
+    report.check('and what goes out is the board rows, not the retyping',
+                 'smp @' in hushed and retyped not in hushed,
+                 hushed.splitlines()[0][:52] if hushed else '<empty>')
+
+
+def test_channel_map(report):
+    """The board describes itself; nothing above it keeps a copy.
+
+    Command 0x6D reports every channel - analog and digital - with the
+    direction each one runs. The host used to hold three separate answers to
+    "what is PB10": the firmware's testrig table, the firmware's pin table,
+    and protocol.RESERVED_PINS. There is one now, and the other two read it.
+    """
+    from coaxial.simulated import SimulatedSession as Sim
+    from coaxial import protocol
+
+    board = Sim().board
+    chart = board.system.channel_map()
+
+    report.check('the map has all three lists',
+                 chart['analog'] and chart['digital'] and chart['reserved'],
+                 '%d analog, %d digital, %d reserved'
+                 % (len(chart['analog']), len(chart['digital']),
+                    len(chart['reserved'])))
+    # The separation is the point, not a flag on a row: what a fixture may
+    # set without breaking anything is a different question from what the
+    # bus and the debug port sit on, and mixing them invites a pin write
+    # that gets refused.
+    io_pins = {r['pin'] for r in chart['digital']}
+    report.check('digital I/O is only what may be driven',
+                 io_pins == {'PB2', 'PE15'}, ', '.join(sorted(io_pins)))
+    report.check('and no bus or debug pin is among the channels',
+                 not (io_pins & {r['pin'] for r in chart['reserved']}))
+    report.check('every analog channel says which way it runs, and it is in',
+                 all(row['direction'] == 'in' for row in chart['analog']),
+                 ', '.join(sorted({r['direction']
+                                   for r in chart['analog']})))
+    report.check('every digital channel says which way it runs',
+                 all(row['direction'] in protocol.DIRECTIONS.values()
+                     for row in chart['digital'] + chart['reserved']),
+                 ', '.join(sorted({r['direction']
+                                   for r in chart['digital']})))
+    report.check('the AFE switch is a digital output',
+                 any(r['pin'] == 'PB2' and r['direction'] == 'out'
+                     for r in chart['digital']))
+    report.check('the link pins are reported, so a refusal can be explained',
+                 all(any(r['pin'] == pin for r in chart['reserved'])
+                     for pin in ('PB10', 'PB11')))
+
+    # The static copy is the fallback, and it must not drift from the map
+    # while it exists. A pin the board calls reserved and this dict does not
+    # is the disagreement the whole change exists to prevent.
+    refused = {r['pin'] for r in chart['reserved']}
+    stale = {'P%s%d' % key for key in protocol.RESERVED_PINS} - refused
+    report.check('the static fallback names no pin the board does not',
+                 not stale, ', '.join(sorted(stale)) or 'none')
+
+    # The refusal is the board's answer now, so its wording is the board's
+    # signal name rather than a string compiled into the host.
+    try:
+        board.gpio.pin_read('B', 10)
+        report.check('a reserved pin is refused by name', False, 'it was read')
+    except ValueError as exc:
+        report.check('a reserved pin is refused by the name the board gave it',
+                     'USART3_TX' in str(exc), str(exc)[:52])
+
+
 def test_link_recovery(report):
     """One screen, one verdict about the link.
 
@@ -3695,7 +3791,8 @@ def main():
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_link_recovery,
+                 test_link_diagnose, test_link_recovery, test_channel_map,
+                 test_retype_with_the_trace_off,
                  test_power_check_cannot_halt,
                  test_transcript,
                  test_debug, test_cli,

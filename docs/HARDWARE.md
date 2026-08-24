@@ -68,8 +68,10 @@ with the +/-5 ppm short-term jitter the old stability report printed.
 
 ## ADC channels
 
-Seven configured channels. `Board/Src/board_adc.c` holds `s_adcTable`, and the
-index into it is what every `mask` and `adc_chan` argument means.
+Seven configured channels, all inputs. `Board/Src/board_adc.c` holds
+`s_adcTable`, the board reports it over `channels`, and the index into it is
+what every `mask` and `adc_chan` argument means. The table below is what it
+said on 2026-08-24; the board is what to ask.
 
 | Index | ADC | Channel | Pins | Mode | Signal |
 |---|---|---|---|---|---|
@@ -175,12 +177,25 @@ estimated, not verified.
 
 ## Discrete I/O
 
+**Ask the board, not this table.** Command `0x6D channels` reports every pin
+with its direction and whether a fixture may drive it, and
+`Board/Src/board_io.c` is where that list lives. What follows is what it said
+on 2026-08-24, kept for the notes attached to it — a pin added to the firmware
+appears in `board_info` without anyone editing this page, and if the two ever
+disagree the board is right.
+
 | Pin | Direction | Role |
 |---|---|---|
 | PB2 | output, push-pull | AFE_ON. **Low at boot.** |
 | PE15 | input | follows AFE_ON inversely |
 | PB10, PB11 | AF7 | USART3 TX / RX, 115200 8N1, **polled: no NVIC, no ISR** |
 | PA13-PA15, PB3, PB4 | AF | 5-pin JTAG debug port |
+
+The first two rows are the digital **I/O** — what a fixture may read or set.
+The last two are the bus and the debug port: `channels` reports them under a
+separate kind, raw pin access refuses them in every mode, and they are not
+channels. Driving the first pair severs the link the command arrived on; the
+rest cost the ability to reflash.
 
 USART3 has `HAL_UARTEx_DisableFifoMode()` applied, so there is **no RX FIFO** — a
 single byte of overrun loses data.

@@ -122,6 +122,14 @@ is no switch to keep in step and no registration call.
 than by protocol feature, so a line of a test script says which part of the
 hardware it touches without naming a function code.
 
+Nothing in it holds a channel map. `system.channel_map()` reads the board's own
+(command `0x6D`), and `Gpio._refusal` asks that rather than a table here, so a
+pin added to `Board/Src/board_io.c` is refused on the host with no edit.
+`protocol.RESERVED_PINS` survives only as the fallback for firmware older than
+protocol 1.3, and is not to be extended. In the firmware the same list is the
+only one: `testrig.c` used to keep its own copy and now calls
+`Board_PinUsable`.
+
 ```python
 board.system    identity, versions, clock tree, releasing the console
 board.link      echo, frame counters

@@ -6,29 +6,15 @@
   */
 #include "testrig.h"
 
+#include "board.h"
 #include "main.h"
 
 static bool s_open;
 
-/* Pins that are never available, whatever the gate says. Kept as data so the
-   list is auditable at a glance rather than spread through the checks. */
-typedef struct
-{
-  char    port;
-  uint8_t pin;
-  const char *why;
-} testrig_reserved_t;
-
-static const testrig_reserved_t RESERVED[] =
-{
-  { 'B', 10U, "USART3_TX" },
-  { 'B', 11U, "USART3_RX" },
-  { 'A', 13U, "JTMS/SWDIO" },
-  { 'A', 14U, "JTCK/SWCLK" },
-  { 'A', 15U, "JTDI" },
-  { 'B',  3U, "JTDO/TRACESWO" },
-  { 'B',  4U, "NJTRST" },
-};
+/* Which pins are refused is the board's answer, not this file's: the list
+   used to live here as well as in the pin table the channels command
+   reports, and two lists of what PB10 is are one edit away from
+   disagreeing. See Board_PinUsable. */
 
 static GPIO_TypeDef *port_base(char port)
 {
@@ -72,15 +58,7 @@ bool testrig_pin_allowed(char port, uint8_t pin)
     return false;
   }
 
-  for (size_t i = 0U; i < (sizeof(RESERVED) / sizeof(RESERVED[0])); i++)
-  {
-    if ((RESERVED[i].port == port) && (RESERVED[i].pin == pin))
-    {
-      return false;
-    }
-  }
-
-  return true;
+  return Board_PinUsable(port, pin);
 }
 
 bool testrig_pin_mode(char port, uint8_t pin, uint8_t mode, uint8_t pull)
@@ -164,11 +142,11 @@ bool testrig_port_write(char port, uint16_t mask, uint16_t value)
      keeps for itself. */
   uint16_t safe = mask;
 
-  for (size_t i = 0U; i < (sizeof(RESERVED) / sizeof(RESERVED[0])); i++)
+  for (uint8_t pin = 0U; pin < 16U; pin++)
   {
-    if (RESERVED[i].port == port)
+    if (!Board_PinUsable(port, pin))
     {
-      safe &= (uint16_t)~(1U << RESERVED[i].pin);
+      safe &= (uint16_t)~(1U << pin);
     }
   }
 

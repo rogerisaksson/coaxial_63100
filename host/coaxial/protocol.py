@@ -36,6 +36,7 @@ PORT_READ = 0x69
 PORT_WRITE = 0x6A
 ANALOG_BURST = 0x6B
 SELF_TEST = 0x6C
+CHANNELS = 0x6D
 
 NAMES = {
     VERSION: 'version', ADC_TABLE: 'adc_table', ADC_SCAN: 'adc_scan',
@@ -44,7 +45,7 @@ NAMES = {
     TEST_GATE: 'test_gate', ECHO: 'echo', PIN_MODE: 'pin_mode',
     PIN_READ: 'pin_read', PIN_WRITE: 'pin_write', PORT_READ: 'port_read',
     PORT_WRITE: 'port_write', ANALOG_BURST: 'analog_burst',
-    SELF_TEST: 'self_test',
+    SELF_TEST: 'self_test', CHANNELS: 'channels',
 }
 
 BROADCAST = 0
@@ -69,6 +70,9 @@ PIN_MODES = {'input': 0, 'output': 1, 'output_pp': 1, 'output_od': 2, 'analog': 
 PIN_PULLS = {'none': 0, 'up': 1, 'down': 2}
 AFE_ACTIONS = {'read': 0, 'off': 1, 'on': 2, 'toggle': 3}
 
+DIRECTIONS = {0: 'in', 1: 'out', 2: 'inout'}
+"""Which way a channel's signal runs, from the MCU's side. Command 0x6D."""
+
 RESERVED_PINS = {
     ('B', 10): 'USART3_TX',
     ('B', 11): 'USART3_RX',
@@ -78,10 +82,18 @@ RESERVED_PINS = {
     ('B', 3): 'JTDO/TRACESWO',
     ('B', 4): 'NJTRST',
 }
-"""Pins the firmware refuses in every mode. Listed here so the host can explain
-WHY a request will fail instead of just relaying an exception code: driving the
-first two severs the link the command arrived on, and the rest cost the ability
-to reflash."""
+"""Pins the firmware refuses in every mode - the **fallback** only.
+
+The board carries this map itself now (command 0x6D, `system.channel_map()`),
+and `Gpio._guard` asks it. This copy is what a board older than protocol 1.3
+gets answered from, and what explains WHY a request will fail instead of
+relaying an exception code: driving the first two severs the link the command
+arrived on, and the rest cost the ability to reflash.
+
+A second copy of a hardware fact is one edit from disagreeing with the first.
+This one is kept deliberately and is not to be extended - a new pin belongs in
+the firmware's own table, `Board/Src/board_io.c`, where the board can report
+it."""
 
 CHECK_STATUS = {0: 'pass', 1: 'fail', 2: 'info'}
 """Self-test verdicts. The board returns pass or fail only where it can prove

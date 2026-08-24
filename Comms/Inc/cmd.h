@@ -121,6 +121,32 @@
   *                    the sample rate it actually got. A burst longer than 5 s
   *                    is refused rather than left to outlive the master.
   *
+  * 0x6D CHANNELS      req: u8 kind (0 analog, 1 digital IO, 2 reserved)
+  *                    rsp, kind 0: u8 count, then per analog channel:
+  *                         u8 index, u8 adc_index, u8 channel, str pin,
+  *                         u8 direction, u8 differential, str signal, u8 unit
+  *                    rsp, kind 1 and 2: u8 count, then per pin:
+  *                         str pin, u8 direction, str signal
+  *
+  *                    Kinds 1 and 2 are kept apart on purpose. Kind 1 is the
+  *                    digital I/O: what a fixture may read or set without
+  *                    breaking anything. Kind 2 is the bus and the debug
+  *                    port - USART3, JTAG - which are not channels and are
+  *                    never to be driven; they are reported only so "why was
+  *                    PB10 refused" has an answer.
+  *
+  *                    Sections, not one reply, because one does not fit:
+  *                    measured, all of it together came to 273 bytes against
+  *                    MB_MAX_PDU's 253 and the writer's overflow flag turned
+  *                    the first live call into an 0x04.
+  *
+  *                    direction is 0 in, 1 out, 2 both, from the MCU's side.
+  *                    Analog channels are all inputs and say so rather than
+  *                    leaving the host to assume it.
+  *
+  *                    This is the map. Nothing above the firmware should
+  *                    carry a copy of it - see docs/PROTOCOL.md.
+  *
   * 0x6C SELF_TEST     req: -
   *                    rsp: u8 count, then per check:
   *                           str name, u8 status, i32 value
@@ -170,9 +196,10 @@ extern "C" {
 #define CMD_PORT_WRITE 0x6AU
 #define CMD_ANALOG_BURST 0x6BU
 #define CMD_SELF_TEST    0x6CU
+#define CMD_CHANNELS     0x6DU
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 2U
+#define CMD_PROTO_MINOR 3U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

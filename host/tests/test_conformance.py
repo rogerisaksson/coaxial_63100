@@ -204,6 +204,55 @@ def leave_modbus(bus):
     time.sleep(0.3)
 
 
+def channels_tests(run):
+    """0x6D, decoded here from the specification, not with the host library.
+
+    The point of this suite: if the map came back through coaxial/system.py
+    both sides could share the same wrong idea of the layout. This walks the
+    bytes.
+    """
+    b = run.bus
+    for kind, what in ((0, 'analog'), (1, 'digital'), (2, 'reserved')):
+        parsed = parse(b.request(bytes([0x6D, kind])))
+        run.check('channels(%s) answered, CRC good' % what,
+                  parsed is not None and parsed[3] and parsed[1] == 0x6D,
+                  'no reply' if parsed is None else 'fc 0x%02X crc %s'
+                  % (parsed[1], 'ok' if parsed[3] else 'BAD'))
+        if parsed is None or parsed[1] != 0x6D:
+            continue
+        body = parsed[2]
+        count, at = body[0], 1
+        rows = 0
+        try:
+            while rows < count:
+                if kind == 0:
+                    at += 3                                   # index, adc, ch
+                    at += 1 + body[at]                        # pin
+                    direction = body[at]
+                    at += 2                                   # dir, diff
+                    at += 1 + body[at]                        # signal
+                    at += 1                                   # unit
+                else:
+                    at += 1 + body[at]                        # pin
+                    direction = body[at]
+                    at += 1
+                    at += 1 + body[at]                        # signal
+                run.check('%s row %d has a direction in range'
+                          % (what, rows), direction <= 2, str(direction))
+                rows += 1
+        except IndexError:
+            run.check('%s rows decode inside the payload' % what, False,
+                      'ran off the end at row %d' % rows)
+            continue
+        run.check('%s payload ends exactly where the rows do' % what,
+                  at == len(body), '%d of %d bytes' % (at, len(body)))
+
+    refused = parse(b.request(bytes([0x6D, 3])))
+    run.check('an unknown section is refused, not answered',
+              refused is not None and (refused[1] & 0x80) != 0,
+              'no reply' if refused is None else 'fc 0x%02X' % refused[1])
+
+
 def map_tests(run):
     b = run.bus
 
@@ -430,6 +479,7 @@ if __name__ == '__main__':
     try:
         enter_modbus(bus)
         protocol_tests(run)
+        channels_tests(run)
         map_tests(run)
     finally:
         try:

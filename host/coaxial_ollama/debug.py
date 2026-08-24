@@ -105,12 +105,20 @@ BUILD_HINT = ("To build or flash: run_command with cmd exactly "
 # build_firmware - a guess at a fix, not a diagnosis. The automatic path (a
 # board call that failed this turn) is handled in ask(); this is for the
 # question asked on its own.
+#
+# "on that question only, and never on any other" is not padding. Without it
+# the sentence before it - "if it has not already been called this turn, call
+# it before answering" - reads as a standing order, and that is how the model
+# read it: measured across three transcripts, link_diagnose ran first on
+# "byt till en simulerad enhet", on "byter du till debugproben" and on "vilka
+# analoga och digitala kanaler finns", none of which is about the link.
 LINK_DIAGNOSE_HINT = ("A question about why the board is not answering, or "
                       "whether the link is down, is answered by calling "
                       "link_diagnose - not by guessing, not by trying "
                       "build_firmware or anything else. If it has not "
                       "already been called this turn, call it before "
-                      "answering. Then be a troubleshooter, not a reporter: "
+                      "answering - on that question only, and never on any "
+                      "other. Then be a troubleshooter, not a reporter: "
                       "turn the checklist into the next concrete thing to "
                       "check or do, in order, one step at a time - not the "
                       "raw step text back at the operator.")
@@ -750,6 +758,7 @@ class Chat:
         link_error = None
         code_error = None  # last run_python/run_command result, if it failed
         last_channels = None      # names in the most recent analog_read table
+        last_table = None         # and the table itself, for --quiet
         diagnosed = False  # link_diagnose ran this turn, and was traced
         seen = {}          # (name, args) this turn -> its rendered result
         nudges = 0         # times told to call the tool it just named, or to
@@ -905,6 +914,7 @@ class Chat:
                     last_channels = set(m.lower()
                                         for m in replies.READING_ROW.findall(str(raw)))
                     self.last_channels = last_channels
+                    last_table = str(raw)
                 # An afe_power refused for not being asked for is a mistake
                 # the model recovers from one call later. The refusal stays in
                 # history for it to read; the operator does not need it on
@@ -935,8 +945,13 @@ class Chat:
         # channel just read, named again by an answer with nothing else in it
         # - so a real one-line finding is untouched. Silence rather than a
         # line saying so: the table is directly above on the same screen.
+        #
+        # Unless it is not. With --quiet there is no trace, so silencing the
+        # retype left "read every analog channel" answering with an empty
+        # screen. The board's own rows go out instead - the same table the
+        # trace would have shown, rather than the model's typing of it.
         elif replies.is_retype(answer, last_channels):
-            answer = ''
+            answer = last_table if (self.quiet and last_table) else ''
         # An answer that hit the token cap stops mid-sentence, and a table
         # that stops mid-row reads as complete to everyone except a reader
         # counting rows. Say so rather than letting the cap look like the end.

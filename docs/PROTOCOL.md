@@ -131,10 +131,52 @@ byte then that many ASCII characters, never terminated.
 | `0x6A` | port_write | 5 | masked atomic write via BSRR, needs the gate |
 | `0x6B` | analog_burst | 8 | sample a channel set, per-channel statistics |
 | `0x6C` | self_test | 0 | what the board can prove about itself |
+| `0x6D` | channels | 1 | **the map**: analog, digital I/O, and what is reserved |
 
 `pin_write` returns the level read back from the pin rather than echoing the
 request. On an open-drain output, or a pin the fixture is holding, those differ —
 and that difference is the whole reason a rig drives a pin.
+
+### `0x6D` channels
+
+```
+req: u8 kind            0 analog, 1 digital IO, 2 reserved
+
+rsp, kind 0:       u8 count, then per channel
+                   u8 index, u8 adc_index, u8 channel, str pin,
+                   u8 direction, u8 differential, str signal, u8 unit
+
+rsp, kind 1 and 2: u8 count, then per pin
+                   str pin, u8 direction, str signal
+```
+
+| direction | |
+|---|---|
+| `0` | in |
+| `1` | out |
+| `2` | both |
+
+From the MCU's side. Every ADC channel is an input and says so rather than
+leaving a host to assume it.
+
+**Kinds 1 and 2 are kept apart on purpose.** Kind 1 is the digital I/O: what a
+fixture may read or set without breaking anything — PB2 and PE15 on this board.
+Kind 2 is USART3 and the debug port. Those are not channels, they are never to
+be driven, and they are reported only so "why was PB10 refused" has an answer.
+A flag on one combined list would have put them one misread away from a pin
+write that severs the link the command arrived on.
+
+Sections rather than one reply because one does not fit: measured, all of it
+together came to 273 bytes against `MB_MAX_PDU`'s 253, and the writer's
+overflow flag turned the first live call into an `0x04`. `system.channel_map()`
+asks three times and joins them.
+
+**This is the map, and it is the only one.** The firmware's table in
+`Board/Src/board_io.c` is what `testrig.c` refuses pins from, what this command
+reports, and what `Gpio._refusal` asks. A pin table in a host, a document or a
+prompt is a second answer to "what is PB10", and the board is the one that is
+right. `protocol.RESERVED_PINS` survives only as the fallback for a board older
+than protocol 1.3.
 
 ### `0x41` version, the frozen command
 
@@ -215,15 +257,16 @@ not reserved — was legitimately cleared.
 
 ## Versions
 
-Firmware **1.4.1**, protocol **1.2**. `Comms/Inc/version.h` holds both and
-documents the rules. The build string comes from `__DATE__`/`__TIME__`, which
+Firmware **1.4.1**, protocol **1.3** — `0x6D channels` appended, which is a MINOR: an old host never calls it. `Comms/Inc/version.h` holds the firmware
+version; the protocol pair is `CMD_PROTO_MAJOR`/`CMD_PROTO_MINOR` in
+`Comms/Inc/cmd.h`, beside the command table it describes. The build string comes from `__DATE__`/`__TIME__`, which
 makes the binary non-reproducible. That is paid deliberately: a production rig
 that cannot tell which build a board carries cannot investigate a failure after
 the fact.
 
 ## Conformance
 
-`host/tests/test_conformance.py` — 40 checks, all passing. It is a **deliberately
+`host/tests/test_conformance.py` — 65 checks, all passing. It is a **deliberately
 independent** master: its own CRC, its own framing, not the `coaxial` library, so
 a shared wrong assumption between the two sides cannot hide a defect. Its CRC is
 checked against the catalogue value before any frame is sent.

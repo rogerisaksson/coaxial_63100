@@ -276,6 +276,98 @@ static cmd_status_t h_console(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
+#define CHANNELS_ANALOG   0U
+#define CHANNELS_DIGITAL  1U
+#define CHANNELS_RESERVED 2U
+
+static cmd_status_t h_channels(rd_t *in, wr_t *out)
+{
+  /* The map, and only the map - no reading. adc_table exists for "what does
+     it read now"; this answers "what is there", which is the question a host
+     must not answer from a table of its own.
+
+     One section per request: both together came to 273 bytes against
+     MB_MAX_PDU's 253, and the writer's overflow flag turned that into an
+     0x04 on the first live call. */
+  const uint8_t kind = rd_u8(in);
+
+  if (kind > CHANNELS_RESERVED)
+  {
+    return CMD_ERR_VALUE;
+  }
+
+  if (kind != CHANNELS_ANALOG)
+  {
+    /* I/O and infrastructure are two different questions and are kept two
+       different answers. Kind 1 is what a fixture may set or read without
+       breaking anything; kind 2 is the bus and the debug port, which are
+       listed only so "why was PB10 refused" has an answer, and are never
+       a channel to drive. */
+    const bool want_io = (kind == CHANNELS_DIGITAL);
+    const uint8_t total = Board_DigitalCount();
+    uint8_t n = 0U;
+
+    for (uint8_t i = 0U; i < total; i++)
+    {
+      board_dchan_t d;
+
+      if (Board_DigitalChan(i, &d) && (d.usable == want_io))
+      {
+        n++;
+      }
+    }
+
+    wr_u8(out, n);
+
+    for (uint8_t i = 0U; i < total; i++)
+    {
+      board_dchan_t d;
+
+      if (!Board_DigitalChan(i, &d))
+      {
+        return CMD_ERR_DEVICE;
+      }
+
+      if (d.usable != want_io)
+      {
+        continue;
+      }
+
+      wr_str(out, d.pin);
+      wr_u8(out, d.dir);
+      wr_str(out, d.signal);
+    }
+
+    return CMD_OK;
+  }
+
+  const uint8_t analog = Board_AdcCount();
+
+  wr_u8(out, analog);
+
+  for (uint8_t i = 0U; i < analog; i++)
+  {
+    board_chan_t c;
+
+    if (!Board_AdcChan(i, &c))
+    {
+      return CMD_ERR_DEVICE;
+    }
+
+    wr_u8(out, i);
+    wr_u8(out, c.adc_index);
+    wr_u8(out, c.channel);
+    wr_str(out, c.pin);
+    wr_u8(out, BOARD_DIR_IN);       /* an ADC channel is an input, always */
+    wr_u8(out, c.differential ? 1U : 0U);
+    wr_str(out, c.signal);
+    wr_u8(out, c.unit);
+  }
+
+  return CMD_OK;
+}
+
+
 /* The whole command set, in one place. Adding a command is one row and one
    function; there is no switch to keep in step and no registration call. */
 static const cmd_desc_t CMD_TABLE[] =
@@ -289,6 +381,7 @@ static const cmd_desc_t CMD_TABLE[] =
   { CMD_LINK_STATS, "link_stats", 0U,               h_link_stats },
   { CMD_ANALOG_BURST, "analog_burst", 8U,          h_analog_burst },
   { CMD_SELF_TEST,  "self_test",  0U,               h_self_test  },
+  { CMD_CHANNELS,   "channels",   1U,               h_channels   },
   { CMD_CONSOLE,    "console",    0U,               h_console    },
 };
 

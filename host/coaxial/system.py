@@ -2,7 +2,7 @@
 from . import protocol
 from .errors import PayloadError
 from .subsystem import Subsystem
-from .wire import Reader
+from .wire import Reader, pack
 
 
 class System(Subsystem):
@@ -51,6 +51,67 @@ class System(Subsystem):
             'ticks_per_us': reader.u32(),
             'source': protocol.CLOCK_SOURCES.get(reader.u8(), 'unknown'),
         }
+
+    def channel_map(self, refresh=False):
+        """Every channel this board has, analog and digital, and which way
+        each one runs.
+
+        `{'analog': [...], 'digital': [...], 'reserved': [...]}`.
+
+        `analog` and `digital` are the channels: what can be read, and what a
+        fixture may read or set without breaking anything. `reserved` is the
+        bus and the debug port - USART3, JTAG - which are not channels and are
+        never driven; they are here only so "why was PB10 refused" has an
+        answer. Keeping them in a third list rather than behind a flag is what
+        stops the two being confused.
+
+        An analog row carries index, adc, channel, pin, direction,
+        differential, signal and unit; the other two carry pin, direction and
+        signal. Direction is 'in', 'out' or 'inout', from the MCU's side, and
+        every ADC channel is 'in'.
+
+        The map, not a reading: `analog.channels()` fetches the same analog
+        metadata with a live conversion attached, and `read_all()` is what
+        measures. Cached, because none of it changes at run time.
+
+        This is the board describing itself. Nothing above the firmware
+        should carry a copy - a pin table in a host, a document or a prompt
+        is a second answer to "what is PB10", and the board is the one that
+        is right. Needs protocol 1.3; an older board raises, and the caller
+        falls back to protocol.RESERVED_PINS.
+        """
+        if getattr(self, '_map', None) is None or refresh:
+            # Two round trips, one per section: both together are 273 bytes
+            # against the 253-byte PDU, so the wire carries them separately
+            # and this joins them. The split is the frame's, not the map's.
+            reader = Reader(self.request(protocol.CHANNELS, pack(('u8', 0))))
+            analog = []
+            for _ in range(reader.u8()):
+                analog.append({
+                    'index': reader.u8(),
+                    'adc': reader.u8(),
+                    'channel': reader.u8(),
+                    'pin': reader.string(),
+                    'direction': protocol.DIRECTIONS.get(reader.u8()),
+                    'differential': bool(reader.u8()),
+                    'signal': reader.string(),
+                    'unit': protocol.CHANNEL_UNITS.get(reader.u8()),
+                })
+            pins = {}
+            for kind, name in ((1, 'digital'), (2, 'reserved')):
+                reader = Reader(self.request(protocol.CHANNELS,
+                                             pack(('u8', kind))))
+                rows = []
+                for _ in range(reader.u8()):
+                    rows.append({
+                        'pin': reader.string(),
+                        'direction': protocol.DIRECTIONS.get(reader.u8()),
+                        'signal': reader.string(),
+                    })
+                pins[name] = rows
+            self._map = {'analog': analog, 'digital': pins['digital'],
+                         'reserved': pins['reserved']}
+        return self._map
 
     def self_test(self):
         """What the board can prove about itself, with nothing attached.

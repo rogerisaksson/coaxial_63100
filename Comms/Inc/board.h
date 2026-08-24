@@ -35,6 +35,41 @@ typedef struct
 
 const char *Board_Name(void);
 
+/* ---- discrete I/O ------------------------------------------------------- */
+
+/** Which way a pin's signal runs, seen from the MCU. */
+#define BOARD_DIR_IN    0U
+#define BOARD_DIR_OUT   1U
+#define BOARD_DIR_INOUT 2U
+
+/**
+  * @brief One digital channel: a pin this board actually uses for something.
+  *
+  * `usable` is false for the pins raw access is refused on - the link and the
+  * debug port. They are listed rather than hidden, because "PB10 is USART3_TX
+  * and you may not drive it" is the answer a fixture needs; leaving them out
+  * only means someone asks again with a pin write.
+  */
+typedef struct
+{
+  const char *pin;      /**< "PB2"                                  */
+  uint8_t     dir;      /**< BOARD_DIR_*                            */
+  const char *signal;   /**< what the pin carries on this board     */
+  bool        usable;   /**< false where raw pin access is refused  */
+} board_dchan_t;
+
+uint8_t Board_DigitalCount(void);
+bool    Board_DigitalChan(uint8_t index, board_dchan_t *info);
+
+/**
+  * @brief  Whether a fixture may drive this pin at all.
+  *
+  * The reserved list is the pin table, not a second list beside it: testrig.c
+  * used to keep its own, and two lists of what PB10 is are one edit away from
+  * disagreeing.
+  */
+bool Board_PinUsable(char port, uint8_t pin);
+
 uint8_t Board_AdcCount(void);
 bool    Board_AdcChan(uint8_t index, board_chan_t *info);
 

@@ -28,7 +28,7 @@ def si(hz):
     return '%dHz' % hz
 
 
-def board_info(version, clock, channels):
+def board_info(version, clock, channels, digital=None):
     lines = [
         '%s %s fw%s proto%d.%d build "%s"' % (
             version.get('device', '?'), version.get('mcu', '?'),
@@ -37,13 +37,20 @@ def board_info(version, clock, channels):
         'sysclk %s hclk %s src %s cmds %s' % (
             si(clock['sysclk_hz']), si(clock['hclk_hz']), clock['source'],
             version.get('commands', '?')),
-        'ch adc pin          mode name',
+        'ch adc pin          dir   mode name',
     ]
     for c in channels:
-        lines.append('%-2d %-3d %-12s %-4s %s' % (
-            c['index'], c['adc'], c['pin'],
+        lines.append('%-2d %-3d %-12s %-5s %-4s %s' % (
+            c['index'], c['adc'], c['pin'], c.get('direction', 'in'),
             'diff' if c['differential'] else 'SE',
             short(c['signal'], c['index'])))
+    # The digital I/O, when the board reports it. Only what a fixture may
+    # read or set: USART3 and the debug port are not channels, and listing
+    # them here would invite a pin write that gets refused. `channels`
+    # kind 2 has them when the question is why.
+    for d in digital or ():
+        lines.append('   %-12s %-5s %-4s %s' % (
+            d['pin'], d['direction'], 'gpio', d['signal']))
     return '\n'.join(lines)
 
 

@@ -31,6 +31,13 @@ VREFBUF is deliberately **disabled**, VREF+ high-impedance, so the AFE drives th
 ADC reference. That is the mechanism behind invariant 9, and why
 `ADC_VREF_VOLTAGE 3.3f` is an assumption about a rail, not a property of the chip.
 
+**The channel map is the board's, not this file's.** Command `0x6D channels`
+reports every analog channel, every digital I/O pin and the direction each one
+runs; `board_info` shows it and `system.channel_map()` returns it. USART3 and
+the debug port are reported separately and are never channels to drive. A pin
+table in a document or a prompt is a second answer to "what is PB10" — add a
+pin to `Board/Src/board_io.c` and everything above it follows.
+
 | Read | Before |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | touching the source layout |
@@ -69,9 +76,16 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_ollama.py` (436), `test_simulated.py` (34), `test_mcp.py` (39),
-`test_conformance.py` (43, `--conformance`), `test_live_model.py` (24, needs
-ollama, `--live`) - the only one where the model itself is under test.
+Suites: `test_ollama.py` (505), `test_simulated.py` (34), `test_mcp.py` (39),
+`test_parity.py` (13), `test_conformance.py` (67, `--conformance`),
+`test_live_model.py` (24, needs ollama, `--live`) - the only one where the
+model itself is under test.
+
+`test_parity.py` runs the same calls against the board and against the
+stand-in and compares them with every number masked out: same channels, same
+directions, same rows, different values. It is what the fallback rests on, and
+it has already caught a real divergence - the stand-in reported no unit where
+the board reports centi-degC and mV.
 
 **A missing cable is not a failing suite.** Every one of them picks its session
 through `coaxial_mcp.session.open_session()`, which looks for the board -

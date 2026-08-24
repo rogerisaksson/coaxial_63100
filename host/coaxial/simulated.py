@@ -62,7 +62,48 @@ class SimulatedLink:
                 'char_overrun': 0}
 
 
+# The same shape the firmware reports over command 0x6D, so a host driven
+# against the stand-in exercises the same decode. Values invented like
+# everything else here - see the module docstring.
+UNITS = {'NTC': 'centi-degC', 'DC bus': 'mV'}
+
+DIGITAL = [
+    {'pin': 'PB2',  'direction': 'out', 'signal': 'AFE_ON'},
+    {'pin': 'PE15', 'direction': 'in',  'signal': 'AFE_ON sense'},
+]
+
+# Not channels: the bus the command arrived on and the debug port. Reported
+# so "why was PB10 refused" has an answer, never to be driven.
+RESERVED = [
+    {'pin': 'PB10', 'direction': 'out',   'signal': 'USART3_TX'},
+    {'pin': 'PB11', 'direction': 'in',    'signal': 'USART3_RX'},
+    {'pin': 'PA13', 'direction': 'inout', 'signal': 'JTMS/SWDIO'},
+    {'pin': 'PA14', 'direction': 'in',    'signal': 'JTCK/SWCLK'},
+    {'pin': 'PA15', 'direction': 'in',    'signal': 'JTDI'},
+    {'pin': 'PB3',  'direction': 'out',   'signal': 'JTDO/TRACESWO'},
+    {'pin': 'PB4',  'direction': 'in',    'signal': 'NJTRST'},
+]
+
+
 class SimulatedSystem:
+    def channel_map(self, refresh=False):
+        analog = []
+        for row in CHANNELS:
+            analog.append({
+                'index': row['index'], 'adc': row['adc'],
+                'channel': row['channel'], 'pin': row['pin'],
+                'direction': 'in',
+                'differential': row['differential'],
+                'signal': row['signal'] or '',
+                # The board reports these; a stand-in that did not was a
+                # difference in the map itself rather than in the numbers,
+                # which is the one thing the two must never disagree on.
+                'unit': UNITS.get(row['signal']),
+            })
+        return {'analog': analog,
+                'digital': [dict(d) for d in DIGITAL],
+                'reserved': [dict(d) for d in RESERVED]}
+
     def self_test(self):
         return [{'name': 'PLL lock', 'status': 'pass', 'value': 1},
                 {'name': 'ADC calibrated', 'status': 'pass', 'value': 1},

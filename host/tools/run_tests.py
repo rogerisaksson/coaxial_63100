@@ -25,7 +25,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]           # host/
-DEFAULT_SUITES = ('test_ollama.py', 'test_mcp.py', 'test_simulated.py')
+DEFAULT_SUITES = ('test_ollama.py', 'test_mcp.py', 'test_simulated.py',
+                  'test_parity.py')
 CONFORMANCE = 'test_conformance.py'
 LIVE = 'test_live_model.py'
 
@@ -40,6 +41,10 @@ LIVE = 'test_live_model.py'
 # a stand-in cannot stand in for: it is an independent byte-level master, and
 # a simulated slave would be the shared wrong assumption it exists to rule
 # out. With no board it runs its CRC self-test and says what it skipped.
+# test_parity.py needs one too, but for the opposite reason: with no board
+# both sides of the comparison are the stand-in and it is trivially true, so
+# it skips itself rather than passing. Not listed - a cable-less run of it is
+# not a failure to explain.
 NEEDS_BOARD = (CONFORMANCE,)
 
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed$')

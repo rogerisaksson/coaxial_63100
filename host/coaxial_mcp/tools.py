@@ -25,8 +25,8 @@ _PORT = {'type': 'string', 'description': 'Port letter A-K'}
 TOOLS = [
     {
         'name': 'board_info',
-        'description': 'Identity, firmware/protocol version, clock tree and the ADC channel map. Call once; the map is stable.',
-        'description_terse': 'Identity, versions, clock tree, ADC channel map. Call once.',
+        'description': 'Identity, versions, clock, and every channel the board reports - analog and digital, each with its direction. Call once.',
+        'description_terse': 'Identity, versions, clock, every channel with its direction. From the board. Call once.',
         'inputSchema': {
             'type': 'object',
             'properties': {'refresh': {'type': 'boolean'}},
@@ -362,7 +362,14 @@ def _split_pin(text):
 
 def board_info(session, refresh=False, **_):
     version, clock, channels = session.info(refresh=refresh)
-    return render.board_info(version, clock, channels)
+    # The digital half comes from the board too (command 0x6D). An older
+    # firmware has no such command and the analog table alone is the answer,
+    # which is why this is a try and not a required call.
+    try:
+        digital = session.board.system.channel_map(refresh=refresh)['digital']
+    except Exception:                                         # noqa: BLE001
+        digital = None
+    return render.board_info(version, clock, channels, digital)
 
 
 def analog_read(session, ch=None, samples=64, rate_hz=2000.0,

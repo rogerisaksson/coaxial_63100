@@ -8,8 +8,14 @@ Two classes of pin are refused in every mode, and this module explains why
 before the firmware has to: USART3 on PB10/PB11 carries the very command being
 issued, and PA13-PA15/PB3/PB4 are the debug port. Losing either costs more than
 the measurement is worth.
+
+Which pins those are comes from the board, not from here: `system.channel_map()`
+reports the firmware's own table, so a pin added there is refused here with no
+host edit. `protocol.RESERVED_PINS` is the fallback for a board older than
+protocol 1.3.
 """
 from . import protocol
+from .errors import RigError
 from .subsystem import Subsystem
 from .wire import Reader, pack
 
@@ -22,7 +28,11 @@ def _port_byte(port):
 
 
 def reserved_reason(port, pin):
-    """Why this pin is refused, or None if it is available."""
+    """Why this pin is refused, or None if it is available.
+
+    The static answer, from `protocol.RESERVED_PINS`. `Gpio._refusal` asks
+    the board first and only falls back here - see that method.
+    """
     return protocol.RESERVED_PINS.get((str(port).upper()[:1], int(pin)))
 
 
@@ -39,8 +49,30 @@ class Gpio(Subsystem):
             pack(('u32', protocol.TEST_GATE_KEY), ('u8', 1 if enable else 0))))
         return bool(reader.u8())
 
+    def _refusal(self, port, pin):
+        """Why this pin is refused, asked of the board that owns the answer.
+
+        The firmware carries the pin table and reports it (command 0x6D), so
+        a pin added there is refused here without a host edit.
+        `protocol.RESERVED_PINS` is the fallback for a board older than
+        protocol 1.3, and the failure is remembered so an old board is not
+        asked once per pin.
+        """
+        if not getattr(self, '_no_map', False):
+            want = 'P%s%d' % (str(port).upper()[:1], int(pin))
+            try:
+                chart = self._board.system.channel_map()
+            except RigError:
+                self._no_map = True
+            else:
+                for row in chart['reserved']:
+                    if row['pin'].upper() == want:
+                        return row['signal']
+                return None
+        return reserved_reason(port, pin)
+
     def _guard(self, port, pin):
-        reason = reserved_reason(port, pin)
+        reason = self._refusal(port, pin)
         if reason is not None:
             raise ValueError('P%s%d is %s and is refused in every mode; driving '
                              'it would cost the link or the debug port'
