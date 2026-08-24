@@ -1131,10 +1131,17 @@ def test_debug(report):
                  sent[2]['content'][:44])
     report.check('the recent turns are sent whole',
                  sent[-1]['content'] == 'new question')
+    # Measured against the system message this turn actually built, not
+    # against SYSTEM plus a slack number: the hints, the language line and the
+    # model's own tag are all in there, and a magic +40 tips over every time
+    # one of them gains a sentence.
+    whole = (debug.approx_tokens(json.dumps(session.history))
+             + session.tool_cost()
+             + debug.approx_tokens(session.trim()[0]['content']))
     report.check('trimming is what the cost estimate measures',
-                 session.context_cost() < debug.approx_tokens(
-                     json.dumps(session.history)) + session.tool_cost()
-                 + debug.approx_tokens(debug.SYSTEM) + 40)
+                 session.context_cost() < whole,
+                 '%d tok trimmed against %d whole'
+                 % (session.context_cost(), whole))
 
     # `keep` counts messages, and the recent ones are sent whole - so six
     # recent messages is a small prompt right up until one of them is a build
@@ -1954,6 +1961,119 @@ def test_runner_crash_retry(report):
         clientmod.time.sleep = real_sleep
 
 
+# ---- what reaches the screen, and how it reads -----------------------------
+
+def test_screen(report):
+    """Measured with the board unplugged: every board question printed the
+    same four-step checklist twice - once clipped as a tool trace, once whole
+    as the answer - and paid the ST-Link's fifteen-second timeout twice."""
+    from coaxial_ollama import debug
+
+    box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    talk = debug.Chat(ScriptedModel([]), box, tools='code', out=io.StringIO())
+    error = ("ERR ConnectError: cannot open COM9 at 115200 baud: could not "
+             "open port 'COM9': FileNotFoundError(2, 'no file') -> check the "
+             "board is powered, and that a programmer is connected")
+
+    shown = talk._link_down_message(error, shown=True)
+    report.check('with the checklist on screen, the answer is one line',
+                 shown.count(chr(10)) == 0 and len(shown) < 100, shown)
+    report.check('and it keeps the class and what actually failed',
+                 'ConnectError' in shown and 'COM9' in shown
+                 and 'link is down' in shown, shown)
+    report.check('without it, the answer carries the whole error',
+                 'FileNotFoundError' in talk._link_down_message(error))
+
+    # -q has no trace, so there is nothing on screen above the answer and the
+    # checklist has to travel with it.
+    cut = SimulatedSession()
+    cut.board.broken = True
+    quiet = debug.Chat(ScriptedModel([call('link_diagnose'),
+                                      call('analog_read')]),
+                       toolmod.Toolbox(cut, scope=Scope()),
+                       tools='code', quiet=True, out=io.StringIO())
+    answer = quiet.ask('read the NTC')
+    report.check('quiet still explains a dead link rather than naming it',
+                 'link is down' in answer and len(answer.splitlines()) > 1,
+                 answer[:70])
+
+    loud = SimulatedSession()
+    loud.board.broken = True
+    seen = io.StringIO()
+    talkative = debug.Chat(ScriptedModel([call('link_diagnose'),
+                                          call('analog_read')]),
+                           toolmod.Toolbox(loud, scope=Scope()),
+                           tools='code', out=seen)
+    answer = talkative.ask('read the NTC')
+    report.check('with the checklist traced, the answer does not repeat it',
+                 'link is down' in answer and len(answer.splitlines()) == 1,
+                 answer[:70])
+    # The simulated session has no port, so link_diagnose's own answer is
+    # that rather than the four-step checklist - the property under test is
+    # the same either way: what the trace printed, the answer does not.
+    diagnosis = 'no configured port to check'
+    report.check('and the diagnosis was on screen exactly once',
+                 seen.getvalue().count(diagnosis) == 1
+                 and diagnosis not in answer,
+                 '%d times' % seen.getvalue().count(diagnosis))
+
+    # A row that fits is untouched; prose wraps instead of being cut mid-word.
+    row = '  4  NTC     SE    32768.0  +1.6500V 25.00C'
+    report.check('a reading row is not touched by wrapping',
+                 debug._wrapped(row.strip()) == ['  ' + row.strip()])
+    prose = ('3. Configured port COM9: not among the ports above - the cable '
+             'may be unplugged from this PC\'s side, or the driver did not '
+             'enumerate it.')
+    wrapped = debug._wrapped(prose)
+    report.check('a long line wraps rather than losing its end',
+                 len(wrapped) > 1 and wrapped[-1].rstrip().endswith('it.')
+                 and all(len(part) <= debug.TRACE_WIDTH for part in wrapped),
+                 '%d lines' % len(wrapped))
+    report.check('and one row cannot take over the screen',
+                 len(debug._wrapped('x ' * 400)) == debug.TRACE_LINES)
+
+    # A capture redirected to a file has no codepage to mismatch, and the
+    # locale default here is cp1252 - which turned every Swedish answer in
+    # `dbg.py > session.txt` into a row of question marks.
+    piped = io.TextIOWrapper(io.BytesIO(), encoding='cp1252')
+    debug._printable(piped)
+    report.check('a redirected stream is written as UTF-8',
+                 piped.encoding.lower().replace('-', '') == 'utf8',
+                 piped.encoding)
+
+
+# ---- the model knows which model it is -------------------------------------
+
+def test_identity(report):
+    """Asked what it is, a model with nothing told to it answers out of its
+    training - a name, a version and a maker, any of which can be wrong for a
+    local tag somebody quantised last week."""
+    from coaxial_ollama import debug
+
+    box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    talk = debug.Chat(ScriptedModel([], model='gemma4:12b'), box,
+                      tools='code', out=io.StringIO())
+    talk.history = [{'role': 'user', 'content': 'which model are you?'}]
+    system = talk.trim()[0]['content']
+    report.check('the turn says which tag is actually running',
+                 'gemma4:12b' in system, system.splitlines()[3][:60])
+    report.check('and that it builds and programs this board itself',
+                 'build system' in system and 'SWD' in system)
+
+    # A tool set that cannot build must not claim it can - that is the same
+    # invention this loop exists to prevent, just in the system prompt.
+    reader = debug.Chat(ScriptedModel([], model='gemma4:12b'), box,
+                        tools='read', out=io.StringIO())
+    reader.history = [{'role': 'user', 'content': 'which model are you?'}]
+    read_system = reader.trim()[0]['content']
+    report.check('a set without build_firmware claims nothing about building',
+                 'gemma4:12b' in read_system and 'build system' not in read_system)
+
+    report.check('the prompt says what it is before what it costs',
+                 'inverter' in debug.ROLE
+                 and 'builds and programs' in debug.BUILDS)
+
+
 # ---- documentation sized for whoever is reading it -------------------------
 
 def test_detail(report):
@@ -2429,12 +2549,21 @@ def test_coerce(report):
         report.check('an alias cannot point at a channel that is absent',
                      'unknown channel' in str(exc), str(exc)[:46])
 
+    # A near miss that can only mean one channel now reads it instead of
+    # refusing with the name it meant printed in the refusal. Measured at the
+    # prompt with `bus`, which is inside `dcbus` and inside nothing else.
+    report.check('a name that can only mean one channel reads that one',
+                 _resolve(board, ['dcbusvoltage']) == _resolve(board, ['bus'])
+                 == _resolve(board, ['dcbus']))
+    report.check('and a word for what it measures resolves too',
+                 _resolve(board, ['temp']) == _resolve(board, ['ntc']))
     try:
-        _resolve(board, ['dcbusvoltage'])
-        report.check('a near miss is named in the error', False)
+        _resolve(board, ['phas'])
+        report.check('a name that could mean several names them', False)
     except ValueError as exc:
-        report.check('a near miss is named in the error',
-                     "did you mean 'dcbus'" in str(exc), str(exc)[:56])
+        report.check('a name that could mean several names them',
+                     'could be' in str(exc) and 'phaseu' in str(exc),
+                     str(exc)[:70])
 
     report.check('a mixed list still resolves in order',
                  _resolve(session, ['phase_u', 'NTC', 'dc-bus'])
@@ -2841,6 +2970,7 @@ def main():
                  test_debug, test_cli,
                  test_local_only, test_runner_crash_retry,
                  test_out_of_memory, test_context_budget, test_detail,
+                 test_screen, test_identity,
                  test_keep_alive,
                  test_coerce,
                  test_capability, test_docs):

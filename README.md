@@ -1,4 +1,4 @@
-# coaxial_63100
+# Coaxial 63100
 
 Control firmware and a Python host library for a **coaxial BLDC inverter** — a
 three-phase drive whose PCB sits coaxially behind the rotor of an outrunner. The

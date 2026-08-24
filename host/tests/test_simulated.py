@@ -82,6 +82,35 @@ def test_analog_read(report):
                  'NTC' in ntc_only and 'Phase' not in ntc_only,
                  ntc_only[:120])
 
+    # What a question calls a channel, not what the table calls it. Measured
+    # at the prompt: ch=['bus'] came back "unknown channel 'bus'; names are
+    # ch3,ch6,dcbus,ntc,..." - a refusal listing the channel it meant.
+    named = SimulatedSession()
+    toolmod.afe_power(named, action='on')
+    for asked, expect in (('bus', 'DCbus'), ('temp', 'NTC'),
+                          ('vbus', 'DCbus'), ('temperature', 'NTC'),
+                          ('dc_bus', 'DCbus'), ('phase_a', 'PhaseU'),
+                          ('w', 'PhaseW')):
+        text = toolmod.analog_read(named, ch=[asked])
+        report.check('%r reads the channel it means (%s)' % (asked, expect),
+                     expect in text and 'unknown' not in text, text[-60:])
+
+    # A word that could mean several is a question nobody narrowed, not a
+    # typo. Naming the candidates beats "unknown", which reads as "no such
+    # thing" and sends the next call somewhere else.
+    try:
+        toolmod.analog_read(named, ch=['phas'])
+        report.check('an ambiguous name names its candidates', False)
+    except ValueError as exc:
+        report.check('an ambiguous name names its candidates',
+                     'PhaseU' in str(exc) or 'phaseu' in str(exc), str(exc)[:80])
+    try:
+        toolmod.analog_read(named, ch=['ntx'])
+        report.check('a name that means nothing is still refused', False)
+    except ValueError as exc:
+        report.check('a name that means nothing is still refused',
+                     'unknown channel' in str(exc), str(exc)[:60])
+
 
 def test_self_test_and_link(report):
     session = SimulatedSession()

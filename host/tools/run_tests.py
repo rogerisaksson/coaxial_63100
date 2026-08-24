@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run this project's own offline test suites and print one deterministic
+"""Run this project's own test suites and print one deterministic
 tally - the same numbers each suite already counts itself, never a summary
 an LLM was asked to write.
 
@@ -26,6 +26,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]           # host/
 DEFAULT_SUITES = ('test_ollama.py', 'test_mcp.py', 'test_simulated.py')
 CONFORMANCE = 'test_conformance.py'
+
+# Suites that talk to the hardware. test_mcp.py says so in its own docstring
+# - it drives the real server over stdio against a real port - but this script
+# called the default set 'offline' and so did the docs, which is how an
+# unplugged board turned into '22 failed' in a verify loop that was meant to
+# be checking a code change. A cable is not a regression, and the tally has to
+# be able to tell the difference.
+NEEDS_BOARD = ('test_mcp.py', CONFORMANCE)
 
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed$')
 FAIL_RE = re.compile(r'^\s*FAIL\s+(.+?)\s{2,}')
@@ -60,6 +68,29 @@ def run_one(path, timeout=300):
     return tally, done.returncode, failing, elapsed, None
 
 
+def board_note():
+    """One line saying whether the board answered, printed only when a suite
+    that needs it failed.
+
+    Asked, not assumed: 'the board is probably unplugged' is a guess, and this
+    script's whole reason for existing is that a guess in place of a fact is
+    what goes wrong here. find_board does the same probe link_diagnose does.
+    """
+    try:
+        sys.path.insert(0, str(ROOT / 'tools'))
+        import find_board
+        ports = find_board.list_ports()
+    except Exception as exc:                                  # noqa: BLE001
+        return '  (could not check whether the board is attached: %s)' % exc
+    if not ports:
+        return ('  NOTE: Windows sees no COM ports at all - every failure '
+                'above in %s is the cable, not the code.'
+                % ', '.join(NEEDS_BOARD))
+    return ('  NOTE: %s need a board answering on COM4. Ports present: %s. '
+            'Run with --offline to judge a host change without one.'
+            % (', '.join(NEEDS_BOARD), ', '.join(ports)))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--conformance', action='store_true',
@@ -67,12 +98,18 @@ def main(argv=None):
                              'board on COM4, not just simulated')
     parser.add_argument('--file', action='append', default=[],
                         help='run only this test file (repeatable), instead '
-                             'of the default offline set')
+                             'of the default set')
+    parser.add_argument('--offline', action='store_true',
+                        help='skip the suites that need the board on COM4 '
+                             '(test_mcp.py), leaving what a change to the '
+                             'host code can be judged by with no cable')
     args = parser.parse_args(argv)
 
     suites = list(args.file) if args.file else list(DEFAULT_SUITES)
     if args.conformance and not args.file:
         suites.append(CONFORMANCE)
+    if args.offline:
+        suites = [name for name in suites if name not in NEEDS_BOARD]
 
     total_pass = total_fail = 0
     failing_lines = []
@@ -102,6 +139,9 @@ def main(argv=None):
     print('TOTAL %d passed, %d failed' % (total_pass, total_fail))
     for line in failing_lines:
         print('  ' + line)
+    if total_fail and any(line.split(':')[0] in NEEDS_BOARD
+                          for line in failing_lines):
+        print(board_note())
     return 0 if ok else 1
 
 

@@ -152,7 +152,18 @@ daemon's own choice beat everything tried against it.
 
 ### The prompt, and what stops an answer short
 
-Two things a reader of a transcript will notice before anything else.
+A session opens with what this prompt *is*, before what it costs: a senior
+engineer for this inverter — firmware, the analog front end, the Modbus link —
+and, when the tools are actually loaded, the thing that builds and programs the
+unit. Printed by the host (`ROLE`, `BUILDS` in `debug.py`), not generated: it is
+the same two sentences every session, and asking a model to write them would
+cost a load, a turn and the chance of getting them wrong. The build sentence is
+conditional on `build_firmware` being in the set, because a prompt claiming a
+tool it does not have is the same invention this loop exists to prevent. The
+system message carries the second half of that identity — the running tag, and
+the build capability under the same condition.
+
+Two more things a reader of a transcript will notice before anything else.
 
 The prompt spins beside the board's name — `|`, `/`, `–`, `\` in one column —
 **and keeps spinning while you type**. The first version stopped at the first
@@ -302,59 +313,26 @@ attempts. A request ollama *refused* — a bad schema, an unknown field — is
 never retried, because asking again just makes the same mistake twice. A
 machine genuinely out of memory still fails, in seconds, rather than looping.
 
-### Why it dies: the prompt cache, and 32 checkpoints of 320 MiB
+### Why it dies, and the two variables that stop it
 
-The retry above hides the symptom. This is the cause, read out of
-`%LOCALAPPDATA%\Ollama\server.log` while reproducing it deliberately:
-
-```
-slot get_availabl: - checking sim = 0.255 (323/1265) > 0.100
-srv   prompt_save:  - saving prompt with length 1446, total state size = 342.623 MiB
-libc++abi: terminating due to uncaught exception of type std::bad_alloc
-llama-server terminated  exit.code=3221226505 (0xc0000409)
-```
-
-Two allocators, both llama-server's, neither of them about the size of the
-question:
-
-* **The prompt cache.** `prompt cache is enabled, size limit: 8192 MiB`.
-  When a new prompt shares little of its prefix with the cached one, the
-  server saves the whole slot state — ~340 MiB here — into that cache before
-  starting the new one. Every question in a bench session is that case:
-  `debug.Chat` clears its history after each answered turn on purpose, so the
-  prefix after the system prompt is new every time (`sim = 0.25` … `0.33`
-  measured). The allocation intermittently throws, uncaught, and takes the
-  process with it.
-* **Context checkpoints.** `context checkpoints enabled, max = 32`, each one
-  `320.013 MiB` — a size fixed by the context window, not by the prompt. 32 of
-  those is 10 GB beside 8 GB of weights on a 16 GB card.
-
-**Prompt length is not the trigger**, and that is worth stating plainly
-because it is the obvious hypothesis and it is wrong: the crashing prompts
-were 1249 and 1446 tokens of an 8192-token window, and the state saved was
-339 MiB and 342 MiB — the *same*, because the checkpoint size saturates. See
+The retry above hides the symptom; the cause is llama-server's own memory,
+not this loop's prompt. It saves a ~340 MiB slot state to its prompt cache
+whenever a question's prefix diverges early from the cached one — which is
+every question here — and keeps up to 32 context checkpoints of 320.013 MiB
+each, a size fixed by the context window rather than by the prompt. The
+evidence, and why prompt length is *not* the trigger, is in
 [FINDINGS.md](FINDINGS.md).
-
-Two environment variables fix it, and `board_prompt.ps1` now sets them and
-restarts the daemon once if it has to (`-NoTune` opts out) — see
-`$DaemonTuning` in `board_prompt/Ollama.ps1`:
 
 ```
 LLAMA_ARG_CACHE_RAM       = 0   # no prompt cache: nothing here re-asks an old prompt
-LLAMA_ARG_CTX_CHECKPOINTS = 2   # instead of 32; checkpoint 1 is restored on the next turn anyway
+LLAMA_ARG_CTX_CHECKPOINTS = 2   # instead of 32; checkpoint 1 is restored next turn anyway
 ```
 
-Measured, same twelve-question session either way: untuned, the runner died
-and reloaded 8 GB mid-session, twice in two attempts; tuned, 36 model calls,
-zero `std::bad_alloc`, one model load. They are `LLAMA_ARG_*` rather than
-`OLLAMA_*` because they belong to llama.cpp's argument parser, which reads
-them out of the environment ollama hands its runner — `ollama serve --help`
-does not list them, `libllama-common.dll` does.
-
-An already-running daemon keeps the environment it was started with, which is
-why setting them is not enough on its own and the restart exists. They are
-persisted at User scope too, so the tray app inherits them at the next login
-and the restart never happens again.
+`board_prompt.ps1` sets both, into its own process and at User scope, and
+restarts the daemon once if it was already running — an existing daemon keeps
+the environment it started with, so setting them is otherwise inert. `-NoTune`
+opts out; `-KeepOthers` blocks the restart rather than taking somebody else's
+loaded model with it. See `$DaemonTuning` in `board_prompt/Ollama.ps1`.
 
 ### When there really is no room
 
@@ -580,6 +558,7 @@ carry the detail that is worth more than a row.
 | (schema) build_firmware exists | "Nej, jag programmerar inte firmwaren själv" - training beat the schema | `BUILD_FIRMWARE_HINT`, sent only when the tool is offered |
 | (schema) link_diagnose exists | called `build_firmware` when asked why the board was silent - a guess at a fix, not a diagnosis | `LINK_DIAGNOSE_HINT` |
 | (schema) run_command's allowlist | tried `python3` (not allowlisted) and the wrong directory | `BUILD_HINT` |
+| (nothing said which model it is) | answered the tag question out of its training, a name and a maker that need not match `ollama ps` | the turn's system message names the tag the daemon was asked for |
 
 Two things that table is not. It is not an argument against writing the rule
 down - every one of those rules is still in `SYSTEM`, because the model does
@@ -705,6 +684,40 @@ triggered that nudge had its session language flip to English on the very next
 `trim()`, the operator's own words still in history but no longer the ones
 being read. `trim()` now reads `self.prompt_history[-1]` - appended exactly
 once per turn, at the top of `ask()`, before the turn can add anything.
+
+### The dead link, explained twice on one screen
+
+Measured with the board unplugged: every board question printed
+`link_diagnose`'s four-step checklist **twice** - once as the tool trace, once
+inside the answer - and paid the ST-Link's fifteen-second timeout for both,
+because `_link_down_message` called the tool again rather than reusing what
+the model had already called this turn. The two copies were not even the same
+text: the trace cut each row at 96 characters, mid-word, while the answer
+carried it whole.
+
+Two fixes, one rule apiece. The answer now says only what the trace does not
+(`shown=` in `_link_down_message`): one line, the error class and its first
+clause, no checklist. And the trace wraps rather than cutting - a reading row
+is inside the width and untouched, prose continues on the next line, and no
+row may take more than `TRACE_LINES` of them.
+
+`-q` is the exception and keeps the whole thing: with no trace on screen,
+the checklist has nowhere else to be.
+
+### A channel called by what it measures
+
+`ch=['bus']` came back `unknown channel 'bus'; names are ch3,ch6,dcbus,ntc,...`
+- a refusal listing the channel it meant. `_key` had always collapsed
+punctuation (`dc_bus`, `DC bus`) and `PHASE_ALIASES` the other phase
+convention (`phase_a`), but neither reaches a word that is simply what the
+operator calls the thing.
+
+Two rules now, in `_alias`: a small table for the semantic names (`bus`,
+`vbus`, `temp`, `temperature`, `thermistor`), and a unique substring match for
+everything else - `bus` is inside `dcbus` and inside nothing else, so it
+resolves; `phas` is inside three channels, so it raises `could be phaseu or
+phasev or phasew - say which` instead of "unknown", which reads as "no such
+thing" and sends the next call somewhere else.
 
 ### The eager board connect that ended a turn before it started
 

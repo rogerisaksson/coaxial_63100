@@ -34,6 +34,7 @@ import json
 import os
 import re
 import sys
+import textwrap
 import threading
 import time
 
@@ -43,13 +44,12 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import RigError                  # noqa: E402
-from coaxial_mcp import render                        # noqa: E402
-
 from coaxial_mcp import detail                       # noqa: E402
+from coaxial_mcp import render                       # noqa: E402
 
-from . import context
-from . import language
-from . import replies
+from . import context                                # noqa: E402
+from . import language                               # noqa: E402
+from . import replies                                # noqa: E402
 from . import tools as toolmod                       # noqa: E402
 from . import spinner as spin                        # noqa: E402
 from .context import approx_tokens                   # noqa: E402
@@ -168,6 +168,21 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
 # program is running where the useful thing to know is which bench.
 PROMPT = 'Coaxial 63100'
 
+# The first two lines of a session, and the second one only when the tools
+# behind it are actually loaded. A model list and a token count say what this
+# costs; neither says what it is for, and "senior firmware engineer at a
+# bench" is the half an operator can guess. The half nobody guesses is that
+# the same prompt compiles the firmware and puts it on the board - measured:
+# asked directly whether it builds and flashes, the model had said no with
+# build_firmware sitting in its own tool list (see BUILD_FIRMWARE_HINT), and
+# an operator who never asks is simply never told.
+ROLE = ('Senior engineer for this coaxial BLDC inverter: firmware, the analog '
+        'front end,\nand the Modbus link, over a live serial connection to '
+        'the board.')
+BUILDS = ('It also builds and programs this unit: `build_firmware` compiles '
+          'the firmware\nand flashes it over SWD, and `run_tests` runs the '
+          'suites - ask in plain language.')
+
 # How long ollama holds the weights after the last turn. Two numbers, because
 # the two modes want opposite things.
 #
@@ -208,6 +223,16 @@ CONTACT_LOST = {'ConnectError', 'NoReplyError', 'CrcError', 'FrameError',
 # prints something much longer.
 TRACE_ROWS = 24
 
+# How wide a traced row is before it continues on the next line, and how many
+# lines one row may take. Wrapped rather than cut: the renderers' own output is
+# fixed-column and comfortably inside this, so wrapping never touches a
+# reading - but link_diagnose's checklist is prose, and a hard cut took a
+# sentence off mid-word ("...and that the last program") while the same text
+# arrived whole in the answer below it. The line cap keeps the bound TRACE_ROWS
+# is there for.
+TRACE_WIDTH = 96
+TRACE_LINES = 3
+
 # Tools where the same call twice is meaningful - a reading changes with time,
 # and code is trusted to know why it is running again. Everything else answers
 # the same question with the same fact each time, so a repeat within one turn
@@ -233,17 +258,50 @@ def _printable(stream):
     already taken. Replacing the character loses a glyph; raising loses the
     reading.
 
-    This never forces an encoding of its own - it reads whichever one Python
-    already detected from the console. Forcing UTF-8 here regardless of what
-    the console itself is set to would fix the encode and hand a mismatched
+    This never forces an encoding on a console - it reads whichever one Python
+    already detected from it. Forcing UTF-8 there regardless of what the
+    console itself is set to would fix the encode and hand a mismatched
     console mojibake for the characters it *can* display, which is a worse
     trade for the languages actually spoken at this bench.
+
+    A stream that is not a console is the opposite case and gets UTF-8
+    outright: a file or a pipe has no codepage to mismatch, and the locale
+    default is cp1252 here, so `dbg.py > session.txt` turned every Swedish
+    answer in the capture into 'ppnat' and 'skerstll'. Nothing reads that
+    back with a codepage in mind - not a later session, not a bug report, not
+    whoever is grepping it.
     """
     try:
-        stream.reconfigure(errors='replace')
+        if stream.isatty():
+            stream.reconfigure(errors='replace')
+        else:
+            stream.reconfigure(encoding='utf-8', errors='replace')
     except (AttributeError, OSError, ValueError):
         pass
     return stream
+
+
+def _wrapped(line):
+    """One traced row as the lines it takes on screen, indented.
+
+    A row that fits comes back untouched, which is every row of every reading
+    this board produces. Only prose wraps, and the continuation keeps the
+    row's own leading indentation so a numbered checklist still reads as one.
+    """
+    body = '  %s' % line.rstrip()
+    if len(body) <= TRACE_WIDTH:
+        return [body]
+    lead = len(line) - len(line.lstrip())
+    parts = textwrap.wrap(body, width=TRACE_WIDTH,
+                          subsequent_indent=' ' * (4 + lead),
+                          break_long_words=False, break_on_hyphens=False)
+    if not parts:
+        return [body[:TRACE_WIDTH]]
+    if len(parts) <= TRACE_LINES:
+        return parts
+    parts = parts[:TRACE_LINES]
+    parts[-1] += ' [...]'
+    return parts
 
 
 # The most of a piped or attached input that becomes part of a question.
@@ -522,8 +580,30 @@ class Chat:
                      'troubleshooting steps already tried in this '
                      'conversation, not separate unrelated questions.'
                      % '; '.join('"%s"' % clip(q, 60) for q in prior))
+        # Which model this is, from the tag the daemon was actually asked for
+        # rather than from whatever the weights remember being called. Asked
+        # at the prompt, a model with nothing told to it answers out of its
+        # training - a name, a version and a maker, all three of which can be
+        # wrong for a local tag someone quantised last week. Six tokens buys
+        # an answer that matches `ollama ps`.
+        # The tag verbatim, and asked for verbatim: told only "you are the
+        # local model gemma4:12b", it answered "Jag ar Gemma 4" - aware of
+        # what it is, and one paraphrase away from a name that no longer
+        # matches `ollama ps` or a bug report.
+        who = ('Your model tag is exactly "%s", run locally by ollama on this '
+               'bench; give that tag verbatim if asked which model you are.'
+               % getattr(getattr(self, 'client', None), 'model', 'unknown'))
+        if 'build_firmware' in names:
+            # Said as identity, not only as the instruction BUILD_FIRMWARE_HINT
+            # carries: "what am I" and "what do I do when asked to flash" are
+            # different questions, and the second hint never answered the
+            # first. Conditional, because a tool set without build_firmware
+            # cannot build anything and a system prompt claiming otherwise is
+            # the same invention this loop exists to prevent.
+            who += (' You are this board\'s build system too: you compile its'
+                    ' firmware and program it over SWD yourself.')
         sent = [{'role': 'system',
-                 'content': SYSTEM + hint + '\n'
+                 'content': SYSTEM + '\n' + who + hint + '\n'
                            + language.instruction_for(self.language)}]
         for message in head:
             content = (message.get('content') or '').strip()
@@ -594,7 +674,7 @@ class Chat:
                              'name': 'link', 'content': 'link: %s' % probe})
         return probe
 
-    def _link_down_message(self, link_error):
+    def _link_down_message(self, link_error, shown=False):
         """'link is down, not answered: ...', plus why - run here, by the
         host, every time the link is down, rather than left for the model
         to think to call link_diagnose. Measured on this bench: a raw
@@ -603,8 +683,31 @@ class Chat:
         sees right now, whether the configured one is even among them) is a
         fact this loop can just go get, not something worth gambling on the
         model reaching for the right tool.
+
+        `shown` means the model already called link_diagnose this turn and
+        its four-step checklist is on screen directly above. Measured with
+        the board unplugged: every board question then printed that checklist
+        twice - once clipped as a tool trace, once whole as the answer - and
+        paid the ST-Link's fifteen-second timeout twice to do it. The same
+        rule as the retyped table below: what the trace already shows is not
+        worth saying again.
+
+        The error keeps its class and its cause and loses its generic tail
+        ('-> check the board is powered, and that a JTAG programmer...'):
+        that advice exists for a reader with nothing else, and a reader with
+        a specific four-step answer above is not that reader.
         """
-        message = 'link is down, not answered: %s' % link_error
+        text = str(link_error)
+        if shown:
+            # The class and its first clause: 'ERR ConnectError: cannot open
+            # COM9 at 115200 baud', not that plus the port name again, the
+            # OS exception's own repr and the generic advice. All of it is on
+            # screen above already; what this line is for is saying that the
+            # question went unanswered and by what.
+            head = text.split(' -> ')[0]
+            return 'link is down, not answered: %s' \
+                % clip(': '.join(head.split(': ')[:2]), 120)
+        message = 'link is down, not answered: %s' % text
         try:
             diagnosis = self.toolbox.call('link_diagnose', {})
         except Exception:                                     # noqa: BLE001
@@ -634,6 +737,7 @@ class Chat:
         link_error = None
         code_error = None  # last run_python/run_command result, if it failed
         last_channels = None      # names in the most recent analog_read table
+        diagnosed = False  # link_diagnose ran this turn, and was traced
         seen = {}          # (name, args) this turn -> its rendered result
         nudges = 0         # times told to call the tool it just named, or to
                            # take a fresh reading instead of an old one
@@ -776,6 +880,11 @@ class Chat:
                         # next turn's question - gets a fresh connect()
                         # instead of the same dead handle.
                         self.toolbox.session.reset()
+                if name == 'link_diagnose' and not str(raw).startswith('ERR'):
+                    # Its checklist is on screen from the trace below. What
+                    # the answer says about a dead link changes accordingly -
+                    # see _link_down_message.
+                    diagnosed = True
                 if name in toolmod.CODE_CALLS:
                     # A build that failed, or a --confirm the operator
                     # declined, is a fact this loop already has. Measured on
@@ -818,7 +927,11 @@ class Chat:
         # right there in its own context. The system prompt already tells it
         # not to; this is the case where telling it was not enough.
         if link_error is not None:
-            answer = self._link_down_message(link_error)
+            # `and not self.quiet`: with the trace off there is nothing on
+            # screen above this, so the checklist has to come with the answer
+            # or the operator is told the link is down and nothing else.
+            answer = self._link_down_message(link_error,
+                                             shown=diagnosed and not self.quiet)
         elif code_error is not None:
             answer = 'the last run_python/run_command call failed, nothing ' \
                      'was done: %s' % code_error
@@ -1018,7 +1131,8 @@ class Chat:
         lines = str(result).splitlines() or ['']
         with self.print_lock:
             for line in lines[:TRACE_ROWS]:
-                print('  %s' % line[:96], file=self.out, flush=True)
+                for part in _wrapped(line):
+                    print(part, file=self.out, flush=True)
             if len(lines) > TRACE_ROWS:
                 print('  ... [%d more rows]' % (len(lines) - TRACE_ROWS),
                       file=self.out, flush=True)
@@ -1210,6 +1324,14 @@ def build(args):
 def repl(chat, hold=False):
     from .client import OllamaError
 
+    # What this prompt is, before what it costs. Printed by the host, not
+    # generated: it is the same two sentences every session, and asking a
+    # model to write them would cost a load, a turn and the chance of it
+    # getting them wrong. The second sentence is conditional on the tools
+    # actually being there - see the note under `who` in trim().
+    print(ROLE)
+    if {'build_firmware', 'run_command'} & set(chat.tool_names):
+        print(BUILDS)
     print('%s, tools: %s (%s, %d tok/turn). /help, /q to leave.'
           % (chat.client.model, ', '.join(chat.tool_names) or 'none',
              chat.detail, chat.tool_cost()))

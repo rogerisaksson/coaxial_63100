@@ -260,6 +260,19 @@ PHASE_ALIASES = {
     'u': 'phaseu', 'v': 'phasev', 'w': 'phasew',
 }
 
+# Names for a channel by what it measures rather than by what it is called.
+# `bus` and `temp` are what a question asks for - "read the bus", "what is the
+# temperature" - and neither is a spelling of dcbus or ntc that any amount of
+# punctuation-stripping reaches. Measured at the prompt: ch=['bus'] came back
+# `unknown channel 'bus'; names are ch3,ch6,dcbus,ntc,...`, which is a tool
+# refusing the word the operator used for the channel sitting in its own list.
+SIGNAL_ALIASES = {
+    'bus': 'dcbus', 'vbus': 'dcbus', 'dc': 'dcbus', 'dclink': 'dcbus',
+    'link': 'dcbus', 'busvoltage': 'dcbus', 'voltage': 'dcbus',
+    'temp': 'ntc', 'temperature': 'ntc', 'thermistor': 'ntc',
+    'thermal': 'ntc', 'degc': 'ntc',
+}
+
 
 def _alias(key, by_name):
     """The name this board knows, for a name somebody else's board uses.
@@ -267,23 +280,39 @@ def _alias(key, by_name):
     Only ever maps onto a channel that exists: a board without a Phase U has
     no business turning `a` into one.
     """
-    target = PHASE_ALIASES.get(key)
+    target = PHASE_ALIASES.get(key) or SIGNAL_ALIASES.get(key)
     if target and target in by_name:
         return target
+    # Not a name this board knows and not an alias either, but it may still
+    # single one out - `bus` is inside `dcbus` and inside nothing else. One
+    # match resolves; several is genuinely ambiguous and falls through to the
+    # refusal, which lists them.
+    found = _matches(key, by_name)
+    if len(found) == 1:
+        return found[0]
     return key
 
 
-def _closest(key, by_name):
-    """The name a typo was probably reaching for, or None.
+def _matches(key, by_name):
+    """Every channel this key could mean, by prefix or by containment.
 
-    Prefix and containment only - no edit distance. The failures worth catching
-    here are `dcbusvoltage` and `phas`, not `ntx`, and a suggestion that is
-    wrong is worse than none: it sends the next call somewhere confident.
+    Containment, not just prefix, because of what a model actually writes:
+    `bus` for `dcbus` was measured at the prompt and refused outright, with
+    the name it wanted listed in the refusal one prefix away. No edit
+    distance - the failures worth catching are `dcbusvoltage`, `phas` and
+    `bus`, not `ntx`, and a guess that is wrong sends the next call somewhere
+    confident.
     """
-    for name in sorted(by_name):
-        if name.startswith(key) or key.startswith(name):
-            return name
-    return None
+    if not key:
+        return []
+    return [name for name in sorted(by_name)
+            if name.startswith(key) or key.startswith(name) or key in name]
+
+
+def _closest(key, by_name):
+    """The one name a key could mean, or None when it could mean several."""
+    found = _matches(key, by_name)
+    return found[0] if len(found) == 1 else None
 
 
 def _resolve(session, wanted):
@@ -312,11 +341,16 @@ def _resolve(session, wanted):
         elif key in by_name:
             index = by_name[key]
         else:
-            near = _closest(key, by_name)
-            raise ValueError('unknown channel %r%s; names are %s'
-                             % (text,
-                                ' - did you mean %r?' % near if near else '',
-                                ','.join(sorted(by_name))))
+            # Several matches is not a typo, it is a question that has not
+            # been narrowed - `phas` on a three-phase board. Naming them
+            # beats "unknown", which reads as "no such thing" and sends the
+            # next call somewhere else entirely.
+            found = _matches(key, by_name)
+            if len(found) > 1:
+                raise ValueError('channel %r could be %s - say which'
+                                 % (text, ' or '.join(found)))
+            raise ValueError('unknown channel %r; names are %s'
+                             % (text, ','.join(sorted(by_name))))
         if not 0 <= index < len(channels):
             raise ValueError('channel %d out of range 0..%d'
                              % (index, len(channels) - 1))
