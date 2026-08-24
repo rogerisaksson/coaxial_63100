@@ -197,12 +197,21 @@ label: `dbg.py` in the prompt tag, `python -m coaxial_mcp` on stderr
 (`--simulated` forces the stand-in, `--auto` searches), `test_mcp.py` and
 `test_live_model.py` in a header line before the first `PASS`.
 
-Mid-session, `/board simulated | auto | COM4` swaps it and the prompt tag
-follows on the next line — the same factory, so the screen and the tools cannot
+Mid-session, `/board simulated | auto | rs485 | COM4` swaps it and the prompt
+tag follows on the next line — the same factory, so the screen and the tools cannot
 drift apart. `/model TAG` does the same one layer up, and hands the old model's
 VRAM back **before** asking for the new one: the other order is a request for
 two copies of the weights on one card. Both cost zero model tokens, which is
 the point — neither is a thing to ask a model to do.
+
+Nor is either a thing to *ask* a model to do in prose. `debug.board_switch()`
+reads "byt till debugproben", "växla till COM4", "switch to the real board" as
+the orders they are and carries them out without a model turn — the same shape
+as `language.bare_switch`, and settled the same way: a verb, a target, and
+nothing left over once the filler is taken out. `rs485` narrows the search past
+the debug probe (`find_board.discover(only=...)`), because probe-first would
+otherwise answer with the one board the operator just ruled out. A search that
+finds nothing says so rather than reporting only where it ended up.
 
 `test_conformance.py` deliberately does not use it. It is an independent
 byte-level master, built from the specification so a shared wrong assumption

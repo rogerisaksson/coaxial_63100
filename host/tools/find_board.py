@@ -100,17 +100,22 @@ def kind_of(device):
     return SERIAL
 
 
-def discover(preferred=None, baud=115200, unit=1):
+def discover(preferred=None, baud=115200, unit=1, only=None):
     """`(device, kind)` of the first port this board answers on, or
     `(None, None)`.
 
     Order: `preferred` if Windows lists it, then every debug probe, then
-    everything else. The probe goes first because it is the one that is
+    everything else. `only=PROBE` or `only=SERIAL` narrows it to one path. The probe goes first because it is the one that is
     there by definition when somebody is at a bench with a cable in - RS485
     is the installed drive's path, and trying it first would spend a round
     trip per port on the common case.
     """
     listed = kinds()
+    if only:
+        # "byt till RS485" names the path, not a port. Without this the
+        # probe-first order would answer it with the debug probe, which is
+        # the one board the operator just said they did not mean.
+        listed = [p for p in listed if p[1] == only]
     ordered = ([p for p in listed if p[0] == preferred]
               + [p for p in listed if p[1] == PROBE and p[0] != preferred]
               + [p for p in listed if p[1] == SERIAL and p[0] != preferred])

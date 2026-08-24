@@ -155,6 +155,77 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
 # among several is which bench, not which program.
 PROMPT = 'Coaxial 63100'
 
+# What the operator can call a board, and what open_session takes for it.
+# 'simulated' wins wherever it appears: "en simulerad enhet" names both a
+# kind and a thing, and the qualifier is the half that decides.
+BOARD_WORDS = {
+    'simulerad': 'simulated', 'simulerat': 'simulated',
+    'simulerade': 'simulated', 'simulated': 'simulated', 'sim': 'simulated',
+    'stand': 'simulated', 'låtsaskort': 'simulated',
+
+    'debugproben': 'auto', 'debugprobe': 'auto', 'debugprob': 'auto',
+    'debugprobben': 'auto', 'proben': 'auto', 'probe': 'auto',
+    'debuggern': 'auto', 'debugger': 'auto', 'jtag': 'auto', 'swd': 'auto',
+    'stlink': 'auto', 'st': 'auto', 'link': 'auto',
+    'riktig': 'auto', 'riktiga': 'auto', 'riktigt': 'auto', 'real': 'auto',
+    'auto': 'auto', 'verkliga': 'auto', 'fysiska': 'auto',
+
+    'rs485': 'rs485', 'rs': 'rs485', '485': 'rs485', 'fältbussen': 'rs485',
+    'fieldbus': 'rs485',
+}
+
+# Verbs that order a swap rather than ask about one. Same gate as
+# language._REQUEST_VERBS: without it, "vad ar debugproben" reads as an
+# order because it names one.
+_BOARD_VERBS = ('byt', 'byta', 'byter', 'växla', 'växlar', 'koppla',
+                'kör', 'använd', 'ta',
+                'switch', 'switches', 'change', 'use', 'connect', 'go')
+
+# Nouns and function words that can sit around the target without the
+# message being about anything else. A word outside all three sets means
+# there is a real question in here and the model answers it.
+_BOARD_FILLER = (
+    'till', 'to', 'over', 'över', 'mot', 'via', 'på', 'in', 'en', 'ett',
+    'den', 'det', 'the', 'a', 'an', 'du', 'nu', 'now', 'tack', 'please',
+    'igen', 'again', 'tillbaka', 'back', 'kan', 'can',
+    'enhet', 'enheten', 'device', 'board', 'kort', 'kortet', 'hårdvara',
+    'hårdvaran', 'hardware', 'brädan', 'target', 'och', 'and',
+)
+
+_COM_PORT = re.compile(r'^com\d+$', re.I)
+
+
+def board_switch(text):
+    """The board `text` orders a swap to, when it orders nothing else.
+
+    "byt till debugproben" is the host's to carry out - the same shape as
+    a bare language switch, and for the same reason: the session's board
+    is host state, and a model asked to change it can only describe or
+    refuse. Measured three times, it did both and then read a channel.
+
+    None when a word is left over once the verb, the target and the filler
+    are taken out - "vad ar debugproben" keeps `vad`, so it goes to the
+    model as before.
+    """
+    words = [w.lower() for w in re.findall(r'[^\W_]+', text or '')]
+    if not any(w in _BOARD_VERBS for w in words):
+        return None
+    ports = [w.upper() for w in words if _COM_PORT.match(w)]
+    targets = [BOARD_WORDS[w] for w in words if w in BOARD_WORDS]
+    if not targets and not ports:
+        return None
+    for word in words:
+        if not (word in BOARD_WORDS or word in _BOARD_VERBS
+                or word in _BOARD_FILLER or _COM_PORT.match(word)):
+            return None
+    # A named port beats a kind: "byt till COM7" said which one.
+    if ports:
+        return ports[0]
+    if 'simulated' in targets:
+        return 'simulated'
+    return 'rs485' if 'rs485' in targets else 'auto'
+
+
 # What /help opens with. The second line only when the tools behind it are
 # loaded: measured, the model denied being able to flash with build_firmware
 # sitting in its own list, and an operator who never asks is never told.
@@ -651,6 +722,17 @@ class Chat:
             self.io_log.turn(question)
             self.io_log.answer(answer)
             return answer
+        # Same rule one layer out: an order to change the board is the
+        # host's to carry out, not a model's to describe. Measured three
+        # times on "byt till debugproben" - it refused, then diagnosed the
+        # link, then read seven channels, and the board never changed.
+        board = board_switch(question)
+        if board:
+            answer = language.localise(self._switch_board(board),
+                                       self.screen_language())
+            self.io_log.turn(question)
+            self.io_log.answer(answer)
+            return answer
         answer = language.localise(self._ask_inner(question, max_calls),
                                    self.screen_language())
         self.io_log.answer(answer)
@@ -1033,11 +1115,21 @@ class Chat:
         want = rest.strip().lower()
         if not want:
             label = (getattr(self, 'origin', None) or ('unknown',))[0]
-            return ('board: %s. /board simulated | auto | COM4' % label)
+            return ('board: %s. /board simulated | auto | rs485 | COM4'
+                    % label)
         if want in ('sim', 'simulated', 'fake'):
             session, found = open_session(simulated=True)
         elif want == 'auto':
             session, found = open_session()
+        elif want in ('rs485', 'serial'):
+            # The field bus, not the bench cable: probes are excluded, or
+            # the probe-first order hands back the one board that was just
+            # ruled out.
+            import find_board
+            session, found = open_session(only=find_board.SERIAL)
+        elif want in ('probe', 'jtag', 'swd', 'debugger'):
+            import find_board
+            session, found = open_session(only=find_board.PROBE)
         else:
             session, found = open_session(rest.strip())
 
@@ -1054,6 +1146,12 @@ class Chat:
         # Without this, the retype backstop compares an answer against a
         # table taken from different hardware.
         self.last_channels = None
+        if not found.real and want not in ('sim', 'simulated', 'fake'):
+            # Asked for a real board and landed on the stand-in. "board:
+            # Simulated" alone is true and reads as the order being
+            # ignored - the operator cannot tell the search happened.
+            return ('board: %s - nothing answered, still on the stand-in'
+                    % found.label)
         return 'board: %s' % found.label
 
     def _reconnect(self):

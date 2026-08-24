@@ -324,6 +324,10 @@ PHRASES = {
             'kanaler.]',
         'budget of %d tokens is spent; /clear or raise --budget':
             'budgeten på %d tokens är förbrukad; /clear eller höj --budget',
+        'board: %s - nothing answered, still on the stand-in':
+            'kort: %s - inget svarade, kvar på det simulerade',
+        'board: %s':
+            'kort: %s',
         'link re-established':
             'länken återupprättad',
         ' -> check the board is powered, and that a JTAG programmer or '

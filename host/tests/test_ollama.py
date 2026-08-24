@@ -958,7 +958,12 @@ def test_link_recovery(report):
     """
     from coaxial_ollama import debug
 
-    STEP4_UP = '4. Board answers on COM4 right now: yes - the link is up.'
+    # Deliberately not the real step-4 wording: that one is in
+    # language.PHRASES, so the trace comes back in the session's language
+    # while the fake's return value stays English, and the count then
+    # measures localisation rather than duplication. What is under test
+    # here is only that the diagnosis is not printed twice.
+    STEP4_UP = 'DIAGNOSIS MARKER - the link is up'
     DEAD = 'ERR NoReplyError: unit 1, fc 0x47: silence'
 
     class Flapping:
@@ -978,8 +983,7 @@ def test_link_recovery(report):
         def call(self, name, args):
             self.calls.append(name)
             if name == 'link_diagnose':
-                return ('1. Target power (ST-Link/SWD): 3.27V - powered, '
-                        'cable seated.' + chr(10) + STEP4_UP)
+                return 'a two-line checklist' + chr(10) + STEP4_UP
             if self.fails > 0:
                 self.fails -= 1
                 return DEAD
@@ -1033,7 +1037,9 @@ def test_link_recovery(report):
         {'role': 'assistant', 'content': ''},
     ]), box, out=screen)
     talk.toolbox = box                      # the fake stands in for both
-    answer = talk.ask('byt till en simulerad enhet')
+    # Not "byt till ..." any more: board_switch intercepts that before the
+    # model is reached, and this needs a question that actually runs a turn.
+    answer = talk.ask('vad läser NTC:n?')
     whole = screen.getvalue() + chr(10) + answer
     report.check('one screen carries the checklist once, not twice',
                  whole.count(STEP4_UP) == 1, '%d copies' % whole.count(STEP4_UP))
@@ -2314,6 +2320,52 @@ def test_fallback(report):
     report.check('/board with no argument says what it is on',
                  swap.command('/board').startswith('board: Simulated'),
                  swap.command('/board'))
+
+    # An order to swap the board is the host's to carry out. Measured three
+    # times on the same session, and it never once changed board: it refused
+    # ("Jag kan inte byta till simulerad hardvara"), then diagnosed the link,
+    # then read seven channels and wrote nothing. The operator was giving an
+    # order, not asking a question, and the state is the host's either way -
+    # the same argument as language.bare_switch.
+    for question, want in (
+            ('byt till debugproben', 'auto'),
+            ('byter du till debugproben', 'auto'),
+            ('byt till en simulerad enhet', 'simulated'),
+            ('byt till simulerad hårdvara', 'simulated'),
+            ('växla till COM4', 'COM4'),
+            ('switch to the real board', 'auto'),
+            ('byt till RS485', 'rs485'),
+            ('byt till fältbussen', 'rs485'),
+            # A word left over means there is a real question in there.
+            ('vad är debugproben?', None),
+            ('byt språk till svenska', None),
+            ('läs NTC:n och DC-länken', None),
+            ('beskriv hårdvaran för en novis', None),
+            # Names a board, orders nothing.
+            ('debugproben är inte inkopplad', None)):
+        got = debug.board_switch(question)
+        report.check('board order: %s' % question[:34], got == want, str(got))
+
+    # ...and it reaches the swap, without a model turn.
+    ordered = debug.Chat.__new__(debug.Chat)
+    ordered.toolbox = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    ordered.origin, ordered.link_ok = ('Simulated', False), False
+    ordered.last_channels, ordered.language = None, None
+    ordered.io_log = debug.IOLog(enabled=False)
+    ordered.out = io.StringIO()
+    ordered.client = ScriptedModel([])
+    said = ordered.ask('byt till en simulerad enhet')
+    report.check('an order to swap the board never reaches the model',
+                 not ordered.client.prompts, '%d turns'
+                 % len(ordered.client.prompts))
+    report.check('and answers with the board it landed on',
+                 said == 'board: Simulated', said)
+    # Ordered a real board and landed on the stand-in: "board: Simulated"
+    # alone is true and reads as the order having been ignored.
+    ordered.language = None
+    said = ordered.ask('byt till debugproben')
+    report.check('a search that found nothing says so, not just where it '
+                 'ended up', 'nothing answered' in said, said)
 
     # /model: same idea one layer up. No weights are loaded here - every path
     # below either refuses or is a no-op, which is the whole logic.

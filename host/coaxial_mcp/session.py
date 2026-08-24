@@ -40,7 +40,7 @@ def _label(real, port, kind):
     return 'RS485 at %s' % port
 
 
-def open_session(port=None, baud=115200, unit=1, simulated=None):
+def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     """`(session, origin)` - the board, or a stand-in for it.
 
     `simulated=None` looks for the board rather than assuming a port:
@@ -63,7 +63,7 @@ def open_session(port=None, baud=115200, unit=1, simulated=None):
 
     kind = None
     if simulated is None:
-        found, kind = find_board.discover(port, baud, unit)
+        found, kind = find_board.discover(port, baud, unit, only=only)
         simulated = found is None
         if found is not None:
             port = found

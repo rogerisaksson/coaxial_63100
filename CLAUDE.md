@@ -92,8 +92,10 @@ The prompt names the path it found:
 conform to without firmware, so with no board it runs its CRC self-test and
 says what it skipped.
 
-At the prompt, `/board simulated | auto | COM4` and `/model TAG | auto` swap
-either one mid-session, for no model tokens. `/model` hands the old model's
+At the prompt, `/board simulated | auto | rs485 | COM4` and `/model TAG | auto`
+swap either one mid-session, for no model tokens - and so does saying it in
+prose: "byt till debugproben" is an order the host carries out, never a
+question for the model. `/model` hands the old model's
 VRAM back before asking for the new one.
 
 The ST toolchain is not on the system PATH — arm-gcc, cmake, ninja and
