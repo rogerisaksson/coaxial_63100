@@ -3,7 +3,11 @@
 ## What it is
 
 A **coaxial BLDC inverter**: a three-phase motor drive on a PCB mounted
-coaxially behind the rotor of an outrunner. The name encodes the rating.
+coaxially behind the **stator** of an outrunner. The name encodes the rating.
+
+*Coaxial* is the mechanical arrangement and nothing else. Nothing on this board
+is a coaxial cable or a coaxial connector, and the serial link is not coaxial —
+see [The link](#the-link).
 
 | | |
 |---|---|
@@ -17,8 +21,8 @@ repository that logs or limits current should be read against that.
 Two consequences of the mechanical arrangement, both of which shape what the
 measurements mean:
 
-- **Thermal.** A board sandwiched behind a spinning rotor has poor and
-  rotor-speed-dependent airflow, so the NTC channel is a real control input
+- **Thermal.** A board sandwiched behind the stator, inside a spinning rotor
+  can, has poor and rotor-speed-dependent airflow, so the NTC channel is a real control input
   rather than a diagnostic nicety.
 - **Electrical.** The phase sense sits inside a switching bridge. Any noise
   figure taken with the bridge idle is optimistic, and a figure taken while the
@@ -31,9 +35,8 @@ role beyond tracking AFE_ON is not recorded here.
 
 ## Silicon
 
-STM32H753VIT6, Cortex-M7, Device ID `0x450`, **Rev V**. Programmed with an
-STLINK-V3SET (SN `004400263335511535383531`, FW `V3J16M9B5S1`); its virtual COM
-port is **COM4**.
+STM32H753VIT6, Cortex-M7, Device ID `0x450`, **Rev V**. Programmed over SWD or
+JTAG.
 
 Rev V matters: the PLL1 VCO runs at 950 MHz, which is inside Rev V's 192-960 MHz
 window but **outside** Rev Y's 836 MHz. The clock configuration is tied to this
@@ -181,6 +184,26 @@ estimated, not verified.
 
 USART3 has `HAL_UARTEx_DisableFifoMode()` applied, so there is **no RX FIFO** — a
 single byte of overrun loses data.
+
+## The link
+
+One UART, two ways off the board. Modbus RTU rides either; so does the text
+console. The protocol is the same on both — see
+[PROTOCOL.md](PROTOCOL.md).
+
+| Path | What the host opens | Used for |
+|---|---|---|
+| Debug probe | the probe's virtual COM port | bench work: this is what `coaxial`, the MCP server and `dbg.py` talk to |
+| RS485 | a transceiver on the board, off to a field bus | a drive installed in a machine, where the probe is not there |
+
+Nothing here is coaxial. The name is the mechanical arrangement — the PCB
+behind the stator — and it says nothing about the cabling.
+
+What the firmware does **not** do: the `.ioc` configures USART3 as a plain
+asynchronous UART (`VM_ASYNC`) on PB10/PB11, and no driver-enable pin is
+configured anywhere — the only GPIO in the file are PB2 out (AFE_ON) and PE15
+in. Half-duplex RS485 direction control is therefore not the firmware's, as it
+stands.
 
 ## What this document deliberately does not contain
 

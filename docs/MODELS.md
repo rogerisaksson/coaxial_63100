@@ -719,7 +719,7 @@ the same turn. `Chat._trace` skips that one shape of result. It stays in
 unconditionally, since "why did that turn cost four calls" is exactly the
 question that log exists to answer.
 
-### Describe, answered with a table and then silence
+### Describe: a table, silence, then a cable
 
 `prompt_io.tmp`, verbatim: "Beskriv hårdvaran i detta projektet för en novis"
 → `analog_read {"ch": ["all"]}`, the table, and `A:` with nothing after it.
@@ -736,11 +736,27 @@ know: analog_read answers what a channel reads now, never what a thing is.*
 Re-measured on gemma4:12b with the same question: no tool call, an answer in
 words.
 
-That answer also placed the serial link "över koaxialkabel". There is no
-coaxial cable — the name is the PCB sitting coaxially behind the stator. It
-invented the cable from the word, which is the same shape as the invented
-hardware constants FINDINGS already records: plausible, wrong, and stated
-with no hedge.
+That answer also placed the serial link "över koaxialkabel", and the next
+session did it again: "en koaxial anslutning för seriell kommunikation".
+Twice is not carelessness — it was SYSTEM's own first line, *You are an expert
+with a serial link to a coaxial BLDC inverter.* Two words, adjacent, no
+relation stated, and the model fused them.
+
+Nothing about the wiring is coaxial: the PCB mounts coaxially behind an
+outrunner's **stator**, and the UART leaves the board over the debug probe's
+COM port or RS485. The line now says both, and it is the one place in SYSTEM
+carrying a hardware fact rather than a rule — 16 tokens a turn, against a
+false statement about the product in every description it wrote.
+
+That moved the prompt from 184 to 200 tokens, past the `< runner/3` guard the
+suite had held it under. The guard is now `< runner/2.5`: none of the rules
+beside it is fat that could have paid, and 200 against 556 is still the
+fraction that test is about.
+
+`docs/HARDWARE.md` was wrong in the same direction — it said the PCB sits
+behind the **rotor**. On an outrunner the rotor is the spinning can; the board
+is behind the stator. A model reading that document would have got it wrong
+from the document.
 
 ### A nudge stole the language lock from what was actually asked
 

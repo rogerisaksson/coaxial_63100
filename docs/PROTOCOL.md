@@ -4,6 +4,10 @@ Modbus over Serial Line, RTU transmission mode, this board as server. USART3,
 **115200 8N1**, unit address **1** by default. MODBUS Application Protocol
 V1.1b3 plus MODBUS over Serial Line V1.02.
 
+That one UART leaves the board two ways — the debug probe's virtual COM port,
+or RS485 — and nothing below changes with which: same framing, same registers,
+same timing. See [HARDWARE.md, The link](HARDWARE.md#the-link).
+
 The authoritative source is `Comms/Inc/cmd.h` for the commands and
 `Modbus/Inc/modbus_map.h` for the register map — both carry their layouts in
 header comments. This document is the overview and the reasoning.

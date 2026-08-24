@@ -1092,9 +1092,15 @@ def test_debug(report):
         kw.setdefault('out', io.StringIO())
         return debug.Chat(ScriptedModel(turns), box, **kw)
 
+    # Was /3, and SYSTEM sat one token under it. The two hardware facts that
+    # stop the model inventing a coaxial cable cost 16 - see the comment on
+    # debug.SYSTEM - and none of the rules they sit beside is fat that could
+    # pay for them. Still a fraction, which is what this guards: 200 against
+    # 556 is 36 %, and a prompt that reached half the runner's would be a
+    # bench prompt turning into a test executive.
     report.check('the debug prompt is a fraction of the runner prompt',
                  debug.approx_tokens(debug.SYSTEM)
-                 < debug.approx_tokens(runmod.SYSTEM) / 3,
+                 < debug.approx_tokens(runmod.SYSTEM) / 2.5,
                  '%d tok against %d' % (debug.approx_tokens(debug.SYSTEM),
                                         debug.approx_tokens(runmod.SYSTEM)))
 

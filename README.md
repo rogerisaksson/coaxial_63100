@@ -4,7 +4,11 @@ Control firmware and a Python host library for a **coaxial BLDC inverter** — a
 three-phase drive whose PCB sits coaxially behind the stator of an outrunner. The
 name is the rating: **63 V and 100 A**, the current being instantaneous within
 the FETs' safe operating area. STM32H753VIT6 at 475 MHz, one UART carrying
-either a text console or binary Modbus RTU.
+either a text console or binary Modbus RTU, reached over the debug probe's COM
+port or RS485.
+
+*Coaxial* is where the electronics sit — behind the stator — not what they are
+wired with. Nothing on the board is a coaxial cable or connector.
 
 What is in this repository today is **instrumentation, not a motor controller**.
 No timer is configured: there is no PWM, no commutation and no current loop. It

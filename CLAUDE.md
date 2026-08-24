@@ -9,7 +9,12 @@ three-phase drive whose PCB sits coaxially behind the stator of an outrunner. Th
 name is the rating — **63 V, 100 A**, the current instantaneous within the FETs'
 SOA. STM32H753VIT6 at 475 MHz; an analog front end feeding three differential
 phase-sense channels, a DC link sense and an NTC; one UART carrying either a
-text console or binary Modbus RTU.
+text console or binary Modbus RTU, reached over the debug probe's COM port or
+RS485.
+
+*Coaxial* is where the electronics sit, not what they are wired with. There is
+no coaxial cable and no coaxial connector on this board — a local model has
+invented both, twice.
 
 The thermal channel is not decoration, and the phase sense sits inside a switching bridge — 
 which is the context for every noise figure in these documents.
