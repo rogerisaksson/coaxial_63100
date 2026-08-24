@@ -1998,6 +1998,46 @@ def test_screen_language(report):
     report.check('a reading is not touched - no channel name is translated',
                  language.localise(table, 'Swedish') == table)
 
+    # Two signals, and they are not the same one. The greeting has no question
+    # to read, so it takes the machine's locale; everything after it follows
+    # the question. `screen` is the fallback for the case detect() abstains,
+    # and it is None here on purpose - a suite that read the Windows locale
+    # would pass on one machine and fail on the next.
+    box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    talk = debug.Chat(ScriptedModel([], model='gemma4:12b'), box,
+                      out=io.StringIO())
+    report.check('a test session starts in no language, not the machine one',
+                 talk.language is None and talk.screen_language() is None)
+    local = debug.Chat(ScriptedModel([], model='gemma4:12b'), box,
+                       out=io.StringIO(), session_language='Swedish')
+    report.check('a real session starts in the locale build() read',
+                 local.screen_language() == 'Swedish')
+
+    # The locale is where it starts, not where it is stuck: a question in
+    # another language moves it, and so does asking for one.
+    local.history = [{'role': 'user', 'content': 'read all the analog channels'}]
+    local.prompt_history = ['read all the analog channels']
+    local.trim()
+    report.check('a question in another language moves it',
+                 local.language == 'English', local.language)
+    local.prompt_history.append('svara på svenska')
+    local.history = [{'role': 'user', 'content': 'svara på svenska'}]
+    local.trim()
+    report.check('and asking for one outright moves it too',
+                 local.language == 'Swedish', local.language)
+
+    # Every locale this module can name must have a greeting, or a machine
+    # set to it opens in English for no reason anyone can see.
+    missing = [name for name in set(language._LOCALE_CODES.values())
+               if name not in language.GREETINGS]
+    report.check('every locale it recognises has a greeting',
+                 not missing, ', '.join(sorted(missing)) or 'all present')
+    report.check('a console that cannot encode it falls back to English',
+                 language.greeting('m', 'Japanese', 'cp1252')
+                 == language.greeting('m', 'English')
+                 and language.greeting('m', 'Japanese', 'utf-8')
+                 != language.greeting('m', 'English'))
+
     # Every English key must exist verbatim in the source, or a call site has
     # moved on and its translation is dead text nothing will ever match.
     sources = []
@@ -2148,7 +2188,8 @@ def test_identity(report):
                  hello.count(chr(10)) == 0 and 'gemma4:12b' in hello
                  and '/help' in hello and 'expert' in hello, hello)
     report.check('a language with no greeting written falls back to English',
-                 language.greeting('x', 'Thai') == language.greeting('x', 'English'))
+                 language.greeting('x', 'Turkish')
+                 == language.greeting('x', 'English'))
     report.check('and this machine resolves to a language it can print',
                  language.system_language() in language.LANGUAGE_NAMES,
                  language.system_language())

@@ -206,13 +206,16 @@ LANGUAGE_NAMES = {
 _NAME_TO_LANGUAGE = {alias: name for name, aliases in LANGUAGE_NAMES.items()
                      for alias in aliases}
 
-# ISO code -> the name above. Only the languages this bench is actually spoken
-# in; anything else falls back to English, which is what the documents are in.
+# ISO code -> the name above, for every language this module can name. A
+# machine set to one of them gets it; anything else falls back to English,
+# which is what the documents are in.
 _LOCALE_CODES = {
     'sv': 'Swedish', 'en': 'English', 'de': 'German', 'da': 'Danish',
     'nb': 'Norwegian', 'nn': 'Norwegian', 'no': 'Norwegian', 'nl': 'Dutch',
     'fr': 'French', 'es': 'Spanish', 'it': 'Italian', 'fi': 'Finnish',
-    'pl': 'Polish', 'pt': 'Portuguese',
+    'pl': 'Polish', 'pt': 'Portuguese', 'ru': 'Russian', 'el': 'Greek',
+    'zh': 'Chinese', 'ja': 'Japanese', 'ko': 'Korean', 'th': 'Thai',
+    'he': 'Hebrew', 'iw': 'Hebrew', 'ar': 'Arabic',   # iw: the old code for he
 }
 
 
@@ -264,6 +267,14 @@ GREETINGS = {
     'Finnish': 'Olen %s, tämän projektin asiantuntija. Kirjoita /help.',
     'Polish':  'Jestem %s, ekspertem w tym projekcie. Wpisz /help.',
     'Portuguese': 'Sou %s, o especialista deste projeto. Escreva /help.',
+    'Russian': 'Я %s, эксперт по этому проекту. Введите /help.',
+    'Greek': 'Είμαι το %s, ο ειδικός σε αυτό το έργο. Πληκτρολογήστε /help.',
+    'Chinese': '我是 %s，这个项目的专家。输入 /help。',
+    'Japanese': '私は %s、このプロジェクトの専門家です。/help と入力してください。',
+    'Korean': '저는 %s, 이 프로젝트의 전문가입니다. /help 를 입력하세요.',
+    'Thai': 'ผมคือ %s ผู้เชี่ยวชาญของโปรเจกต์นี้ พิมพ์ /help',
+    'Hebrew': 'אני %s, המומחה בפרויקט הזה. הקלד /help.',
+    'Arabic': 'أنا %s، الخبير في هذا المشروع. اكتب /help.',
 }
 
 
@@ -405,12 +416,24 @@ def _fill(translated, values):
     return out
 
 
-def greeting(model, name=None):
-    """The one line a session opens with, in `name` or in this machine's own
-    language. English where there is no translation - a greeting in a language
-    the reader does not have is worse than one they do."""
+def greeting(model, name=None, encoding=None):
+    """The one line a session opens with, in `name` or this machine's own
+    language.
+
+    English where there is no translation, and English where the console
+    cannot encode the one there is: a bare `python dbg.py` on a cp1252
+    console renders Japanese as a row of question marks, and a greeting
+    nobody can read is worse than one in the wrong language. board_prompt.ps1
+    sets the console to UTF-8, so there the alphabet arrives.
+    """
     name = name or system_language()
-    return (GREETINGS.get(name) or GREETINGS['English']) % model
+    text = (GREETINGS.get(name) or GREETINGS['English']) % model
+    if encoding:
+        try:
+            text.encode(encoding)
+        except (UnicodeEncodeError, LookupError):
+            return GREETINGS['English'] % model
+    return text
 
 # A language's own name has to sit next to one of these to count as a
 # request rather than a mention - "the German firmware bug" is not a

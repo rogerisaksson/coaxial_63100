@@ -168,11 +168,22 @@ reader counting rows. `done_reason` marks it *[cut off at --words 180]*.
 
 ### The language of the answer
 
-The bench prompt is English and the answer follows **the question**, not the
-prompt: ask in Swedish and the reading comes back in Swedish. Units and channel
-names stay as the board prints them — `NTC`, `DCbus`, `V`, `C` — because those
-are what appears in `board_info`, in the CSVs and in these documents, and a
-translated channel name is a channel name nobody can grep for.
+A session starts in **the machine's language** - `language.system_language()`
+reads the Windows locale, and the operator is answered in their own language
+from the first word without a question having to prove it first. A question in
+another language moves it, and so does asking for one; `--lang NAME` sets it
+for a run and `/lang` changes it mid-session. Units and channel names stay as the board prints them
+— `NTC`, `DCbus`, `V`, `C` — because those are what appears in `board_info`,
+in the CSVs and in these documents, and a translated channel name is one
+nobody can grep for.
+
+Every locale this module can name has a greeting, Latin script or not:
+Chinese, Japanese, Korean, Thai, Greek, Hebrew, Arabic and Russian alongside
+the twelve European ones, and a test fails if a recognised locale has none. A
+console that cannot encode the one it is owed gets English instead — a bare
+`python dbg.py` on cp1252 renders Japanese as a row of question marks, and a
+greeting nobody can read is worse than one in the wrong language.
+`board_prompt.ps1` sets the console to UTF-8, so there the alphabet arrives.
 
 **The language is decided here, not by the model.** Told to "answer in the
 language the question was asked in", it has to work out the language *and*
@@ -207,18 +218,19 @@ documents, and a translation nobody at this bench can check is worse than no
 translation. Adding a language is adding a dict; a test fails if any key stops
 matching its call site, so a translation cannot quietly go dead.
 
-In `dbg.py`'s REPL, the language **locks** on the first question that is not
-itself ambiguous (`Chat.language`), rather than being rebuilt fresh every
-turn: a one-word follow-up like "tabellera" detects as nothing on its own,
-and rebuilding from that alone flipped the prompt back to "mirror the
-question" every time one came up — a real prefix change, not cosmetic, so
-that was a KV cache miss on every short follow-up. Two things move the lock
-once set: the question switching language for real (`detect()` disagrees),
-or the question naming a language outright — "svara på engelska" — via
-`language.requested_language()`, independent of what language it is itself
-written in. `/lang [NAME]` reads or sets it by hand; `/lang auto` unlocks.
-One-shot calls (`-q`, `--ask`) have no session to lock across, so this
-degrades to the old per-question detection there without any special case.
+`Chat.language` holds it for the session rather than being rebuilt every
+turn. That matters for more than tidiness: a one-word follow-up like
+"tabellera" detects as nothing on its own, and rebuilding from that alone
+flipped the instruction back and forth — a real prefix change, so a KV cache
+miss on every short follow-up. Two things move it: the question switching
+language for real (`detect()` disagrees), or the question naming one outright
+— "svara på engelska" — via `language.requested_language()`, independent of
+what language it is itself written in. `/lang [NAME]` sets it by hand,
+`/lang auto` hands it back to detection.
+
+Tests build a `Chat` with no session language at all, deliberately: a suite
+whose expectations depend on the Windows locale passes on one machine and
+fails on the next. The locale is read in `build()`, at the entry point.
 
 A Windows console encodes with its locale codepage, cp1252 here. Swedish and
 German fit; a Polish `ł`, an ohm sign or anything Cyrillic does not, and the

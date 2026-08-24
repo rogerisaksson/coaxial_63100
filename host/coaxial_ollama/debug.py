@@ -335,7 +335,8 @@ class Chat:
     """
 
     def __init__(self, client, toolbox, tools='read', keep=6, budget=0,
-                 quiet=False, out=None, link_ok=True, detail_level=detail.AUTO):
+                 quiet=False, out=None, link_ok=True, detail_level=detail.AUTO,
+                 session_language=None):
         self.client = client
         self.toolbox = toolbox
         # Before set_tools below, which builds the schemas this decides the
@@ -366,10 +367,13 @@ class Chat:
         # (unlike the turn-local copy in `ask`) so a later turn that answers
         # with no tool call at all can still be checked against it.
         self.last_channels = None
-        # The session's language, once one has actually been settled - see
-        # trim() below. None until the first question that is not itself
-        # ambiguous locks it.
-        self.language = None
+        # The session's language. The machine's locale for a real run - the
+        # operator is answered in their own language from the first word,
+        # without a question having to prove it first - and None for a test,
+        # deliberately: a suite that read the Windows locale would pass on one
+        # machine and fail on the next. trim() moves it when a question is
+        # actually in another language, or names one outright.
+        self.language = session_language
         # Every question typed this session, in order - independent of
         # self.history, which the REPL clears after each answered turn.
         # /history reads it back, /clear_history empties it.
@@ -608,7 +612,7 @@ class Chat:
         through _ask_inner's several returns ends up, rather than at each
         of them and risking a future one added without it."""
         answer = language.localise(self._ask_inner(question, max_calls),
-                                   self.language)
+                                   self.screen_language())
         self.io_log.answer(answer)
         return answer
 
@@ -930,6 +934,12 @@ class Chat:
         """Record the cost of one turn. Not printed - see /cost and /ctx."""
         self.turn_cost.append((prompt_tokens, eval_tokens))
 
+    def screen_language(self):
+        """Which language this session's own text prints in - the session
+        language, which starts as the machine's locale and moves only when a
+        question is actually in another one."""
+        return self.language
+
     def _notes(self):
         """Say what the client had to do to the machine to answer at all.
 
@@ -973,7 +983,8 @@ class Chat:
         # MCP server serves; the screen gets the operator's language. Only
         # host-authored sentences turn - a channel name, a unit or anything
         # the board said passes through. See language.PHRASES.
-        lines = language.localise(str(result), self.language).splitlines() or ['']
+        lines = (language.localise(str(result), self.screen_language())
+                 .splitlines() or [''])
         with self.print_lock:
             for line in lines[:TRACE_ROWS]:
                 for part in _wrapped(line):
@@ -1051,6 +1062,11 @@ def parse(argv):
     parser.add_argument('--num-gpu', type=int, default=None,
                         help='layers on the GPU; the rest run on the CPU.'
                              ' Set for you by -m auto and by board_prompt.ps1')
+    parser.add_argument('--lang',
+                        help='answer in this language, whatever the machine '
+                             'is set to. Default: the Windows locale, moved '
+                             'only by a question in another language or by '
+                             'asking for one. /lang changes it mid-session.')
     parser.add_argument('--detail', default=detail.AUTO, choices=detail.LEVELS,
                         help='how much documentation each tool carries into '
                              'every turn. auto reads the model tag: terse for '
@@ -1162,7 +1178,8 @@ def build(args):
                       confirm=ask_operator if args.confirm else None)
     chat = Chat(client, toolbox, tools=args.tools, keep=args.keep,
                 budget=args.budget, quiet=args.quiet,
-                detail_level=args.detail)
+                detail_level=args.detail,
+                session_language=args.lang or language.system_language())
     return client, session, chat
 
 
@@ -1172,7 +1189,8 @@ def repl(chat, hold=False):
     # One line, in this machine's language. What the tools are, what the
     # detail level is and what a turn costs are all a /help away; printed on
     # the way in they were three lines nobody read twice.
-    print(language.greeting(chat.client.model))
+    print(language.greeting(chat.client.model, chat.language,
+                            getattr(sys.stdout, 'encoding', None)))
     if not ({'run_command', 'build_firmware'} & set(chat.tool_names)):
         # Printed once, here, by this host - not sent to the model, so it
         # costs nothing per turn. Measured on this bench: asked three times
