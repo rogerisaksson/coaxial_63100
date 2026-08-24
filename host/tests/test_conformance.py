@@ -92,7 +92,6 @@ def regs_from(data: bytes):
     return [struct.unpack('>H', data[1 + 2 * i:3 + 2 * i])[0] for i in range(n // 2)]
 
 def coils_from(data: bytes, qty: int):
-    n = data[0]
     out = []
     for i in range(qty):
         out.append(bool(data[1 + i // 8] >> (i % 8) & 1))
@@ -271,7 +270,13 @@ def map_tests(run):
         run.check('FC04 dcbus + ntc', False, 'bad reply')
     else:
         v = regs_from(p[2])
-        mv, cc = v[0], s16(v[1])
+        # Recorded, not judged: the check is that FC04 answered with the two
+        # registers asked for and that they decode - the values go in the
+        # detail column so a reader sees them, with no threshold anywhere.
+        # Until now only the failure path called run.check, so a working
+        # FC04 passed in silence and counted for nothing.
+        run.check('FC04 dcbus + ntc', len(v) == 2,
+                  '%d mV, %.2f C' % (v[0], s16(v[1]) / 100.0))
         # No limits here on purpose. This suite tests the PROTOCOL, and the
         # board is a dumb slave - whether 24 V is the right voltage is a
         # question for a test executive with a calibrated meter, not for a

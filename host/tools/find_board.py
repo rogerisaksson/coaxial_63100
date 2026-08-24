@@ -19,9 +19,13 @@ later inside dbg.py itself - not a weaker, different check that passes here.
     python tools/find_board.py --power                # target voltage over SWD - the ST-Link, not USART3
 """
 import argparse
+import os
 import sys
 
-sys.path.insert(0, __file__.rsplit('tools', 1)[0])
+# host/ on the path: this file's own directory's parent, so it does
+# not matter what the working directory is or what any directory
+# along the way is called.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def check_power(timeout=15):

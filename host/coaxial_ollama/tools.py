@@ -35,14 +35,19 @@ Note what `report` is not: an assertion. It carries no pass/fail field, because
 a field like that is a place for a model to put an opinion, and the runner would
 then have to decide whether to believe it. plan.Limit decides, in Python.
 """
+import json
 import os
 import subprocess
 import sys
 import time
 
-_HOST = __file__.rsplit('coaxial_ollama', 1)[0]
+# host/ and host/tools on the path: this file's own directory's parent, so
+# it does not matter what the working directory is - dbg.py and the runner
+# start from different ones - or what any directory along the way is called.
+_HOST = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_TOOLS = os.path.join(_HOST, 'tools')
 sys.path.insert(0, _HOST)
-sys.path.insert(0, os.path.join(_HOST, 'tools'))
+sys.path.insert(0, _TOOLS)
 
 from coaxial.errors import RigError                       # noqa: E402
 from coaxial_mcp import render                            # noqa: E402
@@ -51,14 +56,8 @@ from coaxial_mcp.tools import TOOLS as BOARD_TOOLS         # noqa: E402
 from coaxial_mcp.tools import coerce as board_coerce       # noqa: E402
 import find_board                                          # noqa: E402
 
-# host/tools/build_and_flash.py and host/tools/run_tests.py, resolved from
-# this file's own location rather than the caller's cwd - dbg.py and the
-# runner start from different directories, and these tools have to reach the
-# same scripts either way.
-_BUILD_AND_FLASH = os.path.join(__file__.rsplit('coaxial_ollama', 1)[0],
-                                'tools', 'build_and_flash.py')
-_RUN_TESTS = os.path.join(__file__.rsplit('coaxial_ollama', 1)[0],
-                          'tools', 'run_tests.py')
+_BUILD_AND_FLASH = os.path.join(_TOOLS, 'build_and_flash.py')
+_RUN_TESTS = os.path.join(_TOOLS, 'run_tests.py')
 
 EXTRA_TOOLS = [
     {
@@ -157,6 +156,26 @@ UNGATED_EXTRAS = ('run_tests', 'link_diagnose')
 # tell a live link failure from one three turns stale) and runner.py (to tell
 # a real report from one nobody measured).
 LINK_TOOLS = set(BOARD_HANDLERS) - {'docs'}
+
+
+def arguments(call):
+    """One tool call's arguments, whatever shape Ollama sent them in.
+
+    Usually an object; some builds send a JSON string. A string that will
+    not parse is kept under `_unparsed` rather than dropped - `coerce`
+    passes unknown keys through and every handler takes `**_`, so it costs
+    nothing at the call site and it is the difference between a transcript
+    that records what the model actually sent and one that quietly shows
+    an empty argument list. debug.py used to return {} here instead, which
+    turned a malformed `analog_read` into a silent read of every channel.
+    """
+    args = (call.get('function') or {}).get('arguments')
+    if isinstance(args, str):
+        try:
+            args = json.loads(args or '{}')
+        except ValueError:
+            return {'_unparsed': args}
+    return args if isinstance(args, dict) else {}
 
 
 def schemas(tools=TOOLS):

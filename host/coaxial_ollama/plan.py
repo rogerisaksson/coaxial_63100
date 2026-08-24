@@ -21,9 +21,13 @@ Everything testline/plan.py says about where limits come from applies unchanged,
 so `measurement_system_study` is required here too. A plan without one is not
 loaded.
 """
+import os
 import sys
 
-sys.path.insert(0, __file__.rsplit('coaxial_ollama', 1)[0])
+# host/ on the path: this file's own directory's parent, so it does
+# not matter what the working directory is or what any directory
+# along the way is called.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import yaml                                       # noqa: E402
 

@@ -29,12 +29,15 @@ no judgements about anything requiring a reference. That means:
     external limit needed either. That is the one place a verdict comes from the
     firmware, and it is asserted below without any numbers in this file.
 """
+import os
 import sys
 
 import pytest
 
-sys.path.insert(0, '..')
-sys.path.insert(0, '.')
+# host/ on the path: this file's own directory's parent. Was '..' and '.',
+# which only worked when run from host/ or host/examples - pytest collecting
+# this file from the repository root failed outright.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import connect, disconnect
 

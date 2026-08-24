@@ -37,12 +37,16 @@ import sys
 import threading
 import time
 
-sys.path.insert(0, __file__.rsplit('coaxial_ollama', 1)[0])
+# host/ on the path: this file's own directory's parent, so it does
+# not matter what the working directory is or what any directory
+# along the way is called.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import RigError                  # noqa: E402
 from coaxial_mcp import render                        # noqa: E402
 
 from . import language
+from . import replies
 from . import tools as toolmod                       # noqa: E402
 from . import spinner as spin                        # noqa: E402
 from .sandbox import Scope, Shell, clip              # noqa: E402
@@ -58,9 +62,19 @@ A call error is reported, never guessed or hidden behind an old reading.
 Any reading: analog_read only, never afe_power first - analog_read works
 with the AFE on or off and reports which. Turning the AFE on or off itself
 is the order to do it, not to discuss. Phase channels: unknown gain, pin
-volts only.
-Values come from analog_read, never docs - HARDWARE and FINDINGS explain,
-they don't produce one."""
+volts only."""
+
+# Appended only when `docs` is actually offered - which no default tool set
+# does any more. Measured on this bench: asked to *measure* the analog
+# channels, gemma4:12b called docs, pulled several thousand tokens of
+# HARDWARE.md into the context, and answered with the channel table
+# transcribed out of the document - a plausible-looking answer containing
+# no measurement at all. The board is the authority on what the board
+# reads; the documents explain what a reading means, which is a different
+# question and a rarer one. `-t docs` (or /tools docs) is how to ask it.
+DOCS_HINT = ("Values come from analog_read, never docs - HARDWARE and "
+             "FINDINGS explain what a reading means, they do not produce "
+             "one.")
 
 # Appended only when build_firmware is actually offered (see trim() below),
 # so a tool set without it pays nothing for this. Needed because the model's
@@ -109,18 +123,22 @@ LINK_DIAGNOSE_HINT = ("A question about why the board is not answering, or "
                       "raw step text back at the operator.")
 
 # Named subsets, because a debug job knows roughly what it is about to touch.
+# `docs` is deliberately in none of these but `docs` itself and `all` - see
+# DOCS_HINT above for the measurement it replaced with a transcription. A
+# bench question is nearly always about what the board reads now; reading
+# this repository's own documents is a different job, asked for by name.
 SETS = {
     'read': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
-             'docs', 'link_diagnose'),
-    'code': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
-             'docs', 'run_python', 'build_firmware', 'run_tests',
              'link_diagnose'),
+    'code': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
+             'run_python', 'build_firmware', 'run_tests', 'link_diagnose'),
     'pins': ('board_info', 'gpio_pin', 'gpio_port', 'test_gate', 'afe_power',
-             'docs', 'link_diagnose'),
+             'link_diagnose'),
     # run_command, not build_firmware: the wider, allowlisted surface for a
     # session actually about the toolchain, not just build_and_flash.py.
-    'build': ('board_info', 'docs', 'run_command', 'run_tests',
-             'link_diagnose'),
+    'build': ('board_info', 'run_command', 'run_tests', 'link_diagnose'),
+    # For a question about the documents rather than the hardware.
+    'docs': ('board_info', 'analog_read', 'docs', 'link_diagnose'),
     'all': tuple(spec['name'] for spec in toolmod.TOOLS if spec['name'] != 'report'),
     'none': (),
 }
@@ -128,7 +146,7 @@ SETS = {
 HELP = """  /py CODE      run python against the board, no model, no tokens
   /sh CMD       run an allowlisted command, no model
   /reconnect    drop and reopen the board link, no model
-  /tools [set]  read|code|pins|build|all|none, or a comma separated list
+  /tools [set]  read|code|pins|build|docs|all|none, or a comma separated list
   /confirm      toggle asking before every write - pin, run_python, run_command
   /lang [NAME]  show, set, or /lang auto to unlock the session's language
   /ctx          what the next turn will cost
@@ -165,8 +183,6 @@ def keep_alive_for(args):
     return KEEP_ALIVE_REPL if args.repl else KEEP_ALIVE_ONCE
 
 
-TOOL_TAG = re.compile(r'</?tool_call>', re.I)
-BACKSLASH = chr(92)
 ERR_CLASS = re.compile(r'^ERR (\w+):')
 
 # Tools that actually reach the board - not 'docs', which reads local files and
@@ -196,165 +212,6 @@ TRACE_ROWS = 24
 # row, each one a full round trip through the model and the board for a
 # result it had already seen.
 REPEATABLE = {'analog_read', 'run_python', 'run_command'}
-
-# The channel names off the front of an analog_read row: "0  PhaseU  diff ..."
-# -> 'phaseu'. Anchored on the mode column (diff/SE) rather than just a
-# leading digit, or this matches render.analog's own header line too - "64
-# smp @2000Hz" starts with a number and a word exactly like a row does, and
-# without the anchor 'smp' was recognised as a seventh channel of its own.
-READING_ROW = re.compile(r'^\d+\s+(\S+)\s+(?:diff|SE)\b', re.M)
-
-# Fewer than this many channels and a short answer naming all of them is
-# plausibly synthesis ("NTC and DCbus both read low") rather than a mechanical
-# restatement - the case this exists to catch always names a full table's
-# worth. Below this the override stays out of the way.
-RESTATE_MIN_CHANNELS = 3
-
-# Two or more pipe-delimited lines, the shape of a markdown table row or its
-# `| :--- |` header separator. Measured on this bench: asked to "tabellera",
-# gemma4:12b wrote the real reading as a markdown table and then hit the
-# --words cap partway through the last row - which meant it had not yet named
-# every channel, so the all-channels-present check below never matched and
-# the cut-off table printed anyway. This checks the SHAPE of a table instead
-# of waiting for it to finish naming channels, so a truncated one is caught
-# exactly as surely as a complete one.
-MARKDOWN_TABLE_ROW = re.compile(r'^\s*\|.*\|\s*$', re.M)
-
-# A tool name distinctive enough that seeing one in prose is real evidence the
-# model described the call it should have made instead of making it - not
-# 'link' or 'docs', ordinary words that turn up in unrelated sentences too
-# often to mean anything. Measured on this bench: asked for a table, gemma4:12b
-# answered "jeg ma utfore en `analog_read`" and stopped there - it knew
-# exactly what to do and did not do it.
-NAMED_TOOL = re.compile(r'\b(analog_read|afe_power|board_info|self_test|'
-                        r'gpio_pin|gpio_port|test_gate|run_python|'
-                        r'run_command|build_firmware|run_tests|'
-                        r'link_diagnose)\b')
-
-
-def _is_retype(answer, channels):
-    """Whether `answer` is a mechanical restatement of a reading's `channels`.
-
-    Two shapes count, either being enough on its own: every channel named
-    (the original catch, for a restatement written out as prose), or the
-    answer has the shape of a markdown table at all (which catches one that
-    got cut off before naming the last channel - see MARKDOWN_TABLE_ROW).
-    A real table is never a legitimate answer here regardless of length,
-    since SYSTEM already says not to write one.
-    """
-    if not (answer and channels):
-        return False
-    if MARKDOWN_TABLE_ROW.search(answer):
-        return True
-    return (len(channels) >= RESTATE_MIN_CHANNELS
-           and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
-                  for ch in channels))
-
-
-# Words a chat template leaks around a call the model wrote as text instead of
-# in the tool_calls field. Measured on this bench: asked "vad ar temperaturen",
-# the model answered 'CallCheckFunction' and a JSON object, twice over, and the
-# prompt printed all four lines as the answer - which reads as the board having
-# stopped giving values. A residue of nothing but these words is still a tool
-# call; one word of real prose is not, and vetoes the salvage.
-MARKERS = frozenset(('tool', 'tool_call', 'toolcall', 'call', 'calls',
-                     'function', 'functions', 'check', 'json', 'assistant',
-                     'commentary', 'to', 'and', 'then'))
-WORD = re.compile(r'[^\W\d_]+')
-# Those words arrive run together as often as spaced - 'CallCheckFunction' is
-# one word to any tokeniser and three markers to a reader - so a residue word
-# is split at its capitals before being looked up.
-CAMEL = re.compile(r'[^\W\d_][a-z]*')
-
-
-def _is_marker_noise(text):
-    """True when nothing in `text` is a word of prose.
-
-    This is the whole safety of the salvage: a message that is a tool call
-    wearing a template's clothes has only marker words around the JSON, and a
-    message that is an answer has real ones.
-    """
-    for word in WORD.findall(text):
-        parts = CAMEL.findall(word) or [word]
-        if any(part.lower() not in MARKERS for part in parts):
-            return False
-    return True
-
-
-def _json_objects(text):
-    """Every balanced top-level {...} in `text`, as (start, end, parsed).
-
-    Brace counting rather than a regex, because `{.*?}` stops at the first
-    closing brace - which in a tool call is the one that ends `arguments`, so
-    anything with a nested object in it either fails to parse or parses as half
-    of itself. Strings are tracked so a brace inside a value cannot unbalance
-    the count. An object that is not JSON is skipped, not fatal.
-    """
-    found = []
-    depth = start = 0
-    in_string = escaped = False
-    for index, char in enumerate(text):
-        if in_string:
-            if escaped:
-                escaped = False
-            elif char == BACKSLASH:
-                escaped = True
-            elif char == '"':
-                in_string = False
-            continue
-        if char == '"':
-            in_string = True
-        elif char == '{':
-            if not depth:
-                start = index
-            depth += 1
-        elif char == '}' and depth:
-            depth -= 1
-            if not depth:
-                try:
-                    parsed = json.loads(text[start:index + 1])
-                except ValueError:
-                    continue
-                found.append((start, index + 1, parsed))
-    return found
-
-
-def _salvage_calls(text):
-    """The tool calls a model wrote as text, and what is left of the text.
-
-    Deliberately narrow. A legitimate answer may quote JSON, and turning that
-    into a board command would be far worse than printing it - so the test is
-    that once the tool tags and the call objects are taken out, no word of
-    prose is left, only the marker words above. Returns (calls, remaining
-    text): an empty list means the text was an answer after all.
-
-    More than one call in one message is the case that made this a list. The
-    single-call version printed a two-call message verbatim, which at the
-    prompt looks exactly like the model having stopped taking readings.
-    """
-    stripped = TOOL_TAG.sub(' ', text)
-    if '"name"' not in stripped:
-        # No call in it, but a bare `</tool_call>` is not an answer either:
-        # hand back what is left once the tag is gone, which may be nothing.
-        clean = stripped.strip()
-        return [], clean if clean != text.strip() else text
-
-    calls, residue, cursor = [], [], 0
-    for start, end, parsed in _json_objects(stripped):
-        if not isinstance(parsed, dict) or not parsed.get('name'):
-            continue
-        calls.append({'function': {'name': parsed['name'],
-                                   'arguments': parsed.get('arguments') or {}}})
-        residue.append(stripped[cursor:start])
-        cursor = end
-    residue.append(stripped[cursor:])
-
-    if not calls:
-        return [], text
-    if not _is_marker_noise(' '.join(residue)):
-        # Prose around it: an answer that mentions a call, not a call.
-        return [], text
-    return calls, ''
 
 
 def _printable(stream):
@@ -617,6 +474,8 @@ class Chat:
             hint += '\n' + BUILD_HINT
         if 'link_diagnose' in names:
             hint += '\n' + LINK_DIAGNOSE_HINT
+        if 'docs' in names:
+            hint += '\n' + DOCS_HINT
         # Every earlier question this session, not just the trimmed model
         # history that gets wiped after each answered turn - self.clear
         # empties that for token cost, but a troubleshooting conversation
@@ -748,7 +607,7 @@ class Chat:
             # answer. The model was right about what to do; the shape was
             # wrong. Recovering it costs a JSON parse.
             if not calls:
-                salvaged, answer = _salvage_calls(answer)
+                salvaged, answer = replies.salvage_calls(answer)
                 if salvaged:
                     calls = salvaged
                     message = dict(message, content='', tool_calls=calls)
@@ -784,7 +643,7 @@ class Chat:
                 stale = not last_channels and (
                     not answer or (self.last_channels and (
                         not self.link_ok
-                        or _is_retype(answer, self.last_channels))))
+                        or replies.is_retype(answer, self.last_channels))))
                 if stale:
                     probe = self._probe_link()
                     if not self.link_ok:
@@ -808,7 +667,7 @@ class Chat:
                 # same as the runner's own prose-stop nudge, so a model that
                 # keeps narrating instead of calling still ends the turn
                 # rather than spending it forever asking nicely.
-                if answer and NAMED_TOOL.search(answer) and nudges < 2:
+                if answer and replies.NAMED_TOOL.search(answer) and nudges < 2:
                     nudges += 1
                     self.history.append({'role': 'user', 'content':
                         'Call the tool now - do not describe it.'})
@@ -817,7 +676,7 @@ class Chat:
 
             for call in calls:
                 name = (call.get('function') or {}).get('name', '?')
-                args = _arguments(call)
+                args = toolmod.arguments(call)
                 key = (name, json.dumps(args, sort_keys=True, default=str))
 
                 if name not in REPEATABLE and key in seen:
@@ -878,7 +737,7 @@ class Chat:
                     # leaves the previous table in place rather than wiping it,
                     # since link_error already takes priority below either way.
                     last_channels = set(m.lower()
-                                        for m in READING_ROW.findall(str(raw)))
+                                        for m in replies.READING_ROW.findall(str(raw)))
                     self.last_channels = last_channels
                 # An afe_power call refused for not being asked for is the
                 # model trying the exact thing SYSTEM and LINK_DIAGNOSE_HINT-
@@ -921,7 +780,7 @@ class Chat:
         # Silence, not a line saying so: the table is the trace directly above
         # this, on the same screen, and a reader looking at it does not need
         # to be told it is not being typed out again.
-        elif _is_retype(answer, last_channels):
+        elif replies.is_retype(answer, last_channels):
             answer = ''
         # A turn that never calls analog_read at all and answers with an old
         # reading instead used to slip past the check above (which only looks
@@ -1077,16 +936,6 @@ class Chat:
                       file=self.out, flush=True)
 
 
-def _arguments(call):
-    args = (call.get('function') or {}).get('arguments')
-    if isinstance(args, str):
-        try:
-            args = json.loads(args or '{}')
-        except ValueError:
-            return {}
-    return args if isinstance(args, dict) else {}
-
-
 class NoBoard:
     """Stands in for the session when --no-board is given.
 
@@ -1122,7 +971,8 @@ def parse(argv):
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='answer only: no tool trace, no token meter')
     parser.add_argument('-t', '--tools', default='code',
-                        help='read|code|pins|build|all|none or a comma separated list')
+                        help='read|code|pins|build|docs|all|none or a comma '
+                             'separated list')
     parser.add_argument('-m', '--model', default='gemma4:12b',
                         help="ollama tag, or 'auto' to pick one from this"
                              " machine's cores, RAM and VRAM - see"
@@ -1457,11 +1307,12 @@ def main(argv=None):
             session.close()
         except RigError:
             pass
-        # repl() closes its own copy on the way out; a one-shot question
-        # never reaches that finally block, so this is the only place its
-        # single turn ever gets flushed and closed.
-        if not args.repl:
-            chat.io_log.close()
+        # Unconditional, and close() is idempotent: repl() closes on its own
+        # way out, but a one-shot question never enters repl() at all, and
+        # `python dbg.py` with no question enters it despite args.repl being
+        # False. Guarding on args.repl got that last case wrong - harmlessly,
+        # since the second close is a no-op, but only by accident.
+        chat.io_log.close()
     return 0
 
 

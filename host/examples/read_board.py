@@ -12,10 +12,14 @@ checks the board can settle from its own registers - a locked PLL, a calibration
 that ran, a firmware checksum. Those need no external reference, so the board is
 entitled to an opinion. Everything else it reports as a value.
 """
+import os
 import sys
 
-sys.path.insert(0, '..')
-sys.path.insert(0, '.')
+# host/ on the path: this file's own directory's parent. Was '..'
+# and '.', which only worked when run from host/ or host/examples -
+# `python host/examples/read_board.py` from the repository root
+# failed outright.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import connect, disconnect
 

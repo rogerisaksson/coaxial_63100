@@ -18,9 +18,13 @@ never finished, 2 when the run could not start at all.
 """
 import argparse
 import json
+import os
 import sys
 
-sys.path.insert(0, __file__.rsplit('coaxial_ollama', 1)[0])
+# host/ on the path: this file's own directory's parent, so it does
+# not matter what the working directory is or what any directory
+# along the way is called.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import RigError                  # noqa: E402
 from coaxial_mcp.session import Session              # noqa: E402

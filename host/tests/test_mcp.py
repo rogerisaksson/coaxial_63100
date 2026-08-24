@@ -8,9 +8,14 @@ are all exercised. The board must be attached: these are live measurements.
 Run from the host directory:  python tests/test_mcp.py
 """
 import json
+import os
 import subprocess
 import sys
 import time
+
+# host/ on the path: this file's own directory's parent, so it does not
+# matter what the working directory is.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 PROTOCOL_VERSION = '2024-11-05'
 
@@ -118,7 +123,6 @@ def tool_list(server, report):
 
     # Compare against what the module declares rather than a number written here,
     # so adding a tool does not fail this test for the wrong reason.
-    sys.path.insert(0, '.')
     from coaxial_mcp.tools import HANDLERS
     served = {tool['name'] for tool in tools}
     report.check('tools/list matches the handler table', served == set(HANDLERS),
@@ -165,10 +169,10 @@ def exercise(server, report):
     # Writing 0 across all of GPIOB would clear PB10/PB11 and sever the link.
     # The firmware masks those out - and legitimately DOES clear PB2, which is
     # the AFE switch, so the reading afterwards proves both halves at once.
-    text = report.result('gpio_port write masks reserved',
-                         server.tool('gpio_port', {'op': 'write', 'port': 'B',
-                                                   'mask': 0xFFFF, 'value': 0}),
-                         ['GPIOB=0x', 'reserved:'])
+    report.result('gpio_port write masks reserved',
+                  server.tool('gpio_port', {'op': 'write', 'port': 'B',
+                                            'mask': 0xFFFF, 'value': 0}),
+                  ['GPIOB=0x', 'reserved:'])
     report.check('link survived the masked write',
                  'echo ok' in server.tool('link', {'op': 'echo', 'text': 'alive'}),
                  'PB10/PB11 held while the rest of GPIOB went low')

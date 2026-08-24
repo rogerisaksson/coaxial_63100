@@ -29,6 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import ConnectError, DeviceStateError   # noqa: E402
 from coaxial_ollama import plan as planmod                 # noqa: E402
+from coaxial_ollama import replies                       # noqa: E402
 from coaxial_ollama import runner as runmod                # noqa: E402
 from coaxial_ollama import tools as toolmod                # noqa: E402
 from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
@@ -1061,7 +1062,6 @@ def test_debug(report):
         kw.setdefault('out', io.StringIO())
         return debug.Chat(ScriptedModel(turns), box, **kw)
 
-    lean = chat([])
     report.check('the debug prompt is a fraction of the runner prompt',
                  debug.approx_tokens(debug.SYSTEM)
                  < debug.approx_tokens(runmod.SYSTEM) / 3,
@@ -1450,7 +1450,7 @@ def test_debug(report):
 
     # ---- a table read is not typed out again as the answer -----------------
     report.check('the header row is not mistaken for a channel called smp',
-                 'smp' not in debug.READING_ROW.findall(
+                 'smp' not in replies.READING_ROW.findall(
                      '64 smp @2000Hz\n0  PhaseU  diff   1427.1  +0.1437V'))
 
     retype_session = SimulatedSession()
@@ -1666,7 +1666,7 @@ def test_debug(report):
                 ' "rate_hz": 100, "samples": 10}}' + chr(10)
               + 'CallCheckFunction' + chr(10)
               + '{"name": "afe_power", "arguments": {"action": "read"}}')
-    calls, rest = debug._salvage_calls(pasted)
+    calls, rest = replies.salvage_calls(pasted)
     report.check('two calls written as text are both salvaged',
                  [c['function']['name'] for c in calls]
                  == ['analog_read', 'afe_power'] and rest == '',
@@ -1675,7 +1675,7 @@ def test_debug(report):
                  calls[0]['function']['arguments'].get('samples') == 10,
                  str(calls[0]['function']['arguments']))
 
-    one, rest = debug._salvage_calls(
+    one, rest = replies.salvage_calls(
         '<tool_call>{"name":"analog_read","arguments":{"ch":["NTC"]}}</tool_call>')
     report.check('a single tagged call still works',
                  len(one) == 1 and rest == '')
@@ -1683,12 +1683,12 @@ def test_debug(report):
     for prose in ('The NTC reads 27.4 C.',
                   'I would call {"name": "docs"} but the front end is off.',
                   'Set it with board.afe.on() {no tool needed}.'):
-        calls, rest = debug._salvage_calls(prose)
+        calls, rest = replies.salvage_calls(prose)
         report.check('an answer is never turned into a board command',
                      not calls and rest == prose, prose[:40])
 
     report.check('a stray closing tag is not an answer on its own',
-                 debug._salvage_calls('done.</tool_call>') == ([], 'done.'))
+                 replies.salvage_calls('done.</tool_call>') == ([], 'done.'))
 
     spoken = debug.Chat(ScriptedModel([
         {'role': 'assistant', 'content':
@@ -1818,6 +1818,81 @@ def test_local_only(report):
     allowed.models = lambda: ['gemma4:12b', 'minimax-m3:cloud']
     report.check('with --allow-remote the cloud tag is a candidate again',
                  allowed.require_model() == 'minimax-m3:cloud')
+
+
+# ---- a crashed model runner is not the operator's problem ------------------
+
+def test_runner_crash_retry(report):
+    """Measured repeatedly on this bench: llama-server dies with
+    std::bad_alloc mid-session and ollama answers 500. The daemon respawns
+    it, so asking again works - which used to be the operator's job."""
+    from coaxial_ollama import client as clientmod
+    from coaxial_ollama.client import Ollama, OllamaError
+
+    crash = OllamaError('/api/chat 500: {"error":"model runner has '
+                        'unexpectedly stopped, this may be due to resource '
+                        'limitations or an internal error"}')
+    report.check('a crashed runner is told apart from a refused request',
+                 clientmod._runner_crashed(crash)
+                 and not clientmod._runner_crashed(
+                     OllamaError('/api/chat 400: invalid tool schema')))
+
+    # No real sleeping in a test suite that runs on every change.
+    slept, real_sleep = [], clientmod.time.sleep
+    clientmod.time.sleep = slept.append
+    try:
+        talker = Ollama('gemma4:12b')
+        attempts = []
+
+        def flaky(path, payload):
+            attempts.append(path)
+            if len(attempts) < 3:
+                raise crash
+            return {'message': {'role': 'assistant', 'content': 'recovered'},
+                    'prompt_eval_count': 5, 'eval_count': 2}
+        talker._post = flaky
+        message = talker.chat([{'role': 'user', 'content': 'hi'}])
+        report.check('a crashed runner is retried until it comes back, in '
+                     'silence', message['content'] == 'recovered'
+                     and len(attempts) == 3, attempts)
+        report.check('and it waits between tries rather than collecting the '
+                     'same 500 instantly', len(slept) == 2 and all(slept),
+                     slept)
+        report.check('the token meter counts the reply that arrived, not the '
+                     'attempts', talker.calls == 1 and talker.prompt_tokens == 5)
+
+        # A machine genuinely out of memory must still fail, not loop.
+        forever = Ollama('gemma4:12b')
+        tries = []
+
+        def always_crash(path, payload):
+            tries.append(path)
+            raise crash
+        forever._post = always_crash
+        try:
+            forever.chat([{'role': 'user', 'content': 'hi'}])
+            report.check('a runner that never comes back still raises', False)
+        except OllamaError:
+            report.check('a runner that never comes back still raises, '
+                         'bounded by RUNNER_RETRIES',
+                         len(tries) == clientmod.RUNNER_RETRIES + 1, tries)
+
+        # A refused request is a mistake in the request; asking again just
+        # makes the same mistake twice.
+        picky = Ollama('gemma4:12b')
+        refusals = []
+
+        def refuse(path, payload):
+            refusals.append(path)
+            raise OllamaError('/api/chat 400: invalid tool schema')
+        picky._post = refuse
+        try:
+            picky.chat([{'role': 'user', 'content': 'hi'}])
+            report.check('a refused request is not retried', False)
+        except OllamaError:
+            report.check('a refused request is not retried', len(refusals) == 1)
+    finally:
+        clientmod.time.sleep = real_sleep
 
 
 # ---- the model stays loaded, and so does its prompt cache -----------------
@@ -2360,8 +2435,16 @@ def test_docs(report):
     report.check('and a stream that cannot be reconfigured is left alone',
                  debug._printable(object()) is not None)
 
-    report.check('dbg tells the model the documents exist',
-                 'docs' in debug.SYSTEM and 'FINDINGS' in debug.SYSTEM)
+    # The reverse of what this checked before, deliberately: asked to
+    # measure, the model called docs and answered with HARDWARE.md's own
+    # channel table instead of a reading. SYSTEM says nothing about
+    # documents any more, and no default tool set offers them - a session
+    # that genuinely wants them asks by name (-t docs), and only then does
+    # DOCS_HINT cost a line.
+    report.check('the bench prompt does not send the model to the documents',
+                 'docs' not in debug.SYSTEM and 'FINDINGS' not in debug.SYSTEM)
+    report.check('the docs warning is there for a session that does ask',
+                 'never docs' in debug.DOCS_HINT)
     report.check('and never to restate a result already printed above',
                  'restate' in debug.SYSTEM)
     report.check('afe_power is never framed as refusable',
@@ -2375,8 +2458,11 @@ def test_docs(report):
                  'mid-scale' not in debug.SYSTEM)
     report.check('the runner tells it too',
                  'docs' in runner.SYSTEM and 'FINDINGS' in runner.SYSTEM)
-    report.check('docs is in the default tool set',
-                 'docs' in debug.SETS['read'] and 'docs' in debug.SETS['code'])
+    report.check('no default tool set offers docs - only `docs` and `all`',
+                 not any('docs' in debug.SETS[s]
+                         for s in ('read', 'code', 'pins', 'build'))
+                 and 'docs' in debug.SETS['docs']
+                 and 'docs' in debug.SETS['all'])
 
 
 def main():
@@ -2386,7 +2472,8 @@ def main():
                  test_scope_repairs, test_prompt, test_policy,
                  test_link_diagnose, test_transcript,
                  test_debug, test_cli,
-                 test_local_only, test_keep_alive, test_coerce,
+                 test_local_only, test_runner_crash_retry, test_keep_alive,
+                 test_coerce,
                  test_capability, test_docs):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)

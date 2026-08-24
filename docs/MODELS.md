@@ -285,6 +285,23 @@ buffer, and a 500 from the daemon. Worse when it succeeds: resident at one
 context size, questioned at another, so it reloads and the preload has bought a
 wait instead of saving one.
 
+### When the runner dies under you
+
+Measured repeatedly on this bench: llama-server terminates with
+`std::bad_alloc` — usually while saving its own prompt cache — and ollama
+answers 500 `model runner has unexpectedly stopped, this may be due to
+resource limitations`. Nothing is wrong with the machine; the daemon respawns
+the runner on the very next request, so the recovery was always just "ask
+again". Until it was automatic, that meant the operator retyping a question
+that had already been answered everywhere except in the reply.
+
+`client._chat_once` now retries `RUNNER_RETRIES` times (2), waiting
+`RUNNER_RETRY_WAIT` × attempt between tries, and says nothing: a retry that
+worked is not news, and the token meter counts replies that arrived, not
+attempts. A request ollama *refused* — a bad schema, an unknown field — is
+never retried, because asking again just makes the same mistake twice. A
+machine genuinely out of memory still fails, in seconds, rather than looping.
+
 ---
 
 ## What the model is not allowed to conclude
@@ -338,8 +355,12 @@ reached.
 
 ## Reading these documents from a prompt
 
-The `docs` tool is how the model reaches this file and its neighbours without
-anyone pasting them into a prompt:
+The `docs` tool reaches this file and its neighbours without anyone pasting
+them in — **off by default**, and asked for by name:
+
+```powershell
+dbg -t docs "what does FINDINGS say about PCSEL?"     # or /tools docs
+```
 
 ```
 docs()                           the index: every document and its headings
@@ -348,16 +369,26 @@ docs(doc='MODELS', section='Threads')
 docs(find='25.00')               where a phrase appears, with its heading
 ```
 
-Index first, section second, on purpose. The whole tool list is re-read every
-turn — see the token argument in [ARCHITECTURE.md](ARCHITECTURE.md) — so a tool
-that returned a whole document by default would cost more than it is worth.
+Index first, section second, on purpose: the tool list is re-read every turn
+(see the token argument in [ARCHITECTURE.md](ARCHITECTURE.md)), so a tool
+returning a whole document by default would cost more than it is worth.
+
+It is out of `read`, `code`, `pins` and `build` for a stronger reason than
+cost. Asked to *measure* the analog channels, `gemma4:12b` called `docs`,
+pulled several thousand tokens of HARDWARE.md into context, and answered with
+that document's channel table — no measurement in it anywhere. Removing the
+tool cut the same question from 6229 prompt tokens to 2645 and turned the
+answer back into a reading. The board is the authority on what the board
+reads; the documents explain what a reading *means*, which is a different and
+much rarer question. `DOCS_HINT` says so, and is sent only when `docs` is
+actually offered.
 
 ## Tools beyond the board
 
-Three narrow, purpose-built tools, each wrapping a fixed script or a fixed OS
-check rather than handing the model a general-purpose command line - see
-`host/coaxial_ollama/tools.py` for the schemas and `host/tools/` for the
-scripts:
+Beyond the nine board tools shared with the MCP server, three narrow ones,
+each wrapping a fixed script or a fixed OS check rather than handing the
+model a general-purpose command line - see `host/coaxial_ollama/tools.py`
+for the schemas and `host/tools/` for the scripts:
 
 | Tool | Wraps | Gated by |
 |---|---|---|
@@ -412,122 +443,91 @@ are what turn it on, on the one `Chat` a real run actually uses.
 
 ## Measured failure modes
 
+One lesson runs through almost all of these, and it is why the loop is built
+the way it is:
+
+> **Telling the model not to do something does not stop it. A fact the loop
+> already holds, that the model gets no vote on, does.**
+
+Every backstop in `debug.py` exists because a sentence in `SYSTEM` was tried
+first and did not hold. The table is the short version; the entries below it
+carry the detail that is worth more than a row.
+
+| SYSTEM said | It did anyway | What settles it now |
+|---|---|---|
+| never restate a tool's own rows | retyped the whole table as comma-separated prose, three sessions running (`qwen2.5:14b`) | `replies.is_retype` - an answer naming every channel just read is replaced with silence |
+| never answer from an old reading | invented a full table one round trip after the ST-Link was unplugged, values a few counts off the real one | `link_error` override, and `self.last_channels` kept across turns |
+| afe_power only when asked, never to serve a reading | turned the AFE back on to "serve" a reading, the turn after being told to turn it off | `Toolbox._permit` refuses it when the question never said "afe" |
+| a call error is reported, never hidden | answered "kortet har byggts och flashats" after declining that exact call at the `--confirm` prompt | `code_error` override, same shape as `link_error` |
+| (schema) build_firmware exists | "Nej, jag programmerar inte firmwaren själv" - training beat the schema | `BUILD_FIRMWARE_HINT`, sent only when the tool is offered |
+| (schema) link_diagnose exists | called `build_firmware` when asked why the board was silent - a guess at a fix, not a diagnosis | `LINK_DIAGNOSE_HINT` |
+| (schema) run_command's allowlist | tried `python3` (not allowlisted) and the wrong directory | `BUILD_HINT` |
+
+Two things that table is not. It is not an argument against writing the rule
+down - every one of those rules is still in `SYSTEM`, because the model does
+follow them most of the time and the backstop only has to catch what is left.
+And it is not a claim that a backstop is always available: `is_retype` can
+only fire because the loop already knows which channels were read.
+
 ### llama3.1:8b answered from memory when a tool call failed
 
-Faster: three questions in 24.0 s against 31.3 for `gemma4:12b`, two model calls
-per question against three, 1.2k prompt tokens against 2.9k. Then it was asked
-for the board temperature, called `analog_read` with `ch="ntc"`, got
-`unknown channel 'n'` back, and said **"The board temperature is 25.00 C"** —
+Faster: three questions in 24.0 s against 31.3 for `gemma4:12b`, two model
+calls per question against three, 1.2k prompt tokens against 2.9k. Then it was
+asked for the board temperature, called `analog_read` with `ch="ntc"`, got
+`unknown channel 'n'` back, and said **"The board temperature is 25.00 C"** -
 three runs running, for a board `board temp` had at 36.3. That is the AFE-off
 number: invented, wrong by 11 °C, and wrong in the one shape a reader here is
 least likely to question.
 
-The argument coercion above came out of that. After it, llama3.1:8b reads the
-board correctly — and still loses, because it passes `ntc_beta=3950` where the
-onboard part is a Murata NCU18XH103 at **B=3380** (`coaxial/scaling.py`). A
-silent 1.7 °C bias from a plausible-looking constant the model supplied itself.
+The argument coercion in `coaxial_mcp.tools.coerce` came out of that. After
+it, llama3.1:8b reads the board correctly - and still loses, because it passes
+`ntc_beta=3950` where the onboard part is a Murata NCU18XH103 at **B=3380**
+(`coaxial/scaling.py`). A silent 1.7 °C bias from a plausible-looking constant
+the model supplied itself.
 
-`gemma4:12b` overrode nothing, landed within 0.5 °C, and when asked whether the
-AFE was on answered by reasoning that the NTC was *not* reading exactly 25.00.
+`gemma4:12b` overrode nothing, landed within 0.5 °C, and when asked whether
+the AFE was on answered by reasoning that the NTC was *not* reading exactly
+25.00. The full entry is in [FINDINGS.md](FINDINGS.md).
 
-The full entry, with the numbers, is in [FINDINGS.md](FINDINGS.md).
+### A rule the model can satisfy literally while breaking it
 
-### Telling it was not enough
+`SYSTEM` said "never a markdown table" and "no second list". The model
+complied with both - comma-separated prose is neither - while doing exactly
+what the rule existed to prevent. Reworded to name the act rather than its
+shapes: never restate rows a tool already printed, table or not.
 
-The previous entry reworded `SYSTEM` to say, plainly, never retype a table
-already shown. Restarted with the new prompt loaded, `qwen2.5:14b` still ended
-"tabellera alla AFE-kanaler" by writing out every channel it had just read as a
-comma-separated sentence - a different shape than the markdown table the
-original rule named, same act the reworded rule named directly. Three separate
-bench sessions, three restatements. The prompt was not the fix; it was another
-sentence the model would read and then not follow.
-
-`Chat.ask` now keeps the channel names from the most recent successful
-`analog_read` in the turn, and if the final answer names all of them and
-nothing else, the answer is replaced with silence - the same move as the
-link-down override two entries up: a fact the loop already has, that the
-model does not get a vote on. Silence rather than a line saying so ("table
-above, not restated.", an earlier version of this) because that line was its
-own small version of the same complaint: the table is the trace directly
-above it, on the same screen, and does not need a caption confirming it is
-not being typed out again. The bar is deliberately narrow
-(`RESTATE_MIN_CHANNELS = 3`, and every single one of that reading's channels
-has to appear) so a real one-line finding that happens to name a channel or two
-- "NTC is running warm, DCbus looks nominal" - is left alone.
-
-Building this caught a bug in itself before it shipped: the row-matching regex
-keyed on a leading digit and a word, which is also the shape of `analog`'s own
-header line, `64 smp @2000Hz` - `smp` was briefly a channel of its own count.
-Anchoring on the mode column (`diff`/`SE`) that only a real row has fixed it.
-This is why the reproduction ran against a real render before the fix was
-called done, not just against a hand-written string shaped like one.
-
-### The dedup worked, and the transcript still looked busy
-
-After the repeat-call dedup above, the same "tabulate everything" question still
-opened with a guessed channel name (`phase_1` - not in the enum, and the schema
-already says "omit for all") and closed with the model retyping every value
-`analog_read` had just printed, as a comma-separated sentence, right after
-being told not to.
-
-The middle of that transcript was not a bug: `on=1 pe15=0` real, then real
-again, then two calls caught by the dedup, is a model checking the AFE state
-before turning it on and then losing count - one legitimate check-then-act
-pair followed by two accidental repeats, exactly what the dedup exists to
-catch. The bad channel guess is the model not reading its own tool schema; it
-recovered in the same turn by omitting `ch` as documented, and nothing in that
-recovery was wrong, just one call wasted getting there.
-
-The closing restatement was the fixable half. `SYSTEM` said "never a markdown
-table" and "no second list," and the model complied with both literally -
-comma-separated prose is neither - while doing exactly the thing the rule was
-for. Reworded to say what the rule actually means: never restate the rows a
-tool result already printed above, table or not.
+Building the backstop caught a bug in itself before it shipped: the row-matching
+regex keyed on a leading digit and a word, which is also the shape of
+`analog`'s own header line, `64 smp @2000Hz` - `smp` was briefly a channel of
+its own count. Anchoring on the mode column (`diff`/`SE`) that only a real row
+has fixed it. Which is why the reproduction ran against a real render before
+the fix was called done, not against a hand-written string shaped like one.
 
 ### The same call, asked again, and again
 
 Asked to tabulate every channel, `qwen2.5:14b` turned the front end on, saw
 `on=1 pe15=0`, and turned it on again - three more times, identical call,
-identical result, each one a full round trip through the model and the board
-for a fact it already had. Nothing was wrong with the board; the model just
-could not tell it had already asked.
+identical result, each a full round trip for a fact it already had.
 
-`Chat.ask` now remembers, per question, the (name, arguments) of every call it
-has made and the result it got back. A call outside `REPEATABLE` - anything but
-`analog_read`, `run_python`, `run_command` - that repeats exactly is answered
-from that memory instead of reaching the board again, with a line that says so
-plainly: `unchanged this turn, already asked: on=1 pe15=0`. `analog_read` stays
-out of the dedup on purpose - a second reading is a new sample, not a repeat,
-and the DC bus does not hold still for a cache.
+`Chat.ask` now remembers, per question, the (name, arguments) of every call and
+its result. A call outside `REPEATABLE` that repeats exactly is answered from
+that memory: `unchanged this turn, already asked: on=1 pe15=0`. `analog_read`,
+`run_python` and `run_command` stay out of the dedup on purpose - a second
+reading is a new sample, and the DC bus does not hold still for a cache.
 
-The one trap in this: a repeated call after a *failed* one must not read as a
-fresh success. The dedup keeps the original result under the wrapping sentence
-and classifies the link from that, not from the sentence - otherwise
-`unchanged this turn, already asked: ERR ConnectError: ...` would not match the
-`ERR ` prefix `link is down, not answered` looks for, and a cable pulled mid-turn
-would go quiet exactly where the previous entry says it must not.
-
-### The call header, clipped, ate its own result
-
-`_trace` used to print the call above its result: name, then arguments, then
-`->`, then the first line of what came back. Fine for a short call. Asked for
-five channels at once, the arguments themselves were long enough that `clip`
-cut them, and the cut notice landed a newline into the middle of the header:
-
-    analog_read samples=100 ch=['dc_bus', 'ntc', 'phase_a', 'phase_b', 'phas
-    ... [17 more characters cut] -> 100 smp @2000Hz
-
-The `->` and the first row of the actual table were now stuck onto the end of
-a truncation notice, and the header restated something the table already says
-better - it names every channel it read, one per row. The header is gone. What
-prints now is the result, row for row, nothing above it.
+The trap: a repeat of a *failed* call must not read as a fresh success. The
+dedup keeps the original result under the wrapping sentence and classifies the
+link from that, not from the sentence - otherwise `unchanged this turn, already
+asked: ERR ConnectError: ...` would not match the `ERR ` prefix the link-down
+override looks for, and a cable pulled mid-turn would go quiet exactly where
+it must not.
 
 ### A call written as text, more than one at a time
 
-`dbg.py` recovers a tool call the model typed into `content` instead of putting
-in `tool_calls` � the shape was wrong, the intent was right, and a JSON parse is
+`dbg.py` recovers a tool call the model typed into `content` instead of
+`tool_calls` - the shape was wrong, the intent was right, and a JSON parse is
 cheaper than a wasted turn. The first version recovered exactly one call from a
-message that was *nothing but* that call, and asked "vad ar temperaturen" the
+message that was *nothing but* that call. Asked "vad ar temperaturen", the
 model sent two:
 
     CallCheckFunction
@@ -535,132 +535,65 @@ model sent two:
     CallCheckFunction
     {"name": "afe_power", "arguments": {"action": "read"}}
 
-Nothing ran, and the prompt printed all four lines as the answer. At a bench
-that does not read as a parse failure � it reads as the board having stopped
-giving values, which is the wrong thing to go and check.
+Nothing ran, and the prompt printed all four lines as the answer - which at a
+bench does not read as a parse failure, it reads as the board having stopped
+giving values.
 
-`_salvage_calls` now takes every call in the message, matches braces rather than
-running a non-greedy regex (`{.*?}` ends at the brace that closes `arguments`,
-so a nested argument parsed as half of itself), and keeps the old veto: with the
-tags and the call objects removed, anything left has to be marker noise �
-`tool`, `call`, `function`, `check`, split at capitals so `CallCheckFunction`
-counts as three. One word of real prose and the message is printed as the answer
-it probably is. Turning a sentence that happens to quote JSON into a board
-command is a far worse failure than showing the JSON.
+`replies.salvage_calls` now takes every call in the message and matches braces
+rather than running a non-greedy regex (`{.*?}` ends at the brace closing
+`arguments`, so a nested argument parses as half of itself). The veto is what
+makes it safe: with the tags and call objects removed, anything left has to be
+marker noise - `tool`, `call`, `function`, `check`, split at capitals so
+`CallCheckFunction` counts as three. One word of real prose and the message is
+printed as the answer it probably is. Turning a sentence that merely quotes
+JSON into a board command is far worse than showing the JSON.
+
+### The call header, clipped, ate its own result
+
+`_trace` used to print the call above its result. Asked for five channels, the
+arguments were long enough that `clip` cut them, and the cut notice landed a
+newline inside the header:
+
+    analog_read samples=100 ch=['dc_bus', 'ntc', 'phase_a', 'phase_b', 'phas
+    ... [17 more characters cut] -> 100 smp @2000Hz
+
+The `->` and the table's first row ended up stuck to a truncation notice - and
+the header was restating what the table says better anyway, since it names
+every channel one per row. The header is gone.
 
 ### A model that stops in prose
 
-The runner nudges twice — "either call a tool, or call report to finish this
-step" — and then records the step as `unfinished` rather than accepting the
-prose as a result. An unfinished step is a visible hole in the report; a
-paragraph accepted as a measurement is not.
+The runner nudges twice - "either call a tool, or call report to finish this
+step" - then records the step `unfinished` rather than accepting prose as a
+result. An unfinished step is a visible hole in the report; a paragraph
+accepted as a measurement is not.
 
-### A turn that skipped the read entirely
+### Noise the operator does not need, that the log still keeps
 
-Both backstops above - the link-down override and the no-restating-a-table
-override - only look at tool calls made *that turn*. Measured on this bench
-with `dbg.py`: the ST-Link's JTAG connector, which carries this board's VCP
-(`docs/HARDWARE.md` - USART3 is bridged through the probe, not a separate
-on-board USB-UART chip), was pulled mid-conversation. Asked "tabellera
-ADC-värdena" again, `gemma4:12b` answered one round trip later with a full
-table of plausible values - PhaseU, PhaseV, NTC, DCbus all present, each a
-few counts off the real table from earlier in the same conversation. No
-`analog_read` in the trace: it never touched the board that turn, just
-rewrote the old numbers slightly and presented them as current.
-
-Neither existing backstop caught this, because both are keyed off calls made
-in the current turn, and this turn made none - `link_error` stays `None` with
-nothing to report, and the turn-local `last_channels` used for the
-restate-check stays `None` since no `analog_read` ran. SYSTEM already says
-"never answer with an older reading or a guess," which is the same sentence
-that did not stop the two failures above either.
-
-`Chat` now keeps `self.last_channels` across turns, separate from the
-turn-local copy. If a turn calls no `analog_read` at all and the final answer
-still names every channel from the last real reading - the same
-`RESTATE_MIN_CHANNELS` bar as the restate check - the answer is replaced with
-`no reading taken this turn - ask again.` A turn that calls `analog_read` and
-gets a channel-name or argument error still passes through undisturbed: that
-model reached the board and got a real (if unhelpful) answer, which is a
-different failure than never asking at all.
-
-### afe_power fired to serve a reading, exactly what SYSTEM already forbade
-
-SYSTEM already said "afe_power changes only when asked directly, never to
-serve a reading." Measured anyway: told to turn the AFE off, then asked in
-the *next*, unrelated turn for "alla analoga mätningar," `gemma4:12b` called
-`afe_power(on)` first - telling it was not enough, same as everywhere else in
-this file. `Toolbox._permit()` now refuses an `afe_power` call that changes
-state when the current question never mentioned "afe" (`afe_mentioned`,
-`tools.py`) - set from the real question text at `dbg.py`'s two real call
-sites (`repl()`, the one-shot path), not inside `Chat.ask()` itself, so every
-existing test driving `Chat.ask()` directly keeps its old permissive default
-instead of needing "afe" stuffed into an unrelated fixture question.
-
-### A declined --confirm was reported as a success
-
-`build_firmware`/`run_command` calls are gated by `--confirm`. Measured live:
-told to build and flash, then declined at the confirm prompt, `gemma4:12b`
-still answered "kortet har byggts och flashats" - the refusal was right there
-in its own tool result and it wrote past it. `Chat.ask()` now tracks
-`code_error` the same way it already tracked `link_error`: any
-`run_python`/`run_command`/`build_firmware` result starting `ERR` this turn
-overrides the model's own closing line, cleared by a later successful call in
-the same turn.
-
-### A tool existing in the schema is not the same as being reached for
-
-Three separate instances of the same shape, all fixed the same way - a short,
-conditional line appended to `SYSTEM` only when the relevant tool is actually
-offered, since telling it once in a long system prompt was not enough and
-paying for the line on every turn regardless was not necessary either:
-
-  * `build_firmware` sitting in the tool list did not stop "bygger du
-    firmware?" from getting "Nej, jag programmerar inte firmwaren själv" -
-    the model's own training that a chat assistant cannot compile real
-    hardware overrode the schema outright. `BUILD_FIRMWARE_HINT`.
-  * `run_command`'s first two tries at reaching `build_and_flash.py` were
-    `python3` (not allowlisted) and the wrong directory. `BUILD_HINT`.
-  * Asked directly "why can't you reach the board" with the link genuinely
-    down, `gemma4:12b` called `build_firmware` instead of `link_diagnose` -
-    a guess at a fix, not a diagnosis, and not what was asked.
-    `LINK_DIAGNOSE_HINT`.
-
-### An afe_power refusal, still visible after the model recovered from it
-
-The gate above (SYSTEM prompt + `afe_mentioned`) works: a refused
-`afe_power` call is followed by a correct `analog_read` one call later,
-every time it was measured. What was left was the refusal itself sitting in
-the trace the operator reads - accurate, but noise for something the model
-already corrected inside the same turn. `Chat._trace()` now skips exactly
-that one shape of result (`afe_power`, refused for not being asked for) -
-still appended to `self.history` so the model still reads its own mistake
-and still written to `IOLog` unconditionally, since a mistake corrected in
-the same turn is exactly the kind of thing worth seeing when debugging why
-a turn cost four calls instead of one.
+The `afe_power` gate works: a refused call is followed by a correct
+`analog_read` one call later, every time measured. What was left was the
+refusal in the trace - accurate, but noise for something already corrected in
+the same turn. `Chat._trace` skips that one shape of result. It stays in
+`self.history`, so the model still reads its own mistake, and in `IOLog`
+unconditionally, since "why did that turn cost four calls" is exactly the
+question that log exists to answer.
 
 ### A nudge stole the language lock from what was actually asked
 
-The language lock (see above) read `asked` as the last `role=='user'`
-message in `self.history` - which is also the shape a mid-turn nudge takes
-("Call the tool now - do not describe it.", appended for the model's
-benefit when it names a tool without calling it). Measured live: a Swedish
-question that triggered exactly that nudge had its session language flip to
-English on the very next `trim()`, because the nudge's own English words
-had become the last "user" message by then - the operator's own words were
-still sitting further back in the same history, just no longer the ones
-being read. `trim()` now reads `self.prompt_history[-1]` instead - a
-separate list, appended to exactly once per turn, at the top of `ask()`,
-before anything the turn itself might add can reach it.
+`trim()` read `asked` as the last `role=='user'` message in history - which is
+also the shape of a mid-turn nudge ("Call the tool now - do not describe it."),
+appended for the model's benefit. Measured live: a Swedish question that
+triggered that nudge had its session language flip to English on the very next
+`trim()`, the operator's own words still in history but no longer the ones
+being read. `trim()` now reads `self.prompt_history[-1]` - appended exactly
+once per turn, at the top of `ask()`, before the turn can add anything.
 
-### The eager board connect that stopped a troubleshooting turn before it started
+### The eager board connect that ended a turn before it started
 
-`main()` used to open `session.board` before the model was ever asked
-anything, specifically so a dead link failed loudly before any tokens were
-spent - written when the only thing standing between that and the model
-"answering past" a dead link was catching the failure early. `link_diagnose`
-and the `link_error` override in `ask()` do that job now, and do it better:
-the model gets a real turn to read the checklist and help, instead of a
-one-shot question exiting with code 2 before it was ever asked. The board is
-touched exactly when a tool call needs it - Session.board was already lazy;
-this removed the one thing forcing it early.
+`main()` used to open `session.board` before the model was asked anything, so
+a dead link failed loudly before tokens were spent - written when catching it
+early was the only thing between that and the model answering past it.
+`link_diagnose` and the `link_error` override do that job now, and better: the
+model gets a real turn to help instead of a one-shot question exiting with code
+2 before it was ever asked. `Session.board` was always lazy; this removed the
+one thing forcing it early.

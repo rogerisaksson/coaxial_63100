@@ -50,15 +50,38 @@ deciding what of it is allowed to touch the board is tools.py's problem, and
 deciding what counts as a pass is plan.py's.
 """
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
 LOOPBACK = ('localhost', '127.0.0.1', '::1')
 
+# How often to re-ask after ollama's own model runner has crashed, and how
+# long to wait before the first retry (doubling, then tripling). Two is
+# enough for every crash measured here - the runner is respawned by the
+# time the first retry lands - and small enough that a machine genuinely
+# out of memory fails in seconds rather than looping.
+RUNNER_RETRIES = 2
+RUNNER_RETRY_WAIT = 1.5
+
+# What ollama says when llama-server died under it. The text is the
+# daemon's, quoted here because the HTTP status alone does not
+# distinguish it from a bad request, and a bad request must not be
+# retried.
+_RUNNER_CRASH = ('model runner has unexpectedly stopped',
+                 'llama runner process has terminated')
+
 
 class OllamaError(Exception):
     """Ollama was unreachable, refused the request, or has no such model."""
+
+
+def _runner_crashed(exc):
+    """Whether this error is ollama's runner dying, rather than a request
+    it refused - the first is worth asking again, the second never is."""
+    text = str(exc).lower()
+    return any(marker in text for marker in _RUNNER_CRASH)
 
 
 def is_local(host):
@@ -180,6 +203,33 @@ class Ollama:
                           % (self.model, ', '.join(available) or '(none)',
                              self.model))
 
+    def _chat_once(self, payload):
+        """POST /api/chat, retrying a crashed model runner in silence.
+
+        Measured repeatedly on this bench: llama-server dies mid-session
+        with `std::bad_alloc` while saving its own prompt cache, and ollama
+        answers 500 `model runner has unexpectedly stopped, this may be due
+        to resource limitations`. The daemon respawns the runner on the very
+        next request, so the recovery was always just "ask again" - which
+        until now the operator had to do by hand, retyping a question that
+        had already been answered everywhere except in the reply.
+
+        Silent on purpose: a retry that worked is not news, and the token
+        counters below only count replies that actually arrived. A retry
+        that does not work raises the original error, so a genuinely
+        out-of-memory machine still fails loudly rather than looping.
+        """
+        for attempt in range(RUNNER_RETRIES + 1):
+            try:
+                return self._post('/api/chat', payload)
+            except OllamaError as exc:
+                if attempt >= RUNNER_RETRIES or not _runner_crashed(exc):
+                    raise
+                # The daemon needs a moment to notice its runner is gone and
+                # start another; asking again instantly just collects the
+                # same 500. Backs off a little further each time.
+                time.sleep(RUNNER_RETRY_WAIT * (attempt + 1))
+
     def chat(self, messages, tools=None):
         """One turn. Returns the assistant message dict, verbatim."""
         payload = {'model': self.model, 'messages': messages,
@@ -194,7 +244,7 @@ class Ollama:
             payload['think'] = self.think
 
         try:
-            reply = self._post('/api/chat', payload)
+            reply = self._chat_once(payload)
         except OllamaError as exc:
             # Models that cannot think refuse the field rather than ignoring it.
             # Drop it once and remember, instead of making every caller know
@@ -203,7 +253,7 @@ class Ollama:
                 raise
             self.think = None
             payload.pop('think')
-            reply = self._post('/api/chat', payload)
+            reply = self._chat_once(payload)
         self.calls += 1
         self.prompt_tokens += reply.get('prompt_eval_count', 0)
         self.eval_tokens += reply.get('eval_count', 0)

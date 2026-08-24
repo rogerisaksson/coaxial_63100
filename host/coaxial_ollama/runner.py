@@ -127,17 +127,6 @@ class Record:
                                        self.task.name[:40])
 
 
-def _arguments(call):
-    """Ollama sends arguments as an object; some builds send a JSON string."""
-    args = (call.get('function') or {}).get('arguments')
-    if isinstance(args, str):
-        try:
-            args = json.loads(args or '{}')
-        except ValueError:
-            return {'_unparsed': args}
-    return args if isinstance(args, dict) else {}
-
-
 def _preview(args):
     """One short line of what a call was asked to do."""
     if not args:
@@ -210,7 +199,7 @@ class Runner:
 
             for call in calls:
                 name = (call.get('function') or {}).get('name', '?')
-                args = _arguments(call)
+                args = toolmod.arguments(call)
                 result = self.toolbox.call(name, args)
                 record.calls.append(name)
 

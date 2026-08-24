@@ -262,7 +262,7 @@ purpose.
 
 ```powershell
 cd host
-python tests/test_ollama.py         # 292 checks, no board and no ollama needed
+python tests/test_ollama.py         # 314 checks, no board and no ollama needed
 python tests/test_mcp.py            # 39 MCP server checks
 python tests/test_simulated.py      # 17 checks, real MCP handlers against a fake board
 python tests/test_conformance.py    # 43 Modbus conformance checks, needs the board

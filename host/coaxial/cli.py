@@ -7,7 +7,6 @@ the only place behaviour lives.
 import argparse
 import sys
 
-from . import scaling
 from .board import connect, disconnect
 from .errors import RigError
 from .gpio import reserved_reason

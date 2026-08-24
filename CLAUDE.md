@@ -73,7 +73,7 @@ cd host
 python -m coaxial all                      # CLI against the board
 python tests/test_conformance.py           # 43 Modbus conformance checks
 python tests/test_mcp.py                   # 39 MCP server checks
-python tests/test_ollama.py                # 292 runner and dbg checks, offline
+python tests/test_ollama.py                # 314 runner and dbg checks, offline
 python tests/test_simulated.py             # 17 checks, real MCP handlers against a fake board
 python tools/build_and_flash.py            # build (+flash): --build-only, --flash-only
 python tools/run_tests.py                  # the four suites above, one parsed tally
@@ -86,8 +86,7 @@ python dbg.py -m auto "..."                # that model, picked from cores/RAM/V
 python dbg.py -m auto -q "read the NTC"    # ask the local model instead of
                                            # reasoning: it is free and it measures
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
-                                           # the whole verify loop, one tool call each -
-                                           # see "Verify through the local model" below
+                                           # the whole verify loop, one tool call each
 python dbg.py "why does the NTC read exactly 25.00?"   # cheap one-off question
 python dbg.py --repl                       # prompt loop; /py and /sh cost no tokens
 ```
@@ -122,61 +121,55 @@ added, and the very next change landed with a summary and no question,
 because asking was never made part of finishing the change. Treat the
 question as the last step of the change, the same way running the tests is.
 
-## Minimize tokens spent on Anthropic's servers
+## Spend the local model, not the expensive one
 
-The local model is free per token and stands next to the board; every
-routine, mechanical or verification task handled there instead of by
-reasoning here is tokens the user is paying for that cost nothing on the
-bench PC. The two sections that follow are the two shapes this actually
-takes: **Ask the board** for anything answerable by measuring, **Verify
-through the local model** for the build/flash/test loop after a change. Read
-both as instances of this rule, not two unrelated ones - when a task is
-routine, mechanical, or something the local model's tools already cover,
-that is where it belongs by default, not something to reach for the
-expensive model over out of habit.
-
-**Reuse a local model that is already running, rather than starting
-another.** Check `ollama ps` before loading one yourself - if something is
-already resident (the user's own `board_prompt` session, or an earlier step
-in this one), use that same tag rather than a different one. Two models
-loaded at once is how a 16 GB card ends up asked for two copies of weights,
-measured on this bench as a 500 reading `cudaMalloc failed` with nothing
-obviously wrong at either end. This is not about typing into a terminal the
-user already has open - nothing outside the editor can do that, see below -
-it is about not spinning up a redundant load of your own when one is
-already there to use.
-
-## Ask the board, do not reason about it
-
-There is a local model on this machine with the board's fifteen tools wired
-to it. It costs nothing per token and it is standing next to the hardware.
-Use it instead of spending context on questions it can answer by measuring:
+There is a local model on this machine with the board's fifteen tools wired to
+it. It is free per token and it is standing next to the hardware. Anything
+routine, mechanical, or already covered by its tools belongs there by default —
+not with the expensive model out of habit.
 
 ```powershell
 board_prompt -Ask "read the NTC and give me the temperature"
+python dbg.py -m auto -q "..."          # from host/, one layer down
 ```
 
-Or, from `host/`, the same thing one layer down: `python dbg.py -m auto -q "..."`.
-Both pick the model this machine can run and **pull it if it is not here yet**,
-so "the model is not installed" is not a reason to answer from memory instead.
+Both pick the tag this machine can run and **pull it if it is not here yet**, so
+"the model is not installed" is never a reason to answer from memory instead.
+
+**Reuse a model that is already loaded.** Check `ollama ps` before loading one:
+if the user's `board_prompt` session or an earlier step already has one
+resident, use that tag. Two models at once is how a 16 GB card gets asked for
+two copies of the weights — measured here as a 500 reading `cudaMalloc failed`
+with nothing obviously wrong at either end.
+
+| Question | Who answers |
+|---|---|
+| What does the board read right now? Is the AFE on? What is the temperature, the DC link, the frame counters? | **the local model** — offer the command, then stop |
+| Is this channel behaving oddly? What does `self_test` say? | **the local model**, then read `docs/FINDINGS.md` before investigating |
+| Does it still build/flash/pass after this change? | **the local model** — `dbg -q "run the test suites, then build and flash, tell me if anything failed"`. `run_tests` and `build_firmware` report the suite's own tally and the build's own exit code, parsed by the tool, not summarised by the model |
+| Why is this C function written this way? Should this go in `Board/` or `Comms/`? Is this a protocol MAJOR? | **you** — it is bad at code and design, and FINDINGS records it inventing hardware constants |
+| What is the wire format of command 0x41? | **you**, from `docs/PROTOCOL.md` |
+
+A failing build or a regressed test is still yours to judge. The rule is about
+who *runs* the loop, not who decides what its result means.
 
 ### Stop and ask first
 
 **Before touching the board to answer a question, ask whether it is worth
-tokens.** The rule above was in this file already and was walked straight past:
-a request for measurement data turned into an expensive model driving the serial
-port for a quarter of an hour, producing numbers the free one standing next to
-the board could have produced. A rule with no stop in it is a preference.
+tokens.** This was a preference once and got walked straight past: a request for
+measurement data became an expensive model driving the serial port for fifteen
+minutes, producing numbers the free one could have produced. A rule with no stop
+in it is a preference.
 
-So the stop is explicit. It covers two shapes of request, and the second is
-easy to miss because it does not sound like a measurement:
+Two shapes of request, and the second is easy to miss because it does not sound
+like a measurement:
 
   * *measure something* — read a channel, fetch data, check the AFE, take a
     burst, log values over time;
-  * *reach the local model at all* — "I want to prompt the local model", "how
-    do I ask it", "start the bench model". Answering that with instructions is
-    the same mistake in a different coat: the user is not asking to be taught
-    the command, they are asking to be at the prompt.
+  * *reach the local model at all* — "I want to prompt the local model", "how do
+    I ask it", "start the bench model". Answering with instructions is the same
+    mistake in a different coat: the user is not asking to be taught the command,
+    they are asking to be at the prompt.
 
 Either way, ask before running anything, and ask **minimally**:
 
@@ -184,82 +177,43 @@ Either way, ask before running anything, and ask **minimally**:
 > *Local model* — board_prompt
 > *Here* — I drive the library
 
-Two options, a few words each. No paragraph about what tokens cost, no preview
-of what the output might look like, no third option. The user knows what the
-two are; the question exists to record which one, not to explain them.
+Two options, a few words each. No paragraph about token cost, no preview of the
+output, no third option. The question records which one; it does not explain
+them.
 
-On *Local model*: hand the user the shortest way to the prompt, and **stop**.
-The shortest way is a click, not a command to retype:
+On *Local model*: hand over the shortest way to the prompt, and **stop**. The
+shortest way is a click, not a command to retype:
 
     Terminal panel > the v beside + > Board prompt
 
-That profile is in .vscode/settings.json and opens the prompt loop in the
-docked terminal. For a single question without leaving the keyboard,
-Ctrl+Shift+B runs the "Ask the board" task in the same panel. Only when the
-user is not in VS Code is the command itself the answer:
+That profile is in `.vscode/settings.json`. **Ctrl+Shift+B** runs the "Ask the
+board" task in the same panel for a single question. Only when the user is not
+in VS Code is the command itself the answer:
 
     board_prompt -Ask "read all channels, the DC link and the NTC"
 
-Nothing else. No preamble, no alternative spellings of the same command, no
-closing line about having released it, no summary. Do not run it, do not
-paraphrase what it would say, do not take the reading anyway to check. The user
-has a terminal and is already looking at it.
+Nothing else. No preamble, no alternative spellings, no closing line, no
+summary. Do not run it, do not paraphrase what it would say, do not take the
+reading anyway to check.
 
-And **do not spawn a window.** `Start-Process powershell` puts the answer in a
-new window in front of the editor, which is not where the user is working. There
-is no interface that reaches the terminal docked in VS Code - the CLI opens
-files, diffs and extensions, and nothing outside the editor can type into a
-running terminal - so the two honest routes are the line above, pasted, or
-`.vscode/tasks.json`, which runs in that docked panel: **Ctrl+Shift+B** for one
-question, *Run Task > Board prompt* for the loop.
+And **do not spawn a window.** `Start-Process powershell` puts the answer in
+front of the editor, which is not where the user is working. Nothing outside VS
+Code can type into a terminal already open there — the two honest routes are the
+line above, pasted, or `.vscode/tasks.json`, which runs in that docked panel.
 
-This does not apply when the board is instrumentation for work already agreed:
-verifying a change just made to `host/`, reproducing a bug, writing a capture
-tool that needs a live link. Then the board is a test fixture, not the subject
-of a question, and asking each time would be noise. The test is who the answer
-is for — the user, or the code.
+**None of this applies when the board is instrumentation for work already
+agreed**: verifying a change just made, reproducing a bug, writing a capture tool
+that needs a live link. Then it is a test fixture, not the subject of a question,
+and asking each time is noise. The test is who the answer is for — the user, or
+the code.
 
-| Question | Who answers |
-|---|---|
-| What does the board read right now? Is the AFE on? What is the temperature, the DC link, the frame counters? | **the local model** — offer the command, then stop |
-| Is this channel behaving oddly? What does `self_test` say? | **the local model**, then read `docs/FINDINGS.md` before investigating |
-| Why is this C function written this way? Should this go in `Board/` or `Comms/`? Is this a protocol MAJOR? | **you** — it is bad at code and design, and FINDINGS records it inventing hardware constants |
-| What is the wire format of command 0x41? | **you**, from `docs/PROTOCOL.md` |
-
-Where the user chose *here*, relay what was measured; do not re-derive it, and
-do not decorate it with a verdict. If it is wrong about the hardware, that is a finding worth writing
-down — see `docs/MODELS.md`, which is the chapter about what it is allowed to
-conclude and which failure modes have already been measured.
+Where the user chose *here*, relay what was measured. Do not re-derive it, and
+do not decorate it with a verdict. If it is wrong about the hardware, that is a
+finding worth writing down — see `docs/MODELS.md`.
 
 The one thing to keep in mind: it is a **dumb-slave interface to a dumb slave**.
 It reports; it does not judge. Invariant 10 applies to it exactly as it applies
 to the firmware.
-
-## Verify through the local model, not yourself
-
-The same reasoning as the table above, for a different kind of question: once
-`host/` or the firmware has changed, checking that it still works is a
-mechanical, multi-step loop — build, flash, run the offline suites, confirm
-the board answers — and every step of it is now a tool call the local model
-already has: `build_firmware` and `run_tests`
-(`host/coaxial_ollama/tools.py`, wrapping `host/tools/build_and_flash.py` and
-`host/tools/run_tests.py`). Hand it the whole loop in one line instead of
-running each step yourself and reading the output turn by turn:
-
-    dbg -q "run the test suites, then build and flash the firmware, tell me if anything failed"
-
-The honesty concern that applies everywhere else in this file does not apply
-to the verdict itself: both tools return a tally the *tool* parsed from the
-suite's own PASS/FAIL lines or the build's own exit code, not a summary the
-model was asked to write. What the model can still get wrong is *which*
-tool it reaches for or whether it reaches for one at all — that is measured
-and guarded against in `docs/MODELS.md`, same as every other tool call.
-
-This is about the mechanical loop, not the judgment around it. A build that
-fails, a test that regresses, a diff worth making at all — that reasoning is
-still yours. And a change that is not yet agreed with the user, or one that
-would flash real hardware without them expecting it, still goes through the
-table above first, exactly as it would for a single reading.
 
 ## Layout
 

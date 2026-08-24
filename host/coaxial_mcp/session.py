@@ -8,9 +8,13 @@ The board boots into its ASCII console, so opening means handing the UART over
 to the binary protocol first. On the way out the console is handed back, which
 matters: a board left in binary mode looks dead to anyone with a terminal.
 """
+import os
 import sys
 
-sys.path.insert(0, __file__.rsplit('coaxial_mcp', 1)[0])
+# host/ on the path: this file's own directory's parent, so it does
+# not matter what the working directory is or what any directory
+# along the way is called.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import connect, disconnect          # noqa: E402
 from coaxial.errors import RigError              # noqa: E402

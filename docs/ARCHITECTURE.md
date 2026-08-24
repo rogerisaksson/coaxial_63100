@@ -139,14 +139,14 @@ importing pyserial — `board.py`, `cli.py`.
 ### `host/coaxial_mcp/` — the MCP server
 
 Built with the token budget as the design constraint, so a small model can run a
-long test sequence. Eight coarse tools rather than one per firmware command,
+long test sequence. Nine coarse tools rather than one per firmware command,
 because the whole tool list is re-read every turn. Dense fixed-column text
 results rather than JSON: the same seven-channel reading is 278 characters here
 against 2457 as indented JSON, a factor of 8.8. Uses
 `mcp.server.lowlevel.Server` with hand-written schemas — deliberately not
 FastMCP, because schema size is the thing being optimised.
 
-The eighth tool, `docs`, touches no hardware. It hands the model this
+One of the nine, `docs`, touches no hardware. It hands the model this
 repository's own documents, because they are what stop a reading being
 misinterpreted — the AFE gate, the unknown phase gain, what has already been
 ruled out — and the one reader who could not open them was the model standing at
@@ -155,6 +155,30 @@ reason as everything else here, and a search hit carries the chapter it sits
 under: in FINDINGS the chapter is the meaning, and an entry quoted out of
 *Refuted* says the opposite of what the document says. See
 [MODELS.md](MODELS.md).
+
+### `host/coaxial_ollama/` — the local model, and the loop around it
+
+The largest package, and the one with the most rules per line, because almost
+every one of them came from a transcript rather than a design. Two entry
+points over one tool surface:
+
+| Module | What it owns |
+|---|---|
+| `debug.py` | `dbg.py --repl` — the cheap prompt loop. `Chat` is the turn: trim, call, backstop, answer. Also the CLI (`parse`/`build`/`repl`/`main`). |
+| `runner.py` | `python -m coaxial_ollama --plan` — one conversation per plan step, a JSONL transcript, and a verdict that comes from `plan.Limit` in Python, never from the model. |
+| `tools.py` | The tool surface: the nine MCP tools imported unchanged, plus `run_python`, `run_command`, `build_firmware`, `run_tests`, `link_diagnose`, `report`. `Toolbox` holds the operator's policy — `--confirm`, `--read-only`, `--allow-writes`. |
+| `replies.py` | Reading what the model *meant*: is this answer a retyped table, is it a tool call written into `content`, is the residue prose or template noise. Pure functions over text. |
+| `client.py` | `/api/chat` over urllib. Refuses cloud tags and non-loopback hosts; retries a crashed runner. |
+| `capability.py` | Which tag this machine should run, from cores, RAM and VRAM. |
+| `language.py` | Which language to answer in, decided here rather than asked of the model. |
+| `sandbox.py` | Where `run_python` and `run_command` actually run. |
+| `spinner.py` | The prompt's own line. |
+| `plan.py` | A YAML test plan, and the limits the model is never shown. |
+
+`host/tools/` holds what those wrap: `build_and_flash.py`, `run_tests.py`,
+`find_board.py`, `warm_model.py` — each a plain script, runnable by hand, so
+the model's version of a job and yours are the same code. See
+[MODELS.md](MODELS.md) for why each exists.
 
 ## Where scaling lives
 
