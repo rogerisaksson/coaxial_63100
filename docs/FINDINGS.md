@@ -153,8 +153,12 @@ save intermittently throws, uncaught. Beside it, context checkpoints are
 `320.013 MiB` each with a default ceiling of 32: 10 GB of them, against 8 GB
 of weights on a 16 GB card.
 
-`LLAMA_ARG_CACHE_RAM=0` and `LLAMA_ARG_CTX_CHECKPOINTS=2` in the daemon's
-environment remove both. Twelve questions, 36 model calls, **zero**
+`LLAMA_ARG_CACHE_RAM=0` and `LLAMA_ARG_CTX_CHECKPOINTS=0` in the daemon's
+environment remove both. Capping the checkpoints at 2 rather than disabling
+them was tried first and was not enough - restoring a 311.575 MiB checkpoint
+threw `std::bad_alloc` on its own. Off entirely costs nothing here: this loop
+clears its history every turn, so a restored checkpoint has nothing to
+restore. Twelve questions, 36 model calls, **zero**
 `std::bad_alloc` and one model load; the same session untuned crashed in both
 attempts. `board_prompt.ps1` now sets them and restarts the daemon once if it
 has to — see [MODELS.md](MODELS.md) and `$DaemonTuning` in

@@ -28,7 +28,11 @@ function Restart-Daemon {
         try { $trayPath = [string]$tray[0].Path } catch { $trayPath = '' }
     }
 
-    foreach ($name in 'ollama app', 'ollama') {
+    # llama-server too: it is ollama's own child, and stopping only the
+    # parent leaves the runner orphaned, holding memory and handles. Measured
+    # here - two orphans left behind by a stopped daemon, after which every
+    # model load failed with `clip_init: ... std::bad_alloc`.
+    foreach ($name in 'ollama app', 'ollama', 'llama-server') {
         foreach ($proc in @(Get-Process -Name $name -ErrorAction SilentlyContinue)) {
             try {
                 Stop-Process -Id $proc.Id -Force -ErrorAction Stop

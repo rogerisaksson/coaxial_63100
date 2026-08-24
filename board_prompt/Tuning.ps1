@@ -21,13 +21,17 @@
 #       bench ever re-asks a prompt it has already asked, so the cache this
 #       crashes to maintain has nothing to hit.
 #
-#   LLAMA_ARG_CTX_CHECKPOINTS = 2
-#       The other allocator in the same failure. Context checkpoints are
-#       320.013 MiB each here - a fixed size set by the context window, not
-#       by the prompt - and the default ceiling is 32 of them, which is
-#       10 GB the card does not have beside 8 GB of weights. Two is enough
-#       to keep the reuse the mechanism exists for: measured, checkpoint 1
-#       was restored on the very next turn.
+#   LLAMA_ARG_CTX_CHECKPOINTS = 0
+#       The other allocator in the same failure. A context checkpoint is
+#       ~320 MiB here - a fixed size set by the context window, not by the
+#       prompt - and the default ceiling is 32 of them, 10 GB the card does
+#       not have beside 8 GB of weights. Capping at 2 was not enough:
+#       measured, restoring a 311.575 MiB checkpoint threw std::bad_alloc on
+#       its own and took the runner with it. Off entirely, because this loop
+#       clears its history after every answered turn - a restored checkpoint
+#       has almost nothing to restore, so the allocation buys nothing and
+#       costs a session. Measured off: ten questions, thirty model calls,
+#       zero std::bad_alloc, one model load.
 #
 #   OLLAMA_MAX_LOADED_MODELS / OLLAMA_NUM_PARALLEL = 1
 #       One model, one context. Two of either is how a 16 GB card ends up
@@ -40,7 +44,7 @@
 # crashed the runner and reloaded the model mid-session.
 $script:DaemonTuning = [ordered]@{
     'LLAMA_ARG_CACHE_RAM'       = '0'
-    'LLAMA_ARG_CTX_CHECKPOINTS' = '2'
+    'LLAMA_ARG_CTX_CHECKPOINTS' = '0'
     'OLLAMA_MAX_LOADED_MODELS'  = '1'
     'OLLAMA_NUM_PARALLEL'       = '1'
 }
@@ -111,15 +115,28 @@ function Test-DaemonTuned {
     if (Test-Path $log) {
         $written = (Get-Item $log).LastWriteTime
         if ($written -gt $daemon.StartTime) {
-            $lines = @(Select-String -Path $log -ErrorAction SilentlyContinue `
-                                     -Pattern 'prompt cache is (enabled|disabled)')
-            if ($lines.Count -gt 0) {
-                return ($lines[-1].Matches[0].Groups[1].Value -eq 'disabled')
+            # Both lines, not just the prompt cache: measured, changing
+            # CTX_CHECKPOINTS from 2 to 0 left a daemon reported as "already
+            # tuned" because the cache line still said disabled.
+            $want = 'context checkpoints disabled'
+            if ($script:DaemonTuning['LLAMA_ARG_CTX_CHECKPOINTS'] -ne '0') {
+                $want = 'context checkpoints enabled, max = ' +
+                        $script:DaemonTuning['LLAMA_ARG_CTX_CHECKPOINTS']
             }
-            # This daemon's own log, and it has not loaded a model yet. It has
-            # not said either way, and a restart with nothing resident is the
-            # cheapest this decision ever gets.
-            return $false
+            $said = @(Select-String -Path $log -ErrorAction SilentlyContinue `
+                                    -SimpleMatch -Pattern 'load_model: prompt cache is',
+                                                          'load_model: context checkpoints')
+            $cache = @($said | Where-Object { $_.Line -match 'prompt cache is' })
+            $ckpt = @($said | Where-Object { $_.Line -match 'context checkpoints' })
+            if ($cache.Count -gt 0 -and $ckpt.Count -gt 0) {
+                return (($cache[-1].Line -match 'disabled') -and
+                        ($ckpt[-1].Line -match [regex]::Escape($want)))
+            }
+            # The file is this daemon's but carries no load lines - it has
+            # not been asked for a model yet, or the tray app is not
+            # capturing its runner's output, which is what a tray started
+            # from anything but Explorer does. Neither is an answer, so fall
+            # through to the stamp rather than restarting on every run.
         }
     }
 

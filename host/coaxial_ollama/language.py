@@ -267,6 +267,144 @@ GREETINGS = {
 }
 
 
+# Host-authored text that reaches the screen, keyed by the English it is
+# written as at the call site. Everything the board says stays as the board
+# says it - channel names, units, register values - but a Swedish question
+# answered with an English warning above it is one screen in two languages,
+# which is what this fixes.
+#
+# Swedish only, deliberately: English is the fallback and the language of the
+# documents, and a translation nobody at this bench can check is worse than
+# no translation. Adding a language is adding a dict.
+PHRASES = {
+    'Swedish': {
+        'AFE OFF - the ADC reference is unpowered. These are the codes '
+        'the converter returned, not measurements: every channel sits '
+        'near mid-scale and the NTC figure below is arithmetic on that, '
+        'not a temperature. Call afe_power on to measure.':
+            'AFE AV - ADC-referensen är strömlös. Detta är koderna omvandlaren '
+            'returnerade, inte mätvärden: varje kanal ligger nära mittskalan '
+            'och NTC-siffran nedan är räknad på den, inte en temperatur. Slå '
+            'på afe_power för att mäta.',
+
+        'link is down, not answered: %s':
+            'länken är nere, obesvarad: %s',
+        'no reading taken this turn - ask again.':
+            'ingen avläsning gjordes denna tur - fråga igen.',
+        'the last run_python/run_command call failed, nothing was done: %s':
+            'det senaste run_python/run_command-anropet misslyckades, inget '
+            'gjordes: %s',
+        '[cut off at --words %s. Ask again with more, or ask for fewer '
+        'channels.]':
+            '[avklippt vid --words %s. Fråga igen med fler, eller be om färre '
+            'kanaler.]',
+        'budget of %d tokens is spent; /clear or raise --budget':
+            'budgeten på %d tokens är förbrukad; /clear eller höj --budget',
+        'link re-established':
+            'länken återupprättad',
+        'language: %s (locked - /lang to change)':
+            'språk: %s (låst - /lang för att ändra)',
+        'language: switched to %s (locked)':
+            'språk: bytt till %s (låst)',
+        ' -> check the board is powered, and that a JTAG programmer or '
+        'a dedicated serial adapter is connected between it and this PC':
+            ' -> kontrollera att kortet har ström, och att en JTAG-programmerare '
+            'eller en seriell adapter sitter mellan kortet och den här datorn',
+        'unknown channel %r; names are %s':
+            'okänd kanal %r; namnen är %s',
+        'channel %r could be %s - say which':
+            'kanal %r kan vara %s - säg vilken',
+
+        'no configured port to check (--no-board or --simulated this run).':
+            'ingen konfigurerad port att kontrollera (--no-board eller '
+            '--simulated denna körning).',
+        '1. Target power (ST-Link/SWD): could not check - %s':
+            '1. Målspänning (ST-Link/SWD): kunde inte kontrolleras - %s',
+        '1. Target power (ST-Link/SWD): %.2fV - no power sensed. Check the '
+        'ST-Link USB cable is connected, and that the board itself is '
+        'powered. Nothing past this point can work without it.':
+            '1. Målspänning (ST-Link/SWD): %.2fV - ingen spänning känns av. '
+            'Kontrollera att ST-Linkens USB-kabel sitter i och att kortet har '
+            'ström. Inget efter denna punkt kan fungera utan det.',
+        '1. Target power (ST-Link/SWD): %.2fV - powered, cable seated.':
+            '1. Målspänning (ST-Link/SWD): %.2fV - spänning finns, kabeln '
+            'sitter.',
+        '2. COM ports Windows sees: %s':
+            '2. COM-portar Windows ser: %s',
+        "   Nothing is enumerating as a serial device - check the ST-Link or "
+        "serial adapter's driver.":
+            '   Ingenting räknas upp som seriell enhet - kontrollera '
+            'drivrutinen för ST-Link eller seriell adapter.',
+        "3. Configured port %s: not among the ports above - the cable may be "
+        "unplugged from this PC's side, or the driver did not enumerate it.":
+            '3. Konfigurerad port %s: finns inte bland portarna ovan - kabeln '
+            'kan vara urdragen på PC-sidan, eller så räknade drivrutinen inte '
+            'upp den.',
+        '3. Configured port %s: present.':
+            '3. Konfigurerad port %s: finns.',
+        '4. Board answers on %s right now: yes - the link is up.':
+            '4. Kortet svarar på %s just nu: ja - länken är uppe.',
+        '4. Board answers on %s right now: no.':
+            '4. Kortet svarar på %s just nu: nej.',
+        '   Powered and the port is right, so check nothing else has %s open, '
+        'and that the last programmer run ended with --start, not -hardRst (a '
+        'halted core answers nothing).':
+            '   Spänning finns och porten stämmer, så kontrollera att inget '
+            'annat har %s öppen, och att den senaste programmeringen '
+            'avslutades med --start, inte -hardRst (en stoppad kärna svarar '
+            'inte).',
+        '5. Tried every other port: %s answered as this board - it may have '
+        'moved there. /reconnect after changing --port to it.':
+            '5. Provade varje annan port: %s svarade som detta kort - det kan '
+            'ha flyttat dit. /reconnect efter att ha ändrat --port till den.',
+        '5. Tried every other port (%s): none answered.':
+            '5. Provade varje annan port (%s): ingen svarade.',
+    },
+}
+
+# A %-spec in one of those templates. Matched rather than formatted: the text
+# reaching localise() has already been through %, so what is left is to find
+# the values and put them back in the translated order.
+_SPEC = re.compile(r'%(?:\.\d+)?[a-z]')
+
+
+def _matcher(template):
+    parts = [re.escape(p) for p in _SPEC.split(template)]
+    return re.compile('(.+?)'.join(parts))
+
+
+_MATCHERS = {}
+
+
+def localise(text, name=None):
+    """Host-authored English in `text`, replaced with `name`'s version.
+
+    Whole templates only, so a value, a channel name or anything the board
+    said passes through untouched. Longest first: a short template that is a
+    prefix of a longer one must not claim it.
+    """
+    table = PHRASES.get(name or '')
+    if not table or not text:
+        return text
+    for english in sorted(table, key=len, reverse=True):
+        matcher = _MATCHERS.get(english)
+        if matcher is None:
+            matcher = _MATCHERS[english] = _matcher(english)
+        translated = table[english]
+        text = matcher.sub(
+            lambda m: _fill(translated, m.groups()), text)
+    return text
+
+
+def _fill(translated, values):
+    """The translation with the captured values back in its own %-slots."""
+    parts = _SPEC.split(translated)
+    out = parts[0]
+    for value, part in zip(values, parts[1:]):
+        out += value + part
+    return out
+
+
 def greeting(model, name=None):
     """The one line a session opens with, in `name` or in this machine's own
     language. English where there is no translation - a greeting in a language

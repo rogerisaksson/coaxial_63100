@@ -1,7 +1,7 @@
 # Coaxial 63100
 
 Control firmware and a Python host library for a **coaxial BLDC inverter** — a
-three-phase drive whose PCB sits coaxially behind the rotor of an outrunner. The
+three-phase drive whose PCB sits coaxially behind the stator of an outrunner. The
 name is the rating: **63 V and 100 A**, the current being instantaneous within
 the FETs' safe operating area. STM32H753VIT6 at 475 MHz, one UART carrying
 either a text console or binary Modbus RTU.

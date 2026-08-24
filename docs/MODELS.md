@@ -186,6 +186,27 @@ Hebrew and Arabic; a stop-word count separates the Latin ones. It abstains
 when the winner is not strictly ahead, because Danish and Norwegian score
 alike and telling a Dane to answer in Norwegian is worse than saying nothing.
 
+### One screen, one language
+
+The answer follows the question, but the screen has more on it than the
+answer: the AFE-off warning, `link_diagnose`'s checklist, "link is down, not
+answered", a refused channel name. All of that is text this project wrote, and
+a Swedish question answered in Swedish under an English warning is one screen
+in two languages.
+
+`language.PHRASES` holds those sentences keyed by the English they are written
+as at the call site, and `localise()` turns them on the way to the screen -
+`Chat._trace` for tool output, `Chat.ask` for the answer. What the model reads,
+what the transcript keeps and what the MCP server serves stay English: one
+canonical text for the reader that is not a person, another for the one that
+is. Whole sentences only, so a channel name, a unit or anything the board said
+passes through untouched.
+
+Swedish only, deliberately. English is the fallback and the language of these
+documents, and a translation nobody at this bench can check is worse than no
+translation. Adding a language is adding a dict; a test fails if any key stops
+matching its call site, so a translation cannot quietly go dead.
+
 In `dbg.py`'s REPL, the language **locks** on the first question that is not
 itself ambiguous (`Chat.language`), rather than being rebuilt fresh every
 turn: a one-word follow-up like "tabellera" detects as nothing on its own,
@@ -276,10 +297,17 @@ evidence, and why prompt length is *not* the trigger, is in
 
 ```
 LLAMA_ARG_CACHE_RAM       = 0   # no prompt cache: nothing here re-asks an old prompt
-LLAMA_ARG_CTX_CHECKPOINTS = 2   # instead of 32; checkpoint 1 is restored next turn anyway
+LLAMA_ARG_CTX_CHECKPOINTS = 0   # not 32, and not 2 either - see below
 ```
 
-`board_prompt.ps1` sets both, into its own process and at User scope, and
+Capping the checkpoints at 2 was not enough: restoring a 311.575 MiB
+checkpoint threw `std::bad_alloc` on its own and took the runner with it. Off
+entirely costs nothing here, because `debug.Chat` clears its history after
+every answered turn — there is almost nothing for a restored checkpoint to
+restore. Measured off: ten questions, thirty model calls, zero
+`std::bad_alloc`, one model load.
+
+`board_prompt.ps1` sets them, into its own process and at User scope, and
 restarts the daemon once if it was already running — an existing daemon keeps
 the environment it started with, so setting them is otherwise inert. `-NoTune`
 opts out; `-KeepOthers` blocks the restart rather than taking somebody else's

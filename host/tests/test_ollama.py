@@ -1961,6 +1961,76 @@ def test_runner_crash_retry(report):
         clientmod.time.sleep = real_sleep
 
 
+# ---- one screen, one language ---------------------------------------------
+
+def test_screen_language(report):
+    """A Swedish question answered in Swedish, under an English warning this
+    project wrote itself, is one screen in two languages."""
+    import re
+    from coaxial_ollama import debug, language
+
+    banner = ('AFE OFF - the ADC reference is unpowered. These are the codes '
+              'the converter returned, not measurements: every channel sits '
+              'near mid-scale and the NTC figure below is arithmetic on that, '
+              'not a temperature. Call afe_power on to measure.')
+    turned = language.localise(banner, 'Swedish')
+    report.check('host prose turns into the session language',
+                 'AFE AV' in turned and 'unpowered' not in turned,
+                 turned[:48])
+    report.check('a language with no table is left in English',
+                 language.localise(banner, 'German') == banner
+                 and language.localise(banner, None) == banner)
+
+    # The values are the board's, and they come back exactly as they went in.
+    checklist = ('1. Target power (ST-Link/SWD): 3.27V - powered, cable '
+                 'seated.\n2. COM ports Windows sees: COM4\n'
+                 '3. Configured port COM4: present.')
+    swedish = language.localise(checklist, 'Swedish')
+    report.check('the numbers and port names survive being translated',
+                 '3.27V' in swedish and swedish.count('COM4') == 2
+                 and 'Målspänning' in swedish, swedish.splitlines()[0])
+    report.check('and the step numbering is still the step numbering',
+                 [line.split('.')[0] for line in swedish.splitlines()]
+                 == ['1', '2', '3'])
+
+    table = ('  4  NTC     SE    32768.0  +1.6500V 25.00C\n'
+             '  5  DCbus   SE    32768.0  +1.6500V 39.075V bus')
+    report.check('a reading is not touched - no channel name is translated',
+                 language.localise(table, 'Swedish') == table)
+
+    # Every English key must exist verbatim in the source, or a call site has
+    # moved on and its translation is dead text nothing will ever match.
+    sources = []
+    for name in ('coaxial_ollama/debug.py', 'coaxial_ollama/tools.py',
+                 'coaxial_mcp/tools.py', 'coaxial_mcp/render.py'):
+        with io.open(os.path.join(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__))), name), encoding='utf-8') as handle:
+            sources.append(handle.read())
+    # Quotes stripped before comparing: the source splits these strings
+    # across lines, so the literal run is broken by a `' '` at every wrap.
+    joined = ' '.join(_flat(text) for text in sources)
+    orphans = [key for key in language.PHRASES['Swedish']
+               if _flat(_unformat(key)) not in joined]
+    report.check('every translation still matches a line in the source',
+                 not orphans, '; '.join(o[:40] for o in orphans) or 'all matched')
+
+
+def _flat(text):
+    """Text with Python's string quotes and line breaks taken out, so a
+    literal split across three source lines still reads as one run."""
+    for mark in (chr(39), chr(34), chr(92)):      # quotes and a continuation
+        text = text.replace(mark, ' ')
+    return ' '.join(text.split())
+
+
+def _unformat(template):
+    """The longest literal run of a template - what to look for in the source,
+    since the source may split a string across lines and %-specs sit where the
+    values go."""
+    import re
+    return max(re.split(r'%(?:\.\d+)?[a-z]', template), key=len)
+
+
 # ---- what reaches the screen, and how it reads -----------------------------
 
 def test_screen(report):
@@ -2985,7 +3055,8 @@ def main():
                  test_debug, test_cli,
                  test_local_only, test_runner_crash_retry,
                  test_out_of_memory, test_context_budget, test_detail,
-                 test_screen, test_identity,
+                 test_screen, test_screen_language,
+                 test_identity,
                  test_keep_alive,
                  test_coerce,
                  test_capability, test_docs):

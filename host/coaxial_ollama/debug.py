@@ -607,7 +607,8 @@ class Chat:
         answer - logs it to IOLog too, from the one place every path
         through _ask_inner's several returns ends up, rather than at each
         of them and risking a future one added without it."""
-        answer = self._ask_inner(question, max_calls)
+        answer = language.localise(self._ask_inner(question, max_calls),
+                                   self.language)
         self.io_log.answer(answer)
         return answer
 
@@ -968,7 +969,11 @@ class Chat:
         """
         if self.quiet:
             return
-        lines = str(result).splitlines() or ['']
+        # English stays in the result the model reads, the log keeps and the
+        # MCP server serves; the screen gets the operator's language. Only
+        # host-authored sentences turn - a channel name, a unit or anything
+        # the board said passes through. See language.PHRASES.
+        lines = language.localise(str(result), self.language).splitlines() or ['']
         with self.print_lock:
             for line in lines[:TRACE_ROWS]:
                 for part in _wrapped(line):
@@ -1223,10 +1228,11 @@ def repl(chat, hold=False):
                         # Printed once, on the turn that actually set or
                         # moved the lock - not sent to the model, so it
                         # costs nothing per turn either.
-                        note = ('language: %s (locked - /lang to change)'
-                               % chat.language if before_lang is None else
-                               'language: switched to %s (locked)'
-                               % chat.language)
+                        note = language.localise(
+                            'language: %s (locked - /lang to change)'
+                            % chat.language if before_lang is None else
+                            'language: switched to %s (locked)'
+                            % chat.language, chat.language)
                         done = note + '\n' + done
                 # Stop ticking before the answer prints, not after. stop()'s
                 # own repaint climbs back to the prompt row by the same
