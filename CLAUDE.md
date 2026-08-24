@@ -11,9 +11,8 @@ SOA. STM32H753VIT6 at 475 MHz; an analog front end feeding three differential
 phase-sense channels, a DC link sense and an NTC; one UART carrying either a
 text console or binary Modbus RTU.
 
-Behind a spinning rotor there is little airflow, so the thermal channel is not
-decoration, and the phase sense sits inside a switching bridge — which is the
-context for every noise figure in these documents.
+The thermal channel is not decoration, and the phase sense sits inside a switching bridge — 
+which is the context for every noise figure in these documents.
 
 ## Scope: instrumentation, not yet a motor controller
 
