@@ -157,6 +157,14 @@ def instruction_for(name):
     the board's own words. A model told to answer in Swedish will otherwise
     translate `DCbus` and `NTC` too, and a translated channel name is one
     nobody can grep for in the CSVs.
+
+    The one exception is the operator asking for another language, and it is
+    named here because leaving it out was measured: locked to Korean and
+    asked to switch back, the model obeyed this line and refused, in Korean.
+    The host catching the request is the fix; this is what the session
+    degrades to when it catches the next phrasing nobody thought of. It asks
+    the model to obey a request, not to work out a language, which is the
+    part it is bad at and the reason this module exists.
     """
     if not name:
         return ('Answer in the language the question was asked in. Channel '
@@ -164,8 +172,10 @@ def instruction_for(name):
                 'prints them.')
     return ('The session language is %s. Answer in %s and in no other '
             'language, whatever language the tool output and the documents '
-            'are in. Channel names, units and register names stay exactly '
-            'as the board prints them.' % (name, name))
+            'are in - unless the operator asks for another, which is the '
+            'one thing that overrides this. Channel names, units and '
+            'register names stay exactly as the board prints them.'
+            % (name, name))
 
 
 def instruction(text):
@@ -446,7 +456,12 @@ def greeting(model, name=None, encoding=None):
 # contradicting the operator in the same prompt. The Swedish and English
 # sets are complete because this bench is spoken in those two; the rest
 # keep the one verb they already had.
-_OUTPUT_VERBS = (
+#
+# The last group asks for no text at all: "byt sprak till svenska" is about
+# every answer after it, not this one. Without them the lock had no way out
+# except /lang - measured, a session locked to Korean answered the request
+# to leave it with a refusal, in Korean.
+_REQUEST_VERBS = (
     'svara', 'svarar', 'förklara', 'skriv', 'skriva', 'beskriv',
     'berätta', 'översätt', 'sammanfatta', 'säg',
     'answer', 'respond', 'reply', 'explain', 'write', 'describe', 'tell',
@@ -454,26 +469,44 @@ _OUTPUT_VERBS = (
     'antworte', 'antworten', 'erkläre', 'schreibe',
     'reponds', 'répondre', 'explique', 'écris',
     'responde', 'explica', 'escribe', 'rispondi', 'spiega',
+
+    'byt', 'byta', 'växla', 'tala', 'prata',
+    'switch', 'change', 'speak', 'wechsle', 'changer', 'cambia',
 )
 
 
 def requested_language(text):
-    """A language named outright in `text`, next to a word for "answer" -
-    "svara pa engelska", "please answer in English" - independent of what
-    language `text` itself is written in. This is what lets a session
-    written in Swedish ask for an English answer without that one message
-    being mistaken for a language switch by `detect()` alone, which only
-    ever looks at the words actually used - and the response-verb check is
-    what keeps "the German firmware has a bug" from reading as a request
-    for one, just because it names a language in passing.
+    """A language named outright in `text` - "svara pa engelska", "byt
+    sprak till svenska" - independent of what language `text` itself is
+    written in. This is what lets a session written in Swedish ask for an
+    English answer without that one message being mistaken for a language
+    switch by `detect()` alone, which only ever looks at the words actually
+    used.
+
+    Two ways to be a request, and the second is what keeps the lock from
+    being a trap:
+
+      * A verb from `_REQUEST_VERBS` next to the name. This is what stops
+        "the German firmware has a bug" from reading as a request just
+        because it names a language in passing.
+      * The name, in a message `detect()` cannot place in any language at
+        all. "byt sprak till svenska" scores no stop word in any list, so
+        there is nothing in it *but* the language name - which is the shape
+        of every short way of asking, down to "svenska tack". A message
+        that does place - "varfor ar dokumentationen pa engelska?" is
+        Swedish on `ar` and `pa` - is left to the verb rule.
 
     None means no language was requested, not that none could be detected -
     callers fall back to `detect()` for that.
     """
     words = [w.lower() for w in WORD.findall(text or '')]
-    if not any(w in _OUTPUT_VERBS for w in words):
-        return None
+    named = None
     for word in words:
         if word in _NAME_TO_LANGUAGE:
-            return _NAME_TO_LANGUAGE[word]
-    return None
+            named = _NAME_TO_LANGUAGE[word]
+            break
+    if named is None:
+        return None
+    if any(w in _REQUEST_VERBS for w in words):
+        return named
+    return named if detect(text) is None else None

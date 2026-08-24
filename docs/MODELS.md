@@ -226,12 +226,20 @@ miss on every short follow-up. Two things move it: the question switching
 language for real (`detect()` disagrees), or the question naming one outright
 — "svara på engelska", "förklara på japanska" — via
 `language.requested_language()`, independent of what language it is itself
-written in. The name has to sit next to a verb that asks for text, which is
-what keeps "the German firmware bug" from reading as a request; that list is
-complete for Swedish and English. Measured: with only "answer" verbs in it,
-"förklara på japanska" was missed and the turn went out under *Answer in
-Swedish and in no other language*. `/lang [NAME]` sets it by hand, `/lang
-auto` hands it back to detection.
+written in. Two shapes count as naming one:
+
+| Shape | Example | Why it is not a mention |
+|---|---|---|
+| a verb that asks for a language, next to the name | "förklara på japanska", "byt språk till svenska" | "the German firmware bug" has no such verb |
+| the name, in a message `detect()` places in no language at all | "svenska tack" | "varför är dokumentationen på engelska?" is Swedish on `är` and `på`, so it is left to the verb rule |
+
+Both were measured as misses. With only "answer" verbs, "förklara på japanska"
+went out under *Answer in Swedish and in no other language*. With no second
+rule, a session locked to Korean answered "byt språk till svenska" — which
+scores no stop word in any list — with a refusal, in Korean. The prompt now
+also names the operator's request as the one thing that overrides the lock, so
+the next phrasing the host misses costs a wrong language rather than a trap.
+`/lang [NAME]` sets it by hand, `/lang auto` hands it back to detection.
 
 Tests build a `Chat` with no session language at all, deliberately: a suite
 whose expectations depend on the Windows locale passes on one machine and

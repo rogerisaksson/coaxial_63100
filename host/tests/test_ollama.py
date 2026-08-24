@@ -3056,6 +3056,33 @@ def test_docs(report):
         report.check('a language named in passing is not a request: %s'
                      % question[:34], got is None, str(got))
 
+    # A lock with no way out is a trap. Measured: locked to Korean by the
+    # question before it, "byt sprak till svenska" matched no verb and
+    # detected as no language either - every word in it is outside every
+    # stop-word list - so the lock held and the model obeyed it, refusing
+    # to switch, in Korean. A name in a message that places in no language
+    # is the request: there is nothing else in the message.
+    talk.language = 'Korean'
+    talk.history = [{'role': 'user', 'content': 'byt språk till svenska'}]
+    talk.trim()
+    report.check('a locked session can be talked out of its language',
+                 talk.language == 'Swedish', talk.language)
+
+    for question, expect in (('svenska tack', 'Swedish'),
+                             ('switch to Swedish please', 'Swedish'),
+                             ('kan du prata svenska?', 'Swedish'),
+                             ('tillbaka till engelska', 'English')):
+        got = language.requested_language(question)
+        report.check('asking for a language plainly: %s' % question[:30],
+                     got == expect, str(got))
+
+    # ...and the model is told the same thing, for the phrasing the host
+    # misses next. The refusal above was the host and the operator
+    # contradicting each other with the model in the middle.
+    report.check('an explicit request overrides the lock in the prompt too',
+                 'unless the operator asks for another'
+                 in language.instruction_for('Korean'))
+
     # Measured live: a Swedish question that named a tool without calling it
     # triggered the "call the tool now" nudge - appended to history with
     # role=='user', for the model's benefit - and the language flipped to
