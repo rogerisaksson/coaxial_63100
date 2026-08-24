@@ -31,6 +31,7 @@ every single turn: measured in daily use, that was screen noise nobody was
 reading, sitting between the question and the answer it was about.
 """
 import json
+import os
 import re
 import sys
 import threading
@@ -102,7 +103,10 @@ LINK_DIAGNOSE_HINT = ("A question about why the board is not answering, or "
                       "link_diagnose - not by guessing, not by trying "
                       "build_firmware or anything else. If it has not "
                       "already been called this turn, call it before "
-                      "answering.")
+                      "answering. Then be a troubleshooter, not a reporter: "
+                      "turn the checklist into the next concrete thing to "
+                      "check or do, in order, one step at a time - not the "
+                      "raw step text back at the operator.")
 
 # Named subsets, because a debug job knows roughly what it is about to touch.
 SETS = {
@@ -129,6 +133,9 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
   /lang [NAME]  show, set, or /lang auto to unlock the session's language
   /ctx          what the next turn will cost
   /clear        forget the conversation - the cheapest thing here
+  /history      every question asked this session, numbered
+  /clear_history   empty that list - separate from /clear, which is the
+                    model's own memory, not this
   /cost         tokens so far
   /help  /q"""
 
@@ -382,6 +389,98 @@ def approx_tokens(text):
     return max(1, len(str(text)) // 4)
 
 
+# host/prompt_io.tmp - resolved from this file's own location, not the
+# caller's cwd, so `python dbg.py` from host/ and a task that starts
+# somewhere else both land in the same place, at the same fixed name a
+# later debugging session can just open without knowing a timestamp.
+IO_LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), 'prompt_io.tmp')
+
+
+def _set_attributes(path, value):
+    """Windows file attributes, best-effort. Not security - a file with the
+    raw questions and answers of a bench session is not secret, it is just
+    not something that belongs in an ordinary directory listing next to the
+    files this project is actually about."""
+    if sys.platform != 'win32':
+        return
+    try:
+        import ctypes
+        ctypes.windll.kernel32.SetFileAttributesW(str(path), value)
+    except Exception:                                        # noqa: BLE001
+        pass
+
+
+def _unhide(path):
+    """Clear the hidden attribute before (re)opening a session's log for
+    writing. Measured directly on this bench: `open(path, 'w')` on an
+    already-hidden file raised a plain PermissionError, not the OSError
+    IOLog already expected and swallowed - the truncate that mode implies
+    is what Windows refuses on a hidden file, not the open itself. 0x80 is
+    FILE_ATTRIBUTE_NORMAL; nothing to do if the file does not exist yet."""
+    if os.path.exists(path):
+        _set_attributes(path, 0x80)
+
+
+def _hide(path):
+    _set_attributes(path, 0x02)                     # FILE_ATTRIBUTE_HIDDEN
+
+
+class IOLog:
+    """A small, hidden, per-session log of every question, tool call and
+    answer - not for the operator, for debugging this loop itself
+    afterwards without a terminal transcript to paste in. Overwritten each
+    session, not appended: a log answering for what a session three runs
+    ago did is worse than none at all when what matters is this one.
+
+    Captures more than the screen does on purpose - `Chat._trace()` skips
+    an afe_power call refused for not being asked for, because the operator
+    does not need to see a mistake the model already recovered from in the
+    same turn; this log keeps it, because that is exactly the kind of thing
+    worth seeing when the question is "why did that turn cost four calls".
+    """
+
+    def __init__(self, path=IO_LOG_PATH, enabled=True):
+        self.handle = None
+        if not enabled:
+            return
+        _unhide(path)
+        try:
+            self.handle = open(path, 'w', encoding='utf-8', errors='replace')
+            _hide(path)
+        except OSError:
+            self.handle = None
+
+    def write(self, text):
+        if self.handle is None:
+            return
+        try:
+            self.handle.write(text)
+            self.handle.flush()
+        except OSError:
+            self.handle = None
+
+    def turn(self, question):
+        self.write('=== %s ===\nQ: %s\n' % (time.strftime('%H:%M:%S'),
+                                             question))
+
+    def call(self, name, args, result):
+        self.write('  %s %s\n  -> %s\n'
+                   % (name, json.dumps(args, default=str)[:300],
+                      clip(str(result), 500)))
+
+    def answer(self, text):
+        self.write('A: %s\n\n' % text)
+
+    def close(self):
+        if self.handle is not None:
+            try:
+                self.handle.close()
+            except OSError:
+                pass
+            self.handle = None
+
+
 class Chat:
     """One conversation, trimmed on the way out to the model.
 
@@ -422,6 +521,18 @@ class Chat:
         # trim() below. None until the first question that is not itself
         # ambiguous locks it.
         self.language = None
+        # Every question typed this session, in order - independent of
+        # self.history, which the REPL clears after each answered turn on
+        # purpose (a growing history is a growing prompt). /history reads
+        # this back; /clear_history empties it. Not written here: a Chat
+        # built for a test should not need to remember it was ever asked
+        # anything just to be constructed.
+        self.prompt_history = []
+        # Off by default for the same reason: constructing a Chat is
+        # something dozens of tests do, and none of them should touch the
+        # filesystem to do it. repl() and the one-shot path in main() are
+        # what turn this on, right after building the real one.
+        self.io_log = IOLog(enabled=False)
         self.set_tools(tools)
 
     # ---- what the model is allowed to see ----------------------------------
@@ -469,11 +580,27 @@ class Chat:
         # naming a language outright ("svara pa engelska") independent of
         # what language it is itself written in - see
         # language.requested_language().
+        # self.prompt_history[-1], not a scan of self.history for the last
+        # role=='user' message - a nudge ("Call the tool now - do not
+        # describe it.") is appended with that same role, for the model's
+        # benefit, and is not what the operator actually typed. Measured
+        # live: a Swedish question that triggered a nudge mid-turn had its
+        # language flip to English on the next trim(), because the nudge's
+        # own English words were the last "user" message in history by
+        # then. prompt_history is only ever appended once, at the top of
+        # ask(), so it cannot be polluted by anything this loop adds later
+        # in the same turn. Falls back to the old scan when prompt_history
+        # is empty - a test that pokes self.history directly, bypassing
+        # ask() entirely, never populates it.
         asked = ''
-        for message in reversed(self.history):
-            if message['role'] == 'user':
-                asked = message.get('content') or ''
-                break
+        prompt_history = getattr(self, 'prompt_history', None)
+        if prompt_history:
+            asked = prompt_history[-1]
+        else:
+            for message in reversed(self.history):
+                if message['role'] == 'user':
+                    asked = message.get('content') or ''
+                    break
         requested = language.requested_language(asked)
         detected = language.detect(asked)
         current = getattr(self, 'language', None)
@@ -490,6 +617,20 @@ class Chat:
             hint += '\n' + BUILD_HINT
         if 'link_diagnose' in names:
             hint += '\n' + LINK_DIAGNOSE_HINT
+        # Every earlier question this session, not just the trimmed model
+        # history that gets wiped after each answered turn - self.clear
+        # empties that for token cost, but a troubleshooting conversation
+        # is exactly the case where the second and third question are not
+        # standalone: "tabellera", then "varfor kan du inte na kortet",
+        # then "provade det, fortfarande inget" only reads as a sequence
+        # with the earlier ones in view. Capped at five, and only sent once
+        # there is more than the question just asked to show.
+        prior = getattr(self, 'prompt_history', [])[-6:-1]
+        if prior:
+            hint += ('\nEarlier this session, in order: %s. Treat these as '
+                     'troubleshooting steps already tried in this '
+                     'conversation, not separate unrelated questions.'
+                     % '; '.join('"%s"' % clip(q, 60) for q in prior))
         sent = [{'role': 'system',
                  'content': SYSTEM + hint + '\n'
                            + language.instruction_for(self.language)}]
@@ -561,12 +702,22 @@ class Chat:
         return message
 
     def ask(self, question, max_calls=6):
-        """One question, however many tool calls it takes. Returns the answer."""
+        """One question, however many tool calls it takes. Returns the
+        answer - logs it to IOLog too, from the one place every path
+        through _ask_inner's several returns ends up, rather than at each
+        of them and risking a future one added without it."""
+        answer = self._ask_inner(question, max_calls)
+        self.io_log.answer(answer)
+        return answer
+
+    def _ask_inner(self, question, max_calls=6):
         if self.over_budget():
             return 'budget of %d tokens is spent; /clear or raise --budget' \
                 % self.budget
 
         self.history.append({'role': 'user', 'content': question})
+        self.prompt_history.append(question)
+        self.io_log.turn(question)
         answer = ''
         link_error = None
         code_error = None  # last run_python/run_command result, if it failed
@@ -729,7 +880,19 @@ class Chat:
                     last_channels = set(m.lower()
                                         for m in READING_ROW.findall(str(raw)))
                     self.last_channels = last_channels
-                self._trace(result)
+                # An afe_power call refused for not being asked for is the
+                # model trying the exact thing SYSTEM and LINK_DIAGNOSE_HINT-
+                # style guidance already say never to do, in a turn it goes
+                # on to recover from correctly one call later - the refusal
+                # is still in history for it to actually read and learn
+                # from, but the operator does not need this specific,
+                # already-handled line cluttering the reading it asked for.
+                # Any other afe_power result - a real state change, a plain
+                # `read` - traces exactly as before.
+                if not (name == 'afe_power'
+                       and str(raw).startswith('ERR not asked for')):
+                    self._trace(result)
+                self.io_log.call(name, args, result)     # always - see IOLog
                 self.history.append({'role': 'tool', 'tool_name': name,
                                      'name': name,
                                      'content': '%s: %s' % (name, result)})
@@ -836,6 +999,16 @@ class Chat:
                 % (len(self.history), self.context_cost(), self.tool_cost())
         if verb == 'cost':
             return self.cost_line()
+        if verb == 'history':
+            if not self.prompt_history:
+                return 'nothing asked yet this session'
+            return '\n'.join('%d. %s' % (i, clip(q, 100))
+                             for i, q in enumerate(self.prompt_history, 1))
+        if verb == 'clear_history':
+            n = len(self.prompt_history)
+            self.prompt_history = []
+            return 'prompt history cleared (%d question%s)' \
+                % (n, '' if n == 1 else 's')
         return 'no such command. /help'
 
     def _reconnect(self):
@@ -843,9 +1016,10 @@ class Chat:
         back in without restarting this whole prompt loop.
 
         Session.reset() forgets the cached board (a no-op on NoBoard); the
-        board property that follows is what actually reopens the port, and
-        catching its RigError here is the same eager check main() runs at
-        startup, just runnable again on demand.
+        board property that follows is what actually reopens the port. This
+        is the one place left that connects eagerly rather than waiting for
+        a tool call to need it - the operator asked directly, by name, so
+        there is a real question to answer either way.
         """
         session = self.toolbox.session
         session.reset()
@@ -1197,6 +1371,7 @@ def repl(chat, hold=False):
                 chat.client.unload()
             except OllamaError:
                 pass
+        chat.io_log.close()
 
 
 def main(argv=None):
@@ -1221,6 +1396,9 @@ def main(argv=None):
         # there is no prompt loop worth opening against a model we will not use.
         print('ollama: %s' % exc, file=sys.stderr)
         return 2
+    # Real sessions only - build() itself is what dozens of tests call
+    # through, and none of them should write a file to do it. See IOLog.
+    chat.io_log = IOLog()
     if args.simulated:
         # Loud on purpose, before the model ever answers a thing: board_info
         # says the same ("firmware": "simulated"), but a line here means
@@ -1244,25 +1422,18 @@ def main(argv=None):
     # Also what the prompt's face shows in the REPL below: green once this is
     # True, red once it is not - --no-board counts as not, since board tools
     # will fail there by design, same as a dead cable.
-    link_ok = False
-    if not args.no_board:
-        # Opened here rather than left to the first board tool call, so a dead
-        # link is a clear failure before any tokens are spent - not a tool
-        # error the model reads and, with nothing telling it to stop, may
-        # answer past anyway. Session.board is lazy, so this is the same
-        # connect that would happen on first use, just moved earlier.
-        try:
-            session.board
-        except RigError as exc:
-            message = 'board: %s%s' % (exc, render.hint(exc))
-            if not interactive:
-                print(message, file=sys.stderr)
-                return 2
-            print(message, file=sys.stderr)
-            print('slash commands still work; board tools will fail until the '
-                  'link is up.', file=sys.stderr)
-        else:
-            link_ok = True
+    #
+    # Not probed here any more, on purpose - see FINDINGS/this session's own
+    # history: connecting eagerly used to be the only thing standing between
+    # a dead link and the model "answering past" it, which is why it moved
+    # session.board's own lazy connect up here in the first place. That
+    # reason is gone now: link_diagnose and the link_error override in
+    # ask() cover it, and cover it better - the model gets a real chance to
+    # help troubleshoot a board that never answered instead of the session
+    # printing a failure and, for a one-shot question, exiting before it was
+    # ever asked anything. The board is touched exactly when a tool call
+    # actually needs it, which is what "not per default" means here.
+    link_ok = not args.no_board
     chat.link_ok = link_ok
 
     extra = attach(args.file, args.chars) if args.file else ''
@@ -1286,6 +1457,11 @@ def main(argv=None):
             session.close()
         except RigError:
             pass
+        # repl() closes its own copy on the way out; a one-shot question
+        # never reaches that finally block, so this is the only place its
+        # single turn ever gets flushed and closed.
+        if not args.repl:
+            chat.io_log.close()
     return 0
 
 

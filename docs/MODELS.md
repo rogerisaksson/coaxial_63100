@@ -390,6 +390,24 @@ Both `link_diagnose` (imported, in-process) and `board_prompt/ComPort.ps1`'s
 import Python) call the same `find_board.py` - one implementation of "does
 this port answer," not two that can drift apart.
 
+## Two things a debugging session leaves behind
+
+`Chat.prompt_history` is every question typed this session, in order,
+independent of `self.history` - which the REPL clears after each answered
+turn, on purpose, to keep the prompt from growing. `/history` lists it,
+`/clear_history` empties it. `trim()` also folds the last five entries into
+`SYSTEM` as "troubleshooting steps already tried," once there is more than
+the question just asked to show - a multi-turn "why won't it connect"
+conversation reads as one investigation, not a run of unrelated questions.
+
+`IOLog` writes `host/prompt_io.tmp`, hidden (Windows' attribute, not
+security), overwritten each session - every question, every tool call
+(including the ones `_trace()` skips on screen) and every answer. Not for
+the operator: for reading back afterwards, in a session with no terminal
+transcript to paste in. Off by default on a bare `Chat()`, since building
+one is what dozens of tests do; `repl()` and the one-shot path in `main()`
+are what turn it on, on the one `Chat` a real run actually uses.
+
 ---
 
 ## Measured failure modes
@@ -607,3 +625,42 @@ paying for the line on every turn regardless was not necessary either:
     down, `gemma4:12b` called `build_firmware` instead of `link_diagnose` -
     a guess at a fix, not a diagnosis, and not what was asked.
     `LINK_DIAGNOSE_HINT`.
+
+### An afe_power refusal, still visible after the model recovered from it
+
+The gate above (SYSTEM prompt + `afe_mentioned`) works: a refused
+`afe_power` call is followed by a correct `analog_read` one call later,
+every time it was measured. What was left was the refusal itself sitting in
+the trace the operator reads - accurate, but noise for something the model
+already corrected inside the same turn. `Chat._trace()` now skips exactly
+that one shape of result (`afe_power`, refused for not being asked for) -
+still appended to `self.history` so the model still reads its own mistake
+and still written to `IOLog` unconditionally, since a mistake corrected in
+the same turn is exactly the kind of thing worth seeing when debugging why
+a turn cost four calls instead of one.
+
+### A nudge stole the language lock from what was actually asked
+
+The language lock (see above) read `asked` as the last `role=='user'`
+message in `self.history` - which is also the shape a mid-turn nudge takes
+("Call the tool now - do not describe it.", appended for the model's
+benefit when it names a tool without calling it). Measured live: a Swedish
+question that triggered exactly that nudge had its session language flip to
+English on the very next `trim()`, because the nudge's own English words
+had become the last "user" message by then - the operator's own words were
+still sitting further back in the same history, just no longer the ones
+being read. `trim()` now reads `self.prompt_history[-1]` instead - a
+separate list, appended to exactly once per turn, at the top of `ask()`,
+before anything the turn itself might add can reach it.
+
+### The eager board connect that stopped a troubleshooting turn before it started
+
+`main()` used to open `session.board` before the model was ever asked
+anything, specifically so a dead link failed loudly before any tokens were
+spent - written when the only thing standing between that and the model
+"answering past" a dead link was catching the failure early. `link_diagnose`
+and the `link_error` override in `ask()` do that job now, and do it better:
+the model gets a real turn to read the checklist and help, instead of a
+one-shot question exiting with code 2 before it was ever asked. The board is
+touched exactly when a tool call needs it - Session.board was already lazy;
+this removed the one thing forcing it early.

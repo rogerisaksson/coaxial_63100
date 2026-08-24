@@ -119,3 +119,6 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# dbg.py's per-session I/O log - hidden, overwritten each run, never shared
+host/prompt_io.tmp

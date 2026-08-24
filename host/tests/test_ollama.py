@@ -2325,6 +2325,22 @@ def test_docs(report):
                  'the question itself is written in the locked language',
                  talk.language == 'English', talk.language)
 
+    # Measured live: a Swedish question that named a tool without calling it
+    # triggered the "call the tool now" nudge - appended to history with
+    # role=='user', for the model's benefit - and the language flipped to
+    # English on the next trim() because that nudge's own English words were
+    # now the last "user" message in history. self.prompt_history exists
+    # precisely so this cannot happen: it is appended once, at the top of
+    # ask(), and nothing added to history later in the same turn can reach it.
+    nudge_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    nudged = debug.Chat(ScriptedModel([
+        {'role': 'assistant', 'content': 'jag ska nu anropa analog_read'},
+        call('analog_read')]), nudge_box, out=io.StringIO())
+    nudged.ask('vad ar temperaturen pa kortet?')
+    report.check("a nudge mid-turn does not steal the language lock from "
+                 "what the operator actually typed",
+                 nudged.language == 'Swedish', nudged.language)
+
     # A console that cannot encode the answer must not lose it. cp1252 holds
     # Swedish and German; it does not hold a Polish l-stroke or an ohm sign,
     # and the default handler turns that into a UnicodeEncodeError after the
