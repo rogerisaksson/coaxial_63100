@@ -71,10 +71,12 @@ STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --s
 
 cd host
 python -m coaxial all                      # CLI against the board
-python tests/test_conformance.py           # 40 Modbus conformance checks
+python tests/test_conformance.py           # 43 Modbus conformance checks
 python tests/test_mcp.py                   # 39 MCP server checks
-python tests/test_ollama.py                # 284 runner and dbg checks, offline
+python tests/test_ollama.py                # 292 runner and dbg checks, offline
 python tests/test_simulated.py             # 17 checks, real MCP handlers against a fake board
+python tools/build_and_flash.py            # build (+flash): --build-only, --flash-only
+python tools/run_tests.py                  # the four suites above, one parsed tally
 python dbg.py --repl --simulated           # the tools work, board tools included, no cable
 python examples/read_board.py                # measure, judge nothing
 python -m coaxial_mcp --port COM4          # MCP server, stdio
@@ -83,6 +85,9 @@ python -m coaxial_ollama.capability        # which local model this machine shou
 python dbg.py -m auto "..."                # that model, picked from cores/RAM/VRAM
 python dbg.py -m auto -q "read the NTC"    # ask the local model instead of
                                            # reasoning: it is free and it measures
+python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
+                                           # the whole verify loop, one tool call each -
+                                           # see "Verify through the local model" below
 python dbg.py "why does the NTC read exactly 25.00?"   # cheap one-off question
 python dbg.py --repl                       # prompt loop; /py and /sh cost no tokens
 ```
@@ -119,9 +124,9 @@ question as the last step of the change, the same way running the tests is.
 
 ## Ask the board, do not reason about it
 
-There is a local model on this machine with the board's eleven tools wired to
-it. It costs nothing per token and it is standing next to the hardware. Use it
-instead of spending context on questions it can answer by measuring:
+There is a local model on this machine with the board's fourteen tools wired
+to it. It costs nothing per token and it is standing next to the hardware.
+Use it instead of spending context on questions it can answer by measuring:
 
 ```powershell
 board_prompt -Ask "read the NTC and give me the temperature"
@@ -205,6 +210,32 @@ conclude and which failure modes have already been measured.
 The one thing to keep in mind: it is a **dumb-slave interface to a dumb slave**.
 It reports; it does not judge. Invariant 10 applies to it exactly as it applies
 to the firmware.
+
+## Verify through the local model, not yourself
+
+The same reasoning as the table above, for a different kind of question: once
+`host/` or the firmware has changed, checking that it still works is a
+mechanical, multi-step loop — build, flash, run the offline suites, confirm
+the board answers — and every step of it is now a tool call the local model
+already has: `build_firmware` and `run_tests`
+(`host/coaxial_ollama/tools.py`, wrapping `host/tools/build_and_flash.py` and
+`host/tools/run_tests.py`). Hand it the whole loop in one line instead of
+running each step yourself and reading the output turn by turn:
+
+    dbg -q "run the test suites, then build and flash the firmware, tell me if anything failed"
+
+The honesty concern that applies everywhere else in this file does not apply
+to the verdict itself: both tools return a tally the *tool* parsed from the
+suite's own PASS/FAIL lines or the build's own exit code, not a summary the
+model was asked to write. What the model can still get wrong is *which*
+tool it reaches for or whether it reaches for one at all — that is measured
+and guarded against in `docs/MODELS.md`, same as every other tool call.
+
+This is about the mechanical loop, not the judgment around it. A build that
+fails, a test that regresses, a diff worth making at all — that reasoning is
+still yours. And a change that is not yet agreed with the user, or one that
+would flash real hardware without them expecting it, still goes through the
+table above first, exactly as it would for a single reading.
 
 ## Layout
 

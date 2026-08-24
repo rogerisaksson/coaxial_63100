@@ -414,8 +414,8 @@ def test_board_tools(report):
     report.check('self test reaches the renderer',
                  'PLL lock' in results[3]['result'],
                  results[3]['result'].splitlines()[0])
-    report.check('the tool surface is the MCP set plus four',
-                 len(toolmod.TOOLS) == 13, '%d tools' % len(toolmod.TOOLS))
+    report.check('the tool surface is the MCP set plus five',
+                 len(toolmod.TOOLS) == 14, '%d tools' % len(toolmod.TOOLS))
 
     schemas = toolmod.schemas()
     shapes = all(s['type'] == 'function' and s['function']['parameters']['type']

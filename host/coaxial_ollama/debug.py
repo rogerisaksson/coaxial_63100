@@ -93,12 +93,12 @@ SETS = {
     'read': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
              'docs'),
     'code': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
-             'docs', 'run_python', 'build_firmware'),
+             'docs', 'run_python', 'build_firmware', 'run_tests'),
     'pins': ('board_info', 'gpio_pin', 'gpio_port', 'test_gate', 'afe_power',
              'docs'),
     # run_command, not build_firmware: the wider, allowlisted surface for a
     # session actually about the toolchain, not just build_and_flash.py.
-    'build': ('board_info', 'docs', 'run_command'),
+    'build': ('board_info', 'docs', 'run_command', 'run_tests'),
     'all': tuple(spec['name'] for spec in toolmod.TOOLS if spec['name'] != 'report'),
     'none': (),
 }
@@ -202,7 +202,7 @@ MARKDOWN_TABLE_ROW = re.compile(r'^\s*\|.*\|\s*$', re.M)
 # exactly what to do and did not do it.
 NAMED_TOOL = re.compile(r'\b(analog_read|afe_power|board_info|self_test|'
                         r'gpio_pin|gpio_port|test_gate|run_python|'
-                        r'run_command|build_firmware)\b')
+                        r'run_command|build_firmware|run_tests)\b')
 
 
 def _is_retype(answer, channels):

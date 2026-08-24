@@ -180,6 +180,22 @@ the text. That is not decoration: the documents are what stop a reading being
 misinterpreted, and a model that cannot reach them answers from memory instead.
 [docs/MODELS.md](docs/MODELS.md) is the chapter about the model itself.
 
+It is not read-only, either. `build_firmware` runs the build and the SWD flash
+with fixed arguments — nothing about the toolchain invocation is something the
+model gets to choose — and `run_tests` runs the offline suites from step 6
+below and reports back the exact tally each one already counted, never a
+paraphrase:
+
+```powershell
+dbg -q "run the test suites, build and flash, tell me if anything failed"
+```
+
+`build_firmware` is a `--confirm`-gated write, same as a pin write: nothing
+gets flashed to the real board without the operator saying yes, unless a
+session was started without that flag on purpose. `run_tests` is not gated
+at all — it never touches the board's state or its flash, so it is as free
+to call as `docs` or `board_info`.
+
 Structured output is not done with Ollama's json mode here, and that is a
 decision rather than an omission. `format='json'` constrains the *content* of a
 reply — the one part of it this bench does not parse. Every number that reaches
@@ -235,9 +251,12 @@ purpose.
 
 ```powershell
 cd host
-python tests/test_ollama.py         # 212 checks, no board and no ollama needed
-python tests/test_conformance.py    # 40 Modbus conformance checks, needs the board
+python tests/test_ollama.py         # 292 checks, no board and no ollama needed
 python tests/test_mcp.py            # 39 MCP server checks
+python tests/test_simulated.py      # 17 checks, real MCP handlers against a fake board
+python tests/test_conformance.py    # 43 Modbus conformance checks, needs the board
+python tools/run_tests.py           # all four above, one parsed tally - --conformance
+                                     # to include the one that needs the board
 ```
 
 ### Where to read next

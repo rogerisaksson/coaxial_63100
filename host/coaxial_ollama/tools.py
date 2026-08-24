@@ -7,7 +7,7 @@ compact renderers, and one place a new capability gets added. A second, drifting
 copy of that surface written for Ollama would be the worst kind of duplication -
 the kind that stays plausible while going out of date.
 
-Four tools are added here, and they are what makes this a runner rather than a
+Five tools are added here, and they are what makes this a runner rather than a
 chat window:
 
   run_command    an allowlisted process, for the things that are not the board:
@@ -18,10 +18,13 @@ chat window:
                  narrow, always-available answer to "build and flash", so a
                  session does not need run_command's wider surface just for
                  that one job.
+  run_tests      host/tools/run_tests.py - every offline suite's own tally,
+                 parsed by that script rather than summarised by the model.
+                 Ungated: it never touches the board's state or its flash.
   report         how a step ends. The model reports a value and a unit; it is
                  never told the limit and never asked for a verdict.
 
-Thirteen tools, against the nine that coaxial_mcp keeps to. The extra cost is
+Fourteen tools, against the nine that coaxial_mcp keeps to. The extra cost is
 real and it is paid for one thing: a plan step can say "work out which channel
 this is" instead of naming a function code.
 
@@ -41,11 +44,14 @@ from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
 from coaxial_mcp.tools import TOOLS as BOARD_TOOLS         # noqa: E402
 from coaxial_mcp.tools import coerce as board_coerce       # noqa: E402
 
-# host/tools/build_and_flash.py, resolved from this file's own location
-# rather than the caller's cwd - dbg.py and the runner start from different
-# directories, and this tool has to reach the same script either way.
+# host/tools/build_and_flash.py and host/tools/run_tests.py, resolved from
+# this file's own location rather than the caller's cwd - dbg.py and the
+# runner start from different directories, and these tools have to reach the
+# same scripts either way.
 _BUILD_AND_FLASH = os.path.join(__file__.rsplit('coaxial_ollama', 1)[0],
                                 'tools', 'build_and_flash.py')
+_RUN_TESTS = os.path.join(__file__.rsplit('coaxial_ollama', 1)[0],
+                          'tools', 'run_tests.py')
 
 EXTRA_TOOLS = [
     {
@@ -74,6 +80,16 @@ EXTRA_TOOLS = [
             'type': 'object',
             'properties': {
                 'action': {'type': 'string', 'enum': ['build', 'flash', 'both']},
+            },
+        },
+    },
+    {
+        'name': 'run_tests',
+        'description': "Run this project's own offline test suites (test_ollama.py, test_mcp.py, test_simulated.py) and report the exact pass/fail tally each one already counts itself - never a paraphrase. Add 'conformance' to also run test_conformance.py, which needs a real board on COM4.",
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'conformance': {'type': 'boolean'},
             },
         },
     },
@@ -191,6 +207,8 @@ class Toolbox:
                 return self._command(args)
             if name == 'build_firmware':
                 return self._build_firmware(args)
+            if name == 'run_tests':
+                return self._run_tests(args)
             return self._board(name, args)
         except Refused as exc:
             return 'ERR %s' % exc
@@ -200,7 +218,13 @@ class Toolbox:
     # ---- policy ------------------------------------------------------------
 
     def _permit(self, name, args):
-        if name not in BOARD_HANDLERS and name not in CODE_CALLS:
+        # run_tests is neither a board tool nor a CODE_CALLS entry on
+        # purpose: it never touches the board's state or its flash, so it
+        # is not gated by --read-only, --allow-writes or --confirm - the
+        # same reasoning that leaves `docs` ungated, just for a different
+        # local action.
+        if (name not in BOARD_HANDLERS and name not in CODE_CALLS
+                and name != 'run_tests'):
             raise Refused('unknown tool %r' % name)
 
         if name in CODE_CALLS and not self.allow_code:
@@ -270,6 +294,29 @@ class Toolbox:
         # or flash exactly like a declined --confirm call - a fact this loop
         # already has that the model does not get to override with its own
         # summary of what happened.
+        return text if done.returncode == 0 else 'ERR %s' % text
+
+    def _run_tests(self, args):
+        """host/tools/run_tests.py - every suite's own tally, parsed by that
+        script, never re-summarised here or by the model. See its docstring
+        for why: a model's paraphrase of test output is exactly the kind of
+        plausible-but-unverified line this project's own FINDINGS.md warns
+        against.
+        """
+        argv = [sys.executable, _RUN_TESTS]
+        if args.get('conformance'):
+            argv.append('--conformance')
+        try:
+            done = subprocess.run(argv, capture_output=True, text=True,
+                                  timeout=300)
+        except subprocess.TimeoutExpired:
+            return 'ERR run_tests timed out after 300s'
+        except OSError as exc:
+            return 'ERR run_tests could not start: %s' % exc
+
+        text = (done.stdout or '').strip()
+        if not text:
+            text = (done.stderr or '').strip()
         return text if done.returncode == 0 else 'ERR %s' % text
 
     def _board(self, name, args):
