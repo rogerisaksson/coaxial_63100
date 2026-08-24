@@ -27,7 +27,7 @@ typedef struct
 static const DigitalDesc s_digital[] =
 {
   { 'B',  2U, "PB2",  BOARD_DIR_OUT,   "AFE_ON",              true  },
-  { 'E', 15U, "PE15", BOARD_DIR_IN,    "AFE_ON sense",        true  },
+  { 'E', 15U, "PE15", BOARD_DIR_IN,    "nFAULT",              true  },
   { 'B', 10U, "PB10", BOARD_DIR_OUT,   "USART3_TX",           false },
   { 'B', 11U, "PB11", BOARD_DIR_IN,    "USART3_RX",           false },
   { 'A', 13U, "PA13", BOARD_DIR_INOUT, "JTMS/SWDIO",          false },

@@ -31,8 +31,9 @@ measurements mean:
 The board also carries further subsystems beyond the analog front end. Only what
 the firmware currently configures is documented below. PB1 and PC1 are named
 **Clevel** and **Cinj** by the board owner; what they measure is not recorded
-here, and this document will not guess. PE15 is an input whose role beyond
-tracking AFE_ON is not recorded either.
+here, and this document will not guess. PE15 is named **nFAULT** by the board
+owner; what drives it is not recorded here either — see the note under Discrete
+I/O, because the name changes what its measured level means.
 
 ## Silicon
 
@@ -138,9 +139,16 @@ deliberately off, a model with no numbers to report wrote "Mid-scale … 25.00 C
 out of the warning text itself. Codes under a label beat a refusal that gets
 paraphrased into data.
 
-**PE15 follows AFE_ON inversely** — measured, not assumed: 1 while the AFE is off,
-0 once it is on. That makes the discrete input an independent witness that a write
-reached the pin rather than only the register, and both test suites use it so.
+**PE15 (nFAULT) follows AFE_ON inversely** — measured, not assumed: 1 while the
+AFE is off, 0 once it is on. That makes the discrete input an independent witness
+that a write reached the pin rather than only the register, and both test suites
+use it so.
+
+The measurement did not change when the pin was named; what it means did. On an
+active-low fault line, **0 with the front end powered reads as a fault
+asserted**. This document does not know whether that is a real fault, a pull
+following the AFE supply, or a polarity that does not match the name — and will
+not guess. Recorded in [FINDINGS.md](FINDINGS.md) under Open.
 
 ## Scaling
 
@@ -188,7 +196,7 @@ disagree the board is right.
 | Pin | Direction | Role |
 |---|---|---|
 | PB2 | output, push-pull | AFE_ON. **Low at boot.** |
-| PE15 | input | follows AFE_ON inversely |
+| PE15 | input | **nFAULT**; measured to follow AFE_ON inversely |
 | PB10, PB11 | AF7 | USART3 TX / RX, 115200 8N1, **polled: no NVIC, no ISR** |
 | PA13-PA15, PB3, PB4 | AF | 5-pin JTAG debug port |
 

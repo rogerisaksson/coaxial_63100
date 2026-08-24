@@ -69,7 +69,7 @@ UNITS = {'NTC': 'centi-degC', 'DC bus': 'mV'}
 
 DIGITAL = [
     {'pin': 'PB2',  'direction': 'out', 'signal': 'AFE_ON'},
-    {'pin': 'PE15', 'direction': 'in',  'signal': 'AFE_ON sense'},
+    {'pin': 'PE15', 'direction': 'in',  'signal': 'nFAULT'},
 ]
 
 # Not channels: the bus the command arrived on and the debug port. Reported

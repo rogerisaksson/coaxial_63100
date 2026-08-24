@@ -1165,8 +1165,14 @@ def test_digital_read(report):
                                             cold.splitlines()[2][:22]))
     report.check('PB2 follows the AFE switch',
                  'PB2  out   1' in hot and 'PB2  out   0' in cold)
-    report.check('and PE15 reads back inversely, as the board wires it',
-                 'PE15 in    0' in hot and 'PE15 in    1' in cold)
+    # nFAULT, and the level is the same measurement it was before the pin
+    # had that name - see FINDINGS: 0 with the front end powered reads as a
+    # fault asserted, and what drives it is not established. Asserted here
+    # because it is what the board does, not because it is understood.
+    report.check('and nFAULT reads back inversely, as the board wires it',
+                 'PE15 in    0     nFAULT' in hot
+                 and 'PE15 in    1     nFAULT' in cold,
+                 hot.splitlines()[-1])
     report.check('every pin the map calls digital I/O is read, and only those',
                  len(hot.splitlines()) == 2 + len(
                      Sim().board.system.channel_map()['digital']),
