@@ -176,10 +176,10 @@ static const AdcChannelDesc s_adcTable[] =
   { &hadc3, "ADC3", ADC_CHANNEL_1,  "IN1",  "PC3_C/PC2_C", ADC_DIFFERENTIAL_ENDED, "Phase U", ADC_UNIT_NONE  },
   { &hadc1, "ADC1", ADC_CHANNEL_3,  "IN3",  "PA6/PA7",     ADC_DIFFERENTIAL_ENDED, "Phase V", ADC_UNIT_NONE  },
   { &hadc2, "ADC2", ADC_CHANNEL_4,  "IN4",  "PC4/PC5",     ADC_DIFFERENTIAL_ENDED, "Phase W", ADC_UNIT_NONE  },
-  { &hadc2, "ADC2", ADC_CHANNEL_5,  "IN5",  "PB1",         ADC_SINGLE_ENDED,       "",        ADC_UNIT_NONE  },
+  { &hadc2, "ADC2", ADC_CHANNEL_5,  "IN5",  "PB1",         ADC_SINGLE_ENDED,       "Clevel",  ADC_UNIT_NONE  },
   { &hadc1, "ADC1", ADC_CHANNEL_9,  "IN9",  "PB0",         ADC_SINGLE_ENDED,       "NTC",     ADC_UNIT_NTC   },
   { &hadc3, "ADC3", ADC_CHANNEL_10, "IN10", "PC0",         ADC_SINGLE_ENDED,       "DC bus",  ADC_UNIT_DCBUS },
-  { &hadc3, "ADC3", ADC_CHANNEL_11, "IN11", "PC1",         ADC_SINGLE_ENDED,       "",        ADC_UNIT_NONE  },
+  { &hadc3, "ADC3", ADC_CHANNEL_11, "IN11", "PC1",         ADC_SINGLE_ENDED,       "Cinj",    ADC_UNIT_NONE  },
 };
 
 uint8_t Board_AdcCount(void)

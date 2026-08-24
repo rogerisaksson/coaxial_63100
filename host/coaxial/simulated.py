@@ -32,13 +32,13 @@ CHANNELS = [
     {'index': 2, 'adc': 2, 'channel': 4, 'pin': 'PC4/PC5',
      'differential': True, 'signal': 'Phase W'},
     {'index': 3, 'adc': 2, 'channel': 5, 'pin': 'PB1',
-     'differential': False, 'signal': None},
+     'differential': False, 'signal': 'Clevel'},
     {'index': 4, 'adc': 1, 'channel': 9, 'pin': 'PB0',
      'differential': False, 'signal': 'NTC'},
     {'index': 5, 'adc': 3, 'channel': 10, 'pin': 'PC0',
      'differential': False, 'signal': 'DC bus'},
     {'index': 6, 'adc': 3, 'channel': 11, 'pin': 'PC1',
-     'differential': False, 'signal': None},
+     'differential': False, 'signal': 'Cinj'},
 ]
 
 # Roughly what a live board reads with the front end on, AFE gain and all -

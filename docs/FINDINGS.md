@@ -343,7 +343,7 @@ believed it was would still be crashing.
 | Question | State |
 |---|---|
 | Calibration running against an unpowered reference | Diagnosed, fix proposed and untested |
-| IN11 (PC1) moved 9.7 % between 75 and 475 MHz | Unexplained; the channel has no assigned signal |
+| IN11 (PC1, `Cinj`) moved 9.7 % between 75 and 475 MHz | Unexplained. The channel was unnamed when this was measured; it is `Cinj` now, and what it measures is still not recorded here |
 | DC bus read twice in one sweep differs by 25-35 LSB | The two read paths give systematically different values, ~29-42 mV at the bus. Not PCSEL — it persisted after that fix. |
 | Phase V op-amp offset | Board owner's, deliberately deferred |
 

@@ -42,10 +42,11 @@ def test_session(report):
     report.check('version says what it is, not a plausible-looking number',
                  version['firmware'] == 'simulated' and version['build']
                  == 'simulated', version)
-    report.check('the channel table has all seven real channels',
+    report.check('the channel table has all seven real channels, named',
                  len(channels) == 7
                  and {c['signal'] for c in channels if c['signal']}
-                 == {'Phase U', 'Phase V', 'Phase W', 'NTC', 'DC bus'})
+                 == {'Phase U', 'Phase V', 'Phase W', 'NTC', 'DC bus',
+                     'Clevel', 'Cinj'})
     report.check('close() and reset() are no-ops, not errors',
                  session.close() is None and session.reset() is None)
 
@@ -84,7 +85,7 @@ def test_analog_read(report):
 
     # What a question calls a channel, not what the table calls it. Measured
     # at the prompt: ch=['bus'] came back "unknown channel 'bus'; names are
-    # ch3,ch6,dcbus,ntc,..." - a refusal listing the channel it meant.
+    # cinj,clevel,dcbus,ntc,..." - a refusal listing the channel it meant.
     named = SimulatedSession()
     toolmod.afe_power(named, action='on')
     for asked, expect in (('bus', 'DCbus'), ('temp', 'NTC'),
@@ -115,7 +116,7 @@ def test_analog_read(report):
     # both invented by the model, both refused where one of them meant
     # something.
     for asked, expect in (('BUS_VOLT', 'DCbus'), ('bus_voltage', 'DCbus'),
-                          ('NTC_TEMP', 'NTC'), ('ADC_CH3', 'ch3'),
+                          ('NTC_TEMP', 'NTC'), ('ADC_CH3', 'Clevel'),
                           ('PhaseAVolt', 'PhaseU')):
         text = toolmod.analog_read(named, ch=[asked])
         report.check('%r reads the channel its words name (%s)'

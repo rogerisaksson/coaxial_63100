@@ -558,6 +558,15 @@ class Toolbox:
                          'is up.' % configured)
             return '\n'.join(steps)
         steps.append('4. Board answers on %s right now: no.' % configured)
+        # Why it is not answering, not just that it is not. A port another
+        # process holds open reads exactly like a board that stopped
+        # talking, and this used to guess at the difference in prose -
+        # measured, two dbg.py sessions had COM4 open, every probe read
+        # silent, and the board was diagnosed as halted, started over SWD
+        # and reflashed. None of that was the matter with it.
+        if find_board.port_state(configured, baud, unit) == find_board.BUSY:
+            steps.append('   %s is open in another process - that is why nothing answers here. Close the other session, or point this one at another port.' % configured)
+            return chr(10).join(steps)
         steps.append('   Powered and the port is right, so check nothing '
                      'else has %s open, and that the last programmer run '
                      'ended with --start, not -hardRst (a halted core '

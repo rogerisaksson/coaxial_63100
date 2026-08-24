@@ -29,9 +29,10 @@ measurements mean:
   FETs commutate is the only one worth recording.
 
 The board also carries further subsystems beyond the analog front end. Only what
-the firmware currently configures is documented below; two ADC channels are wired
-and read but have no assigned signal in the firmware, and PE15 is an input whose
-role beyond tracking AFE_ON is not recorded here.
+the firmware currently configures is documented below. PB1 and PC1 are named
+**Clevel** and **Cinj** by the board owner; what they measure is not recorded
+here, and this document will not guess. PE15 is an input whose role beyond
+tracking AFE_ON is not recorded either.
 
 ## Silicon
 
@@ -78,10 +79,10 @@ said on 2026-08-24; the board is what to ask.
 | 0 | ADC3 | IN1 | PC3_C / PC2_C | differential | Phase U |
 | 1 | ADC1 | IN3 | PA6 / PA7 | differential | Phase V |
 | 2 | ADC2 | IN4 | PC4 / PC5 | differential | Phase W |
-| 3 | ADC2 | IN5 | PB1 | single-ended | *(none assigned)* |
+| 3 | ADC2 | IN5 | PB1 | single-ended | Clevel |
 | 4 | ADC1 | IN9 | PB0 | single-ended | NTC |
 | 5 | ADC3 | IN10 | PC0 | single-ended | DC bus |
-| 6 | ADC3 | IN11 | PC1 | single-ended | *(none assigned)* |
+| 6 | ADC3 | IN11 | PC1 | single-ended | Cinj |
 
 16-bit resolution. One LSB is **100.7 uV** at the pin for differential (offset
 binary over 32768) and **50.354 uV** for single-ended (over 65536).

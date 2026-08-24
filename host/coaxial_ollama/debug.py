@@ -759,6 +759,8 @@ class Chat:
         code_error = None  # last run_python/run_command result, if it failed
         last_channels = None      # names in the most recent analog_read table
         last_table = None         # and the table itself, for --quiet
+        last_map = None           # channel names board_info just listed
+        last_map_text = None      # and that render, for --quiet
         diagnosed = False  # link_diagnose ran this turn, and was traced
         seen = {}          # (name, args) this turn -> its rendered result
         nudges = 0         # times told to call the tool it just named, or to
@@ -915,6 +917,15 @@ class Chat:
                                         for m in replies.READING_ROW.findall(str(raw)))
                     self.last_channels = last_channels
                     last_table = str(raw)
+                if name == 'board_info' and not str(raw).startswith('ERR'):
+                    # Deliberately not self.last_channels: that one means "a
+                    # reading has succeeded this session" and gates the
+                    # answering-from-memory checks. A map is not a reading.
+                    named = set(m.lower()
+                                for m in replies.MAP_ROW.findall(str(raw)))
+                    if named:
+                        last_map = named
+                        last_map_text = str(raw)
                 # An afe_power refused for not being asked for is a mistake
                 # the model recovers from one call later. The refusal stays in
                 # history for it to read; the operator does not need it on
@@ -950,8 +961,12 @@ class Chat:
         # retype left "read every analog channel" answering with an empty
         # screen. The board's own rows go out instead - the same table the
         # trace would have shown, rather than the model's typing of it.
-        elif replies.is_retype(answer, last_channels):
-            answer = last_table if (self.quiet and last_table) else ''
+        elif replies.is_retype(answer, last_channels or last_map):
+            # Whatever was just put on screen, typed out again underneath it.
+            # The trace is the answer; with --quiet there is no trace and the
+            # board's own rows go out instead of the model's copy of them.
+            shown = last_table if last_channels else last_map_text
+            answer = shown if (self.quiet and shown) else ''
         # An answer that hit the token cap stops mid-sentence, and a table
         # that stops mid-row reads as complete to everyone except a reader
         # counting rows. Say so rather than letting the cap look like the end.

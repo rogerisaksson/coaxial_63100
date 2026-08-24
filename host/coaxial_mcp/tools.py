@@ -320,6 +320,12 @@ def _resolve(session, wanted):
         return list(range(len(channels)))
     by_name = {_key(render.short(c['signal'], c['index'])): c['index']
                for c in channels}
+    # `ch3` is what an unnamed channel is called, and it stayed addressable
+    # by that after PB1 and PC1 were given real names - a caller counting
+    # channels should not stop working because somebody named one. The real
+    # name wins where the two would collide, which they cannot on this board.
+    for channel in channels:
+        by_name.setdefault('ch%d' % channel['index'], channel['index'])
 
     indices = []
     for item in wanted:

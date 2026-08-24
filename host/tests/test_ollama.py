@@ -997,8 +997,8 @@ def test_retype_with_the_trace_off(report):
     """
     from coaxial_ollama import debug
 
-    retyped = ('PhaseU, PhaseV, PhaseW, ch3, NTC, DCbus and ch6 were all '
-               'read just now.')
+    retyped = ('PhaseU, PhaseV, PhaseW, Clevel, NTC, DCbus and Cinj were '
+               'all read just now.')
 
     def turn(quiet):
         chat = debug.Chat(ScriptedModel([
@@ -1018,6 +1018,118 @@ def test_retype_with_the_trace_off(report):
     report.check('and what goes out is the board rows, not the retyping',
                  'smp @' in hushed and retyped not in hushed,
                  hushed.splitlines()[0][:52] if hushed else '<empty>')
+
+
+def test_port_state(report):
+    """Why a port is not answering, not just that it is not.
+
+    Measured, and it cost most of a session twice over: two `dbg.py`
+    sessions had COM4 open, every `probe` read "silent", and the board was
+    diagnosed as halted, started over SWD and reflashed - none of which was
+    the matter with it. pyserial says exactly what happened; nothing was
+    asking.
+    """
+    import find_board
+    import serial
+
+    real_serial = serial.Serial
+    try:
+        def denied(*a, **kw):
+            # The message Windows produced here, Swedish locale and all.
+            raise serial.SerialException(
+                "could not open port 'COM4': PermissionError(13, "
+                "'Åtkomst nekad.', None, 5)")
+
+        serial.Serial = denied
+        report.check('a port another process holds is busy, not silent',
+                     find_board.port_state('COM4') == find_board.BUSY,
+                     find_board.port_state('COM4'))
+
+        def missing(*a, **kw):
+            raise serial.SerialException(
+                "could not open port 'COM99': FileNotFoundError(2, ...)")
+
+        serial.Serial = missing
+        report.check('a port that is not there is absent, not busy',
+                     find_board.port_state('COM99') == find_board.ABSENT,
+                     find_board.port_state('COM99'))
+    finally:
+        serial.Serial = real_serial
+
+    # The class name is what decides it: the OS message is localised, and
+    # matching "Access is denied" would have read this one as absent.
+    report.check('and it is decided on the class name, not the OS wording',
+                 'PermissionError' in open(find_board.__file__,
+                                           encoding='utf-8').read())
+
+    # The checklist stops guessing at it. Step 4 used to end on "check
+    # nothing else has COM4 open" whether or not something did.
+    box = toolmod.Toolbox(SimulatedSession())
+    real_state = find_board.port_state
+    real_power = find_board.check_power
+    real_ports = find_board.list_ports
+    try:
+        find_board.port_state = lambda *a, **kw: find_board.BUSY
+        find_board.check_power = lambda *a, **kw: (3.27, 'stubbed')
+        find_board.list_ports = lambda: ['COM_TEST']
+        box.session = _Held()
+        checklist = box.call('link_diagnose', {})
+    finally:
+        find_board.port_state = real_state
+        find_board.check_power = real_power
+        find_board.list_ports = real_ports
+    report.check('link_diagnose says the port is held, not that it might be',
+                 'open in another process' in checklist,
+                 checklist.splitlines()[-1][:56])
+
+
+class _Held:
+    """A session on a port something else has open."""
+    port, baud, unit = 'COM_TEST', 115200, 1
+    _board = None
+
+
+def test_map_retype(report):
+    """One list, not two.
+
+    Measured: "ge mig en lista pa alla analoga kanaler" traced the map -
+    seven named rows - and the model then typed the same seven names out
+    underneath it. `is_retype` already replaces a retyped *reading* with
+    silence because the trace put it on screen; a retyped *map* is the same
+    thing, and a map row simply does not look like a reading row, so the
+    backstop never saw it.
+    """
+    from coaxial.simulated import SimulatedSession as Sim
+    from coaxial_ollama import debug
+
+    # The package's stand-in, not this file's four-channel double: the names
+    # below are the seven the board actually reports, and the check is that
+    # all of them being typed out again is what the backstop sees.
+    listed = ('Här är de analoga kanalerna: PhaseU, PhaseV, PhaseW, Clevel, '
+              'NTC, DCbus och Cinj.')
+
+    def turn(reply, quiet=False):
+        chat = debug.Chat(ScriptedModel([
+            call('board_info', kind='analog'),
+            {'role': 'assistant', 'content': reply},
+        ]), toolmod.Toolbox(Sim(), scope=Scope()),
+            out=io.StringIO(), quiet=quiet)
+        return chat.ask('ge mig en lista på alla analoga kanaler')
+
+    report.check('a map typed out again under its own trace is silenced',
+                 turn(listed) == '', repr(turn(listed))[:52])
+
+    # With no trace the answer is the only copy, so the board's rows go out
+    # rather than the model's typing of them - same rule as a reading.
+    hushed = turn(listed, quiet=True)
+    report.check('with --quiet the map itself goes out instead',
+                 'analog:' in hushed and listed not in hushed,
+                 hushed.splitlines()[0][:46] if hushed else '<empty>')
+
+    # The bar stays where it was: an answer that says something is untouched.
+    finding = 'Sju analoga kanaler, och NTC är den enda med en temperatur.'
+    report.check('an answer that is not just the list survives',
+                 turn(finding) == finding, repr(turn(finding))[:52])
 
 
 def test_map_sections(report):
@@ -3838,7 +3950,7 @@ def main():
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_link_recovery, test_channel_map, test_map_sections,
+                 test_link_diagnose, test_link_recovery, test_channel_map, test_map_sections, test_map_retype, test_port_state,
                  test_retype_with_the_trace_off,
                  test_power_check_cannot_halt,
                  test_transcript,

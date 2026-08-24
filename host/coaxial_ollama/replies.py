@@ -27,6 +27,16 @@ TOOL_TAG = re.compile(r'</?tool_call>', re.I)
 # without the anchor 'smp' was recognised as a seventh channel of its own.
 READING_ROW = re.compile(r'^\d+\s+(\S+)\s+(?:diff|SE)\b', re.M)
 
+# The same name off a row of board_info's channel map, where it is the
+# last field rather than the second:
+# "0  3   PC3_C/PC2_C  in    diff PhaseU". Measured: asked for a list of
+# the analog channels, the trace printed the map and the model typed the
+# seven names out underneath it - two lists where the first was already
+# the answer. Same rule as a retyped reading, same reason; a map row just
+# does not look like a reading row.
+MAP_ROW = re.compile(r'^\d+\s+\d+\s+\S+\s+\S+\s+(?:diff|SE)\s+(\S+)\s*$',
+                     re.M)
+
 # Fewer than this many channels and a short answer naming all of them is
 # plausibly synthesis ("NTC and DCbus both read low") rather than a mechanical
 # restatement - the case this exists to catch always names a full table's

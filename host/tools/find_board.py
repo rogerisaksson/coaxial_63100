@@ -159,6 +159,35 @@ def probe(candidate, baud=115200, unit=1):
     return True
 
 
+ANSWERED, BUSY, SILENT, ABSENT = 'answered', 'busy', 'silent', 'absent'
+
+
+def port_state(candidate, baud=115200, unit=1):
+    """Why this port is not answering, not just that it is not.
+
+    `probe` returns False for a port another process holds open exactly as it
+    does for a board that has stopped talking, and those are different
+    problems with different fixes. Measured, and it cost most of a session:
+    two `dbg.py` sessions had COM4 open, every probe read "silent", and the
+    board was diagnosed as halted, started over SWD and reflashed - none of
+    which was the matter with it.
+
+    'busy' is decided on the exception's class name rather than its message:
+    Windows localises the text, and the one measured here was Swedish.
+    """
+    import serial
+
+    try:
+        handle = serial.Serial(candidate, baud, timeout=0.1)
+    except serial.SerialException as exc:
+        text = str(exc)
+        if 'PermissionError' in text or 'Access is denied' in text:
+            return BUSY
+        return ABSENT
+    handle.close()
+    return ANSWERED if probe(candidate, baud, unit) else SILENT
+
+
 def find(preferred=None, baud=115200, unit=1, ports=None):
     """The first port that answers as this board, `preferred` tried first
     if Windows even lists it - or None if nothing did."""
@@ -181,6 +210,9 @@ def main(argv=None):
                              'opening any of them - the USB VID decides')
     parser.add_argument('--probe', metavar='PORT',
                         help='does the board answer on this one port')
+    parser.add_argument('--state', metavar='PORT',
+                        help='answered, busy, silent or absent - why it is '
+                             'not answering, not just that it is not')
     parser.add_argument('--find', action='store_true',
                         help='try every port, print the first that answers')
     parser.add_argument('--discover', action='store_true',
@@ -207,6 +239,10 @@ def main(argv=None):
     if args.kinds:
         print(chr(10).join('%s %s' % pair for pair in kinds()))
         return 0
+    if args.state:
+        state = port_state(args.state, args.baud, args.unit)
+        print('%s %s' % (args.state, state))
+        return 0 if state == ANSWERED else 1
     if args.probe:
         ok = probe(args.probe, args.baud, args.unit)
         print('%s %s' % (args.probe, 'answered' if ok else 'silent'))
