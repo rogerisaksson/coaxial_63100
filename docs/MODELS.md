@@ -391,11 +391,25 @@ The same goes for the name of a thing, and there are three rules:
   `dcbus` and nothing else, and `temp` is a `SIGNAL_ALIASES` entry for `ntc`.
   One that could mean several says so — *channel 'phas' could be phaseu or
   phasev or phasew - say which* — rather than "unknown", which reads as "no
-  such thing".
+  such thing";
+* and a name built out of words is read as its words: `BUS_VOLT`,
+  `bus_voltage`, `NTC_TEMP`, `ADC_CH3`, `PhaseAVolt`. Separators and
+  camelCase both split. A single letter counts as a phase only beside the
+  word that says so — without that rule `not_a_channel` resolved to PhaseU
+  through its bare `a`, which is the invented reading this file exists to
+  prevent. `A0` stays refused: it is a pin name, and guessing which channel
+  hangs off it would be inventing one.
 
 Measured for each: `['ntc','dc_bus','phase_a','phase_b','phase_c']` lost all
-five readings to the two spelled the other way, and `['bus']` was refused with
-`dcbus` listed in its own refusal.
+five readings to the two spelled the other way, `['bus']` was refused with
+`dcbus` listed in its own refusal, and `BUS_VOLT` was invented outright.
+
+That last one had a second cause, in this repository rather than in the model.
+Terse mode dropped analog_read's `omit for all` — the only line saying how to
+ask for every channel — so the model started naming them itself and read five
+of seven. `detail._is_schema` keeps a property description that carries
+enumerated values, a spelling, **or how to leave the field out**: all three are
+schema, and none is written anywhere else.
 
 `coaxial_mcp.tools.coerce` converts every argument to the type the tool's own
 `inputSchema` declares, and refuses what will not convert **by field name and

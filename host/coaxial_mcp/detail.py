@@ -118,7 +118,7 @@ def _properties(schema, level):
     changed = False
     for name, prop in properties.items():
         if isinstance(prop, dict) and 'description' in prop \
-                and not _names_values(prop['description']):
+                and not _is_schema(prop['description']):
             prop = {k: v for k, v in prop.items() if k != 'description'}
             changed = True
         trimmed[name] = prop
@@ -127,10 +127,17 @@ def _properties(schema, level):
     return dict(schema, properties=trimmed)
 
 
-def _names_values(description):
-    """Whether a description carries the values themselves rather than prose
-    about them - `README|CLAUDE|...`, `Pin as PORT+NUMBER, e.g. B2`."""
-    return '|' in description or 'e.g.' in description
+def _is_schema(description):
+    """Whether a description carries schema rather than prose about it.
+
+    Three shapes, and each is the only place its fact is written:
+    enumerated values (`README|CLAUDE|...`), a spelling (`e.g. B2`), and how
+    to leave the field out (`omit for all`). Measured: terse dropped
+    analog_read's "omit for all" and the model started naming channels
+    itself - inventing `BUS_VOLT`, and reading five of seven.
+    """
+    return ('|' in description or 'e.g.' in description
+            or 'omit' in description.lower())
 
 
 def apply(specs, level):

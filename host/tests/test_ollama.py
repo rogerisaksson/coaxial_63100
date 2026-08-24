@@ -2265,6 +2265,14 @@ def test_detail(report):
                  'README|CLAUDE' in json.dumps(
                      detail.apply([s for s in toolmod.TOOLS
                                    if s['name'] == 'docs'], detail.TERSE)))
+    # Measured: terse dropped analog_read's "omit for all" and the model
+    # started naming channels itself, inventing BUS_VOLT and reading five of
+    # seven. How to leave a field out is schema, not prose.
+    report.check('and so does one that says how to leave the field out',
+                 'omit for all' in json.dumps(
+                     detail.apply([s for s in toolmod.TOOLS
+                                   if s['name'] == 'analog_read'],
+                                  detail.TERSE)))
     report.check('shortening never edits the shared TOOLS in place',
                  all('description_terse' in s or len(s['description']) > 0
                      for s in toolmod.TOOLS)

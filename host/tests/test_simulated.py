@@ -111,6 +111,28 @@ def test_analog_read(report):
         report.check('a name that means nothing is still refused',
                      'unknown channel' in str(exc), str(exc)[:60])
 
+    # A name built out of words. Measured at the prompt: BUS_VOLT and A0,
+    # both invented by the model, both refused where one of them meant
+    # something.
+    for asked, expect in (('BUS_VOLT', 'DCbus'), ('bus_voltage', 'DCbus'),
+                          ('NTC_TEMP', 'NTC'), ('ADC_CH3', 'ch3'),
+                          ('PhaseAVolt', 'PhaseU')):
+        text = toolmod.analog_read(named, ch=[asked])
+        report.check('%r reads the channel its words name (%s)'
+                     % (asked, expect),
+                     expect in text and 'unknown' not in text, text[-56:])
+
+    # And the words must not resolve a name that is not one: `not_a_channel`
+    # went to PhaseU through its bare `a` before the rule that a single
+    # letter only counts beside the word `phase`.
+    for asked in ('not_a_channel', 'the analog channel', 'A0'):
+        try:
+            toolmod.analog_read(named, ch=[asked])
+            report.check('%r is refused, not guessed at' % asked, False)
+        except ValueError as exc:
+            report.check('%r is refused, not guessed at' % asked,
+                         'unknown channel' in str(exc), str(exc)[:46])
+
 
 def test_self_test_and_link(report):
     session = SimulatedSession()

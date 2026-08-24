@@ -260,6 +260,19 @@ def _alias(key, by_name):
     return key
 
 
+def _words(text):
+    """A name split into the words it was built from.
+
+    `BUS_VOLT`, `bus_voltage`, `PhaseAVolt`: a model naming a channel from
+    what it measures writes several words, and none of them is the channel
+    name. Separators and camelCase both split; the pieces are lowercased and
+    the empty ones dropped.
+    """
+    spaced = re.sub(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])',
+                    ' ', str(text))
+    return [w for w in re.split(r'[^A-Za-z0-9]+', spaced.lower()) if w]
+
+
 def _matches(key, by_name):
     """Every channel this key could mean, by prefix or containment.
 
@@ -311,11 +324,28 @@ def _resolve(session, wanted):
             # beats "unknown", which reads as "no such thing" and sends the
             # next call somewhere else entirely.
             found = _matches(key, by_name)
-            if len(found) > 1:
+            if not found:
+                # Not a name, a spelling of one or a substring of one - so
+                # try the words it is made of. `BUS_VOLT` is not any channel,
+                # but `bus` is exactly one. Measured from the prompt, twice:
+                # `A0` and `BUS_VOLT`, both invented, both refused.
+                words = _words(text)
+                # A single letter is a phase name (`a`, `u`) only next to the
+                # word that says so. Without that rule `not_a_channel`
+                # resolved to PhaseU through its `a`, which is the invented
+                # reading this whole file exists to prevent.
+                phased = any(w.startswith('phase') for w in words)
+                found = sorted(
+                    {_alias(w, by_name) for w in words
+                     if len(w) > 1 or phased} & set(by_name))
+            if len(found) == 1:
+                index = by_name[found[0]]
+            elif len(found) > 1:
                 raise ValueError('channel %r could be %s - say which'
                                  % (text, ' or '.join(found)))
-            raise ValueError('unknown channel %r; names are %s'
-                             % (text, ','.join(sorted(by_name))))
+            else:
+                raise ValueError('unknown channel %r; names are %s'
+                                 % (text, ','.join(sorted(by_name))))
         if not 0 <= index < len(channels):
             raise ValueError('channel %d out of range 0..%d'
                              % (index, len(channels) - 1))
