@@ -88,8 +88,8 @@ def safe(text, limit=60):
 def build(model, port, simulated):
     """(session, chat, real). `simulated=False` probes and falls back."""
     from coaxial_mcp.session import open_session
-    session, real = open_session(port, 115200, 1,
-                                 simulated=True if simulated else None)
+    session, found = open_session(port, 115200, 1,
+                                  simulated=True if simulated else None)
     client = Ollama(model, keep_alive=0)
     toolbox = toolmod.Toolbox(session, scope=Scope())
     # `read` rather than the default set: the fewer tools in the schema, the
@@ -97,7 +97,7 @@ def build(model, port, simulated):
     # need. out is a sink - the trace is noise between PASS lines.
     chat = debug.Chat(client, toolbox, tools='read', quiet=True,
                       out=io.StringIO(), session_language=START)
-    return session, chat, real
+    return session, chat, found
 
 
 def main(argv=None):
@@ -111,14 +111,14 @@ def main(argv=None):
                              'real one either way, which is what this tests')
     args = parser.parse_args(argv)
 
-    session, chat, real = build(args.model, args.port, args.simulated)
+    session, chat, found = build(args.model, args.port, args.simulated)
     report = Report()
     # Which board, said before the first PASS. The tool-choice checks below
     # hold either way - reaching analog_read is the model's decision, not the
     # board's - but "answered 38.53C" from a stand-in is an invented number,
     # and this suite never asserts on one. See invariant 10.
     print('-- %s, %s --'
-          % (args.model, args.port if real else 'SIMULATED board'))
+          % (args.model, found.label if found.real else 'SIMULATED board'))
     try:
         for question, needs_board, expect in TURNS:
             before = len(chat.toolbox.log)

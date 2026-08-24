@@ -16,6 +16,7 @@ later inside dbg.py itself - not a weaker, different check that passes here.
     python tools/find_board.py --probe COM4           # does the board answer here?
     python tools/find_board.py --find                 # try every port, print the first that answers
     python tools/find_board.py --find --preferred COM4   # try that one first
+    python tools/find_board.py --discover             # probes first; prints "COM4 probe"
     python tools/find_board.py --power                # target voltage over SWD - the ST-Link, not USART3
 """
 import argparse
@@ -69,9 +70,54 @@ def check_power(timeout=15):
     return float(match.group(1)), output.strip()
 
 
+# STMicroelectronics. Every ST-Link VCP enumerates under this VID - measured
+# here, an STLINK-V3SET reports 0483:374F - and it is what lets "which port is
+# the debugger" be answered without opening a single one. Find-BoardPort's own
+# comment said there was no way to ask; there is, and this is it.
+ST_VID = 0x0483
+
+PROBE = 'probe'      # the debug probe's virtual COM port
+SERIAL = 'serial'    # anything else that answers: RS485, on this board
+
+
 def list_ports():
     import serial.tools.list_ports
     return [p.device for p in serial.tools.list_ports.comports()]
+
+
+def kinds():
+    """[(device, PROBE|SERIAL)], in the order Windows enumerates them."""
+    import serial.tools.list_ports
+    return [(p.device, PROBE if p.vid == ST_VID else SERIAL)
+            for p in serial.tools.list_ports.comports()]
+
+
+def kind_of(device):
+    """PROBE or SERIAL for one port, SERIAL if Windows does not list it."""
+    for name, kind in kinds():
+        if name == device:
+            return kind
+    return SERIAL
+
+
+def discover(preferred=None, baud=115200, unit=1):
+    """`(device, kind)` of the first port this board answers on, or
+    `(None, None)`.
+
+    Order: `preferred` if Windows lists it, then every debug probe, then
+    everything else. The probe goes first because it is the one that is
+    there by definition when somebody is at a bench with a cable in - RS485
+    is the installed drive's path, and trying it first would spend a round
+    trip per port on the common case.
+    """
+    listed = kinds()
+    ordered = ([p for p in listed if p[0] == preferred]
+              + [p for p in listed if p[1] == PROBE and p[0] != preferred]
+              + [p for p in listed if p[1] == SERIAL and p[0] != preferred])
+    for device, kind in ordered:
+        if probe(device, baud, unit):
+            return device, kind
+    return None, None
 
 
 def probe(candidate, baud=115200, unit=1):
@@ -115,10 +161,16 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--list', action='store_true',
                         help='every COM port Windows currently sees')
+    parser.add_argument('--kinds', action='store_true',
+                        help='the same, one "PORT kind" per line, without '
+                             'opening any of them - the USB VID decides')
     parser.add_argument('--probe', metavar='PORT',
                         help='does the board answer on this one port')
     parser.add_argument('--find', action='store_true',
                         help='try every port, print the first that answers')
+    parser.add_argument('--discover', action='store_true',
+                        help='the same, debug probes first, printing "PORT '
+                             'kind" - kind being probe or serial')
     parser.add_argument('--preferred', metavar='PORT',
                         help='with --find, try this one first')
     parser.add_argument('--power', action='store_true',
@@ -137,10 +189,20 @@ def main(argv=None):
     if args.list:
         print('\n'.join(list_ports()))
         return 0
+    if args.kinds:
+        print(chr(10).join('%s %s' % pair for pair in kinds()))
+        return 0
     if args.probe:
         ok = probe(args.probe, args.baud, args.unit)
         print('%s %s' % (args.probe, 'answered' if ok else 'silent'))
         return 0 if ok else 1
+    if args.discover:
+        device, kind = discover(args.preferred, args.baud, args.unit)
+        if device:
+            print('%s %s' % (device, kind))
+            return 0
+        print('none', file=sys.stderr)
+        return 1
     if args.find:
         found = find(args.preferred, args.baud, args.unit)
         if found:

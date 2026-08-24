@@ -1,4 +1,4 @@
-<#
+﻿<#
     Finding which COM port this board is actually on - board_prompt.ps1's
     -AutodetectComport path. Needs Say (Say.ps1) to be dot-sourced already.
 
@@ -40,13 +40,16 @@ function Test-BoardPort {
 }
 
 function Find-BoardPort {
-    <#  Try -Port first if Windows even lists it, then every other COM port
-        in whatever order Windows enumerates them - there is no way to ask
-        which one a programmer was just plugged into short of opening each
-        and finding out. Loops here, one Test-BoardPort call per candidate,
-        rather than a single find_board.py --find, so each attempt gets its
-        own "trying COMn..." line instead of one silent wait for all of
-        them.  #>
+    <#  Try -Port first if Windows even lists it, then every debug probe,
+        then everything else. There IS a way to ask which one a programmer
+        is on, contrary to what this said before: an ST-Link VCP enumerates
+        under VID 0483, so find_board.py --kinds sorts the candidates
+        without opening any of them, and only the ones worth trying get a
+        round trip.
+
+        Still loops, one Test-BoardPort call per candidate, rather than a
+        single find_board.py --discover: each attempt gets its own "trying
+        COMn..." line instead of one silent wait for all of them.  #>
     param([string]$PreferredPort, [string]$HostDir)
 
     $ports = @()
@@ -56,16 +59,31 @@ function Find-BoardPort {
         return $null
     }
 
+    # One call, no port opened: "COM4 probe" per line. A failure here is not
+    # fatal - every port simply counts as 'serial' and the old order stands.
+    $kind = @{}
+    try {
+        $lines = & python (Join-Path $HostDir 'tools/find_board.py') --kinds
+        foreach ($line in $lines) {
+            $bits = "$line".Trim() -split '\s+'
+            if ($bits.Count -ge 2) { $kind[$bits[0]] = $bits[1] }
+        }
+    } catch {}
+
     $ordered = @()
     if ($PreferredPort -and ($ports -contains $PreferredPort)) {
         $ordered += $PreferredPort
     }
-    $ordered += ($ports | Where-Object { $_ -ne $PreferredPort })
+    $rest = $ports | Where-Object { $_ -ne $PreferredPort }
+    $ordered += ($rest | Where-Object { $kind[$_] -eq 'probe' })
+    $ordered += ($rest | Where-Object { $kind[$_] -ne 'probe' })
 
     foreach ($candidate in $ordered) {
-        Say 'wait' 'autodetect' "trying $candidate..."
+        $what = $kind[$candidate]
+        if (-not $what) { $what = 'serial' }
+        Say 'wait' 'autodetect' "trying $candidate ($what)..."
         if (Test-BoardPort -CandidatePort $candidate -HostDir $HostDir) {
-            Say 'ok' 'autodetect' "$candidate answered"
+            Say 'ok' 'autodetect' "$candidate answered ($what)"
             return $candidate
         }
     }

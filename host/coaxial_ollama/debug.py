@@ -1122,7 +1122,11 @@ def parse(argv):
                         help='attach a clipped file to the first question')
     parser.add_argument('--chars', type=int, default=2000,
                         help='how much of each --file to attach')
-    parser.add_argument('--port', default='COM4')
+    parser.add_argument('--port', default='COM4',
+                        help='tried first. If it is silent the debug '
+                             'probe is looked for, then every other '
+                             'port, then a simulated board - the '
+                             'prompt tag says which answered')
     parser.add_argument('--baud', type=int, default=115200)
     parser.add_argument('--unit', type=int, default=1)
     board_mode = parser.add_mutually_exclusive_group()
@@ -1213,9 +1217,8 @@ def build(args):
         session, origin = SimulatedSession(), ('Simulated', False)
     else:
         from coaxial_mcp.session import open_session
-        session, real = open_session(args.port, args.baud, args.unit)
-        origin = (('%s, %d' % (args.port, args.baud)) if real
-                  else 'Simulated', real)
+        session, found = open_session(args.port, args.baud, args.unit)
+        origin = (found.label, found.real)
 
     allow = [a for a in args.allow.split(',') if a.strip()]
     toolbox = Toolbox(session, shell=Shell(allow), scope=Scope(),

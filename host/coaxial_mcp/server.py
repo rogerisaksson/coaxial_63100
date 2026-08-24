@@ -69,13 +69,11 @@ def build(session, level=detailmod.FULL):
 
 async def serve(port='COM4', baud=115200, unit=1, level=detailmod.FULL,
                 simulated=False):
-    session, real = open_session(port, baud, unit, simulated=simulated)
-    if not real:
-        # stderr, not stdout: stdout is the JSON-RPC pipe. board_info says
-        # "simulated" in the version record either way - this is for whoever
-        # started the process and would otherwise not know.
-        print('no board on %s - serving a simulated one' % port,
-              file=sys.stderr, flush=True)
+    session, found = open_session(port, baud, unit, simulated=simulated)
+    # stderr, not stdout: stdout is the JSON-RPC pipe. board_info says
+    # "simulated" in the version record either way - this is for whoever
+    # started the process and would otherwise not know which they got.
+    print('serving: %s' % found.label, file=sys.stderr, flush=True)
     server = build(session, level)
     try:
         async with stdio_server() as (read_stream, write_stream):

@@ -74,13 +74,23 @@ Suites: `test_ollama.py` (436), `test_simulated.py` (34), `test_mcp.py` (39),
 ollama, `--live`) - the only one where the model itself is under test.
 
 **A missing cable is not a failing suite.** Every one of them picks its session
-through `coaxial_mcp.session.open_session()`, which probes the port with the
-same Modbus round trip a tool call makes and falls back to
-`coaxial.simulated.SimulatedSession`. Each says which it got, and so does the
-prompt: `Coaxial 63100(COM4, 115200)` in green, `Coaxial 63100(Simulated)` in
-yellow. `test_conformance.py` is the exception - a byte-level master has
-nothing to conform to without firmware, so with no board it runs its CRC
-self-test and says what it skipped.
+through `coaxial_mcp.session.open_session()`, which looks for the board -
+`--port` first, then every debug probe, then every other port, each with the
+same Modbus round trip a tool call makes - and falls back to
+`coaxial.simulated.SimulatedSession`. The debugger is told apart by its USB
+VID (`0483`), so nothing is opened to find it.
+
+The prompt names the path it found:
+
+| | |
+|---|---|
+| `Coaxial 63100(JTAG and COM4)` | green - over the debug probe |
+| `Coaxial 63100(RS485 at COM5)` | green - over RS485 |
+| `Coaxial 63100(Simulated)` | yellow - nothing answered |
+
+`test_conformance.py` is the exception - a byte-level master has nothing to
+conform to without firmware, so with no board it runs its CRC self-test and
+says what it skipped.
 
 The ST toolchain is not on the system PATH — arm-gcc, cmake, ninja and
 `STM32_Programmer_CLI` live under `%LOCALAPPDATA%\stm32cube\bundles\`, fetched by

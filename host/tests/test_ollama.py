@@ -2090,10 +2090,26 @@ def test_fallback(report):
     from coaxial_mcp.session import open_session
     from coaxial_ollama import spinner as spin
 
-    session, real = open_session(simulated=True)
-    report.check('forced simulated skips the probe entirely',
-                 type(session).__name__ == 'SimulatedSession' and not real,
-                 type(session).__name__)
+    session, found = open_session(simulated=True)
+    report.check('forced simulated skips the search entirely',
+                 type(session).__name__ == 'SimulatedSession'
+                 and not found.real, type(session).__name__)
+    report.check('and is labelled Simulated, not by a port it never opened',
+                 found.label == 'Simulated', found.label)
+
+    # The label names the path, not just the port: a reading over the bench
+    # cable and one over the field bus are not the same measurement, and
+    # which it was has to be on screen rather than inferred from a COM
+    # number. The probe is told apart by its USB VID - measured here, an
+    # STLINK-V3SET enumerates 0483:374F - so nothing has to be opened to
+    # know which port is the debugger.
+    from coaxial_mcp import session as sessionmod
+    for real, port, kind, want in ((True, 'COM3', 'probe', 'JTAG and COM3'),
+                                   (True, 'COM5', 'serial', 'RS485 at COM5'),
+                                   (False, None, None, 'Simulated')):
+        report.check('label: %s' % want,
+                     sessionmod._label(real, port, kind) == want,
+                     sessionmod._label(real, port, kind))
     report.check('and says "simulated" where a firmware version goes',
                  session.board.version_info['firmware'] == 'simulated',
                  session.board.version_info['firmware'])
@@ -2121,7 +2137,8 @@ def test_fallback(report):
             return True
 
     for tag, ok, colour in (('Simulated', False, '[33m'),
-                            ('COM4, 115200', True, '[32m')):
+                            ('JTAG and COM3', True, '[32m'),
+                            ('RS485 at COM5', True, '[32m')):
         out = VT()
         face = spin.Prompt('Coaxial 63100', out, tick=99, tag=tag, tag_ok=ok)
         face.stop(True)

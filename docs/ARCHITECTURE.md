@@ -163,24 +163,39 @@ under: in FINDINGS the chapter is the meaning, and an entry quoted out of
 [MODELS.md](MODELS.md).
 
 `coaxial_mcp.session.open_session(port, baud, unit, simulated=None)` returns
-`(session, real)`. With `simulated=None` it probes the port through
-`tools/find_board.probe` — the same Modbus round trip a tool call makes, not a
-weaker check that could pass here and fail a moment later — and hands back
-`coaxial.simulated.SimulatedSession` when nothing answers.
+`(session, origin)`. With `simulated=None` it looks for the board rather than
+assuming a port: `find_board.discover` tries `port` first if Windows lists it,
+then every debug probe, then everything else, and each try is the same Modbus
+round trip a tool call makes — not a weaker check that could pass here and fail
+a moment later. Nothing answering anywhere hands back
+`coaxial.simulated.SimulatedSession`.
+
+Which port is the debugger is answered by the USB VID, not by opening it: every
+ST-Link VCP enumerates under `0483` (measured here, an STLINK-V3SET reports
+`0483:374F`). That is why probes can be tried first — `find_board.kinds()`
+sorts the candidates for the cost of one enumeration, and
+`board_prompt/ComPort.ps1` uses the same call for the same order.
 
 `SimulatedSession` is duck-typed against `Session` and `Board`, not a protocol
 simulator: it builds no frames. Every touchpoint labels itself — `firmware` and
 `build` read literally `simulated` in the version record, so `board_info` alone
 tells them apart.
 
-`real` is the half that matters. A suite that ran against the stand-in proved
-the host and nothing about the firmware, so every caller prints which it got:
+`origin.label` names the **path**, not just the port, because the two paths are
+not interchangeable: the probe is a bench cable that also flashes the board,
+RS485 is the field bus an installed drive sits on.
 
-| Caller | Says it as |
-|---|---|
-| `dbg.py` | the prompt tag — `Coaxial 63100(COM4, 115200)` green, `(Simulated)` yellow |
-| `python -m coaxial_mcp` | a line on stderr; `--simulated` forces it, `--auto` probes |
-| `test_mcp.py`, `test_live_model.py` | a header line before the first `PASS` |
+| `origin` | label | prompt |
+|---|---|---|
+| probe VCP | `JTAG and COM3` | `Coaxial 63100(JTAG and COM3)` green |
+| any other port | `RS485 at COM5` | `Coaxial 63100(RS485 at COM5)` green |
+| nothing answered | `Simulated` | `Coaxial 63100(Simulated)` yellow |
+
+`origin.real` is the half that matters. A suite that ran against the stand-in
+proved the host and nothing about the firmware, so every caller prints the
+label: `dbg.py` in the prompt tag, `python -m coaxial_mcp` on stderr
+(`--simulated` forces the stand-in, `--auto` searches), `test_mcp.py` and
+`test_live_model.py` in a header line before the first `PASS`.
 
 `test_conformance.py` deliberately does not use it. It is an independent
 byte-level master, built from the specification so a shared wrong assumption
