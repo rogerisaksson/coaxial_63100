@@ -414,8 +414,8 @@ def test_board_tools(report):
     report.check('self test reaches the renderer',
                  'PLL lock' in results[3]['result'],
                  results[3]['result'].splitlines()[0])
-    report.check('the tool surface is the MCP set plus three',
-                 len(toolmod.TOOLS) == 12, '%d tools' % len(toolmod.TOOLS))
+    report.check('the tool surface is the MCP set plus four',
+                 len(toolmod.TOOLS) == 13, '%d tools' % len(toolmod.TOOLS))
 
     schemas = toolmod.schemas()
     shapes = all(s['type'] == 'function' and s['function']['parameters']['type']
@@ -489,7 +489,7 @@ def test_scope_repairs(report):
 
 
 def test_prompt(report):
-    """|robot icon pager| Coaxial_63<bar>00> - the bar spins in place of the
+    """|robot icon| Coaxial_63<bar>00> - the bar spins in place of the
     text's own '1'; the icon repaints on state changes next to it."""
     import time as clock
     from coaxial_ollama import spinner as spin
@@ -519,8 +519,8 @@ def test_prompt(report):
 
     report.check("the bar takes the text's own '1', not a character "
                  'appended after it',
-                 written == '%s%s%s%s%s%s%s%s%s%s>'
-                 % (spin.OPEN, spin.ROBOT, spin.ICON_WAIT, spin.PAGER,
+                 written == '%s%s%s%s%s%s%s%s%s>'
+                 % (spin.OPEN, spin.ROBOT, spin.ICON_WAIT,
                     spin.CLOSE, head, spin.GREEN, spin.BARS[0], spin.RESET,
                     tail),
                  ascii(written))
@@ -540,8 +540,8 @@ def test_prompt(report):
     down = spin.prompt(text, Tty(), tick=10, ok=False)
     down_written = down.out.real.getvalue()
     report.check('a dead link starts with the error icon, red, not waiting',
-                 down_written == '%s%s%s%s%s%s%s%s%s%s>'
-                 % (spin.OPEN, spin.ROBOT, spin.ICON_ERROR, spin.PAGER,
+                 down_written == '%s%s%s%s%s%s%s%s%s>'
+                 % (spin.OPEN, spin.ROBOT, spin.ICON_ERROR,
                     spin.CLOSE, head, spin.RED, spin.BARS[0], spin.RESET,
                     tail),
                  ascii(down_written))
@@ -709,11 +709,11 @@ def test_prompt(report):
                                    ('start', 'SECOND'), ('end', 'SECOND')],
                  slow_real.log)
 
-    report.check('the robot, pager and all three icons are real emoji, not '
+    report.check('the robot and all three icons are real emoji, not '
                  'look-alike runs of ASCII - none of them need a variation '
                  'selector to render in colour, unlike the pause mark and '
                  'the warning sign that each sat here before',
-                 spin.ROBOT == '\U0001F916' and spin.PAGER == '\U0001F4DF'
+                 spin.ROBOT == '\U0001F916'
                  and spin.ICON_WAIT == '\U0001F4A4'
                  and spin.ICON_BUSY == '⌛'
                  and spin.ICON_ERROR == '❌'
@@ -734,7 +734,7 @@ def test_prompt(report):
     class Cp1252(io.StringIO):
         encoding = 'cp1252'
 
-    report.check("this bench's own console cannot hold the robot/pager/icons "
+    report.check("this bench's own console cannot hold the robot/icons "
                  '- they get ASCII, not a question mark',
                  not spin._capable(Cp1252()))
     report.check('but it can hold the guillemets on their own - a real '
@@ -770,9 +770,9 @@ def test_prompt(report):
     quiet.busy()
     quiet.stop(False)
     report.check('a redirected prompt is static and escape-free',
-                 before_pipe == '%s%s%s%s%s%s%s%s%s%s>'
+                 before_pipe == '%s%s%s%s%s%s%s%s%s>'
                  % (spin.OPEN_FALLBACK, spin.ROBOT_FALLBACK,
-                    spin.ICON_WAIT_FALLBACK, spin.PAGER_FALLBACK,
+                    spin.ICON_WAIT_FALLBACK,
                     spin.CLOSE_FALLBACK, head, spin.GREEN, spin.BARS[0],
                     spin.RESET, tail),
                  repr(before_pipe))

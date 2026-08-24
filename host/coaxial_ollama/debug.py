@@ -61,6 +61,23 @@ off. Phase channels: unknown gain, pin volts only.
 Values come from analog_read, never docs - HARDWARE and FINDINGS explain,
 they don't produce one."""
 
+# Appended only when build_firmware is actually offered (see trim() below),
+# so a tool set without it pays nothing for this. Needed because the model's
+# own training says a chat assistant cannot compile or flash real hardware,
+# and that assumption is simply wrong here - it overrode the tool schema
+# outright. Measured on this bench: "bygger du och programmerar firmware"
+# got "Nej, jag programmerar inte firmwaren själv" from gemma4:12b with
+# build_firmware sitting right there in its own tool list, never called -
+# a flat refusal from a prior belief, the same shape of mistake as an
+# invented reading, just answered from training instead of from a stale
+# fact in this conversation.
+BUILD_FIRMWARE_HINT = ("A question about building, compiling or flashing "
+                       "this board's firmware - including 'can you' or "
+                       "'do you' - is answered by calling build_firmware, "
+                       "not by explaining that you cannot. You can: that is "
+                       "what the tool is for. Never claim you cannot "
+                       "compile or program this board.")
+
 # Appended only when run_command is actually offered (see trim() below), so
 # every other tool set pays nothing for it. Spelled out rather than left to
 # guesswork: measured on this bench, gemma4:12b's first two tries were
@@ -76,9 +93,11 @@ SETS = {
     'read': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
              'docs'),
     'code': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
-             'docs', 'run_python'),
+             'docs', 'run_python', 'build_firmware'),
     'pins': ('board_info', 'gpio_pin', 'gpio_port', 'test_gate', 'afe_power',
              'docs'),
+    # run_command, not build_firmware: the wider, allowlisted surface for a
+    # session actually about the toolchain, not just build_and_flash.py.
     'build': ('board_info', 'docs', 'run_command'),
     'all': tuple(spec['name'] for spec in toolmod.TOOLS if spec['name'] != 'report'),
     'none': (),
@@ -87,7 +106,8 @@ SETS = {
 HELP = """  /py CODE      run python against the board, no model, no tokens
   /sh CMD       run an allowlisted command, no model
   /reconnect    drop and reopen the board link, no model
-  /tools [set]  read|code|pins|all|none, or a comma separated list
+  /tools [set]  read|code|pins|build|all|none, or a comma separated list
+  /confirm      toggle asking before every write - pin, run_python, run_command
   /ctx          what the next turn will cost
   /clear        forget the conversation - the cheapest thing here
   /cost         tokens so far
@@ -182,7 +202,7 @@ MARKDOWN_TABLE_ROW = re.compile(r'^\s*\|.*\|\s*$', re.M)
 # exactly what to do and did not do it.
 NAMED_TOOL = re.compile(r'\b(analog_read|afe_power|board_info|self_test|'
                         r'gpio_pin|gpio_port|test_gate|run_python|'
-                        r'run_command)\b')
+                        r'run_command|build_firmware)\b')
 
 
 def _is_retype(answer, channels):
@@ -424,8 +444,12 @@ class Chat:
             if message['role'] == 'user':
                 asked = message.get('content') or ''
                 break
-        hint = ('\n' + BUILD_HINT
-               if 'run_command' in getattr(self, 'tool_names', ()) else '')
+        names = getattr(self, 'tool_names', ())
+        hint = ''
+        if 'build_firmware' in names:
+            hint += '\n' + BUILD_FIRMWARE_HINT
+        if 'run_command' in names:
+            hint += '\n' + BUILD_HINT
         sent = [{'role': 'system',
                  'content': SYSTEM + hint + '\n' + language.instruction(asked)}]
         for message in head:
@@ -723,6 +747,14 @@ class Chat:
                 self.set_tools(rest)
             return '%s (%d tok/turn)' % (', '.join(self.tool_names) or 'none',
                                          self.tool_cost())
+        if verb == 'confirm':
+            # /tools build alone hands the model run_command with nothing
+            # asking first, unless --confirm was already on the command line
+            # that started this session - this is the other half of that
+            # switch, reachable without a restart either.
+            self.toolbox.confirm = None if self.toolbox.confirm else ask_operator
+            return 'confirm: %s' % ('on - asks before every write'
+                                    if self.toolbox.confirm else 'off')
         if verb == 'ctx':
             return '%d messages, next turn about %d tok in, %d of it tools' \
                 % (len(self.history), self.context_cost(), self.tool_cost())
@@ -895,11 +927,11 @@ def parse(argv):
                                  'coaxial.simulated')
     parser.add_argument('--allow', default='python',
                         help='programs /sh and run_command may launch. '
-                             'cube-cmake and STM32_Programmer_CLI are '
-                             'deliberately not here - tools/build_and_flash.py '
-                             'wraps both with fixed arguments, and python is '
-                             'the only program that needs to be on this list '
-                             'to reach it.')
+                             'Building and flashing does not need anything '
+                             'on this list - see the build_firmware tool, '
+                             "which is in the default `code` set and always "
+                             'runs tools/build_and_flash.py regardless of '
+                             '--allow.')
     parser.add_argument('--allow-writes', action='store_true')
     parser.add_argument('--confirm', action='store_true',
                         help='ask before every state change - a pin write, '
@@ -980,6 +1012,20 @@ def repl(chat, hold=False):
     print('%s, tools: %s (%d tok/turn). /help, /q to leave.'
           % (chat.client.model, ', '.join(chat.tool_names) or 'none',
              chat.tool_cost()))
+    if not ({'run_command', 'build_firmware'} & set(chat.tool_names)):
+        # Printed once, here, by this host - not sent to the model, so it
+        # costs nothing per turn. Measured on this bench: asked three times
+        # running to build and flash, on the default `code` set - before it
+        # carried build_firmware - the model correctly and repeatedly said
+        # it could not: accurate, but a dead end with no way out of it short
+        # of already knowing this flag. `code` carries build_firmware now;
+        # this only still fires for `read`, `pins` or a custom list missing
+        # both.
+        confirmed = ' and already --confirm' if chat.toolbox.confirm else \
+                   ', then /confirm too, or it writes with nobody asking'
+        print('  no build_firmware or run_command in this set - it cannot '
+              'build or flash. /tools code (or build) switches now, no '
+              'restart%s.' % confirmed)
     if not sys.stdin.isatty():
         print('(reading commands from stdin)')
     try:
@@ -1010,8 +1056,21 @@ def repl(chat, hold=False):
                 if done is None:
                     asked = True
                     done = chat.ask(line)
-                print(done, file=face.out)
+                # Stop ticking before the answer prints, not after. stop()'s
+                # own repaint climbs back to the prompt row by the same
+                # newline count _paint() uses, and a long answer with no
+                # embedded '\n' that the terminal itself wraps across two
+                # or more rows is invisible to that count either way - the
+                # difference is *when* the wrong climb can land on top of
+                # the answer. Frozen first, the climb happens while nothing
+                # but the prompt's own row exists below it; done after, the
+                # same wrong "one row up" lands mid-answer instead, which is
+                # exactly what a bench session saw: the prompt group spliced
+                # into the middle of a sentence. The exception branch below
+                # already stops before it prints - this makes the ordinary
+                # answer match it, rather than being the odd one out.
                 face.stop(chat.link_ok)
+                print(done, file=face.out)
             except SystemExit:
                 face.stop(chat.link_ok)
                 break

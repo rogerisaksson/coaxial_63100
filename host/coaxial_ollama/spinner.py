@@ -1,5 +1,5 @@
-"""A prompt with a robot, a state icon and the board's own pager up front -
-and the spinner is the "1" in "Coaxial_63100" itself.
+"""A prompt with a robot and a state icon up front - and the spinner is the
+"1" in "Coaxial_63100" itself.
 
 The point is telling two terminals apart. This prompt shares a docked panel
 with a PowerShell one, and two of those with a `>` in them look identical at a
@@ -9,7 +9,7 @@ submitted yet", yellow for "working on it", red for "that just failed". The
 icon in the bookend group up front says the same thing a second way, in case
 the colour alone does not survive whatever the terminal does to it.
 
-    «<robot><icon><pager>»Coaxial_63<bar>00>
+    «<robot><icon>»Coaxial_63<bar>00>
            ^^^^^                    ^^^^ these are the only two things that
             state                      ever move or change colour - one
             icon                       discrete, on state change; one
@@ -34,7 +34,7 @@ carriage return rather than an absolute-column escape:
                      1 once Enter has moved the cursor to a fresh row)
     CR               to column 1 of that row - always exactly column 1,
                      never a number this module has to get right
-    <the whole       robot, icon, pager, the text up to where the bar
+    <the whole       robot, icon, the text up to where the bar
      prefix>         sits, and the bar itself, one frame, in colour
     ESC 8            back to where the cursor was
 
@@ -81,8 +81,6 @@ TICK = 0.12
 
 ROBOT = '\U0001F916'                     # "🤖"
 ROBOT_FALLBACK = 'o'
-PAGER = '\U0001F4DF'                     # "📟"
-PAGER_FALLBACK = '#'
 
 # All three need to be full-colour by default, not text glyphs forced into
 # colour with a variation selector - a forced one can sit at a slightly
@@ -109,8 +107,8 @@ BARS = ('1', '/', '-', '\\')
 # Guillemets rather than plain pipes framing the bookend group - narrower
 # footprint than an emoji bracket would be, and already inside cp1252 (0x AB
 # / 0xBB), so this bench's own console gets them too even though it cannot
-# hold the robot or pager they sit around. A stream that cannot even manage
-# that - plain ASCII - gets the pipes back.
+# hold the robot it sits around. A stream that cannot even manage that -
+# plain ASCII - gets the pipes back.
 OPEN = '«'
 CLOSE = '»'
 OPEN_FALLBACK = '|'
@@ -135,7 +133,7 @@ def _encodable(out, text):
 
 
 def _capable(out):
-    """Whether this stream can hold the robot, pager and state icons.
+    """Whether this stream can hold the robot and the state icons.
 
     Decided once, for the whole set together: switching some bookends to the
     real glyph and others to ASCII mid-line would look like a bug, not a
@@ -144,7 +142,7 @@ def _capable(out):
     _brackets_capable(): they ask less of the stream than an emoji does, so
     they get to succeed on their own where the emoji group cannot.
     """
-    return _encodable(out, ROBOT + PAGER + ICON_WAIT + ICON_BUSY + ICON_ERROR)
+    return _encodable(out, ROBOT + ICON_WAIT + ICON_BUSY + ICON_ERROR)
 
 
 def _brackets_capable(out):
@@ -212,7 +210,7 @@ class _Tracked:
 
 
 class Prompt:
-    """One prompt line: a robot/icon/pager group up front, and a bar that
+    """One prompt line: a robot/icon group up front, and a bar that
     ticks on its own thread until stop()ped - inside the text's own '1' if
     it has one, appended after it otherwise. Every repaint rewrites the
     whole group from column 1; see the module docstring for why that,
@@ -232,7 +230,6 @@ class Prompt:
         self.tick = tick
         real = _capable(out)
         self.robot = ROBOT if real else ROBOT_FALLBACK
-        self.pager = PAGER if real else PAGER_FALLBACK
         self.icon_wait = ICON_WAIT if real else ICON_WAIT_FALLBACK
         self.icon_busy = ICON_BUSY if real else ICON_BUSY_FALLBACK
         self.icon_error = ICON_ERROR if real else ICON_ERROR_FALLBACK
@@ -261,9 +258,9 @@ class Prompt:
 
     def _prefix(self):
         glyph = BARS[self.frame % len(BARS)]
-        return '%s%s%s%s%s%s%s%s%s' % (self.open, self.robot, self.icon,
-                                        self.pager, self.close, self.head,
-                                        self.color, glyph, RESET)
+        return '%s%s%s%s%s%s%s%s' % (self.open, self.robot, self.icon,
+                                     self.close, self.head,
+                                     self.color, glyph, RESET)
 
     def _paint(self):
         # rows_up is the fixed "Enter moved to a fresh row" step; out.lines
