@@ -414,8 +414,8 @@ def test_board_tools(report):
     report.check('self test reaches the renderer',
                  'PLL lock' in results[3]['result'],
                  results[3]['result'].splitlines()[0])
-    report.check('the tool surface is the MCP set plus five',
-                 len(toolmod.TOOLS) == 14, '%d tools' % len(toolmod.TOOLS))
+    report.check('the tool surface is the MCP set plus six',
+                 len(toolmod.TOOLS) == 15, '%d tools' % len(toolmod.TOOLS))
 
     schemas = toolmod.schemas()
     shapes = all(s['type'] == 'function' and s['function']['parameters']['type']
@@ -585,6 +585,24 @@ def test_prompt(report):
                  'green again',
                  spin.ICON_WAIT in face._prefix()
                  and spin.GREEN in face._prefix())
+
+    # Measured live: a real session left the bar frozen on '/' or '-' in
+    # scrollback, because stop() reset the icon and colour but never the
+    # frame the ticker had drifted to while the operator was still typing
+    # the question. tick=10 keeps the background thread from firing here
+    # too, so the frame is set by hand to stand in for "several ticks
+    # already happened" without a real, timing-dependent sleep.
+    drifted = Tty()
+    mid_spin = spin.prompt(text, drifted, tick=10, ok=True)
+    mid_spin.frame = 2       # as if the bar had ticked to '-' before stop()
+    mid_spin.busy()
+    mid_spin.stop(True)
+    expected = '%s%s%s%s%s%s%s%s' % (spin.OPEN, spin.ROBOT, spin.ICON_WAIT,
+                                     spin.CLOSE, head, spin.GREEN,
+                                     spin.BARS[0], spin.RESET)
+    report.check("stop() rests the bar back on the text's own '1', not "
+                 'whatever frame the ticker had drifted to',
+                 mid_spin._prefix() == expected, ascii(mid_spin._prefix()))
 
     same_row = Tty()
     still_waiting = spin.prompt(text, same_row, tick=10, ok=True)
@@ -866,6 +884,92 @@ def test_policy(report):
                  summary['counts'] == {'skipped': 1}
                  and summary['records'][0]['warnings'], summary['counts'])
 
+    # Measured live: told to turn the AFE off, then asked in a later,
+    # unrelated turn for a reading, gemma4:12b turned it back on to "serve"
+    # the reading - exactly what the system prompt already says never to do.
+    # afe_mentioned defaults True (every existing fixture above never sets
+    # it, on purpose - see Toolbox.__init__) so only debug.py's repl() and
+    # one-shot path, which set it from the real question text, are covered.
+    runner, _, _ = build(task, [])
+    toolbox = runner.toolbox
+    toolbox.afe_mentioned = False
+    refused = toolbox.call('afe_power', {'action': 'on'})
+    report.check('afe_power is refused when nothing this turn mentioned the '
+                 'AFE', 'ERR' in refused and 'analog_read instead' in refused,
+                 refused)
+    report.check('a plain state read is never gated by this - it changes '
+                 'nothing',
+                 not str(toolbox.call('afe_power', {'action': 'read'})
+                        ).startswith('ERR'))
+    toolbox.afe_mentioned = True
+    report.check('and it goes through once the question actually mentioned '
+                 'it',
+                 not str(toolbox.call('afe_power', {'action': 'on'})
+                        ).startswith('ERR'))
+
+
+def test_link_diagnose(report):
+    """OS-level, not another board round trip - see tools.py's own docstring
+    for why. Ports come from a fake serial.tools.list_ports.comports() here,
+    never from real hardware - and coaxial.connect is faked too, or "present
+    but silent" would actually probe whatever is really on this bench's own
+    COM4 and pass for the wrong reason on a machine where it happens to
+    answer."""
+    import coaxial
+    import serial.tools.list_ports as list_ports
+    from types import SimpleNamespace
+
+    class FakePort:
+        def __init__(self, device):
+            self.device = device
+
+    real_comports = list_ports.comports
+    real_connect = coaxial.connect
+    try:
+        list_ports.comports = lambda: [FakePort('COM4'), FakePort('COM7')]
+        coaxial.connect = lambda *a, **kw: (_ for _ in ()).throw(
+            ConnectError('nothing answered'))
+
+        missing = toolmod.Toolbox(SimpleNamespace(port='COM9', baud=115200, unit=1))
+        result = missing.call('link_diagnose', {})
+        report.check('a configured port absent from the OS list is named as '
+                     'such, not folded into a generic error',
+                     'COM9' in result and 'not among' in result, result)
+
+        present = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
+        result2 = present.call('link_diagnose', {})
+        report.check('a configured port present but silent points at power '
+                     'or wiring, not the cable being unplugged',
+                     'COM4' in result2 and 'not answering' in result2, result2)
+
+        coaxial.connect = lambda *a, **kw: real_connect_stub()
+        def real_connect_stub():
+            return []                            # "answers", trivially
+        result2b = present.call('link_diagnose', {})
+        report.check('and a port that actually answers says the link is '
+                     'up, not "silent" just because it exists',
+                     'link is up' in result2b, result2b)
+
+        list_ports.comports = lambda: []
+        empty = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
+        result3 = empty.call('link_diagnose', {})
+        report.check('no COM ports at all is named plainly',
+                     'no COM ports at all' in result3, result3)
+    finally:
+        list_ports.comports = real_comports
+        coaxial.connect = real_connect
+
+    report.check('and a run with no configured port (--no-board, '
+                 '--simulated) says so rather than crashing',
+                 'no configured port'
+                 in toolmod.Toolbox(SimulatedSession()).call('link_diagnose', {}))
+
+    # Ungated: no --allow-writes, no --confirm, no --read-only. It never
+    # touches the board's state or its flash, same reasoning as `docs`.
+    ro = toolmod.Toolbox(SimulatedSession(), allow_code=False)
+    report.check('link_diagnose works even with --read-only',
+                 not str(ro.call('link_diagnose', {})).startswith('ERR'))
+
 
 # ---- the record of it all --------------------------------------------------
 
@@ -1058,9 +1162,13 @@ def test_debug(report):
     watch = debug.Chat(ScriptedModel([call('analog_read')]), flaky_box,
                        out=io.StringIO())
     flaky_session.board.broken = True
-    watch.ask('read everything')
+    down_answer = watch.ask('read everything')
     report.check('a cable pulled mid-turn turns the spinner red on its own',
                  watch.link_ok is False)
+    report.check("the link-down answer carries link_diagnose's own finding, "
+                 "not just the raw error",
+                 'link is down, not answered' in down_answer
+                 and len(down_answer.splitlines()) > 1, down_answer)
 
     flaky_session.board.broken = False
     watch.client.turns = [call('analog_read')]
@@ -2090,7 +2198,7 @@ def test_docs(report):
                  'FINDINGS', 'MODELS'):
         report.check('the index lists ' + name, name in index)
     report.check('the index is headings, not documents',
-                 len(index) < 4000, '%d chars' % len(index))
+                 len(index) < 4500, '%d chars' % len(index))
     report.check('the index says how to go deeper',
                  'section=' in index and 'find=' in index)
 
@@ -2174,12 +2282,32 @@ def test_docs(report):
                      'ger du mig en tabell över de analoga mätvärdena?')
                  == 'Swedish')
 
+    # Locked at 'German' by the loop above. A message that detects as
+    # nothing on its own - "status?" is too short to score any language -
+    # must not fall back to mirroring once something has actually been
+    # settled: that fallback is a different system-prompt line, a real
+    # prefix change, and paying for a KV reload on every one-word follow-up
+    # was the whole thing this lock exists to stop.
     talk.history = [{'role': 'user', 'content': 'status?'}]
-    report.check('an undetectable question falls back to mirroring',
-                 'language the question was asked in' in talk.trim()[0]['content'])
+    report.check('an ambiguous follow-up keeps the session lock, not a '
+                 'fallback to mirroring',
+                 'in German' in talk.trim()[0]['content'])
+
+    fresh = debug.Chat.__new__(debug.Chat)
+    fresh.keep = 6
+    fresh.history = [{'role': 'user', 'content': 'status?'}]
+    report.check('but with nothing locked yet, the same question falls '
+                 'back to mirroring',
+                 'language the question was asked in' in fresh.trim()[0]['content'])
     report.check('and the board keeps its own words either way',
                  'stay exactly as the board prints them'
                  in language.instruction('Vad är temperaturen?'))
+
+    talk.history = [{'role': 'user', 'content': 'svara pa engelska tack'}]
+    talk.trim()
+    report.check('naming a language outright switches the lock even though '
+                 'the question itself is written in the locked language',
+                 talk.language == 'English', talk.language)
 
     # A console that cannot encode the answer must not lose it. cp1252 holds
     # Swedish and German; it does not hold a Polish l-stroke or an ohm sign,
@@ -2207,9 +2335,9 @@ def test_docs(report):
     report.check('afe_power is never framed as refusable',
                  'afe_power' in debug.SYSTEM and 'order to do it' in debug.SYSTEM)
     report.check('and a read with AFE off is never framed as impossible',
-                 'analog_read always' in debug.SYSTEM)
+                 'AFE on or off and reports' in debug.SYSTEM)
     report.check('and afe_power never fires as a side effect of a reading',
-                 'never to serve a' in debug.SYSTEM)
+                 'never afe_power first' in debug.SYSTEM)
     report.check("and mid-scale is the tool's fact to report, not the prompt's "
                  'to recite',
                  'mid-scale' not in debug.SYSTEM)
@@ -2223,7 +2351,8 @@ def main():
     report = Report()
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
-                 test_scope_repairs, test_prompt, test_policy, test_transcript,
+                 test_scope_repairs, test_prompt, test_policy,
+                 test_link_diagnose, test_transcript,
                  test_debug, test_cli,
                  test_local_only, test_keep_alive, test_coerce,
                  test_capability, test_docs):

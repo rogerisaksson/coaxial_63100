@@ -210,9 +210,18 @@ telling a Dane to answer in Norwegian is worse than saying nothing. An
 abstention falls back to the old instruction, where the model mirroring the
 question is usually right.
 
-The line is rebuilt per turn from the last thing the user typed, so switching
-language mid-conversation works and costs one cache miss — exactly when the
-conversation genuinely switched.
+In `dbg.py`'s REPL, the language **locks** on the first question that is not
+itself ambiguous (`Chat.language`), rather than being rebuilt fresh every
+turn: a one-word follow-up like "tabellera" detects as nothing on its own,
+and rebuilding from that alone flipped the prompt back to "mirror the
+question" every time one came up — a real prefix change, not cosmetic, so
+that was a KV cache miss on every short follow-up. Two things move the lock
+once set: the question switching language for real (`detect()` disagrees),
+or the question naming a language outright — "svara på engelska" — via
+`language.requested_language()`, independent of what language it is itself
+written in. `/lang [NAME]` reads or sets it by hand; `/lang auto` unlocks.
+One-shot calls (`-q`, `--ask`) have no session to lock across, so this
+degrades to the old per-question detection there without any special case.
 
 One consequence worth knowing, because it is a Windows console and not a
 choice: standard output encodes with the locale codepage, cp1252 on this bench.
@@ -342,6 +351,25 @@ docs(find='25.00')               where a phrase appears, with its heading
 Index first, section second, on purpose. The whole tool list is re-read every
 turn — see the token argument in [ARCHITECTURE.md](ARCHITECTURE.md) — so a tool
 that returned a whole document by default would cost more than it is worth.
+
+## Tools beyond the board
+
+Three narrow, purpose-built tools, each wrapping a fixed script or a fixed OS
+check rather than handing the model a general-purpose command line - see
+`host/coaxial_ollama/tools.py` for the schemas and `host/tools/` for the
+scripts:
+
+| Tool | Wraps | Gated by |
+|---|---|---|
+| `build_firmware` | `host/tools/build_and_flash.py` - build, flash, or both | `--confirm` (always a write) |
+| `run_tests` | `host/tools/run_tests.py` - the offline suites' own tally, never a model paraphrase | nothing - read-only |
+| `link_diagnose` | COM ports Windows actually sees right now, vs. the configured one | nothing - read-only |
+
+`build_firmware` and `run_tests` are in the default `code` set; all three are
+in `read`/`pins`/`build` too. Each has a matching, conditional line appended
+to `SYSTEM` only when it is actually offered (`BUILD_FIRMWARE_HINT`,
+`BUILD_HINT`, `LINK_DIAGNOSE_HINT` in `debug.py`) - existing in the schema is
+not enough on its own, see the entries below.
 
 ---
 
@@ -518,3 +546,45 @@ still names every channel from the last real reading - the same
 gets a channel-name or argument error still passes through undisturbed: that
 model reached the board and got a real (if unhelpful) answer, which is a
 different failure than never asking at all.
+
+### afe_power fired to serve a reading, exactly what SYSTEM already forbade
+
+SYSTEM already said "afe_power changes only when asked directly, never to
+serve a reading." Measured anyway: told to turn the AFE off, then asked in
+the *next*, unrelated turn for "alla analoga mätningar," `gemma4:12b` called
+`afe_power(on)` first - telling it was not enough, same as everywhere else in
+this file. `Toolbox._permit()` now refuses an `afe_power` call that changes
+state when the current question never mentioned "afe" (`afe_mentioned`,
+`tools.py`) - set from the real question text at `dbg.py`'s two real call
+sites (`repl()`, the one-shot path), not inside `Chat.ask()` itself, so every
+existing test driving `Chat.ask()` directly keeps its old permissive default
+instead of needing "afe" stuffed into an unrelated fixture question.
+
+### A declined --confirm was reported as a success
+
+`build_firmware`/`run_command` calls are gated by `--confirm`. Measured live:
+told to build and flash, then declined at the confirm prompt, `gemma4:12b`
+still answered "kortet har byggts och flashats" - the refusal was right there
+in its own tool result and it wrote past it. `Chat.ask()` now tracks
+`code_error` the same way it already tracked `link_error`: any
+`run_python`/`run_command`/`build_firmware` result starting `ERR` this turn
+overrides the model's own closing line, cleared by a later successful call in
+the same turn.
+
+### A tool existing in the schema is not the same as being reached for
+
+Three separate instances of the same shape, all fixed the same way - a short,
+conditional line appended to `SYSTEM` only when the relevant tool is actually
+offered, since telling it once in a long system prompt was not enough and
+paying for the line on every turn regardless was not necessary either:
+
+  * `build_firmware` sitting in the tool list did not stop "bygger du
+    firmware?" from getting "Nej, jag programmerar inte firmwaren själv" -
+    the model's own training that a chat assistant cannot compile real
+    hardware overrode the schema outright. `BUILD_FIRMWARE_HINT`.
+  * `run_command`'s first two tries at reaching `build_and_flash.py` were
+    `python3` (not allowlisted) and the wrong directory. `BUILD_HINT`.
+  * Asked directly "why can't you reach the board" with the link genuinely
+    down, `gemma4:12b` called `build_firmware` instead of `link_diagnose` -
+    a guess at a fix, not a diagnosis, and not what was asked.
+    `LINK_DIAGNOSE_HINT`.

@@ -1,5 +1,5 @@
 """A prompt with a robot and a state icon up front - and the spinner is the
-"1" in "Coaxial_63100" itself.
+"1" in "Coaxial 63100" itself.
 
 The point is telling two terminals apart. This prompt shares a docked panel
 with a PowerShell one, and two of those with a `>` in them look identical at a
@@ -9,7 +9,7 @@ submitted yet", yellow for "working on it", red for "that just failed". The
 icon in the bookend group up front says the same thing a second way, in case
 the colour alone does not survive whatever the terminal does to it.
 
-    «<robot><icon>»Coaxial_63<bar>00>
+    «<robot><icon>»Coaxial 63<bar>00>
            ^^^^^                    ^^^^ these are the only two things that
             state                      ever move or change colour - one
             icon                       discrete, on state change; one
@@ -298,11 +298,20 @@ class Prompt:
 
     def stop(self, ok):
         """Stop ticking and freeze the whole group - the last thing a
-        scrolled-past line says about the question it carried."""
+        scrolled-past line says about the question it carried.
+
+        Frame resets to 0 here, not just icon and colour. Measured live:
+        without this, the row froze on whatever frame the ticker last
+        happened to land on - '/', '-', '\\' - and stayed that way in
+        scrollback, reading as "Coaxial_63/00" or worse. The name is
+        supposed to read normally once a question is done with, which
+        means the '1' it stands in for, not an arbitrary tick.
+        """
         self.done.set()
         if self.thread is not None:
             self.thread.join(timeout=1.0)
             self.thread = None
+        self.frame = 0
         self.color = GREEN if ok else RED
         self.icon = self.icon_wait if ok else self.icon_error
         if self.vt:

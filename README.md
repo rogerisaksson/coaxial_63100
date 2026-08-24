@@ -196,6 +196,13 @@ session was started without that flag on purpose. `run_tests` is not gated
 at all — it never touches the board's state or its flash, so it is as free
 to call as `docs` or `board_info`.
 
+When the board is not answering, `link_diagnose` finds out why at the OS
+level — which COM ports Windows actually sees right now, and whether the
+one this session was told to use is even among them — rather than the model
+guessing or repeating the raw exception. It runs automatically the moment a
+board call fails mid-turn, and it is a plain tool otherwise: ask "why can't
+you reach the board?" directly and it is called on its own.
+
 Structured output is not done with Ollama's json mode here, and that is a
 decision rather than an omission. `format='json'` constrains the *content* of a
 reply — the one part of it this bench does not parse. Every number that reaches

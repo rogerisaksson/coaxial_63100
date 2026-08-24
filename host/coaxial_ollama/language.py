@@ -147,20 +147,90 @@ def detect(text):
     return ranked[0][0]
 
 
-def instruction(text):
-    """The line to append to the system prompt for this question.
+def instruction_for(name):
+    """The line to append to the system prompt, for an already-known
+    language name (or None to fall back to mirroring the question) - the
+    part `instruction()` and a session's locked language both need, kept in
+    one place so the wording never drifts between the two callers.
 
     Names the language when it is known, and says what must *not* follow it:
     the board's own words. A model told to answer in Swedish will otherwise
     translate `DCbus` and `NTC` too, and a translated channel name is one
     nobody can grep for in the CSVs.
     """
-    name = detect(text)
     if not name:
         return ('Answer in the language the question was asked in. Channel '
                 'names, units and register names stay exactly as the board '
                 'prints them.')
-    return ('The question is in %s. Answer in %s and in no other language, '
-            'whatever language the tool output and the documents are in. '
-            'Channel names, units and register names stay exactly as the '
-            'board prints them.' % (name, name))
+    return ('The session language is %s. Answer in %s and in no other '
+            'language, whatever language the tool output and the documents '
+            'are in. Channel names, units and register names stay exactly '
+            'as the board prints them.' % (name, name))
+
+
+def instruction(text):
+    """The line to append to the system prompt for this one question, with
+    the language detected fresh from `text` - the one-shot case, where
+    there is no session to have locked anything in the first place."""
+    return instruction_for(detect(text))
+
+
+# Language names as they would actually appear when someone asks for one by
+# name - the English word and, for the two this bench is mostly spoken in,
+# the Swedish word too. Deliberately not exhaustive: this is a trigger for
+# "answer in French" / "svara pa franska", not a translation table, and a
+# name missing from this dict just means that request falls back to being
+# detected from the language it was written in instead, same as always.
+LANGUAGE_NAMES = {
+    'Swedish':    ('swedish', 'svenska'),
+    'English':    ('english', 'engelska'),
+    'German':     ('german', 'tyska'),
+    'Danish':     ('danish', 'danska'),
+    'Norwegian':  ('norwegian', 'norska'),
+    'Dutch':      ('dutch', 'nederlandska'),
+    'French':     ('french', 'franska'),
+    'Spanish':    ('spanish', 'spanska'),
+    'Italian':    ('italian', 'italienska'),
+    'Finnish':    ('finnish', 'finska'),
+    'Polish':     ('polish', 'polska'),
+    'Portuguese': ('portuguese', 'portugisiska'),
+    'Russian':    ('russian', 'ryska'),
+    'Chinese':    ('chinese', 'kinesiska'),
+    'Japanese':   ('japanese', 'japanska'),
+    'Korean':     ('korean', 'koreanska'),
+    'Thai':       ('thai', 'thailandska'),
+    'Greek':      ('greek', 'grekiska'),
+    'Hebrew':     ('hebrew', 'hebreiska'),
+    'Arabic':     ('arabic', 'arabiska'),
+}
+_NAME_TO_LANGUAGE = {alias: name for name, aliases in LANGUAGE_NAMES.items()
+                     for alias in aliases}
+
+# A language's own name has to sit next to one of these to count as a
+# request rather than a mention - "the German firmware bug" is not a
+# request for German, and this is what keeps it from reading as one.
+_RESPONSE_VERBS = ('svara', 'svarar', 'answer', 'respond', 'reply',
+                   'antworte', 'antworten', 'reponds', 'répondre',
+                   'responde', 'rispondi')
+
+
+def requested_language(text):
+    """A language named outright in `text`, next to a word for "answer" -
+    "svara pa engelska", "please answer in English" - independent of what
+    language `text` itself is written in. This is what lets a session
+    written in Swedish ask for an English answer without that one message
+    being mistaken for a language switch by `detect()` alone, which only
+    ever looks at the words actually used - and the response-verb check is
+    what keeps "the German firmware has a bug" from reading as a request
+    for one, just because it names a language in passing.
+
+    None means no language was requested, not that none could be detected -
+    callers fall back to `detect()` for that.
+    """
+    words = [w.lower() for w in WORD.findall(text or '')]
+    if not any(w in _RESPONSE_VERBS for w in words):
+        return None
+    for word in words:
+        if word in _NAME_TO_LANGUAGE:
+            return _NAME_TO_LANGUAGE[word]
+    return None

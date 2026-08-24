@@ -163,6 +163,14 @@ $ErrorActionPreference = 'Continue'
 $Root = $PSScriptRoot
 $Api = 'http://localhost:11434'
 
+# board_prompt/*.ps1 - Say first by convention, though load order does not
+# actually matter: nothing in any of these files runs until well after all
+# five are dot-sourced, and PowerShell resolves a function call by name at
+# call time, not at definition time.
+foreach ($part in 'Say', 'ComPort', 'Ollama', 'ModelChoice', 'Relaunch') {
+    . (Join-Path (Join-Path $Root 'board_prompt') "$part.ps1")
+}
+
 # UTF-8, console and all: dbg.py's prompt has a robot and a pager either side
 # of its spinner, and Python auto-detects its own stdout encoding from this
 # console's codepage at startup, not from anything Python-side. Left as the
@@ -189,195 +197,7 @@ if ($NoBoard -and $Simulated) {
     exit 1
 }
 
-function Say {
-    param([string]$State, [string]$Text, [string]$Detail = '')
-    $colour = 'Gray'
-    if ($State -eq 'ok')   { $colour = 'Green' }
-    if ($State -eq 'wait') { $colour = 'Cyan' }
-    if ($State -eq 'warn') { $colour = 'Yellow' }
-    if ($State -eq 'fail') { $colour = 'Red' }
-    Write-Host ('  {0,-6}' -f $State) -ForegroundColor $colour -NoNewline
-    Write-Host ('{0,-22} ' -f $Text) -NoNewline
-    Write-Host $Detail -ForegroundColor DarkGray
-}
-
-function Test-BoardPort {
-    <#  Open one COM port from Python's own side, exactly the way dbg.py
-        would, and see whether this board answers on it.
-
-        A .NET SerialPort.Open() would only prove the port exists and
-        nothing else has it - a USB mouse dongle opens fine and is not this
-        board. Going through coaxial.connect() is the same Modbus round
-        trip a real session makes, so a wrong port fails for the same reason
-        it would fail then, not a different, weaker check that passes here
-        and fails a moment later inside dbg.py itself.  #>
-    param([string]$CandidatePort, [string]$HostDir, [int]$TimeoutSec = 6)
-
-    $probe = "from coaxial import connect, disconnect$([Environment]::NewLine)" +
-             "b = connect([(1, 115200, '$CandidatePort')])$([Environment]::NewLine)" +
-             "disconnect(b)$([Environment]::NewLine)"
-    $tmp = [System.IO.Path]::GetTempFileName() + '.py'
-    Set-Content -Path $tmp -Value $probe -Encoding utf8
-
-    try {
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = 'python'
-        $psi.Arguments = '"' + $tmp + '"'
-        $psi.WorkingDirectory = $HostDir
-        $psi.UseShellExecute = $false
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError = $true
-
-        $proc = [System.Diagnostics.Process]::Start($psi)
-        if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
-            try { $proc.Kill() } catch {}
-            return $false
-        }
-        return $proc.ExitCode -eq 0
-    } finally {
-        Remove-Item $tmp -ErrorAction SilentlyContinue
-    }
-}
-
-function Find-BoardPort {
-    <#  Try -Port first if Windows even lists it, then every other COM port
-        in whatever order Windows enumerates them - there is no way to ask
-        which one a programmer was just plugged into short of opening each
-        and finding out.  #>
-    param([string]$PreferredPort, [string]$HostDir)
-
-    $ports = @()
-    try { $ports = [System.IO.Ports.SerialPort]::GetPortNames() } catch { $ports = @() }
-    if ($ports.Count -eq 0) {
-        Say 'fail' 'autodetect' 'no COM ports at all - nothing to try'
-        return $null
-    }
-
-    $ordered = @()
-    if ($PreferredPort -and ($ports -contains $PreferredPort)) {
-        $ordered += $PreferredPort
-    }
-    $ordered += ($ports | Where-Object { $_ -ne $PreferredPort })
-
-    foreach ($candidate in $ordered) {
-        Say 'wait' 'autodetect' "trying $candidate..."
-        if (Test-BoardPort -CandidatePort $candidate -HostDir (Join-Path $Root 'host')) {
-            Say 'ok' 'autodetect' "$candidate answered"
-            return $candidate
-        }
-    }
-    Say 'warn' 'autodetect' ('none of ' + ($ports -join ', ') + ' answered')
-    return $null
-}
-
-function Get-Tags {
-    param([int]$Tries = 1)
-    for ($i = 0; $i -lt $Tries; $i++) {
-        try {
-            return (Invoke-RestMethod -Uri ($Api + '/api/tags') -TimeoutSec 5)
-        } catch {
-            if ($i -lt ($Tries - 1)) { Start-Sleep -Seconds 2 }
-        }
-    }
-    return $null
-}
-
-function Get-Resident {
-    <#  What ollama is holding on the card, as returned by /api/ps. #>
-    try {
-        $ps = Invoke-RestMethod -Uri ($Api + '/api/ps') -TimeoutSec 10
-    } catch {
-        return @()
-    }
-    if ($null -eq $ps.models) { return @() }
-    return @($ps.models)
-}
-
-function Clear-Resident {
-    <#  Unload anything still on the card, except the model about to be used.
-
-        A prompt that exits cleanly hands its weights back, but not every exit
-        is clean: a killed window, a -Hold from last time, an `ollama run` in
-        another terminal. Those sit there until their keep_alive runs out, and
-        the next load then asks a card that is already full - which on this
-        bench was a 500 from the daemon reading 'cudaMalloc failed', with
-        nothing obviously wrong at either end.
-
-        Keeping a matching model is not an exception to the rule, it is the
-        rule: what is being cleared is VRAM nobody is going to use, and weights
-        this run is about to load are not that.  #>
-    param([string]$Except)
-
-    if ($KeepOthers) { return }
-
-    foreach ($entry in (Get-Resident)) {
-        if ($entry.name -eq $Except) {
-            Say 'ok' 'resident' ('{0} already loaded, {1:n1} GB - kept' `
-                -f $entry.name, ($entry.size_vram / 1GB))
-            continue
-        }
-        try {
-            $body = @{ model = $entry.name; prompt = ''; keep_alive = 0 } | ConvertTo-Json
-            Invoke-RestMethod -Uri ($Api + '/api/generate') -Method Post -Body $body `
-                              -ContentType 'application/json' -TimeoutSec 60 | Out-Null
-            Say 'ok' 'unloaded' ('{0} was still resident, {1:n1} GB freed' `
-                -f $entry.name, ($entry.size_vram / 1GB))
-        } catch {
-            Say 'warn' 'unloaded' ('could not unload ' + $entry.name + ': ' + $_.Exception.Message)
-        }
-    }
-}
-
-function Get-Choice {
-    <#  Which model this machine should run, and how much of it fits the card.
-
-        capability.py owns the answer - the same answer setup.ps1 and
-        `dbg -m auto` get - so a bench does not end up with three opinions
-        about which tag is right. A machine where the probe fails is not a
-        reason to stop: fall back to the tag this bench was built on and say
-        so.  #>
-
-    Push-Location (Join-Path $Root 'host')
-    try {
-        $argv = @('-m', 'coaxial_ollama.capability', '--json', '--prefer', $Prefer)
-        if ($Reserve -gt 0) { $argv += @('--reserve-gb', [string]$Reserve) }
-        $json = (& python @argv) -join ''
-    } catch {
-        $json = ''
-    } finally {
-        Pop-Location
-    }
-    if ([string]::IsNullOrWhiteSpace($json)) {
-        Say 'warn' 'model choice' 'could not measure this machine - falling back'
-        return @{ model = 'gemma4:12b'; num_gpu = $null; why = 'fallback' }
-    }
-    try {
-        $picked = $json | ConvertFrom-Json
-    } catch {
-        Say 'warn' 'model choice' 'capability.py said something unreadable'
-        return @{ model = 'gemma4:12b'; num_gpu = $null; why = 'fallback' }
-    }
-    return @{ model = $picked.model
-              num_gpu = $picked.options.num_gpu
-              why = $picked.why
-              machine = $picked.machine }
-}
-
 # ---- the new window, if that is what was asked -----------------------------
-
-function Format-Argument {
-    <#  One argument, safe to hand to Start-Process.
-
-        -ArgumentList joins an array with spaces and quotes nothing, so a value
-        with a space in it arrives as several arguments. Measured the hard way:
-        `-NewWindow -Ask "read the NTC"` reached the new window as -Ask read,
-        the, NTC - and `NTC` then bound to -Prefer, which rejected it against
-        its ValidateSet. The error named a parameter nobody had typed.  #>
-    param([string]$Text)
-
-    if ($Text -match '^[-\w:.\/]+$') { return $Text }
-    return '"' + ($Text -replace '"', '\"') + '"'
-}
 
 if ($NewWindow) {
     # Rebuild the call rather than forwarding $args: a switch is '-Name' and a
@@ -487,6 +307,10 @@ $Model = $resolved
 # Anything left on the card from a killed window, a -Hold, or somebody's
 # `ollama run` goes now - before this run adds its own.
 Clear-Resident -Except $Model
+
+# Before the load, not after: warming the file cache only helps if it
+# happens ahead of the read that actually needs it.
+Invoke-Warm -Tag $Model
 
 # An empty prompt loads the weights and generates nothing. Doing it here means
 # the 8 GB wait is visible and timed, instead of hiding inside question one.

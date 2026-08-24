@@ -21,10 +21,13 @@ chat window:
   run_tests      host/tools/run_tests.py - every offline suite's own tally,
                  parsed by that script rather than summarised by the model.
                  Ungated: it never touches the board's state or its flash.
+  link_diagnose  why the board is not answering - OS-level (COM ports
+                 present, driver enumeration), not another Modbus call the
+                 dead link would fail too. Also ungated, for the same reason.
   report         how a step ends. The model reports a value and a unit; it is
                  never told the limit and never asked for a verdict.
 
-Fourteen tools, against the nine that coaxial_mcp keeps to. The extra cost is
+Fifteen tools, against the nine that coaxial_mcp keeps to. The extra cost is
 real and it is paid for one thing: a plan step can say "work out which channel
 this is" instead of naming a function code.
 
@@ -35,6 +38,7 @@ then have to decide whether to believe it. plan.Limit decides, in Python.
 import os
 import subprocess
 import sys
+import time
 
 sys.path.insert(0, __file__.rsplit('coaxial_ollama', 1)[0])
 
@@ -94,6 +98,16 @@ EXTRA_TOOLS = [
         },
     },
     {
+        'name': 'link_diagnose',
+        'description': "The board is not answering (ConnectError, NoReplyError, 'link is down'): call this to find out why, instead of just repeating the raw error. Lists the COM ports Windows actually sees right now and whether the configured one is among them - a missing port is a cable or driver problem, a present-but-silent one is a power or wiring problem. 'probe_other_ports' also tries every other port for a few seconds each, for a board that answers somewhere other than where it was told to look.",
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'probe_other_ports': {'type': 'boolean'},
+            },
+        },
+    },
+    {
         'name': 'report',
         'description': 'Finish this step: the value you measured, its unit, and how you got it. Call exactly once, last.',
         'inputSchema': {
@@ -129,6 +143,11 @@ WRITE_CALLS = {
 # board carries is in the flash step, not the build, and 'action' is a model
 # argument this loop does not get to trust before --confirm has seen it.
 CODE_CALLS = ('run_python', 'run_command', 'build_firmware')
+
+# Tools that are neither a board handler nor a CODE_CALLS entry, and need no
+# gate at all - see _permit(). Both read local/OS state and never touch the
+# board or its flash.
+UNGATED_EXTRAS = ('run_tests', 'link_diagnose')
 
 # Calls that actually reach the board - not `docs`, which reads local files and
 # proves nothing about a measurement having happened. Shared by debug.py (to
@@ -174,6 +193,13 @@ class Toolbox:
         self.allow_code = allow_code
         self.confirm = confirm            # callable(name, args) -> bool, or None
         self.log = []
+        # Set by the caller before a turn's calls run - True unless the
+        # caller actually checked and the current question never said "afe".
+        # Defaults permissive so anything that never wires this (every
+        # existing test, a plan step, a bare Toolbox in a script) keeps its
+        # old behaviour; only debug.py's own repl() and one-shot path set it
+        # from the real question text. See _permit() for why it exists.
+        self.afe_mentioned = True
 
     def schemas(self):
         return schemas()
@@ -209,6 +235,8 @@ class Toolbox:
                 return self._build_firmware(args)
             if name == 'run_tests':
                 return self._run_tests(args)
+            if name == 'link_diagnose':
+                return self._link_diagnose(args)
             return self._board(name, args)
         except Refused as exc:
             return 'ERR %s' % exc
@@ -218,13 +246,12 @@ class Toolbox:
     # ---- policy ------------------------------------------------------------
 
     def _permit(self, name, args):
-        # run_tests is neither a board tool nor a CODE_CALLS entry on
-        # purpose: it never touches the board's state or its flash, so it
-        # is not gated by --read-only, --allow-writes or --confirm - the
-        # same reasoning that leaves `docs` ungated, just for a different
-        # local action.
+        # Neither a board tool nor a CODE_CALLS entry, on purpose: neither
+        # touches the board's state or its flash, so neither is gated by
+        # --read-only, --allow-writes or --confirm - the same reasoning that
+        # leaves `docs` ungated, just for different local actions.
         if (name not in BOARD_HANDLERS and name not in CODE_CALLS
-                and name != 'run_tests'):
+                and name not in UNGATED_EXTRAS):
             raise Refused('unknown tool %r' % name)
 
         if name in CODE_CALLS and not self.allow_code:
@@ -235,6 +262,19 @@ class Toolbox:
         if test and test(args) and not self.allow_writes:
             raise Refused('%s changes state and this run may only read. The '
                           'operator would have to pass --allow-writes.' % name)
+
+        # afe_power is deliberately not in WRITE_CALLS (see the comment
+        # there - a read-only run still has to be able to power the front
+        # end it is reading through), which is exactly why it needs a gate
+        # of its own: nothing else stops it firing as a precondition for a
+        # reading, the one thing the system prompt already says never to do
+        # and, measured live, a model did anyway. analog_read works with the
+        # AFE either way and reports which - there is never a reading that
+        # actually needs this call.
+        if (name == 'afe_power' and args.get('action', 'read') != 'read'
+                and not self.afe_mentioned):
+            raise Refused('not asked for - call analog_read instead, it '
+                          'works either way.')
 
         if self.confirm is not None and self.is_write(name, args):
             if not self.confirm(name, args):
@@ -289,12 +329,55 @@ class Toolbox:
         if done.stderr.strip():
             parts.append('stderr: ' + done.stderr.rstrip())
         text = '\n'.join(parts)
+
+        if done.returncode == 0 and action != 'build':
+            relink = self._relink()
+            if relink:
+                text += '\n' + relink
+
         # Prefixed the same way every other failure in this file is, so the
         # code_error backstop in debug.py's Chat.ask() catches a failed build
         # or flash exactly like a declined --confirm call - a fact this loop
         # already has that the model does not get to override with its own
         # summary of what happened.
         return text if done.returncode == 0 else 'ERR %s' % text
+
+    def _relink(self):
+        """Reopen the serial link after a flash - not just wait for it.
+
+        `--start` resets the MCU, which reboots into its ASCII console the
+        same way it does after any power-up (see coaxial/board.py's
+        `open_binary`) - not the binary Modbus mode a cached `Session.board`
+        assumes it is still in. Left alone, the very next board tool this
+        turn or the next reaches for sends a Modbus frame at a board that is
+        listening for console text, gets silence back, and reports the link
+        down - measured live: `build_firmware` said FLASH ok and the next
+        call was `NoReplyError: ... silence` a moment later, on hardware
+        that had, in fact, just come back up.
+
+        `session.reset()` drops the stale handle; the retries are for the
+        reboot itself, not the handshake - HAL init after `--start` is
+        sub-millisecond on this part, but three tries a third of a second
+        apart costs nothing against a flash that just took over a second,
+        and buys margin against a slow one.
+        """
+        if self.session is None or not hasattr(self.session, 'port'):
+            # NoBoard (or no session at all) - nothing was ever connected in
+            # this run, so there is nothing a flash could have disconnected.
+            return ''
+        self.session.reset()
+        last = None
+        for attempt in range(3):
+            if attempt:
+                time.sleep(0.3)
+            try:
+                self.session.board
+                return 'link re-established'
+            except RigError as exc:
+                last = exc
+        return ('WARNING: link has not answered since the flash (%s) - the '
+                'board may still be rebooting. Try a board tool again '
+                'before reporting a dead link.' % last)
 
     def _run_tests(self, args):
         """host/tools/run_tests.py - every suite's own tally, parsed by that
@@ -318,6 +401,84 @@ class Toolbox:
         if not text:
             text = (done.stderr or '').strip()
         return text if done.returncode == 0 else 'ERR %s' % text
+
+    def _link_diagnose(self, args):
+        """OS-level, not another Modbus call - the dead link would fail that
+        too, and repeating the same failed round trip is not a diagnosis.
+        `Test-BoardPort`/`Find-BoardPort` in board_prompt/ComPort.ps1 do the
+        same probe for -AutodetectComport before this process even starts;
+        this is that logic reachable mid-session, once, so a cable that came
+        loose does not need a restart to find out why.
+        """
+        import serial.tools.list_ports
+
+        ports = [p.device for p in serial.tools.list_ports.comports()]
+        configured = getattr(self.session, 'port', None)
+        lines = []
+
+        if not ports:
+            lines.append('no COM ports at all - nothing is enumerating as a '
+                         'serial device. Check the cable, and that the '
+                         'ST-Link or serial adapter is plugged in.')
+        elif configured is None:
+            lines.append('no configured port to check (--no-board or '
+                         '--simulated this run).')
+        elif configured not in ports:
+            lines.append("%s is not among the COM ports Windows currently "
+                         "sees (%s) - the cable may be unplugged, or the "
+                         "adapter's driver did not enumerate it."
+                         % (configured, ', '.join(ports)))
+        elif self._probe_board_port(configured):
+            # The port exists and the board actually answers on it right
+            # now - measured directly, not inferred from the port merely
+            # being present. Calling this "not answering" regardless would
+            # be wrong exactly when the link had already recovered, or when
+            # the model reaches for this tool on a link nobody has actually
+            # confirmed is down.
+            lines.append('%s is present and the board answers on it right '
+                         'now - the link is up.' % configured)
+        else:
+            lines.append('%s is present in the OS port list (%s), so the '
+                         'adapter itself is there - the board is not '
+                         'answering on it. Check it is powered, and that '
+                         'nothing else has the port open.'
+                         % (configured, ', '.join(ports)))
+
+        if args.get('probe_other_ports') and ports:
+            others = [p for p in ports if p != configured]
+            found = next((p for p in others if self._probe_board_port(p)),
+                        None)
+            if found:
+                lines.append('%s answered as this board - it may have moved '
+                             'there. /reconnect after changing --port to it.'
+                             % found)
+            elif others:
+                lines.append('tried %s, none answered as this board.'
+                             % ', '.join(others))
+
+        return '\n'.join(lines)
+
+    def _probe_board_port(self, candidate):
+        """True if this board answers on `candidate` - the same round trip
+        Session.board makes on first use, just against a port that is not
+        the configured one and closed again either way. The transport's own
+        0.5s read timeout (coaxial/transport.py) is what keeps a silent port
+        from hanging this - a handful of candidates costs a few seconds, not
+        a stall.
+        """
+        from coaxial import connect, disconnect
+
+        baud = getattr(self.session, 'baud', 115200)
+        unit = getattr(self.session, 'unit', 1)
+        try:
+            boards = connect([(unit, baud, candidate)])
+        except Exception:                                    # noqa: BLE001
+            return False
+        try:
+            disconnect(boards)
+        except Exception:                                     # noqa: BLE001
+            pass
+        return True
 
     def _board(self, name, args):
         # Coerced against the tool's own schema first: see

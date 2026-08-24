@@ -54,10 +54,10 @@ no preamble.
 A table or list means analog_read once - its grid is every channel already.
 Never markdown it, never restate a tool's own rows - one line, not two.
 A call error is reported, never guessed or hidden behind an old reading.
-A question about turning the AFE on or off is the order to do it, not to
-discuss. afe_power changes only when asked directly, never to serve a
-reading - analog_read always works and reports the AFE state itself, on or
-off. Phase channels: unknown gain, pin volts only.
+Any reading: analog_read only, never afe_power first - analog_read works
+with the AFE on or off and reports which. Turning the AFE on or off itself
+is the order to do it, not to discuss. Phase channels: unknown gain, pin
+volts only.
 Values come from analog_read, never docs - HARDWARE and FINDINGS explain,
 they don't produce one."""
 
@@ -88,17 +88,35 @@ BUILD_HINT = ("To build or flash: run_command with cmd exactly "
              "--flash-only). Not python3 - only python is allowlisted. "
              "No other command compiles or programs this board.")
 
+# Appended only when link_diagnose is actually offered. Needed for the same
+# reason as the hint above: a tool existing in the schema does not mean the
+# model reaches for it. Measured on this bench: asked directly "why can't
+# you reach the board" with the link genuinely down, gemma4:12b called
+# build_firmware instead - a real guess at a fix, not a diagnosis, and not
+# what was asked. The automatic path (a failed board call this turn) never
+# needed this: debug.py's own Chat.ask() calls link_diagnose itself and
+# folds the result into the answer. This is for the question asked on its
+# own, with no failed call in the same turn to trigger that.
+LINK_DIAGNOSE_HINT = ("A question about why the board is not answering, or "
+                      "whether the link is down, is answered by calling "
+                      "link_diagnose - not by guessing, not by trying "
+                      "build_firmware or anything else. If it has not "
+                      "already been called this turn, call it before "
+                      "answering.")
+
 # Named subsets, because a debug job knows roughly what it is about to touch.
 SETS = {
     'read': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
-             'docs'),
+             'docs', 'link_diagnose'),
     'code': ('board_info', 'analog_read', 'self_test', 'afe_power', 'link',
-             'docs', 'run_python', 'build_firmware', 'run_tests'),
+             'docs', 'run_python', 'build_firmware', 'run_tests',
+             'link_diagnose'),
     'pins': ('board_info', 'gpio_pin', 'gpio_port', 'test_gate', 'afe_power',
-             'docs'),
+             'docs', 'link_diagnose'),
     # run_command, not build_firmware: the wider, allowlisted surface for a
     # session actually about the toolchain, not just build_and_flash.py.
-    'build': ('board_info', 'docs', 'run_command', 'run_tests'),
+    'build': ('board_info', 'docs', 'run_command', 'run_tests',
+             'link_diagnose'),
     'all': tuple(spec['name'] for spec in toolmod.TOOLS if spec['name'] != 'report'),
     'none': (),
 }
@@ -108,6 +126,7 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
   /reconnect    drop and reopen the board link, no model
   /tools [set]  read|code|pins|build|all|none, or a comma separated list
   /confirm      toggle asking before every write - pin, run_python, run_command
+  /lang [NAME]  show, set, or /lang auto to unlock the session's language
   /ctx          what the next turn will cost
   /clear        forget the conversation - the cheapest thing here
   /cost         tokens so far
@@ -117,7 +136,7 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
 # What the prompt loop shows. The board's name rather than the script's: the
 # window this appears in is usually one of several, and 'dbg>' says which
 # program is running where the useful thing to know is which bench.
-PROMPT = 'Coaxial_63100'
+PROMPT = 'Coaxial 63100'
 
 # How long ollama holds the weights after the last turn. Two numbers, because
 # the two modes want opposite things.
@@ -202,7 +221,8 @@ MARKDOWN_TABLE_ROW = re.compile(r'^\s*\|.*\|\s*$', re.M)
 # exactly what to do and did not do it.
 NAMED_TOOL = re.compile(r'\b(analog_read|afe_power|board_info|self_test|'
                         r'gpio_pin|gpio_port|test_gate|run_python|'
-                        r'run_command|build_firmware|run_tests)\b')
+                        r'run_command|build_firmware|run_tests|'
+                        r'link_diagnose)\b')
 
 
 def _is_retype(answer, channels):
@@ -398,6 +418,10 @@ class Chat:
         # (unlike the turn-local copy in `ask`) so a later turn that answers
         # with no tool call at all can still be checked against it.
         self.last_channels = None
+        # The session's language, once one has actually been settled - see
+        # trim() below. None until the first question that is not itself
+        # ambiguous locks it.
+        self.language = None
         self.set_tools(tools)
 
     # ---- what the model is allowed to see ----------------------------------
@@ -430,28 +454,45 @@ class Chat:
         head = self.history[:-self.keep] if self.keep else self.history
         tail = self.history[-self.keep:] if self.keep else []
 
-        # The language line is built per turn from the last thing the user
-        # actually typed, rather than asked of the model. See language.py: told
-        # to work out the language itself, qwen2.5:14b answered a European
-        # question in Chinese, Japanese and Thai. Naming it removes the step
-        # that was going wrong.
+        # The language is decided here, not asked of the model. See
+        # language.py: told to work out the language itself, qwen2.5:14b
+        # answered a European question in Chinese, Japanese and Thai. Naming
+        # it removes the step that was going wrong.
         #
-        # It changes only when the user changes language, so the cached prefix
-        # survives an ordinary conversation and pays a reload exactly when the
-        # conversation genuinely switched.
+        # It locks on the first question that is not itself ambiguous, and
+        # stays there - a later short follow-up ("tabellera", "ja") detects
+        # as nothing on its own and would otherwise flip the prompt back to
+        # "mirror the question" every time one came up, which is a real
+        # prefix change, not a cosmetic one: a cached KV prefix reloads on
+        # it. Two things move the lock once it is set: the question actually
+        # switching language (detect() disagrees with it), or the question
+        # naming a language outright ("svara pa engelska") independent of
+        # what language it is itself written in - see
+        # language.requested_language().
         asked = ''
         for message in reversed(self.history):
             if message['role'] == 'user':
                 asked = message.get('content') or ''
                 break
+        requested = language.requested_language(asked)
+        detected = language.detect(asked)
+        current = getattr(self, 'language', None)
+        if requested and requested != current:
+            current = requested
+        elif detected and detected != current:
+            current = detected
+        self.language = current
         names = getattr(self, 'tool_names', ())
         hint = ''
         if 'build_firmware' in names:
             hint += '\n' + BUILD_FIRMWARE_HINT
         if 'run_command' in names:
             hint += '\n' + BUILD_HINT
+        if 'link_diagnose' in names:
+            hint += '\n' + LINK_DIAGNOSE_HINT
         sent = [{'role': 'system',
-                 'content': SYSTEM + hint + '\n' + language.instruction(asked)}]
+                 'content': SYSTEM + hint + '\n'
+                           + language.instruction_for(self.language)}]
         for message in head:
             content = (message.get('content') or '').strip()
             if message['role'] == 'tool':
@@ -499,6 +540,25 @@ class Chat:
         self.history.append({'role': 'tool', 'tool_name': 'link',
                              'name': 'link', 'content': 'link: %s' % probe})
         return probe
+
+    def _link_down_message(self, link_error):
+        """'link is down, not answered: ...', plus why - run here, by the
+        host, every time the link is down, rather than left for the model
+        to think to call link_diagnose. Measured on this bench: a raw
+        ConnectError with a generic hint was read as "a bunch of error
+        messages" - the actual, specific reason (which COM ports Windows
+        sees right now, whether the configured one is even among them) is a
+        fact this loop can just go get, not something worth gambling on the
+        model reaching for the right tool.
+        """
+        message = 'link is down, not answered: %s' % link_error
+        try:
+            diagnosis = self.toolbox.call('link_diagnose', {})
+        except Exception:                                     # noqa: BLE001
+            return message
+        if diagnosis and not str(diagnosis).startswith('ERR'):
+            message += '\n' + str(diagnosis)
+        return message
 
     def ask(self, question, max_calls=6):
         """One question, however many tool calls it takes. Returns the answer."""
@@ -577,7 +637,7 @@ class Chat:
                 if stale:
                     probe = self._probe_link()
                     if not self.link_ok:
-                        return 'link is down, not answered: %s' % probe
+                        return self._link_down_message(probe)
                     # Confirmed up. Measured here: told just that much, the
                     # turn still ended on "ask again" and the operator had to
                     # retype the same question two more times before the model
@@ -682,7 +742,7 @@ class Chat:
         # right there in its own context. The system prompt already tells it
         # not to; this is the case where telling it was not enough.
         if link_error is not None:
-            answer = 'link is down, not answered: %s' % link_error
+            answer = self._link_down_message(link_error)
         elif code_error is not None:
             answer = 'the last run_python/run_command call failed, nothing ' \
                      'was done: %s' % code_error
@@ -755,6 +815,22 @@ class Chat:
             self.toolbox.confirm = None if self.toolbox.confirm else ask_operator
             return 'confirm: %s' % ('on - asks before every write'
                                     if self.toolbox.confirm else 'off')
+        if verb == 'lang':
+            if not rest:
+                return ('session language: %s' % self.language
+                       if self.language else
+                       'not locked yet - mirroring each question')
+            if rest.lower() in ('auto', 'off'):
+                self.language = None
+                return 'language: unlocked - back to mirroring each question'
+            named = (language._NAME_TO_LANGUAGE.get(rest.lower())
+                    or (rest.title() if rest.title() in language.LANGUAGE_NAMES
+                        else None))
+            if named is None:
+                return ("don't know %r - try an English language name, or "
+                        "/lang auto to unlock" % rest)
+            self.language = named
+            return 'language: %s (locked)' % named
         if verb == 'ctx':
             return '%d messages, next turn about %d tok in, %d of it tools' \
                 % (len(self.history), self.context_cost(), self.tool_cost())
@@ -1055,7 +1131,23 @@ def repl(chat, hold=False):
                 done = chat.command(line)
                 if done is None:
                     asked = True
+                    # See tools.py's afe_power gate: set from the real
+                    # question text, here rather than inside ask() itself,
+                    # so a scripted test driving Chat.ask() directly keeps
+                    # its old, permissive default instead of needing "afe"
+                    # in every unrelated fixture question.
+                    chat.toolbox.afe_mentioned = 'afe' in line.lower()
+                    before_lang = chat.language
                     done = chat.ask(line)
+                    if chat.language != before_lang:
+                        # Printed once, on the turn that actually set or
+                        # moved the lock - not sent to the model, so it
+                        # costs nothing per turn either.
+                        note = ('language: %s (locked - /lang to change)'
+                               % chat.language if before_lang is None else
+                               'language: switched to %s (locked)'
+                               % chat.language)
+                        done = note + '\n' + done
                 # Stop ticking before the answer prints, not after. stop()'s
                 # own repaint climbs back to the prompt row by the same
                 # newline count _paint() uses, and a long answer with no
@@ -1176,7 +1268,9 @@ def main(argv=None):
     extra = attach(args.file, args.chars) if args.file else ''
     try:
         if question and not args.repl:
-            answer = chat.ask('\n'.join(filter(None, (question, extra))))
+            full_question = '\n'.join(filter(None, (question, extra)))
+            chat.toolbox.afe_mentioned = 'afe' in full_question.lower()
+            answer = chat.ask(full_question)
             print(answer)
             if not args.quiet:
                 print(chat.cost_line(), file=sys.stderr)
