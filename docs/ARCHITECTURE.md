@@ -197,6 +197,13 @@ label: `dbg.py` in the prompt tag, `python -m coaxial_mcp` on stderr
 (`--simulated` forces the stand-in, `--auto` searches), `test_mcp.py` and
 `test_live_model.py` in a header line before the first `PASS`.
 
+Mid-session, `/board simulated | auto | COM4` swaps it and the prompt tag
+follows on the next line — the same factory, so the screen and the tools cannot
+drift apart. `/model TAG` does the same one layer up, and hands the old model's
+VRAM back **before** asking for the new one: the other order is a request for
+two copies of the weights on one card. Both cost zero model tokens, which is
+the point — neither is a thing to ask a model to do.
+
 `test_conformance.py` deliberately does not use it. It is an independent
 byte-level master, built from the specification so a shared wrong assumption
 between master and slave cannot hide a defect — and a simulated slave would be

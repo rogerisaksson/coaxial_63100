@@ -60,11 +60,19 @@ A table or list means analog_read once - its grid is every channel already.
 Never markdown it, never restate a tool's own rows - one line, not two.
 Describe or explain means words, not a reading: analog_read
 answers what a channel reads now, never what a thing is.
+Switching board or model is /board and /model - name it, do not refuse.
 A call error is reported, never guessed or hidden behind an old reading.
 Any reading: analog_read only, never afe_power first - analog_read works
 with the AFE on or off and reports which. Turning the AFE on or off itself
 is the order to do it, not to discuss. Phase channels: unknown gain, pin
 volts only."""
+
+# The /board and /model line is there because a refusal was measured: asked
+# "byt till en simulerad hardvara", gemma4:12b answered "Jag kan inte byta
+# till simulerad hardvara. Jag ar konfigurerad for att interagera med den
+# fysiska kretskortet" - accurate about itself, a dead end for the operator,
+# and the same shape as BUILD_FIRMWARE_HINT below. It cannot do the swap; it
+# can say which command does.
 
 # Sent only when `docs` is offered, which no default set does. Measured:
 # asked to *measure* the channels, gemma4:12b read HARDWARE.md instead and
@@ -128,6 +136,8 @@ SETS = {
 HELP = """  /py CODE      run python against the board, no model, no tokens
   /sh CMD       run an allowlisted command, no model
   /reconnect    drop and reopen the board link, no model
+  /model [TAG]  swap the model, or auto; bare lists what is pulled
+  /board [WHAT] simulated | auto | COM4 - what the tools talk to
   /tools [set]  read|code|pins|build|docs|all|none, or a comma separated list
   /detail [x]   terse|full|auto - how much documentation the tools carry
   /confirm      toggle asking before every write - pin, run_python, run_command
@@ -871,6 +881,10 @@ class Chat:
             return self.toolbox.call('run_command', {'cmd': rest})
         if verb == 'reconnect':
             return self._reconnect()
+        if verb == 'model':
+            return self._switch_model(rest)
+        if verb == 'board':
+            return self._switch_board(rest)
         if verb == 'clear':
             self.history = []
             return 'context cleared'
@@ -935,6 +949,97 @@ class Chat:
             return 'prompt history cleared (%d question%s)' \
                 % (n, '' if n == 1 else 's')
         return 'no such command. /help'
+
+    def _switch_model(self, rest):
+        """Run this session on another tag, without restarting it.
+
+        The old model's VRAM goes back *before* the new one is asked for.
+        On a 16 GB card the other order is a request for two copies of the
+        weights, which is the failure docs/MODELS.md spends a section on -
+        and the swap is exactly the moment somebody would cause it.
+
+        History goes with it. A prompt prefix cached for one model is worth
+        nothing to another, and `detail=auto` is resolved from the tag, so
+        the tool schemas are rebuilt too.
+        """
+        from .client import Ollama, OllamaError
+
+        tag, extra = rest.strip(), {}
+        if not tag:
+            try:
+                have = ', '.join(self.client.models())
+            except OllamaError as exc:
+                have = str(exc)
+            return 'model: %s (%d tok window). Available: %s' % (
+                self.client.model, self.client.options.get('num_ctx', 0), have)
+        if tag == 'auto':
+            from .capability import choose, probe
+            picked = choose(probe())
+            tag, extra = picked.tag, dict(picked.options or {})
+        if tag == self.client.model and not extra:
+            return 'model: %s already' % tag
+
+        old = self.client
+        fresh = Ollama(tag, host=old.host, remote_ok=old.remote_ok,
+                       keep_alive=old.keep_alive, think=old.think,
+                       fmt=old.fmt, timeout=old.timeout)
+        fresh.options = dict(old.options)
+        fresh.options.update(extra)
+        try:
+            # Its own error text names the tag and how to pull it. Asked here
+            # rather than at the next question, so a typo costs a command and
+            # not a turn - and so nothing is swapped when it fails.
+            fresh.require_model()
+        except OllamaError as exc:
+            return str(exc)
+
+        try:
+            old.unload()
+        except Exception as exc:                              # noqa: BLE001
+            # Not fatal, and not silent: the session still works, the card is
+            # just holding weights nobody is using until keep_alive expires.
+            self.io_log.write('  ! could not unload %s: %s%s'
+                              % (old.model, exc, chr(10)))
+        self.client = fresh
+        self.history = []
+        self.set_detail(self.detail)
+        return 'model: %s (was %s), context cleared' % (fresh.model, old.model)
+
+    def _switch_board(self, rest):
+        """Point this session at another board, or at a simulated one.
+
+        `simulated` takes the stand-in outright, `auto` looks for a real one
+        - debug probe first - and a port name tries that first. The prompt
+        tag is rebuilt from the same origin the factory returns, so what the
+        screen says and what the tools talk to cannot drift apart.
+        """
+        from coaxial_mcp.session import open_session
+
+        want = rest.strip().lower()
+        if not want:
+            label = (getattr(self, 'origin', None) or ('unknown',))[0]
+            return ('board: %s. /board simulated | auto | COM4' % label)
+        if want in ('sim', 'simulated', 'fake'):
+            session, found = open_session(simulated=True)
+        elif want == 'auto':
+            session, found = open_session()
+        else:
+            session, found = open_session(rest.strip())
+
+        previous = self.toolbox.session
+        if previous is not session:
+            try:
+                previous.close()
+            except Exception:                                 # noqa: BLE001
+                pass
+        self.toolbox.session = session
+        self.origin = (found.label, found.real)
+        self.link_ok = True
+        # Readings remembered from the board just left are not this one's.
+        # Without this, the retype backstop compares an answer against a
+        # table taken from different hardware.
+        self.last_channels = None
+        return 'board: %s' % found.label
 
     def _reconnect(self):
         """Drop the link and try to reopen it - for a cable that was plugged

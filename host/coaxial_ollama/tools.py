@@ -216,6 +216,23 @@ class Reported:
         return '<Reported %r %s>' % (self.value, self.unit)
 
 
+def _open_link_answers(session):
+    """Whether a link this session already holds open answers now.
+
+    Never opens anything and never raises: a session with no board
+    cached returns False, and the caller falls through to the ordinary
+    probe that opens the port itself.
+    """
+    board = getattr(session, '_board', None)
+    if board is None:
+        return False
+    try:
+        board.link.echo(b'?')
+        return True
+    except Exception:                                     # noqa: BLE001
+        return False
+
+
 class Toolbox:
     """Dispatch, with the operator's policy in front of it."""
 
@@ -499,7 +516,15 @@ class Toolbox:
             return '\n'.join(steps)
         steps.append('3. Configured port %s: present.' % configured)
 
-        if find_board.probe(configured, baud, unit):
+        # The session's own handle first, and a second open only if it
+        # has none. Measured: with the link up and the session holding
+        # COM4, find_board.probe opened it a second time, Windows
+        # refused, and the checklist printed "4. Board answers on COM4
+        # right now: no" one line under "3. Configured port COM4:
+        # present." - a false statement about live hardware, produced
+        # by the diagnostic itself.
+        if (_open_link_answers(self.session)
+                or find_board.probe(configured, baud, unit)):
             # Measured directly, not inferred from the port merely being
             # present - so this also correctly says "up" when the link had
             # already recovered by the time anything reached for this tool.

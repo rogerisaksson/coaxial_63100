@@ -92,6 +92,10 @@ The prompt names the path it found:
 conform to without firmware, so with no board it runs its CRC self-test and
 says what it skipped.
 
+At the prompt, `/board simulated | auto | COM4` and `/model TAG | auto` swap
+either one mid-session, for no model tokens. `/model` hands the old model's
+VRAM back before asking for the new one.
+
 The ST toolchain is not on the system PATH — arm-gcc, cmake, ninja and
 `STM32_Programmer_CLI` live under `%LOCALAPPDATA%\stm32cube\bundles\`, fetched by
 `cube.exe` (the bundle manager in the STM32 VS Code extension; `cube bundle

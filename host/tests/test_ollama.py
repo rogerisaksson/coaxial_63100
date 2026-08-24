@@ -33,6 +33,7 @@ from coaxial_ollama import replies                       # noqa: E402
 from coaxial_ollama import runner as runmod                # noqa: E402
 from coaxial_ollama import tools as toolmod                # noqa: E402
 from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
+from coaxial_mcp import detail                           # noqa: E402
 
 BSLASH = chr(92)
 
@@ -2088,6 +2089,7 @@ def test_fallback(report):
     suite and the prompt itself print it, and that is what these check.
     """
     from coaxial_mcp.session import open_session
+    from coaxial_ollama import debug
     from coaxial_ollama import spinner as spin
 
     session, found = open_session(simulated=True)
@@ -2129,6 +2131,92 @@ def test_fallback(report):
     report.check('setting PB2 turns it back on',
                  session.board.afe.state()['on']
                  and session.board.gpio.port_read('B') & (1 << 2))
+
+    # link_diagnose's step 4 opened the port a second time to ask whether
+    # the board answers - while the session held it open. Measured live,
+    # with the link up: "3. Configured port COM4: present." followed by
+    # "4. Board answers on COM4 right now: no", a false statement about
+    # live hardware produced by the diagnostic itself. The session's own
+    # handle is asked first now, and only a session with none falls through
+    # to the second open.
+    class Held:
+        """A session holding an open link, shaped like coaxial_mcp.Session."""
+        port, baud, unit = 'COM_TEST', 115200, 1
+
+        def __init__(self, board):
+            self._board = board
+
+    live = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    report.check('a session with no board cached falls through to the probe',
+                 toolmod._open_link_answers(Held(None)) is False)
+    report.check('and one holding an answering link says so without opening '
+                 'anything',
+                 toolmod._open_link_answers(Held(SimulatedSession().board))
+                 is True)
+
+    class Dead:
+        def echo(self, data):
+            raise ConnectError('cable pulled')
+
+    class DeadBoard:
+        link = Dead()
+
+    report.check('a held link that has since died is not counted as up',
+                 toolmod._open_link_answers(Held(DeadBoard())) is False)
+
+    # Steps 1 and 2 stubbed: the first shells out to STM32_Programmer_CLI
+    # with a 15s timeout, and the second asks Windows what it has plugged
+    # in - neither is what step 4 is being checked for, and both make the
+    # answer depend on the desk the suite runs on.
+    live.session = Held(SimulatedSession().board)
+    power, ports = toolmod.find_board.check_power, toolmod.find_board.list_ports
+    toolmod.find_board.check_power = lambda *a, **k: (3.27, 'stubbed')
+    toolmod.find_board.list_ports = lambda: ['COM_TEST']
+    try:
+        checklist = live.call('link_diagnose', {})
+    finally:
+        toolmod.find_board.check_power = power
+        toolmod.find_board.list_ports = ports
+    report.check('so step 4 reports the link that is actually up',
+                 'right now: yes' in checklist,
+                 checklist.splitlines()[-1][:52])
+
+    # /board: what the tools talk to, swapped without a restart. Measured at
+    # the prompt: asked "byt till en simulerad hardvara", gemma4:12b answered
+    # that it could not and was configured for the physical board - true
+    # about itself, a dead end for the operator. The swap is the host's.
+    swap = debug.Chat.__new__(debug.Chat)
+    swap.toolbox = toolmod.Toolbox(SimulatedSession(), scope=Scope())
+    swap.origin, swap.link_ok, swap.last_channels = ('Simulated', False), False, {'ntc'}
+    said = swap.command('/board simulated')
+    report.check('/board simulated takes the stand-in',
+                 said == 'board: Simulated'
+                 and type(swap.toolbox.session).__name__ == 'SimulatedSession',
+                 said)
+    report.check('and the prompt tag is rebuilt from the same origin',
+                 swap.origin == ('Simulated', False), str(swap.origin))
+    report.check('and a table from the board just left is forgotten',
+                 swap.last_channels is None, str(swap.last_channels))
+    report.check('/board with no argument says what it is on',
+                 swap.command('/board').startswith('board: Simulated'),
+                 swap.command('/board'))
+
+    # /model: same idea one layer up. No weights are loaded here - every path
+    # below either refuses or is a no-op, which is the whole logic.
+    from coaxial_ollama.client import Ollama, OllamaError
+    swap.client = Ollama('gemma4:12b', keep_alive=0)
+    swap.detail, swap.tool_names = detail.TERSE, ()
+    try:
+        before = swap.client.model
+        said = swap.command('/model no-such-tag:9b')
+        report.check('/model refuses a tag that is not pulled, and swaps '
+                     'nothing', 'not pulled' in said
+                     and swap.client.model == before, said[:52])
+        report.check('/model on the tag already running is a no-op',
+                     swap.command('/model gemma4:12b') == 'model: gemma4:12b '
+                     'already', swap.client.model)
+    except OllamaError as exc:
+        report.check('/model needs a local ollama daemon', False, str(exc)[:52])
 
     class VT(io.StringIO):
         encoding = 'utf-8'
