@@ -301,12 +301,13 @@ PHRASES = {
     'Swedish': {
         'AFE OFF - the ADC reference is unpowered. These are the codes '
         'the converter returned, not measurements: every channel sits '
-        'near mid-scale and the NTC figure below is arithmetic on that, '
-        'not a temperature. Call afe_power on to measure.':
+        'near mid-scale, and the degC and volts below are arithmetic on '
+        'that - not a temperature, not a bus voltage. Call afe_power on to '
+        'measure.':
             'AFE AV - ADC-referensen är strömlös. Detta är koderna omvandlaren '
-            'returnerade, inte mätvärden: varje kanal ligger nära mittskalan '
-            'och NTC-siffran nedan är räknad på den, inte en temperatur. Slå '
-            'på afe_power för att mäta.',
+            'returnerade, inte mätvärden: varje kanal ligger nära mittskalan, '
+            'och grader och volt nedan är räknade på den - ingen temperatur, '
+            'ingen busspänning. Slå på afe_power för att mäta.',
 
         'link is down, not answered: %s':
             'länken är nere, obesvarad: %s',
@@ -334,9 +335,16 @@ PHRASES = {
         'channel %r could be %s - say which':
             'kanal %r kan vara %s - säg vilken',
 
-        'no configured port to check (--no-board or --simulated this run).':
-            'ingen konfigurerad port att kontrollera (--no-board eller '
-            '--simulated denna körning).',
+        'this session is on a simulated board - there is no port to check. '
+        '/board auto looks for a real one, debug probe first; /board COM4 '
+        'tries one by name.':
+            'den här sessionen kör mot ett simulerat kort - det finns ingen '
+            'port att kontrollera. /board auto letar upp ett riktigt, '
+            'debugproben först; /board COM4 provar en port vid namn.',
+        '--no-board this run: every board tool refuses. /board auto looks '
+        'for a real one.':
+            '--no-board denna körning: varje kortverktyg vägrar. /board auto '
+            'letar upp ett riktigt.',
         '1. Target power (ST-Link/SWD): could not check - %s':
             '1. Målspänning (ST-Link/SWD): kunde inte kontrolleras - %s',
         '1. Target power (ST-Link/SWD): %.2fV - no power sensed. Check the '

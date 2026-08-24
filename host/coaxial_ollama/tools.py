@@ -216,6 +216,21 @@ class Reported:
         return '<Reported %r %s>' % (self.value, self.unit)
 
 
+def _stand_in(session):
+    """Which stand-in a session with no port is: 'simulated' or
+    'no board'.
+
+    Asked of the thing that matters rather than the class name: a
+    NoBoard refuses to produce a board at all, a SimulatedSession hands
+    one over.
+    """
+    try:
+        session.board
+    except Exception:                                     # noqa: BLE001
+        return 'no board'
+    return 'simulated'
+
+
 def _open_link_answers(session):
     """Whether a link this session already holds open answers now.
 
@@ -477,13 +492,24 @@ class Toolbox:
 
         if configured is None:
             # Not step 1 - this isn't a rung on the checklist, it's whether
-            # there is a real board to run one against at all. A
-            # --no-board/--simulated run has no SWD to check power over
-            # either, and checking it anyway would spend several real
-            # seconds proving nothing about a session that was never going
-            # to have a board.
-            return ('no configured port to check (--no-board or '
-                   '--simulated this run).')
+            # there is a real board to run one against at all. A stand-in
+            # has no SWD to check power over either, and checking it anyway
+            # would spend several real seconds proving nothing about a
+            # session that was never going to have a board.
+            #
+            # It does not say "--no-board or --simulated this run" any more:
+            # a session that found nothing at startup falls back on its own,
+            # and naming two flags the operator never typed is a false
+            # statement about how the session was started. Measured - asked
+            # "byter du till debugproben" on an auto-fallen-back session,
+            # this line was the whole answer on screen, and it named the
+            # wrong reason and no way out.
+            if _stand_in(self.session) == 'no board':
+                return ('--no-board this run: every board tool refuses. '
+                        '/board auto looks for a real one.')
+            return ('this session is on a simulated board - there is no '
+                    'port to check. /board auto looks for a real one, '
+                    'debug probe first; /board COM4 tries one by name.')
 
         steps = []
         voltage, detail = find_board.check_power()

@@ -430,8 +430,9 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
     banner = ('' if afe_on else
               'AFE OFF - the ADC reference is unpowered. These are the codes '
               'the converter returned, not measurements: every channel sits '
-              'near mid-scale and the NTC figure below is arithmetic on that, '
-              'not a temperature. Call afe_power on to measure.' + chr(10))
+              'near mid-scale, and the degC and volts below are arithmetic '
+              'on that - not a temperature, not a bus voltage. Call '
+              'afe_power on to measure.' + chr(10))
     return banner + render.analog({'samples': burst['samples'],
                           'rate_hz': burst['rate_hz'],
                           'channels': rows}, derived)

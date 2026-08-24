@@ -1103,12 +1103,23 @@ def test_link_diagnose(report):
                      and 'COM ports Windows sees' not in result4, result4)
         find_board.check_power = lambda timeout=15: (3.30, 'fake: powered')
 
-        report.check('and a run with no configured port (--no-board, '
-                     '--simulated) says so, after confirming power - '
-                     'nothing to check past that',
-                     'no configured port'
-                     in toolmod.Toolbox(SimulatedSession()).call(
-                         'link_diagnose', {}))
+        # It names the stand-in it is actually on and the way off it. The
+        # line it replaced said "--no-board or --simulated this run" for a
+        # session that had been given neither - it fell back on its own -
+        # and that was the whole answer on screen to "byter du till
+        # debugproben".
+        stood_in = toolmod.Toolbox(SimulatedSession()).call('link_diagnose', {})
+        report.check('a session with no port names the stand-in it is on, '
+                     'and the way off it',
+                     'simulated board' in stood_in and '/board auto' in stood_in,
+                     stood_in[:52])
+        report.check('and never claims a flag the operator did not type',
+                     '--simulated' not in stood_in, stood_in[:52])
+        from coaxial_ollama.debug import NoBoard
+        refused = toolmod.Toolbox(NoBoard()).call('link_diagnose', {})
+        report.check('--no-board is the one case that did get the flag',
+                     refused.startswith('--no-board this run')
+                     and '/board auto' in refused, refused[:52])
 
         # Ungated: no --allow-writes, no --confirm, no --read-only. It never
         # touches the board's state or its flash, same reasoning as `docs`.
@@ -2080,8 +2091,9 @@ def test_screen_language(report):
 
     banner = ('AFE OFF - the ADC reference is unpowered. These are the codes '
               'the converter returned, not measurements: every channel sits '
-              'near mid-scale and the NTC figure below is arithmetic on that, '
-              'not a temperature. Call afe_power on to measure.')
+              'near mid-scale, and the degC and volts below are arithmetic '
+              'on that - not a temperature, not a bus voltage. Call '
+              'afe_power on to measure.')
     turned = language.localise(banner, 'Swedish')
     report.check('host prose turns into the session language',
                  'AFE AV' in turned and 'unpowered' not in turned,
@@ -2395,7 +2407,7 @@ def test_screen(report):
     # The simulated session has no port, so link_diagnose's own answer is
     # that rather than the four-step checklist - the property under test is
     # the same either way: what the trace printed, the answer does not.
-    diagnosis = 'no configured port to check'
+    diagnosis = 'this session is on a simulated board'
     report.check('and the diagnosis was on screen exactly once',
                  seen.getvalue().count(diagnosis) == 1
                  and diagnosis not in answer,
