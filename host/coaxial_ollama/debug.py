@@ -581,6 +581,15 @@ class Chat:
             # for - keeps failing forever on the same dead handle even once
             # the cable is back.
             self.toolbox.session.reset()
+            # ...and try once more, which is the whole point of the
+            # reset. Measured: the handle was dropped, the turn answered
+            # "linken ar nere", and link_diagnose one line later opened
+            # the port cleanly and said it was up - two verdicts on one
+            # screen, the second of them from the retry this path had
+            # already earned and did not take.
+            probe = self.toolbox.call('link', {'op': 'stats'})
+            lost = ERR_CLASS.match(str(probe))
+            self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
         self.history.append({'role': 'tool', 'tool_name': 'link',
                              'name': 'link', 'content': 'link: %s' % probe})
         return probe
@@ -709,7 +718,13 @@ class Chat:
                 if stale:
                     probe = self._probe_link()
                     if not self.link_ok:
-                        return self._link_down_message(probe)
+                        # `shown` here too: the checklist the model just
+                        # traced is directly above, and without this the
+                        # answer printed the whole thing again - the
+                        # failure the parameter exists for, on the one
+                        # path that never passed it.
+                        return self._link_down_message(
+                            probe, shown=diagnosed and not self.quiet)
                     # Confirmed up. Told only that, the turn still ended on
                     # "ask again" and the operator retyped it twice. A nudge
                     # spends a turn this loop already owns.

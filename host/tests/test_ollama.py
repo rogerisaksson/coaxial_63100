@@ -940,6 +940,108 @@ def test_policy(report):
                         ).startswith('ERR'))
 
 
+def test_link_recovery(report):
+    """One screen, one verdict about the link.
+
+    Measured at the prompt, all of this on a single question: the model
+    called link_diagnose, whose step 4 said the board did not answer; the
+    turn then ended with no answer, `_probe_link` failed, dropped the dead
+    handle, and reported the link down - and `_link_down_message` ran
+    link_diagnose a *second* time, which opened the port cleanly and said
+    "4. Kortet svarar pa COM4 just nu: ja - lanken ar uppe."
+
+    Two checklists, contradicting each other, seconds apart, with no way
+    for the operator to tell which was true. Both halves were host bugs:
+    the retry the reset exists for was never taken, and the one call site
+    that could not afford to reprint the checklist was the one that never
+    passed `shown`.
+    """
+    from coaxial_ollama import debug
+
+    STEP4_UP = '4. Board answers on COM4 right now: yes - the link is up.'
+    DEAD = 'ERR NoReplyError: unit 1, fc 0x47: silence'
+
+    class Flapping:
+        """A link that answers only once the stale handle is dropped - the
+        shape of a VCP that re-enumerated under a replugged cable. Stands
+        in for both the toolbox and its session, which is all `_probe_link`
+        and `_link_down_message` touch."""
+
+        def __init__(self, fails=1):
+            self.fails, self.resets, self.calls = fails, 0, []
+            self.session = self
+            self.log = []
+
+        def reset(self):
+            self.resets += 1
+
+        def call(self, name, args):
+            self.calls.append(name)
+            if name == 'link_diagnose':
+                return ('1. Target power (ST-Link/SWD): 3.27V - powered, '
+                        'cable seated.' + chr(10) + STEP4_UP)
+            if self.fails > 0:
+                self.fails -= 1
+                return DEAD
+            return 'frames rx=12 tx=12'
+
+    def probing(fails):
+        chat = debug.Chat.__new__(debug.Chat)
+        chat.toolbox = Flapping(fails)
+        chat.history, chat.link_ok, chat.quiet = [], True, True
+        return chat, chat._probe_link()
+
+    chat, probe = probing(1)
+    report.check('a link that answers after the reset is reported up, not '
+                 'down', chat.link_ok is True, str(probe)[:40])
+    report.check('and the reset happened exactly once',
+                 chat.toolbox.resets == 1, str(chat.toolbox.resets))
+    report.check('which cost one retry, not a loop',
+                 chat.toolbox.calls == ['link', 'link'],
+                 ', '.join(chat.toolbox.calls))
+
+    chat, probe = probing(99)
+    report.check('a link that stays silent is still reported down',
+                 chat.link_ok is False, str(probe)[:40])
+    report.check('and is not retried past the one the reset earned',
+                 chat.toolbox.calls == ['link', 'link'],
+                 ', '.join(chat.toolbox.calls))
+
+    # `shown` means the checklist is already on screen from the trace.
+    chat.toolbox.calls = []
+    said = chat._link_down_message(DEAD, shown=True)
+    report.check('with the checklist already traced, the answer does not '
+                 'run link_diagnose again', 'link_diagnose'
+                 not in chat.toolbox.calls, ', '.join(chat.toolbox.calls))
+    report.check('and does not reprint it either',
+                 STEP4_UP not in said, said[:46])
+    report.check('but still says the question went unanswered, and by what',
+                 said.startswith('link is down, not answered:')
+                 and 'NoReplyError' in said, said[:46])
+
+    said = chat._link_down_message(DEAD, shown=False)
+    report.check('with nothing on screen above, the checklist comes with '
+                 'the answer', STEP4_UP in said, said.splitlines()[-1][:46])
+
+    # End to end, the shape of the transcript: the model calls
+    # link_diagnose and then writes nothing, so the turn falls to the
+    # stale path. Trace and answer together are the operator's screen.
+    screen = io.StringIO()
+    box = Flapping(99)
+    talk = debug.Chat(ScriptedModel([
+        call('link_diagnose'),
+        {'role': 'assistant', 'content': ''},
+    ]), box, out=screen)
+    talk.toolbox = box                      # the fake stands in for both
+    answer = talk.ask('byt till en simulerad enhet')
+    whole = screen.getvalue() + chr(10) + answer
+    report.check('one screen carries the checklist once, not twice',
+                 whole.count(STEP4_UP) == 1, '%d copies' % whole.count(STEP4_UP))
+    report.check('so it cannot say the link is up and down at once',
+                 not (STEP4_UP in answer and 'link is down' in answer),
+                 answer.splitlines()[0][:46] if answer else '<empty>')
+
+
 def test_link_diagnose(report):
     """OS-level, not another board round trip - see tools.py's own docstring
     for why. Ports come from a fake serial.tools.list_ports.comports() here,
@@ -3406,7 +3508,8 @@ def main():
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_transcript,
+                 test_link_diagnose, test_link_recovery,
+                 test_transcript,
                  test_debug, test_cli,
                  test_local_only, test_runner_crash_retry,
                  test_out_of_memory, test_context_budget, test_detail,

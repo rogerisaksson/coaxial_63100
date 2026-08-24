@@ -325,6 +325,7 @@ believed it was would still be crashing.
 | IN11 (PC1) moved 9.7 % between 75 and 475 MHz | Unexplained; the channel has no assigned signal |
 | DC bus read twice in one sweep differs by 25-35 LSB | The two read paths give systematically different values, ~29-42 mV at the bus. Not PCSEL — it persisted after that fix. |
 | Phase V op-amp offset | Board owner's, deliberately deferred |
+| The board answers, then does not, on the same cable | Not characterised. 2026-08-24: `test_conformance.py` passed 44/44 over COM4, and ~20 min later `find_board.probe` scored **0/10** consecutive connects with nothing touched. In between, one session connected on the 4th attempt after three failures. Target power read 3.27 V throughout and Windows listed COM4 the whole time, so it is not the cable or the driver. Every host-side path now retries once past a stale handle, which hides the short version of this and not the long one. |
 
 ---
 
