@@ -1137,6 +1137,48 @@ def test_map_retype(report):
                  turn(finding) == finding, repr(turn(finding))[:52])
 
 
+def test_afe_trace(report):
+    """A switch that did what it was told needs no line of its own.
+
+    Measured: "sla pa afen" traced `on=1 pe15=0` above an answer that said
+    the same thing in words. `on=1` is also the only evidence the write
+    landed, so the line goes only when the read-back matches what was
+    asked - a request that did not take still prints, loudly.
+    """
+    from coaxial_ollama import debug
+
+    for action, raw, silent, why in (
+            ('on', 'on=1 pe15=0', True, 'did what it was told'),
+            ('off', 'on=0 pe15=1', True, 'did what it was told'),
+            ('on', 'on=0 pe15=1', False, 'the write did not take'),
+            ('off', 'on=1 pe15=0', False, 'the write did not take'),
+            ('toggle', 'on=1 pe15=0', False, 'nothing to match it against'),
+            ('read', 'on=1 pe15=0', False, 'the state is the answer'),
+            ('on', 'ERR ConnectError: cable pulled', False, 'an error'),
+            ('on', 'ERR not asked for', True, 'a refusal it recovers from')):
+        got = debug._afe_noise('afe_power', {'action': action}, raw)
+        report.check('afe_power %s -> %s (%s)'
+                     % (action, 'silent' if silent else 'traced', why),
+                     got is silent, 'silent' if got else 'traced')
+
+    report.check('and no other tool is quietened by this',
+                 not debug._afe_noise('analog_read', {}, 'on=1 pe15=0'))
+
+    # End to end: the turn shows the answer, and nothing above it.
+    screen = io.StringIO()
+    chat = debug.Chat(ScriptedModel([
+        call('afe_power', action='on'),
+        {'role': 'assistant', 'content': 'AFE är nu påslagen.'},
+    ]), toolmod.Toolbox(SimulatedSession(), scope=Scope()), out=screen)
+    chat.toolbox.afe_mentioned = True
+    said = chat.ask('slå på afen')
+    report.check('a confirmed switch leaves nothing on screen above the '
+                 'answer', screen.getvalue().strip() == '',
+                 repr(screen.getvalue())[:46])
+    report.check('and the answer itself still arrives',
+                 said == 'AFE är nu påslagen.', said)
+
+
 def test_digital_read(report):
     """Listing the channels and reading them are two questions.
 
@@ -1887,9 +1929,12 @@ def test_debug(report):
     # The probe itself is plumbing, not a reading - measured here, its raw
     # counters ("unit_id=1 t15_ticks=...") printed on screen for a question
     # that only asked for a list of ADC values, nothing to do with the link.
+    # The control is the reading, not the afe_power line: a switch that did
+    # what it was told is silenced now (see test_afe_trace), so `on=1` no
+    # longer proves the other calls reached the screen.
     report.check('the probe itself is not traced - nobody asked for link stats',
                  'unit_id=' not in first_blank_out.getvalue()
-                 and 'on=1' in first_blank_out.getvalue(),
+                 and 'smp @' in first_blank_out.getvalue(),
                  first_blank_out.getvalue())
 
     # ---- ...and if the board really is down from the start, that is what
@@ -4061,7 +4106,7 @@ def main():
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_link_recovery, test_channel_map, test_digital_read, test_map_sections, test_map_retype, test_port_state,
+                 test_link_diagnose, test_link_recovery, test_channel_map, test_afe_trace, test_digital_read, test_map_sections, test_map_retype, test_port_state,
                  test_retype_with_the_trace_off,
                  test_power_check_cannot_halt,
                  test_transcript,

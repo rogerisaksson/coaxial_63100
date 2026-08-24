@@ -311,6 +311,34 @@ TRACE_LINES = 3
 REPEATABLE = {'analog_read', 'run_python', 'run_command'}
 
 
+AFE_STATE = re.compile(r'^on=(\d)')
+
+
+def _afe_noise(name, args, raw):
+    """Whether this afe_power result is worth a line on screen.
+
+    Two are not. A call refused for not having been asked for is a mistake
+    the model recovers from one call later - the refusal stays in history
+    for it to read, and the operator does not need it.
+
+    And a switch that did what it was told: "sla pa afen" traced `on=1
+    pe15=0` above an answer that said the same thing in words. `on=1` is
+    also the only evidence the write landed, so the line goes only when the
+    read-back **matches what was asked**. A request that did not take, a
+    toggle (nothing to match it against), a plain read (the state is the
+    answer) and every error all still print.
+    """
+    if name != 'afe_power':
+        return False
+    if str(raw).startswith('ERR not asked for'):
+        return True
+    wanted = str((args or {}).get('action', 'read')).strip().lower()
+    if wanted not in ('on', 'off'):
+        return False
+    got = AFE_STATE.match(str(raw))
+    return bool(got) and (got.group(1) == '1') == (wanted == 'on')
+
+
 def _printable(stream):
     """Make a console survive an alphabet that is not its codepage.
 
@@ -958,12 +986,7 @@ class Chat:
                     if named:
                         last_map = named
                         last_map_text = str(raw)
-                # An afe_power refused for not being asked for is a mistake
-                # the model recovers from one call later. The refusal stays in
-                # history for it to read; the operator does not need it on
-                # screen. Every other afe_power result traces as before.
-                if not (name == 'afe_power'
-                       and str(raw).startswith('ERR not asked for')):
+                if not _afe_noise(name, args, raw):
                     self._trace(result)
                 self.io_log.call(name, args, result)     # always - see IOLog
                 self.history.append({'role': 'tool', 'tool_name': name,
