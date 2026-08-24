@@ -217,7 +217,8 @@ def error_paths(server, report):
                  not text.startswith('ERR') and text.startswith('AFE OFF'),
                  '%d tok  %s' % (approx_tokens(text), text[:56]))
     report.check('and the codes are actually there to read',
-                 'NTC' in text and 'smp' in text, text.splitlines()[-1][:56])
+                 'NTC' in text and 'samples @' in text,
+                 text.splitlines()[-1][:56])
     report.check('the label says how to make it a measurement',
                  'afe_power on' in text)
     server.tool('afe_power', {'action': 'on'})

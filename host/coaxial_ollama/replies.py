@@ -23,7 +23,7 @@ TOOL_TAG = re.compile(r'</?tool_call>', re.I)
 # The channel names off the front of an analog_read row: "0  PhaseU  diff ..."
 # -> 'phaseu'. Anchored on the mode column (diff/SE) rather than just a
 # leading digit, or this matches render.analog's own header line too - "64
-# smp @2000Hz" starts with a number and a word exactly like a row does, and
+# samples @2000Hz" starts with a number and a word exactly like a row does,
 # without the anchor 'smp' was recognised as a seventh channel of its own.
 READING_ROW = re.compile(r'^\d+\s+(\S+)\s+(?:diff|SE)\b', re.M)
 

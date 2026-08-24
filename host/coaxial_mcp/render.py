@@ -46,10 +46,15 @@ def analog_map(channels):
 
 def digital_map(pins, what='digital'):
     """The digital I/O, or the reserved pins, in their own block with their
-    own header. No index and no mode column: they have neither."""
-    lines = ['%s: %d pin%s' % (what, len(pins),
-                               '' if len(pins) == 1 else 's'),
-             'pin  dir   name']
+    own header. No index and no mode column: they have neither.
+
+    The I/O are counted as channels and the reserved list as pins, because
+    that is what they are: one is something to read or set, the other is
+    the bus and the debug port."""
+    unit = 'pin' if what == 'reserved' else 'channel'
+    lines = ['%s: %d %s%s' % (what, len(pins), unit,
+                              '' if len(pins) == 1 else 's'),
+             'ch   dir   name']
     for d in pins:
         lines.append('%-4s %-5s %s' % (d['pin'], d['direction'], d['signal']))
     return lines
@@ -62,8 +67,9 @@ def digital_levels(rows):
     "give me their values" are two questions and answering the first with
     the second is what board_info alone could do.
     """
-    lines = ['digital: %d pin%s' % (len(rows), '' if len(rows) == 1 else 's'),
-             'pin  dir   level name']
+    lines = ['digital: %d channel%s'
+             % (len(rows), '' if len(rows) == 1 else 's'),
+             'ch   dir   level name']
     for row in rows:
         lines.append('%-4s %-5s %-5d %s'
                      % (row['pin'], row['direction'], row['level'],
@@ -97,18 +103,44 @@ def board_info(version, clock, channels, digital=None, kind='all'):
     return chr(10).join(lines)
 
 
+# The row, and the header built from the same widths. Written out by hand
+# they drifted: `code` and `voltage` are right-aligned, so a seven-digit
+# number starts one column later than an eight-digit one and a header
+# placed over the first is wrong for the second.
+ANALOG_ROW = '%-2d %-7s %-4s %8.1f %+8.4fV %s'
+ANALOG_HEAD = ('%-2s %-7s %-4s %8s %9s %s'
+               % ('ch', 'name', 'mode', 'code', 'voltage', 'measure')).rstrip()
+
+
 def analog(result, derived):
-    """One line per channel: index, name, mode, mean raw, pin volts, unit value."""
-    lines = ['%d smp @%.0fHz' % (result['samples'], result['rate_hz'] or 0)]
+    """A reading, headed the same way the map is.
+
+    The count and the column names are there because the two blocks sit
+    on one screen when a question asks for both, and the reading used to
+    arrive as a bare `64 smp @2000Hz` over unlabelled columns while the
+    map above it was headed and counted.
+
+    The last column is empty for a channel with no defined unit, which is
+    most of them - `measure` is the board's own scaling where there is one,
+    not something computed here. `code` is the raw converter output and
+    `voltage` is at the ADC pin, which for a phase channel is not the sensed
+    quantity - invariant 7.
+    """
+    lines = ['analog: %d channel%s'
+             % (len(result['channels']),
+                '' if len(result['channels']) == 1 else 's'),
+             '%d samples @%.0fHz'
+             % (result['samples'], result['rate_hz'] or 0),
+             ANALOG_HEAD]
     for row in result['channels']:
         name = short(row['signal'], row['index'])
         extra = derived.get(row['index'], '')
-        # The parentheses matter: without them .rstrip() binds to the argument
-        # tuple rather than to the formatted string.
-        lines.append(('%-2d %-7s %-4s %8.1f %+8.4fV %s' % (
+        # The parentheses matter: without them .rstrip() binds to the
+        # argument tuple rather than to the formatted string.
+        lines.append((ANALOG_ROW % (
             row['index'], name, 'diff' if row['differential'] else 'SE',
             row['mean_raw'], row['volts_at_pin'], extra)).rstrip())
-    return '\n'.join(lines)
+    return chr(10).join(lines)
 
 
 def kv(mapping, keys=None):

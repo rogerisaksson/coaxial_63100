@@ -328,6 +328,20 @@ PHRASES = {
             'kort: inget svarade på %s - kvar på %s',
         'board: %s':
             'kort: %s',
+        # The block headings, not the column names: the columns stay as the
+        # board prints them, same rule as a channel name.
+        'analog: %d channels':
+            'analog: %d kanaler',
+        'analog: %d channel':
+            'analog: %d kanal',
+        'digital: %d channels':
+            'digital: %d kanaler',
+        'digital: %d channel':
+            'digital: %d kanal',
+        'reserved: %d pins':
+            'reserverade: %d pinnar',
+        '%d samples @%.0fHz':
+            '%d sampel @%.0fHz',
         'link re-established':
             'länken återupprättad',
         ' -> check the board is powered, and that a JTAG programmer or '

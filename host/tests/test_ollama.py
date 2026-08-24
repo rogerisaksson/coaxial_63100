@@ -412,12 +412,13 @@ def test_board_tools(report):
                  and 'afe_power on' in results[0]['result'],
                  results[0]['result'][:52])
     report.check('and it still carries the codes it read',
-                 'smp' in results[0]['result'],
+                 'samples @' in results[0]['result'],
                  results[0]['result'].splitlines()[-1][:52])
     report.check('the front end switch is not write-gated',
                  'on=1' in results[1]['result'], results[1]['result'])
     report.check('a reading comes back in the compact renderer',
-                 'NTC' in results[2]['result'] and 'smp' in results[2]['result'],
+                 'NTC' in results[2]['result']
+                 and 'samples @' in results[2]['result'],
                  results[2]['result'].splitlines()[0])
     report.check('self test reaches the renderer',
                  'PLL lock' in results[3]['result'],
@@ -1021,7 +1022,7 @@ def test_retype_with_the_trace_off(report):
     report.check('with --quiet it is replaced, not silenced',
                  hushed.strip() != '', repr(hushed)[:52])
     report.check('and what goes out is the board rows, not the retyping',
-                 'smp @' in hushed and retyped not in hushed,
+                 'samples @' in hushed and retyped not in hushed,
                  hushed.splitlines()[0][:52] if hushed else '<empty>')
 
 
@@ -1137,6 +1138,86 @@ def test_map_retype(report):
                  turn(finding) == finding, repr(turn(finding))[:52])
 
 
+def test_reading_block(report):
+    """A reading is a headed block, like the map is.
+
+    Asked for both the digital and the analog values, the two arrived as one
+    wall: a bare `64 smp @2000Hz` over unlabelled columns, then the digital
+    table straight underneath with no gap. The reading is counted and headed
+    now, and the trace puts a blank line between blocks.
+    """
+    from coaxial.simulated import SimulatedSession as Sim
+    from coaxial_mcp import tools as mcp
+    from coaxial_ollama import debug, language
+
+    reading = mcp.HANDLERS['analog_read'](Sim(), samples=64)
+    head = [l for l in reading.splitlines() if not l.startswith('AFE')]
+
+    report.check('the reading says how many channels it read',
+                 head[0] == 'analog: 7 channels', head[0])
+    report.check('and how many samples, spelled out',
+                 head[1] == '64 samples @2000Hz', head[1])
+    report.check('and names its columns', head[2].split()
+                 == ['ch', 'name', 'mode', 'code', 'voltage', 'measure'],
+                 head[2])
+
+    # The header is built from the row's own widths, not written out beside
+    # them. By hand they drifted: `code` and `voltage` are right-aligned, so
+    # a seven-digit number starts a column later than an eight-digit one and
+    # a heading placed over the first is wrong for the second.
+    from coaxial_mcp import render
+    report.check('the header comes from the row format, not from a literal',
+                 head[2] == render.ANALOG_HEAD, head[2])
+
+    # Left-aligned columns start where their heading does; right-aligned
+    # ones end where theirs does.
+    row = next(l for l in head if l.startswith('4 '))
+    for word, field in (('name', 'NTC'), ('mode', 'SE')):
+        report.check('the %s column starts under its heading' % word,
+                     head[2].index(word) == row.index(field),
+                     '%d vs %d' % (head[2].index(word), row.index(field)))
+    for word, field in (('code', '32768.0'), ('voltage', '+1.6500V')):
+        report.check('the %s column ends under its heading' % word,
+                     head[2].index(word) + len(word)
+                     == row.index(field) + len(field),
+                     '%d vs %d' % (head[2].index(word) + len(word),
+                                   row.index(field) + len(field)))
+
+    levels = mcp.HANDLERS['digital_read'](Sim())
+    report.check('the digital block counts channels, not pins',
+                 levels.splitlines()[0] == 'digital: 2 channels',
+                 levels.splitlines()[0])
+    report.check('and both blocks start their first column the same way',
+                 levels.splitlines()[1].split()[0] == 'ch'
+                 and head[2].split()[0] == 'ch')
+    report.check('while the reserved list stays pins - it is not channels',
+                 mcp.HANDLERS['board_info'](Sim(), kind='reserved')
+                 .startswith('reserved: 7 pins'))
+
+    # Swedish on screen, English on the wire: the headings turn, the column
+    # names do not - they are the board's words, like a channel name.
+    turned = language.localise(reading, 'Swedish')
+    report.check('the headings turn for a Swedish session',
+                 'analog: 7 kanaler' in turned and '64 sampel @' in turned,
+                 [l for l in turned.splitlines() if 'kanaler' in l][:1])
+    report.check('and the column names do not',
+                 render.ANALOG_HEAD in turned)
+
+    # Two blocks on one screen get a line between them.
+    screen = io.StringIO()
+    chat = debug.Chat(ScriptedModel([
+        call('analog_read'), call('digital_read'),
+        {'role': 'assistant', 'content': 'Klart.'},
+    ]), toolmod.Toolbox(Sim(), scope=Scope()), out=screen)
+    chat.ask('ge mig värdena på de digitala och analoga kanalerna')
+    printed = screen.getvalue().splitlines()
+    at = next(i for i, l in enumerate(printed) if 'digital:' in l)
+    report.check('a second block is separated from the first',
+                 printed[at - 1].strip() == '', repr(printed[at - 1])[:40])
+    report.check('but the first block has no blank line above it',
+                 printed[0].strip() != '', repr(printed[0])[:40])
+
+
 def test_afe_trace(report):
     """A switch that did what it was told needs no line of its own.
 
@@ -1248,11 +1329,12 @@ def test_map_sections(report):
 
     whole = mcp.HANDLERS['board_info'](session)
     report.check('the two kinds get their own headed blocks',
-                 'analog: 7 channels' in whole and 'digital: 2 pins' in whole,
+                 'analog: 7 channels' in whole
+                 and 'digital: 2 channels' in whole,
                  whole.splitlines()[2] if whole else '<empty>')
     report.check('and the digital block has its own columns, not the analog '
-                 'ones', 'pin  dir   name' in whole,
-                 [l for l in whole.splitlines() if l.startswith('pin')][:1])
+                 'ones', 'ch   dir   name' in whole,
+                 [l for l in whole.splitlines() if l.startswith('ch ')][:2])
 
     only = mcp.HANDLERS['board_info'](session, kind='analog')
     report.check('kind=analog is the analog block and nothing else',
@@ -1654,7 +1736,7 @@ def test_debug(report):
     session.history = [
         {'role': 'user', 'content': 'old question'},
         {'role': 'tool', 'tool_name': 'analog_read',
-         'content': 'analog_read: 128 smp @2000Hz\n' + 'x' * 500},
+         'content': 'analog_read: 128 samples @2000Hz\n' + 'x' * 500},
         {'role': 'assistant', 'content': 'old answer'},
         {'role': 'user', 'content': 'new question'},
     ]
@@ -1665,7 +1747,7 @@ def test_debug(report):
                  and sent[0]['content'].startswith(debug.SYSTEM),
                  sent[0]['content'][-60:].replace('\n', ' '))
     report.check('an old tool result is stubbed to its first line',
-                 '128 smp' in sent[2]['content'] and 'xxxx' not in blob,
+                 '128 samples' in sent[2]['content'] and 'xxxx' not in blob,
                  sent[2]['content'][:44])
     report.check('the recent turns are sent whole',
                  sent[-1]['content'] == 'new question')
@@ -1934,7 +2016,7 @@ def test_debug(report):
     # longer proves the other calls reached the screen.
     report.check('the probe itself is not traced - nobody asked for link stats',
                  'unit_id=' not in first_blank_out.getvalue()
-                 and 'smp @' in first_blank_out.getvalue(),
+                 and 'samples @' in first_blank_out.getvalue(),
                  first_blank_out.getvalue())
 
     # ---- ...and if the board really is down from the start, that is what
@@ -2058,7 +2140,7 @@ def test_debug(report):
     # ---- a table read is not typed out again as the answer -----------------
     report.check('the header row is not mistaken for a channel called smp',
                  'smp' not in replies.READING_ROW.findall(
-                     '64 smp @2000Hz\n0  PhaseU  diff   1427.1  +0.1437V'))
+                     '64 samples @2000Hz\n0  PhaseU  diff   1427.1  +0.1437V'))
 
     retype_session = SimulatedSession()
     retype_box = toolmod.Toolbox(retype_session, shell=Shell(['python']),
@@ -2265,7 +2347,7 @@ def test_debug(report):
                  and 'more characters cut' not in printed,
                  printed.splitlines()[:2])
     report.check('the result rows print whole, un-clipped by the call header',
-                 'smp @' in printed or 'ERR' in printed, printed[:80])
+                 'samples @' in printed or 'ERR' in printed, printed[:80])
 
     # ---- a call the model wrote as text is still a call ----
     pasted = ('CallCheckFunction' + chr(10)
@@ -4106,7 +4188,7 @@ def main():
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_link_recovery, test_channel_map, test_afe_trace, test_digital_read, test_map_sections, test_map_retype, test_port_state,
+                 test_link_diagnose, test_link_recovery, test_channel_map, test_afe_trace, test_reading_block, test_digital_read, test_map_sections, test_map_retype, test_port_state,
                  test_retype_with_the_trace_off,
                  test_power_check_cannot_halt,
                  test_transcript,

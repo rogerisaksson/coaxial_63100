@@ -823,6 +823,7 @@ class Chat:
         last_map_text = None      # and that render, for --quiet
         diagnosed = False  # link_diagnose ran this turn, and was traced
         seen = {}          # (name, args) this turn -> its rendered result
+        self._traced = False   # nothing on screen yet, so no leading gap
         nudges = 0         # times told to call the tool it just named, or to
                            # take a fresh reading instead of an old one
 
@@ -1333,6 +1334,16 @@ class Chat:
         """
         if self.quiet:
             return
+        # A blank line between blocks, once there is more than one. Asked
+        # for both the analog and the digital values, the two tables ran
+        # together into one wall - each is headed and counted now, and the
+        # gap is what makes the heading read as the start of something.
+        # Only before a multi-line result: a one-line answer needs no room
+        # around it.
+        lead = ''
+        if getattr(self, '_traced', False) and chr(10) in str(result).strip():
+            lead = chr(10)
+        self._traced = True
         # English stays in the result the model reads, the log keeps and the
         # MCP server serves; the screen gets the operator's language. Only
         # host-authored sentences turn - a channel name, a unit or anything
@@ -1340,6 +1351,8 @@ class Chat:
         lines = (language.localise(str(result), self.screen_language())
                  .splitlines() or [''])
         with self.print_lock:
+            if lead:
+                print(file=self.out, flush=True)
             for line in lines[:TRACE_ROWS]:
                 for part in _wrapped(line):
                     print(part, file=self.out, flush=True)
