@@ -198,11 +198,32 @@ re-init it does for SW-DP in SWD mode but not the equivalent TAP rescan for JTAG
 firmware update is the only thing that might change it; the probe is on
 `V3J16M9B5S1` and the `stlink-upgrader` bundle is installed.
 
-### `-hardRst` leaves the core halted
+### Two ways to leave the core halted
 
-A full flash cycle ending in `-hardRst` programmed and verified correctly but the
-serial line stayed **completely silent for 10 s**. An explicit `--start` was
-needed. End with `--start`.
+2026-08-24. `find_board.py --power` returned `STM32_Programmer_CLI did not
+answer within 15s`. Everything serial after it was silent: `find_board.probe`
+scored **0/10** consecutive connects, a raw Modbus frame written straight to
+COM4 got nothing, and so did a bare `r` or `?` to the ASCII console. Target
+power read **3.27 V** and SWD read **Device ID 0x450** the whole time, so the
+board was powered and the debug port was fine.
+
+`-c port=SWD mode=UR --start` brought it back in one command, and `--discover`
+answered immediately after.
+
+The check ran `-c port=SWD mode=UR -q` under a 15 s `subprocess.run` timeout.
+Connect-under-reset asserts NRST; killing the programmer there can leave the
+target held in it, and a halted core answers nothing on USART3. `check_power`
+uses `mode=HOTPLUG` now, which never touches reset — measured, it reads the
+same 3.27 V and leaves the board answering.
+
+Worth naming what this cost: `link_diagnose` calls `check_power` as step 1 and
+then asks in step 4 whether the board answers. The checklist was able to cause
+the silence it reported, and an earlier entry in this document blamed the
+hardware for it.
+
+**`-hardRst`.** A full flash cycle ending in `-hardRst` programmed and verified
+correctly but the serial line stayed **completely silent for 10 s**. An explicit
+`--start` was needed. End with `--start`.
 
 ### Phase V sits ~0.85 V from U and W — one unit, suspected bad op-amp
 
@@ -325,7 +346,6 @@ believed it was would still be crashing.
 | IN11 (PC1) moved 9.7 % between 75 and 475 MHz | Unexplained; the channel has no assigned signal |
 | DC bus read twice in one sweep differs by 25-35 LSB | The two read paths give systematically different values, ~29-42 mV at the bus. Not PCSEL — it persisted after that fix. |
 | Phase V op-amp offset | Board owner's, deliberately deferred |
-| The board answers, then does not, on the same cable | Not characterised. 2026-08-24: `test_conformance.py` passed 44/44 over COM4, and ~20 min later `find_board.probe` scored **0/10** consecutive connects with nothing touched. In between, one session connected on the 4th attempt after three failures. Target power read 3.27 V throughout and Windows listed COM4 the whole time, so it is not the cable or the driver. Every host-side path now retries once past a stale handle, which hides the short version of this and not the long one. |
 
 ---
 

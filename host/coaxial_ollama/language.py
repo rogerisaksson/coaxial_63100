@@ -324,8 +324,8 @@ PHRASES = {
             'kanaler.]',
         'budget of %d tokens is spent; /clear or raise --budget':
             'budgeten på %d tokens är förbrukad; /clear eller höj --budget',
-        'board: %s - nothing answered, still on the stand-in':
-            'kort: %s - inget svarade, kvar på det simulerade',
+        'board: nothing answered on %s - still on %s':
+            'kort: inget svarade på %s - kvar på %s',
         'board: %s':
             'kort: %s',
         'link re-established':

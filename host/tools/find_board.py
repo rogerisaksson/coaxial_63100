@@ -42,6 +42,15 @@ def check_power(timeout=15):
     toolchain-path resolution finds the programmer, since it is not on PATH
     unless env.ps1 has already run in this shell.
 
+    `mode=HOTPLUG`, never `mode=UR`. Connect-under-reset asserts NRST, and
+    this call has a timeout that kills the programmer where it stands: a
+    connect killed mid-reset can leave the target held there, and a halted
+    core answers nothing on USART3. Measured on this bench - a `--power`
+    run timed out at 15s, and every serial call afterwards was silent, on
+    both the console and raw Modbus, until `-c port=SWD mode=UR --start`
+    brought it back. HOTPLUG cannot do that: it never touches reset.
+    Diagnosing the link must not be able to break it.
+
     voltage is None when the programmer could not be found or did not
     answer in time - not the same as 0.00V, which is a real reading that
     says the target has none.
@@ -57,7 +66,8 @@ def check_power(timeout=15):
         return None, 'STM32_Programmer_CLI not found - see setup.ps1'
 
     try:
-        done = subprocess.run([programmer, '-c', 'port=SWD', 'mode=UR', '-q'],
+        done = subprocess.run([programmer, '-c', 'port=SWD',
+                               'mode=HOTPLUG', '-q'],
                               capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return None, 'STM32_Programmer_CLI did not answer within %ss' % timeout

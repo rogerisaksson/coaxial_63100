@@ -940,6 +940,52 @@ def test_policy(report):
                         ).startswith('ERR'))
 
 
+def test_power_check_cannot_halt(report):
+    """Diagnosing the link must not be able to break it.
+
+    Measured on this bench, and it cost most of a session: `find_board.py
+    --power` timed out at 15s, and every serial call after it was silent -
+    the console said nothing, a raw Modbus frame said nothing - until
+    `-c port=SWD mode=UR --start` brought the board back. The programmer
+    had been killed mid-connect-under-reset with NRST asserted, and a
+    halted core answers nothing on USART3.
+
+    link_diagnose calls check_power as step 1 and then asks in step 4
+    whether the board answers, so the checklist was able to cause the
+    silence it went on to report.
+    """
+    import find_board
+    import subprocess
+
+    seen = {}
+
+    class Done:
+        stdout, stderr, returncode = 'Voltage     : 3.27V', '', 0
+
+    def spy(argv, **kw):
+        seen['argv'] = list(argv)
+        seen['timeout'] = kw.get('timeout')
+        return Done()
+
+    real_run = subprocess.run
+    try:
+        subprocess.run = spy
+        voltage, _ = find_board.check_power()
+    finally:
+        subprocess.run = real_run
+
+    argv = seen.get('argv') or []
+    report.check('check_power reads the voltage', voltage == 3.27, str(voltage))
+    report.check('and never connects under reset',
+                 'mode=UR' not in argv, ' '.join(argv[1:]) or 'no call made')
+    report.check('it hotplugs instead - reset is never asserted, so a kill '
+                 'cannot leave the core halted',
+                 'mode=HOTPLUG' in argv, ' '.join(argv[1:]) or 'no call made')
+    report.check('and it is still bounded, since that kill is what happens '
+                 'on a wedged probe', bool(seen.get('timeout')),
+                 str(seen.get('timeout')))
+
+
 def test_link_recovery(report):
     """One screen, one verdict about the link.
 
@@ -2360,12 +2406,89 @@ def test_fallback(report):
                  % len(ordered.client.prompts))
     report.check('and answers with the board it landed on',
                  said == 'board: Simulated', said)
-    # Ordered a real board and landed on the stand-in: "board: Simulated"
-    # alone is true and reads as the order having been ignored.
+    # Ordered a real board and found none. Patched, not left to whatever is
+    # plugged into this bench: the first version of this check passed only
+    # while the board happened to be silent, and started failing the moment
+    # it answered again.
+    import coaxial_mcp.session as sessionmod
     ordered.language = None
-    said = ordered.ask('byt till debugproben')
+    was = sessionmod.open_session
+    try:
+        sessionmod.open_session = lambda *a, **kw: (
+            SimulatedSession(),
+            sessionmod.Origin(False, None, 115200, None, 'Simulated'))
+        said = ordered.ask('byt till debugproben')
+    finally:
+        sessionmod.open_session = was
     report.check('a search that found nothing says so, not just where it '
                  'ended up', 'nothing answered' in said, said)
+
+    # An order that cannot be carried out must not cost the board that was
+    # working. Measured: "byt till debugproben" twice in a row on a bench
+    # whose board had gone silent, both times "inget svarade" - and had the
+    # session been on a live probe, the first of those would have dropped it
+    # for a stand-in.
+    import coaxial_mcp.session as sessionmod
+
+    class Live:
+        """A session that is already on a real board."""
+        port, baud, unit = 'COM4', 115200, 1
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+        def reset(self):
+            pass
+
+    real = sessionmod.Origin(True, 'COM4', 115200, 'probe', 'JTAG and COM4')
+    fake = sessionmod.Origin(False, None, 115200, None, 'Simulated')
+
+    def patched(result):
+        def factory(*a, **kw):
+            return (SimulatedSession() if not result.real else Live()), result
+        return factory
+
+    keeper = debug.Chat.__new__(debug.Chat)
+    held = Live()
+    keeper.toolbox = toolmod.Toolbox(held, scope=Scope())
+    keeper.origin, keeper.link_ok = ('JTAG and COM4', True), True
+    keeper.last_channels = {'ntc'}
+
+    original = sessionmod.open_session
+    try:
+        sessionmod.open_session = patched(fake)
+        said = keeper.command('/board rs485')
+        report.check('a search that found nothing keeps the working board',
+                     keeper.toolbox.session is held and not held.closed,
+                     type(keeper.toolbox.session).__name__)
+        report.check('and leaves the prompt tag alone',
+                     keeper.origin == ('JTAG and COM4', True),
+                     str(keeper.origin))
+        report.check('and says what it tried, not just where it ended up',
+                     said.startswith('board: nothing answered on')
+                     and 'JTAG and COM4' in said, said[:56])
+        report.check('and does not wipe a reading from a board it kept',
+                     keeper.last_channels == {'ntc'},
+                     str(keeper.last_channels))
+
+        # Ordering the stand-in never searches, so it always lands.
+        report.check('an order for the stand-in always lands',
+                     keeper.command('/board simulated') == 'board: Simulated',
+                     str(keeper.origin))
+        report.check('and that one does swap, and closes what it left',
+                     keeper.origin == ('Simulated', False) and held.closed,
+                     str(keeper.origin))
+
+        sessionmod.open_session = patched(real)
+        report.check('a search that found a board swaps to it',
+                     keeper.command('/board auto') == 'board: JTAG and COM4'
+                     and keeper.origin == ('JTAG and COM4', True),
+                     str(keeper.origin))
+        report.check('and forgets a table taken from the board it left',
+                     keeper.last_channels is None, str(keeper.last_channels))
+    finally:
+        sessionmod.open_session = original
 
     # /model: same idea one layer up. No weights are loaded here - every path
     # below either refuses or is a no-op, which is the whole logic.
@@ -3573,6 +3696,7 @@ def main():
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
                  test_link_diagnose, test_link_recovery,
+                 test_power_check_cannot_halt,
                  test_transcript,
                  test_debug, test_cli,
                  test_local_only, test_runner_crash_retry,

@@ -1133,6 +1133,25 @@ class Chat:
         else:
             session, found = open_session(rest.strip())
 
+        wanted_real = want not in ('sim', 'simulated', 'fake')
+        if wanted_real and not found.real:
+            # The search found nothing. Do NOT swap: an order that cannot
+            # be carried out must not also cost the board that was working,
+            # and "byt till rs485" on a live probe session would otherwise
+            # drop it for a stand-in. Say what was tried, so the operator
+            # learns something instead of pressing it again - measured, the
+            # same order twice in a row, both times "inget svarade", and
+            # nothing on screen said the cable and driver were fine.
+            try:
+                session.close()
+            except Exception:                                 # noqa: BLE001
+                pass
+            import find_board
+            seen = ', '.join(find_board.list_ports())
+            here = (getattr(self, 'origin', None) or ('unknown',))[0]
+            return ('board: nothing answered on %s - still on %s'
+                    % (seen or 'no COM port at all', here))
+
         previous = self.toolbox.session
         if previous is not session:
             try:
@@ -1146,12 +1165,6 @@ class Chat:
         # Without this, the retype backstop compares an answer against a
         # table taken from different hardware.
         self.last_channels = None
-        if not found.real and want not in ('sim', 'simulated', 'fake'):
-            # Asked for a real board and landed on the stand-in. "board:
-            # Simulated" alone is true and reads as the order being
-            # ignored - the operator cannot tell the search happened.
-            return ('board: %s - nothing answered, still on the stand-in'
-                    % found.label)
         return 'board: %s' % found.label
 
     def _reconnect(self):
