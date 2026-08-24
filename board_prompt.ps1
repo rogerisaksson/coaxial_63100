@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     One window with the model and the board in it.
 
@@ -365,11 +365,16 @@ if ($NoBoard) {
     }
     $ports = @()
     try { $ports = [System.IO.Ports.SerialPort]::GetPortNames() } catch { $ports = @() }
+    # A port name in the list is not a board answering on it - measured, COM4
+    # enumerated while the board stayed silent. The session probes for real and
+    # falls back to a simulated board; its prompt tag is what actually says
+    # which one you got, so neither line here claims more than it knows.
     if ($ports -contains $Port) {
-        Say 'ok' 'board' ("$Port  (ports: " + ($ports -join ', ') + ')')
+        Say 'ok' 'board' ("$Port listed (ports: " + ($ports -join ', ') +
+                          '). The prompt tag says which board answered.')
     } else {
         Say 'warn' 'board' ("no $Port. Present: " + (($ports -join ', ') -replace '^$', 'none') +
-                            '. Questions needing the board will fail.')
+                            '. The session falls back to a simulated board - the prompt says (Simulated).')
     }
 }
 

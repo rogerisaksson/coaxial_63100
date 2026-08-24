@@ -20,6 +20,32 @@ from coaxial import connect, disconnect          # noqa: E402
 from coaxial.errors import RigError              # noqa: E402
 
 
+def open_session(port='COM4', baud=115200, unit=1, simulated=None):
+    """`(session, real)` - the board on `port`, or a stand-in for it.
+
+    `simulated=None` probes and decides: `find_board.probe` makes the same
+    Modbus round trip a session's first tool call would, so "a board
+    answers here" cannot mean one thing to this factory and another to the
+    caller a moment later. `True` skips the probe and takes the stand-in,
+    `False` takes the real Session and lets it fail on first use.
+
+    `real` is not decoration. A suite that ran against `SimulatedSession`
+    proved the host and nothing about the firmware, and a tally that does
+    not say which it was is the plausible-sentence-for-a-fact failure this
+    codebase documents everywhere else. Every caller prints it.
+    """
+    if simulated is None:
+        sys.path.insert(0, os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'tools'))
+        import find_board
+        simulated = not find_board.probe(port, baud, unit)
+    if simulated:
+        from coaxial.simulated import SimulatedSession
+        return SimulatedSession(), False
+    return Session(port, baud, unit), True
+
+
 class Session:
     def __init__(self, port='COM4', baud=115200, unit=1):
         self.port = port

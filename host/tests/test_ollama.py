@@ -2079,6 +2079,67 @@ def _unformat(template):
 
 # ---- what reaches the screen, and how it reads -----------------------------
 
+def test_fallback(report):
+    """No cable is not a failing test suite - it is a different board.
+
+    `open_session` probes the port with the same Modbus round trip a tool
+    call makes, and hands back the stand-in when nothing answers. What it
+    must never do is leave the caller unable to tell which it got: every
+    suite and the prompt itself print it, and that is what these check.
+    """
+    from coaxial_mcp.session import open_session
+    from coaxial_ollama import spinner as spin
+
+    session, real = open_session(simulated=True)
+    report.check('forced simulated skips the probe entirely',
+                 type(session).__name__ == 'SimulatedSession' and not real,
+                 type(session).__name__)
+    report.check('and says "simulated" where a firmware version goes',
+                 session.board.version_info['firmware'] == 'simulated',
+                 session.board.version_info['firmware'])
+
+    # PB2 is the AFE switch, not a spare pin. Measured: writing 0 across
+    # GPIOB left the stand-in answering `on=1` to afe_power one call later,
+    # because the pin map and the switch were two dictionaries - the one
+    # place invariant 9 could be broken by a stand-in with nobody noticing.
+    session.board.gpio.test_mode(True)
+    session.board.afe.enable()
+    session.board.gpio.port_write('B', 0xFFFF, 0)
+    report.check('clearing PB2 on the stand-in turns its AFE off',
+                 not session.board.afe.state()['on'])
+    report.check('and PE15 follows it inversely, as the real one does',
+                 session.board.gpio.pin_read('E', 15) is True)
+    session.board.gpio.pin_write('B', 2, True)
+    report.check('setting PB2 turns it back on',
+                 session.board.afe.state()['on']
+                 and session.board.gpio.port_read('B') & (1 << 2))
+
+    class VT(io.StringIO):
+        encoding = 'utf-8'
+
+        def isatty(self):
+            return True
+
+    for tag, ok, colour in (('Simulated', False, '[33m'),
+                            ('COM4, 115200', True, '[32m')):
+        out = VT()
+        face = spin.Prompt('Coaxial 63100', out, tick=99, tag=tag, tag_ok=ok)
+        face.stop(True)
+        painted = out.getvalue()
+        report.check('the prompt says (%s)' % tag,
+                     '(%s%s[0m)>' % (colour, tag) in painted,
+                     'yellow' if ok is False else 'green')
+        # stop() repaints the prefix only, and the tag sits after the tail.
+        report.check('and the repaint does not eat it: %s' % tag,
+                     painted.count(tag) == 1, '%d copies' % painted.count(tag))
+
+    plain = io.StringIO()                      # no isatty, so no VT
+    spin.Prompt('Coaxial 63100', plain, tick=99, tag='Simulated', tag_ok=False)
+    report.check('a terminal without VT still gets the word, without colour',
+                 '(Simulated)>' in plain.getvalue()
+                 and '[33m' not in plain.getvalue())
+
+
 def test_screen(report):
     """Measured with the board unplugged: every board question printed the
     same four-step checklist twice - once clipped as a tool trace, once whole
@@ -3244,7 +3305,7 @@ def main():
                  test_debug, test_cli,
                  test_local_only, test_runner_crash_retry,
                  test_out_of_memory, test_context_budget, test_detail,
-                 test_screen, test_screen_language,
+                 test_screen, test_screen_language, test_fallback,
                  test_identity,
                  test_keep_alive,
                  test_coerce,

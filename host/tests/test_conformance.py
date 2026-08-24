@@ -395,10 +395,35 @@ def map_tests(run):
                       after >= before, 'before=%d after=%d' % (before, after))
 
 
+def board_answers(port=PORT, baud=BAUD, unit=SLAVE):
+    """Whether there is firmware on the other end to conform to.
+
+    This suite cannot be simulated and is the one that must not be. It is a
+    byte-level master built from the specification precisely so a shared
+    wrong assumption between master and slave cannot hide a defect - and a
+    stand-in for the slave would be exactly that shared assumption, written
+    by the same hand. With no board it runs the CRC self-test, which needs
+    none, and says what it skipped.
+    """
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))), 'tools'))
+    import find_board
+    return find_board.probe(port, baud, unit)
+
+
 if __name__ == '__main__':
     print(selftest_crc())
-    if len(sys.argv) > 1 and sys.argv[1] == '--offline':
+    offline = len(sys.argv) > 1 and sys.argv[1] == '--offline'
+    if not offline and not board_answers():
+        offline = True
+        print('no board on %s - the bus tests need firmware to conform to '
+              'and cannot be simulated' % PORT)
+    if offline:
         print('harness self-test only; skipping bus tests')
+        # A tally either way: without one, run_tests.py reads the suite as
+        # having crashed before it could print its own numbers.
+        print(chr(10) + '1 passed, 0 failed')
         sys.exit(0)
     bus = Bus()
     run = Runner(bus)

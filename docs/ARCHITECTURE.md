@@ -162,6 +162,32 @@ under: in FINDINGS the chapter is the meaning, and an entry quoted out of
 *Refuted* says the opposite of what the document says. See
 [MODELS.md](MODELS.md).
 
+`coaxial_mcp.session.open_session(port, baud, unit, simulated=None)` returns
+`(session, real)`. With `simulated=None` it probes the port through
+`tools/find_board.probe` — the same Modbus round trip a tool call makes, not a
+weaker check that could pass here and fail a moment later — and hands back
+`coaxial.simulated.SimulatedSession` when nothing answers.
+
+`SimulatedSession` is duck-typed against `Session` and `Board`, not a protocol
+simulator: it builds no frames. Every touchpoint labels itself — `firmware` and
+`build` read literally `simulated` in the version record, so `board_info` alone
+tells them apart.
+
+`real` is the half that matters. A suite that ran against the stand-in proved
+the host and nothing about the firmware, so every caller prints which it got:
+
+| Caller | Says it as |
+|---|---|
+| `dbg.py` | the prompt tag — `Coaxial 63100(COM4, 115200)` green, `(Simulated)` yellow |
+| `python -m coaxial_mcp` | a line on stderr; `--simulated` forces it, `--auto` probes |
+| `test_mcp.py`, `test_live_model.py` | a header line before the first `PASS` |
+
+`test_conformance.py` deliberately does not use it. It is an independent
+byte-level master, built from the specification so a shared wrong assumption
+between master and slave cannot hide a defect — and a simulated slave would be
+that shared assumption, written by the same hand. With no board it runs its CRC
+self-test and says what it skipped.
+
 ### `host/coaxial_ollama/` — the local model, and the loop around it
 
 The largest package, and the one with the most rules per line, because almost

@@ -69,10 +69,18 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_ollama.py` (426, offline), `test_simulated.py` (34, offline),
-`test_mcp.py` (39, **needs the board**), `test_conformance.py` (43, needs the
-board, `--conformance`), `test_live_model.py` (24, needs the board **and**
+Suites: `test_ollama.py` (436), `test_simulated.py` (34), `test_mcp.py` (39),
+`test_conformance.py` (43, `--conformance`), `test_live_model.py` (24, needs
 ollama, `--live`) - the only one where the model itself is under test.
+
+**A missing cable is not a failing suite.** Every one of them picks its session
+through `coaxial_mcp.session.open_session()`, which probes the port with the
+same Modbus round trip a tool call makes and falls back to
+`coaxial.simulated.SimulatedSession`. Each says which it got, and so does the
+prompt: `Coaxial 63100(COM4, 115200)` in green, `Coaxial 63100(Simulated)` in
+yellow. `test_conformance.py` is the exception - a byte-level master has
+nothing to conform to without firmware, so with no board it runs its CRC
+self-test and says what it skipped.
 
 The ST toolchain is not on the system PATH — arm-gcc, cmake, ninja and
 `STM32_Programmer_CLI` live under `%LOCALAPPDATA%\stm32cube\bundles\`, fetched by

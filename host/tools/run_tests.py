@@ -29,13 +29,18 @@ DEFAULT_SUITES = ('test_ollama.py', 'test_mcp.py', 'test_simulated.py')
 CONFORMANCE = 'test_conformance.py'
 LIVE = 'test_live_model.py'
 
-# Suites that talk to the hardware. test_mcp.py says so in its own docstring
-# - it drives the real server over stdio against a real port - but this script
-# called the default set 'offline' and so did the docs, which is how an
+# A cable is not a regression. That used to need saying loudly here - an
 # unplugged board turned into '22 failed' in a verify loop that was meant to
-# be checking a code change. A cable is not a regression, and the tally has to
-# be able to tell the difference.
-NEEDS_BOARD = ('test_mcp.py', CONFORMANCE, LIVE)
+# be checking a code change - and now it is enforced instead: every suite
+# picks its session through coaxial_mcp.session.open_session(), which probes
+# the port and falls back to the simulated board, and every one of them
+# prints which it got.
+#
+# CONFORMANCE is the exception and stays listed, because it is the one suite
+# a stand-in cannot stand in for: it is an independent byte-level master, and
+# a simulated slave would be the shared wrong assumption it exists to rule
+# out. With no board it runs its CRC self-test and says what it skipped.
+NEEDS_BOARD = (CONFORMANCE,)
 
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed$')
 FAIL_RE = re.compile(r'^\s*FAIL\s+(.+?)\s{2,}')
@@ -106,9 +111,10 @@ def main(argv=None):
                         help='run only this test file (repeatable), instead '
                              'of the default set')
     parser.add_argument('--offline', action='store_true',
-                        help='skip the suites that need the board on COM4 '
-                             '(test_mcp.py), leaving what a change to the '
-                             'host code can be judged by with no cable')
+                        help='skip the suites whose meaning depends on a real '
+                             'board (%s). The default set runs either way - '
+                             'it falls back to the simulated board and says '
+                             'so.' % ', '.join(NEEDS_BOARD))
     args = parser.parse_args(argv)
 
     suites = list(args.file) if args.file else list(DEFAULT_SUITES)

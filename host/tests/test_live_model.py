@@ -13,13 +13,15 @@ What is asserted is *that* `analog_read` was called, never what it returned -
 invariant 10. There are no expected values here and there is nothing for one
 to be compared against.
 
-Needs ollama, and a board answering on COM4 unless --simulated. Minutes, not
-seconds: a model load plus a turn per question.
+Needs ollama. The board is probed and a silent port falls back to the
+stand-in, so this runs with or without a cable - the model is the real one
+either way, and the model is what is under test. Minutes, not seconds: a
+model load plus a turn per question.
 
 Run from the host directory:
 
     python tests/test_live_model.py
-    python tests/test_live_model.py --simulated   # no cable, still a real model
+    python tests/test_live_model.py --simulated   # skip the probe
     python tools/run_tests.py --live
 """
 import argparse
@@ -84,12 +86,10 @@ def safe(text, limit=60):
 
 
 def build(model, port, simulated):
-    if simulated:
-        from coaxial.simulated import SimulatedSession
-        session = SimulatedSession()
-    else:
-        from coaxial_mcp.session import Session
-        session = Session(port, 115200, 1)
+    """(session, chat, real). `simulated=False` probes and falls back."""
+    from coaxial_mcp.session import open_session
+    session, real = open_session(port, 115200, 1,
+                                 simulated=True if simulated else None)
     client = Ollama(model, keep_alive=0)
     toolbox = toolmod.Toolbox(session, scope=Scope())
     # `read` rather than the default set: the fewer tools in the schema, the
@@ -97,7 +97,7 @@ def build(model, port, simulated):
     # need. out is a sink - the trace is noise between PASS lines.
     chat = debug.Chat(client, toolbox, tools='read', quiet=True,
                       out=io.StringIO(), session_language=START)
-    return session, chat
+    return session, chat, real
 
 
 def main(argv=None):
@@ -105,13 +105,20 @@ def main(argv=None):
     parser.add_argument('-m', '--model', default='gemma4:12b')
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--simulated', action='store_true',
-                        help='no cable; the model is still the real one')
+                        help='skip the probe and take the stand-in. Without '
+                             'it the port is probed and a silent one falls '
+                             'back to the stand-in anyway - the model is the '
+                             'real one either way, which is what this tests')
     args = parser.parse_args(argv)
 
-    session, chat = build(args.model, args.port, args.simulated)
+    session, chat, real = build(args.model, args.port, args.simulated)
     report = Report()
+    # Which board, said before the first PASS. The tool-choice checks below
+    # hold either way - reaching analog_read is the model's decision, not the
+    # board's - but "answered 38.53C" from a stand-in is an invented number,
+    # and this suite never asserts on one. See invariant 10.
     print('-- %s, %s --'
-          % (args.model, 'simulated board' if args.simulated else args.port))
+          % (args.model, args.port if real else 'SIMULATED board'))
     try:
         for question, needs_board, expect in TURNS:
             before = len(chat.toolbox.log)
@@ -144,9 +151,16 @@ def main(argv=None):
                          ', '.join(called) or 'no calls')
             # detect() is the same judge the session prompt is built from, so
             # a disagreement here is the operator's screen disagreeing too.
+            # None passes: measured against the stand-in, "las NTC:n och
+            # DC-lanken" was answered "NTC: 25.00C DC-lanken: 39.075V" - terse
+            # and no preamble, exactly what SYSTEM asks for, and not one word
+            # for a stop-word list to score. An answer with no words in it
+            # cannot be in the wrong language. Anything that does detect must
+            # be right.
             spoke = language.detect(answer)
-            report.check('answered in %s' % expect, spoke == expect,
-                         '%s: %s' % (spoke, safe(answer, 44)))
+            report.check('answered in %s' % expect, spoke in (expect, None),
+                         'no words to judge' if spoke is None
+                         else '%s: %s' % (spoke, safe(answer, 44)))
             report.check('and the lock is still %s' % expect,
                          chat.language == expect, str(chat.language))
     finally:

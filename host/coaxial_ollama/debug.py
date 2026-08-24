@@ -1201,14 +1201,21 @@ def build(args):
                     remote_ok=args.allow_remote,
                     keep_alive=keep_alive_for(args), fmt=args.fmt,
                     num_gpu=gpu_layers)
+    # What the session talks to, and what the prompt says it talks to - one
+    # decision, so the two cannot disagree. With no flag the port is probed
+    # and a silent one falls back to the stand-in rather than failing every
+    # call: a bench without the cable in is a session about the code, and it
+    # should still run.
     if args.no_board:
-        session = NoBoard()
+        session, origin = NoBoard(), ('no board', False)
     elif args.simulated:
         from coaxial.simulated import SimulatedSession
-        session = SimulatedSession()
+        session, origin = SimulatedSession(), ('Simulated', False)
     else:
-        from coaxial_mcp.session import Session
-        session = Session(args.port, args.baud, args.unit)
+        from coaxial_mcp.session import open_session
+        session, real = open_session(args.port, args.baud, args.unit)
+        origin = (('%s, %d' % (args.port, args.baud)) if real
+                  else 'Simulated', real)
 
     allow = [a for a in args.allow.split(',') if a.strip()]
     toolbox = Toolbox(session, shell=Shell(allow), scope=Scope(),
@@ -1218,6 +1225,7 @@ def build(args):
                 budget=args.budget, quiet=args.quiet,
                 detail_level=args.detail,
                 session_language=args.lang or language.system_language())
+    chat.origin = origin
     return client, session, chat
 
 
@@ -1254,8 +1262,9 @@ def repl(chat, hold=False):
             # chat.out is pointed at the same tracked stream so the prompt
             # knows how many rows whatever _trace() prints actually add -
             # not a number decided once and trusted for the whole question.
+            tag, tag_ok = getattr(chat, 'origin', None) or (None, True)
             face = spin.prompt(PROMPT, sys.stdout, lock=chat.print_lock,
-                               ok=chat.link_ok)
+                               ok=chat.link_ok, tag=tag, tag_ok=tag_ok)
             chat.out = face.out
             try:
                 line = input().strip()

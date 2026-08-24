@@ -5,6 +5,8 @@ type hints and docstrings, which is convenient and produces a bigger tool list
 than necessary; here the schemas are hand-written because their size is the
 thing being optimised.
 """
+import sys
+
 import anyio
 import mcp.types as types
 from mcp.server.lowlevel import Server
@@ -14,7 +16,7 @@ from coaxial.errors import RigError
 
 from . import detail as detailmod
 from . import render
-from .session import Session
+from .session import Session, open_session
 from .tools import HANDLERS, TOOLS
 
 SERVER_NAME = 'coaxial-63100'
@@ -65,8 +67,15 @@ def build(session, level=detailmod.FULL):
     return server
 
 
-async def serve(port='COM4', baud=115200, unit=1, level=detailmod.FULL):
-    session = Session(port, baud, unit)
+async def serve(port='COM4', baud=115200, unit=1, level=detailmod.FULL,
+                simulated=False):
+    session, real = open_session(port, baud, unit, simulated=simulated)
+    if not real:
+        # stderr, not stdout: stdout is the JSON-RPC pipe. board_info says
+        # "simulated" in the version record either way - this is for whoever
+        # started the process and would otherwise not know.
+        print('no board on %s - serving a simulated one' % port,
+              file=sys.stderr, flush=True)
     server = build(session, level)
     try:
         async with stdio_server() as (read_stream, write_stream):
@@ -82,6 +91,15 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser(prog='python -m coaxial_mcp')
     parser.add_argument('--port', default='COM4')
+    parser.add_argument('--simulated', dest='simulated', action='store_const',
+                        const=True, default=False,
+                        help='serve a stand-in board instead of opening the '
+                             'port. board_info reports "simulated" for the '
+                             'firmware either way')
+    parser.add_argument('--auto', dest='simulated', action='store_const',
+                        const=None,
+                        help='probe --port first and fall back to the '
+                             'stand-in only if nothing answers')
     parser.add_argument('--baud', type=int, default=115200)
     parser.add_argument('--unit', type=int, default=1)
     parser.add_argument('--detail', default=detailmod.FULL,
@@ -94,5 +112,5 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     anyio.run(serve, args.port, args.baud, args.unit,
-              detailmod.resolve(args.detail))
+              detailmod.resolve(args.detail), args.simulated)
     return 0

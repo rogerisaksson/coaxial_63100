@@ -252,7 +252,18 @@ def weak_model_arguments(server, report):
 
 
 def main():
-    server = ServerProcess(['--port', 'COM4'])
+    # --auto, not --port alone: with no board on COM4 the server serves a
+    # stand-in rather than failing every call, and this suite is then
+    # testing the MCP layer - the schemas, the JSON-RPC, the argument
+    # coercion, the render - which is all of it that does not need
+    # firmware. What it is NOT testing then is the firmware, so the tally
+    # says which it ran against and never leaves that to be assumed.
+    from coaxial_mcp.session import open_session
+    _, real = open_session('COM4', simulated=None)
+    server = ServerProcess(['--port', 'COM4'] + ([] if real else ['--simulated']))
+    print('-- against %s --'
+          % ('the board on COM4' if real else 'a SIMULATED board: nothing '
+             'here says anything about the firmware'))
     report = Report()
     try:
         handshake(server, report)

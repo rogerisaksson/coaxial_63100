@@ -189,7 +189,8 @@ class Prompt:
     the same tracked stream and have "how far up" stay correct regardless
     of what prints while the bar is busy."""
 
-    def __init__(self, text, out, lock=None, ok=True, tick=TICK):
+    def __init__(self, text, out, lock=None, ok=True, tick=TICK,
+                 tag=None, tag_ok=True):
         # RLock, not Lock: _trace() in debug.py already holds this lock for
         # its whole loop of print()s, each of which re-enters it again
         # inside _Tracked.write() - a plain Lock would deadlock the second
@@ -214,17 +215,32 @@ class Prompt:
 
         self.icon = self.icon_wait if ok else self.icon_error
         self.color = GREEN if ok else RED
+        # What the session is actually talking to, in parentheses after the
+        # name: "COM4, 115200" green for a board, "Simulated" yellow for a
+        # stand-in. Written once, after `tail`, and never repainted - _paint()
+        # rewrites only the prefix, which ends before this. The colour is the
+        # whole point: a session that quietly fell back to invented values is
+        # the one thing on this screen a reader must not have to ask about.
+        self.tag = tag
+        self.tag_color = GREEN if tag_ok else YELLOW
         self.rows_up = 0                 # 0 while still on this row, 1 after
         self.frame = 0
         self.done = threading.Event()
         self.thread = None
 
         with self.lock:
-            self.out.write(self._prefix() + self.tail + '>')
+            self.out.write(self._prefix() + self.tail + self._tag() + '>')
             self.out.flush()
         if self.vt:
             self.thread = threading.Thread(target=self._run, daemon=True)
             self.thread.start()
+
+    def _tag(self):
+        if not self.tag:
+            return ''
+        if not self.vt:
+            return '(%s)' % self.tag
+        return '(%s%s%s)' % (self.tag_color, self.tag, RESET)
 
     def _prefix(self):
         glyph = BARS[self.frame % len(BARS)]
@@ -288,5 +304,6 @@ class Prompt:
             self._paint()
 
 
-def prompt(text, out, lock=None, ok=True, tick=TICK):
-    return Prompt(text, out, lock=lock, ok=ok, tick=tick)
+def prompt(text, out, lock=None, ok=True, tick=TICK, tag=None, tag_ok=True):
+    return Prompt(text, out, lock=lock, ok=ok, tick=tick,
+                  tag=tag, tag_ok=tag_ok)

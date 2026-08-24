@@ -127,10 +127,22 @@ class SimulatedGpio:
     is a courtesy for a script that forgets the gate, not a protocol
     simulation of the rejection a real board would send back."""
 
-    def __init__(self):
+    # PB2 is the AFE switch, not just a pin. A GPIO write that clears it
+    # turns the front end off on real hardware, and a simulator that kept
+    # the two in separate dictionaries answered `afe_power read` with `on=1`
+    # one call after GPIOB went low - measured, and the one place invariant
+    # 9 could be broken by a stand-in without anyone noticing.
+    AFE_PORT, AFE_PIN = 'B', 2
+    # PE15 follows AFE_ON inversely - HARDWARE.md, Discrete I/O. SimulatedAfe
+    # already reports it in state(); this is what makes reading the pin agree
+    # with reading the switch.
+    PE15_PORT, PE15_PIN = 'E', 15
+
+    def __init__(self, afe=None):
         self.gate_open = False
         self._pins = {}
         self._ports = {}
+        self.afe = afe
 
     def test_mode(self, enable):
         self.gate_open = bool(enable)
@@ -152,24 +164,50 @@ class SimulatedGpio:
         self._guard(port, pin)
         self._require_gate()
 
+    def _drive_afe(self, level):
+        """PB2 written by hand: move the front end with it, or the pin and
+        the switch it is disagree for the rest of the session."""
+        if self.afe is None:
+            return
+        self.afe.enable() if level else self.afe.disable()
+
+    def _afe_on(self):
+        return bool(self.afe.state()['on'])
+
     def pin_read(self, port, pin):
         self._guard(port, pin)
-        return self._pins.get((str(port).upper()[:1], pin), False)
+        letter = str(port).upper()[:1]
+        if self.afe is not None:
+            if (letter, pin) == (self.AFE_PORT, self.AFE_PIN):
+                return self._afe_on()
+            if (letter, pin) == (self.PE15_PORT, self.PE15_PIN):
+                return not self._afe_on()
+        return self._pins.get((letter, pin), False)
 
     def pin_write(self, port, pin, level):
         self._guard(port, pin)
         self._require_gate()
-        self._pins[(str(port).upper()[:1], pin)] = bool(level)
+        letter = str(port).upper()[:1]
+        self._pins[(letter, pin)] = bool(level)
+        if (letter, pin) == (self.AFE_PORT, self.AFE_PIN):
+            self._drive_afe(bool(level))
         return bool(level)
 
     def port_read(self, port):
-        return self._ports.get(str(port).upper()[:1], 0)
+        letter = str(port).upper()[:1]
+        value = self._ports.get(letter, 0)
+        if self.afe is not None and letter == self.AFE_PORT:
+            bit = 1 << self.AFE_PIN
+            value = value | bit if self._afe_on() else value & ~bit
+        return value
 
     def port_write(self, port, mask, value):
         self._require_gate()
         letter = str(port).upper()[:1]
         current = self._ports.get(letter, 0)
         self._ports[letter] = (current & ~mask) | (value & mask)
+        if letter == self.AFE_PORT and mask & (1 << self.AFE_PIN):
+            self._drive_afe(bool(value & (1 << self.AFE_PIN)))
         return self._ports[letter]
 
 
@@ -184,7 +222,7 @@ class SimulatedBoard:
         self.link = SimulatedLink()
         self.afe = SimulatedAfe()
         self.analog = SimulatedAnalog(self.afe)
-        self.gpio = SimulatedGpio()
+        self.gpio = SimulatedGpio(self.afe)
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'
