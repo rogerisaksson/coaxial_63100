@@ -64,7 +64,7 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_ollama.py` (386, offline), `test_simulated.py` (26, offline),
+Suites: `test_ollama.py` (402, offline), `test_simulated.py` (34, offline),
 `test_mcp.py` (39, **needs the board**), `test_conformance.py` (43, needs the
 board, `--conformance`).
 
@@ -178,10 +178,13 @@ Invariant 10 applies to it exactly as it applies to the firmware.
 
 ## How to write here
 
-Terse, friendly, and never at the cost of a fact. A comment earns its place by
-saying something the code cannot: a measured number, why an obvious approach was
-rejected, a failure that has already happened. It loses its place by restating
-the code, telling the story twice, or hedging.
+**Correct, short, concise — in that order.** A short wrong comment is worse
+than a long right one; everything else here assumes the fact is right first.
+
+Applies to code, comments, docstrings, documentation, commit messages and
+replies. A line earns its place by saying what the code cannot: a measured
+number, why an obvious approach was rejected, a failure that has happened. It
+loses it by restating the code, telling the story twice, or hedging.
 
 ```python
 # Measured: ch=['bus'] was refused with the channel it meant in the refusal.   # good
@@ -189,8 +192,12 @@ the code, telling the story twice, or hedging.
 ```
 
 Three lines is a long comment. A docstring says what the function is for and
-what a caller has to know — not a narrative of how it came to be. Keep the
-measurement, drop the paragraph around it.
+what a caller must know, not how it came to be. Docs lead with the answer;
+tables and numbers beat paragraphs. A commit message says what changed and
+what was measured — not the reasoning that got there.
+
+Trimming existing prose: keep every measurement, rejected alternative and
+recorded failure. Cut the paragraph around them.
 
 ## Layout
 
