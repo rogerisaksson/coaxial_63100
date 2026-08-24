@@ -1,39 +1,28 @@
 """The tool surface handed to the model: the MCP set, plus code, shell, report.
 
-The nine board tools are imported from `coaxial_mcp.tools`, not re-declared.
-That is deliberate and it is the main structural decision in this package: there
-is one description of what a fixture can do to this board, one set of hand-tuned
-compact renderers, and one place a new capability gets added. A second, drifting
-copy of that surface written for Ollama would be the worst kind of duplication -
-the kind that stays plausible while going out of date.
+The nine board tools are imported from `coaxial_mcp.tools`, never re-declared -
+one description of what a fixture can do to this board, one set of renderers,
+one place a capability is added. A second copy written for Ollama would stay
+plausible while going out of date.
 
-Five tools are added here, and they are what makes this a runner rather than a
-chat window:
+Six more, and they are what makes this a runner rather than a chat window:
 
-  run_command    an allowlisted process, for the things that are not the board:
-                 a build, a flash, `python -m coaxial`.
-  run_python     code against the live `board` object, in a namespace that
-                 persists across the whole run.
-  build_firmware host/tools/build_and_flash.py, fixed arguments only - the
-                 narrow, always-available answer to "build and flash", so a
-                 session does not need run_command's wider surface just for
-                 that one job.
-  run_tests      host/tools/run_tests.py - every offline suite's own tally,
-                 parsed by that script rather than summarised by the model.
-                 Ungated: it never touches the board's state or its flash.
-  link_diagnose  why the board is not answering - OS-level (COM ports
-                 present, driver enumeration), not another Modbus call the
-                 dead link would fail too. Also ungated, for the same reason.
-  report         how a step ends. The model reports a value and a unit; it is
-                 never told the limit and never asked for a verdict.
+  run_command    an allowlisted process: a build, a flash, `python -m coaxial`.
+  run_python     code against the live `board`, in a namespace that persists.
+  build_firmware tools/build_and_flash.py, fixed arguments - the narrow answer
+                 to "build and flash", so a session needs no wider surface.
+  run_tests      tools/run_tests.py - each suite's own tally, parsed by that
+                 script. Ungated: it touches neither state nor flash.
+  link_diagnose  why the board is silent, OS-level rather than another Modbus
+                 call the dead link would fail too. Ungated for the same reason.
+  report         how a step ends: a value and a unit, never a verdict.
 
-Fifteen tools, against the nine that coaxial_mcp keeps to. The extra cost is
-real and it is paid for one thing: a plan step can say "work out which channel
-this is" instead of naming a function code.
+Fifteen against coaxial_mcp's nine. The extra cost buys one thing: a plan step
+can say "work out which channel this is" instead of naming a function code.
 
-Note what `report` is not: an assertion. It carries no pass/fail field, because
-a field like that is a place for a model to put an opinion, and the runner would
-then have to decide whether to believe it. plan.Limit decides, in Python.
+`report` is not an assertion - no pass/fail field, because a field like that is
+where a model puts an opinion the runner would have to weigh. plan.Limit
+decides, in Python.
 """
 import json
 import os
@@ -60,14 +49,11 @@ import find_board                                          # noqa: E402
 from .sandbox import clip_ends                             # noqa: E402
 
 # The ceiling on anything a tool may put in front of the model, in characters
-# - about a thousand tokens. Not a tidiness rule: a tool result goes straight
-# into the conversation and is re-sent on every following turn of the same
-# question, so one unbounded build log is a prompt that keeps growing until
-# the daemon has to allocate for it. `Shell` and `Scope` have clipped their
-# own output all along; build_firmware, run_tests and link_diagnose ran their
-# subprocesses directly and did not, which is exactly where the largest
-# outputs in this package come from. The cap lives at the dispatch point
-# instead, so it holds for every handler including the ones not written yet.
+# - about a thousand tokens. A result is re-sent on every later turn of the
+# same question, so one unbounded build log is a prompt that keeps growing.
+# At the dispatch point rather than per handler, so it holds for the ones not
+# written yet: Shell and Scope always clipped, build_firmware, run_tests and
+# link_diagnose ran subprocesses directly and did not.
 TOOL_LIMIT = 4000
 
 
@@ -167,14 +153,11 @@ WRITE_CALLS = {
     'test_gate': lambda a: bool(a.get('enable')),
 }
 
-# Code and commands are on by default - a runner that cannot run them is not the
-# tool that was asked for - and they are what --read-only takes away. Note that
-# `allow_writes` cannot police them: run_python holds the same board object the
-# gpio tools do, so code is either trusted for this run or it is not available.
-# build_firmware is here too: every call in CODE_CALLS is unconditionally a
-# write for --confirm purposes (see is_write), on purpose - the risk this
-# board carries is in the flash step, not the build, and 'action' is a model
-# argument this loop does not get to trust before --confirm has seen it.
+# On by default, and what --read-only takes away. `allow_writes` cannot police
+# them: run_python holds the same board object the gpio tools do, so code is
+# either trusted for this run or unavailable. build_firmware counts as a write
+# for --confirm whatever `action` says - the risk is the flash step, and
+# `action` is a model argument this loop does not trust before --confirm.
 CODE_CALLS = ('run_python', 'run_command', 'build_firmware')
 
 # Tools that are neither a board handler nor a CODE_CALLS entry, and need no
@@ -192,12 +175,8 @@ LINK_TOOLS = set(BOARD_HANDLERS) - {'docs'}
 def arguments(call):
     """One tool call's arguments, whatever shape Ollama sent them in.
 
-    Usually an object; some builds send a JSON string. A string that will
-    not parse is kept under `_unparsed` rather than dropped - `coerce`
-    passes unknown keys through and every handler takes `**_`, so it costs
-    nothing at the call site and it is the difference between a transcript
-    that records what the model actually sent and one that quietly shows
-    an empty argument list. debug.py used to return {} here instead, which
+    Usually an object; some builds send a JSON string. One that will not parse
+    is kept under `_unparsed` rather than dropped - returning {} instead
     turned a malformed `analog_read` into a silent read of every channel.
     """
     args = (call.get('function') or {}).get('arguments')
@@ -280,10 +259,8 @@ class Toolbox:
     def call(self, name, args):
         """Never raises for anything the model did. Returns text, or Reported.
 
-        Model mistakes - a bad channel name, an unknown tool, a refused pin -
-        are answers, not exceptions: the model has to read them to correct
-        itself, and a traceback in the transcript would only mean the run died
-        where it could have recovered.
+        A bad channel name, an unknown tool, a refused pin: answers, not
+        exceptions. The model has to read them to correct itself.
         """
         args = dict(args or {})
         self.log.append((name, args))
@@ -376,11 +353,9 @@ class Toolbox:
         return self.shell.run(cmd, args.get('timeout_s'))
 
     def _build_firmware(self, args):
-        """host/tools/build_and_flash.py, invoked directly - not through
-        `self.shell`, so this tool works regardless of what --allow was
-        set to. There is nothing here for a model to choose beyond
-        `action`: no preset, no elf path, no flash arguments - see that
-        script for why those are fixed rather than passed through.
+        """tools/build_and_flash.py directly, not through `self.shell`, so
+        this works whatever --allow was set to. Nothing here for a model to
+        choose but `action`: no preset, no elf path, no flash arguments.
         """
         action = args.get('action') or 'both'
         if action not in ('build', 'flash', 'both'):
@@ -419,21 +394,13 @@ class Toolbox:
     def _relink(self):
         """Reopen the serial link after a flash - not just wait for it.
 
-        `--start` resets the MCU, which reboots into its ASCII console the
-        same way it does after any power-up (see coaxial/board.py's
-        `open_binary`) - not the binary Modbus mode a cached `Session.board`
-        assumes it is still in. Left alone, the very next board tool this
-        turn or the next reaches for sends a Modbus frame at a board that is
-        listening for console text, gets silence back, and reports the link
-        down - measured live: `build_firmware` said FLASH ok and the next
-        call was `NoReplyError: ... silence` a moment later, on hardware
-        that had, in fact, just come back up.
+        `--start` resets the MCU, which reboots into its ASCII console, not
+        the binary Modbus mode a cached `Session.board` assumes. Measured
+        live: FLASH ok, then `NoReplyError: ... silence` on hardware that had
+        just come back up.
 
-        `session.reset()` drops the stale handle; the retries are for the
-        reboot itself, not the handshake - HAL init after `--start` is
-        sub-millisecond on this part, but three tries a third of a second
-        apart costs nothing against a flash that just took over a second,
-        and buys margin against a slow one.
+        reset() drops the stale handle; the three retries are for the reboot,
+        not the handshake, and cost nothing against a flash that took a second.
         """
         if self.session is None or not hasattr(self.session, 'port'):
             # NoBoard (or no session at all) - nothing was ever connected in
@@ -454,11 +421,9 @@ class Toolbox:
                 'before reporting a dead link.' % last)
 
     def _run_tests(self, args):
-        """host/tools/run_tests.py - every suite's own tally, parsed by that
-        script, never re-summarised here or by the model. See its docstring
-        for why: a model's paraphrase of test output is exactly the kind of
-        plausible-but-unverified line this project's own FINDINGS.md warns
-        against.
+        """tools/run_tests.py - every suite's own tally, parsed by that
+        script, never re-summarised here or by the model. A paraphrase of
+        test output is the plausible-but-unverified line FINDINGS warns about.
         """
         argv = [sys.executable, _RUN_TESTS]
         if args.get('conformance'):
@@ -477,26 +442,17 @@ class Toolbox:
         return text if done.returncode == 0 else 'ERR %s' % text
 
     def _link_diagnose(self, args):
-        """A step-by-step checklist, most fundamental first, stopping at the
-        first step that explains the silence rather than running every
-        later one regardless - `de mest logiska alternativen`, in the order
-        that actually rules each one out or in.
+        """A checklist, most fundamental first, stopping at the step that
+        explains the silence rather than running the rest regardless.
 
-        `host/tools/find_board.py` does the actual work (port listing,
-        probing, and the SWD power check) - the same module
-        `board_prompt/ComPort.ps1`'s Test-BoardPort/Find-BoardPort call out
-        to, as a subprocess, for -AutodetectComport before a Python session
-        even exists. One implementation, imported here rather than shelled
-        out to since this call is already inside the same process, so "does
-        this port answer" cannot drift between what a live session finds
-        and what the preflight found.
+        `tools/find_board.py` does the work - the same module
+        board_prompt/ComPort.ps1 shells out to, imported here since this call
+        is already in-process, so "does this port answer" cannot drift
+        between a live session and the preflight.
 
-        Step 1, target power over SWD, is the one this tool could not check
-        before and the board's own serial side cannot check at all - see
-        find_board.check_power(). Measured live on this bench: an unplugged
-        ST-Link cable read `Voltage: 0.00V`, where the serial side alone
-        only ever said "silence" - a real fact, but a far less specific one
-        pointing at the same actual cause.
+        Step 1, target power over SWD, is the one the serial side cannot
+        check at all: measured, an unplugged ST-Link read `Voltage: 0.00V`
+        where serial alone only ever said "silence".
         """
         configured = getattr(self.session, 'port', None)
         baud = getattr(self.session, 'baud', 115200)
@@ -575,11 +531,7 @@ class Toolbox:
         # Coerced against the tool's own schema first: see
         # coaxial_mcp.tools.coerce for what a small model sends instead.
         #
-        # `detail` rides along with every board call and is not one of the
-        # model's arguments - it is this run's, and coerce() would drop it as
-        # unknown. Only `docs` reads it (a section clipped for the reader
-        # rather than for the document); every other handler takes **_ and
-        # ignores it, which is what keeps this one line rather than a
-        # per-handler signature change.
+        # `detail` is this run's, not the model's - coerce() would drop it as
+        # unknown. Only `docs` reads it; every other handler takes **_.
         return BOARD_HANDLERS[name](self.session, detail=self.detail,
                                     **board_coerce(name, args))

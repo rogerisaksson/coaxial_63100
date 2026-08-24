@@ -21,14 +21,13 @@ drops cloud tags from the candidate list so a bare stem cannot resolve onto one.
 
 ## Which tag, and who decides
 
-From inside the editor there are two ways to the prompt, both in the docked
-terminal panel: the **Board prompt** profile in the terminal dropdown for a
-conversation, and **Ctrl+Shift+B** for one question. Both are checked in, in
-`.vscode/settings.json` and `.vscode/tasks.json`. Nothing outside VS Code can
-type into a terminal that is already open, which is why these exist rather than
-something that pushes a command into the one you are looking at.
+Two ways to the prompt from inside the editor, both in the docked panel and
+both checked in: the **Board prompt** terminal profile for a conversation
+(`.vscode/settings.json`), **Ctrl+Shift+B** for one question
+(`.vscode/tasks.json`). Nothing outside VS Code can type into a terminal that
+is already open, which is why these exist.
 
-`host/coaxial_ollama/capability.py` measures the machine and picks. Ask it:
+`capability.py` measures the machine and picks. Ask it:
 
 ```powershell
 python -m coaxial_ollama.capability                     # what this machine gets
@@ -48,30 +47,22 @@ What gets measured, every run:
 | VRAM total | the budget | `nvidia-smi`, else the registry's `qwMemorySize` |
 | VRAM **in use by anything else** | the reserve | `nvidia-smi memory.used`, minus what ollama itself holds |
 
-Two of those are worth dwelling on. **Free RAM, not installed RAM**: a 64 GB
-workstation with 8 GB left cannot hold a 42 GB model however impressive the
-sticker is, and the failure mode is the machine swapping rather than an error
-anyone can read. **VRAM in use minus ollama's own**: the probe usually runs
-while the last question's model is still resident, and counting our own 7.8 GB
-as somebody else's desktop reserved 12.8 GB of a 16 GB card and picked something
-smaller — which became the new baseline next time. A ratchet, measured before it
-was fixed.
+Two of those matter. **Free RAM, not installed**: 64 GB with 8 free cannot
+hold a 42 GB model, and the failure is swapping rather than an error anyone can
+read. **VRAM in use minus ollama's own**: the probe usually runs with the last
+model still resident, and counting our own 7.8 GB as the desktop's reserved
+12.8 GB of a 16 GB card and picked something smaller — which became the next
+baseline. A ratchet, measured before it was fixed.
 
-CPU load is deliberately *not* an input to the choice. A snapshot says nothing
-about the next ten minutes, and the tag is chosen for the session; a busy machine
-gets a warning that the CPU half of a split choice will be slower than the
-figures below, which were all measured idle. Only tools-capable tags are candidates: everything here
-reaches the board through tool calls, and a tag without them describes a
-measurement instead of taking one.
+CPU load is deliberately not an input: a snapshot says nothing about the next
+ten minutes, and the tag is chosen for the session. A busy machine gets a
+warning instead. Only tools-capable tags are candidates — a tag without them
+describes a measurement instead of taking one.
 
-`setup.ps1` pulls whatever the picker chooses, and so does `board_prompt.ps1` on
-a machine where the tag is missing — it asks the picker, pulls, loads and only
-then opens the prompt. `-Model TAG` overrules it everywhere.
-
-Anything driving this from outside — including Claude Code, see the routing
-table in [../CLAUDE.md](../CLAUDE.md) — should reach for `board_prompt -Ask` or
-`dbg -m auto -q` rather than reason about the board from memory. The local model
-is free per token and standing next to the hardware; the expensive one is not.
+`setup.ps1` and `board_prompt.ps1` both pull whatever the picker chooses;
+`-Model TAG` overrules it everywhere. Anything driving this from outside,
+Claude Code included (see [../CLAUDE.md](../CLAUDE.md)), should reach for
+`board_prompt -Ask` or `dbg -m auto -q` rather than reason from memory.
 
 ### Layers on the GPU, and why hybrid is a fallback
 
@@ -92,22 +83,14 @@ leaves 8 GB free. So hybrid is what happens when nothing fits, not a target.
 
 ### Leaving the desktop somewhere to live
 
-The reserve is the VRAM the picker deliberately does not spend, and the default
-is the largest of three numbers: 2 GB, a quarter of the card, or **what the card
-is already holding plus 2 GB to grow into**. That third one is the one that
-matters on a workstation. Measured here with nothing of ours running:
+The reserve is VRAM the picker does not spend: the largest of 2 GB, a quarter
+of the card, or **what the card already holds plus 2 GB to grow into**. The
+third matters on a workstation — measured with nothing of ours running, the
+desktop alone was 2.6 GB of 16, so a flat quarter would leave it 1.4 GB for a
+second 4K surface or a video starting. Too little shows up as a momentary hang
+while the driver evicts, not as an error. Counting what is there gives 4.6 GB.
 
-```
-card 16.0 GB, desktop alone 2.6 GB, 0 % utilisation
-```
-
-A flat quarter of the card would hold back 4.0 GB, of which the desktop already
-occupies 2.6 — leaving it 1.4 GB for a second 4K surface, a video that starts
-playing, a browser tab with a canvas in it. When that is not enough the driver
-evicts to satisfy the allocation, and what you see is not an error but a
-momentary hang. Counting what is already there gives 4.6 GB instead.
-
-That still is not much on a busy machine, so the number is settable:
+Still not much on a busy machine, so it is settable:
 
 | | reserve | model | free with the desktop counted |
 |---|---|---|---|
@@ -127,16 +110,12 @@ answers.
 says otherwise, and starts the daemon with `OLLAMA_MAX_LOADED_MODELS=1` and
 `OLLAMA_NUM_PARALLEL=1` when it starts it at all.
 
-Be clear about what each of those buys. The priority is **CPU** scheduling: with
-the model wholly on the card it deprioritises tokenisation, sampling and the
-serial I/O, not the matrix multiplies, so it helps the desktop stay responsive
-around a question rather than during one. The single-model, single-context
-limits are about memory: two contexts is how a 16 GB card ends up asked for two
-copies of the weights, which was measured here as a 500 from the daemon reading
-`cudaMalloc failed` with nothing obviously wrong at either end.
-
-The lever that actually reduces GPU contention is the model's size, which is the
-table above.
+What each buys: the priority is **CPU** scheduling, so with the model wholly on
+the card it deprioritises tokenisation, sampling and serial I/O — responsive
+*around* a question, not during one. The single-model limits are about memory:
+two contexts is how a 16 GB card is asked for two copies of the weights,
+measured as a 500 reading `cudaMalloc failed`. The lever that actually reduces
+GPU contention is the model's size, in the table above.
 
 ### Threads
 
@@ -168,38 +147,24 @@ detail level, the per-turn cost — is `/help`, which builds it live from the se
 this session actually started with. Three lines nobody read twice is worse than
 one line and a pointer.
 
-Two more things a reader of a transcript will notice before anything else.
+Two more things a reader of a transcript will notice.
 
-The prompt spins beside the board's name — `|`, `/`, `–`, `\` in one column —
-**and keeps spinning while you type**. The first version stopped at the first
-keypress, because a spinner that redraws its line repaints under the characters
-being typed, which is how a prompt eats an argument. Stopping made it useless
-exactly when you are looking at it, so `spinner.py` repaints only its own cell
-and puts the cursor back: `ESC 7`, column, glyph, `ESC 8`. The typed text is
-never written over because it is never written to.
+The prompt spins in the board's own name — `|`, `/`, `–`, `\` in one column —
+**and keeps spinning while you type**, which says which of two `>` prompts in a
+docked panel is waiting for a question. The first version stopped at the first
+keypress, since a spinner that redraws its line repaints under what is being
+typed; `spinner.py` repaints only its own cell and puts the cursor back (`ESC
+7`, column, glyph, `ESC 8`), so the typed text is never written to. A line long
+enough to wrap still defeats it, and a bench question is not that long.
+Redirected output gets one static prompt, no escapes and no thread.
 
-The bar is an en dash, not a hyphen: at the size a terminal draws them a hyphen
-is a third the width of `|` and the spinner visibly limps. cp1252 has it at
-0x96, so this console renders it; a console that cannot encode it is asked
-first and gets the ASCII set rather than a question mark in the corner of your
-eye.
+The bar is an en dash: a hyphen is a third the width of `|` at the size a
+terminal draws them, and the spinner visibly limps. cp1252 has it at 0x96; a
+console that cannot encode it is asked first and gets the ASCII set.
 
-What can still go wrong is a line long enough to wrap, since the column is on
-the current row. A bench question is not that long, and the alternative is
-writing a terminal emulator. Redirected output gets one static prompt, no
-escapes and no thread. It sits in the same
-docked panel as a PowerShell prompt, and two terminals with a `>` in them look
-identical at a glance; a moving dot says which one is waiting for a question
-without a banner or a colour to remember. Nothing animates while there is text
-on the line, because an animation repainting under typed characters is how a
-prompt eats an argument. Redirected output gets one static prompt and no
-animation at all.
-
-And an answer that hits `--words` now says so. Measured from the prompt: a
-seven-channel table stopped mid-row at exactly 180 generated tokens, which
-reads as a complete answer to everyone except a reader counting rows. The reply
-carries `done_reason`, so a truncated answer is marked *[cut off at --words
-180]* rather than quietly ending.
+An answer that hits `--words` says so. Measured: a seven-channel table stopped
+mid-row at 180 generated tokens, which reads as complete to everyone except a
+reader counting rows. `done_reason` marks it *[cut off at --words 180]*.
 
 ### The language of the answer
 
@@ -209,22 +174,17 @@ names stay as the board prints them — `NTC`, `DCbus`, `V`, `C` — because tho
 are what appears in `board_info`, in the CSVs and in these documents, and a
 translated channel name is a channel name nobody can grep for.
 
-**The language is decided here, not by the model.** The first attempt told the
-model to "answer in the language the question was asked in", which asks it to
-do two things: work out what language that was, and then answer. The first is
-where it drifts — reported on this bench with `qwen2.5:14b`, a model whose
-training leans heavily Chinese, answering European questions in Chinese,
-Japanese and Thai.
+**The language is decided here, not by the model.** Told to "answer in the
+language the question was asked in", it has to work out the language *and*
+answer, and the first is where it drifts — `qwen2.5:14b` answered European
+questions in Chinese, Japanese and Thai.
 
-`host/coaxial_ollama/language.py` decides instead, and the turn's system message
-says it plainly: *The question is in Swedish. Answer in Swedish and in no other
-language.* Two stages, both small on purpose — script ranges settle Chinese,
-Japanese, Korean, Thai, Greek, Cyrillic, Hebrew and Arabic outright, and a short
-stop-word count separates the Latin ones. It abstains when the winner is not
-strictly ahead: Danish and Norwegian score identically on most of the list, and
-telling a Dane to answer in Norwegian is worse than saying nothing. An
-abstention falls back to the old instruction, where the model mirroring the
-question is usually right.
+`language.py` decides instead and the system message says it plainly: *The
+question is in Swedish. Answer in Swedish and in no other language.* Two small
+stages — script ranges settle Chinese, Japanese, Korean, Thai, Greek, Cyrillic,
+Hebrew and Arabic; a stop-word count separates the Latin ones. It abstains
+when the winner is not strictly ahead, because Danish and Norwegian score
+alike and telling a Dane to answer in Norwegian is worse than saying nothing.
 
 In `dbg.py`'s REPL, the language **locks** on the first question that is not
 itself ambiguous (`Chat.language`), rather than being rebuilt fresh every
@@ -239,17 +199,14 @@ written in. `/lang [NAME]` reads or sets it by hand; `/lang auto` unlocks.
 One-shot calls (`-q`, `--ask`) have no session to lock across, so this
 degrades to the old per-question detection there without any special case.
 
-One consequence worth knowing, because it is a Windows console and not a
-choice: standard output encodes with the locale codepage, cp1252 on this bench.
-Swedish and German are inside it and render correctly. A Polish `ł`, an ohm sign
-or anything Cyrillic is not, and the default error handler turns that into a
-`UnicodeEncodeError` — which loses the whole answer *after* the measurement was
-taken. `dbg.py` sets `errors='replace'` on stdout and stderr instead, so an
-alphabet the console cannot hold costs a glyph rather than the reading.
-
-Forcing UTF-8 would fix the encode and hand a legacy console mojibake for every
-character it *could* have displayed. For the languages actually spoken at this
-bench that is the worse trade, so the codepage is left alone.
+A Windows console encodes with its locale codepage, cp1252 here. Swedish and
+German fit; a Polish `ł`, an ohm sign or anything Cyrillic does not, and the
+default handler turns that into a `UnicodeEncodeError` that loses the answer
+*after* the measurement. `dbg.py` sets `errors='replace'` instead, so a missing
+alphabet costs a glyph rather than the reading, and leaves the codepage alone —
+forcing UTF-8 would hand a legacy console mojibake for everything it could
+have displayed. A redirected stream is the opposite case and does get UTF-8:
+a file has no codepage to mismatch.
 
 ### Keeping the model loaded
 
@@ -267,23 +224,17 @@ But the hold is not free, and the two modes want opposite things:
 | **leaving the prompt** | **released at once** | the cache has no further job |
 | **entering the prompt** | **anything else is unloaded first** | a card with two models on it is how a load fails |
 
-That last row is the one that matters on a workstation. Measured before it
-existed: a finished session left **9.69 GB of a 16 GB card resident for another
-27 minutes at 1 % utilisation**, with the desktop given 3.8 GB to work in — a
-cache nobody was going to hit. `board_prompt.ps1` now unloads on the way out,
-and the card goes back to 2.1 GB used. A reload costs about seven seconds, and
-only if there is a next time; `-Hold` keeps it resident when there is.
+That last row matters on a workstation. Measured before it existed: a finished
+session held **9.69 GB of a 16 GB card for another 27 minutes at 1 %
+utilisation**, leaving the desktop 3.8 GB. Unloading on the way out returns the
+card to 2.1 GB; a reload costs about seven seconds, and only if there is a next
+time. `-Hold` keeps it, `--keep-alive 0` hands it back on any path, and an
+explicit value beats the mode default.
 
-`--keep-alive 0` hands the VRAM back immediately on any path, and an explicit
-value always beats the mode's default.
-
-The entry side matters as much as the exit. Not every exit is clean — a killed
-window, a `-Hold` from last time, somebody's own `ollama run` in another
-terminal — and each leaves weights on the card until their keep_alive expires.
-The next load then asks a card that is already full, which on this bench was a
-500 from the daemon reading `cudaMalloc failed` with nothing obviously wrong at
-either end. So `board_prompt.ps1` sweeps before it loads, and says what it
-freed:
+Entry matters as much. A killed window, a `-Hold` from last time or somebody's
+`ollama run` leaves weights on the card until their keep_alive expires, and the
+next load then asks a full card — measured as a 500 reading `cudaMalloc
+failed`. So `board_prompt.ps1` sweeps first, and says what it freed:
 
 ```
   ok    unloaded    llama3.1:8b was still resident, 4.9 GB freed
@@ -303,20 +254,15 @@ wait instead of saving one.
 
 ### When the runner dies under you
 
-Measured repeatedly on this bench: llama-server terminates with
-`std::bad_alloc` — usually while saving its own prompt cache — and ollama
-answers 500 `model runner has unexpectedly stopped, this may be due to
-resource limitations`. Nothing is wrong with the machine; the daemon respawns
-the runner on the very next request, so the recovery was always just "ask
-again". Until it was automatic, that meant the operator retyping a question
-that had already been answered everywhere except in the reply.
+Measured repeatedly: llama-server terminates with `std::bad_alloc`, usually
+while saving its prompt cache, and ollama answers 500 `model runner has
+unexpectedly stopped`. The daemon respawns it on the next request, so recovery
+was always "ask again" — by hand, until it was automatic.
 
-`client._chat_once` now retries `RUNNER_RETRIES` times (2), waiting
-`RUNNER_RETRY_WAIT` × attempt between tries, and says nothing: a retry that
-worked is not news, and the token meter counts replies that arrived, not
-attempts. A request ollama *refused* — a bad schema, an unknown field — is
-never retried, because asking again just makes the same mistake twice. A
-machine genuinely out of memory still fails, in seconds, rather than looping.
+`client._chat_once` retries `RUNNER_RETRIES` (2) times with a growing wait and
+says nothing: a retry that worked is not news, and the meter counts replies
+that arrived. A request ollama *refused* is never retried, and a machine
+genuinely out of memory fails in seconds rather than looping.
 
 ### Why it dies, and the two variables that stop it
 
@@ -394,15 +340,22 @@ sends `ch="ntc"`, or the string `"['NTC']"`, or `samples="100"`. Unhandled,
 'n'` — which tells the model nothing it can act on, and what it does next is
 answer from memory.
 
-The same goes for the name of a thing. `dc_bus` for `dcbus` is a separator, not
-a mistake, and `phase_a` for `phaseu` is not a mistake either — A/B/C and U/V/W
-are two conventions for the same three phases and both appear in the same
-datasheets. Measured: a model asked for `['ntc','dc_bus','phase_a','phase_b',
-'phase_c']` and lost all five readings to the two it spelled the other way. So
-punctuation is stripped before matching, the phase conventions are aliases of
-each other — but only onto channels the board actually has, since a board
-without a Phase W has no Phase C — and a near miss is named in the error:
-*unknown channel 'dcbusvoltage' - did you mean 'dcbus'?*
+The same goes for the name of a thing, and there are three rules:
+
+* punctuation is stripped, so `dc_bus`, `dc-bus`, `DC bus` and `dcbus` are one
+  key;
+* the phase conventions alias each other — A/B/C and U/V/W are two names for
+  the same three phases — but only onto channels the board has, since a board
+  without a Phase W has no Phase C;
+* a word that can only mean one channel resolves to it: `bus` is inside
+  `dcbus` and nothing else, and `temp` is a `SIGNAL_ALIASES` entry for `ntc`.
+  One that could mean several says so — *channel 'phas' could be phaseu or
+  phasev or phasew - say which* — rather than "unknown", which reads as "no
+  such thing".
+
+Measured for each: `['ntc','dc_bus','phase_a','phase_b','phase_c']` lost all
+five readings to the two spelled the other way, and `['bus']` was refused with
+`dcbus` listed in its own refusal.
 
 `coaxial_mcp.tools.coerce` converts every argument to the type the tool's own
 `inputSchema` declares, and refuses what will not convert **by field name and
@@ -426,32 +379,23 @@ docs(doc='MODELS', section='Threads')
 docs(find='25.00')               where a phrase appears, with its heading
 ```
 
-Index first, section second, on purpose: the tool list is re-read every turn
-(see the token argument in [ARCHITECTURE.md](ARCHITECTURE.md)), so a tool
-returning a whole document by default would cost more than it is worth.
+Index first, section second: a tool returning a whole document by default
+would cost more than it is worth.
 
 It is out of `read`, `code`, `pins` and `build` for a stronger reason than
-cost. Asked to *measure* the analog channels, `gemma4:12b` called `docs`,
-pulled several thousand tokens of HARDWARE.md into context, and answered with
-that document's channel table — no measurement in it anywhere. Removing the
-tool cut the same question from 6229 prompt tokens to 2645 and turned the
-answer back into a reading. The board is the authority on what the board
-reads; the documents explain what a reading *means*, which is a different and
-much rarer question. `DOCS_HINT` says so, and is sent only when `docs` is
-actually offered.
+cost. Asked to *measure* the channels, `gemma4:12b` called `docs`, pulled
+thousands of tokens of HARDWARE.md into context and answered with that
+document's channel table — no measurement in it. Removing the tool cut the
+same question from 6229 prompt tokens to 2645 and turned the answer back into
+a reading. `DOCS_HINT` says so, and only when `docs` is offered.
 
 ### Terse and full: documentation sized for whoever is reading
 
-Every tool's description and every schema property description is re-sent on
-every single turn, and the readers are not alike. Claude, over MCP, reads a
-description out of a window measured in hundreds of thousands of tokens;
-`gemma4:12b` pays for the same text out of 8192 shared with the conversation,
-the readings and the answer. Writing for the smaller reader shortchanges the
-larger one, and writing twice is two things to keep in step — so the length is
-picked by code, from one spec that carries both forms.
-
-`host/coaxial_mcp/detail.py` is that code, and the level is **decided from the
-model, not from a flag**:
+Every description is re-sent every turn, and the readers are not alike: Claude
+over MCP has hundreds of thousands of tokens, `gemma4:12b` has 8192 shared with
+the conversation and the readings. Writing for the smaller one shortchanges the
+larger, and writing twice is two things to keep in step — so `detail.py` picks
+the length from one spec carrying both forms, **from the model, not a flag**:
 
 | Reader | Level | Why |
 |---|---|---|
@@ -524,21 +468,16 @@ this port answer," not two that can drift apart.
 
 ## Two things a debugging session leaves behind
 
-`Chat.prompt_history` is every question typed this session, in order,
-independent of `self.history` - which the REPL clears after each answered
-turn, on purpose, to keep the prompt from growing. `/history` lists it,
-`/clear_history` empties it. `trim()` also folds the last five entries into
-`SYSTEM` as "troubleshooting steps already tried," once there is more than
-the question just asked to show - a multi-turn "why won't it connect"
-conversation reads as one investigation, not a run of unrelated questions.
+`Chat.prompt_history` is every question typed this session, independent of
+`self.history`, which the REPL clears after each answered turn to keep the
+prompt from growing. `/history` lists it, `/clear_history` empties it, and
+`trim()` folds the last five into `SYSTEM` as "steps already tried" - so a
+multi-turn "why won't it connect" reads as one investigation.
 
-`IOLog` writes `host/prompt_io.tmp`, hidden (Windows' attribute, not
-security), overwritten each session - every question, every tool call
-(including the ones `_trace()` skips on screen) and every answer. Not for
-the operator: for reading back afterwards, in a session with no terminal
-transcript to paste in. Off by default on a bare `Chat()`, since building
-one is what dozens of tests do; `repl()` and the one-shot path in `main()`
-are what turn it on, on the one `Chat` a real run actually uses.
+`IOLog` writes `host/prompt_io.tmp`, hidden and overwritten each session:
+every question, every call (including the ones `_trace()` skips) and every
+answer, for reading back when there is no terminal transcript to paste in.
+Off on a bare `Chat()`, since dozens of tests build one.
 
 ---
 

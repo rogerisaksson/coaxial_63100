@@ -1,22 +1,16 @@
 """Tool schemas and handlers.
 
-EIGHT tools, not twenty. Every tool costs its name, its description and its
-schema on every single turn, so the set is deliberately coarse: one per thing a
-fixture actually does, with a small enum where a family of operations would
-otherwise become a family of tools.
+Eight tools, not twenty. Every one costs its name, description and schema on
+every turn, so the set is coarse: one per thing a fixture does, with a small
+enum where a family of operations would otherwise be a family of tools.
 
-The eighth is `docs`, and it is the exception that proves the rule: it touches
-no hardware. It exists because the documents in docs/ are what stop a reading
-being misinterpreted - the AFE gate, the unknown phase gain, what has already
-been ruled out - and until it existed the one reader who could not open them was
-the model standing at the bench. Its schema is three optional strings, and it
-answers with an index rather than a document, for the same token reason as
-everything else here.
+The eighth, `docs`, touches no hardware. The documents in docs/ are what stop a
+reading being misinterpreted - the AFE gate, the unknown phase gain, what is
+already ruled out - and the model at the bench was the one reader who could not
+open them. Three optional strings, and it answers with an index.
 
-Descriptions are one line. Property names are short. There are no titles, no
-prose defaults and no examples in the schema - a model that needs the channel
-map calls board_info once and refers to channels by index or short name after
-that. Paying for the map on every turn is the waste this design avoids.
+Descriptions are one line, property names short, no titles, prose defaults or
+examples: a model that needs the channel map calls board_info once.
 """
 import re
 
@@ -156,28 +150,15 @@ TRUE = ('1', 'true', 'yes', 'on')
 def coerce(name, arguments):
     """The arguments as the schema declares them, whatever the model sent.
 
-    Tool calls arrive as JSON and the schema says which fields are numbers,
-    which are booleans and which are arrays. A capable model sends them that
-    way. A smaller one sends `samples="100"`, `ch="ntc"`, `refresh="true"` -
-    and the handler then fails somewhere deep with a TypeError about dividing
-    a float by a str, which tells the model nothing it can act on.
+    A smaller model sends `samples="100"`, `ch="ntc"`, `refresh="true"`, and
+    the handler then fails deep with a TypeError the model cannot act on.
+    Measured with llama3.1:8b: the call errored, and it answered "25.00 C"
+    from memory - this board's AFE-off reading, for a board at 37.
 
-    That is not a cosmetic failure. Measured on this board with llama3.1:8b:
-    the call errored, the model did not understand why, and it answered
-    "25.00 C" from memory - the exact reading this board gives with its analog
-    front end off, for a board that was at 37. A tool that is hard to call is a
-    tool that gets guessed around.
-
-    This is for the ollama side, where the call comes straight from the model
-    and nothing between the two checks it. The MCP server does not use it: the
-    protocol library validates arguments against inputSchema before a handler
-    is reached, so a mistyped field is already refused there, by name and
-    readably - "'32' is not of type 'integer'". Coercing after that would be
-    unreachable; coercing before it would be this server accepting what the
-    protocol has already called malformed.
-
-    What cannot be converted raises by name, with the type that was wanted.
-    Unknown keys pass through untouched; the handlers take **_ and ignore them.
+    For the ollama side only: the MCP server gets the same protection from the
+    protocol library, which validates against inputSchema before a handler is
+    reached. What cannot be converted raises by name and wanted type; unknown
+    keys pass through for the handlers' **_.
     """
     properties = SCHEMAS.get(name) or {}
     coerced = {}
@@ -212,17 +193,13 @@ def coerce(name, arguments):
 def _names(wanted):
     """Whatever a model spelled a list as, as a list of names.
 
-    The schema says array of strings and the strong models send one. The weak
-    ones send `ntc`, or the string `"['NTC']"`, and the cost of not handling
-    that is not a clear error: `for item in "ntc"` iterates characters, so the
-    tool reports `unknown channel 'n'` and the model - having no idea what it
-    did wrong - answers from memory instead. That failure was measured here,
-    and what it produced was 25.00 C: the exact number this board reports with
-    its analog front end off, invented for a board that was at 37.
+    Weak models send `ntc` or the string `"['NTC']"`, and `for item in "ntc"`
+    iterates characters - so the tool said `unknown channel 'n'` and the model
+    answered 25.00 C from memory, for a board at 37.
 
-    So a bare string is one name, a comma separated one is several, and the
-    brackets and quotes of a list that arrived as text are stripped. What
-    cannot be read as a channel name still raises - loudly, by name.
+    A bare string is one name, a comma separated one several, and the brackets
+    and quotes of a list that arrived as text are stripped. Anything else
+    still raises, by name.
     """
     if isinstance(wanted, str):
         wanted = wanted.strip().strip('[]').split(',')
@@ -231,41 +208,31 @@ def _names(wanted):
 
 
 def _key(text):
-    """A channel name with the punctuation an author might put in it removed.
+    """A channel name with an author's punctuation removed.
 
-    board_info prints the signal as `DC bus`, the short form is `DCbus`, and a
-    model writing that back has to guess which of `dc_bus`, `dc-bus`, `DC bus`
-    and `dcbus` this tool wanted. Measured: gemma4:12b sent `dc_bus` and got
-    `unknown channel 'dc_bus'; names are ch3,ch6,dcbus,...` - a refusal listing
-    a name one underscore away from the one it used, which is a tool being
-    fussy rather than a model being wrong. All four collapse to the same key.
+    board_info prints `DC bus`, the short form is `DCbus`, and a model has to
+    guess between `dc_bus`, `dc-bus`, `DC bus` and `dcbus`. Measured:
+    `dc_bus` was refused with `dcbus` listed in the refusal, one underscore
+    away. All four collapse to the same key.
     """
     return re.sub(r'[^a-z0-9]', '', str(text).strip().lower())
 
 
-# The same three phases, under the other convention. A drive is labelled U/V/W
-# or A/B/C depending on which tradition the author grew up in, and both appear
-# in the same datasheets; `phase_a` for `phaseu` is not a mistake, it is the
-# other spelling. Measured: a model asked for ch=['ntc','dc_bus','phase_a',
-# 'phase_b','phase_c'] and lost all five readings to the one it spelled the
-# other way.
-#
-# The single letters are in here because this repository already uses them -
-# the CSVs that tools/analyze_phase_log.py reads have columns U, V and W - and
-# because no channel on this board is one letter, so there is nothing for them
-# to collide with.
+# The same three phases under the other convention: U/V/W and A/B/C both
+# appear in the same datasheets, so `phase_a` is a spelling, not a mistake.
+# Measured: ch=['ntc','dc_bus','phase_a','phase_b','phase_c'] lost all five
+# readings to the one spelled the other way. The single letters are here
+# because the CSVs in tools/analyze_phase_log.py use them and no channel on
+# this board is one letter.
 PHASE_ALIASES = {
     'phasea': 'phaseu', 'phaseb': 'phasev', 'phasec': 'phasew',
     'a': 'phaseu', 'b': 'phasev', 'c': 'phasew',
     'u': 'phaseu', 'v': 'phasev', 'w': 'phasew',
 }
 
-# Names for a channel by what it measures rather than by what it is called.
-# `bus` and `temp` are what a question asks for - "read the bus", "what is the
-# temperature" - and neither is a spelling of dcbus or ntc that any amount of
-# punctuation-stripping reaches. Measured at the prompt: ch=['bus'] came back
-# `unknown channel 'bus'; names are ch3,ch6,dcbus,ntc,...`, which is a tool
-# refusing the word the operator used for the channel sitting in its own list.
+# A channel by what it measures rather than what it is called. "Read the bus",
+# "what is the temperature" - neither is a spelling any punctuation-stripping
+# reaches. Measured: ch=['bus'] was refused with dcbus listed in the refusal.
 SIGNAL_ALIASES = {
     'bus': 'dcbus', 'vbus': 'dcbus', 'dc': 'dcbus', 'dclink': 'dcbus',
     'link': 'dcbus', 'busvoltage': 'dcbus', 'voltage': 'dcbus',
@@ -294,14 +261,12 @@ def _alias(key, by_name):
 
 
 def _matches(key, by_name):
-    """Every channel this key could mean, by prefix or by containment.
+    """Every channel this key could mean, by prefix or containment.
 
-    Containment, not just prefix, because of what a model actually writes:
-    `bus` for `dcbus` was measured at the prompt and refused outright, with
-    the name it wanted listed in the refusal one prefix away. No edit
-    distance - the failures worth catching are `dcbusvoltage`, `phas` and
-    `bus`, not `ntx`, and a guess that is wrong sends the next call somewhere
-    confident.
+    Containment because of what a model writes: `bus` for `dcbus` was refused
+    outright at the prompt. No edit distance - the failures worth catching are
+    `dcbusvoltage`, `phas` and `bus`, not `ntx`, and a wrong guess sends the
+    next call somewhere confident.
     """
     if not key:
         return []

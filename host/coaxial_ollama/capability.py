@@ -1,50 +1,30 @@
 """What this machine can run, and which local model to run on it.
 
-A bench PC is whatever was on the shelf. The same repository is cloned onto a
-16-core laptop with 8 GB of VRAM and onto a Threadripper with a 4080, and
-picking one model tag for both means one of them is either crawling or leaving
-most of its hardware idle. So the machine is measured and the tag follows from
-the measurement.
+A bench PC is whatever was on the shelf, so the machine is measured and the tag
+follows. Three numbers: VRAM minus a reserve (the PC drives the screens too,
+and a card filled to the brim stutters and evicts), free RAM, and cores.
 
-Three numbers decide it, and they are all measured rather than assumed:
+Measured here, both against the usual advice - RTX 4080 SUPER 16 GB,
+Threadripper 3970X, gemma4:12b Q4_K_M, 48 layers, num_ctx 8192:
 
-  * VRAM, minus a reserve. The reserve is the point: a bench PC also drives the
-    screens, and a model that fills the card to the brim makes the desktop
-    stutter and eventually gets itself evicted. Default is a quarter of the
-    card, floor 2 GB.
-  * System RAM, which is what a model runs in when it does not fit the card.
-  * Cores, which decide whether running off the GPU is merely slow or hopeless.
-
-Two things were measured here rather than reasoned about, and both contradict
-the advice usually given (RTX 4080 SUPER 16 GB, Threadripper 3970X, gemma4:12b
-Q4_K_M, 48 layers, num_ctx 8192):
-
-  * `num_gpu` does not need a Modelfile. It is an ordinary entry in `options`
-    on a normal /api/chat call, which is better than a Modelfile because a
-    Modelfile is a second tag to keep in step with the first.
+  * `num_gpu` needs no Modelfile, just `options` on a normal /api/chat call -
+    better, since a Modelfile is a second tag to keep in step.
 
         num_gpu default (48)   7.8 GB VRAM    64.3 tok/s
         num_gpu 24 (half)      4.3 GB VRAM    12.7 tok/s
         num_gpu 0 (CPU only)   0.0 GB VRAM     6.7 tok/s
 
-  * So a hybrid split is expensive - five times slower for half the VRAM back -
-    and on a card this size it is also unnecessary: the whole 12B model fits in
-    7.8 GB and still leaves 8 GB free. That is why the rule below is "the
-    largest model that fits *entirely* within the budget", and hybrid is what
-    happens when nothing does, not something to reach for.
+    So a hybrid split costs five times the speed for half the VRAM back, and
+    on this card it is unnecessary: the 12B fits in 7.8 GB and leaves 8 free.
+    Hence "the largest model that fits *entirely*", with hybrid as what
+    happens when nothing does.
 
-  * Raising `num_thread` on 64 threads bought nothing and cost a little:
+  * `num_thread` on 64 threads bought nothing: 6.4 tok/s default and at 16,
+    6.3 at 32, 5.7 at 64. Decode is bandwidth-bound, and filling both SMT
+    siblings makes it worse. Nothing here sets it.
 
-        default   6.4 tok/s      32 threads   6.3 tok/s
-        16        6.4 tok/s      64 threads   5.7 tok/s
-
-    Decode is bandwidth-bound, not core-bound, and filling both SMT siblings of
-    every core makes it worse. Nothing here sets num_thread; the daemon's own
-    choice was as good as any tried against it.
-
-Only tools-capable tags are candidates. Everything in coaxial_ollama reaches
-the board through tool calls, so a tag without them cannot drive this bench at
-all - it will describe a measurement instead of taking one.
+Only tools-capable tags are candidates: a tag without them describes a
+measurement instead of taking one.
 """
 import ctypes
 import json
