@@ -978,12 +978,19 @@ class Chat:
                                         for m in replies.READING_ROW.findall(str(raw)))
                     self.last_channels = last_channels
                     last_table = str(raw)
-                if name == 'board_info' and not str(raw).startswith('ERR'):
+                if (name in ('board_info', 'digital_read')
+                        and not str(raw).startswith('ERR')):
                     # Deliberately not self.last_channels: that one means "a
                     # reading has succeeded this session" and gates the
                     # answering-from-memory checks. A map is not a reading.
+                    #
+                    # Both row shapes: the analog map names its channel in
+                    # the last column, the digital blocks name a pin in the
+                    # first, and a retyped list quotes whichever it saw.
                     named = set(m.lower()
                                 for m in replies.MAP_ROW.findall(str(raw)))
+                    named |= set(m.lower()
+                                 for m in replies.DIGITAL_ROW.findall(str(raw)))
                     if named:
                         last_map = named
                         last_map_text = str(raw)
@@ -1017,12 +1024,19 @@ class Chat:
         # retype left "read every analog channel" answering with an empty
         # screen. The board's own rows go out instead - the same table the
         # trace would have shown, rather than the model's typing of it.
-        elif replies.is_retype(answer, last_channels or last_map):
-            # Whatever was just put on screen, typed out again underneath it.
-            # The trace is the answer; with --quiet there is no trace and the
-            # board's own rows go out instead of the model's copy of them.
-            shown = last_table if last_channels else last_map_text
-            answer = shown if (self.quiet and shown) else ''
+        # Whatever was just put on screen, typed out again underneath it.
+        # The trace is the answer; with --quiet there is no trace and the
+        # board's own rows go out instead of the model's copy of them.
+        #
+        # Two calls, two bars. A reading needs three channels before all of
+        # them being named counts as a restatement - naming two is plausibly
+        # synthesis, and silencing "NTC and DCbus both read low" would cost a
+        # finding. A map has no values to synthesise about, and this board
+        # has exactly two digital channels, so listing both IS the map.
+        elif last_channels and replies.is_retype(answer, last_channels):
+            answer = last_table if (self.quiet and last_table) else ''
+        elif last_map and replies.is_retype(answer, last_map, minimum=2):
+            answer = last_map_text if (self.quiet and last_map_text) else ''
         # An answer that hit the token cap stops mid-sentence, and a table
         # that stops mid-row reads as complete to everyone except a reader
         # counting rows. Say so rather than letting the cap look like the end.

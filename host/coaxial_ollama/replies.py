@@ -37,6 +37,11 @@ READING_ROW = re.compile(r'^\d+\s+(\S+)\s+(?:diff|SE)\b', re.M)
 MAP_ROW = re.compile(r'^\d+\s+\d+\s+\S+\s+\S+\s+(?:diff|SE)\s+(\S+)\s*$',
                      re.M)
 
+# A digital row, from the map ("PB2  out   AFE_ON") or from a reading of
+# them ("PB2  out   1     AFE_ON"). The pin is what a retyped list names,
+# and it is the one field that cannot contain a space.
+DIGITAL_ROW = re.compile(r'^(P[A-K]\d+)\s+(?:in|out|inout)\b', re.M)
+
 # Fewer than this many channels and a short answer naming all of them is
 # plausibly synthesis ("NTC and DCbus both read low") rather than a mechanical
 # restatement - the case this exists to catch always names a full table's
@@ -65,7 +70,7 @@ NAMED_TOOL = re.compile(r'\b(analog_read|afe_power|board_info|self_test|'
                         r'link_diagnose)\b')
 
 
-def is_retype(answer, channels):
+def is_retype(answer, channels, minimum=RESTATE_MIN_CHANNELS):
     """Whether `answer` is a mechanical restatement of a reading's `channels`.
 
     Two shapes count, either being enough on its own: every channel named
@@ -74,12 +79,20 @@ def is_retype(answer, channels):
     got cut off before naming the last channel - see MARKDOWN_TABLE_ROW).
     A real table is never a legitimate answer here regardless of length,
     since SYSTEM already says not to write one.
+
+    `minimum` is why the default is not simply 2. On a *reading*, naming
+    two channels is plausibly synthesis - "NTC and DCbus both read low" -
+    and silencing that would cost a real finding. A *map* has no values
+    to synthesise about: listing the channels IS the map, so the caller
+    passes 2 there. Measured, under the map's own two digital rows: "De
+    digitala kanalerna ar: PB2 (utgang) for AFE_ON, PE15 (ingang) for
+    nFAULT".
     """
     if not (answer and channels):
         return False
     if MARKDOWN_TABLE_ROW.search(answer):
         return True
-    return (len(channels) >= RESTATE_MIN_CHANNELS
+    return (len(channels) >= minimum
            and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
                   for ch in channels))
 

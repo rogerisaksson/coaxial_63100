@@ -1137,6 +1137,50 @@ def test_map_retype(report):
     report.check('an answer that is not just the list survives',
                  turn(finding) == finding, repr(turn(finding))[:52])
 
+    # The digital blocks, both of them. A digital row names its pin in the
+    # first column and never starts with a digit, so MAP_ROW - anchored on
+    # the analog shape - never saw one. Measured under the map's own two
+    # rows: "De digitala kanalerna ar: PB2 (utgang) for AFE_ON, PE15
+    # (ingang) for nFAULT".
+    def digital_turn(tool, reply, quiet=False, **args):
+        chat = debug.Chat(ScriptedModel([
+            call(tool, **args),
+            {'role': 'assistant', 'content': reply},
+        ]), toolmod.Toolbox(Sim(), scope=Scope()),
+            out=io.StringIO(), quiet=quiet)
+        return chat.ask('ge mig en lista på de digitala kanalerna')
+
+    listed_pins = ('De digitala kanalerna är:' + chr(10)
+                   + 'PB2 (utgång) för AFE_ON' + chr(10)
+                   + 'PE15 (ingång) för nFAULT')
+    report.check('a retyped digital map is silenced',
+                 digital_turn('board_info', listed_pins, kind='digital') == '',
+                 repr(digital_turn('board_info', listed_pins,
+                                   kind='digital'))[:46])
+    report.check('and so is a retyped digital reading',
+                 digital_turn('digital_read',
+                              'PB2 är 1 och PE15 är 0.') == '')
+    report.check('but a finding that does not name them all survives',
+                 digital_turn('board_info', 'nFAULT är asserterad.',
+                              kind='digital') == 'nFAULT är asserterad.')
+    hushed = digital_turn('digital_read', 'PB2 är 1 och PE15 är 0.',
+                          quiet=True)
+    report.check('with --quiet the block goes out instead of the retyping',
+                 'digital:' in hushed and 'PB2 är 1' not in hushed,
+                 hushed.splitlines()[0] if hushed else '<empty>')
+
+    # The two bars are different on purpose. Two channels of a *reading*
+    # named together is plausibly synthesis - "NTC and DCbus both read low"
+    # is a finding, not a restatement - so a reading still needs three.
+    from coaxial_ollama import replies as repliesmod
+    two = {'ntc', 'dcbus'}
+    report.check('two channels of a reading are not a restatement',
+                 not repliesmod.is_retype('NTC och DCbus ligger båda lågt.',
+                                          two))
+    report.check('but two of a map are, because a map is the list',
+                 repliesmod.is_retype('PB2 och PE15.', {'pb2', 'pe15'},
+                                      minimum=2))
+
 
 def test_reading_block(report):
     """A reading is a headed block, like the map is.

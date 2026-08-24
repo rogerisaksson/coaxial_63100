@@ -125,6 +125,33 @@ def safe(text, limit=60):
     return flat.encode(encoding, 'replace').decode(encoding, 'replace')
 
 
+def _twice(answer, results):
+    """The names a tool printed this turn, named again by the answer.
+
+    Returns them when the answer is a restatement and '' when it says
+    something of its own. The host silences a retype, so a non-empty
+    return here means one reached the operator - which is every
+    duplication ever reported from this bench.
+
+    Read off the tool results rather than the screen, so it holds with the
+    trace off as well.
+    """
+    from coaxial_ollama import replies
+
+    if not (answer or '').strip():
+        return ''
+    names = set()
+    for text in results:
+        for pattern in (replies.READING_ROW, replies.MAP_ROW,
+                        replies.DIGITAL_ROW):
+            names |= {m.lower() for m in pattern.findall(str(text))}
+    if len(names) < 2:
+        return ''
+    if replies.is_retype(answer, names, minimum=2):
+        return ', '.join(sorted(names))
+    return ''
+
+
 def build(model, port, simulated):
     """(session, chat, real). `simulated=False` probes and falls back."""
     from coaxial_mcp.session import open_session
@@ -135,7 +162,12 @@ def build(model, port, simulated):
     # `read` rather than the default set: the fewer tools in the schema, the
     # less this measures the model's taste in tools it was never going to
     # need. out is a sink - the trace is noise between PASS lines.
-    chat = debug.Chat(client, toolbox, tools='read', quiet=True,
+    # quiet=False with the trace pointed at a sink: `out` is what keeps the
+    # rows off this suite's own screen, and --quiet is a different mode -
+    # it makes the host substitute a silenced block for the answer, which
+    # is right at a prompt with no trace and wrong here. Configured the way
+    # the operator runs it, or the duplication check measures the mode.
+    chat = debug.Chat(client, toolbox, tools='read', quiet=False,
                       out=io.StringIO(), session_language=START)
     return session, chat, found
 
@@ -163,10 +195,22 @@ def main(argv=None):
         # Tool choice first, and each question from a clean history: what is
         # under test is which tool this question reaches for, not which one
         # the last question left in view.
+        # Every tool result this turn produced, for the duplication check.
+        results = []
+        real_call = chat.toolbox.call
+
+        def recording(name, args):
+            outcome = real_call(name, args)
+            results.append(outcome)
+            return outcome
+
+        chat.toolbox.call = recording
+
         print(chr(10) + '-- which tool the question reaches for --')
         for question, must, must_not in TOOL_CHOICE:
             before = len(chat.toolbox.log)
-            chat.ask(question)
+            del results[:]
+            answer = chat.ask(question)
             called = [name for name, _ in chat.toolbox.log[before:]]
             chat.history = []
 
@@ -180,6 +224,16 @@ def main(argv=None):
             report.check('%s -> not %s' % (safe(question, 40),
                                            '/'.join(must_not)),
                          not wrong, ', '.join(wrong) or 'none')
+
+            # And the answer is not the trace typed out again. Free: the
+            # turn already ran. Every duplication reported from this bench
+            # was one question putting the same list on screen twice, and
+            # the host's backstop is what has to catch it whatever the
+            # model writes - so it is checked on every question, not on
+            # the ones a transcript happened to be pasted from.
+            said_twice = _twice(answer, results)
+            report.check('%s -> said once, not twice' % safe(question, 40),
+                         not said_twice, said_twice or 'once')
 
         print(chr(10) + '-- language, and reading against describing --')
         for question, needs_board, expect in TURNS:
