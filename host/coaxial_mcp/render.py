@@ -28,30 +28,57 @@ def si(hz):
     return '%dHz' % hz
 
 
-def board_info(version, clock, channels, digital=None):
-    lines = [
-        '%s %s fw%s proto%d.%d build "%s"' % (
-            version.get('device', '?'), version.get('mcu', '?'),
-            version['firmware'], version['proto_major'], version['proto_minor'],
-            version.get('build', '?')),
-        'sysclk %s hclk %s src %s cmds %s' % (
-            si(clock['sysclk_hz']), si(clock['hclk_hz']), clock['source'],
-            version.get('commands', '?')),
-        'ch adc pin          dir   mode name',
-    ]
+def analog_map(channels):
+    """The analog channels, headed and counted. Its own block, because the
+    digital ones used to sit under this header with no index and the columns
+    out of line - measured, asked for "en lista over alla analoga kanaler",
+    the screen carried both sets as one table."""
+    lines = ['analog: %d channel%s' % (len(channels),
+                                       '' if len(channels) == 1 else 's'),
+             'ch adc pin          dir   mode name']
     for c in channels:
         lines.append('%-2d %-3d %-12s %-5s %-4s %s' % (
             c['index'], c['adc'], c['pin'], c.get('direction', 'in'),
             'diff' if c['differential'] else 'SE',
             short(c['signal'], c['index'])))
-    # The digital I/O, when the board reports it. Only what a fixture may
-    # read or set: USART3 and the debug port are not channels, and listing
-    # them here would invite a pin write that gets refused. `channels`
-    # kind 2 has them when the question is why.
-    for d in digital or ():
-        lines.append('   %-12s %-5s %-4s %s' % (
-            d['pin'], d['direction'], 'gpio', d['signal']))
-    return '\n'.join(lines)
+    return lines
+
+
+def digital_map(pins, what='digital'):
+    """The digital I/O, or the reserved pins, in their own block with their
+    own header. No index and no mode column: they have neither."""
+    lines = ['%s: %d pin%s' % (what, len(pins),
+                               '' if len(pins) == 1 else 's'),
+             'pin  dir   name']
+    for d in pins:
+        lines.append('%-4s %-5s %s' % (d['pin'], d['direction'], d['signal']))
+    return lines
+
+
+def board_info(version, clock, channels, digital=None, kind='all'):
+    """Identity, clock and the map - or one section of it.
+
+    `kind` narrows it: a question about the analog channels should not cost
+    the identity line, the clock line and the digital pins as well.
+    """
+    lines = []
+    if kind in ('all', 'identity'):
+        lines += [
+            '%s %s fw%s proto%d.%d build "%s"' % (
+                version.get('device', '?'), version.get('mcu', '?'),
+                version['firmware'], version['proto_major'],
+                version['proto_minor'], version.get('build', '?')),
+            'sysclk %s hclk %s src %s cmds %s' % (
+                si(clock['sysclk_hz']), si(clock['hclk_hz']), clock['source'],
+                version.get('commands', '?')),
+        ]
+    if kind in ('all', 'analog'):
+        lines += analog_map(channels)
+    if kind in ('all', 'digital') and digital is not None:
+        lines += digital_map(digital)
+    if kind == 'reserved':
+        lines += digital_map(digital or (), 'reserved')
+    return chr(10).join(lines)
 
 
 def analog(result, derived):

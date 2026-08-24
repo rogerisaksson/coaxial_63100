@@ -22,14 +22,25 @@ from .docs import docs as _docs
 _PIN = {'type': 'string', 'description': 'Pin as PORT+NUMBER, e.g. B2 or E15'}
 _PORT = {'type': 'string', 'description': 'Port letter A-K'}
 
+# Which section of the map board_info answers with. A question about the
+# analog channels should not cost the identity line, the clock line and the
+# digital pins as well - measured, "ge mig en lista over alla analoga
+# kanaler" traced eleven lines to answer with seven.
+BOARD_INFO_KINDS = ('all', 'analog', 'digital', 'reserved', 'identity')
+
 TOOLS = [
     {
         'name': 'board_info',
-        'description': 'Identity, versions, clock, and every channel the board reports - analog and digital, each with its direction. Call once.',
-        'description_terse': 'Identity, versions, clock, every channel with its direction. From the board. Call once.',
+        'description': "Identity, clock, and the channels the board reports with their directions. kind narrows it to one section.",
+        'description_terse': "Identity, clock, channels with directions. kind: analog|digital|reserved|identity|all.",
         'inputSchema': {
             'type': 'object',
-            'properties': {'refresh': {'type': 'boolean'}},
+            'properties': {
+                'refresh': {'type': 'boolean'},
+                'kind': {'type': 'string',
+                         'enum': list(BOARD_INFO_KINDS),
+                         'description': 'which section; omit for all'},
+            },
         },
     },
     {
@@ -360,16 +371,20 @@ def _split_pin(text):
     return text[0], int(text[1:])
 
 
-def board_info(session, refresh=False, **_):
+def board_info(session, refresh=False, kind='all', **_):
+    if kind not in BOARD_INFO_KINDS:
+        return 'ERR unknown kind %r; try %s' % (kind,
+                                                ', '.join(BOARD_INFO_KINDS))
     version, clock, channels = session.info(refresh=refresh)
-    # The digital half comes from the board too (command 0x6D). An older
-    # firmware has no such command and the analog table alone is the answer,
-    # which is why this is a try and not a required call.
+    # The pins come from the board too (command 0x6D). An older firmware has
+    # no such command and the analog table alone is the answer, which is why
+    # this is a try and not a required call.
+    section = 'reserved' if kind == 'reserved' else 'digital'
     try:
-        digital = session.board.system.channel_map(refresh=refresh)['digital']
+        pins = session.board.system.channel_map(refresh=refresh)[section]
     except Exception:                                         # noqa: BLE001
-        digital = None
-    return render.board_info(version, clock, channels, digital)
+        pins = None
+    return render.board_info(version, clock, channels, pins, kind)
 
 
 def analog_read(session, ch=None, samples=64, rate_hz=2000.0,

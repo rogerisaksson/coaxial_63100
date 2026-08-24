@@ -1020,6 +1020,53 @@ def test_retype_with_the_trace_off(report):
                  hushed.splitlines()[0][:52] if hushed else '<empty>')
 
 
+def test_map_sections(report):
+    """Analog and digital are two lists on the wire and two blocks on screen.
+
+    Measured: asked "ge mig en lista over alla analoga kanaler", the trace
+    carried the identity line, the clock line, seven analog rows and two
+    digital ones - all under a single `ch adc pin dir mode name` header, with
+    the digital rows carrying no index and their columns out of line. Eleven
+    lines to answer with seven, and the two kinds mixed into one table.
+    """
+    from coaxial.simulated import SimulatedSession as Sim
+    from coaxial_mcp import tools as mcp
+
+    session = Sim()
+
+    whole = mcp.HANDLERS['board_info'](session)
+    report.check('the two kinds get their own headed blocks',
+                 'analog: 7 channels' in whole and 'digital: 2 pins' in whole,
+                 whole.splitlines()[2] if whole else '<empty>')
+    report.check('and the digital block has its own columns, not the analog '
+                 'ones', 'pin  dir   name' in whole,
+                 [l for l in whole.splitlines() if l.startswith('pin')][:1])
+
+    only = mcp.HANDLERS['board_info'](session, kind='analog')
+    report.check('kind=analog is the analog block and nothing else',
+                 only.startswith('analog:') and 'digital' not in only
+                 and 'sysclk' not in only,
+                 '%d lines' % len(only.splitlines()))
+    report.check('and it is shorter than the whole thing',
+                 len(only.splitlines()) < len(whole.splitlines()),
+                 '%d vs %d lines' % (len(only.splitlines()),
+                                     len(whole.splitlines())))
+
+    pins = mcp.HANDLERS['board_info'](session, kind='digital')
+    report.check('kind=digital is the I/O, and no analog channel',
+                 pins.startswith('digital:') and 'PhaseU' not in pins,
+                 '%d lines' % len(pins.splitlines()))
+
+    held = mcp.HANDLERS['board_info'](session, kind='reserved')
+    report.check('kind=reserved is the bus and the debug port, kept apart',
+                 held.startswith('reserved:') and 'PB10' in held
+                 and 'PB2 ' not in held, held.splitlines()[0])
+
+    report.check('an unknown kind is refused by name, not guessed at',
+                 mcp.HANDLERS['board_info'](session, kind='analogue')
+                 .startswith('ERR unknown kind'))
+
+
 def test_channel_map(report):
     """The board describes itself; nothing above it keeps a copy.
 
@@ -3791,7 +3838,7 @@ def main():
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_link_recovery, test_channel_map,
+                 test_link_diagnose, test_link_recovery, test_channel_map, test_map_sections,
                  test_retype_with_the_trace_off,
                  test_power_check_cannot_halt,
                  test_transcript,

@@ -125,6 +125,14 @@ hardware it touches without naming a function code.
 Nothing in it holds a channel map. `system.channel_map()` reads the board's own
 (command `0x6D`), and `Gpio._refusal` asks that rather than a table here, so a
 pin added to `Board/Src/board_io.c` is refused on the host with no edit.
+
+`board_info` renders it one **block per kind**, each with its own header and
+columns, and takes `kind` to answer with one of them. Both halves were
+measured: with the digital pins appended to the analog table under the analog
+header, "ge mig en lista över alla analoga kanaler" put eleven lines on screen
+— two of them digital rows with no index and their columns out of line — to
+answer with seven. It is `board_info kind=analog` now, and nine lines that are
+all analog.
 `protocol.RESERVED_PINS` survives only as the fallback for firmware older than
 protocol 1.3, and is not to be extended. In the firmware the same list is the
 only one: `testrig.c` used to keep its own copy and now calls
