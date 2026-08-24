@@ -1179,6 +1179,17 @@ def test_map_sections(report):
                  .startswith('ERR unknown kind'))
 
 
+class _NotATty:
+    """A pipe, for _printable: records what it was reconfigured to."""
+    asked = None
+
+    def isatty(self):
+        return False
+
+    def reconfigure(self, **kw):
+        _NotATty.asked = kw
+
+
 def test_channel_map(report):
     """The board describes itself; nothing above it keeps a copy.
 
@@ -2637,8 +2648,22 @@ def test_fallback(report):
             ('switch to the real board', 'auto'),
             ('byt till RS485', 'rs485'),
             ('byt till fältbussen', 'rs485'),
-            # A word left over means there is a real question in there.
+            # Every one of these lost the order to a single unlisted noun
+            # while this required all the words to be known: 'enhet', then
+            # 'hardvara', then 'lage'. The rule names what disqualifies an
+            # order instead, so a noun nobody thought of costs nothing.
+            ('byter du till simulerat läge', 'simulated'),
+            ('byt till simulerat läge', 'simulated'),
+            ('använd det simulerade kortet', 'simulated'),
+            ('koppla om till proben', 'auto'),
+            ('byt till den simulerade grejen', 'simulated'),
+            # An interrogative disqualifies it.
             ('vad är debugproben?', None),
+            ('vilket läge är du i?', None),
+            ('vet du om kortet svarar?', None),
+            # ...and so does a second request the host cannot carry out.
+            ('byt till simulerat läge och läs NTC:n', None),
+            ('byt till proben och mät NTC:n', None),
             ('byt språk till svenska', None),
             ('läs NTC:n och DC-länken', None),
             ('beskriv hårdvaran för en novis', None),
@@ -2646,6 +2671,20 @@ def test_fallback(report):
             ('debugproben är inte inkopplad', None)):
         got = debug.board_switch(question)
         report.check('board order: %s' % question[:34], got == want, str(got))
+
+    # A pipe is not a console. Measured: `printf "byter du till simulerat
+    # lage" | dbg --repl` arrived as `lÃ¤ge` under cp1252, which splits into
+    # `lã` and `ge` - and `ge` disqualifies a board order as a second
+    # request. The order went to the model, which refused it. stdin gets the
+    # same treatment as the two outputs now: UTF-8 when it is not a tty.
+    mangled = 'byter du till simulerat läge'.encode('utf-8').decode('cp1252')
+    report.check('the mangling really does hide the order',
+                 debug.board_switch(mangled) is None, mangled[-12:])
+    report.check('so a pipe is decoded as UTF-8, like the outputs are',
+                 debug._printable(_NotATty()) is not None
+                 and _NotATty.asked == {'encoding': 'utf-8',
+                                        'errors': 'replace'},
+                 str(_NotATty.asked))
 
     # ...and it reaches the swap, without a model turn.
     ordered = debug.Chat.__new__(debug.Chat)

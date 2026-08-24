@@ -182,23 +182,36 @@ BOARD_WORDS = {
     'fieldbus': 'rs485',
 }
 
-# Verbs that order a swap rather than ask about one. Same gate as
-# language._REQUEST_VERBS: without it, "vad ar debugproben" reads as an
-# order because it names one.
+# Verbs that order a swap rather than ask about one. Without the verb,
+# "vad ar debugproben" reads as an order because it names one.
+#
+# 'kor' is deliberately absent: "kor mot simulerat" and "kor testerna" are
+# the same word doing opposite jobs, and only one of them is this.
 _BOARD_VERBS = ('byt', 'byta', 'byter', 'växla', 'växlar', 'koppla',
-                'kör', 'använd', 'ta',
+                'använd', 'ta',
                 'switch', 'switches', 'change', 'use', 'connect', 'go')
 
-# Nouns and function words that can sit around the target without the
-# message being about anything else. A word outside all three sets means
-# there is a real question in here and the model answers it.
-_BOARD_FILLER = (
-    'till', 'to', 'over', 'över', 'mot', 'via', 'på', 'in', 'en', 'ett',
-    'den', 'det', 'the', 'a', 'an', 'du', 'nu', 'now', 'tack', 'please',
-    'igen', 'again', 'tillbaka', 'back', 'kan', 'can',
-    'enhet', 'enheten', 'device', 'board', 'kort', 'kortet', 'hårdvara',
-    'hårdvaran', 'hardware', 'brädan', 'target', 'och', 'and',
-)
+# What stops an order from being one. This was a list of allowed filler
+# words and every word outside it abstained - which meant a noun nobody had
+# thought of was enough to lose the order. Measured four times, one word
+# each: 'enhet', then 'hardvara', then 'lage'. Naming what disqualifies an
+# order is a closed set; naming every noun that does not is not.
+# Interrogatives only. 'om' and 'ifall' are subordinating conjunctions, not
+# questions, and 'om' is also the particle in "koppla om" - listing it lost
+# that order to its own verb.
+_QUESTION_WORDS = ('vad', 'vilken', 'vilket', 'vilka', 'varför', 'hur',
+                   'när', 'vem',
+                   'what', 'which', 'why', 'how', 'when', 'whether')
+
+# Another thing to do in the same sentence. "byt till simulerat lage och
+# las NTC:n" is two requests, and the model is the one that can carry out
+# both; the host taking the first half silently would drop the second.
+_OTHER_ACTIONS = ('läs', 'läser', 'mät', 'mäter', 'visa', 'visar', 'lista',
+                  'ge', 'beskriv', 'förklara', 'bygg', 'flasha', 'testa',
+                  'kör', 'skriv', 'sätt', 'slå',
+                  'read', 'measure', 'show', 'list', 'give', 'describe',
+                  'explain', 'build', 'flash', 'test', 'run', 'write',
+                  'set', 'turn')
 
 _COM_PORT = re.compile(r'^com\d+$', re.I)
 
@@ -211,9 +224,15 @@ def board_switch(text):
     is host state, and a model asked to change it can only describe or
     refuse. Measured three times, it did both and then read a channel.
 
-    None when a word is left over once the verb, the target and the filler
-    are taken out - "vad ar debugproben" keeps `vad`, so it goes to the
-    model as before.
+    None when the sentence asks rather than orders ("vad ar debugproben"),
+    or carries a second request the host cannot do ("byt till simulerat
+    lage och las NTC:n"). Anything else with a switch verb and a target is
+    an order.
+
+    This used to require every word to be in a list of allowed filler, and
+    abstained on anything else. That lost the order to one unlisted noun,
+    four times running - 'enhet', 'hardvara', 'lage'. What disqualifies an
+    order is a closed set; what may appear in one is not.
     """
     words = [w.lower() for w in re.findall(r'[^\W_]+', text or '')]
     if not any(w in _BOARD_VERBS for w in words):
@@ -222,10 +241,8 @@ def board_switch(text):
     targets = [BOARD_WORDS[w] for w in words if w in BOARD_WORDS]
     if not targets and not ports:
         return None
-    for word in words:
-        if not (word in BOARD_WORDS or word in _BOARD_VERBS
-                or word in _BOARD_FILLER or _COM_PORT.match(word)):
-            return None
+    if any(w in _QUESTION_WORDS or w in _OTHER_ACTIONS for w in words):
+        return None
     # A named port beats a kind: "byt till COM7" said which one.
     if ports:
         return ports[0]
@@ -287,7 +304,14 @@ REPEATABLE = {'analog_read', 'run_python', 'run_command'}
 
 
 def _printable(stream):
-    """Make a console survive an answer in somebody else's alphabet.
+    """Make a console survive an alphabet that is not its codepage.
+
+    Applied to stdin as well as the two outputs, and for the same reason in
+    reverse. Measured: `printf "byter du till simulerat lage" | dbg --repl`
+    arrived as `simulerat lÃ¤ge` under cp1252, which split into `lã` and
+    `ge` - and `ge` is one of the verbs that disqualifies a board order, so
+    the order went to the model instead of being carried out. A tty is fine
+    either way, since the console API hands over real Unicode.
 
     A console keeps its own codepage and only gains errors='replace': under
     cp1252 an ohm sign or any Cyrillic would otherwise raise
@@ -1617,6 +1641,7 @@ def main(argv=None):
     # Before anything prints: every path out of here, including the error
     # branches below, goes through a console that may not hold the alphabet
     # the answer arrives in.
+    _printable(sys.stdin)
     _printable(sys.stdout)
     _printable(sys.stderr)
     question = ' '.join(args.question).strip()
