@@ -32,6 +32,7 @@ TOOLS = [
     {
         'name': 'board_info',
         'description': 'Identity, firmware/protocol version, clock tree and the ADC channel map. Call once; the map is stable.',
+        'description_terse': 'Identity, versions, clock tree, ADC channel map. Call once.',
         'inputSchema': {
             'type': 'object',
             'properties': {'refresh': {'type': 'boolean'}},
@@ -40,6 +41,7 @@ TOOLS = [
     {
         'name': 'analog_read',
         'description': 'Sample ADC channels; returns mean raw, pin volts, plus degC for the NTC and volts for the DC bus. Needs the AFE on.',
+        'description_terse': 'Sample ADC channels: mean raw, pin volts, NTC degC, bus volts.',
         'inputSchema': {
             'type': 'object',
             'properties': {
@@ -56,6 +58,7 @@ TOOLS = [
     {
         'name': 'docs',
         'description': "This board's own documents: background, not a live reading. find=TEXT to answer a question; doc= alone returns headings, not answers.",
+        'description_terse': "This board's documents, not a reading. find=TEXT answers; doc= alone lists headings.",
         'inputSchema': {
             'type': 'object',
             'properties': {
@@ -69,6 +72,7 @@ TOOLS = [
     {
         'name': 'self_test',
         'description': 'What the board can prove about itself: clocks, calibration, firmware checksum. Pass/fail only where no external reference is needed.',
+        'description_terse': 'What the board proves about itself: clocks, calibration, checksum.',
         'inputSchema': {
             'type': 'object',
             'properties': {'failures_only': {'type': 'boolean'}},
@@ -77,6 +81,7 @@ TOOLS = [
     {
         'name': 'afe_power',
         'description': 'Analog front end switch. It also powers the ADC reference, so readings are meaningless with it off.',
+        'description_terse': 'Front end switch. It also powers the ADC reference.',
         'inputSchema': {
             'type': 'object',
             'properties': {'action': {'enum': ['on', 'off', 'toggle', 'read']}},
@@ -86,6 +91,7 @@ TOOLS = [
     {
         'name': 'gpio_pin',
         'description': 'Read, drive or configure one pin. Writing and configuring need test_gate open.',
+        'description_terse': 'Read, drive or configure one pin. Write and mode need test_gate.',
         'inputSchema': {
             'type': 'object',
             'properties': {
@@ -101,6 +107,7 @@ TOOLS = [
     {
         'name': 'gpio_port',
         'description': 'Read a whole 16-bit port, or drive a masked set of its pins atomically. Writing needs test_gate open.',
+        'description_terse': 'Read a 16-bit port, or drive masked pins. Write needs test_gate.',
         'inputSchema': {
             'type': 'object',
             'properties': {
@@ -115,6 +122,7 @@ TOOLS = [
     {
         'name': 'test_gate',
         'description': 'Open or close raw pin access. Reads work without it; writes do not.',
+        'description_terse': 'Open or close raw pin access. Reads work without it.',
         'inputSchema': {
             'type': 'object',
             'properties': {'enable': {'type': 'boolean'}},
@@ -124,6 +132,7 @@ TOOLS = [
     {
         'name': 'link',
         'description': 'echo tests the wire, stats returns frame counters, release hands the UART back to the text console.',
+        'description_terse': 'echo tests the wire, stats returns counters, release hands back the console.',
         'inputSchema': {
             'type': 'object',
             'properties': {

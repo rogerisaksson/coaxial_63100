@@ -25,6 +25,8 @@ what is on disk, and no path from the arguments to the filesystem.
 import os
 import re
 
+from .detail import TERSE
+
 # The documents a bench question can reach. CLAUDE.md and README.md are in
 # here too: they are where the invariants and the commands live, and a model
 # asking "what is AFE_ON for" should find that answer in the same place as the
@@ -34,6 +36,22 @@ NAMES = ('README', 'CLAUDE', 'ARCHITECTURE', 'PROTOCOL', 'HARDWARE',
 
 CLIP = 4000        # characters of one section, about a thousand tokens
 FIND_HITS = 12     # lines reported for a search, before it is a document dump
+
+# The same two numbers for a reader paying for them out of 8192 tokens shared
+# with the conversation and the readings. Under a third of the section and
+# half the hits: enough to answer the question that was asked, not enough to
+# spend the window on background. See detail.py - which level is in force is
+# decided from the model, not here, and a section clipped shorter still says
+# so and still names the way to ask for the rest.
+CLIP_TERSE = 1200
+FIND_HITS_TERSE = 6
+
+
+def _limits(level):
+    """(section clip, search hits) for one detail level."""
+    if level == TERSE:
+        return CLIP_TERSE, FIND_HITS_TERSE
+    return CLIP, FIND_HITS
 
 
 def root():
@@ -75,16 +93,30 @@ def _headings(text):
     return out
 
 
-def index():
-    """Every document, its headings, and what a full read would cost."""
+def index(level=None):
+    """Every document, its headings, and what a full read would cost.
+
+    Terse drops two of those three and keeps the one that matters: the cost
+    estimate goes (choosing what to read by token count is not what a bench
+    question is doing), the subsection headings go, and the chapters stay -
+    because a chapter name is how the next call is spelled. The line saying
+    how to make that call stays at both levels: a cheaper index that teaches
+    nothing costs more over a session than it saves in a turn.
+    """
+    terse = level == TERSE
     lines = []
     for name, path in sorted(paths().items()):
         text = _read(path)
         heads = _headings(text)
-        lines.append('%-12s %5d lines  ~%d tok' % (name, text.count('\n') + 1,
-                                                   len(text) // 4))
-        for level, title, _ in heads:
-            lines.append('  %s%s' % ('  ' * (level - 2), title))
+        if terse:
+            lines.append(name)
+        else:
+            lines.append('%-12s %5d lines  ~%d tok'
+                         % (name, text.count('\n') + 1, len(text) // 4))
+        for head_level, title, _ in heads:
+            if terse and head_level > 2:
+                continue
+            lines.append('  %s%s' % ('  ' * (head_level - 2), title))
     if not lines:
         return 'no documents found under %s' % root()
     lines.append('')
@@ -94,8 +126,10 @@ def index():
     return '\n'.join(lines)
 
 
-def outline(name):
-    """One document's headings."""
+def outline(name, level=None):
+    """One document's headings. The same at either level: this is already
+    nothing but titles, and a shorter list of titles is a document the model
+    cannot ask about by name."""
     found = paths()
     if name not in found:
         raise ValueError('no document %r; have %s'
@@ -115,7 +149,7 @@ def outline(name):
     return '\n'.join(lines)
 
 
-def section(name, wanted):
+def section(name, wanted, level=None):
     """One section, matched loosely on its heading, clipped.
 
     Loose matching because a model quoting a heading back gets the case or a
@@ -131,32 +165,38 @@ def section(name, wanted):
     heads = _headings(text)
     needle = wanted.strip().lower()
 
+    # `depth` throughout, not `level`: the heading's depth and the detail
+    # level are two different numbers and the second one is a parameter of
+    # this function. They were both called level for one revision, and the
+    # clip below silently read a heading depth of 2 as its detail level.
     hit = None
-    for position, (level, title, line_no) in enumerate(heads):
+    for position, (depth, title, line_no) in enumerate(heads):
         low = title.lower()
         if low == needle or needle in low:
-            hit = (position, level, title, line_no)
+            hit = (position, depth, title, line_no)
             break
     if hit is None:
         raise ValueError('no section %r in %s; headings: %s'
                          % (wanted, name,
                             ', '.join(t for _, t, _ in heads) or '(none)'))
 
-    position, level, title, start = hit
+    position, depth, title, start = hit
     end = len(lines)
-    for other_level, _, other_line in heads[position + 1:]:
+    for other_depth, _, other_line in heads[position + 1:]:
         # A subsection belongs to its parent; a sibling or an uncle ends it.
-        if other_level <= level:
+        if other_depth <= depth:
             end = other_line
             break
+    clip, _ = _limits(level)
     body = '\n'.join(lines[start:end]).strip()
-    if len(body) > CLIP:
-        body = body[:CLIP].rstrip() + (
-            '\n... clipped at %d characters. Ask for a subsection by name.' % CLIP)
+    if len(body) > clip:
+        body = body[:clip].rstrip() + (
+            '\n... clipped at %d characters. Ask for a subsection by name.'
+            % clip)
     return '%s / %s\n%s' % (name, title, body)
 
 
-def find(needle):
+def find(needle, level=None):
     """Where a phrase appears, with the heading it appears under."""
     needle = str(needle).strip()
     if not needle:
@@ -190,13 +230,14 @@ def find(needle):
             hits.append('%-10s %-46s %s' % (name, where[:46], line.strip()[:70]))
     if not hits:
         return 'no document mentions %r' % needle
-    shown = hits[:FIND_HITS]
-    if len(hits) > FIND_HITS:
-        shown.append('... %d more, narrow the search' % (len(hits) - FIND_HITS))
+    _, keep = _limits(level)
+    shown = hits[:keep]
+    if len(hits) > keep:
+        shown.append('... %d more, narrow the search' % (len(hits) - keep))
     return '\n'.join(shown)
 
 
-def docs(session=None, doc=None, section=None, find=None, **_):
+def docs(session=None, doc=None, section=None, find=None, detail=None, **_):
     """The tool entry point. `session` is unused - documents are not the board.
 
     Named the same as the module's own functions on purpose: the tool argument
@@ -204,9 +245,9 @@ def docs(session=None, doc=None, section=None, find=None, **_):
     cheaper to read than an argument called `section_name`.
     """
     if find:
-        return globals()['find'](find)
+        return globals()['find'](find, detail)
     if doc and section:
-        return globals()['section'](doc, section)
+        return globals()['section'](doc, section, detail)
     if doc:
-        return outline(doc)
-    return index()
+        return outline(doc, detail)
+    return index(detail)

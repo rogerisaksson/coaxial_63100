@@ -302,6 +302,80 @@ attempts. A request ollama *refused* — a bad schema, an unknown field — is
 never retried, because asking again just makes the same mistake twice. A
 machine genuinely out of memory still fails, in seconds, rather than looping.
 
+### Why it dies: the prompt cache, and 32 checkpoints of 320 MiB
+
+The retry above hides the symptom. This is the cause, read out of
+`%LOCALAPPDATA%\Ollama\server.log` while reproducing it deliberately:
+
+```
+slot get_availabl: - checking sim = 0.255 (323/1265) > 0.100
+srv   prompt_save:  - saving prompt with length 1446, total state size = 342.623 MiB
+libc++abi: terminating due to uncaught exception of type std::bad_alloc
+llama-server terminated  exit.code=3221226505 (0xc0000409)
+```
+
+Two allocators, both llama-server's, neither of them about the size of the
+question:
+
+* **The prompt cache.** `prompt cache is enabled, size limit: 8192 MiB`.
+  When a new prompt shares little of its prefix with the cached one, the
+  server saves the whole slot state — ~340 MiB here — into that cache before
+  starting the new one. Every question in a bench session is that case:
+  `debug.Chat` clears its history after each answered turn on purpose, so the
+  prefix after the system prompt is new every time (`sim = 0.25` … `0.33`
+  measured). The allocation intermittently throws, uncaught, and takes the
+  process with it.
+* **Context checkpoints.** `context checkpoints enabled, max = 32`, each one
+  `320.013 MiB` — a size fixed by the context window, not by the prompt. 32 of
+  those is 10 GB beside 8 GB of weights on a 16 GB card.
+
+**Prompt length is not the trigger**, and that is worth stating plainly
+because it is the obvious hypothesis and it is wrong: the crashing prompts
+were 1249 and 1446 tokens of an 8192-token window, and the state saved was
+339 MiB and 342 MiB — the *same*, because the checkpoint size saturates. See
+[FINDINGS.md](FINDINGS.md).
+
+Two environment variables fix it, and `board_prompt.ps1` now sets them and
+restarts the daemon once if it has to (`-NoTune` opts out) — see
+`$DaemonTuning` in `board_prompt/Ollama.ps1`:
+
+```
+LLAMA_ARG_CACHE_RAM       = 0   # no prompt cache: nothing here re-asks an old prompt
+LLAMA_ARG_CTX_CHECKPOINTS = 2   # instead of 32; checkpoint 1 is restored on the next turn anyway
+```
+
+Measured, same twelve-question session either way: untuned, the runner died
+and reloaded 8 GB mid-session, twice in two attempts; tuned, 36 model calls,
+zero `std::bad_alloc`, one model load. They are `LLAMA_ARG_*` rather than
+`OLLAMA_*` because they belong to llama.cpp's argument parser, which reads
+them out of the environment ollama hands its runner — `ollama serve --help`
+does not list them, `libllama-common.dll` does.
+
+An already-running daemon keeps the environment it was started with, which is
+why setting them is not enough on its own and the restart exists. They are
+persisted at User scope too, so the tray app inherits them at the next login
+and the restart never happens again.
+
+### When there really is no room
+
+Separate from the above, and handled in `client.py` rather than by the
+launcher: an allocation failure that is genuinely about a full card.
+`_out_of_memory` tells that apart from a crashed runner — a crashed runner
+comes back on its own and the fix is to ask again, a full card stays full —
+and `_make_room` climbs one rung at a time, ordered by what it costs to be
+wrong about it:
+
+1. unload every *other* model resident on the card, then drop this one and
+   the caches around it, and ask again;
+2. halve `num_ctx`, down to `MIN_NUM_CTX` (2048), for the rest of the session;
+3. give up, and say which of `--num-ctx`, `--num-gpu` and a smaller tag the
+   operator has left.
+
+Each rung is recorded in `client.notes` rather than printed — a library that
+writes to somebody's terminal is one nobody can embed — and `debug.Chat`
+drains them into the same trace the tool results go to, so a session whose
+context window just halved is told.
+
 ---
 
 ## What the model is not allowed to conclude
@@ -382,6 +456,50 @@ answer back into a reading. The board is the authority on what the board
 reads; the documents explain what a reading *means*, which is a different and
 much rarer question. `DOCS_HINT` says so, and is sent only when `docs` is
 actually offered.
+
+### Terse and full: documentation sized for whoever is reading
+
+Every tool's description and every schema property description is re-sent on
+every single turn, and the readers are not alike. Claude, over MCP, reads a
+description out of a window measured in hundreds of thousands of tokens;
+`gemma4:12b` pays for the same text out of 8192 shared with the conversation,
+the readings and the answer. Writing for the smaller reader shortchanges the
+larger one, and writing twice is two things to keep in step — so the length is
+picked by code, from one spec that carries both forms.
+
+`host/coaxial_mcp/detail.py` is that code, and the level is **decided from the
+model, not from a flag**:
+
+| Reader | Level | Why |
+|---|---|---|
+| `gemma4:12b`, `qwen2.5:14b`, `llama3.1:8b` | terse | parameter count under `FULL_MODEL_B` (30 B) |
+| a tag that names no size (`qwen3.6:latest`) | terse | the local daemon is where unnamed tags live |
+| an ollama `:cloud` tag | full | somebody else's hardware, and not short of room |
+| the MCP server, with no model to read | full | the reader on that pipe is not the one paying |
+
+`--detail terse|full|auto` overrides it per run (`dbg`, `python -m
+coaxial_ollama`, `python -m coaxial_mcp`), `/detail` switches it mid-session
+and reprices the turn, and `COAXIAL_DETAIL` decides for the whole machine.
+
+What it actually costs, measured on this tool surface:
+
+| Set | full | terse |
+|---|---|---|
+| `read` | 620 tok/turn | 439 |
+| `code` (the default) | 943 | 662 |
+| `all` | 1435 | 1085 |
+
+Terse also clips a `docs` section at 1200 characters instead of 4000, halves
+the search hits, and drops the subsection headings from the index — while
+keeping the chapter names, because a chapter name is how the next call is
+spelled, and keeping the line that teaches the call shape, because an index
+that teaches nothing costs more over a session than it saves in a turn.
+
+What is deliberately **not** gated on this: the behavioural hints in
+`debug.py` (`BUILD_HINT`, `LINK_DIAGNOSE_HINT` and the rest). Each of those
+exists because a small model needed telling, so trimming them for small
+models would delete them exactly where they earn their place. This mechanism
+shortens documentation, not instructions.
 
 ## Tools beyond the board
 

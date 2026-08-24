@@ -50,11 +50,37 @@ sys.path.insert(0, _HOST)
 sys.path.insert(0, _TOOLS)
 
 from coaxial.errors import RigError                       # noqa: E402
+from coaxial_mcp import detail                            # noqa: E402
 from coaxial_mcp import render                            # noqa: E402
 from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
 from coaxial_mcp.tools import TOOLS as BOARD_TOOLS         # noqa: E402
 from coaxial_mcp.tools import coerce as board_coerce       # noqa: E402
 import find_board                                          # noqa: E402
+
+from .sandbox import clip_ends                             # noqa: E402
+
+# The ceiling on anything a tool may put in front of the model, in characters
+# - about a thousand tokens. Not a tidiness rule: a tool result goes straight
+# into the conversation and is re-sent on every following turn of the same
+# question, so one unbounded build log is a prompt that keeps growing until
+# the daemon has to allocate for it. `Shell` and `Scope` have clipped their
+# own output all along; build_firmware, run_tests and link_diagnose ran their
+# subprocesses directly and did not, which is exactly where the largest
+# outputs in this package come from. The cap lives at the dispatch point
+# instead, so it holds for every handler including the ones not written yet.
+TOOL_LIMIT = 4000
+
+
+def bounded(result, limit=TOOL_LIMIT):
+    """One ceiling, at the one place every tool result passes through.
+
+    `Reported` is not text and is never clipped: it carries a value and a
+    note the runner judges in Python, not something the model reads back.
+    """
+    if isinstance(result, str):
+        return clip_ends(result, limit)
+    return result
+
 
 _BUILD_AND_FLASH = os.path.join(_TOOLS, 'build_and_flash.py')
 _RUN_TESTS = os.path.join(_TOOLS, 'run_tests.py')
@@ -63,6 +89,7 @@ EXTRA_TOOLS = [
     {
         'name': 'run_python',
         'description': 'Run Python against the live board. `board`, coaxial, scaling, math, statistics are in scope and persist between calls; the last expression is the result.',
+        'description_terse': 'Python against the live board. `board` is in scope and persists; the last expression is the result.',
         'inputSchema': {
             'type': 'object',
             'properties': {'code': {'type': 'string'}},
@@ -72,6 +99,7 @@ EXTRA_TOOLS = [
     {
         'name': 'run_command',
         'description': 'Run one allowlisted program, argv only - no pipes or redirection. For builds, flashing and CLI tools.',
+        'description_terse': 'Run one allowlisted program, argv only - no pipes or redirection.',
         'inputSchema': {
             'type': 'object',
             'properties': {'cmd': {'type': 'string'},
@@ -82,6 +110,7 @@ EXTRA_TOOLS = [
     {
         'name': 'build_firmware',
         'description': "Build this firmware and flash it to the board over SWD. Runs host/tools/build_and_flash.py with a fixed build preset and a fixed SWD flash command - nothing about the build or the flash is configurable here beyond which of the two steps to run. 'action': 'build' (compile only), 'flash' (flash the existing build only), or 'both' (default).",
+        'description_terse': "Build this firmware and flash it over SWD. action: 'build', 'flash' or 'both' (default). Nothing else is configurable.",
         'inputSchema': {
             'type': 'object',
             'properties': {
@@ -92,6 +121,7 @@ EXTRA_TOOLS = [
     {
         'name': 'run_tests',
         'description': "Run this project's own offline test suites (test_ollama.py, test_mcp.py, test_simulated.py) and report the exact pass/fail tally each one already counts itself - never a paraphrase. Add 'conformance' to also run test_conformance.py, which needs a real board on COM4.",
+        'description_terse': "Run the offline test suites and report each one's own pass/fail tally, never a paraphrase. 'conformance' adds the suite that needs the board.",
         'inputSchema': {
             'type': 'object',
             'properties': {
@@ -102,6 +132,7 @@ EXTRA_TOOLS = [
     {
         'name': 'link_diagnose',
         'description': "The board is not answering (ConnectError, NoReplyError, 'link is down'): call this to find out why, instead of just repeating the raw error. Checks in order, most fundamental first, stopping at whichever step actually explains it: 1) target power over SWD via the ST-Link, 2) COM ports Windows sees, 3) whether the configured one is among them, 4) whether the board actually answers on it right now. 'probe_other_ports' adds a step 5, trying every other port for a board that answers somewhere other than where it was told to look.",
+        'description_terse': "The board is not answering: call this to find out why instead of repeating the error. Checks target power, the COM ports, and whether the board answers. 'probe_other_ports' tries the others too.",
         'inputSchema': {
             'type': 'object',
             'properties': {
@@ -178,13 +209,16 @@ def arguments(call):
     return args if isinstance(args, dict) else {}
 
 
-def schemas(tools=TOOLS):
-    """MCP tool specs in the shape Ollama's /api/chat wants."""
+def schemas(tools=TOOLS, level=detail.FULL):
+    """MCP tool specs in the shape Ollama's /api/chat wants, at one level of
+    detail - `terse` for a model paying for this list out of 8192 tokens,
+    `full` for one that is not. See coaxial_mcp/detail.py; nothing here
+    decides which, it is passed in from whoever knows the model."""
     return [{'type': 'function',
              'function': {'name': spec['name'],
                           'description': spec['description'],
                           'parameters': spec['inputSchema']}}
-            for spec in tools]
+            for spec in detail.apply(tools, level)]
 
 
 class Refused(Exception):
@@ -214,6 +248,12 @@ class Toolbox:
         self.allow_writes = allow_writes
         self.allow_code = allow_code
         self.confirm = confirm            # callable(name, args) -> bool, or None
+        # How much of each tool's documentation this run's model gets - see
+        # coaxial_mcp/detail.py. An attribute rather than a constructor
+        # argument threaded through every caller: /detail flips it mid
+        # session, and every existing caller keeps the full text it has
+        # always had.
+        self.detail = detail.FULL
         self.log = []
         # Set by the caller before a turn's calls run - True unless the
         # caller actually checked and the current question never said "afe".
@@ -224,7 +264,12 @@ class Toolbox:
         self.afe_mentioned = True
 
     def schemas(self):
-        return schemas()
+        """This run's tool list, at this run's detail level. `detail` is set
+        by whoever built the Toolbox and knows which model is reading -
+        debug.py from --detail, the runner from the same flag - and defaults
+        to the full text for a caller that never said, since that caller is
+        not the one short of context."""
+        return schemas(TOOLS, self.detail)
 
     def is_write(self, name, args):
         """Does this call change something, or run something? Both need the
@@ -249,21 +294,28 @@ class Toolbox:
 
         try:
             self._permit(name, args)
-            if name == 'run_python':
-                return self._python(args)
-            if name == 'run_command':
-                return self._command(args)
-            if name == 'build_firmware':
-                return self._build_firmware(args)
-            if name == 'run_tests':
-                return self._run_tests(args)
-            if name == 'link_diagnose':
-                return self._link_diagnose(args)
-            return self._board(name, args)
+            return bounded(self._dispatch(name, args))
         except Refused as exc:
             return 'ERR %s' % exc
         except (RigError, ValueError, KeyError, TypeError) as exc:
             return render.error(exc)
+
+    def _dispatch(self, name, args):
+        """Which handler, once the policy above has allowed the call. Split
+        out so every result leaves through exactly one `bounded()` - a new
+        tool added to this chain cannot forget the ceiling by being written
+        with its own `return`."""
+        if name == 'run_python':
+            return self._python(args)
+        if name == 'run_command':
+            return self._command(args)
+        if name == 'build_firmware':
+            return self._build_firmware(args)
+        if name == 'run_tests':
+            return self._run_tests(args)
+        if name == 'link_diagnose':
+            return self._link_diagnose(args)
+        return self._board(name, args)
 
     # ---- policy ------------------------------------------------------------
 
@@ -522,4 +574,12 @@ class Toolbox:
     def _board(self, name, args):
         # Coerced against the tool's own schema first: see
         # coaxial_mcp.tools.coerce for what a small model sends instead.
-        return BOARD_HANDLERS[name](self.session, **board_coerce(name, args))
+        #
+        # `detail` rides along with every board call and is not one of the
+        # model's arguments - it is this run's, and coerce() would drop it as
+        # unknown. Only `docs` reads it (a section clipped for the reader
+        # rather than for the document); every other handler takes **_ and
+        # ignores it, which is what keeps this one line rather than a
+        # per-handler signature change.
+        return BOARD_HANDLERS[name](self.session, detail=self.detail,
+                                    **board_coerce(name, args))

@@ -45,11 +45,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial.errors import RigError                  # noqa: E402
 from coaxial_mcp import render                        # noqa: E402
 
+from coaxial_mcp import detail                       # noqa: E402
+
+from . import context
 from . import language
 from . import replies
 from . import tools as toolmod                       # noqa: E402
 from . import spinner as spin                        # noqa: E402
-from .sandbox import Scope, Shell, clip              # noqa: E402
+from .context import approx_tokens                   # noqa: E402
+from .sandbox import Scope, Shell, clip, clip_ends   # noqa: E402
 
 # Deliberately terse, and every line of it earns its place. No restating the
 # protocol, no channel map - board_info carries that, once, when asked.
@@ -147,6 +151,7 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
   /sh CMD       run an allowlisted command, no model
   /reconnect    drop and reopen the board link, no model
   /tools [set]  read|code|pins|build|docs|all|none, or a comma separated list
+  /detail [x]   terse|full|auto - how much documentation the tools carry
   /confirm      toggle asking before every write - pin, run_python, run_command
   /lang [NAME]  show, set, or /lang auto to unlock the session's language
   /ctx          what the next turn will cost
@@ -241,9 +246,11 @@ def _printable(stream):
     return stream
 
 
-def approx_tokens(text):
-    """Rough but honest: about four characters per token for dense ASCII."""
-    return max(1, len(str(text)) // 4)
+# The most of a piped or attached input that becomes part of a question.
+# `sed -n 1,40p log | dbg` is a question about a log; `cat build.log | dbg`
+# is the same command with fifty thousand lines behind it, and nothing about
+# the pipe says which one arrived.
+INPUT_LIMIT = 6000
 
 
 # host/prompt_io.tmp - resolved from this file's own location, not the
@@ -346,9 +353,18 @@ class Chat:
     """
 
     def __init__(self, client, toolbox, tools='read', keep=6, budget=0,
-                 quiet=False, out=None, link_ok=True):
+                 quiet=False, out=None, link_ok=True, detail_level=detail.AUTO):
         self.client = client
         self.toolbox = toolbox
+        # Before set_tools below, which builds the schemas this decides the
+        # length of. `auto` reads the model's tag: the tags this loop runs are
+        # 8B to 14B and pay for every description out of the same 8192 tokens
+        # the readings come out of, so auto lands on terse here and on full
+        # for anything big enough not to care.
+        self.detail = detail.resolve(detail_level,
+                                     model=getattr(client, 'model', None),
+                                     default=detail.TERSE)
+        toolbox.detail = self.detail
         self.keep = keep
         self.budget = budget
         self.quiet = quiet
@@ -405,12 +421,28 @@ class Chat:
                              % (', '.join(unknown), ', '.join(SETS)))
         self.tool_names = names
         self.schemas = toolmod.schemas(
-            [spec for spec in toolmod.TOOLS if spec['name'] in names]) or None
+            [spec for spec in toolmod.TOOLS if spec['name'] in names],
+            self.detail) or None
         return names
+
+    def set_detail(self, wanted=detail.AUTO):
+        """How much of each tool's documentation this model gets.
+
+        Resolved against the model's own tag, so `auto` on gemma4:12b is
+        terse and `auto` on a frontier model over MCP is full - see
+        coaxial_mcp/detail.py. Re-reads the tool list afterwards, because the
+        level only exists in what goes over the wire.
+        """
+        model = getattr(self.client, 'model', None)
+        self.detail = detail.resolve(wanted, model=model, default=detail.TERSE)
+        self.toolbox.detail = self.detail
+        if getattr(self, 'tool_names', None) is not None:
+            self.set_tools(','.join(self.tool_names) or 'none')
+        return self.detail
 
     def tool_cost(self):
         """What the tool list alone costs, every turn, before any question."""
-        return approx_tokens(json.dumps(self.schemas or []))
+        return approx_tokens(json.dumps(getattr(self, 'schemas', None) or []))
 
     def trim(self):
         """System prompt, stubbed history, recent turns whole.
@@ -505,10 +537,31 @@ class Chat:
                 sent.append({'role': message['role'],
                              'content': clip(content, 200)})
         sent.extend(tail)
-        return sent
+        return self._fit(sent)
+
+    # ---- what actually fits ------------------------------------------------
+
+    def prompt_budget(self):
+        """Tokens the next prompt may take, of the window this model has.
+        Zero when the client has no window to read - see context.budget_for.
+
+        getattr for the client itself, not just its options, for the same
+        reason trim() reaches for tool_names that way: a Chat built by a test
+        to exercise one method has whatever that method needs on it and
+        nothing else, and a budget is not what such a test is about.
+        """
+        client = getattr(self, 'client', None)
+        return context.budget_for(getattr(client, 'options', None))
+
+    def _fit(self, sent):
+        """Whatever trim() decided to send, cut down to what the model can
+        actually be handed. Two different jobs: trim() knows what is worth
+        sending, context.fit knows what fits. The tool schemas count - they
+        are re-sent every turn and come out of the same window."""
+        return context.fit(sent, self.prompt_budget(), self.tool_cost())
 
     def context_cost(self):
-        return approx_tokens(json.dumps(self.trim())) + self.tool_cost()
+        return context.cost(self.trim(), self.tool_cost())
 
     # ---- a turn ------------------------------------------------------------
 
@@ -591,6 +644,7 @@ class Chat:
             after = self.client.usage()
             self._meter(after['prompt_tokens'] - before['prompt_tokens'],
                         after['eval_tokens'] - before['eval_tokens'])
+            self._notes()
 
             message.pop('thinking', None)
             calls = message.get('tool_calls') or []
@@ -829,6 +883,17 @@ class Chat:
                 self.set_tools(rest)
             return '%s (%d tok/turn)' % (', '.join(self.tool_names) or 'none',
                                          self.tool_cost())
+        if verb == 'detail':
+            # Priced, not just named: the whole point of the level is what
+            # the tool list costs per turn, and that number is the argument
+            # for changing it.
+            if rest:
+                if rest.lower() not in detail.LEVELS:
+                    return 'detail: %s, or auto' % ', '.join(
+                        (detail.TERSE, detail.FULL))
+                self.set_detail(rest.lower())
+            return 'detail: %s (%d tok/turn of tools)' % (self.detail,
+                                                          self.tool_cost())
         if verb == 'confirm':
             # /tools build alone hands the model run_command with nothing
             # asking first, unless --confirm was already on the command line
@@ -854,8 +919,13 @@ class Chat:
             self.language = named
             return 'language: %s (locked)' % named
         if verb == 'ctx':
-            return '%d messages, next turn about %d tok in, %d of it tools' \
-                % (len(self.history), self.context_cost(), self.tool_cost())
+            # The budget is the number that explains the other two once a
+            # conversation gets long: a turn that is not growing any more is
+            # a turn being trimmed to fit, not a turn that stopped costing.
+            budget = self.prompt_budget()
+            return '%d messages, next turn about %d tok in%s, %d of it tools' \
+                % (len(self.history), self.context_cost(),
+                   ' of %d' % budget if budget else '', self.tool_cost())
         if verb == 'cost':
             return self.cost_line()
         if verb == 'history':
@@ -905,6 +975,24 @@ class Chat:
     def _meter(self, prompt_tokens, eval_tokens):
         """Record the cost of one turn. Not printed - see /cost and /ctx."""
         self.turn_cost.append((prompt_tokens, eval_tokens))
+
+    def _notes(self):
+        """Say what the client had to do to the machine to answer at all.
+
+        The Ollama client evicts models and shrinks windows in silence
+        because a library that prints is a library nobody can embed - but a
+        session whose context window just halved has to be told, or the next
+        odd answer looks like the model getting worse for no reason. Traced
+        like a tool result, so --quiet stays quiet, and logged unconditionally
+        because the log is what a later look at the session reads.
+        """
+        notes = getattr(self.client, 'notes', None)
+        if not notes:
+            return
+        drained, notes[:] = list(notes), []
+        for note in drained:
+            self.io_log.write('  ! %s\n' % note)
+            self._trace('! ' + note)
 
     def _trace(self, result):
         """Print what a call returned, as the grid render.py already built it.
@@ -1004,6 +1092,12 @@ def parse(argv):
     parser.add_argument('--num-gpu', type=int, default=None,
                         help='layers on the GPU; the rest run on the CPU.'
                              ' Set for you by -m auto and by board_prompt.ps1')
+    parser.add_argument('--detail', default=detail.AUTO, choices=detail.LEVELS,
+                        help='how much documentation each tool carries into '
+                             'every turn. auto reads the model tag: terse for '
+                             'the sizes this bench runs locally, full for '
+                             'anything with room to read it. %s overrides for '
+                             'the whole machine.' % detail.ENV)
     parser.add_argument('--num-ctx', type=int, default=8192)
     parser.add_argument('--keep', type=int, default=6,
                         help='recent messages sent whole; older ones are stubbed')
@@ -1052,8 +1146,14 @@ def ask_operator(name, args):
         return False
 
 
-def attach(paths, chars):
-    """Files as context, clipped. A 3000 line log is not a question."""
+def attach(paths, chars, limit=INPUT_LIMIT):
+    """Files as context, clipped. A 3000 line log is not a question.
+
+    Two limits, because --chars only ever bounded one file: ten of them at
+    the default 2000 is 20k characters of attachment in front of a one-line
+    question, which is the whole window before the board has been asked
+    anything. The second bound is on the lot of them together.
+    """
     blocks = []
     for path in paths:
         try:
@@ -1065,7 +1165,7 @@ def attach(paths, chars):
         blocks.append('--- %s (%d chars, %d attached) ---\n%s'
                       % (path, len(text), min(len(text), chars),
                          clip(text, chars)))
-    return '\n'.join(blocks)
+    return clip_ends('\n'.join(blocks), limit)
 
 
 def build(args):
@@ -1102,16 +1202,17 @@ def build(args):
                       allow_writes=args.allow_writes,
                       confirm=ask_operator if args.confirm else None)
     chat = Chat(client, toolbox, tools=args.tools, keep=args.keep,
-                budget=args.budget, quiet=args.quiet)
+                budget=args.budget, quiet=args.quiet,
+                detail_level=args.detail)
     return client, session, chat
 
 
 def repl(chat, hold=False):
     from .client import OllamaError
 
-    print('%s, tools: %s (%d tok/turn). /help, /q to leave.'
+    print('%s, tools: %s (%s, %d tok/turn). /help, /q to leave.'
           % (chat.client.model, ', '.join(chat.tool_names) or 'none',
-             chat.tool_cost()))
+             chat.detail, chat.tool_cost()))
     if not ({'run_command', 'build_firmware'} & set(chat.tool_names)):
         # Printed once, here, by this host - not sent to the model, so it
         # costs nothing per turn. Measured on this bench: asked three times
@@ -1237,7 +1338,14 @@ def main(argv=None):
     if not question and not args.repl and not sys.stdin.isatty():
         # `sed -n 1,40p log | dbg` is a question about a log. Draining stdin
         # here would also swallow the prompt loop's input, so --repl skips it.
-        question = sys.stdin.read().strip()
+        #
+        # Clipped, and from both ends: the pipe carries whatever the operator
+        # aimed at it, and a whole build log or a captured session arrives
+        # exactly as easily as forty lines do. Unbounded, it is the largest
+        # single thing that can reach the daemon in one go - trim() would
+        # have to clip it later anyway, and doing it here means the notice
+        # says so before the model ever sees the question.
+        question = clip_ends(sys.stdin.read().strip(), INPUT_LIMIT)
 
     try:
         client, session, chat = build(args)

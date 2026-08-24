@@ -45,6 +45,14 @@ Four things are deliberate:
     is not deterministic across versions or context lengths - but nothing is
     gained by adding sampling noise on top of that.
 
+Running out of memory is handled here rather than reported. A bench machine
+shares its card with a desktop, and the model is the largest thing on it: the
+failure is not rare and it is not the operator's mistake, so an allocation
+that loses gets the card cleared of anything else resident, this model's own
+caches dropped, and - only if that was not enough - a smaller context window,
+in that order. Each rung is recorded in `notes` for the caller to show;
+nothing here prints. See `_make_room`.
+
 Model output is never trusted here. This module returns whatever the model said;
 deciding what of it is allowed to touch the board is tools.py's problem, and
 deciding what counts as a pass is plan.py's.
@@ -72,9 +80,42 @@ RUNNER_RETRY_WAIT = 1.5
 _RUNNER_CRASH = ('model runner has unexpectedly stopped',
                  'llama runner process has terminated')
 
+# What it says when the machine, rather than the request, is the problem.
+# Distinct from the crash above and handled differently: a crashed runner
+# comes back on its own and the fix is to ask again, while a card that is
+# full stays full - asking again just collects the same error a second and
+# third time. Something has to be given back first.
+#
+# The wording is the daemon's, the driver's and llama.cpp's, in that order,
+# which is why the list is longer than one line: the same condition surfaces
+# as a CUDA allocation failure, as a C++ bad_alloc from the host side, and
+# as ollama's own prose depending on which allocation lost.
+_OUT_OF_MEMORY = ('out of memory', 'cudamalloc failed', 'std::bad_alloc',
+                  'bad_alloc', 'failed to allocate', 'unable to allocate',
+                  'cannot allocate memory', 'not enough memory',
+                  'insufficient memory', 'no available memory')
+
+# The floor a context window is not shrunk below when making room. Under
+# this the tool schemas alone stop fitting, and a model that cannot be told
+# what its tools are is not a smaller session - it is a different, worse one
+# that answers from memory instead of measuring.
+MIN_NUM_CTX = 2048
+
 
 class OllamaError(Exception):
     """Ollama was unreachable, refused the request, or has no such model."""
+
+
+# What is left to say once every rung of the ladder has been climbed. The
+# three levers are the operator's, not this module's: it cannot decide how
+# much of the card the desktop is allowed to keep, and it will not pick a
+# smaller model on somebody's behalf mid-question.
+_NO_ROOM_LEFT = (
+    'this machine could not fit the model even with the card cleared and '
+    'the window at its smallest. Ask for less: --num-ctx smaller, --num-gpu '
+    'with fewer layers on the card, or -m with a smaller tag - '
+    '`python -m coaxial_ollama.capability` says which one this machine is '
+    'actually sized for.')
 
 
 def _runner_crashed(exc):
@@ -82,6 +123,15 @@ def _runner_crashed(exc):
     it refused - the first is worth asking again, the second never is."""
     text = str(exc).lower()
     return any(marker in text for marker in _RUNNER_CRASH)
+
+
+def _out_of_memory(exc):
+    """Whether the machine ran out of memory, rather than the runner having
+    simply fallen over. Checked before _runner_crashed, because ollama's
+    crash text says 'this may be due to resource limitations' and would
+    otherwise swallow the case that needs room made for it."""
+    text = str(exc).lower()
+    return any(marker in text for marker in _OUT_OF_MEMORY)
 
 
 def is_local(host):
@@ -142,6 +192,15 @@ class Ollama:
         self.truncated = False
         self.eval_tokens = 0
         self.prompt_tokens = 0
+        # What this client had to do to the machine to keep answering: VRAM
+        # taken back off another model, a context window shrunk. Recorded
+        # rather than printed - a library that writes to somebody's terminal
+        # is a library that cannot be used quietly - and drained by the
+        # caller, which in debug.py's case puts them in the same trace the
+        # tool results go to. Empty on a healthy machine, which is the point:
+        # a session that answered without any of this leaves no line saying
+        # so.
+        self.notes = []
 
     def __repr__(self):
         return '<Ollama %s at %s>' % (self.model, self.host)
@@ -203,6 +262,119 @@ class Ollama:
                           % (self.model, ', '.join(available) or '(none)',
                              self.model))
 
+    # ---- making room -------------------------------------------------------
+
+    def resident(self):
+        """What ollama is holding right now, from /api/ps.
+
+        Never raises: this is only ever called while recovering from an error
+        that already happened, and a probe that fails there must not become
+        the error the operator reads instead of the real one.
+        """
+        try:
+            models = self._get('/api/ps').get('models') or []
+        except OllamaError:
+            return []
+        return [entry for entry in models if isinstance(entry, dict)]
+
+    def free_others(self):
+        """Hand back the VRAM held by every model that is not this one.
+
+        The same job board_prompt.ps1 does before it loads anything, here for
+        the paths that never go through it - `dbg.py`, the runner, a plan on
+        a machine somebody left an `ollama run` open on. Those weights sit
+        there until their own keep_alive expires, and the next load then asks
+        a card that is already full.
+
+        Not done at startup, on purpose: a model already resident is one this
+        machine can run and possibly the one the operator is talking to in
+        another window, and evicting it to load a second copy is how a 16 GB
+        card ends up asked for two sets of weights. Here it is different -
+        the allocation has already failed, so something is going to give
+        either way, and it should be the model nobody in this process is
+        using.
+        """
+        freed = []
+        for entry in self.resident():
+            name = entry.get('name') or entry.get('model') or ''
+            if not name or name == self.model:
+                continue
+            try:
+                # /api/generate, not /api/chat: an empty prompt with
+                # keep_alive 0 is ollama's documented unload, and it takes a
+                # model name this client was not built for.
+                self._post('/api/generate',
+                           {'model': name, 'prompt': '', 'keep_alive': 0})
+            except OllamaError:
+                continue
+            size = entry.get('size_vram') or entry.get('size') or 0
+            freed.append('%s (%.1f GB)' % (name, size / float(1 << 30))
+                         if size else name)
+        return freed
+
+    def flush(self):
+        """Drop this model too, and with it everything cached around it.
+
+        The KV cache, the prompt cache llama-server writes beside it and
+        whatever the runner had fragmented on the card all go with the
+        weights. Reloading costs a wait; carrying on against a heap that has
+        already refused an allocation costs the session.
+        """
+        try:
+            self.unload()
+            return True
+        except OllamaError:
+            return False
+
+    def _shrink_context(self):
+        """Halve the window, once, down to the floor. Returns what it became,
+        or 0 when there is nothing left to give.
+
+        Last resort and deliberately blunt: by the time this runs, the card
+        has been cleared of everything else and the model reloaded, and the
+        allocation still did not fit. The KV cache is the largest thing left
+        that this side controls.
+        """
+        try:
+            ctx = int(self.options.get('num_ctx') or 0)
+        except (TypeError, ValueError):
+            return 0
+        if ctx <= MIN_NUM_CTX:
+            return 0
+        self.options['num_ctx'] = max(MIN_NUM_CTX, ctx // 2)
+        return self.options['num_ctx']
+
+    def _make_room(self, attempt):
+        """One rung of the out-of-memory ladder. False when there are none
+        left, and then the original error is what the caller sees.
+
+        Ordered by what it costs to be wrong about it. Freeing another
+        model's VRAM costs that model a reload and nothing else. Flushing
+        this one costs this session a reload. Shrinking the window costs
+        every turn after it, quietly, which is why it is last and why it
+        says so.
+        """
+        if attempt == 0:
+            freed = self.free_others()
+            reloaded = self.flush()
+            if freed:
+                self.notes.append(
+                    'out of memory: freed %s, reloading' % ', '.join(freed))
+            elif reloaded:
+                self.notes.append(
+                    'out of memory: nothing else was resident, so this model '
+                    'was unloaded and its caches with it - reloading')
+            else:
+                self.notes.append('out of memory: nothing to free')
+            return True
+        shrunk = self._shrink_context()
+        if not shrunk:
+            return False
+        self.notes.append(
+            'out of memory again: context window cut to %d tokens for the '
+            'rest of this session' % shrunk)
+        return True
+
     def _chat_once(self, payload):
         """POST /api/chat, retrying a crashed model runner in silence.
 
@@ -223,7 +395,19 @@ class Ollama:
             try:
                 return self._post('/api/chat', payload)
             except OllamaError as exc:
-                if attempt >= RUNNER_RETRIES or not _runner_crashed(exc):
+                if attempt >= RUNNER_RETRIES:
+                    raise
+                if _out_of_memory(exc):
+                    # A full card does not empty itself between two requests,
+                    # so this rung is not a wait - it is giving something
+                    # back. Out of rungs, the original error stands: a
+                    # machine that cannot hold this model at its smallest
+                    # window has a problem no retry is going to solve, and
+                    # saying so beats looping.
+                    if not self._make_room(attempt):
+                        raise OllamaError('%s\n%s' % (exc, _NO_ROOM_LEFT))
+                    payload['options'] = dict(self.options)
+                elif not _runner_crashed(exc):
                     raise
                 # The daemon needs a moment to notice its runner is gone and
                 # start another; asking again instantly just collects the

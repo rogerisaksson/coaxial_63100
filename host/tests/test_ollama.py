@@ -165,10 +165,16 @@ class SimulatedSession:
 class ScriptedModel:
     """An Ollama stand-in that replays a list of assistant messages."""
 
-    def __init__(self, turns, model='scripted'):
+    def __init__(self, turns, model='scripted', num_ctx=8192):
         self.turns = list(turns)
         self.model = model
         self.prompts = []          # every messages list it was handed
+        # A real window, so every test that drives a Chat or a Runner through
+        # this stand-in also proves the prompt those loops build actually fits
+        # one - see context.py. A client with no options at all is a separate
+        # case and is tested directly.
+        self.options = {'num_ctx': num_ctx, 'num_predict': 300}
+        self.notes = []
 
     def chat(self, messages, tools=None):
         self.prompts.append([dict(m) for m in messages])
@@ -827,6 +833,30 @@ def test_shell(report):
     report.check('a missing program is an answer',
                  Shell(['nope']).run('nope --version').startswith('ERR'))
 
+    # A build prints its command line first and its diagnosis last, so a
+    # head-only cut keeps the banner and throws the answer away.
+    from coaxial_ollama import sandbox
+    long_run = sandbox.clip_ends('START\n' + 'noise\n' * 4000 + 'ERROR: END')
+    report.check('a clipped process output keeps the end, where the verdict is',
+                 long_run.endswith('ERROR: END') and long_run.startswith('START')
+                 and len(long_run) < 4200
+                 and 'cut from the middle' in long_run,
+                 '%d chars' % len(long_run))
+    report.check('a short output is not touched',
+                 sandbox.clip_ends('exit=0') == 'exit=0')
+
+    # The ceiling that matters is the one at the dispatch point: every tool
+    # goes through it, including the three that run subprocesses of their own
+    # and used to return whatever those printed.
+    report.check('no tool result may be larger than the ceiling',
+                 len(toolmod.bounded('q' * 50000)) < toolmod.TOOL_LIMIT + 120)
+    report.check('an ERR prefix survives the ceiling, or the loop stops '
+                 'reading a failure as one',
+                 toolmod.bounded('ERR ' + 'q' * 50000).startswith('ERR '))
+    kept = toolmod.Reported(1.0, 'V', 'note')
+    report.check('a report is not text and is not clipped',
+                 toolmod.bounded(kept) is kept)
+
 
 def test_policy(report):
     task = [{'id': 'T1', 'name': 'poke a pin', 'ask': 'a', 'max_turns': 4,
@@ -1105,6 +1135,35 @@ def test_debug(report):
                  session.context_cost() < debug.approx_tokens(
                      json.dumps(session.history)) + session.tool_cost()
                  + debug.approx_tokens(debug.SYSTEM) + 40)
+
+    # `keep` counts messages, and the recent ones are sent whole - so six
+    # recent messages is a small prompt right up until one of them is a build
+    # log. What bounds it is num_ctx, because that is the number the daemon
+    # allocates a KV cache for.
+    stuffed = chat([], keep=6, tools='all')
+    stuffed.history = [{'role': 'tool', 'tool_name': 'run_command',
+                        'content': 'run_command: exit=1\n' + 'e' * 20000}
+                       for _ in range(6)]
+    stuffed.history.append({'role': 'user', 'content': 'did it build?'})
+    report.check('a turn full of build logs still fits the window',
+                 stuffed.context_cost() <= stuffed.prompt_budget(),
+                 '%d tok of %d' % (stuffed.context_cost(),
+                                   stuffed.prompt_budget()))
+    report.check('and the question is what survives it',
+                 stuffed.trim()[-1]['content'] == 'did it build?')
+    report.check('/ctx shows the budget the turn is being fitted to',
+                 'of %d' % stuffed.prompt_budget() in stuffed.command('/ctx'),
+                 stuffed.command('/ctx'))
+
+    # The client evicts models and shrinks windows in silence, because a
+    # library that prints is one nobody can embed. The session it belongs to
+    # is what says so.
+    noisy = chat([{'role': 'assistant', 'content': 'ok'}])
+    noisy.client.notes.append('out of memory: freed qwen2.5:14b (9.0 GB)')
+    noisy.ask('read the ntc')
+    report.check('what the client did to the machine reaches the operator',
+                 'freed qwen2.5:14b' in noisy.out.getvalue()
+                 and not noisy.client.notes, noisy.out.getvalue()[:60])
 
     # ---- a turn ----
     session = chat([call('afe_power', action='on'),
@@ -1895,6 +1954,314 @@ def test_runner_crash_retry(report):
         clientmod.time.sleep = real_sleep
 
 
+# ---- documentation sized for whoever is reading it -------------------------
+
+def test_detail(report):
+    """A frontier model over MCP can afford the whole description; gemma4:12b
+    pays for it out of the same 8192 tokens the readings come out of. The
+    text is picked by code, not written twice."""
+    from coaxial_mcp import detail
+    from coaxial_ollama import debug
+
+    report.check('a tag that names its size decides on the size',
+                 detail.parse_billions('gemma4:12b') == 12.0
+                 and detail.parse_billions('llama3.1:8b') == 8.0
+                 and detail.parse_billions('qwen2.5:14b') == 14.0)
+    report.check('a version number is not a parameter count',
+                 detail.parse_billions('qwen3.6:latest') is None
+                 and detail.parse_billions('llama3.1') is None)
+    report.check('the local sizes get terse, a cloud tag gets full',
+                 detail.for_model('gemma4:12b') == detail.TERSE
+                 and detail.for_model('qwen2.5:14b') == detail.TERSE
+                 and detail.for_model('minimax-m3:cloud') == detail.FULL)
+    report.check('an unrecognised tag is assumed small, since the local '
+                 'daemon is where unnamed tags live',
+                 detail.for_model('qwen3.6:latest') == detail.TERSE)
+    report.check('a model at the threshold reads the whole thing',
+                 detail.for_model('big:%gb' % detail.FULL_MODEL_B)
+                 == detail.FULL)
+    report.check('what the operator said beats what the model is',
+                 detail.resolve(detail.FULL, model='gemma4:12b') == detail.FULL
+                 and detail.resolve(detail.TERSE, model='x:70b')
+                 == detail.TERSE)
+    report.check('a caller with no model at all gets the full text',
+                 detail.resolve() == detail.FULL)
+
+    env, os.environ[detail.ENV] = os.environ.get(detail.ENV), 'terse'
+    try:
+        report.check('%s decides for the whole machine' % detail.ENV,
+                     detail.resolve('auto', model='x:70b') == detail.TERSE)
+        report.check('and an explicit flag still beats the environment',
+                     detail.resolve('full', model='x:70b') == detail.FULL)
+        os.environ[detail.ENV] = 'nonsense'
+        report.check('a typo in it is ignored, not raised',
+                     detail.resolve('auto', model='gemma4:12b')
+                     == detail.TERSE)
+    finally:
+        if env is None:
+            del os.environ[detail.ENV]
+        else:
+            os.environ[detail.ENV] = env
+
+    specs = [s for s in toolmod.TOOLS if s['name'] in debug.SETS['code']]
+    full = json.dumps(toolmod.schemas(specs, detail.FULL))
+    terse = json.dumps(toolmod.schemas(specs, detail.TERSE))
+    report.check('the default tool set costs meaningfully less terse',
+                 len(terse) < len(full) * 0.8,
+                 '%d tok against %d' % (len(terse) // 4, len(full) // 4))
+    report.check('every tool is still offered, and named the same',
+                 [t['function']['name'] for t in json.loads(terse)]
+                 == [t['function']['name'] for t in json.loads(full)])
+    report.check('no description is emptied by being shortened',
+                 all(len(t['function']['description']) > 30
+                     for t in json.loads(terse)))
+    report.check('a property whose description IS the schema keeps it',
+                 'README|CLAUDE' in json.dumps(
+                     detail.apply([s for s in toolmod.TOOLS
+                                   if s['name'] == 'docs'], detail.TERSE)))
+    report.check('shortening never edits the shared TOOLS in place',
+                 all('description_terse' in s or len(s['description']) > 0
+                     for s in toolmod.TOOLS)
+                 and toolmod.TOOLS[0]['description']
+                 == detail.apply(toolmod.TOOLS[:1], detail.FULL)[0]['description'])
+
+    # The whole point is that this is decided from the model, with no flag.
+    small = debug.Chat(ScriptedModel([], model='gemma4:12b'),
+                       toolmod.Toolbox(SimulatedSession(), scope=Scope()),
+                       tools='code', out=io.StringIO())
+    big = debug.Chat(ScriptedModel([], model='minimax-m3:cloud'),
+                     toolmod.Toolbox(SimulatedSession(), scope=Scope()),
+                     tools='code', out=io.StringIO())
+    report.check('the bench model gets terse without being told',
+                 small.detail == detail.TERSE
+                 and small.tool_cost() < big.tool_cost(),
+                 '%d tok against %d' % (small.tool_cost(), big.tool_cost()))
+    report.check('and the toolbox knows too, so `docs` clips for the same '
+                 'reader the schemas were shortened for',
+                 small.toolbox.detail == detail.TERSE
+                 and big.toolbox.detail == detail.FULL)
+    report.check('/detail switches it live and reprices the turn',
+                 'terse' in small.command('/detail')
+                 and 'full' in small.command('/detail full')
+                 and small.tool_cost() == big.tool_cost())
+    report.check('/detail refuses a level that is not one',
+                 'auto' in small.command('/detail sideways')
+                 and small.detail == detail.FULL)
+
+    from coaxial_mcp import docs as docsmod
+    heading = docsmod._headings(
+        docsmod._read(docsmod.paths()['FINDINGS']))[0][1]
+    long_section = docsmod.section('FINDINGS', heading, detail.FULL)
+    short_section = docsmod.section('FINDINGS', heading, detail.TERSE)
+    report.check('a document section is clipped for the reader, not the '
+                 'document', len(short_section) < len(long_section) / 2,
+                 '%d chars against %d' % (len(short_section),
+                                          len(long_section)))
+    report.check('and it still says it was clipped, and how to ask for more',
+                 'clipped at' in short_section
+                 and 'subsection' in short_section)
+    report.check('the index keeps the chapter names it is asked by',
+                 'FINDINGS' in docsmod.index(detail.TERSE)
+                 and len(docsmod.index(detail.TERSE))
+                 < len(docsmod.index(detail.FULL)) / 2)
+
+
+# ---- a prompt that does not fit is a prompt that is not sent ---------------
+
+def test_context_budget(report):
+    """What keeps a conversation inside num_ctx, which is the number the
+    daemon actually allocates for. Six messages is a small prompt right up
+    until one of them is a build log."""
+    from coaxial_ollama import context
+
+    report.check('a client with no window to read enforces nothing',
+                 context.budget_for(None) == 0
+                 and context.budget_for({}) == 0
+                 and context.budget_for({'num_ctx': 'nonsense'}) == 0)
+    report.check('the reply cap comes out of the same window as the prompt',
+                 context.budget_for({'num_ctx': 8192, 'num_predict': 300})
+                 == int(8192 * context.CTX_SHARE) - 300)
+    report.check('a tiny window still leaves room for a question',
+                 context.budget_for({'num_ctx': 256})
+                 == context.MIN_PROMPT_TOKENS)
+
+    system = {'role': 'system', 'content': 'be brief'}
+    log = 'analog_read: 3 rows\n' + 'x' * 20000
+
+    fitted = context.fit([dict(system),
+                          {'role': 'user', 'content': 'read the channels'},
+                          {'role': 'tool', 'content': log},
+                          {'role': 'assistant', 'content': 'done'},
+                          {'role': 'user', 'content': 'and the NTC?'}],
+                         budget=400)
+    blob = json.dumps(fitted)
+    report.check('an oversized tool result is stubbed to its first line',
+                 'analog_read: 3 rows' in blob and 'xxxx' not in blob, blob[:70])
+    report.check('the system prompt survives being over budget',
+                 fitted[0]['content'] == 'be brief')
+    report.check('and so does the question just asked',
+                 fitted[-1]['content'] == 'and the NTC?')
+    report.check('a prompt that fits is left exactly as it was',
+                 context.fit([dict(system),
+                              {'role': 'user', 'content': 'hi'}],
+                             budget=400)
+                 == [system, {'role': 'user', 'content': 'hi'}])
+
+    # Mid-turn the last message is a tool result, not the question - so the
+    # question is what a naive "drop from the front" would throw away while
+    # keeping the reading taken to answer it.
+    mid_turn = context.fit(
+        [dict(system)]
+        + [{'role': 'tool', 'content': 'old: ' + 'y' * 3000} for _ in range(6)]
+        + [{'role': 'user', 'content': 'why is the NTC exactly 25.00?'},
+           {'role': 'assistant', 'content': ''},
+           {'role': 'tool', 'content': 'analog_read: ntc 25.00 C'}],
+        budget=120)
+    kept = [m['content'] for m in mid_turn]
+    report.check('the question outlives the tool results taken to answer it',
+                 'why is the NTC exactly 25.00?' in kept, len(mid_turn))
+    report.check('and so does the result the model is waiting on',
+                 kept[-1] == 'analog_read: ntc 25.00 C')
+    report.check('the conversation is actually shortened, not just stubbed',
+                 len(mid_turn) < 10, '%d messages' % len(mid_turn))
+
+    # One message larger than the whole window: a pasted log, an attached
+    # file. There is no conversation to shorten, so the message itself gives.
+    huge = context.fit([dict(system),
+                        {'role': 'user', 'content': 'z' * 40000}],
+                       budget=600)
+    report.check('one message bigger than the window is clipped, not dropped',
+                 len(huge) == 2 and len(huge[1]['content']) < 40000
+                 and 'more characters cut' in huge[1]['content'],
+                 '%d chars' % len(huge[1]['content']))
+
+    report.check('the tool schemas count against the same budget',
+                 context.cost([dict(system)], extra_tokens=500)
+                 - context.cost([dict(system)]) == 500)
+
+
+# ---- a full card is not answered by asking again ---------------------------
+
+def test_out_of_memory(report):
+    """The other half of the crash above. A runner that died comes back on
+    its own; a card that is full stays full, so the retry has to give
+    something back before it asks again."""
+    from coaxial_ollama import client as clientmod
+    from coaxial_ollama.client import Ollama, OllamaError
+
+    oom = OllamaError('/api/chat 500: {"error":"cudaMalloc failed: out of '
+                      'memory"}')
+    crash = OllamaError('/api/chat 500: {"error":"model runner has '
+                        'unexpectedly stopped, this may be due to resource '
+                        'limitations"}')
+    report.check('running out of memory is told apart from a runner crash',
+                 clientmod._out_of_memory(oom)
+                 and not clientmod._out_of_memory(crash)
+                 and not clientmod._out_of_memory(
+                     OllamaError('/api/chat 400: invalid tool schema')))
+    report.check('llama.cpp\'s own wording counts too',
+                 clientmod._out_of_memory(OllamaError('std::bad_alloc'))
+                 and clientmod._out_of_memory(
+                     OllamaError('failed to allocate buffer')))
+
+    slept, real_sleep = [], clientmod.time.sleep
+    clientmod.time.sleep = slept.append
+    try:
+        # One other model resident, and the card full. The first rung frees
+        # it; the question is then answered without the operator seeing
+        # anything but a note.
+        talker = Ollama('gemma4:12b', num_ctx=8192)
+        posts, gets = [], []
+
+        def one_oom(path, payload):
+            posts.append((path, dict(payload)))
+            if path == '/api/generate':
+                return {}
+            if len([p for p in posts if p[0] == '/api/chat']) == 1:
+                raise oom
+            return {'message': {'role': 'assistant', 'content': 'measured'}}
+
+        def resident(path):
+            gets.append(path)
+            return {'models': [{'name': 'qwen2.5:14b', 'size_vram': 9 << 30},
+                               {'name': 'gemma4:12b', 'size_vram': 8 << 30}]}
+        talker._post = one_oom
+        talker._get = resident
+        message = talker.chat([{'role': 'user', 'content': 'read the ntc'}])
+        unloaded = [p[1].get('model') for p in posts
+                    if p[0] == '/api/generate']
+        report.check('an allocation that failed is retried once room is made',
+                     message['content'] == 'measured')
+        report.check('the model nobody in this process is using is what goes',
+                     unloaded == ['qwen2.5:14b'], unloaded)
+        report.check('and this model is dropped too, caches and all',
+                     any(p[0] == '/api/chat' and p[1].get('keep_alive') == 0
+                         and not p[1].get('messages') for p in posts))
+        report.check('what it did to the machine is recorded, not printed',
+                     len(talker.notes) == 1 and 'qwen2.5:14b' in talker.notes[0]
+                     and '9.0 GB' in talker.notes[0], talker.notes)
+        report.check('the window is not shrunk while there is VRAM to free',
+                     talker.options['num_ctx'] == 8192)
+
+        # Nothing else resident and still no room: the second rung halves the
+        # window, and every turn after this one is asked at the new size.
+        stubborn = Ollama('gemma4:12b', num_ctx=8192)
+        tries = []
+
+        def two_ooms(path, payload):
+            if path != '/api/chat' or not payload.get('messages'):
+                return {}
+            tries.append(payload['options'].get('num_ctx'))
+            if len(tries) < 3:
+                raise oom
+            return {'message': {'role': 'assistant', 'content': 'measured'}}
+        stubborn._post = two_ooms
+        stubborn._get = lambda path: {'models': []}
+        message = stubborn.chat([{'role': 'user', 'content': 'read the ntc'}])
+        report.check('a second failure cuts the context window in half',
+                     tries == [8192, 8192, 4096], tries)
+        report.check('and the client keeps asking at the size that worked',
+                     stubborn.options['num_ctx'] == 4096
+                     and message['content'] == 'measured')
+        report.check('the operator is told the window moved',
+                     any('4096' in note for note in stubborn.notes),
+                     stubborn.notes)
+
+        # A machine that cannot hold the model at the floor has a problem no
+        # retry solves. It must say so, with the three levers that are the
+        # operator's, rather than looping.
+        hopeless = Ollama('gemma4:12b', num_ctx=clientmod.MIN_NUM_CTX)
+        attempts = []
+
+        def always_oom(path, payload):
+            if path == '/api/chat' and payload.get('messages'):
+                attempts.append(payload)
+                raise oom
+            return {}
+        hopeless._post = always_oom
+        hopeless._get = lambda path: {'models': []}
+        try:
+            hopeless.chat([{'role': 'user', 'content': 'read the ntc'}])
+            report.check('a machine with no room left fails rather than '
+                         'looping', False)
+        except OllamaError as exc:
+            report.check('a machine with no room left fails rather than '
+                         'looping', len(attempts) == 2, attempts)
+            report.check('and says which lever the operator has',
+                         '--num-ctx' in str(exc) and '--num-gpu' in str(exc)
+                         and 'capability' in str(exc))
+
+        # The probe is for recovering from an error that already happened.
+        # If it fails too, the original error is what has to survive.
+        blind = Ollama('gemma4:12b')
+        blind._get = lambda path: (_ for _ in ()).throw(
+            OllamaError('cannot reach ollama'))
+        report.check('a /api/ps that fails does not become the error read',
+                     blind.resident() == [])
+    finally:
+        clientmod.time.sleep = real_sleep
+
+
 # ---- the model stays loaded, and so does its prompt cache -----------------
 
 def test_keep_alive(report):
@@ -2472,7 +2839,9 @@ def main():
                  test_scope_repairs, test_prompt, test_policy,
                  test_link_diagnose, test_transcript,
                  test_debug, test_cli,
-                 test_local_only, test_runner_crash_retry, test_keep_alive,
+                 test_local_only, test_runner_crash_retry,
+                 test_out_of_memory, test_context_budget, test_detail,
+                 test_keep_alive,
                  test_coerce,
                  test_capability, test_docs):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))

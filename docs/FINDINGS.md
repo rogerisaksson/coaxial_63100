@@ -130,6 +130,44 @@ So: the default stays `gemma4:12b`. The 23 % that `llama3.1:8b` saves is real,
 and worth having on a machine that cannot hold 8 GB — but on this bench a model
 that invents hardware constants is the expensive kind of fast.
 
+### The local model's OOM crash is llama-server's prompt cache, not our prompt
+
+**Measured, 2026-08-24, reproduced deliberately in three runs.** A bench
+session of eight to ten questions through `dbg.py` reliably killed the model
+runner partway through: ollama answered 500, reloaded 8 GB, and the session
+stalled mid-answer. `%LOCALAPPDATA%\Ollama\server.log`, with the daemon's own
+verbose output, says exactly what happened:
+
+```
+slot get_availabl: - checking sim = 0.255 (323/1265) > 0.100
+srv   prompt_save:  - saving prompt with length 1446, total state size = 342.623 MiB
+libc++abi: terminating due to uncaught exception of type std::bad_alloc
+llama-server terminated  exit.code=3221226505 (0xc0000409)
+```
+
+llama-server keeps a prompt cache of up to 8192 MiB and saves the whole slot
+state into it whenever a new prompt shares little of its prefix with the
+cached one. Every question here is that case — `Chat` clears its history after
+each answered turn on purpose, so `sim` lands at 0.25–0.33 — and the ~340 MiB
+save intermittently throws, uncaught. Beside it, context checkpoints are
+`320.013 MiB` each with a default ceiling of 32: 10 GB of them, against 8 GB
+of weights on a 16 GB card.
+
+`LLAMA_ARG_CACHE_RAM=0` and `LLAMA_ARG_CTX_CHECKPOINTS=2` in the daemon's
+environment remove both. Twelve questions, 36 model calls, **zero**
+`std::bad_alloc` and one model load; the same session untuned crashed in both
+attempts. `board_prompt.ps1` now sets them and restarts the daemon once if it
+has to — see [MODELS.md](MODELS.md) and `$DaemonTuning` in
+`board_prompt/Ollama.ps1`.
+
+Two things worth keeping from how this was found. The variables are
+`LLAMA_ARG_*`, not `OLLAMA_*`: `ollama serve --help` does not list them,
+because they belong to llama.cpp's own argument parser, which reads them from
+the environment ollama hands its runner (`libllama-common.dll` carries the
+names). And an already-running daemon keeps the environment it was started
+with, so setting them changes nothing until it restarts — including a daemon
+started from a shell that was itself started before the variables were set.
+
 ---
 
 ## Confirmed, not a fault, do not fix
@@ -253,6 +291,25 @@ firmware. Left open.
 It does not — see Phase V above. PCSEL-never-cleared is a verified fact about the
 HAL and it did measurably affect the DC bus channel, but the Phase V offset is
 analog and real.
+
+### "The local model's OOM is the prompt getting too long"
+
+The obvious hypothesis, and wrong. It survived long enough to nearly justify
+the wrong fix: tool results were being appended to the conversation unbounded
+(`build_firmware` and `run_tests` returned whole build logs), so a prompt that
+grew past `num_ctx` looked like the explanation.
+
+The crashing prompts were **1249 and 1446 tokens of an 8192-token window**,
+and the state that failed to allocate was 339 MiB and 342 MiB — the same
+number, because llama-server's checkpoint size is fixed by the context window,
+not by how much of it is used. Shortening prompts by 30 % changed the crash
+rate not at all. See "The local model's OOM crash is llama-server's prompt
+cache" above for what it actually was.
+
+The bounded tool results and the `num_ctx` budget (`coaxial_ollama/context.py`)
+were kept anyway — an unbounded build log in a prompt is a real defect, and
+one worth fixing on its own terms. It is just not this one, and a session that
+believed it was would still be crashing.
 
 ---
 

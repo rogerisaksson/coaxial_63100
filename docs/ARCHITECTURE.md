@@ -146,6 +146,12 @@ against 2457 as indented JSON, a factor of 8.8. Uses
 `mcp.server.lowlevel.Server` with hand-written schemas — deliberately not
 FastMCP, because schema size is the thing being optimised.
 
+`detail.py` decides how much of all that a given reader gets: one spec carries
+both a full and a terse description, and the level is resolved from the model's
+own tag rather than written into the text. A frontier model over MCP reads the
+whole thing; `gemma4:12b` reads a third less of it, out of a window it shares
+with the readings. See [MODELS.md](MODELS.md).
+
 One of the nine, `docs`, touches no hardware. It hands the model this
 repository's own documents, because they are what stop a reading being
 misinterpreted — the AFE gate, the unknown phase gain, what has already been
@@ -168,7 +174,8 @@ points over one tool surface:
 | `runner.py` | `python -m coaxial_ollama --plan` — one conversation per plan step, a JSONL transcript, and a verdict that comes from `plan.Limit` in Python, never from the model. |
 | `tools.py` | The tool surface: the nine MCP tools imported unchanged, plus `run_python`, `run_command`, `build_firmware`, `run_tests`, `link_diagnose`, `report`. `Toolbox` holds the operator's policy — `--confirm`, `--read-only`, `--allow-writes`. |
 | `replies.py` | Reading what the model *meant*: is this answer a retyped table, is it a tool call written into `content`, is the residue prose or template noise. Pure functions over text. |
-| `client.py` | `/api/chat` over urllib. Refuses cloud tags and non-loopback hosts; retries a crashed runner. |
+| `client.py` | `/api/chat` over urllib. Refuses cloud tags and non-loopback hosts; retries a crashed runner, and climbs a ladder of its own when the card is genuinely full. |
+| `context.py` | What fits: the prompt's share of `num_ctx`, and what a conversation gives up when it does not fit. Shared by both loops above. |
 | `capability.py` | Which tag this machine should run, from cores, RAM and VRAM. |
 | `language.py` | Which language to answer in, decided here rather than asked of the model. |
 | `sandbox.py` | Where `run_python` and `run_command` actually run. |

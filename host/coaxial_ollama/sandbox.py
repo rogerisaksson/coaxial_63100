@@ -51,6 +51,35 @@ def clip(text, limit=LIMIT):
     return text[:limit] + '\n... [%d more characters cut]' % (len(text) - limit)
 
 
+# How much of a clipped process output is kept from the front. The rest comes
+# from the end, because the end is where a process says what happened: the
+# compiler's error, the linker's summary, the suite's own tally. A head-only
+# cut of a long build keeps the banner and drops the answer.
+HEAD_SHARE = 0.35
+
+
+def clip_ends(text, limit=LIMIT, head_share=HEAD_SHARE):
+    """Head and tail of a long output, with the middle cut out.
+
+    `clip` keeps the first N characters, which is right for a document and
+    wrong for a process. A build that fails prints its command line first and
+    its diagnosis last; only one of those two earns a place in a context
+    window, and it is not the first one. So both ends are kept and the
+    repetitive middle is what goes.
+
+    The notice in the seam says how much was dropped, in the same words `clip`
+    uses, so a cut output cannot be read as a short one.
+    """
+    text = text if isinstance(text, str) else str(text)
+    if len(text) <= limit:
+        return text
+    head = max(0, int(limit * head_share))
+    tail = max(0, limit - head)
+    cut = len(text) - head - tail
+    return '%s\n... [%d characters cut from the middle]\n%s' % (
+        text[:head], cut, text[len(text) - tail:] if tail else '')
+
+
 class Shell:
     """Allowlisted process launcher.
 
@@ -112,7 +141,9 @@ class Shell:
             parts.append(done.stdout.rstrip())
         if done.stderr.strip():
             parts.append('stderr: ' + done.stderr.rstrip())
-        return clip('\n'.join(parts))
+        # clip_ends, not clip: this is a build, a flash or a test run, and
+        # every one of those puts its verdict on the last line.
+        return clip_ends('\n'.join(parts))
 
 
 class Scope:

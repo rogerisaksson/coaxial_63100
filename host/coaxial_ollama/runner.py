@@ -30,6 +30,7 @@ import json
 import os
 import time
 
+from . import context
 from . import tools as toolmod
 
 SYSTEM = """You are driving a hardware test bench from a written test plan.
@@ -147,6 +148,14 @@ class Runner:
 
     # ---- one step ----------------------------------------------------------
 
+    def prompt_budget(self):
+        """What a step's conversation may grow to, from the client's own
+        num_ctx. Read fresh every turn rather than cached at construction:
+        the client halves its window when the machine runs out of memory
+        (see client._make_room), and a runner still trimming to the old
+        number would hand the daemon exactly the prompt that just failed."""
+        return context.budget_for(getattr(self.client, 'options', None))
+
     def system_prompt(self):
         text = SYSTEM
         if self.plan.context:
@@ -168,8 +177,20 @@ class Runner:
         board_touched = False  # a real board tool was called this step
         giving_up = False
 
+        # The tool schemas ride with every turn and come out of the same
+        # window the conversation does, so they are counted as part of it.
+        schema_tokens = context.approx_tokens(json.dumps(schemas))
+
         while record.turns < task.max_turns and reported is None:
             record.turns += 1
+            # A step is a fresh conversation but not a short one: max_turns
+            # tool calls with a build log or a hundred sample rows in each is
+            # a prompt past num_ctx by turn four, and past num_ctx is where
+            # the daemon starts answering 500 instead of answering. The
+            # transcript above already has every result whole - this only
+            # bounds what is re-sent.
+            messages = context.fit(messages, self.prompt_budget(),
+                                   schema_tokens)
             message = self.client.chat(messages, schemas)
 
             # Thinking is logged but not fed back: it is the largest thing in a

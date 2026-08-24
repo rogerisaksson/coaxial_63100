@@ -27,6 +27,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import RigError                  # noqa: E402
+from coaxial_mcp import detail                       # noqa: E402
 from coaxial_mcp.session import Session              # noqa: E402
 
 from . import runner as runmod                       # noqa: E402
@@ -77,6 +78,11 @@ def parse(argv):
     parser.add_argument('--json', dest='json_out', help='write the summary here')
     parser.add_argument('--list-tools', action='store_true',
                         help='print the tool surface and exit')
+    parser.add_argument('--detail', default=detail.AUTO, choices=detail.LEVELS,
+                        help='how much documentation each tool carries into '
+                             'every turn: terse, full, or auto from the model '
+                             'tag. %s overrides for the whole machine.'
+                             % detail.ENV)
     return parser.parse_args(argv)
 
 
@@ -90,8 +96,11 @@ def ask_operator(name, args):
         return False
 
 
-def list_tools():
-    for spec in TOOLS:
+def list_tools(level=detail.FULL):
+    """The tool surface as a model would be handed it, at one level - so
+    `--detail terse --list-tools` shows what a small model actually reads
+    rather than what this file happens to have written down."""
+    for spec in detail.apply(TOOLS, level):
         print('%-12s %s' % (spec['name'], spec['description']))
     return 0
 
@@ -112,8 +121,11 @@ def build_plan(args):
 
 def main(argv=None):
     args = parse(argv)
+    # Resolved before anything else needs it, and without a model where the
+    # command line named none - `--list-tools` is answered with no daemon, no
+    # board and no tag to read.
     if args.list_tools:
-        return list_tools()
+        return list_tools(detail.resolve(args.detail, model=args.model))
 
     try:
         plan = build_plan(args)
@@ -148,6 +160,10 @@ def main(argv=None):
                       allow_writes=args.allow_writes or plan.allow_writes,
                       allow_code=not args.read_only,
                       confirm=ask_operator if args.confirm else None)
+    # Resolved here rather than at parse time: `auto` on the command line
+    # cannot read a model the *plan* named instead of the flags.
+    toolbox.detail = detail.resolve(args.detail, model=client.model,
+                                    default=detail.TERSE)
 
     path = None if args.no_transcript else (args.transcript
                                            or runmod.default_transcript_path())

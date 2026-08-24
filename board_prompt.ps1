@@ -130,6 +130,16 @@
     daemon to BelowNormal while it is being driven from here, because a bench PC
     is also the machine you are reading the schematic on.
 
+.PARAMETER NoTune
+    Leave the daemon's own settings alone. By default this script makes sure
+    ollama is running with llama-server's prompt cache off and its context
+    checkpoints capped, restarting the daemon once if it has to - see
+    $DaemonTuning in board_prompt/Ollama.ps1 for the measurements. Without
+    that, a bench session of eight or ten questions reliably kills the model
+    runner with std::bad_alloc partway through and reloads eight gigabytes
+    mid-answer. Use this to reproduce that, or when something else on the
+    machine owns the daemon.
+
 .PARAMETER NumCtx
     Context window. It is passed to the preload as well as to the prompt, and
     that is not a detail: load the model at one context size and question it at
@@ -156,7 +166,8 @@ param(
     [double]$Reserve = 0,
     [switch]$Normal,
     [switch]$Hold,
-    [switch]$KeepOthers
+    [switch]$KeepOthers,
+    [switch]$NoTune
 )
 
 $ErrorActionPreference = 'Continue'
@@ -232,15 +243,14 @@ if ($null -eq $ollama) {
 Say 'ok' 'ollama' $ollama.Source
 
 $tags = Get-Tags
+$startedHere = $false
 if ($null -eq $tags) {
+    $startedHere = $true
     Say 'wait' 'ollama serve' 'nothing on 11434 - starting the daemon'
-    # One model, one context. Two of either is how a 16 GB card ends up asked
-    # for two copies of the weights at once - measured here as a 500 from the
-    # daemon, 'cudaMalloc failed', with nothing obviously wrong on either side.
-    # Only reachable when this script starts the daemon; an already-running one
-    # keeps the environment it was started with.
-    $env:OLLAMA_MAX_LOADED_MODELS = '1'
-    $env:OLLAMA_NUM_PARALLEL = '1'
+    # The daemon inherits this shell's environment, so the tuning has to be in
+    # it before the process starts - see $DaemonTuning in board_prompt/Ollama.ps1
+    # for what each variable is worth and what was measured without it.
+    Set-DaemonEnvironment | Out-Null
     Start-Process -FilePath $ollama.Source -ArgumentList 'serve' -WindowStyle Hidden `
                   -ErrorAction SilentlyContinue
     $tags = Get-Tags -Tries 10
@@ -249,6 +259,11 @@ if ($null -eq $tags) {
     Say 'fail' 'ollama serve' 'no answer on 11434'
     exit 1
 }
+
+# A daemon that was already up is the ordinary case, and it kept whatever
+# environment it was started with at login - which is the untuned one. This is
+# the only thing that can fix that, and it costs one restart, once.
+Initialize-Daemon -Exe $ollama.Source -JustStarted:$startedHere
 
 # Stem matching, as everywhere else here: `gemma4` should find gemma4:12b. Cloud
 # tags are excluded on purpose - the Python refuses them, so a launcher that
