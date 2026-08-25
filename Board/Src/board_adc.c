@@ -47,7 +47,7 @@ static ADC_HandleTypeDef * const hadcW = &hadc2;
    here either, for the same reason: it silently returned 0 on a live
    signal earlier and I couldn't fully verify why without a datasheet in
    hand. Sequential single-shot reads are slower but proven correct. */
-static void ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32_t singleDiff,
+static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32_t singleDiff,
                                 int32_t *outRaw, float *outVolts)
 {
   ADC_ChannelConfTypeDef sConfig = {0};
@@ -75,26 +75,35 @@ static void ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
 
   if (HAL_ADC_ConfigChannel(hadc, &sConfig) != HAL_OK || HAL_ADC_Start(hadc) != HAL_OK)
   {
-    return;
+    return false;
   }
 
-  if (HAL_ADC_PollForConversion(hadc, 10) == HAL_OK)
+  /* A timed-out conversion used to leave *outRaw at 0 and say nothing. On a
+     differential channel code 0 is itself a valid reading - 0 V - so a failed
+     conversion was indistinguishable from a measurement, which is the one
+     thing this board must never produce. */
+  if (HAL_ADC_PollForConversion(hadc, 10) != HAL_OK)
   {
-    uint32_t raw = HAL_ADC_GetValue(hadc);
-    if (singleDiff == ADC_SINGLE_ENDED)
-    {
-      *outRaw = (int32_t)raw;                         /* 0..65535, 0=0V */
-      *outVolts = ((float)raw / 65536.0f) * ADC_VREF_VOLTAGE;
-    }
-    else
-    {
-      int32_t centered = (int32_t)raw - 32768;          /* offset binary, 32768=0V */
-      *outRaw = centered;
-      *outVolts = ((float)centered / 32768.0f) * ADC_VREF_VOLTAGE;
-    }
+    HAL_ADC_Stop(hadc);
+    return false;
+  }
+
+  const uint32_t raw = HAL_ADC_GetValue(hadc);
+
+  if (singleDiff == ADC_SINGLE_ENDED)
+  {
+    *outRaw = (int32_t)raw;                           /* 0..65535, 0=0V */
+    *outVolts = ((float)raw / 65536.0f) * ADC_VREF_VOLTAGE;
+  }
+  else
+  {
+    int32_t centered = (int32_t)raw - 32768;          /* offset binary, 32768=0V */
+    *outRaw = centered;
+    *outVolts = ((float)centered / 32768.0f) * ADC_VREF_VOLTAGE;
   }
 
   HAL_ADC_Stop(hadc);
+  return true;
 }
 
 /* NTC on PB0 (ADC1 IN9): 3.3V -> NTC (high side) -> PB0 -> 10k fixed (low
@@ -232,7 +241,10 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
   const AdcChannelDesc *d = &s_adcTable[index];
   float v;
 
-  ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, raw, &v);
+  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, raw, &v))
+  {
+    return false;
+  }
 
   *microvolts = (int32_t)(v * 1000000.0f);
   *scaled     = 0;
@@ -260,9 +272,14 @@ bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w)
     return false;
   }
 
-  ADC_ReadOneChannel(hadcU, PHASE_U_CHANNEL, ADC_DIFFERENTIAL_ENDED, u, &fu);
-  ADC_ReadOneChannel(hadcV, PHASE_V_CHANNEL, ADC_DIFFERENTIAL_ENDED, v, &fv);
-  ADC_ReadOneChannel(hadcW, PHASE_W_CHANNEL, ADC_DIFFERENTIAL_ENDED, w, &fw);
+  /* Short-circuited: once one phase has failed the scan is refused whole,
+     and the remaining conversions would only cost time to discard. */
+  if (!ADC_ReadOneChannel(hadcU, PHASE_U_CHANNEL, ADC_DIFFERENTIAL_ENDED, u, &fu) ||
+      !ADC_ReadOneChannel(hadcV, PHASE_V_CHANNEL, ADC_DIFFERENTIAL_ENDED, v, &fv) ||
+      !ADC_ReadOneChannel(hadcW, PHASE_W_CHANNEL, ADC_DIFFERENTIAL_ENDED, w, &fw))
+  {
+    return false;
+  }
 
   return true;
 }
@@ -276,7 +293,11 @@ bool Board_DcBus(int32_t *raw, int32_t *millivolts)
     return false;
   }
 
-  ADC_ReadOneChannel(&hadc3, ADC_CHANNEL_10, ADC_SINGLE_ENDED, raw, &v);
+  if (!ADC_ReadOneChannel(&hadc3, ADC_CHANNEL_10, ADC_SINGLE_ENDED, raw, &v))
+  {
+    return false;
+  }
+
   *millivolts = (int32_t)(DC_BUS_VoltsFromDivider(v) * 1000.0f);
 
   return true;
@@ -291,7 +312,10 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc)
     return false;
   }
 
-  ADC_ReadOneChannel(&hadc1, ADC_CHANNEL_9, ADC_SINGLE_ENDED, raw, &v);
+  if (!ADC_ReadOneChannel(&hadc1, ADC_CHANNEL_9, ADC_SINGLE_ENDED, raw, &v))
+  {
+    return false;
+  }
 
   const float c = NTC_VoltsToCelsius(v);
 
@@ -335,7 +359,12 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
     int32_t raw;
     float   v;
 
-    ADC_ReadOneChannel(h, ch, ADC_DIFFERENTIAL_ENDED, &raw, &v);
+    /* Statistics over a set with a failed conversion in it are not
+       statistics. Abort rather than fold a zero into the mean. */
+    if (!ADC_ReadOneChannel(h, ch, ADC_DIFFERENTIAL_ENDED, &raw, &v))
+    {
+      return false;
+    }
 
     const double d = (double)raw - mean;
     mean += d / (double)(i + 1U);
@@ -376,7 +405,7 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
   const uint8_t  total   = Board_AdcCount();
   const uint32_t per_us  = SystemCoreClock / 1000000U;
 
-  if ((samples < 1U) || (samples > 10000U) || (mask == 0U))
+  if ((samples < 1U) || (samples > BOARD_BURST_MAX_SAMPLES) || (mask == 0U))
   {
     return false;
   }
@@ -425,7 +454,10 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
       int32_t raw = 0;
       float   v;
 
-      ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v);
+      if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v))
+      {
+        return false;
+      }
 
       const double delta = (double)raw - mean[c];
       mean[c] += delta / (double)(s + 1U);

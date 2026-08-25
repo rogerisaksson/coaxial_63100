@@ -82,6 +82,11 @@ bool    Board_AdcChan(uint8_t index, board_chan_t *info);
   */
 bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *scaled);
 
+/* False from any of these four means no reading was taken - a bad index, or a
+   conversion that did not complete. It is never a measurement of zero: on a
+   differential channel code 0 is 0 V, so a failure reported as data would be
+   indistinguishable from a signal. */
+
 bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w);
 bool Board_DcBus(int32_t *raw, int32_t *millivolts);
 bool Board_Ntc(int32_t *raw, int32_t *centidegc);
@@ -118,6 +123,10 @@ typedef struct
     master's patience or wedge the link. */
 #define BOARD_BURST_MAX_US 5000000UL
 
+/** Most passes one burst may make. Named because the command handler checks
+    it too: see h_adc_burst for why the limits live in both places. */
+#define BOARD_BURST_MAX_SAMPLES 10000U
+
 /**
   * @brief  Sample a set of channels repeatedly and return per-channel statistics.
   * @param  mask         Bit i selects channel i of the channel table.
@@ -128,8 +137,8 @@ typedef struct
   * @param  count        Channels actually measured, in ascending index order.
   * @param  elapsed_us   Wall time the burst took, so the host can see the rate
   *                      it really got rather than the one it asked for.
-  * @return False if the mask is empty, the count is out of range, or the burst
-  *         would exceed BOARD_BURST_MAX_US.
+  * @return False if the mask is empty, the count is out of range, the burst
+  *         would exceed BOARD_BURST_MAX_US, or a conversion failed.
   */
 bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
                     board_burst_t *out, uint8_t *count, uint32_t *elapsed_us);
@@ -138,6 +147,7 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
   * @brief  Sample one ADC back to back and return basic noise statistics.
   * @param  adc_index  1..3; the differential phase channel on that ADC.
   * @param  samples    1..1000.
+  * @return False if either argument is out of range, or a conversion failed.
   */
 bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
                     int32_t *mean_uv, int32_t *min_raw, int32_t *max_raw,

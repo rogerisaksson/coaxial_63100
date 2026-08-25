@@ -207,13 +207,24 @@ static cmd_status_t h_analog_burst(rd_t *in, wr_t *out)
   const uint16_t samples  = rd_u16(in);
   const uint32_t interval = rd_u32(in);
 
+  /* The three limits Board_AdcBurst enforces, checked here as well, so that
+     its own false can mean what h_adc_noise's already does: the device
+     failed, not the request. A conversion that times out mid-burst is
+     SERVER DEVICE FAILURE, and reporting it as ILLEGAL DATA VALUE sends the
+     host looking at arguments that were fine. */
+  if ((mask == 0U) || (samples < 1U) || (samples > BOARD_BURST_MAX_SAMPLES) ||
+      (((uint64_t)samples * (uint64_t)interval) > (uint64_t)BOARD_BURST_MAX_US))
+  {
+    return CMD_ERR_VALUE;
+  }
+
   board_burst_t stats[16];
   uint8_t       count = 0U;
   uint32_t      elapsed = 0U;
 
   if (!Board_AdcBurst(mask, samples, interval, stats, &count, &elapsed))
   {
-    return CMD_ERR_VALUE;
+    return CMD_ERR_DEVICE;
   }
 
   wr_u16(out, samples);
