@@ -176,6 +176,7 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
   /reconnect    drop and reopen the board link, no model
   /model [TAG]  swap the model, or auto; bare lists what is pulled
   /board [WHAT] simulated | auto | COM4 - what the tools talk to
+  /node [N]     which node on the bus; 0 is every one; bare lists them
   /tools [set]  read|code|pins|build|docs|all|none, or a comma separated list
   /detail [x]   terse|full|auto - how much documentation the tools carry
   /confirm      toggle asking before every write - pin, run_python, run_command
@@ -1118,6 +1119,8 @@ class Chat:
             return self._switch_model(rest)
         if verb == 'board':
             return self._switch_board(rest)
+        if verb == 'node':
+            return self._switch_node(rest)
         if verb == 'clear':
             self.history = []
             return 'context cleared'
@@ -1237,6 +1240,49 @@ class Chat:
         self.history = []
         self.set_detail(self.detail)
         return 'model: %s (was %s), context cleared' % (fresh.model, old.model)
+
+    def _switch_node(self, rest):
+        """Which node on the bus the tools talk to. `0` is every one.
+
+        The operator's own route to what `devices op=use` does for the
+        model - no model turn, no tokens, same state. Bare, it lists.
+        """
+        from coaxial_mcp import tools as mcp
+
+        session = self.toolbox.session
+        want = rest.strip()
+        if not want:
+            return mcp.devices(session)
+        if not want.lstrip('-').isdigit():
+            return mcp.devices(session, op='use', name=want)
+        return mcp.devices(session, op='use', unit=int(want))
+
+    def prompt_tag(self):
+        """(text, ok) for the prompt: the interface, then the node.
+
+        Read fresh every turn rather than stored, because `devices op=use`
+        moves the node mid-session and the very next prompt is what should
+        show it. `ok` is True for a board, False for a stand-in, and the
+        string 'all' for the broadcast address - which the spinner paints
+        red, because that is the one mode where a command reaches every
+        node and nothing answers.
+        """
+        label, real = getattr(self, 'origin', None) or (None, True)
+        if label is None:
+            return None, True
+        unit = getattr(self.toolbox.session, 'unit', None)
+        if unit is None:
+            return label, real
+        where = None
+        try:
+            from coaxial.simulated import SIMULATED_BUS
+            if unit in SIMULATED_BUS and not real:
+                where = SIMULATED_BUS[unit][2]
+        except Exception:                                     # noqa: BLE001
+            pass
+        node = 'ALL NODES' if unit == 0 else (
+            'node %d %s' % (unit, where) if where else 'node %d' % unit)
+        return '%s, %s' % (label, node), ('all' if unit == 0 else real)
 
     def _switch_board(self, rest):
         """Point this session at another board, or at a simulated one.
@@ -1644,7 +1690,7 @@ def repl(chat, hold=False):
             # chat.out is pointed at the same tracked stream so the prompt
             # knows how many rows whatever _trace() prints actually add -
             # not a number decided once and trusted for the whole question.
-            tag, tag_ok = getattr(chat, 'origin', None) or (None, True)
+            tag, tag_ok = chat.prompt_tag()
             face = spin.prompt(PROMPT, sys.stdout, lock=chat.print_lock,
                                ok=chat.link_ok, tag=tag, tag_ok=tag_ok)
             chat.out = face.out

@@ -228,7 +228,13 @@ class Prompt:
         # whole point: a session that quietly fell back to invented values is
         # the one thing on this screen a reader must not have to ask about.
         self.tag = tag
-        self.tag_color = GREEN if tag_ok else YELLOW
+        # Green a board, yellow a stand-in, and RED every node at once.
+        # Broadcast is the one mode where a command reaches every inverter
+        # on the bus and nothing answers to say it landed - on a bus of
+        # 63 V / 100 A drives that is worth a colour of its own, and red is
+        # the one already spent on "something is wrong here".
+        self.tag_color = (RED if tag_ok == 'all'
+                          else GREEN if tag_ok else YELLOW)
         self.rows_up = 0                 # 0 while still on this row, 1 after
         self.frame = 0
         self.done = threading.Event()

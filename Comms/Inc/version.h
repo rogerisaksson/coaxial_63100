@@ -39,6 +39,11 @@
 #define FW_DEVICE_NAME "coaxial_63100"
 #define FW_MCU_NAME    "STM32H753VIT6"
 
+/* What KIND of device this is, from the device. One word, so a host can
+ * group a bus by it: several joints of a machine are several inverters,
+ * and the node that is not one is the one worth seeing in a list. */
+#define FW_DEVICE_TYPE "bldc_inverter"
+
 /* What this device IS, in one line, from the device itself.
  *
  * A name is not a description: "coaxial_63100" tells a host which codec to

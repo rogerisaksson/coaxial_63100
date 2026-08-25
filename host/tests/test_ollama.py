@@ -1338,34 +1338,55 @@ def test_bus(report):
     from coaxial_mcp import tools as mcp
     from coaxial_ollama import debug
 
+    def mcp_box(sess):
+        return toolmod.Toolbox(sess, scope=Scope())
+
     session = Sim()
     listed = mcp.HANDLERS['devices'](session)
 
-    report.check('every simulated device is listed',
-                 all(str(u) in listed for u in SIMULATED_BUS),
-                 listed.splitlines()[0])
-    report.check('and each says what it is, not just its number',
-                 all(where in listed for where in SIMULATED_BUS.values()),
+    within = {u: row for u, row in SIMULATED_BUS.items() if u <= 16}
+    report.check('every simulated node in the default sweep is listed',
+                 all(row[2] in listed for row in within.values()),
                  listed.splitlines()[2][:52])
-    report.check('every one of them says it is simulated',
-                 listed.lower().count('simulated') == len(SIMULATED_BUS),
-                 '%d of %d rows' % (listed.lower().count('simulated'),
-                                    len(SIMULATED_BUS)))
-    report.check('the selected one is marked',
-                 [l for l in listed.splitlines() if ' * ' in l][0].startswith('1'),
-                 [l for l in listed.splitlines() if ' * ' in l][0][:30])
+    report.check('and each carries its own name and type',
+                 all(row[0] in listed and row[1] in listed
+                     for row in within.values()))
+    report.check('the header names the interface, not the port',
+                 listed.splitlines()[0]
+                 == 'Nodes on the communication interface (Simulated):',
+                 listed.splitlines()[0])
+    report.check('the selected node is marked in the node column',
+                 [l for l in listed.splitlines() if l.startswith('>')][0]
+                 .startswith('>1 '),
+                 [l for l in listed.splitlines() if l.startswith('>')][0][:34])
 
-    # A gap in the unit ids is the case a scan gets wrong by assuming 1..n.
-    report.check('a gap in the bus does not stop the sweep',
-                 '7' in listed and 5 in SIMULATED_BUS.keys() or True,
-                 ', '.join(str(u) for u in sorted(SIMULATED_BUS)))
-    report.check('   ...and unit 5 is not there, because nothing is at it',
-                 (chr(10) + '5 ') not in listed and 5 not in SIMULATED_BUS)
+    # The numbering IS the symmetry: 1-4 the axis, everything paired odd on
+    # the left and even on the right. A scheme nobody can read off a label
+    # is a scheme that needs a lookup.
+    paired = {u: row[2] for u, row in SIMULATED_BUS.items() if u >= 5}
+    wrong = [u for u, where in paired.items()
+             if (u % 2 == 1) != where.startswith('left')]
+    report.check('odd units are left, even units are right, without exception',
+                 not wrong, ', '.join(str(u) for u in wrong) or 'all 12')
+    report.check('and each pair sits on consecutive units',
+                 all(paired.get(u, '').replace('left', '')
+                     == paired.get(u + 1, ' ').replace('right', '')
+                     for u in range(5, 16, 2)))
+    axis = [row[2] for u, row in sorted(SIMULATED_BUS.items()) if u <= 4]
+    report.check('the axis is units 1-4, bottom to top',
+                 axis == ['pelvis', 'waist', 'neck', 'head'],
+                 ', '.join(axis))
+
+    # The sweep is bounded, and the bound is visible rather than quiet.
+    report.check('a node past the default sweep is not in the list',
+                 'right gripper' not in listed and 20 in SIMULATED_BUS)
+    report.check('   ...and is found when the sweep is widened to reach it',
+                 'right gripper' in mcp.HANDLERS['devices'](session, last=20))
 
     # Selecting, by number and by what the device calls itself.
-    mcp.HANDLERS['devices'](session, op='use', unit=3)
+    mcp.HANDLERS['devices'](session, op='use', unit=8)
     report.check('op=use points the session at another unit',
-                 session.unit == 3, str(session.unit))
+                 session.unit == 8, str(session.unit))
     report.check('and every other tool follows it with no argument of its own',
                  'right knee' in mcp.HANDLERS['board_info'](session,
                                                             kind='identity'),
@@ -1374,16 +1395,18 @@ def test_bus(report):
 
     mcp.HANDLERS['devices'](session, op='use', name='left shoulder')
     report.check('a device can be picked by what it calls itself',
-                 session.unit == 7, str(session.unit))
+                 session.unit == 11, str(session.unit))
 
     # The two ways of getting it wrong, both answered rather than obeyed.
+    # 'knee' is two nodes on a symmetric machine, which is the whole reason
+    # a name is not enough on its own.
     report.check('an ambiguous name names the problem, and moves nothing',
                  'matches 2 devices' in mcp.HANDLERS['devices'](
-                     session, op='use', name='knee') and session.unit == 7)
-    absent = mcp.HANDLERS['devices'](session, op='use', unit=9)
+                     session, op='use', name='knee') and session.unit == 11)
+    absent = mcp.HANDLERS['devices'](session, op='use', unit=30)
     report.check('a unit nobody is at is refused, with who is',
-                 absent.startswith('ERR no device at unit 9')
-                 and '1, 2, 3, 4, 7' in absent and session.unit == 7,
+                 absent.startswith('ERR no device at unit 30')
+                 and '1, 2, 3' in absent and session.unit == 11,
                  absent[:46])
 
     # A reading follows the selection, which is the point of all of it.
@@ -1396,6 +1419,43 @@ def test_bus(report):
     report.check('and the model is offered the tool at all',
                  all('devices' in debug.SETS[name]
                      for name in ('read', 'code', 'pins')))
+
+    # Node 0 is the Modbus broadcast address, not a node. Every node acts
+    # on it and none answers, so a read there cannot work - and a timeout
+    # would read as the bus having died rather than as the protocol
+    # working. Refused in one place, Board.request, which every read and
+    # every read-back write comes through.
+    from coaxial.errors import DeviceStateError
+    mcp.HANDLERS['devices'](session, op='use', unit=0)
+    report.check('unit 0 is selectable even though it never answers',
+                 session.unit == 0, str(session.unit))
+    for tool in ('analog_read', 'digital_read', 'board_info'):
+        try:
+            mcp.HANDLERS[tool](session)
+            report.check('%s on the broadcast address is refused' % tool,
+                         False, 'it answered')
+        except DeviceStateError as exc:
+            report.check('%s on the broadcast address is refused' % tool,
+                         'broadcast address' in str(exc), str(exc)[:40])
+    sent = mcp.HANDLERS['afe_power'](session, action='on')
+    report.check('but an order still goes out, and says it was not confirmed',
+                 'every node' in sent and 'no read-back' in sent, sent[:52])
+    report.check('a read-back action is refused rather than half-done',
+                 mcp.HANDLERS['afe_power'](session, action='read')
+                 .startswith('ERR'))
+
+    # The prompt is the one place an operator sees which node - and
+    # broadcast is a mode, not a node, so it does not read as "node zero".
+    talk = debug.Chat.__new__(debug.Chat)
+    talk.toolbox, talk.origin = mcp_box(session), ('Simulated', False)
+    for unit, expect, ok in ((7, 'node 7 left knee', False),
+                             (0, 'ALL NODES', 'all')):
+        session.use(unit)
+        tag, got_ok = talk.prompt_tag()
+        report.check('the prompt says %r' % expect, expect in tag, tag)
+        report.check('   ...and the spinner paints it %s'
+                     % ('red' if ok == 'all' else 'yellow'),
+                     got_ok == ok, repr(got_ok))
 
 
 def test_corrections_are_reported(report):
@@ -3286,16 +3346,21 @@ def test_fallback(report):
         def isatty(self):
             return True
 
-    for tag, ok, colour in (('Simulated', False, '[33m'),
-                            ('JTAG and COM3', True, '[32m'),
-                            ('RS485 at COM5', True, '[32m')):
+    # 'all' is the broadcast address, and it is the one mode where a
+    # command reaches every inverter on the bus and nothing answers to
+    # say it landed. Red is the colour already spent on 'something is
+    # wrong here', which is the right register for it.
+    for tag, ok, colour in (('Simulated', False, '\x1b[33m'),
+                            ('JTAG and COM3', True, '\x1b[32m'),
+                            ('RS485 at COM5', True, '\x1b[32m'),
+                            ('COM4, ALL NODES', 'all', '\x1b[31m')):
         out = VT()
         face = spin.Prompt('Coaxial 63100', out, tick=99, tag=tag, tag_ok=ok)
         face.stop(True)
         painted = out.getvalue()
         report.check('the prompt says (%s)' % tag,
                      '(%s%s[0m)>' % (colour, tag) in painted,
-                     'yellow' if ok is False else 'green')
+                     {False: 'yellow', 'all': 'RED'}.get(ok, 'green'))
         # stop() repaints the prefix only, and the tag sits after the tail.
         report.check('and the repaint does not eat it: %s' % tag,
                      painted.count(tag) == 1, '%d copies' % painted.count(tag))

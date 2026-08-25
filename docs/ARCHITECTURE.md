@@ -229,9 +229,26 @@ with no argument of its own. The `devices` tool is that pair, and it selects
 by `name=` as well as `unit=` because "unit 3" is a number and "right knee" is
 a device.
 
-`coaxial.simulated.SIMULATED_BUS` is five of them at non-contiguous unit ids -
-a scan that assumes 1..n stops at the first gap. Every one says **SIMULATED**
-in its own description, so a list of five cannot be read as five real ones.
+`coaxial.simulated.SIMULATED_BUS` is a humanoid's worth of them, and **the
+numbering is the symmetry**: units 1-4 are the axis bottom to top - pelvis,
+waist, neck, head - and everything paired is odd on the left and even on the
+right, so 7 and 8 are the two knees whatever else is on the bus. A node id read
+off a label says which side of the machine it is on without a lookup. The
+rating follows the joint, which is what makes the `name` column earn its place:
+a hip is a `coaxial_63100`, a wrist a `coaxial_63020`. Unit 20 sits past the
+default 1..16 sweep on purpose - a bound nobody can see is one that quietly
+hides a node. Every one says **SIMULATED** in its own description, so a list of
+sixteen cannot be read as sixteen real ones.
+
+**Unit 0 is not a node.** It is the Modbus broadcast address: every node acts
+on it and none answers. `Board.request` refuses there in one place, because
+every read and every read-back write comes through it and a timeout would read
+as the bus having died rather than as the protocol working. An order still goes
+out - `afe_power on/off` broadcasts and says it was not confirmed - and
+anything that needs a reply, `read` and `toggle` included, is refused by name.
+The prompt paints it **red**: green is a board, yellow a stand-in, and red is
+the one mode where a command reaches every inverter on the bus and nothing
+answers to say it landed.
 
 Mid-session, `/board simulated | auto | rs485 | COM4` swaps it and the prompt
 tag follows on the next line — the same factory, so the screen and the tools cannot

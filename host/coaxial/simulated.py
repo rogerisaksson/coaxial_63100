@@ -252,30 +252,75 @@ class SimulatedGpio:
         return self._ports[letter]
 
 
+BROADCAST_REFUSAL = ('unit 0 is the broadcast address: every node acts on a '
+                     'broadcast and none answers it, so there is nothing to '
+                     'read back. Send an order with broadcast(), or select '
+                     'one node.')
+
+
+class _BroadcastRefuses:
+    """Every read on unit 0, refused the way the real board refuses it.
+
+    The real Board has one guard, in request(), which every subsystem call
+    goes through. The stand-in has no such choke point - its subsystems
+    answer directly - so this stands in for all of them at once. Without
+    it a broadcast read succeeded here and raised on the board, which is
+    the difference test_parity.py exists to catch.
+    """
+
+    def __getattr__(self, _name):
+        def refuse(*_a, **_k):
+            raise DeviceStateError(BROADCAST_REFUSAL)
+        return refuse
+
+
 class SimulatedBoard:
     def __init__(self, unit=1):
         self.unit = int(unit)
-        where = SIMULATED_BUS.get(self.unit)
+        name, kind, where = SIMULATED_BUS.get(
+            self.unit,
+            ('coaxial_63100', 'bldc_inverter',
+             'unassigned unit %d' % self.unit))
         self.version_info = {
             'proto_major': 2, 'proto_minor': 1, 'firmware': 'simulated',
-            'device': 'coaxial_63100', 'mcu': 'STM32H753 (simulated)',
-            'build': 'simulated', 'commands': 21,
+            'device': name, 'mcu': 'STM32H753 (simulated)',
+            'build': 'simulated', 'commands': 21, 'type': kind,
             # Says what it is AND that it is invented, in the same line, so
             # a list of five devices cannot be read as five real ones.
             'description': 'SIMULATED three-phase BLDC inverter at the %s'
-                           % (where or 'unassigned unit %d' % self.unit),
+                           % where,
+            'where': where,
         }
-        self.system = SimulatedSystem()
-        self.link = SimulatedLink()
-        self.afe = SimulatedAfe()
-        self.analog = SimulatedAnalog(self.afe)
-        self.gpio = SimulatedGpio(self.afe)
+        if self.unit == 0:
+            refuse = _BroadcastRefuses()
+            self.system = self.link = self.afe = refuse
+            self.analog = self.gpio = refuse
+        else:
+            self.system = SimulatedSystem()
+            self.link = SimulatedLink()
+            self.afe = SimulatedAfe()
+            self.analog = SimulatedAnalog(self.afe)
+            self.gpio = SimulatedGpio(self.afe)
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'
 
     def close_binary(self):
         pass
+
+    def broadcast(self, function, payload=b''):
+        """Acted on by every simulated node, answered by none."""
+        return None
+
+    def request(self, *_a, **_k):
+        from .errors import DeviceStateError
+        if getattr(self, 'unit', 1) == 0:
+            raise DeviceStateError(
+                'unit 0 is the broadcast address: every node acts on a '
+                'broadcast and none answers it, so there is nothing to '
+                'read back.')
+        raise DeviceStateError('the simulated board answers through its '
+                               'subsystems, not raw requests')
 
 
 # Several of this board on one bus, which is what a machine built out of
@@ -286,12 +331,41 @@ class SimulatedBoard:
 # The joints are invented, like every other value in this file, and each
 # one says so in its own description. What is not invented is the shape:
 # one unit id per device, and identity is how a host tells them apart.
+# unit: (name, type, where it is)
+#
+# The numbering IS the symmetry, which is the point of choosing one. Units
+# 1-4 are the axis, bottom to top, and everything paired is odd on the left
+# and even on the right - so 7 and 8 are the two knees whatever else is on
+# the bus, and a node id read off a label says which side of the machine it
+# is on without a lookup.
+#
+# The rating follows the joint: a hip carries the mass, a wrist does not.
+# Two names on one bus is what makes the `name` column earn its place.
+#
+# Unit 20 is outside the default 1..16 sweep on purpose. A scan is bounded
+# because an absent unit costs the read timeout, and a bound nobody can see
+# is one that quietly hides a node.
 SIMULATED_BUS = {
-    1: 'left knee',
-    2: 'left ankle',
-    3: 'right knee',
-    4: 'right ankle',
-    7: 'left shoulder',
+    1:  ('coaxial_63100', 'bldc_inverter', 'pelvis'),
+    2:  ('coaxial_63100', 'bldc_inverter', 'waist'),
+    3:  ('coaxial_63020', 'bldc_inverter', 'neck'),
+    4:  ('coaxial_63020', 'bldc_inverter', 'head'),
+
+    5:  ('coaxial_63100', 'bldc_inverter', 'left hip'),
+    6:  ('coaxial_63100', 'bldc_inverter', 'right hip'),
+    7:  ('coaxial_63100', 'bldc_inverter', 'left knee'),
+    8:  ('coaxial_63100', 'bldc_inverter', 'right knee'),
+    9:  ('coaxial_63020', 'bldc_inverter', 'left ankle'),
+    10: ('coaxial_63020', 'bldc_inverter', 'right ankle'),
+
+    11: ('coaxial_63100', 'bldc_inverter', 'left shoulder'),
+    12: ('coaxial_63100', 'bldc_inverter', 'right shoulder'),
+    13: ('coaxial_63020', 'bldc_inverter', 'left elbow'),
+    14: ('coaxial_63020', 'bldc_inverter', 'right elbow'),
+    15: ('coaxial_63020', 'bldc_inverter', 'left wrist'),
+    16: ('coaxial_63020', 'bldc_inverter', 'right wrist'),
+
+    20: ('coaxial_63020', 'bldc_inverter', 'right gripper'),
 }
 
 
@@ -329,6 +403,10 @@ class SimulatedSession:
         self._board = SimulatedBoard(self.unit)
         self._info = None
         return self.unit
+
+    def broadcast(self, function, payload=b''):
+        """Acted on by every simulated node, answered by none."""
+        return None
 
     @property
     def board(self):

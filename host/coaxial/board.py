@@ -14,9 +14,11 @@ import time
 
 from .afe import Afe
 from .analog import Analog
-from .errors import ConnectError, RigError, UnsupportedProtocolError
+from .errors import (ConnectError, DeviceStateError, RigError,
+                     UnsupportedProtocolError)
 from .gpio import Gpio
 from .link import Link
+from .protocol import BROADCAST
 from .system import System
 from .transport import Transport
 
@@ -43,6 +45,12 @@ class Board:
     # -- the single point where a transaction happens ----------------------
 
     def request(self, function, payload=b'', exact_payload=None, timeout=None):
+        if self.unit == BROADCAST:
+            # One place, because every read and every read-back write comes
+            # through here. Silence from unit 0 is the protocol working, not
+            # the board being dead, and a timeout would read as the second.
+            from .simulated import BROADCAST_REFUSAL
+            raise DeviceStateError(BROADCAST_REFUSAL)
         return self.transport.request(self.unit, function, payload,
                                       exact_payload, timeout)
 

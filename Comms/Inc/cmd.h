@@ -24,7 +24,7 @@
   *                    rsp: u8 proto_major, u8 proto_minor,
   *                         u8 fw_major, u8 fw_minor, u8 fw_patch,
   *                         str device, str mcu, str build,
-  *                         u16 command_count, str description
+  *                         u16 command_count, str description, str type
   *
   *                    THE FROZEN COMMAND. The protocol major is first so any
   *                    host can read two bytes, decide whether it understands
@@ -199,7 +199,7 @@ extern "C" {
 #define CMD_CHANNELS     0x6DU
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 4U
+#define CMD_PROTO_MINOR 5U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

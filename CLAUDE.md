@@ -37,6 +37,9 @@ ADC reference. That is the mechanism behind invariant 9, and why
 picks one by `unit=` or by `name=`; every other tool then talks to it.
 `origin.interface` is the communication interface type - `debug probe`,
 `RS485` or `simulated` - which is a different question from which unit.
+`/node [N]` switches node without a model turn; **`/node 0` is the Modbus
+broadcast address**, where every node acts and none answers, so reads are
+refused and the prompt goes red.
 
 **The channel map is the board's, not this file's.** Command `0x6D channels`
 reports every analog channel, every digital I/O pin and the direction each one

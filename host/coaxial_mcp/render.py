@@ -60,22 +60,30 @@ def digital_map(pins, what='digital'):
     return lines
 
 
-def devices(found, here):
-    """Every device answering on the bus, and which one is selected.
+def devices(found, here, interface='unknown'):
+    """Every node on the interface, and which one is selected.
 
-    The description is the board's own (command 0x41), not a name invented
-    here: with several units answering, "unit 3" is a number and "right
-    knee" is a device, and only one of them tells an operator what they are
-    about to drive.
+    Name and type are the node's own (command 0x41), not invented here:
+    "node 3" is a number, and a name and a kind are a device. The header
+    names the interface rather than the port, because how the host reaches
+    the bus and which node answers on it are two different facts and the
+    list is about the second.
+
+    `where` is the last column because sixteen rows of the same name and
+    the same type is not a list of nodes, it is a list of numbers. A board
+    does not know where it is bolted; a bus that has been commissioned
+    does, and it says so in the description each node reports.
     """
-    lines = ['bus: %d device%s, unit %s selected'
-             % (len(found), '' if len(found) == 1 else 's', here),
-             'unit sel device        description']
+    lines = ['Nodes on the communication interface (%s):' % interface,
+             'node name           type           where']
     for unit, version in found:
-        lines.append('%-4d %-3s %-14s %s'
-                     % (unit, '*' if unit == here else '',
-                        version.get('device', '?'),
-                        version.get('description', '')))
+        # '>' in the node column rather than a column of its own: which node
+        # the tools are on is one character, and the prompt carries it too.
+        lines.append(('%-4s %-14s %-14s %s'
+                      % (('>%d' % unit) if unit == here else unit,
+                         version.get('device', '?'),
+                         version.get('type', ''),
+                         version.get('where', ''))).rstrip())
     return chr(10).join(lines)
 
 

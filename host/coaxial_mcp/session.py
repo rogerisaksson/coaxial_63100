@@ -31,6 +31,24 @@ Origin = collections.namedtuple(
     'Origin', 'real port baud kind label interface unit')
 
 
+BROADCAST = 0
+
+
+def _node(unit, where=None):
+    """The node half of the prompt tag: which one, or all of them.
+
+    Node 0 is the Modbus broadcast address, and it is a different mode
+    rather than a different node - every node acts on it, none answers,
+    and no read works there. It says so in words the operator cannot read
+    as "node zero".
+    """
+    if unit == BROADCAST:
+        return 'ALL NODES'
+    if where:
+        return 'node %d %s' % (unit, where)
+    return 'node %d' % unit
+
+
 def _label(real, port, kind):
     """What the prompt and every suite header say the session is talking to.
 
@@ -45,6 +63,12 @@ def _label(real, port, kind):
     if kind == 'probe':
         return 'JTAG and %s' % port
     return 'RS485 at %s' % port
+
+
+def tag(origin, unit=None, where=None):
+    """What the prompt shows: the interface, then the node."""
+    unit = origin.unit if unit is None else unit
+    return '%s, %s' % (origin.label, _node(unit, where))
 
 
 def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):

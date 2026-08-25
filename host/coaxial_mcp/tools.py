@@ -12,9 +12,12 @@ open them. Three optional strings, and it answers with an index.
 Descriptions are one line, property names short, no titles, prose defaults or
 examples: a model that needs the channel map calls board_info once.
 """
+import os
 import re
+import sys
 
 from coaxial import DividerParams, NtcParams, protocol, scaling
+from coaxial.wire import pack
 
 from . import render
 from .docs import docs as _docs
@@ -517,7 +520,22 @@ def self_test(session, failures_only=False, **_):
     return render.checks(checks)
 
 
+def _multicast(session):
+    return getattr(session, 'unit', None) == protocol.BROADCAST
+
+
 def afe_power(session, action='read', **_):
+    if _multicast(session):
+        # An order, not a request. `read` and `toggle` both need the reply
+        # a broadcast does not have - toggle because "the other one" is
+        # only defined against a state somebody read.
+        if action not in ('on', 'off'):
+            return ('ERR %s needs a reply and a broadcast has none; '
+                    'select one node, or use on/off' % action)
+        session.board.broadcast(
+            protocol.AFE, pack(('u8', protocol.AFE_ACTIONS[action])))
+        return ('afe %s sent to every node - broadcast, so no read-back '
+                'and no confirmation' % action)
     afe = session.board.afe
     if action != 'read':
         {'on': afe.enable, 'off': afe.disable, 'toggle': afe.toggle}[action]()
@@ -538,6 +556,27 @@ def gpio_pin(session, op='read', pin='B2', level=False, mode='input',
     return '%s mode=%s pull=%s' % (pin.upper(), mode, pull)
 
 
+def _interface(session):
+    """How the host reaches this bus, for the list's own header.
+
+    Asked of the session rather than passed in: `devices` is called from
+    the MCP server and from the ollama loop, and only one of those has an
+    Origin to hand.
+    """
+    port = getattr(session, 'port', None)
+    if port is None:
+        return 'Simulated'
+    sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools'))
+    try:
+        import find_board
+        kind = find_board.kind_of(port)
+    except Exception:                                         # noqa: BLE001
+        return str(port)
+    return '%s at %s' % ('debug probe' if kind == find_board.PROBE
+                         else 'RS485', port)
+
+
 def devices(session, op='list', unit=None, name=None, first=1, last=16, **_):
     """The other units on this bus, and which one the tools talk to.
 
@@ -548,8 +587,17 @@ def devices(session, op='list', unit=None, name=None, first=1, last=16, **_):
     """
     if op == 'list':
         found = session.scan(range(int(first), int(last) + 1))
-        return render.devices(found, getattr(session, 'unit', None))
+        return render.devices(found, getattr(session, 'unit', None),
+                              _interface(session))
     if op == 'use':
+        if unit is not None and int(unit) == protocol.BROADCAST:
+            # Never in the scan, and never will be: nothing answers at 0.
+            # Selectable all the same, because an order to every node on
+            # the bus is a real thing to want and Modbus spells it 0.
+            session.use(protocol.BROADCAST)
+            return ('multicast: every node on the bus acts, none answers. '
+                    'Reads are refused here; an order still goes out. '
+                    'devices op=use unit=N picks one node again.')
         found = session.scan(range(int(first), int(last) + 1))
         if unit is None and not name:
             # Named, not just refused: the model called op=use with neither,
@@ -577,7 +625,8 @@ def devices(session, op='list', unit=None, name=None, first=1, last=16, **_):
             return ('ERR no device at unit %s; answering: %s'
                     % (unit, ', '.join(str(u) for u in answering) or 'none'))
         session.use(int(unit))
-        return render.devices(found, session.unit)
+        return render.devices(found, session.unit,
+                              _interface(session))
     return 'ERR unknown op %r; list or use' % (op,)
 
 

@@ -34,6 +34,7 @@ static cmd_status_t h_version(rd_t *in, wr_t *out)
   /* Appended, which is the one thing this record allows. An old host stops
      after command_count and never knows it is here. */
   wr_str(out, FW_DEVICE_DESCRIPTION);
+  wr_str(out, FW_DEVICE_TYPE);
 
   return CMD_OK;
 }
