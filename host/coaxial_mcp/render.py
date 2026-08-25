@@ -60,6 +60,25 @@ def digital_map(pins, what='digital'):
     return lines
 
 
+def devices(found, here):
+    """Every device answering on the bus, and which one is selected.
+
+    The description is the board's own (command 0x41), not a name invented
+    here: with several units answering, "unit 3" is a number and "right
+    knee" is a device, and only one of them tells an operator what they are
+    about to drive.
+    """
+    lines = ['bus: %d device%s, unit %s selected'
+             % (len(found), '' if len(found) == 1 else 's', here),
+             'unit sel device        description']
+    for unit, version in found:
+        lines.append('%-4d %-3s %-14s %s'
+                     % (unit, '*' if unit == here else '',
+                        version.get('device', '?'),
+                        version.get('description', '')))
+    return chr(10).join(lines)
+
+
 def digital_levels(rows):
     """What each digital channel reads right now.
 
@@ -94,6 +113,11 @@ def board_info(version, clock, channels, digital=None, kind='all'):
                 si(clock['sysclk_hz']), si(clock['hclk_hz']), clock['source'],
                 version.get('commands', '?')),
         ]
+        # What it IS, from the device, when the device says. A name picks a
+        # codec; a description says what is on the other end of the bus,
+        # which is the difference between five units and five devices.
+        if version.get('description'):
+            lines.append(version['description'])
     if kind in ('all', 'analog'):
         lines += analog_map(channels)
     if kind in ('all', 'digital') and digital is not None:

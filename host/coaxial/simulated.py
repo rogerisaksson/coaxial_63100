@@ -253,11 +253,17 @@ class SimulatedGpio:
 
 
 class SimulatedBoard:
-    def __init__(self):
+    def __init__(self, unit=1):
+        self.unit = int(unit)
+        where = SIMULATED_BUS.get(self.unit)
         self.version_info = {
             'proto_major': 2, 'proto_minor': 1, 'firmware': 'simulated',
             'device': 'coaxial_63100', 'mcu': 'STM32H753 (simulated)',
             'build': 'simulated', 'commands': 21,
+            # Says what it is AND that it is invented, in the same line, so
+            # a list of five devices cannot be read as five real ones.
+            'description': 'SIMULATED three-phase BLDC inverter at the %s'
+                           % (where or 'unassigned unit %d' % self.unit),
         }
         self.system = SimulatedSystem()
         self.link = SimulatedLink()
@@ -272,6 +278,23 @@ class SimulatedBoard:
         pass
 
 
+# Several of this board on one bus, which is what a machine built out of
+# them looks like: same firmware, same commands, different unit id and a
+# different thing bolted to the shaft. Non-contiguous on purpose - a scan
+# that assumes 1..n is one that stops at the first gap.
+#
+# The joints are invented, like every other value in this file, and each
+# one says so in its own description. What is not invented is the shape:
+# one unit id per device, and identity is how a host tells them apart.
+SIMULATED_BUS = {
+    1: 'left knee',
+    2: 'left ankle',
+    3: 'right knee',
+    4: 'right ankle',
+    7: 'left shoulder',
+}
+
+
 class SimulatedSession:
     """Drop-in for `coaxial_mcp.session.Session` that never opens a port.
 
@@ -281,12 +304,31 @@ class SimulatedSession:
     thing that decides which one gets built.
     """
 
-    def __init__(self, *_args, **_kwargs):
-        # Accepts and ignores whatever a real Session would take (port,
-        # baud, unit) - a caller that always builds "the session" the same
-        # way, real or simulated, is one fewer branch to keep in step.
-        self._board = SimulatedBoard()
+    def __init__(self, port=None, baud=115200, unit=1, **_kwargs):
+        # Takes what a real Session takes, so a caller that always builds
+        # "the session" the same way is one fewer branch to keep in step.
+        # `unit` is no longer ignored: it decides which of SIMULATED_BUS
+        # this session is talking to, and a unit nobody is at behaves like
+        # a unit nobody is at.
+        self.port, self.baud = port, baud
+        self.unit = int(unit)
+        self._board = SimulatedBoard(self.unit)
         self._info = None
+
+    def scan(self, units=range(1, 17)):
+        """[(unit, version)] for the simulated devices in `units`."""
+        found = []
+        for unit in units:
+            if unit in SIMULATED_BUS:
+                found.append((unit, SimulatedBoard(unit).version_info))
+        return found
+
+    def use(self, unit):
+        """Point this session at another unit on the bus."""
+        self.unit = int(unit)
+        self._board = SimulatedBoard(self.unit)
+        self._info = None
+        return self.unit
 
     @property
     def board(self):

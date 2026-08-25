@@ -94,6 +94,22 @@ TOOLS = [
         },
     },
     {
+        'name': 'devices',
+        'description': "Units on this bus and what each says it is. op=use with name='right knee' or unit=3 picks the one every other tool then talks to.",
+        'description_terse': "Devices on the bus. op=use + name='right knee' or unit=3 to pick one.",
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'op': {'enum': ['list', 'use']},
+                'unit': {'type': 'integer',
+                         'description': 'with op=use'},
+                'name': {'type': 'string',
+                         'description': 'with op=use, instead of unit: '
+                                        'what the device calls itself'},
+            },
+        },
+    },
+    {
         'name': 'digital_read',
         'description': 'Read the digital channels: the value, 0 or 1, of every one, now. Values, not the list - board_info lists them.',
         'description_terse': 'Values of every digital channel, 0 or 1, now. Not the list.',
@@ -522,6 +538,49 @@ def gpio_pin(session, op='read', pin='B2', level=False, mode='input',
     return '%s mode=%s pull=%s' % (pin.upper(), mode, pull)
 
 
+def devices(session, op='list', unit=None, name=None, first=1, last=16, **_):
+    """The other units on this bus, and which one the tools talk to.
+
+    One board is a bus of one. Several - a machine built out of them - are
+    the same firmware at different unit ids, told apart by the identity
+    each one reports for itself. Selecting one is a session change, so
+    every other tool follows it without an argument of its own.
+    """
+    if op == 'list':
+        found = session.scan(range(int(first), int(last) + 1))
+        return render.devices(found, getattr(session, 'unit', None))
+    if op == 'use':
+        found = session.scan(range(int(first), int(last) + 1))
+        if unit is None and not name:
+            # Named, not just refused: the model called op=use with neither,
+            # read "needs a unit or a name" and ended the turn rather than
+            # trying again. The answer to "which" is the list.
+            return ('ERR use needs unit= or name=. On the bus: %s'
+                    % '; '.join('%d %s' % (u, v.get('description', ''))
+                                for u, v in found))
+        if unit is None:
+            # By what it calls itself, so "the right knee" is one call
+            # rather than a list, a reading of the list, and a second call.
+            key = _key(name)
+            hit = [u for u, v in found
+                   if key in _key(v.get('description', ''))
+                   or key in _key(v.get('device', ''))]
+            if len(hit) != 1:
+                return ('ERR %r matches %d devices; say which unit'
+                        % (name, len(hit)))
+            unit = hit[0]
+        answering = [u for u, _ in found]
+        if int(unit) not in answering:
+            # Not a refusal for its own sake: pointing the session at a
+            # unit nobody is at makes every later call time out, and the
+            # operator reads that as the board having died.
+            return ('ERR no device at unit %s; answering: %s'
+                    % (unit, ', '.join(str(u) for u in answering) or 'none'))
+        session.use(int(unit))
+        return render.devices(found, session.unit)
+    return 'ERR unknown op %r; list or use' % (op,)
+
+
 def digital_read(session, **_):
     """The level of every digital I/O channel, from the board's own map.
 
@@ -573,6 +632,7 @@ HANDLERS = {
     'self_test': self_test,
     'analog_read': analog_read,
     'afe_power': afe_power,
+    'devices': devices,
     'digital_read': digital_read,
     'gpio_pin': gpio_pin,
     'gpio_port': gpio_port,

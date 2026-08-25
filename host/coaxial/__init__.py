@@ -23,7 +23,7 @@ Nothing returns a status code and nothing returns None to mean failure. Every
 call either produces its result or raises something from coaxial.errors.
 """
 from . import protocol, scaling
-from .board import BOARD_CLASSES, Board, connect, disconnect
+from .board import BOARD_CLASSES, Board, connect, disconnect, scan
 from .errors import (ConnectError, CrcError, DeviceStateError, FrameError,
                      ModbusException, NoReplyError, PayloadError, RigError,
                      UnsupportedProtocolError)
@@ -31,7 +31,7 @@ from .scaling import DCBUS_ONBOARD, NTC_ONBOARD, DividerParams, NtcParams
 from .transport import Transport
 
 __all__ = [
-    'connect', 'disconnect', 'Board', 'BOARD_CLASSES', 'Transport',
+    'connect', 'disconnect', 'scan', 'Board', 'BOARD_CLASSES', 'Transport',
     'NtcParams', 'DividerParams', 'NTC_ONBOARD', 'DCBUS_ONBOARD',
     'RigError', 'ConnectError', 'NoReplyError', 'CrcError', 'FrameError',
     'PayloadError', 'UnsupportedProtocolError', 'DeviceStateError',

@@ -118,6 +118,35 @@ def _normalise(entry, default_port, default_baud):
                      '(unit, baud, port)' % (entry,))
 
 
+def scan(units=range(1, 17), port='COM4', baud=115200):
+    """Which unit ids answer on this bus, and what each one says it is.
+
+    `[(unit, version_dict)]`, in ascending unit order, skipping silence. One
+    transport for the whole sweep - the port cannot be opened twice, and
+    reopening it per unit would cost the console handover each time.
+
+    Bounded by default because it is not free: a unit that is not there
+    costs the transport's read timeout, so 1..16 is about eight seconds of
+    silence in the worst case and 1..247 is two minutes. Widen it when a
+    bus is known to be wider.
+    """
+    wanted = list(units)
+    if not wanted:
+        return []
+
+    boards = connect([(unit, baud, port) for unit in wanted], verify=False)
+    found = []
+    try:
+        for board in boards:
+            try:
+                found.append((board.unit, board.probe()))
+            except RigError:
+                continue            # silence is an answer: nothing is there
+    finally:
+        disconnect(boards)
+    return found
+
+
 def connect(units, port='COM4', baud=115200, verify=True):
     """Open the links and return one Board per entry, in the order given.
 

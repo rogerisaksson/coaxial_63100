@@ -31,6 +31,9 @@ static cmd_status_t h_version(rd_t *in, wr_t *out)
   wr_str(out, FW_MCU_NAME);
   wr_str(out, FW_BUILD_STRING);
   wr_u16(out, cmd_count());
+  /* Appended, which is the one thing this record allows. An old host stops
+     after command_count and never knows it is here. */
+  wr_str(out, FW_DEVICE_DESCRIPTION);
 
   return CMD_OK;
 }

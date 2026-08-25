@@ -102,6 +102,15 @@ TOOL_CHOICE = (
     ('vad har de analoga kanalerna för värden?', 'analog_read',
      ('digital_read',)),
 
+    # The bus. One board is a bus of one; a machine is several of it, and
+    # "which device" is a question board_info cannot answer.
+    ('ge mig en lista på alla enheter du kan kommunicera med', 'devices',
+     ('analog_read', 'digital_read')),
+    ('list every device you can talk to', 'devices',
+     ('analog_read', 'digital_read')),
+    ('kommunicera med höger knä', 'devices',
+     ('analog_read', 'digital_read')),
+
     # What a thing IS. board_info is allowed: describing this board from
     # its own map beats describing it from training, and the earlier
     # "no board call" here was the wrong bar - measured, gemma4:12b and

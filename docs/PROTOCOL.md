@@ -184,8 +184,14 @@ than protocol 1.3.
 u8 proto_major, u8 proto_minor,
 u8 fw_major, u8 fw_minor, u8 fw_patch,
 str device, str mcu, str build,
-u16 command_count
+u16 command_count, str description
 ```
+
+`description` is what the device **is**, in one line, from the device. A name
+picks a codec; it says nothing about what is on the other end of the bus, and
+with several units answering that is the difference between a list of numbers
+and a list of devices. Appended, which is the one thing this record allows —
+an old host stops after `command_count` and never knows it is there.
 
 The protocol major is **first** so a host of any vintage can read two bytes,
 decide whether it understands the device, and stop. Fields may only ever be
@@ -257,7 +263,7 @@ not reserved — was legitimately cleared.
 
 ## Versions
 
-Firmware **1.4.1**, protocol **1.3** — `0x6D channels` appended, which is a MINOR: an old host never calls it. `Comms/Inc/version.h` holds the firmware
+Firmware **1.4.1**, protocol **1.4** — `0x6D channels` and `0x41`'s `description` both appended, both MINOR: an old host never calls the one and stops before the other. `Comms/Inc/version.h` holds the firmware
 version; the protocol pair is `CMD_PROTO_MAJOR`/`CMD_PROTO_MINOR` in
 `Comms/Inc/cmd.h`, beside the command table it describes. The build string comes from `__DATE__`/`__TIME__`, which
 makes the binary non-reproducible. That is paid deliberately: a production rig

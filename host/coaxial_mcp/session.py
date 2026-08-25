@@ -17,11 +17,18 @@ import sys
 # along the way is called.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import connect, disconnect          # noqa: E402
+from coaxial import connect, disconnect, scan    # noqa: E402
 from coaxial.errors import RigError              # noqa: E402
 
 
-Origin = collections.namedtuple('Origin', 'real port baud kind label')
+# `kind` is the *communication interface type*: how the host reaches the
+# bus, which is not the same question as which device is on it. A reading
+# taken over the bench cable and one taken over the field bus are different
+# measurements, and the unit id says which device either of them came from.
+INTERFACE = {'probe': 'debug probe', 'serial': 'RS485', None: 'simulated'}
+
+Origin = collections.namedtuple(
+    'Origin', 'real port baud kind label interface unit')
 
 
 def _label(real, port, kind):
@@ -72,10 +79,12 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
 
     if simulated:
         from coaxial.simulated import SimulatedSession
-        return SimulatedSession(), Origin(False, port, baud, None,
-                                          _label(False, port, None))
+        return (SimulatedSession(port, baud, unit),
+                Origin(False, port, baud, None, _label(False, port, None),
+                       INTERFACE[None], unit))
     return (Session(port, baud, unit),
-            Origin(True, port, baud, kind, _label(True, port, kind)))
+            Origin(True, port, baud, kind, _label(True, port, kind),
+                   INTERFACE.get(kind, kind), unit))
 
 
 class Session:
@@ -103,6 +112,22 @@ class Session:
                           board.system.clock(),
                           board.analog.channels(refresh=refresh))
         return self._info
+
+    def scan(self, units=range(1, 17)):
+        """[(unit, version)] for every device answering on this bus.
+
+        The link is dropped first: one port cannot be open twice, and the
+        sweep opens its own. Whatever was selected stays selected - the
+        next tool call reopens it.
+        """
+        self.close()
+        return scan(units, self.port, self.baud)
+
+    def use(self, unit):
+        """Point this session at another unit on the same bus."""
+        self.close()
+        self.unit = int(unit)
+        return self.unit
 
     def close(self):
         if self._board is None:

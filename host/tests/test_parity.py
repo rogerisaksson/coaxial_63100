@@ -106,12 +106,23 @@ def main():
                          '%d vs %d rows' % (len(live_map[section]),
                                             len(fake_map[section])))
 
-        # board_info: the first two lines are identity and clock, which are
-        # meant to differ - the stand-in says "simulated" where a firmware
-        # version goes, on purpose. Everything below them is the map.
+        # board_info: the first three lines are identity, clock and the
+        # device's own description, all of which are meant to differ - the
+        # stand-in says "simulated" where a firmware version goes and again
+        # in its description, on purpose. Everything below them is the map.
         compare(report, 'board_info',
                 toolmod.HANDLERS['board_info'](board),
-                toolmod.HANDLERS['board_info'](stand_in), skip=2)
+                toolmod.HANDLERS['board_info'](stand_in), skip=3)
+
+        # ...and the description is the one line that must NOT match: a
+        # stand-in a caller could mistake for the board is the whole thing
+        # this suite exists to prevent.
+        live_head = shape(toolmod.HANDLERS['board_info'](board))[:3]
+        fake_head = shape(toolmod.HANDLERS['board_info'](stand_in))[:3]
+        report.check('the stand-in says it is one, in its own description',
+                     'simulated' in fake_head[2].lower()
+                     and 'simulated' not in live_head[2].lower(),
+                     fake_head[2][:46])
 
         # A reading, with the front end in the same state on both sides, so
         # the AFE-off banner is either present on both or on neither.

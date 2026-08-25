@@ -39,4 +39,16 @@
 #define FW_DEVICE_NAME "coaxial_63100"
 #define FW_MCU_NAME    "STM32H753VIT6"
 
+/* What this device IS, in one line, from the device itself.
+ *
+ * A name is not a description: "coaxial_63100" tells a host which codec to
+ * use and nothing about what is on the other end of the bus. With several
+ * units answering, that is the difference between a list of numbers and a
+ * list of devices. Appended to the frozen record, which is what the
+ * append-only rule is for.
+ *
+ * The rating is in it because the rating is the name, and no measured value
+ * ever belongs here - invariant 10. */
+#define FW_DEVICE_DESCRIPTION   "Three-phase BLDC inverter, 63 V / 100 A, PCB mounted coaxially behind an "   "outrunner's stator. Instrumentation only: no timer, no PWM, no gate drive."
+
 #endif /* VERSION_H */

@@ -31,6 +31,13 @@ VREFBUF is deliberately **disabled**, VREF+ high-impedance, so the AFE drives th
 ADC reference. That is the mechanism behind invariant 9, and why
 `ADC_VREF_VOLTAGE 3.3f` is an assumption about a rail, not a property of the chip.
 
+**What a device is, and which devices there are, both come from the bus.**
+`0x41` carries a one-line `description` from the device itself, and
+`coaxial.scan()` sweeps unit ids. The `devices` tool lists them and `op=use`
+picks one by `unit=` or by `name=`; every other tool then talks to it.
+`origin.interface` is the communication interface type - `debug probe`,
+`RS485` or `simulated` - which is a different question from which unit.
+
 **The channel map is the board's, not this file's.** Command `0x6D channels`
 reports every analog channel, every digital I/O pin and the direction each one
 runs; `board_info` shows it and `system.channel_map()` returns it. USART3 and

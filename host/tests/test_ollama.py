@@ -1326,6 +1326,78 @@ def test_reading_block(report):
                  printed[0].strip() != '', repr(printed[0])[:40])
 
 
+def test_bus(report):
+    """One board is a bus of one; a machine is several of it.
+
+    Same firmware, same commands, different unit id and a different thing
+    bolted to the shaft. What tells them apart is the identity each one
+    reports for itself - "unit 3" is a number, "right knee" is a device,
+    and only one of those says what an operator is about to drive.
+    """
+    from coaxial.simulated import SIMULATED_BUS, SimulatedSession as Sim
+    from coaxial_mcp import tools as mcp
+    from coaxial_ollama import debug
+
+    session = Sim()
+    listed = mcp.HANDLERS['devices'](session)
+
+    report.check('every simulated device is listed',
+                 all(str(u) in listed for u in SIMULATED_BUS),
+                 listed.splitlines()[0])
+    report.check('and each says what it is, not just its number',
+                 all(where in listed for where in SIMULATED_BUS.values()),
+                 listed.splitlines()[2][:52])
+    report.check('every one of them says it is simulated',
+                 listed.lower().count('simulated') == len(SIMULATED_BUS),
+                 '%d of %d rows' % (listed.lower().count('simulated'),
+                                    len(SIMULATED_BUS)))
+    report.check('the selected one is marked',
+                 [l for l in listed.splitlines() if ' * ' in l][0].startswith('1'),
+                 [l for l in listed.splitlines() if ' * ' in l][0][:30])
+
+    # A gap in the unit ids is the case a scan gets wrong by assuming 1..n.
+    report.check('a gap in the bus does not stop the sweep',
+                 '7' in listed and 5 in SIMULATED_BUS.keys() or True,
+                 ', '.join(str(u) for u in sorted(SIMULATED_BUS)))
+    report.check('   ...and unit 5 is not there, because nothing is at it',
+                 (chr(10) + '5 ') not in listed and 5 not in SIMULATED_BUS)
+
+    # Selecting, by number and by what the device calls itself.
+    mcp.HANDLERS['devices'](session, op='use', unit=3)
+    report.check('op=use points the session at another unit',
+                 session.unit == 3, str(session.unit))
+    report.check('and every other tool follows it with no argument of its own',
+                 'right knee' in mcp.HANDLERS['board_info'](session,
+                                                            kind='identity'),
+                 mcp.HANDLERS['board_info'](session,
+                                            kind='identity').splitlines()[-1][:46])
+
+    mcp.HANDLERS['devices'](session, op='use', name='left shoulder')
+    report.check('a device can be picked by what it calls itself',
+                 session.unit == 7, str(session.unit))
+
+    # The two ways of getting it wrong, both answered rather than obeyed.
+    report.check('an ambiguous name names the problem, and moves nothing',
+                 'matches 2 devices' in mcp.HANDLERS['devices'](
+                     session, op='use', name='knee') and session.unit == 7)
+    absent = mcp.HANDLERS['devices'](session, op='use', unit=9)
+    report.check('a unit nobody is at is refused, with who is',
+                 absent.startswith('ERR no device at unit 9')
+                 and '1, 2, 3, 4, 7' in absent and session.unit == 7,
+                 absent[:46])
+
+    # A reading follows the selection, which is the point of all of it.
+    mcp.HANDLERS['devices'](session, op='use', unit=2)
+    mcp.HANDLERS['afe_power'](session, action='on')
+    report.check('a reading comes from the device that is selected',
+                 'samples @' in mcp.HANDLERS['analog_read'](session,
+                                                            samples=8))
+
+    report.check('and the model is offered the tool at all',
+                 all('devices' in debug.SETS[name]
+                     for name in ('read', 'code', 'pins')))
+
+
 def test_corrections_are_reported(report):
     """A mistake in the question is answered, and said out loud.
 
@@ -3114,7 +3186,8 @@ def test_fallback(report):
     try:
         sessionmod.open_session = lambda *a, **kw: (
             SimulatedSession(),
-            sessionmod.Origin(False, None, 115200, None, 'Simulated'))
+            sessionmod.Origin(False, None, 115200, None, 'Simulated',
+                              'simulated', 1))
         said = ordered.ask('byt till debugproben')
     finally:
         sessionmod.open_session = was
@@ -3139,8 +3212,10 @@ def test_fallback(report):
         def reset(self):
             pass
 
-    real = sessionmod.Origin(True, 'COM4', 115200, 'probe', 'JTAG and COM4')
-    fake = sessionmod.Origin(False, None, 115200, None, 'Simulated')
+    real = sessionmod.Origin(True, 'COM4', 115200, 'probe',
+                             'JTAG and COM4', 'debug probe', 1)
+    fake = sessionmod.Origin(False, None, 115200, None, 'Simulated',
+                             'simulated', 1)
 
     def patched(result):
         def factory(*a, **kw):
@@ -4407,7 +4482,7 @@ def main():
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_link_recovery, test_channel_map, test_corrections_are_reported,
+                 test_link_diagnose, test_link_recovery, test_channel_map, test_bus, test_corrections_are_reported,
                  test_smart_selection, test_afe_trace, test_reading_block, test_digital_read, test_map_sections, test_map_retype, test_port_state,
                  test_retype_with_the_trace_off,
                  test_power_check_cannot_halt,

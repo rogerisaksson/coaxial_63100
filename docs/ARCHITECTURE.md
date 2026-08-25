@@ -213,6 +213,26 @@ label: `dbg.py` in the prompt tag, `python -m coaxial_mcp` on stderr
 (`--simulated` forces the stand-in, `--auto` searches), `test_mcp.py` and
 `test_live_model.py` in a header line before the first `PASS`.
 
+`origin.interface` is the **communication interface type** - `debug probe`,
+`RS485` or `simulated`. It answers how the host reaches the bus, which is not
+the same question as which device is on it: `origin.unit` answers that, and a
+reading taken over the bench cable and one taken over the field bus are
+different measurements whichever unit they came from.
+
+Several devices on one bus is what a machine built out of this board looks
+like: same firmware, same commands, different unit id, a different thing
+bolted to the shaft. `coaxial.scan(units, port, baud)` sweeps unit ids over
+one transport - bounded, because a unit that is not there costs the read
+timeout, so 1..16 is about eight seconds of silence and 1..247 is two minutes.
+`Session.use(unit)` points a session at another one and every tool follows
+with no argument of its own. The `devices` tool is that pair, and it selects
+by `name=` as well as `unit=` because "unit 3" is a number and "right knee" is
+a device.
+
+`coaxial.simulated.SIMULATED_BUS` is five of them at non-contiguous unit ids -
+a scan that assumes 1..n stops at the first gap. Every one says **SIMULATED**
+in its own description, so a list of five cannot be read as five real ones.
+
 Mid-session, `/board simulated | auto | rs485 | COM4` swaps it and the prompt
 tag follows on the next line — the same factory, so the screen and the tools cannot
 drift apart. `/model TAG` does the same one layer up, and hands the old model's

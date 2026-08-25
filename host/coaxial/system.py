@@ -31,7 +31,8 @@ class System(Subsystem):
         }
 
         for key, decode in (('device', reader.string), ('mcu', reader.string),
-                            ('build', reader.string), ('commands', reader.u16)):
+                            ('build', reader.string), ('commands', reader.u16),
+                            ('description', reader.string)):
             if reader.remaining == 0:
                 break
             try:
