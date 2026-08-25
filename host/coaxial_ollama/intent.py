@@ -94,6 +94,10 @@ Kinds: analog, digital, both, none.
 The noun decides, never the verb. "List", "give me", "show" say nothing:
 channels, pins, inputs is map; values, readings, measurements is read.
 
+The text may arrive with its diacritics stripped by a console that cannot
+carry them, so read Swedish both ways: matvarde = matvarden = matvardena =
+measurement, varde = varden = vardena = value, kanal = kanaler = channel.
+
 The kind is which channels the question is about, and none when it is about
 neither. A question naming a pin is the kind that pin is.
 

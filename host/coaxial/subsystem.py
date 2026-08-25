@@ -8,6 +8,8 @@ exactly one place a reply is validated.
 
 
 class Subsystem:
+    """One group of board commands, sharing a transport. Subclasses add
+    the calls; this holds the unit id and the request plumbing."""
     def __init__(self, board):
         self._board = board
 

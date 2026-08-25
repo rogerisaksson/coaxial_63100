@@ -112,6 +112,9 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
 
 
 class Session:
+    """One transport and the board on it. Lazy: nothing is opened until a
+    call actually needs the port, so a dead cable fails at the call
+    rather than at start-up."""
     def __init__(self, port='COM4', baud=115200, unit=1):
         self.port = port
         self.baud = baud

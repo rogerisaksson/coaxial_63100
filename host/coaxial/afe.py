@@ -18,6 +18,9 @@ from .wire import Reader, pack
 
 
 class Afe(Subsystem):
+    """The analog front end switch. It powers the ADC reference, not
+    just the signal path - with it off every channel reads exact
+    mid-scale, which is a plausible number and not a measurement."""
     def _act(self, action):
         reader = Reader(self.request(protocol.AFE,
                                      pack(('u8', protocol.AFE_ACTIONS[action]))))

@@ -16,6 +16,10 @@
 
       -Only intent,picker    named tests, nothing else
       -Tags prompt,reply     subjects, instead of asking the model
+      -Structure             does host/ still hold together - imports,
+                             cycles, duplicate definitions, dead imports,
+                             function shape. Under three seconds, and the
+                             one to run after editing anything under host/.
 
     The plan is printed before anything runs; failures are named with their
     suite, and a suite that crashed is separated from one that merely failed.
@@ -33,6 +37,7 @@ param(
     [Parameter(ParameterSetName = 'AutomaticMedium')][switch]$AutomaticMedium,
     [Parameter(ParameterSetName = 'AutomaticMinimal')][switch]$AutomaticMinimal,
     [Parameter(ParameterSetName = 'Only', Mandatory = $true)][string[]]$Only,
+    [Parameter(ParameterSetName = 'Structure')][switch]$Structure,
     [string[]]$Tags,
     [string]$Model = 'gemma4:12b',
     [switch]$DryRun
@@ -54,6 +59,7 @@ switch ($PSCmdlet.ParameterSetName) {
     'AutomaticMedium' { $mode = 'Automatic 50 %'; $runArgs = @('--coverage', '50') }
     'Only'            { $named = $Only -join ','
                         $mode = "Only $named"; $runArgs = @('--only', $named) }
+    'Structure'       { $mode = 'Structure';      $runArgs = @('--structure') }
     default           { $mode = 'Automatic 25 %'; $runArgs = @('--coverage', '25') }
 }
 if ($Tags)   { $runArgs += @('--tags', ($Tags -join ',')) }

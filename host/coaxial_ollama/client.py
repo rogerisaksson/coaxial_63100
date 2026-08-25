@@ -115,6 +115,9 @@ def is_cloud(model):
 
 
 class Ollama:
+    """`/api/chat` over urllib. Refuses cloud tags and non-loopback hosts,
+    retries a crashed runner, and climbs a ladder of its own when the
+    card is genuinely full."""
     def __init__(self, model, host='http://localhost:11434', temperature=0.0,
                  num_ctx=8192, seed=7, timeout=600.0, num_predict=None,
                  think=None, remote_ok=False, keep_alive='30m',

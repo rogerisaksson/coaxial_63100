@@ -203,26 +203,30 @@ def coerce(name, arguments):
             coerced[key] = value
             continue
         try:
-            if kind == 'array':
-                value = _names(value)
-            elif kind == 'boolean':
-                if isinstance(value, str):
-                    value = value.strip().lower() in TRUE
-                else:
-                    value = bool(value)
-            elif isinstance(value, bool):
-                # A bool is an int in python, and a model that sent one where a
-                # number belongs has made a mistake worth reporting.
-                raise ValueError('not a number')
-            elif kind == 'integer':
-                value = int(float(value))
-            elif kind == 'number':
-                value = float(value)
+            coerced[key] = _as(kind, value)
         except (TypeError, ValueError):
             raise ValueError('%s: %s should be %s, got %r'
                              % (name, key, kind, value))
-        coerced[key] = value
     return coerced
+
+
+def _as(kind, value):
+    """One value as one declared type. Raises for anything that will not go."""
+    if kind == 'array':
+        return _names(value)
+    if kind == 'boolean':
+        if isinstance(value, str):
+            return value.strip().lower() in TRUE
+        return bool(value)
+    if isinstance(value, bool):
+        # A bool is an int in python, and a model that sent one where a
+        # number belongs has made a mistake worth reporting.
+        raise ValueError('not a number')
+    if kind == 'integer':
+        return int(float(value))
+    if kind == 'number':
+        return float(value)
+    return value
 
 
 def _names(wanted):

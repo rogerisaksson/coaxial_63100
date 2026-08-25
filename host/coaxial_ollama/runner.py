@@ -138,6 +138,8 @@ def _preview(args):
 
 
 class Runner:
+    """One conversation per plan step, a JSONL transcript, and a verdict
+    that comes from plan.Limit - never from the model."""
     def __init__(self, plan, client, toolbox, transcript=None, echo=True):
         self.plan = plan
         self.client = client

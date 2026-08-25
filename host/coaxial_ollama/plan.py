@@ -76,6 +76,8 @@ class Task:
 
 
 class Plan:
+    """A YAML test plan: the steps, and the limits the model is never
+    shown. `Limit` judges in Python, from a file under version control."""
     def __init__(self, data, path=None):
         self.path = path
         try:

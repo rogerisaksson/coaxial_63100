@@ -4802,6 +4802,15 @@ def test_intent(r):
                 or name in ('words', 'control') for name in intent.INTENTS))
     r.check('every intent has a phrase the hint can say',
             set(intent.SAYS) == set(intent.INTENTS))
+    # A console that cannot carry the diacritics is this bench's normal
+    # case, not an edge one: measured through board_prompt, "matvardena"
+    # classified as `map` - "the inputs" - and put the channel map on screen
+    # for a question about values. The classifier is told to read Swedish
+    # both ways; this is what says the line is still there.
+    r.check('the classifier is told Swedish may arrive folded to ASCII',
+            'diacritics' in intent.ASK
+            and 'matvardena' in intent.ASK and 'vardena' in intent.ASK)
+
     r.check('the schema offers exactly the intents this file has',
             intent.SCHEMA['properties']['intent']['enum']
             == sorted(intent.INTENTS))

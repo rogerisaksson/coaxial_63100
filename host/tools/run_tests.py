@@ -28,9 +28,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]           # host/
 sys.path.insert(0, str(ROOT))
 from tests import counts                             # noqa: E402
-BACKSLASH = chr(92)
-DEFAULT_SUITES = ('test_ollama.py', 'test_mcp.py', 'test_simulated.py',
-                  'test_parity.py')
+# Structure first: it answers "does host/ still hold together" in a fifth of
+# a second, and every behavioural suite below it assumes the answer is yes.
+STRUCTURE = 'test_structure.py'
+DEFAULT_SUITES = (STRUCTURE, 'test_ollama.py', 'test_mcp.py',
+                  'test_simulated.py', 'test_parity.py')
 CONFORMANCE = 'test_conformance.py'
 LIVE = 'test_live_model.py'
 ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
@@ -42,9 +44,10 @@ ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
 # simulated 0.003 s, ollama 0.019, parity 0.13, mcp 0.14, conformance 0.29,
 # live 4.6. That last figure is why live joins only at the top tier.
 PLAN = {
-    25:  (('test_simulated.py',), None),
-    50:  (('test_simulated.py', 'test_parity.py', 'test_mcp.py'), None),
-    75:  (('test_simulated.py', 'test_parity.py', 'test_mcp.py',
+    25:  ((STRUCTURE, 'test_simulated.py'), None),
+    50:  ((STRUCTURE, 'test_simulated.py', 'test_parity.py',
+           'test_mcp.py'), None),
+    75:  ((STRUCTURE, 'test_simulated.py', 'test_parity.py', 'test_mcp.py',
            CONFORMANCE), 'tools'),
 }
 
@@ -111,6 +114,13 @@ def run_one(path, timeout=300, extra=()):
     return tally, done.returncode, failing, elapsed, None, groups
 
 
+# Every tag this run put on the card, so one `finally` can hand them back.
+# Measured: the picker loads the model on every --smart run and released
+# nothing, so a three-second scoped run left 8.4 GB resident for half an hour.
+# Holding it across the suites is the bargain; holding it after the run is not.
+_LOADED = []
+
+
 def hold_model(tag):
     """Load the model before the first suite that needs it.
 
@@ -125,6 +135,7 @@ def hold_model(tag):
         from coaxial_ollama.client import Ollama
         client = Ollama(tag, keep_alive='30m')
         client.model = client.require_model()
+        _LOADED.append(client)
         print('holding %s for the run' % client.model)
         client.preload()
         return client
@@ -133,15 +144,37 @@ def hold_model(tag):
         return None
 
 
-def release_model(client):
-    """Hand the card back, once, when the run is over."""
-    if client is None:
-        return
+def _client_for(tag):
+    """A handle on a tag, for unloading it. None if ollama is not there."""
     try:
-        client.unload()
-        print('released %s' % client.model)
-    except Exception as exc:                                  # noqa: BLE001
-        print('could not release %s: %s' % (client.model, exc))
+        sys.path.insert(0, str(ROOT))
+        from coaxial_ollama.client import Ollama
+        return Ollama(tag)
+    except Exception:                                         # noqa: BLE001
+        return None
+
+
+def release_model(client=None):
+    """Hand the card back, once, when the run is over.
+
+    Called from one `finally` for the whole run, over every client this run
+    loaded - a suite's, the picker's, or both. Releasing per suite put most
+    of the wall time back into loading 7.6 GB again; releasing nothing left
+    it resident long after the run was over. Once, at the end, is the bargain.
+    """
+    held = [client] if client is not None else list(_LOADED)
+    del _LOADED[:]
+    done = set()
+    for one in held:
+        tag = getattr(one, 'model', None)
+        if one is None or tag in done:
+            continue
+        done.add(tag)
+        try:
+            one.unload()
+            print('released %s' % tag)
+        except Exception as exc:                              # noqa: BLE001
+            print('could not release %s: %s' % (tag, exc))
 
 
 def board_note():
@@ -228,7 +261,7 @@ def changed_files(against='HEAD'):
         except Exception:                                     # noqa: BLE001
             continue
         if done.returncode == 0:
-            paths |= {line.strip().replace(BACKSLASH, '/')
+            paths |= {line.strip().replace('\\', '/')
                       for line in done.stdout.splitlines() if line.strip()}
     return sorted(paths)
 
@@ -258,7 +291,8 @@ def pick(paths):
     return suites, live, why
 
 
-def main(argv=None):
+def _options(argv):
+    """Everything the command line can say. Returns args."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--conformance', action='store_true',
                         help='also run test_conformance.py - needs a real '
@@ -290,6 +324,10 @@ def main(argv=None):
                                        'instead of asking the model')
     parser.add_argument('--only', help='named tests in test_ollama.py, '
                                        'comma-separated: intent,picker')
+    parser.add_argument('--structure', action='store_true',
+                        help='only the structure suite: imports, cycles, '
+                             'duplicate definitions, dead imports, shape. '
+                             'Run it after editing anything under host/.')
     parser.add_argument('--match',
                         help='run only the live rows whose question contains '
                              'this text, and nothing else. One changed rule '
@@ -299,10 +337,22 @@ def main(argv=None):
                              'board (%s). The default set runs either way - '
                              'it falls back to the simulated board and says '
                              'so.' % ', '.join(NEEDS_BOARD))
-    args = parser.parse_args(argv)
+    return parser.parse_args(argv)
+
+
+def _plan(args):
+    """Which suites, which subjects, which live sections.
+
+    Returns (tags, live_sections) and edits args.file in place -
+    the flags below narrow each other, and threading five return
+    values through would say less than the names they already have.
+    Returns None instead when --dry-run means print and stop.
+    """
 
     live_sections = 'all'
     tags = args.tags
+    if args.structure:
+        args.file, args.smart, args.live = [STRUCTURE], False, False
     if args.match:
         # One live row and nothing else. A rule that changed is one question,
         # and the whole suite is a model load plus a turn per row.
@@ -381,13 +431,20 @@ def main(argv=None):
         if not tags and not full:
             sys.path.insert(0, str(ROOT / 'tools'))
             import pick_tests
+            # The picker loads the model too. Registered here so the
+            # release below covers it, whether or not a suite needs it.
             plan, reason = pick_tests.pick(args.model)
+            _LOADED.append(_client_for(args.model))
             if plan is None:
                 print('   the model picked nothing: %s' % reason)
                 print('   falling back to the path map above')
             else:
-                args.file = [f for f in plan.suites
-                             if f != 'test_live_model.py']
+                # Structure is not the model's to drop. It is three
+                # seconds and it is the precondition for every suite below
+                # it: they import what they need and pass while the rest of
+                # the package is broken.
+                args.file = [STRUCTURE] + [f for f in plan.suites
+                                           if f not in (LIVE, STRUCTURE)]
                 tags = ','.join(plan.tags) or None
                 live_sections = '' if plan.live == 'none' else plan.live
                 args.live = bool(live_sections)
@@ -397,8 +454,13 @@ def main(argv=None):
                          else ''))
                 print('   %s' % (plan.why or 'no reason given'))
         if args.dry_run:
-            return 0
+            return None            # the plan was the whole point of the run
 
+    return tags, live_sections
+
+
+def _run(args, tags, live_sections):
+    """Run what the plan chose, and report it."""
     suites = list(args.file) if args.file else list(DEFAULT_SUITES)
     if args.conformance and not args.file:
         suites.append(CONFORMANCE)
@@ -407,6 +469,8 @@ def main(argv=None):
         suites.append(LIVE)
     if args.offline:
         suites = [name for name in suites if name not in NEEDS_BOARD]
+    if STRUCTURE not in suites and not args.match and not args.only:
+        suites.insert(0, STRUCTURE)
 
     # The model's whole life, in one place. It is loaded once before the
     # first suite that needs it, held across every row of every such suite,
@@ -491,6 +555,19 @@ def main(argv=None):
     finally:
         if holding:
             release_model(held)
+
+
+def main(argv=None):
+    args = _options(argv)
+    try:
+        chosen = _plan(args)
+        if chosen is None:
+            return 0
+        return _run(args, *chosen)
+    finally:
+        # One place, every path. The picker loads the model before a single
+        # suite runs, and _run's own finally never saw it.
+        release_model()
 
 
 if __name__ == '__main__':

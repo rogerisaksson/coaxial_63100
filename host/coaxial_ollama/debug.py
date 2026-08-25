@@ -34,14 +34,15 @@ from coaxial.errors import RigError                  # noqa: E402
 from coaxial_mcp import detail                       # noqa: E402
 from coaxial_mcp import render                       # noqa: E402
 
-from. import context                                # noqa: E402
+from . import context                                # noqa: E402
 from . import intent
 from . import language                               # noqa: E402
 from . import replies                                # noqa: E402
 from . import tools as toolmod                       # noqa: E402
 from . import spinner as spin                        # noqa: E402
 from .context import approx_tokens                   # noqa: E402
-from .sandbox import Scope, Shell, clip, clip_ends   # noqa: E402
+from .iolog import IOLog                             # noqa: E402
+from .sandbox import clip                            # noqa: E402
 
 # Every line earns its place, and each one replaced a measured failure:
 # the wording history is in docs/MODELS.md, "Measured failure modes".
@@ -166,6 +167,7 @@ HELP = """  /py CODE      run python against the board, no model, no tokens
 # The board's name, not the script's: the useful thing to know in a window
 # among several is which bench, not which program.
 PROMPT = 'Coaxial 63100'
+BLANK_LINE = '\n\n'
 
 # What the operator can call a board, and what open_session takes for it.
 # 'simulated' wins wherever it appears: "en simulerad enhet" names both a
@@ -261,19 +263,6 @@ def board_switch(text):
 ROLE = 'Senior engineer for this inverter: firmware, AFE, Modbus, live link.'
 BUILDS = 'Builds and flashes it too: build_firmware, run_tests.'
 
-# Two numbers, because the modes want opposite things. A prompt loop is about
-# to be asked again and the cached prefix is worth 8 GB of VRAM; a one-shot is
-# not - measured, it left 9.69 GB resident for 27 minutes at 1 % use.
-KEEP_ALIVE_REPL = '30m'
-KEEP_ALIVE_ONCE = '2m'
-
-
-def keep_alive_for(args):
-    """What the caller asked for, or what the mode implies."""
-    if args.keep_alive is not None:
-        return args.keep_alive
-    return KEEP_ALIVE_REPL if args.repl else KEEP_ALIVE_ONCE
-
 
 ERR_CLASS = re.compile(r'^ERR (\w+):')
 
@@ -335,6 +324,29 @@ def _afe_noise(name, args, raw):
     return bool(got) and (got.group(1) == '1') == (wanted == 'on')
 
 
+def _wrapped(line):
+    """One traced row as the lines it takes on screen, indented.
+
+    A row that fits comes back untouched - every reading this board produces
+    is one. Only prose wraps, and the continuation keeps the row's own indent
+    so a numbered checklist still reads as one.
+    """
+    body = '  %s' % line.rstrip()
+    if len(body) <= TRACE_WIDTH:
+        return [body]
+    lead = len(line) - len(line.lstrip())
+    parts = textwrap.wrap(body, width=TRACE_WIDTH,
+                          subsequent_indent=' ' * (4 + lead),
+                          break_long_words=False, break_on_hyphens=False)
+    if not parts:
+        return [body[:TRACE_WIDTH]]
+    if len(parts) <= TRACE_LINES:
+        return parts
+    parts = parts[:TRACE_LINES]
+    parts[-1] += ' [...]'
+    return parts
+
+
 def _printable(stream):
     """Make a console survive an alphabet that is not its codepage.
 
@@ -365,122 +377,56 @@ def _printable(stream):
     return stream
 
 
-def _wrapped(line):
-    """One traced row as the lines it takes on screen, indented.
+class Turn:
+    """What one question accumulates while it is being answered.
 
-    A row that fits comes back untouched - every reading this board produces
-    is one. Only prose wraps, and the continuation keeps the row's own indent
-    so a numbered checklist still reads as one.
-    """
-    body = '  %s' % line.rstrip()
-    if len(body) <= TRACE_WIDTH:
-        return [body]
-    lead = len(line) - len(line.lstrip())
-    parts = textwrap.wrap(body, width=TRACE_WIDTH,
-                          subsequent_indent=' ' * (4 + lead),
-                          break_long_words=False, break_on_hyphens=False)
-    if not parts:
-        return [body[:TRACE_WIDTH]]
-    if len(parts) <= TRACE_LINES:
-        return parts
-    parts = parts[:TRACE_LINES]
-    parts[-1] += ' [...]'
-    return parts
-
-
-# The most of a piped or attached input that becomes part of a question.
-# `sed -n 1,40p log | dbg` is a question about a log; `cat build.log | dbg`
-# is the same command with fifty thousand lines behind it, and nothing about
-# the pipe says which one arrived.
-INPUT_LIMIT = 6000
-
-
-# host/prompt_io.tmp - resolved from this file's own location, not the
-# caller's cwd, so `python dbg.py` from host/ and a task that starts
-# somewhere else both land in the same place, at the same fixed name a
-# later debugging session can just open without knowing a timestamp.
-IO_LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))), 'prompt_io.tmp')
-
-
-def _set_attributes(path, value):
-    """Windows file attributes, best-effort. Not security - a file with the
-    raw questions and answers of a bench session is not secret, it is just
-    not something that belongs in an ordinary directory listing next to the
-    files this project is actually about."""
-    if sys.platform != 'win32':
-        return
-    try:
-        import ctypes
-        ctypes.windll.kernel32.SetFileAttributesW(str(path), value)
-    except Exception:                                        # noqa: BLE001
-        pass
-
-
-def _unhide(path):
-    """Clear the hidden attribute before (re)opening a session's log for
-    writing. Measured directly : `open(path, 'w')` on an
-    already-hidden file raised a plain PermissionError, not the OSError
-    IOLog already expected and swallowed - the truncate that mode implies
-    is what Windows refuses on a hidden file, not the open itself. 0x80 is
-    FILE_ATTRIBUTE_NORMAL; nothing to do if the file does not exist yet."""
-    if os.path.exists(path):
-        _set_attributes(path, 0x80)
-
-
-def _hide(path):
-    _set_attributes(path, 0x02)                     # FILE_ATTRIBUTE_HIDDEN
-
-
-class IOLog:
-    """A hidden per-session log of every question, call and answer - for
-    debugging this loop afterwards, not for the operator.
-
-    Overwritten each session, not appended: a log covering three runs ago is
-    worse than none when what matters is this one. It keeps more than the
-    screen does - a refused afe_power call is hidden from the trace and kept
-    here, because that is what answers "why did that turn cost four calls".
+    Eight locals threaded through a 250-line loop is what made that loop five
+    branches deep. Named here, each stage of the turn is short enough to read
+    on one screen, and what the loop *knows* - as against what the model
+    wrote - is a list rather than a habit.
     """
 
-    def __init__(self, path=IO_LOG_PATH, enabled=True):
-        self.handle = None
-        if not enabled:
-            return
-        _unhide(path)
-        try:
-            self.handle = open(path, 'w', encoding='utf-8', errors='replace')
-            _hide(path)
-        except OSError:
-            self.handle = None
+    NUDGE_LIMIT = 2        # then end the turn rather than ask nicely forever
 
-    def write(self, text):
-        if self.handle is None:
-            return
-        try:
-            self.handle.write(text)
-            self.handle.flush()
-        except OSError:
-            self.handle = None
+    def __init__(self):
+        self.answer = ''
+        self.link_error = None      # a call that did not reach the board
+        self.code_error = None      # last run_python/run_command that failed
+        self.channels = None        # names in this turn's analog_read table
+        self.table = None           # and that table, for --quiet
+        self.maps = []              # name sets a map or a level read listed
+        self.map_text = None        # and that render, for --quiet
+        self.diagnosed = False      # link_diagnose ran, and was traced
+        self.seen = {}              # (name, args) -> its rendered result
+        self.nudges = 0
 
-    def turn(self, question):
-        self.write('=== %s ===\nQ: %s\n' % (time.strftime('%H:%M:%S'),
-                                             question))
+    def nudge(self, chat, say, giving_up):
+        """Ask once more, or give up. None means go round again."""
+        if self.nudges < self.NUDGE_LIMIT:
+            self.nudges += 1
+            chat.history.append({'role': 'user', 'content': say})
+            return None
+        return giving_up
 
-    def call(self, name, args, result):
-        self.write('  %s %s\n  -> %s\n'
-                   % (name, json.dumps(args, default=str)[:300],
-                      clip(str(result), 500)))
+    def remember_map(self, text):
+        """The channel names a map or a level read just put on screen.
 
-    def answer(self, text):
-        self.write('A: %s\n\n' % text)
+        Deliberately not chat.last_channels: that one means "a reading has
+        succeeded this session" and gates the answering-from-memory checks.
+        A map is not a reading.
 
-    def close(self):
-        if self.handle is not None:
-            try:
-                self.handle.close()
-            except OSError:
-                pass
-            self.handle = None
+        Three ways the same rows can be named back - an analog channel, a
+        digital pin, or that pin's signal - kept as alternatives rather than
+        one union, because the answer quotes one of them, not all three, and
+        a union would need every name from every column present.
+        """
+        sets = [set(m.lower() for m in pattern.findall(text))
+                for pattern in (replies.MAP_ROW, replies.DIGITAL_ROW,
+                                replies.DIGITAL_SIGNAL)]
+        sets = [names for names in sets if names]
+        if sets:
+            self.maps = sets
+            self.map_text = text
 
 
 class Chat:
@@ -588,6 +534,24 @@ class Chat:
         """What the tool list alone costs, every turn, before any question."""
         return approx_tokens(json.dumps(getattr(self, 'schemas', None) or []))
 
+    def _lock_language(self, asked):
+        """Move the session language, if this question moves it.
+
+        Called from trim() and from a planned turn alike. Measured: a
+        planned turn calls no trim(), so a Swedish question answered
+        from a compiled plan left the lock on whatever the previous
+        question set - the language suite failed only when it ran after
+        the others, in one session, which is the only place it shows.
+        """
+        current = getattr(self, 'language', None)
+        requested = language.requested_language(asked)
+        detected = language.detect(asked)
+        if requested and requested != current:
+            current = requested
+        elif detected and detected != current:
+            current = detected
+        self.language = current
+
     def trim(self):
         """System prompt, stubbed history, recent turns whole.
 
@@ -617,14 +581,7 @@ class Chat:
                 if message['role'] == 'user':
                     asked = message.get('content') or ''
                     break
-        requested = language.requested_language(asked)
-        detected = language.detect(asked)
-        current = getattr(self, 'language', None)
-        if requested and requested != current:
-            current = requested
-        elif detected and detected != current:
-            current = detected
-        self.language = current
+        self._lock_language(asked)
         names = getattr(self, 'tool_names', ())
         hint = ''
         if 'build_firmware' in names:
@@ -883,8 +840,11 @@ class Chat:
         self.history.append({'role': 'user', 'content': question})
         self.prompt_history.append(question)
         self.io_log.turn(question)
+        # A planned turn never calls trim(), which is where the lock moves.
+        # Without this a Swedish question answered from a plan left the
+        # language on whatever the last unplanned question set.
+        self._lock_language(question)
         self._traced = False
-        gap = chr(10) * 2
         shown, channels, table = [], None, None
         for name, args in calls:
             try:
@@ -906,7 +866,7 @@ class Chat:
                 channels, table = [m.lower() for m in found], text
                 self.last_channels = channels
         self.history.append({'role': 'user',
-                             'content': gap.join(shown)})
+                             'content': BLANK_LINE.join(shown)})
 
         answer = ''
         try:
@@ -914,14 +874,14 @@ class Chat:
                 [{'role': 'system',
                   'content': self.NARRATE % (self.language or 'English')},
                  {'role': 'user', 'content': question},
-                 {'role': 'user', 'content': gap.join(shown)}])
+                 {'role': 'user', 'content': BLANK_LINE.join(shown)}])
             answer = (said.get('content') or '').strip()
         except Exception:                                     # noqa: BLE001
             answer = ''                # the rows are the answer either way
         if channels and replies.is_retype(answer, channels):
             answer = table if (self.quiet and table) else ''
         elif self.quiet and not answer:
-            answer = gap.join(shown)
+            answer = BLANK_LINE.join(shown)
         self.history.append({'role': 'assistant', 'content': answer})
         return answer
 
@@ -938,243 +898,224 @@ class Chat:
         planned = intent.plan(self._intent_did, self._intent_kind)
         if planned:
             return self._run_plan(question, planned)
+
         self.history.append({'role': 'user', 'content': question})
         self.prompt_history.append(question)
         self.io_log.turn(question)
-        answer = ''
-        link_error = None
-        code_error = None  # last run_python/run_command result, if it failed
-        last_channels = None      # names in the most recent analog_read table
-        last_table = None         # and the table itself, for --quiet
-        last_map = []             # name sets a map or a level read listed
-        last_map_text = None      # and that render, for --quiet
-        diagnosed = False  # link_diagnose ran this turn, and was traced
-        seen = {}          # (name, args) this turn -> its rendered result
         self._traced = False   # nothing on screen yet, so no leading gap
-        nudges = 0         # times told to call the tool it just named, or to
-                           # take a fresh reading instead of an old one
 
+        turn = Turn()
         for _ in range(max_calls + 1):
-            before = self.client.usage()
-            message = self.client.chat(self.trim(), self.schemas)
-            after = self.client.usage()
-            self._meter(after['prompt_tokens'] - before['prompt_tokens'],
-                        after['eval_tokens'] - before['eval_tokens'])
-            self._notes()
+            done = self._round(turn)
+            if done is not None:
+                return done if isinstance(done, str) else self._settle(turn)
+        return self._settle(turn)
 
-            message.pop('thinking', None)
-            calls = message.get('tool_calls') or []
-            answer = (message.get('content') or '').strip()
+    def _round(self, turn):
+        """One model turn and the calls it asked for.
 
-            # A tool call written as prose is still a tool call. qwen2.5 emits
-            # one as text often enough to matter - Measured: "vad ar
-            # temperaturen" came back as the literal string
-            #
-            #     {"name": "docs", "arguments": {"find": "temperature"}}
-            #     </tool_call>
-            #
-            # with no tool_calls field, which this loop then printed as the
-            # answer. The model was right about what to do; the shape was
-            # wrong. Recovering it costs a JSON parse.
-            if not calls:
-                salvaged, answer = replies.salvage_calls(answer)
-                if salvaged:
-                    calls = salvaged
-                    message = dict(message, content='', tool_calls=calls)
+        Returns None to go round again, a string to end the turn with that
+        answer, or True to stop and let the backstops settle it.
+        """
+        before = self.client.usage()
+        message = self.client.chat(self.trim(), self.schemas)
+        after = self.client.usage()
+        self._meter(after['prompt_tokens'] - before['prompt_tokens'],
+                    after['eval_tokens'] - before['eval_tokens'])
+        self._notes()
 
-            self.history.append(message)
-            if not calls:
-                # Three shapes of one problem: answering from memory instead
-                # of checking, retyping the last reading instead of taking a
-                # new one, and answering nothing at all. The first two are
-                # gated on last_channels - a reading having actually succeeded
-                # this session - not on link_ok: without that, a plain "what
-                # is 2+2" was discarded on the first question of a session
-                # that opened with the board unreachable. A blank answer is
-                # never valid and needs no such gate.
-                stale = not last_channels and (
-                    not answer or (self.last_channels and (
-                        not self.link_ok
-                        or replies.is_retype(answer, self.last_channels))))
-                if stale:
-                    probe = self._probe_link()
-                    if not self.link_ok:
-                        # `shown` here too: the checklist the model just
-                        # traced is directly above, and without this the
-                        # answer printed the whole thing again - the
-                        # failure the parameter exists for, on the one
-                        # path that never passed it.
-                        return self._link_down_message(
-                            probe, shown=diagnosed and not self.quiet)
-                    # Confirmed up. Told only that, the turn still ended on
-                    # "ask again" and the operator retyped it twice, so the
-                    # nudge has to be actionable - but not prescriptive.
-                    # Measured: it named analog_read, and "beskriv hardvaran
-                    # i detta projektet for en novis" answered blank, got
-                    # nudged, and came back with a full analog table. The
-                    # host cannot tell from here whether the question wants
-                    # a reading; the model can.
-                    if nudges < 2:
-                        nudges += 1
-                        self.history.append({'role': 'user', 'content':
-                            'The link just answered. Answer the question '
-                            'now - with a fresh call if it needs one, and '
-                            'in words if it does not. Never reuse an old '
-                            'reading.'})
-                        continue
-                    return 'no reading taken this turn - ask again.'
-                # A reading did succeed this turn and the model still wrote
-                # nothing. Measured: "Beskriv hardvaran i detta projektet for
-                # en novis" - gemma4:12b called analog_read, returned empty
-                # content, and the operator got the table and a blank line
-                # where the answer goes. The gate above cannot catch it: it
-                # is closed by last_channels, which that very call had just
-                # set. Nothing about the reading is wrong here, so the nudge
-                # asks for the answer rather than for a fresh table.
-                if not answer:
-                    if nudges < 2:
-                        nudges += 1
-                        self.history.append({'role': 'user', 'content':
-                            'Answer the question in words now. The tool '
-                            'output is already on screen - do not repeat '
-                            'it.'})
-                        continue
-                    return 'the reading above is all that came back - ask again.'
-                # It knew exactly what to do and did not do it. Nudged, not
-                # silenced or replaced: there is no fact in hand yet to
-                # substitute, only a call worth actually making. Bounded the
-                # same as the runner's own prose-stop nudge, so a model that
-                # keeps narrating instead of calling still ends the turn
-                # rather than spending it forever asking nicely.
-                if answer and replies.NAMED_TOOL.search(answer) and nudges < 2:
-                    nudges += 1
-                    self.history.append({'role': 'user', 'content':
-                        'Call the tool now - do not describe it.'})
-                    continue
-                break
+        message.pop('thinking', None)
+        calls = message.get('tool_calls') or []
+        turn.answer = (message.get('content') or '').strip()
 
-            for call in calls:
-                name = (call.get('function') or {}).get('name', '?')
-                args = toolmod.arguments(call)
-                key = (name, json.dumps(args, sort_keys=True, default=str))
+        # A tool call written as prose is still a tool call. qwen2.5 emits
+        # one as text often enough to matter - Measured: "vad ar
+        # temperaturen" came back as the literal string
+        #
+        #     {"name": "docs", "arguments": {"find": "temperature"}}
+        #     </tool_call>
+        #
+        # with no tool_calls field, which this loop then printed as the
+        # answer. The model was right about what to do; the shape was
+        # wrong. Recovering it costs a JSON parse.
+        if not calls:
+            salvaged, turn.answer = replies.salvage_calls(turn.answer)
+            if salvaged:
+                calls = salvaged
+                message = dict(message, content='', tool_calls=calls)
 
-                if name not in REPEATABLE and key in seen:
-                    # Do not spend a board round trip re-asking a question
-                    # this turn already has the answer to - and say so plainly
-                    # rather than repeating the same line, which is what asked
-                    # for the repeat in the first place. `raw` stays the
-                    # original result so a repeated failure is still read as
-                    # one below, not laundered into a fresh-looking success by
-                    # the sentence wrapped around it.
-                    raw = seen[key]
-                    result = 'unchanged this turn, already asked: %s' % raw
-                else:
-                    raw = self.toolbox.call(name, args)
-                    if isinstance(raw, toolmod.Reported):
-                        raw = 'noted: %s' % raw.note
-                    seen[key] = raw
-                    result = raw
-                if name in LINK_TOOLS:
-                    # Every call that actually reaches the board is a live
-                    # reading on the link itself, not just on this run's
-                    # question - the spinner is wrong the moment this call's
-                    # verdict disagrees with what it is currently showing.
-                    lost = ERR_CLASS.match(str(raw))
-                    self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
-                    # A call that reached the board clears an earlier failure
-                    # in the same turn; one that did not reach it sets the
-                    # error that gates the answer below, whatever the model
-                    # goes on to write about it.
-                    link_error = str(raw) if not self.link_ok else None
-                    if not self.link_ok:
-                        # A replugged cable re-enumerates the VCP, so the
-                        # cached handle stays dead: measured, every retry then
-                        # fails with "Attempting to use a port that is not
-                        # open" until session.reset() drops it.
-                        self.toolbox.session.reset()
-                if name == 'link_diagnose' and not str(raw).startswith('ERR'):
-                    # Its checklist is on screen from the trace below. What
-                    # the answer says about a dead link changes accordingly -
-                    # see _link_down_message.
-                    diagnosed = True
-                if name in toolmod.CODE_CALLS:
-                    # A failed build, or a --confirm the operator declined,
-                    # is a fact this loop holds. Measured: refused at the
-                    # prompt, gemma4:12b still answered "kortet har byggts och
-                    # flashats" - on the one call that writes to a 63 V board.
-                    # Cleared by a later success in the same turn.
-                    code_error = str(raw) if str(raw).startswith('ERR') else None
-                if name == 'analog_read' and not str(raw).startswith('ERR'):
-                    # A fresh table replaces the last one remembered; an error
-                    # leaves the previous table in place rather than wiping it,
-                    # since link_error already takes priority below either way.
-                    last_channels = set(m.lower()
-                                        for m in replies.READING_ROW.findall(str(raw)))
-                    self.last_channels = last_channels
-                    last_table = str(raw)
-                if (name in ('board_info', 'digital_read')
-                        and not str(raw).startswith('ERR')):
-                    # Deliberately not self.last_channels: that one means "a
-                    # reading has succeeded this session" and gates the
-                    # answering-from-memory checks. A map is not a reading.
-                    #
-                    # Both row shapes: the analog map names its channel in
-                    # the last column, the digital blocks name a pin in the
-                    # first, and a retyped list quotes whichever it saw.
-                    # Three ways the same rows can be named back: an
-                    # analog channel, a digital pin, or that pin's signal.
-                    # Kept as alternatives rather than one union - the
-                    # answer quotes one of them, not all three, and a union
-                    # would need every name from every column present.
-                    sets = [set(m.lower() for m in pattern.findall(str(raw)))
-                            for pattern in (replies.MAP_ROW,
-                                            replies.DIGITAL_ROW,
-                                            replies.DIGITAL_SIGNAL)]
-                    sets = [names for names in sets if names]
-                    if sets:
-                        last_map = sets
-                        last_map_text = str(raw)
-                if not _afe_noise(name, args, raw):
-                    self._trace(result)
-                self.io_log.call(name, args, result)     # always - see IOLog
-                self.history.append({'role': 'tool', 'tool_name': name,
-                                     'name': name,
-                                     'content': '%s: %s' % (name, result)})
+        self.history.append(message)
+        if not calls:
+            return self._no_calls(turn)
+        for call in calls:
+            self._run_call(turn, call)
+        return None
 
+    def _no_calls(self, turn):
+        """The model wrote instead of calling. None to nudge and go again."""
+        # Three shapes of one problem: answering from memory instead of
+        # checking, retyping the last reading instead of taking a new one,
+        # and answering nothing at all. The first two are gated on
+        # turn.channels - a reading having actually succeeded this turn -
+        # not on link_ok: without that, a plain "what is 2+2" was discarded
+        # on the first question of a session that opened with the board
+        # unreachable. A blank answer is never valid and needs no such gate.
+        stale = not turn.channels and (
+            not turn.answer or (self.last_channels and (
+                not self.link_ok
+                or replies.is_retype(turn.answer, self.last_channels))))
+        if stale:
+            probe = self._probe_link()
+            if not self.link_ok:
+                # `shown` here too: the checklist the model just traced is
+                # directly above, and without this the answer printed the
+                # whole thing again - the failure the parameter exists for,
+                # on the one path that never passed it.
+                return self._link_down_message(
+                    probe, shown=turn.diagnosed and not self.quiet)
+            # Confirmed up. Told only that, the turn still ended on "ask
+            # again" and the operator retyped it twice, so the nudge has to
+            # be actionable - but not prescriptive. Measured: it named
+            # analog_read, and "beskriv hardvaran i detta projektet for en
+            # novis" answered blank, got nudged, and came back with a full
+            # analog table. The host cannot tell from here whether the
+            # question wants a reading; the model can.
+            return turn.nudge(
+                self, 'The link just answered. Answer the question now - '
+                'with a fresh call if it needs one, and in words if it does '
+                'not. Never reuse an old reading.',
+                'no reading taken this turn - ask again.')
+        # A reading did succeed this turn and the model still wrote nothing.
+        # Measured: "Beskriv hardvaran i detta projektet for en novis" -
+        # gemma4:12b called analog_read, returned empty content, and the
+        # operator got the table and a blank line where the answer goes. The
+        # gate above cannot catch it: it is closed by turn.channels, which
+        # that very call had just set. Nothing about the reading is wrong
+        # here, so the nudge asks for the answer rather than a fresh table.
+        if not turn.answer:
+            return turn.nudge(
+                self, 'Answer the question in words now. The tool output is '
+                'already on screen - do not repeat it.',
+                'the reading above is all that came back - ask again.')
+        # It knew exactly what to do and did not do it. Nudged, not silenced
+        # or replaced: there is no fact in hand yet to substitute, only a
+        # call worth actually making. Bounded the same as the runner's own
+        # prose-stop nudge, so a model that keeps narrating instead of
+        # calling still ends the turn rather than asking nicely forever.
+        if (replies.NAMED_TOOL.search(turn.answer)
+                and turn.nudges < Turn.NUDGE_LIMIT):
+            turn.nudges += 1
+            self.history.append({'role': 'user', 'content':
+                                 'Call the tool now - do not describe it.'})
+            return None
+        return True
+
+    def _run_call(self, turn, call):
+        """Make one call the model asked for, and record what it means."""
+        name = (call.get('function') or {}).get('name', '?')
+        args = toolmod.arguments(call)
+        key = (name, json.dumps(args, sort_keys=True, default=str))
+
+        if name not in REPEATABLE and key in turn.seen:
+            # Do not spend a board round trip re-asking a question this turn
+            # already has the answer to - and say so plainly rather than
+            # repeating the same line, which is what asked for the repeat in
+            # the first place. `raw` stays the original result so a repeated
+            # failure is still read as one below, not laundered into a
+            # fresh-looking success by the sentence wrapped around it.
+            raw = turn.seen[key]
+            result = 'unchanged this turn, already asked: %s' % raw
+        else:
+            raw = self.toolbox.call(name, args)
+            if isinstance(raw, toolmod.Reported):
+                raw = 'noted: %s' % raw.note
+            turn.seen[key] = raw
+            result = raw
+
+        text = str(raw)
+        failed = text.startswith('ERR')
+        if name in LINK_TOOLS:
+            # Every call that actually reaches the board is a live reading on
+            # the link itself, not just on this run's question - the spinner
+            # is wrong the moment this call's verdict disagrees with what it
+            # is currently showing.
+            lost = ERR_CLASS.match(text)
+            self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
+            # A call that reached the board clears an earlier failure in the
+            # same turn; one that did not reach it sets the error that gates
+            # the answer below, whatever the model goes on to write about it.
+            turn.link_error = text if not self.link_ok else None
+            if not self.link_ok:
+                # A replugged cable re-enumerates the VCP, so the cached
+                # handle stays dead: measured, every retry then fails with
+                # "Attempting to use a port that is not open" until
+                # session.reset() drops it.
+                self.toolbox.session.reset()
+        if name == 'link_diagnose' and not failed:
+            # Its checklist is on screen from the trace below. What the
+            # answer says about a dead link changes accordingly - see
+            # _link_down_message.
+            turn.diagnosed = True
+        if name in toolmod.CODE_CALLS:
+            # A failed build, or a --confirm the operator declined, is a fact
+            # this loop holds. Measured: refused at the prompt, gemma4:12b
+            # still answered "kortet har byggts och flashats" - on the one
+            # call that writes to a 63 V board. Cleared by a later success in
+            # the same turn.
+            turn.code_error = text if failed else None
+        if name == 'analog_read' and not failed:
+            # A fresh table replaces the last one remembered; an error leaves
+            # the previous table in place rather than wiping it, since
+            # link_error already takes priority below either way.
+            turn.channels = set(m.lower()
+                                for m in replies.READING_ROW.findall(text))
+            self.last_channels = turn.channels
+            turn.table = text
+        if name in ('board_info', 'digital_read') and not failed:
+            turn.remember_map(text)
+        if not _afe_noise(name, args, raw):
+            self._trace(result)
+        self.io_log.call(name, args, result)         # always - see IOLog
+        self.history.append({'role': 'tool', 'tool_name': name, 'name': name,
+                             'content': '%s: %s' % (name, result)})
+
+    def _settle(self, turn):
+        """The answer the operator gets, after the facts the loop holds."""
+        answer = turn.answer
         # A read that failed on the wire is ground truth; the model gets no
         # vote. Measured: with the ST-Link unplugged, qwen2.5:14b answered
         # with an NTC value from three questions earlier. SYSTEM already says
         # not to - this is where saying it was not enough.
-        if link_error is not None:
+        if turn.link_error is not None:
             # `and not self.quiet`: with the trace off there is nothing on
             # screen above this, so the checklist has to come with the answer
             # or the operator is told the link is down and nothing else.
-            answer = self._link_down_message(link_error,
-                                             shown=diagnosed and not self.quiet)
-        elif code_error is not None:
-            answer = 'the last run_python/run_command call failed, nothing ' \
-                     'was done: %s' % code_error
+            return self._link_down_message(
+                turn.link_error, shown=turn.diagnosed and not self.quiet)
+        if turn.code_error is not None:
+            return ('the last run_python/run_command call failed, nothing '
+                    'was done: %s' % turn.code_error)
         # SYSTEM says not to; qwen2.5:14b did it every time across three
         # sessions. Silence rather than a line saying so - the table is
-        # directly above on the same screen. Unless --quiet, where there
-        # is no trace and the board's own rows go out instead.
+        # directly above on the same screen. Unless --quiet, where there is
+        # no trace and the board's own rows go out instead.
         #
         # Three channels before "all of them named" counts: naming two is
         # plausibly synthesis, and silencing "NTC and DCbus both read low"
         # would cost a finding. A map has nothing to synthesise about, and
         # this board has two digital channels, so listing both IS the map.
-        elif last_channels and replies.is_retype(answer, last_channels):
-            answer = last_table if (self.quiet and last_table) else ''
-        elif any(replies.is_retype(answer, names, minimum=2)
-                 for names in last_map):
-            answer = last_map_text if (self.quiet and last_map_text) else ''
+        if turn.channels and replies.is_retype(answer, turn.channels):
+            return turn.table if (self.quiet and turn.table) else ''
+        if any(replies.is_retype(answer, names, minimum=2)
+               for names in turn.maps):
+            return turn.map_text if (self.quiet and turn.map_text) else ''
         # An answer that hit the token cap stops mid-sentence, and a table
         # that stops mid-row reads as complete to everyone except a reader
         # counting rows. Say so rather than letting the cap look like the end.
-        elif getattr(self.client, 'truncated', False) and answer:
-            answer += ('%s[cut off at --words %s. Ask again with more, or ask '
+        if getattr(self.client, 'truncated', False) and answer:
+            answer += ('\n[cut off at --words %s. Ask again with more, or ask '
                        'for fewer channels.]'
-                       % ('\n', self.client.options.get('num_predict', '?')))
+                       % self.client.options.get('num_predict', '?'))
         return answer
 
     # ---- the parts that cost nothing ---------------------------------------
@@ -1239,7 +1180,9 @@ class Chat:
             # asking first, unless --confirm was already on the command line
             # that started this session - this is the other half of that
             # switch, reachable without a restart either.
-            self.toolbox.confirm = None if self.toolbox.confirm else ask_operator
+            from .cli import ask_operator     # cli imports Chat: not at top
+            self.toolbox.confirm = (None if self.toolbox.confirm
+                                    else ask_operator)
             return 'confirm: %s' % ('on - asks before every write'
                                     if self.toolbox.confirm else 'off')
         if verb == 'lang':
@@ -1576,421 +1519,26 @@ class Chat:
                       file=self.out, flush=True)
 
 
-class NoBoard:
-    """Stands in for the session when --no-board is given.
-
-    A question about the code or the build does not need the serial port opened,
-    and opening it locks the console for whoever else wants it. Any tool that
-    reaches for the board gets a plain answer instead of a timeout.
-    """
-
-    board = property(lambda self: self._refuse())
-    allow_writes = False
-
-    def _refuse(self):
-        raise RigError('this run was started with --no-board')
-
-    def info(self, refresh=False):
-        self._refuse()
-
-    def close(self):
-        pass
-
-    def reset(self):
-        pass
-
-
-def parse(argv):
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        prog='dbg', description='Ask a local model about this board, cheaply.')
-    parser.add_argument('question', nargs='*', help='ask and exit; omit for a prompt')
-    parser.add_argument('--no-compile', action='store_true',
-                        help='skip the intent pass - one model call per turn,'
-                             ' the behaviour before it existed')
-    parser.add_argument('--repl', action='store_true',
-                        help='force the prompt loop even with piped input')
-    parser.add_argument('-q', '--quiet', action='store_true',
-                        help='answer only: no tool trace, no token meter')
-    parser.add_argument('-t', '--tools', default='code',
-                        help='read|code|pins|build|docs|all|none or a comma '
-                             'separated list')
-    parser.add_argument('-m', '--model', default='gemma4:12b',
-                        help="ollama tag, or 'auto' to pick one from this"
-                             " machine's cores, RAM and VRAM - see"
-                             " coaxial_ollama/capability.py")
-    parser.add_argument('--ollama-host', default='http://localhost:11434')
-    parser.add_argument('--allow-remote', action='store_true',
-                        help='permit a cloud tag or a remote daemon; off by'
-                             ' default, because the question carries the board'
-                             ' with it')
-    parser.add_argument('--words', type=int, default=300,
-                        help='cap on generated tokens per turn - 180 clipped '
-                             'an open-ended question often enough to be '
-                             'annoying; this costs a bit more per turn and '
-                             'clips less often')
-    parser.add_argument('--format', dest='fmt',
-                        help="'json' to make the answer machine readable. The"
-                             " board tools are unaffected - they are already"
-                             " schema checked - but a model told to answer in"
-                             " JSON calls fewer of them, so -t none is usually"
-                             " what you want with it")
-    parser.add_argument('--keep-alive', default=None,
-                        help="how long ollama holds the model, and with it the"
-                             " cached prompt prefix. Default depends on the"
-                             " mode: %s in a prompt loop, %s for one question,"
-                             " because a question already answered is rarely"
-                             " followed by another within the half hour. '0'"
-                             " hands the VRAM back at once."
-                             % (KEEP_ALIVE_REPL, KEEP_ALIVE_ONCE))
-    parser.add_argument('--num-gpu', type=int, default=None,
-                        help='layers on the GPU; the rest run on the CPU.'
-                             ' Set for you by -m auto and by board_prompt.ps1')
-    parser.add_argument('--lang',
-                        help='answer in this language, whatever the machine '
-                             'is set to. Default: the Windows locale, moved '
-                             'only by a question in another language or by '
-                             'asking for one. /lang changes it mid-session.')
-    parser.add_argument('--detail', default=detail.AUTO, choices=detail.LEVELS,
-                        help='how much documentation each tool carries into '
-                             'every turn. auto reads the model tag: terse for '
-                             'the sizes this loop runs locally, full for '
-                             'anything with room to read it. %s overrides for '
-                             'the whole machine.' % detail.ENV)
-    parser.add_argument('--num-ctx', type=int, default=8192)
-    parser.add_argument('--keep', type=int, default=6,
-                        help='recent messages sent whole; older ones are stubbed')
-    parser.add_argument('--budget', type=int, default=0,
-                        help='stop asking after this many tokens')
-    parser.add_argument('--think', action='store_true',
-                        help='let a reasoning model think; costs a lot of tokens')
-    parser.add_argument('--file', action='append', default=[],
-                        help='attach a clipped file to the first question')
-    parser.add_argument('--chars', type=int, default=2000,
-                        help='how much of each --file to attach')
-    parser.add_argument('--port', default='COM4',
-                        help='tried first. If it is silent the debug '
-                             'probe is looked for, then every other '
-                             'port, then a simulated board - the '
-                             'prompt tag says which answered')
-    parser.add_argument('--baud', type=int, default=115200)
-    parser.add_argument('--unit', type=int, default=1)
-    board_mode = parser.add_mutually_exclusive_group()
-    board_mode.add_argument('--no-board', action='store_true',
-                            help='stub the board tools out; every one refuses')
-    board_mode.add_argument('--simulated', action='store_true',
-                            help='board tools work, against an invented '
-                                 'board that never opens a port - see '
-                                 'coaxial.simulated')
-    parser.add_argument('--allow', default='python',
-                        help='programs /sh and run_command may launch. '
-                             'Building and flashing does not need anything '
-                             'on this list - see the build_firmware tool, '
-                             "which is in the default `code` set and always "
-                             'runs tools/build_and_flash.py regardless of '
-                             '--allow.')
-    parser.add_argument('--allow-writes', action='store_true')
-    parser.add_argument('--confirm', action='store_true',
-                        help='ask before every state change - a pin write, '
-                             'run_python, run_command. Off by default, same '
-                             'as board_prompt without the flag; the two tools '
-                             'this loop is actually built for, analog_read '
-                             'and docs, are reads and never ask.')
-    return parser.parse_args(argv)
-
-
-def ask_operator(name, args):
-    """The --confirm gate. Anything but y is a no, including a closed stdin."""
-    print('\n  %s %s' % (name, json.dumps(args)[:400]))
-    try:
-        return input('  run it? [y/N] ').strip().lower() in ('y', 'yes')
-    except (EOFError, KeyboardInterrupt):
-        print('  declined')
-        return False
-
-
-def attach(paths, chars, limit=INPUT_LIMIT):
-    """Files as context, clipped. A 3000 line log is not a question.
-
-    Two limits, because --chars only ever bounded one file: ten of them at
-    the default 2000 is 20k characters of attachment in front of a one-line
-    question, which is the whole window before the board has been asked
-    anything. The second bound is on the lot of them together.
-    """
-    blocks = []
-    for path in paths:
-        try:
-            with open(path, encoding='utf-8', errors='replace') as handle:
-                text = handle.read()
-        except OSError as exc:
-            blocks.append('%s: unreadable (%s)' % (path, exc))
-            continue
-        blocks.append('--- %s (%d chars, %d attached) ---\n%s'
-                      % (path, len(text), min(len(text), chars),
-                         clip(text, chars)))
-    return clip_ends('\n'.join(blocks), limit)
-
-
-def build(args):
-    from .client import Ollama
-    from .tools import Toolbox
-
-    tag, gpu_layers = args.model, args.num_gpu
-    if args.model == 'auto':
-        from .capability import choose, probe
-        picked = choose(probe())
-        tag = picked.tag
-        if gpu_layers is None:
-            gpu_layers = picked.options.get('num_gpu')
-        if not args.quiet:
-            print('model: %s  (%s)' % (tag, picked.why))
-
-    client = Ollama(tag, host=args.ollama_host,
-                    num_ctx=args.num_ctx, num_predict=args.words,
-                    think=True if args.think else False,
-                    remote_ok=args.allow_remote,
-                    keep_alive=keep_alive_for(args), fmt=args.fmt,
-                    num_gpu=gpu_layers)
-    # What the session talks to, and what the prompt says it talks to - one
-    # decision, so the two cannot disagree. With no flag the port is probed
-    # and a silent one falls back to the stand-in rather than failing every
-    # call: a bench without the cable in is a session about the code, and it
-    # should still run.
-    if args.no_board:
-        session, origin = NoBoard(), ('no board', False)
-    elif args.simulated:
-        from coaxial.simulated import SimulatedSession
-        session, origin = SimulatedSession(), ('Simulated', False)
-    else:
-        from coaxial_mcp.session import open_session
-        session, found = open_session(args.port, args.baud, args.unit)
-        origin = (found.label, found.real)
-
-    allow = [a for a in args.allow.split(',') if a.strip()]
-    toolbox = Toolbox(session, shell=Shell(allow), scope=Scope(),
-                      allow_writes=args.allow_writes,
-                      confirm=ask_operator if args.confirm else None)
-    chat = Chat(client, toolbox, tools=args.tools, keep=args.keep,
-                budget=args.budget, quiet=args.quiet,
-                detail_level=args.detail,
-                session_language=args.lang or language.system_language())
-    chat.origin = origin
-    return client, session, chat
-
-
-def repl(chat, hold=False):
-    from .client import OllamaError
-
-    # One line, in this machine's language. What the tools are, what the
-    # detail level is and what a turn costs are all a /help away; printed on
-    # the way in they were three lines nobody read twice.
-    print(language.greeting(chat.client.model, chat.language,
-                            getattr(sys.stdout, 'encoding', None)))
-    if not ({'run_command', 'build_firmware'} & set(chat.tool_names)):
-        # Printed once, here, by this host - not sent to the model, so it
-        # costs nothing per turn. Measured: asked three times
-        # running to build and flash, on the default `code` set - before it
-        # carried build_firmware - the model correctly and repeatedly said
-        # it could not: accurate, but a dead end with no way out of it short
-        # of already knowing this flag. `code` carries build_firmware now;
-        # this only still fires for `read`, `pins` or a custom list missing
-        # both.
-        confirmed = ' and already --confirm' if chat.toolbox.confirm else \
-                   ', then /confirm too, or it writes with nobody asking'
-        print('  no build_firmware or run_command in this set - it cannot '
-              'build or flash. /tools code (or build) switches now, no '
-              'restart%s.' % confirmed)
-    if not sys.stdin.isatty():
-        print('(reading commands from stdin)')
-    try:
-        while True:
-            # Read fresh every time, not captured once: /reconnect flips this
-            # mid-loop and the very next prompt is what should show it. The
-            # lock is shared with Chat._trace() so a tick and a trace line
-            # printed mid-question never interleave on the same stream, and
-            # chat.out is pointed at the same tracked stream so the prompt
-            # knows how many rows whatever _trace() prints actually add -
-            # not a number decided once and trusted for the whole question.
-            tag, tag_ok = chat.prompt_tag()
-            face = spin.prompt(PROMPT, sys.stdout, lock=chat.print_lock,
-                               ok=chat.link_ok, tag=tag, tag_ok=tag_ok)
-            chat.out = face.out
-            try:
-                line = input().strip()
-            except (EOFError, KeyboardInterrupt):
-                face.stop(chat.link_ok)
-                print()
-                break
-            if not line:
-                face.stop(chat.link_ok)
-                continue
-            face.busy()
-            asked = False
-            try:
-                done = chat.command(line)
-                if done is None:
-                    asked = True
-                    # See tools.py's afe_power gate: set from the real
-                    # question text, here rather than inside ask() itself,
-                    # so a scripted test driving Chat.ask() directly keeps
-                    # its old, permissive default instead of needing "afe"
-                    # in every unrelated fixture question.
-                    chat.toolbox.afe_mentioned = 'afe' in line.lower()
-                    chat.toolbox.asked = line
-                    # No note when the lock moves. It used to print
-                    # "sprak: bytt till Swedish (last)" above the
-                    # answer - a host line, in a mix of two languages,
-                    # saying what the answer itself already shows by
-                    # being in the new one. A bare switch answers
-                    # "Okej" and nothing else, without a model turn.
-                    done = chat.ask(line)
-                # Stop ticking before the answer prints, not after. stop()'s
-                # own repaint climbs back to the prompt row by the same
-                # newline count _paint() uses, and a long answer with no
-                # embedded '\n' that the terminal itself wraps across two
-                # or more rows is invisible to that count either way - the
-                # difference is *when* the wrong climb can land on top of
-                # the answer. Frozen first, the climb happens while nothing
-                # but the prompt's own row exists below it; done after, the
-                # same wrong "one row up" lands mid-answer instead, which is
-                # exactly what a bench session saw: the prompt group spliced
-                # into the middle of a sentence. The exception branch below
-                # already stops before it prints - this makes the ordinary
-                # answer match it, rather than being the odd one out.
-                face.stop(chat.link_ok)
-                print(done, file=face.out)
-            except SystemExit:
-                face.stop(chat.link_ok)
-                break
-            except (RigError, ValueError, OllamaError) as exc:
-                # A dead board and a dead model backend are the same shape of
-                # failure here: something the session doesn't own crashed
-                # mid-turn. One bad turn is not a reason to lose the rest of
-                # the conversation - ollama respawns llama-server on the next
-                # request, same as the board answers again once reconnected.
-                asked = True
-                face.stop(False)
-                print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)),
-                      file=face.out)
-            if asked:
-                # Every question starts from nothing, on purpose: a growing
-                # history is a growing prompt, and a growing prompt is more
-                # for llama-server's own prompt cache to hold onto right up
-                # to the std::bad_alloc it has crashed with more than once
-                # this session. A slash command never touched history in the
-                # first place, so it is left alone here.
-                chat.history = []
-        print(chat.cost_line())
-    finally:
-        # The 30-minute keep_alive that makes turn nine as quick as turn two
-        # is exactly wrong once there is no turn ten coming. Measured on this
-        # bench: a session left running unattended held 9.69 GB for another
-        # 27 minutes at 1% utilisation. `--keep-alive` is how to say "no,
-        # really, leave it" - anything explicit there means the operator
-        # already decided, and this leaves that alone.
-        if not hold:
-            try:
-                chat.client.unload()
-            except OllamaError:
-                pass
-        chat.io_log.close()
-
-
-def main(argv=None):
-    from .client import OllamaError
-
-    args = parse(argv)
-    # Before anything prints: every path out of here, including the error
-    # branches below, goes through a console that may not hold the alphabet
-    # the answer arrives in.
-    _printable(sys.stdin)
-    _printable(sys.stdout)
-    _printable(sys.stderr)
-    question = ' '.join(args.question).strip()
-    if not question and not args.repl and not sys.stdin.isatty():
-        # `sed -n 1,40p log | dbg` is a question about a log. Draining stdin
-        # here would also swallow the prompt loop's input, so --repl skips it.
-        #
-        # Clipped, and from both ends: the pipe carries whatever the operator
-        # aimed at it, and a whole build log or a captured session arrives
-        # exactly as easily as forty lines do. Unbounded, it is the largest
-        # single thing that can reach the daemon in one go - trim() would
-        # have to clip it later anyway, and doing it here means the notice
-        # says so before the model ever sees the question.
-        question = clip_ends(sys.stdin.read().strip(), INPUT_LIMIT)
-
-    try:
-        client, session, chat = build(args)
-    except OllamaError as exc:
-        # A refused host or a cloud tag is a wiring mistake, not a bench fault:
-        # there is no prompt loop worth opening against a model we will not use.
-        print('ollama: %s' % exc, file=sys.stderr)
-        return 2
-    # Real sessions only - build() itself is what dozens of tests call
-    # through, and none of them should write a file to do it. See IOLog.
-    chat.io_log = IOLog()
-    # A typed sentence is the one input with ambiguity worth a second call.
-    chat.compile_intent = not args.no_compile
-    if args.simulated:
-        # Loud on purpose, before the model ever answers a thing: board_info
-        # says the same ("firmware": "simulated"), but a line here means
-        # nobody has to ask a tool first to find out these readings are
-        # invented, not measured.
-        print('SIMULATED - no port opened, every board reading is invented',
-              file=sys.stderr)
-    interactive = args.repl or not question
-    try:
-        client.model = client.require_model()
-    except OllamaError as exc:
-        # Fatal for one question - there is nothing else to do. Not fatal for the
-        # prompt loop: /py and /sh never touch the model, and being unable to
-        # reach ollama is no reason to lose the shortest path to the board.
-        if not interactive:
-            print('ollama: %s' % exc, file=sys.stderr)
-            return 2
-        print('ollama: %s' % exc, file=sys.stderr)
-        print('slash commands still work; questions will not.', file=sys.stderr)
-
-    # What the prompt's face shows: green once True, red once not.
-    # --no-board counts as not - board tools fail there by design.
-    #
-    # Not probed here: link_diagnose and the link_error override cover a
-    # dead link better than an eager connect did, and a one-shot question
-    # no longer exits before it was ever asked. docs/MODELS.md.
-    link_ok = not args.no_board
-    chat.link_ok = link_ok
-
-    extra = attach(args.file, args.chars) if args.file else ''
-    try:
-        if question and not args.repl:
-            full_question = '\n'.join(filter(None, (question, extra)))
-            chat.toolbox.afe_mentioned = 'afe' in full_question.lower()
-            chat.toolbox.asked = full_question
-            answer = chat.ask(full_question)
-            print(answer)
-            if not args.quiet:
-                print(chat.cost_line(), file=sys.stderr)
-        else:
-            repl(chat, hold=args.keep_alive is not None)
-    except OllamaError as exc:
-        print('ollama: %s' % exc, file=sys.stderr)
-        return 2
-    except KeyboardInterrupt:
-        return 130
-    finally:
-        try:
-            session.close()
-        except RigError:
-            pass
-        # Unconditional, and close() is idempotent: repl() closes on its own
-        # way out, but a one-shot question never enters repl() at all, and
-        # `python dbg.py` with no question enters it despite args.repl being
-        # False. Guarding on args.repl got that last case wrong - harmlessly,
-        # since the second close is a no-op, but only by accident.
-        chat.io_log.close()
-    return 0
-
-
 if __name__ == '__main__':
+    from .cli import main                 # see _ELSEWHERE
     sys.exit(main())
+
+
+# Moved out, re-exported: dbg.py and two suites reach for these by their old
+# names. A module-level __getattr__ keeps that working without importing cli
+# at the top, which would be a cycle - cli imports Chat from here.
+_ELSEWHERE = {
+    'IOLog': 'iolog', 'IO_LOG_PATH': 'iolog',
+    'main': 'cli', 'parse': 'cli', 'build': 'cli', 'repl': 'cli',
+    'attach': 'cli', 'ask_operator': 'cli', 'NoBoard': 'cli',
+    'keep_alive_for': 'cli', 'KEEP_ALIVE_REPL': 'cli',
+    'KEEP_ALIVE_ONCE': 'cli', 'INPUT_LIMIT': 'cli', '_printable': 'cli',
+}
+
+
+def __getattr__(name):
+    where = _ELSEWHERE.get(name)
+    if where is None:
+        raise AttributeError(name)
+    from importlib import import_module
+    return getattr(import_module('.' + where, __package__), name)

@@ -102,6 +102,9 @@ class Machine(object):
 
 
 class Choice(object):
+    """Which tag to run and with which options, plus why - the reason is
+    printed, because a picker nobody can question is a picker nobody
+    trusts."""
     def __init__(self, tag, options, why, warnings=None, entry=None):
         self.tag = tag
         self.options = options      # merge into Ollama(options); may be empty
@@ -264,35 +267,43 @@ def _gpus_registry():
 
     base = (r'SYSTEM\CurrentControlSet\Control\Class'
             r'\{4d36e968-e325-11ce-bfc1-08002be10318}')
-    found = []
     try:
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base) as parent:
-            for index in range(16):
-                try:
-                    name = winreg.EnumKey(parent, index)
-                except OSError:
-                    break
-                if not re.match(r'^\d{4}$', name):
-                    continue
-                try:
-                    with winreg.OpenKey(parent, name) as key:
-                        raw, _ = winreg.QueryValueEx(
-                            key, 'HardwareInformation.qwMemorySize')
-                        if isinstance(raw, bytes):
-                            raw = int.from_bytes(raw, 'little')
-                        try:
-                            label, _ = winreg.QueryValueEx(key, 'DriverDesc')
-                        except OSError:
-                            label = 'GPU ' + name
-                        size = int(raw) / float(2 ** 30)
-                        if size > 0.5:
-                            found.append({'name': label, 'vram_gb': size,
-                                          'via': 'registry qwMemorySize'})
-                except OSError:
-                    continue
+            found = [_gpu_at(parent, name) for name in _adapters(parent)]
     except OSError:
         return []
-    return found
+    return [card for card in found if card]
+
+
+def _adapters(parent):
+    """The four-digit adapter subkeys, in order, until they run out."""
+    for index in range(16):
+        try:
+            name = winreg.EnumKey(parent, index)
+        except OSError:
+            return
+        if re.match(r'^\d{4}$', name):
+            yield name
+
+
+def _gpu_at(parent, name):
+    """One adapter's card, or None for anything without usable VRAM."""
+    try:
+        with winreg.OpenKey(parent, name) as key:
+            raw, _ = winreg.QueryValueEx(
+                key, 'HardwareInformation.qwMemorySize')
+            if isinstance(raw, bytes):
+                raw = int.from_bytes(raw, 'little')
+            try:
+                label, _ = winreg.QueryValueEx(key, 'DriverDesc')
+            except OSError:
+                label = 'GPU ' + name
+    except OSError:
+        return None
+    size = int(raw) / float(2 ** 30)
+    if size <= 0.5:
+        return None
+    return {'name': label, 'vram_gb': size, 'via': 'registry qwMemorySize'}
 
 
 def probe(host='http://localhost:11434'):

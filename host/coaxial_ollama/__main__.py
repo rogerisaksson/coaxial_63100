@@ -32,6 +32,7 @@ from coaxial_mcp.session import Session              # noqa: E402
 
 from. import runner as runmod                       # noqa: E402
 from .client import Ollama, OllamaError              # noqa: E402
+from .cli import ask_operator                        # noqa: E402
 from .plan import Plan, PlanError                    # noqa: E402
 from .sandbox import Scope, Shell                    # noqa: E402
 from .tools import TOOLS, Toolbox                    # noqa: E402
@@ -85,15 +86,6 @@ def parse(argv):
                              % detail.ENV)
     return parser.parse_args(argv)
 
-
-def ask_operator(name, args):
-    """The --confirm gate. Anything but y is a no, including a closed stdin."""
-    print('\n  %s %s' % (name, json.dumps(args)[:400]))
-    try:
-        return input('  run it? [y/N] ').strip().lower() in ('y', 'yes')
-    except (EOFError, KeyboardInterrupt):
-        print('  declined')
-        return False
 
 
 def list_tools(level=detail.FULL):

@@ -19,6 +19,8 @@ from .wire import Reader, pack
 
 class Analog(Subsystem):
 
+    """The ADC channels: what exists, and what they read now. Raw codes
+    and pin volts; the host owns every conversion beyond that."""
     def __init__(self, board):
         super().__init__(board)
         self._channels = None

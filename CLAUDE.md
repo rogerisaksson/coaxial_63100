@@ -71,6 +71,7 @@ pin to `Board/Src/board_io.c` and everything above it follows.
 .\run_tests.ps1 -All                 # 100 %, the gate
 .\run_tests.ps1 -Only intent,picker  # named tests, nothing else
 .\run_tests.ps1 -Tags prompt,reply   # subjects, without asking the model
+.\run_tests.ps1 -Structure           # does host/ still hold together - 3 s
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check    # what is missing
                             # -Yes installs the lot (winget, python packages,
                             # ST bundles, CubeMX, ST-Link driver, ollama);
@@ -110,6 +111,14 @@ bind you:
 * **The model is loaded once per run and released once**, by `run_tests.py`.
   Never per suite, never per question - measured, most of the wall time went
   into loading 7.6 GB again.
+* **Run `-Structure` after editing anything under `host/`.** The
+  behavioural suites cannot replace it: they import what they need and
+  pass while the rest of the package is broken. It catches a module that
+  stopped importing, a definition left in two files by a split, a
+  re-export pointing nowhere, a dead import, and a function past the
+  length or nesting a reader can hold. Measured: five NameErrors in one
+  afternoon of moving code, each found by an unrelated test failing
+  somewhere else.
 * **A tier is a budget of checks, and it cuts as well as fills** - the model's
   pick can be bigger than the tier. The floor it never goes below: one test
   from every subject the pick left out, plus the smallest group of the pick

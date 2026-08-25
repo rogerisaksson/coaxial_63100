@@ -52,6 +52,8 @@ DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0}
 
 
 class SimulatedLink:
+    """A stand-in link. It builds no frames: the point is that a missing
+    cable is not a failing suite, not that the protocol is exercised."""
     def echo(self, data):
         return data
 
@@ -86,6 +88,8 @@ RESERVED = [
 
 
 class SimulatedSystem:
+    """The stand-in's version record and clocks. `firmware` and `build`
+    read literally `simulated`, so board_info alone tells them apart."""
     def channel_map(self, refresh=False):
         analog = []
         for row in CHANNELS:
@@ -115,6 +119,8 @@ class SimulatedSystem:
 
 
 class SimulatedAfe:
+    """The stand-in AFE, with PE15 following AFE_ON inversely - the same
+    relation the real board was measured to have."""
     def __init__(self):
         self.on = False
 
@@ -135,6 +141,8 @@ class SimulatedAfe:
 
 
 class SimulatedAnalog:
+    """Invented readings, in the shape the real ones come in. Every number
+    here is made up; only the columns and the channel names are real."""
     def __init__(self, afe):
         self._afe = afe
 
@@ -330,6 +338,9 @@ def bus_nodes(label):
 
 
 class SimulatedBoard:
+    """A whole board without a board. Duck-typed against the real one, so
+    the tools above cannot tell which they are holding - except that
+    every touchpoint labels itself."""
     def __init__(self, unit=1, bus=DEFAULT_BUS):
         self.unit = int(unit)
         self.bus = bus
