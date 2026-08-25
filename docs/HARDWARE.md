@@ -28,12 +28,12 @@ measurements mean:
   figure taken with the bridge idle is optimistic, and a figure taken while the
   FETs commutate is the only one worth recording.
 
-The board also carries further subsystems beyond the analog front end. Only what
-the firmware currently configures is documented below. PB1 and PC1 are named
-**Clevel** and **Cinj** by the board owner; what they measure is not recorded
-here, and this document will not guess. PE15 is named **nFAULT** by the board
-owner; what drives it is not recorded here either — see the note under Discrete
-I/O, because the name changes what its measured level means.
+The board carries subsystems beyond the analog front end; only what the
+firmware configures is documented below. **Clevel** (PB1), **Cinj** (PC1) and
+**nFAULT** (PE15) are the board owner's names. What they measure, and what
+drives nFAULT, is not recorded here and this document will not guess — but see
+the note under Discrete I/O, because the name changes what nFAULT's measured
+level means.
 
 ## Silicon
 
@@ -233,11 +233,10 @@ stands.
 
 No measured values, no limits, no expected levels.
 
-This board is a **dumb slave**. It measures and reports raw ADC codes; it does
-not know what "good" is and neither does this document. Numbers taken from one
-board on a bench become a specification the moment somebody writes them down as
-one, and then a later unit fails a test against a sample rather than against the
-design.
+This board is a **dumb slave**: it reports raw ADC codes and does not know what
+"good" is. Numbers taken from one board become a specification the moment
+somebody writes them down as one, and a later unit then fails a test against a
+sample rather than against the design.
 
 Where those numbers belong:
 
@@ -256,8 +255,8 @@ PCSEL state. Those need no external reference, so they need no external limit,
 and the verdict is legitimately the firmware's. Everything else it reports as an
 INFO value for the executive to judge. See PROTOCOL.md, command `0x6C`.
 
-On the particular unit these documents were written against, Phase V reads
-about 0.85 V away from Phase U and W. There genuinely is that much across the differential pair;
-the board owner suspects a bad op-amp on this board and will check it. **It is a
-component fault on one unit, not a property of the design** — so do not calibrate
-around it, and do not chase it as an ADC or scaling problem.
+On the unit these documents were written against, Phase V reads about 0.85 V
+away from Phase U and W, and that much genuinely is across the differential
+pair — a suspected op-amp fault. **One unit's component fault, not a property
+of the design**: do not calibrate around it, and do not chase it as an ADC or
+scaling problem.

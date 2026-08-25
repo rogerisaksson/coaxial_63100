@@ -114,7 +114,7 @@ def main():
                 toolmod.HANDLERS['board_info'](board),
                 toolmod.HANDLERS['board_info'](stand_in), skip=3)
 
-        # ...and the description is the one line that must NOT match: a
+        #...and the description is the one line that must NOT match: a
         # stand-in a caller could mistake for the board is the whole thing
         # this suite exists to prevent.
         live_head = shape(toolmod.HANDLERS['board_info'](board))[:3]

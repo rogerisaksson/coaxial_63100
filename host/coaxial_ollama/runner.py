@@ -30,7 +30,7 @@ import json
 import os
 import time
 
-from . import context
+from. import context
 from . import tools as toolmod
 
 SYSTEM = """You are driving a hardware test bench from a written test plan.

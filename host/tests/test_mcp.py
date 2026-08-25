@@ -209,7 +209,7 @@ def error_paths(server, report):
 
     # Not refused: labelled. Refusing produced a fabricated reading rather
     # than preventing one - asked for the codes with the AFE deliberately off,
-    # a model with no numbers wrote "Mid-scale ... 25.00 C" out of the warning
+    # a model with no numbers wrote "Mid-scale... 25.00 C" out of the warning
     # text. The codes come back, under a line that cannot be read as one.
     server.tool('afe_power', {'action': 'off'})
     text = server.tool('analog_read')

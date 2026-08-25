@@ -154,135 +154,110 @@ importing pyserial — `board.py`, `cli.py`.
 
 ### `host/coaxial_mcp/` — the MCP server
 
-Built with the token budget as the design constraint, so a small model can run a
-long test sequence. Nine coarse tools rather than one per firmware command,
-because the whole tool list is re-read every turn. Dense fixed-column text
-results rather than JSON: the same seven-channel reading is 278 characters here
-against 2457 as indented JSON, a factor of 8.8. Uses
-`mcp.server.lowlevel.Server` with hand-written schemas — deliberately not
-FastMCP, because schema size is the thing being optimised.
+Built with the token budget as the design constraint, so a small model can run
+a long sequence. Nine coarse tools rather than one per firmware command,
+because the whole tool list is re-read every turn; dense fixed-column text
+rather than JSON, measured at **8.8×** fewer characters for the same
+seven-channel reading. `mcp.server.lowlevel.Server` with hand-written schemas,
+deliberately not FastMCP, because schema size is the thing being optimised.
+`detail.py` decides how much of it a given reader gets — [MODELS.md](MODELS.md).
 
-`detail.py` decides how much of all that a given reader gets: one spec carries
-both a full and a terse description, and the level is resolved from the model's
-own tag rather than written into the text. A frontier model over MCP reads the
-whole thing; `gemma4:12b` reads a third less of it, out of a window it shares
-with the readings. See [MODELS.md](MODELS.md).
-
-One of the nine, `docs`, touches no hardware. It hands the model this
+One of the nine, `docs`, touches no hardware: it hands the model this
 repository's own documents, because they are what stop a reading being
-misinterpreted — the AFE gate, the unknown phase gain, what has already been
-ruled out — and the one reader who could not open them was the model standing at
-the bench. It answers with an index rather than a document for the same token
-reason as everything else here, and a search hit carries the chapter it sits
-under: in FINDINGS the chapter is the meaning, and an entry quoted out of
-*Refuted* says the opposite of what the document says. See
-[MODELS.md](MODELS.md).
+misinterpreted, and the one reader who could not open them was the model at the
+bench. It answers with an index rather than a document, and a search hit
+carries the chapter it sits under — in FINDINGS the chapter is the meaning, and
+an entry quoted out of *Refuted* says the opposite of what the document says.
 
-`coaxial_mcp.session.open_session(port, baud, unit, simulated=None)` returns
-`(session, origin)`. With `simulated=None` it looks for the board rather than
-assuming a port: `find_board.discover` tries `port` first if Windows lists it,
-then every debug probe, then everything else, and each try is the same Modbus
-round trip a tool call makes — not a weaker check that could pass here and fail
-a moment later. Nothing answering anywhere hands back
-`coaxial.simulated.SimulatedSession`.
+#### Finding the board
+
+`open_session(port, baud, unit, simulated=None)` returns `(session, origin)`.
+With `simulated=None` it looks rather than assuming: `find_board.discover`
+tries `port` first if the OS lists it, then every debug probe, then everything
+else, each with the same Modbus round trip a tool call makes — not a weaker
+check that could pass here and fail a moment later. Nothing answering anywhere
+hands back `coaxial.simulated.SimulatedSession`.
 
 Which port is the debugger is answered by the USB VID, not by opening it: every
-ST-Link VCP enumerates under `0483` (measured here, an STLINK-V3SET reports
-`0483:374F`). That is why probes can be tried first — `find_board.kinds()`
-sorts the candidates for the cost of one enumeration, and
+ST-Link VCP enumerates under `0483`. That is why probes can be tried first —
+`find_board.kinds()` sorts the candidates for the cost of one enumeration, and
 `board_prompt/ComPort.ps1` uses the same call for the same order.
 
-`SimulatedSession` is duck-typed against `Session` and `Board`, not a protocol
-simulator: it builds no frames. Every touchpoint labels itself — `firmware` and
-`build` read literally `simulated` in the version record, so `board_info` alone
-tells them apart.
-
-`origin.label` names the **path**, not just the port, because the two paths are
-not interchangeable: the probe is a bench cable that also flashes the board,
-RS485 is the field bus an installed drive sits on.
+`origin.label` names the **path**, not just the port, because the two are not
+interchangeable: the probe is a bench cable that also flashes the board, RS485
+is the field bus an installed drive sits on.
 
 | `origin` | label | prompt |
 |---|---|---|
-| probe VCP | `JTAG and COM3` | `Coaxial 63100(JTAG and COM3)` green |
-| any other port | `RS485 at COM5` | `Coaxial 63100(RS485 at COM5)` green |
-| nothing answered | `Simulated` | `Coaxial 63100(Simulated)` yellow |
+| probe VCP | `JTAG and COM3` | green |
+| any other port | `RS485 at COM5` | green |
+| nothing answered | `Simulated` | yellow |
 
-`origin.real` is the half that matters. A suite that ran against the stand-in
+`origin.real` is the half that matters: a suite that ran against the stand-in
 proved the host and nothing about the firmware, so every caller prints the
-label: `dbg.py` in the prompt tag, `python -m coaxial_mcp` on stderr
-(`--simulated` forces the stand-in, `--auto` searches), `test_mcp.py` and
-`test_live_model.py` in a header line before the first `PASS`.
+label. `origin.interface` — `debug probe`, `RS485`, `simulated` — answers how
+the host reaches the bus, which is not the same question as which device is on
+it. `origin.unit` answers that.
 
-`origin.interface` is the **communication interface type** - `debug probe`,
-`RS485` or `simulated`. It answers how the host reaches the bus, which is not
-the same question as which device is on it: `origin.unit` answers that, and a
-reading taken over the bench cable and one taken over the field bus are
-different measurements whichever unit they came from.
+`SimulatedSession` is duck-typed against `Session` and `Board`, not a protocol
+simulator: it builds no frames. Every touchpoint labels itself — `firmware` and
+`build` read literally `simulated`, so `board_info` alone tells them apart.
+
+#### Nodes, buses and broadcast
 
 Several devices on one bus is what a machine built out of this board looks
-like: same firmware, same commands, different unit id, a different thing
-bolted to the shaft. `coaxial.scan(units, port, baud)` sweeps unit ids over
-one transport - bounded, because a unit that is not there costs the read
-timeout, so 1..16 is about eight seconds of silence and 1..247 is two minutes.
-`Session.use(unit)` points a session at another one and every tool follows
-with no argument of its own. The `devices` tool is that pair, and it selects
-by `name=` as well as `unit=` because "unit 3" is a number and "right knee" is
-a device.
+like: same firmware, same commands, different unit id. `coaxial.scan(units)`
+sweeps ids over one transport, bounded, because a unit that is not there costs
+the read timeout — 1..16 is about eight seconds of silence and 1..247 is two
+minutes. `Session.use(unit)` points a session at another and every tool follows
+with no argument of its own. The `devices` tool selects by `name=` as well as
+`unit=`, because "unit 3" is a number and "right knee" is a device.
 
-**Five buses, one per limb plus the axis.** A bus is a serial segment, which
-is how a machine like this is wired: shorter runs, one limb's fault confined to
-one limb, four segments carrying traffic at once instead of twenty nodes taking
-turns on one. `coaxial.simulated.SIMULATED_BUSES` is that machine.
+**A bus is a serial segment**, which is how a machine like this is wired:
+shorter runs, one limb's fault confined to one limb, several segments carrying
+traffic at once instead of every node taking turns on one.
+`coaxial.simulated.SIMULATED_BUSES` is one such machine — `AX` axis, `LL`/`RL`
+legs, `LA`/`RA` arms, four nodes each.
 
-| bus | serves | nodes |
-|---|---|---|
-| `AX` | axis | pelvis, waist, neck, head |
-| `LL` / `RL` | left / right leg | hip, knee, ankle, foot |
-| `LA` / `RA` | left / right arm | shoulder, elbow, wrist, gripper |
+Segments make an odd/even side rule redundant, so **the unit id is the position
+down the limb**: node 2 is the knee on both legs. A number worth more to a
+controller than a unique one. Two-letter labels rather than emoji, because
+`spinner.py` records the advance-width problem with forced-colour glyphs twice
+over, and a column-aligned table is where it shows worst.
 
-Segments make an odd/even side rule redundant — the bus says the side — so
-**the unit id is the position down the limb**: node 2 is the knee on both legs
-and node 1 is the shoulder on both arms. A number worth more to a controller
-than a unique one. Two-letter labels rather than emoji, because `spinner.py`
-records the advance-width problem with forced-colour glyphs twice over and this
-is a column-aligned table, which is where it shows worst.
+Which limb a segment serves is the **operator's** knowledge: a board cannot
+know where it was bolted. On the real side a bus is a port, and
+`Session.buses()` returns the one attached.
 
-Which limb a segment serves is the **operator's** knowledge, not the board's: a
-board cannot know where it was bolted. On the real side a bus is a port and
-`Session.buses()` returns the one that is attached.
+**Unit 0 is not a node.** It is the Modbus broadcast address: every node acts,
+none answers. `Board.request` refuses there in one place, because every read
+and every read-back write comes through it and a timeout would read as the bus
+having died rather than as the protocol working. An order still goes out —
+`afe_power on/off` broadcasts and says it was not confirmed — and anything
+needing a reply is refused by name. It is **one segment's** broadcast, and the
+prompt paints it red: green a board, yellow a stand-in, red the one mode where
+a command reaches every inverter on a segment and nothing answers.
 
-**Unit 0 is not a node.** It is the Modbus broadcast address: every node acts on
-it and none answers. `Board.request` refuses there in one place, because every
-read and every read-back write comes through it and a timeout would read as the
-bus having died rather than as the protocol working. An order still goes out —
-`afe_power on/off` broadcasts and says it was not confirmed — and anything that
-needs a reply, `read` and `toggle` included, is refused by name. It is **one
-segment's** broadcast: five buses are five broadcast domains, and the prompt
-says which. The prompt paints it **red**: green is a board, yellow a stand-in,
-and red is the one mode where a command reaches every inverter on a segment and
-nothing answers to say it landed.
+#### Swapping either half mid-session
 
-Mid-session, `/board simulated | auto | rs485 | COM4` swaps it and the prompt
-tag follows on the next line — the same factory, so the screen and the tools cannot
-drift apart. `/model TAG` does the same one layer up, and hands the old model's
-VRAM back **before** asking for the new one: the other order is a request for
-two copies of the weights on one card. Both cost zero model tokens, which is
-the point — neither is a thing to ask a model to do.
+`/board simulated | auto | rs485 | PORT` swaps the session and the prompt tag
+follows on the next line — the same factory, so screen and tools cannot drift.
+`/model TAG` does the same one layer up, and hands the old model's VRAM back
+**before** asking for the new one: the other order is a request for two copies
+of the weights on one card. Both cost zero model tokens, which is the point.
 
 Nor is either a thing to *ask* a model to do in prose. `debug.board_switch()`
-reads "byt till debugproben", "växla till COM4", "switch to the real board" as
-the orders they are and carries them out without a model turn — the same shape
-as `language.bare_switch`, and settled the same way: a verb, a target, and
-nothing left over once the filler is taken out. `rs485` narrows the search past
-the debug probe (`find_board.discover(only=...)`), because probe-first would
-otherwise answer with the one board the operator just ruled out. A search that
-finds nothing says so rather than reporting only where it ended up.
+reads "byt till debugproben", "switch to the real board" as the orders they are
+and carries them out without a model turn — the same shape as
+`language.bare_switch`: a verb, a target, and nothing left over once the filler
+is taken out. `rs485` narrows the search past the debug probe, because
+probe-first would otherwise answer with the one board the operator just ruled
+out. A search that finds nothing says so.
 
-`test_conformance.py` deliberately does not use it. It is an independent
-byte-level master, built from the specification so a shared wrong assumption
+`test_conformance.py` deliberately does not use any of it. It is an independent
+byte-level master built from the specification, so a shared wrong assumption
 between master and slave cannot hide a defect — and a simulated slave would be
-that shared assumption, written by the same hand. With no board it runs its CRC
-self-test and says what it skipped.
+that shared assumption, written by the same hand.
 
 ### `host/coaxial_ollama/` — the local model, and the loop around it
 
@@ -300,14 +275,75 @@ points over one tool surface:
 | `context.py` | What fits: the prompt's share of `num_ctx`, and what a conversation gives up when it does not fit. Shared by both loops above. |
 | `capability.py` | Which tag this machine should run, from cores, RAM and VRAM. |
 | `language.py` | Which language to answer in, decided here rather than asked of the model. |
+| `intent.py` | The classify pass: the operator's sentence to `{intent, kind}`, and the one hint line that adds to the turn. |
 | `sandbox.py` | Where `run_python` and `run_command` actually run. |
 | `spinner.py` | The prompt's own line. |
 | `plan.py` | A YAML test plan, and the limits the model is never shown. |
 
 `host/tools/` holds what those wrap: `build_and_flash.py`, `run_tests.py`,
-`find_board.py`, `warm_model.py` — each a plain script, runnable by hand, so
-the model's version of a job and yours are the same code. See
-[MODELS.md](MODELS.md) for why each exists.
+`find_board.py`, `warm_model.py`, `pick_tests.py` — each a plain script,
+runnable by hand, so the model's version of a job and yours are the same code.
+`host/tests/counts.py` records how many checks each suite and group last
+reported, so a narrowed run can say what it did **not** run.
+`run_tests.ps1` in the root is the formatted front end: `-All`,
+`-AutomaticAll`, `-AutomaticMinimal`.
+
+## The test system
+
+Five suites plus the gate script. `run_tests.ps1 -All | -AutomaticAll |
+-AutomaticMinimal` in the repository root is the formatted front end;
+`host/tools/run_tests.py` is what it drives.
+
+| Suite | Checks | Needs |
+|---|---|---|
+| `test_ollama.py` | 698 | nothing - no board, no ollama, no network |
+| `test_mcp.py` | 41 | a session (real or stand-in) |
+| `test_simulated.py` | 34 | nothing |
+| `test_parity.py` | 18 | a board, to compare against the stand-in |
+| `test_conformance.py` | 67 | firmware; `--conformance` |
+| `test_live_model.py` | 122 | ollama and minutes; `--live` |
+
+**Which files.** `--smart` maps changed paths to the suites that cover them,
+and runs everything on every tenth commit - a map from files to suites is a
+guess about coupling, and a guess never checked is one that drifts. An
+unmapped path runs everything.
+
+**Which subjects.** `test_ollama.py` carries nine tags - `prompt tools reply
+language render board bus link runner` - and `--tags a,b` runs those.
+`--smart` asks the local model which the diff can have broken
+(`tools/pick_tests.py`). Every way that answer can be useless - no ollama, not
+JSON, no tag this repository has, every tag at once - returns "run
+everything", because a picker that narrows on a reply it did not understand is
+worse than none.
+
+Two things keep that honest. It is **not** asked on the tenth-commit sweep,
+which exists to catch what narrowing missed. And a narrowed run draws one test
+from every subject the pick left out, seed printed so a failure reproduces.
+
+**What did not run** is measured, not guessed: every group records its own
+check count as it goes (`host/tests/counts.py`), so a narrowed run reads back
+what the skipped ones came to last time. A `~` marks a count never taken.
+
+    ran 22 of 43 groups: bus,prompt,tools + 6 sampled, seed 7466
+    Total: ~913  Passed: 575, Skipped: ~338, Failed: 0, (4 of 6 suites ran)
+
+**A missing cable is not a failing suite.** Every suite opens its session
+through `coaxial_mcp.session.open_session()` - `--port` first, then every
+debug probe, then every other port, each with the same Modbus round trip a
+tool call makes - and falls back to `coaxial.simulated.SimulatedSession`. The
+debugger is told apart by its USB VID (`0483`), so nothing is opened to find
+it. `test_conformance.py` is the exception: a byte-level master has nothing to
+conform to without firmware, so with no board it runs its CRC self-test and
+says what it skipped.
+
+`test_parity.py` runs the same calls against board and stand-in and compares
+them with every number masked out: same channels, same directions, same rows,
+different values. It is what the fallback rests on, and it has already caught
+a real divergence - the stand-in reported no unit where the board reports
+centi-degC and mV.
+
+`test_live_model.py` is the only one where the model is under test. See
+[MODELS.md](MODELS.md#the-live-suite).
 
 ## Where scaling lives
 

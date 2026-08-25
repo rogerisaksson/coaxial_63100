@@ -1,49 +1,31 @@
-"""A prompt with a robot and a state icon up front - and the spinner is the
-"1" in "Coaxial 63100" itself.
+"""The prompt line: a bookend group, the board name, and what it is on.
 
-The point is telling two terminals apart: this shares a docked panel with a
-PowerShell prompt, and two `>` look identical at a glance. Something turning
-in the name says which one is waiting for a question, and its colour says what
-kind - green idle, yellow working, red just failed. The icon says it a second
-way, in case the colour does not survive the terminal.
+    «<robot><icon>»Coaxial 63100(JTAG and COM4, node 1)>
+           ^^^^^^                ^^^^^^^^^^^^^^^^^^^^^
+           the only thing that   the link and the node,
+           moves - state, then   green board / yellow
+           turning while busy    stand-in / red broadcast
 
-    «<robot><icon>»Coaxial 63<bar>00>
-           ^^^^^                    ^^^^ the only two things that move: one
-            state                        on state change, one on a timer,
-            icon                         resting on '1' when idle
+Two terminals in one docked panel look identical at a glance; something
+turning says which one is waiting for a question, and the colour says
+green idle, yellow working, red just failed.
 
-No space anywhere in it, so every column after the bookend group is where the
-text's own characters put it. Text with no '1' to spin gets the bar appended
-instead.
+Three things this had to get right, each after getting it wrong:
 
-Every repaint rewrites the whole group from column 1 - ESC 7, ESC [ n A, CR,
-the prefix, ESC 8 - rather than jumping to a computed column. Not cosmetic:
-len() counts 🤖 as one column and most terminals draw it as two, so the
-first two versions landed two short and span the "6" instead of the "1", once
-real emoji reached a real terminal instead of a StringIO fixture. Rewriting
-from column 1 never asks how wide anything is. What this file still has to get
-right by hand is that the icon options render at one consistent width; the
-bar's frames are ASCII so there is no width to inherit.
+* **Nothing turns inside the name.** The first version span the "1" in
+  "Coaxial 63100" and wrote "Coaxial 63-00" into the operator's own
+  transcript. A name is not a widget.
+* **Every repaint rewrites the group from column 1** - ESC 7, UP, CR,
+  prefix, ESC 8 - never a computed column. len() counts 🤖 as one and
+  terminals draw it as two, so computed columns landed two short.
+* **"Up" is recounted, not remembered.** Trace output between busy() and
+  stop() can be one line or a whole table, so `_Tracked` counts the
+  newlines that actually went by. A repaint that still thought it was one
+  row up landed inside a channel table mid-print.
 
-`_trace()` in debug.py can print mid-question while the bar is ticking - the
-caller passes in the lock both sides write through.
-
-How many rows "up" actually means is not fixed at 1 the moment Enter is
-pressed, either - trace output between busy() and stop() can be one tool
-result or five, a single line or a whole table, and the answer itself can
-run to several lines before stop() ever runs. Measured live: a repaint that
-still thought it was one row up landed inside a channel table mid-print,
-overwriting the start of a data row with the prompt group instead of
-climbing back to the actual prompt line above it. Prompt wraps whatever
-stream it is given in a small counter that everything else - _trace(),
-the final answer, an error line - writes through as well, so "up" is
-recomputed from how many newlines have actually gone by since busy(), not
-guessed at once and trusted for however long the question takes.
-
-No console, no VT, or output redirected: the prompt is printed once, static,
-and busy()/stop() only change state, painting nothing further. A script
-piping commands in gets exactly what it would have got before any of this
-existed.
+The caller passes the lock `_trace()` writes through, so a tick cannot
+splice itself into the middle of an answer. No console, no VT, or output
+redirected: printed once, static, and busy()/stop() paint nothing.
 """
 import threading
 
@@ -62,27 +44,25 @@ ROBOT_FALLBACK = 'o'
 # U+FE0F to become colour; ❌ CROSS MARK does not, and was the original
 # choice for exactly this reason.
 ICON_WAIT = '\U0001F4A4'                 # "💤"
-# GEAR, and it is the exception to everything above: U+2699 is
-# text-presentation by default and needs the U+FE0F to come out in colour,
-# which is the forced-colour case the paragraph above says reads as uneven
-# spacing. Asked for by name anyway - a gear says "working" where an
-# hourglass says "waiting", and the model working is what this icon marks.
-# If the row ever looks a column out beside the others, this is why.
-ICON_BUSY = '⚙️'              # "⚙️"
 ICON_ERROR = '❌'                    # "❌"
 ICON_WAIT_FALLBACK = 'z'
-ICON_BUSY_FALLBACK = '~'
 ICON_ERROR_FALLBACK = 'X'
 
-# Rests on '1' - the digit it replaces - so the name reads normally between
-# ticks; the other three frames are what makes that digit's position turn.
-# Plain ASCII throughout: this sits inside the board's own name, not next to
-# an emoji, so there is no width question to inherit in the first place.
-BARS = ('1', '/', '-', '\\')
+# The busy icon turns in place, in the bookend group. Emoji frames, for the
+# same reason the icons are: one glyph swaps for another at the same advance
+# width, so nothing after the group moves while it ticks.
+#
+# The first version span the '1' in "Coaxial 63100" itself, splitting the name
+# around it. It was measured writing "Coaxial 63-00" and "Coaxial 63\00" into
+# the operator's own transcript, twice, and read as a corrupted board name
+# rather than as a spinner. A name is not a widget.
+SPIN = ('\U0001F311', '\U0001F312', '\U0001F313', '\U0001F314',
+        '\U0001F315', '\U0001F316', '\U0001F317', '\U0001F318')
+SPIN_FALLBACK = ('|', '/', '-', '\\')
 
 # Guillemets rather than plain pipes framing the bookend group - narrower
 # footprint than an emoji bracket would be, and already inside cp1252 (0x AB
-# / 0xBB), so this bench's own console gets them too even though it cannot
+# / 0xBB), so a legacy console gets them too even though it cannot
 # hold the robot it sits around. A stream that cannot even manage that -
 # plain ASCII - gets the pipes back.
 OPEN = '«'
@@ -118,14 +98,14 @@ def _capable(out):
     _brackets_capable(): they ask less of the stream than an emoji does, so
     they get to succeed on their own where the emoji group cannot.
     """
-    return _encodable(out, ROBOT + ICON_WAIT + ICON_BUSY + ICON_ERROR)
+    return _encodable(out, ROBOT + ICON_WAIT + SPIN[0] + ICON_ERROR)
 
 
 def _brackets_capable(out):
     """Whether this stream can hold the guillemets framing the group.
 
     A separate, easier question from _capable(): « and » are cp1252, so
-    this bench's own console answers yes to this and no to that - real
+    a legacy console answers yes to this and no to that - real
     brackets around ASCII bookends rather than falling all the way back
     to plain pipes just because the robot cannot render.
     """
@@ -208,16 +188,13 @@ class Prompt:
         real = _capable(out)
         self.robot = ROBOT if real else ROBOT_FALLBACK
         self.icon_wait = ICON_WAIT if real else ICON_WAIT_FALLBACK
-        self.icon_busy = ICON_BUSY if real else ICON_BUSY_FALLBACK
         self.icon_error = ICON_ERROR if real else ICON_ERROR_FALLBACK
         self.open = OPEN if _brackets_capable(out) else OPEN_FALLBACK
         self.close = CLOSE if _brackets_capable(out) else CLOSE_FALLBACK
 
-        spin_at = text.find('1')
-        if spin_at == -1:
-            self.head, self.tail = text, ''
-        else:
-            self.head, self.tail = text[:spin_at], text[spin_at + 1:]
+        self.spin = SPIN if real else SPIN_FALLBACK
+        self.name = text
+        self.busy_now = False
 
         self.icon = self.icon_wait if ok else self.icon_error
         self.color = GREEN if ok else RED
@@ -241,7 +218,7 @@ class Prompt:
         self.thread = None
 
         with self.lock:
-            self.out.write(self._prefix() + self.tail + self._tag() + '>')
+            self.out.write(self._prefix() + self._tag() + '>')
             self.out.flush()
         if self.vt:
             self.thread = threading.Thread(target=self._run, daemon=True)
@@ -255,10 +232,15 @@ class Prompt:
         return '(%s%s%s)' % (self.tag_color, self.tag, RESET)
 
     def _prefix(self):
-        glyph = BARS[self.frame % len(BARS)]
-        return '%s%s%s%s%s%s%s%s' % (self.open, self.robot, self.icon,
-                                     self.close, self.head,
-                                     self.color, glyph, RESET)
+        """The bookend group and the name - everything before the tag.
+
+        One glyph moves: the icon, which becomes a turning frame while the
+        model is working. The name is written whole, in the state colour.
+        """
+        icon = (self.spin[self.frame % len(self.spin)]
+                if self.busy_now else self.icon)
+        return '%s%s%s%s%s%s%s' % (self.open, self.robot, icon, self.close,
+                                   self.color, self.name, RESET)
 
     def _paint(self):
         # rows_up is the fixed "Enter moved to a fresh row" step; out.lines
@@ -282,14 +264,14 @@ class Prompt:
             self._paint()
 
     def busy(self):
-        """Call once input() has returned: yellow, icon and bar both.
+        """Call once input() has returned: the icon starts turning, yellow.
 
         Resets the line count first: this is the moment "one row up" starts
         being true, and it stays true only until the first thing prints.
         """
         self.out.lines = 0
         self.color = YELLOW
-        self.icon = self.icon_busy
+        self.busy_now = True
         self.rows_up = 1
         if self.vt:
             self._paint()
@@ -298,18 +280,16 @@ class Prompt:
         """Stop ticking and freeze the whole group - the last thing a
         scrolled-past line says about the question it carried.
 
-        Frame resets to 0 here, not just icon and colour. Measured live:
-        without this, the row froze on whatever frame the ticker last
-        happened to land on - '/', '-', '\\' - and stayed that way in
-        scrollback, reading as "Coaxial_63/00" or worse. The name is
-        supposed to read normally once a question is done with, which
-        means the '1' it stands in for, not an arbitrary tick.
+        Ticking stops and the icon goes back to a state glyph: a row
+        scrolled past says how its question ended, not whatever frame
+        the ticker happened to land on.
         """
         self.done.set()
         if self.thread is not None:
             self.thread.join(timeout=1.0)
             self.thread = None
         self.frame = 0
+        self.busy_now = False
         self.color = GREEN if ok else RED
         self.icon = self.icon_wait if ok else self.icon_error
         if self.vt:

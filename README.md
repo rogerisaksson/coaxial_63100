@@ -172,95 +172,37 @@ board_prompt -Plain         # a bare ollama chat: no tools, no board
 ```
 
 `board_prompt.ps1` is preflight plus `host/dbg.py --repl`: the local model with
-the board's tools, `/py` against a live session and `/sh` for a build, both of
-which cost no tokens, and a token meter on every turn. It measures the machine,
-picks the model that fits it, **pulls that model if it is not here yet**, loads
-it before the prompt opens and says which COM port answered — so "the model is
-not installed" is never the reason a question goes unanswered.
+the board's tools, `/py` against a live session and `/sh` for a build, both
+free of tokens, and a meter on every turn. It measures the machine, picks the
+model that fits it, **pulls it if it is not here yet**, loads it before the
+prompt opens and says which COM port answered.
 
-The model can read this repository's documents while it works — `docs()` for the
-index, `docs(find='25.00')` to search, `docs(doc='HARDWARE', section=...)` for
-the text. That is not decoration: the documents are what stop a reading being
-misinterpreted, and a model that cannot reach them answers from memory instead.
-[docs/MODELS.md](docs/MODELS.md) is the chapter about the model itself.
+Three things about it are decisions rather than defaults, and each is measured
+in [docs/MODELS.md](docs/MODELS.md):
 
-It is not read-only, either. `build_firmware` runs the build and the SWD flash
-with fixed arguments — nothing about the toolchain invocation is something the
-model gets to choose — and `run_tests` runs the offline suites from step 6
-below and reports back the exact tally each one already counted, never a
-paraphrase:
+* **The tag comes from the machine.** A bench PC is whatever was on the shelf,
+  and one hardcoded model means a laptop crawls or a workstation idles. The
+  rule is the largest tools-capable tag that fits the card *whole* — a split
+  model costs about **five times** the speed to hand back half the VRAM
+  (64.3 tok/s against 12.7), so hybrid is the fallback, not the target.
+* **Local is enforced, not assumed.** Ollama will proxy a `:cloud` tag to
+  somebody else's GPU, which on a bench means register dumps leaving the
+  building. A cloud tag or a non-loopback host raises; `--allow-remote` is how
+  you mean it on purpose.
+* **It reports, it does not judge.** Numbers reaching a verdict arrive as
+  `report` arguments against a schema, and `plan.Limit` decides in Python.
+
+It is not read-only. `build_firmware` runs the build and the SWD flash with
+fixed arguments, `--confirm`-gated like a pin write; `run_tests` runs the
+suites and returns the tally each one counted, never a paraphrase; and
+`link_diagnose` works an ordered checklist when the board goes quiet, starting
+with target power over SWD — the one thing the serial side cannot check.
 
 ```powershell
+python -m coaxial_ollama.capability     # what this machine gets, and why
 dbg -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-`build_firmware` is a `--confirm`-gated write, same as a pin write: nothing
-gets flashed to the real board without the operator saying yes, unless a
-session was started without that flag on purpose. `run_tests` is not gated
-at all — it never touches the board's state or its flash, so it is as free
-to call as `docs` or `board_info`.
-
-When the board is not answering, `link_diagnose` works through an ordered
-checklist rather than guessing or repeating the raw exception — target power
-over SWD via the ST-Link first (the one thing the serial side cannot check
-on its own; an unplugged ST-Link cable reads `0.00V` there, where the serial
-side alone only ever says "silence"), then which COM ports Windows sees,
-whether the configured one is among them, and whether the board actually
-answers on it right now. It stops at whichever step explains the silence,
-runs automatically the moment a board call fails mid-turn, and is a plain
-tool otherwise: ask "why can't you reach the board?" directly and it is
-called on its own.
-
-Structured output is not done with Ollama's json mode here, and that is a
-decision rather than an omission. `format='json'` constrains the *content* of a
-reply — the one part of it this bench does not parse. Every number that reaches
-a verdict arrives as an argument to the `report` tool, against a JSON Schema the
-daemon enforces, and `plan.Limit` judges it in Python. A model told to answer in
-JSON tends to describe a tool call in its content instead of making one, so json
-mode would compete with that rather than help it. It is available for callers
-outside the runner — `dbg.py --format json`, usually with `-t none` — and off
-everywhere else.
-
-**The tag is chosen from the machine, not from whoever wrote this file.** A
-bench PC is whatever was on the shelf, and one hardcoded model means a laptop
-crawls or a workstation idles. `setup.ps1` measures cores, RAM and the size of
-the graphics card and pulls the largest tools-capable model that fits the card
-*whole*, keeping a quarter of the VRAM back so the desktop still has somewhere
-to live. Ask it yourself:
-
-```powershell
-cd host
-python -m coaxial_ollama.capability                    # what this machine gets, and why
-python -m coaxial_ollama.capability --prefer capability
-dbg -m auto "what is the board temperature?"           # same choice, from the prompt
-```
-
-Three things there were measured on this bench rather than assumed, and two of
-them contradict the usual advice — RTX 4080 SUPER 16 GB, Threadripper 3970X,
-`gemma4:12b` Q4_K_M at 48 layers:
-
-| | VRAM | tok/s |
-|---|---|---|
-| all 48 layers on the GPU | 7.8 GB | **64.3** |
-| 24 layers (the "hybrid") | 4.3 GB | 12.7 |
-| CPU only | 0 GB | 6.7 |
-
-So a split model costs about **five times** the speed for half the VRAM back,
-which makes hybrid the fallback when nothing fits — not a target. `num_gpu`
-needs no Modelfile either; it is an ordinary entry in `options` on a normal
-call, which beats a Modelfile because a Modelfile is a second tag to keep in
-step. And raising `num_thread` on 64 threads bought nothing and cost a little
-(6.4 → 5.7 tok/s at 64), because decode is bandwidth-bound, not core-bound.
-
-Only tools-capable tags are candidates. Everything here reaches the board
-through tool calls, and a tag without them describes a measurement instead of
-taking one.
-
-The model is **local and that is enforced, not assumed**. Ollama will happily
-proxy a `:cloud` tag to somebody else's GPU, which on a bench means register
-dumps and pin names leaving the building; a cloud tag or a non-loopback host
-raises instead of quietly working, and `--allow-remote` is how you mean it on
-purpose.
 
 ### 6. Prove the install
 

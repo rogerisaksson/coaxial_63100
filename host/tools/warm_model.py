@@ -5,7 +5,7 @@ whether ollama's own reported `load_duration` actually gets shorter for it.
 Windows already holds recently-read files in its standby list for as long as
 nothing else needs the RAM back - a normal `dbg`/`board_prompt` session warms
 whatever model it loads as a side effect. This exists for the case that
-matters and that side effect does not cover: a model this bench has not
+matters and that side effect does not cover: a model this loop has not
 touched in a while, warmed on purpose before the next question needs it,
 without waiting to find out the hard way that the standby list had let it go.
 
@@ -20,13 +20,13 @@ trick `client.py`'s own `preload()` uses. Both loads use `keep_alive=0` so
 this leaves the model unloaded when it is done, the same as it found it.
 
 --auto is the one meant to run unattended, from board_prompt.ps1's own
-preflight: this bench measured 2.8-2.9 GB/s reading these blobs (see
+preflight: this loop measured 2.8-2.9 GB/s reading these blobs (see
 _ram_gb/probe_read_speed below and the module's own git history for the
 numbers) - three NVMe/SSDs, nothing spinning - so warming buys nothing here
 and --auto correctly skips it. A machine with a slower disk and the RAM to
 spare should not need a different flag to get the win this one does not
 need; it should get decided from what is actually measured on it, not from
-a constant written on this bench.
+a constant written .
 """
 import argparse
 import ctypes
@@ -107,7 +107,7 @@ def warm(paths, chunk=64 * 1024 * 1024):
 
 # Below this measured throughput, OS-cache warming is plausibly worth its
 # own read: a modern NVMe/SSD clears it several times over (2.8-2.9 GB/s
-# measured on this bench - see the module docstring), a spinning disk does
+# Measured - see the module docstring), a spinning disk does
 # not (80-160 MB/s is typical). Deliberately not a media-type check: a
 # `MediaType` lookup can be wrong or unavailable, and it answers a different
 # question anyway - this machine's disks are all reported SSD, and still get

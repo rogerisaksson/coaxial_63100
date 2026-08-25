@@ -34,7 +34,8 @@ from coaxial.errors import RigError                  # noqa: E402
 from coaxial_mcp import detail                       # noqa: E402
 from coaxial_mcp import render                       # noqa: E402
 
-from . import context                                # noqa: E402
+from. import context                                # noqa: E402
+from . import intent
 from . import language                               # noqa: E402
 from . import replies                                # noqa: E402
 from . import tools as toolmod                       # noqa: E402
@@ -42,51 +43,23 @@ from . import spinner as spin                        # noqa: E402
 from .context import approx_tokens                   # noqa: E402
 from .sandbox import Scope, Shell, clip, clip_ends   # noqa: E402
 
-# Deliberately terse, and every line of it earns its place.
+# Every line earns its place, and each one replaced a measured failure:
+# the wording history is in docs/MODELS.md, "Measured failure modes".
+# Two that are easy to undo by accident:
 #
-# "a typo or a wrong fact: say it, answer what was meant" is the operator's
-# mistake, not the model's: a misspelt channel, a pin called analog, a fact
-# that is not so. Refusing is worse than answering and saying what looked
-# wrong - the host does the same thing one layer down, where _resolve
-# corrects a name and analog_read prints what it corrected.
-#
-# It cost nothing: the restate line above it named the act and its shapes
-# twice over, and naming the act once was what MODELS.md already said the
-# rule needed. No restating the
-# protocol, no channel map - board_info carries that, once, when asked.
-#
-# Two lines were measured teaching the wrong thing rather than failing to
-# teach the right one. "A table or list means analog_read once" was written
-# about tabulating readings and read as "a list means analog_read" - so
-# "ge mig en lista over alla analoga kanaler" fetched a full analog table,
-# every time, in both languages.
-#
-# Rewritten once more, and merged: "a table of readings means analog_read"
-# still pulled "ge mig vardena fran de digitala kanalerna" to analog_read,
-# on top of the digital_read it had already made correctly. The qualifier
-# said "digital_read for a pin" while the renderer calls them channels, so
-# nothing connected the question to the call. One line names both kinds by
-# the word the screen uses, and it costs five tokens less than the two it
-# replaced.
-#
-# "a named pin included" is there because "vilket varde har PB2 nu?" went
-# to board_info: the question names a pin, and nothing connected a pin to
-# the word digital. The map is not a value.
-#
-# The first line is the exception, and it is paid for on every turn because
-# the sentence it replaced caused the error. "an expert with a serial link to
-# a coaxial BLDC inverter" put the two words next to each other and the model
-# fused them: measured twice, "seriell lank over koaxialkabel" and "en
-# koaxial anslutning for seriell kommunikation". Nothing about the wiring is
-# coaxial - the PCB mounts coaxially behind an outrunner's stator - so the
-# line now says what the word means and what the link actually is.
+#   * "The noun decides, never list" - three earlier wordings lost to
+#     "ge mig en lista over de analoga vardena", which has the word for
+#     a map and the word for a read in one sentence.
+#   * the first line names the PCB and the link, because "an expert with
+#     a serial link to a coaxial BLDC inverter" put two words next to
+#     each other and the model fused them into a coaxial cable, twice.
 SYSTEM = """You are an expert on a coaxial BLDC inverter: the PCB behind an
 outrunner's stator, not a cable. Modbus RTU over the probe's COM port or RS485.
 Tools for the board, never to guess; off-topic needs none. Answer briefly,
 no preamble.
 Never a markdown table, never restate a tool's rows.
-A list of channels is board_info. Values are analog_read for analog and
-digital_read for digital, a named pin included - one call covers its kind.
+The noun decides, never "list": channels is the map, board_info. Values, or
+a named pin, is a read - analog_read or digital_read, one call per kind.
 What a thing IS is words, not a call.
 Switching board or model is /board and /model - name it, do not refuse.
 A call error, a typo or a wrong fact: say it, answer what was meant, never
@@ -376,7 +349,7 @@ def _printable(stream):
     cp1252 an ohm sign or any Cyrillic would otherwise raise
     UnicodeEncodeError and lose a reading already taken. Forcing UTF-8 on a
     console that is not set to it trades that for mojibake in the languages
-    this bench actually speaks.
+    this loop actually speaks.
 
     A file or a pipe is the opposite case and gets UTF-8: no codepage to
     mismatch, and the locale default here turned every Swedish answer in
@@ -446,7 +419,7 @@ def _set_attributes(path, value):
 
 def _unhide(path):
     """Clear the hidden attribute before (re)opening a session's log for
-    writing. Measured directly on this bench: `open(path, 'w')` on an
+    writing. Measured directly : `open(path, 'w')` on an
     already-hidden file raised a plain PermissionError, not the OSError
     IOLog already expected and swallowed - the truncate that mode implies
     is what Windows refuses on a hidden file, not the open itself. 0x80 is
@@ -570,6 +543,12 @@ class Chat:
         # Off by default: dozens of tests build a Chat and none should touch
         # the filesystem. repl() and main() turn it on for the real one.
         self.io_log = IOLog(enabled=False)
+        # Compile the question into an intent before answering it. Off here
+        # for the same reason as io_log, and off for a scripted plan: a step
+        # written as `analog_read ch=4` has no ambiguity to resolve, and the
+        # second model call would be spent on nothing. main() turns it on.
+        self.compile_intent = False
+        self._intent_why = None
         self.set_tools(tools)
 
     # ---- what the model is allowed to see ----------------------------------
@@ -658,6 +637,7 @@ class Chat:
         # The earlier questions, not the wiped history: "tabellera", then
         # "varfor kan du inte na kortet", then "provade det, fortfarande
         # inget" only reads as a sequence with them in view. Five at most.
+        hint += getattr(self, 'intent', '') or ''
         prior = getattr(self, 'prompt_history', [])[-6:-1]
         if prior:
             hint += ('\nEarlier this session, in order: %s. Treat these as '
@@ -749,7 +729,7 @@ class Chat:
             # for - keeps failing forever on the same dead handle even once
             # the cable is back.
             self.toolbox.session.reset()
-            # ...and try once more, which is the whole point of the
+            #...and try once more, which is the whole point of the
             # reset. Measured: the handle was dropped, the turn answered
             # "linken ar nere", and link_diagnose one line later opened
             # the port cleanly and said it was up - two verdicts on one
@@ -765,7 +745,7 @@ class Chat:
     def _link_down_message(self, link_error, shown=False):
         """'link is down, not answered: ...', plus why - run here, by the
         host, every time the link is down, rather than left for the model
-        to think to call link_diagnose. Measured on this bench: a raw
+        to think to call link_diagnose. Measured: a raw
         ConnectError with a generic hint was read as "a bunch of error
         messages" - the actual, specific reason (which COM ports Windows
         sees right now, whether the configured one is even among them) is a
@@ -865,13 +845,33 @@ class Chat:
             where = where or ('%s node %d' % (here[0], here[1]) if here[0]
                               else 'node %d' % here[1])
         line = language.localise('From %s:' % where, self.screen_language())
-        return line + chr(10) + answer if answer.strip() else line
+        return line + '\n' + answer if answer.strip() else line
+
+    def _compile(self, question):
+        """The intent hint for this question, or '' when there is none.
+
+        Off by default for anything that is not a real prompt turn: a second
+        model call per question is the cost, and a plan runner replaying a
+        scripted step already knows what it is asking for.
+        """
+        if not getattr(self, 'compile_intent', False):
+            return ''
+        got, kind, why = intent.compile_intent(self.client, question)
+        self._intent_why = why
+        if got is None:
+            return ''
+        return intent.hint(got, kind)
 
     def _ask_inner(self, question, max_calls=6):
         if self.over_budget():
             return 'budget of %d tokens is spent; /clear or raise --budget' \
                 % self.budget
 
+        # Compile before answering. The sentence still goes to the model
+        # verbatim below; what this adds is one line saying which tool the
+        # question maps to, worked out by a separate call that has nothing
+        # to do but classify. None of it is load-bearing - see intent.py.
+        self.intent = self._compile(question)
         self.history.append({'role': 'user', 'content': question})
         self.prompt_history.append(question)
         self.io_log.turn(question)
@@ -901,7 +901,7 @@ class Chat:
             answer = (message.get('content') or '').strip()
 
             # A tool call written as prose is still a tool call. qwen2.5 emits
-            # one as text often enough to matter - measured here, "vad ar
+            # one as text often enough to matter - Measured: "vad ar
             # temperaturen" came back as the literal string
             #
             #     {"name": "docs", "arguments": {"find": "temperature"}}
@@ -1088,25 +1088,15 @@ class Chat:
         elif code_error is not None:
             answer = 'the last run_python/run_command call failed, nothing ' \
                      'was done: %s' % code_error
-        # Same backstop for a retyped table: SYSTEM says not to, qwen2.5:14b
-        # did it every time across three sessions. The bar is narrow - every
-        # channel just read, named again by an answer with nothing else in it
-        # - so a real one-line finding is untouched. Silence rather than a
-        # line saying so: the table is directly above on the same screen.
+        # SYSTEM says not to; qwen2.5:14b did it every time across three
+        # sessions. Silence rather than a line saying so - the table is
+        # directly above on the same screen. Unless --quiet, where there
+        # is no trace and the board's own rows go out instead.
         #
-        # Unless it is not. With --quiet there is no trace, so silencing the
-        # retype left "read every analog channel" answering with an empty
-        # screen. The board's own rows go out instead - the same table the
-        # trace would have shown, rather than the model's typing of it.
-        # Whatever was just put on screen, typed out again underneath it.
-        # The trace is the answer; with --quiet there is no trace and the
-        # board's own rows go out instead of the model's copy of them.
-        #
-        # Two calls, two bars. A reading needs three channels before all of
-        # them being named counts as a restatement - naming two is plausibly
-        # synthesis, and silencing "NTC and DCbus both read low" would cost a
-        # finding. A map has no values to synthesise about, and this board
-        # has exactly two digital channels, so listing both IS the map.
+        # Three channels before "all of them named" counts: naming two is
+        # plausibly synthesis, and silencing "NTC and DCbus both read low"
+        # would cost a finding. A map has nothing to synthesise about, and
+        # this board has two digital channels, so listing both IS the map.
         elif last_channels and replies.is_retype(answer, last_channels):
             answer = last_table if (self.quiet and last_table) else ''
         elif any(replies.is_retype(answer, names, minimum=2)
@@ -1118,7 +1108,7 @@ class Chat:
         elif getattr(self.client, 'truncated', False) and answer:
             answer += ('%s[cut off at --words %s. Ask again with more, or ask '
                        'for fewer channels.]'
-                       % (chr(10), self.client.options.get('num_predict', '?')))
+                       % ('\n', self.client.options.get('num_predict', '?')))
         return answer
 
     # ---- the parts that cost nothing ---------------------------------------
@@ -1273,7 +1263,7 @@ class Chat:
             # Not fatal, and not silent: the session still works, the card is
             # just holding weights nobody is using until keep_alive expires.
             self.io_log.write('  ! could not unload %s: %s%s'
-                              % (old.model, exc, chr(10)))
+                              % (old.model, exc, '\n'))
         self.client = fresh
         self.history = []
         self.set_detail(self.detail)
@@ -1500,8 +1490,8 @@ class Chat:
         # Only before a multi-line result: a one-line answer needs no room
         # around it.
         lead = ''
-        if getattr(self, '_traced', False) and chr(10) in str(result).strip():
-            lead = chr(10)
+        if getattr(self, '_traced', False) and '\n' in str(result).strip():
+            lead = '\n'
         self._traced = True
         # English stays in the result the model reads, the log keeps and the
         # MCP server serves; the screen gets the operator's language. Only
@@ -1550,6 +1540,9 @@ def parse(argv):
     parser = argparse.ArgumentParser(
         prog='dbg', description='Ask a local model about this board, cheaply.')
     parser.add_argument('question', nargs='*', help='ask and exit; omit for a prompt')
+    parser.add_argument('--no-compile', action='store_true',
+                        help='skip the intent pass - one model call per turn,'
+                             ' the behaviour before it existed')
     parser.add_argument('--repl', action='store_true',
                         help='force the prompt loop even with piped input')
     parser.add_argument('-q', '--quiet', action='store_true',
@@ -1596,7 +1589,7 @@ def parse(argv):
     parser.add_argument('--detail', default=detail.AUTO, choices=detail.LEVELS,
                         help='how much documentation each tool carries into '
                              'every turn. auto reads the model tag: terse for '
-                             'the sizes this bench runs locally, full for '
+                             'the sizes this loop runs locally, full for '
                              'anything with room to read it. %s overrides for '
                              'the whole machine.' % detail.ENV)
     parser.add_argument('--num-ctx', type=int, default=8192)
@@ -1730,7 +1723,7 @@ def repl(chat, hold=False):
                             getattr(sys.stdout, 'encoding', None)))
     if not ({'run_command', 'build_firmware'} & set(chat.tool_names)):
         # Printed once, here, by this host - not sent to the model, so it
-        # costs nothing per turn. Measured on this bench: asked three times
+        # costs nothing per turn. Measured: asked three times
         # running to build and flash, on the default `code` set - before it
         # carried build_firmware - the model correctly and repeatedly said
         # it could not: accurate, but a dead end with no way out of it short
@@ -1871,6 +1864,8 @@ def main(argv=None):
     # Real sessions only - build() itself is what dozens of tests call
     # through, and none of them should write a file to do it. See IOLog.
     chat.io_log = IOLog()
+    # A typed sentence is the one input with ambiguity worth a second call.
+    chat.compile_intent = not args.no_compile
     if args.simulated:
         # Loud on purpose, before the model ever answers a thing: board_info
         # says the same ("firmware": "simulated"), but a line here means
@@ -1891,20 +1886,12 @@ def main(argv=None):
         print('ollama: %s' % exc, file=sys.stderr)
         print('slash commands still work; questions will not.', file=sys.stderr)
 
-    # Also what the prompt's face shows in the REPL below: green once this is
-    # True, red once it is not - --no-board counts as not, since board tools
-    # will fail there by design, same as a dead cable.
+    # What the prompt's face shows: green once True, red once not.
+    # --no-board counts as not - board tools fail there by design.
     #
-    # Not probed here any more, on purpose - see FINDINGS/this session's own
-    # history: connecting eagerly used to be the only thing standing between
-    # a dead link and the model "answering past" it, which is why it moved
-    # session.board's own lazy connect up here in the first place. That
-    # reason is gone now: link_diagnose and the link_error override in
-    # ask() cover it, and cover it better - the model gets a real chance to
-    # help troubleshoot a board that never answered instead of the session
-    # printing a failure and, for a one-shot question, exiting before it was
-    # ever asked anything. The board is touched exactly when a tool call
-    # actually needs it, which is what "not per default" means here.
+    # Not probed here: link_diagnose and the link_error override cover a
+    # dead link better than an eager connect did, and a one-shot question
+    # no longer exits before it was ever asked. docs/MODELS.md.
     link_ok = not args.no_board
     chat.link_ok = link_ok
 

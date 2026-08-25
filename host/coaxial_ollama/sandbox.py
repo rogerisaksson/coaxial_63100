@@ -130,7 +130,9 @@ class Shell:
         self.history.append(command)
         try:
             done = subprocess.run(argv, cwd=self.cwd, capture_output=True,
-                                  text=True, timeout=timeout or self.timeout)
+                                  text=True, encoding='utf-8',
+                                  errors='replace',
+                                  timeout=timeout or self.timeout)
         except subprocess.TimeoutExpired:
             return 'TIMEOUT after %.0fs: %s' % (timeout or self.timeout, command)
         except OSError as exc:

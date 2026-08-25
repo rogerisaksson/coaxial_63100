@@ -61,7 +61,16 @@ pin to `Board/Src/board_io.c` and everything above it follows.
 
 ## Commands
 
+**`run_tests.ps1` is the interface to the suites.** Not
+`python tools/run_tests.py` - that is what it drives.
+
 ```powershell
+.\run_tests.ps1                      # ~25 % of every check, the default
+.\run_tests.ps1 -AutomaticMedium     # ~50 %, before handing work over
+.\run_tests.ps1 -AutomaticHigh       # ~75 %, adds conformance + live:tools
+.\run_tests.ps1 -All                 # 100 %, the gate
+.\run_tests.ps1 -Only intent,picker  # named tests, nothing else
+.\run_tests.ps1 -Tags prompt,reply   # subjects, without asking the model
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check    # what is missing
                             # -Yes installs the lot (winget, python packages,
                             # ST bundles, CubeMX, ST-Link driver, ollama);
@@ -76,84 +85,57 @@ STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --s
 cd host
 python -m coaxial all                    # CLI against the board
 python examples/read_board.py            # measure, judge nothing
-python tools/run_tests.py                # every suite, one parsed tally
-python tools/run_tests.py --offline      #   ...minus the ones needing the board
-python tools/run_tests.py --live         #   ...plus the real model, minutes
-python tools/run_tests.py --smart        # what the changes can have broken
-python tools/run_tests.py --smart --dry-run   #   ...say it, do not run it
+python tools/run_tests.py --offline      # the suites needing no board
+python tools/pick_tests.py --explain     # which subjects, and why - the model picks
 python tools/build_and_flash.py          # build (+flash): --build-only, --flash-only
 python -m coaxial_mcp --port COM4        # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml
 python -m coaxial_ollama.capability      # which local model this machine should run
 python dbg.py --repl                     # prompt loop; /py and /sh cost no tokens
 python dbg.py --repl --simulated         # the same, no cable
+python dbg.py --repl --no-compile        # one model call per turn, no intent pass
 python dbg.py -m auto -q "read the NTC"  # one question, the model this machine fits
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_ollama.py` (537), `test_simulated.py` (34), `test_mcp.py` (40),
-`test_parity.py` (17), `test_conformance.py` (67, `--conformance`),
-`test_live_model.py` (48, needs ollama, `--live`) - the only one where the
-model itself is under test.
+Suites: `test_ollama.py` (698), `test_simulated.py` (34), `test_mcp.py` (41),
+`test_parity.py` (18), `test_conformance.py` (67, `--conformance`),
+`test_live_model.py` (122, needs ollama, `--live`) - the only one where the
+model itself is under test. How the whole thing is wired is in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system); the rules that
+bind you:
 
-**The model's life belongs to `run_tests.py`.** It loads the tag once before
-the first suite that needs it, holds it across every row of every such suite,
-and releases it when the run ends - not after each suite, and never after each
-question. Measured both ways: releasing between runs put most of the wall time
-into loading 7.6 GB again, and holding it after the run left 9.69 GB on the
-card for 27 minutes at 1 % use. `test_live_model.py` on its own never
-releases (`--release` if it really is the last run), because a suite run by
-hand is almost never run once.
+* **A missing cable is not a failing suite.** Every suite opens its session
+  through `open_session()`, which probes and falls back to the stand-in.
+* **The model is loaded once per run and released once**, by `run_tests.py`.
+  Never per suite, never per question - measured, most of the wall time went
+  into loading 7.6 GB again.
+* **A tier is a budget of checks, and it cuts as well as fills** - the model's
+  pick can be bigger than the tier. The floor it never goes below: one test
+  from every subject the pick left out, plus the smallest group of the pick
+  itself. Sizes come from `host/tests/counts.py`, measured, because the groups
+  run from 2 checks to 77.
 
-`--smart` maps the changed files to the suites that cover them and runs the
-lot every tenth commit - a map from files to suites is a guess about coupling,
-and a guess never checked is one that drifts. An unmapped path runs everything.
-`test_live_model.py --sections tools|language|all` is the half that matters:
-it is a model load plus a turn per question, and a renderer change has nothing
-to do with the language lock.
+      ran 19 of 43 groups: prompt,runner, seed 3440, 51% of checks
+      Total: 984  Passed: 449, Skipped: 535, Failed: 0, (4 of 6 suites ran)
 
-`test_live_model.py` crosses the two axes the model kept confusing - list or
-read, analog or digital - and asserts which tool it called **and which it did
-not**. That half is the point: an answer that is right after the wrong call is
-not this suite passing. It caught the SYSTEM line that read as *a list means
-analog_read* - 6 of 24 failing, 0 after the rewrite.
-
-`test_parity.py` runs the same calls against the board and against the
-stand-in and compares them with every number masked out: same channels, same
-directions, same rows, different values. It is what the fallback rests on, and
-it has already caught a real divergence - the stand-in reported no unit where
-the board reports centi-degC and mV.
-
-**A missing cable is not a failing suite.** Every one of them picks its session
-through `coaxial_mcp.session.open_session()`, which looks for the board -
-`--port` first, then every debug probe, then every other port, each with the
-same Modbus round trip a tool call makes - and falls back to
-`coaxial.simulated.SimulatedSession`. The debugger is told apart by its USB
-VID (`0483`), so nothing is opened to find it.
-
-The prompt names the path it found:
-
-| | |
-|---|---|
-| `Coaxial 63100(JTAG and COM4)` | green - over the debug probe |
-| `Coaxial 63100(RS485 at COM5)` | green - over RS485 |
-| `Coaxial 63100(Simulated)` | yellow - nothing answered |
-
-`test_conformance.py` is the exception - a byte-level master has nothing to
-conform to without firmware, so with no board it runs its CRC self-test and
-says what it skipped.
+* **A typed sentence is classified before it is answered** - `intent.py`, one
+  extra call on the turn's own client. Never a second `Ollama`: ollama keys a
+  loaded runner on `num_ctx`, and a second client at a different window
+  reloads 7.6 GB once per question. [docs/MODELS.md](docs/MODELS.md).
 
 At the prompt, `/board simulated | auto | rs485 | COM4` and `/model TAG | auto`
 swap either one mid-session, for no model tokens - and so does saying it in
 prose: "byt till debugproben" is an order the host carries out, never a
-question for the model. `/model` hands the old model's
-VRAM back before asking for the new one.
+question for the model. `/model` hands the old model's VRAM back first.
+
 
 The ST toolchain is not on the system PATH — arm-gcc, cmake, ninja and
 `STM32_Programmer_CLI` live under `%LOCALAPPDATA%\stm32cube\bundles\`, fetched by
 `cube.exe` (the bundle manager in the STM32 VS Code extension; `cube bundle
 install --yes NAME` needs no ST account). `env.ps1` puts the newest of each on
-PATH for one shell. The board's VCP is **COM4**; the probe is an STLINK-V3SET.
+PATH for one shell. Nothing hardcodes which port the board is on: `--port`
+is a first guess, and `open_session()` probes if it does not answer.
 
 ## After a change lands
 

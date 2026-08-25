@@ -34,7 +34,7 @@ def check_power(timeout=15):
     target at all - the most fundamental check there is, and one the serial
     side cannot make on its own: a board with no target voltage is never
     going to answer over USART3, whatever the COM port list says. Measured
-    live on this bench: an unplugged ST-Link cable read `Voltage: 0.00V`
+    live : an unplugged ST-Link cable read `Voltage: 0.00V`
     from STM32_Programmer_CLI, with the serial side reporting nothing more
     specific than silence.
 
@@ -45,7 +45,7 @@ def check_power(timeout=15):
     `mode=HOTPLUG`, never `mode=UR`. Connect-under-reset asserts NRST, and
     this call has a timeout that kills the programmer where it stands: a
     connect killed mid-reset can leave the target held there, and a halted
-    core answers nothing on USART3. Measured on this bench - a `--power`
+    core answers nothing on USART3. Measured - a `--power`
     run timed out at 15s, and every serial call afterwards was silent, on
     both the console and raw Modbus, until `-c port=SWD mode=UR --start`
     brought it back. HOTPLUG cannot do that: it never touches reset.
@@ -68,7 +68,9 @@ def check_power(timeout=15):
     try:
         done = subprocess.run([programmer, '-c', 'port=SWD',
                                'mode=HOTPLUG', '-q'],
-                              capture_output=True, text=True, timeout=timeout)
+                              capture_output=True, text=True,
+                              encoding='utf-8', errors='replace',
+                              timeout=timeout)
     except subprocess.TimeoutExpired:
         return None, 'STM32_Programmer_CLI did not answer within %ss' % timeout
 
@@ -173,7 +175,7 @@ def port_state(candidate, baud=115200, unit=1):
     which was the matter with it.
 
     'busy' is decided on the exception's class name rather than its message:
-    Windows localises the text, and the one measured here was Swedish.
+    Windows localises the text, and the one Measured was Swedish.
     """
     import serial
 
@@ -237,7 +239,7 @@ def main(argv=None):
         print('\n'.join(list_ports()))
         return 0
     if args.kinds:
-        print(chr(10).join('%s %s' % pair for pair in kinds()))
+        print('\n'.join('%s %s' % pair for pair in kinds()))
         return 0
     if args.state:
         state = port_state(args.state, args.baud, args.unit)

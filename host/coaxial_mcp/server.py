@@ -14,7 +14,7 @@ from mcp.server.stdio import stdio_server
 
 from coaxial.errors import RigError
 
-from . import detail as detailmod
+from. import detail as detailmod
 from . import render
 from .session import Session, open_session
 from .tools import HANDLERS, TOOLS

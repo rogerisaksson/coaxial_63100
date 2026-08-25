@@ -97,6 +97,15 @@ TOOL_CHOICE = (
      ('analog_read',)),
 
     # The mirror, so a fix for one kind cannot quietly break the other.
+    # The crossing cell: "lista" and "värden" in one question. Measured
+    # live - this went to board_info and put the channel map on screen for
+    # the second question running, identical to the first.
+    ('ge mig en lista över de analoga värdena', 'analog_read',
+     ('board_info',)),
+    ('ge mig en lista över de digitala värdena', 'digital_read',
+     ('board_info', 'analog_read')),
+    ('list the analog values', 'analog_read', ('board_info',)),
+    ('list the digital values', 'digital_read', ('board_info', 'analog_read')),
     ('ge mig värdena från de analoga kanalerna', 'analog_read',
      ('digital_read',)),
     ('vad har de analoga kanalerna för värden?', 'analog_read',
@@ -197,7 +206,7 @@ def _twice(answer, results):
     return ''
 
 
-def build(model, port, simulated):
+def build(model, port, simulated, compile_intent=True):
     """(session, chat, real). `simulated=False` probes and falls back."""
     from coaxial_mcp.session import open_session
     session, found = open_session(port, 115200, 1,
@@ -219,6 +228,10 @@ def build(model, port, simulated):
     # the operator runs it, or the duplication check measures the mode.
     chat = debug.Chat(client, toolbox, tools='read', quiet=False,
                       out=io.StringIO(), session_language=START)
+    # The intent pass is what the prompt loop runs with, so this measures it
+    # by default. --no-compile runs the same matrix without it, which is the
+    # only way to say what the second call is buying.
+    chat.compile_intent = compile_intent
     return session, chat, found
 
 
@@ -226,6 +239,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('-m', '--model', default='gemma4:12b')
     parser.add_argument('--port', default='COM4')
+    parser.add_argument('--no-compile', action='store_true',
+                        help='run the matrix without the intent pass, the '
+                             'way the loop behaved before it existed')
     parser.add_argument('--release', action='store_true',
                         help='hand the model back when this run ends. Off '
                              'by default: the suite is run again a minute '
@@ -245,7 +261,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     release = args.release
-    session, chat, found = build(args.model, args.port, args.simulated)
+    session, chat, found = build(args.model, args.port, args.simulated,
+                                 not args.no_compile)
     report = Report()
     # Which board, said before the first PASS. The tool-choice checks below
     # hold either way - reaching analog_read is the model's decision, not the

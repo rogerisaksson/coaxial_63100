@@ -30,7 +30,7 @@ from coaxial.errors import RigError                  # noqa: E402
 from coaxial_mcp import detail                       # noqa: E402
 from coaxial_mcp.session import Session              # noqa: E402
 
-from . import runner as runmod                       # noqa: E402
+from. import runner as runmod                       # noqa: E402
 from .client import Ollama, OllamaError              # noqa: E402
 from .plan import Plan, PlanError                    # noqa: E402
 from .sandbox import Scope, Shell                    # noqa: E402

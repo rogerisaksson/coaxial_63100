@@ -122,3 +122,7 @@ dkms.conf
 
 # dbg.py's per-session I/O log - hidden, overwritten each run, never shared
 host/prompt_io.tmp
+
+# Per-run record of how many checks each suite and group last reported.
+# Rewritten by every run; only ever used to say what a narrowed run skipped.
+host/tests/.counts.json

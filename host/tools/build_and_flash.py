@@ -114,7 +114,8 @@ def run(argv, cwd, path):
     started = time.monotonic()
     try:
         done = subprocess.run(argv, cwd=cwd, env=env, capture_output=True,
-                              text=True, timeout=600)
+                              text=True, encoding='utf-8',
+                              errors='replace', timeout=600)
     except subprocess.TimeoutExpired as exc:
         return 1, (exc.stdout or '') + (exc.stderr or ''), time.monotonic() - started
     return done.returncode, (done.stdout or '') + (done.stderr or ''), time.monotonic() - started

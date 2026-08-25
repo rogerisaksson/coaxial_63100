@@ -2,7 +2,7 @@
 
 Asking a model to "answer in the language of the question" makes it do two
 things at once: work out what language that was, and then answer. The first is
-where it drifts. Reported from this bench with `qwen2.5:14b` - a model whose
+where it drifts. Reported from this loop with `qwen2.5:14b` - a model whose
 training leans heavily Chinese - answers came back in Chinese, Japanese and
 Thai to questions that were in none of them. A larger model gets it right more
 often, which is not the same as getting it right.
@@ -50,7 +50,7 @@ SCRIPTS = (
 # questions, and every entry is a chance to collide with another language.
 #
 # 'en' and 'de' are in Swedish's own list even though Dutch also claims them,
-# and that repetition is the point, not an oversight. Measured on this bench:
+# and that repetition is the point, not an oversight. Measured:
 # "ger du mig en tabell over de analoga matvardena?" has only one word from
 # the rest of the Swedish list ('over') against two from Dutch's ('en', 'de'),
 # so Dutch outscored Swedish outright and the model answered in a Dutch/
@@ -192,7 +192,7 @@ def instruction(text):
 
 
 # Language names as they would actually appear when someone asks for one by
-# name - the English word and, for the two this bench is mostly spoken in,
+# name - the English word and, for the two this loop is mostly spoken in,
 # the Swedish word too. Deliberately not exhaustive: this is a trigger for
 # "answer in French" / "svara pa franska", not a translation table, and a
 # name missing from this dict just means that request falls back to being
@@ -301,7 +301,7 @@ GREETINGS = {
 # which is what this fixes.
 #
 # Swedish only, deliberately: English is the fallback and the language of the
-# documents, and a translation nobody at this bench can check is worse than
+# documents, and a translation nobody here can check is worse than
 # no translation. Adding a language is adding a dict.
 PHRASES = {
     'Swedish': {
@@ -523,7 +523,7 @@ def okay(name, encoding=None):
 # nothing here, so the session stayed locked to Swedish and the turn went
 # out under *Answer in Swedish and in no other language* - the host
 # contradicting the operator in the same prompt. The Swedish and English
-# sets are complete because this bench is spoken in those two; the rest
+# sets are complete because this loop is spoken in those two; the rest
 # keep the one verb they already had.
 #
 # The last group asks for no text at all: "byt sprak till svenska" is about

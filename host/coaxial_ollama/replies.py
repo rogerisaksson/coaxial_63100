@@ -11,7 +11,7 @@ function that does it:
   * `is_marker_noise` - the veto that keeps the salvage from turning a
     sentence that merely quotes JSON into a board command.
 
-Every rule in here came from a transcript on this bench, and each one says
+Every rule in here came from a transcript, and each one says
 which. See docs/MODELS.md for the same failures written up at length.
 """
 import json
@@ -20,7 +20,7 @@ import re
 BACKSLASH = chr(92)
 TOOL_TAG = re.compile(r'</?tool_call>', re.I)
 
-# The channel names off the front of an analog_read row: "0  PhaseU  diff ..."
+# The channel names off the front of an analog_read row: "0  PhaseU  diff..."
 # -> 'phaseu'. Anchored on the mode column (diff/SE) rather than just a
 # leading digit, or this matches render.analog's own header line too - "64
 # samples @2000Hz" starts with a number and a word exactly like a row does,
@@ -42,7 +42,7 @@ MAP_ROW = re.compile(r'^\d+\s+\d+\s+\S+\s+\S+\s+(?:diff|SE)\s+(\S+)\s*$',
 # and it is the one field that cannot contain a space.
 DIGITAL_ROW = re.compile(r'^(P[A-K]\d+)\s+(?:in|out|inout)\b', re.M)
 
-# ...and the signal off the same row, because a retyped list quotes
+#...and the signal off the same row, because a retyped list quotes
 # whichever half it read. Measured: the trace said "PB2 out 1 AFE_ON /
 # PE15 in 0 nFAULT" and the answer said "AFE_ON ar 1 och nFAULT ar 0" -
 # every channel named, and not one of them by the pin the pattern above
@@ -57,19 +57,22 @@ DIGITAL_SIGNAL = re.compile(r'^P[A-K]\d+\s+(?:in|out|inout)\s+(?:\d+\s+)?(\S.*?)
 # worth. Below this the override stays out of the way.
 RESTATE_MIN_CHANNELS = 3
 
-# ...and above this many words it is not a restatement whatever it names.
-# A list is short. Every retype measured on this bench: 6, 7, 8, 12, 13,
-# 13 words - the longest being "Har ar de analoga kanalerna: PhaseU,
-# PhaseV, PhaseW, Clevel, NTC, DCbus och Cinj." A description is not: a
-# 43-word answer to "beskriv hardvaran i detta projektet for en novis",
-# naming all seven channels because describing them is the question, was
-# deleted to an empty screen. Twenty separates the two with margin on
-# both sides, and erring long only costs a noisy line where erring short
-# costs the answer.
-RESTATE_MAX_WORDS = 20
+#...and this many words beyond the table before it is saying something
+# of its own. Length alone could not tell the two apart: a per-channel
+# list with indices - "PhaseU (kanal 0)" seven times over - is 26 words
+# and every one of them is a name, a number or glue, while a 45-word
+# description of the same seven channels carries 38 words the table
+# never had. Measured: words outside the table: 3, 6, 8,
+# 12 for the restatements, 38 for the description.
+#
+# Counting what is NOT there rather than how long it is, because the
+# thing being caught is an answer that adds nothing - not a short one.
+RESTATE_MAX_EXTRA = 15
+
+WORDS = re.compile(r'[^\W_]+')
 
 # Two or more pipe-delimited lines, the shape of a markdown table row or its
-# `| :--- |` header separator. Measured on this bench: asked to "tabellera",
+# `| :--- |` header separator. Measured: asked to "tabellera",
 # gemma4:12b wrote the real reading as a markdown table and then hit the
 # --words cap partway through the last row - which meant it had not yet named
 # every channel, so the all-channels-present check below never matched and
@@ -81,7 +84,7 @@ MARKDOWN_TABLE_ROW = re.compile(r'^\s*\|.*\|\s*$', re.M)
 # A tool name distinctive enough that seeing one in prose is real evidence the
 # model described the call it should have made instead of making it - not
 # 'link' or 'docs', ordinary words that turn up in unrelated sentences too
-# often to mean anything. Measured on this bench: asked for a table, gemma4:12b
+# often to mean anything. Measured: asked for a table, gemma4:12b
 # answered "jeg ma utfore en `analog_read`" and stopped there - it knew
 # exactly what to do and did not do it.
 NAMED_TOOL = re.compile(r'\b(analog_read|afe_power|board_info|self_test|'
@@ -112,10 +115,14 @@ def is_retype(answer, channels, minimum=RESTATE_MIN_CHANNELS):
         return False
     if MARKDOWN_TABLE_ROW.search(answer):
         return True
-    # A markdown table is caught above whatever its length: SYSTEM says
-    # never to write one, and a long one is worse than a short one. Past
-    # that, length is what tells a list from an explanation.
-    if len(answer.split()) > RESTATE_MAX_WORDS:
+    # A markdown table is caught above whatever it says: SYSTEM says never
+    # to write one, and a long one is worse than a short one. Past that,
+    # what tells a list from an explanation is how much of the answer the
+    # table did not already contain.
+    words = [w.lower() for w in WORDS.findall(answer)]
+    named = {str(ch).lower() for ch in channels}
+    extra = [w for w in words if w not in named and not w.isdigit()]
+    if len(extra) > RESTATE_MAX_EXTRA:
         return False
     return (len(channels) >= minimum
            and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
@@ -123,7 +130,7 @@ def is_retype(answer, channels, minimum=RESTATE_MIN_CHANNELS):
 
 
 # Words a chat template leaks around a call the model wrote as text instead of
-# in the tool_calls field. Measured on this bench: asked "vad ar temperaturen",
+# in the tool_calls field. Measured: asked "vad ar temperaturen",
 # the model answered 'CallCheckFunction' and a JSON object, twice over, and the
 # prompt printed all four lines as the answer - which reads as the board having
 # stopped giving values. A residue of nothing but these words is still a tool

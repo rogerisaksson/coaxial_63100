@@ -88,7 +88,7 @@ def devices(found, here, interface='unknown'):
                          version.get('device', '?'),
                          version.get('type', ''),
                          version.get('where', ''))).rstrip())
-    return chr(10).join(lines)
+    return '\n'.join(lines)
 
 
 def buses(found, here):
@@ -102,7 +102,7 @@ def buses(found, here):
     for label, serves, count in found:
         lines.append('%-4s %-3s %-16s %d'
                      % (label, '*' if label == here else '', serves, count))
-    return chr(10).join(lines)
+    return '\n'.join(lines)
 
 
 def digital_levels(rows):
@@ -119,7 +119,7 @@ def digital_levels(rows):
         lines.append('%-4s %-5s %-5d %s'
                      % (row['pin'], row['direction'], row['level'],
                         row['signal']))
-    return chr(10).join(lines)
+    return '\n'.join(lines)
 
 
 def board_info(version, clock, channels, digital=None, kind='all'):
@@ -150,7 +150,7 @@ def board_info(version, clock, channels, digital=None, kind='all'):
         lines += digital_map(digital)
     if kind == 'reserved':
         lines += digital_map(digital or (), 'reserved')
-    return chr(10).join(lines)
+    return '\n'.join(lines)
 
 
 # The row, and the header built from the same widths. Written out by hand
@@ -185,12 +185,12 @@ def analog(result, derived):
     for row in result['channels']:
         name = short(row['signal'], row['index'])
         extra = derived.get(row['index'], '')
-        # The parentheses matter: without them .rstrip() binds to the
+        # The parentheses matter: without them.rstrip() binds to the
         # argument tuple rather than to the formatted string.
         lines.append((ANALOG_ROW % (
             row['index'], name, 'diff' if row['differential'] else 'SE',
             row['mean_raw'], row['volts_at_pin'], extra)).rstrip())
-    return chr(10).join(lines)
+    return '\n'.join(lines)
 
 
 def kv(mapping, keys=None):
@@ -261,4 +261,4 @@ def checks(results):
         lines.append(('%s %-20s %s' % (marks.get(check['status'], '?   '),
                                        check['name'],
                                        check['value'] if show else '')).rstrip())
-    return chr(10).join(lines)
+    return '\n'.join(lines)

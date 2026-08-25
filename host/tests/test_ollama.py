@@ -21,13 +21,16 @@ Run from the host directory:  python tests/test_ollama.py
 import io
 import json
 import os
+import random
 import sys
 import tempfile
+import types
 import threading
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import ConnectError, DeviceStateError   # noqa: E402
+from tests import counts                              # noqa: E402
 from coaxial_ollama import plan as planmod                 # noqa: E402
 from coaxial_ollama import replies                       # noqa: E402
 from coaxial_ollama import runner as runmod                # noqa: E402
@@ -406,7 +409,7 @@ def test_board_tools(report):
                  ','.join(record.calls))
     # Labelled rather than refused. A refusal did not stop a fabricated
     # reading, it caused one: with no numbers to report, a model wrote
-    # "Mid-scale ... 25.00 C" straight out of the warning text.
+    # "Mid-scale... 25.00 C" straight out of the warning text.
     report.check('an analog read with the front end off is labelled, not refused',
                  results[0]['result'].startswith('AFE OFF')
                  and 'afe_power on' in results[0]['result'],
@@ -524,40 +527,37 @@ def test_prompt(report):
             return True
 
     text = 'Coaxial_63100'
-    head, tail = 'Coaxial_63', '00'      # text split around its own '1'
 
     screen = Tty()
     face = spin.prompt(text, screen, tick=10)
     written = screen.getvalue()
     face.stop(True)
 
-    report.check("the bar takes the text's own '1', not a character "
-                 'appended after it',
-                 written == '%s%s%s%s%s%s%s%s%s>'
-                 % (spin.OPEN, spin.ROBOT, spin.ICON_WAIT,
-                    spin.CLOSE, head, spin.GREEN, spin.BARS[0], spin.RESET,
-                    tail),
+    report.check('the name is written whole - nothing turns inside it',
+                 written == '%s%s%s%s%s%s%s>'
+                 % (spin.OPEN, spin.ROBOT, spin.ICON_WAIT, spin.CLOSE,
+                    spin.GREEN, text, spin.RESET),
                  ascii(written))
-    report.check("and it rests on '1' itself, so the name reads normally "
-                 'between ticks',
-                 spin.BARS[0] == '1')
+    report.check('and any name at all comes through unsplit',
+                 text in written and 'Coaxial_63100' in written)
 
-    no_digit = spin.prompt('no-ones-here', Tty(), tick=10)
-    report.check("text with no '1' gets the bar appended after it instead, "
-                 'same as the very first version of this',
-                 no_digit.out.real.getvalue().endswith(
-                     'no-ones-here%s%s%s>' % (spin.GREEN, spin.BARS[0],
-                                              spin.RESET)),
-                 ascii(no_digit.out.real.getvalue()))
-    no_digit.stop(True)
+    # The old design span the '1' in the name. It wrote "Coaxial 63-00" and
+    # "Coaxial 63\00" into the operator's transcript, twice, and both times
+    # read as a corrupted board name. Nothing may touch the name now.
+    plain = spin.prompt('no-ones-here', Tty(), tick=10)
+    report.check('a name with no digit is not a special case any more',
+                 plain.out.real.getvalue().endswith(
+                     '%s%s%sno-ones-here%s>'
+                     % (spin.ICON_WAIT, spin.CLOSE, spin.GREEN, spin.RESET)),
+                 ascii(plain.out.real.getvalue()))
+    plain.stop(True)
 
     down = spin.prompt(text, Tty(), tick=10, ok=False)
     down_written = down.out.real.getvalue()
     report.check('a dead link starts with the error icon, red, not waiting',
-                 down_written == '%s%s%s%s%s%s%s%s%s>'
-                 % (spin.OPEN, spin.ROBOT, spin.ICON_ERROR,
-                    spin.CLOSE, head, spin.RED, spin.BARS[0], spin.RESET,
-                    tail),
+                 down_written == '%s%s%s%s%s%s%s>'
+                 % (spin.OPEN, spin.ROBOT, spin.ICON_ERROR, spin.CLOSE,
+                    spin.RED, text, spin.RESET),
                  ascii(down_written))
     down.stop(False)
 
@@ -571,7 +571,7 @@ def test_prompt(report):
     after_busy = live.getvalue()
     report.check('busy() turns yellow, switches to the busy icon and '
                  'targets one row up',
-                 face.color == spin.YELLOW and face.icon == spin.ICON_BUSY
+                 face.color == spin.YELLOW and face.busy_now
                  and face.rows_up == 1)
     added_busy = after_busy[len(before):]
     report.check('busy() repaints the whole group at once, from column 1 - '
@@ -579,11 +579,12 @@ def test_prompt(report):
                  added_busy == spin.SAVE + (spin.UP % 1) + '\r'
                  + face._prefix() + spin.RESTORE,
                  ascii(added_busy))
-    report.check('and the rewritten prefix carries the busy icon and the '
-                 "bar's new colour - the icon's own shape is the signal, "
-                 'not a colour on top of it',
-                 spin.ICON_BUSY in face._prefix()
-                 and spin.YELLOW in face._prefix())
+    report.check('and the rewritten prefix turns the icon and goes yellow '
+                 "- the glyph's own shape is the signal, not a colour on "
+                 'top of it',
+                 any(f in face._prefix() for f in spin.SPIN)
+                 and spin.YELLOW in face._prefix()
+                 and spin.ICON_WAIT not in face._prefix())
 
     face.stop(True)
     after_stop = live.getvalue()
@@ -611,11 +612,10 @@ def test_prompt(report):
     mid_spin.frame = 2       # as if the bar had ticked to '-' before stop()
     mid_spin.busy()
     mid_spin.stop(True)
-    expected = '%s%s%s%s%s%s%s%s' % (spin.OPEN, spin.ROBOT, spin.ICON_WAIT,
-                                     spin.CLOSE, head, spin.GREEN,
-                                     spin.BARS[0], spin.RESET)
-    report.check("stop() rests the bar back on the text's own '1', not "
-                 'whatever frame the ticker had drifted to',
+    expected = '%s%s%s%s%s%s%s' % (spin.OPEN, spin.ROBOT, spin.ICON_WAIT,
+                                   spin.CLOSE, spin.GREEN, text, spin.RESET)
+    report.check('stop() puts a state icon back, not whatever frame the '
+                 'ticker had drifted to',
                  mid_spin._prefix() == expected, ascii(mid_spin._prefix()))
 
     same_row = Tty()
@@ -749,24 +749,26 @@ def test_prompt(report):
                  and spin.ICON_WAIT == '\U0001F4A4'
                  and spin.ICON_ERROR == '❌'
                  and len(spin.ICON_WAIT) == len(spin.ICON_ERROR) == 1)
-    # The gear is the exception, and a deliberate one: asked for by name
-    # because it says "working" where an hourglass says "waiting".
-    # U+2699 is text-presentation, so it needs the U+FE0F the other three
-    # do not - which is the forced-colour case measured as uneven spacing.
-    # Asserted as it is so the trade stays visible, not asserted away.
-    report.check('the busy icon is the gear, selector and all',
-                 spin.ICON_BUSY == '\u2699\ufe0f',
-                 spin.ICON_BUSY.encode('unicode_escape').decode())
-    report.check('and it is the only one carrying a selector',
-                 not any('\ufe0f' in icon for icon in
-                         (spin.ROBOT, spin.ICON_WAIT, spin.ICON_ERROR)))
+    # No selector anywhere: a forced-colour glyph can sit at a different
+    # advance width than a native one, which reads as uneven spacing
+    # beside the others. The gear that used to mark "busy" needed one;
+    # the moon frames that replaced it do not, and they turn.
+    report.check('no glyph here is forced into colour with a selector',
+                 not any(chr(0xFE0F) in g for g in
+                         (spin.ROBOT, spin.ICON_WAIT, spin.ICON_ERROR)
+                         + spin.SPIN))
     report.check('none of that matters for positioning any more - every '
                  'repaint rewrites from column 1, not a computed one',
                  not hasattr(face, 'icon_column')
                  and not hasattr(face, 'bar_column'))
-    report.check('the bar is plain ASCII - no width question to inherit '
-                 'in the first place',
-                 all(len(b) == 1 and ord(b) < 128 for b in spin.BARS))
+    report.check('every spin frame is one glyph, so the group keeps its '
+                 'width while it turns',
+                 all(len(f) == 1 for f in spin.SPIN)
+                 and all(len(f) == 1 and ord(f) < 128
+                         for f in spin.SPIN_FALLBACK))
+    report.check('and the turning frames are the same kind of glyph as the '
+                 'icon they replace - no width step mid-tick',
+                 len(spin.SPIN[0]) == len(spin.ICON_WAIT))
     report.check('the guillemets are cp1252, not something else risking a '
                  'question mark of their own',
                  spin.OPEN.encode('cp1252') == b'\xab'
@@ -803,7 +805,7 @@ def test_prompt(report):
 
     # A pipe has no cursor to save: one static prompt, no escapes, no thread -
     # busy()/stop() change state but paint nothing further. It has no
-    # .encoding either, so it gets the ASCII fallback same as Ascii() does,
+    #.encoding either, so it gets the ASCII fallback same as Ascii() does,
     # brackets included.
     piped = io.StringIO()
     quiet = spin.prompt(text, piped, tick=10)
@@ -811,11 +813,10 @@ def test_prompt(report):
     quiet.busy()
     quiet.stop(False)
     report.check('a redirected prompt is static and escape-free',
-                 before_pipe == '%s%s%s%s%s%s%s%s%s>'
+                 before_pipe == '%s%s%s%s%s%s%s>'
                  % (spin.OPEN_FALLBACK, spin.ROBOT_FALLBACK,
-                    spin.ICON_WAIT_FALLBACK,
-                    spin.CLOSE_FALLBACK, head, spin.GREEN, spin.BARS[0],
-                    spin.RESET, tail),
+                    spin.ICON_WAIT_FALLBACK, spin.CLOSE_FALLBACK,
+                    spin.GREEN, text, spin.RESET),
                  repr(before_pipe))
     report.check('and busy()/stop() on a redirected stream paint nothing '
                  'further',
@@ -1164,9 +1165,26 @@ def test_map_retype(report):
                  turn(described) == described,
                  '%d words -> %s' % (len(described.split()),
                                      'kept' if turn(described) else 'DELETED'))
-    report.check('and the bar is where the measurements put it',
-                 repliesmod.RESTATE_MAX_WORDS == 20,
-                 str(repliesmod.RESTATE_MAX_WORDS))
+
+    # Length alone could not tell the two apart, and a bar set on it let a
+    # real one through: "Har ar de analoga kanalerna: - PhaseU (kanal 0)"
+    # seven times over is 26 words and every one of them is a name, a
+    # number or glue. What is counted is the words the table did NOT
+    # already contain - 3, 6, 8 and 12 for the restatements measured here,
+    # 38 for the description.
+    per_channel = ('Här är de analoga kanalerna:' + chr(10)
+                   + chr(10).join('- %s (kanal %d)' % (n, i) for i, n in
+                                  enumerate(['PhaseU', 'PhaseV', 'PhaseW',
+                                             'Clevel', 'NTC', 'DCbus',
+                                             'Cinj'])))
+    report.check('a list with an index per channel is still a restatement',
+                 turn(per_channel) == '',
+                 '%d words -> %r' % (len(per_channel.split()),
+                                     turn(per_channel)[:20]))
+    report.check('and the bar counts what is not in the table, not length',
+                 repliesmod.RESTATE_MAX_EXTRA == 15
+                 and not hasattr(repliesmod, 'RESTATE_MAX_WORDS'),
+                 str(repliesmod.RESTATE_MAX_EXTRA))
 
     # A markdown table is caught whatever its length - SYSTEM says never to
     # write one, and a long one is worse than a short one.
@@ -1882,7 +1900,7 @@ def test_link_recovery(report):
         {'role': 'assistant', 'content': ''},
     ]), box, out=screen)
     talk.toolbox = box                      # the fake stands in for both
-    # Not "byt till ..." any more: board_switch intercepts that before the
+    # Not "byt till..." any more: board_switch intercepts that before the
     # model is reached, and this needs a question that actually runs a turn.
     answer = talk.ask('vad läser NTC:n?')
     whole = screen.getvalue() + chr(10) + answer
@@ -2264,7 +2282,7 @@ def test_debug(report):
     report.check('and the link is marked up again from that check alone',
                  recovered.link_ok is True)
 
-    # ---- ...and if it is still down, the fresh check says so, not the model --
+    # ----...and if it is still down, the fresh check says so, not the model --
     stuck_recover_session = SimulatedSession()
     stuck_recover_box = toolmod.Toolbox(stuck_recover_session,
                                         shell=Shell(['python']), scope=Scope())
@@ -2300,7 +2318,7 @@ def test_debug(report):
                  answer.startswith('link is down, not answered:')
                  and blank.link_ok is False, answer)
 
-    # ---- ...and if the link turns out fine, the model gets a real turn ----
+    # ----...and if the link turns out fine, the model gets a real turn ----
     blank_ok_session = SimulatedSession()
     blank_ok_box = toolmod.Toolbox(blank_ok_session, shell=Shell(['python']),
                                    scope=Scope())
@@ -2320,7 +2338,7 @@ def test_debug(report):
                  ok_hits == ['link', 'analog_read'] and blank_ok.link_ok is True,
                  ok_hits)
 
-    # ---- ...but an unrelated question with no call is never touched ----
+    # ----...but an unrelated question with no call is never touched ----
     # Measured on this bench: link_ok can start False from the startup probe
     # alone, before any question at all - and without this gate, a plain "vad
     # ar 2+2" with no call and a perfectly good answer got discarded and
@@ -2370,7 +2388,7 @@ def test_debug(report):
                  and 'samples @' in first_blank_out.getvalue(),
                  first_blank_out.getvalue())
 
-    # ---- ...and if the board really is down from the start, that is what
+    # ----...and if the board really is down from the start, that is what
     # gets reported - not silence.
     first_blank_down_session = SimulatedSession()
     first_blank_down_box = toolmod.Toolbox(first_blank_down_session,
@@ -2404,7 +2422,7 @@ def test_debug(report):
     report.check('a narrated tool name is nudged into an actual call',
                  narrate_hits == ['afe_power', 'analog_read'], narrate_hits)
 
-    # ---- ...but nudging is not an open invitation to loop forever ----
+    # ----...but nudging is not an open invitation to loop forever ----
     stuck_narrate_session = SimulatedSession()
     stuck_narrate_box = toolmod.Toolbox(stuck_narrate_session,
                                         shell=Shell(['python']), scope=Scope())
@@ -2459,7 +2477,7 @@ def test_debug(report):
     report.check('the model is told plainly rather than shown the same line',
                  'unchanged this turn' in json.dumps(spam.history))
 
-    # ---- ...but a dedup cannot launder a failure back into a success ------
+    # ----...but a dedup cannot launder a failure back into a success ------
     stuck_session = SimulatedSession()
     stuck_box = toolmod.Toolbox(stuck_session, shell=Shell(['python']),
                                 scope=Scope())
@@ -2578,7 +2596,7 @@ def test_debug(report):
                  'nudged into a real one',
                  skip_hits == ['link', 'analog_read'], skip_hits)
 
-    # ...and when the board really is unreachable, that refusal says so -
+    #...and when the board really is unreachable, that refusal says so -
     # measured here: the generic "ask again" line was itself the complaint,
     # on a bench where the honest answer was "not connected or not powered".
     unplugged_session = SimulatedSession()
@@ -3197,7 +3215,7 @@ def test_fallback(report):
             ('vad är debugproben?', None),
             ('vilket läge är du i?', None),
             ('vet du om kortet svarar?', None),
-            # ...and so does a second request the host cannot carry out.
+            #...and so does a second request the host cannot carry out.
             ('byt till simulerat läge och läs NTC:n', None),
             ('byt till proben och mät NTC:n', None),
             ('byt språk till svenska', None),
@@ -3222,7 +3240,7 @@ def test_fallback(report):
                                         'errors': 'replace'},
                  str(_NotATty.asked))
 
-    # ...and it reaches the swap, without a model turn.
+    #...and it reaches the swap, without a model turn.
     ordered = debug.Chat.__new__(debug.Chat)
     ordered.toolbox = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     ordered.origin, ordered.link_ok = ('Simulated', False), False
@@ -4222,23 +4240,49 @@ def test_docs(report):
     report.check('the index says how to go deeper',
                  'section=' in index and 'find=' in index)
 
+    # Headings are read out of the document rather than spelled here. Twice
+    # now, editing MODELS.md failed this test for renaming a section - which
+    # says nothing about the tool, and is exactly what it is not for.
+    import re as _re
+    text = io.open(os.path.join(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))), 'docs', 'MODELS.md'),
+        encoding='utf-8').read()
+    heads = [(len(m.group(1)), m.group(2).strip())
+             for m in _re.finditer(r'^(#{2,3}) (.+)$', text, _re.M)]
+    # The first chapter that actually has a subsection - the first chapter
+    # in the file need not, and asserting a parent carries children against
+    # one with none proves nothing.
+    at = next(i for i, (lvl, _) in enumerate(heads)
+              if lvl == 2 and i + 1 < len(heads) and heads[i + 1][0] == 3)
+    chapter = heads[at][1]
+    child = heads[at + 1][1]
+    after = next((h for lvl, h in heads[at + 1:] if lvl == 2), None)
+
     outline = docmod.docs(doc='MODELS')
     report.check('one document lists its own headings',
-                 'Threads' in outline and 'Why a local model at all' in outline)
+                 chapter in outline and (child or chapter) in outline,
+                 '%r / %r' % (chapter, child))
 
-    body = docmod.docs(doc='MODELS', section='Threads')
-    report.check('a section returns its text', 'bandwidth-bound' in body)
+    deep = next(h for lvl, h in heads if lvl == 3)
+    body = docmod.docs(doc='MODELS', section=deep)
+    report.check('a section returns its text', len(body) > len(deep) + 40)
+    later = next((h for lvl, h in heads[[i for i, (_, x)
+                                         in enumerate(heads)
+                                         if x == deep][0] + 1:] if lvl == 3),
+                 None)
     report.check('a section stops at the next heading of its level',
-                 'Keeping the model loaded' not in body)
+                 later is None or later not in body, '%r' % later)
 
     # A parent section keeps its children: asking for the chapter should not
     # silently return only its first paragraph.
-    parent = docmod.docs(doc='MODELS', section='Which tag, and who decides')
+    parent = docmod.docs(doc='MODELS', section=chapter)
     report.check('a parent section carries its subsections',
-                 'Threads' in parent or 'clipped' in parent)
+                 child is None or child in parent or 'clipped' in parent)
+    report.check('and stops at the next chapter',
+                 after is None or after not in parent, '%r' % after)
 
     report.check('heading matching is loose enough to be usable',
-                 'bandwidth-bound' in docmod.docs(doc='MODELS', section='threads'))
+                 docmod.docs(doc='MODELS', section=deep.lower()) == body)
 
     # The AFE number is the one a weak model invents. It has to be findable.
     hits = docmod.docs(find='25.00')
@@ -4329,7 +4373,7 @@ def test_docs(report):
                  'the question itself is written in the locked language',
                  talk.language == 'English', talk.language)
 
-    # Measured at the prompt: "forklara pa japanska ..." named a language
+    # Measured at the prompt: "forklara pa japanska..." named a language
     # next to a verb that was not in the list, so the request was missed and
     # the turn went out under *Answer in Swedish and in no other language* -
     # the host contradicting the operator in the same system prompt. The
@@ -4341,7 +4385,7 @@ def test_docs(report):
     report.check('a language asked for with a verb other than "answer" is '
                  'still a request', 'in Japanese' in head, talk.language)
 
-    # ...and it is that turn's request, not a new session language: the next
+    #...and it is that turn's request, not a new session language: the next
     # Swedish question takes the lock straight back.
     talk.history = [{'role': 'user', 'content': 'och vad läser NTC:n nu?'}]
     talk.trim()
@@ -4375,7 +4419,7 @@ def test_docs(report):
         report.check('asking for a language plainly: %s' % question[:30],
                      got == expect, str(got))
 
-    # ...and the model is told the same thing, for the phrasing the host
+    #...and the model is told the same thing, for the phrasing the host
     # misses next. The refusal above was the host and the operator
     # contradicting each other with the model in the middle.
     report.check('an explicit request overrides the lock in the prompt too',
@@ -4408,7 +4452,7 @@ def test_docs(report):
     report.check('an alphabet the console lacks falls back to English',
                  plain.ask('byt språk till japanska') == 'Okay')
 
-    # ...but a request with a question attached is still the model's turn,
+    #...but a request with a question attached is still the model's turn,
     # in the new language. This is the line between the two.
     asked_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     with_question = debug.Chat(ScriptedModel([
@@ -4522,8 +4566,14 @@ def test_docs(report):
     report.check('SYSTEM does not tell the model a list is a reading',
                  'table or list' not in debug.SYSTEM,
                  [l for l in debug.SYSTEM.splitlines() if 'analog_read' in l][:1])
-    report.check('it names board_info for listing channels',
-                 'list of channels is board_info' in debug.SYSTEM)
+    # The rule, not the sentence: board_info owns the map, and "list" is
+    # named as the word that decides nothing. Pinning the old wording
+    # instead failed the rewrite that fixed "ge mig en lista over de
+    # analoga vardena", which is the opposite of what this is for.
+    report.check('it names board_info as the map, and disowns "list"',
+                 'board_info' in debug.SYSTEM
+                 and 'never "list"' in debug.SYSTEM,
+                 [l for l in debug.SYSTEM.splitlines() if 'board_info' in l])
     report.check('and digital_read for a pin, beside analog_read',
                  'digital_read' in debug.SYSTEM and 'analog_read' in debug.SYSTEM)
     report.check('and a read with AFE off is never framed as impossible',
@@ -4542,30 +4592,493 @@ def test_docs(report):
                  and 'docs' in debug.SETS['all'])
 
 
-def main():
+def test_picker(r):
+    """tools/pick_tests.py - the model picks subjects, this checks the frame.
+
+    Not what the model answers: that is its job and it changes per model.
+    What is checked is every way its answer can be useless, because each one
+    has to land on "run everything" and a picker that silently narrows on a
+    reply it did not understand is worse than no picker.
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), 'tools'))
+    import pick_tests
+
+    # Not `is`: run as __main__ this file is imported a second time under
+    # its real name, so the picker holds an equal dict, not the same one.
+    r.check('the catalogue the model is shown is the one the tests carry',
+            pick_tests.TAGS == TAGS, repr(sorted(pick_tests.TAGS)))
+
+    j = json.dumps
+    for name, reply, want, note in (
+            ('two known tags', j({'tags': ['render', 'reply'], 'why': 'x'}),
+             ['render', 'reply'], None),
+            ('one unknown, kept and reported',
+             j({'tags': ['render', 'nosuch']}), ['render'], 'dropped'),
+            ('all unknown', j({'tags': ['nosuch']}), None, 'no subject'),
+            ('not JSON at all', 'sure, I would run the render tests', None,
+             'not the JSON'),
+            ('empty list', j({'tags': []}), None, 'nothing at all'),
+            ('every subject is the same as none',
+             j({'tags': sorted(TAGS)}), None, 'every subject'),
+    ):
+        tags, why = pick_tests.parse(reply)
+        r.check('parse: %s -> %s' % (name, want or 'run everything'),
+                tags == want and (note is None or note in why),
+                'got %r / %r' % (tags, why))
+
+    # Case and whitespace: a model that answers "Render" has still answered.
+    tags, _ = pick_tests.parse(j({'tags': [' Render ', 'REPLY']}))
+    r.check('parse: a tag is a tag whatever its case or padding',
+            tags == ['render', 'reply'], repr(tags))
+
+    long = ('diff --git a/host/coaxial_ollama/replies.py b/x\n'
+            + 'x' * 9000 + '\ndiff --git a/host/tests/test_ollama.py b/y\n')
+    cut = pick_tests.clip(long, 200)
+    r.check('clip keeps the head, where the file names are',
+            cut.startswith('diff --git a/host/coaxial_ollama/replies.py')
+            and 'more characters of diff' in cut and len(cut) < 300)
+    r.check('a diff that fits is passed through untouched',
+            pick_tests.clip('short', 200) == 'short')
+
+    # No ollama, no answer, no narrowing. The import inside pick() is what
+    # this substitutes, so the failure lands exactly where a missing daemon
+    # would put it.
+    real = sys.modules.get('coaxial_ollama.client')
+    broken = types.ModuleType('coaxial_ollama.client')
+
+    def explode(*a, **k):
+        raise OSError('connection refused')
+    broken.Ollama = explode
+    sys.modules['coaxial_ollama.client'] = broken
+    try:
+        tags, why = pick_tests.pick(against='HEAD')
+    finally:
+        if real is None:
+            sys.modules.pop('coaxial_ollama.client', None)
+        else:
+            sys.modules['coaxial_ollama.client'] = real
+    r.check('ollama unreachable runs everything, and says why',
+            tags is None and 'connection refused' in why, repr(why))
+
+
+def test_tag_roster(r):
+    """The tags, the roster, and the random draw that covers the pick's gaps."""
+    named = {t for _, marks in ROSTER for t in marks}
+    r.check('every tag on the roster is in the catalogue',
+            not (named - set(TAGS)), repr(sorted(named - set(TAGS))))
+    r.check('every catalogue tag is on some test',
+            not (set(TAGS) - named), repr(sorted(set(TAGS) - named)))
+
+    here = {v for k, v in sorted(globals().items())
+            if k.startswith('test_') and callable(v)}
+    listed = {t for t, _ in ROSTER}
+    r.check('every test in this file is on the roster (%d)' % len(here),
+            not (here - listed),
+            repr(sorted(f.__name__ for f in here - listed)))
+    r.check('the roster names no test that is gone',
+            not (listed - here),
+            repr(sorted(f.__name__ for f in listed - here)))
+    r.check('no test is listed twice', len(ROSTER) == len(listed))
+
+    # The draw exists because the picker can be wrong the expensive way -
+    # by not thinking of a subject at all. One test per uncovered subject,
+    # and that floor holds whatever the coverage budget says.
+    marks_of = dict(ROSTER)
+    chosen = select({'reply'}, seed=1)
+    covered = {t for t, marks in ROSTER if 'reply' in marks}
+    r.check('the pick itself is in the run', covered <= chosen)
+    reached = {tag for f in chosen for tag in marks_of[f]}
+    r.check('and every subject is reached, not just the picked one',
+            set(TAGS) <= reached, repr(sorted(set(TAGS) - reached)))
+    r.check('the same seed selects the same tests',
+            select({'reply'}, 1) == select({'reply'}, 1))
+    r.check('no pick means no selection - the whole file runs',
+            select(set(), 1) == set())
+
+    sizes = counts.load().get('groups') or {}
+    if sizes:
+        whole = float(sum(sizes.values()))
+        for pct in (25, 50, 75):
+            got = select({'reply'}, 1, pct)
+            share = 100.0 * sum(sizes.get(t.__name__, 0) for t in got) / whole
+            r.check('%d%% asks for %d%% of the checks' % (pct, pct),
+                    abs(share - pct) <= 12, '%.0f%%' % share)
+        r.check('a budget cuts as well as fills',
+                len(select({'reply'}, 1, 25)) < len(select({'reply'}, 1, 75)))
+        floor = select({'reply'}, 1, 1)
+        r.check('and never below one test per uncovered subject',
+                {tag for f in floor for tag in marks_of[f]} >= set(TAGS),
+                repr(sorted(set(TAGS) - {tag for f in floor
+                                         for tag in marks_of[f]})))
+
+
+def test_intent(r):
+    """The intent pass: classify first, answer second.
+
+    What is checked is the compiler's frame, not the model's judgement -
+    every way the extra call can fail has to leave the turn exactly as it
+    was before the pass existed, because a hint that is wrong and insistent
+    is worse than no hint.
+    """
+    from coaxial.simulated import SimulatedSession as Sim
+    from coaxial_ollama import debug
+    from coaxial_ollama import intent
+
+    j = json.dumps
+    for name, reply, want in (
+            ('an intent and a kind', j({'intent': 'read', 'kind': 'analog',
+                                        'why': 'values'}),
+             ('read', 'analog')),
+            ('a missing kind is none', j({'intent': 'words'}),
+             ('words', 'none')),
+            ('a kind outside the enum falls back to none',
+             j({'intent': 'map', 'kind': 'sideways'}), ('map', 'none')),
+            ('an intent this file has no name for',
+             j({'intent': 'frobnicate', 'kind': 'analog'}), (None, None)),
+            ('not JSON at all', 'I think they want a reading', (None, None)),
+            ('nothing at all', j({}), (None, None)),
+    ):
+        got, kind, why = intent.parse(reply)
+        r.check('parse: %s' % name, (got, kind) == want,
+                '%r / %r / %r' % (got, kind, why))
+
+    r.check('every intent has a tool or a reason not to',
+            all(intent.tool_for(name, 'none') is not None
+                or name in ('words', 'control') for name in intent.INTENTS))
+    r.check('every intent has a phrase the hint can say',
+            set(intent.SAYS) == set(intent.INTENTS))
+    r.check('the schema offers exactly the intents this file has',
+            intent.SCHEMA['properties']['intent']['enum']
+            == sorted(intent.INTENTS))
+    r.check('and exactly the kinds',
+            intent.SCHEMA['properties']['kind']['enum'] == list(intent.KINDS))
+
+    # The axis that caused this module: same intent, different kind, and the
+    # kind is what picks the tool.
+    r.check('read+analog is analog_read',
+            intent.tool_for('read', 'analog') == 'analog_read')
+    r.check('read+digital is digital_read',
+            intent.tool_for('read', 'digital') == 'digital_read')
+    r.check('read+both names both calls',
+            intent.tool_for('read', 'both') == 'analog_read and digital_read')
+    r.check('map is board_info whatever the kind',
+            {intent.tool_for('map', k) for k in intent.KINDS} == {'board_info'})
+    r.check('words names no tool at all',
+            intent.tool_for('words', 'none') is None)
+
+    r.check('the hint names the tool it wants called',
+            'analog_read' in intent.hint('read', 'analog'))
+    r.check('and for words it says no call is needed',
+            'no board call' in intent.hint('words', 'none')
+            and 'board_info' not in intent.hint('words', 'none'))
+    r.check('no intent means no hint at all',
+            intent.hint(None, 'none') == '')
+
+    # The persistence rule, pinned. ollama keys a loaded runner on num_ctx,
+    # so a second client asking for the same tag at a different window
+    # unloads and reloads the weights - measured at once per question when
+    # this module built its own Ollama. The compile must go through the
+    # turn's own client, with only per-request fields overridden.
+    class Recorder(object):
+        model = 'gemma4:12b'
+        options = {'num_ctx': 8192, 'temperature': 0.0}
+
+        def __init__(self):
+            self.seen = []
+
+        def chat(self, messages, tools=None, **kw):
+            self.seen.append((messages, tools, kw))
+            return {'content': json.dumps({'intent': 'read',
+                                           'kind': 'analog'})}
+
+    rec = Recorder()
+    built = []
+    from coaxial_ollama import client as clientmod
+    was = clientmod.Ollama
+
+    class Loud(object):
+        def __init__(self, *a, **kw):
+            built.append((a, kw))
+            raise AssertionError('a second client is a model reload')
+    clientmod.Ollama = Loud
+    try:
+        got, kind, _ = intent.compile_intent(rec, 'ge mig de analoga värdena')
+    finally:
+        clientmod.Ollama = was
+    r.check('the compile builds no second client', not built, repr(built))
+    r.check("it goes through the turn's own client", len(rec.seen) == 1)
+    r.check('and it still classified', (got, kind) == ('read', 'analog'))
+    _, tools, kw = rec.seen[0]
+    r.check('with the schema, no thinking and a small budget',
+            kw.get('fmt') is intent.SCHEMA and kw.get('think') is False
+            and 0 < kw.get('num_predict', 0) <= 200, repr(kw))
+    r.check('and no tools - it classifies, it does not call',
+            not tools)
+    r.check('the window is never touched',
+            rec.options == {'num_ctx': 8192, 'temperature': 0.0})
+
+    # An unreachable daemon must leave the turn untouched, not raise into it.
+    class Dead(object):
+        model = 'gemma4:12b'
+
+        def chat(self, *a, **k):
+            raise OSError('connection refused')
+
+    real = sys.modules.get('coaxial_ollama.client')
+    broken = types.ModuleType('coaxial_ollama.client')
+
+    def explode(*a, **k):
+        raise OSError('connection refused')
+    broken.Ollama = explode
+    sys.modules['coaxial_ollama.client'] = broken
+    try:
+        got, kind, why = intent.compile_intent(Dead(), 'read the NTC')
+    finally:
+        if real is None:
+            sys.modules.pop('coaxial_ollama.client', None)
+        else:
+            sys.modules['coaxial_ollama.client'] = real
+    r.check('ollama unreachable compiles to nothing, and says why',
+            got is None and 'connection refused' in why, repr(why))
+    r.check('an empty question is not sent anywhere',
+            intent.compile_intent(Dead(), '   ')[0] is None)
+
+    # And the turn itself: off by default, hint reaches the system message
+    # when it is on, and a failed compile changes nothing.
+    chat = debug.Chat(ScriptedModel([]),
+                      toolmod.Toolbox(Sim(), scope=Scope()),
+                      out=io.StringIO())
+    r.check('the pass is off unless something turns it on',
+            chat.compile_intent is False)
+    r.check('off means no second call and no hint',
+            chat._compile('ge mig de analoga värdena') == '')
+
+    chat.compile_intent = True
+    chat.client = Dead()
+    sys.modules['coaxial_ollama.client'] = broken
+    try:
+        # Through the swap, not just past it: without this the check reaches
+        # a running daemon and loads 7.6 GB inside an offline suite.
+        blank = chat._compile('ge mig de analoga värdena')
+    finally:
+        if real is None:
+            sys.modules.pop('coaxial_ollama.client', None)
+        else:
+            sys.modules['coaxial_ollama.client'] = real
+    r.check('on, but unreachable, is still no hint', blank == '',
+            repr(chat._intent_why))
+
+    chat.compile_intent = False
+    chat.intent = intent.hint('read', 'digital')
+    sent = chat.trim()
+    r.check('the compiled hint reaches the system message',
+            'digital_read' in sent[0]['content'], sent[0]['content'][-160:])
+    r.check('and the question itself is never rewritten',
+            all('asking for' not in (m.get('content') or '')
+                for m in sent[1:]))
+
+
+# Every test in this file, and what it is about. A tag is a subject, not a
+# module: `run_tests.py --smart` asks the local model which subjects a diff
+# can have broken, and a model choosing between forty function names would
+# be guessing at what they mean.
+#
+# Keep the list short. Nine subjects is something a model can hold and an
+# operator can read; thirty would be the file list again with extra steps.
+TAGS = {
+    'prompt':   'SYSTEM, the per-turn hints, what the model is told',
+    'tools':    'the tool surface: schemas, arguments, which tool answers what',
+    'reply':    'what an answer means: retypes, blank answers, nudges',
+    'language': 'the session language, its lock, and the phrase table',
+    'render':   'how a result reaches the screen: columns, blocks, clipping',
+    'board':    'the board, its channels, its pins, the AFE',
+    'bus':      'nodes, segments, unit ids, broadcast',
+    'link':     'the serial link: ports, probing, diagnosis, recovery',
+    'runner':   'the plan runner, the sandbox, and the test tooling itself',
+}
+
+ROSTER = (
+    # (function, tags)
+    (test_plan,                     ('runner',)),
+    (test_verdicts,                 ('runner',)),
+    (test_model_never_sees_limits,  ('runner', 'prompt')),
+    (test_misbehaviour,             ('runner', 'reply')),
+    (test_board_tools,              ('tools', 'board')),
+    (test_scope,                    ('runner',)),
+    (test_shell,                    ('runner',)),
+    (test_scope_repairs,            ('runner',)),
+    (test_prompt,                   ('prompt', 'tools')),
+    (test_policy,                   ('prompt', 'board')),
+    (test_link_diagnose,            ('link',)),
+    (test_link_recovery,            ('link', 'reply')),
+    (test_channel_map,              ('board', 'bus')),
+    (test_bus,                      ('bus', 'tools')),
+    (test_corrections_are_reported, ('tools', 'prompt')),
+    (test_smart_selection,          ('runner',)),
+    (test_afe_trace,                ('board', 'render')),
+    (test_reading_block,            ('render',)),
+    (test_digital_read,             ('board', 'tools')),
+    (test_map_sections,             ('render', 'board')),
+    (test_map_retype,               ('reply', 'render')),
+    (test_port_state,               ('link',)),
+    (test_retype_with_the_trace_off, ('reply',)),
+    (test_power_check_cannot_halt,  ('link',)),
+    (test_transcript,               ('runner',)),
+    (test_debug,                    ('tools', 'reply')),
+    (test_cli,                      ('runner',)),
+    (test_local_only,               ('runner',)),
+    (test_runner_crash_retry,       ('runner',)),
+    (test_out_of_memory,            ('runner',)),
+    (test_context_budget,           ('prompt',)),
+    (test_detail,                   ('tools', 'prompt')),
+    (test_screen,                   ('render', 'link')),
+    (test_screen_language,          ('language', 'render')),
+    (test_fallback,                 ('link', 'bus')),
+    (test_identity,                 ('prompt',)),
+    (test_keep_alive,               ('runner',)),
+    (test_coerce,                   ('tools',)),
+    (test_capability,               ('runner',)),
+    (test_docs,                     ('tools', 'runner')),
+    (test_intent,                   ('prompt', 'tools')),
+    (test_picker,                   ('runner',)),
+    (test_tag_roster,               ('runner',)),
+)
+
+
+def select(chosen, seed, coverage=None):
+    """Which tests to run, as a set. Empty means the whole file.
+
+    Three claims on the budget, in order, because they are not equally
+    valuable:
+
+    1. **One test from every subject the pick left out, and the smallest
+       group from the pick itself.** The picker is a model and can be wrong
+       the expensive way, by not thinking of a subject at all. This is the
+       floor - if it alone overshoots the target it still runs, and the
+       printed percentage says so.
+    2. **The picked subjects**, largest group first, until the budget is spent.
+    3. **Whatever else fits**, drawn at random from the remainder.
+
+    Sizes come from counts.py, so a percentage is of checks, not of groups:
+    the groups run from 2 checks to 77, and half the groups is not half the
+    coverage. With nothing measured yet, the pick runs whole.
+    """
+    if not chosen:
+        return set()
+    rng = random.Random(seed)
+    drawn = set()
+    for tag in sorted(set(TAGS) - chosen):
+        pool = [t for t, marks in ROSTER
+                if tag in marks and not (chosen & set(marks))]
+        if pool:
+            drawn.add(rng.choice(pool))
+
+    picked = {t for t, marks in ROSTER if chosen & set(marks)}
+    sizes = counts.load().get('groups') or {}
+    if not coverage or not sizes:
+        return drawn | picked
+
+    def cost(test):
+        return sizes.get(test.__name__, 0)
+
+    target = sum(sizes.values()) * coverage / 100.0
+    keep = set(drawn)
+    # The smallest picked group joins the floor unconditionally. A budget so
+    # tight that the *relevant* subject drops out entirely runs everything
+    # except the thing that changed, which is the one useless run.
+    if picked:
+        keep.add(min(picked, key=cost))
+    have = sum(cost(t) for t in keep)
+    for test in sorted(picked, key=cost, reverse=True):
+        if have >= target:
+            break
+        keep.add(test)
+        have += cost(test)
+    rest = [t for t, _ in ROSTER if t not in keep]
+    rng.shuffle(rest)
+    for test in sorted(rest, key=cost, reverse=True):
+        if have >= target:
+            break
+        keep.add(test)
+        have += cost(test)
+    return keep
+
+
+def main(tags=None, seed=None, coverage=None, only=None):
     report = Report()
-    for test in (test_plan, test_verdicts, test_model_never_sees_limits,
-                 test_misbehaviour, test_board_tools, test_scope, test_shell,
-                 test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_link_recovery, test_channel_map, test_bus, test_corrections_are_reported,
-                 test_smart_selection, test_afe_trace, test_reading_block, test_digital_read, test_map_sections, test_map_retype, test_port_state,
-                 test_retype_with_the_trace_off,
-                 test_power_check_cannot_halt,
-                 test_transcript,
-                 test_debug, test_cli,
-                 test_local_only, test_runner_crash_retry,
-                 test_out_of_memory, test_context_budget, test_detail,
-                 test_screen, test_screen_language, test_fallback,
-                 test_identity,
-                 test_keep_alive,
-                 test_coerce,
-                 test_capability, test_docs):
+    chosen = {t.strip() for t in (tags or '').split(',') if t.strip()}
+    unknown = chosen - set(TAGS)
+    if unknown:
+        print('unknown tag(s): %s' % ', '.join(sorted(unknown)))
+        print('have: %s' % ', '.join(sorted(TAGS)))
+        return 2
+    if seed is None:
+        seed = random.randrange(10000)
+    # `only` names test functions outright - the shortest way back after
+    # changing one thing. It overrides tags, the draw and any coverage target:
+    # asked for three tests, run three tests.
+    if only:
+        want = {n.strip().lower().lstrip('-') for n in only.split(',')
+                if n.strip()}
+        drawn = {t for t, _ in ROSTER if t.__name__.lower() in want
+                 or t.__name__[5:].lower() in want}
+        found = {t.__name__.lower() for t in drawn}
+        found |= {t.__name__[5:].lower() for t in drawn}
+        if want - found:
+            print('no such test(s): %s' % ', '.join(sorted(want - found)))
+            print('have: %s' % ', '.join(sorted(t.__name__[5:]
+                                                for t, _ in ROSTER)))
+            return 2
+        chosen = set()
+    else:
+        drawn = select(chosen, seed, coverage)
+
+    ran = 0
+    sizes = {}
+    for test, marks in ROSTER:
+        if drawn and test not in drawn:
+            continue
+        was = report.passed + report.failed
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
-    print('\n%d passed, %d failed' % (report.passed, report.failed))
+        sizes[test.__name__] = report.passed + report.failed - was
+        ran += 1
+
+    # What did not run, in checks rather than groups - measured, not
+    # guessed: every group records its own size as it goes, so a narrowed
+    # run reads back what the skipped ones came to the last time they ran.
+    left = [t.__name__ for t, _ in ROSTER if drawn and t not in drawn]
+    counts.record('groups', sizes)
+    skipped, unmeasured = counts.missing('groups', left)
+    if drawn:
+        cover = 100.0 * (report.passed + report.failed) / max(
+            1, report.passed + report.failed + skipped)
+        print('\nran %d of %d groups%s, seed %d, %.0f%% of checks'
+              % (ran, len(ROSTER),
+                 ': ' + ','.join(sorted(chosen)) if chosen else '',
+                 seed, cover))
+    print('\n%d passed, %d failed, %s%d skipped'
+          % (report.passed, report.failed,
+             '~' if unmeasured else '', skipped))
     return 1 if report.failed else 0
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    # `--tags render,reply` runs the subjects a change can have broken. No
+    # argparse: this file is run by tools/run_tests.py and by hand, and one
+    # optional flag is not worth the import.
+    picked = seed = coverage = only = None
+    argv = sys.argv[1:]
+    while len(argv) > 1:
+        if argv[0] == '--tags':
+            picked = argv[1]
+        elif argv[0] == '--seed':
+            seed = int(argv[1])
+        elif argv[0] == '--coverage':
+            coverage = float(argv[1])
+        elif argv[0] == '--only':
+            only = argv[1]
+        argv = argv[2:]
+    sys.exit(main(picked, seed, coverage, only))
 

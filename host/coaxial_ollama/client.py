@@ -17,7 +17,7 @@ What is deliberate:
     the building over TLS. `remote_ok=True` is how to mean it on purpose.
 
   * `format` is not set by the runner. json mode constrains `content`, the one
-    part of a reply this bench does not parse: every number reaching a verdict
+    part of a reply this loop does not parse: every number reaching a verdict
     arrives as a `report` argument against a schema the daemon enforces. A
     model told to answer in JSON tends to describe a tool call instead of
     making one. It stays a parameter for callers outside the runner.
@@ -44,7 +44,7 @@ import urllib.request
 LOOPBACK = ('localhost', '127.0.0.1', '::1')
 
 # How often to re-ask after ollama's runner crashed, and the first backoff.
-# Two is enough for every crash measured here, and small enough that a machine
+# Two is enough for every crash Measured: and small enough that a machine
 # genuinely out of memory fails in seconds rather than looping.
 RUNNER_RETRIES = 2
 RUNNER_RETRY_WAIT = 1.5
@@ -142,7 +142,7 @@ class Ollama:
             # step with this one.
             self.options['num_gpu'] = num_gpu
         if num_predict:
-            # A cap on generated tokens. Nothing on this bench needs an essay,
+            # A cap on generated tokens. Nothing  needs an essay,
             # and an unbounded reasoning model will write one.
             self.options['num_predict'] = num_predict
         self.think = think
@@ -360,18 +360,31 @@ class Ollama:
                 # same 500. Backs off a little further each time.
                 time.sleep(RUNNER_RETRY_WAIT * (attempt + 1))
 
-    def chat(self, messages, tools=None):
-        """One turn. Returns the assistant message dict, verbatim."""
+    def chat(self, messages, tools=None, fmt=None, think=None,
+             num_predict=None):
+        """One turn. Returns the assistant message dict, verbatim.
+
+        fmt/think/num_predict override this client's own for one call. They
+        exist so a caller wanting a schema-constrained classification does
+        not build a second client to get it: ollama keys a loaded runner on
+        num_ctx, so a second client asking for the same tag with a different
+        window evicts the first and reloads 7.6 GB - measured, once per
+        question, which is what this parameter list replaced.
+        """
+        options = self.options
+        if num_predict is not None:
+            options = dict(options, num_predict=num_predict)
         payload = {'model': self.model, 'messages': messages,
-                   'stream': False, 'options': self.options}
+                   'stream': False, 'options': options}
         if self.keep_alive is not None:
             payload['keep_alive'] = self.keep_alive
-        if self.fmt is not None:
-            payload['format'] = self.fmt
+        if fmt is not None or self.fmt is not None:
+            payload['format'] = self.fmt if fmt is None else fmt
         if tools:
             payload['tools'] = tools
-        if self.think is not None:
-            payload['think'] = self.think
+        want_think = self.think if think is None else think
+        if want_think is not None:
+            payload['think'] = want_think
 
         try:
             reply = self._chat_once(payload)
@@ -379,7 +392,7 @@ class Ollama:
             # Models that cannot think refuse the field rather than ignoring it.
             # Drop it once and remember, instead of making every caller know
             # which tags reason and which do not.
-            if self.think is None or 'think' not in str(exc).lower():
+            if want_think is None or 'think' not in str(exc).lower():
                 raise
             self.think = None
             payload.pop('think')

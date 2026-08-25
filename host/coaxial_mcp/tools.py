@@ -19,7 +19,7 @@ import sys
 from coaxial import DividerParams, NtcParams, protocol, scaling
 from coaxial.wire import pack
 
-from . import render
+from. import render
 from .docs import docs as _docs
 
 _PIN = {'type': 'string', 'description': 'Pin as PORT+NUMBER, e.g. B2 or E15'}
@@ -443,7 +443,7 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
     #
     # Refusing was worse than it looked. Asked for the raw codes with the AFE
     # deliberately off, the tool raised, and the model - having no numbers -
-    # produced "PhaseU: Mid-scale ... NTC: 25.00 C" from the warning text
+    # produced "PhaseU: Mid-scale... NTC: 25.00 C" from the warning text
     # itself. A refusal did not prevent a fabricated reading, it caused one.
     #
     # It is also the wrong shape for this repository. The board is a dumb slave
@@ -496,7 +496,7 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
               'the converter returned, not measurements: every channel sits '
               'near mid-scale, and the degC and volts below are arithmetic '
               'on that - not a temperature, not a bus voltage. Call '
-              'afe_power on to measure.' + chr(10))
+              'afe_power on to measure.' + '\n')
     # What had to be corrected to answer at all, above the answer. The
     # reading was taken either way - refusing a misspelling is worse than
     # taking it and saying so - but a question about `temperatur` coming
@@ -504,7 +504,7 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
     # the quiet substitution this file exists to prevent.
     if notes:
         banner = ('read as asked, with corrections: %s%s'
-                  % ('; '.join(notes), chr(10))) + banner
+                  % ('; '.join(notes), '\n')) + banner
     return banner + render.analog({'samples': burst['samples'],
                           'rate_hz': burst['rate_hz'],
                           'channels': rows}, derived)

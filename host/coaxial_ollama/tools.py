@@ -279,7 +279,7 @@ class Toolbox:
         # existing caller is, and the check then stays out of the way.
         self.asked = ''
 
-    # Which side a word names, in the two languages this bench is spoken
+    # Which side a word names, in the two languages this loop is spoken
     # in. Not a translation table - the only distinction that matters here
     # is left from right, and it is the one a machine cannot afford to get
     # wrong.
@@ -447,6 +447,7 @@ class Toolbox:
             argv.append('--%s-only' % action)
         try:
             done = subprocess.run(argv, capture_output=True, text=True,
+                                  encoding='utf-8', errors='replace',
                                   timeout=600)
         except subprocess.TimeoutExpired:
             return 'ERR build_firmware timed out after 600s'
@@ -511,6 +512,7 @@ class Toolbox:
             argv.append('--conformance')
         try:
             done = subprocess.run(argv, capture_output=True, text=True,
+                                  encoding='utf-8', errors='replace',
                                   timeout=300)
         except subprocess.TimeoutExpired:
             return 'ERR run_tests timed out after 300s'
@@ -615,7 +617,7 @@ class Toolbox:
         # and reflashed. None of that was the matter with it.
         if find_board.port_state(configured, baud, unit) == find_board.BUSY:
             steps.append('   %s is open in another process - that is why nothing answers here. Close the other session, or point this one at another port.' % configured)
-            return chr(10).join(steps)
+            return '\n'.join(steps)
         steps.append('   Powered and the port is right, so check nothing '
                      'else has %s open, and that the last programmer run '
                      'ended with --start, not -hardRst (a halted core '

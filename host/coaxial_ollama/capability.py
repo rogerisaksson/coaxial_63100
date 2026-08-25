@@ -1,27 +1,14 @@
 """What this machine can run, and which local model to run on it.
 
-A bench PC is whatever was on the shelf, so the machine is measured and the tag
-follows. Three numbers: VRAM minus a reserve (the PC drives the screens too,
-and a card filled to the brim stutters and evicts), free RAM, and cores.
+A bench PC is whatever was on the shelf, so the machine is measured and the
+tag follows. Three numbers: VRAM minus a reserve (the PC drives the screens
+too, and a card filled to the brim stutters and evicts), free RAM, and cores.
 
-Measured here, both against the usual advice - RTX 4080 SUPER 16 GB,
-Threadripper 3970X, gemma4:12b Q4_K_M, 48 layers, num_ctx 8192:
-
-  * `num_gpu` needs no Modelfile, just `options` on a normal /api/chat call -
-    better, since a Modelfile is a second tag to keep in step.
-
-        num_gpu default (48)   7.8 GB VRAM    64.3 tok/s
-        num_gpu 24 (half)      4.3 GB VRAM    12.7 tok/s
-        num_gpu 0 (CPU only)   0.0 GB VRAM     6.7 tok/s
-
-    So a hybrid split costs five times the speed for half the VRAM back, and
-    on this card it is unnecessary: the 12B fits in 7.8 GB and leaves 8 free.
-    Hence "the largest model that fits *entirely*", with hybrid as what
-    happens when nothing does.
-
-  * `num_thread` on 64 threads bought nothing: 6.4 tok/s default and at 16,
-    6.3 at 32, 5.7 at 64. Decode is bandwidth-bound, and filling both SMT
-    siblings makes it worse. Nothing here sets it.
+The rule is **the largest tools-capable tag that fits the card entirely**,
+because a hybrid split costs about five times the speed to hand back half the
+VRAM. That figure and the `num_thread` measurements behind it are in
+docs/MODELS.md; they are one bench's numbers and this file does not restate
+them.
 
 Only tools-capable tags are candidates: a tag without them describes a
 measurement instead of taking one.
@@ -42,11 +29,11 @@ import urllib.request
 # Every entry is tools-capable. That is the entry requirement, not a feature.
 CATALOGUE = [
     {'tag': 'llama3.1:8b',  'gb': 4.9,  'layers': 32, 'ram_gb': 8,
-     'note': 'small and quick; measured here inventing tool arguments - see FINDINGS'},
+     'note': 'small and quick; Measured inventing tool arguments - see FINDINGS'},
     {'tag': 'qwen2.5:7b',   'gb': 4.7,  'layers': 28, 'ram_gb': 8,
      'note': 'the small one to try when llama3.1 disappoints'},
     {'tag': 'gemma4:12b',   'gb': 7.8,  'layers': 48, 'ram_gb': 16,
-     'note': 'this bench default: careful with tools, and it checks the AFE first'},
+     'note': 'the default: careful with tools, and it checks the AFE first'},
     {'tag': 'qwen2.5:14b',  'gb': 9.7,  'layers': 48, 'ram_gb': 16,
      'note': 'the balanced one on a 12 GB card'},
     {'tag': 'qwen2.5:32b',  'gb': 20.0, 'layers': 64, 'ram_gb': 32,
@@ -212,11 +199,11 @@ def _cpu_busy():
 def _ollama_vram_gb(host='http://localhost:11434'):
     """What ollama is holding on the card right now.
 
-    This has to come off the 'already used' figure or the reserve ratchets: the
-    probe runs while a model from the last question is still resident, counts
-    our own 7.8 GB as somebody else's desktop, reserves 12.8 GB of a 16 GB card
-    and picks something smaller - which then becomes the new baseline next
-    time. Measured exactly that way before this function existed.
+    This has to come off the 'already used' figure or the reserve ratchets:
+    the probe runs while a model from the last question is still resident,
+    counts our own weights as somebody else's desktop, reserves that much more
+    and picks something smaller - which becomes the new baseline next time.
+    Measured exactly that way before this function existed.
     """
     try:
         with urllib.request.urlopen(host.rstrip('/') + '/api/ps',
@@ -232,11 +219,11 @@ def _gpus_nvidia_smi():
     """Cards, and what is already on them.
 
     `memory.used` matters as much as the total. A card is not empty before the
-    model loads: measured on this bench, a two-screen Windows desktop with the
-    usual browser and editor open was holding 2.6 GB of a 16 GB card at 0 %
-    utilisation, before anything of ours ran. A reserve computed as a flat
-    fraction of the total quietly assumes that space is free, and the machine
-    pays for the assumption in compositor stutter rather than in an error.
+    model loads: measured, a two-screen desktop with a browser and an editor
+    open was holding 2.6 GB at 0 % utilisation before anything of ours ran. A
+    reserve computed as a flat fraction of the total assumes that space is
+    free, and the machine pays for the assumption in compositor stutter rather
+    than in an error.
     """
     try:
         out = subprocess.check_output(
@@ -265,8 +252,8 @@ def _gpus_registry():
 
     qwMemorySize and not AdapterRAM: Win32_VideoController.AdapterRAM is a
     32 bit field and reports 4 GB for every card larger than that, which is
-    exactly the range where this decision matters. Measured here: qwMemorySize
-    16.0 GB, AdapterRAM 4.0 GB, on a 16 GB card.
+    exactly the range where this decision matters. Measured on a 16 GB card:
+    qwMemorySize 16.0 GB, AdapterRAM 4.0 GB.
     """
     if platform.system() != 'Windows':
         return []
@@ -355,10 +342,10 @@ def reserve_for(vram_gb, used_gb=0.0):
 
     Three numbers, whichever is largest: a quarter of the card, 2 GB, or what
     the card is *already* holding plus room to grow. That third one is the one
-    that matters on a workstation - measured here, the desktop alone was using
-    2.6 GB, so a flat quarter of a 16 GB card left it 1.4 GB of slack for
-    everything it might do next, which is not enough and shows up as momentary
-    hangs rather than as an error anyone can read.
+    that matters on a workstation - Measured: the desktop alone was using
+    2.6 GB on the reference bench, so a flat quarter of that card left it
+    1.4 GB of slack for everything it might do next - not enough, and it shows
+    up as momentary hangs rather than as an error anyone can read.
     """
     if vram_gb <= 0:
         return 0.0

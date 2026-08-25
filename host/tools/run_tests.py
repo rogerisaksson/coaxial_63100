@@ -18,6 +18,7 @@ running these files directly, and repeats only what it counted.
 Exit code is 0 only if every requested suite ran and nothing in it failed.
 """
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -25,11 +26,27 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]           # host/
+sys.path.insert(0, str(ROOT))
+from tests import counts                             # noqa: E402
 BACKSLASH = chr(92)
 DEFAULT_SUITES = ('test_ollama.py', 'test_mcp.py', 'test_simulated.py',
                   'test_parity.py')
 CONFORMANCE = 'test_conformance.py'
 LIVE = 'test_live_model.py'
+ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
+
+# Coverage tiers, as a plan rather than a ladder of ifs. The percentage is of
+# every check this repository has (counts.py knows what each suite and each
+# group last came to). Suites join a tier in order of seconds per check, so a
+# tier buys the most checks for the least wall time - measured, per check:
+# simulated 0.003 s, ollama 0.019, parity 0.13, mcp 0.14, conformance 0.29,
+# live 4.6. That last figure is why live joins only at the top tier.
+PLAN = {
+    25:  (('test_simulated.py',), None),
+    50:  (('test_simulated.py', 'test_parity.py', 'test_mcp.py'), None),
+    75:  (('test_simulated.py', 'test_parity.py', 'test_mcp.py',
+           CONFORMANCE), 'tools'),
+}
 
 # A cable is not a regression. That used to need saying loudly here - an
 # unplugged board turned into '22 failed' in a verify loop that was meant to
@@ -48,17 +65,26 @@ LIVE = 'test_live_model.py'
 # not a failure to explain.
 NEEDS_BOARD = (CONFORMANCE,)
 
-TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed$')
+TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
 FAIL_RE = re.compile(r'^\s*FAIL\s+(.+?)\s{2,}')
+# test_ollama.py under --tags says what it left out. Surfaced here, because
+# the count that matters to a reader is the one against the whole file.
+GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
 
 
 def run_one(path, timeout=300, extra=()):
-    """(tally, returncode, failing_names, elapsed, crash_detail-or-None)."""
+    """(tally, code, failing, elapsed, crash-or-None, groups-line-or-None)."""
     started = time.monotonic()
     try:
+        # utf-8/replace, not the locale codepage: text=True alone decodes
+        # cp1252 here, and a suite printing one character outside it killed
+        # the reader thread with UnicodeDecodeError - the run lost, not the
+        # character. PYTHONIOENCODING makes the child write what we read.
+        env = dict(os.environ, PYTHONIOENCODING='utf-8')
         done = subprocess.run([sys.executable, str(path)] + list(extra),
-                              cwd=str(ROOT),
-                              capture_output=True, text=True, timeout=timeout)
+                              cwd=str(ROOT), env=env, timeout=timeout,
+                              capture_output=True, text=True,
+                              encoding='utf-8', errors='replace')
     except subprocess.TimeoutExpired:
         return None, None, [], time.monotonic() - started, 'TIMEOUT after %ss' % timeout
 
@@ -68,9 +94,12 @@ def run_one(path, timeout=300, extra=()):
     for line in reversed(lines):
         m = TALLY_RE.match(line.strip())
         if m:
-            tally = (int(m.group(1)), int(m.group(2)))
+            tally = (int(m.group(1)), int(m.group(2)),
+                     int(m.group(3) or 0), '~' in line)
             break
     failing = [m.group(1).strip() for m in (FAIL_RE.match(l) for l in lines) if m]
+    groups = next((l.strip() for l in reversed(lines)
+                   if GROUPS_RE.match(l.strip())), None)
 
     if tally is None:
         # The suite crashed before printing its own tally - a traceback, an
@@ -78,8 +107,8 @@ def run_one(path, timeout=300, extra=()):
         # to stderr) is what says why; clipped so one runaway crash cannot
         # push this past what a model's context can hold.
         detail = (done.stderr or done.stdout or '').strip()
-        return None, done.returncode, failing, elapsed, detail[-1500:]
-    return tally, done.returncode, failing, elapsed, None
+        return None, done.returncode, failing, elapsed, detail[-1500:], groups
+    return tally, done.returncode, failing, elapsed, None, groups
 
 
 def hold_model(tag):
@@ -193,7 +222,9 @@ def changed_files(against='HEAD'):
                  ['diff', '--name-only', '%s~1' % against, against]):
         try:
             done = subprocess.run(['git'] + args, cwd=str(ROOT.parent),
-                                  capture_output=True, text=True, timeout=30)
+                                  capture_output=True, text=True,
+                                  encoding='utf-8', errors='replace',
+                                  timeout=30)
         except Exception:                                     # noqa: BLE001
             continue
         if done.returncode == 0:
@@ -250,6 +281,13 @@ def main(argv=None):
     parser.add_argument('--file', action='append', default=[],
                         help='run only this test file (repeatable), instead '
                              'of the default set')
+    parser.add_argument('--coverage', type=int, choices=sorted(PLAN),
+                        help='run about this percentage of every check there '
+                             'is, cheapest-per-check first. Implies --smart.')
+    parser.add_argument('--tags', help='subjects inside test_ollama.py, '
+                                       'instead of asking the model')
+    parser.add_argument('--only', help='named tests in test_ollama.py, '
+                                       'comma-separated: intent,picker')
     parser.add_argument('--offline', action='store_true',
                         help='skip the suites whose meaning depends on a real '
                              'board (%s). The default set runs either way - '
@@ -258,16 +296,31 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     live_sections = 'all'
+    tags = args.tags
+    if args.coverage:
+        args.smart = True
+    if args.only:
+        # One file, the named tests, nothing else. The shortest path back
+        # after changing one thing, and why this script is the only interface
+        # anybody needs to the suites.
+        args.file, args.smart, args.live = ['test_ollama.py'], False, False
     if args.smart and not args.file:
         import subprocess
         try:
             count = int(subprocess.run(
                 ['git', 'rev-list', '--count', 'HEAD'], cwd=str(ROOT.parent),
-                capture_output=True, text=True, timeout=30).stdout.strip())
+                capture_output=True, text=True, encoding='utf-8',
+                errors='replace', timeout=30).stdout.strip())
         except Exception:                                     # noqa: BLE001
             count = 0
         paths = changed_files()
-        if count and count % FULL_EVERY == 0:
+        # --minimal skips the sweep on purpose: it is the fix-test cycle's
+        # run, and the sweep is the gate's. Anything --minimal misses is
+        # what the next unqualified --smart is for.
+        # Not on a coverage tier: the sweep exists to catch what narrowing
+        # missed, and a tier is narrowing by definition.
+        full = bool(count) and count % FULL_EVERY == 0 and not args.coverage
+        if full:
             chosen = set(DEFAULT_SUITES) | {CONFORMANCE}
             picked_live, why = {'all'}, ['commit %d is a multiple of %d - '
                                          'everything' % (count, FULL_EVERY)]
@@ -293,13 +346,40 @@ def main(argv=None):
         print('   suites: %s%s' % (', '.join(args.file) or 'none',
                                    '  live: ' + live_sections
                                    if live_sections else ''))
+        # The path map above decides which files. Which subjects inside the
+        # big one is the judgement call, and it goes to the model - which
+        # can only ever cost seconds by over-picking, because every way it
+        # fails returns None and this runs the file whole.
+        # Not on the full sweep. Narrowing the one run that exists to catch
+        # what the narrowing missed is the whole guarantee, spent.
+        if args.coverage:
+            allowed, sections = PLAN[args.coverage]
+            args.file = [f for f in args.file
+                         if f == 'test_ollama.py' or f in allowed]
+            live_sections = sections or ''
+            args.live = bool(sections)
+            if sections:
+                args.file.append(LIVE)
+            print('   %d%% tier: %s%s'
+                  % (args.coverage, ', '.join(args.file),
+                     ' live:' + sections if sections else ''))
+        if ('test_ollama.py' in args.file and not full
+                and not tags):
+            sys.path.insert(0, str(ROOT / 'tools'))
+            import pick_tests
+            # Not `why`: that name holds the plan's own reasons, printed
+            # above, and rebinding it here silently threw them away.
+            tags, reason = pick_tests.pick(args.model)
+            print('   subjects: %s' % (tags and ','.join(tags) or 'all'))
+            print('   %s' % (reason or 'no reason given'))
+            tags = tags and ','.join(tags)
         if args.dry_run:
             return 0
 
     suites = list(args.file) if args.file else list(DEFAULT_SUITES)
     if args.conformance and not args.file:
         suites.append(CONFORMANCE)
-    if args.live and (not args.file or args.smart):
+    if args.live and (not args.file or args.smart) and LIVE not in suites:
         suites.append(LIVE)
     if args.offline:
         suites = [name for name in suites if name not in NEEDS_BOARD]
@@ -314,7 +394,9 @@ def main(argv=None):
     if holding:
         held = hold_model(args.model)
 
-    total_pass = total_fail = 0
+    total_pass = total_fail = total_skip = ran = 0
+    approx = False
+    suite_sizes = {}
     failing_lines = []
     ok = True
     try:
@@ -331,7 +413,14 @@ def main(argv=None):
             extra = ['-m', args.model] if name == LIVE else []
             if name == LIVE and live_sections:
                 extra += ['--sections', live_sections]
-            tally, code, failing, elapsed, crash = run_one(
+            if name == 'test_ollama.py':
+                if args.only:
+                    extra += ['--only', args.only]
+                elif tags:
+                    extra += ['--tags', tags]
+                    if args.coverage:
+                        extra += ['--coverage', str(args.coverage)]
+            tally, code, failing, elapsed, crash, groups = run_one(
                 path, timeout=1200 if name == LIVE else 300, extra=extra)
             if tally is None:
                 print('%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed))
@@ -339,16 +428,34 @@ def main(argv=None):
                     print(crash)
                 ok = False
                 continue
-            passed, failed = tally
+            passed, failed, skipped, rough = tally
+            total_skip += skipped
+            approx = approx or rough
+            if groups:
+                print('%-20s %s' % ('', groups))
+            ran += 1
             total_pass += passed
             total_fail += failed
+            suite_sizes[name] = (passed, failed, skipped)
             failing_lines.extend('%s: %s' % (name, x) for x in failing)
             if failed or code != 0:
                 ok = False
             print('%-20s %s, %d failed  %.1fs'
                   % (name, '%d passed' % passed, failed, elapsed))
 
-        print('TOTAL %d passed, %d failed' % (total_pass, total_fail))
+            # Suites that did not run at all, in checks, from what they came
+        # to last time. A suite never yet measured makes the total
+        # approximate rather than silently short - hence the tilde.
+        sizes = {n: p + f + s for n, (p, f, s) in suite_sizes.items()}
+        counts.record('suites', sizes)
+        missed, never = counts.missing(
+            'suites', [n for n in ALL_SUITES if n not in suite_sizes])
+        total_skip += missed
+        mark = '~' if approx or never else ''
+        print('Total: %s%d  Passed: %d, Skipped: %s%d, Failed: %d, '
+              '(%d of %d suites ran)'
+              % (mark, total_pass + total_fail + total_skip, total_pass,
+                 mark, total_skip, total_fail, ran, len(ALL_SUITES)))
         for line in failing_lines:
             print('  ' + line)
         if total_fail and any(line.split(':')[0] in NEEDS_BOARD

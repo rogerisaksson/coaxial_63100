@@ -127,7 +127,7 @@ and when asked whether the AFE was on it answered by reasoning that the NTC was
 *not* reading exactly 25.00.
 
 So: the default stays `gemma4:12b`. The 23 % that `llama3.1:8b` saves is real,
-and worth having on a machine that cannot hold 8 GB — but on this bench a model
+and worth having on a machine that cannot hold 8 GB — but where a model
 that invents hardware constants is the expensive kind of fast.
 
 ### The local model's OOM crash is llama-server's prompt cache, not our prompt
