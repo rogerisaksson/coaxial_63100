@@ -42,6 +42,15 @@ MAP_ROW = re.compile(r'^\d+\s+\d+\s+\S+\s+\S+\s+(?:diff|SE)\s+(\S+)\s*$',
 # and it is the one field that cannot contain a space.
 DIGITAL_ROW = re.compile(r'^(P[A-K]\d+)\s+(?:in|out|inout)\b', re.M)
 
+# ...and the signal off the same row, because a retyped list quotes
+# whichever half it read. Measured: the trace said "PB2 out 1 AFE_ON /
+# PE15 in 0 nFAULT" and the answer said "AFE_ON ar 1 och nFAULT ar 0" -
+# every channel named, and not one of them by the pin the pattern above
+# captures. The optional digits eat the level column, which the map has
+# and a reading does not.
+DIGITAL_SIGNAL = re.compile(r'^P[A-K]\d+\s+(?:in|out|inout)\s+(?:\d+\s+)?(\S.*?)\s*$',
+                            re.M)
+
 # Fewer than this many channels and a short answer naming all of them is
 # plausibly synthesis ("NTC and DCbus both read low") rather than a mechanical
 # restatement - the case this exists to catch always names a full table's

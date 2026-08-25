@@ -163,15 +163,20 @@ def _twice(answer, results):
 
     if not (answer or '').strip():
         return ''
-    names = set()
+    # Alternatives, not a union: the answer names a row one way, and the
+    # union would want every column's name present at once. Measured, the
+    # union missing it - "AFE_ON ar 1 och nFAULT ar 0" under a trace whose
+    # pins are PB2 and PE15.
+    sets = []
     for text in results:
         for pattern in (replies.READING_ROW, replies.MAP_ROW,
-                        replies.DIGITAL_ROW):
-            names |= {m.lower() for m in pattern.findall(str(text))}
-    if len(names) < 2:
-        return ''
-    if replies.is_retype(answer, names, minimum=2):
-        return ', '.join(sorted(names))
+                        replies.DIGITAL_ROW, replies.DIGITAL_SIGNAL):
+            names = {m.lower() for m in pattern.findall(str(text))}
+            if len(names) >= 2:
+                sets.append(names)
+    for names in sets:
+        if replies.is_retype(answer, names, minimum=2):
+            return ', '.join(sorted(names))
     return ''
 
 

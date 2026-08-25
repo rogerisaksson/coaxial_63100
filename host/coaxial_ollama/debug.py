@@ -830,7 +830,7 @@ class Chat:
         code_error = None  # last run_python/run_command result, if it failed
         last_channels = None      # names in the most recent analog_read table
         last_table = None         # and the table itself, for --quiet
-        last_map = None           # channel names board_info just listed
+        last_map = []             # name sets a map or a level read listed
         last_map_text = None      # and that render, for --quiet
         diagnosed = False  # link_diagnose ran this turn, and was traced
         seen = {}          # (name, args) this turn -> its rendered result
@@ -1005,12 +1005,18 @@ class Chat:
                     # Both row shapes: the analog map names its channel in
                     # the last column, the digital blocks name a pin in the
                     # first, and a retyped list quotes whichever it saw.
-                    named = set(m.lower()
-                                for m in replies.MAP_ROW.findall(str(raw)))
-                    named |= set(m.lower()
-                                 for m in replies.DIGITAL_ROW.findall(str(raw)))
-                    if named:
-                        last_map = named
+                    # Three ways the same rows can be named back: an
+                    # analog channel, a digital pin, or that pin's signal.
+                    # Kept as alternatives rather than one union - the
+                    # answer quotes one of them, not all three, and a union
+                    # would need every name from every column present.
+                    sets = [set(m.lower() for m in pattern.findall(str(raw)))
+                            for pattern in (replies.MAP_ROW,
+                                            replies.DIGITAL_ROW,
+                                            replies.DIGITAL_SIGNAL)]
+                    sets = [names for names in sets if names]
+                    if sets:
+                        last_map = sets
                         last_map_text = str(raw)
                 if not _afe_noise(name, args, raw):
                     self._trace(result)
@@ -1053,7 +1059,8 @@ class Chat:
         # has exactly two digital channels, so listing both IS the map.
         elif last_channels and replies.is_retype(answer, last_channels):
             answer = last_table if (self.quiet and last_table) else ''
-        elif last_map and replies.is_retype(answer, last_map, minimum=2):
+        elif any(replies.is_retype(answer, names, minimum=2)
+                 for names in last_map):
             answer = last_map_text if (self.quiet and last_map_text) else ''
         # An answer that hit the token cap stops mid-sentence, and a table
         # that stops mid-row reads as complete to everyone except a reader

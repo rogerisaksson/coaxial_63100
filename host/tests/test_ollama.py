@@ -1169,6 +1169,31 @@ def test_map_retype(report):
     report.check('and so is a retyped digital reading',
                  digital_turn('digital_read',
                               'PB2 är 1 och PE15 är 0.') == '')
+
+    # A row can be named back two ways, and the model picks one. Measured:
+    # the trace said "PB2 out 1 AFE_ON / PE15 in 0 nFAULT" and the answer
+    # said "AFE_ON ar 1 och nFAULT ar 0" - every channel named, not one of
+    # them by the pin. Pins and signals are alternatives, not a union: a
+    # union would want every name from every column present.
+    for reply, silent, why in (
+            ('AFE_ON är 1 och nFAULT är 0.', True, 'named by signal'),
+            ('PB2 är 1 och PE15 är 0.', True, 'named by pin'),
+            ('PB2 (AFE_ON) 1, PE15 (nFAULT) 0.', True, 'named both ways'),
+            ('nFAULT är asserterad medan AFE:n är på.', False,
+             'one signal, and something to say about it'),
+            ('AFE_ON är 1.', False, 'one of two is not the list')):
+        got = digital_turn('digital_read', reply)
+        report.check('a reading %s -> %s' % (why,
+                                             'silent' if silent else 'kept'),
+                     (got == '') is silent, repr(got)[:44])
+
+    # The same, off the map rather than a reading.
+    for reply, silent in (('AFE_ON och nFAULT.', True),
+                          ('Två digitala kanaler.', False)):
+        got = digital_turn('board_info', reply, kind='digital')
+        report.check('a map named back by signal -> %s'
+                     % ('silent' if silent else 'kept'),
+                     (got == '') is silent, repr(got)[:44])
     report.check('but a finding that does not name them all survives',
                  digital_turn('board_info', 'nFAULT är asserterad.',
                               kind='digital') == 'nFAULT är asserterad.')
