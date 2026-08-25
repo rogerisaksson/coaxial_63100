@@ -1560,8 +1560,10 @@ def test_smart_selection(report):
             (['docs/HARDWARE.md'], {'test_ollama.py'}, set(),
              'a document can only break the docs index'),
             (['Modbus/Src/modbus_rtu.c'],
-             {'test_conformance.py', 'test_mcp.py'}, set(),
-             'the wire is what the byte-level master is for'),
+             {'test_modbus_core.py', 'test_conformance.py', 'test_mcp.py'},
+             set(),
+             'the byte-level master for the wire, and the host build for '
+             'the framing itself - which needs no cable'),
             (['host/tests/test_parity.py'], {'test_parity.py'}, set(),
              'editing a suite is a reason to run it'),
             (['host/coaxial_ollama/debug.py'],

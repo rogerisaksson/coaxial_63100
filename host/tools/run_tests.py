@@ -31,7 +31,8 @@ from tests import counts                             # noqa: E402
 # Structure first: it answers "does host/ still hold together" in a fifth of
 # a second, and every behavioural suite below it assumes the answer is yes.
 STRUCTURE = 'test_structure.py'
-DEFAULT_SUITES = (STRUCTURE, 'test_ollama.py', 'test_mcp.py',
+CORE = 'test_modbus_core.py'
+DEFAULT_SUITES = (STRUCTURE, CORE, 'test_ollama.py', 'test_mcp.py',
                   'test_simulated.py', 'test_parity.py')
 CONFORMANCE = 'test_conformance.py'
 LIVE = 'test_live_model.py'
@@ -41,14 +42,16 @@ ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
 # every check this repository has (counts.py knows what each suite and each
 # group last came to). Suites join a tier in order of seconds per check, so a
 # tier buys the most checks for the least wall time - measured, per check:
-# simulated 0.003 s, ollama 0.019, parity 0.13, mcp 0.14, conformance 0.29,
-# live 4.6. That last figure is why live joins only at the top tier.
+# simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
+# conformance 0.29, live 4.6. That last figure is why live joins only at the
+# top tier; the core joins at the first, because the code it covers is the
+# code a defect does the most damage in.
 PLAN = {
-    25:  ((STRUCTURE, 'test_simulated.py'), None),
-    50:  ((STRUCTURE, 'test_simulated.py', 'test_parity.py',
+    25:  ((STRUCTURE, CORE, 'test_simulated.py'), None),
+    50:  ((STRUCTURE, CORE, 'test_simulated.py', 'test_parity.py',
            'test_mcp.py'), None),
-    75:  ((STRUCTURE, 'test_simulated.py', 'test_parity.py', 'test_mcp.py',
-           CONFORMANCE), 'tools'),
+    75:  ((STRUCTURE, CORE, 'test_simulated.py', 'test_parity.py',
+           'test_mcp.py', CONFORMANCE), 'tools'),
 }
 
 # A cable is not a regression. That used to need saying loudly here - an
@@ -57,6 +60,9 @@ PLAN = {
 # picks its session through coaxial_mcp.session.open_session(), which probes
 # the port and falls back to the simulated board, and every one of them
 # prints which it got.
+#
+# test_modbus_core.py needs no board either, but it does need a host C
+# compiler; with none it says so and passes nothing, the same bargain.
 #
 # CONFORMANCE is the exception and stays listed, because it is the one suite
 # a stand-in cannot stand in for: it is an independent byte-level master, and
@@ -223,8 +229,10 @@ TOUCHES = (
                                        'test_mcp.py')),
     ('host/tools/',                   ('test_ollama.py',)),
     ('host/tests/',                   ()),          # decided by name below
-    # Firmware and protocol: the byte-level master is the point of it.
-    ('Modbus/',                       (CONFORMANCE, 'test_mcp.py')),
+    # Firmware and protocol: the byte-level master is the point of it - but
+    # the portable core is also compiled and run on this machine, which is
+    # the only check on it that does not need a cable.
+    ('Modbus/',                       (CORE, CONFORMANCE, 'test_mcp.py')),
     ('Comms/',                        (CONFORMANCE, 'test_mcp.py')),
     ('Board/',                        (CONFORMANCE, 'test_mcp.py',
                                        'test_parity.py')),

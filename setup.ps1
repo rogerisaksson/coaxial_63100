@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Sets up a machine to build, flash and drive the coaxial_63100 board.
 
@@ -512,6 +512,33 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
         }
     } else {
         Write-Item 'git' 'ok' $git
+    }
+
+    # A host C compiler, for test_modbus_core.py. The portable Modbus core is
+    # hardware-free so it can be built and run here; until this it never was,
+    # and its only verification needed a board on the far end of a cable.
+    # WinLibs rather than LLVM: clang on Windows wants the MSVC headers for
+    # <string.h>, and this ships its own. Optional - the suite says what it
+    # skipped rather than failing.
+    # Asked of test_modbus_core.find_cc, not of PATH: winget installs this
+    # somewhere only new shells see, and two answers to "where is the
+    # compiler" is how -Check ends up offering to install one that is
+    # already here.
+    $cc = ''
+    $suite = Join-Path $PSScriptRoot 'host/tests/test_modbus_core.py'
+    if ($null -ne $python -and (Test-Path $suite)) {
+        try {
+            $cc = (& $python $suite --which-cc 2>$null | Select-Object -First 1)
+        } catch { $cc = '' }
+    }
+    if ([string]::IsNullOrWhiteSpace($cc)) {
+        Write-Item 'host gcc' 'missing' 'BrechtSanders.WinLibs.POSIX.UCRT - test_modbus_core.py skips without it'
+        if (Install-WingetPackage -Id 'BrechtSanders.WinLibs.POSIX.UCRT' `
+                                  -Why 'to build the Modbus core on this machine') {
+            Write-Item 'host gcc' 'done' 'installed - new shells only'
+        }
+    } else {
+        Write-Item 'host gcc' 'ok' $cc
     }
 
     $policy = Get-ExecutionPolicy -Scope CurrentUser

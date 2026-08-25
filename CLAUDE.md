@@ -99,7 +99,8 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_structure.py` (191), `test_ollama.py` (730),
+Suites: `test_structure.py` (191), `test_modbus_core.py` (68),
+`test_ollama.py` (730),
 `test_simulated.py` (42), `test_mcp.py` (41), `test_parity.py` (18),
 `test_conformance.py` (67, `--conformance`),
 `test_live_model.py` (176, needs ollama, `--live`) - the only one where the
@@ -299,8 +300,11 @@ Break one and something works until it doesn't.
 
 1. **The protocol core stays hardware-free.** `modbus_crc.c`, `modbus_slave.c`
    and `modbus_rtu.c` include only `<stdint.h>`, `<stddef.h>`, `<stdbool.h>` and
-   `<string.h>`. That is what makes them host-testable. Only
-   `Comms/Src/dev_usart3.c` touches the USART.
+   `<string.h>`. That is what makes them host-testable, and
+   `test_modbus_core.py` is what does it: the three are built with the host
+   gcc and driven through ctypes, clock injected, no board. `-Wconversion` is
+   on them in both builds, so a HAL include added here lights up before the
+   suite even runs. Only `Comms/Src/dev_usart3.c` touches the USART.
 2. **RTU timing is in raw `DWT->CYCCNT` ticks, never microseconds.** Dividing
    cycles down moves the wrap off a power of two, and the unsigned elapsed-time
    arithmetic then breaks silently across it.
