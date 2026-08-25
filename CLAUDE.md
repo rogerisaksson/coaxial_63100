@@ -66,6 +66,8 @@ python examples/read_board.py            # measure, judge nothing
 python tools/run_tests.py                # every suite, one parsed tally
 python tools/run_tests.py --offline      #   ...minus the ones needing the board
 python tools/run_tests.py --live         #   ...plus the real model, minutes
+python tools/run_tests.py --smart        # what the changes can have broken
+python tools/run_tests.py --smart --dry-run   #   ...say it, do not run it
 python tools/build_and_flash.py          # build (+flash): --build-only, --flash-only
 python -m coaxial_mcp --port COM4        # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml
@@ -80,6 +82,13 @@ Suites: `test_ollama.py` (537), `test_simulated.py` (34), `test_mcp.py` (40),
 `test_parity.py` (17), `test_conformance.py` (67, `--conformance`),
 `test_live_model.py` (48, needs ollama, `--live`) - the only one where the
 model itself is under test.
+
+`--smart` maps the changed files to the suites that cover them and runs the
+lot every tenth commit - a map from files to suites is a guess about coupling,
+and a guess never checked is one that drifts. An unmapped path runs everything.
+`test_live_model.py --sections tools|language|all` is the half that matters:
+it is a model load plus a turn per question, and a renderer change has nothing
+to do with the language lock.
 
 `test_live_model.py` crosses the two axes the model kept confusing - list or
 read, analog or digital - and asserts which tool it called **and which it did

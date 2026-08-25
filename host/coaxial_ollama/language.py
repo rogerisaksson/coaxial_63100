@@ -63,8 +63,14 @@ STOPWORDS = {
     'Swedish':    ('och', 'är', 'för', 'inte', 'att', 'det', 'som', 'på',
                    'med', 'vad', 'hur', 'kortet', 'läs', 'jag', 'kan', 'ska',
                    'över', 'från', 'en', 'de'),
+    # 'a' is in English's list for the same reason 'en' and 'de' are in
+    # Swedish's: Portuguese claims it too, and a word both languages own
+    # has to sit in both or it decides the score for whichever list happens
+    # to have it. Measured: an English answer about this board scored
+    # Portuguese on two 'a's and was reported as answering in the wrong
+    # language.
     'English':    ('the', 'and', 'is', 'what', 'how', 'does', 'are', 'of',
-                   'to', 'read', 'why', 'can', 'this', 'board'),
+                   'to', 'read', 'why', 'can', 'this', 'board', 'a'),
     'German':     ('und', 'ist', 'nicht', 'das', 'der', 'die', 'was', 'wie',
                    'für', 'mit', 'ich', 'kann', 'auf', 'eine'),
     'Danish':     ('og', 'er', 'ikke', 'det', 'hvad', 'hvordan', 'jeg', 'kan',

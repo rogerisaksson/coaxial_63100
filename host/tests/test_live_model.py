@@ -75,9 +75,32 @@ TOOL_CHOICE = (
     ('read every analog channel', 'analog_read', ('digital_read',)),
     ('vad läser NTC:n?', 'analog_read', ('digital_read',)),
 
+    # Every one of these is a phrasing off the bench, kept verbatim rather
+    # than paraphrased into one. The matrix had the concept - "ge mig alla
+    # digitala varden" - and the model still fetched the analog table for
+    # "ge mig vardena fran de digitala kanalerna", on top of the
+    # digital_read it had already made correctly. A concept is not a
+    # phrasing, and the model answers phrasings.
     ('ge mig alla digitala värden', 'digital_read', ('analog_read',)),
+    ('ge mig värdena från de digitala kanalerna', 'digital_read',
+     ('analog_read',)),
+    ('vad har de digitala kanalerna för värden?', 'digital_read',
+     ('analog_read',)),
+    ('visa digitala värden', 'digital_read', ('analog_read',)),
     ('read the digital values', 'digital_read', ('analog_read',)),
-    ('vilket värde har PB2 nu?', 'digital_read', ('analog_read',)),
+    ('give me the values from the digital channels', 'digital_read',
+     ('analog_read',)),
+    # One named pin. digital_read answers it; so would gpio_pin, and the
+    # matrix accepts either - board_info answers neither, and that is what
+    # it reached for before the values line said "a named pin included".
+    ('vilket värde har PB2 nu?', ('digital_read', 'gpio_pin'),
+     ('analog_read',)),
+
+    # The mirror, so a fix for one kind cannot quietly break the other.
+    ('ge mig värdena från de analoga kanalerna', 'analog_read',
+     ('digital_read',)),
+    ('vad har de analoga kanalerna för värden?', 'analog_read',
+     ('digital_read',)),
 
     # Neither: a question about what a thing is, answered in words.
     ('beskriv hårdvaran i detta projektet för en novis', None,
@@ -157,7 +180,12 @@ def build(model, port, simulated):
     from coaxial_mcp.session import open_session
     session, found = open_session(port, 115200, 1,
                                   simulated=True if simulated else None)
-    client = Ollama(model, keep_alive=0)
+    # Held for the whole run, not unloaded after every request. keep_alive=0
+    # is ollama's "hand the VRAM back now", so this suite was reloading 7.6
+    # GB for each of its twenty-six questions and spending most of its wall
+    # time on that. Released once, in main()'s finally - the same bargain
+    # the prompt loop makes, for the same reason.
+    client = Ollama(model, keep_alive='30m')
     toolbox = toolmod.Toolbox(session, scope=Scope())
     # `read` rather than the default set: the fewer tools in the schema, the
     # less this measures the model's taste in tools it was never going to
@@ -176,6 +204,12 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('-m', '--model', default='gemma4:12b')
     parser.add_argument('--port', default='COM4')
+    parser.add_argument('--sections', default='all',
+                        help='tools|language|all. A model load plus a turn '
+                             'per question is minutes, and a change to a '
+                             'tool description has nothing to do with the '
+                             'language lock - run the half that can have '
+                             'broken.')
     parser.add_argument('--simulated', action='store_true',
                         help='skip the probe and take the stand-in. Without '
                              'it the port is probed and a silent one falls '
@@ -206,82 +240,124 @@ def main(argv=None):
 
         chat.toolbox.call = recording
 
-        print(chr(10) + '-- which tool the question reaches for --')
-        for question, must, must_not in TOOL_CHOICE:
-            before = len(chat.toolbox.log)
-            del results[:]
-            answer = chat.ask(question)
-            called = [name for name, _ in chat.toolbox.log[before:]]
-            chat.history = []
+        want = {w.strip() for w in args.sections.split(',') if w.strip()}
+        if 'all' in want:
+            want = {'tools', 'language'}
 
-            if must is None:
-                report.check('%s -> no board call' % safe(question, 40),
-                             not called, ', '.join(called) or 'none')
-            else:
-                report.check('%s -> %s' % (safe(question, 40), must),
-                             must in called, ', '.join(called) or 'no calls')
-            wrong = [name for name in must_not if name in called]
-            report.check('%s -> not %s' % (safe(question, 40),
-                                           '/'.join(must_not)),
-                         not wrong, ', '.join(wrong) or 'none')
+        if 'tools' in want:
+            print(chr(10) + '-- which tool the question reaches for --')
+            for question, must, must_not in TOOL_CHOICE:
+                before = len(chat.toolbox.log)
+                del results[:]
+                answer = chat.ask(question)
+                # `link` is dropped: _probe_link makes that call itself
+                # when an answer comes back blank, so counting it would
+                # measure the host's recovery rather than the model's
+                # choice of tool. Measured as "no board call -> link, link,
+                # link" on a question the model simply did not answer.
+                called = [name for name, _ in chat.toolbox.log[before:]
+                          if name != 'link']
+                # prompt_history as well as history: trim() puts the last
+                # five questions in the system message as "already tried in
+                # this conversation", and by the third row this suite had
+                # asked for the same list twice in two languages - measured,
+                # the model then answered "list every analog channel" from
+                # nothing at all, with no call, because it read the question
+                # as one it had already done. A row here is one question,
+                # not a conversation.
+                chat.history = []
+                chat.prompt_history = []
+                chat.last_channels = None
 
-            # And the answer is not the trace typed out again. Free: the
-            # turn already ran. Every duplication reported from this bench
-            # was one question putting the same list on screen twice, and
-            # the host's backstop is what has to catch it whatever the
-            # model writes - so it is checked on every question, not on
-            # the ones a transcript happened to be pasted from.
-            said_twice = _twice(answer, results)
-            report.check('%s -> said once, not twice' % safe(question, 40),
-                         not said_twice, said_twice or 'once')
+                # "Answered" is not "wrote a sentence": the host silences a
+                # retyped list on purpose, because the trace above it is the
+                # answer. Measured, asserting the sentence: twelve of these
+                # failed for doing exactly what they should. What must never
+                # happen is the operator getting nothing at all - no words
+                # and no tool output.
+                report.check('%s -> the operator got something'
+                             % safe(question, 40),
+                             bool(answer.strip()) or bool(results),
+                             safe(answer, 40) or '(the trace)')
+                if must is None:
+                    report.check('%s -> no board call' % safe(question, 40),
+                                 not called, ', '.join(called) or 'none')
+                else:
+                    wanted = (must,) if isinstance(must, str) else must
+                    report.check('%s -> %s' % (safe(question, 40),
+                                               '/'.join(wanted)),
+                                 any(w in called for w in wanted),
+                                 ', '.join(called) or 'no calls')
+                wrong = [name for name in must_not if name in called]
+                report.check('%s -> not %s' % (safe(question, 40),
+                                               '/'.join(must_not)),
+                             not wrong, ', '.join(wrong) or 'none')
 
-        print(chr(10) + '-- language, and reading against describing --')
-        for question, needs_board, expect in TURNS:
-            before = len(chat.toolbox.log)
-            spent = chat.client.usage()['eval_tokens']
-            answer = chat.ask(question)
-            called = [name for name, _ in chat.toolbox.log[before:]]
-            chat.history = []          # every question starts from nothing
+                # And the answer is not the trace typed out again. Free: the
+                # turn already ran. Every duplication reported from this bench
+                # was one question putting the same list on screen twice, and
+                # the host's backstop is what has to catch it whatever the
+                # model writes - so it is checked on every question, not on
+                # the ones a transcript happened to be pasted from.
+                said_twice = _twice(answer, results)
+                report.check('%s -> said once, not twice' % safe(question, 40),
+                             not said_twice, said_twice or 'once')
 
-            print('\n-- %s --' % safe(question, 70))
-            report.check('answered at all', bool(answer.strip()),
-                         safe(answer))
+        if 'language' in want:
+            print(chr(10) + '-- language, and reading against describing --')
+            for question, needs_board, expect in TURNS:
+                before = len(chat.toolbox.log)
+                spent = chat.client.usage()['eval_tokens']
+                answer = chat.ask(question)
+                called = [name for name, _ in chat.toolbox.log[before:]]
+                chat.history = []          # every question starts from nothing
 
-            bare = language.bare_switch(question)
-            if bare:
-                # No model turn at all, so there is nothing for it to get
-                # wrong: the word, and the lock, are the host's.
-                report.check('a bare switch costs no model tokens',
-                             chat.client.usage()['eval_tokens'] == spent,
-                             '%d eval' % (chat.client.usage()['eval_tokens']
-                                          - spent))
-                report.check('answered with the one word for %s' % expect,
-                             answer == language.okay(expect), safe(answer))
-                report.check('and the session moved to %s' % expect,
+                print('\n-- %s --' % safe(question, 70))
+                report.check('answered at all', bool(answer.strip()),
+                             safe(answer))
+
+                bare = language.bare_switch(question)
+                if bare:
+                    # No model turn at all, so there is nothing for it to get
+                    # wrong: the word, and the lock, are the host's.
+                    report.check('a bare switch costs no model tokens',
+                                 chat.client.usage()['eval_tokens'] == spent,
+                                 '%d eval' % (chat.client.usage()['eval_tokens']
+                                              - spent))
+                    report.check('answered with the one word for %s' % expect,
+                                 answer == language.okay(expect), safe(answer))
+                    report.check('and the session moved to %s' % expect,
+                                 chat.language == expect, str(chat.language))
+                    continue
+
+                report.check('%s the board' % ('reached' if needs_board
+                                               else 'did not reach'),
+                             (READING in called) == needs_board,
+                             ', '.join(called) or 'no calls')
+                # detect() is the same judge the session prompt is built from, so
+                # a disagreement here is the operator's screen disagreeing too.
+                # None passes: measured against the stand-in, "las NTC:n och
+                # DC-lanken" was answered "NTC: 25.00C DC-lanken: 39.075V" - terse
+                # and no preamble, exactly what SYSTEM asks for, and not one word
+                # for a stop-word list to score. An answer with no words in it
+                # cannot be in the wrong language. Anything that does detect must
+                # be right.
+                spoke = language.detect(answer)
+                report.check('answered in %s' % expect, spoke in (expect, None),
+                             'no words to judge' if spoke is None
+                             else '%s: %s' % (spoke, safe(answer, 44)))
+                report.check('and the lock is still %s' % expect,
                              chat.language == expect, str(chat.language))
-                continue
-
-            report.check('%s the board' % ('reached' if needs_board
-                                           else 'did not reach'),
-                         (READING in called) == needs_board,
-                         ', '.join(called) or 'no calls')
-            # detect() is the same judge the session prompt is built from, so
-            # a disagreement here is the operator's screen disagreeing too.
-            # None passes: measured against the stand-in, "las NTC:n och
-            # DC-lanken" was answered "NTC: 25.00C DC-lanken: 39.075V" - terse
-            # and no preamble, exactly what SYSTEM asks for, and not one word
-            # for a stop-word list to score. An answer with no words in it
-            # cannot be in the wrong language. Anything that does detect must
-            # be right.
-            spoke = language.detect(answer)
-            report.check('answered in %s' % expect, spoke in (expect, None),
-                         'no words to judge' if spoke is None
-                         else '%s: %s' % (spoke, safe(answer, 44)))
-            report.check('and the lock is still %s' % expect,
-                         chat.language == expect, str(chat.language))
     finally:
         try:
             session.close()
+        except Exception:                                     # noqa: BLE001
+            pass
+        # And the card back, once, however the run ended. A suite that
+        # leaves 7.6 GB resident is the failure docs/MODELS.md measured at
+        # 9.69 GB for 27 minutes at 1 % use.
+        try:
+            chat.client.unload()
         except Exception:                                     # noqa: BLE001
             pass
 

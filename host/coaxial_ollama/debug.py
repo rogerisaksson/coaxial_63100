@@ -49,8 +49,19 @@ from .sandbox import Scope, Shell, clip, clip_ends   # noqa: E402
 # teach the right one. "A table or list means analog_read once" was written
 # about tabulating readings and read as "a list means analog_read" - so
 # "ge mig en lista over alla analoga kanaler" fetched a full analog table,
-# every time, in both languages. It says "a table of readings" now, and the
-# line after it names which call answers which question.
+# every time, in both languages.
+#
+# Rewritten once more, and merged: "a table of readings means analog_read"
+# still pulled "ge mig vardena fran de digitala kanalerna" to analog_read,
+# on top of the digital_read it had already made correctly. The qualifier
+# said "digital_read for a pin" while the renderer calls them channels, so
+# nothing connected the question to the call. One line names both kinds by
+# the word the screen uses, and it costs five tokens less than the two it
+# replaced.
+#
+# "a named pin included" is there because "vilket varde har PB2 nu?" went
+# to board_info: the question names a pin, and nothing connected a pin to
+# the word digital. The map is not a value.
 #
 # The first line is the exception, and it is paid for on every turn because
 # the sentence it replaced caused the error. "an expert with a serial link to
@@ -63,10 +74,10 @@ SYSTEM = """You are an expert on a coaxial BLDC inverter: the PCB behind an
 outrunner's stator, not a cable. Modbus RTU over the probe's COM port or RS485.
 Tools for the board, never to guess; off-topic needs none. Answer briefly,
 no preamble.
-A table of readings means analog_read once - its grid is every channel already.
-Never markdown it, never restate a tool's own rows - one line, not two.
-A list of channels is board_info. A value is analog_read, or digital_read
-for a pin. What a thing IS is words, not a call.
+Never markdown a result, never restate a tool's own rows - one line, not two.
+A list of channels is board_info. Values are analog_read for analog and
+digital_read for digital, a named pin included - one call covers its kind.
+What a thing IS is words, not a call.
 Switching board or model is /board and /model - name it, do not refuse.
 A call error is reported, never guessed or hidden behind an old reading.
 Any reading: analog_read only, never afe_power first - analog_read works
@@ -880,13 +891,20 @@ class Chat:
                         return self._link_down_message(
                             probe, shown=diagnosed and not self.quiet)
                     # Confirmed up. Told only that, the turn still ended on
-                    # "ask again" and the operator retyped it twice. A nudge
-                    # spends a turn this loop already owns.
+                    # "ask again" and the operator retyped it twice, so the
+                    # nudge has to be actionable - but not prescriptive.
+                    # Measured: it named analog_read, and "beskriv hardvaran
+                    # i detta projektet for en novis" answered blank, got
+                    # nudged, and came back with a full analog table. The
+                    # host cannot tell from here whether the question wants
+                    # a reading; the model can.
                     if nudges < 2:
                         nudges += 1
                         self.history.append({'role': 'user', 'content':
-                            'The link just answered - call analog_read for a '
-                            'fresh reading, do not reuse the old one.'})
+                            'The link just answered. Answer the question '
+                            'now - with a fresh call if it needs one, and '
+                            'in words if it does not. Never reuse an old '
+                            'reading.'})
                         continue
                     return 'no reading taken this turn - ask again.'
                 # A reading did succeed this turn and the model still wrote

@@ -25,6 +25,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]           # host/
+BACKSLASH = chr(92)
 DEFAULT_SUITES = ('test_ollama.py', 'test_mcp.py', 'test_simulated.py',
                   'test_parity.py')
 CONFORMANCE = 'test_conformance.py'
@@ -51,11 +52,12 @@ TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed$')
 FAIL_RE = re.compile(r'^\s*FAIL\s+(.+?)\s{2,}')
 
 
-def run_one(path, timeout=300):
+def run_one(path, timeout=300, extra=()):
     """(tally, returncode, failing_names, elapsed, crash_detail-or-None)."""
     started = time.monotonic()
     try:
-        done = subprocess.run([sys.executable, str(path)], cwd=str(ROOT),
+        done = subprocess.run([sys.executable, str(path)] + list(extra),
+                              cwd=str(ROOT),
                               capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return None, None, [], time.monotonic() - started, 'TIMEOUT after %ss' % timeout
@@ -103,11 +105,107 @@ def board_note():
             % (', '.join(NEEDS_BOARD), ', '.join(ports)))
 
 
+# What a change to each part of the tree can plausibly have broken. Read
+# top-down, first match wins, and anything unmatched falls back to the whole
+# default set - the safe direction when the map has a hole in it.
+#
+# `live` is the expensive one: a model load plus a turn per question. It is
+# listed only against the files that decide what the model is told and what
+# it can call, because that is what a wrong answer there comes from.
+TOUCHES = (
+    ('host/coaxial_ollama/debug.py',  ('test_ollama.py', 'live:all')),
+    ('host/coaxial_ollama/replies.py', ('test_ollama.py', 'live:tools')),
+    ('host/coaxial_ollama/language.py', ('test_ollama.py', 'live:language')),
+    ('host/coaxial_ollama/',          ('test_ollama.py',)),
+    ('host/coaxial_mcp/tools.py',     ('test_mcp.py', 'test_ollama.py',
+                                       'test_parity.py', 'live:tools')),
+    ('host/coaxial_mcp/render.py',    ('test_mcp.py', 'test_ollama.py',
+                                       'test_parity.py')),
+    ('host/coaxial_mcp/',             ('test_mcp.py', 'test_parity.py')),
+    ('host/coaxial/simulated.py',     ('test_simulated.py', 'test_parity.py',
+                                       'test_ollama.py')),
+    ('host/coaxial/',                 ('test_simulated.py', 'test_parity.py',
+                                       'test_mcp.py')),
+    ('host/tools/',                   ('test_ollama.py',)),
+    ('host/tests/',                   ()),          # decided by name below
+    # Firmware and protocol: the byte-level master is the point of it.
+    ('Modbus/',                       (CONFORMANCE, 'test_mcp.py')),
+    ('Comms/',                        (CONFORMANCE, 'test_mcp.py')),
+    ('Board/',                        (CONFORMANCE, 'test_mcp.py',
+                                       'test_parity.py')),
+    ('Core/',                         (CONFORMANCE,)),
+    # A document can only break the docs index and the phrase table.
+    ('docs/',                         ('test_ollama.py',)),
+    ('CLAUDE.md',                     ('test_ollama.py',)),
+    ('README.md',                     ('test_ollama.py',)),
+)
+
+# Every this many commits, run the lot regardless of what changed. A map
+# from files to suites is a guess about coupling, and a guess that is never
+# checked is one that drifts.
+FULL_EVERY = 10
+
+
+def changed_files(against='HEAD'):
+    """Paths touched in the working tree and in the last commit.
+
+    Both, because a suite picked for a change already committed is what a
+    pre-push check wants, and one picked for a change not yet staged is
+    what an edit-test loop wants.
+    """
+    import subprocess
+    paths = set()
+    for args in (['diff', '--name-only', against],
+                 ['diff', '--name-only', '--cached'],
+                 ['diff', '--name-only', '%s~1' % against, against]):
+        try:
+            done = subprocess.run(['git'] + args, cwd=str(ROOT.parent),
+                                  capture_output=True, text=True, timeout=30)
+        except Exception:                                     # noqa: BLE001
+            continue
+        if done.returncode == 0:
+            paths |= {line.strip().replace(BACKSLASH, '/')
+                      for line in done.stdout.splitlines() if line.strip()}
+    return sorted(paths)
+
+
+def pick(paths):
+    """(suites, live_sections, why) for these changed paths."""
+    suites, live, why = set(), set(), []
+    for path in paths:
+        for prefix, wanted in TOUCHES:
+            if path.startswith(prefix):
+                if not wanted and path.startswith('host/tests/'):
+                    name = path.rsplit('/', 1)[-1]
+                    if name.startswith('test_'):
+                        suites.add(name)
+                        why.append('%s -> itself' % path)
+                    break
+                for item in wanted:
+                    if item.startswith('live:'):
+                        live.add(item.split(':', 1)[1])
+                    else:
+                        suites.add(item)
+                why.append('%s -> %s' % (path, ', '.join(wanted) or 'itself'))
+                break
+        else:
+            why.append('%s -> unmapped, running everything' % path)
+            return set(DEFAULT_SUITES) | {CONFORMANCE}, {'all'}, why
+    return suites, live, why
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--conformance', action='store_true',
                         help='also run test_conformance.py - needs a real '
                              'board on COM4, not just simulated')
+    parser.add_argument('--smart', action='store_true',
+                        help='run what the changes can have broken, and the '
+                             'whole lot every %dth commit. --dry-run says '
+                             'what it would do without running it.'
+                             % FULL_EVERY)
+    parser.add_argument('--dry-run', action='store_true',
+                        help='with --smart: print the choice and why')
     parser.add_argument('--live', action='store_true',
                         help='also run test_live_model.py - a real ollama '
                              'model against the real board, minutes not '
@@ -122,10 +220,49 @@ def main(argv=None):
                              'so.' % ', '.join(NEEDS_BOARD))
     args = parser.parse_args(argv)
 
+    live_sections = 'all'
+    if args.smart and not args.file:
+        import subprocess
+        try:
+            count = int(subprocess.run(
+                ['git', 'rev-list', '--count', 'HEAD'], cwd=str(ROOT.parent),
+                capture_output=True, text=True, timeout=30).stdout.strip())
+        except Exception:                                     # noqa: BLE001
+            count = 0
+        paths = changed_files()
+        if count and count % FULL_EVERY == 0:
+            chosen = set(DEFAULT_SUITES) | {CONFORMANCE}
+            picked_live, why = {'all'}, ['commit %d is a multiple of %d - '
+                                         'everything' % (count, FULL_EVERY)]
+        else:
+            chosen, picked_live, why = pick(paths)
+            if not chosen and not picked_live:
+                why.append('nothing changed that any suite covers')
+        print('-- smart: %d file%s changed --'
+              % (len(paths), '' if len(paths) == 1 else 's'))
+        for line in why[:12]:
+            print('   ' + line)
+        order = list(DEFAULT_SUITES) + [CONFORMANCE]
+        # The live suite is not run by name from --file: it is the one with
+        # sections, and it is added below. Editing it is a reason to run it.
+        if LIVE in chosen:
+            picked_live = picked_live or {'all'}
+        args.file = [name for name in order if name in chosen]
+        live_sections = ','.join(sorted(picked_live)) if picked_live else ''
+        if live_sections and 'all' in picked_live:
+            live_sections = 'all'
+        if live_sections:
+            args.live = True
+        print('   suites: %s%s' % (', '.join(args.file) or 'none',
+                                   '  live: ' + live_sections
+                                   if live_sections else ''))
+        if args.dry_run:
+            return 0
+
     suites = list(args.file) if args.file else list(DEFAULT_SUITES)
     if args.conformance and not args.file:
         suites.append(CONFORMANCE)
-    if args.live and not args.file:
+    if args.live and (not args.file or args.smart):
         suites.append(LIVE)
     if args.offline:
         suites = [name for name in suites if name not in NEEDS_BOARD]
@@ -139,8 +276,10 @@ def main(argv=None):
             print('%-20s MISSING %s' % (name, path))
             ok = False
             continue
+        extra = (['--sections', live_sections]
+                 if name == LIVE and live_sections else [])
         tally, code, failing, elapsed, crash = run_one(
-            path, timeout=1200 if name == LIVE else 300)
+            path, timeout=1200 if name == LIVE else 300, extra=extra)
         if tally is None:
             print('%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed))
             if crash:

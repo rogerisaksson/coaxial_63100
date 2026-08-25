@@ -62,7 +62,13 @@ ROBOT_FALLBACK = 'o'
 # U+FE0F to become colour; ❌ CROSS MARK does not, and was the original
 # choice for exactly this reason.
 ICON_WAIT = '\U0001F4A4'                 # "💤"
-ICON_BUSY = '⌛'                    # "⌛"
+# GEAR, and it is the exception to everything above: U+2699 is
+# text-presentation by default and needs the U+FE0F to come out in colour,
+# which is the forced-colour case the paragraph above says reads as uneven
+# spacing. Asked for by name anyway - a gear says "working" where an
+# hourglass says "waiting", and the model working is what this icon marks.
+# If the row ever looks a column out beside the others, this is why.
+ICON_BUSY = '⚙️'              # "⚙️"
 ICON_ERROR = '❌'                    # "❌"
 ICON_WAIT_FALLBACK = 'z'
 ICON_BUSY_FALLBACK = '~'

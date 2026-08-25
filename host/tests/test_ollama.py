@@ -741,16 +741,25 @@ def test_prompt(report):
                                    ('start', 'SECOND'), ('end', 'SECOND')],
                  slow_real.log)
 
-    report.check('the robot and all three icons are real emoji, not '
-                 'look-alike runs of ASCII - none of them need a variation '
-                 'selector to render in colour, unlike the pause mark and '
-                 'the warning sign that each sat here before',
+    report.check('the robot and the two resting icons are real emoji, not '
+                 'look-alike runs of ASCII, and need no variation selector '
+                 'to render in colour - unlike the pause mark and the '
+                 'warning sign that each sat here before',
                  spin.ROBOT == '\U0001F916'
                  and spin.ICON_WAIT == '\U0001F4A4'
-                 and spin.ICON_BUSY == '⌛'
                  and spin.ICON_ERROR == '❌'
-                 and len(spin.ICON_WAIT) == len(spin.ICON_BUSY)
-                 == len(spin.ICON_ERROR) == 1)
+                 and len(spin.ICON_WAIT) == len(spin.ICON_ERROR) == 1)
+    # The gear is the exception, and a deliberate one: asked for by name
+    # because it says "working" where an hourglass says "waiting".
+    # U+2699 is text-presentation, so it needs the U+FE0F the other three
+    # do not - which is the forced-colour case measured as uneven spacing.
+    # Asserted as it is so the trade stays visible, not asserted away.
+    report.check('the busy icon is the gear, selector and all',
+                 spin.ICON_BUSY == '\u2699\ufe0f',
+                 spin.ICON_BUSY.encode('unicode_escape').decode())
+    report.check('and it is the only one carrying a selector',
+                 not any('\ufe0f' in icon for icon in
+                         (spin.ROBOT, spin.ICON_WAIT, spin.ICON_ERROR)))
     report.check('none of that matters for positioning any more - every '
                  'repaint rewrites from column 1, not a computed one',
                  not hasattr(face, 'icon_column')
@@ -1260,6 +1269,62 @@ def test_reading_block(report):
                  printed[at - 1].strip() == '', repr(printed[at - 1])[:40])
     report.check('but the first block has no blank line above it',
                  printed[0].strip() != '', repr(printed[0])[:40])
+
+
+def test_smart_selection(report):
+    """Which suites a change can have broken.
+
+    The live suite is a model load plus a turn per question - minutes - so
+    running it for a change to a channel renderer is most of a coffee break
+    spent proving nothing. `run_tests.py --smart` maps the changed files to
+    the suites that cover them, and runs the lot every tenth commit because
+    a map from files to suites is a guess about coupling and a guess that
+    is never checked is one that drifts.
+    """
+    import os
+    import sys as _sys
+    _sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), 'tools'))
+    import run_tests
+
+    for paths, expect_suites, expect_live, why in (
+            (['host/coaxial_ollama/language.py'],
+             {'test_ollama.py'}, {'language'},
+             'the language lock is half the live suite, not all of it'),
+            (['host/coaxial_ollama/replies.py'],
+             {'test_ollama.py'}, {'tools'},
+             'what an answer means is the tool-choice half'),
+            (['host/coaxial_mcp/render.py'],
+             {'test_mcp.py', 'test_ollama.py', 'test_parity.py'}, set(),
+             'a renderer cannot change which tool gets called'),
+            (['docs/HARDWARE.md'], {'test_ollama.py'}, set(),
+             'a document can only break the docs index'),
+            (['Modbus/Src/modbus_rtu.c'],
+             {'test_conformance.py', 'test_mcp.py'}, set(),
+             'the wire is what the byte-level master is for'),
+            (['host/tests/test_parity.py'], {'test_parity.py'}, set(),
+             'editing a suite is a reason to run it'),
+            (['host/coaxial_ollama/debug.py'],
+             {'test_ollama.py'}, {'all'},
+             'the prompt and the tool sets are both in there'),
+    ):
+        suites, live, _ = run_tests.pick(paths)
+        report.check('%s -> %s' % (paths[0].rsplit('/', 1)[-1],
+                                   ', '.join(sorted(suites)) or 'none'),
+                     suites == expect_suites, ', '.join(sorted(suites)))
+        report.check('   ...and live: %s (%s)'
+                     % (', '.join(sorted(expect_live)) or 'not at all', why),
+                     live == expect_live, ', '.join(sorted(live)) or 'none')
+
+    # A path the map does not know is the case to fail safe on: run
+    # everything rather than quietly cover nothing.
+    suites, live, why = run_tests.pick(['setup.ps1'])
+    report.check('an unmapped path runs everything, and says why',
+                 run_tests.CONFORMANCE in suites and live == {'all'}
+                 and 'unmapped' in why[-1], why[-1][:52])
+
+    report.check('and the whole lot goes every tenth commit',
+                 run_tests.FULL_EVERY == 10)
 
 
 def test_afe_trace(report):
@@ -4232,7 +4297,7 @@ def main():
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_link_recovery, test_channel_map, test_afe_trace, test_reading_block, test_digital_read, test_map_sections, test_map_retype, test_port_state,
+                 test_link_diagnose, test_link_recovery, test_channel_map, test_smart_selection, test_afe_trace, test_reading_block, test_digital_read, test_map_sections, test_map_retype, test_port_state,
                  test_retype_with_the_trace_off,
                  test_power_check_cannot_halt,
                  test_transcript,
