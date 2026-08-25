@@ -137,7 +137,18 @@ class Session:
                           board.analog.channels(refresh=refresh))
         return self._info
 
-    def scan(self, units=range(1, 17)):
+    def buses(self):
+        """[(label, what it serves)] - the segments this host can reach.
+
+        One, on a bench with one cable in: a bus is a serial segment, and
+        the host reaches one port at a time. A machine wired the way
+        `coaxial.simulated` is has five, and which limb a segment serves is
+        the operator's knowledge rather than the board's - a board cannot
+        know where it was bolted.
+        """
+        return [(self.port, 'the attached bus')]
+
+    def scan(self, units=range(1, 17), bus=None):
         """[(unit, version)] for every device answering on this bus.
 
         The link is dropped first: one port cannot be open twice, and the
@@ -145,11 +156,17 @@ class Session:
         next tool call reopens it.
         """
         self.close()
-        return scan(units, self.port, self.baud)
+        return scan(units, bus or self.port, self.baud)
 
-    def use(self, unit):
-        """Point this session at another unit on the same bus."""
+    def use(self, unit, bus=None):
+        """Point this session at another node, and another bus with it.
+
+        A bus is a port here, so moving bus means moving port - and the
+        link goes with it rather than being carried across.
+        """
         self.close()
+        if bus is not None:
+            self.port = bus
         self.unit = int(unit)
         return self.unit
 

@@ -82,6 +82,39 @@ def run_one(path, timeout=300, extra=()):
     return tally, done.returncode, failing, elapsed, None
 
 
+def hold_model(tag):
+    """Load the model before the first suite that needs it.
+
+    Up front rather than by the first question, so the 7.6 GB wait lands
+    where somebody is watching for it instead of inside a turn that then
+    looks slow for no reason. Returns None if ollama is not reachable - the
+    suite saying it cannot run is a better message than a preload raising
+    here.
+    """
+    try:
+        sys.path.insert(0, str(ROOT))
+        from coaxial_ollama.client import Ollama
+        client = Ollama(tag, keep_alive='30m')
+        client.model = client.require_model()
+        print('holding %s for the run' % client.model)
+        client.preload()
+        return client
+    except Exception as exc:                                  # noqa: BLE001
+        print('could not preload %s: %s' % (tag, exc))
+        return None
+
+
+def release_model(client):
+    """Hand the card back, once, when the run is over."""
+    if client is None:
+        return
+    try:
+        client.unload()
+        print('released %s' % client.model)
+    except Exception as exc:                                  # noqa: BLE001
+        print('could not release %s: %s' % (client.model, exc))
+
+
 def board_note():
     """One line saying whether the board answered, printed only when a suite
     that needs it failed.
@@ -199,6 +232,10 @@ def main(argv=None):
     parser.add_argument('--conformance', action='store_true',
                         help='also run test_conformance.py - needs a real '
                              'board on COM4, not just simulated')
+    parser.add_argument('--model', default='gemma4:12b',
+                        help='the tag test_live_model.py runs against. This '
+                             'script loads it once and releases it when the '
+                             'run ends.')
     parser.add_argument('--smart', action='store_true',
                         help='run what the changes can have broken, and the '
                              'whole lot every %dth commit. --dry-run says '
@@ -267,41 +304,60 @@ def main(argv=None):
     if args.offline:
         suites = [name for name in suites if name not in NEEDS_BOARD]
 
+    # The model's whole life, in one place. It is loaded once before the
+    # first suite that needs it, held across every row of every such suite,
+    # and handed back when the run is over - not after each suite, and not
+    # after each question. Measured: unloading between runs put most of the
+    # wall time into loading 7.6 GB again, and holding it after the run put
+    # 9.69 GB on the card for 27 minutes at 1 % use. Neither is the bargain.
+    holding = LIVE in suites
+    if holding:
+        held = hold_model(args.model)
+
     total_pass = total_fail = 0
     failing_lines = []
     ok = True
-    for name in suites:
-        path = ROOT / 'tests' / name
-        if not path.exists():
-            print('%-20s MISSING %s' % (name, path))
-            ok = False
-            continue
-        extra = (['--sections', live_sections]
-                 if name == LIVE and live_sections else [])
-        tally, code, failing, elapsed, crash = run_one(
-            path, timeout=1200 if name == LIVE else 300, extra=extra)
-        if tally is None:
-            print('%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed))
-            if crash:
-                print(crash)
-            ok = False
-            continue
-        passed, failed = tally
-        total_pass += passed
-        total_fail += failed
-        failing_lines.extend('%s: %s' % (name, x) for x in failing)
-        if failed or code != 0:
-            ok = False
-        print('%-20s %s, %d failed  %.1fs'
-              % (name, '%d passed' % passed, failed, elapsed))
+    try:
+        for name in suites:
+            path = ROOT / 'tests' / name
+            if not path.exists():
+                print('%-20s MISSING %s' % (name, path))
+                ok = False
+                continue
+            # No --release: this script owns the model's life, holds it
+            # across every suite that needs it, and hands it back in the
+            # `finally` below. The suite releasing it per run was what put
+            # most of the wall time into loading 7.6 GB again.
+            extra = ['-m', args.model] if name == LIVE else []
+            if name == LIVE and live_sections:
+                extra += ['--sections', live_sections]
+            tally, code, failing, elapsed, crash = run_one(
+                path, timeout=1200 if name == LIVE else 300, extra=extra)
+            if tally is None:
+                print('%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed))
+                if crash:
+                    print(crash)
+                ok = False
+                continue
+            passed, failed = tally
+            total_pass += passed
+            total_fail += failed
+            failing_lines.extend('%s: %s' % (name, x) for x in failing)
+            if failed or code != 0:
+                ok = False
+            print('%-20s %s, %d failed  %.1fs'
+                  % (name, '%d passed' % passed, failed, elapsed))
 
-    print('TOTAL %d passed, %d failed' % (total_pass, total_fail))
-    for line in failing_lines:
-        print('  ' + line)
-    if total_fail and any(line.split(':')[0] in NEEDS_BOARD
-                          for line in failing_lines):
-        print(board_note())
-    return 0 if ok else 1
+        print('TOTAL %d passed, %d failed' % (total_pass, total_fail))
+        for line in failing_lines:
+            print('  ' + line)
+        if total_fail and any(line.split(':')[0] in NEEDS_BOARD
+                              for line in failing_lines):
+            print(board_note())
+        return 0 if ok else 1
+    finally:
+        if holding:
+            release_model(held)
 
 
 if __name__ == '__main__':

@@ -1327,92 +1327,84 @@ def test_reading_block(report):
 
 
 def test_bus(report):
-    """One board is a bus of one; a machine is several of it.
+    """Five segments, one per limb plus the axis.
 
-    Same firmware, same commands, different unit id and a different thing
-    bolted to the shaft. What tells them apart is the identity each one
-    reports for itself - "unit 3" is a number, "right knee" is a device,
-    and only one of those says what an operator is about to drive.
+    A bus is a serial segment, which is how a machine like this is wired:
+    shorter runs, one limb's fault confined to one limb, four segments
+    carrying traffic at once instead of twenty nodes taking turns. That
+    makes an odd/even side rule redundant - the bus says the side - so the
+    unit id says the position down the limb, and node 2 is the knee on both
+    legs. A number worth more to a controller than a unique one.
     """
-    from coaxial.simulated import SIMULATED_BUS, SimulatedSession as Sim
+    from coaxial.simulated import (SIMULATED_BUSES, bus_nodes,
+                                   SimulatedSession as Sim)
     from coaxial_mcp import tools as mcp
     from coaxial_ollama import debug
 
-    def mcp_box(sess):
-        return toolmod.Toolbox(sess, scope=Scope())
-
     session = Sim()
+
+    segments = mcp.HANDLERS['devices'](session, op='buses')
+    report.check('every segment is listed, with what it serves',
+                 all('%s ' % label in segments and serves in segments
+                     for label, (serves, _) in SIMULATED_BUSES.items()),
+                 segments.splitlines()[2][:46])
+    report.check('and the one the tools are on is marked',
+                 [l for l in segments.splitlines() if ' * ' in l][0]
+                 .startswith('AX'),
+                 [l for l in segments.splitlines() if ' * ' in l][0][:30])
+
     listed = mcp.HANDLERS['devices'](session)
+    report.check('the list carries the bus, because a node number alone '
+                 'names nothing',
+                 listed.splitlines()[1].split()[:2] == ['bus', 'node'],
+                 listed.splitlines()[1])
+    report.check('every node on every segment is in it',
+                 sum(len(nodes) for _, nodes in SIMULATED_BUSES.values())
+                 == len(listed.splitlines()) - 2,
+                 '%d rows' % (len(listed.splitlines()) - 2))
 
-    within = {u: row for u, row in SIMULATED_BUS.items() if u <= 16}
-    report.check('every simulated node in the default sweep is listed',
-                 all(row[2] in listed for row in within.values()),
-                 listed.splitlines()[2][:52])
-    report.check('and each carries its own name and type',
-                 all(row[0] in listed and row[1] in listed
-                     for row in within.values()))
-    report.check('the header names the interface, not the port',
-                 listed.splitlines()[0]
-                 == 'Nodes on the communication interface (Simulated):',
-                 listed.splitlines()[0])
-    report.check('the selected node is marked in the node column',
-                 [l for l in listed.splitlines() if l.startswith('>')][0]
-                 .startswith('>1 '),
-                 [l for l in listed.splitlines() if l.startswith('>')][0][:34])
+    # The same joint at the same unit id on both sides is the property the
+    # segments buy: the bus says which leg, the number says which joint.
+    for unit in (1, 2, 3, 4):
+        left = bus_nodes('LL')[unit][2]
+        right = bus_nodes('RL')[unit][2]
+        report.check('unit %d is the same joint on both legs' % unit,
+                     left.replace('left', '') == right.replace('right', ''),
+                     '%s / %s' % (left, right))
+    report.check('and the arms are numbered the same way down the limb',
+                 [bus_nodes('LA')[u][2].replace('left ', '')
+                  for u in (1, 2, 3, 4)]
+                 == ['shoulder', 'elbow', 'wrist', 'gripper'])
 
-    # The numbering IS the symmetry: 1-4 the axis, everything paired odd on
-    # the left and even on the right. A scheme nobody can read off a label
-    # is a scheme that needs a lookup.
-    paired = {u: row[2] for u, row in SIMULATED_BUS.items() if u >= 5}
-    wrong = [u for u, where in paired.items()
-             if (u % 2 == 1) != where.startswith('left')]
-    report.check('odd units are left, even units are right, without exception',
-                 not wrong, ', '.join(str(u) for u in wrong) or 'all 12')
-    report.check('and each pair sits on consecutive units',
-                 all(paired.get(u, '').replace('left', '')
-                     == paired.get(u + 1, ' ').replace('right', '')
-                     for u in range(5, 16, 2)))
-    axis = [row[2] for u, row in sorted(SIMULATED_BUS.items()) if u <= 4]
-    report.check('the axis is units 1-4, bottom to top',
-                 axis == ['pelvis', 'waist', 'neck', 'head'],
-                 ', '.join(axis))
-
-    # The sweep is bounded, and the bound is visible rather than quiet.
-    report.check('a node past the default sweep is not in the list',
-                 'right gripper' not in listed and 20 in SIMULATED_BUS)
-    report.check('   ...and is found when the sweep is widened to reach it',
-                 'right gripper' in mcp.HANDLERS['devices'](session, last=20))
-
-    # Selecting, by number and by what the device calls itself.
-    mcp.HANDLERS['devices'](session, op='use', unit=8)
-    report.check('op=use points the session at another unit',
-                 session.unit == 8, str(session.unit))
-    report.check('and every other tool follows it with no argument of its own',
+    # Selecting, by number-with-bus and by what the node calls itself.
+    mcp.HANDLERS['devices'](session, op='use', bus='RL', unit=2)
+    report.check('op=use moves the bus as well as the node',
+                 (session.bus, session.unit) == ('RL', 2),
+                 '%s %d' % (session.bus, session.unit))
+    report.check('and every other tool follows both',
                  'right knee' in mcp.HANDLERS['board_info'](session,
-                                                            kind='identity'),
-                 mcp.HANDLERS['board_info'](session,
-                                            kind='identity').splitlines()[-1][:46])
+                                                            kind='identity'))
 
-    mcp.HANDLERS['devices'](session, op='use', name='left shoulder')
-    report.check('a device can be picked by what it calls itself',
-                 session.unit == 11, str(session.unit))
+    mcp.HANDLERS['devices'](session, op='use', name='left gripper')
+    report.check('a node can be picked by name across every segment',
+                 (session.bus, session.unit) == ('LA', 4),
+                 '%s %d' % (session.bus, session.unit))
 
-    # The two ways of getting it wrong, both answered rather than obeyed.
-    # 'knee' is two nodes on a symmetric machine, which is the whole reason
-    # a name is not enough on its own.
-    report.check('an ambiguous name names the problem, and moves nothing',
-                 'matches 2 devices' in mcp.HANDLERS['devices'](
-                     session, op='use', name='knee') and session.unit == 11)
-    absent = mcp.HANDLERS['devices'](session, op='use', unit=30)
-    report.check('a unit nobody is at is refused, with who is',
-                 absent.startswith('ERR no device at unit 30')
-                 and '1, 2, 3' in absent and session.unit == 11,
-                 absent[:46])
+    # 'knee' is one node on each leg, which is exactly what a symmetric
+    # machine makes ambiguous - so it names both rather than picking.
+    both = mcp.HANDLERS['devices'](session, op='use', name='knee')
+    report.check('a name on two segments names both, and moves nothing',
+                 'LL 2' in both and 'RL 2' in both
+                 and (session.bus, session.unit) == ('LA', 4), both[:52])
 
-    # A reading follows the selection, which is the point of all of it.
-    mcp.HANDLERS['devices'](session, op='use', unit=2)
+    absent = mcp.HANDLERS['devices'](session, op='use', bus='LL', unit=9)
+    report.check('a node nobody is at is refused, with who is',
+                 absent.startswith('ERR no node at LL 9')
+                 and (session.bus, session.unit) == ('LA', 4), absent[:46])
+
+    mcp.HANDLERS['devices'](session, op='use', bus='AX', unit=3)
     mcp.HANDLERS['afe_power'](session, action='on')
-    report.check('a reading comes from the device that is selected',
+    report.check('a reading comes from the node that is selected',
                  'samples @' in mcp.HANDLERS['analog_read'](session,
                                                             samples=8))
 
@@ -1420,11 +1412,12 @@ def test_bus(report):
                  all('devices' in debug.SETS[name]
                      for name in ('read', 'code', 'pins')))
 
-    # Node 0 is the Modbus broadcast address, not a node. Every node acts
-    # on it and none answers, so a read there cannot work - and a timeout
-    # would read as the bus having died rather than as the protocol
-    # working. Refused in one place, Board.request, which every read and
-    # every read-back write comes through.
+    # Node 0 is the Modbus broadcast address, not a node. Every node acts on
+    # it and none answers, so a read there cannot work - and a timeout would
+    # read as the bus having died rather than as the protocol working.
+    # Refused in one place, Board.request, which every read and every
+    # read-back write comes through. It is one segment's broadcast, not the
+    # machine's: five buses are five broadcast domains.
     from coaxial.errors import DeviceStateError
     mcp.HANDLERS['devices'](session, op='use', unit=0)
     report.check('unit 0 is selectable even though it never answers',
@@ -1444,13 +1437,20 @@ def test_bus(report):
                  mcp.HANDLERS['afe_power'](session, action='read')
                  .startswith('ERR'))
 
-    # The prompt is the one place an operator sees which node - and
-    # broadcast is a mode, not a node, so it does not read as "node zero".
+    # The prompt is the one place an operator sees where the tools are
+    # pointed, and with five segments the bus has to be in it.
     talk = debug.Chat.__new__(debug.Chat)
-    talk.toolbox, talk.origin = mcp_box(session), ('Simulated', False)
-    for unit, expect, ok in ((7, 'node 7 left knee', False),
-                             (0, 'ALL NODES', 'all')):
-        session.use(unit)
+    talk.toolbox = toolmod.Toolbox(session, scope=Scope())
+    talk.origin = ('Simulated', False)
+    # Short on purpose: the bus already carries the side, so the joint goes
+    # in without it. "RL 2 knee", not "RL node 2 right knee" - and `Ra` for
+    # ankle, which was the abbreviation asked for, would have collided with
+    # `RA` for the right arm on a line whose whole job is to be read at a
+    # glance.
+    for bus, unit, expect, ok in (('RL', 2, 'RL 2 knee', False),
+                                  ('LA', 1, 'LA 1 shoulder', False),
+                                  ('AX', 0, 'AX ALL NODES', 'all')):
+        session.use(unit, bus=bus)
         tag, got_ok = talk.prompt_tag()
         report.check('the prompt says %r' % expect, expect in tag, tag)
         report.check('   ...and the spinner paints it %s'

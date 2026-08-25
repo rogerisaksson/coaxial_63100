@@ -350,6 +350,10 @@ PHRASES = {
             '%d sampel @%.0fHz',
         'read as asked, with corrections: %s':
             'läst som efterfrågat, med rättelser: %s',
+        'From %s:':
+            'Från %s:',
+        'every node on %s':
+            'varje nod på %s',
         'link re-established':
             'länken återupprättad',
         ' -> check the board is powered, and that a JTAG programmer or '

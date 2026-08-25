@@ -559,6 +559,21 @@ Off on a bare `Chat()`, since dozens of tests build one.
 
 ---
 
+**A tool schema that crowded out a tool choice.** Adding `devices` took the
+tool list from ~1032 to ~1210 tokens a turn, and
+`vad läser NTC:n?` stopped calling `analog_read` at all - it answered from
+nothing. Deterministic: the same row, twice, `temperature 0` and `seed 7`.
+
+Trimming that one schema's property descriptions - 157 tokens to 120, no
+behaviour changed - brought it back. **82 of 82.** The tool list is re-read
+every turn, so a verbose `description` on a property nobody needed cost a tool
+call somewhere else entirely, and nothing about the failure pointed at the tool
+that caused it.
+
+Worth the method note: the live suite is what made it visible, and it was
+visible only because the suite is deterministic. A flaky one would have read as
+model variance.
+
 ## The live suite
 
 `tests/test_live_model.py` is the only suite here that does not script the

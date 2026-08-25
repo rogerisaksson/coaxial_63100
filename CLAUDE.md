@@ -37,8 +37,11 @@ ADC reference. That is the mechanism behind invariant 9, and why
 picks one by `unit=` or by `name=`; every other tool then talks to it.
 `origin.interface` is the communication interface type - `debug probe`,
 `RS485` or `simulated` - which is a different question from which unit.
-`/node [N]` switches node without a model turn; **`/node 0` is the Modbus
-broadcast address**, where every node acts and none answers, so reads are
+A bus is a serial segment: the simulated machine has five - `AX` axis, `LL`/`RL`
+legs, `LA`/`RA` arms - so the unit id is the position down the limb and node 2
+is the knee on both legs. `/node` lists, `/node RL 2` or `/node right knee`
+selects, `/node bus` lists the segments. **`/node 0` is the Modbus broadcast
+address** for the selected segment: every node acts, none answers, reads are
 refused and the prompt goes red.
 
 **The channel map is the board's, not this file's.** Command `0x6D channels`
@@ -92,6 +95,15 @@ Suites: `test_ollama.py` (537), `test_simulated.py` (34), `test_mcp.py` (40),
 `test_parity.py` (17), `test_conformance.py` (67, `--conformance`),
 `test_live_model.py` (48, needs ollama, `--live`) - the only one where the
 model itself is under test.
+
+**The model's life belongs to `run_tests.py`.** It loads the tag once before
+the first suite that needs it, holds it across every row of every such suite,
+and releases it when the run ends - not after each suite, and never after each
+question. Measured both ways: releasing between runs put most of the wall time
+into loading 7.6 GB again, and holding it after the run left 9.69 GB on the
+card for 27 minutes at 1 % use. `test_live_model.py` on its own never
+releases (`--release` if it really is the last run), because a suite run by
+hand is almost never run once.
 
 `--smart` maps the changed files to the suites that cover them and runs the
 lot every tenth commit - a map from files to suites is a guess about coupling,

@@ -98,17 +98,16 @@ TOOLS = [
     },
     {
         'name': 'devices',
-        'description': "Units on this bus and what each says it is. op=use with name='right knee' or unit=3 picks the one every other tool then talks to.",
-        'description_terse': "Devices on the bus. op=use + name='right knee' or unit=3 to pick one.",
+        'description': "Nodes on every bus, and what each says it is. op=buses lists the segments; op=use name='right knee' picks one.",
+        'description_terse': "Nodes on every bus. op=buses for segments; op=use + name='right knee' picks one.",
         'inputSchema': {
             'type': 'object',
             'properties': {
-                'op': {'enum': ['list', 'use']},
-                'unit': {'type': 'integer',
-                         'description': 'with op=use'},
+                'op': {'enum': ['list', 'buses', 'use']},
+                'unit': {'type': 'integer'},
                 'name': {'type': 'string',
-                         'description': 'with op=use, instead of unit: '
-                                        'what the device calls itself'},
+                         'description': 'what a node calls itself'},
+                'bus': {'type': 'string', 'description': 'segment, e.g. RL'},
             },
         },
     },
@@ -563,6 +562,8 @@ def _interface(session):
     the MCP server and from the ollama loop, and only one of those has an
     Origin to hand.
     """
+    if getattr(session, 'simulated', False):
+        return 'Simulated'
     port = getattr(session, 'port', None)
     if port is None:
         return 'Simulated'
@@ -577,7 +578,24 @@ def _interface(session):
                          else 'RS485', port)
 
 
-def devices(session, op='list', unit=None, name=None, first=1, last=16, **_):
+def _buses(session):
+    """[(label, serves)] for this session, however it is wired."""
+    return list(session.buses())
+
+
+def _sweep(session, first, last, bus=None):
+    """[(bus, unit, version)] across one segment or all of them."""
+    units = range(int(first), int(last) + 1)
+    labels = [bus] if bus else [label for label, _ in _buses(session)]
+    found = []
+    for label in labels:
+        for unit, version in session.scan(units, bus=label):
+            found.append((label, unit, version))
+    return found
+
+
+def devices(session, op='list', unit=None, name=None, bus=None,
+            first=1, last=16, **_):
     """The other units on this bus, and which one the tools talk to.
 
     One board is a bus of one. Several - a machine built out of them - are
@@ -585,9 +603,15 @@ def devices(session, op='list', unit=None, name=None, first=1, last=16, **_):
     each one reports for itself. Selecting one is a session change, so
     every other tool follows it without an argument of its own.
     """
+    here = (getattr(session, 'bus', getattr(session, 'port', None)),
+            getattr(session, 'unit', None))
+    if op == 'buses':
+        counts = [(label, serves,
+                   len(_sweep(session, first, last, label)))
+                  for label, serves in _buses(session)]
+        return render.buses(counts, here[0])
     if op == 'list':
-        found = session.scan(range(int(first), int(last) + 1))
-        return render.devices(found, getattr(session, 'unit', None),
+        return render.devices(_sweep(session, first, last, bus), here,
                               _interface(session))
     if op == 'use':
         if unit is not None and int(unit) == protocol.BROADCAST:
@@ -598,34 +622,38 @@ def devices(session, op='list', unit=None, name=None, first=1, last=16, **_):
             return ('multicast: every node on the bus acts, none answers. '
                     'Reads are refused here; an order still goes out. '
                     'devices op=use unit=N picks one node again.')
-        found = session.scan(range(int(first), int(last) + 1))
+        found = _sweep(session, first, last, bus)
         if unit is None and not name:
-            # Named, not just refused: the model called op=use with neither,
-            # read "needs a unit or a name" and ended the turn rather than
-            # trying again. The answer to "which" is the list.
             return ('ERR use needs unit= or name=. On the bus: %s'
-                    % '; '.join('%d %s' % (u, v.get('description', ''))
-                                for u, v in found))
+                    % '; '.join('%s %d %s' % (b, u, v.get('where', ''))
+                                for b, u, v in found))
         if unit is None:
-            # By what it calls itself, so "the right knee" is one call
-            # rather than a list, a reading of the list, and a second call.
+            # By what it calls itself, across every segment: "the right
+            # knee" is one node on one bus, and the operator should not
+            # have to know which. A name that is on two - "knee" - names
+            # both rather than picking.
             key = _key(name)
-            hit = [u for u, v in found
-                   if key in _key(v.get('description', ''))
-                   or key in _key(v.get('device', ''))]
+            hit = [(b, u) for b, u, v in found
+                   if key in _key(v.get('where', ''))
+                   or key in _key(v.get('description', ''))]
             if len(hit) != 1:
-                return ('ERR %r matches %d devices; say which unit'
-                        % (name, len(hit)))
-            unit = hit[0]
-        answering = [u for u, _ in found]
-        if int(unit) not in answering:
+                return ('ERR %r matches %d nodes: %s'
+                        % (name, len(hit),
+                           ', '.join('%s %d' % pair for pair in hit) or 'none'))
+            bus, unit = hit[0]
+        if (bus or here[0], int(unit)) not in [(b, u) for b, u, _ in found]:
             # Not a refusal for its own sake: pointing the session at a
             # unit nobody is at makes every later call time out, and the
             # operator reads that as the board having died.
-            return ('ERR no device at unit %s; answering: %s'
-                    % (unit, ', '.join(str(u) for u in answering) or 'none'))
-        session.use(int(unit))
-        return render.devices(found, session.unit,
+            return ('ERR no node at %s %s; answering: %s'
+                    % (bus or here[0], unit,
+                       ', '.join('%s %d' % (b, u) for b, u, _ in found)
+                       or 'none'))
+        session.use(int(unit), bus=bus)
+        return render.devices(found,
+                              (getattr(session, 'bus',
+                                       getattr(session, 'port', None)),
+                               session.unit),
                               _interface(session))
     return 'ERR unknown op %r; list or use' % (op,)
 

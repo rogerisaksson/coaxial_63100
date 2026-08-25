@@ -26,6 +26,7 @@ decides, in Python.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -273,6 +274,49 @@ class Toolbox:
         # old behaviour; only debug.py's own repl() and one-shot path set it
         # from the real question text. See _permit() for why it exists.
         self.afe_mentioned = True
+        # The operator's own words this turn, for the one check that needs
+        # them - see _wrong_side(). Empty means "not wired", which every
+        # existing caller is, and the check then stays out of the way.
+        self.asked = ''
+
+    # Which side a word names, in the two languages this bench is spoken
+    # in. Not a translation table - the only distinction that matters here
+    # is left from right, and it is the one a machine cannot afford to get
+    # wrong.
+    SIDES = {'left': 'left', 'vänster': 'left', 'vanster': 'left',
+             'right': 'right', 'höger': 'right', 'hoger': 'right'}
+
+    def _wrong_side(self, args):
+        """A node on the other side of the machine from the one asked for.
+
+        Measured: "kommunicera med vänster knä" was sent as
+        `name='right knee'` - the model mistranslated it in the call and
+        got it right in the prose that followed. On a humanoid the wrong
+        limb moving is the failure that costs something, so the operator's
+        own word wins over the model's rendering of it.
+
+        Only fires when both sides are named and they disagree. A question
+        that names no side, or a target that names none, is nobody's
+        business here.
+        """
+        words = set(re.findall(r'[^\W\d_]+', (self.asked or '').lower()))
+        wanted = {self.SIDES[w] for w in words if w in self.SIDES}
+        if len(wanted) != 1:
+            return None
+
+        target = str(args.get('name') or args.get('bus') or '').lower()
+        got = {self.SIDES[w] for w in re.findall(r'[^\W\d_]+', target)
+               if w in self.SIDES}
+        if not got and args.get('bus'):
+            got = {'left' if str(args['bus']).upper().startswith('L')
+                   else 'right'} if str(args['bus']).upper()[:1] in 'LR'                 else set()
+        if got and got != wanted:
+            return ('ERR you asked for the %s side and this selects the %s '
+                    'one (%r). Nothing moved; say it again or give the bus '
+                    'and node.'
+                    % (wanted.pop(), got.pop(), args.get('name')
+                       or args.get('bus')))
+        return None
 
     def schemas(self):
         """This run's tool list, at this run's detail level. `detail` is set
@@ -296,6 +340,11 @@ class Toolbox:
         """
         args = dict(args or {})
         self.log.append((name, args))
+
+        if name == 'devices' and args.get('op') == 'use':
+            wrong = self._wrong_side(args)
+            if wrong:
+                return wrong
 
         if name == 'report':
             return Reported(args.get('value'), args.get('unit', ''),

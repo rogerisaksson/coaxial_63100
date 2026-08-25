@@ -226,6 +226,11 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('-m', '--model', default='gemma4:12b')
     parser.add_argument('--port', default='COM4')
+    parser.add_argument('--release', action='store_true',
+                        help='hand the model back when this run ends. Off '
+                             'by default: the suite is run again a minute '
+                             'later while something is being fixed, and a '
+                             'reload costs more than the VRAM does.')
     parser.add_argument('--sections', default='all',
                         help='tools|language|all. A model load plus a turn '
                              'per question is minutes, and a change to a '
@@ -239,6 +244,7 @@ def main(argv=None):
                              'real one either way, which is what this tests')
     args = parser.parse_args(argv)
 
+    release = args.release
     session, chat, found = build(args.model, args.port, args.simulated)
     report = Report()
     # Which board, said before the first PASS. The tool-choice checks below
@@ -375,13 +381,17 @@ def main(argv=None):
             session.close()
         except Exception:                                     # noqa: BLE001
             pass
-        # And the card back, once, however the run ended. A suite that
-        # leaves 7.6 GB resident is the failure docs/MODELS.md measured at
-        # 9.69 GB for 27 minutes at 1 % use.
-        try:
-            chat.client.unload()
-        except Exception:                                     # noqa: BLE001
-            pass
+        # The model stays loaded. Unloading here was tidy and wrong: this
+        # suite is run several times in a row while something is being
+        # fixed, and every run then paid a full 7.6 GB load - measured, most
+        # of the wall time. keep_alive lets it expire on its own if nobody
+        # comes back. `--release` hands it over at once, for the run that
+        # really is the last one.
+        if release:
+            try:
+                chat.client.unload()
+            except Exception:                                 # noqa: BLE001
+                pass
 
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0

@@ -229,26 +229,38 @@ with no argument of its own. The `devices` tool is that pair, and it selects
 by `name=` as well as `unit=` because "unit 3" is a number and "right knee" is
 a device.
 
-`coaxial.simulated.SIMULATED_BUS` is a humanoid's worth of them, and **the
-numbering is the symmetry**: units 1-4 are the axis bottom to top - pelvis,
-waist, neck, head - and everything paired is odd on the left and even on the
-right, so 7 and 8 are the two knees whatever else is on the bus. A node id read
-off a label says which side of the machine it is on without a lookup. The
-rating follows the joint, which is what makes the `name` column earn its place:
-a hip is a `coaxial_63100`, a wrist a `coaxial_63020`. Unit 20 sits past the
-default 1..16 sweep on purpose - a bound nobody can see is one that quietly
-hides a node. Every one says **SIMULATED** in its own description, so a list of
-sixteen cannot be read as sixteen real ones.
+**Five buses, one per limb plus the axis.** A bus is a serial segment, which
+is how a machine like this is wired: shorter runs, one limb's fault confined to
+one limb, four segments carrying traffic at once instead of twenty nodes taking
+turns on one. `coaxial.simulated.SIMULATED_BUSES` is that machine.
 
-**Unit 0 is not a node.** It is the Modbus broadcast address: every node acts
-on it and none answers. `Board.request` refuses there in one place, because
-every read and every read-back write comes through it and a timeout would read
-as the bus having died rather than as the protocol working. An order still goes
-out - `afe_power on/off` broadcasts and says it was not confirmed - and
-anything that needs a reply, `read` and `toggle` included, is refused by name.
-The prompt paints it **red**: green is a board, yellow a stand-in, and red is
-the one mode where a command reaches every inverter on the bus and nothing
-answers to say it landed.
+| bus | serves | nodes |
+|---|---|---|
+| `AX` | axis | pelvis, waist, neck, head |
+| `LL` / `RL` | left / right leg | hip, knee, ankle, foot |
+| `LA` / `RA` | left / right arm | shoulder, elbow, wrist, gripper |
+
+Segments make an odd/even side rule redundant — the bus says the side — so
+**the unit id is the position down the limb**: node 2 is the knee on both legs
+and node 1 is the shoulder on both arms. A number worth more to a controller
+than a unique one. Two-letter labels rather than emoji, because `spinner.py`
+records the advance-width problem with forced-colour glyphs twice over and this
+is a column-aligned table, which is where it shows worst.
+
+Which limb a segment serves is the **operator's** knowledge, not the board's: a
+board cannot know where it was bolted. On the real side a bus is a port and
+`Session.buses()` returns the one that is attached.
+
+**Unit 0 is not a node.** It is the Modbus broadcast address: every node acts on
+it and none answers. `Board.request` refuses there in one place, because every
+read and every read-back write comes through it and a timeout would read as the
+bus having died rather than as the protocol working. An order still goes out —
+`afe_power on/off` broadcasts and says it was not confirmed — and anything that
+needs a reply, `read` and `toggle` included, is refused by name. It is **one
+segment's** broadcast: five buses are five broadcast domains, and the prompt
+says which. The prompt paints it **red**: green is a board, yellow a stand-in,
+and red is the one mode where a command reaches every inverter on a segment and
+nothing answers to say it landed.
 
 Mid-session, `/board simulated | auto | rs485 | COM4` swaps it and the prompt
 tag follows on the next line — the same factory, so the screen and the tools cannot

@@ -274,13 +274,69 @@ class _BroadcastRefuses:
         return refuse
 
 
+# Five buses, one per limb plus the axis. A bus is a serial segment, which
+# is how a machine like this is actually wired: shorter runs, one limb's
+# fault confined to one limb, and four segments that can carry traffic at
+# once instead of twenty nodes taking turns on one.
+#
+# That makes the odd/even trick redundant - the bus says the side - so the
+# unit id says the position down the limb instead. Node 2 is the knee on LL
+# and on RL, which is worth more to a controller than a unique number.
+#
+# Two-letter labels, not emoji. spinner.py records the width problem with
+# forced-colour glyphs twice over, and this is a column-aligned table, which
+# is where it shows worst. AX for the axis, which is what the docs and the
+# tests already call it.
+SIMULATED_BUSES = {
+    # label: (what it serves, {unit: (name, type, where)})
+    'LL': ('left leg', {
+        1: ('coaxial_63100', 'bldc_inverter', 'left hip'),
+        2: ('coaxial_63100', 'bldc_inverter', 'left knee'),
+        3: ('coaxial_63020', 'bldc_inverter', 'left ankle'),
+        4: ('coaxial_63020', 'bldc_inverter', 'left foot'),
+    }),
+    'RL': ('right leg', {
+        1: ('coaxial_63100', 'bldc_inverter', 'right hip'),
+        2: ('coaxial_63100', 'bldc_inverter', 'right knee'),
+        3: ('coaxial_63020', 'bldc_inverter', 'right ankle'),
+        4: ('coaxial_63020', 'bldc_inverter', 'right foot'),
+    }),
+    'LA': ('left arm', {
+        1: ('coaxial_63100', 'bldc_inverter', 'left shoulder'),
+        2: ('coaxial_63020', 'bldc_inverter', 'left elbow'),
+        3: ('coaxial_63020', 'bldc_inverter', 'left wrist'),
+        4: ('coaxial_63020', 'bldc_inverter', 'left gripper'),
+    }),
+    'RA': ('right arm', {
+        1: ('coaxial_63100', 'bldc_inverter', 'right shoulder'),
+        2: ('coaxial_63020', 'bldc_inverter', 'right elbow'),
+        3: ('coaxial_63020', 'bldc_inverter', 'right wrist'),
+        4: ('coaxial_63020', 'bldc_inverter', 'right gripper'),
+    }),
+    'AX': ('axis', {
+        1: ('coaxial_63100', 'bldc_inverter', 'pelvis'),
+        2: ('coaxial_63100', 'bldc_inverter', 'waist'),
+        3: ('coaxial_63020', 'bldc_inverter', 'neck'),
+        4: ('coaxial_63020', 'bldc_inverter', 'head'),
+    }),
+}
+
+DEFAULT_BUS = 'AX'
+
+
+def bus_nodes(label):
+    """{unit: (name, type, where)} for one bus, empty for an unknown one."""
+    return SIMULATED_BUSES.get(label, ('', {}))[1]
+
+
 class SimulatedBoard:
-    def __init__(self, unit=1):
+    def __init__(self, unit=1, bus=DEFAULT_BUS):
         self.unit = int(unit)
-        name, kind, where = SIMULATED_BUS.get(
+        self.bus = bus
+        name, kind, where = bus_nodes(bus).get(
             self.unit,
             ('coaxial_63100', 'bldc_inverter',
-             'unassigned unit %d' % self.unit))
+             'unassigned unit %d on %s' % (self.unit, bus)))
         self.version_info = {
             'proto_major': 2, 'proto_minor': 1, 'firmware': 'simulated',
             'device': name, 'mcu': 'STM32H753 (simulated)',
@@ -292,7 +348,7 @@ class SimulatedBoard:
             'where': where,
         }
         if self.unit == 0:
-            refuse = _BroadcastRefuses()
+            refuse = _BroadcastRefuses()   # see BROADCAST_REFUSAL
             self.system = self.link = self.afe = refuse
             self.analog = self.gpio = refuse
         else:
@@ -331,44 +387,6 @@ class SimulatedBoard:
 # The joints are invented, like every other value in this file, and each
 # one says so in its own description. What is not invented is the shape:
 # one unit id per device, and identity is how a host tells them apart.
-# unit: (name, type, where it is)
-#
-# The numbering IS the symmetry, which is the point of choosing one. Units
-# 1-4 are the axis, bottom to top, and everything paired is odd on the left
-# and even on the right - so 7 and 8 are the two knees whatever else is on
-# the bus, and a node id read off a label says which side of the machine it
-# is on without a lookup.
-#
-# The rating follows the joint: a hip carries the mass, a wrist does not.
-# Two names on one bus is what makes the `name` column earn its place.
-#
-# Unit 20 is outside the default 1..16 sweep on purpose. A scan is bounded
-# because an absent unit costs the read timeout, and a bound nobody can see
-# is one that quietly hides a node.
-SIMULATED_BUS = {
-    1:  ('coaxial_63100', 'bldc_inverter', 'pelvis'),
-    2:  ('coaxial_63100', 'bldc_inverter', 'waist'),
-    3:  ('coaxial_63020', 'bldc_inverter', 'neck'),
-    4:  ('coaxial_63020', 'bldc_inverter', 'head'),
-
-    5:  ('coaxial_63100', 'bldc_inverter', 'left hip'),
-    6:  ('coaxial_63100', 'bldc_inverter', 'right hip'),
-    7:  ('coaxial_63100', 'bldc_inverter', 'left knee'),
-    8:  ('coaxial_63100', 'bldc_inverter', 'right knee'),
-    9:  ('coaxial_63020', 'bldc_inverter', 'left ankle'),
-    10: ('coaxial_63020', 'bldc_inverter', 'right ankle'),
-
-    11: ('coaxial_63100', 'bldc_inverter', 'left shoulder'),
-    12: ('coaxial_63100', 'bldc_inverter', 'right shoulder'),
-    13: ('coaxial_63020', 'bldc_inverter', 'left elbow'),
-    14: ('coaxial_63020', 'bldc_inverter', 'right elbow'),
-    15: ('coaxial_63020', 'bldc_inverter', 'left wrist'),
-    16: ('coaxial_63020', 'bldc_inverter', 'right wrist'),
-
-    20: ('coaxial_63020', 'bldc_inverter', 'right gripper'),
-}
-
-
 class SimulatedSession:
     """Drop-in for `coaxial_mcp.session.Session` that never opens a port.
 
@@ -378,29 +396,42 @@ class SimulatedSession:
     thing that decides which one gets built.
     """
 
-    def __init__(self, port=None, baud=115200, unit=1, **_kwargs):
+    # Read by anything that must not mistake this for a board - see
+    # `coaxial_mcp.tools._interface`, which used to decide from the port
+    # and started calling a bus label an RS485 segment.
+    simulated = True
+
+    def __init__(self, port=None, baud=115200, unit=1, bus=DEFAULT_BUS,
+                 **_kwargs):
         # Takes what a real Session takes, so a caller that always builds
         # "the session" the same way is one fewer branch to keep in step.
-        # `unit` is no longer ignored: it decides which of SIMULATED_BUS
-        # this session is talking to, and a unit nobody is at behaves like
-        # a unit nobody is at.
-        self.port, self.baud = port, baud
+        # A real bus is a serial segment and its label is its port, so a
+        # `port` that names a bus is taken as one.
+        self.baud = baud
+        self.bus = port if port in SIMULATED_BUSES else bus
+        self.port = self.bus
         self.unit = int(unit)
-        self._board = SimulatedBoard(self.unit)
+        self._board = SimulatedBoard(self.unit, self.bus)
         self._info = None
 
-    def scan(self, units=range(1, 17)):
-        """[(unit, version)] for the simulated devices in `units`."""
-        found = []
-        for unit in units:
-            if unit in SIMULATED_BUS:
-                found.append((unit, SimulatedBoard(unit).version_info))
-        return found
+    def buses(self):
+        """[(label, what it serves)] - every segment on this machine."""
+        return [(label, serves)
+                for label, (serves, _) in sorted(SIMULATED_BUSES.items())]
 
-    def use(self, unit):
-        """Point this session at another unit on the bus."""
+    def scan(self, units=range(1, 17), bus=None):
+        """[(unit, version)] for the nodes in `units` on one bus."""
+        label = bus or self.bus
+        nodes = bus_nodes(label)
+        return [(unit, SimulatedBoard(unit, label).version_info)
+                for unit in units if unit in nodes]
+
+    def use(self, unit, bus=None):
+        """Point this session at another node, and another bus with it."""
+        if bus is not None:
+            self.bus = self.port = bus
         self.unit = int(unit)
-        self._board = SimulatedBoard(self.unit)
+        self._board = SimulatedBoard(self.unit, self.bus)
         self._info = None
         return self.unit
 

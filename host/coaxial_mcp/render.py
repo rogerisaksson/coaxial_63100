@@ -61,6 +61,9 @@ def digital_map(pins, what='digital'):
 
 
 def devices(found, here, interface='unknown'):
+    # `found` is [(bus, unit, version)] and `here` is the (bus, unit) pair
+    # the tools are on: with five segments, a node number alone does not
+    # identify anything - node 2 is a knee on two of them.
     """Every node on the interface, and which one is selected.
 
     Name and type are the node's own (command 0x41), not invented here:
@@ -75,15 +78,30 @@ def devices(found, here, interface='unknown'):
     does, and it says so in the description each node reports.
     """
     lines = ['Nodes on the communication interface (%s):' % interface,
-             'node name           type           where']
-    for unit, version in found:
+             'bus  node name           type           where']
+    for bus, unit, version in found:
         # '>' in the node column rather than a column of its own: which node
         # the tools are on is one character, and the prompt carries it too.
-        lines.append(('%-4s %-14s %-14s %s'
-                      % (('>%d' % unit) if unit == here else unit,
+        lines.append(('%-4s %-4s %-14s %-14s %s'
+                      % (bus,
+                         ('>%d' % unit) if (bus, unit) == here else unit,
                          version.get('device', '?'),
                          version.get('type', ''),
                          version.get('where', ''))).rstrip())
+    return chr(10).join(lines)
+
+
+def buses(found, here):
+    """The segments, and how many nodes answer on each.
+
+    A bus is a serial segment - one limb of a machine, or its axis. Which
+    limb a segment serves is the operator's knowledge: a board cannot know
+    where it was bolted, and nothing here pretends it can.
+    """
+    lines = ['Buses on this machine:', 'bus  sel serves           nodes']
+    for label, serves, count in found:
+        lines.append('%-4s %-3s %-16s %d'
+                     % (label, '*' if label == here else '', serves, count))
     return chr(10).join(lines)
 
 

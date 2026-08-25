@@ -550,6 +550,12 @@ class Chat:
         # (unlike the turn-local copy in `ask`) so a later turn that answers
         # with no tool call at all can still be checked against it.
         self.last_channels = None
+        # Where the tools are pointed when the session opens, so the first
+        # answer does not announce a node nothing moved to. The prompt tag
+        # already says where you are; this line is for when that changes.
+        self._said_node = (getattr(toolbox.session, 'bus',
+                                   getattr(toolbox.session, 'port', None)),
+                           getattr(toolbox.session, 'unit', None))
         # The session's language. The machine's locale for a real run - the
         # operator is answered in their own language from the first word,
         # without a question having to prove it first - and None for a test,
@@ -826,8 +832,40 @@ class Chat:
             return answer
         answer = language.localise(self._ask_inner(question, max_calls),
                                    self.screen_language())
+        answer = self._say_node(answer)
         self.io_log.answer(answer)
         return answer
+
+    def _say_node(self, answer):
+        """Name the node above the answer, on the turn it changed.
+
+        The prompt tag says where the tools are pointed, but a scrolled-back
+        answer carries no prompt with it - and on a machine of twenty nodes
+        "the NTC is 36.6 C" is not an answer without one. Said once, on the
+        turn the node moved, rather than on every turn: a line repeated for
+        no reason is the noise the retype backstop exists to cut.
+        """
+        session = self.toolbox.session
+        here = (getattr(session, 'bus', getattr(session, 'port', None)),
+                getattr(session, 'unit', None))
+        if here[1] is None or here == getattr(self, '_said_node', None):
+            return answer
+        self._said_node = here
+        if here[1] == 0:
+            where = 'every node on %s' % (here[0] or 'the bus')
+        else:
+            where = None
+            try:
+                from coaxial.simulated import bus_nodes
+                if here[0]:
+                    where = (bus_nodes(here[0]).get(here[1])
+                             or (None, None, None))[2]
+            except Exception:                                 # noqa: BLE001
+                pass
+            where = where or ('%s node %d' % (here[0], here[1]) if here[0]
+                              else 'node %d' % here[1])
+        line = language.localise('From %s:' % where, self.screen_language())
+        return line + chr(10) + answer if answer.strip() else line
 
     def _ask_inner(self, question, max_calls=6):
         if self.over_budget():
@@ -1253,6 +1291,14 @@ class Chat:
         want = rest.strip()
         if not want:
             return mcp.devices(session)
+        if want.lower() in ('buses', 'bus'):
+            return mcp.devices(session, op='buses')
+        # "LL 2" is a bus and a node, which is what a node id needs beside
+        # it once there is more than one segment.
+        parts = want.split()
+        if len(parts) == 2 and parts[1].lstrip('-').isdigit():
+            return mcp.devices(session, op='use', bus=parts[0].upper(),
+                               unit=int(parts[1]))
         if not want.lstrip('-').isdigit():
             return mcp.devices(session, op='use', name=want)
         return mcp.devices(session, op='use', unit=int(want))
@@ -1270,18 +1316,35 @@ class Chat:
         label, real = getattr(self, 'origin', None) or (None, True)
         if label is None:
             return None, True
-        unit = getattr(self.toolbox.session, 'unit', None)
+        session = self.toolbox.session
+        unit = getattr(session, 'unit', None)
         if unit is None:
             return label, real
+        bus = getattr(session, 'bus', None)
         where = None
         try:
-            from coaxial.simulated import SIMULATED_BUS
-            if unit in SIMULATED_BUS and not real:
-                where = SIMULATED_BUS[unit][2]
+            from coaxial.simulated import bus_nodes
+            if bus:
+                where = (bus_nodes(bus).get(unit) or (None, None, None))[2]
         except Exception:                                     # noqa: BLE001
             pass
+        # The bus first, because with five segments a node number alone
+        # names nothing: node 2 is a knee on two of them.
+        #
+        # And the joint without its side, because the bus already carries
+        # it: "RL 2 knee", not "RL node 2 right knee". Shorter than the
+        # abbreviations that were asked for and needs no key - and `Ra`
+        # for ankle would have collided with `RA` for the right arm, on a
+        # line whose whole job is to be unambiguous at a glance.
+        if where:
+            for side in ('left ', 'right '):
+                if where.startswith(side):
+                    where = where[len(side):]
+                    break
         node = 'ALL NODES' if unit == 0 else (
-            'node %d %s' % (unit, where) if where else 'node %d' % unit)
+            '%d %s' % (unit, where) if where else 'node %d' % unit)
+        if bus:
+            node = '%s %s' % (bus, node)
         return '%s, %s' % (label, node), ('all' if unit == 0 else real)
 
     def _switch_board(self, rest):
@@ -1715,6 +1778,7 @@ def repl(chat, hold=False):
                     # its old, permissive default instead of needing "afe"
                     # in every unrelated fixture question.
                     chat.toolbox.afe_mentioned = 'afe' in line.lower()
+                    chat.toolbox.asked = line
                     # No note when the lock moves. It used to print
                     # "sprak: bytt till Swedish (last)" above the
                     # answer - a host line, in a mix of two languages,
@@ -1849,6 +1913,7 @@ def main(argv=None):
         if question and not args.repl:
             full_question = '\n'.join(filter(None, (question, extra)))
             chat.toolbox.afe_mentioned = 'afe' in full_question.lower()
+            chat.toolbox.asked = full_question
             answer = chat.ask(full_question)
             print(answer)
             if not args.quiet:
