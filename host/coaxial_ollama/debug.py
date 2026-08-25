@@ -42,7 +42,17 @@ from . import spinner as spin                        # noqa: E402
 from .context import approx_tokens                   # noqa: E402
 from .sandbox import Scope, Shell, clip, clip_ends   # noqa: E402
 
-# Deliberately terse, and every line of it earns its place. No restating the
+# Deliberately terse, and every line of it earns its place.
+#
+# "a typo or a wrong fact: say it, answer what was meant" is the operator's
+# mistake, not the model's: a misspelt channel, a pin called analog, a fact
+# that is not so. Refusing is worse than answering and saying what looked
+# wrong - the host does the same thing one layer down, where _resolve
+# corrects a name and analog_read prints what it corrected.
+#
+# It cost nothing: the restate line above it named the act and its shapes
+# twice over, and naming the act once was what MODELS.md already said the
+# rule needed. No restating the
 # protocol, no channel map - board_info carries that, once, when asked.
 #
 # Two lines were measured teaching the wrong thing rather than failing to
@@ -74,12 +84,13 @@ SYSTEM = """You are an expert on a coaxial BLDC inverter: the PCB behind an
 outrunner's stator, not a cable. Modbus RTU over the probe's COM port or RS485.
 Tools for the board, never to guess; off-topic needs none. Answer briefly,
 no preamble.
-Never markdown a result, never restate a tool's own rows - one line, not two.
+Never a markdown table, never restate a tool's rows.
 A list of channels is board_info. Values are analog_read for analog and
 digital_read for digital, a named pin included - one call covers its kind.
 What a thing IS is words, not a call.
 Switching board or model is /board and /model - name it, do not refuse.
-A call error is reported, never guessed or hidden behind an old reading.
+A call error, a typo or a wrong fact: say it, answer what was meant, never
+hide it behind an old reading.
 Any reading: analog_read only, never afe_power first - analog_read works
 with the AFE on or off and reports which. Turning the AFE on or off itself
 is the order to do it, not to discuss. Phase channels: unknown gain, pin

@@ -1123,6 +1123,8 @@ def test_map_retype(report):
     listed = ('Här är de analoga kanalerna: PhaseU, PhaseV, PhaseW, Clevel, '
               'NTC, DCbus och Cinj.')
 
+    from coaxial_ollama import replies as repliesmod
+
     def turn(reply, quiet=False):
         chat = debug.Chat(ScriptedModel([
             call('board_info', kind='analog'),
@@ -1145,6 +1147,35 @@ def test_map_retype(report):
     finding = 'Sju analoga kanaler, och NTC är den enda med en temperatur.'
     report.check('an answer that is not just the list survives',
                  turn(finding) == finding, repr(turn(finding))[:52])
+
+    # Length is what tells a list from an explanation. Measured: a 43-word
+    # answer to "beskriv hardvaran i detta projektet for en novis", naming
+    # all seven channels because describing them IS the question, was
+    # deleted to an empty screen - and reported as the model failing to
+    # answer at all. A description is not a restatement however many names
+    # it happens to contain.
+    described = ('Kortet är en trefas BLDC-drivare. Framänden matar sju '
+                 'ADC-kanaler: PhaseU, PhaseV och PhaseW mäter de tre '
+                 'faserna differentiellt bakom okänd förstärkning, NTC är '
+                 'termistorn, DCbus är mellanledet genom en spänningsdelare, '
+                 'och Clevel och Cinj är två kanaler vars signaler inte är '
+                 'dokumenterade här.')
+    report.check('a description that names every channel is not a retype',
+                 turn(described) == described,
+                 '%d words -> %s' % (len(described.split()),
+                                     'kept' if turn(described) else 'DELETED'))
+    report.check('and the bar is where the measurements put it',
+                 repliesmod.RESTATE_MAX_WORDS == 20,
+                 str(repliesmod.RESTATE_MAX_WORDS))
+
+    # A markdown table is caught whatever its length - SYSTEM says never to
+    # write one, and a long one is worse than a short one.
+    wide = ('| ch | name | value |' + chr(10) + '| -- | ---- | ----- |'
+            + chr(10) + ('| 0 | PhaseU | 1445.2 |' + chr(10)) * 3
+            + ' '.join('word' for _ in range(40)))
+    report.check('a long markdown table is still silenced',
+                 repliesmod.is_retype(wide, {'phaseu'}, minimum=1),
+                 '%d words' % len(wide.split()))
 
     # The digital blocks, both of them. A digital row names its pin in the
     # first column and never starts with a digit, so MAP_ROW - anchored on
@@ -1206,7 +1237,6 @@ def test_map_retype(report):
     # The two bars are different on purpose. Two channels of a *reading*
     # named together is plausibly synthesis - "NTC and DCbus both read low"
     # is a finding, not a restatement - so a reading still needs three.
-    from coaxial_ollama import replies as repliesmod
     two = {'ntc', 'dcbus'}
     report.check('two channels of a reading are not a restatement',
                  not repliesmod.is_retype('NTC och DCbus ligger båda lågt.',
@@ -1294,6 +1324,61 @@ def test_reading_block(report):
                  printed[at - 1].strip() == '', repr(printed[at - 1])[:40])
     report.check('but the first block has no blank line above it',
                  printed[0].strip() != '', repr(printed[0])[:40])
+
+
+def test_corrections_are_reported(report):
+    """A mistake in the question is answered, and said out loud.
+
+    Refusing a misspelt channel is worse than reading the one it meant -
+    but reading it silently is worse still: a question about `BUS_VOLT`
+    coming back as a DC bus reading, with nothing saying so, is the quiet
+    substitution this library exists to prevent.
+    """
+    from coaxial.simulated import SimulatedSession as Sim
+    from coaxial_mcp import tools as mcp
+    from coaxial_ollama import debug
+
+    session = Sim()
+    mcp.HANDLERS['afe_power'](session, action='on')
+
+    for asked, meant, corrected in (
+            ('NTC', 'NTC', False),
+            ('dc_bus', 'DCbus', False),      # a spelling, not a mistake
+            ('temp', 'NTC', True),
+            ('BUS_VOLT', 'DCbus', True),
+            ('phase_a', 'PhaseU', True)):
+        text = mcp.HANDLERS['analog_read'](session, ch=[asked], samples=8)
+        head = text.splitlines()[0]
+        report.check('ch=[%r] reads %s' % (asked, meant),
+                     meant in text, head[:46])
+        report.check('   ...and %s'
+                     % ('says what it corrected' if corrected
+                        else 'has nothing to correct'),
+                     head.startswith('read as asked') is corrected, head[:46])
+
+    # More than one, in one line, and the reading still arrives under it.
+    both = mcp.HANDLERS['analog_read'](session, ch=['temp', 'bus'], samples=8)
+    report.check('two corrections are named together',
+                 both.splitlines()[0].count(' read as ') == 2,
+                 both.splitlines()[0][:52])
+    report.check('and the reading is still there under them',
+                 'NTC' in both and 'DCbus' in both and 'samples @' in both)
+
+    # A name that means nothing is still refused - correcting it would be
+    # inventing, not reading what was meant.
+    try:
+        mcp.HANDLERS['analog_read'](session, ch=['not_a_channel'])
+        report.check('a name that means nothing is refused, not corrected',
+                     False, 'it read something')
+    except ValueError as exc:
+        report.check('a name that means nothing is refused, not corrected',
+                     'unknown channel' in str(exc), str(exc)[:46])
+
+    report.check('and the prompt says the same thing one layer up',
+                 'a typo or a wrong fact' in debug.SYSTEM
+                 and 'answer what was meant' in debug.SYSTEM,
+                 [l for l in debug.SYSTEM.splitlines()
+                  if 'typo' in l][:1])
 
 
 def test_smart_selection(report):
@@ -4322,7 +4407,8 @@ def main():
     for test in (test_plan, test_verdicts, test_model_never_sees_limits,
                  test_misbehaviour, test_board_tools, test_scope, test_shell,
                  test_scope_repairs, test_prompt, test_policy,
-                 test_link_diagnose, test_link_recovery, test_channel_map, test_smart_selection, test_afe_trace, test_reading_block, test_digital_read, test_map_sections, test_map_retype, test_port_state,
+                 test_link_diagnose, test_link_recovery, test_channel_map, test_corrections_are_reported,
+                 test_smart_selection, test_afe_trace, test_reading_block, test_digital_read, test_map_sections, test_map_retype, test_port_state,
                  test_retype_with_the_trace_off,
                  test_power_check_cannot_halt,
                  test_transcript,

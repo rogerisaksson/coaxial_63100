@@ -577,8 +577,41 @@ things a scripted double cannot:
 It asserts *that* `analog_read` was called, never what it returned —
 invariant 10. Measured 2026-08-24, gemma4:12b on COM4: 24 passed, 0 failed.
 
+Run against a second family to see what is the host's and what is the
+model's. Measured 2026-08-25, same suite, same board, `--simulated`:
+
+| Tag | | |
+|---|---|---|
+| `gemma4:12b` | 94 passed, 0 failed | |
+| `qwen2.5:14b` | 93 passed, 1 failed | `link_diagnose` on a question about what the board *is* |
+
+Nothing else separates them: the language lock, the bare switches, the
+duplication backstop and eleven of twelve tool choices hold on both, which is
+the host doing its job rather than one model happening to behave.
+
+**Two of qwen's three original failures were the host, not the model**, and
+calling them a family difference was wrong. It answered
+`beskriv hårdvaran i detta projektet för en novis` with a description that
+named all seven channels — because describing them is the question — and
+`is_retype` deleted it to an empty screen, which the suite then reported as
+the model failing to answer at all. The rule was "every channel named" with
+nothing to tell a list from an explanation. Length tells them apart: every
+retype measured here is 6 to 13 words and that description was 43, so
+`RESTATE_MAX_WORDS` is 20. A markdown table is still caught at any length.
+
+Worth keeping as a method note: a second family is what made the host bug
+visible, and the bug was found by reproducing it offline with a scripted
+answer rather than by reading more transcripts.
+
+An earlier version of that row demanded **no board call at all**, and both
+families failed it by reaching for `board_info`. Two families agreeing is an
+expectation that is wrong, not two models that are: describing this board from
+its own map beats describing it from training. The row forbids a measurement
+now — `analog_read`, `digital_read`, `afe_power`, `link_diagnose` — and allows
+the map.
+
 `python tools/run_tests.py --live`, or the file directly with `--simulated`
-for the model half without a cable. It is not in the default set: a model load
+for the model half without a cable. `-m TAG` picks another. It is not in the default set: a model load
 plus six turns is minutes, and the other suites are seconds.
 
 ## Measured failure modes

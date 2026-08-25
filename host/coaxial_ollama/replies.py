@@ -57,6 +57,17 @@ DIGITAL_SIGNAL = re.compile(r'^P[A-K]\d+\s+(?:in|out|inout)\s+(?:\d+\s+)?(\S.*?)
 # worth. Below this the override stays out of the way.
 RESTATE_MIN_CHANNELS = 3
 
+# ...and above this many words it is not a restatement whatever it names.
+# A list is short. Every retype measured on this bench: 6, 7, 8, 12, 13,
+# 13 words - the longest being "Har ar de analoga kanalerna: PhaseU,
+# PhaseV, PhaseW, Clevel, NTC, DCbus och Cinj." A description is not: a
+# 43-word answer to "beskriv hardvaran i detta projektet for en novis",
+# naming all seven channels because describing them is the question, was
+# deleted to an empty screen. Twenty separates the two with margin on
+# both sides, and erring long only costs a noisy line where erring short
+# costs the answer.
+RESTATE_MAX_WORDS = 20
+
 # Two or more pipe-delimited lines, the shape of a markdown table row or its
 # `| :--- |` header separator. Measured on this bench: asked to "tabellera",
 # gemma4:12b wrote the real reading as a markdown table and then hit the
@@ -101,6 +112,11 @@ def is_retype(answer, channels, minimum=RESTATE_MIN_CHANNELS):
         return False
     if MARKDOWN_TABLE_ROW.search(answer):
         return True
+    # A markdown table is caught above whatever its length: SYSTEM says
+    # never to write one, and a long one is worse than a short one. Past
+    # that, length is what tells a list from an explanation.
+    if len(answer.split()) > RESTATE_MAX_WORDS:
+        return False
     return (len(channels) >= minimum
            and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
                   for ch in channels))

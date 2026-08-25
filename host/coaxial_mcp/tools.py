@@ -310,11 +310,17 @@ def _closest(key, by_name):
     return found[0] if len(found) == 1 else None
 
 
-def _resolve(session, wanted):
+def _resolve(session, wanted, notes=None):
     """Turn ['4', 'DC bus'] into channel indices.
 
     Indices and names are both accepted because a model that has seen
     board_info knows the names, and one that has not can still count.
+
+    `notes` collects what had to be corrected to get there - a misspelling,
+    an alias, a name assembled out of the words it was made of. The
+    correction happens either way; what the list adds is the operator being
+    told it happened, rather than a question about `temperatur` quietly
+    coming back as a reading of something they did not name.
     """
     wanted = _names(wanted)
     _, _, channels = session.info()
@@ -341,6 +347,8 @@ def _resolve(session, wanted):
             index = int(text)
         elif key in by_name:
             index = by_name[key]
+            if notes is not None and key != _key(text):
+                notes.append('%s read as %s' % (text, key))
         else:
             # Several matches is not a typo, it is a question that has not
             # been narrowed - `phas` on a three-phase board. Naming them
@@ -363,6 +371,8 @@ def _resolve(session, wanted):
                      if len(w) > 1 or phased} & set(by_name))
             if len(found) == 1:
                 index = by_name[found[0]]
+                if notes is not None:
+                    notes.append('%s read as %s' % (text, found[0]))
             elif len(found) > 1:
                 raise ValueError('channel %r could be %s - say which'
                                  % (text, ' or '.join(found)))
@@ -407,7 +417,9 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
     # name is the caller's mistake and deserves a specific answer; reporting
     # "the AFE is off" for it would send them after the wrong problem.
     _, _, channels = session.info()
-    indices = _resolve(session, ch) if ch else [c['index'] for c in channels]
+    notes = []
+    indices = (_resolve(session, ch, notes) if ch
+               else [c['index'] for c in channels])
 
     # Read whether or not the front end is on, and say which it was.
     #
@@ -467,6 +479,14 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
               'near mid-scale, and the degC and volts below are arithmetic '
               'on that - not a temperature, not a bus voltage. Call '
               'afe_power on to measure.' + chr(10))
+    # What had to be corrected to answer at all, above the answer. The
+    # reading was taken either way - refusing a misspelling is worse than
+    # taking it and saying so - but a question about `temperatur` coming
+    # back as a reading of something the operator did not name is exactly
+    # the quiet substitution this file exists to prevent.
+    if notes:
+        banner = ('read as asked, with corrections: %s%s'
+                  % ('; '.join(notes), chr(10))) + banner
     return banner + render.analog({'samples': burst['samples'],
                           'rate_hz': burst['rate_hz'],
                           'channels': rows}, derived)

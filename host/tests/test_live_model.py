@@ -102,11 +102,19 @@ TOOL_CHOICE = (
     ('vad har de analoga kanalerna för värden?', 'analog_read',
      ('digital_read',)),
 
-    # Neither: a question about what a thing is, answered in words.
+    # What a thing IS. board_info is allowed: describing this board from
+    # its own map beats describing it from training, and the earlier
+    # "no board call" here was the wrong bar - measured, gemma4:12b and
+    # qwen2.5:14b both reached for it, which is two families agreeing the
+    # expectation was wrong rather than two models being wrong.
+    #
+    # What must not happen is a measurement, or the front end being
+    # switched, or the link being diagnosed. None of those describes
+    # anything.
     ('beskriv hårdvaran i detta projektet för en novis', None,
-     ('analog_read', 'digital_read')),
+     ('analog_read', 'digital_read', 'afe_power', 'link_diagnose')),
     ('what is this project about', None,
-     ('analog_read', 'digital_read')),
+     ('analog_read', 'digital_read', 'afe_power', 'link_diagnose')),
 )
 
 
@@ -285,8 +293,7 @@ def main(argv=None):
                              bool(answer.strip()) or bool(results),
                              safe(answer, 40) or '(the trace)')
                 if must is None:
-                    report.check('%s -> no board call' % safe(question, 40),
-                                 not called, ', '.join(called) or 'none')
+                    pass          # only must_not applies - see TOOL_CHOICE
                 else:
                     wanted = (must,) if isinstance(must, str) else must
                     report.check('%s -> %s' % (safe(question, 40),
@@ -335,8 +342,9 @@ def main(argv=None):
                                  chat.language == expect, str(chat.language))
                     continue
 
-                report.check('%s the board' % ('reached' if needs_board
-                                               else 'did not reach'),
+                report.check('%s the board for a reading'
+                             % ('reached' if needs_board
+                                else 'did not reach'),
                              (READING in called) == needs_board,
                              ', '.join(called) or 'no calls')
                 # detect() is the same judge the session prompt is built from, so

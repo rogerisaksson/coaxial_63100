@@ -348,6 +348,8 @@ PHRASES = {
             'reserverade: %d pinnar',
         '%d samples @%.0fHz':
             '%d sampel @%.0fHz',
+        'read as asked, with corrections: %s':
+            'läst som efterfrågat, med rättelser: %s',
         'link re-established':
             'länken återupprättad',
         ' -> check the board is powered, and that a JTAG programmer or '
