@@ -99,7 +99,7 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_structure.py` (191), `test_modbus_core.py` (68),
+Suites: `test_structure.py` (208), `test_modbus_core.py` (68),
 `test_ollama.py` (730),
 `test_simulated.py` (42), `test_mcp.py` (41), `test_parity.py` (18),
 `test_conformance.py` (67, `--conformance`),

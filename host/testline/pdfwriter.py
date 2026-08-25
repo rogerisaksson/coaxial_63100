@@ -96,6 +96,9 @@ class Page:
 
 
 class Document:
+    """A PDF being built: a title, an author and the pages in order. Held in
+    memory until build() numbers the objects and serialises the lot."""
+
     def __init__(self, title='Test report', author='testline'):
         self.title = title
         self.author = author

@@ -21,7 +21,9 @@ import yaml
 
 
 class PlanError(Exception):
-    pass
+    """A plan that cannot be audited: a missing product, revision or study
+    reference, or a step whose limit does not parse. Raised at load time, so
+    a run never starts against a plan nobody could sign."""
 
 
 class Limit:
@@ -76,6 +78,10 @@ class Step:
 
 
 class TestPlan:
+    """One YAML plan, loaded and checked: what to measure, in what order, and
+    what counts as passing. The limits live here and nowhere in the firmware -
+    see this module's own docstring for why that separation is the point."""
+
     def __init__(self, data, path=None):
         self.path = path
         try:

@@ -24,9 +24,12 @@ HOST = os.path.dirname(HERE)
 sys.path.insert(0, HOST)
 
 # Packages this suite walks. `tests` is deliberately out: a suite that
-# imported every suite would run them.
-PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama')
-SCRIPTS = ('tools',)
+# imported every suite would run them. Everything else under host/ is in,
+# including testline/ and examples/ - they were left out for no reason and
+# had never been checked at all, which is how three undocumented classes
+# and 750 unchecked lines sat there.
+PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'testline')
+SCRIPTS = ('tools', 'examples')
 
 # The ceiling is the worst that survives a deliberate reading, not an ideal.
 # It exists to stop the next 250-line function, not to condemn the scanners
@@ -260,7 +263,10 @@ def test_shape(r):
     long_ones, deep_ones = [], []
     for path, _, tree in sources():
         for node in ast.walk(tree):
-            if not isinstance(node, ast.FunctionDef):
+            # AsyncFunctionDef too: it is not a subclass of FunctionDef, so
+            # the three async handlers in coaxial_mcp/server.py were exempt
+            # from both ceilings without anyone deciding they should be.
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             lines = node.end_lineno - node.lineno + 1
             if lines > MAX_LINES:
@@ -302,8 +308,10 @@ def test_no_escaping_scars(r):
     business in the source it produced. Left in ten places once already.
     """
     for path, text, tree in sources():
-        if path.endswith(('replies.py', 'sandbox.py')):
-            continue        # these two are *about* escaping - see their tests
+        if path.endswith(('replies.py', 'sandbox.py', 'pdfwriter.py')):
+            continue        # these are *about* escaping: the first two by
+                            # their tests, the third because a backslash is
+                            # what a PDF literal string escapes with
         scars = [w for w in ('chr(10)', 'chr(92)') if w in text]
         r.check('%s has no heredoc scars' % path, not scars, ', '.join(scars))
 
