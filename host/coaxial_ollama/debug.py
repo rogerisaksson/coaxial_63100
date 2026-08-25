@@ -1004,7 +1004,25 @@ class Chat:
                 args = toolmod.arguments(call)
                 key = (name, json.dumps(args, sort_keys=True, default=str))
 
-                if name in OFF_AXIS.get(self._intent_did, ()) and answered:
+                off_axis = name in OFF_AXIS.get(self._intent_did, ())
+                if off_axis and not answered and self._intent_tool:
+                    # The model reached for the wrong half of the axis
+                    # *instead of* the right one. Answered from the loop,
+                    # naming the tool that does answer it - a redirect, not a
+                    # refusal, and it costs no round trip.
+                    #
+                    # Measured: `ge mig en lista over de analoga vardena`
+                    # asked on its own called board_info, with the compiled
+                    # hint in the system message saying analog_read and
+                    # saying the channel map was not needed. Asked one turn
+                    # after the channel map it called analog_read - so the
+                    # failure is only visible on the question asked first,
+                    # which is how a suite of pairs missed it.
+                    raw = ('not this question - %s answers it, call that'
+                           % self._intent_tool)
+                    seen[key] = raw
+                    result = raw
+                elif off_axis and answered:
                     # The compiled intent named one tool, that tool has
                     # already answered this turn, and this call is the other
                     # half of the axis the model keeps confusing. Not a

@@ -10,7 +10,8 @@ Local LLM orchestration for hardware telemetry. Designed around VRAM constraints
 
 ## Execution Pipeline
 
-* **Two-Pass Routing:** Queries undergo a cheap intent classification pass before execution. The *noun* strictly decides the tool (e.g., "list" = map, "values" = read) to prevent multi-tool hallucinations.
+* **Two-Pass Routing:** Queries undergo a cheap intent classification pass before execution. The *noun* strictly decides the tool (e.g., "list" = map, "values" = read) to prevent multi-tool hallucinations. It runs on the turn's own client - a second `Ollama` at a different `num_ctx` reloads the weights every question.
+* **Off-axis redirect:** Naming the right tool in the prompt does not hold. When the model calls the other half of the map/read axis, the loop answers that call itself - `not this question - analog_read answers it` - costing no round trip. Measured: the question asked *first* called `board_info`; asked after the map question it called `analog_read`, so a suite of question pairs never saw it.
 * **Language Control:** The host dictates the output language based on OS locale or explicit command. The model is forbidden from auto-detecting language, preventing drift. Bare language switches are intercepted and answered by the host at zero token cost.
 * **Context Scaling:** Detail levels (`terse` vs. `full`) for tool descriptions are determined by model parameter count (<30B gets terse), not user flags.
 

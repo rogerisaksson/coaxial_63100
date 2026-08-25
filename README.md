@@ -1,251 +1,74 @@
 # Coaxial 63100
 
-Control firmware and a Python host library for a **coaxial BLDC inverter** — a
-three-phase drive whose PCB sits coaxially behind the stator of an outrunner. The
-name is the rating: **63 V and 100 A**, the current being instantaneous within
-the FETs' safe operating area. STM32H753VIT6 at 475 MHz, one UART carrying
-either a text console or binary Modbus RTU, reached over the debug probe's COM
-port or RS485.
+Instrumentation firmware and Python host library for a stator-mounted ("coaxial") BLDC inverter. Rated 63 V / 100 A (peak SOA survival, not continuous). Driven by an STM32H753VIT6 at 475 MHz.
 
-*Coaxial* is where the electronics sit — behind the stator — not what they are
-wired with. Nothing on the board is a coaxial cable or connector.
+This is currently a telemetry pipeline. Motor control (PWM, commutation, current loops) is unconfigured.
 
-What is in this repository today is **instrumentation, not a motor controller**.
-No timer is configured: there is no PWM, no commutation and no current loop. It
-reads the three differential phase channels, the DC link, an NTC and the board's
-own registers, and exposes all of it over the link. Nothing here has been
-exercised near 63 V or 100 A.
+## Getting Started
 
-## Getting started
+Follow these steps to set up the environment, build the firmware, and launch the host telemetry and LLM pipeline.
 
-### 1. What the machine needs
+### 1. Environment Setup
 
-Windows and winget. Everything else `setup.ps1` installs:
+The provisioning script handles dependencies via Winget, Python, and ST's bundle manager:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # changes nothing
-powershell -ExecutionPolicy Bypass -File .\setup.ps1          # asks, then installs
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes -AllowScripts   # the lot, unattended
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check     # Check status without changes
+powershell -ExecutionPolicy Bypass -File .\setup.ps1           # Interactive install
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes      # Unattended install
 ```
 
-Run without switches and the first question is which kind of run this is:
-
-```
-  Unattended, or one question per step?
-    y  install everything that is missing without asking again
-    n  ask before each install  (default)
-  unattended? [y/N]
-```
-
-`y` there is the same as passing `-Yes`, and it is asked once at the top rather
-than discovered a dozen prompts in. The default is `n`. `-Check` never asks —
-there is nothing to consent to when nothing installs — and a run with no console
-to ask on (piped, scheduled) takes silence as `n` and puts the rest on the todo
-list rather than dying half-installed.
-
-| What | From |
-|---|---|
-| Python, git, VS Code | winget |
-| pyserial, PyYAML, mcp, anyio, pytest | `host/requirements.txt`, via pip |
-| arm-none-eabi-gcc, gdb, cmake, ninja | STM32 bundles, via `cube.exe` |
-| STM32_Programmer_CLI | same |
-| STM32CubeMX | same — the `stm32cubemx-application` bundle, or st.com's installer if you would rather |
-| ST-Link gdbserver, server and USB driver | same |
-| cube-cmake | the STM32 VS Code extension |
-| VS Code extensions: the STM32 pack, cpptools, python, ollama | `code --install-extension`, mirroring [.vscode/extensions.json](.vscode/extensions.json) |
-| ollama, and a model this machine can actually run | winget or `ollama.com/install.ps1`, then `ollama pull` |
-| STM32Cube FW_H7 | st.com — the one thing still behind a login, and only CubeMX needs it |
-
-None of the ST tools land on the system PATH: they install as "bundles" under
-`%LOCALAPPDATA%\stm32cube\bundles`, which is why plain `cmake` and
-`STM32_Programmer_CLI` are nowhere to be found until `env.ps1` has run.
-
-The ST half used to be the manual half — st.com is behind a login and a
-click-through licence, so the honest instruction was "open VS Code once and let
-its bundle manager download the toolchain". It is not any more. The STM32 VS
-Code extension ships `cube.exe`, and `cube bundle install --yes NAME` pulls the
-same bundles from developer.st.com with no account and no browser. That is what
-the script drives, so a fresh machine needs no human in the middle of the
-toolchain install.
-
-Three things still cannot be helped. A winget install only reaches the PATH of
-shells opened *after* it, so on a bare machine the first run installs Python and
-VS Code and asks to be run once more — the second run finishes. Installing the
-ST-Link USB driver needs administrator rights, so it comes with an elevation
-prompt of its own. And the STM32Cube FW_H7 package is still behind an st.com
-login.
-
-That last one matters less than it sounds. **The build does not need it** —
-`Drivers/` is in this repository, so gcc has its HAL and CMSIS either way. What
-needs it is CubeMX: opening the `.ioc` against a repository without
-`STM32Cube_FW_H7_V1.13.0` in it means CubeMX offers to fetch its own, and
-regenerating against a different version is a different `Core/` than the one in
-git. The script reads the required version out of the `.ioc`, looks in CubeMX's
-repository, and if it is absent offers three ways in:
-
-```powershell
-# 1. you already have it - a share, a stick, another bench. No browser, no account.
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 -FirmwarePackage D:\STM32Cube_FW_H7_V1.13.0.zip
-
-# 2. CubeMX's own package manager: cubemx, then Help > Manage embedded software packages
-# 3. the download page, opened for you when asked
-```
-
-What it will not do is scrape the download out of st.com. The URLs that used to
-serve these unauthenticated answer 404 now, and the GitHub mirror keeps its
-drivers as submodules — a zipball of the tag has none of the sources in it.
-
-| Switch | Why |
-|---|---|
-| `-Check` | report only: what is present, what is absent, what each absent thing costs |
-| `-Yes` | answer the opening question from the command line: install everything, ask nothing |
-| `-SkipOllama` | a machine that only builds and flashes |
-| `-SkipCubeMX` | skip STM32CubeMX — 308 MB down, 835 MB on disk, and only the `.ioc` needs it |
-| `-SkipDriver` | leave the ST-Link USB driver alone (no elevation prompt) |
-| `-FirmwarePackage PATH` | install a `STM32Cube_FW_H7_*.zip`, or an unpacked copy, into the CubeMX repository |
-| `-SkipFirmware` | do not look for FW_H7 at all — a machine that only builds and flashes |
-| `-CubeMXInstaller PATH` | run an STM32CubeMX installer downloaded from st.com, instead of taking the 308 MB bundle |
-| `-Repository PATH` | where CubeMX keeps its packages, if yours is not the default |
-| `-Model TAG` | overrule the automatic choice with a tag of your own |
-| `-Reserve N` (board_prompt) | VRAM in GB to keep for the desktop; raise it if the screens stutter. `COAXIAL_VRAM_RESERVE_GB` sets it per machine |
-| `-Prefer speed\|capability` | `speed` fits the card whole; `capability` allows a bigger model to spill onto the CPU |
-| `-WingetToolchain` | cmake, ninja and Arm's gcc from winget instead of the ST bundles |
-| `-AllowScripts` | set the CurrentUser execution policy so `. .\env.ps1` works in a plain shell |
-
-Re-running is free: every step checks before it installs, and a finished machine
-prints `nothing outstanding` and changes nothing.
-
-### 2. Every shell
+Load the per-shell toolchain and command aliases (does not modify the system PATH):
 
 ```powershell
 . .\env.ps1
 ```
 
-This puts the newest of each bundle on PATH **for that shell only** — nothing is
-written to the system PATH or the registry, so a stale entry cannot outlive the
-window it was made in. It also defines the six commands the project is driven
-with:
-
-```
-board_prompt  the model, the board and a prompt in one window
-dbg      one question to the local model            (host/dbg.py)
-board    the plain CLI, no model                    (python -m coaxial)
-cubemx   open coaxial_63100.ioc in STM32CubeMX
-cbuild   build the firmware, zero warnings expected
-cflash   flash over SWD and start the core
-```
-
-### 3. Build and flash
+### 2. Build & Flash
 
 ```powershell
-cbuild                      # cube-cmake --build --preset Debug
-cflash                      # SWD, then --start
+cbuild              # Compile firmware (zero warnings expected)
+cflash              # Flash via SWD and start the core
 ```
 
-Zero warnings is the standard, not an aspiration. Flashing is SWD on purpose:
-any connect that asserts NRST on this probe fails with `Unable to get core ID`,
-and a programmer invocation must end in `--start` rather than `-hardRst` or the
-core is left halted with no clue as to why.
-
-### 4. Talk to the board
+### 3. Interact with the Board
 
 ```powershell
-board all                   # every channel, the NTC, the link stats, the version
+board all           # Dump all ADC channels, NTC temperature, and link stats
 ```
 
-Before believing anything analog, know this: **the AFE switch powers the ADC
-reference**, not just the signal path. With it off every channel reads exact
-mid-scale and the NTC reports exactly 25.00 °C — a plausible number that is not
-a measurement.
-
-The board is a dumb slave. It reports raw codes and sensed values; there are no
-limits and no expected values anywhere in the firmware or in these tests,
-because pass/fail against real thresholds belongs to a test executive on the
-line, beside the calibrated instruments.
-
-### 5. The model in the loop
+### 4. Launch the AI-Assisted Telemetry Prompt
 
 ```powershell
-board_prompt                # daemon started, model preloaded, board checked, prompt open
-board_prompt -Ask "read the NTC and give me the temperature"
-board_prompt -Plain         # a bare ollama chat: no tools, no board
+board_prompt        # Starts the local model daemon, checks board health, and opens the REPL
 ```
-
-`board_prompt.ps1` is preflight plus `host/dbg.py --repl`: the local model with
-the board's tools, `/py` against a live session and `/sh` for a build, both
-free of tokens, and a meter on every turn. It measures the machine, picks the
-model that fits it, **pulls it if it is not here yet**, loads it before the
-prompt opens and says which COM port answered.
-
-Three things about it are decisions rather than defaults, and each is measured
-in [docs/MODELS.md](docs/MODELS.md):
-
-* **The tag comes from the machine.** A bench PC is whatever was on the shelf,
-  and one hardcoded model means a laptop crawls or a workstation idles. The
-  rule is the largest tools-capable tag that fits the card *whole* — a split
-  model costs about **five times** the speed to hand back half the VRAM
-  (64.3 tok/s against 12.7), so hybrid is the fallback, not the target.
-* **Local is enforced, not assumed.** Ollama will proxy a `:cloud` tag to
-  somebody else's GPU, which on a bench means register dumps leaving the
-  building. A cloud tag or a non-loopback host raises; `--allow-remote` is how
-  you mean it on purpose.
-* **It reports, it does not judge.** Numbers reaching a verdict arrive as
-  `report` arguments against a schema, and `plan.Limit` decides in Python.
-
-It is not read-only. `build_firmware` runs the build and the SWD flash with
-fixed arguments, `--confirm`-gated like a pin write; `run_tests` runs the
-suites and returns the tally each one counted, never a paraphrase; and
-`link_diagnose` works an ordered checklist when the board goes quiet, starting
-with target power over SWD — the one thing the serial side cannot check.
-
-```powershell
-python -m coaxial_ollama.capability     # what this machine gets, and why
-dbg -q "run the test suites, build and flash, tell me if anything failed"
-```
-
-
-### 6. Prove the install
-
-```powershell
-cd host
-python tests/test_ollama.py         # 314 checks, no board and no ollama needed
-python tests/test_mcp.py            # 39 MCP server checks
-python tests/test_simulated.py      # 17 checks, real MCP handlers against a fake board
-python tests/test_conformance.py    # 43 Modbus conformance checks, needs the board
-python tools/run_tests.py           # all four above, one parsed tally - --conformance
-                                     # to include the one that needs the board
-```
-
-### Where to read next
-
-| Read this | When |
-|---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | before touching any source layout |
-| [docs/PROTOCOL.md](docs/PROTOCOL.md) | before changing anything on the wire |
-| [docs/HARDWARE.md](docs/HARDWARE.md) | before interpreting any measurement |
-| [docs/MODELS.md](docs/MODELS.md) | before changing anything about the local model |
-| [docs/FINDINGS.md](docs/FINDINGS.md) | **before investigating anything** — it records what has already been ruled out |
 
 ---
 
-## License
+## Environment & Toolchain
 
-The **coaxial_63100** project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.
+* **`setup.ps1`**: Automates dependency installation (Winget, Python, Ollama, ST toolchains). Bypasses ST's login wall by hijacking the VS Code bundle manager.
+* **`env.ps1`**: Scopes paths strictly per-shell to avoid registry rot. Injects core aliases (`cbuild`, `cflash`, `board`, `board_prompt`, `dbg`, `cubemx`).
 
-### Terms for Hobbyists and Individuals
-* 🟢 **Free for personal use:** You are free to run, copy, and modify the code for personal or hobby projects.
-* 🔴 **No commercial use:** You may **not** use this code for commercial purposes, within a company, or for financial gain.
-* 🔄 **ShareAlike:** If you modify the code, you must distribute your contributions under this exact same license.
-* 👤 **Attribution:** You must give appropriate credit and link back to this repository.
+## Build & Deploy
 
-Read the full legal text here: [CC BY-NC-SA 4.0 License Terms](https://creativecommons.org)
+* **`cbuild`**: Compiles the firmware. Zero warnings is a strict requirement, not an aspiration.
+* **`cflash`**: Flashes via SWD. Must terminate with `--start`. Asserting `-hardRst` on this probe halts the core and silently kills serial comms.
 
----
+## Telemetry & The AFE Trap
 
-## Commercial Use & Licensing
+* **Link**: USART3 multiplexes a text console and Modbus RTU. Reachable via debug VCP or RS485.
+* **The AFE Trap**: The ADC voltage reference is powered by the AFE switch. If the AFE is off, channels read exact mid-scale, generating a phantom 25.00 °C on the NTC. A plausible number, but not a measurement.
+* **Dumb Slave**: The board reports raw codes. It knows nothing of calibration or limits. Pass/fail thresholding is strictly the jurisdiction of the host test executive.
 
-Companies and commercial entities wishing to use **coaxial_63100** in their business, production, or commercial products must acquire a separate commercial license.
+## LLM Orchestrator
 
-To discuss pricing and commercial licensing options, please contact me:
-* 📧 **Email:** [erogisa@gmail.com](mailto:erogisa@gmail.com)
-* 💬 **GitHub:** Open an [Issue](https://github.com/rogerisaksson/coaxial_63100/issues) or contact me via my GitHub profile.
+* **`board_prompt`**: Initializes the local model daemon, preloads weights, and binds hardware tools.
+* **VRAM Strictness**: Dynamically selects the largest model that fits *entirely* in VRAM, reserving overhead for the OS. Spilling to CPU RAM incurs a 5x speed penalty and is treated as a fallback, never a target.
+* **Data Sovereignty**: Cloud tags are explicitly blocked to prevent unreleased hardware telemetry from leaking to external servers.
+* **Execution, Not Judgement**: The LLM may script builds, flash hardware, and pull telemetry, but final test verdicts are strictly calculated by Python (`plan.Limit`).
+
+## Validation & Licensing
+
+* **Verification**: `.un_tests.ps1` is the interface. It runs a change-sized subset by default (~25 % of every check, chosen by the local model from the diff); `-AutomaticMedium`, `-AutomaticHigh` and `-All` widen it, `-Only NAMES` narrows it to named tests.
+* **License**: CC BY-NC-SA 4.0. Open for hobbyists. Commercial deployment requires a paid license. Contact [erogisa@gmail.com](mailto:erogisa@gmail.com) for enterprise terms.

@@ -149,6 +149,13 @@ SEQUENCES = (
     (('ge mig en lista på alla analoga kanalerna', 'board_info', 'analog_read'),
      ('ge mig en lista på alla analoga mätvärdena', 'analog_read',
       'board_info')),
+    # Verbatim from a transcript, article and all: "den analoga mätvärdena"
+    # is not "de", and the wording that was tested is not the wording that
+    # was typed.
+    (('ge mig en lista över de analoga kanalerna', 'board_info',
+      'analog_read'),
+     ('ge mig en lista över den analoga mätvärdena', 'analog_read',
+      'board_info')),
     (('ge mig en lista över de analoga kanalerna', 'board_info',
       'analog_read'),
      ('ge mig en lista över de analoga värdena', 'analog_read',
@@ -233,6 +240,28 @@ def _twice(answer, results):
     return ''
 
 
+WORDS = 300        # debug.py's --words default
+TOOLS = 'code'     # and its --tools default, which is what board_prompt runs
+
+
+def matching(rows, needle, text):
+    """The rows whose question contains `needle`, or all of them for None.
+
+    Case-folded and accent-blind on the vowels this bench types, so
+    `--match matvard` finds "mätvärdena" from a terminal that cannot produce
+    the umlaut.
+    """
+    if not needle:
+        return rows
+    def flat(s):
+        s = s.lower()
+        for a, b in (('å', 'a'), ('ä', 'a'), ('ö', 'o')):
+            s = s.replace(a, b)
+        return s
+    want = flat(needle)
+    return [row for row in rows if want in flat(text(row))]
+
+
 def build(model, port, simulated, compile_intent=True):
     """(session, chat, real). `simulated=False` probes and falls back."""
     from coaxial_mcp.session import open_session
@@ -243,7 +272,14 @@ def build(model, port, simulated, compile_intent=True):
     # GB for each of its twenty-six questions and spending most of its wall
     # time on that. Released once, in main()'s finally - the same bargain
     # the prompt loop makes, for the same reason.
-    client = Ollama(model, keep_alive='30m')
+    # Built the way debug.main() builds it, not the way a test finds
+    # convenient. Measured: with `think` left unset the payload omits it, and
+    # `ge mig en lista over den analoga matvardena` called analog_read; with
+    # `think=False`, which is what the prompt actually sends, the same
+    # question called board_info. num_predict=300 is the --words default and
+    # moves it again. A suite that configures its own client tests a
+    # configuration nobody runs - this one did, for every row, until here.
+    client = Ollama(model, keep_alive='30m', num_predict=WORDS, think=False)
     toolbox = toolmod.Toolbox(session, scope=Scope())
     # `read` rather than the default set: the fewer tools in the schema, the
     # less this measures the model's taste in tools it was never going to
@@ -253,7 +289,7 @@ def build(model, port, simulated, compile_intent=True):
     # it makes the host substitute a silenced block for the answer, which
     # is right at a prompt with no trace and wrong here. Configured the way
     # the operator runs it, or the duplication check measures the mode.
-    chat = debug.Chat(client, toolbox, tools='read', quiet=False,
+    chat = debug.Chat(client, toolbox, tools=TOOLS, quiet=False,
                       out=io.StringIO(), session_language=START)
     # The intent pass is what the prompt loop runs with, so this measures it
     # by default. --no-compile runs the same matrix without it, which is the
@@ -269,6 +305,10 @@ def main(argv=None):
     parser.add_argument('--no-compile', action='store_true',
                         help='run the matrix without the intent pass, the '
                              'way the loop behaved before it existed')
+    parser.add_argument('--match',
+                        help='run only the rows whose question contains this '
+                             'text. A model load plus a turn per row is '
+                             'minutes; one changed rule is one row.')
     parser.add_argument('--release', action='store_true',
                         help='hand the model back when this run ends. Off '
                              'by default: the suite is run again a minute '
@@ -317,7 +357,8 @@ def main(argv=None):
 
         if 'tools' in want:
             print(chr(10) + '-- which tool the question reaches for --')
-            for question, must, must_not in TOOL_CHOICE:
+            for question, must, must_not in matching(TOOL_CHOICE, args.match,
+                                                     lambda row: row[0]):
                 before = len(chat.toolbox.log)
                 del results[:]
                 answer = chat.ask(question)
@@ -375,7 +416,8 @@ def main(argv=None):
 
         if 'sequence' in want:
             print(chr(10) + '-- one question after another, history kept --')
-            for pair in SEQUENCES:
+            for pair in matching(SEQUENCES, args.match,
+                                 lambda row: ' '.join(q for q, _, _ in row)):
                 chat.history = []
                 chat.prompt_history = []
                 chat.last_channels = None

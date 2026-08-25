@@ -4638,27 +4638,48 @@ def test_picker(r):
             pick_tests.TAGS == TAGS, repr(sorted(pick_tests.TAGS)))
 
     j = json.dumps
-    for name, reply, want, note in (
-            ('two known tags', j({'tags': ['render', 'reply'], 'why': 'x'}),
+    one = ['test_ollama.py']
+
+    def reply(**kw):
+        kw.setdefault('suites', one)
+        return j(kw)
+
+    for name, text, want, note in (
+            ('two known tags', reply(tags=['render', 'reply'], why='x'),
              ['render', 'reply'], None),
             ('one unknown, kept and reported',
-             j({'tags': ['render', 'nosuch']}), ['render'], 'dropped'),
-            ('all unknown', j({'tags': ['nosuch']}), None, 'no subject'),
-            ('not JSON at all', 'sure, I would run the render tests', None,
-             'not the JSON'),
-            ('empty list', j({'tags': []}), None, 'nothing at all'),
+             reply(tags=['render', 'nosuch']), ['render'], 'dropped'),
+            ('all unknown', reply(tags=['nosuch']), [], None),
             ('every subject is the same as none',
-             j({'tags': sorted(TAGS)}), None, 'every subject'),
+             reply(tags=sorted(TAGS)), [], None),
     ):
-        tags, why = pick_tests.parse(reply)
-        r.check('parse: %s -> %s' % (name, want or 'run everything'),
-                tags == want and (note is None or note in why),
-                'got %r / %r' % (tags, why))
+        plan, why = pick_tests.parse(text)
+        r.check('parse: %s -> %s' % (name, want if want else 'no narrowing'),
+                plan is not None and plan.tags == want
+                and (note is None or note in why),
+                'got %r' % (plan and plan.tags,))
+
+    for name, text, note in (
+            ('not JSON at all', 'sure, I would run the render tests',
+             'not the JSON'),
+            ('no suite named', j({'tags': ['render']}), 'no suite'),
+            ('a suite this repository does not have',
+             j({'suites': ['test_nope.py']}), 'no suite'),
+    ):
+        plan, why = pick_tests.parse(text)
+        r.check('parse: %s -> run everything' % name,
+                plan is None and note in why, 'got %r / %r' % (plan, why))
 
     # Case and whitespace: a model that answers "Render" has still answered.
-    tags, _ = pick_tests.parse(j({'tags': [' Render ', 'REPLY']}))
+    plan, _ = pick_tests.parse(reply(tags=[' Render ', 'REPLY']))
     r.check('parse: a tag is a tag whatever its case or padding',
-            tags == ['render', 'reply'], repr(tags))
+            plan.tags == ['render', 'reply'], repr(plan.tags))
+    r.check('and the suite list comes back as named files',
+            plan.suites == one, repr(plan.suites))
+    r.check('a live section outside the catalogue falls back to all',
+            pick_tests.parse(reply(live='sideways'))[0].live == 'all')
+    r.check('and "none" is a real answer, not a missing one',
+            pick_tests.parse(reply(live='none'))[0].live == 'none')
 
     long = ('diff --git a/host/coaxial_ollama/replies.py b/x\n'
             + 'x' * 9000 + '\ndiff --git a/host/tests/test_ollama.py b/y\n')
@@ -4680,14 +4701,14 @@ def test_picker(r):
     broken.Ollama = explode
     sys.modules['coaxial_ollama.client'] = broken
     try:
-        tags, why = pick_tests.pick(against='HEAD')
+        plan, why = pick_tests.pick(against='HEAD')
     finally:
         if real is None:
             sys.modules.pop('coaxial_ollama.client', None)
         else:
             sys.modules['coaxial_ollama.client'] = real
     r.check('ollama unreachable runs everything, and says why',
-            tags is None and 'connection refused' in why, repr(why))
+            plan is None and 'connection refused' in why, repr(why))
 
 
 def test_tag_roster(r):

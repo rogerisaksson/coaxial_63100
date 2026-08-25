@@ -274,6 +274,8 @@ def main(argv=None):
                              % FULL_EVERY)
     parser.add_argument('--dry-run', action='store_true',
                         help='with --smart: print the choice and why')
+    parser.add_argument('--sections',
+                        help='which live sections: tools|sequence|language')
     parser.add_argument('--live', action='store_true',
                         help='also run test_live_model.py - a real ollama '
                              'model against the real board, minutes not '
@@ -288,6 +290,10 @@ def main(argv=None):
                                        'instead of asking the model')
     parser.add_argument('--only', help='named tests in test_ollama.py, '
                                        'comma-separated: intent,picker')
+    parser.add_argument('--match',
+                        help='run only the live rows whose question contains '
+                             'this text, and nothing else. One changed rule '
+                             'is one row, not fifteen minutes.')
     parser.add_argument('--offline', action='store_true',
                         help='skip the suites whose meaning depends on a real '
                              'board (%s). The default set runs either way - '
@@ -297,6 +303,11 @@ def main(argv=None):
 
     live_sections = 'all'
     tags = args.tags
+    if args.match:
+        # One live row and nothing else. A rule that changed is one question,
+        # and the whole suite is a model load plus a turn per row.
+        args.file, args.smart, args.live = [LIVE], False, True
+        live_sections = args.sections or 'all'
     if args.coverage:
         args.smart = True
     if args.only:
@@ -363,23 +374,36 @@ def main(argv=None):
             print('   %d%% tier: %s%s'
                   % (args.coverage, ', '.join(args.file),
                      ' live:' + sections if sections else ''))
-        if ('test_ollama.py' in args.file and not full
-                and not tags):
+        # The model decides the list, not the path map. The map above is
+        # the fallback: coarse by construction - a line moved in
+        # coaxial_mcp/tools.py pulls in four suites whatever the line
+        # was - and it only stands when there is no model to ask.
+        if not tags and not full:
             sys.path.insert(0, str(ROOT / 'tools'))
             import pick_tests
-            # Not `why`: that name holds the plan's own reasons, printed
-            # above, and rebinding it here silently threw them away.
-            tags, reason = pick_tests.pick(args.model)
-            print('   subjects: %s' % (tags and ','.join(tags) or 'all'))
-            print('   %s' % (reason or 'no reason given'))
-            tags = tags and ','.join(tags)
+            plan, reason = pick_tests.pick(args.model)
+            if plan is None:
+                print('   the model picked nothing: %s' % reason)
+                print('   falling back to the path map above')
+            else:
+                args.file = [f for f in plan.suites
+                             if f != 'test_live_model.py']
+                tags = ','.join(plan.tags) or None
+                live_sections = '' if plan.live == 'none' else plan.live
+                args.live = bool(live_sections)
+                print('   the model picked: %s%s'
+                      % (', '.join(args.file) or 'nothing',
+                         '  live:' + live_sections if live_sections
+                         else ''))
+                print('   %s' % (plan.why or 'no reason given'))
         if args.dry_run:
             return 0
 
     suites = list(args.file) if args.file else list(DEFAULT_SUITES)
     if args.conformance and not args.file:
         suites.append(CONFORMANCE)
-    if args.live and (not args.file or args.smart) and LIVE not in suites:
+    if (args.live and (not args.file or args.smart)
+            and LIVE not in suites and not args.match):
         suites.append(LIVE)
     if args.offline:
         suites = [name for name in suites if name not in NEEDS_BOARD]
@@ -413,6 +437,8 @@ def main(argv=None):
             extra = ['-m', args.model] if name == LIVE else []
             if name == LIVE and live_sections:
                 extra += ['--sections', live_sections]
+            if name == LIVE and args.match:
+                extra += ['--match', args.match]
             if name == 'test_ollama.py':
                 if args.only:
                     extra += ['--only', args.only]

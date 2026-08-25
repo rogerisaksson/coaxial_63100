@@ -1,35 +1,33 @@
 #!/usr/bin/env python3
-"""Which subjects a change can have broken, decided by the local model.
+"""Which tests a change can have broken, decided by the local model.
 
-`tools/run_tests.py` already maps changed *paths* to suite *files*. That map
-is coarse by construction: a line moved in `coaxial_mcp/tools.py` pulls in
-four suites whatever the line was. This reads the diff itself and picks
-**tags** inside the big suite, where 645 of the checks live and where
-narrowing is worth anything.
+The model reads the diff and names three things: the suites, the subjects
+inside the big one, and which live section - if any - has to run. The path
+map in run_tests.py is the fallback, not the primary: it is coarse by
+construction, pulling four suites for any line in one file.
 
-The division is deliberate. The path map decides which files run and is the
-safe, dumb half; the model decides which subjects inside them and is the
-half that needs judgement. Every way the model can fail lands on the same
-answer - run everything:
+Every way the model can fail lands on the same answer, run everything:
 
   * ollama not reachable, or the tag not pulled
   * a reply that is not the JSON it was asked for
-  * a reply naming no tag this repository has
-  * a reply naming every tag, which is the same as saying nothing
+  * a reply naming no suite this repository has
+  * a reply naming every subject, which is the same as naming none
 
-None of that is defensive scaffolding. It is the one direction a wrong
-answer here may fail in: a picker that runs too much costs seconds, and one
-that runs too little hides a regression until the next full sweep.
+That is the one direction a wrong answer here may fail in: running too much
+costs seconds, running too little hides a regression until the next sweep.
 
     python tools/pick_tests.py                 # against the working tree
     python tools/pick_tests.py --explain       # ...and say why
-    python tools/pick_tests.py --model TAG
 """
 import argparse
+import collections
 import json
 import os
 import subprocess
 import sys
+
+# What the model was asked for, once it has answered.
+Plan = collections.namedtuple('Plan', 'suites tags live why')
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # host/
 sys.path.insert(0, ROOT)
@@ -44,25 +42,57 @@ from tests.test_ollama import TAGS                          # noqa: E402
 # every file, which is the coarse signal the path map already has.
 DIFF_CHARS = 6000
 
-ASK = """Which subjects can this change have broken?
+SUITES = {
+    'test_ollama.py': 'the host: prompt, tools, replies, language, render, '
+                      'bus, link, and the test tooling itself. No board, no '
+                      'model, no network.',
+    'test_mcp.py': 'the MCP tool surface and what it renders',
+    'test_simulated.py': 'the stand-in board',
+    'test_parity.py': 'board against stand-in, every number masked out',
+    'test_conformance.py': 'a byte-level Modbus master against the firmware',
+    'test_live_model.py': 'the real local model choosing real tools. Minutes.',
+}
 
-Subjects:
+LIVE_SECTIONS = {
+    'tools': 'which tool one question reaches for, asked from a clean history',
+    'sequence': 'two questions in a row, history kept',
+    'language': 'the session language and its lock',
+    'all': 'every live section',
+    'none': 'the model does not need to run',
+}
+
+ASK = """Which tests can this change have broken?
+
+Suites:
 %s
 
-Answer with the ones that could be affected. Too many wastes seconds; too
-few hides a regression, so include a subject you are unsure about. Answer
-with JSON only: {"tags": ["..."], "why": "one sentence"}
+Subjects inside test_ollama.py:
+%s
 
-Diff:
+Live sections (test_live_model.py only):
+%s
+
+Files changed (all of them):
+%s
+
+Too many wastes seconds; too few hides a regression, so include one you are
+unsure about. JSON only:
+{"suites": ["..."], "tags": ["..."], "live": "...", "why": "one sentence"}
+
+Diff (clipped - the file list above is complete, this is not):
 %s"""
 
 SCHEMA = {
     'type': 'object',
     'properties': {
-        'tags': {'type': 'array', 'items': {'type': 'string'}},
+        'suites': {'type': 'array',
+                   'items': {'type': 'string', 'enum': sorted(SUITES)}},
+        'tags': {'type': 'array',
+                 'items': {'type': 'string', 'enum': sorted(TAGS)}},
+        'live': {'type': 'string', 'enum': sorted(LIVE_SECTIONS)},
         'why': {'type': 'string'},
     },
-    'required': ['tags'],
+    'required': ['suites', 'tags'],
 }
 
 
@@ -91,6 +121,25 @@ def diff_text(against='HEAD'):
     return '\n'.join(parts)
 
 
+def changed(against='HEAD'):
+    """Every path the diff touches, names only."""
+    seen = []
+    for args in (['diff', '--name-only', against],
+                 ['diff', '--name-only', '--cached'],
+                 ['diff', '--name-only', '%s~1' % against, against]):
+        try:
+            done = subprocess.run(['git'] + args, cwd=os.path.dirname(ROOT),
+                                  capture_output=True, text=True,
+                                  encoding='utf-8', errors='replace',
+                                  timeout=30)
+        except Exception:                                     # noqa: BLE001
+            continue
+        for line in (done.stdout or '').splitlines():
+            if line.strip() and line.strip() not in seen:
+                seen.append(line.strip())
+    return seen
+
+
 def clip(text, limit=DIFF_CHARS):
     """The head of the diff, plus a line saying what was left out.
 
@@ -104,42 +153,59 @@ def clip(text, limit=DIFF_CHARS):
 
 
 def parse(reply, catalogue=None):
-    """(tags, why) from the model's reply, or (None, reason) if unusable.
+    """A Plan, or (None, reason) when the reply told us nothing usable.
 
-    None means "this told us nothing" and the caller runs everything. It is
-    returned for a reply that will not parse, for one naming no tag this
-    repository has, and for one naming all of them - which is the same
-    answer as no answer and should not be dressed up as a decision.
+    None means the caller runs everything. Returned for a reply that will not
+    parse, one naming no suite this repository has, and one naming every
+    subject - which is the same answer as no answer and should not be dressed
+    up as a decision.
     """
     catalogue = set(TAGS if catalogue is None else catalogue)
     try:
         got = json.loads(reply)
+        suites = [str(x).strip() for x in got.get('suites') or []]
         wanted = [str(t).strip().lower() for t in got.get('tags') or []]
+        live = str(got.get('live') or 'none').strip().lower()
         why = str(got.get('why') or '').strip()
     except Exception:                                         # noqa: BLE001
         return None, 'the reply was not the JSON it was asked for'
 
-    known = [t for t in catalogue if t in wanted]
+    files = [name for name in SUITES if name in suites]
+    if not files:
+        return None, ('named no suite this repository has (%s)'
+                      % (', '.join(suites) or 'nothing at all'))
+    tags = sorted(t for t in catalogue if t in wanted)
+    if set(tags) == catalogue:
+        tags = []                 # every subject is the same as no narrowing
+    if live not in LIVE_SECTIONS:
+        live = 'all'
     dropped = [t for t in wanted if t not in catalogue]
-    if not known:
-        return None, ('named no subject this repository has (%s)'
-                      % (', '.join(dropped) or 'nothing at all'))
-    if set(known) == catalogue:
-        return None, 'named every subject, which is the same as none'
+    dropped += [x for x in suites if x not in SUITES]
     if dropped:
-        why = (why + ' ' if why else '') + \
-            '[dropped: %s]' % ', '.join(sorted(dropped))
-    return sorted(known), why
+        why = ((why + ' ' if why else '')
+               + '[dropped: %s]' % ', '.join(sorted(dropped)))
+    return Plan(files, tags, live, why), why
+
+
+def _catalogue(entries, width=18):
+    return '\n'.join('  %-*s %s' % (width, name, entries[name])
+                     for name in sorted(entries))
 
 
 def pick(model='gemma4:12b', against='HEAD', keep_alive='30m'):
-    """(tags, why). tags is None when the model told us nothing usable."""
+    """(Plan, why). Plan is None when the model told us nothing usable."""
     patch = diff_text(against)
     if not patch.strip():
         return None, 'nothing has changed'
 
-    catalogue = '\n'.join('  %-9s %s' % (name, TAGS[name])
-                          for name in sorted(TAGS))
+    # The file list in full, beside a clipped diff. Measured: the diff was
+    # cut at DIFF_CHARS before it reached host/, so the model saw a README
+    # edit and nothing else, and picked the conformance suite for a change to
+    # the prompt loop. Names cost a line each; hunks cost the whole budget.
+    catalogue = (_catalogue(SUITES), _catalogue(TAGS, 9),
+                 _catalogue(LIVE_SECTIONS, 9),
+                 '\n'.join('  ' + name for name in changed(against)),
+                 clip(patch))
     try:
         from coaxial_ollama.client import Ollama
         # think=False, and not just for the tokens. Measured: with thinking
@@ -152,7 +218,7 @@ def pick(model='gemma4:12b', against='HEAD', keep_alive='30m'):
                         think=False, num_predict=400)
         client.model = client.require_model()
         message = client.chat([{'role': 'user',
-                                'content': ASK % (catalogue, clip(patch))}])
+                                'content': ASK % catalogue}])
     except Exception as exc:                                  # noqa: BLE001
         return None, 'could not ask %s: %s' % (model, exc)
     return parse((message.get('content') or '').strip())
@@ -166,15 +232,17 @@ def main(argv=None):
                         help="print the model's reason as well as its choice")
     args = parser.parse_args(argv)
 
-    tags, why = pick(args.model, args.against)
-    if tags is None:
+    plan, why = pick(args.model, args.against)
+    if plan is None:
         print('all')
         if args.explain:
             print('  %s - running everything' % why, file=sys.stderr)
         return 0
-    print(','.join(tags))
+    print('suites: %s' % ' '.join(plan.suites))
+    print('tags:   %s' % (','.join(plan.tags) or 'all'))
+    print('live:   %s' % plan.live)
     if args.explain:
-        print('  %s' % (why or 'no reason given'), file=sys.stderr)
+        print('  %s' % (plan.why or 'no reason given'), file=sys.stderr)
     return 0
 
 
