@@ -29,6 +29,7 @@
 
 ## Refuted Hypotheses (Dead Ends)
 
+* **`-Wconversion` Would Find Silent Truncations:** False. Measured across all seventeen of our sources: 113 warnings, 112 of them inside HAL/CMSIS headers the sources merely include, one ours - a `0U` ternary narrowing to `uint8_t`. The integer-heavy files are heavy in *explicit* casts, which is why they look dense and warn about nothing. The flag now sits on the ten HAL-free sources, where it also guards invariant 1: add a HAL include there and the build fills with someone else's conversions.
 * **NTC Sample Time Too Short:** False. The 15nF capacitor provides the necessary charge.
 * **DIFSEL Ignored:** False. It is written safely while the ADC is disabled.
 * **VREF Sag at 475 MHz:** False. A coincidental 1% shift on the DC bus; other channels shifted completely asynchronously (up to 9.7%).

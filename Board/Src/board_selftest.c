@@ -42,7 +42,7 @@ static void add(board_check_t *out, uint8_t *n, uint8_t capacity,
 
 static uint8_t verdict(bool ok)
 {
-  return ok ? BOARD_CHECK_PASS : BOARD_CHECK_FAIL;
+  return (uint8_t)(ok ? BOARD_CHECK_PASS : BOARD_CHECK_FAIL);
 }
 
 /* Every configured channel should leave at most its own bit and, for a
