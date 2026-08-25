@@ -11,6 +11,10 @@
 ## LLM & Host Infrastructure
 
 * **LLM OOM Crashes:** `llama-server` throws `std::bad_alloc` due to its own bloated prompt cache and checkpoints, not prompt length. Fixed by disabling `LLAMA_ARG_CACHE_RAM` and `LLAMA_ARG_CTX_CHECKPOINTS` in the daemon.
+* **Stand-in Diagnosed as a Dead Cable:** `SimulatedSession.port` is a bus label (`AX`), never `None`, so `link_diagnose`'s `configured is None` guard never fired for a session that fell back on its own: 15 s of SWD probing, then "Configured port AX: not among the ports above - the cable may be unplugged". Second consumer to read `.port` as a COM port; the `simulated` marker that fixed `_interface` already existed. Hidden by a test double - `test_ollama.py`'s own `SimulatedSession` has no `port` attribute at all, so it reached the branch however the branch was written. Step 4's advice also opened with "Powered" whatever step 1 concluded.
+* **`check_power` Discarded Its Own Reading:** With no target the programmer takes 30.3 s - a second connect attempt at 8 MHz - against a 15 s budget, and `TimeoutExpired.stdout` already holds `Voltage: 0.00V`. The handler returned `None`, i.e. "unknown" for the one case the check exists to answer. Now parsed from the killed run.
+* **`-Ask` Pinned the Card:** A one-shot was exempt from the unload on prompt exit, on the grounds that "dbg.py already holds it for two minutes rather than thirty" - which the same script disproves twenty lines up by passing `--keep-alive $KeepAlive`, i.e. 30m. Four smoke tests left 8.4 GB resident with nobody at the prompt. `-Ask` now takes a list: one load, N questions, one release.
+* **`--sections` Read Only Under `--match`:** `run_tests.py --live --sections tools` silently ran all three - measured, `tools` and `all` returning the same 176 checks in the same 255 s. Coverage tiers were unaffected; they set the sections directly rather than through the flag.
 * **Model Hallucinations:** `llama3.1:8b` fabricates telemetry when tools fail and invents physical constants (NTC B=3950 instead of 3380). `gemma4:12b` remains the default; it is slower but declines to lie.
 
 ## Confirmed Behaviors (Not Defects)

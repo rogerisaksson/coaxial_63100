@@ -120,6 +120,18 @@ TOOL_CHOICE = (
     ('kommunicera med höger knä', 'devices',
      ('analog_read', 'digital_read')),
 
+    # The board is silent. link_diagnose is the tool for it - the offline
+    # suite asserts what the checklist then says, this asserts the model
+    # reaches for it at all. Worth a live row because the fix that made the
+    # checklist correct was invisible to every scripted suite: they drive
+    # a double with no `port`, and the stand-in that ships has one.
+    ('kortet svarar inte, varför?', 'link_diagnose',
+     ('analog_read', 'digital_read')),
+    ('varför får jag inget svar från kortet?', 'link_diagnose',
+     ('analog_read', 'digital_read')),
+    ('the board is not answering - why?', 'link_diagnose',
+     ('analog_read', 'digital_read')),
+
     # What a thing IS. board_info is allowed: describing this board from
     # its own map beats describing it from training, and the earlier
     # "no board call" here was the wrong bar - measured, gemma4:12b and

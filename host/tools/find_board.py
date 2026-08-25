@@ -51,9 +51,9 @@ def check_power(timeout=15):
     brought it back. HOTPLUG cannot do that: it never touches reset.
     Diagnosing the link must not be able to break it.
 
-    voltage is None when the programmer could not be found or did not
-    answer in time - not the same as 0.00V, which is a real reading that
-    says the target has none.
+    voltage is None only when the programmer could not be found, or wrote
+    no reading before its timeout killed it - not the same as 0.00V, which
+    is a real reading that says the target has none.
     """
     import re
     import subprocess
@@ -65,21 +65,31 @@ def check_power(timeout=15):
     if programmer is None:
         return None, 'STM32_Programmer_CLI not found - see setup.ps1'
 
+    timed_out = False
     try:
         done = subprocess.run([programmer, '-c', 'port=SWD',
                                'mode=HOTPLUG', '-q'],
                               capture_output=True, text=True,
                               encoding='utf-8', errors='replace',
                               timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return None, 'STM32_Programmer_CLI did not answer within %ss' % timeout
+        output = (done.stdout or '') + (done.stderr or '')
+    except subprocess.TimeoutExpired as exc:
+        # The voltage is printed in the first second; the run then spends
+        # the rest on a second connect attempt at 8MHz. Measured with no
+        # target: 30.3s total against this 15s budget, and `exc.stdout`
+        # already holding `Voltage: 0.00V`. Parsing it is the difference
+        # between answering the question this check exists for and
+        # reporting "unknown" for the one case it was written to catch.
+        timed_out = True
+        output = (exc.stdout or '') + (exc.stderr or '')
 
-    output = (done.stdout or '') + (done.stderr or '')
     match = re.search(r'Voltage\s*:\s*([\d.]+)\s*V', output)
-    if not match:
-        tail = output.strip().splitlines()[-1] if output.strip() else 'no output'
-        return None, 'no voltage reading - %s' % tail
-    return float(match.group(1)), output.strip()
+    if match:
+        return float(match.group(1)), output.strip()
+    if timed_out:
+        return None, 'STM32_Programmer_CLI did not answer within %ss' % timeout
+    tail = output.strip().splitlines()[-1] if output.strip() else 'no output'
+    return None, 'no voltage reading - %s' % tail
 
 
 # STMicroelectronics. Every ST-Link VCP enumerates under this VID - measured

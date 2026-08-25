@@ -456,6 +456,14 @@ def _plan(args):
         if args.dry_run:
             return None            # the plan was the whole point of the run
 
+    # Typed explicitly, so it wins over the 'all' default and over a tier's
+    # own pick. It used to be read only inside the --match branch, which
+    # meant `--live --sections tools` silently ran all three sections -
+    # measured, tools and all coming back with the same 176 checks in the
+    # same 255s.
+    if args.sections and args.live:
+        live_sections = args.sections
+
     return tags, live_sections
 
 

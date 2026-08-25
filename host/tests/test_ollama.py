@@ -1995,6 +1995,70 @@ def test_link_diagnose(report):
         ro = toolmod.Toolbox(SimulatedSession(), allow_code=False)
         report.check('link_diagnose works even with --read-only',
                      not str(ro.call('link_diagnose', {})).startswith('ERR'))
+
+        # The stand-in `open_session` actually returns, not the double at
+        # the top of this file - that one has no `port` at all, so it
+        # reached the branch above however the branch was written. The real
+        # one's `port` is a bus label ('AX'), never None, and asking
+        # `configured is None` alone sent a fallen-back session through a
+        # 15s SWD probe and then "Configured port AX: not among the ports
+        # above - the cable may be unplugged", about a session that never
+        # had a cable. Measured with the board's JTAG connector pulled.
+        from coaxial.simulated import SimulatedSession as FellBack
+        probed = []
+        find_board.check_power = lambda timeout=15: (probed.append(1),
+                                                     (3.30, 'fake'))[1]
+        fell_back = toolmod.Toolbox(FellBack()).call('link_diagnose', {})
+        report.check('the stand-in open_session returns is known by its own '
+                     'marker, not by a port that happens to be None',
+                     'simulated board' in fell_back, fell_back[:52])
+        report.check('and no SWD probe is spent on a session with no SWD',
+                     not probed, '%d call(s)' % len(probed))
+
+        # Step 4's closing advice used to open with "Powered" whatever step
+        # 1 concluded - on a pulled cable, asserting the one thing that was
+        # false and pointing at a busy port and a halted core instead.
+        list_ports.comports = lambda: [FakePort('COM4')]
+        coaxial.connect = lambda *a, **kw: (_ for _ in ()).throw(
+            ConnectError('nothing answered'))
+        find_board.check_power = lambda timeout=15: (None, 'fake: unknown')
+        unsure = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200,
+                                                 unit=1))
+        result5 = unsure.call('link_diagnose', {})
+        report.check('a step 1 that could not check never closes by '
+                     'asserting the board is powered',
+                     'Power unconfirmed' in result5
+                     and 'Powered and the port is right' not in result5,
+                     result5.splitlines()[-1][:60])
+
+        # check_power's own timeout path. The programmer prints the voltage
+        # in its first second, then spends the rest on a second connect at
+        # 8MHz - measured with no target, 30.3s against a 15s budget. The
+        # reading is in what it wrote before it was killed; returning None
+        # reported "unknown" for the one case this check exists to answer.
+        import build_and_flash
+        import subprocess
+        was = (subprocess.run, build_and_flash.find_programmer,
+               build_and_flash.toolchain_path)
+        try:
+            build_and_flash.toolchain_path = lambda: None
+            build_and_flash.find_programmer = lambda _path: 'fake-programmer'
+
+            def killed_at_the_timeout(*_a, **_kw):
+                raise subprocess.TimeoutExpired(
+                    cmd='fake', timeout=15,
+                    output='Board       : STLINK-V3SET' + chr(10)
+                           + 'Voltage     : 0.00V' + chr(10)
+                           + 'Error: Unable to get core ID')
+
+            subprocess.run = killed_at_the_timeout
+            volts, why = real_check_power(15)
+            report.check('a programmer killed at its timeout still yields '
+                         'the voltage it had already printed',
+                         volts == 0.0, '%r - %s' % (volts, why.splitlines()[0]))
+        finally:
+            (subprocess.run, build_and_flash.find_programmer,
+             build_and_flash.toolchain_path) = was
     finally:
         list_ports.comports = real_comports
         coaxial.connect = real_connect

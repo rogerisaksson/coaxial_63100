@@ -99,9 +99,10 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_ollama.py` (698), `test_simulated.py` (34), `test_mcp.py` (41),
-`test_parity.py` (18), `test_conformance.py` (67, `--conformance`),
-`test_live_model.py` (122, needs ollama, `--live`) - the only one where the
+Suites: `test_structure.py` (191), `test_ollama.py` (730),
+`test_simulated.py` (34), `test_mcp.py` (41), `test_parity.py` (18),
+`test_conformance.py` (67, `--conformance`),
+`test_live_model.py` (176, needs ollama, `--live`) - the only one where the
 model itself is under test. How the whole thing is wired is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system); the rules that
 bind you:

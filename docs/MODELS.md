@@ -6,7 +6,8 @@ Local LLM orchestration for hardware telemetry. Designed around VRAM constraints
 
 * **Dynamic Tag Selection:** `capability.py` loads the largest tools-capable model that fits in available VRAM, explicitly reserving space for the OS (existing footprint + 2 GB) to prevent UI hangs.
 * **OOM Fixes:** `llama-server` crashes (`std::bad_alloc`) are caused by its internal prompt cache, not context length. Fixed by forcing `LLAMA_ARG_CACHE_RAM=0` and `LLAMA_ARG_CTX_CHECKPOINTS=0` in the daemon.
-* **Eviction Ladder:** When VRAM is exhausted, the host unloads inactive models, halves `num_ctx`, or aborts to a smaller tag. Models are explicitly unloaded on prompt exit to free GPU resources.
+* **Eviction Ladder:** When VRAM is exhausted, the host unloads inactive models, halves `num_ctx`, or aborts to a smaller tag.
+* **One Load Per Batch:** Loaded once and unloaded once around a whole run - `run_tests.py` for the suites, `board_prompt.ps1` for a prompt or a list of `-Ask` questions. Neither end is free: unloading per question put most of a run's wall time back into reloading 7.6 GB, and a one-shot that never unloaded pinned 8.4 GB for the full 30-minute keep-alive. `-Hold` opts out.
 
 ## Execution Pipeline
 

@@ -541,7 +541,14 @@ class Toolbox:
         baud = getattr(self.session, 'baud', 115200)
         unit = getattr(self.session, 'unit', 1)
 
-        if configured is None:
+        # `simulated` first, then the port - the same order `_interface`
+        # asks in, and for the same reason. A stand-in's `port` is a bus
+        # label ('AX'), never None, so `configured is None` on its own let
+        # a fallen-back session through to a 15s SWD probe and then
+        # "Configured port AX: not among the ports above - the cable may
+        # be unplugged", about a session that never had a cable. Measured,
+        # with the board's JTAG connector pulled.
+        if getattr(self.session, 'simulated', False) or configured is None:
             # Not step 1 - this isn't a rung on the checklist, it's whether
             # there is a real board to run one against at all. A stand-in
             # has no SWD to check power over either, and checking it anyway
@@ -567,6 +574,10 @@ class Toolbox:
         if voltage is None:
             steps.append('1. Target power (ST-Link/SWD): could not check - %s'
                          % detail)
+            # Step 4's closing advice rests on step 1. It used to say
+            # "Powered" whatever step 1 concluded, which on a pulled cable
+            # asserted the one thing that was false.
+            power_says = 'Power unconfirmed, but the port is right'
         elif voltage < 1.0:
             steps.append(
                 '1. Target power (ST-Link/SWD): %.2fV - no power sensed. '
@@ -577,6 +588,7 @@ class Toolbox:
         else:
             steps.append('1. Target power (ST-Link/SWD): %.2fV - powered, '
                          'cable seated.' % voltage)
+            power_says = 'Powered and the port is right'
 
         ports = find_board.list_ports()
         steps.append('2. COM ports Windows sees: %s' % (', '.join(ports)
@@ -618,10 +630,10 @@ class Toolbox:
         if find_board.port_state(configured, baud, unit) == find_board.BUSY:
             steps.append('   %s is open in another process - that is why nothing answers here. Close the other session, or point this one at another port.' % configured)
             return '\n'.join(steps)
-        steps.append('   Powered and the port is right, so check nothing '
-                     'else has %s open, and that the last programmer run '
-                     'ended with --start, not -hardRst (a halted core '
-                     'answers nothing).' % configured)
+        steps.append('   %s, so check nothing else has %s open, and that '
+                     'the last programmer run ended with --start, not '
+                     '-hardRst (a halted core answers nothing).'
+                     % (power_says, configured))
 
         if args.get('probe_other_ports'):
             others = [p for p in ports if p != configured]

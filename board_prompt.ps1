@@ -79,7 +79,11 @@
     to cube-cmake and STM32_Programmer_CLI. Pair it with -Confirm.
 
 .PARAMETER Ask
-    One question, printed, then exit. No prompt loop.
+    One question, printed, then exit. No prompt loop. Takes several, and runs
+    them in one invocation: the model is loaded once by the preflight and
+    released once on the way out, whatever the count. One invocation per
+    question instead loads and unloads 8.4 GB every time - the toggling
+    run_tests.py exists to avoid.
 
 .PARAMETER Confirm
     Ask before every state change - a pin write, run_python, run_command. Off
@@ -156,7 +160,7 @@ param(
     [switch]$Simulated,
     [ValidateSet('read', 'code', 'pins', 'build', 'all', 'none')]
     [string]$Tools = 'code',
-    [string]$Ask,
+    [string[]]$Ask,
     [switch]$Confirm,
     [switch]$NoBoard,
     [switch]$Plain,
@@ -431,7 +435,13 @@ try {
     if ($null -ne $layers) { $call += @('--num-gpu', [string]$layers) }
 
     if ($Ask) {
-        & python @call $Ask
+        # One load for the lot. The model is already resident from the
+        # preflight above and the finally below hands it back once, so a
+        # batch of questions costs one 8.4 GB load rather than one each.
+        foreach ($question in $Ask) {
+            if ($Ask.Count -gt 1) { Say 'ok' 'ask' $question }
+            & python @call $question
+        }
         return
     }
 
@@ -451,9 +461,13 @@ try {
     # left 3.8 GB to work in. A reload costs about seven seconds next time, and
     # only if there is a next time.
     #
-    # A one-shot -Ask is deliberately not unloaded here: it is usually one of
-    # several, and dbg.py already holds it for two minutes rather than thirty.
-    if ($script:Interactive -and -not $Hold) {
+    # -Ask releases too. It used to be exempt, on the grounds that "dbg.py
+    # already holds it for two minutes rather than thirty" - which line 424
+    # of this same script disproves: it passes --keep-alive $KeepAlive, so a
+    # one-shot pinned 8.4 GB for the full thirty minutes with nobody at the
+    # prompt. Measured after a run of four smoke tests. -Hold is the opt-out
+    # for when the next question really is imminent.
+    if (-not $Hold) {
         try {
             $body = @{ model = $Model; prompt = ''; keep_alive = 0 } | ConvertTo-Json
             Invoke-RestMethod -Uri ($Api + '/api/generate') -Method Post -Body $body `
