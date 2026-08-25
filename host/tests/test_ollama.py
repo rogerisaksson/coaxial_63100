@@ -4821,22 +4821,37 @@ def test_intent(r):
     r.check('words names no tool at all',
             intent.tool_for('words', 'none') is None)
 
-    r.check('the hint names the tool it wants called',
-            'analog_read' in intent.hint('read', 'analog'))
-    # Naming the tool to call was not enough on its own. Measured live by
-    # test_live_model.py --sections sequence: asked for the channel map one
-    # turn after a reading, gemma4:12b called board_info *and* analog_read,
-    # because the reading was still in the conversation. The hint now names
-    # the other half of the axis as the call this question does not need.
-    r.check('and says a map question needs no reading',
-            'does not need a reading' in intent.hint('map', 'analog'))
-    r.check('and a read question needs no map',
-            'does not need the channel map' in intent.hint('read', 'digital'))
-    r.check('both directions of the axis are covered, and only those',
-            set(intent.NOT_THIS) == {'map', 'read'})
-    r.check('an intent off that axis gets no such line',
-            all('does not need' not in intent.hint(name, 'none')
-                for name in intent.INTENTS if name not in intent.NOT_THIS))
+    # The hint is now for the intents the loop does *not* plan. A planned
+    # question makes its calls before the model is asked anything, so there
+    # is no tool to name and nothing to hint at.
+    r.check('an intent that plans its calls needs no hint at all',
+            all(intent.hint(name, kind) == ''
+                or 'no board call' in intent.hint(name, kind)
+                for name in intent.INTENTS for kind in intent.KINDS
+                if intent.plan(name, kind)),
+            repr(intent.hint('read', 'analog')))
+    r.check('and one that plans nothing still gets its line',
+            'afe_power' in intent.hint('power', 'none'))
+
+    r.check('a map question compiles to the map call',
+            intent.plan('map', 'analog') == (('board_info',
+                                              {'kind': 'analog'}),))
+    r.check('a read compiles to the read for its kind',
+            intent.plan('read', 'digital') == (('digital_read', {}),))
+    r.check('and "both" compiles to both calls, in order',
+            [n for n, _ in intent.plan('read', 'both')]
+            == ['analog_read', 'digital_read'])
+    r.check('words plans nothing - there is no call to make',
+            intent.plan('words', 'none') == ())
+    r.check('and neither does control',
+            intent.plan('control', 'none') == ())
+    r.check('every planned call names a tool the toolbox has',
+            all(n in debug.SETS['read'] or n in debug.SETS['code']
+                for name in intent.INTENTS for kind in intent.KINDS
+                for n, _ in intent.plan(name, kind)),
+            repr(sorted({n for name in intent.INTENTS
+                         for kind in intent.KINDS
+                         for n, _ in intent.plan(name, kind)})))
     r.check('and for words it says no call is needed',
             'no board call' in intent.hint('words', 'none')
             and 'board_info' not in intent.hint('words', 'none'))
@@ -4911,6 +4926,83 @@ def test_intent(r):
             got is None and 'connection refused' in why, repr(why))
     r.check('an empty question is not sent anywhere',
             intent.compile_intent(Dead(), '   ')[0] is None)
+
+    # The executor. What must hold is that the model is asked *after* the
+    # calls have run and is offered no tools at all - the turn has no choice
+    # left in it to get wrong.
+    class Narrator(object):
+        model = 'gemma4:12b'
+        options = {'num_ctx': 8192}
+
+        def __init__(self, say='NTC 38.5 C.'):
+            self.say, self.seen = say, []
+
+        def chat(self, messages, tools=None, **kw):
+            self.seen.append((messages, tools))
+            return {'content': self.say}
+
+        def usage(self):
+            return {'prompt_tokens': 0, 'eval_tokens': 0}
+
+    def planned(say):
+        screen = io.StringIO()
+        talk = debug.Chat(Narrator(say), toolmod.Toolbox(Sim(), scope=Scope()),
+                          tools='code', out=screen, session_language='Swedish')
+        talk.compile_intent = True
+        was = intent.compile_intent
+        intent.compile_intent = lambda client, text: ('read', 'analog', '')
+        try:
+            answer = talk.ask('ge mig de analoga värdena')
+        finally:
+            intent.compile_intent = was
+        return talk, screen.getvalue(), answer
+
+    talk, screen, answer = planned('NTC läser 38,5 C.')
+    ran = [n for n, _ in talk.toolbox.log]
+    r.check('a planned question makes its own calls',
+            ran == ['analog_read'], ', '.join(ran) or 'none')
+    r.check('and the model is offered no tools on that turn',
+            all(tools in (None, [], ()) for _, tools in talk.client.seen),
+            repr([t for _, t in talk.client.seen]))
+    r.check('it is asked once, not in a loop', len(talk.client.seen) == 1)
+    r.check('the rows reach the screen', render.ANALOG_HEAD in screen)
+    r.check('and the answer is the sentence, not the rows',
+            answer == 'NTC läser 38,5 C.', repr(answer[:40]))
+
+    # The retype is the failure this replaced, and it still has to be caught:
+    # measured on screen, the whole table written out again as prose under
+    # itself, comma decimals and all.
+    _, _, retyped = planned(
+        'De analoga värdena är: PhaseU, PhaseV, PhaseW, Clevel, NTC, '
+        'DCbus och Cinj.')
+    r.check('a sentence that just names every channel is silenced',
+            retyped == '', repr(retyped[:40]))
+
+    # And a call that failed on the wire never reaches a narrate turn.
+    from coaxial.errors import RigError
+
+    class Broken(object):
+        simulated = False
+        port, baud, unit, bus = 'COM9', 115200, 1, None
+
+        @property
+        def board(self):
+            raise RigError('cable pulled')
+
+    screen = io.StringIO()
+    down = debug.Chat(Narrator(), toolmod.Toolbox(Broken(), scope=Scope()),
+                      tools='code', out=screen, session_language='Swedish')
+    down.compile_intent = True
+    was = intent.compile_intent
+    intent.compile_intent = lambda client, text: ('read', 'analog', '')
+    try:
+        said = down.ask('ge mig de analoga värdena')
+    finally:
+        intent.compile_intent = was
+    r.check('a dead link is reported, not narrated',
+            'ERR' in said or 'link is down' in said, repr(said[:60]))
+    r.check('and the model was never asked about it',
+            not down.client.seen, repr(down.client.seen))
 
     # And the turn itself: off by default, hint reaches the system message
     # when it is on, and a failed compile changes nothing.

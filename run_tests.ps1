@@ -33,7 +33,7 @@ param(
     [Parameter(ParameterSetName = 'AutomaticMedium')][switch]$AutomaticMedium,
     [Parameter(ParameterSetName = 'AutomaticMinimal')][switch]$AutomaticMinimal,
     [Parameter(ParameterSetName = 'Only', Mandatory = $true)][string[]]$Only,
-    [string]$Tags,
+    [string[]]$Tags,
     [string]$Model = 'gemma4:12b',
     [switch]$DryRun
 )
@@ -56,7 +56,7 @@ switch ($PSCmdlet.ParameterSetName) {
                         $mode = "Only $named"; $runArgs = @('--only', $named) }
     default           { $mode = 'Automatic 25 %'; $runArgs = @('--coverage', '25') }
 }
-if ($Tags)   { $runArgs += @('--tags', $Tags) }
+if ($Tags)   { $runArgs += @('--tags', ($Tags -join ',')) }
 if ($DryRun) { $runArgs += '--dry-run' }
 $runArgs += @('--model', $Model)
 

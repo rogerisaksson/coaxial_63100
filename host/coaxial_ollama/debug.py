@@ -304,14 +304,6 @@ TRACE_LINES = 3
 # time, and code knows why it is running again. Everything else repeated in
 # one turn is the model not noticing it already has the answer - measured,
 # qwen2.5:14b turned the AFE on four times in a row.
-# The two halves of the axis the model keeps swapping: a map question that
-# also takes a reading, or a reading that also fetches the map. Keyed by the
-# compiled intent, so it is inert whenever intent.py could not classify.
-OFF_AXIS = {
-    'map': ('analog_read', 'digital_read'),
-    'read': ('board_info',),
-}
-
 REPEATABLE = {'analog_read', 'run_python', 'run_command'}
 
 
@@ -556,7 +548,8 @@ class Chat:
         # written as `analog_read ch=4` has no ambiguity to resolve, and the
         # second model call would be spent on nothing. main() turns it on.
         self.compile_intent = False
-        self._intent_why = self._intent_did = self._intent_tool = None
+        self._intent_why = self._intent_did = None
+        self._intent_kind = self._intent_tool = None
         self.set_tools(tools)
 
     # ---- what the model is allowed to see ----------------------------------
@@ -862,16 +855,75 @@ class Chat:
         model call per question is the cost, and a plan runner replaying a
         scripted step already knows what it is asking for.
         """
-        self._intent_did = self._intent_tool = None
+        self._intent_did = self._intent_kind = self._intent_tool = None
         if not getattr(self, 'compile_intent', False):
             return ''
         got, kind, why = intent.compile_intent(self.client, question)
         self._intent_why = why
         if got is None:
             return ''
-        self._intent_did = got
+        self._intent_did, self._intent_kind = got, kind
         self._intent_tool = intent.tool_for(got, kind)
         return intent.hint(got, kind)
+
+    NARRATE = ("The board answered the operator's question with the output "
+               "below. Write one short sentence about it in %s - what it "
+               "shows, or that it was read. Never repeat the rows: they are "
+               "already on the operator's screen.")
+
+    def _run_plan(self, question, calls):
+        """Make the compiled calls, then ask for a sentence about them.
+
+        The model gets no tools on this turn. That is the point: a question
+        whose calls have already run has no tool choice left to get wrong, no
+        second call to make, and nothing to refuse. Three backstops used to
+        police that choice - a SYSTEM rule, a per-turn hint, and a redirect
+        that leaked its own text onto the operator's screen.
+        """
+        self.history.append({'role': 'user', 'content': question})
+        self.prompt_history.append(question)
+        self.io_log.turn(question)
+        self._traced = False
+        gap = chr(10) * 2
+        shown, channels, table = [], None, None
+        for name, args in calls:
+            try:
+                raw = self.toolbox.call(name, args)
+            except RigError as exc:
+                # A planned call is the host's own, so a raise here would
+                # take the turn with it rather than reaching the operator as
+                # the link failure it is.
+                raw = 'ERR %s: %s' % (type(exc).__name__, exc)
+            text = str(raw)
+            if str(raw).startswith('ERR '):
+                self.io_log.call(name, args, text)
+                return self._link_down_message(text, shown=False)
+            self._trace(text)
+            self.io_log.call(name, args, text)
+            shown.append(text)
+            found = replies.READING_ROW.findall(text)
+            if found:
+                channels, table = [m.lower() for m in found], text
+                self.last_channels = channels
+        self.history.append({'role': 'user',
+                             'content': gap.join(shown)})
+
+        answer = ''
+        try:
+            said = self.client.chat(
+                [{'role': 'system',
+                  'content': self.NARRATE % (self.language or 'English')},
+                 {'role': 'user', 'content': question},
+                 {'role': 'user', 'content': gap.join(shown)}])
+            answer = (said.get('content') or '').strip()
+        except Exception:                                     # noqa: BLE001
+            answer = ''                # the rows are the answer either way
+        if channels and replies.is_retype(answer, channels):
+            answer = table if (self.quiet and table) else ''
+        elif self.quiet and not answer:
+            answer = gap.join(shown)
+        self.history.append({'role': 'assistant', 'content': answer})
+        return answer
 
     def _ask_inner(self, question, max_calls=6):
         if self.over_budget():
@@ -883,6 +935,9 @@ class Chat:
         # question maps to, worked out by a separate call that has nothing
         # to do but classify. None of it is load-bearing - see intent.py.
         self.intent = self._compile(question)
+        planned = intent.plan(self._intent_did, self._intent_kind)
+        if planned:
+            return self._run_plan(question, planned)
         self.history.append({'role': 'user', 'content': question})
         self.prompt_history.append(question)
         self.io_log.turn(question)
@@ -895,7 +950,6 @@ class Chat:
         last_map_text = None      # and that render, for --quiet
         diagnosed = False  # link_diagnose ran this turn, and was traced
         seen = {}          # (name, args) this turn -> its rendered result
-        answered = None    # the tool the compiled intent named, once it has
         self._traced = False   # nothing on screen yet, so no leading gap
         nudges = 0         # times told to call the tool it just named, or to
                            # take a fresh reading instead of an old one
@@ -1004,41 +1058,7 @@ class Chat:
                 args = toolmod.arguments(call)
                 key = (name, json.dumps(args, sort_keys=True, default=str))
 
-                off_axis = name in OFF_AXIS.get(self._intent_did, ())
-                if off_axis and not answered and self._intent_tool:
-                    # The model reached for the wrong half of the axis
-                    # *instead of* the right one. Answered from the loop,
-                    # naming the tool that does answer it - a redirect, not a
-                    # refusal, and it costs no round trip.
-                    #
-                    # Measured: `ge mig en lista over de analoga vardena`
-                    # asked on its own called board_info, with the compiled
-                    # hint in the system message saying analog_read and
-                    # saying the channel map was not needed. Asked one turn
-                    # after the channel map it called analog_read - so the
-                    # failure is only visible on the question asked first,
-                    # which is how a suite of pairs missed it.
-                    raw = ('not this question - %s answers it, call that'
-                           % self._intent_tool)
-                    seen[key] = raw
-                    result = raw
-                elif off_axis and answered:
-                    # The compiled intent named one tool, that tool has
-                    # already answered this turn, and this call is the other
-                    # half of the axis the model keeps confusing. Not a
-                    # refusal - the operator asked for a map and the map is
-                    # on screen - so it is answered from the loop and costs
-                    # no round trip.
-                    #
-                    # A hint saying "this question does not need a reading"
-                    # was tried first and did not hold: asked for the channel
-                    # map one turn after a reading, gemma4:12b called
-                    # board_info and then analog_read anyway, because the
-                    # reading was still in the conversation. Measured by
-                    # test_live_model.py --sections sequence.
-                    raw = '%s already answered this question' % answered
-                    result = raw
-                elif name not in REPEATABLE and key in seen:
+                if name not in REPEATABLE and key in seen:
                     # Do not spend a board round trip re-asking a question
                     # this turn already has the answer to - and say so plainly
                     # rather than repeating the same line, which is what asked
@@ -1054,9 +1074,6 @@ class Chat:
                         raw = 'noted: %s' % raw.note
                     seen[key] = raw
                     result = raw
-                    if name == self._intent_tool and not str(raw).startswith(
-                            'ERR '):
-                        answered = name
                 if name in LINK_TOOLS:
                     # Every call that actually reaches the board is a live
                     # reading on the link itself, not just on this run's

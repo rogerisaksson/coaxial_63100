@@ -6,16 +6,14 @@ This is currently a telemetry pipeline. Motor control (PWM, commutation, current
 
 ## Getting Started
 
-Follow these steps to set up the environment, build the firmware, and launch the host telemetry and LLM pipeline.
-
 ### 1. Environment Setup
 
 The provisioning script handles dependencies via Winget, Python, and ST's bundle manager:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check     # Check status without changes
-powershell -ExecutionPolicy Bypass -File .\setup.ps1           # Interactive install
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes      # Unattended install
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # Check status without changes
+powershell -ExecutionPolicy Bypass -File .\setup.ps1          # Interactive install
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes     # Unattended install
 ```
 
 Load the per-shell toolchain and command aliases (does not modify the system PATH):
@@ -26,6 +24,9 @@ Load the per-shell toolchain and command aliases (does not modify the system PAT
 
 ### 2. Build & Flash
 
+Both are `env.ps1` aliases: `cube-cmake --build --preset Debug` and
+`STM32_Programmer_CLI` over SWD.
+
 ```powershell
 cbuild              # Compile firmware (zero warnings expected)
 cflash              # Flash via SWD and start the core
@@ -33,15 +34,26 @@ cflash              # Flash via SWD and start the core
 
 ### 3. Interact with the Board
 
+`env.ps1` defines `board` as `python -m coaxial`, run from `host/`.
+
 ```powershell
-board all           # Dump all ADC channels, NTC temperature, and link stats
+board all           # every subsystem: AFE, channels, clock, DC bus, pins,
+                    # self-test, temperature, version
+board analog        # one of them - see `board -h` for the list
+board --port COM7 temp
 ```
 
 ### 4. Launch the AI-Assisted Telemetry Prompt
 
 ```powershell
-board_prompt        # Starts the local model daemon, checks board health, and opens the REPL
+board_prompt                       # preflight, then the prompt
+board_prompt -Ask "read the NTC"   # one question, no prompt loop
+board_prompt -Simulated            # no cable; every reading is invented
 ```
+
+Preflight tunes the ollama daemon, picks and preloads a model that fits the
+card, and finds the board. The prompt tag says what answered - green for a
+board, yellow for the stand-in.
 
 ---
 
@@ -53,7 +65,7 @@ board_prompt        # Starts the local model daemon, checks board health, and op
 ## Build & Deploy
 
 * **`cbuild`**: Compiles the firmware. Zero warnings is a strict requirement, not an aspiration.
-* **`cflash`**: Flashes via SWD. Must terminate with `--start`. Asserting `-hardRst` on this probe halts the core and silently kills serial comms.
+* **`cflash`**: Flashes via SWD. Must terminate with `--start`; `-hardRst` leaves the core halted with no clue as to why. Connect-under-reset fails on this probe (`Unable to get core ID`) - use SWD, or JTAG with `mode=Normal reset=SWrst`.
 
 ## Telemetry & The AFE Trap
 
@@ -63,7 +75,8 @@ board_prompt        # Starts the local model daemon, checks board health, and op
 
 ## LLM Orchestrator
 
-* **`board_prompt`**: Initializes the local model daemon, preloads weights, and binds hardware tools.
+* **`board_prompt`**: Initializes the local model daemon, preloads weights, and binds hardware tools. `dbg` is the same loop one layer down, without the preflight (`dbg -q "read the NTC"`).
+* **Compile, then narrate**: A typed sentence is classified before it is answered. An intent with an unambiguous answer compiles to the calls the host makes *itself*; the model then gets the output with no tools offered at all. A turn whose calls have already run has no tool choice left to get wrong. Every way the classification can fail leaves the model picking its own tools, as before.
 * **VRAM Strictness**: Dynamically selects the largest model that fits *entirely* in VRAM, reserving overhead for the OS. Spilling to CPU RAM incurs a 5x speed penalty and is treated as a fallback, never a target.
 * **Data Sovereignty**: Cloud tags are explicitly blocked to prevent unreleased hardware telemetry from leaking to external servers.
 * **Execution, Not Judgement**: The LLM may script builds, flash hardware, and pull telemetry, but final test verdicts are strictly calculated by Python (`plan.Limit`).
@@ -72,3 +85,13 @@ board_prompt        # Starts the local model daemon, checks board health, and op
 
 * **Verification**: `.un_tests.ps1` is the interface. It runs a change-sized subset by default (~25 % of every check, chosen by the local model from the diff); `-AutomaticMedium`, `-AutomaticHigh` and `-All` widen it, `-Only NAMES` narrows it to named tests.
 * **License**: CC BY-NC-SA 4.0. Open for hobbyists. Commercial deployment requires a paid license. Contact [erogisa@gmail.com](mailto:erogisa@gmail.com) for enterprise terms.
+
+## Documents
+
+| | |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | the source layout and the test system |
+| [docs/HARDWARE.md](docs/HARDWARE.md) | before interpreting any measurement |
+| [docs/PROTOCOL.md](docs/PROTOCOL.md) | before changing anything on the wire |
+| [docs/MODELS.md](docs/MODELS.md) | the local model, its tools, its failure modes |
+| [docs/FINDINGS.md](docs/FINDINGS.md) | what is already ruled out |

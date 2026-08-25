@@ -1,27 +1,27 @@
-"""Compile the operator's sentence into an intent, before the model answers it.
+"""Compile the operator's sentence into a plan, before the model sees it.
 
-One turn used to do two jobs at once: work out what was being asked, and
-answer it with the right tool. The failures were all the first job showing up
-in the second - "ge mig en lista over de analoga vardena" carries the word for
-a map and the word for a read in one sentence, and a single pass took the
-verb. Split, the ambiguous half is a classification with seven answers, which
-is what a 12b model is reliably good at.
+One turn used to do two jobs: work out what was being asked, and answer it
+with the right tool. Every failure was the first job showing up in the second
+- "ge mig en lista over de analoga vardena" carries the word for a map and the
+word for a read in one sentence, and a single pass took the verb.
 
-The compiled intent is a *hint*, never a substitute. The operator's sentence
-still reaches the model verbatim, in their own language, and the answer is
-still the model's. What the hint adds is one line naming the tool the intent
-maps to.
+So the sentence is classified first, against seven named intents, and an
+intent with an unambiguous answer compiles to `plan()`: the calls the host
+makes itself. The model is then handed the output and asked for a sentence,
+with **no tools offered at all**. There is no tool choice left to get wrong,
+no second call to make, and nothing to refuse.
 
-Every way the compile can fail returns None and the turn proceeds exactly as
-it did before this module existed - no hint, one call, old behaviour:
+That replaced three backstops that each policed a choice which did not have to
+be the model's: a SYSTEM rule about nouns, a per-turn hint naming the tool,
+and a redirect that leaked its own text onto the operator's screen.
+
+Every way the compile can fail leaves the turn exactly as it was before this
+module existed - the model picks its own tools, one pass, old behaviour:
 
   * ollama unreachable, or the extra call raising for any reason
   * a reply that is not the JSON it was asked for
   * an intent this file has no name for
-
-That is the whole of the error handling, and it is the same shape as
-tools/pick_tests.py for the same reason: a compiler that guesses wrong and
-insists is worse than one that stays quiet.
+  * an intent that plans nothing - `words`, `control`, `power`, `devices`
 """
 import json
 
@@ -112,6 +112,34 @@ SCHEMA = {
 }
 
 
+def plan(intent, kind):
+    """The calls the host makes itself, as ((name, args), ...).
+
+    Empty when the question is not one the loop can answer without the model
+    deciding something - `words`, `control`, or a compile that failed.
+
+    This is the whole point of compiling. A planned turn has no tool choice
+    left in it: the calls are made, the results are on screen, and the model
+    is asked for a sentence with no tools offered at all. Three backstops
+    existed to police a choice that did not have to be the model's - a
+    SYSTEM rule, a per-turn hint, and a redirect that leaked its own text
+    onto the operator's screen. All three are gone.
+    """
+    if intent == 'map':
+        section = kind if kind in ('analog', 'digital') else 'all'
+        return (('board_info', {'kind': section}),)
+    if intent == 'read':
+        analog = ('analog_read', {})
+        digital = ('digital_read', {})
+        return {'analog': (analog,), 'digital': (digital,),
+                'both': (analog, digital)}.get(kind, (analog,))
+    if intent == 'power':
+        return ()                 # on or off is in the sentence, not the kind
+    if intent == 'link':
+        return (('link_diagnose', {}),)
+    return ()
+
+
 def tool_for(intent, kind):
     """Which tool answers this intent, or None where naming one would lie."""
     if intent == 'read':
@@ -135,28 +163,15 @@ def parse(reply):
     return intent, kind, why
 
 
-# What the *other* half of the axis would be, for the two intents that keep
-# swapping. Naming the tool to call was not enough on its own: asked for the
-# channel map one turn after a reading, the model called board_info and then
-# analog_read as well, because the reading was still in the conversation.
-# Caught by test_live_model.py --sections sequence, the only place a second
-# question is asked without clearing history first.
-NOT_THIS = {
-    'map':  'This question does not need a reading.',
-    'read': 'This question does not need the channel map.',
-}
-
-
 def hint(intent, kind):
     """The one line a compiled intent adds to the turn, or '' for none."""
     if intent is None:
         return ''
     what = SAYS[intent]
-    tool = tool_for(intent, kind)
+    tool = None if plan(intent, kind) else tool_for(intent, kind)
     if tool:
-        line = ('\nThe operator is asking for %s - answered by %s.'
+        return ('\nThe operator is asking for %s - answered by %s.'
                 % (what, tool))
-        return line + (' ' + NOT_THIS[intent] if intent in NOT_THIS else '')
     # Saying which call is wrong is worth more here than saying nothing:
     # the measured failure was a description answered with a table.
     return ('\nThe operator is asking for %s. This needs no board '
