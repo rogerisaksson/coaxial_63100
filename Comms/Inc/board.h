@@ -127,6 +127,11 @@ typedef struct
     it too: see h_adc_burst for why the limits live in both places. */
 #define BOARD_BURST_MAX_SAMPLES 10000U
 
+/** Channels one burst can cover, and the size every caller's `out` array must
+    have. The bound is the selector's, not the table's: `mask` is 16 bits, so
+    no request can ever name a seventeenth channel however the table grows. */
+#define BOARD_BURST_MAX_CHAN 16U
+
 /**
   * @brief  Sample a set of channels repeatedly and return per-channel statistics.
   * @param  mask         Bit i selects channel i of the channel table.

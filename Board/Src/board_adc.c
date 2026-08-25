@@ -19,8 +19,10 @@ static ADC_HandleTypeDef * const hadcW = &hadc2;
 #define PHASE_V_CHANNEL ADC_CHANNEL_3
 #define PHASE_W_CHANNEL ADC_CHANNEL_4
 
-/* ADC+/- reference. On most boards VREF+ is tied straight to VDDA (~3.3 V);
-   change this if your board has a dedicated precision reference instead. */
+/* ADC+/- reference. An assumption about a rail, not a property of the chip:
+   VREFBUF is deliberately disabled and VREF+ left high-impedance, so the AFE
+   drives the reference - which is why every channel reads exact mid-scale
+   with AFE_ON low, and why 3.3f is nominal rather than measured. */
 #define ADC_VREF_VOLTAGE 3.3f
 
 
@@ -41,12 +43,10 @@ static ADC_HandleTypeDef * const hadcW = &hadc2;
    0 V on CH10 even though the pin genuinely had signal on it - i.e. the
    two-rank scan approach was the bug, not the wiring. */
 /* General single-channel read: reconfigures the given ADC's rank-1 channel
-   and does one Start/PollForConversion/GetValue/Stop cycle - the same
-   pattern ADC3_ReadBoth() above uses, generalized to any ADC/channel/mode.
-   Deliberately not using hardware scan mode (multiple ranks in one Start)
-   here either, for the same reason: it silently returned 0 on a live
-   signal earlier and I couldn't fully verify why without a datasheet in
-   hand. Sequential single-shot reads are slower but proven correct. */
+   and does one Start/PollForConversion/GetValue/Stop cycle.
+   Deliberately not hardware scan mode (multiple ranks in one Start), for the
+   reason recorded above: it silently returned 0 on a live signal and was
+   never explained. Sequential single-shot reads are slower and proven. */
 static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32_t singleDiff,
                                 int32_t *outRaw, float *outVolts)
 {
@@ -440,8 +440,8 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
   }
 
   /* Welford per channel, so no sample buffer is needed however long the burst. */
-  double mean[16] = { 0.0 };
-  double m2[16] = { 0.0 };
+  double mean[BOARD_BURST_MAX_CHAN] = { 0.0 };
+  double m2[BOARD_BURST_MAX_CHAN] = { 0.0 };
 
   const uint32_t t0 = Board_Cycles();
   const uint32_t step = interval_us * per_us;

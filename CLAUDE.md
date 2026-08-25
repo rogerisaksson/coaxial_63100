@@ -100,7 +100,7 @@ python dbg.py -q "run the test suites, build and flash, tell me if anything fail
 ```
 
 Suites: `test_structure.py` (191), `test_ollama.py` (730),
-`test_simulated.py` (34), `test_mcp.py` (41), `test_parity.py` (18),
+`test_simulated.py` (42), `test_mcp.py` (41), `test_parity.py` (18),
 `test_conformance.py` (67, `--conformance`),
 `test_live_model.py` (176, needs ollama, `--live`) - the only one where the
 model itself is under test. How the whole thing is wired is in

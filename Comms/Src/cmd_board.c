@@ -218,7 +218,7 @@ static cmd_status_t h_analog_burst(rd_t *in, wr_t *out)
     return CMD_ERR_VALUE;
   }
 
-  board_burst_t stats[16];
+  board_burst_t stats[BOARD_BURST_MAX_CHAN];
   uint8_t       count = 0U;
   uint32_t      elapsed = 0U;
 

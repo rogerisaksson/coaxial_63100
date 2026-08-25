@@ -64,7 +64,7 @@ static mb_exception_t check_span(const mb_slave_t *s, mb_table_t table,
 /* ---- bit reads: FC 0x01, 0x02 ------------------------------------------ */
 
 static size_t do_read_bits(mb_slave_t *s, mb_table_t table, uint8_t fc,
-                           const uint8_t *req, uint8_t *rsp)
+                           const uint8_t *req, uint8_t *rsp, size_t rsp_cap)
 {
   const uint16_t addr = rd_u16(&req[1]);
   const uint16_t qty  = rd_u16(&req[3]);
@@ -86,6 +86,16 @@ static size_t do_read_bits(mb_slave_t *s, mb_table_t table, uint8_t fc,
   }
 
   const uint8_t nbytes = (uint8_t)((qty + 7U) / 8U);
+
+  /* The quantity limits above already guarantee this fits a 253-byte PDU, so
+     a buffer too small to hold the answer is this server's problem and not
+     the request's: SERVER DEVICE FAILURE, not ILLEGAL DATA VALUE. Checked
+     rather than trusted because the signature promises a capacity and every
+     read handler used to discard it. */
+  if ((size_t)(2U + nbytes) > rsp_cap)
+  {
+    return make_exception(rsp, fc, MB_EX_SERVER_DEVICE_FAILURE);
+  }
 
   rsp[0] = fc;
   rsp[1] = nbytes;
@@ -116,7 +126,7 @@ static size_t do_read_bits(mb_slave_t *s, mb_table_t table, uint8_t fc,
 /* ---- register reads: FC 0x03, 0x04 ------------------------------------- */
 
 static size_t do_read_regs(mb_slave_t *s, mb_table_t table, uint8_t fc,
-                           const uint8_t *req, uint8_t *rsp)
+                           const uint8_t *req, uint8_t *rsp, size_t rsp_cap)
 {
   const uint16_t addr = rd_u16(&req[1]);
   const uint16_t qty  = rd_u16(&req[3]);
@@ -135,6 +145,11 @@ static size_t do_read_regs(mb_slave_t *s, mb_table_t table, uint8_t fc,
   if (ex != MB_EX_NONE)
   {
     return make_exception(rsp, fc, ex);
+  }
+
+  if ((size_t)(2U + (qty * 2U)) > rsp_cap)
+  {
+    return make_exception(rsp, fc, MB_EX_SERVER_DEVICE_FAILURE);
   }
 
   rsp[0] = fc;
@@ -384,29 +399,29 @@ typedef size_t (*mb_fc_fn)(mb_slave_t *s, const uint8_t *req, size_t len,
 static size_t fc_read_coils(mb_slave_t *s, const uint8_t *req, size_t len,
                             uint8_t *rsp, size_t cap)
 {
-  (void)len; (void)cap;
-  return do_read_bits(s, MB_TABLE_COIL, MB_FC_READ_COILS, req, rsp);
+  (void)len;
+  return do_read_bits(s, MB_TABLE_COIL, MB_FC_READ_COILS, req, rsp, cap);
 }
 
 static size_t fc_read_discrete(mb_slave_t *s, const uint8_t *req, size_t len,
                                uint8_t *rsp, size_t cap)
 {
-  (void)len; (void)cap;
-  return do_read_bits(s, MB_TABLE_DISCRETE_INPUT, MB_FC_READ_DISCRETE_INPUTS, req, rsp);
+  (void)len;
+  return do_read_bits(s, MB_TABLE_DISCRETE_INPUT, MB_FC_READ_DISCRETE_INPUTS, req, rsp, cap);
 }
 
 static size_t fc_read_holding(mb_slave_t *s, const uint8_t *req, size_t len,
                               uint8_t *rsp, size_t cap)
 {
-  (void)len; (void)cap;
-  return do_read_regs(s, MB_TABLE_HOLDING_REG, MB_FC_READ_HOLDING_REGS, req, rsp);
+  (void)len;
+  return do_read_regs(s, MB_TABLE_HOLDING_REG, MB_FC_READ_HOLDING_REGS, req, rsp, cap);
 }
 
 static size_t fc_read_input(mb_slave_t *s, const uint8_t *req, size_t len,
                             uint8_t *rsp, size_t cap)
 {
-  (void)len; (void)cap;
-  return do_read_regs(s, MB_TABLE_INPUT_REG, MB_FC_READ_INPUT_REGS, req, rsp);
+  (void)len;
+  return do_read_regs(s, MB_TABLE_INPUT_REG, MB_FC_READ_INPUT_REGS, req, rsp, cap);
 }
 
 static size_t fc_write_coil(mb_slave_t *s, const uint8_t *req, size_t len,

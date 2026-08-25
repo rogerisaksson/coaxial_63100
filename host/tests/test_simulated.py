@@ -9,14 +9,39 @@ shape. Either way this is the fast way to find out which.
 
 Run from the host directory:  python tests/test_simulated.py
 """
+import io
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import DeviceStateError            # noqa: E402
+from coaxial.simulated import CHANNELS                  # noqa: E402
 from coaxial.simulated import SimulatedSession          # noqa: E402
 from coaxial_mcp import tools as toolmod                # noqa: E402
+
+REPO = os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))))
+ADC_C = os.path.join(REPO, 'Board', 'Src', 'board_adc.c')
+
+# One row of s_adcTable. Only the fields the stand-in also claims: the ADC,
+# the channel number, the pin string, whether it is differential, the signal
+# name. The unit column is the firmware's enum and the host's string, which
+# are two spellings of one fact and are compared by test_parity against a
+# real board.
+ADC_ROW = re.compile(
+    r'\{\s*&hadc(\d)\s*,[^,]*,\s*ADC_CHANNEL_(\d+)\s*,[^,]*,\s*'
+    r'"([^"]+)"\s*,\s*(ADC_\w+)\s*,\s*"([^"]*)"')
+
+
+def firmware_channels():
+    """s_adcTable, read out of the firmware that defines it."""
+    text = io.open(ADC_C, encoding='utf-8').read()
+    table = text.split('s_adcTable[] =')[1].split('};')[0]
+    return [{'adc': int(a), 'channel': int(c), 'pin': pin,
+             'differential': mode == 'ADC_DIFFERENTIAL_ENDED', 'signal': sig}
+            for a, c, pin, mode, sig in ADC_ROW.findall(table)]
 
 
 class Report:
@@ -176,10 +201,41 @@ def test_gpio_gate(report):
                  not wrote_reserved)
 
 
+def test_channel_table(report):
+    """The stand-in's channel table still matches the one the board has.
+
+    `coaxial.simulated.CHANNELS` is a second copy of `s_adcTable`, and a
+    second answer to "what is PB0" is the thing this repository forbids
+    everywhere else. test_parity compares them against real hardware and is
+    right to - but it skips itself with no board, which is exactly when the
+    stand-in is being used. This reads the firmware source instead, so the
+    drift is caught at the desk on the run that costs three seconds.
+    """
+    if not os.path.exists(ADC_C):
+        report.check('board_adc.c is where this suite expects it',
+                     False, ADC_C)
+        return
+
+    board = firmware_channels()
+    report.check('every s_adcTable row parsed out of the firmware',
+                 len(board) == len(CHANNELS),
+                 'firmware %d, stand-in %d' % (len(board), len(CHANNELS)))
+    if len(board) != len(CHANNELS):
+        return
+
+    for i, (fw, sim) in enumerate(zip(board, CHANNELS)):
+        wrong = ['%s: firmware %r, stand-in %r' % (k, fw[k], sim[k])
+                 for k in ('adc', 'channel', 'pin', 'differential', 'signal')
+                 if fw[k] != sim[k]]
+        report.check('channel %d (%s) agrees with the board' % (i, fw['signal']),
+                     not wrong, '; '.join(wrong))
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
-                 test_self_test_and_link, test_gpio_gate):
+                 test_self_test_and_link, test_gpio_gate,
+                 test_channel_table):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

@@ -408,18 +408,22 @@ if (-not $Normal) {
 
 # ---- the prompt itself -----------------------------------------------------
 
-# Set when a prompt loop was opened, so the exit path knows whether the card is
-# being left behind by somebody who has finished, or by a one-shot question that
-# may well be followed by another in ten seconds.
-$script:Interactive = $false
-
 Push-Location (Join-Path $Root 'host')
 try {
     if ($Plain) {
+        if ($Ask) {
+            # `ollama run TAG "question"` answers once and exits. Without this
+            # -Ask fell on the floor and the operator got the interactive
+            # session they had explicitly not asked for.
+            foreach ($question in $Ask) {
+                if ($Ask.Count -gt 1) { Say 'ok' 'ask' $question }
+                & $ollama.Source run $Model $question
+            }
+            return
+        }
         Write-Host ''
         Write-Host '  plain chat: no tools, no board. /bye leaves.' -ForegroundColor DarkGray
         Write-Host ''
-        $script:Interactive = $true
         & $ollama.Source run $Model
         return
     }
@@ -449,7 +453,6 @@ try {
     Write-Host ('  tools: ' + $Tools + '   /py CODE runs against the board, /sh runs a program,') -ForegroundColor DarkGray
     Write-Host '  both cost no tokens. /tools NAME repriced, /ctx, /clear, /q to leave.' -ForegroundColor DarkGray
     Write-Host ''
-    $script:Interactive = $true
     & python @call --repl
 } finally {
     Pop-Location

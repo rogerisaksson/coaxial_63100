@@ -56,9 +56,12 @@ void mb_rtu_init(mb_rtu_t *rtu, mb_slave_t *slave, uint8_t unit_id,
   rtu->t15_ticks = t15_us * ticks_per_us;
   rtu->t35_ticks = t35_us * ticks_per_us;
 
-  /* Until t3.5 of silence has been observed we do not know where we are in a
-     frame, so start out as if a frame were in progress and let the first
-     timeout put us into a known idle state. */
+  /* Idle, not draining. The earlier comment here had this starting as if a
+     frame were in progress so the first t3.5 timeout would establish a known
+     state - but link_open() purges the receiver before it calls this, so the
+     known state is already established by the drain and there is nothing to
+     time out of. link_init()'s call is at boot, before link_poll() consumes
+     anything at all. */
   rtu->receiving = false;
   rtu->frame_bad = false;
   rtu->rx_len    = 0U;
