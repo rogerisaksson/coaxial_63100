@@ -304,6 +304,14 @@ TRACE_LINES = 3
 # time, and code knows why it is running again. Everything else repeated in
 # one turn is the model not noticing it already has the answer - measured,
 # qwen2.5:14b turned the AFE on four times in a row.
+# The two halves of the axis the model keeps swapping: a map question that
+# also takes a reading, or a reading that also fetches the map. Keyed by the
+# compiled intent, so it is inert whenever intent.py could not classify.
+OFF_AXIS = {
+    'map': ('analog_read', 'digital_read'),
+    'read': ('board_info',),
+}
+
 REPEATABLE = {'analog_read', 'run_python', 'run_command'}
 
 
@@ -548,7 +556,7 @@ class Chat:
         # written as `analog_read ch=4` has no ambiguity to resolve, and the
         # second model call would be spent on nothing. main() turns it on.
         self.compile_intent = False
-        self._intent_why = None
+        self._intent_why = self._intent_did = self._intent_tool = None
         self.set_tools(tools)
 
     # ---- what the model is allowed to see ----------------------------------
@@ -854,12 +862,15 @@ class Chat:
         model call per question is the cost, and a plan runner replaying a
         scripted step already knows what it is asking for.
         """
+        self._intent_did = self._intent_tool = None
         if not getattr(self, 'compile_intent', False):
             return ''
         got, kind, why = intent.compile_intent(self.client, question)
         self._intent_why = why
         if got is None:
             return ''
+        self._intent_did = got
+        self._intent_tool = intent.tool_for(got, kind)
         return intent.hint(got, kind)
 
     def _ask_inner(self, question, max_calls=6):
@@ -884,6 +895,7 @@ class Chat:
         last_map_text = None      # and that render, for --quiet
         diagnosed = False  # link_diagnose ran this turn, and was traced
         seen = {}          # (name, args) this turn -> its rendered result
+        answered = None    # the tool the compiled intent named, once it has
         self._traced = False   # nothing on screen yet, so no leading gap
         nudges = 0         # times told to call the tool it just named, or to
                            # take a fresh reading instead of an old one
@@ -992,7 +1004,23 @@ class Chat:
                 args = toolmod.arguments(call)
                 key = (name, json.dumps(args, sort_keys=True, default=str))
 
-                if name not in REPEATABLE and key in seen:
+                if name in OFF_AXIS.get(self._intent_did, ()) and answered:
+                    # The compiled intent named one tool, that tool has
+                    # already answered this turn, and this call is the other
+                    # half of the axis the model keeps confusing. Not a
+                    # refusal - the operator asked for a map and the map is
+                    # on screen - so it is answered from the loop and costs
+                    # no round trip.
+                    #
+                    # A hint saying "this question does not need a reading"
+                    # was tried first and did not hold: asked for the channel
+                    # map one turn after a reading, gemma4:12b called
+                    # board_info and then analog_read anyway, because the
+                    # reading was still in the conversation. Measured by
+                    # test_live_model.py --sections sequence.
+                    raw = '%s already answered this question' % answered
+                    result = raw
+                elif name not in REPEATABLE and key in seen:
                     # Do not spend a board round trip re-asking a question
                     # this turn already has the answer to - and say so plainly
                     # rather than repeating the same line, which is what asked
@@ -1008,6 +1036,9 @@ class Chat:
                         raw = 'noted: %s' % raw.note
                     seen[key] = raw
                     result = raw
+                    if name == self._intent_tool and not str(raw).startswith(
+                            'ERR '):
+                        answered = name
                 if name in LINK_TOOLS:
                     # Every call that actually reaches the board is a live
                     # reading on the link itself, not just on this run's

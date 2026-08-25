@@ -135,6 +135,18 @@ def parse(reply):
     return intent, kind, why
 
 
+# What the *other* half of the axis would be, for the two intents that keep
+# swapping. Naming the tool to call was not enough on its own: asked for the
+# channel map one turn after a reading, the model called board_info and then
+# analog_read as well, because the reading was still in the conversation.
+# Caught by test_live_model.py --sections sequence, the only place a second
+# question is asked without clearing history first.
+NOT_THIS = {
+    'map':  'This question does not need a reading.',
+    'read': 'This question does not need the channel map.',
+}
+
+
 def hint(intent, kind):
     """The one line a compiled intent adds to the turn, or '' for none."""
     if intent is None:
@@ -142,11 +154,13 @@ def hint(intent, kind):
     what = SAYS[intent]
     tool = tool_for(intent, kind)
     if tool:
-        return '\nThe operator is asking for %s - answered by %s.' % (what,
-                                                                      tool)
-    # Saying which call is wrong is worth more here than saying nothing: the
-    # measured failure was a request for a description answered with a table.
-    return '\nThe operator is asking for %s. This needs no board call.' % what
+        line = ('\nThe operator is asking for %s - answered by %s.'
+                % (what, tool))
+        return line + (' ' + NOT_THIS[intent] if intent in NOT_THIS else '')
+    # Saying which call is wrong is worth more here than saying nothing:
+    # the measured failure was a description answered with a table.
+    return ('\nThe operator is asking for %s. This needs no board '
+            'call.' % what)
 
 
 def compile_intent(client, text):

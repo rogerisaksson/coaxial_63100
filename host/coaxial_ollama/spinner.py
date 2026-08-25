@@ -50,14 +50,18 @@ ICON_ERROR_FALLBACK = 'X'
 
 # The busy icon turns in place, in the bookend group. Emoji frames, for the
 # same reason the icons are: one glyph swaps for another at the same advance
-# width, so nothing after the group moves while it ticks.
+# width, so nothing after the group moves while it ticks. Both hourglasses are
+# emoji-presentation by default, so neither needs a variation selector and the
+# forced-colour case measured as uneven spacing does not arise.
+#
+# Three frames, two of them the same: the sand falls for two ticks and the
+# glass is done for one, which reads as a flip rather than a strobe.
 #
 # The first version span the '1' in "Coaxial 63100" itself, splitting the name
 # around it. It was measured writing "Coaxial 63-00" and "Coaxial 63\00" into
 # the operator's own transcript, twice, and read as a corrupted board name
 # rather than as a spinner. A name is not a widget.
-SPIN = ('\U0001F311', '\U0001F312', '\U0001F313', '\U0001F314',
-        '\U0001F315', '\U0001F316', '\U0001F317', '\U0001F318')
+SPIN = ('\U000023F3', '\U000023F3', '\U0000231B')   # flowing, flowing, done
 SPIN_FALLBACK = ('|', '/', '-', '\\')
 
 # Guillemets rather than plain pipes framing the bookend group - narrower

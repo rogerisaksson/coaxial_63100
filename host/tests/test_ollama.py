@@ -3619,22 +3619,36 @@ def test_detail(report):
                  'auto' in small.command('/detail sideways')
                  and small.detail == detail.FULL)
 
+    # The clipper, against text written for the purpose. Measured against a
+    # real document instead, this asserted that some chapter of FINDINGS was
+    # over 1200 characters - which is a fact about how much prose happens to
+    # be in the repository that day, not about the tool. It failed the moment
+    # the documents were cut, having found no defect.
     from coaxial_mcp import docs as docsmod
-    heading = docsmod._headings(
-        docsmod._read(docsmod.paths()['FINDINGS']))[0][1]
-    long_section = docsmod.section('FINDINGS', heading, detail.FULL)
-    short_section = docsmod.section('FINDINGS', heading, detail.TERSE)
-    report.check('a document section is clipped for the reader, not the '
-                 'document', len(short_section) < len(long_section) / 2,
-                 '%d chars against %d' % (len(short_section),
-                                          len(long_section)))
+    nl = chr(10)
+    made_up = '## Long' + nl + nl + 'x' * (docsmod.CLIP + 500) + nl
+    was_read = docsmod._read
+    docsmod._read = lambda path: made_up
+    try:
+        whole = docsmod.section('FINDINGS', 'Long', detail.FULL)
+        short = docsmod.section('FINDINGS', 'Long', detail.TERSE)
+        docsmod._read = lambda path: ('## Short' + nl + nl
+                                      + 'under the limit.' + nl)
+        intact = docsmod.section('FINDINGS', 'Short', detail.TERSE)
+    finally:
+        docsmod._read = was_read
+    report.check('a section is clipped for the reader, not the document',
+                 len(short) < len(whole),
+                 '%d chars against %d' % (len(short), len(whole)))
     report.check('and it still says it was clipped, and how to ask for more',
-                 'clipped at' in short_section
-                 and 'subsection' in short_section)
-    report.check('the index keeps the chapter names it is asked by',
-                 'FINDINGS' in docsmod.index(detail.TERSE)
-                 and len(docsmod.index(detail.TERSE))
-                 < len(docsmod.index(detail.FULL)) / 2)
+                 'clipped at' in short and 'subsection' in short,
+                 short[-70:])
+    report.check('text inside the limit is passed through untouched',
+                 'clipped at' not in intact and 'under the limit.' in intact)
+    report.check('the index names every document, at either level',
+                 all(name in docsmod.index(level)
+                     for level in (detail.TERSE, detail.FULL)
+                     for name in docsmod.paths()))
 
 
 # ---- a prompt that does not fit is a prompt that is not sent ---------------
@@ -4252,10 +4266,15 @@ def test_docs(report):
     # The first chapter that actually has a subsection - the first chapter
     # in the file need not, and asserting a parent carries children against
     # one with none proves nothing.
-    at = next(i for i, (lvl, _) in enumerate(heads)
-              if lvl == 2 and i + 1 < len(heads) and heads[i + 1][0] == 3)
+    at = next((i for i, (lvl, _) in enumerate(heads)
+               if lvl == 2 and i + 1 < len(heads) and heads[i + 1][0] == 3),
+              None)
+    if at is None:                    # a document with no subsections at all
+        at = next(i for i, (lvl, _) in enumerate(heads) if lvl == 2)
+        child = None
+    else:
+        child = heads[at + 1][1]
     chapter = heads[at][1]
-    child = heads[at + 1][1]
     after = next((h for lvl, h in heads[at + 1:] if lvl == 2), None)
 
     outline = docmod.docs(doc='MODELS')
@@ -4263,7 +4282,7 @@ def test_docs(report):
                  chapter in outline and (child or chapter) in outline,
                  '%r / %r' % (chapter, child))
 
-    deep = next(h for lvl, h in heads if lvl == 3)
+    deep = next((h for lvl, h in heads if lvl == 3), chapter)
     body = docmod.docs(doc='MODELS', section=deep)
     report.check('a section returns its text', len(body) > len(deep) + 40)
     later = next((h for lvl, h in heads[[i for i, (_, x)
@@ -4293,16 +4312,25 @@ def test_docs(report):
     # A hit without its chapter can say the opposite of what the document says:
     # the phase V entry that matches lives under "Refuted", and a model that
     # cannot see that reports a dead end as the explanation. Measured.
-    refuted = docmod.docs(find='PCSEL accumulation explains')
+    refuted = next(head for _, head, _ in docmod._headings(
+        docmod._read(docmod.paths()['FINDINGS'])) if 'Refuted' in head)
+    body = docmod.docs(doc='FINDINGS', section=refuted).splitlines()[2:]
+    phrase = next((w.lstrip('*- ') for line in body for w in [line.strip()]
+                   if len(w) > 30 and not w.startswith('#')), None)
     report.check('a search hit carries the chapter it sits under',
-                 'Refuted' in refuted, refuted.splitlines()[0][:70])
+                 phrase is None
+                 or refuted in docmod.docs(find=phrase[:40]),
+                 repr(phrase and phrase[:40]))
 
     report.check('search is capped rather than dumping a document',
                  len(docmod.docs(find='the').splitlines()) <= docmod.FIND_HITS + 1)
 
-    report.check('a long section is clipped and says so',
-                 len(docmod.docs(doc='FINDINGS',
-                                 section='Confirmed and fixed')) <= docmod.CLIP + 200)
+    report.check('no section comes back longer than the clip allows',
+                 all(len(docmod.docs(doc=name, section=head)) <=
+                     docmod.CLIP + 200
+                     for name in docmod.paths()
+                     for _, head, _ in docmod._headings(
+                         docmod._read(docmod.paths()[name]))))
 
     for bad, expect in ((dict(doc='NOPE'), 'no document'),
                         (dict(doc='MODELS', section='no such heading'), 'no section'),
@@ -4713,6 +4741,10 @@ def test_tag_roster(r):
                                          for tag in marks_of[f]})))
 
 
+def safe_head(text, n=44):
+    return (text or '').strip().splitlines()[0][:n] if (text or '').strip() else '(nothing)'
+
+
 def test_intent(r):
     """The intent pass: classify first, answer second.
 
@@ -4722,6 +4754,7 @@ def test_intent(r):
     is worse than no hint.
     """
     from coaxial.simulated import SimulatedSession as Sim
+    from coaxial_mcp import render
     from coaxial_ollama import debug
     from coaxial_ollama import intent
 
@@ -4769,6 +4802,20 @@ def test_intent(r):
 
     r.check('the hint names the tool it wants called',
             'analog_read' in intent.hint('read', 'analog'))
+    # Naming the tool to call was not enough on its own. Measured live by
+    # test_live_model.py --sections sequence: asked for the channel map one
+    # turn after a reading, gemma4:12b called board_info *and* analog_read,
+    # because the reading was still in the conversation. The hint now names
+    # the other half of the axis as the call this question does not need.
+    r.check('and says a map question needs no reading',
+            'does not need a reading' in intent.hint('map', 'analog'))
+    r.check('and a read question needs no map',
+            'does not need the channel map' in intent.hint('read', 'digital'))
+    r.check('both directions of the axis are covered, and only those',
+            set(intent.NOT_THIS) == {'map', 'read'})
+    r.check('an intent off that axis gets no such line',
+            all('does not need' not in intent.hint(name, 'none')
+                for name in intent.INTENTS if name not in intent.NOT_THIS))
     r.check('and for words it says no call is needed',
             'no board call' in intent.hint('words', 'none')
             and 'board_info' not in intent.hint('words', 'none'))
@@ -4868,6 +4915,43 @@ def test_intent(r):
             sys.modules['coaxial_ollama.client'] = real
     r.check('on, but unreachable, is still no hint', blank == '',
             repr(chat._intent_why))
+
+    # The backstop, offline. A hint saying "this question does not need a
+    # reading" did not hold on the real model - measured, board_info followed
+    # by analog_read on a map question, one turn after a reading. The loop
+    # answers the second call itself, from the fact that the tool the intent
+    # named has already succeeded this turn.
+    screen = io.StringIO()
+    both = debug.Chat(ScriptedModel([
+        call('board_info'), call('analog_read'),
+        {'role': 'assistant', 'content': 'Kanalerna listade.'},
+    ]), toolmod.Toolbox(Sim(), scope=Scope()), out=screen)
+    both.compile_intent = True
+    was_compile = intent.compile_intent
+    intent.compile_intent = lambda client, text: ('map', 'analog', 'stub')
+    try:
+        both.ask('ge mig en lista på alla analoga kanalerna')
+    finally:
+        intent.compile_intent = was_compile
+    ran = [name for name, _ in both.toolbox.log]
+    r.check('the off-axis call never reaches the board',
+            ran.count('analog_read') == 0 and 'board_info' in ran,
+            ', '.join(ran) or 'none')
+    r.check('and the screen shows the map once, not a reading under it',
+            screen.getvalue().count(render.ANALOG_HEAD) == 0,
+            safe_head(screen.getvalue()))
+
+    # ...and the same loop with no compiled intent must not block anything:
+    # every failure in intent.py returns None, and None means old behaviour.
+    plain = debug.Chat(ScriptedModel([
+        call('board_info'), call('analog_read'),
+        {'role': 'assistant', 'content': 'Klart.'},
+    ]), toolmod.Toolbox(Sim(), scope=Scope()), out=io.StringIO())
+    plain.ask('ge mig kanalerna och deras värden')
+    did = [name for name, _ in plain.toolbox.log]
+    r.check('with no intent compiled, both calls run as before',
+            'board_info' in did and 'analog_read' in did,
+            ', '.join(did) or 'none')
 
     chat.compile_intent = False
     chat.intent = intent.hint('read', 'digital')

@@ -137,6 +137,33 @@ TOOL_CHOICE = (
 
 
 # question, must it reach the board, what language the answer is in
+# Two questions in one session, history kept - the shape an operator types.
+# The matrix above clears history between rows, which is right for isolating a
+# question and wrong for this: the failure reported four separate times was the
+# *second* question repeating the first's channel map, and the first answer
+# sitting in history is what makes that possible.
+#
+# Both orders, because map-then-read can pass by luck: a model that always
+# calls board_info scores the first row of one and the second row of nothing.
+SEQUENCES = (
+    (('ge mig en lista på alla analoga kanalerna', 'board_info', 'analog_read'),
+     ('ge mig en lista på alla analoga mätvärdena', 'analog_read',
+      'board_info')),
+    (('ge mig en lista över de analoga kanalerna', 'board_info',
+      'analog_read'),
+     ('ge mig en lista över de analoga värdena', 'analog_read',
+      'board_info')),
+    (('list every analog channel', 'board_info', 'analog_read'),
+     ('list the analog values', 'analog_read', 'board_info')),
+    (('ge mig alla analoga mätvärden', 'analog_read', 'board_info'),
+     ('ge mig en lista på alla analoga kanalerna', 'board_info',
+      'analog_read')),
+    (('ge mig en lista på alla digitala kanalerna', 'board_info',
+      'digital_read'),
+     ('ge mig en lista på alla digitala mätvärdena', 'digital_read',
+      'board_info')),
+)
+
 TURNS = (
     ('läs NTC:n och DC-länken', True, 'Swedish'),
     ('beskriv hårdvaran i detta projektet för en novis', False, 'Swedish'),
@@ -248,11 +275,10 @@ def main(argv=None):
                              'later while something is being fixed, and a '
                              'reload costs more than the VRAM does.')
     parser.add_argument('--sections', default='all',
-                        help='tools|language|all. A model load plus a turn '
-                             'per question is minutes, and a change to a '
-                             'tool description has nothing to do with the '
-                             'language lock - run the half that can have '
-                             'broken.')
+                        help='tools|sequence|language|all. A model load '
+                             'plus a turn per question is minutes, and a tool '
+                             'description has nothing to do with the language '
+                             'lock - run the part that can have broken.')
     parser.add_argument('--simulated', action='store_true',
                         help='skip the probe and take the stand-in. Without '
                              'it the port is probed and a silent one falls '
@@ -287,7 +313,7 @@ def main(argv=None):
 
         want = {w.strip() for w in args.sections.split(',') if w.strip()}
         if 'all' in want:
-            want = {'tools', 'language'}
+            want = {'tools', 'sequence', 'language'}
 
         if 'tools' in want:
             print(chr(10) + '-- which tool the question reaches for --')
@@ -346,6 +372,40 @@ def main(argv=None):
                 said_twice = _twice(answer, results)
                 report.check('%s -> said once, not twice' % safe(question, 40),
                              not said_twice, said_twice or 'once')
+
+        if 'sequence' in want:
+            print(chr(10) + '-- one question after another, history kept --')
+            for pair in SEQUENCES:
+                chat.history = []
+                chat.prompt_history = []
+                chat.last_channels = None
+                seen = []
+                for question, must, must_not in pair:
+                    before = len(chat.toolbox.log)
+                    del results[:]
+                    answer = chat.ask(question)
+                    called = [name for name, _ in chat.toolbox.log[before:]
+                              if name != 'link']
+                    shown = ''.join(str(r) for r in results)
+                    label = safe(question, 44)
+                    report.check('%s -> %s' % (label, must),
+                                 must in called,
+                                 ', '.join(called) or 'no calls')
+                    report.check('%s -> not %s' % (label, must_not),
+                                 must_not not in called,
+                                 ', '.join(called) or 'none')
+                    report.check('%s -> the operator got something' % label,
+                                 bool(answer.strip()) or bool(results),
+                                 safe(answer, 40) or '(the trace)')
+                    # The visible symptom, and the reason this section
+                    # exists: the second question put the first question's
+                    # block on screen again, character for character.
+                    if seen:
+                        report.check('%s -> and not the block above it again'
+                                     % label,
+                                     shown.strip() != seen[-1].strip(),
+                                     safe(shown, 44) or '(nothing)')
+                    seen.append(shown)
 
         if 'language' in want:
             print(chr(10) + '-- language, and reading against describing --')
