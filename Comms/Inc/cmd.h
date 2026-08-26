@@ -213,6 +213,9 @@ extern "C" {
 #define IMU_OP_WRITE   5U
 #define IMU_OP_PINS    6U
 #define IMU_OP_WAKE    7U
+#define IMU_OP_LATEST  8U
+#define IMU_OP_HOLD    9U
+#define IMU_OP_RESUME  10U
 
 #define CMD_PROTO_MAJOR 1U
 #define CMD_PROTO_MINOR 5U

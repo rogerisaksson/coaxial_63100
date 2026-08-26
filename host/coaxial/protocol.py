@@ -43,6 +43,12 @@ is the last one: MODBUS reserves 65..72 and 100..110 for user-defined
 functions and this board had spent all but 110. A second code is answered
 ILLEGAL FUNCTION by the protocol layer, before the command table sees it."""
 
+PART_STATES = {
+    0: 'not probed', 1: 'ready', 2: 'unpowered', 3: 'silent',
+}
+"""What the board can say about a fitted part without judging it. 'not
+probed' is what nothing on the board can prove either way - invariant 10."""
+
 IMU_OP_ID = 0
 IMU_OP_READ = 1
 IMU_OP_FEATURE = 2
@@ -51,6 +57,9 @@ IMU_OP_RESET = 4
 IMU_OP_WRITE = 5
 IMU_OP_PINS = 6
 IMU_OP_WAKE = 7
+IMU_OP_LATEST = 8
+IMU_OP_HOLD = 9
+IMU_OP_RESUME = 10
 
 NAMES = {
     VERSION: 'version', ADC_TABLE: 'adc_table', ADC_SCAN: 'adc_scan',

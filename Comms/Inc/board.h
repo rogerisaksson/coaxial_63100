@@ -70,6 +70,72 @@ bool    Board_DigitalChan(uint8_t index, board_dchan_t *info);
   */
 bool Board_PinUsable(char port, uint8_t pin);
 
+/** What is fitted on the board, one entry per part. */
+typedef struct
+{
+  const char *name;    /**< the part, as it is marked              */
+  const char *what;    /**< what it does, one line                 */
+  const char *where;   /**< the bus or pins it sits on             */
+  const char *power;   /**< what must be on for it, or "" for none */
+  uint8_t     state;   /**< BOARD_PART_* below                     */
+} board_part_t;
+
+#define BOARD_PART_UNKNOWN   0U  /**< nothing here can prove it either way */
+#define BOARD_PART_READY     1U  /**< it answered                         */
+#define BOARD_PART_UNPOWERED 2U  /**< what powers it is off               */
+#define BOARD_PART_SILENT    3U  /**< powered, and did not answer         */
+
+/** The IMU poll loop's shared record: what it saw, and what went wrong.
+  *
+  * Written only by Board_ImuPoll and read only by the command layer. There is
+  * one writer and one reader and both run from the same main loop, so no
+  * lock: what would need one is a second writer, and adding one is what this
+  * comment exists to argue against.
+  */
+typedef struct
+{
+  uint8_t  loop;        /**< BOARD_IMU_LOOP_*                            */
+  uint8_t  error;       /**< BOARD_IMU_ERR_*, the last one seen          */
+  uint32_t updates;     /**< rotation vectors written, monotonic         */
+  uint32_t cargoes;     /**< cargoes taken off SPI2                      */
+  uint32_t errors;      /**< reads that failed                           */
+  bool     have;        /**< whether the quaternion below means anything */
+  uint8_t  report_id;
+  uint8_t  status;      /**< accuracy in bits 1:0                        */
+  int16_t  i;
+  int16_t  j;
+  int16_t  k;
+  int16_t  real;        /**< all four Q14 counts - the scale is the host's */
+} board_imu_state_t;
+
+#define BOARD_IMU_LOOP_OFF   0U  /**< AFE_ON is low; nothing to poll     */
+#define BOARD_IMU_LOOP_INIT  1U  /**< powered, not yet brought up        */
+#define BOARD_IMU_LOOP_RUN   2U  /**< polling                            */
+#define BOARD_IMU_LOOP_HELD  3U  /**< stopped, so the host may configure */
+
+#define BOARD_IMU_ERR_NONE   0U
+#define BOARD_IMU_ERR_POWER  1U  /**< AFE_ON went away under it          */
+#define BOARD_IMU_ERR_INIT   2U  /**< the part did not come up           */
+#define BOARD_IMU_ERR_READ   3U  /**< a cargo read failed                */
+#define BOARD_IMU_ERR_FRAME  4U  /**< a report id with no length         */
+
+/** Advance the IMU poll loop. Cheap when there is nothing waiting: one GPIO
+  * read. Call it from the main loop, and not while the RTU receiver is
+  * mid-frame - a 276-byte cargo at 1.48 MHz is 1.5 ms, which reads as a t3.5
+  * gap and splits the frame in two. */
+void Board_ImuPoll(void);
+
+/** Read the shared record. The only way a host sees the stream. */
+void Board_ImuState(board_imu_state_t *out);
+
+/** Stop the loop so the part can be configured, or start it again.
+  * Configuring under a running loop is two masters on one SPI bus. */
+void Board_ImuHold(void);
+void Board_ImuResume(void);
+
+uint8_t Board_PartCount(void);
+bool Board_Part(uint8_t index, board_part_t *info);
+
 uint8_t Board_AdcCount(void);
 bool    Board_AdcChan(uint8_t index, board_chan_t *info);
 
@@ -100,6 +166,11 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc);
   * @return False if the peripheral would not re-initialise.
   */
 bool Board_ImuInit(void);
+
+/** SPI2 and the IMU's control pins, without resetting the part.
+  * What Board_ImuPoll uses, so the reset's 130 ms can be staged across main
+  * loop passes rather than spent in one. */
+bool Board_ImuBusInit(void);
 
 /**
   * @brief  Pulse NRSTN with BOOTN held high, then wait out the part's own

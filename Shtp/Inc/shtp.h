@@ -152,6 +152,10 @@ size_t shtp_parse_reports(const uint8_t *cargo, size_t len,
                           shtp_report_t *out, size_t max);
 
 /** Length of one input report, or 0 if this firmware does not know the id. */
+/** Input report ids this firmware picks out of a channel 3 cargo. */
+#define SH2_ROTATION_VECTOR      0x05U
+#define SH2_GAME_ROTATION_VECTOR 0x08U
+
 size_t shtp_report_len(uint8_t report_id);
 
 /**

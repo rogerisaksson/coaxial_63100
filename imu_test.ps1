@@ -1,15 +1,22 @@
 <#
 .SYNOPSIS
-    The board's attitude, drawn live from the IMU.
+    The board's attitude, drawn live from the IMU it says it has.
 
 .DESCRIPTION
-    Enables the rotation vector and redraws the disc until you close it. The
-    drawing is coaxial.orientation, which is pure and tested; this is the
-    cable and the screen.
+    Reads the board's own parts list first (command 0x6D kind 4) and looks for
+    an IMU in it. Nothing here decides the board has one: a board without the
+    part says so itself, and a board that grows one needs no change here.
 
-    Nothing here judges an orientation. It shows the quaternion the part
-    reported and the angles that follow from it - invariant 10 applies to
-    attitude exactly as it applies to a voltage.
+    AFE_ON powers that part as well as the analog front end. If it is already
+    on, this leaves it on. If it is off, this switches it on for the run and
+    switches it off again on the way out - Ctrl+C included, which also
+    disables the rotation vector it enabled. What the board looked like when
+    this started is what it looks like when it finishes.
+
+    The drawing is coaxial.orientation, which is pure and tested; this is the
+    cable and the screen. Nothing here judges an orientation: it shows the
+    quaternion the part reported and the angles that follow from it, and
+    invariant 10 applies to attitude exactly as it applies to a voltage.
 
 .PARAMETER Port
     The board's VCP. Ignored with -Simulated.
@@ -21,9 +28,12 @@
 .PARAMETER Hz
     Screen refreshes per second.
 
+.PARAMETER Frames
+    Stop after this many rather than running until closed.
+
 .PARAMETER Once
-    One frame and exit, for checking the renderer without a terminal to
-    close. Uses the stand-in unless -Port finds a board.
+    One frame from the stand-in and exit, for checking the renderer without a
+    board and without a terminal to close.
 
 .EXAMPLE
     .\imu_test.ps1

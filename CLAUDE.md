@@ -51,6 +51,28 @@ the debug port are reported separately and are never channels to drive. A pin
 table in a document or a prompt is a second answer to "what is PB10" — add a
 pin to `Board/Src/board_io.c` and everything above it follows.
 
+**What is fitted comes from the board too.** `0x6D channels` kind 4 is the
+parts list — name, what it does, where it sits, **what powers it**, and
+whether it answered. `board_info kind=parts`, `system.channel_map()['parts']`
+and the local model's `parts` kind all read it off the wire.
+
+That last column is not decoration: AFE_ON powers the BNO08X as well as the
+analog front end, and with it off the part answers reads, resets and
+advertises normally while acting on no write at all. A day went into SPI
+before the supply was checked.
+
+**Adding hardware is one row, and nothing else.** A new part means a row in
+`s_parts` in `Board/Src/board_io.c`, its pins in `s_digital` beside it, and —
+if it needs one — a probe case so `state` is measured rather than asserted.
+Do not then add it to a document, a prompt, a host table or a tool
+description: those are second answers to a question the firmware already
+settles, and they are the ones that go stale. Check it landed with:
+
+```powershell
+python -c "import coaxial; [print(p) for p in coaxial.connect([1])[0].system.channel_map()['parts']]"
+board_prompt -Ask "vad sitter på kortet?"    # the model, off the same wire
+```
+
 | Read | Before |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | touching the source layout |

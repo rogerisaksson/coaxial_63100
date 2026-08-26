@@ -44,6 +44,13 @@ const char *link_proto_name(void);
 
 bool link_active(void);
 
+/** True while the RTU receiver has part of a frame in hand.
+  *
+  * What anything long-running in the main loop must check first: a frame is
+  * delimited by silence, so a millisecond spent elsewhere reads as the gap
+  * that ends it. */
+bool link_busy(void);
+
 /** Take the line. Anything already in the receiver is discarded, and framing
     state starts clean; the diagnostic counters survive, same as link_close(). */
 void link_open(void);

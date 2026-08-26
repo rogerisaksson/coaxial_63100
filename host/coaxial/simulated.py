@@ -95,6 +95,32 @@ RESERVED = [
     {'pin': 'PA15', 'direction': 'in',    'signal': 'JTDI'},
     {'pin': 'PB3',  'direction': 'out',   'signal': 'JTDO/TRACESWO'},
     {'pin': 'PB4',  'direction': 'in',    'signal': 'NJTRST'},
+    {'pin': 'PB12', 'direction': 'out',   'signal': 'SPI2_NSS/H_CSN'},
+    {'pin': 'PB13', 'direction': 'out',   'signal': 'SPI2_SCK'},
+    {'pin': 'PB14', 'direction': 'in',    'signal': 'SPI2_MISO'},
+    {'pin': 'PB15', 'direction': 'out',   'signal': 'SPI2_MOSI'},
+    {'pin': 'PD8',  'direction': 'in',    'signal': 'IMU H_INTN'},
+    {'pin': 'PD9',  'direction': 'out',   'signal': 'IMU PS0/WAKE'},
+    {'pin': 'PD10', 'direction': 'out',   'signal': 'IMU NRSTN'},
+    {'pin': 'PD11', 'direction': 'out',   'signal': 'IMU BOOTN'},
+]
+
+# What is fitted, mirroring s_parts in Board/Src/board_io.c. The stand-in's
+# states are what a powered board reports, because a stand-in with no supply
+# to switch has nothing else to say.
+PARTS = [
+    {'name': 'STM32H753VIT6', 'what': 'the MCU, 475 MHz',
+     'where': 'on board', 'power': '', 'state': 'not probed'},
+    {'name': 'BNO08X', 'what': '9-axis IMU, SHTP',
+     'where': 'SPI2', 'power': 'AFE_ON', 'state': 'ready'},
+    {'name': 'AFE', 'what': 'phase chains + ADC ref',
+     'where': 'PB2 switches it', 'power': '', 'state': 'ready'},
+    {'name': 'NTC', 'what': 'thermistor',
+     'where': 'ADC3', 'power': 'AFE_ON', 'state': 'ready'},
+    {'name': 'DC link divider', 'what': '49.9k/2.2k, 78.15 V FS',
+     'where': 'ADC', 'power': 'AFE_ON', 'state': 'ready'},
+    {'name': 'USART3', 'what': 'console or Modbus RTU',
+     'where': 'PB10/PB11', 'power': '', 'state': 'not probed'},
 ]
 
 
@@ -116,6 +142,7 @@ class SimulatedSystem:
                 'unit': UNITS.get(row['signal']),
             })
         return {'subsystems': SUBSYSTEMS,
+                'parts': [dict(p) for p in PARTS],
                 'analog': analog,
                 'digital': [dict(d) for d in DIGITAL],
                 'reserved': [dict(d) for d in RESERVED]}

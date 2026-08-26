@@ -35,13 +35,13 @@ _PORT = {'type': 'string', 'description': 'Port letter A-K'}
 # digital pins as well - measured, "ge mig en lista over alla analoga
 # kanaler" traced eleven lines to answer with seven.
 BOARD_INFO_KINDS = ('all', 'analog', 'digital', 'reserved', 'identity',
-                    'subsystems')
+                    'subsystems', 'parts')
 
 TOOLS = [
     {
         'name': 'board_info',
-        'description': "Identity, clock, and the channels the board reports with their directions. kind narrows it to one section.",
-        'description_terse': "Identity, clock, channels with directions. kind: analog|digital|reserved|identity|all.",
+        'description': "Identity, clock, the channels the board reports with their directions, and what is fitted on it. kind narrows it to one section.",
+        'description_terse': "Identity, clock, channels, fitted parts. kind: analog|digital|reserved|identity|subsystems|parts|all.",
         'inputSchema': {
             'type': 'object',
             'properties': {
@@ -453,6 +453,12 @@ def board_info(session, refresh=False, kind='all', **_):
     # The pins come from the board too (command 0x6D). An older firmware has
     # no such command and the analog table alone is the answer, which is why
     # this is a try and not a required call.
+    if kind == 'parts':
+        # What is fitted, which only the firmware knows: one entry per part,
+        # reported by channels kind 4, with what powers each one.
+        got = session.board.system.channel_map(refresh=refresh)
+        return render.parts(got.get('parts') or [])
+
     if kind == 'subsystems':
         # What the board is made of, which only the firmware knows: one
         # entry per command table, reported by channels kind 3.

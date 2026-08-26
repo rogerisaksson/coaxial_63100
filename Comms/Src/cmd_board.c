@@ -297,6 +297,15 @@ static cmd_status_t h_console(rd_t *in, wr_t *out)
 /* What the board is made of, rather than what it is wired to. The same
    question one level up, and the same rule: the firmware settles it. */
 #define CHANNELS_SUBSYSTEMS 3U
+/* What is fitted, rather than what it can do. Paged, because six parts with
+   their strings come to 380 bytes against MB_MAX_PDU's 253 - the same
+   overflow that split the analog and digital sections apart. */
+#define CHANNELS_PARTS 4U
+
+/* Enough room for the longest record the table can hold, checked before each
+   one rather than after: wr_t's overflow flag is sticky, and a truncated
+   record answered 0x04 instead of the parts that did fit. */
+#define PART_RECORD_MAX 96U
 
 static cmd_status_t h_channels(rd_t *in, wr_t *out)
 {
@@ -307,11 +316,58 @@ static cmd_status_t h_channels(rd_t *in, wr_t *out)
      One section per request: both together came to 273 bytes against
      MB_MAX_PDU's 253, and the writer's overflow flag turned that into an
      0x04 on the first live call. */
+  if (rd_left(in) < 1U)
+  {
+    return CMD_ERR_LENGTH;
+  }
+
   const uint8_t kind = rd_u8(in);
 
-  if (kind > CHANNELS_SUBSYSTEMS)
+  if (kind > CHANNELS_PARTS)
   {
     return CMD_ERR_VALUE;
+  }
+
+  if (kind == CHANNELS_PARTS)
+  {
+    const uint8_t total = Board_PartCount();
+    const uint8_t first = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
+    uint8_t sent = 0U;
+
+    if (first > total)
+    {
+      return CMD_ERR_VALUE;
+    }
+
+    wr_u8(out, total);
+    wr_u8(out, first);
+    wr_u8(out, 0U);              /* how many follow - filled in below */
+
+    uint8_t *count_at = &out->buf[out->len - 1U];
+
+    for (uint8_t i = first; i < total; i++)
+    {
+      board_part_t part;
+
+      if ((out->len + PART_RECORD_MAX) > out->cap)
+      {
+        break;
+      }
+      if (!Board_Part(i, &part))
+      {
+        return CMD_ERR_DEVICE;
+      }
+
+      wr_str(out, part.name);
+      wr_str(out, part.what);
+      wr_str(out, part.where);
+      wr_str(out, part.power);
+      wr_u8(out, part.state);
+      sent++;
+    }
+
+    *count_at = sent;
+    return CMD_OK;
   }
 
   if (kind == CHANNELS_SUBSYSTEMS)
@@ -422,7 +478,9 @@ static const cmd_desc_t CMD_TABLE[] =
   { CMD_LINK_STATS, "link_stats", 0U,               h_link_stats },
   { CMD_ANALOG_BURST, "analog_burst", 8U,          h_analog_burst },
   { CMD_SELF_TEST,  "self_test",  0U,               h_self_test  },
-  { CMD_CHANNELS,   "channels",   1U,               h_channels   },
+  /* Variable: the kind byte, and for the parts section a start index
+     behind it, because six parts do not fit one PDU. */
+  { CMD_CHANNELS,   "channels",   CMD_LEN_VARIABLE, h_channels   },
   { CMD_CONSOLE,    "console",    0U,               h_console    },
 };
 

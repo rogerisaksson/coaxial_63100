@@ -7,6 +7,8 @@ fixed-point integers, and the Q point belongs here.
 
 Datasheet references are to BNO080_085 v1.17, in datasheets/.
 """
+import contextlib
+
 from . import protocol
 from .errors import DeviceStateError
 from .subsystem import Subsystem
@@ -46,6 +48,21 @@ SCALE = {
     0x05: (14, ''),
     0x08: (14, ''),
 }
+
+LOOP_STATES = {0: 'off', 1: 'init', 2: 'running', 3: 'held'}
+"""What the board's IMU poll loop is doing. 'off' means AFE_ON is low."""
+
+LOOP_ERRORS = {
+    0: 'none', 1: 'lost AFE_ON', 2: 'the part did not come up',
+    3: 'a cargo read failed', 4: 'a report id with no length',
+}
+"""The last thing that went wrong in the poll loop, not a running tally."""
+
+
+def _signed16(value):
+    """A 16-bit count off the wire, which carries them unsigned."""
+    return value - 0x10000 if value & 0x8000 else value
+
 
 QUATERNIONS = (0x05, 0x08)
 """Reports whose four fields are i, j, k, real rather than three axes. Q14,
@@ -105,6 +122,79 @@ class Imu(Subsystem):
             'cargo': cargo,
             'reports': decode(cargo),
         }
+
+    def state(self):
+        """The poll loop's shared record: what it saw and what went wrong.
+
+        The board polls the part from its main loop and writes here; a host
+        only ever reads. One round trip, and no SPI in the command path -
+        reading a cargo per request cost 45 ms each and caught one in eight.
+
+        `updates` is monotonic, so the same reading read twice is telling
+        rather than a guess from the values.
+        """
+        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_LATEST]))
+        r = Reader(reply)
+
+        got = {
+            'loop': LOOP_STATES.get(r.u8(), 'unknown'),
+            'error': LOOP_ERRORS.get(r.u8(), 'unknown'),
+            'updates': r.u32(),
+            'cargoes': r.u32(),
+            'errors': r.u32(),
+        }
+
+        if not r.u8():
+            got['quaternion'] = None
+            return got
+
+        report_id = r.u8()
+        status = r.u8()
+        counts = [_signed16(r.u16()) for _ in range(4)]
+        divisor = float(1 << SCALE[report_id][0])
+
+        got.update({
+            'report_id': report_id,
+            'name': REPORTS.get(report_id, 'unknown 0x%02X' % report_id),
+            'accuracy': ACCURACY.get(status & 0x03, 'unknown'),
+            'counts': dict(zip(('i', 'j', 'k', 'real'), counts)),
+            'quaternion': dict(zip(('i', 'j', 'k', 'real'),
+                                   (c / divisor for c in counts))),
+        })
+        return got
+
+    def latest(self):
+        """The newest quaternion, or None when the loop has not seen one."""
+        return self.state()['quaternion']
+
+    def hold(self):
+        """Stop the poll loop so the part can be configured.
+
+        Every operation that drives SPI2 - feature, write, reset, product_id,
+        probe - is refused while the loop runs, because both would be masters
+        on one bus. Returns the loop state the board reports back.
+        """
+        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_HOLD]))
+        return LOOP_STATES.get(Reader(reply).u8(), 'unknown')
+
+    def resume(self):
+        """Start the poll loop again, through init - the usual reason to have
+        held it was a reset, and the part needs bringing up after one."""
+        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_RESUME]))
+        return LOOP_STATES.get(Reader(reply).u8(), 'unknown')
+
+    @contextlib.contextmanager
+    def configuring(self):
+        """Hold the loop for the block, and resume it however the block ends.
+
+        The sequence the board requires, written once: leaving the loop held
+        because a call raised is an IMU that has silently stopped reporting.
+        """
+        self.hold()
+        try:
+            yield self
+        finally:
+            self.resume()
 
     def reset(self):
         """Pulse NRSTN and collect what the part says coming up.

@@ -113,7 +113,8 @@ class System(Subsystem):
                 pins[name] = rows
             self._map = {'analog': analog, 'digital': pins['digital'],
                          'reserved': pins['reserved'],
-                         'subsystems': self._subsystems()}
+                         'subsystems': self._subsystems(),
+                         'parts': self._parts()}
         return self._map
 
     def _subsystems(self):
@@ -131,6 +132,41 @@ class System(Subsystem):
             return []
         return [{'name': reader.string(), 'what': reader.string(),
                  'commands': reader.u8()} for _ in range(reader.u8())]
+
+    def _parts(self):
+        """What is fitted on the board, one entry per part.
+
+        Read from the firmware for the same reason the channel map is: a
+        parts list in a host, a document or a prompt is a second answer to
+        "what is on this board". `power` names what must be on for the part
+        to work at all - AFE_ON powers the IMU as well as the analog front
+        end, and a day went into SPI before that was checked.
+
+        Paged, because six parts with their strings come to 380 bytes against
+        the 253-byte PDU. An older firmware has no kind 4, and an empty list
+        says so without making the whole map fail.
+        """
+        out = []
+        first = 0
+
+        while True:
+            try:
+                reader = Reader(self.request(protocol.CHANNELS,
+                                             pack(('u8', 4), ('u8', first))))
+            except RigError:
+                return out
+            total, _, count = reader.u8(), reader.u8(), reader.u8()
+            for _ in range(count):
+                out.append({
+                    'name': reader.string(),
+                    'what': reader.string(),
+                    'where': reader.string(),
+                    'power': reader.string(),
+                    'state': protocol.PART_STATES.get(reader.u8(), 'unknown'),
+                })
+            first += count
+            if count == 0 or first >= total:
+                return out
 
     def self_test(self):
         """What the board can prove about itself, with nothing attached.

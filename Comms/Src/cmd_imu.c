@@ -10,6 +10,7 @@
   * the same rule the ADC channels keep.
   ******************************************************************************
   */
+#include <string.h>
 #include "cmd.h"
 #include "board.h"
 #include "shtp.h"
@@ -299,9 +300,98 @@ static cmd_status_t h_imu_wake(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
+/**
+  * @brief op 8 - the poll loop's shared record.
+  *
+  * The only way a host sees the stream, and it touches no SPI: Board_ImuPoll
+  * fills this in from the main loop, and reading a cargo per request cost
+  * 45 ms each and caught one in eight. `updates` is monotonic, so a host
+  * tells a new reading from the same one read twice without guessing from
+  * the values.
+  *
+  * Counts, not radians. Q14 belongs to the host, like every other scale.
+  */
+static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
+{
+  board_imu_state_t st;
+
+  (void)in;
+
+  Board_ImuState(&st);
+
+  wr_u8(out, st.loop);
+  wr_u8(out, st.error);
+  wr_u32(out, st.updates);
+  wr_u32(out, st.cargoes);
+  wr_u32(out, st.errors);
+  wr_u8(out, st.have ? 1U : 0U);
+
+  if (st.have)
+  {
+    wr_u8(out, st.report_id);
+    wr_u8(out, st.status);
+    wr_u16(out, (uint16_t)st.i);
+    wr_u16(out, (uint16_t)st.j);
+    wr_u16(out, (uint16_t)st.k);
+    wr_u16(out, (uint16_t)st.real);
+  }
+
+  return CMD_OK;
+}
+
+/**
+  * @brief ops 9 and 10 - stop the poll loop, and start it again.
+  *
+  * Configuring the part while the loop runs is two masters on one SPI bus.
+  * Hold, configure, resume; a resume goes back through init, because the
+  * usual reason to have held it was a reset.
+  */
+static cmd_status_t h_imu_hold(rd_t *in, wr_t *out)
+{
+  board_imu_state_t st;
+
+  (void)in;
+
+  Board_ImuHold();
+  Board_ImuState(&st);
+  wr_u8(out, st.loop);
+
+  return CMD_OK;
+}
+
+static cmd_status_t h_imu_resume(rd_t *in, wr_t *out)
+{
+  board_imu_state_t st;
+
+  (void)in;
+
+  Board_ImuResume();
+  Board_ImuState(&st);
+  wr_u8(out, st.loop);
+
+  return CMD_OK;
+}
+
 static cmd_status_t h_imu(rd_t *in, wr_t *out)
 {
   const uint8_t op = rd_u8(in);
+
+  /* Everything below drives SPI2 itself, and the poll loop drives it from
+     the main loop: running both is two masters on one bus, and what that
+     looks like is a cargo split between them and a stream that stops. Hold
+     the loop, configure, resume. Reading the shared record needs no hold,
+     which is the whole point of there being one. */
+  if ((op != IMU_OP_LATEST) && (op != IMU_OP_HOLD) && (op != IMU_OP_RESUME))
+  {
+    board_imu_state_t st;
+
+    Board_ImuState(&st);
+
+    if (st.loop != BOARD_IMU_LOOP_HELD)
+    {
+      return CMD_ERR_DEVICE;
+    }
+  }
 
   switch (op)
   {
@@ -313,6 +403,9 @@ static cmd_status_t h_imu(rd_t *in, wr_t *out)
     case IMU_OP_WRITE:   return h_imu_write(in, out);
     case IMU_OP_PINS:    return h_imu_pins(in, out);
     case IMU_OP_WAKE:    return h_imu_wake(in, out);
+    case IMU_OP_LATEST:  return h_imu_latest(in, out);
+    case IMU_OP_HOLD:    return h_imu_hold(in, out);
+    case IMU_OP_RESUME:  return h_imu_resume(in, out);
     default:             return CMD_ERR_VALUE;
   }
 }

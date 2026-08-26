@@ -229,7 +229,7 @@ void Board_ImuReset(void)
   HAL_Delay(IMU_RESET_WAIT_MS);
 }
 
-bool Board_ImuInit(void)
+bool Board_ImuBusInit(void)
 {
   GPIO_InitTypeDef gpio = {0};
 
@@ -302,9 +302,20 @@ bool Board_ImuInit(void)
 
   memset(s_seq, 0, sizeof(s_seq));
   s_ready = true;
+  return true;
+}
 
-  /* Last, so the part comes out of reset into a bus already configured the
-     way it expects. Its sequence numbers restart with it. */
+bool Board_ImuInit(void)
+{
+  /* The bus, then the part. Blocking, because a command handler runs between
+     two Modbus frames and 130 ms there costs nothing; Board_ImuPoll has its
+     own staged version, because 130 ms inside the main loop is a Modbus
+     request that times out - measured, as `fc 0x46: silence`. */
+  if (!Board_ImuBusInit())
+  {
+    return false;
+  }
+
   Board_ImuReset();
   return true;
 }
@@ -534,6 +545,209 @@ uint8_t Board_ImuPinCheck(uint8_t pin)
      init, which hands PB12..PB15 back to SPI2. */
   s_ready = false;
   return bits;
+}
+
+/* The loop's own record. One writer - Board_ImuPoll - and one reader, both
+   on the main loop, so there is nothing to lock. */
+static board_imu_state_t s_state;
+
+static void note(uint8_t err)
+{
+  s_state.error = err;
+  if (err != BOARD_IMU_ERR_NONE)
+  {
+    s_state.errors++;
+  }
+}
+
+/* One cargo into the shared record. Only channel 3 and channel 4 carry
+   sensor reports; the rest is the part talking about itself and is counted,
+   not kept. */
+static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
+{
+  s_state.cargoes++;
+
+  if ((channel != SHTP_CH_INPUT) && (channel != SHTP_CH_WAKE))
+  {
+    return;
+  }
+
+  uint16_t at = 0U;
+
+  while (at < len)
+  {
+    const uint8_t  id = cargo[at];
+    const uint16_t step = (uint16_t)shtp_report_len(id);
+
+    if ((step == 0U) || ((at + step) > len))
+    {
+      note(BOARD_IMU_ERR_FRAME);
+      return;
+    }
+
+    if ((id == SH2_ROTATION_VECTOR) || (id == SH2_GAME_ROTATION_VECTOR))
+    {
+      s_state.report_id = id;
+      s_state.status    = cargo[at + 2U];
+      s_state.i    = (int16_t)((uint16_t)cargo[at + 4U] |
+                               ((uint16_t)cargo[at + 5U] << 8));
+      s_state.j    = (int16_t)((uint16_t)cargo[at + 6U] |
+                               ((uint16_t)cargo[at + 7U] << 8));
+      s_state.k    = (int16_t)((uint16_t)cargo[at + 8U] |
+                               ((uint16_t)cargo[at + 9U] << 8));
+      s_state.real = (int16_t)((uint16_t)cargo[at + 10U] |
+                               ((uint16_t)cargo[at + 11U] << 8));
+      s_state.have = true;
+      s_state.updates++;
+      note(BOARD_IMU_ERR_NONE);
+    }
+
+    at = (uint16_t)(at + step);
+  }
+}
+
+/* Where the staged reset has got to. The whole reason it is staged: the
+   part wants NRSTN held for a millisecond and then 120 ms to come up, and
+   waiting for either inside the main loop stalls Modbus long enough to time
+   a request out. */
+#define IMU_STAGE_BUS   0U
+#define IMU_STAGE_HOLD  1U
+#define IMU_STAGE_WAIT  2U
+
+static uint8_t  s_stage;
+static uint32_t s_stage_at;
+
+static void poll_init(void)
+{
+  switch (s_stage)
+  {
+    case IMU_STAGE_BUS:
+      if (!Board_ImuBusInit())
+      {
+        note(BOARD_IMU_ERR_INIT);
+        s_stage_at = HAL_GetTick();     /* and back off - see below */
+        return;
+      }
+      HAL_GPIO_WritePin(IMU_BOOT_PORT, IMU_BOOT_PIN, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(IMU_RST_PORT, IMU_RST_PIN, GPIO_PIN_RESET);
+      s_stage = IMU_STAGE_HOLD;
+      s_stage_at = HAL_GetTick();
+      return;
+
+    case IMU_STAGE_HOLD:
+      if ((HAL_GetTick() - s_stage_at) < IMU_RESET_HOLD_MS)
+      {
+        return;
+      }
+      HAL_GPIO_WritePin(IMU_RST_PORT, IMU_RST_PIN, GPIO_PIN_SET);
+      s_stage = IMU_STAGE_WAIT;
+      s_stage_at = HAL_GetTick();
+      return;
+
+    default:
+      if ((HAL_GetTick() - s_stage_at) < IMU_RESET_WAIT_MS)
+      {
+        return;
+      }
+      s_stage = IMU_STAGE_BUS;
+      s_state.loop = BOARD_IMU_LOOP_RUN;
+      note(BOARD_IMU_ERR_NONE);
+      return;
+  }
+}
+
+void Board_ImuPoll(void)
+{
+  static uint8_t cargo[IMU_BUF];
+
+  if (!Board_AfeOn())
+  {
+    /* The part lost its supply. Everything it was told is gone with it, so
+       the loop goes back to the beginning rather than carrying on. */
+    if (s_state.loop != BOARD_IMU_LOOP_OFF)
+    {
+      s_state.loop = BOARD_IMU_LOOP_OFF;
+      s_state.have = false;
+      s_ready = false;
+      s_stage = IMU_STAGE_BUS;
+      note(BOARD_IMU_ERR_POWER);
+    }
+    return;
+  }
+
+  if (s_state.loop == BOARD_IMU_LOOP_HELD)
+  {
+    return;                      /* the host is configuring it */
+  }
+
+  if (s_state.loop == BOARD_IMU_LOOP_OFF)
+  {
+    s_state.loop = BOARD_IMU_LOOP_INIT;
+  }
+
+  if (s_state.loop == BOARD_IMU_LOOP_INIT)
+  {
+    poll_init();
+    return;
+  }
+
+  /* Nothing waiting is the common case and must cost nothing: one GPIO read
+     and out. Waiting here would put the main loop's latency on the part. */
+  if (!intn_asserted())
+  {
+    return;
+  }
+
+  uint8_t  channel = 0U;
+  uint16_t len = 0U;
+
+  if (!Board_ImuRead(&channel, cargo, (uint16_t)sizeof(cargo), &len))
+  {
+    note(BOARD_IMU_ERR_READ);
+    return;
+  }
+
+  if (len > 0U)
+  {
+    absorb(channel, cargo, len);
+  }
+}
+
+void Board_ImuState(board_imu_state_t *out)
+{
+  if (out != NULL)
+  {
+    *out = s_state;
+  }
+}
+
+void Board_ImuHold(void)
+{
+  s_state.loop = BOARD_IMU_LOOP_HELD;
+  s_stage = IMU_STAGE_BUS;
+
+  /* A hold that lands mid-staged-reset leaves NRSTN low and the part half
+     up, and every command the host then sends is refused or ignored -
+     measured: hold, reset, Set Feature, resume, and the loop absorbed
+     nothing. Finish it here instead. Blocking is what a command handler is
+     allowed to do; the staging exists for the main loop, not for this. */
+  if (Board_AfeOn() && !s_ready)
+  {
+    if (!Board_ImuInit())
+    {
+      note(BOARD_IMU_ERR_INIT);
+    }
+  }
+}
+
+void Board_ImuResume(void)
+{
+  /* Back to RUN when the part is still up, because the usual hold is to
+     enable a report and going through init would reset the part and throw
+     that away - measured: hold, Set Feature, resume, and the loop absorbed
+     nothing at all afterwards. Init only when the part is genuinely not
+     there, which is what a hold across a reset leaves behind. */
+  s_state.loop = s_ready ? BOARD_IMU_LOOP_RUN : BOARD_IMU_LOOP_INIT;
 }
 
 uint8_t Board_ImuDrain(uint8_t limit)

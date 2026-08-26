@@ -258,6 +258,23 @@ def subsystems(rows):
            for r in rows])
 
 
+def parts(rows):
+    """What is fitted, one per line, as the board reported it.
+
+    `power` earns its column: AFE_ON powers the IMU as well as the analog
+    front end, and a part reading `unpowered` is the answer to most of the
+    questions that get asked about it.
+    """
+    if not rows:
+        return 'parts: this firmware does not report them'
+    return '\n'.join(
+        ['parts: %d' % len(rows)]
+        + ['  %-15s %-10s %-16s %-9s %s'
+           % (r['name'], r['state'], r['where'],
+              r['power'] or '-', r['what'])
+           for r in rows])
+
+
 def imu(what, payload):
     """The IMU, as a headed block like every other reading.
 

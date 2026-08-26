@@ -26,25 +26,63 @@ from coaxial_mcp.session import open_session               # noqa: E402
 ROTATION_VECTOR = 0x05
 
 
-def latest(board, deadline):
-    """The most recent quaternion the part has sent, or None.
+def latest(board):
+    """The board's shared record, or None if it could not be read.
 
-    Drains rather than taking the first: at 20 Hz on screen and 100 Hz on the
-    wire the queue would otherwise show an orientation that is seconds old.
+    One round trip, and no SPI in it: the board polls the part from its own
+    main loop and this reads what that wrote. Draining cargo by cargo from
+    here cost 45 ms each and caught one frame in eight.
     """
-    found = None
-    while time.time() < deadline:
-        try:
-            got = board.imu.read()
-        except RigError:
-            return found
-        if not got['cargo']:
-            return found
-        for report in got['reports']:
-            if 'quaternion' in report:
-                q = report['quaternion']
-                found = (q['i'], q['j'], q['k'], q['real'])
-    return found
+    try:
+        return board.imu.state()
+    except RigError:
+        return None
+
+
+def capability(board):
+    """The board's own entry for its IMU, or None if it reports none.
+
+    Read from the board, not decided here: `channels` kind 4 is the parts
+    list the firmware carries, so a board without the part says so itself
+    and a board that grows one needs nothing changed on this side.
+    """
+    try:
+        parts = board.system.channel_map()['parts']
+    except (RigError, KeyError):
+        return None
+
+    for part in parts:
+        if part['name'].startswith('BNO') or 'IMU' in part['what'].upper():
+            return part
+    return None
+
+
+def preflight(board, part):
+    """Say what is about to happen, and return whether AFE_ON was already on.
+
+    The caller puts the AFE back the way it found it. Leaving a board powered
+    because a view was closed with Ctrl+C is a change nobody asked for, and
+    switching one off that was on before is worse.
+    """
+    print('capability: %s - %s, on %s' % (part['name'], part['what'],
+                                          part['where']))
+
+    was_on = board.afe.is_on()
+
+    if part['power']:
+        if was_on:
+            print('%s is already on; it powers %s, and it stays on after this'
+                  % (part['power'], part['name']))
+        else:
+            print('%s powers %s and is off - switching it on, and off again '
+                  'when this exits' % (part['power'], part['name']))
+            board.afe.enable()
+            # The part needs its supply up before it is reset, and the reset
+            # is the next thing that happens. Enabling and configuring in the
+            # same breath answered SERVER DEVICE FAILURE.
+            time.sleep(0.3)
+
+    return was_on
 
 
 def paint(shown, lines, console):
@@ -90,30 +128,43 @@ def main(argv=None):
 
     board = session.board
 
-    # AFE_ON powers the IMU. Without it the part answers just enough to look
-    # present - it resets, it advertises - and never acts on a write, so the
-    # view sits on one quaternion for ever. Enabled here rather than reported,
-    # because a live attitude view has no other purpose than to have it on.
-    try:
-        if not board.afe.is_on():
-            board.afe.enable()
-            print('AFE_ON was off - enabled it, it powers the IMU')
-    except RigError as exc:
-        print('could not power the AFE, which powers the IMU: %s' % exc)
+    part = capability(board)
+    if part is None:
+        print('this board reports no IMU among its parts - nothing to show')
         session.close()
         return 1
 
     try:
-        board.imu.feature(ROTATION_VECTOR, args.interval_us)
+        afe_was_on = preflight(board, part)
+    except RigError as exc:
+        print('could not power %s, which powers %s: %s'
+              % (part['power'], part['name'], exc))
+        session.close()
+        return 1
+
+    # Stop the board's poll loop, configure, start it again. Both would
+    # otherwise be masters on one SPI bus. The reset is not optional: measured,
+    # a Set Feature onto a part that was already running took no effect at all
+    # and the loop absorbed nothing afterwards.
+    try:
+        with board.imu.configuring():
+            board.imu.reset()
+            board.imu.feature(ROTATION_VECTOR, args.interval_us)
     except RigError as exc:
         print('could not enable the rotation vector: %s' % exc)
         session.close()
         return 1
 
+    print('rotation vector every %d us - Ctrl+C stops it and undoes this'
+          % args.interval_us)
+
     period = 1.0 / max(args.hz, 0.5)
     quaternion = (0.0, 0.0, 0.0, 1.0)
     stale = 0
     frame = 0
+    # The board's own counter of rotation vectors written. A reading that has
+    # not moved and a link that has stopped look identical in the values.
+    seen = -1
 
     # Only on a console: piped to a file the escapes are not interpreted and
     # every frame arrives with the cursor moves printed in it.
@@ -126,15 +177,22 @@ def main(argv=None):
 
     try:
         while True:
-            fresh = latest(board, time.time() + period * 0.6)
-            if fresh is None:
+            record = latest(board)
+            fresh = record['quaternion'] if record else None
+            if fresh is None or record['updates'] == seen:
                 stale += 1
             else:
-                quaternion, stale = fresh, 0
+                quaternion = (fresh['i'], fresh['j'], fresh['k'], fresh['real'])
+                seen, stale = record['updates'], 0
 
             frame += 1
+            note = ''
+            if record:
+                note = ('   loop %s   %d vectors, %d errors'
+                        % (record['loop'], record['updates'],
+                           record['errors']))
             lines = (['coaxial_63100 - board attitude   '
-                      '(Ctrl+C to leave)', ''] +
+                      '(Ctrl+C to leave)' + note, ''] +
                      orientation.picture(quaternion, frame=frame,
                                          age=stale).split('\n'))
             sys.stdout.write(paint(shown, lines, console))
@@ -148,10 +206,20 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
+        # Everything this run started, put back: the report it enabled,
+        # and the supply, but only if it was the one that switched it on.
         try:
-            board.imu.feature(ROTATION_VECTOR, 0)      # leave it as found
-        except RigError:
-            pass
+            with board.imu.configuring():
+                board.imu.feature(ROTATION_VECTOR, 0)
+            if not afe_was_on and part['power']:
+                board.afe.disable()
+                print('\n' + '%s switched back off - it was off before '
+                      'this ran' % part['power'])
+            else:
+                print('\n' + 'rotation vector disabled; %s left on, as it '
+                      'was found' % (part['power'] or 'the supply'))
+        except RigError as exc:
+            print('\n' + 'could not put the board back as it was: %s' % exc)
         session.close()
 
     return 0

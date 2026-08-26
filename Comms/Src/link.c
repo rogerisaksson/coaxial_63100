@@ -96,6 +96,11 @@ bool link_active(void)
   return s_open;
 }
 
+bool link_busy(void)
+{
+  return s_open && mb_rtu_busy(&s_rtu);
+}
+
 void link_open(void)
 {
   s_dev->purge(s_dev->ctx);

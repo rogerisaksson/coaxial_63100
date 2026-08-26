@@ -106,6 +106,27 @@ def main():
                          '%d vs %d rows' % (len(live_map[section]),
                                             len(fake_map[section])))
 
+        # The parts list, on name, what, where and what powers each one.
+        # Not on `state`: that is measured, and the stand-in has no supply to
+        # switch, so a board with AFE_ON low would differ there for a real
+        # reason. Adding a part to the firmware and not to the stand-in is
+        # what this catches.
+        def fitted(rows):
+            return [(r['name'], r['what'], r['where'], r['power'])
+                    for r in rows]
+
+        live_parts = fitted(live_map.get('parts') or [])
+        fake_parts = fitted(fake_map.get('parts') or [])
+        report.check('the parts list matches, bar what each one measured',
+                     live_parts == fake_parts,
+                     '%d vs %d parts' % (len(live_parts), len(fake_parts)))
+        report.check('and every part that names a supply names one the '
+                     'digital map has',
+                     all(p[3] in ('',) + tuple(d['signal']
+                                               for d in live_map['digital'])
+                         for p in live_parts),
+                     ', '.join(sorted({p[3] for p in live_parts if p[3]})))
+
         # board_info: the first three lines are identity, clock and the
         # device's own description, all of which are meant to differ - the
         # stand-in says "simulated" where a firmware version goes and again
