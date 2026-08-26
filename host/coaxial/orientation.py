@@ -26,7 +26,7 @@ import math
 from .raster import cell
 import os
 
-from . import mesh
+from . import ascii3d, mesh
 
 #: The board, in units of its own outer radius: 100 mm across, a 10 mm bore
 #: through the middle, 1.6 mm thick. Proportions, not a measurement - the
@@ -301,6 +301,10 @@ def _load_surface():
 #: The board's surface, built once. See _load_surface().
 SURFACE = _load_surface()
 
+#: The same surface as (point, normal), which is what ascii3d consumes. Built
+#: once beside it rather than per frame: it is 45,000 tuples.
+_PAIRS = [(point, normal) for point, normal, _ramp in SURFACE]
+
 
 def _light():
     """The light direction, as a unit vector."""
@@ -309,68 +313,18 @@ def _light():
     return (x / n, y / n, z / n)
 
 
-def render(q, width=44, height=19):
+def render(q, width=44, height=19, zoom=1.0):
     """The board under rotation `q`, as `height` lines of `width` characters.
 
-    Perspective along Z with a z-buffer: the nearer surface wins, so the far
-    side of the torus is hidden behind the near side and the hole reads as a
-    hole. Characters are about twice as tall as they are wide, so the
-    vertical scale is halved to keep it round.
+    The drawing is `ascii3d`, which is three.js's AsciiEffect ported out of
+    the browser - its ramp, its light, its brightness mapping and its two
+    framebuffer rows per character row. What is this module's is the model,
+    the rotation and the caption.
     """
-    m0, m1, m2, m3, m4, m5, m6, m7, m8 = matrix(q)
-    lx, ly, lz = _light()
-
-    grid = [[' '] * width for _ in range(height)]
-    depth = [[0.0] * width for _ in range(height)]
-
-    cx, cy = (width - 1) / 2.0, (height - 1) / 2.0
-
-    # Filled to the canvas, not to a comfortable margin: the bore is a tenth
-    # of the outer radius, so a board drawn small has a hole under a cell
-    # across and reads as a solid blob. Sized so the board's vertical radius
-    # reaches the top row - rows are worth two columns, so that is the
-    # binding limit - then clamped in case the canvas is wider than it is
-    # tall by less than the aspect.
-    k1 = min(2.0 * cy, cx) * K2 * 0.95 / OUTER
-
-    for point, normal, ramp in SURFACE:
-        ax, ay, az = normal
-
-        # Facing away from the light is unlit, and an unlit sample must not
-        # overwrite a lit one behind it: dropped before the z test, not
-        # shaded to a space. Tested before the point is projected, because
-        # most of a closed surface fails here and projecting it is wasted.
-        lum = ((m0 * ax + m1 * ay + m2 * az) * lx +
-               (m3 * ax + m4 * ay + m5 * az) * ly +
-               (m6 * ax + m7 * ay + m8 * az) * lz)
-        if lum <= 0.0:
-            continue
-
-        px, py, pz = point
-        x = m0 * px + m1 * py + m2 * pz
-        y = m3 * px + m4 * py + m5 * pz
-        z = m6 * px + m7 * py + m8 * pz
-
-        # The eye is on the +Z side looking back down the axis, so a bigger
-        # z is nearer and the component face is the one seen at rest. Getting
-        # this the other way round drew the solder side under a caption that
-        # said component side.
-        ooz = 1.0 / (K2 - z)
-        col = cell(cx + k1 * ooz * x)
-        row = cell(cy - k1 * ooz * y * 0.5)
-
-        if not (0 <= row < height and 0 <= col < width):
-            continue
-        if ooz <= depth[row][col]:
-            continue
-
-        depth[row][col] = ooz
-        grid[row][col] = ramp[min(int(lum * len(ramp)), len(ramp) - 1)]
-
-    return '\n'.join(''.join(row).rstrip() for row in grid)
+    return ascii3d.render(_PAIRS, matrix(q), width, height, zoom=zoom)
 
 
-def picture(q, width=44, height=19, frame=None, age=None):
+def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0):
     """The drawing with the numbers it is a reading of, above it.
 
     The quaternion leads: it is what the part reports and what moves when the
@@ -395,7 +349,7 @@ def picture(q, width=44, height=19, frame=None, age=None):
 
     lines += [
         '',
-        render(q, width, height),
+        render(q, width, height, zoom),
         '',
         'coaxial_63100 - facing you: %s' % side,
     ]

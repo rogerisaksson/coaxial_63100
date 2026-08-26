@@ -38,9 +38,9 @@
     Stop after this many rather than running until closed.
 
 .EXAMPLE
-    .\angle_test.ps1
-    .\angle_test.ps1 -Simulated
-    .\angle_test.ps1 -Frames 40
+    .\demos\angle.ps1
+    .\demos\angle.ps1 -Simulated
+    .\demos\angle.ps1 -Frames 40
 #>
 param(
     [string]$Port = 'COM4',
@@ -53,7 +53,7 @@ param(
 # NativeCommandError in PowerShell 5.1, and python does write there.
 $ErrorActionPreference = 'Continue'
 
-$Root = $PSScriptRoot
+$Root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $Root 'env.ps1') -Quiet
 
 Push-Location (Join-Path $Root 'host')
@@ -63,6 +63,12 @@ try {
     if ($Frames -gt 0) { $call += @('--frames', [string]$Frames) }
 
     & python @call
+    # The view's own exit code, not this wrapper's: 64 is ESC asking
+    # demo.ps1 for the menu, and a script that does not pass it on
+    # exits 0 and the menu never comes back.
+    $code = $LASTEXITCODE
 } finally {
     Pop-Location
 }
+
+exit $code

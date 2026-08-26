@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""Every analog channel as a meter bridge, redrawn until you close it.
+
+    python tools/show_desk.py
+    python tools/show_desk.py --port COM4 --hz 10 --samples 32
+
+The drawing itself is `coaxial.desk`, which is pure and tested; this file is
+the loop, the screen and the cable. Nothing here judges a reading - the face
+is the converter's own scale and invariant 10 applies to a meter exactly as
+it applies to a table.
+
+The AFE has to be on for any of it to mean anything (invariant 9), and it is
+put back the way it was found on the way out.
+"""
+import argparse
+import os
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from coaxial import desk, scaling                          # noqa: E402
+from coaxial.errors import RigError                        # noqa: E402
+from coaxial_mcp.session import open_session               # noqa: E402
+from screen import (TO_MENU, Keys, banner, clear, paint,
+                    say)                                 # noqa: E402
+
+
+#: The codes a scale is measured between. Not 0 and 65535: the thermistor
+#: conversion diverges at both rails - infinite resistance one end, zero the
+#: other - so its scale is quoted between codes the converter can actually
+#: resolve rather than at two asymptotes.
+SPAN_CODES = (1024, 64512)
+
+
+def scale(rows):
+    """Add the scaled value and the channel's own scale, in its own unit.
+
+    Here rather than in desk.py because the renderer takes a reading and its
+    scale and returns text: which channel means amperes, and what its ends
+    come to, are the analog layer's facts. The conversions are the ones
+    scaling.py already carries and test_simulated already checks.
+
+    The scale is measured, not extrapolated. Dividing a reading by its
+    fraction of full scale gives the right answer for the phases and the DC
+    link, because both are linear in the code - and the wrong one for the
+    thermistor, which is not. Converting the end codes works for all three.
+    """
+    low_code, high_code = SPAN_CODES
+
+    for row in rows:
+        unit, raw = row.get('unit'), row['mean_raw']
+        convert = None
+
+        if unit == 'mA':
+            convert = lambda c: scaling.PHASE_ONBOARD.amps(c)
+        elif unit == 'mV':
+            convert = lambda c: scaling.DCBUS_ONBOARD.volts(c)
+        elif unit == 'centi-degC':
+            convert = lambda c: scaling.NTC_ONBOARD.celsius(c)
+        else:
+            full = 32768.0 if row['differential'] else 65536.0
+            convert = lambda c: c / full * 3.3
+
+        # The inset codes are the thermistor's alone. Every other conversion
+        # here is linear in the code and has a finite value at both rails, so
+        # quoting it short of them would understate the converter's range.
+        if row['differential']:
+            first, last = -32768, 32767
+        elif unit == 'centi-degC':
+            first, last = low_code, high_code
+        else:
+            first, last = 0, 65535
+
+        try:
+            row['reading'] = convert(raw)
+            ends = (convert(first), convert(last))
+            row['span'] = (min(ends), max(ends))
+        except ValueError:
+            pass          # at a divider rail; the raw code still stands
+
+    return rows
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument('--port', default='COM4')
+    parser.add_argument('--hz', type=float, default=8.0,
+                        help='screen refreshes per second')
+    parser.add_argument('--samples', type=int, default=32,
+                        help='burst length per refresh. The min and max ticks '
+                             'are taken over this window')
+    parser.add_argument('--simulated', action='store_true',
+                        help='the stand-in, without probing for a board')
+    parser.add_argument('--frames', type=int, default=0,
+                        help='stop after this many, instead of running until '
+                             'closed')
+    args = parser.parse_args(argv)
+
+    session, origin = open_session(args.port,
+                                   simulated=True if args.simulated else None)
+    say('ok' if origin.real else 'warn', 'link',
+        '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
+
+    board = session.board
+    afe_was_on = board.afe.is_on()
+
+    if afe_was_on:
+        say('ok', 'AFE_ON', 'already on, and left on afterwards')
+    else:
+        say('warn', 'AFE_ON', 'off - on for this run, off again on the way out')
+        board.afe.enable()
+        time.sleep(0.3)
+
+    say('wait', 'drawing',
+        'Q closes it, ESC goes back to the menu, and both undo the above')
+
+    bridge = desk.Desk()
+    period = 1.0 / max(args.hz, 0.5)
+    frame = 0
+
+    console = sys.stdout.isatty()
+    if console:
+        if os.name == 'nt':
+            os.system('')    # enables ANSI on a Windows console
+        sys.stdout.write(chr(27) + '[2J')
+    shown = []
+    leaving = None
+
+    try:
+        with Keys(console) as keys:
+            while True:
+                try:
+                    rows = board.analog.read_all(nr_of_samples=args.samples)
+                    face = bridge.update(scale(rows['channels']),
+                                         colour=console)
+                except RigError as exc:
+                    face = 'no reading: %s' % exc
+
+                frame += 1
+                lines = [banner(origin, 'analog - meter bridge', console,
+                                'Q closes, ESC for the menu   frame %d' % frame),
+                         ''] + face.split('\n')
+                sys.stdout.write(paint(shown, lines, console))
+                sys.stdout.flush()
+                shown = lines
+
+                if args.frames and frame >= args.frames:
+                    break
+                # These two have nothing to zoom, so the wheel is ignored.
+                leaving, _moved = keys.poll()
+                if leaving:
+                    break
+
+                time.sleep(period)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        clear(console)
+        if not afe_was_on:
+            try:
+                board.afe.disable()
+                say('ok', 'AFE_ON', 'off again, the way it was found')
+            except RigError:
+                say('warn', 'AFE_ON', 'could not be put back')
+        session.close()
+
+    return TO_MENU if leaving == 'menu' else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

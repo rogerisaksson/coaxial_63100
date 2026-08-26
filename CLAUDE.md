@@ -98,6 +98,8 @@ board_prompt -Ask "vad sitter på kortet?"    # the model, off the same wire
 .\run_tests.ps1 -AutomaticMedium     # ~50 %, before handing work over
 .\run_tests.ps1 -AutomaticHigh       # ~75 %, adds conformance + live:tools
 .\run_tests.ps1 -All                 # 100 %, the gate
+.\run_tests.ps1 -Depth 40            # any 5 % step, when none of the four fits
+.\run_tests.ps1 -Scope test_mcp.py   # those files only, whatever the depth
 .\run_tests.ps1 -Only intent,picker  # named tests, nothing else
 .\run_tests.ps1 -Tags prompt,reply   # subjects, without asking the model
 .\run_tests.ps1 -Structure           # does host/ still hold together - 3 s
@@ -152,13 +154,36 @@ bind you:
   afternoon of moving code, each found by an unrelated test failing
   somewhere else.
 * **A tier is a budget of checks, and it cuts as well as fills** - the model's
-  pick can be bigger than the tier. The floor it never goes below: one test
-  from every subject the pick left out, plus the smallest group of the pick
-  itself. Sizes come from `host/tests/counts.py`, measured, because the groups
-  run from 2 checks to 77.
+  pick can be bigger than the tier, and does not get to spend past it. The
+  floor it never goes below: one test from every subject the pick left out,
+  plus the smallest group of the pick itself. Sizes come from
+  `host/tests/counts.py`, measured, because the groups run from 2 checks to 77.
 
       ran 19 of 43 groups: prompt,runner, seed 3440, 51% of checks
       Total: 984  Passed: 449, Skipped: 535, Failed: 0, (4 of 6 suites ran)
+
+  Measured, and the reason the clamp exists: on the 25 % tier the tier had
+  already dropped the live suite, the model's pick put `live:all` back, and
+  the cheapest run there is took 398 s of which 352 were that one suite. It
+  now says what it refused - `the 25% tier does not stretch to: live:all`.
+
+* **Any 5 % step is a tier.** Suites join in order of seconds per check, so
+  the first of a budget buys the cheapest checks there are - measured, per
+  check: simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
+  conformance 0.29, live 4.6. `test_ollama.py` is in from the first tier and
+  narrows *itself*; that is where the fine resolution lives, because 733 of
+  this tree's 1613 checks are in that one file.
+
+* **The model is not asked when the path map already knows.** Where every
+  changed file matched an explicit rule and the answer is `CHEAP` - structure,
+  core, shtp, simulated, none of which need a board or ollama - the pick is
+  settled without a model. Asking costs a 7.6 GB load to be told what the map
+  said, and the answer can only come back wider. Editing a demo wrapper is
+  three seconds, not seven minutes.
+
+* **Ctrl+C is `STOPPED`, exit 130, not `FAILED`** - and the `finally` hands
+  the model back. Killing the run from outside does not: measured, 8.4 GB
+  stayed on the card until it was released by hand.
 
 * **A typed sentence is classified before it is answered** - `intent.py`, one
   extra call on the turn's own client. Never a second `Ollama`: ollama keys a
@@ -355,8 +380,8 @@ Comms/       the comms stack: cmd over proto over dev, plus the console
 Modbus/      the protocol. Portable C11, no HAL in crc/slave/rtu.
 host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
              runner and dbg.py, testline/, tests, tools
-imu_test.ps1     live attitude; reads the capability off the board first
-angle_test.ps1   live shaft angle, the magnet and the air gap
+demo.ps1         picks one of the live views; -Simulated for no cable
+demos/           imu.ps1 attitude, angle.ps1 shaft angle, adc.ps1 meter bridge
 setup.ps1        one-time environment setup; -Check changes nothing
 env.ps1          per-shell PATH and the board_prompt/dbg/board/cbuild/cflash aliases
 board_prompt.ps1 preflight + prompt loop; orchestration only

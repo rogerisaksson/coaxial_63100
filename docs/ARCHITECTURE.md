@@ -12,7 +12,7 @@ Instrumentation stack for a 63V/100A coaxial BLDC inverter. Motor control is unc
 
 ## Host
 
-* **`host/coaxial/`**: Python library grouped by hardware function. Topology, pin maps and the parts list are dynamically queried from the board to eliminate hardcoded assumptions. `orientation.py` and `dial.py` are pure character renderers - a reading in, text out - so both are tested without a board; `mesh.py` reduces the CAD export in `render/models` to a surface the first can draw.
+* **`host/coaxial/`**: Python library grouped by hardware function. Topology, pin maps and the parts list are dynamically queried from the board to eliminate hardcoded assumptions. `orientation.py`, `dial.py` and `desk.py` are pure character renderers - a reading in, text out - so all three are tested without a board; `mesh.py` reduces the CAD export in `render/models` to a surface the first can draw.
 * **`host/coaxial_mcp/`**: MCP server optimized for LLM token constraints. Emits dense fixed-column text (8.8x smaller than JSON). Probes OS ports and ST-Links for Modbus responses, gracefully falling back to a duck-typed `SimulatedSession`. Supports multi-node segments (Unit 0 = broadcast).
 * **`host/coaxial_ollama/`**: Local LLM orchestrator. Manages execution loops, context scaling, tool routing, and stateless mid-session hardware/model hot-swaps.
 

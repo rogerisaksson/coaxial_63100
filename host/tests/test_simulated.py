@@ -17,7 +17,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import scaling                            # noqa: E402
+from coaxial import ansi, ascii3d, desk                  # noqa: E402
+from coaxial import orientation, scaling               # noqa: E402
 from coaxial.errors import DeviceStateError            # noqa: E402
 from coaxial.simulated import CHANNELS                  # noqa: E402
 from coaxial.simulated import SimulatedSession          # noqa: E402
@@ -582,12 +583,179 @@ def test_scaling(report):
                  '%.4f A' % phase.amps(-1580))
 
 
+def _desk_rows(**over):
+    """Seven channels in the shape read_all() hands back."""
+    base = [('Phase U', True, 1500), ('Phase V', True, -8293),
+            ('Phase W', True, 490), ('Clevel', False, 1012),
+            ('NTC', False, 40207), ('DC bus', False, 20600),
+            ('Cinj', False, 14613)]
+    rows = []
+    for index, (signal, differential, mean) in enumerate(base):
+        mean = over.get(signal, mean)
+        divisor = 32768.0 if differential else 65536.0
+        rows.append({'index': index, 'signal': signal,
+                     'differential': differential, 'mean_raw': mean,
+                     'min_raw': mean - 20, 'max_raw': mean + 20,
+                     'unit': None,
+                     # read_all() carries this for every channel, and it is
+                     # what a channel with no defined signal prints instead
+                     # of a raw code. Zero here would let that check pass on
+                     # a number that is not one.
+                     'volts_at_pin': mean / divisor * 3.3})
+    return rows
+
+
+def test_desk(report):
+    """The meter bridge: every channel's own scale, in its own unit."""
+    rows = _desk_rows()
+    for row in rows:
+        low = -207.4 if row['differential'] else 0.0
+        row['span'] = (low, 207.4 if row['differential'] else 3.3)
+        row['reading'] = desk.fraction(row) * row['span'][1]
+
+    face = desk.Desk().update(rows).split('\n')
+
+    report.check('one row per channel, and nothing else',
+                 len(face) == len(rows), '%d rows' % len(face))
+    report.check('every row is the same width',
+                 len({len(line) for line in face}) == 1,
+                 'widths %s' % sorted({len(line) for line in face}))
+    report.check('no row says dB - the scales are in the unit the quantity '
+                 'has, which is the whole point of laying it on its side',
+                 'dB' not in ' '.join(face))
+    report.check('and every row carries its own scale',
+                 all('207' in line for line in face[:3])
+                 and all('3.3' in line for line in face[3:]),
+                 face[0].strip()[:34])
+
+    report.check('a bipolar channel is drawn from the centre',
+                 desk.CENTRE in face[0] or desk.FULL in face[0],
+                 repr(face[0][18:40]))
+    # Column 18 is where the bar starts: three for the name, a space, and
+    # SCALE for the channel's own ends.
+    report.check('a unipolar one from the left',
+                 face[3][18] == desk.FULL, repr(face[3][18:34]))
+
+    # The span is the caller's to compute: deriving it from the reading and
+    # its fraction of full scale is right for a linear channel and wrong for
+    # the thermistor, which is logarithmic in the code.
+    bare = dict(rows[0])
+    bare.pop('span')
+    report.check('a channel with no scale supplied says so rather than '
+                 'inventing one',
+                 desk.span(bare) is None
+                 and '?' in desk.Desk().update([bare]))
+
+    report.check('the ink says where the converter is before the number is '
+                 'read', (desk.Desk._ink(0.1), desk.Desk._ink(0.8),
+                          desk.Desk._ink(0.99))
+                 == (ansi.GREEN, ansi.AMBER, ansi.RED))
+
+    bridge = desk.Desk(decay=0.04)
+    loud = _desk_rows(**{'Phase U': 30000})
+    for row in loud:
+        row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
+    bridge.update(loud)
+    held = bridge._held[0]
+    quiet = _desk_rows(**{'Phase U': 30})
+    for row in quiet:
+        row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
+    bridge.update(quiet)
+    report.check('a peak falls by the decay and no further - that is the '
+                 'ballistics, not a reading',
+                 abs(bridge._held[0] - (held - 0.04)) < 1e-9,
+                 '%.3f -> %.3f' % (held, bridge._held[0]))
+    bridge.update(loud)
+    report.check('and it jumps back the instant the level does',
+                 abs(bridge._held[0] - held) < 1e-9, '%.3f' % bridge._held[0])
+
+
+def test_ascii3d(report):
+    """The AsciiEffect port: its ramp, its mapping, and a stable canvas."""
+    report.check("the ramp is AsciiEffect's own, darkest first",
+                 ascii3d.CHARACTERS == ' .:-+*=%@#', ascii3d.CHARACTERS)
+
+    # floor((1 - brightness) * (len - 1)), then inverted for dark mode. Both
+    # halves matter: without the inversion the background is '#' and the lit
+    # face is a space, which on a terminal is a photographic negative.
+    ramp = ascii3d.CHARACTERS
+    for brightness in (0.0, 0.25, 0.5, 0.75, 1.0):
+        want = ramp[len(ramp) - 1 - int((1.0 - brightness) * (len(ramp) - 1))]
+        report.check('brightness %.2f maps the way AsciiEffect maps it'
+                     % brightness,
+                     ascii3d.brightness_char(brightness) == want, want)
+
+    report.check('lit is heavy ink and unlit is a space, with invert on',
+                 ascii3d.brightness_char(1.0) == '#'
+                 and ascii3d.brightness_char(0.0) == ' ')
+    report.check('and the other way round with it off, which is the '
+                 "reference's light mode",
+                 ascii3d.brightness_char(1.0, invert=False) == ' '
+                 and ascii3d.brightness_char(0.0, invert=False) == '#')
+
+    # A closer light was tried, to force some modelling onto a flat board
+    # seen face-on. It was the wrong answer: what that case wanted was
+    # RESOLUTION, and the reference's own ratio is what the port keeps.
+    report.check('the light sits where the reference puts it',
+                 ascii3d.LIGHT_DISTANCE == 4.0
+                 and ascii3d.LIGHT_DIRECTION == (100.0, 100.0, 400.0),
+                 '%.1f radii along %s' % (ascii3d.LIGHT_DISTANCE,
+                                          ascii3d.LIGHT_DIRECTION))
+
+    # A canvas that changes height as the board turns leaves the last row of
+    # the previous frame on screen. It is a drawing of a fixed size.
+    heights = set()
+    for degrees in (0, 5, 15, 30, 60, 90):
+        radians = math.radians(degrees) / 2.0
+        turned = (math.sin(radians), 0.0, 0.0, math.cos(radians))
+        heights.add(len(orientation.render(turned, 34, 15).split('\n')))
+    report.check('the canvas is the same height at every rotation',
+                 heights == {15}, 'heights %s' % sorted(heights))
+
+    flat = orientation.render((0.0, 0.0, 0.0, 1.0), 34, 15)
+    edge = orientation.render((math.sin(math.pi / 4), 0.0, 0.0,
+                               math.cos(math.pi / 4)), 34, 15)
+    report.check('and the drawing answers the rotation it was given',
+                 flat != edge)
+    # Zoom moves the camera rather than scaling the projection, so the
+    # perspective stays honest: a nearer board is one seen from nearer.
+    near = orientation.render((0.0, 0.0, 0.0, 1.0), 60, 20, zoom=2.0)
+    fit = orientation.render((0.0, 0.0, 0.0, 1.0), 60, 20, zoom=1.0)
+    far = orientation.render((0.0, 0.0, 0.0, 1.0), 60, 20, zoom=0.5)
+
+    def drawn(picture):
+        return sum(1 for c in picture if c not in ' \n')
+
+    report.check('zoom in draws more board, zoom out less',
+                 drawn(far) < drawn(fit) < drawn(near),
+                 '%d < %d < %d cells' % (drawn(far), drawn(fit), drawn(near)))
+    report.check('and the fit is what fills the shorter axis',
+                 max(len(line) for line in fit.split('\n')) <= 60)
+
+    # The cloud has to out-number the framebuffer or the z-buffer is sparse
+    # and the board draws as a disc of speckle - measured, 0.6 points per
+    # pixel was exactly that.
+    pixels = 60 * ascii3d.SUPERSAMPLE * 20 * ascii3d.ROW_PIXELS         * ascii3d.SUPERSAMPLE
+    report.check('there are more surface points than framebuffer pixels',
+                 len(orientation.SURFACE) > pixels,
+                 '%d points, %d pixels, %.1f per pixel'
+                 % (len(orientation.SURFACE), pixels,
+                    len(orientation.SURFACE) / pixels))
+
+    report.check('a board seen face-on uses more than one character - that '
+                 'was the whole complaint',
+                 len(set(flat.replace(' ', '').replace('\n', ''))) > 3,
+                 'glyphs %s' % ''.join(sorted(
+                     set(flat.replace(' ', '').replace('\n', '')))))
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
                  test_self_test_and_link, test_gpio_gate,
                  test_channel_table, test_imu, test_subsystems,
-                 test_orientation, test_scaling):
+                 test_orientation, test_scaling, test_desk,
+                 test_ascii3d):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

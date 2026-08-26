@@ -20,6 +20,7 @@ with it on. None of it is a claim about calibration - see `coaxial.scaling`
 for the one thing that already is.
 """
 import contextlib
+import math
 import random
 import time
 
@@ -53,6 +54,32 @@ CHANNELS = [
 NOMINAL = {0: 900.0, 1: -8650.0, 2: -80.0, 3: 1010.0, 4: 41000.0,
           5: 21000.0, 6: 16500.0}
 DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0}
+
+#: One electrical revolution every seven seconds or so. Slow enough to watch
+#: a meter follow it, fast enough that a still frame is rarely the same twice.
+SWEEP_HZ = 0.14
+
+#: How far each channel swings, in codes. The three phases get most of the
+#: converter, because a stand-in whose meters never leave the bottom segment
+#: teaches nobody what the view looks like with a machine running.
+SWING = {0: 9000.0, 1: 9000.0, 2: 9000.0, 3: 300.0, 4: 6000.0, 5: 4000.0,
+         6: 3000.0}
+
+
+def _sweep(index):
+    """Where a simulated channel sits right now.
+
+    Invented, and deliberately not still: the three phases run 120 degrees
+    apart like a machine turning, and the rest wander. Every number this
+    module produces is made up - see the module docstring - and a moving one
+    is no more a measurement than a still one. It is here so the views can be
+    demonstrated and developed without a cable.
+    """
+    turn = time.time() * SWEEP_HZ * 2.0 * math.pi
+
+    if index in (0, 1, 2):
+        return SWING[index] * math.sin(turn - index * 2.0 * math.pi / 3.0)
+    return SWING[index] * math.sin(turn * 0.31 + index)
 
 
 class SimulatedLink:
@@ -243,8 +270,8 @@ class SimulatedAnalog:
             if not (mask >> index & 1):
                 continue
             if self._afe.on:
-                mean = NOMINAL[index] + random.uniform(-DRIFT[index],
-                                                        DRIFT[index])
+                mean = NOMINAL[index] + _sweep(index) + random.uniform(
+                    -DRIFT[index], DRIFT[index])
             else:
                 # Invariant 9, reproduced exactly: with the reference
                 # unpowered, a differential input sits at 0 and a
@@ -255,6 +282,30 @@ class SimulatedAnalog:
                              'max_raw': int(mean + 5)}
         return {'samples': samples, 'rate_hz': rate or 2000.0,
                 'channels': chosen}
+
+    def read_all(self, nr_of_samples=64, sample_rate=1000.0, vref=3.3):
+        """Every channel with its table row merged in, like the real one.
+
+        Here because the stand-in is duck-typed against `Analog` and the
+        meter bridge calls this: a view that works on a board and crashes on
+        the stand-in is a view nobody can develop without a cable.
+        """
+        table = {row['index']: row for row in CHANNELS}
+        result = self.burst((1 << len(CHANNELS)) - 1, nr_of_samples,
+                            sample_rate)
+
+        rows = []
+        for index, stats in sorted(result['channels'].items()):
+            row = dict(table[index])
+            row.update(stats)
+            row['unit'] = UNITS.get(row['signal'])
+            row['stddev_raw'] = 1.0
+            divisor = 32768.0 if row['differential'] else 65536.0
+            row['volts_at_pin'] = stats['mean_raw'] / divisor * vref
+            rows.append(row)
+
+        return {'samples': result['samples'], 'rate_hz': result['rate_hz'],
+                'channels': rows}
 
 
 class SimulatedGpio:

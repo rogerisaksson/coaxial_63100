@@ -22,7 +22,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import orientation                            # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial_mcp.session import open_session               # noqa: E402
-from screen import paint, say                             # noqa: E402
+from screen import (TO_MENU, Keys, banner, clear, paint,
+                    say)                                 # noqa: E402
 
 ROTATION_VECTOR = 0x05
 
@@ -86,6 +87,70 @@ def preflight(board, part):
     return was_on
 
 
+def canvas(args):
+    """How big to draw, filling the window unless told otherwise.
+
+    Big matters here more than anywhere else in this tree: a board is mostly
+    flat, so what shows its components is each one covering several cells.
+    At 34x15 none of them does and the board is a disc; at 150x60 they
+    resolve and it looks like the reference this renderer is a port of.
+    Four rows are left for the caption and the numbers above it.
+    """
+    if args.width and args.height:
+        return args.width, args.height
+
+    try:
+        size = os.get_terminal_size()
+        width, height = size.columns - 2, size.lines - 8
+    except OSError:
+        width, height = 100, 40         # not a terminal: still worth drawing
+
+    return (args.width or max(40, width), args.height or max(16, height))
+
+
+def start_reporting(board, interval_us):
+    """Ask the part for a rotation vector, and say whether it took.
+
+    Stop the board's poll loop, configure, start it again: both would
+    otherwise be masters on one SPI bus. The reset is not optional - measured,
+    a Set Feature onto a part that was already running took no effect at all
+    and the loop absorbed nothing afterwards.
+    """
+    try:
+        with board.imu.configuring():
+            board.imu.reset()
+            board.imu.feature(ROTATION_VECTOR, interval_us)
+    except RigError as exc:
+        say('fail', 'rotation vector', str(exc))
+        return False
+
+    say('ok', 'rotation vector', 'every %d us' % interval_us)
+    say('ok', 'poll loop', 'the board reads the part; this reads the board')
+    return True
+
+
+def put_back(board, part, afe_was_on):
+    """Everything this run started, undone.
+
+    The report it enabled, and the supply - but the supply only if this run
+    was what switched it on. Leaving a board powered because a view was
+    closed is a change nobody asked for, and switching one off that was on
+    before is worse.
+    """
+    try:
+        with board.imu.configuring():
+            board.imu.feature(ROTATION_VECTOR, 0)
+        say('ok', 'rotation vector', 'disabled')
+
+        if not afe_was_on and part['power']:
+            board.afe.disable()
+            say('ok', part['power'], 'off again - it was off before this')
+        else:
+            say('ok', part['power'] or 'supply', 'left on, as it was found')
+    except RigError as exc:
+        say('fail', 'putting it back', str(exc))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', default='COM4')
@@ -93,6 +158,11 @@ def main(argv=None):
                         help='screen refreshes per second')
     parser.add_argument('--interval-us', type=int, default=10000,
                         help='what to ask the IMU for, in microseconds')
+    parser.add_argument('--width', type=int, default=0,
+                        help='drawing width in characters. 0 fills the window')
+    parser.add_argument('--height', type=int, default=0,
+                        help='drawing height in rows, 0 to fill. Rows are '
+                             'worth two columns, so this is what binds')
     parser.add_argument('--simulated', action='store_true',
                         help='the stand-in, without probing for a board')
     parser.add_argument('--frames', type=int, default=0,
@@ -122,22 +192,11 @@ def main(argv=None):
         session.close()
         return 1
 
-    # Stop the board's poll loop, configure, start it again. Both would
-    # otherwise be masters on one SPI bus. The reset is not optional: measured,
-    # a Set Feature onto a part that was already running took no effect at all
-    # and the loop absorbed nothing afterwards.
-    try:
-        with board.imu.configuring():
-            board.imu.reset()
-            board.imu.feature(ROTATION_VECTOR, args.interval_us)
-    except RigError as exc:
-        say('fail', 'rotation vector', str(exc))
+    if not start_reporting(board, args.interval_us):
         session.close()
         return 1
-
-    say('ok', 'rotation vector', 'every %d us' % args.interval_us)
-    say('ok', 'poll loop', 'the board reads the part; this reads the board')
-    say('wait', 'drawing', 'Ctrl+C stops it and undoes all of the above')
+    say('wait', 'drawing',
+        'Q closes it, ESC goes back to the menu, and both undo the above')
 
     period = 1.0 / max(args.hz, 0.5)
     quaternion = (0.0, 0.0, 0.0, 1.0)
@@ -155,57 +214,66 @@ def main(argv=None):
             os.system('')    # enables ANSI on a Windows console
         sys.stdout.write(chr(27) + '[2J')
     shown = []
+    leaving = None
+
+    # 1.0 is the fit: the board just filling the shorter axis. The wheel and a
+    # right-drag move it, clamped so the model cannot be pushed through the
+    # camera or shrunk to nothing.
+    zoom = 1.0
+    shape = None
 
     try:
-        while True:
-            record = latest(board)
-            fresh = record['quaternion'] if record else None
-            if fresh is None or record['updates'] == seen:
-                stale += 1
-            else:
-                quaternion = (fresh['i'], fresh['j'], fresh['k'], fresh['real'])
-                seen, stale = record['updates'], 0
+        with Keys(console, mouse=True) as keys:
+            while True:
+                # Re-read the window every frame. A terminal resized under a
+                # running view left the differential painter addressing rows
+                # that had moved, which looks exactly like a broken drawing.
+                wide, tall = canvas(args)
+                if (wide, tall) != shape:
+                    shape, shown = (wide, tall), []
+                    clear(console)
 
-            frame += 1
-            note = ''
-            if record:
-                note = ('   loop %s   %d vectors, %d errors'
-                        % (record['loop'], record['updates'],
-                           record['errors']))
-            lines = (['coaxial_63100 - board attitude   '
-                      '(Ctrl+C to leave)' + note, ''] +
-                     orientation.picture(quaternion, frame=frame,
-                                         age=stale).split('\n'))
-            sys.stdout.write(paint(shown, lines, console))
-            sys.stdout.flush()
-            shown = lines
+                record = latest(board)
+                fresh = record['quaternion'] if record else None
+                if fresh is None or record['updates'] == seen:
+                    stale += 1
+                else:
+                    quaternion = (fresh['i'], fresh['j'], fresh['k'],
+                                  fresh['real'])
+                    seen, stale = record['updates'], 0
 
-            if args.frames and frame >= args.frames:
-                break
+                frame += 1
+                note = ''
+                if record:
+                    note = ('   loop %s   %d vectors, %d errors'
+                            % (record['loop'], record['updates'],
+                               record['errors']))
+                lines = ([banner(origin, 'board attitude', console,
+                                 'Q closes, ESC for the menu' + note), ''] +
+                         orientation.picture(
+                             quaternion, width=wide, height=tall, frame=frame,
+                             age=stale, zoom=zoom).split('\n'))
+                sys.stdout.write(paint(shown, lines, console))
+                sys.stdout.flush()
+                shown = lines
 
-            time.sleep(period)
+                if args.frames and frame >= args.frames:
+                    break
+                leaving, moved = keys.poll()
+                if leaving:
+                    break
+                if moved:
+                    zoom = max(0.25, min(6.0, zoom * (1.0 + moved)))
+
+                time.sleep(period)
     except KeyboardInterrupt:
         pass
     finally:
-        # Everything this run started, put back: the report it enabled,
-        # and the supply, but only if it was the one that switched it on.
-        try:
-            with board.imu.configuring():
-                board.imu.feature(ROTATION_VECTOR, 0)
-            sys.stdout.write('\n')
-            say('ok', 'rotation vector', 'disabled')
-            if not afe_was_on and part['power']:
-                board.afe.disable()
-                say('ok', part['power'], 'off again - it was off before this')
-            else:
-                say('ok', part['power'] or 'supply',
-                    'left on, as it was found')
-        except RigError as exc:
-            sys.stdout.write('\n')
-            say('fail', 'putting it back', str(exc))
+        clear(console)
+        put_back(board, part, afe_was_on)
         session.close()
 
-    return 0
+    return TO_MENU if leaving == 'menu' else 0
 
 
 if __name__ == '__main__':

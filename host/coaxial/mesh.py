@@ -19,15 +19,22 @@ import math
 import os
 import struct
 
-#: Points kept from the surface. Measured at 72x30: 12,000 left holes in the
-#: middle of the board - the export puts most of its area on a 40 mm relief
-#: below the plane, so a surface-area weighting spends its points there.
-#: 45,000 fills it and walks in 52 ms, which is 19 frames a second.
-SAMPLES = 45000
+#: Points kept from the surface. The render is a z-buffer over these, so
+#: what matters is points per framebuffer pixel, not points per triangle:
+#: below about one the buffer is sparse, neighbouring cells average whatever
+#: few samples happened to land in them, and the board draws as a disc of
+#: noise. Measured at 100x40 with two-times supersampling - 32,000 pixels:
+#:
+#:      45,000 points   0.6 per pixel    a circle of speckle
+#:     120,000 points   3.8 per pixel    connectors and planes read cleanly
+#:     420,000 points  13.1 per pixel    no better, and 3 fps instead of 9
+#:
+#: 120,000 builds in 1.3 s once and renders in 107 ms.
+SAMPLES = 120000
 
 #: Bumped when the reduction changes, so a stale cache is re-made rather than
 #: read as if it came from this code.
-CACHE_MAGIC = b'CX63SAMP2'
+CACHE_MAGIC = b'CX63SAMP3'
 
 
 def _faces(raw):

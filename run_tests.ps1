@@ -11,22 +11,43 @@
       -AutomaticMedium    ~50 %   before handing work over
       -AutomaticHigh      ~75 %   adds conformance and the live tool matrix
       -All               100 %    the gate
+      -Depth 5..100              any 5 % step, for when none of the four
+                                 named ones is the size you meant
 
-    Two ways to aim at one thing after a change:
+    DEPTH is how far down; SCOPE is how wide. They are independent:
 
-      -Only intent,picker    named tests, nothing else
-      -Tags prompt,reply     subjects, instead of asking the model
-      -Structure             does host/ still hold together - imports,
-                             cycles, duplicate definitions, dead imports,
-                             function shape. Under three seconds, and the
-                             one to run after editing anything under host/.
+      -Depth 40                          40 % of every check there is
+      -Scope test_mcp.py,test_parity.py  those files, nothing else
+      -Only intent,picker                named tests inside test_ollama.py
+      -Tags prompt,reply                 subjects, instead of asking the model
+      -Structure                         does host/ still hold together -
+                                         imports, cycles, duplicate
+                                         definitions, dead imports, function
+                                         shape. Three seconds, and the one to
+                                         run after editing anything under
+                                         host/.
+
+    What runs at a given depth is arithmetic, not a table: suites join in
+    order of seconds per check, so the first of a budget buys the cheapest
+    checks there are. test_ollama.py is in from the first tier and narrows
+    ITSELF - the depth reaches its own subject budget, which is where the
+    fine resolution lives, because 733 of this tree's 1613 checks are in
+    that one file.
+
+    Which subjects, and which suites the changes can have broken, is the
+    local model's call: it reads the diff. The path map in run_tests.py is
+    the fallback, and where the map has an explicit rule and the answer costs
+    seconds, the model is not asked at all - it can only widen it.
 
     The plan is printed before anything runs; failures are named with their
     suite, and a suite that crashed is separated from one that merely failed.
+    Ctrl+C reports STOPPED and exits 130, which is not the same as FAILED.
 
 .EXAMPLE
     .\run_tests.ps1                      # ~25 %, the default
     .\run_tests.ps1 -All
+    .\run_tests.ps1 -Depth 40
+    .\run_tests.ps1 -Scope test_simulated.py
     .\run_tests.ps1 -Only intent
     .\run_tests.ps1 -AutomaticHigh -Model qwen2.5:14b
 #>
@@ -38,7 +59,11 @@ param(
     [Parameter(ParameterSetName = 'AutomaticMinimal')][switch]$AutomaticMinimal,
     [Parameter(ParameterSetName = 'Only', Mandatory = $true)][string[]]$Only,
     [Parameter(ParameterSetName = 'Structure')][switch]$Structure,
+    [Parameter(ParameterSetName = 'Depth', Mandatory = $true)]
+    [ValidateScript({ $_ -ge 5 -and $_ -le 100 -and $_ % 5 -eq 0 })]
+    [int]$Depth,
     [string[]]$Tags,
+    [string[]]$Scope,
     [string]$Model = 'gemma4:12b',
     [switch]$DryRun
 )
@@ -60,7 +85,15 @@ switch ($PSCmdlet.ParameterSetName) {
     'Only'            { $named = $Only -join ','
                         $mode = "Only $named"; $runArgs = @('--only', $named) }
     'Structure'       { $mode = 'Structure';      $runArgs = @('--structure') }
+    'Depth'           { $mode = "Depth $Depth %";  $runArgs = @('--coverage', [string]$Depth) }
     default           { $mode = 'Automatic 25 %'; $runArgs = @('--coverage', '25') }
+}
+# Scope wins the label as well as the plan: --file makes the runner skip the
+# smart pick entirely, so a header still reading "Automatic 25 %" would be
+# describing a tier that had no say in what ran.
+if ($Scope) {
+    foreach ($f in $Scope) { $runArgs += @('--file', $f) }
+    $mode = 'Scope ' + ($Scope -join ', ')
 }
 if ($Tags)   { $runArgs += @('--tags', ($Tags -join ',')) }
 if ($DryRun) { $runArgs += '--dry-run' }
@@ -138,7 +171,13 @@ Write-Host ''
 if ($total) { Write-Host $total -ForegroundColor White }
 Write-Host ('{0} in {1:N1}s' -f $mode, $elapsed.TotalSeconds) -ForegroundColor DarkGray
 
-if ($code -ne 0 -or $failures -or $crashes) {
+# 130 is run_tests.py's STOPPED: Ctrl+C, not a suite saying no. Reporting it
+# as FAILED sends whoever reads the log looking for a defect that is not
+# there - and the usual reason for stopping a run is that it should not have
+# been running in the first place.
+if ($code -eq 130) {
+    Write-Host 'STOPPED' -ForegroundColor Yellow
+} elseif ($code -ne 0 -or $failures -or $crashes) {
     Write-Host 'FAILED' -ForegroundColor Red
 } else {
     Write-Host 'PASSED' -ForegroundColor Green

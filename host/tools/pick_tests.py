@@ -34,7 +34,7 @@ sys.path.insert(0, ROOT)
 
 # The subject catalogue lives with the tests it names, so a tag cannot be
 # added in one place and mean nothing in the other.
-from tests.test_ollama import TAGS                          # noqa: E402
+from tests.ollama_support import TAGS                          # noqa: E402
 
 # How much of the diff the model sees. A whole refactor does not fit an 8k
 # window beside the catalogue and the answer, and the first lines of each
@@ -43,9 +43,17 @@ from tests.test_ollama import TAGS                          # noqa: E402
 DIFF_CHARS = 6000
 
 SUITES = {
-    'test_ollama.py': 'the host: prompt, tools, replies, language, render, '
-                      'bus, link, and the test tooling itself. No board, no '
-                      'model, no network.',
+    'test_ollama_tools.py': 'the tool surface: schemas, arguments, which '
+                            'tool answers what',
+    'test_ollama_runner.py': 'the plan runner, the sandbox, and the test '
+                             'tooling itself',
+    'test_ollama_prompt.py': 'SYSTEM and the per-turn hints',
+    'test_ollama_link.py': 'the serial link: ports, probing, diagnosis',
+    'test_ollama_render.py': 'how a result reaches the screen',
+    'test_ollama_bus.py': 'nodes, segments, unit ids, broadcast',
+    'test_ollama_board.py': 'the board, its channels, its pins, the AFE',
+    'test_ollama_reply.py': 'what an answer means: retypes, nudges',
+    'test_ollama_language.py': 'the session language and its lock',
     'test_mcp.py': 'the MCP tool surface and what it renders',
     'test_simulated.py': 'the stand-in board',
     'test_parity.py': 'board against stand-in, every number masked out',

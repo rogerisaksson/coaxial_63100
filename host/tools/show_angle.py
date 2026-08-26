@@ -23,7 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from coaxial import dial                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial_mcp.session import open_session               # noqa: E402
-from screen import paint, say                              # noqa: E402
+from screen import (TO_MENU, Keys, banner, clear, paint,
+                    say)                                 # noqa: E402
 
 REG_ANG = 0x20
 REG_TSEN = 0x28
@@ -85,6 +86,15 @@ def preflight(board, part):
     return was_on, field, kelvin
 
 
+def _drawn(state, console):
+    """The dial, coloured where there is a terminal to colour it on."""
+    if state is None:
+        return 'no reading'
+
+    text = dial.picture(state)
+    return dial.colourise(text) if console else text
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', default='COM4')
@@ -119,7 +129,8 @@ def main(argv=None):
         session.close()
         return 1
 
-    say('wait', 'drawing', 'Ctrl+C stops it and undoes all of the above')
+    say('wait', 'drawing',
+        'Q closes it, ESC goes back to the menu, and both undo the above')
 
     period = 1.0 / max(args.hz, 0.5)
     frame = 0
@@ -132,52 +143,58 @@ def main(argv=None):
             os.system('')    # enables ANSI on a Windows console
         sys.stdout.write(chr(27) + '[2J')
     shown = []
+    leaving = None
 
     try:
-        while True:
-            try:
-                state = board.angle.state()
-            except RigError:
-                state = None
+        with Keys(console) as keys:
+            while True:
+                try:
+                    state = board.angle.state()
+                except RigError:
+                    state = None
 
-            if state is None or state['updates'] == seen:
-                stale += 1
-            else:
-                seen, stale = state['updates'], 0
+                if state is None or state['updates'] == seen:
+                    stale += 1
+                else:
+                    seen, stale = state['updates'], 0
 
-            frame += 1
-            if state is not None:
-                state = dict(state, field=field)
+                frame += 1
+                if state is not None:
+                    state = dict(state, field=field)
 
-            note = '' if not stale else '   no new reading for %d frame%s' % (
-                stale, '' if stale == 1 else 's')
-            lines = (['coaxial_63100 - shaft angle   (Ctrl+C to leave)' + note,
-                      ''] +
-                     (dial.picture(state) if state else 'no reading').split('\n'))
-            sys.stdout.write(paint(shown, lines, console))
-            sys.stdout.flush()
-            shown = lines
+                note = '' if not stale else (
+                    '   no new reading for %d frame%s'
+                    % (stale, '' if stale == 1 else 's'))
+                lines = ([banner(origin, 'shaft angle', console,
+                                 'Q closes, ESC for the menu' + note), ''] +
+                         _drawn(state, console).split('\n'))
+                sys.stdout.write(paint(shown, lines, console))
+                sys.stdout.flush()
+                shown = lines
 
-            if args.frames and frame >= args.frames:
-                break
+                if args.frames and frame >= args.frames:
+                    break
+                # These two have nothing to zoom, so the wheel is ignored.
+                leaving, _moved = keys.poll()
+                if leaving:
+                    break
 
-            time.sleep(period)
+                time.sleep(period)
     except KeyboardInterrupt:
         pass
     finally:
+        clear(console)
         try:
-            sys.stdout.write('\n')
             if not afe_was_on and part['power']:
                 board.afe.disable()
                 say('ok', part['power'], 'off again - it was off before this')
             else:
                 say('ok', part['power'] or 'supply', 'left on, as it was found')
         except RigError as exc:
-            sys.stdout.write('\n')
             say('fail', 'putting it back', str(exc))
         session.close()
 
-    return 0
+    return TO_MENU if leaving == 'menu' else 0
 
 
 if __name__ == '__main__':

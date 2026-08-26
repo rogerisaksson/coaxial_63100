@@ -33,27 +33,74 @@ from tests import counts                             # noqa: E402
 STRUCTURE = 'test_structure.py'
 CORE = 'test_modbus_core.py'
 SHTP = 'test_shtp_core.py'
-DEFAULT_SUITES = (STRUCTURE, CORE, SHTP, 'test_ollama.py', 'test_mcp.py',
-                  'test_simulated.py', 'test_parity.py')
+#: test_ollama.py was 5,496 lines and 733 checks - a third of every check
+#: this tree has, in one file, and the reason a tier could not be asked for at
+#: any useful resolution. One file per subject now: the largest is 218 checks
+#: and the smallest 12, so a budget can actually choose.
+OLLAMA = tuple('test_ollama_%s.py' % tag for tag in
+               ('tools', 'runner', 'prompt', 'link', 'render', 'bus',
+                'board', 'reply', 'language'))
+DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP) + OLLAMA
+                  + ('test_mcp.py', 'test_simulated.py', 'test_parity.py'))
 CONFORMANCE = 'test_conformance.py'
 LIVE = 'test_live_model.py'
 ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
 
-# Coverage tiers, as a plan rather than a ladder of ifs. The percentage is of
-# every check this repository has (counts.py knows what each suite and each
-# group last came to). Suites join a tier in order of seconds per check, so a
-# tier buys the most checks for the least wall time - measured, per check:
-# simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
-# conformance 0.29, live 4.6. That last figure is why live joins only at the
-# top tier; the core joins at the first, because the code it covers is the
-# code a defect does the most damage in.
-PLAN = {
-    25:  ((STRUCTURE, CORE, SHTP, 'test_simulated.py'), None),
-    50:  ((STRUCTURE, CORE, SHTP, 'test_simulated.py', 'test_parity.py',
-           'test_mcp.py'), None),
-    75:  ((STRUCTURE, CORE, SHTP, 'test_simulated.py', 'test_parity.py',
-           'test_mcp.py', CONFORMANCE), 'tools'),
-}
+#: What percentage each suite joins a tier at. The percentage is of every
+#: check this repository has - counts.py knows what each suite and each group
+#: last came to - and suites join in order of seconds per check, so a tier
+#: buys the most checks for the least wall time. Measured, per check:
+#: simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
+#: conformance 0.29, live 4.6. That last figure is why live joins last; the
+#: core joins early, because the code it covers is the code a defect does the
+#: most damage in.
+#:
+#: Arithmetic rather than the ladder of three this used to be, so a tier can
+#: be asked for at any step of STEP - the point of a budget is that you can
+#: name it.
+#:
+#: test_ollama.py is not in the list because it does not join or leave: it
+#: is in from the first tier and narrows ITSELF. --coverage reaches its own
+#: subject budget (test_ollama.select), which spends in checks and knows
+#: what every group last came to. That is where the fine resolution lives -
+#: the whole-suite steps below are chunky by nature, and 733 of this tree's
+#: 1613 checks are in that one file.
+JOINS = (
+    (10, 'test_simulated.py'),
+    (15, CORE),
+    (20, SHTP),
+    (35, 'test_parity.py'),
+    (45, 'test_mcp.py'),
+    (65, CONFORMANCE),
+)
+
+#: Where the live suite joins, and where it stops being one section. It is
+#: 4.6 seconds per check against conformance's 0.29 and simulated's 0.003,
+#: so it is the last thing any budget buys.
+LIVE_FROM = 75
+LIVE_ALL_FROM = 95
+
+#: The resolution a tier can be named at.
+STEP = 5
+TIERS = tuple(range(STEP, 101, STEP))
+
+
+def plan_for(percent):
+    """(suites, live sections) a percentage buys.
+
+    STRUCTURE is not in the budget and is never dropped: three seconds, and
+    it is the precondition for reading any other result - the behavioural
+    suites import what they need and pass while the rest of the package is
+    broken.
+    """
+    suites = [STRUCTURE] + list(OLLAMA)
+    suites += [name for at, name in JOINS if percent >= at]
+
+    if percent >= LIVE_ALL_FROM:
+        return tuple(suites), 'all'
+    if percent >= LIVE_FROM:
+        return tuple(suites), 'tools'
+    return tuple(suites), None
 
 # A cable is not a regression. That used to need saying loudly here - an
 # unplugged board turned into '22 failed' in a verify loop that was meant to
@@ -215,20 +262,35 @@ def board_note():
 # listed only against the files that decide what the model is told and what
 # it can call, because that is what a wrong answer there comes from.
 TOUCHES = (
-    ('host/coaxial_ollama/debug.py',  ('test_ollama.py', 'live:all')),
-    ('host/coaxial_ollama/replies.py', ('test_ollama.py', 'live:tools')),
-    ('host/coaxial_ollama/language.py', ('test_ollama.py', 'live:language')),
-    ('host/coaxial_ollama/',          ('test_ollama.py',)),
-    ('host/coaxial_mcp/tools.py',     ('test_mcp.py', 'test_ollama.py',
-                                       'test_parity.py', 'live:tools')),
-    ('host/coaxial_mcp/render.py',    ('test_mcp.py', 'test_ollama.py',
-                                       'test_parity.py')),
+    ('host/coaxial_ollama/debug.py',  OLLAMA + ('live:all',)),
+    ('host/coaxial_ollama/replies.py', OLLAMA + ('live:tools',)),
+    ('host/coaxial_ollama/language.py', OLLAMA + ('live:language',)),
+    ('host/coaxial_ollama/',          OLLAMA),
+    ('host/coaxial_mcp/tools.py',     ('test_mcp.py', 'test_parity.py',
+                                       'live:tools') + OLLAMA),
+    ('host/coaxial_mcp/render.py',    ('test_mcp.py', 'test_parity.py')
+                                      + OLLAMA),
     ('host/coaxial_mcp/',             ('test_mcp.py', 'test_parity.py')),
-    ('host/coaxial/simulated.py',     ('test_simulated.py', 'test_parity.py',
-                                       'test_ollama.py')),
+    ('host/coaxial/simulated.py',     ('test_simulated.py',
+                                       'test_parity.py') + OLLAMA),
+    # The pure character renderers: a reading in, text out. Nothing reaches a
+    # wire, a tool schema or a board when one changes, so the suite that
+    # draws them is the whole of it. `orientation` is the exception because
+    # coaxial_mcp/tools.py imports it for the tool of the same name.
+    ('host/coaxial/orientation.py',   ('test_simulated.py', 'test_mcp.py')),
+    ('host/coaxial/ascii3d.py',       ('test_simulated.py',)),
+    ('host/coaxial/desk.py',          ('test_simulated.py',)),
+    ('host/coaxial/dial.py',          ('test_simulated.py',)),
+    ('host/coaxial/mesh.py',          ('test_simulated.py',)),
+    ('host/coaxial/ansi.py',          ('test_simulated.py',)),
     ('host/coaxial/',                 ('test_simulated.py', 'test_parity.py',
                                        'test_mcp.py')),
-    ('host/tools/',                   ('test_ollama.py',)),
+    # A live view is a loop, a screen and a cable around a renderer that is
+    # tested on its own. What it can break is importing at all, which is the
+    # structure suite, plus the drawing it calls.
+    ('host/tools/show_',              (STRUCTURE, 'test_simulated.py')),
+    ('host/tools/screen.py',          (STRUCTURE, 'test_simulated.py')),
+    ('host/tools/',                   OLLAMA),
     ('host/tests/',                   ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but
     # the portable core is also compiled and run on this machine, which is
@@ -242,15 +304,133 @@ TOUCHES = (
                                        'test_parity.py')),
     ('Core/',                         (CONFORMANCE,)),
     # A document can only break the docs index and the phrase table.
-    ('docs/',                         ('test_ollama.py',)),
-    ('CLAUDE.md',                     ('test_ollama.py',)),
-    ('README.md',                     ('test_ollama.py',)),
+    ('docs/',                         ('test_ollama_runner.py',)),
+    ('CLAUDE.md',                     ('test_ollama_runner.py',)),
+    ('README.md',                     ('test_ollama_runner.py',)),
+    # PowerShell around the Python. None of it is imported by anything under
+    # test, so the most it can break is a path - which is what the structure
+    # suite's three seconds are for. Listed rather than left unmapped
+    # because unmapped means the whole gate, and editing a demo wrapper used
+    # to cost seven minutes and a model load.
+    ('demos/',                        (STRUCTURE,)),
+    ('demo.ps1',                      (STRUCTURE,)),
+    ('env.ps1',                       (STRUCTURE,)),
+    ('run_tests.ps1',                 (STRUCTURE,)),
+    ('setup.ps1',                     (STRUCTURE,)),
+    # Neither the CAD export nor the schematic is read by a suite. The parts
+    # list and the pin map come off the board, not out of these.
+    ('render/',                       ()),
+    ('electronics/',                  ()),
+    ('datasheets/',                   ()),
+    ('.gitignore',                    ()),
+    ('.vscode/',                      ()),
 )
 
 # Every this many commits, run the lot regardless of what changed. A map
 # from files to suites is a guess about coupling, and a guess that is never
 # checked is one that drifts.
 FULL_EVERY = 10
+
+#: Suites the map is allowed to settle on its own. Every one of them runs
+#: without a board, without ollama, and the four together are under five
+#: seconds - so there is nothing for the model's judgement to save, and
+#: asking costs a 7.6 GB load that is longer than the whole run.
+#:
+#: The model is for the paths the map does not know. Where the map has an
+#: explicit rule it is the better answer of the two: it was written by
+#: someone reading the imports, and it cannot widen a demo wrapper into the
+#: gate on a bad turn.
+CHEAP = frozenset({STRUCTURE, CORE, SHTP, 'test_simulated.py'})
+
+
+def _within_tier(args, live_sections):
+    """Hold the model's pick inside the tier's budget.
+
+    A tier is a budget of checks and the model spends inside it. It used to
+    be able to spend past it: the tier filtered `args.file` and then the
+    model branch assigned straight over the top, live sections included.
+
+    Measured on the 25 % tier with a demo edit in the diff - the tier had
+    already dropped the live suite, the model put `live:all` back, and the
+    cheapest run there is took 398 s of which 352 were the suite the tier
+    exists to leave out.
+
+    `test_ollama.py` is exempt for the same reason the tier exempts it: it
+    is narrowed by tags rather than by being dropped whole.
+    """
+    if not args.coverage:
+        return live_sections
+
+    allowed, sections = plan_for(args.coverage)
+    keep = set(allowed) | {STRUCTURE} | set(OLLAMA)
+    dropped = [name for name in args.file if name not in keep]
+
+    args.file = [name for name in args.file if name in keep]
+    if not sections and live_sections:
+        dropped.append('live:' + live_sections)
+        live_sections = ''
+
+    args.live = bool(live_sections)
+
+    if dropped:
+        print('   the %d%% tier does not stretch to: %s'
+              % (args.coverage, ', '.join(dropped)))
+    return live_sections
+
+
+def _ask_model(args, live_sections):
+    """The model's own pick, held inside whatever tier is in force.
+
+    Returns (tags, live_sections). Everything the model can get wrong lands
+    on the same answer - run what the path map already chose - because
+    running too much costs seconds and running too little hides a regression
+    until the next sweep.
+    """
+    sys.path.insert(0, str(ROOT / 'tools'))
+    import pick_tests
+
+    # The picker loads the model too. Registered here so the release at the
+    # end of the run covers it, whether or not a suite needs it.
+    plan, reason = pick_tests.pick(args.model)
+    _LOADED.append(_client_for(args.model))
+
+    if plan is None:
+        print('   the model picked nothing: %s' % reason)
+        print('   falling back to the path map above')
+        return None, live_sections
+
+    # Structure is not the model's to drop. It is three seconds and it is
+    # the precondition for every suite below it: they import what they need
+    # and pass while the rest of the package is broken.
+    args.file = [STRUCTURE] + [f for f in plan.suites
+                               if f not in (LIVE, STRUCTURE)]
+    tags = ','.join(plan.tags) or None
+    live_sections = '' if plan.live == 'none' else plan.live
+    args.live = bool(live_sections)
+
+    print('   the model picked: %s%s'
+          % (', '.join(args.file) or 'nothing',
+             '  live:' + live_sections if live_sections else ''))
+    print('   %s' % (plan.why or 'no reason given'))
+
+    return tags, _within_tier(args, live_sections)
+
+
+def settled(chosen, why):
+    """True when the map knew every path and the answer costs seconds.
+
+    Both halves matter. An unmapped path means the map has a hole and the
+    fallback is already running everything, which is not something to
+    shortcut. A cheap answer means asking cannot pay for itself.
+    """
+    if any('unmapped' in line for line in why):
+        return False
+
+    # An empty pick counts. A change to something no suite reads - the CAD
+    # export, a datasheet - is the case where asking the model is most
+    # obviously waste: it costs a 7.6 GB load to be told what the map has
+    # already said, which is that there is nothing to run.
+    return set(chosen) <= CHEAP
 
 
 def changed_files(against='HEAD'):
@@ -295,7 +475,11 @@ def pick(paths):
                         live.add(item.split(':', 1)[1])
                     else:
                         suites.add(item)
-                why.append('%s -> %s' % (path, ', '.join(wanted) or 'itself'))
+                # An empty entry is a deliberate "nothing under test reads
+                # this", not a hole in the map. Saying so is the difference
+                # between a rule and an oversight for whoever reads the plan.
+                why.append('%s -> %s'
+                           % (path, ', '.join(wanted) or 'nothing reads it'))
                 break
         else:
             why.append('%s -> unmapped, running everything' % path)
@@ -329,7 +513,7 @@ def _options(argv):
     parser.add_argument('--file', action='append', default=[],
                         help='run only this test file (repeatable), instead '
                              'of the default set')
-    parser.add_argument('--coverage', type=int, choices=sorted(PLAN),
+    parser.add_argument('--coverage', type=int, choices=TIERS,
                         help='run about this percentage of every check there '
                              'is, cheapest-per-check first. Implies --smart.')
     parser.add_argument('--tags', help='subjects inside test_ollama.py, '
@@ -376,7 +560,10 @@ def _plan(args):
         # One file, the named tests, nothing else. The shortest path back
         # after changing one thing, and why this script is the only interface
         # anybody needs to the suites.
-        args.file, args.smart, args.live = ['test_ollama.py'], False, False
+        # Every subject file is offered the names; the one that owns them
+        # runs them and the rest report nothing. Cheaper than asking which
+        # file a test lives in, and it cannot go stale.
+        args.file, args.smart, args.live = list(OLLAMA), False, False
     if args.smart and not args.file:
         import subprocess
         try:
@@ -426,9 +613,9 @@ def _plan(args):
         # Not on the full sweep. Narrowing the one run that exists to catch
         # what the narrowing missed is the whole guarantee, spent.
         if args.coverage:
-            allowed, sections = PLAN[args.coverage]
+            allowed, sections = plan_for(args.coverage)
             args.file = [f for f in args.file
-                         if f == 'test_ollama.py' or f in allowed]
+                         if f in OLLAMA or f in allowed]
             live_sections = sections or ''
             args.live = bool(sections)
             if sections:
@@ -440,31 +627,11 @@ def _plan(args):
         # the fallback: coarse by construction - a line moved in
         # coaxial_mcp/tools.py pulls in four suites whatever the line
         # was - and it only stands when there is no model to ask.
-        if not tags and not full:
-            sys.path.insert(0, str(ROOT / 'tools'))
-            import pick_tests
-            # The picker loads the model too. Registered here so the
-            # release below covers it, whether or not a suite needs it.
-            plan, reason = pick_tests.pick(args.model)
-            _LOADED.append(_client_for(args.model))
-            if plan is None:
-                print('   the model picked nothing: %s' % reason)
-                print('   falling back to the path map above')
-            else:
-                # Structure is not the model's to drop. It is three
-                # seconds and it is the precondition for every suite below
-                # it: they import what they need and pass while the rest of
-                # the package is broken.
-                args.file = [STRUCTURE] + [f for f in plan.suites
-                                           if f not in (LIVE, STRUCTURE)]
-                tags = ','.join(plan.tags) or None
-                live_sections = '' if plan.live == 'none' else plan.live
-                args.live = bool(live_sections)
-                print('   the model picked: %s%s'
-                      % (', '.join(args.file) or 'nothing',
-                         '  live:' + live_sections if live_sections
-                         else ''))
-                print('   %s' % (plan.why or 'no reason given'))
+        if not tags and not full and settled(chosen, why):
+            print('   the map knew every path and the answer is seconds - '
+                  'not asking the model')
+        elif not tags and not full:
+            tags, live_sections = _ask_model(args, live_sections)
         if args.dry_run:
             return None            # the plan was the whole point of the run
 
@@ -523,7 +690,7 @@ def _run(args, tags, live_sections):
                 extra += ['--sections', live_sections]
             if name == LIVE and args.match:
                 extra += ['--match', args.match]
-            if name == 'test_ollama.py':
+            if name in OLLAMA:
                 if args.only:
                     extra += ['--only', args.only]
                 elif tags:
@@ -577,6 +744,13 @@ def _run(args, tags, live_sections):
             release_model(held)
 
 
+#: What a run that was stopped on purpose exits with. The shell's own
+#: convention for it, and distinct from 1 so a caller can tell a suite that
+#: failed from a run somebody cut short - which matters when the reason for
+#: cutting it short is that it should never have been this long.
+STOPPED = 130
+
+
 def main(argv=None):
     args = _options(argv)
     try:
@@ -584,6 +758,13 @@ def main(argv=None):
         if chosen is None:
             return 0
         return _run(args, *chosen)
+    except KeyboardInterrupt:
+        # Ctrl+C reaches the child suite too - it is in this process group -
+        # so what is left to do here is say so and let the finally release
+        # the model. A run abandoned with 7.6 GB still resident is the
+        # expensive kind of mistake, and it used to be the default one.
+        print('\nstopped - the suites after this point did not run')
+        return STOPPED
     finally:
         # One place, every path. The picker loads the model before a single
         # suite runs, and _run's own finally never saw it.

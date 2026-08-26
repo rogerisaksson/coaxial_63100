@@ -38,9 +38,9 @@
     board and without a terminal to close.
 
 .EXAMPLE
-    .\imu_test.ps1
-    .\imu_test.ps1 -Simulated
-    .\imu_test.ps1 -Once
+    .\demos\imu.ps1
+    .\demos\imu.ps1 -Simulated
+    .\demos\imu.ps1 -Once
 #>
 param(
     [string]$Port = 'COM4',
@@ -54,7 +54,7 @@ param(
 # NativeCommandError in PowerShell 5.1, and python does write there.
 $ErrorActionPreference = 'Continue'
 
-$Root = $PSScriptRoot
+$Root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $Root 'env.ps1') -Quiet
 
 Push-Location (Join-Path $Root 'host')
@@ -81,12 +81,22 @@ else:
         return
     }
 
+    # No size: the view fills the window. A board is mostly flat, so what
+    # shows its components is each one covering several cells - at 34x15 none
+    # of them does and it draws as a featureless disc. --width/--height pin
+    # it if a fixed size is wanted.
     $call = @('tools/show_orientation.py', '--hz', [string]$Hz,
               '--port', $Port)
     if ($Simulated) { $call += '--simulated' }
     if ($Frames -gt 0) { $call += @('--frames', [string]$Frames) }
 
     & python @call
+    # The view's own exit code, not this wrapper's: 64 is ESC asking
+    # demo.ps1 for the menu, and a script that does not pass it on
+    # exits 0 and the menu never comes back.
+    $code = $LASTEXITCODE
 } finally {
     Pop-Location
 }
+
+exit $code

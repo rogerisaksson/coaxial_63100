@@ -16,6 +16,7 @@ the shaft turns - invariant 10 applies to a picture as much as to a voltage.
 """
 import math
 
+from . import ansi
 from .raster import cell
 
 #: The magnet, in character cells. Radius in columns; rows are worth two
@@ -35,6 +36,27 @@ RIM = '.'
 POINTER = '#'
 HUB = '+'
 ZERO = '0'
+
+#: Below this there is no magnet in front of the sensor and the angle is
+#: noise. Measured on this board with nothing mounted: 2 gauss, and a heading
+#: that wandered 27 degrees while the board sat still. Named because both the
+#: pointer and the caption have to agree about it - they did not, once.
+WEAK_GAUSS = 30
+
+#: One colour per element, because the elements are already one glyph each.
+#: The pointer is the reading and gets the only warm colour on the face; the
+#: rim and the sensor are furniture and stay out of its way. A face where
+#: everything is the same weight makes the reader hunt for the one thing that
+#: moved.
+INK = {RIM: ansi.DIM, POINTER: ansi.AMBER, HUB: ansi.WHITE,
+       ZERO: ansi.GREEN}
+
+
+def colourise(text):
+    """The drawing again, with each element in its own colour."""
+    return '\n'.join(
+        ansi.run([(ch, INK.get(ch, ansi.DIM)) for ch in line])
+        for line in text.split('\n'))
 
 
 def _plot(grid, width, height, col, row, glyph):
@@ -65,7 +87,7 @@ def render(degrees, width=60, height=19, field=None):
     # rim rather than on it: a mark on the rim reads as part of the magnet.
     _plot(grid, width, height, cx + RADIUS + 2.0, cy, ZERO)
 
-    weak = field is not None and field < 30
+    weak = field is not None and field < WEAK_GAUSS
     phi = math.radians(degrees)
     if not weak:
         for i in range(1, int(RADIUS * 4) + 1):
@@ -106,10 +128,24 @@ def picture(state, width=60, height=19):
     counts = state['value'] & 0x0FFF
     degrees = state.get('degrees', counts * 360.0 / 4096.0)
     field = state.get('field')
+    weak = field is not None and field < WEAK_GAUSS
+
+    # With no magnet the counts are still what the part said - real data,
+    # and worth showing. The degrees are a claim about a shaft, and there is
+    # no shaft angle in a number that wanders 27 degrees while the board sits
+    # still. Suppressing the pointer and then printing the angle above it
+    # anyway was the picture disagreeing with its own caption: measured on
+    # this board at 2 gauss, the heading read 351.65 one frame and 12.74 the
+    # next, and looked for all the world like a shaft spinning.
+    if weak:
+        heading = 'angle      -- deg   %4d of 4096 counts   flags %X' % (
+            counts, state['value'] >> 12)
+    else:
+        heading = 'angle %7.2f deg   %4d of 4096 counts   flags %X' % (
+            degrees, counts, state['value'] >> 12)
 
     lines = [
-        'angle %7.2f deg   %4d of 4096 counts   flags %X'
-        % (degrees, counts, state['value'] >> 12),
+        heading,
         'loop %-8s %d readings, %d errors'
         % (state.get('loop', '?'), state.get('updates', 0),
            state.get('errors', 0)),
@@ -118,7 +154,7 @@ def picture(state, width=60, height=19):
     if field is not None:
         lines.append('field %4d gauss%s'
                      % (field, '   - no magnet in front of the sensor, so the '
-                        'angle is noise' if field < 30 else ''))
+                        'angle is noise' if weak else ''))
 
     lines += ['', render(degrees, width, height, field), '',
               'coaxial_63100 - A1335 on SPI4, below the shaft']
