@@ -58,8 +58,8 @@ INTENTS = {
 # 'imu' is a third kind of channel, not a fourth intent: asking the IMU for
 # its values is still a read, and routing it as one keeps the classifier
 # choosing between the same seven things.
-KINDS = ('analog', 'digital', 'imu', 'subsystems', 'parts', 'both',
-         'none')
+KINDS = ('analog', 'digital', 'imu', 'angle', 'subsystems', 'parts',
+         'both', 'none')
 
 # Intent to tool, for the pairs where it is unambiguous. 'words' and 'control'
 # map to nothing on purpose: naming a tool for them is how a request for a
@@ -98,7 +98,7 @@ ASK = """Classify this operator's question. Do not answer it.
 Intents:
 %s
 
-Kinds: analog, digital, imu, subsystems, parts, both, none.
+Kinds: analog, digital, imu, angle, subsystems, parts, both, none.
 
 The noun decides, never the verb. "List", "give me", "show" say nothing:
 channels, pins, inputs is map; values, readings, measurements is read.
@@ -113,7 +113,10 @@ the IMU, or an accelerometer, gyro or magnetometer, is the imu kind - those
 are not the board's ADC channels. A question about what the board is made
 of, what it can do or which subsystems it has is the subsystems kind. A
 question about what is fitted on it - which components, which parts, what is
-mounted, bestyckning, komponenter - is the parts kind.
+mounted, bestyckning, komponenter - is the parts kind. A question naming
+the angle sensor, the shaft angle, the rotor position, vinkel or
+vinkelgivare is the angle kind - that is the A1335 on SPI4, and it is
+neither the IMU nor an ADC channel.
 
 JSON only: {"intent": "...", "kind": "...", "why": "a few words"}
 
@@ -153,6 +156,7 @@ def plan(intent, kind):
         digital = ('digital_read', {})
         return {'analog': (analog,), 'digital': (digital,),
                 'imu': (('imu', {'op': 'read'}),),
+                'angle': (('angle', {'op': 'read'}),),
                 'both': (analog, digital)}.get(kind, (analog,))
     if intent == 'orient':
         return (('orientation', {'op': 'once'}),)

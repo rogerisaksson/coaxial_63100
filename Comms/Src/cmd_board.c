@@ -307,6 +307,9 @@ static cmd_status_t h_console(rd_t *in, wr_t *out)
    record answered 0x04 instead of the parts that did fit. */
 #define PART_RECORD_MAX 96U
 
+/* A pin, its direction and its signal name, with room to spare. */
+#define PIN_RECORD_MAX 40U
+
 static cmd_status_t h_channels(rd_t *in, wr_t *out)
 {
   /* The map, and only the map - no reading. adc_table exists for "what does
@@ -401,22 +404,39 @@ static cmd_status_t h_channels(rd_t *in, wr_t *out)
        listed only so "why was PB10 refused" has an answer, and are never
        a channel to drive. */
     const bool want_io = (kind == CHANNELS_DIGITAL);
-    const uint8_t total = Board_DigitalCount();
-    uint8_t n = 0U;
+    const uint8_t rows = Board_DigitalCount();
+    const uint8_t first = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
+    uint8_t matching = 0U;
+    uint8_t sent = 0U;
+    uint8_t seen = 0U;
 
-    for (uint8_t i = 0U; i < total; i++)
+    for (uint8_t i = 0U; i < rows; i++)
     {
       board_dchan_t d;
 
       if (Board_DigitalChan(i, &d) && (d.usable == want_io))
       {
-        n++;
+        matching++;
       }
     }
 
-    wr_u8(out, n);
+    if (first > matching)
+    {
+      return CMD_ERR_VALUE;
+    }
 
-    for (uint8_t i = 0U; i < total; i++)
+    /* Paged, like the parts list and for the same reason: the reserved
+       section went from 7 pins to 19 when SPI2, SPI4 and the IMU's control
+       pins were listed, and 19 rows are 418 bytes against MB_MAX_PDU's 253.
+       The whole section came back as an 0x04 from the writer's overflow
+       flag. */
+    wr_u8(out, matching);
+    wr_u8(out, first);
+    wr_u8(out, 0U);
+
+    uint8_t *count_at = &out->buf[out->len - 1U];
+
+    for (uint8_t i = 0U; i < rows; i++)
     {
       board_dchan_t d;
 
@@ -424,17 +444,26 @@ static cmd_status_t h_channels(rd_t *in, wr_t *out)
       {
         return CMD_ERR_DEVICE;
       }
-
       if (d.usable != want_io)
       {
         continue;
+      }
+      if (seen++ < first)
+      {
+        continue;
+      }
+      if ((out->len + PIN_RECORD_MAX) > out->cap)
+      {
+        break;
       }
 
       wr_str(out, d.pin);
       wr_u8(out, d.dir);
       wr_str(out, d.signal);
+      sent++;
     }
 
+    *count_at = sent;
     return CMD_OK;
   }
 

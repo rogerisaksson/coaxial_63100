@@ -372,10 +372,8 @@ static cmd_status_t h_imu_resume(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-static cmd_status_t h_imu(rd_t *in, wr_t *out)
+cmd_status_t cmd_imu_op(uint8_t op, rd_t *in, wr_t *out)
 {
-  const uint8_t op = rd_u8(in);
-
   /* Everything below drives SPI2 itself, and the poll loop drives it from
      the main loop: running both is two masters on one bus, and what that
      looks like is a cargo split between them and a stream that stops. Hold
@@ -408,15 +406,4 @@ static cmd_status_t h_imu(rd_t *in, wr_t *out)
     case IMU_OP_RESUME:  return h_imu_resume(in, out);
     default:             return CMD_ERR_VALUE;
   }
-}
-
-static const cmd_desc_t IMU_TABLE[] =
-{
-  { CMD_IMU, "imu", CMD_LEN_VARIABLE, h_imu },
-};
-
-const cmd_desc_t *cmd_imu_table(uint8_t *count)
-{
-  *count = (uint8_t)(sizeof(IMU_TABLE) / sizeof(IMU_TABLE[0]));
-  return IMU_TABLE;
 }

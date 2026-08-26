@@ -24,7 +24,7 @@ static const cmd_table_desc_t TABLES[] =
 {
   { cmd_board_table, "board", "ADC channels, digital I/O, clocks, self test" },
   { cmd_test_table,  "testrig", "gated raw pin access for a fixture" },
-  { cmd_imu_table,   "imu",   "BNO08X on SPI2 over SHTP" },
+  { cmd_device_table, "device", "BNO08X on SPI2, A1335 on SPI4" },
 };
 
 #define CMD_TABLE_COUNT (sizeof(TABLES) / sizeof(TABLES[0]))

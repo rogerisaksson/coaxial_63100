@@ -43,6 +43,10 @@ static const DigitalDesc s_digital[] =
   { 'D',  9U, "PD9",  BOARD_DIR_OUT,   "IMU PS0/WAKE",        false },
   { 'D', 10U, "PD10", BOARD_DIR_OUT,   "IMU NRSTN",           false },
   { 'D', 11U, "PD11", BOARD_DIR_OUT,   "IMU BOOTN",           false },
+  { 'E',  2U, "PE2",  BOARD_DIR_OUT,   "SPI4_SCK",            false },
+  { 'E',  4U, "PE4",  BOARD_DIR_OUT,   "SPI4_NSS/A1335_CS",   false },
+  { 'E',  5U, "PE5",  BOARD_DIR_IN,    "SPI4_MISO",           false },
+  { 'E',  6U, "PE6",  BOARD_DIR_OUT,   "SPI4_MOSI",           false },
 };
 
 /* What is fitted, as against what it is wired to. One row per part, and the
@@ -63,11 +67,14 @@ typedef struct
 #define PART_PROBE_NONE 0U
 #define PART_PROBE_AFE  1U
 #define PART_PROBE_IMU  2U
+#define PART_PROBE_ANGLE 3U
 
 static const PartDesc s_parts[] =
 {
-  { "STM32H753VIT6", "the MCU, 475 MHz", "on board", "", PART_PROBE_NONE },
-  { "BNO08X", "9-axis IMU, SHTP", "SPI2", "AFE_ON", PART_PROBE_IMU },
+  { "STM32H753VIT6", "the MCU, 475 MHz", "U3", "", PART_PROBE_NONE },
+  { "BNO085", "9-axis IMU, SHTP", "SPI2, U13", "AFE_ON", PART_PROBE_IMU },
+  { "A1335", "magnetic angle sensor", "SPI4, U14", "AFE_ON",
+    PART_PROBE_ANGLE },
   { "AFE", "phase chains + ADC ref", "PB2 switches it", "", PART_PROBE_AFE },
   { "NTC", "thermistor", "ADC3", "AFE_ON", PART_PROBE_AFE },
   { "DC link divider", "49.9k/2.2k, 78.15 V FS", "ADC", "AFE_ON",
@@ -108,6 +115,18 @@ bool Board_Part(uint8_t index, board_part_t *info)
       else
       {
         info->state = Board_ImuReady() ? BOARD_PART_READY : BOARD_PART_SILENT;
+      }
+      break;
+
+    case PART_PROBE_ANGLE:
+      if (!Board_AfeOn())
+      {
+        info->state = BOARD_PART_UNPOWERED;
+      }
+      else
+      {
+        info->state = Board_AngleReady() ? BOARD_PART_READY
+                                         : BOARD_PART_SILENT;
       }
       break;
 

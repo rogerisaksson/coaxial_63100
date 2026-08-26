@@ -287,10 +287,26 @@ def test_imu(report):
                  'too, not silently truncated on the way to a board',
                  refused)
 
+    # A read is the board's shared record now, not a cargo off the bus: the
+    # firmware polls the part from its own main loop, and a host that drove
+    # SPI2 at the same time was two masters on one bus.
     tool = toolmod.imu(session, op='read')
-    report.check('and the MCP tool renders it as a headed block',
-                 tool.startswith('imu: channel 3') and 'accelerometer' in tool,
+    report.check('the MCP tool renders the poll loop, not a raw cargo',
+                 tool.startswith('imu: loop ') and 'errors' in tool,
                  tool.splitlines()[0])
+    report.check('and says how to get a vector when there is none, rather '
+                 'than printing zeros',
+                 'quaternion' not in tool.lower()
+                 or 'op=feature' not in tool
+                 or 'no rotation vector yet' in tool,
+                 tool.splitlines()[-1])
+
+    toolmod.imu(session, op='feature', report_id=5, interval_us=20000)
+    turned = toolmod.imu(session, op='read')
+    report.check('and once one is enabled the vector is in the block, counts '
+                 'and scaled both',
+                 'rotation vector' in turned and 'acc=' in turned,
+                 turned.splitlines()[-1])
 
 
 def test_subsystems(report):
@@ -436,6 +452,59 @@ def test_orientation(report):
     report.check('the surface is scaled to the board radius, so a model in '
                  'millimetres draws the same size as one in inches',
                  0.9 <= reach <= 1.01, '%.4f' % reach)
+
+    # The dial: the same rules, on a different picture. It is a diagram and
+    # not a lit surface, so what it must get right is where things are.
+    from coaxial import dial
+
+    turned = dial.render(90.0, field=380).split(chr(10))
+    report.check('the dial is the height it was asked for',
+                 len(turned) == 19, '%d rows' % len(turned))
+
+    # The axis row is the one carrying the zero mark, which is the only place
+    # that glyph appears - HUB is also the corner of the sensor's box.
+    axis = [i for i, row in enumerate(turned) if dial.ZERO in row]
+    report.check('there is exactly one zero mark, on the axis row',
+                 len(axis) == 1, axis)
+
+    # The pointer at 90 degrees goes up from the axis and at 270 down. If
+    # those come out the same way round the picture is upside down, which is
+    # the one thing a shaft-angle drawing cannot be.
+    def pointer_rows(deg):
+        drawn = dial.render(deg, field=380).split(chr(10))
+        return [i for i, row in enumerate(drawn) if dial.POINTER in row]
+
+    up, down = pointer_rows(90.0), pointer_rows(270.0)
+    report.check('the pointer goes up at 90 degrees and down at 270',
+                 min(up) < axis[0] <= max(down),
+                 'up %s, axis %d, down %s' % (up[:2], axis[0], down[-2:]))
+
+    flat = dial.render(0.0, field=380).split(chr(10))[axis[0]]
+    report.check('and at zero it reaches the rim along the axis',
+                 flat.count(dial.POINTER) >= int(dial.RADIUS) - 2, flat)
+
+    report.check('a weak field draws no pointer at all',
+                 dial.POINTER not in dial.render(90.0, field=3),
+                 'field 3 gauss')
+    report.check('and the caption says why',
+                 'no magnet' in dial.picture({'value': 20, 'degrees': 1.8,
+                                              'loop': 'running', 'updates': 1,
+                                              'errors': 0, 'field': 3}))
+
+    box = [i for i, row in enumerate(turned) if 'A1335' in row]
+    report.check('the sensor is drawn below the axis, where it sits',
+                 box and min(box) > axis[0], box)
+
+    report.check('a reading the board never took prints as one, not as zero '
+                 'degrees',
+                 'no reading' in dial.picture({'value': None, 'loop': 'off',
+                                               'error': 'lost AFE_ON'}))
+
+    counts = dial.picture({'value': 0x5000 | 2048, 'degrees': 180.0,
+                           'loop': 'running', 'updates': 9, 'errors': 0})
+    report.check('the counts lead the degrees - the counts are what the part '
+                 'said and the degrees are this host arithmetic',
+                 '2048 of 4096 counts' in counts, counts.splitlines()[0])
 
     plain = o.picture((0, 0, 0, 1))
     report.check('the picture carries the angles and the quaternion both - '

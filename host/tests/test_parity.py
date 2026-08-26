@@ -106,6 +106,29 @@ def main():
                          '%d vs %d rows' % (len(live_map[section]),
                                             len(fake_map[section])))
 
+        # Same calls on both, not just the same answers. SimulatedAfe was
+        # missing is_on() and SimulatedImu was missing everything the poll
+        # loop added; nothing failed, because no test had called them - and
+        # then a live view did, and crashed. Listed rather than compared
+        # wholesale: the stand-ins are duck-typed against what the tools and
+        # views call, not against Subsystem's own machinery.
+        CALLED = {
+            'afe': ('state', 'is_on', 'enable', 'disable', 'toggle',
+                    'require'),
+            'system': ('channel_map', 'self_test'),
+            'imu': ('product_id', 'read', 'feature', 'state', 'latest',
+                    'hold', 'resume', 'configuring', 'reset', 'write',
+                    'probe', 'pins', 'wake_test'),
+            'angle': ('state', 'read', 'write', 'poll_register', 'clock',
+                      'hold', 'resume', 'configuring'),
+        }
+        for name, calls in CALLED.items():
+            fake = getattr(stand_in.board, name)
+            missing = [c for c in calls if not hasattr(fake, c)]
+            report.check('the stand-in %s answers every call a view makes'
+                         % name, not missing,
+                         ', '.join(missing) or 'nothing missing')
+
         # The parts list, on name, what, where and what powers each one.
         # Not on `state`: that is measured, and the stand-in has no supply to
         # switch, so a board with AFE_ON low would differ there for a real

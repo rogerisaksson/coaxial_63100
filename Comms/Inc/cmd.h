@@ -202,7 +202,12 @@ extern "C" {
    spent 0x41..0x48 and 0x64..0x6D, so everything the IMU needs goes behind
    one code with an operation byte in front. 0x6F answered ILLEGAL FUNCTION
    from the protocol layer before dispatch ever saw it - measured. */
-#define CMD_IMU          0x6EU
+#define CMD_DEVICE       0x6EU
+
+/* Which peripheral 0x6E's payload is addressed to. See cmd_device.c on why
+   there is a device byte rather than a function code each. */
+#define DEVICE_IMU       0U
+#define DEVICE_ANGLE     1U
 
 /* Operations under CMD_IMU. */
 #define IMU_OP_ID      0U
@@ -216,6 +221,15 @@ extern "C" {
 #define IMU_OP_LATEST  8U
 #define IMU_OP_HOLD    9U
 #define IMU_OP_RESUME  10U
+
+/* The A1335's operations, device 1. */
+#define ANGLE_OP_READ    0U
+#define ANGLE_OP_WRITE   1U
+#define ANGLE_OP_LATEST  2U
+#define ANGLE_OP_HOLD    3U
+#define ANGLE_OP_RESUME  4U
+#define ANGLE_OP_POLLREG 5U
+#define ANGLE_OP_CLOCK   6U
 
 #define CMD_PROTO_MAJOR 1U
 #define CMD_PROTO_MINOR 5U
@@ -256,7 +270,12 @@ const cmd_desc_t *cmd_board_table(uint8_t *count);
 const cmd_desc_t *cmd_test_table(uint8_t *count);
 
 /** The BNO08X commands. See cmd_imu.c. */
-const cmd_desc_t *cmd_imu_table(uint8_t *count);
+const cmd_desc_t *cmd_device_table(uint8_t *count);
+
+/** One device's operations. Called by cmd_device.c after it has taken the
+  * device byte off the request; `in` is positioned at the op's payload. */
+cmd_status_t cmd_imu_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_angle_op(uint8_t op, rd_t *in, wr_t *out);
 
 /**
   * @brief One subsystem: a command table, named, with what it is for.

@@ -101,15 +101,25 @@ class System(Subsystem):
                 })
             pins = {}
             for kind, name in ((1, 'digital'), (2, 'reserved')):
-                reader = Reader(self.request(protocol.CHANNELS,
-                                             pack(('u8', kind))))
+                # Paged: the reserved section is 19 pins now that SPI2, SPI4
+                # and the IMU's control lines are listed, which is 418 bytes
+                # against a 253-byte PDU.
                 rows = []
-                for _ in range(reader.u8()):
-                    rows.append({
-                        'pin': reader.string(),
-                        'direction': protocol.DIRECTIONS.get(reader.u8()),
-                        'signal': reader.string(),
-                    })
+                first = 0
+                while True:
+                    reader = Reader(self.request(protocol.CHANNELS,
+                                                 pack(('u8', kind),
+                                                      ('u8', first))))
+                    total, _, count = reader.u8(), reader.u8(), reader.u8()
+                    for _ in range(count):
+                        rows.append({
+                            'pin': reader.string(),
+                            'direction': protocol.DIRECTIONS.get(reader.u8()),
+                            'signal': reader.string(),
+                        })
+                    first += count
+                    if count == 0 or first >= total:
+                        break
                 pins[name] = rows
             self._map = {'analog': analog, 'digital': pins['digital'],
                          'reserved': pins['reserved'],

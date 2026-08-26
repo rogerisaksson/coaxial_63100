@@ -106,6 +106,17 @@ TOOLS = [
         },
     },
     {
+        'name': 'angle',
+        'description': "The angle sensor (A1335) on SPI4: shaft angle in degrees, its die temperature, the field it sees. Not the IMU, not an ADC channel.",
+        'description_terse': "The angle sensor (A1335): shaft angle, die temperature, field strength. Not the IMU.",
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'op': {'type': 'string', 'enum': ['read', 'registers']},
+            },
+        },
+    },
+    {
         'name': 'orientation',
         'description': "How the board is turned or oriented, drawn as a picture from the IMU's rotation vector. op='show' opens a terminal that redraws it live.",
         'description_terse': "How the board is turned or oriented, as a picture. op='show' opens a terminal that redraws it live.",
@@ -445,6 +456,27 @@ def _split_pin(text):
     return text[0], int(text[1:])
 
 
+def angle(session, op='read', **_):
+    """The A1335's reading, off the board's poll loop.
+
+    `read` is the angle the loop is keeping; `registers` reads the four the
+    reference library names, which is what a bring-up wants when the angle
+    looks wrong - a field of a few gauss says there is no magnet, and then
+    the angle is noise rather than a fault.
+    """
+    part = session.board.angle
+
+    if op == 'registers':
+        with part.configuring():
+            rows = [(name, part.read(reg)['value'])
+                    for reg, name in ((0x20, 'ANG'), (0x22, 'STA'),
+                                      (0x24, 'ERR'), (0x28, 'TSEN'),
+                                      (0x2A, 'FIELD'))]
+        return render.angle_registers(rows)
+
+    return render.angle(part.state())
+
+
 def board_info(session, refresh=False, kind='all', **_):
     if kind not in BOARD_INFO_KINDS:
         return 'ERR unknown kind %r; try %s' % (kind,
@@ -566,22 +598,34 @@ def self_test(session, failures_only=False, **_):
 
 
 def imu(session, op='read', report_id=None, interval_us=None, **_):
-    """The IMU. Reads by default: it is the question that gets asked."""
+    """The IMU. Reads by default: it is the question that gets asked.
+
+    A read comes off the board's shared record and touches no bus. Anything
+    that does drive SPI2 is wrapped in a hold, because the board polls the
+    part from its own main loop and both at once is two masters on one bus -
+    unheld, every such call answered SERVER DEVICE FAILURE.
+    """
     part = session.board.imu
 
     if op == 'id':
-        return render.imu('id', part.product_id())
+        with part.configuring():
+            return render.imu('id', part.product_id())
 
     if op == 'feature':
         if report_id is None:
             raise ValueError("op='feature' needs report_id - 1 accelerometer, "
                              "2 gyroscope, 3 magnetic field, 5 rotation vector")
-        part.feature(int(report_id), int(interval_us or 0))
+        with part.configuring():
+            # The reset is not optional: measured, a Set Feature onto a part
+            # that was already running took no effect and the loop absorbed
+            # nothing afterwards.
+            part.reset()
+            part.feature(int(report_id), int(interval_us or 0))
         return 'imu: report 0x%02X %s' % (
             int(report_id),
             'every %d us' % int(interval_us) if interval_us else 'disabled')
 
-    return render.imu('read', part.read())
+    return render.imu('state', part.state())
 
 
 def orientation(session, op='once', **_):
@@ -596,22 +640,28 @@ def orientation(session, op='once', **_):
         return _open_orientation_window(session)
 
     part = session.board.imu
-    part.feature(ROTATION_VECTOR, 20000)
-    quaternion = None
-    for _ in range(20):
-        for report in part.read()['reports']:
-            if 'quaternion' in report:
-                q = report['quaternion']
-                quaternion = (q['i'], q['j'], q['k'], q['real'])
-        if quaternion is not None:
-            break
 
-    if quaternion is None:
+    # Enable it only if the loop is not already reporting one: a Set Feature
+    # costs a hold and a reset, and doing that on every call would restart
+    # the stream this is trying to read.
+    got = part.state()
+    if got['quaternion'] is None:
+        with part.configuring():
+            part.reset()
+            part.feature(ROTATION_VECTOR, 20000)
+        for _ in range(20):
+            got = part.state()
+            if got['quaternion'] is not None:
+                break
+
+    if got['quaternion'] is None:
         raise DeviceStateError(
             'the IMU sent no rotation vector. It is enabled now, so a second '
-            'call may find one; if not, the part is not reporting.')
+            'call may find one; if not, the part is not reporting. AFE_ON '
+            'powers it - with that off it answers reads and acts on no write.')
 
-    return orient.picture(quaternion)
+    q = got['quaternion']
+    return orient.picture((q['i'], q['j'], q['k'], q['real']))
 
 
 def _open_orientation_window(session):
@@ -832,6 +882,7 @@ HANDLERS = {
     'devices': devices,
     'digital_read': digital_read,
     'imu': imu,
+    'angle': angle,
     'orientation': orientation,
     'gpio_pin': gpio_pin,
     'gpio_port': gpio_port,

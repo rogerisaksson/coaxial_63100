@@ -121,11 +121,11 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_structure.py` (208), `test_modbus_core.py` (68),
-`test_ollama.py` (730),
-`test_simulated.py` (42), `test_mcp.py` (41), `test_parity.py` (18),
-`test_conformance.py` (67, `--conformance`),
-`test_live_model.py` (176, needs ollama, `--live`) - the only one where the
+Suites: `test_structure.py` (241), `test_modbus_core.py` (68),
+`test_shtp_core.py` (38), `test_ollama.py` (733),
+`test_simulated.py` (85), `test_mcp.py` (44), `test_parity.py` (24),
+`test_conformance.py` (73, `--conformance`),
+`test_live_model.py` (212, needs ollama, `--live`) - the only one where the
 model itself is under test. How the whole thing is wired is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system); the rules that
 bind you:
@@ -338,13 +338,17 @@ recorded failure. Cut the paragraph around them.
 ## Layout
 
 ```
-Core/        CubeMX-generated. main.c is 582 lines and holds ONLY CubeMX
-             functions plus main(). Keep it that way.
+Core/        CubeMX-generated. main.c holds ONLY CubeMX functions, main(),
+             and the two poll calls the sensors need. Keep it that way.
+electronics/ schematic and BOM - the authority on what is fitted
+render/      the CAD export the attitude view draws from
 Board/       this hardware, behind Comms/Inc/board.h
 Comms/       the comms stack: cmd over proto over dev, plus the console
 Modbus/      the protocol. Portable C11, no HAL in crc/slave/rtu.
 host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
              runner and dbg.py, testline/, tests, tools
+imu_test.ps1     live attitude; reads the capability off the board first
+angle_test.ps1   live shaft angle, the magnet and the air gap
 setup.ps1        one-time environment setup; -Check changes nothing
 env.ps1          per-shell PATH and the board_prompt/dbg/board/cbuild/cflash aliases
 board_prompt.ps1 preflight + prompt loop; orchestration only

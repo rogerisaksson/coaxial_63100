@@ -73,6 +73,16 @@ class Imu(Subsystem):
     """The BNO08X behind SPI2. Every call raises rather than returning a
     status: a reading that did not happen is not a reading of zero."""
 
+    def _op(self, op, payload=b''):
+        """One 0x6E request for this device.
+
+        The device byte lives here and nowhere else: 0x6E carries every
+        peripheral, chosen by it, because the specification's user-defined
+        function codes are spent.
+        """
+        return self.request(protocol.DEVICE,
+                            bytes([protocol.DEVICE_IMU, op]) + bytes(payload))
+
     def product_id(self):
         """What the part says it is - the answer that proves the link.
 
@@ -81,7 +91,7 @@ class Imu(Subsystem):
         mis-strapped BNO08X looks like from here.
         """
         try:
-            reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_ID]))
+            reply = self._op(protocol.IMU_OP_ID)
         except Exception as exc:
             raise DeviceStateError(
                 'the IMU did not answer a product id request: %s. '
@@ -110,7 +120,7 @@ class Imu(Subsystem):
         mis-framing what follows it, so a short `reports` beside a long
         `cargo` means exactly that.
         """
-        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_READ]))
+        reply = self._op(protocol.IMU_OP_READ)
         r = Reader(reply)
         channel = r.u8()
         length = r.u8()
@@ -133,7 +143,7 @@ class Imu(Subsystem):
         `updates` is monotonic, so the same reading read twice is telling
         rather than a guess from the values.
         """
-        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_LATEST]))
+        reply = self._op(protocol.IMU_OP_LATEST)
         r = Reader(reply)
 
         got = {
@@ -174,13 +184,13 @@ class Imu(Subsystem):
         probe - is refused while the loop runs, because both would be masters
         on one bus. Returns the loop state the board reports back.
         """
-        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_HOLD]))
+        reply = self._op(protocol.IMU_OP_HOLD)
         return LOOP_STATES.get(Reader(reply).u8(), 'unknown')
 
     def resume(self):
         """Start the poll loop again, through init - the usual reason to have
         held it was a reset, and the part needs bringing up after one."""
-        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_RESUME]))
+        reply = self._op(protocol.IMU_OP_RESUME)
         return LOOP_STATES.get(Reader(reply).u8(), 'unknown')
 
     @contextlib.contextmanager
@@ -203,7 +213,7 @@ class Imu(Subsystem):
         many cargoes the reset produced - three is the advertisement and the
         two announcements, and nothing at all means it did not come up.
         """
-        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_RESET]))
+        reply = self._op(protocol.IMU_OP_RESET)
         return Reader(reply).u8()
 
     def wake_test(self, ms=200):
@@ -213,9 +223,7 @@ class Imu(Subsystem):
         not accept a write; 'busy' when it was still holding the line low and
         the question could not be put.
         """
-        reply = self.request(protocol.IMU,
-                             bytes([protocol.IMU_OP_WAKE])
-                             + ms.to_bytes(2, 'big'))
+        reply = self._op(protocol.IMU_OP_WAKE, ms.to_bytes(2, 'big'))
         got = Reader(reply).u16()
         if got == 0xFFFF:
             return None
@@ -231,7 +239,7 @@ class Imu(Subsystem):
         and chip select is proven, so this is what is left to check from
         inside the firmware.
         """
-        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_PINS]))
+        reply = self._op(protocol.IMU_OP_PINS)
         r = Reader(reply)
         names = {12: 'NSS/H_CSN', 13: 'SCK', 14: 'MISO', 15: 'MOSI'}
         out = []
@@ -249,9 +257,8 @@ class Imu(Subsystem):
         and idle. Also the only way to see the header's true length field,
         which read() caps before the host sees it.
         """
-        reply = self.request(protocol.IMU,
-                             bytes([protocol.IMU_OP_PROBE, length,
-                                    1 if select else 0]))
+        reply = self._op(protocol.IMU_OP_PROBE,
+                         bytes([length, 1 if select else 0]))
         r = Reader(reply)
         kernel, bitrate = r.u32(), r.u32()
         return {'kernel_hz': kernel, 'bitrate_hz': bitrate,
@@ -266,8 +273,7 @@ class Imu(Subsystem):
         """
         if not 0 <= channel <= 5:
             raise ValueError('channel %r is not one of the six' % (channel,))
-        self.request(protocol.IMU,
-                     bytes([protocol.IMU_OP_WRITE, channel]) + bytes(payload))
+        self._op(protocol.IMU_OP_WRITE, bytes([channel]) + bytes(payload))
 
     def feature(self, report_id, interval_us):
         """Enable a sensor report, or disable it with an interval of 0.
@@ -284,9 +290,8 @@ class Imu(Subsystem):
         # rd_u32 reads it that way. Sent little-endian, 60000 us arrived as
         # 0x60EA0000 - about 27 minutes between reports, which looks exactly
         # like a sensor that was never enabled.
-        self.request(protocol.IMU,
-                     bytes([protocol.IMU_OP_FEATURE, report_id])
-                     + interval_us.to_bytes(4, 'big'))
+        self._op(protocol.IMU_OP_FEATURE,
+                 bytes([report_id]) + interval_us.to_bytes(4, 'big'))
 
 
 def report_length(report_id):

@@ -50,6 +50,25 @@ What the fault looked like on the way there, all of it wrong:
 sends an unsolicited product id response after every reset, so the answer was
 in the queue whether or not the request arrived.
 
+**A1335 on SPI4, brought up 2026-08-26.** Three things cost time, all of
+them in code:
+
+| Symptom | Actual cause |
+|---|---|
+| `HAL_SPI_Init` returned `HAL_ERROR` | `IS_SPI_HIGHEND_INSTANCE` names SPI1..3 only, and SPI4 refuses a data size above 16 bits. The 20-bit packet goes out as four 5-bit words - exactly twenty clock edges under one chip select |
+| every register returned the previous one's value | the answer lags a frame. The address arrives on MOSI bits 17..12 while MISO has already shifted out bits 19..16, so a read is two packets. Asking TSEN, FIELD, TSEN in turn returned the previous register every time |
+| the angle wandered with the board still | `FIELD` reads 3 gauss - there is no magnet in front of the part, and the angle is then noise. Not a fault |
+
+Confirmed once the framing was right: `TSEN` 2471 counts = 308.9 K = 35.7 C,
+`FIELD` 2 gauss, the poll loop at ~22,000 reads a second with no errors.
+
+The register map is not in `datasheets/AngleSensor` - that datasheet defers
+it to the Programming Manual. Addresses come from
+`github.com/ScranchNew/Allegro-A1335-Sensor-library`, and `0x6E` device 1
+op 5 sets which one the loop reads so a better address needs no rebuild. The
+CRC field's width is documented and its polynomial is not, so it is reported
+and never checked.
+
 ## Ruled Out
 
 * **`Chat` Decomposes into Turn, Steering and Budget:** All three touch `client`, `history`, `io_log`, `language` and `last_channels`; steering owns one attribute alone and budget none, so three objects need a shared state struct all three hold. `debug.py` is 1544 lines of which `Chat` is 1088; moving the wording (112) and module helpers (105) out leaves 1327. No class ceiling in the structure suite either: a mixin split defeats one, and a module ceiling would only demand this refactor.

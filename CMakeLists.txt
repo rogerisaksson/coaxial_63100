@@ -57,6 +57,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 
     # Board layer: this hardware, behind Comms/Inc/board.h.
     Board/Src/board_imu.c
+    Board/Src/board_angle.c
     Board/Src/board_adc.c
     Board/Src/board_clock.c
     Board/Src/board_selftest.c
@@ -70,6 +71,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Comms/Src/cmd_board.c
     Comms/Src/cmd_test.c
     Comms/Src/cmd_imu.c
+    Comms/Src/cmd_angle.c
+    Comms/Src/cmd_device.c
     Comms/Src/testrig.c
     Comms/Src/link.c
     Comms/Src/link_report.c
@@ -84,9 +87,10 @@ set(COAXIAL_SOURCES
     Modbus/Src/modbus_map.c
     Shtp/Src/shtp.c
     Board/Src/board_adc.c Board/Src/board_clock.c Board/Src/board_selftest.c
-    Board/Src/board_io.c Board/Src/board_imu.c
+    Board/Src/board_io.c Board/Src/board_imu.c Board/Src/board_angle.c
     Comms/Src/console.c Comms/Src/wire.c Comms/Src/dev_usart3.c
     Comms/Src/cmd.c Comms/Src/cmd_board.c Comms/Src/cmd_test.c
+    Comms/Src/cmd_angle.c Comms/Src/cmd_device.c
     Comms/Src/testrig.c Comms/Src/link.c Comms/Src/link_report.c
 )
 set_source_files_properties(${COAXIAL_SOURCES} PROPERTIES

@@ -22,6 +22,8 @@ clock - so it is testable without a board, and `tools/show_orientation.py` is
 the only thing that needs one.
 """
 import math
+
+from .raster import cell
 import os
 
 from . import mesh
@@ -67,15 +69,6 @@ LIGHT = (0.0, 1.0, 1.0)
 #: Frames of the liveness spinner. A picture of a still board and a frozen
 #: one look identical without something that moves.
 SPINNER = ('|', '/', '-', '\\')
-
-
-def _cell(value):
-    """`value` to the nearest cell, halves always upward.
-
-    Not round(): Python rounds halves to even, so 15.5 and 16.5 both land on
-    16 and consecutive positions collide.
-    """
-    return int(math.floor(value + 0.5))
 
 
 def rotate(q, v):
@@ -363,8 +356,8 @@ def render(q, width=44, height=19):
         # this the other way round drew the solder side under a caption that
         # said component side.
         ooz = 1.0 / (K2 - z)
-        col = _cell(cx + k1 * ooz * x)
-        row = _cell(cy - k1 * ooz * y * 0.5)
+        col = cell(cx + k1 * ooz * x)
+        row = cell(cy - k1 * ooz * y * 0.5)
 
         if not (0 <= row < height and 0 <= col < width):
             continue

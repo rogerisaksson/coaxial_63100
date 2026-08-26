@@ -275,6 +275,47 @@ def parts(rows):
            for r in rows])
 
 
+def angle(state):
+    """The angle sensor's reading, headed like every other one."""
+    if state['value'] is None:
+        return ('angle: no reading - loop %s, %s'
+                % (state['loop'], state['error']))
+
+    lines = ['angle: %s   loop %s, %d readings, %d errors'
+             % (state['register_name'], state['loop'], state['updates'],
+                state['errors'])]
+
+    if 'degrees' in state:
+        lines.append('  %7.2f deg   %5d counts of 4096   flags %X'
+                     % (state['degrees'], state['value'] & 0x0FFF,
+                        state['flags']))
+    elif 'kelvin' in state:
+        lines.append('  %7.1f K     %5d counts, eighths of a kelvin'
+                     % (state['kelvin'], state['value'] & 0x0FFF))
+    else:
+        lines.append('  0x%04X raw' % state['value'])
+
+    return '\n'.join(lines)
+
+
+def angle_registers(rows):
+    """The registers a bring-up asks for, raw beside what they decode to."""
+    out = ['angle registers: %d' % len(rows)]
+    for name, value in rows:
+        low = value & 0x0FFF
+        if name == 'ANG':
+            said = '%7.2f deg' % (low * 360.0 / 4096.0)
+        elif name == 'TSEN':
+            said = '%7.1f K' % (low / 8.0)
+        elif name == 'FIELD':
+            said = '%5d gauss' % low
+        else:
+            said = ''
+        out.append('  %-6s 0x%04X  flags %X  %s' % (name, value, value >> 12,
+                                                    said))
+    return '\n'.join(out)
+
+
 def imu(what, payload):
     """The IMU, as a headed block like every other reading.
 
@@ -286,6 +327,22 @@ def imu(what, payload):
         return 'imu: %s' % ('  '.join('%s=%s' % (k, payload[k]) for k in
                                       ('sw_version', 'sw_part', 'sw_build',
                                        'reset_cause_name')))
+
+    if what == 'state':
+        head = ('imu: loop %s, %d vectors, %d cargoes, %d errors'
+                % (payload['loop'], payload['updates'], payload['cargoes'],
+                   payload['errors']))
+        q = payload.get('quaternion')
+        if q is None:
+            return (head + '\n' + '  no rotation vector yet - %s'
+                    % ('enable one with op=feature report_id=5'
+                       if payload['error'] == 'none' else payload['error']))
+        counts = payload['counts']
+        return (head + '\n' + '  %-12s %7d %7d %7d %7d  %+.4f %+.4f %+.4f '
+                '%+.4f  acc=%s'
+                % (payload['name'], counts['i'], counts['j'], counts['k'],
+                   counts['real'], q['i'], q['j'], q['k'], q['real'],
+                   payload['accuracy']))
 
     head = 'imu: channel %d (%s), %d cargo bytes' % (
         payload['channel'], payload['channel_name'], len(payload['cargo']))

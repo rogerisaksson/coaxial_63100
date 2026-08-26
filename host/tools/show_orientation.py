@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import orientation                            # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial_mcp.session import open_session               # noqa: E402
+from screen import paint, say                             # noqa: E402
 
 ROTATION_VECTOR = 0x05
 
@@ -64,47 +65,25 @@ def preflight(board, part):
     because a view was closed with Ctrl+C is a change nobody asked for, and
     switching one off that was on before is worse.
     """
-    print('capability: %s - %s, on %s' % (part['name'], part['what'],
-                                          part['where']))
+    say('ok', 'capability', '%s - %s, on %s'
+        % (part['name'], part['what'], part['where']))
 
     was_on = board.afe.is_on()
 
     if part['power']:
         if was_on:
-            print('%s is already on; it powers %s, and it stays on after this'
-                  % (part['power'], part['name']))
+            say('ok', part['power'], 'already on, and left on afterwards')
         else:
-            print('%s powers %s and is off - switching it on, and off again '
-                  'when this exits' % (part['power'], part['name']))
+            say('warn', part['power'],
+                'off - on for this run, off again on the way out')
             board.afe.enable()
             # The part needs its supply up before it is reset, and the reset
             # is the next thing that happens. Enabling and configuring in the
             # same breath answered SERVER DEVICE FAILURE.
             time.sleep(0.3)
+            say('ok', part['power'], 'on')
 
     return was_on
-
-
-def paint(shown, lines, console):
-    """What to write to move the screen from `shown` to `lines`.
-
-    Only the rows that differ, each addressed directly. Rewriting all of it
-    every frame is what made the prompt flicker: at 20 Hz the terminal
-    repaints two dozen unchanged rows, so the header and the caption blink
-    along with the drawing they are not part of.
-    """
-    if not console:
-        return '\n'.join(lines) + '\n'
-
-    out = []
-    for row in range(max(len(shown), len(lines))):
-        was = shown[row] if row < len(shown) else None
-        now = lines[row] if row < len(lines) else ''
-        if now != was:
-            out.append('%s[%d;1H%s%s[K' % (chr(27), row + 1, now, chr(27)))
-
-    return ''.join(out)
-
 
 
 def main(argv=None):
@@ -124,21 +103,22 @@ def main(argv=None):
 
     session, origin = open_session(args.port,
                                    simulated=True if args.simulated else None)
-    print('%s - %s' % (origin.label, 'simulated' if not origin.real else 'live'))
+    say('ok' if origin.real else 'warn', 'link',
+        '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
 
     board = session.board
 
     part = capability(board)
     if part is None:
-        print('this board reports no IMU among its parts - nothing to show')
+        say('fail', 'capability', 'this board reports no IMU among its parts')
         session.close()
         return 1
 
     try:
         afe_was_on = preflight(board, part)
     except RigError as exc:
-        print('could not power %s, which powers %s: %s'
-              % (part['power'], part['name'], exc))
+        say('fail', part['power'] or 'supply',
+            'could not power %s: %s' % (part['name'], exc))
         session.close()
         return 1
 
@@ -151,12 +131,13 @@ def main(argv=None):
             board.imu.reset()
             board.imu.feature(ROTATION_VECTOR, args.interval_us)
     except RigError as exc:
-        print('could not enable the rotation vector: %s' % exc)
+        say('fail', 'rotation vector', str(exc))
         session.close()
         return 1
 
-    print('rotation vector every %d us - Ctrl+C stops it and undoes this'
-          % args.interval_us)
+    say('ok', 'rotation vector', 'every %d us' % args.interval_us)
+    say('ok', 'poll loop', 'the board reads the part; this reads the board')
+    say('wait', 'drawing', 'Ctrl+C stops it and undoes all of the above')
 
     period = 1.0 / max(args.hz, 0.5)
     quaternion = (0.0, 0.0, 0.0, 1.0)
@@ -211,15 +192,17 @@ def main(argv=None):
         try:
             with board.imu.configuring():
                 board.imu.feature(ROTATION_VECTOR, 0)
+            sys.stdout.write('\n')
+            say('ok', 'rotation vector', 'disabled')
             if not afe_was_on and part['power']:
                 board.afe.disable()
-                print('\n' + '%s switched back off - it was off before '
-                      'this ran' % part['power'])
+                say('ok', part['power'], 'off again - it was off before this')
             else:
-                print('\n' + 'rotation vector disabled; %s left on, as it '
-                      'was found' % (part['power'] or 'the supply'))
+                say('ok', part['power'] or 'supply',
+                    'left on, as it was found')
         except RigError as exc:
-            print('\n' + 'could not put the board back as it was: %s' % exc)
+            sys.stdout.write('\n')
+            say('fail', 'putting it back', str(exc))
         session.close()
 
     return 0

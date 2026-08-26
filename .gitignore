@@ -46,6 +46,9 @@ htmlcov/
 # reason invariant 10 keeps thresholds out. host/tools/analyze_phase_log.py
 # takes a path, so nothing here needs them checked in.
 *.csv
+# The BOM is not a measurement log: it is the authority on what is
+# fitted, and docs/HARDWARE.md points at it.
+!electronics/*.csv
 *.log
 # Runner transcripts are the same thing in another format.
 host/data/

@@ -221,7 +221,13 @@ def channels_tests(run):
         if parsed is None or parsed[1] != 0x6D:
             continue
         body = parsed[2]
-        count, at = body[0], 1
+        # Kind 0 answers a bare count; the paged sections answer total,
+        # first, count. They are paged because 19 reserved pins are 418
+        # bytes against a 253-byte PDU - see PROTOCOL.md.
+        if kind == 0:
+            count, at = body[0], 1
+        else:
+            count, at = body[2], 3
         rows = 0
         try:
             while rows < count:

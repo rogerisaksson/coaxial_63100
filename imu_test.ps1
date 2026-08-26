@@ -4,8 +4,10 @@
 
 .DESCRIPTION
     Reads the board's own parts list first (command 0x6D kind 4) and looks for
-    an IMU in it. Nothing here decides the board has one: a board without the
-    part says so itself, and a board that grows one needs no change here.
+    an IMU in it, then prints a preflight line per step the way
+    board_prompt.ps1 does - ok, warn or fail, with what it found beside it.
+    Nothing here decides the board has an IMU: a board without the part says
+    so itself, and a board that grows one needs no change here.
 
     AFE_ON powers that part as well as the analog front end. If it is already
     on, this leaves it on. If it is off, this switches it on for the run and

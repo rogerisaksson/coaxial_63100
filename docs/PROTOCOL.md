@@ -34,23 +34,18 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
 
   Kind 4 is paged: six parts with their strings are 380 bytes. It answers `u8 total, u8 first, u8 count`, then per part `str name, str what, str where, str power, u8 state`. `power` names what must be on for the part to work at all; `state` is `0` not probed, `1` ready, `2` unpowered, `3` silent - measured, never asserted (invariant 10). Adding a part is one row in `Board/Src/board_io.c`; nothing above it needs telling.
 
-* **`0x6E` IMU:** Every IMU operation, chosen by a leading op byte - the specification's user-defined ranges are spent, and a second function code answered ILLEGAL FUNCTION before dispatch saw it. The board polls the BNO08X from its main loop into shared memory; a host reads that and never drives SPI2 while the loop runs.
+* **`0x6E` Device:** Every peripheral, chosen by a leading device byte, then an op byte: `0x6E <device> <op> [payload]`. One function code for all of them because there are none left - the user-defined ranges are 65..72 and 100..110, and this board had spent all but 110. A second code answered ILLEGAL FUNCTION from the protocol layer before dispatch saw it. Adding a device is a row in `cmd_device.c` and an op dispatcher beside it.
 
-  | Op | Does | Needs a hold |
-  |---|---|---|
-  | 0 | product id | yes |
-  | 1 | one raw SHTP cargo | yes |
-  | 2 | Set Feature - report id, then interval in us | yes |
-  | 3 | raw bytes off SPI2; a flag clocks them with chip select left high | yes |
-  | 4 | reset the part | yes |
-  | 5 | raw write on any SHTP channel | yes |
-  | 6 | drive and release each of SPI2's pins, reporting what read back | yes |
-  | 7 | time H_INTN's answer to a wake | yes |
-  | 8 | the poll loop's shared record | no |
-  | 9 | hold the loop | - |
-  | 10 | resume it | - |
+  | Device | Part | Bus | Ops |
+  |---|---|---|---|
+  | 0 | BNO08X IMU | SPI2, mode 3, 1.48 MHz | 0 product id, 1 raw cargo, 2 Set Feature, 3 raw bytes off the bus, 4 reset, 5 raw write on any SHTP channel, 6 per-pin drive/pull check, 7 time H_INTN's answer to a wake, 8 shared record, 9 hold, 10 resume |
+  | 1 | A1335 angle sensor | SPI4, mode 3, 1.86 MHz | 0 read register, 1 write register, 2 shared record, 3 hold, 4 resume, 5 which register the loop reads, 6 clock |
 
-  Ops that drive SPI2 are refused unless the loop is held: both running is two masters on one bus. Op 8 answers `u8 loop, u8 error, u32 updates, u32 cargoes, u32 errors, u8 have`, then `u8 report_id, u8 status` and four Q14 counts. `updates` is monotonic, so a host tells a new reading from the same one read twice without guessing from the values. Reading a cargo per request instead cost 45 ms each and caught one frame in eight.
+  **The board polls both parts from its own main loop and writes shared memory; a host reads that.** Reading a cargo per request cost 45 ms each and caught one frame in eight. Ops that drive a bus are refused unless that device's loop is held - both running is two masters on one bus. Hold, configure, resume.
+
+  The IMU's shared record answers `u8 loop, u8 error, u32 updates, u32 cargoes, u32 errors, u8 have`, then `u8 report_id, u8 status` and four Q14 counts. The angle sensor's answers `u8 loop, u8 error, u32 updates, u32 errors, u8 have, u8 register, u16 value, u8 crc`. `updates` is monotonic in both, so a host tells a new reading from the same one read twice without guessing from the values.
+
+  The A1335's packet is 20 bits (Figure 31): MOSI is SYNC=0, R/W, six address bits, eight data bits, four CRC bits; MISO is sixteen data bits and four CRC bits. It goes out as four 5-bit words under one chip select - `HAL_SPI_Init` refuses a data size above 16 bits on SPI4, which `IS_SPI_HIGHEND_INSTANCE` does not name. **The answer lags one frame**, so a register read is two packets. The CRC is reported and not checked: the datasheet gives the field's width and not its polynomial.
 
 ## Hardware Safeguards & Conformance
 

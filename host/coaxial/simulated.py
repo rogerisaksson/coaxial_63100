@@ -19,8 +19,11 @@ channel with the front end off, small drift on top of a nominal reading
 with it on. None of it is a claim about calibration - see `coaxial.scaling`
 for the one thing that already is.
 """
+import contextlib
 import random
+import time
 
+from . import angle
 from .errors import DeviceStateError
 from .gpio import reserved_reason
 
@@ -103,6 +106,10 @@ RESERVED = [
     {'pin': 'PD9',  'direction': 'out',   'signal': 'IMU PS0/WAKE'},
     {'pin': 'PD10', 'direction': 'out',   'signal': 'IMU NRSTN'},
     {'pin': 'PD11', 'direction': 'out',   'signal': 'IMU BOOTN'},
+    {'pin': 'PE2',  'direction': 'out',   'signal': 'SPI4_SCK'},
+    {'pin': 'PE4',  'direction': 'out',   'signal': 'SPI4_NSS/A1335_CS'},
+    {'pin': 'PE5',  'direction': 'in',    'signal': 'SPI4_MISO'},
+    {'pin': 'PE6',  'direction': 'out',   'signal': 'SPI4_MOSI'},
 ]
 
 # What is fitted, mirroring s_parts in Board/Src/board_io.c. The stand-in's
@@ -110,9 +117,11 @@ RESERVED = [
 # to switch has nothing else to say.
 PARTS = [
     {'name': 'STM32H753VIT6', 'what': 'the MCU, 475 MHz',
-     'where': 'on board', 'power': '', 'state': 'not probed'},
-    {'name': 'BNO08X', 'what': '9-axis IMU, SHTP',
-     'where': 'SPI2', 'power': 'AFE_ON', 'state': 'ready'},
+     'where': 'U3', 'power': '', 'state': 'not probed'},
+    {'name': 'BNO085', 'what': '9-axis IMU, SHTP',
+     'where': 'SPI2, U13', 'power': 'AFE_ON', 'state': 'ready'},
+    {'name': 'A1335', 'what': 'magnetic angle sensor',
+     'where': 'SPI4, U14', 'power': 'AFE_ON', 'state': 'ready'},
     {'name': 'AFE', 'what': 'phase chains + ADC ref',
      'where': 'PB2 switches it', 'power': '', 'state': 'ready'},
     {'name': 'NTC', 'what': 'thermistor',
@@ -165,6 +174,16 @@ class SimulatedAfe:
 
     def state(self):
         return {'on': self.on, 'pe15': not self.on}
+
+    def is_on(self):
+        """The real Afe has this and the stand-in did not, which is a gap
+        nothing caught until a view asked. See test_parity."""
+        return self.on
+
+    def require(self):
+        if not self.on:
+            raise DeviceStateError('AFE_ON is off (simulated)')
+        return True
 
     def enable(self):
         self.on = True
@@ -456,6 +475,169 @@ class SimulatedImu:
             self._enabled.pop(report_id, None)
 
 
+def _imu_extras(cls):
+    """Everything the poll loop added to `coaxial.imu.Imu`, on the stand-in.
+
+    Bolted on here rather than woven through the class above because they
+    are one thing: the board polls the part into shared memory now, and a
+    stand-in has no part to poll. They exist so a view running -Simulated
+    does not crash on a call the real one answers - which is exactly what
+    happened, and what test_parity now checks for.
+    """
+    def state(self):
+        self._updates = getattr(self, '_updates', 0) + 17
+        got = {'loop': 'held' if getattr(self, '_held', False) else 'running',
+               'error': 'none', 'updates': self._updates,
+               'cargoes': self._updates, 'errors': 0}
+        for report in self.read()['reports']:
+            if 'quaternion' not in report:
+                continue
+            # The same shape the real state() builds: the counts the part
+            # sent and the quaternion this host divided out of them.
+            got.update({
+                'report_id': report['report_id'],
+                'name': report['name'],
+                'accuracy': report.get('accuracy', 'unknown'),
+                'counts': dict(zip(('i', 'j', 'k', 'real'), report['raw'])),
+                'quaternion': report['quaternion'],
+            })
+            return got
+        got['quaternion'] = None
+        return got
+
+    def latest(self):
+        return self.state()['quaternion']
+
+    def hold(self):
+        self._held = True
+        return 'held'
+
+    def resume(self):
+        self._held = False
+        return 'running'
+
+    @contextlib.contextmanager
+    def configuring(self):
+        self.hold()
+        try:
+            yield self
+        finally:
+            self.resume()
+
+    def reset(self):
+        return 3        # the advertisement and the two announcements
+
+    def write(self, channel, payload):
+        if not 0 <= channel <= 5:
+            raise ValueError('channel %r is not one of the six' % (channel,))
+
+    def probe(self, length=4, select=True):
+        return {'kernel_hz': 190000000, 'bitrate_hz': 1484375,
+                'raw': bytes(length)}
+
+    def pins(self):
+        names = {12: 'NSS/H_CSN', 13: 'SCK', 14: 'MISO', 15: 'MOSI'}
+        return [{'pin': 'PB%d' % p, 'signal': names[p], 'bits': 0x0F,
+                 'held': False} for p in sorted(names)]
+
+    def wake_test(self, ms=200):
+        return 0
+
+    for fn in (state, latest, hold, resume, configuring, reset, write,
+               probe, pins, wake_test):
+        setattr(cls, fn.__name__, fn)
+    return cls
+
+
+_imu_extras(SimulatedImu)
+
+
+class SimulatedAngle:
+    """The A1335 without an A1335.
+
+    Turns steadily, because a stand-in that reports one angle for ever is
+    indistinguishable from a link that has stopped. The field it reports is
+    what a magnet in place would give; the real board reads 2 gauss with
+    none, which is a measurement and not this object's business to imitate.
+    """
+    def __init__(self):
+        self._at = time.monotonic()
+        self._updates = 0
+        self._reg = 0x20
+        self._held = False
+
+    def _turn(self):
+        """One turn every twelve seconds, in counts."""
+        return int(((time.monotonic() - self._at) / 12.0) * 4096.0) % 4096
+
+    def _value(self, register):
+        if register == 0x20:
+            return 0x5000 | self._turn()
+        if register == 0x28:
+            return 0xF000 | (296 * 8)          # 296 K, eighths of a kelvin
+        if register == 0x2A:
+            return 0xE000 | 380                # gauss, a magnet in place
+        return 0x8000
+
+    def state(self):
+        self._updates += 37
+        value = self._value(self._reg)
+        got = {
+            'loop': 'held' if self._held else 'running',
+            'error': 'none', 'updates': self._updates, 'errors': 0,
+            'register': self._reg,
+            'register_name': angle.REGISTERS.get(self._reg,
+                                                 '0x%02X' % self._reg),
+            'value': value, 'crc': 0,
+        }
+        if self._reg == 0x20:
+            got['degrees'] = angle.degrees(value)
+            got['flags'] = value >> 12
+        elif self._reg == 0x28:
+            got['kelvin'] = angle.kelvin(value)
+        return got
+
+    def read(self, register):
+        if not 0 <= register <= 0x3F:
+            raise ValueError('register %r is past the six address bits'
+                             % (register,))
+        return {'register': register,
+                'register_name': angle.REGISTERS.get(register,
+                                                     '0x%02X' % register),
+                'value': self._value(register), 'crc': 0}
+
+    def write(self, register, value):
+        if not 0 <= register <= 0x3F:
+            raise ValueError('register %r is past the six address bits'
+                             % (register,))
+
+    def poll_register(self, register=None):
+        if register is not None:
+            self._reg = register
+        return {'register': self._reg,
+                'register_name': angle.REGISTERS.get(self._reg,
+                                                     '0x%02X' % self._reg)}
+
+    def clock(self):
+        return {'kernel_hz': 118750000, 'bitrate_hz': 1855468}
+
+    def hold(self):
+        self._held = True
+        return 'held'
+
+    def resume(self):
+        self._held = False
+        return 'running'
+
+    @contextlib.contextmanager
+    def configuring(self):
+        self.hold()
+        try:
+            yield self
+        finally:
+            self.resume()
+
+
 class SimulatedBoard:
     """A whole board without a board. Duck-typed against the real one, so
     the tools above cannot tell which they are holding - except that
@@ -481,6 +663,7 @@ class SimulatedBoard:
             refuse = _BroadcastRefuses()   # see BROADCAST_REFUSAL
             self.system = self.link = self.afe = refuse
             self.analog = self.gpio = self.imu = refuse
+            self.angle = refuse
         else:
             self.system = SimulatedSystem()
             self.link = SimulatedLink()
@@ -488,6 +671,7 @@ class SimulatedBoard:
             self.analog = SimulatedAnalog(self.afe)
             self.gpio = SimulatedGpio(self.afe)
             self.imu = SimulatedImu()
+            self.angle = SimulatedAngle()
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'

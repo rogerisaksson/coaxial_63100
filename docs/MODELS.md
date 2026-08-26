@@ -1,6 +1,6 @@
 # The Model in the Loop
 
-Local LLM orchestration for hardware telemetry. Designed around VRAM constraints, deterministic host overrides, and aggressive prompt optimization.
+Local LLM orchestration for hardware telemetry and user support. Designed around VRAM constraints, deterministic host overrides, and aggressive prompt optimization.
 
 ## VRAM & Lifecycle Management
 

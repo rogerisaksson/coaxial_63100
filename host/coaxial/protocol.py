@@ -37,11 +37,28 @@ PORT_WRITE = 0x6A
 ANALOG_BURST = 0x6B
 SELF_TEST = 0x6C
 CHANNELS = 0x6D
-IMU = 0x6E
+DEVICE = 0x6E
+IMU = DEVICE
+"""0x6E carries every peripheral device, chosen by a device byte. IMU is
+the old name for it, kept because nothing else on this board reads better
+for the code itself."""
 """Every IMU operation, chosen by the first payload byte. One code because it
 is the last one: MODBUS reserves 65..72 and 100..110 for user-defined
 functions and this board had spent all but 110. A second code is answered
 ILLEGAL FUNCTION by the protocol layer, before the command table sees it."""
+
+DEVICE_IMU = 0
+DEVICE_ANGLE = 1
+"""Which peripheral 0x6E's payload is addressed to. One function code for
+all of them because the user-defined ranges are spent - see cmd_device.c."""
+
+ANGLE_OP_READ = 0
+ANGLE_OP_WRITE = 1
+ANGLE_OP_LATEST = 2
+ANGLE_OP_HOLD = 3
+ANGLE_OP_RESUME = 4
+ANGLE_OP_POLLREG = 5
+ANGLE_OP_CLOCK = 6
 
 PART_STATES = {
     0: 'not probed', 1: 'ready', 2: 'unpowered', 3: 'silent',

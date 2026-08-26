@@ -17,6 +17,7 @@ from .analog import Analog
 from .errors import (ConnectError, DeviceStateError, RigError,
                      UnsupportedProtocolError)
 from .gpio import Gpio
+from .angle import Angle
 from .imu import Imu
 from .link import Link
 from .protocol import BROADCAST
@@ -38,6 +39,7 @@ class Board:
         self.analog = Analog(self)
         self.gpio = Gpio(self)
         self.imu = Imu(self)
+        self.angle = Angle(self)
 
     def __repr__(self):
         firmware = (self.version_info or {}).get('firmware', 'unknown fw')
