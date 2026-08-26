@@ -209,6 +209,7 @@ extern "C" {
 #define IMU_OP_READ    1U
 #define IMU_OP_FEATURE 2U
 #define IMU_OP_PROBE   3U
+#define IMU_OP_RESET   4U
 
 #define CMD_PROTO_MAJOR 1U
 #define CMD_PROTO_MINOR 5U

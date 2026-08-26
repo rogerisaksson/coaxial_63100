@@ -46,6 +46,8 @@ ILLEGAL FUNCTION by the protocol layer, before the command table sees it."""
 IMU_OP_ID = 0
 IMU_OP_READ = 1
 IMU_OP_FEATURE = 2
+IMU_OP_PROBE = 3
+IMU_OP_RESET = 4
 
 NAMES = {
     VERSION: 'version', ADC_TABLE: 'adc_table', ADC_SCAN: 'adc_scan',

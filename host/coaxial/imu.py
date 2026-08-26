@@ -104,6 +104,16 @@ class Imu(Subsystem):
             'reports': decode(cargo),
         }
 
+    def reset(self):
+        """Pulse NRSTN and collect what the part says coming up.
+
+        The way back from a part that has stopped streaming. Returns how
+        many cargoes the reset produced - three is the advertisement and the
+        two announcements, and nothing at all means it did not come up.
+        """
+        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_RESET]))
+        return Reader(reply).u8()
+
     def feature(self, report_id, interval_us):
         """Enable a sensor report, or disable it with an interval of 0.
 

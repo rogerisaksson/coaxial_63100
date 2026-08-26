@@ -126,3 +126,7 @@ host/prompt_io.tmp
 # Per-run record of how many checks each suite and group last reported.
 # Rewritten by every run; only ever used to say what a narrowed run skipped.
 host/tests/.counts.json
+
+# The mesh reduction cached beside the model: derived from the STL, 1 MB,
+# and re-made in a second if it is missing.
+render/models/*.samples

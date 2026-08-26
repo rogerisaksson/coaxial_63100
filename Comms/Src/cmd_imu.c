@@ -195,6 +195,29 @@ static cmd_status_t h_imu_probe(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
+/**
+  * @brief op 4 - pulse NRSTN and take what the part says on the way up.
+  *
+  * The one thing a bring-up cannot do without: a part that has stopped
+  * streaming has no other way back, and re-flashing to get a reset is not a
+  * diagnostic. Answers with how many cargoes the reset produced, which is
+  * the advertisement and the two announcements when it worked.
+  */
+static cmd_status_t h_imu_reset(rd_t *in, wr_t *out)
+{
+  (void)in;
+
+  if (!Board_ImuReady() && !Board_ImuInit())
+  {
+    return CMD_ERR_DEVICE;
+  }
+
+  Board_ImuReset();
+  wr_u8(out, Board_ImuDrain(8U));
+
+  return CMD_OK;
+}
+
 static cmd_status_t h_imu(rd_t *in, wr_t *out)
 {
   const uint8_t op = rd_u8(in);
@@ -205,6 +228,7 @@ static cmd_status_t h_imu(rd_t *in, wr_t *out)
     case IMU_OP_READ:    return h_imu_read(in, out);
     case IMU_OP_FEATURE: return h_imu_feature(in, out);
     case IMU_OP_PROBE:   return h_imu_probe(in, out);
+    case IMU_OP_RESET:   return h_imu_reset(in, out);
     default:             return CMD_ERR_VALUE;
   }
 }

@@ -378,37 +378,75 @@ def test_orientation(report):
     report.check('and a rotation does not change a length',
                  abs(length - math.sqrt(14)) < 1e-6, '%.6f' % length)
 
-    picture = o.render((0, 0, 0, 1), width=40, height=15)
-    lines = picture.split(chr(10))
+    drawn = o.render((0, 0, 0, 1))
+    lines = drawn.split(chr(10))
     report.check('the drawing is the height it was asked for',
-                 len(lines) == 15, '%d lines' % len(lines))
+                 len(lines) == 19, '%d lines' % len(lines))
     report.check('and no line runs past the width',
-                 all(len(l) <= 40 for l in lines), max(len(l) for l in lines))
-    report.check('the connector edge is marked, so which way round the '
-                 'board is can be read off the shape',
-                 '#' in picture and '.' in picture)
-    wide = o.render((0, 0, 0, 1))          # the width the tools draw at
-    report.check('the silkscreen reads whole, one cell per character - '
-                 'rounding halves to even wrote it as "o x a  3 0 0"',
-                 o.LABEL in wide, [l.strip('. ') for l in
-                                   wide.split(chr(10)) if 'oax' in l])
-    report.check('and a canvas too narrow for it drops the label rather '
-                 'than writing it over itself',
-                 o.LABEL not in picture)
-    report.check('and it sits off centre, so the label says which way up '
-                 'the board is when the outline cannot',
-                 o.LABEL_Y > 0.0)
+                 all(len(l) <= 44 for l in lines), max(len(l) for l in lines))
 
-    away = o.render((0.0, 1.0, 0.0, 0.0))                        # turned over
-    report.check('the silkscreen does not read through the board from the '
-                 'solder side', o.LABEL not in away, o.facing((0, 1, 0, 0)))
+    report.check('the surface is shaded, not outlined',
+                 len(set(drawn) & set(o.SHADES)) > 3,
+                 ''.join(sorted(set(drawn) & set(o.SHADES))))
 
-    caption = o.picture((0, 0, 0, 1))
-    report.check('the caption carries the angles and the quaternion both - '
-                 'the picture is a reading, and the numbers are what it is '
+    # Turned edge on the board flattens: it occupies fewer rows than it does
+    # face on. That is the whole reason a picture beats four decimals.
+    quarter = math.sin(math.radians(45))
+    edge = o.render((quarter, 0.0, 0.0, math.cos(math.radians(45))))
+    drawn_rows = sum(1 for l in lines if l.strip())
+    edge_rows = sum(1 for l in edge.split(chr(10)) if l.strip())
+    report.check('edge on it flattens - fewer rows than face on',
+                 edge_rows < drawn_rows, '%d rows against %d'
+                 % (edge_rows, drawn_rows))
+
+    report.check('the surface normal points at the reader face on, and away '
+                 'when the board is turned over',
+                 o.facing((0, 0, 0, 1)) > 0.9
+                 and o.facing((0.0, 1.0, 0.0, 0.0)) < -0.9,
+                 '%.3f then %.3f' % (o.facing((0, 0, 0, 1)),
+                                     o.facing((0.0, 1.0, 0.0, 0.0))))
+
+    # render() turns points through matrix() rather than rotate(), because
+    # 45,000 sandwich products a frame do not fit in a frame. The two must
+    # not drift: this is what says the fast path still turns things the way
+    # the reference does.
+    q = o.normalise((0.3, -0.5, 0.2, 0.78))
+    m = o.matrix(q)
+    v = (0.4, -0.9, 0.25)
+    by_matrix = (m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
+                 m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
+                 m[6] * v[0] + m[7] * v[1] + m[8] * v[2])
+    by_quaternion = o.rotate(q, v)
+    report.check('the matrix render() uses agrees with rotate()',
+                 all(abs(a - b) < 1e-9
+                     for a, b in zip(by_matrix, by_quaternion)),
+                 '%s against %s' % (by_matrix, by_quaternion))
+
+    # Whatever the surface came from - the CAD export or the parametric
+    # board behind it - the renderer is handed one shape: a point, a unit
+    # normal and the ramp to shade it with, scaled to the board's radius.
+    report.check('every surface sample is a point, a normal and a ramp',
+                 all(len(s) == 3 and len(s[0]) == 3 and len(s[1]) == 3
+                     for s in o.SURFACE[:200]), len(o.SURFACE))
+    unit = [abs(math.sqrt(sum(c * c for c in s[1])) - 1.0)
+            for s in o.SURFACE[:500]]
+    report.check('and its normal is a unit vector',
+                 max(unit) < 1e-5, '%.2e worst' % max(unit))
+    reach = max(max(abs(s[0][0]), abs(s[0][1])) for s in o.SURFACE)
+    report.check('the surface is scaled to the board radius, so a model in '
+                 'millimetres draws the same size as one in inches',
+                 0.9 <= reach <= 1.01, '%.4f' % reach)
+
+    plain = o.picture((0, 0, 0, 1))
+    report.check('the picture carries the angles and the quaternion both - '
+                 'the drawing is a reading, and the numbers are what it is '
                  'a reading of',
-                 'roll' in caption and 'real +1.0000' in caption,
-                 caption.splitlines()[-2])
+                 'rpy' in plain and 'real +1.0000' in plain,
+                 plain.splitlines()[0])
+    report.check('the quaternion leads it, because it is what moves when '
+                 'the board does',
+                 plain.splitlines()[0].startswith('q   i '),
+                 plain.splitlines()[0])
 
 
 def main():

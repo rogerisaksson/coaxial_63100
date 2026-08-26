@@ -47,6 +47,28 @@ def latest(board, deadline):
     return found
 
 
+def paint(shown, lines, console):
+    """What to write to move the screen from `shown` to `lines`.
+
+    Only the rows that differ, each addressed directly. Rewriting all of it
+    every frame is what made the prompt flicker: at 20 Hz the terminal
+    repaints two dozen unchanged rows, so the header and the caption blink
+    along with the drawing they are not part of.
+    """
+    if not console:
+        return '\n'.join(lines) + '\n'
+
+    out = []
+    for row in range(max(len(shown), len(lines))):
+        was = shown[row] if row < len(shown) else None
+        now = lines[row] if row < len(lines) else ''
+        if now != was:
+            out.append('%s[%d;1H%s%s[K' % (chr(27), row + 1, now, chr(27)))
+
+    return ''.join(out)
+
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', default='COM4')
@@ -54,9 +76,16 @@ def main(argv=None):
                         help='screen refreshes per second')
     parser.add_argument('--interval-us', type=int, default=10000,
                         help='what to ask the IMU for, in microseconds')
+    parser.add_argument('--simulated', action='store_true',
+                        help='the stand-in, without probing for a board')
+    parser.add_argument('--frames', type=int, default=0,
+                        help='stop after this many, instead of running until '
+                             'closed. For checking the view against a board '
+                             'without a terminal to close.')
     args = parser.parse_args(argv)
 
-    session, origin = open_session(args.port)
+    session, origin = open_session(args.port,
+                                   simulated=True if args.simulated else None)
     print('%s - %s' % (origin.label, 'simulated' if not origin.real else 'live'))
 
     board = session.board
@@ -72,14 +101,14 @@ def main(argv=None):
     stale = 0
     frame = 0
 
-    # Cursor home rather than a clear: clearing the screen every frame makes
-    # the whole picture blink at 20 Hz, and the blink reads as the board
-    # jumping about rather than turning.
-    home = chr(27) + '[H'
-    if os.name == 'nt':
-        os.system('')            # enables ANSI on a Windows console
-
-    print(chr(27) + '[2J', end='')
+    # Only on a console: piped to a file the escapes are not interpreted and
+    # every frame arrives with the cursor moves printed in it.
+    console = sys.stdout.isatty()
+    if console:
+        if os.name == 'nt':
+            os.system('')    # enables ANSI on a Windows console
+        sys.stdout.write(chr(27) + '[2J')
+    shown = []
 
     try:
         while True:
@@ -90,13 +119,17 @@ def main(argv=None):
                 quaternion, stale = fresh, 0
 
             frame += 1
-            sys.stdout.write(home)
-            sys.stdout.write('coaxial_63100 - board attitude   '
-                             '(Ctrl+C to leave)' + chr(27) + '[K\n\n')
-            for line in orientation.picture(quaternion, frame=frame,
-                                            age=stale).split('\n'):
-                sys.stdout.write(line + chr(27) + '[K\n')
+            lines = (['coaxial_63100 - board attitude   '
+                      '(Ctrl+C to leave)', ''] +
+                     orientation.picture(quaternion, frame=frame,
+                                         age=stale).split('\n'))
+            sys.stdout.write(paint(shown, lines, console))
             sys.stdout.flush()
+            shown = lines
+
+            if args.frames and frame >= args.frames:
+                break
+
             time.sleep(period)
     except KeyboardInterrupt:
         pass
