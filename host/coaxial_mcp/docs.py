@@ -9,7 +9,8 @@ worth reading at all.
 The shape here is index first, section second, and that is the whole design.
 The tool list is re-read every turn (see ARCHITECTURE.md on the token budget),
 and a tool that returned a whole document by default would cost more than it
-saves - FINDINGS.md alone is about 3500 tokens. So:
+saves - by context.approx_tokens the seven run 526 to 4888 tokens, CLAUDE.md
+being the largest and FINDINGS.md 1585. So:
 
     docs()                          every document, its headings, its size
     docs(doc='FINDINGS')            one document's headings
@@ -215,9 +216,9 @@ def find(needle, level=None):
             # chapter is the meaning. Measured here: asked what had been ruled
             # out about the phase V offset, qwen2.5:14b found the entry
             # '"PCSEL accumulation explains the Phase V offset"' and reported
-            # it as the explanation - and that entry lives under "Refuted:
-            # plausible, wrong, do not revisit". A hit without its chapter can
-            # say the opposite of what the document says.
+            # it as the explanation - and that entry lives under
+            # "Ruled Out". A hit without its chapter can say the opposite of
+            # what the document says.
             chapter = entry = ''
             for level, title, head_line in heads:
                 if head_line > number:

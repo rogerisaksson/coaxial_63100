@@ -4395,10 +4395,10 @@ def test_docs(report):
     report.check('search says where it found it, not just that it did',
                  len(hits.splitlines()) >= 2)
     # A hit without its chapter can say the opposite of what the document says:
-    # the phase V entry that matches lives under "Refuted", and a model that
+    # the phase V entry that matches lives under "Ruled Out", and a model that
     # cannot see that reports a dead end as the explanation. Measured.
     refuted = next(head for _, head, _ in docmod._headings(
-        docmod._read(docmod.paths()['FINDINGS'])) if 'Refuted' in head)
+        docmod._read(docmod.paths()['FINDINGS'])) if 'Ruled Out' in head)
     body = docmod.docs(doc='FINDINGS', section=refuted).splitlines()[2:]
     phrase = next((w.lstrip('*- ') for line in body for w in [line.strip()]
                    if len(w) > 30 and not w.startswith('#')), None)
