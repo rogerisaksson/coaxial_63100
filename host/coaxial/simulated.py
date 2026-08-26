@@ -69,6 +69,17 @@ class SimulatedLink:
 # everything else here - see the module docstring.
 UNITS = {'NTC': 'centi-degC', 'DC bus': 'mV'}
 
+# What the firmware answers for channels kind 3: one entry per command table.
+# Shaped like the board's, invented like everything else here - the counts
+# are what this stand-in offers, not what a part reports.
+SUBSYSTEMS = [
+    {'name': 'board', 'commands': 11,
+     'what': 'ADC channels, digital I/O, clocks, self test'},
+    {'name': 'testrig', 'commands': 7,
+     'what': 'gated raw pin access for a fixture'},
+    {'name': 'imu', 'commands': 1, 'what': 'BNO08X on SPI2 over SHTP'},
+]
+
 DIGITAL = [
     {'pin': 'PB2',  'direction': 'out', 'signal': 'AFE_ON'},
     {'pin': 'PE15', 'direction': 'in',  'signal': 'nFAULT'},
@@ -104,7 +115,8 @@ class SimulatedSystem:
                 # which is the one thing the two must never disagree on.
                 'unit': UNITS.get(row['signal']),
             })
-        return {'analog': analog,
+        return {'subsystems': SUBSYSTEMS,
+                'analog': analog,
                 'digital': [dict(d) for d in DIGITAL],
                 'reserved': [dict(d) for d in RESERVED]}
 

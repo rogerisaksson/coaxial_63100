@@ -111,6 +111,17 @@ TOOL_CHOICE = (
     ('vad har de analoga kanalerna för värden?', 'analog_read',
      ('digital_read',)),
 
+    # What the board is made of. board_info answers it, because the list
+    # comes from the firmware's own command tables - a host that answered it
+    # from a table of its own would be a second answer to a question only
+    # the board settles.
+    ('vilka subsystem har kortet?', 'board_info',
+     ('analog_read', 'digital_read')),
+    ('what subsystems does this board have', 'board_info',
+     ('analog_read', 'digital_read')),
+    ('vad består kortet av?', 'board_info',
+     ('analog_read', 'digital_read')),
+
     # The IMU is a third kind of reading, and the noun that reaches it is
     # its own name. What must not happen is analog_read: "matvarden" is the
     # word the analog table answers to, and the sensor named in the same

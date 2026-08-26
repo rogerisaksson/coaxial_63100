@@ -251,6 +251,27 @@ const cmd_desc_t *cmd_test_table(uint8_t *count);
 /** The BNO08X commands. See cmd_imu.c. */
 const cmd_desc_t *cmd_imu_table(uint8_t *count);
 
+/**
+  * @brief One subsystem: a command table, named, with what it is for.
+  *
+  * The board says what it is made of for the same reason it says what its
+  * channels are - a host that answers that from a table of its own is a
+  * second answer to a question only the firmware can settle. Adding a
+  * command table adds a subsystem, because they are the same thing.
+  */
+typedef struct
+{
+  const char *name;
+  const char *what;
+  uint8_t     commands;
+} cmd_group_t;
+
+/** How many subsystems this firmware has. */
+uint8_t cmd_group_count(void);
+
+/** Subsystem `index`, or NULL past the end. */
+const cmd_group_t *cmd_group(uint8_t index);
+
 /** Flat iteration over every table, for listing and for the dispatcher. */
 uint16_t          cmd_count(void);
 const cmd_desc_t *cmd_at(uint16_t index);

@@ -293,6 +293,36 @@ def test_imu(report):
                  tool.splitlines()[0])
 
 
+def test_subsystems(report):
+    """The board says what it is made of, and the stand-in says it the same way.
+
+    The list comes from the firmware's command tables - one subsystem per
+    table - so a host that kept its own copy would go stale the moment one
+    was added. What is checked here is the shape and that the renderer reads
+    it; test_parity checks it against a real board.
+    """
+    session = SimulatedSession()
+    rows = session.board.system.channel_map()['subsystems']
+
+    report.check('the stand-in reports subsystems at all',
+                 bool(rows), len(rows))
+    report.check('each one names itself, says what it is for, and how many '
+                 'commands it carries',
+                 all(set(r) == {'name', 'what', 'commands'} for r in rows),
+                 sorted(rows[0]) if rows else None)
+    report.check('and every command count is a number, not a label',
+                 all(isinstance(r['commands'], int) and r['commands'] > 0
+                     for r in rows),
+                 [r['commands'] for r in rows])
+
+    drawn = toolmod.board_info(session, kind='subsystems')
+    report.check('board_info renders them one per line, which is how the '
+                 'model is given the answer',
+                 drawn.startswith('subsystems: %d' % len(rows))
+                 and all(r['name'] in drawn for r in rows),
+                 drawn.splitlines()[0])
+
+
 def test_orientation(report):
     """The quaternion maths and the picture it draws. No board, no IMU.
 
@@ -385,7 +415,8 @@ def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
                  test_self_test_and_link, test_gpio_gate,
-                 test_channel_table, test_imu, test_orientation):
+                 test_channel_table, test_imu, test_subsystems,
+                 test_orientation):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

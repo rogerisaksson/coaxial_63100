@@ -294,6 +294,9 @@ static cmd_status_t h_console(rd_t *in, wr_t *out)
 #define CHANNELS_ANALOG   0U
 #define CHANNELS_DIGITAL  1U
 #define CHANNELS_RESERVED 2U
+/* What the board is made of, rather than what it is wired to. The same
+   question one level up, and the same rule: the firmware settles it. */
+#define CHANNELS_SUBSYSTEMS 3U
 
 static cmd_status_t h_channels(rd_t *in, wr_t *out)
 {
@@ -306,9 +309,32 @@ static cmd_status_t h_channels(rd_t *in, wr_t *out)
      0x04 on the first live call. */
   const uint8_t kind = rd_u8(in);
 
-  if (kind > CHANNELS_RESERVED)
+  if (kind > CHANNELS_SUBSYSTEMS)
   {
     return CMD_ERR_VALUE;
+  }
+
+  if (kind == CHANNELS_SUBSYSTEMS)
+  {
+    const uint8_t groups = cmd_group_count();
+
+    wr_u8(out, groups);
+
+    for (uint8_t i = 0U; i < groups; i++)
+    {
+      const cmd_group_t *g = cmd_group(i);
+
+      if (g == NULL)
+      {
+        return CMD_ERR_DEVICE;
+      }
+
+      wr_str(out, g->name);
+      wr_str(out, g->what);
+      wr_u8(out, g->commands);
+    }
+
+    return CMD_OK;
   }
 
   if (kind != CHANNELS_ANALOG)

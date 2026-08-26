@@ -248,6 +248,16 @@ def error(exc):
     return 'ERR %s: %s%s' % (type(exc).__name__, exc, hint(exc))
 
 
+def subsystems(rows):
+    """What the board is made of, one per line, as the board reported it."""
+    if not rows:
+        return 'subsystems: this firmware does not report them'
+    return '\n'.join(
+        ['subsystems: %d' % len(rows)]
+        + ['  %-9s %2d cmd  %s' % (r['name'], r['commands'], r['what'])
+           for r in rows])
+
+
 def imu(what, payload):
     """The IMU, as a headed block like every other reading.
 

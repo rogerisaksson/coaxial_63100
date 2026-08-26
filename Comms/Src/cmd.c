@@ -10,14 +10,50 @@
    lookup, counting and listing all walk this. */
 typedef const cmd_desc_t *(*cmd_table_fn)(uint8_t *count);
 
-static const cmd_table_fn TABLES[] =
+typedef struct
 {
-  cmd_board_table,
-  cmd_test_table,
-  cmd_imu_table,
+  cmd_table_fn fn;
+  const char  *name;
+  const char  *what;
+} cmd_table_desc_t;
+
+/* Each table is a subsystem, named here so the board can say what it is made
+   of. Keep `what` short: the whole list has to fit one PDU beside the rest of
+   the channel map. */
+static const cmd_table_desc_t TABLES[] =
+{
+  { cmd_board_table, "board", "ADC channels, digital I/O, clocks, self test" },
+  { cmd_test_table,  "testrig", "gated raw pin access for a fixture" },
+  { cmd_imu_table,   "imu",   "BNO08X on SPI2 over SHTP" },
 };
 
 #define CMD_TABLE_COUNT (sizeof(TABLES) / sizeof(TABLES[0]))
+
+uint8_t cmd_group_count(void)
+{
+  return (uint8_t)CMD_TABLE_COUNT;
+}
+
+const cmd_group_t *cmd_group(uint8_t index)
+{
+  /* Filled on demand rather than held as a second table: the command count
+     is the table's own and would go stale the moment one is added. */
+  static cmd_group_t group;
+
+  if (index >= CMD_TABLE_COUNT)
+  {
+    return NULL;
+  }
+
+  uint8_t n = 0U;
+  (void)TABLES[index].fn(&n);
+
+  group.name = TABLES[index].name;
+  group.what = TABLES[index].what;
+  group.commands = n;
+
+  return &group;
+}
 
 uint16_t cmd_count(void)
 {
@@ -26,7 +62,7 @@ uint16_t cmd_count(void)
   for (size_t t = 0U; t < CMD_TABLE_COUNT; t++)
   {
     uint8_t n = 0U;
-    (void)TABLES[t](&n);
+    (void)TABLES[t].fn(&n);
     total = (uint16_t)(total + n);
   }
 
@@ -38,7 +74,7 @@ const cmd_desc_t *cmd_at(uint16_t index)
   for (size_t t = 0U; t < CMD_TABLE_COUNT; t++)
   {
     uint8_t n = 0U;
-    const cmd_desc_t *tab = TABLES[t](&n);
+    const cmd_desc_t *tab = TABLES[t].fn(&n);
 
     if (index < (uint16_t)n)
     {

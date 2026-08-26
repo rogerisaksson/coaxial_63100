@@ -247,7 +247,9 @@ def channels_tests(run):
         run.check('%s payload ends exactly where the rows do' % what,
                   at == len(body), '%d of %d bytes' % (at, len(body)))
 
-    refused = parse(b.request(bytes([0x6D, 3])))
+    # 4, not 3: kind 3 is the subsystem list now. The boundary this check
+    # is about is "past the last section", and it moves when one is added.
+    refused = parse(b.request(bytes([0x6D, 4])))
     run.check('an unknown section is refused, not answered',
               refused is not None and (refused[1] & 0x80) != 0,
               'no reply' if refused is None else 'fc 0x%02X' % refused[1])

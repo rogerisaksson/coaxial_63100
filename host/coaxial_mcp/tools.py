@@ -34,7 +34,8 @@ _PORT = {'type': 'string', 'description': 'Port letter A-K'}
 # analog channels should not cost the identity line, the clock line and the
 # digital pins as well - measured, "ge mig en lista over alla analoga
 # kanaler" traced eleven lines to answer with seven.
-BOARD_INFO_KINDS = ('all', 'analog', 'digital', 'reserved', 'identity')
+BOARD_INFO_KINDS = ('all', 'analog', 'digital', 'reserved', 'identity',
+                    'subsystems')
 
 TOOLS = [
     {
@@ -452,6 +453,12 @@ def board_info(session, refresh=False, kind='all', **_):
     # The pins come from the board too (command 0x6D). An older firmware has
     # no such command and the analog table alone is the answer, which is why
     # this is a try and not a required call.
+    if kind == 'subsystems':
+        # What the board is made of, which only the firmware knows: one
+        # entry per command table, reported by channels kind 3.
+        got = session.board.system.channel_map(refresh=refresh)
+        return render.subsystems(got.get('subsystems') or [])
+
     section = 'reserved' if kind == 'reserved' else 'digital'
     try:
         pins = session.board.system.channel_map(refresh=refresh)[section]

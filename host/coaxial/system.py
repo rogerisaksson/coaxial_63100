@@ -1,6 +1,6 @@
 """Identity, versions and the clock tree."""
 from . import protocol
-from .errors import PayloadError
+from .errors import PayloadError, RigError
 from .subsystem import Subsystem
 from .wire import Reader, pack
 
@@ -112,8 +112,25 @@ class System(Subsystem):
                     })
                 pins[name] = rows
             self._map = {'analog': analog, 'digital': pins['digital'],
-                         'reserved': pins['reserved']}
+                         'reserved': pins['reserved'],
+                         'subsystems': self._subsystems()}
         return self._map
+
+    def _subsystems(self):
+        """What the firmware says it is made of: one entry per command table.
+
+        Read from the board rather than listed here, for the same reason the
+        channel map is: a host that answers "what can this do" from a table
+        of its own is a second answer to a question only the firmware knows.
+        An older firmware has no kind 3, and an empty list says so without
+        making the whole map fail.
+        """
+        try:
+            reader = Reader(self.request(protocol.CHANNELS, pack(('u8', 3))))
+        except RigError:
+            return []
+        return [{'name': reader.string(), 'what': reader.string(),
+                 'commands': reader.u8()} for _ in range(reader.u8())]
 
     def self_test(self):
         """What the board can prove about itself, with nothing attached.
