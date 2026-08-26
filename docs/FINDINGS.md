@@ -29,6 +29,27 @@
 * **ADC Offset Calibration:** Drifts ~100mV across boots because it runs against an unpowered reference (`AFE_ON` low).
 * **Probe Readings Under Concurrent Use:** `--power` drives the ST-Link and `port_state` opens the VCP; neither says anything about the hardware while another process holds them. A concurrent `run_tests.ps1 -All` makes `--power` report `ST-LINK error (DEV_CONNECT_ERR)` in 2.3 s where the same call reads `0.00V` in 15.2 s once the bench is idle. A leftover `dbg.py --repl` makes `port_state` report `busy`, which is what the checklist then correctly says.
 
+## Confirmed Behaviors (Not Defects) - continued
+
+**`AFE_ON` (`PB2`) powers the IMU.** Measured 2026-08-26: with it off the
+BNO08X answers reads and never acts on a write. With it on, then reset, then
+`Set Feature 0x05` at 20 ms: 135 rotation vectors in 4 s, 51 distinct.
+
+What the fault looked like on the way there, all of it wrong:
+
+| Suspected | Ruled out by |
+|---|---|
+| SPI mode or bitrate | the advertisement reads back clean at 1.48 MHz, mode 3 |
+| chip select not reaching the part | clocking with CS high gives `ff ff ff ff`, with CS low `14 01 00 00` |
+| a shorted or held SPI2 pin | PB12..PB15 each drive high, drive low and follow both internal pulls |
+| the buffer truncating the advertisement | 276 bytes into 320 |
+| `PS0`/`WAKE` not wired | H_INTN answers a wake in 0-3 ms |
+| the part in the bootloader | it reports SH-2 3.2.0, part 10004148 |
+
+`product_id` looked like proof the link was two-way and was not: the part
+sends an unsolicited product id response after every reset, so the answer was
+in the queue whether or not the request arrived.
+
 ## Ruled Out
 
 * **`Chat` Decomposes into Turn, Steering and Budget:** All three touch `client`, `history`, `io_log`, `language` and `last_channels`; steering owns one attribute alone and budget none, so three objects need a shared state struct all three hold. `debug.py` is 1544 lines of which `Chat` is 1088; moving the wording (112) and module helpers (105) out leaves 1327. No class ceiling in the structure suite either: a mixin split defeats one, and a module ceiling would only demand this refactor.

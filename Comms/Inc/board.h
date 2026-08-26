@@ -145,6 +145,24 @@ bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len);
   */
 uint8_t Board_ImuDrain(uint8_t limit);
 
+/** Drive and release GPIOB pin `pin`, reporting what the pin then read.
+  *
+  * Bit 0 drove high and read high, bit 1 drove low and read low, bit 2 read
+  * high with the pull-up, bit 3 read low with the pull-down. 0x0F is a pin
+  * nothing else is holding. Leaves the pin an input and forces the next IMU
+  * command to re-initialise SPI2.
+  */
+uint8_t Board_ImuPinCheck(uint8_t pin);
+
+/** Assert PS0/WAKE on a drained part and time H_INTN's answer.
+  *
+  * Milliseconds, or 0xFFFF if the line never asserted inside `ms`, or 0xFFFE
+  * if the part was still holding it low and the question could not be put.
+  * A write clocks into a part that has not answered this, which is a write
+  * nothing acts on.
+  */
+uint16_t Board_ImuWakeTest(uint16_t ms);
+
 /**
   * @brief  Clock four bytes out and hand back exactly what came in.
   * @return False only if the transfer itself failed.
@@ -154,7 +172,14 @@ uint8_t Board_ImuDrain(uint8_t limit);
   * there and has nothing to say. Telling those apart is the first question at
   * a bench and the header parser cannot answer it - it refuses both.
   */
-bool Board_ImuProbe(uint8_t *out, uint8_t len);
+/** Clock `len` bytes and keep what comes back, with no framing.
+  *
+  * `select` is the bring-up question: with it false the transfer runs with
+  * chip select left high, which the part must ignore. Data coming back
+  * anyway says chip select is not reaching it - the one hardware fault this
+  * firmware can prove from the inside.
+  */
+bool Board_ImuProbe(uint8_t *out, uint8_t len, bool select);
 
 /** The SPI2 kernel clock and the bit rate Board_ImuInit settled on, so the
     bench can see the number rather than infer it from a silent part. */

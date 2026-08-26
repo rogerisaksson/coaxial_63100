@@ -233,6 +233,16 @@ bool Board_ImuInit(void)
 {
   GPIO_InitTypeDef gpio = {0};
 
+  /* AFE_ON powers the part, not just the analog front end. Measured: with it
+     off the BNO08X still drives MISO and still resets - enough to read a
+     valid 276-byte advertisement from - but no write is ever acted on, and
+     the wake handshake answers sometimes and not others. That cost a day:
+     every symptom looked like SPI. Refuse instead of half-working. */
+  if (!Board_AfeOn())
+  {
+    return false;
+  }
+
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /* Re-init rather than patch: HAL latches the mode into CFG1/CFG2 at
@@ -301,6 +311,17 @@ bool Board_ImuInit(void)
 
 bool Board_ImuReady(void)
 {
+  /* AFE_ON off means the part lost its supply, and a part that has lost its
+     supply needs a reset, not a resume: measured, with the AFE switched on
+     under a part that was already "ready" the stream never started, and the
+     same sequence with a reset after it gave 135 rotation vectors in four
+     seconds. Clearing the flag here is what makes the next command re-init. */
+  if (!Board_AfeOn())
+  {
+    s_ready = false;
+    return false;
+  }
+
   return s_ready;
 }
 
@@ -407,7 +428,7 @@ void Board_ImuClock(uint32_t *kernel_hz, uint32_t *bitrate_hz)
   if (bitrate_hz != NULL) { *bitrate_hz = s_bitrate_hz; }
 }
 
-bool Board_ImuProbe(uint8_t *out, uint8_t len)
+bool Board_ImuProbe(uint8_t *out, uint8_t len, bool select)
 {
   /* No upper check: len is a uint8_t and IMU_BUF is 320, so one cannot
      exceed the other. The comparison that used to be here was always false
@@ -422,7 +443,97 @@ bool Board_ImuProbe(uint8_t *out, uint8_t len)
     return false;
   }
 
-  return transfer(NULL, out, len);
+  /* Wait the same way a read does. Without it the probe clocks while the
+     part has nothing to say, every answer is FF, and the comparison the
+     `select` argument exists to make is not a comparison at all. */
+  (void)wait_intn(IMU_INTN_WAIT_MS);
+
+  if (select)
+  {
+    return transfer(NULL, out, len);
+  }
+
+  /* Deliberately without chip select. A part that answers here is a part
+     that is not seeing H_CSN. */
+  settle();
+  const bool ok = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)s_zeros, out,
+                                          len, 100U) == HAL_OK;
+  settle();
+  return ok;
+}
+
+uint16_t Board_ImuWakeTest(uint16_t ms)
+{
+  if (!s_ready && !Board_ImuInit())
+  {
+    return 0xFFFFU;
+  }
+
+  /* Empty first: H_INTN stays asserted while anything is queued, and a line
+     that is already low answers nothing about the wake. */
+  (void)Board_ImuDrain(16U);
+
+  if (intn_asserted())
+  {
+    return 0xFFFEU;               /* still busy - the answer would be a lie */
+  }
+
+  const uint32_t start = HAL_GetTick();
+
+  wake(true);
+  while ((uint32_t)(HAL_GetTick() - start) < ms)
+  {
+    if (intn_asserted())
+    {
+      wake(false);
+      return (uint16_t)(HAL_GetTick() - start);
+    }
+  }
+
+  wake(false);
+  return 0xFFFFU;                 /* never answered */
+}
+
+uint8_t Board_ImuPinCheck(uint8_t pin)
+{
+  GPIO_InitTypeDef gpio = {0};
+  const uint16_t mask = (uint16_t)(1U << pin);
+  uint8_t bits = 0U;
+
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  gpio.Pin = mask;
+  gpio.Mode = GPIO_MODE_OUTPUT_PP;
+  gpio.Pull = GPIO_NOPULL;
+  gpio.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &gpio);
+
+  HAL_GPIO_WritePin(GPIOB, mask, GPIO_PIN_SET);
+  HAL_Delay(1U);
+  if (HAL_GPIO_ReadPin(GPIOB, mask) == GPIO_PIN_SET)   { bits |= 0x01U; }
+
+  HAL_GPIO_WritePin(GPIOB, mask, GPIO_PIN_RESET);
+  HAL_Delay(1U);
+  if (HAL_GPIO_ReadPin(GPIOB, mask) == GPIO_PIN_RESET) { bits |= 0x02U; }
+
+  /* Released, with the MCU's own pulls. A pull-up that reads low or a
+     pull-down that reads high is something else driving the net - which is
+     the fault a drive test cannot see, because push-pull wins against it. */
+  gpio.Mode = GPIO_MODE_INPUT;
+  gpio.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &gpio);
+  HAL_Delay(2U);
+  if (HAL_GPIO_ReadPin(GPIOB, mask) == GPIO_PIN_SET)   { bits |= 0x04U; }
+
+  gpio.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOB, &gpio);
+  HAL_Delay(2U);
+  if (HAL_GPIO_ReadPin(GPIOB, mask) == GPIO_PIN_RESET) { bits |= 0x08U; }
+
+  /* The pin is left as an input. The next IMU command re-runs the whole
+     init, which hands PB12..PB15 back to SPI2. */
+  s_ready = false;
+  return bits;
 }
 
 uint8_t Board_ImuDrain(uint8_t limit)
@@ -484,13 +595,49 @@ bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
      which is what waking looks like from here, not a fault. */
   wake(true);
 
-  /* Best effort, not a gate. WAKE exists to bring a SLEEPING part up, and it
-     answers by asserting H_INTN (1.2.4.3) - but a part that is already awake
-     has nothing to wake from and asserts nothing, so treating the timeout as
-     a failure refused writes that would have gone through. Measured: two
-     product id requests in a row succeeded and a third failed, with the part
-     answering normally either side of it. */
-  (void)wait_intn(IMU_WAKE_WAIT_MS);
+  /* A gate, not best effort. The part answers a wake by asserting H_INTN,
+     "at which point the host can initiate SPI accesses" (1.2.4.3) - so
+     clocking without it is clocking at a part that is not listening, and
+     that is what a write that goes out and changes nothing looks like.
+     This was best effort once, on the reading that two product id requests
+     had succeeded through it; they had not - the part sends an unsolicited
+     product id response after every reset, and that is what was being read.
+     Measured on the same board: executable ON, SLEEP and RESET all produced
+     the identical answer, which is only possible if none of the payloads
+     arrived. */
+  if (!wait_intn(IMU_WAKE_WAIT_MS))
+  {
+    /* Measured on this board: the part answers a wake in under a
+       millisecond, and then now and again does not answer one at all -
+       twice in ten over eight seconds, and permanently after it had been
+       left alone for a few minutes. Releasing WAKE and asserting it again
+       recovers the first kind; a reset recovers the second, and costs the
+       configuration, which is why it is last and not first. */
+    bool woken = false;
+
+    for (uint8_t again = 0U; (again < 3U) && !woken; again++)
+    {
+      wake(false);
+      HAL_Delay(2U);
+      wake(true);
+      woken = wait_intn(IMU_WAKE_WAIT_MS);
+    }
+
+    if (!woken)
+    {
+      wake(false);
+      Board_ImuReset();
+      (void)Board_ImuDrain(16U);
+      wake(true);
+      woken = wait_intn(IMU_WAKE_WAIT_MS);
+    }
+
+    if (!woken)
+    {
+      wake(false);
+      return false;
+    }
+  }
 
   cs(true);
   settle();

@@ -89,6 +89,20 @@ def main(argv=None):
     print('%s - %s' % (origin.label, 'simulated' if not origin.real else 'live'))
 
     board = session.board
+
+    # AFE_ON powers the IMU. Without it the part answers just enough to look
+    # present - it resets, it advertises - and never acts on a write, so the
+    # view sits on one quaternion for ever. Enabled here rather than reported,
+    # because a live attitude view has no other purpose than to have it on.
+    try:
+        if not board.afe.is_on():
+            board.afe.enable()
+            print('AFE_ON was off - enabled it, it powers the IMU')
+    except RigError as exc:
+        print('could not power the AFE, which powers the IMU: %s' % exc)
+        session.close()
+        return 1
+
     try:
         board.imu.feature(ROTATION_VECTOR, args.interval_us)
     except RigError as exc:

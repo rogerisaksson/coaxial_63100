@@ -387,9 +387,12 @@ with `Unable to get core ID`. Use `-c port=JTAG mode=Normal reset=SWrst`, or SWD
 This is the probe firmware, not the board — the cabling was proven fine. End a
 programmer invocation with `--start`, not `-hardRst`, or the core is left halted.
 
-**The AFE switch (PB2) powers the ADC reference.** With it off every channel
-reads exact mid-scale and the NTC reports exactly 25.00 °C. Enable it before
-believing anything analog.
+**The AFE switch (PB2) powers the ADC reference and the IMU.** With it off
+every channel reads exact mid-scale and the NTC reports exactly 25.00 °C.
+The BNO08X is worse: it answers reads, resets and advertises normally, and
+silently acts on no write at all - a day went into SPI before the supply was
+checked. Enable it before believing anything analog and before believing an
+IMU that looks present.
 
 ## Tooling traps
 

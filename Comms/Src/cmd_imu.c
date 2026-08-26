@@ -179,7 +179,9 @@ static cmd_status_t h_imu_probe(rd_t *in, wr_t *out)
     return CMD_ERR_VALUE;
   }
 
-  if (!Board_ImuProbe(raw, len))
+  const bool select = (rd_left(in) > 0U) ? (rd_u8(in) != 0U) : true;
+
+  if (!Board_ImuProbe(raw, len, select))
   {
     return CMD_ERR_DEVICE;
   }
@@ -218,6 +220,85 @@ static cmd_status_t h_imu_reset(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
+/**
+  * @brief op 5 - one cargo, exactly as given, on the channel named.
+  *
+  * The bring-up primitive the parsed operations cannot stand in for. Product
+  * Id cannot tell a write that reached the part from one that did not: the
+  * part sends an unsolicited Product Id Response after every reset, so the
+  * answer is in the queue either way. A Get Feature Request is not - nothing
+  * else makes the part emit a 0xFC - and this is what puts one on the wire.
+  */
+static cmd_status_t h_imu_write(rd_t *in, wr_t *out)
+{
+  static uint8_t payload[IMU_CARGO];
+  const uint8_t channel = rd_u8(in);
+  uint16_t len = 0U;
+
+  (void)out;
+
+  while ((rd_left(in) > 0U) && (len < (uint16_t)sizeof(payload)))
+  {
+    payload[len] = rd_u8(in);
+    len++;
+  }
+
+  if (!rd_ok(in) || (len == 0U))
+  {
+    return CMD_ERR_VALUE;
+  }
+
+  if (!Board_ImuReady() && !Board_ImuInit())
+  {
+    return CMD_ERR_DEVICE;
+  }
+
+  if (!Board_ImuWrite(channel, payload, len))
+  {
+    return CMD_ERR_DEVICE;
+  }
+
+  return CMD_OK;
+}
+
+/**
+  * @brief op 6 - drive one of SPI2's pins and read it back.
+  *
+  * What a write that the part never acts on needs next: reads work, chip
+  * select is proven from the inside, so the question is whether anything is
+  * holding SPI2's own pins. Answers per pin, not per bus, because the fault
+  * this looks for is one net.
+  */
+static cmd_status_t h_imu_pins(rd_t *in, wr_t *out)
+{
+  static const uint8_t PINS[4] = { 12U, 13U, 14U, 15U };
+
+  (void)in;
+
+  for (uint8_t i = 0U; i < 4U; i++)
+  {
+    wr_u8(out, PINS[i]);
+    wr_u8(out, Board_ImuPinCheck(PINS[i]));
+  }
+
+  return CMD_OK;
+}
+
+/**
+  * @brief op 7 - does the part answer a wake, and how fast.
+  *
+  * The measurement that separates a write nobody acts on from a write that
+  * never went out. Also reports PS0/WAKE's own readback, so a line the MCU
+  * cannot drive is not mistaken for a part that will not answer.
+  */
+static cmd_status_t h_imu_wake(rd_t *in, wr_t *out)
+{
+  const uint16_t ms = (rd_left(in) >= 2U) ? rd_u16(in) : 200U;
+
+  wr_u16(out, Board_ImuWakeTest(ms));
+  return CMD_OK;
+}
+
 static cmd_status_t h_imu(rd_t *in, wr_t *out)
 {
   const uint8_t op = rd_u8(in);
@@ -229,6 +310,9 @@ static cmd_status_t h_imu(rd_t *in, wr_t *out)
     case IMU_OP_FEATURE: return h_imu_feature(in, out);
     case IMU_OP_PROBE:   return h_imu_probe(in, out);
     case IMU_OP_RESET:   return h_imu_reset(in, out);
+    case IMU_OP_WRITE:   return h_imu_write(in, out);
+    case IMU_OP_PINS:    return h_imu_pins(in, out);
+    case IMU_OP_WAKE:    return h_imu_wake(in, out);
     default:             return CMD_ERR_VALUE;
   }
 }

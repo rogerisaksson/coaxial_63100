@@ -11,7 +11,8 @@
 
 The internal ADC VREF is disabled. The reference is driven externally by the AFE.
 
-* **`PB2` (`AFE_ON`):** Powers the amplifier chains *and* the ADC reference. Polling channels with `PB2` low returns exact mid-scale (yielding a phantom 25 °C on the NTC).
+* **`PB2` (`AFE_ON`):** Powers the amplifier chains, the ADC reference *and the BNO08X on SPI2*. Polling channels with `PB2` low returns exact mid-scale (yielding a phantom 25 °C on the NTC).
+* **The IMU without `AFE_ON` is worse than dead.** It still drives MISO, still resets, and still returns a valid 276-byte SHTP advertisement - so every read looks healthy. What it never does is act on a write: `Set Feature` starts no stream, and executable `ON`, `SLEEP` and `RESET` all produce the identical answer, which is only possible if none of the payloads arrived. Firmware refuses `Board_ImuInit` while `PB2` is low, and losing `PB2` clears the ready flag, because a part that has lost its supply needs a reset rather than a resume.
 * **`PE15` (`nFAULT`):** Tracks `AFE_ON` inversely. It reads logic `0` when the AFE is powered.
 
 ## Scaling & Telemetry (Host Domain)

@@ -67,10 +67,12 @@ class Imu(Subsystem):
             reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_ID]))
         except Exception as exc:
             raise DeviceStateError(
-                'the IMU did not answer a product id request: %s. The board '
-                'drives NRSTN and PS0/WAKE and waits on H_INTN, so this is '
-                'the part itself not answering - check it is populated and '
-                'that PS1 is strapped high for SPI' % exc) from exc
+                'the IMU did not answer a product id request: %s. '
+                'AFE_ON powers this part - if it is off, that is the whole '
+                'answer and afe.enable() is the fix. With it on, the board '
+                'drives NRSTN and PS0/WAKE and waits on H_INTN, so a silent '
+                'part is the part itself: check it is populated and that '
+                'PS1 is strapped high for SPI' % exc) from exc
 
         r = Reader(reply)
         cause = r.u8()
@@ -113,6 +115,69 @@ class Imu(Subsystem):
         """
         reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_RESET]))
         return Reader(reply).u8()
+
+    def wake_test(self, ms=200):
+        """Milliseconds for H_INTN to answer PS0/WAKE on a drained part.
+
+        None when it never answered inside `ms`, which is a part that will
+        not accept a write; 'busy' when it was still holding the line low and
+        the question could not be put.
+        """
+        reply = self.request(protocol.IMU,
+                             bytes([protocol.IMU_OP_WAKE])
+                             + ms.to_bytes(2, 'big'))
+        got = Reader(reply).u16()
+        if got == 0xFFFF:
+            return None
+        if got == 0xFFFE:
+            return 'busy'
+        return got
+
+    def pins(self):
+        """Drive and release each of SPI2's four pins, and say what read back.
+
+        `held` names a pin something else is holding: it did not follow the
+        MCU driving it, or it did not follow the MCU's own pull. Reads work
+        and chip select is proven, so this is what is left to check from
+        inside the firmware.
+        """
+        reply = self.request(protocol.IMU, bytes([protocol.IMU_OP_PINS]))
+        r = Reader(reply)
+        names = {12: 'NSS/H_CSN', 13: 'SCK', 14: 'MISO', 15: 'MOSI'}
+        out = []
+        for _ in range(4):
+            pin, bits = r.u8(), r.u8()
+            out.append({'pin': 'PB%d' % pin, 'signal': names.get(pin, '?'),
+                        'bits': bits, 'held': bits != 0x0F})
+        return out
+
+    def probe(self, length=4, select=True):
+        """`length` raw bytes off SPI2, unframed and uninterpreted.
+
+        The bring-up question the parser refuses both answers to: FF FF FF FF
+        is a part that is absent or in reset, 00 00 00 00 one that is present
+        and idle. Also the only way to see the header's true length field,
+        which read() caps before the host sees it.
+        """
+        reply = self.request(protocol.IMU,
+                             bytes([protocol.IMU_OP_PROBE, length,
+                                    1 if select else 0]))
+        r = Reader(reply)
+        kernel, bitrate = r.u32(), r.u32()
+        return {'kernel_hz': kernel, 'bitrate_hz': bitrate,
+                'raw': bytes(r.take(r.u8()))}
+
+    def write(self, channel, payload):
+        """Put `payload` on `channel` as one SHTP cargo, unparsed.
+
+        The bring-up primitive: what feature() and product_id() are built on,
+        exposed because a question with an answer nothing else produces is
+        the only way to prove a write reached the part.
+        """
+        if not 0 <= channel <= 5:
+            raise ValueError('channel %r is not one of the six' % (channel,))
+        self.request(protocol.IMU,
+                     bytes([protocol.IMU_OP_WRITE, channel]) + bytes(payload))
 
     def feature(self, report_id, interval_us):
         """Enable a sensor report, or disable it with an interval of 0.

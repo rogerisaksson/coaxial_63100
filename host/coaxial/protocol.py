@@ -48,6 +48,9 @@ IMU_OP_READ = 1
 IMU_OP_FEATURE = 2
 IMU_OP_PROBE = 3
 IMU_OP_RESET = 4
+IMU_OP_WRITE = 5
+IMU_OP_PINS = 6
+IMU_OP_WAKE = 7
 
 NAMES = {
     VERSION: 'version', ADC_TABLE: 'adc_table', ADC_SCAN: 'adc_scan',
