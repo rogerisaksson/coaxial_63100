@@ -14,10 +14,15 @@ examples: a model that needs the channel map calls board_info once.
 """
 import os
 import re
+import subprocess
 import sys
 
 from coaxial import DividerParams, NtcParams, protocol, scaling
+from coaxial import orientation as orient
+from coaxial.errors import DeviceStateError
 from coaxial.wire import pack
+
+ROTATION_VECTOR = 0x05
 
 from. import render
 from .docs import docs as _docs
@@ -48,8 +53,8 @@ TOOLS = [
     },
     {
         'name': 'analog_read',
-        'description': 'Sample ADC channels; returns mean raw, pin volts, plus degC for the NTC and volts for the DC bus. Needs the AFE on.',
-        'description_terse': 'Sample ADC channels: mean raw, pin volts, NTC degC, bus volts.',
+        'description': "Sample the board's ADC channels: mean raw, pin volts, plus degC for the NTC and volts for the DC bus. Needs the AFE on. Not the IMU.",
+        'description_terse': "The board's ADC channels: mean raw, pin volts, NTC degC, bus volts. Not the IMU.",
         'inputSchema': {
             'type': 'object',
             'properties': {
@@ -88,14 +93,25 @@ TOOLS = [
     },
     {
         'name': 'imu',
-        'description': "BNO08X inertial sensor on SPI2. op='id' what the part is, 'read' one cargo decoded, 'feature' a report at interval_us (0 disables).",
-        'description_terse': "BNO08X on SPI2. op='id' what it is, 'read' one cargo, 'feature' enable a report at interval_us (0 disables).",
+        'description': "The IMU (BNO08X): accelerometer, gyro, magnetometer readings, not the ADC channels. op='read' values, 'id' the part, 'feature' enable.",
+        'description_terse': "The IMU's readings - accelerometer, gyro, magnetometer. Not the ADC channels. op='read' values, 'id' the part, 'feature' enable.",
         'inputSchema': {
             'type': 'object',
             'properties': {
                 'op': {'type': 'string', 'enum': ['id', 'read', 'feature']},
                 'report_id': {'type': 'integer'},
                 'interval_us': {'type': 'integer'},
+            },
+        },
+    },
+    {
+        'name': 'orientation',
+        'description': "How the board is turned or oriented, drawn as a picture from the IMU's rotation vector. op='show' opens a terminal that redraws it live.",
+        'description_terse': "How the board is turned or oriented, as a picture. op='show' opens a terminal that redraws it live.",
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'op': {'type': 'string', 'enum': ['once', 'show']},
             },
         },
     },
@@ -555,6 +571,61 @@ def imu(session, op='read', report_id=None, interval_us=None, **_):
     return render.imu('read', part.read())
 
 
+def orientation(session, op='once', **_):
+    """One picture, or a window that keeps drawing them.
+
+    'show' launches tools/show_orientation.py in its own console. That is the
+    one place in this package that opens a window, and it is what "show me
+    the orientation" asks for: a still frame of a thing that moves is not an
+    answer.
+    """
+    if op == 'show':
+        return _open_orientation_window(session)
+
+    part = session.board.imu
+    part.feature(ROTATION_VECTOR, 20000)
+    quaternion = None
+    for _ in range(20):
+        for report in part.read()['reports']:
+            if 'quaternion' in report:
+                q = report['quaternion']
+                quaternion = (q['i'], q['j'], q['k'], q['real'])
+        if quaternion is not None:
+            break
+
+    if quaternion is None:
+        raise DeviceStateError(
+            'the IMU sent no rotation vector. It is enabled now, so a second '
+            'call may find one; if not, the part is not reporting.')
+
+    return orient.picture(quaternion)
+
+
+def _open_orientation_window(session):
+    """Start the live view in a console of its own, and say so.
+
+    The port is handed over explicitly: the window is a separate process and
+    would otherwise probe for a board this session is already holding.
+    """
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    script = os.path.join(os.path.dirname(tools_dir), 'tools',
+                          'show_orientation.py')
+    port = getattr(session, 'port', None) or 'COM4'
+
+    if os.name != 'nt':
+        return ('a live view needs its own console and this is not Windows - '
+                'run: python tools/show_orientation.py --port %s' % port)
+
+    subprocess.Popen(
+        [sys.executable, script, '--port', str(port)],
+        creationflags=getattr(subprocess, 'CREATE_NEW_CONSOLE', 0),
+        cwd=os.path.dirname(tools_dir))
+
+    return ('orientation: a window is drawing the board live from %s. '
+            'Ctrl+C in it to stop; it puts the IMU back as it found it.'
+            % port)
+
+
 def _multicast(session):
     return getattr(session, 'unit', None) == protocol.BROADCAST
 
@@ -748,6 +819,7 @@ HANDLERS = {
     'devices': devices,
     'digital_read': digital_read,
     'imu': imu,
+    'orientation': orientation,
     'gpio_pin': gpio_pin,
     'gpio_port': gpio_port,
     'test_gate': test_gate,

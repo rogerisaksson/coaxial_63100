@@ -10,6 +10,7 @@ shape. Either way this is the fast way to find out which.
 Run from the host directory:  python tests/test_simulated.py
 """
 import io
+import math
 import os
 import re
 import sys
@@ -292,11 +293,99 @@ def test_imu(report):
                  tool.splitlines()[0])
 
 
+def test_orientation(report):
+    """The quaternion maths and the picture it draws. No board, no IMU.
+
+    Every case here is one a reader can check by hand: the identity is level,
+    a quarter turn about an axis is 90 degrees of that axis and nothing else,
+    and a rotation does not change a length.
+    """
+    from coaxial import orientation as o
+
+    roll, pitch, yaw = o.euler_degrees((0, 0, 0, 1))
+    report.check('the identity quaternion is level in all three angles',
+                 (round(roll), round(pitch), round(yaw)) == (0, 0, 0),
+                 '%.1f %.1f %.1f' % (roll, pitch, yaw))
+
+    # Thirty degrees, not ninety: at pitch +-90 the Euler decomposition is
+    # singular and roll and yaw trade places, so a quarter turn about Y
+    # legitimately reads 180/90/180. Testing there would assert against
+    # gimbal lock rather than against the maths.
+    third = math.radians(30)
+    for axis, name, want in ((0, 'roll', 0), (1, 'pitch', 1), (2, 'yaw', 2)):
+        q = [0.0, 0.0, 0.0, math.cos(third / 2)]
+        q[axis] = math.sin(third / 2)
+        angles = o.euler_degrees(tuple(q))
+        others = [a for i, a in enumerate(angles) if i != want]
+        report.check('thirty degrees about %s reads there and nowhere else'
+                     % name,
+                     abs(angles[want] - 30) < 0.01
+                     and all(abs(a) < 0.01 for a in others),
+                     ' '.join('%.3f' % a for a in angles))
+
+    # The clamp in euler_degrees: asin of anything past 1.0 is a domain
+    # error, and floating point gets there on a legitimate quarter turn.
+    straight_up = o.euler_degrees((0.0, math.sin(math.radians(45)), 0.0,
+                                   math.cos(math.radians(45))))
+    report.check('pitch is clamped at ninety rather than raising on a '
+                 'rounding error past 1.0',
+                 abs(abs(straight_up[1]) - 90) < 0.01, '%.4f' % straight_up[1])
+
+    report.check('an all-zero rotation vector is taken as the identity '
+                 'rather than divided by, which would put a NaN on screen',
+                 o.normalise((0, 0, 0, 0)) == (0.0, 0.0, 0.0, 1.0))
+    report.check('and a quaternion that is not unit length is made one',
+                 abs(sum(v * v for v in o.normalise((0, 0, 0, 7))) - 1) < 1e-9)
+
+    quarter = math.sin(math.radians(45))
+    turned = o.rotate((0, 0, quarter, math.cos(math.radians(45))),
+                      (1.0, 0.0, 0.0))
+    report.check('a quarter turn about Z takes +X to +Y',
+                 abs(turned[0]) < 1e-6 and abs(turned[1] - 1) < 1e-6,
+                 '%.4f %.4f %.4f' % turned)
+    length = math.sqrt(sum(v * v for v in o.rotate((0.5, 0.5, 0.5, 0.5),
+                                                   (1.0, 2.0, 3.0))))
+    report.check('and a rotation does not change a length',
+                 abs(length - math.sqrt(14)) < 1e-6, '%.6f' % length)
+
+    picture = o.render((0, 0, 0, 1), width=40, height=15)
+    lines = picture.split(chr(10))
+    report.check('the drawing is the height it was asked for',
+                 len(lines) == 15, '%d lines' % len(lines))
+    report.check('and no line runs past the width',
+                 all(len(l) <= 40 for l in lines), max(len(l) for l in lines))
+    report.check('the connector edge is marked, so which way round the '
+                 'board is can be read off the shape',
+                 '#' in picture and '.' in picture)
+    wide = o.render((0, 0, 0, 1))          # the width the tools draw at
+    report.check('the silkscreen reads whole, one cell per character - '
+                 'rounding halves to even wrote it as "o x a  3 0 0"',
+                 o.LABEL in wide, [l.strip('. ') for l in
+                                   wide.split(chr(10)) if 'oax' in l])
+    report.check('and a canvas too narrow for it drops the label rather '
+                 'than writing it over itself',
+                 o.LABEL not in picture)
+    report.check('and it sits off centre, so the label says which way up '
+                 'the board is when the outline cannot',
+                 o.LABEL_Y > 0.0)
+
+    away = o.render((0.0, 1.0, 0.0, 0.0))                        # turned over
+    report.check('the silkscreen does not read through the board from the '
+                 'solder side', o.LABEL not in away, o.facing((0, 1, 0, 0)))
+
+    caption = o.picture((0, 0, 0, 1))
+    report.check('the caption carries the angles and the quaternion both - '
+                 'the picture is a reading, and the numbers are what it is '
+                 'a reading of',
+                 'roll' in caption and 'real +1.0000' in caption,
+                 caption.splitlines()[-2])
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
                  test_self_test_and_link, test_gpio_gate,
-                 test_channel_table, test_imu):
+                 test_channel_table, test_imu, test_orientation):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

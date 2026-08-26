@@ -353,6 +353,9 @@ class SimulatedImu:
     #: Q8 counts for 9.81 m/s^2, which is what SCALE[0x01] divides by.
     ONE_G = 2511
 
+    #: Q14 counts for 1.0, the scale a rotation vector is reported in.
+    UNIT = 16384
+
     def __init__(self):
         self._seq = 0
         self._enabled = {}
@@ -368,13 +371,35 @@ class SimulatedImu:
         }
 
     def read(self):
-        """A timebase and one accelerometer report, framed the way a real
-        cargo on channel 3 is - Figure 5-2."""
+        """A timebase, then whatever has been enabled - framed the way a real
+        cargo on channel 3 is, Figure 5-2.
+
+        Only what feature() turned on, because that is the one thing about a
+        sensor hub a caller can get wrong: reading a report nobody asked for.
+        With nothing enabled this reports the accelerometer, which is what a
+        bring-up looks at first.
+        """
         self._seq = (self._seq + 1) & 0xFF
         cargo = bytes([0xFB, 0, 0, 0, 0])
-        cargo += bytes([0x01, self._seq, 0x03, 0])
-        for value in (0, 0, self.ONE_G):
-            cargo += int(value).to_bytes(2, 'little', signed=True)
+
+        wanted = set(self._enabled) or {0x01}
+
+        if 0x01 in wanted:
+            cargo += bytes([0x01, self._seq, 0x03, 0])
+            for value in (0, 0, self.ONE_G):
+                cargo += int(value).to_bytes(2, 'little', signed=True)
+
+        if 0x05 in wanted:
+            # Level and square on, turning slowly about Z so a live view has
+            # something to show. Invented, like every value in this file.
+            import math
+            angle = (self._seq / 128.0) * math.pi
+            cargo += bytes([0x05, self._seq, 0x03, 0])
+            for value in (0, 0,
+                          int(math.sin(angle / 2) * self.UNIT),
+                          int(math.cos(angle / 2) * self.UNIT),
+                          0):
+                cargo += int(value).to_bytes(2, 'little', signed=True)
 
         from .imu import CHANNELS, decode
         return {'channel': 3, 'channel_name': CHANNELS[3],

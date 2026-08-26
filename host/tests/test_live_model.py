@@ -111,6 +111,25 @@ TOOL_CHOICE = (
     ('vad har de analoga kanalerna för värden?', 'analog_read',
      ('digital_read',)),
 
+    # The IMU is a third kind of reading, and the noun that reaches it is
+    # its own name. What must not happen is analog_read: "matvarden" is the
+    # word the analog table answers to, and the sensor named in the same
+    # sentence is what decides.
+    ('lista alla mätvärden från IMU:n', 'imu',
+     ('analog_read', 'digital_read')),
+    ('list every measurement from the IMU', 'imu',
+     ('analog_read', 'digital_read')),
+    ('vad säger IMU:n?', 'imu', ('analog_read', 'digital_read')),
+
+    # Orientation is a picture, not a list of numbers, and it has its own
+    # tool. imu would answer with a quaternion, which is not what was asked.
+    ('visa mig orienteringen på elektroniken', 'orientation',
+     ('analog_read', 'digital_read')),
+    ('show me how the board is oriented', 'orientation',
+     ('analog_read', 'digital_read')),
+    ('hur är kortet vänt?', 'orientation',
+     ('analog_read', 'digital_read')),
+
     # The bus. One board is a bus of one; a machine is several of it, and
     # "which device" is a question board_info cannot answer.
     ('ge mig en lista på alla enheter du kan kommunicera med', 'devices',

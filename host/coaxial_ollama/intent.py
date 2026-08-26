@@ -37,6 +37,7 @@ INTENTS = {
     'link':    'the link is failing - nothing answers, and why not',
     'words':   'explain, describe, define, compare - an answer in words',
     'control': 'switch which board, model or language the host itself uses',
+    'orient':  'how the board is turned or oriented - a picture, not numbers',
 }
 
 # Measured against gemma4:12b, 12 questions, ~2.75 s each. "kommunicera med
@@ -53,7 +54,10 @@ INTENTS = {
 
 # Which kind of channel, where the intent has one. 'both' is a real answer:
 # "read everything" is one question and two calls.
-KINDS = ('analog', 'digital', 'both', 'none')
+# 'imu' is a third kind of channel, not a fourth intent: asking the IMU for
+# its values is still a read, and routing it as one keeps the classifier
+# choosing between the same seven things.
+KINDS = ('analog', 'digital', 'imu', 'both', 'none')
 
 # Intent to tool, for the pairs where it is unambiguous. 'words' and 'control'
 # map to nothing on purpose: naming a tool for them is how a request for a
@@ -63,10 +67,12 @@ TOOL = {
     'power': 'afe_power',
     'devices': 'devices',
     'link': 'link_diagnose',
+    'orient': 'orientation',
 }
 READ = {
     'analog': 'analog_read',
     'digital': 'digital_read',
+    'imu': 'imu',
     'both': 'analog_read and digital_read',
     'none': 'analog_read',
 }
@@ -82,6 +88,7 @@ SAYS = {
     'link':    'the state of the serial link',
     'words':   'an answer in words',
     'control': 'the host to switch board, model, node or language',
+    'orient':  'how the board is turned',
 }
 
 ASK = """Classify this operator's question. Do not answer it.
@@ -89,7 +96,7 @@ ASK = """Classify this operator's question. Do not answer it.
 Intents:
 %s
 
-Kinds: analog, digital, both, none.
+Kinds: analog, digital, imu, both, none.
 
 The noun decides, never the verb. "List", "give me", "show" say nothing:
 channels, pins, inputs is map; values, readings, measurements is read.
@@ -99,7 +106,9 @@ carry them, so read Swedish both ways: matvarde = matvarden = matvardena =
 measurement, varde = varden = vardena = value, kanal = kanaler = channel.
 
 The kind is which channels the question is about, and none when it is about
-neither. A question naming a pin is the kind that pin is.
+neither. A question naming a pin is the kind that pin is. A question naming
+the IMU, or an accelerometer, gyro or magnetometer, is the imu kind - those
+are not the board's ADC channels.
 
 JSON only: {"intent": "...", "kind": "...", "why": "a few words"}
 
@@ -136,7 +145,10 @@ def plan(intent, kind):
         analog = ('analog_read', {})
         digital = ('digital_read', {})
         return {'analog': (analog,), 'digital': (digital,),
+                'imu': (('imu', {'op': 'read'}),),
                 'both': (analog, digital)}.get(kind, (analog,))
+    if intent == 'orient':
+        return (('orientation', {'op': 'once'}),)
     if intent == 'power':
         return ()                 # on or off is in the sentence, not the kind
     if intent == 'link':

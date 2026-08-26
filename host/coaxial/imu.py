@@ -43,7 +43,13 @@ SCALE = {
     0x03: (4, 'uT'),
     0x04: (8, 'm/s^2'),
     0x06: (8, 'm/s^2'),
+    0x05: (14, ''),
+    0x08: (14, ''),
 }
+
+QUATERNIONS = (0x05, 0x08)
+"""Reports whose four fields are i, j, k, real rather than three axes. Q14,
+and unitless: a rotation vector is a direction, not a quantity."""
 
 
 class Imu(Subsystem):
@@ -129,6 +135,14 @@ def report_length(report_id):
         return 5
     if report_id in (0x01, 0x02, 0x03, 0x04, 0x06):
         return 10
+    # The datasheet does not tabulate these two; CEVA's own decoder does -
+    # github.com/ceva-dsp/sh2, sh2_SensorValue.c. The rotation vector carries
+    # i, j, k, real and an accuracy estimate behind the common header; the
+    # game rotation vector the same without the estimate.
+    if report_id == 0x05:
+        return 14
+    if report_id == 0x08:
+        return 12
     return 0
 
 
@@ -158,8 +172,9 @@ def _one(cargo, at, report_id):
                 'base_delta_100us': delta}
 
     status = cargo[at + 2]
+    fields = 4 if report_id in QUATERNIONS else 3
     axes = [int.from_bytes(cargo[at + 4 + 2 * i:at + 6 + 2 * i],
-                           'little', signed=True) for i in range(3)]
+                           'little', signed=True) for i in range(fields)]
     row = {
         'report_id': report_id,
         'name': named,
@@ -174,4 +189,14 @@ def _one(cargo, at, report_id):
         q, unit = scale
         row['scaled'] = [v / float(1 << q) for v in axes]
         row['unit'] = unit
+
+    if report_id in QUATERNIONS:
+        # i, j, k, real - the order the part sends them, which is not the
+        # order most quaternion maths is written in. Named so a caller never
+        # has to remember which end the scalar is on.
+        row['quaternion'] = {'i': row['scaled'][0], 'j': row['scaled'][1],
+                             'k': row['scaled'][2], 'real': row['scaled'][3]}
+        if report_id == 0x05 and at + 14 <= len(cargo):
+            row['accuracy_rad'] = int.from_bytes(
+                cargo[at + 12:at + 14], 'little', signed=True) / float(1 << 12)
     return row
