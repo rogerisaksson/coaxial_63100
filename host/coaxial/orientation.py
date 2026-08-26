@@ -22,8 +22,6 @@ clock - so it is testable without a board, and `tools/show_orientation.py` is
 the only thing that needs one.
 """
 import math
-
-from .raster import cell
 import os
 
 from . import ascii3d, mesh
@@ -143,10 +141,13 @@ def euler_degrees(q):
 def facing(q):
     """How much of the component side is turned towards the reader, -1..1.
 
-    The board's +Z normal after rotation. Positive means the component side
-    is visible, and the caption says which the reader is looking at.
+    The board's +Z normal after rotation, against the direction the camera
+    actually stands in - not against +Z. The camera has been oblique since
+    the viewpoint was taken from the reference, and reading the normal's z
+    alone would have gone on answering for a camera that is not there.
     """
-    return rotate(normalise(q), (0.0, 0.0, 1.0))[2]
+    normal = rotate(normalise(q), (0.0, 0.0, 1.0))
+    return sum(normal[a] * CAMERA[a] for a in range(3))
 
 
 #: What is on the component side, as (class, phi degrees, radius, radial
@@ -247,41 +248,86 @@ def _part(kind, phi_deg, radius, half_r, half_phi_deg, height):
     return out
 
 
-def samples():
-    """Every (point, normal, ramp) on the board, in its own frame.
+def _quad(out, a, b, c, d):
+    """One four-sided face, as the two triangles it is made of."""
+    for corners in ((a, b, c), (a, c, d)):
+        normal = mesh.face_normal(corners[0], corners[1], corners[2],
+                                   (0.0, 0.0, 1.0))
+        if normal is None:
+            continue
+        for corner in corners:
+            out[0].append(corner[0])
+            out[0].append(corner[1])
+            out[0].append(corner[2])
+        out[1].append(normal[0])
+        out[1].append(normal[1])
+        out[1].append(normal[2])
+
+
+def _box(out, phi_deg, radius, half_r, half_phi_deg, height):
+    """One part, as a box in polar coordinates.
+
+    Polar because it follows the board's curvature, which is what a part on a
+    round PCB does and what keeps the outer ones from hanging off the rim.
+    """
+    half_phi = math.radians(half_phi_deg)
+    phi0 = math.radians(phi_deg)
+    top, base = HALF_THICKNESS + height, HALF_THICKNESS
+
+    def at(ri, pi, z):
+        r = radius + (half_r if ri else -half_r)
+        phi = phi0 + (half_phi if pi else -half_phi)
+        return (r * math.cos(phi), r * math.sin(phi), z)
+
+    _quad(out, at(0, 0, top), at(1, 0, top), at(1, 1, top), at(0, 1, top))
+    for ri, pi, rj, pj in ((0, 0, 1, 0), (1, 0, 1, 1),
+                           (1, 1, 0, 1), (0, 1, 0, 0)):
+        _quad(out, at(ri, pi, base), at(rj, pj, base),
+              at(rj, pj, top), at(ri, pi, top))
+
+
+def facets():
+    """The parametric board as (positions, indices, normals), with no STL.
 
     Four surfaces, because a board has four - the component face, the solder
     face, the outer rim and the bore - and then what is mounted on the
     component side. Built once and reused: the geometry does not change, only
-    the rotation does, and rebuilding it per frame was the whole cost of a
-    20 Hz redraw.
+    the rotation does.
     """
-    out = []
+    out = ([], [], [], {})
 
     for part in COMPONENTS + _passives():
-        out.extend(_part(*part))
+        _box(out, *part[1:])
 
     for pj in range(PHI_STEPS):
-        phi = 2.0 * math.pi * pj / PHI_STEPS
-        cp, sp = math.cos(phi), math.sin(phi)
+        a = 2.0 * math.pi * pj / PHI_STEPS
+        b = 2.0 * math.pi * (pj + 1) / PHI_STEPS
+        ca, sa, cb, sb = (math.cos(a), math.sin(a), math.cos(b), math.sin(b))
 
-        for ri in range(RADIAL_STEPS):
-            r = BORE + (OUTER - BORE) * ri / (RADIAL_STEPS - 1)
-            for z, nz in ((HALF_THICKNESS, 1.0), (-HALF_THICKNESS, -1.0)):
-                out.append(((r * cp, r * sp, z), (0.0, 0.0, nz), SHADES))
+        for z, flip in ((HALF_THICKNESS, False), (-HALF_THICKNESS, True)):
+            inner_a = (BORE * ca, BORE * sa, z)
+            inner_b = (BORE * cb, BORE * sb, z)
+            outer_a = (OUTER * ca, OUTER * sa, z)
+            outer_b = (OUTER * cb, OUTER * sb, z)
+            if flip:
+                _quad(out, inner_a, outer_a, outer_b, inner_b)
+            else:
+                _quad(out, inner_a, inner_b, outer_b, outer_a)
 
-        # The rims. Thin, so a few samples across is enough to keep the edge
-        # from breaking up when the board is turned towards edge on - which
-        # is exactly when the rim is all there is to see.
-        for si in range(RIM_STEPS):
-            z = -HALF_THICKNESS + 2.0 * HALF_THICKNESS * si / (RIM_STEPS - 1)
-            out.append(((OUTER * cp, OUTER * sp, z), (cp, sp, 0.0), SHADES))
-            out.append(((BORE * cp, BORE * sp, z), (-cp, -sp, 0.0), SHADES))
+        for radius, outward in ((OUTER, True), (BORE, False)):
+            low_a = (radius * ca, radius * sa, -HALF_THICKNESS)
+            low_b = (radius * cb, radius * sb, -HALF_THICKNESS)
+            high_b = (radius * cb, radius * sb, HALF_THICKNESS)
+            high_a = (radius * ca, radius * sa, HALF_THICKNESS)
+            if outward:
+                _quad(out, low_a, low_b, high_b, high_a)
+            else:
+                _quad(out, low_b, low_a, high_a, high_b)
 
-    return out
+    return out[0], out[1], out[2]
 
 
-#: The CAD export, if this tree has one. The parametric board below is what
+#: The CAD export, if this tree has one. The parametric board above is what
 #: draws when it does not - a machine with the library and no model still
 #: gets a picture, and every test runs without a 21 MB file.
 MODEL = os.path.join(os.path.dirname(os.path.dirname(
@@ -289,21 +335,102 @@ MODEL = os.path.join(os.path.dirname(os.path.dirname(
     'Coaxial 63100.stl')
 
 
-def _load_surface():
-    """What to draw: the model where there is one, the parametric board
-    otherwise. Read once at import - see samples()."""
+def _load_model():
+    """The mesh to draw: the export where there is one, the board otherwise."""
     try:
-        return [(p, nrm, SHADES) for p, nrm in mesh.load(MODEL)]
+        return mesh.facets(MODEL)
     except (OSError, ValueError):
-        return samples()
+        return facets()
 
 
-#: The board's surface, built once. See _load_surface().
-SURFACE = _load_surface()
+#: The board's triangles, read once at import. See _load_model().
+MODEL_MESH = _load_model()
 
-#: The same surface as (point, normal), which is what ascii3d consumes. Built
-#: once beside it rather than per frame: it is 45,000 tuples.
-_PAIRS = [(point, normal) for point, normal, _ramp in SURFACE]
+#: Where the camera stands, in the board's own frame: degrees round the board
+#: from the +X axis, and degrees up from the board's plane.
+#:
+#: The reference stands its camera at `(bbox.max.x * 4, bbox.max.y,
+#: bbox.max.z * 3)` after turning every STL by `rotation.x = -90`, which for
+#: this model - 100 x 100 x 51 mm - is 13.2 degrees above the board and 20.9
+#: round it. That is a product shot of something standing on a bench. This
+#: board is horizontal and what the view is FOR is showing how it lies, so
+#: the camera looks down at it instead.
+#:
+#: Looking down at a board that lies flat, but not straight down. Measured
+#: over the same mesh and light, counting how much of the ramp each angle
+#: reaches: at 90 degrees the drawing is two characters wide - # and @ - and
+#: is flat by geometry, because down its own normal a component has no sides
+#: and the board's face and every part's top share one normal. At 55 the
+#: whole ramp is in use and the parts stand up. 30 is the reference's kind of
+#: angle and reads as a product shot rather than as how the board lies.
+VIEW_AZIMUTH = 0.0
+VIEW_ELEVATION = 55.0
+
+
+def _multiply(a, b):
+    """Row-major 3x3 product."""
+    return tuple(sum(a[r * 3 + k] * b[k * 3 + c] for k in range(3))
+                 for r in range(3) for c in range(3))
+
+
+def viewpoint(azimuth=VIEW_AZIMUTH, elevation=VIEW_ELEVATION):
+    """The rotation that carries a camera at (azimuth, elevation) onto +Z.
+
+    Applied before the board's own rotation, so it is where the observer
+    stands and not something the board is doing: the board still turns
+    exactly as the IMU says, seen from a fixed corner of the room.
+    """
+    a = math.radians(-azimuth)
+    e = math.radians(elevation - 90.0)
+    ca, sa = math.cos(a), math.sin(a)
+    ce, se = math.cos(e), math.sin(e)
+    return _multiply((ce, 0.0, se, 0.0, 1.0, 0.0, -se, 0.0, ce),
+                     (ca, -sa, 0.0, sa, ca, 0.0, 0.0, 0.0, 1.0))
+
+
+#: Where the camera stands, as a unit vector in the board's own frame. What
+#: `facing` asks its question against.
+CAMERA = (math.cos(math.radians(VIEW_ELEVATION))
+          * math.cos(math.radians(VIEW_AZIMUTH)),
+          math.cos(math.radians(VIEW_ELEVATION))
+          * math.sin(math.radians(VIEW_AZIMUTH)),
+          math.sin(math.radians(VIEW_ELEVATION)))
+
+#: Built once - it never changes, and it is on the path of every frame.
+VIEWPOINT = viewpoint()
+
+#: The key light, turned into the frame the viewpoint puts the model in.
+#:
+#: The light belongs to the world the board sits in, not to the camera: it
+#: has to stay put when the observer moves and swing when the BOARD moves,
+#: because a highlight that slides as the board tilts is a cue and one that
+#: slides when the camera tilts is a bug. Measured before this: dropping the
+#: camera from 90 degrees to 60 darkened the board by two whole ramp steps,
+#: with nothing about the board or the light having changed.
+LAMP = tuple(sum(VIEWPOINT[r * 3 + k] * ascii3d.light_position()[k]
+                 for k in range(3)) for r in range(3))
+
+#: The camera fit, per window size. See _fit().
+_FITS = {}
+
+
+def _fit(cols, rows):
+    """How far to stand back for a window this size, with the board at rest.
+
+    Measured from the viewpoint alone and not per frame: a fit that tracked
+    the board's own rotation would grow and shrink the drawing as it tilted,
+    which reads as the board moving toward you rather than turning. Fixed, a
+    violent tilt can push a corner past the edge - a fair trade for a picture
+    that fills the window at rest, and the numbers above it are the reading.
+
+    Cached because a window is resized far less often than it is redrawn.
+    """
+    got = _FITS.get((cols, rows))
+    if got is None:
+        got = ascii3d.fit(MODEL_MESH[0], VIEWPOINT, cols, rows)
+        _FITS[(cols, rows)] = got
+    return got
+
 
 
 def _light():
@@ -313,7 +440,7 @@ def _light():
     return (x / n, y / n, z / n)
 
 
-def render(q, width=44, height=19, zoom=1.0):
+def render(q, width=44, height=19, zoom=1.0, shop=None):
     """The board under rotation `q`, as `height` lines of `width` characters.
 
     The drawing is `ascii3d`, which is three.js's AsciiEffect ported out of
@@ -321,10 +448,17 @@ def render(q, width=44, height=19, zoom=1.0):
     framebuffer rows per character row. What is this module's is the model,
     the rotation and the caption.
     """
-    return ascii3d.render(_PAIRS, matrix(q), width, height, zoom=zoom)
+    cols, rows, _cell = ascii3d.grid(width, height)
+    distance, off_x, off_y = _fit(cols, rows)
+    draw = shop.render if shop else ascii3d.render
+    model = () if shop else (MODEL_MESH,)
+    return draw(*model, _multiply(VIEWPOINT, matrix(q)), width, height,
+                distance=distance, zoom=zoom, centre=(off_x, off_y),
+                light=LAMP)
 
 
-def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0):
+def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0,
+            shop=None):
     """The drawing with the numbers it is a reading of, above it.
 
     The quaternion leads: it is what the part reports and what moves when the
@@ -349,7 +483,7 @@ def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0):
 
     lines += [
         '',
-        render(q, width, height, zoom),
+        render(q, width, height, zoom, shop),
         '',
         'coaxial_63100 - facing you: %s' % side,
     ]

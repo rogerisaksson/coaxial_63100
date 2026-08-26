@@ -232,15 +232,37 @@ def pick(model='gemma4:12b', against='HEAD', keep_alive='30m'):
     return parse((message.get('content') or '').strip())
 
 
+def release(tag):
+    """Hand the card back, unless the caller said it is about to be used.
+
+    run_tests.py owns the model's life when it drives the picker, and covers
+    it from one `finally`. Run straight from a shell there is nobody above to
+    do that, and `pick()` asks for 30 minutes of keep_alive - so this script
+    parked 8.4 GB on the card and exited, every single time it was called.
+    """
+    try:
+        from coaxial_ollama.client import Ollama
+        Ollama(tag).unload()
+    except Exception:                                         # noqa: BLE001
+        pass                    # no ollama, or nothing loaded: nothing to do
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--model', default='gemma4:12b')
     parser.add_argument('--against', default='HEAD')
     parser.add_argument('--explain', action='store_true',
                         help="print the model's reason as well as its choice")
+    parser.add_argument('--keep', action='store_true',
+                        help='leave the model on the card. Only when the '
+                             'suites are about to run and would reload it')
     args = parser.parse_args(argv)
 
-    plan, why = pick(args.model, args.against)
+    try:
+        plan, why = pick(args.model, args.against)
+    finally:
+        if not args.keep:
+            release(args.model)
     if plan is None:
         print('all')
         if args.explain:

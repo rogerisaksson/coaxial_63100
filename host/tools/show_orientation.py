@@ -19,7 +19,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import orientation                            # noqa: E402
+from coaxial import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial_mcp.session import open_session               # noqa: E402
 from screen import (TO_MENU, Keys, banner, clear, paint,
@@ -106,6 +106,24 @@ def canvas(args):
         width, height = 100, 40         # not a terminal: still worth drawing
 
     return (args.width or max(40, width), args.height or max(16, height))
+
+
+def workshop(args):
+    """A pool of drawing processes, or None if this run is too short for one.
+
+    Pure Python holds the GIL, so the frame is cut into bands and drawn by
+    several processes - measured at 150x44, 137 ms becomes 45. Windows spawns
+    a fresh interpreter per worker, which costs about two seconds for
+    sixteen, so a run of a few frames is better off drawing them itself.
+    """
+    if args.frames and args.frames <= 4:
+        return None
+
+    try:
+        return farm.Farm(orientation.MODEL_MESH)
+    except (OSError, ValueError) as exc:
+        say('warn', 'drawing', 'one process only: %s' % exc)
+        return None
 
 
 def start_reporting(board, interval_us):
@@ -221,6 +239,10 @@ def main(argv=None):
     # camera or shrunk to nothing.
     zoom = 1.0
     shape = None
+    shop = workshop(args)
+    if shop:
+        say('ok', 'drawing', '%d processes, one band of the picture each'
+            % shop.workers)
 
     try:
         with Keys(console, mouse=True) as keys:
@@ -252,7 +274,8 @@ def main(argv=None):
                                  'Q closes, ESC for the menu' + note), ''] +
                          orientation.picture(
                              quaternion, width=wide, height=tall, frame=frame,
-                             age=stale, zoom=zoom).split('\n'))
+                             age=stale, zoom=zoom,
+                             shop=shop).split('\n'))
                 sys.stdout.write(paint(shown, lines, console))
                 sys.stdout.flush()
                 shown = lines
@@ -269,6 +292,8 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
+        if shop:
+            shop.close()
         clear(console)
         put_back(board, part, afe_was_on)
         session.close()

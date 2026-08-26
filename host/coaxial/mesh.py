@@ -1,40 +1,36 @@
-"""An STL read once and reduced to points on its surface.
+"""An STL read once and reduced to a triangle mesh the renderer can draw.
 
 The board's own geometry, instead of a parametric stand-in: `render/models`
 holds the CAD export, and what a picture of the board should look like is a
 question the model already answers.
 
-Reduced, because the export is 419,338 triangles and the drawing is a few
-thousand character cells. Every triangle is sub-pixel; carrying them to the
-renderer would cost a hundredfold for a picture that cannot show it. What
-comes out is an area-weighted sampling of the surface - a point and the
-normal there - which is what the renderer consumes anyway.
+Reduced, not resampled. An earlier version turned the surface into points and
+the renderer splatted those; the docstring here claimed carrying triangles
+would "cost a hundredfold", which was never measured and is not true. It was
+measured afterwards: the full 419,338 triangles rasterise in 1.6 s a frame at
+100x30, and 74% of the ones that get drawn are sub-pixel. So the mesh is
+decimated to 12% of its faces and stays a MESH - which is what lets the
+renderer weigh a face by its projected area, the thing point splatting cannot
+do and the reason the board kept drawing as a disc of noise.
 
 No numpy. requirements.txt says why it is not here, and the cost it would pay
-for is a one-off: the reduction runs once and is cached beside the model, and
-what the render loop then walks is the same size as the parametric surface it
-replaces.
+for is a one-off: the reduction runs once and is cached beside the model.
 """
+import array
 import math
 import os
 import struct
 
-#: Points kept from the surface. The render is a z-buffer over these, so
-#: what matters is points per framebuffer pixel, not points per triangle:
-#: below about one the buffer is sparse, neighbouring cells average whatever
-#: few samples happened to land in them, and the board draws as a disc of
-#: noise. Measured at 100x40 with two-times supersampling - 32,000 pixels:
-#:
-#:      45,000 points   0.6 per pixel    a circle of speckle
-#:     120,000 points   3.8 per pixel    connectors and planes read cleanly
-#:     420,000 points  13.1 per pixel    no better, and 3 fps instead of 9
-#:
-#: 120,000 builds in 1.3 s once and renders in 107 ms.
-SAMPLES = 120000
+#: Cells across the model for vertex clustering. Measured at 200x56, where
+#: the triangle loop is 55% of the frame: grid 200 keeps 48,899 triangles and
+#: costs 254 ms, grid 120 keeps 27,628 and costs 164. The mesh is already
+#: finer than the character grid either way - 74% of what it draws is
+#: sub-pixel - so the coarser one is the one worth having.
+GRID = 120
 
 #: Bumped when the reduction changes, so a stale cache is re-made rather than
 #: read as if it came from this code.
-CACHE_MAGIC = b'CX63SAMP3'
+CACHE_MAGIC = b'CX63IDX1'
 
 
 def _faces(raw):
@@ -73,132 +69,137 @@ def _faces_ascii(text):
             yield (tuple(vertices), normal)
 
 
-def _geometry(vertices, stated):
-    """The face's centroid, unit normal and area.
+def _clustered(faces, divisions):
+    """(positions, indices, normals) for `faces`, vertices snapped to a grid.
 
-    The normal is recomputed from the winding rather than trusted: exports
-    write zeros there, and a zero normal shades as unlit and drops the face
-    out of the picture entirely.
+    Vertex clustering: every vertex in a grid cell becomes that cell, and a
+    triangle whose corners land in fewer than three cells has collapsed and
+    is dropped. Crude next to a proper edge-collapse decimator, and it needs
+    no topology, no error quadrics and no half-edges - which is what makes it
+    forty lines instead of four hundred.
+
+    Indexed, because clustering is what makes sharing worth having: this
+    board's 48,899 triangles have only 23,810 distinct corners between them,
+    so a renderer that transforms vertices rather than triangle corners does
+    a sixth of the work for exactly the same picture.
+
+    Measured on this board, 419,338 triangles in: grid 200 keeps 12% of them,
+    320 keeps 22%, 480 keeps 29%. 74% of what the full mesh draws is
+    sub-pixel at any size a terminal can show, so 12% loses nothing a reader
+    could see.
     """
-    (ax, ay, az), (bx, by, bz), (cx, cy, cz) = vertices
+    step = 2.0 / divisions
+    cells = {}
+    positions = []
+    indices = []
+    normals = []
 
-    ux, uy, uz = bx - ax, by - ay, bz - az
-    vx, vy, vz = cx - ax, cy - ay, cz - az
+    for corners, stated in faces:
+        found = []
+        for corner in corners:
+            key = (int(math.floor(corner[0] / step)),
+                   int(math.floor(corner[1] / step)),
+                   int(math.floor(corner[2] / step)))
+            got = cells.get(key)
+            if got is None:
+                got = len(positions) // 3
+                positions.append((key[0] + 0.5) * step)
+                positions.append((key[1] + 0.5) * step)
+                positions.append((key[2] + 0.5) * step)
+                cells[key] = got
+            found.append(got)
+
+        a, b, c = found
+        if a == b or b == c or a == c:
+            continue
+
+        normal = face_normal(positions[a * 3:a * 3 + 3],
+                             positions[b * 3:b * 3 + 3],
+                             positions[c * 3:c * 3 + 3], stated)
+        if normal is None:
+            continue
+
+        # Shade with the ORIGINAL face's normal, not the snapped triangle's.
+        # Snapping moves each corner up to half a cell, which tilts every
+        # triangle of a flat surface a different way - so a plane comes out
+        # crumpled and draws as static. The geometry may be coarse; the
+        # normal it is lit by should not be.
+        first = face_normal(corners[0], corners[1], corners[2], stated)
+        if first is not None:
+            normal = first
+
+        indices.append(a)
+        indices.append(b)
+        indices.append(c)
+        normals.append(normal[0])
+        normals.append(normal[1])
+        normals.append(normal[2])
+
+    return positions, indices, normals
+
+
+def face_normal(a, b, c, stated):
+    """The unit normal from the winding, or None if the face has no area.
+
+    From the winding rather than the STL's own field: exports write zeros
+    there, and a zero normal shades as unlit, which drops the face out of
+    the picture entirely.
+    """
+    ux, uy, uz = b[0] - a[0], b[1] - a[1], b[2] - a[2]
+    vx, vy, vz = c[0] - a[0], c[1] - a[1], c[2] - a[2]
 
     nx = uy * vz - uz * vy
     ny = uz * vx - ux * vz
     nz = ux * vy - uy * vx
-    mag = math.sqrt(nx * nx + ny * ny + nz * nz)
+    size = math.sqrt(nx * nx + ny * ny + nz * nz)
 
-    if mag < 1e-20:
-        n = stated
-        mag2 = math.sqrt(sum(c * c for c in n)) or 1.0
-        n = (n[0] / mag2, n[1] / mag2, n[2] / mag2)
-        return ((ax + bx + cx) / 3.0, (ay + by + cy) / 3.0,
-                (az + bz + cz) / 3.0), n, 0.0
+    if size > 1e-20:
+        return (nx / size, ny / size, nz / size)
 
-    return (((ax + bx + cx) / 3.0, (ay + by + cy) / 3.0, (az + bz + cz) / 3.0),
-            (nx / mag, ny / mag, nz / mag), mag * 0.5)
+    size = math.sqrt(sum(v * v for v in stated))
+    if size > 1e-20:
+        return tuple(v / size for v in stated)
+    return None
 
 
-def bounds(path):
-    """(min, max) per axis over every vertex, and the triangle count."""
-    raw = open(path, 'rb').read()
-    lo = [float('inf')] * 3
-    hi = [float('-inf')] * 3
-    count = 0
-
-    for vertices, _ in _faces(raw):
-        count += 1
-        for v in vertices:
-            for a in range(3):
-                if v[a] < lo[a]:
-                    lo[a] = v[a]
-                if v[a] > hi[a]:
-                    hi[a] = v[a]
-
-    return tuple(lo), tuple(hi), count
-
-
-def _reduce(raw, count):
-    """`count` points on the surface, area-weighted, with their normals.
-
-    Area-weighted rather than one per triangle: an export tessellates a flat
-    face into a handful of huge triangles and a fillet into thousands of slivers,
-    so per-triangle sampling draws the fillet and loses the face.
-    """
-    total = 0.0
-    for vertices, stated in _faces(raw):
-        total += _geometry(vertices, stated)[2]
-
-    if total <= 0.0:
-        raise ValueError('the model has no surface area')
-
-    step = total / count
-    credit = 0.0
-    out = []
-
-    # Deterministic: a picture whose surface is re-sampled per run is a
-    # picture that changes when nothing about the board did.
-    import random
-    rng = random.Random(63100)
-
-    for vertices, stated in _faces(raw):
-        centre, normal, area = _geometry(vertices, stated)
-        credit += area
-        first = True
-        while credit >= step:
-            credit -= step
-            if first:
-                out.append((centre, normal))
-                first = False
-            else:
-                # Barycentric, so a triangle big enough for several points
-                # gets them spread over it rather than stacked on its middle.
-                a, b = rng.random(), rng.random()
-                if a + b > 1.0:
-                    a, b = 1.0 - a, 1.0 - b
-                p, q, r = vertices
-                out.append((tuple(p[i] + a * (q[i] - p[i]) + b * (r[i] - p[i])
-                                  for i in range(3)), normal))
-
-    return out
-
-
-def _normalise(points):
-    """Centred on the model and scaled so its widest span is two units across.
+def _centred(faces):
+    """Every face centred on the model and scaled to two units across.
 
     The renderer works in units of the board's outer radius, so a model in
     millimetres and one in inches draw the same size.
     """
-    lo = [min(p[a] for p, _ in points) for a in range(3)]
-    hi = [max(p[a] for p, _ in points) for a in range(3)]
-    mid = [(lo[a] + hi[a]) / 2.0 for a in range(3)]
-    span = max(hi[a] - lo[a] for a in range(2)) or 1.0
+    low = [min(v[a] for corners, _n in faces for v in corners)
+           for a in range(3)]
+    high = [max(v[a] for corners, _n in faces for v in corners)
+            for a in range(3)]
+    mid = [(low[a] + high[a]) / 2.0 for a in range(3)]
+    span = max(high[a] - low[a] for a in range(2)) or 1.0
     k = 2.0 / span
 
-    return [(tuple((p[a] - mid[a]) * k for a in range(3)), n)
-            for p, n in points]
+    return [(tuple(tuple((v[a] - mid[a]) * k for a in range(3))
+                   for v in corners), normal) for corners, normal in faces]
 
 
 def _cache_path(path):
-    return os.path.splitext(path)[0] + '.samples'
+    return os.path.splitext(path)[0] + '.facets'
 
 
-def _write_cache(path, points):
+def _write_cache(path, positions, indices, normals):
     with open(path, 'wb') as f:
         f.write(CACHE_MAGIC)
-        f.write(struct.pack('<I', len(points)))
-        for p, n in points:
-            f.write(struct.pack('<6f', p[0], p[1], p[2], n[0], n[1], n[2]))
+        f.write(struct.pack('<II', len(positions) // 3, len(normals) // 3))
+        array.array('f', positions).tofile(f)
+        array.array('i', indices).tofile(f)
+        array.array('f', normals).tofile(f)
 
 
 def _read_cache(path, newer_than):
-    """The cached sampling, or None if there is not a usable one.
+    """The cached triangles, or None if there is not a usable one.
 
     None rather than an exception for every way it can be unusable - absent,
     stale, from an older reduction, truncated by a run that was interrupted -
-    because every one of them means the same thing to the caller: read the STL.
+    because every one of them means the same thing to the caller: read the
+    STL.
     """
     try:
         if os.path.getmtime(path) < newer_than:
@@ -206,33 +207,40 @@ def _read_cache(path, newer_than):
         with open(path, 'rb') as f:
             if f.read(len(CACHE_MAGIC)) != CACHE_MAGIC:
                 return None
-            count = struct.unpack('<I', f.read(4))[0]
-            raw = f.read(count * 24)
-            if len(raw) != count * 24:
-                return None
-    except OSError:
+            points, faces = struct.unpack('<II', f.read(8))
+            positions = array.array('f')
+            indices = array.array('i')
+            normals = array.array('f')
+            positions.fromfile(f, points * 3)
+            indices.fromfile(f, faces * 3)
+            normals.fromfile(f, faces * 3)
+    except (OSError, EOFError, struct.error):
         return None
 
-    out = []
-    for f6 in struct.iter_unpack('<6f', raw):
-        out.append((f6[0:3], f6[3:6]))
-    return out
+    # Lists, not the arrays they were stored as: reading an element of an
+    # array('f') builds a new Python float every time, and the render loop
+    # reads a dozen of them per triangle.
+    return list(positions), list(indices), list(normals)
 
 
-def load(path, count=SAMPLES):
-    """The model at `path` as [(point, normal)], centred and unit-scaled.
+def facets(path, divisions=GRID):
+    """(positions, indices, normals) for the model at `path`.
 
-    Cached beside the STL: reducing 419,338 triangles takes about a second and
-    a half, which is a second and a half of a live view not being on screen.
+    Three floats per distinct vertex, three indices per triangle and three
+    floats of unit normal per triangle, centred and scaled so the widest of
+    X and Y is two units. Cached beside the STL: parsing and
+    decimating 419,338 triangles takes about two seconds, which is two
+    seconds of a live view not being on screen.
     """
     cache = _cache_path(path)
     got = _read_cache(cache, os.path.getmtime(path))
-    if got is not None and len(got) >= count // 2:
+    if got is not None:
         return got
 
-    points = _normalise(_reduce(open(path, 'rb').read(), count))
+    positions, indices, normals = _clustered(
+        _centred(list(_faces(open(path, 'rb').read()))), divisions)
     try:
-        _write_cache(cache, points)
+        _write_cache(cache, positions, indices, normals)
     except OSError:
         pass                      # a read-only tree still draws, just slower
-    return points
+    return positions, indices, normals

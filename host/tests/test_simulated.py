@@ -417,12 +417,18 @@ def test_orientation(report):
                  edge_rows < drawn_rows, '%d rows against %d'
                  % (edge_rows, drawn_rows))
 
-    report.check('the surface normal points at the reader face on, and away '
-                 'when the board is turned over',
-                 o.facing((0, 0, 0, 1)) > 0.9
-                 and o.facing((0.0, 1.0, 0.0, 0.0)) < -0.9,
-                 '%.3f then %.3f' % (o.facing((0, 0, 0, 1)),
-                                     o.facing((0.0, 1.0, 0.0, 0.0))))
+    # facing() answers against where the camera stands, which is 13 degrees
+    # above the board's plane, so a board at rest shows the component side by
+    # sin(13.15) and not by 1.0. What the caption needs is the sign, and what
+    # says the camera is being consulted at all is the magnitude.
+    up = o.facing((0, 0, 0, 1))
+    over = o.facing((0.0, 1.0, 0.0, 0.0))
+    report.check('the component side faces the reader, and the solder side '
+                 'does when the board is turned over',
+                 up > 0.0 and over < 0.0, '%.3f then %.3f' % (up, over))
+    report.check('and by exactly how far the camera is above the board',
+                 abs(up - math.sin(math.radians(o.VIEW_ELEVATION))) < 1e-9,
+                 '%.3f at %.2f degrees' % (up, o.VIEW_ELEVATION))
 
     # render() turns points through matrix() rather than rotate(), because
     # 45,000 sandwich products a frame do not fit in a frame. The two must
@@ -440,17 +446,23 @@ def test_orientation(report):
                      for a, b in zip(by_matrix, by_quaternion)),
                  '%s against %s' % (by_matrix, by_quaternion))
 
-    # Whatever the surface came from - the CAD export or the parametric
-    # board behind it - the renderer is handed one shape: a point, a unit
-    # normal and the ramp to shade it with, scaled to the board's radius.
-    report.check('every surface sample is a point, a normal and a ramp',
-                 all(len(s) == 3 and len(s[0]) == 3 and len(s[1]) == 3
-                     for s in o.SURFACE[:200]), len(o.SURFACE))
-    unit = [abs(math.sqrt(sum(c * c for c in s[1])) - 1.0)
-            for s in o.SURFACE[:500]]
-    report.check('and its normal is a unit vector',
+    # Whatever the mesh came from - the CAD export or the parametric board
+    # behind it - the renderer is handed one shape: nine floats of triangle
+    # and three of unit normal, scaled to the board's radius.
+    verts, faces, normals = o.MODEL_MESH
+    report.check('the mesh is indexed: three corners and one normal a face',
+                 len(verts) % 3 == 0 and len(faces) % 3 == 0
+                 and len(faces) // 3 == len(normals) // 3
+                 and max(faces) < len(verts) // 3,
+                 '%d triangles over %d vertices'
+                 % (len(normals) // 3, len(verts) // 3))
+    unit = [abs(math.sqrt(normals[i] ** 2 + normals[i + 1] ** 2
+                          + normals[i + 2] ** 2) - 1.0)
+            for i in range(0, min(len(normals), 1500), 3)]
+    report.check('and every normal is a unit vector',
                  max(unit) < 1e-5, '%.2e worst' % max(unit))
-    reach = max(max(abs(s[0][0]), abs(s[0][1])) for s in o.SURFACE)
+    reach = max(max(abs(verts[i]), abs(verts[i + 1]))
+                for i in range(0, len(verts), 3))
     report.check('the surface is scaled to the board radius, so a model in '
                  'millimetres draws the same size as one in inches',
                  0.9 <= reach <= 1.01, '%.4f' % reach)
@@ -696,10 +708,13 @@ def test_ascii3d(report):
     # A closer light was tried, to force some modelling onto a flat board
     # seen face-on. It was the wrong answer: what that case wanted was
     # RESOLUTION, and the reference's own ratio is what the port keeps.
-    report.check('the light sits where the reference puts it',
-                 ascii3d.LIGHT_DISTANCE == 4.0
-                 and ascii3d.LIGHT_DIRECTION == (100.0, 100.0, 400.0),
-                 '%.1f radii along %s' % (ascii3d.LIGHT_DISTANCE,
+    # The reference's light is where updateLightPosition() puts it, not the
+    # (100, 100, 400) the PointLight is constructed with - resetPositions()
+    # overwrites that on every load, and this asserted the dead value.
+    report.check('the light sits where the reference actually puts it',
+                 ascii3d.LIGHT_DISTANCE == 4.12
+                 and ascii3d.LIGHT_DIRECTION == (35.9, -35.9, 200.0),
+                 '%.2f radii along %s' % (ascii3d.LIGHT_DISTANCE,
                                           ascii3d.LIGHT_DIRECTION))
 
     # A canvas that changes height as the board turns leaves the last row of
@@ -732,15 +747,78 @@ def test_ascii3d(report):
     report.check('and the fit is what fills the shorter axis',
                  max(len(line) for line in fit.split('\n')) <= 60)
 
-    # The cloud has to out-number the framebuffer or the z-buffer is sparse
-    # and the board draws as a disc of speckle - measured, 0.6 points per
-    # pixel was exactly that.
-    pixels = 60 * ascii3d.SUPERSAMPLE * 20 * ascii3d.ROW_PIXELS         * ascii3d.SUPERSAMPLE
-    report.check('there are more surface points than framebuffer pixels',
-                 len(orientation.SURFACE) > pixels,
-                 '%d points, %d pixels, %.1f per pixel'
-                 % (len(orientation.SURFACE), pixels,
-                    len(orientation.SURFACE) / pixels))
+    # The light belongs to the world, not to the camera. Moving the observer
+    # must not change how the board is lit - measured before this was fixed,
+    # dropping the camera from 90 degrees to 60 darkened the whole board by
+    # two ramp steps with nothing about the board or the light having moved.
+    # One triangle in the XY plane, big enough to cover cells.
+    face = ([-0.6, -0.6, 0.0, 0.6, -0.6, 0.0, 0.0, 0.6, 0.0],
+            [0, 1, 2], [0.0, 0.0, 1.0])
+    square = (1, 0, 0, 0, 1, 0, 0, 0, 1)
+    edgewise = (1, 0, 0, 0, 0, -1, 0, 1, 0)
+
+    def inked(picture):
+        return sum(1 for c in picture if c.strip())
+
+    # Projected area, which is the whole difference between rasterising a
+    # mesh and splatting points sampled off it. Four earlier versions here
+    # sampled the surface by TRUE area, so a wall got its full area however
+    # it was turned, and 43% of this board's area is wall - which drew as
+    # salt and pepper over the whole picture.
+    report.check('a face-on triangle covers cells',
+                 inked(ascii3d.render(face, square, 30, 10, distance=3.0)) > 0,
+                 '%d cells' % inked(ascii3d.render(face, square, 30, 10,
+                                                   distance=3.0)))
+    report.check('and the same triangle seen edge-on covers none',
+                 inked(ascii3d.render(face, edgewise, 30, 10,
+                                      distance=3.0)) == 0)
+
+    # The light belongs to the world, not to the camera. Moving the observer
+    # must not change how a face is lit - measured before this was fixed,
+    # dropping the camera from 90 degrees to 60 darkened the whole board by
+    # two ramp steps with nothing about the board or the light having moved.
+    lamp = (0.7, -0.7, 4.0)
+
+    def glyphs(elevation):
+        turn = orientation.viewpoint(0.0, elevation)
+        moved = tuple(sum(turn[r * 3 + k] * lamp[k] for k in range(3))
+                      for r in range(3))
+        drawn = ascii3d.render(face, turn, 30, 10, distance=3.0, light=moved)
+        return set(c for c in drawn if c.strip())
+
+    report.check('the same face lit the same way from two camera angles',
+                 glyphs(90.0) == glyphs(60.0),
+                 '%s against %s' % (sorted(glyphs(90.0)), sorted(glyphs(60.0))))
+
+    # The font's shape is the only thing the projection does not work in.
+    # Get it wrong and the picture is not blurred, it is stretched: a round
+    # board drawn at the wrong cell aspect reads as a board turned edge-on.
+    for aspect in (1.0, 2.0):
+        cols, rows, cell_rows = ascii3d.grid(60, 20, 2, aspect)
+        report.check('a cell %.1f times as tall as wide is %d rows deep'
+                     % (aspect, cell_rows),
+                     cell_rows == int(round(aspect * 2)) and cols == 120,
+                     '%dx%d framebuffer' % (cols, rows))
+
+    # Straight down at a board that is round, the drawing has to come out
+    # round too - in the font's units, not the framebuffer's.
+    flat_on = orientation.viewpoint(0.0, 90.0)
+    cols, rows, cell_rows = ascii3d.grid(80, 24)
+    distance, off_x, off_y = ascii3d.fit(orientation.MODEL_MESH[0], flat_on,
+                                         cols, rows)
+    picture = ascii3d.render(orientation.MODEL_MESH, flat_on, 80, 24,
+                             distance=distance, centre=(off_x, off_y))
+    drawn = [line for line in picture.split(chr(10)) if line.strip()]
+
+    # The true span, not the right edge: the renderer strips trailing spaces
+    # and not leading ones, so len(line) counts the left margin too. That
+    # read 33% wide of round on a board that was drawn correctly.
+    left = min(len(line) - len(line.lstrip()) for line in drawn)
+    wide = max(len(line) for line in drawn) - left
+    tall = len(drawn) * (cell_rows / float(ascii3d.SUPERSAMPLE))
+    report.check('a round board drawn face-on comes out round',
+                 0.85 <= wide / tall <= 1.18,
+                 '%.2f wide to tall' % (wide / tall))
 
     report.check('a board seen face-on uses more than one character - that '
                  'was the whole complaint',
