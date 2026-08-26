@@ -231,11 +231,72 @@ def test_channel_table(report):
                      not wrong, '; '.join(wrong))
 
 
+def test_imu(report):
+    """The stand-in IMU: the real shape, and never mistakable for a part.
+
+    The tools call `session.board.imu` without knowing which board they
+    hold, so the stand-in has to answer the same three calls. What it must
+    not do is answer them plausibly: a product id from here says
+    "simulated" where a part says a version.
+    """
+    session = SimulatedSession()
+    part = session.board.imu
+
+    ident = part.product_id()
+    report.check('the stand-in IMU answers a product id at all',
+                 isinstance(ident, dict) and 'sw_version' in ident,
+                 sorted(ident) if isinstance(ident, dict) else type(ident))
+    report.check('and says it is invented in the field a part puts a '
+                 'version in', ident['sw_version'] == 'simulated',
+                 ident['sw_version'])
+    report.check('with no part or build number to mistake for one',
+                 ident['sw_part'] == 0 and ident['sw_build'] == 0,
+                 '%s %s' % (ident['sw_part'], ident['sw_build']))
+
+    got = part.read()
+    report.check('a read comes back on the input channel, framed like a '
+                 'real cargo', got['channel'] == 3 and got['cargo'],
+                 'ch %s, %d bytes' % (got['channel'], len(got['cargo'])))
+    report.check('and decodes through the same walk the real cargo uses',
+                 [r['name'] for r in got['reports']]
+                 == ['timebase', 'accelerometer'],
+                 [r['name'] for r in got['reports']])
+
+    accel = got['reports'][1]
+    report.check('the counts are what the report carried, unscaled',
+                 accel['raw'][:2] == [0, 0] and accel['raw'][2] > 0,
+                 accel['raw'])
+    report.check('and the Q point turns them into about one g, which is '
+                 'what a part at rest reads',
+                 9.0 < accel['scaled'][2] < 10.5 and accel['unit'] == 'm/s^2',
+                 '%.4f %s' % (accel['scaled'][2], accel['unit']))
+
+    report.check('the sequence number moves, so a caller can see a new '
+                 'sample rather than a frozen one',
+                 part.read()['reports'][1]['seq'] != accel['seq'])
+
+    part.feature(0x01, 60000)
+    part.feature(0x01, 0)
+    refused = False
+    try:
+        part.feature(0x01, 1 << 33)
+    except ValueError:
+        refused = True
+    report.check('an interval that does not fit 32 bits is refused here '
+                 'too, not silently truncated on the way to a board',
+                 refused)
+
+    tool = toolmod.imu(session, op='read')
+    report.check('and the MCP tool renders it as a headed block',
+                 tool.startswith('imu: channel 3') and 'accelerometer' in tool,
+                 tool.splitlines()[0])
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
                  test_self_test_and_link, test_gpio_gate,
-                 test_channel_table):
+                 test_channel_table, test_imu):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

@@ -238,6 +238,46 @@ reading anyway to check. And **do not spawn a window** — `Start-Process
 powershell` puts the answer in front of the editor, not where the user is
 working.
 
+### Suspect your own code before the hardware
+
+**Do not send anybody to the bench with an oscilloscope, a schematic question
+or a pin assignment until the code has been read for the fault.** Bringing up
+the BNO08X took six firmware bugs and four wrong hypotheses about the board;
+every one of the bugs was mine and none of the hypotheses survived a
+measurement. What they cost was not time, it was somebody else's time.
+
+The ones that looked exactly like a hardware problem:
+
+| Symptom | Actual cause |
+|---|---|
+| chip select never moved | configured before `HAL_SPI_DeInit`, which runs the MSP and hands the pin back to the peripheral |
+| every read came back `FF FF FF FF` | the transfer released CS between header and cargo, so the part restarted the message |
+| every read after a reset refused | the advertisement is 276 bytes and the buffer was 64 |
+| a sensor enabled at 60 ms never reported | the interval went out little-endian on a big-endian wire - 27 minutes |
+| a write worked twice and failed the third time | it was gated on an INTN that an already-awake part never asserts |
+
+Before writing "I need to know which pin X is on" or "this looks like a
+hardware fault", do all of this:
+
+* **Read the reference implementation.** For anything with a vendor driver,
+  the sequence is written down. `github.com/ceva-dsp/sh2` settled the report
+  lengths and `hcrest/bno080-nucleo-demo`'s `sh2_hal_spi.c` settled the chip
+  select and wake ordering - both after hours of guessing.
+* **Re-read the init order.** HAL functions run MSP callbacks that
+  reconfigure the pins you just set up. Anything configured before
+  `HAL_*_Init` is gone.
+* **Check every width and byte order against the wire**, not against what the
+  peripheral happens to send today.
+* **Check what a buffer has to hold in the worst case**, not the typical one.
+* **Verify the fix actually took effect** before attributing a change to it.
+  Two of the four wrong hypotheses here were "improvements" that were
+  overwritten before they ran, and the improvement they were credited with
+  had another cause.
+
+A measurement taken while something else is driving the same bench is not a
+measurement - see FINDINGS. That applies to the code under test as much as to
+the instrument.
+
 **None of this applies when the board is instrumentation for work already
 agreed**: verifying a change just made, reproducing a bug, writing a capture tool
 that needs a live link. Then it is a test fixture, not the subject of a question.

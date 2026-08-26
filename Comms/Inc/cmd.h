@@ -197,6 +197,18 @@ extern "C" {
 #define CMD_ANALOG_BURST 0x6BU
 #define CMD_SELF_TEST    0x6CU
 #define CMD_CHANNELS     0x6DU
+/* The last user-defined function code there is. MODBUS reserves 65..72 and
+   100..110 for them (modbus_slave.c, fc_is_user_defined); this repository has
+   spent 0x41..0x48 and 0x64..0x6D, so everything the IMU needs goes behind
+   one code with an operation byte in front. 0x6F answered ILLEGAL FUNCTION
+   from the protocol layer before dispatch ever saw it - measured. */
+#define CMD_IMU          0x6EU
+
+/* Operations under CMD_IMU. */
+#define IMU_OP_ID      0U
+#define IMU_OP_READ    1U
+#define IMU_OP_FEATURE 2U
+#define IMU_OP_PROBE   3U
 
 #define CMD_PROTO_MAJOR 1U
 #define CMD_PROTO_MINOR 5U
@@ -235,6 +247,9 @@ const cmd_desc_t *cmd_board_table(uint8_t *count);
 
 /** Test fixture commands, defined in cmd_test.c. */
 const cmd_desc_t *cmd_test_table(uint8_t *count);
+
+/** The BNO08X commands. See cmd_imu.c. */
+const cmd_desc_t *cmd_imu_table(uint8_t *count);
 
 /** Flat iteration over every table, for listing and for the dispatcher. */
 uint16_t          cmd_count(void);

@@ -248,6 +248,43 @@ def error(exc):
     return 'ERR %s: %s%s' % (type(exc).__name__, exc, hint(exc))
 
 
+def imu(what, payload):
+    """The IMU, as a headed block like every other reading.
+
+    Raw counts and the scaled value both, on one line, because the counts
+    are what the part said and the scaling is this host's arithmetic over a
+    Q point - the same distinction the analog table keeps.
+    """
+    if what == 'id':
+        return 'imu: %s' % ('  '.join('%s=%s' % (k, payload[k]) for k in
+                                      ('sw_version', 'sw_part', 'sw_build',
+                                       'reset_cause_name')))
+
+    head = 'imu: channel %d (%s), %d cargo bytes' % (
+        payload['channel'], payload['channel_name'], len(payload['cargo']))
+    rows = payload['reports']
+    if not rows:
+        return head + '\n' + ('  nothing decoded - an idle '
+                                  'part sends a zero-length cargo')
+
+    lines = [head]
+    for row in rows:
+        if 'base_delta_100us' in row:
+            lines.append('  %-12s base delta %d x100us'
+                         % (row['name'], row['base_delta_100us']))
+            continue
+        counts = ' '.join('%7d' % v for v in row['raw'])
+        if 'scaled' in row:
+            lines.append('  %-12s %s  %s %s  acc=%s'
+                         % (row['name'], counts,
+                            ' '.join('%+9.4f' % v for v in row['scaled']),
+                            row['unit'], row['accuracy']))
+        else:
+            lines.append('  %-12s %s  acc=%s'
+                         % (row['name'], counts, row['accuracy']))
+    return '\n'.join(lines)
+
+
 def checks(results):
     """Self-test results, one per line. A leading marker so the pass/fail split
     is visible without the model parsing a word: 'ok', 'FAIL', or blank for the

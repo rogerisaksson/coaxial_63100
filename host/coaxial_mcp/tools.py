@@ -87,6 +87,19 @@ TOOLS = [
         },
     },
     {
+        'name': 'imu',
+        'description': "BNO08X inertial sensor on SPI2. op='id' what the part is, 'read' one cargo decoded, 'feature' a report at interval_us (0 disables).",
+        'description_terse': "BNO08X on SPI2. op='id' what it is, 'read' one cargo, 'feature' enable a report at interval_us (0 disables).",
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'op': {'type': 'string', 'enum': ['id', 'read', 'feature']},
+                'report_id': {'type': 'integer'},
+                'interval_us': {'type': 'integer'},
+            },
+        },
+    },
+    {
         'name': 'afe_power',
         'description': 'Analog front end switch. It also powers the ADC reference, so readings are meaningless with it off.',
         'description_terse': 'Front end switch. It also powers the ADC reference.',
@@ -523,6 +536,25 @@ def self_test(session, failures_only=False, **_):
     return render.checks(checks)
 
 
+def imu(session, op='read', report_id=None, interval_us=None, **_):
+    """The IMU. Reads by default: it is the question that gets asked."""
+    part = session.board.imu
+
+    if op == 'id':
+        return render.imu('id', part.product_id())
+
+    if op == 'feature':
+        if report_id is None:
+            raise ValueError("op='feature' needs report_id - 1 accelerometer, "
+                             "2 gyroscope, 3 magnetic field, 5 rotation vector")
+        part.feature(int(report_id), int(interval_us or 0))
+        return 'imu: report 0x%02X %s' % (
+            int(report_id),
+            'every %d us' % int(interval_us) if interval_us else 'disabled')
+
+    return render.imu('read', part.read())
+
+
 def _multicast(session):
     return getattr(session, 'unit', None) == protocol.BROADCAST
 
@@ -715,6 +747,7 @@ HANDLERS = {
     'afe_power': afe_power,
     'devices': devices,
     'digital_read': digital_read,
+    'imu': imu,
     'gpio_pin': gpio_pin,
     'gpio_port': gpio_port,
     'test_gate': test_gate,

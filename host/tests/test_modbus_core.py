@@ -58,12 +58,20 @@ def find_cc():
     return None
 
 
-def build(cc):
-    """(path, warnings) for the shared library, built fresh every run."""
+def build(cc, sources=None, includes=None, name='mbcore'):
+    """(path, warnings) for a shared library, built fresh every run.
+
+    Takes its sources so the SHTP suite can reuse it rather than copy the
+    compiler discovery and the flag list - there is one answer to "how is
+    portable C built for a test on this machine".
+    """
     os.makedirs(OUT, exist_ok=True)
-    lib = os.path.join(OUT, 'mbcore' + ('.dll' if os.name == 'nt' else '.so'))
-    done = subprocess.run([cc, '-shared', '-o', lib] + FLAGS + SOURCES +
-                          ['-I', os.path.join(CORE, 'Inc')],
+    lib = os.path.join(OUT, name + ('.dll' if os.name == 'nt' else '.so'))
+    flags = []
+    for path in (includes or [os.path.join(CORE, 'Inc')]):
+        flags += ['-I', path]
+    done = subprocess.run([cc, '-shared', '-o', lib] + FLAGS +
+                          (sources or SOURCES) + flags,
                           capture_output=True, text=True, encoding='utf-8',
                           errors='replace')
     if done.returncode != 0:

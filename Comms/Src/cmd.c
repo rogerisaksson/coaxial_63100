@@ -14,6 +14,7 @@ static const cmd_table_fn TABLES[] =
 {
   cmd_board_table,
   cmd_test_table,
+  cmd_imu_table,
 };
 
 #define CMD_TABLE_COUNT (sizeof(TABLES) / sizeof(TABLES[0]))

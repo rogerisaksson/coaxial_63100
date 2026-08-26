@@ -337,6 +337,61 @@ def bus_nodes(label):
     return SIMULATED_BUSES.get(label, ('', {}))[1]
 
 
+class SimulatedImu:
+    """A BNO08X that was never soldered on.
+
+    Shaped like `coaxial.imu.Imu` so every caller works against it
+    unmodified, and labelled the way the version record is: the software
+    part number reads 0 and the version literally says "simulated", so a
+    product id from here cannot be read as one from a part.
+
+    The reports it invents are an accelerometer at rest - roughly one g on
+    Z and nothing on X and Y - because the alternative is a number that
+    looks like a measurement of something.
+    """
+
+    #: Q8 counts for 9.81 m/s^2, which is what SCALE[0x01] divides by.
+    ONE_G = 2511
+
+    def __init__(self):
+        self._seq = 0
+        self._enabled = {}
+
+    def product_id(self):
+        return {
+            'reset_cause': 1,
+            'reset_cause_name': 'power on reset',
+            'sw_version': 'simulated',
+            'sw_part': 0,
+            'sw_build': 0,
+            'sw_patch': 0,
+        }
+
+    def read(self):
+        """A timebase and one accelerometer report, framed the way a real
+        cargo on channel 3 is - Figure 5-2."""
+        self._seq = (self._seq + 1) & 0xFF
+        cargo = bytes([0xFB, 0, 0, 0, 0])
+        cargo += bytes([0x01, self._seq, 0x03, 0])
+        for value in (0, 0, self.ONE_G):
+            cargo += int(value).to_bytes(2, 'little', signed=True)
+
+        from .imu import CHANNELS, decode
+        return {'channel': 3, 'channel_name': CHANNELS[3],
+                'cargo': cargo, 'reports': decode(cargo)}
+
+    def feature(self, report_id, interval_us):
+        if not 0 <= report_id <= 0xFF:
+            raise ValueError('report id %r is not a byte' % (report_id,))
+        if not 0 <= interval_us <= 0xFFFFFFFF:
+            raise ValueError('interval %r does not fit 32 bits'
+                             % (interval_us,))
+        if interval_us:
+            self._enabled[report_id] = interval_us
+        else:
+            self._enabled.pop(report_id, None)
+
+
 class SimulatedBoard:
     """A whole board without a board. Duck-typed against the real one, so
     the tools above cannot tell which they are holding - except that
@@ -361,13 +416,14 @@ class SimulatedBoard:
         if self.unit == 0:
             refuse = _BroadcastRefuses()   # see BROADCAST_REFUSAL
             self.system = self.link = self.afe = refuse
-            self.analog = self.gpio = refuse
+            self.analog = self.gpio = self.imu = refuse
         else:
             self.system = SimulatedSystem()
             self.link = SimulatedLink()
             self.afe = SimulatedAfe()
             self.analog = SimulatedAnalog(self.afe)
             self.gpio = SimulatedGpio(self.afe)
+            self.imu = SimulatedImu()
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'

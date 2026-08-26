@@ -32,7 +32,8 @@ from tests import counts                             # noqa: E402
 # a second, and every behavioural suite below it assumes the answer is yes.
 STRUCTURE = 'test_structure.py'
 CORE = 'test_modbus_core.py'
-DEFAULT_SUITES = (STRUCTURE, CORE, 'test_ollama.py', 'test_mcp.py',
+SHTP = 'test_shtp_core.py'
+DEFAULT_SUITES = (STRUCTURE, CORE, SHTP, 'test_ollama.py', 'test_mcp.py',
                   'test_simulated.py', 'test_parity.py')
 CONFORMANCE = 'test_conformance.py'
 LIVE = 'test_live_model.py'
@@ -47,10 +48,10 @@ ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
 # top tier; the core joins at the first, because the code it covers is the
 # code a defect does the most damage in.
 PLAN = {
-    25:  ((STRUCTURE, CORE, 'test_simulated.py'), None),
-    50:  ((STRUCTURE, CORE, 'test_simulated.py', 'test_parity.py',
+    25:  ((STRUCTURE, CORE, SHTP, 'test_simulated.py'), None),
+    50:  ((STRUCTURE, CORE, SHTP, 'test_simulated.py', 'test_parity.py',
            'test_mcp.py'), None),
-    75:  ((STRUCTURE, CORE, 'test_simulated.py', 'test_parity.py',
+    75:  ((STRUCTURE, CORE, SHTP, 'test_simulated.py', 'test_parity.py',
            'test_mcp.py', CONFORMANCE), 'tools'),
 }
 
@@ -233,6 +234,9 @@ TOUCHES = (
     # the portable core is also compiled and run on this machine, which is
     # the only check on it that does not need a cable.
     ('Modbus/',                       (CORE, CONFORMANCE, 'test_mcp.py')),
+    # The SHTP layer is hardware-free like the Modbus core, so the host build
+    # is what covers it. Nothing on the Modbus wire changes when it does.
+    ('Shtp/',                         (SHTP,)),
     ('Comms/',                        (CONFORMANCE, 'test_mcp.py')),
     ('Board/',                        (CONFORMANCE, 'test_mcp.py',
                                        'test_parity.py')),

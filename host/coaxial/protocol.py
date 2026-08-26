@@ -37,6 +37,15 @@ PORT_WRITE = 0x6A
 ANALOG_BURST = 0x6B
 SELF_TEST = 0x6C
 CHANNELS = 0x6D
+IMU = 0x6E
+"""Every IMU operation, chosen by the first payload byte. One code because it
+is the last one: MODBUS reserves 65..72 and 100..110 for user-defined
+functions and this board had spent all but 110. A second code is answered
+ILLEGAL FUNCTION by the protocol layer, before the command table sees it."""
+
+IMU_OP_ID = 0
+IMU_OP_READ = 1
+IMU_OP_FEATURE = 2
 
 NAMES = {
     VERSION: 'version', ADC_TABLE: 'adc_table', ADC_SCAN: 'adc_scan',
@@ -46,6 +55,7 @@ NAMES = {
     PIN_READ: 'pin_read', PIN_WRITE: 'pin_write', PORT_READ: 'port_read',
     PORT_WRITE: 'port_write', ANALOG_BURST: 'analog_burst',
     SELF_TEST: 'self_test', CHANNELS: 'channels',
+    IMU: 'imu',
 }
 
 BROADCAST = 0

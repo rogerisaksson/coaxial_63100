@@ -91,6 +91,75 @@ bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w);
 bool Board_DcBus(int32_t *raw, int32_t *millivolts);
 bool Board_Ntc(int32_t *raw, int32_t *centidegc);
 
+/* ---- IMU ---------------------------------------------------------------- */
+
+/**
+  * @brief  Bring SPI2 to what the BNO08X needs and take PB12 as a GPIO chip
+  *         select. See board_imu.c for what CubeMX generated and why it does
+  *         not match the part.
+  * @return False if the peripheral would not re-initialise.
+  */
+bool Board_ImuInit(void);
+
+/**
+  * @brief  Pulse NRSTN with BOOTN held high, then wait out the part's own
+  *         initialisation. Board_ImuInit() ends with this.
+  *
+  * CubeMX drives both PD10 (NRSTN) and PD11 (BOOTN) low at boot, which holds
+  * the part in reset and strapped for the bootloader. Neither is a state the
+  * firmware wants and neither can be fixed in the .ioc's initial level alone,
+  * because BOOTN must be high BEFORE NRSTN is released - it is sampled there.
+  */
+void Board_ImuReset(void);
+
+/** Whether Board_ImuInit() succeeded. Every call below fails until it has. */
+bool Board_ImuReady(void);
+
+/**
+  * @brief  Read one SHTP cargo, if the part has one waiting.
+  * @param  channel  The SHTP channel it arrived on.
+  * @param  cargo    The cargo WITHOUT its four-byte header.
+  * @param  len      Cargo bytes, 0 when the part had nothing to say.
+  * @return False on a transfer error or a header that contradicts itself.
+  *         True with *len == 0 is an idle part, which is not an error.
+  */
+bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
+                   uint16_t *len);
+
+/**
+  * @brief  Frame a payload onto an SHTP channel and clock it out.
+  * @return False on a bad channel, a payload that will not fit, or a
+  *         transfer error. The channel's sequence number advances only on
+  *         a transfer that went out.
+  */
+bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len);
+
+/**
+  * @brief  Collect and discard whatever the part has queued.
+  * @return How many cargoes were drained.
+  *
+  * A reset leaves three messages waiting - the SHTP advertisement, the
+  * executable's reset announcement and SH-2's unsolicited initialisation
+  * (5.2.1) - and H_INTN stays asserted until they are taken. Writing on top
+  * of them clocks a request into a part that is mid-sentence.
+  */
+uint8_t Board_ImuDrain(uint8_t limit);
+
+/**
+  * @brief  Clock four bytes out and hand back exactly what came in.
+  * @return False only if the transfer itself failed.
+  *
+  * No parsing. 0xFF four times is a part that is absent, unpowered or held in
+  * reset, because MISO floats or idles high; four zeros is a part that is
+  * there and has nothing to say. Telling those apart is the first question at
+  * a bench and the header parser cannot answer it - it refuses both.
+  */
+bool Board_ImuProbe(uint8_t *out, uint8_t len);
+
+/** The SPI2 kernel clock and the bit rate Board_ImuInit settled on, so the
+    bench can see the number rather than infer it from a silent part. */
+void Board_ImuClock(uint32_t *kernel_hz, uint32_t *bitrate_hz);
+
 bool Board_AfeOn(void);
 void Board_SetAfeOn(bool on);
 bool Board_Pe15(void);

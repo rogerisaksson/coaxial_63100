@@ -17,6 +17,7 @@ from .analog import Analog
 from .errors import (ConnectError, DeviceStateError, RigError,
                      UnsupportedProtocolError)
 from .gpio import Gpio
+from .imu import Imu
 from .link import Link
 from .protocol import BROADCAST
 from .system import System
@@ -36,6 +37,7 @@ class Board:
         self.afe = Afe(self)
         self.analog = Analog(self)
         self.gpio = Gpio(self)
+        self.imu = Imu(self)
 
     def __repr__(self):
         firmware = (self.version_info or {}).get('firmware', 'unknown fw')

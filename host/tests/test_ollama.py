@@ -1564,6 +1564,9 @@ def test_smart_selection(report):
              set(),
              'the byte-level master for the wire, and the host build for '
              'the framing itself - which needs no cable'),
+            (['Shtp/Src/shtp.c'], {'test_shtp_core.py'}, set(),
+             'the SHTP layer is built and run here, and touches no Modbus '
+             'wire'),
             (['host/tests/test_parity.py'], {'test_parity.py'}, set(),
              'editing a suite is a reason to run it'),
             (['host/coaxial_ollama/debug.py'],

@@ -17,5 +17,6 @@ extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
 extern ADC_HandleTypeDef hadc3;
 extern UART_HandleTypeDef huart3;
+extern SPI_HandleTypeDef hspi2;
 
 #endif /* BOARD_HW_H */

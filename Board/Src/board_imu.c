@@ -1,0 +1,539 @@
+/**
+  ******************************************************************************
+  * @file    board_imu.c
+  * @brief   The BNO08X on SPI2: the bytes, and nothing about what they mean.
+  *
+  * SHTP framing and SH-2 decoding are in Shtp/, hardware-free and tested on a
+  * host. This file is the other half - chip select, clocking, and the length
+  * field's one job of saying how many bytes to ask for next.
+  *
+  * What CubeMX generated does not match the part, and this fixes what it can
+  * at runtime rather than editing Core/, which CubeMX owns and regenerates.
+  * Datasheet BNO080_085 v1.17, in datasheets/:
+  *
+  *   - SPI mode 3, CPOL=1 CPHA=1 (1.2.4.2, 6.5.2); the .ioc says mode 0.
+  *   - byte oriented, "all data is passed in 8-bit segments" (1.2.4.2); the
+  *     .ioc says SPI_DATASIZE_4BIT.
+  *   - "Any number of bytes can be transferred in a single transaction (chip
+  *     select assertion)" (1.2.4.2), so CS must be held across header and
+  *     cargo both. Hardware NSS with NSSP pulses it per frame, which would
+  *     end the transaction between the two. PB12 is driven as plain GPIO
+  *     instead, which overrides the MSP's alternate-function setting.
+  *
+  * What cannot be fixed here, because it is a wire and not a register: the
+  * BNO08X signals with H_INTN and is reset with NRSTN, and neither is
+  * assigned to a pin. Without H_INTN this polls the four-byte header instead
+  * of waiting to be told - workable for reading a product id at a bench, and
+  * not workable for streaming: the datasheet asks for H_INTN to be serviced
+  * "within 1/10 of the fastest sensor period" (1.2.4.1) or the part starves.
+  ******************************************************************************
+  */
+#include "board.h"
+#include "board_hw.h"
+#include "shtp.h"
+
+#include <string.h>
+
+/* PB12 is SPI2_NSS in the .ioc. Driven by hand here - see the file comment. */
+#define IMU_CS_PORT GPIOB
+#define IMU_CS_PIN  GPIO_PIN_12
+
+/* Both active low, and CubeMX drives both low at boot:
+   MX_GPIO_Init writes GPIO_PIN_RESET to PD10|PD11. That is the part held in
+   reset AND strapped for the bootloader - "BOOTN is sampled at reset. If low
+   the BNO08X will enter bootloader mode" (section 1.2.2). Measured before
+   this file drove them: the four header bytes read 00 00 00 00, which is a
+   part holding MISO low rather than an absent one, which idles high. */
+/* SPI2_SCK. Re-initialised with a pull-up - see Board_ImuInit. */
+#define IMU_SCK_PORT GPIOB
+#define IMU_SCK_PIN  GPIO_PIN_13
+
+/* H_INTN, pin 14. Active low: the part drives it down when it wants
+   attention and releases it "as soon as the chip select is detected"
+   (1.2.4.3). Reading without waiting for it is reading blind - measured, the
+   advertisement turned up in one sample out of six. */
+#define IMU_INTN_PORT GPIOD
+#define IMU_INTN_PIN  GPIO_PIN_8
+
+/* PS0/WAKE, pin 6. Active low, and the way a host starts a conversation:
+   "this function should initiate a write transaction by asserting WAKEN. The
+   write transaction should continue, then, when the system responds to INTN
+   being asserted" - SH-2 user guide, sh2_hal_tx. */
+#define IMU_WAKE_PORT GPIOD
+#define IMU_WAKE_PIN  GPIO_PIN_9
+
+#define IMU_RST_PORT  GPIOD
+#define IMU_RST_PIN   GPIO_PIN_10
+#define IMU_BOOT_PORT GPIOD
+#define IMU_BOOT_PIN  GPIO_PIN_11
+
+/* Figure 6-8: tnrst is 10 ns minimum, t1 is 90 ms of internal initialisation
+   before the part is ready, t2 another 4 ms of configuration. One millisecond
+   of reset is four orders of magnitude past the minimum and costs nothing;
+   120 ms afterwards leaves margin on t1+t2 without a pin to be told on. */
+#define IMU_RESET_HOLD_MS 1U
+#define IMU_RESET_WAIT_MS 120U
+
+/* One transaction's worth. Sized for the SHTP advertisement, which is the
+   largest thing the part sends unprompted: measured on this board, 276 bytes
+   including the header, carrying the channel map and version strings. Sixty
+   four was enough for a product id response and refused the advertisement
+   outright, which is what CMD_ERR_DEVICE on every read after a reset was. */
+#define IMU_BUF 320U
+
+static bool s_ready;
+static uint8_t s_seq[6];        /* one per SHTP channel, section 1.3.1 */
+
+/* Static, not automatic. The linker script gives this firmware a 1 KB stack
+   (_Min_Stack_Size = 0x400) and the deepest path here - a command handler
+   into Board_ImuWrite into Board_ImuDrain into Board_ImuRead - had 1280
+   bytes of locals on it once IMU_BUF grew from 64 to 320 to hold the
+   advertisement. That is an overflow underneath the whole Modbus call chain,
+   and it read as the part resetting itself: garbage channels, cargoes that
+   arrived out of order, and a write that worked twice and failed a third
+   time. Nothing here is re-entrant - the board layer runs from one main
+   loop - so one buffer each is enough.
+
+   s_tx is separate from s_rx because a write builds its frame BEFORE
+   draining, and the drain reads through s_rx. */
+static uint8_t s_rx[IMU_BUF];
+static uint8_t s_tx[IMU_BUF];
+static const uint8_t s_zeros[IMU_BUF];
+
+static uint32_t s_kernel_hz;
+static uint32_t s_bitrate_hz;
+
+/* Figure 6-8 puts the ceiling at 3 MHz. Aimed well under it rather than at
+   it: the divider is a power of two, so the choice at a 190 MHz kernel clock
+   is 2.97 MHz or 1.48 MHz, and the first leaves nothing for rise times on a
+   real board. Measured at 2.97: every read came back FF. */
+#define IMU_MAX_HZ 2000000U
+
+/* The slowest divider that still clears the part's ceiling, chosen from the
+   kernel clock the peripheral actually has rather than from a field in the
+   .ioc. Returns the largest divider if even that is too fast, which cannot
+   happen below a 768 MHz kernel clock. */
+static uint32_t prescaler_under(uint32_t limit_hz)
+{
+  static const uint32_t DIVIDERS[] =
+  {
+    SPI_BAUDRATEPRESCALER_2,   SPI_BAUDRATEPRESCALER_4,
+    SPI_BAUDRATEPRESCALER_8,   SPI_BAUDRATEPRESCALER_16,
+    SPI_BAUDRATEPRESCALER_32,  SPI_BAUDRATEPRESCALER_64,
+    SPI_BAUDRATEPRESCALER_128, SPI_BAUDRATEPRESCALER_256,
+  };
+
+  const uint32_t kernel = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI2);
+
+  s_kernel_hz = kernel;
+
+  /* A kernel clock of zero means the peripheral clock is not configured, and
+     the loop below would read 0 <= limit on the first divider and pick the
+     fastest one there is. Slowest instead: too slow is a slow read, too fast
+     is a part that never answers. */
+  if (kernel == 0U)
+  {
+    s_bitrate_hz = 0U;
+    return SPI_BAUDRATEPRESCALER_256;
+  }
+
+  for (uint32_t i = 0U; i < (sizeof(DIVIDERS) / sizeof(DIVIDERS[0])); i++)
+  {
+    if ((kernel >> (i + 1U)) <= limit_hz)
+    {
+      s_bitrate_hz = kernel >> (i + 1U);
+      return DIVIDERS[i];
+    }
+  }
+
+  s_bitrate_hz = kernel >> 8;
+  return SPI_BAUDRATEPRESCALER_256;
+}
+
+/* How long to wait for the part to say it has something. Anything longer
+   would hold the Modbus link past the master's patience for a part that is
+   simply idle, which is not an error. */
+#define IMU_INTN_WAIT_MS 5U
+
+/* Waking is not polling. Asserting PS0/WAKE takes the part out of a sleep
+   state and it answers by asserting H_INTN "at which point the host can
+   initiate SPI accesses" (1.2.4.3) - that is a wake-up, not a sample period.
+   Five milliseconds was enough for a part that was already awake and not for
+   one that was not: measured, every write failed once the reset's queue had
+   been drained. */
+#define IMU_WAKE_WAIT_MS 50U
+
+static bool intn_asserted(void)
+{
+  return HAL_GPIO_ReadPin(IMU_INTN_PORT, IMU_INTN_PIN) == GPIO_PIN_RESET;
+}
+
+/** True if the part asserted H_INTN within `ms`. */
+static bool wait_intn(uint32_t ms)
+{
+  const uint32_t until = HAL_GetTick() + ms;
+
+  while (!intn_asserted())
+  {
+    if (HAL_GetTick() > until)
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static void wake(bool low)
+{
+  HAL_GPIO_WritePin(IMU_WAKE_PORT, IMU_WAKE_PIN,
+                    low ? GPIO_PIN_RESET : GPIO_PIN_SET);
+}
+
+static void cs(bool low)
+{
+  HAL_GPIO_WritePin(IMU_CS_PORT, IMU_CS_PIN, low ? GPIO_PIN_RESET : GPIO_PIN_SET);
+}
+
+/* Figure 6-6: tcssu, chip select to the first clock edge, is 0.1 us minimum,
+   and tcssh, the hold after the last one, 16.83 ns. A GPIO write followed
+   straight away by HAL_SPI_TransmitReceive is a couple of core cycles - 27 ns
+   at the 75 MHz this board currently runs at - so the setup was a quarter of
+   what the part asks for. One microsecond is ten times the requirement and
+   costs nothing at these transfer sizes. */
+#define IMU_SETTLE_US 1U
+
+static void settle(void)
+{
+  const uint32_t per_us = SystemCoreClock / 1000000U;
+  const uint32_t start = Board_Cycles();
+
+  while ((uint32_t)(Board_Cycles() - start) < (IMU_SETTLE_US * per_us))
+  {
+    /* busy wait: a chip select edge is not worth an interrupt */
+  }
+}
+
+void Board_ImuReset(void)
+{
+  /* Out of the bootloader first: BOOTN is sampled at reset, so it has to be
+     high before NRSTN is released, not after. */
+  HAL_GPIO_WritePin(IMU_BOOT_PORT, IMU_BOOT_PIN, GPIO_PIN_SET);
+
+  HAL_GPIO_WritePin(IMU_RST_PORT, IMU_RST_PIN, GPIO_PIN_RESET);
+  HAL_Delay(IMU_RESET_HOLD_MS);
+  HAL_GPIO_WritePin(IMU_RST_PORT, IMU_RST_PIN, GPIO_PIN_SET);
+
+  /* H_INTN is the signal that says "ready" and this board has no pin for it,
+     so the wait is the datasheet's number rather than an observation. */
+  HAL_Delay(IMU_RESET_WAIT_MS);
+}
+
+bool Board_ImuInit(void)
+{
+  GPIO_InitTypeDef gpio = {0};
+
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /* Re-init rather than patch: HAL latches the mode into CFG1/CFG2 at
+     HAL_SPI_Init, so changing the struct alone would configure nothing. */
+  if (HAL_SPI_DeInit(&hspi2) != HAL_OK)
+  {
+    return false;
+  }
+
+  /* The one limit a regeneration must not be able to break. Measured: with
+     SYSCLK restored to 475 MHz the SPI2 kernel clock is 190 MHz and CubeMX's
+     prescaler of 32 gives 5.94 MBit/s - the .ioc says so itself - against the
+     part's 3 MHz maximum (Figure 6-8). Every read came back FF FF FF FF. At
+     the 75 MHz the clock tree had briefly regressed to, the same field gave
+     2.34 MBit/s and the part answered. A number that is only correct for one
+     clock configuration is not a number: derive it. */
+  hspi2.Init.BaudRatePrescaler = prescaler_under(IMU_MAX_HZ);
+  hspi2.Init.DataSize     = SPI_DATASIZE_8BIT;
+  hspi2.Init.CLKPolarity  = SPI_POLARITY_HIGH;   /* CPOL = 1 */
+  hspi2.Init.CLKPhase     = SPI_PHASE_2EDGE;     /* CPHA = 1 */
+  hspi2.Init.NSS          = SPI_NSS_SOFT;
+  hspi2.Init.NSSPMode     = SPI_NSS_PULSE_DISABLE;
+  hspi2.Init.FirstBit     = SPI_FIRSTBIT_MSB;
+
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
+    return false;
+  }
+
+  /* PB12 as a plain output, after HAL_SPI_Init and never before:
+     HAL_SPI_MspDeInit runs HAL_GPIO_DeInit over PB12..PB15 and MspInit puts
+     all four back as SPI2 alternate function, so a chip select configured
+     ahead of the init is handed straight back to the peripheral. Hardware
+     NSS pulses per data frame; the part wants one assertion across a whole
+     transaction (1.2.4.2). */
+  gpio.Pin = IMU_CS_PIN;
+  gpio.Mode = GPIO_MODE_OUTPUT_PP;
+  gpio.Pull = GPIO_NOPULL;
+  gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio.Alternate = 0U;
+  HAL_GPIO_Init(IMU_CS_PORT, &gpio);
+  cs(false);
+
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+
+  gpio.Pin = IMU_WAKE_PIN;
+  gpio.Mode = GPIO_MODE_OUTPUT_PP;
+  gpio.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(IMU_WAKE_PORT, &gpio);
+  wake(false);
+
+  /* Pulled up: H_INTN is driven low and released, not driven high. */
+  gpio.Pin = IMU_INTN_PIN;
+  gpio.Mode = GPIO_MODE_INPUT;
+  gpio.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(IMU_INTN_PORT, &gpio);
+
+  memset(s_seq, 0, sizeof(s_seq));
+  s_ready = true;
+
+  /* Last, so the part comes out of reset into a bus already configured the
+     way it expects. Its sequence numbers restart with it. */
+  Board_ImuReset();
+  return true;
+}
+
+bool Board_ImuReady(void)
+{
+  return s_ready;
+}
+
+/* One chip select assertion, however many bytes. Full duplex because SPI is:
+   reading a cargo clocks zeros out, writing one clocks whatever the part has
+   to say in. */
+static bool transfer(const uint8_t *tx, uint8_t *rx, uint16_t len)
+{
+  HAL_StatusTypeDef st;
+
+  if (!s_ready || (len == 0U) || (len > IMU_BUF))
+  {
+    return false;
+  }
+
+  if (tx == NULL)
+  {
+    tx = s_zeros;
+  }
+
+  cs(true);
+  settle();
+  st = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)tx, rx, len, 100U);
+  settle();
+  cs(false);
+
+  return st == HAL_OK;
+}
+
+bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
+                   uint16_t *len)
+{
+  shtp_header_t head;
+
+  if ((channel == NULL) || (cargo == NULL) || (len == NULL))
+  {
+    return false;
+  }
+
+  *len = 0U;
+
+  if (!s_ready)
+  {
+    return false;
+  }
+
+  /* Nothing to collect. Not an error: an IMU nobody has configured has
+     nothing to say, and the alternative - clocking anyway - is what made
+     every other read come back with MISO idling high. */
+  if (!wait_intn(IMU_INTN_WAIT_MS))
+  {
+    *channel = 0U;
+    return true;
+  }
+
+  /* One chip select assertion for the header AND the cargo behind it. The
+     reference driver reads the first bytes, takes the length out of them and
+     continues the same transaction - Hillcrest's sh2_hal_spi.c, startOpShtp:
+     it asserts CSN once and runs a header phase followed by a body phase.
+     Releasing CSN between the two makes the part start the message over, and
+     the second read then clocks the header again instead of the cargo. That
+     is what this used to do. */
+  cs(true);
+  settle();
+
+  bool ok = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)s_zeros, s_rx,
+                                    SHTP_HEADER_LEN, 100U) == HAL_OK;
+
+  if (ok && shtp_parse_header(s_rx, &head) && (head.length > SHTP_HEADER_LEN))
+  {
+    const uint16_t rest = (uint16_t)(head.length - SHTP_HEADER_LEN);
+
+    /* Clocked out whole even when the caller cannot hold it: leaving bytes
+       in the part desynchronises every later read. What does not fit is
+       dropped here rather than upstream, and *len says how much arrived. */
+    const uint16_t take = (rest > (uint16_t)sizeof(s_rx))
+                            ? (uint16_t)sizeof(s_rx) : rest;
+
+    ok = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)s_zeros, s_rx, take,
+                                 100U) == HAL_OK;
+    if (ok)
+    {
+      *len = (take > cap) ? cap : take;
+      memcpy(cargo, s_rx, *len);
+    }
+  }
+
+  settle();
+  cs(false);
+
+  if (!ok)
+  {
+    *len = 0U;
+    return false;
+  }
+
+  *channel = head.channel;
+  return true;
+}
+
+void Board_ImuClock(uint32_t *kernel_hz, uint32_t *bitrate_hz)
+{
+  if (kernel_hz != NULL)  { *kernel_hz = s_kernel_hz; }
+  if (bitrate_hz != NULL) { *bitrate_hz = s_bitrate_hz; }
+}
+
+bool Board_ImuProbe(uint8_t *out, uint8_t len)
+{
+  /* No upper check: len is a uint8_t and IMU_BUF is 320, so one cannot
+     exceed the other. The comparison that used to be here was always false
+     and -Wtype-limits said so the moment the buffer grew. */
+  if ((out == NULL) || (len == 0U))
+  {
+    return false;
+  }
+
+  if (!s_ready && !Board_ImuInit())
+  {
+    return false;
+  }
+
+  return transfer(NULL, out, len);
+}
+
+uint8_t Board_ImuDrain(uint8_t limit)
+{
+  /* Reads through s_rx like everything else and throws the result away, so
+     it needs no buffer of its own. */
+  static uint8_t scratch[8];
+  uint8_t channel = 0U;
+  uint16_t len = 0U;
+  uint8_t taken = 0U;
+
+  for (uint8_t i = 0U; i < limit; i++)
+  {
+    if (!Board_ImuRead(&channel, scratch, (uint16_t)sizeof(scratch), &len))
+    {
+      break;
+    }
+    if (len == 0U)
+    {
+      break;                       /* nothing left waiting */
+    }
+    taken++;
+  }
+
+  return taken;
+}
+
+bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
+{
+  if (!s_ready ||
+      (channel >= (uint8_t)(sizeof(s_seq) / sizeof(s_seq[0]))))
+  {
+    return false;
+  }
+
+  const size_t n = shtp_build(s_tx, sizeof(s_tx), channel, s_seq[channel],
+                              payload, len);
+  if ((n == 0U) || (n > IMU_BUF))
+  {
+    return false;
+  }
+
+  /* Empty the part before speaking. H_INTN stays asserted until everything
+     queued has been collected, so a write issued on top of it sees the line
+     already low, clocks into a part that is mid-sentence, and loses both
+     messages. Measured: with a reset's three announcements still queued,
+     every write came back SERVER DEVICE FAILURE. */
+  (void)Board_ImuDrain(8U);
+
+  /* WAKE, then wait to be let in, then take the bus - and only release WAKE
+     once chip select is down. That order is the reference driver's
+     (Hillcrest sh2_hal_spi.c, startOpShtp: assert CSN, then "If there is
+     stuff to transmit, deassert WAKE and do it now"). Releasing it before
+     the transfer let the part go back to sleep between the handshake and
+     the first clock. */
+  /* WAKE is not optional: measured, a write with PS0 left alone fails
+     outright - the part is asleep between transactions and does not hear it.
+     What follows a wake on channel 0 is the part announcing itself again,
+     which is what waking looks like from here, not a fault. */
+  wake(true);
+
+  /* Best effort, not a gate. WAKE exists to bring a SLEEPING part up, and it
+     answers by asserting H_INTN (1.2.4.3) - but a part that is already awake
+     has nothing to wake from and asserts nothing, so treating the timeout as
+     a failure refused writes that would have gone through. Measured: two
+     product id requests in a row succeeded and a third failed, with the part
+     answering normally either side of it. */
+  (void)wait_intn(IMU_WAKE_WAIT_MS);
+
+  cs(true);
+  settle();
+  wake(false);
+
+  /* Full duplex: the part clocks its own cargo out while this one goes in.
+     A transfer sized only to the frame being sent truncates whatever the
+     part was saying, and both messages are lost - the write appears to go
+     out and nothing acts on it. The reference reads the incoming header in
+     the same transaction and clocks to whichever is longer (user guide,
+     Interrupt Service: "any SPI operation performed should transfer enough
+     bytes to accomodate the transmit buffer"). */
+  bool ok = HAL_SPI_TransmitReceive(&hspi2, s_tx, s_rx, (uint16_t)n,
+                                    100U) == HAL_OK;
+
+  shtp_header_t incoming;
+
+  if (ok && (n >= SHTP_HEADER_LEN) && shtp_parse_header(s_rx, &incoming) &&
+      (incoming.length > (uint16_t)n))
+  {
+    uint16_t rest = (uint16_t)(incoming.length - (uint16_t)n);
+
+    if (rest > (uint16_t)sizeof(s_rx))
+    {
+      rest = (uint16_t)sizeof(s_rx);
+    }
+
+    /* Discarded: this is the tail of something the part was already sending
+       when the write went out, and the caller asked to write, not to read. */
+    ok = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)s_zeros, s_rx, rest,
+                                 100U) == HAL_OK;
+  }
+
+  settle();
+  cs(false);
+
+  if (!ok)
+  {
+    return false;
+  }
+
+  /* "Each channel and each direction has its own sequence number", 1.3.1.
+     Advanced only on a transfer that went out. */
+  s_seq[channel]++;
+  return true;
+}
