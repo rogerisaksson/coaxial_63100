@@ -60,6 +60,18 @@ ANGLE_OP_RESUME = 4
 ANGLE_OP_POLLREG = 5
 ANGLE_OP_CLOCK = 6
 
+DEVICE_LINK = 2
+LINK_OP_ECHO = 0
+LINK_OP_STATS = 1
+
+PORTS = {0: 'USART3', 1: 'USART2', 2: 'UART5'}
+"""The board's three Modbus ports. 0 is the debug probe's VCP and shares its
+wire with the ASCII console; 1 and 2 are RS485 and carry Modbus only."""
+
+ECHO_PATTERNS = (0x00, 0xFF, 0x5A, 0xA5)
+"""What the board's loopback check sends, one bit of the reply each. All four
+must return on an RS485 port: RE is tied to GND, so it hears itself."""
+
 PART_STATES = {
     0: 'not probed', 1: 'ready', 2: 'unpowered', 3: 'silent',
 }

@@ -261,6 +261,72 @@ def channels_tests(run):
               'no reply' if refused is None else 'fc 0x%02X' % refused[1])
 
 
+def rs485_tests(run):
+    """The two RS485 ports, checked from a stack that shares no code with the
+    host library. Each transceiver has RE tied to GND, so it hears itself:
+    four patterns out, four patterns back, and a bit that does not set is the
+    driver, the receiver or the wiring between them."""
+    b = run.bus
+
+    print(chr(10) + '-- RS485 loopback and multidrop filtering --')
+
+    for port, name in ((1, 'USART2'), (2, 'UART5')):
+        parsed = parse(b.request(bytes([0x6E, 2, 0, port])))
+        run.check('%s loopback answered, CRC good' % name,
+                  parsed is not None and parsed[3] and parsed[1] == 0x6E,
+                  'no reply' if parsed is None
+                  else 'fc 0x%02X crc %s' % (parsed[1],
+                                             'ok' if parsed[3] else 'BAD'))
+        if parsed is None or parsed[1] != 0x6E:
+            continue
+
+        body = parsed[2]
+        run.check('%s is an RS485 port and says so' % name, body[1] == 1,
+                  'rs485 flag %d' % body[1])
+        run.check('%s echoes all four patterns - 00, FF, 5A, A5' % name,
+                  body[2] == 0x0F,
+                  'matched 0x%02X, %d bytes back' % (body[2], body[3]))
+
+    # The port carrying the request cannot test itself: its own patterns land
+    # in front of the reply. Measured - the master saw a checksum failure.
+    refused = parse(b.request(bytes([0x6E, 2, 0, 0])))
+    run.check('the port carrying the conversation refuses its own loopback',
+              refused is not None and (refused[1] & 0x80) != 0,
+              'no reply' if refused is None else 'fc 0x%02X' % refused[1])
+
+    for port, name in ((0, 'USART3'), (1, 'USART2'), (2, 'UART5')):
+        parsed = parse(b.request(bytes([0x6E, 2, 1, port])))
+        if parsed is None or parsed[1] != 0x6E:
+            run.check('%s reports its counters' % name, False, 'no reply')
+            continue
+
+        body = parsed[2]
+        at = 4
+        fields = {}
+        for key in ('baud', 't15', 't35', 'bus_message', 'bus_comm_error',
+                    'server_message', 'server_exception', 'server_no_response',
+                    'char_overrun', 'ring_dropped'):
+            fields[key] = int.from_bytes(body[at:at + 4], 'big')
+            at += 4
+
+        run.check('%s reports a Modbus bitrate, not the .ioc value' % name,
+                  fields['baud'] in (9600, 19200, 38400, 57600, 115200),
+                  fields['baud'])
+        run.check('%s never dropped a byte for want of ring space' % name,
+                  fields['ring_dropped'] == 0, fields['ring_dropped'])
+        # Every frame on the segment is counted; only the ones addressed here
+        # are served. With one node the two match, and that is the check: a
+        # server_message ahead of bus_message would mean the filter is being
+        # skipped rather than passed.
+        run.check('%s never served more frames than it saw' % name,
+                  fields['server_message'] <= fields['bus_message'],
+                  '%d served of %d seen' % (fields['server_message'],
+                                            fields['bus_message']))
+        run.check('%s is open when it is RS485' % name,
+                  (body[2] == 0) or (body[3] == 1),
+                  'rs485 %d, open %d' % (body[2], body[3]))
+
+
 def map_tests(run):
     b = run.bus
 
@@ -488,6 +554,7 @@ if __name__ == '__main__':
         enter_modbus(bus)
         protocol_tests(run)
         channels_tests(run)
+        rs485_tests(run)
         map_tests(run)
     finally:
         try:

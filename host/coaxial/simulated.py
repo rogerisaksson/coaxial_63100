@@ -24,6 +24,7 @@ import random
 import time
 
 from . import angle
+from . import protocol
 from .errors import DeviceStateError
 from .gpio import reserved_reason
 
@@ -61,10 +62,37 @@ class SimulatedLink:
         return data
 
     def stats(self):
-        return {'unit_id': 1, 't15_ticks': 1750, 't35_ticks': 4083,
+        return self.port_stats(0)
+
+    def loopback(self, port):
+        """What a healthy board answers: all four patterns back on the two
+        RS485 ports, none on the console port, and the port carrying the
+        conversation refused."""
+        if port not in protocol.PORTS:
+            raise ValueError('port %r is not one of the three' % (port,))
+        if port == 0:
+            raise DeviceStateError(
+                'port 0 carries this conversation; a port cannot check its '
+                'own loopback while it is answering on it')
+
+        return {
+            'port': port, 'name': protocol.PORTS[port], 'rs485': True,
+            'matched': 0x0F, 'returned': 4,
+            'patterns': [{'sent': p, 'back': True}
+                         for p in protocol.ECHO_PATTERNS],
+            'ok': True,
+        }
+
+    def port_stats(self, port=0):
+        if port not in protocol.PORTS:
+            raise ValueError('port %r is not one of the three' % (port,))
+        rs485 = port != 0
+        return {'port': port, 'name': protocol.PORTS[port], 'rs485': rs485,
+                'open': True, 'baud': 115200, 'unit_id': 1,
+                't15_ticks': 1750, 't35_ticks': 4083,
                 'bus_message': 42, 'bus_comm_error': 0, 'server_message': 42,
                 'server_exception': 0, 'server_no_response': 0,
-                'char_overrun': 0}
+                'char_overrun': 0, 'ring_dropped': 0, 'for_others': 0}
 
 
 # The same shape the firmware reports over command 0x6D, so a host driven

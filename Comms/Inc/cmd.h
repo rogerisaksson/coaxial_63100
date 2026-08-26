@@ -208,6 +208,7 @@ extern "C" {
    there is a device byte rather than a function code each. */
 #define DEVICE_IMU       0U
 #define DEVICE_ANGLE     1U
+#define DEVICE_LINK      2U
 
 /* Operations under CMD_IMU. */
 #define IMU_OP_ID      0U
@@ -230,6 +231,10 @@ extern "C" {
 #define ANGLE_OP_RESUME  4U
 #define ANGLE_OP_POLLREG 5U
 #define ANGLE_OP_CLOCK   6U
+
+/* The serial ports, device 2. */
+#define LINK_OP_ECHO     0U
+#define LINK_OP_STATS    1U
 
 #define CMD_PROTO_MAJOR 1U
 #define CMD_PROTO_MINOR 5U
@@ -276,6 +281,7 @@ const cmd_desc_t *cmd_device_table(uint8_t *count);
   * device byte off the request; `in` is positioned at the op's payload. */
 cmd_status_t cmd_imu_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_angle_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_link_op(uint8_t op, rd_t *in, wr_t *out);
 
 /**
   * @brief One subsystem: a command table, named, with what it is for.

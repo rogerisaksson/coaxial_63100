@@ -32,8 +32,16 @@ extern "C" {
 
 typedef struct
 {
-  /** Take one received byte. False when the receiver is empty. */
-  bool (*get)(void *ctx, uint8_t *byte);
+  /**
+    * @brief  Take one received byte and the tick it arrived at.
+    * @return False when the receiver is empty.
+    *
+    * The tick is the character's, not the caller's. On a bus the two are not
+    * the same: reading it when the main loop got round to it made the
+    * silence RTU measures the loop's rather than the wire's, and a 276-byte
+    * IMU cargo is seventeen characters at 115200.
+    */
+  bool (*get)(void *ctx, uint8_t *byte, uint32_t *tick);
 
   /**
     * @brief  Test and clear any sticky receive error.
@@ -62,10 +70,37 @@ typedef struct
 } dev_serial_t;
 
 /** The USART3 instance on this board: PB10/PB11, 115200 8N1, polled. */
-const dev_serial_t *dev_usart3(void);
+/** The board's three serial ports, in link.h's order: 0 USART3 on the debug
+  * probe's VCP, 1 USART2 and 2 UART5 on RS485. NULL past the end. */
+#define DEV_UART_COUNT 3U
 
-/** Line rate the device is configured for, needed to derive t1.5 and t3.5. */
-uint32_t dev_usart3_baud(void);
+const dev_serial_t *dev_uart(uint8_t index);
+
+/** What the schematic calls the port, for the console and for 0x47. */
+const char *dev_uart_name(uint8_t index);
+
+/** True for the two whose receiver hears their own transmission - RE is tied
+  * to GND on both transceivers, so their put() purges afterwards. */
+bool dev_uart_rs485(uint8_t index);
+
+/** Transmit four patterns on `index` and report which came back.
+  *
+  * A bitmask, one bit per pattern, and `seen` counts how many bytes returned
+  * at all. On an RS485 port every bit should set: RE is tied to GND, so the
+  * transceiver hears itself and a byte that does not come back means the
+  * driver, the receiver or the wiring between them. On USART3 nothing comes
+  * back and 0 is the right answer.
+  *
+  * It puts four bytes on the bus. On a segment with other devices that is
+  * four bytes of noise, which is why nothing calls it on a timer. */
+uint8_t dev_uart_echo(uint8_t index, uint8_t *seen);
+
+/** Bytes the receive ring had no room for, since boot. Not zero means the
+  * main loop stopped draining long enough to lose bus traffic. */
+uint32_t dev_uart_dropped(uint8_t index);
+
+/** The rate all three run. Not what the .ioc carries on the RS485 pair. */
+uint32_t dev_uart_baud(void);
 
 #ifdef __cplusplus
 }

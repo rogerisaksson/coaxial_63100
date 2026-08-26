@@ -40,6 +40,9 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   |---|---|---|---|
   | 0 | BNO08X IMU | SPI2, mode 3, 1.48 MHz | 0 product id, 1 raw cargo, 2 Set Feature, 3 raw bytes off the bus, 4 reset, 5 raw write on any SHTP channel, 6 per-pin drive/pull check, 7 time H_INTN's answer to a wake, 8 shared record, 9 hold, 10 resume |
   | 1 | A1335 angle sensor | SPI4, mode 3, 1.86 MHz | 0 read register, 1 write register, 2 shared record, 3 hold, 4 resume, 5 which register the loop reads, 6 clock |
+  | 2 | the three serial ports | USART3, USART2, UART5 | 0 loopback check, 1 per-port counters |
+
+  Device 2 op 0 transmits 00, FF, 5A, A5 on the port named and answers which came back - all four on an RS485 port, none on USART3. **The port carrying the request refuses**: its own patterns land in front of the reply, and the master sees a checksum failure. Op 1 answers `bus_message` and `server_message` separately, and their difference is the traffic addressed to another node on the segment.
 
   **The board polls both parts from its own main loop and writes shared memory; a host reads that.** Reading a cargo per request cost 45 ms each and caught one frame in eight. Ops that drive a bus are refused unless that device's loop is held - both running is two masters on one bus. Hold, configure, resume.
 

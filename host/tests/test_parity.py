@@ -121,6 +121,7 @@ def main():
                     'probe', 'pins', 'wake_test'),
             'angle': ('state', 'read', 'write', 'poll_register', 'clock',
                       'hold', 'resume', 'configuring'),
+            'link': ('echo', 'stats', 'loopback', 'port_stats'),
         }
         for name, calls in CALLED.items():
             fake = getattr(stand_in.board, name)

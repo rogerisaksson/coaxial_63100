@@ -10,6 +10,24 @@
 * **`Coaxial 63100 BOM.csv`** - 380 lines, designator to manufacturer part.
 * **`ENABLE_AFE` gates a regulator on `Regulators.SchDoc`**, the sheet that makes `+15V7`, `+5V7`, `+5`, `+3V3_ref`, `+1V65_bias` and `+3V3D`. U13 runs from `+3V3D`/`VDDIO`, U14 from `+5`. Measured: both stop answering with `PB2` low, which is what the `PB2` trap below is about.
 
+## Schematic Names Are Not MCU Names
+
+The sheet symbols are logical and zero-based; the nets on `MCU.SchDoc` carry ST's peripheral names; the firmware and the board's own channel map use neither, they use what the signal *is*. Three vocabularies for one wire, so the mapping is written down once, here, and traced from the netlist rather than assumed.
+
+| Sheet symbol | MCU peripheral | Part |
+|---|---|---|
+| `SPI0` (IMU.SchDoc) | SPI2 | U13 BNO085 |
+| `SPI1` (AngleSensor.SchDoc) | SPI4 | U14 A1335 |
+| `UART0` (RS485.SchDoc) | UART5 | U6 THVD1450 |
+| `UART1` (RS485.SchDoc) | USART2 | U5 THVD1450 |
+| none | USART3 | debug probe VCP, no transceiver |
+
+Traced on `MCU.SchDoc`: net `UART2_RO` lands on sheet port `UART1`, `UART5_RO` on `UART0` - the indices are not in peripheral order, which is exactly why guessing them is not safe.
+
+The RS485 sheet also names the transceiver's own pins `DI`, `RO`, `DE` and `RE`, which are the part's, not the MCU's: `DI` is the MCU's TX and `RO` is its RX.
+
+**The analog channels have a third set of names again.** The schematic numbers the differential pairs `ADC0P/ADC0N` through `ADC5P/ADC5N` in pin order; the firmware names each by what it measures - Phase U, Phase V, Phase W, Clevel, NTC, DC bus, Cinj. Command `0x6D` kind 0 is the authority on which pin is which, and nothing above the firmware should carry a second answer.
+
 ## Silicon & Clocks
 
 * **MCU:** STM32H753VIT6, Rev V. The hardware revision is strictly necessary to support the 950 MHz VCO.
@@ -47,5 +65,16 @@ The board is a dumb slave. It reports raw 16-bit ADC codes. Physical conversions
 
 ## I/O & Link
 
-* **USART3 (`PB10`/`PB11`):** Polled mode, no RX FIFO. A single overrun byte drops the frame. Carries Modbus RTU/Console via debug VCP or RS485.
-* **Incomplete RS485:** The firmware configures `VM_ASYNC` without a driver-enable pin. Half-duplex RS485 direction control currently does not exist in software.
+Three Modbus ports, one slave. A request on any of them is answered on that one; the unit id belongs to the board, not to the wire.
+
+| Port | Pins | Transceiver | Receives | Console |
+|---|---|---|---|---|
+| USART3 | `PB10` TX, `PB11` RX | none - debug probe VCP | polled | yes, or Modbus |
+| USART2 | `PA1` DE, `PA2` TX, `PA3` RX | U5 THVD1450 | interrupt | no |
+| UART5 | `PC8` DE, `PC12` TX, `PD2` RX | U6 THVD1450 | interrupt | no |
+
+* **Direction control is the peripheral's.** Both RS485 ports run `HAL_RS485Ex_Init` with hardware DE, so there is no driver-enable pin to toggle in software and no window where the driver is late.
+* **Both hear themselves.** RE is tied to GND on U5 and U6 (RS485.SchDoc: pin 2 on the GND net), so the receiver stays on while DE drives. Every byte transmitted returns, and `put()` purges afterwards. Measured: `0x6E` device 2 op 0 sends 00, FF, 5A, A5 on a port and all four come back on both - which is also the check that the driver, the receiver and the wiring between them work with nothing else on the segment.
+* **The RS485 pair receives on interrupt, and each byte carries the tick it arrived at.** RTU delimits frames by silence, and polling from the main loop timestamped a byte when the loop reached it - a 276-byte IMU cargo is 1.5 ms, seventeen characters at 115200. The ring holds a whole frame; `ring_dropped` is not zero if the loop ever stopped draining.
+* **No RX FIFO on any of the three.** A single overrun drops the frame, and a latched ORE ends reception until ICR clears it.
+* **CubeMX carries 9216000 baud on the RS485 pair**, which is not a Modbus rate on any bus. The firmware sets 115200 at init, the same way it sets the SPI word sizes rather than trusting them.
