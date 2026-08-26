@@ -1932,7 +1932,15 @@ def test_link_diagnose(report):
     real_comports = list_ports.comports
     real_connect = coaxial.connect
     real_check_power = find_board.check_power
+    real_port_state = find_board.port_state
     try:
+        # Stubbed for the same reason as the other three: it opens a real
+        # port. Measured with the debug probe pulled - COM4 still enumerated,
+        # opening it raised ACCESS_DENIED, port_state said BUSY, and a check
+        # about step 4's closing advice failed because the checklist stopped
+        # one step earlier. A suite that passes with a cable in and fails with
+        # it out is testing the bench.
+        find_board.port_state = lambda *a, **kw: find_board.SILENT
         list_ports.comports = lambda: [FakePort('COM4'), FakePort('COM7')]
         coaxial.connect = lambda *a, **kw: (_ for _ in ()).throw(
             ConnectError('nothing answered'))
@@ -2033,6 +2041,16 @@ def test_link_diagnose(report):
                      and 'Powered and the port is right' not in result5,
                      result5.splitlines()[-1][:60])
 
+        find_board.port_state = lambda *a, **kw: find_board.BUSY
+        held = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200,
+                                               unit=1))
+        result6 = held.call('link_diagnose', {})
+        report.check('a port another process holds says so, rather than '
+                     'guessing at a halted core',
+                     'open in another process' in result6,
+                     result6.splitlines()[-1][:58])
+        find_board.port_state = lambda *a, **kw: find_board.SILENT
+
         # check_power's own timeout path. The programmer prints the voltage
         # in its first second, then spends the rest on a second connect at
         # 8MHz - measured with no target, 30.3s against a 15s budget. The
@@ -2065,6 +2083,7 @@ def test_link_diagnose(report):
         list_ports.comports = real_comports
         coaxial.connect = real_connect
         find_board.check_power = real_check_power
+        find_board.port_state = real_port_state
 
 
 # ---- the record of it all --------------------------------------------------
