@@ -33,6 +33,7 @@ static cmd_status_t h_device(rd_t *in, wr_t *out)
     case DEVICE_IMU:   return cmd_imu_op(op, in, out);
     case DEVICE_ANGLE: return cmd_angle_op(op, in, out);
     case DEVICE_LINK:  return cmd_link_op(op, in, out);
+    case DEVICE_CAL:   return cmd_cal_op(op, in, out);
     default:           return CMD_ERR_VALUE;
   }
 }

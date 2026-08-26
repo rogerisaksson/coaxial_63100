@@ -80,6 +80,51 @@ class DividerParams:
         return self.volts_at_pin(raw) * self.scale + self.offset_v
 
 
+class ShuntParams:
+    """A current shunt and the differential amplifier chain above it.
+
+    ABSOLUTE, like DividerParams and for the same reason: the answer scales
+    with vref, and with two more numbers that belong to the board rather than
+    to the ADC. Get either wrong and the current is wrong by that factor.
+
+    RU1 || RU2 sit in the phase conductor, two Vishay WSHM2818 of 7 mohm
+    each, tapped by RU3/RU4 into a THS4551 with Rg 330 and Rf 1.5k. Both
+    outputs swing in anti-phase about +1V65_bias, so the full +/-vref
+    differential span is reachable and 100 A lands at 48 % of it - the same
+    deliberate headroom the DC link divider keeps, for the same reason.
+
+    The gain is bounded as well as traced: 100 A across 3.5 mohm is 350 mV,
+    and vref/that is 9.43 V/V, so anything above it could not represent the
+    board's own rating. That is what rules out reading the ADA4891 quad on
+    the same sheet as further gain in this path - see docs/HARDWARE.md.
+    """
+
+    def __init__(self, r_shunt=0.0035, gain=1500.0 / 330.0,
+                 vref=3.3, name=None):
+        self.r_shunt = r_shunt
+        self.gain = gain
+        self.vref = vref
+        self.name = name or '%.2f mohm x %.1f' % (r_shunt * 1000.0, gain)
+
+    def __repr__(self):
+        return '<ShuntParams %s vref=%.3f>' % (self.name, self.vref)
+
+    @property
+    def volts_per_amp(self):
+        return self.r_shunt * self.gain
+
+    @property
+    def full_scale_amps(self):
+        """Where the ADC runs out, not where the board does."""
+        return self.vref / self.volts_per_amp
+
+    def volts_at_pin(self, raw):
+        return differential_volts(raw, self.vref)
+
+    def amps(self, raw):
+        return self.volts_at_pin(raw) / self.volts_per_amp
+
+
 def differential_volts(raw, vref=3.3):
     """A differential code is offset binary already centred by the firmware."""
     return raw / 32768.0 * vref
@@ -95,3 +140,5 @@ NTC_ONBOARD = NtcParams(r25=10000.0, beta=3380.0, r_fixed=10000.0,
                         name='Murata NCU18XH103, onboard')
 DCBUS_ONBOARD = DividerParams(r_top=49900.0, r_bottom=2200.0, vref=3.3,
                               name='onboard 49.9k/2.2k')
+PHASE_ONBOARD = ShuntParams(r_shunt=0.0035, vref=3.3,
+                            name='RU1||RU2 3.5 mohm, THS4551 1.5k/330')

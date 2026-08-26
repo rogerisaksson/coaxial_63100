@@ -55,13 +55,47 @@ Both are polled by the firmware's main loop into shared memory; the host reads t
 * **The A1335's register map is not in the datasheet here** - it defers to the Programming Manual. Addresses come from `github.com/ScranchNew/Allegro-A1335-Sensor-library`, and `0x6E` device 1 op 5 sets which one the poll loop reads, so a better address needs no rebuild.
 * **`FIELD` says whether the angle means anything.** Measured 3 gauss with no magnet in front of the part, and the angle is then noise; the views say so rather than drawing a confident pointer.
 
-## Scaling & Telemetry (Host Domain)
+## Scaling & Calibration
 
-The board is a dumb slave. It reports raw 16-bit ADC codes. Physical conversions, limits, and calibration strictly belong to the host infrastructure, not the firmware.
+The board still reports raw codes, and still judges nothing. What it now also
+carries is the arithmetic that turns a code into a quantity, and a record a rig
+can correct - because a calibration belongs to one physical board, and a host
+that holds it answers for the wrong board the moment it is pointed at a second.
+`0x6E` device 3 is the record; `docs/PROTOCOL.md` is the wire.
 
-* **DC Link (`PC0`):** Absolute scaling dependent on VREF. Full-scale is 78.15 V, providing a deliberate 24% headroom over the 63 V rating. Do not "improve" the divider ratio and blindly clip transients.
-* **NTC (`PB0`):** Ratiometric (Murata NCU18, B=3380). VREF error mathematically cancels out. Subject to ~0.2 °C parasitic self-heating.
-* **Phase V Anomaly:** The 0.85 V offset observed on Phase V of the reference board is a localized op-amp failure. Do not write firmware offsets to calibrate around broken silicon.
+Every figure below was traced off `electronics/` on 2026-08-26. **None has been
+measured.** They are the record's defaults for exactly that reason.
+
+| Channel | Chain | Result |
+|---|---|---|
+| **DC link** (`PC0`) | R12 49.9 kΩ / R11 2.2 kΩ (ERJ-PB3B, 150 V ±0.1 %), C117 680 pF, R42 15 Ω | 78.15 V full scale - 24 % over the 63 V rating, and deliberate (invariant 11) |
+| **NTC** (`PB0`) | R100 10.0 kΩ (ERA-3AEB103V, 0.1 %) to `+3V3_ref`, NTC1 NCU18XH103**D60**RB to GND, C116 15 nF | ratiometric, so VREF cancels. The `D60` suffix *is* B₂₅/₅₀ = 3380 K. ~0.2 °C parasitic self-heating |
+| **Phase U/V/W** | RU1‖RU2 in the phase conductor - two Vishay `WSHM28187L000FEA`, 7 mΩ each, 3.5 mΩ parallel - tapped by RU3/RU4 49.9 Ω into a THS4551, Rg 330 / Rf 1.5 k | 4.5455 V/V × 3.5 mΩ = 15.909 mV/A. 207.4 A full scale, so 100 A sits at 48 % of the differential span |
+| **Reference** | U2 REF2033 drives `+3V3_ref` **and** `+1V65_bias` | one part sets VREF and the differential mid-point, which is why they track |
+
+**The phase channels are current, not voltage.** The sense element is in the
+phase conductor. Firmware reports them in milliamperes off its own channel map;
+nothing above it carries a second answer.
+
+* **The gain is bounded, not just traced.** 100 A across 3.5 mΩ is 350 mV, and
+  3.3 V over that is **9.43 V/V** - a chain with more gain than that could not
+  represent the board's own rating at all. The THS4551's 4.5455 fits; the
+  ×18.5 and ×10 an Altium net dump appeared to put on the ADA4891 quad do not,
+  by two orders of magnitude. **What that quad does in this path is
+  unresolved** - buffer, level shift, or the `PH_CURR` protection tap on
+  `Inverter.SchDoc`. It is not further gain into the ADC.
+* **Nothing here has been measured.** Both numbers come off a PDF. Zero and
+  span each phase against a clamp meter before believing an ampere from this
+  board - that is what `0x6E` device 3 exists for.
+* **Phase V Anomaly:** the 0.85 V offset on the reference board is a localized
+  op-amp failure. In amperes it reads as -52 A with nothing connected. `zero`
+  would make that number go away and the fault with it - **do not zero Phase V
+  on this board.** Zeroing is for a channel's own offset, not for broken
+  silicon.
+* **Zero before span.** Spanning an un-zeroed channel folds the offset into the
+  gain, which then reads right at the reference point and nowhere else.
+* **Span is refused where the conversion is not linear in the code**: the
+  thermistor is logarithmic, and a channel with no unit has nothing to be told.
 
 ## I/O & Link
 

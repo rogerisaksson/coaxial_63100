@@ -64,6 +64,24 @@ DEVICE_LINK = 2
 LINK_OP_ECHO = 0
 LINK_OP_STATS = 1
 
+DEVICE_CAL = 3
+CAL_OP_GET = 0
+CAL_OP_SET_PARAM = 1
+CAL_OP_SET_CHANNEL = 2
+CAL_OP_ZERO = 3
+CAL_OP_SPAN = 4
+CAL_OP_SAVE = 5
+CAL_OP_LOAD = 6
+CAL_OP_DEFAULTS = 7
+
+CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
+              'bus_r_top_ohm', 'bus_r_bottom_ohm',
+              'ntc_r25_ohm', 'ntc_beta_mk', 'ntc_rfixed_ohm', 'ntc_t25_ck')
+"""The record's scalars, in the order 0x6E device 3 op 0 sends them, and the
+order their ids run in. Integers in the unit that makes them integers, because
+the wire bans floating point - the names carry the unit for the same reason
+the firmware's do."""
+
 PORTS = {0: 'USART3', 1: 'USART2', 2: 'UART5'}
 """The board's three Modbus ports. 0 is the debug probe's VCP and shares its
 wire with the ASCII console; 1 and 2 are RS485 and carry Modbus only."""
@@ -118,7 +136,7 @@ MAX_PAYLOAD = 250
 
 # Physical wiring facts the firmware reports, decoded to something readable.
 CLOCK_SOURCES = {0: 'HSI', 1: 'CSI', 2: 'HSE', 3: 'PLL1', 4: 'other'}
-CHANNEL_UNITS = {0: None, 1: 'mV', 2: 'centi-degC'}
+CHANNEL_UNITS = {0: None, 1: 'mV', 2: 'centi-degC', 3: 'mA'}
 PIN_MODES = {'input': 0, 'output': 1, 'output_pp': 1, 'output_od': 2, 'analog': 3}
 PIN_PULLS = {'none': 0, 'up': 1, 'down': 2}
 AFE_ACTIONS = {'read': 0, 'off': 1, 'on': 2, 'toggle': 3}

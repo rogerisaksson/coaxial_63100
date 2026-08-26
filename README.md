@@ -95,3 +95,4 @@ board, yellow for the stand-in.
 | [docs/PROTOCOL.md](docs/PROTOCOL.md) | before changing anything on the wire |
 | [docs/MODELS.md](docs/MODELS.md) | the local model, its tools, its failure modes |
 | [docs/FINDINGS.md](docs/FINDINGS.md) | what is already ruled out |
+| [docs/TODO.md](docs/TODO.md) | what is done and measured, and what is still open |

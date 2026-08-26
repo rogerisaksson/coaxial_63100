@@ -14,6 +14,7 @@ import time
 
 from .afe import Afe
 from .analog import Analog
+from .calibration import Calibration
 from .errors import (ConnectError, DeviceStateError, RigError,
                      UnsupportedProtocolError)
 from .gpio import Gpio
@@ -40,6 +41,7 @@ class Board:
         self.gpio = Gpio(self)
         self.imu = Imu(self)
         self.angle = Angle(self)
+        self.calibration = Calibration(self)
 
     def __repr__(self):
         firmware = (self.version_info or {}).get('firmware', 'unknown fw')

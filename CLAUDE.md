@@ -21,15 +21,21 @@ which is the context for every noise figure in these documents.
 
 ## Scope: instrumentation, not yet a motor controller
 
-**No timer is configured.** The `.ioc` enables ADC1/2/3, USART3, CORTEX_M7, RCC,
-SYS, DEBUG, MEMORYMAP, NVIC and VREFBUF, and nothing else: no PWM, no
-commutation, no gate drive, no current loop. This is a measurement and bring-up
+**No timer is configured.** The `.ioc` enables fifteen IPs - ADC1/2/3, SPI2,
+SPI4, USART2, USART3, UART5, CORTEX_M7, RCC, SYS, DEBUG, MEMORYMAP, NVIC and
+VREFBUF - and no timer among them: no PWM, no commutation, no gate drive, no
+current loop. The gate drivers and the FETs are fitted (2EDL8034 x3,
+IAUCN10S7N021 - `electronics/`); nothing drives them. This is a measurement and bring-up
 platform. Nothing has run near 63 V or 100 A, and no measured value is recorded
 here — invariant 10.
 
 VREFBUF is deliberately **disabled**, VREF+ high-impedance, so the AFE drives the
-ADC reference. That is the mechanism behind invariant 9, and why
-`ADC_VREF_VOLTAGE 3.3f` is an assumption about a rail, not a property of the chip.
+ADC reference. That is the mechanism behind invariant 9. The AFE's own source is
+U2, a REF2033, which drives `+3V3_ref` and `+1V65_bias` both - one part sets the
+reference and the differential mid-point, which is why they track. The 3.3 V is
+a specified part rather than a rail nobody measured, and it lives in the
+calibration record all the same, because a rig with a calibrated meter beats a
+datasheet tolerance.
 
 **What a device is, and which devices there are, both come from the bus.**
 `0x41` carries a one-line `description` from the device itself, and
@@ -80,6 +86,7 @@ board_prompt -Ask "vad sitter på kortet?"    # the model, off the same wire
 | [docs/HARDWARE.md](docs/HARDWARE.md) | interpreting any measurement |
 | [docs/MODELS.md](docs/MODELS.md) | changing the local model, its tag or its tools |
 | [docs/FINDINGS.md](docs/FINDINGS.md) | **investigating anything** — it records what is already ruled out |
+| [docs/TODO.md](docs/TODO.md) | picking up work — what is done and measured, and what is still arithmetic |
 
 ## Commands
 
@@ -121,10 +128,11 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites: `test_structure.py` (241), `test_modbus_core.py` (68),
+Suites, sized from `host/tests/.counts.json` and so measured rather than
+remembered: `test_structure.py` (245), `test_modbus_core.py` (68),
 `test_shtp_core.py` (38), `test_ollama.py` (733),
-`test_simulated.py` (85), `test_mcp.py` (44), `test_parity.py` (24),
-`test_conformance.py` (73, `--conformance`),
+`test_simulated.py` (98), `test_mcp.py` (44), `test_parity.py` (25),
+`test_conformance.py` (106, `--conformance`),
 `test_live_model.py` (212, needs ollama, `--live`) - the only one where the
 model itself is under test. How the whole thing is wired is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system); the rules that
@@ -384,8 +392,14 @@ Break one and something works until it doesn't.
    kills reception permanently.
 6. **Every ADC read path must call `HAL_ADC_ConfigChannel` and clear `PCSEL`.**
    Two separate bugs came from paths that did not — FINDINGS.
-7. **The host never reports a sensed quantity for the phase channels.** They sit
-   behind AFE gain neither side knows. Volts at the ADC pin, no further.
+7. **A conversion is named where it is defined, and defined once.** Every
+   scaling parameter this board uses lives in the calibration record behind
+   `0x6E` device 3 - reference, phase shunt and gain, DC link divider, four
+   thermistor constants - never as a literal at a call site and never as a
+   second copy in a host. The phase channels used to be exempt because their
+   gain was unknown; it was traced off the schematic on 2026-08-26, so they
+   report amperes now. What has not changed: **no number this board reports
+   has been measured against an instrument.** Span before believing one.
 8. **Nothing in the Python library returns a status code or None-for-failure.**
    Every call produces its result or raises from `coaxial.errors`.
 9. **AFE_ON decides what a reading means**, because it powers the ADC reference,

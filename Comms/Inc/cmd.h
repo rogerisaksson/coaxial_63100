@@ -209,6 +209,7 @@ extern "C" {
 #define DEVICE_IMU       0U
 #define DEVICE_ANGLE     1U
 #define DEVICE_LINK      2U
+#define DEVICE_CAL       3U
 
 /* Operations under CMD_IMU. */
 #define IMU_OP_ID      0U
@@ -236,8 +237,18 @@ extern "C" {
 #define LINK_OP_ECHO     0U
 #define LINK_OP_STATS    1U
 
+/* The calibration record, device 3. Only CAL_OP_SAVE touches flash. */
+#define CAL_OP_GET         0U
+#define CAL_OP_SET_PARAM   1U
+#define CAL_OP_SET_CHANNEL 2U
+#define CAL_OP_ZERO        3U
+#define CAL_OP_SPAN        4U
+#define CAL_OP_SAVE        5U
+#define CAL_OP_LOAD        6U
+#define CAL_OP_DEFAULTS    7U
+
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 5U
+#define CMD_PROTO_MINOR 6U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -282,6 +293,7 @@ const cmd_desc_t *cmd_device_table(uint8_t *count);
 cmd_status_t cmd_imu_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_angle_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_link_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_cal_op(uint8_t op, rd_t *in, wr_t *out);
 
 /**
   * @brief One subsystem: a command table, named, with what it is for.

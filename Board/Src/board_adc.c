@@ -10,20 +10,27 @@
 #include <math.h>
 
 
-/* The three phase inputs, one per ADC. Which ADC carries which phase is
-   fixed by the pinout, not by preference. */
-static ADC_HandleTypeDef * const hadcU = &hadc3;
-static ADC_HandleTypeDef * const hadcV = &hadc1;
-static ADC_HandleTypeDef * const hadcW = &hadc2;
-#define PHASE_U_CHANNEL ADC_CHANNEL_1
-#define PHASE_V_CHANNEL ADC_CHANNEL_3
-#define PHASE_W_CHANNEL ADC_CHANNEL_4
+/* ADC+/- reference. VREFBUF is deliberately disabled and VREF+ left
+   high-impedance, so the reference comes from the AFE - which is why every
+   channel reads exact mid-scale with AFE_ON low. The AFE's own source is U2,
+   a REF2033 (schematic Regulators.SchDoc), so 3.3 V is a specified part and
+   not a rail nobody measured. It lives in the calibration record all the
+   same, because a rig with a calibrated meter can do better than a datasheet
+   tolerance and this board should keep what it learns. */
+static float cal_vref(void)
+{
+  return (float)Board_Cal()->vref_uv / 1000000.0f;
+}
 
-/* ADC+/- reference. An assumption about a rail, not a property of the chip:
-   VREFBUF is deliberately disabled and VREF+ left high-impedance, so the AFE
-   drives the reference - which is why every channel reads exact mid-scale
-   with AFE_ON low, and why 3.3f is nominal rather than measured. */
-#define ADC_VREF_VOLTAGE 3.3f
+
+/* One formula for what a code is worth, so the corrected read below cannot
+   drift from the raw one above it. */
+static float code_to_volts(int32_t code, uint32_t singleDiff)
+{
+  return (singleDiff == ADC_SINGLE_ENDED)
+         ? ((float)code / 65536.0f) * cal_vref()
+         : ((float)code / 32768.0f) * cal_vref();
+}
 
 
 /* Blocking single-shot differential read, converted to volts.
@@ -90,17 +97,10 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
 
   const uint32_t raw = HAL_ADC_GetValue(hadc);
 
-  if (singleDiff == ADC_SINGLE_ENDED)
-  {
-    *outRaw = (int32_t)raw;                           /* 0..65535, 0=0V */
-    *outVolts = ((float)raw / 65536.0f) * ADC_VREF_VOLTAGE;
-  }
-  else
-  {
-    int32_t centered = (int32_t)raw - 32768;          /* offset binary, 32768=0V */
-    *outRaw = centered;
-    *outVolts = ((float)centered / 32768.0f) * ADC_VREF_VOLTAGE;
-  }
+  *outRaw = (singleDiff == ADC_SINGLE_ENDED)
+            ? (int32_t)raw                  /* 0..65535, 0 = 0 V           */
+            : (int32_t)raw - 32768;         /* offset binary, 32768 = 0 V  */
+  *outVolts = code_to_volts(*outRaw, singleDiff);
 
   HAL_ADC_Stop(hadc);
   return true;
@@ -109,35 +109,51 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
 /* NTC on PB0 (ADC1 IN9): 3.3V -> NTC (high side) -> PB0 -> 10k fixed (low
    side) -> GND. Thermistor is Murata NCU18XH103D60RB: R25=10k +/-0.5%,
    B25/50=3380K +/-0.7% - confirmed against Murata's published spec via web
-   search on 2026-08-19, not assumed. */
-#define NTC_R25_OHMS    10000.0f
-#define NTC_B_CONST     3380.0f
-#define NTC_T25_KELVIN  298.15f
-#define NTC_RFIXED_OHMS 10000.0f
+   search on 2026-08-19, not assumed.
 
-
+   The four numbers now come from the calibration record rather than from
+   #defines here, so a board with a different thermistor is a record edit
+   and not a rebuild. The defaults in board_cal.c are these same values. */
 static float NTC_VoltsToCelsius(float v_node)
 {
-  if (v_node <= 0.0f || v_node >= ADC_VREF_VOLTAGE)
+  const board_cal_t *cal = Board_Cal();
+
+  if (v_node <= 0.0f || v_node >= cal_vref())
   {
     return NAN; /* divider math breaks down at the rails */
   }
 
-  float r_ntc = NTC_RFIXED_OHMS * (ADC_VREF_VOLTAGE / v_node - 1.0f);
-  float inv_T = (1.0f / NTC_T25_KELVIN) + (1.0f / NTC_B_CONST) * logf(r_ntc / NTC_R25_OHMS);
+  const float t25 = (float)cal->ntc_t25_ck / 100.0f;
+  const float beta = (float)cal->ntc_beta_mk / 1000.0f;
+  float r_ntc = (float)cal->ntc_rfixed_ohm * (cal_vref() / v_node - 1.0f);
+  float inv_T = (1.0f / t25) + (1.0f / beta) *
+                logf(r_ntc / (float)cal->ntc_r25_ohm);
   return (1.0f / inv_T) - 273.15f;
 }
 
-/* PC0/IN10 is fed through an external 49.9k/2.2k resistor divider (top/
-   bottom to GND), so the pin voltage is only 2.2/(49.9+2.2) of the real
+/* PC0/IN10 is fed through an external 49.9k/2.2k resistor divider (R12/R11,
+   top/bottom to GND), so the pin voltage is only 2.2/(49.9+2.2) of the real
    DC bus voltage. Scale back up to get the actual source voltage. */
-#define DC_BUS_DIVIDER_R_TOP    49900.0f
-#define DC_BUS_DIVIDER_R_BOTTOM 2200.0f
-
-
 static float DC_BUS_VoltsFromDivider(float v_node)
 {
-  return v_node * (DC_BUS_DIVIDER_R_TOP + DC_BUS_DIVIDER_R_BOTTOM) / DC_BUS_DIVIDER_R_BOTTOM;
+  const board_cal_t *cal = Board_Cal();
+
+  return v_node * (float)(cal->bus_r_top_ohm + cal->bus_r_bottom_ohm) /
+         (float)cal->bus_r_bottom_ohm;
+}
+
+/* A phase code is the drop across RU1||RU2 - two 7 mohm WSHM2818, so 3.5
+   mohm - seen through the THS4551's Rf 1.5k over Rg 330. Traced off the
+   schematic and never measured, which is why both live in the record where a
+   rig can span them against a clamp meter rather than as constants only a
+   rebuild can change. */
+static float PHASE_AmpsFromShunt(float v_pin)
+{
+  const board_cal_t *cal = Board_Cal();
+  const float volts_per_amp = ((float)cal->shunt_uohm / 1000000.0f) *
+                              ((float)cal->amp_gain_ppm / 1000000.0f);
+
+  return v_pin / volts_per_amp;
 }
 
 /* Pass 1: every single-ended channel (these ride on the same ADC silicon as
@@ -145,22 +161,20 @@ static float DC_BUS_VoltsFromDivider(float v_node)
    purpose rather than U/V/W). */
 /* One row per configured ADC channel, read and printed in a single table.
 
-   The "scaled" and "unit" columns are deliberately left blank where no
-   physical quantity is defined for that input, rather than filled with the
-   pin voltage dressed up as something it is not:
+   The "scaled" and "unit" columns are left blank where no physical quantity
+   is defined for that input, rather than filled with the pin voltage dressed
+   up as something it is not. PB1/IN5 and PC1/IN11 have no assigned signal at
+   all - only a pin - so they stay blank.
 
-     - the three phase inputs sit behind AFE gain that this firmware does
-       not know, so the differential voltage at the pin is not the physical
-       quantity being sensed;
-     - PB1/IN5 and PC1/IN11 have no assigned signal at all - only a pin.
-
-   Only PB0 (NTC -> degC) and PC0 (DC bus -> V through the 49.9k/2.2k
-   divider) have a defined conversion, so only those two get a number. */
+   The three phase inputs used to be blank for the same reason. They are not
+   any more: the shunt and the amplifier chain were traced off the schematic
+   on 2026-08-26 and both now sit in the calibration record. */
 typedef enum
 {
   ADC_UNIT_NONE = 0,   /* leave the scaled/unit columns empty */
   ADC_UNIT_DCBUS,      /* volts at the DC bus, via the external divider */
-  ADC_UNIT_NTC         /* degrees C, via the R25/B thermistor conversion */
+  ADC_UNIT_NTC,        /* degrees C, via the R25/B thermistor conversion */
+  ADC_UNIT_PHASE       /* amperes, via the shunt and the amplifier gain */
 } AdcUnit;
 
 
@@ -177,14 +191,15 @@ typedef struct
   AdcUnit            unit;
 } AdcChannelDesc;
 
-/* &hadcN rather than the hadcU/V/W aliases: those are const-qualified
-   variables, not constant expressions, so they cannot initialise a const
-   table. The mapping is unchanged - U on ADC3, V on ADC1, W on ADC2. */
+/* Which ADC carries which phase is fixed by the pinout, not by preference:
+   U on ADC3, V on ADC1, W on ADC2. This table is the only place that says so
+   - the aliases and per-phase channel macros that used to repeat it here are
+   gone, because every reader now goes through read_index below. */
 static const AdcChannelDesc s_adcTable[] =
 {
-  { &hadc3, "ADC3", ADC_CHANNEL_1,  "IN1",  "PC3_C/PC2_C", ADC_DIFFERENTIAL_ENDED, "Phase U", ADC_UNIT_NONE  },
-  { &hadc1, "ADC1", ADC_CHANNEL_3,  "IN3",  "PA6/PA7",     ADC_DIFFERENTIAL_ENDED, "Phase V", ADC_UNIT_NONE  },
-  { &hadc2, "ADC2", ADC_CHANNEL_4,  "IN4",  "PC4/PC5",     ADC_DIFFERENTIAL_ENDED, "Phase W", ADC_UNIT_NONE  },
+  { &hadc3, "ADC3", ADC_CHANNEL_1,  "IN1",  "PC3_C/PC2_C", ADC_DIFFERENTIAL_ENDED, "Phase U", ADC_UNIT_PHASE  },
+  { &hadc1, "ADC1", ADC_CHANNEL_3,  "IN3",  "PA6/PA7",     ADC_DIFFERENTIAL_ENDED, "Phase V", ADC_UNIT_PHASE  },
+  { &hadc2, "ADC2", ADC_CHANNEL_4,  "IN4",  "PC4/PC5",     ADC_DIFFERENTIAL_ENDED, "Phase W", ADC_UNIT_PHASE  },
   { &hadc2, "ADC2", ADC_CHANNEL_5,  "IN5",  "PB1",         ADC_SINGLE_ENDED,       "Clevel",  ADC_UNIT_NONE  },
   { &hadc1, "ADC1", ADC_CHANNEL_9,  "IN9",  "PB0",         ADC_SINGLE_ENDED,       "NTC",     ADC_UNIT_NTC   },
   { &hadc3, "ADC3", ADC_CHANNEL_10, "IN10", "PC0",         ADC_SINGLE_ENDED,       "DC bus",  ADC_UNIT_DCBUS },
@@ -194,6 +209,38 @@ static const AdcChannelDesc s_adcTable[] =
 uint8_t Board_AdcCount(void)
 {
   return (uint8_t)(sizeof(s_adcTable) / sizeof(s_adcTable[0]));
+}
+
+/* The calibration record is indexed by these same numbers, and the record's
+   length is checked against the table at compile time: a row added without a
+   matching row there is a channel that would silently stop being corrected. */
+#define CH_PHASE_U 0U
+#define CH_PHASE_V 1U
+#define CH_PHASE_W 2U
+#define CH_NTC     4U
+#define CH_DCBUS   5U
+
+_Static_assert(BOARD_CAL_CHANNELS ==
+               (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
+               "the calibration record and the ADC table disagree on how "
+               "many channels there are");
+
+/* One read by table index, corrected. Every reading this file hands out goes
+   through here: a calibration applied at some call sites and not others is
+   harder to reason about than none at all. The raw read above stays
+   uncorrected, because zeroing has to measure what the ADC actually said. */
+static bool read_index(uint8_t index, int32_t *raw, float *volts)
+{
+  const AdcChannelDesc *d = &s_adcTable[index];
+
+  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, raw, volts))
+  {
+    return false;
+  }
+
+  *raw = Board_CalApply(index, *raw);
+  *volts = code_to_volts(*raw, d->singleDiff);
+  return true;
 }
 
 static uint8_t board_adc_index(const ADC_HandleTypeDef *h)
@@ -208,6 +255,7 @@ static uint8_t board_unit(AdcUnit u)
 {
   if (u == ADC_UNIT_DCBUS) { return BOARD_UNIT_MILLIVOLT; }
   if (u == ADC_UNIT_NTC)   { return BOARD_UNIT_CENTIDEGC; }
+  if (u == ADC_UNIT_PHASE) { return BOARD_UNIT_MILLIAMP; }
   return BOARD_UNIT_NONE;
 }
 
@@ -241,7 +289,7 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
   const AdcChannelDesc *d = &s_adcTable[index];
   float v;
 
-  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, raw, &v))
+  if (!read_index(index, raw, &v))
   {
     return false;
   }
@@ -260,6 +308,11 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
     *scaled = isnan(c) ? 0 : (int32_t)(c * 100.0f);
   }
 
+  if (d->unit == ADC_UNIT_PHASE)
+  {
+    *scaled = (int32_t)(PHASE_AmpsFromShunt(v) * 1000.0f);
+  }
+
   return true;
 }
 
@@ -274,9 +327,9 @@ bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w)
 
   /* Short-circuited: once one phase has failed the scan is refused whole,
      and the remaining conversions would only cost time to discard. */
-  if (!ADC_ReadOneChannel(hadcU, PHASE_U_CHANNEL, ADC_DIFFERENTIAL_ENDED, u, &fu) ||
-      !ADC_ReadOneChannel(hadcV, PHASE_V_CHANNEL, ADC_DIFFERENTIAL_ENDED, v, &fv) ||
-      !ADC_ReadOneChannel(hadcW, PHASE_W_CHANNEL, ADC_DIFFERENTIAL_ENDED, w, &fw))
+  if (!read_index(CH_PHASE_U, u, &fu) ||
+      !read_index(CH_PHASE_V, v, &fv) ||
+      !read_index(CH_PHASE_W, w, &fw))
   {
     return false;
   }
@@ -293,7 +346,7 @@ bool Board_DcBus(int32_t *raw, int32_t *millivolts)
     return false;
   }
 
-  if (!ADC_ReadOneChannel(&hadc3, ADC_CHANNEL_10, ADC_SINGLE_ENDED, raw, &v))
+  if (!read_index(CH_DCBUS, raw, &v))
   {
     return false;
   }
@@ -312,7 +365,7 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc)
     return false;
   }
 
-  if (!ADC_ReadOneChannel(&hadc1, ADC_CHANNEL_9, ADC_SINGLE_ENDED, raw, &v))
+  if (!read_index(CH_NTC, raw, &v))
   {
     return false;
   }
@@ -330,16 +383,108 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc)
   return true;
 }
 
+/* Zero and span live here rather than in board_cal.c because both have to
+   take a reading, and the ADC is this file's. Everything that only edits the
+   record is over there. */
+
+bool Board_CalZero(uint8_t index, int32_t *measured)
+{
+  int32_t offset = 0;
+  int32_t gain = 0;
+  int32_t raw = 0;
+  float   v;
+
+  if ((index >= Board_AdcCount()) || (measured == NULL) ||
+      !Board_CalChannel(index, &offset, &gain))
+  {
+    return false;
+  }
+
+  const AdcChannelDesc *d = &s_adcTable[index];
+
+  /* The uncorrected read on purpose: the offset is what the ADC said with
+     nothing applied, and measuring it through the old offset would fold the
+     previous zero into the new one. */
+  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v))
+  {
+    return false;
+  }
+
+  *measured = raw;
+  return Board_CalSetChannel(index, raw, gain);
+}
+
+bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured)
+{
+  int32_t offset = 0;
+  int32_t gain = 0;
+  int32_t raw = 0;
+  float   v;
+
+  if ((index >= Board_AdcCount()) || (measured == NULL) ||
+      !Board_CalChannel(index, &offset, &gain))
+  {
+    return false;
+  }
+
+  const AdcChannelDesc *d = &s_adcTable[index];
+
+  /* A gain trim is a scale factor, so it only means something where the
+     reported quantity is linear in the code. The thermistor is logarithmic -
+     "make it read 40 C" is not a factor - and a channel with no unit has
+     nothing to be told. Both are refused rather than approximated. */
+  if ((d->unit != ADC_UNIT_PHASE) && (d->unit != ADC_UNIT_DCBUS))
+  {
+    return false;
+  }
+
+  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v))
+  {
+    return false;
+  }
+
+  const int32_t after = raw - offset;
+
+  *measured = after;
+
+  const float volts = code_to_volts(after, d->singleDiff);
+  const float now = (d->unit == ADC_UNIT_PHASE)
+                    ? (PHASE_AmpsFromShunt(volts) * 1000.0f)
+                    : (DC_BUS_VoltsFromDivider(volts) * 1000.0f);
+
+  /* No finite factor turns nothing into something. One milli-unit is the
+     resolution the reference is given in, so below it there is no ratio to
+     take - zero first, then span against a reference that actually moves the
+     channel. */
+  if ((now > -1.0f) && (now < 1.0f))
+  {
+    return false;
+  }
+
+  const float ppm = (((float)reference / now) - 1.0f) * 1000000.0f;
+
+  /* Board_CalSetChannel refuses <= -1e6 for the sign flip; this catches the
+     other end, where a reference off by orders of magnitude would store a
+     factor nobody could later recognise as a mistake. */
+  if ((ppm <= -1000000.0f) || (ppm >= 1000000000.0f))
+  {
+    return false;
+  }
+
+  return Board_CalSetChannel(index, offset, (int32_t)ppm);
+}
+
 bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
                     int32_t *mean_uv, int32_t *min_raw, int32_t *max_raw,
                     uint32_t *span_raw, uint32_t *stddev_uv)
 {
-  ADC_HandleTypeDef *h;
-  uint32_t           ch;
+  uint8_t index;
 
-  if ((adc_index == 1U)) { h = &hadc1; ch = PHASE_V_CHANNEL; }
-  else if (adc_index == 2U) { h = &hadc2; ch = PHASE_W_CHANNEL; }
-  else if (adc_index == 3U) { h = &hadc3; ch = PHASE_U_CHANNEL; }
+  /* Which ADC carries which phase is the pinout's answer, and the table
+     already holds it - these are its rows, not a second mapping. */
+  if (adc_index == 1U) { index = CH_PHASE_V; }
+  else if (adc_index == 2U) { index = CH_PHASE_W; }
+  else if (adc_index == 3U) { index = CH_PHASE_U; }
   else { return false; }
 
   if ((samples < 1U) || (samples > 1000U))
@@ -361,7 +506,7 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
 
     /* Statistics over a set with a failed conversion in it are not
        statistics. Abort rather than fold a zero into the mean. */
-    if (!ADC_ReadOneChannel(h, ch, ADC_DIFFERENTIAL_ENDED, &raw, &v))
+    if (!read_index(index, &raw, &v))
     {
       return false;
     }
@@ -378,7 +523,7 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
 
   /* One LSB of a differential reading is VREF/32768. Reported in microvolts so
      no float ever goes on the wire. */
-  const double lsb_uv = ((double)ADC_VREF_VOLTAGE / 32768.0) * 1000000.0;
+  const double lsb_uv = ((double)cal_vref() / 32768.0) * 1000000.0;
 
   *mean_uv   = (int32_t)(mean * lsb_uv);
   *min_raw   = lo;
@@ -450,11 +595,10 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
   {
     for (uint8_t c = 0U; c < n; c++)
     {
-      const AdcChannelDesc *d = &s_adcTable[out[c].index];
       int32_t raw = 0;
       float   v;
 
-      if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v))
+      if (!read_index(out[c].index, &raw, &v))
       {
         return false;
       }

@@ -98,7 +98,8 @@ class SimulatedLink:
 # The same shape the firmware reports over command 0x6D, so a host driven
 # against the stand-in exercises the same decode. Values invented like
 # everything else here - see the module docstring.
-UNITS = {'NTC': 'centi-degC', 'DC bus': 'mV'}
+UNITS = {'NTC': 'centi-degC', 'DC bus': 'mV',
+         'Phase U': 'mA', 'Phase V': 'mA', 'Phase W': 'mA'}
 
 # What the firmware answers for channels kind 3: one entry per command table.
 # Shaped like the board's, invented like everything else here - the counts

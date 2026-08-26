@@ -27,12 +27,14 @@ from .board import BOARD_CLASSES, Board, connect, disconnect, scan
 from .errors import (ConnectError, CrcError, DeviceStateError, FrameError,
                      ModbusException, NoReplyError, PayloadError, RigError,
                      UnsupportedProtocolError)
-from .scaling import DCBUS_ONBOARD, NTC_ONBOARD, DividerParams, NtcParams
+from .scaling import (DCBUS_ONBOARD, NTC_ONBOARD, PHASE_ONBOARD,
+                      DividerParams, NtcParams, ShuntParams)
 from .transport import Transport
 
 __all__ = [
     'connect', 'disconnect', 'scan', 'Board', 'BOARD_CLASSES', 'Transport',
-    'NtcParams', 'DividerParams', 'NTC_ONBOARD', 'DCBUS_ONBOARD',
+    'NtcParams', 'DividerParams', 'ShuntParams',
+    'NTC_ONBOARD', 'DCBUS_ONBOARD', 'PHASE_ONBOARD',
     'RigError', 'ConnectError', 'NoReplyError', 'CrcError', 'FrameError',
     'PayloadError', 'UnsupportedProtocolError', 'DeviceStateError',
     'ModbusException', 'protocol', 'scaling',

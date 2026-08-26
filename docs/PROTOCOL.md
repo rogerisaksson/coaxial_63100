@@ -41,6 +41,7 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   | 0 | BNO08X IMU | SPI2, mode 3, 1.48 MHz | 0 product id, 1 raw cargo, 2 Set Feature, 3 raw bytes off the bus, 4 reset, 5 raw write on any SHTP channel, 6 per-pin drive/pull check, 7 time H_INTN's answer to a wake, 8 shared record, 9 hold, 10 resume |
   | 1 | A1335 angle sensor | SPI4, mode 3, 1.86 MHz | 0 read register, 1 write register, 2 shared record, 3 hold, 4 resume, 5 which register the loop reads, 6 clock |
   | 2 | the three serial ports | USART3, USART2, UART5 | 0 loopback check, 1 per-port counters |
+  | 3 | the calibration record | flash, bank 2 sector 7 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults |
 
   Device 2 op 0 transmits 00, FF, 5A, A5 on the port named and answers which came back - all four on an RS485 port, none on USART3. **The port carrying the request refuses**: its own patterns land in front of the reply, and the master sees a checksum failure. Op 1 answers `bus_message` and `server_message` separately, and their difference is the traffic addressed to another node on the segment.
 
@@ -49,6 +50,32 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   The IMU's shared record answers `u8 loop, u8 error, u32 updates, u32 cargoes, u32 errors, u8 have`, then `u8 report_id, u8 status` and four Q14 counts. The angle sensor's answers `u8 loop, u8 error, u32 updates, u32 errors, u8 have, u8 register, u16 value, u8 crc`. `updates` is monotonic in both, so a host tells a new reading from the same one read twice without guessing from the values.
 
   The A1335's packet is 20 bits (Figure 31): MOSI is SYNC=0, R/W, six address bits, eight data bits, four CRC bits; MISO is sixteen data bits and four CRC bits. It goes out as four 5-bit words under one chip select - `HAL_SPI_Init` refuses a data size above 16 bits on SPI4, which `IS_SPI_HIGHEND_INSTANCE` does not name. **The answer lags one frame**, so a register read is two packets. The CRC is reported and not checked: the datasheet gives the field's width and not its polynomial.
+
+**Device 3 is where a code becomes a quantity.** The nine scalars - reference,
+shunt, amplifier gain, both divider resistors, four thermistor constants - and
+one offset/gain pair per ADC channel. Op 0 answers `u8 stored, u16 version,
+u8 params, u32 x params, u8 channels`, then `i32 offset, i32 gain` per channel;
+97 bytes today. `stored` is the difference between a calibrated board and one
+running the schematic's arithmetic, and nothing else in the reply shows it.
+
+Integers in the unit that makes them integers - microhms, ppm, microvolts,
+centikelvin - because the wire bans floating point. A gain correction is ppm of
+1 V/V, applied as `1 + ppm/1e6` after the offset is subtracted.
+
+Only op 5 writes flash. It erases a 128 KB sector, reprograms it 32 bytes at a
+time, and answers from the read-back rather than from the programmer's return
+value - so a master needs a timeout of seconds, not the usual half. The sector
+is the last of bank 2 and the image is in bank 1, so the erase does not stall
+the core fetching its own instructions.
+
+Op 4 (span) is refused where the reported quantity is not linear in the code:
+the thermistor is logarithmic and a channel with no unit has nothing to be
+told. Both answer SERVER DEVICE FAILURE, as does a channel reading zero - no
+finite gain turns nothing into something. A refused edit leaves the record
+byte-for-byte unchanged, which `test_conformance.py` checks after every
+refusal it provokes: the first version of this validated after assigning and
+rolled back by reloading flash, which does nothing at all on a board whose
+record has never been saved.
 
 ## Hardware Safeguards & Conformance
 

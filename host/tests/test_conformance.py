@@ -327,6 +327,76 @@ def rs485_tests(run):
                   'rs485 %d, open %d' % (body[2], body[3]))
 
 
+def cal_tests(run):
+    """Device 3, byte for byte, from a master that shares no code with the
+    library. Edits only - saving erases a flash sector, and a suite that runs
+    on every commit has no business doing that to a board."""
+    b = run.bus
+
+    print(chr(10) + '-- 0x6E device 3, the calibration record --')
+    r = b.request(bytes([0x6E, 3, 0]))
+    p = parse(r)
+    if p is None or not p[3]:
+        return run.check('device 3 op 0 answers', False,
+                         'bad reply %s' % r.hex(' '))
+
+    data = p[2]
+    run.check('device 3 op 0 answers', True, '%d bytes' % len(data))
+
+    stored, version = data[0], (data[1] << 8) | data[2]
+    count = data[3]
+    run.check('the record says which firmware layout it is',
+              version == 1 and count == 9, 'version %d, %d params' % (version, count))
+
+    at = 4
+    params = []
+    for _ in range(count):
+        params.append(int.from_bytes(data[at:at + 4], 'big'))
+        at += 4
+
+    # The schematic's numbers, and the only place outside the firmware that
+    # says what they are. A default that drifts from board_cal.c fails here.
+    run.check('shunt is 3.5 milliohm (RU1 || RU2, 7 mohm each)',
+              params[1] == 3500, 'got %d' % params[1])
+    run.check('amplifier gain is 4.545455 V/V (THS4551 1.5k/330)',
+              params[2] == 4545455, 'got %d' % params[2])
+    run.check('and the product still puts 100 A at 48 % of the span',
+              abs((params[1] * 1e-6) * (params[2] * 1e-6) - 0.0159091) < 1e-7,
+              '%.9f V/A' % ((params[1] * 1e-6) * (params[2] * 1e-6)))
+    run.check('DC link divider is 49900/2200',
+              (params[3], params[4]) == (49900, 2200),
+              'got %d/%d' % (params[3], params[4]))
+    run.check('thermistor B is 3380 K', params[6] == 3380000,
+              'got %d' % params[6])
+
+    channels = data[at]
+    at += 1
+    run.check('one correction per ADC channel', channels == 7,
+              'got %d' % channels)
+    run.check('the reply ends where the corrections do',
+              len(data) == at + channels * 8,
+              '%d bytes, expected %d' % (len(data), at + channels * 8))
+
+    print(chr(10) + '-- what device 3 refuses --')
+    run.expect_exception('an unknown parameter id is ILLEGAL DATA VALUE',
+                         bytes([0x6E, 3, 1, 99, 0, 0, 0, 1]), 0x6E, 0x03)
+    run.expect_exception('a zero reference would divide by zero',
+                         bytes([0x6E, 3, 1, 0, 0, 0, 0, 0]), 0x6E, 0x03)
+    run.expect_exception('a channel index past the table is refused',
+                         bytes([0x6E, 3, 3, 99]), 0x6E, 0x03)
+    run.expect_exception('an unknown op is refused, not ignored',
+                         bytes([0x6E, 3, 99]), 0x6E, 0x03)
+    run.expect_exception('spanning the thermistor is refused - logarithmic',
+                         bytes([0x6E, 3, 4, 4, 0, 0, 0x27, 0x10]), 0x6E, 0x04)
+
+    # It refused, so the record must be exactly what it was.
+    again = parse(b.request(bytes([0x6E, 3, 0])))
+    run.check('a refused edit changed nothing',
+              again is not None and again[3] and again[2] == data,
+              'record %s' % ('unchanged' if again and again[2] == data
+                             else 'MOVED'))
+
+
 def map_tests(run):
     b = run.bus
 
@@ -556,6 +626,7 @@ if __name__ == '__main__':
         channels_tests(run)
         rs485_tests(run)
         map_tests(run)
+        cal_tests(run)
     finally:
         try:
             leave_modbus(bus)

@@ -4,12 +4,14 @@ The firmware reports raw ADC codes. This module turns them into numbers with
 units, but only where the conversion is actually known:
 
   * the DC bus, through a divider whose resistors are on the schematic;
-  * the thermistor, through constants from its datasheet.
+  * the thermistor, through constants from its datasheet;
+  * the three phase inputs, through a shunt and an amplifier chain traced off
+    the schematic on 2026-08-26. They are current, not voltage - the sense
+    element sits in the phase conductor.
 
-The three phase inputs sit behind AFE gain that neither side knows, so they are
-reported as volts at the ADC pin and no further. Calling that a current or a
-phase voltage would be invention, and a production rig that records invented
-numbers is worse than one that records none.
+Every one of those three is a number this module could get wrong, so each is a
+named constant in scaling.py rather than a literal at a call site, and each
+says in its docstring where it came from.
 """
 from . import protocol, scaling
 from .errors import DeviceStateError
@@ -147,7 +149,8 @@ class Analog(Subsystem):
         """Every configured channel at once, with its table metadata merged in.
 
         Reports volts at the ADC pin and nothing beyond it. Use
-        ntc_temperature() or dcbus_voltage() where the conversion is known.
+        ntc_temperature(), dcbus_voltage() or phase_current() for the three
+        channels whose conversion is known.
         """
         self._board.afe.require()
 
@@ -210,6 +213,32 @@ class Analog(Subsystem):
                                 divider.scale),
             'scale': divider.scale,
             'params': divider.name,
+            'mean_raw': stats['mean_raw'],
+            'samples': stats['samples'],
+        }
+
+    def phase_current(self, signal='Phase U', shunt=scaling.PHASE_ONBOARD,
+                      nr_of_samples=64, sample_rate=2000.0):
+        """Phase current in amperes.
+
+        Absolute, like the DC bus, and with two more ways to be wrong: the
+        shunt value and the amplifier gain. Both are ShuntParams fields, so a
+        board that populates a different shunt needs new numbers there and no
+        new firmware.
+
+        `signal` is what the board calls the channel - 'Phase U', 'Phase V',
+        'Phase W' - not an index, because the index is the board's to choose.
+        """
+        stats = self._one(self.index_of(signal), nr_of_samples, sample_rate)
+
+        return {
+            'amps': shunt.amps(stats['mean_raw']),
+            'volts_at_pin': shunt.volts_at_pin(stats['mean_raw']),
+            'ripple_amps': (shunt.amps(stats['max_raw']) -
+                            shunt.amps(stats['min_raw'])),
+            'noise_amps_rms': shunt.amps(stats['stddev_raw']),
+            'full_scale_amps': shunt.full_scale_amps,
+            'params': shunt.name,
             'mean_raw': stats['mean_raw'],
             'samples': stats['samples'],
         }

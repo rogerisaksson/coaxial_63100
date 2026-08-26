@@ -17,6 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from coaxial import scaling                            # noqa: E402
 from coaxial.errors import DeviceStateError            # noqa: E402
 from coaxial.simulated import CHANNELS                  # noqa: E402
 from coaxial.simulated import SimulatedSession          # noqa: E402
@@ -518,12 +519,75 @@ def test_orientation(report):
                  plain.splitlines()[0])
 
 
+def test_scaling(report):
+    """The three conversions this host claims to know, as arithmetic.
+
+    Nothing here needs a board, and that is the point: a wrong constant does
+    not fail loudly on hardware, it returns a plausible number. Each figure
+    below is checked against the schematic value it was traced from.
+    """
+    bus = scaling.DCBUS_ONBOARD
+    report.check('the DC link divider is the schematic pair R12/R11',
+                 (bus.r_top, bus.r_bottom) == (49900.0, 2200.0),
+                 '%.0f/%.0f' % (bus.r_top, bus.r_bottom))
+    report.check('full scale is 78.15 V - 24 % over the 63 V rating, and '
+                 'deliberate (invariant 11)',
+                 abs(bus.volts(65535) - 78.15) < 0.01,
+                 '%.3f V' % bus.volts(65535))
+
+    ntc = scaling.NTC_ONBOARD
+    report.check('mid-scale is exactly 25.00 C, which is the AFE-off '
+                 'artefact and not a temperature',
+                 abs(ntc.celsius(32768) - 25.0) < 0.005,
+                 '%.4f C' % ntc.celsius(32768))
+    report.check('B is 3380, the NCU18XH103D60RB value, not 3950',
+                 ntc.beta == 3380.0, '%.0f' % ntc.beta)
+    for rail in (0, 65536):
+        try:
+            ntc.celsius(rail)
+            report.check('raw %d is refused, not reported' % rail, False)
+        except ValueError as exc:
+            report.check('raw %d is refused, not reported' % rail,
+                         'not recoverable' in str(exc), str(exc))
+
+    phase = scaling.PHASE_ONBOARD
+    report.check('the gain is the schematic resistor ratio, not a literal - '
+                 'THS4551 Rf 1.5k over Rg 330',
+                 abs(phase.gain - 1500.0 / 330.0) < 1e-9,
+                 '%.4f V/V' % phase.gain)
+    report.check('the shunt is two 7 mohm WSHM2818 in parallel',
+                 abs(phase.r_shunt - 0.0035) < 1e-12,
+                 '%.5f ohm' % phase.r_shunt)
+    report.check('3.5 mohm x that gain is 15.909 mV per amp',
+                 abs(phase.volts_per_amp - 0.0159090909) < 1e-9,
+                 '%.6f V/A' % phase.volts_per_amp)
+    report.check('no gain above 9.43 V/V could represent 100 A at all, which '
+                 'is what bounds the chain independently of reading it',
+                 phase.gain < phase.vref / (phase.r_shunt * 100.0),
+                 'ceiling %.2f V/V' % (phase.vref / (phase.r_shunt * 100.0)))
+    report.check('the ADC runs out at 207.4 A, so 100 A sits under half the '
+                 'differential span - the same headroom the DC link keeps',
+                 abs(phase.full_scale_amps - 207.43) < 0.05 and
+                 phase.amps(16384) > 100.0,
+                 '%.2f A full scale, %.2f A at half span'
+                 % (phase.full_scale_amps, phase.amps(16384)))
+    counts = 100.0 * phase.volts_per_amp / phase.vref * 32768.0
+    report.check('100 A round-trips through the code it produces',
+                 abs(phase.amps(round(counts)) - 100.0) < 0.01,
+                 'raw %d -> %.4f A' % (round(counts), phase.amps(round(counts))))
+    report.check('a negative code is a negative current - the shunt is '
+                 'differential and direction survives',
+                 phase.amps(-1580) < 0 and
+                 abs(phase.amps(-1580) + phase.amps(1580)) < 1e-9,
+                 '%.4f A' % phase.amps(-1580))
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
                  test_self_test_and_link, test_gpio_gate,
                  test_channel_table, test_imu, test_subsystems,
-                 test_orientation):
+                 test_orientation, test_scaling):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

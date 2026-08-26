@@ -22,6 +22,7 @@ extern "C" {
 #define BOARD_UNIT_NONE      0U
 #define BOARD_UNIT_MILLIVOLT 1U
 #define BOARD_UNIT_CENTIDEGC 2U
+#define BOARD_UNIT_MILLIAMP  3U
 
 typedef struct
 {
@@ -201,6 +202,113 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
 bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w);
 bool Board_DcBus(int32_t *raw, int32_t *millivolts);
 bool Board_Ntc(int32_t *raw, int32_t *centidegc);
+
+/* ---- calibration -------------------------------------------------------- */
+
+/** Channels the record carries a correction for. The ADC table's length, and
+    checked against it at init - a table that grew past this is a record that
+    would silently stop correcting the new channels. */
+#define BOARD_CAL_CHANNELS 7U
+
+/** Which scalar Board_CalSetParam/GetParam addresses. Integers in the unit
+    that makes them integers, because the wire bans floating point. */
+#define BOARD_CAL_VREF_UV      0U  /**< ADC reference, microvolts           */
+#define BOARD_CAL_SHUNT_UOHM   1U  /**< phase shunt, microhms               */
+#define BOARD_CAL_AMP_GAIN_PPM 2U  /**< phase amplifier gain, ppm of 1 V/V  */
+#define BOARD_CAL_BUS_R_TOP    3U  /**< DC link divider top, ohms           */
+#define BOARD_CAL_BUS_R_BOTTOM 4U  /**< DC link divider bottom, ohms        */
+#define BOARD_CAL_NTC_R25      5U  /**< thermistor at 25 C, ohms            */
+#define BOARD_CAL_NTC_BETA_MK  6U  /**< B constant, milli-kelvin            */
+#define BOARD_CAL_NTC_RFIXED   7U  /**< divider partner, ohms               */
+#define BOARD_CAL_NTC_T25_CK   8U  /**< reference temperature, centikelvin  */
+#define BOARD_CAL_PARAM_COUNT  9U
+
+/** One channel's correction, applied to the raw code before any scaling. */
+typedef struct
+{
+  int32_t offset_raw;   /**< subtracted first; what a zero measures       */
+  int32_t gain_ppm;     /**< then scaled by 1 + gain_ppm/1e6              */
+} board_cal_chan_t;
+
+/** The whole record, as it sits in flash. Append-only for the same reason
+    command 0x41 is: a stored record from an older firmware is read back by a
+    newer one, and a moved field is a silently wrong calibration. Growing it
+    means bumping CAL_VERSION in board_cal.c, which invalidates what is
+    stored rather than misreading it. */
+typedef struct
+{
+  uint32_t magic;
+  uint16_t version;
+  uint16_t channels;
+  uint32_t vref_uv;
+  uint32_t shunt_uohm;
+  uint32_t amp_gain_ppm;
+  uint32_t bus_r_top_ohm;
+  uint32_t bus_r_bottom_ohm;
+  uint32_t ntc_r25_ohm;
+  uint32_t ntc_beta_mk;
+  uint32_t ntc_rfixed_ohm;
+  uint32_t ntc_t25_ck;
+  board_cal_chan_t chan[BOARD_CAL_CHANNELS];
+  uint16_t crc;
+} board_cal_t;
+
+/** Load the stored record, or fall back to the compiled-in defaults. Called
+    once from main() before anything reads a channel. */
+void Board_CalInit(void);
+
+/** The record in force now, stored or default. */
+const board_cal_t *Board_Cal(void);
+
+/** Whether flash holds a valid record, as against these being the defaults. */
+bool Board_CalStored(void);
+
+/** Replace the working record with the compiled-in defaults. RAM only until
+    Board_CalSave(). */
+void Board_CalDefaults(void);
+
+/** Re-read flash, discarding uncommitted edits. False if nothing valid is
+    stored, in which case the working record is untouched. */
+bool Board_CalLoad(void);
+
+/** Commit the working record to flash and read it back to prove it landed. */
+bool Board_CalSave(void);
+
+/* False from either of these means the id or the index does not exist, or the
+   value would make a conversion divide by zero. */
+bool Board_CalSetParam(uint8_t id, uint32_t value);
+bool Board_CalGetParam(uint8_t id, uint32_t *value);
+
+bool Board_CalSetChannel(uint8_t index, int32_t offset_raw, int32_t gain_ppm);
+bool Board_CalChannel(uint8_t index, int32_t *offset_raw, int32_t *gain_ppm);
+
+/**
+  * @brief  Correct one raw code: offset first, then gain.
+  * @return The code unchanged for an index the record does not cover, because
+  *         refusing to report is worse than reporting uncorrected.
+  */
+int32_t Board_CalApply(uint8_t index, int32_t raw);
+
+/**
+  * @brief  Measure a channel now and store the reading as its offset.
+  *
+  * The zero of "zero and span": whatever is applied to the input at this
+  * moment becomes the new origin. The board does not know or check what that
+  * is - pointing it at a live input is the operator's mistake to make.
+  *
+  * @param  measured  The code that was stored, before correction.
+  */
+bool Board_CalZero(uint8_t index, int32_t *measured);
+
+/**
+  * @brief  Measure a channel now and trim its gain so the reading equals
+  *         `reference`, in the channel's own raw units after offset.
+  *
+  * The span of "zero and span": apply a known reference, say what it should
+  * read, and the correction follows. Refused when the channel reads zero
+  * after offset - there is no finite gain that turns nothing into something.
+  */
+bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured);
 
 /* ---- IMU ---------------------------------------------------------------- */
 

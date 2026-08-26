@@ -121,6 +121,11 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  /* Before anything reads a channel: the scaling parameters and the
+     per-channel corrections come out of flash here, or fall back to the
+     schematic's numbers. */
+  Board_CalInit();
+
   /* Differential-mode offset calibration, recommended before first use for
      absolute accuracy rather than mere repeatability. Note that it runs with
      AFE_ON still low, so it calibrates against an unpowered input - which is

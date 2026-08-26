@@ -9,6 +9,13 @@
 * **HSE Boot Warning:** Blindly rejected PLL1 even when sourced directly from HSE. Fixed.
 * **String Formatting Exception:** Missing tuple parentheses in the MCP renderer swallowed outputs. Caught solely because the exception handler was cynically narrow. Keep it that way.
 * **`port_state` Unstubbed in `test_link_diagnose`:** The suite stubbed `comports`, `connect` and `check_power` but not `port_state`, which opens a real port. The result depended on the bench: it passed with the probe connected and failed with it out, where COM4 read `busy` and the checklist stopped one step short of what the check asserted. Stubbed; the BUSY branch it had been reaching by accident now has its own check.
+* **Calibration Rollback That Rolled Back Nothing:** `Board_CalSetParam`
+  assigned first and, on a value that would divide by zero, reverted by
+  reloading flash. On a board whose record has never been saved that reload
+  fails and changes nothing, so the refused value stayed - `vref_uv` left at
+  zero, every reading garbage, and the command still answering ILLEGAL DATA
+  VALUE. Found by `test_conformance.py` re-reading the record after every
+  refusal it provokes. Now validated before the assignment.
 
 ## LLM & Host Infrastructure
 
@@ -23,7 +30,7 @@
 
 * **JTAG Connect-Under-Reset:** Fails because ST-Link probes neglect TAP re-initialization. Hardware is innocent. Workaround: SWD or `SWrst`.
 * **Halted Core Silences USART3:** An aborted JTAG/SWD reset leaves the core halted, killing serial comms. Use `mode=HOTPLUG`.
-* **Phase V 0.85V Offset:** Isolated op-amp failure on a single board. Do not calibrate around broken hardware.
+* **Phase V 0.85V Offset:** Isolated op-amp failure on a single board. Do not calibrate around broken hardware. Since the phase channels report amperes it reads as -52 A with nothing connected, which is what makes it hard to ignore - and `0x6E` device 3 op 3 would now make it vanish. Do not zero Phase V on this board.
 * **NTC Bit-Exact "Anomalies":** Johnson noise is 120x below LSB. Bit-exact readings are physics, not a frozen register.
 * **UART Overrun (ORE):** Latches and kills RX permanently. Now explicitly cleared via `ICR`.
 * **ADC Offset Calibration:** Drifts ~100mV across boots because it runs against an unpowered reference (`AFE_ON` low).
