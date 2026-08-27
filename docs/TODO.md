@@ -32,6 +32,10 @@ priority 5, 48.000 MHz from PLL3Q off the crystal. `MX_USB_OTG_FS_PCD_Init`
 runs at boot; there is no device class, so a host sees a device that fails
 enumeration.
 
+**A buffered capture view.** `demos/capture.ps1` drains both buffers at
+once - every AFE channel, every drivable pin and both SPI parts - and raises
+accumulation on its own when the board reports drops.
+
 **`0x6E` device 6 is an acquisition task** — configure, start, read, in
 DAQmx's shape. Channels as a bitmask over the board's own table, a software
 or TIM1 clock, sampling window 0..7, decimation and accumulation. Op 5

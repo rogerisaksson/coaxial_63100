@@ -62,6 +62,9 @@ class Daq(Subsystem):
             'decimate': r.u16(),
             'accumulate': r.u16(),
             'records': r.u32(),
+            'digital': bool(r.u8()),
+            'interval_us': r.u32(),
+            'max_rate_hz': r.u32(),
         }
 
     def layout(self):
@@ -79,7 +82,16 @@ class Daq(Subsystem):
             differential = bool(r.u8())
             out.append({'channel': index, 'unit': UNITS.get(unit, unit),
                         'differential': differential, 'signal': r.string()})
-        return {'stride': stride, 'fields': out}
+
+        # The digital word's bits, named by the board. Counting rows of a
+        # table this file does not hold is the copy the layout exists to
+        # avoid, so the names come off the wire with everything else.
+        pins = []
+        if r.remaining and r.u8():
+            for _ in range(r.u8()):
+                direction = ('in', 'out', 'inout')[r.u8()]
+                pins.append({'signal': r.string(), 'direction': direction})
+        return {'stride': stride, 'fields': out, 'pins': pins}
 
     def _resolve(self, channels):
         """Channel names or indices to a bitmask, asking the board for names."""
@@ -93,7 +105,8 @@ class Daq(Subsystem):
         return mask
 
     def configure(self, channels, clock='software', sample_time=0,
-                  decimate=1, accumulate=1, records=0):
+                  decimate=1, accumulate=1, records=0, digital=False,
+                  rate_hz=None, interval_us=None):
         """Replace the task. Refused while one is running.
 
         `accumulate` sums, it does not average: summing keeps the bits an
@@ -107,9 +120,19 @@ class Daq(Subsystem):
             raise ValueError('decimate and accumulate count samples, so both '
                              'are at least 1')
 
-        payload = struct.pack('>BBBHHI', self._resolve(channels),
+        # A software clock has to be a clock. Left unlimited it samples
+        # whatever the main loop has spare, which took the link down: seven
+        # channels is about 190 us of converter work a turn and RTU discards
+        # a frame whose characters arrive more than t1.5 - 143 us at 115200 -
+        # apart. Unlimited is still reachable, and is only safe for a short
+        # finite run.
+        if interval_us is None:
+            interval_us = 0 if rate_hz is None else int(1e6 / float(rate_hz))
+
+        payload = struct.pack('>BBBHHIBI', self._resolve(channels),
                               CLOCKS.get(clock, clock), sample_time,
-                              decimate, accumulate, records)
+                              decimate, accumulate, records,
+                              1 if digital else 0, int(interval_us))
         if self._op(DAQ_OP_CONFIGURE, payload)[0] != 1:
             raise RigError('the board refused that task - a TIM1 clock '
                            'carries only the phases, a task cannot be '
@@ -131,21 +154,47 @@ class Daq(Subsystem):
 
         Pass `layout` to save a round trip when draining in a loop.
         """
-        fields = (layout or self.layout())['fields']
+        layout = layout or self.layout()
+        fields, pins = layout['fields'], layout.get('pins') or []
         raw = self._op(DAQ_OP_READ, bytes([min(int(want), 255)]))
         got = raw[0]
-        stride = 4 + 4 * len(fields)
+        stride = 4 + 4 * len(fields) + (4 if pins else 0)
+        fmt = '>I%di%s' % (len(fields), 'I' if pins else '')
         out = []
         for i in range(got):
             at = 1 + i * stride
-            values = struct.unpack('>I%di' % len(fields), raw[at:at + stride])
-            out.append({'at': values[0],
-                        **{f['signal']: v
-                           for f, v in zip(fields, values[1:])}})
+            values = struct.unpack(fmt, raw[at:at + stride])
+            rec = {'at': values[0]}
+            rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
+            if pins:
+                bits = values[1 + len(fields)]
+                rec['digital'] = {p['signal']: bool(bits >> n & 1)
+                                  for n, p in enumerate(pins)}
+            out.append(rec)
         return out
 
+    def drain(self, limit=None, layout=None):
+        """Block read: keep taking full frames until the ring reports empty.
+
+        One `read()` is already a full Modbus PDU, so blocking bigger buys
+        no bytes - the link is the ceiling. At 115200 a 253-byte reply is
+        22 ms, which is 11.5 kB/s however it is cut up, and a 36-byte record
+        makes that about 320 records/s. Past that the only thing that helps
+        is producing fewer records, which is what `accumulate` and
+        `decimate` do on the target before a byte is sent.
+        """
+        layout = layout or self.layout()
+        out = []
+        while limit is None or len(out) < limit:
+            batch = self.read(layout=layout)
+            if not batch:
+                break
+            out.extend(batch)
+        return out[:limit] if limit is not None else out
+
     def acquire(self, channels, records, clock='software', sample_time=0,
-                decimate=1, accumulate=1, timeout=10.0):
+                decimate=1, accumulate=1, timeout=10.0, digital=False,
+                rate_hz=None):
         """Configure, start, drain until the task says done. The one-shot.
 
         Raises rather than returning a short capture: a run that stopped
@@ -153,7 +202,8 @@ class Daq(Subsystem):
         """
         layout = self.configure(channels, clock=clock, sample_time=sample_time,
                                 decimate=decimate, accumulate=accumulate,
-                                records=records)
+                                records=records, digital=digital,
+                                rate_hz=rate_hz)
         self.start()
 
         out = []

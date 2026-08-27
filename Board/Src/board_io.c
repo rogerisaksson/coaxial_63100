@@ -182,6 +182,81 @@ bool Board_DigitalChan(uint8_t index, board_dchan_t *info)
   return true;
 }
 
+static GPIO_TypeDef *port_base(char port)
+{
+  switch (port)
+  {
+    case 'A': return GPIOA;
+    case 'B': return GPIOB;
+    case 'C': return GPIOC;
+    case 'D': return GPIOD;
+    default:  return GPIOE;
+  }
+}
+
+
+uint8_t Board_DigitalIoCount(void)
+{
+  uint8_t n = 0U;
+
+  for (uint8_t i = 0U; i < Board_DigitalCount(); i++)
+  {
+    if (s_digital[i].usable)
+    {
+      n++;
+    }
+  }
+  return n;
+}
+
+
+bool Board_DigitalIoChan(uint8_t slot, board_dchan_t *info)
+{
+  uint8_t n = 0U;
+
+  for (uint8_t i = 0U; i < Board_DigitalCount(); i++)
+  {
+    if (s_digital[i].usable && (n++ == slot))
+    {
+      return Board_DigitalChan(i, info);
+    }
+  }
+  return false;
+}
+
+
+uint32_t Board_DigitalMask(void)
+{
+  uint32_t bits = 0U;
+  uint8_t slot = 0U;
+
+  /* The usable rows only - what `0x6D` kind 1 calls digital I/O. The
+     reserved ones are the bus and the debug port, and sampling JTAG at the
+     converters' rate names a channel nobody asked for. Listing all
+     twenty-three also overflowed the layout reply at 312 bytes against
+     MB_MAX_PDU's 253, which is the same lesson the parts list already
+     carries.
+
+     Straight off IDR rather than HAL_GPIO_ReadPin per pin: this runs at the
+     acquisition task's rate and the function calls buy nothing. */
+  for (uint8_t i = 0U; (i < Board_DigitalCount()) && (slot < 32U); i++)
+  {
+    const DigitalDesc *d = &s_digital[i];
+
+    if (!d->usable)
+    {
+      continue;
+    }
+    if ((port_base(d->port)->IDR & (1UL << d->number)) != 0U)
+    {
+      bits |= (1UL << slot);
+    }
+    slot++;
+  }
+  return bits;
+}
+
+
 bool Board_PinUsable(char port, uint8_t pin)
 {
   for (uint8_t i = 0U; i < Board_DigitalCount(); i++)

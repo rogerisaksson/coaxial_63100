@@ -985,13 +985,20 @@ class SimulatedDaq:
                 'available': 0, 'produced': self._produced, 'dropped': 0,
                 **cfg}
 
+    PINS = ({'signal': 'AFE_ON', 'direction': 'out'},
+            {'signal': 'nFAULT', 'direction': 'in'},
+            {'signal': 'UART5_TERM', 'direction': 'out'},
+            {'signal': 'KEEPALIVE', 'direction': 'out'})
+
     def layout(self):
         fields = []
         for i in self._order:
             signal, unit, diff = self.TABLE[i]
             fields.append({'channel': i, 'unit': unit, 'differential': diff,
                            'signal': signal})
-        return {'stride': 4 + 4 * len(self._order), 'fields': fields}
+        pins = list(self.PINS) if (self._cfg or {}).get('digital') else []
+        return {'stride': 4 + 4 * len(self._order) + (4 if pins else 0),
+                'fields': fields, 'pins': pins}
 
     def _resolve(self, channels):
         if isinstance(channels, int):
@@ -1009,7 +1016,8 @@ class SimulatedDaq:
         return sorted(out)
 
     def configure(self, channels, clock='software', sample_time=0,
-                  decimate=1, accumulate=1, records=0):
+                  decimate=1, accumulate=1, records=0, digital=False,
+                  rate_hz=None, interval_us=None):
         from .errors import RigError
         if clock not in ('software', 'tim1', 0, 1):
             raise ValueError('clock is %s, not one of software, tim1' % clock)
@@ -1025,9 +1033,12 @@ class SimulatedDaq:
             raise RigError('the board refused that task - a TIM1 clock '
                            'carries only the phases (simulated)')
         self._order = order
+        if interval_us is None:
+            interval_us = 0 if rate_hz is None else int(1e6 / float(rate_hz))
         self._cfg = {'channels': sum(1 << i for i in order), 'clock': clock,
                      'sample_time': sample_time, 'decimate': decimate,
-                     'accumulate': accumulate, 'records': records}
+                     'accumulate': accumulate, 'records': records,
+                     'digital': bool(digital), 'interval_us': interval_us}
         self._produced = 0
         self._done = False
         return self.layout()
@@ -1064,6 +1075,9 @@ class SimulatedDaq:
                 centre = self.CENTRE[f['channel']]
                 rec[f['signal']] = sum(centre + random.randint(-60, 60)
                                        for _ in range(self._cfg['accumulate']))
+            if (layout or self.layout()).get('pins'):
+                rec['digital'] = {p['signal']: bool(random.getrandbits(1))
+                                  for p in self.PINS}
             out.append(rec)
         self._produced += n
         if self._cfg['records'] and self._produced >= self._cfg['records']:
@@ -1072,10 +1086,12 @@ class SimulatedDaq:
         return out
 
     def acquire(self, channels, records, clock='software', sample_time=0,
-                decimate=1, accumulate=1, timeout=10.0):
+                decimate=1, accumulate=1, timeout=10.0, digital=False,
+                rate_hz=None):
         layout = self.configure(channels, clock=clock, sample_time=sample_time,
                                 decimate=decimate, accumulate=accumulate,
-                                records=records)
+                                records=records, digital=digital,
+                                rate_hz=rate_hz)
         self.start()
         out = []
         while len(out) < records:

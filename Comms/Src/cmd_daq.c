@@ -12,12 +12,39 @@
   */
 #include "cmd.h"
 #include "board.h"
+#include "dev_serial.h"
 #include "wire.h"
 
 /** What is left of MB_MAX_PDU once the count byte is spent. The reply is
     whole records only - half of one is not a short read, it is a corrupt
     one, and the host has no way to tell the difference. */
 #define DAQ_REPLY_ROOM 240U
+
+
+/** What the link can carry, in records per second, at this stride.
+  *
+  * Both terms move: the stride is 4 bytes plus 4 per enabled channel plus 4
+  * for the digital word, and the baud is whichever port is answering - the
+  * debug probe's VCP and a 10 Mbit RS485 segment are the same code and very
+  * different answers.
+  *
+  * A third of the line rate is measured, not derived. At 115200 the payload
+  * came back at about 3.8 kB/s against 11.52 kB/s of raw line rate, and the
+  * missing two thirds are the request, the turnaround and the host's own
+  * latency - none of which this board can compute.
+  */
+#define DAQ_LINK_SHARE_PCT 33U
+
+static uint32_t link_records_per_second(uint16_t stride)
+{
+  const uint32_t baud = dev_uart_baud();
+
+  if ((stride == 0U) || (baud == 0U))
+  {
+    return 0U;
+  }
+  return ((baud / 10U) * DAQ_LINK_SHARE_PCT / 100U) / stride;
+}
 
 
 static cmd_status_t h_daq_state(wr_t *out)
@@ -38,6 +65,9 @@ static cmd_status_t h_daq_state(wr_t *out)
   wr_u16(out, st.config.decimate);
   wr_u16(out, st.config.accumulate);
   wr_u32(out, st.config.records);
+  wr_u8(out, st.config.digital);
+  wr_u32(out, st.config.interval_us);
+  wr_u32(out, link_records_per_second(st.stride));
   return CMD_OK;
 }
 
@@ -55,13 +85,39 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
   cfg.decimate = rd_u16(in);
   cfg.accumulate = rd_u16(in);
   cfg.records = rd_u32(in);
+  cfg.digital = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
+  cfg.interval_us = (rd_left(in) > 0U) ? rd_u32(in) : 0U;
 
   if (!rd_ok(in))
   {
     return CMD_ERR_LENGTH;
   }
 
-  wr_u8(out, Board_DaqConfigure(&cfg) ? 1U : 0U);
+  if (!Board_DaqConfigure(&cfg))
+  {
+    wr_u8(out, 0U);
+    return CMD_OK;
+  }
+
+  /* Free-running and no rate asked for is the one combination that took the
+     link down, so it gets the link's own answer rather than "as fast as the
+     loop can". A finite run is left alone: it stops on its own, and a short
+     burst at full speed is the whole point of one. */
+  if ((cfg.interval_us == 0U) && (cfg.records == 0U))
+  {
+    board_daq_state_t st;
+
+    Board_DaqState(&st);
+
+    const uint32_t rps = link_records_per_second(st.stride);
+
+    if (rps != 0U)
+    {
+      Board_DaqSetInterval(1000000U / rps);
+    }
+  }
+
+  wr_u8(out, 1U);
   return CMD_OK;
 }
 
@@ -145,6 +201,30 @@ static cmd_status_t h_daq_layout(wr_t *out)
     wr_u8(out, info.unit);
     wr_u8(out, (uint8_t)(info.differential ? 1U : 0U));
     wr_str(out, info.signal);
+  }
+
+  /* The digital word, named bit by bit. Without this the host would be
+     counting rows of a table it does not hold, which is the copy this whole
+     layout exists to avoid. Only the drivable pins: all twenty-three came
+     to 312 bytes against MB_MAX_PDU's 253 and the reply failed outright. */
+  wr_u8(out, st.config.digital);
+
+  if (st.config.digital != 0U)
+  {
+    const uint8_t pins = Board_DigitalIoCount();
+
+    wr_u8(out, pins);
+    for (uint8_t i = 0U; i < pins; i++)
+    {
+      board_dchan_t d;
+
+      if (!Board_DigitalIoChan(i, &d))
+      {
+        return CMD_ERR_DEVICE;
+      }
+      wr_u8(out, d.dir);
+      wr_str(out, d.signal);
+    }
   }
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }

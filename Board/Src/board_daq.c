@@ -56,6 +56,18 @@ static int32_t  s_acc[BOARD_DAQ_MAX_CHANNELS];
 static uint16_t s_acc_n;
 static uint16_t s_skip;
 static uint32_t s_first_at;
+static uint32_t s_first_digital;
+static uint32_t s_last_trigger;
+static uint32_t s_interval_cycles;
+
+/* The software poll reads ONE channel per turn of the main loop, so a
+   record is assembled across several. That is not a compromise on
+   simultaneity - a software clock reads the channels one after another
+   whatever it does - and it is what keeps the loop responsive. */
+static uint8_t  s_next_field;
+static int32_t  s_pending[BOARD_DAQ_MAX_CHANNELS];
+static uint32_t s_pending_at;
+static uint32_t s_pending_digital;
 
 
 static uint32_t room(void)
@@ -107,12 +119,17 @@ static uint16_t put_be32(uint8_t *dst, uint16_t at, uint32_t v)
 
 static void push_record(void)
 {
-  uint8_t rec[4U + (4U * BOARD_DAQ_MAX_CHANNELS)];
+  uint8_t rec[4U + (4U * BOARD_DAQ_MAX_CHANNELS) + 4U];
   uint16_t at = put_be32(rec, 0U, s_first_at);
 
   for (uint8_t f = 0U; f < s_fields; f++)
   {
     at = put_be32(rec, at, (uint32_t)s_acc[f]);
+  }
+
+  if (s_cfg.digital != 0U)
+  {
+    at = put_be32(rec, at, s_first_digital);
   }
 
   const uint32_t masked = __get_PRIMASK();
@@ -145,7 +162,7 @@ static void push_record(void)
 
 
 /** One trigger's worth of samples, already read. Accumulates and may push. */
-static void feed(const int32_t *values)
+static void feed(const int32_t *values, uint32_t at, uint32_t digital)
 {
   if (s_skip != 0U)
   {
@@ -156,7 +173,13 @@ static void feed(const int32_t *values)
 
   if (s_acc_n == 0U)
   {
-    s_first_at = Board_Cycles();
+    s_first_at = at;
+
+    /* The pins as they stood at `at`, not summed and not OR-ed across the
+       window. Summing a bitmask means nothing, and an OR would report a
+       pin as high that was high for one sample in fifty with no field
+       saying which. With accumulate at 1 this is every sample. */
+    s_first_digital = digital;
   }
 
   for (uint8_t f = 0U; f < s_fields; f++)
@@ -223,16 +246,25 @@ bool Board_DaqConfigure(const board_daq_config_t *cfg)
   }
 
   s_cfg = *cfg;
-  s_stride = (uint16_t)(4U + (4U * s_fields));
+  s_interval_cycles = cfg->interval_us * (SystemCoreClock / 1000000U);
+  s_stride = (uint16_t)(4U + (4U * s_fields) + ((cfg->digital != 0U) ? 4U : 0U));
   s_head = 0U;
   s_tail = 0U;
   s_dropped = 0U;
   s_produced = 0U;
   s_done = false;
   s_skip = 0U;
+  s_next_field = 0U;
   s_acc_n = 0U;
   memset(s_acc, 0, sizeof(s_acc));
   return true;
+}
+
+
+void Board_DaqSetInterval(uint32_t interval_us)
+{
+  s_cfg.interval_us = interval_us;
+  s_interval_cycles = interval_us * (SystemCoreClock / 1000000U);
 }
 
 
@@ -248,6 +280,7 @@ bool Board_DaqStart(void)
   s_produced = 0U;
   s_done = false;
   s_skip = 0U;
+  s_next_field = 0U;
   s_acc_n = 0U;
   memset(s_acc, 0, sizeof(s_acc));
   s_running = true;
@@ -291,26 +324,47 @@ bool Board_DaqField(uint8_t field, uint8_t *channel)
 
 void Board_DaqPoll(void)
 {
-  int32_t values[BOARD_DAQ_MAX_CHANNELS];
+  int32_t raw;
+  int32_t uv;
+  int32_t scaled;
 
   if (!s_running || (s_cfg.clock != BOARD_DAQ_CLOCK_SOFTWARE))
   {
     return;
   }
 
-  for (uint8_t f = 0U; f < s_fields; f++)
+  if (s_next_field == 0U)
   {
-    int32_t raw;
-    int32_t uv;
-    int32_t scaled;
+    /* A software clock has to BE a clock. Left to run at whatever the loop
+       has spare it took the link down, and rate limiting alone did not fix
+       it: ONE poll of seven channels is about 190 us of converter work, and
+       RTU discards a frame whose characters arrive more than t1.5 apart -
+       143 us at 115200. Hence one channel per turn below, and a stated
+       interval here. Zero is unlimited, which is only safe for a short
+       finite run. */
+    const uint32_t now = Board_Cycles();
 
-    if (!Board_AdcRead(s_order[f], &raw, &uv, &scaled))
+    if ((s_interval_cycles != 0U) &&
+        ((uint32_t)(now - s_last_trigger) < s_interval_cycles))
     {
-      return;                      /* the meter is busy; try again next time */
+      return;
     }
-    values[f] = raw;
+    s_last_trigger = now;
+    s_pending_at = now;
+    s_pending_digital = (s_cfg.digital != 0U) ? Board_DigitalMask() : 0U;
   }
-  feed(values);
+
+  if (!Board_AdcRead(s_order[s_next_field], &raw, &uv, &scaled))
+  {
+    return;                        /* the meter is busy; try again next turn */
+  }
+  s_pending[s_next_field] = raw;
+
+  if (++s_next_field >= s_fields)
+  {
+    s_next_field = 0U;
+    feed(s_pending, s_pending_at, s_pending_digital);
+  }
 }
 
 
@@ -327,7 +381,8 @@ void Board_DaqOnInjected(const int16_t *phase)
   {
     values[f] = Board_AdcPhaseSlot(s_order[f], phase);
   }
-  feed(values);
+  feed(values, Board_Cycles(),
+       (s_cfg.digital != 0U) ? Board_DigitalMask() : 0U);
 }
 
 

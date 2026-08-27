@@ -58,11 +58,24 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
 
   Full drops the newest and counts it rather than overwriting the oldest. At 50 kHz the ring is 20 ms of history, and a host draining fifteen per round trip cannot keep up - it is a snapshot buffer, and `dropped` says by how much.
 
-  Device 6 is configure / start / read, DAQmx's shape cut to one task - one MCU, three converters, one timer. **Op 1** takes `u8 channels, u8 clock, u8 sample_time, u16 decimate, u16 accumulate, u32 records`. `channels` is a bitmask over the rows of `0x6D` kind 0. `clock` is 0 for the main loop or 1 for the injected group, one record per PWM period; a TIM1 clock **carries only the phases** and any other channel is refused rather than answered with zeros. `sample_time` is 0..7 over the H7's eight sampling windows, shortest first. `decimate` keeps one trigger in N, `accumulate` **sums** N samples into a record - summing keeps the bits an average would throw away and the host has the count - and `records` of 0 runs until stopped.
+  Device 6 is configure / start / read, DAQmx's shape cut to one task - one MCU, three converters, one timer. **Op 1** takes `u8 channels, u8 clock, u8 sample_time, u16 decimate, u16 accumulate, u32 records, u8 digital, u32 interval_us`. `channels` is a bitmask over the rows of `0x6D` kind 0. `clock` is 0 for the main loop or 1 for the injected group, one record per PWM period; a TIM1 clock **carries only the phases** and any other channel is refused rather than answered with zeros. `sample_time` is 0..7 over the H7's eight sampling windows, shortest first. `decimate` keeps one trigger in N, `accumulate` **sums** N samples into a record - summing keeps the bits an average would throw away and the host has the count - and `records` of 0 runs until stopped. `digital` appends one `u32` of pin levels to every record - the drivable pins only, what `0x6D` kind 1 calls digital I/O, sampled at the record's timestamp rather than summed. `interval_us` is the software clock's minimum gap between samples.
+
+  **The board picks its own rate when asked for none.** Free-running with `interval_us` 0 is the one combination that took the link down, so `configure` replaces it with what the link can carry, from the stride the task actually has and the baud of whichever port is answering. Op 0 reports it as `max_rate_hz`. Measured at 115200 over the debug probe's VCP:
+
+  | channels | stride | max rec/s | interval |
+  |---|---|---|---|
+  | 1 | 8 | 475 | 2105 us |
+  | 3 | 16 | 237 | 4219 us |
+  | 7 | 32 | 118 | 8474 us |
+  | 7 + digital | 36 | 105 | 9523 us |
+
+  A third of the line rate is measured, not derived - 3.8 kB/s of payload against 11.52 kB/s raw, the rest being the request, the turnaround and the host's latency, none of which the board can compute. Running free at the board's own rate delivered 88 rec/s with **zero drops**, so the guess sits just under the ceiling. A finite run is left alone: it stops on its own, and a short burst at full speed is the point of one.
+
+  **Reads are already whole frames.** One `read` fills a Modbus PDU, so blocking bigger buys nothing - the payload ceiling is about 3.8 kB/s whatever the record size, and records per second just scale inversely with stride. Past that the only thing that helps is producing fewer records, which is what `accumulate` and `decimate` do on the target before a byte is sent. Measured: seven channels and the digital word drop 3851 records at `accumulate` 1, and none at all at 16.
 
   **Op 4** replies `u8 got` then that many records of `u32 at` plus one `i32` per enabled channel, big-endian like everything else on this wire. Whole records only: half of one is not a short read, it is a corrupt one.
 
-  **Op 5 is what makes op 4 decodable.** It replies `u8 fields, u16 stride`, then per field `u8 channel, u8 unit, u8 differential, str signal`. A host builds its decoder from that, so a channel added to `Board/Src/board_adc.c` shows up in a capture with nothing else told. A record shape written into a header here and mirrored in a decoder there is two answers to one question, and the mirror is the one that goes stale.
+  **Op 5 is what makes op 4 decodable.** It replies `u8 fields, u16 stride`, then per field `u8 channel, u8 unit, u8 differential, str signal`, then `u8 digital` and, when set, `u8 pins` and per pin `u8 direction, str signal`. Only the drivable pins: naming all twenty-three came to 312 bytes against MB_MAX_PDU's 253 and the reply failed outright, which is the same lesson the parts list already carries. A host builds its decoder from that, so a channel added to `Board/Src/board_adc.c` shows up in a capture with nothing else told. A record shape written into a header here and mirrored in a decoder there is two answers to one question, and the mirror is the one that goes stale.
 
   Measured: the TIM1 clock lands at 19.93/20.00/20.09 µs min/mean/max against 50 kHz, and `decimate=2` with `accumulate=50` gives exactly 2000 µs per record. The software clock manages about 10.6 kHz on two channels.
 

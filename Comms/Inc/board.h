@@ -60,6 +60,13 @@ typedef struct
 } board_dchan_t;
 
 uint8_t Board_DigitalCount(void);
+
+/** The drivable pins - what `0x6D` kind 1 reports - as one word, bit i
+    being slot i. Sampled by the acquisition task alongside the converters;
+    the layout names the bits, so nothing above has to count them. */
+uint32_t Board_DigitalMask(void);
+uint8_t  Board_DigitalIoCount(void);
+bool     Board_DigitalIoChan(uint8_t slot, board_dchan_t *info);
 bool    Board_DigitalChan(uint8_t index, board_dchan_t *info);
 
 /**
@@ -262,6 +269,8 @@ typedef struct
   uint16_t decimate;     /**< keep one trigger in N; 1 keeps every one   */
   uint16_t accumulate;   /**< sum N samples per record; 1 sums nothing   */
   uint32_t records;      /**< stop after this many, or 0 to run on       */
+  uint8_t  digital;      /**< append the digital pins to every record    */
+  uint32_t interval_us;  /**< software clock: minimum gap between samples*/
 } board_daq_config_t;
 
 typedef struct
@@ -277,6 +286,11 @@ typedef struct
 } board_daq_state_t;
 
 bool Board_DaqConfigure(const board_daq_config_t *cfg);
+/** Override the software clock's interval after configuring. The command
+    layer uses it to fit a free-running task to the link it answers on;
+    only that layer knows the baud. */
+void Board_DaqSetInterval(uint32_t interval_us);
+
 bool Board_DaqStart(void);
 void Board_DaqStop(void);
 void Board_DaqState(board_daq_state_t *out);

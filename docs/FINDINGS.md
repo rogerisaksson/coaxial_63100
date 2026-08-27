@@ -200,6 +200,51 @@ board's held-off state rather than a released one. `VGATEDRV` also cycles
 (up 1.66-4.18 ms, down 3.08 ms, up 7.26-15.89 ms) for a reason not chased.
 These are the model's numbers, not the board's.
 
+## A free-running acquisition task takes the link down
+
+Measured 2026-08-27, and the mechanism is not the one it looks like. A
+software-clocked task reading seven channels put about **190 us** of
+converter work into every turn of the main loop. RTU discards a frame whose
+characters arrive more than **t1.5 = 143 us** apart at 115200, so every
+request was thrown away and the board went silent.
+
+It was not a crash. `s_keepalive` read over SWD while the board was mute:
+0x1C2EF5 to 0x1D4978 in two seconds, 72 835 edges - the main loop was
+turning normally throughout.
+
+| channels | loop turn | link |
+|---|---|---|
+| 1 | 59 us | answers |
+| 3 | ~120 us | dies after four requests |
+| 7 | ~190 us | dies |
+
+**Rate limiting alone did not fix it.** At 200 Hz it survived and at 1000 Hz
+it did not, because one poll still exceeded t1.5 whenever it landed inside a
+frame. The fix is that `Board_DaqPoll` now reads **one channel per turn**,
+assembling a record across several - which costs nothing in simultaneity,
+since a software clock reads the channels one after another regardless - and
+bounds the per-turn cost to a single conversion. With that, every rate from
+200 Hz to unlimited answers 12 requests out of 12.
+
+## What the link can actually carry
+
+| task | stride | rec/s | payload |
+|---|---|---|---|
+| 7 ch + digital | 36 | 96 | 3460 B/s |
+| 3 phases | 16 | 239 | 3828 B/s |
+| NTC alone | 8 | 480 | 3838 B/s |
+
+**About 3.8 kB/s whatever the record size**, against 11.52 kB/s of raw line
+rate at 115200. Records per second scale inversely with stride and nothing
+else. Reading in bigger blocks does not help - one read already fills a PDU.
+The only thing that does is producing fewer records: seven channels and the
+digital word drop 3851 at `accumulate` 1 and **none at 16**.
+
+The board now works its own ceiling out from the stride and the baud, and
+substitutes it when a free-running task asks for no rate. Running free it
+delivered 88 rec/s against the 105 predicted, with zero drops - conservative
+in the right direction.
+
 ## The keepalive, after pumping every busy-wait
 
 `Board_StoKeepalive` is now rate limited to one edge per 5 us - 200 kHz of
