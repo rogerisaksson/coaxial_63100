@@ -115,6 +115,12 @@ class GateDrivers(Subsystem):
         # TIM1->CNT beside it. One instant: six separate asks at 50 kHz can
         # straddle an edge and show a leg with both FETs on, which is the
         # one state the dead time exists to prevent.
+        #
+        # ONE INSTANT, NOT A DUTY. Averaging these over many calls is only
+        # honest while `pins_at` spreads across the period. With the sync
+        # armed it does not: the injected conversion fires near the top,
+        # the reply follows a fixed distance behind, and CNT lands in the
+        # same band every time - measured, 89.5 % high at a duty of 50 %.
         pins = r.u8()
         out['pins'] = {name: bool(pins >> i & 1) for i, name in enumerate(GATES)}
         out['pins_at'] = r.u16()

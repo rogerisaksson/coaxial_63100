@@ -896,3 +896,30 @@ The run before this one failed differently for what may be the same reason:
 `test_mcp` lost three checks, two of them AFE ones, while every other suite
 passed. Recorded together because a board that answers intermittently looks
 like a different bug in every suite that meets it.
+
+## The gate snapshot is one instant, and averaging it lies when the sync is armed
+
+Measured 2026-08-27, all three legs at 50 % duty, CCR 1187 of ARR 2375:
+
+| | high side reads | CNT median |
+|---|---|---|
+| sync disarmed | 50.8 %, 53.5 % | 1155, 1075 |
+| **sync armed** | **89.5 %** | **387** |
+
+The snapshot reports `GPIOE->IDR` and `TIM1->CNT` together, which is exactly
+right for "what are the six signals doing now". It is not a duty
+measurement, and with the sync armed it is not even an unbiased sample: the
+injected conversion fires at CCR5 near the top of the period, its handler
+runs, and the Modbus reply is served a fixed distance behind it - so CNT
+lands in the same narrow band every time. 387 against a compare of 1187 is
+the high side on, and 89.5 % is what that looks like averaged.
+
+The per-leg symmetry measurements in this session were taken with the sync
+disarmed and stand - 600 samples, CNT median 1188, all three legs 50.0 %.
+That was luck rather than judgement, and this is here so the next one is
+judgement: **anything that averages the snapshot has to check `pins_at` is
+spread across the period, or disarm the sync first.**
+
+Two earlier readings from the same trap, both mine: 42 / 51 / 43 % across
+the three legs at 80 samples, read as a difference when 1 sigma was 5.6 %;
+and 86.5 % straight after an arm, read as the waveform having changed.
