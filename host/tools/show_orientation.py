@@ -116,6 +116,35 @@ def workshop(args):
         return None
 
 
+def silent_part(record):
+    """What to draw when the IMU has produced nothing at all.
+
+    Not the model at identity. Identity is a board lying exactly level, and
+    a viewer cannot tell that from a part that has never spoken - the same
+    mistake as a converter code wearing a cooked unit. The difference is
+    worth the whole frame.
+    """
+    return [
+        '  The IMU has reported %d rotation vectors.' % record['updates'],
+        '',
+        '  loop %s, %d errors, last error %s.'
+        % (record['loop'], record['errors'], record['error']),
+        '',
+        '  Nothing is drawn because there is nothing to draw. The model at',
+        '  identity is a board lying exactly level, and that is a plausible',
+        '  attitude - indistinguishable from a part that works.',
+        '',
+        '  Measured 2026-08-27: H_INTN on PD8 never asserted, wake_test 0,',
+        '  and a header read of 00 00 00 00 - a valid SHTP header of length',
+        '  zero, so the bus is fine and the part has nothing to send.',
+        '  AFE_ON on, NRSTN and BOOTN both high, MISO the only held pin.',
+        '',
+        '  imu.pins() and imu.product_id() need the loop HELD - call them',
+        '  inside board.imu.configuring() or they answer SERVER DEVICE',
+        '  FAILURE and look like a dead part. See FINDINGS.',
+    ]
+
+
 def start_reporting(board, interval_us):
     """Ask the part for a rotation vector, and say whether it took.
 
@@ -154,7 +183,7 @@ def put_back(board, part):
         say('fail', 'putting it back', str(exc))
 
 
-def main(argv=None):
+def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--hz', type=float, default=20.0,
@@ -172,7 +201,11 @@ def main(argv=None):
                         help='stop after this many, instead of running until '
                              'closed. For checking the view against a board '
                              'without a terminal to close.')
-    args = parser.parse_args(argv)
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv)
 
     rig = Coaxial63100(port=args.port,
                        simulated_device=bool(args.simulated)).open()
@@ -260,6 +293,11 @@ def main(argv=None):
                              quaternion, width=wide, height=tall, frame=frame,
                              age=stale, zoom=zoom,
                              shop=shop).split('\n'))
+                # A part that has never reported leaves the quaternion at
+                # identity, which draws a perfectly level board.
+                if record and not record['updates']:
+                    lines = lines[:2] + silent_part(record)
+
                 sys.stdout.write(paint(shown, lines, console))
                 sys.stdout.flush()
                 shown = lines
