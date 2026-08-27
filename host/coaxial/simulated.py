@@ -949,6 +949,144 @@ class SimulatedCapture:
         return out[:limit] if limit is not None else out
 
 
+class SimulatedDaq:
+    """One acquisition task, without a converter.
+
+    Duck-typed against coaxial.daq.Daq, and refusing the same things for the
+    same reasons: a TIM1 clock carries only the phases, and a task cannot be
+    reconfigured while it runs.
+    """
+
+    #: Channel index -> (signal, unit, differential), the stand-in's table.
+    TABLE = {0: ('Phase U', 'mA', True), 1: ('Phase V', 'mA', True),
+             2: ('Phase W', 'mA', True), 3: ('Clevel', None, False),
+             4: ('NTC', 'centi-degC', False), 5: ('DC bus', 'mV', False),
+             6: ('Cinj', None, False)}
+    PHASES = (0, 1, 2)
+    CENTRE = {0: 1400, 1: -8030, 2: 360, 3: 1300, 4: 40500, 5: 20775, 6: 15200}
+
+    def __init__(self):
+        self._cfg = None
+        self._order = []
+        self._running = False
+        self._done = False
+        self._produced = 0
+        self._at = 0
+
+    def _period_us(self):
+        base = 20.0 if (self._cfg or {}).get('clock') == 'tim1' else 47.0
+        return base * self._cfg['decimate'] * self._cfg['accumulate']
+
+    def state(self):
+        cfg = self._cfg or {'channels': 0, 'clock': 'software', 'sample_time': 0,
+                            'decimate': 0, 'accumulate': 0, 'records': 0}
+        return {'running': self._running, 'done': self._done,
+                'stride': 4 + 4 * len(self._order), 'fields': len(self._order),
+                'available': 0, 'produced': self._produced, 'dropped': 0,
+                **cfg}
+
+    def layout(self):
+        fields = []
+        for i in self._order:
+            signal, unit, diff = self.TABLE[i]
+            fields.append({'channel': i, 'unit': unit, 'differential': diff,
+                           'signal': signal})
+        return {'stride': 4 + 4 * len(self._order), 'fields': fields}
+
+    def _resolve(self, channels):
+        if isinstance(channels, int):
+            return [i for i in sorted(self.TABLE) if channels >> i & 1]
+        by_name = {v[0]: k for k, v in self.TABLE.items()}
+        out = []
+        for c in channels:
+            if isinstance(c, int):
+                out.append(c)
+            elif c in by_name:
+                out.append(by_name[c])
+            else:
+                raise KeyError('no channel carries signal %r; the stand-in '
+                               'reports %r' % (c, sorted(by_name)))
+        return sorted(out)
+
+    def configure(self, channels, clock='software', sample_time=0,
+                  decimate=1, accumulate=1, records=0):
+        from .errors import RigError
+        if clock not in ('software', 'tim1', 0, 1):
+            raise ValueError('clock is %s, not one of software, tim1' % clock)
+        if decimate < 1 or accumulate < 1:
+            raise ValueError('decimate and accumulate count samples, so both '
+                             'are at least 1')
+        if self._running:
+            raise RigError('the board refused that task - it is running '
+                           '(simulated)')
+        order = self._resolve(channels)
+        clock = {0: 'software', 1: 'tim1'}.get(clock, clock)
+        if clock == 'tim1' and any(i not in self.PHASES for i in order):
+            raise RigError('the board refused that task - a TIM1 clock '
+                           'carries only the phases (simulated)')
+        self._order = order
+        self._cfg = {'channels': sum(1 << i for i in order), 'clock': clock,
+                     'sample_time': sample_time, 'decimate': decimate,
+                     'accumulate': accumulate, 'records': records}
+        self._produced = 0
+        self._done = False
+        return self.layout()
+
+    def start(self):
+        from .errors import RigError
+        if self._cfg is None:
+            raise RigError('the board refused to start - configure it first '
+                           '(simulated)')
+        self._running = True
+        self._done = False
+        self._produced = 0
+        return True
+
+    def stop(self):
+        self._running = False
+        return True
+
+    def read(self, want=0, layout=None):
+        import random
+        if not self._running:
+            return []
+        fields = (layout or self.layout())['fields']
+        stride = 4 + 4 * len(fields)
+        room = max(1, 240 // stride)
+        n = min(int(want) or room, room)
+        left = self._cfg['records'] - self._produced if self._cfg['records'] else n
+        n = max(0, min(n, left))
+        out = []
+        for _ in range(n):
+            self._at = (self._at + int(self._period_us() * 475)) & 0xFFFFFFFF
+            rec = {'at': self._at}
+            for f in fields:
+                centre = self.CENTRE[f['channel']]
+                rec[f['signal']] = sum(centre + random.randint(-60, 60)
+                                       for _ in range(self._cfg['accumulate']))
+            out.append(rec)
+        self._produced += n
+        if self._cfg['records'] and self._produced >= self._cfg['records']:
+            self._running = False
+            self._done = True
+        return out
+
+    def acquire(self, channels, records, clock='software', sample_time=0,
+                decimate=1, accumulate=1, timeout=10.0):
+        layout = self.configure(channels, clock=clock, sample_time=sample_time,
+                                decimate=decimate, accumulate=accumulate,
+                                records=records)
+        self.start()
+        out = []
+        while len(out) < records:
+            batch = self.read(layout=layout)
+            if not batch:
+                break
+            out.extend(batch)
+        self.stop()
+        return out[:records], layout
+
+
 class SimulatedBoard:
     """A whole board without a board. Duck-typed against the real one, so
     the tools above cannot tell which they are holding - except that
@@ -974,7 +1112,7 @@ class SimulatedBoard:
             refuse = _BroadcastRefuses()   # see BROADCAST_REFUSAL
             self.system = self.link = self.afe = refuse
             self.analog = self.gpio = self.imu = refuse
-            self.angle = self.bridge = self.capture = refuse
+            self.angle = self.bridge = self.capture = self.daq = refuse
         else:
             self.system = SimulatedSystem()
             self.link = SimulatedLink()
@@ -985,6 +1123,7 @@ class SimulatedBoard:
             self.angle = SimulatedAngle()
             self.bridge = SimulatedBridge()
             self.capture = SimulatedCapture()
+            self.daq = SimulatedDaq()
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'

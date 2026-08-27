@@ -126,6 +126,8 @@ def main():
                        'disarm', 'trigger', 'clear_fault', 'bypass_break',
                        'reset_worst_gap'),
             'capture': ('state', 'arm', 'stop', 'take', 'drain'),
+            'daq': ('state', 'layout', 'configure', 'start', 'stop', 'read',
+                    'acquire'),
         }
         for name, calls in CALLED.items():
             fake = getattr(stand_in.board, name)

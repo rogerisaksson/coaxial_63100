@@ -174,6 +174,7 @@ int main(void)
     {
       Board_ImuPoll();
       Board_AnglePoll();
+      Board_DaqPoll();
     }
 
     if (link_active())

@@ -245,6 +245,56 @@ typedef struct
   board_sync_sample_t latest;
 } board_sync_state_t;
 
+/* ---- the acquisition task ----------------------------------------------- */
+
+/** As many channels as the ADC table has rows. */
+#define BOARD_DAQ_MAX_CHANNELS 8U
+
+#define BOARD_DAQ_CLOCK_SOFTWARE 0U  /**< the main loop, as fast as it gets round */
+#define BOARD_DAQ_CLOCK_TIM1     1U  /**< the injected group, one per PWM period  */
+
+/** What a task is. Every field is the caller's; nothing is inferred. */
+typedef struct
+{
+  uint8_t  channels;     /**< bitmask over the ADC table's rows          */
+  uint8_t  clock;        /**< BOARD_DAQ_CLOCK_*                          */
+  uint8_t  sample_time;  /**< 0..7, the converter's own sampling window  */
+  uint16_t decimate;     /**< keep one trigger in N; 1 keeps every one   */
+  uint16_t accumulate;   /**< sum N samples per record; 1 sums nothing   */
+  uint32_t records;      /**< stop after this many, or 0 to run on       */
+} board_daq_config_t;
+
+typedef struct
+{
+  bool     running;
+  bool     done;         /**< a finite task reached its record count     */
+  uint16_t stride;       /**< bytes per record: 4 + 4 per enabled channel*/
+  uint8_t  fields;
+  uint32_t available;    /**< whole records waiting to be taken          */
+  uint32_t produced;
+  uint32_t dropped;      /**< records the buffer had no room for         */
+  board_daq_config_t config;
+} board_daq_state_t;
+
+bool Board_DaqConfigure(const board_daq_config_t *cfg);
+bool Board_DaqStart(void);
+void Board_DaqStop(void);
+void Board_DaqState(board_daq_state_t *out);
+
+/** Which channel field `n` of a record carries. This is what lets a host
+    decode the bytes without a copy of the record shape. */
+bool Board_DaqField(uint8_t field, uint8_t *channel);
+
+/** Advanced by the main loop for a software-clocked task. */
+void Board_DaqPoll(void);
+
+/** Fed from the injected end-of-sequence for a TIM1-clocked one. */
+void Board_DaqOnInjected(const int16_t *phase);
+
+uint32_t Board_DaqAvailable(void);
+uint16_t Board_DaqTake(uint8_t *out, uint16_t max_records);
+
+
 /** One measurement, whatever took it. 16 bytes so the ring is a round
     number and fifteen fit in one Modbus reply. `v` is source-defined and
     raw - every conversion stays where it was defined (invariant 7). */
@@ -349,6 +399,18 @@ void Board_PwmState(board_pwm_state_t *out);
 
 uint8_t Board_PartCount(void);
 bool Board_Part(uint8_t index, board_part_t *info);
+
+/** ADC sampling time, as an index 0..7 into the H7's eight, shortest first.
+    Applies to every channel the meter reads; 0 (1.5 cycles) is the default
+    and what every measurement before this used. */
+bool    Board_AdcSetSampleTime(uint8_t index);
+uint8_t Board_AdcSampleTime(void);
+uint8_t Board_AdcSampleTimeCount(void);
+
+/** Is this channel one the injected group converts? Only those three can
+    be clocked from TIM1; everything else has to come through the meter. */
+bool    Board_AdcIsPhase(uint8_t index);
+int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase);
 
 uint8_t Board_AdcCount(void);
 bool    Board_AdcChan(uint8_t index, board_chan_t *info);

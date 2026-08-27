@@ -25,6 +25,50 @@ static float cal_vref(void)
 
 /* One formula for what a code is worth, so the corrected read below cannot
    drift from the raw one above it. */
+/** The eight sampling times the H7 offers, shortest first. Indexed rather
+    than passed as the HAL's encoded value so the wire carries 0..7 and the
+    host needs no copy of the table. */
+static const uint32_t SAMPLE_TIMES[] =
+{
+  ADC_SAMPLETIME_1CYCLE_5,   ADC_SAMPLETIME_2CYCLES_5,
+  ADC_SAMPLETIME_8CYCLES_5,  ADC_SAMPLETIME_16CYCLES_5,
+  ADC_SAMPLETIME_32CYCLES_5, ADC_SAMPLETIME_64CYCLES_5,
+  ADC_SAMPLETIME_387CYCLES_5, ADC_SAMPLETIME_810CYCLES_5,
+};
+#define SAMPLE_TIME_COUNT (sizeof(SAMPLE_TIMES) / sizeof(SAMPLE_TIMES[0]))
+
+/* 1.5 cycles is what every read used before this was settable, and it stays
+   the default: FINDINGS records it as ruled out for the quiet channels
+   because the 15 nF node cap supplies the S&H charge. It is NOT ruled out
+   for Cinj and Clevel, whose apparent duty tracks the sample rate. */
+static uint32_t s_sample_time = ADC_SAMPLETIME_1CYCLE_5;
+static uint8_t  s_sample_index;
+
+
+bool Board_AdcSetSampleTime(uint8_t index)
+{
+  if (index >= SAMPLE_TIME_COUNT)
+  {
+    return false;
+  }
+  s_sample_time = SAMPLE_TIMES[index];
+  s_sample_index = index;
+  return true;
+}
+
+
+uint8_t Board_AdcSampleTime(void)
+{
+  return s_sample_index;
+}
+
+
+uint8_t Board_AdcSampleTimeCount(void)
+{
+  return (uint8_t)SAMPLE_TIME_COUNT;
+}
+
+
 int32_t Board_AdcDifferential(uint32_t raw)
 {
   /* Offset binary, 32768 = 0 V - proven on ADC3 CH1 against a known 0.5 V
@@ -74,7 +118,7 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
 
   sConfig.Channel = channel;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  sConfig.SamplingTime = s_sample_time;
   sConfig.SingleDiff = singleDiff;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -239,6 +283,29 @@ uint8_t Board_AdcCount(void)
 #define CH_PHASE_W 2U
 #define CH_NTC     4U
 #define CH_DCBUS   5U
+
+
+bool Board_AdcIsPhase(uint8_t index)
+{
+  return (index == CH_PHASE_U) || (index == CH_PHASE_V) ||
+         (index == CH_PHASE_W);
+}
+
+
+int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase)
+{
+  /* The injected triple is U, V, W in that order - board_sync.c's SYNC_U,
+     SYNC_V, SYNC_W - and so is the channel table's first three rows. One
+     mapping, stated once, because the two orders agreeing is a fact and not
+     a coincidence worth relying on silently. */
+  if (phase == NULL)
+  {
+    return 0;
+  }
+  if (index == CH_PHASE_U) { return phase[0]; }
+  if (index == CH_PHASE_V) { return phase[1]; }
+  return phase[2];
+}
 
 _Static_assert(BOARD_CAL_CHANNELS ==
                (sizeof(s_adcTable) / sizeof(s_adcTable[0])),

@@ -16,6 +16,7 @@ from .afe import Afe
 from .analog import Analog
 from .bridge import Bridge
 from .capture import Capture
+from .daq import Daq
 from .calibration import Calibration
 from .errors import (ConnectError, DeviceStateError, RigError,
                      UnsupportedProtocolError)
@@ -46,6 +47,7 @@ class Board:
         self.calibration = Calibration(self)
         self.bridge = Bridge(self)
         self.capture = Capture(self)
+        self.daq = Daq(self)
 
     def __repr__(self):
         firmware = (self.version_info or {}).get('firmware', 'unknown fw')

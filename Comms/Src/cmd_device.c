@@ -36,6 +36,7 @@ static cmd_status_t h_device(rd_t *in, wr_t *out)
     case DEVICE_CAL:   return cmd_cal_op(op, in, out);
     case DEVICE_BRIDGE: return cmd_bridge_op(op, in, out);
     case DEVICE_LOG:    return cmd_log_op(op, in, out);
+    case DEVICE_DAQ:    return cmd_daq_op(op, in, out);
     default:           return CMD_ERR_VALUE;
   }
 }

@@ -44,6 +44,7 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   | 3 | the calibration record | flash, bank 2 sector 7 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults |
   | 4 | the bridge | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap |
   | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
+  | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout |
 
   Device 4 answers TIM1, the synced phase triple and Safe Torque Off together because tuning the sample point needs all three from the same moment. **Op 0** replies 48 bytes: `u8 flags`, `u16 period`, `u8 deadtime`, `u16 duty[3]`, `u16 trigger`, `i16 phase[3]`, `u16 at`, `u32 updates`, `u32 overruns`, `u32 keepalive`, `u32 worst_gap`, then `i32 pilot_raw, pilot_uv, level_raw, level_uv`, then `u8 flags2`. Flag bits, LSB first: pwm ready, pwm enabled, break latched, sync ready, sync armed, AFE on, Cinj read, Clevel read. `flags2` bit 0 is the break bypass; it is appended rather than squeezed into the first byte, which is full, because moving an offset would break every decoder for one bit.
 
@@ -56,6 +57,14 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   `at` is raw CYCCNT, for invariant 2's reason. `seq` counts per source, so a gap is visible without trusting the timestamps. `v` is source-defined and raw: phases are U, V, W and `TIM1->CNT` at the latch; angle is value, CRC, register; IMU is the quaternion. Measured, phases captured from the injected interrupt land at 19.81/20.00/20.14 µs min/mean/max against 50 kHz.
 
   Full drops the newest and counts it rather than overwriting the oldest. At 50 kHz the ring is 20 ms of history, and a host draining fifteen per round trip cannot keep up - it is a snapshot buffer, and `dropped` says by how much.
+
+  Device 6 is configure / start / read, DAQmx's shape cut to one task - one MCU, three converters, one timer. **Op 1** takes `u8 channels, u8 clock, u8 sample_time, u16 decimate, u16 accumulate, u32 records`. `channels` is a bitmask over the rows of `0x6D` kind 0. `clock` is 0 for the main loop or 1 for the injected group, one record per PWM period; a TIM1 clock **carries only the phases** and any other channel is refused rather than answered with zeros. `sample_time` is 0..7 over the H7's eight sampling windows, shortest first. `decimate` keeps one trigger in N, `accumulate` **sums** N samples into a record - summing keeps the bits an average would throw away and the host has the count - and `records` of 0 runs until stopped.
+
+  **Op 4** replies `u8 got` then that many records of `u32 at` plus one `i32` per enabled channel, big-endian like everything else on this wire. Whole records only: half of one is not a short read, it is a corrupt one.
+
+  **Op 5 is what makes op 4 decodable.** It replies `u8 fields, u16 stride`, then per field `u8 channel, u8 unit, u8 differential, str signal`. A host builds its decoder from that, so a channel added to `Board/Src/board_adc.c` shows up in a capture with nothing else told. A record shape written into a header here and mirrored in a decoder there is two answers to one question, and the mirror is the one that goes stale.
+
+  Measured: the TIM1 clock lands at 19.93/20.00/20.09 µs min/mean/max against 50 kHz, and `decimate=2` with `accumulate=50` gives exactly 2000 µs per record. The software clock manages about 10.6 kHz on two channels.
 
   **Op 6** disconnects the break input - it clears `BDTR.BKE`, not just the `BIF` latch, because with nFAULT low the break is a *level* and the hardware holds MOE clear whatever software does. For bench work only, and a reset restores it. What makes it safe is not the firmware: the STO chain gates the gate drivers' own DC/DC, which no MCU pin reaches.
 

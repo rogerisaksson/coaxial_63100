@@ -212,6 +212,7 @@ extern "C" {
 #define DEVICE_CAL       3U
 #define DEVICE_BRIDGE    4U
 #define DEVICE_LOG       5U
+#define DEVICE_DAQ       6U
 
 /** Device 4's ops: the bridge, the synced triple and the STO chain. */
 #define BRIDGE_OP_STATE    0U   /**< -> flags, registers, triple, STO      */
@@ -227,6 +228,14 @@ extern "C" {
 #define LOG_OP_STATE    0U   /**< -> u8 sources, u16 count, u16 depth, u32 dropped */
 #define LOG_OP_ARM      1U   /**< u8 source mask -> u8 took; empties the ring */
 #define LOG_OP_TAKE     2U   /**< [u8 want] -> u8 got, then got x 14-byte records */
+
+/** Device 6's ops: one acquisition task, DAQmx's shape cut to this board. */
+#define DAQ_OP_STATE     0U  /**< -> flags, stride, fields, counts, config   */
+#define DAQ_OP_CONFIGURE 1U  /**< channels, clock, sample_time, dec, acc, n  */
+#define DAQ_OP_START     2U
+#define DAQ_OP_STOP      3U
+#define DAQ_OP_READ      4U  /**< [u8 want] -> u8 got, then got x stride     */
+#define DAQ_OP_LAYOUT    5U  /**< -> what each field is, named by the board  */
 
 /* Operations under CMD_IMU. */
 #define IMU_OP_ID      0U
@@ -265,7 +274,7 @@ extern "C" {
 #define CAL_OP_DEFAULTS    7U
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 10U
+#define CMD_PROTO_MINOR 11U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -313,6 +322,7 @@ cmd_status_t cmd_link_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_cal_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_bridge_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_log_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out);
 
 /**
   * @brief One subsystem: a command table, named, with what it is for.
