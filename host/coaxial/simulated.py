@@ -65,6 +65,25 @@ SWEEP_HZ = 0.14
 SWING = {0: 9000.0, 1: 9000.0, 2: 9000.0, 3: 300.0, 4: 6000.0, 5: 4000.0,
          6: 3000.0}
 
+#: How far a channel moves WITHIN one burst, in codes, which is a different
+#: quantity from how far it wanders between them. This was a flat +/-5 codes
+#: for everything: 0.015% of a differential channel's range, so the burst's
+#: own extremes drew underneath the bar and the peak hold never had anything
+#: to hold. The views have marks for all three - mean, burst extreme, held
+#: peak - and two of them were invisible.
+#:
+#: Sized by where each channel sits rather than picked to look busy: the
+#: phases are inside a switching bridge and the thermistor is a slow thing on
+#: the end of a divider.
+RIPPLE = {0: 2600.0, 1: 2600.0, 2: 2600.0, 3: 40.0, 4: 150.0, 5: 700.0,
+          6: 300.0}
+
+#: Now and then a burst catches something bigger. Without it every burst is
+#: the same width and the held peak sits a constant distance from the bar,
+#: which reads as decoration rather than as memory.
+GUST_CHANCE = 0.14
+GUST = 2.8
+
 
 def _sweep(index):
     """Where a simulated channel sits right now.
@@ -80,6 +99,59 @@ def _sweep(index):
     if index in (0, 1, 2):
         return SWING[index] * math.sin(turn - index * 2.0 * math.pi / 3.0)
     return SWING[index] * math.sin(turn * 0.31 + index)
+
+
+def _spread(meta, mean, powered):
+    """One burst's mean and its two extremes, as the board reports them.
+
+    With the front end off there is nothing to ripple: invariant 9 says the
+    input sits exactly at its rail, and a stand-in that jitters there would
+    teach the opposite of what the invariant is for.
+    """
+    index = meta['index']
+    if not powered:
+        return {'mean_raw': mean, 'min_raw': int(mean), 'max_raw': int(mean)}
+
+    reach = RIPPLE[index] * random.uniform(0.55, 1.0)
+    if random.random() < GUST_CHANCE:
+        reach *= GUST
+
+    floor, ceiling = ((-32768, 32767) if meta['differential']
+                      else (0, 65535))
+    low = max(floor, mean - reach * random.uniform(0.7, 1.0))
+    high = min(ceiling, mean + reach * random.uniform(0.7, 1.0))
+    return {'mean_raw': mean, 'min_raw': int(low), 'max_raw': int(high)}
+
+
+#: Turns per 256 reads about the board's own X and Y. Whole numbers on
+#: purpose: the sequence byte wraps at 256, and a rate that did not finish a
+#: turn there would snap the board back to level once a cycle.
+#:
+#: About X and Y rather than Z, which is what this used to do. A rotation
+#: about Z is the board spinning in its own plane - roll and pitch stay at
+#: zero, the silhouette never changes, and a view built to show attitude
+#: shows one number moving. Two unequal rates about the other two axes make
+#: it tumble, so all three angles move and the drawing has depth to show.
+ROLL_TURNS = 1.0
+PITCH_TURNS = 2.0
+
+
+def _tumble(seq, unit):
+    """(i, j, k, real) counts for the stand-in's attitude, at this sequence.
+
+    Invented, like every value in this file - see the module docstring. A
+    moving one is no more a measurement than a still one; it is here so the
+    views can be developed without a cable.
+    """
+    roll = seq * ROLL_TURNS * 2.0 * math.pi / 256.0
+    pitch = seq * PITCH_TURNS * 2.0 * math.pi / 256.0
+    sin_r, cos_r = math.sin(roll / 2.0), math.cos(roll / 2.0)
+    sin_p, cos_p = math.sin(pitch / 2.0), math.cos(pitch / 2.0)
+
+    # Nod about Y, then roll about X - the product of the two, in the
+    # (i, j, k, real) order a rotation vector is reported in.
+    return (int(sin_r * cos_p * unit), int(cos_r * sin_p * unit),
+            int(-sin_r * sin_p * unit), int(cos_r * cos_p * unit))
 
 
 class SimulatedLink:
@@ -141,6 +213,7 @@ SUBSYSTEMS = [
 
 DIGITAL = [
     {'pin': 'PB2',  'direction': 'out', 'signal': 'AFE_ON'},
+    {'pin': 'PE14', 'direction': 'out', 'signal': 'UART5_TERM'},
     {'pin': 'PE15', 'direction': 'in',  'signal': 'nFAULT'},
 ]
 
@@ -180,6 +253,8 @@ PARTS = [
      'where': 'SPI4, U14', 'power': 'AFE_ON', 'state': 'ready'},
     {'name': 'AFE', 'what': 'phase chains + ADC ref',
      'where': 'PB2 switches it', 'power': '', 'state': 'ready'},
+    {'name': 'UART5 termination', 'what': '120 ohm across the pair',
+     'where': 'PE14 switches it', 'power': '', 'state': 'not probed'},
     {'name': 'NTC', 'what': 'thermistor',
      'where': 'ADC3', 'power': 'AFE_ON', 'state': 'ready'},
     {'name': 'DC link divider', 'what': '49.9k/2.2k, 78.15 V FS',
@@ -278,8 +353,7 @@ class SimulatedAnalog:
                 # single-ended one at mid-scale - measured on real hardware,
                 # not a rounder number picked to look plausible.
                 mean = 0.0 if meta['differential'] else 32768.0
-            chosen[index] = {'mean_raw': mean, 'min_raw': int(mean - 5),
-                             'max_raw': int(mean + 5)}
+            chosen[index] = _spread(meta, mean, self._afe.on)
         return {'samples': samples, 'rate_hz': rate or 2000.0,
                 'channels': chosen}
 
@@ -528,15 +602,8 @@ class SimulatedImu:
                 cargo += int(value).to_bytes(2, 'little', signed=True)
 
         if 0x05 in wanted:
-            # Level and square on, turning slowly about Z so a live view has
-            # something to show. Invented, like every value in this file.
-            import math
-            angle = (self._seq / 128.0) * math.pi
             cargo += bytes([0x05, self._seq, 0x03, 0])
-            for value in (0, 0,
-                          int(math.sin(angle / 2) * self.UNIT),
-                          int(math.cos(angle / 2) * self.UNIT),
-                          0):
+            for value in _tumble(self._seq, self.UNIT) + (0,):
                 cargo += int(value).to_bytes(2, 'little', signed=True)
 
         from .imu import CHANNELS, decode

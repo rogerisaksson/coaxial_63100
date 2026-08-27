@@ -133,8 +133,12 @@ def test_channel_map(report):
     # bus and the debug port sit on, and mixing them invites a pin write
     # that gets refused.
     io_pins = {r['pin'] for r in chart['digital']}
-    report.check('digital I/O is only what may be driven',
-                 io_pins == {'PB2', 'PE15'}, ', '.join(sorted(io_pins)))
+    # A superset, not an equality. Adding a pin to the board is meant to be
+    # one row in s_digital and nothing else; a check that froze the whole set
+    # made it two, and the property this is named for - that nothing here is
+    # a pin the bus or the probe sits on - is the check below.
+    report.check('digital I/O carries the board controls it has always had',
+                 io_pins >= {'PB2', 'PE15'}, ', '.join(sorted(io_pins)))
     report.check('and no bus or debug pin is among the channels',
                  not (io_pins & {r['pin'] for r in chart['reserved']}))
     report.check('every analog channel says which way it runs, and it is in',

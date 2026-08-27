@@ -27,7 +27,12 @@ typedef struct
 static const DigitalDesc s_digital[] =
 {
   { 'B',  2U, "PB2",  BOARD_DIR_OUT,   "AFE_ON",              true  },
+  /* Still an input carrying nFAULT, and still readable here - IDR reflects
+     the pin whatever mode it is in. It now has a second consumer: the .ioc
+     routes it to TIM1_BKIN, so the gate drivers stop the bridge in hardware
+     rather than waiting for anyone to poll this. See board_pwm.c. */
   { 'E', 15U, "PE15", BOARD_DIR_IN,    "nFAULT",              true  },
+  { 'E', 14U, "PE14", BOARD_DIR_OUT,   "UART5_TERM",          true  },
   { 'B', 10U, "PB10", BOARD_DIR_OUT,   "USART3_TX",           false },
   { 'B', 11U, "PB11", BOARD_DIR_IN,    "USART3_RX",           false },
   { 'A', 13U, "PA13", BOARD_DIR_INOUT, "JTMS/SWDIO",          false },
@@ -76,6 +81,8 @@ static const PartDesc s_parts[] =
   { "A1335", "magnetic angle sensor", "SPI4, U14", "AFE_ON",
     PART_PROBE_ANGLE },
   { "AFE", "phase chains + ADC ref", "PB2 switches it", "", PART_PROBE_AFE },
+  { "UART5 termination", "120 ohm across the pair", "PE14 switches it", "",
+    PART_PROBE_NONE },
   { "NTC", "thermistor", "ADC3", "AFE_ON", PART_PROBE_AFE },
   { "DC link divider", "49.9k/2.2k, 78.15 V FS", "ADC", "AFE_ON",
     PART_PROBE_AFE },
@@ -190,6 +197,24 @@ void Board_SetAfeOn(bool on)
 bool Board_Pe15(void)
 {
   return (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_15) == GPIO_PIN_SET);
+}
+
+void Board_SetUart5Termination(bool on)
+{
+  /* The 120 ohm across UART5 - UART0 on the schematic. Only the far ends of
+     a segment want it, so it is a switch and not a fit: a bus with a stub
+     terminated in the middle reflects worse than one not terminated at all.
+     CubeMX drives PE14 low at reset, so the board comes up unterminated and
+     something has to ask.
+
+     High switches it in. If the schematic's switch turns out to be
+     active-low that inverts, and it inverts here - one line, one place. */
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, on ? GPIO_PIN_SET : GPIO_PIN_RESET);
+}
+
+bool Board_Uart5Termination(void)
+{
+  return (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14) == GPIO_PIN_SET);
 }
 
 void Board_RequestConsoleMode(void)

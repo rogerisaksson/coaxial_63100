@@ -37,10 +37,12 @@ BAR = 38
 #: the thermistor's, which is asymmetric and needs both ends written out.
 SCALE = 13
 
-#: How far a held peak falls per update, as a fraction of full scale. 4 % over
-#: ~8 updates a second falls the whole bar in about three seconds, which is
-#: the ballistics that makes a peak readable rather than a flicker.
-DECAY = 0.04
+#: How far a held peak creeps back per update, as a fraction of full scale.
+#: At the ~8 updates a second these views run, 1.5 % falls the whole bar in
+#: about eight seconds. 4 % was tried and is too quick to read as a hold: the
+#: mark chases the bar closely enough to look like part of it, and the point
+#: of a peak hold is that it lags.
+DECAY = 0.015
 
 #: Where the ink changes, as a fraction of full scale. A converter near its
 #: rail has stopped moving, which is worth seeing before the number is read;
@@ -102,14 +104,26 @@ class Desk:
         self.decay = decay
         self._held = {}
 
-    def _hold(self, key, level):
-        """Advance one channel's held peak and return it."""
+    def _hold(self, key, low, high):
+        """Advance one channel's held extremes and return them.
+
+        The two ends are held separately and signed. Holding one magnitude
+        and mirroring it was what put the peak mark on the wrong side of the
+        bar: a phase sitting at +62 A showed its caret at -62, where the
+        current had never been.
+
+        Each end is pulled out at once by a reading beyond it and creeps back
+        by `decay` an update, so the mark trails the bar instead of tracking
+        it. That lag is the whole point of a peak hold - it is there to show
+        where the signal went while you were reading the row above.
+        """
         was = self._held.get(key)
 
-        if was is None or level >= was:
-            now = level
+        if was is None:
+            now = (low, high)
         else:
-            now = max(level, was - self.decay)
+            now = (min(low, was[0] + self.decay),
+                   max(high, was[1] - self.decay))
 
         self._held[key] = now
         return now
@@ -125,9 +139,9 @@ class Desk:
         """One channel's bar, as a string of BAR columns."""
         bipolar = row['differential']
         here = fraction(row)
-        reach = max(abs(_at(row, row.get('min_raw', row['mean_raw']))),
-                    abs(_at(row, row.get('max_raw', row['mean_raw']))))
-        peak = self._hold(row['index'], reach)
+        least = _at(row, row.get('min_raw', row['mean_raw']))
+        most = _at(row, row.get('max_raw', row['mean_raw']))
+        held_low, held_high = self._hold(row['index'], least, most)
 
         origin = (BAR - 1) / 2.0 if bipolar else 0.0
         wide = (BAR - 1) / 2.0 if bipolar else (BAR - 1)
@@ -135,15 +149,23 @@ class Desk:
         def column(value):
             return int(round(origin + value * wide))
 
+        # Both ends on a channel that swings either way; only the top on one
+        # that cannot go below zero, where a mark at the floor says nothing.
+        peaks = {column(held_high)}
+        ticks = {column(most)}
+        if bipolar:
+            peaks.add(column(held_low))
+            ticks.add(column(least))
+
         low, high = sorted((column(0.0) if bipolar else 0, column(here)))
         cells = []
 
         for index in range(BAR):
             if low <= index <= high and (bipolar or index <= column(here)):
                 cells.append((FULL, self._ink(abs(here)) if colour else None))
-            elif index in (column(peak), column(-peak) if bipolar else -1):
+            elif index in peaks:
                 cells.append((PEAK, ansi.WHITE if colour else None))
-            elif index in (column(reach), column(-reach) if bipolar else -1):
+            elif index in ticks:
                 cells.append((TICK, ansi.WHITE if colour else None))
             elif bipolar and index == column(0.0):
                 cells.append((CENTRE, ansi.DIM if colour else None))

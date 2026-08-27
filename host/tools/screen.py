@@ -20,6 +20,34 @@ MENU_KEYS = frozenset({chr(27)})
 #: mistaken for Ctrl+C.
 TO_MENU = 64
 
+#: Windows console input flags. A console hands mouse movement to the
+#: program as MOUSE_EVENT records, which `msvcrt.getwch` cannot see - it
+#: returns key events and nothing else. Setting VIRTUAL_TERMINAL_INPUT makes
+#: the console translate them into the same SGR sequences an xterm sends, so
+#: one parser serves both. QUICK_EDIT has to go: it keeps the mouse for
+#: selecting text and the program never hears about it. EXTENDED_FLAGS is
+#: what makes clearing QUICK_EDIT stick.
+#:
+#: Without this the wheel does nothing at all on Windows, whatever the
+#: program prints to turn reporting on.
+VT_INPUT = 0x0200
+MOUSE_INPUT = 0x0010
+EXTENDED_FLAGS = 0x0080
+QUICK_EDIT = 0x0040
+LINE_INPUT = 0x0002
+ECHO_INPUT = 0x0004
+
+
+def console_mode(was):
+    """The input mode to run a mouse-driven view in, from the current one.
+
+    Pure, so it can be checked without a console: the view that needs it
+    cannot be run by a test at all.
+    """
+    return ((was | VT_INPUT | MOUSE_INPUT | EXTENDED_FLAGS)
+            & ~QUICK_EDIT & ~LINE_INPUT & ~ECHO_INPUT)
+
+
 #: Mouse reporting, xterm's SGR encoding. 1002 is button-and-drag; 1006 is
 #: the encoding that survives a terminal wider than 223 columns - the older
 #: one packs each coordinate into one byte and stops reporting past that,
@@ -69,6 +97,33 @@ def clear(console):
         sys.stdout.flush()
 
 
+def _set_console_mode(restore=None):
+    """Put the console into mouse-reporting mode, or back as it was.
+
+    Returns what the mode was, or None where there is no Windows console to
+    set - every other platform's terminal reports the mouse once asked in
+    band, and needs nothing here.
+    """
+    try:
+        import ctypes
+    except ImportError:
+        return None
+
+    try:
+        kernel = ctypes.windll.kernel32
+    except AttributeError:
+        return None                     # not Windows
+
+    handle = kernel.GetStdHandle(-10)
+    was = ctypes.c_uint()
+    if not kernel.GetConsoleMode(handle, ctypes.byref(was)):
+        return None                     # a pipe, not a console
+
+    wanted = restore if restore is not None else console_mode(was.value)
+    kernel.SetConsoleMode(handle, wanted)
+    return was.value
+
+
 class Keys:
 
     """Non-blocking key reads, for a view that has to keep drawing.
@@ -90,6 +145,7 @@ class Keys:
         self.console = console
         self.mouse = mouse and console
         self._saved = None
+        self._was_mode = None
         self._posix = None
         self._buffer = ''
         self._dragging = False
@@ -109,6 +165,7 @@ class Keys:
             self._saved = None
 
         if self.mouse:
+            self._was_mode = _set_console_mode()
             sys.stdout.write(MOUSE_ON)
             sys.stdout.flush()
         return self
@@ -117,6 +174,7 @@ class Keys:
         if self.mouse:
             sys.stdout.write(MOUSE_OFF)
             sys.stdout.flush()
+            _set_console_mode(self._was_mode)
         if self._saved is not None:
             self._posix.tcsetattr(sys.stdin, self._posix.TCSADRAIN,
                                   self._saved)
@@ -158,14 +216,19 @@ class Keys:
     def _mouse(self, button, row, kind):
         """What one mouse report is worth, as a zoom fraction.
 
-        Wheel up is nearer, wheel down is further. Right-drag is the same
-        gesture with a hand instead of a finger: pull down to come back,
-        push up to go in.
+        POSITIVE IS NEARER, the way the caller uses it: it scales zoom by
+        1 + this, and a bigger zoom stands closer. Wheel up returned a
+        negative and the view backed away from the reader - the sign was
+        wrong the whole way from here, and the test that should have caught
+        it asserted the sign of this number instead of what the picture did.
+
+        Right-drag is the same gesture with a hand instead of a finger: pull
+        down to come back, push up to go in.
         """
         if button == 64:
-            return -WHEEL_STEP
-        if button == 65:
             return WHEEL_STEP
+        if button == 65:
+            return -WHEEL_STEP
 
         # 2 is the right button; 32 is the drag bit the terminal sets while
         # it is held. Anything else is a click this view has no use for.
@@ -179,7 +242,7 @@ class Keys:
             moved = row - (self._last_row if self._last_row is not None
                            else row)
             self._last_row = row
-            return moved * DRAG_STEP
+            return -moved * DRAG_STEP
         return 0.0
 
     def _drain(self):

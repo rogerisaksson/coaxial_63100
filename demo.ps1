@@ -60,6 +60,28 @@ $Views = [ordered]@{
 # Anything else - Q, Ctrl+C, an error - ends the run.
 $TO_MENU = 64
 
+function Read-Choice {
+    <#
+        One keystroke, no Enter. A menu of four things does not need a line
+        editor, and having to press Return to look at a board is the kind of
+        friction that stops anyone looking.
+
+        ReadKey throws when input is redirected, so a run with no console -
+        a smoke test, a pipe - falls back to reading a line.
+    #>
+    if ([Console]::IsInputRedirected) { return Read-Host }
+
+    while ($true) {
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq 'Escape') { Write-Host 'q'; return 'q' }
+        $char = $key.KeyChar
+        if ($char -match '^[0-9a-zA-Z]$') {
+            Write-Host $char
+            return [string]$char
+        }
+    }
+}
+
 function Read-View($Views) {
     Write-Host ''
     Write-Host '  coaxial_63100 - live views' -ForegroundColor White
@@ -77,11 +99,13 @@ function Read-View($Views) {
     Write-Host '    q  ' -NoNewline -ForegroundColor Cyan
     Write-Host 'quit' -ForegroundColor DarkGray
     Write-Host ''
+    Write-Host '  which ' -NoNewline
 
-    $answer = Read-Host '  which'
+    $answer = Read-Choice
 
-    # Empty first: Read-Host returns $null with no console behind it, and
-    # $Views.Contains($null) throws rather than answering false.
+    # Empty first: with no console behind it Read-Choice falls back to
+    # Read-Host, which returns $null, and $Views.Contains($null) throws
+    # rather than answering false.
     if (-not $answer -or $answer -match '^(q|quit|exit)$') { return $null }
     if ($answer -match '^\d+$' -and
         [int]$answer -ge 1 -and [int]$answer -le $keys.Count) {

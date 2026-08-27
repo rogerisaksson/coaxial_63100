@@ -96,6 +96,16 @@ def test_analog_read(report):
                  'invariant 9 - not refused, not invented past that',
                  '32768' in off_text and '0.0' in off_text, off_text[:200])
 
+    # Flat, not merely centred. The stand-in gives every channel a burst
+    # spread so the meter's marks have something to show; with the reference
+    # unpowered there is nothing to spread, and a stand-in that jittered at
+    # the rail would teach the opposite of what invariant 9 is for.
+    still = afe_off.board.analog.burst(0x7F, 64)['channels']
+    report.check('with the front end off a burst has no spread at all',
+                 all(c['min_raw'] == c['max_raw'] == int(c['mean_raw'])
+                     for c in still.values()),
+                 '%d channels' % len(still))
+
     afe_on = SimulatedSession()
     toolmod.afe_power(afe_on, action='on')
     on_text = toolmod.analog_read(afe_on)
@@ -668,18 +678,79 @@ def test_desk(report):
     for row in loud:
         row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
     bridge.update(loud)
-    held = bridge._held[0]
+    held = bridge._held[0][1]
     quiet = _desk_rows(**{'Phase U': 30})
     for row in quiet:
         row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
     bridge.update(quiet)
     report.check('a peak falls by the decay and no further - that is the '
                  'ballistics, not a reading',
-                 abs(bridge._held[0] - (held - 0.04)) < 1e-9,
-                 '%.3f -> %.3f' % (held, bridge._held[0]))
+                 abs(bridge._held[0][1] - (held - 0.04)) < 1e-9,
+                 '%.3f -> %.3f' % (held, bridge._held[0][1]))
     bridge.update(loud)
     report.check('and it jumps back the instant the level does',
-                 abs(bridge._held[0] - held) < 1e-9, '%.3f' % bridge._held[0])
+                 abs(bridge._held[0][1] - held) < 1e-9,
+                 '%.3f' % bridge._held[0][1])
+
+
+def test_tumble(report):
+    """The stand-in's attitude, which is the only thing that moves in a
+    view running without a board."""
+    from coaxial import orientation as o
+    from coaxial.simulated import _tumble
+
+    def angles(seq):
+        return o.euler_degrees(tuple(c / 16384.0 for c in _tumble(seq, 16384)))
+
+    unit = [abs(sum((c / 16384.0) ** 2 for c in _tumble(seq, 16384)) - 1.0)
+            for seq in range(0, 256, 8)]
+    report.check('every attitude it invents is a unit quaternion',
+                 max(unit) < 1e-3, '%.2e worst' % max(unit))
+
+    travel = [max(angles(s)[a] for s in range(256))
+              - min(angles(s)[a] for s in range(256)) for a in range(3)]
+    report.check('all three angles move - it used to turn about Z alone, '
+                 'which is the board spinning in its own plane',
+                 all(span > 90.0 for span in travel),
+                 'roll %.0f, pitch %.0f, yaw %.0f' % tuple(travel))
+
+    # The sequence byte wraps at 256. A rate that had not finished a whole
+    # turn by then would snap the board back to level once a cycle.
+    ends = [abs(a - b) for a, b in zip(angles(255), angles(0))]
+    report.check('and it comes back where it started, so the wrap is smooth',
+                 all(gap < 5.0 or gap > 355.0 for gap in ends),
+                 '%.1f, %.1f, %.1f apart' % tuple(ends))
+
+
+def test_peak_hold(report):
+    """What the mark is for: standing where the signal went, after it left.
+
+    The ballistics themselves are checked in test_desk. What is here is the
+    lag, and the bug that a single mirrored magnitude had.
+    """
+    def spike_then_quiet(meter, rounds):
+        row = dict(index=0, signal='Phase U', differential=True, unit='mA',
+                   span=(-207.4, 207.4), reading=0.0)
+
+        def frame(mean, low, high):
+            row.update(mean_raw=mean, min_raw=low, max_raw=high)
+            meter.update([row])
+            return meter._held[0]
+
+        frame(24000, -500, 26000)
+        for _ in range(rounds):
+            settled = frame(500, -600, 700)
+        return settled
+
+    low, high = spike_then_quiet(desk.Desk(), 4)
+    report.check('a peak still stands above the reading four updates on',
+                 high > 700 / 32768.0,
+                 '%+.3f held against %+.3f now' % (high, 700 / 32768.0))
+
+    # One magnitude, mirrored, put the mark where the current had never been:
+    # a phase sitting at +62 A drew its caret at -62.
+    report.check('and the two ends are held apart, not mirrored',
+                 low > -0.05 and high > 0.5, '%+.3f..%+.3f' % (low, high))
 
 
 def test_ascii3d(report):
@@ -833,7 +904,7 @@ def main():
                  test_self_test_and_link, test_gpio_gate,
                  test_channel_table, test_imu, test_subsystems,
                  test_orientation, test_scaling, test_desk,
-                 test_ascii3d):
+                 test_tumble, test_peak_hold, test_ascii3d):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

@@ -63,6 +63,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Board/Src/board_selftest.c
     Board/Src/board_io.c
     Board/Src/board_cal.c
+    Board/Src/board_pwm.c
+    Board/Src/board_sync.c
 
     # Comms stack: cmd (request/response) over proto (Modbus) over dev (USART3).
     Comms/Src/console.c
@@ -92,6 +94,8 @@ set(COAXIAL_SOURCES
     Board/Src/board_adc.c Board/Src/board_clock.c Board/Src/board_selftest.c
     Board/Src/board_io.c Board/Src/board_imu.c Board/Src/board_angle.c
     Board/Src/board_cal.c
+    Board/Src/board_pwm.c
+    Board/Src/board_sync.c
     Comms/Src/console.c Comms/Src/wire.c Comms/Src/dev_uart.c
     Comms/Src/cmd.c Comms/Src/cmd_board.c Comms/Src/cmd_test.c
     Comms/Src/cmd_angle.c Comms/Src/cmd_device.c Comms/Src/cmd_link.c

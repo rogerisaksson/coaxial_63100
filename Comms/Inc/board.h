@@ -179,6 +179,96 @@ void Board_AngleResume(void);
 bool Board_AnglePollReg(uint8_t reg);
 uint8_t Board_AnglePollRegGet(void);
 
+/** Half bridges on this board, and compare registers on TIM1. */
+#define BOARD_PWM_PHASES 3U
+
+/** What the bridge is doing, for the command layer to report verbatim. */
+typedef struct
+{
+  bool     ready;                    /**< TIM1 clocked and given a period  */
+  bool     enabled;                  /**< master output enable is set      */
+  bool     fault;                    /**< break latched - see PE15/BKIN    */
+  uint32_t period;                   /**< ARR + 1, in timer ticks          */
+  uint8_t  deadtime;                 /**< BDTR DTG, raw - not nanoseconds  */
+  uint16_t duty[BOARD_PWM_PHASES];   /**< compare ticks, as last accepted  */
+} board_pwm_state_t;
+
+/** Bridge off, and true only if TIM1 is configured. Cannot configure it. */
+/** The 120 ohm across UART5 - UART0 on the schematic. Off at reset. */
+void Board_SetUart5Termination(bool on);
+bool Board_Uart5Termination(void);
+
+bool Board_PwmInit(void);
+
+/** One simultaneous triple, latched by the injected end-of-sequence. */
+typedef struct
+{
+  int16_t  phase[BOARD_PWM_PHASES];  /**< U, V, W, raw codes               */
+  uint16_t at;                       /**< TIM1->CNT when it was latched    */
+} board_sync_sample_t;
+
+/** What the synced path is doing, for the command layer to report. */
+typedef struct
+{
+  bool     ready;                    /**< timer and injected groups exist  */
+  bool     armed;                    /**< triggering and latching          */
+  uint32_t updates;                  /**< triples latched since arming     */
+  uint32_t overruns;                 /**< sequences that arrived too soon  */
+  board_sync_sample_t latest;
+} board_sync_state_t;
+
+/** Is there a timer to trigger from and an injected group to trigger? */
+bool Board_SyncReady(void);
+
+/** Start latching. False unless ready. Refuses the meter while armed. */
+bool Board_SyncArm(void);
+void Board_SyncDisarm(void);
+bool Board_SyncArmed(void);
+
+/** The last triple, copied whole so no reader mixes two conversions. */
+void Board_SyncLatest(board_sync_sample_t *out);
+void Board_SyncCounts(uint32_t *updates, uint32_t *overruns);
+void Board_SyncState(board_sync_state_t *out);
+
+/** From the injected end-of-sequence callback, and from the overrun one.
+    The handle is opaque here on purpose: this header carries stdint and
+    stdbool and nothing else, and one HAL type in it drags the whole tree
+    into everything that reads a board fact. */
+void Board_SyncOnInjected(const void *hadc);
+void Board_SyncOverrun(void);
+
+
+/** Has TIM1 been configured at all? False until MX_TIM1_Init exists. */
+bool Board_PwmReady(void);
+
+/** ARR + 1, or 0 when the timer is not configured. */
+uint32_t Board_PwmPeriod(void);
+
+/** Arm the outputs, at zero duty. False if not ready or a break is latched. */
+bool Board_PwmEnable(void);
+
+/** Drop every gate. The one call that works whatever else is true. */
+void Board_PwmDisable(void);
+
+bool Board_PwmIsEnabled(void);
+
+/** Is the break latched? It is nFAULT arriving through TIM1_BKIN. */
+bool Board_PwmFault(void);
+
+/** Clear the break latch. Does NOT re-arm - the caller must ask again. */
+bool Board_PwmClearFault(void);
+
+/** One phase, in compare ticks. Refused unless armed and within ARR. */
+bool Board_PwmSetDuty(uint8_t phase, uint16_t ticks);
+
+/** All three, or none: never a cycle built from two calls. */
+bool Board_PwmSetAll(const uint16_t *ticks);
+
+uint16_t Board_PwmGetDuty(uint8_t phase);
+
+void Board_PwmState(board_pwm_state_t *out);
+
+
 uint8_t Board_PartCount(void);
 bool Board_Part(uint8_t index, board_part_t *info);
 

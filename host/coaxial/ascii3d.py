@@ -156,7 +156,7 @@ def shade_of(normal, point, light, eye):
     return lambert if lambert > 0.0 else 0.0
 
 
-def fit(verts, matrix, cols, rows, step=FIT_STEP):
+def fit(verts, matrix, cols, rows, step=FIT_STEP, zoom=1.0):
     """(distance, x offset, y offset) that put the model in frame, filling it.
 
     Fitted to the projected SPAN, and offset by where that span sits, rather
@@ -165,8 +165,15 @@ def fit(verts, matrix, cols, rows, step=FIT_STEP):
     spreads and the far half closes up - so bounding it symmetrically wastes
     the side it is not on.
 
-    Bisection, because the span is not separable in the distance: every
-    vertex moves by its own 1/(d - z).
+    `zoom` is how much of the frame the model is asked to fill: 2.0 spreads
+    it over twice the frame, so half of it shows, magnified. Below 1.0 it
+    stands off and the model shrinks. Done here rather than by moving
+    the camera afterwards, because the offsets that centre the picture belong
+    to the distance they were measured at - shifting the camera and keeping
+    the old offsets slid the model out of the middle as it came closer. It
+    also gives zoom a range: the arithmetic it replaced pivoted on a
+    hardcoded `distance - 1.0` and could never move the camera more than one
+    unit however far it was told to.
     """
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = matrix
     scale = (rows / 2.0) / math.tan(math.radians(FOV_DEGREES) / 2.0)
@@ -183,6 +190,7 @@ def fit(verts, matrix, cols, rows, step=FIT_STEP):
 
     near = max(z for _x, _y, z in turned)
     reach = max(abs(x) for x, _y, _z in turned) or 1.0
+    wide, tall = cols * zoom, rows * zoom
 
     def frame(distance):
         low_x = low_y = 1e30
@@ -198,7 +206,7 @@ def fit(verts, matrix, cols, rows, step=FIT_STEP):
                 low_y = sy
             if sy > high_y:
                 high_y = sy
-        return (max((high_x - low_x) / cols, (high_y - low_y) / rows),
+        return (max((high_x - low_x) / wide, (high_y - low_y) / tall),
                 (high_x + low_x) / 2.0, (high_y + low_y) / 2.0)
 
     low, high = near + 1e-3, near + scale * reach * 4.0
@@ -219,10 +227,7 @@ def _setup(model, matrix, width, height, distance, zoom, supersample,
     cols, rows, cell_rows = grid(width, height, supersample, aspect)
 
     if distance is None:
-        distance = fit(model[0], matrix, cols, rows)[0]
-    if zoom != 1.0:
-        near = distance - 1.0
-        distance = near + (distance - near) / max(0.05, zoom)
+        distance = fit(model[0], matrix, cols, rows, zoom=zoom)[0]
 
     scale = (rows / 2.0) / math.tan(math.radians(FOV_DEGREES) / 2.0)
     cx, cy = (cols - 1) / 2.0, (rows - 1) / 2.0

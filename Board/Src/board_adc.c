@@ -78,6 +78,16 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
      via ADC_CHANNEL_DIFF_NEG_INPUT, so that mapping is not repeated here.
      Safe because HAL_ADC_Stop disables the ADC and PCSEL is writable with
      ADEN = 0. */
+  /* Not while the current loop owns the converters. The injected sequence
+     leaves all three phase channels selected in PCSEL and is triggered by
+     the timer; this path clears PCSEL and selects one. Whichever ran second
+     would read the other's channels - the same PCSEL trap that has caught
+     this board twice, arriving from a third direction. */
+  if (Board_SyncArmed())
+  {
+    return false;
+  }
+
   hadc->Instance->PCSEL = 0U;
 
   if (HAL_ADC_ConfigChannel(hadc, &sConfig) != HAL_OK || HAL_ADC_Start(hadc) != HAL_OK)

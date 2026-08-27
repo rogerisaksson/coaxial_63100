@@ -414,7 +414,7 @@ LAMP = tuple(sum(VIEWPOINT[r * 3 + k] * ascii3d.light_position()[k]
 _FITS = {}
 
 
-def _fit(cols, rows):
+def _fit(cols, rows, zoom=1.0):
     """How far to stand back for a window this size, with the board at rest.
 
     Measured from the viewpoint alone and not per frame: a fit that tracked
@@ -425,10 +425,13 @@ def _fit(cols, rows):
 
     Cached because a window is resized far less often than it is redrawn.
     """
-    got = _FITS.get((cols, rows))
+    key = (cols, rows, round(zoom, 3))
+    got = _FITS.get(key)
     if got is None:
-        got = ascii3d.fit(MODEL_MESH[0], VIEWPOINT, cols, rows)
-        _FITS[(cols, rows)] = got
+        got = ascii3d.fit(MODEL_MESH[0], VIEWPOINT, cols, rows, zoom=zoom)
+        if len(_FITS) > 64:
+            _FITS.clear()       # a wheel spun for a while, not a leak
+        _FITS[key] = got
     return got
 
 
@@ -449,12 +452,11 @@ def render(q, width=44, height=19, zoom=1.0, shop=None):
     the rotation and the caption.
     """
     cols, rows, _cell = ascii3d.grid(width, height)
-    distance, off_x, off_y = _fit(cols, rows)
+    distance, off_x, off_y = _fit(cols, rows, zoom)
     draw = shop.render if shop else ascii3d.render
     model = () if shop else (MODEL_MESH,)
     return draw(*model, _multiply(VIEWPOINT, matrix(q)), width, height,
-                distance=distance, zoom=zoom, centre=(off_x, off_y),
-                light=LAMP)
+                distance=distance, centre=(off_x, off_y), light=LAMP)
 
 
 def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0,

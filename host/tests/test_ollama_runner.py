@@ -1089,21 +1089,29 @@ def test_mouse(r):
     import screen
 
     keys = screen.Keys(console=True, mouse=True)
-    keys._buffer = chr(27) + '[<64;10;10M'
-    leave, zoom = keys.poll()
-    r.check('a wheel notch up comes nearer',
-            leave is None and zoom < 0, '%.3f' % zoom)
+    # What the caller DOES with the number, not the sign of the number: it
+    # scales zoom by 1 + this, and a bigger zoom stands closer. Checking the
+    # sign alone is what let the wheel run backwards under a test named for
+    # the behaviour it was not testing.
+    def after(report, zoom=1.0):
+        keys._buffer = report
+        return zoom * (1.0 + keys.poll()[1])
 
-    keys._buffer = chr(27) + '[<65;10;10M'
-    r.check('and down goes further', keys.poll()[1] > 0)
+    r.check('a wheel notch up comes nearer',
+            after(chr(27) + '[<64;10;10M') > 1.0,
+            '%.3f' % after(chr(27) + '[<64;10;10M'))
+    r.check('and down goes further',
+            after(chr(27) + '[<65;10;10M') < 1.0,
+            '%.3f' % after(chr(27) + '[<65;10;10M'))
 
     # One frame's worth of reports is one change: twenty drag reports applied
     # one at a time would move twenty frames behind the hand.
     keys._buffer = (chr(27) + '[<2;5;20M' + chr(27) + '[<34;5;23M'
                     + chr(27) + '[<34;5;26M')
     leave, zoom = keys.poll()
-    r.check('a right-drag adds up over the frame it arrived in',
-            leave is None and abs(zoom - 6 * screen.DRAG_STEP) < 1e-9,
+    r.check('a right-drag pulled down backs away, and adds up over the '
+            'frame it arrived in',
+            leave is None and abs(zoom + 6 * screen.DRAG_STEP) < 1e-9,
             '%.3f over 6 rows' % zoom)
 
     keys._buffer = chr(27) + '[<2;5;26m' + chr(27) + '[<34;5;40M'
@@ -1120,6 +1128,20 @@ def test_mouse(r):
 
     r.check('a view with no terminal reads no mouse at all',
             screen.Keys(console=False, mouse=True).poll() == (None, 0.0))
+
+    # A Windows console hands mouse movement over as MOUSE_EVENT records,
+    # which msvcrt never shows the program. Without VT input the wheel does
+    # nothing at all there, whatever the view prints to ask for reporting -
+    # and the checks above could not see it, because they feed the parser
+    # bytes directly and never touch the console.
+    was = screen.LINE_INPUT | screen.ECHO_INPUT | screen.QUICK_EDIT
+    now = screen.console_mode(was)
+    r.check('a mouse view asks the console for VT input and takes the mouse',
+            now & screen.VT_INPUT and now & screen.MOUSE_INPUT
+            and now & screen.EXTENDED_FLAGS, '0x%04X -> 0x%04X' % (was, now))
+    r.check('and gives up quick-edit, line mode and echo to get it',
+            not (now & (screen.QUICK_EDIT | screen.LINE_INPUT
+                        | screen.ECHO_INPUT)))
 
 
 ROSTER = (
