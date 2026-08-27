@@ -776,52 +776,56 @@ measured through the 46.6 ms transport, and the same wire now carries
 10.2 kB/s. The share is still 33 %, deliberately: it is the fraction a
 stream may claim of a segment that also carries everything else.
 
-## Open: the BNO08X reports nothing, and the bus is not the reason
+## Fixed: the IMU produced reports and the poll loop never collected them
 
-Seen 2026-08-27. The part had been reporting the same session - `updates
-2491, cargoes 2569`, live quaternion - and stopped, across several AFE_ON
-cycles and two flashes.
+2026-08-27. The part had never stopped working. What follows is three
+mistakes of mine and one real defect, in the order they were made.
 
-What is measured, with AFE_ON on:
+**The real defect.** `Board_ImuPoll` returned every turn unless H_INTN was
+asserted at the instant it looked - one GPIO read, no wait. That is correct
+and cheap when the pulse is caught and useless when it is not, and it left
+the part streaming rotation vectors at 50 Hz into a loop that never read
+one. It now polls a header when H_INTN has not asserted, rate limited to
+1 kHz in raw CYCCNT: a four-byte transfer at 1.48 MHz is 27 us, which is
+2.7 % of the loop against a report interval of 20 ms.
 
-| | |
+**Then a reset before a Set Feature stops the feature taking.** Measured
+either way, three seconds each:
+
+| sequence | rotation vectors |
 |---|---|
-| rotation vectors | **0**, `cargoes` frozen, `errors` climbing |
-| header read | `00 00 00 00` - **a valid SHTP header of length zero** |
-| `wake_test` | **0** - the part never asserts H_INTN to a wake |
-| H_INTN (PD8) | high; input with pull-up, per GPIOD MODER and PUPDR |
-| NRSTN (PD10), BOOTN (PD11) | both **high**, per GPIOD ODR 0x00000E00 |
-| `imu.pins()` | MISO **held**, `bits 11`; the other three toggle, `bits 15` |
+| `reset()` then `feature()` | **0 a second** |
+| `feature()` alone | **49.0 a second** |
 
-So the part is powered, out of reset, not strapped into the bootloader, and
-answering "nothing to send" - which is a working bus, not a dead one. What
-it does not do is ask for service.
+The write's own wake handshake runs a reset when the acknowledge does not
+arrive, so a Set Feature sent straight after a host reset lands on a part
+that has just restarted. The loop brings the part up by itself, so the
+reset was never needed: both views drop it. Draining until the part is
+quiet - three empty reads rather than one, since the 276-byte
+advertisement arrives with gaps - did not fix this on its own and is kept
+because stopping at the first gap was wrong anyway.
 
-Ruled out, in this order:
-* **Not the ring change.** Reverted the firmware to HEAD, rebuilt, flashed:
-  identically silent. Re-applied and reflashed.
-* **Not AFE_ON**, and not a rail that had not collapsed: 4 s off changed
-  nothing.
-* **Not the reset sequence.** `Board_ImuReset` raises BOOTN before releasing
-  NRSTN, which is the order the datasheet asks for.
+### Three measurements of mine that were wrong
 
-**A correction to the first version of this entry.** It recorded
-`product_id -> SERVER DEVICE FAILURE` and `imu.pins() -> SERVER DEVICE
-FAILURE` as evidence the part was dead. They were refused by
-`cmd_imu_op`, which returns `CMD_ERR_DEVICE` for every op except LATEST,
-HOLD and RESUME unless the poll loop is HELD - two masters on one bus. The
-calls were outside `board.imu.configuring()`. Inside it they answer, and
-`pins` and `wake_test` are what produced the table above. **A gate that
-refuses looks exactly like a part that is absent**, and this cost an hour.
+* **`product_id` and `imu.pins()` answering SERVER DEVICE FAILURE.** Read as
+  a dead part. They were refused by `cmd_imu_op`, which gates every op
+  except LATEST, HOLD and RESUME on the poll loop being HELD - the calls
+  were outside `board.imu.configuring()`.
+* **"H_INTN never asserts": 77 reads of PD8, all high.** Each read was a
+  Modbus round trip, 15 ms apart. An H_INTN pulse is microseconds. The
+  measurement could not have caught one and proved nothing; `feature()`
+  alone works, which needs the wake acknowledge, so the line does assert.
+  The polled fallback stays because it is bounded and it is what the file
+  always described.
+* **Gating the read twice.** The first fix put `poll_due()` inside
+  `Board_ImuRead` as well as the loop, so the loop spent the rate limit's
+  slot and the read consumed the next one. Neither ever read. One gate,
+  in the loop, where the rate is decided.
 
-Untried, and the next thing: a full board power cycle, and a scope on PD8 to
-settle whether H_INTN is wired to it at all - `board_imu.c`'s own header
-says "neither is assigned to a pin" while line 55 defines the pin and every
-read is gated on it. One of the two is wrong.
-
-`show_orientation.py` no longer draws the model when `updates` is 0. Identity
-is a board lying exactly level, which is a plausible attitude and cannot be
-told from a working part.
+Confirmed from the schematic while chasing this, MCU sheet: `SPI0.INT` is a
+straight wire to **PD8** and `SPI0.SYNC` to PD9, so `board_imu.c`'s file
+header - "neither is assigned to a pin" - is the stale half of its own
+contradiction, not line 55.
 
 ## The bridge switches 0 to 100 % with the drivers powered, and nothing trips
 

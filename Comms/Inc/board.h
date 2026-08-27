@@ -126,6 +126,7 @@ typedef struct
 #define BOARD_IMU_ERR_INIT   2U  /**< the part did not come up           */
 #define BOARD_IMU_ERR_READ   3U  /**< a cargo read failed                */
 #define BOARD_IMU_ERR_FRAME  4U  /**< a report id with no length         */
+#define BOARD_IMU_ERR_NOWAKE 5U  /**< wrote without an H_INTN acknowledge */
 
 /** Advance the IMU poll loop. Cheap when there is nothing waiting: one GPIO
   * read. Call it from the main loop, and not while the RTU receiver is

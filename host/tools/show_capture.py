@@ -73,8 +73,14 @@ def start(rig, args):
     # The IMU only produces when a report is enabled, so a capture that did
     # not ask for one would show a source that looks broken rather than idle.
     try:
+        # No reset first. The poll loop brings the part up on its own, and
+        # a reset immediately before a Set Feature is what stops the feature
+        # taking: the write's wake handshake runs its own reset when the
+        # acknowledge does not arrive, and right after a host reset it does
+        # not, so the write lands on a part that has just restarted.
+        # Measured 2026-08-27: reset then feature, 0 rotation vectors;
+        # feature alone, 49.0 a second. See FINDINGS.
         with board.imu.configuring():
-            board.imu.reset()
             board.imu.feature(ROTATION_VECTOR, args.interval_us)
         say('ok', 'rotation vector', 'every %d us' % args.interval_us)
     except RigError as exc:

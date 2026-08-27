@@ -216,7 +216,16 @@ static cmd_status_t h_imu_reset(rd_t *in, wr_t *out)
   }
 
   Board_ImuReset();
-  wr_u8(out, Board_ImuDrain(8U));
+
+  /* Enough to clear the advertisement, which is 276 bytes and arrives as
+     several cargoes, plus the reset-complete and unsolicited product id
+     behind it. Eight was not: measured 2026-08-27, a Set Feature sent
+     straight after a reset that had drained eight never took - cargoes
+     climbed and no rotation vector ever arrived - and the same write after
+     the queue had actually emptied took first time. The part is still
+     talking about itself while the write goes out, and a write nobody is
+     listening to changes nothing. */
+  wr_u8(out, Board_ImuDrain(48U));
 
   return CMD_OK;
 }

@@ -55,6 +55,7 @@ LOOP_STATES = {0: 'off', 1: 'init', 2: 'running', 3: 'held'}
 LOOP_ERRORS = {
     0: 'none', 1: 'lost AFE_ON', 2: 'the part did not come up',
     3: 'a cargo read failed', 4: 'a report id with no length',
+    5: 'wrote without an H_INTN acknowledge - the part never asked',
 }
 """The last thing that went wrong in the poll loop, not a running tally."""
 
