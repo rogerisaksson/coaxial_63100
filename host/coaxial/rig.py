@@ -26,7 +26,7 @@ units; `board.analog` has the conversions when you want them.
 """
 import time
 
-from .clock import unwrap
+from .clock import NTP_SERVER, unwrap
 from .errors import RigError
 
 
@@ -124,15 +124,28 @@ class Coaxial63100:
 
     # -- the clock -------------------------------------------------------
 
-    def set_time_from_pc(self, seconds=3.0):
-        """Tie the board's cycle counter to this machine's clock.
+    def set_time_from_pc(self, seconds=3.0, reference='utc',
+                         ntp_server=NTP_SERVER):
+        """Tie the board's cycle counter to a real clock.
 
         The board has no clock of its own - no RTC, no LSE - so every
         timestamp it gives you is a raw cycle count. This measures where
         that counter was and how fast it really runs, and after it every
         record from `read()` carries a wall-clock `time`.
+
+        `reference='utc'` still goes through this PC, but measures the PC's
+        own offset and rate against NTP over the same window and takes both
+        out. Worth doing: on 2026-08-27, six minutes after W32Time had
+        synced, this machine sat 947 ms behind UTC and was losing a further
+        25 ppm. `'pc'` ties it to this machine as it stands. With no
+        network, `'utc'` becomes `'pc'` and the Sync says so.
+
+        Longer `seconds` buys a better rate: 3 s bounds it at parts per
+        thousand, 300 s resolves a few per million.
         """
-        self.sync = self.board.clock.sync(seconds=seconds)
+        self.sync = self.board.clock.sync(
+            seconds=seconds, reference=reference,
+            ntp_server=ntp_server)
         return self.sync
 
     # -- the acquisition task --------------------------------------------

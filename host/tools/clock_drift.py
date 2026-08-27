@@ -1,110 +1,65 @@
 #!/usr/bin/env python3
-"""How far the board's counter drifts against UTC, with the PC in between.
+"""How far the board's counter runs against UTC.
 
     python tools/clock_drift.py --seconds 600
 
-Two oscillators and one reference. The board is measured against this PC
-because that is the only clock it can reach; the PC is measured against NTP
-because it is not a reference either - measured here with the Windows time
-service stopped, it sat 931 ms off UTC and free-running.
+Three clocks and one reference. The board is reached through this PC
+because that is the only clock it can talk to, and this PC is not a
+reference either: measured 2026-08-27, six minutes after W32Time had
+synced, it sat 947 ms behind UTC and was losing a further 25 ppm - Windows
+had declined to step it, the offset being inside the 1 s
+MaxAllowedPhaseOffset, and slewing was not catching up.
 
-So the board's error against UTC is the sum, and reporting the first
-without the second is reporting the difference between two unqualified
-oscillators as if it were one of them.
-
-NTP offset noise on a LAN is about a millisecond, so resolving 1 ppm needs
-roughly a thousand seconds between the two ends. Shorter runs bound it
-rather than measure it, and this says which it managed.
+`sync(reference='utc')` measures that over the same window and takes it
+out. Printed here with the floor beside it, because a rate is only worth
+reading past the noise of the reference it was measured against: NTP is
+good to about a millisecond a side, so 1 ppm needs a thousand seconds.
 """
 import argparse
 import os
-import socket
-import struct
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100                           # noqa: E402
-
-NTP_EPOCH = 2208988800
-
-
-def ntp_offset(host, rounds=8, timeout=3.0):
-    """Best-of-N SNTP queries: this PC's clock against the server's.
-
-    Min-filtered on the round trip, the way every NTP client does it - the
-    shortest exchange has the least queueing in it, and its remaining error
-    is half the asymmetry rather than all of the delay.
-    """
-    best = None
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(timeout)
-    try:
-        for _ in range(rounds):
-            first = time.time()
-            sock.sendto(b'\x1b' + 47 * b'\0', (host, 123))
-            data, _ = sock.recvfrom(48)
-            last = time.time()
-
-            server_rx = (struct.unpack('!I', data[32:36])[0]
-                         + struct.unpack('!I', data[36:40])[0] / 2 ** 32
-                         - NTP_EPOCH)
-            server_tx = (struct.unpack('!I', data[40:44])[0]
-                         + struct.unpack('!I', data[44:48])[0] / 2 ** 32
-                         - NTP_EPOCH)
-            trip = (last - first) - (server_tx - server_rx)
-            offset = ((server_rx - first) + (server_tx - last)) / 2
-            if best is None or trip < best[1]:
-                best = (offset, trip)
-    finally:
-        sock.close()
-    return best
+from coaxial.clock import NTP_SERVER, ntp_offset           # noqa: E402
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--seconds', type=float, default=600.0)
-    parser.add_argument('--ntp', default='pool.ntp.org')
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', default='COM4')
-    args = parser.parse_args(argv)
+    parser.add_argument('--seconds', type=float, default=600.0)
+    parser.add_argument('--ntp', default=NTP_SERVER)
+    args = parser.parse_args()
 
+    try:
+        offset, trip = ntp_offset(args.ntp)
+        print('this PC is %+.3f ms from UTC (%s, trip %.1f ms)'
+              % (offset * 1e3, args.ntp, trip * 1e3))
+    except Exception as why:
+        print('no UTC reference: %s' % why)
+
+    # The clock needs no analog supply, and leaving AFE_ON alone is one
+    # less thing drawing current across a ten-minute window.
     with Coaxial63100(port=args.port, power_afe=False) as daq:
-        if daq.simulated:
-            print('no board answered - nothing to measure')
-            return 1
+        print('%s, measuring for %.0f s ...' % (daq, args.seconds))
+        sync = daq.set_time_from_pc(seconds=args.seconds,
+                                    ntp_server=args.ntp)
 
-        first_ntp, first_trip = ntp_offset(args.ntp)
-        first_sync = daq.set_time_from_pc(seconds=3.0)
-        started = time.time()
-        print('start   PC vs NTP %+.3f ms (trip %.1f ms)   board vs PC %+.2f ppm'
-              % (first_ntp * 1e3, first_trip * 1e3, first_sync.error_ppm))
-        print('waiting %.0f s ...' % args.seconds)
-
-        time.sleep(args.seconds)
-
-        last_ntp, last_trip = ntp_offset(args.ntp)
-        last_sync = daq.set_time_from_pc(seconds=3.0)
-        elapsed = time.time() - started
-
-    # The PC's own rate error: how much its offset from UTC grew.
-    pc_ppm = (last_ntp - first_ntp) / elapsed * 1e6
-    board_vs_pc = last_sync.error_ppm
-    resolution = 1e-3 / elapsed * 1e6
-
-    print('end     PC vs NTP %+.3f ms (trip %.1f ms)   board vs PC %+.2f ppm'
-          % (last_ntp * 1e3, last_trip * 1e3, board_vs_pc))
     print()
-    print('over %.0f s, and NTP offset noise of about a millisecond puts the '
-          'floor at %.1f ppm:' % (elapsed, resolution))
-    print('   PC against UTC      %+8.2f ppm' % pc_ppm)
-    print('   board against PC    %+8.2f ppm' % board_vs_pc)
-    print('   board against UTC   %+8.2f ppm' % (board_vs_pc + pc_ppm))
-    if abs(pc_ppm) < resolution:
-        print('   the PC term is inside the floor, so it bounds rather than '
-              'measures')
-    return 0
+    print('reference   %s%s' % (sync.reference,
+                                '  (' + sync.note + ')' if sync.note else ''))
+    print('SYSCLK      %.3f MHz measured, %.3f nominal'
+          % (sync.hz / 1e6, sync.nominal_hz / 1e6))
+    print('board       %+.2f ppm vs %s' % (sync.error_ppm, sync.reference))
+    if sync.pc_ppm is not None:
+        print('this PC     %+.2f ppm vs UTC' % sync.pc_ppm)
+    print('floor       %.2f ppm - anything smaller is the reference, not the '
+          'board' % sync.floor_ppm)
+    print('verdict     %s'
+          % ('measured' if abs(sync.error_ppm) > sync.floor_ppm
+             else 'below the floor: bounded, not measured'))
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main()

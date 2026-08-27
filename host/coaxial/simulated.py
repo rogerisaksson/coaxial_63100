@@ -1224,9 +1224,14 @@ class SimulatedClock:
         from .clock import Clock
         return Clock.probe(self, rounds=rounds)
 
-    def sync(self, seconds=2.0, rounds=8):
-        from .clock import Clock
-        return Clock.sync(self, seconds=seconds, rounds=rounds)
+    def sync(self, seconds=2.0, rounds=8, reference='utc', ntp_server=None):
+        from .clock import Clock, NTP_SERVER
+        # Its cycles come off this machine's clock, so against UTC it is
+        # this machine's error plus its own 12 ppm - which is the honest
+        # answer, not a bug.
+        return Clock.sync(self, seconds=seconds, rounds=rounds,
+                          reference=reference,
+                          ntp_server=ntp_server or NTP_SERVER)
 
     def _bracket(self):
         import time

@@ -18,9 +18,12 @@ of order, unless someone puts them back.
 The board keeps no wall clock and is not given one: no RTC, no LSE, so a
 time it held would drift against nothing. The host owns the clock.
 """
+import socket
+import struct
 import time
 
 from . import protocol
+from .errors import RigError
 from .subsystem import Subsystem
 from .wire import Reader
 
@@ -30,25 +33,83 @@ TIME_OP_READ = 1
 #: CYCCNT is 32 bits and free-running.
 WRAP = 1 << 32
 
+#: pool.ntp.org times out on this bench; these two answer and agree.
+NTP_SERVER = 'time.google.com'
+NTP_EPOCH = 2208988800
+
+
+def ntp_offset(server=NTP_SERVER, rounds=8, timeout=3.0):
+    """How far this machine's clock is from UTC. Seconds, and the trip.
+
+    Positive means this machine is behind. Min-filtered on the round trip,
+    the way every NTP client does it: the shortest exchange has the least
+    queueing in it, and what is left is half the asymmetry rather than all
+    of the delay. Repeatability on this bench is about a millisecond, which
+    is what sets `floor_ppm`.
+
+    Needed because this machine is not a reference either. Measured
+    2026-08-27 with W32Time having synced six minutes earlier: 947 ms behind
+    UTC and losing a further 25 ppm. Windows had declined to step it - the
+    offset was just inside the 1 s `MaxAllowedPhaseOffset` - and slewing was
+    not keeping up.
+    """
+    best = None
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(timeout)
+    try:
+        for _ in range(rounds):
+            first = time.time()
+            sock.sendto(b'\x1b' + 47 * b'\0', (server, 123))
+            data, _ = sock.recvfrom(48)
+            last = time.time()
+            rx = (struct.unpack('!I', data[32:36])[0]
+                  + struct.unpack('!I', data[36:40])[0] / 2 ** 32 - NTP_EPOCH)
+            tx = (struct.unpack('!I', data[40:44])[0]
+                  + struct.unpack('!I', data[44:48])[0] / 2 ** 32 - NTP_EPOCH)
+            trip = (last - first) - (tx - rx)
+            if best is None or trip < best[1]:
+                best = (((rx - first) + (tx - last)) / 2.0, trip)
+    finally:
+        sock.close()
+    if best is None:
+        raise RigError('%s did not answer in %d tries' % (server, rounds))
+    return best
+
 
 class Sync:
 
-    """What a `sync()` worked out: where the counter was, and how fast."""
+    """What a `sync()` worked out: where the counter was, and how fast.
 
-    def __init__(self, at_cycles, at_host, hz, spread_us, nominal_hz):
+    `reference` is what it ended up tied to, not what was asked for: 'utc'
+    when NTP answered, 'pc' when it did not or was not wanted. A capture
+    that believes it is on UTC when it is on this machine's wall clock is
+    worse than one that knows it is not, so a fallback is recorded in
+    `note`, never silent.
+    """
+
+    def __init__(self, at_cycles, at_host, hz, spread_us, nominal_hz,
+                 reference='pc', pc_ppm=None, floor_ppm=None, note=''):
         self.at_cycles = at_cycles
         self.at_host = at_host
         self.hz = hz
         self.spread_us = spread_us
         self.nominal_hz = nominal_hz
+        self.reference = reference
+        self.pc_ppm = pc_ppm
+        self.floor_ppm = floor_ppm
+        self.note = note
 
     @property
     def error_ppm(self):
-        """Measured rate against the rate the PLL was asked for."""
+        """Measured rate against the rate the PLL was asked for.
+
+        Against `reference`. Believe it only past `floor_ppm`; under that
+        the window was too short to tell it from the reference's own noise.
+        """
         return (self.hz - self.nominal_hz) / self.nominal_hz * 1e6
 
     def to_host(self, cycles):
-        """One unwrapped cycle count as a host `time.time()` value.
+        """One unwrapped cycle count as a `time.time()` value.
 
         Unwrapped: pass this what `unwrap()` returned, not a raw 32-bit
         stamp, or anything more than 9 seconds from the reference lands in
@@ -57,8 +118,11 @@ class Sync:
         return self.at_host + (cycles - self.at_cycles) / self.hz
 
     def __repr__(self):
-        return ('<Sync %.6f MHz (%+.1f ppm), reference +/- %.0f us>'
-                % (self.hz / 1e6, self.error_ppm, self.spread_us))
+        floor = ('' if self.floor_ppm is None
+                 else ', floor %.1f ppm' % self.floor_ppm)
+        return ('<Sync %.6f MHz (%+.1f ppm vs %s%s), reference +/- %.0f us%s>'
+                % (self.hz / 1e6, self.error_ppm, self.reference, floor,
+                   self.spread_us, '; ' + self.note if self.note else ''))
 
 
 def unwrap(cycles, start=None):
@@ -155,14 +219,27 @@ class Clock(Subsystem):
                 best = (got['now'], (t1 + t4) / 2.0, trip)
         return {'cycles': best[0], 'host': best[1], 'round_trip': best[2]}
 
-    def sync(self, seconds=2.0, rounds=8):
+    def sync(self, seconds=2.0, rounds=8, reference='utc',
+             ntp_server=NTP_SERVER):
         """Measure where the counter is and how fast it actually runs.
 
-        Two brackets, `seconds` apart, each the best of `rounds` tries. The
-        gap is what measures the rate: the link's latency is a fixed unknown
-        of well under a millisecond, so spreading the two ends over seconds
-        divides it down to nothing. The scatter within a bracket is reported
-        as `spread_us` and is what bounds the reference.
+        seconds    how far apart to put the two ends. The link's latency is
+                   a fixed unknown of under a millisecond, so a longer
+                   window divides it down: 3 s bounds the rate at parts per
+                   thousand, 1000 s resolves about one per million.
+        reference  'utc' measures this machine against NTP across the same
+                   window and takes both its offset and its rate back out,
+                   so the answer is the board against UTC rather than the
+                   difference between two unqualified oscillators. 'pc'
+                   ties it to this machine's wall clock, whatever that is.
+                   When NTP does not answer, 'utc' becomes 'pc' and the
+                   Sync says so - it does not fail and it does not pretend.
+
+        Sampled through rather than taken end to end: CYCCNT is 32 bits and
+        wraps every 9.04 s at 475 MHz, so a longer window has to have its
+        wraps counted. The samples in between exist only to keep the
+        unwrapping unambiguous; the rate comes from the two ends, which are
+        the brackets worth spending `rounds` on.
         """
         def best_of(n):
             best = None
@@ -173,23 +250,50 @@ class Clock(Subsystem):
                     best = (got['latched'], host, width)
             return best
 
-        first_cycles, first_host, first_width = best_of(rounds)
         nominal = self.read_latch()['sysclk_hz']
-        time.sleep(seconds)
-        last_cycles, last_host, last_width = best_of(rounds)
+        step = WRAP / nominal / 2.0                  # 4.52 s at 475 MHz
+        note = ''
+        first_offset = None
+
+        if reference == 'utc':
+            try:
+                # Short and few: an unreachable server must not cost the
+                # caller half a minute of timeouts to find that out.
+                first_offset, _ = ntp_offset(ntp_server, rounds=4, timeout=1.0)
+            except (RigError, OSError) as why:
+                reference, note = 'pc', 'NTP did not answer (%s)' % why
+
+        marks = [best_of(rounds)]
+        while True:
+            left = seconds - (marks[-1][1] - marks[0][1])
+            if left <= 0:
+                break
+            time.sleep(min(step, left))
+            marks.append(best_of(rounds if left <= step else 1))
+
+        cycles = unwrap([m[0] for m in marks])
+        elapsed = marks[-1][1] - marks[0][1]
+        hz = (cycles[-1] - cycles[0]) / elapsed
         # One tie to the wall clock, taken once. Everything above is
         # perf_counter, which has no epoch of its own.
-        wall_offset = time.time() - time.perf_counter()
+        at_host = marks[-1][1] + (time.time() - time.perf_counter())
+        pc_ppm = None
+        floor = max(m[2] for m in (marks[0], marks[-1])) / elapsed * 1e6
 
-        elapsed_host = last_host - first_host
-        elapsed_cycles = (last_cycles - first_cycles) % WRAP
-        # A gap longer than a wrap cannot be told from a short one, so the
-        # caller is told rather than guessed at.
-        if elapsed_host * nominal > WRAP:
-            raise ValueError('%.1f s is longer than the counter\'s %.2f s '
-                             'wrap; sync over a shorter gap'
-                             % (elapsed_host, WRAP / nominal))
+        if reference == 'utc':
+            last_offset, _ = ntp_offset(ntp_server, rounds=4, timeout=1.0)
+            # Positive pc_ppm is this machine falling behind UTC, which
+            # means it under-counts: a real second arrives as slightly less
+            # than one of its own. Dividing cycles by that short elapsed
+            # makes the board look fast by exactly as much, so this comes
+            # off. Signed wrong first, and it showed - the board came back
+            # +35 ppm where an independent heartbeat measurement had -13.
+            pc_ppm = (last_offset - first_offset) / elapsed * 1e6
+            hz /= (1.0 + pc_ppm * 1e-6)
+            at_host += last_offset
+            # NTP repeatability on this bench is about a millisecond at
+            # each end, and that, not the bracket, is what bounds the rate.
+            floor = 1e-3 / elapsed * 1e6
 
-        hz = elapsed_cycles / elapsed_host
-        return Sync(last_cycles, last_host + wall_offset, hz,
-                    max(first_width, last_width) * 1e6, nominal)
+        return Sync(cycles[-1], at_host, hz, max(marks[0][2], marks[-1][2])
+                    * 1e6, nominal, reference, pc_ppm, floor, note)

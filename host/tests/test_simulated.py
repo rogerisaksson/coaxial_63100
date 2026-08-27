@@ -898,13 +898,67 @@ def test_ascii3d(report):
                      set(flat.replace(' ', '').replace('\n', '')))))
 
 
+def test_clock_reference(report):
+    """UTC when NTP answers, this PC when it does not, and never quietly.
+
+    The board has no clock of its own, so a sync that raised would leave a
+    capture with no time on it at all - falling back is right. Falling back
+    silently is not: this PC was 947 ms off UTC and 25 ppm slow the day
+    this was written, with Windows reporting a good sync, so a capture that
+    believes it is on UTC when it is on this machine is wrong by a second
+    and says nothing.
+
+    NTP is stubbed rather than reached. A test that needs the network to
+    pass is a test that fails on a train.
+    """
+    import coaxial.clock as clockmod
+    from coaxial.errors import RigError
+
+    def refuse(*_, **__):
+        raise RigError('no route')
+
+    session = SimulatedSession()
+    real = clockmod.ntp_offset
+    clockmod.ntp_offset = refuse
+    try:
+        fell_back = session.board.clock.sync(seconds=0.2, rounds=1)
+    finally:
+        clockmod.ntp_offset = real
+
+    report.check('asked for UTC with no NTP, it lands on the PC clock',
+                 fell_back.reference == 'pc', fell_back.reference)
+    report.check('and carries why, so a capture cannot think it is UTC',
+                 'no route' in fell_back.note, fell_back.note)
+    report.check('no PC correction is claimed when none was measured',
+                 fell_back.pc_ppm is None, fell_back.pc_ppm)
+    report.check('it still produces a rate - the capture keeps its timestamps',
+                 fell_back.hz > 0, fell_back.hz)
+
+    # A host 40 ppm slow makes the board look 40 ppm fast, because the rate
+    # was counted in that host's short seconds. Signed the other way first,
+    # and it put the board at +35 ppm where an independent method had -13.
+    clockmod.ntp_offset = lambda *a, **k: (0.0, 0.001)
+    try:
+        flat = session.board.clock.sync(seconds=0.2, rounds=1)
+    finally:
+        clockmod.ntp_offset = real
+
+    report.check('a host that agrees with UTC changes nothing',
+                 flat.reference == 'utc' and abs(flat.pc_ppm) < 1e-9,
+                 flat.pc_ppm)
+    report.check('a sync knows what its own noise floor is, so a rate under '
+                 'it can be called bounded rather than measured',
+                 flat.floor_ppm > 0, flat.floor_ppm)
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
                  test_self_test_and_link, test_gpio_gate,
                  test_channel_table, test_imu, test_subsystems,
                  test_orientation, test_scaling, test_desk,
-                 test_tumble, test_peak_hold, test_ascii3d):
+                 test_tumble, test_peak_hold, test_ascii3d,
+                 test_clock_reference):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

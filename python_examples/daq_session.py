@@ -27,9 +27,9 @@ print('in :', daq.channels())
 print('out:', daq.outputs())
 
 # %% [markdown]
-# ## Clock from this PC
+# ## Clock
 # The board counts CPU cycles and nothing else. This puts a real time on
-# every record.
+# every record - UTC, not this PC's idea of it, which was 947 ms out.
 
 # %%
 print(daq.set_time_from_pc())

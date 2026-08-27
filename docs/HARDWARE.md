@@ -32,6 +32,7 @@ The RS485 sheet also names the transceiver's own pins `DI`, `RO`, `DE` and `RE`,
 
 * **MCU:** STM32H753VIT6, Rev V. The hardware revision is strictly necessary to support the 950 MHz VCO.
 * **Clocks:** 475 MHz SYSCLK driven by a 25 MHz HSE. The ADC kernel clock is decoupled (75 MHz async), rendering sampling times immune to SYSCLK reconfigurations. No LSE/RTC.
+* **HSE error, measured against UTC: -11.62 ppm** (900 s window, 1.11 ppm floor, 2026-08-27). SYSCLK is therefore 474.994 MHz, not 475.000 - 7 ms of skew across a ten-minute capture, which is why a timestamp uses the rate `clock.sync()` measured and never `sysclk_hz`. The PLL is an exact ratio, so this is the crystal. Measured *against UTC*: the bench PC was itself 947 ms out and 22 ppm slow, and tying the board to it measured the wrong oscillator - FINDINGS.
 
 ## AFE & The `PB2` Trap
 

@@ -314,9 +314,11 @@ Two other things the sync had to get right:
   comes back folded - twelve seconds looks like nine and three, out of
   order - so `clock.unwrap()` is not optional.
 
-The rate is measured rather than taken from `sysclk_hz`: **475.002988 MHz,
-+6.3 ppm**, repeating to about 3 ppm between runs. Consistent in order with
-the -13 ppm the heartbeat gave by a different method.
+The rate is measured rather than taken from `sysclk_hz`. The **+6.3 ppm**
+first recorded here was against this PC's wall clock over 3 s, and both
+halves of that were wrong - see *This PC is not a clock reference* below.
+Corrected against UTC over a window long enough to resolve it, the board
+runs **-11.62 ppm**, floor 1.11 ppm.
 
 ## AFE_ON off stops the task and empties the buffers
 
@@ -589,3 +591,70 @@ through the injected group or with a longer sampling time.
   rather than on a fault. `Board_PwmInit()` now clears BIF after the pin has
   settled; a pin genuinely low latches it straight back. Confirmed after the
   fix: `TIM1->SR` = 0x1, UIF only.
+
+## This PC is not a clock reference: 947 ms out and 25 ppm slow
+
+Measured 2026-08-27, six minutes after W32Time had reported a good sync
+(`LastKnownGoodTime` 13:35:06 UTC):
+
+| | |
+|---|---|
+| offset from UTC | **+947 ms**, and growing |
+| rate against UTC | **+25.3 ppm slow**, fitted over 121 s, floor 8.3 ppm |
+| W32Time | `Stopped`, `Manual`, trigger-start |
+| slewing back? | no - the offset grew across all nine samples |
+
+Two servers agree - `time.windows.com` +937.325 ms, `time.google.com`
++937.788 ms. `pool.ntp.org` times out on this bench and is not the default.
+
+`Stopped` proves nothing on Windows 11: the service is trigger-started, so
+it syncs and stops again, and the first reading of this called a good sync
+a failed one. What proves it is the offset. Windows declined to step 947 ms
+because that is inside the 1 s `MaxAllowedPhaseOffset`, and the slew it
+took instead is not catching up.
+
+So `clock.sync()` defaults to `reference='utc'`: an SNTP offset at each end
+of its own window, the PC's offset out of the epoch and the PC's rate out
+of the frequency. With no network it falls back to the PC clock and says so
+in `Sync.note` - a capture that believes it is on UTC when it is not is
+worse than one that knows it is not.
+
+The board, over 900 s with the correction in:
+
+| | measured | floor |
+|---|---|---|
+| SYSCLK | **474.994 MHz** against 475.000 nominal | |
+| board vs UTC | **-11.62 ppm** | 1.11 ppm |
+| this PC vs UTC | +21.82 ppm slow | 1.11 ppm |
+
+Ten times the floor, so measured rather than bounded. The three methods now
+agree: the heartbeat's -13 ppm, a 60 s window's -13.57, and this.
+
+### The correction was signed backwards, and an old number caught it
+
+The first cut multiplied by `(1 + pc_ppm)` and put the board at **+35.3
+ppm**. The PC under-counts, so cycles divided by its short elapsed makes
+the board look fast and the correction has to divide, not multiply. What
+flagged it was the heartbeat's independent **-13 ppm** from an earlier
+method: +35.3 is not near it, -13.57 is.
+
+Proved afterwards against the stand-in, whose oscillator is -12.0 ppm off
+this machine by construction. With the PC measured at +17.61 ppm slow it
+came out at **-29.61 ppm** against UTC, expected -29.61, residual 0.00.
+
+### A sync window has to outlive the wrap to mean anything
+
+`sync()` took two brackets `seconds` apart and refused a gap longer than
+CYCCNT's 9.04 s. With a 5 ms bracket over 3 s that bounds the rate at parts
+per **thousand** - the +6.3 ppm it used to print was three orders finer
+than the method could resolve. It now samples through the window and
+unwraps, so the window can be as long as the floor needs:
+
+| window | floor |
+|---|---|
+| 3 s | 1 700 ppm |
+| 60 s | 16.5 ppm |
+| 900 s | 1.1 ppm |
+
+`floor_ppm` is on every `Sync`, and `clock_drift.py` prints `bounded, not
+measured` when the answer is under it.

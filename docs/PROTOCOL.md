@@ -128,7 +128,9 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
 
   A 16-byte reply is 1.7 ms of line time; the rest is the VCP driver's latency timer, which a broadcast never waits for. A segment with a different driver may answer differently - `clock.probe()` is kept so the two can be compared rather than assumed.
 
-  The rate is measured, not taken from `sysclk_hz`: two brackets seconds apart gave **475.002988 MHz, +6.3 ppm** and repeated to about 3 ppm. **CYCCNT wraps every 9.04 s at 475 MHz**, so any series longer than that has to be unwrapped before it means anything.
+  The rate is measured, not taken from `sysclk_hz`, and **against UTC rather than against the host**: `sync()` takes an SNTP offset at each end of its own window and removes the host's offset from the epoch and the host's rate from the frequency. This bench PC was 947 ms out and 25 ppm slow six minutes after Windows called its sync good, so tying the board to it measured the wrong oscillator. Corrected, the board runs **-11.62 ppm** over 900 s against a 1.11 ppm floor. No network and it falls back to the host clock and records that in `Sync.note`.
+
+  **CYCCNT wraps every 9.04 s at 475 MHz**, so any series longer than that has to be unwrapped - and so does a sync window, which is why `sync()` samples through its window instead of refusing one longer than a wrap. The floor on the rate is the reference's noise over that window: 16.5 ppm at 60 s, 1.1 ppm at 900 s, on `Sync.floor_ppm`.
 
   The board keeps no wall clock and is not given one. It has no RTC and no LSE, so a time it held would drift against nothing, and a board reporting a plausible wrong time is worse than one reporting ticks.
 

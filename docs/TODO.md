@@ -34,8 +34,11 @@ enumeration.
 
 **`0x6E` device 7 ties the counter to a host clock.** Broadcast latch,
 measured at 5 243 us against a round trip's 17 941 us one way. The rate is
-measured too - 475.002988 MHz, +6.3 ppm - and `clock.unwrap()` handles the
-9.04 s wrap.
+measured too, and against UTC rather than against the host: this PC was
+947 ms out and 25 ppm slow with Windows calling its sync good, so
+`sync(reference='utc')` takes an SNTP offset at each end and removes both.
+The board runs **-11.62 ppm** vs UTC, floor 1.11 ppm over 900 s. `clock.unwrap()` handles the 9.04 s wrap, in
+a capture and in the sync window alike.
 
 **The board says why it refused, and what to do.** `u8 took` plus a
 sentence, on every op that takes parameters. `host/coaxial/subsystem.py`'s
