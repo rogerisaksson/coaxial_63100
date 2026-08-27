@@ -29,8 +29,9 @@ static const DigitalDesc s_digital[] =
   { 'B',  2U, "PB2",  BOARD_DIR_OUT,   "AFE_ON",              true  },
   /* Still an input carrying nFAULT, and still readable here - IDR reflects
      the pin whatever mode it is in. It now has a second consumer: the .ioc
-     routes it to TIM1_BKIN, so the gate drivers stop the bridge in hardware
-     rather than waiting for anyone to poll this. See board_pwm.c. */
+     routes it to TIM1_BKIN, so the bridge stops in hardware rather than
+     waiting for anyone to poll this. The signal is FAULTIN from the STO
+     chain, not from the drivers - a 2EDL8034 has no fault pin. */
   { 'E', 15U, "PE15", BOARD_DIR_IN,    "nFAULT",              true  },
   { 'E', 14U, "PE14", BOARD_DIR_OUT,   "UART5_TERM",          true  },
   { 'B', 10U, "PB10", BOARD_DIR_OUT,   "USART3_TX",           false },

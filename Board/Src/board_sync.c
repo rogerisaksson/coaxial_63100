@@ -16,10 +16,10 @@
   * get the INJECTED group, which has its own sequence, its own results and
   * its own trigger, and which preempts rather than disturbs the regular one.
   *
-  * Nothing here is configured yet. TIM1 is not in the .ioc's peripheral list
-  * and no ADC has an injected group, so Board_SyncReady() is false and every
-  * entry point refuses. What this file settles is the shape and the
-  * interlocks; what it waits for is the timer.
+  * TIM1 exists now - centre-aligned, ARR 2375 for 50 kHz, DTG 19. What this
+  * file owns on top of that is the sample point: CCR4 and TRGO2, because
+  * CubeMX takes MasterOutputTrigger2, stores it as "null" and emits
+  * TIM_TRGO2_RESET anyway.
   ******************************************************************************
   */
 #include "board.h"
@@ -40,6 +40,18 @@ extern ADC_HandleTypeDef hadc3;
 #define SYNC_U_CHANNEL ADC_CHANNEL_1     /* ADC3 IN1,  PC3_C/PC2_C */
 #define SYNC_V_CHANNEL ADC_CHANNEL_3     /* ADC1 IN3,  PA6/PA7     */
 #define SYNC_W_CHANNEL ADC_CHANNEL_4     /* ADC2 IN4,  PC4/PC5     */
+
+/** How far below the top OC4REF falls. The trigger is its rising edge, so
+    the ADC starts that far after the counter turns - inside the zero vector,
+    no gate edge within the sampling window. 15 ticks is 63 ns. */
+#define SYNC_TRIGGER_LEAD 15U
+
+
+static void SYNC_ConfigTrigger(void)
+{
+  TIM1->CCR4 = TIM1->ARR - SYNC_TRIGGER_LEAD;
+  MODIFY_REG(TIM1->CR2, TIM_CR2_MMS2, TIM_TRGO2_OC4REF);
+}
 
 static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel)
 {
@@ -83,17 +95,11 @@ bool Board_SyncArmed(void)
 
 bool Board_SyncReady(void)
 {
-  /* Two things have to be true, and neither is yet: a timer to trigger from,
-     and an injected sequence to trigger. JSQR reads zero on an ADC whose
-     injected group was never set up, which is exactly what "CubeMX has not
-     generated it" looks like from here. */
-  if (!Board_PwmReady())
-  {
-    return false;
-  }
-  return (hadc1.Instance->JSQR != 0U)
-      && (hadc2.Instance->JSQR != 0U)
-      && (hadc3.Instance->JSQR != 0U);
+  /* A timer to trigger from, and that is all. The injected sequences are
+     this file's own - SYNC_ConfigPhase writes them at arm time - so a JSQR
+     of zero here is the disarmed state, not a missing prerequisite. Reading
+     it as one deadlocked Arm against Ready. */
+  return Board_PwmReady();
 }
 
 
@@ -190,6 +196,8 @@ bool Board_SyncArm(void)
     return false;
   }
 
+  SYNC_ConfigTrigger();
+
   s_latest.phase[SYNC_U] = 0;
   s_latest.phase[SYNC_V] = 0;
   s_latest.phase[SYNC_W] = 0;
@@ -240,9 +248,8 @@ void Board_SyncState(board_sync_state_t *out)
 
 /* HAL's weak callbacks, overridden here rather than in Core/: main.c holds
    CubeMX functions and the two poll calls, and this is neither. ADC3_IRQHandler
-   is generated - the NVIC entry survived CubeIDE's rewrite even though the
-   TIM1 block did not - so the chain runs the moment an injected group exists
-   to complete. */
+   is generated, so the chain runs as soon as Board_SyncArm has made an
+   injected group for it to complete. */
 void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
   Board_SyncOnInjected(hadc);

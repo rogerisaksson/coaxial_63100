@@ -21,13 +21,20 @@ which is the context for every noise figure in these documents.
 
 ## Scope: instrumentation, not yet a motor controller
 
-**No timer is configured.** The `.ioc` enables fifteen IPs - ADC1/2/3, SPI2,
-SPI4, USART2, USART3, UART5, CORTEX_M7, RCC, SYS, DEBUG, MEMORYMAP, NVIC and
-VREFBUF - and no timer among them: no PWM, no commutation, no gate drive, no
-current loop. The gate drivers and the FETs are fitted (2EDL8034 x3,
-IAUCN10S7N021 - `electronics/`); nothing drives them. This is a measurement and bring-up
-platform. Nothing has run near 63 V or 100 A, and no measured value is recorded
-here — invariant 10.
+**TIM1 is configured; nothing arms it.** The `.ioc` enables sixteen IPs -
+ADC1/2/3, SPI2, SPI4, USART2, USART3, UART5, **TIM1**, CORTEX_M7, RCC, SYS,
+DEBUG, MEMORYMAP, NVIC and VREFBUF. TIM1 is centre-aligned at **50 kHz**
+(ARR 2375 off 237.5 MHz), dead time **DTG 19 = 80.0 ns**, break on PE15
+active low, AOE off so nothing re-arms itself. `Board_PwmInit()` starts the
+counter with MOE clear and CCxE set, which drives all six outputs to their
+idle level: both FETs of every leg held off in hardware. Nothing sets MOE,
+and there is no commutation and no current loop.
+
+The gate drivers and the FETs are fitted (2EDL8034 x3, IAUCN10S7N021 -
+`electronics/`) and **their supply is not the MCU's to switch** - the Safe
+Torque Off chain releases it, unlocked by a pilot tone on RS485. This is
+still a measurement and bring-up platform. Nothing has run near 63 V or
+100 A, and no measured value is recorded here — invariant 10.
 
 VREFBUF is deliberately **disabled**, VREF+ high-impedance, so the AFE drives the
 ADC reference. That is the mechanism behind invariant 9. The AFE's own source is

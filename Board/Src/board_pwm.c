@@ -8,11 +8,9 @@
   * the master output enable. It does NOT configure the timer - see
   * Board_PwmReady().
   *
-  * Written against the CMSIS registers rather than a HAL handle because
-  * CubeMX has not generated MX_TIM1_Init: TIM1 has its pins assigned in the
-  * .ioc but is not in the peripheral list, so there is no htim1 to link
-  * against. Direct register access also keeps the write that matters -
-  * clearing MOE - down to one store that cannot fail partway.
+  * Written against the CMSIS registers rather than the htim1 handle: the
+  * write that matters - clearing MOE - is then one store that cannot fail
+  * partway, and drops every output to its idle level without the timer.
   *
   * Nothing here judges a duty. The board is a dumb slave (invariant 10): it
   * takes compare ticks and reports what it took. What it will NOT do is
@@ -56,15 +54,13 @@ bool Board_PwmFault(void)
      TIM1_BKIN, which is a hardware path: the outputs are already off by the
      time any of this runs.
 
-     nFAULT is active low - high is normal - so BDTR.BKP must be
-     TIM_BREAKPOLARITY_LOW, and BDTR.AOE must stay off: a bridge that
-     re-arms itself after a fault is the one thing nobody wants here.
+     It does NOT come from the gate drivers. A 2EDL8034 in PG-DSO-8 has
+     eight pins and no fault output; PE15 carries FAULTIN from the STO
+     chain. Active low, so BDTR.BKP is TIM_BREAKPOLARITY_LOW and AOE stays
+     off - nothing re-arms itself.
 
-     That polarity is NOT yet set anywhere, on purpose. PE15 measures 0 -
-     a fault, by that polarity - whenever AFE_ON is high, which is exactly
-     when the machine would be running. Configure the break against that
-     and the bridge either never starts or never stops. See FINDINGS, Open
-     Anomalies: the pin is GPIO_NOPULL and may simply be floating. */
+     With no pilot tone on RS485 the STO chain holds this asserted and the
+     bridge cannot start. That is the interlock, not a fault to clear. */
   return Board_PwmReady() && ((TIM1->SR & TIM_SR_BIF) != 0U);
 }
 
@@ -221,10 +217,26 @@ void Board_PwmState(board_pwm_state_t *out)
 bool Board_PwmInit(void)
 {
   /* The lazy shape the rest of Board/ uses - `if (!Ready() && !Init())`.
-     Unlike the others this one cannot make itself ready: TIM1 has its pins
-     in the .ioc but is not in the peripheral list, so MX_TIM1_Init does not
-     exist yet. What it can do is make sure the bridge is off and say
-     honestly whether there is a timer behind it. */
+     Leaves the counter running with MOE clear. OSSI forces the idle level
+     only where CCxE or CCxNE is set, so enabling the six outputs here is
+     what holds the gates down in hardware rather than in nobody's hands. */
   Board_PwmDisable();
-  return Board_PwmReady();
+
+  if (!Board_PwmReady())
+  {
+    return false;
+  }
+
+  TIM1->CCER |= TIM_CCER_CC1E | TIM_CCER_CC1NE
+              | TIM_CCER_CC2E | TIM_CCER_CC2NE
+              | TIM_CCER_CC3E | TIM_CCER_CC3NE;
+  TIM1->CR1 |= TIM_CR1_CEN;
+
+  /* Measured on target: BIF is latched by the time this runs. PE15 is AF
+     open-drain with no pull and floats while MX_TIM1_Init enables BKE, so
+     the break trips on our own start-up. Clearing it here makes
+     Board_PwmFault() mean the pin; a pin really low latches it straight
+     back. */
+  TIM1->SR &= ~TIM_SR_BIF;
+  return true;
 }

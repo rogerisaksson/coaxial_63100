@@ -97,6 +97,60 @@ channel table as `ADC_UNIT_NONE` with nothing said about them:
 **(STOP)** on the MCU sheet, so a fault stops the bridge in hardware without
 the firmware being involved.
 
+## The bridge, and why the dead time is 80 ns
+
+TIM1 centre-aligned, ARR **2375** off 237.5 MHz = **50.000 kHz** exactly, RCR 1,
+CKD DIV1 so one dead-time tick is **4.2105 ns**. `BDTR.DTG` = **19** = **80.0 ns**.
+
+The gate drive is resonant, not a plain RC. Per FET, off the schematic:
+
+    HO --[R9 0.47R]--[L6 120nH]--+-- gate  (D5 Schottky across R9)
+                                 +-- D1 CDZV15B 15 V clamp
+                                 +-- R7 4.99R + C7 3.9nF -- source
+
+**R7/C7 is a damper to source, not the gate resistor.** The gate path is
+0.47 R + 120 nH into C_gs 5.48 nF; the damper takes the resonance without
+slowing the DC drive. That is why the numbers below barely move with load.
+
+Where 80 ns comes from, simulated on the models in `electronic_simulations`
+(`IAUCN10S7N021` VDMOS, `LQW18CAR12J00D`, `2EDL8034F5.lib`). The criterion is
+gate overlap - when the outgoing gate crosses V_th against when the incoming
+one does - because that is independent of the power loop inductance, which
+sets how big the shoot-through current gets but not whether there is one.
+
+| V_th | V_DD | LS off -> HS on | HS off -> LS on |
+|---|---|---|---|
+| 2.2 V | 14.9 V | 49.9 ns | 56.3 ns |
+| 2.2 V | 16.5 V | 52.1 ns | **59.4 ns** |
+| 2.8 V | 15.7 V | 44.3 ns | 50.3 ns |
+| 3.4 V | 14.9 V | 36.3 ns | 41.0 ns |
+
+Tj 125 C, 100 A, 63 V. Over +/-100 A the spread is 1.5 ns and over 27->125 C
+it is 1 ns, so one fixed DTG is enough - no adaptive dead time.
+
+    59.4 ns   worst-corner gate overlap
+   + 6.0 ns   TDMOFF max, 2EDL8034 (the absolute 50 ns delays are common
+              to both channels and cancel to within the matching spec)
+   -------
+     65.4 ns  floor
+     80.0 ns  DTG 19, 22 % over the floor and exactly on a code
+
+**The driver has no interlock.** 2EDL8034 datasheet p.1: *"Independent inputs
+allow controlling high- and low-side domains independently."* HI and LI may
+both be high and it will drive both gates. `BDTR.DTG` is the only
+shoot-through protection on this board, which is what makes `Board_PwmSetAll`
+all-or-none and DTG safety-critical rather than a tuning knob.
+
+**It has no fault pin and no enable either** - PG-DSO-8, and the eight are
+VDD, HB, HO, HS, HI, LI, VSS, LO. `nFAULT` on `PE15` comes from the STO
+chain, not from the drivers. UVLO is 7.3 V rising / 6.7 V falling on VDD and
+6.3 / 5.7 V on VHB-HS.
+
+**Minimum pulse.** TPW is 40 ns - a shorter input pulse changes nothing at
+the output - which is 10 ticks. With DTG 19 the smallest high-side pulse that
+exists is 29 ticks, about 122 ns, so `CCR >= 15` of 2375: **0.63 % duty**.
+That is the floor for low-speed saliency injection, not a rounding detail.
+
 ## Sensors on SPI
 
 Both are polled by the firmware's main loop into shared memory; the host reads that and never drives a bus while a loop runs. Both die without `PB2`. What is fitted comes from the board - command `0x6D` kind 4 - not from this table.

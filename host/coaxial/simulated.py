@@ -213,8 +213,8 @@ SUBSYSTEMS = [
 
 DIGITAL = [
     {'pin': 'PB2',  'direction': 'out', 'signal': 'AFE_ON'},
-    {'pin': 'PE14', 'direction': 'out', 'signal': 'UART5_TERM'},
     {'pin': 'PE15', 'direction': 'in',  'signal': 'nFAULT'},
+    {'pin': 'PE14', 'direction': 'out', 'signal': 'UART5_TERM'},
 ]
 
 # Not channels: the bus the command arrived on and the debug port. Reported

@@ -92,26 +92,32 @@ and never checked.
 * **DC Bus Read Discrepancy:** Two different read paths yield a persistent ~30 mV delta.
 * **PE15 (`nFAULT`) Polarity:** Reads 0 (asserted) when the AFE is powered. Three explanations were open; the intended logic is now stated - high is normal, low is a fault - which **rules out inverted logic** and leaves a real fault or a supply pull. The firmware inverts nothing: `Board_Pe15` returns raw IDR and both the Modbus discrete input and `0x6D` pass it through, so the measurement is the pin's electrical level.
 
-  Explained: the gate drivers are not powered yet. An open-drain output
-  cannot pull low without a supply - it goes high impedance - so the pin
-  floats, and a floating input next to a switching rail follows whatever is
-  nearest. "Real fault" and "supply pull" turn out to be the same answer.
+  Explained, and the earlier explanation was wrong. It blamed an unpowered
+  open-drain output on the gate drivers. **A 2EDL8034 has no fault pin** -
+  PG-DSO-8, and the eight are VDD, HB, HO, HS, HI, LI, VSS, LO. `PE15`
+  carries `FAULTIN` from `STO.SchDoc`, where it sits on U11 (NL7SZ97) pin 1
+  and on U4 (TPS3840PL30) MR, with R99 220 ohm to `FAULTOUT`.
 
-  The earlier reading, now confirmed rather than proposed: the pin is
-  floating. A fault output is normally open drain, PE15 is configured `GPIO_NOPULL`, and nothing else on the board is known to pull it up - a floating input next to a switching supply will follow whatever rail is nearest, which is what "tracks `AFE_ON` inversely" would look like. **The conformance suite's "independent witness" that a coil write reached the pin may therefore be built on a floating input.**
+  Measured 2026-08-27 over SWD hotplug, AFE off: `GPIOE->IDR` bit 15 = 1,
+  `GPIOB->IDR` bit 2 = 0. So the pin is high when the AFE is off and low
+  when it is on, unchanged as a measurement - only the mechanism was wrong.
 
-  **The conformance suite's "independent witness" is therefore worthless as
-  written** - it reads a floating pin and will change meaning the moment the
-  drivers are powered, at which point nFAULT starts driving the line for
-  real. That check needs replacing before the supply is switched on, not
-  after it starts failing.
+  **The conformance suite's "independent witness" is still worthless as
+  written.** It reads a pin the MCU does not drive, whose source is a logic
+  gate fed through R97 100 kohm, and it will change meaning the moment the
+  STO chain releases. That check needs replacing before the supply is
+  switched on, not after it starts failing.
 
-  What is missing to close it, from the schematic: **no MCU pin powers the
-  drivers, and none should.** The supply is released by the Safe Torque Off
-  chain on `STO.SchDoc`, unlocked by a common-mode pilot tone the master
-  injects on the RS485 pair - see HARDWARE.md. Until a master is sending
-  that tone the chain never releases, the drivers stay unpowered, and their
-  open-drain nFAULT cannot pull the line either way.
+  **No MCU pin powers the drivers, and none should.** The supply is released
+  by the Safe Torque Off chain, unlocked by a common-mode pilot tone the
+  master injects on the RS485 pair - see HARDWARE.md. This is also why
+  `s_parts` gives the drivers and the FETs `power = "STO chain"`, which
+  names no GPIO on purpose.
 
-  The 2EDL8034s and the FETs are still not in `s_parts`, so the bridge is
-  invisible to `board_info kind=parts`.
+* **TIM1 latches a break during its own init.** Measured 2026-08-27: after
+  `MX_TIM1_Init`, `TIM1->SR` bit 7 (BIF) was set while `PE15` read 1. The
+  pin is AF open-drain with `GPIO_NOPULL` and floats while
+  `HAL_TIMEx_ConfigBreakInput` enables BKE, so the break trips on start-up
+  rather than on a fault. `Board_PwmInit()` now clears BIF after the pin has
+  settled; a pin genuinely low latches it straight back. Confirmed after the
+  fix: `TIM1->SR` = 0x1, UIF only.

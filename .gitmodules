@@ -1,0 +1,3 @@
+[submodule "electronic_simulations"]
+	path = electronic_simulations
+	url = git@gitlab.com:altium/electronic_simulations.git

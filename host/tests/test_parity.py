@@ -144,12 +144,20 @@ def main():
         report.check('the parts list matches, bar what each one measured',
                      live_parts == fake_parts,
                      '%d vs %d parts' % (len(live_parts), len(fake_parts)))
-        report.check('and every part that names a supply names one the '
-                     'digital map has',
-                     all(p[3] in ('',) + tuple(d['signal']
-                                               for d in live_map['digital'])
-                         for p in live_parts),
-                     ', '.join(sorted({p[3] for p in live_parts if p[3]})))
+        # This used to require every supply to be a signal in the digital
+        # map. It cannot: the gate drivers and FETs hang off ENABLE_GATES,
+        # which the STO chain owns and the MCU cannot switch, so "STO chain"
+        # naming no pin is a fact about the board and not a typo. What is
+        # still worth catching is the two sides disagreeing about which
+        # supplies are beyond the board's reach.
+        def offboard(rows, dmap):
+            signals = {d['signal'] for d in dmap['digital']}
+            return {r[3] for r in rows if r[3]} - signals
+
+        live_off = offboard(live_parts, live_map)
+        report.check('and the supplies no GPIO switches are the same both '
+                     'sides', live_off == offboard(fake_parts, fake_map),
+                     ', '.join(sorted(live_off)) or 'none')
 
         # board_info: the first three lines are identity, clock and the
         # device's own description, all of which are meant to differ - the
