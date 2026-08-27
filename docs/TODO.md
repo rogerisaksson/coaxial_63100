@@ -49,10 +49,12 @@ measured against an instrument — invariant 7.
 
 ## Next, in order
 
-1. **What `VLATCH` tolerates.** The keepalive means are 214/124 kHz, but the
-   worst case decides: a 276-byte SHTP cargo is 1.5 ms, 320× the idle
-   half-period. Until that is measured, a main-loop keepalive is unproven
-   under load. The model is `electronic_simulations/sto/sto.asc`.
+1. **Move the keepalive off the main loop.** Simulated: `VLATCH` holds only
+   ~200-400 µs without the pump, and `VGATEDRV` is below the drivers' UVLO
+   92 µs after it drops (τ = 115 µs). `Board_ImuPoll` stalls the loop 1.5 ms
+   on an SHTP cargo — 4-7× too long. Either chunk the cargo read, or toggle
+   from a periodic ISR gated on a main-loop counter, which keeps the
+   dead-man property. FINDINGS has the numbers and the caveats.
 2. **Cinj and Clevel cannot be sampled asynchronously** — apparent duty
    tracks the sample rate. Take them through the injected group, or with a
    longer sampling time. FINDINGS has the table.

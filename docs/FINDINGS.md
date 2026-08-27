@@ -151,6 +151,55 @@ Consequence: Clevel is identical before, during and after an attempted PWM
 run (mean 1304 / 1302 / 1304, sd 2299 / 2297 / 2301) because nothing
 switched. That is the interlock, not a null result.
 
+## The main-loop keepalive is too slow for an IMU cargo read
+
+Simulated 2026-08-27 on `electronic_simulations/sto/sto.asc`, 30 ms
+transient, waveforms read out of the `.raw` rather than by eye.
+
+The chain does release: `VGATEDRV` holds **14.904 V** steady from 7.26 ms to
+15.89 ms. `VLATCH` sits at **2.895-3.002 V** while solid - 107 mV of ripple
+on a 3 V level, pumped at 100 kHz.
+
+The collapse is a two-stage thing and only the second stage is slow:
+
+| Stage | Behaviour |
+|---|---|
+| `VLATCH` crosses 0.75 V | **abrupt** - it gates a switch (`.model DCDC_CONV SW(Vt=0.75 Vh=0.35)`), so it snaps rather than decays |
+| `VGATEDRV` after that | exponential, **tau = 115.0 us** |
+
+    below 10 V ................................  46 us
+    below 2EDL8034 VDD UVLO falling, 6.7 V ....  92 us
+    below bootstrap UVLO falling, 5.7 V ....... 111 us
+
+**How long may the pump stop?** 107 mV of droop per 10 us at 3 V is
+10.7 mV/us, so reaching 0.75 V takes on the order of **200-400 us**
+depending on whether the discharge reads as linear or exponential. Not
+measured directly - the model's pump never gaps, it runs to 18 ms and
+`VLATCH` had already collapsed at 15.75 ms for a reason not isolated here.
+
+**That is the problem.** `Board_ImuPoll` can stall the main loop for
+**1.5 ms** on a 276-byte SHTP cargo at 1.48 MHz - the comment in `main.c`
+says so. That is 4-7x the latch's hold time, and the gate drivers are below
+UVLO 92 us after it lets go. A keepalive toggled from the top of the main
+loop is therefore **not safe once the IMU is streaming**, even though its
+mean rate (214 kHz idle, 124 kHz under Modbus) looks like ten times the
+margin it needs.
+
+Two ways out, and the second keeps the dead-man property:
+
+* break the SHTP cargo read into chunks so the loop never stalls that long;
+* toggle from a periodic interrupt that is gated on a counter the main loop
+  refreshes - the ISR stops when the loop stops, but a 1.5 ms SPI transfer
+  no longer starves it. A free-running timer is still not an option: it
+  keeps toggling after a hang, which is the one thing the chain exists to
+  catch.
+
+Caveats on all of the above: the model's pilot injector `PAM8406` has an
+empty value, so no pilot tone was injected and the run reproduces the real
+board's held-off state rather than a released one. `VGATEDRV` also cycles
+(up 1.66-4.18 ms, down 3.08 ms, up 7.26-15.89 ms) for a reason not chased.
+These are the model's numbers, not the board's.
+
 ## Open: Cinj and Clevel cannot be sampled asynchronously
 
 Apparent duty falls monotonically with sample rate, which a fixed-duty
