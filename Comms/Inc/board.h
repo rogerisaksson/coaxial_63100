@@ -213,9 +213,13 @@ typedef struct
   int32_t level_raw;          /**< integrator level - the margin left     */
   int32_t level_microvolts;
   bool    stopped;            /**< TIM1 break latched: nFAULT on PE15     */
+  uint32_t keepalive;         /**< edges pumped since boot - the loop rate */
 } board_sto_state_t;
 
 void Board_StoState(board_sto_state_t *out);
+
+/** One edge into the STO charge pump. Call from the main loop, unguarded. */
+void Board_StoKeepalive(void);
 
 
 /** One simultaneous triple, latched by the injected end-of-sequence. */

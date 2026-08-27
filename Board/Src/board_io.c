@@ -34,6 +34,9 @@ static const DigitalDesc s_digital[] =
      chain, not from the drivers - a 2EDL8034 has no fault pin. */
   { 'E', 15U, "PE15", BOARD_DIR_IN,    "nFAULT",              true  },
   { 'E', 14U, "PE14", BOARD_DIR_OUT,   "UART5_TERM",          true  },
+  /* The STO chain's proof that main() is still turning. Toggled from the
+     poll loop, never by a timer - see Board_StoKeepalive(). */
+  { 'A', 10U, "PA10", BOARD_DIR_OUT,   "KEEPALIVE",           true  },
   { 'B', 10U, "PB10", BOARD_DIR_OUT,   "USART3_TX",           false },
   { 'B', 11U, "PB11", BOARD_DIR_IN,    "USART3_RX",           false },
   { 'A', 13U, "PA13", BOARD_DIR_INOUT, "JTMS/SWDIO",          false },

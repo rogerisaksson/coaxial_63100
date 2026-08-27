@@ -379,7 +379,8 @@ recorded failure. Cut the paragraph around them.
 
 ```
 Core/        CubeMX-generated. main.c holds ONLY CubeMX functions, main(),
-             and the two poll calls the sensors need. Keep it that way.
+             the two poll calls the sensors need, and the STO keepalive
+             toggle. Keep it that way.
 electronics/ schematic and BOM - the authority on what is fitted
 render/      the CAD export the attitude view draws from
 Board/       this hardware, behind Comms/Inc/board.h

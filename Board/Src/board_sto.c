@@ -24,6 +24,7 @@
   ******************************************************************************
   */
 #include "board.h"
+#include "board_hw.h"
 
 #include <string.h>
 
@@ -64,6 +65,23 @@ static bool STO_ReadOne(const char *signal, int32_t *raw, int32_t *microvolts)
 }
 
 
+static uint32_t s_keepalive;
+
+
+void Board_StoKeepalive(void)
+{
+  /* PA10 into R72 330R, C71 100nF and the D10/D14/D15 diodes: a charge
+     pump, so only edges deliver anything and a held level is worth exactly
+     as much as a stopped CPU. That is the point of it - the chain decays
+     unless main() keeps turning, and no timer can fake that.
+
+     Measured in electronic_simulations/sto: the model drives this at 100 kHz
+     and stops at 18 ms to show the release. */
+  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_10);
+  s_keepalive++;
+}
+
+
 void Board_StoState(board_sto_state_t *out)
 {
   if (out == NULL)
@@ -84,4 +102,8 @@ void Board_StoState(board_sto_state_t *out)
 
   /* The one thing the hardware settles by itself. */
   out->stopped = Board_PwmFault();
+
+  /* Reported, not judged: how fast the loop is turning is a fact, and
+     whether it is fast enough belongs where the thresholds are. */
+  out->keepalive = s_keepalive;
 }
