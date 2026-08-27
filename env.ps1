@@ -221,6 +221,135 @@ function board {
     try { python -m coaxial @args } finally { Pop-Location }
 }
 
+function cube-cmake {
+    <# cube-cmake, and then the helpers it leaves running.
+
+       This SHADOWS the executable rather than wrapping it in cbuild, because
+       wrapping cbuild only cleans up the calls that went through cbuild -
+       and most of them do not. Every `cube-cmake --build` starts a `cube`
+       and a `cube-cmsis-scanner` and neither exits: four of them, 121 MB,
+       from builds hours apart.
+
+       Only what this call started is stopped. The VS Code extension keeps
+       its own `cube` alive and respawns it within a second; that one is not
+       this shell's to end. #>
+    $exe = Get-Command 'cube-cmake.exe' -CommandType Application `
+                       -ErrorAction SilentlyContinue |
+           Select-Object -First 1
+    if ($null -eq $exe) {
+        Write-Host 'cube-cmake not on PATH: run .\setup.ps1' -ForegroundColor Yellow
+        return
+    }
+
+    $before = @(Get-Process -Name 'cube', 'cube-cmsis-scanner' `
+                            -ErrorAction SilentlyContinue |
+                ForEach-Object { $_.Id })
+
+    # Nothing is captured or returned: the build's output belongs on the
+    # caller's stream, and $LASTEXITCODE survives the tidying because only a
+    # native executable sets it.
+    try {
+        & $exe.Source @args
+    } finally {
+        Get-Process -Name 'cube', 'cube-cmsis-scanner' `
+                    -ErrorAction SilentlyContinue |
+            Where-Object { $before -notcontains $_.Id } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function cube-release {
+    <# Stop the build helpers, leaving anything older than this shell alone.
+
+       Every `cube-cmake --build` starts a `cube` and a `cube-cmsis-scanner`
+       and neither exits. cbuild and tools/build_and_flash.py already reap
+       their own; this is for the ones a bare `cube-cmake` left behind, and
+       for headless CubeMX, which parks a java on the .ioc.
+
+       -All takes the lot, including the VS Code extension's - which is
+       harmless, it respawns within a second. #>
+    param([switch]$All)
+
+    $names = @('cube', 'cube-cmsis-scanner')
+    if ($All) { $names += 'java' }
+
+    $stopped = 0
+    foreach ($proc in (Get-Process -Name $names -ErrorAction SilentlyContinue)) {
+        if (-not $All -and $proc.StartTime -lt $script:CoaxialShellStart) { continue }
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        $stopped++
+    }
+    Write-Host "released $stopped helper(s)" -ForegroundColor DarkGray
+}
+
+function cubemx-script {
+    <# CubeMX headless on a script file, and the java it parks afterwards.
+
+       Headless runs do not exit cleanly - four sessions were still up after
+       an afternoon of them, which is what this exists to stop. #>
+    param([Parameter(Mandatory)][string]$Script)
+
+    $before = @(Get-Process -Name 'java' -ErrorAction SilentlyContinue |
+                ForEach-Object { $_.Id })
+    try {
+        cubemx -q $Script
+    } finally {
+        Get-Process -Name 'java' -ErrorAction SilentlyContinue |
+            Where-Object { $before -notcontains $_.Id } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function cubemx {
+    <# Open the .ioc in STM32CubeMX.
+
+       The bundle's own layout is ST's business, so the executable is searched
+       for rather than assumed - and the search is here, not at dot-source time,
+       because it walks 800 MB of bundle and nobody wants that in every shell. #>
+    param([string]$Ioc = 'coaxial_63100.ioc')
+
+    $found = $null
+    $dir = Join-Path $env:LOCALAPPDATA 'stm32cube\bundles\stm32cubemx-application'
+    if (Test-Path $dir) {
+        $exe = Get-ChildItem $dir -Recurse -Filter 'STM32CubeMX.exe' -ErrorAction SilentlyContinue |
+               Select-Object -First 1
+        if ($null -ne $exe) { $found = $exe.FullName }
+    }
+    if ($null -eq $found) {
+        # A standalone install from st.com counts too - setup.ps1 offers that
+        # route when the bundle is not wanted, so this has to know about it.
+        foreach ($c in @(
+            (Join-Path $env:ProgramFiles 'STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Programs\STMicroelectronics\STM32Cube\STM32CubeMX\STM32CubeMX.exe'))) {
+            if (($null -ne $c) -and (Test-Path $c)) { $found = $c; break }
+        }
+    }
+    if ($null -eq $found) {
+        Write-Host 'STM32CubeMX is not installed: run .\setup.ps1' -ForegroundColor Yellow
+        return
+    }
+    Start-Process -FilePath $found -ArgumentList (Join-Path $script:CoaxialRoot $Ioc)
+}
+
+function board_prompt {
+    <# The prompt loop, with the daemon started and the model already loaded.
+       board_prompt.ps1 does the preflight; this is the short way to say it. #>
+    & (Join-Path $script:CoaxialRoot 'board_prompt.ps1') @args
+}
+
+function dbg {
+    <# Ask the local model about the board. See host/coaxial_ollama/debug.py. #>
+    Push-Location (Join-Path $script:CoaxialRoot 'host')
+    try { python dbg.py @args } finally { Pop-Location }
+}
+
+function board {
+    <# The plain CLI: measure, no model in the loop. #>
+    Push-Location (Join-Path $script:CoaxialRoot 'host')
+    try { python -m coaxial @args } finally { Pop-Location }
+}
+
 function Invoke-CubeCmake {
     <# cube-cmake, and then the helpers it leaves running.
 
@@ -250,7 +379,7 @@ function Invoke-CubeCmake {
 function cbuild {
     <# Build. Zero warnings is the standard, not an aspiration. #>
     Push-Location $script:CoaxialRoot
-    try { Invoke-CubeCmake --build --preset Debug @args }
+    try { cube-cmake --build --preset Debug @args }
     finally { Pop-Location }
 }
 
