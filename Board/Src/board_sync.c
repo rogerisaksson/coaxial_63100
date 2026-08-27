@@ -17,7 +17,7 @@
   * its own trigger, and which preempts rather than disturbs the regular one.
   *
   * TIM1 exists now - centre-aligned, ARR 2375 for 50 kHz, DTG 19. What this
-  * file owns on top of that is the sample point: CCR4 and TRGO2, because
+  * file owns on top of that is the sample point: CCR5 and TRGO2, because
   * CubeMX takes MasterOutputTrigger2, stores it as "null" and emits
   * TIM_TRGO2_RESET anyway.
   ******************************************************************************
@@ -41,13 +41,13 @@ extern ADC_HandleTypeDef hadc3;
 #define SYNC_V_CHANNEL ADC_CHANNEL_3     /* ADC1 IN3,  PA6/PA7     */
 #define SYNC_W_CHANNEL ADC_CHANNEL_4     /* ADC2 IN4,  PC4/PC5     */
 
-/** How far below the top OC4REF falls. The trigger is its rising edge, so
+/** How far below the top OC5REF falls. The trigger is its rising edge, so
     the ADC starts that far after the counter turns - inside the zero vector,
     no gate edge within the sampling window. 15 ticks is 63 ns. */
 #define SYNC_TRIGGER_LEAD 15U
 
 
-/** CCR4 as last set. Zero means nobody has chosen, so arming picks the
+/** CCR5 as last set. Zero means nobody has chosen, so arming picks the
     default lead. Kept across disarm so a tuning run is not undone by it. */
 static uint16_t s_trigger;
 
@@ -58,28 +58,32 @@ static void SYNC_ConfigTrigger(void)
   {
     s_trigger = (uint16_t)(TIM1->ARR - SYNC_TRIGGER_LEAD);
   }
-  TIM1->CCR4 = s_trigger;
-  MODIFY_REG(TIM1->CR2, TIM_CR2_MMS2, TIM_TRGO2_OC4REF);
+  /* Channel 5, not 4: CubeMX reported channel 4 in conflict with another
+     peripheral and it moved to 5. Both are internal - neither has an output
+     pin - and OC5REF drives TRGO2 exactly as OC4REF did. Anything reading
+     `trigger` sees the same number it always did. */
+  TIM1->CCR5 = s_trigger;
+  MODIFY_REG(TIM1->CR2, TIM_CR2_MMS2, TIM_TRGO2_OC5REF);
 }
 
 
 bool Board_SyncSetTrigger(uint16_t ticks)
 {
-  /* Straight into CCR4, armed or not: moving the sample point while the
+  /* Straight into CCR5, armed or not: moving the sample point while the
      triples are running is the whole point of being able to move it. */
   if (!Board_PwmReady() || ticks > TIM1->ARR)
   {
     return false;
   }
   s_trigger = ticks;
-  TIM1->CCR4 = ticks;
+  TIM1->CCR5 = ticks;
   return true;
 }
 
 
 uint16_t Board_SyncTrigger(void)
 {
-  return Board_PwmReady() ? (uint16_t)TIM1->CCR4 : 0U;
+  return Board_PwmReady() ? (uint16_t)TIM1->CCR5 : 0U;
 }
 
 static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel)
