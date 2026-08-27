@@ -200,6 +200,66 @@ board's held-off state rather than a released one. `VGATEDRV` also cycles
 (up 1.66-4.18 ms, down 3.08 ms, up 7.26-15.89 ms) for a reason not chased.
 These are the model's numbers, not the board's.
 
+## The bench board's AFE gate is inverted, and it costs the measurement
+
+Told by the user 2026-08-27 and consistent with everything measured: on this
+board variant the gate drivers have supply **while `AFE_ON` is off**, not
+while it is on. A hardware bug, to be patched by hand.
+
+The consequence is the awkward one. `AFE_ON` also powers the ADC reference
+(invariant 9), so:
+
+| AFE_ON | gate drivers | current measurement |
+|---|---|---|
+| off | **powered** - the bridge can switch | meaningless: every channel reads mid-scale |
+| on | unpowered - nothing switches | valid |
+
+**Switching and measuring are mutually exclusive on this board.** Nothing
+below was taken with a live power stage, and nothing can be until the patch.
+
+## The current path is consistent, with the bridge inert
+
+AFE on, break bypassed, bridge enabled, sync armed. Duty swept 0-100 % equal
+on all three phases, and the sample point swept across the period:
+
+| Swept | Phase U | Phase V | Phase W |
+|---|---|---|---|
+| duty, 0-100 % | means within 31 LSB | within 43 | within 34 |
+| CCR4, 60..2360 | within 41 LSB | within 18 | within 34 |
+
+All inside one standard deviation, zero overruns throughout, DC bus flat to
++/-0.01 %. Scaled, 8 blocks of 64 samples:
+
+| Channel | value | sd | peak-peak | drift over 8 s |
+|---|---|---|---|---|
+| Phase U | +2.449 A | 0.412 A | 1.766 A | 0.117 A |
+| Phase V | -57.178 A | 0.354 A | 1.576 A | 0.273 A |
+| Phase W | -3.867 A | 0.412 A | 2.013 A | 0.210 A |
+| DC bus | 24.7704 V | 3.1 mV | 13.1 mV | 3.1 mV |
+| NTC | 38.798 C | 6.2 mK | 29.9 mK | 34.4 mK |
+
+The absolute phase figures are offsets, not currents - nothing is connected,
+Phase V carries the known bad op-amp, and the boot calibration runs against
+an unpowered input with about 100 mV of boot-to-boot spread, which is +/-6 A
+here. **The useful number is the noise floor: 0.35-0.41 A RMS, 1.6-2.0 A
+peak-to-peak, 0.2 % of the 207.4 A full scale**, and it does not move with
+duty or sample point. DC bus noise is 125 ppm.
+
+Unexplained and worth reproducing before it is believed: an earlier run
+tripped something at 50 % duty and power-cycled the board - `RCC_RSR` showed
+no software or watchdog reset, so it was a power event. But that run also
+had `AFE_ON` high, which by the table above means the drivers were
+unpowered and nothing could have drawn current. Either the inversion is not
+clean or the trip had another cause. A later run swept 0-100 % under the
+same conditions without incident.
+
+## CCR4 = ARR stops the trigger, exactly like CCR4 = 0
+
+Measured: `updates` +52149 per second at CCR4 2360, **+0** at 2375 and **+0**
+at 0. The latched triple then freezes, and 60 reads of a frozen value return
+sd = 0.0 - which reads like a perfectly quiet channel and is not one. Both
+ends of the range are degenerate; only one of them was documented.
+
 ## Open: Cinj and Clevel cannot be sampled asynchronously
 
 Apparent duty falls monotonically with sample rate, which a fixed-duty

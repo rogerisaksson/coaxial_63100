@@ -191,6 +191,7 @@ typedef struct
   uint32_t period;                   /**< ARR + 1, in timer ticks          */
   uint8_t  deadtime;                 /**< BDTR DTG, raw - not nanoseconds  */
   uint16_t duty[BOARD_PWM_PHASES];   /**< compare ticks, as last accepted  */
+  bool     bypassed;                 /**< BDTR.BKE cleared - break ignored */
 } board_pwm_state_t;
 
 /** Bridge off, and true only if TIM1 is configured. Cannot configure it. */
@@ -286,6 +287,12 @@ bool Board_PwmIsEnabled(void);
 
 /** Is the break latched? It is nFAULT arriving through TIM1_BKIN. */
 bool Board_PwmFault(void);
+
+/** Disconnect TIM1's break input, for bench work with the bridge unpowered.
+    Clearing the latch alone cannot work: with PE15 low the break is a level
+    and the hardware holds MOE clear. Does not survive a reset. */
+bool Board_PwmSetBreakBypass(bool on);
+bool Board_PwmBreakBypassed(void);
 
 /** Clear the break latch. Does NOT re-arm - the caller must ask again. */
 bool Board_PwmClearFault(void);

@@ -810,6 +810,7 @@ class SimulatedBridge:
         self._trigger = self.TRIGGER
         self._updates = 0
         self._keepalive = 0
+        self._bypassed = False
 
     def state(self):
         self._keepalive += 214000        # the measured idle toggle rate
@@ -826,7 +827,12 @@ class SimulatedBridge:
             'keepalive': self._keepalive,
             'pilot_raw': 15149, 'pilot_microvolts': 763000,
             'level_raw': 1305, 'level_microvolts': 65000,
+            'break_bypassed': self._bypassed,
         }
+
+    def bypass_break(self, on=True):
+        self._bypassed = bool(on)
+        return True
 
     def enable(self):
         from .errors import RigError

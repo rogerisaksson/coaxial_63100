@@ -25,6 +25,7 @@ OP_DUTY = 2
 OP_SYNC = 3
 OP_TRIGGER = 4
 OP_CLEAR = 5
+OP_BYPASS = 6
 
 
 class Bridge(Subsystem):
@@ -59,6 +60,7 @@ class Bridge(Subsystem):
         out['pilot_microvolts'] = r.i32()
         out['level_raw'] = r.i32()
         out['level_microvolts'] = r.i32()
+        out['break_bypassed'] = bool(r.u8() & 0x01)
         return out
 
     def enable(self):
@@ -123,6 +125,22 @@ class Bridge(Subsystem):
             return self.state()['trigger']
         return int.from_bytes(self._op(OP_TRIGGER,
                                        int(ticks).to_bytes(2, 'big')), 'big')
+
+    def bypass_break(self, on=True):
+        """Disconnect TIM1's break input so the bridge can run on the bench.
+
+        Clearing the latch alone cannot work: with PE15 low the break is a
+        level, so the hardware holds MOE clear and software cannot set it.
+        This drops BDTR.BKE instead.
+
+        What makes it safe is the board, not this call. The STO chain gates
+        the gate drivers' own DC/DC, which no MCU pin reaches - with no pilot
+        tone the drivers have no supply and the six outputs toggle into
+        unpowered inputs. A reset puts the break back.
+        """
+        if self._op(OP_BYPASS, bytes([1 if on else 0]))[0] != 1:
+            raise RigError('the board refused to change the break bypass')
+        return True
 
     def clear_fault(self):
         """Clear the break latch. Does NOT re-arm; the caller asks again."""

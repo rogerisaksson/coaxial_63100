@@ -87,6 +87,42 @@ void Board_PwmDisable(void)
 }
 
 
+bool Board_PwmSetBreakBypass(bool on)
+{
+  /* Clearing the LATCH is not enough and never was: with BKE set and PE15
+     low the break is a level, so the hardware holds MOE clear and software
+     cannot set it at all. The bypass has to disconnect the input.
+
+     What makes this safe is not this file. The STO chain gates the gate
+     drivers' own DC/DC, which no MCU pin reaches - with no pilot tone on
+     RS485 the drivers have no supply, so the six outputs toggle into
+     unpowered inputs and the FETs cannot switch. This removes the MCU's
+     interlock, not the board's. A reset restores it: MX_TIM1_Init sets BKE
+     and nothing here persists. */
+  if (!Board_PwmReady())
+  {
+    return false;
+  }
+
+  if (on)
+  {
+    TIM1->BDTR &= ~TIM_BDTR_BKE;
+    TIM1->SR &= ~TIM_SR_BIF;
+  }
+  else
+  {
+    TIM1->BDTR |= TIM_BDTR_BKE;
+  }
+  return true;
+}
+
+
+bool Board_PwmBreakBypassed(void)
+{
+  return Board_PwmReady() && ((TIM1->BDTR & TIM_BDTR_BKE) == 0U);
+}
+
+
 bool Board_PwmClearFault(void)
 {
   if (!Board_PwmReady())
@@ -108,7 +144,7 @@ bool Board_PwmEnable(void)
   {
     return false;
   }
-  if ((TIM1->SR & TIM_SR_BIF) != 0U)
+  if (((TIM1->SR & TIM_SR_BIF) != 0U) && !Board_PwmBreakBypassed())
   {
     return false;               /* a latched break outranks any request */
   }
@@ -206,6 +242,7 @@ void Board_PwmState(board_pwm_state_t *out)
   out->fault = Board_PwmFault();
   out->period = Board_PwmPeriod();
   out->deadtime = out->ready ? (uint8_t)(TIM1->BDTR & TIM_BDTR_DTG) : 0U;
+  out->bypassed = Board_PwmBreakBypassed();
 
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {

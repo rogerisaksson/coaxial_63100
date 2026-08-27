@@ -64,6 +64,9 @@ static cmd_status_t h_bridge_state(wr_t *out)
   wr_i32(out, sto.pilot_microvolts);
   wr_i32(out, sto.level_raw);
   wr_i32(out, sto.level_microvolts);
+  /* Appended, not squeezed into the first byte: that one is full, and
+     moving any offset would break every decoder for one bit. */
+  wr_u8(out, pwm.bypassed ? 0x01U : 0x00U);
 
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
@@ -160,6 +163,22 @@ static cmd_status_t h_bridge_trigger(rd_t *in, wr_t *out)
 }
 
 
+/** op 6 - disconnect the break input, for bench work. Loud on purpose: it
+    shows in the state reply, and a reset puts it back. */
+static cmd_status_t h_bridge_bypass(rd_t *in, wr_t *out)
+{
+  const uint8_t on = rd_u8(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+
+  wr_u8(out, Board_PwmSetBreakBypass(on != 0U) ? 1U : 0U);
+  return CMD_OK;
+}
+
+
 /** op 5 - clear the break latch. Does not re-arm; the caller asks again. */
 static cmd_status_t h_bridge_clear(wr_t *out)
 {
@@ -178,6 +197,7 @@ cmd_status_t cmd_bridge_op(uint8_t op, rd_t *in, wr_t *out)
     case BRIDGE_OP_SYNC:    return h_bridge_sync(in, out);
     case BRIDGE_OP_TRIGGER: return h_bridge_trigger(in, out);
     case BRIDGE_OP_CLEAR:   return h_bridge_clear(out);
+    case BRIDGE_OP_BYPASS:  return h_bridge_bypass(in, out);
     default:                return CMD_ERR_VALUE;
   }
 }
