@@ -44,7 +44,7 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   | 3 | the calibration record | flash, bank 2 sector 7 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults |
   | 4 | the bridge | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap |
   | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
-  | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout |
+  | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live |
 
   Device 4 answers TIM1, the synced phase triple and Safe Torque Off together because tuning the sample point needs all three from the same moment. **Op 0** replies 48 bytes: `u8 flags`, `u16 period`, `u8 deadtime`, `u16 duty[3]`, `u16 trigger`, `i16 phase[3]`, `u16 at`, `u32 updates`, `u32 overruns`, `u32 keepalive`, `u32 worst_gap`, then `i32 pilot_raw, pilot_uv, level_raw, level_uv`, then `u8 flags2`. Flag bits, LSB first: pwm ready, pwm enabled, break latched, sync ready, sync armed, AFE on, Cinj read, Clevel read. `flags2` bit 0 is the break bypass; it is appended rather than squeezed into the first byte, which is full, because moving an offset would break every decoder for one bit.
 
@@ -89,6 +89,14 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   **Reads are already whole frames.** One `read` fills a Modbus PDU, so blocking bigger buys nothing - the payload ceiling is about 3.8 kB/s whatever the record size, and records per second just scale inversely with stride. Past that the only thing that helps is producing fewer records, which is what `accumulate` and `decimate` do on the target before a byte is sent. Measured: seven channels and the digital word drop 3851 records at `accumulate` 1, and none at all at 16.
 
   **Op 4** replies `u8 got` then that many records of `u32 at` plus one `i32` per enabled channel, big-endian like everything else on this wire. Whole records only: half of one is not a short read, it is a corrupt one.
+
+  **Op 6 is the other way to read, and it cannot overflow.** Every trigger adds into a static accumulator sized to the maximum channel count - a task with one channel uses one slot of it - and op 6 takes that away and resets it. A late reader gets a **wider averaging window**, not a backlog: the ring drops when it is full, this has nothing to drop. Message in a bottle or fibre, the same call.
+
+  It replies `u8 fresh`, and stops there when nothing has arrived since the last take. Otherwise `u32 count, u32 first, u32 last`, then one `i32` sum per field, then the digital word if the task has one. Divide by `count` for the mean; summing keeps the bits an average would throw away.
+
+  **Blocking is the caller's side.** `fresh` of 0 is the answer, not a wait. A slave that sat on a reply until a sample arrived would hold the segment silent past t3.5 and break framing for everyone else on it.
+
+  Measured, seven channels free-running: takes 50 ms apart returned 10, 16, 20, 25, 31 and 36 samples with means tracking the meter (NTC 40859-40884 against 40878.7), and a 1.5 s wait returned **166 samples over 1 578 492 us with nothing dropped**.
 
   **Op 5 is what makes op 4 decodable.** It replies `u8 fields, u16 stride`, then per field `u8 channel, u8 unit, u8 differential, str signal`, then `u8 digital` and, when set, `u8 pins` and per pin `u8 direction, str signal`. Only the drivable pins: naming all twenty-three came to 312 bytes against MB_MAX_PDU's 253 and the reply failed outright, which is the same lesson the parts list already carries. A host builds its decoder from that, so a channel added to `Board/Src/board_adc.c` shows up in a capture with nothing else told. A record shape written into a header here and mirrored in a decoder there is two answers to one question, and the mirror is the one that goes stale.
 

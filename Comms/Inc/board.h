@@ -285,6 +285,28 @@ typedef struct
   board_daq_config_t config;
 } board_daq_state_t;
 
+/** The always-available accumulator: every trigger adds to it and a read
+    takes it away. Unlike the ring it CANNOT overflow - a slow link makes
+    the averaging window longer, not the data older, and there is nothing to
+    drop. Message in a bottle or fibre, the same code and the same answer.
+
+    `sum` holds one total per configured field, `count` how many went into
+    it, and `first`/`last` the span they came from. Divide if you want the
+    mean; the count is right there. */
+typedef struct
+{
+  bool     fresh;                      /**< anything arrived since the last */
+  uint32_t count;
+  uint32_t first;                      /**< Board_Cycles(), raw ticks       */
+  uint32_t last;
+  uint32_t digital;                    /**< pins at `last`                  */
+  int32_t  sum[BOARD_DAQ_MAX_CHANNELS];
+} board_daq_live_t;
+
+/** Copy the accumulator out and reset it. `fresh` is false when nothing has
+    arrived since the previous take, which is what a caller blocks on. */
+void Board_DaqTakeLive(board_daq_live_t *out);
+
 bool Board_DaqConfigure(const board_daq_config_t *cfg);
 /** Override the software clock's interval after configuring. The command
     layer uses it to fit a free-running task to the link it answers on;

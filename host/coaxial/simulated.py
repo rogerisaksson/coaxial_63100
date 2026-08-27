@@ -1085,6 +1085,28 @@ class SimulatedDaq:
             self._done = True
         return out
 
+    def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
+        import random
+        from .errors import RigError
+        if not self._running:
+            if not block:
+                return None
+            raise RigError('no sample in %.1f s - is the task running? '
+                           '(simulated)' % timeout)
+        layout = layout or self.layout()
+        count = random.randint(8, 40)
+        self._at = (self._at + count * 9500) & 0xFFFFFFFF
+        out = {'count': count, 'first': self._at, 'last': self._at}
+        out['sum'] = {f['signal']:
+                      sum(self.CENTRE[f['channel']] + random.randint(-60, 60)
+                          for _ in range(count))
+                      for f in layout['fields']}
+        out['mean'] = {k: v / count for k, v in out['sum'].items()}
+        if layout.get('pins'):
+            out['digital'] = {p['signal']: bool(random.getrandbits(1))
+                              for p in self.PINS}
+        return out
+
     def acquire(self, channels, records, clock='software', sample_time=0,
                 decimate=1, accumulate=1, timeout=10.0, digital=False,
                 rate_hz=None):

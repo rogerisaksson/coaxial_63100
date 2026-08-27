@@ -32,6 +32,12 @@ priority 5, 48.000 MHz from PLL3Q off the crystal. `MX_USB_OTG_FS_PCD_Init`
 runs at boot; there is no device class, so a host sees a device that fails
 enumeration.
 
+**Two ways to read, and they answer different questions.** Op 4 drains a
+ring - a capture, with history, that drops when the host falls behind. Op 6
+takes a live accumulator that cannot drop: a slow link widens the averaging
+window instead. Measured, 1.5 s between takes gave 166 samples in one reply
+and no drops.
+
 **A buffered capture view.** `demos/capture.ps1` drains both buffers at
 once - every AFE channel, every drivable pin and both SPI parts - and raises
 accumulation on its own when the board reports drops.

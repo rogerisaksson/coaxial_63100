@@ -30,6 +30,7 @@ DAQ_OP_START = 2
 DAQ_OP_STOP = 3
 DAQ_OP_READ = 4
 DAQ_OP_LAYOUT = 5
+DAQ_OP_LIVE = 6
 
 #: BOARD_UNIT_* as Comms/Inc/board.h numbers them. Getting this wrong
 #: labelled the NTC 'mV' and the DC bus 'mA' without changing a value.
@@ -171,6 +172,43 @@ class Daq(Subsystem):
                 rec['digital'] = {p['signal']: bool(bits >> n & 1)
                                   for n, p in enumerate(pins)}
             out.append(rec)
+        return out
+
+    def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
+        """The live accumulator, taken and reset. Cannot overflow.
+
+        Every trigger adds to it and this takes it away, so a late reader
+        gets a wider averaging window rather than a backlog - the opposite
+        of `read()`, which drains a ring that drops when it is full. Message
+        in a bottle or fibre, the same call.
+
+        Returns the sums and the count that went into them; divide for the
+        mean. `block` waits for a sample that has not been taken yet, on
+        this side: a slave that sat on a reply waiting for one would break
+        RTU framing for everyone else on the segment.
+        """
+        layout = layout or self.layout()
+        fields, pins = layout['fields'], layout.get('pins') or []
+        deadline = time.time() + timeout
+
+        while True:
+            r = Reader(self._op(DAQ_OP_LIVE))
+            if r.u8():
+                break
+            if not block:
+                return None
+            if time.time() > deadline:
+                raise RigError('no sample in %.1f s - is the task running? %s'
+                               % (timeout, self.state()))
+            time.sleep(poll)
+
+        out = {'count': r.u32(), 'first': r.u32(), 'last': r.u32()}
+        out['sum'] = {f['signal']: r.i32() for f in fields}
+        out['mean'] = {k: v / out['count'] for k, v in out['sum'].items()}
+        if pins:
+            bits = r.u32()
+            out['digital'] = {p['signal']: bool(bits >> n & 1)
+                              for n, p in enumerate(pins)}
         return out
 
     def drain(self, limit=None, layout=None):

@@ -236,6 +236,7 @@ extern "C" {
 #define DAQ_OP_STOP      3U
 #define DAQ_OP_READ      4U  /**< [u8 want] -> u8 got, then got x stride     */
 #define DAQ_OP_LAYOUT    5U  /**< -> what each field is, named by the board  */
+#define DAQ_OP_LIVE      6U  /**< -> u8 fresh, then the accumulator, reset   */
 
 /* Operations under CMD_IMU. */
 #define IMU_OP_ID      0U
@@ -274,7 +275,7 @@ extern "C" {
 #define CAL_OP_DEFAULTS    7U
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 14U
+#define CMD_PROTO_MINOR 15U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

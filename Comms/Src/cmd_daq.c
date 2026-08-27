@@ -241,6 +241,48 @@ static cmd_status_t h_daq_layout(wr_t *out)
 }
 
 
+/** op 6 - the live accumulator, taken and reset.
+  *
+  * One reply whatever the sampling rate: the count says how many went into
+  * it and the span says over what. A late reader gets a wider window rather
+  * than a backlog, so this path cannot overflow and has nothing to drop -
+  * which is the difference between it and the ring.
+  *
+  * `fresh` is 0 when nothing has arrived since the last take, and the reply
+  * stops there. A caller that wants to block does it on its own side: this
+  * is a request/response protocol, and a slave that sat on a reply waiting
+  * for a sample would break RTU framing for everyone on the segment.
+  */
+static cmd_status_t h_daq_live(wr_t *out)
+{
+  board_daq_state_t st;
+  board_daq_live_t live;
+
+  Board_DaqState(&st);
+  Board_DaqTakeLive(&live);
+
+  wr_u8(out, live.fresh ? 1U : 0U);
+
+  if (!live.fresh)
+  {
+    return CMD_OK;
+  }
+
+  wr_u32(out, live.count);
+  wr_u32(out, live.first);
+  wr_u32(out, live.last);
+  for (uint8_t f = 0U; f < st.fields; f++)
+  {
+    wr_i32(out, live.sum[f]);
+  }
+  if (st.config.digital != 0U)
+  {
+    wr_u32(out, live.digital);
+  }
+  return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
+}
+
+
 cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
@@ -251,6 +293,7 @@ cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out)
     case DAQ_OP_STOP:      return h_daq_stop(out);
     case DAQ_OP_READ:      return h_daq_read(in, out);
     case DAQ_OP_LAYOUT:    return h_daq_layout(out);
+    case DAQ_OP_LIVE:      return h_daq_live(out);
     default:               return CMD_ERR_VALUE;
   }
 }

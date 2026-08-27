@@ -64,6 +64,16 @@ static uint32_t s_interval_cycles;
    record is assembled across several. That is not a compromise on
    simultaneity - a software clock reads the channels one after another
    whatever it does - and it is what keeps the loop responsive. */
+/* The live accumulator, kept beside the ring and fed by the same triggers.
+   The ring is a capture and drops when it is full; this is the freshest
+   average and cannot drop, because a reader that is late just gets a wider
+   window. Separate totals so the two do not consume each other. */
+static int32_t  s_live[BOARD_DAQ_MAX_CHANNELS];
+static uint32_t s_live_n;
+static uint32_t s_live_first;
+static uint32_t s_live_last;
+static uint32_t s_live_digital;
+
 static uint8_t  s_next_field;
 static int32_t  s_pending[BOARD_DAQ_MAX_CHANNELS];
 static uint32_t s_pending_at;
@@ -185,7 +195,16 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
   for (uint8_t f = 0U; f < s_fields; f++)
   {
     s_acc[f] += values[f];
+    s_live[f] += values[f];
   }
+
+  if (s_live_n == 0U)
+  {
+    s_live_first = at;
+  }
+  s_live_n++;
+  s_live_last = at;
+  s_live_digital = digital;
 
   if (++s_acc_n >= s_cfg.accumulate)
   {
@@ -256,6 +275,8 @@ bool Board_DaqConfigure(const board_daq_config_t *cfg)
   s_skip = 0U;
   s_next_field = 0U;
   s_acc_n = 0U;
+  s_live_n = 0U;
+  memset(s_live, 0, sizeof(s_live));
   memset(s_acc, 0, sizeof(s_acc));
   return true;
 }
@@ -282,6 +303,8 @@ bool Board_DaqStart(void)
   s_skip = 0U;
   s_next_field = 0U;
   s_acc_n = 0U;
+  s_live_n = 0U;
+  memset(s_live, 0, sizeof(s_live));
   memset(s_acc, 0, sizeof(s_acc));
   s_running = true;
   return true;
@@ -291,6 +314,38 @@ bool Board_DaqStart(void)
 void Board_DaqStop(void)
 {
   s_running = false;
+}
+
+
+void Board_DaqTakeLive(board_daq_live_t *out)
+{
+  if (out == NULL)
+  {
+    return;
+  }
+
+  /* Under PRIMASK because feed() runs in ADC3's interrupt on the TIM1
+     clock: a reader that caught the count from one trigger and a sum from
+     the next would report a mean that was never taken. */
+  const uint32_t masked = __get_PRIMASK();
+  __disable_irq();
+
+  out->fresh = (s_live_n != 0U);
+  out->count = s_live_n;
+  out->first = s_live_first;
+  out->last = s_live_last;
+  out->digital = s_live_digital;
+  for (uint8_t f = 0U; f < BOARD_DAQ_MAX_CHANNELS; f++)
+  {
+    out->sum[f] = s_live[f];
+    s_live[f] = 0;
+  }
+  s_live_n = 0U;
+
+  if (!masked)
+  {
+    __enable_irq();
+  }
 }
 
 
