@@ -13,8 +13,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession, 
-    call, io, toolmod)   # noqa: E402
+from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession,
+    call, io, simulated, toolmod)   # noqa: E402
 
 def test_retype_with_the_trace_off(report):
     """A silenced retype must not leave an empty screen.
@@ -27,8 +27,11 @@ def test_retype_with_the_trace_off(report):
     """
     from coaxial_ollama import debug
 
-    retyped = ('PhaseU, PhaseV, PhaseW, Clevel, NTC, DCbus and Cinj were '
-               'all read just now.')
+    # Every channel the stand-in carries, named. Written out it was seven,
+    # and `s_adc` grew to nine.
+    retyped = ('%s were all read just now.'
+               % ', '.join(c['signal'].replace(' ', '')
+                           for c in simulated.CHANNELS))
 
     def turn(quiet):
         chat = debug.Chat(ScriptedModel([
@@ -65,8 +68,9 @@ def test_map_retype(report):
     # The package's stand-in, not this file's four-channel double: the names
     # below are the seven the board actually reports, and the check is that
     # all of them being typed out again is what the backstop sees.
-    listed = ('Här är de analoga kanalerna: PhaseU, PhaseV, PhaseW, Clevel, '
-              'NTC, DCbus och Cinj.')
+    listed = ('Här är de analoga kanalerna: %s.'
+              % ', '.join(c['signal'].replace(' ', '')
+                          for c in simulated.CHANNELS))
 
     from coaxial_ollama import replies as repliesmod
 
@@ -117,10 +121,9 @@ def test_map_retype(report):
     # already contain - 3, 6, 8 and 12 for the restatements measured here,
     # 38 for the description.
     per_channel = ('Här är de analoga kanalerna:' + chr(10)
-                   + chr(10).join('- %s (kanal %d)' % (n, i) for i, n in
-                                  enumerate(['PhaseU', 'PhaseV', 'PhaseW',
-                                             'Clevel', 'NTC', 'DCbus',
-                                             'Cinj'])))
+                   + chr(10).join(
+                       '- %s (kanal %d)' % (c['signal'].replace(' ', ''), i)
+                       for i, c in enumerate(simulated.CHANNELS)))
     report.check('a list with an index per channel is still a restatement',
                  turn(per_channel) == '',
                  '%d words -> %r' % (len(per_channel.split()),

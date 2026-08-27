@@ -34,7 +34,7 @@
 
 #include <string.h>
 
-/** 16 KB of DTCM. At one channel that is 2048 records, at all seven 512. */
+/** 16 KB of DTCM. At one channel that is 2048 records, at all nine 409. */
 #define DAQ_BYTES 16384U
 
 static uint8_t  s_buf[DAQ_BYTES];

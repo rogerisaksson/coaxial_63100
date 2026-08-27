@@ -36,7 +36,7 @@ SPAN_CODES = (1024, 64512)
 def rows_from(live, layout):
     """The accumulator as the rows this renderer already understands.
 
-    The bridge wants a mean and the two ends of the window. The task
+    The gate drivers wants a mean and the two ends of the window. The task
     reports a sum, a count and the lowest and highest it saw, per channel,
     so the mean is a division and the ends are already measured - which is
     what a meter's ticks should be rather than something inferred from a
@@ -131,7 +131,7 @@ def main(argv=None):
     say('wait', 'drawing',
         'Q closes it, ESC goes back to the menu, and both undo the above')
 
-    bridge = desk.Desk()
+    gate_drivers = desk.Desk()
     period = 1.0 / max(args.hz, 0.5)
     frame = 0
 
@@ -148,7 +148,7 @@ def main(argv=None):
             while True:
                 try:
                     live = rig.latest()
-                    face = bridge.update(scale(rows_from(live, layout)),
+                    face = gate_drivers.update(scale(rows_from(live, layout)),
                                          colour=console)
                 except RigError as exc:
                     face = 'no reading: %s' % exc

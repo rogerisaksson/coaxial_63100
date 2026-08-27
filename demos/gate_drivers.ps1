@@ -3,7 +3,7 @@
     The gate drivers: the six signals, the currents, and a timed burst.
 
 .DESCRIPTION
-    What the bridge is doing, from three sources that mislead separately.
+    What the gate drivers are doing, from three sources that mislead separately.
     The gate snapshot is one IDR read on the board, so the six signals are
     the same instant - six asks at 50 kHz can straddle an edge and show a
     leg with both FETs on, which is the one state the dead time prevents.
@@ -14,7 +14,7 @@
     Arming is arming a power stage. The 2EDL8034's inputs are independent
     and it has no interlock of its own, so TIM1's 80 ns dead time is all
     there is between the two FETs of a leg; the view re-reads BDTR DTG and
-    refuses to arm a bridge reporting zero.
+    refuses to arm a gate driver stage reporting zero.
 
     On this bench board AFE_ON is inverted: the drivers have supply while it
     is OFF, which is how this runs by default - and with it off the board
@@ -38,9 +38,9 @@
     Stop after this many, for checking the view without a terminal to close.
 
 .EXAMPLE
-    .\demos\bridge.ps1
-    .\demos\bridge.ps1 -Afe
-    .\demos\bridge.ps1 -Simulated
+    .\demos\gate_drivers.ps1
+    .\demos\gate_drivers.ps1 -Afe
+    .\demos\gate_drivers.ps1 -Simulated
 #>
 param(
     [string]$Port = 'COM4',
@@ -59,7 +59,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 
 Push-Location (Join-Path $Root 'host')
 try {
-    $call = @('tools/show_bridge.py', '--hz', [string]$Hz, '--port', $Port)
+    $call = @('tools/show_gate_drivers.py', '--hz', [string]$Hz, '--port', $Port)
     if ($Afe)       { $call += '--afe' }
     if ($Simulated) { $call += '--simulated' }
     if ($Frames -gt 0) { $call += @('--frames', [string]$Frames) }

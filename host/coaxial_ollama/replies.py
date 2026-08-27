@@ -145,8 +145,13 @@ def is_retype(answer, channels, minimum=RESTATE_MIN_CHANNELS):
                   RESTATE_EXTRA_PER_CHANNEL * len(named))
     if len(extra) > allowed:
         return False
+    # Lookarounds rather than \b: a channel called "+5V" starts with a
+    # character that is not a word character, so \b before it can only
+    # match after another word character - never after the space it
+    # actually follows. The name was unmatchable and every restatement
+    # containing it went straight through.
     return (len(channels) >= minimum
-           and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)
+           and all(re.search(r'(?<!\w)%s(?!\w)' % re.escape(ch), answer, re.I)
                   for ch in channels))
 
 

@@ -162,7 +162,7 @@ COMPONENTS = [
     ('connector', 90.0, 0.82, 0.11, 5.5, 0.10),
     ('connector', 112.0, 0.82, 0.11, 5.5, 0.10),
 
-    # The bridge below them: six FETs, one pair per phase, on the same
+    # The gate drivers below them: six FETs, one pair per phase, on the same
     # radius so the DC link loop to each is the same length.
     ('fet', 60.0, 0.58, 0.09, 4.5, 0.05),
     ('fet', 72.0, 0.58, 0.09, 4.5, 0.05),
@@ -172,7 +172,7 @@ COMPONENTS = [
     ('fet', 120.0, 0.58, 0.09, 4.5, 0.05),
 
     # The micro, in the third quadrant and in close to the bore - the
-    # quietest place on a board whose outside is a switching bridge.
+    # quietest place on a board whose outside is a switching gate_drivers.
     ('micro', 215.0, 0.30, 0.13, 22.0, 0.035),
 
     # DC link, in the fourth quadrant against the first: the supply comes in
@@ -205,45 +205,6 @@ def _passives(count=26, seed=63100):
                 break
         if clear:
             out.append(('passive', phi, r, 0.035, 2.0, 0.018))
-
-    return out
-
-
-def _part(kind, phi_deg, radius, half_r, half_phi_deg, height):
-    """One part's top and walls, as (point, normal, ramp) in the board frame.
-
-    A box in polar coordinates: it follows the board's curvature, which is
-    what a part on a round PCB does and what keeps the outer ones from
-    hanging off the rim.
-    """
-    ramp = PART_SHADES[kind]
-    top = HALF_THICKNESS + height
-    half_phi = math.radians(half_phi_deg)
-    phi0 = math.radians(phi_deg)
-    out = []
-
-    steps_r, steps_p = 7, 9
-    for ri in range(steps_r):
-        r = radius - half_r + 2.0 * half_r * ri / (steps_r - 1)
-        for pi in range(steps_p):
-            phi = phi0 - half_phi + 2.0 * half_phi * pi / (steps_p - 1)
-            cp, sp = math.cos(phi), math.sin(phi)
-            out.append(((r * cp, r * sp, top), (0.0, 0.0, 1.0), ramp))
-
-            # The walls, so a part turned away from the reader still has a
-            # side to it rather than vanishing to its own outline.
-            if ri in (0, steps_r - 1):
-                sign = -1.0 if ri == 0 else 1.0
-                for zi in range(3):
-                    z = HALF_THICKNESS + height * zi / 2.0
-                    out.append(((r * cp, r * sp, z),
-                                (sign * cp, sign * sp, 0.0), ramp))
-            if pi in (0, steps_p - 1):
-                sign = -1.0 if pi == 0 else 1.0
-                for zi in range(3):
-                    z = HALF_THICKNESS + height * zi / 2.0
-                    out.append(((r * cp, r * sp, z),
-                                (-sign * sp, sign * cp, 0.0), ramp))
 
     return out
 
@@ -434,13 +395,6 @@ def _fit(cols, rows, zoom=1.0):
         _FITS[key] = got
     return got
 
-
-
-def _light():
-    """The light direction, as a unit vector."""
-    x, y, z = LIGHT
-    n = math.sqrt(x * x + y * y + z * z)
-    return (x / n, y / n, z / n)
 
 
 def render(q, width=44, height=19, zoom=1.0, shop=None):

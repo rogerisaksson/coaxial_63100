@@ -14,13 +14,13 @@ import time
 
 from .afe import Afe
 from .analog import Analog
-from .bridge import Bridge
+from .gate_drivers import GateDrivers
 from .capture import Capture
 from .clock import Clock
 from .daq import Daq
 from .calibration import Calibration
-from .errors import (ConnectError, DeviceStateError, RigError,
-                     UnsupportedProtocolError)
+from .errors import (ConnectError, CrcError, DeviceStateError, FrameError,
+                     NoReplyError, RigError, UnsupportedProtocolError)
 from .gpio import Gpio
 from .angle import Angle
 from .imu import Imu
@@ -46,7 +46,7 @@ class Board:
         self.imu = Imu(self)
         self.angle = Angle(self)
         self.calibration = Calibration(self)
-        self.bridge = Bridge(self)
+        self.gate_drivers = GateDrivers(self)
         self.capture = Capture(self)
         self.clock = Clock(self)
         self.daq = Daq(self)
@@ -95,10 +95,28 @@ class Board:
         """Give the line back to the console."""
         self.system.release_console()
 
-    def probe(self):
-        """Read and remember the version record. Returns it."""
-        self.version_info = self.system.version()
-        return self.version_info
+    def probe(self, tries=3):
+        """Read and remember the version record. Returns it.
+
+        Retried, and only here. A missed reply is a fact of this link -
+        measured, about one transaction in fifty while the board is busy -
+        and everywhere else the right answer is to raise, because a caller
+        asked for a reading and did not get one. At the identity probe it
+        is not: the session has nothing yet, so one silent frame turns a
+        working board into "no board", and the demo that hit it had simply
+        opened while the previous one was still letting go of the port.
+
+        0x41 is the frozen version record and reading it changes nothing,
+        so asking twice is asking the same question again.
+        """
+        last = None
+        for _ in range(max(1, tries)):
+            try:
+                self.version_info = self.system.version()
+                return self.version_info
+            except (NoReplyError, CrcError, FrameError) as exc:
+                last = exc
+        raise last
 
 
 # Protocol major -> the client class that speaks it. THIS is the lookup: a

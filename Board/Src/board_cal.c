@@ -42,7 +42,11 @@
 /* 'CX63' - a sector that has never been written reads 0xFF everywhere, and a
    magic is how that is told from a record whose fields happen to be large. */
 #define CAL_MAGIC   0x43583633UL
-#define CAL_VERSION 1U
+/* 2 since the +5 and gate-supply senses were added: the record carries one
+   trim per channel, so its length moved. A stored version 1 is rejected by
+   the check below and the defaults are used, which is the right answer -
+   trims measured against seven channels do not index nine. */
+#define CAL_VERSION 2U
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes. sizeof(board_cal_t) is 104 today. */

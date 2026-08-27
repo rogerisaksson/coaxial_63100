@@ -46,7 +46,7 @@ daq.configure_daq(['Phase U', 'NTC'], rate_hz=None, accumulate=8,
 # %% [markdown]
 # ## Write
 # Digital by name. Analog would be a PWM duty - there is no DAC - and it
-# arms the bridge, so it is not in this example.
+# arms the gate drivers, so it is not in this example.
 
 # %%
 print(daq.daq_write(digital={'UART5_TERM': False}))

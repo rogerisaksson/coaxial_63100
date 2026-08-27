@@ -9,6 +9,8 @@
   * A handler only branches where the BOARD can genuinely fail.
   ******************************************************************************
   */
+#include <string.h>
+
 #include "cmd.h"
 #include "board.h"
 #include "link.h"
@@ -39,15 +41,58 @@ static cmd_status_t h_version(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
+/* Every channel in one reply, which is what bounds how many there can be.
+   A row costs 17 bytes plus its pin and signal names, and MB_MAX_PDU is
+   253: the nine channels here come to 245. Two more, or two longer names,
+   and it overflows - which is how "+5V sense" and "Gate supply" announced
+   themselves, as SERVER DEVICE FAILURE from a reply that would not fit.
+   `wr_ok` is checked at the end now, so the next one says so instead. */
 static cmd_status_t h_adc_table(rd_t *in, wr_t *out)
 {
-  (void)in;
+  /* Optional start index, so the table is not bounded by one reply. A row
+     costs 18 bytes plus its pin and signal names and the cap is 252: seven
+     channels came to 197 and nine to 254, which is how "+5V" and "Vgate"
+     announced themselves - a reply that would not fit, as SERVER DEVICE
+     FAILURE. Absent, it reads 0, so a host that never sends one gets what
+     it always did for as long as that fits. */
+  const uint8_t start = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
+  const uint8_t total = Board_AdcCount();
 
-  const uint8_t n = Board_AdcCount();
+  if (start >= total)
+  {
+    wr_u8(out, 0U);
+    wr_u8(out, total);
+    return CMD_OK;
+  }
+
+  /* Counted first, then written, because the count leads the rows and a
+     writer that ran out halfway would have already sent the wrong one. */
+  uint8_t n = 0U;
+  uint16_t room = wr_room(out) - 2U;
+
+  for (uint8_t i = start; i < total; i++)
+  {
+    board_chan_t c;
+
+    if (!Board_AdcChan(i, &c))
+    {
+      return CMD_ERR_DEVICE;
+    }
+
+    const uint16_t cost = (uint16_t)(18U + (uint16_t)strlen(c.pin)
+                                        + (uint16_t)strlen(c.signal));
+
+    if (cost > room)
+    {
+      break;
+    }
+    room = (uint16_t)(room - cost);
+    n++;
+  }
 
   wr_u8(out, n);
 
-  for (uint8_t i = 0U; i < n; i++)
+  for (uint8_t i = start; i < (uint8_t)(start + n); i++)
   {
     board_chan_t c;
     int32_t raw = 0;
@@ -75,7 +120,10 @@ static cmd_status_t h_adc_table(rd_t *in, wr_t *out)
     wr_i32(out, scaled);
   }
 
-  return CMD_OK;
+  /* Appended, so a host that stops at the rows reads what it always did. */
+  wr_u8(out, total);
+
+  return wr_ok(out) ? CMD_OK : CMD_ERR_LENGTH;
 }
 
 static cmd_status_t h_adc_scan(rd_t *in, wr_t *out)
@@ -499,7 +547,9 @@ static cmd_status_t h_channels(rd_t *in, wr_t *out)
 static const cmd_desc_t CMD_TABLE[] =
 {
   { CMD_VERSION,    "version",    0U,               h_version    },
-  { CMD_ADC_TABLE,  "adc_table",  0U,               h_adc_table  },
+  /* Variable: an optional start index, so the table is not bounded by
+     one reply. Absent reads 0, which is what every host sent before. */
+  { CMD_ADC_TABLE,  "adc_table",  CMD_LEN_VARIABLE, h_adc_table  },
   { CMD_ADC_SCAN,   "adc_scan",   0U,               h_adc_scan   },
   { CMD_ADC_NOISE,  "adc_noise",  3U,               h_adc_noise  },
   { CMD_CLOCK,      "clock",      0U,               h_clock      },

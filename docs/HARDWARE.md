@@ -1,6 +1,6 @@
 # Coaxial BLDC Inverter (63 V / 100 A)
 
-"Coaxial" dictates the mechanical stator-mount, not cabling. Consequences are absolute: thermal choking is inherent (making the NTC a mandatory control input, not a diagnostic luxury), and phase sensing lives inside a switching bridge (making idle noise figures useless). 100 A is a peak SOA survival limit, not a continuous rating.
+"Coaxial" dictates the mechanical stator-mount, not cabling. Consequences are absolute: thermal choking is inherent (making the NTC a mandatory control input, not a diagnostic luxury), and phase sensing lives inside a switching gate drivers (making idle noise figures useless). 100 A is a peak SOA survival limit, not a continuous rating.
 
 ## The Board Itself
 
@@ -34,13 +34,32 @@ The RS485 sheet also names the transceiver's own pins `DI`, `RO`, `DE` and `RE`,
 * **Clocks:** 475 MHz SYSCLK driven by a 25 MHz HSE. The ADC kernel clock is decoupled (75 MHz async), rendering sampling times immune to SYSCLK reconfigurations. No LSE/RTC.
 * **HSE error, measured against UTC: -11.62 ppm** (900 s window, 1.11 ppm floor, 2026-08-27). SYSCLK is therefore 474.994 MHz, not 475.000 - 7 ms of skew across a ten-minute capture, which is why a timestamp uses the rate `clock.sync()` measured and never `sysclk_hz`. The PLL is an exact ratio, so this is the crystal. Measured *against UTC*: the bench PC was itself 947 ms out and 22 ppm slow, and tying the board to it measured the wrong oscillator - FINDINGS.
 
+## Supply senses
+
+Traced off the MCU sheet 2026-08-27. R113 is a 10 k array whose four elements
+are GND, +5, +15V7 through R119 47 k, and GND:
+
+| channel | pin | divider | ratio | expected at the pin | measured |
+|---|---|---|---|---|---|
+| `+5V` | PA4 | 10 k / 10 k off +5 | **2.00** | 2.50 V | 2.552 V, so 5.10 V |
+| `Vgate` | PA5 | 47 k + 10 k over 10 k off +15V7 | **6.70** | 2.34 V | 0.052 V, so 0.35 V |
+
+`Vgate` reads near zero with AFE_ON on, which is right: this board's gate is
+inverted, so the drivers are unpowered exactly when the converter reference
+is up. Both report `ADC_UNIT_NONE` - a unit is a promise that the scaling
+behind it is in the calibration record, and these two dividers are not in it
+yet (invariant 7), so a host reads volts at the pin.
+
+`DAC0`/`DAC1`/`DAC2` are crossed out on the same sheet, so PA4 and PA5 are
+not DAC outputs on this board however much the pin names suggest it.
+
 ## AFE & The `PB2` Trap
 
 The internal ADC VREF is disabled. The reference is driven externally by the AFE.
 
 * **`PB2` (`AFE_ON`):** Powers the amplifier chains, the ADC reference *and both SPI sensors*. Polling channels with `PB2` low returns exact mid-scale (yielding a phantom 25 °C on the NTC).
 * **A sensor without `AFE_ON` is worse than dead.** It still drives MISO, still resets, and still returns a valid 276-byte SHTP advertisement - so every read looks healthy. What it never does is act on a write: `Set Feature` starts no stream, and executable `ON`, `SLEEP` and `RESET` all produce the identical answer, which is only possible if none of the payloads arrived. Firmware refuses `Board_ImuInit` while `PB2` is low, and losing `PB2` clears the ready flag, because a part that has lost its supply needs a reset rather than a resume.
-* **`PE15` (`nFAULT`):** Intended active low - high is normal, low is a fault. Measured, it tracks `AFE_ON` inversely and reads logic `0` when the AFE is powered, which by that intent means a fault is asserted exactly when the front end is on. The two do not agree and the conflict is unresolved - FINDINGS, Open Anomalies. The pin is also `TIM1_BKIN` now, so this decides whether the bridge can run at all.
+* **`PE15` (`nFAULT`):** Intended active low - high is normal, low is a fault. Measured, it tracks `AFE_ON` inversely and reads logic `0` when the AFE is powered, which by that intent means a fault is asserted exactly when the front end is on. The two do not agree and the conflict is unresolved - FINDINGS, Open Anomalies. The pin is also `TIM1_BKIN` now, so this decides whether the gate drivers can run at all.
 
 ## Safe Torque Off, and the pilot that unlocks it
 
@@ -95,7 +114,7 @@ channel table as `ADC_UNIT_NONE` with nothing said about them:
 | `Clevel` | ADC2 IN5, PB1 | The integrator level - how near the chain is to dropping out |
 
 `Clevel` is the useful one: it is the margin. `PE15` is `TIM1_BKIN`, labelled
-**(STOP)** on the MCU sheet, so a fault stops the bridge in hardware without
+**(STOP)** on the MCU sheet, so a fault stops the gate drivers in hardware without
 the firmware being involved. Neither channel can be read by asynchronous
 single shots - see FINDINGS.
 
@@ -135,7 +154,7 @@ dimensioning without anyone tuning it. **Both figures are means.** The worst
 case is what decides: a 276-byte SHTP cargo at 1.48 MHz is 1.5 ms, 320x the
 idle half-period. What `VLATCH` tolerates is not yet measured.
 
-## The bridge, and why the dead time is 80 ns
+## The gate drivers, and why the dead time is 80 ns
 
 TIM1 centre-aligned, ARR **2375** off 237.5 MHz = **50.000 kHz** exactly, RCR 1,
 CKD DIV1 so one dead-time tick is **4.2105 ns**. `BDTR.DTG` = **19** = **80.0 ns**.

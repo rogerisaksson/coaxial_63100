@@ -24,6 +24,7 @@ def test_reading_block(report):
     table straight underneath with no gap. The reading is counted and headed
     now, and the trace puts a blank line between blocks.
     """
+    from coaxial import simulated
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial_mcp import tools as mcp
     from coaxial_ollama import debug, language
@@ -32,7 +33,8 @@ def test_reading_block(report):
     head = [l for l in reading.splitlines() if not l.startswith('AFE')]
 
     report.check('the reading says how many channels it read',
-                 head[0] == 'analog: 7 channels', head[0])
+                 head[0] == 'analog: %d channels'
+                 % len(simulated.CHANNELS), head[0])
     report.check('and how many samples, spelled out',
                  head[1] == '64 samples @2000Hz', head[1])
     report.check('and names its columns', head[2].split()
@@ -86,7 +88,8 @@ def test_reading_block(report):
     # names do not - they are the board's words, like a channel name.
     turned = language.localise(reading, 'Swedish')
     report.check('the headings turn for a Swedish session',
-                 'analog: 7 kanaler' in turned and '64 sampel @' in turned,
+                 'analog: %d kanaler' % len(simulated.CHANNELS)
+                 in turned and '64 sampel @' in turned,
                  [l for l in turned.splitlines() if 'kanaler' in l][:1])
     report.check('and the column names do not',
                  render.ANALOG_HEAD in turned)

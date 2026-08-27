@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @file    board_pwm.c
-  * @brief   The three-phase bridge: duty in, gates out, and the interlocks.
+  * @brief   The three-phase gate drivers: duty in, gates out, and the interlocks.
   *
   * TIM1 CH1/CH1N, CH2/CH2N and CH3/CH3N drive the three 2EDL8034 half bridges
   * on PE8..PE13; PE15 is TIM1_BKIN. This file owns the compare registers and
@@ -62,13 +62,13 @@ bool Board_PwmFault(void)
      TIM1_BKIN, which is a hardware path: the outputs are already off by the
      time any of this runs.
 
-     It does NOT come from the gate drivers. A 2EDL8034 in PG-DSO-8 has
+     It does NOT come from the gate_drivers. A 2EDL8034 in PG-DSO-8 has
      eight pins and no fault output; PE15 carries FAULTIN from the STO
      chain. Active low, so BDTR.BKP is TIM_BREAKPOLARITY_LOW and AOE stays
      off - nothing re-arms itself.
 
      With no pilot tone on RS485 the STO chain holds this asserted and the
-     bridge cannot start. That is the interlock, not a fault to clear. */
+     the gate drivers cannot start. That is the interlock, not a fault to clear. */
   return Board_PwmReady() && ((TIM1->SR & TIM_SR_BIF) != 0U);
 }
 
@@ -160,7 +160,7 @@ bool Board_PwmEnable(void)
   }
 
   /* Arm at zero, always. Enabling into whatever the compare registers
-     happened to hold is how a bridge gets a step it was never asked for. */
+     happened to hold is how a stage gets a step it was never asked for. */
   TIM1->CCR1 = 0U;
   TIM1->CCR2 = 0U;
   TIM1->CCR3 = 0U;
@@ -256,7 +256,7 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
   }
   if (!Board_PwmIsEnabled())
   {
-    return "the bridge is not enabled - enable it first, and clear or "
+    return "the gate drivers are not enabled - enable it first, and clear or "
            "bypass the break if one is latched";
   }
 
@@ -317,7 +317,7 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
   }
   if (!Board_PwmIsEnabled())
   {
-    return "the bridge is not enabled - enable it first, and clear or "
+    return "the gate drivers are not enabled - enable it first, and clear or "
            "bypass the break if one is latched";
   }
 
@@ -344,7 +344,7 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
     s_residue[phase] = 0U;
   }
 
-  /* One update event applies all three, so the bridge never runs a cycle
+  /* One update event applies all three, so the gate drivers never run a cycle
      with two phases from this call and one from the last. */
   TIM1->CCR1 = ticks[0];
   TIM1->CCR2 = ticks[1];

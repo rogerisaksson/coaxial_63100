@@ -19,7 +19,7 @@ from tests.ollama_support import (CHANNELS, Scope, ScriptedModel, Shell,
 
 
 
-# ---- the board bridge ------------------------------------------------------
+# ---- the board gate drivers ------------------------------------------------------
 
 def test_board_tools(report):
     tasks = [{'id': 'T1', 'name': 'measure the ntc', 'ask': 'a',

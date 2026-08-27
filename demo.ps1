@@ -19,7 +19,7 @@
     invented and the banner is there so nobody has to remember that.
 
 .PARAMETER Name
-    Skip the menu: imu, angle, adc, capture or bridge. ESC still comes
+    Skip the menu: imu, angle, adc, capture or gate_drivers. ESC still comes
     back to it.
 
 .PARAMETER Port
@@ -39,7 +39,7 @@
     .\demo.ps1 adc -Simulated -Frames 3
 #>
 param(
-    [ValidateSet('imu', 'angle', 'adc', 'capture', 'bridge')]
+    [ValidateSet('imu', 'angle', 'adc', 'capture', 'gate_drivers')]
     [string]$Name,
     [string]$Port = 'COM4',
     [switch]$Simulated,
@@ -57,7 +57,7 @@ $Views = [ordered]@{
                  What   = 'every analog channel, on a meter bridge' }
     'capture' = @{ Script = 'capture.ps1'
                  What   = 'buffered: the AFE, the pins and both SPI parts' }
-    'bridge' = @{ Script = 'bridge.ps1'
+    'gate_drivers' = @{ Script = 'gate_drivers.ps1'
                  What   = 'the gate drivers: six signals, current, a burst' }
 }
 

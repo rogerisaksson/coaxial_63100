@@ -16,7 +16,7 @@ RS485.
 no coaxial cable and no coaxial connector on this board — a local model has
 invented both, twice.
 
-The thermal channel is not decoration, and the phase sense sits inside a switching bridge — 
+The thermal channel is not decoration, and the phase sense sits inside a switching gate drivers — 
 which is the context for every noise figure in these documents.
 
 ## Scope: instrumentation, not yet a motor controller
@@ -28,16 +28,16 @@ DEBUG, MEMORYMAP, NVIC and VREFBUF. TIM1 is centre-aligned at **50 kHz**
 (ARR 2375 off 237.5 MHz), dead time **DTG 19 = 80.0 ns**, break on PE15
 active low, AOE off so nothing re-arms itself. `Board_PwmInit()` starts the
 counter with MOE clear and CCxE set, which drives all six outputs to their
-idle level: both FETs of every leg held off in hardware. `rig.arm_bridge()`
+idle level: both FETs of every leg held off in hardware. `rig.arm_gate_drivers()`
 is the only thing that sets MOE, and a duty write is refused until it has
 been called - arming a power stage should be asked for by name, not fall out
-of writing a level. It re-reads BDTR DTG first and refuses a bridge with no
+of writing a level. It re-reads BDTR DTG first and refuses a gate driver stage with no
 dead time, which matters because the 2EDL8034 has no interlock of its own.
 
 Measured 2026-08-27 with the drivers powered: every duty from 1 % to 100 %,
 no supply trip, no overruns. All three legs at the same duty, so no volts
 between phases and no phase current. **There is still no commutation and no
-current loop** - what exists is a bridge that can be switched and measured,
+current loop** - what exists is a gate driver stage that can be switched and measured,
 not one that can turn a motor.
 
 The gate drivers and the FETs are fitted (2EDL8034 x3, IAUCN10S7N021 -
@@ -403,26 +403,10 @@ Invariant 10 applies to it exactly as it applies to the firmware.
 
 ## How to write here
 
-**Correct, short, concise — in that order.** A short wrong comment is worse
-than a long right one; everything else here assumes the fact is right first.
-
-Applies to code, comments, docstrings, documentation, commit messages and
-replies. A line earns its place by saying what the code cannot: a measured
-number, why an obvious approach was rejected, a failure that has happened. It
-loses it by restating the code, telling the story twice, or hedging.
-
-```python
-# Measured: ch=['bus'] was refused with the channel it meant in the refusal.   # good
-# We should probably consider that a model might, in some cases, spell it...   # cut
-```
-
-Three lines is a long comment. A docstring says what the function is for and
-what a caller must know, not how it came to be. Docs lead with the answer;
-tables and numbers beat paragraphs. A commit message says what changed and
-what was measured — not the reasoning that got there.
-
-Trimming existing prose: keep every measurement, rejected alternative and
-recorded failure. Cut the paragraph around them.
+`~/.claude/CLAUDE.md` says it and this file does not repeat it. What is
+specific here: **keep every measurement, rejected alternative and recorded
+failure** when trimming prose - cut the paragraph around them, never the
+number. FINDINGS is a record, not documentation, and is not shortened.
 
 ## Layout
 

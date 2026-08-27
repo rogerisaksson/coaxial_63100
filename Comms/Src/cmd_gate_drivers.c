@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
-  * @file    cmd_bridge.c
-  * @brief   The bridge's operations behind command 0x6E, device 4.
+  * @file    cmd_gate_drivers.c
+  * @brief   The gate drivers' operations behind command 0x6E, device 4.
   *
   * TIM1, the synced phase triple and the Safe Torque Off chain answer as one
   * device because a caller tuning the sample point needs all three in the
@@ -20,14 +20,14 @@
 #include "wire.h"
 
 /**
-  * @brief op 0 - the bridge, the triple and the STO chain, one sample.
+  * @brief op 0 - the gate drivers, the triple and the STO chain, one sample.
   *
   * Flags first so a reader that only wants "is it running" stops after one
   * byte. `at` is TIM1->CNT when the triple was latched, which is what makes
   * the sample point measurable rather than assumed: move `trigger` and `at`
   * moves with it.
   */
-static cmd_status_t h_bridge_state(wr_t *out)
+static cmd_status_t h_gate_drivers_state(wr_t *out)
 {
   board_pwm_state_t pwm;
   board_sync_state_t sync;
@@ -94,7 +94,7 @@ static cmd_status_t h_bridge_state(wr_t *out)
 
 
 /** op 1 - master output enable. Enabling always arms at zero duty. */
-static cmd_status_t h_bridge_pwm(rd_t *in, wr_t *out)
+static cmd_status_t h_gate_drivers_pwm(rd_t *in, wr_t *out)
 {
   const uint8_t on = rd_u8(in);
 
@@ -109,7 +109,7 @@ static cmd_status_t h_bridge_pwm(rd_t *in, wr_t *out)
   {
     refusal = Board_PwmEnable()
                 ? NULL
-                : "the bridge would not enable - a latched break outranks "
+                : "the gate drivers would not enable - a latched break outranks "
                   "the request, and clearing it does not help while nFAULT "
                   "is low; bypass the break for bench work";
   }
@@ -125,7 +125,7 @@ static cmd_status_t h_bridge_pwm(rd_t *in, wr_t *out)
 
 /** op 2 - all three compares, or none. A half update is a step nobody asked
     for, so the board takes the triple together or refuses it. */
-static cmd_status_t h_bridge_duty(rd_t *in, wr_t *out)
+static cmd_status_t h_gate_drivers_duty(rd_t *in, wr_t *out)
 {
   uint16_t ticks[BOARD_PWM_PHASES];
 
@@ -152,7 +152,7 @@ static cmd_status_t h_bridge_duty(rd_t *in, wr_t *out)
   *
   * All three or none, for the same reason op 2 is.
   */
-static cmd_status_t h_bridge_dutyq(rd_t *in, wr_t *out)
+static cmd_status_t h_gate_drivers_dutyq(rd_t *in, wr_t *out)
 {
   uint32_t ticks[BOARD_PWM_PHASES];
 
@@ -172,7 +172,7 @@ static cmd_status_t h_bridge_dutyq(rd_t *in, wr_t *out)
 
 /** op 3 - start or stop latching the injected triple. Arming takes the
     converters away from the meter; disarming gives them back. */
-static cmd_status_t h_bridge_sync(rd_t *in, wr_t *out)
+static cmd_status_t h_gate_drivers_sync(rd_t *in, wr_t *out)
 {
   const uint8_t on = rd_u8(in);
 
@@ -200,7 +200,7 @@ static cmd_status_t h_bridge_sync(rd_t *in, wr_t *out)
 /** op 4 - move the sample point. Replies with CCR4 as it reads back, which
     is the only answer worth having: asking for a tick past ARR changes
     nothing and the reply says so. */
-static cmd_status_t h_bridge_trigger(rd_t *in, wr_t *out)
+static cmd_status_t h_gate_drivers_trigger(rd_t *in, wr_t *out)
 {
   const uint16_t ticks = rd_u16(in);
 
@@ -216,7 +216,7 @@ static cmd_status_t h_bridge_trigger(rd_t *in, wr_t *out)
 
 
 /** op 7 - forget the worst keepalive gap, so a run is measured on its own. */
-static cmd_status_t h_bridge_gapreset(wr_t *out)
+static cmd_status_t h_gate_drivers_gapreset(wr_t *out)
 {
   Board_StoKeepaliveReset();
   wr_u8(out, 1U);
@@ -226,7 +226,7 @@ static cmd_status_t h_bridge_gapreset(wr_t *out)
 
 /** op 6 - disconnect the break input, for bench work. Loud on purpose: it
     shows in the state reply, and a reset puts it back. */
-static cmd_status_t h_bridge_bypass(rd_t *in, wr_t *out)
+static cmd_status_t h_gate_drivers_bypass(rd_t *in, wr_t *out)
 {
   const uint8_t on = rd_u8(in);
 
@@ -241,26 +241,26 @@ static cmd_status_t h_bridge_bypass(rd_t *in, wr_t *out)
 
 
 /** op 5 - clear the break latch. Does not re-arm; the caller asks again. */
-static cmd_status_t h_bridge_clear(wr_t *out)
+static cmd_status_t h_gate_drivers_clear(wr_t *out)
 {
   wr_u8(out, Board_PwmClearFault() ? 1U : 0U);
   return CMD_OK;
 }
 
 
-cmd_status_t cmd_bridge_op(uint8_t op, rd_t *in, wr_t *out)
+cmd_status_t cmd_gate_drivers_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
   {
-    case BRIDGE_OP_STATE:   return h_bridge_state(out);
-    case BRIDGE_OP_PWM:     return h_bridge_pwm(in, out);
-    case BRIDGE_OP_DUTY:    return h_bridge_duty(in, out);
-    case BRIDGE_OP_SYNC:    return h_bridge_sync(in, out);
-    case BRIDGE_OP_TRIGGER: return h_bridge_trigger(in, out);
-    case BRIDGE_OP_CLEAR:   return h_bridge_clear(out);
-    case BRIDGE_OP_BYPASS:  return h_bridge_bypass(in, out);
-    case BRIDGE_OP_GAPRST:  return h_bridge_gapreset(out);
-    case BRIDGE_OP_DUTYQ:   return h_bridge_dutyq(in, out);
+    case GATEDRIVERS_OP_STATE:   return h_gate_drivers_state(out);
+    case GATEDRIVERS_OP_PWM:     return h_gate_drivers_pwm(in, out);
+    case GATEDRIVERS_OP_DUTY:    return h_gate_drivers_duty(in, out);
+    case GATEDRIVERS_OP_SYNC:    return h_gate_drivers_sync(in, out);
+    case GATEDRIVERS_OP_TRIGGER: return h_gate_drivers_trigger(in, out);
+    case GATEDRIVERS_OP_CLEAR:   return h_gate_drivers_clear(out);
+    case GATEDRIVERS_OP_BYPASS:  return h_gate_drivers_bypass(in, out);
+    case GATEDRIVERS_OP_GAPRST:  return h_gate_drivers_gapreset(out);
+    case GATEDRIVERS_OP_DUTYQ:   return h_gate_drivers_dutyq(in, out);
     default:                return CMD_ERR_VALUE;
   }
 }

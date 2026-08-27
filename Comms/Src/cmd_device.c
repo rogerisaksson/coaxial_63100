@@ -71,7 +71,7 @@ static cmd_status_t h_device(rd_t *in, wr_t *out)
     case DEVICE_ANGLE: return cmd_angle_op(op, in, out);
     case DEVICE_LINK:  return cmd_link_op(op, in, out);
     case DEVICE_CAL:   return cmd_cal_op(op, in, out);
-    case DEVICE_BRIDGE: return cmd_bridge_op(op, in, out);
+    case DEVICE_GATE_DRIVERS: return cmd_gate_drivers_op(op, in, out);
     case DEVICE_LOG:    return cmd_log_op(op, in, out);
     case DEVICE_DAQ:    return cmd_daq_op(op, in, out);
     case DEVICE_TIME:   return cmd_time_op(op, in, out);

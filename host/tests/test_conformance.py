@@ -98,6 +98,18 @@ def coils_from(data: bytes, qty: int):
     return out
 
 # ---- test runner --------------------------------------------------------
+def adc_channels(bus):
+    """How many analog channels the board has, asked of the board.
+
+    0x42 appends the total after the rows it managed to fit, which is what
+    makes this one request rather than a count written down here. It was
+    written down - as 7 - and two supply senses were added.
+    """
+    reply = bus.request(bytes([0x42]))
+    parsed = parse(reply)
+    return parsed[2][-1] if parsed and parsed[2] else 0
+
+
 class Runner:
     def __init__(self, bus):
         self.bus, self.passed, self.failed = bus, 0, 0
@@ -345,8 +357,13 @@ def cal_tests(run):
 
     stored, version = data[0], (data[1] << 8) | data[2]
     count = data[3]
+    # Version 2 since the +5 and gate-supply senses: the record carries one
+    # trim per channel, so its length moved and a stored version 1 is
+    # rejected rather than read with the wrong stride. The nine parameters
+    # ahead of the trims did not change.
     run.check('the record says which firmware layout it is',
-              version == 1 and count == 9, 'version %d, %d params' % (version, count))
+              version == 2 and count == 9,
+              'version %d, %d params' % (version, count))
 
     at = 4
     params = []
@@ -371,7 +388,10 @@ def cal_tests(run):
 
     channels = data[at]
     at += 1
-    run.check('one correction per ADC channel', channels == 7,
+    # Off the board's own table. It said 7 and two supply senses were
+    # added, which is the second answer this suite exists to avoid.
+    run.check('one correction per ADC channel',
+              channels == adc_channels(b),
               'got %d' % channels)
     run.check('the reply ends where the corrections do',
               len(data) == at + channels * 8,
@@ -528,10 +548,14 @@ def map_tests(run):
         b.request(pdu_w_single_reg(0x0000, 1), slave=99)
 
     print('\n-- map-specific exceptions --')
-    run.expect_exception('FC04 addr 0x0007 is a hole -> exc 02',
-                         pdu_read(0x04, 0x0007, 1), 0x04, 0x02)
-    run.expect_exception('FC04 span crossing a hole -> exc 02',
-                         pdu_read(0x04, 0x0005, 4), 0x04, 0x02)
+    # The first address past the channels, whatever there are of them.
+    # It was 0x0007 with seven; adding two moved the hole rather than
+    # removing it, and a fixed address here tested the count, not the map.
+    hole = adc_channels(b)
+    run.expect_exception('FC04 one past the last channel is a hole -> exc 02',
+                         pdu_read(0x04, hole, 1), 0x04, 0x02)
+    run.expect_exception('FC04 span crossing that hole -> exc 02',
+                         pdu_read(0x04, hole - 2, 4), 0x04, 0x02)
     run.expect_exception('FC03 addr 2 unmapped -> exc 02',
                          pdu_read(0x03, 0x0002, 1), 0x03, 0x02)
     run.expect_exception('FC02 addr 1 unmapped -> exc 02',

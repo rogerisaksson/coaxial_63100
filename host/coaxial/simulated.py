@@ -44,6 +44,13 @@ CHANNELS = [
      'differential': False, 'signal': 'DC bus'},
     {'index': 6, 'adc': 3, 'channel': 11, 'pin': 'PC1',
      'differential': False, 'signal': 'Cinj'},
+    # The two supply senses. No unit, because their dividers are not in the
+    # calibration record yet, so a host reads volts at the pin - x2.00 for
+    # the +5 rail and x6.70 for the gate supply, per R113 and R119.
+    {'index': 7, 'adc': 1, 'channel': 18, 'pin': 'PA4',
+     'differential': False, 'signal': '+5V'},
+    {'index': 8, 'adc': 1, 'channel': 19, 'pin': 'PA5',
+     'differential': False, 'signal': 'Vgate'},
 ]
 
 # Roughly what a live board reads with the front end on, AFE gain and all -
@@ -51,9 +58,13 @@ CHANNELS = [
 # does not look frozen. Phase channels stay near their own nominal point;
 # NTC and DC bus get a slightly wider walk since those are what a question
 # is usually about.
+# 7 and 8 are the supply senses, near what the board reads: +5 through a
+# 10 k/10 k divider is 2.55 V of 3.3, and the gate supply sits near zero
+# because the STO chain has not released it.
 NOMINAL = {0: 900.0, 1: -8650.0, 2: -80.0, 3: 1010.0, 4: 41000.0,
-          5: 21000.0, 6: 16500.0}
-DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0}
+          5: 21000.0, 6: 16500.0, 7: 50700.0, 8: 1030.0}
+DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0,
+         7: 30.0, 8: 20.0}
 
 #: One electrical revolution every seven seconds or so. Slow enough to watch
 #: a meter follow it, fast enough that a still frame is rarely the same twice.
@@ -63,7 +74,7 @@ SWEEP_HZ = 0.14
 #: converter, because a stand-in whose meters never leave the bottom segment
 #: teaches nobody what the view looks like with a machine running.
 SWING = {0: 9000.0, 1: 9000.0, 2: 9000.0, 3: 300.0, 4: 6000.0, 5: 4000.0,
-         6: 3000.0}
+         6: 3000.0, 7: 200.0, 8: 100.0}
 
 #: How far a channel moves WITHIN one burst, in codes, which is a different
 #: quantity from how far it wanders between them. This was a flat +/-5 codes
@@ -73,10 +84,10 @@ SWING = {0: 9000.0, 1: 9000.0, 2: 9000.0, 3: 300.0, 4: 6000.0, 5: 4000.0,
 #: peak - and two of them were invisible.
 #:
 #: Sized by where each channel sits rather than picked to look busy: the
-#: phases are inside a switching bridge and the thermistor is a slow thing on
+#: phases are inside a switching gate drivers and the thermistor is a slow thing on
 #: the end of a divider.
 RIPPLE = {0: 2600.0, 1: 2600.0, 2: 2600.0, 3: 40.0, 4: 150.0, 5: 700.0,
-          6: 300.0}
+          6: 300.0, 7: 60.0, 8: 40.0}
 
 #: Now and then a burst catches something bigger. Without it every burst is
 #: the same width and the held peak sits a constant distance from the bar,
@@ -805,11 +816,11 @@ class SimulatedAngle:
             self.resume()
 
 
-class SimulatedBridge:
+class SimulatedGateDrivers:
     """TIM1, the injected triple and the STO chain, without any of them.
 
     The numbers are the real board's registers as configured: ARR 2375 for
-    50 kHz off 237.5 MHz, DTG 19 for 80 ns. The bridge never enables,
+    50 kHz off 237.5 MHz, DTG 19 for 80 ns. The gate drivers never enables,
     because on the real board it cannot until the STO chain releases and
     nothing here can release it.
     """
@@ -866,7 +877,7 @@ class SimulatedBridge:
         """The six signals a real one would show at this count.
 
         Complementary and never both on, because that is the property the
-        dead time gives the real bridge and a stand-in that could show a leg
+        dead time gives the real gate drivers and a stand-in that could show a leg
         conducting through would teach a reader the wrong thing. With MOE
         clear every output is low, which is both FETs off.
         """
@@ -891,7 +902,7 @@ class SimulatedBridge:
         # past it there, so it is what gets past it here.
         from .errors import RigError
         if not self._bypassed:
-            raise RigError('the board refused to enable the bridge - check '
+            raise RigError('the board refused to enable the gate drivers - check '
                            'fault, and whether the STO chain has released '
                            '(simulated)')
         self._enabled = True
@@ -906,7 +917,7 @@ class SimulatedBridge:
         from .errors import RigError
         ticks = tuple(int(t) for t in ticks)
         if not self._enabled:
-            raise RigError('the bridge is not enabled (simulated)')
+            raise RigError('the gate drivers are not enabled (simulated)')
         if len(ticks) != 3 or any(t > self.PERIOD - 1 for t in ticks):
             raise RigError('the board refused %r - past ARR (simulated)'
                            % (ticks,))
@@ -919,7 +930,7 @@ class SimulatedBridge:
         if len(fractions) != 3:
             raise ValueError('%d duties, not 3' % len(fractions))
         if not self._enabled:
-            raise RigError('the bridge is not enabled (simulated)')
+            raise RigError('the gate drivers are not enabled (simulated)')
         period = self.PERIOD - 1
         self._duty = tuple(max(0.0, min(1.0, f)) * period for f in fractions)
         return True
@@ -1305,7 +1316,7 @@ class SimulatedBoard:
             refuse = _BroadcastRefuses()   # see BROADCAST_REFUSAL
             self.system = self.link = self.afe = refuse
             self.analog = self.gpio = self.imu = refuse
-            self.angle = self.bridge = self.capture = self.daq = refuse
+            self.angle = self.gate_drivers = self.capture = self.daq = refuse
             self.clock = refuse
         else:
             self.system = SimulatedSystem()
@@ -1315,7 +1326,7 @@ class SimulatedBoard:
             self.gpio = SimulatedGpio(self.afe)
             self.imu = SimulatedImu()
             self.angle = SimulatedAngle()
-            self.bridge = SimulatedBridge()
+            self.gate_drivers = SimulatedGateDrivers()
             self.capture = SimulatedCapture()
             self.clock = SimulatedClock()
             self.daq = SimulatedDaq()

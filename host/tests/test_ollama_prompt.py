@@ -755,9 +755,13 @@ def test_intent(r):
     # The retype is the failure this replaced, and it still has to be caught:
     # measured on screen, the whole table written out again as prose under
     # itself, comma decimals and all.
+    # Built from the stand-in's table, not typed out: it was typed out and
+    # two supply senses were added, so a sentence naming seven of nine
+    # stopped being a restatement and the check failed on a working filter.
     _, _, retyped = planned(
-        'De analoga värdena är: PhaseU, PhaseV, PhaseW, Clevel, NTC, '
-        'DCbus och Cinj.')
+        'De analoga värdena är: %s.'
+        % ', '.join(c['signal'].replace(' ', '')
+                    for c in simulated.CHANNELS))
     r.check('a sentence that just names every channel is silenced',
             retyped == '', repr(retyped[:40]))
 

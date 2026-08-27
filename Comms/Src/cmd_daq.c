@@ -34,7 +34,7 @@ static cmd_status_t h_daq_state(wr_t *out)
   wr_u32(out, st.available);
   wr_u32(out, st.produced);
   wr_u32(out, st.dropped);
-  wr_u8(out, st.config.channels);
+  wr_u16(out, st.config.channels);
   wr_u8(out, st.config.clock);
   wr_u8(out, st.config.sample_time);
   wr_u16(out, st.config.decimate);
@@ -54,7 +54,7 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
 {
   board_daq_config_t cfg;
 
-  cfg.channels = rd_u8(in);
+  cfg.channels = rd_u16(in);
   cfg.clock = rd_u8(in);
   cfg.sample_time = rd_u8(in);
   cfg.decimate = rd_u16(in);

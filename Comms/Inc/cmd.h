@@ -210,21 +210,21 @@ extern "C" {
 #define DEVICE_ANGLE     1U
 #define DEVICE_LINK      2U
 #define DEVICE_CAL       3U
-#define DEVICE_BRIDGE    4U
+#define DEVICE_GATE_DRIVERS    4U
 #define DEVICE_LOG       5U
 #define DEVICE_DAQ       6U
 #define DEVICE_TIME      7U
 
-/** Device 4's ops: the bridge, the synced triple and the STO chain. */
-#define BRIDGE_OP_STATE    0U   /**< -> flags, registers, triple, STO      */
-#define BRIDGE_OP_PWM      1U   /**< u8 on  -> u8 took                     */
-#define BRIDGE_OP_DUTY     2U   /**< u16 x3 -> u8 took, all three or none  */
-#define BRIDGE_OP_SYNC     3U   /**< u8 on  -> u8 took                     */
-#define BRIDGE_OP_TRIGGER  4U   /**< u16 CCR4 -> u16 as it reads back      */
-#define BRIDGE_OP_CLEAR    5U   /**< -> u8 took; does NOT re-arm           */
-#define BRIDGE_OP_BYPASS   6U   /**< u8 on -> u8 took; drops BDTR.BKE      */
-#define BRIDGE_OP_GAPRST   7U   /**< -> u8; forget the worst keepalive gap */
-#define BRIDGE_OP_DUTYQ    8U   /**< u32 x3 ticks Q16.16 -> u8 took        */
+/** Device 4's ops: the gate drivers, the synced triple and the STO chain. */
+#define GATEDRIVERS_OP_STATE    0U   /**< -> flags, registers, triple, STO      */
+#define GATEDRIVERS_OP_PWM      1U   /**< u8 on  -> u8 took                     */
+#define GATEDRIVERS_OP_DUTY     2U   /**< u16 x3 -> u8 took, all three or none  */
+#define GATEDRIVERS_OP_SYNC     3U   /**< u8 on  -> u8 took                     */
+#define GATEDRIVERS_OP_TRIGGER  4U   /**< u16 CCR4 -> u16 as it reads back      */
+#define GATEDRIVERS_OP_CLEAR    5U   /**< -> u8 took; does NOT re-arm           */
+#define GATEDRIVERS_OP_BYPASS   6U   /**< u8 on -> u8 took; drops BDTR.BKE      */
+#define GATEDRIVERS_OP_GAPRST   7U   /**< -> u8; forget the worst keepalive gap */
+#define GATEDRIVERS_OP_DUTYQ    8U   /**< u32 x3 ticks Q16.16 -> u8 took        */
 
 /** Device 5's ops: the measurement ring. */
 #define LOG_OP_STATE    0U   /**< -> u8 sources, u16 count, u16 depth, u32 dropped */
@@ -282,7 +282,7 @@ extern "C" {
 #define CAL_OP_DEFAULTS    7U
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 22U
+#define CMD_PROTO_MINOR 23U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -328,7 +328,7 @@ cmd_status_t cmd_imu_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_angle_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_link_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_cal_op(uint8_t op, rd_t *in, wr_t *out);
-cmd_status_t cmd_bridge_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_gate_drivers_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_log_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out);

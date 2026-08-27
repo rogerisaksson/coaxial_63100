@@ -367,12 +367,6 @@ def _matches(key, by_name):
             if name.startswith(key) or key.startswith(name) or key in name]
 
 
-def _closest(key, by_name):
-    """The one name a key could mean, or None when it could mean several."""
-    found = _matches(key, by_name)
-    return found[0] if len(found) == 1 else None
-
-
 def _resolve(session, wanted, notes=None):
     """Turn ['4', 'DC bus'] into channel indices.
 

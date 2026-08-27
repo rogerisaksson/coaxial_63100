@@ -61,7 +61,7 @@ class Daq(Subsystem):
             'available': r.u32(),
             'produced': r.u32(),
             'dropped': r.u32(),
-            'channels': r.u8(),
+            'channels': r.u16(),
             'clock': 'tim1' if r.u8() == TIM1 else 'software',
             'sample_time': r.u8(),
             'decimate': r.u16(),
@@ -134,7 +134,10 @@ class Daq(Subsystem):
         if interval_us is None:
             interval_us = 0 if rate_hz is None else int(1e6 / float(rate_hz))
 
-        payload = struct.pack('>BBBHHIBI', self._resolve(channels),
+        # The mask is 16 bits: the ninth channel did not fit in eight, and
+        # a mask that silently dropped one would configure a task the
+        # caller did not ask for.
+        payload = struct.pack('>HBBHHIBI', self._resolve(channels),
                               CLOCKS.get(clock, clock), sample_time,
                               decimate, accumulate, records,
                               1 if digital else 0, int(interval_us))

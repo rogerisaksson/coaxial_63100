@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import ansi, ascii3d, desk                  # noqa: E402
 from coaxial import orientation, scaling               # noqa: E402
 from coaxial.errors import DeviceStateError            # noqa: E402
+from coaxial import simulated
 from coaxial.simulated import CHANNELS                  # noqa: E402
 from coaxial.simulated import SimulatedSession          # noqa: E402
 from coaxial_mcp import tools as toolmod                # noqa: E402
@@ -70,11 +71,15 @@ def test_session(report):
     report.check('version says what it is, not a plausible-looking number',
                  version['firmware'] == 'simulated' and version['build']
                  == 'simulated', version)
-    report.check('the channel table has all seven real channels, named',
-                 len(channels) == 7
-                 and {c['signal'] for c in channels if c['signal']}
-                 == {'Phase U', 'Phase V', 'Phase W', 'NTC', 'DC bus',
-                     'Clevel', 'Cinj'})
+    # Counted and named off the stand-in's own table, which is checked
+    # against the board's by test_parity. Written out here it said seven,
+    # and two supply senses were added to `s_adc` - a count in a test is
+    # the same second answer a pin table in a document is.
+    report.check('every channel the table carries is named, none blank',
+                 len(channels) == len(simulated.CHANNELS)
+                 and {c['signal'] for c in channels}
+                 == {c['signal'] for c in simulated.CHANNELS},
+                 sorted(c['signal'] for c in channels))
     report.check('close() and reset() are no-ops, not errors',
                  session.close() is None and session.reset() is None)
 
@@ -673,24 +678,24 @@ def test_desk(report):
                           desk.Desk._ink(0.99))
                  == (ansi.GREEN, ansi.AMBER, ansi.RED))
 
-    bridge = desk.Desk(decay=0.04)
+    gate_drivers = desk.Desk(decay=0.04)
     loud = _desk_rows(**{'Phase U': 30000})
     for row in loud:
         row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
-    bridge.update(loud)
-    held = bridge._held[0][1]
+    gate_drivers.update(loud)
+    held = gate_drivers._held[0][1]
     quiet = _desk_rows(**{'Phase U': 30})
     for row in quiet:
         row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
-    bridge.update(quiet)
+    gate_drivers.update(quiet)
     report.check('a peak falls by the decay and no further - that is the '
                  'ballistics, not a reading',
-                 abs(bridge._held[0][1] - (held - 0.04)) < 1e-9,
-                 '%.3f -> %.3f' % (held, bridge._held[0][1]))
-    bridge.update(loud)
+                 abs(gate_drivers._held[0][1] - (held - 0.04)) < 1e-9,
+                 '%.3f -> %.3f' % (held, gate_drivers._held[0][1]))
+    gate_drivers.update(loud)
     report.check('and it jumps back the instant the level does',
-                 abs(bridge._held[0][1] - held) < 1e-9,
-                 '%.3f' % bridge._held[0][1])
+                 abs(gate_drivers._held[0][1] - held) < 1e-9,
+                 '%.3f' % gate_drivers._held[0][1])
 
 
 def test_tumble(report):
@@ -1009,7 +1014,7 @@ def test_link_bench(report):
                  'no wire to be slow' in drawn, drawn.splitlines()[-1][:60])
 
 
-def test_bridge_arming(report):
+def test_gate_driver_arming(report):
     """Arming a power stage is asked for by name, or it does not happen.
 
     The 2EDL8034's inputs are independent and it has no interlock, so TIM1's
@@ -1023,26 +1028,26 @@ def test_bridge_arming(report):
     rig = Coaxial63100(simulated_device=True).open()
     try:
         report.check('nothing is armed on the way in',
-                     rig.bridge_armed() is False, rig.bridge_armed())
+                     rig.gate_drivers_armed() is False, rig.gate_drivers_armed())
 
         try:
             rig.daq_write(analog={'Phase U': 0.25})
             refused = None
         except RigError as exc:
             refused = str(exc)
-        report.check('a duty write is refused while the bridge is not armed '
+        report.check('a duty write is refused while the gate drivers are not armed '
                      '- writing a level must not be what arms a power stage',
                      refused is not None, refused)
         report.check('and the refusal names the call that would arm it, '
                      'rather than leaving the caller to guess',
-                     refused and 'arm_bridge' in refused, refused)
+                     refused and 'arm_gate_drivers' in refused, refused)
 
         # The schematic wants the charge pump up and the level detector
         # tripped first. The stand-in reports neither, the same way the
         # unmodified bench board does not - Cinj 0.77 V and Clevel 0.06 V
         # against 3 V each, measured 2026-08-27.
         try:
-            rig.arm_bridge(bypass_sto=True)
+            rig.arm_gate_drivers(bypass_sto=True)
             held = None
         except RigError as exc:
             held = str(exc)
@@ -1052,33 +1057,33 @@ def test_bridge_arming(report):
                      'the fact that it refused',
                      held and 'Cinj' in held and 'V' in held, held)
 
-        rig.arm_bridge(bypass_sto=True, ignore_interlock=True)
-        report.check('after arm_bridge, MOE is set', rig.bridge_armed(), True)
+        rig.arm_gate_drivers(bypass_sto=True, ignore_interlock=True)
+        report.check('after arm_gate_drivers, MOE is set', rig.gate_drivers_armed(), True)
         report.check('and the same write goes through',
                      rig.daq_write(analog={'Phase U': 0.25})['Phase U'] > 0,
-                     rig.board.bridge.state()['duty'])
+                     rig.board.gate_drivers.state()['duty'])
 
-        rig.disarm_bridge()
-        report.check('disarm_bridge clears it again',
-                     rig.bridge_armed() is False, rig.bridge_armed())
+        rig.disarm_gate_drivers()
+        report.check('disarm_gate_drivers clears it again',
+                     rig.gate_drivers_armed() is False, rig.gate_drivers_armed())
 
         # The check reads BDTR every time rather than trusting one reading:
         # a .ioc regeneration and a CubeMX mode name bound to the wrong
         # channel have both moved TIM1 in this repository without saying so.
-        state = dict(rig.board.bridge.state(), deadtime=0)
-        rig.board.bridge.state = lambda: state
+        state = dict(rig.board.gate_drivers.state(), deadtime=0)
+        rig.board.gate_drivers.state = lambda: state
         try:
-            rig.arm_bridge(ignore_interlock=True)
+            rig.arm_gate_drivers(ignore_interlock=True)
             stopped = None
         except RigError as exc:
             stopped = str(exc)
-        report.check('a bridge reporting no dead time will not arm',
+        report.check('a gate driver stage reporting no dead time will not arm',
                      stopped is not None, stopped)
         report.check('and the refusal says what to look at',
                      stopped and 'DTG' in stopped and '.ioc' in stopped,
                      stopped)
         report.check('the dead time is checked before the interlock, because '
-                     'no interlock makes a bridge with none safe to arm',
+                     'no interlock makes a gate driver stage with none safe to arm',
                      'DTG' in (stopped or ''), None)
     finally:
         rig.close()
@@ -1098,12 +1103,12 @@ def test_gate_snapshot(report):
     """
     sys.path.insert(0, os.path.join(os.path.dirname(
         os.path.dirname(os.path.abspath(__file__))), 'tools'))
-    import show_bridge
+    import show_gate_drivers
 
     session = SimulatedSession()
-    bridge = session.board.bridge
+    gate_drivers = session.board.gate_drivers
 
-    state = bridge.state()
+    state = gate_drivers.state()
     report.check('every gate is named, low side and high side per leg',
                  set(state['pins']) == {'UL', 'UH', 'VL', 'VH', 'WL', 'WH'},
                  sorted(state['pins']))
@@ -1115,16 +1120,16 @@ def test_gate_snapshot(report):
                  'of every leg off, which is what MOE clear means',
                  not any(state['pins'].values()), state['pins'])
 
-    bridge.bypass_break(True)
-    bridge.enable()
-    bridge.duty((0, 0, 0))
-    seen = [bridge.state()['pins'] for _ in range(40)]
+    gate_drivers.bypass_break(True)
+    gate_drivers.enable()
+    gate_drivers.duty((0, 0, 0))
+    seen = [gate_drivers.state()['pins'] for _ in range(40)]
     report.check('armed at zero duty, the low sides carry it',
                  all(p['UL'] and not p['UH'] for p in seen), seen[0])
 
-    period = bridge.state()['period']
-    bridge.duty((period // 2, period // 2, period // 2))
-    seen = [bridge.state()['pins'] for _ in range(60)]
+    period = gate_drivers.state()['period']
+    gate_drivers.duty((period // 2, period // 2, period // 2))
+    seen = [gate_drivers.state()['pins'] for _ in range(60)]
     report.check('at half duty both halves of the period show up',
                  any(p['UH'] for p in seen) and any(p['UL'] for p in seen),
                  [sum(p['UH'] for p in seen), sum(p['UL'] for p in seen)])
@@ -1133,17 +1138,17 @@ def test_gate_snapshot(report):
     report.check('and no sample ever has both FETs of a leg on',
                  not conducting, 'checked %d samples' % len(seen))
 
-    drawn = '\n'.join(show_bridge.gate_rows(bridge.state(), 100))
+    drawn = '\n'.join(show_gate_drivers.gate_rows(gate_drivers.state(), 100))
     report.check('the view draws one row per leg', drawn.count('phase') == 3,
                  drawn.splitlines()[0])
-    both_on = dict(bridge.state())
+    both_on = dict(gate_drivers.state())
     both_on['pins'] = dict(both_on['pins'], UH=True, UL=True)
     report.check('and says so in words when a leg shows both on, rather '
                  'than leaving it to be spotted in a row of ones',
-                 'BOTH ON' in '\n'.join(show_bridge.gate_rows(both_on, 100)),
+                 'BOTH ON' in '\n'.join(show_gate_drivers.gate_rows(both_on, 100)),
                  None)
-    bridge.disable()
-    bridge.bypass_break(False)
+    gate_drivers.disable()
+    gate_drivers.bypass_break(False)
 
 
 def main():
@@ -1154,7 +1159,7 @@ def main():
                  test_orientation, test_scaling, test_desk,
                  test_tumble, test_peak_hold, test_ascii3d,
                  test_clock_reference, test_link_bench,
-                 test_bridge_arming, test_gate_snapshot):
+                 test_gate_driver_arming, test_gate_snapshot):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

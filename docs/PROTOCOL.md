@@ -44,6 +44,10 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   start twice       -> already running - stop it first, or leave it be
   ```
 
+* **Device 6's channel mask is `u16`, from MINOR 23.** It was `u8` and the ninth ADC channel did not fit. This **resizes a field** rather than appending one, so it is the one place in this protocol where a host older than 23 mis-decodes rather than simply missing something: `configure` takes `u16 channels` first and op 0 reports it the same way. It is not a MAJOR because invariant 3's append-only rule is 0x41's, and 0x41 is untouched - but it is a break, and it is written down here rather than hidden in a MINOR.
+
+* **`0x42` takes an optional `u8` start index and appends `u8 total`.** A row costs 18 bytes plus its pin and signal names against a 252-byte reply: seven channels came to 197 and nine to 254. The board sends what fits and says how many there are; a host asks again from where it stopped. Absent, the index reads 0.
+
 * **Device 5, op 0** reports `u8 sources, u16 count, u16 depth, u32 dropped, u32 thinned`. `thinned` is appended (MINOR 21) and is not `dropped`: dropped is a sample the ring had no room for, thinned is one the board declined because that source had already used its share of what the link can drain. Each armed source gets `cmd_link_records_per_second(14) / armed`, held as a minimum gap in raw CYCCNT. Without it the angle loop's 24 kHz filled a 1024-deep drop-newest ring in 43 ms and the IMU's 50 Hz never got in - measured, 1 record a second against angle's 198.
 
 * **`0x6E` Device:** Every peripheral, chosen by a leading device byte, then an op byte: `0x6E <device> <op> [payload]`. One function code for all of them because there are none left - the user-defined ranges are 65..72 and 100..110, and this board had spent all but 110. A second code answered ILLEGAL FUNCTION from the protocol layer before dispatch saw it. Adding a device is a row in `cmd_device.c` and an op dispatcher beside it.
@@ -54,7 +58,7 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   | 1 | A1335 angle sensor | SPI4, mode 3, 1.86 MHz | 0 read register, 1 write register, 2 shared record, 3 hold, 4 resume, 5 which register the loop reads, 6 clock |
   | 2 | the three serial ports | USART3, USART2, UART5 | 0 loopback check, 1 per-port counters |
   | 3 | the calibration record | flash, bank 2 sector 7 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults |
-  | 4 | the bridge | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16 |
+  | 4 | the gate drivers | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16 |
   | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
   | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live |
   | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |

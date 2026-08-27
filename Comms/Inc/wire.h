@@ -46,6 +46,10 @@ void wr_str(wr_t *w, const char *s);
 
 static inline bool wr_ok(const wr_t *w) { return !w->bad; }
 static inline uint16_t wr_len(const wr_t *w) { return w->len; }
+/** Bytes still free. For a writer that must size a list before it
+  * writes the count that leads it. */
+static inline uint16_t wr_room(const wr_t *w)
+{ return (w->cap > w->len) ? (uint16_t)(w->cap - w->len) : 0U; }
 
 typedef struct
 {

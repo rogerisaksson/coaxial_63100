@@ -190,7 +190,7 @@ uint8_t Board_AnglePollRegGet(void);
 /** Half bridges on this board, and compare registers on TIM1. */
 #define BOARD_PWM_PHASES 3U
 
-/** What the bridge is doing, for the command layer to report verbatim. */
+/** What the gate drivers are doing, for the command layer to report verbatim. */
 typedef struct
 {
   bool     ready;                    /**< TIM1 clocked and given a period  */
@@ -206,7 +206,7 @@ typedef struct
                                           host knows where in the period    */
 } board_pwm_state_t;
 
-/** Bridge off, and true only if TIM1 is configured. Cannot configure it. */
+/** GateDrivers off, and true only if TIM1 is configured. Cannot configure it. */
 /** The 120 ohm across UART5 - UART0 on the schematic. Off at reset. */
 void Board_SetUart5Termination(bool on);
 bool Board_Uart5Termination(void);
@@ -260,7 +260,7 @@ typedef struct
 /* ---- the acquisition task ----------------------------------------------- */
 
 /** As many channels as the ADC table has rows. */
-#define BOARD_DAQ_MAX_CHANNELS 8U
+#define BOARD_DAQ_MAX_CHANNELS 9U
 
 #define BOARD_DAQ_CLOCK_SOFTWARE 0U  /**< the main loop, as fast as it gets round */
 #define BOARD_DAQ_CLOCK_TIM1     1U  /**< the injected group, one per PWM period  */
@@ -268,7 +268,8 @@ typedef struct
 /** What a task is. Every field is the caller's; nothing is inferred. */
 typedef struct
 {
-  uint8_t  channels;     /**< bitmask over the ADC table's rows          */
+  uint16_t channels;     /**< bitmask over the ADC table's rows. 16 bits
+                              because the ninth channel did not fit in 8 */
   uint8_t  clock;        /**< BOARD_DAQ_CLOCK_*                          */
   uint8_t  sample_time;  /**< 0..7, the converter's own sampling window  */
   uint16_t decimate;     /**< keep one trigger in N; 1 keeps every one   */
@@ -439,7 +440,7 @@ bool Board_PwmIsEnabled(void);
 /** Is the break latched? It is nFAULT arriving through TIM1_BKIN. */
 bool Board_PwmFault(void);
 
-/** Disconnect TIM1's break input, for bench work with the bridge unpowered.
+/** Disconnect TIM1's break input, for bench work with the gate drivers unpowered.
     Clearing the latch alone cannot work: with PE15 low the break is a level
     and the hardware holds MOE clear. Does not survive a reset. */
 bool Board_PwmSetBreakBypass(bool on);
@@ -508,7 +509,7 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc);
 /** Channels the record carries a correction for. The ADC table's length, and
     checked against it at init - a table that grew past this is a record that
     would silently stop correcting the new channels. */
-#define BOARD_CAL_CHANNELS 7U
+#define BOARD_CAL_CHANNELS 9U
 
 /** Which scalar Board_CalSetParam/GetParam addresses. Integers in the unit
     that makes them integers, because the wire bans floating point. */

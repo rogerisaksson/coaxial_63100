@@ -46,23 +46,32 @@ class Analog(Subsystem):
         use read_all(), ntc_temperature() or scan() for live values.
         """
         if self._channels is None or refresh:
-            reader = Reader(self.request(protocol.ADC_TABLE))
-            count = reader.u8()
+            # Asked for in pages. A row costs 18 bytes plus its two names and
+            # one reply holds 252, so seven channels fitted and nine did not
+            # - the board sends what fits, says how many there are, and this
+            # asks again from where it stopped.
             table = []
-            for index in range(count):
-                row = {
-                    'index': index,
-                    'adc': reader.u8(),
-                    'channel': reader.u8(),
-                    'pin': reader.string(),
-                    'differential': bool(reader.u8()),
-                    'signal': reader.string(),
-                }
-                reader.i32()                          # raw, at fetch time
-                reader.i32()                          # microvolts, at fetch time
-                row['unit'] = protocol.CHANNEL_UNITS.get(reader.u8())
-                reader.i32()                          # scaled, at fetch time
-                table.append(row)
+            while True:
+                reader = Reader(self.request(protocol.ADC_TABLE,
+                                             bytes([len(table)])))
+                sent = reader.u8()
+                for _ in range(sent):
+                    row = {
+                        'index': len(table),
+                        'adc': reader.u8(),
+                        'channel': reader.u8(),
+                        'pin': reader.string(),
+                        'differential': bool(reader.u8()),
+                        'signal': reader.string(),
+                    }
+                    reader.i32()                      # raw, at fetch time
+                    reader.i32()                      # microvolts, at fetch
+                    row['unit'] = protocol.CHANNEL_UNITS.get(reader.u8())
+                    reader.i32()                      # scaled, at fetch time
+                    table.append(row)
+                total = reader.u8() if reader.remaining else len(table)
+                if len(table) >= total or not sent:
+                    break
             self._channels = table
         return self._channels
 

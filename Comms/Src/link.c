@@ -41,7 +41,7 @@ static link_port_t s_links[LINK_COUNT];
    failed checksum. */
 static uint8_t s_current = LINK_CONSOLE;
 
-/* Bridge from the protocol's user-defined function space into the command
+/* GateDrivers from the protocol's user-defined function space into the command
    table. The mapping of failures onto Modbus exceptions is the only judgement
    here: a bad length or a bad field are both "the request was wrong", which is
    ILLEGAL DATA VALUE, while an unknown code is ILLEGAL FUNCTION. */

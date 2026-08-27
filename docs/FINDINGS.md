@@ -125,7 +125,7 @@ rather than by reasoning about hardware.
 | `pilot_ok` and `level_ok` false for every call ever made | `STO_ReadOne` passed `NULL` for `Board_AdcRead`'s `scaled` argument, which refuses a NULL before reading anything. |
 | `Board_SyncArm` could never succeed | `Board_SyncReady` required `JSQR != 0`, but JSQR is written by `SYNC_ConfigPhase` **inside** Arm. Ready now means "a timer to trigger from" and nothing else. |
 
-Measured after the fixes, AFE on, bridge off: injected (1433, -8136, 390)
+Measured after the fixes, AFE on, gate drivers off: injected (1433, -8136, 390)
 against a meter reading (1456, -8118, 442) - inside the ~55 LSB the meter
 reports as its own noise. **49976 triples/s over 4.05 s against a 50 kHz
 PWM, zero overruns**: one per period.
@@ -140,7 +140,7 @@ is hardware-triggered. `at` is therefore a witness with a fixed offset and
 (OC4REF in PWM1 never activates); CCR4 > ARR is refused and op 4's reply
 reports the unchanged register.
 
-## The STO interlock works, and the bridge cannot be enabled
+## The STO interlock works, and the gate drivers cannot be enabled
 
 Measured 2026-08-27 with KEEPALIVE running: `fault` set, `Board_PwmClearFault`
 returned 1, `Board_PwmEnable` returned **0**, `fault` set again - all inside
@@ -233,7 +233,7 @@ invariant about those. If it comes back, the thing to check is whether the
 converter is being read before its reference has settled - the AFE powers
 that reference, not just the signal path.
 
-## Closed: the bridge trips were the bench supply's limit
+## Closed: the gate drivers trips were the bench supply's limit
 
 Provoked deliberately 2026-08-27 with the limit raised to 200 mA at 24 V,
 and it would not reproduce. Duty swept 0 to 100 % in six combinations -
@@ -280,12 +280,12 @@ What is ruled out:
   power stage could have switched at all.
 
 So either the inversion is not clean, or the current came from somewhere
-that is not the bridge. Recovering needed the bench supply's limit raised -
+that is not the gate drivers. Recovering needed the bench supply's limit raised -
 about 200 mA at 24 V, which is roughly what the board draws running, so the
 limit was tight rather than the board being damaged.
 
 **Until this is understood, `bypass_break` is arming a power stage and not
-a configuration flag.** `python_examples/daq_session.py` has the bridge off
+a configuration flag.** `python_examples/daq_session.py` has the gate drivers off
 by default for that reason.
 
 ## Broadcast beats a round trip for clock sync, by 7x
@@ -340,7 +340,7 @@ latch's hold. The loop is not idle-waiting either - 8.6 us a turn with the
 AFE off, spent on the keepalive's own rate limiter. Downclocking is not a
 knob but a re-derivation: SysTick, the UART divisors, the ADC clock and
 TIM1's ARR all hang off it. The way that would open is a keepalive
-conditional on somebody intending to arm the bridge, which changes what the
+conditional on somebody intending to arm the gate drivers, which changes what the
 dead-man's switch proves and is not a decision to take quietly.
 
 ## The accumulator needs a count per channel
@@ -516,15 +516,15 @@ The consequence is the awkward one. `AFE_ON` also powers the ADC reference
 
 | AFE_ON | gate drivers | current measurement |
 |---|---|---|
-| off | **powered** - the bridge can switch | meaningless: every channel reads mid-scale |
+| off | **powered** - the gate drivers can switch | meaningless: every channel reads mid-scale |
 | on | unpowered - nothing switches | valid |
 
 **Switching and measuring are mutually exclusive on this board.** Nothing
 below was taken with a live power stage, and nothing can be until the patch.
 
-## The current path is consistent, with the bridge inert
+## The current path is consistent, with the gate drivers inert
 
-AFE on, break bypassed, bridge enabled, sync armed. Duty swept 0-100 % equal
+AFE on, break bypassed, gate drivers enabled, sync armed. Duty swept 0-100 % equal
 on all three phases, and the sample point swept across the period:
 
 | Swept | Phase U | Phase V | Phase W |
@@ -827,7 +827,7 @@ straight wire to **PD8** and `SPI0.SYNC` to PD9, so `board_imu.c`'s file
 header - "neither is assigned to a pin" - is the stale half of its own
 contradiction, not line 55.
 
-## The bridge switches 0 to 100 % with the drivers powered, and nothing trips
+## The gate drivers switches 0 to 100 % with the drivers powered, and nothing trips
 
 Measured 2026-08-27, AFE_ON **off** so the bench board's inverted gate gives
 the drivers supply, break bypassed, all three legs at the same duty - so
@@ -841,7 +841,7 @@ and whatever the legs draw from the DC link.
 Zero overruns throughout, and five seconds held at 50 % with the link up.
 
 **25 % used to take the board down.** The supply is the difference: raised
-to 200 mA at 24 V, as the user said at the time. It closes *the bridge trips
+to 200 mA at 24 V, as the user said at the time. It closes *the gate drivers trips
 were the bench supply's limit* - they were, and the limit moved.
 
 Nothing here was measured with an instrument, and nothing here is a phase
@@ -858,7 +858,7 @@ two FETs of a leg.
 | | |
 |---|---|
 | `.ioc` | `TIM1.DeadTime=19` |
-| board's own report | `bridge.state()['deadtime']` = 19, read from `TIM1->BDTR & TIM_BDTR_DTG` |
+| board's own report | `gate drivers.state()['deadtime']` = 19, read from `TIM1->BDTR & TIM_BDTR_DTG` |
 | **silicon, over SWD** | `BDTR = 0x02001C13` -> DTG **19**; `CR1 = 0xB1` -> CKD **00**, so t_DTS = t_CK_INT |
 
 PSC 0 and ARR 2375 at 237.5 MHz, so **19 x 4.2105 ns = 80.0 ns**. The same
@@ -869,8 +869,30 @@ Against that, what the gate needs: 15.5 V down through 4.99 + 2.2 ohms into
 5.48 nF to the 2.8 V threshold is 1.71 time constants of 39.4 ns, about
 67 ns; the incoming device reaches its own threshold 8 ns after its edge;
 the driver's worst-case delay matching is 6 ns. **About 65 ns needed, 80 ns
-present** - and the user's own LTspice half-bridge runs at `tdead=30n`.
+present** - and the user's own LTspice half-gate drivers runs at `tdead=30n`.
 
-`rig.bridge_check()` re-reads DTG on every arm and refuses at zero, because
+`rig.gate_drivers_check()` re-reads DTG on every arm and refuses at zero, because
 a `.ioc` regeneration and a CubeMX mode name bound to the wrong channel have
 both silently moved TIM1 in this repository before.
+
+## Open, seen once: the board stops answering Modbus while the core runs
+
+2026-08-27, during a full suite run. The MCU was alive - `STM32_Programmer_CLI
+-c port=SWD mode=HotPlug` read `Device ID 0x450` - and COM4 existed, but no
+Modbus request got a reply: `open_session()` fell back to the stand-in, so
+`test_parity` reported 0 checks and `test_conformance` 1. A re-flash with
+`--start` brought it straight back.
+
+The shape is invariant 5's: a latched ORE ends reception until ICR clears it.
+`dev_uart.c` does clear it - `DEV_ERR_CLEAR` includes `USART_ICR_ORECF`, and
+the comment beside it records why reading RDR is not enough - so either that
+path was not reached or this is something else.
+
+Not reproduced. What ran just before it: the full suite twice over, the two
+python_examples, and the gate driver view. Nothing in the state afterwards
+pointed anywhere - the task was stopped, the ring disarmed, MOE clear.
+
+The run before this one failed differently for what may be the same reason:
+`test_mcp` lost three checks, two of them AFE ones, while every other suite
+passed. Recorded together because a board that answers intermittently looks
+like a different bug in every suite that meets it.

@@ -1,29 +1,24 @@
 #!/usr/bin/env python3
-"""The gate drivers: what the six signals are doing, and what it costs.
+"""The gate drivers: what the six signals do, and what it costs.
 
-    python tools/show_bridge.py --port COM4
+    python tools/show_gate_drivers.py --port COM4
 
-Three things at once, because separately they mislead. The **gate snapshot**
-is one IDR read, so the six are the same instant - asking six times at
-50 kHz can straddle an edge and show a leg with both FETs on, which is the
-one state the dead time exists to prevent. The **currents** and the **DC
-link** come from the acquisition task's live accumulator, which carries a
-count, a lowest and a highest per channel, so ripple is measured rather
-than inferred from one sample.
-
-Keys. Duty first, because it is the one that matters:
+The **gate snapshot** is one IDR read, so the six signals are the same
+instant: six asks at 50 kHz can straddle an edge and show a leg with both
+FETs on. The **currents** and **DC link** come from the acquisition task's
+live accumulator, which carries a count, a lowest and a highest per
+channel, so ripple is measured rather than inferred.
 
     + -     common duty, one step        [ ]     step size
-    A       arm / disarm the bridge      B       BKIN override
-    1 2 3 4 run length 1/10/100/1000 ms  R       run and capture
-    Q       close                        ESC     back to the menu
+    A       arm / disarm the stage       B       BKIN override
+    I       interlock override           R       run and capture
+    1 2 3 4 run length 1/10/100/1000 ms  Q / ESC close / menu
 
-**Arming is arming a power stage.** The 2EDL8034's inputs are independent
-and it has no interlock, so TIM1's 80 ns dead time is the only thing between
-the two FETs of a leg; `rig.arm_bridge()` re-reads BDTR DTG and refuses at
-zero. On the bench board the STO chain gates the drivers' supply inverted,
-so they have power while AFE_ON is *off* - and with AFE_ON off the currents
-below are not measurements (invariant 9). The view says which it is.
+**Arming arms a power stage**, and TIM1's 80 ns dead time is the only thing
+between the two FETs of a leg - the 2EDL8034 has no interlock of its own.
+On this bench board AFE_ON is inverted, so the drivers have supply while it
+is off, and with it off the board refuses to convert: switching and
+measuring are mutually exclusive here. `--afe` runs it the other way.
 
 Nothing here judges a reading.
 """
@@ -114,7 +109,7 @@ def analog_rows(live, layout, powered, refused, width):
 def capture(rig, seconds, view):
     """Arm nothing, change nothing: run the task for `seconds` and drain it.
 
-    The bridge is left exactly as the operator set it. A run that armed the
+    The gate drivers is left exactly as the operator set it. A run that armed the
     stage itself would be a second way to arm one, and there is deliberately
     only one.
     """
@@ -193,7 +188,7 @@ def run_rows(view, width):
 
 def _duty(rig, view, by):
     view['duty'] = min(1.0, max(0.0, view['duty'] + by))
-    if rig.bridge_armed():
+    if rig.gate_drivers_armed():
         rig.daq_write(analog={'Phase U': view['duty'],
                               'Phase V': view['duty'],
                               'Phase W': view['duty']})
@@ -207,16 +202,16 @@ def _step(view, by):
 
 
 def _arm(rig, view):
-    if rig.bridge_armed():
-        rig.disarm_bridge(keep_bypass=True)
+    if rig.gate_drivers_armed():
+        rig.disarm_gate_drivers(keep_bypass=True)
         return 'disarmed'
-    rig.arm_bridge(ignore_interlock=view['override'])
+    rig.arm_gate_drivers(ignore_interlock=view['override'])
     return 'armed at zero duty - all three low sides on'
 
 
 def _bkin(rig):
-    want = not rig.board.bridge.state()['break_bypassed']
-    rig.board.bridge.bypass_break(want)
+    want = not rig.board.gate_drivers.state()['break_bypassed']
+    rig.board.gate_drivers.bypass_break(want)
     return ('BKIN overridden - the STO break input is disconnected'
             if want else 'BKIN back in circuit')
 
@@ -261,10 +256,10 @@ def act(rig, key, view):
 
 def compose(rig, origin, console, view, layout, width):
     """The whole frame."""
-    state = view['bridge']
-    lines = [banner(origin, 'gate drivers', console,
+    state = view['gate_drivers']
+    lines = [banner(origin, 'gate_drivers', console,
                     'Q closes, ESC for the menu'), '']
-    lines.append(' BRIDGE  %-8s  break %-10s  dead time %d = %.1f ns  '
+    lines.append(' GATEDRIVERS  %-8s  break %-10s  dead time %d = %.1f ns  '
                  'duty %.1f%% step %.1f%%'
                  % ('ARMED' if state['pwm_enabled'] else 'idle',
                     'OVERRIDDEN' if state['break_bypassed']
@@ -330,7 +325,7 @@ def main(argv=None):
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
 
     try:
-        state = rig.bridge_check()
+        state = rig.gate_drivers_check()
     except RigError as exc:
         say('fail', 'dead time', str(exc))
         rig.close()
@@ -354,7 +349,7 @@ def main(argv=None):
         say('warn', 'task', '%s' % refused)
 
     view = {'duty': 0.0, 'step': 0.01, 'seconds': RUNS['3'], 'said': '',
-            'bridge': board.bridge.state(), 'live': None, 'refused': refused,
+            'gate_drivers': board.gate_drivers.state(), 'live': None, 'refused': refused,
             'layout': layout, 'override': not args.interlock,
             'deadtime_ns': state['deadtime'] * 1e9
                            / (2.0 * (state['period'] - 1) * 50000.0)}
@@ -368,7 +363,7 @@ def main(argv=None):
         with Keys(console) as keys:
             while True:
                 try:
-                    view['bridge'] = board.bridge.state()
+                    view['gate_drivers'] = board.gate_drivers.state()
                     if not refused:
                         view['live'] = rig.latest(block=False)
                 except RigError:
@@ -398,10 +393,10 @@ def main(argv=None):
         try:
             if not refused:
                 rig.stop()
-            rig.disarm_bridge()
+            rig.disarm_gate_drivers()
             if board.afe.is_on() != was_on:
                 board.afe.enable() if was_on else board.afe.disable()
-            say('ok', 'bridge', 'disarmed, BKIN back in circuit, AFE_ON as '
+            say('ok', 'gate_drivers', 'disarmed, BKIN back in circuit, AFE_ON as '
                                 'it was found')
         except RigError as exc:
             say('fail', 'putting it back', str(exc))

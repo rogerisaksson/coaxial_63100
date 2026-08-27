@@ -46,11 +46,6 @@ def back(number):
 HALF = '▄'
 
 
-def half_block(top, bottom):
-    """One cell showing two greys, upper and lower."""
-    return back(top) + code(bottom) + HALF
-
-
 def paint(text, number):
     """`text` in one colour, closed again."""
     return code(number) + text + RESET

@@ -1,4 +1,4 @@
-"""The three-phase bridge: TIM1, the synced phase triple, and Safe Torque Off.
+"""The three-phase gate drivers: TIM1, the synced phase triple, and Safe Torque Off.
 
 One device because they are one question. Tuning the sample point means
 reading where the trigger sits, what came back and whether the STO chain
@@ -32,17 +32,17 @@ OP_DUTY_FINE = 8
 OP_GAP_RESET = 7
 
 
-class Bridge(Subsystem):
+class GateDrivers(Subsystem):
 
     """TIM1's compare registers, the injected triple and the STO chain."""
 
     def _op(self, op, payload=b''):
-        """One 0x6E request for the bridge device."""
+        """One 0x6E request for the gate drivers device."""
         return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_BRIDGE, op]) + bytes(payload))
+                            bytes([protocol.DEVICE_GATE_DRIVERS, op]) + bytes(payload))
 
     def state(self):
-        """Everything the bridge knows, from one conversion's worth of time.
+        """Everything the gate drivers knows, from one conversion's worth of time.
 
         `at` is TIM1->CNT as the interrupt read it, not the instant the
         sample was taken: measured, the handler runs about 965 ticks
@@ -161,7 +161,7 @@ class Bridge(Subsystem):
                                        int(ticks).to_bytes(2, 'big')), 'big')
 
     def bypass_break(self, on=True):
-        """Disconnect TIM1's break input so the bridge can run on the bench.
+        """Disconnect TIM1's break input so the gate drivers can run on the bench.
 
         Clearing the latch alone cannot work: with PE15 low the break is a
         level, so the hardware holds MOE clear and software cannot set it.

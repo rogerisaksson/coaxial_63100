@@ -11,7 +11,7 @@ State as of 2026-08-27.
 
 ## What runs
 
-**TIM1 is configured and the bridge is held off.** Centre-aligned, ARR 2375
+**TIM1 is configured and the gate drivers is held off.** Centre-aligned, ARR 2375
 off 237.5 MHz = 50.000 kHz exact, RCR 1, DTG 19 = 80.0 ns, break on PE15
 active low, AOE off. `Board_PwmInit()` starts the counter with MOE clear and
 CCxE set, so OSSI drives all six outputs to their idle level. Read back off
@@ -77,11 +77,11 @@ the meter (NTC 40505.8 vs 40498.3).
 **`0x6E` device 5 is the event ring** — 1024 records the angle and IMU
 loops push into, drained fifteen per reply.
 
-**`0x6E` device 4 puts the bridge on the wire.** State, PWM on/off, duty,
-sync arm/disarm, sample point, clear break — `Comms/Src/cmd_bridge.c`,
-`host/coaxial/bridge.py`, mirrored in `simulated.py`.
+**`0x6E` device 4 puts the gate drivers on the wire.** State, PWM on/off, duty,
+sync arm/disarm, sample point, clear break — `Comms/Src/cmd_gate_drivers.c`,
+`host/coaxial/gate drivers.py`, mirrored in `simulated.py`.
 
-## What blocks the bridge
+## What blocks the gate drivers
 
 **The STO chain has not released, so PWM cannot be enabled.** Proven:
 clearing the break latch and enabling in the same round trip leaves the

@@ -268,6 +268,18 @@ static const AdcChannelDesc s_adcTable[] =
   { &hadc1, "ADC1", ADC_CHANNEL_9,  "IN9",  "PB0",         ADC_SINGLE_ENDED,       "NTC",     ADC_UNIT_NTC   },
   { &hadc3, "ADC3", ADC_CHANNEL_10, "IN10", "PC0",         ADC_SINGLE_ENDED,       "DC bus",  ADC_UNIT_DCBUS },
   { &hadc3, "ADC3", ADC_CHANNEL_11, "IN11", "PC1",         ADC_SINGLE_ENDED,       "Cinj",    ADC_UNIT_NONE  },
+  /* The two supply senses, both single-ended off ADC1. Traced on the MCU
+     sheet 2026-08-27: R113 is a 10 k array whose four elements are GND,
+     +5, +15V7 through R119 47 k, and GND. So PA4 sits on a 10 k/10 k
+     divider off +5 - ratio 2.0, 2.50 V at the pin - and PA5 on 47 k + 10 k
+     over 10 k off +15V7 - ratio 6.70, 2.34 V at the pin.
+
+     ADC_UNIT_NONE, not millivolts, because a unit here is a promise that
+     the scaling behind it is in the calibration record, and these two
+     dividers are not in it yet (invariant 7). A host reads them as volts
+     at the pin, which is what they are. */
+  { &hadc1, "ADC1", ADC_CHANNEL_18, "IN18", "PA4",         ADC_SINGLE_ENDED,       "+5V",   ADC_UNIT_NONE  },
+  { &hadc1, "ADC1", ADC_CHANNEL_19, "IN19", "PA5",         ADC_SINGLE_ENDED,       "Vgate", ADC_UNIT_NONE  },
 };
 
 uint8_t Board_AdcCount(void)

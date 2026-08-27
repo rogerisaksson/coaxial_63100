@@ -23,7 +23,7 @@ NAMES = {PHASES: 'phases', ANGLE: 'angle', IMU: 'imu'}
 BY_NAME = {v: k for k, v in NAMES.items()}
 
 # Named as the firmware names them, in Comms/Inc/cmd.h: the bare OP_STATE
-# is bridge.py's, and one definition per name across the package is a rule
+# is gate_drivers.py's, and one definition per name across the package is a rule
 # the structure suite enforces.
 LOG_OP_STATE = 0
 LOG_OP_ARM = 1

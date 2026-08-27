@@ -308,7 +308,7 @@ def test_no_escaping_scars(r):
     business in the source it produced. Left in ten places once already.
     """
     for path, text, tree in sources():
-        if path.endswith(('replies.py', 'sandbox.py', 'pdfwriter.py')):
+        if path.endswith(('replies.py', 'sandbox.py')):
             continue        # these are *about* escaping: the first two by
                             # their tests, the third because a backslash is
                             # what a PDF literal string escapes with

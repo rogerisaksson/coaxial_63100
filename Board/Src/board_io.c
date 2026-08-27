@@ -29,7 +29,7 @@ static const DigitalDesc s_digital[] =
   { 'B',  2U, "PB2",  BOARD_DIR_OUT,   "AFE_ON",              true  },
   /* Still an input carrying nFAULT, and still readable here - IDR reflects
      the pin whatever mode it is in. It now has a second consumer: the .ioc
-     routes it to TIM1_BKIN, so the bridge stops in hardware rather than
+     routes it to TIM1_BKIN, so the gate drivers stop in hardware rather than
      waiting for anyone to poll this. The signal is FAULTIN from the STO
      chain, not from the drivers - a 2EDL8034 has no fault pin. */
   { 'E', 15U, "PE15", BOARD_DIR_IN,    "nFAULT",              true  },
@@ -87,7 +87,7 @@ static const PartDesc s_parts[] =
   { "AFE", "phase chains + ADC ref", "PB2 switches it", "", PART_PROBE_AFE },
   { "UART5 termination", "120 ohm across the pair", "PE14 switches it", "",
     PART_PROBE_NONE },
-  /* The bridge. `power` names the STO chain and not a pin because there is
+  /* The gate_drivers. `power` names the STO chain and not a pin because there is
      no pin: the supply is released by the safety chain on STO.SchDoc when
      the master's RS485 pilot tone keeps arriving. HalfBridge.SchDoc is
      instantiated three times, one per phase, so the BOM carries Altium's

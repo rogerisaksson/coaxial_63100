@@ -26,7 +26,7 @@ print(daq)
 # Refuses at zero. Read from BDTR every time, not remembered.
 
 # %%
-state = daq.bridge_check()
+state = daq.gate_drivers_check()
 print('DTG %d, period %d ticks' % (state['deadtime'], state['period']))
 
 # %% [markdown]
@@ -46,8 +46,10 @@ daq.start()
 # Arming is a call. A duty write is refused until it has been made.
 
 # %%
-daq.arm_bridge(bypass_sto=True)                    # bypass: bench only
-print('armed:', daq.bridge_armed())
+# ignore_interlock because this bench board is not modified: the schematic
+# wants Cinj and Clevel both above 3 V first and they read 0.79 and 0.08.
+daq.arm_gate_drivers(bypass_sto=True, ignore_interlock=True)
+print('armed:', daq.gate_drivers_armed())
 daq.daq_write(analog={'Phase U': DUTY, 'Phase V': DUTY, 'Phase W': DUTY})
 
 # %% [markdown]
@@ -55,7 +57,7 @@ daq.daq_write(analog={'Phase U': DUTY, 'Phase V': DUTY, 'Phase W': DUTY})
 # One IDR read on the board. Six asks would be six instants.
 
 # %%
-snap = daq.board.bridge.state()
+snap = daq.board.gate_drivers.state()
 print('CNT %d of %d' % (snap['pins_at'], snap['period'] - 1))
 for leg in ('U', 'V', 'W'):
     high, low = snap['pins'][leg + 'H'], snap['pins'][leg + 'L']
@@ -107,5 +109,5 @@ print('%d records over %.3f ms, %.0f us apart, %d dropped'
          daq.status()['dropped']))
 
 # %%
-daq.disarm_bridge()
+daq.disarm_gate_drivers()
 daq.close()

@@ -12,7 +12,7 @@
 This is the front door. `Board` and its subsystems are still there under
 `daq.board` and nothing is hidden, but a caller that wants measurements
 should not have to know that the supply lives in `afe`, the converters in
-`daq`, the counter in `clock` and the gates in `bridge` - or the order they
+`daq`, the counter in `clock` and the gates in `gate drivers` - or the order they
 have to be touched in.
 
 It also owns the preflight every view was writing out again: AFE_ON powers
@@ -27,7 +27,7 @@ units; `board.analog` has the conversions when you want them.
 import time
 
 from .clock import NTP_SERVER, unwrap
-from .errors import RigError
+from .errors import CrcError, NoReplyError, RigError
 
 
 class Coaxial63100:
@@ -102,7 +102,7 @@ class Coaxial63100:
         if self.board is not None:
             try:
                 self.board.daq.stop()
-                self.board.bridge.disable()
+                self.board.gate_drivers.disable()
                 if self.power_afe and self._afe_was_on is False:
                     self.board.afe.disable()
             except RigError:
@@ -173,6 +173,12 @@ class Coaxial63100:
         sample_time 0..7, the converter's own sampling window, shortest
                     first.
         """
+        # Stopped first, because the board refuses to reconfigure under a
+        # running task - a stride changing beneath a half-drained buffer
+        # hands out records of two shapes - and a caller reaching for
+        # configure wants the new shape either way. A script that died
+        # holding one otherwise leaves the next one unable to start.
+        self.board.daq.stop()
         self.layout = self.board.daq.configure(
             channels if channels is not None else self.channels(),
             clock=clock, sample_time=sample_time, decimate=decimate,
@@ -226,36 +232,24 @@ class Coaxial63100:
                          want))
         return [('AFE_ON', None, True, None)] + rows
 
-    def arm_bridge(self, bypass_sto=False, ignore_interlock=False):
+    def arm_gate_drivers(self, bypass_sto=False, ignore_interlock=False):
         """Set MOE. Nothing switches before this and everything can after.
 
-        **This is arming a power stage.** Until it is called the six outputs
-        sit at their idle level with both FETs of every leg held off in
-        hardware, whatever the compare registers say. It arms at zero duty,
-        which puts all three low sides on continuously - a braked bridge,
-        not a floating one.
+        **This arms a power stage**, at zero duty - all three low sides on,
+        a braked stage rather than a floating one.
 
-        The dead time is TIM1's and is the only protection there is: the
-        2EDL8034's inputs are independent and it has no interlock, so HI and
-        LI both high is a shunt across the DC link. Verified in the silicon
-        rather than in the `.ioc` - BDTR DTG 19 with CR1 CKD 00 at 237.5 MHz
-        is **80.0 ns**, against about 65 ns for the gate to fall below the
-        2.8 V threshold through 4.99 + 2.2 ohms and 5.48 nF plus the
-        driver's 6 ns worst-case delay matching. `bridge_check()` re-reads
-        it and refuses if it ever comes back zero.
+        TIM1's dead time is the only protection: the 2EDL8034's inputs are
+        independent and it has no interlock. Measured in the silicon, not
+        the `.ioc` - BDTR DTG 19, CR1 CKD 00, 237.5 MHz, so **80.0 ns**
+        against about 65 ns needed. `gate_drivers_check()` re-reads it and
+        refuses at zero.
 
-        `INTERLOCK` is the rest of what the schematic wants true first, and
-        `ignore_interlock` is how the bench board gets past it: measured
-        2026-08-27 with AFE_ON on, Cinj sits at 0.77 V and Clevel at 0.06 V
-        against the 3 V each wants, because the board is not modified yet.
-        Overriding is a decision; making it silently would not be.
-
-        `bypass_sto` disconnects the Safe Torque Off break input, without
-        which a latched break outranks this and the board says so. On the
-        bench board the STO chain also gates the drivers' supply *inverted*,
-        so they have power while AFE_ON is off - see FINDINGS.
+        `ignore_interlock` skips `INTERLOCK`, which this bench board needs:
+        Cinj reads 0.77 V and Clevel 0.06 V against 3 V each. `bypass_sto`
+        disconnects the break input, without which a latched break outranks
+        this. Both are decisions, which is why neither is silent.
         """
-        self.bridge_check()
+        self.gate_drivers_check()
 
         if not ignore_interlock:
             failed = [row for row in self.interlock() if not row[2]]
@@ -272,23 +266,23 @@ class Coaxial63100:
                         for name, volts, _, want in failed))
 
         if bypass_sto:
-            self.board.bridge.bypass_break(True)
-        self.board.bridge.enable()
-        return self.board.bridge.state()
+            self.board.gate_drivers.bypass_break(True)
+        self.board.gate_drivers.enable()
+        return self.board.gate_drivers.state()
 
-    def disarm_bridge(self, keep_bypass=False):
+    def disarm_gate_drivers(self, keep_bypass=False):
         """Clear MOE, and put the break input back unless told otherwise."""
-        self.board.bridge.disable()
+        self.board.gate_drivers.disable()
         if not keep_bypass:
-            self.board.bridge.bypass_break(False)
-        return self.board.bridge.state()
+            self.board.gate_drivers.bypass_break(False)
+        return self.board.gate_drivers.state()
 
-    def bridge_armed(self):
+    def gate_drivers_armed(self):
         """Whether MOE is set, read off the board rather than remembered."""
-        return bool(self.board.bridge.state()['pwm_enabled'])
+        return bool(self.board.gate_drivers.state()['pwm_enabled'])
 
-    def bridge_check(self):
-        """Refuse to arm a bridge with no dead time.
+    def gate_drivers_check(self):
+        """Refuse to arm a gate driver stage with no dead time.
 
         The one thing between the two FETs of a leg. Read every time rather
         than trusted once: a `.ioc` regeneration, a CubeMX mode name bound
@@ -296,7 +290,7 @@ class Coaxial63100:
         BDTR write all land in the same place, and none of them announce
         themselves.
         """
-        state = self.board.bridge.state()
+        state = self.board.gate_drivers.state()
         if not state['deadtime']:
             raise RigError(
                 'TIM1 BDTR DTG reads 0, so there is no dead time and the '
@@ -306,7 +300,7 @@ class Coaxial63100:
         return state
 
     def configure_pwm(self, duty=0.0, bypass_sto=False):
-        """Run the bridge at one duty on all three phases.
+        """Run the gate drivers at one duty on all three phases.
 
         `duty` is 0.0 to 1.0 and goes to every leg equally, which puts no
         voltage between them: real switching, no phase current.
@@ -318,15 +312,15 @@ class Coaxial63100:
         hold: 25 % duty tripped the hot-swap's over-current and took the
         board down. FINDINGS has what is ruled out. A reset restores it.
         """
-        self.arm_bridge(bypass_sto=bypass_sto)
-        period = self.board.bridge.state()['period'] - 1
+        self.arm_gate_drivers(bypass_sto=bypass_sto)
+        period = self.board.gate_drivers.state()['period'] - 1
         ticks = int(max(0.0, min(1.0, duty)) * period)
-        self.board.bridge.duty((ticks, ticks, ticks))
-        return self.board.bridge.state()
+        self.board.gate_drivers.duty((ticks, ticks, ticks))
+        return self.board.gate_drivers.state()
 
     def stop_pwm(self):
         """Gates down, and the break input back where it was."""
-        self.disarm_bridge()
+        self.disarm_gate_drivers()
 
     # -- reading ---------------------------------------------------------
 
@@ -346,6 +340,9 @@ class Coaxial63100:
             record['samples'] = samples
         return self._timed(records)
 
+    #: Consecutive unanswered reads that still count as a busy link.
+    MISSES_ALLOWED = 5
+
     #: Written by the main loop every few microseconds, so a write to it is
     #: gone before the reply is. Refused rather than accepted and lost.
     LOOP_OWNED = ('KEEPALIVE',)
@@ -354,7 +351,7 @@ class Coaxial63100:
         """What can be written, asked of the board rather than listed here.
 
         Digital: the pins the board's own map calls outputs. Analog: the
-        three bridge legs. There is no DAC on this board, so an analog
+        three gate drivers legs. There is no DAC on this board, so an analog
         write is a PWM duty from 0.0 to 1.0 - the nearest thing it has to
         putting a level out.
         """
@@ -370,7 +367,7 @@ class Coaxial63100:
         return self.read()
 
     def daq_write(self, digital=None, analog=None):
-        """Put levels out: named pins, and duties on the bridge legs.
+        """Put levels out: named pins, and duties on the gate drivers legs.
 
         digital  {'AFE_ON': True, 'UART5_TERM': False}. Names come from the
                  board's own map. AFE_ON goes through the supply's own
@@ -378,10 +375,10 @@ class Coaxial63100:
                  mode - this turns it on and off around the write.
 
         analog   {'Phase U': 0.25, ...}, 0.0 to 1.0. There is no DAC here,
-                 so this is a PWM duty. It is **refused unless the bridge is
+                 so this is a PWM duty. It is **refused unless the gate drivers is
                  armed**: arming a power stage should be something a caller
                  asked for by name, not the side effect of writing a level.
-                 `arm_bridge()` is that name.
+                 `arm_gate_drivers()` is that name.
 
         Returns what it did, so a caller can check rather than assume.
         """
@@ -426,23 +423,23 @@ class Coaxial63100:
                            'its only analog outputs are %s'
                            % (', '.join(unknown), ', '.join(legs)))
 
-        if not self.bridge_armed():
+        if not self.gate_drivers_armed():
             raise RigError(
-                'the bridge is not armed, and writing a duty is not what '
-                'arms it - call arm_bridge() first, which says what that '
+                'the gate drivers are not armed, and writing a duty is not what '
+                'arms it - call arm_gate_drivers() first, which says what that '
                 'means. %s'
-                % ('The break is latched, so arm_bridge(bypass_sto=True) '
+                % ('The break is latched, so arm_gate_drivers(bypass_sto=True) '
                    'is what gets past it'
-                   if self.board.bridge.state()['fault']
+                   if self.board.gate_drivers.state()['fault']
                    else 'Nothing is holding it off'))
 
-        period = self.board.bridge.state()['period'] - 1
-        held = self.board.bridge.state()['duty']
+        period = self.board.gate_drivers.state()['period'] - 1
+        held = self.board.gate_drivers.state()['duty']
         ticks = tuple(
             int(max(0.0, min(1.0, analog[name])) * period)
             if name in analog else held[i]
             for i, name in enumerate(legs))
-        self.board.bridge.duty(ticks)
+        self.board.gate_drivers.duty(ticks)
         return dict(zip(legs, (t / period for t in ticks)))
 
     def blocks(self, count):
@@ -451,9 +448,27 @@ class Coaxial63100:
         Waits for the board rather than spinning: an empty block means the
         buffer has not filled yet, not that anything is wrong.
         """
-        seen = 0
+        seen, missed = 0, 0
         while seen < count:
-            block = self.read()
+            try:
+                block = self.read()
+            except (NoReplyError, CrcError) as exc:
+                # A missed reply is a fact of this link, measured at about
+                # one transaction in fifty while the board is busy, and a
+                # loop of twenty reads meets one more often than not. It is
+                # not a dead link until it keeps happening, so this counts
+                # rather than raises - and raises when the count says the
+                # link really has gone, because a generator that spun
+                # forever on a dead port would be worse than either.
+                missed += 1
+                if missed > self.MISSES_ALLOWED:
+                    raise RigError(
+                        '%d replies in a row went missing, so the link is '
+                        'gone rather than busy: %s'
+                        % (missed, exc)) from exc
+                time.sleep(0.01)
+                continue
+            missed = 0
             if not block:
                 time.sleep(0.005)
                 continue

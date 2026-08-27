@@ -119,10 +119,8 @@ def workshop(args):
 def silent_part(record):
     """What to draw when the IMU has produced nothing at all.
 
-    Not the model at identity. Identity is a board lying exactly level, and
-    a viewer cannot tell that from a part that has never spoken - the same
-    mistake as a converter code wearing a cooked unit. The difference is
-    worth the whole frame.
+    Not the model at identity: identity is a board lying exactly level, and
+    a viewer cannot tell that from a part that has never spoken.
     """
     return [
         '  The IMU has reported %d rotation vectors.' % record['updates'],
@@ -130,17 +128,12 @@ def silent_part(record):
         '  loop %s, %d errors, last error %s.'
         % (record['loop'], record['errors'], record['error']),
         '',
-        '  Nothing is drawn because there is nothing to draw. The model at',
-        '  identity is a board lying exactly level, and that is a plausible',
-        '  attitude - indistinguishable from a part that works.',
-        '',
-        '  Measured 2026-08-27: H_INTN on PD8 never asserted, wake_test 0,',
-        '  and a header read of 00 00 00 00 - a valid SHTP header of length',
-        '  zero, so the bus is fine and the part has nothing to send.',
-        '  AFE_ON on, NRSTN and BOOTN both high, MISO the only held pin.',
+        '  Nothing is drawn because there is nothing to draw: the model at',
+        '  identity is a board lying exactly level, which is a plausible',
+        '  attitude and would look like a part that works.',
         '',
         '  imu.pins() and imu.product_id() need the loop HELD - call them',
-        '  inside board.imu.configuring() or they answer SERVER DEVICE',
+        '  inside board.imu.configuring(), or they answer SERVER DEVICE',
         '  FAILURE and look like a dead part. See FINDINGS.',
     ]
 

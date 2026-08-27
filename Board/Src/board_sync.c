@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @file    board_sync.c
-  * @brief   Phase current sampled where the bridge is quiet: TIM1 triggers,
+  * @brief   Phase current sampled where the stage is quiet: TIM1 triggers,
   *          three ADCs convert at once, this latches the result.
   *
   * The board's channel map already makes the hard part easy: Phase U is on
