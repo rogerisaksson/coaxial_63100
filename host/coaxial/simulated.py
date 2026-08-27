@@ -791,6 +791,73 @@ class SimulatedAngle:
             self.resume()
 
 
+class SimulatedBridge:
+    """TIM1, the injected triple and the STO chain, without any of them.
+
+    The numbers are the real board's registers as configured: ARR 2375 for
+    50 kHz off 237.5 MHz, DTG 19 for 80 ns. The bridge never enables,
+    because on the real board it cannot until the STO chain releases and
+    nothing here can release it.
+    """
+
+    PERIOD = 2376
+    DEADTIME = 19
+    TRIGGER = 2360
+
+    def __init__(self):
+        self._armed = False
+        self._duty = (0, 0, 0)
+        self._trigger = self.TRIGGER
+        self._updates = 0
+        self._keepalive = 0
+
+    def state(self):
+        self._keepalive += 214000        # the measured idle toggle rate
+        if self._armed:
+            self._updates += 50000
+        return {
+            'pwm_ready': True, 'pwm_enabled': False, 'fault': True,
+            'sync_ready': True, 'sync_armed': self._armed, 'afe_on': True,
+            'pilot_ok': True, 'level_ok': True,
+            'period': self.PERIOD, 'deadtime': self.DEADTIME,
+            'duty': self._duty, 'trigger': self._trigger,
+            'phase': (1433, -8136, 390), 'at': 1385,
+            'updates': self._updates, 'overruns': 0,
+            'keepalive': self._keepalive,
+            'pilot_raw': 15149, 'pilot_microvolts': 763000,
+            'level_raw': 1305, 'level_microvolts': 65000,
+        }
+
+    def enable(self):
+        from .errors import RigError
+        raise RigError('the board refused to enable the bridge - check '
+                       'fault, and whether the STO chain has released '
+                       '(simulated)')
+
+    def disable(self):
+        return True
+
+    def duty(self, ticks):
+        from .errors import RigError
+        raise RigError('the bridge is not enabled (simulated)')
+
+    def arm(self):
+        self._armed = True
+        return True
+
+    def disarm(self):
+        self._armed = False
+        return True
+
+    def trigger(self, ticks=None):
+        if ticks is not None:
+            self._trigger = min(int(ticks), self.PERIOD - 1)
+        return self._trigger
+
+    def clear_fault(self):
+        return True
+
+
 class SimulatedBoard:
     """A whole board without a board. Duck-typed against the real one, so
     the tools above cannot tell which they are holding - except that
@@ -816,7 +883,7 @@ class SimulatedBoard:
             refuse = _BroadcastRefuses()   # see BROADCAST_REFUSAL
             self.system = self.link = self.afe = refuse
             self.analog = self.gpio = self.imu = refuse
-            self.angle = refuse
+            self.angle = self.bridge = refuse
         else:
             self.system = SimulatedSystem()
             self.link = SimulatedLink()
@@ -825,6 +892,7 @@ class SimulatedBoard:
             self.gpio = SimulatedGpio(self.afe)
             self.imu = SimulatedImu()
             self.angle = SimulatedAngle()
+            self.bridge = SimulatedBridge()
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'

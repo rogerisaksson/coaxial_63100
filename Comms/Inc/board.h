@@ -236,8 +236,13 @@ typedef struct
   bool     armed;                    /**< triggering and latching          */
   uint32_t updates;                  /**< triples latched since arming     */
   uint32_t overruns;                 /**< sequences that arrived too soon  */
+  uint16_t trigger;                  /**< CCR4 - the sample point, ticks   */
   board_sync_sample_t latest;
 } board_sync_state_t;
+
+/** A differential code as the converter gives it: offset binary, 32768 is
+    0 V. Every differential read goes through this, regular or injected. */
+int32_t Board_AdcDifferential(uint32_t raw);
 
 /** Is there a timer to trigger from and an injected group to trigger? */
 bool Board_SyncReady(void);
@@ -250,6 +255,11 @@ bool Board_SyncArmed(void);
 /** The last triple, copied whole so no reader mixes two conversions. */
 void Board_SyncLatest(board_sync_sample_t *out);
 void Board_SyncCounts(uint32_t *updates, uint32_t *overruns);
+
+/** Where in the PWM period the triple is taken, as CCR4 in timer ticks.
+    Takes effect immediately, armed or not. False if out of range. */
+bool Board_SyncSetTrigger(uint16_t ticks);
+uint16_t Board_SyncTrigger(void);
 void Board_SyncState(board_sync_state_t *out);
 
 /** From the injected end-of-sequence callback, and from the overrun one.

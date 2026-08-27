@@ -95,7 +95,44 @@ channel table as `ADC_UNIT_NONE` with nothing said about them:
 
 `Clevel` is the useful one: it is the margin. `PE15` is `TIM1_BKIN`, labelled
 **(STOP)** on the MCU sheet, so a fault stops the bridge in hardware without
-the firmware being involved.
+the firmware being involved. Neither channel can be read by asynchronous
+single shots - see FINDINGS.
+
+### Two conditions, not one
+
+The chain needs both, and they are independent:
+
+| Condition | Source | Spec |
+|---|---|---|
+| **Pilot tone** | the master, on the RS485 pair | 3-15 kHz, 5 kHz nominal, amplitude-windowed: ON 0.7-2.1 V, off below 0.6 V **and** above 2.2 V (`electronic_simulations/sto/sto.asc`) |
+| **KEEPALIVE** | this board, PA10 | a square wave into a charge pump |
+
+Windowing the pilot at both ends means a stuck-high rail reads as "off"
+exactly like silence does.
+
+`KEEPALIVE` is PA10 through R72 330 Ω into C71 100 nF and on to D10/D14/D15
+- a **diode charge pump**, so only edges deliver anything and a held level
+is worth what a stopped CPU is worth. R48 18 kΩ pulls it down when the MCU
+releases the pin. It feeds `VLATCH`, which gates `DCDC_ENABLE` and so the
+gate driver supply itself.
+
+That is why **no timer may generate it**: a free-running timer keeps
+toggling after the firmware hangs, which is the one thing the chain exists
+to catch. `Board_StoKeepalive()` is called from the top of the main loop,
+above every branch - `link_active()` does a `continue`, so anything below it
+stops the moment Modbus gets busy.
+
+Measured rates, same binary:
+
+| Load | toggle | square wave |
+|---|---|---|
+| Idle | 214 kHz | 107 kHz |
+| Host polling Modbus | 124 kHz | 62 kHz |
+
+The sim drives its `MCU_PWM` at 100 kHz, so the loop lands on the
+dimensioning without anyone tuning it. **Both figures are means.** The worst
+case is what decides: a 276-byte SHTP cargo at 1.48 MHz is 1.5 ms, 320x the
+idle half-period. What `VLATCH` tolerates is not yet measured.
 
 ## The bridge, and why the dead time is 80 ns
 

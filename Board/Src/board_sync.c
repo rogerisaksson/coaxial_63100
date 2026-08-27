@@ -47,10 +47,39 @@ extern ADC_HandleTypeDef hadc3;
 #define SYNC_TRIGGER_LEAD 15U
 
 
+/** CCR4 as last set. Zero means nobody has chosen, so arming picks the
+    default lead. Kept across disarm so a tuning run is not undone by it. */
+static uint16_t s_trigger;
+
+
 static void SYNC_ConfigTrigger(void)
 {
-  TIM1->CCR4 = TIM1->ARR - SYNC_TRIGGER_LEAD;
+  if (s_trigger == 0U)
+  {
+    s_trigger = (uint16_t)(TIM1->ARR - SYNC_TRIGGER_LEAD);
+  }
+  TIM1->CCR4 = s_trigger;
   MODIFY_REG(TIM1->CR2, TIM_CR2_MMS2, TIM_TRGO2_OC4REF);
+}
+
+
+bool Board_SyncSetTrigger(uint16_t ticks)
+{
+  /* Straight into CCR4, armed or not: moving the sample point while the
+     triples are running is the whole point of being able to move it. */
+  if (!Board_PwmReady() || ticks > TIM1->ARR)
+  {
+    return false;
+  }
+  s_trigger = ticks;
+  TIM1->CCR4 = ticks;
+  return true;
+}
+
+
+uint16_t Board_SyncTrigger(void)
+{
+  return Board_PwmReady() ? (uint16_t)TIM1->CCR4 : 0U;
 }
 
 static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel)
@@ -150,12 +179,15 @@ void Board_SyncOnInjected(const void *hadc)
 
   if (hadc == (const void *)&hadc3)
   {
-    s_latest.phase[SYNC_U] = (int16_t)HAL_ADCEx_InjectedGetValue(&hadc3,
-                                                                ADC_INJECTED_RANK_1);
-    s_latest.phase[SYNC_V] = (int16_t)HAL_ADCEx_InjectedGetValue(&hadc1,
-                                                                ADC_INJECTED_RANK_1);
-    s_latest.phase[SYNC_W] = (int16_t)HAL_ADCEx_InjectedGetValue(&hadc2,
-                                                                ADC_INJECTED_RANK_1);
+    /* Through Board_AdcDifferential, not a cast: JDR is offset binary and
+       casting it to int16_t put every quiet phase at the negative rail -
+       measured, U read -31344 where the meter read +1423. */
+    s_latest.phase[SYNC_U] = (int16_t)Board_AdcDifferential(
+        HAL_ADCEx_InjectedGetValue(&hadc3, ADC_INJECTED_RANK_1));
+    s_latest.phase[SYNC_V] = (int16_t)Board_AdcDifferential(
+        HAL_ADCEx_InjectedGetValue(&hadc1, ADC_INJECTED_RANK_1));
+    s_latest.phase[SYNC_W] = (int16_t)Board_AdcDifferential(
+        HAL_ADCEx_InjectedGetValue(&hadc2, ADC_INJECTED_RANK_1));
     s_latest.at = TIM1->CNT;
     s_updates++;
   }
@@ -242,6 +274,7 @@ void Board_SyncState(board_sync_state_t *out)
   out->armed = s_armed;
   out->updates = s_updates;
   out->overruns = s_overruns;
+  out->trigger = Board_SyncTrigger();
   Board_SyncLatest(&out->latest);
 }
 

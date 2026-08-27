@@ -114,6 +114,62 @@ and never checked.
   `s_parts` gives the drivers and the FETs `power = "STO chain"`, which
   names no GPIO on purpose.
 
+## Closed 2026-08-27 - the synced current path
+
+Three bugs, all mine, all found by comparing two paths that must agree
+rather than by reasoning about hardware.
+
+| Symptom | Cause |
+|---|---|
+| injected triple read (-31344, 24587, -32355) where the meter read (1423, -8285, 392) | `Board_SyncOnInjected` cast JDR to `int16_t`. JDR is **offset binary**, 32768 = 0 V. Now goes through `Board_AdcDifferential`, which is the one definition (invariant 7). `board_adc.c` already carried a comment about this exact bug from an earlier session. |
+| `pilot_ok` and `level_ok` false for every call ever made | `STO_ReadOne` passed `NULL` for `Board_AdcRead`'s `scaled` argument, which refuses a NULL before reading anything. |
+| `Board_SyncArm` could never succeed | `Board_SyncReady` required `JSQR != 0`, but JSQR is written by `SYNC_ConfigPhase` **inside** Arm. Ready now means "a timer to trigger from" and nothing else. |
+
+Measured after the fixes, AFE on, bridge off: injected (1433, -8136, 390)
+against a meter reading (1456, -8118, 442) - inside the ~55 LSB the meter
+reports as its own noise. **49976 triples/s over 4.05 s against a 50 kHz
+PWM, zero overruns**: one per period.
+
+**The sample point is tunable and the latency is constant.** Sweeping CCR4
+and reading `TIM1->CNT` in the interrupt: the trigger fires on the
+**down-slope** as CNT passes CCR4, and the handler reads CNT a constant
+**~965 ticks (4.06 us)** later, whatever CCR4 is. Scatter is +/-20..45
+ticks, which is interrupt latency, not sampling jitter - the sample itself
+is hardware-triggered. `at` is therefore a witness with a fixed offset and
+**not** the instant of the sample. CCR4 = 0 stops the trigger outright
+(OC4REF in PWM1 never activates); CCR4 > ARR is refused and op 4's reply
+reports the unchanged register.
+
+## The STO interlock works, and the bridge cannot be enabled
+
+Measured 2026-08-27 with KEEPALIVE running: `fault` set, `Board_PwmClearFault`
+returned 1, `Board_PwmEnable` returned **0**, `fault` set again - all inside
+one round trip. PE15 is still low, so the break re-latches the moment the
+latch is cleared. No pilot tone on RS485, so the chain has not released.
+
+Consequence: Clevel is identical before, during and after an attempted PWM
+run (mean 1304 / 1302 / 1304, sd 2299 / 2297 / 2301) because nothing
+switched. That is the interlock, not a null result.
+
+## Open: Cinj and Clevel cannot be sampled asynchronously
+
+Apparent duty falls monotonically with sample rate, which a fixed-duty
+waveform cannot do:
+
+| sample rate | Clevel apparent duty | Cinj |
+|---|---|---|
+| 68 kHz | 2.1 % | 31.3 % |
+| 20 kHz | 0.8 % | 14.2 % |
+| 5 kHz | 0.5 % | 3.9 % |
+| 1 kHz | 0.4 % | 1.0 % |
+| 200 Hz | 0.3 % | 0.4 % |
+
+Either the signal is far faster than 68 kHz, or the sample-and-hold is
+disturbing a high-impedance node - `ADC_SAMPLETIME_1CYCLE_5` is 20 ns and
+Clevel sits on PB1, the channel already noted as unfiltered. Not settled.
+Until it is, **no mean of either channel is a measurement**; take them
+through the injected group or with a longer sampling time.
+
 * **TIM1 latches a break during its own init.** Measured 2026-08-27: after
   `MX_TIM1_Init`, `TIM1->SR` bit 7 (BIF) was set while `PE15` read 1. The
   pin is AF open-drain with `GPIO_NOPULL` and floats while

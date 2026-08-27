@@ -56,12 +56,16 @@ static bool STO_Find(const char *signal, uint8_t *index)
 static bool STO_ReadOne(const char *signal, int32_t *raw, int32_t *microvolts)
 {
   uint8_t index;
+  int32_t scaled;               /* Board_AdcRead refuses a NULL, and passing
+                                   one here made pilot_ok and level_ok read
+                                   false for every call ever made. Neither
+                                   channel has a cooked unit to collect. */
 
   if (!STO_Find(signal, &index))
   {
     return false;
   }
-  return Board_AdcRead(index, raw, microvolts, NULL);
+  return Board_AdcRead(index, raw, microvolts, &scaled);
 }
 
 

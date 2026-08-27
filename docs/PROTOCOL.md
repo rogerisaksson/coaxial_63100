@@ -42,6 +42,13 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   | 1 | A1335 angle sensor | SPI4, mode 3, 1.86 MHz | 0 read register, 1 write register, 2 shared record, 3 hold, 4 resume, 5 which register the loop reads, 6 clock |
   | 2 | the three serial ports | USART3, USART2, UART5 | 0 loopback check, 1 per-port counters |
   | 3 | the calibration record | flash, bank 2 sector 7 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults |
+  | 4 | the bridge | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break |
+
+  Device 4 answers TIM1, the synced phase triple and Safe Torque Off together because tuning the sample point needs all three from the same moment. **Op 0** replies 48 bytes: `u8 flags`, `u16 period`, `u8 deadtime`, `u16 duty[3]`, `u16 trigger`, `i16 phase[3]`, `u16 at`, `u32 updates`, `u32 overruns`, `u32 keepalive`, then `i32 pilot_raw, pilot_uv, level_raw, level_uv`. Flag bits, LSB first: pwm ready, pwm enabled, break latched, sync ready, sync armed, AFE on, Cinj read, Clevel read.
+
+  `deadtime` is raw DTG, not nanoseconds. `trigger` is CCR4 in timer ticks; **0 disables the trigger** because OC4REF in PWM1 mode never goes active, and a value past ARR is refused with CCR4 unchanged - op 4 replies with the register as it reads back, so the caller sees the refusal. `at` is `TIM1->CNT` as the interrupt read it, about 965 ticks (4.06 us) after the sample - the sample point is `trigger`, not `at`.
+
+  Op 2 takes all three compares or none: a half update runs one cycle with two phases from this call and one from the last. Op 1 always enables at zero duty. Op 5 clears the break latch and does **not** re-arm; with nFAULT still low it re-latches before op 1 can succeed, which is the STO interlock and not a bug.
 
   Device 2 op 0 transmits 00, FF, 5A, A5 on the port named and answers which came back - all four on an RS485 port, none on USART3. **The port carrying the request refuses**: its own patterns land in front of the reply, and the master sees a checksum failure. Op 1 answers `bus_message` and `server_message` separately, and their difference is the traffic addressed to another node on the segment.
 

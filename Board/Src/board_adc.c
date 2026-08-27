@@ -25,6 +25,16 @@ static float cal_vref(void)
 
 /* One formula for what a code is worth, so the corrected read below cannot
    drift from the raw one above it. */
+int32_t Board_AdcDifferential(uint32_t raw)
+{
+  /* Offset binary, 32768 = 0 V - proven on ADC3 CH1 against a known 0.5 V
+     input; see the note below. Named because two paths need it and the
+     second one got it wrong: board_sync.c cast the injected JDR straight to
+     int16_t and every quiet phase came back near the negative rail. */
+  return (int32_t)raw - 32768;
+}
+
+
 static float code_to_volts(int32_t code, uint32_t singleDiff)
 {
   return (singleDiff == ADC_SINGLE_ENDED)
@@ -109,7 +119,7 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
 
   *outRaw = (singleDiff == ADC_SINGLE_ENDED)
             ? (int32_t)raw                  /* 0..65535, 0 = 0 V           */
-            : (int32_t)raw - 32768;         /* offset binary, 32768 = 0 V  */
+            : Board_AdcDifferential(raw);
   *outVolts = code_to_volts(*outRaw, singleDiff);
 
   HAL_ADC_Stop(hadc);
