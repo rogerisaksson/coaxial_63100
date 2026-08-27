@@ -33,6 +33,31 @@ static uint32_t s_want_q16[BOARD_PWM_PHASES];
 static uint32_t s_residue[BOARD_PWM_PHASES];
 static bool     s_dither;
 
+static uint8_t s_skew;                 /* DTG counts, one way then the other */
+static bool    s_skew_up;              /* true: the up-count edge gets more  */
+static uint8_t s_deadtime;             /* what was asked for, in DTG counts  */
+static volatile uint8_t s_half;        /* which half of the period this is   */
+
+/* The update interrupt, which the dither and the dead-time skew both need.
+   Two owners and one switch: whoever stops has to ask whether the other is
+   still using it, or the first one to finish turns it off under the second.
+   Measured before that was true: the skew was set, nothing armed the
+   dither, and DTG read the same value six times over SWD. */
+static void update_irq(bool wanted)
+{
+  if (wanted)
+  {
+    TIM1->DIER |= TIM_DIER_UIE;
+    HAL_NVIC_EnableIRQ(TIM1_UP_IRQn);
+  }
+  else
+  {
+    TIM1->DIER &= ~TIM_DIER_UIE;
+    HAL_NVIC_DisableIRQ(TIM1_UP_IRQn);
+  }
+}
+
+
 /** Set by Board_PwmEnable, cleared by Board_PwmDisable and by a break. */
 static bool s_armed;
 
@@ -290,8 +315,7 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
      whole one. The cost is small - 4 us of the keepalive's worst gap,
      measured - but it is not zero and nothing dithering needs it. */
   TIM1->SR = ~TIM_SR_UIF;
-  TIM1->DIER |= TIM_DIER_UIE;
-  HAL_NVIC_EnableIRQ(TIM1_UP_IRQn);
+  update_irq(true);
   return NULL;
 }
 
@@ -333,11 +357,11 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
   }
 
   /* Whole ticks, so the dither has nothing to carry and stops moving the
-     register out from under this. The two paths cannot both own CCR, and
-     the interrupt goes with it. */
+     register out from under this. The two paths cannot both own CCR - but
+     the interrupt has a second owner now, so it goes only when the skew
+     does not want it either. */
   s_dither = false;
-  TIM1->DIER &= ~TIM_DIER_UIE;
-  HAL_NVIC_DisableIRQ(TIM1_UP_IRQn);
+  update_irq(s_skew != 0U);
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
     s_want_q16[phase] = (uint32_t)ticks[phase] << 16;
@@ -419,6 +443,17 @@ bool Board_PwmInit(void)
   TIM1->CCER |= TIM_CCER_CC1E | TIM_CCER_CC1NE
               | TIM_CCER_CC2E | TIM_CCER_CC2NE
               | TIM_CCER_CC3E | TIM_CCER_CC3NE;
+
+  /* RCR 0, so the update lands at every overflow AND every underflow -
+     twice a PWM period. The .ioc asks for 1, which is once, and once is
+     not enough to give the two transitions different dead times: DTG has
+     no preload, so the only place to change it is between them. The
+     handler counts halves and runs the dither on every second one, which
+     is the rate it always ran at. */
+  TIM1->RCR = 0U;
+  s_deadtime = (uint8_t)(TIM1->BDTR & TIM_BDTR_DTG);
+  s_half = 0U;
+
   TIM1->CR1 |= TIM_CR1_CEN;
 
   /* Measured on target: BIF is latched by the time this runs. PE15 is AF
@@ -431,6 +466,156 @@ bool Board_PwmInit(void)
 }
 
 
+/* Dead time, at runtime.
+ *
+ * The floor is 20 ns and it is a floor, not a default: the 2EDL8034 has no
+ * interlock of its own, so this number is the only thing between the two
+ * FETs of a leg, and a caller that asks for less gets 20 ns and is told.
+ *
+ * DTG is not linear. Only the low range - DTG[7:5] == 0 - steps by one
+ * t_DTS; above it the encoding stretches. This uses the low range alone,
+ * which caps it at 127 x t_DTS, 535 ns at 237.5 MHz. That is six times what
+ * this bridge needs and the arithmetic stays one multiply.
+ */
+#define BOARD_PWM_DEADTIME_MIN_NS 20U
+#define BOARD_PWM_DTG_MAX 127U
+
+
+static uint32_t dts_ps(void)
+{
+  /* Picoseconds per DTG count, so the ns arithmetic stays integer. CKD is
+     0 - checked in the silicon, CR1 0xB1 - so t_DTS is one timer tick. */
+  const uint32_t hz = Board_SysClkHz() / 2UL;   /* TIM1 kernel, 237.5 MHz */
+
+  return (hz != 0UL) ? (1000000000000ULL / hz) : 0UL;
+}
+
+uint8_t Board_PwmDeadTimeFloor(void)
+{
+  const uint32_t ps = dts_ps();
+
+  if (ps == 0UL)
+  {
+    return 1U;
+  }
+
+  /* Round up: a floor that rounded down would be under the floor. */
+  const uint32_t counts = ((BOARD_PWM_DEADTIME_MIN_NS * 1000UL) + ps - 1UL) / ps;
+
+  return (counts < 1UL) ? 1U : (uint8_t)counts;
+}
+
+uint32_t Board_PwmDeadTimeNs(void)
+{
+  /* What was asked for, not what BDTR holds this half-period. With a skew
+     running the register alternates, and reading it gave 105 ns for an
+     80 ns request - whichever half the read happened to land in. */
+  return (uint32_t)(((uint64_t)s_deadtime * dts_ps()) / 1000ULL);
+}
+
+const char *Board_PwmSetDeadTime(uint32_t ns)
+{
+  if (!Board_PwmReady())
+  {
+    return "TIM1 is not running, so there is no dead time to set - the "
+           "board has not finished starting";
+  }
+
+  const uint32_t ps = dts_ps();
+
+  if (ps == 0UL)
+  {
+    return "the timer clock reads zero, so a dead time in nanoseconds "
+           "cannot be worked out";
+  }
+
+  uint32_t counts = ((uint64_t)ns * 1000ULL) / ps;
+  const uint8_t floor_counts = Board_PwmDeadTimeFloor();
+
+  if (counts < floor_counts)
+  {
+    counts = floor_counts;
+  }
+
+  if ((counts + s_skew) > BOARD_PWM_DTG_MAX)
+  {
+    return "that dead time plus its skew is past DTG's linear range - ask "
+           "for 535 ns or less, which is already six times what this "
+           "bridge needs";
+  }
+
+  const uint32_t masked = __get_PRIMASK();
+  __disable_irq();
+  s_deadtime = (uint8_t)counts;
+  TIM1->BDTR = (TIM1->BDTR & ~TIM_BDTR_DTG) | counts;
+  if (!masked)
+  {
+    __enable_irq();
+  }
+
+  return NULL;
+}
+
+
+/* The skew, which is why the update runs twice a period.
+ *
+ * TIM1's dead time generator puts the same DTG on both transitions, so a
+ * skew cannot come from moving a compare register - that shifts the whole
+ * transition and leaves the gap alone. What it can come from is writing DTG
+ * itself between the two: with RCR 0 the update event lands at every
+ * overflow AND every underflow, so the handler gets a turn ahead of each
+ * transition and gives it its own number.
+ *
+ * The sign is which way round: positive lengthens the dead time on the
+ * transition the counter reaches going up and shortens the other by the
+ * same, so the pair still averages what Board_PwmSetDeadTime was asked for.
+ * Neither half is allowed under the floor.
+ *
+ * NOT MEASURED. What it does to the gates needs two probes and a scope; all
+ * that is checked here is that DTG reads back what the handler last wrote
+ * (invariant 10).
+ */
+const char *Board_PwmSetDeadTimeSkew(int8_t counts)
+{
+  const uint8_t floor_counts = Board_PwmDeadTimeFloor();
+  const int32_t low = (int32_t)s_deadtime - (counts < 0 ? -counts : counts);
+  const int32_t high = (int32_t)s_deadtime + (counts < 0 ? -counts : counts);
+
+  if (low < (int32_t)floor_counts)
+  {
+    return "that skew would take one of the two dead times under the 20 ns "
+           "floor - raise the dead time first, or skew it less";
+  }
+  if (high > (int32_t)BOARD_PWM_DTG_MAX)
+  {
+    return "that skew would take one of the two dead times past DTG's "
+           "linear range - lower the dead time first, or skew it less";
+  }
+
+  s_skew = (uint8_t)(counts < 0 ? -counts : counts);
+  s_skew_up = (counts >= 0);
+  update_irq((s_skew != 0U) || s_dither);
+
+  if (s_skew == 0U)
+  {
+    /* Back to the one number, or the last half-period's value would stay. */
+    const uint32_t masked = __get_PRIMASK();
+    __disable_irq();
+    TIM1->BDTR = (TIM1->BDTR & ~TIM_BDTR_DTG) | s_deadtime;
+    if (!masked)
+    {
+      __enable_irq();
+    }
+  }
+  return NULL;
+}
+
+int8_t Board_PwmDeadTimeSkew(void)
+{
+  return s_skew_up ? (int8_t)s_skew : (int8_t)-(int8_t)s_skew;
+}
+
+
 /** TIM1's update, once per PWM period with RepetitionCounter at 1.
   *
   * Overridden here rather than in Core/: main.c holds CubeMX functions and
@@ -440,9 +625,34 @@ bool Board_PwmInit(void)
   */
 void TIM1_UP_IRQHandler(void)
 {
-  if ((TIM1->SR & TIM_SR_UIF) != 0U)
+  if ((TIM1->SR & TIM_SR_UIF) == 0U)
   {
-    TIM1->SR = ~TIM_SR_UIF;
+    return;
+  }
+
+  TIM1->SR = ~TIM_SR_UIF;
+
+  /* Two updates a period with RCR 0 - one at overflow, one at underflow -
+     so the dither, which is per period, runs on every second one. Counted
+     here rather than read off CR1's DIR: the flag says which way the
+     counter is going *now*, and by the time this reads it the direction has
+     already turned. */
+  s_half ^= 1U;
+
+  if (s_half == 0U)
+  {
     Board_PwmDitherStep();
+  }
+
+  /* The next transition's dead time. Written now, ahead of it, because DTG
+     has no preload - it takes effect the moment it lands. With no skew this
+     writes the same number twice a period and costs two stores. */
+  if (s_skew != 0U)
+  {
+    const bool more = (s_half != 0U) == s_skew_up;
+    const uint32_t dtg = more ? (uint32_t)(s_deadtime + s_skew)
+                              : (uint32_t)(s_deadtime - s_skew);
+
+    TIM1->BDTR = (TIM1->BDTR & ~TIM_BDTR_DTG) | dtg;
   }
 }

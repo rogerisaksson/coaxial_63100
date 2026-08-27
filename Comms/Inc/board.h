@@ -213,6 +213,22 @@ bool Board_Uart5Termination(void);
 
 bool Board_PwmInit(void);
 
+/** Dead time at runtime, in nanoseconds. Floored at 20 ns, which is a floor
+  * and not a default: the 2EDL8034 has no interlock, so this is the only
+  * thing between the two FETs of a leg. Refuses with its reason. */
+const char *Board_PwmSetDeadTime(uint32_t ns);
+uint32_t Board_PwmDeadTimeNs(void);
+
+/** DTG counts the smallest dead time can be, at this timer clock. */
+uint8_t Board_PwmDeadTimeFloor(void);
+
+/** Trim for a bridge whose two transitions are not symmetric. Positive
+  * lengthens the dead time on the transition the counter reaches counting
+  * up and shortens the other by the same, so the pair still averages what
+  * was asked for. Neither half may go under the floor. NOT MEASURED. */
+const char *Board_PwmSetDeadTimeSkew(int8_t counts);
+int8_t Board_PwmDeadTimeSkew(void);
+
 /** What the board can see of the Safe Torque Off chain. Reports; judges
     nothing - deciding "released" from a Clevel threshold is a test
     executive's job, not this board's. See board_sto.c. */

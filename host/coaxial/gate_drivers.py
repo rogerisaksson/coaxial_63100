@@ -8,6 +8,8 @@ Nothing here judges a reading. `state()` returns registers and raw codes;
 the writers return what the board accepted, which is not always what was
 asked for.
 """
+import struct
+
 from . import protocol
 from .subsystem import Subsystem
 from .wire import Reader
@@ -18,10 +20,16 @@ FLAGS = ('pwm_ready', 'pwm_enabled', 'fault', 'sync_ready', 'sync_armed',
 
 PHASES = 3
 
+
+def _signed8(value):
+    """A skew off the wire, which carries it unsigned."""
+    return value - 256 if value & 0x80 else value
+
 #: PE8..PE13 in pin order, which is low side then high side per leg.
 GATES = ('UL', 'UH', 'VL', 'VH', 'WL', 'WH')
 
 OP_STATE = 0
+OP_DEADTIME = 9
 OP_PWM = 1
 OP_DUTY = 2
 OP_SYNC = 3
@@ -40,6 +48,39 @@ class GateDrivers(Subsystem):
         """One 0x6E request for the gate drivers device."""
         return self.request(protocol.DEVICE,
                             bytes([protocol.DEVICE_GATE_DRIVERS, op]) + bytes(payload))
+
+    def dead_time(self, nanoseconds=None, skew=0):
+        """Read the dead time, or set it and its skew.
+
+        `nanoseconds` None reads. Setting floors at 20 ns on the board -
+        the 2EDL8034 has no interlock, so this is the only thing between
+        the two FETs of a leg - and refuses in the board's own words.
+
+        `skew` is in DTG counts and trims a stage whose two transitions are
+        not symmetric: positive lengthens the dead time on the transition
+        the counter reaches counting up and shortens the other by the same,
+        so the pair still averages what was asked for. **Not measured** -
+        what it does at the gates needs two probes and a scope.
+
+        Returns what the board reads back, which is not always what was
+        asked: nanoseconds land on a DTG count, and DTG counts are 4.21 ns
+        apart at 237.5 MHz.
+        """
+        if nanoseconds is None:
+            state = self.state()
+            return {'nanoseconds': state['deadtime_ns'],
+                    'skew': state['deadtime_skew'],
+                    'floor': state['deadtime_floor']}
+
+        reply = self._op(OP_DEADTIME,
+                         struct.pack('>Ib', int(nanoseconds), int(skew)))
+        # took() raises on a refusal and returns True otherwise, so the
+        # reader is built here and the took byte read off it.
+        r = Reader(reply)
+        self.took(reply)
+        r.u8()
+        return {'nanoseconds': r.u32(), 'skew': _signed8(r.u8()),
+                'floor': r.u8()}
 
     def state(self):
         """Everything the gate drivers knows, from one conversion's worth of time.
@@ -77,6 +118,9 @@ class GateDrivers(Subsystem):
         pins = r.u8()
         out['pins'] = {name: bool(pins >> i & 1) for i, name in enumerate(GATES)}
         out['pins_at'] = r.u16()
+        out['deadtime_ns'] = r.u32()
+        out['deadtime_skew'] = _signed8(r.u8())
+        out['deadtime_floor'] = r.u8()
         return out
 
     def enable(self):

@@ -26,7 +26,7 @@ import time
 
 from . import angle
 from . import protocol
-from .errors import DeviceStateError
+from .errors import DeviceStateError, RigError
 from .gpio import reserved_reason
 
 CHANNELS = [
@@ -834,6 +834,9 @@ class SimulatedGateDrivers:
     TRIGGER = 2360
 
     def __init__(self):
+        self._deadtime = self.DEADTIME
+        self._deadtime_ns = self.DEADTIME * 4210 // 1000
+        self._skew = 0
         self._armed = False
         self._enabled = False
         self._duty = (0, 0, 0)
@@ -864,7 +867,34 @@ class SimulatedGateDrivers:
             'requested': tuple(d / 1.0 for d in self._duty),
             'pins': self._gates(at),
             'pins_at': at,
+            'deadtime_ns': self._deadtime_ns,
+            'deadtime_skew': self._skew,
+            'deadtime_floor': self.DEADTIME_FLOOR,
         }
+
+    #: DTG counts for 20 ns at 237.5 MHz, rounded up - the same floor the
+    #: board computes, because the 2EDL8034 has no interlock either way.
+    DEADTIME_FLOOR = 5
+    DTG_MAX = 127
+    DTS_PS = 4210
+
+    def dead_time(self, nanoseconds=None, skew=0):
+        if nanoseconds is None:
+            return {'nanoseconds': self._deadtime_ns, 'skew': self._skew,
+                    'floor': self.DEADTIME_FLOOR}
+
+        counts = max(self.DEADTIME_FLOOR,
+                     int(nanoseconds) * 1000 // self.DTS_PS)
+        if counts + abs(int(skew)) > self.DTG_MAX:
+            raise RigError("that dead time plus its skew is past DTG's "
+                           "linear range - ask for 535 ns or less")
+        if counts - abs(int(skew)) < self.DEADTIME_FLOOR:
+            raise RigError('that skew would take one of the two dead times '
+                           'under the 20 ns floor - raise the dead time '
+                           'first, or skew it less')
+        self._deadtime, self._skew = counts, int(skew)
+        self._deadtime_ns = counts * self.DTS_PS // 1000
+        return self.dead_time()
 
     #: Counts per read, chosen coprime with PERIOD so repeated reads walk
     #: the whole period instead of landing in one half of it. A wall-clock
@@ -1350,7 +1380,7 @@ class SimulatedBoard:
         return None
 
     def request(self, *_a, **_k):
-        from .errors import DeviceStateError
+        from .errors import DeviceStateError, RigError
         if getattr(self, 'unit', 1) == 0:
             raise DeviceStateError(
                 'unit 0 is the broadcast address: every node acts on a '

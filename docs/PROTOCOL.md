@@ -44,6 +44,10 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   start twice       -> already running - stop it first, or leave it be
   ```
 
+* **Device 4, op 9** takes `u32 nanoseconds, i8 skew` and answers `u8 took`, then `u32 ns, i8 skew, u8 floor`. Both in one op because they constrain each other: a skew is only legal against a dead time big enough to carry it. The board floors the dead time at **20 ns** - the 2EDL8034 has no interlock, so this is the only thing between the two FETs of a leg - and refuses a skew that would take either half under it. Op 0 appends the same three.
+
+  The skew exists because TIM1's dead-time generator puts the same DTG on both transitions, and a real stage is not symmetric. It cannot come from moving a compare register - that shifts the whole transition and leaves the gap alone. It comes from writing DTG itself between the two, which is why `RCR` is **0** and the update lands at every overflow *and* every underflow. **Not measured**: what it does at the gates needs two probes and a scope.
+
 * **Device 6's channel mask is `u16`, from MINOR 23.** It was `u8` and the ninth ADC channel did not fit. This **resizes a field** rather than appending one, so it is the one place in this protocol where a host older than 23 mis-decodes rather than simply missing something: `configure` takes `u16 channels` first and op 0 reports it the same way. It is not a MAJOR because invariant 3's append-only rule is 0x41's, and 0x41 is untouched - but it is a break, and it is written down here rather than hidden in a MINOR.
 
 * **`0x42` takes an optional `u8` start index and appends `u8 total`.** A row costs 18 bytes plus its pin and signal names against a 252-byte reply: seven channels came to 197 and nine to 254. The board sends what fits and says how many there are; a host asks again from where it stopped. Absent, the index reads 0.

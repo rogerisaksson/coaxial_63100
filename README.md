@@ -1,98 +1,97 @@
 # Coaxial 63100
 
-Instrumentation firmware and Python host library for a stator-mounted ("coaxial") BLDC inverter. Rated 63 V / 100 A (peak SOA survival, not continuous). Driven by an STM32H753VIT6 at 475 MHz.
+A three-phase BLDC inverter whose PCB sits coaxially behind the stator.
+**63 V, 100 A** - the rating is the name. STM32H753VIT6 at 475 MHz.
 
-This is currently a telemetry pipeline. Motor control (PWM, commutation, current loops) is unconfigured.
+Instrumentation, not a motor controller: the bridge switches on request and
+there is **no commutation and no current loop**. `arm_gate_drivers()` is the
+only thing that sets MOE, and it re-reads the dead time first because the
+2EDL8034 has no interlock of its own.
 
-## Getting Started
-
-### 1. Environment Setup
-
-The provisioning script handles dependencies via Winget, Python, and ST's bundle manager:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # Check status without changes
-powershell -ExecutionPolicy Bypass -File .\setup.ps1          # Interactive install
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Yes     # Unattended install
-```
-
-Load the per-shell toolchain and command aliases (does not modify the system PATH):
+## Start here
 
 ```powershell
-. .\env.ps1
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
+. .\env.ps1                                                   # PATH + aliases
+.\demo.ps1                                                    # pick a view
+.\demo.ps1 adc -Simulated                                     # no cable needed
 ```
 
-### 2. Build & Flash
+## Demos
 
-Both are `env.ps1` aliases: `cube-cmake --build --preset Debug` and
-`STM32_Programmer_CLI` over SWD.
+`.\demo.ps1` is the menu; each is also `.\demos\<name>.ps1`. Every one takes
+`-Simulated` (no board) and `-Frames N` (stop after N).
+
+| view | what it shows |
+|---|---|
+| `adc` | every analog channel on a meter bridge, in its own unit |
+| `imu` | board attitude, drawn from the STL the IMU turns |
+| `angle` | shaft angle, the magnet and the air gap |
+| `capture` | buffered: the AFE, the pins and both SPI parts at once |
+| `gate_drivers` | the six gate signals as one instant, current, DC ripple, a timed burst |
+
+`gate_drivers` is the one that switches. `+ -` duty, `[ ]` step, `A` arm,
+`B` BKIN override, `I` interlock override, `1 2 3 4` run length, `R` run.
+
+## python_examples
+
+Notebooks that open as scripts - `# %%` cells, `SIMULATED = True` for no
+cable.
+
+| file | what it walks through |
+|---|---|
+| `daq_session.py` | connect, configure, set the clock, read N blocks |
+| `gate_drivers_session.py` | dead time, arm, duty, the gate snapshot, a burst |
+
+## The library
+
+```python
+from coaxial import Coaxial63100
+with Coaxial63100(port='COM4') as daq:      # simulated_device=True: no cable
+    daq.set_time_from_pc()                  # UTC, not this PC's idea of it
+    daq.configure_daq(['Phase U', 'NTC'], accumulate=8)
+    daq.start()
+    for block in daq.blocks(20):
+        r = block[-1]
+        print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM
+```
+
+Everything raises rather than returning a status. **What a device is, and
+which channels it has, come from the board** - add a row to
+`Board/Src/board_adc.c` and every demo above shows it with nothing else
+told.
+
+## Build, flash, test
 
 ```powershell
-cbuild              # Compile firmware (zero warnings expected)
-cflash              # Flash via SWD and start the core
+cube-cmake --build --preset Debug      # must be zero warnings
+STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
+.\run_tests.ps1                        # ~25 % of the checks, the default
+.\run_tests.ps1 -All                   # 1738 checks, the gate
+.\run_tests.ps1 -Structure             # does host/ still hold together - 4 s
 ```
 
-### 3. Interact with the Board
+A missing cable is not a failing suite: every suite falls back to a
+stand-in that labels itself.
 
-`env.ps1` defines `board` as `python -m coaxial`, run from `host/`.
+## Ask the board
+
+There is a local model on this machine with the board's tools wired to it.
 
 ```powershell
-board all           # every subsystem: AFE, channels, clock, DC bus, pins,
-                    # self-test, temperature, version
-board analog        # one of them - see `board -h` for the list
-board --port COM7 temp
+board_prompt -Ask "vad sitter på kortet?"
 ```
 
-### 4. Launch the AI-Assisted Telemetry Prompt
-
-```powershell
-board_prompt                       # preflight, then the prompt
-board_prompt -Ask "read the NTC"   # one question, no prompt loop
-board_prompt -Simulated            # no cable; every reading is invented
-```
-
-Preflight tunes the ollama daemon, picks and preloads a model that fits the
-card, and finds the board. The prompt tag says what answered - green for a
-board, yellow for the stand-in.
-
----
-
-## Environment & Toolchain
-
-* **`setup.ps1`**: Automates dependency installation (Winget, Python, Ollama, ST toolchains). Bypasses ST's login wall by hijacking the VS Code bundle manager.
-* **`env.ps1`**: Scopes paths strictly per-shell to avoid registry rot. Injects core aliases (`cbuild`, `cflash`, `board`, `board_prompt`, `dbg`, `cubemx`).
-
-## Build & Deploy
-
-* **`cbuild`**: Compiles the firmware. Zero warnings is a strict requirement, not an aspiration.
-* **`cflash`**: Flashes via SWD. Must terminate with `--start`; `-hardRst` leaves the core halted with no clue as to why. Connect-under-reset fails on this probe (`Unable to get core ID`) - use SWD, or JTAG with `mode=Normal reset=SWrst`.
-
-## Telemetry & The AFE Trap
-
-* **Link**: USART3 multiplexes a text console and Modbus RTU. Reachable via debug VCP or RS485.
-* **The AFE Trap**: The ADC voltage reference is powered by the AFE switch. If the AFE is off, channels read exact mid-scale, generating a phantom 25.00 °C on the NTC. A plausible number, but not a measurement.
-* **Dumb Slave**: The board reports raw codes. It knows nothing of calibration or limits. Pass/fail thresholding is strictly the jurisdiction of the host test executive.
-
-## LLM Orchestrator
-
-* **`board_prompt`**: Initializes the local model daemon, preloads weights, and binds hardware tools. `dbg` is the same loop one layer down, without the preflight (`dbg -q "read the NTC"`).
-* **Compile, then narrate**: A typed sentence is classified before it is answered. An intent with an unambiguous answer compiles to the calls the host makes *itself*; the model then gets the output with no tools offered at all. A turn whose calls have already run has no tool choice left to get wrong. Every way the classification can fail leaves the model picking its own tools, as before.
-* **VRAM Strictness**: Dynamically selects the largest model that fits *entirely* in VRAM, reserving overhead for the OS. Spilling to CPU RAM incurs a 5x speed penalty and is treated as a fallback, never a target.
-* **Data Sovereignty**: Cloud tags are explicitly blocked to prevent unreleased hardware telemetry from leaking to external servers.
-* **Execution, Not Judgement**: The LLM may script builds, flash hardware, and pull telemetry, but final test verdicts are strictly calculated by Python (`plan.Limit`).
-
-## Validation & Licensing
-
-* **Verification**: `.un_tests.ps1` is the interface. It runs a change-sized subset by default (~25 % of every check, chosen by the local model from the diff); `-AutomaticMedium`, `-AutomaticHigh` and `-All` widen it, `-Only NAMES` narrows it to named tests.
-* **License**: CC BY-NC-SA 4.0. Open for hobbyists. Commercial deployment requires a paid license. Contact [erogisa@gmail.com](mailto:erogisa@gmail.com) for enterprise terms.
-
-## Documents
+## Where things are
 
 | | |
 |---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | the source layout and the test system |
-| [docs/HARDWARE.md](docs/HARDWARE.md) | before interpreting any measurement |
-| [docs/PROTOCOL.md](docs/PROTOCOL.md) | before changing anything on the wire |
-| [docs/MODELS.md](docs/MODELS.md) | the local model, its tools, its failure modes |
-| [docs/FINDINGS.md](docs/FINDINGS.md) | what is already ruled out |
-| [docs/TODO.md](docs/TODO.md) | what is done and measured, and what is still open |
+| `Board/` | this hardware, behind `Comms/Inc/board.h` |
+| `Comms/` | the command stack over Modbus RTU |
+| `Modbus/` | the protocol. Portable C11, host-tested, no HAL |
+| `host/` | `coaxial/` library, MCP server, ollama runner, suites |
+| `electronics/` | schematic and BOM - the authority on what is fitted |
+| `docs/` | [ARCHITECTURE](docs/ARCHITECTURE.md), [PROTOCOL](docs/PROTOCOL.md), [HARDWARE](docs/HARDWARE.md), [FINDINGS](docs/FINDINGS.md), [TODO](docs/TODO.md) |
+
+**Read [FINDINGS](docs/FINDINGS.md) before investigating anything.** It
+records what is already ruled out, and what it cost to find out.

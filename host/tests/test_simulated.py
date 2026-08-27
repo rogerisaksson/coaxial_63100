@@ -1151,6 +1151,59 @@ def test_gate_snapshot(report):
     gate_drivers.bypass_break(False)
 
 
+def test_dead_time(report):
+    """Settable, floored at 20 ns, and skewable - all refused in words.
+
+    The 2EDL8034 has no interlock, so the dead time is the only thing
+    between the two FETs of a leg. Everything here is about the floor being
+    a floor. What the skew does at the gates is not checked and cannot be
+    from here: it needs two probes and a scope.
+    """
+    from coaxial import Coaxial63100
+    from coaxial.errors import RigError
+
+    rig = Coaxial63100(simulated_device=True).open()
+    try:
+        gates = rig.board.gate_drivers
+        at_rest = gates.dead_time()
+        report.check('it reads a dead time, a skew and the floor',
+                     set(at_rest) == {'nanoseconds', 'skew', 'floor'},
+                     at_rest)
+
+        low = gates.dead_time(1)
+        report.check('asking for less than the floor gets the floor, not a '
+                     'refusal - a bridge still switches, just not that fast',
+                     low['nanoseconds'] > 0
+                     and low['nanoseconds'] <= at_rest['nanoseconds'],
+                     low['nanoseconds'])
+
+        wide = gates.dead_time(200)
+        report.check('a bigger ask lands on a bigger DTG count',
+                     wide['nanoseconds'] > low['nanoseconds'],
+                     '%d -> %d ns' % (low['nanoseconds'], wide['nanoseconds']))
+
+        skewed = gates.dead_time(200, skew=8)
+        report.check('the skew is carried and reported back',
+                     skewed['skew'] == 8, skewed['skew'])
+        report.check('and the dead time it was set against is unchanged - '
+                     'the pair still averages what was asked for',
+                     skewed['nanoseconds'] == wide['nanoseconds'],
+                     skewed['nanoseconds'])
+
+        gates.dead_time(21)
+        try:
+            gates.dead_time(21, skew=40)
+            refused = None
+        except RigError as exc:
+            refused = str(exc)
+        report.check('a skew that would take either half under the floor is '
+                     'refused', refused is not None, refused)
+        report.check('and the refusal says what to do about it',
+                     refused and 'raise the dead time' in refused, refused)
+    finally:
+        rig.close()
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
@@ -1159,7 +1212,8 @@ def main():
                  test_orientation, test_scaling, test_desk,
                  test_tumble, test_peak_hold, test_ascii3d,
                  test_clock_reference, test_link_bench,
-                 test_gate_driver_arming, test_gate_snapshot):
+                 test_gate_driver_arming, test_gate_snapshot,
+                 test_dead_time):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

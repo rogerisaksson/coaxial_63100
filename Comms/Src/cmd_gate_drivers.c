@@ -89,6 +89,12 @@ static cmd_status_t h_gate_drivers_state(wr_t *out)
   wr_u8(out, pwm.pins);
   wr_u16(out, pwm.at);
 
+  /* The dead time in nanoseconds beside the raw DTG above, its skew, and
+     the smallest DTG this timer clock allows. Appended. */
+  wr_u32(out, Board_PwmDeadTimeNs());
+  wr_u8(out, (uint8_t)Board_PwmDeadTimeSkew());
+  wr_u8(out, Board_PwmDeadTimeFloor());
+
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
@@ -248,6 +254,43 @@ static cmd_status_t h_gate_drivers_clear(wr_t *out)
 }
 
 
+/** op 9 - the dead time, in nanoseconds, and its skew in DTG counts.
+  *
+  * Both in one op because they constrain each other: a skew is only legal
+  * against a dead time big enough to carry it, so setting them apart means
+  * an order that works and an order that does not. The board floors the
+  * dead time at 20 ns and refuses a skew that would take either half under
+  * it, in its own words.
+  */
+static cmd_status_t h_gate_drivers_deadtime(rd_t *in, wr_t *out)
+{
+  const uint32_t ns = rd_u32(in);
+  const int8_t skew = (int8_t)rd_u8(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+
+  /* Skew to zero first: the new dead time is checked against the skew that
+     will be in force, not the one being replaced. */
+  (void)Board_PwmSetDeadTimeSkew(0);
+
+  const char *refusal = Board_PwmSetDeadTime(ns);
+
+  if (refusal == NULL)
+  {
+    refusal = Board_PwmSetDeadTimeSkew(skew);
+  }
+
+  cmd_took(out, refusal);
+  wr_u32(out, Board_PwmDeadTimeNs());
+  wr_u8(out, (uint8_t)Board_PwmDeadTimeSkew());
+  wr_u8(out, Board_PwmDeadTimeFloor());
+  return CMD_OK;
+}
+
+
 cmd_status_t cmd_gate_drivers_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
@@ -261,6 +304,7 @@ cmd_status_t cmd_gate_drivers_op(uint8_t op, rd_t *in, wr_t *out)
     case GATEDRIVERS_OP_BYPASS:  return h_gate_drivers_bypass(in, out);
     case GATEDRIVERS_OP_GAPRST:  return h_gate_drivers_gapreset(out);
     case GATEDRIVERS_OP_DUTYQ:   return h_gate_drivers_dutyq(in, out);
+    case GATEDRIVERS_OP_DEADTIME: return h_gate_drivers_deadtime(in, out);
     default:                return CMD_ERR_VALUE;
   }
 }
