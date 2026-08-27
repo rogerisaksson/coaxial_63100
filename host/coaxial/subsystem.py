@@ -19,3 +19,21 @@ class Subsystem:
 
     def request(self, function, payload=b'', **kwargs):
         return self._board.request(function, payload, **kwargs)
+
+    @staticmethod
+    def took(reply):
+        """Raise with the board's own reason when it refused.
+
+        Every refusal comes back as `u8 took` and, when it did not, the
+        board's words for what is wrong and what to do. The board is the
+        only thing that knows which check failed - a host listing possible
+        causes is a second answer that goes stale the moment a check moves.
+        """
+        from .errors import RigError
+        from .wire import Reader
+
+        r = Reader(reply)
+        if r.u8():
+            return True
+        raise RigError(r.string() if r.remaining else
+                       'the board refused, and said nothing about why')

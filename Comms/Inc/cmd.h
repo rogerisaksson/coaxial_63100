@@ -282,7 +282,7 @@ extern "C" {
 #define CAL_OP_DEFAULTS    7U
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 19U
+#define CMD_PROTO_MINOR 20U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -332,6 +332,11 @@ cmd_status_t cmd_bridge_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_log_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out);
+
+/** `u8 took`, and on a refusal the board's own reason after it: what is
+    wrong and what to do about it. The board is the only thing that knows
+    which check failed, so it is the only thing that should be saying. */
+void cmd_took(wr_t *out, const char *refusal);
 
 /**
   * @brief One subsystem: a command table, named, with what it is for.

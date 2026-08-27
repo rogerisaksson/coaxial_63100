@@ -9,7 +9,6 @@ the writers return what the board accepted, which is not always what was
 asked for.
 """
 from . import protocol
-from .errors import RigError
 from .subsystem import Subsystem
 from .wire import Reader
 
@@ -77,9 +76,7 @@ class Bridge(Subsystem):
         re-latches the moment it is cleared while nFAULT is still low, so a
         refusal here usually means the STO chain has not released.
         """
-        if self._op(OP_PWM, b'\x01')[0] != 1:
-            raise RigError('the board refused to enable the bridge - check '
-                           'fault, and whether the STO chain has released')
+        self.took(self._op(OP_PWM, b'\x01'))
         return True
 
     def disable(self):
@@ -99,9 +96,7 @@ class Bridge(Subsystem):
             raise ValueError('%d compare values, not %d' % (PHASES, len(ticks)))
 
         payload = b''.join(int(t).to_bytes(2, 'big') for t in ticks)
-        if self._op(OP_DUTY, payload)[0] != 1:
-            raise RigError('the board refused %r - past ARR, or the bridge is '
-                           'not enabled' % (ticks,))
+        self.took(self._op(OP_DUTY, payload))
         return True
 
     def duty_fine(self, fractions):
@@ -124,9 +119,7 @@ class Bridge(Subsystem):
         payload = b''.join(
             int(round(max(0.0, min(1.0, f)) * period * 65536)).to_bytes(4, 'big')
             for f in fractions)
-        if self._op(OP_DUTY_FINE, payload)[0] != 1:
-            raise RigError('the board refused %r - past ARR, or the bridge '
-                           'is not enabled' % (fractions,))
+        self.took(self._op(OP_DUTY_FINE, payload))
         return True
 
     def arm(self):
@@ -136,8 +129,7 @@ class Bridge(Subsystem):
         is armed: the injected sequence needs all three phases preselected at
         once, and the meter clears PCSEL per read.
         """
-        if self._op(OP_SYNC, b'\x01')[0] != 1:
-            raise RigError('the board refused to arm the synced triple')
+        self.took(self._op(OP_SYNC, b'\x01'))
         return True
 
     def disarm(self):
@@ -170,8 +162,7 @@ class Bridge(Subsystem):
         tone the drivers have no supply and the six outputs toggle into
         unpowered inputs. A reset puts the break back.
         """
-        if self._op(OP_BYPASS, bytes([1 if on else 0]))[0] != 1:
-            raise RigError('the board refused to change the break bypass')
+        self.took(self._op(OP_BYPASS, bytes([1 if on else 0])))
         return True
 
     def reset_worst_gap(self):

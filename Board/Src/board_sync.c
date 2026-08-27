@@ -205,15 +205,16 @@ void Board_SyncOverrun(void)
 }
 
 
-bool Board_SyncArm(void)
+const char *Board_SyncArm(void)
 {
   if (!Board_SyncReady())
   {
-    return false;
+    return "no timer to trigger from - TIM1 is not configured, so the "
+           "firmware needs regenerating and reflashing";
   }
   if (s_armed)
   {
-    return true;
+    return NULL;                 /* already armed is not a refusal */
   }
 
   /* PCSEL is the trap this board has already been caught by twice, and the
@@ -230,7 +231,8 @@ bool Board_SyncArm(void)
       || !SYNC_ConfigPhase(&hadc1, SYNC_V_CHANNEL)
       || !SYNC_ConfigPhase(&hadc2, SYNC_W_CHANNEL))
   {
-    return false;
+    return "an injected group would not configure - check AFE_ON is on "
+           "and that no meter read is in flight";
   }
 
   SYNC_ConfigTrigger();
@@ -247,11 +249,12 @@ bool Board_SyncArm(void)
       || HAL_ADCEx_InjectedStart(&hadc2) != HAL_OK)
   {
     Board_SyncDisarm();
-    return false;
+    return "an injected group would not start - disarm, check AFE_ON, "
+           "and arm again";
   }
 
   s_armed = true;
-  return true;
+  return NULL;
 }
 
 

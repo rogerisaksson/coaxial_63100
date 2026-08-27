@@ -118,6 +118,12 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check    # what is missing
 ```
 
 
+**Refusals come from the board.** Anything taking parameters answers
+`u8 took` and, on a refusal, the board's own words for what is wrong and
+what to do. The host validates only what stops a request being formed and
+repeats the rest. Adding a check means adding its sentence beside it - not
+a code the host maps, and not a list of causes in a docstring.
+
 **`Coaxial63100` is the front door.** `host/coaxial/rig.py`, and what all
 four views use. It owns the AFE preflight (invariant 9) and puts the supply
 back the way it found it, Ctrl+C included.

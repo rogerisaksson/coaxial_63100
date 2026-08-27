@@ -209,24 +209,39 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
 }
 
 
-bool Board_DaqConfigure(const board_daq_config_t *cfg)
+const char *Board_DaqConfigure(const board_daq_config_t *cfg)
 {
-  if ((cfg == NULL) || s_running)
+  /* Every refusal says which check failed, in the board's own words. The
+     board is the only thing that knows which one it was; a host listing
+     possible causes is the second answer this codebase keeps deleting.
+     Each one says what is wrong AND what to do about it - a refusal that
+     leaves the caller guessing has done half a job. */
+  if (cfg == NULL)
   {
-    return false;
+    return "no configuration given - pass one";
+  }
+  if (s_running)
+  {
+    return "a task is running - stop it first, because a stride that "
+           "changed under a half-drained buffer would hand out records of "
+           "two shapes with nothing to say which was which";
   }
   if ((cfg->clock != BOARD_DAQ_CLOCK_SOFTWARE) &&
       (cfg->clock != BOARD_DAQ_CLOCK_TIM1))
   {
-    return false;
+    return "clock is 0 for the main loop or 1 for the injected group";
   }
-  if ((cfg->decimate == 0U) || (cfg->accumulate == 0U))
+  if (cfg->decimate == 0U)
   {
-    return false;
+    return "decimate counts triggers, so the smallest is 1";
+  }
+  if (cfg->accumulate == 0U)
+  {
+    return "accumulate counts samples per record, so the smallest is 1";
   }
   if (!Board_AdcSetSampleTime(cfg->sample_time))
   {
-    return false;
+    return "sample_time is 0 to 7, shortest window first";
   }
 
   /* Field order is the channel table's order, so a host reading the layout
@@ -242,7 +257,7 @@ bool Board_DaqConfigure(const board_daq_config_t *cfg)
   }
   if (s_fields == 0U)
   {
-    return false;
+    return "no channels selected - the mask is over the rows of 0x6D kind 0";
   }
 
   /* TIM1 clock means the injected group, and that group converts the three
@@ -255,7 +270,9 @@ bool Board_DaqConfigure(const board_daq_config_t *cfg)
     {
       if (!Board_AdcIsPhase(s_order[f]))
       {
-        return false;
+        return "the TIM1 clock converts the three phases and nothing else - "
+               "any other channel has to come through the meter on the "
+               "software clock";
       }
     }
   }
@@ -274,7 +291,7 @@ bool Board_DaqConfigure(const board_daq_config_t *cfg)
   s_live_any = 0U;
   memset(s_live, 0, sizeof(s_live));
   memset(s_acc, 0, sizeof(s_acc));
-  return true;
+  return NULL;
 }
 
 
@@ -285,11 +302,20 @@ void Board_DaqSetInterval(uint32_t interval_us)
 }
 
 
-bool Board_DaqStart(void)
+const char *Board_DaqStart(void)
 {
-  if ((s_stride == 0U) || s_running)
+  if (s_stride == 0U)
   {
-    return false;
+    return "nothing configured to start - configure the task first";
+  }
+  if (s_running)
+  {
+    return "already running - stop it first, or leave it be";
+  }
+  if (!Board_AfeOn())
+  {
+    return "AFE_ON is off, and it powers the converter's reference - every "
+           "channel would read exact mid-scale, which is not a measurement";
   }
   s_head = 0U;
   s_tail = 0U;
@@ -304,7 +330,7 @@ bool Board_DaqStart(void)
   memset(s_live, 0, sizeof(s_live));
   memset(s_acc, 0, sizeof(s_acc));
   s_running = true;
-  return true;
+  return NULL;
 }
 
 

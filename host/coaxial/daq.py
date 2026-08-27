@@ -118,12 +118,12 @@ class Daq(Subsystem):
         average would throw away and the count is right here to divide by.
         `decimate` keeps one trigger in N. `records` of 0 runs until stopped.
         """
+        # Only what stops the request being FORMED is checked here - a name
+        # that is not a clock cannot be packed into a byte. Everything the
+        # board can judge, the board judges, and says why.
         if clock not in CLOCKS and clock not in (SOFTWARE, TIM1):
             raise ValueError('clock is %s, not one of %s'
                              % (clock, ', '.join(CLOCKS)))
-        if decimate < 1 or accumulate < 1:
-            raise ValueError('decimate and accumulate count samples, so both '
-                             'are at least 1')
 
         # A software clock has to be a clock. Left unlimited it samples
         # whatever the main loop has spare, which took the link down: seven
@@ -138,16 +138,11 @@ class Daq(Subsystem):
                               CLOCKS.get(clock, clock), sample_time,
                               decimate, accumulate, records,
                               1 if digital else 0, int(interval_us))
-        if self._op(DAQ_OP_CONFIGURE, payload)[0] != 1:
-            raise RigError('the board refused that task - a TIM1 clock '
-                           'carries only the phases, a task cannot be '
-                           'reconfigured while running, and sample_time is '
-                           '0..7')
+        self.took(self._op(DAQ_OP_CONFIGURE, payload))
         return self.layout()
 
     def start(self):
-        if self._op(DAQ_OP_START)[0] != 1:
-            raise RigError('the board refused to start - configure it first')
+        self.took(self._op(DAQ_OP_START))
         return True
 
     def stop(self):

@@ -316,13 +316,17 @@ typedef struct
     arrived since the previous take, which is what a caller blocks on. */
 void Board_DaqTakeLive(board_daq_live_t *out);
 
-bool Board_DaqConfigure(const board_daq_config_t *cfg);
+/** NULL when it took, and the reason in the board's own words when it did
+    not. The board owns the words: it is the only thing that knows which
+    check failed, and a host guessing at a list of possible causes is the
+    second answer this codebase keeps deleting. */
+const char *Board_DaqConfigure(const board_daq_config_t *cfg);
 /** Override the software clock's interval after configuring. The command
     layer uses it to fit a free-running task to the link it answers on;
     only that layer knows the baud. */
 void Board_DaqSetInterval(uint32_t interval_us);
 
-bool Board_DaqStart(void);
+const char *Board_DaqStart(void);
 void Board_DaqStop(void);
 void Board_DaqState(board_daq_state_t *out);
 
@@ -383,7 +387,7 @@ int32_t Board_AdcDifferential(uint32_t raw);
 bool Board_SyncReady(void);
 
 /** Start latching. False unless ready. Refuses the meter while armed. */
-bool Board_SyncArm(void);
+const char *Board_SyncArm(void);
 void Board_SyncDisarm(void);
 bool Board_SyncArmed(void);
 
@@ -435,13 +439,13 @@ bool Board_PwmClearFault(void);
 bool Board_PwmSetDuty(uint8_t phase, uint16_t ticks);
 
 /** All three, or none: never a cycle built from two calls. */
-bool Board_PwmSetAll(const uint16_t *ticks);
+const char *Board_PwmSetAll(const uint16_t *ticks);
 
 /** Duty in ticks Q16.16, dithered so the MEAN is what was asked for.
     One tick of ARR 2375 is 0.0421 % of duty, so 34.54 % lands between two
     of them; a first-order sigma-delta in TIM1's update interrupt spends
     the whole ticks and carries the fraction. Idle tones come with it. */
-bool Board_PwmSetAllFine(const uint32_t *ticks_q16);
+const char *Board_PwmSetAllFine(const uint32_t *ticks_q16);
 void Board_PwmDutyRequested(uint32_t *ticks_q16);
 void Board_PwmDitherStep(void);
 

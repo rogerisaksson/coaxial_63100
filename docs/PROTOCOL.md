@@ -34,6 +34,16 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
 
   Kind 4 is paged: six parts with their strings are 380 bytes. It answers `u8 total, u8 first, u8 count`, then per part `str name, str what, str where, str power, u8 state`. `power` names what must be on for the part to work at all; `state` is `0` not probed, `1` ready, `2` unpowered, `3` silent - measured, never asserted (invariant 10). Adding a part is one row in `Board/Src/board_io.c`; nothing above it needs telling.
 
+* **Refusals come from the board, with a fix.** Anything that takes parameters answers `u8 took`, and when it did not, a string saying what is wrong **and what to do about it**. The board is the only thing that knows which check failed; a host listing possible causes is a second answer that goes stale the moment a check moves. The host validates only what stops a request being formed - a clock name that will not pack into a byte - and repeats whatever the board said for the rest.
+
+  ```
+  accumulate=0      -> accumulate counts samples per record, so the smallest is 1
+  NTC on tim1       -> the TIM1 clock converts the three phases and nothing else -
+                       any other channel has to come through the meter on the
+                       software clock
+  start twice       -> already running - stop it first, or leave it be
+  ```
+
 * **`0x6E` Device:** Every peripheral, chosen by a leading device byte, then an op byte: `0x6E <device> <op> [payload]`. One function code for all of them because there are none left - the user-defined ranges are 65..72 and 100..110, and this board had spent all but 110. A second code answered ILLEGAL FUNCTION from the protocol layer before dispatch saw it. Adding a device is a row in `cmd_device.c` and an op dispatcher beside it.
 
   | Device | Part | Bus | Ops |

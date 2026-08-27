@@ -18,6 +18,19 @@
 #include "cmd.h"
 #include "wire.h"
 
+
+void cmd_took(wr_t *out, const char *refusal)
+{
+  if (refusal == NULL)
+  {
+    wr_u8(out, 1U);
+    return;
+  }
+  wr_u8(out, 0U);
+  wr_str(out, refusal);
+}
+
+
 static cmd_status_t h_device(rd_t *in, wr_t *out)
 {
   const uint8_t device = rd_u8(in);

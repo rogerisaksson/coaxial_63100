@@ -95,18 +95,22 @@ static cmd_status_t h_bridge_pwm(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  bool ok;
+  const char *refusal = NULL;
+
   if (on != 0U)
   {
-    ok = Board_PwmEnable();
+    refusal = Board_PwmEnable()
+                ? NULL
+                : "the bridge would not enable - a latched break outranks "
+                  "the request, and clearing it does not help while nFAULT "
+                  "is low; bypass the break for bench work";
   }
   else
   {
     Board_PwmDisable();
-    ok = true;
   }
 
-  wr_u8(out, ok ? 1U : 0U);
+  cmd_took(out, refusal);
   return CMD_OK;
 }
 
@@ -126,7 +130,7 @@ static cmd_status_t h_bridge_duty(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  wr_u8(out, Board_PwmSetAll(ticks) ? 1U : 0U);
+  cmd_took(out, Board_PwmSetAll(ticks));
   return CMD_OK;
 }
 
@@ -153,7 +157,7 @@ static cmd_status_t h_bridge_dutyq(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  wr_u8(out, Board_PwmSetAllFine(ticks) ? 1U : 0U);
+  cmd_took(out, Board_PwmSetAllFine(ticks));
   return CMD_OK;
 }
 
@@ -169,18 +173,18 @@ static cmd_status_t h_bridge_sync(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  bool ok;
+  const char *refusal = NULL;
+
   if (on != 0U)
   {
-    ok = Board_SyncArm();
+    refusal = Board_SyncArm();
   }
   else
   {
     Board_SyncDisarm();
-    ok = true;
   }
 
-  wr_u8(out, ok ? 1U : 0U);
+  cmd_took(out, refusal);
   return CMD_OK;
 }
 

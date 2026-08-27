@@ -94,9 +94,11 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  if (!Board_DaqConfigure(&cfg))
+  const char *refusal = Board_DaqConfigure(&cfg);
+
+  if (refusal != NULL)
   {
-    wr_u8(out, 0U);
+    cmd_took(out, refusal);
     return CMD_OK;
   }
 
@@ -129,14 +131,14 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
     }
   }
 
-  wr_u8(out, 1U);
+  cmd_took(out, NULL);
   return CMD_OK;
 }
 
 
 static cmd_status_t h_daq_start(wr_t *out)
 {
-  wr_u8(out, Board_DaqStart() ? 1U : 0U);
+  cmd_took(out, Board_DaqStart());
   return CMD_OK;
 }
 

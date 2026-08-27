@@ -246,13 +246,18 @@ void Board_PwmDitherStep(void)
 }
 
 
-bool Board_PwmSetAllFine(const uint32_t *ticks_q16)
+const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
 {
   /* Ticks in Q16.16 rather than a percentage: the board does no division
      and the caller keeps whatever precision it had. */
-  if (ticks_q16 == NULL || !Board_PwmIsEnabled())
+  if (ticks_q16 == NULL)
   {
-    return false;
+    return "no duties given - pass three";
+  }
+  if (!Board_PwmIsEnabled())
+  {
+    return "the bridge is not enabled - enable it first, and clear or "
+           "bypass the break if one is latched";
   }
 
   const uint32_t limit = (uint32_t)TIM1->ARR << 16;
@@ -261,7 +266,10 @@ bool Board_PwmSetAllFine(const uint32_t *ticks_q16)
   {
     if (ticks_q16[phase] > limit)
     {
-      return false;             /* all three or none */
+      /* All three or none: a half update runs one cycle with two phases
+         from this call and one from the last. */
+      return "a duty is past ARR - the largest is period minus one, which "
+             "the state reports";
     }
   }
 
@@ -284,7 +292,7 @@ bool Board_PwmSetAllFine(const uint32_t *ticks_q16)
   TIM1->SR = ~TIM_SR_UIF;
   TIM1->DIER |= TIM_DIER_UIE;
   HAL_NVIC_EnableIRQ(TIM1_UP_IRQn);
-  return true;
+  return NULL;
 }
 
 
@@ -301,18 +309,26 @@ void Board_PwmDutyRequested(uint32_t *ticks_q16)
 }
 
 
-bool Board_PwmSetAll(const uint16_t *ticks)
+const char *Board_PwmSetAll(const uint16_t *ticks)
 {
-  if (ticks == NULL || !Board_PwmIsEnabled())
+  if (ticks == NULL)
   {
-    return false;
+    return "no duties given - pass three";
+  }
+  if (!Board_PwmIsEnabled())
+  {
+    return "the bridge is not enabled - enable it first, and clear or "
+           "bypass the break if one is latched";
   }
 
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
     if (ticks[phase] > TIM1->ARR)
     {
-      return false;             /* all three or none: no half update */
+      /* All three or none: a half update runs one cycle with two phases
+         from this call and one from the last. */
+      return "a duty is past ARR - the largest is period minus one, which "
+             "the state reports";
     }
   }
 
@@ -338,7 +354,7 @@ bool Board_PwmSetAll(const uint16_t *ticks)
   {
     s_duty[phase] = ticks[phase];
   }
-  return true;
+  return NULL;
 }
 
 

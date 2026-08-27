@@ -37,6 +37,10 @@ measured at 5 243 us against a round trip's 17 941 us one way. The rate is
 measured too - 475.002988 MHz, +6.3 ppm - and `clock.unwrap()` handles the
 9.04 s wrap.
 
+**The board says why it refused, and what to do.** `u8 took` plus a
+sentence, on every op that takes parameters. `host/coaxial/subsystem.py`'s
+`took()` is the whole host side of it.
+
 **Two ways to read, and they answer different questions.** Op 4 drains a
 ring - a capture, with history, that drops when the host falls behind. Op 6
 takes a live accumulator that cannot drop: a slow link widens the averaging
