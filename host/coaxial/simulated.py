@@ -831,6 +831,7 @@ class SimulatedBridge:
         self._keepalive += 214000        # the measured idle toggle rate
         if self._armed:
             self._updates += 50000
+        at = self._cnt()
         return {
             'pwm_ready': True, 'pwm_enabled': self._enabled,
             'fault': not self._bypassed,
@@ -846,7 +847,35 @@ class SimulatedBridge:
             'level_raw': 1305, 'level_microvolts': 65000,
             'break_bypassed': self._bypassed,
             'requested': tuple(d / 1.0 for d in self._duty),
+            'pins': self._gates(at),
+            'pins_at': at,
         }
+
+    #: Counts per read, chosen coprime with PERIOD so repeated reads walk
+    #: the whole period instead of landing in one half of it. A wall-clock
+    #: counter looked right and was not: sixty reads in a millisecond moved
+    #: it seven ticks, and every sample showed the same side conducting.
+    CNT_STEP = 617
+
+    def _cnt(self):
+        """Somewhere in the period, and somewhere else next time."""
+        self._at = (getattr(self, '_at', 0) + self.CNT_STEP) % self.PERIOD
+        return self._at
+
+    def _gates(self, at):
+        """The six signals a real one would show at this count.
+
+        Complementary and never both on, because that is the property the
+        dead time gives the real bridge and a stand-in that could show a leg
+        conducting through would teach a reader the wrong thing. With MOE
+        clear every output is low, which is both FETs off.
+        """
+        out = {}
+        for leg, duty in zip(('U', 'V', 'W'), self._duty):
+            high = self._enabled and at < duty
+            out[leg + 'L'] = bool(self._enabled and not high)
+            out[leg + 'H'] = bool(high)
+        return {k: out[k] for k in ('UL', 'UH', 'VL', 'VH', 'WL', 'WH')}
 
     def reset_worst_gap(self):
         return True

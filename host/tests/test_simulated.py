@@ -1037,7 +1037,22 @@ def test_bridge_arming(report):
                      'rather than leaving the caller to guess',
                      refused and 'arm_bridge' in refused, refused)
 
-        rig.arm_bridge(bypass_sto=True)
+        # The schematic wants the charge pump up and the level detector
+        # tripped first. The stand-in reports neither, the same way the
+        # unmodified bench board does not - Cinj 0.77 V and Clevel 0.06 V
+        # against 3 V each, measured 2026-08-27.
+        try:
+            rig.arm_bridge(bypass_sto=True)
+            held = None
+        except RigError as exc:
+            held = str(exc)
+        report.check('the interlock refuses before the charge pump is up',
+                     held is not None, held)
+        report.check('and the refusal carries the volts it read, not just '
+                     'the fact that it refused',
+                     held and 'Cinj' in held and 'V' in held, held)
+
+        rig.arm_bridge(bypass_sto=True, ignore_interlock=True)
         report.check('after arm_bridge, MOE is set', rig.bridge_armed(), True)
         report.check('and the same write goes through',
                      rig.daq_write(analog={'Phase U': 0.25})['Phase U'] > 0,
@@ -1053,7 +1068,7 @@ def test_bridge_arming(report):
         state = dict(rig.board.bridge.state(), deadtime=0)
         rig.board.bridge.state = lambda: state
         try:
-            rig.arm_bridge()
+            rig.arm_bridge(ignore_interlock=True)
             stopped = None
         except RigError as exc:
             stopped = str(exc)
@@ -1062,8 +1077,73 @@ def test_bridge_arming(report):
         report.check('and the refusal says what to look at',
                      stopped and 'DTG' in stopped and '.ioc' in stopped,
                      stopped)
+        report.check('the dead time is checked before the interlock, because '
+                     'no interlock makes a bridge with none safe to arm',
+                     'DTG' in (stopped or ''), None)
     finally:
         rig.close()
+
+
+#: High side and low side of each leg, which must never be on together.
+PAIRS = (('UH', 'UL'), ('VH', 'VL'), ('WH', 'WL'))
+
+
+def test_gate_snapshot(report):
+    """The six gate signals, and the one state they must never show.
+
+    Read as one IDR load on the board so the six are the same instant: six
+    asks at 50 kHz can straddle an edge and show a leg with both FETs on,
+    which is the state the dead time exists to prevent. A stand-in that
+    could show it would teach a reader the wrong thing, so it cannot.
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))), 'tools'))
+    import show_bridge
+
+    session = SimulatedSession()
+    bridge = session.board.bridge
+
+    state = bridge.state()
+    report.check('every gate is named, low side and high side per leg',
+                 set(state['pins']) == {'UL', 'UH', 'VL', 'VH', 'WL', 'WH'},
+                 sorted(state['pins']))
+    report.check('and the counter is reported beside them, so a reader knows '
+                 'where in the period the snapshot landed',
+                 0 <= state['pins_at'] < state['period'], state['pins_at'])
+
+    report.check('with the outputs disabled every gate is low - both FETs '
+                 'of every leg off, which is what MOE clear means',
+                 not any(state['pins'].values()), state['pins'])
+
+    bridge.bypass_break(True)
+    bridge.enable()
+    bridge.duty((0, 0, 0))
+    seen = [bridge.state()['pins'] for _ in range(40)]
+    report.check('armed at zero duty, the low sides carry it',
+                 all(p['UL'] and not p['UH'] for p in seen), seen[0])
+
+    period = bridge.state()['period']
+    bridge.duty((period // 2, period // 2, period // 2))
+    seen = [bridge.state()['pins'] for _ in range(60)]
+    report.check('at half duty both halves of the period show up',
+                 any(p['UH'] for p in seen) and any(p['UL'] for p in seen),
+                 [sum(p['UH'] for p in seen), sum(p['UL'] for p in seen)])
+    conducting = [p for p in seen
+                  if any(p[h] and p[l] for h, l in PAIRS)]
+    report.check('and no sample ever has both FETs of a leg on',
+                 not conducting, 'checked %d samples' % len(seen))
+
+    drawn = '\n'.join(show_bridge.gate_rows(bridge.state(), 100))
+    report.check('the view draws one row per leg', drawn.count('phase') == 3,
+                 drawn.splitlines()[0])
+    both_on = dict(bridge.state())
+    both_on['pins'] = dict(both_on['pins'], UH=True, UL=True)
+    report.check('and says so in words when a leg shows both on, rather '
+                 'than leaving it to be spotted in a row of ones',
+                 'BOTH ON' in '\n'.join(show_bridge.gate_rows(both_on, 100)),
+                 None)
+    bridge.disable()
+    bridge.bypass_break(False)
 
 
 def main():
@@ -1074,7 +1154,7 @@ def main():
                  test_orientation, test_scaling, test_desk,
                  test_tumble, test_peak_hold, test_ascii3d,
                  test_clock_reference, test_link_bench,
-                 test_bridge_arming):
+                 test_bridge_arming, test_gate_snapshot):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

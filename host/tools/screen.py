@@ -150,6 +150,7 @@ class Keys:
         self._buffer = ''
         self._dragging = False
         self._last_row = None
+        self._typed = []
 
     def __enter__(self):
         if not self.console:
@@ -211,7 +212,22 @@ class Keys:
                 leave = 'quit'
             elif leave is None and key in MENU_KEYS:
                 leave = 'menu'
+            else:
+                # Kept for a view that binds keys of its own. Every other
+                # view ignores this and is unaffected; poll() still answers
+                # the same two things it always did.
+                self._typed.append(key)
         return leave, zoom
+
+    def taken(self):
+        """Characters typed since the last call, for a view with bindings.
+
+        Drained rather than read: a key held down repeats, and a view that
+        acted on the whole buffer every frame would keep acting on presses
+        it had already handled.
+        """
+        out, self._typed = self._typed, []
+        return out
 
     def _mouse(self, button, row, kind):
         """What one mouse report is worth, as a zoom fraction.

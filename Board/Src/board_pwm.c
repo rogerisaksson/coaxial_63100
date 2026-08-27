@@ -376,6 +376,17 @@ void Board_PwmState(board_pwm_state_t *out)
   out->fault = Board_PwmFault();
   out->period = Board_PwmPeriod();
   out->deadtime = out->ready ? (uint8_t)(TIM1->BDTR & TIM_BDTR_DTG) : 0U;
+
+  /* The six outputs as they stand this instant, and where the counter was
+     when they were read. One IDR load, so the six are the same instant -
+     six separate reads at 50 kHz would straddle an edge and show a leg with
+     both FETs on, which is the one thing that cannot happen. TIM1->CNT is
+     read second and is a few cycles later; at 237.5 MHz that is under a
+     tick of the 4.21 ns dead time and the caller is told it is separate. */
+  const uint32_t idr = GPIOE->IDR;
+
+  out->pins = (uint8_t)(((idr >> 8) & 0x3FU));   /* PE8..PE13, in order */
+  out->at = (uint16_t)TIM1->CNT;
   out->bypassed = Board_PwmBreakBypassed();
 
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)

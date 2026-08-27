@@ -194,7 +194,39 @@ class Coaxial63100:
         return self.board.daq.state()
 
 
-    def arm_bridge(self, bypass_sto=False):
+    #: What the schematic wants true before the gate drive is armed, as volts
+    #: at the pin. The charge pump has to have pumped and the level detector
+    #: has to have tripped; arming under either of them is arming into a
+    #: supply that is still coming up.
+    #:
+    #: Volts and not codes: a threshold in codes stops meaning anything the
+    #: moment a divider changes, and the divider is the board's, not this
+    #: file's (invariant 7).
+    INTERLOCK = (('Cinj', 3.0), ('Clevel', 3.0))
+
+    def interlock(self):
+        """What the arming conditions read now, and which of them hold.
+
+        Measured every time. Returns a list of (name, volts, ok, want) - it
+        does not raise, so a view can show the conditions coming up rather
+        than only learning about them when an arm is refused.
+        """
+        if not self.board.afe.is_on():
+            # AFE_ON powers the reference, so with it off every one of these
+            # reads exact mid-scale and would pass or fail by accident.
+            return [('AFE_ON', None, False, None)]
+
+        rows = []
+        readings = {r['signal']: r for r in
+                    self.board.analog.read_all(nr_of_samples=32)['channels']}
+        for name, want in self.INTERLOCK:
+            got = readings.get(name)
+            volts = got['volts_at_pin'] if got else None
+            rows.append((name, volts, volts is not None and volts >= want,
+                         want))
+        return [('AFE_ON', None, True, None)] + rows
+
+    def arm_bridge(self, bypass_sto=False, ignore_interlock=False):
         """Set MOE. Nothing switches before this and everything can after.
 
         **This is arming a power stage.** Until it is called the six outputs
@@ -212,12 +244,33 @@ class Coaxial63100:
         driver's 6 ns worst-case delay matching. `bridge_check()` re-reads
         it and refuses if it ever comes back zero.
 
+        `INTERLOCK` is the rest of what the schematic wants true first, and
+        `ignore_interlock` is how the bench board gets past it: measured
+        2026-08-27 with AFE_ON on, Cinj sits at 0.77 V and Clevel at 0.06 V
+        against the 3 V each wants, because the board is not modified yet.
+        Overriding is a decision; making it silently would not be.
+
         `bypass_sto` disconnects the Safe Torque Off break input, without
         which a latched break outranks this and the board says so. On the
         bench board the STO chain also gates the drivers' supply *inverted*,
         so they have power while AFE_ON is off - see FINDINGS.
         """
         self.bridge_check()
+
+        if not ignore_interlock:
+            failed = [row for row in self.interlock() if not row[2]]
+            if failed:
+                raise RigError(
+                    'the arming interlock is not satisfied: %s. The '
+                    'schematic wants the charge pump up and the level '
+                    'detector tripped before the gate drive is armed. Pass '
+                    'ignore_interlock=True to arm anyway, which is what an '
+                    'unmodified bench board needs'
+                    % ', '.join(
+                        '%s %s' % (name, 'is off' if volts is None
+                                   else '%.2f V, wants %.1f' % (volts, want))
+                        for name, volts, _, want in failed))
+
         if bypass_sto:
             self.board.bridge.bypass_break(True)
         self.board.bridge.enable()

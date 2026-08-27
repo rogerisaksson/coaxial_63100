@@ -199,6 +199,10 @@ typedef struct
   uint8_t  deadtime;                 /**< BDTR DTG, raw - not nanoseconds  */
   uint16_t duty[BOARD_PWM_PHASES];   /**< compare ticks, as last accepted  */
   bool     bypassed;                 /**< BDTR.BKE cleared - break ignored */
+  uint8_t  pins;                     /**< PE8..PE13 as one IDR read: bit 0
+                                          UL, 1 UH, 2 VL, 3 VH, 4 WL, 5 WH */
+  uint16_t at;                       /**< TIM1->CNT beside that read, so a
+                                          host knows where in the period    */
 } board_pwm_state_t;
 
 /** Bridge off, and true only if TIM1 is configured. Cannot configure it. */

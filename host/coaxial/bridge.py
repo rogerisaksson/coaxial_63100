@@ -18,6 +18,9 @@ FLAGS = ('pwm_ready', 'pwm_enabled', 'fault', 'sync_ready', 'sync_armed',
 
 PHASES = 3
 
+#: PE8..PE13 in pin order, which is low side then high side per leg.
+GATES = ('UL', 'UH', 'VL', 'VH', 'WL', 'WH')
+
 OP_STATE = 0
 OP_PWM = 1
 OP_DUTY = 2
@@ -67,6 +70,13 @@ class Bridge(Subsystem):
         # period. With the dither running they differ by a tick most of the
         # time and that is the point, not a rounding.
         out['requested'] = tuple(r.u32() / 65536.0 for _ in range(PHASES))
+        # The six gate signals as the board read them in one IDR load, and
+        # TIM1->CNT beside it. One instant: six separate asks at 50 kHz can
+        # straddle an edge and show a leg with both FETs on, which is the
+        # one state the dead time exists to prevent.
+        pins = r.u8()
+        out['pins'] = {name: bool(pins >> i & 1) for i, name in enumerate(GATES)}
+        out['pins_at'] = r.u16()
         return out
 
     def enable(self):

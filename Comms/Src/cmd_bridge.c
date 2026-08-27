@@ -68,7 +68,6 @@ static cmd_status_t h_bridge_state(wr_t *out)
   /* Appended, not squeezed into the first byte: that one is full, and
      moving any offset would break every decoder for one bit. */
   wr_u8(out, pwm.bypassed ? 0x01U : 0x00U);
-
   /* What was asked for, beside what the register holds this period. With
      the dither running the two differ by a tick most of the time, and a
      caller comparing them would otherwise think it had been rounded.
@@ -80,6 +79,15 @@ static cmd_status_t h_bridge_state(wr_t *out)
   {
     wr_u32(out, wanted[i]);
   }
+
+  /* The six gate signals as one instant, and the counter beside them. A
+     host asking six times would get six instants and could see a leg with
+     both FETs on, which is the one state the dead time exists to prevent.
+     At the end, because putting it before `requested` shifted every offset
+     after it - which is the same mistake this file already carries a
+     warning about, made again. */
+  wr_u8(out, pwm.pins);
+  wr_u16(out, pwm.at);
 
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
