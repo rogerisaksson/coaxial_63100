@@ -109,15 +109,58 @@ def find_cube_cmake(path):
     return which('cube-cmake', path=path)
 
 
+#: Helpers cube-cmake starts and never stops. Measured: four of them, 121 MB,
+#: still up from builds hours apart, and the VS Code extension keeps its own
+#: alive on top of that.
+CUBE_HELPERS = ('cube.exe', 'cube-cmsis-scanner.exe')
+
+
+def cube_helpers():
+    """PIDs of the helpers running now. Empty when tasklist is not there."""
+    try:
+        listed = subprocess.run(
+            ['tasklist', '/fo', 'csv', '/nh'], capture_output=True, text=True,
+            encoding='utf-8', errors='replace', timeout=20).stdout or ''
+    except (OSError, subprocess.SubprocessError):
+        return set()
+
+    found = set()
+    for line in listed.splitlines():
+        parts = [f.strip('"') for f in line.split('","')]
+        if len(parts) > 1 and parts[0].lower() in CUBE_HELPERS:
+            try:
+                found.add(int(parts[1]))
+            except ValueError:
+                pass
+    return found
+
+
+def reap(before):
+    """Stop the helpers this run started, and only those.
+
+    The extension's own `cube` respawns within a second of being killed and
+    is not this script's to end - so what was already running is left alone.
+    """
+    for pid in cube_helpers() - before:
+        try:
+            subprocess.run(['taskkill', '/F', '/PID', str(pid)],
+                           capture_output=True, timeout=20)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+
 def run(argv, cwd, path):
     env = dict(os.environ, PATH=path)
     started = time.monotonic()
+    before = cube_helpers()
     try:
         done = subprocess.run(argv, cwd=cwd, env=env, capture_output=True,
                               text=True, encoding='utf-8',
                               errors='replace', timeout=600)
     except subprocess.TimeoutExpired as exc:
+        reap(before)
         return 1, (exc.stdout or '') + (exc.stderr or ''), time.monotonic() - started
+    reap(before)
     return done.returncode, (done.stdout or '') + (done.stderr or ''), time.monotonic() - started
 
 

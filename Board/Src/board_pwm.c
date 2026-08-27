@@ -440,6 +440,33 @@ bool Board_PwmInit(void)
      inside the noise of what else the loop is doing. */
   HAL_NVIC_SetPriority(TIM1_UP_IRQn, 2, 0);
 
+  /* The six gate signals, at a speed CubeMX does not set.
+   *
+   * MX_TIM1_Init's MSP configures PE8..PE13 with GPIO_SPEED_FREQ_LOW -
+   * its default when the .ioc names no speed - and measured over SWD,
+   * GPIOE OSPEEDR read 0x00000300: every one of the six at 00. A slow
+   * edge into the 2EDL8034's TTL input holds the input stage in its
+   * linear region while it crosses, and the driver dissipates the
+   * difference. Reported from the bench: two of the three drivers ran
+   * much hotter than the FETs they drive.
+   *
+   * The .ioc carries the speed now as well, so a regeneration keeps it.
+   * This is here because the MSP runs inside HAL_TIM_Init and undoes
+   * anything set before it, and because a driver heating for want of one
+   * register field should not depend on remembering to regenerate.
+   */
+  {
+    GPIO_InitTypeDef gate = {0};
+
+    gate.Pin = GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10
+             | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13;
+    gate.Mode = GPIO_MODE_AF_PP;
+    gate.Pull = GPIO_NOPULL;
+    gate.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    gate.Alternate = GPIO_AF1_TIM1;
+    HAL_GPIO_Init(GPIOE, &gate);
+  }
+
   TIM1->CCER |= TIM_CCER_CC1E | TIM_CCER_CC1NE
               | TIM_CCER_CC2E | TIM_CCER_CC2NE
               | TIM_CCER_CC3E | TIM_CCER_CC3NE;

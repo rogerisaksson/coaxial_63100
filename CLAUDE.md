@@ -245,6 +245,23 @@ install --yes NAME` needs no ST account). `env.ps1` puts the newest of each on
 PATH for one shell. Nothing hardcodes which port the board is on: `--port`
 is a first guess, and `open_session()` probes if it does not answer.
 
+## Do not run the suites to look busy
+
+**While a bug is live, run the narrowest thing that could disprove the
+current hypothesis - never the full suite.** `-All` is eight minutes and it
+answers a question nobody asked; running it mid-hunt is a way of appearing
+to work while the bug sits there. The suites are the gate *after* a change,
+which is what the next section is about, not a step in finding one.
+
+Measured, and why this is written down: chasing why two of three gate driver
+stages ran 15 C hotter than the third, the full suite was started three
+times. None of the 1745 checks could have said anything about it - the
+difference was on the bench, and the only measurements that moved the
+question forward were a 600-sample pin count and a register dump.
+
+The narrow thing is usually one of: read the register, count the samples,
+run the one suite whose name matches what changed.
+
 ## Green before the next thing
 
 **Fix the demo code and get the suites passing before moving on to the next

@@ -41,6 +41,10 @@ param([switch]$Quiet)
 $script:CoaxialRoot = $PSScriptRoot
 $BundleRoot = Join-Path $env:LOCALAPPDATA 'stm32cube\bundles'
 
+# When this shell was dot-sourced. cube-release stops helpers newer than
+# this and leaves the IDE's, which were running before it.
+$script:CoaxialShellStart = Get-Date
+
 function Get-NewestBundleBin {
     <#  Newest version of one bundle, as its bin directory.
         The sort key strips the vendor suffix: '2.22.0+st.1' and '2.23.0' have
@@ -125,6 +129,48 @@ if ($null -eq (Get-Command 'ollama' -ErrorAction SilentlyContinue)) {
     $added += 'ollama'
 }
 
+function cube-release {
+    <# Stop the build helpers, leaving anything older than this shell alone.
+
+       Every `cube-cmake --build` starts a `cube` and a `cube-cmsis-scanner`
+       and neither exits. cbuild and tools/build_and_flash.py already reap
+       their own; this is for the ones a bare `cube-cmake` left behind, and
+       for headless CubeMX, which parks a java on the .ioc.
+
+       -All takes the lot, including the VS Code extension's - which is
+       harmless, it respawns within a second. #>
+    param([switch]$All)
+
+    $names = @('cube', 'cube-cmsis-scanner')
+    if ($All) { $names += 'java' }
+
+    $stopped = 0
+    foreach ($proc in (Get-Process -Name $names -ErrorAction SilentlyContinue)) {
+        if (-not $All -and $proc.StartTime -lt $script:CoaxialShellStart) { continue }
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        $stopped++
+    }
+    Write-Host "released $stopped helper(s)" -ForegroundColor DarkGray
+}
+
+function cubemx-script {
+    <# CubeMX headless on a script file, and the java it parks afterwards.
+
+       Headless runs do not exit cleanly - four sessions were still up after
+       an afternoon of them, which is what this exists to stop. #>
+    param([Parameter(Mandatory)][string]$Script)
+
+    $before = @(Get-Process -Name 'java' -ErrorAction SilentlyContinue |
+                ForEach-Object { $_.Id })
+    try {
+        cubemx -q $Script
+    } finally {
+        Get-Process -Name 'java' -ErrorAction SilentlyContinue |
+            Where-Object { $before -notcontains $_.Id } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function cubemx {
     <# Open the .ioc in STM32CubeMX.
 
@@ -175,10 +221,37 @@ function board {
     try { python -m coaxial @args } finally { Pop-Location }
 }
 
+function Invoke-CubeCmake {
+    <# cube-cmake, and then the helpers it leaves running.
+
+       Each build starts a `cube` and a `cube-cmsis-scanner` and neither
+       exits: four of them, 121 MB, were still up from builds hours apart.
+       Only the ones this call started are stopped - the VS Code extension
+       keeps its own `cube` alive and respawns it within a second, and
+       killing that one is somebody else's business. #>
+    $before = @(Get-Process -Name 'cube', 'cube-cmsis-scanner' `
+                            -ErrorAction SilentlyContinue |
+                ForEach-Object { $_.Id })
+
+    # Nothing is captured or returned: the build's own output belongs on
+    # the caller's stream, and $LASTEXITCODE survives the tidying because
+    # only a native executable sets it. Capturing it into a variable and
+    # returning that put ninja's own words where the exit code should be.
+    try {
+        & cube-cmake @args
+    } finally {
+        Get-Process -Name 'cube', 'cube-cmsis-scanner' `
+                    -ErrorAction SilentlyContinue |
+            Where-Object { $before -notcontains $_.Id } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function cbuild {
     <# Build. Zero warnings is the standard, not an aspiration. #>
     Push-Location $script:CoaxialRoot
-    try { cube-cmake --build --preset Debug @args } finally { Pop-Location }
+    try { Invoke-CubeCmake --build --preset Debug @args }
+    finally { Pop-Location }
 }
 
 function cflash {
@@ -200,5 +273,5 @@ if (-not $Quiet) {
         Write-Host ("absent: " + ($missing -join ', ') + "  -> run .\setup.ps1") `
             -ForegroundColor Yellow
     }
-    Write-Host 'commands: board_prompt, dbg, board, cbuild, cflash, cubemx' -ForegroundColor DarkGray
+    Write-Host 'commands: board_prompt, dbg, board, cbuild, cflash, cubemx, cube-release' -ForegroundColor DarkGray
 }
