@@ -139,7 +139,7 @@ class Coaxial63100:
 
     def channels(self):
         """What the board says it has. Not a list written down here."""
-        return [c['signal'] for c in self.board.analog.channels()]
+        return self.board.analog.names()
 
     def configure_daq(self, channels=None, rate_hz=None, accumulate=1,
                       decimate=1, digital=True, clock='software',

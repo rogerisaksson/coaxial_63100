@@ -83,21 +83,16 @@ measured against an instrument — invariant 7.
    frame with chip select held across it. The IMU's SHTP path is
    header-then-body with a variable length and has already cost six bugs;
    it deserves its own change, not a rider on this one.
-2. **Enabling the bridge trips the hot-swap's over-current, twice.** 50 %
-   and 25 % duty, equal on all three phases so no line-to-line voltage
-   existed, STO bypassed, AFE on. Not a crash and not the boot state - both
-   ruled out with measurements. Either the AFE inversion is not clean or
-   the current is not the bridge's. FINDINGS has what is excluded.
-3. **Cinj and Clevel cannot be sampled asynchronously** — apparent duty
+2. **Cinj and Clevel cannot be sampled asynchronously** — apparent duty
    tracks the sample rate. Take them through the injected group, or with a
    longer sampling time. FINDINGS has the table.
-4. **Replace the conformance check `PE15 follows AFE_ON`.** It reads a pin
+3. **Replace the conformance check `PE15 follows AFE_ON`.** It reads a pin
    the MCU does not drive, and changes meaning the moment the STO chain
    releases. Replace it before the supply is switched on, not after.
-5. **Dead time is simulated, not measured.** 80 ns comes from a 59.4 ns
+4. **Dead time is simulated, not measured.** 80 ns comes from a 59.4 ns
    worst-corner gate overlap plus the 2EDL8034's 6 ns TDMOFF. Nothing has
    been on a scope.
-6. **A USB device class**, if USB is to do anything.
+5. **A USB device class**, if USB is to do anything.
 
 ## Standing
 

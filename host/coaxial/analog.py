@@ -67,13 +67,30 @@ class Analog(Subsystem):
         return self._channels
 
     def index_of(self, signal):
-        """Index of the channel carrying a named signal, e.g. 'NTC'."""
-        for channel in self.channels():
+        """Index of the channel carrying a named signal, e.g. 'NTC'.
+
+        Off the channel MAP, not the table: `channels()` is 0x42, which
+        takes a reading of every channel on the way past, so it refuses
+        outright while the injected group owns the converters - and then a
+        caller cannot even look up a name. The map is 0x6D kind 0, which
+        answers what exists without measuring anything, so it works armed
+        or not.
+        """
+        rows = self.board.system.channel_map()['analog']
+        for channel in rows:
             if channel['signal'] == signal:
                 return channel['index']
-        named = [c['signal'] for c in self.channels() if c['signal']]
+        named = [c['signal'] for c in rows if c['signal']]
         raise KeyError('no channel carries signal %r; the board reports %r'
                        % (signal, named))
+
+    def names(self):
+        """Every channel's signal name, in the board's own order.
+
+        The map rather than the table, for the reason `index_of` gives.
+        """
+        return [c['signal']
+                for c in self.board.system.channel_map()['analog']]
 
     def mask_all(self):
         return (1 << len(self.channels())) - 1

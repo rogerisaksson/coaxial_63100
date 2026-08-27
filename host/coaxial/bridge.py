@@ -26,6 +26,7 @@ OP_SYNC = 3
 OP_TRIGGER = 4
 OP_CLEAR = 5
 OP_BYPASS = 6
+OP_DUTY_FINE = 8
 OP_GAP_RESET = 7
 
 
@@ -63,6 +64,10 @@ class Bridge(Subsystem):
         out['level_raw'] = r.i32()
         out['level_microvolts'] = r.i32()
         out['break_bypassed'] = bool(r.u8() & 0x01)
+        # Asked for, in ticks Q16.16, beside what the register holds this
+        # period. With the dither running they differ by a tick most of the
+        # time and that is the point, not a rounding.
+        out['requested'] = tuple(r.u32() / 65536.0 for _ in range(PHASES))
         return out
 
     def enable(self):
@@ -97,6 +102,31 @@ class Bridge(Subsystem):
         if self._op(OP_DUTY, payload)[0] != 1:
             raise RigError('the board refused %r - past ARR, or the bridge is '
                            'not enabled' % (ticks,))
+        return True
+
+    def duty_fine(self, fractions):
+        """Duty as a fraction of full scale, dithered to hit it exactly.
+
+        One tick of the period is 0.0421 % at ARR 2375, so an asked-for
+        0.3454 is 820.32 ticks and neither 820 nor 821 is it. The board
+        keeps the fraction and a first-order sigma-delta in TIM1's update
+        interrupt pays it back, so the **mean** duty is what was asked for.
+
+        That costs idle tones: the dither pattern is periodic and its lines
+        sit below the switching frequency. First order buys three adds in a
+        50 kHz interrupt, and this is where the price is written down.
+        """
+        fractions = tuple(fractions)
+        if len(fractions) != PHASES:
+            raise ValueError('%d duties, not %d' % (PHASES, len(fractions)))
+
+        period = self.state()['period'] - 1
+        payload = b''.join(
+            int(round(max(0.0, min(1.0, f)) * period * 65536)).to_bytes(4, 'big')
+            for f in fractions)
+        if self._op(OP_DUTY_FINE, payload)[0] != 1:
+            raise RigError('the board refused %r - past ARR, or the bridge '
+                           'is not enabled' % (fractions,))
         return True
 
     def arm(self):

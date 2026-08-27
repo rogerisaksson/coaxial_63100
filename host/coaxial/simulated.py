@@ -344,6 +344,20 @@ class SimulatedAnalog:
     def channels(self, refresh=False):
         return CHANNELS
 
+    def names(self):
+        """Signal names in the board's order. Off the map on a real board,
+        because the table takes a reading on the way past and refuses while
+        the injected group owns the converters."""
+        return [c['signal'] for c in CHANNELS]
+
+    def index_of(self, signal):
+        for channel in CHANNELS:
+            if channel['signal'] == signal:
+                return channel['index']
+        named = [c['signal'] for c in CHANNELS if c['signal']]
+        raise KeyError('no channel carries signal %r; the board reports %r'
+                       % (signal, named))
+
     def burst(self, mask, samples, rate=None):
         chosen = {}
         for meta in CHANNELS:
@@ -831,6 +845,7 @@ class SimulatedBridge:
             'pilot_raw': 15149, 'pilot_microvolts': 763000,
             'level_raw': 1305, 'level_microvolts': 65000,
             'break_bypassed': self._bypassed,
+            'requested': tuple(d / 1.0 for d in self._duty),
         }
 
     def reset_worst_gap(self):
@@ -867,6 +882,17 @@ class SimulatedBridge:
             raise RigError('the board refused %r - past ARR (simulated)'
                            % (ticks,))
         self._duty = ticks
+        return True
+
+    def duty_fine(self, fractions):
+        from .errors import RigError
+        fractions = tuple(fractions)
+        if len(fractions) != 3:
+            raise ValueError('%d duties, not 3' % len(fractions))
+        if not self._enabled:
+            raise RigError('the bridge is not enabled (simulated)')
+        period = self.PERIOD - 1
+        self._duty = tuple(max(0.0, min(1.0, f)) * period for f in fractions)
         return True
 
     def arm(self):

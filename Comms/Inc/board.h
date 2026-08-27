@@ -437,6 +437,14 @@ bool Board_PwmSetDuty(uint8_t phase, uint16_t ticks);
 /** All three, or none: never a cycle built from two calls. */
 bool Board_PwmSetAll(const uint16_t *ticks);
 
+/** Duty in ticks Q16.16, dithered so the MEAN is what was asked for.
+    One tick of ARR 2375 is 0.0421 % of duty, so 34.54 % lands between two
+    of them; a first-order sigma-delta in TIM1's update interrupt spends
+    the whole ticks and carries the fraction. Idle tones come with it. */
+bool Board_PwmSetAllFine(const uint32_t *ticks_q16);
+void Board_PwmDutyRequested(uint32_t *ticks_q16);
+void Board_PwmDitherStep(void);
+
 uint16_t Board_PwmGetDuty(uint8_t phase);
 
 void Board_PwmState(board_pwm_state_t *out);

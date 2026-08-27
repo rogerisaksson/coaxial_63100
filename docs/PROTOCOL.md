@@ -42,7 +42,7 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   | 1 | A1335 angle sensor | SPI4, mode 3, 1.86 MHz | 0 read register, 1 write register, 2 shared record, 3 hold, 4 resume, 5 which register the loop reads, 6 clock |
   | 2 | the three serial ports | USART3, USART2, UART5 | 0 loopback check, 1 per-port counters |
   | 3 | the calibration record | flash, bank 2 sector 7 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults |
-  | 4 | the bridge | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap |
+  | 4 | the bridge | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16 |
   | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
   | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live |
   | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |
@@ -127,6 +127,10 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   Measured: the TIM1 clock lands at 19.93/20.00/20.09 µs min/mean/max against 50 kHz, and `decimate=2` with `accumulate=50` gives exactly 2000 µs per record. The software clock manages about 10.6 kHz on two channels.
 
   **Op 6** disconnects the break input - it clears `BDTR.BKE`, not just the `BIF` latch, because with nFAULT low the break is a *level* and the hardware holds MOE clear whatever software does. For bench work only, and a reset restores it. What makes it safe is not the firmware: the STO chain gates the gate drivers' own DC/DC, which no MCU pin reaches.
+
+  **Op 8 is op 2 with the fraction kept.** One tick of ARR 2375 is 0.0421 % of duty, so an asked-for 34.54 % is 820.32 ticks and neither 820 nor 821 is it. Op 8 takes `u32 x3` in ticks Q16.16 and a first-order sigma-delta in TIM1's update interrupt spends the whole ticks and carries the fraction, so the **mean** is what was asked for. Op 0 appends the requested value beside the register so a caller can see the two differ on purpose rather than think it was rounded.
+
+  Measured, sampling the register asynchronously 120 times: 34.540 % asked came back 34.5379 %, 10.000 % gave 10.0011 %, 75.250 % gave 75.2495 %. First order buys three adds in a 50 kHz interrupt and costs **idle tones** - the pattern is periodic and its lines sit below the switching frequency. The interrupt is enabled by the first fractional duty and disabled by the next whole one; an interrupt that does nothing should not run at 50 kHz, though measured it costs little - worst keepalive gap 190.4 µs with it on against 186.5 off.
 
   Op 2 takes all three compares or none: a half update runs one cycle with two phases from this call and one from the last. Op 1 always enables at zero duty. Op 5 clears the break latch and does **not** re-arm; with nFAULT still low it re-latches before op 1 can succeed, which is the STO interlock and not a bug.
 

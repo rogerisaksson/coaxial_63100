@@ -224,6 +224,7 @@ extern "C" {
 #define BRIDGE_OP_CLEAR    5U   /**< -> u8 took; does NOT re-arm           */
 #define BRIDGE_OP_BYPASS   6U   /**< u8 on -> u8 took; drops BDTR.BKE      */
 #define BRIDGE_OP_GAPRST   7U   /**< -> u8; forget the worst keepalive gap */
+#define BRIDGE_OP_DUTYQ    8U   /**< u32 x3 ticks Q16.16 -> u8 took        */
 
 /** Device 5's ops: the measurement ring. */
 #define LOG_OP_STATE    0U   /**< -> u8 sources, u16 count, u16 depth, u32 dropped */
@@ -281,7 +282,7 @@ extern "C" {
 #define CAL_OP_DEFAULTS    7U
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 18U
+#define CMD_PROTO_MINOR 19U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

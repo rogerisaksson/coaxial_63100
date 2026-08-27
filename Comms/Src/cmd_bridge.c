@@ -69,6 +69,18 @@ static cmd_status_t h_bridge_state(wr_t *out)
      moving any offset would break every decoder for one bit. */
   wr_u8(out, pwm.bypassed ? 0x01U : 0x00U);
 
+  /* What was asked for, beside what the register holds this period. With
+     the dither running the two differ by a tick most of the time, and a
+     caller comparing them would otherwise think it had been rounded.
+     Appended, like flags2 and for the same reason: moving an offset breaks
+     every decoder for a field most of them do not read. */
+  uint32_t wanted[BOARD_PWM_PHASES];
+  Board_PwmDutyRequested(wanted);
+  for (uint8_t i = 0U; i < BOARD_PWM_PHASES; i++)
+  {
+    wr_u32(out, wanted[i]);
+  }
+
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
@@ -115,6 +127,33 @@ static cmd_status_t h_bridge_duty(rd_t *in, wr_t *out)
   }
 
   wr_u8(out, Board_PwmSetAll(ticks) ? 1U : 0U);
+  return CMD_OK;
+}
+
+
+/** op 8 - all three compares in ticks Q16.16, dithered.
+  *
+  * One tick of ARR 2375 is 0.0421 % of duty, so an asked-for 34.54 % is
+  * 820.32 ticks and neither 820 nor 821 is it. This keeps the fraction and
+  * a first-order sigma-delta in TIM1's update interrupt pays it back, so
+  * the MEAN duty is what was asked for rather than the nearest tick.
+  *
+  * All three or none, for the same reason op 2 is.
+  */
+static cmd_status_t h_bridge_dutyq(rd_t *in, wr_t *out)
+{
+  uint32_t ticks[BOARD_PWM_PHASES];
+
+  for (uint8_t i = 0U; i < BOARD_PWM_PHASES; i++)
+  {
+    ticks[i] = rd_u32(in);
+  }
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+
+  wr_u8(out, Board_PwmSetAllFine(ticks) ? 1U : 0U);
   return CMD_OK;
 }
 
@@ -209,6 +248,7 @@ cmd_status_t cmd_bridge_op(uint8_t op, rd_t *in, wr_t *out)
     case BRIDGE_OP_CLEAR:   return h_bridge_clear(out);
     case BRIDGE_OP_BYPASS:  return h_bridge_bypass(in, out);
     case BRIDGE_OP_GAPRST:  return h_bridge_gapreset(out);
+    case BRIDGE_OP_DUTYQ:   return h_bridge_dutyq(in, out);
     default:                return CMD_ERR_VALUE;
   }
 }

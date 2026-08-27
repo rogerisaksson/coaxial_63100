@@ -57,7 +57,7 @@ def start(board, args):
     The analog task takes every channel the board reports rather than a list
     written here, so this cannot fall behind the channel table.
     """
-    names = [c['signal'] for c in board.analog.channels()]
+    names = board.analog.names()
     layout = board.daq.configure(names, clock=args.clock, digital=True,
                                  sample_time=args.sample_time,
                                  decimate=args.decimate,
@@ -202,7 +202,7 @@ def adapt(board, layout, args, view):
 
     view['accumulate'] = want
     board.daq.stop()
-    names = [c['signal'] for c in board.analog.channels()]
+    names = board.analog.names()
     fresh = board.daq.configure(names, clock=args.clock, digital=True,
                                 sample_time=args.sample_time,
                                 decimate=args.decimate, accumulate=want,

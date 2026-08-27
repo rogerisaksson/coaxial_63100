@@ -200,6 +200,20 @@ board's held-off state rather than a released one. `VGATEDRV` also cycles
 (up 1.66-4.18 ms, down 3.08 ms, up 7.26-15.89 ms) for a reason not chased.
 These are the model's numbers, not the board's.
 
+## 0x42 reads the channels, so it refuses while the triple is armed
+
+Found by the sweep above, not by a test. `h_adc_table` takes a **reading**
+of every channel on the way past, and `Board_AdcRead` is gated by the meter
+interlock - the injected group owns PCSEL while it is armed. So the whole
+command answers SERVER DEVICE FAILURE, and a host cannot even look up a
+channel by name: `index_of`, `channels()` and therefore `configure_daq` all
+went through it.
+
+`0x6D` kind 0 is the map rather than the table. It answers what exists
+without measuring anything, and works armed or not. `Analog.index_of` and
+the new `Analog.names()` use it now. No wire change: the command that
+should have been asked was already there.
+
 ## Open, seen once: NTC frozen at 0x9C00 on the first read after a reset
 
 2026-08-27. The first acquisition after `build_and_flash` returned NTC as
@@ -219,9 +233,27 @@ invariant about those. If it comes back, the thing to check is whether the
 converter is being read before its reference has settled - the AFE powers
 that reference, not just the signal path.
 
-## Open: enabling the bridge trips the hot-swap's over-current
+## Closed: the bridge trips were the bench supply's limit
 
-Happened twice, 2026-08-27, and is not understood.
+Provoked deliberately 2026-08-27 with the limit raised to 200 mA at 24 V,
+and it would not reproduce. Duty swept 0 to 100 % in six combinations -
+AFE on and off, with and without the DAQ, with and without the synced
+triple - and every one went clean.
+
+So the two trips below were the supply's current limit being too tight for
+the board plus its switching, not a fault. About 200 mA at 24 V is roughly
+what it draws running.
+
+Ruled out on the way: the guess that toggling six gate driver inputs into
+an unpowered stage was forward-biasing their ESD diodes. If that were it,
+AFE on - which leaves the drivers unpowered on this board - would still
+trip. It does not.
+
+What follows is kept because it is what was seen at the time.
+
+### The two trips, as recorded
+
+Happened twice, 2026-08-27, and was not understood at the time.
 
 | run | duty | AFE_ON | outcome |
 |---|---|---|---|
