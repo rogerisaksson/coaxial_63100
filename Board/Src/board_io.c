@@ -83,6 +83,15 @@ static const PartDesc s_parts[] =
   { "AFE", "phase chains + ADC ref", "PB2 switches it", "", PART_PROBE_AFE },
   { "UART5 termination", "120 ohm across the pair", "PE14 switches it", "",
     PART_PROBE_NONE },
+  /* The bridge. `power` names the STO chain and not a pin because there is
+     no pin: the supply is released by the safety chain on STO.SchDoc when
+     the master's RS485 pilot tone keeps arriving. HalfBridge.SchDoc is
+     instantiated three times, one per phase, so the BOM carries Altium's
+     $ChannelName rather than a designator per half bridge. */
+  { "2EDL8034 x3", "half bridge gate drivers", "PE8..PE13, TIM1",
+    "STO chain", PART_PROBE_NONE },
+  { "IAUCN10S7N021", "bridge FETs, 63 V 100 A", "HalfBridge x3",
+    "STO chain", PART_PROBE_NONE },
   { "NTC", "thermistor", "ADC3", "AFE_ON", PART_PROBE_AFE },
   { "DC link divider", "49.9k/2.2k, 78.15 V FS", "ADC", "AFE_ON",
     PART_PROBE_AFE },

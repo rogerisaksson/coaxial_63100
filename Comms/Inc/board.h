@@ -200,6 +200,24 @@ bool Board_Uart5Termination(void);
 
 bool Board_PwmInit(void);
 
+/** What the board can see of the Safe Torque Off chain. Reports; judges
+    nothing - deciding "released" from a Clevel threshold is a test
+    executive's job, not this board's. See board_sto.c. */
+typedef struct
+{
+  bool    afe_on;             /**< false makes both readings meaningless  */
+  bool    pilot_ok;           /**< the Cinj channel answered              */
+  int32_t pilot_raw;          /**< recovered pilot, raw code              */
+  int32_t pilot_microvolts;
+  bool    level_ok;           /**< the Clevel channel answered            */
+  int32_t level_raw;          /**< integrator level - the margin left     */
+  int32_t level_microvolts;
+  bool    stopped;            /**< TIM1 break latched: nFAULT on PE15     */
+} board_sto_state_t;
+
+void Board_StoState(board_sto_state_t *out);
+
+
 /** One simultaneous triple, latched by the injected end-of-sequence. */
 typedef struct
 {
