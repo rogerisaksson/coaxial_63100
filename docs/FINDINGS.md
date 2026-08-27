@@ -200,6 +200,43 @@ board's held-off state rather than a released one. `VGATEDRV` also cycles
 (up 1.66-4.18 ms, down 3.08 ms, up 7.26-15.89 ms) for a reason not chased.
 These are the model's numbers, not the board's.
 
+## Open: enabling the bridge trips the hot-swap's over-current
+
+Happened twice, 2026-08-27, and is not understood.
+
+| run | duty | AFE_ON | outcome |
+|---|---|---|---|
+| first | 50 % | on | board power-cycled mid-sweep |
+| second | 25 % | on | board went silent, then would not stay up |
+
+Both with the STO break bypassed and equal duty on all three phases. Equal
+duty puts **no voltage between the legs**, so no phase current can flow
+whatever is connected - which is why it was chosen. Something else drew the
+current.
+
+What is ruled out:
+
+* **Not a crash.** `RCC_RSR` showed no software and no watchdog reset, and
+  in the earlier link-starvation case `s_keepalive` read over SWD proved
+  the main loop was still turning. This is a supply event.
+* **Not the boot state.** `MX_TIM1_Init` leaves MOE clear and
+  `Board_PwmInit` sets CCxE with OSSI, so all six outputs are driven to
+  their idle level - both FETs of every leg off - and the bypass is off at
+  boot, verified on silicon.
+* **Not obviously the drivers being powered.** Both runs had `AFE_ON` high,
+  which on this bench board is the state that leaves the gate drivers
+  *unpowered* (the inversion recorded below). If that holds, nothing in the
+  power stage could have switched at all.
+
+So either the inversion is not clean, or the current came from somewhere
+that is not the bridge. Recovering needed the bench supply's limit raised -
+about 200 mA at 24 V, which is roughly what the board draws running, so the
+limit was tight rather than the board being damaged.
+
+**Until this is understood, `bypass_break` is arming a power stage and not
+a configuration flag.** `python_examples/daq_session.py` has the bridge off
+by default for that reason.
+
 ## Broadcast beats a round trip for clock sync, by 7x
 
 Measured 2026-08-27 on the debug probe's VCP:

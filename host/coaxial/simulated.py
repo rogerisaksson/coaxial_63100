@@ -806,6 +806,7 @@ class SimulatedBridge:
 
     def __init__(self):
         self._armed = False
+        self._enabled = False
         self._duty = (0, 0, 0)
         self._trigger = self.TRIGGER
         self._updates = 0
@@ -817,7 +818,8 @@ class SimulatedBridge:
         if self._armed:
             self._updates += 50000
         return {
-            'pwm_ready': True, 'pwm_enabled': False, 'fault': True,
+            'pwm_ready': True, 'pwm_enabled': self._enabled,
+            'fault': not self._bypassed,
             'sync_ready': True, 'sync_armed': self._armed, 'afe_on': True,
             'pilot_ok': True, 'level_ok': True,
             'period': self.PERIOD, 'deadtime': self.DEADTIME,
@@ -839,17 +841,33 @@ class SimulatedBridge:
         return True
 
     def enable(self):
+        # Refuses for the reason the real board refuses: the break is
+        # latched because nFAULT is low, and clearing the latch does not
+        # help while it stays low. Bypassing the break input is what gets
+        # past it there, so it is what gets past it here.
         from .errors import RigError
-        raise RigError('the board refused to enable the bridge - check '
-                       'fault, and whether the STO chain has released '
-                       '(simulated)')
+        if not self._bypassed:
+            raise RigError('the board refused to enable the bridge - check '
+                           'fault, and whether the STO chain has released '
+                           '(simulated)')
+        self._enabled = True
+        return True
 
     def disable(self):
+        self._enabled = False
+        self._duty = (0, 0, 0)
         return True
 
     def duty(self, ticks):
         from .errors import RigError
-        raise RigError('the bridge is not enabled (simulated)')
+        ticks = tuple(int(t) for t in ticks)
+        if not self._enabled:
+            raise RigError('the bridge is not enabled (simulated)')
+        if len(ticks) != 3 or any(t > self.PERIOD - 1 for t in ticks):
+            raise RigError('the board refused %r - past ARR (simulated)'
+                           % (ticks,))
+        self._duty = ticks
+        return True
 
     def arm(self):
         self._armed = True
