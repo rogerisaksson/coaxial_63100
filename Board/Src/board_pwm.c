@@ -54,7 +54,17 @@ bool Board_PwmFault(void)
 {
   /* The break flag latches. It is the gate drivers' nFAULT arriving through
      TIM1_BKIN, which is a hardware path: the outputs are already off by the
-     time any of this runs. */
+     time any of this runs.
+
+     nFAULT is active low - high is normal - so BDTR.BKP must be
+     TIM_BREAKPOLARITY_LOW, and BDTR.AOE must stay off: a bridge that
+     re-arms itself after a fault is the one thing nobody wants here.
+
+     That polarity is NOT yet set anywhere, on purpose. PE15 measures 0 -
+     a fault, by that polarity - whenever AFE_ON is high, which is exactly
+     when the machine would be running. Configure the break against that
+     and the bridge either never starts or never stops. See FINDINGS, Open
+     Anomalies: the pin is GPIO_NOPULL and may simply be floating. */
   return Board_PwmReady() && ((TIM1->SR & TIM_SR_BIF) != 0U);
 }
 

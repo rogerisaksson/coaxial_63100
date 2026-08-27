@@ -88,6 +88,30 @@ and never checked.
 ## Open Anomalies
 
 * **Unpowered Calibration:** The proposed fix (waiting for `AFE_ON`) remains untested.
-* **IN11 (`Cinj`) 9.7% Shift:** Unexplained frequency-dependent drift between 75 and 475 MHz.
+* **IN11 (`Cinj`) 9.7% Shift:** Explained by the schematic, not by the ADC. `Cinj` is the output of the RS485 pilot detector - a 1 kHz to 10 kHz band pass into a TLV3492 comparator pair (HARDWARE.md, Safe Torque Off). With no master injecting a pilot there is no signal, so the channel reads whatever the band pass makes of the board's own noise, and a frequency-dependent reading is what that looks like. Re-measure with a pilot present before treating any of it as drift.
 * **DC Bus Read Discrepancy:** Two different read paths yield a persistent ~30 mV delta.
-* **PE15 (`nFAULT`) Polarity:** Reads 0 (asserted) when the AFE is powered. Unclear if this is a real hardware fault, supply pull, or merely inverted logic.
+* **PE15 (`nFAULT`) Polarity:** Reads 0 (asserted) when the AFE is powered. Three explanations were open; the intended logic is now stated - high is normal, low is a fault - which **rules out inverted logic** and leaves a real fault or a supply pull. The firmware inverts nothing: `Board_Pe15` returns raw IDR and both the Modbus discrete input and `0x6D` pass it through, so the measurement is the pin's electrical level.
+
+  Explained: the gate drivers are not powered yet. An open-drain output
+  cannot pull low without a supply - it goes high impedance - so the pin
+  floats, and a floating input next to a switching rail follows whatever is
+  nearest. "Real fault" and "supply pull" turn out to be the same answer.
+
+  The earlier reading, now confirmed rather than proposed: the pin is
+  floating. A fault output is normally open drain, PE15 is configured `GPIO_NOPULL`, and nothing else on the board is known to pull it up - a floating input next to a switching supply will follow whatever rail is nearest, which is what "tracks `AFE_ON` inversely" would look like. **The conformance suite's "independent witness" that a coil write reached the pin may therefore be built on a floating input.**
+
+  **The conformance suite's "independent witness" is therefore worthless as
+  written** - it reads a floating pin and will change meaning the moment the
+  drivers are powered, at which point nFAULT starts driving the line for
+  real. That check needs replacing before the supply is switched on, not
+  after it starts failing.
+
+  What is missing to close it, from the schematic: **no MCU pin powers the
+  drivers, and none should.** The supply is released by the Safe Torque Off
+  chain on `STO.SchDoc`, unlocked by a common-mode pilot tone the master
+  injects on the RS485 pair - see HARDWARE.md. Until a master is sending
+  that tone the chain never releases, the drivers stay unpowered, and their
+  open-drain nFAULT cannot pull the line either way.
+
+  The 2EDL8034s and the FETs are still not in `s_parts`, so the bridge is
+  invisible to `board_info kind=parts`.

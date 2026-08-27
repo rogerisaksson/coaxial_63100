@@ -39,7 +39,63 @@ The internal ADC VREF is disabled. The reference is driven externally by the AFE
 
 * **`PB2` (`AFE_ON`):** Powers the amplifier chains, the ADC reference *and both SPI sensors*. Polling channels with `PB2` low returns exact mid-scale (yielding a phantom 25 °C on the NTC).
 * **A sensor without `AFE_ON` is worse than dead.** It still drives MISO, still resets, and still returns a valid 276-byte SHTP advertisement - so every read looks healthy. What it never does is act on a write: `Set Feature` starts no stream, and executable `ON`, `SLEEP` and `RESET` all produce the identical answer, which is only possible if none of the payloads arrived. Firmware refuses `Board_ImuInit` while `PB2` is low, and losing `PB2` clears the ready flag, because a part that has lost its supply needs a reset rather than a resume.
-* **`PE15` (`nFAULT`):** Tracks `AFE_ON` inversely. It reads logic `0` when the AFE is powered.
+* **`PE15` (`nFAULT`):** Intended active low - high is normal, low is a fault. Measured, it tracks `AFE_ON` inversely and reads logic `0` when the AFE is powered, which by that intent means a fault is asserted exactly when the front end is on. The two do not agree and the conflict is unresolved - FINDINGS, Open Anomalies. The pin is also `TIM1_BKIN` now, so this decides whether the bridge can run at all.
+
+## Safe Torque Off, and the pilot that unlocks it
+
+Gate driver supply is not the MCU's to switch. It is released by a safety
+chain on `STO.SchDoc` that watches for a **common-mode pilot tone the master
+injects on the RS485 pair** - not something this board generates. The board
+detects it, and the chain is a dead man's switch: leaky integrators with a
+charge and a discharge path, so the tone has to keep arriving or the level
+decays and the supply drops.
+
+Extraction off the pair, on `RS485.SchDoc`:
+
+| Stage | Parts | What it does |
+|---|---|---|
+| Common-mode tap | R36, R37 (10 kΩ each) across A1/B1 | Two equal resistors to a midpoint - the differential data cancels, the common mode does not |
+| Coupling | C75 (33 nF, 100 V) | DC blocked; only a tone gets through |
+| Band pass | R44 15 kΩ, R41 3.30 kΩ, R45 33.0 kΩ, C98/C99 1.2 nF | 1 kHz to 10 kHz, per the sheet's own note |
+| Clamp | D3, D4 | 0.7 V, −0.35 V to 0.75 V at +IN |
+| Detector | **U16 TLV3492**, dual nanopower comparator | Two thresholds, both with hysteresis |
+| Charge pump | R54, C101 (47 nF), D11/D12 | The "Charge Path" and "Discharge Path" the sheet marks |
+
+The comparators are wired as two independent level detectors, each with
+positive feedback: comparator A takes its threshold from R73/R87 and its
+hysteresis from R122 (18.0 kΩ); comparator B takes its reference from
+R86/R88 and its hysteresis from R123 (3.01 MΩ). Hysteresis is what keeps a
+noisy pair from chattering the chain.
+
+**Reading, not extracted:** with one comparator sitting above the tone and
+one below it, only a signal that actually alternates can work both outputs,
+and only both outputs working can keep the pump charging. A common mode
+stuck at any DC level satisfies at most one of them and pumps nothing. That
+is the property that makes this a liveness test rather than a level test.
+The sheet is a PDF with no renderer here, so this is read off the netlist
+and the values, not off the drawing.
+
+Then on `STO.SchDoc`: **CINJ** in, two leaky integrators, a TPS3840PL30
+supervisor with a timing capacitor, and an NL7SZ97 configurable gate
+producing **KEEPALIVE** and **FAULTOUT**. **CLEVELOUT** is the integrator
+level brought back out.
+
+Two places on that sheet are marked *Bypass safety system - No BOM
+component*. The bypasses are deliberately unfitted.
+
+### What the MCU can see of it
+
+Both ends of the chain are already ADC channels, and both have sat in the
+channel table as `ADC_UNIT_NONE` with nothing said about them:
+
+| Channel | Pin | Is |
+|---|---|---|
+| `Cinj` | ADC3 IN11, PC1 | The recovered pilot, off the detector |
+| `Clevel` | ADC2 IN5, PB1 | The integrator level - how near the chain is to dropping out |
+
+`Clevel` is the useful one: it is the margin. `PE15` is `TIM1_BKIN`, labelled
+**(STOP)** on the MCU sheet, so a fault stops the bridge in hardware without
+the firmware being involved.
 
 ## Sensors on SPI
 
