@@ -220,6 +220,7 @@ extern "C" {
 #define BRIDGE_OP_TRIGGER  4U   /**< u16 CCR4 -> u16 as it reads back      */
 #define BRIDGE_OP_CLEAR    5U   /**< -> u8 took; does NOT re-arm           */
 #define BRIDGE_OP_BYPASS   6U   /**< u8 on -> u8 took; drops BDTR.BKE      */
+#define BRIDGE_OP_GAPRST   7U   /**< -> u8; forget the worst keepalive gap */
 
 /* Operations under CMD_IMU. */
 #define IMU_OP_ID      0U
@@ -258,7 +259,7 @@ extern "C" {
 #define CAL_OP_DEFAULTS    7U
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 8U
+#define CMD_PROTO_MINOR 9U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

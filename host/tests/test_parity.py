@@ -123,7 +123,8 @@ def main():
                       'hold', 'resume', 'configuring'),
             'link': ('echo', 'stats', 'loopback', 'port_stats'),
             'bridge': ('state', 'enable', 'disable', 'duty', 'arm',
-                       'disarm', 'trigger', 'clear_fault', 'bypass_break'),
+                       'disarm', 'trigger', 'clear_fault', 'bypass_break',
+                       'reset_worst_gap'),
         }
         for name, calls in CALLED.items():
             fake = getattr(stand_in.board, name)

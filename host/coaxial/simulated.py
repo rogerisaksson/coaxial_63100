@@ -825,10 +825,14 @@ class SimulatedBridge:
             'phase': (1433, -8136, 390), 'at': 1385,
             'updates': self._updates, 'overruns': 0,
             'keepalive': self._keepalive,
+            'worst_gap_cycles': 24700,
             'pilot_raw': 15149, 'pilot_microvolts': 763000,
             'level_raw': 1305, 'level_microvolts': 65000,
             'break_bypassed': self._bypassed,
         }
+
+    def reset_worst_gap(self):
+        return True
 
     def bypass_break(self, on=True):
         self._bypassed = bool(on)

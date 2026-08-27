@@ -26,6 +26,7 @@ OP_SYNC = 3
 OP_TRIGGER = 4
 OP_CLEAR = 5
 OP_BYPASS = 6
+OP_GAP_RESET = 7
 
 
 class Bridge(Subsystem):
@@ -56,6 +57,7 @@ class Bridge(Subsystem):
         out['updates'] = r.u32()
         out['overruns'] = r.u32()
         out['keepalive'] = r.u32()
+        out['worst_gap_cycles'] = r.u32()
         out['pilot_raw'] = r.i32()
         out['pilot_microvolts'] = r.i32()
         out['level_raw'] = r.i32()
@@ -141,6 +143,15 @@ class Bridge(Subsystem):
         if self._op(OP_BYPASS, bytes([1 if on else 0]))[0] != 1:
             raise RigError('the board refused to change the break bypass')
         return True
+
+    def reset_worst_gap(self):
+        """Forget the longest keepalive gap, so a run is measured on its own.
+
+        The gap is raw CYCCNT ticks, not microseconds: dividing cycles down
+        moves the wrap off a power of two and the unsigned arithmetic breaks
+        across it. Divide by the core clock here, where nothing wraps.
+        """
+        return self._op(OP_GAP_RESET)[0] == 1
 
     def clear_fault(self):
         """Clear the break latch. Does NOT re-arm; the caller asks again."""

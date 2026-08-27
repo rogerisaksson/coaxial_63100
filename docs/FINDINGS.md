@@ -200,6 +200,48 @@ board's held-off state rather than a released one. `VGATEDRV` also cycles
 (up 1.66-4.18 ms, down 3.08 ms, up 7.26-15.89 ms) for a reason not chased.
 These are the model's numbers, not the board's.
 
+## The keepalive's worst gap is the Modbus reply, not the IMU
+
+Measured 2026-08-27 with a worst-gap counter in `Board_StoKeepalive` (raw
+CYCCNT, `0x6E` device 4, op 7 resets it). The mean rate hides all of this:
+it barely moves between any two rows below.
+
+| Condition | worst gap |
+|---|---|
+| 5 s with no Modbus traffic | **476.1 us** |
+| 86 smallest-possible replies (1 byte) | 476.1 us |
+| 86 state replies (53 bytes) | **5117.2 us** |
+
+53 bytes at 115200 8N1 is 4.60 ms; the measured excess over the floor is
+5117 - 476 = **4641 us**. **The main loop blocks while it transmits.** The
+stall scales with reply length and has nothing to do with the sensors - it
+is identical with `AFE_ON` low, where `Board_ImuPoll` returns immediately.
+
+This overturns the earlier reading. The 1.5 ms SHTP cargo was real
+arithmetic but never the dominant term; asking the board a question costs
+three times more than the IMU does.
+
+**The IMU cargo is fixed and no longer visible.** `Board_ImuRead` now
+transfers in 8-byte chunks with an edge between each - 43 us at 1.48 MHz,
+against the 52 us the loop already takes per iteration. Chip select is
+`NSS_SOFT` and is not touched between chunks, so the part still sees one
+transaction; releasing it is the `FF FF FF FF` bug. Verified streaming at
+10 ms: **1524 updates, 0 errors, quaternion norm 1.000009**, and the worst
+gap in a quiet window stays at 476.1 us whether the IMU streams or not,
+where an unchunked 320-byte cargo would be 1730 us on its own.
+
+**It is still not enough.** The latch holds 200-400 us (simulated), and the
+476 us floor alone exceeds that before anything talks to the board. What
+produces that floor is not yet identified - it is bit-exact across every
+condition tried, which suggests one periodic thing rather than jitter.
+
+## The bypass is off at boot, and cannot be otherwise
+
+`MX_TIM1_Init` sets `BreakState = TIM_BREAK_ENABLE`. The only writes to
+`BDTR.BKE` anywhere are the two inside `Board_PwmSetBreakBypass`, and
+nothing calls it at startup. Verified on silicon straight off a reset:
+`break_bypassed = False`, `fault = False`.
+
 ## The bench board's AFE gate is inverted, and it costs the measurement
 
 Told by the user 2026-08-27 and consistent with everything measured: on this

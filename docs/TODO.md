@@ -49,12 +49,14 @@ measured against an instrument — invariant 7.
 
 ## Next, in order
 
-1. **Move the keepalive off the main loop.** Simulated: `VLATCH` holds only
-   ~200-400 µs without the pump, and `VGATEDRV` is below the drivers' UVLO
-   92 µs after it drops (τ = 115 µs). `Board_ImuPoll` stalls the loop 1.5 ms
-   on an SHTP cargo — 4-7× too long. Either chunk the cargo read, or toggle
-   from a periodic ISR gated on a main-loop counter, which keeps the
-   dead-man property. FINDINGS has the numbers and the caveats.
+1. **The keepalive still cannot hold the latch.** Measured worst gaps:
+   **476 µs** with the board silent, **5117 µs** while it answers a 53-byte
+   state reply — the main loop blocks while transmitting, and the stall
+   scales with reply length. The latch holds ~200-400 µs (simulated), so
+   even the floor is over budget. The IMU cargo is already fixed (8-byte
+   chunks, verified 1524 updates / 0 errors). Two things left: make the link
+   transmit without blocking the loop, and find what produces the bit-exact
+   476 µs floor.
 2. **Cinj and Clevel cannot be sampled asynchronously** — apparent duty
    tracks the sample rate. Take them through the injected group, or with a
    longer sampling time. FINDINGS has the table.

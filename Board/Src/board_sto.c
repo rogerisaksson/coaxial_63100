@@ -70,10 +70,32 @@ static bool STO_ReadOne(const char *signal, int32_t *raw, int32_t *microvolts)
 
 
 static uint32_t s_keepalive;
+static uint32_t s_last_edge;
+static uint32_t s_worst_gap;
 
 
 void Board_StoKeepalive(void)
 {
+  /* The longest gap between edges, in raw CYCCNT ticks - invariant 2's rule
+     applies here too: dividing cycles down moves the wrap off a power of two
+     and the unsigned arithmetic breaks across it. The host divides.
+
+     This is the number that decides whether the pump holds, and the mean
+     rate hides it completely: measured, a 320-byte cargo read stalled the
+     loop 1.73 ms while the mean barely moved. */
+  const uint32_t now = Board_Cycles();
+
+  if (s_keepalive != 0U)
+  {
+    const uint32_t gap = now - s_last_edge;
+
+    if (gap > s_worst_gap)
+    {
+      s_worst_gap = gap;
+    }
+  }
+  s_last_edge = now;
+
   /* PA10 into R72 330R, C71 100nF and the D10/D14/D15 diodes: a charge
      pump, so only edges deliver anything and a held level is worth exactly
      as much as a stopped CPU. That is the point of it - the chain decays
@@ -83,6 +105,12 @@ void Board_StoKeepalive(void)
      and stops at 18 ms to show the release. */
   HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_10);
   s_keepalive++;
+}
+
+
+void Board_StoKeepaliveReset(void)
+{
+  s_worst_gap = 0U;
 }
 
 
@@ -110,4 +138,5 @@ void Board_StoState(board_sto_state_t *out)
   /* Reported, not judged: how fast the loop is turning is a fact, and
      whether it is fast enough belongs where the thresholds are. */
   out->keepalive = s_keepalive;
+  out->worst_gap = s_worst_gap;
 }

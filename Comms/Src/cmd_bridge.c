@@ -60,6 +60,7 @@ static cmd_status_t h_bridge_state(wr_t *out)
   wr_u32(out, sync.updates);
   wr_u32(out, sync.overruns);
   wr_u32(out, sto.keepalive);
+  wr_u32(out, sto.worst_gap);
   wr_i32(out, sto.pilot_raw);
   wr_i32(out, sto.pilot_microvolts);
   wr_i32(out, sto.level_raw);
@@ -163,6 +164,15 @@ static cmd_status_t h_bridge_trigger(rd_t *in, wr_t *out)
 }
 
 
+/** op 7 - forget the worst keepalive gap, so a run is measured on its own. */
+static cmd_status_t h_bridge_gapreset(wr_t *out)
+{
+  Board_StoKeepaliveReset();
+  wr_u8(out, 1U);
+  return CMD_OK;
+}
+
+
 /** op 6 - disconnect the break input, for bench work. Loud on purpose: it
     shows in the state reply, and a reset puts it back. */
 static cmd_status_t h_bridge_bypass(rd_t *in, wr_t *out)
@@ -198,6 +208,7 @@ cmd_status_t cmd_bridge_op(uint8_t op, rd_t *in, wr_t *out)
     case BRIDGE_OP_TRIGGER: return h_bridge_trigger(in, out);
     case BRIDGE_OP_CLEAR:   return h_bridge_clear(out);
     case BRIDGE_OP_BYPASS:  return h_bridge_bypass(in, out);
+    case BRIDGE_OP_GAPRST:  return h_bridge_gapreset(out);
     default:                return CMD_ERR_VALUE;
   }
 }

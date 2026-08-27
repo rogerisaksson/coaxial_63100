@@ -336,6 +336,41 @@ bool Board_ImuReady(void)
   return s_ready;
 }
 
+/** One SPI transfer, split so the STO charge pump keeps getting edges.
+
+   A 320-byte cargo at 1.48 MHz is 1.73 ms of blocking transfer, and the
+   keepalive latch holds only a few hundred microseconds (FINDINGS). Chip
+   select is ours - NSS_SOFT, PB12 by hand - and is NOT touched here, so the
+   part still sees one unbroken transaction however this is chunked.
+   Releasing it between chunks is the FF FF FF FF bug again.
+
+   8 bytes is 43 us at 1.48 MHz, against the 52 us the main loop already
+   takes per iteration once the IMU is being polled. Finer buys nothing the
+   loop does not already cost; coarser makes this the worst gap in the
+   system. */
+#define IMU_CHUNK 8U
+
+static bool imu_xfer(const uint8_t *tx, uint8_t *rx, uint16_t len)
+{
+  uint16_t done = 0U;
+
+  while (done < len)
+  {
+    const uint16_t n = ((uint16_t)(len - done) > IMU_CHUNK)
+                         ? IMU_CHUNK : (uint16_t)(len - done);
+
+    if (HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)tx + done, rx + done,
+                                n, 100U) != HAL_OK)
+    {
+      return false;
+    }
+    done = (uint16_t)(done + n);
+    Board_StoKeepalive();
+  }
+  return true;
+}
+
+
 /* One chip select assertion, however many bytes. Full duplex because SPI is:
    reading a cargo clocks zeros out, writing one clocks whatever the part has
    to say in. */
@@ -411,8 +446,7 @@ bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
     const uint16_t take = (rest > (uint16_t)sizeof(s_rx))
                             ? (uint16_t)sizeof(s_rx) : rest;
 
-    ok = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)s_zeros, s_rx, take,
-                                 100U) == HAL_OK;
+    ok = imu_xfer(s_zeros, s_rx, take);
     if (ok)
     {
       *len = (take > cap) ? cap : take;
@@ -467,8 +501,7 @@ bool Board_ImuProbe(uint8_t *out, uint8_t len, bool select)
   /* Deliberately without chip select. A part that answers here is a part
      that is not seeing H_CSN. */
   settle();
-  const bool ok = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)s_zeros, out,
-                                          len, 100U) == HAL_OK;
+  const bool ok = imu_xfer(s_zeros, out, len);
   settle();
   return ok;
 }
@@ -881,8 +914,7 @@ bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
 
     /* Discarded: this is the tail of something the part was already sending
        when the write went out, and the caller asked to write, not to read. */
-    ok = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)s_zeros, s_rx, rest,
-                                 100U) == HAL_OK;
+    ok = imu_xfer(s_zeros, s_rx, rest);
   }
 
   settle();
