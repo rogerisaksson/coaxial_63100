@@ -132,7 +132,9 @@ static void settle(void)
 
   while ((uint32_t)(Board_Cycles() - start) < (ANGLE_SETTLE_US * per_us))
   {
-    /* busy wait: a chip select edge is not worth an interrupt */
+    /* Busy wait - a chip select edge is not worth an interrupt - so it may
+       as well feed the STO charge pump while it spins. */
+    Board_StoKeepalive();
   }
 }
 
@@ -357,6 +359,10 @@ void Board_AnglePoll(void)
   s_state.crc   = crc;
   s_state.have  = true;
   s_state.updates++;
+
+  const int16_t logged[3] = { (int16_t)value, (int16_t)crc,
+                              (int16_t)s_poll_reg };
+  Board_LogPush(BOARD_LOG_SOURCE_ANGLE, logged, 3U);
   note(BOARD_ANGLE_ERR_NONE);
 }
 

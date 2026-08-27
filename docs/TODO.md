@@ -49,14 +49,14 @@ measured against an instrument — invariant 7.
 
 ## Next, in order
 
-1. **The keepalive still cannot hold the latch.** Measured worst gaps:
-   **476 µs** with the board silent, **5117 µs** while it answers a 53-byte
-   state reply — the main loop blocks while transmitting, and the stall
-   scales with reply length. The latch holds ~200-400 µs (simulated), so
-   even the floor is over budget. The IMU cargo is already fixed (8-byte
-   chunks, verified 1524 updates / 0 errors). Two things left: make the link
-   transmit without blocking the loop, and find what produces the bit-exact
-   476 µs floor.
+1. **Move the sensor polls off the blocking path.** The worst gap is now
+   163 µs, inside the latch's ~200-400 µs, but the edge rate is 36 kHz
+   against the 100 kHz asked for. Measured by holding each in turn: the
+   **A1335 costs 42 µs per loop iteration, the IMU 0.5 µs**. Converting the
+   angle packet to interrupt-driven SPI is the cheap half — a fixed 4-byte
+   frame with chip select held across it. The IMU's SHTP path is
+   header-then-body with a variable length and has already cost six bugs;
+   it deserves its own change, not a rider on this one.
 2. **Cinj and Clevel cannot be sampled asynchronously** — apparent duty
    tracks the sample rate. Take them through the injected group, or with a
    longer sampling time. FINDINGS has the table.

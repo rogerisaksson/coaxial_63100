@@ -200,6 +200,44 @@ board's held-off state rather than a released one. `VGATEDRV` also cycles
 (up 1.66-4.18 ms, down 3.08 ms, up 7.26-15.89 ms) for a reason not chased.
 These are the model's numbers, not the board's.
 
+## The keepalive, after pumping every busy-wait
+
+`Board_StoKeepalive` is now rate limited to one edge per 5 us - 200 kHz of
+edges, the 100 kHz square wave the model drives `MCU_PWM` with - so the call
+can be dropped into any spin without it running at the loop's own megahertz.
+Three places now call it beyond the top of main(): both sensors' chip-select
+`settle()`, and a register-level transmit in `dev_uart.c` that replaced
+`HAL_UART_Transmit`.
+
+| | edges | square | **worst gap** |
+|---|---|---|---|
+| both sensors held | 111 646 Hz | 55.8 kHz | **163.1 us** |
+| both polling | 73 166 Hz | 36.6 kHz | **162.7 us** |
+| IMU streaming + angle | 72 462 Hz | 36.2 kHz | **162.3 us** |
+
+**5116 us to 163 us**, and for the first time under the latch's simulated
+200-400 us hold. The rate is short of 100 kHz because the loop still blocks
+in SPI: measured by holding each sensor in turn, the **A1335 costs 42 us per
+iteration and the IMU costs 0.5** - the mean was never the IMU's, and the
+chunking that fixed its worst case did nothing for the rate.
+
+## The measurement ring
+
+`board_log.c`, 1024 records of 16 bytes in DTCM. Producers are the injected
+ADC interrupt at 50 kHz and the two main-loop sensor poll loops; the
+consumer is the command layer, also in main(). Only the ISR can preempt, so
+the critical section is PRIMASK - there is no RTOS and a mutex would be a
+scheduler this board does not have.
+
+Measured, phases captured from the ISR: **19.81 / 20.00 / 20.14 us
+min/mean/max** against 50 kHz's 20.00, sequence numbers unbroken. Angle
+lands at 55.8 us, dead regular.
+
+It is a snapshot buffer, not a stream. At 50 kHz the ring is 20 ms of
+history and a host draining fifteen per round trip manages about 3000/s
+against 50000/s produced, so `dropped` counts the rest - 3026 in a 30 ms
+window, which is the arithmetic working rather than a fault.
+
 ## The keepalive's worst gap is the Modbus reply, not the IMU
 
 Measured 2026-08-27 with a worst-gap counter in `Board_StoKeepalive` (raw

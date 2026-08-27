@@ -190,6 +190,10 @@ void Board_SyncOnInjected(const void *hadc)
         HAL_ADCEx_InjectedGetValue(&hadc2, ADC_INJECTED_RANK_1));
     s_latest.at = TIM1->CNT;
     s_updates++;
+
+    const int16_t logged[4] = { s_latest.phase[SYNC_U], s_latest.phase[SYNC_V],
+                                s_latest.phase[SYNC_W], (int16_t)s_latest.at };
+    Board_LogPush(BOARD_LOG_SOURCE_PHASES, logged, 4U);
   }
 }
 

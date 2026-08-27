@@ -66,6 +66,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Board/Src/board_pwm.c
     Board/Src/board_sync.c
     Board/Src/board_sto.c
+    Board/Src/board_log.c
 
     # Comms stack: cmd (request/response) over proto (Modbus) over dev (USART3).
     Comms/Src/console.c
@@ -80,6 +81,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Comms/Src/cmd_device.c
     Comms/Src/cmd_cal.c
     Comms/Src/cmd_bridge.c
+    Comms/Src/cmd_log.c
     Comms/Src/testrig.c
     Comms/Src/link.c
     Comms/Src/link_report.c
@@ -98,11 +100,11 @@ set(COAXIAL_SOURCES
     Board/Src/board_cal.c
     Board/Src/board_pwm.c
     Board/Src/board_sync.c
-    Board/Src/board_sto.c
+    Board/Src/board_sto.c Board/Src/board_log.c
     Comms/Src/console.c Comms/Src/wire.c Comms/Src/dev_uart.c
     Comms/Src/cmd.c Comms/Src/cmd_board.c Comms/Src/cmd_test.c
     Comms/Src/cmd_angle.c Comms/Src/cmd_device.c Comms/Src/cmd_link.c
-    Comms/Src/cmd_cal.c Comms/Src/cmd_bridge.c
+    Comms/Src/cmd_cal.c Comms/Src/cmd_bridge.c Comms/Src/cmd_log.c
     Comms/Src/testrig.c Comms/Src/link.c Comms/Src/link_report.c
 )
 set_source_files_properties(${COAXIAL_SOURCES} PROPERTIES
@@ -124,6 +126,7 @@ set_source_files_properties(
     Comms/Src/wire.c Comms/Src/cmd.c Comms/Src/cmd_board.c
     Comms/Src/cmd_test.c Comms/Src/cmd_imu.c Comms/Src/cmd_cal.c
     Comms/Src/cmd_bridge.c
+    Comms/Src/cmd_log.c
     Comms/Src/link.c Comms/Src/link_report.c
     PROPERTIES COMPILE_OPTIONS "-Wextra;-Wshadow;-Wconversion")
 

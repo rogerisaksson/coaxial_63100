@@ -868,6 +868,87 @@ class SimulatedBridge:
         return True
 
 
+class SimulatedCapture:
+    """The measurement ring, without measurements.
+
+    Invents records at the rates the real sources run at - the injected
+    triple at 50 kHz, the angle loop as fast as its SPI allows, the IMU at
+    whatever it was asked for - so a caller draining it sees the same shape
+    and the same ordering it would off a board.
+    """
+
+    DEPTH = 1024
+
+    def __init__(self):
+        self._mask = 0
+        self._pending = []
+        self._seq = [0, 0, 0]
+        self._at = 0
+        self._dropped = 0
+
+    def _fill(self):
+        import random
+        for src in (0, 1, 2):
+            if not self._mask >> src & 1:
+                continue
+            for _ in range(4):
+                self._at += random.randint(9000, 10000)
+                v = {0: (1400 + random.randint(-60, 60),
+                         -9020 + random.randint(-60, 60),
+                         -650 + random.randint(-60, 60), 1385),
+                     1: (24442, 8, 32, 0),
+                     2: (random.randint(-16384, 16384),) * 4}[src]
+                self._pending.append({'at': self._at & 0xFFFFFFFF,
+                                      'source': ('phases', 'angle', 'imu')[src],
+                                      'seq': self._seq[src] & 0xFF,
+                                      'v': tuple(v)})
+                self._seq[src] += 1
+
+    def state(self):
+        names = ('phases', 'angle', 'imu')
+        return {'sources': [names[i] for i in range(3) if self._mask >> i & 1],
+                'mask': self._mask, 'count': len(self._pending),
+                'depth': self.DEPTH, 'dropped': self._dropped}
+
+    def arm(self, sources):
+        if isinstance(sources, int):
+            self._mask = sources
+        else:
+            names = {'phases': 0, 'angle': 1, 'imu': 2}
+            unknown = [s for s in sources if s not in names]
+            if unknown:
+                raise ValueError('no such source: %s - have %s'
+                                 % (', '.join(unknown), ', '.join(names)))
+            self._mask = 0
+            for s in sources:
+                self._mask |= 1 << names[s]
+        self._pending = []
+        self._seq = [0, 0, 0]
+        self._dropped = 0
+        return True
+
+    def stop(self):
+        return self.arm(0)
+
+    def take(self, want=15):
+        want = max(1, min(int(want), 15))
+        if self._mask and len(self._pending) < want:
+            self._fill()
+        batch, self._pending = self._pending[:want], self._pending[want:]
+        return batch
+
+    def drain(self, limit=None):
+        out = []
+        while limit is None or len(out) < limit:
+            batch = self.take()
+            if not batch:
+                break
+            out.extend(batch)
+            if limit is None and len(out) >= self.DEPTH:
+                break
+        return out[:limit] if limit is not None else out
+
+
 class SimulatedBoard:
     """A whole board without a board. Duck-typed against the real one, so
     the tools above cannot tell which they are holding - except that
@@ -893,7 +974,7 @@ class SimulatedBoard:
             refuse = _BroadcastRefuses()   # see BROADCAST_REFUSAL
             self.system = self.link = self.afe = refuse
             self.analog = self.gpio = self.imu = refuse
-            self.angle = self.bridge = refuse
+            self.angle = self.bridge = self.capture = refuse
         else:
             self.system = SimulatedSystem()
             self.link = SimulatedLink()
@@ -903,6 +984,7 @@ class SimulatedBoard:
             self.imu = SimulatedImu()
             self.angle = SimulatedAngle()
             self.bridge = SimulatedBridge()
+            self.capture = SimulatedCapture()
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'

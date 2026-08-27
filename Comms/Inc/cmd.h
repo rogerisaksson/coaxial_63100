@@ -211,6 +211,7 @@ extern "C" {
 #define DEVICE_LINK      2U
 #define DEVICE_CAL       3U
 #define DEVICE_BRIDGE    4U
+#define DEVICE_LOG       5U
 
 /** Device 4's ops: the bridge, the synced triple and the STO chain. */
 #define BRIDGE_OP_STATE    0U   /**< -> flags, registers, triple, STO      */
@@ -221,6 +222,11 @@ extern "C" {
 #define BRIDGE_OP_CLEAR    5U   /**< -> u8 took; does NOT re-arm           */
 #define BRIDGE_OP_BYPASS   6U   /**< u8 on -> u8 took; drops BDTR.BKE      */
 #define BRIDGE_OP_GAPRST   7U   /**< -> u8; forget the worst keepalive gap */
+
+/** Device 5's ops: the measurement ring. */
+#define LOG_OP_STATE    0U   /**< -> u8 sources, u16 count, u16 depth, u32 dropped */
+#define LOG_OP_ARM      1U   /**< u8 source mask -> u8 took; empties the ring */
+#define LOG_OP_TAKE     2U   /**< [u8 want] -> u8 got, then got x 14-byte records */
 
 /* Operations under CMD_IMU. */
 #define IMU_OP_ID      0U
@@ -259,7 +265,7 @@ extern "C" {
 #define CAL_OP_DEFAULTS    7U
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 9U
+#define CMD_PROTO_MINOR 10U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -306,6 +312,7 @@ cmd_status_t cmd_angle_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_link_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_cal_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_bridge_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_log_op(uint8_t op, rd_t *in, wr_t *out);
 
 /**
   * @brief One subsystem: a command table, named, with what it is for.

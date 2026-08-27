@@ -210,7 +210,9 @@ static void settle(void)
 
   while ((uint32_t)(Board_Cycles() - start) < (IMU_SETTLE_US * per_us))
   {
-    /* busy wait: a chip select edge is not worth an interrupt */
+    /* Busy wait - a chip select edge is not worth an interrupt - so it may
+       as well feed the STO charge pump while it spins. */
+    Board_StoKeepalive();
   }
 }
 
@@ -632,6 +634,10 @@ static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
                                ((uint16_t)cargo[at + 11U] << 8));
       s_state.have = true;
       s_state.updates++;
+
+      const int16_t logged[4] = { s_state.i, s_state.j, s_state.k,
+                                  s_state.real };
+      Board_LogPush(BOARD_LOG_SOURCE_IMU, logged, 4U);
       note(BOARD_IMU_ERR_NONE);
     }
 

@@ -29,6 +29,7 @@
   * without it the reply lands in the receiver as a request.
   ******************************************************************************
   */
+#include "board.h"
 #include "dev_serial.h"
 
 #include "main.h"
@@ -216,7 +217,26 @@ static void u_purge(void *ctx)
 
 static void u_put(void *ctx, const uint8_t *data, uint16_t len)
 {
-  (void)HAL_UART_Transmit(uart_of(ctx), (uint8_t *)data, len, 100U);
+  USART_TypeDef *u = uart_of(ctx)->Instance;
+
+  /* Register level like the receive side, and for a second reason on top of
+     that one: HAL_UART_Transmit blocks for the whole frame. Measured, a
+     53-byte reply at 115200 stalled the main loop 4.6 ms - ten times what
+     the STO latch holds, and by far the worst gap on the board. The wait is
+     a spin either way; this one feeds the charge pump while it waits. */
+  for (uint16_t i = 0U; i < len; i++)
+  {
+    while ((u->ISR & USART_ISR_TXE_TXFNF) == 0U)
+    {
+      Board_StoKeepalive();
+    }
+    u->TDR = data[i];
+  }
+
+  while ((u->ISR & USART_ISR_TC) == 0U)
+  {
+    Board_StoKeepalive();
+  }
 
   /* Everything just sent came back in on the RS485 ports, through the
      interrupt and into the ring. Dropped here and not upstream: the protocol

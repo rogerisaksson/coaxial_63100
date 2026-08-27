@@ -245,6 +245,41 @@ typedef struct
   board_sync_sample_t latest;
 } board_sync_state_t;
 
+/** One measurement, whatever took it. 16 bytes so the ring is a round
+    number and fifteen fit in one Modbus reply. `v` is source-defined and
+    raw - every conversion stays where it was defined (invariant 7). */
+#define BOARD_LOG_SOURCE_PHASES 0U   /**< v = U, V, W, TIM1->CNT at latch  */
+#define BOARD_LOG_SOURCE_ANGLE  1U   /**< v = value, crc, register         */
+#define BOARD_LOG_SOURCE_IMU    2U   /**< v = quaternion i, j, k, real     */
+#define BOARD_LOG_SOURCES       3U
+
+/** 1024 x 16 B = 16 KB of DTCM, which is 20 ms of history at the injected
+    group's 50 kHz - long enough to hold a burst while the host drains it
+    fifteen records per round trip. */
+#define BOARD_LOG_DEPTH 1024U
+
+typedef struct
+{
+  uint32_t at;                /**< Board_Cycles() at capture, raw ticks    */
+  uint8_t  source;
+  uint8_t  seq;               /**< per source, so a dropped run is visible */
+  int16_t  v[4];
+} board_sample_t;
+
+/** Arm the ring for a bitmask of sources, and empty it. Zero disables. */
+void Board_LogEnable(uint8_t sources);
+uint8_t Board_LogSources(void);
+
+/** Called by the producers. Silently ignored for a source not armed. */
+void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n);
+
+uint16_t Board_LogCount(void);
+uint32_t Board_LogDropped(void);
+
+/** Copy out up to `max` oldest-first, and free their slots. */
+uint16_t Board_LogTake(board_sample_t *out, uint16_t max);
+
+
 /** A differential code as the converter gives it: offset binary, 32768 is
     0 V. Every differential read goes through this, regular or injected. */
 int32_t Board_AdcDifferential(uint32_t raw);

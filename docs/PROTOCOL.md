@@ -43,12 +43,19 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   | 2 | the three serial ports | USART3, USART2, UART5 | 0 loopback check, 1 per-port counters |
   | 3 | the calibration record | flash, bank 2 sector 7 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults |
   | 4 | the bridge | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap |
+  | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
 
   Device 4 answers TIM1, the synced phase triple and Safe Torque Off together because tuning the sample point needs all three from the same moment. **Op 0** replies 48 bytes: `u8 flags`, `u16 period`, `u8 deadtime`, `u16 duty[3]`, `u16 trigger`, `i16 phase[3]`, `u16 at`, `u32 updates`, `u32 overruns`, `u32 keepalive`, `u32 worst_gap`, then `i32 pilot_raw, pilot_uv, level_raw, level_uv`, then `u8 flags2`. Flag bits, LSB first: pwm ready, pwm enabled, break latched, sync ready, sync armed, AFE on, Cinj read, Clevel read. `flags2` bit 0 is the break bypass; it is appended rather than squeezed into the first byte, which is full, because moving an offset would break every decoder for one bit.
 
   `deadtime` is raw DTG, not nanoseconds. `trigger` is CCR4 in timer ticks. **Both ends of the range disable it**: 0 because OC4REF in PWM1 never goes active, and ARR because the compare never falls below the counter either - measured, `updates` stops and the latched triple freezes at its last value, which reads as a perfectly quiet channel. A value past ARR is refused with CCR4 unchanged - op 4 replies with the register as it reads back, so the caller sees the refusal. `at` is `TIM1->CNT` as the interrupt read it, about 965 ticks (4.06 us) after the sample - the sample point is `trigger`, not `at`.
 
   `worst_gap` is the longest interval between keepalive edges in **raw CYCCNT ticks**, never microseconds - invariant 2's reason applies unchanged: dividing cycles down moves the wrap off a power of two and the unsigned arithmetic breaks across it. **Op 7** forgets it, so a run can be measured on its own.
+
+  Device 5 is the buffered read. One sample per round trip caps a host at a couple of hundred samples a second whatever the board managed - a 53-byte reply at 115200 is 4.6 ms - so the board rings 1024 records and hands out fifteen at a time. **Op 0** replies `u8 sources, u16 count, u16 depth, u32 dropped`. **Op 1** takes a source bitmask (bit 0 phases, 1 angle, 2 IMU) and **empties the ring**, because a burst whose first records predate the run is worse than an empty one and no field would say so. **Op 2** takes an optional `u8 want` and replies `u8 got` then that many 14-byte records: `u32 at, u8 source, u8 seq, i16 v[4]`.
+
+  `at` is raw CYCCNT, for invariant 2's reason. `seq` counts per source, so a gap is visible without trusting the timestamps. `v` is source-defined and raw: phases are U, V, W and `TIM1->CNT` at the latch; angle is value, CRC, register; IMU is the quaternion. Measured, phases captured from the injected interrupt land at 19.81/20.00/20.14 µs min/mean/max against 50 kHz.
+
+  Full drops the newest and counts it rather than overwriting the oldest. At 50 kHz the ring is 20 ms of history, and a host draining fifteen per round trip cannot keep up - it is a snapshot buffer, and `dropped` says by how much.
 
   **Op 6** disconnects the break input - it clears `BDTR.BKE`, not just the `BIF` latch, because with nFAULT low the break is a *level* and the hardware holds MOE clear whatever software does. For bench work only, and a reset restores it. What makes it safe is not the firmware: the STO chain gates the gate drivers' own DC/DC, which no MCU pin reaches.
 

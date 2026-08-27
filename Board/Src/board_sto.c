@@ -74,6 +74,21 @@ static uint32_t s_last_edge;
 static uint32_t s_worst_gap;
 
 
+/** Cycles between edges: 200 kHz of edges is the 100 kHz square wave the
+    model in electronic_simulations/sto drives MCU_PWM with. Cached because
+    this is on the hot path - a divide per call is not free at 200 kHz. */
+static uint32_t sto_edge_cycles(void)
+{
+  static uint32_t cached;
+
+  if (cached == 0U)
+  {
+    cached = SystemCoreClock / 200000U;
+  }
+  return cached;
+}
+
+
 void Board_StoKeepalive(void)
 {
   /* The longest gap between edges, in raw CYCCNT ticks - invariant 2's rule
@@ -89,6 +104,13 @@ void Board_StoKeepalive(void)
   {
     const uint32_t gap = now - s_last_edge;
 
+    /* Rate limited, not free-running. Every busy-wait on the board calls
+       this, and a spin loop would otherwise pump at its own megahertz -
+       far off the pump's design point and delivering little per edge. */
+    if (gap < sto_edge_cycles())
+    {
+      return;
+    }
     if (gap > s_worst_gap)
     {
       s_worst_gap = gap;
