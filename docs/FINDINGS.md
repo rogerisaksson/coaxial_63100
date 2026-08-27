@@ -954,3 +954,26 @@ Nothing in this repository was writing them, so this is not the cause of the
 latching a half bridge, and the default that opened it - "not in the table,
 so a fixture may have it" - is right for a spare pin and wrong for every pin
 an alternate function owns.
+
+## What the intermittent silence is NOT
+
+The board stops answering Modbus now and again while the core keeps running -
+`unit 1, fc 0x??: silence` past twenty retries, three times in one afternoon,
+recovered once by a re-flash and otherwise by itself. Not reproduced. What
+was tried, and the numbers that ruled each one out:
+
+| hypothesis | test | result |
+|---|---|---|
+| AFE_ON transitions stall the loop | 60 reads in each state, six toggles between | **0/60** silence throughout, worst main-loop gap 57.9 us |
+| main loop starved past RTU's t1.5 | worst keepalive gap, every condition | **57.6 - 58.0 us** against 143 us |
+| switching noise couples into the UART | 120 reads armed at 50 %, drivers dead then live, twice | **0/120** each |
+| the port sleeps through a long quiet | 30 s and 60 s silent with the drivers live and switching | answered on **attempt 1** every time |
+
+600 requests across every condition and not one failure. Whatever it is, it
+is rarer than that and does not follow switching, the supply gate, loop load
+or idle time.
+
+What it costs is long runs: three thermal series died on it, one of them six
+minutes in. Anything that sleeps between requests needs a bounded retry -
+`blocks()` and `Board.probe()` carry one, ad-hoc scripts have to bring their
+own.
