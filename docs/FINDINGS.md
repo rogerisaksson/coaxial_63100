@@ -200,6 +200,25 @@ board's held-off state rather than a released one. `VGATEDRV` also cycles
 (up 1.66-4.18 ms, down 3.08 ms, up 7.26-15.89 ms) for a reason not chased.
 These are the model's numbers, not the board's.
 
+## Open, seen once: NTC frozen at 0x9C00 on the first read after a reset
+
+2026-08-27. The first acquisition after `build_and_flash` returned NTC as
+**39936.0 exactly - 0x9C00 - with lowest == highest over 1557 samples**,
+while Phase U on the same task varied normally (1419..1498). The settled
+value on that channel is about 39820.
+
+Does not reproduce. Three configurations tried straight afterwards -
+`accumulate` 8 and 1, `digital` on and off - all gave a normal 20..40 LSB
+spread matching the meter to within 15 codes. What was different about the
+one that froze: it was the first task after a reset, with AFE_ON switched
+on 0.3 s earlier.
+
+Recorded rather than chased, because a channel reporting one exact value
+with no spread is the shape of a plausible fake and this codebase has an
+invariant about those. If it comes back, the thing to check is whether the
+converter is being read before its reference has settled - the AFE powers
+that reference, not just the signal path.
+
 ## Open: enabling the bridge trips the hot-swap's over-current
 
 Happened twice, 2026-08-27, and is not understood.

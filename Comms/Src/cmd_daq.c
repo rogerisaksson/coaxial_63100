@@ -280,6 +280,11 @@ static cmd_status_t h_daq_live(wr_t *out)
   {
     wr_i32(out, live.slot[f].sum);
     wr_u32(out, live.slot[f].additions);
+    /* What the channel did in the window, measured. A mean and a count
+       cannot tell you a spike happened; these can, and it is the same two
+       comparisons a meter would make anyway. */
+    wr_i32(out, live.slot[f].lowest);
+    wr_i32(out, live.slot[f].highest);
   }
   if (st.config.digital != 0U)
   {

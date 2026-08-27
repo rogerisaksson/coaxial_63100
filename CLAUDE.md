@@ -117,6 +117,25 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check    # what is missing
 . .\env.ps1                 # PATH + board_prompt, dbg, board, cbuild, cflash, cubemx
 ```
 
+
+**`Coaxial63100` is the front door.** `host/coaxial/rig.py`, and what all
+four views use. It owns the AFE preflight (invariant 9) and puts the supply
+back the way it found it, Ctrl+C included.
+
+```python
+from coaxial import Coaxial63100
+with Coaxial63100(port='COM4') as daq:          # simulated_device=True: no cable
+    daq.set_time_from_pc()                      # the board counts cycles, not time
+    daq.configure_daq(['Phase U', 'NTC'], accumulate=8)
+    daq.daq_write(digital={'UART5_TERM': True})
+    daq.start()
+    for block in daq.blocks(20):
+        r = block[-1]
+        print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM of `samples`
+```
+
+`python_examples/daq_session.py` is that flow as a notebook, in 82 lines.
+
 ```bash
 cube-cmake --build --preset Debug        # must be zero warnings
 STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start

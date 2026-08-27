@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from coaxial import dial                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from coaxial_mcp.session import open_session               # noqa: E402
+from coaxial import Coaxial63100                           # noqa: E402
 from screen import (TO_MENU, Keys, banner, clear, paint,
                     say)                                 # noqa: E402
 
@@ -52,25 +52,15 @@ def preflight(board, part):
     """Power what the part needs, read what does not change, and start the
     loop on the angle register.
 
-    Returns (afe_was_on, field, kelvin). The field and the temperature are
-    read once: the loop reads one register at a time, so polling them would
-    cost the angle its sample rate, and neither moves at the rate the angle
-    does.
+    Returns (field, kelvin), read once: the loop reads one register at a
+    time, so polling them would cost the angle its sample rate, and neither
+    moves at the rate the angle does. The supply is Coaxial63100's - it
+    brings AFE_ON up on the way in and puts it back on the way out.
     """
     say('ok', 'capability', '%s - %s, on %s'
         % (part['name'], part['what'], part['where']))
-
-    was_on = board.afe.is_on()
-
-    if part['power']:
-        if was_on:
-            say('ok', part['power'], 'already on, and left on afterwards')
-        else:
-            say('warn', part['power'],
-                'off - on for this run, off again on the way out')
-            board.afe.enable()
-            time.sleep(0.3)
-            say('ok', part['power'], 'on')
+    say('ok', part['power'] or 'supply',
+        'on for this run, and put back the way it was found')
 
     field = kelvin = None
     with board.angle.configuring():
@@ -83,7 +73,7 @@ def preflight(board, part):
         % (field, '' if field >= 30 else ' - no magnet at the sensor'))
     say('ok', 'poll loop', 'ANG, read by the board; this reads the board')
 
-    return was_on, field, kelvin
+    return field, kelvin
 
 
 def _drawn(state, console):
@@ -107,26 +97,25 @@ def main(argv=None):
                              'closed')
     args = parser.parse_args(argv)
 
-    session, origin = open_session(args.port,
-                                   simulated=True if args.simulated else None)
+    rig = Coaxial63100(port=args.port,
+                       simulated_device=bool(args.simulated)).open()
+    origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
-
-    board = session.board
 
     part = capability(board)
     if part is None:
         say('fail', 'capability',
             'this board reports no angle sensor among its parts')
-        session.close()
+        rig.close()
         return 1
 
     try:
-        afe_was_on, field, _ = preflight(board, part)
+        field, _ = preflight(board, part)
     except RigError as exc:
         say('fail', part['power'] or 'supply',
             'could not set the sensor up: %s' % exc)
-        session.close()
+        rig.close()
         return 1
 
     say('wait', 'drawing',
@@ -184,15 +173,8 @@ def main(argv=None):
         pass
     finally:
         clear(console)
-        try:
-            if not afe_was_on and part['power']:
-                board.afe.disable()
-                say('ok', part['power'], 'off again - it was off before this')
-            else:
-                say('ok', part['power'] or 'supply', 'left on, as it was found')
-        except RigError as exc:
-            say('fail', 'putting it back', str(exc))
-        session.close()
+        rig.close()
+        say('ok', part['power'] or 'supply', 'put back the way it was found')
 
     return TO_MENU if leaving == 'menu' else 0
 

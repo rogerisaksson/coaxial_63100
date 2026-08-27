@@ -59,6 +59,8 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
 
   Full drops the newest and counts it rather than overwriting the oldest. At 50 kHz the ring is 20 ms of history, and a host draining fifteen per round trip cannot keep up - it is a snapshot buffer, and `dropped` says by how much.
 
+  `coaxial.Coaxial63100` is the host side of this and the preferred way in - `daq_read()` and `daq_write()` over the raw ops below.
+
   Device 6 is configure / start / read, DAQmx's shape cut to one task - one MCU, three converters, one timer. **Op 1** takes `u8 channels, u8 clock, u8 sample_time, u16 decimate, u16 accumulate, u32 records, u8 digital, u32 interval_us`. `channels` is a bitmask over the rows of `0x6D` kind 0. `clock` is 0 for the main loop or 1 for the injected group, one record per PWM period; a TIM1 clock **carries only the phases** and any other channel is refused rather than answered with zeros. `sample_time` is 0..7 over the H7's eight sampling windows, shortest first. `decimate` keeps one trigger in N, `accumulate` **sums** N samples into a record - summing keeps the bits an average would throw away and the host has the count - and `records` of 0 runs until stopped. `digital` appends one `u32` of pin levels to every record - the drivable pins only, what `0x6D` kind 1 calls digital I/O, sampled at the record's timestamp rather than summed. `interval_us` is the software clock's minimum gap between samples.
 
   **AFE_ON off stops the task and empties the buffers.** That pin powers the ADC's reference, so every channel would read exact mid-scale (invariant 9) - and an accumulator holding half a window of real samples and half of mid-scale divides out to something entirely plausible with no field to say so. Op 0's flag bit 2 says it happened. A stopped task stays stopped: turning the supply back on does not restart it, because nothing else would have noticed the gap.
@@ -95,7 +97,7 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
 
   **Op 6 is the other way to read, and it cannot overflow.** Every trigger adds into a static accumulator sized to the maximum channel count - a task with one channel uses one slot of it - and op 6 takes that away and resets it. A late reader gets a **wider averaging window**, not a backlog: the ring drops when it is full, this has nothing to drop. Message in a bottle or fibre, the same call.
 
-  It replies `u8 fresh`, and stops there when nothing has arrived since the last take. Otherwise `u32 first, u32 last`, then per field an `i32` sum **and a `u32` count of the additions that went into it**, then the digital word if the task has one.
+  It replies `u8 fresh`, and stops there when nothing has arrived since the last take. Otherwise `u32 first, u32 last`, then per field an `i32` sum, **a `u32` count of the additions that went into it**, and the `i32` lowest and highest it saw, then the digital word if the task has one. The two ends are measured rather than inferred: a mean and a count cannot tell you a spike happened, and it is the same two comparisons a meter face would make anyway.
 
   **One count per channel, not one for the lot.** The software poll reads one channel per turn of the main loop, so a take lands mid-sweep and the channels have had different numbers of samples: measured on seven channels over half a second, 1044/1043/1043/1043/1044/1044/1044. A single count would divide six of them by the wrong number.
 

@@ -331,6 +331,20 @@ static void live_insert(uint8_t field, int32_t value, uint32_t at,
   {
     s_live_first = at;
   }
+  if (s_live[field].additions == 0U)
+  {
+    s_live[field].lowest = value;
+    s_live[field].highest = value;
+  }
+  else if (value < s_live[field].lowest)
+  {
+    s_live[field].lowest = value;
+  }
+  else if (value > s_live[field].highest)
+  {
+    s_live[field].highest = value;
+  }
+
   s_live[field].sum += value;
   s_live[field].additions++;
   s_live_any++;
@@ -366,6 +380,8 @@ void Board_DaqTakeLive(board_daq_live_t *out)
     out->slot[f] = s_live[f];
     s_live[f].sum = 0;
     s_live[f].additions = 0U;
+    s_live[f].lowest = 0;
+    s_live[f].highest = 0;
   }
   s_live_any = 0U;
 

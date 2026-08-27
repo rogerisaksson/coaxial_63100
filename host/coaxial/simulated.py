@@ -1124,7 +1124,8 @@ class SimulatedDaq:
         layout = layout or self.layout()
         base = random.randint(8, 40)
         self._at = (self._at + base * 9500) & 0xFFFFFFFF
-        out = {'first': self._at, 'last': self._at, 'sum': {}, 'count': {}}
+        out = {'first': self._at, 'last': self._at, 'sum': {}, 'count': {},
+               'lowest': {}, 'highest': {}}
         for f in layout['fields']:
             # A channel or two behind the rest, the way the real poll leaves
             # them: it reads one per turn and a take lands mid-sweep.
@@ -1133,6 +1134,9 @@ class SimulatedDaq:
                 self.CENTRE[f['channel']] + random.randint(-60, 60)
                 for _ in range(n))
             out['count'][f['signal']] = n
+            centre = self.CENTRE[f['channel']]
+            out['lowest'][f['signal']] = centre - 60
+            out['highest'][f['signal']] = centre + 60
         out['mean'] = {k: (v / out['count'][k] if out['count'][k] else None)
                        for k, v in out['sum'].items()}
         if layout.get('pins'):

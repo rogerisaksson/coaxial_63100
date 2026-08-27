@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import desk, scaling                          # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from coaxial_mcp.session import open_session               # noqa: E402
+from coaxial import Coaxial63100                           # noqa: E402
 from screen import (TO_MENU, Keys, banner, clear, paint,
                     say)                                 # noqa: E402
 
@@ -31,6 +31,32 @@ from screen import (TO_MENU, Keys, banner, clear, paint,
 #: other - so its scale is quoted between codes the converter can actually
 #: resolve rather than at two asymptotes.
 SPAN_CODES = (1024, 64512)
+
+
+def rows_from(live, layout):
+    """The accumulator as the rows this renderer already understands.
+
+    The bridge wants a mean and the two ends of the window. The task
+    reports a sum, a count and the lowest and highest it saw, per channel,
+    so the mean is a division and the ends are already measured - which is
+    what a meter's ticks should be rather than something inferred from a
+    mean.
+    """
+    out = []
+    for field in layout['fields']:
+        name = field['signal']
+        count = max(1, live['count'][name])
+        out.append({
+            'index': field['channel'],
+            'signal': name,
+            'unit': field['unit'],
+            'differential': field['differential'],
+            'mean_raw': live['sum'][name] / count,
+            'min_raw': live['lowest'][name],
+            'max_raw': live['highest'][name],
+            'samples': count,
+        })
+    return out
 
 
 def scale(rows):
@@ -97,20 +123,19 @@ def main(argv=None):
                              'closed')
     args = parser.parse_args(argv)
 
-    session, origin = open_session(args.port,
-                                   simulated=True if args.simulated else None)
+    rig = Coaxial63100(port=args.port,
+                       simulated_device=bool(args.simulated)).open()
+    origin = rig.origin
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
+    say('ok', 'AFE_ON', 'on for this run, and put back the way it was found')
 
-    board = session.board
-    afe_was_on = board.afe.is_on()
-
-    if afe_was_on:
-        say('ok', 'AFE_ON', 'already on, and left on afterwards')
-    else:
-        say('warn', 'AFE_ON', 'off - on for this run, off again on the way out')
-        board.afe.enable()
-        time.sleep(0.3)
+    # Every channel the board reports, summed on the board rather than read
+    # one at a time: the accumulator carries the mean AND the two ends of
+    # the window, which is exactly what a meter face wants.
+    layout = rig.configure_daq(rate_hz=None, accumulate=args.samples,
+                               digital=False)
+    rig.start()
 
     say('wait', 'drawing',
         'Q closes it, ESC goes back to the menu, and both undo the above')
@@ -131,8 +156,8 @@ def main(argv=None):
         with Keys(console) as keys:
             while True:
                 try:
-                    rows = board.analog.read_all(nr_of_samples=args.samples)
-                    face = bridge.update(scale(rows['channels']),
+                    live = rig.latest()
+                    face = bridge.update(scale(rows_from(live, layout)),
                                          colour=console)
                 except RigError as exc:
                     face = 'no reading: %s' % exc
@@ -157,13 +182,8 @@ def main(argv=None):
         pass
     finally:
         clear(console)
-        if not afe_was_on:
-            try:
-                board.afe.disable()
-                say('ok', 'AFE_ON', 'off again, the way it was found')
-            except RigError:
-                say('warn', 'AFE_ON', 'could not be put back')
-        session.close()
+        rig.close()
+        say('ok', 'board', 'task stopped, AFE_ON put back the way it was')
 
     return TO_MENU if leaving == 'menu' else 0
 

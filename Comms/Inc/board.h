@@ -299,6 +299,8 @@ typedef struct
 {
   int32_t  sum;
   uint32_t additions;                  /**< how many went into this one     */
+  int32_t  lowest;                     /**< what the channel did in the     */
+  int32_t  highest;                    /**< window, not inferred from a mean*/
 } board_daq_slot_t;
 
 typedef struct

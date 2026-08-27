@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from coaxial_mcp.session import open_session               # noqa: E402
+from coaxial import Coaxial63100                           # noqa: E402
 from screen import (TO_MENU, Keys, banner, clear, paint,
                     say)                                 # noqa: E402
 
@@ -69,22 +69,12 @@ def preflight(board, part):
     say('ok', 'capability', '%s - %s, on %s'
         % (part['name'], part['what'], part['where']))
 
-    was_on = board.afe.is_on()
-
-    if part['power']:
-        if was_on:
-            say('ok', part['power'], 'already on, and left on afterwards')
-        else:
-            say('warn', part['power'],
-                'off - on for this run, off again on the way out')
-            board.afe.enable()
-            # The part needs its supply up before it is reset, and the reset
-            # is the next thing that happens. Enabling and configuring in the
-            # same breath answered SERVER DEVICE FAILURE.
-            time.sleep(0.3)
-            say('ok', part['power'], 'on')
-
-    return was_on
+    # The supply is Coaxial63100's: it brings AFE_ON up on the way in and
+    # puts it back on the way out. The part is therefore already settled by
+    # the time this runs, which matters - a reset issued before its supply
+    # had come up answered SERVER DEVICE FAILURE.
+    say('ok', part['power'] or 'supply',
+        'on for this run, and put back the way it was found')
 
 
 def canvas(args):
@@ -147,7 +137,7 @@ def start_reporting(board, interval_us):
     return True
 
 
-def put_back(board, part, afe_was_on):
+def put_back(board, part):
     """Everything this run started, undone.
 
     The report it enabled, and the supply - but the supply only if this run
@@ -160,11 +150,6 @@ def put_back(board, part, afe_was_on):
             board.imu.feature(ROTATION_VECTOR, 0)
         say('ok', 'rotation vector', 'disabled')
 
-        if not afe_was_on and part['power']:
-            board.afe.disable()
-            say('ok', part['power'], 'off again - it was off before this')
-        else:
-            say('ok', part['power'] or 'supply', 'left on, as it was found')
     except RigError as exc:
         say('fail', 'putting it back', str(exc))
 
@@ -189,29 +174,28 @@ def main(argv=None):
                              'without a terminal to close.')
     args = parser.parse_args(argv)
 
-    session, origin = open_session(args.port,
-                                   simulated=True if args.simulated else None)
+    rig = Coaxial63100(port=args.port,
+                       simulated_device=bool(args.simulated)).open()
+    origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
-
-    board = session.board
 
     part = capability(board)
     if part is None:
         say('fail', 'capability', 'this board reports no IMU among its parts')
-        session.close()
+        rig.close()
         return 1
 
     try:
-        afe_was_on = preflight(board, part)
+        preflight(board, part)
     except RigError as exc:
         say('fail', part['power'] or 'supply',
             'could not power %s: %s' % (part['name'], exc))
-        session.close()
+        rig.close()
         return 1
 
     if not start_reporting(board, args.interval_us):
-        session.close()
+        rig.close()
         return 1
     say('wait', 'drawing',
         'Q closes it, ESC goes back to the menu, and both undo the above')
@@ -295,8 +279,8 @@ def main(argv=None):
         if shop:
             shop.close()
         clear(console)
-        put_back(board, part, afe_was_on)
-        session.close()
+        put_back(board, part)
+        rig.close()
 
     return TO_MENU if leaving == 'menu' else 0
 

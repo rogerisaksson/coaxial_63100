@@ -24,6 +24,7 @@ call either produces its result or raises something from coaxial.errors.
 """
 from . import protocol, scaling
 from .board import BOARD_CLASSES, Board, connect, disconnect, scan
+from .rig import Coaxial63100
 from .errors import (ConnectError, CrcError, DeviceStateError, FrameError,
                      ModbusException, NoReplyError, PayloadError, RigError,
                      UnsupportedProtocolError)
@@ -32,6 +33,7 @@ from .scaling import (DCBUS_ONBOARD, NTC_ONBOARD, PHASE_ONBOARD,
 from .transport import Transport
 
 __all__ = [
+    'Coaxial63100',
     'connect', 'disconnect', 'scan', 'Board', 'BOARD_CLASSES', 'Transport',
     'NtcParams', 'DividerParams', 'ShuntParams',
     'NTC_ONBOARD', 'DCBUS_ONBOARD', 'PHASE_ONBOARD',

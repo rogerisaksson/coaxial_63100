@@ -212,9 +212,15 @@ class Daq(Subsystem):
         # channel per turn of its loop, so over any window they have had
         # different numbers of samples and a single count would divide most
         # of them by the wrong number.
+        out['lowest'], out['highest'] = {}, {}
         for f in fields:
-            out['sum'][f['signal']] = r.i32()
-            out['count'][f['signal']] = r.u32()
+            name = f['signal']
+            out['sum'][name] = r.i32()
+            out['count'][name] = r.u32()
+            # What the channel did in the window, measured. A mean and a
+            # count cannot tell you a spike happened.
+            out['lowest'][name] = r.i32()
+            out['highest'][name] = r.i32()
         out['mean'] = {k: (v / out['count'][k] if out['count'][k] else None)
                        for k, v in out['sum'].items()}
         if pins:

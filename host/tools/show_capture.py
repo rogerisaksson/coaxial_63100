@@ -26,7 +26,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import RigError                        # noqa: E402
-from coaxial_mcp.session import open_session               # noqa: E402
+from coaxial import Coaxial63100                           # noqa: E402
 from screen import TO_MENU, Keys, banner, clear, paint, say  # noqa: E402
 
 ROTATION_VECTOR = 0x05
@@ -212,7 +212,7 @@ def adapt(board, layout, args, view):
     return fresh
 
 
-def put_back(board, afe_was_on):
+def put_back(board):
     """Both buffers disarmed, and the supply as it was found."""
     try:
         board.daq.stop()
@@ -220,9 +220,6 @@ def put_back(board, afe_was_on):
         with board.imu.configuring():
             board.imu.feature(ROTATION_VECTOR, 0)
         say('ok', 'buffers', 'disarmed')
-        if not afe_was_on:
-            board.afe.disable()
-            say('ok', 'AFE_ON', 'off again - it was off before this')
     except RigError as exc:
         say('fail', 'putting it back', str(exc))
 
@@ -245,23 +242,18 @@ def main(argv=None):
     parser.add_argument('--frames', type=int, default=0)
     args = parser.parse_args(argv)
 
-    session, origin = open_session(args.port,
-                                   simulated=True if args.simulated else None)
+    rig = Coaxial63100(port=args.port,
+                       simulated_device=bool(args.simulated)).open()
+    origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
-    board = session.board
-
-    afe_was_on = board.afe.is_on()
-    if not afe_was_on:
-        say('warn', 'AFE_ON', 'off - on for this run, off again on the way out')
-        board.afe.enable()
-        time.sleep(0.3)
+    say('ok', 'AFE_ON', 'on for this run, and put back the way it was found')
 
     try:
         layout = start(board, args)
     except RigError as exc:
         say('fail', 'task', str(exc))
-        session.close()
+        rig.close()
         return 1
 
     view = {'record': None, 'latest': {}, 'daq': board.daq.state(),
@@ -296,8 +288,8 @@ def main(argv=None):
         pass
     finally:
         clear(console)
-        put_back(board, afe_was_on)
-        session.close()
+        put_back(board)
+        rig.close()
 
     return TO_MENU if leaving == 'menu' else 0
 
