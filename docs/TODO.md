@@ -7,7 +7,7 @@ State as of 2026-08-27.
 | `run_tests.ps1 -All` | 1663 checks, 17 suites |
 | Debug build | 0 warnings |
 | FLASH / DTCMRAM | 120 732 B / 14 984 B |
-| Protocol | MAJOR 2, MINOR 7 |
+| Protocol | MAJOR 2, MINOR 11 |
 
 ## What runs
 
@@ -31,6 +31,17 @@ sweep.
 priority 5, 48.000 MHz from PLL3Q off the crystal. `MX_USB_OTG_FS_PCD_Init`
 runs at boot; there is no device class, so a host sees a device that fails
 enumeration.
+
+**`0x6E` device 6 is an acquisition task** — configure, start, read, in
+DAQmx's shape. Channels as a bitmask over the board's own table, a software
+or TIM1 clock, sampling window 0..7, decimation and accumulation. Op 5
+describes the record so no host holds a copy of its shape. Measured: TIM1
+clock 19.93/20.00/20.09 µs against 50 kHz, `decimate=2` × `accumulate=50`
+exactly 2000 µs, software clock 10.6 kHz on two channels, values matching
+the meter (NTC 40505.8 vs 40498.3).
+
+**`0x6E` device 5 is the event ring** — 1024 records the angle and IMU
+loops push into, drained fifteen per reply.
 
 **`0x6E` device 4 puts the bridge on the wire.** State, PWM on/off, duty,
 sync arm/disarm, sample point, clear break — `Comms/Src/cmd_bridge.c`,
