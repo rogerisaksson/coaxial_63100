@@ -37,6 +37,24 @@ static const DigitalDesc s_digital[] =
   /* The STO chain's proof that main() is still turning. Toggled from the
      poll loop, never by a timer - see Board_StoKeepalive(). */
   { 'A', 10U, "PA10", BOARD_DIR_OUT,   "KEEPALIVE",           true  },
+  /* The six gate signals. Not usable, and the reason is the whole point of
+     the flag: they are TIM1's alternate function, and a host writing one
+     through the test path calls HAL_GPIO_Init on it, which takes the pin
+     off the timer and leaves it driven by ODR. With the drivers powered
+     that is one FET of a half bridge latched on, with the other still
+     switching against it - the dead time cannot help, because the pin is
+     no longer the timer's to sequence.
+
+     They were absent from this table entirely, so Board_PinUsable fell
+     through to its "nothing claims it, a fixture may have it" default and
+     answered true for all six. Measured: the reserved list reported 19
+     pins and none of them was a gate. */
+  { 'E',  8U, "PE8",  BOARD_DIR_OUT,   "TIM1_CH1N/PWMUL",     false },
+  { 'E',  9U, "PE9",  BOARD_DIR_OUT,   "TIM1_CH1/PWMUH",      false },
+  { 'E', 10U, "PE10", BOARD_DIR_OUT,   "TIM1_CH2N/PWMVL",     false },
+  { 'E', 11U, "PE11", BOARD_DIR_OUT,   "TIM1_CH2/PWMVH",      false },
+  { 'E', 12U, "PE12", BOARD_DIR_OUT,   "TIM1_CH3N/PWMWL",     false },
+  { 'E', 13U, "PE13", BOARD_DIR_OUT,   "TIM1_CH3/PWMWH",      false },
   { 'B', 10U, "PB10", BOARD_DIR_OUT,   "USART3_TX",           false },
   { 'B', 11U, "PB11", BOARD_DIR_IN,    "USART3_RX",           false },
   { 'A', 13U, "PA13", BOARD_DIR_INOUT, "JTMS/SWDIO",          false },

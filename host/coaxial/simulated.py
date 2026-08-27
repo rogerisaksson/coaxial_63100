@@ -236,6 +236,16 @@ DIGITAL = [
 # Not channels: the bus the command arrived on and the debug port. Reported
 # so "why was PB10 refused" has an answer, never to be driven.
 RESERVED = [
+    # The six gate signals. Reserved because they are TIM1's alternate
+    # function: writing one through the test path takes the pin off the
+    # timer and leaves a half bridge with one FET latched on. They were in
+    # neither list and the board answered "usable" for all six.
+    {'pin': 'PE8',  'direction': 'out',   'signal': 'TIM1_CH1N/PWMUL'},
+    {'pin': 'PE9',  'direction': 'out',   'signal': 'TIM1_CH1/PWMUH'},
+    {'pin': 'PE10', 'direction': 'out',   'signal': 'TIM1_CH2N/PWMVL'},
+    {'pin': 'PE11', 'direction': 'out',   'signal': 'TIM1_CH2/PWMVH'},
+    {'pin': 'PE12', 'direction': 'out',   'signal': 'TIM1_CH3N/PWMWL'},
+    {'pin': 'PE13', 'direction': 'out',   'signal': 'TIM1_CH3/PWMWH'},
     {'pin': 'PB10', 'direction': 'out',   'signal': 'USART3_TX'},
     {'pin': 'PB11', 'direction': 'in',    'signal': 'USART3_RX'},
     {'pin': 'PA13', 'direction': 'inout', 'signal': 'JTMS/SWDIO'},

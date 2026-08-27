@@ -923,3 +923,34 @@ spread across the period, or disarm the sync first.**
 Two earlier readings from the same trap, both mine: 42 / 51 / 43 % across
 the three legs at 80 samples, read as a difference when 1 sigma was 5.6 %;
 and 86.5 % straight after an arm, read as the waveform having changed.
+
+## The six gate signals were writable through the GPIO test path
+
+Found 2026-08-27 while hunting an asymmetry between the three legs.
+
+`Board_PinUsable` walks `s_digital` and, for a pin that is not in it,
+returns true - "nothing on this board claims it, so a fixture may have it".
+**PE8..PE13 were not in it.** The table held AFE_ON, nFAULT, UART5_TERM,
+KEEPALIVE and the buses; the gate signals were in neither that table nor the
+reserved list, which reported 19 pins and not one of them a gate.
+
+So `gpio_pin` write on PE12 was allowed. It calls `HAL_GPIO_Init` on the
+pin, which takes it off TIM1 and leaves it driven by ODR - one FET of a half
+bridge latched on, with the other still switching against it. **The dead
+time cannot help there**, because the pin is no longer the timer's to
+sequence.
+
+Fixed by claiming all six in `s_digital` with `usable` false. The reserved
+list reports 25 pins now, and a raw wire request past the host's own guard
+is refused by the board:
+
+    PE8   board refused: ModbusException
+    PE12  board refused: ModbusException
+    PE13  board refused: ModbusException
+    gates after: 000000
+
+Nothing in this repository was writing them, so this is not the cause of the
+15 C between the legs. It is a hole that was one stray `gpio_pin` from
+latching a half bridge, and the default that opened it - "not in the table,
+so a fixture may have it" - is right for a spare pin and wrong for every pin
+an alternate function owns.
