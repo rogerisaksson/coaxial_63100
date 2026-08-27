@@ -7,7 +7,7 @@ State as of 2026-08-27.
 | `run_tests.ps1 -All` | 1663 checks, 17 suites |
 | Debug build | 0 warnings |
 | FLASH / DTCMRAM | 120 732 B / 14 984 B |
-| Protocol | MAJOR 2, MINOR 11 |
+| Protocol | MAJOR 2, MINOR 17 |
 
 ## What runs
 
@@ -31,6 +31,11 @@ sweep.
 priority 5, 48.000 MHz from PLL3Q off the crystal. `MX_USB_OTG_FS_PCD_Init`
 runs at boot; there is no device class, so a host sees a device that fails
 enumeration.
+
+**`0x6E` device 7 ties the counter to a host clock.** Broadcast latch,
+measured at 5 243 us against a round trip's 17 941 us one way. The rate is
+measured too - 475.002988 MHz, +6.3 ppm - and `clock.unwrap()` handles the
+9.04 s wrap.
 
 **Two ways to read, and they answer different questions.** Op 4 drains a
 ring - a capture, with history, that drops when the host falls behind. Op 6

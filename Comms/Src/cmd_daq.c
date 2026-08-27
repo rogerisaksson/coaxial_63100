@@ -53,7 +53,8 @@ static cmd_status_t h_daq_state(wr_t *out)
 
   Board_DaqState(&st);
 
-  wr_u8(out, (uint8_t)((st.running ? 0x01U : 0U) | (st.done ? 0x02U : 0U)));
+  wr_u8(out, (uint8_t)((st.running ? 0x01U : 0U) | (st.done ? 0x02U : 0U)
+                     | (st.lost_power ? 0x04U : 0U)));
   wr_u16(out, st.stride);
   wr_u8(out, st.fields);
   wr_u32(out, st.available);

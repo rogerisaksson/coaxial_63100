@@ -52,6 +52,10 @@ class Daq(Subsystem):
         return {
             'running': bool(flags & 0x01),
             'done': bool(flags & 0x02),
+            # Stopped because AFE_ON went off, and the buffers emptied with
+            # it: that pin powers the ADC reference, so anything held would
+            # have divided out to a plausible mid-scale (invariant 9).
+            'lost_power': bool(flags & 0x04),
             'stride': r.u16(),
             'fields': r.u8(),
             'available': r.u32(),

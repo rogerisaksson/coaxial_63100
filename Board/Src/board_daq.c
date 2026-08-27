@@ -46,6 +46,7 @@ static volatile uint32_t s_produced;
 static board_daq_config_t s_cfg;
 static volatile bool s_running;
 static volatile bool s_done;
+static volatile bool s_lost_power;
 
 static uint16_t s_stride;
 static uint8_t  s_order[BOARD_DAQ_MAX_CHANNELS];  /* channel index per field */
@@ -295,6 +296,7 @@ bool Board_DaqStart(void)
   s_dropped = 0U;
   s_produced = 0U;
   s_done = false;
+  s_lost_power = false;
   s_skip = 0U;
   s_next_field = 0U;
   s_acc_n = 0U;
@@ -382,6 +384,7 @@ void Board_DaqState(board_daq_state_t *out)
   }
   out->running = s_running;
   out->done = s_done;
+  out->lost_power = s_lost_power;
   out->stride = s_stride;
   out->fields = s_fields;
   out->available = Board_DaqAvailable();
@@ -402,13 +405,48 @@ bool Board_DaqField(uint8_t field, uint8_t *channel)
 }
 
 
+/** AFE_ON off means every channel reads exact mid-scale, because it powers
+  * the ADC's reference and not just the signal path - invariant 9. So the
+  * task stops and the buffers are emptied rather than left holding numbers
+  * that look like readings. An accumulator carrying half a window of real
+  * samples and half a window of mid-scale is worse than an empty one: it
+  * would divide out to something plausible and there is no field that would
+  * say so.
+  *
+  * It also puts the converters and both poll loops down between bursts,
+  * which is where the board's heat comes from when nothing is being
+  * measured.
+  */
+static bool powered(void)
+{
+  if (Board_AfeOn())
+  {
+    return true;
+  }
+
+  if (s_running)
+  {
+    s_running = false;
+    s_lost_power = true;
+    s_head = 0U;
+    s_tail = 0U;
+    s_next_field = 0U;
+    s_acc_n = 0U;
+    memset(s_acc, 0, sizeof(s_acc));
+    s_live_any = 0U;
+    memset(s_live, 0, sizeof(s_live));
+  }
+  return false;
+}
+
+
 void Board_DaqPoll(void)
 {
   int32_t raw;
   int32_t uv;
   int32_t scaled;
 
-  if (!s_running || (s_cfg.clock != BOARD_DAQ_CLOCK_SOFTWARE))
+  if (!s_running || (s_cfg.clock != BOARD_DAQ_CLOCK_SOFTWARE) || !powered())
   {
     return;
   }
@@ -459,7 +497,8 @@ void Board_DaqOnInjected(const int16_t *phase)
 {
   int32_t values[BOARD_DAQ_MAX_CHANNELS];
 
-  if (!s_running || (s_cfg.clock != BOARD_DAQ_CLOCK_TIM1) || (phase == NULL))
+  if (!s_running || (s_cfg.clock != BOARD_DAQ_CLOCK_TIM1) || (phase == NULL)
+      || !powered())
   {
     return;
   }

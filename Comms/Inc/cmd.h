@@ -213,6 +213,7 @@ extern "C" {
 #define DEVICE_BRIDGE    4U
 #define DEVICE_LOG       5U
 #define DEVICE_DAQ       6U
+#define DEVICE_TIME      7U
 
 /** Device 4's ops: the bridge, the synced triple and the STO chain. */
 #define BRIDGE_OP_STATE    0U   /**< -> flags, registers, triple, STO      */
@@ -237,6 +238,11 @@ extern "C" {
 #define DAQ_OP_READ      4U  /**< [u8 want] -> u8 got, then got x stride     */
 #define DAQ_OP_LAYOUT    5U  /**< -> what each field is, named by the board  */
 #define DAQ_OP_LIVE      6U  /**< -> u8 fresh, then the accumulator, reset   */
+
+/** Device 7's ops: the cycle counter, latched. Op 0 is meant to be
+    BROADCAST - no reply means no turnaround inside the measurement. */
+#define TIME_OP_LATCH    0U  /**< take CYCCNT now                            */
+#define TIME_OP_READ     1U  /**< -> u32 seq, latched, now, sysclk_hz        */
 
 /* Operations under CMD_IMU. */
 #define IMU_OP_ID      0U
@@ -275,7 +281,7 @@ extern "C" {
 #define CAL_OP_DEFAULTS    7U
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 16U
+#define CMD_PROTO_MINOR 17U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -324,6 +330,7 @@ cmd_status_t cmd_cal_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_bridge_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_log_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out);
 
 /**
   * @brief One subsystem: a command table, named, with what it is for.

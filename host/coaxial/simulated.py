@@ -981,6 +981,7 @@ class SimulatedDaq:
         cfg = self._cfg or {'channels': 0, 'clock': 'software', 'sample_time': 0,
                             'decimate': 0, 'accumulate': 0, 'records': 0}
         return {'running': self._running, 'done': self._done,
+                'lost_power': False,
                 'stride': 4 + 4 * len(self._order), 'fields': len(self._order),
                 'available': 0, 'produced': self._produced, 'dropped': 0,
                 **cfg}
@@ -1085,6 +1086,15 @@ class SimulatedDaq:
             self._done = True
         return out
 
+    def drain(self, limit=None, layout=None):
+        out = []
+        while limit is None or len(out) < limit:
+            batch = self.read(layout=layout)
+            if not batch:
+                break
+            out.extend(batch)
+        return out[:limit] if limit is not None else out
+
     def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
         import random
         from .errors import RigError
@@ -1130,6 +1140,54 @@ class SimulatedDaq:
         return out[:records], layout
 
 
+class SimulatedClock:
+    """The cycle counter tied to nothing, but tied consistently.
+
+    Runs 12 ppm slow of its nominal, which is about what a real crystal
+    does, so a caller that checks the measured rate against the asked-for
+    one sees a number of the right size rather than an exact match that
+    could only come from a stand-in.
+    """
+
+    NOMINAL_HZ = 475000000
+    SKEW = 1 - 12e-6
+
+    def __init__(self):
+        self._seq = 0
+        self._latched = 0
+        self._t0 = None
+
+    def _cycles(self):
+        import time
+        if self._t0 is None:
+            self._t0 = time.time()
+        return int((time.time() - self._t0) * self.NOMINAL_HZ
+                   * self.SKEW) % (1 << 32)
+
+    def latch(self):
+        self._latched = self._cycles()
+        self._seq += 1
+
+    def read_latch(self):
+        return {'seq': self._seq, 'latched': self._latched,
+                'now': self._cycles(), 'sysclk_hz': self.NOMINAL_HZ}
+
+    def probe(self, rounds=16):
+        from .clock import Clock
+        return Clock.probe(self, rounds=rounds)
+
+    def sync(self, seconds=2.0, rounds=8):
+        from .clock import Clock
+        return Clock.sync(self, seconds=seconds, rounds=rounds)
+
+    def _bracket(self):
+        import time
+        before = time.time()
+        self.latch()
+        after = time.time()
+        return (before + after) / 2.0, after - before
+
+
 class SimulatedBoard:
     """A whole board without a board. Duck-typed against the real one, so
     the tools above cannot tell which they are holding - except that
@@ -1156,6 +1214,7 @@ class SimulatedBoard:
             self.system = self.link = self.afe = refuse
             self.analog = self.gpio = self.imu = refuse
             self.angle = self.bridge = self.capture = self.daq = refuse
+            self.clock = refuse
         else:
             self.system = SimulatedSystem()
             self.link = SimulatedLink()
@@ -1166,6 +1225,7 @@ class SimulatedBoard:
             self.angle = SimulatedAngle()
             self.bridge = SimulatedBridge()
             self.capture = SimulatedCapture()
+            self.clock = SimulatedClock()
             self.daq = SimulatedDaq()
 
     def __repr__(self):

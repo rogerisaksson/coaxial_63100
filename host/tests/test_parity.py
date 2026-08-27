@@ -127,7 +127,8 @@ def main():
                        'reset_worst_gap'),
             'capture': ('state', 'arm', 'stop', 'take', 'drain'),
             'daq': ('state', 'layout', 'configure', 'start', 'stop', 'read',
-                    'acquire'),
+                    'acquire', 'drain', 'latest'),
+            'clock': ('latch', 'read_latch', 'sync', 'probe'),
         }
         for name, calls in CALLED.items():
             fake = getattr(stand_in.board, name)

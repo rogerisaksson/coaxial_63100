@@ -45,6 +45,7 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   | 4 | the bridge | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap |
   | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
   | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live |
+  | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |
 
   Device 4 answers TIM1, the synced phase triple and Safe Torque Off together because tuning the sample point needs all three from the same moment. **Op 0** replies 48 bytes: `u8 flags`, `u16 period`, `u8 deadtime`, `u16 duty[3]`, `u16 trigger`, `i16 phase[3]`, `u16 at`, `u32 updates`, `u32 overruns`, `u32 keepalive`, `u32 worst_gap`, then `i32 pilot_raw, pilot_uv, level_raw, level_uv`, then `u8 flags2`. Flag bits, LSB first: pwm ready, pwm enabled, break latched, sync ready, sync armed, AFE on, Cinj read, Clevel read. `flags2` bit 0 is the break bypass; it is appended rather than squeezed into the first byte, which is full, because moving an offset would break every decoder for one bit.
 
@@ -59,6 +60,8 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   Full drops the newest and counts it rather than overwriting the oldest. At 50 kHz the ring is 20 ms of history, and a host draining fifteen per round trip cannot keep up - it is a snapshot buffer, and `dropped` says by how much.
 
   Device 6 is configure / start / read, DAQmx's shape cut to one task - one MCU, three converters, one timer. **Op 1** takes `u8 channels, u8 clock, u8 sample_time, u16 decimate, u16 accumulate, u32 records, u8 digital, u32 interval_us`. `channels` is a bitmask over the rows of `0x6D` kind 0. `clock` is 0 for the main loop or 1 for the injected group, one record per PWM period; a TIM1 clock **carries only the phases** and any other channel is refused rather than answered with zeros. `sample_time` is 0..7 over the H7's eight sampling windows, shortest first. `decimate` keeps one trigger in N, `accumulate` **sums** N samples into a record - summing keeps the bits an average would throw away and the host has the count - and `records` of 0 runs until stopped. `digital` appends one `u32` of pin levels to every record - the drivable pins only, what `0x6D` kind 1 calls digital I/O, sampled at the record's timestamp rather than summed. `interval_us` is the software clock's minimum gap between samples.
+
+  **AFE_ON off stops the task and empties the buffers.** That pin powers the ADC's reference, so every channel would read exact mid-scale (invariant 9) - and an accumulator holding half a window of real samples and half of mid-scale divides out to something entirely plausible with no field to say so. Op 0's flag bit 2 says it happened. A stopped task stays stopped: turning the supply back on does not restart it, because nothing else would have noticed the gap.
 
   **The board picks its own rate when asked for none.** Free-running with `interval_us` 0 is the one combination that took the link down, so `configure` replaces it with what the link can carry, from the stride the task actually has and the baud of whichever port is answering. Op 0 reports it as `max_rate_hz`. Measured at 115200 over the debug probe's VCP:
 
@@ -101,6 +104,21 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   **Blocking is the caller's side.** `fresh` of 0 is the answer, not a wait. A slave that sat on a reply until a sample arrived would hold the segment silent past t3.5 and break framing for everyone else on it.
 
   Measured, seven channels free-running: takes 50 ms apart returned 10, 16, 20, 25, 31 and 36 samples with means tracking the meter (NTC 40859-40884 against 40878.7), and a 1.5 s wait returned **166 samples over 1 578 492 us with nothing dropped**.
+
+  Every timestamp this board makes is raw CYCCNT (invariant 2), which leaves a host holding ticks. **Device 7 op 0 latches the counter and is meant to be BROADCAST**: a broadcast has no reply, so the board acts at an instant the host can bracket with no turnaround in the middle. Op 1 then fetches `u32 seq, latched, now, sysclk_hz`, and being late costs nothing - the value stopped moving when it was taken.
+
+  Measured on the debug probe's VCP, and the broadcast wins by a distance:
+
+  | method | uncertainty |
+  |---|---|
+  | broadcast bracket | **5 243 us** |
+  | round trip, best of 20 | 35 883 us, so ~17 941 us one way |
+
+  A 16-byte reply is 1.7 ms of line time; the rest is the VCP driver's latency timer, which a broadcast never waits for. A segment with a different driver may answer differently - `clock.probe()` is kept so the two can be compared rather than assumed.
+
+  The rate is measured, not taken from `sysclk_hz`: two brackets seconds apart gave **475.002988 MHz, +6.3 ppm** and repeated to about 3 ppm. **CYCCNT wraps every 9.04 s at 475 MHz**, so any series longer than that has to be unwrapped before it means anything.
+
+  The board keeps no wall clock and is not given one. It has no RTC and no LSE, so a time it held would drift against nothing, and a board reporting a plausible wrong time is worse than one reporting ticks.
 
   **Op 5 is what makes op 4 decodable.** It replies `u8 fields, u16 stride`, then per field `u8 channel, u8 unit, u8 differential, str signal`, then `u8 digital` and, when set, `u8 pins` and per pin `u8 direction, str signal`. Only the drivable pins: naming all twenty-three came to 312 bytes against MB_MAX_PDU's 253 and the reply failed outright, which is the same lesson the parts list already carries. A host builds its decoder from that, so a channel added to `Board/Src/board_adc.c` shows up in a capture with nothing else told. A record shape written into a header here and mirrored in a decoder there is two answers to one question, and the mirror is the one that goes stale.
 

@@ -200,6 +200,59 @@ board's held-off state rather than a released one. `VGATEDRV` also cycles
 (up 1.66-4.18 ms, down 3.08 ms, up 7.26-15.89 ms) for a reason not chased.
 These are the model's numbers, not the board's.
 
+## Broadcast beats a round trip for clock sync, by 7x
+
+Measured 2026-08-27 on the debug probe's VCP:
+
+| method | uncertainty |
+|---|---|
+| broadcast latch, host brackets the write | **5 243 us** |
+| round trip, min of 20 | 35 883 us, ~17 941 us one way |
+
+A 16-byte reply is 1.7 ms of line time. The rest is the VCP driver's
+latency timer, and a broadcast never waits for it because there is no reply
+to wait for. The round-trip method looks better on paper - it measures the
+delay it is correcting for - and loses anyway. `clock.probe()` is kept so
+the two can be compared on a segment with a different driver rather than
+assumed.
+
+Two other things the sync had to get right:
+
+* **The settle was inside the bracket.** `transport.broadcast` slept 50 ms
+  after transmitting so the slaves had acted before the next request, and
+  the first version of the bracket measured all of it: +/- 55 521 us. It is
+  a parameter now, and the caller sleeps outside its own measurement.
+* **CYCCNT wraps every 9.04 s at 475 MHz.** Any capture longer than that
+  comes back folded - twelve seconds looks like nine and three, out of
+  order - so `clock.unwrap()` is not optional.
+
+The rate is measured rather than taken from `sysclk_hz`: **475.002988 MHz,
++6.3 ppm**, repeating to about 3 ppm between runs. Consistent in order with
+the -13 ppm the heartbeat gave by a different method.
+
+## AFE_ON off stops the task and empties the buffers
+
+That pin powers the ADC's reference, so with it off every channel reads
+exact mid-scale (invariant 9). An accumulator holding half a window of real
+samples and half a window of mid-scale divides out to something entirely
+plausible, and no field in the reply would say so. So the task stops, the
+ring and the accumulator are cleared, and a flag says why. Measured: 863
+additions before, `running=False lost_power=True` and a `latest()` of
+`None` after.
+
+A stopped task stays stopped. Turning the supply back on does not restart
+it, because nothing downstream would have noticed the gap.
+
+**Sleep and the keepalive cannot both happen.** `__WFI()` wakes on the next
+interrupt and the only periodic one here is SysTick at 1 kHz; the keepalive
+needs an edge every 5 us. The shortest sleep available is 2-5x the STO
+latch's hold. The loop is not idle-waiting either - 8.6 us a turn with the
+AFE off, spent on the keepalive's own rate limiter. Downclocking is not a
+knob but a re-derivation: SysTick, the UART divisors, the ADC clock and
+TIM1's ARR all hang off it. The way that would open is a keepalive
+conditional on somebody intending to arm the bridge, which changes what the
+dead-man's switch proves and is not a decision to take quietly.
+
 ## The accumulator needs a count per channel
 
 Measured 2026-08-27, seven channels over half a second with the sample loop

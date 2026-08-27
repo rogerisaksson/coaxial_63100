@@ -174,10 +174,17 @@ class Transport:
         reply = self.receive(exact_payload, timeout)
         return validate(reply, unit, function)
 
-    def broadcast(self, function, payload=b''):
-        """Acted on by every slave, answered by none. Nothing to return."""
+    def broadcast(self, function, payload=b'', settle=0.05):
+        """Acted on by every slave, answered by none. Nothing to return.
+
+        The settle is not politeness: there is no reply to synchronise on, so
+        without it the next request can arrive before the slaves have acted.
+        A caller timing the write itself passes 0 and sleeps afterwards -
+        50 ms inside the measurement is 50 ms of uncertainty.
+        """
         self.transmit(BROADCAST, function, payload)
-        time.sleep(0.05)
+        if settle:
+            time.sleep(settle)
 
 
 def validate(reply, unit, function):

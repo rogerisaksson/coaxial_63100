@@ -16,6 +16,7 @@ from .afe import Afe
 from .analog import Analog
 from .bridge import Bridge
 from .capture import Capture
+from .clock import Clock
 from .daq import Daq
 from .calibration import Calibration
 from .errors import (ConnectError, DeviceStateError, RigError,
@@ -47,6 +48,7 @@ class Board:
         self.calibration = Calibration(self)
         self.bridge = Bridge(self)
         self.capture = Capture(self)
+        self.clock = Clock(self)
         self.daq = Daq(self)
 
     def __repr__(self):
@@ -66,9 +68,9 @@ class Board:
         return self.transport.request(self.unit, function, payload,
                                       exact_payload, timeout)
 
-    def broadcast(self, function, payload=b''):
+    def broadcast(self, function, payload=b'', settle=0.05):
         """Acted on by every unit on the wire, answered by none."""
-        self.transport.broadcast(function, payload)
+        self.transport.broadcast(function, payload, settle=settle)
 
     # -- getting the link open and shut ------------------------------------
 
