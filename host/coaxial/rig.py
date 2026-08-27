@@ -193,7 +193,64 @@ class Coaxial63100:
         """How the task is doing: rate, what is buffered, what was lost."""
         return self.board.daq.state()
 
-    # -- the bridge ------------------------------------------------------
+
+    def arm_bridge(self, bypass_sto=False):
+        """Set MOE. Nothing switches before this and everything can after.
+
+        **This is arming a power stage.** Until it is called the six outputs
+        sit at their idle level with both FETs of every leg held off in
+        hardware, whatever the compare registers say. It arms at zero duty,
+        which puts all three low sides on continuously - a braked bridge,
+        not a floating one.
+
+        The dead time is TIM1's and is the only protection there is: the
+        2EDL8034's inputs are independent and it has no interlock, so HI and
+        LI both high is a shunt across the DC link. Verified in the silicon
+        rather than in the `.ioc` - BDTR DTG 19 with CR1 CKD 00 at 237.5 MHz
+        is **80.0 ns**, against about 65 ns for the gate to fall below the
+        2.8 V threshold through 4.99 + 2.2 ohms and 5.48 nF plus the
+        driver's 6 ns worst-case delay matching. `bridge_check()` re-reads
+        it and refuses if it ever comes back zero.
+
+        `bypass_sto` disconnects the Safe Torque Off break input, without
+        which a latched break outranks this and the board says so. On the
+        bench board the STO chain also gates the drivers' supply *inverted*,
+        so they have power while AFE_ON is off - see FINDINGS.
+        """
+        self.bridge_check()
+        if bypass_sto:
+            self.board.bridge.bypass_break(True)
+        self.board.bridge.enable()
+        return self.board.bridge.state()
+
+    def disarm_bridge(self, keep_bypass=False):
+        """Clear MOE, and put the break input back unless told otherwise."""
+        self.board.bridge.disable()
+        if not keep_bypass:
+            self.board.bridge.bypass_break(False)
+        return self.board.bridge.state()
+
+    def bridge_armed(self):
+        """Whether MOE is set, read off the board rather than remembered."""
+        return bool(self.board.bridge.state()['pwm_enabled'])
+
+    def bridge_check(self):
+        """Refuse to arm a bridge with no dead time.
+
+        The one thing between the two FETs of a leg. Read every time rather
+        than trusted once: a `.ioc` regeneration, a CubeMX mode name bound
+        to the wrong channel - which has happened twice here - or a stray
+        BDTR write all land in the same place, and none of them announce
+        themselves.
+        """
+        state = self.board.bridge.state()
+        if not state['deadtime']:
+            raise RigError(
+                'TIM1 BDTR DTG reads 0, so there is no dead time and the '
+                '2EDL8034 has no interlock of its own - both FETs of a leg '
+                'would conduct together. Check TIM1.DeadTime in the .ioc '
+                'and that the generated MX_TIM1_Init still applies it')
+        return state
 
     def configure_pwm(self, duty=0.0, bypass_sto=False):
         """Run the bridge at one duty on all three phases.
@@ -208,10 +265,7 @@ class Coaxial63100:
         hold: 25 % duty tripped the hot-swap's over-current and took the
         board down. FINDINGS has what is ruled out. A reset restores it.
         """
-        if bypass_sto:
-            self.board.bridge.bypass_break(True)
-
-        self.board.bridge.enable()
+        self.arm_bridge(bypass_sto=bypass_sto)
         period = self.board.bridge.state()['period'] - 1
         ticks = int(max(0.0, min(1.0, duty)) * period)
         self.board.bridge.duty((ticks, ticks, ticks))
@@ -219,8 +273,7 @@ class Coaxial63100:
 
     def stop_pwm(self):
         """Gates down, and the break input back where it was."""
-        self.board.bridge.disable()
-        self.board.bridge.bypass_break(False)
+        self.disarm_bridge()
 
     # -- reading ---------------------------------------------------------
 
@@ -263,7 +316,7 @@ class Coaxial63100:
         with `daq_write`."""
         return self.read()
 
-    def daq_write(self, digital=None, analog=None, bypass_sto=False):
+    def daq_write(self, digital=None, analog=None):
         """Put levels out: named pins, and duties on the bridge legs.
 
         digital  {'AFE_ON': True, 'UART5_TERM': False}. Names come from the
@@ -272,9 +325,10 @@ class Coaxial63100:
                  mode - this turns it on and off around the write.
 
         analog   {'Phase U': 0.25, ...}, 0.0 to 1.0. There is no DAC here,
-                 so this is a PWM duty. **Writing one arms the bridge**,
-                 and on the bench board that has twice tripped the
-                 hot-swap's over-current - see `configure_pwm`.
+                 so this is a PWM duty. It is **refused unless the bridge is
+                 armed**: arming a power stage should be something a caller
+                 asked for by name, not the side effect of writing a level.
+                 `arm_bridge()` is that name.
 
         Returns what it did, so a caller can check rather than assume.
         """
@@ -282,7 +336,7 @@ class Coaxial63100:
         for name, level in (digital or {}).items():
             done[name] = self._write_pin(name, bool(level))
         if analog:
-            done.update(self._write_duty(analog, bypass_sto))
+            done.update(self._write_duty(analog))
         return done
 
     def _write_pin(self, name, level):
@@ -310,7 +364,7 @@ class Coaxial63100:
             self.board.gpio.test_mode(False)
         return level
 
-    def _write_duty(self, analog, bypass_sto):
+    def _write_duty(self, analog):
         """Duties on the three legs, as one all-or-none update."""
         legs = ('Phase U', 'Phase V', 'Phase W')
         unknown = [n for n in analog if n not in legs]
@@ -319,10 +373,15 @@ class Coaxial63100:
                            'its only analog outputs are %s'
                            % (', '.join(unknown), ', '.join(legs)))
 
-        if bypass_sto:
-            self.board.bridge.bypass_break(True)
-        if not self.board.bridge.state()['pwm_enabled']:
-            self.board.bridge.enable()
+        if not self.bridge_armed():
+            raise RigError(
+                'the bridge is not armed, and writing a duty is not what '
+                'arms it - call arm_bridge() first, which says what that '
+                'means. %s'
+                % ('The break is latched, so arm_bridge(bypass_sto=True) '
+                   'is what gets past it'
+                   if self.board.bridge.state()['fault']
+                   else 'Nothing is holding it off'))
 
         period = self.board.bridge.state()['period'] - 1
         held = self.board.bridge.state()['duty']

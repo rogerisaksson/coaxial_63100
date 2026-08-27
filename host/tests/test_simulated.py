@@ -1009,6 +1009,63 @@ def test_link_bench(report):
                  'no wire to be slow' in drawn, drawn.splitlines()[-1][:60])
 
 
+def test_bridge_arming(report):
+    """Arming a power stage is asked for by name, or it does not happen.
+
+    The 2EDL8034's inputs are independent and it has no interlock, so TIM1's
+    dead time is the only thing between the two FETs of a leg. Everything
+    here is about making that impossible to skip by accident; the dead time
+    itself is checked against the silicon, not against a stand-in.
+    """
+    from coaxial import Coaxial63100
+    from coaxial.errors import RigError
+
+    rig = Coaxial63100(simulated_device=True).open()
+    try:
+        report.check('nothing is armed on the way in',
+                     rig.bridge_armed() is False, rig.bridge_armed())
+
+        try:
+            rig.daq_write(analog={'Phase U': 0.25})
+            refused = None
+        except RigError as exc:
+            refused = str(exc)
+        report.check('a duty write is refused while the bridge is not armed '
+                     '- writing a level must not be what arms a power stage',
+                     refused is not None, refused)
+        report.check('and the refusal names the call that would arm it, '
+                     'rather than leaving the caller to guess',
+                     refused and 'arm_bridge' in refused, refused)
+
+        rig.arm_bridge(bypass_sto=True)
+        report.check('after arm_bridge, MOE is set', rig.bridge_armed(), True)
+        report.check('and the same write goes through',
+                     rig.daq_write(analog={'Phase U': 0.25})['Phase U'] > 0,
+                     rig.board.bridge.state()['duty'])
+
+        rig.disarm_bridge()
+        report.check('disarm_bridge clears it again',
+                     rig.bridge_armed() is False, rig.bridge_armed())
+
+        # The check reads BDTR every time rather than trusting one reading:
+        # a .ioc regeneration and a CubeMX mode name bound to the wrong
+        # channel have both moved TIM1 in this repository without saying so.
+        state = dict(rig.board.bridge.state(), deadtime=0)
+        rig.board.bridge.state = lambda: state
+        try:
+            rig.arm_bridge()
+            stopped = None
+        except RigError as exc:
+            stopped = str(exc)
+        report.check('a bridge reporting no dead time will not arm',
+                     stopped is not None, stopped)
+        report.check('and the refusal says what to look at',
+                     stopped and 'DTG' in stopped and '.ioc' in stopped,
+                     stopped)
+    finally:
+        rig.close()
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
@@ -1016,7 +1073,8 @@ def main():
                  test_channel_table, test_imu, test_subsystems,
                  test_orientation, test_scaling, test_desk,
                  test_tumble, test_peak_hold, test_ascii3d,
-                 test_clock_reference, test_link_bench):
+                 test_clock_reference, test_link_bench,
+                 test_bridge_arming):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

@@ -798,3 +798,51 @@ Untried, and the next thing: a full board power cycle. AFE_ON gates the
 part's supply through the board, and a rail that never fully collapses
 leaves a part that never fully restarts - which is the shape of every other
 BNO08X finding here.
+
+## The bridge switches 0 to 100 % with the drivers powered, and nothing trips
+
+Measured 2026-08-27, AFE_ON **off** so the bench board's inverted gate gives
+the drivers supply, break bypassed, all three legs at the same duty - so
+there is no voltage between phases and no phase current, only gate charge
+and whatever the legs draw from the DC link.
+
+| duty | 1 | 2 | 5 | 10 | 25 | 50 | 60 | 75 | 90 | 98 | 100 % |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| link | up | up | up | up | up | up | up | up | up | up | up |
+
+Zero overruns throughout, and five seconds held at 50 % with the link up.
+
+**25 % used to take the board down.** The supply is the difference: raised
+to 200 mA at 24 V, as the user said at the time. It closes *the bridge trips
+were the bench supply's limit* - they were, and the limit moved.
+
+Nothing here was measured with an instrument, and nothing here is a phase
+current: with all three legs in phase the motor sees zero volts. What it
+proves is that the switching itself is clean at every duty, which is what
+had to be true before commutation is worth writing.
+
+### The dead time, checked three ways before any of it
+
+The 2EDL8034 has **no interlock** - the datasheet is explicit that the
+inputs are independent - so TIM1's dead time is the only thing between the
+two FETs of a leg.
+
+| | |
+|---|---|
+| `.ioc` | `TIM1.DeadTime=19` |
+| board's own report | `bridge.state()['deadtime']` = 19, read from `TIM1->BDTR & TIM_BDTR_DTG` |
+| **silicon, over SWD** | `BDTR = 0x02001C13` -> DTG **19**; `CR1 = 0xB1` -> CKD **00**, so t_DTS = t_CK_INT |
+
+PSC 0 and ARR 2375 at 237.5 MHz, so **19 x 4.2105 ns = 80.0 ns**. The same
+read confirmed CCER 0x555 - all six outputs enabled, no inverted polarity -
+BKE 1, BKP 0, AOE 0 and MOE 0 at rest.
+
+Against that, what the gate needs: 15.5 V down through 4.99 + 2.2 ohms into
+5.48 nF to the 2.8 V threshold is 1.71 time constants of 39.4 ns, about
+67 ns; the incoming device reaches its own threshold 8 ns after its edge;
+the driver's worst-case delay matching is 6 ns. **About 65 ns needed, 80 ns
+present** - and the user's own LTspice half-bridge runs at `tdead=30n`.
+
+`rig.bridge_check()` re-reads DTG on every arm and refuses at zero, because
+a `.ioc` regeneration and a CubeMX mode name bound to the wrong channel have
+both silently moved TIM1 in this repository before.

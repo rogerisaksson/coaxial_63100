@@ -21,14 +21,24 @@ which is the context for every noise figure in these documents.
 
 ## Scope: instrumentation, not yet a motor controller
 
-**TIM1 is configured; nothing arms it.** The `.ioc` enables sixteen IPs -
+**TIM1 is armed on request, and there is still no commutation.** The `.ioc`
+enables sixteen IPs -
 ADC1/2/3, SPI2, SPI4, USART2, USART3, UART5, **TIM1**, CORTEX_M7, RCC, SYS,
 DEBUG, MEMORYMAP, NVIC and VREFBUF. TIM1 is centre-aligned at **50 kHz**
 (ARR 2375 off 237.5 MHz), dead time **DTG 19 = 80.0 ns**, break on PE15
 active low, AOE off so nothing re-arms itself. `Board_PwmInit()` starts the
 counter with MOE clear and CCxE set, which drives all six outputs to their
-idle level: both FETs of every leg held off in hardware. Nothing sets MOE,
-and there is no commutation and no current loop.
+idle level: both FETs of every leg held off in hardware. `rig.arm_bridge()`
+is the only thing that sets MOE, and a duty write is refused until it has
+been called - arming a power stage should be asked for by name, not fall out
+of writing a level. It re-reads BDTR DTG first and refuses a bridge with no
+dead time, which matters because the 2EDL8034 has no interlock of its own.
+
+Measured 2026-08-27 with the drivers powered: every duty from 1 % to 100 %,
+no supply trip, no overruns. All three legs at the same duty, so no volts
+between phases and no phase current. **There is still no commutation and no
+current loop** - what exists is a bridge that can be switched and measured,
+not one that can turn a motor.
 
 The gate drivers and the FETs are fitted (2EDL8034 x3, IAUCN10S7N021 -
 `electronics/`) and **their supply is not the MCU's to switch** - the Safe
