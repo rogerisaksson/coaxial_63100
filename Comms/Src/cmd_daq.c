@@ -109,11 +109,22 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
 
     Board_DaqState(&st);
 
+    /* The link's ceiling is on RECORDS, and a record is decimate x
+       accumulate triggers. Gating the triggers at the record rate would
+       have sampled sixteen times slower with accumulate at 16 instead of
+       averaging sixteen samples - the same output rate, and every sample
+       but one thrown away. Reduce on the target, do not slow it down. */
     const uint32_t rps = link_records_per_second(st.stride);
+    const uint32_t per_record = (uint32_t)cfg.decimate *
+                                (uint32_t)cfg.accumulate;
 
-    if (rps != 0U)
+    if ((rps != 0U) && (per_record != 0U) && (rps < (1000000U / per_record)))
     {
-      Board_DaqSetInterval(1000000U / rps);
+      Board_DaqSetInterval(1000000U / (rps * per_record));
+    }
+    else
+    {
+      Board_DaqSetInterval(0U);    /* faster than the loop can go anyway */
     }
   }
 

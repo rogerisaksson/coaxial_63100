@@ -245,6 +245,24 @@ substitutes it when a free-running task asks for no rate. Running free it
 delivered 88 rec/s against the 105 predicted, with zero drops - conservative
 in the right direction.
 
+**The ceiling is on records, and a record is `decimate` x `accumulate`
+triggers.** Gating the triggers at the record rate would have sampled
+sixteen times slower at `accumulate` 16 instead of averaging sixteen
+samples: the same output rate with every sample but one thrown away. Fixed,
+and then measured with zero drops throughout:
+
+| task | accumulate | rec/s | samples/s |
+|---|---|---|---|
+| 1 channel | 1 / 16 / 64 | 376 / 294 / 182 | 376 / **4701** / **11614** |
+| 7 channels | 1 / 16 / 64 | 96 / 89 / 29.5 | 96 / **1422** / 1886 |
+| 7 + digital | 1 / 16 / 64 | 93.5 / 79.4 / 28.9 | 93.5 / 1271 / 1850 |
+
+Sixteen-fold averaging costs **7 %** of the output rate on seven channels.
+Where samples/s stops climbing is the board's own limit rather than the
+link's: about **11.6 kHz on one channel, 13.2 k conversions/s in total**.
+That is the converter and the main loop, and it leaves the H753 room to
+spend on precision instead of bandwidth.
+
 ## The keepalive, after pumping every busy-wait
 
 `Board_StoKeepalive` is now rate limited to one edge per 5 us - 200 kHz of

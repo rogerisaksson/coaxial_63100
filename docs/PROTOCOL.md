@@ -71,6 +71,21 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
 
   A third of the line rate is measured, not derived - 3.8 kB/s of payload against 11.52 kB/s raw, the rest being the request, the turnaround and the host's latency, none of which the board can compute. Running free at the board's own rate delivered 88 rec/s with **zero drops**, so the guess sits just under the ceiling. A finite run is left alone: it stops on its own, and a short burst at full speed is the point of one.
 
+  **The ceiling is on records, and a record is `decimate` x `accumulate` triggers**, so the substituted interval gates the triggers at that multiple. Gating them at the record rate instead would have sampled sixteen times slower at `accumulate` 16 rather than averaging sixteen samples - the same output, every sample but one thrown away. Reduce on the target; do not slow it down.
+
+  Measured, zero drops throughout:
+
+  | task | accumulate | rec/s | samples/s |
+  |---|---|---|---|
+  | 1 channel | 1 | 376 | 376 |
+  | 1 channel | 16 | 294 | 4701 |
+  | 1 channel | 64 | 182 | 11614 |
+  | 7 channels | 1 | 96 | 96 |
+  | 7 channels | 16 | 89 | 1422 |
+  | 7 channels | 64 | 29.5 | 1886 |
+
+  Sixteen-fold averaging costs 7 % of the output rate on seven channels. Where samples/s stops climbing is the board's own limit and not the link's: about **11.6 kHz on one channel and 13.2 k conversions/s in total**, which is the converter and the main loop.
+
   **Reads are already whole frames.** One `read` fills a Modbus PDU, so blocking bigger buys nothing - the payload ceiling is about 3.8 kB/s whatever the record size, and records per second just scale inversely with stride. Past that the only thing that helps is producing fewer records, which is what `accumulate` and `decimate` do on the target before a byte is sent. Measured: seven channels and the digital word drop 3851 records at `accumulate` 1, and none at all at 16.
 
   **Op 4** replies `u8 got` then that many records of `u32 at` plus one `i32` per enabled channel, big-endian like everything else on this wire. Whole records only: half of one is not a short read, it is a corrupt one.
