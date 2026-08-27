@@ -46,7 +46,7 @@
    trim per channel, so its length moved. A stored version 1 is rejected by
    the check below and the defaults are used, which is the right answer -
    trims measured against seven channels do not index nine. */
-#define CAL_VERSION 2U
+#define CAL_VERSION 3U
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes. sizeof(board_cal_t) is 104 today. */
@@ -71,6 +71,10 @@ static const board_cal_t CAL_DEFAULTS =
   .amp_gain_ppm     = 4545455UL,      /* THS4551, Rf 1.5k / Rg 330         */
   .bus_r_top_ohm    = 49900UL,        /* R12                               */
   .bus_r_bottom_ohm = 2200UL,         /* R11                               */
+  .r5_r_top_ohm     = 10000UL,        /* R113 element 2, +5 to PA4         */
+  .r5_r_bottom_ohm  = 10000UL,        /* R113 element 1, PA4 to GND        */
+  .vg_r_top_ohm     = 57000UL,        /* R119 47k + R113 element 3 10k     */
+  .vg_r_bottom_ohm  = 10000UL,        /* R113 element 4, PA5 to GND        */
   .ntc_r25_ohm      = 10000UL,        /* NCU18XH103D60RB                   */
   .ntc_beta_mk      = 3380000UL,      /* B25/50 = 3380 K, in milli-kelvin  */
   .ntc_rfixed_ohm   = 10000UL,        /* R100, ERA-3AEB103V 0.1 %          */
@@ -205,6 +209,10 @@ static uint32_t *cal_field(uint8_t id)
     case BOARD_CAL_NTC_BETA_MK:  return &s_cal.ntc_beta_mk;
     case BOARD_CAL_NTC_RFIXED:   return &s_cal.ntc_rfixed_ohm;
     case BOARD_CAL_NTC_T25_CK:   return &s_cal.ntc_t25_ck;
+    case BOARD_CAL_R5_R_TOP:     return &s_cal.r5_r_top_ohm;
+    case BOARD_CAL_R5_R_BOTTOM:  return &s_cal.r5_r_bottom_ohm;
+    case BOARD_CAL_VG_R_TOP:     return &s_cal.vg_r_top_ohm;
+    case BOARD_CAL_VG_R_BOTTOM:  return &s_cal.vg_r_bottom_ohm;
     default:                     return NULL;
   }
 }

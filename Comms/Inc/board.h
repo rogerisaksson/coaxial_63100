@@ -522,7 +522,14 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc);
 #define BOARD_CAL_NTC_BETA_MK  6U  /**< B constant, milli-kelvin            */
 #define BOARD_CAL_NTC_RFIXED   7U  /**< divider partner, ohms               */
 #define BOARD_CAL_NTC_T25_CK   8U  /**< reference temperature, centikelvin  */
-#define BOARD_CAL_PARAM_COUNT  9U
+/* The two supply senses. Their own dividers, because a divider is the
+   channel's and not a unit's - R113 gives the +5 rail 10k/10k and the
+   gate supply 47k+10k over 10k. */
+#define BOARD_CAL_R5_R_TOP     9U  /**< +5 sense divider top, ohms          */
+#define BOARD_CAL_R5_R_BOTTOM 10U  /**< +5 sense divider bottom, ohms       */
+#define BOARD_CAL_VG_R_TOP    11U  /**< gate supply divider top, ohms       */
+#define BOARD_CAL_VG_R_BOTTOM 12U  /**< gate supply divider bottom, ohms    */
+#define BOARD_CAL_PARAM_COUNT 13U
 
 /** One channel's correction, applied to the raw code before any scaling. */
 typedef struct
@@ -546,6 +553,10 @@ typedef struct
   uint32_t amp_gain_ppm;
   uint32_t bus_r_top_ohm;
   uint32_t bus_r_bottom_ohm;
+  uint32_t r5_r_top_ohm;
+  uint32_t r5_r_bottom_ohm;
+  uint32_t vg_r_top_ohm;
+  uint32_t vg_r_bottom_ohm;
   uint32_t ntc_r25_ohm;
   uint32_t ntc_beta_mk;
   uint32_t ntc_rfixed_ohm;

@@ -77,7 +77,8 @@ def scale(rows):
     for row in rows:
         unit, raw = row.get('unit'), row['mean_raw']
 
-        convert = scaling.converter(unit, row['differential'])
+        convert = scaling.converter(unit, row['differential'],
+                                    signal=row.get('signal'))
 
         # The inset codes are the thermistor's alone. Every other conversion
         # here is linear in the code and has a finite value at both rails, so

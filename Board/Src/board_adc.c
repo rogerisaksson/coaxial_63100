@@ -238,7 +238,12 @@ typedef enum
   ADC_UNIT_NONE = 0,   /* leave the scaled/unit columns empty */
   ADC_UNIT_DCBUS,      /* volts at the DC bus, via the external divider */
   ADC_UNIT_NTC,        /* degrees C, via the R25/B thermistor conversion */
-  ADC_UNIT_PHASE       /* amperes, via the shunt and the amplifier gain */
+  ADC_UNIT_PHASE,      /* amperes, via the shunt and the amplifier gain */
+  /* Two more voltages, and two more dividers. They report millivolts
+     like the DC link does, and they are separate units because the
+     divider belongs to the channel and not to the unit. */
+  ADC_UNIT_RAIL5,      /* the +5 rail, through R113's 10k/10k        */
+  ADC_UNIT_VGATE       /* the gate driver supply, 47k+10k over 10k   */
 } AdcUnit;
 
 
@@ -278,8 +283,8 @@ static const AdcChannelDesc s_adcTable[] =
      the scaling behind it is in the calibration record, and these two
      dividers are not in it yet (invariant 7). A host reads them as volts
      at the pin, which is what they are. */
-  { &hadc1, "ADC1", ADC_CHANNEL_18, "IN18", "PA4",         ADC_SINGLE_ENDED,       "+5V",   ADC_UNIT_NONE  },
-  { &hadc1, "ADC1", ADC_CHANNEL_19, "IN19", "PA5",         ADC_SINGLE_ENDED,       "Vgate", ADC_UNIT_NONE  },
+  { &hadc1, "ADC1", ADC_CHANNEL_18, "IN18", "PA4",         ADC_SINGLE_ENDED,       "+5V",   ADC_UNIT_RAIL5   },
+  { &hadc1, "ADC1", ADC_CHANNEL_19, "IN19", "PA5",         ADC_SINGLE_ENDED,       "Vgate", ADC_UNIT_VGATE   },
 };
 
 uint8_t Board_AdcCount(void)
@@ -355,6 +360,8 @@ static uint8_t board_unit(AdcUnit u)
   if (u == ADC_UNIT_DCBUS) { return BOARD_UNIT_MILLIVOLT; }
   if (u == ADC_UNIT_NTC)   { return BOARD_UNIT_CENTIDEGC; }
   if (u == ADC_UNIT_PHASE) { return BOARD_UNIT_MILLIAMP; }
+  if (u == ADC_UNIT_RAIL5) { return BOARD_UNIT_MILLIVOLT; }
+  if (u == ADC_UNIT_VGATE) { return BOARD_UNIT_MILLIVOLT; }
   return BOARD_UNIT_NONE;
 }
 
@@ -410,6 +417,21 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
   if (d->unit == ADC_UNIT_PHASE)
   {
     *scaled = (int32_t)(PHASE_AmpsFromShunt(v) * 1000.0f);
+  }
+
+  if ((d->unit == ADC_UNIT_RAIL5) || (d->unit == ADC_UNIT_VGATE))
+  {
+    const board_cal_t *cal = Board_Cal();
+    const uint32_t top = (d->unit == ADC_UNIT_RAIL5)
+                       ? cal->r5_r_top_ohm : cal->vg_r_top_ohm;
+    const uint32_t bottom = (d->unit == ADC_UNIT_RAIL5)
+                          ? cal->r5_r_bottom_ohm : cal->vg_r_bottom_ohm;
+
+    if (bottom > 0UL)
+    {
+      *scaled = (int32_t)(v * (float)(top + bottom) / (float)bottom
+                          * 1000.0f);
+    }
   }
 
   return true;

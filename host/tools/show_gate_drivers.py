@@ -92,7 +92,7 @@ def analog_rows(live, layout, powered, refused, width):
     out = []
     for name in live['mean']:
         unit, differential = units.get(name, (None, False))
-        convert = scaling.converter(unit, differential)
+        convert = scaling.converter(unit, differential, signal=name)
         mean = convert(live['mean'][name])
         span = convert(live['highest'][name]) - convert(live['lowest'][name])
         out.append('  %-9s %+10.3f %-2s   p-p %8.3f   n %5d'

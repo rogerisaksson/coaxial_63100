@@ -151,18 +151,34 @@ PHASE_ONBOARD = ShuntParams(r_shunt=0.0035, vref=3.3,
 UNIT_SYMBOL = {'mA': 'A', 'mV': 'V', 'centi-degC': 'C', None: 'V'}
 
 
-def converter(unit, differential=False, vref=3.3):
+#: The two supply senses, off R113 and R119 on the MCU sheet. Named apart
+#: from the DC link because they are millivolts through a different divider
+#: - a unit says what a number is, not what scaled it.
+RAIL5_ONBOARD = DividerParams(r_top=10000.0, r_bottom=10000.0, vref=3.3,
+                              name='onboard R113 10k/10k')
+VGATE_ONBOARD = DividerParams(r_top=57000.0, r_bottom=10000.0, vref=3.3,
+                              name='onboard R119 47k + R113 10k over 10k')
+
+#: Which divider a millivolt channel is on, by the name the board gives it.
+#: Three channels report mV and no two share a divider.
+BY_SIGNAL = {'+5V': RAIL5_ONBOARD, 'Vgate': VGATE_ONBOARD}
+
+
+def converter(unit, differential=False, vref=3.3, signal=None):
     """The board's conversion for a channel, chosen by the unit it reports.
 
     Here rather than in a view because two of them need it now, and the
     second copy is always the one that goes stale (invariant 7). A channel
     with no unit of its own is read as volts at the pin, which is the only
     thing a bare code can honestly be called.
+
+    `signal` picks the divider where a unit cannot: the DC link, the +5 rail
+    and the gate supply all report millivolts through three different ones.
     """
     if unit == 'mA':
         return PHASE_ONBOARD.amps
     if unit == 'mV':
-        return DCBUS_ONBOARD.volts
+        return BY_SIGNAL.get(signal, DCBUS_ONBOARD).volts
     if unit == 'centi-degC':
         return NTC_ONBOARD.celsius
 

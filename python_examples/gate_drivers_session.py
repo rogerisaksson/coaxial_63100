@@ -65,7 +65,7 @@ for leg in ('U', 'V', 'W'):
           % (leg, high, low, '   BOTH ON' if high and low else ''))
 
 # %% [markdown]
-# ## Current and DC link, with ripple
+# ## Current, DC link and the two supply senses, with ripple
 # The live accumulator carries a count, a lowest and a highest per channel,
 # so ripple is measured rather than inferred from one sample.
 
@@ -73,9 +73,10 @@ for leg in ('U', 'V', 'W'):
 live = daq.latest()
 units = {f['signal']: (f['unit'], f['differential'])
          for f in daq.layout['fields']}
-for name in ('Phase U', 'Phase V', 'Phase W', 'DC bus'):
+for name in ('Phase U', 'Phase V', 'Phase W', 'DC bus', '+5V', 'Vgate'):
     unit, diff = units[name]
-    to = scaling.converter(unit, diff)
+    to = scaling.converter(unit, diff, signal=name)   # three mV channels,
+                                                     # three dividers
     print('%-8s %+9.3f %-2s  p-p %7.3f  over %d'
           % (name, to(live['mean'][name]), scaling.UNIT_SYMBOL.get(unit, ''),
              abs(to(live['highest'][name]) - to(live['lowest'][name])),

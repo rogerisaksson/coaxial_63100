@@ -209,7 +209,11 @@ class SimulatedLink:
 # against the stand-in exercises the same decode. Values invented like
 # everything else here - see the module docstring.
 UNITS = {'NTC': 'centi-degC', 'DC bus': 'mV',
-         'Phase U': 'mA', 'Phase V': 'mA', 'Phase W': 'mA'}
+         'Phase U': 'mA', 'Phase V': 'mA', 'Phase W': 'mA',
+         # Millivolts like the DC link, through their own dividers - which
+         # is why `scaling.converter` is given the signal and not just the
+         # unit. Three mV channels here and no two share a divider.
+         '+5V': 'mV', 'Vgate': 'mV'}
 
 # What the firmware answers for channels kind 3: one entry per command table.
 # Shaped like the board's, invented like everything else here - the counts
@@ -1047,12 +1051,16 @@ class SimulatedDaq:
     """
 
     #: Channel index -> (signal, unit, differential), the stand-in's table.
-    TABLE = {0: ('Phase U', 'mA', True), 1: ('Phase V', 'mA', True),
-             2: ('Phase W', 'mA', True), 3: ('Clevel', None, False),
-             4: ('NTC', 'centi-degC', False), 5: ('DC bus', 'mV', False),
-             6: ('Cinj', None, False)}
-    PHASES = (0, 1, 2)
-    CENTRE = {0: 1400, 1: -8030, 2: 360, 3: 1300, 4: 40500, 5: 20775, 6: 15200}
+    #: Built from CHANNELS rather than written out. It was written out, and
+    #: two supply senses added to the board's table left the stand-in's DAQ
+    #: refusing a channel its own analog side reported - the second answer
+    #: this module exists to not be.
+    TABLE = {c['index']: (c['signal'], UNITS.get(c['signal']),
+                          c['differential'])
+             for c in CHANNELS}
+    PHASES = tuple(c['index'] for c in CHANNELS if c['differential'])
+    CENTRE = {0: 1400, 1: -8030, 2: 360, 3: 1300, 4: 40500, 5: 20775,
+              6: 15200, 7: 50700, 8: 1030}
 
     def __init__(self):
         self._cfg = None
