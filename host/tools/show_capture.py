@@ -25,6 +25,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from coaxial import scaling                                # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
 from screen import TO_MENU, Keys, banner, clear, paint, say  # noqa: E402
@@ -51,19 +52,20 @@ class Rate:
         return sum(n for _, n in self.marks[1:]) / span if span > 0 else 0.0
 
 
-def start(board, args):
+def start(rig, args):
     """Arm both buffers, and say what the board accepted.
 
-    The analog task takes every channel the board reports rather than a list
-    written here, so this cannot fall behind the channel table.
+    Through `Coaxial63100`, which is the DAQ API's front door: it takes
+    every channel the board reports rather than a list written here, and
+    `read()` off the same object is what puts `samples` on a record.
     """
-    names = board.analog.names()
-    layout = board.daq.configure(names, clock=args.clock, digital=True,
-                                 sample_time=args.sample_time,
-                                 decimate=args.decimate,
-                                 accumulate=args.accumulate,
-                                 rate_hz=args.rate)
-    board.daq.start()
+    board = rig.board
+    layout = rig.configure_daq(clock=args.clock, digital=True,
+                               sample_time=args.sample_time,
+                               decimate=args.decimate,
+                               accumulate=args.accumulate,
+                               rate_hz=args.rate)
+    rig.start()
     say('ok', 'task', '%d channels + %d pins, stride %d, %s clock'
         % (len(layout['fields']), len(layout['pins']), layout['stride'],
            args.clock))
@@ -85,14 +87,32 @@ def start(board, args):
 
 
 def analog_rows(layout, record, width):
-    """One line per analog field, named and united by the board."""
+    """One line per analog field, named and united by the board.
+
+    Divided by `samples`, because a record's value is the SUM of that many
+    readings and not one. Shown raw it doubled the instant `adapt` raised
+    accumulation, and a number that moves when the buffering changes is not
+    a measurement.
+
+    The code and what it converts to, because the task buffers codes and
+    does not scale them - the unit in a layout says what the channel means,
+    not what the number is in. Printing the two together said 405
+    centi-degC for an NTC that `ntc_temperature()` read as 38.1 C off the
+    same code, and 20811 mV for a 24.81 V bus. `scaling.converter` is the
+    same one the meter bridge uses.
+    """
     out = []
+    samples = max(1, (record or {}).get('samples', 1))
     for field in layout['fields']:
         value = record.get(field['signal']) if record else None
-        out.append('  %-9s %12s  %s'
-                   % (field['signal'],
-                      '-' if value is None else '%+d' % value,
-                      field['unit'] or '')[:width])
+        if value is None:
+            out.append(('  %-9s %12s' % (field['signal'], '-'))[:width])
+            continue
+        code = value // samples
+        convert = scaling.converter(field['unit'], field['differential'])
+        out.append('  %-9s %+7d  %+9.2f %s'
+                   % (field['signal'], code, convert(code),
+                      scaling.UNIT_SYMBOL.get(field['unit'], ''))[:width])
     return out
 
 
@@ -143,17 +163,34 @@ def compose(origin, console, layout, view, width):
         left = analog[i] if i < len(analog) else ' ' * 36
         right = digital[i] if i < len(digital) else ''
         lines.append(('%-38s%s' % (left, right.strip() and right or ''))[:width])
-    lines += ['', ' RING  %s   buffered %d of %d   dropped %d'
+    lines += ['', ' RING  %s   buffered %d of %d   dropped %d   thinned %d%s'
               % (', '.join(ring['sources']) or 'nothing armed',
-                 ring['count'], ring['depth'], ring['dropped']),
+                 ring['count'], ring['depth'], ring['dropped'],
+                 ring.get('thinned', 0),
+                 '   missed %d' % view['missed'] if view['missed'] else ''),
               ' ' + '-' * max(10, width - 2)]
     lines += spi_rows(view['latest'], view['rates'], width)
     return lines
 
 
-def drain(board, layout, view):
-    """Take what both buffers hold, and keep the newest of each kind."""
-    batch = board.daq.read(layout=layout)
+def drain(rig, layout, view):
+    """Take what both buffers hold, and keep the newest of each kind.
+
+    A missed reply is counted, not raised. Measured on this VCP, about one
+    transaction in fifty goes unanswered when the board is busy, and a live
+    view that dies on one is a view that cannot be left running - which is
+    exactly how this one used to end, with a traceback over the frame.
+    """
+    board = rig.board
+    try:
+        return _drain(rig, board, layout, view)
+    except RigError:
+        view['missed'] += 1
+        return None
+
+
+def _drain(rig, board, layout, view):
+    batch = rig.read()
     view['daq_rate'].add(len(batch))
     if batch:
         view['record'] = batch[-1]
@@ -168,7 +205,7 @@ def drain(board, layout, view):
     view['ring'] = board.capture.state()
 
 
-def adapt(board, layout, args, view):
+def adapt(rig, layout, args, view):
     """Accumulate harder when the link cannot carry what the board produces.
 
     `dropped` is the board's own counter, so this closes the loop on the
@@ -201,13 +238,16 @@ def adapt(board, layout, args, view):
         return layout
 
     view['accumulate'] = want
-    board.daq.stop()
-    names = board.analog.names()
-    fresh = board.daq.configure(names, clock=args.clock, digital=True,
-                                sample_time=args.sample_time,
-                                decimate=args.decimate, accumulate=want,
-                                rate_hz=args.rate)
-    board.daq.start()
+    try:
+        rig.stop()
+        fresh = rig.configure_daq(clock=args.clock, digital=True,
+                                  sample_time=args.sample_time,
+                                  decimate=args.decimate, accumulate=want,
+                                  rate_hz=args.rate)
+        rig.start()
+    except RigError:
+        view['missed'] += 1
+        return layout
     view['quiet'] = 0
     return fresh
 
@@ -250,7 +290,7 @@ def main(argv=None):
     say('ok', 'AFE_ON', 'on for this run, and put back the way it was found')
 
     try:
-        layout = start(board, args)
+        layout = start(rig, args)
     except RigError as exc:
         say('fail', 'task', str(exc))
         rig.close()
@@ -260,7 +300,7 @@ def main(argv=None):
             'ring': board.capture.state(), 'daq_rate': Rate(),
             'rates': {'angle': Rate(), 'imu': Rate()},
             'accumulate': args.accumulate, 'asked': args.accumulate,
-            'dropped_was': 0, 'quiet': 0}
+            'dropped_was': 0, 'quiet': 0, 'missed': 0}
 
     console = sys.stdout.isatty()
     if console and os.name == 'nt':
@@ -271,8 +311,8 @@ def main(argv=None):
         with Keys(console) as keys:
             while True:
                 width = shutil_width()
-                drain(board, layout, view)
-                layout = adapt(board, layout, args, view)
+                drain(rig, layout, view)
+                layout = adapt(rig, layout, args, view)
                 lines = compose(origin, console, layout, view, width)
                 sys.stdout.write(paint(shown, lines, console))
                 sys.stdout.flush()

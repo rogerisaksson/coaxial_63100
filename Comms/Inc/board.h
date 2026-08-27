@@ -365,8 +365,13 @@ typedef struct
   int16_t  v[4];
 } board_sample_t;
 
-/** Arm the ring for a bitmask of sources, and empty it. Zero disables. */
-void Board_LogEnable(uint8_t sources);
+/** Arm the ring for a bitmask of sources, and empty it. Zero disables.
+  *
+  * `min_gap_cycles` is the least a source must leave between its own
+  * pushes, so a fast producer cannot fill the ring and lock a slow one out.
+  * Zero lets every source run free, which is what the angle loop did.
+  */
+void Board_LogEnable(uint8_t sources, uint32_t min_gap_cycles);
 uint8_t Board_LogSources(void);
 
 /** Called by the producers. Silently ignored for a source not armed. */
@@ -374,6 +379,9 @@ void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n);
 
 uint16_t Board_LogCount(void);
 uint32_t Board_LogDropped(void);
+
+/** Pushes refused by the rate limit, as opposed to lost to a full ring. */
+uint32_t Board_LogThinned(void);
 
 /** Copy out up to `max` oldest-first, and free their slots. */
 uint16_t Board_LogTake(board_sample_t *out, uint16_t max);

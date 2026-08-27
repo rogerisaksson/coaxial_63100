@@ -952,7 +952,12 @@ class SimulatedCapture:
         names = ('phases', 'angle', 'imu')
         return {'sources': [names[i] for i in range(3) if self._mask >> i & 1],
                 'mask': self._mask, 'count': len(self._pending),
-                'depth': self.DEPTH, 'dropped': self._dropped}
+                'depth': self.DEPTH, 'dropped': self._dropped,
+                # Nothing here is throttled - there is no link to be short
+                # of - but the field has to exist or a view written against
+                # the board would fail on the stand-in, which is the one
+                # thing test_parity is for.
+                'thinned': 0}
 
     def arm(self, sources):
         if isinstance(sources, int):
@@ -1245,6 +1250,11 @@ class SimulatedBoard:
     """A whole board without a board. Duck-typed against the real one, so
     the tools above cannot tell which they are holding - except that
     every touchpoint labels itself."""
+    #: What it answers when asked its bitrate. There is no wire, so this is
+    #: the rate it pretends to run at - enough for arithmetic about a link,
+    #: and it is `origin.interface` that says the link is not real.
+    baud = 115200
+
     def __init__(self, unit=1, bus=DEFAULT_BUS):
         self.unit = int(unit)
         self.bus = bus

@@ -142,3 +142,29 @@ DCBUS_ONBOARD = DividerParams(r_top=49900.0, r_bottom=2200.0, vref=3.3,
                               name='onboard 49.9k/2.2k')
 PHASE_ONBOARD = ShuntParams(r_shunt=0.0035, vref=3.3,
                             name='RU1||RU2 3.5 mohm, THS4551 1.5k/330')
+
+
+#: What a channel's reported unit converts to, and the symbol to print it
+#: with. The acquisition task buffers converter codes and does not scale
+#: them - the unit in a layout says what the channel means, not what the
+#: number is in - so anything showing a DAQ record has to do this.
+UNIT_SYMBOL = {'mA': 'A', 'mV': 'V', 'centi-degC': 'C', None: 'V'}
+
+
+def converter(unit, differential=False, vref=3.3):
+    """The board's conversion for a channel, chosen by the unit it reports.
+
+    Here rather than in a view because two of them need it now, and the
+    second copy is always the one that goes stale (invariant 7). A channel
+    with no unit of its own is read as volts at the pin, which is the only
+    thing a bare code can honestly be called.
+    """
+    if unit == 'mA':
+        return PHASE_ONBOARD.amps
+    if unit == 'mV':
+        return DCBUS_ONBOARD.volts
+    if unit == 'centi-degC':
+        return NTC_ONBOARD.celsius
+
+    full = 32768.0 if differential else 65536.0
+    return lambda code: code / full * vref

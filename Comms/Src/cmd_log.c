@@ -29,6 +29,11 @@ static cmd_status_t h_log_state(wr_t *out)
   wr_u16(out, Board_LogCount());
   wr_u16(out, (uint16_t)BOARD_LOG_DEPTH);
   wr_u32(out, Board_LogDropped());
+  /* Appended, so an older host reads everything before it unchanged.
+     Separate from `dropped` because they mean opposite things: dropped is
+     a sample the ring had no room for, thinned is one it declined to take
+     because the link could not have carried it anyway. */
+  wr_u32(out, Board_LogThinned());
   return CMD_OK;
 }
 
@@ -47,7 +52,21 @@ static cmd_status_t h_log_arm(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  Board_LogEnable(sources);
+  /* Each armed source gets an equal share of what the link can drain. The
+     IMU reports at 50 Hz and never reaches its share; the angle loop polls
+     at about 24 kHz and is held to it, which is the whole fix - measured,
+     the IMU went from 1 record a second to its full rate. */
+  uint8_t armed = 0U;
+  for (uint8_t i = 0U; i < BOARD_LOG_SOURCES; i++)
+  {
+    armed = (uint8_t)(armed + (((sources >> i) & 1U) ? 1U : 0U));
+  }
+
+  const uint32_t share = (armed != 0U)
+                       ? (cmd_link_records_per_second(LOG_RECORD_BYTES) / armed)
+                       : 0U;
+
+  Board_LogEnable(sources, (share != 0U) ? (Board_SysClkHz() / share) : 0U);
   wr_u8(out, 1U);
   return CMD_OK;
 }

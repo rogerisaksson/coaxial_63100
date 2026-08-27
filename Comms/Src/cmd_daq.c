@@ -21,32 +21,6 @@
 #define DAQ_REPLY_ROOM 240U
 
 
-/** What the link can carry, in records per second, at this stride.
-  *
-  * Both terms move: the stride is 4 bytes plus 4 per enabled channel plus 4
-  * for the digital word, and the baud is whichever port is answering - the
-  * debug probe's VCP and a 10 Mbit RS485 segment are the same code and very
-  * different answers.
-  *
-  * A third of the line rate is measured, not derived. At 115200 the payload
-  * came back at about 3.8 kB/s against 11.52 kB/s of raw line rate, and the
-  * missing two thirds are the request, the turnaround and the host's own
-  * latency - none of which this board can compute.
-  */
-#define DAQ_LINK_SHARE_PCT 33U
-
-static uint32_t link_records_per_second(uint16_t stride)
-{
-  const uint32_t baud = dev_uart_baud();
-
-  if ((stride == 0U) || (baud == 0U))
-  {
-    return 0U;
-  }
-  return ((baud / 10U) * DAQ_LINK_SHARE_PCT / 100U) / stride;
-}
-
-
 static cmd_status_t h_daq_state(wr_t *out)
 {
   board_daq_state_t st;
@@ -68,7 +42,7 @@ static cmd_status_t h_daq_state(wr_t *out)
   wr_u32(out, st.config.records);
   wr_u8(out, st.config.digital);
   wr_u32(out, st.config.interval_us);
-  wr_u32(out, link_records_per_second(st.stride));
+  wr_u32(out, cmd_link_records_per_second(st.stride));
   return CMD_OK;
 }
 
@@ -117,7 +91,7 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
        have sampled sixteen times slower with accumulate at 16 instead of
        averaging sixteen samples - the same output rate, and every sample
        but one thrown away. Reduce on the target, do not slow it down. */
-    const uint32_t rps = link_records_per_second(st.stride);
+    const uint32_t rps = cmd_link_records_per_second(st.stride);
     const uint32_t per_record = (uint32_t)cfg.decimate *
                                 (uint32_t)cfg.accumulate;
 

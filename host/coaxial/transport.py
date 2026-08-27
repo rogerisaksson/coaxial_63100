@@ -27,12 +27,34 @@ class Transport:
     bitrate gets its own, because one UART cannot run two bitrates at once.
     """
 
-    INTERFRAME_GAP = 0.005
-    """Silence before transmitting. The specification's minimum at 115200 is
-    1.75 ms; this is generous because the host has no realtime guarantees."""
+    @property
+    def interframe_gap(self):
+        """Silence before transmitting, from the bitrate rather than a guess.
 
-    QUIET_TIME = 0.02
-    """Gap that ends an inbound frame."""
+        Modbus RTU: 3.5 character times, which the specification fixes at
+        1.75 ms above 19200 baud. It was a flat 5 ms - three times the
+        specification at 115200, and paid before every request.
+        """
+        return 0.00175 if self.baud > 19200 else 3.5 * 11.0 / self.baud
+
+    QUIET_TIME = 0.008
+    """Gap that ends an inbound frame.
+
+    Measured on the debug probe's VCP at 115200, reading greedily with
+    `in_waiting`: the largest gap inside a frame was **3.40 ms**, across
+    both a 20-byte reply arriving whole in one chunk and a 215-byte one
+    arriving in 175. This is twice that. It was 20 ms, six times the margin
+    the link needs, and since it is paid at the end of every single
+    transaction it was most of the round trip - 46.6 ms became 12.9 ms with
+    this and the gap below.
+
+    It cannot go much lower without knowing the reply's length, and the
+    board does not send one: nothing in the frame says where it ends, so a
+    reader that stops early would hand back a truncated payload that still
+    decoded. Stopping on a valid CRC was measured against and rejected - a
+    prefix of a 20-byte frame passes the check about once in 4096, which is
+    a wrong reading every few minutes rather than an error.
+    """
 
     DEFAULT_TIMEOUT = 0.5
 
@@ -46,7 +68,7 @@ class Transport:
         self.baud = baud
         try:
             self.serial = serial.Serial(port, baud, bytesize=8, parity='N',
-                                        stopbits=1, timeout=self.DEFAULT_TIMEOUT)
+                                        stopbits=1, timeout=self.QUIET_TIME)
         except (serial.SerialException, ValueError, OSError) as exc:
             raise ConnectError('cannot open %s at %d baud: %s'
                                % (port, baud, exc)) from exc
@@ -71,15 +93,6 @@ class Transport:
         except (serial.SerialException, OSError) as exc:
             raise ConnectError('%s@%d failed while %s: %s'
                                % (self.port, self.baud, doing, exc)) from exc
-
-    def _set_timeout(self, seconds, quietly=False):
-        """Timeouts are reconfigured per transaction, and on a dead port even
-        that fails; restoring the old value must not replace the real error."""
-        try:
-            self.serial.timeout = seconds
-        except (serial.SerialException, OSError):
-            if not quietly:
-                raise
 
     @property
     def is_open(self):
@@ -124,7 +137,7 @@ class Transport:
     def transmit(self, unit, function, payload=b''):
         frame = bytes([unit, function]) + payload
         frame += struct.pack('<H', crc16(frame))    # low byte first, unlike every
-        time.sleep(self.INTERFRAME_GAP)             # other field in the frame
+        time.sleep(self.interframe_gap)             # other field in the frame
         with self._link_errors('transmitting'):
             self.serial.reset_input_buffer()
             self.serial.write(frame)
@@ -132,15 +145,38 @@ class Transport:
 
     def receive(self, exact_payload=None, timeout=None):
         budget = self.DEFAULT_TIMEOUT if timeout is None else timeout
-        previous = self.serial.timeout
         with self._link_errors('reading a reply'):
-            try:
-                if exact_payload is not None:
-                    self._set_timeout(budget)
-                    return self.serial.read(4 + exact_payload)
-                return self._read_until_quiet(budget)
-            finally:
-                self._set_timeout(previous, quietly=True)
+            if exact_payload is not None:
+                return self._read_exactly(4 + exact_payload, budget)
+            return self._read_until_quiet(budget)
+
+    def _first_byte(self, budget):
+        """Wait up to `budget` for a reply to start, in QUIET_TIME slices.
+
+        The port's own timeout is never moved. Measured on this VCP,
+        assigning `serial.timeout` costs 3.25 ms whatever it is assigned -
+        pyserial reconfigures the port, which is a control transfer - and
+        the old code paid it three times a transaction. That was 9.75 ms of
+        a 46.6 ms round trip, and none of it was the link.
+        """
+        deadline = time.monotonic() + budget
+        while True:
+            byte = self.serial.read(1)
+            if byte or time.monotonic() >= deadline:
+                return byte
+
+    def _read_exactly(self, want, budget):
+        """`want` bytes, or whatever arrived before the budget ran out."""
+        buffer = self._first_byte(budget)
+        if not buffer:
+            return buffer
+        deadline = time.monotonic() + budget
+        while len(buffer) < want and time.monotonic() < deadline:
+            chunk = self.serial.read(want - len(buffer))
+            if not chunk:
+                break
+            buffer += chunk
+        return buffer
 
     def _read_until_quiet(self, budget):
         """Wait the budget for the first byte, then read until a gap.
@@ -148,22 +184,23 @@ class Transport:
         The two waits differ on purpose. A reply may legitimately be seconds
         late, because a burst blocks the slave for as long as it samples; but
         once the first byte has arrived the rest follow at line rate, so the
-        frame ends after QUIET_TIME of silence. Leaving the port's timeout at
-        the whole budget would make every transaction cost the budget, since a
-        one-byte read blocks for the port's timeout and the gap would never be
-        what ends the frame.
+        frame ends after QUIET_TIME of silence.
+
+        Whatever is already buffered is taken in one read. A byte at a time
+        was measured at 17.8 ms for a 20-byte reply that arrives whole in
+        3.3 ms: the cost was one driver round trip per byte, not the link.
         """
-        self._set_timeout(budget)
-        buffer = self.serial.read(1)
+        buffer = self._first_byte(budget)
         if not buffer:
             return buffer
 
-        self._set_timeout(self.QUIET_TIME)
         while len(buffer) < self.MAX_FRAME:
-            byte = self.serial.read(1)
-            if not byte:
+            waiting = self.serial.in_waiting
+            chunk = self.serial.read(min(waiting, self.MAX_FRAME - len(buffer))
+                                     if waiting else 1)
+            if not chunk:
                 break
-            buffer += byte
+            buffer += chunk
         return buffer
 
     # -- one transaction ---------------------------------------------------

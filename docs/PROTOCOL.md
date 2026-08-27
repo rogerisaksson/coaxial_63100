@@ -44,6 +44,8 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
   start twice       -> already running - stop it first, or leave it be
   ```
 
+* **Device 5, op 0** reports `u8 sources, u16 count, u16 depth, u32 dropped, u32 thinned`. `thinned` is appended (MINOR 21) and is not `dropped`: dropped is a sample the ring had no room for, thinned is one the board declined because that source had already used its share of what the link can drain. Each armed source gets `cmd_link_records_per_second(14) / armed`, held as a minimum gap in raw CYCCNT. Without it the angle loop's 24 kHz filled a 1024-deep drop-newest ring in 43 ms and the IMU's 50 Hz never got in - measured, 1 record a second against angle's 198.
+
 * **`0x6E` Device:** Every peripheral, chosen by a leading device byte, then an op byte: `0x6E <device> <op> [payload]`. One function code for all of them because there are none left - the user-defined ranges are 65..72 and 100..110, and this board had spent all but 110. A second code answered ILLEGAL FUNCTION from the protocol layer before dispatch saw it. Adding a device is a row in `cmd_device.c` and an op dispatcher beside it.
 
   | Device | Part | Bus | Ops |

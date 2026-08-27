@@ -951,6 +951,64 @@ def test_clock_reference(report):
                  flat.floor_ppm > 0, flat.floor_ppm)
 
 
+def test_link_bench(report):
+    """What a transaction costs against what its bitrate allows.
+
+    The arithmetic is checked here and the measurement is not: a threshold
+    on how fast this bench's USB happens to be would be an expected value
+    about hardware, which this repository does not keep (invariant 10). So
+    every number below is one a reader can do by hand.
+    """
+    from coaxial import bench
+
+    # 8N1 is ten bits a byte, so 115200 baud is 11520 B/s and 250 bytes is
+    # 250/11520 of a second. Nothing about the board is in that.
+    report.check('the floor is bytes x 10 / baud, and nothing else',
+                 abs(bench.frame_seconds(250, 115200) - 0.0217013888) < 1e-9,
+                 '%.6f ms' % (bench.frame_seconds(250, 115200) * 1e3))
+    report.check('halving the bitrate doubles the floor',
+                 bench.frame_seconds(64, 57600)
+                 == 2 * bench.frame_seconds(64, 115200), None)
+
+    # 100 bytes each way at 115200 is 2000 bits, 17.361 ms. A round trip
+    # measured at twice that used half the wire it was given.
+    made_up = bench.Result('made up', 100, 100,
+                           [0.03, 0.0347222222, 0.06], 115200)
+    report.check('wire bytes are both directions',
+                 made_up.wire_bytes == 200, made_up.wire_bytes)
+    report.check('the median is what efficiency is taken from, not the best',
+                 abs(made_up.efficiency - 0.5) < 1e-6,
+                 '%.3f' % made_up.efficiency)
+    report.check('overhead is the part that was not the wire',
+                 abs(made_up.overhead - 0.0173611111) < 1e-9,
+                 '%.3f ms' % (made_up.overhead * 1e3))
+    report.check('payload leaves out the framing both frames carry',
+                 abs(made_up.payload_bytes_per_second
+                     - (200 - 8) / 0.0347222222) < 1e-6,
+                 '%.0f B/s' % made_up.payload_bytes_per_second)
+
+    session = SimulatedSession()
+    results = bench.run(session.board, rounds=2)
+    report.check('every case reports what it put on the wire',
+                 all(r.wire_bytes >= 8 for r in results),
+                 [r.wire_bytes for r in results])
+    report.check('the ping is the smallest transaction there is',
+                 results[0].name == 'ping'
+                 and results[0].wire_bytes == min(r.wire_bytes for r in results),
+                 results[0].wire_bytes)
+    report.check('and the cases climb, so the curve reads in one glance',
+                 [r.wire_bytes for r in results[:-1]]
+                 == sorted(r.wire_bytes for r in results[:-1]),
+                 [r.wire_bytes for r in results[:-1]])
+
+    drawn = '\n'.join(bench.table(results))
+    report.check('the table renders every case',
+                 all(r.name in drawn for r in results), None)
+    report.check('and a stand-in beating its own bitrate says so, rather '
+                 'than printing a number that looks measured',
+                 'no wire to be slow' in drawn, drawn.splitlines()[-1][:60])
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
@@ -958,7 +1016,7 @@ def main():
                  test_channel_table, test_imu, test_subsystems,
                  test_orientation, test_scaling, test_desk,
                  test_tumble, test_peak_hold, test_ascii3d,
-                 test_clock_reference):
+                 test_clock_reference, test_link_bench):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

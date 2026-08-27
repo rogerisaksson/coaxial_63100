@@ -35,6 +35,9 @@ static volatile uint16_t s_tail;        /* next slot to read  */
 static volatile uint32_t s_dropped;
 static volatile uint8_t  s_sources;     /* bitmask; 0 disables the lot */
 static uint8_t  s_seq[BOARD_LOG_SOURCES];
+static volatile uint32_t s_thinned;     /* pushes refused by the rate limit */
+static uint32_t s_min_gap;              /* cycles a source must leave        */
+static uint32_t s_last_at[BOARD_LOG_SOURCES];
 
 
 static uint16_t next_of(uint16_t i)
@@ -43,7 +46,7 @@ static uint16_t next_of(uint16_t i)
 }
 
 
-void Board_LogEnable(uint8_t sources)
+void Board_LogEnable(uint8_t sources, uint32_t min_gap_cycles)
 {
   /* Reset alongside the mask rather than leaving old samples in front of new
      ones: a burst whose first records predate the run is worse than an empty
@@ -51,10 +54,20 @@ void Board_LogEnable(uint8_t sources)
   const uint32_t masked = __get_PRIMASK();
   __disable_irq();
   s_sources = sources;
+  s_min_gap = min_gap_cycles;
   s_head = 0U;
   s_tail = 0U;
   s_dropped = 0U;
+  s_thinned = 0U;
   memset(s_seq, 0, sizeof(s_seq));
+  /* A whole gap in the past, so every source's first push is free. Unsigned
+     underflow is the point and not an accident - the comparison below is
+     the same subtraction, and both wrap together (invariant 2). */
+  const uint32_t now = Board_Cycles();
+  for (uint8_t i = 0U; i < BOARD_LOG_SOURCES; i++)
+  {
+    s_last_at[i] = now - min_gap_cycles;
+  }
   if (!masked)
   {
     __enable_irq();
@@ -76,8 +89,26 @@ void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n)
     return;
   }
 
+  /* One source must not crowd out another. The angle loop polls as fast as
+     its SPI allows - measured, about 24 000 pushes a second - and the ring
+     is 1024 deep and drops the newest when full, so it filled in 43 ms and
+     every IMU report after that was refused. Measured before this: angle
+     198 records a second reaching the host, IMU 1, and 77 733 dropped in a
+     second and a half.
+
+     Raw CYCCNT and unsigned subtraction, so the wrap costs nothing
+     (invariant 2). A source producing under its share never reaches this. */
+  const uint32_t now = Board_Cycles();
+
+  if ((s_min_gap != 0U) && ((now - s_last_at[source]) < s_min_gap))
+  {
+    s_thinned++;
+    return;
+  }
+  s_last_at[source] = now;
+
   board_sample_t rec;
-  rec.at = Board_Cycles();
+  rec.at = now;
   rec.source = source;
   rec.seq = s_seq[source]++;
   rec.v[0] = 0;
@@ -118,6 +149,12 @@ uint16_t Board_LogCount(void)
 
   return (head >= tail) ? (uint16_t)(head - tail)
                         : (uint16_t)(BOARD_LOG_DEPTH - tail + head);
+}
+
+
+uint32_t Board_LogThinned(void)
+{
+  return s_thinned;
 }
 
 

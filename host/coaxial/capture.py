@@ -31,6 +31,11 @@ LOG_OP_TAKE = 2
 
 MAX_BURST = 15
 
+#: Wire size of one record - u32 at, u8 source, u8 seq, 4x i16 - which
+#: is what `take` parses below and not what the struct occupies in the
+#: board's RAM. 15 of them plus the count is 211 bytes, inside 253.
+RECORD_BYTES = 14
+
 
 class Capture(Subsystem):
 
@@ -41,7 +46,15 @@ class Capture(Subsystem):
                             bytes([protocol.DEVICE_LOG, op]) + bytes(payload))
 
     def state(self):
-        """What is armed, how much is waiting, and how much was lost."""
+        """What is armed, how much is waiting, and how much did not make it.
+
+        `dropped` and `thinned` mean opposite things and a view that adds
+        them up says nothing. Dropped is a sample the ring had no room for.
+        Thinned is one the board declined to take, because that source had
+        already used its share of what the link can drain - which is what
+        stops the angle loop, at about 24 000 pushes a second, from locking
+        the IMU's fifty out of a ring that holds 1024.
+        """
         r = Reader(self._op(LOG_OP_STATE))
         mask = r.u8()
         return {
@@ -50,6 +63,7 @@ class Capture(Subsystem):
             'count': r.u16(),
             'depth': r.u16(),
             'dropped': r.u32(),
+            'thinned': r.u32(),
         }
 
     def arm(self, sources):

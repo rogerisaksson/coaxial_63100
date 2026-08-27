@@ -282,7 +282,7 @@ extern "C" {
 #define CAL_OP_DEFAULTS    7U
 
 #define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 20U
+#define CMD_PROTO_MINOR 21U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -354,6 +354,18 @@ typedef struct
 } cmd_group_t;
 
 /** How many subsystems this firmware has. */
+/** Share of the raw line rate a stream of records may claim. Measured at
+  * 115200 over the debug probe's VCP: a 250-byte payload round-tripped at
+  * 10.1 kB/s of the 11.52 kB/s the bitrate allows, and a 4-byte one at
+  * 0.5 kB/s - the cost of a transaction is flat, so the share a stream gets
+  * is the share left after the other traffic on the segment. `link_bench.py`
+  * is what measures it.
+  */
+#define CMD_LINK_SHARE_PCT 33U
+
+/** Records per second the link can carry at this record size. */
+uint32_t cmd_link_records_per_second(uint16_t record_bytes);
+
 uint8_t cmd_group_count(void);
 
 /** Subsystem `index`, or NULL past the end. */

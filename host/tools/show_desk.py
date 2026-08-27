@@ -76,17 +76,8 @@ def scale(rows):
 
     for row in rows:
         unit, raw = row.get('unit'), row['mean_raw']
-        convert = None
 
-        if unit == 'mA':
-            convert = lambda c: scaling.PHASE_ONBOARD.amps(c)
-        elif unit == 'mV':
-            convert = lambda c: scaling.DCBUS_ONBOARD.volts(c)
-        elif unit == 'centi-degC':
-            convert = lambda c: scaling.NTC_ONBOARD.celsius(c)
-        else:
-            full = 32768.0 if row['differential'] else 65536.0
-            convert = lambda c: c / full * 3.3
+        convert = scaling.converter(unit, row['differential'])
 
         # The inset codes are the thermistor's alone. Every other conversion
         # here is linear in the code and has a finite value at both rails, so

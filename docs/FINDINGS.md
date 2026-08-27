@@ -658,3 +658,143 @@ unwraps, so the window can be as long as the floor needs:
 
 `floor_ppm` is on every `Sync`, and `clock_drift.py` prints `bounded, not
 measured` when the answer is under it.
+
+## Two thirds of a round trip was the host waiting on itself
+
+Measured 2026-08-27 on the debug probe's VCP at 115200. Every command cost
+the same 46 ms - `clock.read_latch` 45.5, `imu.state` 46.0 - which is what
+said it was not the board.
+
+Where a 20-byte reply's 46.6 ms went, and none of it is the 1.7 ms of line
+time it contains:
+
+| | ms | what it was |
+|---|---|---|
+| `INTERFRAME_GAP` | 5.0 | a flat sleep; the specification says 1.75 above 19200 baud |
+| `serial.timeout = x` | **9.8** | 3.25 ms each, three times a transaction |
+| first byte + stream | ~5 | the link, doing its job |
+| `QUIET_TIME` tail | **20.0** | waiting to be sure the frame had ended |
+
+**Assigning `serial.timeout` costs 3.25 ms whatever it is assigned to** -
+pyserial reconfigures the port, which on a USB VCP is a control transfer -
+and it cost that even when set to the value it already held. The receiver
+now never moves it: the port sits at `QUIET_TIME` for its whole life and the
+budget for a late reply is counted by the reader, in slices.
+
+The tail was six times what the link needs. Reading greedily with
+`in_waiting`, the largest gap **inside** a frame is 3.40 ms, over both a
+20-byte reply that arrives whole in one chunk and a 215-byte one that
+arrives in 175. It is 8 ms now.
+
+**46.6 ms -> 15.5 ms.** A polled view was round-trip bound at 21 frames a
+second and is not any more.
+
+Two things that looked like findings and were not:
+
+* **A mid-frame stall of 17.8 ms.** It was `serial.read(1)` per byte - one
+  driver round trip each. Reading what `in_waiting` reports makes it 3.3 ms.
+* **A 2 % rate of unanswered requests.** It was the ring, armed and
+  flooding, left behind by a script that had crashed. With the ring idle:
+  750 transactions, no silence, and the board's own worst main-loop gap is
+  58.9 us against RTU's t1.5 of 143.
+
+Rejected: stopping the read on a valid CRC instead of on a gap. A prefix of
+a 20-byte frame passes a 16-bit check about once in 4096, which is a wrong
+reading every few minutes rather than an error, and nothing in the frame
+says where it ends.
+
+## One ring, two producers, and the fast one locked the slow one out
+
+Measured 2026-08-27, `capture.arm(['angle', 'imu'])` at 115200:
+
+| | before | after |
+|---|---|---|
+| angle reaching the host | 198 /s | 129 /s (its share) |
+| **IMU reaching the host** | **1 /s** | its full rate |
+| dropped, in 1.5 s | **77 733** | **0** |
+
+The angle loop pushes on every successful SPI read - about 24 000 a second -
+and the ring is 1024 deep and drops the newest when full. It filled in 43 ms
+and every IMU report after that was refused. Nothing was broken: a shared
+FIFO with drop-newest gives the whole ring to whichever producer is fastest.
+
+Each armed source now gets an equal share of `cmd_link_records_per_second`,
+enforced as a minimum gap in raw CYCCNT (invariant 2). A source under its
+share never reaches the check, which is why the IMU's 50 Hz is untouched and
+the angle loop's 24 kHz is not. `thinned` counts what the limit refused and
+is reported apart from `dropped`, because they mean opposite things: dropped
+is a sample the ring had no room for, thinned is one the link could not have
+carried anyway.
+
+It also took 24 000 PRIMASK sections a second out of the main loop.
+
+## A DAQ record is a code; the unit in its layout is not
+
+The acquisition task buffers converter codes and does not scale them. The
+layout reports the channel's own unit, which says what the channel *means*.
+The capture view printed the two together:
+
+| shown | actually |
+|---|---|
+| `NTC +40470 centi-degC` | 40470 is the code; `ntc_temperature()` reads **38.1 C** from it |
+| `DC bus +20811 mV` | **24.81 V** |
+
+Both wrong by orders, and both looked like readings. It shows the code and
+what it converts to now, through `scaling.converter` - which is where the
+unit-to-conversion mapping moved, because the meter bridge had the only copy
+and a second one in the capture view is the one that goes stale (invariant
+7). The two views agree channel for channel: NTC 37.45 against 37.5, DC bus
+24.82 against 24.8, Phase U +9.31 A against +9.4.
+
+The same view also showed sums as readings - a record's value is the SUM of
+`samples` - so everything doubled the moment its own backpressure raised
+accumulation from 1 to 2.
+
+And it was the only one of the four views with no `except RigError` in its
+frame loop, which is why it was the one that died on a missed reply.
+
+## What the link actually carries, against what its bitrate allows
+
+`tools/link_bench.py`, 2026-08-27 at 115200 over the debug probe's VCP,
+after the transport fix above. The floor is `bytes * 10 / baud` for 8N1.
+
+| case | wire | floor | median | of max | payload |
+|---|---|---|---|---|---|
+| ping (echo, no payload) | 8 B | 0.69 ms | 15.5 ms | **4.5 %** | - |
+| echo 16 B | 40 B | 3.47 ms | 15.6 ms | 22.3 % | 2.1 kB/s |
+| echo 64 B | 136 B | 11.81 ms | 31.0 ms | 38.0 % | 4.1 kB/s |
+| echo 250 B | 508 B | 44.10 ms | 49.1 ms | **89.8 %** | **10.2 kB/s** |
+| ring burst, 15 records | 222 B | 19.27 ms | 46.5 ms | 41.5 % | 4.6 kB/s |
+
+**The cost of a transaction is flat at about 5 ms**, so the whole curve is
+that one number amortised. A ping is nearly all overhead by construction and
+says nothing about a link; a full block is where the bitrate starts being
+the limit.
+
+This retires the 3.8 kB/s that `DAQ_LINK_SHARE_PCT` was set from - that was
+measured through the 46.6 ms transport, and the same wire now carries
+10.2 kB/s. The share is still 33 %, deliberately: it is the fraction a
+stream may claim of a segment that also carries everything else.
+
+## Open: the BNO08X stopped answering, and the old firmware does not bring it back
+
+Seen 2026-08-27, after several AFE_ON power cycles and two flashes. The part
+had been reporting normally the same session - `updates 2491, cargoes 2569`,
+live quaternion - and then:
+
+    product_id -> SERVER DEVICE FAILURE
+    imu.pins() -> SERVER DEVICE FAILURE
+    loop running, error none, cargoes 24 and stuck, updates 0
+
+Ruled out, in this order:
+* **Not the ring change.** Reverted the firmware to HEAD, rebuilt, flashed:
+  identically dead. Re-applied and reflashed.
+* **Not AFE_ON.** On, confirmed by `afe.is_on()`, and a 4 s discharge with
+  it off changed nothing.
+* **Not the reset path.** `imu.reset()` runs, `loop` returns to `running`,
+  cargoes do not resume.
+
+Untried, and the next thing: a full board power cycle. AFE_ON gates the
+part's supply through the board, and a rail that never fully collapses
+leaves a part that never fully restarts - which is the shape of every other
+BNO08X finding here.

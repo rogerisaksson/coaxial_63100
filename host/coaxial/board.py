@@ -51,6 +51,13 @@ class Board:
         self.clock = Clock(self)
         self.daq = Daq(self)
 
+    @property
+    def baud(self):
+        """The bitrate this board is reached at. Asked of the board and not
+        of the transport, because the stand-in has no transport and a caller
+        measuring a link must not have to know which it is holding."""
+        return self.transport.baud
+
     def __repr__(self):
         firmware = (self.version_info or {}).get('firmware', 'unknown fw')
         return '<Board unit=%d %s@%d %s>' % (self.unit, self.transport.port,

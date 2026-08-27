@@ -40,6 +40,18 @@ measured too, and against UTC rather than against the host: this PC was
 The board runs **-11.62 ppm** vs UTC, floor 1.11 ppm over 900 s. `clock.unwrap()` handles the 9.04 s wrap, in
 a capture and in the sync window alike.
 
+**The link runs at 89.8 % of its bitrate for a full block and 4.5 % for a
+ping.** `tools/link_bench.py` measures it; the cost of a transaction is flat
+at about 5 ms, so the curve is that number amortised. The transport had been
+spending 31 ms of every 46 on itself - a 20 ms quiet tail, a 5 ms interframe
+sleep and three 3.25 ms `serial.timeout` reconfigurations - and is 15.5 ms
+now.
+
+**A DAQ record is a converter code and its layout's unit is the cooked one.**
+`scaling.converter` maps one to the other on the host, and both views use it.
+Doing it on target instead would cost a float conversion per sample at the
+task's own rate; the calibration record already publishes every parameter.
+
 **The board says why it refused, and what to do.** `u8 took` plus a
 sentence, on every op that takes parameters. `host/coaxial/subsystem.py`'s
 `took()` is the whole host side of it.

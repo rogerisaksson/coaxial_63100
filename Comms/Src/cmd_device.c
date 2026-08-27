@@ -16,7 +16,31 @@
   ******************************************************************************
   */
 #include "cmd.h"
+#include "dev_serial.h"
 #include "wire.h"
+
+
+/** What the link can carry, in records per second, at this record size.
+  *
+  * Both terms move: the size is the task's stride or the ring's 14 bytes,
+  * and the baud is whichever port is answering - the debug probe's VCP and
+  * a 10 Mbit RS485 segment are the same code and very different answers.
+  *
+  * The share is measured, not derived. What it leaves out is the request,
+  * the turnaround and the host's own latency, none of which this board can
+  * compute. Two devices ask: the acquisition task, to pick its own rate,
+  * and the ring, to stop one source crowding out another.
+  */
+uint32_t cmd_link_records_per_second(uint16_t record_bytes)
+{
+  const uint32_t baud = dev_uart_baud();
+
+  if ((record_bytes == 0U) || (baud == 0U))
+  {
+    return 0U;
+  }
+  return ((baud / 10U) * CMD_LINK_SHARE_PCT / 100U) / record_bytes;
+}
 
 
 void cmd_took(wr_t *out, const char *refusal)
