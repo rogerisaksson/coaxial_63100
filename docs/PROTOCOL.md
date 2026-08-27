@@ -92,7 +92,11 @@ Payloads use big-endian integers and length-prefixed strings. Floating-point mat
 
   **Op 6 is the other way to read, and it cannot overflow.** Every trigger adds into a static accumulator sized to the maximum channel count - a task with one channel uses one slot of it - and op 6 takes that away and resets it. A late reader gets a **wider averaging window**, not a backlog: the ring drops when it is full, this has nothing to drop. Message in a bottle or fibre, the same call.
 
-  It replies `u8 fresh`, and stops there when nothing has arrived since the last take. Otherwise `u32 count, u32 first, u32 last`, then one `i32` sum per field, then the digital word if the task has one. Divide by `count` for the mean; summing keeps the bits an average would throw away.
+  It replies `u8 fresh`, and stops there when nothing has arrived since the last take. Otherwise `u32 first, u32 last`, then per field an `i32` sum **and a `u32` count of the additions that went into it**, then the digital word if the task has one.
+
+  **One count per channel, not one for the lot.** The software poll reads one channel per turn of the main loop, so a take lands mid-sweep and the channels have had different numbers of samples: measured on seven channels over half a second, 1044/1043/1043/1043/1044/1044/1044. A single count would divide six of them by the wrong number.
+
+  **The sample loop is not throttled.** It runs at whatever the converter and the main loop manage - 14 610 conversions per second on seven channels - because that is what makes the window worth having. `interval_us` gates **record** production instead: the ring is a capture and its rate is the link's business, the accumulator's is not.
 
   **Blocking is the caller's side.** `fresh` of 0 is the answer, not a wait. A slave that sat on a reply until a sample arrived would hold the segment silent past t3.5 and break framing for everyone else on it.
 

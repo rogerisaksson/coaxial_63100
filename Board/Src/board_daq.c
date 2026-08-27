@@ -68,8 +68,12 @@ static uint32_t s_interval_cycles;
    The ring is a capture and drops when it is full; this is the freshest
    average and cannot drop, because a reader that is late just gets a wider
    window. Separate totals so the two do not consume each other. */
-static int32_t  s_live[BOARD_DAQ_MAX_CHANNELS];
-static uint32_t s_live_n;
+/* One sum AND one count per channel, not one count for the lot. The
+   software poll reads one channel per turn of the main loop, so over any
+   window the channels have had different numbers of samples - a single
+   count would divide most of them by the wrong number. */
+static board_daq_slot_t s_live[BOARD_DAQ_MAX_CHANNELS];
+static uint32_t s_live_any;
 static uint32_t s_live_first;
 static uint32_t s_live_last;
 static uint32_t s_live_digital;
@@ -195,16 +199,7 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
   for (uint8_t f = 0U; f < s_fields; f++)
   {
     s_acc[f] += values[f];
-    s_live[f] += values[f];
   }
-
-  if (s_live_n == 0U)
-  {
-    s_live_first = at;
-  }
-  s_live_n++;
-  s_live_last = at;
-  s_live_digital = digital;
 
   if (++s_acc_n >= s_cfg.accumulate)
   {
@@ -275,7 +270,7 @@ bool Board_DaqConfigure(const board_daq_config_t *cfg)
   s_skip = 0U;
   s_next_field = 0U;
   s_acc_n = 0U;
-  s_live_n = 0U;
+  s_live_any = 0U;
   memset(s_live, 0, sizeof(s_live));
   memset(s_acc, 0, sizeof(s_acc));
   return true;
@@ -303,7 +298,7 @@ bool Board_DaqStart(void)
   s_skip = 0U;
   s_next_field = 0U;
   s_acc_n = 0U;
-  s_live_n = 0U;
+  s_live_any = 0U;
   memset(s_live, 0, sizeof(s_live));
   memset(s_acc, 0, sizeof(s_acc));
   s_running = true;
@@ -314,6 +309,36 @@ bool Board_DaqStart(void)
 void Board_DaqStop(void)
 {
   s_running = false;
+}
+
+
+/** One sample into the live accumulator, for one channel.
+  *
+  * Per sample and not per record: the loop runs at whatever the converter
+  * and the SPI buses manage, and holding a channel back until its
+  * neighbours caught up would throw away the samples that make the average
+  * worth having.
+  */
+static void live_insert(uint8_t field, int32_t value, uint32_t at,
+                        uint32_t digital)
+{
+  const uint32_t masked = __get_PRIMASK();
+  __disable_irq();
+
+  if (s_live_any == 0U)
+  {
+    s_live_first = at;
+  }
+  s_live[field].sum += value;
+  s_live[field].additions++;
+  s_live_any++;
+  s_live_last = at;
+  s_live_digital = digital;
+
+  if (!masked)
+  {
+    __enable_irq();
+  }
 }
 
 
@@ -330,17 +355,17 @@ void Board_DaqTakeLive(board_daq_live_t *out)
   const uint32_t masked = __get_PRIMASK();
   __disable_irq();
 
-  out->fresh = (s_live_n != 0U);
-  out->count = s_live_n;
+  out->fresh = (s_live_any != 0U);
   out->first = s_live_first;
   out->last = s_live_last;
   out->digital = s_live_digital;
   for (uint8_t f = 0U; f < BOARD_DAQ_MAX_CHANNELS; f++)
   {
-    out->sum[f] = s_live[f];
-    s_live[f] = 0;
+    out->slot[f] = s_live[f];
+    s_live[f].sum = 0;
+    s_live[f].additions = 0U;
   }
-  s_live_n = 0U;
+  s_live_any = 0U;
 
   if (!masked)
   {
@@ -390,34 +415,41 @@ void Board_DaqPoll(void)
 
   if (s_next_field == 0U)
   {
-    /* A software clock has to BE a clock. Left to run at whatever the loop
-       has spare it took the link down, and rate limiting alone did not fix
-       it: ONE poll of seven channels is about 190 us of converter work, and
-       RTU discards a frame whose characters arrive more than t1.5 apart -
-       143 us at 115200. Hence one channel per turn below, and a stated
-       interval here. Zero is unlimited, which is only safe for a short
-       finite run. */
-    const uint32_t now = Board_Cycles();
-
-    if ((s_interval_cycles != 0U) &&
-        ((uint32_t)(now - s_last_trigger) < s_interval_cycles))
-    {
-      return;
-    }
-    s_last_trigger = now;
-    s_pending_at = now;
+    s_pending_at = Board_Cycles();
     s_pending_digital = (s_cfg.digital != 0U) ? Board_DigitalMask() : 0U;
   }
 
+  /* Not throttled. The loop runs at whatever the converter and the main
+     loop manage, because that is what makes the accumulator's window worth
+     having - and it is safe now for a reason that has nothing to do with
+     rate: ONE poll used to read seven channels and take about 190 us, and
+     RTU discards a frame whose characters arrive more than t1.5 apart,
+     143 us at 115200. One channel per turn fixed that. Rate limiting never
+     did - 200 Hz survived and 1000 Hz did not, because a single poll still
+     overran t1.5 whenever it landed inside a frame. */
   if (!Board_AdcRead(s_order[s_next_field], &raw, &uv, &scaled))
   {
     return;                        /* the meter is busy; try again next turn */
   }
   s_pending[s_next_field] = raw;
+  live_insert(s_next_field, raw, s_pending_at, s_pending_digital);
 
   if (++s_next_field >= s_fields)
   {
     s_next_field = 0U;
+
+    /* `interval_us` gates RECORDS, not samples. The ring is a capture and
+       its rate is the link's business; the accumulator's is not. */
+    if (s_interval_cycles != 0U)
+    {
+      const uint32_t now = Board_Cycles();
+
+      if ((uint32_t)(now - s_last_trigger) < s_interval_cycles)
+      {
+        return;
+      }
+      s_last_trigger = now;
+    }
     feed(s_pending, s_pending_at, s_pending_digital);
   }
 }
@@ -432,12 +464,15 @@ void Board_DaqOnInjected(const int16_t *phase)
     return;
   }
 
+  const uint32_t at = Board_Cycles();
+  const uint32_t digital = (s_cfg.digital != 0U) ? Board_DigitalMask() : 0U;
+
   for (uint8_t f = 0U; f < s_fields; f++)
   {
     values[f] = Board_AdcPhaseSlot(s_order[f], phase);
+    live_insert(f, values[f], at, digital);
   }
-  feed(values, Board_Cycles(),
-       (s_cfg.digital != 0U) ? Board_DigitalMask() : 0U);
+  feed(values, at, digital);
 }
 
 

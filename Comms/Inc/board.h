@@ -295,12 +295,17 @@ typedef struct
     mean; the count is right there. */
 typedef struct
 {
+  int32_t  sum;
+  uint32_t additions;                  /**< how many went into this one     */
+} board_daq_slot_t;
+
+typedef struct
+{
   bool     fresh;                      /**< anything arrived since the last */
-  uint32_t count;
   uint32_t first;                      /**< Board_Cycles(), raw ticks       */
   uint32_t last;
   uint32_t digital;                    /**< pins at `last`                  */
-  int32_t  sum[BOARD_DAQ_MAX_CHANNELS];
+  board_daq_slot_t slot[BOARD_DAQ_MAX_CHANNELS];
 } board_daq_live_t;
 
 /** Copy the accumulator out and reset it. `fresh` is false when nothing has

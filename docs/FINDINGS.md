@@ -200,6 +200,25 @@ board's held-off state rather than a released one. `VGATEDRV` also cycles
 (up 1.66-4.18 ms, down 3.08 ms, up 7.26-15.89 ms) for a reason not chased.
 These are the model's numbers, not the board's.
 
+## The accumulator needs a count per channel
+
+Measured 2026-08-27, seven channels over half a second with the sample loop
+unthrottled: additions came back **1044 / 1043 / 1043 / 1043 / 1044 / 1044 /
+1044**. `Board_DaqPoll` reads one channel per turn of the main loop, so a
+take lands mid-sweep and six of the seven would have been divided by the
+wrong number had there been a single count.
+
+Means then track the meter where the channel is quiet - NTC 40466.9 against
+40448.5, DC bus 20767.5 against 20760.8 - and do not where it is not:
+Clevel read 32085 against the meter's 1259 and Cinj 20630 against 15350,
+which is the aliasing already recorded below, seen from a second sampling
+rate.
+
+Unthrottled the loop manages **14 610 conversions per second** across seven
+channels. `interval_us` now gates record production rather than sampling:
+the ring is a capture and its rate is the link's business, the
+accumulator's is not.
+
 ## A free-running acquisition task takes the link down
 
 Measured 2026-08-27, and the mechanism is not the one it looks like. A

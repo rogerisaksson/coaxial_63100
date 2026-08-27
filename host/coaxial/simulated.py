@@ -1094,14 +1094,19 @@ class SimulatedDaq:
             raise RigError('no sample in %.1f s - is the task running? '
                            '(simulated)' % timeout)
         layout = layout or self.layout()
-        count = random.randint(8, 40)
-        self._at = (self._at + count * 9500) & 0xFFFFFFFF
-        out = {'count': count, 'first': self._at, 'last': self._at}
-        out['sum'] = {f['signal']:
-                      sum(self.CENTRE[f['channel']] + random.randint(-60, 60)
-                          for _ in range(count))
-                      for f in layout['fields']}
-        out['mean'] = {k: v / count for k, v in out['sum'].items()}
+        base = random.randint(8, 40)
+        self._at = (self._at + base * 9500) & 0xFFFFFFFF
+        out = {'first': self._at, 'last': self._at, 'sum': {}, 'count': {}}
+        for f in layout['fields']:
+            # A channel or two behind the rest, the way the real poll leaves
+            # them: it reads one per turn and a take lands mid-sweep.
+            n = base - random.randint(0, 1)
+            out['sum'][f['signal']] = sum(
+                self.CENTRE[f['channel']] + random.randint(-60, 60)
+                for _ in range(n))
+            out['count'][f['signal']] = n
+        out['mean'] = {k: (v / out['count'][k] if out['count'][k] else None)
+                       for k, v in out['sum'].items()}
         if layout.get('pins'):
             out['digital'] = {p['signal']: bool(random.getrandbits(1))
                               for p in self.PINS}

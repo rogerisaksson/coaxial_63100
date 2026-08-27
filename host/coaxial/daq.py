@@ -182,8 +182,9 @@ class Daq(Subsystem):
         of `read()`, which drains a ring that drops when it is full. Message
         in a bottle or fibre, the same call.
 
-        Returns the sums and the count that went into them; divide for the
-        mean. `block` waits for a sample that has not been taken yet, on
+        Returns each channel's sum and the number of additions that went
+        into it - `arr[channel][additions]` - because the channels do not
+        sample at the same rate. `mean` is done for you. `block` waits for a sample that has not been taken yet, on
         this side: a slave that sat on a reply waiting for one would break
         RTU framing for everyone else on the segment.
         """
@@ -202,9 +203,16 @@ class Daq(Subsystem):
                                % (timeout, self.state()))
             time.sleep(poll)
 
-        out = {'count': r.u32(), 'first': r.u32(), 'last': r.u32()}
-        out['sum'] = {f['signal']: r.i32() for f in fields}
-        out['mean'] = {k: v / out['count'] for k, v in out['sum'].items()}
+        out = {'first': r.u32(), 'last': r.u32(), 'sum': {}, 'count': {}}
+        # One count per channel, not one for the lot: the board reads one
+        # channel per turn of its loop, so over any window they have had
+        # different numbers of samples and a single count would divide most
+        # of them by the wrong number.
+        for f in fields:
+            out['sum'][f['signal']] = r.i32()
+            out['count'][f['signal']] = r.u32()
+        out['mean'] = {k: (v / out['count'][k] if out['count'][k] else None)
+                       for k, v in out['sum'].items()}
         if pins:
             bits = r.u32()
             out['digital'] = {p['signal']: bool(bits >> n & 1)

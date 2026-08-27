@@ -243,8 +243,8 @@ static cmd_status_t h_daq_layout(wr_t *out)
 
 /** op 6 - the live accumulator, taken and reset.
   *
-  * One reply whatever the sampling rate: the count says how many went into
-  * it and the span says over what. A late reader gets a wider window rather
+  * One reply whatever the sampling rate: each channel carries its own count
+  * of how many went into its sum, and the span says over what. A late reader gets a wider window rather
   * than a backlog, so this path cannot overflow and has nothing to drop -
   * which is the difference between it and the ring.
   *
@@ -268,12 +268,17 @@ static cmd_status_t h_daq_live(wr_t *out)
     return CMD_OK;
   }
 
-  wr_u32(out, live.count);
   wr_u32(out, live.first);
   wr_u32(out, live.last);
+
+  /* One sum AND one count per channel. The software poll reads one channel
+     per turn of the main loop, so over any window they have had different
+     numbers of samples and a single count would divide most of them by the
+     wrong number. */
   for (uint8_t f = 0U; f < st.fields; f++)
   {
-    wr_i32(out, live.sum[f]);
+    wr_i32(out, live.slot[f].sum);
+    wr_u32(out, live.slot[f].additions);
   }
   if (st.config.digital != 0U)
   {
