@@ -236,3 +236,24 @@ void Board_SyncState(board_sync_state_t *out)
   out->overruns = s_overruns;
   Board_SyncLatest(&out->latest);
 }
+
+
+/* HAL's weak callbacks, overridden here rather than in Core/: main.c holds
+   CubeMX functions and the two poll calls, and this is neither. ADC3_IRQHandler
+   is generated - the NVIC entry survived CubeIDE's rewrite even though the
+   TIM1 block did not - so the chain runs the moment an injected group exists
+   to complete. */
+void HAL_ADCEx_InjectedConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+  Board_SyncOnInjected(hadc);
+}
+
+
+void HAL_ADCEx_InjectedQueueOverflowCallback(ADC_HandleTypeDef *hadc)
+{
+  /* The trigger arrived before the last sequence finished. Counted rather
+     than acted on: what it means depends on the sample point, which is a
+     TIM1 setting nobody has chosen yet. */
+  (void)hadc;
+  Board_SyncOverrun();
+}
