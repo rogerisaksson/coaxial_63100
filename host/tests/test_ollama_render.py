@@ -62,8 +62,13 @@ def test_reading_block(report):
                                    row.index(field) + len(field)))
 
     levels = mcp.HANDLERS['digital_read'](Sim())
+    # Counted off the board, for the reason the reserved check below already
+    # gives: a count written here is the second answer to a question the pin
+    # table settles. It was 2, `s_digital` grew to 4, and this went red on a
+    # renderer that was right.
+    usable = len(Sim().board.system.channel_map()['digital'])
     report.check('the digital block counts channels, not pins',
-                 levels.splitlines()[0] == 'digital: 2 channels',
+                 levels.splitlines()[0] == 'digital: %d channels' % usable,
                  levels.splitlines()[0])
     report.check('and both blocks start their first column the same way',
                  levels.splitlines()[1].split()[0] == 'ch'
@@ -115,9 +120,14 @@ def test_map_sections(report):
     session = Sim()
 
     whole = mcp.HANDLERS['board_info'](session)
+    # Both counts off the board. Written here they are a second answer to
+    # what `board_adc.c` and `s_digital` already settle, and the digital one
+    # was: it said 2, the board grew to 4, and this failed on a renderer
+    # that was doing its job.
+    shape = session.board.system.channel_map()
     report.check('the two kinds get their own headed blocks',
-                 'analog: 7 channels' in whole
-                 and 'digital: 2 channels' in whole,
+                 'analog: %d channels' % len(shape['analog']) in whole
+                 and 'digital: %d channels' % len(shape['digital']) in whole,
                  whole.splitlines()[2] if whole else '<empty>')
     report.check('and the digital block has its own columns, not the analog '
                  'ones', 'ch   dir   name' in whole,

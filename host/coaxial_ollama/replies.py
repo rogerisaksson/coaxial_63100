@@ -69,6 +69,15 @@ RESTATE_MIN_CHANNELS = 3
 # thing being caught is an answer that adds nothing - not a short one.
 RESTATE_MAX_EXTRA = 15
 
+# Per channel, because a restatement of N rows carries N rows' worth of
+# connective words - "PB2 (utgang) for AFE_ON" spends three on every row it
+# copies. A flat allowance is one that stops catching the thing as the table
+# grows, and it did: two pins added to `s_digital` took the map from two rows
+# to four, the retype from 10 extra words to 18, and seven checks went red on
+# a mechanism that had not changed. The count comes off the channels, so the
+# board decides it.
+RESTATE_EXTRA_PER_CHANNEL = 4
+
 WORDS = re.compile(r'[^\W_]+')
 
 # Two or more pipe-delimited lines, the shape of a markdown table row or its
@@ -120,9 +129,21 @@ def is_retype(answer, channels, minimum=RESTATE_MIN_CHANNELS):
     # what tells a list from an explanation is how much of the answer the
     # table did not already contain.
     words = [w.lower() for w in WORDS.findall(answer)]
-    named = {str(ch).lower() for ch in channels}
+    # A channel's own name, and the pieces WORDS splits it into. AFE_ON
+    # arrives as 'afe' and 'on', UART5_TERM as 'uart5' and 'term', and
+    # matching only the whole name counted a channel's own words as words
+    # the table did not have - so the more signals carried an underscore,
+    # the less this caught. Measured: the four-row digital map scored 20
+    # extra words, of which six were the channel names themselves.
+    named = set()
+    for channel in channels:
+        text = str(channel).lower()
+        named.add(text)
+        named.update(w.lower() for w in WORDS.findall(text))
     extra = [w for w in words if w not in named and not w.isdigit()]
-    if len(extra) > RESTATE_MAX_EXTRA:
+    allowed = max(RESTATE_MAX_EXTRA,
+                  RESTATE_EXTRA_PER_CHANNEL * len(named))
+    if len(extra) > allowed:
         return False
     return (len(channels) >= minimum
            and all(re.search(r'\b%s\b' % re.escape(ch), answer, re.I)

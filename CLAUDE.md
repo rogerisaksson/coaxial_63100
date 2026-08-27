@@ -245,6 +245,20 @@ install --yes NAME` needs no ST account). `env.ps1` puts the newest of each on
 PATH for one shell. Nothing hardcodes which port the board is on: `--port`
 is a first guess, and `open_session()` probes if it does not answer.
 
+## Green before the next thing
+
+**Fix the demo code and get the suites passing before moving on to the next
+item on a list.** Not after it, not once the list is done. A failing check
+carried forward stops being information: by the third item nobody can tell
+which change broke it, and the run that would have said so is the one that
+was skipped.
+
+This includes failures that were already there when the work started. Say
+they are pre-existing, then fix them - reporting a red suite and carrying on
+is how it stays red. Measured, and the reason this is written down: nine
+failures in `test_ollama_render` and `test_ollama_reply` were found, called
+pre-existing, and left behind while four more items were worked through.
+
 ## After a change lands
 
 Once a change is made, tested and verified, ask — every time, as the last step of

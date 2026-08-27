@@ -141,9 +141,14 @@ def test_map_retype(report):
 
     # The digital blocks, both of them. A digital row names its pin in the
     # first column and never starts with a digit, so MAP_ROW - anchored on
-    # the analog shape - never saw one. Measured under the map's own two
-    # rows: "De digitala kanalerna ar: PB2 (utgang) for AFE_ON, PE15
-    # (ingang) for nFAULT".
+    # the analog shape - never saw one.
+    #
+    # Every reply below is built from the board's own digital map rather
+    # than typed out. It was typed out, with the two rows the map had then,
+    # and adding UART5_TERM and KEEPALIVE to `s_digital` left seven checks
+    # failing on a mechanism that was working: `is_retype` wants every
+    # channel named, and a fixture naming two of four is not a retype. The
+    # channel map is the board's (CLAUDE.md), and so is this.
     def digital_turn(tool, reply, quiet=False, **args):
         chat = debug.Chat(ScriptedModel([
             call(tool, **args),
@@ -152,48 +157,56 @@ def test_map_retype(report):
             out=io.StringIO(), quiet=quiet)
         return chat.ask('ge mig en lista på de digitala kanalerna')
 
+    pins = Sim().board.system.channel_map()['digital']
+    signals = [row['signal'] for row in pins]
+    both = ['%s (%s)' % (row['pin'], row['signal']) for row in pins]
+    one_of = signals[0]
+    other = signals[1]
+
     listed_pins = ('De digitala kanalerna är:' + chr(10)
-                   + 'PB2 (utgång) för AFE_ON' + chr(10)
-                   + 'PE15 (ingång) för nFAULT')
+                   + chr(10).join('%s (%s) för %s'
+                                  % (row['pin'],
+                                     'utgång' if row['direction'] == 'out'
+                                     else 'ingång', row['signal'])
+                                  for row in pins))
     report.check('a retyped digital map is silenced',
                  digital_turn('board_info', listed_pins, kind='digital') == '',
                  repr(digital_turn('board_info', listed_pins,
                                    kind='digital'))[:46])
+    by_pin = ' och '.join('%s är 1' % row['pin'] for row in pins) + '.'
     report.check('and so is a retyped digital reading',
-                 digital_turn('digital_read',
-                              'PB2 är 1 och PE15 är 0.') == '')
+                 digital_turn('digital_read', by_pin) == '', repr(by_pin)[:44])
 
-    # A row can be named back two ways, and the model picks one. Measured:
-    # the trace said "PB2 out 1 AFE_ON / PE15 in 0 nFAULT" and the answer
-    # said "AFE_ON ar 1 och nFAULT ar 0" - every channel named, not one of
-    # them by the pin. Pins and signals are alternatives, not a union: a
-    # union would want every name from every column present.
+    # A row can be named back two ways, and the model picks one. Pins and
+    # signals are alternatives, not a union: a union would want every name
+    # from every column present.
+    by_signal = ' och '.join('%s är 1' % s for s in signals) + '.'
+    named_both = ', '.join('%s 1' % b for b in both) + '.'
     for reply, silent, why in (
-            ('AFE_ON är 1 och nFAULT är 0.', True, 'named by signal'),
-            ('PB2 är 1 och PE15 är 0.', True, 'named by pin'),
-            ('PB2 (AFE_ON) 1, PE15 (nFAULT) 0.', True, 'named both ways'),
-            ('nFAULT är asserterad medan AFE:n är på.', False,
+            (by_signal, True, 'named by signal'),
+            (by_pin, True, 'named by pin'),
+            (named_both, True, 'named both ways'),
+            ('%s är asserterad medan AFE:n är på.' % other, False,
              'one signal, and something to say about it'),
-            ('AFE_ON är 1.', False, 'one of two is not the list')):
+            ('%s är 1.' % one_of, False, 'one of them is not the list')):
         got = digital_turn('digital_read', reply)
         report.check('a reading %s -> %s' % (why,
                                              'silent' if silent else 'kept'),
                      (got == '') is silent, repr(got)[:44])
 
     # The same, off the map rather than a reading.
-    for reply, silent in (('AFE_ON och nFAULT.', True),
-                          ('Två digitala kanaler.', False)):
+    for reply, silent in ((', '.join(signals) + '.', True),
+                          ('Fyra digitala kanaler.', False)):
         got = digital_turn('board_info', reply, kind='digital')
         report.check('a map named back by signal -> %s'
                      % ('silent' if silent else 'kept'),
                      (got == '') is silent, repr(got)[:44])
     report.check('but a finding that does not name them all survives',
-                 digital_turn('board_info', 'nFAULT är asserterad.',
-                              kind='digital') == 'nFAULT är asserterad.')
-    hushed = digital_turn('digital_read', 'PB2 är 1 och PE15 är 0.',
-                          quiet=True)
+                 digital_turn('board_info', '%s är asserterad.' % other,
+                              kind='digital') == '%s är asserterad.' % other)
+    hushed = digital_turn('digital_read', by_pin, quiet=True)
     report.check('with --quiet the block goes out instead of the retyping',
-                 'digital:' in hushed and 'PB2 är 1' not in hushed,
+                 'digital:' in hushed and by_pin not in hushed,
                  hushed.splitlines()[0] if hushed else '<empty>')
 
     # The two bars are different on purpose. Two channels of a *reading*
