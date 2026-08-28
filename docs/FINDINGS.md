@@ -1122,3 +1122,34 @@ caught both halves of that, first as a row count and then as a position.
 `GPIO_NOPULL`, so an undriven fault line floats and the break fires on
 noise - ST's `TIM_ComplementarySignals` notes warn about exactly this.
 `Board_PwmInit` now sets a pull-up, so "nobody driving" means "no fault".
+
+## The NTC cannot tell you which leg is switching
+
+One sensor, one place. Running a single leg at 50 % for 20 s and reading the
+rise looks like a per-leg measurement and is not: what it mostly reports is
+how close that leg sits to the thermistor.
+
+Measured after the W rework, with the gate-level check already showing all
+three legs complementary and a thermal camera confirming W's driver
+switching:
+
+| leg alone, 20 s at 50 % | rise | earlier, W dead |
+|---|---|---|
+| U | +0.618 C | +1.400 C |
+| V | **+2.946 C** | +4.582 C |
+| W | +0.150 C | +0.000 C |
+
+V dominates in both sets, before and after the fault was fixed, which is
+placement rather than dissipation. Two further traps in the same test:
+
+* **The baseline drifts through the sequence.** 35.36 -> 36.70 -> 37.40 even
+  waiting for it to settle first, and U's settle took 294 s. A run without
+  the wait had it climbing 33.12 -> 34.01 -> 36.34, which put W at
+  **-0.371 C** - it was reading the board cooling from the previous leg.
+* **The AFE has to be off to switch and on to read**, so the two never
+  overlap and every point is taken after the fact.
+
+What the NTC is good for is the whole board: 20 s at 50 % on all three legs
+moved it 29.52 -> 33.23 C, +3.71 C. For per-leg attribution use the camera,
+or the gate pins - `gate_shorts` and the both-high count answer the question
+the thermal test was being asked.

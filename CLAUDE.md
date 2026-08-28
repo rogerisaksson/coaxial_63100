@@ -162,6 +162,8 @@ python examples/read_board.py            # measure, judge nothing
 python tools/run_tests.py --offline      # the suites needing no board
 python tools/pick_tests.py --explain     # which subjects, and why - the model picks
 python tools/build_and_flash.py          # build (+flash): --build-only, --flash-only
+python tools/switch.py --sweep 5,95 -p 10 -s 120  # switch now, in the
+                                        # background; --stop disarms and exits
 python -m coaxial_mcp --port COM4        # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml
 python -m coaxial_ollama.capability      # which local model this machine should run
