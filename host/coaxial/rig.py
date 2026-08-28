@@ -27,6 +27,7 @@ import time
 from .acquisition import Acquisition
 from .clock import NTP_SERVER, unwrap
 from .errors import CrcError, NoReplyError, RigError
+from .gates import GateStage
 
 
 class Coaxial63100(Acquisition):
@@ -61,6 +62,7 @@ class Coaxial63100(Acquisition):
 
         self.session = None
         self.board = None
+        self.gates = None
         self.origin = None
         self.simulated = simulated_device
         self.layout = None
@@ -79,6 +81,7 @@ class Coaxial63100(Acquisition):
         self.session, self.origin = open_session(
             self.port, baud=self.baud, unit=self.unit, simulated=simulated)
         self.board = self.session.board
+        self.gates = GateStage(self.board)
         self.simulated = not self.origin.real
 
         if self.power_afe:
@@ -108,7 +111,7 @@ class Coaxial63100(Acquisition):
                 pass                    # closing is not the place to raise
         if self.session is not None:
             self.session.close()
-        self.session = self.board = None
+        self.session = self.board = self.gates = None
 
     def __enter__(self):
         return self.open()
@@ -194,139 +197,9 @@ class Coaxial63100(Acquisition):
         self.board.daq.stop()
         return self
 
-    def status(self):
+    def state(self):
         """How the task is doing: rate, what is buffered, what was lost."""
         return self.board.daq.state()
-
-
-    #: What the schematic wants true before the gate drive is armed, as volts
-    #: at the pin. The charge pump has to have pumped and the level detector
-    #: has to have tripped; arming under either of them is arming into a
-    #: supply that is still coming up.
-    #:
-    #: Volts and not codes: a threshold in codes stops meaning anything the
-    #: moment a divider changes, and the divider is the board's, not this
-    #: file's (invariant 7).
-    INTERLOCK = (('Cinj', 3.0), ('Clevel', 3.0))
-
-    def interlock(self):
-        """What the arming conditions read now, and which of them hold.
-
-        Measured every time. Returns a list of (name, volts, ok, want) - it
-        does not raise, so a view can show the conditions coming up rather
-        than only learning about them when an arm is refused.
-        """
-        if not self.board.afe.is_on():
-            # AFE_ON powers the reference, so with it off every one of these
-            # reads exact mid-scale and would pass or fail by accident.
-            return [('AFE_ON', None, False, None)]
-
-        rows = []
-        readings = {r['signal']: r for r in
-                    self.board.analog.read_all(nr_of_samples=32)['channels']}
-        for name, want in self.INTERLOCK:
-            got = readings.get(name)
-            volts = got['volts_at_pin'] if got else None
-            rows.append((name, volts, volts is not None and volts >= want,
-                         want))
-        return [('AFE_ON', None, True, None)] + rows
-
-    def arm_gate_drivers(self, bypass_sto=False, ignore_interlock=False):
-        """Set MOE. Nothing switches before this and everything can after.
-
-        **This arms a power stage**, at zero duty - all three low sides on,
-        a braked stage rather than a floating one.
-
-        TIM1's dead time is the only protection: the 2EDL8034's inputs are
-        independent and it has no interlock. Measured in the silicon, not
-        the `.ioc` - BDTR DTG 19, CR1 CKD 00, 237.5 MHz, so **80.0 ns**
-        against about 65 ns needed. `gate_drivers_check()` re-reads it and
-        refuses at zero.
-
-        `ignore_interlock` skips `INTERLOCK`, which this bench board needs:
-        Cinj reads 0.77 V and Clevel 0.06 V against 3 V each. `bypass_sto`
-        disconnects the break input, without which a latched break outranks
-        this. Both are decisions, which is why neither is silent.
-        """
-        self.gate_drivers_check()
-
-        if not ignore_interlock:
-            failed = [row for row in self.interlock() if not row[2]]
-            if failed:
-                raise RigError(
-                    'the arming interlock is not satisfied: %s. The '
-                    'schematic wants the charge pump up and the level '
-                    'detector tripped before the gate drive is armed. Pass '
-                    'ignore_interlock=True to arm anyway, which is what an '
-                    'unmodified bench board needs'
-                    % ', '.join(
-                        '%s %s' % (name, 'is off' if volts is None
-                                   else '%.2f V, wants %.1f' % (volts, want))
-                        for name, volts, _, want in failed))
-
-        if bypass_sto:
-            self.board.gate_drivers.bypass_break(True)
-        self.board.gate_drivers.enable()
-        return self.board.gate_drivers.state()
-
-    def disarm_gate_drivers(self, keep_bypass=False):
-        """Clear MOE, and put the break input back unless told otherwise."""
-        self.board.gate_drivers.disable()
-        if not keep_bypass:
-            self.board.gate_drivers.bypass_break(False)
-        return self.board.gate_drivers.state()
-
-    def gate_drivers_armed(self):
-        """Whether MOE is set, read off the board rather than remembered."""
-        return bool(self.board.gate_drivers.state()['pwm_enabled'])
-
-    def gate_drivers_check(self):
-        """Refuse to arm a gate driver stage with no dead time.
-
-        The one thing between the two FETs of a leg. Read every time rather
-        than trusted once: a `.ioc` regeneration, a CubeMX mode name bound
-        to the wrong channel - which has happened twice here - or a stray
-        BDTR write all land in the same place, and none of them announce
-        themselves.
-        """
-        state = self.board.gate_drivers.state()
-        if not state['deadtime']:
-            raise RigError(
-                'TIM1 BDTR DTG reads 0, so there is no dead time and the '
-                '2EDL8034 has no interlock of its own - both FETs of a leg '
-                'would conduct together. Check TIM1.DeadTime in the .ioc '
-                'and that the generated MX_TIM1_Init still applies it')
-        if state.get('gate_shorts'):
-            raise RigError(
-                'the gate pins of leg %s are on one node, so that leg cannot '
-                'be driven complementary: both FETs get the same command and '
-                'the leg never switches. Measured by the board, which drives '
-                'one pin and watches the other sink through its own pull-down.'
-                % ', '.join(state['gate_shorts']))
-        return state
-
-    def configure_pwm(self, duty=0.0, bypass_sto=False):
-        """Run the gate drivers at one duty on all three phases.
-
-        `duty` is 0.0 to 1.0 and goes to every leg equally, which puts no
-        voltage between them: real switching, no phase current.
-
-        `bypass_sto` disconnects the Safe Torque Off break input.
-        **Treat this as arming a power stage.** The argument for it being
-        safe was that the STO chain gates the drivers' own supply, which no
-        MCU pin reaches - and on the bench board that argument did not
-        hold: 25 % duty tripped the hot-swap's over-current and took the
-        board down. FINDINGS has what is ruled out. A reset restores it.
-        """
-        self.arm_gate_drivers(bypass_sto=bypass_sto)
-        period = self.board.gate_drivers.state()['period'] - 1
-        ticks = int(max(0.0, min(1.0, duty)) * period)
-        self.board.gate_drivers.duty((ticks, ticks, ticks))
-        return self.board.gate_drivers.state()
-
-    def stop_pwm(self):
-        """Gates down, and the break input back where it was."""
-        self.disarm_gate_drivers()
 
     # -- reading ---------------------------------------------------------
 
@@ -377,8 +250,7 @@ class Coaxial63100(Acquisition):
         analog   {'Phase U': 0.25, ...}, 0.0 to 1.0. There is no DAC here,
                  so this is a PWM duty. **Refused unless the gate drivers are
                  armed**: arming a power stage should be asked for by name,
-                 not fall out of writing a level. `arm_gate_drivers()` is that
-                 name.
+                 not fall out of writing a level. `gates.arm()` is that name.
 
         Returns what it did, so a caller can check rather than assume.
         """
@@ -423,12 +295,12 @@ class Coaxial63100(Acquisition):
                            'its only analog outputs are %s'
                            % (', '.join(unknown), ', '.join(legs)))
 
-        if not self.gate_drivers_armed():
+        if not self.gates.armed():
             raise RigError(
                 'the gate drivers are not armed, and writing a duty is not what '
-                'arms it - call arm_gate_drivers() first, which says what that '
+                'arms it - call gates.arm() first, which says what that '
                 'means. %s'
-                % ('The break is latched, so arm_gate_drivers(bypass_sto=True) '
+                % ('The break is latched, so gates.arm(bypass_sto=True) '
                    'is what gets past it'
                    if self.board.gate_drivers.state()['fault']
                    else 'Nothing is holding it off'))

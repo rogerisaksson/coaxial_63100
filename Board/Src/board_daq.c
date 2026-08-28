@@ -4,9 +4,9 @@
   * @brief   One acquisition task: configure, start, read. DAQmx's shape, cut
   *          down to what this board actually has.
   *
-  * There is one task, not many. A card with its own sequencer can run several;
-  * this is one MCU with three converters and one timer, and pretending
-  * otherwise would put the arbitration somewhere it cannot be honoured.
+  * One task, not many: a card with its own sequencer runs several, this is one
+  * MCU with three converters and one timer, and pretending otherwise puts the
+  * arbitration where it cannot be honoured.
   *
   * What a task owns:
   *
@@ -18,15 +18,14 @@
   *   accumulate   sum N samples into each record before it is pushed
   *   records      stop after this many, or 0 to run until stopped
   *
-  * The buffer is bytes, not a struct, and the stride is computed from the
-  * config: `u32 at` then one `i32` per enabled channel. That is why a host
-  * needs no copy of the record shape - it asks for the layout and the board
-  * names every field, the same way `0x6D` names the channels. A record laid
-  * out in a header here and mirrored in a decoder there is two answers to
-  * one question, and the mirror is the one that goes stale.
+  * The buffer is bytes and the stride comes from the config: `u32 at` then one
+  * `i32` per enabled channel. So no host holds a copy of the record shape - it
+  * asks for the layout and the board names every field, as `0x6D` does for the
+  * channels. A shape written in a header here and mirrored in a decoder there
+  * is two answers to one question, and the mirror goes stale.
   *
-  * Accumulation sums, it does not average. Summing keeps the bits an average
-  * would throw away, and a host that wants the mean has the count.
+  * Accumulation sums rather than averaging: summing keeps the bits an average
+  * throws away, and a host that wants the mean has the count.
   ******************************************************************************
   */
 #include "board.h"

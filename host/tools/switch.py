@@ -73,7 +73,7 @@ def main():
     try:
         if not a.keep_afe:
             rig.board.afe.disable()
-        rig.arm_gate_drivers(bypass_sto=not a.keep_break,
+        rig.gates.arm(bypass_sto=not a.keep_break,
                              ignore_interlock=not a.interlock)
         what = ('sweep %.0f-%.0f %% every %.0fs' % (lo * 100, hi * 100, a.period)
                 if a.sweep else '%.0f %%' % (a.duty * 100))
@@ -106,7 +106,7 @@ def main():
         except RigError:
             pass
         try:
-            rig.disarm_gate_drivers()
+            rig.gates.disarm()
         except RigError:
             pass
         rig.close()

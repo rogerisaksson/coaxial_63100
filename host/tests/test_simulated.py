@@ -1028,7 +1028,7 @@ def test_gate_driver_arming(report):
     rig = Coaxial63100(simulated_device=True).open()
     try:
         report.check('nothing is armed on the way in',
-                     rig.gate_drivers_armed() is False, rig.gate_drivers_armed())
+                     rig.gates.armed() is False, rig.gates.armed())
 
         try:
             rig.write(analog={'Phase U': 0.25})
@@ -1040,14 +1040,14 @@ def test_gate_driver_arming(report):
                      refused is not None, refused)
         report.check('and the refusal names the call that would arm it, '
                      'rather than leaving the caller to guess',
-                     refused and 'arm_gate_drivers' in refused, refused)
+                     refused and 'gates.arm()' in refused, refused)
 
         # The schematic wants the charge pump up and the level detector
         # tripped first. The stand-in reports neither, the same way the
         # unmodified bench board does not - Cinj 0.77 V and Clevel 0.06 V
         # against 3 V each, measured 2026-08-27.
         try:
-            rig.arm_gate_drivers(bypass_sto=True)
+            rig.gates.arm(bypass_sto=True)
             held = None
         except RigError as exc:
             held = str(exc)
@@ -1057,15 +1057,15 @@ def test_gate_driver_arming(report):
                      'the fact that it refused',
                      held and 'Cinj' in held and 'V' in held, held)
 
-        rig.arm_gate_drivers(bypass_sto=True, ignore_interlock=True)
-        report.check('after arm_gate_drivers, MOE is set', rig.gate_drivers_armed(), True)
+        rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+        report.check('after gates.arm(), MOE is set', rig.gates.armed(), True)
         report.check('and the same write goes through',
                      rig.write(analog={'Phase U': 0.25})['Phase U'] > 0,
                      rig.board.gate_drivers.state()['duty'])
 
-        rig.disarm_gate_drivers()
-        report.check('disarm_gate_drivers clears it again',
-                     rig.gate_drivers_armed() is False, rig.gate_drivers_armed())
+        rig.gates.disarm()
+        report.check('gates.disarm() clears it again',
+                     rig.gates.armed() is False, rig.gates.armed())
 
         # The check reads BDTR every time rather than trusting one reading:
         # a .ioc regeneration and a CubeMX mode name bound to the wrong
@@ -1073,7 +1073,7 @@ def test_gate_driver_arming(report):
         state = dict(rig.board.gate_drivers.state(), deadtime=0)
         rig.board.gate_drivers.state = lambda: state
         try:
-            rig.arm_gate_drivers(ignore_interlock=True)
+            rig.gates.arm(ignore_interlock=True)
             stopped = None
         except RigError as exc:
             stopped = str(exc)

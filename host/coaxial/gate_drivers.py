@@ -11,6 +11,7 @@ asked for.
 import struct
 
 from . import protocol
+from .gates import GateControl
 from .subsystem import Subsystem
 from .wire import Reader
 
@@ -40,7 +41,7 @@ OP_DUTY_FINE = 8
 OP_GAP_RESET = 7
 
 
-class GateDrivers(Subsystem):
+class GateDrivers(Subsystem, GateControl):
 
     """TIM1's compare registers, the injected triple and the STO chain."""
 

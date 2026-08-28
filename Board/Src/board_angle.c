@@ -3,12 +3,11 @@
   * @file    board_angle.c
   * @brief   Allegro A1335 magnetic angle sensor on SPI4.
   *
-  * A 20-bit SPI packet per register, and a poll loop that keeps the newest
-  * reading in shared memory for the host to read - the same shape as the IMU
-  * on SPI2, and for the same reason: a Modbus round trip per register costs
-  * 45 ms, which is not a sample rate.
+  * A 20-bit SPI packet per register, and a poll loop keeping the newest reading
+  * in shared memory - the IMU's shape on SPI2, for the same reason: a Modbus
+  * round trip per register costs 45 ms, which is not a sample rate.
   *
-  * What comes from the datasheet (A1335-DS Rev. 12, datasheets/AngleSensor):
+  * From the datasheet (A1335-DS Rev. 12, datasheets/AngleSensor):
   *
   *   - 20-bit packet. MOSI is SYNC=0, R/W, six address bits, eight data bits
   *     and four CRC bits; MISO is sixteen data bits and four CRC bits
@@ -19,16 +18,16 @@
   *   - 0.1 to 10 MHz, CS high at least 200 ns between frames.
   *   - The MSB of the MOSI packet must be 0; a 1 asserts the IER flag.
   *
-  * What comes from the register map, which this datasheet does not carry -
-  * it defers to the Programming Manual. Taken from the reference library at
+  * The register map is not in that datasheet - it defers to the Programming
+  * Manual - so the addresses come from the reference library at
   * github.com/ScranchNew/Allegro-A1335-Sensor-library, which drives the part
-  * over I2C but addresses the same registers:
+  * over I2C against the same registers:
   *
   *   ANG 0x20, STA 0x22, ERR 0x24, XERR 0x26, TSEN 0x28, FIELD 0x2A.
   *
-  * Counts, never degrees. ANG's low twelve bits are 360/4096 apiece and TSEN
-  * is eighths of a kelvin, and both scalings belong to the host - invariant
-  * 10, the same rule the ADC channels and the IMU's Q points keep.
+  * Counts, never degrees: ANG's low twelve bits are 360/4096 apiece and TSEN is
+  * eighths of a kelvin, and both scalings belong to the host (invariant 10),
+  * as the ADC channels and the IMU's Q points do.
   ******************************************************************************
   */
 #include "board.h"

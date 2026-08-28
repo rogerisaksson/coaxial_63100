@@ -188,7 +188,7 @@ def run_rows(view, width):
 
 def _duty(rig, view, by):
     view['duty'] = min(1.0, max(0.0, view['duty'] + by))
-    if rig.gate_drivers_armed():
+    if rig.gates.armed():
         rig.write(analog={'Phase U': view['duty'],
                           'Phase V': view['duty'],
                           'Phase W': view['duty']})
@@ -202,10 +202,10 @@ def _step(view, by):
 
 
 def _arm(rig, view):
-    if rig.gate_drivers_armed():
-        rig.disarm_gate_drivers(keep_bypass=True)
+    if rig.gates.armed():
+        rig.gates.disarm(keep_bypass=True)
         return 'disarmed'
-    rig.arm_gate_drivers(ignore_interlock=view['override'])
+    rig.gates.arm(ignore_interlock=view['override'])
     return 'armed at zero duty - all three low sides on'
 
 
@@ -325,7 +325,7 @@ def main(argv=None):
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
 
     try:
-        state = rig.gate_drivers_check()
+        state = rig.gates.check()
     except RigError as exc:
         say('fail', 'dead time', str(exc))
         rig.close()
@@ -393,7 +393,7 @@ def main(argv=None):
         try:
             if not refused:
                 rig.stop()
-            rig.disarm_gate_drivers()
+            rig.gates.disarm()
             if board.afe.is_on() != was_on:
                 board.afe.enable() if was_on else board.afe.disable()
             say('ok', 'gate_drivers', 'disarmed, BKIN back in circuit, AFE_ON as '

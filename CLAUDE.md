@@ -31,7 +31,7 @@ PE15 active low, AOE off so nothing re-arms itself. `Board_PwmInit()` starts the
 counter with MOE clear and CCxE set, driving all six outputs to their idle
 level: both FETs of every leg held off in hardware.
 
-`rig.arm_gate_drivers()` is the only thing that sets MOE, and a duty write is
+`rig.gates.arm()` is the only thing that sets MOE, and a duty write is
 refused until it has been called - arming a power stage should be asked for by
 name, not fall out of writing a level. It re-reads BDTR DTG first and refuses a
 stage with no dead time, because the 2EDL8034 has no interlock of its own.
@@ -139,6 +139,14 @@ and not a list of causes in a docstring. docs/PROTOCOL.md has the wire.
 **`Coaxial63100` is the front door.** `host/coaxial/rig.py`, and what all four
 views use. It owns the AFE preflight (invariant 9) and puts the supply back the
 way it found it, Ctrl+C included.
+
+**The host is three interfaces and the parts that answer them** -
+`Acquisition` (`coaxial/acquisition.py`), `PolledSensor` (`sensor.py`) and
+`GateControl` (`gates.py`). Each has a real implementation and a simulated one,
+so a name drifting between them fails at construction instead of on the first
+call that reaches for it. Add a method to a subsystem that has a stand-in and
+add it to both, or put it on neither. `GateStage` beside them is concrete: the
+arming policy, and there is one of that. docs/ARCHITECTURE.md has the table.
 
 ```python
 from coaxial import Coaxial63100

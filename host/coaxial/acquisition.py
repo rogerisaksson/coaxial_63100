@@ -56,3 +56,7 @@ class Acquisition(ABC):
         The accumulator cannot overflow: a late reader gets a wider averaging
         window rather than a backlog, where `read` drops when the ring fills.
         """
+
+    @abstractmethod
+    def state(self):
+        """How the task is doing: rate, what is buffered, what was lost."""

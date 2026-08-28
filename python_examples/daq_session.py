@@ -78,5 +78,5 @@ for name in live['mean']:
 daq.stop()
 
 # %%
-print(daq.status())
+print(daq.state())
 daq.close()

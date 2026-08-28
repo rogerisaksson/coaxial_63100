@@ -13,6 +13,7 @@ Programming Manual, which is not in this tree.
 import contextlib
 
 from . import protocol
+from .sensor import PolledSensor
 from .subsystem import Subsystem
 from .wire import Reader
 
@@ -49,7 +50,7 @@ def kelvin(value):
     return (value & 0x0FFF) / 8.0
 
 
-class Angle(Subsystem):
+class Angle(Subsystem, PolledSensor):
     """The A1335 behind SPI4. Every call raises rather than returning a
     status: a reading that did not happen is not a reading of zero."""
 

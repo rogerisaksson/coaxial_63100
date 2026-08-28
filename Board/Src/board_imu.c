@@ -20,22 +20,18 @@
   *     end the transaction between the two. PB12 is driven as plain GPIO
   *     instead, which overrides the MSP's alternate-function setting.
   *
-  * H_INTN is on PD8 - `SPI0.INT` on the MCU sheet, a straight wire - and it
-  * does assert: `feature()` on its own works, and that needs the wake
-  * acknowledge. An earlier reading of 77 highs in a row is retracted; each was
-  * a Modbus round trip 15 ms apart and the pulse is microseconds, so it could
-  * not have caught one either way (FINDINGS).
+  * H_INTN is on PD8 (`SPI0.INT`, a straight wire) and does assert: `feature()`
+  * alone works and that needs the wake acknowledge. An earlier reading of 77
+  * highs is retracted - each was a Modbus round trip 15 ms apart against a
+  * microsecond pulse, so it could not have caught one (FINDINGS).
   *
-  * The header is polled anyway, rate limited, because catching the pulse is
-  * not guaranteed. `Board_ImuPoll` used to return every turn unless H_INTN was
-  * asserted at the instant it looked - one GPIO read, no wait - which left the
-  * part streaming rotation vectors at 50 Hz into a loop that read none. A
-  * direct probe in that window clocked out real cargoes
-  * (`14 00 02 00 f1 00 84`, 20 bytes on channel 2), so the part was producing
-  * throughout and only the collection was missing. The
-  * poll is the bounded fallback for a missed edge; the datasheet wants H_INTN
-  * serviced "within 1/10 of the fastest sensor period" (1.2.4.1). The wake
-  * gate is a last resort, not a refusal. Both sites refer back here.
+  * The header is polled anyway, rate limited, because catching the edge is not
+  * guaranteed. `Board_ImuPoll` used to return every turn unless H_INTN was
+  * asserted at the instant it looked, leaving the part streaming at 50 Hz into
+  * a loop that read none - a direct probe then clocked out real cargoes
+  * (`14 00 02 00 f1 00 84`, 20 bytes on channel 2). The datasheet wants H_INTN
+  * serviced "within 1/10 of the fastest sensor period" (1.2.4.1); the poll is
+  * the bounded fallback, and the wake gate a last resort, not a refusal.
   ******************************************************************************
   */
 #include "board.h"

@@ -11,6 +11,7 @@ import contextlib
 
 from . import protocol
 from .errors import DeviceStateError
+from .sensor import PolledSensor
 from .subsystem import Subsystem
 from .wire import Reader
 
@@ -70,7 +71,7 @@ QUATERNIONS = (0x05, 0x08)
 and unitless: a rotation vector is a direction, not a quantity."""
 
 
-class Imu(Subsystem):
+class Imu(Subsystem, PolledSensor):
     """The BNO08X behind SPI2. Every call raises rather than returning a
     status: a reading that did not happen is not a reading of zero."""
 

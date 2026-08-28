@@ -4,7 +4,7 @@ A three-phase BLDC inverter whose PCB sits coaxially behind the stator.
 **63 V, 100 A** - the rating is the name. STM32H753VIT6 at 475 MHz.
 
 Instrumentation, not a motor controller: the bridge switches on request and
-there is **no commutation and no current loop**. `arm_gate_drivers()` is the
+there is **no commutation and no current loop**. `gates.arm()` is the
 only thing that sets MOE, and it re-reads the dead time first because the
 2EDL8034 has no interlock of its own.
 

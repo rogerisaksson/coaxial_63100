@@ -28,6 +28,8 @@ from . import angle
 from . import protocol
 from .acquisition import Acquisition
 from .errors import DeviceStateError, RigError
+from .gates import GateControl
+from .sensor import PolledSensor
 from .gpio import reserved_reason
 
 CHANNELS = [
@@ -602,7 +604,7 @@ def bus_nodes(label):
     return SIMULATED_BUSES.get(label, ('', {}))[1]
 
 
-class SimulatedImu:
+class SimulatedImu(PolledSensor):
     """A BNO08X that was never soldered on.
 
     Shaped like `coaxial.imu.Imu` so every caller works against it
@@ -624,6 +626,8 @@ class SimulatedImu:
     def __init__(self):
         self._seq = 0
         self._enabled = {}
+        self._updates = 0
+        self._held = False
 
     def product_id(self):
         return {
@@ -674,19 +678,9 @@ class SimulatedImu:
         else:
             self._enabled.pop(report_id, None)
 
-
-def _imu_extras(cls):
-    """Everything the poll loop added to `coaxial.imu.Imu`, on the stand-in.
-
-    Bolted on here rather than woven through the class above because they
-    are one thing: the board polls the part into shared memory now, and a
-    stand-in has no part to poll. They exist so a view running -Simulated
-    does not crash on a call the real one answers - which is exactly what
-    happened, and what test_parity now checks for.
-    """
     def state(self):
-        self._updates = getattr(self, '_updates', 0) + 17
-        got = {'loop': 'held' if getattr(self, '_held', False) else 'running',
+        self._updates += 17
+        got = {'loop': 'held' if self._held else 'running',
                'error': 'none', 'updates': self._updates,
                'cargoes': self._updates, 'errors': 0}
         for report in self.read()['reports']:
@@ -743,16 +737,8 @@ def _imu_extras(cls):
     def wake_test(self, ms=200):
         return 0
 
-    for fn in (state, latest, hold, resume, configuring, reset, write,
-               probe, pins, wake_test):
-        setattr(cls, fn.__name__, fn)
-    return cls
 
-
-_imu_extras(SimulatedImu)
-
-
-class SimulatedAngle:
+class SimulatedAngle(PolledSensor):
     """The A1335 without an A1335.
 
     Turns steadily, because a stand-in that reports one angle for ever is
@@ -838,7 +824,7 @@ class SimulatedAngle:
             self.resume()
 
 
-class SimulatedGateDrivers:
+class SimulatedGateDrivers(GateControl):
     """TIM1, the injected triple and the STO chain, without any of them.
 
     The numbers are the real board's registers as configured: ARR 2375 for

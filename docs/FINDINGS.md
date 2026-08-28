@@ -874,7 +874,7 @@ Against that, what the gate needs: 15.5 V down through 4.99 + 2.2 ohms into
 the driver's worst-case delay matching is 6 ns. **About 65 ns needed, 80 ns
 present** - and the user's own LTspice half-gate drivers runs at `tdead=30n`.
 
-`rig.gate_drivers_check()` re-reads DTG on every arm and refuses at zero, because
+`rig.gates.check()` re-reads DTG on every arm and refuses at zero, because
 a `.ioc` regeneration and a CubeMX mode name bound to the wrong channel have
 both silently moved TIM1 in this repository before.
 
@@ -1013,7 +1013,7 @@ turns are the part worth not repeating.
 
 U and V run warm, W stays at ambient, its phase node sits at ~10 V. The
 board detects it now - `0x6D` gate driver state carries `gate_shorts`, and
-`gate_drivers_check()` refuses to arm a leg that reports one:
+`gates.check()` refuses to arm a leg that reports one:
 
     gate_shorts: ('W',)
 

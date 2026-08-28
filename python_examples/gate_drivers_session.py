@@ -26,7 +26,7 @@ print(daq)
 # Refuses at zero. Read from BDTR every time, not remembered.
 
 # %%
-state = daq.gate_drivers_check()
+state = daq.gates.check()
 print('DTG %d, period %d ticks' % (state['deadtime'], state['period']))
 
 # %% [markdown]
@@ -48,8 +48,8 @@ daq.start()
 # %%
 # ignore_interlock because this bench board is not modified: the schematic
 # wants Cinj and Clevel both above 3 V first and they read 0.79 and 0.08.
-daq.arm_gate_drivers(bypass_sto=True, ignore_interlock=True)
-print('armed:', daq.gate_drivers_armed())
+daq.gates.arm(bypass_sto=True, ignore_interlock=True)
+print('armed:', daq.gates.armed())
 daq.write(analog={'Phase U': DUTY, 'Phase V': DUTY, 'Phase W': DUTY})
 
 # %% [markdown]
@@ -107,8 +107,8 @@ while True:
 span = (got[-1]['at'] - got[0]['at']) / 475e6 if len(got) > 1 else 0.0
 print('%d records over %.3f ms, %.0f us apart, %d dropped'
       % (len(got), span * 1e3, span * 1e6 / max(1, len(got) - 1),
-         daq.status()['dropped']))
+         daq.state()['dropped']))
 
 # %%
-daq.disarm_gate_drivers()
+daq.gates.disarm()
 daq.close()

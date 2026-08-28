@@ -47,16 +47,33 @@ host-tested the same way by `test_shtp_core.py`.
 
 ## Host
 
-**`host/coaxial/`** — grouped by hardware function. **`rig.py`'s `Coaxial63100`
-is the front door**: connect, `configure`, `read`, `write` - the `Acquisition`
-surface `Daq` and the stand-in answer to as well. It owns the
-preflight all four views were repeating - AFE_ON powers the ADC reference and
-both SPI parts, so it goes up on the way in and back the way it was found on the
-way out, Ctrl+C included. `Board` and its subsystems stay under `.board`;
-nothing is hidden, but a caller wanting measurements should not have to know the
-supply lives in `afe`, the converters in `daq`, the counter in `clock` and the
-gates in `gate_drivers`. Topology, pin maps and the parts list come off the
-board, never from a hardcoded table.
+**`host/coaxial/`** — three interfaces, then the parts that answer them.
+
+| Interface | Answers | Real | Stand-in |
+|---|---|---|---|
+| `Acquisition` | `configure`, `start`, `stop`, `read`, `latest`, `state` | `Daq`, `Coaxial63100` | `SimulatedDaq` |
+| `PolledSensor` | `state`, `read`, `write`, `hold`, `resume`, `configuring` | `Imu`, `Angle` | `SimulatedImu`, `SimulatedAngle` |
+| `GateControl` | the twelve `0x6E` device 4 ops | `GateDrivers` | `SimulatedGateDrivers` |
+
+Every one has a real implementation and a simulated one, which is the whole
+argument for declaring them: the stand-ins were duck-typed, and a name that
+drifted surfaced as an AttributeError on the first call that reached for it -
+`SimulatedImu`'s ten poll-loop methods were attached to the class by a helper
+after the fact, so what it did and did not answer was invisible. A missing name
+now fails at construction.
+
+`GateStage` is concrete on purpose: it is the arming policy - the dead-time
+check, the interlock, the bypass - and there is exactly one of that. The board's
+ops stay a dumb slave's (invariant 10); refusing to arm is a host's judgement.
+
+**`rig.py`'s `Coaxial63100` is the front door**: connect, `configure`, `read`,
+`write`, and `gates` for the power stage. It owns the preflight all four views
+were repeating - AFE_ON powers the ADC reference and both SPI parts, so it goes
+up on the way in and back the way it was found on the way out, Ctrl+C included.
+`Board` and its subsystems stay under `.board`; nothing is hidden, but a caller
+wanting measurements should not have to know the supply lives in `afe`, the
+converters in `daq` and the counter in `clock`. Topology, pin maps and the parts
+list come off the board, never from a hardcoded table.
 
 `orientation.py`, `dial.py` and `desk.py` are pure renderers - a reading in,
 text out - so all three test without a board; `mesh.py` reduces the CAD export
