@@ -60,8 +60,22 @@ def summary(state):
     all and the nodes run open on power and time, which is the one thing that
     changes how the picture should be read.
     """
+    # A STALE SAMPLE IS NOT A MEASUREMENT. The board reports the last one it
+    # took together with its age, and judging the age is the host's job
+    # (invariant 10). Measured 2026-08-28: during a switching run this line
+    # printed `NTC 36.0 C` with a model error that grew 7.75 -> 12.46 K,
+    # because the reading was frozen from before the rail went down and only
+    # the model was moving. Two samples' grace, so a late one does not blink.
+    age = state.get('seen_s_ago')
+    every = state.get('sample_every_s') or 0.0
+    fresh = state['ntc'] is not None and (
+        age is None or every <= 0.0 or age <= 2.0 * every)
+
     if state['ntc'] is None:
         anchor = 'AFE off, open loop'
+    elif not fresh:
+        anchor = 'NTC %.1f C, %.0f s old - open loop since' % (state['ntc'],
+                                                              age)
     else:
         anchor = 'NTC %.1f C, error %+.2f K' % (state['ntc'], state['error'])
     return '%s     open %d s     %s' % (
