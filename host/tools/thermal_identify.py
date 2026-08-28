@@ -53,16 +53,51 @@ ASSUMED_PASSIVE_W = 24.0 * 0.050
 
 
 def ntc(rig, tries=8):
-    """The NTC, or None. Borrowed by the observer, so it comes and goes."""
+    """The NTC now, taking the rail if it has to. None if it stayed quiet.
+
+    NOT the observer's stored sample. Measured 2026-08-28: reading
+    `thermal.state()['ntc']` gave 36.36 C on every one of eleven samples in
+    the switching state - the observer refuses to sample while the stage is
+    armed, so the field was the same stale value each time and the run looked
+    like a board that had stopped responding to heat.
+
+    The tool measures; the observer estimates. It has to take its own
+    reading, and it can: the caller has already brought the stage down.
+    """
     for _ in range(tries):
         try:
-            state = rig.board.thermal.state()
-            if state['ntc'] is not None:
-                return state['ntc']
+            was_on = rig.board.afe.is_on()
+            if not was_on:
+                rig.board.afe.enable()
+                time.sleep(0.5)          # the reference, measured
+            try:
+                return rig.board.analog.ntc_temperature()['celsius']
+            finally:
+                if not was_on:
+                    insist(rig.board.afe.disable)
         except (NoReplyError, RigError):
-            pass
-        time.sleep(0.4)
+            time.sleep(0.4)
     return None
+
+
+def insist(what, tries=10, pause=0.4):
+    """Run it until the link answers. Raises if it never does.
+
+    THE LINK GOES QUIET NOW AND THEN - FINDINGS has it open, and 600 requests
+    ruled out four causes. Measured 2026-08-28: a 60-minute run died at
+    minute 47 because the disarm/arm around a sample had no tolerance while
+    the NTC read beside it had. Everything that touches the gate stage goes
+    through here.
+    """
+    last = None
+    for _ in range(tries):
+        try:
+            return what()
+        except (NoReplyError, RigError) as exc:
+            last = exc
+            time.sleep(pause)
+    raise RigError('the link stayed silent through %d tries: %s'
+                   % (tries, last))
 
 
 def sample_while_switching(rig, load):
@@ -71,28 +106,33 @@ def sample_while_switching(rig, load):
     That refusal is right - AFE_ON high takes the drivers' supply away, and
     six inputs switching into unpowered drivers is not a measurement worth
     having. So the stage comes down first, in hardware, through MOE.
+
+    The disarm is the step that must not be skipped and the arm is the one
+    that must not be half-done, so both are stubborn. Losing the reading is
+    one lost point; losing the arm leaves the run reporting a state it is no
+    longer in.
     """
-    rig.gates.disarm()
+    insist(rig.gates.disarm)
     got = ntc(rig)
-    rig.gates.arm(bypass_sto=True, ignore_interlock=True)
-    rig.write(analog=load)
+    insist(lambda: rig.gates.arm(bypass_sto=True, ignore_interlock=True))
+    insist(lambda: rig.write(analog=load))
     return got
 
 
 def enter(rig, state):
     """Put the board in `state`. Returns the load to re-apply after a sample."""
     if state == 'switch':
-        rig.board.afe.disable()
-        rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+        insist(rig.board.afe.disable)
+        insist(lambda: rig.gates.arm(bypass_sto=True, ignore_interlock=True))
         load = {'Phase %s' % leg: 0.50 for leg in ('U', 'V', 'W')}
-        rig.write(analog=load)
+        insist(lambda: rig.write(analog=load))
         return load
 
     if state == 'passive':
-        rig.board.afe.disable()
+        insist(rig.board.afe.disable)
         return None
 
-    rig.board.afe.enable()
+    insist(rig.board.afe.enable)
     if state == 'traffic':
         rig.configure(accumulate=1, digital=True)
         rig.start()
@@ -116,10 +156,20 @@ def _undo_steps(rig, state, load):
     return []
 
 
+def observer(rig):
+    """The observer's nodes and its own thermometers, or None if quiet."""
+    for _ in range(6):
+        try:
+            return rig.board.thermal.state()
+        except (NoReplyError, RigError):
+            time.sleep(0.3)
+    return None
+
+
 def hold(rig, state, seconds, every):
-    """Run one state and log (t, ntc). Returns the series."""
+    """Run one state and log (t, ntc). Returns (series, node series)."""
     load = enter(rig, state)
-    series, start, last = [], time.time(), 0.0
+    series, nodes, start, last = [], {}, time.time(), 0.0
     try:
         while True:
             now = time.time() - start
@@ -133,10 +183,18 @@ def hold(rig, state, seconds, every):
                     series.append((now, got))
                     print('  %-8s %6.1f s   NTC %6.2f C'
                           % (state, now, got), flush=True)
+
+                # The observer's own estimates, per node, on the same clock.
+                # This is what is being judged: the NTC above is only what
+                # it had to work from.
+                st = observer(rig)
+                if st is not None:
+                    for name, value in st['nodes'].items():
+                        nodes.setdefault(name, []).append((now, value))
             time.sleep(1.0)
     finally:
         leave(rig, state, load)
-    return series
+    return series, nodes
 
 
 def fit(series):
@@ -185,7 +243,7 @@ def report(runs):
     print('  less the compensation - %.2f K offset, and the driver coupling.'
           % NTC_OFFSET)
     for state, series in runs.items():
-        seen = CAMERA.get(state, {})
+        seen = CAMERA.get(STATE_TO_CAMERA.get(state, state), {})
         if 'ntc' in seen:
             print('  %-9s NTC model %6.2f   camera %6.2f   %+.2f K'
                   % (state, series[-1][1], seen['ntc'],
@@ -237,6 +295,68 @@ def apply_fit(rig, fits):
     rig.board.thermal.set_board(CFG['board_to_ambient'], capacity)
 
 
+#: What the camera saw, mapped onto the observer's node names. `dead` is the
+#: board itself; `bridge` is the half-bridge, which the model splits into the
+#: drivers and the phases and cannot tell apart.
+#: The camera's own state names. They are not the rig's: two of the four
+#: differ, and looking them up by the rig's name returned nothing while
+#: reporting it as "the camera recorded none for this state" - a mismatch
+#: that reads exactly like a measurement nobody took.
+STATE_TO_CAMERA = {'passive': 'passive', 'afe': 'afe on',
+                   'traffic': 'traffic', 'switch': 'switching'}
+
+
+CAMERA_AS_NODES = {
+    'dead': 'board', 'mcu': 'mcu', 'regulators': 'regulators',
+    'afe': 'afe', 'bridge': 'drivers',
+}
+
+
+def asymptote(series):
+    """Where a node is heading, from the transient. None if it will not fit."""
+    got = fit(series)
+    return got[1] if got else None
+
+
+def against_camera(node_runs):
+    """The observer's predicted equilibrium against what the camera saw.
+
+    The ASYMPTOTE, not the last sample: a run of a few minutes against a
+    6.8-minute constant is nowhere near equilibrium, and the camera numbers
+    are equilibrium ones. The fit is what makes the two comparable.
+
+    `hotswap` is not here because the model has no such node - it ran
+    unloaded through the whole campaign and has no measurement behind it.
+    """
+    print('\n%s\n%s' % ('the observer against the camera, 2026-08-28',
+                         '-' * 66))
+    print('  %-9s %-11s %9s %9s %8s' % ('state', 'node', 'predicted',
+                                        'camera', 'error'))
+    errors = []
+    for state, nodes in node_runs.items():
+        seen = CAMERA.get(STATE_TO_CAMERA.get(state, state), {})
+        for where, node in CAMERA_AS_NODES.items():
+            if where not in seen or node not in nodes:
+                continue
+            want = asymptote(nodes[node])
+            if want is None:
+                print('  %-9s %-11s %9s %9.2f %8s'
+                      % (state, node, 'no fit', seen[where], '-'))
+                continue
+            err = want - seen[where]
+            errors.append(abs(err))
+            print('  %-9s %-11s %9.2f %9.2f %+8.2f'
+                  % (state, node, want, seen[where], err))
+
+    if errors:
+        print('\n  %d comparisons, mean |error| %.2f K, worst %.2f K'
+              % (len(errors), sum(errors) / len(errors), max(errors)))
+        print('  The model was FITTED to these same four states, so this is '
+              'not\n  a prediction of anything new - it is whether the '
+              'observer running\n  live reproduces the calibration it was '
+              'given.')
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', default='COM4')
@@ -261,21 +381,23 @@ def main():
 
     with Coaxial63100(port=a.port, power_afe=False) as rig:
         say('ok' if rig.origin.real else 'warn', 'link', rig.origin.label)
-        runs = {}
+        runs, node_runs = {}, {}
         try:
             for state in want:
                 print('\n--- %s: %s ---' % (state, WHAT[state]), flush=True)
-                got = hold(rig, state, a.minutes * 60.0, a.every)
+                got, nodes = hold(rig, state, a.minutes * 60.0, a.every)
                 if len(got) < 6:
                     print('  only %d samples - not enough to fit' % len(got))
                     continue
                 runs[state] = got
+                node_runs[state] = nodes
         except KeyboardInterrupt:
             print('\nstopped - reporting what was gathered')
 
         if not runs:
             raise SystemExit('no state produced enough samples')
         fits = report(runs)
+        against_camera(node_runs)
         if a.apply:
             apply_fit(rig, fits)
     return 0

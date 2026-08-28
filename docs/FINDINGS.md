@@ -1162,3 +1162,92 @@ What the NTC is good for is the whole board: 20 s at 50 % on all three legs
 moved it 29.52 -> 33.23 C, +3.71 C. For per-leg attribution use the camera,
 or the gate pins - `gate_shorts` and the both-high count answer the question
 the thermal test was being asked.
+
+## The link died and stayed dead - found, 2026-08-28
+
+Not the intermittent silence recorded above. That one drops single requests
+and the next one answers; this stopped answering **permanently** until the
+core was reset, in BOTH modes - Modbus said nothing and so did the console.
+SWD still answered (Device ID 0x450), so the MCU was running the whole time.
+
+**Cause: nothing cleared the HAL's UART error state.** `dev_uart.c` clears
+ORE in three places and is careful about it - the file's own banner says a
+latched ORE ends reception until ICR clears it. But `Console_Poll` reads
+through `HAL_UART_Receive`, and the HAL's blocking receive records the error
+and returns WITHOUT touching ICR. Only ICR clears ORE.
+
+That kills both modes at once, and the coupling is what makes it permanent:
+
+* the console stops receiving, because ORE is latched;
+* the way back to Modbus is a character typed at that console
+  (`Console_Poll` opens the link on `m`), and there is no other path;
+* so the binary link cannot be reopened, and nothing on the board notices.
+
+**Two false trails, both worth keeping.** The first was the observer's new
+sampling, which had just gained two SPI transactions and an ADC conversion at
+810.5 cycles. Measured against it, 400 requests each way - 4 silent with
+sampling off, 0 with it every 5 s. No correlation, and several borrows fell
+inside that window. The second was console mode: `test_conformance.py`
+deliberately writes holding register `0x0001 = 1` to leave Modbus, and the
+suite aborting there would strand the board. Disproved by sending `m` by
+hand - the console did not answer either, which is what pointed at the HAL.
+
+**Fix:** `Console_Poll` clears ORE, FE and NE and resets `ErrorCode` and
+`RxState` whenever a receive fails. The byte that overran is gone either way;
+what must not be lost is the ability to read the next one. Five conformance
+runs afterwards, and the link was still up.
+
+**A trap found while chasing it:** `STM32_Programmer_CLI -c port=SWD mode=UR`
+with no `--start` leaves the core halted, so the board is dead for a second
+reason by the time the first is being investigated. Always end with
+`--start`.
+
+## The intermittent Modbus silence - found, 2026-08-28
+
+The long-standing one, the one 600 requests had ruled four causes out of. It
+was the IMU poll, and it cost 0.45 % of frames.
+
+**The board loses a character of the REQUEST, not the reply.** The counters
+match one for one - hammer the link and every silent call shows up as a
+`char_overrun` and a `bus_comm_error`:
+
+| requests | silent | char_overrun |
+|---|---|---|
+| 1393 | 7 | +7 |
+
+**What blocks:** `Board_ImuPoll` reads a 276-byte SHTP cargo at 1.48 MHz,
+which is 1.5 ms - longer than the RX FIFO covers at 115200. `main.c` already
+said so in a comment. The `!link_busy()` gate only looks BEFORE the poll, so a
+request arriving during one is lost. Holding the IMU loop proved it: 5 silent
+in 1123 with it polling, **0 in 1283 with it held**.
+
+**Why a block cost anything at all:** USART3 was the only one of the three
+ports that did not receive on interrupt. `dev_uart.c` set `.interrupt = false`
+for it, on the reasoning that "the master on it is a person or a script, not a
+bus". USART2 and UART5 both had the ISR. So the console's wire - the one the
+host actually uses - was the one that could not tolerate a busy main loop.
+
+**Fix:** USART3 receives on interrupt like the other two. Two things had to
+move with it:
+
+* it had no `USART3_IRQHandler`, so enabling the interrupt without writing one
+  would have put every byte in the default handler's endless loop;
+* `Console_Poll` read through `HAL_UART_Receive`, which would have lost every
+  race with the ISR and left no way back to Modbus at all. It reads the same
+  ring the link does now.
+
+Measured after: **1604 requests, 0 silent, 0 overruns**, with the IMU polling.
+Four full suite runs green in a row, where flakes had been one run in three.
+
+## PB2 is a rail, not a signal
+
+Three separate paths wrote AFE_ON straight to the pad: the Modbus coil, the
+`0x6D` afe command and `testrig_pin_write`. Once the rail became reference
+counted, any of them was undone by the next acquire or release - the thermal
+observer borrowing the rail for an NTC sample was enough. It read back as a
+coil written off that reported on, and as a pin written low that came back
+high about one run in three.
+
+All three go through `Board_PowerAcquire`/`Release` now. The `0x6D` reply
+carries the holders as well, because `on` after an explicit off is true rather
+than a failed write, and nothing on the wire could tell those apart.

@@ -164,6 +164,14 @@ static cmd_status_t h_adc_scan(rd_t *in, wr_t *out)
   wr_u8(out, Board_AfeOn() ? 1U : 0U);
   wr_u8(out, Board_Pe15() ? 1U : 0U);
 
+  /* WHO HOLDS IT. The rail is reference counted, so `on` after an explicit
+     off is not a lie and not a failure - it means somebody else still wants
+     it, and without this byte a caller cannot tell that from a write that
+     never landed. Appended, so an older host stops reading above it. */
+  board_rail_state_t rail;
+
+  wr_u8(out, Board_PowerState(BOARD_RAIL_AFE, &rail) ? rail.users : 0U);
+
   return CMD_OK;
 }
 
@@ -247,6 +255,14 @@ static cmd_status_t h_afe(rd_t *in, wr_t *out)
 
   wr_u8(out, Board_AfeOn() ? 1U : 0U);
   wr_u8(out, Board_Pe15() ? 1U : 0U);
+
+  /* WHO HOLDS IT. The rail is reference counted, so `on` after an explicit
+     off is not a lie and not a failure - it means somebody else still wants
+     it, and without this byte a caller cannot tell that from a write that
+     never landed. Appended, so an older host stops reading above it. */
+  board_rail_state_t rail;
+
+  wr_u8(out, Board_PowerState(BOARD_RAIL_AFE, &rail) ? rail.users : 0U);
 
   return CMD_OK;
 }

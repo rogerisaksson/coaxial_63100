@@ -54,6 +54,11 @@ CHANNELS = [
      'differential': False, 'signal': '+5V'},
     {'index': 8, 'adc': 1, 'channel': 19, 'pin': 'PA5',
      'differential': False, 'signal': 'Vgate'},
+    # The die's own thermometer: no pin, and ADC3 only. Channel 18 is what
+    # the board answered with - LL_ADC_CHANNEL_TEMPSENSOR has three variants
+    # behind preprocessor conditions, so it could not be read off the source.
+    {'index': 9, 'adc': 3, 'channel': 18, 'pin': 'internal',
+     'differential': False, 'signal': 'MCU die'},
 ]
 
 # Roughly what a live board reads with the front end on, AFE gain and all -
@@ -65,9 +70,10 @@ CHANNELS = [
 # 10 k/10 k divider is 2.55 V of 3.3, and the gate supply sits near zero
 # because the STO chain has not released it.
 NOMINAL = {0: 900.0, 1: -8650.0, 2: -80.0, 3: 1010.0, 4: 41000.0,
-          5: 21000.0, 6: 16500.0, 7: 50700.0, 8: 1030.0}
+          5: 21000.0, 6: 16500.0, 7: 50700.0, 8: 1030.0,
+          9: 33000.0}
 DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0,
-         7: 30.0, 8: 20.0}
+         7: 30.0, 8: 20.0, 9: 60.0}
 
 #: One electrical revolution every seven seconds or so. Slow enough to watch
 #: a meter follow it, fast enough that a still frame is rarely the same twice.
@@ -77,7 +83,7 @@ SWEEP_HZ = 0.14
 #: converter, because a stand-in whose meters never leave the bottom segment
 #: teaches nobody what the view looks like with a machine running.
 SWING = {0: 9000.0, 1: 9000.0, 2: 9000.0, 3: 300.0, 4: 6000.0, 5: 4000.0,
-         6: 3000.0, 7: 200.0, 8: 100.0}
+         6: 3000.0, 7: 200.0, 8: 100.0, 9: 300.0}
 
 #: How far a channel moves WITHIN one burst, in codes, which is a different
 #: quantity from how far it wanders between them. This was a flat +/-5 codes
@@ -90,7 +96,7 @@ SWING = {0: 9000.0, 1: 9000.0, 2: 9000.0, 3: 300.0, 4: 6000.0, 5: 4000.0,
 #: phases are inside a switching power stage and the thermistor is a slow thing on
 #: the end of a divider.
 RIPPLE = {0: 2600.0, 1: 2600.0, 2: 2600.0, 3: 40.0, 4: 150.0, 5: 700.0,
-          6: 300.0, 7: 60.0, 8: 40.0}
+          6: 300.0, 7: 60.0, 8: 40.0, 9: 80.0}
 
 #: Now and then a burst catches something bigger. Without it every burst is
 #: the same width and the held peak sits a constant distance from the bar,
@@ -216,7 +222,7 @@ UNITS = {'NTC': 'centi-degC', 'DC bus': 'mV',
          # Millivolts like the DC link, through their own dividers - which
          # is why `scaling.converter` is given the signal and not just the
          # unit. Three mV channels here and no two share a divider.
-         '+5V': 'mV', 'Vgate': 'mV'}
+         '+5V': 'mV', 'Vgate': 'mV', 'MCU die': 'centi-degC'}
 
 # What the firmware answers for channels kind 3: one entry per command table.
 # Shaped like the board's, invented like everything else here - the counts
@@ -345,7 +351,11 @@ class SimulatedAfe:
         self.on = False
 
     def state(self):
-        return {'on': self.on, 'pe15': not self.on}
+        # `users` mirrors the board's reference count. The stand-in has
+        # only ever one holder, so the mask follows `on` exactly - which
+        # is the one thing the real board does not promise.
+        return {'on': self.on, 'pe15': not self.on,
+                'users': ['host'] if self.on else []}
 
     def is_on(self):
         """The real Afe has this and the stand-in did not, which is a gap
@@ -887,11 +897,31 @@ class SimulatedThermal:
             'settled': True,
             'sample_every_s': self._every_s,
             'sample_settle_s': self._settle_s,
+            'afe': board + rise['afe'],
+            'mcu': board + rise['mcu'],
+            'seen_s_ago': 0.4,
             'error': 0.0,
         }
 
     def set_sample(self, every_s, settle_s=0.3):
         self._every_s, self._settle_s = every_s, settle_s
+        return True
+
+    def budget(self):
+        board = 31.0
+        rise = {'drivers': 1.0, 'phases': 0.4, 'mcu': 15.0,
+                'regulators': 8.0, 'afe': 5.9, 'board': 0.0}
+        limit = {'board': 105.0}
+        used = {}
+        for name in self.NODES:
+            top = limit.get(name, 125.0)
+            used[name] = max(0.0, (board + rise[name] - 20.0) / (top - 20.0))
+        worst = max(used, key=lambda n: used[n])
+        return {'used': used, 'worst': used[worst], 'worst_node': worst,
+                'seconds_to_limit': None, 'throttling': False,
+                'tripped': False, 'trips': 0}
+
+    def set_limit(self, node, limit_c, throttle_at=0.85):
         return True
 
     def set_node(self, node, to_board, capacity):
@@ -1290,7 +1320,7 @@ class SimulatedDaq(Acquisition):
         self._running = False
         return True
 
-    def read(self, want=0, layout=None):
+    def acquire(self, want=0, layout=None):
         import random
         if not self._running:
             return []
@@ -1358,7 +1388,7 @@ class SimulatedDaq(Acquisition):
                               for p in self.PINS}
         return out
 
-    def acquire(self, channels, records, clock='software', sample_time=0,
+    def once(self, channels, records, clock='software', sample_time=0,
                 decimate=1, accumulate=1, timeout=10.0, digital=False,
                 rate_hz=None):
         layout = self.configure(channels, clock=clock, sample_time=sample_time,

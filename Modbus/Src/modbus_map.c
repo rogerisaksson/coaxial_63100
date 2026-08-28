@@ -6,6 +6,7 @@
   */
 #include "modbus_map.h"
 #include "board.h"
+#include "board_power.h"
 #include "modbus_rtu.h"
 
 #include <stddef.h>
@@ -382,7 +383,18 @@ static mb_exception_t write_bit(void *ctx, uint16_t addr, bool value)
     return MB_EX_ILLEGAL_DATA_ADDRESS;
   }
 
-  Board_SetAfeOn(value);
+  /* Through the reference count, like every other way of asking for this
+     rail. Writing the pin here worked until the observer took the rail for a
+     sample: its release re-applies whatever the count says, which put the
+     AFE straight back on and made a coil written off read back on. */
+  if (value)
+  {
+    (void)Board_PowerAcquire(BOARD_RAIL_AFE, BOARD_USER_HOST);
+  }
+  else
+  {
+    (void)Board_PowerRelease(BOARD_RAIL_AFE, BOARD_USER_HOST);
+  }
   return MB_EX_NONE;
 }
 

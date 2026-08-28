@@ -5,6 +5,7 @@
   ******************************************************************************
   */
 #include "console.h"
+#include "dev_serial.h"
 #include "board.h"
 #include "board_hw.h"
 #include "cmd.h"
@@ -60,7 +61,13 @@ void Console_Poll(void)
 {
   uint8_t rx;
 
-  if (HAL_UART_Receive(&huart3, &rx, 1, 0) != HAL_OK)
+  /* Through the same ring the binary link reads, because USART3 receives on
+     interrupt now. HAL_UART_Receive would compete with the ISR for the byte
+     and lose every time, which would leave no way back to Modbus at all. */
+  const dev_serial_t *dev = dev_uart(0);
+  uint32_t tick = 0U;
+
+  if ((dev == NULL) || !dev->get(dev->ctx, &rx, &tick))
   {
     return;
   }

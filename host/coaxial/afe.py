@@ -24,7 +24,13 @@ class Afe(Subsystem):
     def _act(self, action):
         reader = Reader(self.request(protocol.AFE,
                                      pack(('u8', protocol.AFE_ACTIONS[action]))))
-        return {'on': bool(reader.u8()), 'pe15': bool(reader.u8())}
+        # `users` is why the rail is where it is. The count is shared, so
+        # `on` after an explicit off means somebody else still holds it -
+        # which is a different thing from a write that never landed, and
+        # without this there was no way to tell them apart.
+        from .power import named
+        return {'on': bool(reader.u8()), 'pe15': bool(reader.u8()),
+                'users': named(reader.u8())}
 
     def state(self):
         """Whether the front end is powered, and the PE15 input beside it.

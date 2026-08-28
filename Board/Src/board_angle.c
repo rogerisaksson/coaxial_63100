@@ -52,6 +52,7 @@
 #define ANGLE_REG_ANG   0x20U
 #define ANGLE_REG_STA   0x22U
 #define ANGLE_REG_ERR   0x24U
+#define ANGLE_REG_TSEN  0x28U
 
 /* Figure 31's fields, from the bottom of a 20-bit word. */
 #define ANGLE_ADDR_SHIFT 12U
@@ -283,6 +284,44 @@ bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc)
 
   return true;
 }
+
+/** The A1335's own die, centi-degrees C. False if it did not answer.
+  *
+  * TSEN's low twelve bits are eighths of a kelvin - a fixed property of the
+  * part, not a calibratable parameter, which is why it is not in the
+  * calibration record.
+  *
+  * DUPLICATED: `host/coaxial/angle.py` has the same scaling, because the
+  * wire carries counts (invariant 10) and the host has always converted
+  * them. The observer runs on the board and cannot reach that copy. One of
+  * the two should go - the way out is for cmd_angle to append the converted
+  * value so the host reads it instead of deriving it.
+  *
+  * The part measures ITS OWN DIE, not the board. That is what makes it
+  * useful here and it is why it was written off once: as a board
+  * thermometer it sheds its self-heating whenever AFE_ON breaks, and
+  * measured 2026-08-28 it FELL 1.88 K during a run that warmed the board.
+  * As the thermometer for the node it sits on, that self-heating is signal.
+  */
+bool Board_AngleDie(int32_t *centidegc)
+{
+  uint16_t counts = 0U;
+
+  if ((centidegc == NULL) || !Board_AfeOn())
+  {
+    return false;
+  }
+  if (!Board_AngleRead(ANGLE_REG_TSEN, &counts, NULL))
+  {
+    return false;
+  }
+
+  const float kelvin = (float)(counts & 0x0FFFU) / 8.0f;
+
+  *centidegc = (int32_t)((kelvin - 273.15f) * 100.0f);
+  return true;
+}
+
 
 bool Board_AngleWrite(uint8_t reg, uint8_t value)
 {

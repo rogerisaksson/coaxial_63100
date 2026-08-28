@@ -8,6 +8,10 @@
 #include "board_hw.h"
 #include "board_power.h"
 
+/* One bit per user in a uint8_t. A sixth user is free; a ninth is a silent
+   truncation in bit_of and everything that reads the mask. */
+_Static_assert(BOARD_USER_COUNT <= 8, "the users mask is one uint8_t");
+
 /** One bitmask per rail. A bit is a user, so a leak names itself. */
 static uint8_t s_users[BOARD_RAIL_COUNT];
 
@@ -70,8 +74,17 @@ bool Board_PowerAcquire(board_rail_t rail, board_user_t user)
   }
 
   s_users[rail] |= bit;
-  s_expires[rail][user] = (user == BOARD_USER_HOST)
-                          ? 0U : (HAL_GetTick() + BOARD_POWER_LEASE_MS);
+
+  /* Zero is the sentinel for "never expires", so a lease that lands exactly
+     on it would never be collected - a 3 s window once every 49.7 days where
+     a leaked hold becomes permanent. Step past it. */
+  uint32_t at = HAL_GetTick() + BOARD_POWER_LEASE_MS;
+
+  if (at == 0U)
+  {
+    at = 1U;
+  }
+  s_expires[rail][user] = (user == BOARD_USER_HOST) ? 0U : at;
   apply(rail);
   return true;
 }

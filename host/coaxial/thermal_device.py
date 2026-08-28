@@ -24,6 +24,8 @@ THERMAL_OP_STATE = 0
 THERMAL_OP_SET_NODE = 1
 THERMAL_OP_SET_BOARD = 2
 THERMAL_OP_SET_SAMPLE = 3
+THERMAL_OP_BUDGET = 4
+THERMAL_OP_SET_LIMIT = 5
 
 
 class Thermal(Subsystem):
@@ -64,9 +66,70 @@ class Thermal(Subsystem):
             'sample_every_s': r.u32() / 1000.0,
             'sample_settle_s': r.u32() / 1000.0,
         }
+
+        # The other two thermometers. Each is a die, so each anchors the node
+        # it sits ON - not the board. `None` where it did not answer.
+        #
+        # The flag comes first on the wire and the value always follows, so
+        # both are read either way: skipping the read on a false flag would
+        # leave the reader one field behind for everything after it.
+        for name in ('afe', 'mcu'):
+            measured = bool(r.u8())
+            value = r.i32() / 100.0
+            got[name] = value if measured else None
+
+        got['seen_s_ago'] = r.u32() / 1000.0
         got['error'] = ((got['expected_ntc'] - got['ntc'])
                         if got['ntc'] is not None else None)
         return got
+
+    def budget(self):
+        """What is left of the thermal budget, per node.
+
+        `used` is a FRACTION, 0 at ambient and 1 at the node's ceiling. A
+        temperature cannot say how close a part is without its limit beside
+        it, so the board sends the fraction and keeps degrees on `state()`.
+
+        `seconds_to_limit` is what a burst plans on: not how hot it is now,
+        but how long it may stay at this power. None when it is not heading
+        for a limit at all.
+
+        `tripped` means the board has already dropped MOE. That is an action,
+        not a verdict - the estimates are reported either way, and the limits
+        came from the calibration record rather than from the firmware.
+        """
+        r = Reader(self._op(THERMAL_OP_BUDGET))
+        used = {}
+        for i in range(r.u8()):
+            name = ALL_NODES[i] if i < len(ALL_NODES) else 'node%d' % i
+            used[name] = r.u8() / 255.0
+
+        worst = r.u8() / 255.0
+        index = r.u8()
+        millis = r.i32()
+        return {
+            'used': used,
+            'worst': worst,
+            'worst_node': (ALL_NODES[index] if index < len(ALL_NODES)
+                           else 'node%d' % index),
+            'seconds_to_limit': (millis / 1000.0) if millis >= 0 else None,
+            'throttling': bool(r.u8()),
+            'tripped': bool(r.u8()),
+            'trips': r.u32(),
+        }
+
+    def set_limit(self, node, limit_c, throttle_at=0.85):
+        """One node's ceiling in degrees C, and where derating starts.
+
+        The board holds a limit; it does not invent one. Zero disables that
+        node's ceiling, which is how a node with no measurement behind its
+        limit should be left rather than guessed at.
+        """
+        index = ALL_NODES.index(node) if isinstance(node, str) else int(node)
+        return self.took(self._op(THERMAL_OP_SET_LIMIT, pack(
+            ('u8', index),
+            ('i32', int(round(limit_c * 1000))),
+            ('i32', int(round(throttle_at * 1000000))))))
 
     def set_sample(self, every_s, settle_s=0.3):
         """How often the observer borrows AFE_ON for an NTC reading.

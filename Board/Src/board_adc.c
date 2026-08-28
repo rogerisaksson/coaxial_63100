@@ -109,7 +109,7 @@ static float code_to_volts(int32_t code, uint32_t singleDiff)
    reason recorded above: it silently returned 0 on a live signal and was
    never explained. Sequential single-shot reads are slower and proven. */
 static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32_t singleDiff,
-                                int32_t *outRaw, float *outVolts)
+                                int32_t *outRaw, float *outVolts, uint32_t sampleTime)
 {
   ADC_ChannelConfTypeDef sConfig = {0};
 
@@ -118,7 +118,11 @@ static bool ADC_ReadOneChannel(ADC_HandleTypeDef *hadc, uint32_t channel, uint32
 
   sConfig.Channel = channel;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = s_sample_time;
+  /* Per channel, falling back to the shared setting. The internal
+     temperature sensor needs orders of magnitude longer than a pin: the
+     shared default is 1.5 cycles, and reading the die at that is wrong in a
+     way nothing about the number would show. */
+  sConfig.SamplingTime = (sampleTime != 0U) ? sampleTime : s_sample_time;
   sConfig.SingleDiff = singleDiff;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -243,7 +247,8 @@ typedef enum
      like the DC link does, and they are separate units because the
      divider belongs to the channel and not to the unit. */
   ADC_UNIT_RAIL5,      /* the +5 rail, through R113's 10k/10k        */
-  ADC_UNIT_VGATE       /* the gate driver supply, 47k+10k over 10k   */
+  ADC_UNIT_VGATE,      /* the gate driver supply, 47k+10k over 10k   */
+  ADC_UNIT_DIE         /* degrees C, from the die's factory calibration */
 } AdcUnit;
 
 
@@ -258,6 +263,7 @@ typedef struct
   uint32_t           singleDiff;
   const char        *signal;   /* "" where the pin has no assigned signal */
   AdcUnit            unit;
+  uint32_t           sampleTime; /* 0 = use the shared setting */
 } AdcChannelDesc;
 
 /* Which ADC carries which phase is fixed by the pinout, not by preference:
@@ -266,13 +272,13 @@ typedef struct
    gone, because every reader now goes through read_index below. */
 static const AdcChannelDesc s_adcTable[] =
 {
-  { &hadc3, "ADC3", ADC_CHANNEL_1,  "IN1",  "PC3_C/PC2_C", ADC_DIFFERENTIAL_ENDED, "Phase U", ADC_UNIT_PHASE  },
-  { &hadc1, "ADC1", ADC_CHANNEL_3,  "IN3",  "PA6/PA7",     ADC_DIFFERENTIAL_ENDED, "Phase V", ADC_UNIT_PHASE  },
-  { &hadc2, "ADC2", ADC_CHANNEL_4,  "IN4",  "PC4/PC5",     ADC_DIFFERENTIAL_ENDED, "Phase W", ADC_UNIT_PHASE  },
-  { &hadc2, "ADC2", ADC_CHANNEL_5,  "IN5",  "PB1",         ADC_SINGLE_ENDED,       "Clevel",  ADC_UNIT_NONE  },
-  { &hadc1, "ADC1", ADC_CHANNEL_9,  "IN9",  "PB0",         ADC_SINGLE_ENDED,       "NTC",     ADC_UNIT_NTC   },
-  { &hadc3, "ADC3", ADC_CHANNEL_10, "IN10", "PC0",         ADC_SINGLE_ENDED,       "DC bus",  ADC_UNIT_DCBUS },
-  { &hadc3, "ADC3", ADC_CHANNEL_11, "IN11", "PC1",         ADC_SINGLE_ENDED,       "Cinj",    ADC_UNIT_NONE  },
+  { &hadc3, "ADC3", ADC_CHANNEL_1,  "IN1",  "PC3_C/PC2_C", ADC_DIFFERENTIAL_ENDED, "Phase U", ADC_UNIT_PHASE  , 0U },
+  { &hadc1, "ADC1", ADC_CHANNEL_3,  "IN3",  "PA6/PA7",     ADC_DIFFERENTIAL_ENDED, "Phase V", ADC_UNIT_PHASE  , 0U },
+  { &hadc2, "ADC2", ADC_CHANNEL_4,  "IN4",  "PC4/PC5",     ADC_DIFFERENTIAL_ENDED, "Phase W", ADC_UNIT_PHASE  , 0U },
+  { &hadc2, "ADC2", ADC_CHANNEL_5,  "IN5",  "PB1",         ADC_SINGLE_ENDED,       "Clevel",  ADC_UNIT_NONE  , 0U },
+  { &hadc1, "ADC1", ADC_CHANNEL_9,  "IN9",  "PB0",         ADC_SINGLE_ENDED,       "NTC",     ADC_UNIT_NTC   , 0U },
+  { &hadc3, "ADC3", ADC_CHANNEL_10, "IN10", "PC0",         ADC_SINGLE_ENDED,       "DC bus",  ADC_UNIT_DCBUS , 0U },
+  { &hadc3, "ADC3", ADC_CHANNEL_11, "IN11", "PC1",         ADC_SINGLE_ENDED,       "Cinj",    ADC_UNIT_NONE  , 0U },
   /* The two supply senses, both single-ended off ADC1. Traced on the MCU
      sheet 2026-08-27: R113 is a 10 k array whose four elements are GND,
      +5, +15V7 through R119 47 k, and GND. So PA4 sits on a 10 k/10 k
@@ -283,8 +289,18 @@ static const AdcChannelDesc s_adcTable[] =
      the scaling behind it is in the calibration record, and these two
      dividers are not in it yet (invariant 7). A host reads them as volts
      at the pin, which is what they are. */
-  { &hadc1, "ADC1", ADC_CHANNEL_18, "IN18", "PA4",         ADC_SINGLE_ENDED,       "+5V",   ADC_UNIT_RAIL5   },
-  { &hadc1, "ADC1", ADC_CHANNEL_19, "IN19", "PA5",         ADC_SINGLE_ENDED,       "Vgate", ADC_UNIT_VGATE   },
+  { &hadc1, "ADC1", ADC_CHANNEL_18, "IN18", "PA4",         ADC_SINGLE_ENDED,       "+5V",   ADC_UNIT_RAIL5   , 0U },
+  { &hadc1, "ADC1", ADC_CHANNEL_19, "IN19", "PA5",         ADC_SINGLE_ENDED,       "Vgate", ADC_UNIT_VGATE   , 0U },
+
+  /* The die's own thermometer. No pin: it is inside the part, wired to ADC3
+     only - the HAL header says so, so the channel number is not guessed
+     here. HAL_ADC_ConfigChannel enables the internal path and waits out its
+     stabilisation, and skips PCSEL because there is no pad to preselect.
+
+     810.5 cycles because the sensor's source impedance is enormous next to a
+     divider's. It shares the ADC reference with everything else, so it is
+     blind whenever AFE_ON is low - the same borrow the NTC needs. */
+  { &hadc3, "ADC3", ADC_CHANNEL_TEMPSENSOR, "VSENSE", "internal", ADC_SINGLE_ENDED, "MCU die", ADC_UNIT_DIE, ADC_SAMPLETIME_810CYCLES_5 },
 };
 
 uint8_t Board_AdcCount(void)
@@ -300,6 +316,7 @@ uint8_t Board_AdcCount(void)
 #define CH_PHASE_W 2U
 #define CH_NTC     4U
 #define CH_DCBUS   5U
+#define CH_MCU_DIE 9U   /* last row: the internal sensor */
 
 
 bool Board_AdcIsPhase(uint8_t index)
@@ -329,6 +346,20 @@ _Static_assert(BOARD_CAL_CHANNELS ==
                "the calibration record and the ADC table disagree on how "
                "many channels there are");
 
+/* The CH_* constants are POSITIONS in the table above, and read_index takes
+   them without a bounds check - it is called from paths that pass a
+   constant, so the check would only ever fire on a table that had already
+   been edited wrong. This is that check, at build time. Reordering the table
+   still needs eyes; shrinking it no longer needs luck. */
+_Static_assert(CH_MCU_DIE < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
+               "CH_MCU_DIE is past the end of the ADC table");
+_Static_assert(CH_DCBUS < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
+               "CH_DCBUS is past the end of the ADC table");
+_Static_assert(CH_NTC < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
+               "CH_NTC is past the end of the ADC table");
+_Static_assert(CH_PHASE_W < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
+               "CH_PHASE_W is past the end of the ADC table");
+
 /* One read by table index, corrected. Every reading this file hands out goes
    through here: a calibration applied at some call sites and not others is
    harder to reason about than none at all. The raw read above stays
@@ -337,7 +368,8 @@ static bool read_index(uint8_t index, int32_t *raw, float *volts)
 {
   const AdcChannelDesc *d = &s_adcTable[index];
 
-  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, raw, volts))
+  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, raw, volts,
+                          d->sampleTime))
   {
     return false;
   }
@@ -362,6 +394,7 @@ static uint8_t board_unit(AdcUnit u)
   if (u == ADC_UNIT_PHASE) { return BOARD_UNIT_MILLIAMP; }
   if (u == ADC_UNIT_RAIL5) { return BOARD_UNIT_MILLIVOLT; }
   if (u == ADC_UNIT_VGATE) { return BOARD_UNIT_MILLIVOLT; }
+  if (u == ADC_UNIT_DIE)   { return BOARD_UNIT_CENTIDEGC; }
   return BOARD_UNIT_NONE;
 }
 
@@ -417,6 +450,22 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
   if (d->unit == ADC_UNIT_PHASE)
   {
     *scaled = (int32_t)(PHASE_AmpsFromShunt(v) * 1000.0f);
+  }
+
+  if (d->unit == ADC_UNIT_DIE)
+  {
+    /* The die's own factory calibration, read from system memory. Nothing
+       here is a literal: the two raw points, the two temperatures they were
+       taken at and the reference they were taken with all come from the LL
+       header, and TEMPSENSOR_CAL2_TEMP reads DBGMCU->IDCODE to pick 110 or
+       130 C by silicon revision - a hardcoded 110 would be wrong on half
+       the parts.
+       The Vref+ passed in is this board's, from the calibration record
+       (invariant 7): the calibration was taken at 3.3 V and the REF2033 is
+       the part that decides what 3.3 V means here. */
+    *scaled = (int32_t)(__LL_ADC_CALC_TEMPERATURE(
+                            Board_Cal()->vref_uv / 1000UL,
+                            (uint32_t)*raw, LL_ADC_RESOLUTION_16B) * 100);
   }
 
   if ((d->unit == ADC_UNIT_RAIL5) || (d->unit == ADC_UNIT_VGATE))
@@ -477,6 +526,24 @@ bool Board_DcBus(int32_t *raw, int32_t *millivolts)
   return true;
 }
 
+/** The MCU's own die, centi-degrees C. False when it did not convert.
+  *
+  * Shares the ADC reference with every other channel, so it is blind exactly
+  * when the NTC is - AFE_ON low means no reference and no reading. Read it
+  * inside the same borrow as the NTC rather than taking a second one.
+  */
+bool Board_McuDie(int32_t *raw, int32_t *centidegc)
+{
+  int32_t microvolts = 0;
+
+  if ((raw == NULL) || (centidegc == NULL))
+  {
+    return false;
+  }
+  return Board_AdcRead(CH_MCU_DIE, raw, &microvolts, centidegc);
+}
+
+
 bool Board_Ntc(int32_t *raw, int32_t *centidegc)
 {
   float v;
@@ -526,7 +593,8 @@ bool Board_CalZero(uint8_t index, int32_t *measured)
   /* The uncorrected read on purpose: the offset is what the ADC said with
      nothing applied, and measuring it through the old offset would fold the
      previous zero into the new one. */
-  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v))
+  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v,
+                          d->sampleTime))
   {
     return false;
   }
@@ -559,7 +627,8 @@ bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured)
     return false;
   }
 
-  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v))
+  if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, &raw, &v,
+                          d->sampleTime))
   {
     return false;
   }

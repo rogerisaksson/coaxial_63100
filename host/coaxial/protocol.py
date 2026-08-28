@@ -82,7 +82,15 @@ CAL_OP_DEFAULTS = 7
 
 CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               'bus_r_top_ohm', 'bus_r_bottom_ohm',
-              'ntc_r25_ohm', 'ntc_beta_mk', 'ntc_rfixed_ohm', 'ntc_t25_ck')
+              'ntc_r25_ohm', 'ntc_beta_mk', 'ntc_rfixed_ohm', 'ntc_t25_ck',
+              # ids 9..12, the two supply-sense dividers. Missing here
+              # until 2026-08-28: the board sends 13 parameters and
+              # this list named 9, so the reader stopped four u32
+              # early and read the channel count out of the middle of
+              # parameter 10. It came out 0, so every caller had an
+              # empty channel list and nothing said so.
+              'r5_r_top_ohm', 'r5_r_bottom_ohm',
+              'vg_r_top_ohm', 'vg_r_bottom_ohm')
 """The record's scalars, in the order 0x6E device 3 op 0 sends them, and the
 order their ids run in. Integers in the unit that makes them integers, because
 the wire bans floating point - the names carry the unit for the same reason

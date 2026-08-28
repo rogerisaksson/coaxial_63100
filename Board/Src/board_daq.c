@@ -52,6 +52,11 @@ static uint8_t  s_order[BOARD_DAQ_MAX_CHANNELS];  /* channel index per field */
 static uint8_t  s_fields;
 
 /* Accumulator, reset every time a record is pushed. */
+/** Most samples the running accumulator may take before it stops widening.
+  * INT32_MAX / 65535: the largest a single-ended code can be, so one more
+  * addition can never overflow `sum`. */
+#define LIVE_MAX_ADDITIONS 32767U
+
 static int32_t  s_acc[BOARD_DAQ_MAX_CHANNELS];
 static uint16_t s_acc_n;
 static uint16_t s_skip;
@@ -73,7 +78,11 @@ static uint32_t s_interval_cycles;
    window the channels have had different numbers of samples - a single
    count would divide most of them by the wrong number. */
 static board_daq_slot_t s_live[BOARD_DAQ_MAX_CHANNELS];
-static uint32_t s_live_any;
+/* A FLAG, not a count. It was `s_live_any++` per sample, which at 50 kHz
+   wraps through zero every 23.9 hours - and zero is what `fresh` and the
+   window-start test both read as "nothing has arrived". Nothing needs the
+   number; only whether anything came. */
+static uint8_t  s_live_any;
 static uint32_t s_live_first;
 static uint32_t s_live_last;
 static uint32_t s_live_digital;
@@ -82,6 +91,24 @@ static uint8_t  s_next_field;
 static int32_t  s_pending[BOARD_DAQ_MAX_CHANNELS];
 static uint32_t s_pending_at;
 static uint32_t s_pending_digital;
+
+
+/** Microseconds to CYCCNT ticks, saturating rather than wrapping.
+  *
+  * DWT->CYCCNT is 32 bits at 475 MHz, so it comes round every 9.04 s and an
+  * interval longer than that cannot be expressed at all. The multiply used
+  * to be done in uint32: asking for one record every 30 s produced
+  * 30e6 * 475 mod 2^32, about 1.5 s, so a run left alone overnight filled
+  * the ring and dropped instead of ticking over slowly. `Board_DaqConfigure`
+  * refuses it outright; this is the belt for the paths that cannot.
+  */
+static uint32_t interval_cycles(uint32_t interval_us)
+{
+  const uint64_t cycles = (uint64_t)interval_us
+                          * (uint64_t)(SystemCoreClock / 1000000U);
+
+  return (cycles > (uint64_t)UINT32_MAX) ? UINT32_MAX : (uint32_t)cycles;
+}
 
 
 static uint32_t room(void)
@@ -238,6 +265,21 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
   {
     return "accumulate counts samples per record, so the smallest is 1";
   }
+  if ((uint64_t)cfg->interval_us * (uint64_t)(SystemCoreClock / 1000000U)
+      > (uint64_t)UINT32_MAX)
+  {
+    return "interval_us is more than the cycle counter can express - it is "
+           "32 bits at 475 MHz and comes round every 9.04 s. Sample faster "
+           "and decimate, or drive it from the host";
+  }
+  if (cfg->accumulate > LIVE_MAX_ADDITIONS)
+  {
+    /* The record's sum is int32 and a single-ended code reaches 65535, so
+       beyond this the sum wraps and the host divides a negative by the
+       count and calls it a mean. */
+    return "accumulate is at most 32767 - beyond that the record's sum "
+           "overflows a signed 32-bit total and stops being a measurement";
+  }
   if (!Board_AdcSetSampleTime(cfg->sample_time))
   {
     return "sample_time is 0 to 7, shortest window first";
@@ -277,7 +319,7 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
   }
 
   s_cfg = *cfg;
-  s_interval_cycles = cfg->interval_us * (SystemCoreClock / 1000000U);
+  s_interval_cycles = interval_cycles(cfg->interval_us);
   s_stride = (uint16_t)(4U + (4U * s_fields) + ((cfg->digital != 0U) ? 4U : 0U));
   s_head = 0U;
   s_tail = 0U;
@@ -297,7 +339,7 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
 void Board_DaqSetInterval(uint32_t interval_us)
 {
   s_cfg.interval_us = interval_us;
-  s_interval_cycles = interval_us * (SystemCoreClock / 1000000U);
+  s_interval_cycles = interval_cycles(interval_us);
 }
 
 
@@ -370,9 +412,20 @@ static void live_insert(uint8_t field, int32_t value, uint32_t at,
     s_live[field].highest = value;
   }
 
-  s_live[field].sum += value;
-  s_live[field].additions++;
-  s_live_any++;
+  /* SATURATE. `sum` is int32 and a single-ended channel reads up to 65535,
+     so at 50 kHz the sum passes INT32_MAX in 0.66 s - signed overflow, and
+     the host divides the wrapped negative by `additions` and reports it as a
+     mean. Stop widening the window instead: the mean over what did go in
+     stays true, which a wrapped sum does not.
+
+     LIVE_MAX_ADDITIONS is INT32_MAX / 65535, the worst a single sample can
+     be, so the next addition can never carry it past the end. */
+  if (s_live[field].additions < LIVE_MAX_ADDITIONS)
+  {
+    s_live[field].sum += value;
+    s_live[field].additions++;
+  }
+  s_live_any = 1U;
   s_live_last = at;
   s_live_digital = digital;
 

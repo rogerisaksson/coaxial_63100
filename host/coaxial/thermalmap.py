@@ -74,6 +74,9 @@ CELL = '  '
 #: symbol. Six kelvin a step shows the zones.
 RAMP = '.,:;~-=+ic*xX#$%8W@'
 
+#: The bar and its tick labels. Counted by the caller, so it is named.
+SCALE_LINES = 2
+
 
 def field(x_mm, y_mm, board_c, nodes, layout=None):
     """Temperature at one point: the board plus every source's contribution."""
@@ -119,12 +122,13 @@ def _grid(nodes, board_c, cells, layout):
     return rows, lo, hi
 
 
-def _fit(colour, reserve=16):
+def _fit(colour, reserve):
     """Cells across the board, from the terminal.
 
-    `reserve` is what the caller spends on the text around the picture - the
-    banner, the readings, the scale and its labels. Measured against
-    show_thermal.py's frame, which is the widest of them.
+    `reserve` is every line in the finished frame that is NOT picture: the
+    banner, the readings, the blank lines, the scale and its labels. The
+    caller counts its own, because guessing here is what clipped the bottom
+    of the board off - a guess of 16 against a frame that spent 18.
     """
     size = shutil.get_terminal_size((80, 30))
     rows = max(size.lines - reserve, 8)
@@ -192,7 +196,8 @@ def _ramp_rows(grid):
     return out
 
 
-def render(nodes, board_c, cells=None, colour=None, layout=None, title=None):
+def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
+           reserve=None, trailing=2):
     """The board as a thermal picture.
 
     `nodes` is {zone: degrees} and `board_c` the bulk the field falls back to
@@ -202,15 +207,23 @@ def render(nodes, board_c, cells=None, colour=None, layout=None, title=None):
     and means the same in every picture. Auto-ranging made a cool board look
     exactly like a hot one, so two pictures said nothing side by side.
 
-    `cells` None fits the terminal, which is the only way the picture and the
-    readings above it both stay on one screen. `colour` None asks the
-    terminal: escapes into a pipe or a log are noise, and the character ramp
-    reads fine there.
+    `cells` None fits the terminal, and `reserve` is how many lines the
+    caller spends on everything that is not the picture - it cannot be known
+    from here, and guessing it clipped the board's bottom edge.
+
+    `trailing` blank lines follow the scale, so the last row of the picture
+    is not the last row of the terminal.
+
+    `colour` None asks the terminal: escapes into a pipe or a log are noise,
+    and the character ramp reads fine there.
     """
     if colour is None:
         colour = bool(getattr(sys.stdout, 'isatty', lambda: False)())
     if cells is None:
-        cells = _fit(colour)
+        # SCALE_LINES plus the blank above them is what render itself adds;
+        # anything else in the frame is the caller's to count.
+        cells = _fit(colour, (SCALE_LINES + 1 + trailing)
+                     if reserve is None else reserve)
     layout = LAYOUT if layout is None else layout
 
     grid, lo, _hi = _grid(nodes, board_c, cells, layout)
@@ -223,6 +236,7 @@ def render(nodes, board_c, cells=None, colour=None, layout=None, title=None):
     out.extend(_half_rows(grid) if colour else _ramp_rows(grid))
     out.append('')
     out.extend(_scale(cells if colour else cells * len(CELL), colour))
+    out.extend([''] * trailing)
     return '\n'.join(out)
 
 

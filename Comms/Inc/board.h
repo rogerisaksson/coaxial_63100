@@ -172,6 +172,10 @@ void Board_AngleClock(uint32_t *kernel_hz, uint32_t *bitrate_hz);
 /** One 20-bit packet: the register's sixteen data bits and its four CRC
   * bits, neither interpreted here. */
 bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc);
+
+/** The A1335's own die, centi-degrees C. Needs AFE_ON like the part
+  * itself does. Measures the die, not the board - which is the point. */
+bool Board_AngleDie(int32_t *centidegc);
 bool Board_AngleWrite(uint8_t reg, uint8_t value);
 
 /** Advance the angle sensor's poll loop. One packet when it runs, which is
@@ -524,12 +528,20 @@ bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w);
 bool Board_DcBus(int32_t *raw, int32_t *millivolts);
 bool Board_Ntc(int32_t *raw, int32_t *centidegc);
 
+/** The MCU die, centi-degrees C. Needs the ADC reference like
+  * everything else, so it is blind whenever AFE_ON is low. */
+bool Board_McuDie(int32_t *raw, int32_t *centidegc);
+
 /* ---- calibration -------------------------------------------------------- */
 
 /** Channels the record carries a correction for. The ADC table's length, and
     checked against it at init - a table that grew past this is a record that
     would silently stop correcting the new channels. */
-#define BOARD_CAL_CHANNELS 9U
+/** Nodes in the thermal observer. Mirrors thermal_node_t, and the
+  * calibration record carries one ceiling per node. */
+#define BOARD_THERMAL_NODES 6
+
+#define BOARD_CAL_CHANNELS 10U
 
 /** Which scalar Board_CalSetParam/GetParam addresses. Integers in the unit
     that makes them integers, because the wire bans floating point. */
@@ -582,6 +594,16 @@ typedef struct
   uint32_t ntc_rfixed_ohm;
   uint32_t ntc_t25_ck;
   board_cal_chan_t chan[BOARD_CAL_CHANNELS];
+
+  /* The thermal envelope. In the record and not in the source because a
+     ceiling the firmware invented would be exactly the judgement invariant
+     10 forbids - this way the board holds a limit it was GIVEN, and one
+     board can carry a different envelope from the next without a rebuild.
+     Zero disables a node's ceiling, which is what a node with no measurement
+     behind it deserves. */
+  int32_t  soa_limit_centi[BOARD_THERMAL_NODES];
+  uint32_t soa_throttle_ppm;   /**< where derating starts, parts per million */
+
   uint16_t crc;
 } board_cal_t;
 
@@ -612,6 +634,13 @@ bool Board_CalSetParam(uint8_t id, uint32_t value);
 bool Board_CalGetParam(uint8_t id, uint32_t *value);
 
 bool Board_CalSetChannel(uint8_t index, int32_t offset_raw, int32_t gain_ppm);
+
+/** One node's ceiling, centi-degrees C. Zero disables it. Changes the record
+    in RAM; `Board_CalSave` is what makes it survive a power cycle. */
+bool Board_CalSetLimit(uint8_t node, int32_t limit_centi);
+
+/** Where derating starts, parts per million of the budget. */
+bool Board_CalSetThrottle(uint32_t ppm);
 bool Board_CalChannel(uint8_t index, int32_t *offset_raw, int32_t *gain_ppm);
 
 /**
@@ -846,9 +875,6 @@ uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity);
 void Board_RequestConsoleMode(void);
 
 
-/** Nodes in the thermal observer. Mirrors thermal_node_t. */
-#define BOARD_THERMAL_NODES 6
-
 /** What the observer knows: one measurement, the rest estimates.
   *
   * `ntc_measured` is what tells them apart and must not be ignored - with
@@ -857,14 +883,41 @@ void Board_RequestConsoleMode(void);
   */
 typedef struct
 {
-  bool    ntc_measured;                        /**< AFE_ON high and the channel answered */
+  bool    ntc_measured;                        /**< the thermistor answered              */
   int32_t ntc_centidegc;                       /**< MEASURED, valid only above           */
+  bool    afe_measured;                        /**< the A1335's die answered             */
+  int32_t afe_centidegc;                       /**< MEASURED, valid only above           */
+  bool    mcu_measured;                        /**< the MCU's die answered               */
+  int32_t mcu_centidegc;                       /**< MEASURED, valid only above           */
+  uint32_t seen_ms_ago;                        /**< age of the whole sample              */
   int32_t node_centidegc[BOARD_THERMAL_NODES]; /**< ESTIMATED                            */
   int32_t ambient_centidegc;                   /**< ESTIMATED - there is no sensor       */
   int32_t expected_ntc_centidegc;              /**< the model's own NTC, for the error   */
   uint32_t seconds;                            /**< how long it has run                  */
   bool    settled;                             /**< the anchoring has converged          */
 } board_thermal_t;
+
+/** The thermal budget: how much is spent and how long is left.
+  *
+  * `used` is one byte per node - 0 at ambient, 255 at the limit - because
+  * "how close am I" is the question, and a temperature cannot answer it
+  * without the limit beside it.
+  */
+typedef struct
+{
+  uint8_t  used[BOARD_THERMAL_NODES];
+  uint8_t  worst;
+  uint8_t  worst_node;
+  int32_t  millis_to_limit;  /**< -1 when it is not heading for a limit */
+  bool     throttling;
+  bool     tripped;
+  uint32_t trips;            /**< how many times it has stopped the stage */
+} board_budget_t;
+
+bool Board_ThermalBudget(board_budget_t *out);
+
+/** Set one node's ceiling, degrees C. Zero disables that node's limit. */
+bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at);
 
 void Board_ThermalInit(void);
 void Board_ThermalPoll(void);

@@ -45,8 +45,13 @@ class Calibration(Subsystem):
         reader = Reader(self._op(protocol.CAL_OP_GET))
         stored = bool(reader.u8())
         version = reader.u16()
+        # Consume what the BOARD said it sent, not what this list happens to
+        # name. A count read off the wire and then iterated over a local list
+        # is how the reader fell four fields behind and stayed there.
         params = {}
-        for name in protocol.CAL_PARAMS[:reader.u8()]:
+        for i in range(reader.u8()):
+            name = (protocol.CAL_PARAMS[i] if i < len(protocol.CAL_PARAMS)
+                    else 'param%d' % i)
             params[name] = reader.u32()
 
         channels = []
@@ -55,8 +60,15 @@ class Calibration(Subsystem):
                              'offset_raw': reader.i32(),
                              'gain_ppm': reader.i32()})
 
+        # The thermal envelope. Centi-degrees per node, in thermal_node_t
+        # order; zero means that node has no ceiling, which is what a node
+        # with no measurement behind it should carry rather than a guess.
+        limits = [reader.i32() / 100.0 for _ in range(reader.u8())]
+
         return {'stored': stored, 'version': version,
-                'params': params, 'channels': channels}
+                'params': params, 'channels': channels,
+                'soa_limit_c': limits,
+                'soa_throttle_at': reader.u32() / 1e6}
 
     def set_param(self, name, value):
         """One scalar, by the name read() returns it under."""
@@ -106,13 +118,19 @@ class Calibration(Subsystem):
                                                        signed=True))).i32()
 
     def save(self):
-        """Commit to flash. Erases and rewrites one sector, then reads back."""
-        self._op(protocol.CAL_OP_SAVE, timeout=self.SAVE_TIMEOUT)
+        """Commit to flash. Erases and rewrites one sector, then reads back.
+
+        Returns what the board said it did. It used to drop the reply and
+        return None, which invariant 8 exists to forbid: every call produces
+        its result or raises, and a caller cannot tell None from a habit.
+        """
+        return bool(Reader(self._op(protocol.CAL_OP_SAVE,
+                                    timeout=self.SAVE_TIMEOUT)).u8())
 
     def load(self):
         """Re-read flash, discarding uncommitted edits."""
-        self._op(protocol.CAL_OP_LOAD)
+        return bool(Reader(self._op(protocol.CAL_OP_LOAD)).u8())
 
     def defaults(self):
         """Back to the firmware's compiled-in numbers. RAM only until save."""
-        self._op(protocol.CAL_OP_DEFAULTS)
+        return bool(Reader(self._op(protocol.CAL_OP_DEFAULTS)).u8())

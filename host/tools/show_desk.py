@@ -155,7 +155,11 @@ def main(argv=None):
                     face = 'no reading: %s' % exc
 
                 frame += 1
-                lines = [banner(origin, 'analog - meter bridge', console,
+                # A blank FIRST: paint addresses absolute rows from 1, so without it
+                # the banner lands on the terminal's top row, under the shell's
+                # own decoration - and the LIVE/SIMULATED tag is the one thing
+                # in the frame that must never be hidden.
+                lines = ['', banner(origin, 'analog - meter bridge', console,
                                 'Q closes, ESC for the menu   frame %d' % frame),
                          ''] + face.split('\n')
                 sys.stdout.write(paint(shown, lines, console))

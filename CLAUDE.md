@@ -506,8 +506,18 @@ Break one and something works until it doesn't.
 10. **The board is a dumb slave. No limits, no expected values, anywhere in the
     firmware or in this repository's tests.** It reports raw codes; pass/fail
     against real thresholds belongs to a test executive beside the calibrated
-    instruments. The one exception is `self_test`, which judges only what it can
-    prove from its own registers and flash.
+    instruments. Two exceptions, both narrow:
+
+    * `self_test`, which judges only what it can prove from its own registers
+      and flash.
+    * **The thermal envelope**, because a board that cooks itself is not a
+      measurement problem. The distinction that keeps this honest: the board
+      never calls a reading good or bad, it *acts* - at a ceiling it drops MOE
+      and every gate goes to its idle level, the same path the break uses. The
+      ceilings are not the firmware's opinion either; they live in the
+      calibration record beside the thermistor constants (invariant 7), so the
+      board holds a limit it was given rather than one it invented. The margin
+      is reported; the verdict still is not.
 11. **The DC link divider's headroom is deliberate.** 49.9k/2.2k gives 78.15 V
     full scale against a 63 V rating, 24 % of margin. Do not optimise it away; on
     an inverter the over-rating transient is what you want recorded, not clipped.

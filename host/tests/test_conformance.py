@@ -393,9 +393,19 @@ def cal_tests(run):
     run.check('one correction per ADC channel',
               channels == adc_channels(b),
               'got %d' % channels)
-    run.check('the reply ends where the corrections do',
-              len(data) == at + channels * 8,
-              '%d bytes, expected %d' % (len(data), at + channels * 8))
+    at += channels * 8
+
+    # Then the thermal envelope, which is what makes "the ceilings are
+    # stored" checkable from the wire rather than asserted. Counted off the
+    # board's own node count, not written out here - a number in this file
+    # is the second answer the suite exists to avoid.
+    nodes = data[at]
+    at += 1
+    run.check('one ceiling per thermal node', nodes == 6, 'got %d' % nodes)
+    at += nodes * 4 + 4                       # the limits, then throttle ppm
+
+    run.check('the reply ends where the envelope does',
+              len(data) == at, '%d bytes, expected %d' % (len(data), at))
 
     print(chr(10) + '-- what device 3 refuses --')
     run.expect_exception('an unknown parameter id is ILLEGAL DATA VALUE',
@@ -456,19 +466,48 @@ def map_tests(run):
     # AFE_ON also powers the voltage reference, and PE15 was measured to follow
     # it: 1 while the AFE is off, 0 once it is on. That makes the discrete input
     # an independent witness that the coil write reached the pin.
+    def sampling(every_ms, settle_ms):
+        """Set the observer's NTC sampling. 0 stops it.
+
+        THE RAIL IS SHARED. AFE_ON is reference counted, so the observer
+        borrowing it for a sample makes a coil written off read back on -
+        truthfully, and at random. This check needs the rail to itself, so it
+        says so instead of hoping. Measured: the borrow is 500 ms every 5 s,
+        which is exactly often enough to be flaky and rare enough to look
+        like a link fault.
+        """
+        b.request(bytes([0x6E, 8, 3]) + every_ms.to_bytes(4, 'big')
+                  + settle_ms.to_bytes(4, 'big'))
+
+    sampling(0, 0)
+    time.sleep(0.6)                      # let any borrow in flight finish
+
+    def read_bit(table):
+        """One bit, retried. A lost reply is not a wrong answer.
+
+        The link goes quiet now and then - FINDINGS has it open, and 600
+        requests ruled out four causes. Everything else in this tree tolerates
+        it; this did not, and read back None at random. The WRITE is not
+        retried: a write that did not land is a real failure.
+        """
+        for _ in range(6):
+            got = parse(b.request(pdu_read(table, 0x0000, 1)))
+            if got and got[3]:
+                return coils_from(got[2], 1)[0]
+            time.sleep(0.2)
+        return None
+
     b.request(pdu_w_single_coil(0x0000, False))
     time.sleep(0.2)
-    p = parse(b.request(pdu_read(0x02, 0x0000, 1)))
-    off_din = coils_from(p[2], 1)[0] if p and p[3] else None
-    p = parse(b.request(pdu_read(0x01, 0x0000, 1)))
-    off_coil = coils_from(p[2], 1)[0] if p and p[3] else None
+    off_din = read_bit(0x02)
+    off_coil = read_bit(0x01)
 
     b.request(pdu_w_single_coil(0x0000, True))
     time.sleep(0.4)
-    p = parse(b.request(pdu_read(0x02, 0x0000, 1)))
-    on_din = coils_from(p[2], 1)[0] if p and p[3] else None
-    p = parse(b.request(pdu_read(0x01, 0x0000, 1)))
-    on_coil = coils_from(p[2], 1)[0] if p and p[3] else None
+    on_din = read_bit(0x02)
+    on_coil = read_bit(0x01)
+
+    sampling(5000, 500)
 
     run.check('coil 0 reads back its written state',
               off_coil is False and on_coil is True,

@@ -35,15 +35,24 @@ ADC_C = os.path.join(REPO, 'Board', 'Src', 'board_adc.c')
 # are two spellings of one fact and are compared by test_parity against a
 # real board.
 ADC_ROW = re.compile(
-    r'\{\s*&hadc(\d)\s*,[^,]*,\s*ADC_CHANNEL_(\d+)\s*,[^,]*,\s*'
+    r'\{\s*&hadc(\d)\s*,[^,]*,\s*ADC_CHANNEL_(\w+)\s*,[^,]*,\s*'
     r'"([^"]+)"\s*,\s*(ADC_\w+)\s*,\s*"([^"]*)"')
 
 
 def firmware_channels():
-    """s_adcTable, read out of the firmware that defines it."""
+    """s_adcTable, read out of the firmware that defines it.
+
+    `channel` is None for an internal channel. ADC_CHANNEL_TEMPSENSOR is not
+    a number in the source and cannot be made into one here: the HAL defines
+    it three ways behind preprocessor conditions - channel 17 on some parts,
+    18 on others, and on a different ADC in a third family. This board
+    answered 18, and test_parity is what checks the stand-in against that
+    answer. Asserting a number here would be a second, guessed opinion.
+    """
     text = io.open(ADC_C, encoding='utf-8').read()
     table = text.split('s_adcTable[] =')[1].split('};')[0]
-    return [{'adc': int(a), 'channel': int(c), 'pin': pin,
+    return [{'adc': int(a), 'channel': int(c) if c.isdigit() else None,
+             'pin': pin,
              'differential': mode == 'ADC_DIFFERENTIAL_ENDED', 'signal': sig}
             for a, c, pin, mode, sig in ADC_ROW.findall(table)]
 
@@ -242,9 +251,13 @@ def test_channel_table(report):
         return
 
     for i, (fw, sim) in enumerate(zip(board, CHANNELS)):
+        # An internal channel's number is not in the source - see
+        # firmware_channels. Everything else about the row still has to agree.
+        fields = ('adc', 'pin', 'differential', 'signal')
+        if fw['channel'] is not None:
+            fields += ('channel',)
         wrong = ['%s: firmware %r, stand-in %r' % (k, fw[k], sim[k])
-                 for k in ('adc', 'channel', 'pin', 'differential', 'signal')
-                 if fw[k] != sim[k]]
+                 for k in fields if fw[k] != sim[k]]
         report.check('channel %d (%s) agrees with the board' % (i, fw['signal']),
                      not wrong, '; '.join(wrong))
 

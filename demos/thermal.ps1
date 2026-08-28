@@ -55,4 +55,14 @@ if ($Frames -gt 0) { $argv += @('--frames', $Frames) }
 if ($Switch -ge 0) { $argv += @('--switch', $Switch, '-P', $Phases) }
 
 Push-Location (Join-Path $root 'host')
-try { & python @argv } finally { Pop-Location }
+try {
+    & python @argv
+    $code = $LASTEXITCODE
+} finally {
+    Pop-Location
+}
+
+# 64 is show_thermal.py's TO_MENU. Swallowing it here is what stopped ESC
+# from going back to demo.ps1's menu - the view returned it and the wrapper
+# dropped it on the floor.
+exit $code

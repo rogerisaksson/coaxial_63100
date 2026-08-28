@@ -8,6 +8,19 @@ lives in two files.
 import re
 import sys
 
+# Every view draws glyphs outside ASCII - box rules, half blocks, bars. A
+# console handles them; a PIPE does not, because Python then takes the
+# encoding from the locale, which on this machine is cp1252. Measured:
+# `show_desk.py --frames 1 | anything` died with UnicodeEncodeError on the
+# meter bridge before the first frame reached the pipe.
+#
+# `replace` rather than `strict`: a view redirected to a log is worth reading
+# with a few glyphs substituted, and is worth nothing as a traceback.
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+except (AttributeError, ValueError):    # not a reconfigurable stream
+    pass
+
 #: What leaves a view, and where it leaves you. Q closes the lot; ESC goes
 #: back to the menu, because picking the wrong view is the common mistake and
 #: retyping the command to fix it is the annoying part. Ctrl+C still works and

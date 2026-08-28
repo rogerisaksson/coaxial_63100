@@ -71,7 +71,7 @@ typedef struct
 
 static dev_port_t s_ports[DEV_UART_COUNT] =
 {
-  { .echoes = false, .interrupt = false, .irq = USART3_IRQn,
+  { .echoes = false, .interrupt = true,  .irq = USART3_IRQn,
     .name = "USART3" },
   { .echoes = true,  .interrupt = true,  .irq = USART2_IRQn,
     .name = "USART2" },
@@ -119,6 +119,15 @@ static void on_irq(dev_port_t *p)
   }
 }
 
+/* Port 0 is USART3, the debug probe's VCP - the wire the host and the console
+   both use. It had no handler while it was polled, so enabling its interrupt
+   without this would have landed every byte in the default handler's endless
+   loop. */
+void USART3_IRQHandler(void)
+{
+  on_irq(&s_ports[0]);
+}
+
 void USART2_IRQHandler(void)
 {
   on_irq(&s_ports[1]);
@@ -153,9 +162,17 @@ static bool u_get(void *ctx, uint8_t *byte, uint32_t *tick)
     return false;
   }
 
-  /* Polled: the best timestamp available is now, which is what this port had
-     before any of them had an interrupt. It is the console's wire and the
-     master on it is a person or a script, not a bus. */
+  /* The polled fallback. Every port receives on interrupt now, so nothing
+     reaches here on this board - it is kept because a port that loses its
+     ISR should degrade rather than go deaf.
+
+     USART3 was polled until 2026-08-28 on the reasoning that "the master on
+     it is a person or a script, not a bus". Measured, that was wrong: a
+     script lost 0.45 % of its frames, and the board counted one char_overrun
+     for each, exactly. The cause was the IMU poll - a 276-byte cargo at
+     1.48 MHz is 1.5 ms, longer than the RX FIFO covers at 115200, and the
+     `!link_busy()` gate only looks BEFORE the poll. Held the IMU loop and
+     the overruns went to zero over 1283 requests. */
   *tick = DWT->CYCCNT;
   *byte = (uint8_t)(u->RDR & 0xFFU);
   return true;

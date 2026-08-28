@@ -21,6 +21,7 @@ Run from the host directory:  python tests/test_parity.py
 import os
 import re
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -127,8 +128,12 @@ def main():
                        'disarm', 'trigger', 'clear_fault', 'bypass_break',
                        'reset_worst_gap', 'duty_fine'),
             'capture': ('state', 'arm', 'stop', 'take', 'drain'),
-            'daq': ('state', 'layout', 'configure', 'start', 'stop', 'read',
-                    'acquire', 'drain', 'latest'),
+            # `acquire` drains what has arrived and `once` is the whole
+              # capture in one call. `read` was the old name for the first and
+              # `acquire` for the second, which put the same word on two
+              # different shapes of thing.
+              'daq': ('state', 'layout', 'configure', 'start', 'stop',
+                      'acquire', 'once', 'drain', 'latest'),
             'clock': ('latch', 'read_latch', 'sync', 'probe'),
         }
         for name, calls in CALLED.items():
@@ -185,6 +190,19 @@ def main():
                      and 'simulated' not in live_head[2].lower(),
                      fake_head[2][:46])
 
+        # THE RAIL IS SHARED, so ask for it exclusively before comparing.
+        # AFE_ON is reference counted and the thermal observer borrows it for
+        # an NTC sample; a borrow landing between "set off" and "read" gives
+        # the live side the AFE-on row set and the stand-in the other, and the
+        # two disagree for a reason that is not a parity fault. Measured: it
+        # failed about one run in three, and only inside a full suite run
+        # where something else had already woken the observer.
+        try:
+            board.board.thermal.set_sample(0.0, 0.0)
+            time.sleep(0.6)
+        except Exception:                     # noqa: BLE001 - older firmware
+            pass
+
         # A reading, with the front end in the same state on both sides, so
         # the AFE-off banner is either present on both or on neither.
         for state in ('on', 'off'):
@@ -223,6 +241,10 @@ def main():
                          first_difference(shape(live), shape(fake)))
     finally:
         toolmod.HANDLERS['afe_power'](board, action='off')
+        try:
+            board.board.thermal.set_sample(5.0, 0.5)   # put sampling back
+        except Exception:                     # noqa: BLE001 - older firmware
+            pass
         try:
             board.close()
         except Exception:                                     # noqa: BLE001

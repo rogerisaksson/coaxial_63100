@@ -64,6 +64,16 @@ typedef enum
 /** One node's thermal properties. Set from the calibration record. */
 typedef struct
 {
+  /** How far the part's own die sits ABOVE this node, kelvin.
+    *
+    * A die sensor reads the junction; the node models the package and the
+    * copper around it. Anchoring one on the other without this term books
+    * the junction-to-case rise as a hotter board - measured 2026-08-28, the
+    * board estimate came out 6.4 K ABOVE an NTC that sits in the drivers'
+    * hot spot and cannot be below it.
+    *
+    * Zero for a node with no die of its own. */
+  float die_over_node;
   float to_board;        /**< K/W from this node into the board node   */
   float capacity;        /**< J/K - what sets how fast it responds     */
 } thermal_node_cfg_t;
@@ -155,6 +165,61 @@ void thermal_losses(thermal_loss_t *loss);
 void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
                             const thermal_loss_t *loss);
 
+/** What each node may reach, and where throttling should start.
+  *
+  * THESE ARE NOT THE BOARD'S OPINION. They are parameters it was given, the
+  * same way the thermistor constants are, and they belong in the calibration
+  * record for the same reason (invariant 7). The board holds a limit; it does
+  * not invent one, and it never calls a reading good or bad.
+  *
+  * What it DOES do with them is protect the silicon - throttle, then trip.
+  * That is an action, not a verdict, and the STO chain is the precedent.
+  */
+typedef struct
+{
+  float limit_c[THERMAL_NODES];  /**< absolute ceiling per node, degrees C */
+  float throttle_at;             /**< fraction of budget where derating starts */
+} thermal_soa_t;
+
+/** How much of the thermal budget is spent, and how long is left.
+  *
+  * `used` is the budget as ONE BYTE per node: 0 is ambient, 255 is at or past
+  * the limit. A byte because the question asked of it is "how close", and a
+  * temperature does not answer that without the limit beside it - two numbers
+  * to compare where one suffices.
+  *
+  * `millis_to_limit` is the dead reckoning, and it is what a burst needs:
+  * not how hot the part is, but how long it may stay at this power. Negative
+  * means it is not heading for the limit at all.
+  *
+  * MILLISECONDS, not seconds. Measured against the model: 35 W into the
+  * phase node crosses the throttle point with well under a second left, so
+  * whole seconds reported 0 and a burst had nothing to plan on.
+  */
+typedef struct
+{
+  uint8_t used[THERMAL_NODES];
+  uint8_t worst;             /**< the largest of `used`                   */
+  uint8_t worst_node;        /**< which one it was                        */
+  int32_t millis_to_limit;   /**< for `worst_node`; -1 = not heading there */
+  bool    throttling;        /**< past throttle_at: derate now            */
+  bool    tripped;           /**< at or past a limit: stop                */
+} thermal_budget_t;
+
+/* No thermal_soa_defaults here on purpose. The envelope lives in the
+   board's calibration record - one definition, and one that travels with the
+   board rather than with the firmware. A copy here would be a second answer
+   to "what may this node reach", and the two would drift. */
+
+/**
+  * @brief  Spend of the thermal budget, and the time left at this power.
+  *
+  * Pure: it reads the observer and the power going in, and changes nothing.
+  * Whoever wants to act on it does that where the acting belongs.
+  */
+void thermal_budget(const thermal_t *th, const thermal_power_t *p,
+                    const thermal_soa_t *soa, thermal_budget_t *out);
+
 /**
   * @brief  Start the observer with every node at one temperature.
   * @param  cfg      Network parameters. Copied.
@@ -162,20 +227,47 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
   */
 void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius);
 
+/** What the thermometers say now. NAN for any that is not answering.
+  *
+  * A PART THAT MEASURES ITS OWN DIE IS A NODE SENSOR, NOT A BOARD SENSOR,
+  * and getting that backwards is why the A1335's TSEN was written off once.
+  * As a board thermometer it was useless - it sheds its self-heating every
+  * time AFE_ON breaks, and measured 2026-08-28 it FELL 1.88 K during a run
+  * that warmed the board. As a thermometer for the node it sits on, that
+  * self-heating is the signal.
+  *
+  * The board has one thermistor and five estimated sources, so it is badly
+  * under-observed. Every die that can report its own temperature is another
+  * equation, and it comes for free: both of these parts are already on the
+  * board and already talking.
+  */
+typedef struct
+{
+  float ntc_c;   /**< the thermistor, beside the middle gate driver */
+  float afe_c;   /**< the A1335's own die, out in the AFE corner    */
+  float mcu_c;   /**< the MCU's own die                             */
+} thermal_sense_t;
+
 /**
   * @brief  Advance the model and pull it toward what the sensors say.
-  * @param  p        Dissipation now, per node.
-  * @param  ntc_c    The NTC, degrees C. Required.
-  * @param  tsen_c   The A1335's TSEN, or NAN when the part is not answering.
-  * @param  dt_s     Seconds since the last step.
+  * @param  p     Dissipation now, per node.
+  * @param  seen  The thermometers. Any of them may be NAN.
+  * @param  dt_s  Seconds since the last step.
   *
-  * The model runs open loop between sensor readings and is corrected by
-  * them, so a sensor that stops answering degrades the estimate rather than
-  * stopping it. With TSEN absent the board node is anchored on the NTC with
-  * the drivers' share removed, which is worse but not blind.
+  * The model runs open loop between readings and is corrected by them, so a
+  * sensor that stops answering degrades the estimate rather than stopping
+  * it.
+  *
+  * A DIE SENSOR IS WORTH MORE THAN ITS OWN NODE. The node's rise over the
+  * board is its own power times its own spreading resistance, and the model
+  * carries both - so subtracting them is a route to the board temperature
+  * that never passes through the drivers' hot spot the NTC sits in. With any
+  * die answering, the NTC is left explaining only the drivers' own rise,
+  * which is the one thing it is well placed to see. With none, it has to
+  * carry both and the split is a guess: `settled` stays false.
   */
 void thermal_step(thermal_t *th, const thermal_power_t *p,
-                  float ntc_c, float tsen_c, float dt_s);
+                  const thermal_sense_t *seen, float dt_s);
 
 /**
   * @brief  What the NTC should read, given the model. For checking the fit.

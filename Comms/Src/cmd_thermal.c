@@ -19,6 +19,8 @@
   *   1  set node   - u8 node, i32 to_board_milli, i32 capacity_milli
   *   2  set board  - i32 to_ambient_milli, i32 capacity_milli
  *   3  set sample - u32 every_ms, u32 settle_ms
+ *   4  budget     - the SOA spend, one byte a node
+ *   5  set limit  - u8 node, i32 limit_milli_c, i32 throttle_ppm
   ******************************************************************************
   */
 #include "board.h"
@@ -29,6 +31,8 @@
 #define OP_SET_NODE  1U
 #define OP_SET_BOARD 2U
 #define OP_SET_SAMPLE 3U
+#define OP_BUDGET     4U
+#define OP_SET_LIMIT  5U
 
 
 static cmd_status_t op_state(wr_t *out)
@@ -63,6 +67,15 @@ static cmd_status_t op_state(wr_t *out)
   Board_ThermalSampling(&every_ms, &settle_ms);
   wr_u32(out, every_ms);
   wr_u32(out, settle_ms);
+
+  /* The other two thermometers, each with its own flag. Separate fields
+     because they answer separately: all three share AFE_ON, but a die that
+     did not respond over SPI is not the same as a rail that was down. */
+  wr_u8(out, th.afe_measured ? 1U : 0U);
+  wr_i32(out, th.afe_centidegc);
+  wr_u8(out, th.mcu_measured ? 1U : 0U);
+  wr_i32(out, th.mcu_centidegc);
+  wr_u32(out, th.seen_ms_ago);
   return CMD_OK;
 }
 
@@ -150,6 +163,67 @@ static cmd_status_t op_set_sample(rd_t *in, wr_t *out)
 }
 
 
+/** op 4 - what is left of the thermal budget.
+  *
+  * ONE BYTE A NODE. A temperature does not say how close a part is to its
+  * ceiling without the ceiling beside it, so this carries the fraction
+  * instead: 0 is ambient and 255 is at the limit. The estimates themselves
+  * are still op 0 for anyone who wants degrees.
+  *
+  * `millis_to_limit` is what a burst plans on - not how hot it is now, but
+  * how long it may stay at this power. Milliseconds, because 35 W into the
+  * phase node crosses the throttle point with under a second to go.
+  */
+static cmd_status_t op_budget(wr_t *out)
+{
+  board_budget_t b;
+
+  if (!Board_ThermalBudget(&b))
+  {
+    return CMD_ERR_DEVICE;
+  }
+
+  wr_u8(out, (uint8_t)BOARD_THERMAL_NODES);
+  for (uint8_t i = 0U; i < (uint8_t)BOARD_THERMAL_NODES; i++)
+  {
+    wr_u8(out, b.used[i]);
+  }
+  wr_u8(out, b.worst);
+  wr_u8(out, b.worst_node);
+  wr_i32(out, b.millis_to_limit);
+  wr_u8(out, b.throttling ? 1U : 0U);
+  wr_u8(out, b.tripped ? 1U : 0U);
+  wr_u32(out, b.trips);
+  return CMD_OK;
+}
+
+
+static cmd_status_t op_set_limit(rd_t *in, wr_t *out)
+{
+  const uint8_t node = rd_u8(in);
+  const int32_t limit_milli = rd_i32(in);
+  const int32_t throttle_ppm = rd_i32(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  if (node >= (uint8_t)BOARD_THERMAL_NODES)
+  {
+    cmd_took(out, "there are six nodes, 0..5 - see 0x6E device 8 op 0");
+    return CMD_OK;
+  }
+  if (!Board_ThermalSetLimit(node, (float)limit_milli / 1000.0f,
+                             (float)throttle_ppm / 1000000.0f))
+  {
+    cmd_took(out, "the observer is not running - it starts with the board");
+    return CMD_OK;
+  }
+  cmd_took(out, NULL);
+  return CMD_OK;
+}
+
+
 cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
@@ -158,6 +232,8 @@ cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
     case OP_SET_NODE:  return op_set_node(in, out);
     case OP_SET_BOARD: return op_set_board(in, out);
     case OP_SET_SAMPLE: return op_set_sample(in, out);
+    case OP_BUDGET:     return op_budget(out);
+    case OP_SET_LIMIT:  return op_set_limit(in, out);
     default:           return CMD_ERR_VALUE;
   }
 }

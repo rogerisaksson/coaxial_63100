@@ -84,14 +84,15 @@ def canvas(args):
     flat, so what shows its components is each one covering several cells.
     At 34x15 none of them does and the board is a disc; at 150x60 they
     resolve and it looks like the reference this renderer is a port of.
-    Four rows are left for the caption and the numbers above it.
+    Four rows are left for the caption and the numbers above it, and
+    one more for the blank that keeps the banner off the top row.
     """
     if args.width and args.height:
         return args.width, args.height
 
     try:
         size = os.get_terminal_size()
-        width, height = size.columns - 2, size.lines - 8
+        width, height = size.columns - 2, size.lines - 9
     except OSError:
         width, height = 100, 40         # not a terminal: still worth drawing
 
@@ -286,7 +287,11 @@ def main(argv=None):
                     note = ('   loop %s   %d vectors, %d errors'
                             % (record['loop'], record['updates'],
                                record['errors']))
-                lines = ([banner(origin, 'board attitude', console,
+                # A blank FIRST: paint addresses absolute rows from 1, so without it
+                # the banner lands on the terminal's top row, under the shell's
+                # own decoration - and the LIVE/SIMULATED tag is the one thing
+                # in the frame that must never be hidden.
+                lines = (['', banner(origin, 'board attitude', console,
                                  'Q closes, ESC for the menu' + note), ''] +
                          orientation.picture(
                              quaternion, width=wide, height=tall, frame=frame,
@@ -295,7 +300,7 @@ def main(argv=None):
                 # A part that has never reported leaves the quaternion at
                 # identity, which draws a perfectly level board.
                 if record and not record['updates']:
-                    lines = lines[:2] + silent_part(record)
+                    lines = lines[:3] + silent_part(record)
 
                 sys.stdout.write(paint(shown, lines, console))
                 sys.stdout.flush()

@@ -75,11 +75,19 @@ function Read-Choice {
 
         ReadKey throws when input is redirected, so a run with no console -
         a smoke test, a pipe - falls back to reading a line.
+
+        BOTH READS CAN THROW, and a throw has to end the menu rather than be
+        retried. Read-Host throws outright in NonInteractive mode; the loop
+        below then called ReadKey, which throws too, and kept calling it -
+        thousands of identical exceptions and no way out. A console that
+        cannot be read is quit, not a reason to ask again.
     #>
-    if ([Console]::IsInputRedirected) { return Read-Host }
+    if ([Console]::IsInputRedirected) {
+        try { return Read-Host } catch { return $null }
+    }
 
     while ($true) {
-        $key = [Console]::ReadKey($true)
+        try { $key = [Console]::ReadKey($true) } catch { return $null }
         if ($key.Key -eq 'Escape') { Write-Host 'q'; return 'q' }
         $char = $key.KeyChar
         if ($char -match '^[0-9a-zA-Z]$') {
@@ -94,16 +102,22 @@ function Read-View($Views) {
     Write-Host '  coaxial_63100 - live views' -ForegroundColor White
     Write-Host ''
 
+    # The name column is as wide as the longest name, not a number typed in
+    # once: 'capture' is exactly 7 and 'gate_drivers' is 12, so a fixed 7 ran
+    # both of them straight into their description.
     $keys = @($Views.Keys)
+    $width = ($keys | Measure-Object -Property Length -Maximum).Maximum + 3
+    $name = '{0,-' + $width + '}'
+
     for ($i = 0; $i -lt $keys.Count; $i++) {
         $key = $keys[$i]
-        Write-Host ('    {0}  ' -f ($i + 1)) -NoNewline -ForegroundColor Cyan
-        Write-Host ('{0,-7}' -f $key) -NoNewline -ForegroundColor White
+        Write-Host ('    {0}   ' -f ($i + 1)) -NoNewline -ForegroundColor Cyan
+        Write-Host ($name -f $key) -NoNewline -ForegroundColor White
         Write-Host $Views[$key].What -ForegroundColor DarkGray
     }
 
     Write-Host ''
-    Write-Host '    q  ' -NoNewline -ForegroundColor Cyan
+    Write-Host '    q   ' -NoNewline -ForegroundColor Cyan
     Write-Host 'quit' -ForegroundColor DarkGray
     Write-Host ''
     Write-Host '  which ' -NoNewline

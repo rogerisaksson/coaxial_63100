@@ -213,7 +213,7 @@ class Coaxial63100(Acquisition):
 
     # -- reading ---------------------------------------------------------
 
-    def read(self):
+    def acquire(self):
         """One block of records, oldest first, with times on them.
 
         Empty when nothing has been buffered yet - call it again.
@@ -333,7 +333,7 @@ class Coaxial63100(Acquisition):
         seen, missed = 0, 0
         while seen < count:
             try:
-                block = self.read()
+                block = self.acquire()
             except (NoReplyError, CrcError) as exc:
                 # A missed reply is a fact of this link, measured at about
                 # one transaction in fifty while the board is busy, and a

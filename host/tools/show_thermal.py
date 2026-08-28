@@ -26,43 +26,79 @@ from screen import (TO_MENU, Keys, banner, clear, paint,  # noqa: E402
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
-from coaxial.thermal import NODES, tau_minutes            # noqa: E402
-from coaxial.thermalmap import render                     # noqa: E402
+from coaxial.thermal import tau_minutes                   # noqa: E402
+from coaxial.thermalmap import SCALE_LINES, render        # noqa: E402
+
+#: Above the picture: a blank, the banner, a blank, the state line,
+#: the budget line, a blank.
+#:
+#: The FIRST blank is not decoration. `paint` addresses absolute rows from 1,
+#: so without it the banner lands on the terminal's top row - underneath the
+#: shell's own decoration, where the LIVE/SIMULATED tag cannot be read. That
+#: tag is the one thing in the frame that must never be hidden.
+HEAD_LINES = 6
+
+#: Below the scale: the keys and the blank under them - TRAILING already
+#: covers the blank above. The keys sit at the bottom and the state at the
+#: top because they answer different questions - one is what to press, the
+#: other is what the colours mean - and reading them as one crowded line was
+#: what made the frame feel closed in.
+FOOT_LINES = 2
+
+#: Blank lines between the scale and the keys.
+TRAILING = 1
+
+#: What ESC and Q do. ESC returns TO_MENU so demo.ps1 draws its menu again.
+KEYS = 'Q closes     ESC back to the menu'
 
 
-def lines_for(state, console):
-    """The whole frame under the banner, as a list of lines."""
+def summary(state):
+    """What the colours cannot say: whether a measurement is behind them.
+
+    Not a table of the nodes - the picture already carries those, and a list
+    beside it says the same numbers twice. With AFE_ON low there is no NTC at
+    all and the nodes run open on power and time, which is the one thing that
+    changes how the picture should be read.
+    """
+    if state['ntc'] is None:
+        anchor = 'AFE off, open loop'
+    else:
+        anchor = 'NTC %.1f C, error %+.2f K' % (state['ntc'], state['error'])
+    return '%s     open %d s     %s' % (
+        anchor, state['seconds'],
+        'settled' if state['settled'] else 'settling')
+
+
+def budget_line(got):
+    """The thermal budget as one line: how close, to what, and how long.
+
+    A bar rather than degrees. The question a burst asks is how much of the
+    ceiling is spent, and a temperature does not answer that without the
+    ceiling beside it - so the board sends the fraction and this draws it.
+    """
+    used, worst = got['worst'], got['worst_node']
+    width = 24
+    full = int(round(max(0.0, min(1.0, used)) * width))
+    bar = ('#' * full) + ('.' * (width - full))
+    left = got['seconds_to_limit']
+
+    where = ('tripped' if got['tripped']
+             else 'THROTTLING' if got['throttling'] else 'ok')
+    return '  [%s] %3.0f %% %-11s %-10s %s' % (
+        bar, 100.0 * used, worst, where,
+        ('%.1f s to limit' % left) if left is not None else 'not heating')
+
+
+def picture(state, console, reserve):
+    """The board and its scale. Nothing else."""
     nodes = state['nodes']
     board_c = nodes.get('board')
     if board_c is None:
         return ['  the board sent no board node - device 8 is out of step']
 
-    out = ['  measured                 sampling every %.1f s, settle %.0f ms'
-           % (state['sample_every_s'], state['sample_settle_s'] * 1000)]
-    if state['ntc'] is None:
-        out.append('    NTC          -        AFE off, so the gate drivers '
-                   'have supply and the model runs open')
-    else:
-        out.append('    NTC       %6.2f C    beside the middle gate driver'
-                   % state['ntc'])
-        out.append('    model     %6.2f C    error %+.2f K'
-                   % (state['expected_ntc'], state['error']))
-
-    out.append('')
-    out.append('  estimated                open for %4d s   %s'
-               % (state['seconds'],
-                  'settled' if state['settled']
-                  else 'settling, tau %.1f min' % tau_minutes()))
-    for name in NODES:
-        if name in nodes:
-            out.append('    %-11s %6.2f C' % (name, nodes[name]))
-    out.append('    %-11s %6.2f C' % ('board', board_c))
-    out.append('    %-11s %6.2f C' % ('ambient', state['ambient']))
-    out.append('')
-
     zones = {k: v for k, v in nodes.items() if k != 'board'}
-    out.extend(render(zones, board_c=board_c, colour=console).split('\n'))
-    return out
+    return render(zones, board_c=board_c, colour=console,
+                  reserve=reserve, trailing=TRAILING).split('\n')
 
 
 def main():
@@ -108,23 +144,33 @@ def main():
             sys.stdout.write(chr(27) + '[2J')
 
         period = 1.0 / max(a.hz, 0.2)
-        frame, shown, leaving, body = 0, [], None, ['  waiting for device 8']
+        # Everything in the frame that is not picture, so `render` can size
+        # the board to what is left. Counted, not guessed - a guess is what
+        # clipped the bottom edge off.
+        reserve = HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
+        frame, shown, leaving = 0, [], None
+        body, note = ['  waiting for device 8'], 'starting'
+        spend = '  budget: waiting'
 
         try:
             with Keys(console) as keys:
                 while True:
                     try:
-                        body = lines_for(rig.board.thermal.state(), console)
+                        got = rig.board.thermal.state()
+                        note = summary(got)
+                        spend = budget_line(rig.board.thermal.budget())
+                        body = picture(got, console, reserve)
                     except (NoReplyError, RigError) as exc:
-                        # Keep the last good frame: the link goes quiet now
-                        # and then (FINDINGS), and blanking the picture every
+                        # Keep the last good picture: the link goes quiet now
+                        # and then (FINDINGS), and blanking the board every
                         # time it does makes the view unreadable.
-                        body = body[:1] + ['  link quiet: %s' % exc]
+                        note = 'link quiet: %s' % exc
 
                     frame += 1
-                    lines = [banner(origin, 'thermal - observer', console,
-                                    'Q closes, ESC for the menu   frame %d'
-                                    % frame), ''] + body
+                    lines = (['', banner(origin, 'thermal - observer',
+                                         console, origin.label),
+                              '', '  ' + note, spend, '']
+                             + body + ['  ' + KEYS, ''])
                     sys.stdout.write(paint(shown, lines, console))
                     sys.stdout.flush()
                     shown = lines

@@ -49,7 +49,7 @@ def _node(unit, where=None):
     return 'node %d' % unit
 
 
-def _label(real, port, kind):
+def _label(real, port, kind, fell_back=False):
     """What the prompt and every suite header say the session is talking to.
 
     Named by the path, not just the port, because the two paths are not
@@ -57,8 +57,16 @@ def _label(real, port, kind):
     board, RS485 is the field bus an installed drive sits on. Which one a
     reading came over is the kind of thing that has to be on screen, not
     worked out from a COM number.
+
+    ASKING FOR THE STAND-IN AND FALLING BACK TO IT ARE DIFFERENT THINGS, and
+    the label says which. Measured 2026-08-28: a live view was started while
+    another process held the port, silently got the stand-in, and its frames
+    were read as the board's. `Simulated` alone cannot tell those apart, and
+    the port that failed to answer is the whole diagnosis.
     """
     if not real:
+        if fell_back:
+            return 'Simulated - nothing answered on %s' % port
         return 'Simulated'
     if kind == 'probe':
         return 'JTAG and %s' % port
@@ -93,9 +101,11 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     import find_board
 
     kind = None
+    fell_back = False
     if simulated is None:
         found, kind = find_board.discover(port, baud, unit, only=only)
         simulated = found is None
+        fell_back = simulated
         if found is not None:
             port = found
     elif not simulated:
@@ -104,7 +114,8 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     if simulated:
         from coaxial.simulated import SimulatedSession
         return (SimulatedSession(port, baud, unit),
-                Origin(False, port, baud, None, _label(False, port, None),
+                Origin(False, port, baud, None,
+                       _label(False, port, None, fell_back),
                        INTERFACE[None], unit))
     return (Session(port, baud, unit),
             Origin(True, port, baud, kind, _label(True, port, kind),

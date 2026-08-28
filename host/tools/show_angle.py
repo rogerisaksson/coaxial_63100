@@ -154,7 +154,11 @@ def main(argv=None):
                 note = '' if not stale else (
                     '   no new reading for %d frame%s'
                     % (stale, '' if stale == 1 else 's'))
-                lines = ([banner(origin, 'shaft angle', console,
+                # A blank FIRST: paint addresses absolute rows from 1, so without it
+                # the banner lands on the terminal's top row, under the shell's
+                # own decoration - and the LIVE/SIMULATED tag is the one thing
+                # in the frame that must never be hidden.
+                lines = (['', banner(origin, 'shaft angle', console,
                                  'Q closes, ESC for the menu' + note), ''] +
                          _drawn(state, console).split('\n'))
                 sys.stdout.write(paint(shown, lines, console))

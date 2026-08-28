@@ -7,6 +7,7 @@
 #include "testrig.h"
 
 #include "board.h"
+#include "board_power.h"
 #include "main.h"
 
 static bool s_open;
@@ -108,6 +109,20 @@ bool testrig_pin_write(char port, uint8_t pin, bool level)
   if (!s_open || !testrig_pin_allowed(port, pin))
   {
     return false;
+  }
+
+  /* PB2 IS NOT A SIGNAL, IT IS A RAIL. AFE_ON is reference counted, and a
+     write straight to the pad here is undone the moment anything acquires or
+     releases the rail - the observer borrowing it for an NTC sample was
+     enough, and it made this path fail about one run in three with the pin
+     reading back the opposite of what was written.
+     So the write goes where every other request for this rail goes. The pin
+     still ends up where the caller asked, unless somebody else is holding
+     it - and `0x6D` afe reports who. */
+  if ((port == 'B') && (pin == 2U))
+  {
+    return level ? Board_PowerAcquire(BOARD_RAIL_AFE, BOARD_USER_HOST)
+                 : Board_PowerRelease(BOARD_RAIL_AFE, BOARD_USER_HOST);
   }
 
   HAL_GPIO_WritePin(port_base(port), (uint16_t)(1U << pin),

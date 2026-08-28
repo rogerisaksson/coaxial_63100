@@ -43,7 +43,9 @@
    trim per channel, so its length moved. A stored version 1 is rejected by
    the check below and the defaults are used, which is the right answer -
    trims measured against seven channels do not index nine. */
-#define CAL_VERSION 3U
+/* 4: the thermal envelope joined the record. A stored 3 is refused
+   rather than read with the new fields as whatever flash held. */
+#define CAL_VERSION 4U
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes. sizeof(board_cal_t) is 104 today. */
@@ -63,6 +65,20 @@ static const board_cal_t CAL_DEFAULTS =
   .magic            = CAL_MAGIC,
   .version          = CAL_VERSION,
   .channels         = BOARD_CAL_CHANNELS,
+
+  /* The thermal envelope, centi-degrees C per node in thermal_node_t order:
+     drivers, phases, mcu, regulators, afe, board.
+
+       phases  12500  IAUCN10S7N021 Tj max - docs/HARDWARE.md
+       mcu     12500  STM32H753 Tj max
+       board   10500  ESTIMATE - laminate, well under any part on it
+       others  12500  ESTIMATE - those datasheets are not in this tree
+
+     Derate at 85 %: the board's constant is 6.8 minutes but a deep burst
+     moves a node in seconds, so a throttle that waits for the ceiling
+     arrives after it. */
+  .soa_limit_centi  = { 12500, 12500, 12500, 12500, 12500, 10500 },
+  .soa_throttle_ppm = 850000UL,
   .vref_uv          = 3300000UL,      /* U2 REF2033, 3.3 V +/-0.05 %       */
   .shunt_uohm       = 3500UL,         /* RU1 || RU2, 7 mohm each           */
   .amp_gain_ppm     = 4545455UL,      /* THS4551, Rf 1.5k / Rg 330         */
@@ -249,6 +265,30 @@ bool Board_CalGetParam(uint8_t id, uint32_t *value)
   *value = *field;
   return true;
 }
+
+bool Board_CalSetLimit(uint8_t node, int32_t limit_centi)
+{
+  if (node >= (uint8_t)BOARD_THERMAL_NODES)
+  {
+    return false;
+  }
+  s_cal.soa_limit_centi[node] = limit_centi;
+  s_cal.crc = cal_crc(&s_cal);
+  return true;
+}
+
+
+bool Board_CalSetThrottle(uint32_t ppm)
+{
+  if ((ppm == 0U) || (ppm >= 1000000U))
+  {
+    return false;
+  }
+  s_cal.soa_throttle_ppm = ppm;
+  s_cal.crc = cal_crc(&s_cal);
+  return true;
+}
+
 
 bool Board_CalSetChannel(uint8_t index, int32_t offset_raw, int32_t gain_ppm)
 {

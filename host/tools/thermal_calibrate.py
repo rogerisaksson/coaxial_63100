@@ -195,7 +195,7 @@ def hold(state, dwell_s, poll_s=30.0):
             time.sleep(poll_s)
             if state == 'traffic':
                 try:
-                    rig.read()          # the traffic is the point
+                    rig.acquire()       # the traffic is the point
                 except (NoReplyError, RigError):
                     pass
             mins = (time.time() - start) / 60.0

@@ -152,7 +152,10 @@ def spi_rows(latest, rates, width):
 def compose(origin, console, layout, view, width):
     """The whole frame, as a list of lines."""
     daq, ring = view['daq'], view['ring']
-    lines = [banner(origin, 'buffered capture', console,
+    # A blank FIRST: paint addresses absolute rows from 1, so the
+    # banner would otherwise land under the shell's own decoration,
+    # taking the LIVE/SIMULATED tag with it.
+    lines = ['', banner(origin, 'buffered capture', console,
                     'Q closes, ESC for the menu'), '']
     lines.append(' TASK  %s clock  dec %d%s  acc %d%s  st %d   %8.0f rec/s   '
                  'buffered %d   dropped %d'
@@ -196,7 +199,7 @@ def drain(rig, layout, view):
 
 
 def _drain(rig, board, layout, view):
-    batch = rig.read()
+    batch = rig.acquire()
     view['daq_rate'].add(len(batch))
     if batch:
         view['record'] = batch[-1]

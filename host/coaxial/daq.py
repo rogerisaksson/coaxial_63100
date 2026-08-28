@@ -153,7 +153,7 @@ class Daq(Subsystem, Acquisition):
         self._op(DAQ_OP_STOP)
         return True
 
-    def read(self, want=0, layout=None):
+    def acquire(self, want=0, layout=None):
         """Whole records, oldest first, decoded from the board's layout.
 
         Pass `layout` to save a round trip when draining in a loop.
@@ -247,10 +247,15 @@ class Daq(Subsystem, Acquisition):
             out.extend(batch)
         return out[:limit] if limit is not None else out
 
-    def acquire(self, channels, records, clock='software', sample_time=0,
+    def once(self, channels, records, clock='software', sample_time=0,
                 decimate=1, accumulate=1, timeout=10.0, digital=False,
                 rate_hz=None):
         """Configure, start, drain until the task says done. The one-shot.
+
+        Called `once` and not `acquire` because `acquire` is the loop: start
+        once, then acquire what has arrived, over and over. This is the whole
+        capture in one call, a different shape of thing - and not `take`
+        either, which `Capture` already uses for draining N records.
 
         Raises rather than returning a short capture: a run that stopped
         early is a different measurement, not a smaller one.

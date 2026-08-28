@@ -42,7 +42,7 @@ class Acquisition(ABC):
         """Stop sampling. What is already buffered stays readable."""
 
     @abstractmethod
-    def read(self, *args, **kwargs):
+    def acquire(self, *args, **kwargs):
         """One block of records, oldest first.
 
         Empty when nothing has been buffered yet, which is an answer and not

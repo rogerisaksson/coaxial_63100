@@ -54,6 +54,17 @@ static cmd_status_t h_cal_get(rd_t *in, wr_t *out)
     wr_i32(out, gain);
   }
 
+  /* The thermal envelope, appended so an older host stops reading above it
+     and still parses everything else. Without it "the ceilings are stored"
+     is an assertion nobody on the wire can check. */
+  wr_u8(out, (uint8_t)BOARD_THERMAL_NODES);
+
+  for (uint8_t i = 0U; i < (uint8_t)BOARD_THERMAL_NODES; i++)
+  {
+    wr_i32(out, cal->soa_limit_centi[i]);
+  }
+  wr_u32(out, cal->soa_throttle_ppm);
+
   return CMD_OK;
 }
 

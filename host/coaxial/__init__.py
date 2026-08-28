@@ -14,7 +14,7 @@
 
 Layered the same way the firmware is:
 
-    Acquisition          configure, start, read, stop     coaxial/acquisition.py
+    Acquisition          configure, start, acquire, stop     coaxial/acquisition.py
     PolledSensor         a part the board's loop reads    coaxial/sensor.py
     GateControl          the gate-drive ops               coaxial/gates.py
     Board + subsystems   what the hardware can do         coaxial/board.py
