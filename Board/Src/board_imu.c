@@ -20,12 +20,13 @@
   *     end the transaction between the two. PB12 is driven as plain GPIO
   *     instead, which overrides the MSP's alternate-function setting.
   *
-  * What cannot be fixed here, because it is a wire and not a register: the
-  * BNO08X signals with H_INTN and is reset with NRSTN, and neither is
-  * assigned to a pin. Without H_INTN this polls the four-byte header instead
-  * of waiting to be told - workable for reading a product id at a bench, and
-  * not workable for streaming: the datasheet asks for H_INTN to be serviced
-  * "within 1/10 of the fastest sensor period" (1.2.4.1) or the part starves.
+  * H_INTN IS ON PD8 AND NEVER ASSERTS. SPI0.INT on the MCU sheet, a straight
+  * wire, and measured 2026-08-27: 77 reads across the 1.2 s after a reset,
+  * all high, while a direct probe in the same window clocked out real SHTP
+  * cargoes (`14 00 02 00 f1 00 84`, 20 bytes on channel 2). The part produces
+  * and does not ask. So the header is polled on a timer - the datasheet wants
+  * H_INTN serviced "within 1/10 of the fastest sensor period" (1.2.4.1) - and
+  * the wake gate is a last resort, not a refusal. Both sites refer back here.
   ******************************************************************************
   */
 #include "board.h"
@@ -168,19 +169,11 @@ static bool intn_asserted(void)
   return HAL_GPIO_ReadPin(IMU_INTN_PORT, IMU_INTN_PIN) == GPIO_PIN_RESET;
 }
 
-/* How often to clock a header out when H_INTN has not asserted. The part
-   signals with H_INTN and this board wires it to PD8 - SPI0.INT on the
-   MCU sheet, a straight wire - but measured 2026-08-27 it never goes low:
-   77 reads across the 1.2 s after a reset, all high, while a direct probe
-   in the same window clocked out real SHTP cargoes (`14 00 02 00 f1 00 84`,
-   a 20-byte message on channel 2). The part produces and does not ask.
-
-   So the header is polled, which is what this file's own description has
-   always said happens without H_INTN. Rate limited because it is not free:
-   a four-byte transfer at 1.48 MHz is 27 us, and the main loop also carries
-   Modbus, whose t1.5 at 115200 is 143 us. At 1 kHz that is 2.7 % of the
-   loop against a report interval of 20 ms - fifty polls per report, which
-   is enough to never be the reason one is late.
+/* How often to clock a header out, H_INTN never asserting here - see the
+   file comment. Rate limited because it is not free: a four-byte transfer at
+   1.48 MHz is 27 us and the main loop also carries Modbus, whose t1.5 at
+   115200 is 143 us. At 1 kHz that is 2.7 % of the loop against a 20 ms
+   report interval - fifty polls per report, never the reason one is late.
 
    Raw CYCCNT and unsigned subtraction, so the wrap costs nothing
    (invariant 2). */
@@ -259,8 +252,8 @@ void Board_ImuReset(void)
   HAL_Delay(IMU_RESET_HOLD_MS);
   HAL_GPIO_WritePin(IMU_RST_PORT, IMU_RST_PIN, GPIO_PIN_SET);
 
-  /* H_INTN is the signal that says "ready" and this board has no pin for it,
-     so the wait is the datasheet's number rather than an observation. */
+  /* H_INTN would say "ready" and does not assert here, so the wait is the
+     datasheet's number rather than an observation. */
   HAL_Delay(IMU_RESET_WAIT_MS);
 }
 
@@ -767,12 +760,9 @@ void Board_ImuPoll(void)
   /* Nothing waiting is the common case and must cost nothing: one GPIO read
      and out. Waiting here would put the main loop's latency on the part.
 
-     `poll_due` is the second half, and on this board it is the only half:
-     H_INTN reaches PD8 - SPI0.INT on the MCU sheet, a straight wire - and
-     measured 2026-08-27 it never goes low, 77 reads across the 1.2 s after
-     a reset, while a direct probe in the same window clocked out real
-     cargoes. With only the line above, this returned every turn and the
-     part streamed rotation vectors nobody collected. */
+     `poll_due` is the second half, and here the only half - see the file
+     comment. With only the line above, this returned every turn and the part
+     streamed rotation vectors nobody collected. */
   if (!intn_asserted() && !poll_due())
   {
     return;
@@ -941,19 +931,12 @@ bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
 
     if (!woken)
     {
-      /* Every acknowledge failed, including a reset. Write anyway, and say
-         so - because on this board H_INTN never asserts at all. Measured
-         2026-08-27: 77 reads of PD8 across the 1.2 s after a reset, all
-         high, while a direct probe in the same window clocked out real
-         SHTP cargoes. Refusing here is what made every feature request
-         disappear and the part look dead for a day.
-
-         The gate's own argument still stands where H_INTN works - a write
-         clocked at a part that is not listening changes nothing and looks
-         like it worked - so this does not remove it, it takes it as the
-         last resort it now is and marks the reading NOWAKE. What proves
-         the write landed is `updates` climbing afterwards; nothing here
-         claims it did. */
+      /* Every acknowledge failed, reset included. Write anyway and mark it
+         NOWAKE: H_INTN never asserts here (file comment), and refusing made
+         every feature request disappear and the part look dead for a day.
+         The gate still earns its place where H_INTN works, so it stays as a
+         last resort. What proves the write landed is `updates` climbing;
+         nothing here claims it did. */
       note(BOARD_IMU_ERR_NOWAKE);
     }
   }

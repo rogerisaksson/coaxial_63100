@@ -2,26 +2,22 @@
 
 Two executors, and the difference between them matters:
 
-  * `Shell` runs one program from an allowlist, as an argv list, never through a
+  * `Shell` runs one allowlisted program as an argv list, never through a
     shell. That is what makes the allowlist mean anything: checking the first
-    token would be theatre if the rest of the string could start a second
-    process, and with no shell in the path it cannot.
+    token is theatre if the rest of the string can start a second process.
 
-  * `Scope` runs Python in one namespace that persists for the whole run, with
-    the live `board` already in it. Persistence is the point: the model reads
-    the channel map in one call and computes against it in the next, the same
-    way a person at the bench builds up a session.
+  * `Scope` runs Python in one namespace that persists for the run, with the
+    live `board` in it. Persistence is the point - read the channel map in one
+    call, compute against it in the next.
 
-Neither executor sandboxes in the security sense, and this file should not
-pretend otherwise. Anything that can drive a motor controller over a serial port
-can do damage with it; the protection here is that the plan says what the run is
-for, the transcript says what was actually run, and `--confirm` puts a human in
-front of every side effect. On a board rated 63 V and 100 A that is the honest
-arrangement: bounded by review, not by a sandbox.
+Neither sandboxes in the security sense. Anything that can drive a motor
+controller over a serial port can do damage with it; what bounds this is that
+the plan says what the run is for, the transcript says what ran, and
+`--confirm` puts a human in front of every side effect. On a board rated 63 V
+and 100 A that is the honest arrangement: bounded by review, not by a sandbox.
 
-A failure inside either executor is a *result*, not an exception. The model has
-to see its own traceback to correct itself, so both return text and let the
-runner decide what it means.
+A failure in either is a *result*, not an exception: the model has to see its
+own traceback to correct itself.
 """
 import contextlib
 import io

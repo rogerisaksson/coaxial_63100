@@ -1,36 +1,28 @@
 """A small Ollama chat client, stdlib only.
 
-No `ollama` package, no `openai` shim, no `requests`: this runs on whatever PC
-is bolted to the bench, and the whole API surface needed is one POST to
-/api/chat plus one GET to /api/tags. Fifty lines of urllib against a dependency
-to keep working through the next OS image.
+No `ollama` package, no `openai` shim, no `requests`. The whole surface needed
+is one POST to /api/chat and one GET to /api/tags, and fifty lines of urllib
+keep working through the next OS image on the bench PC.
 
-What is deliberate:
+Deliberate:
 
-  * `keep_alive` on every turn. Ollama throws the cached prompt prefix away
-    when the model unloads, five minutes after the last request by default,
-    and a bench session has long gaps in it. Re-arming the timer each turn
-    keeps a pause from costing an 8 GB reload. `--keep-alive 0` hands it back.
+  * `keep_alive` on every turn. Ollama drops the cached prompt prefix when the
+    model unloads, five minutes after the last request by default, and a bench
+    session has long gaps. Re-arming each turn keeps a pause from costing an
+    8 GB reload. `--keep-alive 0` hands it back.
+  * Local daemon, enforced. A `:cloud` tag proxies to somebody else's GPU -
+    register dumps and unreleased hardware over TLS. `remote_ok=True` opts in.
+  * `format` unset by the runner. json mode constrains `content`, the one part
+    this loop does not parse - every number reaching a verdict arrives as a
+    `report` argument against a daemon-enforced schema - and a model told to
+    answer in JSON describes a tool call instead of making one. Callers outside
+    the runner may still set it.
+  * `stream` off: the runner needs a whole message before it can dispatch.
+  * `temperature` 0: a runner taking a different path through the same plan on
+    every invocation cannot be audited.
 
-  * The daemon is local, enforced rather than assumed. A `:cloud` tag proxies
-    to somebody else's GPU - register dumps and unreleased hardware leaving
-    the building over TLS. `remote_ok=True` is how to mean it on purpose.
-
-  * `format` is not set by the runner. json mode constrains `content`, the one
-    part of a reply this loop does not parse: every number reaching a verdict
-    arrives as a `report` argument against a schema the daemon enforces. A
-    model told to answer in JSON tends to describe a tool call instead of
-    making one. It stays a parameter for callers outside the runner.
-
-  * `stream` off - the runner needs a whole message before it can dispatch,
-    and streaming trades that guarantee for a nicer terminal.
-
-  * `temperature` 0 - a runner taking a different path through the same plan
-    on every invocation cannot be audited.
-
-Running out of memory is handled here, not reported: the card is shared with a
-desktop and the model is the largest thing on it. See `_make_room`, and
-`notes` for what it did.
+Out-of-memory is handled here rather than reported - the card is shared with a
+desktop. See `_make_room`, and `notes` for what it did.
 
 Model output is never trusted here. What may touch the board is tools.py's
 problem; what counts as a pass is plan.py's.

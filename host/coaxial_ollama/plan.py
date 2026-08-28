@@ -1,24 +1,22 @@
 """The plan an Ollama-driven run executes, and the only place limits exist.
 
-This is testline/plan.py's idea with one field changed and one rule added.
+testline/plan.py's idea, one field changed and one rule added.
 
-The changed field: a `testline` step names a `source`, a Python callable that
-produces the number. Here a step carries an `ask` instead - prose, aimed at a
-model that has the board's tool surface in front of it. That is the whole reason
-this runner exists: a step like "find out which channel actually moves when the
-DC link changes" has no callable behind it, and writing one for every such
-question is how bring-up scripts turn into a second firmware.
+The field: a `testline` step names a `source`, a Python callable producing the
+number. Here a step carries an `ask` instead - prose, aimed at a model with the
+board's tool surface in front of it. That is why this runner exists: "find out
+which channel actually moves when the DC link changes" has no callable behind
+it, and writing one per question is how bring-up scripts become a second
+firmware.
 
-The added rule, and it is the important one: **the model never sees the limit.**
-It is asked to measure and to report a number in a stated unit; `Limit.judge`
-in Python decides the verdict, from a file under revision control. A language
-model told "pass is under 0.25 V" will, sooner or later, report a number that
-passes. Keeping the limit out of the context is not distrust of any particular
-model, it is what makes the verdict traceable to the plan instead of to a
-sampling temperature.
+The rule: **the model never sees the limit.** It measures and reports a number
+in a stated unit; `Limit.judge` decides in Python, from a file under revision
+control. A model told "pass is under 0.25 V" will eventually report a number
+that passes. Keeping the limit out of context is what makes a verdict traceable
+to the plan rather than to a sampling temperature.
 
-Everything testline/plan.py says about where limits come from applies unchanged,
-so `measurement_system_study` is required here too. A plan without one is not
+testline/plan.py's rules on where limits come from apply unchanged, so
+`measurement_system_study` is required here too. A plan without one is not
 loaded.
 """
 import os

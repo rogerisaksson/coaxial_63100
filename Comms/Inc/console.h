@@ -3,10 +3,10 @@
   * @file    console.h
   * @brief   The ASCII console on USART3.
   *
-  * It exists for one reason: to get into the binary link and back out by hand.
-  * Every reading it used to print is a binary command now, decoded on the host.
-  * Adding a report back here would mean two implementations of the same
-  * measurement, which is exactly how the two ADC read paths drifted apart.
+  * One reason: to get into the binary link and back out by hand. Every reading
+  * it used to print is a binary command now, decoded on the host. Adding one
+  * back is two implementations of a measurement - how the two ADC read paths
+  * drifted apart.
   ******************************************************************************
   */
 #ifndef CONSOLE_H

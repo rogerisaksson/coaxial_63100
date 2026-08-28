@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""Which COM port this board is actually on - the one implementation both
-sides of this project call into, so "does this port answer" cannot drift
-between them:
+"""Which COM port this board is on - one implementation, called from both sides,
+so "does this port answer" cannot drift between them:
 
   * host/coaxial_ollama/tools.py's link_diagnose tool - the model, mid-
     session, when a call has already failed.
   * board_prompt/ComPort.ps1's Test-BoardPort/Find-BoardPort -
     -AutodetectComport, before a Python session even exists.
 
-Going through coaxial.connect() is the same Modbus round trip a real session
-makes, so a wrong port fails for the same reason it would fail a moment
-later inside dbg.py itself - not a weaker, different check that passes here.
+It goes through coaxial.connect(), the same round trip a real session makes, so
+a wrong port fails here for the reason it would fail inside dbg.py - not a
+weaker check that passes here and fails there.
 
     python tools/find_board.py --list                 # ports Windows sees
     python tools/find_board.py --probe COM4           # does the board answer here?

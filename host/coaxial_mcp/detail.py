@@ -1,25 +1,23 @@
 """How much documentation a reader gets, decided from who is reading.
 
 Every tool description is re-sent every turn. Claude over MCP reads it out of
-a window of hundreds of thousands of tokens; gemma4:12b pays for the same text
-out of 8192 shared with the conversation and the readings. Writing for the
-smaller reader shortchanges the larger one, so the text comes from code: one
-spec carries both forms.
+hundreds of thousands of tokens; gemma4:12b pays for the same text out of 8192
+shared with the conversation and the readings. Writing for the smaller reader
+shortchanges the larger one, so one spec carries both forms.
 
     detail.resolve('auto', model='gemma4:12b')         -> 'terse'
     detail.resolve('auto', model='minimax-m3:cloud')   -> 'full'
     detail.resolve('full', model='gemma4:12b')         -> 'full'   (operator said)
 
-`auto` reads the model tag - the one thing every entry point already has. A
+`auto` reads the model tag, the one thing every entry point already has: a
 parameter count decides on the count, a cloud tag is not short of room, and an
-unrecognised tag is assumed small: the local daemon is where unnamed tags
-live, and being wrong that way costs a sentence, not a session.
-`COAXIAL_DETAIL` overrides for a whole machine.
+unrecognised tag is assumed small - unnamed tags live on the local daemon, and
+being wrong that way costs a sentence, not a session. `COAXIAL_DETAIL` overrides
+per machine.
 
-Deliberately NOT gated on this: the behavioural hints in debug.py. Each exists
-because a small model needed telling, so trimming them for small models would
-delete them where they earn their place. This shortens documentation, not
-instructions.
+NOT gated on this: debug.py's behavioural hints. Each exists because a small
+model needed telling, so trimming them for small models deletes them exactly
+where they earn their place. This shortens documentation, not instructions.
 """
 import os
 import re

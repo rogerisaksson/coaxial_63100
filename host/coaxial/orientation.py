@@ -1,25 +1,20 @@
 """The board's attitude, drawn in characters.
 
-The IMU reports a rotation vector - a unit quaternion saying how the part is
-turned relative to its reference frame. This turns that into a picture of the
-PCB, because a quaternion read aloud tells nobody which way up anything is.
+The IMU reports a unit quaternion; read aloud it tells nobody which way up
+anything is. This draws the PCB instead.
 
-The board is a flat annulus: 100 mm across with a 10 mm bore, and about as
-thin as a PCB is. It mounts coaxially behind an outrunner's stator with the
-shaft through the middle.
+The board is a flat annulus, 100 mm across with a 10 mm bore, PCB-thin,
+mounted coaxially behind an outrunner's stator with the shaft through it.
 
-Drawn the way a1k0n draws a donut (a1k0n.net/2011/07/20/donut-math.html) -
-sample the surface, project with perspective, keep the nearest sample in a
-z-buffer and shade each cell by how the surface there faces the light. Not a
-torus, though: a torus with a small hole is necessarily a fat one, because
-one radius sets both the bore and the thickness. This samples the two faces
-and the two rims separately, which is what a board is. The rotation is not an
-animation angle either - it is the quaternion the part reported, so the
-picture turns because the board did.
+Drawn the way a1k0n draws a donut (a1k0n.net/2011/07/20/donut-math.html):
+sample the surface, project with perspective, z-buffer the nearest, shade by
+how the surface faces the light. Not a torus - one radius would set both the
+bore and the thickness, so a small hole forces a fat ring; the two faces and
+two rims are sampled separately. The rotation is the reported quaternion, not
+an animation angle, so the picture turns because the board did.
 
-Pure: a quaternion in, a block of text out. No serial port, no terminal, no
-clock - so it is testable without a board, and `tools/show_orientation.py` is
-the only thing that needs one.
+Pure: a quaternion in, text out. No serial port, terminal or clock, so it is
+testable without a board; `tools/show_orientation.py` is what needs one.
 """
 import math
 import os

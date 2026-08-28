@@ -3,15 +3,13 @@
   * @file    wire.h
   * @brief   Append-only writer and forward-only reader for binary payloads.
   *
-  * This exists to keep the command handlers flat. Every accessor is total: on
-  * overflow the writer sets a sticky flag and drops the write, and on underrun
-  * the reader sets a sticky flag and returns zero. Nothing fails mid-sequence,
-  * so a handler is a straight run of statements with ONE check at the end
-  * instead of an if around every field.
+  * Keeps command handlers flat. Every accessor is total: the writer drops an
+  * overflowing write and the reader returns zero on underrun, both setting a
+  * sticky flag. So a handler is a straight run of statements with one check at
+  * the end, not an if around every field.
   *
-  * Big-endian on the wire, the same order Modbus uses for every field except
-  * its CRC. Floats are never transmitted; scaled integers are, in units named
-  * by the command that emits them.
+  * Big-endian, as Modbus is for every field but its CRC. No floats on the
+  * wire; scaled integers, in the units the emitting command names.
   ******************************************************************************
   */
 #ifndef WIRE_H

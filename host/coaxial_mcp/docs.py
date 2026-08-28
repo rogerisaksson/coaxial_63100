@@ -1,27 +1,25 @@
 """The repository's own documents, reachable from a prompt.
 
-The documents in `docs/` exist so that nobody re-derives what took real
-measurements to establish - and until this module, the one reader who could not
-open them was the model standing at the bench. It has `run_python`, so it could
-technically read a file; it had no way to know which files, or that they were
-worth reading at all.
+`docs/` exists so nobody re-derives what took measurements to establish, and
+until this module the one reader who could not open it was the model at the
+bench: `run_python` could read a file, but nothing said which files or that they
+were worth reading.
 
-The shape here is index first, section second, and that is the whole design.
-The tool list is re-read every turn (see ARCHITECTURE.md on the token budget),
-and a tool that returned a whole document by default would cost more than it
-saves - by context.approx_tokens the seven run 526 to 4888 tokens, CLAUDE.md
-being the largest and FINDINGS.md 1585. So:
+Index first, section second, because the tool list is re-read every turn and
+returning a whole document by default would cost more than it saves - by
+context.approx_tokens the seven run 526 to 4888 tokens, CLAUDE.md largest and
+FINDINGS.md 1585. So:
 
     docs()                          every document, its headings, its size
     docs(doc='FINDINGS')            one document's headings
     docs(doc='MODELS', section='Threads')
     docs(find='25.00')              where a phrase appears, with its heading
 
-Sections are clipped, and the clip says so rather than trailing off. A model
-that needs the rest asks for the subsection by name.
+Sections are clipped and say so rather than trailing off; a model needing the
+rest asks for the subsection by name.
 
 Read-only by construction: one fixed directory, a name allowlist built from
-what is on disk, and no path from the arguments to the filesystem.
+what is on disk, no path from the arguments to the filesystem.
 """
 import os
 import re

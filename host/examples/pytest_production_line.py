@@ -2,32 +2,27 @@
 
     cd host && python -m pytest examples/pytest_production_line.py -v
 
-A pattern rather than a working line test, because the interesting part is the
-boundary it draws.
+A pattern rather than a working line test: the interesting part is the boundary
+it draws. The board is a dumb slave - it measures and reports, holds no limits,
+and judges nothing that needs a reference. So:
 
-WHERE THINGS LIVE
------------------
-The board is a dumb slave. It measures and reports; it holds no limits and makes
-no judgements about anything requiring a reference. That means:
+  * **Limits live in the test plan**, here the `limits` fixture. On a real line
+    that is a TestStand sequence, a pytest ini, a YAML per variant - anywhere a
+    process engineer can read it, change it under revision control and show it
+    to an auditor. A limit compiled into firmware is one nobody on the line can
+    see.
 
-  * **Limits live in the test plan**, here as the `limits` fixture. On a real
-    line that is a TestStand sequence file, a pytest ini, a YAML per product
-    variant - anywhere a process engineer can read it, change it under revision
-    control, and show it to an auditor. A limit compiled into firmware is a limit
-    nobody on the line can see.
+  * **Truth lives in calibrated instruments.** The board's numbers are
+    uncalibrated by construction: its reference is a rail it cannot measure and
+    its ADC is part of what is under test. A real line compares its reading
+    against a DMM on the same node, a load at a known current, a chamber at a
+    known setpoint. `reference_instruments` is where those attach; here it
+    skips.
 
-  * **Truth lives in calibrated instruments.** The board's own numbers are
-    uncalibrated by construction: its reference is an external rail it cannot
-    measure, and its ADC is part of what is under test. So a real line compares
-    the board's reading against a DMM on the same node, an electronic load at a
-    known current, a temperature chamber at a known setpoint. The
-    `reference_instruments` fixture is where those would attach; here it skips.
-
-  * **The board judges only itself.** `system.self_test()` returns pass/fail for
-    things provable from its own registers and flash - a locked PLL, a
-    calibration that ran, a checksum. No external reference needed, so no
-    external limit needed either. That is the one place a verdict comes from the
-    firmware, and it is asserted below without any numbers in this file.
+  * **The board judges only itself.** `system.self_test()` returns pass/fail
+    for what its own registers and flash prove - a locked PLL, a calibration
+    that ran, a checksum. No external reference, so no external limit. It is
+    asserted below with no numbers in this file.
 """
 import os
 import sys

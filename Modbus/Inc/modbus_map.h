@@ -3,13 +3,10 @@
   * @file    modbus_map.h
   * @brief   This board as a Modbus data model.
   *
-  * REGISTER MAP
-  * ============
-  * All addresses are zero-based PDU addresses, i.e. what goes on the wire.
-  * A master using one-based "4x/3x" notation must subtract one.
+  * Addresses are zero-based PDU addresses - what goes on the wire. A master
+  * using one-based "4x/3x" notation subtracts one.
   *
   * INPUT REGISTERS - FC 0x04, read only
-  * -----------------------------------
   *   0x0000..0x0006  raw ADC code, one per configured channel, in table order:
   *                     0x0000  ADC3 IN1  PC3_C/PC2_C  diff  Phase U
   *                     0x0001  ADC1 IN3  PA6/PA7      diff  Phase V
@@ -31,7 +28,6 @@
   *                                               0x003A character overrun
   *
   * HOLDING REGISTERS - FC 0x03 / 0x06 / 0x10, read write
-  * ----------------------------------------------------
   *   0x0000          unit address, 1..247. Takes effect on the next frame, so
   *                   the response to the write still uses the old address.
   *   0x0001          command register. Reads back 0. Accepted values:
@@ -40,13 +36,10 @@
   *                   Any other non-zero value is ILLEGAL DATA VALUE.
   *
   * COILS - FC 0x01 / 0x05 / 0x0F, read write
-  * -----------------------------------------
-  *   0x0000          AFE_ON (PB2). Powers the analog front end AND the voltage
-  *                   reference, so with this coil off every ADC channel reads
-  *                   exact mid-scale rather than a real measurement.
+  *   0x0000          AFE_ON (PB2). Powers the front end AND the reference, so
+  *                   with it off every channel reads exact mid-scale.
   *
   * DISCRETE INPUTS - FC 0x02, read only
-  * -----------------------------------
   *   0x0000          PE15
   ******************************************************************************
   */
@@ -87,8 +80,8 @@ extern "C" {
 /**
   * @brief  The data model for this board.
   *
-  * Its ctx is the mb_rtu_t whose counters are exposed at 0x0030 and cleared by
-  * the command register, so the caller must pass one.
+  * ctx is the mb_rtu_t whose counters sit at 0x0030 and are cleared by the
+  * command register, so the caller must pass one.
   */
 const mb_data_model_t *modbus_map_model(
     void *rtu_ctx,

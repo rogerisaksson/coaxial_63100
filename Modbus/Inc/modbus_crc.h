@@ -3,15 +3,13 @@
   * @file    modbus_crc.h
   * @brief   CRC-16/MODBUS for RTU framing.
   *
-  * Reflected polynomial 0xA001, initial value 0xFFFF, no final XOR, no
-  * reflection of the result. On the wire the CRC is appended LOW BYTE FIRST,
-  * which is the opposite of every other 16-bit field in a Modbus PDU - those
-  * are big-endian. Getting this backwards is the single most common RTU bug,
-  * so the byte order lives in modbus_crc_append() rather than at each call
-  * site.
+  * Reflected polynomial 0xA001, init 0xFFFF, no final XOR, no result
+  * reflection. On the wire it goes LOW BYTE FIRST - the opposite of every
+  * other 16-bit field in a PDU. That reversal is the most common RTU bug, so
+  * the byte order lives in modbus_crc_append(), not at each call site.
   *
-  * Verified against the CRC-16/MODBUS catalogue check value: the CRC of the
-  * nine ASCII bytes "123456789" is 0x4B37.
+  * Checked against the catalogue value: CRC of the nine bytes "123456789"
+  * is 0x4B37.
   ******************************************************************************
   */
 #ifndef MODBUS_CRC_H

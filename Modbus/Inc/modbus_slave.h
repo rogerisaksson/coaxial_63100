@@ -3,20 +3,15 @@
   * @file    modbus_slave.h
   * @brief   Portable Modbus server (slave) PDU engine.
   *
-  * MODBUS Application Protocol V1.1b3. This translation unit knows nothing
-  * about UARTs, STM32, CMSIS or timers: it takes a request PDU in a buffer and
-  * writes a response PDU into another buffer. Framing, addressing and CRC are
-  * the transport's job (see modbus_rtu.h). That split is what makes this file
-  * compilable and testable on a host.
+  * MODBUS Application Protocol V1.1b3. Request PDU in, response PDU out; no
+  * UART, STM32, CMSIS or timer. Framing, addressing and CRC belong to the
+  * transport (modbus_rtu.h), which is what makes this host-testable.
   *
-  * The application supplies a data model as a vtable of small callbacks. Reads
-  * and writes are per item; all quantity limits, bit packing and PDU layout
-  * live here so they are implemented and reviewed exactly once.
+  * The application supplies a data model as a vtable of per-item callbacks.
+  * Quantity limits, bit packing and PDU layout live here, so they exist once.
   *
-  * Multi-item writes are validated across their whole range BEFORE any item is
-  * applied. A write that would fail half way must not leave the device half
-  * written, so the engine never starts applying until it knows the entire
-  * range is acceptable.
+  * Multi-item writes are validated across the whole range before any item is
+  * applied: a write failing half way must not leave the device half written.
   ******************************************************************************
   */
 #ifndef MODBUS_SLAVE_H
@@ -63,17 +58,15 @@ typedef enum
 /**
   * @brief Application data model.
   *
-  * validate_range() is called once per request with the full address span and
-  * must return MB_EX_ILLEGAL_DATA_ADDRESS for any part of it that is not
-  * mapped, or MB_EX_NONE if every address in [addr, addr+qty) is accessible in
-  * the requested direction. The engine has already rejected illegal
-  * quantities and 16-bit address wrap before this is called.
+  * validate_range() is called once per request with the full span: MB_EX_NONE
+  * if every address in [addr, addr+qty) is accessible in that direction, else
+  * MB_EX_ILLEGAL_DATA_ADDRESS. Illegal quantities and 16-bit address wrap are
+  * already rejected before it runs.
   *
-  * read_item()/write_item() are then called per address and may assume the
-  * address is valid. They may still fail with MB_EX_SERVER_DEVICE_FAILURE.
+  * read_item()/write_item() then run per address and may assume it is valid.
+  * They may still fail with MB_EX_SERVER_DEVICE_FAILURE.
   *
-  * Unused callbacks may be NULL; the engine then answers MB_EX_ILLEGAL_FUNCTION
-  * for the function codes that need them.
+  * A NULL callback makes the function codes needing it MB_EX_ILLEGAL_FUNCTION.
   */
 typedef struct
 {
@@ -141,9 +134,8 @@ void mb_slave_init(mb_slave_t *slave, const mb_data_model_t *model);
   * @param  rsp_cap  Capacity of rsp.
   * @return Response PDU length, or 0 if no response is to be sent.
   *
-  * A malformed request - one whose length does not match its function code -
-  * produces 0, not an exception: a length mismatch means the frame cannot be
-  * trusted to have been parsed correctly at all.
+  * A length that does not match the function code produces 0, not an
+  * exception: such a frame cannot be trusted to have been parsed at all.
   */
 size_t mb_slave_execute(mb_slave_t *slave, const uint8_t *req, size_t req_len,
                         uint8_t *rsp, size_t rsp_cap);

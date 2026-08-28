@@ -4,24 +4,21 @@
   * @brief   The scaling parameters and the per-channel corrections, on the
   *          board rather than in a host.
   *
-  * Why here and not in the host library: a calibration is a property of one
-  * physical board, and a host that carries it is a host that gives the wrong
-  * answer about the next board it is pointed at. The record travels with the
-  * hardware, which is also what lets a production rig zero a channel against
-  * a calibrated instrument and have the result still be there tomorrow.
+  * Here and not in the host because a calibration belongs to one physical
+  * board: a host carrying it answers for the wrong board the moment it is
+  * pointed at a second. Travelling with the hardware is also what lets a rig
+  * zero a channel against a calibrated instrument and find it there tomorrow.
   *
-  * This does not make the board judge anything - invariant 10 is about limits
-  * and expected values, and there are none here. A scale factor answers "what
-  * is this code worth", never "is it acceptable".
+  * It judges nothing - invariant 10 is about limits and expected values, and
+  * there are none here. A scale factor answers what a code is worth, never
+  * whether it is acceptable.
   *
-  * **Integers throughout.** The wire bans floating point, so every parameter
-  * is stored in the unit that makes it an integer: microhms, ppm, microvolts,
-  * centikelvin. The floats appear only where the conversion is computed.
+  * **Integers throughout**, in the unit that makes them integers: microhms,
+  * ppm, microvolts, centikelvin. The wire bans floating point, so floats
+  * appear only where the conversion is computed.
   *
-  * **The record lives in the last sector of bank 2.** The image is 92 KB at
-  * 0x08000000, so it is in bank 1 and an erase here does not stall the core
-  * fetching its own instructions. That is the whole reason for the far end of
-  * the far bank rather than the sector after the image.
+  * **Last sector of bank 2.** The image is 92 KB at 0x08000000, so in bank 1;
+  * an erase here does not stall the core fetching its own instructions.
   ******************************************************************************
   */
 #include "board.h"

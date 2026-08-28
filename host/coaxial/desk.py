@@ -1,22 +1,21 @@
 """Every analog channel at once, drawn as a meter bridge.
 
-A table of seven numbers says what each channel reads. It does not say which
-one moved, how far it swung while you were reading the row above it, or that
-two of them are pinned. A meter bridge says all three at a glance, which is
-why consoles have had one since before anyone wrote a test executive.
+A table of seven numbers says what each channel reads, not which one moved, how
+far it swung while you read the row above, or that two are pinned. A bridge says
+all three at a glance.
 
 **Every channel carries its own scale, in its own unit.** A vertical bridge
-cannot: one gutter cannot label amperes, volts and degrees at once, so the
-first version of this shared a dBFS axis and left the reader to work out what
--14 dBFS meant on the DC link. Laid on its side there is room for the ends of
-each scale beside the bar they belong to, which is what a meter is for.
+cannot - one gutter cannot label amperes, volts and degrees at once - so the
+first version shared a dBFS axis and left the reader working out what -14 dBFS
+meant on the DC link. On its side there is room for each scale's ends beside its
+own bar.
 
-The span is the CONVERTER'S, not an opinion about the board: a differential
-channel runs +/-full scale and a single-ended one zero to full scale, both
-converted through the same arithmetic `coaxial.scaling` uses. Invariant 10
-holds - there is no expected value here, no limit, and no mark that means bad.
+The span is the CONVERTER'S, not an opinion about the board: differential runs
++/-full scale, single-ended zero to full scale, both through the arithmetic
+`coaxial.scaling` uses. Invariant 10 holds - no expected value, no limit, no
+mark meaning bad.
 
-Three marks per bar, and they are three different measurements:
+Three marks per bar, three different measurements:
 
   * the block is the burst's mean;
   * the tick is the burst's own extreme - what the channel reached during the

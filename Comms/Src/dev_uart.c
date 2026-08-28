@@ -4,28 +4,24 @@
   * @brief   The board's three serial ports as dev_serial_t, and the only file
   *          that touches a USART or its interrupt.
   *
-  * Register-level rather than HAL_UART_Receive because the protocol needs two
-  * things the HAL call will not give: a single-byte take with no state machine
-  * in the way, and explicit control over the sticky error flags.
+  * Register-level, not HAL_UART_Receive: the protocol needs a single-byte take
+  * with no state machine in the way and explicit control of the sticky error
+  * flags.
   *
-  * USART3 is the debug probe's VCP and carries either the console or Modbus.
-  * USART2 and UART5 are RS485 and carry Modbus only - there is no console on
-  * a bus with other devices on it.
+  * USART3 is the debug probe's VCP, console or Modbus. USART2 and UART5 are
+  * RS485 and carry Modbus only - no console on a bus with other devices on it.
   *
-  * **The RS485 ports receive on interrupt, and each byte carries the tick it
-  * arrived at.** A multidrop bus is not quiet between our own transactions:
-  * every frame on the segment lands here, including the ones addressed to
-  * another node, and RTU delimits frames by silence. Polling from the main
-  * loop timestamped a byte when the loop got round to it - a 276-byte IMU
-  * cargo is 1.5 ms, which at 115200 is seventeen characters - so the silence
-  * the protocol measured was the main loop's and not the bus's. Worse, with
-  * the FIFO disabled the seventeenth byte overruns, and on this silicon a
-  * latched ORE ends reception until it is cleared through ICR.
+  * **The RS485 ports receive on interrupt, each byte carrying the tick it
+  * arrived at.** Every frame on the segment lands here, ours or not, and RTU
+  * delimits by silence. Polling from the main loop timestamped a byte when the
+  * loop got round to it, so the measured silence was the loop's, not the bus's
+  * - a 276-byte IMU cargo is 1.5 ms, seventeen characters at 115200. With the
+  * FIFO disabled the seventeenth byte also overruns, and a latched ORE ends
+  * reception here until ICR clears it.
   *
-  * **The RS485 ports hear themselves.** RE is tied to GND on both THVD1450s
-  * (schematic RS485.SchDoc: U5 and U6 pin 2 sit on the GND net), so the
-  * receiver stays enabled while the hardware DE drives the line, and every
-  * byte transmitted comes straight back in. Their put() purges afterwards -
+  * **They hear themselves.** RE is tied to GND on both THVD1450s (RS485.SchDoc,
+  * U5 and U6 pin 2 on the GND net), so the receiver stays on while hardware DE
+  * drives and every transmitted byte comes back. put() purges afterwards -
   * without it the reply lands in the receiver as a request.
   ******************************************************************************
   */

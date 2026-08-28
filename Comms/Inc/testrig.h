@@ -3,22 +3,18 @@
   * @file    testrig.h
   * @brief   Raw pin access for a production test fixture.
   *
-  * A test rig needs to drive and sense pins directly, with no application
-  * meaning attached. That is genuinely useful and genuinely dangerous, so it
-  * lives behind a gate: TEST_MODE must be entered with a key before any pin is
-  * reconfigured or driven. Reads are always allowed - they cannot break
-  * anything and are what a fixture needs most.
+  * Useful and dangerous, so it sits behind a gate: TEST_MODE takes a key
+  * before any pin is reconfigured or driven. Reads are always allowed.
   *
-  * Two classes of pin are refused outright, in every mode:
+  * Two classes of pin are refused in every mode:
   *
-  *   PB10, PB11   USART3. Reconfiguring either one severs the very link the
-  *                command arrived on, so the rig would lose the board with no
+  *   PB10, PB11   USART3 - severs the link the command arrived on, with no
   *                way back except a power cycle.
-  *   PA13..PA15,  The debug port, 5-pin JTAG on this board. Losing it means
-  *   PB3, PB4     losing the ability to reflash without a bootloader entry.
+  *   PA13..PA15,  the debug port, 5-pin JTAG here - losing it loses reflashing
+  *   PB3, PB4     without a bootloader entry.
   *
-  * Everything else is fair game while the gate is open, including the pins the
-  * application uses. That is the point of a test mode.
+  * Everything else is fair game while the gate is open, the application's own
+  * pins included. That is the point of a test mode.
   ******************************************************************************
   */
 #ifndef TESTRIG_H

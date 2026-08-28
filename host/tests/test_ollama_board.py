@@ -85,14 +85,20 @@ def test_digital_read(report):
                                             cold.splitlines()[2][:22]))
     report.check('PB2 follows the AFE switch',
                  'PB2  out   1' in hot and 'PB2  out   0' in cold)
-    # nFAULT, and the level is the same measurement it was before the pin
-    # had that name - see FINDINGS: 0 with the front end powered reads as a
-    # fault asserted, and what drives it is not established. Asserted here
-    # because it is what the board does, not because it is understood.
-    report.check('and nFAULT reads back inversely, as the board wires it',
-                 'PE15 in    0     nFAULT' in hot
-                 and 'PE15 in    1     nFAULT' in cold,
-                 hot.splitlines()[-1])
+    # nFAULT is not read here any more: PE15 became TIM1_BKIN, so it is
+    # reserved rather than digital I/O and driving it would disconnect the
+    # break (board_io.c). Its level still inverts with the front end, and
+    # afe_power is where the board reports it - see FINDINGS: 0 with the front
+    # end powered reads as a fault asserted, and what drives it is not
+    # established. Asserted because it is what the board does, not because it
+    # is understood.
+    report.check('nFAULT is not a channel a fixture may drive',
+                 'PE15' not in hot and 'PE15' not in cold)
+    report.check('and it still reads back inversely, through afe_power',
+                 'pe15=0' in mcp.HANDLERS['afe_power'](session, action='on')
+                 and 'pe15=1' in mcp.HANDLERS['afe_power'](session,
+                                                           action='off'),
+                 mcp.HANDLERS['afe_power'](session, action='read'))
     report.check('every pin the map calls digital I/O is read, and only those',
                  len(hot.splitlines()) == 2 + len(
                      Sim().board.system.channel_map()['digital']),
@@ -138,7 +144,7 @@ def test_channel_map(report):
     # made it two, and the property this is named for - that nothing here is
     # a pin the bus or the probe sits on - is the check below.
     report.check('digital I/O carries the board controls it has always had',
-                 io_pins >= {'PB2', 'PE15'}, ', '.join(sorted(io_pins)))
+                 io_pins >= {'PB2', 'PE14', 'PA10'}, ', '.join(sorted(io_pins)))
     report.check('and no bus or debug pin is among the channels',
                  not (io_pins & {r['pin'] for r in chart['reserved']}))
     report.check('every analog channel says which way it runs, and it is in',

@@ -6,25 +6,22 @@ Shape of a step:
                                                                          |
                                      Limit.judge in Python <-------------+
 
-Each step starts a new conversation. That costs the system prompt again and it
-buys two things worth more: a model that got confused in step 3 arrives clean at
-step 4, and a transcript where the reasoning behind a verdict is one contiguous
-block an auditor can read. The Python namespace, by contrast, does persist -
-state the model built deliberately survives; state it drifted into does not.
+Each step starts a new conversation. It costs the system prompt again and buys
+more: a model confused in step 3 arrives clean at step 4, and a verdict's
+reasoning is one contiguous block an auditor can read. The Python namespace does
+persist - state the model built deliberately survives, state it drifted into
+does not.
 
-What this loop refuses to do:
+What this loop refuses:
 
-  * take a verdict from the model. It reports a number; `plan.Limit` decides.
-  * let a step run forever. `max_turns` ends it, and an unfinished step is
-    recorded as unfinished rather than quietly dropped.
-  * hide anything. Every message, every tool call and every result goes to the
-    JSONL transcript before the next turn, so a run that dies mid-plan leaves
-    the evidence up to that point on disk.
+  * a verdict from the model. It reports a number; `plan.Limit` decides.
+  * an endless step. `max_turns` ends it, recorded unfinished, not dropped.
+  * hiding anything. Every message, call and result reaches the JSONL
+    transcript before the next turn, so a run that dies mid-plan leaves its
+    evidence on disk.
 
-The system prompt is the other half of this file, and most of it is the board's
-invariants restated as things the model is not allowed to conclude: the AFE gates
-every reading, the phase channels have unknown gain so pin volts is as far as it
-goes, and nothing in this repository knows what a passing value looks like.
+The system prompt is the other half of this file: mostly the board's invariants
+restated as things the model may not conclude.
 """
 import json
 import os

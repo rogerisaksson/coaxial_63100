@@ -2,14 +2,14 @@
 more.
 
 Both loops here grow a message list for the same daemon - `debug.Chat` for a
-question, `runner.Runner` for a plan step - and both used to bound it by
-counting messages. A message count is not a bound: six messages is a small
-prompt right up until one of them is a build log.
+question, `runner.Runner` for a plan step - and both used to bound it by message
+count. That is not a bound: six messages is small right up until one is a build
+log.
 
-`num_ctx` is a bound, because that is what the daemon allocates a KV cache
-for. Past it there is no polite refusal - there is a 500, or llama-server
-dying while saving its prompt cache. The client's own ladder is for a machine
-short of memory; this is for a conversation that simply got long.
+`num_ctx` is, because it is what the daemon allocates a KV cache for. Past it
+there is no polite refusal - a 500, or llama-server dying while saving its
+prompt cache. The client's ladder is for a machine short of memory; this is for
+a conversation that got long.
 
 What is given up, in order, least missed first:
 

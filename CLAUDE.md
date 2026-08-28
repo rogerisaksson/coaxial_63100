@@ -16,80 +16,79 @@ RS485.
 no coaxial cable and no coaxial connector on this board — a local model has
 invented both, twice.
 
-The thermal channel is not decoration, and the phase sense sits inside a switching gate drivers — 
-which is the context for every noise figure in these documents.
+The thermal channel is not decoration, and the phase sense sits inside a
+switching power stage — the context for every noise figure in these documents.
 
 ## Scope: instrumentation, not yet a motor controller
 
 **TIM1 is armed on request, and there is still no commutation.** The `.ioc`
-enables sixteen IPs -
-ADC1/2/3, SPI2, SPI4, USART2, USART3, UART5, **TIM1**, CORTEX_M7, RCC, SYS,
-DEBUG, MEMORYMAP, NVIC and VREFBUF. TIM1 is centre-aligned at **50 kHz**
-(ARR 2375 off 237.5 MHz), dead time **DTG 19 = 80.0 ns**, break on PE15
-active low, AOE off so nothing re-arms itself. `Board_PwmInit()` starts the
-counter with MOE clear and CCxE set, which drives all six outputs to their
-idle level: both FETs of every leg held off in hardware. `rig.arm_gate_drivers()`
-is the only thing that sets MOE, and a duty write is refused until it has
-been called - arming a power stage should be asked for by name, not fall out
-of writing a level. It re-reads BDTR DTG first and refuses a gate driver stage with no
-dead time, which matters because the 2EDL8034 has no interlock of its own.
+enables sixteen IPs - ADC1/2/3, SPI2, SPI4, USART2, USART3, UART5, **TIM1**,
+CORTEX_M7, RCC, SYS, DEBUG, MEMORYMAP, NVIC and VREFBUF. TIM1 is centre-aligned
+at **50 kHz** (ARR 2375 off 237.5 MHz), dead time **DTG 19 = 80.0 ns**, break on
+PE15 active low, AOE off so nothing re-arms itself. `Board_PwmInit()` starts the
+counter with MOE clear and CCxE set, driving all six outputs to their idle
+level: both FETs of every leg held off in hardware.
 
-Measured 2026-08-27 with the drivers powered: every duty from 1 % to 100 %,
-no supply trip, no overruns. All three legs at the same duty, so no volts
-between phases and no phase current. **There is still no commutation and no
-current loop** - what exists is a gate driver stage that can be switched and measured,
+`rig.arm_gate_drivers()` is the only thing that sets MOE, and a duty write is
+refused until it has been called - arming a power stage should be asked for by
+name, not fall out of writing a level. It re-reads BDTR DTG first and refuses a
+stage with no dead time, because the 2EDL8034 has no interlock of its own.
+
+Measured 2026-08-27 with the drivers powered: every duty from 1 % to 100 %, no
+supply trip, no overruns. All three legs at the same duty, so no volts between
+phases and no phase current. **There is still no commutation and no current
+loop** - what exists is a gate driver stage that can be switched and measured,
 not one that can turn a motor.
 
 The gate drivers and the FETs are fitted (2EDL8034 x3, IAUCN10S7N021 -
-`electronics/`) and **their supply is not the MCU's to switch** - the Safe
-Torque Off chain releases it, unlocked by a pilot tone on RS485. This is
-still a measurement and bring-up platform. Nothing has run near 63 V or
-100 A, and no measured value is recorded here — invariant 10.
+`electronics/`) and **their supply is not the MCU's to switch** - the Safe Torque
+Off chain releases it, unlocked by a pilot tone on RS485. Nothing has run near
+63 V or 100 A, and no measured value is recorded here — invariant 10.
 
 VREFBUF is deliberately **disabled**, VREF+ high-impedance, so the AFE drives the
-ADC reference. That is the mechanism behind invariant 9. The AFE's own source is
-U2, a REF2033, which drives `+3V3_ref` and `+1V65_bias` both - one part sets the
-reference and the differential mid-point, which is why they track. The 3.3 V is
-a specified part rather than a rail nobody measured, and it lives in the
-calibration record all the same, because a rig with a calibrated meter beats a
-datasheet tolerance.
+ADC reference. That is the mechanism behind invariant 9. Its source is U2, a
+REF2033, driving `+3V3_ref` **and** `+1V65_bias` - one part sets the reference
+and the differential mid-point, which is why they track. The 3.3 V is a specified
+part rather than a rail nobody measured, and it lives in the calibration record
+anyway: a rig with a calibrated meter beats a datasheet tolerance.
 
-**What a device is, and which devices there are, both come from the bus.**
-`0x41` carries a one-line `description` from the device itself, and
-`coaxial.scan()` sweeps unit ids. The `devices` tool lists them and `op=use`
-picks one by `unit=` or by `name=`; every other tool then talks to it.
-`origin.interface` is the communication interface type - `debug probe`,
-`RS485` or `simulated` - which is a different question from which unit.
+**What a device is, and which devices there are, both come from the bus.** `0x41`
+carries a one-line `description` from the device itself, and `coaxial.scan()`
+sweeps unit ids. The `devices` tool lists them and `op=use` picks one by `unit=`
+or by `name=`; every other tool then talks to it. `origin.interface` is the
+interface type - `debug probe`, `RS485` or `simulated` - a different question
+from which unit.
+
 A bus is a serial segment: the simulated machine has five - `AX` axis, `LL`/`RL`
-legs, `LA`/`RA` arms - so the unit id is the position down the limb and node 2
-is the knee on both legs. `/node` lists, `/node RL 2` or `/node right knee`
-selects, `/node bus` lists the segments. **`/node 0` is the Modbus broadcast
-address** for the selected segment: every node acts, none answers, reads are
-refused and the prompt goes red.
+legs, `LA`/`RA` arms - so the unit id is the position down the limb and node 2 is
+the knee on both legs. `/node` lists, `/node RL 2` or `/node right knee` selects,
+`/node bus` lists the segments. **`/node 0` is the Modbus broadcast address** for
+the selected segment: every node acts, none answers, reads are refused and the
+prompt goes red.
 
 **The channel map is the board's, not this file's.** Command `0x6D channels`
 reports every analog channel, every digital I/O pin and the direction each one
-runs; `board_info` shows it and `system.channel_map()` returns it. USART3 and
-the debug port are reported separately and are never channels to drive. A pin
-table in a document or a prompt is a second answer to "what is PB10" — add a
-pin to `Board/Src/board_io.c` and everything above it follows.
+runs; `board_info` shows it and `system.channel_map()` returns it. USART3 and the
+debug port are reported separately and are never channels to drive. A pin table
+in a document or a prompt is a second answer to "what is PB10" — add a pin to
+`Board/Src/board_io.c` and everything above it follows.
 
-**What is fitted comes from the board too.** `0x6D channels` kind 4 is the
-parts list — name, what it does, where it sits, **what powers it**, and
-whether it answered. `board_info kind=parts`, `system.channel_map()['parts']`
-and the local model's `parts` kind all read it off the wire.
+**What is fitted comes from the board too.** `0x6D channels` kind 4 is the parts
+list — name, what it does, where it sits, **what powers it**, and whether it
+answered. `board_info kind=parts`, `system.channel_map()['parts']` and the local
+model's `parts` kind all read it off the wire.
 
 That last column is not decoration: AFE_ON powers the BNO08X as well as the
-analog front end, and with it off the part answers reads, resets and
-advertises normally while acting on no write at all. A day went into SPI
-before the supply was checked.
+analog front end, and with it off the part answers reads, resets and advertises
+normally while acting on no write at all. A day went into SPI before the supply
+was checked.
 
 **Adding hardware is one row, and nothing else.** A new part means a row in
-`s_parts` in `Board/Src/board_io.c`, its pins in `s_digital` beside it, and —
-if it needs one — a probe case so `state` is measured rather than asserted.
-Do not then add it to a document, a prompt, a host table or a tool
-description: those are second answers to a question the firmware already
-settles, and they are the ones that go stale. Check it landed with:
+`s_parts` in `Board/Src/board_io.c`, its pins in `s_digital` beside it, and — if
+it needs one — a probe case so `state` is measured rather than asserted. Do not
+then add it to a document, a prompt, a host table or a tool description: those
+are second answers to a question the firmware already settles, and they are the
+ones that go stale. Check it landed with:
 
 ```powershell
 python -c "import coaxial; [print(p) for p in coaxial.connect([1])[0].system.channel_map()['parts']]"
@@ -127,16 +126,15 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check    # what is missing
 . .\env.ps1                 # PATH + board_prompt, dbg, board, cbuild, cflash, cubemx
 ```
 
+**Refusals come from the board.** Anything taking parameters answers `u8 took`
+and, on a refusal, the board's own words for what is wrong and what to do. The
+host validates only what stops a request being formed and repeats the rest.
+Adding a check means adding its sentence beside it - not a code the host maps,
+and not a list of causes in a docstring. docs/PROTOCOL.md has the wire.
 
-**Refusals come from the board.** Anything taking parameters answers
-`u8 took` and, on a refusal, the board's own words for what is wrong and
-what to do. The host validates only what stops a request being formed and
-repeats the rest. Adding a check means adding its sentence beside it - not
-a code the host maps, and not a list of causes in a docstring.
-
-**`Coaxial63100` is the front door.** `host/coaxial/rig.py`, and what all
-four views use. It owns the AFE preflight (invariant 9) and puts the supply
-back the way it found it, Ctrl+C included.
+**`Coaxial63100` is the front door.** `host/coaxial/rig.py`, and what all four
+views use. It owns the AFE preflight (invariant 9) and puts the supply back the
+way it found it, Ctrl+C included.
 
 ```python
 from coaxial import Coaxial63100
@@ -174,109 +172,107 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Suites, sized from `host/tests/.counts.json` and so measured rather than
-remembered: `test_structure.py` (245), `test_modbus_core.py` (68),
-`test_shtp_core.py` (38), `test_ollama.py` (733),
-`test_simulated.py` (98), `test_mcp.py` (44), `test_parity.py` (25),
-`test_conformance.py` (106, `--conformance`),
-`test_live_model.py` (212, needs ollama, `--live`) - the only one where the
-model itself is under test. How the whole thing is wired is in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system); the rules that
-bind you:
+Seventeen suites, 1679 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (300), `test_ollama_tools.py`
+(218), `test_ollama_runner.py` (214), `test_simulated.py` (182),
+`test_live_model.py` (146, needs ollama, `--live`) - the only one where the model
+itself is under test - `test_ollama_prompt.py` (113), `test_conformance.py` (108,
+`--conformance`), `test_ollama_link.py` (96), `test_modbus_core.py` (68),
+`test_mcp.py` (44), `test_shtp_core.py` (38), `test_ollama_render.py` (32),
+`test_parity.py` (30), `test_ollama_bus.py` (28), `test_ollama_board.py` (27),
+`test_ollama_reply.py` (23), `test_ollama_language.py` (12). How it is wired is in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system); the rules that bind
+you:
 
 * **A missing cable is not a failing suite.** Every suite opens its session
   through `open_session()`, which probes and falls back to the stand-in.
 * **The model is loaded once per run and released once**, by `run_tests.py`.
   Never per suite, never per question - measured, most of the wall time went
   into loading 7.6 GB again.
-* **Run `-Structure` after editing anything under `host/`.** The
-  behavioural suites cannot replace it: they import what they need and
-  pass while the rest of the package is broken. It catches a module that
-  stopped importing, a definition left in two files by a split, a
-  re-export pointing nowhere, a dead import, and a function past the
-  length or nesting a reader can hold. Measured: five NameErrors in one
-  afternoon of moving code, each found by an unrelated test failing
-  somewhere else.
+* **Run `-Structure` after editing anything under `host/`.** The behavioural
+  suites cannot replace it: they import what they need and pass while the rest
+  of the package is broken. It catches a module that stopped importing, a
+  definition left in two files by a split, a re-export pointing nowhere, a dead
+  import, and a function past the length or nesting a reader can hold. Measured:
+  five NameErrors in one afternoon of moving code, each found by an unrelated
+  test failing somewhere else.
 * **A tier is a budget of checks, and it cuts as well as fills** - the model's
-  pick can be bigger than the tier, and does not get to spend past it. The
-  floor it never goes below: one test from every subject the pick left out,
-  plus the smallest group of the pick itself. Sizes come from
-  `host/tests/counts.py`, measured, because the groups run from 2 checks to 77.
+  pick can be bigger than the tier, and does not get to spend past it. The floor
+  it never goes below: one test from every subject the pick left out, plus the
+  smallest group of the pick itself. Sizes come from `host/tests/counts.py`,
+  measured, because the groups run from 2 checks to 77.
 
       ran 19 of 43 groups: prompt,runner, seed 3440, 51% of checks
       Total: 984  Passed: 449, Skipped: 535, Failed: 0, (4 of 6 suites ran)
 
   Measured, and the reason the clamp exists: on the 25 % tier the tier had
-  already dropped the live suite, the model's pick put `live:all` back, and
-  the cheapest run there is took 398 s of which 352 were that one suite. It
-  now says what it refused - `the 25% tier does not stretch to: live:all`.
+  already dropped the live suite, the model's pick put `live:all` back, and the
+  cheapest run there is took 398 s of which 352 were that one suite. It now says
+  what it refused - `the 25% tier does not stretch to: live:all`.
 
-* **Any 5 % step is a tier.** Suites join in order of seconds per check, so
-  the first of a budget buys the cheapest checks there are - measured, per
-  check: simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
-  conformance 0.29, live 4.6. `test_ollama.py` is in from the first tier and
-  narrows *itself*; that is where the fine resolution lives, because 733 of
-  this tree's 1613 checks are in that one file.
+* **Any 5 % step is a tier.** Suites join in order of seconds per check, so the
+  first of a budget buys the cheapest checks there are - measured, per check:
+  simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14, conformance
+  0.29, live 4.6. The `test_ollama_*` suites are in from the first tier and
+  narrow *themselves*; that is where the fine resolution lives, because 763 of
+  this tree's 1679 checks are in those nine files.
 
 * **The model is not asked when the path map already knows.** Where every
   changed file matched an explicit rule and the answer is `CHEAP` - structure,
   core, shtp, simulated, none of which need a board or ollama - the pick is
   settled without a model. Asking costs a 7.6 GB load to be told what the map
-  said, and the answer can only come back wider. Editing a demo wrapper is
-  three seconds, not seven minutes.
+  said, and the answer can only come back wider. Editing a demo wrapper is three
+  seconds, not seven minutes.
 
-* **Ctrl+C is `STOPPED`, exit 130, not `FAILED`** - and the `finally` hands
-  the model back. Killing the run from outside does not: measured, 8.4 GB
-  stayed on the card until it was released by hand.
+* **Ctrl+C is `STOPPED`, exit 130, not `FAILED`** - and the `finally` hands the
+  model back. Killing the run from outside does not: measured, 8.4 GB stayed on
+  the card until it was released by hand.
 
 * **A typed sentence is classified before it is answered** - `intent.py`, one
   extra call on the turn's own client. Never a second `Ollama`: ollama keys a
-  loaded runner on `num_ctx`, and a second client at a different window
-  reloads 7.6 GB once per question. [docs/MODELS.md](docs/MODELS.md).
+  loaded runner on `num_ctx`, and a second client at a different window reloads
+  7.6 GB once per question. [docs/MODELS.md](docs/MODELS.md).
 
 At the prompt, `/board simulated | auto | rs485 | COM4` and `/model TAG | auto`
 swap either one mid-session, for no model tokens - and so does saying it in
-prose: "byt till debugproben" is an order the host carries out, never a
-question for the model. `/model` hands the old model's VRAM back first.
-
+prose: "byt till debugproben" is an order the host carries out, never a question
+for the model. `/model` hands the old model's VRAM back first.
 
 The ST toolchain is not on the system PATH — arm-gcc, cmake, ninja and
 `STM32_Programmer_CLI` live under `%LOCALAPPDATA%\stm32cube\bundles\`, fetched by
 `cube.exe` (the bundle manager in the STM32 VS Code extension; `cube bundle
 install --yes NAME` needs no ST account). `env.ps1` puts the newest of each on
-PATH for one shell. Nothing hardcodes which port the board is on: `--port`
-is a first guess, and `open_session()` probes if it does not answer.
+PATH for one shell. Nothing hardcodes which port the board is on: `--port` is a
+first guess, and `open_session()` probes if it does not answer.
 
 ## Do not run the suites to look busy
 
-**While a bug is live, run the narrowest thing that could disprove the
-current hypothesis - never the full suite.** `-All` is eight minutes and it
-answers a question nobody asked; running it mid-hunt is a way of appearing
-to work while the bug sits there. The suites are the gate *after* a change,
-which is what the next section is about, not a step in finding one.
+**While a bug is live, run the narrowest thing that could disprove the current
+hypothesis - never the full suite.** `-All` is eight minutes and answers a
+question nobody asked; running it mid-hunt is a way of appearing to work while
+the bug sits there. The suites are the gate *after* a change, not a step in
+finding one.
 
-Measured, and why this is written down: chasing why two of three gate driver
-stages ran 15 C hotter than the third, the full suite was started three
-times. None of the 1745 checks could have said anything about it - the
-difference was on the bench, and the only measurements that moved the
-question forward were a 600-sample pin count and a register dump.
+Measured: chasing why two of three gate driver stages ran 15 C hotter than the
+third, the full suite was started three times. None of the 1745 checks could have
+said anything about it - the difference was on the bench, and what moved the
+question forward was a 600-sample pin count and a register dump.
 
-The narrow thing is usually one of: read the register, count the samples,
-run the one suite whose name matches what changed.
+The narrow thing is usually one of: read the register, count the samples, run the
+one suite whose name matches what changed.
 
 ## Green before the next thing
 
-**Fix the demo code and get the suites passing before moving on to the next
-item on a list.** Not after it, not once the list is done. A failing check
-carried forward stops being information: by the third item nobody can tell
-which change broke it, and the run that would have said so is the one that
-was skipped.
+**Fix the demo code and get the suites passing before moving on to the next item
+on a list.** Not after it, not once the list is done. A failing check carried
+forward stops being information: by the third item nobody can tell which change
+broke it, and the run that would have said so is the one that was skipped.
 
-This includes failures that were already there when the work started. Say
-they are pre-existing, then fix them - reporting a red suite and carrying on
-is how it stays red. Measured, and the reason this is written down: nine
-failures in `test_ollama_render` and `test_ollama_reply` were found, called
-pre-existing, and left behind while four more items were worked through.
+This includes failures that were already there when the work started. Say they
+are pre-existing, then fix them - reporting a red suite and carrying on is how it
+stays red. Measured: nine failures in `test_ollama_render` and `test_ollama_reply`
+were found, called pre-existing, and left behind while four more items were
+worked through.
 
 ## After a change lands
 
@@ -294,8 +290,8 @@ added, and the very next change landed with a summary and no question.
 
 ## Spend the local model, not the expensive one
 
-There is a local model on this machine with the board's fifteen tools wired to
-it. It is free per token and standing next to the hardware. Anything routine,
+There is a local model on this machine with the board's twenty tools wired to it.
+It is free per token and standing next to the hardware. Anything routine,
 mechanical, or already covered by its tools belongs there by default.
 
 ```powershell
@@ -322,10 +318,10 @@ A failing build or a regressed test is still yours to judge. The rule is about
 who *runs* the loop, not who decides what its result means.
 
 **And when the answer is for you, not the user, skip the model.**
-`tools/run_tests.py` and `tools/build_and_flash.py` already print a parsed
-tally and a real exit code in four lines. Verifying your own change mid-edit by
-asking the local model to run them adds a model load, a turn and a paraphrase
-risk for a result the script states directly. Route it by who reads the answer:
+`tools/run_tests.py` and `tools/build_and_flash.py` already print a parsed tally
+and a real exit code in four lines. Asking the local model to run them mid-edit
+adds a model load, a turn and a paraphrase risk for a result the script states
+directly. Route it by who reads the answer:
 
 | The answer is for | Do |
 |---|---|
@@ -370,11 +366,11 @@ working.
 
 ### Suspect your own code before the hardware
 
-**Do not send anybody to the bench with an oscilloscope, a schematic question
-or a pin assignment until the code has been read for the fault.** Bringing up
-the BNO08X took six firmware bugs and four wrong hypotheses about the board;
-every one of the bugs was mine and none of the hypotheses survived a
-measurement. What they cost was not time, it was somebody else's time.
+**Do not send anybody to the bench with an oscilloscope, a schematic question or
+a pin assignment until the code has been read for the fault.** Bringing up the
+BNO08X took six firmware bugs and four wrong hypotheses about the board; every
+bug was mine and no hypothesis survived a measurement. What they cost was not
+time, it was somebody else's time.
 
 The ones that looked exactly like a hardware problem:
 
@@ -386,27 +382,25 @@ The ones that looked exactly like a hardware problem:
 | a sensor enabled at 60 ms never reported | the interval went out little-endian on a big-endian wire - 27 minutes |
 | a write worked twice and failed the third time | it was gated on an INTN that an already-awake part never asserts |
 
-Before writing "I need to know which pin X is on" or "this looks like a
-hardware fault", do all of this:
+Before writing "I need to know which pin X is on" or "this looks like a hardware
+fault", do all of this:
 
-* **Read the reference implementation.** For anything with a vendor driver,
-  the sequence is written down. `github.com/ceva-dsp/sh2` settled the report
-  lengths and `hcrest/bno080-nucleo-demo`'s `sh2_hal_spi.c` settled the chip
-  select and wake ordering - both after hours of guessing.
-* **Re-read the init order.** HAL functions run MSP callbacks that
-  reconfigure the pins you just set up. Anything configured before
-  `HAL_*_Init` is gone.
+* **Read the reference implementation.** For anything with a vendor driver, the
+  sequence is written down. `github.com/ceva-dsp/sh2` settled the report lengths
+  and `hcrest/bno080-nucleo-demo`'s `sh2_hal_spi.c` settled the chip select and
+  wake ordering - both after hours of guessing.
+* **Re-read the init order.** HAL functions run MSP callbacks that reconfigure
+  the pins you just set up. Anything configured before `HAL_*_Init` is gone.
 * **Check every width and byte order against the wire**, not against what the
   peripheral happens to send today.
 * **Check what a buffer has to hold in the worst case**, not the typical one.
-* **Verify the fix actually took effect** before attributing a change to it.
-  Two of the four wrong hypotheses here were "improvements" that were
-  overwritten before they ran, and the improvement they were credited with
-  had another cause.
+* **Verify the fix actually took effect** before attributing a change to it. Two
+  of the four wrong hypotheses here were "improvements" that were overwritten
+  before they ran, and the improvement they were credited with had another cause.
 
 A measurement taken while something else is driving the same bench is not a
-measurement - see FINDINGS. That applies to the code under test as much as to
-the instrument.
+measurement - see FINDINGS. That applies to the code under test as much as to the
+instrument.
 
 **None of this applies when the board is instrumentation for work already
 agreed**: verifying a change just made, reproducing a bug, writing a capture tool
@@ -422,10 +416,10 @@ Invariant 10 applies to it exactly as it applies to the firmware.
 
 ## How to write here
 
-`~/.claude/CLAUDE.md` says it and this file does not repeat it. What is
-specific here: **keep every measurement, rejected alternative and recorded
-failure** when trimming prose - cut the paragraph around them, never the
-number. FINDINGS is a record, not documentation, and is not shortened.
+`~/.claude/CLAUDE.md` says it and this file does not repeat it. What is specific
+here: **keep every measurement, rejected alternative and recorded failure** when
+trimming prose - cut the paragraph around them, never the number. FINDINGS is a
+record, not documentation, and is not shortened.
 
 ## Layout
 
@@ -460,10 +454,10 @@ Break one and something works until it doesn't.
 1. **The protocol core stays hardware-free.** `modbus_crc.c`, `modbus_slave.c`
    and `modbus_rtu.c` include only `<stdint.h>`, `<stddef.h>`, `<stdbool.h>` and
    `<string.h>`. That is what makes them host-testable, and
-   `test_modbus_core.py` is what does it: the three are built with the host
-   gcc and driven through ctypes, clock injected, no board. `-Wconversion` is
-   on them in both builds, so a HAL include added here lights up before the
-   suite even runs. Only `Comms/Src/dev_usart3.c` touches the USART.
+   `test_modbus_core.py` is what does it: the three are built with the host gcc
+   and driven through ctypes, clock injected, no board. `-Wconversion` is on them
+   in both builds, so a HAL include added here lights up before the suite even
+   runs. Only `Comms/Src/dev_uart.c` touches a USART.
 2. **RTU timing is in raw `DWT->CYCCNT` ticks, never microseconds.** Dividing
    cycles down moves the wrap off a power of two, and the unsigned elapsed-time
    arithmetic then breaks silently across it.
@@ -477,14 +471,14 @@ Break one and something works until it doesn't.
    kills reception permanently.
 6. **Every ADC read path must call `HAL_ADC_ConfigChannel` and clear `PCSEL`.**
    Two separate bugs came from paths that did not — FINDINGS.
-7. **A conversion is named where it is defined, and defined once.** Every
-   scaling parameter this board uses lives in the calibration record behind
-   `0x6E` device 3 - reference, phase shunt and gain, DC link divider, four
-   thermistor constants - never as a literal at a call site and never as a
-   second copy in a host. The phase channels used to be exempt because their
-   gain was unknown; it was traced off the schematic on 2026-08-26, so they
-   report amperes now. What has not changed: **no number this board reports
-   has been measured against an instrument.** Span before believing one.
+7. **A conversion is named where it is defined, and defined once.** Every scaling
+   parameter this board uses lives in the calibration record behind `0x6E`
+   device 3 - reference, phase shunt and gain, DC link divider, four thermistor
+   constants - never as a literal at a call site and never as a second copy in a
+   host. The phase channels used to be exempt because their gain was unknown; it
+   was traced off the schematic on 2026-08-26, so they report amperes now. What
+   has not changed: **no number this board reports has been measured against an
+   instrument.** Span before believing one.
 8. **Nothing in the Python library returns a status code or None-for-failure.**
    Every call produces its result or raises from `coaxial.errors`.
 9. **AFE_ON decides what a reading means**, because it powers the ADC reference,
@@ -512,12 +506,11 @@ with `Unable to get core ID`. Use `-c port=JTAG mode=Normal reset=SWrst`, or SWD
 This is the probe firmware, not the board — the cabling was proven fine. End a
 programmer invocation with `--start`, not `-hardRst`, or the core is left halted.
 
-**The AFE switch (PB2) powers the ADC reference and the IMU.** With it off
-every channel reads exact mid-scale and the NTC reports exactly 25.00 °C.
-The BNO08X is worse: it answers reads, resets and advertises normally, and
-silently acts on no write at all - a day went into SPI before the supply was
-checked. Enable it before believing anything analog and before believing an
-IMU that looks present.
+**The AFE switch (PB2) powers the ADC reference and the IMU.** With it off every
+channel reads exact mid-scale and the NTC reports exactly 25.00 °C. The BNO08X is
+worse: it answers reads, resets and advertises normally, and silently acts on no
+write at all - a day went into SPI before the supply was checked. Enable it
+before believing anything analog and before believing an IMU that looks present.
 
 ## Tooling traps
 

@@ -2,31 +2,27 @@
 """Read an ollama model's weight blob(s) into the OS file cache, then measure
 whether ollama's own reported `load_duration` actually gets shorter for it.
 
-Windows already holds recently-read files in its standby list for as long as
-nothing else needs the RAM back - a normal `dbg`/`board_prompt` session warms
-whatever model it loads as a side effect. This exists for the case that
-matters and that side effect does not cover: a model this loop has not
-touched in a while, warmed on purpose before the next question needs it,
-without waiting to find out the hard way that the standby list had let it go.
+Windows holds recently-read files in its standby list while nothing else needs
+the RAM, so a normal `dbg`/`board_prompt` session warms whatever it loads as a
+side effect. This covers the case that does not: a model untouched for a while,
+warmed on purpose rather than discovering the hard way that the standby list
+let it go.
 
     python tools/warm_model.py llama3.1:8b             # warm it, then measure
     python tools/warm_model.py llama3.1:8b --measure-only   # skip the read,
                                                               # just time two loads
     python tools/warm_model.py llama3.1:8b --auto      # decide first, quietly
 
-Nothing here changes what ollama does - it is a read of files ollama already
-owns, and a timing measurement through the same `/api/chat` empty-message
-trick `client.py`'s own `preload()` uses. Both loads use `keep_alive=0` so
-this leaves the model unloaded when it is done, the same as it found it.
+Nothing here changes what ollama does: a read of files it already owns, and a
+timing measurement through the same `/api/chat` empty-message trick
+`client.py`'s `preload()` uses. Both loads pass `keep_alive=0`, so the model is
+left unloaded, as found.
 
---auto is the one meant to run unattended, from board_prompt.ps1's own
-preflight: this loop measured 2.8-2.9 GB/s reading these blobs (see
-_ram_gb/probe_read_speed below and the module's own git history for the
-numbers) - three NVMe/SSDs, nothing spinning - so warming buys nothing here
-and --auto correctly skips it. A machine with a slower disk and the RAM to
-spare should not need a different flag to get the win this one does not
-need; it should get decided from what is actually measured on it, not from
-a constant written .
+--auto is the unattended one, from board_prompt.ps1's preflight. Measured
+2.8-2.9 GB/s reading these blobs on this machine - three NVMe/SSDs, nothing
+spinning - so warming buys nothing and --auto skips it. A slower disk with RAM
+to spare should not need a different flag: the decision comes from what is
+measured on the machine, not from a constant.
 """
 import argparse
 import ctypes

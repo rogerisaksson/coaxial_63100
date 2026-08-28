@@ -83,7 +83,7 @@ class GateDrivers(Subsystem):
                 'floor': r.u8()}
 
     def state(self):
-        """Everything the gate drivers knows, from one conversion's worth of time.
+        """Everything the gate drivers know, from one conversion's worth of time.
 
         `at` is TIM1->CNT as the interrupt read it, not the instant the
         sample was taken: measured, the handler runs about 965 ticks

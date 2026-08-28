@@ -84,7 +84,7 @@ SWING = {0: 9000.0, 1: 9000.0, 2: 9000.0, 3: 300.0, 4: 6000.0, 5: 4000.0,
 #: peak - and two of them were invisible.
 #:
 #: Sized by where each channel sits rather than picked to look busy: the
-#: phases are inside a switching gate drivers and the thermistor is a slow thing on
+#: phases are inside a switching power stage and the thermistor is a slow thing on
 #: the end of a divider.
 RIPPLE = {0: 2600.0, 1: 2600.0, 2: 2600.0, 3: 40.0, 4: 150.0, 5: 700.0,
           6: 300.0, 7: 60.0, 8: 40.0}

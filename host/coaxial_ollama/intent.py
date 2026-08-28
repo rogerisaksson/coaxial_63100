@@ -1,22 +1,21 @@
 """Compile the operator's sentence into a plan, before the model sees it.
 
-One turn used to do two jobs: work out what was being asked, and answer it
-with the right tool. Every failure was the first job showing up in the second
-- "ge mig en lista over de analoga vardena" carries the word for a map and the
-word for a read in one sentence, and a single pass took the verb.
+One turn used to do two jobs - work out what was asked, then answer with the
+right tool - and every failure was the first showing up in the second: "ge mig
+en lista over de analoga vardena" carries the word for a map and the word for a
+read in one sentence, and a single pass took the verb.
 
-So the sentence is classified first, against seven named intents, and an
-intent with an unambiguous answer compiles to `plan()`: the calls the host
-makes itself. The model is then handed the output and asked for a sentence,
-with **no tools offered at all**. There is no tool choice left to get wrong,
-no second call to make, and nothing to refuse.
+So the sentence is classified first against seven named intents, and one with an
+unambiguous answer compiles to `plan()`: calls the host makes itself. The model
+is handed the output and asked for a sentence with **no tools offered**, so
+there is no tool choice left to get wrong.
 
-That replaced three backstops that each policed a choice which did not have to
-be the model's: a SYSTEM rule about nouns, a per-turn hint naming the tool,
-and a redirect that leaked its own text onto the operator's screen.
+That replaced three backstops policing a choice that need not have been the
+model's: a SYSTEM rule about nouns, a per-turn hint naming the tool, and a
+redirect that leaked its own text onto the operator's screen.
 
-Every way the compile can fail leaves the turn exactly as it was before this
-module existed - the model picks its own tools, one pass, old behaviour:
+Every way the compile can fail leaves the turn as it was before this module
+existed - the model picks its own tools, one pass:
 
   * ollama unreachable, or the extra call raising for any reason
   * a reply that is not the JSON it was asked for

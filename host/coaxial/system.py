@@ -62,25 +62,22 @@ class System(Subsystem):
 
         `analog` and `digital` are the channels: what can be read, and what a
         fixture may read or set without breaking anything. `reserved` is the
-        bus and the debug port - USART3, JTAG - which are not channels and are
-        never driven; they are here only so "why was PB10 refused" has an
-        answer. Keeping them in a third list rather than behind a flag is what
-        stops the two being confused.
+        bus and the debug port - USART3, JTAG - never driven, and here only so
+        "why was PB10 refused" has an answer. A third list rather than a flag,
+        so the two cannot be confused.
 
         An analog row carries index, adc, channel, pin, direction,
         differential, signal and unit; the other two carry pin, direction and
         signal. Direction is 'in', 'out' or 'inout', from the MCU's side, and
         every ADC channel is 'in'.
 
-        The map, not a reading: `analog.channels()` fetches the same analog
-        metadata with a live conversion attached, and `read_all()` is what
-        measures. Cached, because none of it changes at run time.
+        The map, not a reading: `analog.channels()` fetches the same metadata
+        with a live conversion attached, `read_all()` measures. Cached, none of
+        it changes at run time.
 
-        This is the board describing itself. Nothing above the firmware
-        should carry a copy - a pin table in a host, a document or a prompt
-        is a second answer to "what is PB10", and the board is the one that
-        is right. Needs protocol 1.3; an older board raises, and the caller
-        falls back to protocol.RESERVED_PINS.
+        The board describing itself - nothing above the firmware carries a
+        copy. Needs protocol 1.3; an older board raises and the caller falls
+        back to protocol.RESERVED_PINS.
         """
         if getattr(self, '_map', None) is None or refresh:
             # Two round trips, one per section: both together are 273 bytes

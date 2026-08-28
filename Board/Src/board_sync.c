@@ -4,22 +4,19 @@
   * @brief   Phase current sampled where the stage is quiet: TIM1 triggers,
   *          three ADCs convert at once, this latches the result.
   *
-  * The board's channel map already makes the hard part easy: Phase U is on
-  * ADC3, V on ADC1 and W on ADC2 - one phase per converter - so three
-  * converters started by one timer event sample the same instant by
-  * construction. No dual or triple mode is needed to get simultaneity.
+  * One phase per converter - U on ADC3, V on ADC1, W on ADC2 - so three
+  * converters on one timer event sample the same instant by construction.
+  * No dual or triple mode needed.
   *
-  * This is a SECOND acquisition path, not a change to the meter. The
-  * instrumentation reads in board_adc.c use the regular group, one channel
-  * at a time, reconfigured per read. A current loop cannot: it needs three
-  * channels converted together at a point the timer chooses. So the phases
-  * get the INJECTED group, which has its own sequence, its own results and
-  * its own trigger, and which preempts rather than disturbs the regular one.
+  * A SECOND acquisition path, not a change to the meter. board_adc.c reads the
+  * regular group one channel at a time, reconfigured per read; a current loop
+  * needs three together at a point the timer picks, so the phases get the
+  * INJECTED group - own sequence, own results, own trigger, preempting the
+  * regular one rather than disturbing it.
   *
-  * TIM1 exists now - centre-aligned, ARR 2375 for 50 kHz, DTG 19. What this
-  * file owns on top of that is the sample point: CCR5 and TRGO2, because
-  * CubeMX takes MasterOutputTrigger2, stores it as "null" and emits
-  * TIM_TRGO2_RESET anyway.
+  * TIM1 is centre-aligned, ARR 2375 for 50 kHz, DTG 19. What this file owns on
+  * top is the sample point: CCR5 and TRGO2, set here because CubeMX takes
+  * MasterOutputTrigger2, stores it as "null" and emits TIM_TRGO2_RESET.
   ******************************************************************************
   */
 #include "board.h"

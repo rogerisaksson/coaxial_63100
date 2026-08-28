@@ -1,13 +1,12 @@
 """three.js AsciiEffect, ported to run without a browser.
 
 From `AndrewSink/STL-to-ASCII-Generator` (script.js) and the AsciiEffect it
-drives. This rasterises the model's own TRIANGLES, which is what three.js
-does and what four earlier attempts here did not: they sampled the surface
-into points and splatted those. A point cloud cannot be made to look like a
-rasteriser by adding points. Measured, at 100x30 over this board's 419,338
-triangles, the full rasterisation costs 1.6 s a frame and 74% of the
-triangles it draws are sub-pixel - so the mesh is decimated once to 12% of
-its faces (`coaxial.mesh`) and every one of those is then drawn properly.
+drives. It rasterises the model's own TRIANGLES - what three.js does, and what
+four earlier attempts here did not: they splatted sampled points, and a point
+cloud cannot be made to look like a rasteriser by adding points. Measured at
+100x30 over this board's 419,338 triangles, full rasterisation costs 1.6 s a
+frame and 74% of the triangles drawn are sub-pixel - so the mesh is decimated
+once to 12% of its faces (`coaxial.mesh`) and each of those is drawn properly.
 
 Taken verbatim, because it is what makes the look:
 

@@ -3,22 +3,18 @@
   * @file    cmd_time.c
   * @brief   The cycle counter, latched, behind command 0x6E, device 7.
   *
-  * Every timestamp this board produces is raw CYCCNT, because dividing
-  * cycles down moves the wrap off a power of two and the unsigned
-  * arithmetic breaks across it (invariant 2). That leaves a host holding
-  * ticks with no idea what o'clock they are, and this is how it finds out.
+  * Every timestamp here is raw CYCCNT (invariant 2), which leaves a host
+  * holding ticks with no idea what o'clock they are. This is how it finds out.
   *
-  * Op 0 latches the counter and replies nothing worth having. Its point is
-  * that it can be BROADCAST: a broadcast has no reply, so the board acts at
-  * an instant the host can bracket with its own clock and no turnaround
-  * sits in the middle of the measurement. A unicast read afterwards fetches
-  * what was latched, and being late costs nothing - the value stopped
-  * moving when it was taken.
+  * Op 0 latches the counter and its reply is worthless on purpose: it can be
+  * BROADCAST, and a broadcast has no reply, so the board acts at an instant
+  * the host can bracket with no turnaround in the middle. The unicast read
+  * afterwards can be as late as it likes - the value stopped moving when it
+  * was taken.
   *
-  * The board keeps no wall clock and is not given one. It has no RTC and no
-  * LSE, so a time it held would drift with nothing to correct it against,
-  * and a board that reports a plausible wrong time is worse than one that
-  * reports ticks. The host owns the clock; this owns the ticks.
+  * No wall clock, and none to be given: no RTC and no LSE, so a time held here
+  * would drift against nothing, and a plausible wrong time is worse than
+  * ticks. The host owns the clock; this owns the ticks.
   ******************************************************************************
   */
 #include "cmd.h"

@@ -11,15 +11,14 @@ in the plan file and `plan.Limit` applies them.
 
     plan.py       the steps and the limits - the only limits in this repository
     client.py     Ollama over stdlib urllib
-    tools.py      coaxial_mcp's eight board tools, plus code, shell and report
+    tools.py      coaxial_mcp's fourteen board tools, plus code, shell, report
     sandbox.py    where model-authored code and commands actually run
     runner.py     the turn loop, the transcript, the verdict
 
-Why a local model at all: bring-up questions like "which channel moves when I
-change the link voltage" have no callable behind them, and writing one for each
-is how a bench script turns into a second firmware. Why local specifically: a
-transcript of a board under test is measurement data, and it stays on the bench
-PC.
+Why a model: bring-up questions like "which channel moves when I change the
+link voltage" have no callable behind them, and writing one per question is how
+a bench script becomes a second firmware. Why local: a transcript of a board
+under test is measurement data, and it stays on the bench PC.
 """
 from .client import Ollama, OllamaError, is_cloud, is_local
 from .plan import Limit, Plan, PlanError, Task

@@ -5,24 +5,20 @@
   *
   * MODBUS over Serial Line Specification and Implementation Guide V1.02.
   *
-  * RTU has no length field and no start or end delimiter. A frame is delimited
-  * ONLY by silence on the line: at least t3.5 of idle before and after it, and
-  * never more than t1.5 of idle between two characters inside it. That is the
-  * defining property of the transmission mode, so this layer is a timing state
-  * machine first and a parser second.
+  * A frame is delimited only by silence: t3.5 of idle before and after, never
+  * more than t1.5 between two characters inside it. So this layer is a timing
+  * state machine first and a parser second.
   *
-  * Time is injected as a free-running counter of arbitrary TICKS, together with
-  * how many ticks make a microsecond. Ticks rather than microseconds on purpose:
-  * the natural time source on this target is a 32-bit CPU cycle counter, and
-  * dividing it down to microseconds first would move the wrap point off a power
-  * of two, at which point unsigned subtraction across the wrap silently stops
-  * giving the right answer. Fed raw, the counter may wrap freely as long as it
-  * is sampled more often than its period. This file therefore has no dependency
-  * on any clock, timer or hardware header, and is host-testable.
+  * Time is injected as a free-running counter of arbitrary TICKS plus ticks per
+  * microsecond. Ticks, never microseconds: the source here is a 32-bit cycle
+  * counter, and dividing it down moves the wrap off a power of two, at which
+  * point unsigned subtraction across the wrap silently stops being right. Fed
+  * raw it may wrap freely if sampled more often than its period - so no clock,
+  * timer or hardware header is needed, and the file is host-testable.
   *
-  * Silence rules, per V1.02 section 2.5.1.1: above 19200 baud the recommended
-  * fixed values are t1.5 = 750 us and t3.5 = 1.750 ms; at or below 19200 baud
-  * both are derived from the character time. Both branches are implemented.
+  * Silence, per V1.02 section 2.5.1.1: above 19200 baud the fixed t1.5 = 750 us
+  * and t3.5 = 1.750 ms; at or below, both derive from the character time. Both
+  * branches are implemented.
   ******************************************************************************
   */
 #ifndef MODBUS_RTU_H
@@ -83,11 +79,9 @@ typedef struct
   * @brief  Initialise the transport.
   * @param  unit_id       This server address, 1..247. Never 0.
   * @param  baud          Line rate, used to derive the silence intervals.
-  * @param  bits_per_char Bit times per character on the wire. The
-  *                       specification assumes 11 (start + 8 data + parity +
-  *                       stop); a link running 8N1 physically sends 10, but
-  *                       11 is the conservative choice for timing because it
-  *                       lengthens the computed silences.
+  * @param  bits_per_char Bit times per character. The specification assumes 11
+  *                       (start + 8 data + parity + stop); 8N1 sends 10, but 11
+  *                       lengthens the computed silences, so it is the safe one.
   * @param  ticks_per_us  Ticks of the injected counter per microsecond.
   */
 void mb_rtu_init(mb_rtu_t *rtu, mb_slave_t *slave, uint8_t unit_id,
@@ -99,10 +93,9 @@ void mb_rtu_on_byte(mb_rtu_t *rtu, uint8_t byte, uint32_t now_ticks);
 /**
   * @brief  Report a UART receive error: overrun, framing, parity or noise.
   *
-  * The current frame is poisoned and will be discarded once the line goes
-  * quiet. Reporting the error is not optional: on this hardware a latched
-  * overrun flag stops reception permanently, so the port layer must clear the
-  * flag and tell the transport that the frame is worthless.
+  * The frame is poisoned and discarded once the line goes quiet. Not optional:
+  * a latched overrun stops reception permanently on this silicon, so the port
+  * layer must clear the flag and say the frame is worthless.
   */
 void mb_rtu_on_error(mb_rtu_t *rtu, uint32_t now_ticks);
 

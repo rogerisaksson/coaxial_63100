@@ -9,20 +9,18 @@
         for block in daq.blocks(20):
             print(block[-1]['time'], block[-1]['NTC'] / block[-1]['samples'])
 
-This is the front door. `Board` and its subsystems are still there under
-`daq.board` and nothing is hidden, but a caller that wants measurements
-should not have to know that the supply lives in `afe`, the converters in
-`daq`, the counter in `clock` and the gates in `gate drivers` - or the order they
-have to be touched in.
+The front door. `Board` and its subsystems stay reachable under `daq.board`,
+but a caller wanting measurements should not have to know the supply lives in
+`afe`, the converters in `daq`, the counter in `clock` and the gates in `gate
+drivers` - nor the order to touch them in.
 
-It also owns the preflight every view was writing out again: AFE_ON powers
-the ADC's reference and both SPI parts, so it has to be on for a reading to
-mean anything (invariant 9), and it has to be put back the way it was found
-- leaving a board powered because a script ended is a change nobody asked
-for, and switching one off that was on before is worse.
+It owns the preflight every view was writing out again: AFE_ON powers the ADC
+reference and both SPI parts, so it goes on for a reading to mean anything
+(invariant 9) and back the way it was found afterwards - a board left powered
+because a script ended is a change nobody asked for.
 
-Nothing here judges a reading. Raw converter codes and the board's own
-units; `board.analog` has the conversions when you want them.
+Nothing here judges a reading. Raw codes and the board's own units;
+`board.analog` has the conversions.
 """
 import time
 
@@ -357,10 +355,9 @@ class Coaxial63100:
     def outputs(self):
         """What can be written, asked of the board rather than listed here.
 
-        Digital: the pins the board's own map calls outputs. Analog: the
-        three gate drivers legs. There is no DAC on this board, so an analog
-        write is a PWM duty from 0.0 to 1.0 - the nearest thing it has to
-        putting a level out.
+        Digital: the pins the board's own map calls outputs. Analog: the three
+        inverter legs. There is no DAC here, so an analog write is a PWM duty
+        from 0.0 to 1.0, the nearest thing to putting a level out.
         """
         pins = [d for d in self.board.system.channel_map()['digital']
                 if d['direction'] == 'out'
@@ -374,7 +371,7 @@ class Coaxial63100:
         return self.read()
 
     def daq_write(self, digital=None, analog=None):
-        """Put levels out: named pins, and duties on the gate drivers legs.
+        """Put levels out: named pins, and duties on the three legs.
 
         digital  {'AFE_ON': True, 'UART5_TERM': False}. Names come from the
                  board's own map. AFE_ON goes through the supply's own
@@ -382,10 +379,10 @@ class Coaxial63100:
                  mode - this turns it on and off around the write.
 
         analog   {'Phase U': 0.25, ...}, 0.0 to 1.0. There is no DAC here,
-                 so this is a PWM duty. It is **refused unless the gate drivers is
-                 armed**: arming a power stage should be something a caller
-                 asked for by name, not the side effect of writing a level.
-                 `arm_gate_drivers()` is that name.
+                 so this is a PWM duty. **Refused unless the gate drivers are
+                 armed**: arming a power stage should be asked for by name,
+                 not fall out of writing a level. `arm_gate_drivers()` is that
+                 name.
 
         Returns what it did, so a caller can check rather than assume.
         """

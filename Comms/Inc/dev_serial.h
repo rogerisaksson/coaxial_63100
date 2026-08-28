@@ -9,15 +9,14 @@
   *      |
   *     dev        this: bytes, errors, a clock  (USART3 is the first one)
   *
-  * A protocol needs exactly four things from a device: pull a byte if one is
-  * waiting, learn that the receiver faulted, push a frame out, and read a
-  * monotonic tick counter for silence timing. Nothing above this header
-  * mentions a UART, so the protocol layer stays host-testable against a fake.
+  * A protocol needs four things from a device: pull a waiting byte, learn the
+  * receiver faulted, push a frame out, read a tick counter for silence timing.
+  * Nothing above this header mentions a UART, so the protocol layer stays
+  * host-testable against a fake.
   *
-  * ticks() returns a free-running counter that MUST wrap at 2^32 - raw CPU
-  * cycles, not a divided-down microsecond count. Dividing first moves the wrap
-  * off a power of two and unsigned elapsed-time arithmetic then breaks
-  * silently across it.
+  * ticks() must wrap at 2^32 - raw CPU cycles, not divided-down microseconds.
+  * Dividing moves the wrap off a power of two and unsigned elapsed-time
+  * arithmetic then breaks silently across it.
   ******************************************************************************
   */
 #ifndef DEV_SERIAL_H
@@ -36,10 +35,9 @@ typedef struct
     * @brief  Take one received byte and the tick it arrived at.
     * @return False when the receiver is empty.
     *
-    * The tick is the character's, not the caller's. On a bus the two are not
-    * the same: reading it when the main loop got round to it made the
-    * silence RTU measures the loop's rather than the wire's, and a 276-byte
-    * IMU cargo is seventeen characters at 115200.
+    * The character's tick, not the caller's: timestamping when the main loop
+    * got round to it made RTU measure the loop's silence, not the wire's - a
+    * 276-byte IMU cargo is seventeen characters at 115200.
     */
   bool (*get)(void *ctx, uint8_t *byte, uint32_t *tick);
 
@@ -48,9 +46,8 @@ typedef struct
     * @return True if the receiver had faulted, in which case the caller must
     *         treat the frame in progress as lost.
     *
-    * Clearing is not optional. On STM32 a latched overrun stops reception
-    * permanently until the flag is cleared through ICR, which is how this
-    * board has lost its serial link before.
+    * Clearing is not optional: a latched overrun stops reception permanently
+    * until ICR clears it, which is how this board has lost its link before.
     */
   bool (*fault)(void *ctx);
 

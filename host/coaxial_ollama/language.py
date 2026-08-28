@@ -1,22 +1,16 @@
 """Which language a question is in, decided here rather than by the model.
 
-Asking a model to "answer in the language of the question" makes it do two
-things at once: work out what language that was, and then answer. The first is
-where it drifts. Reported from this loop with `qwen2.5:14b` - a model whose
-training leans heavily Chinese - answers came back in Chinese, Japanese and
-Thai to questions that were in none of them. A larger model gets it right more
-often, which is not the same as getting it right.
+"Answer in the language of the question" asks for two jobs at once, and the
+first is where it drifts: measured with `qwen2.5:14b`, answers came back in
+Chinese, Japanese and Thai to questions in none of them. A larger model gets it
+right more often, which is not the same as getting it right.
 
-So the host decides and the prompt says it plainly: *The user writes in
-Swedish. Answer in Swedish.* That turns an introspection into an instruction,
-and it is the same trick as everywhere else in this package - do the part a
-program is reliable at in the program, and leave the model the part that needs
-a model.
+So the host decides and the prompt states it: *The user writes in Swedish.
+Answer in Swedish.* An instruction instead of an introspection.
 
-The detection is deliberately small. It has to separate the languages actually
-spoken at a bench, not every language there is, and a wrong guess must degrade
-to the old behaviour rather than to a confident instruction in the wrong
-language. Two stages:
+Detection is deliberately small - the languages spoken at a bench, not every
+language there is - and a wrong guess degrades to the old behaviour rather than
+to a confident instruction in the wrong language. Two stages:
 
   * Script. Chinese, Japanese, Korean, Thai, Greek, Cyrillic, Hebrew and Arabic
     are decided by the characters alone and cannot be confused with each other.
@@ -24,10 +18,10 @@ language. Two stages:
     `and`, `is` separates Swedish from English in one short sentence, which is
     the length a bench question actually has.
 
-Below a margin, this says nothing and the prompt falls back to "answer in the
-language the question was asked in". An unsure detector that guesses is worse
-than one that abstains: the model mirroring the question is right most of the
-time, and a wrong instruction is right none of it.
+Below a margin it says nothing and the prompt falls back to "answer in the
+language the question was asked in". A detector that guesses is worse than one
+that abstains: mirroring the question is right most of the time, a wrong
+instruction none of it.
 """
 import re
 import unicodedata

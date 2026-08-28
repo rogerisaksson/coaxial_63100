@@ -3,24 +3,21 @@
   * @file    board_sto.c
   * @brief   What the board can see of the Safe Torque Off chain.
   *
-  * Gate driver supply is not the MCU's to switch, and there is no pin for it.
-  * A chain on STO.SchDoc releases it, unlocked by a common-mode pilot tone
-  * the MASTER injects on the RS485 pair - R36/R37 tap the midpoint, a 1 kHz
-  * to 10 kHz band pass and a TLV3492 comparator pair detect it, and leaky
-  * integrators turn "the tone is still arriving" into a supply. Stop sending
-  * and the level decays. See docs/HARDWARE.md.
+  * Gate driver supply is not the MCU's to switch and there is no pin for it.
+  * A chain on STO.SchDoc releases it, unlocked by a common-mode pilot tone the
+  * MASTER injects on the RS485 pair; leaky integrators turn "still arriving"
+  * into a supply, so the level decays when it stops. docs/HARDWARE.md has the
+  * extraction.
   *
-  * So this file reads, and that is all it does. Two ADC channels bring the
-  * chain back to the MCU:
+  * This file reads, and only reads. Two ADC channels bring the chain back:
   *
   *   Cinj    the recovered pilot, off the detector
   *   Clevel  the integrator level - the margin before the chain drops out
   *
-  * It does NOT decide whether the chain has released. That would need a
-  * threshold on Clevel, and invariant 10 puts thresholds in a test executive
-  * beside a calibrated instrument, not in here. The one verdict this board
-  * may give is the one it can prove from its own registers: TIM1's break
-  * latch, which is nFAULT arriving on PE15 - marked (STOP) on the MCU sheet.
+  * It does NOT decide whether the chain released: that needs a threshold on
+  * Clevel, and invariant 10 puts thresholds in a test executive beside a
+  * calibrated instrument. The one verdict allowed here is provable from a
+  * register - TIM1's break latch, nFAULT on PE15, (STOP) on the MCU sheet.
   ******************************************************************************
   */
 #include "board.h"

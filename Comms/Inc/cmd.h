@@ -3,50 +3,36 @@
   * @file    cmd.h
   * @brief   Request/response command layer. Protocol-agnostic, table-driven.
   *
-  * A command is a code, an expected request length, and one function that reads
-  * a request payload and writes a response payload. It knows nothing about
-  * framing, addressing, CRCs or UARTs - the protocol below it carries the
-  * bytes, and for Modbus these codes ride in the user-definable function code
-  * range that the specification reserves for exactly this (65..72, 100..110).
+  * A command is a code, an expected request length, and one handler reading a
+  * request payload and writing a response payload. Framing, addressing and
+  * CRCs belong to the protocol below. The codes ride in MODBUS's user-definable
+  * ranges, 65..72 and 100..110.
   *
-  * Broadcast: a command carried by a broadcast frame is executed and produces
-  * no response. Handlers do not need to care; the protocol layer drops the
-  * response. Commands that only read are therefore pointless as broadcasts,
-  * and commands that act are the useful ones.
+  * A broadcast command runs and its response is dropped by the protocol layer,
+  * so handlers need not care.
   *
-  * WIRE FORMAT
-  * ===========
-  * All integers big-endian. No floating point on the wire: physical quantities
-  * are scaled integers in the units named below. Strings are one length byte
-  * followed by that many ASCII characters, never terminated.
+  * Wire: big-endian integers, no floating point, strings as one length byte
+  * then that many unterminated ASCII characters. docs/PROTOCOL.md is the
+  * authority on 0x6E and on everything a host has to decide from.
   *
   * 0x41 VERSION       req: -
   *                    rsp: u8 proto_major, u8 proto_minor,
   *                         u8 fw_major, u8 fw_minor, u8 fw_patch,
   *                         str device, str mcu, str build,
   *                         u16 command_count, str description, str type
+  *                    Append-only, and a host selects its codec on
+  *                    proto_major alone - invariants 3 and 4.
   *
-  *                    THE FROZEN COMMAND. The protocol major is first so any
-  *                    host can read two bytes, decide whether it understands
-  *                    this device, and stop. Fields may only be APPENDED after
-  *                    that - an old host decodes the prefix it knows and
-  *                    ignores the rest. Reorder or resize anything here and
-  *                    you have created a new major whether you meant to or not.
-  *
-  *                    A host selects its codec on the protocol major ALONE.
-  *                    The firmware version is for the test record; binding a
-  *                    host to it means every rebuild breaks the host.
-  *
-  * 0x42 ADC_TABLE     req: -
+  * 0x42 ADC_TABLE     req: u8 first (optional, default 0)
   *                    rsp: u8 count, then per channel:
   *                         u8 adc_index (1..3), u8 channel, str pin,
   *                         u8 differential, str signal,
   *                         i32 raw, i32 microvolts_at_pin,
   *                         u8 unit  (0 none, 1 millivolt, 2 centidegC),
   *                         i32 scaled  (meaningful only when unit != 0)
-  *                    The blank columns of the ASCII table become unit = 0 and
-  *                    scaled = 0: a channel whose physical quantity is not
-  *                    defined reports that fact rather than a made-up number.
+  *                         u8 total
+  *                    unit 0 is a channel whose physical quantity is not
+  *                    defined, reported as that rather than as a number.
   *
   * 0x43 ADC_SCAN      req: -
   *                    rsp: i32 phase_u_raw, i32 phase_v_raw, i32 phase_w_raw,
@@ -72,22 +58,19 @@
   *                         u32 server_message, u32 server_exception,
   *                         u32 server_no_response, u32 char_overrun
   *
-  * 0x48 CONSOLE       req: -
-  *                    rsp: -   (the ASCII console resumes once this is answered)
+  * 0x48 CONSOLE       req: -    rsp: -   (the ASCII console resumes)
   *
-  * TEST FIXTURE COMMANDS, in the specification's second user-definable range
-  * (100..110). Raw pin access for a production rig. Everything that
-  * reconfigures or drives a pin needs the gate open; reads never do.
+  * TEST FIXTURE COMMANDS (100..110). Raw pin access for a production rig.
+  * Driving or reconfiguring a pin needs the gate open; reads never do.
   *
   * 0x64 TEST_GATE     req: u32 key (0x54455354, ASCII "TEST"), u8 open
   *                    rsp: u8 open
-  *                    A wrong key is ILLEGAL DATA VALUE and leaves the gate as
-  *                    it was, so the mode cannot be entered by accident.
+  *                    A wrong key is ILLEGAL DATA VALUE and leaves the gate
+  *                    as it was, so the mode cannot be entered by accident.
   *
-  * 0x65 ECHO          req: 0..250 arbitrary bytes
-  *                    rsp: the same bytes, unchanged
-  *                    A link test: proves framing, CRC and both codecs round
-  *                    trip without depending on any board state.
+  * 0x65 ECHO          req: 0..250 bytes    rsp: the same bytes
+  *                    Proves framing, CRC and both codecs round trip without
+  *                    depending on board state.
   *
   * 0x66 PIN_MODE      req: u8 port ('A'..'K'), u8 pin (0..15),
   *                         u8 mode (0 input, 1 out PP, 2 out OD, 3 analog),
@@ -99,8 +82,8 @@
   * 0x69 PORT_READ     req: u8 port                rsp: u16 IDR
   * 0x6A PORT_WRITE    req: u8 port, u16 mask, u16 value
   *                    rsp: u16 IDR read back
-  *                    Written through BSRR so it is atomic. Reserved pins are
-  *                    masked out of the write rather than rejecting it.
+  *                    Through BSRR, so atomic. Reserved pins are masked out
+  *                    of the write rather than rejecting it.
   *
   * 0x6B ANALOG_BURST  req: u16 channel_mask (bit i = channel i of the table),
   *                         u16 samples (1..10000),
@@ -109,64 +92,48 @@
   *                         then per channel, ascending index:
   *                           u8 index, i32 mean_milliraw, i32 min_raw,
   *                           i32 max_raw, u32 sd_milliraw
-  *
-  *                    RAW CODES ONLY, on purpose. The host owns the scaling -
-  *                    its divider ratios, its thermistor constants, its
-  *                    reference voltage - so a fixture with different parts
-  *                    needs no firmware change. Means and deviations are in
-  *                    milli-codes (raw x 1000) to carry fractions without a
-  *                    float on the wire.
-  *
-  *                    elapsed_us is measured, not assumed, so a host can see
-  *                    the sample rate it actually got. A burst longer than 5 s
-  *                    is refused rather than left to outlive the master.
-  *
-  * 0x6D CHANNELS      req: u8 kind (0 analog, 1 digital IO, 2 reserved)
-  *                    rsp, kind 0: u8 count, then per analog channel:
-  *                         u8 index, u8 adc_index, u8 channel, str pin,
-  *                         u8 direction, u8 differential, str signal, u8 unit
-  *                    rsp, kind 1 and 2: u8 count, then per pin:
-  *                         str pin, u8 direction, str signal
-  *
-  *                    Kinds 1 and 2 are kept apart on purpose. Kind 1 is the
-  *                    digital I/O: what a fixture may read or set without
-  *                    breaking anything. Kind 2 is the bus and the debug
-  *                    port - USART3, JTAG - which are not channels and are
-  *                    never to be driven; they are reported only so "why was
-  *                    PB10 refused" has an answer.
-  *
-  *                    Sections, not one reply, because one does not fit:
-  *                    measured, all of it together came to 273 bytes against
-  *                    MB_MAX_PDU's 253 and the writer's overflow flag turned
-  *                    the first live call into an 0x04.
-  *
-  *                    direction is 0 in, 1 out, 2 both, from the MCU's side.
-  *                    Analog channels are all inputs and say so rather than
-  *                    leaving the host to assume it.
-  *
-  *                    This is the map. Nothing above the firmware should
-  *                    carry a copy of it - see docs/PROTOCOL.md.
+  *                    Raw codes; the host owns the scaling, so a fixture with
+  *                    different parts needs no firmware change. Milli-codes
+  *                    (raw x 1000) carry the fraction without a float.
+  *                    elapsed_us is measured, and a burst past 5 s is refused
+  *                    rather than left to outlive the master.
   *
   * 0x6C SELF_TEST     req: -
   *                    rsp: u8 count, then per check:
-  *                           str name, u8 status, i32 value
-  *                         status: 0 pass, 1 fail, 2 info
+  *                           str name, u8 status (0 pass, 1 fail, 2 info),
+  *                           i32 value
+  *                    PASS/FAIL only where the board can prove it from its own
+  *                    registers or flash. Anything a calibrated instrument
+  *                    would judge is INFO with its value - invariant 10.
   *
-  *                    PASS/FAIL only where the board can PROVE the answer from
-  *                    its own registers or its own flash - a locked PLL, a
-  *                    calibration that ran, a checksum. Anything a calibrated
-  *                    instrument would have to judge is reported as INFO with
-  *                    its value, and the decision belongs to the test executive
-  *                    on the line.
+  * 0x6D CHANNELS      req: u8 kind (0 analog, 1 digital IO, 2 reserved,
+  *                         3 subsystems, 4 parts), u8 first (kind 4)
+  *                    rsp, kind 0: u8 count, then per analog channel:
+  *                         u8 index, u8 adc_index, u8 channel, str pin,
+  *                         u8 direction, u8 differential, str signal, u8 unit
+  *                    rsp, kind 1 and 2: u8 total, u8 first, u8 count,
+  *                         then per pin: str pin, u8 direction, str signal
+  *                    rsp, kind 3: u8 count, then per group:
+  *                         str name, str what, u8 commands
+  *                    rsp, kind 4: u8 total, u8 first, u8 count, then per
+  *                         part: str name, str what, str where, str power,
+  *                         u8 state
+  *                    direction is 0 in, 1 out, 2 both, from the MCU's side.
   *
-  *                    This board is a dumb slave: it measures and reports. A
-  *                    limit compiled into firmware is a limit nobody on the
-  *                    line can see, change, or record against a calibration
-  *                    certificate.
+  *                    Kind 1 is what a fixture may drive; kind 2 is USART3 and
+  *                    JTAG, reported only so "why was PB10 refused" has an
+  *                    answer. Sectioned because one reply does not fit:
+  *                    measured, together they came to 273 bytes against
+  *                    MB_MAX_PDU's 253 and the overflow flag turned the first
+  *                    live call into an 0x04. Kinds 1, 2 and 4 are paged on
+  *                    top of that: 19 reserved pins are 418 bytes.
   *
-  * Reserved pins - USART3 on PB10/PB11, and the debug port on PA13..PA15, PB3
-  * and PB4 - are refused in every mode. Touching them would sever the link the
-  * command arrived on, or the ability to reflash.
+  *                    This is the map. Nothing above the firmware carries a
+  *                    copy of it.
+  *
+  * Reserved pins - USART3 on PB10/PB11, the debug port on PA13..PA15, PB3 and
+  * PB4 - are refused in every mode: they carry the link the command arrived on
+  * and the ability to reflash.
   ******************************************************************************
   */
 #ifndef CMD_H

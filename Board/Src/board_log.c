@@ -4,23 +4,20 @@
   * @brief   One ring for every measurement this board takes, drained over the
   *          wire in bursts.
   *
-  * The point is buffered reads. A host asking one question per sample gets
-  * one sample per round trip, and a round trip is milliseconds - measured, a
-  * 53-byte reply at 115200 is 4.6 ms, so 217 samples per second is the
-  * ceiling however fast the board sampled. The ring decouples the two: the
-  * board writes at its own rate, the host takes fifteen at a time.
+  * The point is buffered reads. One question per sample is one sample per
+  * round trip - measured, a 53-byte reply at 115200 is 4.6 ms, so 217/s is
+  * the ceiling however fast the board sampled. The board writes at its own
+  * rate; the host takes fifteen at a time.
   *
-  * Producers are a mix. Board_SyncOnInjected runs in ADC3's interrupt at
-  * 50 kHz; the angle and IMU loops run in main(). The consumer is the
-  * command layer, also in main(). So the only preemption that can happen is
-  * the ISR landing between a main-loop producer's read and its write, and a
-  * PRIMASK critical section is exactly the right size for that - there is no
-  * RTOS here and a mutex would be a scheduler this board does not have.
+  * Producers are mixed: Board_SyncOnInjected in ADC3's interrupt at 50 kHz,
+  * the angle and IMU loops in main(). The consumer is the command layer, also
+  * in main(). The only preemption is the ISR landing between a main-loop
+  * producer's read and its write, which is exactly the size a PRIMASK
+  * critical section covers - a mutex would need a scheduler there is none of.
   *
-  * Full means the newest sample is dropped, not the oldest overwritten. A
-  * capture with a hole at a known place beats one that silently slid, and
-  * `dropped` says how many went. Nothing here judges a sample: it stores
-  * raw codes and a timestamp, and every conversion stays where it was
+  * Full drops the newest rather than overwriting the oldest: a hole at a known
+  * place beats one that silently slid, and `dropped` counts them. Nothing here
+  * judges a sample - raw codes and a timestamp, conversions where they were
   * defined (invariant 7).
   ******************************************************************************
   */
