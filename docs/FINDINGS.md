@@ -977,3 +977,148 @@ What it costs is long runs: three thermal series died on it, one of them six
 minutes in. Anything that sleeps between requests needs a bounded retry -
 `blocks()` and `Board.probe()` carry one, ad-hoc scripts have to bring their
 own.
+
+## The W leg did not switch: its two gate pins were one node
+
+**Resolved 2026-08-28 by rework - a bad footprint on the W gate pair.** What
+the board reported before and after, from the probe that found it:
+
+| | before | after |
+|---|---|---|
+| `gate_shorts` | `('W',)` | `(none)` |
+| W low / high / both high | 99.13 / 99.13 / **99.13 %** | 51.6 / 47.0 / **0.0 %** |
+| U and V, same test | 49.5 / 49.6 / 0.0 % | 51.6 / 47.0 / 0.0 % |
+
+CNT spread 1..2373 of ARR 2375 across the samples, so that is not the
+aliasing trap. Thermally, 20 s at 50 % on all three legs moved the NTC
+**29.52 -> 33.23 C, +3.71 C**, where W had previously contributed nothing.
+
+A per-leg repeat of the old `U +1.400 / V +4.582 / W +0.000` was started and
+is not done: the first attempt read the board cooling from the run before it
+- baselines climbing 33.12 -> 34.01 -> 36.34 and W scoring -0.371 C - and
+the settled-baseline rerun stopped when the board lost power (ST-LINK target
+voltage 0.00 V) for further rework.
+
+The rest of this entry is what the hunt cost and what it ruled out, kept
+because most of it was wrong turns worth not repeating.
+
+
+
+U and V run warm, W stays at ambient, its phase node sits at ~10 V. The
+board detects it now - `0x6D` gate driver state carries `gate_shorts`, and
+`gate_drivers_check()` refuses to arm a leg that reports one:
+
+    gate_shorts: ('W',)
+
+**The timer is not why.** TIM1_CH3 is also on PA10 and TIM1_CH3N on PB15,
+neither near the W leg. Same channel, same run, same instants:
+
+| CCR3 | PA10 (CH3) | PB15 (CH3N) | PE13 (CH3) | PE12 (CH3N) |
+|---|---|---|---|---|
+| 0 | 0 | 1 | **1** | **1** |
+| ARR/2 | 1 | 0 | **1** | **1** |
+| ARR | 1 | 0 | **1** | **1** |
+
+The pair is correct on the spare pins and stuck high on the W pins at the
+same moment. `HAL_TIM_PWM_Start` + `HAL_TIMEx_PWMN_Start` write byte-identical
+registers to the manual CCER/MOE writes and behave identically, so that is
+not it either.
+
+**How fast the coupling is, which is what settles its size.** Drive one pin,
+poll the neighbour, count DWT cycles at 475 MHz:
+
+| pair | rising edge | falling edge |
+|---|---|---|
+| W, PE12 -> PE13 | 155 cycles | 155 cycles |
+| U, PE8 -> PE9 | **never** (5e6 polls) | 119 (loop overhead) |
+| V, PE10 -> PE11 | **never** | 119 |
+
+W follows within ~36 cycles of the loop's own overhead - about 76 ns. A few
+hundred k into the pin capacitance would take microseconds, so the path is
+of order 10 k or less while the board is biased. A meter reads 390 k cold,
+on both boards, which is what two internal input pull-downs in series
+through RW1/RW2 look like and is probably normal - the same reading on the U
+and V pairs would confirm that.
+
+**It is there before any PWM has run.** Probed in `SysInit`, before
+`MX_GPIO_Init` and before TIM1 exists:
+
+| pair | before any PWM | after 1 s switching |
+|---|---|---|
+| W | **coupled** | coupled |
+| U | no | no |
+| V | no | no |
+
+So switching does not create it and the firmware does not cause it during a
+run. Both pins driven, 40000 samples, W reads 99.13 % both-high with 0.87 %
+low - two dead-time windows per 20 us period, the node being `OC3 OR OC3N`.
+U and V read 0.00 % both-high under the identical test.
+
+Ruled out: `CCMR1 0x6868`, `CCMR2 0x0068`, `CCER 0x555`, `CR1 0xE1`,
+`CR2 0x0` with every OIS bit clear, `CCR3 = ARR/2`, `OC3M[3] = 0`,
+`GC5C1..3 = 0` (`board_sync.c` writes CCR5 with 16-bit values), `MODER` AF
+and `OTYPER` push-pull on all six, `AFRH 0x10111111`, one `sConfigOC` for
+CH1/CH2/CH3, `HAL_TIM_MspPostInit` covering all six pins, `MX_GPIO_Init` not
+touching PE12/PE13, `HAL_TIM_Base_MspDeInit` never called, identical CCR3
+write paths, and a `.ioc` symmetric across the three legs line for line.
+
+**Also fixed on the way**, from ST's own `TIM_ComplementarySignals` notes:
+BKIN on PE15 is active low and CubeMX generates it `AF_OD` with `GPIO_NOPULL`,
+so an undriven fault line floats and the break fires on noise. `Board_PwmInit`
+now sets a pull-up, so "nobody driving" means "no fault".
+
+### Four measurements of mine that were wrong, and why
+
+The fault took far longer than it should have, entirely through bad method:
+
+* **A write and its check in separate SWD connections.** Seconds apart with
+  the firmware running in between, free to undo the write.
+* **The stimulus never read back.** Only the sensed pin was captured; when
+  the drive did not take, "no coupling" was recorded. Read the driven pin in
+  the same word.
+* **A floating input used as a probe.** A few hundred k is ample to drag a
+  floating CMOS input, so it cannot tell a short from a leakage path. Bias
+  the sensed pin against the drive, or drive both.
+* **`Select-String ' : '` parsing a programmer's output**, which matched
+  banner lines and silently produced a table of `$null` rendered as zeros.
+  Anchor on the address, and print how many words came back.
+
+**Do not arm while the two collapse together.** Every switching edge is a
+VDD-to-GND path through two GPIO output stages inside the MCU.
+
+## PE15 was drivable, so the test path kept disconnecting the break
+
+`TIM1_BKIN` is on PE15. It sat in `s_digital` with `usable = true`, so
+`testrig_pin_config()` would happily call `HAL_GPIO_Init` on it - which takes
+the pin off the alternate function and **disconnects the break from the
+timer**, silently, until the next reset.
+
+Caught by reading GPIOE after a conformance run, while looking for something
+else entirely:
+
+| register | after the suites | meaning |
+|---|---|---|
+| `MODER[31:30]` | `00` | PE15 is a plain input |
+| `OTYPER` bit 15 | `1` | open drain, left over from the AF_OD setup |
+| `PUPDR[31:30]` | `01` | pull-up, left over too |
+
+So the pin still carried the shape of `HAL_TIM_MspPostInit`'s configuration
+while no longer being TIM1's. The power stage had no hardware break and
+nothing said so.
+
+This is the same mistake the six gate signals already carry a warning about
+in that file - PE15 was simply missed when they were fixed. It is now
+`usable = false`, and the fault level is still reported through
+`Board_IoFault()` and the gate driver state, both of which read the pin
+without reconfiguring it. Verified: `MODER` reads `10` with the pull-up and
+AF1 intact after conformance and MCP both run, where it read `00` before.
+
+Two `test_mcp.py` checks used E15 as their scratch pin and now use E14
+(UART5_TERM, restorable with a `daq_write`). The stand-in moved PE15 from
+its drivable rows to its reserved ones, in the board's own order - `parity`
+caught both halves of that, first as a row count and then as a position.
+
+**Also fixed**: BKIN is active low and CubeMX generates it `AF_OD` with
+`GPIO_NOPULL`, so an undriven fault line floats and the break fires on
+noise - ST's `TIM_ComplementarySignals` notes warn about exactly this.
+`Board_PwmInit` now sets a pull-up, so "nobody driving" means "no fault".

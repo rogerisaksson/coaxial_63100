@@ -297,6 +297,13 @@ class Coaxial63100:
                 '2EDL8034 has no interlock of its own - both FETs of a leg '
                 'would conduct together. Check TIM1.DeadTime in the .ioc '
                 'and that the generated MX_TIM1_Init still applies it')
+        if state.get('gate_shorts'):
+            raise RigError(
+                'the gate pins of leg %s are on one node, so that leg cannot '
+                'be driven complementary: both FETs get the same command and '
+                'the leg never switches. Measured by the board, which drives '
+                'one pin and watches the other sink through its own pull-down.'
+                % ', '.join(state['gate_shorts']))
         return state
 
     def configure_pwm(self, duty=0.0, bypass_sto=False):

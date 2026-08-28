@@ -127,6 +127,13 @@ class GateDrivers(Subsystem):
         out['deadtime_ns'] = r.u32()
         out['deadtime_skew'] = _signed8(r.u8())
         out['deadtime_floor'] = r.u8()
+        # Which legs have their two gate pins on one node. A joined pair
+        # cannot go complementary, so that leg never switches: its driver
+        # sees a level and the phase node floats. The board measures it by
+        # borrowing the pins, so it reads no legs while armed.
+        shorts = r.u8()
+        out['gate_shorts'] = tuple(
+            name for i, name in enumerate(('U', 'V', 'W')) if shorts >> i & 1)
         return out
 
     def enable(self):

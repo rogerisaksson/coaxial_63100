@@ -68,7 +68,7 @@ static cmd_status_t h_adc_table(rd_t *in, wr_t *out)
   /* Counted first, then written, because the count leads the rows and a
      writer that ran out halfway would have already sent the wrong one. */
   uint8_t n = 0U;
-  uint16_t room = wr_room(out) - 2U;
+  uint16_t room = (uint16_t)(wr_room(out) - 2U);
 
   for (uint8_t i = start; i < total; i++)
   {

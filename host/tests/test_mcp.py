@@ -152,15 +152,18 @@ def exercise(server, report):
                   ['NTC'])
     report.result('test_gate open', server.tool('test_gate', {'enable': True}),
                   ['gate=1'])
+    # Not E15: that is TIM1_BKIN, and the pin path reconfigures what it
+    # touches, which would take the break off the timer for good. E14 is
+    # UART5_TERM - a bench convenience, restorable with a daq_write.
     report.result('gpio_pin read',
-                  server.tool('gpio_pin', {'op': 'read', 'pin': 'E15'}),
-                  ['E15='])
+                  server.tool('gpio_pin', {'op': 'read', 'pin': 'E14'}),
+                  ['E14='])
     report.result('gpio_pin write',
                   server.tool('gpio_pin', {'op': 'write', 'pin': 'B2',
                                            'level': True}),
                   ['readback'])
     report.result('gpio_pin mode',
-                  server.tool('gpio_pin', {'op': 'mode', 'pin': 'E15',
+                  server.tool('gpio_pin', {'op': 'mode', 'pin': 'E14',
                                            'mode': 'input', 'pull': 'up'}),
                   ['mode=input'])
     report.result('gpio_port read',

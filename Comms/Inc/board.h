@@ -465,6 +465,10 @@ bool Board_PwmBreakBypassed(void);
 /** Clear the break latch. Does NOT re-arm - the caller must ask again. */
 bool Board_PwmClearFault(void);
 
+/** Which legs have their two gate pins joined, bit 0 = U, 1 = V, 2 = W.
+    Borrows the pins as GPIO, so it answers 0 while the stage is armed. */
+uint8_t Board_PwmGateShorts(void);
+
 /** One phase, in compare ticks. Refused unless armed and within ARR. */
 bool Board_PwmSetDuty(uint8_t phase, uint16_t ticks);
 

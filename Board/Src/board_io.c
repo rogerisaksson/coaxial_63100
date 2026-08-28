@@ -32,7 +32,16 @@ static const DigitalDesc s_digital[] =
      routes it to TIM1_BKIN, so the gate drivers stop in hardware rather than
      waiting for anyone to poll this. The signal is FAULTIN from the STO
      chain, not from the drivers - a 2EDL8034 has no fault pin. */
-  { 'E', 15U, "PE15", BOARD_DIR_IN,    "nFAULT",              true  },
+  /* TIM1_BKIN. Not usable for the same reason as the six gate signals, and
+     it was missed when they were fixed: the test path calls HAL_GPIO_Init,
+     which takes the pin off the alternate function and disconnects the
+     break from the timer - silently, and for good until the next reset.
+     Measured after a conformance run: MODER read 00 for PE15 with OTYPER
+     and PUPDR still carrying the AF_OD setup, so the power stage had no
+     hardware break and nothing said so. The fault level is still reported,
+     through Board_IoFault() and the gate driver state, which read the pin
+     without reconfiguring it. */
+  { 'E', 15U, "PE15", BOARD_DIR_IN,    "nFAULT/TIM1_BKIN",    false },
   { 'E', 14U, "PE14", BOARD_DIR_OUT,   "UART5_TERM",          true  },
   /* The STO chain's proof that main() is still turning. Toggled from the
      poll loop, never by a timer - see Board_StoKeepalive(). */

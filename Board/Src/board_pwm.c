@@ -173,6 +173,61 @@ bool Board_PwmClearFault(void)
 }
 
 
+uint8_t Board_PwmGateShorts(void)
+{
+  /* Each leg's two gate pins, low side first. Both belong to TIM1, so this
+     borrows them as GPIO for a few microseconds and hands them straight
+     back. Only with the outputs off: driving a gate input while the stage
+     is live is not a diagnostic, it is a command.
+
+     The observer sinks through its own pull-down - about 40 k - so only a
+     path well below that lifts it. Measured on a board with the W pair
+     joined: the neighbour follows within 76 ns, against the 4 us a few
+     hundred k into the pin capacitance would take. */
+  static const uint8_t leg[BOARD_PWM_PHASES][2] =
+    { { 8U, 9U }, { 10U, 11U }, { 12U, 13U } };
+
+  uint8_t shorts = 0U;
+
+  if (!Board_PwmReady() || Board_PwmIsEnabled())
+  {
+    return 0U;
+  }
+
+  for (uint8_t k = 0U; k < BOARD_PWM_PHASES; k++)
+  {
+    const uint32_t drv   = leg[k][0];
+    const uint32_t obs   = leg[k][1];
+    const uint32_t moder = GPIOE->MODER;
+    const uint32_t pupdr = GPIOE->PUPDR;
+    const uint32_t both  = (3UL << (2U * drv)) | (3UL << (2U * obs));
+
+    GPIOE->PUPDR = (pupdr & ~both) | (2UL << (2U * obs));
+    GPIOE->MODER = (moder & ~both) | (1UL << (2U * drv));
+
+    GPIOE->BSRR = 1UL << (drv + 16U);
+    for (volatile uint32_t d = 0U; d < 4000U; d++) { }
+
+    if (((GPIOE->IDR >> obs) & 1UL) == 0U)
+    {
+      GPIOE->BSRR = 1UL << drv;
+      for (volatile uint32_t d = 0U; d < 4000U; d++) { }
+
+      if (((GPIOE->IDR >> obs) & 1UL) != 0U)
+      {
+        shorts |= (uint8_t)(1U << k);
+      }
+    }
+
+    GPIOE->BSRR   = 1UL << (drv + 16U);
+    GPIOE->MODER  = moder;
+    GPIOE->PUPDR  = pupdr;
+  }
+
+  return shorts;
+}
+
+
 bool Board_PwmEnable(void)
 {
   if (!Board_PwmReady())
@@ -464,6 +519,16 @@ bool Board_PwmInit(void)
     gate.Pull = GPIO_NOPULL;
     gate.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     gate.Alternate = GPIO_AF1_TIM1;
+    HAL_GPIO_Init(GPIOE, &gate);
+
+    /* BKIN is active low and CubeMX generates it AF_OD with no pull, so an
+       unconnected fault line floats and the break fires on noise. ST's own
+       TIM_ComplementarySignals notes say a floating brake pin disturbs the
+       waveform badly. A pull-up makes "nobody driving" mean "no fault". */
+    gate.Pin = GPIO_PIN_15;
+    gate.Mode = GPIO_MODE_AF_OD;
+    gate.Pull = GPIO_PULLUP;
+    gate.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOE, &gate);
   }
 

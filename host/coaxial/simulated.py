@@ -226,9 +226,11 @@ SUBSYSTEMS = [
     {'name': 'imu', 'commands': 1, 'what': 'BNO08X on SPI2 over SHTP'},
 ]
 
+# No PE15: it carries TIM1_BKIN, and the pin path reconfigures what it
+# touches, which would take the break off the timer. The board dropped it
+# from the drivable rows for that reason, so this follows.
 DIGITAL = [
     {'pin': 'PB2',  'direction': 'out', 'signal': 'AFE_ON'},
-    {'pin': 'PE15', 'direction': 'in',  'signal': 'nFAULT'},
     {'pin': 'PE14', 'direction': 'out', 'signal': 'UART5_TERM'},
     {'pin': 'PA10', 'direction': 'out', 'signal': 'KEEPALIVE'},
 ]
@@ -236,6 +238,11 @@ DIGITAL = [
 # Not channels: the bus the command arrived on and the debug port. Reported
 # so "why was PB10 refused" has an answer, never to be driven.
 RESERVED = [
+    # TIM1_BKIN, first because that is where it sits in the board's own
+    # table. Reserved for the same reason as the six gate signals below,
+    # and it was missed when they were fixed: configuring it disconnects
+    # the break from the timer, silently and until the next reset.
+    {'pin': 'PE15', 'direction': 'in',    'signal': 'nFAULT/TIM1_BKIN'},
     # The six gate signals. Reserved because they are TIM1's alternate
     # function: writing one through the test path takes the pin off the
     # timer and leaves a half bridge with one FET latched on. They were in
@@ -880,6 +887,7 @@ class SimulatedGateDrivers:
             'deadtime_ns': self._deadtime_ns,
             'deadtime_skew': self._skew,
             'deadtime_floor': self.DEADTIME_FLOOR,
+            'gate_shorts': (),
         }
 
     #: DTG counts for 20 ns at 237.5 MHz, rounded up - the same floor the
@@ -1124,7 +1132,6 @@ class SimulatedDaq:
                 **cfg}
 
     PINS = ({'signal': 'AFE_ON', 'direction': 'out'},
-            {'signal': 'nFAULT', 'direction': 'in'},
             {'signal': 'UART5_TERM', 'direction': 'out'},
             {'signal': 'KEEPALIVE', 'direction': 'out'})
 

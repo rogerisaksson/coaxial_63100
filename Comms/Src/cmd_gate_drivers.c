@@ -95,6 +95,13 @@ static cmd_status_t h_gate_drivers_state(wr_t *out)
   wr_u8(out, (uint8_t)Board_PwmDeadTimeSkew());
   wr_u8(out, Board_PwmDeadTimeFloor());
 
+  /* Which legs have their two gate pins on one node - bit 0 U, 1 V, 2 W.
+     A joined pair cannot be driven complementary, so the leg never
+     switches and its driver sees a level, not PWM. Measured rather than
+     assumed, and appended like everything above it. Reads 0 while armed,
+     because the probe needs the pins. */
+  wr_u8(out, Board_PwmGateShorts());
+
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
