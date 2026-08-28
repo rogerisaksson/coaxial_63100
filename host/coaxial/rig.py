@@ -102,9 +102,19 @@ class Coaxial63100(Acquisition):
         this session was what switched it on.
         """
         if self.board is not None:
+            # One try per step. They were in one block, and a RigError from
+            # daq.stop() or gate_drivers.disable() then skipped the supply
+            # restore - leaving AFE_ON high, which on this board takes the
+            # gate drivers' supply away. A switching run started after that
+            # toggles TIM1 into unpowered drivers and heats nothing, with
+            # every counter reading normal. Measured 2026-08-28.
+            for step in (self.board.daq.stop,
+                         self.board.gate_drivers.disable):
+                try:
+                    step()
+                except RigError:
+                    pass
             try:
-                self.board.daq.stop()
-                self.board.gate_drivers.disable()
                 if self.power_afe and self._afe_was_on is False:
                     self.board.afe.disable()
             except RigError:

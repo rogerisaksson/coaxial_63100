@@ -412,6 +412,39 @@ class SimulatedAnalog:
         return {'samples': samples, 'rate_hz': rate or 2000.0,
                 'channels': chosen}
 
+    def ntc_temperature(self, adc_chan=None, ntc_params=None,
+                        nr_of_samples=64, sample_rate=2000.0):
+        """The NTC in the shape `Analog.ntc_temperature` returns it.
+
+        Invented, like everything here, and it says so through `params`. Mid
+        scale on a real board with AFE_ON low is exactly 25.00 C, so the
+        stand-in stays away from that number: a value nobody can tell from
+        the unpowered case is worse than an obviously fake one.
+        """
+        celsius = 31.4 + 0.6 * math.sin(time.time() / 30.0)
+        return {
+            'celsius': celsius,
+            'ohms': 10000.0,
+            'spread_millikelvin': 28.0,
+            'params': 'simulated',
+            'mean_raw': 40500,
+            'samples': nr_of_samples,
+        }
+
+    def dcbus_voltage(self, adc_chan=None, divider=None,
+                      nr_of_samples=64, sample_rate=2000.0):
+        """The DC link in the shape `Analog.dcbus_voltage` returns it."""
+        return {
+            'volts': 24.5,
+            'volts_at_pin': 24.5 / 23.68,
+            'ripple_volts': 0.025,
+            'noise_volts_rms': 0.004,
+            'scale': 23.68,
+            'params': 'simulated',
+            'mean_raw': 20375,
+            'samples': nr_of_samples,
+        }
+
     def read_all(self, nr_of_samples=64, sample_rate=1000.0, vref=3.3):
         """Every channel with its table row merged in, like the real one.
 
@@ -822,6 +855,72 @@ class SimulatedAngle(PolledSensor):
             yield self
         finally:
             self.resume()
+
+
+class SimulatedThermal:
+    """The observer without a board.
+
+    Keeps the node order and the field shape of `0x6E` device 8 so a view
+    running -Simulated does not crash. Every number is invented, and
+    `ntc: None` mirrors the real behaviour: with AFE_ON low there is no
+    measurement at all.
+    """
+
+    NODES = ('drivers', 'phases', 'mcu', 'regulators', 'afe', 'board')
+
+    def __init__(self):
+        self._seconds = 0
+        self._every_s = 5.0
+        self._settle_s = 0.3
+
+    def state(self):
+        self._seconds += 1
+        board = 31.0
+        rise = {'drivers': 1.0, 'phases': 0.4, 'mcu': 15.0,
+                'regulators': 8.0, 'afe': 5.9, 'board': 0.0}
+        return {
+            'ntc': board + 6.0,
+            'nodes': {n: board + rise[n] for n in self.NODES},
+            'ambient': 20.0,
+            'expected_ntc': board + 6.0,
+            'seconds': self._seconds,
+            'settled': True,
+            'sample_every_s': self._every_s,
+            'sample_settle_s': self._settle_s,
+            'error': 0.0,
+        }
+
+    def set_sample(self, every_s, settle_s=0.3):
+        self._every_s, self._settle_s = every_s, settle_s
+        return True
+
+    def set_node(self, node, to_board, capacity):
+        return True
+
+    def set_board(self, to_ambient, capacity):
+        return True
+
+
+class SimulatedPower:
+    """Rail reference counts without a board.
+
+    Nothing switches, so the count is whatever was last asked for and `on`
+    follows it exactly - which is the one thing the real board does not
+    promise. It reads the pin back precisely so the two can disagree.
+    """
+
+    def __init__(self):
+        self._mask = 0
+
+    def state(self):
+        from .power import named
+        return {'afe': {'on': self._mask != 0, 'users': named(self._mask),
+                        'mask': self._mask, 'count': bin(self._mask).count('1'),
+                        'blocked': False, 'leased': []}}
+
+    def release_all(self):
+        self._mask = 0
+        return True
 
 
 class SimulatedGateDrivers(GateControl):
@@ -1371,6 +1470,8 @@ class SimulatedBoard:
             self.imu = SimulatedImu()
             self.angle = SimulatedAngle()
             self.gate_drivers = SimulatedGateDrivers()
+            self.thermal = SimulatedThermal()
+            self.power = SimulatedPower()
             self.capture = SimulatedCapture()
             self.clock = SimulatedClock()
             self.daq = SimulatedDaq()

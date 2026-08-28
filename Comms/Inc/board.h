@@ -845,6 +845,46 @@ uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity);
 /** Leave the binary link and resume the ASCII console, once the reply is out. */
 void Board_RequestConsoleMode(void);
 
+
+/** Nodes in the thermal observer. Mirrors thermal_node_t. */
+#define BOARD_THERMAL_NODES 6
+
+/** What the observer knows: one measurement, the rest estimates.
+  *
+  * `ntc_measured` is what tells them apart and must not be ignored - with
+  * AFE_ON low there is no NTC measurement at all, and the nodes then run
+  * open on power and time.
+  */
+typedef struct
+{
+  bool    ntc_measured;                        /**< AFE_ON high and the channel answered */
+  int32_t ntc_centidegc;                       /**< MEASURED, valid only above           */
+  int32_t node_centidegc[BOARD_THERMAL_NODES]; /**< ESTIMATED                            */
+  int32_t ambient_centidegc;                   /**< ESTIMATED - there is no sensor       */
+  int32_t expected_ntc_centidegc;              /**< the model's own NTC, for the error   */
+  uint32_t seconds;                            /**< how long it has run                  */
+  bool    settled;                             /**< the anchoring has converged          */
+} board_thermal_t;
+
+void Board_ThermalInit(void);
+void Board_ThermalPoll(void);
+bool Board_ThermalState(board_thermal_t *out);
+bool Board_ThermalSetNode(uint8_t node, float to_board, float capacity);
+bool Board_ThermalSetBoard(float to_ambient, float capacity);
+
+/**
+  * @brief  How often the observer borrows the AFE rail for an NTC sample.
+  * @param  every_ms   period between samples; 0 stops sampling entirely
+  * @param  settle_ms  how long the reference is given before the read
+  *
+  * Sampling costs the state it measures - the rail is shared with the gate
+  * drivers through an inverted gate - so the trade is the caller's to make.
+  */
+bool Board_ThermalSetSample(uint32_t every_ms, uint32_t settle_ms);
+
+/** What the sampling is set to now. */
+void Board_ThermalSampling(uint32_t *every_ms, uint32_t *settle_ms);
+
 #ifdef __cplusplus
 }
 #endif

@@ -13,6 +13,7 @@
 
 #include "cmd.h"
 #include "board.h"
+#include "board_power.h"
 #include "link.h"
 #include "version.h"
 
@@ -228,19 +229,20 @@ static cmd_status_t h_afe(rd_t *in, wr_t *out)
   static const int8_t NEXT[4] = { -1, 0, 1, -2 };
   const int8_t want = NEXT[action];
 
-  if (want == 0)
+  /* Through the reference count, not the pin. The host is one user among
+     several: switching the pin directly here would drop the rail under a
+     subsystem that had asked for it, which is the bug board_power.h exists
+     to remove. */
+  const int on = (want == -2) ? (Board_AfeOn() ? 0 : 1) : want;
+
+  if (on == 0)
   {
-    Board_SetAfeOn(false);
+    (void)Board_PowerRelease(BOARD_RAIL_AFE, BOARD_USER_HOST);
   }
 
-  if (want == 1)
+  if (on == 1)
   {
-    Board_SetAfeOn(true);
-  }
-
-  if (want == -2)
-  {
-    Board_SetAfeOn(!Board_AfeOn());
+    (void)Board_PowerAcquire(BOARD_RAIL_AFE, BOARD_USER_HOST);
   }
 
   wr_u8(out, Board_AfeOn() ? 1U : 0U);

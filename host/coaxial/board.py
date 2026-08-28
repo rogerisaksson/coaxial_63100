@@ -15,6 +15,8 @@ import time
 from .afe import Afe
 from .analog import Analog
 from .gate_drivers import GateDrivers
+from .power import Power
+from .thermal_device import Thermal
 from .capture import Capture
 from .clock import Clock
 from .daq import Daq
@@ -47,6 +49,8 @@ class Board:
         self.angle = Angle(self)
         self.calibration = Calibration(self)
         self.gate_drivers = GateDrivers(self)
+        self.thermal = Thermal(self)
+        self.power = Power(self)
         self.capture = Capture(self)
         self.clock = Clock(self)
         self.daq = Daq(self)

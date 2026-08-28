@@ -55,6 +55,11 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Modbus/ makes, and for the same reason: test_shtp_core.py builds it here.
     Shtp/Src/shtp.c
 
+    # Thermal: the lumped-node observer. Portable C11 like Modbus/ and Shtp/,
+    # host-testable the same way - Thermal/test/check.c runs it against the
+    # four camera-calibrated states with the host gcc.
+    Thermal/Src/thermal.c
+
     # Board layer: this hardware, behind Comms/Inc/board.h.
     Board/Src/board_imu.c
     Board/Src/board_angle.c
@@ -68,6 +73,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Board/Src/board_sto.c
     Board/Src/board_log.c
     Board/Src/board_daq.c
+    Board/Src/board_thermal.c
+    Board/Src/board_power.c
 
     # Comms stack: cmd (request/response) over proto (Modbus) over dev (USART3).
     Comms/Src/console.c
@@ -85,6 +92,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Comms/Src/cmd_log.c
     Comms/Src/cmd_daq.c
     Comms/Src/cmd_time.c
+    Comms/Src/cmd_thermal.c
+    Comms/Src/cmd_power.c
     Comms/Src/testrig.c
     Comms/Src/link.c
     Comms/Src/link_report.c
@@ -98,6 +107,11 @@ set(COAXIAL_SOURCES
     Modbus/Src/modbus_crc.c Modbus/Src/modbus_slave.c Modbus/Src/modbus_rtu.c
     Modbus/Src/modbus_map.c
     Shtp/Src/shtp.c
+
+    # Thermal: the lumped-node observer. Portable C11 like Modbus/ and Shtp/,
+    # host-testable the same way - Thermal/test/check.c runs it against the
+    # four camera-calibrated states with the host gcc.
+    Thermal/Src/thermal.c
     Board/Src/board_adc.c Board/Src/board_clock.c Board/Src/board_selftest.c
     Board/Src/board_io.c Board/Src/board_imu.c Board/Src/board_angle.c
     Board/Src/board_cal.c
@@ -105,11 +119,14 @@ set(COAXIAL_SOURCES
     Board/Src/board_sync.c
     Board/Src/board_sto.c Board/Src/board_log.c
     Board/Src/board_daq.c
+    Board/Src/board_thermal.c
+    Board/Src/board_power.c
     Comms/Src/console.c Comms/Src/wire.c Comms/Src/dev_uart.c
     Comms/Src/cmd.c Comms/Src/cmd_board.c Comms/Src/cmd_test.c
     Comms/Src/cmd_angle.c Comms/Src/cmd_device.c Comms/Src/cmd_link.c
     Comms/Src/cmd_cal.c Comms/Src/cmd_gate_drivers.c Comms/Src/cmd_log.c
     Comms/Src/cmd_daq.c Comms/Src/cmd_time.c
+    Comms/Src/cmd_power.c
     Comms/Src/testrig.c Comms/Src/link.c Comms/Src/link_report.c
 )
 set_source_files_properties(${COAXIAL_SOURCES} PROPERTIES
@@ -128,16 +145,23 @@ set_source_files_properties(
     Modbus/Src/modbus_crc.c Modbus/Src/modbus_slave.c Modbus/Src/modbus_rtu.c
     Modbus/Src/modbus_map.c
     Shtp/Src/shtp.c
+
+    # Thermal: the lumped-node observer. Portable C11 like Modbus/ and Shtp/,
+    # host-testable the same way - Thermal/test/check.c runs it against the
+    # four camera-calibrated states with the host gcc.
+    Thermal/Src/thermal.c
     Comms/Src/wire.c Comms/Src/cmd.c Comms/Src/cmd_board.c
     Comms/Src/cmd_test.c Comms/Src/cmd_imu.c Comms/Src/cmd_cal.c
     Comms/Src/cmd_gate_drivers.c
     Comms/Src/cmd_log.c Comms/Src/cmd_daq.c Comms/Src/cmd_time.c
+    Comms/Src/cmd_power.c
     Comms/Src/link.c Comms/Src/link_report.c
     PROPERTIES COMPILE_OPTIONS "-Wextra;-Wshadow;-Wconversion")
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     Modbus/Inc
+    Thermal/Inc
     Shtp/Inc
     Comms/Inc
     Board/Inc

@@ -19,8 +19,8 @@
     invented and the banner is there so nobody has to remember that.
 
 .PARAMETER Name
-    Skip the menu: imu, angle, adc, capture or gate_drivers. ESC still comes
-    back to it.
+    Skip the menu: imu, angle, adc, capture, gate_drivers or thermal.
+    ESC still comes back to it.
 
 .PARAMETER Port
     The board's VCP. Ignored with -Simulated.
@@ -39,7 +39,7 @@
     .\demo.ps1 adc -Simulated -Frames 3
 #>
 param(
-    [ValidateSet('imu', 'angle', 'adc', 'capture', 'gate_drivers')]
+    [ValidateSet('imu', 'angle', 'adc', 'capture', 'gate_drivers', 'thermal')]
     [string]$Name,
     [string]$Port = 'COM4',
     [switch]$Simulated,
@@ -59,6 +59,8 @@ $Views = [ordered]@{
                  What   = 'buffered: the AFE, the pins and both SPI parts' }
     'gate_drivers' = @{ Script = 'gate_drivers.ps1'
                  What   = 'the gate drivers: six signals, current, a burst' }
+    'thermal' = @{ Script = 'thermal.ps1'
+                 What   = 'where the heat sits, drawn on the board itself' }
 }
 
 # 64 is show_*.py's TO_MENU: ESC asking to come back here rather than close.

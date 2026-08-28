@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "board.h"
+#include "board_power.h"
 #include "console.h"
 #include "link.h"
 /* USER CODE END Includes */
@@ -154,6 +155,10 @@ int main(void)
   link_init();
   Console_Banner();
 
+  /* The thermal observer. Starts on the NTC if the AFE happens to be up,
+     otherwise on a guess the anchoring removes within a few minutes. */
+  Board_ThermalInit();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -167,6 +172,11 @@ int main(void)
        is a keepalive that lies. */
     Board_StoKeepalive();
 
+    /* Beside it, and for the same reason: this is what gives a rail
+       back when its owner stopped running, so it cannot sit behind
+       the branch that starved the owner. */
+    Board_PowerPoll();
+
     /* The IMU polls itself into shared memory; the host only ever reads that.
        Held off mid-frame because a 276-byte cargo at 1.48 MHz is 1.5 ms, and
        RTU delimits frames by silence. */
@@ -175,6 +185,12 @@ int main(void)
       Board_ImuPoll();
       Board_AnglePoll();
       Board_DaqPoll();
+
+      /* Arithmetic over cached state plus one NTC read, gated to 10 Hz
+         inside. Here rather than above the branch because it reads a
+         channel, and a converter read mid-frame is what the branch is
+         for. */
+      Board_ThermalPoll();
     }
 
     if (link_active())

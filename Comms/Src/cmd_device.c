@@ -75,6 +75,8 @@ static cmd_status_t h_device(rd_t *in, wr_t *out)
     case DEVICE_LOG:    return cmd_log_op(op, in, out);
     case DEVICE_DAQ:    return cmd_daq_op(op, in, out);
     case DEVICE_TIME:   return cmd_time_op(op, in, out);
+    case DEVICE_THERMAL: return cmd_thermal_op(op, in, out);
+    case DEVICE_POWER:  return cmd_power_op(op, in, out);
     default:           return CMD_ERR_VALUE;
   }
 }

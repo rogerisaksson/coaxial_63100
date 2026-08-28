@@ -65,6 +65,57 @@ def grey(fraction):
 BOARD_RAMP = (22, 22, 28, 34, 40, 46, 47, 83, 119, 155, 191, 227, 231)
 
 
+#: Colour stops by DEGREES, not by fraction of a span.
+#:
+#: An auto-ranged picture makes a cool board look exactly like a hot one, and
+#: two pictures side by side then say nothing. Fixed stops mean a colour is a
+#: temperature, always.
+#:
+#: The spacing is deliberately not linear: this board idles near 30 C and the
+#: interesting range is 20-60, so green is stretched over it and the warm end
+#: is held back. Red starts at 90, which is where a laminate is genuinely in
+#: trouble - not at 60, where it is merely working.
+THERMAL_STOPS = (
+    (-20.0, 17),    # deep blue
+    (0.0, 19),
+    (15.0, 25),
+    (25.0, 31),     # ambient, and where the resolution has to be fine:
+    (30.0, 37),     # this board idles near 30 and works between 30 and 60,
+    (35.0, 43),     # so the steps are 5 K apart through there. Coarser stops
+    (40.0, 44),     # put a 6 K difference inside one colour and hid the hot
+    (45.0, 49),     # swap entirely.
+    (50.0, 50),
+    (55.0, 79),
+    (60.0, 83),     # green reaches here
+    (65.0, 118),
+    (70.0, 154),
+    (75.0, 190),
+    (80.0, 220),    # yellow
+    (85.0, 214),
+    (90.0, 208),    # orange - the warm end starts late on purpose
+    (95.0, 202),
+    (100.0, 196),   # red
+)
+
+#: The ends of the scale. What a picture is drawn against, whatever is in it.
+THERMAL_MIN = THERMAL_STOPS[0][0]
+THERMAL_MAX = THERMAL_STOPS[-1][0]
+
+
+def thermal(celsius):
+    """The colour for an absolute temperature, from THERMAL_STOPS."""
+    if celsius <= THERMAL_STOPS[0][0]:
+        return THERMAL_STOPS[0][1]
+    for (lo_c, lo_n), (hi_c, hi_n) in zip(THERMAL_STOPS, THERMAL_STOPS[1:]):
+        if celsius <= hi_c:
+            # Nearest stop rather than a blend: the 256-colour cube has no
+            # useful intermediates between these, and rounding to one of the
+            # two keeps a band readable as a band.
+            half = (lo_c + hi_c) / 2.0
+            return lo_n if celsius < half else hi_n
+    return THERMAL_STOPS[-1][1]
+
+
 def board(fraction):
     """The board's colour for a brightness in 0..1."""
     step = int(max(0.0, min(1.0, fraction)) * (len(BOARD_RAMP) - 1))

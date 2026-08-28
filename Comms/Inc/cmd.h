@@ -181,6 +181,8 @@ extern "C" {
 #define DEVICE_LOG       5U
 #define DEVICE_DAQ       6U
 #define DEVICE_TIME      7U
+#define DEVICE_THERMAL   8U
+#define DEVICE_POWER     9U
 
 /** Device 4's ops: the gate drivers, the synced triple and the STO chain. */
 #define GATEDRIVERS_OP_STATE    0U   /**< -> flags, registers, triple, STO      */
@@ -299,6 +301,8 @@ cmd_status_t cmd_cal_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_gate_drivers_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_log_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_power_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out);
 
 /** `u8 took`, and on a refusal the board's own reason after it: what is

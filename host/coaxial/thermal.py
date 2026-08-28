@@ -1,0 +1,174 @@
+"""The node network `Thermal/Src/thermal.c` runs in firmware, on the host.
+
+Same six nodes and same parameters, here so they can be fitted against
+measurements without a reflash. Firmware integrates continuously; this is for
+calibration and for views.
+
+**Not FEM.** A mesh and a solver do not fit in a main loop and are not needed
+to answer how hot the gate driver is. Six nodes do::
+
+    drivers ---+
+    phases  ---+
+    mcu     ---+--- board ---- ambient
+    regs    ---+
+    afe     ---+
+
+A node is a ZONE, not a part. `regulators` is the whole supply corner: the
+bucks, the LDOs **and the LED droppers** that sit there. Measured 2026-08-28
+that zone ran 8 K over dead board in the passive state, eight times anything
+else - but that figure is the zone's, not the LDO's.
+
+Constant sources inside a zone matter less than they sound: the LED droppers
+draw the same in all four states, so they cancel in every difference. The
+campaign measures differences, which is why it tolerates a zone holding more
+than its name.
+
+Measured 2026-08-28 against a thermal camera, dead soldermask as the
+reference surface, room 20 C:
+
+===========  ======  ======  ==========  ======  ====
+state          dead     mcu  regulators  bridge   afe
+===========  ======  ======  ==========  ======  ====
+1 passive      30.0   +15.0        +8.0    +1.0  +1.0
+2 afe on       31.1   +14.2        +8.1       -  +5.9
+3 traffic      31.4   +13.6        +7.6       -  +5.9
+4 switching    40.0   +17.3       +20.0   +10.1   0.0
+===========  ======  ======  ==========  ======  ====
+"""
+import math
+
+#: The room, measured. The board cannot read it itself.
+AMBIENT = 20.0
+
+#: The two camera states the NTC compensation is derived from.
+MEASURED = {
+    'passive': {'ntc': 36.0, 'board': 30.0},
+    'switching': {'ntc': 55.6, 'board': 40.0},
+}
+
+#: How far the drivers node sat above the board while switching, K. The
+#: model's own node rise, which is what the NTC coupling is solved against.
+DRIVER_RISE_SWITCHING = 9.1
+
+#: The NTC's constant offset over the board, K. Mounting and the channel's
+#: own calibration, not physics: taken in the passive state, where no driver
+#: was warming anything.
+NTC_OFFSET = MEASURED['passive']['ntc'] - MEASURED['passive']['board']
+
+#: How much of the drivers' rise the NTC picks up. Above 1 because it sits
+#: closer to the heat than the point the node stands for - a cap at 1.0 cost
+#: 5.6 K in the switching state before it was solved properly.
+NTC_SEES_DRIVERS = ((MEASURED['switching']['ntc']
+                     - MEASURED['switching']['board'])
+                    - NTC_OFFSET) / DRIVER_RISE_SWITCHING
+
+#: The zones that dissipate. **Board surface at each source, not the part.**
+#:
+#: Black soldermask has an even emissivity around 0.95, while what a package
+#: reaches internally depends on a theta_JC nobody here has measured. So a
+#: node is "the board at the drivers", not "the driver's die". That also
+#: matches the NTC, which is soldered to the board and reads the laminate at
+#: its own spot rather than any junction.
+#: The four states the bench can hold, and what each one is. Named here
+#: rather than in a tool because two tools drive them - the camera-in-the-loop
+#: calibration and the automated identification - and a second copy of this
+#: is the one that goes stale.
+#:
+#: The order is not arbitrary: each state adds one power term to the one
+#: before, so the DIFFERENCES isolate a subsystem that no single state can.
+STATES = ('passive', 'afe', 'traffic', 'switch')
+
+STATE_IS = {
+    'passive': 'AFE off: the drivers have supply, no PWM',
+    'afe':     'AFE on: drivers unpowered, sensors alive, no traffic',
+    'traffic': 'AFE on: DAQ at full tilt, data off the board',
+    'switch':  'AFE off: three legs at 50 %',
+}
+
+NODES = ('drivers', 'phases', 'mcu', 'regulators', 'afe')
+
+#: Firmware's `thermal_node_t` order - the sources plus the board node.
+#: `0x6E` device 8 answers in that order, so it belongs here and not in a
+#: second copy beside the protocol code.
+ALL_NODES = NODES + ('board',)
+
+#: The network. **Only `board_to_ambient` and `board_capacity` have a clean
+#: measurement behind them.**
+#:
+#: `to_board` is a **spreading resistance in the laminate**, K/W from the
+#: surface at a source to the board some way off - a few K/W, not a
+#: junction-to-board on tens.
+CFG = {
+    'board_to_ambient': 8.33,     # K/W, passive state against the supply
+    'board_capacity': 49.0,       # J/K, from tau ~6.8 min
+    'ntc_sees_drivers': NTC_SEES_DRIVERS,
+    'to_board': {'drivers': 15.2, 'phases': 15.2, 'mcu': 22.5,
+                 'regulators': 15.0, 'afe': 41.5},
+    'capacity': {'drivers': 0.35, 'phases': 1.20, 'mcu': 0.90,
+                 'regulators': 0.80, 'afe': 0.30},
+}
+
+#: Power per node in the passive state, consistent with the supply's 50 mA:
+#: 0.666 mcu + 0.484 LDO drop + 0.05 other = 1.20 W.
+POWER_PASSIVE = {'drivers': 0.0, 'phases': 0.0, 'mcu': 0.666,
+                 'regulators': 0.534, 'afe': 0.0}
+
+#: Power per node while three legs switch at 50 %. The 1.20 W from difference
+#: 4-1 fell roughly half on the supply corner - gate charge comes out of the
+#: +15V7 buck - and half on the bridge.
+POWER_SWITCHING = {'drivers': 0.60, 'phases': 0.0, 'mcu': 0.666,
+                   'regulators': 1.134, 'afe': 0.0}
+
+
+def board_from_ntc(ntc_c, driver_rise_k=0.0):
+    """Board temperature from the NTC, hot spot taken out.
+
+    `driver_rise_k` is how far the drivers node sits above the board. Zero
+    with nothing switching, which is when the offset alone applies.
+    """
+    return ntc_c - NTC_OFFSET - NTC_SEES_DRIVERS * driver_rise_k
+
+
+def expected_ntc(board_c, driver_rise_k=0.0):
+    """What the NTC should read. The inverse of `board_from_ntc`."""
+    return board_c + NTC_SEES_DRIVERS * driver_rise_k + NTC_OFFSET
+
+
+def steady(power, cfg=CFG, ambient=AMBIENT):
+    """Equilibrium temperature per node for a power split, degrees C."""
+    board = ambient + sum(power.values()) * cfg['board_to_ambient']
+    out = {'board': board}
+    for name in NODES:
+        out[name] = board + power.get(name, 0.0) * cfg['to_board'][name]
+    return out
+
+
+def tau_minutes(cfg=CFG):
+    """The board's time constant. A run has to be several times it."""
+    return cfg['board_capacity'] * cfg['board_to_ambient'] / 60.0
+
+
+def settled_fraction(minutes, cfg=CFG):
+    """How far toward equilibrium a run of that length gets, 0..1."""
+    return 1.0 - math.exp(-minutes / tau_minutes(cfg))
+
+
+def calibrate(camera, board_c, power=None):
+    """Node resistances from a thermal camera's degrees, K/W.
+
+    `camera` is {node: degrees} - **the board surface at each source**, not
+    the part. `board_c` is the reference patch at the same moment: soldermask
+    some way from anything that warms. Not the NTC, which sits in the drivers'
+    hot spot.
+
+    No fitting needed: `to_board = (T_zone - T_reference) / P_zone`. The
+    result is a spreading resistance, a few K/W - tens means either the power
+    or the reference surface is wrong.
+    """
+    power = power or POWER_SWITCHING
+    out = {}
+    for name, celsius in camera.items():
+        if celsius is None or not power.get(name):
+            continue
+        out[name] = (celsius - board_c) / power[name]
+    return out
