@@ -13,8 +13,10 @@ text console or binary Modbus RTU, reached over the debug probe's COM port or
 RS485.
 
 *Coaxial* is where the electronics sit, not what they are wired with. There is
-no coaxial cable and no coaxial connector on this board — a local model has
-invented both, twice.
+no coaxial cable and no coaxial connector on this board. **Known failure mode:**
+a local model fills the gap and reports one anyway - seen twice. **Guard:** the
+fitted parts come from `0x6D` kind 4, so what is on the board is answerable
+without inferring it from the name.
 
 The thermal channel is not decoration, and the phase sense sits inside a
 switching power stage — the context for every noise figure in these documents.
@@ -78,10 +80,12 @@ list — name, what it does, where it sits, **what powers it**, and whether it
 answered. `board_info kind=parts`, `system.channel_map()['parts']` and the local
 model's `parts` kind all read it off the wire.
 
-That last column is not decoration: AFE_ON powers the BNO08X as well as the
-analog front end, and with it off the part answers reads, resets and advertises
-normally while acting on no write at all. A day went into SPI before the supply
-was checked.
+That last column is not decoration. **Problem:** AFE_ON powers the BNO08X as
+well as the analog front end, and with it off the part answers reads, resets and
+advertises normally while acting on no write at all - so every symptom points at
+SPI, and a day was spent there before the supply was checked. **Fix:** `power`
+is a column in the parts list, and `Board_ImuInit` refuses while PB2 is low
+rather than half-working.
 
 **Adding hardware is one row, and nothing else.** A new part means a row in
 `s_parts` in `Board/Src/board_io.c`, its pins in `s_digital` beside it, and — if
@@ -249,14 +253,13 @@ first guess, and `open_session()` probes if it does not answer.
 
 **While a bug is live, run the narrowest thing that could disprove the current
 hypothesis - never the full suite.** `-All` is eight minutes and answers a
-question nobody asked; running it mid-hunt is a way of appearing to work while
-the bug sits there. The suites are the gate *after* a change, not a step in
+question nobody asked. The suites are the gate *after* a change, not a step in
 finding one.
 
-Measured: chasing why two of three gate driver stages ran 15 C hotter than the
-third, the full suite was started three times. None of the 1745 checks could have
-said anything about it - the difference was on the bench, and what moved the
-question forward was a 600-sample pin count and a register dump.
+**Problem, measured:** chasing why two of three gate driver stages ran 15 C
+hotter than the third, the full suite was started three times. None of the 1745
+checks could have said anything about it - the difference was on the bench.
+**What worked instead:** a 600-sample pin count and a register dump.
 
 The narrow thing is usually one of: read the register, count the samples, run the
 one suite whose name matches what changed.
@@ -270,9 +273,10 @@ broke it, and the run that would have said so is the one that was skipped.
 
 This includes failures that were already there when the work started. Say they
 are pre-existing, then fix them - reporting a red suite and carrying on is how it
-stays red. Measured: nine failures in `test_ollama_render` and `test_ollama_reply`
-were found, called pre-existing, and left behind while four more items were
-worked through.
+stays red. **Problem, measured:** nine failures in `test_ollama_render` and
+`test_ollama_reply` were labelled pre-existing and carried through four more
+items, by which point the change that broke them was no longer identifiable.
+**Fix:** the label is a note on the way to the fix, not a substitute for it.
 
 ## After a change lands
 
@@ -285,8 +289,10 @@ the change, the same way running the tests is:
 
 Two options, nothing else. A session here runs several small fix-test cycles, and
 asking after each is what keeps the tree from either committing mid-investigation
-or piling up unpushed work nobody asked to hold onto. Measured: the rule was
-added, and the very next change landed with a summary and no question.
+or piling up unpushed work nobody asked to hold onto. **Known failure mode:** the
+question gets replaced by a summary and the session carries on - it happened on
+the first change after this rule was written, which is why it is a rule and not
+a preference.
 
 ## Spend the local model, not the expensive one
 
@@ -311,7 +317,7 @@ how a 16 GB card is asked for two copies of the weights.
 | What does the board read now? Is the AFE on? Temperature, DC link, frame counters? | **the local model** — offer the command, then stop |
 | Is this channel odd? What does `self_test` say? | **the local model**, then read FINDINGS before investigating |
 | Does it still build/flash/pass? | **the local model** — `dbg -q "run the test suites, then build and flash, tell me if anything failed"`; the tools report the suite's own tally and the build's own exit code, parsed, not summarised |
-| Why is this C function written this way? `Board/` or `Comms/`? Is this a protocol MAJOR? | **you** — it is bad at code and design, and FINDINGS records it inventing hardware constants |
+| Why is this C function written this way? `Board/` or `Comms/`? Is this a protocol MAJOR? | **you** — measured failure mode: on design questions it substitutes plausible hardware constants (FINDINGS), and a wrong one here is not visibly wrong |
 | What is the wire format of command 0x41? | **you**, from docs/PROTOCOL.md |
 
 A failing build or a regressed test is still yours to judge. The rule is about
@@ -336,9 +342,8 @@ tokens.** Two shapes of request, and the second is easy to miss:
 
 * *measure something* — read a channel, fetch data, check the AFE, take a burst;
 * *reach the local model at all* — "I want to prompt the local model", "how do I
-  ask it". Answering with instructions is the same mistake in a different coat:
-  they are not asking to be taught the command, they are asking to be at the
-  prompt.
+  ask it". Answering with instructions misses this the same way: they are not
+  asking to be taught the command, they are asking to be at the prompt.
 
 Either way, ask **minimally**:
 
@@ -368,11 +373,11 @@ working.
 
 **Do not send anybody to the bench with an oscilloscope, a schematic question or
 a pin assignment until the code has been read for the fault.** Bringing up the
-BNO08X took six firmware bugs and four wrong hypotheses about the board; every
-bug was mine and no hypothesis survived a measurement. What they cost was not
-time, it was somebody else's time.
+BNO08X turned up six firmware defects and four hypotheses about the board, none
+of which survived a measurement. The cost of a wrong hypothesis here is somebody
+else's bench time, which is why the order matters.
 
-The ones that looked exactly like a hardware problem:
+Each of these presented as a hardware fault and was fixed in firmware:
 
 | Symptom | Actual cause |
 |---|---|
@@ -394,9 +399,9 @@ fault", do all of this:
 * **Check every width and byte order against the wire**, not against what the
   peripheral happens to send today.
 * **Check what a buffer has to hold in the worst case**, not the typical one.
-* **Verify the fix actually took effect** before attributing a change to it. Two
-  of the four wrong hypotheses here were "improvements" that were overwritten
-  before they ran, and the improvement they were credited with had another cause.
+* **Verify the fix actually took effect** before attributing a change to it.
+  Two of the four hypotheses here were "improvements" that were overwritten
+  before they ran, and the improvement credited to them had another cause.
 
 A measurement taken while something else is driving the same bench is not a
 measurement - see FINDINGS. That applies to the code under test as much as to the
@@ -509,8 +514,9 @@ programmer invocation with `--start`, not `-hardRst`, or the core is left halted
 **The AFE switch (PB2) powers the ADC reference and the IMU.** With it off every
 channel reads exact mid-scale and the NTC reports exactly 25.00 °C. The BNO08X is
 worse: it answers reads, resets and advertises normally, and silently acts on no
-write at all - a day went into SPI before the supply was checked. Enable it
-before believing anything analog and before believing an IMU that looks present.
+write at all, so the fault presents as SPI - a day was spent there before the
+supply was checked. Enable it before believing anything analog and before
+believing an IMU that looks present.
 
 ## Tooling traps
 

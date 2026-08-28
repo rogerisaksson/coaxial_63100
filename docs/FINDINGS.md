@@ -20,11 +20,11 @@
 ## LLM & Host Infrastructure
 
 * **LLM OOM Crashes:** `llama-server` throws `std::bad_alloc` due to its own bloated prompt cache and checkpoints, not prompt length. Fixed by disabling `LLAMA_ARG_CACHE_RAM` and `LLAMA_ARG_CTX_CHECKPOINTS` in the daemon.
-* **`.port` Read as a COM Port:** `SimulatedSession.port` is a bus label (`AX`), never `None`. `link_diagnose` guarded on `configured is None`, so a session that fell back to the stand-in spent 15 s on an SWD probe and then reported "Configured port AX: not among the ports above - the cable may be unplugged". The `simulated` marker that fixed the same mistake in `_interface` already existed. Step 4's closing advice also opened with "Powered" whatever step 1 concluded.
+* **`.port` Read as a COM Port:** `SimulatedSession.port` is a bus label (`AX`), never `None`. `link_diagnose` guarded on `configured is None`, so a session that fell back to the stand-in spent 15 s on an SWD probe and then reported "Configured port AX: not among the ports above - the cable may be unplugged". The `simulated` marker that fixes this in `_interface` already existed and was not used here. Step 4's closing advice also opened with "Powered" whatever step 1 concluded.
 * **`check_power` Discarded Its Own Reading:** With no target the programmer takes 30.3 s - a second connect attempt at 8 MHz - against a 15 s budget, and `TimeoutExpired.stdout` already holds `Voltage: 0.00V`. The handler returned `None`. Now parsed from the killed run.
 * **`-Ask` Pinned the Card:** A one-shot was exempt from the unload on prompt exit while the same script passes `--keep-alive 30m`, so four smoke tests left 8.4 GB resident with nobody at the prompt. `-Ask` now takes a list: one load, N questions, one release.
 * **`--sections` Read Only Under `--match`:** `run_tests.py --live --sections tools` ran all three - `tools` and `all` both returning 176 checks in 255 s. Coverage tiers were unaffected; they set the sections directly rather than through the flag.
-* **Model Hallucinations:** `llama3.1:8b` fabricates telemetry when tools fail and invents physical constants (NTC B=3950 instead of 3380). `gemma4:12b` remains the default; it is slower but declines to lie.
+* **Fabricated telemetry when a tool fails:** `llama3.1:8b` reports readings it never took and substitutes physical constants (NTC B=3950 for the real 3380). **Mitigation:** `gemma4:12b` is the default - slower, and it abstains instead. The structural guard is that a value only reaches a verdict as a `report` argument, never as prose.
 
 ## Confirmed Behaviors (Not Defects)
 
@@ -92,8 +92,9 @@ and never checked.
 * **DC Bus Read Discrepancy:** Two different read paths yield a persistent ~30 mV delta.
 * **PE15 (`nFAULT`) Polarity:** Reads 0 (asserted) when the AFE is powered. Three explanations were open; the intended logic is now stated - high is normal, low is a fault - which **rules out inverted logic** and leaves a real fault or a supply pull. The firmware inverts nothing: `Board_Pe15` returns raw IDR and both the Modbus discrete input and `0x6D` pass it through, so the measurement is the pin's electrical level.
 
-  Explained, and the earlier explanation was wrong. It blamed an unpowered
-  open-drain output on the gate drivers. **A 2EDL8034 has no fault pin** -
+  Explained, and the earlier explanation is superseded: it attributed the
+  level to an unpowered open-drain output on the gate drivers.
+  **A 2EDL8034 has no fault pin** -
   PG-DSO-8, and the eight are VDD, HB, HO, HS, HI, LI, VSS, LO. `PE15`
   carries `FAULTIN` from `STO.SchDoc`, where it sits on U11 (NL7SZ97) pin 1
   and on U4 (TPS3840PL30) MR, with R99 220 ohm to `FAULTOUT`.
@@ -116,8 +117,8 @@ and never checked.
 
 ## Closed 2026-08-27 - the synced current path
 
-Three bugs, all mine, all found by comparing two paths that must agree
-rather than by reasoning about hardware.
+Three firmware defects, all found by comparing two paths that must agree
+rather than by reasoning about hardware - which is the method that worked.
 
 | Symptom | Cause |
 |---|---|
@@ -778,10 +779,11 @@ stream may claim of a segment that also carries everything else.
 
 ## Fixed: the IMU produced reports and the poll loop never collected them
 
-2026-08-27. The part had never stopped working. What follows is three
-mistakes of mine and one real defect, in the order they were made.
+2026-08-27. The part had never stopped working. One real defect, and three
+measurements that pointed the wrong way; both are recorded below because the
+measurement errors cost more time than the defect did.
 
-**The real defect.** `Board_ImuPoll` returned every turn unless H_INTN was
+**The defect.** `Board_ImuPoll` returned every turn unless H_INTN was
 asserted at the instant it looked - one GPIO read, no wait. That is correct
 and cheap when the pulse is caught and useless when it is not, and it left
 the part streaming rotation vectors at 50 Hz into a loop that never read
@@ -805,27 +807,28 @@ quiet - three empty reads rather than one, since the 276-byte
 advertisement arrives with gaps - did not fix this on its own and is kept
 because stopping at the first gap was wrong anyway.
 
-### Three measurements of mine that were wrong
+### Three measurements that pointed the wrong way, and what each needed
 
-* **`product_id` and `imu.pins()` answering SERVER DEVICE FAILURE.** Read as
-  a dead part. They were refused by `cmd_imu_op`, which gates every op
-  except LATEST, HOLD and RESUME on the poll loop being HELD - the calls
-  were outside `board.imu.configuring()`.
-* **"H_INTN never asserts": 77 reads of PD8, all high.** Each read was a
-  Modbus round trip, 15 ms apart. An H_INTN pulse is microseconds. The
-  measurement could not have caught one and proved nothing; `feature()`
-  alone works, which needs the wake acknowledge, so the line does assert.
+* **`product_id` and `imu.pins()` answering SERVER DEVICE FAILURE**, read as
+  a dead part. They were refused by `cmd_imu_op`, which gates every op except
+  LATEST, HOLD and RESUME on the poll loop being HELD - the calls were outside
+  `board.imu.configuring()`. **Needed:** hold the loop before driving the bus.
+* **"H_INTN never asserts": 77 reads of PD8, all high.** Retracted. Each read
+  was a Modbus round trip 15 ms apart and an H_INTN pulse is microseconds, so
+  the measurement could not have caught one either way. `feature()` alone
+  works, which needs the wake acknowledge, so the line does assert. **Needed:**
+  sample faster than the event, or infer it from something that depends on it.
   The polled fallback stays because it is bounded and it is what the file
   always described.
 * **Gating the read twice.** The first fix put `poll_due()` inside
-  `Board_ImuRead` as well as the loop, so the loop spent the rate limit's
-  slot and the read consumed the next one. Neither ever read. One gate,
+  `Board_ImuRead` as well as the loop, so the loop spent the rate limit's slot
+  and the read consumed the next one. Neither ever read. **Fixed:** one gate,
   in the loop, where the rate is decided.
 
 Confirmed from the schematic while chasing this, MCU sheet: `SPI0.INT` is a
-straight wire to **PD8** and `SPI0.SYNC` to PD9, so `board_imu.c`'s file
-header - "neither is assigned to a pin" - is the stale half of its own
-contradiction, not line 55.
+straight wire to **PD8** and `SPI0.SYNC` to PD9. `board_imu.c`'s file header
+said "neither is assigned to a pin", contradicting its own line 55; **fixed
+2026-08-28** - the header now states the pins and that the line does assert.
 
 ## The gate drivers switches 0 to 100 % with the drivers powered, and nothing trips
 
@@ -915,14 +918,14 @@ lands in the same narrow band every time. 387 against a compare of 1187 is
 the high side on, and 89.5 % is what that looks like averaged.
 
 The per-leg symmetry measurements in this session were taken with the sync
-disarmed and stand - 600 samples, CNT median 1188, all three legs 50.0 %.
-That was luck rather than judgement, and this is here so the next one is
-judgement: **anything that averages the snapshot has to check `pins_at` is
-spread across the period, or disarm the sync first.**
+disarmed and stand - 600 samples, CNT median 1188, all three legs 50.0 %. That
+held by luck rather than by design, so the rule is written down: **anything
+that averages the snapshot has to check `pins_at` is spread across the period,
+or disarm the sync first.**
 
-Two earlier readings from the same trap, both mine: 42 / 51 / 43 % across
-the three legs at 80 samples, read as a difference when 1 sigma was 5.6 %;
-and 86.5 % straight after an arm, read as the waveform having changed.
+Two earlier readings fell into the same trap: 42 / 51 / 43 % across the three
+legs at 80 samples, read as a difference when 1 sigma was 5.6 %; and 86.5 %
+straight after an arm, read as the waveform having changed.
 
 ## The six gate signals were writable through the GPIO test path
 
@@ -1003,8 +1006,8 @@ is not done: the first attempt read the board cooling from the run before it
 the settled-baseline rerun stopped when the board lost power (ST-LINK target
 voltage 0.00 V) for further rework.
 
-The rest of this entry is what the hunt cost and what it ruled out, kept
-because most of it was wrong turns worth not repeating.
+The rest of this entry is what the hunt ruled out, kept because the wrong
+turns are the part worth not repeating.
 
 
 
@@ -1071,21 +1074,23 @@ BKIN on PE15 is active low and CubeMX generates it `AF_OD` with `GPIO_NOPULL`,
 so an undriven fault line floats and the break fires on noise. `Board_PwmInit`
 now sets a pull-up, so "nobody driving" means "no fault".
 
-### Four measurements of mine that were wrong, and why
+### Four measurements that were wrong, and the method each one needed
 
-The fault took far longer than it should have, entirely through bad method:
+Every one of these was a method fault rather than a hardware surprise, and
+together they were the bulk of the time this took:
 
-* **A write and its check in separate SWD connections.** Seconds apart with
-  the firmware running in between, free to undo the write.
-* **The stimulus never read back.** Only the sensed pin was captured; when
-  the drive did not take, "no coupling" was recorded. Read the driven pin in
-  the same word.
+* **A write and its check in separate SWD connections**, seconds apart with
+  the firmware running in between and free to undo the write. **Fix:** one
+  connection for the pair.
+* **The stimulus never read back.** Only the sensed pin was captured, so a
+  drive that did not take was recorded as "no coupling". **Fix:** read the
+  driven pin in the same word.
 * **A floating input used as a probe.** A few hundred k is ample to drag a
-  floating CMOS input, so it cannot tell a short from a leakage path. Bias
-  the sensed pin against the drive, or drive both.
-* **`Select-String ' : '` parsing a programmer's output**, which matched
-  banner lines and silently produced a table of `$null` rendered as zeros.
-  Anchor on the address, and print how many words came back.
+  floating CMOS input, so it cannot tell a short from a leakage path. **Fix:**
+  bias the sensed pin against the drive, or drive both.
+* **`Select-String ' : '` parsing a programmer's output**, which matched banner
+  lines and silently produced a table of `$null` rendered as zeros. **Fix:**
+  anchor on the address, and print how many words came back.
 
 **Do not arm while the two collapse together.** Every switching edge is a
 VDD-to-GND path through two GPIO output stages inside the MCU.
@@ -1110,9 +1115,9 @@ So the pin still carried the shape of `HAL_TIM_MspPostInit`'s configuration
 while no longer being TIM1's. The power stage had no hardware break and
 nothing said so.
 
-This is the same mistake the six gate signals already carry a warning about
-in that file - PE15 was simply missed when they were fixed. It is now
-`usable = false`, and the fault level is still reported through
+Same defect the six gate signals already carry a warning about in that file:
+PE15 was outside the set when they were fixed. It is now `usable = false`, and
+the fault level is still reported through
 `Board_IoFault()` and the gate driver state, both of which read the pin
 without reconfiguring it. Verified: `MODER` reads `10` with the pull-up and
 AF1 intact after conformance and MCP both run, where it read `00` before.

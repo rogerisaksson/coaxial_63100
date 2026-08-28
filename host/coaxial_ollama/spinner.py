@@ -10,7 +10,7 @@ Two terminals in one docked panel look identical at a glance; something
 turning says which one is waiting for a question, and the colour says
 green idle, yellow working, red just failed.
 
-Three things this had to get right, each after getting it wrong:
+Three defects found in use, and what each one needs:
 
 * **Nothing turns inside the name.** The first version span the "1" in
   "Coaxial 63100" and wrote "Coaxial 63-00" into the operator's own

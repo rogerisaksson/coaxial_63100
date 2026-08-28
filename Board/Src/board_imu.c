@@ -20,13 +20,22 @@
   *     end the transaction between the two. PB12 is driven as plain GPIO
   *     instead, which overrides the MSP's alternate-function setting.
   *
-  * H_INTN IS ON PD8 AND NEVER ASSERTS. SPI0.INT on the MCU sheet, a straight
-  * wire, and measured 2026-08-27: 77 reads across the 1.2 s after a reset,
-  * all high, while a direct probe in the same window clocked out real SHTP
-  * cargoes (`14 00 02 00 f1 00 84`, 20 bytes on channel 2). The part produces
-  * and does not ask. So the header is polled on a timer - the datasheet wants
-  * H_INTN serviced "within 1/10 of the fastest sensor period" (1.2.4.1) - and
-  * the wake gate is a last resort, not a refusal. Both sites refer back here.
+  * H_INTN is on PD8 - `SPI0.INT` on the MCU sheet, a straight wire - and it
+  * does assert: `feature()` on its own works, and that needs the wake
+  * acknowledge. An earlier reading of 77 highs in a row is retracted; each was
+  * a Modbus round trip 15 ms apart and the pulse is microseconds, so it could
+  * not have caught one either way (FINDINGS).
+  *
+  * The header is polled anyway, rate limited, because catching the pulse is
+  * not guaranteed. `Board_ImuPoll` used to return every turn unless H_INTN was
+  * asserted at the instant it looked - one GPIO read, no wait - which left the
+  * part streaming rotation vectors at 50 Hz into a loop that read none. A
+  * direct probe in that window clocked out real cargoes
+  * (`14 00 02 00 f1 00 84`, 20 bytes on channel 2), so the part was producing
+  * throughout and only the collection was missing. The
+  * poll is the bounded fallback for a missed edge; the datasheet wants H_INTN
+  * serviced "within 1/10 of the fastest sensor period" (1.2.4.1). The wake
+  * gate is a last resort, not a refusal. Both sites refer back here.
   ******************************************************************************
   */
 #include "board.h"
@@ -169,7 +178,7 @@ static bool intn_asserted(void)
   return HAL_GPIO_ReadPin(IMU_INTN_PORT, IMU_INTN_PIN) == GPIO_PIN_RESET;
 }
 
-/* How often to clock a header out, H_INTN never asserting here - see the
+/* How often to clock a header out when the H_INTN edge was missed - see the
    file comment. Rate limited because it is not free: a four-byte transfer at
    1.48 MHz is 27 us and the main loop also carries Modbus, whose t1.5 at
    115200 is 143 us. At 1 kHz that is 2.7 % of the loop against a 20 ms
@@ -252,8 +261,9 @@ void Board_ImuReset(void)
   HAL_Delay(IMU_RESET_HOLD_MS);
   HAL_GPIO_WritePin(IMU_RST_PORT, IMU_RST_PIN, GPIO_PIN_SET);
 
-  /* H_INTN would say "ready" and does not assert here, so the wait is the
-     datasheet's number rather than an observation. */
+  /* Nothing waits on H_INTN here: the part is mid-reset and the edge would
+     have to be caught to be useful, so the wait is the datasheet's number
+     rather than an observation. */
   HAL_Delay(IMU_RESET_WAIT_MS);
 }
 
@@ -264,8 +274,9 @@ bool Board_ImuBusInit(void)
   /* AFE_ON powers the part, not just the analog front end. Measured: with it
      off the BNO08X still drives MISO and still resets - enough to read a
      valid 276-byte advertisement from - but no write is ever acted on, and
-     the wake handshake answers sometimes and not others. That cost a day:
-     every symptom looked like SPI. Refuse instead of half-working. */
+     the wake handshake answers sometimes and not others. Every symptom then
+     points at SPI, which is where a day went. Refuse instead of
+     half-working, so the supply is the first thing the failure names. */
   if (!Board_AfeOn())
   {
     return false;
@@ -932,11 +943,11 @@ bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
     if (!woken)
     {
       /* Every acknowledge failed, reset included. Write anyway and mark it
-         NOWAKE: H_INTN never asserts here (file comment), and refusing made
-         every feature request disappear and the part look dead for a day.
-         The gate still earns its place where H_INTN works, so it stays as a
-         last resort. What proves the write landed is `updates` climbing;
-         nothing here claims it did. */
+         NOWAKE rather than refuse: refusing made every feature request
+         disappear and the part look dead for a day, and a missed edge is not
+         proof the part is not listening. The gate still earns its place, so
+         it stays as a last resort. What proves the write landed is `updates`
+         climbing; nothing here claims it did. */
       note(BOARD_IMU_ERR_NOWAKE);
     }
   }

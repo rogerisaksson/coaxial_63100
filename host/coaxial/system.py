@@ -146,8 +146,9 @@ class System(Subsystem):
         Read from the firmware for the same reason the channel map is: a
         parts list in a host, a document or a prompt is a second answer to
         "what is on this board". `power` names what must be on for the part
-        to work at all - AFE_ON powers the IMU as well as the analog front
-        end, and a day went into SPI before that was checked.
+        to work at all. It exists because AFE_ON powers the IMU as well as
+        the analog front end, and an unpowered part presents as an SPI fault
+        - a day was spent there before the supply was checked.
 
         Paged, because six parts with their strings come to 380 bytes against
         the 253-byte PDU. An older firmware has no kind 4, and an empty list
