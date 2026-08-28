@@ -13,6 +13,7 @@ import struct
 import time
 
 from . import protocol
+from .acquisition import Acquisition
 from .errors import RigError
 from .subsystem import Subsystem
 from .wire import Reader
@@ -37,7 +38,7 @@ DAQ_OP_LIVE = 6
 UNITS = {0: None, 1: 'mV', 2: 'centi-degC', 3: 'mA'}
 
 
-class Daq(Subsystem):
+class Daq(Subsystem, Acquisition):
 
     """Configure, trigger, read - against the board's own channel table."""
 

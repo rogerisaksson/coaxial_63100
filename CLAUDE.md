@@ -144,8 +144,8 @@ way it found it, Ctrl+C included.
 from coaxial import Coaxial63100
 with Coaxial63100(port='COM4') as daq:          # simulated_device=True: no cable
     daq.set_time_from_pc()                      # the board counts cycles, not time
-    daq.configure_daq(['Phase U', 'NTC'], accumulate=8)
-    daq.daq_write(digital={'UART5_TERM': True})
+    daq.configure(['Phase U', 'NTC'], accumulate=8)
+    daq.write(digital={'UART5_TERM': True})
     daq.start()
     for block in daq.blocks(20):
         r = block[-1]

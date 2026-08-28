@@ -154,7 +154,7 @@ def exercise(server, report):
                   ['gate=1'])
     # Not E15: that is TIM1_BKIN, and the pin path reconfigures what it
     # touches, which would take the break off the timer for good. E14 is
-    # UART5_TERM - a bench convenience, restorable with a daq_write.
+    # UART5_TERM - a bench convenience, restorable with a rig write.
     report.result('gpio_pin read',
                   server.tool('gpio_pin', {'op': 'read', 'pin': 'E14'}),
                   ['E14='])

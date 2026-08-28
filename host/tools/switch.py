@@ -67,7 +67,7 @@ def main():
         os.remove(STOP_FILE)
 
     def write(rig, duty):
-        rig.daq_write(analog={'Phase ' + leg: duty for leg in legs})
+        rig.write(analog={'Phase ' + leg: duty for leg in legs})
 
     rig = Coaxial63100(port=a.port).open()
     try:

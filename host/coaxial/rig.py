@@ -4,7 +4,7 @@
 
     with Coaxial63100(port='COM4') as daq:
         daq.set_time_from_pc()
-        daq.configure_daq(['Phase U', 'NTC'], accumulate=8)
+        daq.configure(['Phase U', 'NTC'], accumulate=8)
         daq.start()
         for block in daq.blocks(20):
             print(block[-1]['time'], block[-1]['NTC'] / block[-1]['samples'])
@@ -24,11 +24,12 @@ Nothing here judges a reading. Raw codes and the board's own units;
 """
 import time
 
+from .acquisition import Acquisition
 from .clock import NTP_SERVER, unwrap
 from .errors import CrcError, NoReplyError, RigError
 
 
-class Coaxial63100:
+class Coaxial63100(Acquisition):
 
     """One board, one acquisition task, one clock."""
 
@@ -152,9 +153,9 @@ class Coaxial63100:
         """What the board says it has. Not a list written down here."""
         return self.board.analog.names()
 
-    def configure_daq(self, channels=None, rate_hz=None, accumulate=1,
-                      decimate=1, digital=True, clock='software',
-                      sample_time=0):
+    def configure(self, channels=None, rate_hz=None, accumulate=1,
+                  decimate=1, digital=True, clock='software',
+                  sample_time=0):
         """Set up the acquisition. Replaces whatever was there.
 
         channels    names, e.g. ['Phase U', 'NTC']. None takes all of them.
@@ -365,12 +366,7 @@ class Coaxial63100:
         return {'digital': [d['signal'] for d in pins],
                 'analog': ['Phase U', 'Phase V', 'Phase W']}
 
-    def daq_read(self):
-        """One block of records. The same call as `read()`, named to pair
-        with `daq_write`."""
-        return self.read()
-
-    def daq_write(self, digital=None, analog=None):
+    def write(self, digital=None, analog=None):
         """Put levels out: named pins, and duties on the three legs.
 
         digital  {'AFE_ON': True, 'UART5_TERM': False}. Names come from the

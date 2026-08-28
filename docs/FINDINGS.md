@@ -207,7 +207,7 @@ Found by the sweep above, not by a test. `h_adc_table` takes a **reading**
 of every channel on the way past, and `Board_AdcRead` is gated by the meter
 interlock - the injected group owns PCSEL while it is armed. So the whole
 command answers SERVER DEVICE FAILURE, and a host cannot even look up a
-channel by name: `index_of`, `channels()` and therefore `configure_daq` all
+channel by name: `index_of`, `channels()` and therefore `configure` all
 went through it.
 
 `0x6D` kind 0 is the map rather than the table. It answers what exists
@@ -1123,7 +1123,7 @@ without reconfiguring it. Verified: `MODER` reads `10` with the pull-up and
 AF1 intact after conformance and MCP both run, where it read `00` before.
 
 Two `test_mcp.py` checks used E15 as their scratch pin and now use E14
-(UART5_TERM, restorable with a `daq_write`). The stand-in moved PE15 from
+(UART5_TERM, restorable with a `write`). The stand-in moved PE15 from
 its drivable rows to its reserved ones, in the board's own order - `parity`
 caught both halves of that, first as a row count and then as a position.
 

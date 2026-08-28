@@ -49,7 +49,7 @@ cable.
 from coaxial import Coaxial63100
 with Coaxial63100(port='COM4') as daq:      # simulated_device=True: no cable
     daq.set_time_from_pc()                  # UTC, not this PC's idea of it
-    daq.configure_daq(['Phase U', 'NTC'], accumulate=8)
+    daq.configure(['Phase U', 'NTC'], accumulate=8)
     daq.start()
     for block in daq.blocks(20):
         r = block[-1]

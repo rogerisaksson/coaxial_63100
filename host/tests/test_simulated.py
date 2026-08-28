@@ -1031,7 +1031,7 @@ def test_gate_driver_arming(report):
                      rig.gate_drivers_armed() is False, rig.gate_drivers_armed())
 
         try:
-            rig.daq_write(analog={'Phase U': 0.25})
+            rig.write(analog={'Phase U': 0.25})
             refused = None
         except RigError as exc:
             refused = str(exc)
@@ -1060,7 +1060,7 @@ def test_gate_driver_arming(report):
         rig.arm_gate_drivers(bypass_sto=True, ignore_interlock=True)
         report.check('after arm_gate_drivers, MOE is set', rig.gate_drivers_armed(), True)
         report.check('and the same write goes through',
-                     rig.daq_write(analog={'Phase U': 0.25})['Phase U'] > 0,
+                     rig.write(analog={'Phase U': 0.25})['Phase U'] > 0,
                      rig.board.gate_drivers.state()['duty'])
 
         rig.disarm_gate_drivers()

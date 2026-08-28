@@ -48,7 +48,8 @@ host-tested the same way by `test_shtp_core.py`.
 ## Host
 
 **`host/coaxial/`** — grouped by hardware function. **`rig.py`'s `Coaxial63100`
-is the front door**: connect, configure, `daq_read`, `daq_write`. It owns the
+is the front door**: connect, `configure`, `read`, `write` - the `Acquisition`
+surface `Daq` and the stand-in answer to as well. It owns the
 preflight all four views were repeating - AFE_ON powers the ADC reference and
 both SPI parts, so it goes up on the way in and back the way it was found on the
 way out, Ctrl+C included. `Board` and its subsystems stay under `.board`;

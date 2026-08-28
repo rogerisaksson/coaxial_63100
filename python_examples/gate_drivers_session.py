@@ -36,9 +36,9 @@ print('DTG %d, period %d ticks' % (state['deadtime'], state['period']))
 # powered the board refuses to convert, and there are no currents.
 
 # %%
-daq.daq_write(digital={'AFE_ON': True})            # currents real, no drive
+daq.write(digital={'AFE_ON': True})            # currents real, no drive
 time.sleep(0.3)
-daq.configure_daq(accumulate=8, digital=False)
+daq.configure(accumulate=8, digital=False)
 daq.start()
 
 # %% [markdown]
@@ -50,7 +50,7 @@ daq.start()
 # wants Cinj and Clevel both above 3 V first and they read 0.79 and 0.08.
 daq.arm_gate_drivers(bypass_sto=True, ignore_interlock=True)
 print('armed:', daq.gate_drivers_armed())
-daq.daq_write(analog={'Phase U': DUTY, 'Phase V': DUTY, 'Phase W': DUTY})
+daq.write(analog={'Phase U': DUTY, 'Phase V': DUTY, 'Phase W': DUTY})
 
 # %% [markdown]
 # ## The six gate signals, as one instant

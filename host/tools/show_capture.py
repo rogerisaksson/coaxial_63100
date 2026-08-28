@@ -60,9 +60,9 @@ def start(rig, args):
     `read()` off the same object is what puts `samples` on a record.
     """
     board = rig.board
-    layout = rig.configure_daq(clock=args.clock, digital=True,
-                               sample_time=args.sample_time,
-                               decimate=args.decimate,
+    layout = rig.configure(clock=args.clock, digital=True,
+                           sample_time=args.sample_time,
+                           decimate=args.decimate,
                                accumulate=args.accumulate,
                                rate_hz=args.rate)
     rig.start()
@@ -246,9 +246,9 @@ def adapt(rig, layout, args, view):
     view['accumulate'] = want
     try:
         rig.stop()
-        fresh = rig.configure_daq(clock=args.clock, digital=True,
-                                  sample_time=args.sample_time,
-                                  decimate=args.decimate, accumulate=want,
+        fresh = rig.configure(clock=args.clock, digital=True,
+                              sample_time=args.sample_time,
+                              decimate=args.decimate, accumulate=want,
                                   rate_hz=args.rate)
         rig.start()
     except RigError:

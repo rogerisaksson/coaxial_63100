@@ -125,8 +125,8 @@ def main(argv=None):
     # Every channel the board reports, summed on the board rather than read
     # one at a time: the accumulator carries the mean AND the two ends of
     # the window, which is exactly what a meter face wants.
-    layout = rig.configure_daq(rate_hz=None, accumulate=args.samples,
-                               digital=False)
+    layout = rig.configure(rate_hz=None, accumulate=args.samples,
+                           digital=False)
     rig.start()
 
     say('wait', 'drawing',

@@ -40,8 +40,8 @@ print(daq.set_time_from_pc())
 # `rate_hz=None` lets the board pick what the link carries.
 
 # %%
-daq.configure_daq(['Phase U', 'NTC'], rate_hz=None, accumulate=8,
-                  digital=True)
+daq.configure(['Phase U', 'NTC'], rate_hz=None, accumulate=8,
+              digital=True)
 
 # %% [markdown]
 # ## Write
@@ -49,7 +49,7 @@ daq.configure_daq(['Phase U', 'NTC'], rate_hz=None, accumulate=8,
 # arms the gate drivers, so it is not in this example.
 
 # %%
-print(daq.daq_write(digital={'UART5_TERM': False}))
+print(daq.write(digital={'UART5_TERM': False}))
 
 # %% [markdown]
 # ## Read N blocks

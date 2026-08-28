@@ -189,9 +189,9 @@ def run_rows(view, width):
 def _duty(rig, view, by):
     view['duty'] = min(1.0, max(0.0, view['duty'] + by))
     if rig.gate_drivers_armed():
-        rig.daq_write(analog={'Phase U': view['duty'],
-                              'Phase V': view['duty'],
-                              'Phase W': view['duty']})
+        rig.write(analog={'Phase U': view['duty'],
+                          'Phase V': view['duty'],
+                          'Phase W': view['duty']})
     return None
 
 
@@ -338,8 +338,8 @@ def main(argv=None):
     # the other way round, is what gives the drivers supply - so switching
     # and measuring are mutually exclusive here until the patch. The view
     # runs either way and says which half it has.
-    layout, refused = rig.configure_daq(accumulate=args.accumulate,
-                                        digital=False), None
+    layout, refused = rig.configure(accumulate=args.accumulate,
+                                    digital=False), None
     try:
         rig.start()
         say('ok', 'task', '%d channels, stride %d'

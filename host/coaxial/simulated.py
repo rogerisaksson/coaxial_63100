@@ -26,6 +26,7 @@ import time
 
 from . import angle
 from . import protocol
+from .acquisition import Acquisition
 from .errors import DeviceStateError, RigError
 from .gpio import reserved_reason
 
@@ -1090,12 +1091,14 @@ class SimulatedCapture:
         return out[:limit] if limit is not None else out
 
 
-class SimulatedDaq:
+class SimulatedDaq(Acquisition):
     """One acquisition task, without a converter.
 
-    Duck-typed against coaxial.daq.Daq, and refusing the same things for the
-    same reasons: a TIM1 clock carries only the phases, and a task cannot be
-    reconfigured while it runs.
+    Answers `Acquisition` like the real one, and refuses the same things for
+    the same reasons: a TIM1 clock carries only the phases, and a task cannot
+    be reconfigured while it runs. Inheriting the surface is what makes a name
+    dropped from one of them fail here at construction rather than at the
+    first call that reached for it.
     """
 
     #: Channel index -> (signal, unit, differential), the stand-in's table.

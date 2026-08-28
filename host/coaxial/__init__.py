@@ -14,15 +14,20 @@
 
 Layered the same way the firmware is:
 
+    Acquisition          configure, start, read, stop     coaxial/acquisition.py
     Board + subsystems   what the hardware can do         coaxial/board.py
     protocol             command codes and versioning     coaxial/protocol.py
     Transport            Modbus RTU framing over serial   coaxial/transport.py
     wire, crc            payload and checksum codecs      coaxial/wire.py
 
+`Coaxial63100`, `Daq` and the stand-in all answer `Acquisition`, so the same
+five names read a task whichever one a caller is holding.
+
 Nothing returns a status code and nothing returns None to mean failure. Every
 call either produces its result or raises something from coaxial.errors.
 """
 from . import protocol, scaling
+from .acquisition import Acquisition
 from .board import BOARD_CLASSES, Board, connect, disconnect, scan
 from .rig import Coaxial63100
 from .errors import (ConnectError, CrcError, DeviceStateError, FrameError,
@@ -33,7 +38,7 @@ from .scaling import (DCBUS_ONBOARD, NTC_ONBOARD, PHASE_ONBOARD,
 from .transport import Transport
 
 __all__ = [
-    'Coaxial63100',
+    'Coaxial63100', 'Acquisition',
     'connect', 'disconnect', 'scan', 'Board', 'BOARD_CLASSES', 'Transport',
     'NtcParams', 'DividerParams', 'ShuntParams',
     'NTC_ONBOARD', 'DCBUS_ONBOARD', 'PHASE_ONBOARD',

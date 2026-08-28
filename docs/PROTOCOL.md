@@ -114,8 +114,8 @@ an op dispatcher beside it.
 | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live |
 | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |
 
-`coaxial.Coaxial63100` is the host side and the preferred way in - `daq_read()`
-and `daq_write()` over the raw ops.
+`coaxial.Coaxial63100` is the host side and the preferred way in - `read()` and
+`write()` over the raw ops.
 
 ### Devices 0 and 1 - the SPI sensors
 
