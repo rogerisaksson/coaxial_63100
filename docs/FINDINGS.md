@@ -980,8 +980,12 @@ own.
 
 ## The W leg did not switch: its two gate pins were one node
 
-**Resolved 2026-08-28 by rework - a bad footprint on the W gate pair.** What
-the board reported before and after, from the probe that found it:
+**Root cause: the series resistor array on the gate lines has too tight a
+footprint**, so two channels of the same package bridge - which ties PWMWH to
+PWMWL. That is why both boards had it: same footprint, same assembly, same
+bridge. Reworked 2026-08-28 by wiring over the pads; new arrays on order.
+
+What the board reported before and after, from the probe that found it:
 
 | | before | after |
 |---|---|---|
