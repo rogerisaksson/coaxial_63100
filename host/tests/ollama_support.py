@@ -108,8 +108,27 @@ CHANNELS = [
     {'index': 3, 'adc': 3, 'pin': 'PC1', 'differential': False, 'signal': 'DC bus'},
 ]
 class SimulatedAnalog:
+    """A four-channel board, smaller than the package's stand-in on purpose.
+
+    It shares a NAME with `coaxial.simulated.SimulatedAnalog` and not a
+    class, which is worth knowing: a method added there does not arrive here,
+    and the AttributeError says `SimulatedAnalog` either way. Adding one to
+    the real subsystem means adding it to both stand-ins or to neither.
+    """
+
     def __init__(self, board):
         self.board = board
+
+    def scaling(self, refresh=False):
+        """The conversion parameters, as the real subsystem reports them.
+
+        The fallback set, because there is no calibration record behind a
+        four-channel double - and saying so is the point: a value cooked here
+        is the schematic's arithmetic, not a board's.
+        """
+        del refresh
+        from coaxial import scaling as _scaling
+        return _scaling.from_calibration({})
 
     def channels(self, refresh=False):
         return CHANNELS

@@ -323,7 +323,7 @@ the unit id belongs to the board, not to the wire.
 
 | Port | Pins | Transceiver | Receives | Console |
 |---|---|---|---|---|
-| USART3 | `PB10` TX, `PB11` RX | none - debug probe VCP | polled | yes, or Modbus |
+| USART3 | `PB10` TX, `PB11` RX | none - debug probe VCP | interrupt | yes, or Modbus |
 | USART2 | `PA1` DE, `PA2` TX, `PA3` RX | U5 THVD1450 | interrupt | no |
 | UART5 | `PC8` DE, `PC12` TX, `PD2` RX | U6 THVD1450 | interrupt | no |
 
@@ -336,13 +336,20 @@ the unit id belongs to the board, not to the wire.
   op 0 sends 00, FF, 5A, A5 on a port and all four come back on both - which is
   also the check that the driver, the receiver and the wiring between them work
   with nothing else on the segment.
-* **The RS485 pair receives on interrupt, each byte carrying the tick it arrived
+* **All three receive on interrupt, each byte carrying the tick it arrived
   at.** RTU delimits by silence, and polling from the main loop timestamped a
   byte when the loop reached it - a 276-byte IMU cargo is 1.5 ms, seventeen
   characters at 115200. The ring holds a whole frame; `ring_dropped` is non-zero
   if the loop ever stopped draining.
-* **No RX FIFO on any of the three.** A single overrun drops the frame, and a
-  latched ORE ends reception until ICR clears it.
+
+  USART3 was the exception until 2026-08-29, on the reasoning that the master
+  on it is a person or a script rather than a bus. Measured, that cost 0.45 %
+  of frames: 1393 requests, 7 silent, and `char_overrun` +7 to match. FINDINGS
+  has the working.
+* **No RX FIFO on any of the three** - `HAL_UARTEx_DisableFifoMode` is called
+  on each. The receiver holds one character, 87 us at 115200, so a single
+  overrun drops the frame and a latched ORE ends reception until ICR clears
+  it. That is what makes the interrupt not optional.
 * **CubeMX carries 9216000 baud on the RS485 pair**, which is not a Modbus rate
   on any bus. The firmware sets 115200 at init, the same way it sets the SPI
   word sizes rather than trusting them.

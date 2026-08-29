@@ -40,8 +40,10 @@ SHTP = 'test_shtp_core.py'
 OLLAMA = tuple('test_ollama_%s.py' % tag for tag in
                ('tools', 'runner', 'prompt', 'link', 'render', 'bus',
                 'board', 'reply', 'language'))
+BENCH = 'test_bench.py'
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP) + OLLAMA
-                  + ('test_mcp.py', 'test_simulated.py', 'test_parity.py'))
+                  + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
+                     BENCH))
 CONFORMANCE = 'test_conformance.py'
 LIVE = 'test_live_model.py'
 ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
@@ -72,6 +74,13 @@ JOINS = (
     (35, 'test_parity.py'),
     (45, 'test_mcp.py'),
     (65, CONFORMANCE),
+
+    # The bench guards the board's loop rates against a recorded baseline.
+    # It joins late because its cost is FIXED - four checks and twenty
+    # seconds, five seconds a check, dearer than anything but the live model
+    # - and it says nothing at all without a board, so a cheap tier would pay
+    # for it and get a skip.
+    (70, BENCH),
 )
 
 #: Where the live suite joins, and where it stops being one section. It is
@@ -299,10 +308,16 @@ TOUCHES = (
     # The SHTP layer is hardware-free like the Modbus core, so the host build
     # is what covers it. Nothing on the Modbus wire changes when it does.
     ('Shtp/',                         (SHTP,)),
-    ('Comms/',                        (CONFORMANCE, 'test_mcp.py')),
+    # BENCH is here and not with the host suites: what slows the board down
+    # is firmware in the main loop, and the regression it guards against was
+    # exactly that - the observer reading two ADC channels and two SPI
+    # transactions on every poll, and before that a poll blocking long enough
+    # to lose a Modbus character. A host-side edit cannot cause either.
+    ('Comms/',                        (CONFORMANCE, 'test_mcp.py', BENCH)),
     ('Board/',                        (CONFORMANCE, 'test_mcp.py',
-                                       'test_parity.py')),
-    ('Core/',                         (CONFORMANCE,)),
+                                       'test_parity.py', BENCH)),
+    ('Core/',                         (CONFORMANCE, BENCH)),
+    ('Thermal/',                      (CONFORMANCE, BENCH)),
     # A document can only break the docs index and the phrase table.
     ('docs/',                         ('test_ollama_runner.py',)),
     ('CLAUDE.md',                     ('test_ollama_runner.py',)),

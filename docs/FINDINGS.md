@@ -1216,10 +1216,17 @@ match one for one - hammer the link and every silent call shows up as a
 | 1393 | 7 | +7 |
 
 **What blocks:** `Board_ImuPoll` reads a 276-byte SHTP cargo at 1.48 MHz,
-which is 1.5 ms - longer than the RX FIFO covers at 115200. `main.c` already
-said so in a comment. The `!link_busy()` gate only looks BEFORE the poll, so a
-request arriving during one is lost. Holding the IMU loop proved it: 5 silent
-in 1123 with it polling, **0 in 1283 with it held**.
+which is 1.5 ms. `main.c` already said so in a comment. The `!link_busy()`
+gate only looks BEFORE the poll, so a request arriving during one is lost.
+Holding the IMU loop proved it: 5 silent in 1123 with it polling, **0 in 1283
+with it held**.
+
+**And there is no FIFO to absorb it.** `HAL_UARTEx_DisableFifoMode` is called
+on all three ports, so the receiver holds ONE character - 87 us at 115200.
+A 1.5 ms block is seventeen character times, and every one after the first is
+gone. This was first written up here as the block being "longer than the RX
+FIFO covers", which implies a depth that does not exist; the truth is starker
+and is why moving to the interrupt fixes it completely rather than partly.
 
 **Why a block cost anything at all:** USART3 was the only one of the three
 ports that did not receive on interrupt. `dev_uart.c` set `.interrupt = false`

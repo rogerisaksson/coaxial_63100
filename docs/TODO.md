@@ -4,7 +4,7 @@ State as of 2026-08-28.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 1679 checks, 17 suites |
+| `run_tests.ps1 -All` | 1713 checks, 18 suites |
 | Debug build | 0 warnings |
 | FLASH / DTCMRAM | 134 748 B / 48 200 B |
 | Protocol | MAJOR 1, MINOR 26 |
