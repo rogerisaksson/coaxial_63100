@@ -435,12 +435,14 @@ OWNED = ('_MAX_HZ', '_POLL_HZ', '_BUF', '_CARGO', '_RING', '_BAUD',
          '_LEASE_MS', '_EVERY_MS', '_SETTLE_MS', '_DTG_MAX', '_MIN_NS',
          '_BITS_PER_CHAR', '_MAX_ADDITIONS')
 
-#: Where they live. Everything else is a duplicate.
-LIMITS = os.path.join('Comms', 'Inc', 'board_limits.h')
+#: Where they live. Two files, one per layer, and everything else is a
+#: duplicate: the drivers' numbers and the wire's, so the includes run one
+#: way - Comms/ may reach down into Board/, and Board/ never reaches up.
+LIMITS = ('board_limits.h', 'comms_limits.h')
 
 
 def test_limits_live_in_one_file(r):
-    """No fixed number is defined outside `board_limits.h`.
+    """No fixed number is defined outside the two limits headers.
 
     Not style: the dead time was in three places at once - the .ioc, a
     #define, and a stale binary - and the one that mattered was the flash
@@ -452,7 +454,7 @@ def test_limits_live_in_one_file(r):
     for where in ('Board/Src/*.c', 'Board/Inc/*.h', 'Comms/Src/*.c',
                   'Comms/Inc/*.h', 'Thermal/Src/*.c', 'Thermal/Inc/*.h'):
         for path in glob.glob(os.path.join(REPO, *where.split('/'))):
-            if path.endswith(os.path.basename(LIMITS)):
+            if os.path.basename(path) in LIMITS:
                 continue
             for line in io.open(path, encoding='utf-8'):
                 if not line.startswith('#define '):
@@ -461,8 +463,19 @@ def test_limits_live_in_one_file(r):
                 if any(name.endswith(tail) for tail in OWNED):
                     stray.append('%s: %s' % (os.path.basename(path), name))
 
-    r.check('every fixed number is defined in board_limits.h only',
+    r.check('every fixed number is defined in a limits header only',
             not stray, '; '.join(stray[:4]))
+
+    # The layering, which is the reason there are two. A driver reaching up
+    # into the comms stack is the include that goes round in a circle the
+    # moment somebody adds a wire number a driver wants.
+    up = [os.path.basename(path)
+          for where in ('Board/Src/*.c', 'Board/Inc/*.h')
+          for path in glob.glob(os.path.join(REPO, *where.split('/')))
+          if '#include "comms_limits.h"'
+          in io.open(path, encoding='utf-8').read()]
+    r.check('nothing in Board/ includes the comms limits',
+            not up, ', '.join(up))
 
 
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,

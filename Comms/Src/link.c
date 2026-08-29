@@ -4,7 +4,7 @@
   * @brief   Assembles the comms stack and pumps it from the main loop.
   ******************************************************************************
   */
-#include "board_limits.h"
+#include "comms_limits.h"
 #include "link.h"
 #include "cmd.h"
 #include "dev_serial.h"

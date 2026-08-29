@@ -33,13 +33,19 @@ one way only.
 **`Modbus/`** — RTU stack (CRC, PDU, framing). C standard library only, no CMSIS
 or HAL. Lookup tables, not switches.
 
-**`Comms/Inc/board_limits.h`** — every fixed number the firmware depends on,
-in sections, each carrying the measurement that chose it: part clocks, buffer
-sizes, poll rates, settle times, the dead-time floor. Anything the board can
-be TOLD is in the calibration record instead (invariant 7); this file is what
-a rebuild is needed to change. `test_structure` fails a matching `#define`
-anywhere else - the dead time was in three places at once and the one that
-mattered was a stale binary.
+**The limits headers** — every fixed number the firmware depends on, in
+sections, each carrying the measurement that chose it. Two files, one per
+layer, so the includes run one way: `Board/Inc/board_limits.h` holds the
+drivers' - part clocks, buffer sizes, poll rates, settle times, the dead-time
+floor - and `Comms/Inc/comms_limits.h` the wire's, and includes the first
+where a number here must hold against one down there. `IMU_CARGO <= IMU_BUF`
+is a `_Static_assert` rather than a thing to remember; it was invisible while
+the two lived in two layers, and a cargo arrived truncated.
+
+Anything the board can be TOLD is in the calibration record instead
+(invariant 7). `test_structure` fails a matching `#define` anywhere else, and
+a `Board/` file that includes the comms header - the dead time was in three
+places at once and the one that mattered was a stale binary.
 
 **`Comms/`** — command dispatch and the wire. `wire.h`'s accessors are total
 with sticky error flags, so a handler has one check at the end instead of an
@@ -103,7 +109,7 @@ Board-side scaling is kept only to cross-check the math.
 
 ## The test system
 
-Eighteen suites, 1768 checks. `run_tests.ps1` is the only interface -
+Eighteen suites, 1769 checks. `run_tests.ps1` is the only interface -
 `-AutomaticMinimal|Medium|High` for ~25/50/75 % of every check, `-All` the gate,
 `-Only NAMES` and `-Tags SUBJECTS` for one change's worth, `-Structure` for the
 package itself.

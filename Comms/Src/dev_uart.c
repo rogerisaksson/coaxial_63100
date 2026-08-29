@@ -22,7 +22,7 @@
   * reply lands in the receiver as a request.
   ******************************************************************************
   */
-#include "board_limits.h"
+#include "comms_limits.h"
 #include "board.h"
 #include "dev_serial.h"
 

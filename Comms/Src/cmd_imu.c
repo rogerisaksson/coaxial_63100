@@ -11,7 +11,7 @@
   ******************************************************************************
   */
 #include <string.h>
-#include "board_limits.h"
+#include "comms_limits.h"
 #include "cmd.h"
 #include "board.h"
 #include "shtp.h"

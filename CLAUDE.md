@@ -184,8 +184,8 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Eighteen suites, 1768 checks, sized from `host/tests/.counts.json` and so measured
-rather than remembered: `test_structure.py` (375), `test_ollama_tools.py`
+Eighteen suites, 1769 checks, sized from `host/tests/.counts.json` and so measured
+rather than remembered: `test_structure.py` (376), `test_ollama_tools.py`
 (218), `test_ollama_runner.py` (214), `test_simulated.py` (189),
 `test_live_model.py` (146, needs ollama, `--live`), `test_ollama_prompt.py`
 (113), `test_conformance.py` (110, `--conformance`), `test_ollama_link.py`
@@ -228,7 +228,7 @@ you:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14, conformance
   0.29, live 4.6. The `test_ollama_*` suites are in from the first tier and
   narrow *themselves*; that is where the fine resolution lives, because 763 of
-  this tree's 1768 checks are in those nine files.
+  this tree's 1769 checks are in those nine files.
 
 * **The model is not asked when the path map already knows.** Where every
   changed file matched an explicit rule and the answer is `CHEAP` - structure,
