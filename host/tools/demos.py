@@ -331,13 +331,18 @@ def bridges_block(got):
         return block('HALF-BRIDGES', ['  the stage did not answer'])
 
     pins = state.get('pins') or {}
+    # `requested_ticks` is a CCR count, so the duty is it over the period.
+    # ARR is `period - 1`; dividing by `period` is off by one tick and by
+    # nothing anybody could see, but the arithmetic should say what it means.
+    span = float(max(1, state.get('period', 1) - 1))
     rows = []
-    for leg, duty in zip(('U', 'V', 'W'), state.get('requested', (0, 0, 0))):
+    for leg, ticks in zip(('U', 'V', 'W'),
+                          state.get('requested_ticks', (0, 0, 0))):
         rows.append('  %s   H %s  L %s   %3.0f %%'
                     % (leg,
                        'ON ' if pins.get(leg + 'H') else 'off',
                        'ON ' if pins.get(leg + 'L') else 'off',
-                       100.0 * duty))
+                       100.0 * ticks / span))
     rows.append('  MOE %-4s  break %s'
                 % ('set' if state['pwm_enabled'] else 'clear',
                    'LATCHED' if state['fault'] else 'clear'))
@@ -678,6 +683,11 @@ def main():
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--hz', type=float, default=2.0)
     p.add_argument('--frames', type=int, default=0)
+    p.add_argument('--start', default='', metavar='NAME',
+                   help='begin with these activities running, comma separated: '
+                        + ', '.join(a.name for a in ACTIVITIES))
+    p.add_argument('--duty', type=float, default=DEFAULT_DUTY,
+                   help='what the gate stage starts at, 0..1')
     p.add_argument('--watch', action='store_true',
                    help='draw a running session, without a serial port')
     p.add_argument('--leave', action='store_true',
@@ -711,8 +721,18 @@ def main():
             sys.stdout.write(chr(27) + '[2J')
 
         session = Session(rig)
+        session.duty = min(1.0, max(0.0, a.duty))
         shown, leaving, count = [], None, 0
         by_key = dict((act.key, act) for act in ACTIVITIES)
+
+        # Started here rather than by a keystroke, because a session run in
+        # the background for somebody else to watch has nobody to press one.
+        by_name = dict((act.name, act) for act in ACTIVITIES)
+        for name in (n.strip() for n in a.start.split(',') if n.strip()):
+            if name in by_name:
+                session.toggle(by_name[name])
+            else:
+                say('fail', 'start', '%s is not an activity' % name)
 
         try:
             with Keys(console) as keys:

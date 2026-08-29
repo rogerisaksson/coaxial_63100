@@ -577,7 +577,12 @@ const char *Board_PwmSetDeadTime(uint32_t ns)
            "cannot be worked out";
   }
 
-  uint32_t counts = ((uint64_t)ns * 1000ULL) / ps;
+  /* ROUNDED UP, like the floor above and for the same reason: a dead time
+     that rounded down is under what was asked for, and the direction that
+     is wrong is the one that shortens it. Measured 2026-08-29 - 30 ns
+     truncated to 7 counts = 29.5, and the bench supply tripped its
+     over-current protection on a dry-switching run. 8 counts is 33.7. */
+  uint32_t counts = (((uint64_t)ns * 1000ULL) + ps - 1ULL) / ps;
   const uint8_t floor_counts = Board_PwmDeadTimeFloor();
 
   if (counts < floor_counts)

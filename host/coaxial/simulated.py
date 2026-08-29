@@ -1067,7 +1067,9 @@ class SimulatedGateDrivers(GateControl):
             'pilot_raw': 15149, 'pilot_microvolts': 763000,
             'level_raw': 1305, 'level_microvolts': 65000,
             'break_bypassed': self._bypassed,
-            'requested': tuple(d / 1.0 for d in self._duty),
+            # TICKS, like the board: it sends Q16.16 of a CCR count and
+            # the host divides that back. `_duty` is already ticks.
+            'requested_ticks': tuple(float(d) for d in self._duty),
             'pins': self._gates(at),
             'pins_at': at,
             'deadtime_ns': self._deadtime_ns,

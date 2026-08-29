@@ -1404,3 +1404,34 @@ Two things this turned up:
 * `BOARD_CAL_PARAM_COUNT` is what op 0 walks. Adding an id without moving it
   is a field the board holds and never reports.
 
+## The supply tripped its OCP at 29.5 ns of dead time
+
+Measured 2026-08-29, and the first over-current this board has caused. Three
+legs at 50 %, dry - no motor, no load - with DTG 7 = 29.5 ns. A 30 s run and
+a 60 s run had already passed at the same setting; the trip came during a
+longer one.
+
+**Dry switching should draw almost nothing.** An over-current with no load is
+shoot-through: both FETs of a leg conducting through the dead time, which is
+the one thing the dead time exists to prevent and the 2EDL8034 has no
+interlock against.
+
+This is the arithmetic that 80 ns was fitted against, arriving:
+
+    59.4 ns worst-corner gate overlap + 6 ns TDMOFF ~ 65 ns needed
+
+29.5 ns is less than half of it. **The number was asked for and delivered;
+the trip is what says the arithmetic was not decoration.**
+
+Two things changed after it:
+
+* `Board_PwmSetDeadTime` ROUNDS UP. It truncated, so a request for 30 ns
+  became 7 counts of 29.5 - under what was asked for, in the one direction
+  that is unsafe. The floor beside it had rounded up since it was written,
+  for exactly this reason. 30 ns now lands on 8 counts = 33.7 ns.
+* The value is in the calibration record, so raising it is a write and a
+  reset rather than a rebuild.
+
+**Still under 65 ns, and nothing has been on a scope.** The trip is one data
+point at one duty on one supply.
+

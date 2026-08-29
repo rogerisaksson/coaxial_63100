@@ -111,7 +111,11 @@ class GateDrivers(Subsystem, GateControl):
         # Asked for, in ticks Q16.16, beside what the register holds this
         # period. With the dither running they differ by a tick most of the
         # time and that is the point, not a rounding.
-        out['requested'] = tuple(r.u32() / 65536.0 for _ in range(PHASES))
+        # TICKS, not a fraction: the board sends Q16.16 of a CCR count,
+        # so this is `requested_ticks` against `period`. Reading it as a
+        # duty drew 118700 % on a stage running at half.
+        out['requested_ticks'] = tuple(r.u32() / 65536.0
+                                       for _ in range(PHASES))
         # Six gate signals in one IDR load with TIM1->CNT beside it: six
         # separate asks at 50 kHz can straddle an edge and show a leg with
         # both FETs on, the one state dead time prevents.
