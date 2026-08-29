@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import scaling                                # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import TO_MENU, Keys, banner, paint, closing, say  # noqa: E402
+from screen import TO_MENU, Keys, closing, say  # noqa: E402
 
 ROTATION_VECTOR = 0x05
 
@@ -73,6 +73,7 @@ def start(rig, args):
     # The IMU only produces when a report is enabled, so a capture that did
     # not ask for one would show a source that looks broken rather than idle.
     try:
+        board.imu.settled()      # a feature before 'running' is refused
         # No reset first. The poll loop brings the part up on its own, and
         # a reset immediately before a Set Feature is what stops the feature
         # taking: the write's wake handshake runs its own reset when the
@@ -115,8 +116,11 @@ def analog_rows(layout, record, width, params=None):
             out.append(('  %-9s %12s' % (field['signal'], '-'))[:width])
             continue
         code = value // samples
+        # signal= is what picks the right divider: without it every
+        # millivolt channel fell back to the DC link's 23.68 and +5V read
+        # 60.4 V - measured, off this very view.
         convert = scaling.converter(field['unit'], field['differential'],
-                                    params=params)
+                                    signal=field['signal'], params=params)
         out.append('  %-9s %+7d  %+9.2f %s'
                    % (field['signal'], code, convert(code),
                       scaling.symbol(field['unit'],
@@ -152,37 +156,35 @@ def spi_rows(latest, rates, width):
 
 
 def compose(origin, console, layout, view, width):
-    """The whole frame, as a list of lines."""
+    """One frame on the stage: the task, its records, and the ring."""
+    from screen import hud, panels_of
+
     daq, ring = view['daq'], view['ring']
-    # A blank FIRST: paint addresses absolute rows from 1, so the
-    # banner would otherwise land under the shell's own status line - two,
-    # because one blank still left it covered -
-    # taking the LIVE/SIMULATED tag with it.
-    lines = ['', '', banner(origin, 'buffered capture', console,
-                    'Q closes, ESC for the menu'), '']
-    lines.append(' TASK  %s clock  dec %d%s  acc %d%s  st %d   %8.0f rec/s   '
-                 'buffered %d   dropped %d'
-                 % (daq['clock'], daq['decimate'], '',
-                    daq['accumulate'],
-                    '*' if daq['accumulate'] > view['asked'] else '',
-                    daq['sample_time'],
-                    view['daq_rate'].per_second(), daq['available'],
-                    daq['dropped']))
-    lines.append(' ' + '-' * max(10, width - 2))
-    analog = analog_rows(layout, view['record'], width, view['scaling'])
-    digital = digital_rows(layout, view['record'], width)
-    for i in range(max(len(analog), len(digital))):
-        left = analog[i] if i < len(analog) else ' ' * 36
-        right = digital[i] if i < len(digital) else ''
-        lines.append(('%-38s%s' % (left, right.strip() and right or ''))[:width])
-    lines += ['', ' RING  %s   buffered %d of %d   dropped %d   thinned %d%s'
-              % (', '.join(ring['sources']) or 'nothing armed',
-                 ring['count'], ring['depth'], ring['dropped'],
-                 ring.get('thinned', 0),
-                 '   missed %d' % view['missed'] if view['missed'] else ''),
-              ' ' + '-' * max(10, width - 2)]
-    lines += spi_rows(view['latest'], view['rates'], width)
-    return lines
+    task = hud('TASK', [
+        ('clock', str(daq['clock'])),
+        ('dec / acc / st', '%d / %d%s / %d'
+         % (daq['decimate'], daq['accumulate'],
+            '*' if daq['accumulate'] > view['asked'] else '',
+            daq['sample_time'])),
+        ('rate', '%.0f rec/s' % view['daq_rate'].per_second()),
+        ('buffered', '%d   dropped %d' % (daq['available'],
+                                          daq['dropped']))])
+
+    analog = hud('RECORD', analog_rows(layout, view['record'], width,
+                                       view['scaling']))
+    digital = hud('PINS', digital_rows(layout, view['record'], width))
+
+    ring_box = hud('RING', [
+        ('sources', ', '.join(ring['sources']) or 'nothing armed'),
+        ('buffered', '%d of %d' % (ring['count'], ring['depth'])),
+        ('dropped', '%d   thinned %d%s'
+         % (ring['dropped'], ring.get('thinned', 0),
+            '   missed %d' % view['missed'] if view['missed'] else ''))])
+    spi = hud('SPI PARTS', spi_rows(view['latest'], view['rates'], width))
+
+    return panels_of(console, origin, 'CAPTURE',
+                     [[task, analog, digital], [ring_box, spi]],
+                     (('Q', 'CLOSE'), ('ESC', 'MENU')))
 
 
 def drain(rig, layout, view):
@@ -302,7 +304,10 @@ def main(argv=None):
     parser.add_argument('--frames', type=int, default=0)
     args = parser.parse_args(argv)
 
-    rig = Coaxial63100(port=args.port,
+    # power_afe SAID: both parts in the ring and the converter's reference
+    # live behind AFE_ON, and the quiet-False default left all three dead -
+    # the daq refused, the view returned 1 and the menu read that as quit.
+    rig = Coaxial63100(port=args.port, power_afe=True,
                        simulated_device=bool(args.simulated)).open()
     origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
@@ -323,21 +328,20 @@ def main(argv=None):
             'dropped_was': 0, 'quiet': 0, 'missed': 0,
             'scaling': board.analog.scaling()}
 
-    console = sys.stdout.isatty()
-    if console and os.name == 'nt':
-        os.system('')
-    shown, leaving, frame = [], None, 0
+    from screen import curtain, stage
+
+    board_view = stage()
+    console = board_view.is_terminal
+    leaving, frame = None, 0
 
     try:
-        with Keys(console) as keys:
+        with curtain(board_view) as show, Keys(console) as keys:
             while True:
                 width = shutil_width()
                 drain(rig, layout, view)
                 layout = adapt(rig, layout, args, view)
-                lines = compose(origin, console, layout, view, width)
-                sys.stdout.write(paint(shown, lines, console))
-                sys.stdout.flush()
-                shown = lines
+                show.update(compose(origin, console, layout, view, width),
+                            refresh=True)
                 frame += 1
                 if args.frames and frame >= args.frames:
                     break
@@ -351,7 +355,8 @@ def main(argv=None):
         done = put_back(board)
         rig.close()
         done.append(('AFE_ON', 'back the way it was found'))
-        closing(done, console, len(shown))
+        sys.stdout.write('\n')
+        closing(done, console, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 

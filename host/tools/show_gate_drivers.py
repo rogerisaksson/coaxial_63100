@@ -31,7 +31,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100, scaling                   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
-from screen import TO_MENU, Keys, banner, paint, closing, say  # noqa: E402
+from screen import (ASH, SODIUM, TO_MENU, Keys,  # noqa: E402
+                    closing, say, tint)
 
 #: What R runs for, in seconds. Two floors, and the view reports both
 #: rather than hiding either: the board takes one conversion per main-loop
@@ -53,17 +54,20 @@ def gate_rows(state, width):
     rather than left for the reader to spot in a row of ones and zeros.
     """
     pins = state['pins']
-    out = ['  gates          high  low          TIM1->CNT %d of %d'
+    out = ['  gates - one IDR read, one instant          TIM1->CNT %d of %d'
            % (state['pins_at'], state['period'] - 1)]
     for name, high, low in LEGS:
         both = pins[high] and pins[low]
-        out.append('    phase %s      %s     %s      %s'
-                   % (name,
-                      '1' if pins[high] else '0',
-                      '1' if pins[low] else '0',
-                      'BOTH ON - shoot through' if both
-                      else ('off' if not (pins[high] or pins[low]) else '')))
-    return [line[:width] for line in out]
+        # A lamp each: lit is sodium, dark is ash - the row reads at a
+        # glance which half conducts, without decoding ones and zeros.
+        lamp = lambda on: (tint('[#]', SODIUM) if on
+                           else tint('[ ]', ASH))          # noqa: E731
+        out.append('    phase %s     H %s  L %s     %s'
+                   % (name, lamp(pins[high]), lamp(pins[low]),
+                      tint('BOTH ON - shoot through', SODIUM) if both
+                      else (tint('off', ASH)
+                            if not (pins[high] or pins[low]) else '')))
+    return out
 
 
 def analog_rows(live, layout, powered, refused, width, params=None):
@@ -78,11 +82,16 @@ def analog_rows(live, layout, powered, refused, width, params=None):
             '  no currents and no DC link: the board refused the task -',
             '  "%s"' % refused,
             '',
-            '  AFE_ON powers the converter reference, and on this bench',
-            '  board the same pin gated the other way is what gives the',
-            '  gate drivers their supply. Switching and measuring are',
-            '  mutually exclusive here until that is patched. --afe runs it',
-            '  the other way: real currents, unpowered drivers.']]
+            tint('  AFE_ON powers the converter reference, and on this '
+                 'bench', ASH),
+            tint('  board the same pin gated the other way is what gives '
+                 'the', ASH),
+            tint('  gate drivers their supply. Switching and measuring are',
+                 ASH),
+            tint('  mutually exclusive here until that is patched. --afe '
+                 'runs it', ASH),
+            tint('  the other way: real currents, unpowered drivers.',
+                 ASH)]]
 
     if not live or not live.get('mean'):
         return ['  no samples yet'[:width]]
@@ -256,34 +265,34 @@ def act(rig, key, view):
 
 
 def compose(rig, origin, console, view, layout, width):
-    """The whole frame."""
+    """One frame on the stage: stage state, gates and currents as boxes."""
+    from rich.text import Text
+
+    from screen import hud, panels_of
+
     state = view['gate_drivers']
-    # A blank FIRST: paint addresses absolute rows from 1, so the
-    # banner would otherwise land under the shell's own status line - two,
-    # because one blank still left it covered -
-    # taking the LIVE/SIMULATED tag with it.
-    lines = ['', '', banner(origin, 'gate_drivers', console,
-                    'Q closes, ESC for the menu'), '']
-    lines.append(' GATEDRIVERS  %-8s  break %-10s  dead time %d = %.1f ns  '
-                 'duty %.1f%% step %.1f%%'
-                 % ('ARMED' if state['pwm_enabled'] else 'idle',
-                    'OVERRIDDEN' if state['break_bypassed']
-                    else ('latched' if state['fault'] else 'clear'),
-                    state['deadtime'], view['deadtime_ns'],
-                    view['duty'] * 100.0, view['step'] * 100.0))
-    lines.append(' ' + '-' * max(10, width - 2))
-    lines += gate_rows(state, width)
-    lines.append(' ' + '-' * max(10, width - 2))
-    lines += analog_rows(view.get('live'), layout, state['afe_on'],
-                         view.get('refused'), width, view['scaling'])
-    lines.append(' ' + '-' * max(10, width - 2))
-    lines += run_rows(view, width)
-    lines += ['', ('  + -  duty   [ ]  step   A  arm   B  BKIN override   '
-                   'I  interlock %s   1 2 3 4  ms   R  run'
-                   % ('OFF' if view['override'] else 'on'))[:width]]
+    stage_box = hud('STAGE', [
+        Text.from_ansi(tint('ARMED', SODIUM) if state['pwm_enabled']
+                       else tint('idle', ASH)),
+        ('break', 'OVERRIDDEN' if state['break_bypassed']
+         else ('latched' if state['fault'] else 'clear')),
+        ('dead time', '%d = %.1f ns' % (state['deadtime'],
+                                        view['deadtime_ns'])),
+        ('duty', '%.1f %%   step %.1f %%'
+         % (view['duty'] * 100.0, view['step'] * 100.0))])
+    gates_box = hud('GATES', gate_rows(state, width))
+    currents = hud('CURRENTS',
+                   analog_rows(view.get('live'), layout, state['afe_on'],
+                               view.get('refused'), width, view['scaling']))
+    run_box = hud('RUN', run_rows(view, width))
+
+    keys = [('+ -', 'DUTY'), ('[ ]', 'STEP'), ('A', 'ARM'), ('B', 'BKIN'),
+            ('I', 'INTERLOCK %s' % ('OFF' if view['override'] else 'ON')),
+            ('1-4', 'MS'), ('R', 'RUN'), ('Q', 'CLOSE'), ('ESC', 'MENU')]
     if view.get('said'):
-        lines += ['', ('  ' + view['said'])[:width]]
-    return lines
+        keys.append(('', view['said']))
+    return panels_of(console, origin, 'GATE DRIVERS',
+                     [[stage_box, gates_box], [currents, run_box]], keys)
 
 
 def parse_args(argv):
@@ -360,13 +369,14 @@ def main(argv=None):
                            / (2.0 * (state['period'] - 1) * 50000.0),
             'scaling': board.analog.scaling()}
 
-    console = sys.stdout.isatty()
-    if console and os.name == 'nt':
-        os.system('')
-    shown, leaving, frame = [], None, 0
+    from screen import curtain, stage
+
+    board_view = stage()
+    console = board_view.is_terminal
+    leaving, frame = None, 0
 
     try:
-        with Keys(console) as keys:
+        with curtain(board_view) as show, Keys(console) as keys:
             while True:
                 try:
                     view['gate_drivers'] = board.gate_drivers.state()
@@ -376,10 +386,8 @@ def main(argv=None):
                     pass                    # a missed reply is a missed frame
 
                 width = shutil_width()
-                lines = compose(rig, origin, console, view, layout, width)
-                sys.stdout.write(paint(shown, lines, console))
-                sys.stdout.flush()
-                shown = lines
+                show.update(compose(rig, origin, console, view, layout,
+                                    width), refresh=True)
                 frame += 1
                 if args.frames and frame >= args.frames:
                     break
@@ -409,7 +417,8 @@ def main(argv=None):
         except RigError as exc:
             done.append(('putting it back', 'FAILED: %s' % exc))
         rig.close()
-        closing(done, console, len(shown))
+        sys.stdout.write('\n')
+        closing(done, console, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 

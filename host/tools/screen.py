@@ -67,6 +67,113 @@ DRAG_STEP = 0.02
 STATES = {'ok': '32', 'wait': '36', 'warn': '33', 'fail': '31'}
 
 
+# -- the motif -----------------------------------------------------------
+#
+# Blade Runner, not a christmas tree: a dark street with two light sources
+# and wet asphalt between them. Three roles, and nothing else gets a colour:
+#
+#   NEON    teal 44     the chrome that NAMES things - titles, rules
+#   SODIUM  amber 214   the value that matters right now - armed, hot, held
+#   ASH     grey 242    frame lines, key hints, the street itself
+#
+# Meaning colours stay what they always were - green LIVE, yellow SIMULATED,
+# red fault. The motif dresses the frame; it never carries the verdict.
+#
+# Colour is applied at assembly and STRIPPED AT THE DOOR: paint() and say()
+# drop the escapes when stdout is not a console, so the blocks can tint
+# freely without threading a console flag through every builder.
+
+NEON = 44
+SODIUM = 214
+ASH = 242
+
+_SGR = re.compile(chr(27) + r'\[[0-9;]*m')
+
+
+def plain(text):
+    """`text` with every SGR escape removed - what the eye would count."""
+    return _SGR.sub('', text)
+
+
+def visible(text):
+    return len(plain(text))
+
+
+def tint(text, colour):
+    """`text` in one of the motif's colours. Stripped at the door if piped."""
+    return '%s[38;5;%dm%s%s[0m' % (chr(27), colour, text, chr(27))
+
+
+#: The corner registration cross, three rows tall - the mark the Nostromo
+#: screens put in every dead corner of a viewport. Stamped, not drawn: it
+#: lands only where the field is empty, so a drawing that reaches a corner
+#: simply keeps it.
+CROSS = ('  │  ', ' ─┼─ ', '  │  ')
+
+
+def stamp_crosses(lines, width, inset=2):
+    """Registration crosses in the four corners of a field of `lines`.
+
+    `width` is the field's visible width - lines are padded to it, so the
+    right-hand crosses land in margin that exists whether or not the line
+    was rstripped. A cell is only written where it holds a plain space,
+    which keeps the mark off the drawing and off its colours.
+    """
+    if len(lines) < 8 or width < 24:
+        return lines
+
+    out = [line + ' ' * max(0, width - visible(line)) for line in lines]
+
+    tall = len(CROSS)
+    for top in (inset - 1, len(out) - inset - tall + 1):
+        for left in (inset, width - inset - len(CROSS[0])):
+            rows = range(max(0, top), min(len(out), top + tall))
+            # ALL OR NOTHING: a cross that loses a row to the drawing is
+            # not a mark, it is debris - so the whole corner yields if any
+            # of its cells are taken.
+            clear = all(
+                out[r][left:left + len(CROSS[0])] == ' ' * len(CROSS[0])
+                for r in rows) and len(rows) == tall
+            if not clear:
+                continue
+            for i, bit in enumerate(CROSS):
+                line = out[top + i]
+                out[top + i] = line[:left] + bit + line[left + len(bit):]
+    return [tint(line, NEON) if line.strip() and set(line) <= set(' |-+│─┼')
+            else line for line in out]
+
+
+def keysline(pairs):
+    """The bottom help line: `KEY: what` pairs, terminal style."""
+    return '  ' + tint('  |  ', ASH).join(
+        '%s%s %s' % (tint(key, NEON), tint(':', ASH), tint(what, ASH))
+        for key, what in pairs)
+
+
+# -- the console renderer -------------------------------------------------
+# Defined in tools/stage.py: the THEME with every named style, and the
+# renderer built around it. Re-exported here because every view already
+# imports its screen machinery from this module.
+from stage import (THEME, chip, curtain, footer, frame_of,    # noqa: E402,F401
+                   header, hud, panels_of, stage, viewport)
+
+# Re-exported for the views, which import their screen machinery here:
+# THEME chip curtain footer frame_of header hud panels_of stage viewport
+
+
+def gauge(fraction, width, hot=0.85):
+    """A meter in the motif: filled cells, ash rest, sodium past `hot`.
+
+    The glyphs are ASCII on purpose - the session may run on a console
+    that was never put in UTF-8, and a meter that half-renders is worse
+    than a plain one.
+    """
+    fraction = max(0.0, min(1.0, fraction))
+    filled = int(round(fraction * width))
+    bar = '=' * filled + tint('-' * (width - filled), ASH)
+    return tint(bar, SODIUM) if fraction >= hot else bar
+
+
 def say(state, text, detail=''):
     """One preflight line, the shape board_prompt.ps1 prints.
 
@@ -396,9 +503,17 @@ def banner(origin, title, console, detail=''):
             tag = ' LIVE  %d session%s ' % (count, '' if count == 1 else 's')
 
     if not console:
-        return '%s  %s   %s' % (tag.strip(), title, detail)
-    return ('%s[%sm%s%s[0m  %s[97m%s%s[0m   %s[90m%s%s[0m'
-            % (esc, colour, tag, esc, esc, title, esc, esc, detail, esc))
+        return ('%s  %s   %s' % (tag.strip(), title, detail)).rstrip()
+    # The title in the motif's neon, the detail in ash. The tag keeps its
+    # meaning colours - green LIVE, yellow SIMULATED - untouched. Nothing
+    # is emitted for an empty part: a tail of blank escape pairs put
+    # invisible width after the chip, and the row read as off-centre.
+    out = '%s[%sm%s%s[0m' % (esc, colour, tag, esc)
+    if title:
+        out += '  %s[38;5;44m%s%s[0m' % (esc, title, esc)
+    if detail:
+        out += '   %s[38;5;242m%s%s[0m' % (esc, detail, esc)
+    return out
 
 
 def paint(shown, lines, console):
@@ -410,7 +525,7 @@ def paint(shown, lines, console):
     along with the drawing they are not part of.
     """
     if not console:
-        return '\n'.join(lines) + '\n'
+        return '\n'.join(plain(line) for line in lines) + '\n'
 
     out = []
     for row in range(max(len(shown), len(lines))):

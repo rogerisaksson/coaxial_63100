@@ -28,6 +28,8 @@ and calls `updateLightPosition`. See LIGHT_DIRECTION.
 """
 import math
 
+from . import ansi
+
 #: AsciiEffect's default ramp, darkest first.
 CHARACTERS = ' .:-+*=%@#'
 
@@ -275,12 +277,17 @@ def _project(positions, matrix, distance, scale, cx, cy):
 
 
 def rasterise(model, matrix, distance, scale, cx, cy, cols, top, bottom,
-              lamp, cull=CULLING):
+              lamp, cull=CULLING, tints=None, who=None):
     """(depth, value) for framebuffer rows `top` up to `bottom`.
 
     A band, so the frame can be cut into strips and drawn by several
     processes at once - see `coaxial.farm`. The buffers returned are the
     band's own size, indexed from `top`. See BAND_FIRST.
+
+    `tints` is a colour per TRIANGLE and `who` a caller-provided buffer the
+    winning triangle's colour lands in, offset by one so zero stays empty.
+    Orthogonal to the shading: the light says how bright a cell is, the
+    tint says what part it belongs to.
     """
     positions, indices, normals = model
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = matrix
@@ -373,40 +380,59 @@ def rasterise(model, matrix, distance, scale, cx, cy, cols, top, bottom,
             if near > depth[at]:
                 depth[at] = near
                 value[at] = lit
+                if who is not None:
+                    who[at] = tints[tri] + 1
             continue
 
-        inv = 1.0 / area
-        e0x, e0y = x2 - x1, y2 - y1
-        e1x, e1y = x0 - x2, y0 - y2
-        e2x, e2y = x1 - x0, y1 - y0
-
-        for py in range(first, last):
-            row = (py - top) * cols
-            dy1, dy2, dy0 = py - y1, py - y2, py - y0
-            for px in range(left, right):
-                w0 = (e0x * dy1 - e0y * (px - x1)) * inv
-                if w0 < 0.0:
-                    continue
-                w1 = (e1x * dy2 - e1y * (px - x2)) * inv
-                if w1 < 0.0:
-                    continue
-                w2 = (e2x * dy0 - e2y * (px - x0)) * inv
-                if w2 < 0.0:
-                    continue
-                # 1/z is linear in screen space, so this interpolation is
-                # exact rather than the usual affine approximation.
-                here = w0 * oa + w1 * ob + w2 * og
-                if here <= depth[row + px]:
-                    continue
-                depth[row + px] = here
-                value[row + px] = lit
+        _fill(depth, value, who,
+              None if who is None else tints[tri] + 1, lit,
+              (x0, y0, x1, y1, x2, y2, oa, ob, og), area,
+              first, last, left, right, top, cols)
 
     return depth, value
 
 
+def _fill(depth, value, who, wear, lit, tri, area,
+          first, last, left, right, top, cols):
+    """One non-tiny triangle into the band's buffers.
+
+    Split from rasterise for length, at the cheap seam: 74% of what the
+    photographic mesh draws is sub-pixel and never reaches this call.
+    """
+    x0, y0, x1, y1, x2, y2, oa, ob, og = tri
+    inv = 1.0 / area
+    e0x, e0y = x2 - x1, y2 - y1
+    e1x, e1y = x0 - x2, y0 - y2
+    e2x, e2y = x1 - x0, y1 - y0
+
+    for py in range(first, last):
+        row = (py - top) * cols
+        dy1, dy2, dy0 = py - y1, py - y2, py - y0
+        for px in range(left, right):
+            w0 = (e0x * dy1 - e0y * (px - x1)) * inv
+            if w0 < 0.0:
+                continue
+            w1 = (e1x * dy2 - e1y * (px - x2)) * inv
+            if w1 < 0.0:
+                continue
+            w2 = (e2x * dy0 - e2y * (px - x0)) * inv
+            if w2 < 0.0:
+                continue
+            # 1/z is linear in screen space, so this interpolation is
+            # exact rather than the usual affine approximation.
+            here = w0 * oa + w1 * ob + w2 * og
+            if here <= depth[row + px]:
+                continue
+            depth[row + px] = here
+            value[row + px] = lit
+            if who is not None:
+                who[row + px] = wear
+
+
 def render(model, matrix, width, height, distance=None, ramp=CHARACTERS,
            invert=True, supersample=SUPERSAMPLE, zoom=1.0, centre=None,
-           light=None, aspect=CELL_ASPECT, cull=CULLING):
+           light=None, aspect=CELL_ASPECT, cull=CULLING, ink=None,
+           tints=None, ink_colour=None):
     """`model` under `matrix`, as `height` lines of `width` characters.
 
     `model` is (positions, indices, normals): three floats per distinct
@@ -424,37 +450,130 @@ def render(model, matrix, width, height, distance=None, ramp=CHARACTERS,
         model, matrix, width, height, distance, zoom, supersample, aspect,
         centre)
 
+    who = [0] * (rows * cols) if tints is not None else None
     depth, value = rasterise(model, matrix, distance, scale, cx, cy, cols,
                              0, rows, light if light else light_position(),
-                             cull)
+                             cull, tints=tints, who=who)
     return resolve(depth, value, width, height, cols, cell_rows,
-                    supersample, ramp, invert)
+                    supersample, ramp, invert, ink=ink, who=who,
+                    ink_colour=ink_colour)
+
+
+#: Relative 1/z step between neighbouring CELLS that reads as an edge.
+#: Tuned by eye on the 28-cell toon mesh: at 0.03 nearly every cell of the
+#: snapped geometry bordered a step and the picture was all outline; 0.10
+#: keeps the silhouette and the tall parts and lets the faces be faces.
+INK_STEP = 0.10
 
 
 def resolve(depth, value, width, height, cols, cell_rows, supersample,
-             ramp, invert):
+             ramp, invert, ink=None, who=None, ink_colour=None):
     """The framebuffer down to characters, averaging each cell.
 
     Averaging rather than AsciiEffect's single sample per cell: it reads one
     pixel of a canvas the GPU already filled and anti-aliased. A cell part
     covered averages only what covered it, which keeps an edge an edge
     instead of fading it into the background.
+
+    `ink` is a character: a covered cell on a depth edge - against the
+    background, or a 1/z step past INK_STEP against a neighbour - draws it
+    instead of its shade. That one overlay is what turns shading into a
+    DRAWING: every raised part gets an outline, for four comparisons a cell.
     """
     background = ramp[0] if invert else ramp[-1]
-    lines = []
 
+    # Per cell first: mean shade and nearest depth, so the ink test is cell
+    # against cell rather than pixel against pixel.
+    cells = width * height
+    shade = [0.0] * cells
+    near = [0.0] * cells
+    paintbox = [0] * cells if who is not None else None
     for r in range(height):
-        line = []
+        row = r * width
         for c in range(width):
             total = seen = 0
+            deep = 0.0
+            wore = 0
             for dr in range(cell_rows):
                 base = (r * cell_rows + dr) * cols + c * supersample
                 for dc in range(supersample):
-                    if depth[base + dc]:
+                    d = depth[base + dc]
+                    if d:
                         total += value[base + dc]
                         seen += 1
-            line.append(brightness_char(total / seen, ramp, invert)
-                        if seen else background)
-        lines.append(''.join(line).rstrip())
+                        if d > deep:
+                            deep = d
+                            if who is not None:
+                                wore = who[base + dc]
+            if seen:
+                shade[row + c] = total / seen
+                near[row + c] = deep
+                if paintbox is not None:
+                    paintbox[row + c] = wore
+
+    # The posterised band per cell, for the crease test: a component's side
+    # is 2+ bands from its lit top whatever the depth noise says, which is
+    # what lets the ink find parts the z-buffer cannot separate.
+    steps = len(ramp) - 1
+    band = [0] * cells
+    if ink is not None:
+        for at in range(cells):
+            if near[at]:
+                b = 1.0 - shade[at] if invert else shade[at]
+                band[at] = int((1.0 - b) * steps)
+
+    lines = []
+    for r in range(height):
+        cells_out = []
+        row = r * width
+        for c in range(width):
+            at = row + c
+            if not near[at]:
+                cells_out.append((background, None))
+            elif ink is not None and _inked(near, band, at, c, r,
+                                            width, height):
+                cells_out.append((ink, ink_colour))
+            else:
+                cells_out.append((brightness_char(shade[at], ramp, invert),
+                                  paintbox[at] - 1
+                                  if paintbox is not None and paintbox[at]
+                                  else None))
+        while cells_out and cells_out[-1] == (background, None):
+            cells_out.pop()
+        if paintbox is None:
+            lines.append(''.join(ch for ch, _ in cells_out))
+        else:
+            lines.append(ansi.run(cells_out))
 
     return '\n'.join(lines)
+
+
+def _inked(near, band, at, c, r, width, height):
+    """Whether the covered cell at `at` sits on an edge worth inking.
+
+    Three edges, in the order they are decisive: silhouette against the
+    background, a depth step past INK_STEP, a crease - the posterised shade
+    jumping two or more bands, which is a component's side against its lit
+    top. The crease is what the z-buffer cannot see on the toon mesh: a
+    part stands millimetres off a board seen from four units away, the same
+    magnitude as the clustering noise.
+    """
+    here = near[at]
+    mine = band[at]
+    for other in ((at - 1) if c > 0 else -1,
+                  (at + 1) if c + 1 < width else -1,
+                  (at - width) if r > 0 else -1,
+                  (at + width) if r + 1 < height else -1):
+        if other < 0:
+            continue                   # the frame clips; that is not an edge
+        there = near[other]
+        if not there:
+            return True                # silhouette against background
+        # One-sided on purpose: only the NEARER cell of a step carries the
+        # line, so an outline is one cell wide instead of two.
+        if here - there > INK_STEP * here:
+            return True
+        jump = mine - band[other]
+        if jump >= 2 or jump <= -2:
+            return True
+    return False

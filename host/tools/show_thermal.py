@@ -21,7 +21,8 @@ import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import TO_MENU, Keys, banner, paint, closing, say  # noqa: E402
+from screen import (ASH, NEON, SODIUM, TO_MENU,  # noqa: E402
+                    Keys, banner, closing, gauge, say, stamp_crosses, tint, visible)
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
@@ -48,7 +49,6 @@ FOOT_LINES = 2
 TRAILING = 1
 
 #: What ESC and Q do. ESC returns TO_MENU so demo.ps1 draws its menu again.
-KEYS = 'Q closes     ESC back to the menu'
 
 
 def summary(state):
@@ -90,16 +90,69 @@ def budget_line(got):
     ceiling beside it - so the board sends the fraction and this draws it.
     """
     used, worst = got['worst'], pretty(got['worst_node'])
-    width = 24
-    full = int(round(max(0.0, min(1.0, used)) * width))
-    bar = ('#' * full) + ('.' * (width - full))
     left = got['seconds_to_limit']
 
-    where = ('tripped' if got['tripped']
-             else 'THROTTLING' if got['throttling'] else 'ok')
-    return '  [%s] %3.0f %% %-11s %-10s %s' % (
-        bar, 100.0 * used, worst, where,
-        ('%.1f s to limit' % left) if left is not None else 'not heating')
+    # The gauge turns sodium at 0.85 - where the board itself would start
+    # throttling - and the verdict words wear the state they carry.
+    where = (tint('tripped', SODIUM) if got['tripped']
+             else tint('THROTTLING', SODIUM) if got['throttling']
+             else tint('ok', ASH))
+    return '  [%s] %3.0f %% %s %s %s' % (
+        gauge(used, 24), 100.0 * used, tint('%-11s' % worst, NEON), where,
+        tint(('%.1f s to limit' % left) if left is not None
+             else 'not heating', ASH))
+
+
+#: The status panel's field width, map margin included. Fixed, so the map
+#: never breathes when a number changes length.
+PANEL_W = 38
+
+
+def status_boxes(state, budget):
+    """The observer's numbers as instrument boxes, every one the board's."""
+    from rich.text import Text
+
+    from screen import hud
+
+    age = state.get('seen_s_ago')
+    every = state.get('sample_every_s') or 0.0
+    fresh = state['ntc'] is not None and (
+        age is None or every <= 0.0 or age <= 2.0 * every)
+
+    if state['ntc'] is None:
+        sense = [Text('AFE off - open loop', style='value')]
+    elif not fresh:
+        sense = [('NTC', '%.1f C' % state['ntc']),
+                 Text('%.0f s old - open loop' % age, style='value')]
+    else:
+        sense = [('NTC', '%.1f C   err %+.2f K'
+                  % (state['ntc'], state['error']))]
+    sense += [('open', '%d s   %s' % (state['seconds'],
+                                      'settled' if state['settled']
+                                      else 'settling')),
+              ('sample', 'every %.0f s - last %s'
+               % (every, '%.0f s ago' % age if age is not None else '-'))]
+
+    boxes = [hud('SENSE', sense)]
+    if budget is not None:
+        left = budget['seconds_to_limit']
+        state_text = ('TRIPPED' if budget['tripped']
+                      else 'THROTTLING' if budget['throttling'] else 'ok')
+        boxes.append(hud('BUDGET', [
+            Text.from_ansi('[%s] %3.0f %%' % (gauge(budget['worst'], 16),
+                                              100.0 * budget['worst'])),
+            ('worst', Text.assemble(
+                (pretty(budget['worst_node']), 'name'), '   ',
+                (state_text, 'value' if state_text != 'ok' else 'label'))),
+            ('to limit', ('%.0f s' % left) if left is not None
+             else 'not heating')]))
+    boxes.append(hud('LEVELS', [
+        ('ambient', '%.1f C' % (state.get('ambient') or 0.0)),
+        ('mcu die', '%.1f C' % state['mcu']
+         if state.get('mcu') is not None else '-'),
+        ('afe die', '%.1f C' % state['afe']
+         if state.get('afe') is not None else '-')]))
+    return boxes
 
 
 def picture(state, console, reserve):
@@ -110,7 +163,7 @@ def picture(state, console, reserve):
         return ['  the board sent no board node - device 8 is out of step']
 
     zones = {k: v for k, v in nodes.items() if k != 'board'}
-    return render(zones, board_c=board_c, colour=console,
+    return render(zones, board_c=board_c, colour=console, margin=PANEL_W,
                   reserve=reserve, trailing=TRAILING).split('\n')
 
 
@@ -151,42 +204,52 @@ def main():
                 % ('+'.join(legs), a.switch * 100))
 
         console = sys.stdout.isatty()
-        if console:
-            if os.name == 'nt':
-                os.system('')           # enables ANSI on a Windows console
-            sys.stdout.write(chr(27) + '[2J')
+        from screen import curtain, frame_of, stage
+
+        board_view = stage()
+        console = board_view.is_terminal
 
         period = 1.0 / max(a.hz, 0.2)
         # Everything in the frame that is not picture, so `render` can size
         # the board to what is left. Counted, not guessed - a guess is what
         # clipped the bottom edge off.
         reserve = HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
-        frame, shown, leaving = 0, [], None
-        body, note = ['  waiting for device 8'], 'starting'
-        spend = '  budget: waiting'
+        frame, leaving = 0, None
+        body, boxes = ['  waiting for device 8'], []
 
         try:
-            with Keys(console) as keys:
+            with curtain(board_view) as live, Keys(console) as keys:
                 while True:
                     try:
                         got = rig.board.thermal.state()
-                        note = summary(got)
-                        spend = budget_line(rig.board.thermal.budget())
+                        boxes = status_boxes(got, rig.board.thermal.budget())
                         body = picture(got, console, reserve)
-                    except (NoReplyError, RigError) as exc:
-                        # Keep the last good picture: the link goes quiet now
-                        # and then (FINDINGS), and blanking the board every
-                        # time it does makes the view unreadable.
-                        note = 'link quiet: %s' % exc
+                    except (NoReplyError, RigError):
+                        # Keep the last good picture: the link goes quiet
+                        # now and then (FINDINGS), and blanking the board
+                        # every time it does makes the view unreadable.
+                        pass
 
                     frame += 1
-                    lines = (['', '', banner(origin, 'thermal - observer',
-                                         console, origin.label),
-                              '', '  ' + note, spend, '']
-                             + body + ['  ' + KEYS, ''])
-                    sys.stdout.write(paint(shown, lines, console))
-                    sys.stdout.flush()
-                    shown = lines
+                    # A GUTTER each side, because this map fills its own
+                    # corners - the reference crosses live in dead margin,
+                    # so the margin is made rather than hoped for. The
+                    # scale rides inside the frame, out of the stamp.
+                    field = max((visible(l) for l in body), default=0) + 12
+                    scale_rows = SCALE_LINES + TRAILING + 1
+                    if len(body) > scale_rows:
+                        art = stamp_crosses(
+                            ['      ' + l for l in body[:-scale_rows]],
+                            field)
+                        art += ['      ' + l for l in body[-scale_rows:]]
+                    else:
+                        art = body
+
+                    live.update(frame_of(
+                        board_view, origin, 'THERMAL OBSERVER',
+                        '\n'.join(art), boxes,
+                        (('Q', 'CLOSE'), ('ESC', 'MENU')),
+                        extra=origin.label), refresh=True)
 
                     if a.frames and frame >= a.frames:
                         break
@@ -214,7 +277,8 @@ def main():
             else:
                 done.append(('AFE_ON', 'untouched - this run only watched'))
                 done.append(('gate stage', 'untouched, nothing was armed'))
-            closing(done, console, len(shown))
+            sys.stdout.write('\n')
+            closing(done, console, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 

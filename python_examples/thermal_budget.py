@@ -31,9 +31,10 @@ DUTY = 0.50
 
 device = Coaxial63100(port='COM4', power_afe=False,
                       simulated_device=SIMULATED)
-device.open()
 observer = device.thermal        # the model runs on the board, not here
+observer.open()
 print(device)
+print(observer)
 
 # %% [markdown]
 # ## What the ceilings are, and which of them is measured

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Pick one of the board's live views.
 
@@ -44,7 +44,7 @@
     .\demo.ps1 adc -Simulated -Frames 3
 #>
 param(
-    [ValidateSet('session', 'watch', 'imu', 'angle', 'adc', 'capture',
+    [ValidateSet('session', 'imu', 'angle', 'adc', 'capture',
                  'gate_drivers', 'thermal')]
     [string]$Name,
     [string]$Port = 'COM4',
@@ -54,13 +54,15 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
+# The frames are box drawing; a console left on the OEM codepage prints
+# them as mojibake. Same line board_prompt.ps1 runs, for the same reason.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 # The session first, because it is what most runs want and what the number
 # keys land on. Script $null marks it: it is not one of demos/, it IS demos.
 $Views = [ordered]@{
     'session' = @{ Script = $null
                  What   = 'one dash: analog, thermals, bridges, DIO, IMU, angle' }
-    'watch'   = @{ Script = $null; Watch = $true
-                 What   = 'look into a session already running - no port taken' }
     'imu'   = @{ Script = 'imu.ps1'
                  What   = 'board attitude, drawn from the STL the IMU turns' }
     'angle' = @{ Script = 'angle.ps1'
@@ -110,8 +112,12 @@ function Read-Choice {
 }
 
 function Read-View($Views) {
+    # The reference screens: a solid title bar, every entry in one outlined
+    # box, the keys spelled out on the bottom line. The console's 16
+    # colours stand in for the motif - Cyan for neon, DarkGray for ash.
     Write-Host ''
-    Write-Host '  coaxial_63100 - live views' -ForegroundColor White
+    Write-Host ' COAXIAL 63100 // LIVE VIEWS                                               ' `
+        -ForegroundColor Black -BackgroundColor DarkCyan
     Write-Host ''
 
     # The name column is as wide as the longest name, not a number typed in
@@ -120,17 +126,30 @@ function Read-View($Views) {
     $keys = @($Views.Keys)
     $width = ($keys | Measure-Object -Property Length -Maximum).Maximum + 3
     $name = '{0,-' + $width + '}'
+    $inner = 74
 
+    Write-Host (' ┌' + ('─' * $inner) + '┐') -ForegroundColor DarkGray
     for ($i = 0; $i -lt $keys.Count; $i++) {
         $key = $keys[$i]
-        Write-Host ('    {0}   ' -f ($i + 1)) -NoNewline -ForegroundColor Cyan
+        Write-Host ' │' -NoNewline -ForegroundColor DarkGray
+        Write-Host ('  {0}  ' -f ($i + 1)) -NoNewline -ForegroundColor Cyan
         Write-Host ($name -f $key) -NoNewline -ForegroundColor White
-        Write-Host $Views[$key].What -ForegroundColor DarkGray
+        $what = $Views[$key].What
+        $lead = 5 + $width
+        if ($lead + $what.Length -gt $inner) {
+            $what = $what.Substring(0, $inner - $lead)
+        }
+        Write-Host $what -NoNewline -ForegroundColor DarkGray
+        Write-Host ((' ' * [Math]::Max(0, $inner - $lead - $what.Length)) + '│') `
+            -ForegroundColor DarkGray
     }
+    Write-Host (' └' + ('─' * $inner) + '┘') -ForegroundColor DarkGray
 
     Write-Host ''
-    Write-Host '    q   ' -NoNewline -ForegroundColor Cyan
-    Write-Host 'quit' -ForegroundColor DarkGray
+    Write-Host (' 1-{0}' -f $keys.Count) -NoNewline -ForegroundColor Cyan
+    Write-Host ': SELECT  |  ' -NoNewline -ForegroundColor DarkGray
+    Write-Host 'Q' -NoNewline -ForegroundColor Cyan
+    Write-Host ': EXIT' -ForegroundColor DarkGray
     Write-Host ''
     Write-Host '  which ' -NoNewline
 
@@ -190,12 +209,20 @@ do {
     if (-not $Views[$view].Script) {
         Push-Location (Join-Path $PSScriptRoot 'host')
         $argv = @('tools/demos.py', '--port', $Port)
-        if ($Views[$view].Watch) { $argv += '--watch' }
         if ($Simulated) { $argv += '--simulated' }
         if ($Frames -gt 0) { $argv += @('--frames', $Frames) }
         & python @argv
         $code = $LASTEXITCODE
         Pop-Location
+        if ($code -ne 0 -and $code -ne $TO_MENU) {
+            Write-Host ''
+            Write-Host ('  {0} exited {1} - its last lines above say why' `
+                -f $view, $code) -ForegroundColor DarkYellow
+            Write-Host '  any key for the menu ' -NoNewline -ForegroundColor DarkGray
+            try { [void][Console]::ReadKey($true) } catch { }
+            Write-Host ''
+            $code = $TO_MENU
+        }
         continue
     }
 
@@ -207,6 +234,19 @@ do {
 
     & powershell @call
     $code = $LASTEXITCODE
+
+    # A view that FAILED comes back here, with its refusal still on screen -
+    # ending the whole chooser over one view's preflight turned 'AFE was
+    # off' into 'the menu quit on me'. Only Q (0) and a dead console leave.
+    if ($code -ne 0 -and $code -ne $TO_MENU) {
+        Write-Host ''
+        Write-Host ('  {0} exited {1} - its last lines above say why' `
+            -f $view, $code) -ForegroundColor DarkYellow
+        Write-Host '  any key for the menu ' -NoNewline -ForegroundColor DarkGray
+        try { [void][Console]::ReadKey($true) } catch { }
+        Write-Host ''
+        $code = $TO_MENU
+    }
 } while ($code -eq $TO_MENU)
 
 # The other way out: a view closed with Q rather than coming back here. It

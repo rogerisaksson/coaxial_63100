@@ -23,8 +23,9 @@ SIMULATED = False
 DUTY = 0.25
 
 device = Coaxial63100(port='COM4', simulated_device=SIMULATED, power_afe=False)
-device.open()
 stage = device.gates             # the arming policy lives here
+daq = device.daq                 # and the acquisition front door
+stage.open()
 print(device)
 print(stage)
 
@@ -45,8 +46,8 @@ print('DTG %d, period %d ticks' % (state['deadtime'], state['period']))
 # %%
 device.write(digital={'AFE_ON': True})            # currents real, no drive
 time.sleep(0.3)
-device.configure(accumulate=8, digital=False)
-device.start()
+daq.configure(accumulate=8, digital=False)
+daq.start()
 
 # %% [markdown]
 # ## Arm, then set a duty
@@ -82,10 +83,10 @@ for leg in ('U', 'V', 'W'):
 # instrument - invariant 7. The ripple beside them is real either way.
 
 # %%
-live = device.latest()
+live = daq.latest()
 params = device.analog.scaling()      # the board's record, not this file's
 units = {f['signal']: (f['unit'], f['differential'])
-         for f in device.layout['fields']}
+         for f in daq.layout['fields']}
 for name in ('Phase U', 'Phase V', 'Phase W', 'DC bus', '+5V', 'Vgate'):
     unit, diff = units[name]
     to = scaling.converter(unit, diff, signal=name,   # three mV channels,
@@ -101,25 +102,22 @@ for name in ('Phase U', 'Phase V', 'Phase W', 'DC bus', '+5V', 'Vgate'):
 # because the run ends. Start and stop are a round trip each, about 15 ms,
 # so an ask under that is bounded by the link and the stamps say so.
 #
-# This is the one place the example reaches past the front door to the raw
-# ops: `records=` and `interval_us=` are burst vocabulary `device.configure`
-# does not carry. The layout comes back from the call and is used for THIS
-# task - `device.layout` still describes the front door's, and parsing one
-# task's records with another task's layout is the mistake the stashed copy
-# exists to prevent.
+# Through the front door, `records=` and `interval_us=` included - they are
+# passed through to the raw ops, so the burst keeps the door's layout
+# handling and the sample counting instead of re-deriving either. The raw
+# vocabulary itself still lives at `device.board.daq`.
 
 # %%
-device.stop()
-burst = device.daq.configure([f['signal'] for f in device.layout['fields']],
-                             digital=False, accumulate=1, records=512,
-                             interval_us=0)
-device.start()
+daq.stop()
+daq.configure([f['signal'] for f in daq.layout['fields']],
+              digital=False, accumulate=1, records=512, interval_us=0)
+daq.start()
 time.sleep(0.100)
-device.stop()
+daq.stop()
 
 got = []                                   # read() is one reply, not the lot
 while True:
-    batch = device.daq.acquire(layout=burst)
+    batch = daq.acquire()
     if not batch:
         break
     got.extend(batch)
@@ -127,7 +125,7 @@ while True:
 span = (got[-1]['at'] - got[0]['at']) / 475e6 if len(got) > 1 else 0.0
 print('%d records over %.3f ms, %.0f us apart, %d dropped'
       % (len(got), span * 1e3, span * 1e6 / max(1, len(got) - 1),
-         device.state()['dropped']))
+         daq.state()['dropped']))
 
 # %%
 stage.disarm()

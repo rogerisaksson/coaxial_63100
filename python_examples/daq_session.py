@@ -7,13 +7,12 @@
 #
 #     configure -> start -> acquire ... -> stop
 #
-# and it lives ON THE DEVICE. The box is a data acquisition system, so the
-# front door to acquiring is the device itself - it owns what the raw ops
-# cannot: it stops before reconfiguring, keeps the layout, and puts real
-# times and the sample count on every record. `device.daq` underneath is
-# the raw ops, the way `stage.control` sits under the arming policy; the
-# burst in `gate_drivers_session` is what reaching down looks like, and
-# why: `records=` and `interval_us=` are vocabulary only the raw ops carry.
+# and it lives behind `device.daq`, the acquisition FRONT DOOR: the same
+# vocabulary the device owns - it stops before reconfiguring, keeps the
+# layout, and puts real times and the sample count on every record - as a
+# handle you can bind before open() and open through, so a script reads
+# subsystem-first the way the sensor examples do. The raw ops sit at
+# `device.board.daq`, the way `stage.control` sits under the arming policy.
 #
 # `write` is not part of the lifecycle. It sets an output pin and has
 # nothing to do with the acquisition, which is why it sits after `start`
@@ -34,8 +33,10 @@ BLOCKS = 20
 
 device = Coaxial63100(port='COM4', baud=115200,
                       simulated_device=SIMULATED, power_afe=True)
-device.open()
+daq = device.daq
+daq.open()
 print(device)
+print(daq)
 
 # %% [markdown]
 # ## Clock
@@ -51,8 +52,8 @@ print(device.set_time_from_pc())
 # `rate_hz=None` lets the board pick what the link carries.
 
 # %%
-device.configure(['Phase U', 'NTC'], rate_hz=None, accumulate=8, digital=True)
-device.start()
+daq.configure(['Phase U', 'NTC'], rate_hz=None, accumulate=8, digital=True)
+daq.start()
 
 # %% [markdown]
 # ## While it runs
@@ -62,8 +63,8 @@ device.start()
 # drivers, so it is not in this example.
 
 # %%
-print('in :', device.channels())
-print('out:', device.outputs())
+print('in :', daq.channels())
+print('out:', daq.outputs())
 print(device.write(digital={'UART5_TERM': False}))
 
 # %% [markdown]
@@ -81,7 +82,7 @@ ntc = device.analog.scaling()['ntc']
 print('scaling from:', ntc.name)
 
 for n in range(1, BLOCKS + 1):
-    block = device.acquire()
+    block = daq.acquire()
     if not block:
         continue
     r = block[-1]
@@ -98,9 +99,9 @@ for n in range(1, BLOCKS + 1):
 # would wrap it and a wrapped sum divided by its count is not a mean.
 
 # %%
-live = device.latest()
+live = daq.latest()
 params = device.analog.scaling()
-units = {f['signal']: f for f in device.layout['fields']}
+units = {f['signal']: f for f in daq.layout['fields']}
 
 for name in live['mean']:
     f = units[name]
@@ -111,6 +112,6 @@ for name in live['mean']:
              scaling.symbol(f['unit'], name), live['count'][name]))
 
 # %%
-device.stop()
-print(device.state())
+daq.stop()
+print(daq.state())
 device.close()

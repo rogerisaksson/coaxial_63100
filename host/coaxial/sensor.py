@@ -27,6 +27,24 @@ class PolledSensor(ABC):
         return ('<%s - the board polls it; state() reads that record, '
                 'hold() takes the bus>' % type(self).__name__)
 
+    def settled(self, seconds=12.0, poll=0.3):
+        """Wait for the poll loop to reach 'running', and say whether it did.
+
+        The board brings a part up on its own - a reset, an advertisement,
+        a quiet window - and anything written before the loop says
+        'running' is refused, not queued. Measured 2026-08-29: a view that
+        wrote its Set Feature straight after raising the rail failed twice
+        in a row while the example beside it, which waits, streamed fine.
+        """
+        import time
+        deadline = time.monotonic() + seconds
+        while True:
+            if self.state()['loop'] == 'running':
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(poll)
+
     @abstractmethod
     def state(self):
         """The poll loop's shared record: the reading, and what went wrong.

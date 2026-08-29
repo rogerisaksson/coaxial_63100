@@ -1,4 +1,4 @@
-# Host-side dependencies. Four packages, and each one is here for a reason:
+# Host-side dependencies. Five packages, and each one is here for a reason:
 #
 #   pyserial   the only way to the board. Nothing else in this tree talks to a
 #              COM port.
@@ -7,6 +7,10 @@
 #   mcp        the Model Context Protocol server in coaxial_mcp/.
 #   anyio      what mcp's low-level server runs on; pinned here because
 #              coaxial_mcp/server.py imports it directly rather than through mcp.
+#   rich       the live views' console renderer - panels, columns and the
+#              flicker-free Live repaint. Replaced a hand-rolled ANSI layout
+#              that measured escape codes wrong once per restyle; pure
+#              Python, no compiled wheels, so the bench PC constraint holds.
 #
 # Deliberately absent: numpy, pandas, reportlab, requests, the ollama client.
 # The statistics this repository computes are means and standard deviations over
@@ -17,6 +21,7 @@ pyserial>=3.5
 PyYAML>=6.0
 mcp>=1.2
 anyio>=4.0
+rich>=13.0
 
 # Only for examples/pytest_production_line.py. Nothing else in tests/ needs it:
 # the conformance, MCP and runner suites are plain scripts with their own

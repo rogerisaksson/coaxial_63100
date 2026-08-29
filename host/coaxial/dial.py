@@ -37,6 +37,8 @@ RIM = '.'
 POINTER = '#'
 HUB = '+'
 ZERO = '0'
+TICK = "'"
+ARC = ':'
 
 #: Below this there is no magnet in front of the sensor and the angle is
 #: noise. Measured on this board with nothing mounted: 2 gauss, and a heading
@@ -49,14 +51,22 @@ WEAK_GAUSS = 30
 #: rim and the sensor are furniture and stay out of its way. A face where
 #: everything is the same weight makes the reader hunt for the one thing that
 #: moved.
-INK = {RIM: ansi.DIM, POINTER: ansi.AMBER, HUB: ansi.WHITE,
-       ZERO: ansi.GREEN}
+#: One light and the street. The face - rim, graduations, zero - is one
+#: quiet deep teal; the READING is the only amber: a dark sweep and a
+#: bright pointer. It was rim-ash, ticks-teal, arc-teal, zero-green and
+#: pointer-amber at once, and five voices on a face with one thing to say
+#: read as a party, not an instrument.
+INK = {RIM: 23, POINTER: ansi.AMBER, HUB: 250,
+       ZERO: 23, TICK: 23, ARC: 130}
 
 
 def colourise(text):
     """The drawing again, with each element in its own colour."""
     return '\n'.join(
-        ansi.run([(ch, INK.get(ch, ansi.DIM)) for ch in line])
+        # Only the face's own glyphs are inked; captions and the sensor
+        # label keep the terminal's colour. Defaulting the rest to DIM
+        # painted every caption word nearly black.
+        ansi.run([(ch, INK.get(ch)) for ch in line])
         for line in text.split('\n'))
 
 
@@ -84,6 +94,15 @@ def render(degrees, width=60, height=19, field=None):
         _plot(grid, width, height, cx + RADIUS * math.cos(phi),
               cy - RADIUS * math.sin(phi) * ROW_ASPECT, RIM)
 
+    # Graduations every 30 degrees, just inside the rim - an instrument
+    # face, not a plain circle. The four cardinals are drawn heavier.
+    for mark in range(0, 360, 30):
+        phi = math.radians(mark)
+        r = RADIUS - (1.6 if mark % 90 == 0 else 0.9)
+        _plot(grid, width, height, cx + r * math.cos(phi),
+              cy - r * math.sin(phi) * ROW_ASPECT,
+              HUB if mark % 90 == 0 else TICK)
+
     # Zero, so the pointer has something to be an angle from. Outside the
     # rim rather than on it: a mark on the rim reads as part of the magnet.
     _plot(grid, width, height, cx + RADIUS + 2.0, cy, ZERO)
@@ -97,21 +116,6 @@ def render(degrees, width=60, height=19, field=None):
                   cy - r * RADIUS * math.sin(phi) * ROW_ASPECT / RADIUS,
                   POINTER)
     _plot(grid, width, height, cx, cy, HUB)
-
-    # The sensor: a part on the board, below the axis and looking up at the
-    # magnet's face. Drawn as what it is rather than as another circle.
-    top = cell(cy + SENSOR_DROP * ROW_ASPECT)
-    label = ' A1335 '
-    left = cell(cx - len(label) / 2.0)
-    for r, row in enumerate((('+' + '-' * len(label) + '+'),
-                             ('|' + label + '|'),
-                             ('+' + '-' * len(label) + '+'))):
-        for c, glyph in enumerate(row):
-            _plot(grid, width, height, left - 1 + c, top + r, glyph)
-
-    # The gap between them, which is the working air gap.
-    for r in range(cell(cy + RADIUS * ROW_ASPECT) + 1, top):
-        _plot(grid, width, height, cx, r, ':')
 
     return '\n'.join(''.join(row).rstrip() for row in grid)
 

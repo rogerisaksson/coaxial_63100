@@ -180,8 +180,13 @@ def _centred(faces):
                    for v in corners), normal) for corners, normal in faces]
 
 
-def _cache_path(path):
-    return os.path.splitext(path)[0] + '.facets'
+def _cache_path(path, divisions):
+    stem = os.path.splitext(path)[0]
+    # The default keeps its historical name so an existing cache still
+    # reads; any other resolution gets its own file beside it.
+    if divisions == GRID:
+        return stem + '.facets'
+    return stem + '.%d.facets' % divisions
 
 
 def _write_cache(path, positions, indices, normals):
@@ -232,7 +237,7 @@ def facets(path, divisions=GRID):
     decimating 419,338 triangles takes about two seconds, which is two
     seconds of a live view not being on screen.
     """
-    cache = _cache_path(path)
+    cache = _cache_path(path, divisions)
     got = _read_cache(cache, os.path.getmtime(path))
     if got is not None:
         return got

@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import (TO_MENU, Keys, banner, clear, paint,   # noqa: E402
-                    closing, say)
+from screen import (TO_MENU, Keys, banner, closing,  # noqa: E402
+                    say, stamp_crosses)
 
 ROTATION_VECTOR = 0x05
 
@@ -110,6 +110,12 @@ def workshop(args):
     """
     if args.frames and args.frames <= 4:
         return None
+    if not args.photo:
+        # The toon mesh draws in 12 ms single-process - measured, against
+        # 108 for the photographic one - so a pool would cost more in spawn
+        # time than it saves, and render() only draws the toon package when
+        # no shop is passed.
+        return None
 
     try:
         return farm.Farm(orientation.MODEL_MESH)
@@ -148,6 +154,8 @@ def start_reporting(board, interval_us):
     a Set Feature onto a part that was already running took no effect at all
     and the loop absorbed nothing afterwards.
     """
+    board.imu.settled()          # a feature before 'running' is refused
+
     try:
         # No reset first. The poll loop brings the part up on its own, and
         # a reset immediately before a Set Feature is what stops the feature
@@ -157,14 +165,46 @@ def start_reporting(board, interval_us):
         # Measured 2026-08-27: reset then feature, 0 rotation vectors;
         # feature alone, 49.0 a second. See FINDINGS.
         with board.imu.configuring():
+            pid = board.imu.product_id()
             board.imu.feature(ROTATION_VECTOR, interval_us)
     except RigError as exc:
         say('fail', 'rotation vector', str(exc))
-        return False
+        return None
 
     say('ok', 'rotation vector', 'every %d us' % interval_us)
     say('ok', 'poll loop', 'the board reads the part; this reads the board')
-    return True
+    return pid
+
+
+def boxes(part, pid, record, q, rate):
+    """The instrument boxes, every value off the target."""
+    from screen import hud
+
+    roll, pitch, yaw = orientation.euler_degrees(q)
+    ident = []
+    if pid:
+        ident = [('firmware', '%s build %s' % (pid.get('sw_version'),
+                                               pid.get('sw_build'))),
+                 ('reset', str(pid.get('reset_cause_name')))]
+    stream = []
+    if record:
+        feature = record.get('feature') or {}
+        stream = [('loop', str(record.get('loop'))),
+                  ('report', '0x%02X every %d us'
+                   % (feature.get('report_id', 0),
+                      feature.get('interval_us', 0))),
+                  ('rate', '%.1f vectors/s' % rate),
+                  ('errors', '%d  last %s'
+                   % (record.get('errors', 0),
+                      record.get('last_fault') or '-'))]
+    return [hud(part['name'], ident or ['-']),
+            hud('REPORT', stream or ['-']),
+            hud('ATTITUDE', [
+                ('q    i', '%+8.4f' % q[0]),
+                ('     j', '%+8.4f' % q[1]),
+                ('     k', '%+8.4f' % q[2]),
+                ('  real', '%+8.4f' % q[3]),
+                ('rpy', '%+6.1f %+6.1f %+6.1f' % (roll, pitch, yaw))])]
 
 
 def put_back(board, part):
@@ -187,6 +227,32 @@ def put_back(board, part):
     return done
 
 
+def compose(origin, args, view, colour, console):
+    """One frame on the stage: viewport left, instruments right, keys."""
+    from screen import frame_of
+
+    q = view['quaternion']
+    if view['tare'] is not None:
+        q = orientation.relative(q, view['tare'])
+
+    tall = view['tall']
+    art_w = min(max(24, view['wide'] - 40), 2 * tall + 14)
+    art = orientation.render(
+        q, width=art_w, height=tall,
+        zoom=view['zoom'] * (0.88 if not args.photo else 1.0),
+        shop=view['shop'], toon=not args.photo, colour=colour).splitlines()
+    margin = min((len(l) - len(l.lstrip(' '))
+                  for l in art if l.strip()), default=0)
+    art = stamp_crosses([l[margin:] for l in art], art_w - margin)
+
+    note = (('stale %d frames' % view['stale']) if view['stale'] else 'live')
+    return frame_of(
+        console, origin, 'BOARD ATTITUDE', '\n'.join(art),
+        boxes(view['part'], view['pid'], view['record'], q, view['rate']),
+        (('Q', 'CLOSE'), ('ESC', 'MENU'), ('Z', 'TARE'), ('WHEEL', 'ZOOM'),
+         ('', note)))
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', default='COM4')
@@ -201,6 +267,11 @@ def parse_args(argv):
                              'worth two columns, so this is what binds')
     parser.add_argument('--simulated', action='store_true',
                         help='the stand-in, without probing for a board')
+    parser.add_argument('--photo', action='store_true',
+                        help='the photographic renderer: the fine mesh and '
+                             'the ten-step ramp, banded across processes. '
+                             'The default is the toon drawing, which is '
+                             '9x faster and reads better at terminal sizes')
     parser.add_argument('--frames', type=int, default=0,
                         help='stop after this many, instead of running until '
                              'closed. For checking the view against a board '
@@ -211,7 +282,10 @@ def parse_args(argv):
 def main(argv=None):
     args = parse_args(argv)
 
-    rig = Coaxial63100(port=args.port,
+    # power_afe SAID: the default went quiet-False when every connect
+    # stopped flipping the rail, and this view inherited it - the part it
+    # exists to show is AFE-powered, so it asks by name and puts it back.
+    rig = Coaxial63100(port=args.port, power_afe=True,
                        simulated_device=bool(args.simulated)).open()
     origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
@@ -231,7 +305,14 @@ def main(argv=None):
         rig.close()
         return 1
 
-    if not start_reporting(board, args.interval_us):
+    pid = start_reporting(board, args.interval_us)
+    if pid is None:
+        # ONE retry, after the loop has settled: the first launch after the
+        # rail rises can catch the part mid-advertisement, and a view that
+        # needs a second start by hand reads as broken.
+        board.imu.settled()
+        pid = start_reporting(board, args.interval_us)
+    if pid is None:
         rig.close()
         return 1
     say('wait', 'drawing',
@@ -241,6 +322,9 @@ def main(argv=None):
     quaternion = (0.0, 0.0, 0.0, 1.0)
     stale = 0
     frame = 0
+    # The report rate, measured off the target's own counter rather than
+    # assumed from the interval - the part adopts what it can.
+    rate, rate_seen, rate_at = 0.0, None, time.time()
     # The board's own counter of rotation vectors written. A reading that has
     # not moved and a link that has stopped look identical in the values.
     seen = -1
@@ -248,33 +332,26 @@ def main(argv=None):
     # Only on a console: piped to a file the escapes are not interpreted and
     # every frame arrives with the cursor moves printed in it.
     console = sys.stdout.isatty()
-    if console:
-        if os.name == 'nt':
-            os.system('')    # enables ANSI on a Windows console
-        sys.stdout.write(chr(27) + '[2J')
-    shown = []
+    from screen import curtain, stage
+
+    board_view = stage()
+    console = board_view.is_terminal
     leaving = None
 
-    # 1.0 is the fit: the board just filling the shorter axis. The wheel and a
-    # right-drag move it, clamped so the model cannot be pushed through the
-    # camera or shrunk to nothing.
+    # 1.0 is the fit: the board just filling the shorter axis. The wheel and
+    # a right-drag move it, clamped so the model cannot be pushed through
+    # the camera or shrunk to nothing.
     zoom = 1.0
-    shape = None
+    tare = None
     shop = workshop(args)
     if shop:
         say('ok', 'drawing', '%d processes, one band of the picture each'
             % shop.workers)
 
     try:
-        with Keys(console, mouse=True) as keys:
+        with curtain(board_view) as live, Keys(console, mouse=True) as keys:
             while True:
-                # Re-read the window every frame. A terminal resized under a
-                # running view left the differential painter addressing rows
-                # that had moved, which looks exactly like a broken drawing.
                 wide, tall = canvas(args)
-                if (wide, tall) != shape:
-                    shape, shown = (wide, tall), []
-                    clear(console)
 
                 record = latest(board)
                 fresh = record['quaternion'] if record else None
@@ -286,30 +363,20 @@ def main(argv=None):
                     seen, stale = record['updates'], 0
 
                 frame += 1
-                note = ''
-                if record:
-                    note = ('   loop %s   %d vectors, %d errors'
-                            % (record['loop'], record['updates'],
-                               record['errors']))
-                # TWO blanks first: paint addresses absolute rows from 1, so
-                # the banner lands on the terminal's top rows, where the
-                # shell's own status line sits over it. One was not enough -
-                # and the LIVE/SIMULATED tag is the one thing in the frame
-                # that must never be hidden.
-                lines = (['', '', banner(origin, 'board attitude', console,
-                                 'Q closes, ESC for the menu' + note), ''] +
-                         orientation.picture(
-                             quaternion, width=wide, height=tall, frame=frame,
-                             age=stale, zoom=zoom,
-                             shop=shop).split('\n'))
-                # A part that has never reported leaves the quaternion at
-                # identity, which draws a perfectly level board.
-                if record and not record['updates']:
-                    lines = lines[:3] + silent_part(record)
+                now = time.time()
+                if record and now - rate_at >= 1.0:
+                    if rate_seen is not None:
+                        rate = ((record['updates'] - rate_seen)
+                                / (now - rate_at))
+                    rate_seen, rate_at = record['updates'], now
 
-                sys.stdout.write(paint(shown, lines, console))
-                sys.stdout.flush()
-                shown = lines
+                live.update(compose(origin, args, {
+                    'part': part, 'pid': pid, 'record': record,
+                    'quaternion': quaternion, 'rate': rate, 'tare': tare,
+                    'stale': stale, 'frame': frame, 'zoom': zoom,
+                    'shop': shop, 'wide': wide, 'tall': tall},
+                    colour=console and not args.photo,
+                    console=console), refresh=True)
 
                 if args.frames and frame >= args.frames:
                     break
@@ -318,18 +385,25 @@ def main(argv=None):
                     break
                 if moved:
                     zoom = max(0.25, min(6.0, zoom * (1.0 + moved)))
+                if any(t in 'zZ' for t in keys.taken()):
+                    # TARE: the attitude from HERE is what draws. One press
+                    # cancels the mounting offset (-1.9 deg roll on this
+                    # bench) and the arbitrary yaw reference at once;
+                    # pressing it again re-zeros.
+                    tare = quaternion
 
                 time.sleep(period)
     except KeyboardInterrupt:
         pass
     finally:
+        sys.stdout.write('\n')
         if shop:
             shop.close()
         done = put_back(board, part)
         rig.close()
         done.append((part['power'] or 'supply',
                      'back the way it was found'))
-        closing(done, console, len(shown))
+        closing(done, console, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 

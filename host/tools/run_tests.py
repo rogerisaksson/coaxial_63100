@@ -42,7 +42,8 @@ OLLAMA = tuple('test_ollama_%s.py' % tag for tag in
                 'board', 'reply', 'language'))
 BENCH = 'test_bench.py'
 BROKER = 'test_broker.py'
-DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, BROKER) + OLLAMA
+VIEWS = 'test_views.py'
+DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, BROKER, VIEWS) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
 CONFORMANCE = 'test_conformance.py'
@@ -285,8 +286,14 @@ TOUCHES = (
     # A live view is a loop, a screen and a cable around a renderer that is
     # tested on its own. What it can break is importing at all, which is the
     # structure suite, plus the drawing it calls.
-    ('host/tools/show_',              (STRUCTURE, 'test_simulated.py')),
-    ('host/tools/screen.py',          (STRUCTURE, 'test_simulated.py')),
+    # The views run whole - argument parsing, preflight, two frames and
+    # the teardown - because four separate restyle breaks were found only
+    # by running them by hand.
+    ('host/tools/show_',              (STRUCTURE, VIEWS,
+                                       'test_simulated.py')),
+    ('host/tools/demos.py',           (VIEWS,) + OLLAMA),
+    ('host/tools/screen.py',          (STRUCTURE, VIEWS,
+                                       'test_simulated.py')),
     # A CACHE THE TOOLS WRITE, not code they read for behaviour. It is
     # tracked, so it turned up in every diff and pulled all nine ollama
     # suites in behind it.

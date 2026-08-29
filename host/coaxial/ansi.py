@@ -49,6 +49,12 @@ RED = 196
 DIM = 236
 WHITE = 231
 
+# The views' motif - tools/screen.py names the roles (NEON names things,
+# SODIUM is what matters now, ASH is the street). The numbers live here so
+# renderers under coaxial/ can wear them without importing a tool.
+TEAL = 44
+ASH = 242
+
 
 def code(number):
     """One 256-colour foreground escape."""

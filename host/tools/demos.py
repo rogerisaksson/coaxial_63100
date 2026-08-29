@@ -31,7 +31,8 @@ import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import QUIET, TO_MENU, Keys, banner, paint, park, say, steady  # noqa: E402
+from screen import (ASH, QUIET, SODIUM, TO_MENU, Keys,  # noqa: E402
+                    gauge, park, say, steady, tint)
 
 from coaxial import Coaxial63100, angle, scaling, thermal  # noqa: E402
 
@@ -63,9 +64,9 @@ ANGLE_REG_FIELD = 0x2A
 #: terminal can look without a second serial port. One file, replaced
 #: atomically: a socket would need a port, a protocol and a cleanup path,
 #: and none of that is needed to LOOK at a dashboard.
-SHARED = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                      '.session.json')
-
+# The published-snapshot watcher lived here until the broker made it
+# redundant: a second session now attaches through the broker and sees the
+# board live, instead of reading a file of what another process last saw.
 #: Older than this and the shared snapshot is not a reading of anything.
 #: Two frames at the session's default rate, plus the slack a burst costs.
 STALE_S = 3.0
@@ -80,8 +81,10 @@ TEARDOWN_HOLD = 2.0
 #: Cells in a budget bar. Ten reads as a percentage without being counted.
 BAR = 10
 
-#: Six of the ten nodes in the thermal block - see thermal_block.
-THERMAL_ROWS = 6
+#: Every node. Six-of-ten sorted by load was tried and dropped a leg the
+#: moment two others warmed - driver W vanished from the very dashboard
+#: that exists to show one leg heating alone.
+THERMAL_ROWS = 10
 
 #: Below this the A1335 has no magnet in front of it and the angle is noise.
 #: The same number dial.py uses, and it is the host's judgement, not the
@@ -123,6 +126,9 @@ class Session:
         # question whose answer is a magnet somebody has to fit.
         self.scaling = steady(rig.board.analog.scaling)
         self.field = self._field()
+        #: The rail as the session found it - main() sets it after probing,
+        #: teardown puts it back. None: never learned, leave it alone.
+        self.afe_found = None
 
     def _field(self):
         """The magnetic field at the A1335, in gauss. None if it refused."""
@@ -306,52 +312,41 @@ def snapshot(session):
         'imu': steady(board.imu.state),
         'angle': steady(board.angle.state),
     }
-    got['analog'] = steady(board.analog.read_all, nr_of_samples=ADC_SAMPLES)
+    # Only while the rail is up. With it down read_all REFUSES (invariant
+    # 9), and refusing through steady()'s four retries cost 0.6 s a frame
+    # and drew the block as 'did not answer' - which flickered to values
+    # whenever the observer borrowed the rail for its 30 s sample. The
+    # block says the actual state instead.
+    afe_on = bool(got['afe'] and got['afe']['on'])
+    got['analog'] = (steady(board.analog.read_all,
+                            nr_of_samples=ADC_SAMPLES) if afe_on else None)
     got['scaling'] = session.scaling
     got['field'] = session.field
     return got
 
 
 def block(title, rows):
-    """A titled block. Unpadded - `columns` decides how wide it ends up."""
-    return [title] + list(rows)
+    """One dashboard instrument - the stage's hud, ANSI rows carried as-is.
 
-
-def grid(rows, room, gap=3):
-    """Rows of blocks, laid out so a column is one width down the whole page.
-
-    Width off the CONTENT, not the terminal divided by three: a fixed third
-    left the analog column eight characters of air. Measured across every
-    row rather than per row, or the top three columns and the bottom three
-    line up with nothing.
-
-    Shaved widest-first if even the tight layout does not fit, so a column
-    truncates rather than wrapping into its neighbour.
+    The name stays `block` so the six builders below read unchanged; what
+    a block IS comes from the stage now, like every other view.
     """
-    across = max(len(r) for r in rows)
-    widths = [max((len(line) for r in rows if col < len(r)
-                   for line in r[col]), default=0)
-              for col in range(across)]
-
-    over = sum(widths) + gap * (across - 1) + 2 - room
-    for _ in range(max(0, over)):
-        widths[widths.index(max(widths))] -= 1
-
-    out = []
-    for blocks in rows:
-        tall = max((len(b) for b in blocks), default=0)
-        for line in range(tall):
-            cells = [(b[line] if line < len(b) else '')[:w].ljust(w)
-                     for b, w in zip(blocks, widths)]
-            out.append('  ' + (' ' * gap).join(cells).rstrip())
-        out.append('')
-    return out[:-1] if out else out
+    from screen import hud
+    return hud(title, [row.strip() if isinstance(row, str) else row
+                       for row in rows])
 
 
 def adc_block(got):
     """Every analog channel, cooked by the board's own record."""
     table = got.get('analog')
     if table is None:
+        afe = got.get('afe')
+        if afe is not None and not afe['on']:
+            # Not a fault: the session leaves the rail down to save power
+            # and heat, and the observer borrows it on its own schedule.
+            return block('ANALOG', [
+                tint('  AFE_ON down - no reference', ASH),
+                tint('  observer borrows it for samples', ASH)])
         return block('ANALOG', ['  did not answer'])
 
     params = got.get('scaling')
@@ -378,16 +373,16 @@ def thermal_block(got):
     if spend is None:
         return block('THERMAL', ['  the observer did not answer'])
 
-    # SIX OF TEN, hottest first. The nodes went per leg, and ten bars made
-    # this block twice the height of the two beside it. Sorted, so the leg
-    # that is switching is the top row - which is the question being asked.
+    # ALL TEN, in the firmware's own order, so a leg keeps its row whether
+    # it is heating or not - sorted-and-cut dropped driver W the moment two
+    # other nodes warmed, on the dashboard that exists to show one leg
+    # heating alone. The gauge turns sodium at 0.85, where the board acts.
+    used = spend['used']
     rows = []
-    for name, used in sorted(spend['used'].items(),
-                             key=lambda kv: -kv[1])[:THERMAL_ROWS]:
-        filled = int(round(used * BAR))
+    for name in (n for n in thermal.ALL_NODES if n in used):
         rows.append('  %-10s %s %3.0f %%'
-                    % (thermal.pretty(name), '#' * filled + '.' * (BAR - filled),
-                       100.0 * used))
+                    % (thermal.pretty(name), gauge(used[name], BAR),
+                       100.0 * used[name]))
     return block('THERMAL', rows)
 
 
@@ -501,10 +496,13 @@ def dash(session, got):
 
     bits = []
     if afe is not None:
-        bits.append('AFE %s' % ('on' if afe['on'] else 'off'))
+        # Sodium marks power flowing; off is just the street.
+        bits.append('AFE %s' % (tint('on', SODIUM) if afe['on']
+                                else tint('off', ASH)))
     if gates is not None:
-        bits.append('gates %s' % ('SWITCHING' if gates['pwm_enabled']
-                                  else 'idle'))
+        bits.append('gates %s' % (tint('SWITCHING', SODIUM)
+                                  if gates['pwm_enabled']
+                                  else tint('idle', ASH)))
     if spend is not None:
         bits.append('worst %s %.0f %%'
                     % (thermal.pretty(spend['worst_node']),
@@ -523,19 +521,6 @@ def dash(session, got):
     return '  ' + '   '.join(bits)
 
 
-def key_bar(session):
-    """One line: what can be started, and what is running."""
-    doing = '  '.join(
-        '%s%s%s' % ('[' if a.name in session.running else ' ', a.key,
-                    ']' if a.name in session.running else ' ') + a.name
-        for a in ACTIVITIES)
-    # ESC is named, like every standalone view names it. It was not, and the
-    # only visible way out was Q - which closes the whole thing, correctly -
-    # so the session read as the one view you cannot come back from.
-    return ('  %s     duty %3.0f %% (up/down)     q quit   ESC menu'
-            % (doing, 100.0 * session.duty))
-
-
 def act_on(session, typed, by_key):
     """What one keystroke does.
 
@@ -547,65 +532,41 @@ def act_on(session, typed, by_key):
         session.set_duty(session.duty + DUTY_STEP)
     elif typed == 'down':
         session.set_duty(session.duty - DUTY_STEP)
+    elif typed in ('a', 'A'):
+        # The rail, by name. Not while switching: the gate is inverted, so
+        # raising it mid-run would drop the drivers with six inputs moving -
+        # the switching activity owns the rail for as long as it runs.
+        afe = session.rig.board.afe
+        if 'switching' in session.running:
+            session.note = 'switching owns the rail - stop it first'
+        else:
+            got = steady(afe.state)
+            if got is not None:
+                steady(afe.disable if got['on'] else afe.enable)
+                session.note = ''
     elif typed in by_key:
         session.toggle(by_key[typed])
 
 
-def publish(got):
-    """Write the snapshot where a watcher can find it. Best effort.
-
-    Failing to publish must never stop the session drawing: the file is a
-    convenience for a second terminal, not part of owning the board.
-    """
-    try:
-        body = json.dumps({'at': time.time(), 'got': got}, default=str)
-        with open(SHARED + '.tmp', 'w', encoding='utf-8') as handle:
-            handle.write(body)
-        os.replace(SHARED + '.tmp', SHARED)
-    except OSError:
-        pass
-
-
-def shared(stale_s=STALE_S):
-    """(snapshot, age) from a running session, or (None, None).
-
-    None means no session is running - not an error, just nobody publishing.
-    An age past `stale_s` is the same answer: the file outlives the process
-    that wrote it, and a stale dashboard is worse than no dashboard.
-    """
-    try:
-        with open(SHARED, encoding='utf-8') as handle:
-            body = json.load(handle)
-    except (OSError, ValueError):
-        return None, None
-
-    age = time.time() - body.get('at', 0)
-    if age > stale_s:
-        return None, None
-    return body.get('got'), age
-
-
 def frame(session, console, note):
-    """Six blocks in three columns, over one line of dash.
+    """The dashboard on the stage: dash strip, six instruments, key bar."""
+    from rich.text import Text
 
-    Two rows of three: the tall readings on top - every analog channel, the
-    thermal budget, the six gate signals - and the three that fit in four
-    lines under them. Column width comes from the content, so a narrow
-    terminal truncates rather than wrapping into its neighbour.
-    """
+    from screen import panels_of
+
     got = snapshot(session)
-    publish(got)
-    room = shutil.get_terminal_size((110, 30)).columns
-
-    lines = ['', '', banner(session.rig.origin, 'demos', console,
-                        session.rig.origin.label), '']
-    lines += [dash(session, got), '']
-    lines += grid([[adc_block(got), thermal_block(got), bridges_block(got)],
-                   [dio_block(got), imu_block(got), angle_block(got)]], room)
-    lines += ['', key_bar(session)]
+    rows = [[Text.from_ansi(dash(session, got))],
+            [adc_block(got), thermal_block(got), bridges_block(got)],
+            [dio_block(got), imu_block(got), angle_block(got)]]
+    keys = [(a.key.upper(), a.name.upper()
+             + (' [ON]' if a.name in session.running else ''))
+            for a in ACTIVITIES]
+    keys += [('A', 'AFE'), ('+ -', 'DUTY %.0f%%' % (100 * session.duty)),
+             ('Q', 'QUIT'), ('ESC', 'MENU')]
     if note:
-        lines.append('  %s' % note)
-    return lines
+        keys.append(('', note))
+    return panels_of(console, session.rig.origin, 'COAXIAL 63100', rows,
+                     keys, extra=session.rig.origin.label)
 
 
 class Plan:
@@ -693,6 +654,15 @@ def teardown(session, console, drawn):
     if not undone:
         say('ok', 'nothing ran', 'no activity was started this session')
 
+    # PUT BACK, not just claimed: the session may have raised the rail on
+    # the way in, or the user toggled it with A. Held by somebody else is
+    # theirs to keep - the observer mid-sample, another session measuring.
+    rail = steady(session.rig.board.afe.state)
+    if session.afe_found is not None and rail is not None:
+        held = [u for u in rail.get('users', ()) if u != 'host']
+        if rail['on'] != session.afe_found and not held:
+            steady(session.rig.board.afe.enable if session.afe_found
+                   else session.rig.board.afe.disable)
     say('ok', 'AFE_ON', 'back the way the session found it')
     say('ok', 'board', 'nothing the session started is still running')
     if console:
@@ -770,53 +740,6 @@ def leave(port, simulated):
     return 0
 
 
-def watch(hz, frames):
-    """Draw a running session's dashboard, from its published snapshot.
-
-    NO SERIAL PORT. One process owns the board; this reads what that one
-    last saw, so a switching run can be looked at from a second terminal
-    while it runs. The banner says how old the reading is, because a
-    dashboard nobody can date is a dashboard nobody can trust.
-    """
-    console = sys.stdout.isatty()
-    if console:
-        if os.name == 'nt':
-            os.system('')
-        sys.stdout.write(chr(27) + '[2J')
-
-    shown, count, leaving = [], 0, None
-    room = shutil.get_terminal_size((110, 30)).columns
-
-    with Keys(console) as keys:
-        while True:
-            count += 1
-            got, age = shared()
-            if got is None:
-                lines = ['', '', '  no session is publishing - start one with',
-                         '  demo.ps1 and pick `session`, then come back']
-            else:
-                lines = ['', '', '  WATCHING a running session   %.1f s old' % age,
-                         '']
-                lines += grid([[adc_block(got), thermal_block(got),
-                                bridges_block(got)],
-                               [dio_block(got), imu_block(got),
-                                angle_block(got)]], room)
-            lines += ['', '  q quit   ESC menu']
-            sys.stdout.write(paint(shown, lines, console))
-            sys.stdout.flush()
-            shown = lines
-
-            if frames and count >= frames:
-                break
-            leaving, _moved = keys.poll()
-            if leaving:
-                break
-            time.sleep(1.0 / max(hz, 0.2))
-
-    park(len(shown), console)
-    return TO_MENU if leaving == 'menu' else 0
-
-
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', default='COM4')
@@ -835,8 +758,6 @@ def main():
                         + ', '.join(a.name for a in ACTIVITIES))
     p.add_argument('--duty', type=float, default=DEFAULT_DUTY,
                    help='what the gate stage starts at, 0..1')
-    p.add_argument('--watch', action='store_true',
-                   help='draw a running session, without a serial port')
     p.add_argument('--leave', action='store_true',
                    help='report and stop whatever the demos left running')
     a = p.parse_args()
@@ -844,32 +765,41 @@ def main():
     if a.leave:
         return leave(a.port, a.simulated)
 
-    if a.watch:
-        return watch(a.hz, a.frames)
-
-    # NO LONGER ROUTED TO --watch. A second session used to be handed the
-    # published snapshot, which draws the same picture and can do nothing
-    # with it - status and values, no keys. The broker means a second
-    # session is a session: it opens its own, through the same port, and
-    # can arm, switch and write like the first.
-
-    # power_afe=False: the session decides the rail, not the constructor.
-    # Opening with the AFE forced up would stop any switching before the
-    # first frame, which is the load this exists to watch.
+    # power_afe stays False here - the session raises the rail ITSELF,
+    # conditionally, a few lines down. The constructor cannot know whether
+    # another session is mid-run: forcing the rail up on open would drop an
+    # armed stage's drivers before the first frame, which is the one load
+    # this dashboard exists to watch.
     with Coaxial63100(port=a.port, simulated_device=a.simulated,
                       power_afe=False) as rig:
         say('ok' if rig.origin.real else 'warn', 'link', rig.origin.label)
-        say('ok', 'AFE_ON', 'left as found - the session owns it from here')
+        session_afe_found = None
+        stage = steady(rig.gates.state)
+        rail = steady(rig.board.afe.state)
+        if rail is not None:
+            session_afe_found = rail['on']
+        if (rail is not None and not rail['on']
+                and stage is not None and not stage['pwm_enabled']):
+            # The resting state is the rail UP - values on the dash from
+            # the first frame - and A toggles it. Never over a run: a
+            # stage armed by another session keeps the rail where the run
+            # needs it.
+            steady(rig.board.afe.enable)
+            say('ok', 'AFE_ON', 'up for the session - A toggles it, and '
+                                'it goes back on the way out')
+        else:
+            say('ok', 'AFE_ON', 'left as found - the session owns it from '
+                                'here')
 
-        console = sys.stdout.isatty()
-        if console:
-            if os.name == 'nt':
-                os.system('')
-            sys.stdout.write(chr(27) + '[2J')
+        from screen import curtain, stage
+
+        dashboard = stage()
+        console = dashboard.is_terminal
 
         session = Session(rig)
+        session.afe_found = session_afe_found
         session.duty = min(1.0, max(0.0, a.duty))
-        shown, leaving, count = [], None, 0
+        leaving, count = None, 0
         sampled = time.time()
         by_key = dict((act.key, act) for act in ACTIVITIES)
 
@@ -886,13 +816,11 @@ def main():
             session.plan = Plan(a.sequence, a.duty)
 
         try:
-            with Keys(console) as keys:
+            with curtain(dashboard) as live, Keys(console) as keys:
                 while True:
                     count += 1
-                    lines = frame(session, console, session.note)
-                    sys.stdout.write(paint(shown, lines, console))
-                    sys.stdout.flush()
-                    shown = lines
+                    live.update(frame(session, console, session.note),
+                                refresh=True)
 
                     # The observer is blind while the stage is armed, so
                     # a run that never stands down is a run it estimates
@@ -923,7 +851,8 @@ def main():
         except KeyboardInterrupt:
             pass
         finally:
-            teardown(session, console, len(shown))
+            print()
+            teardown(session, console, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 

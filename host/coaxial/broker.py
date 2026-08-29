@@ -19,6 +19,7 @@ import os
 import socket
 import socketserver
 import threading
+import time
 
 from . import errors
 from .transport import Transport
@@ -159,12 +160,28 @@ class _Handler(socketserver.StreamRequestHandler):
                 socketserver.StreamRequestHandler.finish(self)
             except OSError:
                 pass
-        # THE LAST SESSION TAKES IT DOWN. Refcounted like the rails on the
-        # board, and for the same reason: a broker nobody is using is a port
-        # nobody else can open, and one somebody has to remember to stop is
-        # one that gets left running.
+        # THE LAST SESSION TAKES IT DOWN - after a linger. Refcounted like
+        # the rails on the board: a broker nobody is using is a port nobody
+        # else can open. The linger is what makes the MENU fast: spawning a
+        # broker and handing the console over costs ~5 s, and going down
+        # the instant a view closed meant every hop between views paid it
+        # again - measured, open() 5.85 s against 0.05 through a live one.
+        # A new client landing inside the linger cancels it.
         if last and self.server.until_idle:
-            threading.Thread(target=self.server.shutdown, daemon=True).start()
+            threading.Thread(target=self._stand_down_when_idle,
+                             daemon=True).start()
+
+    def _stand_down_when_idle(self):
+        deadline = time.monotonic() + self.server.linger
+        while time.monotonic() < deadline:
+            time.sleep(0.5)
+            with self.server.lock:
+                if self.server.clients:
+                    return                     # somebody came back - stay up
+        with self.server.lock:
+            if self.server.clients:
+                return
+        self.server.shutdown()
 
     def _release(self):
         """Give up this client's use, if it had one. True if it was the last."""
@@ -257,6 +274,13 @@ class _Server(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     clients = 0
     until_idle = True
+    #: How long an idle broker waits for the next client, seconds. Long
+    #: enough to hop between menu views; short enough that the port frees
+    #: itself within a minute of real abandonment. Zero in the tests, so
+    #: one test's broker cannot linger on the port and answer the next
+    #: test's clients - which it did, and the suite said so. stand_down
+    #: stays immediate for whoever asks for the port by name.
+    linger = 45.0
 
     def retrying(self, unit, function, payload, exact_payload, timeout):
         """One request, and one re-open if the board went quiet.
@@ -398,7 +422,7 @@ def spawn(port, baud=115200, wait=8.0):
 
 
 def serve(port, baud=115200, address=(HOST, PORT), transport=None,
-          until_idle=True):
+          until_idle=True, linger=45.0):
     """Own the port and answer for it until interrupted.
 
     The console handover happens HERE, once, because owning the port is what
@@ -428,6 +452,7 @@ def serve(port, baud=115200, address=(HOST, PORT), transport=None,
     server.serial_port = port
     server.lock = threading.Lock()
     server.until_idle = until_idle
+    server.linger = linger
 
     # The KIND too - debug probe or RS485. A client reaching the broker
     # cannot work it out: that answer comes from the Windows port listing,

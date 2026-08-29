@@ -19,7 +19,7 @@ testable without a board; `tools/show_orientation.py` is what needs one.
 import math
 import os
 
-from . import ascii3d, mesh
+from . import ansi, ascii3d, mesh
 
 #: The board, in units of its own outer radius: 100 mm across, a 10 mm bore
 #: through the middle, 1.6 mm thick. Proportions, not a measurement - the
@@ -67,6 +67,22 @@ def rotate(q, v):
     return (x + w * tx + (j * tz - k * ty),
             y + w * ty + (k * tx - i * tz),
             z + w * tz + (i * ty - j * tx))
+
+
+def relative(q, reference):
+    """`q` with `reference` taken out: the attitude SINCE the tare.
+
+    q_rel = conj(reference) * q. What an instrument's zero button does -
+    the part's mounting offset (this board reads roll -1.9 deg lying flat)
+    and its arbitrary yaw reference both cancel in one keypress.
+    """
+    ri, rj, rk, rw = reference
+    i, j, k, w = q
+    ci, cj, ck, cw = -ri, -rj, -rk, rw          # conjugate
+    return (cw * i + ci * w + cj * k - ck * j,
+            cw * j - ci * k + cj * w + ck * i,
+            cw * k + ci * j - cj * i + ck * w,
+            cw * w - ci * i - cj * j - ck * k)
 
 
 def matrix(q):
@@ -190,20 +206,46 @@ def _passives(count=26, seed=63100):
     return out
 
 
+#: What each part of the parametric board wears, 256-colour. The street
+#: palette: the laminate is deep teal, the phase hardware runs sodium and
+#: amber, the micro is the one cyan thing, and the passives get the dusty
+#: green of a Nostromo readout. INK outlines in pale cyan over all of it.
+PALETTE = {
+    'board': 23,
+    'connector': 208,
+    'fet': 214,
+    'micro': 51,
+    'passive': 65,
+}
+INK_COLOUR = 159
+
+
 def _quad(out, a, b, c, d):
-    """One four-sided face, as the two triangles it is made of."""
+    """One four-sided face, as the two triangles it is made of.
+
+    Indexed through `out['seen']`, which is what made the old form a latent
+    fault: it appended corner positions and per-face normals into the first
+    two slots of a tuple and returned an empty third, so on a machine
+    without the STL the fallback board had no indices and drew NOTHING.
+    Never seen here because this tree carries the export - the shape only
+    had to be wrong somewhere the tests never run.
+    """
     for corners in ((a, b, c), (a, c, d)):
         normal = mesh.face_normal(corners[0], corners[1], corners[2],
                                    (0.0, 0.0, 1.0))
         if normal is None:
             continue
         for corner in corners:
-            out[0].append(corner[0])
-            out[0].append(corner[1])
-            out[0].append(corner[2])
-        out[1].append(normal[0])
-        out[1].append(normal[1])
-        out[1].append(normal[2])
+            key = (round(corner[0], 5), round(corner[1], 5),
+                   round(corner[2], 5))
+            at = out['seen'].get(key)
+            if at is None:
+                at = len(out['pos']) // 3
+                out['pos'].extend(key)
+                out['seen'][key] = at
+            out['idx'].append(at)
+        out['nrm'].extend(normal)
+        out['tint'].append(PALETTE.get(out['zone'], PALETTE['board']))
 
 
 def _box(out, phi_deg, radius, half_r, half_phi_deg, height):
@@ -214,6 +256,7 @@ def _box(out, phi_deg, radius, half_r, half_phi_deg, height):
     """
     half_phi = math.radians(half_phi_deg)
     phi0 = math.radians(phi_deg)
+    height = height * out.get('relief', 1.0)
     top, base = HALF_THICKNESS + height, HALF_THICKNESS
 
     def at(ri, pi, z):
@@ -228,22 +271,32 @@ def _box(out, phi_deg, radius, half_r, half_phi_deg, height):
               at(rj, pj, top), at(ri, pi, top))
 
 
-def facets():
-    """The parametric board as (positions, indices, normals), with no STL.
+def facets(steps=PHI_STEPS, tinted=False, relief=1.0):
+    """The parametric board, with no STL: the DRAWING of this hardware.
 
     Four surfaces, because a board has four - the component face, the solder
     face, the outer rim and the bore - and then what is mounted on the
-    component side. Built once and reused: the geometry does not change, only
-    the rotation does.
+    component side. Built once and reused: the geometry does not change,
+    only the rotation does.
+
+    `steps` is the annulus resolution; the toon view runs it coarse on
+    purpose. `tinted` appends the per-triangle palette colour, for the
+    renderer's zone tints. `relief` scales the parts' heights - a DRAWING
+    exaggerates: at 1.0 a FET is 0.05 units proud of a board seen from 55
+    degrees, under one cell at any terminal size, and the picture read as
+    an empty disc.
     """
-    out = ([], [], [], {})
+    out = {'pos': [], 'idx': [], 'nrm': [], 'seen': {}, 'tint': [],
+           'zone': 'board', 'relief': relief}
 
     for part in COMPONENTS + _passives():
+        out['zone'] = part[0]
         _box(out, *part[1:])
+    out['zone'] = 'board'
 
-    for pj in range(PHI_STEPS):
-        a = 2.0 * math.pi * pj / PHI_STEPS
-        b = 2.0 * math.pi * (pj + 1) / PHI_STEPS
+    for pj in range(steps):
+        a = 2.0 * math.pi * pj / steps
+        b = 2.0 * math.pi * (pj + 1) / steps
         ca, sa, cb, sb = (math.cos(a), math.sin(a), math.cos(b), math.sin(b))
 
         for z, flip in ((HALF_THICKNESS, False), (-HALF_THICKNESS, True)):
@@ -266,7 +319,8 @@ def facets():
             else:
                 _quad(out, low_b, low_a, high_a, high_b)
 
-    return out[0], out[1], out[2]
+    got = (out['pos'], out['idx'], out['nrm'])
+    return got + (out['tint'],) if tinted else got
 
 
 #: The CAD export, if this tree has one. The parametric board above is what
@@ -283,6 +337,32 @@ def _load_model():
         return mesh.facets(MODEL)
     except (OSError, ValueError):
         return facets()
+
+
+#: The cartoon model is the PARAMETRIC board, not the STL: drawn from
+#: scratch the way the thermal map is - a round board, its bore, and
+#: stylised parts at their real stations - so every part is a clean box
+#: with its own zone colour instead of a cluster of scan noise. 956
+#: triangles against the photographic mesh's 27,628.
+TOON_STEPS = 72
+
+#: Four steps of fill and one of ink. The short ramp posterises the shading
+#: - what makes an edge read as an edge instead of one more shade - and the
+#: ink character stays out of the fill ramp so an outline is never mistaken
+#: for a bright face.
+TOON_RAMP = ' .:=+'   # five bands: four read flat on a mostly-flat board
+TOON_INK = '#'
+
+_TOON = None
+
+
+def toon_mesh():
+    """((positions, indices, normals), tints), built once on first use."""
+    global _TOON
+    if _TOON is None:
+        built = facets(steps=TOON_STEPS, tinted=True, relief=3.0)
+        _TOON = (built[:3], built[3])
+    return _TOON
 
 
 #: The board's triangles, read once at import. See _load_model().
@@ -347,7 +427,7 @@ LAMP = tuple(sum(VIEWPOINT[r * 3 + k] * ascii3d.light_position()[k]
 _FITS = {}
 
 
-def _fit(cols, rows, zoom=1.0):
+def _fit(cols, rows, zoom=1.0, model=None):
     """How far to stand back for a window this size, with the board at rest.
 
     Measured from the viewpoint alone and not per frame: a fit that tracked
@@ -358,10 +438,11 @@ def _fit(cols, rows, zoom=1.0):
 
     Cached because a window is resized far less often than it is redrawn.
     """
-    key = (cols, rows, round(zoom, 3))
+    model = MODEL_MESH if model is None else model
+    key = (id(model[0]), cols, rows, round(zoom, 3))
     got = _FITS.get(key)
     if got is None:
-        got = ascii3d.fit(MODEL_MESH[0], VIEWPOINT, cols, rows, zoom=zoom)
+        got = ascii3d.fit(model[0], VIEWPOINT, cols, rows, zoom=zoom)
         if len(_FITS) > 64:
             _FITS.clear()       # a wheel spun for a while, not a leak
         _FITS[key] = got
@@ -370,7 +451,7 @@ def _fit(cols, rows, zoom=1.0):
 
 
 def render(q, width=44, height=19, zoom=1.0, shop=None,
-           ramp=ascii3d.CHARACTERS):
+           ramp=ascii3d.CHARACTERS, toon=False, colour=False):
     """The board under rotation `q`, as `height` lines of `width` characters.
 
     The drawing is `ascii3d`, which is three.js's AsciiEffect ported out of
@@ -384,6 +465,18 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
     function for one of them is how a drawing ends up off-centre.
     """
     cols, rows, _cell = ascii3d.grid(width, height)
+    if toon and shop is None:
+        # The whole cartoon package: the parametric board, posterised ramp,
+        # culled back faces, depth-edge ink - and each part in its zone's
+        # colour when `colour` is on. 956 triangles, so no process pool.
+        chosen, tints = toon_mesh()
+        distance, off_x, off_y = _fit(cols, rows, zoom, chosen)
+        return ascii3d.render(chosen, _multiply(VIEWPOINT, matrix(q)),
+                              width, height, distance=distance,
+                              centre=(off_x, off_y), light=LAMP,
+                              ramp=TOON_RAMP, cull=True, ink=TOON_INK,
+                              tints=tints if colour else None,
+                              ink_colour=INK_COLOUR if colour else None)
     distance, off_x, off_y = _fit(cols, rows, zoom)
     draw = shop.render if shop else ascii3d.render
     model = () if shop else (MODEL_MESH,)
@@ -393,7 +486,7 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
 
 
 def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0,
-            shop=None):
+            shop=None, toon=False, colour=False):
     """The drawing with the numbers it is a reading of, above it.
 
     The quaternion leads: it is what the part reports and what moves when the
@@ -405,9 +498,15 @@ def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0,
     i, j, k, w = normalise(q)
     side = 'component side' if facing(q) > 0.0 else 'solder side'
 
+    def label(text):
+        return ansi.paint(text, ansi.ASH) if colour else text
+
     lines = [
-        'q   i %+.4f   j %+.4f   k %+.4f   real %+.4f' % (i, j, k, w),
-        'rpy %+7.1f  %+7.1f  %+7.1f  degrees' % (roll, pitch, yaw),
+        '%s %+.4f   %s %+.4f   %s %+.4f   %s %+.4f'
+        % (label('q   i'), i, label('j'), j, label('k'), k,
+           label('real'), w),
+        '%s %+7.1f  %+7.1f  %+7.1f  %s'
+        % (label('rpy'), roll, pitch, yaw, label('degrees')),
     ]
 
     if frame is not None:
@@ -418,9 +517,9 @@ def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0,
 
     lines += [
         '',
-        render(q, width, height, zoom, shop),
+        render(q, width, height, zoom, shop, toon=toon, colour=colour),
         '',
-        'coaxial_63100 - facing you: %s' % side,
+        label('coaxial_63100 - facing you: ') + side,
     ]
 
     return '\n'.join(lines)

@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import desk, scaling                          # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import TO_MENU, Keys, banner, paint, closing, say  # noqa: E402
+from screen import TO_MENU, Keys, closing, say  # noqa: E402
 
 
 #: The codes a scale is measured between. Not 0 and 65535: the thermistor
@@ -115,8 +115,17 @@ def main(argv=None):
                              'closed')
     args = parser.parse_args(argv)
 
-    rig = Coaxial63100(port=args.port,
-                       simulated_device=bool(args.simulated)).open()
+    # power_afe SAID: invariant 9 - with the rail down the board refuses
+    # to start the task at all, and that refusal used to escape as a
+    # traceback rather than a said line.
+    try:
+        rig = Coaxial63100(port=args.port, power_afe=True,
+                           simulated_device=bool(args.simulated)).open()
+    except RigError as exc:
+        # The board's own sentence - a rail refused while a stage is armed
+        # lands here - said instead of thrown, so the menu can come back.
+        say('fail', 'open', str(exc))
+        return 1
     origin = rig.origin
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
@@ -125,10 +134,17 @@ def main(argv=None):
     # Every channel the board reports, summed on the board rather than read
     # one at a time: the accumulator carries the mean AND the two ends of
     # the window, which is exactly what a meter face wants.
-    layout = rig.configure(rate_hz=None, accumulate=args.samples,
-                           digital=False)
-    params = rig.board.analog.scaling()
-    rig.start()
+    try:
+        layout = rig.configure(rate_hz=None, accumulate=args.samples,
+                               digital=False)
+        params = rig.board.analog.scaling()
+        rig.start()
+    except RigError as exc:
+        # The board's own sentence, said - not a traceback. The menu keeps
+        # running either way.
+        say('fail', 'task', str(exc))
+        rig.close()
+        return 1
 
     say('wait', 'drawing',
         'Q closes it, ESC goes back to the menu, and both undo the above')
@@ -137,36 +153,28 @@ def main(argv=None):
     period = 1.0 / max(args.hz, 0.5)
     frame = 0
 
-    console = sys.stdout.isatty()
-    if console:
-        if os.name == 'nt':
-            os.system('')    # enables ANSI on a Windows console
-        sys.stdout.write(chr(27) + '[2J')
-    shown = []
+    from screen import curtain, frame_of, stage
+
+    board_view = stage()
+    console = board_view.is_terminal
     leaving = None
 
     try:
-        with Keys(console) as keys:
+        with curtain(board_view) as show, Keys(console) as keys:
             while True:
                 try:
                     live = rig.latest()
-                    face = gate_drivers.update(scale(rows_from(live, layout), params),
-                                         colour=console)
+                    face = gate_drivers.update(
+                        scale(rows_from(live, layout), params),
+                        colour=console)
                 except RigError as exc:
                     face = 'no reading: %s' % exc
 
                 frame += 1
-                # TWO blanks first: paint addresses absolute rows from 1, so
-                # the banner lands on the terminal's top rows, where the
-                # shell's own status line sits over it. One was not enough -
-                # and the LIVE/SIMULATED tag is the one thing in the frame
-                # that must never be hidden.
-                lines = ['', '', banner(origin, 'analog - meter bridge', console,
-                                'Q closes, ESC for the menu   frame %d' % frame),
-                         ''] + face.split('\n')
-                sys.stdout.write(paint(shown, lines, console))
-                sys.stdout.flush()
-                shown = lines
+                show.update(frame_of(board_view, origin, 'METER BRIDGE',
+                                     face, [],
+                                     (('Q', 'CLOSE'), ('ESC', 'MENU'))),
+                            refresh=True)
 
                 if args.frames and frame >= args.frames:
                     break
@@ -182,7 +190,8 @@ def main(argv=None):
         done = [('acquisition', 'task stopped')]
         rig.close()
         done.append(('AFE_ON', 'back the way it was found'))
-        closing(done, console, len(shown))
+        sys.stdout.write('\n')
+        closing(done, console, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 

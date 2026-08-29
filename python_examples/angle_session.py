@@ -32,8 +32,8 @@ SIMULATED = False
 REG = {'ANG': 0x20, 'STA': 0x22, 'ERR': 0x24, 'TSEN': 0x28, 'FIELD': 0x2A}
 
 device = Coaxial63100(port='COM4', simulated_device=SIMULATED, power_afe=True)
-device.open()
 sensor = device.angle            # the A1335 behind SPI4
+sensor.open()
 print(device)
 print(sensor)
 

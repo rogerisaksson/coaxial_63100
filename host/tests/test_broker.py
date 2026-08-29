@@ -88,7 +88,9 @@ def served(fake, address=ADDRESS):
     def run():
         # serve() blocks; the server object is reachable through the module
         # only while it lives, so the thread keeps it and the stopper waits.
-        broker.serve('FAKE', 115200, address, transport=fake)
+        # linger=0: a broker that outlives its test answers the NEXT
+        # test's clients through the previous test's transport.
+        broker.serve('FAKE', 115200, address, transport=fake, linger=0.0)
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()

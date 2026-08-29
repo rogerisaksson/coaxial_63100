@@ -191,7 +191,7 @@ def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
     return rows, lo, hi
 
 
-def _fit(colour, reserve):
+def _fit(colour, reserve, margin=0):
     """Cells across the board, from the terminal.
 
     `reserve` is every line in the finished frame that is NOT picture: the
@@ -201,10 +201,11 @@ def _fit(colour, reserve):
     """
     size = shutil.get_terminal_size((80, 30))
     rows = max(size.lines - reserve, 8)
+    columns = max(size.columns - 2 - margin, 20)
     if colour:
-        wide, high = size.columns - 2, rows * 2
+        wide, high = columns, rows * 2
     else:
-        wide, high = (size.columns - 2) // 2, rows
+        wide, high = columns // 2, rows
 
     # EVEN. The half-block renderer draws two field rows per character row,
     # so an odd count leaves the last one unpaired - it comes out as a solid
@@ -281,7 +282,7 @@ def _ramp_rows(grid):
 
 
 def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
-           reserve=None, trailing=2, aspect=CELL_ASPECT):
+           reserve=None, trailing=2, aspect=CELL_ASPECT, margin=0):
     """The board as a thermal picture.
 
     `nodes` is {zone: degrees} and `board_c` the bulk the field falls back to
@@ -307,7 +308,7 @@ def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
         # SCALE_LINES plus the blank above them is what render itself adds;
         # anything else in the frame is the caller's to count.
         cells = _fit(colour, (SCALE_LINES + 1 + trailing)
-                     if reserve is None else reserve)
+                     if reserve is None else reserve, margin)
     layout = LAYOUT if layout is None else layout
 
     grid, lo, _hi = _grid(nodes, board_c, cells, layout, aspect)

@@ -533,9 +533,12 @@ def test_orientation(report):
                                               'loop': 'running', 'updates': 1,
                                               'errors': 0, 'field': 3}))
 
-    box = [i for i, row in enumerate(turned) if 'A1335' in row]
-    report.check('the sensor is drawn below the axis, where it sits',
-                 box and min(box) > axis[0], box)
+    # The sensor box moved off the face and into the view's HUD panel on
+    # 2026-08-29 - the face kept four voices (rim, sweep, sensor, pointer)
+    # and read as a party. The face's contract now: the instrument and the
+    # reading, nothing else.
+    report.check('the face carries no sensor box - the HUD names the part',
+                 not any('A1335' in row for row in turned))
 
     report.check('a reading the board never took prints as one, not as zero '
                  'degrees',

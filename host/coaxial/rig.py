@@ -30,6 +30,107 @@ from .errors import CrcError, NoReplyError, RigError
 from .gates import GateStage
 
 
+_KNOWN_SUBSYSTEMS = None
+
+
+def _subsystem_names():
+    """The board's subsystem names, off the stand-in, plus `gates` and `daq`.
+
+    Read once from SimulatedSession rather than written down: the simulated
+    board carries the same names as the real one by construction - the
+    parity suite is what holds the two together - so a handle named before
+    open() is checked against the same set that will answer after.
+    """
+    global _KNOWN_SUBSYSTEMS
+    if _KNOWN_SUBSYSTEMS is None:
+        from .simulated import SimulatedSession
+
+        board = SimulatedSession().board
+        _KNOWN_SUBSYSTEMS = frozenset(
+            name for name in vars(board)
+            if not name.startswith('_')) | {'gates', 'daq'}
+    return _KNOWN_SUBSYSTEMS
+
+
+class Later:
+
+    """A subsystem named before its session is open.
+
+    `imu = device.imu` reads best at the top of a script, next to the
+    device it belongs to - but before open() there is no board to reach.
+    This stands in: open() opens the device, and every attribute after
+    that resolves against the live subsystem.
+    """
+
+    def __init__(self, device, name):
+        self._device, self._name = device, name
+
+    def open(self):
+        """Open the device this handle belongs to. Returns the live handle."""
+        self._device.open()
+        return getattr(self._device, self._name)
+
+    def _live(self):
+        if self._device.board is None:
+            from .errors import RigError
+            raise RigError(
+                '%s is a handle on a session that is not open yet - '
+                'open() on it, or on the device, is what makes it live'
+                % self._name)
+        return getattr(self._device, self._name)
+
+    def __getattr__(self, attr):
+        return getattr(self._live(), attr)
+
+    def __repr__(self):
+        if self._device.board is None:
+            return ('<%s of a session not yet open - open() opens it>'
+                    % self._name)
+        return repr(self._live())
+
+
+#: What the acquisition front door answers. A whitelist, not everything:
+#: `daq.write` reaching the pin writer would put the device vocabulary
+#: behind the wrong name.
+DAQ_DOOR = ('configure', 'start', 'stop', 'state', 'acquire', 'latest',
+            'blocks', 'channels', 'outputs')
+
+
+class DaqView:
+
+    """The acquisition front door, as its own handle.
+
+    The device owns the lifecycle - it stops before reconfiguring, keeps
+    the layout, puts times and the sample count on records - and this is
+    that same vocabulary behind the name `daq`, so a script reads
+    subsystem-first like the sensor examples do. The raw ops stay at
+    `device.board.daq`.
+    """
+
+    def __init__(self, device):
+        self._device = device
+
+    def open(self):
+        """Open the device this handle belongs to."""
+        self._device.open()
+        return self
+
+    @property
+    def layout(self):
+        return self._device.layout
+
+    def __getattr__(self, name):
+        if name in DAQ_DOOR:
+            return getattr(self._device, name)
+        raise AttributeError(
+            '%r is not part of the acquisition front door. It has: open, '
+            'layout, %s' % (name, ', '.join(DAQ_DOOR)))
+
+    def __repr__(self):
+        return ('<the acquisition front door - open(), configure(), '
+                'start(), acquire()/latest()/blocks(), stop()>')
+
+
 class Coaxial63100(Acquisition):
 
     """One board, one acquisition task, one clock."""
@@ -69,7 +170,11 @@ class Coaxial63100(Acquisition):
 
         self.session = None
         self.board = None
-        self.gates = None
+        # No `self.gates = None` here: before open() the name goes through
+        # __getattr__ like every subsystem, so `stage = device.gates` binds
+        # a Later whose open() opens the device. open() below sets the real
+        # GateStage over it.
+        self.daq = DaqView(self)
         self.origin = None
         self.simulated = simulated_device
         self.layout = None
@@ -102,25 +207,33 @@ class Coaxial63100(Acquisition):
         return self
 
     def __getattr__(self, name):
-        """`device.imu` is `device.board.imu`.
+        """`device.imu` is `device.board.imu`, and it can be NAMED early.
 
         Forwarded rather than ten properties: the subsystem names come from
         Board, so a new one is reachable here with nothing added. A list in
         this file would be the second answer that goes stale - which is what
         happened to test_parity's hand-written table of view calls.
 
-        `gates` is NOT forwarded, and that is deliberate: it is a real
-        attribute holding GateStage, the arming policy, and reaching past it
-        to `gate_drivers` is how a duty write becomes what arms a stage.
+        Before open() the name comes back as a `Later`: a bound handle whose
+        open() opens the device, so an example reads handle-first -
+        `imu = device.imu` then `imu.open()`. The name is still checked
+        against the board's own set, off the stand-in, so a typo fails at
+        the binding and not at the first call.
+
+        `gates` after open is the real attribute holding GateStage, the
+        arming policy - reaching past it to `gate_drivers` is how a duty
+        write becomes what arms a stage.
         """
-        if name.startswith('_') or name in ('board', 'session', 'gates'):
+        if name.startswith('_') or name in ('board', 'session'):
             raise AttributeError(name)
 
         board = self.__dict__.get('board')
         if board is None:
+            if name in _subsystem_names():
+                return Later(self, name)
             raise AttributeError(
-                '%r: the session is not open, so it has no subsystems yet - '
-                'call open(), or use it as a context manager' % name)
+                '%r is not a subsystem of this board. It has: %s'
+                % (name, ', '.join(sorted(_subsystem_names()))))
         try:
             return getattr(board, name)
         except AttributeError:
@@ -187,7 +300,8 @@ class Coaxial63100(Acquisition):
                 pass                    # closing is not the place to raise
         if self.session is not None:
             self.session.close()
-        self.session = self.board = self.gates = None
+        self.session = self.board = None
+        self.__dict__.pop('gates', None)   # back to a Later, reopenable
 
     def __enter__(self):
         return self.open()
@@ -234,7 +348,7 @@ class Coaxial63100(Acquisition):
 
     def configure(self, channels=None, rate_hz=None, accumulate=1,
                   decimate=1, digital=True, clock='software',
-                  sample_time=0):
+                  sample_time=0, records=None, interval_us=None):
         """Set up the acquisition. Replaces whatever was there.
 
         channels    names, e.g. ['Phase U', 'NTC']. None takes all of them.
@@ -257,10 +371,16 @@ class Coaxial63100(Acquisition):
         # configure wants the new shape either way. A script that died
         # holding one otherwise leaves the next one unable to start.
         self.board.daq.stop()
+        burst = {}
+        if records is not None:
+            burst['records'] = records          # a run that ENDS: the burst
+        if interval_us is not None:
+            burst['interval_us'] = interval_us  # vocabulary, passed through
         self.layout = self.board.daq.configure(
             channels if channels is not None else self.channels(),
             clock=clock, sample_time=sample_time, decimate=decimate,
-            accumulate=accumulate, digital=digital, rate_hz=rate_hz)
+            accumulate=accumulate, digital=digital, rate_hz=rate_hz,
+            **burst)
         return self.layout
 
     def start(self):

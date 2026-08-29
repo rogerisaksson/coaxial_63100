@@ -24,7 +24,8 @@ from coaxial import angle                                  # noqa: E402
 from coaxial import dial                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import TO_MENU, Keys, banner, paint, closing, say  # noqa: E402
+from screen import (TO_MENU, Keys, closing, say,  # noqa: E402
+                    stamp_crosses)
 
 REG_ANG = 0x20
 REG_TSEN = 0x28
@@ -76,13 +77,40 @@ def preflight(board, part):
     return field, kelvin
 
 
-def _drawn(state, console):
-    """The dial, coloured where there is a terminal to colour it on."""
-    if state is None:
-        return 'no reading'
+def compose(origin, console, part, state, field, kelvin, rate, note):
+    """One frame on the stage: the dial left, the target's numbers right."""
+    from screen import frame_of, hud
 
-    text = dial.picture(state)
-    return dial.colourise(text) if console else text
+    if state is None:
+        art, side = 'no reading', []
+    else:
+        counts = angle.counts(state['value'])
+        degrees = state.get('degrees', counts * 360.0 / 4096.0)
+        weak = field is not None and field < dial.WEAK_GAUSS
+
+        face = dial.render(degrees, 40, 15, field)
+        art_lines = (dial.colourise(face) if console else face).splitlines()
+        margin = min((len(l) - len(l.lstrip(' '))
+                      for l in art_lines if l.strip()), default=0)
+        art = '\n'.join(
+            stamp_crosses([l[max(0, margin - 1):] for l in art_lines], 30))
+
+        side = [hud(part['name'], [
+                    ('angle', '--   (no magnet)' if weak
+                     else '%8.2f deg' % degrees),
+                    ('counts', '%4d of 4096   flags %X'
+                     % (counts, state['value'] >> 12)),
+                    ('field', '%d gauss' % (field or 0)),
+                    ('die', '%.1f C' % ((kelvin or 273.15) - 273.15))]),
+                hud('LOOP', [
+                    ('state', str(state.get('loop', '?'))),
+                    ('rate', '%.0f readings/s' % rate),
+                    ('errors', '%d  last %s'
+                     % (state.get('errors', 0),
+                        state.get('error') or '-'))])]
+
+    return frame_of(console, origin, 'SHAFT ANGLE', art, side,
+                    (('Q', 'CLOSE'), ('ESC', 'MENU'), ('', note)))
 
 
 def main(argv=None):
@@ -97,7 +125,10 @@ def main(argv=None):
                              'closed')
     args = parser.parse_args(argv)
 
-    rig = Coaxial63100(port=args.port,
+    # power_afe SAID: the default went quiet-False when every connect
+    # stopped flipping the rail, and this view inherited it - the part it
+    # exists to show is AFE-powered, so it asks by name and puts it back.
+    rig = Coaxial63100(port=args.port, power_afe=True,
                        simulated_device=bool(args.simulated)).open()
     origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
@@ -111,7 +142,7 @@ def main(argv=None):
         return 1
 
     try:
-        field, _ = preflight(board, part)
+        field, kelvin = preflight(board, part)
     except RigError as exc:
         say('fail', part['power'] or 'supply',
             'could not set the sensor up: %s' % exc)
@@ -125,17 +156,16 @@ def main(argv=None):
     frame = 0
     seen = -1
     stale = 0
+    rate, rate_seen, rate_at = 0.0, None, time.time()
 
-    console = sys.stdout.isatty()
-    if console:
-        if os.name == 'nt':
-            os.system('')    # enables ANSI on a Windows console
-        sys.stdout.write(chr(27) + '[2J')
-    shown = []
+    from screen import curtain, stage
+
+    board_view = stage()
+    console = board_view.is_terminal
     leaving = None
 
     try:
-        with Keys(console) as keys:
+        with curtain(board_view) as live, Keys(console) as keys:
             while True:
                 try:
                     state = board.angle.state()
@@ -148,23 +178,16 @@ def main(argv=None):
                     seen, stale = state['updates'], 0
 
                 frame += 1
-                if state is not None:
-                    state = dict(state, field=field)
+                now = time.time()
+                if state is not None and now - rate_at >= 1.0:
+                    if rate_seen is not None:
+                        rate = ((state['updates'] - rate_seen)
+                                / (now - rate_at))
+                    rate_seen, rate_at = state['updates'], now
 
-                note = '' if not stale else (
-                    '   no new reading for %d frame%s'
-                    % (stale, '' if stale == 1 else 's'))
-                # TWO blanks first: paint addresses absolute rows from 1, so
-                # the banner lands on the terminal's top rows, where the
-                # shell's own status line sits over it. One was not enough -
-                # and the LIVE/SIMULATED tag is the one thing in the frame
-                # that must never be hidden.
-                lines = (['', '', banner(origin, 'shaft angle', console,
-                                 'Q closes, ESC for the menu' + note), ''] +
-                         _drawn(state, console).split('\n'))
-                sys.stdout.write(paint(shown, lines, console))
-                sys.stdout.flush()
-                shown = lines
+                note = (('stale %d frames' % stale) if stale else 'live')
+                live.update(compose(origin, console, part, state, field,
+                                    kelvin, rate, note), refresh=True)
 
                 if args.frames and frame >= args.frames:
                     break
@@ -181,7 +204,8 @@ def main(argv=None):
                 ('registers', 'untouched - this view only reads')]
         rig.close()
         done.append((part['power'] or 'supply', 'back the way it was found'))
-        closing(done, console, len(shown))
+        sys.stdout.write('\n')
+        closing(done, console, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 
