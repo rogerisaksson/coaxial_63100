@@ -360,11 +360,62 @@ def test_counts_are_measured(r):
                 totals <= {total}, ', '.join(str(n) for n in sorted(totals)))
 
 
+#: `board.<name>.<method>()` is how every view and tool reaches the hardware.
+#: The names come from Board itself, so adding a subsystem needs nothing here.
+def _subsystems():
+    from coaxial.board import Board
+
+    fake = Board.__new__(Board)          # no transport: only the names matter
+    Board.__init__(fake, None)
+    return {name: type(value) for name, value in vars(fake).items()
+            if hasattr(value, 'board') or hasattr(value, '_board')}
+
+
+def test_subsystem_calls_resolve(r):
+    """Every `board.X.y()` in this tree names a method X actually has.
+
+    Read off the calls rather than listed: test_parity keeps a hand-written
+    table of what the views call, and it said `daq.acquire` for a year while
+    rig.py and show_gate_drivers.py called `daq.read`, renamed and gone from
+    both implementations. Nothing failed until a view was run.
+    """
+    known = _subsystems()
+
+    # The stand-in too, and by the same names. A method the simulated board
+    # lacks passes every suite that never opens a view and then crashes the
+    # first one that does - which is how SimulatedAfe went without is_on().
+    from coaxial.simulated import SimulatedSession
+    stand_in = SimulatedSession().board
+
+    wrong, missing = [], []
+    for path, _, tree in sources():
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            call = node.func
+            if not isinstance(call, ast.Attribute):
+                continue
+            owner = call.value
+            if not isinstance(owner, ast.Attribute) or owner.attr not in known:
+                continue
+            if not hasattr(known[owner.attr], call.attr):
+                wrong.append('%s:%d %s.%s'
+                             % (path, node.lineno, owner.attr, call.attr))
+            elif not hasattr(getattr(stand_in, owner.attr, None), call.attr):
+                missing.append('%s:%d %s.%s'
+                               % (path, node.lineno, owner.attr, call.attr))
+
+    r.check('every board.X.y() names a method X has',
+            not wrong, '; '.join(wrong[:4]))
+    r.check('and the stand-in answers it too',
+            not missing, '; '.join(missing[:4]))
+
+
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
           test_shape, test_documented, test_no_escaping_scars,
-          test_counts_are_measured)
+          test_counts_are_measured, test_subsystem_calls_resolve)
 
 
 def main():

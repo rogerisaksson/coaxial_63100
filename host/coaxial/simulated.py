@@ -309,6 +309,22 @@ PARTS = [
 class SimulatedSystem:
     """The stand-in's version record and clocks. `firmware` and `build`
     read literally `simulated`, so board_info alone tells them apart."""
+    def __init__(self, version_info=None):
+        self._version = dict(version_info or {})
+
+    def version(self):
+        """What SimulatedBoard was built with. A copy: the real one decodes
+        a fresh reply each call, so a caller that mutates it must not be
+        able to change what the next call answers."""
+        return dict(self._version)
+
+    def self_test_failures(self):
+        """Just the checks called failures. Empty here - see self_test."""
+        return [c for c in self.self_test() if c['status'] == 'fail']
+
+    def release_console(self):
+        """Nothing to hand back: there is no UART under this."""
+
     def channel_map(self, refresh=False):
         analog = []
         for row in CHANNELS:
@@ -462,6 +478,40 @@ class SimulatedAnalog:
             'samples': nr_of_samples,
         }
 
+    def scan(self):
+        """The one-shot scan, refusing on the same condition as the real one.
+
+        The refusal is the point of having it here: invariant 9 says a scan
+        with AFE_ON low reads mid-scale, and a stand-in that answered anyway
+        would let a view ship with that path never taken.
+        """
+        if not self._afe.is_on():
+            from .errors import DeviceStateError
+            raise DeviceStateError(
+                'the scan reports the analog front end off, so every channel '
+                'read mid-scale: ntc_centidegc would be exactly 2500 and '
+                'dcbus_mv a plausible number that is not a measurement. '
+                'Call board.afe.enable() first.')
+
+        by_signal = {row['signal']: row['index'] for row in CHANNELS}
+        taken = self.burst((1 << len(CHANNELS)) - 1, 1)['channels']
+        raw = {name: int(taken[index]['mean_raw'])
+               for name, index in by_signal.items() if index in taken}
+        params = self.scaling()
+        return {
+            'phase_u_raw': raw.get('Phase U', 0),
+            'phase_v_raw': raw.get('Phase V', 0),
+            'phase_w_raw': raw.get('Phase W', 0),
+            'dcbus_raw': raw.get('DC bus', 0),
+            'dcbus_mv': int(params['dcbus'].volts(raw.get('DC bus', 0))
+                            * 1000.0),
+            'ntc_raw': raw.get('NTC', 0),
+            'ntc_centidegc': int(params['ntc'].celsius(
+                max(1, raw.get('NTC', 1))) * 100.0),
+            'afe_on': True,
+            'pe15': not self._afe.is_on(),
+        }
+
     def read_all(self, nr_of_samples=64, sample_rate=1000.0, vref=3.3):
         """Every channel with its table row merged in, like the real one.
 
@@ -485,6 +535,20 @@ class SimulatedAnalog:
 
         return {'samples': result['samples'], 'rate_hz': result['rate_hz'],
                 'channels': rows}
+
+
+class SimulatedCalibration:
+    """The record an uncalibrated board holds: `stored` false, and the
+    firmware's compiled-in defaults behind it.
+
+    Invented numbers would be the one thing this stand-in must not do - a
+    calibration is a measurement against an instrument, and there is no
+    instrument here. Empty params is what an uncalibrated board answers,
+    and `from_calibration({})` already reads that as the fallback.
+    """
+    def read(self):
+        return {'stored': False, 'version': 0, 'params': {},
+                'channels': [], 'soa_limit_c': [], 'soa_throttle_at': 0.0}
 
 
 class SimulatedGpio:
@@ -1493,14 +1557,16 @@ class SimulatedBoard:
             refuse = _BroadcastRefuses()   # see BROADCAST_REFUSAL
             self.system = self.link = self.afe = refuse
             self.analog = self.gpio = self.imu = refuse
+            self.calibration = refuse
             self.angle = self.gate_drivers = self.capture = self.daq = refuse
             self.clock = refuse
         else:
-            self.system = SimulatedSystem()
+            self.system = SimulatedSystem(self.version_info)
             self.link = SimulatedLink()
             self.afe = SimulatedAfe()
             self.analog = SimulatedAnalog(self.afe)
             self.gpio = SimulatedGpio(self.afe)
+            self.calibration = SimulatedCalibration()
             self.imu = SimulatedImu()
             self.angle = SimulatedAngle()
             self.gate_drivers = SimulatedGateDrivers()

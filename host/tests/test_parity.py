@@ -113,6 +113,12 @@ def main():
         # then a live view did, and crashed. Listed rather than compared
         # wholesale: the stand-ins are duck-typed against what the tools and
         # views call, not against Subsystem's own machinery.
+        #
+        # THE DIVISION with test_structure's subsystem check: that one reads
+        # `board.X.y()` straight off the AST and needs no list. It cannot see
+        # a call through a local - `imu = rig.board.imu; imu.read()` - and 31
+        # of the names below are only ever reached that way. This is that
+        # half.
         CALLED = {
             'afe': ('state', 'is_on', 'enable', 'disable', 'toggle',
                     'require'),
