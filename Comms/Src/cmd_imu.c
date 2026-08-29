@@ -354,6 +354,12 @@ static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
   wr_u8(out, asked_id);
   wr_u32(out, asked_us);
   wr_u8(out, asked_pending ? 1U : 0U);
+
+  /* Appended, like everything here. `error` above is cleared by the next
+     good read, so at 400 reports a second a host polling at 5 Hz sees the
+     counter climb and never learns of what. */
+  wr_u8(out, st.last_fault);
+  wr_u8(out, st.last_fault_id);
   return CMD_OK;
 }
 

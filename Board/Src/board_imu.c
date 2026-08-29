@@ -97,11 +97,21 @@ static const uint8_t s_zeros[IMU_BUF];
 static uint32_t s_kernel_hz;
 static uint32_t s_bitrate_hz;
 
-/* Figure 6-8 puts the ceiling at 3 MHz. Aimed well under it rather than at
-   it: the divider is a power of two, so the choice at a 190 MHz kernel clock
-   is 2.97 MHz or 1.48 MHz, and the first leaves nothing for rise times on a
-   real board. Measured at 2.97: every read came back FF. */
-#define IMU_MAX_HZ 2000000U
+/* Figure 6-8 puts the ceiling at 3 MHz. The divider is a power of two, so
+   at a 190 MHz kernel clock the choice is 2.97 MHz or 1.48 MHz - nothing
+   between.
+
+   2.97 MHz was rejected once, with "every read came back FF". That did NOT
+   reproduce on 2026-08-29: 47 000 reports at 394 Hz, zero read errors, and
+   the product id answers. What is different since is the chip select held
+   across header and cargo, and SPI2 set to mode 3 in the .ioc as well as
+   here. The FF reads are more likely to have been that.
+
+   Kept at 2.97 because the transfer cost was the rate limit: at 1.48 MHz the
+   part gave 381 Hz of a requested 400 and 28 errors in 5 s; at 2.97 it gives
+   394 Hz and none. Polling more often was tried instead and was worse - at
+   4 kHz the rate FELL to 360 Hz and the errors tripled. */
+#define IMU_MAX_HZ 3000000U
 
 /* The slowest divider that still clears the part's ceiling, chosen from the
    kernel clock the peripheral actually has rather than from a field in the
@@ -164,9 +174,12 @@ static bool intn_asserted(void)
 
 /* How often to clock a header out when the H_INTN edge was missed - see the
    file comment. Rate limited because it is not free: a four-byte transfer at
-   1.48 MHz is 27 us and the main loop also carries Modbus, whose t1.5 at
-   115200 is 143 us. At 1 kHz that is 2.7 % of the loop against a 20 ms
-   report interval - fifty polls per report, never the reason one is late.
+   2.97 MHz is 13 us and the main loop also carries Modbus, whose t1.5 at
+   115200 is 143 us. At 1 kHz that is 1.3 % of the loop.
+
+   Measured 2026-08-29, and this is why it stays at 1 kHz: raising it to
+   4 kHz LOWERED the report rate from 394 Hz to 360 and tripled the errors.
+   The poll is not what the rate is short of - the transfer is.
 
    Raw CYCCNT and unsigned subtraction, so the wrap costs nothing
    (invariant 2). */
@@ -646,6 +659,10 @@ static void note(uint8_t err)
   if (err != BOARD_IMU_ERR_NONE)
   {
     s_state.errors++;
+    /* Kept, because `error` is cleared by the next good read and a host
+       polling at 5 Hz never sees a fault at 400 reports a second. Without
+       it the counter says how many and nothing says of what. */
+    s_state.last_fault = err;
   }
 }
 
@@ -668,8 +685,23 @@ static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
     const uint8_t  id = cargo[at];
     const uint16_t step = (uint16_t)shtp_report_len(id);
 
+    /* A zero byte after the last report is padding, not a report. Measured
+       at 388 Hz: 46 frame errors in 30 s, every one of them id 0x00 - the
+       walk was right to stop and wrong to call it a fault. A cargo cut short
+       ends mid-report with real data and is caught by the length test
+       below, so the two stay distinguishable. */
+    if ((step == 0U) && (id == 0U))
+    {
+      break;
+    }
+
     if ((step == 0U) || ((at + step) > len))
     {
+      /* Which id, because "a report id with no length" and "the cargo was
+         cut short" are two different defects and the counter alone cannot
+         tell them apart. 0 length means unknown id; a known one means the
+         cargo ended mid-report. */
+      s_state.last_fault_id = id;
       note(BOARD_IMU_ERR_FRAME);
       return;
     }
@@ -726,6 +758,13 @@ static uint32_t s_feature_us;
   * Letting the ordinary read path consume the queue first makes the write
   * short. */
 static bool s_feature_pending;
+static uint32_t s_cargoes_at_reset;   /**< to know the part has spoken */
+static uint32_t s_last_cargo_ms;      /**< when the last one arrived   */
+
+/* How long the part must have been quiet before a Set Feature goes out.
+   The advertisement is 276 bytes over several cargoes and a write into
+   the middle of it is accepted and discarded. */
+#define IMU_QUIET_MS 60U
 
 bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us)
 {
@@ -796,6 +835,7 @@ static void poll_init(void)
          here. The part came up with a queue, and emptying it is what makes
          the write long. Flagged, and done below once the queue is gone. */
       s_feature_pending = (s_feature_us != 0U);
+      s_cargoes_at_reset = s_state.cargoes;
       return;
   }
 }
@@ -858,7 +898,19 @@ void Board_ImuPoll(void)
   /* Nothing queued and the feature still missing: this is the quiet moment
      the re-apply was waiting for. The part has been drained by the reads
      above, so the write's own drain finds nothing and costs 115 us. */
-  if (s_feature_pending && !intn_asserted())
+  /* NOT BEFORE THE PART HAS SPOKEN. `!intn_asserted()` is also true in the
+     gap between the reset wait ending and the part producing its
+     advertisement, and a Set Feature written into that gap is accepted at
+     the SHTP level and then discarded - the write returns true, `pending`
+     clears, and the part streams nothing for ever.
+
+     Measured 2026-08-29 across an AFE power cycle: the loop came back
+     `running` in 0.71 s with feature 5 @ 2500 us and pending false, and no
+     report arrived in 15 s. Setting the same feature by hand 0.5 s later
+     worked every time, which is what ruled out the part needing longer. */
+  if (s_feature_pending && (s_state.cargoes > s_cargoes_at_reset)
+      && ((HAL_GetTick() - s_last_cargo_ms) > IMU_QUIET_MS)
+      && !intn_asserted())
   {
     s_feature_pending = !Board_ImuSetFeature(s_feature_id, s_feature_us);
     return;
@@ -880,6 +932,7 @@ void Board_ImuPoll(void)
 
   if (len > 0U)
   {
+    s_last_cargo_ms = HAL_GetTick();
     absorb(channel, cargo, len);
   }
 }

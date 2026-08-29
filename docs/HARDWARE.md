@@ -256,7 +256,7 @@ comes from the board - `0x6D` kind 4 - not from this table.
 
 | Part | Bus | Pins | Frame | Reads |
 |---|---|---|---|---|
-| BNO085, 9-axis IMU (U13) | SPI2, mode 3, 1.48 MHz | `PB12` CS, `PB13` SCK, `PB14` MISO, `PB15` MOSI, `PD8` H_INTN, `PD9` PS0/WAKE, `PD10` NRSTN, `PD11` BOOTN | SHTP, 8-bit stream | ~35 rotation vectors/s, Q14 |
+| BNO085, 9-axis IMU (U13) | SPI2, mode 3, 2.97 MHz | `PB12` CS, `PB13` SCK, `PB14` MISO, `PB15` MOSI, `PD8` H_INTN, `PD9` PS0/WAKE, `PD10` NRSTN, `PD11` BOOTN | SHTP, 8-bit stream | up to 394 rotation vectors/s, Q14 |
 | A1335LLETR-T, magnetic angle (U14) | SPI4, mode 3, 1.86 MHz | `PE2` SCK, `PE4` CS, `PE5` MISO, `PE6` MOSI | 20-bit packet as four 5-bit words | ANG, STA, ERR, XERR, TSEN, FIELD; 12 bits each |
 
 * **The A1335's answer lags one frame.** The address arrives on MOSI bits 17..12
@@ -265,9 +265,10 @@ comes from the board - `0x6D` kind 4 - not from this table.
 * **Mode 3 comes from the driver, not from the .ioc.** `Board_ImuInit` and
   `Board_AngleInit` set every field of `hspi2`/`hspi4` and call
   `HAL_SPI_Init` themselves, so what CubeMX generated is overwritten before
-  either part is spoken to. SPI2 was set to mode 3 in CubeMX on 2026-08-29
-  and now agrees; SPI4 still reads mode 0 there - a dead value, not what
-  runs.
+  either part is spoken to. Both were set to mode 3 in CubeMX on 2026-08-29
+  and now agree on that. The rest of the .ioc is still dead: it says 8-bit
+  where SPI4 runs 5-bit words, and 7.42 MBit/s where the driver derives
+  1.86 MHz from the kernel clock.
 
 * **SPI4 cannot carry a 20-bit word.** `IS_SPI_HIGHEND_INSTANCE` names SPI1,
   SPI2 and SPI3 only, and `HAL_SPI_Init` returns `HAL_ERROR` above 16 bits on

@@ -104,6 +104,8 @@ typedef struct
 {
   uint8_t  loop;        /**< BOARD_IMU_LOOP_*                            */
   uint8_t  error;       /**< BOARD_IMU_ERR_*, the last one seen          */
+  uint8_t  last_fault;  /**< the last one that was not NONE, kept        */
+  uint8_t  last_fault_id; /**< for FRAME, the report id that stopped it */
   uint32_t updates;     /**< rotation vectors written, monotonic         */
   uint32_t cargoes;     /**< cargoes taken off SPI2                      */
   uint32_t errors;      /**< reads that failed                           */

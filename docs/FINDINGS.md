@@ -1258,3 +1258,51 @@ high about one run in three.
 All three go through `Board_PowerAcquire`/`Release` now. The `0x6D` reply
 carries the holders as well, because `on` after an explicit off is true rather
 than a failed write, and nothing on the wire could tell those apart.
+
+## The IMU came back from an AFE power cycle and reported nothing
+
+Measured 2026-08-29, four cycles in a row. `afe.disable()` then `afe.enable()`:
+the loop returned `running` in 0.71 s carrying feature 5 @ 2500 us with
+`pending` false, 17 cargoes arrived, and **no report ever came** - 15 s of
+silence with nothing on the wire saying anything was wrong.
+
+`pending` false is the firmware saying the Set Feature took. It had not. The
+write goes out during the part's advertisement - 276 bytes over several
+cargoes - and is accepted at the SHTP level and discarded. `Board_ImuWrite`
+returns true either way, so `s_feature_pending` cleared and the request was
+never made again.
+
+What ruled out the alternatives:
+
+| Tried | Result |
+|---|---|
+| Wait longer after `running` - 0.5, 2.0, 5.0 s - then set it by hand | worked every time, 774 reports in 2 s |
+| Gate the automatic apply on one cargo having arrived | still silent: the write still landed inside the advertisement |
+| Gate it on 60 ms of quiet since the last cargo | first report 0.33 s after AFE_ON, four cycles in a row |
+
+The gate is quiet time, not a cargo count: `!intn_asserted()` is also true in
+the gap between the reset wait ending and the part starting to talk.
+
+## The IMU's rate ceiling is the transfer, not the poll
+
+Measured 2026-08-29 with the rotation vector (0x05), link idle:
+
+| SPI clock | asked 400 Hz | errors in 5 s |
+|---|---|---|
+| 1.48 MHz | 381 Hz | 28 |
+| 2.97 MHz | 397 Hz | 15 |
+
+Polling more often was tried instead and made it **worse**: at 4 kHz the rate
+fell to 360 Hz and errors tripled. 2.97 MHz was previously rejected with
+"every read came back FF"; that did not reproduce - 47 000 reports, zero read
+errors. What is different since is the chip select held across header and
+cargo.
+
+Sustained after both changes: **393 Hz, 0 errors over 30 s**, against the
+BNO085's own 400 Hz ceiling for that report. Under a hammered link it settles
+at 345 Hz - `link_busy()` lets Modbus win, which is invariant 5.
+
+The errors that remained were not errors. Every one carried report id **0x00**
+- padding after the last report in a cargo. The walk was right to stop and
+wrong to count it: a cargo cut short ends mid-report with real data and is
+caught by the length test instead.

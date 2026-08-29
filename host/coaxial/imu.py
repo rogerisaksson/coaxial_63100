@@ -218,6 +218,12 @@ class Imu(Subsystem, PolledSensor):
         got['feature'] = {'report_id': r.u8(),
                           'interval_us': r.u32(),
                           'pending': bool(r.u8())}
+
+        # The last error that was not 'none', kept by the board. `error`
+        # above is whatever the most recent poll saw, which at 400 reports
+        # a second is 'none' every time a host looks.
+        got['last_fault'] = LOOP_ERRORS.get(r.u8(), 'unknown')
+        got['last_fault_id'] = r.u8()
         return got
 
     def latest(self):

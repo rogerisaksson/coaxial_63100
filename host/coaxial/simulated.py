@@ -788,7 +788,8 @@ class SimulatedImu(PolledSensor):
     def state(self):
         self._updates += 17
         got = {'loop': 'held' if self._held else 'running',
-               'error': 'none', 'updates': self._updates,
+               'error': 'none', 'last_fault': 'none', 'last_fault_id': 0,
+               'updates': self._updates,
                'cargoes': self._updates, 'errors': 0}
         for report in self.read()['reports']:
             if 'quaternion' not in report:
