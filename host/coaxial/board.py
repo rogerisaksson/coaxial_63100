@@ -29,6 +29,7 @@ from .imu import Imu
 from .link import Link
 from .protocol import BROADCAST
 from .system import System
+from . import broker
 from .transport import Transport
 
 
@@ -198,6 +199,41 @@ def scan(units=range(1, 17), port='COM4', baud=115200):
     return found
 
 
+def _reach(port, baud):
+    """The broker for this port, started if there is not one yet.
+
+    Preferred rather than configured: a second process taking the port is
+    the failure this exists to prevent, and a flag somebody has to remember
+    prevents nothing. `serving()` names the port a broker holds, so a rig
+    pointed at a different one still opens its own.
+
+    STARTED, not just used. A broker nobody has to launch is one that is
+    always there, and it takes itself down when its last user goes - the
+    same refcount the rails on the board keep, for the same reason. If it
+    cannot be started, this opens the port directly and the caller gets the
+    real error from the real port rather than one about a broker.
+    """
+    reached = _attach(port)
+    if reached is not None:
+        return reached
+
+    if broker.spawn(port, baud):
+        reached = _attach(port)
+        if reached is not None:
+            return reached
+
+    return Transport(port, baud)
+
+
+def _attach(port):
+    """A broker client for `port`, or None if none is serving it."""
+    said = broker.serving()
+    if not said or said.get('serial') != port:
+        return None
+    return broker.attach((said.get('host', broker.HOST),
+                          said.get('tcp', broker.PORT)))
+
+
 def connect(units, port='COM4', baud=115200, verify=True):
     """Open the links and return one Board per entry, in the order given.
 
@@ -221,7 +257,7 @@ def connect(units, port='COM4', baud=115200, verify=True):
             key = (unit_port, unit_baud)
             fresh = key not in transports
             if fresh:
-                transports[key] = Transport(unit_port, unit_baud)
+                transports[key] = _reach(unit_port, unit_baud)
 
             board = Board(transports[key], unit)
 
@@ -229,7 +265,12 @@ def connect(units, port='COM4', baud=115200, verify=True):
             # handed over before any framing - once per port rather than once
             # per unit, and whether or not this call is going to probe. Skipping
             # it would return boards that cannot talk at all.
-            if fresh:
+            #
+            # NOT THROUGH A BROKER. It already did this when it took the port,
+            # and doing it again would send the escape into a link that is
+            # already framed - which the board answers by going back to the
+            # console for everyone.
+            if fresh and not getattr(transports[key], 'address', None):
                 board.open_binary()
 
             if not verify:

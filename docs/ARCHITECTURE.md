@@ -33,6 +33,23 @@ one way only.
 **`Modbus/`** — RTU stack (CRC, PDU, framing). C standard library only, no CMSIS
 or HAL. Lookup tables, not switches.
 
+**`host/coaxial/broker.py`** — one process owns the serial port and the rest
+ask it, so two sessions can work the same board at once. Modbus requests
+cross unchanged - unit, function, payload - and the broker interprets none of
+it, which is what stops it becoming a second protocol. Refusals arrive as the
+`coaxial.errors` class they were raised as, so invariant 8 does not stop at a
+socket.
+
+Nobody starts it: the first session spawns one for the port it found, and it
+takes itself down when its last client goes - the refcount the rails on the
+board keep, for the same reason. A LOOK IS NOT A USE, so `--status` and the
+staleness check cannot be the last one out. `tools/session.py --hold` is the
+other case, a bench where the port should stay taken.
+
+`test_conformance` is the exception and asks it to stand down first: that
+suite sends deliberately malformed frames, which is the one thing a broker
+cannot forward. It refuses while sessions are using it and says how many.
+
 **The limits headers** — every fixed number the firmware depends on, in
 sections, each carrying the measurement that chose it. Two files, one per
 layer, so the includes run one way: `Board/Inc/board_limits.h` holds the
@@ -109,7 +126,7 @@ Board-side scaling is kept only to cross-check the math.
 
 ## The test system
 
-Eighteen suites, 1769 checks. `run_tests.ps1` is the only interface -
+Nineteen suites, 1798 checks. `run_tests.ps1` is the only interface -
 `-AutomaticMinimal|Medium|High` for ~25/50/75 % of every check, `-All` the gate,
 `-Only NAMES` and `-Tags SUBJECTS` for one change's worth, `-Structure` for the
 package itself.

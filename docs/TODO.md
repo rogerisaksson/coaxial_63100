@@ -4,7 +4,7 @@ State as of 2026-08-29.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 1769 checks, 18 suites |
+| `run_tests.ps1 -All` | 1798 checks, 19 suites |
 | Debug build | 0 warnings |
 | FLASH / DTCMRAM | 145 204 B (7 %) / 48 544 B (37 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 1, MINOR 28 |

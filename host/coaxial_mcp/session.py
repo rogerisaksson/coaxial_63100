@@ -79,6 +79,18 @@ def tag(origin, unit=None, where=None):
     return '%s, %s' % (origin.label, _node(unit, where))
 
 
+def _answers(served):
+    """Whether the broker named by the address file is actually there."""
+    from coaxial import broker
+
+    reached = broker.attach((served.get('host', broker.HOST),
+                             served.get('tcp', broker.PORT)), timeout=2.0)
+    if reached is None:
+        return False
+    reached.close()
+    return True
+
+
 def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     """`(session, origin)` - the board, or a stand-in for it.
 
@@ -100,8 +112,31 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools'))
     import find_board
 
+    from coaxial import broker
+
     kind = None
     fell_back = False
+
+    # A BROKER IS THE BOARD. `discover` probes by opening the port, which
+    # fails while another process holds it - so with a session server up,
+    # looking for the board found nothing and every tool quietly fell back
+    # to the stand-in. Asked before probing, and only when nothing narrower
+    # was demanded: `only` names a path, and a broker is not one.
+    # ANSWERS, not just named: the address file outlives a process that was
+    # killed, and a stale one reads exactly like a live broker until the
+    # connect fails - at which point `auto` had already committed to a real
+    # port and raised instead of falling back to the stand-in.
+    served = broker.serving() if only is None else None
+    if served and simulated is not True and not _answers(served):
+        served = None
+
+    if served and simulated is not True:
+        held = served.get('kind')
+        return (Session(served['serial'], baud, unit),
+                Origin(True, served['serial'], baud, held,
+                       _label(True, served['serial'], held) + ' - shared',
+                       INTERFACE.get(held, held), unit))
+
     if simulated is None:
         found, kind = find_board.discover(port, baud, unit, only=only)
         simulated = found is None
@@ -117,6 +152,17 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
                 Origin(False, port, baud, None,
                        _label(False, port, None, fell_back),
                        INTERFACE[None], unit))
+    # A BROKER FOR IT, now that the probe has let the port go. Started here
+    # rather than deeper down because `discover` is what fights for the
+    # port: it opens one to ask, so a second process arriving while the
+    # first was probing found it busy and quietly used the stand-in - both
+    # of them did, measured, racing each other.
+    #
+    # A failure to start one is not a failure to open the board. The session
+    # below opens the port itself when there is no broker, which is what
+    # every run did before there was one.
+    broker.spawn(port, baud)
+
     return (Session(port, baud, unit),
             Origin(True, port, baud, kind, _label(True, port, kind),
                    INTERFACE.get(kind, kind), unit))

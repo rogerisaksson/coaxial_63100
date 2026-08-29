@@ -135,3 +135,9 @@ host/tests/.counts.json
 # The reduced mesh, rebuilt from the STL beside it on demand.
 render/models/*.samples
 render/models/*.facets
+
+# The session broker says what it is serving here, and removes it on the
+# way out. A stale one is handled; committing one would be a lie.
+host/tools/.session.addr
+host/tools/.session.json
+host/tests/.session.addr.test

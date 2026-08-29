@@ -104,6 +104,8 @@ class Session:
         self.note = ''
         self.duty = DEFAULT_DUTY
         self.phases = DEFAULT_PHASES
+        self.legs = DEFAULT_PHASES     # which of them are switching now
+        self.plan = None
         # Both fetched once. The record does not change while a session
         # is open, and reading FIELD costs a hold - which stops the angle
         # loop, so doing it every frame would halve its rate to answer a
@@ -128,12 +130,31 @@ class Session:
         down, stop switching, start again, and it is still what you chose.
         """
         self.duty = min(1.0, max(0.0, duty))
-        if 'switching' in self.running:
-            load = dict(('Phase %s' % leg, self.duty) for leg in self.phases)
-            if steady(self.rig.write, analog=load) is None:
-                self.note = 'the duty write did not take'
-                return
+        if 'switching' in self.running and self.push() is None:
+            return
         self.note = 'duty %.0f %%' % (100.0 * self.duty)
+
+    def push(self):
+        """Write the duty to the legs that are live, and zero to the rest.
+
+        All three stay ARMED whatever the plan says. Arming is the thing that
+        should be asked for by name, and re-arming per step would put a
+        MOE edge into the middle of a thermal run for no reason - a leg at
+        zero duty is not switching, which is what the plan means by off.
+        """
+        load = dict(('Phase %s' % leg,
+                     self.duty if leg in self.legs else 0.0)
+                    for leg in DEFAULT_PHASES)
+        if steady(self.rig.write, analog=load) is None:
+            self.note = 'the duty write did not take'
+            return None
+        return load
+
+    def set_legs(self, legs):
+        """Which legs switch. The rest are held at zero duty."""
+        self.legs = tuple(legs)
+        if 'switching' in self.running:
+            self.push()
 
     def toggle(self, activity):
         if activity.name in self.running:
@@ -189,8 +210,8 @@ class Switching:
             session.note = 'the stage refused to arm'
             return None
 
-        load = dict(('Phase %s' % leg, session.duty) for leg in session.phases)
-        if steady(rig.write, analog=load) is None:
+        load = session.push()
+        if load is None:
             steady(rig.gates.disarm)
             session.note = 'armed but the duty did not take - disarmed again'
             return None
@@ -450,6 +471,8 @@ def dash(session, got):
                        _degc(therm['mcu'])))
     if session.running:
         bits.append('running: %s' % ', '.join(sorted(session.running)))
+    if session.plan is not None:
+        bits.append(session.plan.caption(time.time()))
     return '  ' + '   '.join(bits)
 
 
@@ -536,6 +559,54 @@ def frame(session, console, note):
     if note:
         lines.append('  %s' % note)
     return lines
+
+
+class Plan:
+
+    """A sequence of leg sets, each for so many seconds.
+
+    `U:45,V:45,UVW:90` - which legs switch, and for how long. It exists to
+    give the OBSERVER a known excitation that changes: with one leg
+    switching, its node should move and the other two should not, and a
+    model that cannot tell them apart says so by moving all three.
+
+    Wall clock, not frames: the draw rate is what the link allows on the day
+    and a plan measured in frames would be a different plan each run.
+    """
+
+    def __init__(self, text):
+        self.steps = []
+        for chunk in (c.strip() for c in text.split(',') if c.strip()):
+            legs, _, seconds = chunk.partition(':')
+            legs = tuple(c for c in legs.upper() if c in DEFAULT_PHASES)
+            self.steps.append((legs, float(seconds or 30)))
+        self.at, self.started = 0, None
+
+    def done(self):
+        return self.at >= len(self.steps)
+
+    def advance(self, session, now):
+        """Apply the step that should be running, and say if it changed."""
+        if self.done():
+            return False
+        legs, seconds = self.steps[self.at]
+        if self.started is None:
+            self.started = now
+            session.set_legs(legs)
+            return True
+        if now - self.started >= seconds:
+            self.at, self.started = self.at + 1, None
+            return self.advance(session, now)
+        return False
+
+    def caption(self, now):
+        if self.done():
+            return 'plan done'
+        legs, seconds = self.steps[self.at]
+        left = seconds - (now - (self.started or now))
+        return ('step %d/%d  %s  %.0f s left'
+                % (self.at + 1, len(self.steps),
+                   ''.join(legs) or 'none', max(0.0, left)))
 
 
 def teardown(session, console, drawn):
@@ -683,6 +754,9 @@ def main():
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--hz', type=float, default=2.0)
     p.add_argument('--frames', type=int, default=0)
+    p.add_argument('--sequence', default='', metavar='U:45,VW:60,...',
+                   help='legs to switch and for how long, in order; ends the '
+                        'run when the last step is done')
     p.add_argument('--start', default='', metavar='NAME',
                    help='begin with these activities running, comma separated: '
                         + ', '.join(a.name for a in ACTIVITIES))
@@ -700,11 +774,11 @@ def main():
     if a.watch:
         return watch(a.hz, a.frames)
 
-    # A session already has the port. Looking is still possible, and is
-    # what somebody running this a second time almost always meant.
-    if shared()[0] is not None:
-        say('warn', 'session', 'one is already running - watching it instead')
-        return watch(a.hz, a.frames)
+    # NO LONGER ROUTED TO --watch. A second session used to be handed the
+    # published snapshot, which draws the same picture and can do nothing
+    # with it - status and values, no keys. The broker means a second
+    # session is a session: it opens its own, through the same port, and
+    # can arm, switch and write like the first.
 
     # power_afe=False: the session decides the rail, not the constructor.
     # Opening with the AFE forced up would stop any switching before the
@@ -734,6 +808,9 @@ def main():
             else:
                 say('fail', 'start', '%s is not an activity' % name)
 
+        if a.sequence:
+            session.plan = Plan(a.sequence)
+
         try:
             with Keys(console) as keys:
                 while True:
@@ -742,6 +819,13 @@ def main():
                     sys.stdout.write(paint(shown, lines, console))
                     sys.stdout.flush()
                     shown = lines
+
+                    if session.plan is not None:
+                        if session.plan.advance(session, time.time()):
+                            session.note = session.plan.caption(time.time())
+                        elif session.plan.done():
+                            leaving = 'quit'
+                            break
 
                     if a.frames and count >= a.frames:
                         break

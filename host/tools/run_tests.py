@@ -41,7 +41,8 @@ OLLAMA = tuple('test_ollama_%s.py' % tag for tag in
                ('tools', 'runner', 'prompt', 'link', 'render', 'bus',
                 'board', 'reply', 'language'))
 BENCH = 'test_bench.py'
-DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP) + OLLAMA
+BROKER = 'test_broker.py'
+DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, BROKER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
 CONFORMANCE = 'test_conformance.py'
@@ -260,6 +261,15 @@ TOUCHES = (
     ('host/coaxial_mcp/',             ('test_mcp.py', 'test_parity.py')),
     ('host/coaxial/simulated.py',     ('test_simulated.py',
                                        'test_parity.py') + OLLAMA),
+    # The broker is the port itself: every session goes through it when one
+    # is up, so its own suite runs whenever it or the two files that reach
+    # for it change.
+    ('host/coaxial/broker.py',        (BROKER, 'test_parity.py')),
+    ('host/coaxial/board.py',         (BROKER, 'test_simulated.py',
+                                       'test_parity.py', 'test_mcp.py')),
+    ('host/coaxial_mcp/session.py',   (BROKER, 'test_mcp.py',
+                                       'test_parity.py')),
+    ('host/tools/session.py',         (BROKER,)),
     # The pure character renderers: a reading in, text out. Nothing reaches a
     # wire, a tool schema or a board when one changes, so the suite that
     # draws them is the whole of it. `orientation` is the exception because

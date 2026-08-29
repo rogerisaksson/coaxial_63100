@@ -355,6 +355,15 @@ def banner(origin, title, console, detail=''):
     tag = ' LIVE ' if origin.real else ' SIMULATED - every value invented '
     colour = '30;42' if origin.real else '30;43'
 
+    # How many sessions share the board, beside whether it is one at all.
+    # Two people on one port is the normal case now, and a reading that
+    # moved because somebody else armed the stage should not be a mystery.
+    if origin.real:
+        from coaxial import broker
+        count = broker.clients()
+        if count:
+            tag = ' LIVE  %d session%s ' % (count, '' if count == 1 else 's')
+
     if not console:
         return '%s  %s   %s' % (tag.strip(), title, detail)
     return ('%s[%sm%s%s[0m  %s[97m%s%s[0m   %s[90m%s%s[0m'

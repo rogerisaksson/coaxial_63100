@@ -28,7 +28,28 @@ def selftest_crc():
     return 'CRC-16/MODBUS check("123456789") = 0x%04X' % got
 
 class Bus:
+
+    """The port, raw. Deliberately not through the session broker.
+
+    This suite sends malformed frames - short ones, bad CRCs, half a frame
+    and then silence - which is the whole point of it and the one thing a
+    broker cannot forward: it speaks unit, function and payload, and builds
+    a valid frame from them. So the port has to be this suite's alone, and
+    the broker is asked to stand down first. It refuses while sessions are
+    using it, which is the right answer: the bench is theirs until they let
+    go.
+    """
+
     def __init__(self, port=PORT, baud=BAUD):
+        from coaxial import broker
+
+        said = broker.serving() or {}
+        where = (said.get('host', broker.HOST), said.get('tcp', broker.PORT))
+        if said and not broker.stand_down(where):
+            raise RuntimeError(
+                'a session broker still holds %s - conformance needs the '
+                'port raw, so close the sessions using it first' % port)
+
         self.s = serial.Serial(port, baud, bytesize=8, parity='N', stopbits=1,
                                timeout=REPLY_TIMEOUT)
         self.log = []
