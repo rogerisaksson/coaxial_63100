@@ -16,6 +16,7 @@ the shaft turns - invariant 10 applies to a picture as much as to a voltage.
 """
 import math
 
+from . import angle
 from . import ansi
 from .raster import cell
 
@@ -125,7 +126,7 @@ def picture(state, width=60, height=19):
         return ('angle: no reading - loop %s, %s'
                 % (state.get('loop', '?'), state.get('error', '?')))
 
-    counts = state['value'] & 0x0FFF
+    counts = angle.counts(state['value'])
     degrees = state.get('degrees', counts * 360.0 / 4096.0)
     field = state.get('field')
     weak = field is not None and field < WEAK_GAUSS

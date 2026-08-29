@@ -42,12 +42,34 @@ def degrees(value):
     The high four bits are flags, not part of the angle - masking them off
     is what makes an error flag read as an error rather than as half a turn.
     """
-    return (value & 0x0FFF) * 360.0 / COUNTS
+    return counts(value) * 360.0 / COUNTS
 
 
 def kelvin(value):
     """TSEN's low twelve bits as kelvin: the count is eighths of one."""
-    return (value & 0x0FFF) / 8.0
+    return counts(value) / 8.0
+
+
+def counts(value):
+    """The twelve data bits of any of these registers.
+
+    Named because four call sites were spelling `value & 0x0FFF` out, and
+    two of them went on to re-derive degrees and kelvin from it with their
+    own literals - invariant 7, two copies of one conversion.
+    """
+    return value & 0x0FFF
+
+
+def gauss(value):
+    """FIELD's low twelve bits. The count IS the gauss.
+
+    The datasheet in this tree has no register map - it refers to the A1335
+    programming guide - so this comes from the reference implementation, like
+    the addresses above. Measured on this board with nothing mounted: 2.
+    The recommended operating range is 300 to 1000 G (datasheet, Field
+    Strength), so a reading in the low tens means no magnet.
+    """
+    return counts(value)
 
 
 class Angle(Subsystem, PolledSensor):

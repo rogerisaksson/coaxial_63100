@@ -13,6 +13,8 @@ For scale: a seven-channel reading is about 40 tokens here against roughly 400
 for the same data as pretty-printed JSON with full key names. That difference is
 the reason a small model can drive this board through a long test sequence.
 """
+from coaxial import angle
+
 
 def short(signal, index):
     """'Phase U' -> 'PhaseU'; an unnamed channel becomes its index."""
@@ -287,11 +289,11 @@ def angle(state):
 
     if 'degrees' in state:
         lines.append('  %7.2f deg   %5d counts of 4096   flags %X'
-                     % (state['degrees'], state['value'] & 0x0FFF,
+                     % (state['degrees'], angle.counts(state['value']),
                         state['flags']))
     elif 'kelvin' in state:
         lines.append('  %7.1f K     %5d counts, eighths of a kelvin'
-                     % (state['kelvin'], state['value'] & 0x0FFF))
+                     % (state['kelvin'], angle.counts(state['value'])))
     else:
         lines.append('  0x%04X raw' % state['value'])
 
@@ -302,13 +304,13 @@ def angle_registers(rows):
     """The registers a bring-up asks for, raw beside what they decode to."""
     out = ['angle registers: %d' % len(rows)]
     for name, value in rows:
-        low = value & 0x0FFF
+        low = angle.counts(value)
         if name == 'ANG':
-            said = '%7.2f deg' % (low * 360.0 / 4096.0)
+            said = '%7.2f deg' % angle.degrees(value)
         elif name == 'TSEN':
-            said = '%7.1f K' % (low / 8.0)
+            said = '%7.1f K' % angle.kelvin(value)
         elif name == 'FIELD':
-            said = '%5d gauss' % low
+            said = '%5d gauss' % angle.gauss(value)
         else:
             said = ''
         out.append('  %-6s 0x%04X  flags %X  %s' % (name, value, value >> 12,

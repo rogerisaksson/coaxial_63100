@@ -20,6 +20,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from coaxial import angle                                  # noqa: E402
 from coaxial import dial                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
@@ -64,8 +65,8 @@ def preflight(board, part):
 
     field = kelvin = None
     with board.angle.configuring():
-        field = board.angle.read(REG_FIELD)['value'] & 0x0FFF
-        kelvin = (board.angle.read(REG_TSEN)['value'] & 0x0FFF) / 8.0
+        field = angle.gauss(board.angle.read(REG_FIELD)['value'])
+        kelvin = angle.kelvin(board.angle.read(REG_TSEN)['value'])
         board.angle.poll_register(REG_ANG)
 
     say('ok', 'die temperature', '%.1f K, %.1f C' % (kelvin, kelvin - 273.15))
