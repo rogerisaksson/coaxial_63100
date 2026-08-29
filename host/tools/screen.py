@@ -154,6 +154,15 @@ class Keys:
     #: One SGR mouse report: ESC [ < button ; column ; row (M press, m release)
     MOUSE_RE = re.compile(r'\033\[<(\d+);(\d+);(\d+)([Mm])')
 
+    #: The four arrows, as the terminal sends them. They start with ESC, and
+    #: ESC on its own is what leaves a view - so an arrow press read as "back
+    #: to the menu" and closed whatever was being adjusted. Pulled out of the
+    #: buffer before the lone-ESC test ever sees them.
+    ARROW_RE = re.compile(r'\033\[([ABCD])')
+
+    #: What a view binds against, so no view has to know the escape codes.
+    ARROWS = {'A': 'up', 'B': 'down', 'C': 'right', 'D': 'left'}
+
     def __init__(self, console, mouse=False):
         self.console = console
         self.mouse = mouse and console
@@ -214,6 +223,17 @@ class Keys:
                 break
             zoom += self._mouse(int(found.group(1)), int(found.group(3)),
                                 found.group(4))
+            self._buffer = (self._buffer[:found.start()]
+                            + self._buffer[found.end():])
+
+        # Arrows before the lone-ESC test, or every one of them leaves the
+        # view. They join the typed buffer under their names, so a binding
+        # reads `'up'` rather than three bytes.
+        while True:
+            found = self.ARROW_RE.search(self._buffer)
+            if not found:
+                break
+            self._typed.append(self.ARROWS[found.group(1)])
             self._buffer = (self._buffer[:found.start()]
                             + self._buffer[found.end():])
 

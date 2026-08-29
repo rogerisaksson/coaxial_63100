@@ -26,6 +26,23 @@ class Analog(Subsystem):
     def __init__(self, board):
         super().__init__(board)
         self._channels = None
+        self._scaling = None
+
+    def scaling(self, refresh=False):
+        '''The board's own conversion parameters, fetched once and cached.
+
+        INVARIANT 7: these live in the calibration record. They used to be
+        literals here too, so calibrating a board left every cooked value on
+        this side using the old reference, the old shunt and the old
+        thermistor - and nothing said the two had parted company.
+
+        `refresh` after writing the record, which is the one time the cache
+        can be wrong.
+        '''
+        if self._scaling is None or refresh:
+            self._scaling = scaling.from_calibration(
+                self._board.calibration.read())
+        return self._scaling
 
     # -- the channel table -------------------------------------------------
 
@@ -197,7 +214,7 @@ class Analog(Subsystem):
         return {'samples': result['samples'], 'rate_hz': result['rate_hz'],
                 'channels': rows}
 
-    def ntc_temperature(self, adc_chan=None, ntc_params=scaling.NTC_ONBOARD,
+    def ntc_temperature(self, adc_chan=None, ntc_params=None,
                         nr_of_samples=64, sample_rate=2000.0):
         """Temperature in degrees Celsius.
 
@@ -205,6 +222,7 @@ class Analog(Subsystem):
         is worth it: a single sample carries a couple of milli-kelvin of ADC
         noise, and the burst costs the same round trip as one read.
         """
+        ntc_params = ntc_params or self.scaling()['ntc']
         index = self.index_of('NTC') if adc_chan is None else adc_chan
         stats = self._one(index, nr_of_samples, sample_rate)
 
@@ -219,7 +237,7 @@ class Analog(Subsystem):
             'samples': stats['samples'],
         }
 
-    def dcbus_voltage(self, adc_chan=None, divider=scaling.DCBUS_ONBOARD,
+    def dcbus_voltage(self, adc_chan=None, divider=None,
                       nr_of_samples=64, sample_rate=2000.0):
         """DC bus volts.
 
@@ -227,6 +245,7 @@ class Analog(Subsystem):
         a DividerParams carrying a measured reference if you need better than a
         percent.
         """
+        divider = divider or self.scaling()['dcbus']
         index = self.index_of('DC bus') if adc_chan is None else adc_chan
         stats = self._one(index, nr_of_samples, sample_rate)
 
@@ -243,7 +262,7 @@ class Analog(Subsystem):
             'samples': stats['samples'],
         }
 
-    def phase_current(self, signal='Phase U', shunt=scaling.PHASE_ONBOARD,
+    def phase_current(self, signal='Phase U', shunt=None,
                       nr_of_samples=64, sample_rate=2000.0):
         """Phase current in amperes.
 
@@ -255,6 +274,7 @@ class Analog(Subsystem):
         `signal` is what the board calls the channel - 'Phase U', 'Phase V',
         'Phase W' - not an index, because the index is the board's to choose.
         """
+        shunt = shunt or self.scaling()['phase']
         stats = self._one(self.index_of(signal), nr_of_samples, sample_rate)
 
         return {

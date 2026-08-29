@@ -36,7 +36,12 @@ static cmd_status_t h_daq_state(wr_t *out)
   wr_u32(out, st.dropped);
   wr_u16(out, st.config.channels);
   wr_u8(out, st.config.clock);
-  wr_u8(out, st.config.sample_time);
+  /* What the CONVERTER has, not what the task asked for. They are the same
+     today because the task is the only caller of Board_AdcSetSampleTime, and
+     that is exactly why the copy was worth removing: two records of one fact
+     agree right up until they do not, and the stale one is the one on the
+     wire. */
+  wr_u8(out, Board_AdcSampleTime());
   wr_u16(out, st.config.decimate);
   wr_u16(out, st.config.accumulate);
   wr_u32(out, st.config.records);

@@ -386,6 +386,18 @@ class SimulatedAnalog:
     def __init__(self, afe):
         self._afe = afe
 
+    def scaling(self, refresh=False):
+        """The same shape the board's own record produces.
+
+        Built from an EMPTY record on purpose, so every value falls back to
+        the compiled-in constants. That is the honest stand-in answer: there
+        is no calibrated board here to have a record of its own, and a made-up
+        one would be a number pretending to be a measurement.
+        """
+        del refresh
+        from . import scaling as _scaling
+        return _scaling.from_calibration({})
+
     def channels(self, refresh=False):
         return CHANNELS
 

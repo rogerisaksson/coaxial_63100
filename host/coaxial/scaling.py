@@ -134,8 +134,14 @@ def single_ended_volts(raw, vref=3.3):
     return raw / 65536.0 * vref
 
 
-# This board as built. Named constants so a call site reads as a deliberate
-# choice rather than an accepted default.
+# This board as built - the FALLBACK, for a caller with no board to ask.
+#
+# INVARIANT 7 SAYS THE BOARD OWNS THESE. They live in its calibration record
+# and it reports them over 0x6E device 3, so `from_calibration` below is what
+# a live call should use. These literals stayed authoritative until
+# 2026-08-28, which meant calibrating a board left the host cooking with the
+# old reference, the old shunt and the old thermistor, and nothing anywhere
+# said the two had parted company.
 NTC_ONBOARD = NtcParams(r25=10000.0, beta=3380.0, r_fixed=10000.0,
                         name='Murata NCU18XH103, onboard')
 DCBUS_ONBOARD = DividerParams(r_top=49900.0, r_bottom=2200.0, vref=3.3,
@@ -162,6 +168,54 @@ VGATE_ONBOARD = DividerParams(r_top=57000.0, r_bottom=10000.0, vref=3.3,
 #: Which divider a millivolt channel is on, by the name the board gives it.
 #: Three channels report mV and no two share a divider.
 BY_SIGNAL = {'+5V': RAIL5_ONBOARD, 'Vgate': VGATE_ONBOARD}
+
+#: What a set of parameters calls itself, so a reading says where its numbers
+#: came from rather than repeating them. The distinction is not cosmetic: a
+#: value cooked from the fallback is the schematic's arithmetic, and one
+#: cooked from the record is what the board was told it is.
+FROM_RECORD = "the board's own record"
+FROM_FALLBACK = "compiled-in fallback, the board sent no record"
+
+
+def from_calibration(cal):
+    """The board's own scaling, out of `calibration.read()`.
+
+    One dict keyed the way the constants above are named, so a caller swaps
+    the source without changing what it does with the result. Units follow
+    the record: micro-volts, micro-ohms, milli-kelvin, parts per million,
+    centi-kelvin.
+
+    A parameter the record does not carry falls back to the constant, which
+    is what an older firmware and an uncalibrated board both need.
+    """
+    p = cal.get('params', {})
+    vref = p.get('vref_uv', 3300000) / 1e6
+    where = FROM_RECORD if p else FROM_FALLBACK
+
+    return {
+        'ntc': NtcParams(
+            r25=float(p.get('ntc_r25_ohm', NTC_ONBOARD.r25)),
+            beta=p.get('ntc_beta_mk', NTC_ONBOARD.beta * 1000) / 1000.0,
+            r_fixed=float(p.get('ntc_rfixed_ohm', NTC_ONBOARD.r_fixed)),
+            t25_kelvin=p.get('ntc_t25_ck', 29815) / 100.0,
+            name=where),
+        'dcbus': DividerParams(
+            r_top=float(p.get('bus_r_top_ohm', DCBUS_ONBOARD.r_top)),
+            r_bottom=float(p.get('bus_r_bottom_ohm', DCBUS_ONBOARD.r_bottom)),
+            vref=vref, name=where),
+        'phase': ShuntParams(
+            r_shunt=p.get('shunt_uohm', 3500) / 1e6,
+            gain=p.get('amp_gain_ppm', 4545455) / 1e6,
+            vref=vref, name=where),
+        'rail5': DividerParams(
+            r_top=float(p.get('r5_r_top_ohm', RAIL5_ONBOARD.r_top)),
+            r_bottom=float(p.get('r5_r_bottom_ohm', RAIL5_ONBOARD.r_bottom)),
+            vref=vref, name=where),
+        'vgate': DividerParams(
+            r_top=float(p.get('vg_r_top_ohm', VGATE_ONBOARD.r_top)),
+            r_bottom=float(p.get('vg_r_bottom_ohm', VGATE_ONBOARD.r_bottom)),
+            vref=vref, name=where),
+    }
 
 
 def converter(unit, differential=False, vref=3.3, signal=None):

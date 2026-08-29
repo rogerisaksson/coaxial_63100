@@ -500,7 +500,6 @@ bool Board_Part(uint8_t index, board_part_t *info);
     and what every measurement before this used. */
 bool    Board_AdcSetSampleTime(uint8_t index);
 uint8_t Board_AdcSampleTime(void);
-uint8_t Board_AdcSampleTimeCount(void);
 
 /** Is this channel one the injected group converts? Only those three can
     be clocked from TIM1; everything else has to come through the meter. */

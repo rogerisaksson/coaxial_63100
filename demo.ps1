@@ -19,9 +19,10 @@
     invented and the banner is there so nobody has to remember that.
 
 .PARAMETER Name
-    Skip the menu: imu, angle, adc, capture, gate_drivers, thermal or
-    workbench.
-    ESC still comes back to it.
+    Run one standalone view instead of the session: imu, angle, adc,
+    capture, gate_drivers or thermal. Those own the port on their own, which
+    is what the session exists to avoid - use one when you want the rich
+    rendering the session's panels do not carry.
 
 .PARAMETER Port
     The board's VCP. Ignored with -Simulated.
@@ -40,8 +41,7 @@
     .\demo.ps1 adc -Simulated -Frames 3
 #>
 param(
-    [ValidateSet('imu', 'angle', 'adc', 'capture', 'gate_drivers', 'thermal',
-                 'workbench')]
+    [ValidateSet('imu', 'angle', 'adc', 'capture', 'gate_drivers', 'thermal')]
     [string]$Name,
     [string]$Port = 'COM4',
     [switch]$Simulated,
@@ -63,8 +63,6 @@ $Views = [ordered]@{
                  What   = 'the gate drivers: six signals, current, a burst' }
     'thermal' = @{ Script = 'thermal.ps1'
                  What   = 'where the heat sits, drawn on the board itself' }
-    'workbench' = @{ Script = 'workbench.ps1'
-                 What   = 'one session: switch, then look at anything' }
 }
 
 # 64 is show_*.py's TO_MENU: ESC asking to come back here rather than close.
@@ -142,9 +140,24 @@ function Read-View($Views) {
     return ''
 }
 
-# The name given on the command line is used once; after that the menu asks,
-# so ESC out of `demo.ps1 adc` lands somewhere you can choose again rather
-# than reopening the view just left.
+# NO NAME MEANS THE SESSION, and that is the point: opening the demos is
+# already being in one. A name runs the standalone view instead, which owns
+# the port on its own - the thing the session exists to avoid, and still the
+# way to the rich rendering the panels do not carry.
+if (-not $Name) {
+    Push-Location (Join-Path $PSScriptRoot 'host')
+    try {
+        $argv = @('tools/demos.py', '--port', $Port)
+        if ($Simulated) { $argv += '--simulated' }
+        if ($Frames -gt 0) { $argv += @('--frames', $Frames) }
+        & python @argv
+        $code = $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
+    exit $code
+}
+
 $asked = $Name
 $code = 0
 

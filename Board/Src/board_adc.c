@@ -63,11 +63,6 @@ uint8_t Board_AdcSampleTime(void)
 }
 
 
-uint8_t Board_AdcSampleTimeCount(void)
-{
-  return (uint8_t)SAMPLE_TIME_COUNT;
-}
-
 
 int32_t Board_AdcDifferential(uint32_t raw)
 {

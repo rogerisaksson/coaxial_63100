@@ -532,11 +532,18 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
 
     # Derive only the two quantities whose conversion is known. The phase
     # channels sit behind unknown AFE gain, so they get pin volts and no more.
-    ntc = NtcParams(r25=ntc_r25 or scaling.NTC_ONBOARD.r25,
-                    beta=ntc_beta or scaling.NTC_ONBOARD.beta,
-                    r_fixed=scaling.NTC_ONBOARD.r_fixed)
-    divider = DividerParams(r_top=scaling.DCBUS_ONBOARD.r_top,
-                            r_bottom=scaling.DCBUS_ONBOARD.r_bottom, vref=vref)
+    #
+    # The parameters come from the BOARD's record (invariant 7). An explicit
+    # ntc_r25 or ntc_beta still overrides, for a bench thermistor that is not
+    # the fitted one - but the default is what the board carries, not a
+    # literal that goes stale the moment anyone calibrates.
+    own = board.analog.scaling()
+    ntc = NtcParams(r25=ntc_r25 or own['ntc'].r25,
+                    beta=ntc_beta or own['ntc'].beta,
+                    r_fixed=own['ntc'].r_fixed,
+                    t25_kelvin=own['ntc'].t25_kelvin)
+    divider = DividerParams(r_top=own['dcbus'].r_top,
+                            r_bottom=own['dcbus'].r_bottom, vref=vref)
 
     rows = []
     derived = {}

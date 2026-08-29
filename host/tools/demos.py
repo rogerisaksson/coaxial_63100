@@ -1,9 +1,10 @@
-"""One session, several panels, and work that outlives the panel watching it.
+"""The demos, in one session. `demo.ps1` runs this.
 
-Every view in `demos/` opens its own rig and owns the port, so switching the
-gate drivers and watching the thermal picture meant two processes and one
-serial port - which is why `show_thermal.py` had to grow a `--switch` of its
-own. This holds ONE rig and lets panels come and go over it.
+There is nothing to pick and no mode to enter: opening the demos IS the
+session. Every standalone view in `demos/` opens its own rig and owns the
+port, so switching the gate drivers and watching the heat meant two processes
+and one serial port - which is why `show_thermal.py` had to grow a `--switch`
+of its own. Here one rig is held and the panels come and go over it.
 
 THE ACTIVITY OUTLIVES THE PANEL. That is the whole point: start the drivers
 switching, move to the thermal panel, and the stage keeps running because the
@@ -17,8 +18,9 @@ react to switching. It is unpowered for the duration. The thermal observer is
 the one thing that keeps answering, because it runs on power and time between
 samples, and that is what it was built for.
 
-    python tools/workbench.py
-    python tools/workbench.py --simulated
+    python tools/demos.py
+    python tools/demos.py --simulated
+    python tools/demos.py --panel gates
 """
 import argparse
 import os
@@ -42,6 +44,21 @@ CHROME = 5
 
 QUIET = (NoReplyError, RigError, DeviceStateError)
 
+#: Where the gate drivers start. Half is the duty that puts equal volt-seconds
+#: on both halves of every leg, so with all three at it there is no voltage
+#: between phases and no phase current - the state the whole thermal
+#: calibration was taken in.
+DEFAULT_DUTY = 0.50
+
+#: What one arrow press moves it. Coarse enough to get somewhere by hand,
+#: fine enough that the step is not the experiment. One TIM1 tick of ARR 2375
+#: is 0.042 %, so this is 119 ticks and nowhere near the resolution floor.
+DUTY_STEP = 0.05
+
+#: Which legs. Named because a leg at a time is how a per-leg thermal
+#: question gets asked, and three at once is how a bulk one does.
+DEFAULT_PHASES = ('U', 'V', 'W')
+
 
 def steady(fn, *args, **kwargs):
     """Run it, tolerating the link's occasional silence. None if it stayed."""
@@ -61,6 +78,22 @@ class Session:
         self.rig = rig
         self.running = {}          # activity name -> what to undo, in order
         self.note = ''
+        self.duty = DEFAULT_DUTY
+        self.phases = DEFAULT_PHASES
+
+    def set_duty(self, duty):
+        """Move the duty, and push it if the stage is already switching.
+
+        Held here rather than in the activity because it outlives it: set it
+        down, stop switching, start again, and it is still what you chose.
+        """
+        self.duty = min(1.0, max(0.0, duty))
+        if 'switching' in self.running:
+            load = dict(('Phase %s' % leg, self.duty) for leg in self.phases)
+            if steady(self.rig.write, analog=load) is None:
+                self.note = 'the duty write did not take'
+                return
+        self.note = 'duty %.0f %%' % (100.0 * self.duty)
 
     def toggle(self, activity):
         if activity.name in self.running:
@@ -94,7 +127,7 @@ class Switching:
 
     name = 'switching'
     key = 's'
-    what = 'gate drivers, three legs at 50 %'
+    what = 'gate drivers, three legs'
 
     def start(self, session):
         rig = session.rig
@@ -105,7 +138,7 @@ class Switching:
             session.note = 'the stage refused to arm'
             return None
 
-        load = {'Phase %s' % leg: 0.50 for leg in ('U', 'V', 'W')}
+        load = dict(('Phase %s' % leg, session.duty) for leg in session.phases)
         if steady(rig.write, analog=load) is None:
             steady(rig.gates.disarm)
             session.note = 'armed but the duty did not take - disarmed again'
@@ -208,14 +241,34 @@ def key_bar(session, active):
         '%s%s%s' % ('[' if a.name in session.running else ' ', a.key,
                     ']' if a.name in session.running else ' ') + a.name
         for a in ACTIVITIES)
-    return '  %s     %s     q quit' % (panels, doing)
+    return ('  %s     %s     duty %3.0f %% (up/down)     q quit'
+            % (panels, doing, 100.0 * session.duty))
+
+
+def act_on(session, typed, active, by_key, panel_keys):
+    """What one keystroke does. Returns the panel to draw next.
+
+    Its own function because the draw loop was already as deep as this tree
+    allows - the structure suite refuses a nest past seven, and a binding
+    table growing inside a redraw is how a loop gets there.
+    """
+    if typed == 'up':
+        session.set_duty(session.duty + DUTY_STEP)
+    elif typed == 'down':
+        session.set_duty(session.duty - DUTY_STEP)
+    elif typed in panel_keys:
+        session.note = ''
+        return typed
+    elif typed in by_key:
+        session.toggle(by_key[typed])
+    return active
 
 
 def frame(session, active, console, note):
     reserve = CHROME + (1 if note else 0)
     draw = dict((key, fn) for key, _n, _w, fn in PANELS)[active]
     body = draw(session, console, reserve)
-    lines = ['', banner(session.rig.origin, 'workbench - %s' % active,
+    lines = ['', banner(session.rig.origin, 'demos - %s' % active,
                         console, session.rig.origin.label), '']
     lines += body
     lines += ['', key_bar(session, active)]
@@ -230,6 +283,8 @@ def main():
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--hz', type=float, default=2.0)
     p.add_argument('--frames', type=int, default=0)
+    p.add_argument('--panel', default='thermal',
+                   help='which panel to open on, by name')
     a = p.parse_args()
 
     # power_afe=False: the session decides the rail, not the constructor.
@@ -247,8 +302,11 @@ def main():
             sys.stdout.write(chr(27) + '[2J')
 
         session = Session(rig)
-        active, shown, leaving, count = '1', [], None, 0
+        by_name = dict((name, key) for key, name, _w, _f in PANELS)
+        active = by_name.get(a.panel, '1')
+        shown, leaving, count = [], None, 0
         by_key = dict((act.key, act) for act in ACTIVITIES)
+        panel_keys = frozenset(key for key, _n, _w, _f in PANELS)
 
         try:
             with Keys(console) as keys:
@@ -266,10 +324,8 @@ def main():
                         break
 
                     for typed in keys.taken():
-                        if typed in dict((k, 1) for k, _n, _w, _f in PANELS):
-                            active, session.note = typed, ''
-                        elif typed in by_key:
-                            session.toggle(by_key[typed])
+                        active = act_on(session, typed, active,
+                                        by_key, panel_keys)
 
                     time.sleep(1.0 / max(a.hz, 0.2))
         except KeyboardInterrupt:
