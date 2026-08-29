@@ -47,19 +47,16 @@ READING = 'analog_read'
 # English one is testing the desktop. Locked here.
 START = 'Swedish'
 
-# question -> the tool it must call, and the tools it must not.
-#
-# Four questions crossed two ways: list or read, analog or digital. Every
-# one of these is a transcript from the bench, and every wrong cell was one
-# the operator saw before this suite existed:
+# question -> the tool it must call, and the ones it must not. Four
+# questions crossed two ways: list or read, analog or digital. Every wrong
+# cell below is one the operator saw before this suite existed:
 #
 #   "lista alla digitala kanaler"  -> analog_read, and a full analog table
 #   "lista alla analoga kanaler"   -> the map, then the model typing it out
 #   "ge mig alla digitala varden"  -> the digital list, no values
 #
-# `must_not` is the half that matters. Calling nothing is a different
-# failure from calling the wrong thing, and the answer being right by luck
-# after the wrong call is not this suite passing.
+# `must_not` is the half that matters: right by luck after the wrong call is
+# not this suite passing.
 TOOL_CHOICE = (
     # question, must call, must not call
     ('ge mig en lista över alla analoga kanaler', 'board_info',

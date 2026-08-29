@@ -324,15 +324,10 @@ TOUCHES = (
 # checked is one that drifts.
 FULL_EVERY = 10
 
-#: Suites the map is allowed to settle on its own. Every one of them runs
-#: without a board, without ollama, and the four together are under five
-#: seconds - so there is nothing for the model's judgement to save, and
-#: asking costs a 7.6 GB load that is longer than the whole run.
-#:
-#: The model is for the paths the map does not know. Where the map has an
-#: explicit rule it is the better answer of the two: it was written by
-#: someone reading the imports, and it cannot widen a demo wrapper into the
-#: gate on a bad turn.
+#: Suites the map may settle alone: no board, no ollama, under five seconds
+#: together - so asking the model costs a 7.6 GB load longer than the run.
+#: Where the map has an explicit rule it is also the better answer, written
+#: by someone reading the imports.
 CHEAP = frozenset({STRUCTURE, CORE, SHTP, 'test_simulated.py'})
 
 

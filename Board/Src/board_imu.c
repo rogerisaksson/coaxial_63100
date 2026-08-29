@@ -700,16 +700,10 @@ static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
 static uint8_t  s_stage;
 static uint32_t s_stage_at;
 
-/** The last Set Feature asked for, so it can be asked for again.
-  *
-  * THE PART LOSES IT ON EVERY RESET, and AFE_ON resets it - the poll's own
-  * comment below says so. Nothing re-applied it, so one blink of the rail
-  * stopped the reports for good and the loop went on reporting `running`
-  * with `updates` frozen. That reads exactly like a dead part; measured
-  * 2026-08-29, it cost an hour and a reflash of an older firmware.
-  *
-  * Zero interval means nothing has been asked for, which is the state a
-  * board comes up in. */
+/** The last Set Feature asked for, so it can be asked for again. The part
+  * loses it on every reset and AFE_ON resets it; nothing re-applied it, so
+  * one blink of the rail stopped the reports while the loop still said
+  * `running`. Zero interval means nothing has been asked for. */
 static uint8_t  s_feature_id;
 static uint32_t s_feature_us;
 

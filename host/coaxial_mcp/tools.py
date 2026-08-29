@@ -511,17 +511,11 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
     indices = (_resolve(session, ch, notes) if ch
                else [c['index'] for c in channels])
 
-    # Read whether or not the front end is on, and say which it was.
-    #
-    # Refusing was worse than it looked. Asked for the raw codes with the AFE
-    # deliberately off, the tool raised, and the model - having no numbers -
-    # produced "PhaseU: Mid-scale... NTC: 25.00 C" from the warning text
-    # itself. A refusal did not prevent a fabricated reading, it caused one.
-    #
-    # It is also the wrong shape for this repository. The board is a dumb slave
-    # that reports codes and judges nothing (invariant 10); deciding a
-    # measurement is not worth taking is a judgement. So the codes come back,
-    # with a line that cannot be mistaken for one of them.
+    # Read either way, and say which it was. Refusing CAUSED a fabricated
+    # reading: with the AFE off the tool raised, and the model wrote
+    # "PhaseU: Mid-scale... NTC: 25.00 C" out of the warning text itself.
+    # Deciding a measurement is not worth taking is also a judgement, which
+    # this board does not make (invariant 10).
     afe_on = bool(board.afe.state().get('on'))
 
     mask = 0

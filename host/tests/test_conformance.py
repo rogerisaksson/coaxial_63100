@@ -529,17 +529,14 @@ def map_tests(run):
         # FC04 passed in silence and counted for nothing.
         run.check('FC04 dcbus + ntc', len(v) == 2,
                   '%d mV, %.2f C' % (v[0], s16(v[1]) / 100.0))
-        # No limits here on purpose. This suite tests the PROTOCOL, and the
-        # board is a dumb slave - whether 24 V is the right voltage is a
-        # question for a test executive with a calibrated meter, not for a
-        # conformance test with a number compiled into it.
+        # No limits here on purpose: this tests the PROTOCOL, and whether
+        # 24 V is right belongs to a test executive with a meter.
         #
-        # What IS testable without a reference: that a scaled field agrees with
-        # the raw code it was derived FROM. That needs both to come from one
-        # conversion, so it uses FC 0x43, where the firmware computes them from
-        # a single sample. Reading the two input registers separately compares
-        # two independent samples of a noisy channel and fails on noise - which
-        # is exactly how the first version of this check failed, by 13 LSB.
+        # What IS testable without a reference is that a scaled field agrees
+        # with the raw code it came FROM - so both must come from one
+        # conversion, which is why this uses FC 0x43. Reading the two input
+        # registers separately compares two samples of a noisy channel; that
+        # is how the first version failed, by 13 LSB.
         scan = parse(b.request(bytes([0x43])))
         if scan is None or not scan[3]:
             run.check('FC43 scan for the scaling cross-check', False, 'no reply')

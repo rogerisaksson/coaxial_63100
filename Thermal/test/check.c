@@ -36,15 +36,10 @@ static const struct sample CASES[] =
   { "4 switch",  { 0.60f, 0.0f, 0.666f, 1.134f, 0.0f, 0.0f }, 40.0f, 55.6f },
 };
 
-/* Does a die sensor actually buy anything?
- *
- * Start the observer a long way off and give it ONLY the MCU's own die - no
- * NTC at all. If the die is worth what the header claims, the board converges
- * anyway, because the node's rise over the board is its own power times its
- * own spreading resistance and the model carries both.
- *
- * The NTC could not do this alone: it sits in the drivers' hot spot, so what
- * it reads is the board plus a share of a rise it cannot separate out.
+/* Does a die sensor buy anything? Start 30 K wrong with ONLY the MCU die and
+ * no NTC. The board should converge anyway: the node's rise is its power
+ * times its spreading resistance, both of which the model has. The NTC could
+ * not do this - it sits in the drivers' hot spot.
  */
 static int die_anchor(void)
 {

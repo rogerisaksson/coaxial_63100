@@ -142,16 +142,13 @@ def test_map_retype(report):
                  repliesmod.is_retype(wide, {'phaseu'}, minimum=1),
                  '%d words' % len(wide.split()))
 
-    # The digital blocks, both of them. A digital row names its pin in the
-    # first column and never starts with a digit, so MAP_ROW - anchored on
-    # the analog shape - never saw one.
+    # A digital row names its pin first and never starts with a digit, so
+    # MAP_ROW - anchored on the analog shape - never saw one.
     #
-    # Every reply below is built from the board's own digital map rather
-    # than typed out. It was typed out, with the two rows the map had then,
-    # and adding UART5_TERM and KEEPALIVE to `s_digital` left seven checks
-    # failing on a mechanism that was working: `is_retype` wants every
-    # channel named, and a fixture naming two of four is not a retype. The
-    # channel map is the board's (CLAUDE.md), and so is this.
+    # Every reply below is built from the board's own map. Typed out, it had
+    # the two rows the map held then, and adding UART5_TERM and KEEPALIVE
+    # left seven checks failing on a working mechanism: naming two of four
+    # is not a retype.
     def digital_turn(tool, reply, quiet=False, **args):
         chat = debug.Chat(ScriptedModel([
             call(tool, **args),

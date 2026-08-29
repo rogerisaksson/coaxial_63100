@@ -14,14 +14,12 @@
 #include "wire.h"
 
 /**
-  * @brief op 0 - transmit four patterns on one port and report what returned.
+  * @brief op 0 - four patterns out on one port, and what came back.
   *
-  * The RS485 transceivers have RE tied to GND, so each one hears itself: on
-  * those two ports all four patterns must come back, and one that does not is
-  * the driver, the receiver or the wiring between them. USART3 is not RS485
-  * and nothing comes back, which is the right answer there and not a fault.
-  *
-  * It puts four bytes on the segment. Nothing calls it on a timer.
+  * RE is tied to GND on both transceivers, so those two ports hear
+  * themselves and all four must return; one that does not is the driver, the
+  * receiver or the wiring. USART3 is not RS485 and returns nothing, which is
+  * the right answer there. Four bytes on the segment, and nothing times it.
   */
 static cmd_status_t h_link_echo(rd_t *in, wr_t *out)
 {

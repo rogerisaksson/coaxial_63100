@@ -65,16 +65,10 @@ def grey(fraction):
 BOARD_RAMP = (22, 22, 28, 34, 40, 46, 47, 83, 119, 155, 191, 227, 231)
 
 
-#: Colour stops by DEGREES, not by fraction of a span.
-#:
-#: An auto-ranged picture makes a cool board look exactly like a hot one, and
-#: two pictures side by side then say nothing. Fixed stops mean a colour is a
-#: temperature, always.
-#:
-#: The spacing is deliberately not linear: this board idles near 30 C and the
-#: interesting range is 20-60, so green is stretched over it and the warm end
-#: is held back. Red starts at 90, which is where a laminate is genuinely in
-#: trouble - not at 60, where it is merely working.
+#: Colour stops by DEGREES, not by fraction of a span: auto-ranging made a
+#: cool board look exactly like a hot one. Spacing is deliberately uneven -
+#: the board idles near 30 C, so 20-60 gets the resolution and red starts at
+#: 90, where a laminate is in trouble rather than merely working.
 THERMAL_STOPS = (
     (-20.0, 17),    # deep blue
     (0.0, 19),

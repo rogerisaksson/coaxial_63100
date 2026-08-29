@@ -297,15 +297,9 @@ static cmd_status_t h_imu_wake(rd_t *in, wr_t *out)
 }
 
 /**
-  * @brief op 8 - the poll loop's shared record.
-  *
-  * The only way a host sees the stream, and it touches no SPI: Board_ImuPoll
-  * fills this in from the main loop, and reading a cargo per request cost
-  * 45 ms each and caught one in eight. `updates` is monotonic, so a host
-  * tells a new reading from the same one read twice without guessing from
-  * the values.
-  *
-  * Counts, not radians. Q14 belongs to the host, like every other scale.
+  * @brief op 8 - the poll loop's shared record. Touches no SPI: a cargo per
+  * request cost 45 ms and caught one frame in eight. `updates` is monotonic,
+  * so the same reading read twice is telling. Counts, not radians.
   */
 static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
 {

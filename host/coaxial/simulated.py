@@ -85,16 +85,11 @@ SWEEP_HZ = 0.14
 SWING = {0: 9000.0, 1: 9000.0, 2: 9000.0, 3: 300.0, 4: 6000.0, 5: 4000.0,
          6: 3000.0, 7: 200.0, 8: 100.0, 9: 300.0}
 
-#: How far a channel moves WITHIN one burst, in codes, which is a different
-#: quantity from how far it wanders between them. This was a flat +/-5 codes
-#: for everything: 0.015% of a differential channel's range, so the burst's
-#: own extremes drew underneath the bar and the peak hold never had anything
-#: to hold. The views have marks for all three - mean, burst extreme, held
-#: peak - and two of them were invisible.
-#:
-#: Sized by where each channel sits rather than picked to look busy: the
-#: phases are inside a switching power stage and the thermistor is a slow thing on
-#: the end of a divider.
+#: How far a channel moves WITHIN one burst - a different quantity from how
+#: far it wanders between them. A flat +/-5 codes for everything is 0.015 %
+#: of a differential range, so the burst extremes drew under the bar and two
+#: of the views' three marks were invisible. Sized by where each channel
+#: sits, not to look busy.
 RIPPLE = {0: 2600.0, 1: 2600.0, 2: 2600.0, 3: 40.0, 4: 150.0, 5: 700.0,
           6: 300.0, 7: 60.0, 8: 40.0, 9: 80.0}
 

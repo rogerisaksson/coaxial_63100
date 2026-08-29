@@ -72,13 +72,11 @@ LEGS = 3               # U, V, W
 
 # %% [markdown]
 # ## C_oss loss
-# `C_ds(v) = Cjo / (1 + v/Vj)**m`, the junction law the VDMOS model uses.
-# Integrating it gives the charge into the node and the energy stored there.
+# `C_ds(v) = Cjo / (1 + v/Vj)**m`, the VDMOS model's junction law; integrating
+# gives the charge into the node.
 #
-# With no load the switch node swings rail-to-rail once per period. Everything
-# the rail delivers into that capacitance comes back out as heat in the
-# channels, so the dissipation per cycle is `Q_node * V` - not `1/2 C V**2`,
-# which is only the part that ends up stored.
+# The dissipation per cycle is `Q_node * V`, not `1/2 C V**2` - the latter is
+# only the part that ends up stored.
 
 
 # %%
@@ -146,13 +144,11 @@ for t_r in (8e-9, 80e-9):
 
 # %% [markdown]
 # ## Measured, 2026-08-28
-# One leg (U) switching, nothing connected, ten minutes each. The NTC is not
-# the junction - it sits elsewhere on the board - so the ratio below is a
-# coupling figure, not a thermal resistance.
+# One leg switching, nothing connected, ten minutes each. The NTC is not the
+# junction, so the ratio below is a coupling figure, not a resistance.
 #
-# The 30 V run started 2 C above the 24 V run's baseline and was still
-# shedding heat, which compresses its delta. That is why the two coupling
-# numbers differ; they should not be averaged.
+# The 30 V run started 2 C warm and still shedding, which compresses its
+# delta. The two coupling numbers should not be averaged.
 
 # %%
 MEASURED = [
@@ -170,14 +166,11 @@ for V, _mins, t0, t1 in MEASURED:
              'warm start' if t0 > 41 else 'cold-ish start'))
 
 # %% [markdown]
-# ## Where the heat lands - which is not where the watts are
-# **None of the gate-drive power heats the FET channel.** It is dissipated in
-# whatever resistance the gate charge flows through: the driver's own output
-# switch, the FET's internal Rg, and R9. D5 (Schottky across R9) bypasses R9
-# on turn-off, so the two paths are not symmetric.
-#
-# Resistances are the models' own - `SW_PU_MOD`/`SW_PD_MOD` from
-# `2EDL8034F5.lib`, `Rg` from the VDMOS model, R9 off the schematic.
+# ## Where the heat lands - not where the watts are
+# **No gate-drive power heats the FET channel.** It goes into whatever the
+# gate charge flows through: the driver's output switch, the FET's Rg, and
+# R9 - which D5 bypasses on turn-off, so the paths are not symmetric.
+# Resistances are the models' own; R9 is off the schematic.
 
 # %%
 R_PU, R_PD = 3.0, 2.0          # 2EDL8034F5.lib output switches

@@ -112,16 +112,13 @@ class GateDrivers(Subsystem, GateControl):
         # period. With the dither running they differ by a tick most of the
         # time and that is the point, not a rounding.
         out['requested'] = tuple(r.u32() / 65536.0 for _ in range(PHASES))
-        # The six gate signals as the board read them in one IDR load, and
-        # TIM1->CNT beside it. One instant: six separate asks at 50 kHz can
-        # straddle an edge and show a leg with both FETs on, which is the
-        # one state the dead time exists to prevent.
+        # Six gate signals in one IDR load with TIM1->CNT beside it: six
+        # separate asks at 50 kHz can straddle an edge and show a leg with
+        # both FETs on, the one state dead time prevents.
         #
-        # ONE INSTANT, NOT A DUTY. Averaging these over many calls is only
-        # honest while `pins_at` spreads across the period. With the sync
-        # armed it does not: the injected conversion fires near the top,
-        # the reply follows a fixed distance behind, and CNT lands in the
-        # same band every time - measured, 89.5 % high at a duty of 50 %.
+        # ONE INSTANT, NOT A DUTY. Averaging is only honest while `pins_at`
+        # spreads across the period; with the sync armed CNT lands in the
+        # same band every time - measured, 89.5 % high at 50 % duty.
         pins = r.u8()
         out['pins'] = {name: bool(pins >> i & 1) for i, name in enumerate(GATES)}
         out['pins_at'] = r.u16()

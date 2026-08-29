@@ -1405,19 +1405,14 @@ def test_docs(report):
         report.check('bare switch or a real question: %s' % question[:32],
                      got == bare, str(got))
 
-    # Measured live: a Swedish question that named a tool without calling it
-    # triggered the "call the tool now" nudge - appended to history with
-    # role=='user', for the model's benefit - and the language flipped to
-    # English on the next trim() because that nudge's own English words were
-    # now the last "user" message in history. self.prompt_history exists
-    # precisely so this cannot happen: it is appended once, at the top of
-    # ask(), and nothing added to history later in the same turn can reach it.
-    # Measured from prompt_io.tmp: "Beskriv hardvaran i detta projektet for
-    # en novis" logged `analog_read {"ch": ["all"]}`, its table, and then
-    # `A:` with nothing after it. The blank answer reached the operator as a
-    # blank line under the table - the stale gate is closed by last_channels,
-    # which that same call had just set, so nothing caught it. A turn never
-    # ends on silence: nudged for words first, then a line saying so.
+    # Measured live: the "call the tool now" nudge goes into history with
+    # role=='user', and its English words then flipped the language on the
+    # next trim(). `prompt_history` is appended once at the top of ask() so
+    # nothing added later in the turn can reach it.
+    #
+    # And from prompt_io.tmp: a call, its table, then `A:` with nothing after
+    # it - a blank line under the table, past the stale gate because that same
+    # call had just set last_channels. A turn never ends on silence.
     blank_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     blank = debug.Chat(ScriptedModel([
         call('analog_read'),

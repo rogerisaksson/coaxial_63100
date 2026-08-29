@@ -631,15 +631,11 @@ const char *Board_PwmSetDeadTime(uint32_t ns)
 }
 
 
-/* The skew, and why the update runs twice a period.
- *
- * DTG is the same on both transitions, so a skew cannot come from a compare
- * register - only from writing DTG between them. RCR 0 puts an update at
- * every overflow AND underflow, so the handler gets a turn ahead of each.
- *
- * Positive lengthens the up-count transition and shortens the other by the
- * same, so the pair averages what was asked for. Neither half goes under the
- * floor. NOT MEASURED on the gates - only that DTG reads back (invariant 10).
+/* The skew, and why the update runs twice a period. DTG is the same on both
+ * transitions, so it can only come from writing DTG between them; RCR 0 puts
+ * an update at every overflow AND underflow. Positive lengthens the up-count
+ * transition and shortens the other by the same. NOT MEASURED on the gates -
+ * only that DTG reads back (invariant 10).
  */
 const char *Board_PwmSetDeadTimeSkew(int8_t counts)
 {
