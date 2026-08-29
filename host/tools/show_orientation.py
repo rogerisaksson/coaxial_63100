@@ -23,7 +23,7 @@ from coaxial import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
 from screen import (closing, Keys, paced,  # noqa: E402
-                    say, stamp_crosses, TO_MENU)
+                    say, TO_MENU)
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -87,16 +87,18 @@ def canvas(args):
     flat, so what shows its components is each one covering several cells.
     At 34x15 none of them does and the board is a disc; at 150x60 they
     resolve and it looks like the reference this renderer is a port of.
-    Four rows are left for the caption and the numbers above it, and
-    two more for the blanks that keep the banner off the top rows,
-    where the shell's status line sits.
+    The stage takes four rows - title band, key bar, the viewport's two
+    edges - and the -10 it reserved from the banner era left the drawing
+    short OR, worse, taller than its panel: the viewport centres
+    vertically, so the overflow CLIPPED both the top and the bottom of
+    the model at once.
     """
     if args.width and args.height:
         return args.width, args.height
 
     try:
         size = os.get_terminal_size()
-        width, height = size.columns - 2, size.lines - 10
+        width, height = size.columns - 2, size.lines - 4
     except OSError:
         width, height = 100, 40         # not a terminal: still worth drawing
 
@@ -230,6 +232,11 @@ def put_back(board, part):
     """
     done = []
     try:
+        if board.imu.state().get('loop') != 'running':
+            # The loop is down - the rail dropped, and the part forgot
+            # the report with it. Nothing to disable, and saying FAILED
+            # on the way out over that taught nothing.
+            return [('rotation vector', 'already gone with the rail')]
         with board.imu.configuring():
             board.imu.feature(ROTATION_VECTOR, 0)
         done.append(('rotation vector', 'disabled - the part stops streaming'))
@@ -240,13 +247,55 @@ def put_back(board, part):
     return done
 
 
+def _mirror_keys(flip):
+    """One footer pair per axis. An INVERTED axis burns sodium on the bar,
+    so a wild ride on the empirical dial always shows where it is."""
+    from rich.text import Text
+
+    for name, flipped in zip('XYZ', flip):
+        yield (name, Text('INV', style='bold color(214) on grey15')
+               if flipped else Text('+', style='keys'))
+
+
+def bindings(typed, view, quaternion):
+    """Apply one frame of keys to the view state, in place.
+
+    X, Y and Z toggle MIRRORING of that axis - the empirical knob for
+    finding how the part actually sits; the footer shows the state and
+    the finding goes into MOUNT as code once it is reported. C toggles
+    the coordinate system and the horizon. T tares: the attitude from
+    HERE is what draws - one press cancels the mounting offset and the
+    arbitrary yaw reference at once, and pressing again re-zeros.
+    """
+    for t in typed:
+        if t in 'xX':
+            view['flip'][0] = not view['flip'][0]
+        elif t in 'yY':
+            view['flip'][1] = not view['flip'][1]
+        elif t in 'zZ':
+            view['flip'][2] = not view['flip'][2]
+        elif t in 'cC':
+            view['frame_on'] = not view['frame_on']
+        elif t in 'tT':
+            view['tare'] = quaternion
+
+
 def compose(origin, args, view, colour, console):
     """One frame on the stage: viewport left, instruments right, keys."""
     from screen import frame_of
 
-    q = view['quaternion']
-    if view['tare'] is not None:
-        q = orientation.relative(q, view['tare'])
+    # Mirrors on the raw quaternion (the empirical knob), then the whole
+    # derivation in one call: orientation.attitude carries the tare and
+    # the mounting sandwich, proven by its own three checks.
+    def flipped(raw):
+        sx, sy, sz = view['flip']
+        return (-raw[0] if sx else raw[0],
+                -raw[1] if sy else raw[1],
+                -raw[2] if sz else raw[2], raw[3])
+
+    q = orientation.attitude(flipped(view['quaternion']),
+                             flipped(view['tare'])
+                             if view['tare'] is not None else None)
 
     tall = view['tall']
     # The FULL width the HUD leaves over: the old 2*tall+14 cap cropped a
@@ -256,17 +305,18 @@ def compose(origin, args, view, colour, console):
         q, width=art_w, height=tall,
         zoom=view['zoom'] * (0.88 if not args.photo else 1.0),
         shop=view['shop'], toon=not args.photo, wire=not args.photo,
-        colour=colour).splitlines()
+        colour=colour, frame_on=view['frame_on']).splitlines()
     margin = min((len(l) - len(l.lstrip(' '))
                   for l in art if l.strip()), default=0)
-    art = stamp_crosses([l[margin:] for l in art], art_w - margin)
+    art = [l[margin:] for l in art]
 
     note = (('stale %d frames' % view['stale']) if view['stale'] else 'live')
     return frame_of(
         console, origin, 'BOARD ATTITUDE', '\n'.join(art),
         boxes(view['part'], view['pid'], view['record'], q, view['rate']),
-        (('Z', 'TARE'), ('WHEEL', 'ZOOM'), ('Q', 'EXIT'), ('ESC', 'MENU'),
-         ('', note)))
+        (tuple(_mirror_keys(view['flip']))
+         + (('C', 'FRAME'), ('T', 'TARE'), ('WHEEL', 'ZOOM'),
+            ('Q', 'EXIT'), ('ESC', 'MENU'), ('', note))))
 
 
 def parse_args(argv):
@@ -360,7 +410,8 @@ def main(argv=None):
     # a right-drag move it, clamped so the model cannot be pushed through
     # the camera or shrunk to nothing.
     zoom = 1.0
-    tare = None
+    state = {'tare': None, 'flip': [False, False, False],
+             'frame_on': True}
     shop = workshop(args)
     if shop:
         say('ok', 'drawing', '%d processes, one band of the picture each'
@@ -378,6 +429,11 @@ def main(argv=None):
                 else:
                     quaternion = (fresh['i'], fresh['j'], fresh['k'],
                                   fresh['real'])
+                    if seen < 0:
+                        # TARE ONCE, on the first real sample: the resting
+                        # picture is the board as it lies, not its yaw
+                        # history. T re-tares whenever wanted.
+                        state['tare'] = quaternion
                     seen, stale = record['updates'], 0
 
                 frame += 1
@@ -388,13 +444,13 @@ def main(argv=None):
                                 / (now - rate_at))
                     rate_seen, rate_at = record['updates'], now
 
-                live.update(compose(origin, args, {
-                    'part': part, 'pid': pid, 'record': record,
-                    'quaternion': quaternion, 'rate': rate, 'tare': tare,
-                    'stale': stale, 'frame': frame, 'zoom': zoom,
-                    'shop': shop, 'wide': wide, 'tall': tall},
-                    colour=console and not args.photo,
-                    console=console), refresh=True)
+                view = dict(state, part=part, pid=pid, record=record,
+                            quaternion=quaternion, rate=rate,
+                            stale=stale, frame=frame, zoom=zoom,
+                            shop=shop, wide=wide, tall=tall)
+                live.update(compose(origin, args, view,
+                                    colour=console and not args.photo,
+                                    console=console), refresh=True)
 
                 if args.frames and frame >= args.frames:
                     break
@@ -403,12 +459,7 @@ def main(argv=None):
                     break
                 if moved:
                     zoom = max(0.25, min(6.0, zoom * (1.0 + moved)))
-                if any(t in 'zZ' for t in typed):
-                    # TARE: the attitude from HERE is what draws. One press
-                    # cancels the mounting offset (-1.9 deg roll on this
-                    # bench) and the arbitrary yaw reference at once;
-                    # pressing it again re-zeros.
-                    tare = quaternion
+                bindings(typed, state, quaternion)
     except KeyboardInterrupt:
         pass
     finally:

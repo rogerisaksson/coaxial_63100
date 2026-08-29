@@ -556,7 +556,7 @@ def dash(session, got):
         # All three thermometers here rather than in the thermal column: they
         # are the widest line there is, and a column sized by them squeezed
         # the two beside it. This line has the width.
-        bits.append('NTC %s  AFE die %s  MCU die %s C'
+        bits.append('NTC %s  A1335 die %s  MCU die %s C'
                     % (_degc(therm['ntc']), _degc(therm['afe']),
                        _degc(therm['mcu'])))
     if session.running:

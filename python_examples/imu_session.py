@@ -102,9 +102,15 @@ from coaxial import orientation                                # noqa: E402
 
 
 def attitude():
-    """The quaternion as a tuple, or level if the part has not reported."""
+    """The BOARD's attitude, or level if the part has not reported.
+
+    Through `orientation.mounted`: the part reports its own frame, and it
+    sits rotated 180 degrees about Z in this layout.
+    """
     q = imu.state()['quaternion']
-    return (q['i'], q['j'], q['k'], q['real']) if q else (0.0, 0.0, 0.0, 1.0)
+    if not q:
+        return (0.0, 0.0, 0.0, 1.0)
+    return orientation.attitude((q['i'], q['j'], q['k'], q['real']))
 
 
 for _ in range(3):

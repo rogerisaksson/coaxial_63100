@@ -47,14 +47,11 @@ ENTRIES = (
     ('T', 'THERMAL OBSERVER', 'where the heat sits'),
 )
 
-#: Degrees of yaw per second for the idle turntable, and the step frames
-#: are cached on. 1.5 degrees at ~12 fps is the same 18 deg/s the page
-#: always turned; the cache means a full lap costs 240 renders ONCE and
-#: idling after that costs only the print.
-TURN_DPS = 18.0
-TURN_STEP = 1.5
+#: Degrees of yaw per second for the idle tumble, with slower sways
+#: about the other two axes riding on top - all three turn, none of them
+#: fast enough to read as spinning.
+TURN_DPS = 30.0
 
-_FRAMES = {}
 _BROKER = {'text': None}
 
 
@@ -112,26 +109,32 @@ def roster(picked):
     return Group(*lines)
 
 
-def turntable(seconds):
-    """The board at this moment of the idle turn, cached per angle step."""
-    step = int((TURN_DPS * seconds / TURN_STEP) % (360.0 / TURN_STEP))
-    got = _FRAMES.get(step)
-    if got is None:
-        half = math.radians(step * TURN_STEP) / 2.0
-        q = (0.0, 0.0, math.sin(half), math.cos(half))
-        got = orientation.render(q, width=52, height=18,
-                                 toon=True, colour=True)
-        _FRAMES[step] = got
-    return got
+def turntable(seconds, zoom=1.0):
+    """The board tumbling on the stand: the same vector drawing the
+    attitude view flies, idling through a slow multi-axis roll."""
+    from coaxial import wireframe
+
+    yaw = math.radians(TURN_DPS * seconds) / 2.0
+    pitch = math.radians(18.0 * math.sin(seconds * 0.5)) / 2.0
+    roll = math.radians(12.0 * math.sin(seconds * 0.83 + 1.3)) / 2.0
+    q = orientation._qmul(
+        (math.sin(pitch), 0.0, 0.0, math.cos(pitch)),
+        orientation._qmul(
+            (0.0, math.sin(roll), 0.0, math.cos(roll)),
+            (0.0, 0.0, math.sin(yaw), math.cos(yaw))))
+    return wireframe.render(q, 52, 18, zoom=zoom, axes=False)
 
 
-def compose(port, picked, seconds):
+def compose(port, picked, seconds, zoom=1.0):
+    from rich.align import Align
+
     body = Layout()
     body.split_row(
         Layout(Panel(roster(picked), box=box.ROUNDED,
                      border_style='frame.hud', padding=(1, 2), expand=True),
                name='list'),
-        Layout(Panel(Text.from_ansi(turntable(seconds)),
+        Layout(Panel(Align(Text.from_ansi(turntable(seconds, zoom)),
+                           align='center', vertical='middle'),
                      title=Text(' COAXIAL 63100 ', style='name'),
                      title_align='left', box=box.HEAVY, border_style='frame',
                      padding=(0, 1), expand=True), name='board', size=58))
@@ -141,7 +144,8 @@ def compose(port, picked, seconds):
         Layout(masthead(port), size=1),
         Layout(body, name='body'),
         Layout(footer((('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
-                       ('S B A M G T', 'DIRECT'), ('Q', 'EXIT'))),
+                       ('S B A M G T', 'DIRECT'), ('WHEEL', 'ZOOM'),
+                       ('Q', 'EXIT'))),
                size=1))
     return whole
 
@@ -175,6 +179,7 @@ def main(argv=None):
     page = stage()
     console = page.is_terminal
     picked, frame, began = 0, 0, time.monotonic()
+    zoom = 1.0
 
     if not console and not args.frames:
         # No terminal to page on: read the choice as a line, the way the
@@ -191,17 +196,20 @@ def main(argv=None):
     threading.Thread(target=_watch_broker, daemon=True).start()
     hotkeys = {key.lower(): i for i, (key, _n, _w) in enumerate(ENTRIES)}
 
-    with curtain(page) as live, Keys(console) as keys:
+    with curtain(page) as live, Keys(console, mouse=True) as keys:
         while True:
             frame += 1
             live.update(compose(args.port, picked,
-                                time.monotonic() - began), refresh=True)
+                                time.monotonic() - began, zoom),
+                        refresh=True)
             if args.frames and frame >= args.frames:
                 return 0
 
-            leave, _zoom, typed = paced(keys, 0.08)
+            leave, moved, typed = paced(keys, 0.08)
             if leave:
                 return 0
+            if moved:
+                zoom = max(0.4, min(4.0, zoom * (1.0 + moved)))
             picked, chosen = _act(typed, picked, hotkeys)
             if chosen is not None:
                 return chosen

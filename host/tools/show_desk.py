@@ -103,6 +103,43 @@ def scale(rows, params=None):
     return rows
 
 
+#: How fast the held peaks fall back, per frame, as a fraction of the
+#: hold's distance to the current reading. 0.02 at 8 Hz is a few seconds
+#: of decay - the mixing-desk feel: instant attack, slow release.
+PEAK_DECAY = 0.02
+
+
+def legend(rows, held):
+    """The channel legend: full name, live value, held min and max.
+
+    `held` is the view's memory across frames - attack is instant, decay
+    creeps, the way a desk's peak lamps behave. Values arrive converted,
+    so the legend speaks each channel's own unit.
+    """
+    from screen import hud
+
+    lines = []
+    for row in rows:
+        name = row['signal']
+        now = row.get('reading')
+        unit = scaling.symbol(row.get('unit'), name)
+        if now is None:
+            continue
+        convert = scaling.converter(row.get('unit'), row['differential'],
+                                    signal=name, params=row.get('params'))
+        try:
+            lo = convert(row['min_raw'])
+            hi = convert(row['max_raw'])
+        except (KeyError, ValueError):
+            lo = hi = now
+        keep = held.setdefault(name, [now, now])
+        keep[0] = min(lo, keep[0] + PEAK_DECAY * (now - keep[0]))
+        keep[1] = max(hi, keep[1] + PEAK_DECAY * (now - keep[1]))
+        lines.append((name, '%+9.3f %-2s  %+8.2f/%+8.2f'
+                      % (now, unit, keep[0], keep[1])))
+    return hud('LEGEND  now / held lo / hi', lines)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', default='COM4')
@@ -154,12 +191,19 @@ def main(argv=None):
     say('wait', 'drawing',
         'Q closes it, ESC goes back to the menu, and both undo the above')
 
-    gate_drivers = desk.Desk()
+    # THE BAR FILLS THE WINDOW: at 38 columns the face floated in a sea
+    # of frame. Legend and labels take ~44; the bar gets the rest.
+    try:
+        columns = os.get_terminal_size().columns
+    except OSError:
+        columns = 100
+    gate_drivers = desk.Desk(bar=max(38, min(80, columns - 68)))
     period = 1.0 / max(args.hz, 0.5)
     frame = 0
 
     from screen import curtain, frame_of, stage
 
+    held = {}
     board_view = stage()
     console = board_view.is_terminal
     leaving = None
@@ -167,17 +211,20 @@ def main(argv=None):
     try:
         with curtain(board_view) as show, Keys(console) as keys:
             while True:
+                boxes = []
                 try:
                     live = rig.latest()
-                    face = gate_drivers.update(
-                        scale(rows_from(live, layout), params),
-                        colour=console)
+                    rows = scale(rows_from(live, layout), params)
+                    face = gate_drivers.update(rows, colour=console)
+                    for row in rows:
+                        row['params'] = params
+                    boxes = [legend(rows, held)]
                 except RigError as exc:
                     face = 'no reading: %s' % exc
 
                 frame += 1
                 show.update(frame_of(board_view, origin, 'METER BRIDGE',
-                                     face, [],
+                                     face, boxes,
                                      (('Q', 'EXIT'), ('ESC', 'MENU'))),
                             refresh=True)
 

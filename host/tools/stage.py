@@ -152,7 +152,11 @@ def header(title, origin, extra=''):
 
 
 def footer(pairs):
-    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style."""
+    """The key bar: KEY: WHAT pairs on a reversed strip, terminal style.
+
+    `what` may be a ready Text - a state that should POP (an inverted
+    axis, an armed stage) rides the bar in its own style.
+    """
     line = Text('  ', style='keys')
     for i, (key, what) in enumerate(pairs):
         if i:
@@ -160,7 +164,10 @@ def footer(pairs):
         if key:
             line.append(key, style='keys.key')
             line.append(': ', style='keys')
-        line.append(what, style='keys')
+        if isinstance(what, Text):
+            line.append_text(what)
+        else:
+            line.append(what, style='keys')
     bar = Table.grid(expand=True)
     bar.add_column(justify='left')
     bar.add_row(line)

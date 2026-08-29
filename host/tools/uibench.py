@@ -58,8 +58,15 @@ def surface_thermalmap():
                                      reserve=12, margin=38)
 
 
+def surface_wireframe():
+    from coaxial import wireframe
+    q = (0.1, 0.2, 0.05, 0.97)
+    return lambda: wireframe.render(q, 62, 22)
+
+
 SURFACES = {
     'menu': surface_menu,
+    'wireframe': surface_wireframe,
     'attitude': surface_attitude,
     'protractor': surface_protractor,
     'thermalmap': surface_thermalmap,

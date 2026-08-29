@@ -138,6 +138,7 @@ render/models/*.facets
 
 # The session broker says what it is serving here, and removes it on the
 # way out. A stale one is handled; committing one would be a lie.
+host/tools/.attitude_mount
 host/tools/.session.addr
 host/tools/.session.json
 host/tests/.session.addr.test

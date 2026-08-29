@@ -72,17 +72,108 @@ def rotate(q, v):
 def relative(q, reference):
     """`q` with `reference` taken out: the attitude SINCE the tare.
 
-    q_rel = conj(reference) * q. What an instrument's zero button does -
-    the part's mounting offset (this board reads roll -1.9 deg lying flat)
-    and its arbitrary yaw reference both cancel in one keypress.
+    q_rel = q * conj(reference): the rotation SINCE the tare, in WORLD
+    axes - the frame the camera lives in. The body-side form
+    (conj(ref) * q) was tried first and it conjugated the Rz180 mounting
+    through everything, which mirrored X and Y exactly as measured on the
+    bench; on the world side the mount cancels out of the relative
+    attitude entirely. The zero button still kills the mounting offset
+    and the arbitrary yaw in one press.
     """
     ri, rj, rk, rw = reference
+    return _qmul(q, (-ri, -rj, -rk, rw))
+
+
+def _qmul(a, b):
+    """Hamilton product, (i, j, k, w) convention."""
+    ai, aj, ak, aw = a
+    bi, bj, bk, bw = b
+    return (aw * bi + ai * bw + aj * bk - ak * bj,
+            aw * bj - ai * bk + aj * bw + ak * bi,
+            aw * bk + ai * bj - aj * bi + ak * bw,
+            aw * bw - ai * bi - aj * bj - ak * bk)
+
+
+_H = math.sqrt(0.5)
+
+#: How the BNO085 might sit on the board. Near the centre, under the
+#: A1335, turned +90 CCW about Z - the derivation is on MIRROR below.
+#: The table remains as the dial that found it. (name, q).
+MOUNTS = (
+    ('Rz90', (0.0, 0.0, _H, _H)),
+    ('Rz180', (0.0, 0.0, 1.0, 0.0)),
+    ('Rz0', (0.0, 0.0, 0.0, 1.0)),
+    ('Rz270', (0.0, 0.0, -_H, _H)),
+    ('Rx180', (1.0, 0.0, 0.0, 0.0)),
+    ('Rx180+Rz90', _qmul((1.0, 0.0, 0.0, 0.0), (0.0, 0.0, _H, _H))),
+    ('Rx180+Rz180', _qmul((1.0, 0.0, 0.0, 0.0), (0.0, 0.0, 1.0, 0.0))),
+    ('Rx180+Rz270', _qmul((1.0, 0.0, 0.0, 0.0), (0.0, 0.0, -_H, _H))),
+)
+
+#: The default, first in the table.
+MOUNT = MOUNTS[0][1]
+
+
+#: Which raw quaternion components MIRROR before the mount is applied.
+#: NONE: the mount answers this without a dial. Bench court 2026-08-29,
+#: three observations against the tipped camera: board-X rotation drew as
+#: Y, board-Y drew as X, CCW yaw drew CCW - an axis SWAP with Z clean,
+#: which no mirror produces and only a 90-degree mount does. Three
+#: independent layout reads agree on +90 CCW: U13's pin-1 dot in the
+#: board-frame lower-left corner (Rz180 would put it lower-RIGHT), the
+#: 3.8x5.2 outline lying with its long side - chip Y - along board X, and
+#: the datasheet fig 4-3 row X=North Y=West Z=Up -> (w,x,y,z)
+#: (sqrt2/2,0,0,sqrt2/2). "Roterad 180" was the eyeball estimate the
+#: corner disproved.
+MIRROR = (False, False, False)
+
+
+def mounted(q, mount=None):
+    """The BOARD's attitude, from the sensor's own quaternion.
+
+    The measured MIRROR first, then q_board = q_sensor * conj(mount):
+    sensor axes are R(mount) times board axes, so board coordinates are
+    R(mount) applied to sensor coordinates, which is the RIGHT-side
+    conjugate. At the old Rz180 the two sides were the same rotation and
+    the distinction was invisible; at 90 degrees it is the whole bug."""
     i, j, k, w = q
-    ci, cj, ck, cw = -ri, -rj, -rk, rw          # conjugate
-    return (cw * i + ci * w + cj * k - ck * j,
-            cw * j - ci * k + cj * w + ck * i,
-            cw * k + ci * j - cj * i + ck * w,
-            cw * w - ci * i - cj * j - ck * k)
+    i, j, k = (-i if MIRROR[0] else i,
+               -j if MIRROR[1] else j,
+               -k if MIRROR[2] else k)
+    return _qmul((i, j, k, w), _conj(MOUNT if mount is None else mount))
+
+
+def _conj(q):
+    return (-q[0], -q[1], -q[2], q[3])
+
+
+def attitude(q, tare=None):
+    """What the display draws: the board's rotation since the tare.
+
+    q_disp = MOUNT * (conj(tare) * q) * conj(MOUNT) - the body-relative
+    change, conjugated into board axes through the mounting. Derivation:
+    q_board = q_sensor * conj(MOUNT), so conj(q_board0) * q_board wraps
+    the sensor-frame change in MOUNT on the LEFT. Every simpler form was
+    tried and measured wrong on the bench:
+
+      * q * MOUNT alone carries the resting mount and the arbitrary yaw;
+      * body-side tare conj(ref) * q conjugated the mount through the
+        result and mirrored X and Y - the first dial finding;
+      * world-side tare q * conj(ref) cancelled the mount but expressed
+        the turn in world axes, mirroring X once the tare yaw was 180;
+      * conj(MOUNT) * body * MOUNT - this sandwich REVERSED - passed
+        every numeric check at the old Rz180 mount, because a 180 equals
+        its own conjugate and the two orders coincide. The 90-degree
+        mount is where they part, and the bench said so: X drew as Y and
+        Y as X while Z stayed true (2026-08-29).
+
+    With MOUNT = Rz90: +theta about board X draws +theta about screen X,
+    board Y about screen Y, CCW yaw draws CCW, and rest is identity.
+    """
+    if tare is None:
+        return mounted(q)
+    body = _qmul(_conj(tare), q)
+    return _qmul(_qmul(MOUNT, body), _conj(MOUNT))
 
 
 def matrix(q):
@@ -508,7 +599,8 @@ def _fit(cols, rows, zoom=1.0, model=None):
 
 
 def render(q, width=44, height=19, zoom=1.0, shop=None,
-           ramp=ascii3d.CHARACTERS, toon=False, colour=False, wire=False):
+           ramp=ascii3d.CHARACTERS, toon=False, colour=False, wire=False,
+           frame_on=True):
     """The board under rotation `q`, as `height` lines of `width` characters.
 
     The drawing is `ascii3d`, which is three.js's AsciiEffect ported out of
@@ -521,6 +613,13 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
     that wanted a shorter ramp had to re-derive both, and reaching past this
     function for one of them is how a drawing ends up off-centre.
     """
+    if wire and shop is None:
+        # The vector drawing: chosen edges, hidden lines removed, depth-
+        # cued strokes - coaxial.wireframe, not a wireframed mesh.
+        from . import wireframe
+        return wireframe.render(q, width, height, zoom=zoom, colour=colour,
+                                axes=frame_on, horizon=frame_on)
+
     cols, rows, _cell = ascii3d.grid(width, height)
     if (toon or wire) and shop is None:
         # The whole cartoon package: the parametric board, posterised ramp,

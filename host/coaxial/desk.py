@@ -99,8 +99,9 @@ class Desk:
     grows a bar and nothing here needs telling.
     """
 
-    def __init__(self, decay=DECAY):
+    def __init__(self, decay=DECAY, bar=BAR):
         self.decay = decay
+        self.bar = bar
         self._held = {}
 
     def _hold(self, key, low, high):
@@ -142,8 +143,8 @@ class Desk:
         most = _at(row, row.get('max_raw', row['mean_raw']))
         held_low, held_high = self._hold(row['index'], least, most)
 
-        origin = (BAR - 1) / 2.0 if bipolar else 0.0
-        wide = (BAR - 1) / 2.0 if bipolar else (BAR - 1)
+        origin = (self.bar - 1) / 2.0 if bipolar else 0.0
+        wide = (self.bar - 1) / 2.0 if bipolar else (self.bar - 1)
 
         def column(value):
             return int(round(origin + value * wide))
@@ -159,7 +160,7 @@ class Desk:
         low, high = sorted((column(0.0) if bipolar else 0, column(here)))
         cells = []
 
-        for index in range(BAR):
+        for index in range(self.bar):
             if low <= index <= high and (bipolar or index <= column(here)):
                 cells.append((FULL, self._ink(abs(here)) if colour else None))
             elif index in peaks:

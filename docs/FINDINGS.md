@@ -1684,3 +1684,31 @@ re-arm. A bare script that only writes a duty does not, and its run ends
 silently at the first sample - the estimate simply stops rising, which reads
 like a modelling fault rather than a stage that tripped.
 
+
+## The IMU sits at 90 degrees, and the 180-degree mount hid an order bug
+
+Settled 2026-08-29 by a three-observation bench court: with the display
+tared, a rotation about board X drew as Y, board Y drew as X, and CCW yaw
+drew CCW. An axis SWAP with Z clean is no mirror - it is a 90-degree mount,
+and no combination of component flips (the empirical dial) can produce it,
+which is why every earlier dial finding contradicted the next.
+
+Ruled out on the way, each with the evidence that killed it:
+
+* **Mirrored axes** (the flip dial): mirrors cannot swap X for Y.
+* **A conjugate report from the part**: would reverse Z too; yaw drew true.
+* **The mount applied twice** (an FRS record in the part's flash): nothing
+  in this tree ever wrote one, and the swap says 90, not double-180.
+* **"Roterad 180 grader"** - the eyeball read of the layout. U13's pin-1
+  dot sits in the board-frame LOWER-LEFT corner; a 180 mount puts the
+  datasheet's upper-left corner at lower-RIGHT. Lower-left is +90 CCW, and
+  the 3.8x5.2 outline lying long-side along board X says the same.
+
+The mount that follows is the datasheet fig 4-3 row X=North Y=West Z=Up ->
+(w,x,y,z) (sqrt2/2, 0, 0, sqrt2/2): `MOUNT = Rz90` in `orientation.py`.
+
+The bug the 180 estimate HID: the display sandwich must wrap the body-frame
+change in MOUNT on the left - `MOUNT * (conj(tare) * q) * conj(MOUNT)`. The
+reversed order passed every numeric check under Rz180, because a 180 is its
+own conjugate and both orders coincide. Any future mount change re-runs the
+court in `attitude()`'s docstring; a 180 proves nothing about the order.

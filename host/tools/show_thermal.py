@@ -29,7 +29,7 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
-from coaxial.thermal import pretty, tau_minutes           # noqa: E402
+from coaxial.thermal import ALL_NODES, pretty, tau_minutes  # noqa: E402
 from coaxial.thermalmap import SCALE_LINES, render        # noqa: E402
 
 #: Above the picture: a blank, the banner, a blank, the state line,
@@ -153,12 +153,18 @@ def status_boxes(state, budget):
                 (state_text, 'value' if state_text != 'ok' else 'label'))),
             ('to limit', ('%.0f s' % left) if left is not None
              else 'not heating')]))
-    boxes.append(hud('LEVELS', [
-        ('ambient', '%.1f C' % (state.get('ambient') or 0.0)),
-        ('mcu die', '%.1f C' % state['mcu']
-         if state.get('mcu') is not None else '-'),
-        ('afe die', '%.1f C' % state['afe']
-         if state.get('afe') is not None else '-')]))
+    # Every node the observer estimates, by name, plus what is MEASURED
+    # (the dies, the ambient it infers). The map shows where; this shows
+    # how much, to the decimal.
+    nodes = state.get('nodes') or {}
+    rows = [(pretty(name), '%.1f C' % nodes[name])
+            for name in ALL_NODES if name in nodes]
+    rows += [('ambient', '%.1f C' % (state.get('ambient') or 0.0)),
+             ('mcu die', '%.1f C' % state['mcu']
+              if state.get('mcu') is not None else '-'),
+             ('a1335 die', '%.1f C' % state['afe']
+              if state.get('afe') is not None else '-')]
+    boxes.append(hud('LEVELS', rows))
     return boxes
 
 
