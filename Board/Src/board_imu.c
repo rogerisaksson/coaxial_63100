@@ -286,6 +286,8 @@ bool Board_ImuBusInit(void)
      clock configuration is not a number: derive it. */
   hspi2.Init.BaudRatePrescaler = prescaler_under(IMU_MAX_HZ);
   hspi2.Init.DataSize     = SPI_DATASIZE_8BIT;
+  /* Mode 3, and set here because CubeMX's is not what runs: this
+     re-inits the peripheral, so the .ioc value is overwritten. */
   hspi2.Init.CLKPolarity  = SPI_POLARITY_HIGH;   /* CPOL = 1 */
   hspi2.Init.CLKPhase     = SPI_PHASE_2EDGE;     /* CPHA = 1 */
   hspi2.Init.NSS          = SPI_NSS_SOFT;

@@ -149,6 +149,8 @@ bool Board_AngleInit(void)
      the wire under one chip select, which is what the part counts. */
   hspi4.Init.DataSize     = SPI_DATASIZE_5BIT;
   hspi4.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
+  /* Mode 3, and set here because CubeMX's is not what runs: this
+     re-inits the peripheral, so the .ioc value is overwritten. */
   hspi4.Init.CLKPolarity  = SPI_POLARITY_HIGH;    /* CPOL = 1 */
   hspi4.Init.CLKPhase     = SPI_PHASE_2EDGE;      /* CPHA = 1 */
   hspi4.Init.NSS          = SPI_NSS_SOFT;

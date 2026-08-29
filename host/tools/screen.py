@@ -72,6 +72,14 @@ def say(state, text, detail=''):
     and the view share one session: splitting them would open the port
     twice, and the second open is the one that finds it busy.
     """
+    if not sys.stdout.isatty():
+        # Same rule the views follow: colour at the edge, and a pipe is
+        # not one. Without this a redirected preflight carried raw
+        # escapes into the log while the drawing beside it came out clean.
+        sys.stdout.write('  %-6s%-22s %s\n' % (state, text, detail))
+        sys.stdout.flush()
+        return
+
     esc = chr(27)
     colour = STATES.get(state, '37')
     sys.stdout.write('  %s[%sm%-6s%s[0m%-22s %s[90m%s%s[0m\n'
