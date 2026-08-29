@@ -74,11 +74,17 @@ CELL_ASPECT = 1.10
 #: a cell and half a row, so it affords two or three times the cells and the
 #: physical 5 mm resolves on its own - this is the plain ramp's floor.
 #:
-#: 2.4 and not less: at 2.0 the raster draws 2-4-4-2 cells, which reads as an
-#: upside-down cross rather than a hole. A superellipse was tried at three
-#: exponents and changed nothing - the grid is too coarse to care, so the
-#: only knob that works is size.
-BORE_MIN_CELLS = 2.4
+#: SIZE IS THE ONLY KNOB. A superellipse was tried at three exponents and
+#: changed nothing - the raster is too coarse to care about the shape of the
+#: curve, only about how many cells fall inside it:
+#:
+#:   2.0 cells   2-4-4-2      an upside-down cross
+#:   2.4         4-4-4-4      a square
+#:   3.2         4-6-6-6-6-4  an octagon, which is as round as this gets
+#:
+#: 3.2 is the smallest that softens the corners, which is the whole
+#: difference between a hole and a hole-shaped hole.
+BORE_MIN_CELLS = 3.2
 
 #: Where the heat sources sit: (x, y, sigma) in millimetres per zone.
 #:

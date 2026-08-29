@@ -80,6 +80,10 @@ def check_host_hold(rig, check):
 
 def check_observer_borrow(rig, check):
     print('\nthe observer: borrows, then gives it back on its own')
+    # What it was, so what goes back is what was there rather than a
+    # copy of the firmware's default that goes stale when that moves.
+    said = quiet(rig.board.thermal.state) or {}
+    was = (said.get('sample_every_s', 30.0), said.get('sample_settle_s', 0.5))
     quiet(rig.board.thermal.set_sample, 2.0, 0.3)
     seen_thermal, seen_leased, high, n = False, False, 0, 0
 
@@ -99,7 +103,7 @@ def check_observer_borrow(rig, check):
     check('and its hold carries a lease', seen_leased, True)
     check('it is not held most of the time', high < n * 0.5, True)
 
-    quiet(rig.board.thermal.set_sample, 5.0, 0.5)
+    quiet(rig.board.thermal.set_sample, *was)
     time.sleep(1.5)
     check('and it is free again once sampling slows', afe(rig)['on'], False)
 

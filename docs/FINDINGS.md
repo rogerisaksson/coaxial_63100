@@ -1599,3 +1599,22 @@ columns because a cell is taller than it is wide, and the rows have to SPAN
 the board rather than be a square grid whose blank margin is trimmed - the
 trim lands on whole rows and leaves one more at the top than the bottom.
 
+## A killed client left the broker holding the port for ever
+
+Measured 2026-08-29, and the killed process was this tool's own: the session
+running the switching went away with the process that started it.
+
+`_Handler.finish` called the base class first and decremented after. The base
+flushes and closes, which RAISES on a peer that was killed - so the decrement
+never ran, the count stuck at one, and the broker could not take itself down.
+`stand_down` then refused for a session that no longer existed.
+
+The count comes down first now, in a `try`, and the close is what may fail.
+Proven: a client made a real request, was killed mid-run, and the broker
+released the count and stopped on its own.
+
+**The stage was left armed by the same event** - all three legs at 50 %,
+switching unattended, found at 51.1 C. `demos.py --leave` named it and put it
+back, which is the whole reason that path exists. It is the only thing
+standing between a killed run and a bridge nobody is watching.
+

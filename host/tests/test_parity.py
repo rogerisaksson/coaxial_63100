@@ -203,6 +203,17 @@ def main():
         # two disagree for a reason that is not a parity fault. Measured: it
         # failed about one run in three, and only inside a full suite run
         # where something else had already woken the observer.
+        # READ FIRST, so what goes back is what was there. A literal here
+        # is the firmware's default copied to the host, and it went stale
+        # the day that default moved - this suite put 5 s back on a board
+        # whose own answer was 30.
+        was = (0.0, 0.0)
+        try:
+            said = board.board.thermal.state()
+            was = (said['sample_every_s'], said['sample_settle_s'])
+        except Exception:                     # noqa: BLE001 - older firmware
+            pass
+
         try:
             board.board.thermal.set_sample(0.0, 0.0)
             time.sleep(0.6)
@@ -248,7 +259,7 @@ def main():
     finally:
         toolmod.HANDLERS['afe_power'](board, action='off')
         try:
-            board.board.thermal.set_sample(5.0, 0.5)   # put sampling back
+            board.board.thermal.set_sample(*was)       # as it was found
         except Exception:                     # noqa: BLE001 - older firmware
             pass
         try:

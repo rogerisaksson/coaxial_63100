@@ -147,18 +147,33 @@ class _Handler(socketserver.StreamRequestHandler):
         self.uses = False
 
     def finish(self):
-        socketserver.StreamRequestHandler.finish(self)
-        if not self.uses:
-            return
-        with self.server.lock:
-            self.server.clients -= 1
-            last = self.server.clients == 0
+        # THE COUNT COMES DOWN FIRST. The base finish() flushes and closes,
+        # which raises on a peer that was killed - and the decrement after it
+        # then never ran, so the count stuck at one and the broker could
+        # never take itself down. Measured: a session killed mid-run left it
+        # holding the port with nobody on it.
+        try:
+            last = self._release()
+        finally:
+            try:
+                socketserver.StreamRequestHandler.finish(self)
+            except OSError:
+                pass
         # THE LAST SESSION TAKES IT DOWN. Refcounted like the rails on the
         # board, and for the same reason: a broker nobody is using is a port
         # nobody else can open, and one somebody has to remember to stop is
         # one that gets left running.
         if last and self.server.until_idle:
             threading.Thread(target=self.server.shutdown, daemon=True).start()
+
+    def _release(self):
+        """Give up this client's use, if it had one. True if it was the last."""
+        if not self.uses:
+            return False
+        self.uses = False
+        with self.server.lock:
+            self.server.clients -= 1
+            return self.server.clients == 0
 
     def handle(self):
         while True:
