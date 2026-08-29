@@ -41,6 +41,22 @@ from coaxial.errors import DeviceStateError, NoReplyError, RigError  # noqa: E40
 #: measurement - the meter bridge view is the one that averages.
 ADC_SAMPLES = 16
 
+#: How often a switching run stands down to let the observer measure.
+#:
+#: THE BOARD CANNOT DO THIS ITSELF. AFE_ON high removes the gate drivers'
+#: supply, so `Board_PowerPoll` refuses the rail while MOE is set - a sample
+#: mid-switch would drop the drivers with six inputs moving. The only way to
+#: take one is to stop switching for it, and stopping is a policy, which
+#: belongs to whoever asked for the run and not to the board (invariant 10).
+#:
+#: 30 s and not 10: each sample costs an arm/disarm pair and the reference's
+#: 500 ms settle, so 10 s spends 7 % of the run not switching against 2 %,
+#: and 36 MOE edges in six minutes against 12. The board's time constant is
+#: 6.8 minutes, so 30 s is 13 samples a tau - resolution nobody is short of.
+#: The drivers node at 5.3 s cannot be tracked by sampling at any of these
+#: rates; its anchor is the AFE die, which needs the same rail.
+SAMPLE_EVERY_S = 30.0
+
 #: FIELD, from the A1335's register map.
 ANGLE_REG_FIELD = 0x2A
 
@@ -54,6 +70,10 @@ SHARED = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 #: Older than this and the shared snapshot is not a reading of anything.
 #: Two frames at the session's default rate, plus the slack a burst costs.
 STALE_S = 3.0
+
+#: Either side of a rail change, before anything is believed. The board's
+#: own settle for the same reason, and the same number.
+SETTLE_S = 0.5
 
 #: Seconds the teardown list stays on screen before the process exits.
 TEARDOWN_HOLD = 2.0
@@ -149,6 +169,36 @@ class Session:
             self.note = 'the duty write did not take'
             return None
         return load
+
+    def sample(self):
+        """Stand down, let the observer measure, and go back to switching.
+
+        Ordered so the gates are never live without their supply: MOE clear
+        first, then the rail up, then the reading, then the rail down, then
+        armed again. Every step through `steady`, and a failure leaves the
+        stage DISARMED rather than half-way - the safe end of the sequence.
+        """
+        rig = self.rig
+        if steady(rig.gates.disarm) is None:
+            self.note = 'could not stand down for a sample'
+            return False
+
+        taken = None
+        if steady(rig.board.afe.enable) is not None:
+            time.sleep(SETTLE_S)
+            taken = steady(rig.board.thermal.state)
+            steady(rig.board.afe.disable)
+            time.sleep(SETTLE_S)
+
+        if steady(rig.gates.arm, bypass_sto=True,
+                  ignore_interlock=True) is None:
+            self.note = 'sampled, but the stage would not re-arm'
+            return False
+        self.push()
+
+        if taken and taken.get('ntc') is not None:
+            self.note = 'sampled: NTC %.2f C' % taken['ntc']
+        return True
 
     def set_legs(self, legs):
         """Which legs switch. The rest are held at zero duty."""
@@ -563,23 +613,29 @@ def frame(session, console, note):
 
 class Plan:
 
-    """A sequence of leg sets, each for so many seconds.
+    """A sequence of leg sets and duties, each for so many seconds.
 
-    `U:45,V:45,UVW:90` - which legs switch, and for how long. It exists to
-    give the OBSERVER a known excitation that changes: with one leg
-    switching, its node should move and the other two should not, and a
-    model that cannot tell them apart says so by moving all three.
+    `U:45,V:45,UVW@0.75:90` - which legs switch, at what duty, for how long.
+    The duty is optional and carries over from the session's own.
 
-    Wall clock, not frames: the draw rate is what the link allows on the day
+    It exists to give the OBSERVER a known excitation that changes. Two axes,
+    and they say different things: LEGS should scale the loss by how many are
+    switching, and DUTY should barely move it at all - a transition happens
+    twice a period whatever the duty is, so a model whose loss tracks duty is
+    modelling conduction that is not there.
+
+    Wall clock, not frames: the draw rate is what the link allows on the day,
     and a plan measured in frames would be a different plan each run.
     """
 
-    def __init__(self, text):
+    def __init__(self, text, duty=None):
         self.steps = []
         for chunk in (c.strip() for c in text.split(',') if c.strip()):
             legs, _, seconds = chunk.partition(':')
+            legs, _, at = legs.partition('@')
             legs = tuple(c for c in legs.upper() if c in DEFAULT_PHASES)
-            self.steps.append((legs, float(seconds or 30)))
+            self.steps.append((legs, float(at) if at else duty,
+                               float(seconds or 30)))
         self.at, self.started = 0, None
 
     def done(self):
@@ -589,9 +645,11 @@ class Plan:
         """Apply the step that should be running, and say if it changed."""
         if self.done():
             return False
-        legs, seconds = self.steps[self.at]
+        legs, duty, seconds = self.steps[self.at]
         if self.started is None:
             self.started = now
+            if duty is not None:
+                session.duty = min(1.0, max(0.0, duty))
             session.set_legs(legs)
             return True
         if now - self.started >= seconds:
@@ -602,11 +660,12 @@ class Plan:
     def caption(self, now):
         if self.done():
             return 'plan done'
-        legs, seconds = self.steps[self.at]
+        legs, duty, seconds = self.steps[self.at]
         left = seconds - (now - (self.started or now))
-        return ('step %d/%d  %s  %.0f s left'
-                % (self.at + 1, len(self.steps),
-                   ''.join(legs) or 'none', max(0.0, left)))
+        return ('step %d/%d  %s at %.0f %%  %.0f s left'
+                % (self.at + 1, len(self.steps), ''.join(legs) or 'none',
+                   100.0 * (duty if duty is not None else 0.0),
+                   max(0.0, left)))
 
 
 def teardown(session, console, drawn):
@@ -688,16 +747,29 @@ def leave(port, simulated):
 
     Costs one port open either way. That is the price of the difference
     between knowing and assuming.
+
+    IT CANNOT RAISE. This is the way out, and a board that will not answer
+    on the way out is something to report rather than a traceback over the
+    prompt - measured, a reset board turned quitting the menu into one.
+    Exit 0 either way: leaving is not a thing that fails.
     """
-    with Coaxial63100(port=port, simulated_device=simulated,
-                      power_afe=False) as rig:
-        found = sweep(rig)
-        if not found:
-            return 0
-        say('wait', 'leaving', 'the demos left something running')
-        for name, what in found:
-            say('warn', name, what)
-        say('ok', 'board', 'put back')
+    try:
+        with Coaxial63100(port=port, simulated_device=simulated,
+                          power_afe=False) as rig:
+            found = sweep(rig)
+    except QUIET as exc:
+        say('warn', 'leaving', 'the board did not answer: %s' % str(exc)[:60])
+        return 0
+    except Exception as exc:                          # noqa: BLE001
+        say('warn', 'leaving', '%s: %s' % (type(exc).__name__, str(exc)[:50]))
+        return 0
+
+    if not found:
+        return 0
+    say('wait', 'leaving', 'the demos left something running')
+    for name, what in found:
+        say('warn', name, what)
+    say('ok', 'board', 'put back')
     return 0
 
 
@@ -754,6 +826,10 @@ def main():
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--hz', type=float, default=2.0)
     p.add_argument('--frames', type=int, default=0)
+    p.add_argument('--sample-every', type=float, default=SAMPLE_EVERY_S,
+                   metavar='S',
+                   help='stand the stage down this often so the observer can '
+                        'measure; 0 leaves it running blind')
     p.add_argument('--sequence', default='', metavar='U:45,VW:60,...',
                    help='legs to switch and for how long, in order; ends the '
                         'run when the last step is done')
@@ -797,6 +873,7 @@ def main():
         session = Session(rig)
         session.duty = min(1.0, max(0.0, a.duty))
         shown, leaving, count = [], None, 0
+        sampled = time.time()
         by_key = dict((act.key, act) for act in ACTIVITIES)
 
         # Started here rather than by a keystroke, because a session run in
@@ -809,7 +886,7 @@ def main():
                 say('fail', 'start', '%s is not an activity' % name)
 
         if a.sequence:
-            session.plan = Plan(a.sequence)
+            session.plan = Plan(a.sequence, a.duty)
 
         try:
             with Keys(console) as keys:
@@ -819,6 +896,15 @@ def main():
                     sys.stdout.write(paint(shown, lines, console))
                     sys.stdout.flush()
                     shown = lines
+
+                    # The observer is blind while the stage is armed, so
+                    # a run that never stands down is a run it estimates
+                    # from end to end. Not on the frame count: the draw rate
+                    # is whatever the link allows on the day.
+                    if (a.sample_every > 0 and 'switching' in session.running
+                            and time.time() - sampled >= a.sample_every):
+                        session.sample()
+                        sampled = time.time()
 
                     if session.plan is not None:
                         if session.plan.advance(session, time.time()):

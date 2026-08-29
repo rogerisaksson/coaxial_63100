@@ -50,8 +50,21 @@ class Bus:
                 'a session broker still holds %s - conformance needs the '
                 'port raw, so close the sessions using it first' % port)
 
-        self.s = serial.Serial(port, baud, bytesize=8, parity='N', stopbits=1,
-                               timeout=REPLY_TIMEOUT)
+        # RETRIED. A broker standing down does not hand the port back the
+        # instant it says so - the socket closes, then the thread unwinds,
+        # then pyserial lets go - and opening into that window is `could not
+        # open port` with nothing wrong. Measured: it crashed the suite
+        # whenever an earlier one had opened a session.
+        self.s = None
+        for attempt in range(20):
+            try:
+                self.s = serial.Serial(port, baud, bytesize=8, parity='N',
+                                       stopbits=1, timeout=REPLY_TIMEOUT)
+                break
+            except serial.SerialException:
+                if attempt == 19:
+                    raise
+                time.sleep(0.25)
         self.log = []
 
     def close(self):

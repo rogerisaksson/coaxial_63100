@@ -220,7 +220,7 @@ class _Handler(socketserver.StreamRequestHandler):
             return {'payload': ''}
         if op == 'request':
             with served.lock:
-                got = served.transport.request(
+                got = served.retrying(
                     message['unit'], message['function'],
                     bytes.fromhex(message['payload']),
                     message['exact_payload'], message['timeout'])
@@ -235,10 +235,38 @@ class _Handler(socketserver.StreamRequestHandler):
 
 
 class _Server(socketserver.ThreadingTCPServer):
+
+    """The broker's own state: the transport, the lock, and who is using it."""
+
     daemon_threads = True
     allow_reuse_address = True
     clients = 0
     until_idle = True
+
+    def retrying(self, unit, function, payload, exact_payload, timeout):
+        """One request, and one re-open if the board went quiet.
+
+        A RESET PUTS THE BOARD BACK IN ITS TEXT CONSOLE. The handover happens
+        once, when the broker takes the port - so a board that resets under
+        it answers nothing ever again, and takes every session with it.
+        Measured: a live session went silent on 0x41 and stayed there.
+
+        Silence only, and once: a refusal is an answer and must not be
+        retried, and a board that is simply gone should say so rather than
+        double every timeout.
+        """
+        from .errors import NoReplyError
+
+        try:
+            return self.transport.request(unit, function, payload,
+                                          exact_payload, timeout)
+        except NoReplyError:
+            pass
+
+        from .board import Board
+        Board(self.transport, unit).open_binary()
+        return self.transport.request(unit, function, payload,
+                                      exact_payload, timeout)
 
 
 def serving():
@@ -283,6 +311,11 @@ def stand_down(address=(HOST, PORT), wait=5.0):
         return True
     try:
         reached._ask({'op': 'stand_down'})                  # noqa: SLF001
+    except errors.RigError:
+        # It says no by refusing, and this function answers `did it`. A
+        # caller asking whether the port came free should not have to catch
+        # the sentence explaining that it did not.
+        return False
     finally:
         reached.close()
 

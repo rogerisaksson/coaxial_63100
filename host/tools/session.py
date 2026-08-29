@@ -15,6 +15,7 @@ is the exclusive OWNERSHIP, not the exclusivity of the wire.
 """
 import argparse
 import os
+import signal
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -46,6 +47,43 @@ def status():
     return 0
 
 
+def force():
+    """Stop a serving broker outright, sessions or not.
+
+    The polite way refuses while sessions hold the port, which is right: it
+    is theirs until they let go. It stops being right when the LINK is dead
+    - a board that reset under the broker answers nothing, and the sessions
+    being protected cannot talk either. Then the refusal is the only thing
+    standing between the bench and a working port.
+
+    Asks first, so the ordinary case still goes through the front door.
+    """
+    said = broker.serving()
+    if not said:
+        say('ok', 'session', 'nothing is serving')
+        return 0
+
+    where = (said.get('host', broker.HOST), said.get('tcp', broker.PORT))
+    if broker.stand_down(where):
+        say('ok', 'session', 'it stood down on its own - nobody was using it')
+        return 0
+
+    pid = said.get('pid')
+    say('warn', 'session', 'stopping pid %s, and every session on it' % pid)
+    try:
+        os.kill(int(pid), signal.SIGTERM)
+    except (OSError, TypeError, ValueError) as exc:
+        say('fail', 'session', 'could not stop pid %s: %s' % (pid, exc))
+        return 1
+
+    try:
+        os.remove(broker.WHERE)
+    except OSError:
+        pass
+    say('ok', 'session', 'port given back - the next session opens its own')
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument('--port', default='COM4')
@@ -53,10 +91,17 @@ def main():
     p.add_argument('--hold', action='store_true',
                    help='stay up with no clients; otherwise the last session out takes it down')
     p.add_argument('--status', action='store_true')
+    p.add_argument('--force', action='store_true',
+                   help='stop a broker even though sessions hold it - for one '
+                        'whose link is dead, where the refusal protects '
+                        'sessions that cannot talk anyway')
     a = p.parse_args()
 
     if a.status:
         return status()
+
+    if a.force:
+        return force()
 
     if broker.attach() is not None:
         say('fail', 'session', 'one is already serving - see --status')

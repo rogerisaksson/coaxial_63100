@@ -1435,3 +1435,39 @@ Two things changed after it:
 **Still under 65 ns, and nothing has been on a scope.** The trip is one data
 point at one duty on one supply.
 
+## A reset under the broker takes every session with it
+
+Measured 2026-08-29. The console handover happens once, when the broker takes
+the port - so a board that resets under it comes back in its text console and
+answers nothing ever again. Every session sharing that port went silent on
+0x41 together, and the broker had no way to know.
+
+It re-opens the link and retries now, but **only on silence and only once**:
+a refusal is an answer and must not be retried, and a board that is simply
+gone should say so rather than double every timeout.
+
+Three things the same hour turned up beside it:
+
+* **The way out could raise.** `demos.py --leave` opens a rig to see what was
+  left running, and a board that will not answer turned quitting the menu
+  into a traceback over the prompt. Leaving is not a thing that fails: it
+  reports and exits 0.
+* **A refusal is not a No.** `stand_down` raised the board's sentence instead
+  of returning False, so a caller asking *did the port come free* had to
+  catch the explanation that it had not.
+* **A stage was left armed.** The run whose teardown could not reach the
+  board kept switching, and was found at 57 C on the way to 63 - which is
+  what `--leave` exists to catch, and did once the link was back.
+
+`session.py --force` is the escape: a broker refuses to stand down while
+sessions hold the port, which is right until the LINK is dead - then the
+sessions being protected cannot talk either, and the refusal is the only
+thing between the bench and a working port.
+
+## Releasing a serial port is not instantaneous
+
+`test_conformance` crashed with `could not open port` whenever an earlier
+suite had opened a session: the broker says it has stood down, then the
+socket closes, then the thread unwinds, then pyserial lets go. The open is
+retried for five seconds now.
+

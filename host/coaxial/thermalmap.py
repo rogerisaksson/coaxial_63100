@@ -35,9 +35,20 @@ import sys
 
 from . import ansi
 
-#: Board dimensions, millimetres. `electronics/` is the authority on the rest.
+#: Board dimensions, RADII in millimetres: 100 mm across with a 10 mm bore,
+#: confirmed 2026-08-29. `electronics/` is the authority on the rest.
 OUTER_MM = 50.0
 BORE_MM = 5.0
+
+#: The bore is drawn at least this many CELLS across, whatever the board's
+#: millimetres work out to at the resolution in hand.
+#:
+#: A drawing concession and not a dimension: 5 mm of 50 lands on two cells at
+#: any terminal size worth using, and two cells is a square smudge - the shaft
+#: bore read as a dent rather than a hole. Widened here rather than in
+#: BORE_MM, because that one is what the board IS and belongs to
+#: `electronics/`.
+BORE_MIN_CELLS = 3.5
 
 #: Where the heat sources sit: (x, y, sigma) in millimetres per zone.
 #:
@@ -100,13 +111,16 @@ def field(x_mm, y_mm, board_c, nodes, layout=None):
 def _grid(nodes, board_c, cells, layout):
     """(rows of temperature-or-None, lo, hi). None is off the board."""
     rows, lo, hi = [], None, None
+    per_cell = 2.0 * OUTER_MM / cells
+    bore = max(BORE_MM, BORE_MIN_CELLS * per_cell)
+
     for row in range(cells):
         line = []
         for col in range(cells):
             x = (col - (cells - 1) / 2.0) * (2.0 * OUTER_MM / cells)
             y = ((cells - 1) / 2.0 - row) * (2.0 * OUTER_MM / cells)
             r = math.hypot(x, y)
-            if r > OUTER_MM or r < BORE_MM:
+            if r > OUTER_MM or r < bore:
                 line.append(None)
                 continue
             t = field(x, y, board_c, nodes, layout)
