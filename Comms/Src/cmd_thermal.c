@@ -76,6 +76,11 @@ static cmd_status_t op_state(wr_t *out)
   wr_u8(out, th.mcu_measured ? 1U : 0U);
   wr_i32(out, th.mcu_centidegc);
   wr_u32(out, th.seen_ms_ago);
+
+  /* The integration count. `seconds` is wall clock, so its rate is 1.0 by
+     construction - a benchmark watching it could only ever see the observer
+     stop, never slow down. */
+  wr_u32(out, th.steps);
   return CMD_OK;
 }
 

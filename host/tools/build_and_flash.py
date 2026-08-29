@@ -24,6 +24,7 @@ Exit code is 0 only if every requested step succeeded.
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -164,6 +165,40 @@ def run(argv, cwd, path):
     return done.returncode, (done.stdout or '') + (done.stderr or ''), time.monotonic() - started
 
 
+#: What the linker script gives each region, so the print says how much of it
+#: is spent rather than a byte count nobody can size up.
+REGIONS = {'FLASH': 2 * 1024 * 1024, 'DTCMRAM': 128 * 1024}
+
+
+def footprint(elf, path):
+    """(flash, dtcmram) bytes from the ELF's own section table.
+
+    Flash holds every loaded section including `.data`'s initialisers;
+    DTCMRAM holds `.data`, `.bss` and the heap/stack reservation. Written
+    here because a number in a document is one nobody re-measures - TODO
+    carried 134 748 B for as long as it took to grow by ten kilobytes.
+    """
+    size = shutil.which('arm-none-eabi-size', path=path)
+    if size is None or not Path(elf).exists():
+        return None
+
+    done = subprocess.run([size, '-A', str(elf)], capture_output=True,
+                          text=True, errors='replace')
+    flash = ram = 0
+    for line in done.stdout.splitlines():
+        part = line.split()
+        if len(part) != 3 or not part[1].isdigit():
+            continue
+        name, count, addr = part[0], int(part[1]), int(part[2])
+        if 0x08000000 <= addr < 0x08200000:
+            flash += count
+        elif 0x20000000 <= addr < 0x20020000:
+            ram += count
+            if name == '.data':
+                flash += count       # its initialiser is stored in flash
+    return flash, ram
+
+
 def build(preset, path):
     cube_cmake = find_cube_cmake(path)
     if cube_cmake is None:
@@ -177,7 +212,13 @@ def build(preset, path):
         print('BUILD  FAIL  exit=%d  %.1fs' % (code, elapsed))
         print('\n'.join(output.splitlines()[-60:]))
         return False
-    print('BUILD  ok  %.1fs  %d warning%s' % (elapsed, warnings, '' if warnings == 1 else 's'))
+    used = footprint(ROOT / 'build' / preset / 'coaxial_63100.elf',
+                     path)
+    room = ('  flash %d B (%.0f%%)  dtcmram %d B (%.0f%%)'
+            % (used[0], 100.0 * used[0] / REGIONS['FLASH'],
+               used[1], 100.0 * used[1] / REGIONS['DTCMRAM'])) if used else ''
+    print('BUILD  ok  %.1fs  %d warning%s%s'
+          % (elapsed, warnings, '' if warnings == 1 else 's', room))
     if warnings:
         for line in output.splitlines():
             if WARNING_RE.search(line):

@@ -900,6 +900,7 @@ class SimulatedThermal:
             'afe': board + rise['afe'],
             'mcu': board + rise['mcu'],
             'seen_s_ago': 0.4,
+            'steps': 1200,
             'error': 0.0,
         }
 

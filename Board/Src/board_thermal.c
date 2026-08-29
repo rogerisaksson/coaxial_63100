@@ -60,9 +60,11 @@ static uint32_t       s_held_ms;      /**< when it took it                  */
 static uint32_t       s_sampled_ms;   /**< when the last sample finished    */
 static thermal_sense_t s_last_seen = { NAN, NAN, NAN };
 static uint32_t       s_seen_ms;      /**< when s_last_seen was taken       */
+static bool           s_seen;         /**< whether anything answered yet    */
 static uint32_t       s_every_ms = THERMAL_SAMPLE_EVERY_MS;
 static uint32_t       s_settle_ms = THERMAL_SAMPLE_SETTLE_MS;
 static uint32_t       s_millis;
+static uint32_t       s_steps;        /**< model integrations, for a rate  */
 
 /** Copy the envelope out of the calibration record into the observer. */
 static void soa_from_cal(void)
@@ -100,6 +102,7 @@ void Board_ThermalInit(void)
   s_held_ms = s_last_ms;
   s_holding = false;
   s_millis = 0U;
+  s_steps = 0U;
   s_ready = true;
 }
 
@@ -249,6 +252,7 @@ void Board_ThermalPoll(void)
   {
     s_last_seen = seen;
     s_seen_ms = now;
+    s_seen = true;
   }
 
   thermal_step(&s_th, &p, &seen, (float)since / 1000.0f);
@@ -269,6 +273,7 @@ void Board_ThermalPoll(void)
   /* Milliseconds, divided only on the way out. `since / 1000U` per step was
      integer division of about 100, so the counter never left zero. */
   s_millis += since;
+  s_steps++;
 }
 
 bool Board_ThermalState(board_thermal_t *out)
@@ -287,7 +292,10 @@ bool Board_ThermalState(board_thermal_t *out)
   out->mcu_measured = !isnan(s_last_seen.mcu_c);
   out->mcu_centidegc = out->mcu_measured
                        ? (int32_t)(s_last_seen.mcu_c * 100.0f) : 0;
-  out->seen_ms_ago = (s_seen_ms != 0U) ? (HAL_GetTick() - s_seen_ms) : 0U;
+  /* A flag, not `s_seen_ms != 0`: HAL_GetTick() is 0 at boot and again every
+     49.7 days, and a sample taken on that tick would read "just now" for as
+     long as the board stayed up. Same shape as the lease sentinel. */
+  out->seen_ms_ago = s_seen ? (HAL_GetTick() - s_seen_ms) : 0U;
 
   for (int i = 0; i < THERMAL_NODES; i++)
   {
@@ -296,6 +304,7 @@ bool Board_ThermalState(board_thermal_t *out)
   out->ambient_centidegc = (int32_t)(s_th.ambient * 100.0f);
   out->expected_ntc_centidegc = (int32_t)(thermal_expected_ntc(&s_th) * 100.0f);
   out->seconds = s_millis / 1000U;
+  out->steps = s_steps;
   out->settled = s_th.settled;
   return true;
 }

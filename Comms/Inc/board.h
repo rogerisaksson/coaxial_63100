@@ -891,6 +891,7 @@ typedef struct
   bool    mcu_measured;                        /**< the MCU's die answered               */
   int32_t mcu_centidegc;                       /**< MEASURED, valid only above           */
   uint32_t seen_ms_ago;                        /**< age of the whole sample              */
+  uint32_t steps;                              /**< model integrations since boot        */
   int32_t node_centidegc[BOARD_THERMAL_NODES]; /**< ESTIMATED                            */
   int32_t ambient_centidegc;                   /**< ESTIMATED - there is no sensor       */
   int32_t expected_ntc_centidegc;              /**< the model's own NTC, for the error   */

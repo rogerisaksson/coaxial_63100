@@ -11,9 +11,12 @@ WHAT IT WATCHES, and why each one is here rather than a loop counter:
     round trips     the link, end to end. Everything else rides on it.
     angle updates   the main loop's own rate - the angle poll runs as fast as
                     SPI4 allows, so it falls the moment anything in the loop
-                    starts blocking.
+                    starts blocking. Needs AFE_ON: it powers the A1335, and
+                    with the rail off this reads 0 and means nothing.
     observer steps  the thermal model, which must keep its 10 Hz whatever the
-                    sensors are doing.
+                    sensors are doing. `steps`, not `seconds`: the latter is
+                    wall clock, so its rate is 1.0 however slow the observer
+                    gets, and this check watched it for a day.
 
 Measured 2026-08-28: the observer's free-read path read two ADC channels -
 one at 810.5 cycles - and did two SPI4 transactions on EVERY poll whenever
@@ -80,7 +83,7 @@ def measure(rig):
         'angle_updates_per_s': per_second(
             rig, lambda: rig.board.angle.state()['updates']),
         'observer_steps_per_s': per_second(
-            rig, lambda: rig.board.thermal.state()['seconds']),
+            rig, lambda: rig.board.thermal.state()['steps']),
     }
     trips, quiet = round_trips(rig)
     got['round_trips_per_s'] = trips
@@ -121,7 +124,12 @@ def main():
         return 0
 
     from coaxial import Coaxial63100                # noqa: E402
-    with Coaxial63100(port=origin.port, power_afe=False) as rig:
+    # AFE_ON HELD, and that is what the baseline was recorded under.
+    # It powers the A1335, so the angle rate without it is 0 - and it
+    # is also the condition the observer's free-read path is measured
+    # in, which is the regression this suite exists to catch. The rig
+    # puts the rail back the way it found it.
+    with Coaxial63100(port=origin.port, power_afe=True) as rig:
         print('  %s\n' % rig.origin.label)
         now = measure(rig)
 

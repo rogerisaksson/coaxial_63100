@@ -1,13 +1,13 @@
 # TODO
 
-State as of 2026-08-28.
+State as of 2026-08-29.
 
 | | Value |
 |---|---|
 | `run_tests.ps1 -All` | 1750 checks, 18 suites |
 | Debug build | 0 warnings |
-| FLASH / DTCMRAM | 134 748 B / 48 200 B |
-| Protocol | MAJOR 1, MINOR 26 |
+| FLASH / DTCMRAM | 145 204 B (7 %) / 48 544 B (37 %) - `build_and_flash.py` prints it |
+| Protocol | MAJOR 1, MINOR 27 |
 | Firmware | 1.4.1 |
 
 ## What runs

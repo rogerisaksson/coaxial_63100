@@ -127,6 +127,9 @@ there is no NTC, no die and no reference, so the model runs on power and time
 and the reply has to be able to say that rather than send a stale number as a
 live one. `seen_ms_ago` is the age of the whole sample, and judging it is the
 host's (invariant 10) - a reading two intervals old is not a measurement.
+`steps` closes op 0: how many times the model has integrated. `seconds` is
+wall clock beside it, so its rate is 1.0 whatever the observer does, and a
+benchmark watching that could only see the observer stop, never slow down.
 
 Op 4 is the budget: `u8 nodes`, one byte a node, then `worst`, `worst_node`,
 `i32 millis_to_limit`, `throttling`, `tripped`, `u32 trips`. A byte because

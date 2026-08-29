@@ -79,6 +79,10 @@ class Thermal(Subsystem):
             got[name] = value if measured else None
 
         got['seen_s_ago'] = r.u32() / 1000.0
+
+        # `seconds` is wall clock and its rate is 1.0 whatever the observer
+        # does. `steps` is what a benchmark can watch fall.
+        got['steps'] = r.u32()
         got['error'] = ((got['expected_ntc'] - got['ntc'])
                         if got['ntc'] is not None else None)
         return got
