@@ -30,6 +30,9 @@ from coaxial.thermal import (CFG, DRIVER_RISE_SWITCHING, NODES, NTC_OFFSET,
                              NTC_SEES_DRIVERS, POWER_SWITCHING,
                              board_from_ntc, calibrate, expected_ntc,
                              steady, tau_minutes)
+from coaxial import ansi
+
+ansi.utf8_stdout()   # the map below is glyphs, not ASCII
 from coaxial.thermalmap import render
 
 # %% [markdown]

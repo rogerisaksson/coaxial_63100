@@ -214,8 +214,21 @@ def error_paths(server, report):
     # than preventing one - asked for the codes with the AFE deliberately off,
     # a model with no numbers wrote "Mid-scale... 25.00 C" out of the warning
     # text. The codes come back, under a line that cannot be read as one.
+    #
+    # `afe_power off` releases the HOST's reference and nothing more: the rail
+    # is on while any user holds it, and the observer borrows it for 500 ms
+    # every 5 s. That borrow landed between these two calls - two failures in
+    # one run, none when the suite ran alone, the worst shape a check has.
+    #
+    # Waited out rather than switched off: no tool here can stop the observer,
+    # and it always gives the rail back, so one cycle is the bound.
     server.tool('afe_power', {'action': 'off'})
-    text = server.tool('analog_read')
+    deadline = time.time() + 8.0
+    while True:
+        text = server.tool('analog_read')
+        if text.startswith('AFE OFF') or time.time() > deadline:
+            break
+        time.sleep(0.25)
     report.check('AFE off is labelled, not refused',
                  not text.startswith('ERR') and text.startswith('AFE OFF'),
                  '%d tok  %s' % (approx_tokens(text), text[:56]))
@@ -227,6 +240,7 @@ def error_paths(server, report):
     server.tool('afe_power', {'action': 'on'})
     report.check('with the AFE on there is no banner',
                  not server.tool('analog_read').startswith('AFE OFF'))
+
 
     text = server.tool('nonexistent_tool')
     report.check('unknown tool', 'ERR unknown tool' in text, text[:50])

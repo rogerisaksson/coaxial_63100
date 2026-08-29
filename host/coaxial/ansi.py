@@ -11,6 +11,28 @@ surface read as shaded - eight levels of grey against a ramp of ten
 characters is most of the picture's information, and the basic set has one.
 """
 
+def utf8_stdout():
+    """Make stdout carry the glyphs in this module. Call it at the edge.
+
+    A pipe takes its encoding from the locale, cp1252 here, and every
+    ramp below is outside ASCII. Measured: `show_desk.py | anything`
+    died with UnicodeEncodeError before the first frame, and
+    thermal_model.py died the same way when redirected. `replace`, not
+    `strict` - a log is worth reading with glyphs substituted and
+    worthless as a traceback.
+
+    Not done on import: a library that reconfigures the caller's
+    stdout is a side effect nobody asked for, and this module already
+    says colour is added at the edge.
+    """
+    import sys
+
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except (AttributeError, ValueError):   # not a reconfigurable stream
+        pass
+
+
 RESET = '\033[0m'
 
 #: xterm-256 greyscale, black to white. 24 steps, and the ramp characters ride

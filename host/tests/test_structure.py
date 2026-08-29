@@ -33,6 +33,9 @@ sys.path.insert(0, HOST)
 PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'testline')
 SCRIPTS = ('tools', 'examples')
 
+#: Outside host/, and judged the same: a reader copies from these.
+BESIDE = ('../python_examples',)
+
 # The ceiling is the worst that survives a deliberate reading, not an ideal.
 # It exists to stop the next 250-line function, not to condemn the scanners
 # that are genuinely one state machine - see the exemptions.
@@ -68,11 +71,23 @@ def modules():
     return found
 
 
-def sources():
-    """(path, tree) for everything this suite judges, scripts included."""
+def sources(beside=True):
+    """(path, tree) for everything this suite judges, scripts included.
+
+    `python_examples/` sits beside host/ rather than under it and was out of
+    reach for that reason alone - which is how a third caller of the renamed
+    `daq.read` sat in gate_drivers_session.py, in the file a reader is most
+    likely to copy from.
+
+    `beside=False` leaves those out. They are notebooks: the first cell is a
+    markdown heading rather than a docstring, and the `SIMULATED` knob at the
+    top of each is the one line a reader flips - neither is the defect the
+    docstring and duplicate checks are looking for.
+    """
     out = []
-    for where in PACKAGES + SCRIPTS:
-        root = os.path.join(HOST, where)
+    for where in PACKAGES + SCRIPTS + (BESIDE if beside else ()):
+        root = (os.path.join(REPO, where[3:]) if where.startswith('../')
+                else os.path.join(HOST, where))
         for name in sorted(os.listdir(root)):
             if not name.endswith('.py'):
                 continue
@@ -158,7 +173,7 @@ def test_no_duplicate_definitions(r):
     at once for as long as it took to notice.
     """
     seen = {}
-    for path, text, tree in sources():
+    for path, text, tree in sources(beside=False):
         lines = text.split(chr(10))
         for node in tree.body:
             names = []
@@ -288,7 +303,7 @@ def test_documented(r):
     # often says everything, and the MCP handlers are documented by their
     # schema - one fact in one place, which is the rule this suite keeps.
     missing = []
-    for path, _, tree in sources():
+    for path, _, tree in sources(beside=False):
         if not ast.get_docstring(tree):
             missing.append(path + ' (module)')
         # Top level only: a ctypes Structure declared inside a function is

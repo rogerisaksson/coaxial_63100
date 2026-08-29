@@ -68,15 +68,21 @@ for leg in ('U', 'V', 'W'):
 # ## Current, DC link and the two supply senses, with ripple
 # The live accumulator carries a count, a lowest and a highest per channel,
 # so ripple is measured rather than inferred from one sample.
+#
+# The phase readings here are OFFSET, not current: nothing is armed and no
+# current flows, so what they show is where each channel sits with zero
+# through the shunt. Zeroing them is `calibration.zero(index)`, against an
+# instrument - invariant 7. The ripple beside them is real either way.
 
 # %%
 live = daq.latest()
+params = daq.board.analog.scaling()      # the board's record, not this file's
 units = {f['signal']: (f['unit'], f['differential'])
          for f in daq.layout['fields']}
 for name in ('Phase U', 'Phase V', 'Phase W', 'DC bus', '+5V', 'Vgate'):
     unit, diff = units[name]
-    to = scaling.converter(unit, diff, signal=name)   # three mV channels,
-                                                     # three dividers
+    to = scaling.converter(unit, diff, signal=name,   # three mV channels,
+                           params=params)             # three dividers
     print('%-8s %+9.3f %-2s  p-p %7.3f  over %d'
           % (name, to(live['mean'][name]), scaling.UNIT_SYMBOL.get(unit, ''),
              abs(to(live['highest'][name]) - to(live['lowest'][name])),
@@ -99,7 +105,7 @@ daq.stop()
 
 got = []                                   # read() is one reply, not the lot
 while True:
-    batch = daq.board.daq.read(layout=daq.layout)
+    batch = daq.board.daq.acquire(layout=daq.layout)
     if not batch:
         break
     got.extend(batch)

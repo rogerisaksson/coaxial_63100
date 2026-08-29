@@ -14,11 +14,12 @@
 # %%
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), 'host'))          # the library lives here
 
-from coaxial import Coaxial63100
+from coaxial import Coaxial63100, scaling
 
 SIMULATED = False
 BLOCKS = 20
@@ -61,15 +62,24 @@ print(daq.write(digital={'UART5_TERM': False}))
 # A channel's value is the SUM of `samples` readings. Divide for the mean.
 # `acquire()` drains what has arrived since the last call; the buffer drops
 # when full, so a slow reader loses records rather than falling behind.
+#
+# The task buffers converter codes and scales nothing, so the code is what
+# arrives. `scaling()` is the board's own record - the thermistor it was
+# told it has, not one written down here (invariant 7).
 
 # %%
+ntc = daq.board.analog.scaling()['ntc']
+print('scaling from:', ntc.name)
+
 for n in range(1, BLOCKS + 1):
     block = daq.acquire()
     if not block:
         continue
     r = block[-1]
-    print('%2d  %.3f  NTC %8.1f  AFE %s'
-          % (n, r['time'], r['NTC'] / r['samples'], r['digital']['AFE_ON']))
+    code = r['NTC'] / r['samples']
+    print('%2d  %s  NTC %7.1f = %5.2f C  AFE %s'
+          % (n, time.strftime('%H:%M:%S', time.localtime(r['time'])),
+             code, ntc.celsius(code), r['digital']['AFE_ON']))
 
 # %% [markdown]
 # ## Or the running average, which widens instead of dropping
@@ -80,10 +90,16 @@ for n in range(1, BLOCKS + 1):
 
 # %%
 live = daq.latest()
+params = daq.board.analog.scaling()
+units = {f['signal']: f for f in daq.layout['fields']}
+
 for name in live['mean']:
-    print('%-8s %9.1f  over %4d  [%d..%d]'
-          % (name, live['mean'][name], live['count'][name],
-             live['lowest'][name], live['highest'][name]))
+    f = units[name]
+    to = scaling.converter(f['unit'], f['differential'], signal=name,
+                           params=params)
+    print('%-8s %9.1f codes = %9.3f %-2s  over %4d'
+          % (name, live['mean'][name], to(live['mean'][name]),
+             scaling.UNIT_SYMBOL.get(f['unit'], ''), live['count'][name]))
 
 # %%
 daq.stop()

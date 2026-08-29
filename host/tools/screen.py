@@ -8,14 +8,9 @@ lives in two files.
 import re
 import sys
 
-# A pipe takes its encoding from the locale, cp1252 here, and every view
-# draws glyphs outside ASCII. Measured: `show_desk.py | anything` died with
-# UnicodeEncodeError before the first frame. `replace`, not `strict` - a log
-# is worth reading with glyphs substituted and worthless as a traceback.
-try:
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-except (AttributeError, ValueError):    # not a reconfigurable stream
-    pass
+from coaxial import ansi
+
+ansi.utf8_stdout()          # every view draws outside ASCII
 
 #: Q closes, ESC goes back to the menu - picking the wrong view is the common
 #: mistake. Ctrl+C lands in the same `finally`.
