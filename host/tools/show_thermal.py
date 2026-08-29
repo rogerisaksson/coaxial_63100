@@ -180,7 +180,7 @@ def main():
                         note = 'link quiet: %s' % exc
 
                     frame += 1
-                    lines = (['', banner(origin, 'thermal - observer',
+                    lines = (['', '', banner(origin, 'thermal - observer',
                                          console, origin.label),
                               '', '  ' + note, spend, '']
                              + body + ['  ' + KEYS, ''])

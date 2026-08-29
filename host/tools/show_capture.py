@@ -155,9 +155,10 @@ def compose(origin, console, layout, view, width):
     """The whole frame, as a list of lines."""
     daq, ring = view['daq'], view['ring']
     # A blank FIRST: paint addresses absolute rows from 1, so the
-    # banner would otherwise land under the shell's own decoration,
+    # banner would otherwise land under the shell's own status line - two,
+    # because one blank still left it covered -
     # taking the LIVE/SIMULATED tag with it.
-    lines = ['', banner(origin, 'buffered capture', console,
+    lines = ['', '', banner(origin, 'buffered capture', console,
                     'Q closes, ESC for the menu'), '']
     lines.append(' TASK  %s clock  dec %d%s  acc %d%s  st %d   %8.0f rec/s   '
                  'buffered %d   dropped %d'

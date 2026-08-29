@@ -85,14 +85,15 @@ def canvas(args):
     At 34x15 none of them does and the board is a disc; at 150x60 they
     resolve and it looks like the reference this renderer is a port of.
     Four rows are left for the caption and the numbers above it, and
-    one more for the blank that keeps the banner off the top row.
+    two more for the blanks that keep the banner off the top rows,
+    where the shell's status line sits.
     """
     if args.width and args.height:
         return args.width, args.height
 
     try:
         size = os.get_terminal_size()
-        width, height = size.columns - 2, size.lines - 9
+        width, height = size.columns - 2, size.lines - 10
     except OSError:
         width, height = 100, 40         # not a terminal: still worth drawing
 
@@ -290,11 +291,12 @@ def main(argv=None):
                     note = ('   loop %s   %d vectors, %d errors'
                             % (record['loop'], record['updates'],
                                record['errors']))
-                # A blank FIRST: paint addresses absolute rows from 1, so without it
-                # the banner lands on the terminal's top row, under the shell's
-                # own decoration - and the LIVE/SIMULATED tag is the one thing
-                # in the frame that must never be hidden.
-                lines = (['', banner(origin, 'board attitude', console,
+                # TWO blanks first: paint addresses absolute rows from 1, so
+                # the banner lands on the terminal's top rows, where the
+                # shell's own status line sits over it. One was not enough -
+                # and the LIVE/SIMULATED tag is the one thing in the frame
+                # that must never be hidden.
+                lines = (['', '', banner(origin, 'board attitude', console,
                                  'Q closes, ESC for the menu' + note), ''] +
                          orientation.picture(
                              quaternion, width=wide, height=tall, frame=frame,

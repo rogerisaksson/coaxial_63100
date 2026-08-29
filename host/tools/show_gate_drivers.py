@@ -259,9 +259,10 @@ def compose(rig, origin, console, view, layout, width):
     """The whole frame."""
     state = view['gate_drivers']
     # A blank FIRST: paint addresses absolute rows from 1, so the
-    # banner would otherwise land under the shell's own decoration,
+    # banner would otherwise land under the shell's own status line - two,
+    # because one blank still left it covered -
     # taking the LIVE/SIMULATED tag with it.
-    lines = ['', banner(origin, 'gate_drivers', console,
+    lines = ['', '', banner(origin, 'gate_drivers', console,
                     'Q closes, ESC for the menu'), '']
     lines.append(' GATEDRIVERS  %-8s  break %-10s  dead time %d = %.1f ns  '
                  'duty %.1f%% step %.1f%%'

@@ -477,7 +477,7 @@ def frame(session, console, note):
     got = snapshot(session)
     room = shutil.get_terminal_size((110, 30)).columns
 
-    lines = ['', banner(session.rig.origin, 'demos', console,
+    lines = ['', '', banner(session.rig.origin, 'demos', console,
                         session.rig.origin.label), '']
     lines += [dash(session, got), '']
     lines += grid([[adc_block(got), thermal_block(got), bridges_block(got)],
