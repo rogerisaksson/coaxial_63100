@@ -1342,3 +1342,22 @@ move shorts a leg.
 
 Still nothing on a scope, and no current has flowed through a leg. Both
 numbers are datasheet arithmetic (invariant 10).
+
+## A teardown list written into the middle of the picture
+
+Reported missing five times and printed every time. `paint` addresses every
+row absolutely and never scrolls, so when a view stops the cursor is wherever
+the last CHANGED row left it - somewhere inside the drawing. Everything
+printed after that landed on top of the picture and read as part of it, and
+the shell prompt landed there too.
+
+**It was invisible to every check because a redirected stdout is not a
+console.** With `console` false `paint` writes plain lines, the cursor is
+already at the end, and the closing lines come out perfectly - which is what
+five rounds of verification saw. Anything that only reproduces on a terminal
+cannot be checked from a pipe, and nothing in this tree could.
+
+`screen.park(rows, console)` puts the cursor on the first line below the
+frame and clears from there down. Every view uses it in place of the `clear`
+it used to do on the way out - clearing wiped the reading and then printed
+the list onto a blank screen, where the prompt could take it with it.

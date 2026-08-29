@@ -21,8 +21,7 @@ import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import (TO_MENU, Keys, banner, clear, paint,  # noqa: E402
-                    say)
+from screen import TO_MENU, Keys, banner, paint, park, say  # noqa: E402
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
@@ -198,7 +197,7 @@ def main():
         except KeyboardInterrupt:
             pass
         finally:
-            clear(console)
+            park(len(shown), console)
             if load is not None:
                 for undo in (lambda: rig.write(analog=dict.fromkeys(load, 0.0)),
                              rig.gates.disarm):

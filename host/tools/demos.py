@@ -30,7 +30,7 @@ import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import TO_MENU, Keys, banner, paint, say   # noqa: E402
+from screen import TO_MENU, Keys, banner, paint, park, say  # noqa: E402
 
 from coaxial import Coaxial63100, angle, scaling       # noqa: E402
 from coaxial.errors import DeviceStateError, NoReplyError, RigError  # noqa: E402
@@ -488,7 +488,7 @@ def frame(session, console, note):
     return lines
 
 
-def teardown(session, console):
+def teardown(session, console, drawn):
     """List what is being put back, under the last frame, and hold it there.
 
     NOT after `clear`. Clearing first put the list alone on a blank screen,
@@ -499,7 +499,7 @@ def teardown(session, console):
     The hold is for the same reason. Two seconds is long enough to read six
     lines and short enough not to be in the way.
     """
-    sys.stdout.write('\n')
+    park(drawn, console)
     say('wait', 'stopping', 'putting back what the session started')
 
     try:
@@ -570,7 +570,7 @@ def main():
         except KeyboardInterrupt:
             pass
         finally:
-            teardown(session, console)
+            teardown(session, console, len(shown))
 
     return TO_MENU if leaving == 'menu' else 0
 

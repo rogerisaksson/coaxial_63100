@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import (TO_MENU, Keys, banner, clear, paint,
-                    say)                                 # noqa: E402
+from screen import (TO_MENU, Keys, banner, clear, paint,   # noqa: E402
+                    park, say)
 
 ROTATION_VECTOR = 0x05
 
@@ -320,7 +320,7 @@ def main(argv=None):
     finally:
         if shop:
             shop.close()
-        clear(console)
+        park(len(shown), console)
         put_back(board, part)
         rig.close()
 

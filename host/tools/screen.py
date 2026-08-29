@@ -87,6 +87,24 @@ def say(state, text, detail=''):
     sys.stdout.flush()
 
 
+def park(rows, console):
+    """Put the cursor on the first line BELOW a painted frame.
+
+    `paint` addresses every row absolutely and never scrolls, so when a view
+    stops, the cursor is wherever the last changed row left it - somewhere in
+    the middle of the drawing. Anything printed then lands on top of the
+    picture and is read as part of it, and the shell prompt lands there too.
+
+    Measured the hard way: a teardown list was reported missing five times
+    and was being written into the middle of the dashboard every time. It was
+    invisible to every check because a redirected stdout is not a console,
+    where `paint` writes plain lines and the cursor is already at the end.
+    """
+    if console:
+        sys.stdout.write('%s[%d;1H%s[J' % (chr(27), rows + 1, chr(27)))
+        sys.stdout.flush()
+
+
 def clear(console):
     """Wipe the screen and put the cursor home.
 

@@ -24,8 +24,7 @@ from coaxial import angle                                  # noqa: E402
 from coaxial import dial                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import (TO_MENU, Keys, banner, clear, paint,
-                    say)                                 # noqa: E402
+from screen import TO_MENU, Keys, banner, paint, park, say  # noqa: E402
 
 REG_ANG = 0x20
 REG_TSEN = 0x28
@@ -177,7 +176,7 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
-        clear(console)
+        park(len(shown), console)
         rig.close()
         say('ok', part['power'] or 'supply', 'put back the way it was found')
 

@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100, scaling                   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
-from screen import TO_MENU, Keys, banner, clear, paint, say  # noqa: E402
+from screen import TO_MENU, Keys, banner, paint, park, say  # noqa: E402
 
 #: What R runs for, in seconds. Two floors, and the view reports both
 #: rather than hiding either: the board takes one conversion per main-loop
@@ -394,7 +394,7 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
-        clear(console)
+        park(len(shown), console)
         try:
             if not refused:
                 rig.stop()
