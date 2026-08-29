@@ -113,9 +113,42 @@ an op dispatcher beside it.
 | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
 | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live |
 | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |
+| 8 | the thermal observer | NTC, both dies, the model | 0 state, 1 set node, 2 set board, 3 set sampling, 4 budget, 5 set limit |
+| 9 | the rails and who holds them | AFE_ON | 0 state, 1 release all |
 
-`coaxial.Coaxial63100` is the host side and the preferred way in - `read()` and
-`write()` over the raw ops.
+`coaxial.Coaxial63100` is the host side and the preferred way in - `acquire()`
+and `write()` over the raw ops.
+
+### Device 8 - the thermal observer
+
+**Measured and estimated never share a field.** Op 0 sends each thermometer
+with its own flag and the node temperatures apart from them: with AFE_ON low
+there is no NTC, no die and no reference, so the model runs on power and time
+and the reply has to be able to say that rather than send a stale number as a
+live one. `seen_ms_ago` is the age of the whole sample, and judging it is the
+host's (invariant 10) - a reading two intervals old is not a measurement.
+
+Op 4 is the budget: `u8 nodes`, one byte a node, then `worst`, `worst_node`,
+`i32 millis_to_limit`, `throttling`, `tripped`, `u32 trips`. A byte because
+"how close" is the question and a temperature cannot answer it without the
+ceiling beside it; milliseconds because 35 W into the phase node crosses the
+throttle point with under a second left.
+
+The ceilings live in the calibration record (device 3), not here. The board
+holds a limit it was given and never invents one - what it does with it is
+act, dropping MOE at the ceiling, which is the narrow exception invariant 10
+carries.
+
+### Device 9 - the rails
+
+AFE_ON is reference counted, so `on` after an explicit off means somebody else
+still holds it. That is a different thing from a write that never landed, and
+the users bitmask is what tells them apart. Every hold but the host's is a
+lease and expires on its own: the observer took the rail, `link_busy()` starved
+the poll holding the release, and it stayed high until reset.
+
+`on` is the PIN, read back, not what the count implies. They should agree, and
+the case worth reporting is the one where they do not.
 
 ### Devices 0 and 1 - the SPI sensors
 

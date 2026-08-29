@@ -582,6 +582,26 @@ uint8_t Board_ImuPinCheck(uint8_t pin)
 
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
+  /* CHIP SELECT DEASSERTED FIRST, and this is not housekeeping. Each call
+     leaves the pin it tested as an input, so checking the four in turn left
+     PB12 floating by the time MISO's turn came - and a chip select that
+     floats low asserts the part, which then drives MISO exactly as it should.
+     The check reported MISO as held by something else and it was the test's
+     own doing. Measured 2026-08-29: bits 11 with CS floating.
+     Skipped when PB12 is the pin under test, which cannot deassert itself. */
+  if (pin != 12U)
+  {
+    GPIO_InitTypeDef cs = {0};
+
+    cs.Pin = GPIO_PIN_12;
+    cs.Mode = GPIO_MODE_OUTPUT_PP;
+    cs.Pull = GPIO_NOPULL;
+    cs.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &cs);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);   /* CSN idle high */
+    HAL_Delay(1U);
+  }
+
   gpio.Pin = mask;
   gpio.Mode = GPIO_MODE_OUTPUT_PP;
   gpio.Pull = GPIO_NOPULL;

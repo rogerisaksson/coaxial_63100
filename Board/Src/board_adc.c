@@ -348,6 +348,15 @@ _Static_assert(BOARD_CAL_CHANNELS ==
    still needs eyes; shrinking it no longer needs luck. */
 _Static_assert(CH_MCU_DIE < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
                "CH_MCU_DIE is past the end of the ADC table");
+
+/* The acquisition task's arrays are sized by their own constant, and it was
+   left at nine when the die sensor made the table ten. Nothing overran - the
+   configure loop is bounded by BOTH - but the tenth channel could never be
+   selected, so it vanished from the task in silence. Nothing on the wire is
+   sized by this: the layout and the live reply both carry their own count. */
+_Static_assert(BOARD_DAQ_MAX_CHANNELS ==
+               (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
+               "the acquisition task cannot reach every ADC channel");
 _Static_assert(CH_DCBUS < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
                "CH_DCBUS is past the end of the ADC table");
 _Static_assert(CH_NTC < (sizeof(s_adcTable) / sizeof(s_adcTable[0])),

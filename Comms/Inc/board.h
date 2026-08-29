@@ -280,7 +280,7 @@ typedef struct
 /* ---- the acquisition task ----------------------------------------------- */
 
 /** As many channels as the ADC table has rows. */
-#define BOARD_DAQ_MAX_CHANNELS 9U
+#define BOARD_DAQ_MAX_CHANNELS 10U
 
 #define BOARD_DAQ_CLOCK_SOFTWARE 0U  /**< the main loop, as fast as it gets round */
 #define BOARD_DAQ_CLOCK_TIM1     1U  /**< the injected group, one per PWM period  */
