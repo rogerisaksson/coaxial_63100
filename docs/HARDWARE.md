@@ -265,8 +265,9 @@ comes from the board - `0x6D` kind 4 - not from this table.
 * **Mode 3 comes from the driver, not from the .ioc.** `Board_ImuInit` and
   `Board_AngleInit` set every field of `hspi2`/`hspi4` and call
   `HAL_SPI_Init` themselves, so what CubeMX generated is overwritten before
-  either part is spoken to. The .ioc currently reads mode 2 on SPI2 and mode
-  0 on SPI4 - dead values, and not what runs.
+  either part is spoken to. SPI2 was set to mode 3 in CubeMX on 2026-08-29
+  and now agrees; SPI4 still reads mode 0 there - a dead value, not what
+  runs.
 
 * **SPI4 cannot carry a 20-bit word.** `IS_SPI_HIGHEND_INSTANCE` names SPI1,
   SPI2 and SPI3 only, and `HAL_SPI_Init` returns `HAL_ERROR` above 16 bits on

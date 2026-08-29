@@ -21,6 +21,11 @@
    next read. A bring-up asks for reports, which fit. */
 #define IMU_CARGO 200U
 
+/* Per read attempt, and eight of them: 40 ms worst case for a part that
+   never answers. The wait pumps the STO keepalive, so a slow part does
+   not stop the charge pump. */
+#define IMU_ANSWER_WAIT_MS 5U
+
 /**
   * @brief op 0 - ask the part what it is.
   *
@@ -53,9 +58,19 @@ static cmd_status_t h_imu_id(rd_t *in, wr_t *out)
 
   /* Bounded: a part that never answers must not hold the link. Eight reads is
      the advertisement, the executable's reset message, SH-2's unsolicited
-     initialisation and room to spare. */
+     initialisation and room to spare.
+
+     WAIT BEFORE EACH ONE. Eight immediate reads take microseconds and the
+     part needs milliseconds to produce the answer, so with the queue already
+     drained - which is the normal state, the poll loop drains it - all eight
+     came back empty and this returned SERVER DEVICE FAILURE on a part that
+     was answering perfectly. Measured from the host: the same request sent
+     by hand and read 15 ms later got f8 04 03 02, the product id response,
+     every time. */
   for (uint8_t tries = 0U; tries < 8U; tries++)
   {
+    (void)Board_ImuWaitReady(IMU_ANSWER_WAIT_MS);
+
     if (!Board_ImuRead(&channel, cargo, sizeof(cargo), &len))
     {
       return CMD_ERR_DEVICE;

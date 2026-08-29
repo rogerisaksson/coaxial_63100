@@ -702,8 +702,32 @@ def afe_power(session, action='read', **_):
                 'and no confirmation' % action)
     afe = session.board.afe
     if action != 'read':
+        was = afe.is_on()
         {'on': afe.enable, 'off': afe.disable, 'toggle': afe.toggle}[action]()
+        if afe.is_on() and not was:
+            _settle(session)
     return render.kv(afe.state())
+
+
+def _settle(session):
+    """Wait out the reference after AFE_ON went high.
+
+    `on` used to return the moment the pin moved, and a read straight after
+    it caught the reference mid-rise: the NTC came back at mid-scale, the
+    firmware suppressed the temperature, and the reply lost its C and V bus
+    columns. A tool that says the front end is on and hands back a reading
+    that is not one is worse than a slow tool.
+
+    The interval is the OBSERVER's, read off the board - it settles for the
+    same reason and the number belongs there, not here (invariant 7).
+    """
+    import time
+
+    try:
+        wait = session.board.thermal.state()['sample_settle_s']
+    except Exception:                       # noqa: BLE001 - older firmware
+        wait = 0.5
+    time.sleep(min(2.0, max(0.0, wait)))
 
 
 def gpio_pin(session, op='read', pin='B2', level=False, mode='input',

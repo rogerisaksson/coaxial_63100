@@ -9,8 +9,6 @@
   * CubeMX does not match the part (BNO080_085 v1.17), and this fixes it at
   * runtime rather than editing Core/, which CubeMX regenerates:
   *
-  *   - SPI mode 3, not the .ioc's mode 0 (1.2.4.2, 6.5.2)
-  *   - byte oriented, not SPI_DATASIZE_4BIT (1.2.4.2)
   *   - CS held across header AND cargo (1.2.4.2), so PB12 is plain GPIO;
   *     hardware NSS pulses per frame and would end the transaction between
   *
@@ -189,17 +187,27 @@ static bool poll_due(void)
 }
 
 
-/** True if the part asserted H_INTN within `ms`. */
+/** True if the part asserted H_INTN within `ms`.
+  *
+  * Elapsed, not a deadline: `HAL_GetTick() + ms` wraps every 49.7 days and
+  * the `>` against it then reads backwards - the wait returns at once or
+  * spins for a month. The same shape as the lease sentinel.
+  *
+  * Pumps the STO charge pump while it spins, like every other busy wait on
+  * this board: a keepalive that stops whenever the board is waiting is a
+  * keepalive that lies.
+  */
 static bool wait_intn(uint32_t ms)
 {
-  const uint32_t until = HAL_GetTick() + ms;
+  const uint32_t start = HAL_GetTick();
 
   while (!intn_asserted())
   {
-    if (HAL_GetTick() > until)
+    if ((uint32_t)(HAL_GetTick() - start) > ms)
     {
       return false;
     }
+    Board_StoKeepalive();
   }
 
   return true;
@@ -950,6 +958,12 @@ uint8_t Board_ImuDrain(uint8_t limit)
 
   return taken;
 }
+
+bool Board_ImuWaitReady(uint32_t ms)
+{
+  return wait_intn(ms);
+}
+
 
 bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
 {
