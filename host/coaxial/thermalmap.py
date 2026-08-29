@@ -140,16 +140,26 @@ def field(x_mm, y_mm, board_c, nodes, layout=None):
 
 def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
     """(rows of temperature-or-None, lo, hi). None is off the board."""
-    rows, lo, hi = [], None, None
     per_cell = 2.0 * OUTER_MM / cells
     bore = max(BORE_MM, BORE_MIN_CELLS * per_cell)
-    per_row = per_cell * aspect
 
-    for row in range(cells):
+    # THE GRID IS NOT SQUARE, and that is the point. A cell is taller than it
+    # is wide on the glass, so a round board needs fewer rows than columns -
+    # and the rows have to SPAN the board rather than be a square grid with
+    # blank margins trimmed off, because the trim lands on whole rows and
+    # leaves one more at the top than the bottom. Measured: the outline read
+    # 16, 24, 30 down the top and 26, 20, 10 up from the bottom.
+    #
+    # Even, because the half-block renderer pairs rows two to a line.
+    down = max(4, int(round(cells / aspect)) // 2 * 2)
+    per_row = 2.0 * OUTER_MM / down
+
+    rows, lo, hi = [], None, None
+    for row in range(down):
         line = []
         for col in range(cells):
             x = (col - (cells - 1) / 2.0) * per_cell
-            y = ((cells - 1) / 2.0 - row) * per_row
+            y = ((down - 1) / 2.0 - row) * per_row
             r = math.hypot(x, y)
             if r > OUTER_MM or r < bore:
                 line.append(None)
@@ -191,6 +201,11 @@ def _half_rows(grid):
     and the foreground the row below. One character row therefore carries two
     rows of the field, so the picture stays square at one character per cell
     instead of two - half the width and half the height of the plain ramp.
+
+    An edge cell has only one of the two, and BOTH cases get a half block -
+    the upper one its own glyph. Painting the upper-only case as a
+    background-coloured space filled the whole cell, which made the bottom
+    of a round board a cell coarser than the top.
     """
     out = []
     for top in range(0, len(grid), 2):
@@ -206,7 +221,12 @@ def _half_rows(grid):
             if over is None and under is None:
                 want, text = ansi.RESET, ' '
             elif under is None:
-                want, text = ansi.back(ansi.thermal(over)), ' '
+                # The UPPER half block, not a background-coloured space: a
+                # space paints the whole cell, so the bottom edge of the
+                # board came out a cell coarser than the top and read as
+                # blocky against it.
+                want = ansi.RESET + ansi.code(ansi.thermal(over))
+                text = ansi.HALF_UP
             elif over is None:
                 want = ansi.RESET + ansi.code(ansi.thermal(under))
                 text = ansi.HALF

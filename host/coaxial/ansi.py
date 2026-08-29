@@ -67,6 +67,12 @@ def back(number):
 #: you get the other half back.
 HALF = '▄'
 
+#: The other half, for a cell whose LOWER row is off the picture. Without
+#: it that case was drawn as a background-coloured space - a whole cell
+#: painted where half was meant - so the bottom edge of a round board
+#: resolved a cell coarser than the top and read as blocky.
+HALF_UP = '▀'
+
 
 def paint(text, number):
     """`text` in one colour, closed again."""

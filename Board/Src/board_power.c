@@ -7,6 +7,7 @@
 #include "board.h"
 #include "board_hw.h"
 #include "board_power.h"
+#include "link.h"
 
 /* One bit per user in a uint8_t. A sixth user is free; a ninth is a silent
    truncation in bit_of and everything that reads the mask. */
@@ -139,6 +140,34 @@ bool Board_PowerState(board_rail_t rail, board_rail_state_t *out)
 void Board_PowerPoll(void)
 {
   const uint32_t now = HAL_GetTick();
+
+  /* THE HOST'S HOLDS DIE WITH THE HOST. Its reference is deliberately
+     unleased so a session can keep a rail as long as it likes - and that is
+     exactly why a killed script left AFE_ON high until somebody noticed.
+     A live host talks; silence is the board's evidence that this one does
+     not, and the rail goes down on its own. */
+  static uint32_t seen_count;
+  static uint32_t seen_at;
+  const uint32_t heard = link_rx_count();
+
+  if (heard != seen_count)
+  {
+    seen_count = heard;
+    seen_at = now;
+  }
+
+  if ((uint32_t)(now - seen_at) > BOARD_POWER_HOST_QUIET_MS)
+  {
+    for (uint8_t rail = 0U; rail < (uint8_t)BOARD_RAIL_COUNT; rail++)
+    {
+      if ((s_users[rail] & bit_of(BOARD_USER_HOST)) != 0U)
+      {
+        s_users[rail] &= (uint8_t)~bit_of(BOARD_USER_HOST);
+        s_expires[rail][BOARD_USER_HOST] = 0U;
+        apply((board_rail_t)rail);
+      }
+    }
+  }
 
   for (uint8_t rail = 0U; rail < (uint8_t)BOARD_RAIL_COUNT; rail++)
   {

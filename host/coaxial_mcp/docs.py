@@ -92,6 +92,12 @@ def _headings(text):
     return out
 
 
+#: Headings one document may spend on the index. FINDINGS is a log and
+#: grows without bound; the index is read on every turn that asks about
+#: the documents at all, so it must not grow with it.
+INDEX_HEADS = 12
+
+
 def index(level=None):
     """Every document, its headings, and what a full read would cost.
 
@@ -112,10 +118,21 @@ def index(level=None):
         else:
             lines.append('%-12s %5d lines  ~%d tok'
                          % (name, text.count('\n') + 1, len(text) // 4))
-        for head_level, title, _ in heads:
-            if terse and head_level > 2:
-                continue
+
+        shown = [h for h in heads if not (terse and h[0] > 2)]
+        # A LOG DOES NOT GET A LINE EACH. FINDINGS is a record and grows for
+        # ever, so listing every heading made the index grow with it - and
+        # the index is what a model reads on the way to deciding what to
+        # read at all. The newest are what a bench question is about; the
+        # rest are one `doc=FINDINGS` away, which the line below says.
+        clipped = len(shown) - INDEX_HEADS
+        if clipped > 0:
+            shown = shown[-INDEX_HEADS:]
+
+        for head_level, title, _ in shown:
             lines.append('  %s%s' % ('  ' * (head_level - 2), title))
+        if clipped > 0:
+            lines.append('  ... and %d older, by `doc=%s`' % (clipped, name))
     if not lines:
         return 'no documents found under %s' % root()
     lines.append('')

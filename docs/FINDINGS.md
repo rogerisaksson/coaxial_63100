@@ -1563,3 +1563,39 @@ The cap on cells was 44, which is what made the circle a staircase: the
 raster is the only antialiasing there is. 88 costs 7744 field evaluations and
 draws in 42 ms, which at 2 Hz is nothing.
 
+## AFE_ON kept coming back on, and the fix was the class not the instance
+
+Reported from the bench three times, and cleared by hand three times before
+the cause was addressed. The host's power reference is deliberately UNLEASED
+so a session can keep a rail as long as it likes - and that is exactly why a
+script killed mid-run left AFE_ON high for ever, warm and blinking, with
+`users: ['host']` and nothing to expire it.
+
+**Silence is the evidence.** `link_rx_count()` counts bytes in on any port;
+`Board_PowerPoll` keeps the time and drops the host's holds after
+`BOARD_POWER_HOST_QUIET_MS` without one. A session polls at 2 Hz in a view
+and far faster in a test; a process that is gone sends nothing.
+
+A COUNT and not a timestamp, because `link.c` has its clock injected through
+the device and none of its own - whoever wants to know how long ago keeps the
+time themselves.
+
+Proven: took the rail, killed the process without a teardown, waited 16 s,
+and the board had released it - `AFE False, held by nobody`.
+
+## The bottom of the board was a cell coarser than the top
+
+The half-block renderer pairs two field rows per character row. An edge cell
+has only one of the two, and the upper-only case was drawn as a
+background-coloured SPACE - which paints the whole cell, where half was
+meant. So the top edge resolved at half a cell and the bottom at a whole one.
+
+Measured on the outline: spans of 16, 24, 28, 32 down from the top against
+10, 20, 26, 30 up from the bottom. With an upper half block for that case,
+both read 16, 24, 28, 32.
+
+Beside it, the grid stopped being square. A round board needs fewer rows than
+columns because a cell is taller than it is wide, and the rows have to SPAN
+the board rather than be a square grid whose blank margin is trimmed - the
+trim lands on whole rows and leaves one more at the top than the bottom.
+

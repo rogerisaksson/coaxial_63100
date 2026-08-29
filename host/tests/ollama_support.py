@@ -86,6 +86,14 @@ class SimulatedAfe:
     def state(self):
         return {'on': self.on, 'pe15': not self.on}
 
+    def is_on(self):
+        """The third stand-in for this subsystem, and it was missing this.
+
+        The structure suite checks the library's against the real class; it
+        cannot see one that lives in a test.
+        """
+        return self.on
+
     def enable(self):
         self.on = True
         return True

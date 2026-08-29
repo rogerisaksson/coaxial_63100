@@ -72,6 +72,14 @@ void link_request_close(void);
 /** Service the stack. Call every main-loop pass while link_active(). */
 void link_poll(void);
 
+/** Bytes received on any port since boot.
+  *
+  * The board's only evidence that a host is still there. A session polls; a
+  * script that was killed does not, and its holds would otherwise outlive
+  * it. A count rather than a time because this layer has no clock of its
+  * own - the caller holds the time. */
+uint32_t link_rx_count(void);
+
 uint8_t  link_unit_id(void);
 void     link_stats(link_stats_t *out);
 

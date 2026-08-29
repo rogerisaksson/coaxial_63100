@@ -168,6 +168,17 @@ uint32_t link_ticks_per_us(void)
 }
 
 /* One port's pump. Four steps, no nesting beyond a guard each. */
+/* Bytes in, from any port. A COUNT and not a timestamp: this file gets its
+   clock injected through the device and has none of its own, so whoever
+   wants to know how long ago keeps the time themselves. */
+static uint32_t s_rx_count;
+
+uint32_t link_rx_count(void)
+{
+  return s_rx_count;
+}
+
+
 static void pump(link_port_t *l)
 {
   if (!l->open)
@@ -188,6 +199,7 @@ static void pump(link_port_t *l)
        ports is not when this loop reached it. Framing is silence, so the
        difference is the whole measurement. */
     mb_rtu_on_byte(&l->rtu, byte, at);
+    s_rx_count++;
   }
 
   const uint8_t *frame = NULL;

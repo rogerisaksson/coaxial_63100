@@ -197,6 +197,19 @@
 
 #define THERMAL_SAMPLE_SETTLE_MS 500U
 
+/** How long the link may be silent before the HOST's holds are dropped.
+  *
+  * The host's reference is the one with no lease, so that a session can keep
+  * a rail as long as it likes. The cost is that a script which was killed
+  * keeps it FOR EVER - measured over and over on this bench, AFE_ON high with
+  * nobody using it, warm and blinking, because a run had been interrupted.
+  *
+  * Silence is the evidence. A session polls, at 2 Hz in a view and far faster
+  * in a test; a process that is gone sends nothing. Ten seconds is longer
+  * than any gap a live host leaves and shorter than anyone would sit looking
+  * at a rail nobody asked for. */
+#define BOARD_POWER_HOST_QUIET_MS 10000U
+
 /* ---- POWER ------------------------------------------------------------- */
 
 /** How long a borrowed hold lasts without renewal, milliseconds. */

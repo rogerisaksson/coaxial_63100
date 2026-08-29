@@ -702,7 +702,11 @@ def afe_power(session, action='read', **_):
                 'and no confirmation' % action)
     afe = session.board.afe
     if action != 'read':
-        was = afe.is_on()
+        # `state()['on']` and not `is_on()`: three stand-ins answer for this
+        # subsystem - the library's, the ollama suites' and the board itself -
+        # and `state` is the one all three have. Reaching for the other
+        # crashed three suites at once.
+        was = afe.state()['on']
         {'on': afe.enable, 'off': afe.disable, 'toggle': afe.toggle}[action]()
         if afe.is_on() and not was:
             _settle(session)
