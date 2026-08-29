@@ -38,7 +38,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import Coaxial63100, scaling                    # noqa: E402
+from coaxial import Coaxial63100, scaling, thermal           # noqa: E402
 from demos import SETTLE_S              # the board's own settle
 from screen import say, steady                                       # noqa: E402
 
@@ -69,8 +69,11 @@ def sample(rig, params):
         if state is not None:
             got['uptime'] = state['seconds']
         if spend is not None:
-            got['drivers'] = spend['used']['drivers']
-            got['phases'] = spend['used']['phases']
+            # THE HOTTEST LEG. A sweep drives one leg or three, and a mean
+            # over three hides the one that is closest to shoot-through.
+            used = spend['used']
+            got['drivers'] = max(used[n] for n in thermal.DRIVERS)
+            got['phases'] = max(used[n] for n in thermal.PHASES)
         steady(rig.board.afe.disable)
         time.sleep(SETTLE_S)
     return got

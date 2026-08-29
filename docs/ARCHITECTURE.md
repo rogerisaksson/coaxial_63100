@@ -101,10 +101,13 @@ ops stay a dumb slave's (invariant 10); refusing to arm is a host's judgement.
 `write`, and `gates` for the power stage. It owns the preflight all four views
 were repeating - AFE_ON powers the ADC reference and both SPI parts, so it goes
 up on the way in and back the way it was found on the way out, Ctrl+C included.
-`Board` and its subsystems stay under `.board`; nothing is hidden, but a caller
-wanting measurements should not have to know the supply lives in `afe`, the
-converters in `daq` and the counter in `clock`. Topology, pin maps and the parts
-list come off the board, never from a hardcoded table.
+`Board` and its subsystems stay under `.board`, and the device forwards them
+by name - `device.imu` is `device.board.imu`, no list to go stale - so a
+caller reaches a subsystem without knowing the supply lives in `afe`, the
+converters in `daq` and the counter in `clock`. `gates` is NOT forwarded: it
+is the arming policy above the raw ops, and reaching past it is how a duty
+write becomes what arms a stage. Topology, pin maps and the parts list come
+off the board, never from a hardcoded table.
 
 `orientation.py`, `dial.py` and `desk.py` are pure renderers - a reading in,
 text out - so all three test without a board; `mesh.py` reduces the CAD export
@@ -126,7 +129,7 @@ Board-side scaling is kept only to cross-check the math.
 
 ## The test system
 
-Nineteen suites, 1801 checks. `run_tests.ps1` is the only interface -
+Nineteen suites, 1814 checks. `run_tests.ps1` is the only interface -
 `-AutomaticMinimal|Medium|High` for ~25/50/75 % of every check, `-All` the gate,
 `-Only NAMES` and `-Tags SUBJECTS` for one change's worth, `-Structure` for the
 package itself.

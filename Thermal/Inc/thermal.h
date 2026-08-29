@@ -50,16 +50,41 @@ extern "C" {
 #endif
 
 /** The regions that dissipate. Order is the wire order; append only. */
+/** PER LEG, because a leg that is not switching does not get warm.
+  *
+  * `drivers` and `phases` were one node each, so the model scaled the loss
+  * by how many legs were driven and then spread it over all three. Measured
+  * with a thermal camera 2026-08-29: switching U alone heats U's half-bridge
+  * and the estimate showed all three the same.
+  *
+  * The split preserves the bulk exactly - each leg carries a third of the
+  * capacity and three times the resistance to board, which in parallel is
+  * what the lumped node had. So the four-state camera calibration still
+  * holds, and only the PLACEMENT changed.
+  */
 typedef enum
 {
-  THERMAL_DRIVERS = 0,   /**< 2EDL8034 x3 - the NTC's neighbour           */
-  THERMAL_PHASES,        /**< the six IAUCN10S7N021                       */
+  THERMAL_DRIVER_U = 0,  /**< one 2EDL8034. V is the NTC's neighbour      */
+  THERMAL_DRIVER_V,
+  THERMAL_DRIVER_W,
+  THERMAL_PHASE_U,       /**< two IAUCN10S7N021, high and low             */
+  THERMAL_PHASE_V,
+  THERMAL_PHASE_W,
   THERMAL_MCU,           /**< STM32H753 at 475 MHz, through a linear LDO  */
   THERMAL_REGULATORS,    /**< MP4541 x2 and the LDOs after them           */
   THERMAL_AFE,           /**< THS4551 x3 and the reference                */
   THERMAL_BOARD,         /**< the copper everything sinks into            */
   THERMAL_NODES
 } thermal_node_t;
+
+/** The leg a node belongs to, for code that walks them three at a time. */
+#define THERMAL_DRIVER(leg) ((thermal_node_t)(THERMAL_DRIVER_U + (leg)))
+#define THERMAL_PHASE(leg)  ((thermal_node_t)(THERMAL_PHASE_U + (leg)))
+
+/** The NTC sits beside the middle driver, so that is the one it anchors.
+  * It used to anchor the lumped node, which made an idle leg's estimate
+  * follow a neighbour that was switching. */
+#define THERMAL_NTC_NEIGHBOUR THERMAL_DRIVER_V
 
 /** One node's thermal properties. Set from the calibration record. */
 typedef struct

@@ -251,8 +251,13 @@ extern "C" {
 #define CAL_OP_LOAD        6U
 #define CAL_OP_DEFAULTS    7U
 
-#define CMD_PROTO_MAJOR 1U
-#define CMD_PROTO_MINOR 28U
+/* 2.0, 2026-08-29: the thermal nodes went per leg, which REPURPOSED wire
+   indices - device 8 node order and the cal record's ceilings both. The
+   count byte lets a host follow the length, not the meaning: an old host's
+   set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
+   whether meant or not. */
+#define CMD_PROTO_MAJOR 2U
+#define CMD_PROTO_MINOR 0U
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

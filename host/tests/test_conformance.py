@@ -132,6 +132,18 @@ def coils_from(data: bytes, qty: int):
     return out
 
 # ---- test runner --------------------------------------------------------
+def thermal_nodes(bus):
+    """How many nodes the observer has, asked of the board.
+
+    Device 8 op 4 leads with `u8 nodes`, which is what makes this one
+    request rather than a count written down here. It WAS written down - as
+    6 - and the drivers and phases went per leg.
+    """
+    reply = bus.request(bytes([0x6E, 8, 4]))
+    parsed = parse(reply)
+    return parsed[2][0] if parsed and parsed[2] else 0
+
+
 def adc_channels(bus):
     """How many analog channels the board has, asked of the board.
 
@@ -435,7 +447,9 @@ def cal_tests(run):
     # is the second answer the suite exists to avoid.
     nodes = data[at]
     at += 1
-    run.check('one ceiling per thermal node', nodes == 6, 'got %d' % nodes)
+    want = thermal_nodes(b)
+    run.check('one ceiling per thermal node', nodes == want,
+              'got %d, the observer has %d' % (nodes, want))
     at += nodes * 4 + 4                       # the limits, then throttle ppm
 
     run.check('the reply ends where the envelope does',

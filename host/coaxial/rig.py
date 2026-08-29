@@ -101,6 +101,49 @@ class Coaxial63100(Acquisition):
                 time.sleep(0.3)
         return self
 
+    def __getattr__(self, name):
+        """`device.imu` is `device.board.imu`.
+
+        Forwarded rather than ten properties: the subsystem names come from
+        Board, so a new one is reachable here with nothing added. A list in
+        this file would be the second answer that goes stale - which is what
+        happened to test_parity's hand-written table of view calls.
+
+        `gates` is NOT forwarded, and that is deliberate: it is a real
+        attribute holding GateStage, the arming policy, and reaching past it
+        to `gate_drivers` is how a duty write becomes what arms a stage.
+        """
+        if name.startswith('_') or name in ('board', 'session', 'gates'):
+            raise AttributeError(name)
+
+        board = self.__dict__.get('board')
+        if board is None:
+            raise AttributeError(
+                '%r: the session is not open, so it has no subsystems yet - '
+                'call open(), or use it as a context manager' % name)
+        try:
+            return getattr(board, name)
+        except AttributeError:
+            raise AttributeError(
+                '%r is not a subsystem of this board. It has: %s'
+                % (name, ', '.join(sorted(
+                    n for n in vars(board) if not n.startswith('_')))))
+
+    def _others_here(self):
+        """Whether another session is on this board. False if unknowable.
+
+        False and not True on failure: without a broker there is nobody else
+        by construction, and an unknown answer must not be what stops a
+        stage being disarmed.
+        """
+        from . import broker
+
+        try:
+            count = broker.clients()          # None: nobody is serving
+        except Exception:                                     # noqa: BLE001
+            return False
+        return count is not None and count > 1
+
     def close(self):
         """Everything this session started, undone.
 
@@ -115,12 +158,28 @@ class Coaxial63100(Acquisition):
             # gate drivers' supply away. A switching run started after that
             # toggles TIM1 into unpowered drivers and heats nothing, with
             # every counter reading normal. Measured 2026-08-28.
-            for step in (self.board.daq.stop,
-                         self.board.gate_drivers.disable):
+            for step in (self.board.daq.stop,):
                 try:
                     step()
                 except RigError:
                     pass
+
+            # THE STAGE IS THE BOARD'S, NOT THIS SESSION'S. Disarming on the
+            # way out is the safety net for a run that was killed, and it
+            # stays that - but with a broker every session shares one board,
+            # and this used to run unconditionally. Measured 2026-08-29:
+            # three switching runs ended the moment a second session asked
+            # the board an unrelated question, MOE clear and no fault, which
+            # reads as a stage tripping rather than a peer tidying up.
+            #
+            # So it undoes what this session started, and otherwise only
+            # when nobody else is left to own it.
+            try:
+                if (self.gates is None or self.gates.armed_here
+                        or not self._others_here()):
+                    self.board.gate_drivers.disable()
+            except RigError:
+                pass
             try:
                 if self.power_afe and self._afe_was_on is False:
                     self.board.afe.disable()

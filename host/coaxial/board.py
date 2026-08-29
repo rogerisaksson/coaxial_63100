@@ -128,7 +128,10 @@ class Board:
 # firmware that bumps to major 2 gets a Board subclass on a new line here, and
 # every call site stays as it is. Nothing keys off the firmware version, because
 # binding a host to firmware numbers means every rebuild breaks the host.
-BOARD_CLASSES = {1: Board}
+#: Major 1 - the six-node thermal vocabulary - has no codec here any more:
+#: this Board speaks per-leg nodes, and labelling an old board's six with
+#: ten names would be worse than the refusal.
+BOARD_CLASSES = {2: Board}
 
 
 def _build(probe):

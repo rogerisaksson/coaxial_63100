@@ -15,6 +15,7 @@ sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 from coaxial.thermal import (AMBIENT, CFG, DRIVER_RISE_SWITCHING, NODES,
                              NTC_OFFSET, NTC_SEES_DRIVERS, board_from_ntc,
                              expected_ntc, settled_fraction, tau_minutes)
+from coaxial import thermal
 from coaxial.thermalmap import LAYOUT, render
 
 #: The camera, 2026-08-28. Dead surface is the reference; ntc is the board's.
@@ -64,12 +65,20 @@ def main():
         ('mcu', 15.0, 0.666, 'SOURCE: passive +15.0 K / 0.666 W'),
         ('regulators', 8.0, 0.534, 'SOURCE: passive +8.0 K / 0.534 W'),
         ('afe', 5.4, 0.13, 'SOURCE: 2-1, +5.4 K / 0.13 W'),
-        ('drivers', 9.1, 0.60, 'SOURCE: 4-1, half the switching loss'),
-        ('phases', 9.1, 0.60, 'ASSUMED: same zone as the drivers'),
     ]
     for node, delta, watt, source in fits:
         bad += not check('%s K/W' % node, CFG['to_board'][node], delta / watt,
                          1.5, source)
+
+    # THE CAMERA SAW ONE BRIDGE ZONE, so it constrains the three legs
+    # together and not one of them. Three in parallel is what it measured;
+    # per leg is three times that, and no measurement says otherwise yet.
+    for group, delta, watt, source in (
+            (thermal.DRIVERS, 9.1, 0.60, 'SOURCE: 4-1, half the switching'),
+            (thermal.PHASES, 9.1, 0.60, 'ASSUMED: same zone as the drivers')):
+        parallel = 1.0 / sum(1.0 / CFG['to_board'][n] for n in group)
+        bad += not check('%s K/W, three in parallel' % group[0].split('_')[0],
+                         parallel, delta / watt, 1.5, source)
 
     rule('3. The NTC coupling')
     print('  %-26s %8.2f K  SOURCE: passive, no driver was warming'
@@ -109,9 +118,10 @@ def main():
 
     rule('7. The board as a picture, switching state')
     s = CAMERA['switching']
-    print(render({'phases': s['bridge'], 'drivers': s['bridge'],
-                  'regulators': s['regulators'], 'afe': s['afe'],
-                  'mcu': s['mcu']}, board_c=s['dead']))
+    seen = dict((n, s['bridge']) for n in thermal.DRIVERS + thermal.PHASES)
+    seen.update({'regulators': s['regulators'], 'afe': s['afe'],
+                 'mcu': s['mcu']})
+    print(render(seen, board_c=s['dead']))
     print('  zones drawn: %s' % ', '.join(sorted(LAYOUT)))
 
     print('\n%s' % ('every checked parameter traces to a measurement'

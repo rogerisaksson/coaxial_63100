@@ -54,11 +54,11 @@ cable.
 
 ```python
 from coaxial import Coaxial63100
-with Coaxial63100(port='COM4') as daq:      # simulated_device=True: no cable
-    daq.set_time_from_pc()                  # UTC, not this PC's idea of it
-    daq.configure(['Phase U', 'NTC'], accumulate=8)
-    daq.start()
-    for block in daq.blocks(20):
+with Coaxial63100(port='COM4') as device:   # simulated_device=True: no cable
+    device.set_time_from_pc()               # UTC, not this PC's idea of it
+    device.configure(['Phase U', 'NTC'], accumulate=8)
+    device.start()
+    for block in device.blocks(20):
         r = block[-1]
         print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM
 ```

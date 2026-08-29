@@ -44,10 +44,11 @@
 /* 5: the half-bridge dead time joined the record. A stored 4 is refused
    rather than read with the new field as whatever flash held. */
 /* 6: and its lead-lag trim. */
-#define CAL_VERSION 6U
+#define CAL_VERSION 7U   /* 7: per-leg thermal nodes, six ceilings to ten */
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
-   to a multiple of 32 bytes. sizeof(board_cal_t) is 104 today. */
+   to a multiple of 32 bytes. sizeof(board_cal_t) is 120 today (version 7:
+   the four extra SOA ceilings added 16). */
 #define CAL_WORD_BYTES 32U
 #define CAL_IMAGE_BYTES (((sizeof(board_cal_t) + CAL_WORD_BYTES - 1U) / \
                           CAL_WORD_BYTES) * CAL_WORD_BYTES)
@@ -66,17 +67,23 @@ static const board_cal_t CAL_DEFAULTS =
   .channels         = BOARD_CAL_CHANNELS,
 
   /* The thermal envelope, centi-degrees C per node in thermal_node_t order:
-     drivers, phases, mcu, regulators, afe, board.
+     driver U/V/W, phase U/V/W, mcu, regulators, afe, board.
 
        phases  12500  IAUCN10S7N021 Tj max - docs/HARDWARE.md
        mcu     12500  STM32H753 Tj max
        board   10500  ESTIMATE - laminate, well under any part on it
        others  12500  ESTIMATE - those datasheets are not in this tree
 
+     Per leg since version 7, and the ceiling is the same for all three:
+     it is the part's junction limit, and the three carry the same part.
+     What the split buys is that one leg reaches it on its own.
+
      Derate at 85 %: the board's constant is 6.8 minutes but a deep burst
      moves a node in seconds, so a throttle that waits for the ceiling
      arrives after it. */
-  .soa_limit_centi  = { 12500, 12500, 12500, 12500, 12500, 10500 },
+  .soa_limit_centi  = { 12500, 12500, 12500,      /* driver U, V, W */
+                        12500, 12500, 12500,      /* phase  U, V, W */
+                        12500, 12500, 12500, 10500 },
   .soa_throttle_ppm = 850000UL,
   .vref_uv          = 3300000UL,      /* U2 REF2033, 3.3 V +/-0.05 %       */
   .shunt_uohm       = 3500UL,         /* RU1 || RU2, 7 mohm each           */

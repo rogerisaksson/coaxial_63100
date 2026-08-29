@@ -98,11 +98,18 @@ BORE_MIN_CELLS = 2.0
 #: in copper is wider than the device feeding it. A row of points is a row of
 #: parts, and they sum.
 LAYOUT = {
-    #: The six FETs sit just inside the three phase terminals along the top.
-    'phases': [(-26, 30, 8), (-14, 34, 8), (2, 36, 8), (20, 32, 8)],
+    #: The six FETs sit just inside the three phase terminals along the top,
+    #: two per leg, and each pair sits above its own driver. One blob each so
+    #: the same watts draw the same size whichever leg made them - the row
+    #: used to be four undivided points and a hot U spread over all of it.
+    'phase_u': [(-24, 31, 8)],
+    'phase_v': [(-2, 36, 8)],
+    'phase_w': [(19, 32, 8)],
     #: The drivers are a band below them, and the middle one is the NTC's
     #: neighbour - which is why the NTC reads that hot spot and not the board.
-    'drivers': [(-20, 19, 9), (0, 22, 9), (17, 19, 9)],
+    'driver_u': [(-20, 19, 9)],
+    'driver_v': [(0, 22, 9)],
+    'driver_w': [(17, 19, 9)],
     #: The supply corner: bucks, LDOs and the LED droppers, out on the left.
     'regulators': [(-39, 8, 10), (-40, -4, 10), (-34, 1, 9)],
     #: The LQFP, left of centre and below it.

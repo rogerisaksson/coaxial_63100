@@ -26,8 +26,10 @@ switching power stage — the context for every noise figure in these documents.
 **TIM1 is armed on request, and there is still no commutation.** The `.ioc`
 enables sixteen IPs - ADC1/2/3, SPI2, SPI4, USART2, USART3, UART5, **TIM1**,
 CORTEX_M7, RCC, SYS, DEBUG, MEMORYMAP, NVIC and VREFBUF. TIM1 is centre-aligned
-at **50 kHz** (ARR 2375 off 237.5 MHz), dead time **DTG 7 = 29.5 ns**, break on
-PE15 active low, AOE off so nothing re-arms itself. `Board_PwmInit()` starts the
+at **50 kHz** (ARR 2375 off 237.5 MHz), break on PE15 active low, AOE off so
+nothing re-arms itself. Dead time comes from the calibration record - trimmed
+against the supply's OCP, docs/HARDWARE.md - and the `.ioc`'s DTG is only what
+holds until the record loads. `Board_PwmInit()` starts the
 counter with MOE clear and CCxE set, driving all six outputs to their idle
 level: both FETs of every leg held off in hardware.
 
@@ -150,17 +152,21 @@ arming policy, and there is one of that. docs/ARCHITECTURE.md has the table.
 
 ```python
 from coaxial import Coaxial63100
-with Coaxial63100(port='COM4') as daq:          # simulated_device=True: no cable
-    daq.set_time_from_pc()                      # the board counts cycles, not time
-    daq.configure(['Phase U', 'NTC'], accumulate=8)
-    daq.write(digital={'UART5_TERM': True})
-    daq.start()
-    for block in daq.blocks(20):
+with Coaxial63100(port='COM4') as device:       # simulated_device=True: no cable
+    device.set_time_from_pc()                   # the board counts cycles, not time
+    device.configure(['Phase U', 'NTC'], accumulate=8)
+    device.write(digital={'UART5_TERM': True})
+    device.start()
+    for block in device.blocks(20):
         r = block[-1]
         print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM of `samples`
 ```
 
-`python_examples/daq_session.py` is that flow as a notebook, in 91 lines.
+The device is the acquisition front door; the subsystems hang off it by name -
+`device.imu`, `device.angle`, `device.thermal`, and `device.gates` for the
+arming policy.
+
+`python_examples/daq_session.py` is that flow as a notebook.
 
 ```bash
 cube-cmake --build --preset Debug        # must be zero warnings
@@ -185,9 +191,9 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Nineteen suites, 1801 checks, sized from `host/tests/.counts.json` and so measured
-rather than remembered: `test_structure.py` (386), `test_ollama_tools.py`
-(218), `test_ollama_runner.py` (214), `test_simulated.py` (189),
+Nineteen suites, 1814 checks, sized from `host/tests/.counts.json` and so measured
+rather than remembered: `test_structure.py` (395), `test_ollama_tools.py`
+(218), `test_ollama_runner.py` (214), `test_simulated.py` (193),
 `test_live_model.py` (146, needs ollama, `--live`), `test_ollama_prompt.py`
 (113), `test_conformance.py` (110, `--conformance`), `test_ollama_link.py`
 (96), `test_modbus_core.py` (68), `test_mcp.py` (44), `test_shtp_core.py` (38),
@@ -228,8 +234,8 @@ you:
   first of a budget buys the cheapest checks there are - measured, per check:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14, conformance
   0.29, live 4.6. The `test_ollama_*` suites are in from the first tier and
-  narrow *themselves*; that is where the fine resolution lives, because 763 of
-  this tree's 1801 checks are in those nine files.
+  narrow *themselves*; that is where the fine resolution lives, because 764 of
+  this tree's 1814 checks are in those nine files.
 
 * **The model is not asked when the path map already knows.** Where every
   changed file matched an explicit rule and the answer is `CHEAP` - structure,
@@ -267,7 +273,7 @@ question nobody asked. The suites are the gate *after* a change, not a step in
 finding one.
 
 **Problem, measured:** chasing why two of three gate driver stages ran 15 C
-hotter than the third, the full suite was started three times. None of the 1801
+hotter than the third, the full suite was started three times. None of the 1814
 checks could have said anything about it - the difference was on the bench.
 **What worked instead:** a 600-sample pin count and a register dump.
 

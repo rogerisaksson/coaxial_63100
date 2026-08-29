@@ -33,6 +33,21 @@ _Static_assert(BOARD_THERMAL_NODES == (int)THERMAL_NODES,
 
 static thermal_t      s_th;
 static thermal_loss_t s_loss;
+
+/** The last DC link voltage that was a MEASUREMENT, volts. Negative: none yet.
+  *
+  * INVARIANT 9, and it cost a factor of 1.6. AFE_ON powers the ADC reference,
+  * and switching needs AFE_ON low - so every estimate taken while the stage
+  * runs reads the link at exact mid-scale. Through the 49.9k/2.2k divider
+  * that is 39.1 V, against a supply on 24.9, and the switching term scales
+  * by link volts: measured 2026-08-29, one leg at 50 % came out 14.9 K over
+  * board where the calibration says 9.1.
+  *
+  * The bus does not move when the rail toggles, so the last real reading is
+  * the honest one to carry. The observer's own periodic sample is what
+  * refreshes it - that runs with the AFE up, which is the point of it.
+  */
+static float s_link_volts = -1.0f;
 static thermal_soa_t  s_soa;
 static thermal_budget_t s_budget;
 static uint32_t       s_trips;
@@ -206,20 +221,24 @@ void Board_ThermalPoll(void)
     Board_SyncLatest(&sample);
     for (uint8_t i = 0U; i < 3U; i++)
     {
-      /* Raw codes to amperes belong in the calibration record - invariant 7
-         says the conversion lives where it is defined, not here. Until that
-         path exists the current is left at zero rather than scaled by a
-         literal. */
-      (void)sample.phase[i];
-      load.phase_amps[i] = 0.0f;
+      /* Through Board_PhaseAmps, so the shunt and gain stay in the
+         calibration record (invariant 7) - this was a hard zero for want
+         of that path. Dry it reads ~0 A and that is right: nothing leaves
+         the bridge. No invariant 9 guard needed: the channels are
+         differential, so an unpowered reference's mid-scale is zero
+         amperes - the same answer unsupplied amplifiers give. */
+      load.phase_amps[i] = Board_PhaseAmps(i, sample.phase[i]);
     }
   }
 
   int32_t dc_raw = 0, millivolt = 0;
-  if (Board_DcBus(&dc_raw, &millivolt))
+  if (load.afe_on && Board_DcBus(&dc_raw, &millivolt))
   {
-    load.link_volts = (float)millivolt / 1000.0f;
+    s_link_volts = (float)millivolt / 1000.0f;
   }
+  /* Zero says "never measured", and the model falls back to the voltage its
+     switching figure was calibrated at rather than inventing a scale. */
+  load.link_volts = (s_link_volts > 0.0f) ? s_link_volts : 0.0f;
 
   thermal_power_t p;
   thermal_power_estimate(&p, &load, &s_loss);

@@ -11,6 +11,11 @@
 # The conversions live in `coaxial.angle` and nowhere else: `counts`,
 # `degrees`, `kelvin`, `gauss`. They were spelled out at six call sites once,
 # and two of them re-derived degrees and kelvin with their own literals.
+#
+# **This device has no start and no stop.** The board polls SPI4 as fast as
+# the loop allows, from boot, and there is no interval to set - so acquire is
+# the whole lifecycle and `state()` is all of it. Registers are reachable, but
+# only inside `hold()`, which is the loop standing aside rather than stopping.
 
 # %%
 import os
@@ -26,10 +31,11 @@ from coaxial import Coaxial63100, angle
 SIMULATED = False
 REG = {'ANG': 0x20, 'STA': 0x22, 'ERR': 0x24, 'TSEN': 0x28, 'FIELD': 0x2A}
 
-rig = Coaxial63100(port='COM4', simulated_device=SIMULATED, power_afe=True)
-rig.open()
-sensor = rig.board.angle
-print(rig)
+device = Coaxial63100(port='COM4', simulated_device=SIMULATED, power_afe=True)
+device.open()
+sensor = device.angle            # the A1335 behind SPI4
+print(device)
+print(sensor)
 
 for _ in range(40):
     if sensor.state()['loop'] == 'running':
@@ -100,5 +106,5 @@ time.sleep(3)
 print('%.0f readings a second' % ((sensor.state()['updates'] - first)
                                   / (time.time() - started)))
 
-rig.close()
+device.close()
 print('registers untouched - this example only read')

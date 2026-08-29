@@ -16,6 +16,11 @@
 #      `resume()` does. The board re-applies it, but only once the part has
 #      gone quiet: a write into the middle of the advertisement is accepted
 #      and discarded, and then nothing streams for ever.
+#
+# Same lifecycle as `daq_session`, in the part's own words: a **Set Feature**
+# is start, `state()` is acquire, and an interval of **zero** is stop. What
+# differs is who runs the loop - the board does, so acquire reads a record
+# rather than a converter.
 
 # %%
 import os
@@ -31,10 +36,10 @@ SIMULATED = False
 ROTATION_VECTOR = 0x05
 INTERVAL_US = 20000                                # 50 Hz
 
-rig = Coaxial63100(port='COM4', simulated_device=SIMULATED, power_afe=True)
-rig.open()
-imu = rig.board.imu
-print(rig)
+device = Coaxial63100(port='COM4', simulated_device=SIMULATED, power_afe=True)
+device.open()
+imu = device.imu                 # the BNO085 behind SPI2
+print(device)
 
 # %% [markdown]
 # ## Wait for the loop
@@ -80,6 +85,43 @@ for _ in range(5):
     time.sleep(1)
 
 # %% [markdown]
+# ## The board itself, turning
+# Same shape as the thermal picture, and for the same reason: a quaternion is
+# four numbers nobody reads as an attitude. This is the board's own CAD
+# export - `render/models`, decimated once to 12 % of its 419,338 triangles
+# and cached - rasterised the way three.js's AsciiEffect does it, flat
+# shading and one point light.
+#
+# It is the model that turns, not the camera. The camera sits still at 55
+# degrees up, which is where the parts stand up: measured over the same mesh,
+# at 90 the board is two characters wide and flat by geometry.
+
+# %%
+from coaxial import orientation                                # noqa: E402
+
+
+def attitude():
+    """The quaternion as a tuple, or level if the part has not reported."""
+    q = imu.state()['quaternion']
+    return (q['i'], q['j'], q['k'], q['real']) if q else (0.0, 0.0, 0.0, 1.0)
+
+
+for _ in range(3):
+    print(orientation.picture(attitude(), width=54, height=22))
+    time.sleep(1)
+
+# %% [markdown]
+# ## The same mesh, fewer steps of ink
+# `ascii3d.render` takes the ramp, so the cartoon look costs no new code: ten
+# characters is a photograph of the surface, four is a drawing of the parts.
+# Shorter posterises the shading, which is what makes an edge read as an edge
+# rather than as one more shade of the face beside it.
+
+# %%
+CARTOON = ' .+#'                                    # four steps, space darkest
+print(orientation.render(attitude(), width=54, height=22, ramp=CARTOON))
+
+# %% [markdown]
 # ## How fast is it going
 # Measured rather than asked for: the part adopts what it can, and says so
 # through a Get Feature Response. 400 Hz is its ceiling for this report and
@@ -103,5 +145,5 @@ try:
     imu.feature(ROTATION_VECTOR, 0)
 finally:
     imu.resume()
-rig.close()
+device.close()
 print('rotation vector disabled, supply back the way it was found')

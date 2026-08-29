@@ -17,10 +17,10 @@
 #define VERSION_H
 
 #define FW_VERSION_MAJOR 1U
-#define FW_VERSION_MINOR 4U
-#define FW_VERSION_PATCH 1U
+#define FW_VERSION_MINOR 5U
+#define FW_VERSION_PATCH 0U
 
-#define FW_VERSION_STRING "1.4.1"
+#define FW_VERSION_STRING "1.5.0"
 
 /* Costs reproducibility, deliberately: a rig that cannot tell which build a
    board carries cannot investigate a failure after the fact. */

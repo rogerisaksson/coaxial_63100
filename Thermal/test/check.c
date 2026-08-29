@@ -16,7 +16,13 @@
 
 #define AMBIENT   20.0f
 #define SETTLE_S  (60.0f * 60.0f)      /* one hour, ~9 tau */
-#define STEP_S    0.5f
+/* THE RATE THE BOARD RUNS AT, derived so the two cannot disagree. A leg
+   holds a third of what the lumped node did, so 35 W moves it 8.75 K per
+   step; at the 0.5 s this used to be, the whole ceiling fell inside one
+   step and the budget was asked to warn about something already over -
+   the test measured its own resolution, not the budget. */
+#include "../../Board/Inc/board_limits.h"
+#define STEP_S    ((float)THERMAL_STEP_MS / 1000.0f)
 
 struct sample
 {
@@ -122,7 +128,7 @@ static int burst_budget(void)
 
   /* 100 A through one leg: the shunt alone is 35 W, which is the number that
      dwarfs everything the dry calibration ever saw. */
-  p.watt[THERMAL_PHASES] = 35.0f;
+  p.watt[THERMAL_PHASE_U] = 35.0f;
 
   float warned_at = -1.0f, tripped_at = -1.0f, warned_left = 0.0f;
 
@@ -149,7 +155,7 @@ static int burst_budget(void)
   printf("  throttling at %6.1f s, %.0f ms still on the clock\n",
          warned_at, warned_left);
   printf("  tripped at    %6.1f s   phases %.1f C, board %.1f C\n",
-         tripped_at, th.t[THERMAL_PHASES], th.t[THERMAL_BOARD]);
+         tripped_at, th.t[THERMAL_PHASE_U], th.t[THERMAL_BOARD]);
 
   if (warned_at < 0.0f)
   {

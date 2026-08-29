@@ -369,20 +369,27 @@ def _fit(cols, rows, zoom=1.0):
 
 
 
-def render(q, width=44, height=19, zoom=1.0, shop=None):
+def render(q, width=44, height=19, zoom=1.0, shop=None,
+           ramp=ascii3d.CHARACTERS):
     """The board under rotation `q`, as `height` lines of `width` characters.
 
     The drawing is `ascii3d`, which is three.js's AsciiEffect ported out of
     the browser - its ramp, its light, its brightness mapping and its two
     framebuffer rows per character row. What is this module's is the model,
     the rotation and the caption.
+
+    `ramp` is threaded rather than left to ascii3d's default because the
+    camera distance and centring are worked out HERE, from the fit: a caller
+    that wanted a shorter ramp had to re-derive both, and reaching past this
+    function for one of them is how a drawing ends up off-centre.
     """
     cols, rows, _cell = ascii3d.grid(width, height)
     distance, off_x, off_y = _fit(cols, rows, zoom)
     draw = shop.render if shop else ascii3d.render
     model = () if shop else (MODEL_MESH,)
     return draw(*model, _multiply(VIEWPOINT, matrix(q)), width, height,
-                distance=distance, centre=(off_x, off_y), light=LAMP)
+                distance=distance, centre=(off_x, off_y), light=LAMP,
+                ramp=ramp)
 
 
 def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0,

@@ -6,13 +6,15 @@
 # Python so the parameters can be fitted against measurements without a
 # reflash.
 #
-# **Not FEM.** A mesh does not fit in a main loop. Six nodes do:
+# **Not FEM.** A mesh does not fit in a main loop. Ten nodes do:
 #
-#     drivers ---+
-#     phases  ---+
-#     mcu     ---+--- board ---- ambient
-#     regs    ---+
-#     afe     ---+
+#     driver U/V/W ---+       three each, one per leg - switching U
+#     phase  U/V/W ---+       alone heats U alone, which is what the
+#     mcu          ---+---    camera showed and one lumped node per
+#     regs         ---+       band could not say
+#     afe          ---+
+#                     |
+#                   board --- ambient
 #
 # A node is a ZONE, not a part - `regulators` is the whole supply corner.
 # Constant sources inside a zone cancel in every difference.
@@ -101,12 +103,19 @@ for name, t in sorted(steady(POWER_SWITCHING).items(), key=lambda kv: -kv[1]):
 # ## Re-fitting from a camera
 # One division per zone, no fitting: `to_board = (T_zone - T_board) / P`.
 # Measure against the **dead surface**, not the NTC.
+#
+# The camera sees ONE bridge band; the model holds three legs. With all
+# three switching, each leg carries a third of the power at the same
+# temperature - so the same photograph divides out to the per-leg
+# resistance directly, and three of those in parallel are what the band
+# measured.
 
 # %%
-got = calibrate({'mcu': CAMERA['switching']['mcu'],
-                 'regulators': CAMERA['switching']['regulators'],
-                 'drivers': CAMERA['switching']['bridge']},
-                CAMERA['switching']['dead'])
+s = CAMERA['switching']
+got = calibrate(dict({'mcu': s['mcu'], 'regulators': s['regulators']},
+                     **{leg: s['bridge'] for leg in
+                        ('driver_u', 'driver_v', 'driver_w')}),
+                s['dead'])
 print('to_board from the switching state, K/W:')
 for name, r in sorted(got.items()):
     print('  %-11s %6.1f   (in the model %.1f)'
@@ -118,10 +127,11 @@ for name, r in sorted(got.items()):
 # lie about the physics. `N` marks the NTC, `+` the DC link connectors.
 
 # %%
-s = CAMERA['switching']
-print(render({'phases': s['bridge'], 'drivers': s['bridge'],
-              'regulators': s['regulators'], 'afe': s['afe'],
-              'mcu': s['mcu']}, board_c=s['dead']))
+seen = {leg: s['bridge'] for leg in
+        ('driver_u', 'driver_v', 'driver_w',
+         'phase_u', 'phase_v', 'phase_w')}
+seen.update({'regulators': s['regulators'], 'afe': s['afe'], 'mcu': s['mcu']})
+print(render(seen, board_c=s['dead']))
 
 # %% [markdown]
 # ## What this does not cover
@@ -129,8 +139,8 @@ print(render({'phases': s['bridge'], 'drivers': s['bridge'],
 #   swap. At 100 A the phase shunt alone makes 35 W against the whole dry
 #   budget's 1.2 W, so the phase node's resistance is the first thing that
 #   will need re-fitting.
-# * **`phases`, every capacity but the board's, the MCU's position and all the
-#   LAYOUT coordinates are assumed**, not measured.
+# * **The phase legs, every capacity but the board's, the MCU's position and
+#   all the LAYOUT coordinates are assumed**, not measured.
 #   `tools/thermal_validate.py` prints which is which.
 # * **The supply's current reading is not trusted** - a cheap shunt, and the
 #   absolute power scale rests on it.

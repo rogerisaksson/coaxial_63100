@@ -10,6 +10,11 @@
 # way the thermistor constants do, and the board reports the margin rather
 # than a verdict. What it *does* act on is a trip: at a limit it drops MOE and
 # every gate goes to its idle level in hardware.
+#
+# **The observer needs no start either.** It runs on the board from boot and
+# integrates whether anybody is reading - `set_sample()` is its configure,
+# `state()` and `budget()` are acquire, and there is nothing to stop. That is
+# what lets it answer for a burst that has already finished.
 
 # %%
 import os
@@ -24,9 +29,11 @@ from coaxial import Coaxial63100
 SIMULATED = False
 DUTY = 0.50
 
-rig = Coaxial63100(port='COM4', power_afe=False,
-                   simulated_device=SIMULATED).open()
-print(rig)
+device = Coaxial63100(port='COM4', power_afe=False,
+                      simulated_device=SIMULATED)
+device.open()
+observer = device.thermal        # the model runs on the board, not here
+print(device)
 
 # %% [markdown]
 # ## What the ceilings are, and which of them is measured
@@ -35,7 +42,7 @@ print(rig)
 # measured must never look measured.
 
 # %%
-budget = rig.board.thermal.budget()
+budget = observer.budget()
 for name, used in sorted(budget['used'].items(), key=lambda kv: -kv[1]):
     print('  %-11s %5.1f %% of its budget' % (name, 100.0 * used))
 
@@ -59,14 +66,14 @@ print('left  : %s' % (('%.1f s' % budget['seconds_to_limit'])
 # inputs and nothing behind them.
 
 # %%
-rig.board.afe.disable()
-rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+device.afe.disable()
+device.gates.arm(bypass_sto=True, ignore_interlock=True)
 load = {'Phase %s' % leg: DUTY for leg in ('U', 'V', 'W')}
-rig.write(analog=load)
+device.write(analog=load)
 
 try:
     for _ in range(20):
-        b = rig.board.thermal.budget()
+        b = observer.budget()
         left = b['seconds_to_limit']
         print('%5.1f %%  %-11s  %s%s'
               % (100.0 * b['worst'], b['worst_node'],
@@ -78,8 +85,8 @@ try:
         time.sleep(3.0)
 finally:
     # One try per step: a failed first undo must not skip the disarm.
-    for undo in (lambda: rig.write(analog=dict.fromkeys(load, 0.0)),
-                 rig.gates.disarm):
+    for undo in (lambda: device.write(analog=dict.fromkeys(load, 0.0)),
+                 device.gates.disarm):
         try:
             undo()
         except Exception as exc:            # noqa: BLE001 - report, then go on
@@ -91,5 +98,5 @@ finally:
 # behind it deserves - better than a guess that reads like a specification.
 
 # %%
-print(rig.board.thermal.set_limit('board', 105.0, throttle_at=0.85))
-rig.close()
+print(observer.set_limit('board', 105.0, throttle_at=0.85))
+device.close()

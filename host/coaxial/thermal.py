@@ -76,12 +76,27 @@ STATE_IS = {
     'switch':  'AFE off: three legs at 50 %',
 }
 
-NODES = ('drivers', 'phases', 'mcu', 'regulators', 'afe')
+#: PER LEG. A leg that is not switching does not get warm, and the lumped
+#: pair could not say that - see `thermal_node_t`.
+LEGS = ('u', 'v', 'w')
+DRIVERS = tuple('driver_' + leg for leg in LEGS)
+PHASES = tuple('phase_' + leg for leg in LEGS)
+
+#: The NTC's physical neighbour. It anchors this node, not all three.
+NTC_NEIGHBOUR = 'driver_v'
+
+NODES = DRIVERS + PHASES + ('mcu', 'regulators', 'afe')
 
 #: Firmware's `thermal_node_t` order - the sources plus the board node.
 #: `0x6E` device 8 answers in that order, so it belongs here and not in a
 #: second copy beside the protocol code.
 ALL_NODES = NODES + ('board',)
+
+
+def pretty(node):
+    """`driver_u` -> `driver U`. The leg is a name, not a suffix."""
+    head, _, leg = node.rpartition('_')
+    return '%s %s' % (head, leg.upper()) if leg in LEGS else node
 
 #: The network. **Only `board_to_ambient` and `board_capacity` have a clean
 #: measurement behind them.**
@@ -93,17 +108,23 @@ CFG = {
     'board_to_ambient': 8.33,     # K/W, passive state against the supply
     'board_capacity': 49.0,       # J/K, from tau ~6.8 min
     'ntc_sees_drivers': NTC_SEES_DRIVERS,
-    'to_board': {'drivers': 15.2, 'phases': 15.2, 'mcu': 22.5,
-                 'regulators': 15.0, 'afe': 41.5},
-    'capacity': {'drivers': 0.35, 'phases': 1.20, 'mcu': 0.90,
-                 'regulators': 0.80, 'afe': 0.30},
+    # Three times the lumped K/W each and a third of the J/K, so the three
+    # in parallel are what the camera measured - the split moved where the
+    # heat is drawn, not how much there is. One leg alone now rises three
+    # times as far and three times as fast, which is the whole point.
+    'to_board': dict([(n, 45.6) for n in DRIVERS + PHASES]
+                     + [('mcu', 22.5), ('regulators', 15.0), ('afe', 41.5)]),
+    'capacity': dict([(n, 0.35 / 3) for n in DRIVERS]
+                     + [(n, 1.20 / 3) for n in PHASES]
+                     + [('mcu', 0.90), ('regulators', 0.80), ('afe', 0.30)]),
 }
 
 #: Power per node while three legs switch at 50 %. The 1.20 W from difference
 #: 4-1 fell roughly half on the supply corner - gate charge comes out of the
 #: +15V7 buck - and half on the bridge.
-POWER_SWITCHING = {'drivers': 0.60, 'phases': 0.0, 'mcu': 0.666,
-                   'regulators': 1.134, 'afe': 0.0}
+POWER_SWITCHING = dict([(n, 0.60 / 3) for n in DRIVERS]
+                       + [(n, 0.0) for n in PHASES]
+                       + [('mcu', 0.666), ('regulators', 1.134), ('afe', 0.0)])
 
 
 def board_from_ntc(ntc_c, driver_rise_k=0.0):

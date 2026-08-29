@@ -25,6 +25,10 @@ class Acquisition(ABC):
 
     """Configure a task, run it, take records off it."""
 
+    def __repr__(self):
+        return ('<%s - configure(), start(), acquire(), stop()>'
+                % type(self).__name__)
+
     @abstractmethod
     def configure(self, *args, **kwargs):
         """Set the task up, replacing whatever was there.

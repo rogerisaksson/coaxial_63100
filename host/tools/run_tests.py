@@ -287,6 +287,10 @@ TOUCHES = (
     # structure suite, plus the drawing it calls.
     ('host/tools/show_',              (STRUCTURE, 'test_simulated.py')),
     ('host/tools/screen.py',          (STRUCTURE, 'test_simulated.py')),
+    # A CACHE THE TOOLS WRITE, not code they read for behaviour. It is
+    # tracked, so it turned up in every diff and pulled all nine ollama
+    # suites in behind it.
+    ('host/tools/.session.json',      ()),
     ('host/tools/',                   OLLAMA),
     ('host/tests/',                   ()),          # decided by name below
     # Firmware and protocol: the byte-level master is the point of it - but
@@ -306,6 +310,11 @@ TOUCHES = (
                                        'test_parity.py', BENCH)),
     ('Core/',                         (CONFORMANCE, BENCH)),
     ('Thermal/',                      (CONFORMANCE, BENCH)),
+    # A NOTEBOOK EXAMPLE reaches the library and nothing else reaches it.
+    # What it can break is naming a method that does not exist, which is
+    # the structure suite's AST pass - measured: it caught a rename that
+    # left `print(daq)` behind in two of them.
+    ('python_examples/',              (STRUCTURE,)),
     # A document can only break the docs index and the phrase table.
     ('docs/',                         ('test_ollama_runner.py',)),
     ('CLAUDE.md',                     ('test_ollama_runner.py',)),

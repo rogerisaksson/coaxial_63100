@@ -4,11 +4,11 @@ State as of 2026-08-29.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 1801 checks, 19 suites |
+| `run_tests.ps1 -All` | 1814 checks, 19 suites |
 | Debug build | 0 warnings |
-| FLASH / DTCMRAM | 145 204 B (7 %) / 48 544 B (37 %) - `build_and_flash.py` prints it |
-| Protocol | MAJOR 1, MINOR 28 |
-| Firmware | 1.4.1 |
+| FLASH / DTCMRAM | 146 064 B (7 %) / 48 688 B (37 %) - `build_and_flash.py` prints it |
+| Protocol | MAJOR 2, MINOR 0 |
+| Firmware | 1.5.0 |
 
 ## What runs
 
@@ -22,7 +22,7 @@ not what it measured.
 | KEEPALIVE from the main loop, above every branch | HARDWARE, *STO* |
 | `0x6E` device 7 ties the cycle counter to a host clock, against UTC rather than this PC | PROTOCOL, *Device 7* |
 | The link at 89.8 % of its bitrate for a full block, 4.5 % for a ping | FINDINGS, *What the transport was spending* |
-| The thermal observer: one measurement, five estimates, an SOA budget in flash | PROTOCOL, *Device 8* |
+| The thermal observer: ten nodes, drivers and phases per leg, an SOA budget in flash | PROTOCOL, *Device 8* |
 | Rails reference counted, and who holds them on the wire | PROTOCOL, *Device 9* |
 
 **USB is configured and nothing sits on it.** OTG_FS device, no device class,
@@ -55,9 +55,11 @@ measured against an instrument - invariant 7.
 3. **Replace the conformance check `PE15 follows AFE_ON`.** It reads a pin the
    MCU does not drive and changes meaning the moment the STO chain releases.
    Replace it before the supply is switched on, not after.
-4. **Dead time is simulated, not measured.** 80 ns comes from a 59.4 ns
-   worst-corner gate overlap plus the 2EDL8034's 6 ns TDMOFF. Nothing has been
-   on a scope.
+4. **Dead time on a scope.** The OCP trim (FINDINGS) bounded it from one
+   side - 33.7 ns held, 29.5 tripped - but that is one data point at one
+   duty on a cold dry board, against a simulated worst-corner need of 65
+   ns. The skew parameter is untested and 0: the one experiment ran on a
+   board that was resetting between steps.
 5. **A USB device class**, if USB is to do anything.
 
 ## Standing

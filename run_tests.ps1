@@ -31,7 +31,7 @@
     order of seconds per check, so the first of a budget buys the cheapest
     checks there are. The ollama suites are in from the first tier and narrow
     THEMSELVES - the depth reaches their own subject budget, which is where
-    the fine resolution lives, because 764 of this tree's 1801 checks are in
+    the fine resolution lives, because 764 of this tree's 1814 checks are in
     that one file.
 
     Which subjects, and which suites the changes can have broken, is the
@@ -92,6 +92,11 @@ switch ($PSCmdlet.ParameterSetName) {
 # smart pick entirely, so a header still reading "Automatic 25 %" would be
 # describing a tier that had no say in what ran.
 if ($Scope) {
+    # -File hands 'a,b' over as ONE string, not a [string[]] of two -
+    # measured: -Scope test_conformance.py,test_mcp.py ran neither, and the
+    # only trace was a MISSING line the filter below did not surface.
+    $Scope = @($Scope -split ',' | ForEach-Object { $_.Trim() } |
+               Where-Object { $_ })
     foreach ($f in $Scope) { $runArgs += @('--file', $f) }
     $mode = 'Scope ' + ($Scope -join ', ')
 }
@@ -136,6 +141,9 @@ foreach ($line in $output) {
     }
     elseif ($text -match '^\s*(suites|subjects):|% tier:') {
         Write-Host $text -ForegroundColor Cyan
+    }
+    elseif ($text -match 'MISSING') {
+        Write-Host $text -ForegroundColor Red
     }
     elseif ($text -match '^--|^\s*(ran \d+ of \d+ groups|holding |released |no such|have:|   )') {
         Write-Host $text -ForegroundColor DarkGray

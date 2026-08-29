@@ -39,7 +39,7 @@ sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
 from screen import say                                       # noqa: E402
 
-from coaxial import Coaxial63100                             # noqa: E402
+from coaxial import Coaxial63100, thermal                    # noqa: E402
 from coaxial.errors import NoReplyError, RigError            # noqa: E402
 from coaxial.thermal import STATE_IS as WHAT
 from coaxial.thermal import (CFG, NTC_OFFSET, STATES,
@@ -308,7 +308,9 @@ STATE_TO_CAMERA = {'passive': 'passive', 'afe': 'afe on',
 
 CAMERA_AS_NODES = {
     'dead': 'board', 'mcu': 'mcu', 'regulators': 'regulators',
-    'afe': 'afe', 'bridge': 'drivers',
+    # The camera's one bridge zone is the NTC's neighbour - the only leg
+    # it can be pinned to without a per-leg picture to fit against.
+    'afe': 'afe', 'bridge': thermal.NTC_NEIGHBOUR,
 }
 
 

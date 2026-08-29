@@ -104,6 +104,32 @@ AFE.
   Open Anomalies. The pin is also `TIM1_BKIN` now, so this decides whether the
   gate drivers can run at all.
 
+## Erratum: cutting AFE_ON makes STO read a-ok
+
+**On this board, and only until it is modded.** The AFE can be brought up
+without the STO chain by design. What the fitted board does instead is the
+reverse: taking `AFE_ON` low leaves the STO detector reading **a-ok**, so the
+gate drivers can be armed with no pilot tone on the pair at all.
+
+Deliberately useful, which is why it is written down rather than worked
+around: a bench run needs switching and the analog front end is what the
+reference sits on, so the two would otherwise be mutually exclusive.
+
+It is also the reason two statements in this tree disagree and are both
+right. `0x6D` kind 4 says the 2EDL8034 and the FETs are powered by the **STO
+chain** - that is the schematic. `tools/demos.py` says `AFE_ON` high removes
+the gate drivers' supply - that is this board. The parts list is what will
+still be true after the mod.
+
+What follows from it while it stands:
+
+| | |
+|---|---|
+| Switching runs with `AFE_ON` low | every analog channel reads mid-scale, invariant 9 |
+| The DC link is single-ended | mid-scale is **39.1 V**, not zero - see FINDINGS |
+| The phase shunts are differential | mid-scale centred is 0 A, which is also what unpowered amplifiers give |
+| `Board_PowerPoll` refuses the rail while MOE is set | a sample mid-switch would drop the drivers with six inputs moving |
+
 ## Safe Torque Off, and the pilot that unlocks it
 
 Gate driver supply is not the MCU's to switch. It is released by a safety chain
@@ -196,11 +222,22 @@ without anyone tuning it. **Both figures are means.** The worst case is what
 decides: a 276-byte SHTP cargo at 1.48 MHz is 1.5 ms, 320x the idle half-period.
 What `VLATCH` tolerates is not yet measured.
 
-## The gate drivers, and why the dead time is 30 ns
+## The gate drivers, and where the dead time lives
 
 TIM1 centre-aligned, ARR **2375** off 237.5 MHz = **50.000 kHz** exactly, RCR 1,
-CKD DIV1 so one dead-time tick is **4.2105 ns**. `BDTR.DTG` = **19** = **80.0
-ns**.
+CKD DIV1 so one dead-time tick is **4.2105 ns**.
+
+**The dead time is a calibration parameter, not a #define**: param 13 in the
+record (skew is 14, untested and 0), applied from `main()` once the record
+loads, floored at 20 ns in `board_limits.h`, and `Board_PwmSetDeadTime` rounds
+UP - it truncated once, and under-delivering dead time is the unsafe
+direction. The record's default asks 30 ns and DTG 8 holds **33.7 ns**.
+
+Bench-trimmed 2026-08-29 with the supply's OCP as the instrument: 33.7 ns held
+a 240 s three-leg run at 50 % with a 300 mA limit; DTG 7 = 29.5 ns tripped it.
+The cliff and its caveats are FINDINGS' - *The supply tripped its OCP*.
+
+What simulation says is NEEDED is more, and nothing has disproved it:
 
 The gate drive is resonant, not a plain RC. Per FET, off the schematic:
 
@@ -211,7 +248,7 @@ V clamp +-- R7 4.99R + C7 3.9nF -- source
 + 120 nH into C_gs 5.48 nF; the damper takes the resonance without slowing the
   DC drive, which is why the numbers below barely move with load.
 
-Where 80 ns comes from, simulated on the models in `electronic_simulations`
+Simulated on the models in `electronic_simulations`
 (`IAUCN10S7N021` VDMOS, `LQW18CAR12J00D`, `2EDL8034F5.lib`). The criterion is
 gate overlap - when the outgoing gate crosses V_th against when the incoming one
 does - because that is independent of the power loop inductance, which sets how
@@ -227,10 +264,16 @@ big the shoot-through current gets but not whether there is one.
 Tj 125 C, 100 A, 63 V. Over +/-100 A the spread is 1.5 ns and over 27->125 C it
 is 1 ns, so one fixed DTG is enough - no adaptive dead time.
 
-59.4 ns   worst-corner gate overlap
-   + 6.0 ns   TDMOFF max, 2EDL8034 (the absolute 50 ns delays are common to both
-     channels and cancel to within the matching spec) ------- 65.4 ns  floor
-     80.0 ns  DTG 19, 22 % over the floor and exactly on a code
+    59.4 ns   worst-corner gate overlap
+   + 6.0 ns   TDMOFF max, 2EDL8034 (the absolute 50 ns delays are common
+              to both channels and cancel to within the matching spec)
+   ---------
+    65.4 ns   what the tables above call for
+
+33.7 ns runs under that figure on the strength of one OCP data point at one
+duty on one supply, with nothing yet on a scope. The tension is stated here
+once and is deliberate: the simulation is worst-corner at Tj 125 C and 100 A,
+the bench is a cold board switching dry.
 
 **The driver has no interlock.** 2EDL8034 datasheet p.1: *"Independent inputs
 allow controlling high- and low-side domains independently."* HI and LI may both
@@ -244,8 +287,8 @@ from the drivers. UVLO is 7.3 V rising / 6.7 V falling on VDD and 6.3 / 5.7 V on
 VHB-HS.
 
 **Minimum pulse.** TPW is 40 ns - a shorter input pulse changes nothing at the
-output - which is 10 ticks. With DTG 19 the smallest high-side pulse that exists
-is 29 ticks, about 122 ns, so `CCR >= 15` of 2375: **0.63 % duty**. That is the
+output - which is 10 ticks. With DTG 8 the smallest high-side pulse that exists
+is 18 ticks, about 76 ns, so `CCR >= 9` of 2375: **0.38 % duty**. That is the
 floor for low-speed saliency injection, not a rounding detail.
 
 ## Sensors on SPI

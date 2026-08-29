@@ -524,14 +524,21 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc);
   * everything else, so it is blind whenever AFE_ON is low. */
 bool Board_McuDie(int32_t *raw, int32_t *centidegc);
 
+/** Amperes from a centred phase code - what Board_AdcDifferential returns.
+    The shunt and the amplifier gain come from the calibration record. */
+float Board_PhaseAmps(uint8_t leg, int32_t centred);
+
 /* ---- calibration -------------------------------------------------------- */
 
 /** Channels the record carries a correction for. The ADC table's length, and
     checked against it at init - a table that grew past this is a record that
     would silently stop correcting the new channels. */
 /** Nodes in the thermal observer. Mirrors thermal_node_t, and the
-  * calibration record carries one ceiling per node. */
-#define BOARD_THERMAL_NODES 6
+  * calibration record carries one ceiling per node. Ten, not six: the
+  * drivers and the phases are three nodes each, one per leg. The count on
+  * the wire lets a host follow the LENGTH - the meaning of the indices
+  * changed, which is why this was CMD_PROTO MAJOR 2 (cmd.h). */
+#define BOARD_THERMAL_NODES 10
 
 #define BOARD_CAL_CHANNELS 10U
 

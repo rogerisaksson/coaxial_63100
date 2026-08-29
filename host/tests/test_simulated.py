@@ -1261,11 +1261,59 @@ def main():
                  test_tumble, test_peak_hold, test_ascii3d,
                  test_clock_reference, test_link_bench,
                  test_gate_driver_arming, test_gate_snapshot,
+                 test_closing_leaves_another_session_armed,
                  test_dead_time, test_views):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
+
+
+def test_closing_leaves_another_session_armed(report):
+    """A session that did not arm the stage must not disarm it on the way out.
+
+    Measured 2026-08-29: three switching runs ended the moment a second
+    session asked the board an unrelated question. `close()` disarmed
+    unconditionally, so a read-only peer looked exactly like a stage
+    tripping - MOE clear, no fault, duty zeroed.
+
+    The safety net stays: undo what THIS session armed, and otherwise only
+    when nobody else is left to own it.
+    """
+    from coaxial import Coaxial63100
+
+    def rig_that_thinks(others):
+        rig = Coaxial63100(simulated_device=True, power_afe=False).open()
+        rig._others_here = lambda: others
+        return rig
+
+    rig = rig_that_thinks(True)
+    rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+    report.check('a session that armed the stage says so',
+                 rig.gates.armed_here is True)
+    board = rig.board
+    rig.close()
+    report.check('and disarms it on the way out, peers or not',
+                 board.gate_drivers.state()['pwm_enabled'] is False)
+
+    # The one that matters: this session never armed anything.
+    rig = rig_that_thinks(True)
+    rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+    board = rig.board
+    rig.gates._armed_here = False          # as if a peer had armed it
+    rig.close()
+    report.check('a session that did NOT arm it leaves it alone '
+                 'while another session is on the board',
+                 board.gate_drivers.state()['pwm_enabled'] is True)
+
+    # ...and the net still catches the last one out.
+    rig = rig_that_thinks(False)
+    rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+    board = rig.board
+    rig.gates._armed_here = False
+    rig.close()
+    report.check('the last session out disarms it even so',
+                 board.gate_drivers.state()['pwm_enabled'] is False)
 
 
 if __name__ == '__main__':

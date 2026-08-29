@@ -17,6 +17,12 @@ class Subsystem:
     def board(self):
         return self._board
 
+    def __repr__(self):
+        """Names itself and its unit. NO I/O - a repr that talks to the
+        board raises from inside a debugger, which is where it is read."""
+        return '<%s of unit %s>' % (type(self).__name__,
+                                    getattr(self._board, 'unit', '?'))
+
     def request(self, function, payload=b'', **kwargs):
         return self._board.request(function, payload, **kwargs)
 

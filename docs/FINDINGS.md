@@ -1618,3 +1618,69 @@ switching unattended, found at 51.1 C. `demos.py --leave` named it and put it
 back, which is the whole reason that path exists. It is the only thing
 standing between a killed run and a bridge nobody is watching.
 
+## The observer read the DC link at mid-scale and scaled its losses by it
+
+Measured 2026-08-29. Invariant 9 says AFE_ON decides what a reading MEANS,
+and the thermal observer was the one place still reading a channel without
+asking. Switching needs AFE_ON low, so **every estimate taken while the stage
+runs** had an unpowered ADC reference under it.
+
+The DC link is single-ended, so mid-scale is not zero - it is 1.65 V through
+the 49.9k/2.2k divider:
+
+    mid-scale link   39.08 V      against a supply on 24.9
+    scale applied     1.588       switching loss goes as link volts
+    driver U rise     14.5 K      predicted from the fake voltage
+    driver U rise     14.9 K      what the observer actually reported
+    driver U rise      9.1 K      what the camera calibration says
+
+That factor of 1.6 is the whole of the ~20 K the observer was over-predicting
+under load. It was invisible while the drivers and phases were one lumped
+node each, because nothing else in the picture had the right magnitude to
+disagree with.
+
+The link voltage does not move when the rail toggles, so `board_thermal.c`
+now updates it only while `Board_AfeOn()` and carries the last real one
+otherwise. Never measured falls back to `switch_volts`, the voltage the
+switching figure was calibrated at - a scale of 1, not a scale of nothing.
+
+The phase shunts are DIFFERENTIAL and needed no such guard: an unpowered
+reference puts them at mid-scale, which centred is zero amperes. Zero is also
+what the hardware gives, since AFE_ON low leaves those amplifiers unsupplied.
+
+## Switching one leg heated all three in the estimate
+
+Measured 2026-08-29 with the IR camera: U at 50 %, V and W idle, and the
+camera showed U's half-bridge alone. The observer showed all three the same.
+
+`thermal_power_estimate` scaled switching loss by how many legs were driven -
+`legs_driven / 3` - and then wrote the total into ONE `drivers` node and ONE
+`phases` node. The information about which leg was there and was thrown away
+one line later.
+
+Ten nodes now, three drivers and three phases. The split keeps the bulk
+exactly: a third of the capacity each and three times the resistance to
+board, which in parallel is what the camera measured, so the four-state
+calibration still holds and only the placement changed. One leg alone now
+rises three times as far and three times as fast - which is the point.
+
+Two things fell out of it:
+
+* The NTC anchors `driver_v`, its physical neighbour, not the lump. An idle
+  leg's estimate used to follow a neighbour that was switching.
+* `Thermal/test/check.c` stepped at 0.5 s against the board's own 0.1 s. With
+  a third of the capacity per leg, 35 W crossed the whole ceiling inside one
+  step and the budget was asked to warn about something already over. It
+  steps at THERMAL_STEP_MS now.
+
+## The observer's own sample latches the break
+
+Measured 2026-08-29, twice. The observer borrows AFE_ON every 30 s to read
+the NTC - and AFE_ON high removes the gate drivers' supply. With MOE set the
+stage sees that as a fault, latches, and everything goes to idle.
+
+`demos.py sample()` already handles it: stand down, raise the rail, measure,
+re-arm. A bare script that only writes a duty does not, and its run ends
+silently at the first sample - the estimate simply stops rising, which reads
+like a modelling fault rather than a stage that tripped.
+

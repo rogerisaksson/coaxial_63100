@@ -26,6 +26,7 @@ import time
 
 from . import angle
 from . import protocol
+from . import thermal
 from .acquisition import Acquisition
 from .errors import DeviceStateError, RigError
 from .gates import GateControl
@@ -945,7 +946,14 @@ class SimulatedThermal:
     measurement at all.
     """
 
-    NODES = ('drivers', 'phases', 'mcu', 'regulators', 'afe', 'board')
+    NODES = thermal.ALL_NODES
+
+    #: Rise over the board per node, invented but stable - both state()
+    #: and budget() read this one copy, so they describe the same board.
+    RISE = dict([(n, 1.0) for n in thermal.DRIVERS]
+                + [(n, 0.4) for n in thermal.PHASES]
+                + [('mcu', 15.0), ('regulators', 8.0),
+                   ('afe', 5.9), ('board', 0.0)])
 
     def __init__(self):
         self._seconds = 0
@@ -955,8 +963,7 @@ class SimulatedThermal:
     def state(self):
         self._seconds += 1
         board = 31.0
-        rise = {'drivers': 1.0, 'phases': 0.4, 'mcu': 15.0,
-                'regulators': 8.0, 'afe': 5.9, 'board': 0.0}
+        rise = self.RISE
         return {
             'ntc': board + 6.0,
             'nodes': {n: board + rise[n] for n in self.NODES},
@@ -979,8 +986,7 @@ class SimulatedThermal:
 
     def budget(self):
         board = 31.0
-        rise = {'drivers': 1.0, 'phases': 0.4, 'mcu': 15.0,
-                'regulators': 8.0, 'afe': 5.9, 'board': 0.0}
+        rise = self.RISE
         limit = {'board': 105.0}
         used = {}
         for name in self.NODES:
@@ -1551,7 +1557,7 @@ class SimulatedBoard:
             ('coaxial_63100', 'bldc_inverter',
              'unassigned unit %d on %s' % (self.unit, bus)))
         self.version_info = {
-            'proto_major': 2, 'proto_minor': 1, 'firmware': 'simulated',
+            'proto_major': 2, 'proto_minor': 0, 'firmware': 'simulated',
             'device': name, 'mcu': 'STM32H753 (simulated)',
             'build': 'simulated', 'commands': 21, 'type': kind,
             # Says what it is AND that it is invented, in the same line, so

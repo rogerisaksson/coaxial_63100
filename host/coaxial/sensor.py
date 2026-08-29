@@ -23,6 +23,10 @@ class PolledSensor(ABC):
 
     """One part, polled by the board's own loop, read through its record."""
 
+    def __repr__(self):
+        return ('<%s - the board polls it; state() reads that record, '
+                'hold() takes the bus>' % type(self).__name__)
+
     @abstractmethod
     def state(self):
         """The poll loop's shared record: the reading, and what went wrong.

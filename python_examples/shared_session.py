@@ -8,7 +8,7 @@
 # payload - and serialises them. What it removes is the exclusive OWNERSHIP,
 # not the exclusivity of the wire.
 #
-# NOBODY STARTS IT. The first session spawns one for the port it found, and
+# NOBODY STARTS IT. The device session spawns one for the port it found, and
 # it takes itself down when its last client goes. This example does not
 # mention it until it asks how many are attached.
 
@@ -26,9 +26,9 @@ from coaxial import Coaxial63100, broker
 SIMULATED = False
 PORT = 'COM4'
 
-first = Coaxial63100(port=PORT, simulated_device=SIMULATED)
-first.open()
-print(first)
+device = Coaxial63100(port=PORT, simulated_device=SIMULATED)
+device.open()
+print(device)
 
 # %% [markdown]
 # ## Who else is here
@@ -50,8 +50,8 @@ SECOND = '''
 import sys
 sys.path.insert(0, %r)
 from coaxial import Coaxial63100
-with Coaxial63100(port=%r) as rig:
-    print('   second session sees firmware', rig.board.system.version()['firmware'])
+with Coaxial63100(port=%r) as device:
+    print('   second session sees firmware', device.system.version()['firmware'])
     import time
     time.sleep(6)
 ''' % (sys.path[0], PORT)
@@ -67,9 +67,9 @@ print('sessions now:', broker.clients())
 # is why the views put the count in their banner.
 
 # %%
-print('first  session sees firmware',
-      first.board.system.version()['firmware'])
-print('and a dead time of %d ns' % first.gates.state()['deadtime_ns'])
+print('device  session sees firmware',
+      device.system.version()['firmware'])
+print('and a dead time of %d ns' % device.gates.state()['deadtime_ns'])
 
 other.wait()
 time.sleep(1)
@@ -82,7 +82,7 @@ print('sessions after it left:', broker.clients())
 # frames, which is the one thing a broker cannot forward.
 
 # %%
-first.close()
+device.close()
 time.sleep(1)
 print('serving after the last session left:',
       (broker.serving() or {}).get('serial', 'nothing'))

@@ -3,6 +3,11 @@
 # `# %%` cells: opens as a notebook, runs as a script.
 # **This arms a power stage.** The 2EDL8034 has no interlock; TIM1's dead
 # time is all there is between the two FETs of a leg.
+#
+# Two lifecycles, nested: the stage is `check()`, `arm()`, a duty, `disarm()`,
+# and the acquisition inside it is the `daq_session` one. The stage's is the
+# one that has to be asked for by name - `arm()` is the only thing that sets
+# MOE, and a duty write is refused until it has been called.
 
 # %%
 import os
@@ -17,16 +22,18 @@ from coaxial import Coaxial63100, scaling
 SIMULATED = False
 DUTY = 0.25
 
-daq = Coaxial63100(port='COM4', simulated_device=SIMULATED, power_afe=False)
-daq.open()
-print(daq)
+device = Coaxial63100(port='COM4', simulated_device=SIMULATED, power_afe=False)
+device.open()
+stage = device.gates             # the arming policy lives here
+print(device)
+print(stage)
 
 # %% [markdown]
 # ## Dead time, before anything else
 # Refuses at zero. Read from BDTR every time, not remembered.
 
 # %%
-state = daq.gates.check()
+state = stage.check()
 print('DTG %d, period %d ticks' % (state['deadtime'], state['period']))
 
 # %% [markdown]
@@ -36,10 +43,10 @@ print('DTG %d, period %d ticks' % (state['deadtime'], state['period']))
 # powered the board refuses to convert, and there are no currents.
 
 # %%
-daq.write(digital={'AFE_ON': True})            # currents real, no drive
+device.write(digital={'AFE_ON': True})            # currents real, no drive
 time.sleep(0.3)
-daq.configure(accumulate=8, digital=False)
-daq.start()
+device.configure(accumulate=8, digital=False)
+device.start()
 
 # %% [markdown]
 # ## Arm, then set a duty
@@ -48,16 +55,16 @@ daq.start()
 # %%
 # ignore_interlock because this bench board is not modified: the schematic
 # wants Cinj and Clevel both above 3 V first and they read 0.79 and 0.08.
-daq.gates.arm(bypass_sto=True, ignore_interlock=True)
-print('armed:', daq.gates.armed())
-daq.write(analog={'Phase U': DUTY, 'Phase V': DUTY, 'Phase W': DUTY})
+stage.arm(bypass_sto=True, ignore_interlock=True)
+print('armed:', stage.armed())
+device.write(analog={'Phase U': DUTY, 'Phase V': DUTY, 'Phase W': DUTY})
 
 # %% [markdown]
 # ## The six gate signals, as one instant
 # One IDR read on the board. Six asks would be six instants.
 
 # %%
-snap = daq.board.gate_drivers.state()
+snap = device.gate_drivers.state()
 print('CNT %d of %d' % (snap['pins_at'], snap['period'] - 1))
 for leg in ('U', 'V', 'W'):
     high, low = snap['pins'][leg + 'H'], snap['pins'][leg + 'L']
@@ -75,10 +82,10 @@ for leg in ('U', 'V', 'W'):
 # instrument - invariant 7. The ripple beside them is real either way.
 
 # %%
-live = daq.latest()
-params = daq.board.analog.scaling()      # the board's record, not this file's
+live = device.latest()
+params = device.analog.scaling()      # the board's record, not this file's
 units = {f['signal']: (f['unit'], f['differential'])
-         for f in daq.layout['fields']}
+         for f in device.layout['fields']}
 for name in ('Phase U', 'Phase V', 'Phase W', 'DC bus', '+5V', 'Vgate'):
     unit, diff = units[name]
     to = scaling.converter(unit, diff, signal=name,   # three mV channels,
@@ -93,19 +100,26 @@ for name in ('Phase U', 'Phase V', 'Phase W', 'DC bus', '+5V', 'Vgate'):
 # Unlimited rate, finite record count - the board allows that combination
 # because the run ends. Start and stop are a round trip each, about 15 ms,
 # so an ask under that is bounded by the link and the stamps say so.
+#
+# This is the one place the example reaches past the front door to the raw
+# ops: `records=` and `interval_us=` are burst vocabulary `device.configure`
+# does not carry. The layout comes back from the call and is used for THIS
+# task - `device.layout` still describes the front door's, and parsing one
+# task's records with another task's layout is the mistake the stashed copy
+# exists to prevent.
 
 # %%
-daq.stop()
-daq.board.daq.configure([f['signal'] for f in daq.layout['fields']],
-                        digital=False, accumulate=1, records=512,
-                        interval_us=0)
-daq.start()
+device.stop()
+burst = device.daq.configure([f['signal'] for f in device.layout['fields']],
+                             digital=False, accumulate=1, records=512,
+                             interval_us=0)
+device.start()
 time.sleep(0.100)
-daq.stop()
+device.stop()
 
 got = []                                   # read() is one reply, not the lot
 while True:
-    batch = daq.board.daq.acquire(layout=daq.layout)
+    batch = device.daq.acquire(layout=burst)
     if not batch:
         break
     got.extend(batch)
@@ -113,8 +127,8 @@ while True:
 span = (got[-1]['at'] - got[0]['at']) / 475e6 if len(got) > 1 else 0.0
 print('%d records over %.3f ms, %.0f us apart, %d dropped'
       % (len(got), span * 1e3, span * 1e6 / max(1, len(got) - 1),
-         daq.state()['dropped']))
+         device.state()['dropped']))
 
 # %%
-daq.gates.disarm()
-daq.close()
+stage.disarm()
+device.close()

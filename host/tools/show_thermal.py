@@ -25,7 +25,7 @@ from screen import TO_MENU, Keys, banner, paint, closing, say  # noqa: E402
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
-from coaxial.thermal import tau_minutes                   # noqa: E402
+from coaxial.thermal import pretty, tau_minutes           # noqa: E402
 from coaxial.thermalmap import SCALE_LINES, render        # noqa: E402
 
 #: Above the picture: a blank, the banner, a blank, the state line,
@@ -89,7 +89,7 @@ def budget_line(got):
     ceiling is spent, and a temperature does not answer that without the
     ceiling beside it - so the board sends the fraction and this draws it.
     """
-    used, worst = got['worst'], got['worst_node']
+    used, worst = got['worst'], pretty(got['worst_node'])
     width = 24
     full = int(round(max(0.0, min(1.0, used)) * width))
     bar = ('#' * full) + ('.' * (width - full))

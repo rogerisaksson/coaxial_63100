@@ -313,6 +313,28 @@ uint8_t Board_AdcCount(void)
 #define CH_DCBUS   5U
 #define CH_MCU_DIE 9U   /* last row: the internal sensor */
 
+/** Amperes from a centred phase code, channel trim included.
+  *
+  * The synced triple latches its own codes inside the injected callback and
+  * never goes through read_index, so the thermal observer had no way to the
+  * conversion and fed itself zero. The alternative was a second copy of the
+  * shunt arithmetic next to the observer, which invariant 7 exists to stop.
+  *
+  * `centred` is what Board_AdcDifferential returns - offset binary already
+  * taken out. Out of range, or a leg that is not one of three, is 0 A.
+  */
+float Board_PhaseAmps(uint8_t leg, int32_t centred)
+{
+  static const uint8_t index[3] = { CH_PHASE_U, CH_PHASE_V, CH_PHASE_W };
+
+  if (leg >= 3U)
+  {
+    return 0.0f;
+  }
+  return PHASE_AmpsFromShunt(code_to_volts(Board_CalApply(index[leg], centred),
+                                           ADC_DIFFERENTIAL_ENDED));
+}
+
 
 bool Board_AdcIsPhase(uint8_t index)
 {

@@ -41,6 +41,10 @@ ILLEGAL FUNCTION from the protocol layer before dispatch ever saw it.
 Append-only struct, the frozen record. Hosts bind decoding to `CMD_PROTO_MAJOR`
 alone; appending a field is a MINOR and keeps old hosts working.
 
+MAJOR 2, 2026-08-29: the thermal nodes went per leg, repurposing device 8's
+node order and the calibration record's ceiling indices - cmd.h has the
+reasoning beside the number.
+
 ### 0x42 ADC table
 
 Optional `u8` start index, and `u8 total` appended. A row is 18 bytes plus its
@@ -130,6 +134,14 @@ host's (invariant 10) - a reading two intervals old is not a measurement.
 `steps` closes op 0: how many times the model has integrated. `seconds` is
 wall clock beside it, so its rate is 1.0 whatever the observer does, and a
 benchmark watching that could only see the observer stop, never slow down.
+
+**The nodes are PER LEG, and there are ten of them.** `driver U/V/W`,
+`phase U/V/W`, `mcu`, `regulators`, `afe`, `board`, in that order - the order
+`thermal_node_t` declares and the order every op answers in. It was six until
+2026-08-29, when the camera showed switching one leg heating one leg and the
+estimate showing all three (FINDINGS). Both ops that carry nodes send `u8
+nodes` first, so a host that reads the count follows; one that assumed six
+does not. The calibration record resized with them - `CAL_VERSION` 7.
 
 Op 4 is the budget: `u8 nodes`, one byte a node, then `worst`, `worst_node`,
 `i32 millis_to_limit`, `throttling`, `tripped`, `u32 trips`. A byte because

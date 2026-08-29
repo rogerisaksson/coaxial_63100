@@ -100,6 +100,13 @@ class GateStage:
 
     def __init__(self, board):
         self._board = board
+        #: Whether THIS session was what set MOE. `armed()` reads the board
+        #: and answers for everybody; a shared board needs both.
+        self._armed_here = False
+
+    def __repr__(self):
+        return ('<GateStage - check(), arm(), disarm(). A duty write is '
+                'refused until arm() has been called>')
 
     @property
     def control(self):
@@ -211,11 +218,21 @@ class GateStage:
         if bypass_sto:
             self.control.bypass_break(True)
         self.control.enable()
+        self._armed_here = True
         return self.control.state()
+
+    @property
+    def armed_here(self):
+        """Whether this session armed the stage - not whether it is armed."""
+        return self._armed_here
 
     def disarm(self, keep_bypass=False):
         """Clear MOE, and put the break input back unless told otherwise."""
+        # The flag drops only once the board confirmed. Cleared first, a
+        # disable that raises leaves this session sure it owns nothing -
+        # and close() then walks past a stage it armed.
         self.control.disable()
+        self._armed_here = False
         if not keep_bypass:
             self.control.bypass_break(False)
         return self.control.state()

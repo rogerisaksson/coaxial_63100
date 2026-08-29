@@ -33,7 +33,7 @@ sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
 from screen import QUIET, TO_MENU, Keys, banner, paint, park, say, steady  # noqa: E402
 
-from coaxial import Coaxial63100, angle, scaling       # noqa: E402
+from coaxial import Coaxial63100, angle, scaling, thermal  # noqa: E402
 
 #: Samples per channel in the dash's analog read. 64 costs 88 ms of round
 #: trip against a 500 ms frame; 16 costs 30 and the dash is a glance, not a
@@ -79,6 +79,9 @@ TEARDOWN_HOLD = 2.0
 
 #: Cells in a budget bar. Ten reads as a percentage without being counted.
 BAR = 10
+
+#: Six of the ten nodes in the thermal block - see thermal_block.
+THERMAL_ROWS = 6
 
 #: Below this the A1335 has no magnet in front of it and the angle is noise.
 #: The same number dial.py uses, and it is the host's judgement, not the
@@ -375,11 +378,16 @@ def thermal_block(got):
     if spend is None:
         return block('THERMAL', ['  the observer did not answer'])
 
+    # SIX OF TEN, hottest first. The nodes went per leg, and ten bars made
+    # this block twice the height of the two beside it. Sorted, so the leg
+    # that is switching is the top row - which is the question being asked.
     rows = []
-    for name, used in sorted(spend['used'].items(), key=lambda kv: -kv[1]):
+    for name, used in sorted(spend['used'].items(),
+                             key=lambda kv: -kv[1])[:THERMAL_ROWS]:
         filled = int(round(used * BAR))
         rows.append('  %-10s %s %3.0f %%'
-                    % (name, '#' * filled + '.' * (BAR - filled), 100.0 * used))
+                    % (thermal.pretty(name), '#' * filled + '.' * (BAR - filled),
+                       100.0 * used))
     return block('THERMAL', rows)
 
 
@@ -499,7 +507,8 @@ def dash(session, got):
                                   else 'idle'))
     if spend is not None:
         bits.append('worst %s %.0f %%'
-                    % (spend['worst_node'], 100.0 * spend['worst']))
+                    % (thermal.pretty(spend['worst_node']),
+                       100.0 * spend['worst']))
     if therm is not None:
         # All three thermometers here rather than in the thermal column: they
         # are the widest line there is, and a column sized by them squeezed

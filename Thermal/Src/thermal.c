@@ -62,8 +62,14 @@ void thermal_defaults(thermal_cfg_t *cfg)
      switching. */
   cfg->board_to_ambient = 8.33f;
 
-  cfg->node[THERMAL_DRIVERS].to_board    = 15.2f;   /* the bridge, from 4-1  */
-  cfg->node[THERMAL_PHASES].to_board     = 15.2f;   /* same zone as above */
+  /* Three times the lumped value each, so the three in parallel are the
+     15.2 K/W the camera measured. The split moved where the heat is drawn,
+     not how much of it there is. */
+  for (int leg = 0; leg < 3; leg++)
+  {
+    cfg->node[THERMAL_DRIVER(leg)].to_board = 45.6f;
+    cfg->node[THERMAL_PHASE(leg)].to_board  = 45.6f;
+  }
   cfg->node[THERMAL_MCU].to_board        = 22.5f;
   cfg->node[THERMAL_REGULATORS].to_board = 15.0f;
   cfg->node[THERMAL_AFE].to_board        = 41.5f;
@@ -72,8 +78,14 @@ void thermal_defaults(thermal_cfg_t *cfg)
   /* Heat capacity. The board dominates: tau 6.8 min against 8.33 K/W is
      about 49 J/K. The parts' own are not measured - they respond in seconds,
      below what this rig can resolve, and only affect the settling. */
-  cfg->node[THERMAL_DRIVERS].capacity    = 0.35f;
-  cfg->node[THERMAL_PHASES].capacity     = 1.20f;
+  for (int leg = 0; leg < 3; leg++)
+  {
+    /* A third each, so the three together store what the lumped node did -
+       and a single leg now warms three times as fast, which is the whole
+       point of asking which one is switching. */
+    cfg->node[THERMAL_DRIVER(leg)].capacity = 0.35f / 3.0f;
+    cfg->node[THERMAL_PHASE(leg)].capacity  = 1.20f / 3.0f;
+  }
   cfg->node[THERMAL_MCU].capacity        = 0.90f;
   cfg->node[THERMAL_REGULATORS].capacity = 0.80f;
   cfg->node[THERMAL_AFE].capacity        = 0.30f;
@@ -235,35 +247,41 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
   }
   memset(out, 0, sizeof(*out));
 
-  /* Conduction: the current goes through the FET AND the shunt, both in the
-     phase. Duty picks which FET conducts, but both halves carry the same
-     squared current over a period, so the sum does not depend on duty. */
-  float conduction = 0.0f;
   float link_from_phases = 0.0f;
-  int legs_driven = 0;
 
-  for (int i = 0; i < 3; i++)
+  /* Switching, per driven leg. Scaled by link voltage - the C_oss charge
+     goes as Q(V)*V, nearer linear than square in this range, see
+     python_examples/loss_calculation.py. An unmeasured link is the
+     calibration's own voltage, not a scale of zero and not one off a rail
+     reading mid-scale - board_thermal.c, invariant 9. */
+  const float link = (load->link_volts > 0.0f) ? load->link_volts
+                                               : loss->switch_volts;
+  const float per_leg = (loss->switch_volts > 0.0f)
+                        ? (loss->switching_watt / 3.0f)
+                          * (link / loss->switch_volts)
+                        : 0.0f;
+
+  /* EACH LEG'S LOSS GOES TO THAT LEG. This used to scale one lumped node by
+     how many legs were driven, so switching U alone raised all three by a
+     third each. The camera says otherwise: 2026-08-29, U at 50 % with V and
+     W idle heated U's half-bridge and nothing else. */
+  for (int leg = 0; leg < 3; leg++)
   {
-    const float a = load->phase_amps[i];
-    conduction += a * a * (loss->rds_on + loss->r_shunt);
-    link_from_phases += load->duty[i] * a;
-    if (load->switching && (load->duty[i] > 0.0f))
+    /* Conduction: the current goes through the FET AND the shunt, both in
+       this phase - and both halves of a leg carry the same squared current
+       over a period, so the sum does not depend on duty. Dry it measures
+       zero, and that is correct: nothing leaves the bridge, so the shunts
+       decide, not the duty. */
+    const float a = load->phase_amps[leg];
+    out->watt[THERMAL_PHASE(leg)] = a * a * (loss->rds_on + loss->r_shunt);
+    link_from_phases += load->duty[leg] * a;
+
+    if (load->switching && (load->duty[leg] > 0.0f))
     {
-      legs_driven++;
+      out->watt[THERMAL_DRIVER(leg)] += per_leg * loss->driver_share;
+      /* The buck is one part feeding all three, so its share stays lumped. */
+      out->watt[THERMAL_REGULATORS]  += per_leg * (1.0f - loss->driver_share);
     }
-  }
-  out->watt[THERMAL_PHASES] = conduction;
-
-  /* Switching: scaled by link voltage and how many legs are driven. The
-     C_oss charge goes as Q(V)*V, so nearer linear than square in this range -
-     see python_examples/loss_calculation.py. */
-  if (load->switching && (legs_driven > 0) && (loss->switch_volts > 0.0f))
-  {
-    const float scale = (load->link_volts / loss->switch_volts)
-                        * ((float)legs_driven / 3.0f);
-    const float sw = loss->switching_watt * scale;
-    out->watt[THERMAL_DRIVERS]    += sw * loss->driver_share;
-    out->watt[THERMAL_REGULATORS] += sw * (1.0f - loss->driver_share);
   }
 
   /* Hot swap: it is in the link, so it sees link current. With none
@@ -334,7 +352,7 @@ float thermal_expected_ntc(const thermal_t *th)
     return NAN;
   }
   const float board = th->t[THERMAL_BOARD];
-  const float rise  = th->t[THERMAL_DRIVERS] - board;
+  const float rise  = th->t[THERMAL_NTC_NEIGHBOUR] - board;
   return board + th->cfg.ntc_sees_drivers * rise + th->cfg.ntc_offset;
 }
 
@@ -439,7 +457,8 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
       {
         const float at = th->t[THERMAL_BOARD]
                          + over / th->cfg.ntc_sees_drivers;
-        th->t[THERMAL_DRIVERS] += k * (at - th->t[THERMAL_DRIVERS]);
+        th->t[THERMAL_NTC_NEIGHBOUR] +=
+            k * (at - th->t[THERMAL_NTC_NEIGHBOUR]);
       }
     }
 
@@ -454,7 +473,7 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
     /* Degraded: no die answered, so the drivers' rise cannot be separated
        from the board's. Anchor the board on the NTC with the modelled hot
        spot removed and say the estimate is not settled. */
-    const float rise = th->t[THERMAL_DRIVERS] - th->t[THERMAL_BOARD];
+    const float rise = th->t[THERMAL_NTC_NEIGHBOUR] - th->t[THERMAL_BOARD];
     const float bulk = thermal_board_from_ntc(&th->cfg, seen->ntc_c, rise);
     th->t[THERMAL_BOARD] += k * (bulk - th->t[THERMAL_BOARD]);
     th->settled = false;
