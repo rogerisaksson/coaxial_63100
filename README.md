@@ -43,6 +43,9 @@ cable.
 |---|---|
 | `daq_session.py` | connect, configure, set the clock, acquire in a loop |
 | `gate_drivers_session.py` | dead time, arm, duty, the gate snapshot, a burst |
+| `shared_session.py` | two sessions on one port, and who else is attached |
+| `imu_session.py` | the BNO085, and the three things it refuses over |
+| `angle_session.py` | the A1335's registers, and whether there is a magnet |
 | `thermal_budget.py` | the SOA budget, and a burst planned against it |
 | `thermal_model.py` | the node network in Python, and how it was fitted |
 | `loss_calculation.py` | switching loss from the SPICE models, no board |
