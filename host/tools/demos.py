@@ -522,13 +522,76 @@ def teardown(session, console, drawn):
         time.sleep(TEARDOWN_HOLD)
 
 
+def sweep(rig):
+    """What the board still has running, stopped, as (name, what) pairs.
+
+    For LEAVING THE MENU, which holds no rig of its own: a view that was
+    killed, or a session that ended badly, can leave a stage armed or a task
+    filling a ring, and the way out of the demos has to say so rather than
+    let the shell prompt be the last word.
+
+    Reads before it acts, so it can name what it found. Empty means nothing
+    was running, and that is worth one line too.
+    """
+    done = []
+
+    gates = steady(rig.gates.state)
+    if gates is not None and gates['pwm_enabled']:
+        steady(rig.write, analog=dict.fromkeys(
+            ['Phase %s' % leg for leg in DEFAULT_PHASES], 0.0))
+        steady(rig.gates.disarm)
+        done.append(('gate stage', 'was armed - duty to zero, MOE clear'))
+
+    task = steady(rig.board.daq.state)
+    if task is not None and task.get('running'):
+        steady(rig.stop)
+        done.append(('acquisition', 'was running - task stopped'))
+
+    rails = steady(rig.board.power.state)
+    afe = (rails or {}).get('afe') or {}
+    held = [u for u in afe.get('users', ()) if u != 'host']
+    if held:
+        done.append(('AFE_ON', 'held by %s - left alone, it is theirs'
+                     % ', '.join(held)))
+    return done
+
+
+def leave(port, simulated):
+    """Stop whatever the demos left running, and say so - or say nothing.
+
+    SILENT WHEN THERE IS NOTHING. A clean exit should be an exit, not four
+    lines confirming that four things nobody started are not running. The
+    lines are for the case that needs them: a view that was killed, or a
+    session that ended badly, leaving a stage armed with nothing on screen
+    to say it.
+
+    Costs one port open either way. That is the price of the difference
+    between knowing and assuming.
+    """
+    with Coaxial63100(port=port, simulated_device=simulated,
+                      power_afe=False) as rig:
+        found = sweep(rig)
+        if not found:
+            return 0
+        say('wait', 'leaving', 'the demos left something running')
+        for name, what in found:
+            say('warn', name, what)
+        say('ok', 'board', 'put back')
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', default='COM4')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--hz', type=float, default=2.0)
     p.add_argument('--frames', type=int, default=0)
+    p.add_argument('--leave', action='store_true',
+                   help='report and stop whatever the demos left running')
     a = p.parse_args()
+
+    if a.leave:
+        return leave(a.port, a.simulated)
 
     # power_afe=False: the session decides the rail, not the constructor.
     # Opening with the AFE forced up would stop any switching before the

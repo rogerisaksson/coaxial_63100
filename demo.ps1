@@ -152,6 +152,19 @@ function Read-View($Views) {
 # case once, which left Read-View unreachable from either branch - the chooser
 # was dead for as long as it took someone to miss it. It is first on the list
 # instead, so one key still gets there and the other six are visible again.
+# LEAVING THE MENU IS AN EXIT PATH TOO. A view cleans up after itself and
+# says so, but quitting the chooser used to be a bare `exit 0` - and a view
+# that was killed, or a session that ended badly, leaves a stage armed with
+# nothing on screen to say it. One port open on the way out buys the right
+# to say `nothing was left running` and mean it.
+function Close-Demos {
+    Push-Location (Join-Path $PSScriptRoot 'host')
+    $argv = @('tools/demos.py', '--leave', '--port', $Port)
+    if ($Simulated) { $argv += '--simulated' }
+    & python @argv
+    Pop-Location
+}
+
 $asked = $Name
 $code = 0
 
@@ -161,7 +174,10 @@ do {
 
     while (-not $view) {
         $view = Read-View $Views
-        if ($null -eq $view) { exit 0 }
+        if ($null -eq $view) {
+            Close-Demos
+            exit 0
+        }
     }
 
     # INLINE, and not behind a function returning the code. Both ways of
@@ -190,4 +206,8 @@ do {
     $code = $LASTEXITCODE
 } while ($code -eq $TO_MENU)
 
+# The other way out: a view closed with Q rather than coming back here. It
+# put its own things back and said so - this checks nothing was missed, and
+# says that too, so both exits read the same.
+Close-Demos
 exit $code
