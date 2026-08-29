@@ -1,24 +1,20 @@
 /**
   ******************************************************************************
   * @file    board_cal.c
-  * @brief   The scaling parameters and the per-channel corrections, on the
-  *          board rather than in a host.
+  * @brief   The scaling parameters and per-channel corrections, on the board.
   *
-  * Here and not in the host because a calibration belongs to one physical
+  * Here and not in a host because a calibration belongs to ONE physical
   * board: a host carrying it answers for the wrong board the moment it is
-  * pointed at a second. Travelling with the hardware is also what lets a rig
-  * zero a channel against a calibrated instrument and find it there tomorrow.
+  * pointed at a second.
   *
-  * It judges nothing - invariant 10 is about limits and expected values, and
-  * there are none here. A scale factor answers what a code is worth, never
-  * whether it is acceptable.
+  * It judges nothing. A scale factor says what a code is worth, never
+  * whether it is acceptable (invariant 10).
   *
-  * **Integers throughout**, in the unit that makes them integers: microhms,
-  * ppm, microvolts, centikelvin. The wire bans floating point, so floats
-  * appear only where the conversion is computed.
+  * Integers throughout, in the unit that makes them integers: microhms, ppm,
+  * microvolts, centikelvin. The wire bans floating point.
   *
-  * **Last sector of bank 2.** The image is 92 KB at 0x08000000, so in bank 1;
-  * an erase here does not stall the core fetching its own instructions.
+  * Last sector of bank 2 - the image is 92 KB in bank 1, so an erase here
+  * does not stall the core fetching its own instructions.
   ******************************************************************************
   */
 #include "board.h"

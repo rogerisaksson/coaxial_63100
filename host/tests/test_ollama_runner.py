@@ -460,7 +460,7 @@ def test_smart_selection(report):
                             (75, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
                                   'test_parity.py', 'test_mcp.py',
-                                  run_tests.CONFORMANCE}
+                                  run_tests.CONFORMANCE, run_tests.BENCH}
                              | set(run_tests.OLLAMA))):
         suites, _ = run_tests.plan_for(percent)
         report.check('%d %% is what it always was' % percent,

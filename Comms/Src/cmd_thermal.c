@@ -165,14 +165,9 @@ static cmd_status_t op_set_sample(rd_t *in, wr_t *out)
 
 /** op 4 - what is left of the thermal budget.
   *
-  * ONE BYTE A NODE. A temperature does not say how close a part is to its
-  * ceiling without the ceiling beside it, so this carries the fraction
-  * instead: 0 is ambient and 255 is at the limit. The estimates themselves
-  * are still op 0 for anyone who wants degrees.
-  *
-  * `millis_to_limit` is what a burst plans on - not how hot it is now, but
-  * how long it may stay at this power. Milliseconds, because 35 W into the
-  * phase node crosses the throttle point with under a second to go.
+  * One byte a node, 0 at ambient and 255 at the limit; degrees stay on op 0.
+  * `millis_to_limit` is what a burst plans on - 35 W into the phase node
+  * crosses the throttle point with under a second to go.
   */
 static cmd_status_t op_budget(wr_t *out)
 {

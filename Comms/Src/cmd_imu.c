@@ -135,14 +135,10 @@ static cmd_status_t h_imu_feature(rd_t *in, wr_t *out)
     return CMD_ERR_DEVICE;
   }
 
-  uint8_t payload[17];
-
-  if (shtp_set_feature(payload, sizeof(payload), report_id, interval) == 0U)
-  {
-    return CMD_ERR_DEVICE;
-  }
-
-  if (!Board_ImuWrite(SHTP_CH_CONTROL, payload, sizeof(payload)))
+  /* Through the board layer, which remembers it: the part forgets on every
+     reset and the poll re-applies it. Building the payload here as well
+     would be a second answer to what this part is configured to do. */
+  if (!Board_ImuSetFeature(report_id, interval))
   {
     return CMD_ERR_DEVICE;
   }
@@ -151,19 +147,10 @@ static cmd_status_t h_imu_feature(rd_t *in, wr_t *out)
 }
 
 /**
-  * @brief 0x6E - every IMU operation, chosen by the first payload byte.
-  *
-  * One function code because it is the only one left: the specification's
-  * user-defined ranges are 65..72 and 100..110, and this board had spent all
-  * but 110. A second code answered ILLEGAL FUNCTION from the protocol layer
-  * before dispatch saw it.
-  */
-/**
   * @brief op 3 - the four header bytes, unparsed.
   *
-  * The bring-up question the parser cannot answer, because it refuses both
-  * answers: 0xFF FF FF FF is a part that is absent, unpowered or in reset,
-  * and 00 00 00 00 is one that is present and idle.
+  * The bring-up question the parser refuses to answer: FF FF FF FF is a part
+  * absent, unpowered or in reset, and 00 00 00 00 one present and idle.
   */
 static cmd_status_t h_imu_probe(rd_t *in, wr_t *out)
 {
@@ -345,6 +332,19 @@ static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
     wr_u16(out, (uint16_t)st.real);
   }
 
+
+  /* What the part was asked to report, and whether that request still has
+     to be re-made. Appended: a reset throws the feature away and the poll
+     re-applies it, and there was no way to see which side of that it was
+     on - the loop said `running` with `updates` frozen either way. */
+  uint8_t asked_id = 0U;
+  uint32_t asked_us = 0U;
+  bool asked_pending = false;
+
+  Board_ImuFeatureAsked(&asked_id, &asked_us, &asked_pending);
+  wr_u8(out, asked_id);
+  wr_u32(out, asked_us);
+  wr_u8(out, asked_pending ? 1U : 0U);
   return CMD_OK;
 }
 

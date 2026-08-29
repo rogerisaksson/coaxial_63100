@@ -225,15 +225,12 @@ static cmd_status_t h_daq_layout(wr_t *out)
 
 /** op 6 - the live accumulator, taken and reset.
   *
-  * One reply whatever the sampling rate: each channel carries its own count
-  * of how many went into its sum, and the span says over what. A late reader gets a wider window rather
-  * than a backlog, so this path cannot overflow and has nothing to drop -
-  * which is the difference between it and the ring.
+  * One reply whatever the rate: each channel carries its own count and the
+  * span says over what. A late reader gets a wider window, not a backlog.
   *
-  * `fresh` is 0 when nothing has arrived since the last take, and the reply
-  * stops there. A caller that wants to block does it on its own side: this
-  * is a request/response protocol, and a slave that sat on a reply waiting
-  * for a sample would break RTU framing for everyone on the segment.
+  * `fresh` 0 means nothing arrived and the reply stops there. Blocking is the
+  * caller's own business - a slave sitting on a reply would break RTU
+  * framing for everyone on the segment.
   */
 static cmd_status_t h_daq_live(wr_t *out)
 {

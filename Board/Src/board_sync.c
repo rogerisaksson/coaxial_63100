@@ -4,19 +4,16 @@
   * @brief   Phase current sampled where the stage is quiet: TIM1 triggers,
   *          three ADCs convert at once, this latches the result.
   *
-  * One phase per converter - U on ADC3, V on ADC1, W on ADC2 - so three
-  * converters on one timer event sample the same instant by construction.
-  * No dual or triple mode needed.
+  * One phase per converter - U on ADC3, V on ADC1, W on ADC2 - so one timer
+  * event samples the same instant by construction. No dual or triple mode.
   *
-  * A SECOND acquisition path, not a change to the meter. board_adc.c reads the
-  * regular group one channel at a time, reconfigured per read; a current loop
-  * needs three together at a point the timer picks, so the phases get the
-  * INJECTED group - own sequence, own results, own trigger, preempting the
-  * regular one rather than disturbing it.
+  * A SECOND path, not a change to the meter: board_adc.c reads the regular
+  * group one channel at a time, and a current loop needs three together at a
+  * point the timer picks, so the phases get the INJECTED group.
   *
-  * TIM1 is centre-aligned, ARR 2375 for 50 kHz, DTG 19. What this file owns on
-  * top is the sample point: CCR5 and TRGO2, set here because CubeMX takes
-  * MasterOutputTrigger2, stores it as "null" and emits TIM_TRGO2_RESET.
+  * What this file owns on top of TIM1 is the sample point: CCR5 and TRGO2,
+  * set here because CubeMX stores MasterOutputTrigger2 as "null" and emits
+  * TIM_TRGO2_RESET.
   ******************************************************************************
   */
 #include "board.h"

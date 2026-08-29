@@ -302,23 +302,14 @@ def _load_model():
 #: The board's triangles, read once at import. See _load_model().
 MODEL_MESH = _load_model()
 
-#: Where the camera stands, in the board's own frame: degrees round the board
-#: from the +X axis, and degrees up from the board's plane.
+#: Where the camera stands: degrees round the board from +X, and up from its
+#: plane. The reference's own angles are 13.2 up and 20.9 round - a product
+#: shot of something standing on a bench, and this board lies flat.
 #:
-#: The reference stands its camera at `(bbox.max.x * 4, bbox.max.y,
-#: bbox.max.z * 3)` after turning every STL by `rotation.x = -90`, which for
-#: this model - 100 x 100 x 51 mm - is 13.2 degrees above the board and 20.9
-#: round it. That is a product shot of something standing on a bench. This
-#: board is horizontal and what the view is FOR is showing how it lies, so
-#: the camera looks down at it instead.
-#:
-#: Looking down at a board that lies flat, but not straight down. Measured
-#: over the same mesh and light, counting how much of the ramp each angle
-#: reaches: at 90 degrees the drawing is two characters wide - # and @ - and
-#: is flat by geometry, because down its own normal a component has no sides
-#: and the board's face and every part's top share one normal. At 55 the
-#: whole ramp is in use and the parts stand up. 30 is the reference's kind of
-#: angle and reads as a product shot rather than as how the board lies.
+#: Measured over the same mesh and light, by how much of the ramp each angle
+#: reaches: at 90 the drawing is two characters wide and flat by geometry
+#: (down its own normal a part has no sides); at 55 the whole ramp is in use
+#: and the parts stand up.
 VIEW_AZIMUTH = 0.0
 VIEW_ELEVATION = 55.0
 

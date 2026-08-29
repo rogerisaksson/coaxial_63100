@@ -3,35 +3,25 @@
   * @file    board_angle.c
   * @brief   Allegro A1335 magnetic angle sensor on SPI4.
   *
-  * A 20-bit SPI packet per register, and a poll loop keeping the newest reading
-  * in shared memory - the IMU's shape on SPI2, for the same reason: a Modbus
-  * round trip per register costs 45 ms, which is not a sample rate.
+  * A 20-bit packet per register and a poll loop keeping the newest reading in
+  * shared memory - the IMU's shape, for the same reason: a Modbus round trip
+  * per register is 45 ms, which is not a sample rate.
   *
-  * From the datasheet (A1335-DS Rev. 12, datasheets/AngleSensor):
+  * From A1335-DS Rev. 12: 20-bit packet, mode 3, 0.1 to 10 MHz, CS high at
+  * least 200 ns between frames, and the MOSI MSB must be 0 or IER asserts.
   *
-  *   - 20-bit packet. MOSI is SYNC=0, R/W, six address bits, eight data bits
-  *     and four CRC bits; MISO is sixteen data bits and four CRC bits
-  *     (Figure 31, which draws the 21-bit variant of the same frame).
-  *   - Mode 3. "Time from CS going low to SCLK falling edge" with MOSI setup
-  *     and hold quoted against the *rising* edge means SCLK idles high and
-  *     the part samples on the second edge.
-  *   - 0.1 to 10 MHz, CS high at least 200 ns between frames.
-  *   - The MSB of the MOSI packet must be 0; a 1 asserts the IER flag.
+  * The register map is not in that datasheet. The addresses come from
+  * github.com/ScranchNew/Allegro-A1335-Sensor-library, which drives the same
+  * registers over I2C: ANG 0x20, STA 0x22, ERR 0x24, XERR 0x26, TSEN 0x28,
+  * FIELD 0x2A.
   *
-  * The register map is not in that datasheet - it defers to the Programming
-  * Manual - so the addresses come from the reference library at
-  * github.com/ScranchNew/Allegro-A1335-Sensor-library, which drives the part
-  * over I2C against the same registers:
-  *
-  *   ANG 0x20, STA 0x22, ERR 0x24, XERR 0x26, TSEN 0x28, FIELD 0x2A.
-  *
-  * Counts, never degrees: ANG's low twelve bits are 360/4096 apiece and TSEN is
-  * eighths of a kelvin, and both scalings belong to the host (invariant 10),
-  * as the ADC channels and the IMU's Q points do.
+  * Counts, never degrees: ANG is 360/4096 a count and TSEN eighths of a
+  * kelvin, and both scalings belong to the host (invariant 10).
   ******************************************************************************
   */
 #include "board.h"
 #include "board_hw.h"
+#include "board_power.h"
 
 #include <string.h>
 
@@ -287,21 +277,12 @@ bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc)
 
 /** The A1335's own die, centi-degrees C. False if it did not answer.
   *
-  * TSEN's low twelve bits are eighths of a kelvin - a fixed property of the
-  * part, not a calibratable parameter, which is why it is not in the
-  * calibration record.
+  * TSEN is eighths of a kelvin - a property of the part, not a calibratable
+  * parameter. DUPLICATED in `host/coaxial/angle.py`, which the observer
+  * cannot reach; one should go, by cmd_angle appending the converted value.
   *
-  * DUPLICATED: `host/coaxial/angle.py` has the same scaling, because the
-  * wire carries counts (invariant 10) and the host has always converted
-  * them. The observer runs on the board and cannot reach that copy. One of
-  * the two should go - the way out is for cmd_angle to append the converted
-  * value so the host reads it instead of deriving it.
-  *
-  * The part measures ITS OWN DIE, not the board. That is what makes it
-  * useful here and it is why it was written off once: as a board
-  * thermometer it sheds its self-heating whenever AFE_ON breaks, and
-  * measured 2026-08-28 it FELL 1.88 K during a run that warmed the board.
-  * As the thermometer for the node it sits on, that self-heating is signal.
+  * It measures its own DIE. As a board thermometer it FELL 1.88 K during a
+  * run that warmed the board (2026-08-28); as its node's, that is signal.
   */
 bool Board_AngleDie(int32_t *centidegc)
 {
@@ -364,6 +345,20 @@ void Board_AnglePoll(void)
   {
     return;                        /* the host is configuring it */
   }
+
+  /* NOT DURING THE OBSERVER'S BORROW. It takes AFE_ON for about 500 ms every
+     few seconds to read the NTC, and this part needs longer than that to come
+     up - so it would start initialising, lose its supply mid-sequence, and do
+     it again on the next borrow. Reset after reset, an errors counter that
+     climbs and a part that never reports.
+
+     A borrow is a measurement window, not a power-up. Who holds the rail is
+     the reference count's to say, which is what BOARD_USER_THERMAL is for. */
+  if (Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
+  {
+    return;
+  }
+
 
   if (s_state.loop == BOARD_ANGLE_LOOP_OFF)
   {

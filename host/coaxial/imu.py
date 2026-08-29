@@ -10,7 +10,7 @@ Datasheet references are to BNO080_085 v1.17, in datasheets/.
 import contextlib
 
 from . import protocol
-from .errors import DeviceStateError
+from .errors import DeviceStateError, RigError
 from .sensor import PolledSensor
 from .subsystem import Subsystem
 from .wire import Reader
@@ -82,8 +82,45 @@ class Imu(Subsystem, PolledSensor):
         peripheral, chosen by it, because the specification's user-defined
         function codes are spent.
         """
-        return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_IMU, op]) + bytes(payload))
+        try:
+            return self.request(protocol.DEVICE,
+                                bytes([protocol.DEVICE_IMU, op])
+                                + bytes(payload))
+        except RigError as exc:
+            raise self._explain(op, exc) from exc
+
+    #: Ops that do not drive the bus, so a running poll loop cannot be their
+    #: problem: the shared record, and hold and resume themselves.
+    FREE_OPS = frozenset((protocol.IMU_OP_LATEST, protocol.IMU_OP_HOLD,
+                          protocol.IMU_OP_RESUME))
+
+    def _explain(self, op, exc):
+        """Turn a bare device failure into what to do about it.
+
+        THE BOARD REFUSES A BUS OP UNLESS THE POLL LOOP IS HELD - two masters
+        on one bus is a cargo split between them - and the refusal arrives as
+        a plain device error with nothing said. Measured 2026-08-29: that read
+        as a dead part for an hour, through a reflash of an older firmware to
+        rule out a regression that was never there. The part was reporting the
+        whole time; every call had simply been made with the loop running.
+
+        The loop's state needs no hold to read, so the reason is one round
+        trip away - and only on the path that has already failed.
+        """
+        if op in self.FREE_OPS:
+            return exc
+        try:
+            loop = self.state()['loop']
+        except Exception:                  # noqa: BLE001 - the first failure
+            return exc                     # is the one worth reporting
+        if loop == 'held':
+            return exc
+        return DeviceStateError(
+            'the IMU poll loop owns SPI2, so this was refused - it is %r, not '
+            'held. Two masters on one bus is a cargo split between them. '
+            'hold(), then this call, then resume(). Reading the shared record '
+            'through latest() needs no hold, which is what it is for. '
+            'The board said: %s' % (loop, exc))
 
     def product_id(self):
         """What the part says it is - the answer that proves the link.
@@ -156,23 +193,31 @@ class Imu(Subsystem, PolledSensor):
             'errors': r.u32(),
         }
 
-        if not r.u8():
+        if r.u8():
+            report_id = r.u8()
+            status = r.u8()
+            counts = [_signed16(r.u16()) for _ in range(4)]
+            divisor = float(1 << SCALE[report_id][0])
+
+            got.update({
+                'report_id': report_id,
+                'name': REPORTS.get(report_id, 'unknown 0x%02X' % report_id),
+                'accuracy': ACCURACY.get(status & 0x03, 'unknown'),
+                'counts': dict(zip(('i', 'j', 'k', 'real'), counts)),
+                'quaternion': dict(zip(('i', 'j', 'k', 'real'),
+                                       (c / divisor for c in counts))),
+            })
+        else:
             got['quaternion'] = None
-            return got
 
-        report_id = r.u8()
-        status = r.u8()
-        counts = [_signed16(r.u16()) for _ in range(4)]
-        divisor = float(1 << SCALE[report_id][0])
-
-        got.update({
-            'report_id': report_id,
-            'name': REPORTS.get(report_id, 'unknown 0x%02X' % report_id),
-            'accuracy': ACCURACY.get(status & 0x03, 'unknown'),
-            'counts': dict(zip(('i', 'j', 'k', 'real'), counts)),
-            'quaternion': dict(zip(('i', 'j', 'k', 'real'),
-                                   (c / divisor for c in counts))),
-        })
+        # AFTER the report block, because the board writes it after. This was
+        # read before it, so with a report present the interval came back as
+        # 16616704 instead of 20000 - four bytes taken out of the middle of a
+        # quaternion. One branch returning early is what let the two orders
+        # disagree without either looking wrong.
+        got['feature'] = {'report_id': r.u8(),
+                          'interval_us': r.u32(),
+                          'pending': bool(r.u8())}
         return got
 
     def latest(self):

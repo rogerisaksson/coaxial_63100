@@ -6,8 +6,7 @@
 # Python so the parameters can be fitted against measurements without a
 # reflash.
 #
-# **This is not FEM.** A mesh and a solver do not fit in a main loop and are
-# not needed to answer how hot the gate driver is. Six nodes do.
+# **Not FEM.** A mesh does not fit in a main loop. Six nodes do:
 #
 #     drivers ---+
 #     phases  ---+
@@ -15,9 +14,8 @@
 #     regs    ---+
 #     afe     ---+
 #
-# **A node is a zone, not a part.** `regulators` is the whole supply corner -
-# bucks, LDOs and the LED droppers. Constant sources inside a zone cancel in
-# every difference, which is why the campaign tolerates it.
+# A node is a ZONE, not a part - `regulators` is the whole supply corner.
+# Constant sources inside a zone cancel in every difference.
 
 # %%
 import os

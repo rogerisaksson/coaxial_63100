@@ -62,20 +62,11 @@ NTC_SEES_DRIVERS = ((MEASURED['switching']['ntc']
                      - MEASURED['switching']['board'])
                     - NTC_OFFSET) / DRIVER_RISE_SWITCHING
 
-#: The zones that dissipate. **Board surface at each source, not the part.**
+#: The four states the bench can hold. Here and not in a tool because two
+#: tools drive them, and a second copy is the one that goes stale.
 #:
-#: Black soldermask has an even emissivity around 0.95, while what a package
-#: reaches internally depends on a theta_JC nobody here has measured. So a
-#: node is "the board at the drivers", not "the driver's die". That also
-#: matches the NTC, which is soldered to the board and reads the laminate at
-#: its own spot rather than any junction.
-#: The four states the bench can hold, and what each one is. Named here
-#: rather than in a tool because two tools drive them - the camera-in-the-loop
-#: calibration and the automated identification - and a second copy of this
-#: is the one that goes stale.
-#:
-#: The order is not arbitrary: each state adds one power term to the one
-#: before, so the DIFFERENCES isolate a subsystem that no single state can.
+#: The order matters: each state adds one power term to the one before, so
+#: the DIFFERENCES isolate a subsystem no single state can.
 STATES = ('passive', 'afe', 'traffic', 'switch')
 
 STATE_IS = {

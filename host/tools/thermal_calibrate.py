@@ -50,18 +50,13 @@ POINTS = ('the middle half-bridge', 'buck + LDO', 'the MCU',
           'angle sensor / IMU', 'hot swap / DC link - the mask beside it',
           'DEAD SURFACE - mask well away from anything that warms')
 
-#: How often the AFE may be switched on for a sample in an AFE-off state.
-#: SAMPLING PERTURBS THE STATE: the gate is inverted, so AFE on removes the
-#: drivers' supply for as long as the sample lasts.
+#: How often the AFE may come on for a sample in an AFE-off state. SAMPLING
+#: PERTURBS THE STATE - the gate is inverted, so the drivers lose supply for
+#: as long as it lasts.
 #:
-#: MEASURED 2026-08-28: a sample takes 0.42 s - enable 15 ms, settle 300 ms
-#: (most of it), read 60-90 ms, disable 15 ms. Every 60 s is then 0.7 % of the
-#: time in the wrong state, which against tau 6.8 min does not move the
-#: equilibrium measurably, and gives 25 samples per state instead of 5.
-#:
-#: Four samples 3 s apart gave 35.67/35.66/35.64/35.69 - 50 mK spread and no
-#: drift, so the NTC's ~0.2 C self-heating does not establish on this
-#: timescale and does not skew the samples against each other.
+#: Measured 2026-08-28: a sample is 0.42 s, so every 60 s is 0.7 % of the time
+#: in the wrong state - nothing against tau 6.8 min, and 25 samples a state
+#: instead of 5. Four samples 3 s apart spread 50 mK with no drift.
 PEEK_EVERY_S = 60.0
 
 #: How long the reference is given to come up before reading. 300 ms is

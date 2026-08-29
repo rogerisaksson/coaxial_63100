@@ -60,18 +60,13 @@ LAYOUT = {
     'hotswap': [(38, -6, 10), (35, 4, 9)],
 }
 
-#: One cell is two characters in the PLAIN ramp, so the pixels come out
-#: square - a terminal cell is about twice as tall as it is wide. In colour
-#: the half block buys that back and a cell is one character.
+#: Two characters a cell in the plain ramp, so pixels come out square. In
+#: colour the half block buys that back and a cell is one character.
 CELL = '  '
 
-#: Plain-text ramp, for when there is no colour. Coolest to hottest, and **no
-#: leading space** - a space means off the board, and a ramp starting with one
-#: makes the board's coolest parts indistinguishable from empty.
-#:
-#: Twenty steps, not nine: the scale is fixed at 120 K wide, and nine
-#: characters over that is 13 K a step, which drew the board as one flat
-#: symbol. Six kelvin a step shows the zones.
+#: Plain-text ramp, coolest first. No leading space - a space means off the
+#: board. Twenty steps, not nine: 120 K over nine characters is 13 K a step
+#: and drew the board flat.
 RAMP = '.,:;~-=+ic*xX#$%8W@'
 
 #: The bar and its tick labels. Counted by the caller, so it is named.

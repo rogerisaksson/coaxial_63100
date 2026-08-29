@@ -48,25 +48,14 @@ CONFORMANCE = 'test_conformance.py'
 LIVE = 'test_live_model.py'
 ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
 
-#: What percentage each suite joins a tier at. The percentage is of every
-#: check this repository has - counts.py knows what each suite and each group
-#: last came to - and suites join in order of seconds per check, so a tier
-#: buys the most checks for the least wall time. Measured, per check:
-#: simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
-#: conformance 0.29, live 4.6. That last figure is why live joins last; the
-#: core joins early, because the code it covers is the code a defect does the
-#: most damage in.
+#: Where each suite joins a tier. Cheapest per check first, so a tier buys
+#: the most checks for the least wall time. Measured, seconds per check:
+#: simulated 0.003, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
+#: conformance 0.29, bench 5.0, live 4.6.
 #:
-#: Arithmetic rather than the ladder of three this used to be, so a tier can
-#: be asked for at any step of STEP - the point of a budget is that you can
-#: name it.
-#:
-#: test_ollama.py is not in the list because it does not join or leave: it
-#: is in from the first tier and narrows ITSELF. --coverage reaches its own
-#: subject budget (test_ollama.select), which spends in checks and knows
-#: what every group last came to. That is where the fine resolution lives -
-#: the whole-suite steps below are chunky by nature, and 733 of this tree's
-#: 1613 checks are in that one file.
+#: The ollama suites are not here: they are in from the first tier and narrow
+#: THEMSELVES through their own subject budget, which is where the fine
+#: resolution lives.
 JOINS = (
     (10, 'test_simulated.py'),
     (15, CORE),
@@ -111,24 +100,13 @@ def plan_for(percent):
         return tuple(suites), 'tools'
     return tuple(suites), None
 
-# A cable is not a regression. That used to need saying loudly here - an
-# unplugged board turned into '22 failed' in a verify loop that was meant to
-# be checking a code change - and now it is enforced instead: every suite
-# picks its session through coaxial_mcp.session.open_session(), which probes
-# the port and falls back to the simulated board, and every one of them
-# prints which it got.
+# A cable is not a regression: every suite opens through open_session(),
+# which probes and falls back to the stand-in, and says which it got.
 #
-# test_modbus_core.py needs no board either, but it does need a host C
-# compiler; with none it says so and passes nothing, the same bargain.
-#
-# CONFORMANCE is the exception and stays listed, because it is the one suite
-# a stand-in cannot stand in for: it is an independent byte-level master, and
-# a simulated slave would be the shared wrong assumption it exists to rule
-# out. With no board it runs its CRC self-test and says what it skipped.
-# test_parity.py needs one too, but for the opposite reason: with no board
-# both sides of the comparison are the stand-in and it is trivially true, so
-# it skips itself rather than passing. Not listed - a cable-less run of it is
-# not a failure to explain.
+# CONFORMANCE is listed because a stand-in cannot stand in for it - it is an
+# independent byte-level master, and a simulated slave would be the shared
+# wrong assumption it exists to rule out. test_parity is not: with no board
+# both sides are the stand-in and it skips itself rather than passing.
 NEEDS_BOARD = (CONFORMANCE,)
 
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')

@@ -1,22 +1,19 @@
 /**
   ******************************************************************************
   * @file    board_pwm.c
-  * @brief   The three-phase gate drivers: duty in, gates out, and the interlocks.
+  * @brief   The three-phase gate drivers: duty in, gates out, the interlocks.
   *
-  * TIM1 CH1/CH1N, CH2/CH2N and CH3/CH3N drive the three 2EDL8034 half bridges
-  * on PE8..PE13; PE15 is TIM1_BKIN. This file owns the compare registers and
-  * the master output enable. It does NOT configure the timer - see
-  * Board_PwmReady().
+  * TIM1 CH1/CH1N..CH3/CH3N drive the three 2EDL8034 half bridges on
+  * PE8..PE13; PE15 is TIM1_BKIN. This owns the compare registers and MOE, not
+  * the timer's configuration - see Board_PwmReady().
   *
-  * Written against the CMSIS registers rather than the htim1 handle: the
-  * write that matters - clearing MOE - is then one store that cannot fail
-  * partway, and drops every output to its idle level without the timer.
+  * CMSIS registers rather than the htim1 handle: clearing MOE is then one
+  * store that cannot fail partway, and drops every output to its idle level
+  * without the timer.
   *
-  * Nothing here judges a duty. The board is a dumb slave (invariant 10): it
-  * takes compare ticks and reports what it took. What it will NOT do is
-  * accept anything at all until the timer exists and has been armed on
-  * purpose, because on the other side of these six pins are gate drivers
-  * with FETs fitted.
+  * Nothing here judges a duty (invariant 10). What it will NOT do is accept
+  * anything until the timer exists and has been armed on purpose, because on
+  * the other side of these six pins are gate drivers with FETs fitted.
   ******************************************************************************
   */
 #include "board.h"
@@ -488,28 +485,17 @@ bool Board_PwmInit(void)
     return false;
   }
 
-  /* The update interrupt the dither runs on is NOT enabled here: an
-     interrupt that does nothing should not run at 50 kHz. Measured, it
-     costs less than it looks - worst keepalive gap 190.4 us with it on
-     against 186.5 off, and the edge rate 71.4 kHz against 75.1. Both are
-     inside the noise of what else the loop is doing. */
+  /* The dither's update interrupt is NOT enabled here - one that does
+     nothing should not run at 50 kHz. Measured, it is cheap anyway: worst
+     keepalive gap 190.4 us on against 186.5 off. */
   HAL_NVIC_SetPriority(TIM1_UP_IRQn, 2, 0);
 
-  /* The six gate signals, at a speed CubeMX does not set.
-   *
-   * MX_TIM1_Init's MSP configures PE8..PE13 with GPIO_SPEED_FREQ_LOW -
-   * its default when the .ioc names no speed - and measured over SWD,
-   * GPIOE OSPEEDR read 0x00000300: every one of the six at 00. A slow
-   * edge into the 2EDL8034's TTL input holds the input stage in its
-   * linear region while it crosses, and the driver dissipates the
-   * difference. Reported from the bench: two of the three drivers ran
-   * much hotter than the FETs they drive.
-   *
-   * The .ioc carries the speed now as well, so a regeneration keeps it.
-   * This is here because the MSP runs inside HAL_TIM_Init and undoes
-   * anything set before it, and because a driver heating for want of one
-   * register field should not depend on remembering to regenerate.
-   */
+  /* The six gate signals, at a speed CubeMX does not set. Its MSP leaves
+     PE8..PE13 at GPIO_SPEED_FREQ_LOW - OSPEEDR read 0x00000300 over SWD -
+     and a slow edge holds the 2EDL8034's input stage in its linear region
+     while it crosses. From the bench: two drivers ran much hotter than the
+     FETs. Here because the MSP runs inside HAL_TIM_Init and undoes anything
+     set before it. */
   {
     GPIO_InitTypeDef gate = {0};
 
@@ -558,16 +544,12 @@ bool Board_PwmInit(void)
 }
 
 
-/* Dead time, at runtime.
+/* Dead time, at runtime. 20 ns is a FLOOR, not a default: the 2EDL8034 has
+ * no interlock, so this is the only thing between the two FETs of a leg, and
+ * asking for less gets 20 ns and a sentence.
  *
- * The floor is 20 ns and it is a floor, not a default: the 2EDL8034 has no
- * interlock of its own, so this number is the only thing between the two
- * FETs of a leg, and a caller that asks for less gets 20 ns and is told.
- *
- * DTG is not linear. Only the low range - DTG[7:5] == 0 - steps by one
- * t_DTS; above it the encoding stretches. This uses the low range alone,
- * which caps it at 127 x t_DTS, 535 ns at 237.5 MHz. That is six times what
- * this bridge needs and the arithmetic stays one multiply.
+ * DTG is not linear - only the low range steps by one t_DTS. This uses that
+ * alone, capping at 127 x t_DTS = 535 ns, six times what the bridge needs.
  */
 #define BOARD_PWM_DEADTIME_MIN_NS 20U
 #define BOARD_PWM_DTG_MAX 127U
@@ -649,23 +631,15 @@ const char *Board_PwmSetDeadTime(uint32_t ns)
 }
 
 
-/* The skew, which is why the update runs twice a period.
+/* The skew, and why the update runs twice a period.
  *
- * TIM1's dead time generator puts the same DTG on both transitions, so a
- * skew cannot come from moving a compare register - that shifts the whole
- * transition and leaves the gap alone. What it can come from is writing DTG
- * itself between the two: with RCR 0 the update event lands at every
- * overflow AND every underflow, so the handler gets a turn ahead of each
- * transition and gives it its own number.
+ * DTG is the same on both transitions, so a skew cannot come from a compare
+ * register - only from writing DTG between them. RCR 0 puts an update at
+ * every overflow AND underflow, so the handler gets a turn ahead of each.
  *
- * The sign is which way round: positive lengthens the dead time on the
- * transition the counter reaches going up and shortens the other by the
- * same, so the pair still averages what Board_PwmSetDeadTime was asked for.
- * Neither half is allowed under the floor.
- *
- * NOT MEASURED. What it does to the gates needs two probes and a scope; all
- * that is checked here is that DTG reads back what the handler last wrote
- * (invariant 10).
+ * Positive lengthens the up-count transition and shortens the other by the
+ * same, so the pair averages what was asked for. Neither half goes under the
+ * floor. NOT MEASURED on the gates - only that DTG reads back (invariant 10).
  */
 const char *Board_PwmSetDeadTimeSkew(int8_t counts)
 {

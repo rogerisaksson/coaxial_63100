@@ -4,34 +4,22 @@
   * @brief   The board's three serial ports as dev_serial_t, and the only file
   *          that touches a USART or its interrupt.
   *
-  * Register-level, not HAL_UART_Receive: the protocol needs a single-byte take
-  * with no state machine in the way and explicit control of the sticky error
-  * flags.
+  * Register-level, not HAL_UART_Receive: a single-byte take with no state
+  * machine in the way and explicit control of the sticky error flags.
   *
   * USART3 is the debug probe's VCP, console or Modbus. USART2 and UART5 are
-  * RS485 and carry Modbus only - no console on a bus with other devices on it.
+  * RS485 and carry Modbus only.
   *
-  * **All three receive on interrupt, each byte carrying the tick it arrived
-  * at.** Every frame on the segment lands here, ours or not, and RTU delimits
-  * by silence. Polling from the main loop timestamped a byte when the loop got
-  * round to it, so the measured silence was the loop's, not the bus's.
+  * ALL THREE RECEIVE ON INTERRUPT, each byte carrying its arrival tick. RTU
+  * delimits by silence, and polling timestamped a byte when the loop got to
+  * it. THE FIFO IS DISABLED on every port, so the receiver holds ONE
+  * character - 87 us at 115200 - and a 1.5 ms IMU cargo loses every byte
+  * after the first. USART3 was polled until 2026-08-29 and cost 0.45 % of
+  * frames: 1393 requests, 7 silent, char_overrun +7 to match.
   *
-  * THE FIFO IS DISABLED on every port, so the receiver holds ONE character -
-  * 87 us at 115200. A 276-byte IMU cargo at 1.48 MHz blocks for 1.5 ms, which
-  * is seventeen character times, and every character after the first is lost.
-  * Seventeen is how many arrive during the block, not a depth: with no FIFO it
-  * is the SECOND byte that overruns. A latched ORE then ends reception here
-  * until ICR clears it.
-  *
-  * USART3 was polled until 2026-08-29 on the reasoning that the master on it
-  * is a person or a script rather than a bus. Measured, that cost 0.45 % of
-  * frames - 1393 requests, 7 silent, char_overrun +7 to match - and it was the
-  * intermittent Modbus silence FINDINGS had open.
-  *
-  * **They hear themselves.** RE is tied to GND on both THVD1450s (RS485.SchDoc,
-  * U5 and U6 pin 2 on the GND net), so the receiver stays on while hardware DE
-  * drives and every transmitted byte comes back. put() purges afterwards -
-  * without it the reply lands in the receiver as a request.
+  * THEY HEAR THEMSELVES. RE is tied to GND on both THVD1450s, so every
+  * transmitted byte comes back and put() purges afterwards - without it the
+  * reply lands in the receiver as a request.
   ******************************************************************************
   */
 #include "board.h"

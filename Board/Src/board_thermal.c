@@ -3,27 +3,16 @@
   * @file    board_thermal.c
   * @brief   Runs the lumped observer on this hardware.
   *
-  * `Thermal/` is the network and knows no hardware. This file is the bridge:
-  * it reads the NTC, gathers what the board is doing now, and steps the model
-  * from the main loop.
+  * `Thermal/` is the network and knows no hardware. This reads the sensors,
+  * gathers what the board is doing, and steps the model from the main loop.
   *
-  * MEASURED AND ESTIMATED
-  * The NTC is a measurement. Everything else is an estimate from power and
-  * time, and the two must never be mixed in the reply - `0x6E` device 8 keeps
-  * them in separate fields for exactly that reason. Invariant 10 holds: the
-  * board reports, it does not judge, and an estimate that looks like a
-  * measurement is the confusion invariant 9 exists for.
+  * The NTC is a MEASUREMENT; every node is an estimate. `0x6E` device 8 keeps
+  * them in separate fields, and invariant 9 is why.
   *
-  * The NTC needs AFE_ON, which the gate drivers share through an inverted
-  * gate. Rather than sit blind, the observer BORROWS the rail: it acquires it
-  * through `board_power.h`, waits for the reference, reads, and gives it
-  * back. `Board_PowerAcquire` refuses while the stage is armed, so a run at
-  * duty is never interrupted and the model carries on open there.
-  *
-  * Borrowing costs the state it measures: 300 ms of settle per sample takes
-  * the drivers' supply away for that long. Every 60 s that is 0.5 % of the
-  * time in the wrong state, which against tau 6.8 min does not move the
-  * equilibrium - measured on the bench 2026-08-28 as 0.42 s a sample.
+  * All three thermometers sit behind AFE_ON, which the gate drivers share
+  * through an inverted gate. The observer borrows the rail, reads, and gives
+  * it back; `Board_PowerAcquire` refuses while the stage is armed, so a run
+  * at duty is never interrupted and the model carries on open.
   ******************************************************************************
   */
 #include "board.h"
@@ -45,31 +34,18 @@ _Static_assert(BOARD_THERMAL_NODES == (int)THERMAL_NODES,
                "board.h's node count and thermal.h's enum disagree - the "
                "reply array would be written past its end");
 
-/** How often the rail is borrowed for an NTC sample, by default.
-  *
-  * Five seconds against a 6.8-minute time constant is 80 samples a tau, so
-  * the anchoring sees the board move rather than jumping to it. The cost is
-  * the settle below: 300 ms in 5000 is 6 % of the time with the drivers
-  * unpowered, which is why it is settable and why the gate stage refuses it
-  * outright rather than trading it off. */
+/** How often the rail is borrowed for a sample, by default. Five seconds is
+  * 80 samples a tau, and the settle below is the cost of each. */
 #define THERMAL_SAMPLE_EVERY_MS 5000U
 
-/** How long the reference is given before the sample is believed.
+/** Settle before the sample is believed.
   *
-  * MEASURED 2026-08-28, paired A/B, 12 pairs alternating which went first so
-  * the board's own drift cancels: 500 ms minus 100 ms is +0.005 K with a
-  * standard error of 0.008 K - 0.6 sigma, and below the NTC's own 30 mK
-  * quantisation. The reference is up well before 100 ms.
-  *
-  * An earlier reading of the same question was wrong and is worth keeping:
-  * four samples ALL taken at 300 ms agreed to 50 mK, which was read as "the
-  * settle is done". It is not evidence - four samples taken equally early
-  * would agree equally well while all being equally wrong. Only the paired
-  * difference answers it.
-  *
-  * 500 ms rather than 100 because the margin is free: sampling is refused
-  * outright while the gate stage is armed, so the extra 400 ms is only ever
-  * spent on an idle board. */
+  * Paired A/B, 12 pairs, 2026-08-28: 500 ms minus 100 ms is +0.005 K, sem
+  * 0.008 - 0.6 sigma, under the NTC's 30 mK quantisation. The reference is up
+  * before 100 ms. An earlier reading took four samples ALL at 300 ms, saw
+  * 50 mK spread and called the settle done; equally early samples agree
+  * equally well while being equally wrong. 500 because the margin is free -
+  * sampling is refused while the stage is armed. */
 #define THERMAL_SAMPLE_SETTLE_MS 500U
 
 static thermal_t      s_th;
@@ -127,17 +103,9 @@ void Board_ThermalInit(void)
   s_ready = true;
 }
 
-/** Borrow the AFE rail, read EVERY thermometer, give it back.
-  *
-  * All three sit behind the same switch, so one borrow serves all of them -
-  * three observations for one 500 ms perturbation instead of three. Reading
-  * them separately would triple the time the gate drivers spend unpowered
-  * and buy nothing, because they are never available apart.
-  *
-  * Spread over several polls rather than blocking: the settle is 500 ms and
-  * the main loop also carries the STO keepalive, which is the one thing that
-  * must not stop.
-  */
+/** Read every thermometer. One borrow serves all three - they are never
+  * available apart, so reading them separately would triple the time the
+  * drivers spend unpowered and buy nothing. */
 static void sense_read(thermal_sense_t *out)
 {
   int32_t raw = 0, centi = 0;

@@ -3,39 +3,29 @@
   * @file    board_imu.c
   * @brief   The BNO08X on SPI2: the bytes, and nothing about what they mean.
   *
-  * SHTP framing and SH-2 decoding are in Shtp/, hardware-free and tested on a
-  * host. This file is the other half - chip select, clocking, and the length
-  * field's one job of saying how many bytes to ask for next.
+  * SHTP framing and SH-2 decoding are in Shtp/, hardware-free. This is the
+  * other half - chip select, clocking, and the length field.
   *
-  * What CubeMX generated does not match the part, and this fixes what it can
-  * at runtime rather than editing Core/, which CubeMX owns and regenerates.
-  * Datasheet BNO080_085 v1.17, in datasheets/:
+  * CubeMX does not match the part (BNO080_085 v1.17), and this fixes it at
+  * runtime rather than editing Core/, which CubeMX regenerates:
   *
-  *   - SPI mode 3, CPOL=1 CPHA=1 (1.2.4.2, 6.5.2); the .ioc says mode 0.
-  *   - byte oriented, "all data is passed in 8-bit segments" (1.2.4.2); the
-  *     .ioc says SPI_DATASIZE_4BIT.
-  *   - "Any number of bytes can be transferred in a single transaction (chip
-  *     select assertion)" (1.2.4.2), so CS must be held across header and
-  *     cargo both. Hardware NSS with NSSP pulses it per frame, which would
-  *     end the transaction between the two. PB12 is driven as plain GPIO
-  *     instead, which overrides the MSP's alternate-function setting.
+  *   - SPI mode 3, not the .ioc's mode 0 (1.2.4.2, 6.5.2)
+  *   - byte oriented, not SPI_DATASIZE_4BIT (1.2.4.2)
+  *   - CS held across header AND cargo (1.2.4.2), so PB12 is plain GPIO;
+  *     hardware NSS pulses per frame and would end the transaction between
   *
-  * H_INTN is on PD8 (`SPI0.INT`, a straight wire) and does assert: `feature()`
-  * alone works and that needs the wake acknowledge. An earlier reading of 77
-  * highs is retracted - each was a Modbus round trip 15 ms apart against a
-  * microsecond pulse, so it could not have caught one (FINDINGS).
+  * H_INTN on PD8 does assert - `feature()` needs the wake acknowledge and
+  * works. An earlier reading of 77 highs is retracted: Modbus round trips
+  * 15 ms apart cannot catch a microsecond pulse (FINDINGS).
   *
-  * The header is polled anyway, rate limited, because catching the edge is not
-  * guaranteed. `Board_ImuPoll` used to return every turn unless H_INTN was
-  * asserted at the instant it looked, leaving the part streaming at 50 Hz into
-  * a loop that read none - a direct probe then clocked out real cargoes
-  * (`14 00 02 00 f1 00 84`, 20 bytes on channel 2). The datasheet wants H_INTN
-  * serviced "within 1/10 of the fastest sensor period" (1.2.4.1); the poll is
-  * the bounded fallback, and the wake gate a last resort, not a refusal.
+  * The header is polled anyway, rate limited: catching the edge is not
+  * guaranteed, and without it the part streamed at 50 Hz into a loop that
+  * read none.
   ******************************************************************************
   */
 #include "board.h"
 #include "board_hw.h"
+#include "board_power.h"
 #include "shtp.h"
 
 #include <string.h>
@@ -710,6 +700,58 @@ static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
 static uint8_t  s_stage;
 static uint32_t s_stage_at;
 
+/** The last Set Feature asked for, so it can be asked for again.
+  *
+  * THE PART LOSES IT ON EVERY RESET, and AFE_ON resets it - the poll's own
+  * comment below says so. Nothing re-applied it, so one blink of the rail
+  * stopped the reports for good and the loop went on reporting `running`
+  * with `updates` frozen. That reads exactly like a dead part; measured
+  * 2026-08-29, it cost an hour and a reflash of an older firmware.
+  *
+  * Zero interval means nothing has been asked for, which is the state a
+  * board comes up in. */
+static uint8_t  s_feature_id;
+static uint32_t s_feature_us;
+
+/** Set when a reset has thrown the feature away and it has not been asked
+  * for again yet. Applied from the poll's quiet path, never from the init:
+  * `Board_ImuWrite` empties the part before speaking, a reset leaves three
+  * announcements queued at 276 bytes each, and doing that inside poll_init
+  * held the main loop long enough that the Modbus reply came back late -
+  * measured 2026-08-29 as `fc 0x6E: silence` right after the rail returned.
+  * Letting the ordinary read path consume the queue first makes the write
+  * short. */
+static bool s_feature_pending;
+
+bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us)
+{
+  uint8_t payload[17];
+
+  if (shtp_set_feature(payload, sizeof(payload), report_id, interval_us) == 0U)
+  {
+    return false;
+  }
+  if (!Board_ImuWrite(SHTP_CH_CONTROL, payload, sizeof(payload)))
+  {
+    return false;
+  }
+
+  /* Remembered only once it took. A request that failed is not what the part
+     is doing, and re-applying it after a reset would be a second lie. */
+  s_feature_id = report_id;
+  s_feature_us = interval_us;
+  return true;
+}
+
+void Board_ImuFeatureAsked(uint8_t *report_id, uint32_t *interval_us,
+                           bool *pending)
+{
+  *report_id = s_feature_id;
+  *interval_us = s_feature_us;
+  *pending = s_feature_pending;
+}
+
+
 static void poll_init(void)
 {
   switch (s_stage)
@@ -745,6 +787,11 @@ static void poll_init(void)
       s_stage = IMU_STAGE_BUS;
       s_state.loop = BOARD_IMU_LOOP_RUN;
       note(BOARD_IMU_ERR_NONE);
+
+      /* Ask again for whatever was asked for before the reset - but not
+         here. The part came up with a queue, and emptying it is what makes
+         the write long. Flagged, and done below once the queue is gone. */
+      s_feature_pending = (s_feature_us != 0U);
       return;
   }
 }
@@ -773,6 +820,20 @@ void Board_ImuPoll(void)
     return;                      /* the host is configuring it */
   }
 
+  /* NOT DURING THE OBSERVER'S BORROW. It takes AFE_ON for about 500 ms every
+     few seconds to read the NTC, and this part needs longer than that to come
+     up - so it would start initialising, lose its supply mid-sequence, and do
+     it again on the next borrow. Reset after reset, an errors counter that
+     climbs and a part that never reports.
+
+     A borrow is a measurement window, not a power-up. Who holds the rail is
+     the reference count's to say, which is what BOARD_USER_THERMAL is for. */
+  if (Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
+  {
+    return;
+  }
+
+
   if (s_state.loop == BOARD_IMU_LOOP_OFF)
   {
     s_state.loop = BOARD_IMU_LOOP_INIT;
@@ -790,6 +851,15 @@ void Board_ImuPoll(void)
      `poll_due` is the second half, and here the only half - see the file
      comment. With only the line above, this returned every turn and the part
      streamed rotation vectors nobody collected. */
+  /* Nothing queued and the feature still missing: this is the quiet moment
+     the re-apply was waiting for. The part has been drained by the reads
+     above, so the write's own drain finds nothing and costs 115 us. */
+  if (s_feature_pending && !intn_asserted())
+  {
+    s_feature_pending = !Board_ImuSetFeature(s_feature_id, s_feature_us);
+    return;
+  }
+
   if (!intn_asserted() && !poll_due())
   {
     return;

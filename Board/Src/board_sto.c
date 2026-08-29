@@ -4,20 +4,15 @@
   * @brief   What the board can see of the Safe Torque Off chain.
   *
   * Gate driver supply is not the MCU's to switch and there is no pin for it.
-  * A chain on STO.SchDoc releases it, unlocked by a common-mode pilot tone the
-  * MASTER injects on the RS485 pair; leaky integrators turn "still arriving"
-  * into a supply, so the level decays when it stops. docs/HARDWARE.md has the
-  * extraction.
+  * A chain on STO.SchDoc releases it, unlocked by a common-mode pilot tone
+  * the MASTER injects on the RS485 pair. docs/HARDWARE.md has the extraction.
   *
-  * This file reads, and only reads. Two ADC channels bring the chain back:
+  * This file only reads. Two ADC channels bring the chain back: `Cinj`, the
+  * recovered pilot, and `Clevel`, the integrator level.
   *
-  *   Cinj    the recovered pilot, off the detector
-  *   Clevel  the integrator level - the margin before the chain drops out
-  *
-  * It does NOT decide whether the chain released: that needs a threshold on
-  * Clevel, and invariant 10 puts thresholds in a test executive beside a
-  * calibrated instrument. The one verdict allowed here is provable from a
-  * register - TIM1's break latch, nFAULT on PE15, (STOP) on the MCU sheet.
+  * It does NOT decide whether the chain released - that needs a threshold,
+  * and invariant 10 puts thresholds in a test executive. The one verdict
+  * allowed here is provable from a register: TIM1's break latch.
   ******************************************************************************
   */
 #include "board.h"

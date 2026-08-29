@@ -20,16 +20,11 @@
 #include "wire.h"
 
 
-/** What the link can carry, in records per second, at this record size.
+/** What the link can carry in records per second at this record size.
   *
-  * Both terms move: the size is the task's stride or the ring's 14 bytes,
-  * and the baud is whichever port is answering - the debug probe's VCP and
-  * a 10 Mbit RS485 segment are the same code and very different answers.
-  *
-  * The share is measured, not derived. What it leaves out is the request,
-  * the turnaround and the host's own latency, none of which this board can
-  * compute. Two devices ask: the acquisition task, to pick its own rate,
-  * and the ring, to stop one source crowding out another.
+  * Both terms move: the stride, and whichever port is answering. The share is
+  * measured, not derived, and leaves out the request, the turnaround and the
+  * host's latency - none of which this board can compute.
   */
 uint32_t cmd_link_records_per_second(uint16_t record_bytes)
 {

@@ -364,12 +364,8 @@ float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
   return ntc_c - cfg->ntc_offset - cfg->ntc_sees_drivers * driver_rise_k;
 }
 
-/** Pull one node to its own die reading, and return the board that implies.
-  *
-  * The node sits at board + P*theta, both of which the model carries, so
-  * subtracting them turns a die reading into a board reading - one that owes
-  * nothing to the NTC's position beside a gate driver.
-  */
+/** Pull one node to its die, and return the board that implies: the node is
+  * board + P*theta, so subtracting reaches the board without the NTC. */
 static float anchor_die(thermal_t *th, thermal_node_t node, float seen,
                         const thermal_power_t *p, float k)
 {
@@ -423,10 +419,8 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
                             * dt_s / b->capacity;
   }
 
-  /* Anchor. Every die that answered corrects its own node and hands back the
-     board it implies; the board is pulled toward their mean. The NTC then
-     only has to explain what is left, which is the drivers' own rise - the
-     one thing its position makes it good at. */
+  /* Each die corrects its node and implies a board; the board takes their
+     mean. The NTC then explains only the drivers' rise. */
   const float k = THERMAL_ANCHOR_HZ * dt_s;
   float implied = 0.0f;
   int dies = 0;
@@ -447,10 +441,8 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
     th->t[THERMAL_BOARD] += k * (implied / (float)dies
                                  - th->t[THERMAL_BOARD]);
 
-    /* Settled is about the BOARD, not the drivers. A die anchors it without
-       anyone having to guess how much of the NTC's reading is hot spot, and
-       that is exactly the guess the flag exists to warn about. The drivers
-       node is a separate question, and the NTC below is what answers it. */
+    /* Settled is about the BOARD. A die anchors it without guessing how
+       much of the NTC is hot spot, which is the guess the flag warns of. */
     th->settled = true;
 
     if (!isnan(seen->ntc_c))

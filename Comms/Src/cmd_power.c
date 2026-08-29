@@ -3,15 +3,12 @@
   * @file    cmd_power.c
   * @brief   The rail reference counts behind 0x6E, device 9.
   *
-  * WHY A RAIL'S USERS ARE ON THE WIRE AT ALL. A count that will not reach
-  * zero says only that something is holding the rail; the bitmask says which
-  * subsystem, and that is the difference between a diagnosis and a guess.
-  * The failure this answers has happened: the observer took AFE_ON, the host
-  * then talked hard enough to starve the poll that would have released it,
-  * and the rail stayed high with nothing on the wire to say why.
+  * The mask says WHICH subsystem holds a rail, which is the difference
+  * between a diagnosis and a guess - the observer once took AFE_ON, a
+  * starved poll never released it, and nothing on the wire said why.
   *
-  * `on` is the PIN, read back, not what the count implies. They should agree,
-  * and the whole point of reporting both is the case where they do not.
+  * `on` is the PIN, read back. Reporting both is for the case where the pin
+  * and the count disagree.
   *
   * Ops:
   *   0  state        - u8 rails, then per rail: on, users, count, blocked, leased

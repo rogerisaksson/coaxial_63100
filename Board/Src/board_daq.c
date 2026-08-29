@@ -2,29 +2,24 @@
   ******************************************************************************
   * @file    board_daq.c
   * @brief   One acquisition task: configure, start, read. DAQmx's shape, cut
-  *          down to what this board actually has.
+  *          down to what this board has.
   *
-  * One task, not many: a card with its own sequencer runs several, this is one
-  * MCU with three converters and one timer, and pretending otherwise puts the
-  * arbitration where it cannot be honoured.
+  * One task, not many: three converters and one timer, and pretending
+  * otherwise puts the arbitration where it cannot be honoured.
   *
-  * What a task owns:
-  *
-  *   channels     which of the ADC table's rows, as a bitmask
-  *   clock        SOFTWARE - the main loop, as fast as it gets round
-  *                TIM1     - the injected group, one record per PWM period
-  *   sample_time  0..7, the converter's own sampling window
+  *   channels     which ADC rows, as a bitmask
+  *   clock        SOFTWARE (the main loop) or TIM1 (the injected group)
+  *   sample_time  0..7, the converter's own window
   *   decimate     keep one trigger in N
-  *   accumulate   sum N samples into each record before it is pushed
-  *   records      stop after this many, or 0 to run until stopped
+  *   accumulate   sum N samples per record
+  *   records      stop after this many, 0 to run until stopped
   *
-  * The buffer is bytes and the stride comes from the config: `u32 at` then one
-  * `i32` per enabled channel. So no host holds a copy of the record shape - it
-  * asks for the layout and the board names every field, as `0x6D` does for the
-  * channels. A shape written in a header here and mirrored in a decoder there
-  * is two answers to one question, and the mirror goes stale.
+  * The buffer is bytes and the stride comes from the config, so no host holds
+  * a copy of the record shape - it asks for the layout and the board names
+  * every field. A shape written here and mirrored in a decoder is two answers
+  * to one question, and the mirror goes stale.
   *
-  * Accumulation sums rather than averaging: summing keeps the bits an average
+  * Accumulation SUMS rather than averages: it keeps the bits an average
   * throws away, and a host that wants the mean has the count.
   ******************************************************************************
   */
@@ -499,17 +494,10 @@ bool Board_DaqField(uint8_t field, uint8_t *channel)
 }
 
 
-/** AFE_ON off means every channel reads exact mid-scale, because it powers
-  * the ADC's reference and not just the signal path - invariant 9. So the
-  * task stops and the buffers are emptied rather than left holding numbers
-  * that look like readings. An accumulator carrying half a window of real
-  * samples and half a window of mid-scale is worse than an empty one: it
-  * would divide out to something plausible and there is no field that would
-  * say so.
-  *
-  * It also puts the converters and both poll loops down between bursts,
-  * which is where the board's heat comes from when nothing is being
-  * measured.
+/** AFE_ON off means every channel reads exact mid-scale - it powers the ADC
+  * reference, not just the signal path (invariant 9). The task stops and the
+  * buffers empty: an accumulator holding half real samples and half
+  * mid-scale divides out to something plausible with no field to say so.
   */
 static bool powered(void)
 {

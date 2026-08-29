@@ -8,23 +8,17 @@ lives in two files.
 import re
 import sys
 
-# Every view draws glyphs outside ASCII - box rules, half blocks, bars. A
-# console handles them; a PIPE does not, because Python then takes the
-# encoding from the locale, which on this machine is cp1252. Measured:
-# `show_desk.py --frames 1 | anything` died with UnicodeEncodeError on the
-# meter bridge before the first frame reached the pipe.
-#
-# `replace` rather than `strict`: a view redirected to a log is worth reading
-# with a few glyphs substituted, and is worth nothing as a traceback.
+# A pipe takes its encoding from the locale, cp1252 here, and every view
+# draws glyphs outside ASCII. Measured: `show_desk.py | anything` died with
+# UnicodeEncodeError before the first frame. `replace`, not `strict` - a log
+# is worth reading with glyphs substituted and worthless as a traceback.
 try:
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 except (AttributeError, ValueError):    # not a reconfigurable stream
     pass
 
-#: What leaves a view, and where it leaves you. Q closes the lot; ESC goes
-#: back to the menu, because picking the wrong view is the common mistake and
-#: retyping the command to fix it is the annoying part. Ctrl+C still works and
-#: still lands in the same `finally`.
+#: Q closes, ESC goes back to the menu - picking the wrong view is the common
+#: mistake. Ctrl+C lands in the same `finally`.
 QUIT_KEYS = frozenset({'q', 'Q'})
 MENU_KEYS = frozenset({chr(27)})
 
@@ -33,16 +27,11 @@ MENU_KEYS = frozenset({chr(27)})
 #: mistaken for Ctrl+C.
 TO_MENU = 64
 
-#: Windows console input flags. A console hands mouse movement to the
-#: program as MOUSE_EVENT records, which `msvcrt.getwch` cannot see - it
-#: returns key events and nothing else. Setting VIRTUAL_TERMINAL_INPUT makes
-#: the console translate them into the same SGR sequences an xterm sends, so
-#: one parser serves both. QUICK_EDIT has to go: it keeps the mouse for
-#: selecting text and the program never hears about it. EXTENDED_FLAGS is
-#: what makes clearing QUICK_EDIT stick.
-#:
-#: Without this the wheel does nothing at all on Windows, whatever the
-#: program prints to turn reporting on.
+#: Windows console input flags. VIRTUAL_TERMINAL_INPUT makes the console
+#: send mouse movement as the SGR sequences an xterm does, so one parser
+#: serves both; QUICK_EDIT keeps the mouse for selecting text and has to go,
+#: and EXTENDED_FLAGS is what makes clearing it stick. Without this the wheel
+#: does nothing on Windows whatever the program prints.
 VT_INPUT = 0x0200
 MOUSE_INPUT = 0x0010
 EXTENDED_FLAGS = 0x0080
@@ -61,10 +50,8 @@ def console_mode(was):
             & ~QUICK_EDIT & ~LINE_INPUT & ~ECHO_INPUT)
 
 
-#: Mouse reporting, xterm's SGR encoding. 1002 is button-and-drag; 1006 is
-#: the encoding that survives a terminal wider than 223 columns - the older
-#: one packs each coordinate into one byte and stops reporting past that,
-#: which on a full-screen window is most of it.
+#: xterm SGR mouse reporting. 1002 is button-and-drag; 1006 survives a
+#: terminal wider than 223 columns, where the older encoding stops.
 MOUSE_ON = '\033[?1002h\033[?1006h'
 MOUSE_OFF = '\033[?1006l\033[?1002l'
 
@@ -100,10 +87,8 @@ def say(state, text, detail=''):
 def clear(console):
     """Wipe the screen and put the cursor home.
 
-    Called on the way out as well as on the way in: a view leaves a drawing
-    behind that is no longer a reading of anything, and the lines saying what
-    was put back belong on a clean screen rather than under a picture of the
-    board as it was two seconds ago.
+    On the way out too: a view leaves a drawing that is no longer a reading
+    of anything, and what was put back belongs on a clean screen.
     """
     if console:
         sys.stdout.write(chr(27) + '[2J' + chr(27) + '[H')
@@ -139,25 +124,19 @@ def _set_console_mode(restore=None):
 
 class Keys:
 
-    """Non-blocking key reads, for a view that has to keep drawing.
+    """Non-blocking key reads, for a view redrawing at 8 to 20 Hz.
 
-    A view cannot block on input - it is redrawing at 8 to 20 Hz - so this
-    only ever asks whether a key is already waiting. On Windows that is
-    msvcrt and needs no terminal mode at all; elsewhere the terminal has to
-    be taken out of line mode first, and put back afterwards whatever
-    happens, which is what the context manager is for.
-
-    Off when there is no terminal: a view piped to a file has no keyboard,
-    and reading stdin there would eat the pipe.
+    Only ever asks whether a key is already waiting. Windows needs no
+    terminal mode; elsewhere it comes out of line mode and goes back
+    afterwards, which is what the context manager is for. Off with no
+    terminal - reading stdin from a pipe would eat it.
     """
 
     #: One SGR mouse report: ESC [ < button ; column ; row (M press, m release)
     MOUSE_RE = re.compile(r'\033\[<(\d+);(\d+);(\d+)([Mm])')
 
-    #: The four arrows, as the terminal sends them. They start with ESC, and
-    #: ESC on its own is what leaves a view - so an arrow press read as "back
-    #: to the menu" and closed whatever was being adjusted. Pulled out of the
-    #: buffer before the lone-ESC test ever sees them.
+    #: Arrows start with ESC, and a lone ESC leaves the view - so pressing
+    #: one closed whatever was being adjusted. Taken out before that test.
     ARROW_RE = re.compile(r'\033\[([ABCD])')
 
     #: What a view binds against, so no view has to know the escape codes.

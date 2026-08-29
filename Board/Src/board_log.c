@@ -1,24 +1,19 @@
 /**
   ******************************************************************************
   * @file    board_log.c
-  * @brief   One ring for every measurement this board takes, drained over the
-  *          wire in bursts.
+  * @brief   One ring for every measurement, drained over the wire in bursts.
   *
-  * The point is buffered reads. One question per sample is one sample per
-  * round trip - measured, a 53-byte reply at 115200 is 4.6 ms, so 217/s is
-  * the ceiling however fast the board sampled. The board writes at its own
-  * rate; the host takes fifteen at a time.
+  * One question per sample is one sample per round trip - a 53-byte reply at
+  * 115200 is 4.6 ms, so 217/s is the ceiling however fast the board sampled.
+  * The board writes at its own rate; the host takes fifteen at a time.
   *
   * Producers are mixed: Board_SyncOnInjected in ADC3's interrupt at 50 kHz,
-  * the angle and IMU loops in main(). The consumer is the command layer, also
-  * in main(). The only preemption is the ISR landing between a main-loop
-  * producer's read and its write, which is exactly the size a PRIMASK
-  * critical section covers - a mutex would need a scheduler there is none of.
+  * the angle and IMU loops in main(). The only preemption is the ISR landing
+  * between a main-loop producer's read and its write, which is the size a
+  * PRIMASK section covers - a mutex would need a scheduler there is none of.
   *
-  * Full drops the newest rather than overwriting the oldest: a hole at a known
-  * place beats one that silently slid, and `dropped` counts them. Nothing here
-  * judges a sample - raw codes and a timestamp, conversions where they were
-  * defined (invariant 7).
+  * Full drops the NEWEST: a hole at a known place beats one that silently
+  * slid, and `dropped` counts them.
   ******************************************************************************
   */
 #include "board.h"

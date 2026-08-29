@@ -604,19 +604,12 @@ class _BroadcastRefuses:
         return refuse
 
 
-# Five buses, one per limb plus the axis. A bus is a serial segment, which
-# is how a machine like this is actually wired: shorter runs, one limb's
-# fault confined to one limb, and four segments that can carry traffic at
-# once instead of twenty nodes taking turns on one.
+# Five buses, one per limb plus the axis - shorter runs, a limb's fault
+# confined to it, and four segments carrying traffic at once.
 #
-# That makes the odd/even trick redundant - the bus says the side - so the
-# unit id says the position down the limb instead. Node 2 is the knee on LL
-# and on RL, which is worth more to a controller than a unique number.
-#
-# Two-letter labels, not emoji. spinner.py records the width problem with
-# forced-colour glyphs twice over, and this is a column-aligned table, which
-# is where it shows worst. AX for the axis, which is what the docs and the
-# tests already call it.
+# The bus says the side, so the unit id says the position down the limb:
+# node 2 is the knee on LL and on RL, which is worth more than a unique
+# number. Two-letter labels, not emoji - this is a column-aligned table.
 SIMULATED_BUSES = {
     # label: (what it serves, {unit: (name, type, where)})
     'LL': ('left leg', {

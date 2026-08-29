@@ -718,6 +718,17 @@ bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
   */
 bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len);
 
+/** Ask the part to report `report_id` every `interval_us`, and REMEMBER it.
+  *
+  * The BNO08X forgets on reset and AFE_ON resets it, so the poll re-applies
+  * this after every init. Without that, one blink of the rail stopped the
+  * reports and the loop still called itself running. */
+bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us);
+
+/** What was last asked for. Interval zero means nothing has been. */
+void Board_ImuFeatureAsked(uint8_t *report_id, uint32_t *interval_us,
+                           bool *pending);
+
 /**
   * @brief  Collect and discard whatever the part has queued.
   * @return How many cargoes were drained.
