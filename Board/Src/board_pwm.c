@@ -449,19 +449,6 @@ void Board_PwmState(board_pwm_state_t *out)
 }
 
 
-/* What the stage starts at. Asked for 2026-08-29, down from 80 ns.
- *
- * KEPT, because it is the arithmetic this replaces rather than disproves:
- * 59.4 ns of worst-corner gate overlap plus the 2EDL8034's 6 ns TDMOFF is
- * about 65 ns needed, and 80 ns was fitted against it. 30 ns is under that
- * figure and above the 20 ns floor. Nothing has been on a scope, and no
- * current has flowed through a leg - the numbers on both sides are still
- * datasheet arithmetic (FINDINGS, invariant 10).
- *
- * t_DTS is 4.21 ns, so this lands on 7 counts = 29.5 ns.
- */
-#define BOARD_PWM_DEADTIME_NS 30U
-
 /* Dead time, at runtime. 20 ns is a FLOOR, not a default: the 2EDL8034 has
  * no interlock, so this is the only thing between the two FETs of a leg, and
  * asking for less gets 20 ns and a sentence.
@@ -563,19 +550,12 @@ bool Board_PwmInit(void)
      is the rate it always ran at. */
   TIM1->RCR = 0U;
 
-  /* The dead time, written here rather than inherited from the .ioc. Twice
-     today a CubeMX regeneration moved a peripheral setting the drivers
-     depend on, and this is the one where a silent move shorts a leg. */
-  {
-    const uint32_t ps = dts_ps();
-    const uint32_t want = (ps != 0UL)
-                        ? ((BOARD_PWM_DEADTIME_NS * 1000UL) / ps) : 0UL;
-    const uint8_t floor_counts = Board_PwmDeadTimeFloor();
-    const uint8_t counts = (uint8_t)((want < floor_counts) ? floor_counts
-                                                           : want);
-
-    TIM1->BDTR = (TIM1->BDTR & ~TIM_BDTR_DTG) | counts;
-  }
+  /* NOT the dead time. This runs before Board_CalInit - it has to, because
+     its job is driving six gate inputs to their idle level and that cannot
+     wait on flash - so the record is not loaded yet and reading it here got
+     zero, which the floor then turned into 21 ns. Whatever the .ioc set
+     stands until main() applies the record, and the stage is not armed in
+     that window. */
   s_deadtime = (uint8_t)(TIM1->BDTR & TIM_BDTR_DTG);
   s_half = 0U;
 

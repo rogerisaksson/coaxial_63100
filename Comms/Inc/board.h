@@ -553,7 +553,12 @@ bool Board_McuDie(int32_t *raw, int32_t *centidegc);
 #define BOARD_CAL_R5_R_BOTTOM 10U  /**< +5 sense divider bottom, ohms       */
 #define BOARD_CAL_VG_R_TOP    11U  /**< gate supply divider top, ohms       */
 #define BOARD_CAL_VG_R_BOTTOM 12U  /**< gate supply divider bottom, ohms    */
-#define BOARD_CAL_PARAM_COUNT 13U
+#define BOARD_CAL_DEADTIME_NS 13U  /**< half-bridge dead time, nanoseconds  */
+/* One past the last id above. It is a COUNT, not a coincidence: op 0
+   walks 0..COUNT-1, so an id added without moving this is a field the
+   board holds and never reports - measured, deadtime_ns read back as
+   absent from a record that had it. */
+#define BOARD_CAL_PARAM_COUNT 14U
 
 /** One channel's correction, applied to the raw code before any scaling. */
 typedef struct
@@ -581,6 +586,14 @@ typedef struct
   uint32_t r5_r_bottom_ohm;
   uint32_t vg_r_top_ohm;
   uint32_t vg_r_bottom_ohm;
+
+  /* The half-bridge dead time. Here and not a #define because it is the
+     one number between the two FETs of a leg, and a compile-time constant
+     means the board carries whatever the last flash happened to hold -
+     measured 2026-08-29, a stale binary reported 79 ns for an hour after
+     the source said 30. In the record it is asked for, stored, and read
+     back. */
+  uint32_t deadtime_ns;
   uint32_t ntc_r25_ohm;
   uint32_t ntc_beta_mk;
   uint32_t ntc_rfixed_ohm;

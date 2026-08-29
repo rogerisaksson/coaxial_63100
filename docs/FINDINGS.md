@@ -1361,3 +1361,46 @@ cannot be checked from a pipe, and nothing in this tree could.
 frame and clears from there down. Every view uses it in place of the `clear`
 it used to do on the way out - clearing wiped the reading and then printed
 the list onto a blank screen, where the prompt could take it with it.
+
+## A minute of dry switching at 30 ns, and the model 20 K under it
+
+Measured 2026-08-29. Three legs at 50 %, 60 s, DTG 7 = 29.5 ns. No trip, no
+throttle, 0 overruns, and the observer stepped through the whole run at
+10 Hz - it runs on power and time while AFE_ON is low, which is what it is
+for.
+
+| | before | after | +40 s |
+|---|---|---|---|
+| NTC | 36.4 C | **51.5** | 46.3 |
+| MCU die | 72 C | 78 | 78 |
+| worst node | mcu 22 % | mcu 18 % | mcu 20 % |
+
+**The model's nodes came back at `drivers` 29.4 and `phases` 28.0 against an
+NTC of 51.5** - and the NTC sits in the drivers' hot spot. It under-predicts
+by about 20 K after a minute of load. The 3 to 4 K gap the four-state rig
+found is the same defect at a hundredth of the excitation.
+
+The loss constant is the suspect: switching loss was modelled at 1.20 W and
+the dead surface measured 2.04 W.
+
+## The dead time was in three places at once
+
+Measured, in one hour: the .ioc said DTG 19, `Board_PwmInit` wrote a #define
+of 30 ns, and the board reported 79 ns because the binary on it predated the
+change. Three answers to one question, and the one that mattered was the
+flash nobody had refreshed.
+
+It lives in the calibration record now, id 13, CAL_VERSION 5. Set it, save
+it, reset, and the board carries it - proven: 45 ns asked, 42 ns held (10
+counts of 4.21 ns), read back from flash after a reset.
+
+Two things this turned up:
+
+* `Board_PwmInit` cannot read the record. It runs before `Board_CalInit` -
+  it has to, its job is driving six gate inputs to their idle level and that
+  cannot wait on flash - so reading the record there got zero and the floor
+  turned it into 21 ns. main() applies it after the record loads; the .ioc's
+  value stands for those few microseconds and nothing is armed.
+* `BOARD_CAL_PARAM_COUNT` is what op 0 walks. Adding an id without moving it
+  is a field the board holds and never reports.
+

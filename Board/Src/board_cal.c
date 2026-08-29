@@ -41,7 +41,9 @@
    trims measured against seven channels do not index nine. */
 /* 4: the thermal envelope joined the record. A stored 3 is refused
    rather than read with the new fields as whatever flash held. */
-#define CAL_VERSION 4U
+/* 5: the half-bridge dead time joined the record. A stored 4 is refused
+   rather than read with the new field as whatever flash held. */
+#define CAL_VERSION 5U
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes. sizeof(board_cal_t) is 104 today. */
@@ -84,6 +86,13 @@ static const board_cal_t CAL_DEFAULTS =
   .r5_r_bottom_ohm  = 10000UL,        /* R113 element 1, PA4 to GND        */
   .vg_r_top_ohm     = 57000UL,        /* R119 47k + R113 element 3 10k     */
   .vg_r_bottom_ohm  = 10000UL,        /* R113 element 4, PA5 to GND        */
+
+  /* 30 ns, asked for 2026-08-29. The arithmetic it replaces: 59.4 ns of
+     worst-corner gate overlap plus the 2EDL8034's 6 ns TDMOFF is about
+     65 ns needed, and 80 ns was fitted against that. Kept here because
+     it is the number a bench can change without a rebuild, and the
+     firmware still refuses anything under its own 20 ns floor. */
+  .deadtime_ns      = 30UL,
   .ntc_r25_ohm      = 10000UL,        /* NCU18XH103D60RB                   */
   .ntc_beta_mk      = 3380000UL,      /* B25/50 = 3380 K, in milli-kelvin  */
   .ntc_rfixed_ohm   = 10000UL,        /* R100, ERA-3AEB103V 0.1 %          */
@@ -222,6 +231,7 @@ static uint32_t *cal_field(uint8_t id)
     case BOARD_CAL_R5_R_BOTTOM:  return &s_cal.r5_r_bottom_ohm;
     case BOARD_CAL_VG_R_TOP:     return &s_cal.vg_r_top_ohm;
     case BOARD_CAL_VG_R_BOTTOM:  return &s_cal.vg_r_bottom_ohm;
+    case BOARD_CAL_DEADTIME_NS:  return &s_cal.deadtime_ns;
     default:                     return NULL;
   }
 }

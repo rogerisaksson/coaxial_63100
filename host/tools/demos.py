@@ -23,6 +23,7 @@ samples, and that is what it was built for.
     python tools/demos.py --simulated
 """
 import argparse
+import json
 import os
 import shutil
 import sys
@@ -42,6 +43,17 @@ ADC_SAMPLES = 16
 
 #: FIELD, from the A1335's register map.
 ANGLE_REG_FIELD = 0x2A
+
+#: Where a running session publishes its last snapshot, so a second
+#: terminal can look without a second serial port. One file, replaced
+#: atomically: a socket would need a port, a protocol and a cleanup path,
+#: and none of that is needed to LOOK at a dashboard.
+SHARED = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                      '.session.json')
+
+#: Older than this and the shared snapshot is not a reading of anything.
+#: Two frames at the session's default rate, plus the slack a burst costs.
+STALE_S = 3.0
 
 #: Seconds the teardown list stays on screen before the process exits.
 TEARDOWN_HOLD = 2.0
@@ -466,6 +478,40 @@ def act_on(session, typed, by_key):
         session.toggle(by_key[typed])
 
 
+def publish(got):
+    """Write the snapshot where a watcher can find it. Best effort.
+
+    Failing to publish must never stop the session drawing: the file is a
+    convenience for a second terminal, not part of owning the board.
+    """
+    try:
+        body = json.dumps({'at': time.time(), 'got': got}, default=str)
+        with open(SHARED + '.tmp', 'w', encoding='utf-8') as handle:
+            handle.write(body)
+        os.replace(SHARED + '.tmp', SHARED)
+    except OSError:
+        pass
+
+
+def shared(stale_s=STALE_S):
+    """(snapshot, age) from a running session, or (None, None).
+
+    None means no session is running - not an error, just nobody publishing.
+    An age past `stale_s` is the same answer: the file outlives the process
+    that wrote it, and a stale dashboard is worse than no dashboard.
+    """
+    try:
+        with open(SHARED, encoding='utf-8') as handle:
+            body = json.load(handle)
+    except (OSError, ValueError):
+        return None, None
+
+    age = time.time() - body.get('at', 0)
+    if age > stale_s:
+        return None, None
+    return body.get('got'), age
+
+
 def frame(session, console, note):
     """Six blocks in three columns, over one line of dash.
 
@@ -475,6 +521,7 @@ def frame(session, console, note):
     terminal truncates rather than wrapping into its neighbour.
     """
     got = snapshot(session)
+    publish(got)
     room = shutil.get_terminal_size((110, 30)).columns
 
     lines = ['', '', banner(session.rig.origin, 'demos', console,
@@ -580,18 +627,76 @@ def leave(port, simulated):
     return 0
 
 
+def watch(hz, frames):
+    """Draw a running session's dashboard, from its published snapshot.
+
+    NO SERIAL PORT. One process owns the board; this reads what that one
+    last saw, so a switching run can be looked at from a second terminal
+    while it runs. The banner says how old the reading is, because a
+    dashboard nobody can date is a dashboard nobody can trust.
+    """
+    console = sys.stdout.isatty()
+    if console:
+        if os.name == 'nt':
+            os.system('')
+        sys.stdout.write(chr(27) + '[2J')
+
+    shown, count, leaving = [], 0, None
+    room = shutil.get_terminal_size((110, 30)).columns
+
+    with Keys(console) as keys:
+        while True:
+            count += 1
+            got, age = shared()
+            if got is None:
+                lines = ['', '', '  no session is publishing - start one with',
+                         '  demo.ps1 and pick `session`, then come back']
+            else:
+                lines = ['', '', '  WATCHING a running session   %.1f s old' % age,
+                         '']
+                lines += grid([[adc_block(got), thermal_block(got),
+                                bridges_block(got)],
+                               [dio_block(got), imu_block(got),
+                                angle_block(got)]], room)
+            lines += ['', '  q quit   ESC menu']
+            sys.stdout.write(paint(shown, lines, console))
+            sys.stdout.flush()
+            shown = lines
+
+            if frames and count >= frames:
+                break
+            leaving, _moved = keys.poll()
+            if leaving:
+                break
+            time.sleep(1.0 / max(hz, 0.2))
+
+    park(len(shown), console)
+    return TO_MENU if leaving == 'menu' else 0
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', default='COM4')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--hz', type=float, default=2.0)
     p.add_argument('--frames', type=int, default=0)
+    p.add_argument('--watch', action='store_true',
+                   help='draw a running session, without a serial port')
     p.add_argument('--leave', action='store_true',
                    help='report and stop whatever the demos left running')
     a = p.parse_args()
 
     if a.leave:
         return leave(a.port, a.simulated)
+
+    if a.watch:
+        return watch(a.hz, a.frames)
+
+    # A session already has the port. Looking is still possible, and is
+    # what somebody running this a second time almost always meant.
+    if shared()[0] is not None:
+        say('warn', 'session', 'one is already running - watching it instead')
+        return watch(a.hz, a.frames)
 
     # power_afe=False: the session decides the rail, not the constructor.
     # Opening with the AFE forced up would stop any switching before the

@@ -44,8 +44,8 @@
     .\demo.ps1 adc -Simulated -Frames 3
 #>
 param(
-    [ValidateSet('session', 'imu', 'angle', 'adc', 'capture', 'gate_drivers',
-                 'thermal')]
+    [ValidateSet('session', 'watch', 'imu', 'angle', 'adc', 'capture',
+                 'gate_drivers', 'thermal')]
     [string]$Name,
     [string]$Port = 'COM4',
     [switch]$Simulated,
@@ -59,6 +59,8 @@ $ErrorActionPreference = 'Continue'
 $Views = [ordered]@{
     'session' = @{ Script = $null
                  What   = 'one dash: analog, thermals, bridges, DIO, IMU, angle' }
+    'watch'   = @{ Script = $null; Watch = $true
+                 What   = 'look into a session already running - no port taken' }
     'imu'   = @{ Script = 'imu.ps1'
                  What   = 'board attitude, drawn from the STL the IMU turns' }
     'angle' = @{ Script = 'angle.ps1'
@@ -188,6 +190,7 @@ do {
     if (-not $Views[$view].Script) {
         Push-Location (Join-Path $PSScriptRoot 'host')
         $argv = @('tools/demos.py', '--port', $Port)
+        if ($Views[$view].Watch) { $argv += '--watch' }
         if ($Simulated) { $argv += '--simulated' }
         if ($Frames -gt 0) { $argv += @('--frames', $Frames) }
         & python @argv

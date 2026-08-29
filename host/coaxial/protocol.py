@@ -90,7 +90,11 @@ CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               # parameter 10. It came out 0, so every caller had an
               # empty channel list and nothing said so.
               'r5_r_top_ohm', 'r5_r_bottom_ohm',
-              'vg_r_top_ohm', 'vg_r_bottom_ohm')
+              'vg_r_top_ohm', 'vg_r_bottom_ohm',
+              # id 13, the half-bridge dead time. In the record because it is
+              # the one number between the two FETs of a leg, and a compiled
+              # constant means the board carries whatever the last flash held.
+              'deadtime_ns')
 """The record's scalars, in the order 0x6E device 3 op 0 sends them, and the
 order their ids run in. Integers in the unit that makes them integers, because
 the wire bans floating point - the names carry the unit for the same reason

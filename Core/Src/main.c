@@ -140,6 +140,12 @@ int main(void)
      schematic's numbers. */
   Board_CalInit();
 
+  /* The dead time comes from the record, and so has to wait for it. Board_
+     PwmInit runs first because it drives the gates down, and it cannot wait
+     on flash to do that - so the .ioc's value stands for those few
+     microseconds and this replaces it. Nothing is armed in between. */
+  (void)Board_PwmSetDeadTime(Board_Cal()->deadtime_ns);
+
   /* Differential-mode offset calibration, recommended before first use for
      absolute accuracy rather than mere repeatability. Note that it runs with
      AFE_ON still low, so it calibrates against an unpowered input - which is
