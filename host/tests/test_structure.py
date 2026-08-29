@@ -426,11 +426,51 @@ def test_subsystem_calls_resolve(r):
             not missing, '; '.join(missing[:4]))
 
 
+#: The firmware's fixed numbers, and the one file that owns them. A #define
+#: matching this outside it is the second answer board_limits.h exists to
+#: prevent - they were one per file, in two layers, and IMU_CARGO being
+#: smaller than IMU_BUF was invisible until a cargo arrived truncated.
+OWNED = ('_MAX_HZ', '_POLL_HZ', '_BUF', '_CARGO', '_RING', '_BAUD',
+         '_WAIT_MS', '_SETTLE_US', '_QUIET_MS', '_HOLD_MS', '_STEP_MS',
+         '_LEASE_MS', '_EVERY_MS', '_SETTLE_MS', '_DTG_MAX', '_MIN_NS',
+         '_BITS_PER_CHAR', '_MAX_ADDITIONS')
+
+#: Where they live. Everything else is a duplicate.
+LIMITS = os.path.join('Comms', 'Inc', 'board_limits.h')
+
+
+def test_limits_live_in_one_file(r):
+    """No fixed number is defined outside `board_limits.h`.
+
+    Not style: the dead time was in three places at once - the .ioc, a
+    #define, and a stale binary - and the one that mattered was the flash
+    nobody had refreshed. A number with two homes has no home.
+    """
+    import glob
+
+    stray = []
+    for where in ('Board/Src/*.c', 'Board/Inc/*.h', 'Comms/Src/*.c',
+                  'Comms/Inc/*.h', 'Thermal/Src/*.c', 'Thermal/Inc/*.h'):
+        for path in glob.glob(os.path.join(REPO, *where.split('/'))):
+            if path.endswith(os.path.basename(LIMITS)):
+                continue
+            for line in io.open(path, encoding='utf-8'):
+                if not line.startswith('#define '):
+                    continue
+                name = line.split()[1]
+                if any(name.endswith(tail) for tail in OWNED):
+                    stray.append('%s: %s' % (os.path.basename(path), name))
+
+    r.check('every fixed number is defined in board_limits.h only',
+            not stray, '; '.join(stray[:4]))
+
+
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
           test_shape, test_documented, test_no_escaping_scars,
-          test_counts_are_measured, test_subsystem_calls_resolve)
+          test_counts_are_measured, test_subsystem_calls_resolve,
+          test_limits_live_in_one_file)
 
 
 def main():

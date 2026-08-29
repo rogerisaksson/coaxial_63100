@@ -23,13 +23,11 @@
   * throws away, and a host that wants the mean has the count.
   ******************************************************************************
   */
+#include "board_limits.h"
 #include "board.h"
 #include "board_hw.h"
 
 #include <string.h>
-
-/** 16 KB of DTCM. At one channel that is 2048 records, at all nine 409. */
-#define DAQ_BYTES 16384U
 
 static uint8_t  s_buf[DAQ_BYTES];
 static volatile uint32_t s_head;        /* byte offset of the next write */
@@ -47,11 +45,6 @@ static uint8_t  s_order[BOARD_DAQ_MAX_CHANNELS];  /* channel index per field */
 static uint8_t  s_fields;
 
 /* Accumulator, reset every time a record is pushed. */
-/** Most samples the running accumulator may take before it stops widening.
-  * INT32_MAX / 65535: the largest a single-ended code can be, so one more
-  * addition can never overflow `sum`. */
-#define LIVE_MAX_ADDITIONS 32767U
-
 static int32_t  s_acc[BOARD_DAQ_MAX_CHANNELS];
 static uint16_t s_acc_n;
 static uint16_t s_skip;

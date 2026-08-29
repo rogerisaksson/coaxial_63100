@@ -227,8 +227,6 @@ UNDONE = dict((a.name, a.undone) for a in ACTIVITIES)
 
 # ---- the dash: six blocks, one snapshot ---------------------------------
 
-# ---- the dash: everything at once, in three columns ----------------------
-
 def snapshot(session):
     """One round of reads, each guarded. ~270 ms of round trips at 2 Hz.
 
@@ -306,18 +304,18 @@ def adc_block(got):
 
 
 def thermal_block(got):
-    """Each node as a fraction of its own ceiling, over the three measured.
+    """Each node as a fraction of its own ceiling. A byte, drawn.
 
-    The thermometers come from the observer, not from the analog column:
-    the die sensors are linear parts calibrated at the factory and their
-    curve is in the MCU's system memory, so the board is the only side that
-    can convert their codes at all.
+    The three THERMOMETERS are on the dash line instead: they are the widest
+    thing there is and a column sized by them squeezed the two beside it.
+    They come from the observer either way - the die sensors are linear parts
+    calibrated at the factory, and that curve is in the MCU's system memory,
+    so the board is the only side that can convert their codes at all.
     """
-    spend, state = got.get('budget'), got.get('thermal')
+    spend = got.get('budget')
     if spend is None:
         return block('THERMAL', ['  the observer did not answer'])
 
-    del state
     rows = []
     for name, used in sorted(spend['used'].items(), key=lambda kv: -kv[1]):
         filled = int(round(used * BAR))

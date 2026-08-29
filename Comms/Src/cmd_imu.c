@@ -11,20 +11,10 @@
   ******************************************************************************
   */
 #include <string.h>
+#include "board_limits.h"
 #include "cmd.h"
 #include "board.h"
 #include "shtp.h"
-
-/* What one Modbus reply can carry. The part's advertisement is longer than
-   this - 276 bytes, measured - so a cargo that big arrives truncated and the
-   board layer drops the rest rather than leaving it to desynchronise the
-   next read. A bring-up asks for reports, which fit. */
-#define IMU_CARGO 200U
-
-/* Per read attempt, and eight of them: 40 ms worst case for a part that
-   never answers. The wait pumps the STO keepalive, so a slow part does
-   not stop the charge pump. */
-#define IMU_ANSWER_WAIT_MS 5U
 
 /**
   * @brief op 0 - ask the part what it is.

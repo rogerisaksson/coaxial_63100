@@ -19,6 +19,7 @@
   * kelvin, and both scalings belong to the host (invariant 10).
   ******************************************************************************
   */
+#include "board_limits.h"
 #include "board.h"
 #include "board_hw.h"
 #include "board_power.h"
@@ -31,11 +32,6 @@
    and this part wants one assertion across the whole packet. */
 #define ANGLE_CS_PORT GPIOE
 #define ANGLE_CS_PIN  GPIO_PIN_4
-
-/* Well under the datasheet's 10 MHz ceiling. The divider is a power of two,
-   so at a 100 MHz kernel clock the choice either side is 6.25 MHz or
-   1.56 MHz; the lower one costs 13 us a packet and buys the margin. */
-#define ANGLE_MAX_HZ 3000000U
 
 /* Registers. See the file header on where these come from - they are not in
    the datasheet in this directory. */
@@ -109,11 +105,6 @@ static void cs(bool low)
   HAL_GPIO_WritePin(ANGLE_CS_PORT, ANGLE_CS_PIN,
                     low ? GPIO_PIN_RESET : GPIO_PIN_SET);
 }
-
-/* tCS is 50 ns to the first clock edge and tCS_IDLE is 200 ns between
-   frames. One microsecond covers both several times over and costs nothing
-   at one packet per read. */
-#define ANGLE_SETTLE_US 1U
 
 static void settle(void)
 {

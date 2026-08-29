@@ -33,6 +33,14 @@ one way only.
 **`Modbus/`** — RTU stack (CRC, PDU, framing). C standard library only, no CMSIS
 or HAL. Lookup tables, not switches.
 
+**`Comms/Inc/board_limits.h`** — every fixed number the firmware depends on,
+in sections, each carrying the measurement that chose it: part clocks, buffer
+sizes, poll rates, settle times, the dead-time floor. Anything the board can
+be TOLD is in the calibration record instead (invariant 7); this file is what
+a rebuild is needed to change. `test_structure` fails a matching `#define`
+anywhere else - the dead time was in three places at once and the one that
+mattered was a stale binary.
+
 **`Comms/`** — command dispatch and the wire. `wire.h`'s accessors are total
 with sticky error flags, so a handler has one check at the end instead of an
 `if` per field. `cmd_device.c` fronts every peripheral behind `0x6E`, the one
@@ -95,7 +103,7 @@ Board-side scaling is kept only to cross-check the math.
 
 ## The test system
 
-Eighteen suites, 1767 checks. `run_tests.ps1` is the only interface -
+Eighteen suites, 1768 checks. `run_tests.ps1` is the only interface -
 `-AutomaticMinimal|Medium|High` for ~25/50/75 % of every check, `-All` the gate,
 `-Only NAMES` and `-Tags SUBJECTS` for one change's worth, `-Structure` for the
 package itself.

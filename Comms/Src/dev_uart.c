@@ -22,6 +22,7 @@
   * reply lands in the receiver as a request.
   ******************************************************************************
   */
+#include "board_limits.h"
 #include "board.h"
 #include "dev_serial.h"
 
@@ -32,18 +33,8 @@ extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart5;
 
-/* One rate for all three. CubeMX carries 9216000 on the two RS485 ports,
-   which is not a Modbus rate on any bus - the runtime value is this one. */
-#define DEV_UART_BAUD 115200U
-
 #define DEV_ERR_FLAGS (USART_ISR_ORE | USART_ISR_FE | USART_ISR_NE | USART_ISR_PE)
 #define DEV_ERR_CLEAR (USART_ICR_ORECF | USART_ICR_FECF | USART_ICR_NECF | USART_ICR_PECF)
-
-/* One Modbus RTU frame is 256 bytes at most. Sized to hold a whole one so a
-   frame that begins while the main loop is inside a long board call is not
-   half lost - which is the failure this ring exists to prevent, not a
-   throughput problem. */
-#define DEV_RING 256U
 
 typedef struct
 {

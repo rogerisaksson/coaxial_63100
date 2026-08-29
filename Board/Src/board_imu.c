@@ -21,6 +21,7 @@
   * read none.
   ******************************************************************************
   */
+#include "board_limits.h"
 #include "board.h"
 #include "board_hw.h"
 #include "board_power.h"
@@ -61,20 +62,6 @@
 #define IMU_BOOT_PORT GPIOD
 #define IMU_BOOT_PIN  GPIO_PIN_11
 
-/* Figure 6-8: tnrst is 10 ns minimum, t1 is 90 ms of internal initialisation
-   before the part is ready, t2 another 4 ms of configuration. One millisecond
-   of reset is four orders of magnitude past the minimum and costs nothing;
-   120 ms afterwards leaves margin on t1+t2 without a pin to be told on. */
-#define IMU_RESET_HOLD_MS 1U
-#define IMU_RESET_WAIT_MS 120U
-
-/* One transaction's worth. Sized for the SHTP advertisement, which is the
-   largest thing the part sends unprompted: measured on this board, 276 bytes
-   including the header, carrying the channel map and version strings. Sixty
-   four was enough for a product id response and refused the advertisement
-   outright, which is what CMD_ERR_DEVICE on every read after a reset was. */
-#define IMU_BUF 320U
-
 static bool s_ready;
 static uint8_t s_seq[6];        /* one per SHTP channel, section 1.3.1 */
 
@@ -96,22 +83,6 @@ static const uint8_t s_zeros[IMU_BUF];
 
 static uint32_t s_kernel_hz;
 static uint32_t s_bitrate_hz;
-
-/* Figure 6-8 puts the ceiling at 3 MHz. The divider is a power of two, so
-   at a 190 MHz kernel clock the choice is 2.97 MHz or 1.48 MHz - nothing
-   between.
-
-   2.97 MHz was rejected once, with "every read came back FF". That did NOT
-   reproduce on 2026-08-29: 47 000 reports at 394 Hz, zero read errors, and
-   the product id answers. What is different since is the chip select held
-   across header and cargo, and SPI2 set to mode 3 in the .ioc as well as
-   here. The FF reads are more likely to have been that.
-
-   Kept at 2.97 because the transfer cost was the rate limit: at 1.48 MHz the
-   part gave 381 Hz of a requested 400 and 28 errors in 5 s; at 2.97 it gives
-   394 Hz and none. Polling more often was tried instead and was worse - at
-   4 kHz the rate FELL to 360 Hz and the errors tripled. */
-#define IMU_MAX_HZ 3000000U
 
 /* The slowest divider that still clears the part's ceiling, chosen from the
    kernel clock the peripheral actually has rather than from a field in the
@@ -154,36 +125,10 @@ static uint32_t prescaler_under(uint32_t limit_hz)
   return SPI_BAUDRATEPRESCALER_256;
 }
 
-/* How long to wait for the part to say it has something. Anything longer
-   would hold the Modbus link past the master's patience for a part that is
-   simply idle, which is not an error. */
-#define IMU_INTN_WAIT_MS 5U
-
-/* Waking is not polling. Asserting PS0/WAKE takes the part out of a sleep
-   state and it answers by asserting H_INTN "at which point the host can
-   initiate SPI accesses" (1.2.4.3) - that is a wake-up, not a sample period.
-   Five milliseconds was enough for a part that was already awake and not for
-   one that was not: measured, every write failed once the reset's queue had
-   been drained. */
-#define IMU_WAKE_WAIT_MS 50U
-
 static bool intn_asserted(void)
 {
   return HAL_GPIO_ReadPin(IMU_INTN_PORT, IMU_INTN_PIN) == GPIO_PIN_RESET;
 }
-
-/* How often to clock a header out when the H_INTN edge was missed - see the
-   file comment. Rate limited because it is not free: a four-byte transfer at
-   2.97 MHz is 13 us and the main loop also carries Modbus, whose t1.5 at
-   115200 is 143 us. At 1 kHz that is 1.3 % of the loop.
-
-   Measured 2026-08-29, and this is why it stays at 1 kHz: raising it to
-   4 kHz LOWERED the report rate from 394 Hz to 360 and tripled the errors.
-   The poll is not what the rate is short of - the transfer is.
-
-   Raw CYCCNT and unsigned subtraction, so the wrap costs nothing
-   (invariant 2). */
-#define IMU_POLL_HZ 1000U
 
 static bool poll_due(void)
 {
@@ -236,14 +181,6 @@ static void cs(bool low)
 {
   HAL_GPIO_WritePin(IMU_CS_PORT, IMU_CS_PIN, low ? GPIO_PIN_RESET : GPIO_PIN_SET);
 }
-
-/* Figure 6-6: tcssu, chip select to the first clock edge, is 0.1 us minimum,
-   and tcssh, the hold after the last one, 16.83 ns. A GPIO write followed
-   straight away by HAL_SPI_TransmitReceive is a couple of core cycles - 27 ns
-   at the 75 MHz this board currently runs at - so the setup was a quarter of
-   what the part asks for. One microsecond is ten times the requirement and
-   costs nothing at these transfer sizes. */
-#define IMU_SETTLE_US 1U
 
 static void settle(void)
 {
@@ -383,20 +320,6 @@ bool Board_ImuReady(void)
 
   return s_ready;
 }
-
-/** One SPI transfer, split so the STO charge pump keeps getting edges.
-
-   A 320-byte cargo at 1.48 MHz is 1.73 ms of blocking transfer, and the
-   keepalive latch holds only a few hundred microseconds (FINDINGS). Chip
-   select is ours - NSS_SOFT, PB12 by hand - and is NOT touched here, so the
-   part still sees one unbroken transaction however this is chunked.
-   Releasing it between chunks is the FF FF FF FF bug again.
-
-   8 bytes is 43 us at 1.48 MHz, against the 52 us the main loop already
-   takes per iteration once the IMU is being polled. Finer buys nothing the
-   loop does not already cost; coarser makes this the worst gap in the
-   system. */
-#define IMU_CHUNK 8U
 
 static bool imu_xfer(const uint8_t *tx, uint8_t *rx, uint16_t len)
 {
@@ -760,11 +683,6 @@ static uint32_t s_feature_us;
 static bool s_feature_pending;
 static uint32_t s_cargoes_at_reset;   /**< to know the part has spoken */
 static uint32_t s_last_cargo_ms;      /**< when the last one arrived   */
-
-/* How long the part must have been quiet before a Set Feature goes out.
-   The advertisement is 276 bytes over several cargoes and a write into
-   the middle of it is accepted and discarded. */
-#define IMU_QUIET_MS 60U
 
 bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us)
 {

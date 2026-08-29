@@ -16,6 +16,7 @@
   * the other side of these six pins are gate drivers with FETs fitted.
   ******************************************************************************
   */
+#include "board_limits.h"
 #include "board.h"
 #include "stm32h7xx.h"
 
@@ -447,17 +448,6 @@ void Board_PwmState(board_pwm_state_t *out)
     out->duty[phase] = s_duty[phase];
   }
 }
-
-
-/* Dead time, at runtime. 20 ns is a FLOOR, not a default: the 2EDL8034 has
- * no interlock, so this is the only thing between the two FETs of a leg, and
- * asking for less gets 20 ns and a sentence.
- *
- * DTG is not linear - only the low range steps by one t_DTS. This uses that
- * alone, capping at 127 x t_DTS = 535 ns, six times what the bridge needs.
- */
-#define BOARD_PWM_DEADTIME_MIN_NS 20U
-#define BOARD_PWM_DTG_MAX 127U
 
 
 static uint32_t dts_ps(void)

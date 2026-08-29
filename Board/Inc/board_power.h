@@ -15,6 +15,8 @@
 #ifndef BOARD_POWER_H
 #define BOARD_POWER_H
 
+#include "board_limits.h"   /* BOARD_POWER_LEASE_MS */
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -40,9 +42,6 @@ typedef enum
   BOARD_USER_DAQ     = 4, /**< a running acquisition                      */
   BOARD_USER_COUNT
 } board_user_t;
-
-/** How long a borrowed hold lasts without renewal, milliseconds. */
-#define BOARD_POWER_LEASE_MS 3000U
 
 /** What a rail is doing and who put it there. */
 typedef struct

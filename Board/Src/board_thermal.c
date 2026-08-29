@@ -15,6 +15,7 @@
   * at duty is never interrupted and the model carries on open.
   ******************************************************************************
   */
+#include "board_limits.h"
 #include "board.h"
 #include "board_hw.h"
 #include "board_power.h"
@@ -23,30 +24,12 @@
 #include <math.h>
 #include <string.h>
 
-/** How often the model is stepped from the main loop. The fastest node has a
-  * time constant of tens of seconds, so 10 Hz is ample and costs nothing. */
-#define THERMAL_STEP_MS 100U
-
 /* The reply's array is sized by a literal in board.h; the loop that fills it
    runs to the enum in thermal.h. Nothing tied them, so adding a node to the
    enum wrote past the end of a caller's stack local. */
 _Static_assert(BOARD_THERMAL_NODES == (int)THERMAL_NODES,
                "board.h's node count and thermal.h's enum disagree - the "
                "reply array would be written past its end");
-
-/** How often the rail is borrowed for a sample, by default. Five seconds is
-  * 80 samples a tau, and the settle below is the cost of each. */
-#define THERMAL_SAMPLE_EVERY_MS 5000U
-
-/** Settle before the sample is believed.
-  *
-  * Paired A/B, 12 pairs, 2026-08-28: 500 ms minus 100 ms is +0.005 K, sem
-  * 0.008 - 0.6 sigma, under the NTC's 30 mK quantisation. The reference is up
-  * before 100 ms. An earlier reading took four samples ALL at 300 ms, saw
-  * 50 mK spread and called the settle done; equally early samples agree
-  * equally well while being equally wrong. 500 because the margin is free -
-  * sampling is refused while the stage is armed. */
-#define THERMAL_SAMPLE_SETTLE_MS 500U
 
 static thermal_t      s_th;
 static thermal_loss_t s_loss;

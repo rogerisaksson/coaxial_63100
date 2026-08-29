@@ -4,6 +4,7 @@
   * @brief   Assembles the comms stack and pumps it from the main loop.
   ******************************************************************************
   */
+#include "board_limits.h"
 #include "link.h"
 #include "cmd.h"
 #include "dev_serial.h"
@@ -12,8 +13,6 @@
 #include "modbus_slave.h"
 
 #include <stddef.h>
-
-#define LINK_BITS_PER_CHAR 11U
 
 /* One port, whole. The console link is index 0 and can be handed back to the
    ASCII console; the two RS485 links have no console to hand it back to, so
