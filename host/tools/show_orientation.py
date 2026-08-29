@@ -23,7 +23,7 @@ from coaxial import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
 from screen import (TO_MENU, Keys, banner, clear, paint,   # noqa: E402
-                    park, say)
+                    closing, say)
 
 ROTATION_VECTOR = 0x05
 
@@ -174,13 +174,16 @@ def put_back(board, part):
     closed is a change nobody asked for, and switching one off that was on
     before is worse.
     """
+    done = []
     try:
         with board.imu.configuring():
             board.imu.feature(ROTATION_VECTOR, 0)
-        say('ok', 'rotation vector', 'disabled')
-
+        done.append(('rotation vector', 'disabled - the part stops streaming'))
     except RigError as exc:
-        say('fail', 'putting it back', str(exc))
+        done.append(('rotation vector', 'FAILED: %s' % exc))
+
+    done.append(('IMU poll loop', 'running, as the board left it'))
+    return done
 
 
 def parse_args(argv):
@@ -320,9 +323,11 @@ def main(argv=None):
     finally:
         if shop:
             shop.close()
-        park(len(shown), console)
-        put_back(board, part)
+        done = put_back(board, part)
         rig.close()
+        done.append((part['power'] or 'supply',
+                     'back the way it was found'))
+        closing(done, console, len(shown))
 
     return TO_MENU if leaving == 'menu' else 0
 

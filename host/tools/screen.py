@@ -105,6 +105,24 @@ def park(rows, console):
         sys.stdout.flush()
 
 
+def closing(done, console, drawn):
+    """List what a view is putting back, under the frame it drew.
+
+    One line per thing, the shape the preflight uses on the way in. A single
+    'put back the way it was' was what every view used to print, and it says
+    nothing about WHICH things - a stage that had been switching and a report
+    that had been streaming both came out as one line, or as none at all.
+
+    A step that failed is listed too, marked, rather than dropped: the way
+    out is the only place that says whether it took.
+    """
+    park(drawn, console)
+    say('wait', 'closing', 'putting back what this view changed')
+    for name, what in done:
+        failed = str(what).startswith('FAILED')
+        say('fail' if failed else 'ok', name, what)
+
+
 def clear(console):
     """Wipe the screen and put the cursor home.
 

@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import desk, scaling                          # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import TO_MENU, Keys, banner, paint, park, say  # noqa: E402
+from screen import TO_MENU, Keys, banner, paint, closing, say  # noqa: E402
 
 
 #: The codes a scale is measured between. Not 0 and 65535: the thermistor
@@ -178,9 +178,10 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
-        park(len(shown), console)
+        done = [('acquisition', 'task stopped')]
         rig.close()
-        say('ok', 'board', 'task stopped, AFE_ON put back the way it was')
+        done.append(('AFE_ON', 'back the way it was found'))
+        closing(done, console, len(shown))
 
     return TO_MENU if leaving == 'menu' else 0
 

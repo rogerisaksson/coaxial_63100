@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100, scaling                   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
-from screen import TO_MENU, Keys, banner, paint, park, say  # noqa: E402
+from screen import TO_MENU, Keys, banner, paint, closing, say  # noqa: E402
 
 #: What R runs for, in seconds. Two floors, and the view reports both
 #: rather than hiding either: the board takes one conversion per main-loop
@@ -394,18 +394,21 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
-        park(len(shown), console)
+        done = []
         try:
             if not refused:
                 rig.stop()
+                done.append(('acquisition', 'task stopped'))
             rig.gates.disarm()
+            done.append(('gate stage', 'disarmed, MOE clear'))
+            done.append(('BKIN', 'back in circuit'))
             if board.afe.is_on() != was_on:
                 board.afe.enable() if was_on else board.afe.disable()
-            say('ok', 'gate_drivers', 'disarmed, BKIN back in circuit, AFE_ON as '
-                                'it was found')
+            done.append(('AFE_ON', 'back the way it was found'))
         except RigError as exc:
-            say('fail', 'putting it back', str(exc))
+            done.append(('putting it back', 'FAILED: %s' % exc))
         rig.close()
+        closing(done, console, len(shown))
 
     return TO_MENU if leaving == 'menu' else 0
 

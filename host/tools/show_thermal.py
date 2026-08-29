@@ -21,7 +21,7 @@ import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import TO_MENU, Keys, banner, paint, park, say  # noqa: E402
+from screen import TO_MENU, Keys, banner, paint, closing, say  # noqa: E402
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
@@ -197,17 +197,24 @@ def main():
         except KeyboardInterrupt:
             pass
         finally:
-            park(len(shown), console)
+            done = []
             if load is not None:
-                for undo in (lambda: rig.write(analog=dict.fromkeys(load, 0.0)),
-                             rig.gates.disarm):
+                for name, what, undo in (
+                        ('duty', 'three legs to zero',
+                         lambda: rig.write(analog=dict.fromkeys(load, 0.0))),
+                        ('gate stage', 'disarmed, MOE clear', rig.gates.disarm)):
                     try:
                         undo()
-                    except (NoReplyError, RigError):
-                        pass       # one failed step must not skip the next
-                say('ok', 'board', 'duty zeroed and the gate drivers disarmed')
+                        done.append((name, what))
+                    except (NoReplyError, RigError) as exc:
+                        # One failed step must not skip the next, and the way
+                        # out is the only place that says whether it took.
+                        done.append((name, 'FAILED: %s' % exc))
+                done.append(('AFE_ON', 'back the way it was found'))
             else:
-                say('ok', 'board', 'AFE_ON untouched, nothing disarmed')
+                done.append(('AFE_ON', 'untouched - this run only watched'))
+                done.append(('gate stage', 'untouched, nothing was armed'))
+            closing(done, console, len(shown))
 
     return TO_MENU if leaving == 'menu' else 0
 

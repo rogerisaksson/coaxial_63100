@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import scaling                                # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import TO_MENU, Keys, banner, paint, park, say  # noqa: E402
+from screen import TO_MENU, Keys, banner, paint, closing, say  # noqa: E402
 
 ROTATION_VECTOR = 0x05
 
@@ -265,14 +265,22 @@ def adapt(rig, layout, args, view):
 
 def put_back(board):
     """Both buffers disarmed, and the supply as it was found."""
+    done = []
+    for name, what, undo in (
+            ('acquisition', 'task stopped', board.daq.stop),
+            ('capture ring', 'disarmed', board.capture.stop)):
+        try:
+            undo()
+            done.append((name, what))
+        except RigError as exc:
+            done.append((name, 'FAILED: %s' % exc))
     try:
-        board.daq.stop()
-        board.capture.stop()
         with board.imu.configuring():
             board.imu.feature(ROTATION_VECTOR, 0)
-        say('ok', 'buffers', 'disarmed')
+        done.append(('rotation vector', 'disabled'))
     except RigError as exc:
-        say('fail', 'putting it back', str(exc))
+        done.append(('rotation vector', 'FAILED: %s' % exc))
+    return done
 
 
 def main(argv=None):
@@ -339,9 +347,10 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
-        park(len(shown), console)
-        put_back(board)
+        done = put_back(board)
         rig.close()
+        done.append(('AFE_ON', 'back the way it was found'))
+        closing(done, console, len(shown))
 
     return TO_MENU if leaving == 'menu' else 0
 
