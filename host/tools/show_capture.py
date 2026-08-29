@@ -92,7 +92,7 @@ def start(rig, args):
     return layout
 
 
-def analog_rows(layout, record, width):
+def analog_rows(layout, record, width, params=None):
     """One line per analog field, named and united by the board.
 
     Divided by `samples`, because a record's value is the SUM of that many
@@ -115,7 +115,8 @@ def analog_rows(layout, record, width):
             out.append(('  %-9s %12s' % (field['signal'], '-'))[:width])
             continue
         code = value // samples
-        convert = scaling.converter(field['unit'], field['differential'])
+        convert = scaling.converter(field['unit'], field['differential'],
+                                    params=params)
         out.append('  %-9s %+7d  %+9.2f %s'
                    % (field['signal'], code, convert(code),
                       scaling.UNIT_SYMBOL.get(field['unit'], ''))[:width])
@@ -166,7 +167,7 @@ def compose(origin, console, layout, view, width):
                     view['daq_rate'].per_second(), daq['available'],
                     daq['dropped']))
     lines.append(' ' + '-' * max(10, width - 2))
-    analog = analog_rows(layout, view['record'], width)
+    analog = analog_rows(layout, view['record'], width, view['scaling'])
     digital = digital_rows(layout, view['record'], width)
     for i in range(max(len(analog), len(digital))):
         left = analog[i] if i < len(analog) else ' ' * 36
@@ -309,7 +310,8 @@ def main(argv=None):
             'ring': board.capture.state(), 'daq_rate': Rate(),
             'rates': {'angle': Rate(), 'imu': Rate()},
             'accumulate': args.accumulate, 'asked': args.accumulate,
-            'dropped_was': 0, 'quiet': 0, 'missed': 0}
+            'dropped_was': 0, 'quiet': 0, 'missed': 0,
+            'scaling': board.analog.scaling()}
 
     console = sys.stdout.isatty()
     if console and os.name == 'nt':

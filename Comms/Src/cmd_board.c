@@ -42,20 +42,16 @@ static cmd_status_t h_version(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
-/* Every channel in one reply, which is what bounds how many there can be.
-   A row costs 17 bytes plus its pin and signal names, and MB_MAX_PDU is
-   253: the nine channels here come to 245. Two more, or two longer names,
-   and it overflows - which is how "+5V sense" and "Gate supply" announced
-   themselves, as SERVER DEVICE FAILURE from a reply that would not fit.
-   `wr_ok` is checked at the end now, so the next one says so instead. */
+/* A row costs 17 bytes plus its pin and signal names against MB_MAX_PDU's
+   253. Overflowing it is how "+5V sense" and "Gate supply" announced
+   themselves - SERVER DEVICE FAILURE from a reply that would not fit -
+   and `wr_ok` is checked at the end now, so the next one says so. */
 static cmd_status_t h_adc_table(rd_t *in, wr_t *out)
 {
-  /* Optional start index, so the table is not bounded by one reply. A row
-     costs 18 bytes plus its pin and signal names and the cap is 252: seven
-     channels came to 197 and nine to 254, which is how "+5V" and "Vgate"
-     announced themselves - a reply that would not fit, as SERVER DEVICE
-     FAILURE. Absent, it reads 0, so a host that never sends one gets what
-     it always did for as long as that fits. */
+  /* Optional start index, so the table is not bounded by one reply: a row
+     is 18 bytes plus its names against a 252 cap, and seven channels came to
+     197 while nine came to 254. Absent it reads 0, so a host that never
+     sends one gets what it always did for as long as that fits. */
   const uint8_t start = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
   const uint8_t total = Board_AdcCount();
 
@@ -363,9 +359,9 @@ static cmd_status_t h_console(rd_t *in, wr_t *out)
 /* What the board is made of, rather than what it is wired to. The same
    question one level up, and the same rule: the firmware settles it. */
 #define CHANNELS_SUBSYSTEMS 3U
-/* What is fitted, rather than what it can do. Paged, because six parts with
-   their strings come to 380 bytes against MB_MAX_PDU's 253 - the same
-   overflow that split the analog and digital sections apart. */
+/* What is fitted, rather than what it can do. Paged: the parts and their
+   strings pass MB_MAX_PDU's 253 - the same overflow that split the analog
+   and digital sections apart. */
 #define CHANNELS_PARTS 4U
 
 /* Enough room for the longest record the table can hold, checked before each
@@ -575,8 +571,8 @@ static const cmd_desc_t CMD_TABLE[] =
   { CMD_LINK_STATS, "link_stats", 0U,               h_link_stats },
   { CMD_ANALOG_BURST, "analog_burst", 8U,          h_analog_burst },
   { CMD_SELF_TEST,  "self_test",  0U,               h_self_test  },
-  /* Variable: the kind byte, and for the parts section a start index
-     behind it, because six parts do not fit one PDU. */
+  /* Variable: the kind byte, and a start index behind it for the paged
+     sections. */
   { CMD_CHANNELS,   "channels",   CMD_LEN_VARIABLE, h_channels   },
   { CMD_CONSOLE,    "console",    0U,               h_console    },
 };

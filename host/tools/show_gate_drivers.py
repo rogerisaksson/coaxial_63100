@@ -66,7 +66,7 @@ def gate_rows(state, width):
     return [line[:width] for line in out]
 
 
-def analog_rows(live, layout, powered, refused, width):
+def analog_rows(live, layout, powered, refused, width, params=None):
     """Mean and ripple per channel, converted, from the live accumulator.
 
     Ripple is `highest - lowest` over the accumulator's own window, which is
@@ -92,7 +92,8 @@ def analog_rows(live, layout, powered, refused, width):
     out = []
     for name in live['mean']:
         unit, differential = units.get(name, (None, False))
-        convert = scaling.converter(unit, differential, signal=name)
+        convert = scaling.converter(unit, differential, signal=name,
+                                    params=params)
         mean = convert(live['mean'][name])
         span = convert(live['highest'][name]) - convert(live['lowest'][name])
         out.append('  %-9s %+10.3f %-2s   p-p %8.3f   n %5d'
@@ -137,7 +138,7 @@ def capture(rig, seconds, view):
     # Drained after stopping rather than during: a read costs about 15 ms of
     # round trip and a 1 ms run would otherwise be mostly the reading of it.
     while tries < 400:
-        batch = board.daq.read(layout=fresh)
+        batch = board.daq.acquire(layout=fresh)
         tries += 1
         if not batch:
             break
@@ -273,7 +274,7 @@ def compose(rig, origin, console, view, layout, width):
     lines += gate_rows(state, width)
     lines.append(' ' + '-' * max(10, width - 2))
     lines += analog_rows(view.get('live'), layout, state['afe_on'],
-                         view.get('refused'), width)
+                         view.get('refused'), width, view['scaling'])
     lines.append(' ' + '-' * max(10, width - 2))
     lines += run_rows(view, width)
     lines += ['', ('  + -  duty   [ ]  step   A  arm   B  BKIN override   '
@@ -355,7 +356,8 @@ def main(argv=None):
             'gate_drivers': board.gate_drivers.state(), 'live': None, 'refused': refused,
             'layout': layout, 'override': not args.interlock,
             'deadtime_ns': state['deadtime'] * 1e9
-                           / (2.0 * (state['period'] - 1) * 50000.0)}
+                           / (2.0 * (state['period'] - 1) * 50000.0),
+            'scaling': board.analog.scaling()}
 
     console = sys.stdout.isatty()
     if console and os.name == 'nt':

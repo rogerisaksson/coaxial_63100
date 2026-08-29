@@ -210,11 +210,6 @@ typedef struct
                                           host knows where in the period    */
 } board_pwm_state_t;
 
-/** GateDrivers off, and true only if TIM1 is configured. Cannot configure it. */
-/** The 120 ohm across UART5 - UART0 on the schematic. Off at reset. */
-void Board_SetUart5Termination(bool on);
-bool Board_Uart5Termination(void);
-
 bool Board_PwmInit(void);
 
 /** Dead time at runtime, in nanoseconds. Floored at 20 ns, which is a floor
@@ -427,7 +422,6 @@ bool Board_SyncArmed(void);
 
 /** The last triple, copied whole so no reader mixes two conversions. */
 void Board_SyncLatest(board_sync_sample_t *out);
-void Board_SyncCounts(uint32_t *updates, uint32_t *overruns);
 
 /** Where in the PWM period the triple is taken, as CCR4 in timer ticks.
     Takes effect immediately, armed or not. False if out of range. */
@@ -472,9 +466,6 @@ bool Board_PwmClearFault(void);
 /** Which legs have their two gate pins joined, bit 0 = U, 1 = V, 2 = W.
     Borrows the pins as GPIO, so it answers 0 while the stage is armed. */
 uint8_t Board_PwmGateShorts(void);
-
-/** One phase, in compare ticks. Refused unless armed and within ARR. */
-bool Board_PwmSetDuty(uint8_t phase, uint16_t ticks);
 
 /** All three, or none: never a cycle built from two calls. */
 const char *Board_PwmSetAll(const uint16_t *ticks);

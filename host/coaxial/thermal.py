@@ -99,11 +99,6 @@ CFG = {
                  'regulators': 0.80, 'afe': 0.30},
 }
 
-#: Power per node in the passive state, consistent with the supply's 50 mA:
-#: 0.666 mcu + 0.484 LDO drop + 0.05 other = 1.20 W.
-POWER_PASSIVE = {'drivers': 0.0, 'phases': 0.0, 'mcu': 0.666,
-                 'regulators': 0.534, 'afe': 0.0}
-
 #: Power per node while three legs switch at 50 %. The 1.20 W from difference
 #: 4-1 fell roughly half on the supply corner - gate charge comes out of the
 #: +15V7 buck - and half on the bridge.

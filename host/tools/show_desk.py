@@ -59,7 +59,7 @@ def rows_from(live, layout):
     return out
 
 
-def scale(rows):
+def scale(rows, params=None):
     """Add the scaled value and the channel's own scale, in its own unit.
 
     Here rather than in desk.py because the renderer takes a reading and its
@@ -78,7 +78,8 @@ def scale(rows):
         unit, raw = row.get('unit'), row['mean_raw']
 
         convert = scaling.converter(unit, row['differential'],
-                                    signal=row.get('signal'))
+                                    signal=row.get('signal'),
+                                    params=params)
 
         # The inset codes are the thermistor's alone. Every other conversion
         # here is linear in the code and has a finite value at both rails, so
@@ -127,6 +128,7 @@ def main(argv=None):
     # the window, which is exactly what a meter face wants.
     layout = rig.configure(rate_hz=None, accumulate=args.samples,
                            digital=False)
+    params = rig.board.analog.scaling()
     rig.start()
 
     say('wait', 'drawing',
@@ -149,7 +151,7 @@ def main(argv=None):
             while True:
                 try:
                     live = rig.latest()
-                    face = gate_drivers.update(scale(rows_from(live, layout)),
+                    face = gate_drivers.update(scale(rows_from(live, layout), params),
                                          colour=console)
                 except RigError as exc:
                     face = 'no reading: %s' % exc

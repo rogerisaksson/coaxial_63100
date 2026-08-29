@@ -24,7 +24,7 @@ behaves badly:
 Every one of those is a property of this package, so every one of them is
 testable on a desk with nothing plugged in.
 
-Run from the host directory:  python tests/test_ollama.py
+Imported by the test_ollama_* suites; not a suite itself.
 """
 import io
 import json
@@ -406,9 +406,9 @@ def _capability_budget(report, cap, machine):
 def _test_capability(report, cap):
     """The capability picker, in two halves.
 
-    Split at 146 lines because the structure suite covers this
-    file now - it did not cover test_ollama.py, which is where
-    this lived and where a 756-line check also sat unnoticed.
+    Split at 146 lines because the structure suite covers this file - it
+    did not cover the one file these used to live in, where a 756-line
+    check sat unnoticed.
     """
     def machine(cores, ram, vram, name='card', used=0.0, free=None, busy=None):
         gpus = ([{'name': name, 'vram_gb': vram, 'used_gb': used, 'via': 'test'}]

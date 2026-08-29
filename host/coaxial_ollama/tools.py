@@ -106,7 +106,7 @@ EXTRA_TOOLS = [
     },
     {
         'name': 'run_tests',
-        'description': "Run this project's own offline test suites (test_ollama.py, test_mcp.py, test_simulated.py) and report the exact pass/fail tally each one already counts itself - never a paraphrase. Add 'conformance' to also run test_conformance.py, which needs a real board on COM4.",
+        'description': "Run this project's own offline test suites (the test_ollama_* files, test_mcp.py, test_simulated.py) and report the exact pass/fail tally each one already counts itself - never a paraphrase. Add 'conformance' to also run test_conformance.py, which needs a real board on COM4.",
         'description_terse': "Run the offline test suites and report each one's own pass/fail tally, never a paraphrase. 'conformance' adds the suite that needs the board.",
         'inputSchema': {
             'type': 'object',

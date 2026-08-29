@@ -111,8 +111,8 @@ NEEDS_BOARD = (CONFORMANCE,)
 
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
 FAIL_RE = re.compile(r'^\s*FAIL\s+(.+?)\s{2,}')
-# test_ollama.py under --tags says what it left out. Surfaced here, because
-# the count that matters to a reader is the one against the whole file.
+# The ollama suites under --tags say what they left out. Surfaced here: the
+# count that matters is the one against the whole file.
 GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
 
 
@@ -343,8 +343,8 @@ def _within_tier(args, live_sections):
     cheapest run there is took 398 s of which 352 were the suite the tier
     exists to leave out.
 
-    `test_ollama.py` is exempt for the same reason the tier exempts it: it
-    is narrowed by tags rather than by being dropped whole.
+    The ollama suites are exempt for the same reason the tier exempts them:
+    narrowed by tags rather than dropped whole.
     """
     if not args.coverage:
         return live_sections
@@ -504,9 +504,9 @@ def _options(argv):
     parser.add_argument('--coverage', type=int, choices=TIERS,
                         help='run about this percentage of every check there '
                              'is, cheapest-per-check first. Implies --smart.')
-    parser.add_argument('--tags', help='subjects inside test_ollama.py, '
+    parser.add_argument('--tags', help='subjects inside the ollama suites, '
                                        'instead of asking the model')
-    parser.add_argument('--only', help='named tests in test_ollama.py, '
+    parser.add_argument('--only', help='named tests in the ollama suites, '
                                        'comma-separated: intent,picker')
     parser.add_argument('--structure', action='store_true',
                         help='only the structure suite: imports, cycles, '

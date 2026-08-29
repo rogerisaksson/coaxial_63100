@@ -305,22 +305,6 @@ bool thermal_set_board(thermal_t *th, float to_ambient, float capacity)
   return true;
 }
 
-bool thermal_set_ntc(thermal_t *th, float offset, float sees_drivers)
-{
-  /* No upper bound of 1.0. There was one, and it was an unfounded
-     assumption: the NTC can rise MORE than the node's surface when it sits
-     closer to the heat than the point the node stands for, and on this board
-     it does - solved against both camera states it is 1.055. A cap at 1.0
-     made the model miss the switching state by 5.6 K with no way to say so. */
-  if ((th == NULL) || (sees_drivers < 0.0f) || (sees_drivers > 4.0f))
-  {
-    return false;
-  }
-  th->cfg.ntc_offset = offset;
-  th->cfg.ntc_sees_drivers = sees_drivers;
-  return true;
-}
-
 void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius)
 {
   if (th == NULL)

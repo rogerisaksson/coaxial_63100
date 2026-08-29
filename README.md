@@ -40,8 +40,11 @@ cable.
 
 | file | what it walks through |
 |---|---|
-| `daq_session.py` | connect, configure, set the clock, read N blocks |
+| `daq_session.py` | connect, configure, set the clock, acquire in a loop |
 | `gate_drivers_session.py` | dead time, arm, duty, the gate snapshot, a burst |
+| `thermal_budget.py` | the SOA budget, and a burst planned against it |
+| `thermal_model.py` | the node network in Python, and how it was fitted |
+| `loss_calculation.py` | switching loss from the SPICE models, no board |
 
 ## The library
 

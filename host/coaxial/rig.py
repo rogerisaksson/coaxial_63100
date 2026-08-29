@@ -223,7 +223,7 @@ class Coaxial63100(Acquisition):
         `record['NTC'] / record['samples']`. The board sends the sum
         because it keeps the bits an average throws away.
         """
-        records = self.board.daq.read(layout=self.layout)
+        records = self.board.daq.acquire(layout=self.layout)
         samples = max(1, self.board.daq.state()['accumulate'])
         for record in records:
             record['samples'] = samples

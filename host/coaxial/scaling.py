@@ -165,10 +165,6 @@ RAIL5_ONBOARD = DividerParams(r_top=10000.0, r_bottom=10000.0, vref=3.3,
 VGATE_ONBOARD = DividerParams(r_top=57000.0, r_bottom=10000.0, vref=3.3,
                               name='onboard R119 47k + R113 10k over 10k')
 
-#: Which divider a millivolt channel is on, by the name the board gives it.
-#: Three channels report mV and no two share a divider.
-BY_SIGNAL = {'+5V': RAIL5_ONBOARD, 'Vgate': VGATE_ONBOARD}
-
 #: What a set of parameters calls itself, so a reading says where its numbers
 #: came from rather than repeating them. The distinction is not cosmetic: a
 #: value cooked from the fallback is the schematic's arithmetic, and one
@@ -218,23 +214,32 @@ def from_calibration(cal):
     }
 
 
-def converter(unit, differential=False, vref=3.3, signal=None):
+def converter(unit, differential=False, vref=3.3, signal=None, params=None):
     """The board's conversion for a channel, chosen by the unit it reports.
 
-    Here rather than in a view because two of them need it now, and the
+    Here rather than in a view because three of them need it now, and the
     second copy is always the one that goes stale (invariant 7). A channel
     with no unit of its own is read as volts at the pin, which is the only
     thing a bare code can honestly be called.
 
     `signal` picks the divider where a unit cannot: the DC link, the +5 rail
     and the gate supply all report millivolts through three different ones.
-    """
-    if unit == 'mA':
-        return PHASE_ONBOARD.amps
-    if unit == 'mV':
-        return BY_SIGNAL.get(signal, DCBUS_ONBOARD).volts
-    if unit == 'centi-degC':
-        return NTC_ONBOARD.celsius
 
+    `params` is `Analog.scaling()` - the board's own record. Without it the
+    compiled-in fallbacks are used, which is the schematic's arithmetic and
+    not what the board was told it is.
+    """
+    p = params or {}
+    if unit == 'mA':
+        return p.get('phase', PHASE_ONBOARD).amps
+    if unit == 'mV':
+        by_signal = {'+5V': p.get('rail5', RAIL5_ONBOARD),
+                     'Vgate': p.get('vgate', VGATE_ONBOARD)}
+        return by_signal.get(signal, p.get('dcbus', DCBUS_ONBOARD)).volts
+    if unit == 'centi-degC':
+        return p.get('ntc', NTC_ONBOARD).celsius
+
+    if params:
+        vref = p['dcbus'].vref
     full = 32768.0 if differential else 65536.0
     return lambda code: code / full * vref

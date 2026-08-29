@@ -1400,13 +1400,13 @@ function Test-Setup {
     try {
         # Offline by design: no board, no ollama. If this fails, the fault is in
         # the install, not on the bench.
-        $output = (& $Python 'tests/test_ollama.py')
+        $output = (& $Python 'tests/test_ollama_tools.py')
         $tail = ($output | Select-Object -Last 1)
         if ($LASTEXITCODE -eq 0) {
             Write-Item 'host test suite' 'ok' $tail
         } else {
             Write-Item 'host test suite' 'failed' $tail
-            Add-Todo 'python tests/test_ollama.py failed - run it and read the output'
+            Add-Todo 'python tests/test_ollama_tools.py failed - run it and read the output'
         }
     } finally {
         Pop-Location

@@ -151,19 +151,6 @@ void Board_SyncLatest(board_sync_sample_t *out)
 }
 
 
-void Board_SyncCounts(uint32_t *updates, uint32_t *overruns)
-{
-  if (updates != NULL)
-  {
-    *updates = s_updates;
-  }
-  if (overruns != NULL)
-  {
-    *overruns = s_overruns;
-  }
-}
-
-
 void Board_SyncOnInjected(const void *hadc)
 {
   /* Called from the injected end-of-sequence callback. Short on purpose: it

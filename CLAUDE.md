@@ -160,7 +160,7 @@ with Coaxial63100(port='COM4') as daq:          # simulated_device=True: no cabl
         print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM of `samples`
 ```
 
-`python_examples/daq_session.py` is that flow as a notebook, in 82 lines.
+`python_examples/daq_session.py` is that flow as a notebook, in 91 lines.
 
 ```bash
 cube-cmake --build --preset Debug        # must be zero warnings
@@ -184,16 +184,16 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Eighteen suites, 1713 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (300), `test_ollama_tools.py`
-(218), `test_ollama_runner.py` (214), `test_simulated.py` (182),
-`test_bench.py` (4, the board's loop rates against a recorded
-baseline), `test_live_model.py` (146, needs ollama, `--live`) - the only one where the model
-itself is under test - `test_ollama_prompt.py` (113), `test_conformance.py` (108,
-`--conformance`), `test_ollama_link.py` (96), `test_modbus_core.py` (68),
-`test_mcp.py` (44), `test_shtp_core.py` (38), `test_ollama_render.py` (32),
-`test_parity.py` (30), `test_ollama_bus.py` (28), `test_ollama_board.py` (27),
-`test_ollama_reply.py` (23), `test_ollama_language.py` (12). How it is wired is in
+Eighteen suites, 1750 checks, sized from `host/tests/.counts.json` and so measured
+rather than remembered: `test_structure.py` (357), `test_ollama_tools.py`
+(218), `test_ollama_runner.py` (214), `test_simulated.py` (189),
+`test_live_model.py` (146, needs ollama, `--live`), `test_ollama_prompt.py`
+(113), `test_conformance.py` (110, `--conformance`), `test_ollama_link.py`
+(96), `test_modbus_core.py` (68), `test_mcp.py` (44), `test_shtp_core.py` (38),
+`test_ollama_render.py` (32), `test_parity.py` (30), `test_ollama_board.py`
+(28), `test_ollama_bus.py` (28), `test_ollama_reply.py` (23),
+`test_ollama_language.py` (12), `test_bench.py` (4, the board's loop rates
+against a recorded baseline). How it is wired is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system); the rules that bind
 you:
 
@@ -228,7 +228,7 @@ you:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14, conformance
   0.29, live 4.6. The `test_ollama_*` suites are in from the first tier and
   narrow *themselves*; that is where the fine resolution lives, because 763 of
-  this tree's 1713 checks are in those nine files.
+  this tree's 1750 checks are in those nine files.
 
 * **The model is not asked when the path map already knows.** Where every
   changed file matched an explicit rule and the answer is `CHEAP` - structure,
@@ -266,7 +266,7 @@ question nobody asked. The suites are the gate *after* a change, not a step in
 finding one.
 
 **Problem, measured:** chasing why two of three gate driver stages ran 15 C
-hotter than the third, the full suite was started three times. None of the 1713
+hotter than the third, the full suite was started three times. None of the 1736
 checks could have said anything about it - the difference was on the bench.
 **What worked instead:** a 600-sample pin count and a register dump.
 

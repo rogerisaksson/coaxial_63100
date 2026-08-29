@@ -1225,8 +1225,11 @@ class SimulatedDaq(Acquisition):
                           c['differential'])
              for c in CHANNELS}
     PHASES = tuple(c['index'] for c in CHANNELS if c['differential'])
+    # One per channel the board reports. A channel added to `s_analog` and
+    # not here is a KeyError on the first frame, which is what happened when
+    # the die thermometer took index 9.
     CENTRE = {0: 1400, 1: -8030, 2: 360, 3: 1300, 4: 40500, 5: 20775,
-              6: 15200, 7: 50700, 8: 1030}
+              6: 15200, 7: 50700, 8: 1030, 9: 22400}
 
     def __init__(self):
         self._cfg = None

@@ -150,7 +150,7 @@ class System(Subsystem):
         the analog front end, and an unpowered part presents as an SPI fault
         - a day was spent there before the supply was checked.
 
-        Paged, because six parts with their strings come to 380 bytes against
+        Paged, because the parts and their strings pass MB_MAX_PDU against
         the 253-byte PDU. An older firmware has no kind 4, and an empty list
         says so without making the whole map fail.
         """

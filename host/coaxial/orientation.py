@@ -33,27 +33,13 @@ HALF_THICKNESS = 0.016
 #: draws a bigger donut rather than the same one with more blank around it.
 K2 = 5.0
 
-#: Samples across a face and around the board. Fine enough that the surface
-#: has no gaps at this character resolution; every sample is rotated,
-#: projected and z-tested, so this is what it costs.
-RADIAL_STEPS = 40
+#: Samples around the board. Fine enough that the surface has no gaps at this
+#: character resolution; every sample is rotated, projected and z-tested.
 PHI_STEPS = 260
-RIM_STEPS = 4
 
 #: Dimmest to brightest - a1k0n's ramp, twelve levels of how squarely a
 #: surface faces the light. Bare copper; the parts have their own, below.
 SHADES = '.,-~:;=!*#$@'
-
-#: A part is not distinguishable from the board it sits on by shading alone:
-#: its top is parallel to the face under it, so it takes the same luminance
-#: and the same character. Each class gets its own ramp instead, and the
-#: board reads as populated rather than as a lit disc.
-PART_SHADES = {
-    'connector': ':H#',
-    'fet':       '.o0',
-    'micro':     '-=%',
-    'passive':   '.:o',
-}
 
 #: Where the light is, in the viewer's frame: over the reader's left shoulder
 #: and towards the reader, so the face turned this way is the lit one.

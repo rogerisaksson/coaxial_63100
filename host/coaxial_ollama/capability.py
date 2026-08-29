@@ -42,7 +42,6 @@ CATALOGUE = [
      'note': 'only with 64 GB of system RAM behind it'},
 ]
 
-DEFAULT_TAG = 'gemma4:12b'
 
 # The largest model worth putting on a CPU, in GB. See choose() for the
 # measurement this comes from.

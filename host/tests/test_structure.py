@@ -17,10 +17,12 @@ import builtins
 import importlib
 import io
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = os.path.dirname(HERE)
+REPO = os.path.dirname(HOST)
 sys.path.insert(0, HOST)
 
 # Packages this suite walks. `tests` is deliberately out: a suite that
@@ -316,10 +318,53 @@ def test_no_escaping_scars(r):
         r.check('%s has no heredoc scars' % path, not scars, ', '.join(scars))
 
 
+#: Prose that quotes a suite size. Each drifts the moment a check is added,
+#: and each was wrong at once: CLAUDE.md said 1679 with structure at 300
+#: when it was 349, and three more files carried a third total.
+COUNTED = ('CLAUDE.md', 'run_tests.ps1', 'docs/ARCHITECTURE.md',
+           'docs/TODO.md')
+
+
+def test_counts_are_measured(r):
+    """Every suite size written in prose matches `.counts.json`.
+
+    One run behind when a check is added: the file is written after the run
+    that reads it, so the first run after a new check fails and names the
+    number to write. That is the intended cost - four files quoting three
+    different totals is what it replaces.
+    """
+    import json
+
+    suites = json.loads(
+        open(os.path.join(HERE, '.counts.json'), encoding='utf-8').read()
+    )['suites']
+    total = sum(suites.values())
+
+    for name in COUNTED:
+        path = os.path.join(REPO, *name.split('/'))
+        text = open(path, encoding='utf-8').read()
+
+        wrong = ['%s (%d)' % (suite, said)
+                 for suite, said in re.findall(
+                     r'`(test_\w+\.py)`\s*\((\d+)', text)
+                 for said in [int(said)]
+                 if suites.get(suite, said) != said]
+        r.check('%s quotes every suite at its size' % name,
+                not wrong, ', '.join(wrong))
+
+        totals = set(int(n) for n in re.findall(r"tree's (\d+) checks", text))
+        totals |= set(int(n) for n in
+                      re.findall(r'suites, (\d+) checks', text))
+        totals |= set(int(n) for n in re.findall(r'\| (\d+) checks,', text))
+        r.check('%s quotes the total as %d' % (name, total),
+                totals <= {total}, ', '.join(str(n) for n in sorted(totals)))
+
+
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
-          test_shape, test_documented, test_no_escaping_scars)
+          test_shape, test_documented, test_no_escaping_scars,
+          test_counts_are_measured)
 
 
 def main():

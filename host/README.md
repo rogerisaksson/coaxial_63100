@@ -124,7 +124,7 @@ works through a plan one step at a time.
     python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml
     python -m coaxial_ollama --ask "what does the NTC read right now?"
     python -m coaxial_ollama --list-tools
-    python tests/test_ollama.py          # offline: no board, no ollama
+    python tests/test_ollama_tools.py    # offline: no board, no ollama
 
 The division of labour is the whole design. The model measures; it is never told
 the limit and never asked for a verdict. `plan.Limit` applies the limits, in

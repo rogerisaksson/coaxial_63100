@@ -1217,6 +1217,35 @@ def test_dead_time(report):
         rig.close()
 
 
+#: Every live view, run headless against the stand-in. The flag exists on
+#: all of them so a frame count can end one.
+VIEWS = ('show_angle', 'show_capture', 'show_desk', 'show_gate_drivers',
+         'show_orientation', 'show_thermal')
+
+
+def test_views(report):
+    """Each view draws three frames against the stand-in without raising.
+
+    The suites check the classes a view is built from, not the view. Both of
+    these got through: `rig.acquire()` called `daq.read`, renamed months
+    earlier and gone from both implementations, and the stand-in's CENTRE
+    map stopped at channel 8 after the die thermometer took 9. Neither is
+    visible to a test that never runs the program.
+    """
+    import subprocess
+
+    tools = os.path.join(REPO, 'host', 'tools')
+    for view in VIEWS:
+        done = subprocess.run(
+            [sys.executable, os.path.join(tools, view + '.py'),
+             '--simulated', '--frames', '3'],
+            capture_output=True, text=True, timeout=120,
+            stdin=subprocess.DEVNULL)
+        tail = (done.stderr or done.stdout or '').strip().splitlines()
+        report.check('%s draws simulated' % view,
+                     done.returncode == 0, tail[-1] if tail else '')
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
@@ -1226,7 +1255,7 @@ def main():
                  test_tumble, test_peak_hold, test_ascii3d,
                  test_clock_reference, test_link_bench,
                  test_gate_driver_arming, test_gate_snapshot,
-                 test_dead_time):
+                 test_dead_time, test_views):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

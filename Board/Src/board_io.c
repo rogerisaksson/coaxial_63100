@@ -314,24 +314,6 @@ bool Board_Pe15(void)
   return (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_15) == GPIO_PIN_SET);
 }
 
-void Board_SetUart5Termination(bool on)
-{
-  /* The 120 ohm across UART5 - UART0 on the schematic. Only the far ends of
-     a segment want it, so it is a switch and not a fit: a bus with a stub
-     terminated in the middle reflects worse than one not terminated at all.
-     CubeMX drives PE14 low at reset, so the board comes up unterminated and
-     something has to ask.
-
-     High switches it in. If the schematic's switch turns out to be
-     active-low that inverts, and it inverts here - one line, one place. */
-  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, on ? GPIO_PIN_SET : GPIO_PIN_RESET);
-}
-
-bool Board_Uart5Termination(void)
-{
-  return (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14) == GPIO_PIN_SET);
-}
-
 void Board_RequestConsoleMode(void)
 {
   link_request_close();

@@ -18,7 +18,7 @@
 
       -Depth 40                          40 % of every check there is
       -Scope test_mcp.py,test_parity.py  those files, nothing else
-      -Only intent,picker                named tests inside test_ollama.py
+      -Only intent,picker                named tests inside the ollama suites
       -Tags prompt,reply                 subjects, instead of asking the model
       -Structure                         does host/ still hold together -
                                          imports, cycles, duplicate
@@ -29,9 +29,9 @@
 
     What runs at a given depth is arithmetic, not a table: suites join in
     order of seconds per check, so the first of a budget buys the cheapest
-    checks there are. test_ollama.py is in from the first tier and narrows
-    ITSELF - the depth reaches its own subject budget, which is where the
-    fine resolution lives, because 733 of this tree's 1613 checks are in
+    checks there are. The ollama suites are in from the first tier and narrow
+    THEMSELVES - the depth reaches their own subject budget, which is where
+    the fine resolution lives, because 764 of this tree's 1750 checks are in
     that one file.
 
     Which subjects, and which suites the changes can have broken, is the

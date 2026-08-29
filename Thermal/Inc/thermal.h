@@ -288,15 +288,6 @@ bool thermal_set_node(thermal_t *th, thermal_node_t node,
   */
 bool thermal_set_board(thermal_t *th, float to_ambient, float capacity);
 
-/**
-  * @brief  Change how the NTC is read.
-  *
-  * `offset` is the constant part, `sees_drivers` the share of the drivers'
-  * rise it picks up. Measured 6.0 K and 0.44 - the first with nothing
-  * switching, so it is mounting, the second from the switching state.
-  */
-bool thermal_set_ntc(thermal_t *th, float offset, float sees_drivers);
-
 #ifdef __cplusplus
 }
 #endif

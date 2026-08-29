@@ -259,29 +259,6 @@ bool Board_PwmIsEnabled(void)
 }
 
 
-bool Board_PwmSetDuty(uint8_t phase, uint16_t ticks)
-{
-  if (phase >= BOARD_PWM_PHASES || !Board_PwmIsEnabled())
-  {
-    return false;
-  }
-  if (ticks > TIM1->ARR)
-  {
-    return false;               /* not a limit - it is off the end of ARR */
-  }
-
-  switch (phase)
-  {
-    case 0U:  TIM1->CCR1 = ticks; break;
-    case 1U:  TIM1->CCR2 = ticks; break;
-    default:  TIM1->CCR3 = ticks; break;
-  }
-
-  s_duty[phase] = ticks;
-  return true;
-}
-
-
 void Board_PwmDitherStep(void)
 {
   /* First-order sigma-delta on the compare register, once per PWM period.

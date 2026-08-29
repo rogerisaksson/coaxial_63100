@@ -64,7 +64,7 @@ class Analog(Subsystem):
         """
         if self._channels is None or refresh:
             # Asked for in pages. A row costs 18 bytes plus its two names and
-            # one reply holds 252, so seven channels fitted and nine did not
+            # one reply holds 252: seven channels fitted, nine did not
             # - the board sends what fits, says how many there are, and this
             # asks again from where it stopped.
             table = []

@@ -74,7 +74,7 @@ ASK = """Which tests can this change have broken?
 Suites:
 %s
 
-Subjects inside test_ollama.py:
+Subjects inside the ollama suites:
 %s
 
 Live sections (test_live_model.py only):
