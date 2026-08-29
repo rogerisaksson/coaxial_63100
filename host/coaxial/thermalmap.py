@@ -76,15 +76,21 @@ CELL_ASPECT = 1.10
 #:
 #: SIZE IS THE ONLY KNOB. A superellipse was tried at three exponents and
 #: changed nothing - the raster is too coarse to care about the shape of the
-#: curve, only about how many cells fall inside it:
+#: curve, only about how many FIELD ROWS fall inside it:
 #:
-#:   2.0 cells   2-4-4-2      an upside-down cross
-#:   2.4         4-4-4-4      a square
-#:   3.2         4-6-6-6-6-4  an octagon, which is as round as this gets
+#:   up to 2.0 cells   2-4-4-2         the discrete circle, and the smallest
+#:   2.4               4-4-4-4         a square
+#:   3.2               4-6-6-6-6-4     an octagon
 #:
-#: 3.2 is the smallest that softens the corners, which is the whole
-#: difference between a hole and a hole-shaped hole.
-BORE_MIN_CELLS = 3.2
+#: 2.0, because the colour renderer carries TWO field rows per character
+#: row: 2-4-4-2 is four characters across and two rows down, which is round
+#: on the glass. The three larger shapes were each tried on the bench and
+#: read as a square or a punched-out middle.
+#:
+#: The plain ramp spends a whole row per field row, so the same shape is
+#: twice as tall there and coarser for it. That is the fallback - a pipe, a
+#: log - and the colour path is what anybody looks at.
+BORE_MIN_CELLS = 2.0
 
 #: Where the heat sources sit: (x, y, sigma) in millimetres per zone.
 #:
