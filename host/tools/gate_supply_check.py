@@ -55,7 +55,7 @@ def main():
     p.add_argument('--samples', type=int, default=12)
     a = p.parse_args()
 
-    with Coaxial63100(port=a.port) as rig:
+    with Coaxial63100(port=a.port, power_afe=True) as rig:
         rig.board.afe.enable()
         time.sleep(1.0)
         rest = volts(rig)

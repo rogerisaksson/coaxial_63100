@@ -31,10 +31,9 @@ import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import TO_MENU, Keys, banner, paint, park, say  # noqa: E402
+from screen import QUIET, TO_MENU, Keys, banner, paint, park, say, steady  # noqa: E402
 
 from coaxial import Coaxial63100, angle, scaling       # noqa: E402
-from coaxial.errors import DeviceStateError, NoReplyError, RigError  # noqa: E402
 
 #: Samples per channel in the dash's analog read. 64 costs 88 ms of round
 #: trip against a 500 ms frame; 16 costs 30 and the dash is a glance, not a
@@ -86,7 +85,6 @@ BAR = 10
 #: board's - the board reports the gauss and says nothing about it.
 WEAK_GAUSS = 30
 
-QUIET = (NoReplyError, RigError, DeviceStateError)
 
 #: Where the gate drivers start. Half is the duty that puts equal volt-seconds
 #: on both halves of every leg, so with all three at it there is no voltage
@@ -102,16 +100,6 @@ DUTY_STEP = 0.05
 #: Which legs. Named because a leg at a time is how a per-leg thermal
 #: question gets asked, and three at once is how a bulk one does.
 DEFAULT_PHASES = ('U', 'V', 'W')
-
-
-def steady(fn, *args, **kwargs):
-    """Run it, tolerating the link's occasional silence. None if it stayed."""
-    for _ in range(4):
-        try:
-            return fn(*args, **kwargs)
-        except QUIET:
-            time.sleep(0.15)
-    return None
 
 
 class Session:

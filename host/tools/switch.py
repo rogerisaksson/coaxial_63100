@@ -69,7 +69,7 @@ def main():
     def write(rig, duty):
         rig.write(analog={'Phase ' + leg: duty for leg in legs})
 
-    rig = Coaxial63100(port=a.port).open()
+    rig = Coaxial63100(port=a.port, power_afe=False).open()
     try:
         if not a.keep_afe:
             rig.board.afe.disable()

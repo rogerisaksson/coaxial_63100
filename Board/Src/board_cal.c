@@ -43,7 +43,8 @@
    rather than read with the new fields as whatever flash held. */
 /* 5: the half-bridge dead time joined the record. A stored 4 is refused
    rather than read with the new field as whatever flash held. */
-#define CAL_VERSION 5U
+/* 6: and its lead-lag trim. */
+#define CAL_VERSION 6U
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes. sizeof(board_cal_t) is 104 today. */
@@ -93,6 +94,12 @@ static const board_cal_t CAL_DEFAULTS =
      it is the number a bench can change without a rebuild, and the
      firmware still refuses anything under its own 20 ns floor. */
   .deadtime_ns      = 30UL,
+
+  /* No trim until something is measured. The gate drive is asymmetric by
+     design, so the two transitions of a leg need not want the same dead
+     time - but a number invented from a datasheet would be one pretending
+     to be a measurement, and nothing here has been on a scope. */
+  .deadtime_skew    = 0UL,
   .ntc_r25_ohm      = 10000UL,        /* NCU18XH103D60RB                   */
   .ntc_beta_mk      = 3380000UL,      /* B25/50 = 3380 K, in milli-kelvin  */
   .ntc_rfixed_ohm   = 10000UL,        /* R100, ERA-3AEB103V 0.1 %          */
@@ -232,6 +239,7 @@ static uint32_t *cal_field(uint8_t id)
     case BOARD_CAL_VG_R_TOP:     return &s_cal.vg_r_top_ohm;
     case BOARD_CAL_VG_R_BOTTOM:  return &s_cal.vg_r_bottom_ohm;
     case BOARD_CAL_DEADTIME_NS:  return &s_cal.deadtime_ns;
+    case BOARD_CAL_DEADTIME_SKEW: return &s_cal.deadtime_skew;
     default:                     return NULL;
   }
 }

@@ -1038,7 +1038,10 @@ def test_gate_driver_arming(report):
     from coaxial import Coaxial63100
     from coaxial.errors import RigError
 
-    rig = Coaxial63100(simulated_device=True).open()
+    # power_afe SAID, not inherited: the interlock refusal under
+    # test reports the volts it read, and with the rail down it
+    # refuses for the rail instead and never reads them.
+    rig = Coaxial63100(simulated_device=True, power_afe=True).open()
     try:
         report.check('nothing is armed on the way in',
                      rig.gates.armed() is False, rig.gates.armed())
@@ -1175,7 +1178,10 @@ def test_dead_time(report):
     from coaxial import Coaxial63100
     from coaxial.errors import RigError
 
-    rig = Coaxial63100(simulated_device=True).open()
+    # power_afe SAID, not inherited: the interlock refusal under
+    # test reports the volts it read, and with the rail down it
+    # refuses for the rail instead and never reads them.
+    rig = Coaxial63100(simulated_device=True, power_afe=True).open()
     try:
         gates = rig.board.gate_drivers
         at_rest = gates.dead_time()

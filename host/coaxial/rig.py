@@ -35,7 +35,7 @@ class Coaxial63100(Acquisition):
     """One board, one acquisition task, one clock."""
 
     def __init__(self, port='COM4', baud=115200, unit=1, link='auto',
-                 simulated_device=False, power_afe=True):
+                 simulated_device=False, power_afe=False):
         """Say where the board is. Nothing is opened until `open()`.
 
         port              the serial port: 'COM4' on Windows, something
@@ -49,6 +49,13 @@ class Coaxial63100(Acquisition):
                           `self.simulated` says so - a number from nowhere
                           and one from hardware must never look alike.
         power_afe         switch AFE_ON for the session if it is off, and
+
+                          FALSE BY DEFAULT. It was true, so every rig that
+                          opened switched the rail and every one that closed
+                          switched it back - connect, disconnect, connect,
+                          and AFE_ON drives an LED. A script that needs the
+                          analog front end says so; one that only reads
+                          counters no longer touches it at all.
                           switch it back on the way out. Off leaves the
                           supply exactly as found, and every reading then
                           means whatever the supply was doing.

@@ -24,7 +24,7 @@ from coaxial import Coaxial63100, scaling
 SIMULATED = False
 BLOCKS = 20
 
-daq = Coaxial63100(port='COM4', baud=115200, simulated_device=SIMULATED)
+daq = Coaxial63100(port='COM4', baud=115200, simulated_device=SIMULATED, power_afe=True)
 daq.open()
 print(daq)
 

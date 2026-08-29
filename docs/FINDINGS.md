@@ -1471,3 +1471,95 @@ suite had opened a session: the broker says it has stood down, then the
 socket closes, then the thread unwinds, then pyserial lets go. The open is
 retried for five seconds now.
 
+## Where the shoot-through cliff is, dry, and what it is worth
+
+Measured 2026-08-29, three legs at 50 %, no load, no motor. The bench
+supply's OCP is the instrument: shoot-through is the only current there is,
+so the trip point moves with what the supply is allowed to deliver.
+
+| OCP | last dead time that held | first that tripped |
+|---|---|---|
+| 300 mA | 33 ns | 29 ns |
+| 400 mA | **27 ns** | **25 ns** |
+
+About 100 mA of shoot-through per 4 ns of dead time removed - one DTG count.
+
+**THE TRIP DETECTOR IS THE OBSERVER'S UPTIME**, not the DC link. The link is
+sampled with the stage down, and by then the supply has recovered: it read
+24.89 V at the very step whose uptime had gone from 569 s to 13. A counter
+that was larger a minute ago and is smaller now says the board restarted,
+which is a fact rather than a threshold (invariant 10).
+
+`drivers` climbed 21 to 26 % across the whole sweep without a knee - that is
+the run heating up, not the dead time shortening. Shoot-through would break
+the curve upward at the step that caused it, and did not: by the time it
+draws enough to see thermally, it has already tripped the supply.
+
+### 33 ns is aggressive, and dry is the easy case
+
+It sits **6 ns above the cliff** at 400 mA, a step and a half of DTG, and the
+cliff moves up as the supply is allowed to give more. The datasheet
+arithmetic asks for 65 ns - 59.4 ns of worst-corner gate overlap plus the
+2EDL8034's 6 ns TDMOFF - so this is half of it.
+
+Every number above is at ZERO PHASE CURRENT. Turn-off slows with current as
+the Miller plateau lengthens, and it is the charge still in the channel at
+the transition that causes shoot-through. The gate behaviour these agree with
+is the part that does not change much under load. The part that does has no
+data points at all.
+
+### The lead-lag test was invalid
+
+Skew ±1 at 25 ns was tried and proved nothing: all three rows read an uptime
+of 24 s, so the board had restarted in every step including the two marked as
+holding. The baseline for each step was taken straight after the previous
+step's reset, so the comparison measured nothing.
+
+Skew stays at 0, which is the UNTESTED default and not a measured result. It
+is calibration parameter 14 now, so a trim that is measured can be stored
+without a rebuild.
+
+## The rail was flipping at every connect, and the observer every five seconds
+
+Reported from the bench 2026-08-29: AFE_ON on most of the time, and the LED
+it drives blinking. Two causes, and the observer borrowing the rail was not
+one of them - that is what it is for.
+
+**`Coaxial63100` switched the rail as a side effect of connecting.**
+`power_afe` defaulted to true, so every rig that opened switched it on and
+every one that closed switched it back. Ten call sites inherited that,
+including `switch.py`, which then turned it straight off again to arm. It is
+false by default now and said at the seven call sites that read analog
+channels - a rail change is visible where it is asked for.
+
+**The observer sampled every 5 seconds.** The board's time constant is 6.8
+minutes, so that was 80 samples a tau: eighty rail toggles for resolution
+nobody was short of. 30 s is 13 a tau, and puts the front end's duty at
+0.5 s in 30 rather than in 5.
+
+A leaked hold made it worse: the host's reference has no lease by design, so
+a script killed mid-run leaves AFE_ON high for ever. `power.release_all()`
+clears it, and `demos.py --leave` reports it.
+
+## The thermal picture: oval board, cross-shaped bore, blocky bottom
+
+Three separate faults in one drawing, all measured 2026-08-29.
+
+* **Oval.** Both renderers are square in CELLS - the ramp spends two
+  characters and one row, the half-block one character and half a row - but
+  a terminal character is about 9 x 20 pixels, so a cell is a tenth taller
+  than wide and the board stood up. `CELL_ASPECT` stretches the field's row
+  spacing instead, and the board comes back at 30 cells wide by 28 rows.
+* **A cross, not a bore.** At 2.0 cells the raster draws 2-4-4-2 cells, which
+  reads as an upside-down cross. A superellipse was tried at three exponents
+  and changed nothing - the grid is too coarse to care. Size is the only
+  knob: 2.4 cells, and it only bites on the plain ramp, since the colour
+  renderer affords enough cells for the physical 5 mm to resolve.
+* **Blockier at the bottom.** The half-block renderer pairs field rows two to
+  a character row, so an odd count leaves the last one unpaired and draws it
+  as a solid background block. `_fit` returns an even count now.
+
+The cap on cells was 44, which is what made the circle a staircase: the
+raster is the only antialiasing there is. 88 costs 7744 field evaluations and
+draws in 42 ms, which at 2 Hz is nothing.
+

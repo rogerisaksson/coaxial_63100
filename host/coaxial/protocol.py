@@ -94,7 +94,11 @@ CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               # id 13, the half-bridge dead time. In the record because it is
               # the one number between the two FETs of a leg, and a compiled
               # constant means the board carries whatever the last flash held.
-              'deadtime_ns')
+              'deadtime_ns',
+              # id 14, the lead-lag trim in DTG counts. The gate drive is
+              # asymmetric by design, so the two transitions of a leg need
+              # not want the same dead time.
+              'deadtime_skew')
 """The record's scalars, in the order 0x6E device 3 op 0 sends them, and the
 order their ids run in. Integers in the unit that makes them integers, because
 the wire bans floating point - the names carry the unit for the same reason

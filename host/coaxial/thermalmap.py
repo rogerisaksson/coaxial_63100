@@ -40,15 +40,45 @@ from . import ansi
 OUTER_MM = 50.0
 BORE_MM = 5.0
 
+#: The finest grid worth drawing. Cost is O(cells^2) field evaluations, so
+#: this is what stops a tall window spending a second a frame - measured, 88
+#: cells is 7744 points and draws in 40 ms, which at 2 Hz is nothing.
+#:
+#: It was 44, which is what made the circle read as a staircase: the raster
+#: is the only antialiasing there is, and half the cells is twice the step.
+CELLS_MAX = 88
+
+#: How tall a drawn cell is against its width, on the screen.
+#:
+#: BOTH RENDERERS ARE SQUARE IN CELLS - the ramp spends two characters a cell
+#: and one row, the half-block one character and half a row - so a circle of
+#: equal cells each way is round only if a cell is square on the glass. It is
+#: not: a terminal character is about 9 x 20 pixels, so the cell comes out a
+#: tenth taller than it is wide and the board stands up as an oval.
+#:
+#: Applied to the FIELD rather than to the grid: the row spacing in
+#: millimetres is stretched by this, so fewer rows fit inside the radius and
+#: the drawn shape comes back round. Tunable because it belongs to the font,
+#: not to the board - `--aspect` on the views.
+CELL_ASPECT = 1.10
+
 #: The bore is drawn at least this many CELLS across, whatever the board's
 #: millimetres work out to at the resolution in hand.
 #:
-#: A drawing concession and not a dimension: 5 mm of 50 lands on two cells at
-#: any terminal size worth using, and two cells is a square smudge - the shaft
-#: bore read as a dent rather than a hole. Widened here rather than in
-#: BORE_MM, because that one is what the board IS and belongs to
-#: `electronics/`.
-BORE_MIN_CELLS = 3.5
+#: A drawing concession and not a dimension: 5 mm of 50 is a tenth of the
+#: radius, which lands on one cell at any terminal size worth using, and one
+#: cell is a dent rather than a hole. Widened here rather than in BORE_MM,
+#: because that one is what the board IS and belongs to `electronics/`.
+#:
+#: It only bites on the COARSE grid. The colour renderer spends one character
+#: a cell and half a row, so it affords two or three times the cells and the
+#: physical 5 mm resolves on its own - this is the plain ramp's floor.
+#:
+#: 2.4 and not less: at 2.0 the raster draws 2-4-4-2 cells, which reads as an
+#: upside-down cross rather than a hole. A superellipse was tried at three
+#: exponents and changed nothing - the grid is too coarse to care, so the
+#: only knob that works is size.
+BORE_MIN_CELLS = 2.4
 
 #: Where the heat sources sit: (x, y, sigma) in millimetres per zone.
 #:
@@ -108,17 +138,18 @@ def field(x_mm, y_mm, board_c, nodes, layout=None):
     return got
 
 
-def _grid(nodes, board_c, cells, layout):
+def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
     """(rows of temperature-or-None, lo, hi). None is off the board."""
     rows, lo, hi = [], None, None
     per_cell = 2.0 * OUTER_MM / cells
     bore = max(BORE_MM, BORE_MIN_CELLS * per_cell)
+    per_row = per_cell * aspect
 
     for row in range(cells):
         line = []
         for col in range(cells):
-            x = (col - (cells - 1) / 2.0) * (2.0 * OUTER_MM / cells)
-            y = ((cells - 1) / 2.0 - row) * (2.0 * OUTER_MM / cells)
+            x = (col - (cells - 1) / 2.0) * per_cell
+            y = ((cells - 1) / 2.0 - row) * per_row
             r = math.hypot(x, y)
             if r > OUTER_MM or r < bore:
                 line.append(None)
@@ -145,7 +176,12 @@ def _fit(colour, reserve):
         wide, high = size.columns - 2, rows * 2
     else:
         wide, high = (size.columns - 2) // 2, rows
-    return max(10, min(44, min(wide, high)))
+
+    # EVEN. The half-block renderer draws two field rows per character row,
+    # so an odd count leaves the last one unpaired - it comes out as a solid
+    # background block and the bottom of the board reads blockier than the
+    # top. Rounded DOWN, so it still fits what was measured to be free.
+    return max(10, min(CELLS_MAX, min(wide, high))) // 2 * 2
 
 
 def _half_rows(grid):
@@ -206,7 +242,7 @@ def _ramp_rows(grid):
 
 
 def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
-           reserve=None, trailing=2):
+           reserve=None, trailing=2, aspect=CELL_ASPECT):
     """The board as a thermal picture.
 
     `nodes` is {zone: degrees} and `board_c` the bulk the field falls back to
@@ -235,7 +271,7 @@ def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
                      if reserve is None else reserve)
     layout = LAYOUT if layout is None else layout
 
-    grid, lo, _hi = _grid(nodes, board_c, cells, layout)
+    grid, lo, _hi = _grid(nodes, board_c, cells, layout, aspect)
     if lo is None:
         return 'nothing to draw'
 

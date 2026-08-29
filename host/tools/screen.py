@@ -9,6 +9,8 @@ import re
 import sys
 
 from coaxial import ansi
+from coaxial.errors import (DeviceStateError, NoReplyError,  # noqa: E402
+                            RigError)
 
 ansi.utf8_stdout()          # every view draws outside ASCII
 
@@ -85,6 +87,35 @@ def say(state, text, detail=''):
     sys.stdout.write('  %s[%sm%-6s%s[0m%-22s %s[90m%s%s[0m\n'
                      % (esc, colour, state, esc, text, esc, detail, esc))
     sys.stdout.flush()
+
+
+#: What a board hiccup looks like from a view: a refusal, a lost frame, a
+#: state the board will not answer for. Named here because every view and
+#: every bench tool holds the same list, and a copy of it in two files is
+#: what the structure suite refuses.
+QUIET = (NoReplyError, RigError, DeviceStateError)
+
+
+def steady(fn, *args, **kwargs):
+    """Call it, retrying the link's occasional silence. None if it stayed.
+
+    NOT the library's contract - `coaxial` raises and never returns None for
+    failure (invariant 8). This is the edge: a view that stopped drawing
+    every time a frame was lost would be a view nobody could leave running,
+    and one missing reading is a gap in a picture rather than an error.
+
+    Four tries, because a lost frame is lost once. A board that is actually
+    gone costs four timeouts to find out, which is the price of not redrawing
+    a dashboard as empty every time the link hiccups.
+    """
+    import time
+
+    for _ in range(4):
+        try:
+            return fn(*args, **kwargs)
+        except QUIET:
+            time.sleep(0.15)
+    return None
 
 
 def park(rows, console):

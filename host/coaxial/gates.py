@@ -160,6 +160,22 @@ class GateStage:
                 % ', '.join(state['gate_shorts']))
         return state
 
+    def dead_time(self, nanoseconds=None, skew=None):
+        """Read the dead time, or set it and its skew.
+
+        Here because this is the front door to the stage and the dead time is
+        the stage's most consequential number - CLAUDE.md has said
+        `rig.gates.dead_time(...)` since before it existed here, and a tool
+        written against that got AttributeError.
+
+        The refusals are the board's: under its 20 ns floor, or a skew that
+        would take either half of the pair under it.
+        """
+        if skew is None:
+            return self._board.gate_drivers.dead_time(nanoseconds)
+        return self._board.gate_drivers.dead_time(nanoseconds, skew=skew)
+
+
     def arm(self, bypass_sto=False, ignore_interlock=False):
         """Set MOE. Nothing switches before this and everything can after.
 

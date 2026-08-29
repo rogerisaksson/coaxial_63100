@@ -145,6 +145,7 @@ int main(void)
      on flash to do that - so the .ioc's value stands for those few
      microseconds and this replaces it. Nothing is armed in between. */
   (void)Board_PwmSetDeadTime(Board_Cal()->deadtime_ns);
+  (void)Board_PwmSetDeadTimeSkew((int8_t)Board_Cal()->deadtime_skew);
 
   /* Differential-mode offset calibration, recommended before first use for
      absolute accuracy rather than mere repeatability. Note that it runs with

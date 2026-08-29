@@ -554,11 +554,12 @@ bool Board_McuDie(int32_t *raw, int32_t *centidegc);
 #define BOARD_CAL_VG_R_TOP    11U  /**< gate supply divider top, ohms       */
 #define BOARD_CAL_VG_R_BOTTOM 12U  /**< gate supply divider bottom, ohms    */
 #define BOARD_CAL_DEADTIME_NS 13U  /**< half-bridge dead time, nanoseconds  */
+#define BOARD_CAL_DEADTIME_SKEW 14U /**< lead-lag trim, DTG counts         */
 /* One past the last id above. It is a COUNT, not a coincidence: op 0
    walks 0..COUNT-1, so an id added without moving this is a field the
    board holds and never reports - measured, deadtime_ns read back as
    absent from a record that had it. */
-#define BOARD_CAL_PARAM_COUNT 14U
+#define BOARD_CAL_PARAM_COUNT 15U
 
 /** One channel's correction, applied to the raw code before any scaling. */
 typedef struct
@@ -594,6 +595,17 @@ typedef struct
      the source said 30. In the record it is asked for, stored, and read
      back. */
   uint32_t deadtime_ns;
+
+  /* Lead against lag, in DTG counts. The gate drive is not symmetric -
+     one edge goes through a different resistor than the other - so the
+     two transitions of a leg need not want the same dead time. Positive
+     lengthens the one the counter reaches counting up and shortens the
+     other by the same, so the pair still averages `deadtime_ns`.
+
+     Zero until something is measured. Nothing here has been on a scope,
+     and a trim invented from a datasheet would be a number pretending to
+     be a measurement. */
+  uint32_t deadtime_skew;
   uint32_t ntc_r25_ohm;
   uint32_t ntc_beta_mk;
   uint32_t ntc_rfixed_ohm;
