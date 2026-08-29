@@ -30,10 +30,9 @@ import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import (TO_MENU, Keys, banner, clear, paint,   # noqa: E402
-                    say)
+from screen import TO_MENU, Keys, banner, paint, say   # noqa: E402
 
-from coaxial import Coaxial63100, angle, scaling                           # noqa: E402
+from coaxial import Coaxial63100, angle, scaling       # noqa: E402
 from coaxial.errors import DeviceStateError, NoReplyError, RigError  # noqa: E402
 
 #: Samples per channel in the dash's analog read. 64 costs 88 ms of round
@@ -43,6 +42,9 @@ ADC_SAMPLES = 16
 
 #: FIELD, from the A1335's register map.
 ANGLE_REG_FIELD = 0x2A
+
+#: Seconds the teardown list stays on screen before the process exits.
+TEARDOWN_HOLD = 2.0
 
 #: Cells in a budget bar. Ten reads as a percentage without being counted.
 BAR = 10
@@ -106,7 +108,6 @@ class Session:
         finally:
             steady(self.rig.board.angle.resume)
         return None if got is None else angle.gauss(got['value'])
-        self.phases = DEFAULT_PHASES
 
     def set_duty(self, duty):
         """Move the duty, and push it if the stage is already switching.
@@ -487,6 +488,40 @@ def frame(session, console, note):
     return lines
 
 
+def teardown(session, console):
+    """List what is being put back, under the last frame, and hold it there.
+
+    NOT after `clear`. Clearing first put the list alone on a blank screen,
+    where anything drawn afterwards - a shell prompt, a terminal profile
+    closing the pane - took it with it, and it was reported missing four
+    times. Left under the dashboard it cannot be lost: nothing writes after.
+
+    The hold is for the same reason. Two seconds is long enough to read six
+    lines and short enough not to be in the way.
+    """
+    sys.stdout.write('\n')
+    say('wait', 'stopping', 'putting back what the session started')
+
+    try:
+        undone = session.stop_all()
+    except Exception as exc:                       # noqa: BLE001
+        # The lines matter more than the exception: this is the only place
+        # that says what was put back, and a stop that raised is exactly
+        # when somebody needs to read it.
+        say('fail', 'stopping', str(exc)[:60])
+        undone = []
+
+    for name, what in undone:
+        say('ok', name, what)
+    if not undone:
+        say('ok', 'nothing ran', 'no activity was started this session')
+
+    say('ok', 'AFE_ON', 'back the way the session found it')
+    say('ok', 'board', 'nothing the session started is still running')
+    if console:
+        time.sleep(TEARDOWN_HOLD)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', default='COM4')
@@ -535,11 +570,7 @@ def main():
         except KeyboardInterrupt:
             pass
         finally:
-            clear(console)
-            for name, undone in session.stop_all():
-                say('ok', name, undone)
-            say('ok', 'AFE_ON', 'back the way the session found it')
-            say('ok', 'board', 'nothing the session started is still running')
+            teardown(session, console)
 
     return TO_MENU if leaving == 'menu' else 0
 
