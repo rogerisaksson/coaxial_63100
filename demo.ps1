@@ -58,7 +58,7 @@ $ErrorActionPreference = 'Continue'
 # keys land on. Script $null marks it: it is not one of demos/, it IS demos.
 $Views = [ordered]@{
     'session' = @{ Script = $null
-                 What   = 'all of it in one port: switch, thermals, sensors' }
+                 What   = 'one dash: analog, thermals, bridges, DIO, IMU, angle' }
     'imu'   = @{ Script = 'imu.ps1'
                  What   = 'board attitude, drawn from the STL the IMU turns' }
     'angle' = @{ Script = 'angle.ps1'

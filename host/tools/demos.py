@@ -1,14 +1,15 @@
-"""The demos, in one session. `demo.ps1` runs this.
+"""One dashboard over one rig. `demo.ps1` runs this.
 
-There is nothing to pick and no mode to enter: opening the demos IS the
-session. Every standalone view in `demos/` opens its own rig and owns the
-port, so switching the gate drivers and watching the heat meant two processes
-and one serial port - which is why `show_thermal.py` had to grow a `--switch`
-of its own. Here one rig is held and the panels come and go over it.
+Six blocks in three columns - the analog channels, the thermal budget and
+the half-bridges over DIO, the IMU and the angle sensor - under one line
+saying what the system is doing. Nothing to page through: every standalone
+view in `demos/` opens its own rig and owns the port, so switching the gate
+drivers and watching the heat meant two processes and one serial port, which
+is why `show_thermal.py` had to grow a `--switch` of its own.
 
-THE ACTIVITY OUTLIVES THE PANEL. That is the whole point: start the drivers
-switching, move to the thermal panel, and the stage keeps running because the
-session owns it and not the view. Panels only draw.
+ONE SNAPSHOT PER FRAME. Every block reads from the same round of calls, or
+two columns disagree about whether the stage is switching - which is the one
+thing a dashboard must not do.
 
 WHAT THIS BOARD CANNOT DO, and the session says so rather than hiding it:
 AFE_ON is inverted, so the gate drivers have supply only while the analog
@@ -20,7 +21,6 @@ samples, and that is what it was built for.
 
     python tools/demos.py
     python tools/demos.py --simulated
-    python tools/demos.py --panel gates
 """
 import argparse
 import os
@@ -89,6 +89,7 @@ class Session:
         self.running = {}          # activity name -> what to undo, in order
         self.note = ''
         self.duty = DEFAULT_DUTY
+        self.phases = DEFAULT_PHASES
         # Both fetched once. The record does not change while a session
         # is open, and reading FIELD costs a hold - which stops the angle
         # loop, so doing it every frame would halve its rate to answer a
@@ -141,8 +142,18 @@ class Session:
         self.note = '%s stopped' % name
 
     def stop_all(self):
+        """Stop everything, and say what each one was. For the way out.
+
+        Named rather than counted: 'everything is stopped' was one line for
+        a stage that might have been switching 100 A, and the way out has to
+        read like the way in - one line per thing, so what was put back is
+        seen rather than trusted.
+        """
+        said = []
         for name in list(self.running):
             self.stop(name)
+            said.append((name, UNDONE.get(name, 'stopped')))
+        return said
 
 
 # ---- activities: what the board DOES ------------------------------------
@@ -154,6 +165,7 @@ class Switching:
     name = 'switching'
     key = 's'
     what = 'gate drivers, three legs'
+    undone = 'three legs to zero duty, stage disarmed'
 
     def start(self, session):
         rig = session.rig
@@ -176,11 +188,12 @@ class Switching:
 
 class Acquiring:
 
-    """A DAQ task, so the panels have traffic to show and the link has load."""
+    """A DAQ task, so the link has load and the counters move."""
 
     name = 'acquiring'
     key = 'd'
     what = 'DAQ running, every channel'
+    undone = 'acquisition task stopped'
 
     def start(self, session):
         rig = session.rig
@@ -194,8 +207,12 @@ class Acquiring:
 
 ACTIVITIES = (Switching(), Acquiring())
 
+#: What each one puts back, for the teardown lines. Off the classes, so
+#: a new activity carries its own sentence rather than needing one here.
+UNDONE = dict((a.name, a.undone) for a in ACTIVITIES)
 
-# ---- panels: what you LOOK at -------------------------------------------
+
+# ---- the dash: six blocks, one snapshot ---------------------------------
 
 # ---- the dash: everything at once, in three columns ----------------------
 
@@ -366,6 +383,10 @@ def angle_block(got):
     if field is not None and field < WEAK_GAUSS:
         rows.append('  %d gauss - no magnet, so' % field)
         rows.append('  the angle is noise')
+    elif state.get('degrees') is None:
+        # The loop reads a register the host asked it to, and only ANG
+        # decodes to an angle. Whatever else it is watching, it is not this.
+        rows.append('  reading %s, not ANG' % state.get('register_name', '?'))
     else:
         rows.append('  %7.2f deg' % state['degrees'])
     return block('ANGLE', rows)
@@ -515,8 +536,10 @@ def main():
             pass
         finally:
             clear(console)
-            session.stop_all()
-            say('ok', 'board', 'everything the session started is stopped')
+            for name, undone in session.stop_all():
+                say('ok', name, undone)
+            say('ok', 'AFE_ON', 'back the way the session found it')
+            say('ok', 'board', 'nothing the session started is still running')
 
     return TO_MENU if leaving == 'menu' else 0
 

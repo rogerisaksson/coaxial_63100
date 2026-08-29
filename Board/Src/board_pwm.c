@@ -449,6 +449,62 @@ void Board_PwmState(board_pwm_state_t *out)
 }
 
 
+/* What the stage starts at. Asked for 2026-08-29, down from 80 ns.
+ *
+ * KEPT, because it is the arithmetic this replaces rather than disproves:
+ * 59.4 ns of worst-corner gate overlap plus the 2EDL8034's 6 ns TDMOFF is
+ * about 65 ns needed, and 80 ns was fitted against it. 30 ns is under that
+ * figure and above the 20 ns floor. Nothing has been on a scope, and no
+ * current has flowed through a leg - the numbers on both sides are still
+ * datasheet arithmetic (FINDINGS, invariant 10).
+ *
+ * t_DTS is 4.21 ns, so this lands on 7 counts = 29.5 ns.
+ */
+#define BOARD_PWM_DEADTIME_NS 30U
+
+/* Dead time, at runtime. 20 ns is a FLOOR, not a default: the 2EDL8034 has
+ * no interlock, so this is the only thing between the two FETs of a leg, and
+ * asking for less gets 20 ns and a sentence.
+ *
+ * DTG is not linear - only the low range steps by one t_DTS. This uses that
+ * alone, capping at 127 x t_DTS = 535 ns, six times what the bridge needs.
+ */
+#define BOARD_PWM_DEADTIME_MIN_NS 20U
+#define BOARD_PWM_DTG_MAX 127U
+
+
+static uint32_t dts_ps(void)
+{
+  /* Picoseconds per DTG count, so the ns arithmetic stays integer. CKD is
+     0 - checked in the silicon, CR1 0xB1 - so t_DTS is one timer tick. */
+  const uint32_t hz = Board_SysClkHz() / 2UL;   /* TIM1 kernel, 237.5 MHz */
+
+  return (hz != 0UL) ? (1000000000000ULL / hz) : 0UL;
+}
+
+uint8_t Board_PwmDeadTimeFloor(void)
+{
+  const uint32_t ps = dts_ps();
+
+  if (ps == 0UL)
+  {
+    return 1U;
+  }
+
+  /* Round up: a floor that rounded down would be under the floor. */
+  const uint32_t counts = ((BOARD_PWM_DEADTIME_MIN_NS * 1000UL) + ps - 1UL) / ps;
+
+  return (counts < 1UL) ? 1U : (uint8_t)counts;
+}
+
+uint32_t Board_PwmDeadTimeNs(void)
+{
+  /* What was asked for, not what BDTR holds this half-period. With a skew
+     running the register alternates, and reading it gave 105 ns for an
+     80 ns request - whichever half the read happened to land in. */
+  return (uint32_t)(((uint64_t)s_deadtime * dts_ps()) / 1000ULL);
+}
+
 bool Board_PwmInit(void)
 {
   /* The lazy shape the rest of Board/ uses - `if (!Ready() && !Init())`.
@@ -506,6 +562,20 @@ bool Board_PwmInit(void)
      handler counts halves and runs the dither on every second one, which
      is the rate it always ran at. */
   TIM1->RCR = 0U;
+
+  /* The dead time, written here rather than inherited from the .ioc. Twice
+     today a CubeMX regeneration moved a peripheral setting the drivers
+     depend on, and this is the one where a silent move shorts a leg. */
+  {
+    const uint32_t ps = dts_ps();
+    const uint32_t want = (ps != 0UL)
+                        ? ((BOARD_PWM_DEADTIME_NS * 1000UL) / ps) : 0UL;
+    const uint8_t floor_counts = Board_PwmDeadTimeFloor();
+    const uint8_t counts = (uint8_t)((want < floor_counts) ? floor_counts
+                                                           : want);
+
+    TIM1->BDTR = (TIM1->BDTR & ~TIM_BDTR_DTG) | counts;
+  }
   s_deadtime = (uint8_t)(TIM1->BDTR & TIM_BDTR_DTG);
   s_half = 0U;
 
@@ -520,49 +590,6 @@ bool Board_PwmInit(void)
   return true;
 }
 
-
-/* Dead time, at runtime. 20 ns is a FLOOR, not a default: the 2EDL8034 has
- * no interlock, so this is the only thing between the two FETs of a leg, and
- * asking for less gets 20 ns and a sentence.
- *
- * DTG is not linear - only the low range steps by one t_DTS. This uses that
- * alone, capping at 127 x t_DTS = 535 ns, six times what the bridge needs.
- */
-#define BOARD_PWM_DEADTIME_MIN_NS 20U
-#define BOARD_PWM_DTG_MAX 127U
-
-
-static uint32_t dts_ps(void)
-{
-  /* Picoseconds per DTG count, so the ns arithmetic stays integer. CKD is
-     0 - checked in the silicon, CR1 0xB1 - so t_DTS is one timer tick. */
-  const uint32_t hz = Board_SysClkHz() / 2UL;   /* TIM1 kernel, 237.5 MHz */
-
-  return (hz != 0UL) ? (1000000000000ULL / hz) : 0UL;
-}
-
-uint8_t Board_PwmDeadTimeFloor(void)
-{
-  const uint32_t ps = dts_ps();
-
-  if (ps == 0UL)
-  {
-    return 1U;
-  }
-
-  /* Round up: a floor that rounded down would be under the floor. */
-  const uint32_t counts = ((BOARD_PWM_DEADTIME_MIN_NS * 1000UL) + ps - 1UL) / ps;
-
-  return (counts < 1UL) ? 1U : (uint8_t)counts;
-}
-
-uint32_t Board_PwmDeadTimeNs(void)
-{
-  /* What was asked for, not what BDTR holds this half-period. With a skew
-     running the register alternates, and reading it gave 105 ns for an
-     80 ns request - whichever half the read happened to land in. */
-  return (uint32_t)(((uint64_t)s_deadtime * dts_ps()) / 1000ULL);
-}
 
 const char *Board_PwmSetDeadTime(uint32_t ns)
 {

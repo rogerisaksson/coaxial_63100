@@ -196,7 +196,7 @@ without anyone tuning it. **Both figures are means.** The worst case is what
 decides: a 276-byte SHTP cargo at 1.48 MHz is 1.5 ms, 320x the idle half-period.
 What `VLATCH` tolerates is not yet measured.
 
-## The gate drivers, and why the dead time is 80 ns
+## The gate drivers, and why the dead time is 30 ns
 
 TIM1 centre-aligned, ARR **2375** off 237.5 MHz = **50.000 kHz** exactly, RCR 1,
 CKD DIV1 so one dead-time tick is **4.2105 ns**. `BDTR.DTG` = **19** = **80.0

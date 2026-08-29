@@ -26,7 +26,7 @@ switching power stage — the context for every noise figure in these documents.
 **TIM1 is armed on request, and there is still no commutation.** The `.ioc`
 enables sixteen IPs - ADC1/2/3, SPI2, SPI4, USART2, USART3, UART5, **TIM1**,
 CORTEX_M7, RCC, SYS, DEBUG, MEMORYMAP, NVIC and VREFBUF. TIM1 is centre-aligned
-at **50 kHz** (ARR 2375 off 237.5 MHz), dead time **DTG 19 = 80.0 ns**, break on
+at **50 kHz** (ARR 2375 off 237.5 MHz), dead time **DTG 7 = 29.5 ns**, break on
 PE15 active low, AOE off so nothing re-arms itself. `Board_PwmInit()` starts the
 counter with MOE clear and CCxE set, driving all six outputs to their idle
 level: both FETs of every leg held off in hardware.

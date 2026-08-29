@@ -1324,3 +1324,21 @@ side that has the curve.
 
 The same shape as the three millivolt channels and their three dividers: one
 unit, several conversions, and `signal` is what tells them apart.
+
+## The dead time went from 80 ns to 30 ns, by request
+
+Asked for 2026-08-29. The arithmetic it replaces is kept, because nothing
+disproved it: 59.4 ns of worst-corner gate overlap plus the 2EDL8034's 6 ns
+TDMOFF is **about 65 ns needed**, and 80 ns was fitted against that. 30 ns is
+under the figure and above the firmware's 20 ns floor.
+
+t_DTS is 4.21 ns, so the request lands on **DTG 7 = 29.5 ns**, which is what
+the board reports.
+
+Written by `Board_PwmInit` now rather than inherited from the .ioc. Twice on
+the same day a CubeMX regeneration moved a peripheral setting the drivers
+depend on - SPI2's mode, then SPI4's - and this is the one where a silent
+move shorts a leg.
+
+Still nothing on a scope, and no current has flowed through a leg. Both
+numbers are datasheet arithmetic (invariant 10).
