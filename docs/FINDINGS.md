@@ -1306,3 +1306,21 @@ The errors that remained were not errors. Every one carried report id **0x00**
 - padding after the last report in a cargo. The walk was right to stop and
 wrong to count it: a cargo cut short ends mid-report with real data and is
 caught by the length test instead.
+
+## Two channels report centi-degC and only one is a thermistor
+
+`scaling.converter` picked the NTC curve off the unit alone, so the MCU die
+channel - a linear sensor whose TS_CAL pair lives in the MCU's system memory,
+not on this board - was cooked as a 10 k thermistor. **Measured 2026-08-29:
+the dash showed -5.8 C for a die the observer had at 72.0 C.** Nothing was
+visibly wrong: it is a plausible number under a C.
+
+No arithmetic on this side can convert it - the constants are not in the
+board's record and never will be. `converter` falls through to volts at the
+pin for any centi-degC channel that is not the NTC, and `symbol()` says V
+rather than C so the number cannot be read as a temperature. The die
+temperature comes from the observer, over 0x6E device 8, which is the only
+side that has the curve.
+
+The same shape as the three millivolt channels and their three dividers: one
+unit, several conversions, and `signal` is what tells them apart.

@@ -97,7 +97,7 @@ def analog_rows(live, layout, powered, refused, width, params=None):
         mean = convert(live['mean'][name])
         span = convert(live['highest'][name]) - convert(live['lowest'][name])
         out.append('  %-9s %+10.3f %-2s   p-p %8.3f   n %5d'
-                   % (name, mean, scaling.UNIT_SYMBOL.get(unit, ''),
+                   % (name, mean, scaling.symbol(unit, name),
                       abs(span), live['count'][name]))
     if not powered:
         out.append('  AFE_ON is off: it powers the ADC reference, so every')

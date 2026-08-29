@@ -119,7 +119,8 @@ def analog_rows(layout, record, width, params=None):
                                     params=params)
         out.append('  %-9s %+7d  %+9.2f %s'
                    % (field['signal'], code, convert(code),
-                      scaling.UNIT_SYMBOL.get(field['unit'], ''))[:width])
+                      scaling.symbol(field['unit'],
+                                     field['signal']))[:width])
     return out
 
 

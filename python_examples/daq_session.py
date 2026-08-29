@@ -99,7 +99,7 @@ for name in live['mean']:
                            params=params)
     print('%-8s %9.1f codes = %9.3f %-2s  over %4d'
           % (name, live['mean'][name], to(live['mean'][name]),
-             scaling.UNIT_SYMBOL.get(f['unit'], ''), live['count'][name]))
+             scaling.symbol(f['unit'], name), live['count'][name]))
 
 # %%
 daq.stop()

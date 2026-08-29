@@ -152,23 +152,6 @@ function Read-View($Views) {
 # case once, which left Read-View unreachable from either branch - the chooser
 # was dead for as long as it took someone to miss it. It is first on the list
 # instead, so one key still gets there and the other six are visible again.
-function Start-Session {
-    Push-Location (Join-Path $PSScriptRoot 'host')
-    try {
-        $argv = @('tools/demos.py', '--port', $Port)
-        if ($Simulated) { $argv += '--simulated' }
-        if ($Frames -gt 0) { $argv += @('--frames', $Frames) }
-        # Out-Host, not a bare call: inside a function everything the child
-        # writes becomes the function's OWN output, so `$code = Start-Session`
-        # swallowed every frame and assigned the lot. The view drew nothing
-        # and the exit code was an array.
-        & python @argv | Out-Host
-        return $LASTEXITCODE
-    } finally {
-        Pop-Location
-    }
-}
-
 $asked = $Name
 $code = 0
 
@@ -181,8 +164,19 @@ do {
         if ($null -eq $view) { exit 0 }
     }
 
+    # INLINE, and not behind a function returning the code. Both ways of
+    # getting the code out of a function redirect the child: assigning its
+    # output captures the frames, and piping to Out-Host makes stdout a pipe
+    # - so `sys.stdout.isatty()` went false, the session stopped clearing the
+    # screen and repainted whole frames instead of the rows that changed.
     if (-not $Views[$view].Script) {
-        $code = Start-Session
+        Push-Location (Join-Path $PSScriptRoot 'host')
+        $argv = @('tools/demos.py', '--port', $Port)
+        if ($Simulated) { $argv += '--simulated' }
+        if ($Frames -gt 0) { $argv += @('--frames', $Frames) }
+        & python @argv
+        $code = $LASTEXITCODE
+        Pop-Location
         continue
     }
 

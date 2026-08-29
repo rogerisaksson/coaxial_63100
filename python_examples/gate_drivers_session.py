@@ -84,7 +84,7 @@ for name in ('Phase U', 'Phase V', 'Phase W', 'DC bus', '+5V', 'Vgate'):
     to = scaling.converter(unit, diff, signal=name,   # three mV channels,
                            params=params)             # three dividers
     print('%-8s %+9.3f %-2s  p-p %7.3f  over %d'
-          % (name, to(live['mean'][name]), scaling.UNIT_SYMBOL.get(unit, ''),
+          % (name, to(live['mean'][name]), scaling.symbol(unit, name),
              abs(to(live['highest'][name]) - to(live['lowest'][name])),
              live['count'][name]))
 

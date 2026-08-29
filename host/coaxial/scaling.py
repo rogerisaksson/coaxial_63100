@@ -156,6 +156,25 @@ PHASE_ONBOARD = ShuntParams(r_shunt=0.0035, vref=3.3,
 #: number is in - so anything showing a DAQ record has to do this.
 UNIT_SYMBOL = {'mA': 'A', 'mV': 'V', 'centi-degC': 'C', None: 'V'}
 
+#: The one `centi-degC` channel this host can convert. The other is the MCU's
+#: own die sensor, whose curve is the factory TS_CAL pair in system memory -
+#: not on this board and not in its record, so no arithmetic here can reach
+#: it. The firmware has it and reports the die cooked, over 0x6E device 8.
+THERMISTOR_SIGNAL = 'NTC'
+
+
+def symbol(unit, signal=None):
+    """What to print beside a converted value.
+
+    Not `UNIT_SYMBOL[unit]`: the die reports `centi-degC` like the NTC, and
+    `converter` hands back volts at the pin for it because there is no curve
+    here. Printing that under a C was a plausible temperature that was not
+    one - measured -5.8 C on a die the observer had at 38.
+    """
+    if unit == 'centi-degC' and signal not in (None, THERMISTOR_SIGNAL):
+        return 'V'
+    return UNIT_SYMBOL.get(unit, '')
+
 
 #: The two supply senses, off R113 and R119 on the MCU sheet. Named apart
 #: from the DC link because they are millivolts through a different divider
@@ -222,8 +241,12 @@ def converter(unit, differential=False, vref=3.3, signal=None, params=None):
     with no unit of its own is read as volts at the pin, which is the only
     thing a bare code can honestly be called.
 
-    `signal` picks the divider where a unit cannot: the DC link, the +5 rail
-    and the gate supply all report millivolts through three different ones.
+    `signal` picks the conversion where a unit cannot. Three channels report
+    millivolts through three different dividers, and TWO report centi-degC:
+    the NTC, which is a thermistor curve, and the MCU die, which is a linear
+    sensor calibrated at the factory. Cooking the die as a thermistor gave
+    -5.8 C for a die the observer had at 38, so anything but the NTC falls
+    through to volts at the pin - `symbol` says so.
 
     `params` is `Analog.scaling()` - the board's own record. Without it the
     compiled-in fallbacks are used, which is the schematic's arithmetic and
@@ -236,7 +259,7 @@ def converter(unit, differential=False, vref=3.3, signal=None, params=None):
         by_signal = {'+5V': p.get('rail5', RAIL5_ONBOARD),
                      'Vgate': p.get('vgate', VGATE_ONBOARD)}
         return by_signal.get(signal, p.get('dcbus', DCBUS_ONBOARD)).volts
-    if unit == 'centi-degC':
+    if unit == 'centi-degC' and signal in (None, THERMISTOR_SIGNAL):
         return p.get('ntc', NTC_ONBOARD).celsius
 
     if params:

@@ -789,6 +789,10 @@ class SimulatedImu(PolledSensor):
         self._updates += 17
         got = {'loop': 'held' if self._held else 'running',
                'error': 'none', 'last_fault': 'none', 'last_fault_id': 0,
+               # The board reports what it asked the part for; a stand-in
+               # without it crashed the first view that read the field.
+               'feature': {'report_id': 0x05, 'interval_us': 20000,
+                           'pending': False},
                'updates': self._updates,
                'cargoes': self._updates, 'errors': 0}
         for report in self.read()['reports']:
