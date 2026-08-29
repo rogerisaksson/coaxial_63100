@@ -448,7 +448,7 @@ Comms/       the comms stack: cmd over proto over dev, plus the console
 Modbus/      the protocol. Portable C11, no HAL in crc/slave/rtu.
 host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
              runner and dbg.py, testline/, tests, tools
-demo.ps1         picks one of the live views; -Simulated for no cable
+demo.ps1         the chooser: session first, then six standalone views
 demos/           imu.ps1 attitude, angle.ps1 shaft angle, adc.ps1 meter bridge
 setup.ps1        one-time environment setup; -Check changes nothing
 env.ps1          per-shell PATH and the board_prompt/dbg/board/cbuild/cflash aliases

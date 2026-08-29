@@ -241,7 +241,10 @@ def key_bar(session, active):
         '%s%s%s' % ('[' if a.name in session.running else ' ', a.key,
                     ']' if a.name in session.running else ' ') + a.name
         for a in ACTIVITIES)
-    return ('  %s     %s     duty %3.0f %% (up/down)     q quit'
+    # ESC is named, like every standalone view names it. It was not, and the
+    # only visible way out was Q - which closes the whole thing, correctly -
+    # so the session read as the one view you cannot come back from.
+    return ('  %s     %s     duty %3.0f %% (up/down)     q quit   ESC menu'
             % (panels, doing, 100.0 * session.duty))
 
 

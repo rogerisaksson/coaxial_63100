@@ -13,13 +13,14 @@ only thing that sets MOE, and it re-reads the dead time first because the
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 . .\env.ps1                                                   # PATH + aliases
-.\demo.ps1                                                    # pick a view
+.\demo.ps1                                                    # the chooser
 .\demo.ps1 adc -Simulated                                     # no cable needed
 ```
 
 ## Demos
 
-`.\demo.ps1` is the menu; each is also `.\demos\<name>.ps1`. Every one takes
+`.\demo.ps1` is the menu - `session` first, then six standalone views; each
+of those is also `.\demos\<name>.ps1`. Every one takes
 `-Simulated` (no board) and `-Frames N` (stop after N).
 
 | view | what it shows |

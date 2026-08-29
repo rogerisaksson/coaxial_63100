@@ -19,10 +19,13 @@
     invented and the banner is there so nobody has to remember that.
 
 .PARAMETER Name
-    Run one standalone view instead of the session: imu, angle, adc,
-    capture, gate_drivers or thermal. Those own the port on their own, which
-    is what the session exists to avoid - use one when you want the rich
-    rendering the session's panels do not carry.
+    Skip the chooser and go straight to one of them: session, imu, angle,
+    adc, capture, gate_drivers, thermal.
+
+    `session` is the first entry and carries every panel over one port. The
+    other six are standalone and own the port on their own - which is what
+    the session exists to avoid, and still the way to the rich rendering its
+    panels do not carry.
 
 .PARAMETER Port
     The board's VCP. Ignored with -Simulated.
@@ -41,7 +44,8 @@
     .\demo.ps1 adc -Simulated -Frames 3
 #>
 param(
-    [ValidateSet('imu', 'angle', 'adc', 'capture', 'gate_drivers', 'thermal')]
+    [ValidateSet('session', 'imu', 'angle', 'adc', 'capture', 'gate_drivers',
+                 'thermal')]
     [string]$Name,
     [string]$Port = 'COM4',
     [switch]$Simulated,
@@ -50,7 +54,11 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
+# The session first, because it is what most runs want and what the number
+# keys land on. Script $null marks it: it is not one of demos/, it IS demos.
 $Views = [ordered]@{
+    'session' = @{ Script = $null
+                 What   = 'all of it in one port: switch, thermals, sensors' }
     'imu'   = @{ Script = 'imu.ps1'
                  What   = 'board attitude, drawn from the STL the IMU turns' }
     'angle' = @{ Script = 'angle.ps1'
@@ -140,22 +148,25 @@ function Read-View($Views) {
     return ''
 }
 
-# NO NAME MEANS THE SESSION, and that is the point: opening the demos is
-# already being in one. A name runs the standalone view instead, which owns
-# the port on its own - the thing the session exists to avoid, and still the
-# way to the rich rendering the panels do not carry.
-if (-not $Name) {
+# THE SESSION IS AN ENTRY, not the whole of it. It was made the no-argument
+# case once, which left Read-View unreachable from either branch - the chooser
+# was dead for as long as it took someone to miss it. It is first on the list
+# instead, so one key still gets there and the other six are visible again.
+function Start-Session {
     Push-Location (Join-Path $PSScriptRoot 'host')
     try {
         $argv = @('tools/demos.py', '--port', $Port)
         if ($Simulated) { $argv += '--simulated' }
         if ($Frames -gt 0) { $argv += @('--frames', $Frames) }
-        & python @argv
-        $code = $LASTEXITCODE
+        # Out-Host, not a bare call: inside a function everything the child
+        # writes becomes the function's OWN output, so `$code = Start-Session`
+        # swallowed every frame and assigned the lot. The view drew nothing
+        # and the exit code was an array.
+        & python @argv | Out-Host
+        return $LASTEXITCODE
     } finally {
         Pop-Location
     }
-    exit $code
 }
 
 $asked = $Name
@@ -168,6 +179,11 @@ do {
     while (-not $view) {
         $view = Read-View $Views
         if ($null -eq $view) { exit 0 }
+    }
+
+    if (-not $Views[$view].Script) {
+        $code = Start-Session
+        continue
     }
 
     $call = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
