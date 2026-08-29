@@ -22,6 +22,7 @@ HOST = os.path.dirname(HERE)
 #: rather than hardcoded where possible - a new show_*.py joins by existing.
 EXTRA = {
     'demos.py': [],
+    'menu.py': [],
     'show_capture.py': [],
     'show_desk.py': [],
     'show_gate_drivers.py': [],
@@ -45,7 +46,7 @@ def views():
     """The scripts under tools/ that are views, plus the session."""
     got = sorted(name for name in os.listdir(os.path.join(HOST, 'tools'))
                  if name.startswith('show_') and name.endswith('.py'))
-    return ['demos.py'] + got
+    return ['demos.py', 'menu.py'] + got
 
 
 def run_view(name):

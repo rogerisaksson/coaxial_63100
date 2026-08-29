@@ -197,9 +197,15 @@ class Coaxial63100(Acquisition):
         self.simulated = not self.origin.real
 
         if self.power_afe:
-            self._afe_was_on = self.board.afe.is_on()
-            if not self._afe_was_on:
-                self.board.afe.enable()
+            already = self.board.afe.is_on()
+            # ALWAYS take our own reference, even when the rail is already
+            # up: the rail is refcounted, and a session that merely
+            # observed it on held NOTHING - the other holder let go and the
+            # rail dropped mid-view. Measured 2026-08-29: the meter bridge
+            # opened onto a lit rail and its configure was refused with
+            # 'AFE_ON is off' one round trip later.
+            self.board.afe.enable()
+            if not already:
                 # The parts need their supply up before anything talks to
                 # them. Enabling and configuring in the same breath answered
                 # SERVER DEVICE FAILURE.
@@ -294,7 +300,9 @@ class Coaxial63100(Acquisition):
             except RigError:
                 pass
             try:
-                if self.power_afe and self._afe_was_on is False:
+                if self.power_afe:
+                    # Release OUR reference; the refcount keeps the rail up
+                    # for whoever else holds it.
                     self.board.afe.disable()
             except RigError:
                 pass                    # closing is not the place to raise

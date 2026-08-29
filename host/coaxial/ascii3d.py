@@ -432,7 +432,7 @@ def _fill(depth, value, who, wear, lit, tri, area,
 def render(model, matrix, width, height, distance=None, ramp=CHARACTERS,
            invert=True, supersample=SUPERSAMPLE, zoom=1.0, centre=None,
            light=None, aspect=CELL_ASPECT, cull=CULLING, ink=None,
-           tints=None, ink_colour=None):
+           tints=None, ink_colour=None, shades=None, wire=False):
     """`model` under `matrix`, as `height` lines of `width` characters.
 
     `model` is (positions, indices, normals): three floats per distinct
@@ -456,7 +456,7 @@ def render(model, matrix, width, height, distance=None, ramp=CHARACTERS,
                              cull, tints=tints, who=who)
     return resolve(depth, value, width, height, cols, cell_rows,
                     supersample, ramp, invert, ink=ink, who=who,
-                    ink_colour=ink_colour)
+                    ink_colour=ink_colour, shades=shades, wire=wire)
 
 
 #: Relative 1/z step between neighbouring CELLS that reads as an edge.
@@ -465,9 +465,16 @@ def render(model, matrix, width, height, distance=None, ramp=CHARACTERS,
 #: keeps the silhouette and the tall parts and lets the faces be faces.
 INK_STEP = 0.10
 
+#: The wire mode's own, far finer depth threshold: a part stands 2-8 mm
+#: off a 100 mm board, a 1-4 %% step in 1/z - INK_STEP was tuned against
+#: cluster noise in the FILLED look and swallowed every component outline
+#: when the fill went away.
+WIRE_STEP = 0.018
+
 
 def resolve(depth, value, width, height, cols, cell_rows, supersample,
-             ramp, invert, ink=None, who=None, ink_colour=None):
+             ramp, invert, ink=None, who=None, ink_colour=None,
+             shades=None, wire=False):
     """The framebuffer down to characters, averaging each cell.
 
     Averaging rather than AsciiEffect's single sample per cell: it reads one
@@ -488,6 +495,7 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
     shade = [0.0] * cells
     near = [0.0] * cells
     paintbox = [0] * cells if who is not None else None
+    z_lo, z_hi = 1e30, 0.0
     for r in range(height):
         row = r * width
         for c in range(width):
@@ -508,6 +516,10 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
             if seen:
                 shade[row + c] = total / seen
                 near[row + c] = deep
+                if deep < z_lo:
+                    z_lo = deep
+                if deep > z_hi:
+                    z_hi = deep
                 if paintbox is not None:
                     paintbox[row + c] = wore
 
@@ -530,14 +542,46 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
             at = row + c
             if not near[at]:
                 cells_out.append((background, None))
+            elif wire:
+                # THE VECTOR LOOK: interiors dark, edges only, each with
+                # the stroke of its own direction. Edges come from the
+                # SILHOUETTE and depth steps alone - crease triggers on
+                # the clustered mesh drew a mat of marks with no depth in
+                # it. The 3D cue is DISTANCE: a near edge burns bright,
+                # a far one dims, the way every vector display did it.
+                sides = _edge_sides(near, None, at, c, r, width,
+                                    height, step=WIRE_STEP)
+                if sides is None:
+                    cells_out.append((' ', None))
+                else:
+                    horiz, vert = sides
+                    glyph = ('+' if horiz and vert else
+                             '|' if horiz else '-')
+                    wearing = (paintbox[at] - 1
+                               if paintbox is not None and paintbox[at]
+                               else ink_colour)
+                    if wearing is not None and shades is not None:
+                        span = (z_hi - z_lo) or 1.0
+                        third = min(2, int(3.0 * (near[at] - z_lo)
+                                           / span))
+                        wearing = shades.get(wearing,
+                                             (wearing,) * 3)[third]
+                    cells_out.append((glyph, wearing))
             elif ink is not None and _inked(near, band, at, c, r,
                                             width, height):
                 cells_out.append((ink, ink_colour))
             else:
+                wear = (paintbox[at] - 1
+                        if paintbox is not None and paintbox[at] else None)
+                if wear is not None and shades is not None:
+                    # The zone's colour, DEEPENED where the light falls
+                    # away: the same face reads as one part with a lit top
+                    # and a dark flank instead of one flat sticker.
+                    steps = len(ramp) - 1
+                    third = min(2, band[at] * 3 // max(1, steps))
+                    wear = shades.get(wear, (wear,) * 3)[third]
                 cells_out.append((brightness_char(shade[at], ramp, invert),
-                                  paintbox[at] - 1
-                                  if paintbox is not None and paintbox[at]
-                                  else None))
+                                  wear))
         while cells_out and cells_out[-1] == (background, None):
             cells_out.pop()
         if paintbox is None:
@@ -546,6 +590,35 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
             lines.append(ansi.run(cells_out))
 
     return '\n'.join(lines)
+
+
+def _edge_sides(near, band, at, c, r, width, height, step=INK_STEP):
+    """(horizontal, vertical) edge triggers for the wire mode, or None.
+
+    `horizontal` means a NEIGHBOUR TO THE SIDE differs - the edge runs
+    vertically and draws as a pipe; `vertical` the converse. The tests are
+    _inked's, split by direction.
+    """
+    here = near[at]
+    mine = band[at] if band is not None else None
+    horiz = vert = False
+    for other, sideways in (((at - 1) if c > 0 else -1, True),
+                            ((at + 1) if c + 1 < width else -1, True),
+                            ((at - width) if r > 0 else -1, False),
+                            ((at + width) if r + 1 < height else -1, False)):
+        if other < 0:
+            continue
+        there = near[other]
+        jump = (mine - band[other]) if mine is not None else 0
+        hit = (not there or here - there > step * here
+               or jump >= 2 or jump <= -2)
+        if hit and sideways:
+            horiz = True
+        elif hit:
+            vert = True
+    if not (horiz or vert):
+        return None
+    return horiz, vert
 
 
 def _inked(near, band, at, c, r, width, height):

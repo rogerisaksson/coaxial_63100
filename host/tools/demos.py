@@ -31,8 +31,11 @@ import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import (ASH, QUIET, SODIUM, TO_MENU, Keys,  # noqa: E402
-                    gauge, park, say, steady, tint)
+from screen import (ASH, LABEL, gauge, Keys, park, QUIET,  # noqa: E402
+                    say, SODIUM, steady, tint, TO_MENU)
+
+import screen as _screen                                   # noqa: E402
+_screen.CHATTER = False     # the boot bar replaced the scroll
 
 from coaxial import Coaxial63100, angle, scaling, thermal  # noqa: E402
 
@@ -108,6 +111,18 @@ DUTY_STEP = 0.05
 DEFAULT_PHASES = ('U', 'V', 'W')
 
 
+def _start_imu(rig):
+    """Enable the rotation vector for the dashboard. True if it took."""
+    if steady(rig.board.imu.settled, seconds=6.0) is not True:
+        return False
+    try:
+        with rig.board.imu.configuring():
+            rig.board.imu.feature(0x05, 20000)
+        return True
+    except QUIET:
+        return False
+
+
 class Session:
 
     """The rig, what is running on it, and what to put back."""
@@ -129,6 +144,9 @@ class Session:
         #: The rail as the session found it - main() sets it after probing,
         #: teardown puts it back. None: never learned, leave it alone.
         self.afe_found = None
+        #: Whether the session enabled the IMU's rotation vector, and so
+        #: owes its disable on the way out.
+        self.imu_started = False
 
     def _field(self):
         """The magnetic field at the A1335, in gauss. None if it refused."""
@@ -320,6 +338,8 @@ def snapshot(session):
     afe_on = bool(got['afe'] and got['afe']['on'])
     got['analog'] = (steady(board.analog.read_all,
                             nr_of_samples=ADC_SAMPLES) if afe_on else None)
+    got['daq'] = steady(board.daq.state)
+    got['ring'] = steady(board.capture.state)
     got['scaling'] = session.scaling
     got['field'] = session.field
     return got
@@ -345,8 +365,8 @@ def adc_block(got):
             # Not a fault: the session leaves the rail down to save power
             # and heat, and the observer borrows it on its own schedule.
             return block('ANALOG', [
-                tint('  AFE_ON down - no reference', ASH),
-                tint('  observer borrows it for samples', ASH)])
+                tint('  AFE_ON down - no reference', LABEL),
+                tint('  observer borrows it for samples', LABEL)])
         return block('ANALOG', ['  did not answer'])
 
     params = got.get('scaling')
@@ -489,6 +509,31 @@ def _degc(value):
     return '--' if value is None else '%.1f' % value
 
 
+def acquisition_block(got):
+    """The DAQ task and the capture ring - the capture view, as one box.
+
+    It was a whole menu entry beside the session showing the same board;
+    what was unique there - the task's rate and drops, the ring and its
+    sources - is this box."""
+    daq, ring = got.get('daq'), got.get('ring')
+    if daq is None and ring is None:
+        return block('ACQUISITION', ['  did not answer'])
+
+    rows = []
+    if daq is not None:
+        rows.append('task %s  acc %d' % (daq.get('clock', '?'),
+                                         daq.get('accumulate', 0)))
+        rows.append('buffered %d  dropped %d' % (daq.get('available', 0),
+                                                 daq.get('dropped', 0)))
+    if ring is not None:
+        rows.append('ring %s' % (', '.join(ring.get('sources', ()))
+                                 or 'not armed'))
+        rows.append('held %d of %d  thin %d'
+                    % (ring.get('count', 0), ring.get('depth', 0),
+                       ring.get('thinned', 0)))
+    return block('ACQUISITION', rows)
+
+
 def dash(session, got):
     """One line over the six blocks: what the system is doing right now."""
     afe, gates = got.get('afe'), got.get('gates')
@@ -557,15 +602,16 @@ def frame(session, console, note):
     got = snapshot(session)
     rows = [[Text.from_ansi(dash(session, got))],
             [adc_block(got), thermal_block(got), bridges_block(got)],
-            [dio_block(got), imu_block(got), angle_block(got)]]
+            [dio_block(got), imu_block(got), angle_block(got),
+             acquisition_block(got)]]
     keys = [(a.key.upper(), a.name.upper()
              + (' [ON]' if a.name in session.running else ''))
             for a in ACTIVITIES]
     keys += [('A', 'AFE'), ('+ -', 'DUTY %.0f%%' % (100 * session.duty)),
-             ('Q', 'QUIT'), ('ESC', 'MENU')]
+             ('Q', 'EXIT'), ('ESC', 'MENU')]
     if note:
         keys.append(('', note))
-    return panels_of(console, session.rig.origin, 'COAXIAL 63100', rows,
+    return panels_of(console, session.rig.origin, 'SESSION', rows,
                      keys, extra=session.rig.origin.label)
 
 
@@ -653,6 +699,15 @@ def teardown(session, console, drawn):
         say('ok', name, what)
     if not undone:
         say('ok', 'nothing ran', 'no activity was started this session')
+
+    if session.imu_started:
+        try:
+            with session.rig.board.imu.configuring():
+                session.rig.board.imu.feature(0x05, 0)
+            say('ok', 'rotation vector', 'disabled - the session asked '
+                                         'for it')
+        except QUIET:
+            pass
 
     # PUT BACK, not just claimed: the session may have raised the rail on
     # the way in, or the user toggled it with A. Held by somebody else is
@@ -770,8 +825,10 @@ def main():
     # another session is mid-run: forcing the rail up on open would drop an
     # armed stage's drivers before the first frame, which is the one load
     # this dashboard exists to watch.
-    with Coaxial63100(port=a.port, simulated_device=a.simulated,
+    from screen import boot
+    with boot('LINKING SESSION') as ready,          Coaxial63100(port=a.port, simulated_device=a.simulated,
                       power_afe=False) as rig:
+        ready()
         say('ok' if rig.origin.real else 'warn', 'link', rig.origin.label)
         session_afe_found = None
         stage = steady(rig.gates.state)
@@ -791,6 +848,12 @@ def main():
             say('ok', 'AFE_ON', 'left as found - the session owns it from '
                                 'here')
 
+        # With the rail up the IMU box can carry live values - the part
+        # only produces once a report is asked for, so the session asks
+        # (and puts it back on the way out). Best effort: a part mid-boot
+        # leaves the box at 'none asked for', not the session dead.
+        imu_started = rail is not None and _start_imu(rig)
+
         from screen import curtain, stage
 
         dashboard = stage()
@@ -798,6 +861,7 @@ def main():
 
         session = Session(rig)
         session.afe_found = session_afe_found
+        session.imu_started = imu_started
         session.duty = min(1.0, max(0.0, a.duty))
         leaving, count = None, 0
         sampled = time.time()

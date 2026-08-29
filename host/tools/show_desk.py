@@ -22,7 +22,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import desk, scaling                          # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import TO_MENU, Keys, closing, say  # noqa: E402
+from screen import paced, TO_MENU, Keys, closing, say  # noqa: E402
+
+import screen as _screen                                   # noqa: E402
+_screen.CHATTER = False     # the boot bar replaced the scroll
 
 
 #: The codes a scale is measured between. Not 0 and 65535: the thermistor
@@ -119,8 +122,10 @@ def main(argv=None):
     # to start the task at all, and that refusal used to escape as a
     # traceback rather than a said line.
     try:
-        rig = Coaxial63100(port=args.port, power_afe=True,
-                           simulated_device=bool(args.simulated)).open()
+        from screen import boot
+        with boot('LINKING CONVERTERS'):
+            rig = Coaxial63100(port=args.port, power_afe=True,
+                               simulated_device=bool(args.simulated)).open()
     except RigError as exc:
         # The board's own sentence - a rail refused while a stage is armed
         # lands here - said instead of thrown, so the menu can come back.
@@ -173,17 +178,15 @@ def main(argv=None):
                 frame += 1
                 show.update(frame_of(board_view, origin, 'METER BRIDGE',
                                      face, [],
-                                     (('Q', 'CLOSE'), ('ESC', 'MENU'))),
+                                     (('Q', 'EXIT'), ('ESC', 'MENU'))),
                             refresh=True)
 
                 if args.frames and frame >= args.frames:
                     break
                 # These two have nothing to zoom, so the wheel is ignored.
-                leaving, _moved = keys.poll()
+                leaving, _moved, _typed = paced(keys, period)
                 if leaving:
                     break
-
-                time.sleep(period)
     except KeyboardInterrupt:
         pass
     finally:

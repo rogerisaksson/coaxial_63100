@@ -24,8 +24,11 @@ from coaxial import angle                                  # noqa: E402
 from coaxial import dial                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import (TO_MENU, Keys, closing, say,  # noqa: E402
-                    stamp_crosses)
+from screen import (closing, Keys, paced,  # noqa: E402
+                    say, stamp_crosses, TO_MENU)
+
+import screen as _screen                                   # noqa: E402
+_screen.CHATTER = False     # the boot bar replaced the scroll
 
 REG_ANG = 0x20
 REG_TSEN = 0x28
@@ -88,12 +91,12 @@ def compose(origin, console, part, state, field, kelvin, rate, note):
         degrees = state.get('degrees', counts * 360.0 / 4096.0)
         weak = field is not None and field < dial.WEAK_GAUSS
 
-        face = dial.render(degrees, 40, 15, field)
+        face = dial.render(degrees, 52, 21, field)
         art_lines = (dial.colourise(face) if console else face).splitlines()
         margin = min((len(l) - len(l.lstrip(' '))
                       for l in art_lines if l.strip()), default=0)
         art = '\n'.join(
-            stamp_crosses([l[max(0, margin - 1):] for l in art_lines], 30))
+            stamp_crosses([l[max(0, margin - 1):] for l in art_lines], 48))
 
         side = [hud(part['name'], [
                     ('angle', '--   (no magnet)' if weak
@@ -110,7 +113,7 @@ def compose(origin, console, part, state, field, kelvin, rate, note):
                         state.get('error') or '-'))])]
 
     return frame_of(console, origin, 'SHAFT ANGLE', art, side,
-                    (('Q', 'CLOSE'), ('ESC', 'MENU'), ('', note)))
+                    (('Q', 'EXIT'), ('ESC', 'MENU'), ('', note)))
 
 
 def main(argv=None):
@@ -128,8 +131,10 @@ def main(argv=None):
     # power_afe SAID: the default went quiet-False when every connect
     # stopped flipping the rail, and this view inherited it - the part it
     # exists to show is AFE-powered, so it asks by name and puts it back.
-    rig = Coaxial63100(port=args.port, power_afe=True,
-                       simulated_device=bool(args.simulated)).open()
+    from screen import boot
+    with boot('LINKING A1335'):
+        rig = Coaxial63100(port=args.port, power_afe=True,
+                           simulated_device=bool(args.simulated)).open()
     origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
@@ -192,11 +197,9 @@ def main(argv=None):
                 if args.frames and frame >= args.frames:
                     break
                 # These two have nothing to zoom, so the wheel is ignored.
-                leaving, _moved = keys.poll()
+                leaving, _moved, _typed = paced(keys, period)
                 if leaving:
                     break
-
-                time.sleep(period)
     except KeyboardInterrupt:
         pass
     finally:

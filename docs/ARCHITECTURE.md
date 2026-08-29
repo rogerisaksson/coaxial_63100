@@ -113,6 +113,13 @@ off the board, never from a hardcoded table.
 text out - so all three test without a board; `mesh.py` reduces the CAD export
 in `render/models` to a surface the first can draw.
 
+**The console style is `host/tools/stage.py`** - one rich Theme where every
+role is named (values glow amber, labels recede, the chip keeps its meaning
+colour) and the two templates every live view renders through: `frame_of`
+for a drawing with instruments beside it, `panels_of` for a grid of them.
+`test_views.py` runs each view whole against the stand-in, which is what
+holds the template together across restyles.
+
 **`host/coaxial_mcp/`** — MCP server built for a token budget: dense
 fixed-column text, 8.8x smaller than JSON. Probes OS ports and ST-Links for
 Modbus, falling back to a duck-typed `SimulatedSession`. Multi-node segments,
@@ -129,7 +136,7 @@ Board-side scaling is kept only to cross-check the math.
 
 ## The test system
 
-Twenty suites, 1831 checks. `run_tests.ps1` is the only interface -
+Twenty suites, 1840 checks. `run_tests.ps1` is the only interface -
 `-AutomaticMinimal|Medium|High` for ~25/50/75 % of every check, `-All` the gate,
 `-Only NAMES` and `-Tags SUBJECTS` for one change's worth, `-Structure` for the
 package itself.

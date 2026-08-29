@@ -503,11 +503,18 @@ def test_orientation(report):
     report.check('the dial is the height it was asked for',
                  len(turned) == 19, '%d rows' % len(turned))
 
-    # The axis row is the one carrying the zero mark, which is the only place
-    # that glyph appears - HUB is also the corner of the sensor's box.
-    axis = [i for i, row in enumerate(turned) if dial.ZERO in row]
-    report.check('there is exactly one zero mark, on the axis row',
-                 len(axis) == 1, axis)
+    # A PROTRACTOR since 2026-08-29: degree labels every 30 all the way
+    # round, like the reference face. The axis row is the one carrying both
+    # the 180 label and the bare 0.
+    face = chr(10).join(turned)
+    marks = [str(deg) for deg in range(0, 360, 30)]
+    missing = [m for m in marks if m not in face]
+    report.check('every 30-degree graduation is labelled',
+                 not missing, 'missing %s' % ', '.join(missing))
+
+    axis = [i for i, row in enumerate(turned)
+            if '180' in row and row.rstrip().endswith('0')]
+    report.check('the 180-to-0 axis is one row', len(axis) == 1, axis)
 
     # The pointer at 90 degrees goes up from the axis and at 270 down. If
     # those come out the same way round the picture is upside down, which is
@@ -522,8 +529,8 @@ def test_orientation(report):
                  'up %s, axis %d, down %s' % (up[:2], axis[0], down[-2:]))
 
     flat = dial.render(0.0, field=380).split(chr(10))[axis[0]]
-    report.check('and at zero it reaches the rim along the axis',
-                 flat.count(dial.POINTER) >= int(dial.RADIUS) - 2, flat)
+    report.check('and at zero it reaches toward the rim along the axis',
+                 flat.count(dial.POINTER) >= int(dial.RADIUS) - 4, flat)
 
     report.check('a weak field draws no pointer at all',
                  dial.POINTER not in dial.render(90.0, field=3),

@@ -20,7 +20,7 @@
 
 .PARAMETER Name
     Skip the chooser and go straight to one of them: session, imu, angle,
-    adc, capture, gate_drivers, thermal.
+    adc, gate_drivers, thermal. The old capture view is a box in the session.
 
     `session` is the first entry and carries every panel over one port. The
     other six are standalone and own the port on their own - which is what
@@ -44,7 +44,7 @@
     .\demo.ps1 adc -Simulated -Frames 3
 #>
 param(
-    [ValidateSet('session', 'imu', 'angle', 'adc', 'capture',
+    [ValidateSet('session', 'imu', 'angle', 'adc',
                  'gate_drivers', 'thermal')]
     [string]$Name,
     [string]$Port = 'COM4',
@@ -69,8 +69,6 @@ $Views = [ordered]@{
                  What   = 'shaft angle, the magnet and the air gap' }
     'adc'   = @{ Script = 'adc.ps1'
                  What   = 'every analog channel, on a meter bridge' }
-    'capture' = @{ Script = 'capture.ps1'
-                 What   = 'buffered: the AFE, the pins and both SPI parts' }
     'gate_drivers' = @{ Script = 'gate_drivers.ps1'
                  What   = 'the gate drivers: six signals, current, a burst' }
     'thermal' = @{ Script = 'thermal.ps1'
@@ -194,7 +192,19 @@ do {
     $asked = $null
 
     while (-not $view) {
-        $view = Read-View $Views
+        # The front page is tools/menu.py - the rotating board and the
+        # access list - and the choice comes back in the EXIT CODE, because
+        # capturing stdout would turn the page's console into a pipe.
+        Push-Location (Join-Path $PSScriptRoot 'host')
+        & python -X utf8 tools/menu.py --port $Port
+        $picked = $LASTEXITCODE
+        Pop-Location
+        if ($picked -lt 101) {
+            Close-Demos
+            exit 0
+        }
+        $names = @($Views.Keys)
+        $view = $names[$picked - 101]
         if ($null -eq $view) {
             Close-Demos
             exit 0

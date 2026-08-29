@@ -184,7 +184,7 @@ def compose(origin, console, layout, view, width):
 
     return panels_of(console, origin, 'CAPTURE',
                      [[task, analog, digital], [ring_box, spi]],
-                     (('Q', 'CLOSE'), ('ESC', 'MENU')))
+                     (('Q', 'EXIT'), ('ESC', 'MENU')))
 
 
 def drain(rig, layout, view):

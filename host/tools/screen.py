@@ -66,6 +66,11 @@ DRAG_STEP = 0.02
 #: same. Green ok, cyan waiting, yellow worth knowing, red stop.
 STATES = {'ok': '32', 'wait': '36', 'warn': '33', 'fail': '31'}
 
+#: Whether ok/wait preflight lines print at all. The views turn this off:
+#: their boot bar replaced the scroll of green lines on the way in, and
+#: the teardown listing on the way out - warn and fail always print.
+CHATTER = True
+
 
 # -- the motif -----------------------------------------------------------
 #
@@ -85,7 +90,11 @@ STATES = {'ok': '32', 'wait': '36', 'warn': '33', 'fail': '31'}
 
 NEON = 44
 SODIUM = 214
+#: Inline-label ash - THE SAME 66 the theme's `label` style uses, so a
+#: tinted string beside a hud row reads as one voice. 242 stays for the
+#: gauge rails and key hints, where receding further is the point.
 ASH = 242
+LABEL = 66
 
 _SGR = re.compile(chr(27) + r'\[[0-9;]*m')
 
@@ -143,22 +152,38 @@ def stamp_crosses(lines, width, inset=2):
             else line for line in out]
 
 
-def keysline(pairs):
-    """The bottom help line: `KEY: what` pairs, terminal style."""
-    return '  ' + tint('  |  ', ASH).join(
-        '%s%s %s' % (tint(key, NEON), tint(':', ASH), tint(what, ASH))
-        for key, what in pairs)
-
-
 # -- the console renderer -------------------------------------------------
 # Defined in tools/stage.py: the THEME with every named style, and the
-# renderer built around it. Re-exported here because every view already
-# imports its screen machinery from this module.
-from stage import (THEME, chip, curtain, footer, frame_of,    # noqa: E402,F401
-                   header, hud, panels_of, stage, viewport)
+# renderer built around it. Re-exported here because every view imports
+# its screen machinery from this module:
+# THEME boot chip curtain footer frame_of header hud panels_of stage viewport
+from stage import (THEME, boot, chip, curtain, footer,        # noqa: E402,F401
+                   frame_of, header, hud, panels_of, stage, viewport)
 
-# Re-exported for the views, which import their screen machinery here:
-# THEME chip curtain footer frame_of header hud panels_of stage viewport
+
+def paced(keys, period, step=0.02):
+    """Sleep `period` while polling the keys every `step`.
+
+    (leave, zoom, typed), returning the moment a leave key arrives. The
+    draw rate and the INPUT rate used to be the same number: at the
+    thermal view's 2 Hz a Q took half a second to bite, and the attitude
+    view's zoom moved in board-round-trip-sized steps. Input is 50 Hz now
+    whatever the view draws at.
+    """
+    import time as _time
+
+    leave, zoom, typed = None, 0.0, []
+    deadline = _time.monotonic() + period
+    while True:
+        got, moved = keys.poll()
+        zoom += moved
+        typed.extend(keys.taken())
+        if got:
+            return got, zoom, typed
+        now = _time.monotonic()
+        if now >= deadline:
+            return None, zoom, typed
+        _time.sleep(min(step, deadline - now))
 
 
 def gauge(fraction, width, hot=0.85):
@@ -181,6 +206,8 @@ def say(state, text, detail=''):
     and the view share one session: splitting them would open the port
     twice, and the second open is the one that finds it busy.
     """
+    if not CHATTER and state in ('ok', 'wait'):
+        return
     if not sys.stdout.isatty():
         # Same rule the views follow: colour at the edge, and a pipe is
         # not one. Without this a redirected preflight carried raw
@@ -345,13 +372,15 @@ class Keys:
 
         if self.mouse:
             self._was_mode = _set_console_mode()
-            sys.stdout.write(MOUSE_ON)
+            (sys.__stdout__ or sys.stdout).write(MOUSE_ON)
+            (sys.__stdout__ or sys.stdout).flush()
             sys.stdout.flush()
         return self
 
     def __exit__(self, *exc_info):
         if self.mouse:
-            sys.stdout.write(MOUSE_OFF)
+            (sys.__stdout__ or sys.stdout).write(MOUSE_OFF)
+            (sys.__stdout__ or sys.stdout).flush()
             sys.stdout.flush()
             _set_console_mode(self._was_mode)
         if self._saved is not None:
@@ -461,9 +490,13 @@ class Keys:
         while msvcrt.kbhit():
             got = msvcrt.getwch()
             # A function or arrow key arrives as a prefix and then a code.
-            # Read the second half so it is not mistaken for a letter.
+            # The code was read and DISCARDED once - so the menu's UP/DOWN
+            # did nothing on the one platform this bench runs on. Translated
+            # to the VT sequences instead, so the arrow path is ONE path.
             if got in ('\x00', '\xe0'):
-                msvcrt.getwch()
+                code = msvcrt.getwch()
+                keys.append({'H': '\x1b[A', 'P': '\x1b[B',
+                             'M': '\x1b[C', 'K': '\x1b[D'}.get(code, ''))
                 continue
             keys.append(got)
         return keys
@@ -480,58 +513,3 @@ class Keys:
         return keys
 
 
-def banner(origin, title, console, detail=''):
-    """The view's top line, saying what is behind it.
-
-    Drawn into the frame rather than printed once at the top, because a
-    preflight line scrolls away and a view left running for an hour has to
-    keep answering "is this the board". Green for a board, yellow for the
-    stand-in - the same two colours board_prompt tags its prompt with, so
-    both read the same across the session.
-    """
-    esc = chr(27)
-    tag = ' LIVE ' if origin.real else ' SIMULATED - every value invented '
-    colour = '30;42' if origin.real else '30;43'
-
-    # How many sessions share the board, beside whether it is one at all.
-    # Two people on one port is the normal case now, and a reading that
-    # moved because somebody else armed the stage should not be a mystery.
-    if origin.real:
-        from coaxial import broker
-        count = broker.clients()
-        if count:
-            tag = ' LIVE  %d session%s ' % (count, '' if count == 1 else 's')
-
-    if not console:
-        return ('%s  %s   %s' % (tag.strip(), title, detail)).rstrip()
-    # The title in the motif's neon, the detail in ash. The tag keeps its
-    # meaning colours - green LIVE, yellow SIMULATED - untouched. Nothing
-    # is emitted for an empty part: a tail of blank escape pairs put
-    # invisible width after the chip, and the row read as off-centre.
-    out = '%s[%sm%s%s[0m' % (esc, colour, tag, esc)
-    if title:
-        out += '  %s[38;5;44m%s%s[0m' % (esc, title, esc)
-    if detail:
-        out += '   %s[38;5;242m%s%s[0m' % (esc, detail, esc)
-    return out
-
-
-def paint(shown, lines, console):
-    """What to write to move the screen from `shown` to `lines`.
-
-    Only the rows that differ, each addressed directly. Rewriting all of it
-    every frame is what made the prompt flicker: at 20 Hz the terminal
-    repaints two dozen unchanged rows, so the header and the caption blink
-    along with the drawing they are not part of.
-    """
-    if not console:
-        return '\n'.join(plain(line) for line in lines) + '\n'
-
-    out = []
-    for row in range(max(len(shown), len(lines))):
-        was = shown[row] if row < len(shown) else None
-        now = lines[row] if row < len(lines) else ''
-        if now != was:
-            out.append('%s[%d;1H%s%s[K' % (chr(27), row + 1, now, chr(27)))
-
-    return ''.join(out)

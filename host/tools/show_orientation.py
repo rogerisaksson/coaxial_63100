@@ -22,8 +22,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import (TO_MENU, Keys, banner, closing,  # noqa: E402
-                    say, stamp_crosses)
+from screen import (closing, Keys, paced,  # noqa: E402
+                    say, stamp_crosses, TO_MENU)
+
+import screen as _screen                                   # noqa: E402
+_screen.CHATTER = False     # the boot bar replaced the scroll
 
 ROTATION_VECTOR = 0x05
 
@@ -154,7 +157,18 @@ def start_reporting(board, interval_us):
     a Set Feature onto a part that was already running took no effect at all
     and the loop absorbed nothing afterwards.
     """
-    board.imu.settled()          # a feature before 'running' is refused
+    board.imu.settled()          # anything before 'running' is startup
+
+    # The product id is DECORATION - the feature is the point. They were
+    # one configuring() block, and an id refused during the part's boot
+    # window took the whole view down with it: 'sometimes does not load'
+    # was this line. An id that does not answer is a dash in the HUD.
+    pid = {}
+    try:
+        with board.imu.configuring():
+            pid = board.imu.product_id()
+    except RigError:
+        say('warn', 'product id', 'not answered - the HUD shows a dash')
 
     try:
         # No reset first. The poll loop brings the part up on its own, and
@@ -165,7 +179,6 @@ def start_reporting(board, interval_us):
         # Measured 2026-08-27: reset then feature, 0 rotation vectors;
         # feature alone, 49.0 a second. See FINDINGS.
         with board.imu.configuring():
-            pid = board.imu.product_id()
             board.imu.feature(ROTATION_VECTOR, interval_us)
     except RigError as exc:
         say('fail', 'rotation vector', str(exc))
@@ -236,11 +249,14 @@ def compose(origin, args, view, colour, console):
         q = orientation.relative(q, view['tare'])
 
     tall = view['tall']
-    art_w = min(max(24, view['wide'] - 40), 2 * tall + 14)
+    # The FULL width the HUD leaves over: the old 2*tall+14 cap cropped a
+    # zoomed model at the frame long before the window ran out of columns.
+    art_w = max(24, view['wide'] - 42)
     art = orientation.render(
         q, width=art_w, height=tall,
         zoom=view['zoom'] * (0.88 if not args.photo else 1.0),
-        shop=view['shop'], toon=not args.photo, colour=colour).splitlines()
+        shop=view['shop'], toon=not args.photo, wire=not args.photo,
+        colour=colour).splitlines()
     margin = min((len(l) - len(l.lstrip(' '))
                   for l in art if l.strip()), default=0)
     art = stamp_crosses([l[margin:] for l in art], art_w - margin)
@@ -249,7 +265,7 @@ def compose(origin, args, view, colour, console):
     return frame_of(
         console, origin, 'BOARD ATTITUDE', '\n'.join(art),
         boxes(view['part'], view['pid'], view['record'], q, view['rate']),
-        (('Q', 'CLOSE'), ('ESC', 'MENU'), ('Z', 'TARE'), ('WHEEL', 'ZOOM'),
+        (('Z', 'TARE'), ('WHEEL', 'ZOOM'), ('Q', 'EXIT'), ('ESC', 'MENU'),
          ('', note)))
 
 
@@ -285,8 +301,10 @@ def main(argv=None):
     # power_afe SAID: the default went quiet-False when every connect
     # stopped flipping the rail, and this view inherited it - the part it
     # exists to show is AFE-powered, so it asks by name and puts it back.
-    rig = Coaxial63100(port=args.port, power_afe=True,
-                       simulated_device=bool(args.simulated)).open()
+    from screen import boot
+    with boot('LINKING BNO085'):
+        rig = Coaxial63100(port=args.port, power_afe=True,
+                           simulated_device=bool(args.simulated)).open()
     origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
@@ -380,19 +398,17 @@ def main(argv=None):
 
                 if args.frames and frame >= args.frames:
                     break
-                leaving, moved = keys.poll()
+                leaving, moved, typed = paced(keys, period)
                 if leaving:
                     break
                 if moved:
                     zoom = max(0.25, min(6.0, zoom * (1.0 + moved)))
-                if any(t in 'zZ' for t in keys.taken()):
+                if any(t in 'zZ' for t in typed):
                     # TARE: the attitude from HERE is what draws. One press
                     # cancels the mounting offset (-1.9 deg roll on this
                     # bench) and the arbitrary yaw reference at once;
                     # pressing it again re-zeros.
                     tare = quaternion
-
-                time.sleep(period)
     except KeyboardInterrupt:
         pass
     finally:

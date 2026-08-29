@@ -25,11 +25,12 @@ of those is also `.\demos\<name>.ps1`. Every one takes
 
 | view | what it shows |
 |---|---|
+| `session` | one dash over the whole board, the capture ring included |
+| `imu` | board attitude, the CAD export turned by the IMU |
+| `angle` | shaft angle on a protractor face |
 | `adc` | every analog channel on a meter bridge, in its own unit |
-| `imu` | board attitude, drawn from the STL the IMU turns |
-| `angle` | shaft angle, the magnet and the air gap |
-| `capture` | buffered: the AFE, the pins and both SPI parts at once |
 | `gate_drivers` | the six gate signals as one instant, current, DC ripple, a timed burst |
+| `thermal` | the observer's heat map on the board itself |
 
 `gate_drivers` is the one that switches. `+ -` duty, `[ ]` step, `A` arm,
 `B` BKIN override, `I` interlock override, `1 2 3 4` run length, `R` run.

@@ -21,8 +21,11 @@ import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import (ASH, NEON, SODIUM, TO_MENU,  # noqa: E402
-                    Keys, banner, closing, gauge, say, stamp_crosses, tint, visible)
+from screen import (ASH, closing, gauge, Keys, NEON, paced,  # noqa: E402
+                    say, SODIUM, stamp_crosses, tint, TO_MENU, visible)
+
+import screen as _screen                                   # noqa: E402
+_screen.CHATTER = False     # the boot bar replaced the scroll
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
@@ -36,14 +39,18 @@ from coaxial.thermalmap import SCALE_LINES, render        # noqa: E402
 #: so without it the banner lands on the terminal's top row - underneath the
 #: shell's own decoration, where the LIVE/SIMULATED tag cannot be read. That
 #: tag is the one thing in the frame that must never be hidden.
-HEAD_LINES = 6
+# The stage's frame around the map: the title band (1), the viewport's
+# top and bottom edge (2), and the gutter row the crosses sit in. It was 6
+# from the banner era, and the map drew two rows smaller than the screen
+# allowed.
+HEAD_LINES = 4
 
 #: Below the scale: the keys and the blank under them - TRAILING already
 #: covers the blank above. The keys sit at the bottom and the state at the
 #: top because they answer different questions - one is what to press, the
 #: other is what the colours mean - and reading them as one crowded line was
 #: what made the frame feel closed in.
-FOOT_LINES = 2
+FOOT_LINES = 1
 
 #: Blank lines between the scale and the keys.
 TRAILING = 1
@@ -183,8 +190,10 @@ def main():
     # power_afe=False, and it is not a preference. AFE_ON high unpowers the
     # gate drivers, so opening the rig the usual way would stop the switching
     # this view exists to watch.
-    with Coaxial63100(port=a.port, simulated_device=a.simulated,
+    from screen import boot
+    with boot('LINKING OBSERVER') as ready,          Coaxial63100(port=a.port, simulated_device=a.simulated,
                       power_afe=False) as rig:
+        ready()
         origin = rig.origin
         say('ok' if origin.real else 'warn', 'link',
             '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
@@ -248,15 +257,14 @@ def main():
                     live.update(frame_of(
                         board_view, origin, 'THERMAL OBSERVER',
                         '\n'.join(art), boxes,
-                        (('Q', 'CLOSE'), ('ESC', 'MENU')),
+                        (('Q', 'EXIT'), ('ESC', 'MENU')),
                         extra=origin.label), refresh=True)
 
                     if a.frames and frame >= a.frames:
                         break
-                    leaving, _moved = keys.poll()
+                    leaving, _moved, _typed = paced(keys, period)
                     if leaving:
                         break
-                    time.sleep(period)
         except KeyboardInterrupt:
             pass
         finally:

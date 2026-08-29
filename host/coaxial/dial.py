@@ -22,7 +22,7 @@ from .raster import cell
 
 #: The magnet, in character cells. Radius in columns; rows are worth two
 #: columns, so the vertical scale is halved to keep it round.
-RADIUS = 11.0
+RADIUS = 13.0
 ROW_ASPECT = 0.5
 
 #: How far below the shaft axis the sensor sits, in the same columns. Far
@@ -56,8 +56,10 @@ WEAK_GAUSS = 30
 #: bright pointer. It was rim-ash, ticks-teal, arc-teal, zero-green and
 #: pointer-amber at once, and five voices on a face with one thing to say
 #: read as a party, not an instrument.
-INK = {RIM: 23, POINTER: ansi.AMBER, HUB: 250,
-       ZERO: 23, TICK: 23, ARC: 130}
+INK = dict([(RIM, 23), (POINTER, ansi.AMBER), (HUB, 250),
+            (ZERO, 23), (TICK, 23), (ARC, 130),
+            ('(', 250), (')', 250)]
+           + [(digit, ansi.ASH) for digit in '0123456789'])
 
 
 def colourise(text):
@@ -86,26 +88,27 @@ def render(degrees, width=60, height=19, field=None):
     """
     grid = [[' '] * width for _ in range(height)]
     cx = (width - 1) / 2.0
-    cy = RADIUS * ROW_ASPECT + 1.0
+    cy = (RADIUS + 2.0) * ROW_ASPECT + 1.5
 
-    steps = max(48, int(RADIUS * 8))
-    for i in range(steps):
-        phi = 2.0 * math.pi * i / steps
+    # A PROTRACTOR, not a plain circle: minor graduations every 6 degrees
+    # around the whole rim, a heavier mark every 30, and the degree numbers
+    # standing outside - the reference face, at terminal resolution.
+    for mark in range(0, 360, 6):
+        phi = math.radians(mark)
+        glyph = TICK if mark % 30 == 0 else RIM
         _plot(grid, width, height, cx + RADIUS * math.cos(phi),
-              cy - RADIUS * math.sin(phi) * ROW_ASPECT, RIM)
+              cy - RADIUS * math.sin(phi) * ROW_ASPECT, glyph)
+        if mark % 30 == 0:
+            _plot(grid, width, height, cx + (RADIUS - 1.0) * math.cos(phi),
+                  cy - (RADIUS - 1.0) * math.sin(phi) * ROW_ASPECT, TICK)
 
-    # Graduations every 30 degrees, just inside the rim - an instrument
-    # face, not a plain circle. The four cardinals are drawn heavier.
     for mark in range(0, 360, 30):
         phi = math.radians(mark)
-        r = RADIUS - (1.6 if mark % 90 == 0 else 0.9)
-        _plot(grid, width, height, cx + r * math.cos(phi),
-              cy - r * math.sin(phi) * ROW_ASPECT,
-              HUB if mark % 90 == 0 else TICK)
-
-    # Zero, so the pointer has something to be an angle from. Outside the
-    # rim rather than on it: a mark on the rim reads as part of the magnet.
-    _plot(grid, width, height, cx + RADIUS + 2.0, cy, ZERO)
+        label = str(mark)
+        lx = cx + (RADIUS + 2.6) * math.cos(phi) - len(label) / 2.0 + 0.5
+        ly = cy - (RADIUS + 2.2) * math.sin(phi) * ROW_ASPECT
+        for i, digit in enumerate(label):
+            _plot(grid, width, height, lx + i, ly, digit)
 
     weak = field is not None and field < WEAK_GAUSS
     phi = math.radians(degrees)
@@ -115,7 +118,11 @@ def render(degrees, width=60, height=19, field=None):
             _plot(grid, width, height, cx + r * RADIUS * math.cos(phi) / RADIUS,
                   cy - r * RADIUS * math.sin(phi) * ROW_ASPECT / RADIUS,
                   POINTER)
+    # The centre - the reference's circled cross - drawn LAST so the
+    # pointer passes under it, not through it.
+    _plot(grid, width, height, cx - 1, cy, '(')
     _plot(grid, width, height, cx, cy, HUB)
+    _plot(grid, width, height, cx + 1, cy, ')')
 
     return '\n'.join(''.join(row).rstrip() for row in grid)
 

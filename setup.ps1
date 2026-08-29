@@ -14,7 +14,7 @@
 
       Python                             python.org, per-user installer
       git and VS Code                    winget
-      five python packages              host/requirements.txt, via pip
+      six python packages               host/requirements.txt, via pip
       ARM gcc, cmake, ninja             STM32 "bundles", fetched by cube.exe
       STM32_Programmer_CLI             same
       STM32CubeMX                       same - the stm32cubemx-application bundle

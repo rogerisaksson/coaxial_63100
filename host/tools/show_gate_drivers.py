@@ -31,8 +31,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100, scaling                   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
-from screen import (ASH, SODIUM, TO_MENU, Keys,  # noqa: E402
-                    closing, say, tint)
+from screen import (ASH, LABEL, SODIUM, TO_MENU,  # noqa: E402
+                    Keys, closing, say, tint)
+
+import screen as _screen                                   # noqa: E402
+_screen.CHATTER = False     # the boot bar replaced the scroll
 
 #: What R runs for, in seconds. Two floors, and the view reports both
 #: rather than hiding either: the board takes one conversion per main-loop
@@ -83,15 +86,15 @@ def analog_rows(live, layout, powered, refused, width, params=None):
             '  "%s"' % refused,
             '',
             tint('  AFE_ON powers the converter reference, and on this '
-                 'bench', ASH),
+                 'bench', LABEL),
             tint('  board the same pin gated the other way is what gives '
-                 'the', ASH),
+                 'the', LABEL),
             tint('  gate drivers their supply. Switching and measuring are',
-                 ASH),
+                 LABEL),
             tint('  mutually exclusive here until that is patched. --afe '
-                 'runs it', ASH),
+                 'runs it', LABEL),
             tint('  the other way: real currents, unpowered drivers.',
-                 ASH)]]
+                 LABEL)]]
 
     if not live or not live.get('mean'):
         return ['  no samples yet'[:width]]
@@ -288,7 +291,7 @@ def compose(rig, origin, console, view, layout, width):
 
     keys = [('+ -', 'DUTY'), ('[ ]', 'STEP'), ('A', 'ARM'), ('B', 'BKIN'),
             ('I', 'INTERLOCK %s' % ('OFF' if view['override'] else 'ON')),
-            ('1-4', 'MS'), ('R', 'RUN'), ('Q', 'CLOSE'), ('ESC', 'MENU')]
+            ('1-4', 'MS'), ('R', 'RUN'), ('Q', 'EXIT'), ('ESC', 'MENU')]
     if view.get('said'):
         keys.append(('', view['said']))
     return panels_of(console, origin, 'GATE DRIVERS',
@@ -324,8 +327,10 @@ def main(argv=None):
     # sets it itself, because which way round it goes is the whole question
     # here and leaving it as found makes the run mean different things on
     # different days.
-    rig = Coaxial63100(port=args.port, power_afe=False,
-                       simulated_device=bool(args.simulated)).open()
+    from screen import boot
+    with boot('LINKING GATE DRIVERS'):
+        rig = Coaxial63100(port=args.port, power_afe=False,
+                           simulated_device=bool(args.simulated)).open()
     origin, board = rig.origin, rig.board
     was_on = board.afe.is_on()
     if args.afe != was_on:

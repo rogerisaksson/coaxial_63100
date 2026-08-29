@@ -219,6 +219,19 @@ PALETTE = {
 }
 INK_COLOUR = 159
 
+#: Each zone colour as (dark, mid, bright) - picked by how lit a cell is,
+#: so a part's flank falls into shadow in its own hue. Chosen on the
+#: 256-colour cube one or two steps down the same column. NOT `SHADES`:
+#: that name is the photographic ramp's glyph set above, and the dict
+#: shadowed it - caught by the suite, not by me.
+ZONE_SHADES = {
+    23:  (17, 23, 37),        # board laminate: abyss teal up to teal
+    214: (130, 208, 214),     # fet: burnt amber up to sodium
+    208: (94, 166, 208),      # connector
+    51:  (24, 38, 51),        # micro: deep cyan up to bright
+    65:  (22, 65, 114),       # passive: phosphor greens
+}
+
 
 def _quad(out, a, b, c, d):
     """One four-sided face, as the two triangles it is made of.
@@ -339,11 +352,19 @@ def _load_model():
         return facets()
 
 
-#: The cartoon model is the PARAMETRIC board, not the STL: drawn from
-#: scratch the way the thermal map is - a round board, its bore, and
-#: stylised parts at their real stations - so every part is a clean box
-#: with its own zone colour instead of a cluster of scan noise. 956
-#: triangles against the photographic mesh's 27,628.
+#: The cartoon model comes from the CAD EXPORT when the tree carries one:
+#: the 2026-08-29 STL clustered to 5,326 triangles draws in 21 ms and is
+#: the real board. The STL has no zones, so the tints come from HEIGHT -
+#: the slab is teal, low parts phosphor, mid parts amber, the connectors
+#: sodium - thresholds read off the export's own z histogram. A tree
+#: without the STL falls back to the parametric board below.
+TOON_DIVISIONS = 40
+
+#: (upper z bound, colour) per height band, model units - the board's
+#: diameter is 2.0. Above the last bound is the tallest band.
+TOON_BANDS = ((0.01, 23), (0.05, 65), (0.10, 208))
+TOON_TALL = 214
+
 TOON_STEPS = 72
 
 #: Four steps of fill and one of ink. The short ramp posterises the shading
@@ -360,13 +381,49 @@ def toon_mesh():
     """((positions, indices, normals), tints), built once on first use."""
     global _TOON
     if _TOON is None:
-        built = facets(steps=TOON_STEPS, tinted=True, relief=3.0)
-        _TOON = (built[:3], built[3])
+        try:
+            got = mesh.facets(MODEL, divisions=TOON_DIVISIONS)
+            _TOON = (got, _height_tints(got))
+        except (OSError, ValueError):
+            built = facets(steps=TOON_STEPS, tinted=True, relief=3.0)
+            _TOON = (built[:3], built[3])
     return _TOON
 
 
-#: The board's triangles, read once at import. See _load_model().
-MODEL_MESH = _load_model()
+def _height_tints(model):
+    """A colour per triangle, by how far its centroid stands off the slab."""
+    pos, idx, _nrm = model
+    tints = []
+    for tri in range(len(idx) // 3):
+        a, b, c = idx[3 * tri], idx[3 * tri + 1], idx[3 * tri + 2]
+        z = (pos[3 * a + 2] + pos[3 * b + 2] + pos[3 * c + 2]) / 3.0
+        for bound, colour in TOON_BANDS:
+            if z < bound:
+                tints.append(colour)
+                break
+        else:
+            tints.append(TOON_TALL)
+    return tints
+
+
+#: The photographic mesh is LAZY: the toon view - the default everywhere -
+#: never touches the STL, and loading its cache at import cost every view
+#: 53 ms it did not use (a stale cache costs a 2 s rebuild). External
+#: readers keep saying `orientation.MODEL_MESH`; PEP 562 serves them.
+_PHOTO_MESH = None
+
+
+def _model():
+    global _PHOTO_MESH
+    if _PHOTO_MESH is None:
+        _PHOTO_MESH = _load_model()
+    return _PHOTO_MESH
+
+
+def __getattr__(name):
+    if name == 'MODEL_MESH':
+        return _model()
+    raise AttributeError(name)
 
 #: Where the camera stands: degrees round the board from +X, and up from its
 #: plane. The reference's own angles are 13.2 up and 20.9 round - a product
@@ -438,7 +495,7 @@ def _fit(cols, rows, zoom=1.0, model=None):
 
     Cached because a window is resized far less often than it is redrawn.
     """
-    model = MODEL_MESH if model is None else model
+    model = _model() if model is None else model
     key = (id(model[0]), cols, rows, round(zoom, 3))
     got = _FITS.get(key)
     if got is None:
@@ -451,7 +508,7 @@ def _fit(cols, rows, zoom=1.0, model=None):
 
 
 def render(q, width=44, height=19, zoom=1.0, shop=None,
-           ramp=ascii3d.CHARACTERS, toon=False, colour=False):
+           ramp=ascii3d.CHARACTERS, toon=False, colour=False, wire=False):
     """The board under rotation `q`, as `height` lines of `width` characters.
 
     The drawing is `ascii3d`, which is three.js's AsciiEffect ported out of
@@ -465,7 +522,7 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
     function for one of them is how a drawing ends up off-centre.
     """
     cols, rows, _cell = ascii3d.grid(width, height)
-    if toon and shop is None:
+    if (toon or wire) and shop is None:
         # The whole cartoon package: the parametric board, posterised ramp,
         # culled back faces, depth-edge ink - and each part in its zone's
         # colour when `colour` is on. 956 triangles, so no process pool.
@@ -476,10 +533,12 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
                               centre=(off_x, off_y), light=LAMP,
                               ramp=TOON_RAMP, cull=True, ink=TOON_INK,
                               tints=tints if colour else None,
-                              ink_colour=INK_COLOUR if colour else None)
+                              ink_colour=INK_COLOUR if colour else None,
+                              shades=ZONE_SHADES if colour else None,
+                              wire=wire)
     distance, off_x, off_y = _fit(cols, rows, zoom)
     draw = shop.render if shop else ascii3d.render
-    model = () if shop else (MODEL_MESH,)
+    model = () if shop else (_model(),)
     return draw(*model, _multiply(VIEWPOINT, matrix(q)), width, height,
                 distance=distance, centre=(off_x, off_y), light=LAMP,
                 ramp=ramp)
