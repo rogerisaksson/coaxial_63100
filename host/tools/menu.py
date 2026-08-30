@@ -109,43 +109,121 @@ def roster(picked):
     return Group(*lines)
 
 
-def turntable(seconds, zoom=1.0):
-    """The board tumbling on the stand: the same vector drawing the
-    attitude view flies, idling through a slow multi-axis roll."""
+#: The turntable's zoom: it opens at SWELL_FROM, fills to SWELL_LO over
+#: SWELL_IN seconds, then breathes between SWELL_LO and SWELL_HI while
+#: it turns. Grabbed - a drag turns it, the wheel zooms it - it holds
+#: still; released, the tumble and the breath resume FROM where it was
+#: left: the pose is state, and the breath re-seats its phase on the
+#: zoom it finds.
+SWELL_FROM, SWELL_IN = 0.25, 2.5
+SWELL_LO, SWELL_HI = 0.75, 1.20
+SWELL_PERIOD = 11.0
+#: render()'s zoom 1.0 fits the bounding sphere at ANY attitude, which in
+#: the box is 56% of its width - measured, and 2.0 is the first zoom
+#: that reaches every edge. The envelope is in shares of the box, so
+#: it rides on this base: 1.2 lands at 2.16, past the box, so the
+#: board clips into its frame; 0.75 at 1.35, four fifths of it.
+SWELL_BASE = 1.8
+#: Seconds after the last touch before the idle motion takes over again.
+HOLD = 0.6
+
+
+def seat(zoom):
+    """The breath's phase whose zoom is nearest `zoom`, on the rising
+    side, so it climbs first from wherever the hand let go."""
+    mid = (SWELL_LO + SWELL_HI) / 2.0
+    half = (SWELL_HI - SWELL_LO) / 2.0
+    return math.asin(max(-1.0, min(1.0, (zoom - mid) / half)))
+
+
+def idle(view, now, dt):
+    """One frame of the turntable on its own: tumble, and breathe."""
+    from show_render import turn
+
+    if now - view['touched'] < HOLD:
+        return
+    if view['phase'] is None and now - view['opened'] < SWELL_IN:
+        # The fill, eased out: fast at first, settling at SWELL_LO.
+        t = (now - view['opened']) / SWELL_IN
+        view['zoom'] = SWELL_FROM + (SWELL_LO - SWELL_FROM) * (
+            1.0 - (1.0 - t) ** 3)
+    else:
+        if view['phase'] is None:
+            view['phase'] = seat(view['zoom'])
+        view['phase'] += dt * 2.0 * math.pi / SWELL_PERIOD
+        mid = (SWELL_LO + SWELL_HI) / 2.0
+        half = (SWELL_HI - SWELL_LO) / 2.0
+        want = mid + half * math.sin(view['phase'])
+        # Toward the envelope rather than onto it: a zoom the wheel left
+        # outside the band glides back instead of snapping.
+        view['zoom'] += (want - view['zoom']) * min(1.0, 4.0 * dt)
+    wobble = view['spun'] = view['spun'] + dt
+    turn(view, (0.35 * math.sin(wobble * 0.5),
+                0.25 * math.sin(wobble * 0.83 + 1.3), 1.0),
+         TURN_DPS * dt)
+
+
+def grab(view, keys, moved, now):
+    """The hand on the turntable: wheel zoom, and a left-drag turn that
+    pauses the idle motion while it lasts - the same degrees per cell
+    and carry easing show_render.py uses against batched drag reports."""
+    from show_render import DRAG_DEG, turn
+
+    if moved:
+        view['zoom'] = max(0.25, min(4.0, view['zoom'] * (1.0 + moved)))
+        view['touched'], view['phase'] = now, None
+    dx, dy = keys.dragged()
+    cx, cy = view['carry']
+    cx, cy = cx + dx, cy + dy
+    if dx or dy:
+        view['touched'], view['phase'] = now, None
+    if abs(cx) > 0.01 or abs(cy) > 0.01:
+        ax, ay = cx * 0.5, cy * 0.5
+        turn(view, (0, 1, 0), ax * DRAG_DEG)
+        turn(view, (1, 0, 0), ay * DRAG_DEG * 2.0)
+        cx, cy = cx - ax, cy - ay
+    view['carry'] = (cx, cy)
+
+
+def turntable(view, width=52, height=18):
+    """The board on the stand, at the pose and zoom the view holds - lit
+    as the render demo lights it: camera straight down the axis, no
+    horizon. The attitude view's 34-degree tip folds into the lean and
+    dimmed the same board half a class."""
     from coaxial import wireframe
 
-    yaw = math.radians(TURN_DPS * seconds) / 2.0
-    pitch = math.radians(18.0 * math.sin(seconds * 0.5)) / 2.0
-    roll = math.radians(12.0 * math.sin(seconds * 0.83 + 1.3)) / 2.0
-    q = orientation._qmul(
-        (math.sin(pitch), 0.0, 0.0, math.cos(pitch)),
-        orientation._qmul(
-            (0.0, math.sin(roll), 0.0, math.cos(roll)),
-            (0.0, 0.0, math.sin(yaw), math.cos(yaw))))
-    return wireframe.render(q, 52, 18, zoom=zoom, axes=False)
+    return wireframe.render(view['pose'], width, height, zoom=view['zoom'],
+                            horizon=False, tip=0.0, lift=0.5,
+                            least=wireframe.CREW_LEAST)
 
 
-def compose(port, picked, seconds, zoom=1.0):
+#: The turntable's box: this many columns of the page, and the drawing
+#: fills the box's inside, so a zoom past 1.0 clips INTO the frame.
+BOX = 58
+
+
+def compose(port, picked, view, size=None):
     from rich.align import Align
 
+    tall = max(8, (size.height if size else 24) - 4)
     body = Layout()
     body.split_row(
         Layout(Panel(roster(picked), box=box.ROUNDED,
                      border_style='frame.hud', padding=(1, 2), expand=True),
                name='list'),
-        Layout(Panel(Align(Text.from_ansi(turntable(seconds, zoom)),
+        Layout(Panel(Align(Text.from_ansi(turntable(view, BOX - 4, tall)),
                            align='center', vertical='middle'),
                      title=Text(' COAXIAL 63100 ', style='name'),
                      title_align='left', box=box.HEAVY, border_style='frame',
-                     padding=(0, 1), expand=True), name='board', size=58))
+                     padding=(0, 1), expand=True), name='board', size=BOX))
 
     whole = Layout()
     whole.split_column(
         Layout(masthead(port), size=1),
         Layout(body, name='body'),
         Layout(footer((('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
-                       ('S B A M G T', 'DIRECT'), ('WHEEL', 'ZOOM'),
-                       ('Q', 'EXIT'))),
+                       ('S B A M G T', 'DIRECT'), ('DRAG', 'TURN'),
+                       ('WHEEL', 'ZOOM'), ('Q', 'EXIT'))),
                size=1))
     return whole
 
@@ -179,7 +257,12 @@ def main(argv=None):
     page = stage()
     console = page.is_terminal
     picked, frame, began = 0, 0, time.monotonic()
-    zoom = 1.0
+    # The turntable's state: pose and zoom persist across a grab, so the
+    # idle motion carries on from wherever the hand left it.
+    view = {'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM,
+            'phase': None, 'opened': began, 'touched': -1e9, 'spun': 0.0,
+            'carry': (0.0, 0.0)}
+    last = began
 
     if not console and not args.frames:
         # No terminal to page on: read the choice as a line, the way the
@@ -199,8 +282,10 @@ def main(argv=None):
     with curtain(page) as live, Keys(console, mouse=True) as keys:
         while True:
             frame += 1
-            live.update(compose(args.port, picked,
-                                time.monotonic() - began, zoom),
+            now = time.monotonic()
+            idle(view, now, now - last)
+            last = now
+            live.update(compose(args.port, picked, view, page.size),
                         refresh=True)
             if args.frames and frame >= args.frames:
                 return 0
@@ -208,8 +293,7 @@ def main(argv=None):
             leave, moved, typed = paced(keys, 0.08)
             if leave:
                 return 0
-            if moved:
-                zoom = max(0.4, min(4.0, zoom * (1.0 + moved)))
+            grab(view, keys, moved, time.monotonic())
             picked, chosen = _act(typed, picked, hotkeys)
             if chosen is not None:
                 return chosen

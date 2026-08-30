@@ -1,23 +1,23 @@
-"""A vector model of the board, and the line renderer that draws it.
+"""The board's ASCII renderer: a depth-shaded raster, wire fallback.
 
-The clustered STL is honest geometry but a dishonest DRAWING: five thousand
-triangles wireframed is a circle full of marks. A vector display never drew
-triangles - it drew the twenty edges somebody chose. So this module chooses
-them: the rim as two rings with struts, the bore, and every part from the
-parametric board as an eight-cornered cage, each edge carrying its zone's
-colour.
+The parametric board's triangles raster through a z-buffer; DEPTH is
+the shading - class = PIVOT + SLOPE * view-z on the exporter's own
+three-glyph ramp ' .:' - with the shipped face art as pure class steps
+on the horizontal surfaces and cast shadows from a light-space map.
+Depth, not surface-normal light: the exporter's cube reference showed
+its '.'-to-':' boundary cutting ACROSS a flat face, which no lambert
+can produce, and the whole fitted lambert path was removed on that
+evidence.
 
-Three things make it read as 3D, none of them more characters:
+The engine itself lives in coaxial/engine.py as five pure stages. Two
+gates hold it honest - tests/test_render.py proves every stage and the
+whole chain against an analytic ray-cast oracle, tools/facecheck.py
+calibrates against the CAD exporter's own renders - and render/render_demo.ps1
+runs both.
 
-  * HIDDEN LINES ARE REMOVED. The solid parametric board is rastered into
-    a depth buffer first, and an edge sample that loses the depth test is
-    simply not drawn - the far rim vanishes behind the board the way it
-    should.
-  * DEPTH CUES THE BRIGHTNESS. Near edges burn, far edges dim, three
-    shades per zone.
-  * STROKES FOLLOW THE LINE. A segment draws with the glyph of its own
-    screen direction - `|`, `-`, `/`, `\\` - so an edge reads as a stroke,
-    not a row of pound signs.
+`face=False` falls back to the chosen-edge wire drawing: rim rings,
+struts, bore and component cages, hidden lines removed by the same
+z-buffer, strokes following their screen direction.
 """
 import math
 
@@ -61,7 +61,7 @@ def _ring(radius, z, segments=RIM_SEGMENTS):
     return [(ring[i], ring[(i + 1) % segments]) for i in range(segments)]
 
 
-def _cage(phi_deg, radius, half_r, half_phi_deg, height, relief=3.0):
+def _cage(phi_deg, radius, half_r, half_phi_deg, height, relief=1.5):
     """A part as its polar box's edges: top rectangle plus four posts."""
     half_phi = math.radians(half_phi_deg)
     phi0 = math.radians(phi_deg)
@@ -104,71 +104,111 @@ def _build():
 _EDGES = None
 _SOLID = None
 
+#: In-memory decimates of the STL, keyed on (path, divisions, mtime):
+#: a fresh export replaces them by itself, and NOTHING is written
+#: beside the model - the mesh module's disk cache is deliberately
+#: bypassed here.
+_MESHES = {}
 
-def _model():
+
+def _decimated(path, divisions):
+    import os
+    from . import mesh
+    stamp = (path, divisions, os.path.getmtime(path))
+    got = _MESHES.get(stamp)
+    if got is None:
+        # Six LODs and the shadow casters of one file coexist; only a
+        # runaway set - a re-exported STL changing every stamp - clears
+        # the lot.
+        if len(_MESHES) > 8:
+            _MESHES.clear()
+        with open(path, 'rb') as f:
+            raw = f.read()
+        got = mesh._clustered(mesh._centred(list(mesh._faces(raw))),
+                              divisions)
+        _MESHES[stamp] = got
+    return got
+
+
+#: The decimation each zoom band earns, (zoom below, grid divisions).
+#: Finer decimates cost real raster time - measured at 94x36, single
+#: process: 16 -> 7.8 ms, 24 -> 13, 32 -> 29, 48 -> 37, 64 -> 63 - so
+#: each only draws past the zoom that can see it. Decimating one takes
+#: 0.8-0.9 s - all six 1.2 s in parallel - which is why a view loads
+#: them up front, behind its boot strip, not on the first zoom that
+#: wants one.
+LODS = ((1.0, 12), (1.5, 16), (2.0, 24), (2.7, 32), (3.6, 48), (None, 64))
+
+
+def _lods(progress=None):
+    """Every level of detail's solid, coarse to fine - what a crew holds,
+    since the zoom picks among them by identity. The ones not yet in
+    memory decimate IN PARALLEL, one process each; `progress(done,
+    total, divisions)` is called as each lands."""
+    import os
+    from . import orientation
+    path = orientation.MODEL
+    stamp = os.path.getmtime(path)
+    missing = [d for _z, d in LODS if (path, d, stamp) not in _MESHES]
+    if len(missing) > 1:
+        from . import crew
+        if len(_MESHES) + len(missing) > 8:
+            _MESHES.clear()
+        for divisions, solid in crew.decimate(path, missing, progress).items():
+            _MESHES[(path, divisions, stamp)] = solid
+    return [_decimated(path, divisions) for _z, divisions in LODS]
+
+
+#: The coarsest grid a view with a crew draws. Grid 16 is a polygon with
+#: a notch in its rim and a hole in its face at the attitude view's
+#: size - decimation artefacts, seen; 32 is clean, and with eight
+#: workers a 94x36 frame at 32 costs ~35 ms, inside a 20 Hz budget.
+CREW_LEAST = 32
+
+
+def _model(zoom=1.0, least=0):
+    """(edges, solid) - the solid at the LEVEL OF DETAIL the zoom earns,
+    and never coarser than `least` divisions.
+
+    Decimation fixed at 16 divisions, a zoomed-in board showed the same
+    coarse facets bigger; the finer decimates cost real raster time, so
+    they only load past the zoom that can see them."""
     global _EDGES, _SOLID
     if _EDGES is None:
-        from . import orientation
         _EDGES = _build()
-        # The occluder: the same board as coarse solid triangles, only ever
-        # rasterised into depth. Low resolution on purpose - it decides
-        # visibility, not appearance.
-        _SOLID = orientation.facets(steps=48, relief=3.0)
-    return _EDGES, _SOLID
+    from . import orientation
+    divisions = next(d for upto, d in LODS
+                     if d >= least and (upto is None or zoom < upto))
+    try:
+        solid = _decimated(orientation.MODEL, divisions)
+    except (OSError, ValueError):
+        # The parametric board, only for a tree without the STL.
+        if _SOLID is None:
+            _SOLID = orientation.facets(steps=48, relief=1.5)
+        solid = _SOLID
+    return _EDGES, solid
 
 
-def _depth(solid, m, distance, scale, cx, cy, width, height):
-    """A width x height cell depth buffer of the solid board."""
-    pos, idx, _nrm = solid
-    m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
-    n = len(pos) // 3
-    sx, sy, ooz = [0.0] * n, [0.0] * n, [0.0] * n
-    for i in range(n):
-        x, y, z = pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]
-        tx = m0 * x + m1 * y + m2 * z
-        ty = m3 * x + m4 * y + m5 * z
-        tz = m6 * x + m7 * y + m8 * z
-        w = 1.0 / (distance - tz)
-        ooz[i] = w
-        sx[i] = cx + scale * w * tx
-        sy[i] = cy - scale * 0.5 * w * ty
+#: The cast-shadow beam in VIEW space, over the viewer's shoulder. The
+#: SHADING is depth, not light - a surface-normal lambert was built,
+#: fitted and REMOVED: the exporter's cube proved its '.'/'∶' boundary
+#: cuts across flat faces, which only a depth ramp does. This vector
+#: only decides where component shadows fall.
+LIGHT = (0.60, 0.20, 0.77)
 
-    buf = [0.0] * (width * height)
-    for t in range(len(idx) // 3):
-        a, b, c = idx[3 * t], idx[3 * t + 1], idx[3 * t + 2]
-        x0, y0, x1, y1, x2, y2 = sx[a], sy[a], sx[b], sy[b], sx[c], sy[c]
-        area = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0)
-        if area == 0.0:
-            continue
-        if area < 0.0:
-            x1, y1, x2, y2 = x2, y2, x1, y1
-            area = -area
-        oa, ob, og = ooz[a], ooz[b], ooz[c]
-        if area < 0.0:
-            ob, og = og, ob
-        lo_x = max(0, int(min(x0, x1, x2)))
-        hi_x = min(width - 1, int(max(x0, x1, x2)) + 1)
-        lo_y = max(0, int(min(y0, y1, y2)))
-        hi_y = min(height - 1, int(max(y0, y1, y2)) + 1)
-        if hi_x < lo_x or hi_y < lo_y:
-            continue
-        inv = 1.0 / area
-        for py in range(lo_y, hi_y + 1):
-            row = py * width
-            for px in range(lo_x, hi_x + 1):
-                w0 = ((x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)) * inv
-                if w0 < 0.0:
-                    continue
-                w1 = ((x0 - x2) * (py - y2) - (y0 - y2) * (px - x2)) * inv
-                if w1 < 0.0:
-                    continue
-                w2 = 1.0 - w0 - w1
-                if w2 < 0.0:
-                    continue
-                here = w0 * oa + w1 * ob + w2 * og
-                if here > buf[row + px]:
-                    buf[row + px] = here
-    return buf
+#: The shading constants, fitted by tools/lightfit.py against the
+#: exporter's renders and PROVEN against test_render.py's analytic
+#: oracle - do not hand-tweak what the fitter measures. SUN_MIN is the
+#: grazing cutoff for the shadow test, SHADOW_DIM the cast-shadow class
+#: step, BIAS the acne guard, FLOOR the darkest a bare-geometry cell
+#: draws.
+SUN_MIN = 0.31
+SHADOW_DIM = 0.91
+#: The fitted 0.24 exceeded every measured occluder gap (max 0.235
+#: across five poses) - cast shadows never fired anywhere. 0.06 is
+#: ~2.6 texels of the 56-cell map, enough for acne and nothing else.
+BIAS = 0.06
+FLOOR = 0.55
 
 
 #: Backdrop samples per window size. The ground never moves - it is the
@@ -221,52 +261,31 @@ def _backdrop(width, height, distance, view):
     for px in range(width):
         marks.append((px, hy, '-'))
 
-    # Meridians to the vanishing point, stroked in the direction they
-    # travel; t*t sampling is densest at the south end where one line
-    # covers the most rows. Points at or behind the camera plane mirror
-    # through the projection - the w guard drops them before they paint.
-    # THIRTEEN lines: the stylised attitude-indicator fan, not a map.
+    # The fan is DOTTED, one dot per row per line. Directional strokes
+    # were tried first: near-horizontal segments alternated glyphs and
+    # every line came out ragged - `/-` `|-` pairs all the way down.
+    # Dots have no direction to disagree about, and a dotted floor under
+    # a block-shaded subject is the separation itself.
+    # SEVEN dotted lines, a dot per row, nothing else. Thirteen lines
+    # needed a crowding veto near the convergence, and every veto tried
+    # - modular, greedy row-claim, sign-alternating - broke the fan's
+    # symmetry some way the eye caught. Few enough lines never crowd,
+    # and the small cluster where they meet the horizon IS the
+    # vanishing point.
+    # Wide enough that the outer lines meet the horizon past the frame
+    # edges - the fan covers the WHOLE line, not a band in the middle.
     samples = height * 6
-    for k in range(-6, 7):
-        fixed = k * 1.6
-        last = None
+    for k in range(-8, 9):
+        fixed = k * 2.2
+        drawn = height + 9
         for i in range(samples + 1):
             wy = south + (far - south) * (i / samples) ** 2
             px, py, w = cast(fixed, wy)
-            if w <= 0.0 or w > 2.0:
-                continue
-            stroke = ('|' if last is None or (px, py) == last
-                      else _glyph(px - last[0], py - last[1]))
-            last = (px, py)
-            # Converging lines pile a solid wall into the rows under the
-            # horizon; thin them with distance instead - every fourth
-            # survives to the top, every second to the mid band.
-            if py <= hy + 2 and k % 4 != 0:
-                continue
-            if py <= hy + 5 and k % 2 != 0:
+            if w <= 0.0 or w > 2.0 or py >= drawn:
                 continue
             if 0 <= px < width and hy < py < height:
-                marks.append((px, py, stroke))
-    # A few SHORT rungs, clipped to the middle of the fan - edge-to-edge
-    # lines read as a map grid, and the wanted look is the stylised
-    # horizon of an attitude indicator. A rung landing on a taken row or
-    # its neighbour is dropped: the fade IS the distance cue.
-    taken = [hy]
-    rung = south
-    while rung < far:
-        at = rung
-        rung += 5.0
-        _sx, ry, rw = cast(0.0, at)
-        if rw <= 0.0 or rw > 2.0:
-            continue
-        if any(abs(ry - r) <= 1 for r in taken):
-            continue
-        taken.append(ry)
-        for i in range(width + 1):
-            wx = -7.0 + 14.0 * i / width
-            px, py, w = cast(wx, at)
-            if 0.0 < w <= 2.0 and 0 <= px < width and hy < py < height:
-                marks.append((px, py, '-'))
+                marks.append((px, py, '.'))
+                drawn = py
 
     _BACKDROP[(width, height)] = marks
     return marks
@@ -274,20 +293,142 @@ def _backdrop(width, height, distance, view):
 
 def _ground(grid, tone, buf, distance, width, height, colour, view):
     """The landscape behind the board: the cached backdrop, replayed
-    against this frame's depth buffer so the board occludes it."""
-    ash = 240 if colour else None
+    against this frame's depth buffer so the board occludes it.
+
+    Plain occlusion, no halo: the depth solid's footprint already
+    reaches a cell or two past the visible dither, and the one-cell
+    keepout tried on top of that clipped the backdrop visibly far from
+    the subject. Solid blocks against dim dots need no gap to separate."""
+    dim = 238 if colour else None
+    ash = 244 if colour else None
     for px, py, stroke in _backdrop(width, height, distance, view):
         if buf[py * width + px] == 0.0 and grid[py][px] == ' ':
             grid[py][px] = stroke
-            tone[py][px] = ash
+            tone[py][px] = ash if stroke == '-' else dim
 
 
+
+#: The art draws VERBATIM - its own characters on screen, its blanks
+#: left blank. Block-shade and ramp remappings were both built and both
+#: rejected: the artist picked those glyphs, and the picture is theirs.
+#: Depth still lights the face, but through TONE alone.
+
+#: The face's light ramp IN THE EXPORTER'S OWN CHARSET, darkest to
+#: brightest, with the tone each glyph wears. Censused over every
+#: shipped render: ' ' 3751, '.' 2265, ':' 14183 and NOTHING else, so
+#: the ramp is exactly those three. In an ASCII render the 3D lives in
+#: the characters - the exporter's tilted views brighten a near edge to
+#: denser glyphs and starve a far edge to sparser ones - so lighting
+#: that only changed the COLOUR of a constant ':' carpet read as no 3D
+#: at all, twice, on two different attempts.
+LIT = ' .:'
+#: ONE hue, the console theme's cyan, as a pure luminance ladder:
+#: black through the teals to white-cyan for the sharpest highlight.
+#: The object never changes colour - only how much light its
+#: characters carry. Plain grey was tried and read as a dead channel
+#: next to the stage's phosphor.
+GLOW = (16, 23, 30, 37, 44, 51, 87, 123, 195)
+
+
+def _rgb(code):
+    """An xterm-256 cube colour as (r, g, b)."""
+    c = code - 16
+    return tuple(0 if v == 0 else 55 + 40 * v
+                 for v in (c // 36, (c // 6) % 6, c % 6))
+
+
+#: The same ladder as RGB, so a fractional heat can sit BETWEEN two
+#: rungs: sent as 24-bit colour, the ramp is continuous. On the palette
+#: alone a lit board lived on three cyans and the lamp's falloff broke
+#: into hard iso-lines wherever a rounding boundary crossed the face.
+#: The lower rungs sit under 4.5:1 contrast on black (2.8 at rung 1)
+#: and a terminal enforcing a minimum contrast rewrites them: VS Code's
+#: default lifted 72% of a y45 board's cells to one brightness -
+#: .vscode/settings.json turns that off for this workspace.
+GLOW_RGB = tuple(_rgb(c) for c in GLOW)
+
+
+def _blend(heat):
+    """The ladder colour at a fractional heat, linearly between rungs."""
+    lo = int(heat)
+    f = heat - lo
+    a, b = GLOW_RGB[lo], GLOW_RGB[lo + 1]
+    return (int(a[0] + (b[0] - a[0]) * f + 0.5),
+            int(a[1] + (b[1] - a[1]) * f + 0.5),
+            int(a[2] + (b[2] - a[2]) * f + 0.5))
+
+#: Contrast of the glow SIGMOID t^E / (t^E + (1-t)^E): the midtone
+#: stays put while shadows deepen and highlights sharpen together. A
+#: plain power curve was tried first and pulled the whole board into
+#: the dark end - tones 16..30 and nothing lit, measured. At 2.2 the
+#: curve split a y45 board into two tones (47% of cells in one bin,
+#: ':' pinned at 7); near 1 it is the exporter's own near-linear ramp.
+EDGE = 0.87
+
+#: The tone ramp runs on the CLASS scale, fitted by tools/tonecheck.py
+#: to the exporter's lit screenshots (tests/renders/*.png): measured
+#: there in Rec.709 luma, '.' cells sit at 93-99 and ':' at 128-130,
+#: flat across the picture - tone 1.7 and 2.8 of GLOW. Matched on the
+#: peak channel instead they landed two tones bright: his cyan-blue
+#: and the console's cyan differ in hue. Scaled to PIVOT +- SLOPE the
+#: ramp spanned the unclipped depth instead and pinned ':' at 7.
+TONE_LO = -0.47
+TONE_SPAN = 7.0
+
+#: The lighting rig: a weak even backlight - DIMMEST is its floor, no
+#: cell falls to black - and ONE spot. SPOT_AT places it in frame
+#: fractions (upper right), SPOT_R is its radius, SPOT its strength in
+#: t-units; the falloff is quadratic to the rim. Tone only - the glyph
+#: classes, the oracle and the calibration never see it.
+SPOT = 0.20
+
+#: Global dusk: the whole scene sits this far down the ramp before the
+#: spot lifts its pool - the weak backlight, a shade darker on request.
+DUSK = 0.24
+SPOT_AT = (1.05, -0.08)
+SPOT_R = 3.45
+
+#: Screen-space relief off the real depth buffer: a cell is compared
+#: with its neighbour TOWARD the lamp, so a component edge facing the
+#: light ignites and its far side drops into shadow. The global ramp
+#: cannot see parts a tenth of a unit proud of the slab - one step of
+#: nine - and the board read as one flat sheet, benched. The term goes
+#: through tanh, so a cliff in the buffer saturates at RELIEF_CAP of
+#: the ramp instead of slamming a cell to the end - the "black holes".
+RELIEF = 9.0
+RELIEF_CAP = 0.11
+
+#: Surface texture: tone steps, peak to peak, a cell's glow varies by
+#: its fixed seed - per glyph class, sized by tools/tonecheck.py --fit
+#: against the exporter's screenshots. Measured there, his '.' dots
+#: differ from their neighbours by 21 luma on average (sd 24, neighbour
+#: correlation 0.22 - texture, not gradient) while his ':' blocks are
+#: smooth (8-10 luma, correlation 0.5-0.7). Ours without it: 2.8 luma
+#: between neighbours, a flat wash.
+GRAIN_DOT = 1.45
+GRAIN_COLON = 0.0
+
+#: The tone ramp's working band: the darkest drawn cell never falls to
+#: pure black and the hottest never reaches full white - both ends are
+#: reserved so the picture always keeps its ink readable.
+DIMMEST = 0.4
+HOTTEST = -1
+
+#: Tone steps a rim cell loses when the model misses ALL of it; it
+#: loses the share it misses. A quarter missed drops 0.38 - 12 luma,
+#: inside the exporter's own cell-to-cell spread - half 0.75, three
+#: quarters 1.1.
+FEATHER = 1.5
 
 #: The board's face as a shipped ASCII raster - a dithered render of the
 #: real layout, boardface.txt beside this module. Sampled as a texture
 #: on the board plane, so the picture turns WITH the attitude instead of
 #: a cage of edges suggesting it.
 _FACE = None
+
+
+#: Ink per art character, the emboss's height field.
+_DENSE = {' ': 0, '.': 1, ':': 2, '*': 3}
 
 
 def _face():
@@ -302,49 +443,190 @@ def _face():
         except OSError:
             rows = []
         wide = max((len(r) for r in rows), default=0)
-        _FACE = ([r.ljust(wide) for r in rows], wide, len(rows))
+        rows = [r.ljust(wide) for r in rows]
+        dense = [[_DENSE.get(c, 2) for c in r] for r in rows]
+        _FACE = (rows, wide, len(rows), dense)
     return _FACE
 
 
-def _skin(grid, tone, buf, m, distance, scale, cx, cy,
-          width, height, colour):
-    """The face raster mapped onto the board plane.
+#: Shadow maps per attitude bucket. Rebuilt only when the rotation
+#: leaves its ~9 degree bin: built every frame the map cost 14 ms and
+#: the frame rate fell from 160 to 49, measured. A stepping shadow is
+#: invisible at three glyphs; a 49 fps view is not.
+_SHADOWS = {}
 
-    Every visible cell casts a ray from the eye, hits z=0 in BODY frame
-    and samples the art at the hit - the dither turns with the board.
-    With the solder side toward the camera the sample mirrors in x, the
-    way a translucent card would read from behind."""
-    rows, art_w, art_h = _face()
-    if not art_w:
-        return
-    back = m[8] < 0.0
-    ramp = SHADES['board']
-    ink = {'.': ramp[0], ':': ramp[1], '*': ramp[2]}
+
+def _shadowmap(m, size=56, extent=1.3):
+    """The scene from the LIGHT: an orthographic depth raster along the
+    beam, so any cell can ask whether something sits sunward of it -
+    the cast shadow a component throws across the pcb. Coarse in every
+    axis on purpose: a soft-edged ASCII shadow needs no more, and the
+    caster is a lower-resolution solid than the one that draws."""
+    key = tuple(int(v * 6.5) for v in m)
+    got = _SHADOWS.get(key)
+    if got is not None:
+        return got
+    if len(_SHADOWS) > 64:
+        _SHADOWS.clear()
+    from . import orientation
+    solid = _casters(orientation)
+    pos, idx, _nrm = solid
+    m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
+    lx, ly, lz = LIGHT
+    rn = math.sqrt(lz * lz + lx * lx)
+    right = (lz / rn, 0.0, -lx / rn)
+    up = (ly * right[2] - lz * right[1],
+          lz * right[0] - lx * right[2],
+          lx * right[1] - ly * right[0])
+    n = len(pos) // 3
+    la, lb, lc = [0.0] * n, [0.0] * n, [0.0] * n
+    half = (size - 1) / 2.0
+    for i in range(n):
+        x, y, z = pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]
+        tx = m0 * x + m1 * y + m2 * z
+        ty = m3 * x + m4 * y + m5 * z
+        tz = m6 * x + m7 * y + m8 * z
+        la[i] = ((tx * right[0] + ty * right[1] + tz * right[2])
+                 / extent + 1.0) * half
+        lb[i] = ((tx * up[0] + ty * up[1] + tz * up[2])
+                 / extent + 1.0) * half
+        lc[i] = tx * lx + ty * ly + tz * lz
+
+    sbuf = [-9.0] * (size * size)
+    for t in range(len(idx) // 3):
+        a, b, c = idx[3 * t], idx[3 * t + 1], idx[3 * t + 2]
+        x0, y0, x1, y1, x2, y2 = la[a], lb[a], la[b], lb[b], la[c], lb[c]
+        area = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0)
+        if area == 0.0:
+            continue
+        da, db, dc = lc[a], lc[b], lc[c]
+        if area < 0.0:
+            x1, y1, x2, y2 = x2, y2, x1, y1
+            db, dc = dc, db
+            area = -area
+        lo_x = max(0, int(min(x0, x1, x2)))
+        hi_x = min(size - 1, int(max(x0, x1, x2)) + 1)
+        lo_y = max(0, int(min(y0, y1, y2)))
+        hi_y = min(size - 1, int(max(y0, y1, y2)) + 1)
+        inv = 1.0 / area
+        for py in range(lo_y, hi_y + 1):
+            row = py * size
+            for px in range(lo_x, hi_x + 1):
+                w0 = ((x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)) * inv
+                if w0 < 0.0:
+                    continue
+                w1 = ((x0 - x2) * (py - y2) - (y0 - y2) * (px - x2)) * inv
+                if w1 < 0.0:
+                    continue
+                w2 = 1.0 - w0 - w1
+                if w2 < 0.0:
+                    continue
+                here = w0 * da + w1 * db + w2 * dc
+                if here > sbuf[row + px]:
+                    sbuf[row + px] = here
+    made = (sbuf, size, extent, right, up, (lx, ly, lz))
+    _SHADOWS[key] = made
+    return made
+
+
+_CASTERS = None
+
+
+def _casters(orientation):
+    """The shadow pass's own solid: the same STL, coarser still. The
+    mesh cache keys on the file's mtime, so a fresh export replaces
+    both solids by itself."""
+    global _CASTERS
+    if _CASTERS is None:
+        from . import mesh
+        try:
+            _CASTERS = _decimated(orientation.MODEL, 10)
+        except (OSError, ValueError):
+            _CASTERS = orientation.facets(steps=20, relief=1.5)
+    return _CASTERS
+
+
+#: The depth ramp: class = PIVOT + SLOPE * view-z / reach. Anchored on
+#: the exporter's cube - deepest visible face '.', near faces ':' -
+#: and fitted from there by tools/lightfit.py.
+PIVOT = 2.375
+SLOPE = 1.30
+
+
+def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
+          colour):
+    """Classes to glyphs, unrounded levels to the colour ramp.
+
+    The level spans PIVOT +- SLOPE by construction (view-z over reach
+    is +-1), normalised and bent through the EDGE sigmoid: shadows
+    deepen and highlights sharpen while the midtone stands. The SPOT
+    adds its radial pool of light; a staircase corner on the
+    SILHOUETTE thins its glyph, and nothing dims - the exporter's rim
+    is as bright as his interior."""
+    steps = len(GLOW) - 1
+    lo, span = TONE_LO, TONE_SPAN
+    spot_x, spot_y = SPOT_AT
+    rr = SPOT_R * SPOT_R
+    top_heat = steps + HOTTEST
     for py in range(height):
         row = py * width
-        v = (cy - (py + 0.5)) / (scale * 0.5)
+        ny = (py + 0.5) / height - spot_y
         for px in range(width):
-            if buf[row + px] == 0.0:
+            cls = classes[row + px]
+            if not cls:
                 continue
-            u = (px + 0.5 - cx) / scale
-            dz = m[2] * u + m[5] * v - m[8]
-            if abs(dz) < 1e-9:
+            grid[py][px] = LIT[cls]
+            if not colour:
                 continue
-            t = -(distance * m[8]) / dz
-            if t <= 0.0:
-                continue
-            hx = distance * m[6] + t * (m[0] * u + m[3] * v - m[6])
-            hy = distance * m[7] + t * (m[1] * u + m[4] * v - m[7])
-            if hx * hx + hy * hy > OUTER * OUTER:
-                continue
-            if back:
-                hx = -hx
-            ch = rows[int((1.0 - (hy / OUTER + 1.0) * 0.5) * (art_h - 1))][
-                int((hx / OUTER + 1.0) * 0.5 * (art_w - 1))]
-            if ch == ' ':
-                continue
-            grid[py][px] = ch
-            tone[py][px] = ink.get(ch, ramp[1]) if colour else None
+            at = row + px
+            nx = (px + 0.5) / width - spot_x
+            # The desk-lamp pool: squared falloff lands at ZERO slope
+            # on the rim. Linear-in-d2 ended at its steepest - a
+            # terminator ring drawn across the board.
+            pool = 1.0 - (nx * nx + ny * ny) / rr
+            t = (levels[at] - lo) / span - DUSK
+            if pool > 0.0:
+                t += SPOT * pool * pool
+            # Relief is the SECOND difference of bare geometry, joined
+            # after the sigmoid in tone steps. Each rejection measured:
+            # in t it died with the exposure, on `levels` the art's
+            # integer ink saturated the tanh, and the first difference
+            # drowned at y45 - the tilted face's own gradient (0.05 per
+            # cell) matched the cos-shrunk component step. The second
+            # difference cancels any uniform slope: y45 median 0.002
+            # against 0.18 at the edges, which land as a bright/dark
+            # cell pair - a contour line, not an area fill.
+            rel = 0.0
+            if py > 1 and px < width - 2 and classes[at - width + 1] \
+                    and classes[at - 2 * width + 2]:
+                rel = math.tanh(
+                    RELIEF * (bare[at] + bare[at - 2 * width + 2]
+                              - 2.0 * bare[at - width + 1]))
+            t = 0.0 if t < 0.0 else (1.0 if t > 1.0 else t)
+            hot = t ** EDGE
+            hot = hot / (hot + (1.0 - t) ** EDGE)
+            grain = GRAIN_DOT if cls == 1 else GRAIN_COLON
+            heat = (hot * steps + RELIEF_CAP * steps * rel
+                    + grain * (seed[at] - 0.5))
+            # Anti-aliasing is the GLYPH only: a staircase corner (two
+            # or more empty neighbours) thins ':' to '.'. The tone once
+            # feathered too, and that drew the LOD line: every cell on
+            # the silhouette and round every hole sat at 55-62 luma
+            # against 101-103 inside, a dark contour the exporter's
+            # screenshots do not have (his rim 99, his interior 101).
+            # Anti-aliasing by COVERAGE, from the 2x2 fold: a rim cell
+            # dims by the share of it the model misses and thins its
+            # glyph at half or less. A flat feather on every rim cell
+            # drew a dark contour round the board and every hole (55
+            # luma against 101 inside); counting empty neighbours could
+            # not tell a straight edge from a stair and left it raw.
+            missed = 1.0 - coverage[at]
+            if missed:
+                heat -= FEATHER * missed
+                if missed >= 0.5 and cls == 2:
+                    grid[py][px] = LIT[1]
+            tone[py][px] = _blend(DIMMEST if heat < DIMMEST else
+                                  (top_heat if heat > top_heat else heat))
 
 
 def _glyph(dx, dy):
@@ -359,62 +641,106 @@ def _glyph(dx, dy):
     return '/' if (dx > 0) != (dy > 0) else '\\'
 
 
-#: The body axes: +X carries the DC link (right of the board), +Y the
-#: three phase connectors (top), +Z out of the component face. One colour
-#: each, the labels drawn at the tips.
-AXES = (((1.45, 0.0, 0.0), 'X', 208),
-        ((0.0, 1.45, 0.0), 'Y', 114),
-        ((0.0, 0.0, 0.9), 'Z', 51))
+
+def _raster(solid, m, cam, crew):
+    """(depth, top, sun, coverage) at cell resolution: rastered at 2x2
+    subsamples per cell - the camera doubled - and FOLDED, so every
+    cell knows its coverage, which the rim's anti-aliasing runs on.
+    Four times the raster, which is what the crew is for."""
+    from . import engine
+    fine = dict(cam, width=2 * cam['width'], height=2 * cam['height'],
+                scale=2.0 * cam['scale'], cx=2.0 * cam['cx'],
+                cy=2.0 * cam['cy'])
+    if crew is not None and crew.holds(solid):
+        buf, topf, sun = crew.raster(solid, m, fine, beam=LIGHT,
+                                     sun_min=SUN_MIN)
+    else:
+        buf, topf, sun = engine.raster(solid, m, fine, beam=LIGHT,
+                                       sun_min=SUN_MIN)
+    return engine.fold(buf, topf, sun, cam['width'], cam['height'])
 
 
-def render(q, width, height, zoom=1.0, colour=True, axes=True,
-           horizon=True, face=True):
+def _cells(solid, m, cam, crew, face, foreign):
+    """Every per-cell stage: (depth, coverage, classes, levels, bare,
+    seed). With a crew holding the solid the workers raster, fold and
+    shade their own bands and the parent keeps only the glow, which
+    needs neighbours. A foreign solid gets no cast shadows and no art;
+    `face=False` leaves the class fields None for the wire drawing."""
+    from . import engine
+    width, height = cam['width'], cam['height']
+    if face and crew is not None and crew.holds(solid):
+        shading = (PIVOT, SLOPE, FLOOR, None if foreign else _shadowmap(m),
+                   SHADOW_DIM, BIAS, not foreign)
+        return crew.frame(solid, m, cam, LIGHT, SUN_MIN, shading)
+    buf, topf, sun, coverage = _raster(solid, m, cam, crew)
+    if not face:
+        return buf, coverage, None, None, None, None
+    levels = [0.0] * (width * height)
+    bare = [0.0] * (width * height)
+    seed = [0.0] * (width * height)
+    classes = engine.shade(
+        buf, topf, sun, cam, m, PIVOT, SLOPE, FLOOR,
+        art=None if foreign else _face(),
+        shadow=None if foreign else _shadowmap(m),
+        shadow_step=SHADOW_DIM, bias=BIAS, levels=levels, bare=bare,
+        seed=seed)
+    return buf, coverage, classes, levels, bare, seed
+
+
+def render(q, width, height, zoom=1.0, colour=True,
+           horizon=True, face=True, tip=None, solid=None,
+           distance=None, lift=0.44, crew=None, least=0):
     """The board under rotation `q`, as a vector drawing.
 
     Cell-resolution: the strokes ARE the picture, so there is no half-block
-    supersampling to average them away. `axes` draws the BODY frame - the
-    labels turn with the board, which is what makes a mirrored mount
-    readable at a glance. `horizon` draws the WORLD's level line behind
+    supersampling to average them away. `horizon` draws the WORLD's level line behind
     everything, the old flight-sim cue: the board tilts, the horizon does
-    not."""
-    from . import ansi, orientation
+    not. `lift` is the model's vertical centre as a share of the frame
+    (0.5 dead centre, smaller is higher). `crew` is a coaxial.crew.Crew
+    holding THIS solid: the raster runs as row bands in its processes."""
+    from . import ansi, engine, orientation
 
-    edges, solid = _model()
+    # `solid` overrides the board with another mesh - facecheck proves
+    # the LIGHT MODEL on the exporter's cube, whose flat faces turn a
+    # shading bug into a wrong character instead of a vibe. An override
+    # never wears the board's art.
+    edges, board_solid = _model(
+        zoom, max(least, CREW_LEAST) if crew is not None else least)
+    foreign = solid is not None
+    if not foreign:
+        solid = board_solid
     # A NEAR-TOP camera, tipped just enough that the world grid recedes
     # to a horizon the way the old flight sims drew it. The tip is the
     # CAMERA's, applied outside the attitude, so screen X and Y still map
     # one-to-one onto board X and Y - the 55-degree gallery view mixed
     # them and sent the mount hunting through mirrors.
-    tip = math.radians(CAMERA_TIP)
-    ct, st = math.cos(tip), math.sin(tip)
-    view = (1.0, 0.0, 0.0,
-            0.0, ct, st,
-            0.0, -st, ct)
-    m = orientation._multiply(view, orientation.matrix(q))
+    # `tip` overrides the camera pitch - 0.0 looks straight down the
+    # axis, the way the CAD exporter does, which is what facecheck
+    # compares against.
+    distance = 3.2 if distance is None else distance
+    # The fit is a BOUNDING SPHERE, deliberately NOT the frame at hand.
+    # Fitted per frame, a pitch about X shrank the projected span, the
+    # scale swelled to refill the window and the board read as
+    # TRANSLATING closer - seen on the bench 2026-08-30 and blamed on
+    # the origin, which was innocent.
+    # Reach comes from the SOLID's own vertices - whatever mesh the STL
+    # holds today.
+    pts = solid[0]
+    reach = max(math.sqrt(pts[3 * i] ** 2 + pts[3 * i + 1] ** 2
+                          + pts[3 * i + 2] ** 2)
+                for i in range(len(pts) // 3))
+    # The camera is tipped OUTSIDE the attitude, so screen X and Y map
+    # one-to-one onto board X and Y; cy sits a shade above centre so the
+    # ground fills the lower field.
+    cam = engine.camera(width, height, reach, distance=distance,
+                        zoom=zoom, tip=CAMERA_TIP if tip is None else tip,
+                        lift=lift)
+    view = cam['view']
+    m = engine.multiply(view, orientation.matrix(q))
+    scale, cx, cy = cam['scale'], cam['cx'], cam['cy']
 
-    distance = 3.2
-    # The fit is MEASURED, not derived: every endpoint is projected once at
-    # unit scale, and the scale and centre come from the spans. Exact for
-    # any attitude, so zoom 1.0 always just fills the frame.
-    xs, ys = [], []
-    spanning = [v for a, b, _zone in edges for v in (a, b)]
-    if axes:
-        spanning += [tip for tip, _l, _i in AXES]
-    for v in spanning:
-        if True:
-            tx = m[0] * v[0] + m[1] * v[1] + m[2] * v[2]
-            ty = m[3] * v[0] + m[4] * v[1] + m[5] * v[2]
-            tz = m[6] * v[0] + m[7] * v[1] + m[8] * v[2]
-            w = 1.0 / (distance - tz)
-            xs.append(w * tx)
-            ys.append(0.5 * w * ty)
-    x_span = (max(xs) - min(xs)) or 1.0
-    y_span = (max(ys) - min(ys)) or 1.0
-    scale = zoom * min(0.94 * width / x_span, 0.92 * height / y_span)
-    cx = width / 2.0 - scale * (max(xs) + min(xs)) / 2.0
-    cy = height / 2.0 + scale * (max(ys) + min(ys)) / 2.0
-
-    buf = _depth(solid, m, distance, scale, cx, cy, width, height)
+    buf, coverage, classes, levels, bare, seed = _cells(
+        solid, m, cam, crew, face, foreign)
     z_lo = min((v for v in buf if v), default=0.0)
     z_hi = max(buf, default=1.0) or 1.0
     span = (z_hi - z_lo) or 1.0
@@ -426,19 +752,15 @@ def render(q, width, height, zoom=1.0, colour=True, axes=True,
         tipm = view
         _ground(grid, tone, buf, distance, width, height, colour, tipm)
 
-    skinned = False
     if face:
-        _skin(grid, tone, buf, m, distance, scale, cx, cy,
-              width, height, colour)
-        skinned = _face()[1] > 0
+        _glow(grid, tone, classes, levels, bare, seed, coverage, width,
+              height, colour)
 
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
-    for a, b, zone in edges:
-        # The skin already carries the components as dither - the cages
-        # on top of it were double vision. The rim and bore stay: they
-        # are the crisp silhouette the dither cannot draw.
-        if skinned and zone != 'board':
-            continue
+    # The lit raster IS the picture; the chosen edges only draw in wire
+    # mode. The edge-on fallback the flat texture needed is gone too -
+    # the raster draws the slab's own side walls from any angle.
+    for a, b, zone in ([] if face else edges):
         ax = m0 * a[0] + m1 * a[1] + m2 * a[2]
         ay = m3 * a[0] + m4 * a[1] + m5 * a[2]
         az = m6 * a[0] + m7 * a[1] + m8 * a[2]
@@ -467,27 +789,6 @@ def render(q, width, height, zoom=1.0, colour=True, axes=True,
             grid[py][px] = glyph
             tone[py][px] = shades[third] if colour else None
 
-    if axes:
-        # The body frame, drawn over everything: three strokes out of the
-        # bore, each ending in its letter, turning with the board.
-        for tip, label, ink in AXES:
-            tx = m0 * tip[0] + m1 * tip[1] + m2 * tip[2]
-            ty = m3 * tip[0] + m4 * tip[1] + m5 * tip[2]
-            tz = m6 * tip[0] + m7 * tip[1] + m8 * tip[2]
-            w = 1.0 / (distance - tz)
-            x1, y1 = cx + scale * w * tx, cy - scale * 0.5 * w * ty
-            steps = max(1, int(max(abs(x1 - cx), 2.0 * abs(y1 - cy))))
-            glyph = _glyph(x1 - cx, y1 - cy)
-            for i in range(steps + 1):
-                t = i / steps
-                px, py = int(cx + (x1 - cx) * t), int(cy + (y1 - cy) * t)
-                if 0 <= px < width and 0 <= py < height and t > 0.12:
-                    grid[py][px] = glyph
-                    tone[py][px] = ink if colour else None
-            lx, ly = int(x1), int(y1)
-            if 0 <= lx < width and 0 <= ly < height:
-                grid[ly][lx] = label
-                tone[ly][lx] = ink if colour else None
 
     if not colour:
         return '\n'.join(''.join(row).rstrip() for row in grid)

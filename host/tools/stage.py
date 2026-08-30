@@ -47,9 +47,36 @@ THEME = Theme({
 })
 
 
+def _vt_on():
+    """Enable VT processing on the Windows stdout console BEFORE rich
+    looks at it. Without the flag rich sees a legacy console, routes
+    every frame through the 16-colour Win32 API and no escape we write
+    reaches the screen - measured: a bare conhost detects `windows`,
+    legacy True. Nothing to do on a pipe or another platform."""
+    try:
+        import ctypes
+        kernel = ctypes.windll.kernel32
+    except (ImportError, AttributeError):
+        return
+    handle = kernel.GetStdHandle(-11)
+    mode = ctypes.c_uint()
+    if kernel.GetConsoleMode(handle, ctypes.byref(mode)):
+        kernel.SetConsoleMode(handle, mode.value | 0x0004)
+
+
 def stage():
     """The console every view draws on. Plain and sequential when piped."""
-    return Console(highlight=False, theme=THEME)
+    _vt_on()
+    console = Console(highlight=False, theme=THEME)
+    if console.is_terminal and console.color_system != 'truecolor':
+        # rich guesses the colour depth from the environment, and on a
+        # Windows console with no COLORTERM it guesses 256 or 16 - the
+        # glow ramp's 24-bit gradient was requantised to the palette's
+        # five cyans, a hard iso-line across the board where 99 luma
+        # met 106. Every console this runs in renders 24-bit.
+        console = Console(highlight=False, theme=THEME,
+                          color_system='truecolor')
+    return console
 
 
 @contextmanager
@@ -74,9 +101,15 @@ def boot(label, console=None):
     """A brisk amber progress strip over whatever the block actually does.
 
     Deliberately a little gratuitous - the reference terminals never just
-    open a page, they SPIN SOMETHING UP. The bar rides the real work: it
-    walks to 90 % on its own clock and snaps full when the block returns,
-    so a fast open flashes and a slow one honestly crawls.
+    open a page, they SPIN SOMETHING UP. The bar rides the real work: the
+    block reports its milestones through the yielded `step(share,
+    label)`, the bar creeps a little past each on its own clock while
+    the next one runs, and it snaps full when the block returns. With
+    no milestones reported it creeps to 90 % as before.
+
+    `step()` doubles as `ready()`: called with no arguments it snaps
+    full and takes the bar down NOW, for a view whose body keeps
+    running long after the link is up.
     """
     import threading
     import time as _time
@@ -85,7 +118,7 @@ def boot(label, console=None):
 
     court = console or stage()
     if not court.is_terminal:
-        yield lambda: None
+        yield lambda *args: None
         return
 
     bar = Progress(
@@ -96,32 +129,37 @@ def boot(label, console=None):
     task = bar.add_task(label, total=100)
     stop = threading.Event()
     closed = []
+    ceiling = [90.0]
 
     def creep():
-        while not stop.is_set() and bar.tasks[0].completed < 90:
-            bar.update(task, advance=4)
-            _time.sleep(0.02)
+        while not stop.is_set():
+            if bar.tasks[0].completed < ceiling[0]:
+                bar.update(task, advance=1.5)
+            _time.sleep(0.03)
 
-    def ready():
-        """Snap full and take the bar down NOW - called by a view whose
-        body keeps running long after the link is up, so the bar's Live
-        never overlaps the view's own."""
-        if closed:
+    def step(share=None, text=None):
+        if share is None:
+            if closed:
+                return
+            closed.append(True)
+            stop.set()
+            walker.join(timeout=0.5)
+            bar.update(task, completed=100)
+            _time.sleep(0.06)
+            bar.stop()
             return
-        closed.append(True)
-        stop.set()
-        walker.join(timeout=0.5)
-        bar.update(task, completed=100)
-        _time.sleep(0.06)
-        bar.stop()
+        done = max(bar.tasks[0].completed, 100.0 * share)
+        ceiling[0] = min(95.0, 100.0 * share + 8.0)
+        bar.update(task, completed=done,
+                   description=text if text else bar.tasks[0].description)
 
     bar.start()
     walker = threading.Thread(target=creep, daemon=True)
     walker.start()
     try:
-        yield ready
+        yield step
     finally:
-        ready()
+        step()
 
 
 def chip(origin):

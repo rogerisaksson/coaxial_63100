@@ -21,6 +21,12 @@
         },
         "PowerShell": { "source": "PowerShell", "icon": "terminal-powershell" }
     },
+    // The render's glow ramp is dim cyan on black by design - the exporter's
+    // '.' dots sit at 90 luma. VS Code's default of 4.5 lifts every colour
+    // under that contrast to exactly 4.5:1, and at y45 that is 72% of the
+    // cells at ONE brightness: the surface texture and the whole dark half
+    // of the ramp gone, measured. 1 shows the colours as sent.
+    "terminal.integrated.minimumContrastRatio": 1,
     "cmake.cmakePath": "cube-cmake",
     "cmake.configureArgs": [
         "-DCMAKE_COMMAND=cube-cmake"

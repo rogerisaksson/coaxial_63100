@@ -326,6 +326,37 @@ def _set_console_mode(restore=None):
     return was.value
 
 
+def _console_records():
+    """The Windows INPUT_RECORD layout, built once ctypes exists."""
+    import ctypes
+
+    class Coord(ctypes.Structure):
+        _fields_ = (('X', ctypes.c_short), ('Y', ctypes.c_short))
+
+    class Key(ctypes.Structure):
+        _fields_ = (('down', ctypes.c_int), ('repeat', ctypes.c_ushort),
+                    ('vk', ctypes.c_ushort), ('scan', ctypes.c_ushort),
+                    ('ch', ctypes.c_wchar), ('state', ctypes.c_uint))
+
+    class Mouse(ctypes.Structure):
+        _fields_ = (('pos', Coord), ('buttons', ctypes.c_uint),
+                    ('state', ctypes.c_uint), ('flags', ctypes.c_uint))
+
+    class Event(ctypes.Union):
+        _fields_ = (('key', Key), ('mouse', Mouse))
+
+    class Record(ctypes.Structure):
+        _fields_ = (('type', ctypes.c_ushort), ('event', Event))
+
+    return Record
+
+
+try:
+    _RECORD = _console_records()
+except ImportError:                      # pragma: no cover - no ctypes
+    _RECORD = None
+
+
 class Keys:
 
     """Non-blocking key reads, for a view redrawing at 8 to 20 Hz.
@@ -346,6 +377,12 @@ class Keys:
     #: What a view binds against, so no view has to know the escape codes.
     ARROWS = {'A': 'up', 'B': 'down', 'C': 'right', 'D': 'left'}
 
+    #: The prefix of a mouse or arrow sequence still in flight. A report
+    #: SPLIT across two drains matched nothing, fell through to the key
+    #: loop and was eaten as typed characters - drags turned sporadic,
+    #: and the halves' letters hit view bindings.
+    PARTIAL_RE = re.compile(r'\033(\[(<[\d;]*)?)?$')
+
     def __init__(self, console, mouse=False):
         self.console = console
         self.mouse = mouse and console
@@ -355,6 +392,11 @@ class Keys:
         self._buffer = ''
         self._dragging = False
         self._last_row = None
+        self._holding = False
+        self._grip = None
+        self._spun = (0.0, 0.0)
+        self._pending = ''
+        self._buttons = 0
         self._typed = []
 
     def __enter__(self):
@@ -406,8 +448,8 @@ class Keys:
             found = self.MOUSE_RE.search(self._buffer)
             if not found:
                 break
-            zoom += self._mouse(int(found.group(1)), int(found.group(3)),
-                                found.group(4))
+            zoom += self._mouse(int(found.group(1)), int(found.group(2)),
+                                int(found.group(3)), found.group(4))
             self._buffer = (self._buffer[:found.start()]
                             + self._buffer[found.end():])
 
@@ -422,8 +464,19 @@ class Keys:
             self._buffer = (self._buffer[:found.start()]
                             + self._buffer[found.end():])
 
+        # A trailing partial sequence waits ONE poll for its other half;
+        # the same partial twice in a row is a real lone keypress (ESC)
+        # and goes through 20 ms late instead of never.
+        held = ''
+        cut = self._buffer.rfind('\033')
+        if cut != -1:
+            tail = self._buffer[cut:]
+            if self.PARTIAL_RE.match(tail) and tail != self._pending:
+                held, self._buffer = tail, self._buffer[:cut]
+        self._pending = held
+
         leave, keys = None, self._buffer
-        self._buffer = ''
+        self._buffer = held
 
         for key in keys:
             if leave is None and key in QUIT_KEYS:
@@ -447,7 +500,7 @@ class Keys:
         out, self._typed = self._typed, []
         return out
 
-    def _mouse(self, button, row, kind):
+    def _mouse(self, button, col, row, kind):
         """What one mouse report is worth, as a zoom fraction.
 
         POSITIVE IS NEARER, the way the caller uses it: it scales zoom by
@@ -457,15 +510,21 @@ class Keys:
         it asserted the sign of this number instead of what the picture did.
 
         Right-drag is the same gesture with a hand instead of a finger: pull
-        down to come back, push up to go in.
+        down to come back, push up to go in. LEFT-drag is the other channel:
+        its cell deltas pile up for dragged(), the trackball a view can
+        bind to rotation.
         """
+        # Shift, meta and ctrl ride as +4/+8/+16 on the button code; the
+        # gesture is the same gesture.
+        self.reports = getattr(self, 'reports', 0) + 1
+        button &= ~28
         if button == 64:
             return WHEEL_STEP
         if button == 65:
             return -WHEEL_STEP
 
         # 2 is the right button; 32 is the drag bit the terminal sets while
-        # it is held. Anything else is a click this view has no use for.
+        # it is held.
         if button == 2 and kind == 'M':
             self._dragging, self._last_row = True, row
             return 0.0
@@ -477,14 +536,99 @@ class Keys:
                            else row)
             self._last_row = row
             return -moved * DRAG_STEP
+
+        # 0 is the left button, 32 its drag bit.
+        if button == 0 and kind == 'M':
+            self._holding, self._grip = True, (col, row)
+            return 0.0
+        if button == 0 and kind == 'm':
+            self._holding = False
+            return 0.0
+        if button == 32 and self._holding:
+            last = self._grip if self._grip is not None else (col, row)
+            dx, dy = self._spun
+            self._spun = (dx + (col - last[0]), dy + (row - last[1]))
+            self._grip = (col, row)
         return 0.0
 
+    def dragged(self):
+        """Left-drag cell deltas (dx, dy) since the last call, drained."""
+        out, self._spun = self._spun, (0.0, 0.0)
+        return out
+
     def _drain(self):
-        """Every key waiting right now, and none of the ones that are not."""
+        """Every key waiting right now, and none of the ones that are not.
+
+        On Windows the CONSOLE RECORDS are read directly. The msvcrt
+        path only ever saw what conhost chose to translate to VT: the
+        wheel came through, LEFT-BUTTON MOTION never did, and the mouse
+        counter froze the moment a drag began - measured on the bench.
+        Mouse records synthesize into the same SGR strings the in-band
+        protocol sends, so everything downstream stays one parser; the
+        wheel record is deliberately skipped because its VT translation
+        already arrives, and two sources would double every notch.
+        """
         try:
-            import msvcrt
+            import msvcrt                                    # noqa: F401
         except ImportError:
             return self._drain_posix()
+        got = self._drain_records()
+        if got is not None:
+            return got
+        return self._drain_msvcrt()
+
+    def _drain_records(self):
+        import ctypes
+
+        try:
+            kernel = ctypes.windll.kernel32
+        except AttributeError:
+            return None
+        handle = kernel.GetStdHandle(-10)
+        count = ctypes.c_uint()
+        if not kernel.GetNumberOfConsoleInputEvents(
+                handle, ctypes.byref(count)):
+            return None                  # a pipe, not a console
+        if not count.value:
+            return []
+        buf = (_RECORD * count.value)()
+        read = ctypes.c_uint()
+        if not kernel.ReadConsoleInputW(handle, buf, count.value,
+                                        ctypes.byref(read)):
+            return None
+
+        keys = []
+        for i in range(read.value):
+            record = buf[i]
+            if record.type == 1 and record.event.key.down:
+                ch = record.event.key.ch
+                if ch and ch != '\x00':
+                    keys.append(ch * max(1, record.event.key.repeat))
+                else:
+                    keys.append({37: '\x1b[D', 38: '\x1b[A',
+                                 39: '\x1b[C', 40: '\x1b[B'}.get(
+                                     record.event.key.vk, ''))
+            elif record.type == 2:
+                mouse = record.event.mouse
+                x, y = mouse.pos.X + 1, mouse.pos.Y + 1
+                if mouse.flags == 0:
+                    for bit, name in ((0x1, 0), (0x2, 2)):
+                        had = self._buttons & bit
+                        has = mouse.buttons & bit
+                        if has and not had:
+                            keys.append('\x1b[<%d;%d;%dM' % (name, x, y))
+                        elif had and not has:
+                            keys.append('\x1b[<%d;%d;%dm' % (name, x, y))
+                    self._buttons = mouse.buttons
+                elif mouse.flags & 0x1:
+                    if self._buttons & 0x1:
+                        keys.append('\x1b[<32;%d;%dM' % (x, y))
+                    elif self._buttons & 0x2:
+                        keys.append('\x1b[<34;%d;%dM' % (x, y))
+        return keys
+
+    def _drain_msvcrt(self):
+        import msvcrt
 
         keys = []
         while msvcrt.kbhit():

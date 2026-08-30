@@ -123,7 +123,44 @@ def workshop(args):
         return None
 
     try:
-        return farm.Farm(orientation.MODEL_MESH)
+        return _announced(farm.Farm(orientation.MODEL_MESH))
+    except (OSError, ValueError) as exc:
+        say('warn', 'drawing', 'one process only: %s' % exc)
+        return None
+
+
+def _announced(pool):
+    say('ok', 'drawing', '%d processes, one band of the picture each'
+        % pool.workers)
+    return pool
+
+
+def bands(args, step):
+    """The staged engine's crew for the vector drawing, or None for a
+    run too short to pay for spawning it. Measured 2026-08-30: the
+    raster at 150x44 goes 9.9 ms to 5.0 with eight workers; at 220x60,
+    14.8 to 5.8. The crew holds EVERY level of detail: built on the
+    zoom-1 board alone it was never used - the view opens at zoom
+    1.49, one level finer - and the finest level costs 29 ms alone.
+
+    Six decimations - 1.2 s in parallel, 5.0 one after another - the
+    shadow casters' decimation (0.86 s, which used to land on the
+    FIRST FRAME after the strip) and the spawn, all reported to the
+    boot strip's `step`."""
+    from coaxial import crew, wireframe
+    levels = len(wireframe.LODS)
+
+    def landed(done, _total, divisions):
+        step(0.15 + 0.45 * done / levels, 'DECIMATING GRID %d' % divisions)
+
+    solids = wireframe._lods(landed)
+    step(0.62, 'SHADOW CASTERS')
+    wireframe._shadowmap((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
+    if args.photo or (args.frames and args.frames <= 4):
+        return None
+    step(0.70, 'SPAWNING %d PROCESSES' % crew.MAX_WORKERS)
+    try:
+        return _announced(crew.Crew(solids, art=wireframe._face()))
     except (OSError, ValueError) as exc:
         say('warn', 'drawing', 'one process only: %s' % exc)
         return None
@@ -305,7 +342,8 @@ def compose(origin, args, view, colour, console):
         q, width=art_w, height=tall,
         zoom=view['zoom'] * (0.88 if not args.photo else 1.0),
         shop=view['shop'], toon=not args.photo, wire=not args.photo,
-        colour=colour, frame_on=view['frame_on']).splitlines()
+        colour=colour, frame_on=view['frame_on'],
+        crew=view.get('crew')).splitlines()
     margin = min((len(l) - len(l.lstrip(' '))
                   for l in art if l.strip()), default=0)
     art = [l[margin:] for l in art]
@@ -345,46 +383,64 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
-def main(argv=None):
-    args = parse_args(argv)
-
+def launch(args):
+    """Everything before the first frame, behind ONE boot strip that
+    rides the real milestones - link, six decimations, shadow casters,
+    the part, its power, the rotation vector, the pool - so the strip
+    ends where the view begins. None when a step refused, after
+    saying which."""
     # power_afe SAID: the default went quiet-False when every connect
     # stopped flipping the rail, and this view inherited it - the part it
     # exists to show is AFE-powered, so it asks by name and puts it back.
     from screen import boot
-    with boot('LINKING BNO085'):
+    with boot('LINKING BNO085') as step:
         rig = Coaxial63100(port=args.port, power_afe=True,
                            simulated_device=bool(args.simulated)).open()
-    origin, board = rig.origin, rig.board
+        origin, board = rig.origin, rig.board
+        step(0.12, 'BNO085 LINKED')
+        pool = bands(args, step)
+        step(0.78, 'THE PART')
+        part = capability(board)
+        if part is None:
+            say('fail', 'capability',
+                'this board reports no IMU among its parts')
+            rig.close()
+            return None
+        try:
+            preflight(board, part)
+        except RigError as exc:
+            say('fail', part['power'] or 'supply',
+                'could not power %s: %s' % (part['name'], exc))
+            rig.close()
+            return None
+        step(0.86, 'ROTATION VECTOR')
+        pid = start_reporting(board, args.interval_us)
+        if pid is None:
+            # ONE retry, after the loop has settled: the first launch
+            # after the rail rises can catch the part mid-advertisement,
+            # and a view that needs a second start by hand reads as
+            # broken.
+            board.imu.settled()
+            pid = start_reporting(board, args.interval_us)
+        if pid is None:
+            rig.close()
+            return None
+        step(0.95, 'DRAWING')
+        shop = workshop(args)
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
-
-    part = capability(board)
-    if part is None:
-        say('fail', 'capability', 'this board reports no IMU among its parts')
-        rig.close()
-        return 1
-
-    try:
-        preflight(board, part)
-    except RigError as exc:
-        say('fail', part['power'] or 'supply',
-            'could not power %s: %s' % (part['name'], exc))
-        rig.close()
-        return 1
-
-    pid = start_reporting(board, args.interval_us)
-    if pid is None:
-        # ONE retry, after the loop has settled: the first launch after the
-        # rail rises can catch the part mid-advertisement, and a view that
-        # needs a second start by hand reads as broken.
-        board.imu.settled()
-        pid = start_reporting(board, args.interval_us)
-    if pid is None:
-        rig.close()
-        return 1
     say('wait', 'drawing',
         'Q closes it, ESC goes back to the menu, and both undo the above')
+    return rig, origin, board, part, pid, pool, shop
+
+
+def main(argv=None):
+    args = parse_args(argv)
+
+    started = launch(args)
+    if started is None:
+        return 1
+    rig, origin, board, part, pid, pool, shop = started
 
     period = 1.0 / max(args.hz, 0.5)
     quaternion = (0.0, 0.0, 0.0, 1.0)
@@ -406,16 +462,13 @@ def main(argv=None):
     console = board_view.is_terminal
     leaving = None
 
-    # 1.0 is the fit: the board just filling the shorter axis. The wheel and
-    # a right-drag move it, clamped so the model cannot be pushed through
-    # the camera or shrunk to nothing.
-    zoom = 1.0
+    # 1.0 is the guaranteed fit at ANY attitude; 1.5 rests larger and lets
+    # an axis tip clip in the extremes, which the eye forgives and the
+    # wheel undoes. The wheel and a right-drag move it, clamped so the
+    # model cannot be pushed through the camera or shrunk to nothing.
+    zoom = 1.44                          # 77% of the 1.875 it rested at
     state = {'tare': None, 'flip': [False, False, False],
              'frame_on': True}
-    shop = workshop(args)
-    if shop:
-        say('ok', 'drawing', '%d processes, one band of the picture each'
-            % shop.workers)
 
     try:
         with curtain(board_view) as live, Keys(console, mouse=True) as keys:
@@ -447,7 +500,7 @@ def main(argv=None):
                 view = dict(state, part=part, pid=pid, record=record,
                             quaternion=quaternion, rate=rate,
                             stale=stale, frame=frame, zoom=zoom,
-                            shop=shop, wide=wide, tall=tall)
+                            shop=shop, crew=pool, wide=wide, tall=tall)
                 live.update(compose(origin, args, view,
                                     colour=console and not args.photo,
                                     console=console), refresh=True)
@@ -466,6 +519,8 @@ def main(argv=None):
         sys.stdout.write('\n')
         if shop:
             shop.close()
+        if pool:
+            pool.close()
         done = put_back(board, part)
         rig.close()
         done.append((part['power'] or 'supply',

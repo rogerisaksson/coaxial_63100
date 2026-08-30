@@ -600,7 +600,7 @@ def _fit(cols, rows, zoom=1.0, model=None):
 
 def render(q, width=44, height=19, zoom=1.0, shop=None,
            ramp=ascii3d.CHARACTERS, toon=False, colour=False, wire=False,
-           frame_on=True):
+           frame_on=True, crew=None):
     """The board under rotation `q`, as `height` lines of `width` characters.
 
     The drawing is `ascii3d`, which is three.js's AsciiEffect ported out of
@@ -617,8 +617,11 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
         # The vector drawing: chosen edges, hidden lines removed, depth-
         # cued strokes - coaxial.wireframe, not a wireframed mesh.
         from . import wireframe
+        # Above the frame's centre: the model clears the horizon line
+        # instead of sitting on it.
         return wireframe.render(q, width, height, zoom=zoom, colour=colour,
-                                axes=frame_on, horizon=frame_on)
+                                horizon=frame_on, lift=0.36,
+                                crew=crew)
 
     cols, rows, _cell = ascii3d.grid(width, height)
     if (toon or wire) and shop is None:

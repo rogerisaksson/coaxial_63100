@@ -43,7 +43,8 @@ OLLAMA = tuple('test_ollama_%s.py' % tag for tag in
 BENCH = 'test_bench.py'
 BROKER = 'test_broker.py'
 VIEWS = 'test_views.py'
-DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, BROKER, VIEWS) + OLLAMA
+RENDER = 'test_render.py'
+DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, BROKER, VIEWS, RENDER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
 CONFORMANCE = 'test_conformance.py'
@@ -275,7 +276,10 @@ TOUCHES = (
     # wire, a tool schema or a board when one changes, so the suite that
     # draws them is the whole of it. `orientation` is the exception because
     # coaxial_mcp/tools.py imports it for the tool of the same name.
-    ('host/coaxial/orientation.py',   ('test_simulated.py', 'test_mcp.py')),
+    ('host/coaxial/orientation.py',   ('test_simulated.py', 'test_mcp.py',
+                                       RENDER)),
+    ('host/coaxial/engine.py',        (RENDER, VIEWS)),
+    ('host/coaxial/wireframe.py',     (RENDER, VIEWS)),
     ('host/coaxial/ascii3d.py',       ('test_simulated.py',)),
     ('host/coaxial/desk.py',          ('test_simulated.py',)),
     ('host/coaxial/dial.py',          ('test_simulated.py',)),

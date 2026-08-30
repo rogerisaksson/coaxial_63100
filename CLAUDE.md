@@ -191,16 +191,18 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Twenty suites, 1844 checks, sized from `host/tests/.counts.json` and so measured
-rather than remembered: `test_structure.py` (408), `test_ollama_tools.py`
-(218), `test_ollama_runner.py` (214), `test_simulated.py` (194),
-`test_live_model.py` (146, needs ollama, `--live`), `test_ollama_prompt.py`
-(113), `test_conformance.py` (110, `--conformance`), `test_ollama_link.py`
-(96), `test_modbus_core.py` (68), `test_mcp.py` (44), `test_shtp_core.py` (38),
-`test_ollama_render.py` (32), `test_parity.py` (30), `test_ollama_board.py`
-(28), `test_ollama_bus.py` (28), `test_ollama_reply.py` (23), `test_broker.py`
+Twenty-one suites, 1896 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (431),
+`test_ollama_tools.py` (218), `test_ollama_runner.py` (214),
+`test_simulated.py` (194), `test_live_model.py` (146, needs ollama, `--live`),
+`test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
+`test_ollama_link.py` (96), `test_modbus_core.py` (68), `test_mcp.py` (44),
+`test_shtp_core.py` (38), `test_ollama_render.py` (32), `test_parity.py` (30),
+`test_ollama_board.py` (28), `test_ollama_bus.py` (28), `test_render.py`
+(27, the 3D engine stage by stage against an analytic oracle -
+`render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23), `test_broker.py`
 (22, the shared session, no board), `test_views.py`
-(16, every view and the front page drawn twice, no board), `test_ollama_language.py` (12),
+(18, every view and the front page drawn twice, no board), `test_ollama_language.py` (12),
 `test_bench.py` (4, the board's loop rates against a recorded baseline). How it is wired is in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system); the rules that bind
 you:
@@ -236,7 +238,7 @@ you:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14, conformance
   0.29, live 4.6. The `test_ollama_*` suites are in from the first tier and
   narrow *themselves*; that is where the fine resolution lives, because 764 of
-  this tree's 1844 checks are in those nine files.
+  this tree's 1896 checks are in those nine files.
 
 * **The model is not asked when the path map already knows.** Where every
   changed file matched an explicit rule and the answer is `CHEAP` - structure,
@@ -274,7 +276,7 @@ question nobody asked. The suites are the gate *after* a change, not a step in
 finding one.
 
 **Problem, measured:** chasing why two of three gate driver stages ran 15 C
-hotter than the third, the full suite was started three times. None of the 1844
+hotter than the third, the full suite was started three times. None of the 1896
 checks could have said anything about it - the difference was on the bench.
 **What worked instead:** a 600-sample pin count and a register dump.
 
@@ -553,3 +555,8 @@ believing an IMU that looks present.
 - `Core/Src/main.c` is LF-terminated. Python `open(...)` without
   `newline=''`/`newline='\n'` converts it to CRLF on write.
 - Long `cat > file <<'EOF'` heredocs get truncated. Split them.
+- Most files here are CRLF. A multi-line `str.replace` pattern written in a
+  heredoc has LF newlines and silently matches nothing - five no-op edits in
+  one afternoon, each discovered a test later. Single-line replaces are safe;
+  multi-line edits go through the edit tool, and a replace script must assert
+  its patterns matched before writing.

@@ -57,7 +57,11 @@ ASH = 242
 
 
 def code(number):
-    """One 256-colour foreground escape."""
+    """One foreground escape: a palette number, or an (r, g, b) tuple as
+    24-bit colour - the glow ramp interpolates between palette steps,
+    and a 256-colour cyan has only five rungs between black and full."""
+    if isinstance(number, tuple):
+        return '\033[38;2;%d;%d;%dm' % number
     return '\033[38;5;%dm' % number
 
 
