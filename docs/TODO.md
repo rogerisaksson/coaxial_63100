@@ -24,6 +24,7 @@ not what it measured.
 | The link at 89.8 % of its bitrate for a full block, 4.5 % for a ping | FINDINGS, *What the transport was spending* |
 | The thermal observer: ten nodes, drivers and phases per leg, an SOA budget in flash | PROTOCOL, *Device 8* |
 | Rails reference counted, and who holds them on the wire | PROTOCOL, *Device 9* |
+| Switching into a load: one leg at a duty against another held low, or the pair swapped every PWM period by the board (`0x6E` device 4 op 10), 2-50 %, 25-31 V, up to 60 s | CLAUDE.md *Scope*; FINDINGS, *The pair alternates* |
 
 **USB is configured and nothing sits on it.** OTG_FS device, no device class,
 so a host sees one that fails enumeration. Nothing depends on it.
@@ -36,6 +37,10 @@ the break latch and enabling in the same round trip leaves the latch set again,
 because PE15 is still low. Two independent conditions are needed and neither is
 met - a pilot tone from a master on RS485, and the KEEPALIVE pump. Only the
 second runs.
+
+On the bench the break is bypassed instead - `switch.py` and `pulse.py` do it
+by name - which is how 2026-08-30's switching into an 8 ohm load ran, at
+25-31 V and 2-50 %. The chain itself still has not released.
 
 Nothing has run near 63 V or 100 A. No number this board reports has been
 measured against an instrument - invariant 7.
@@ -61,6 +66,14 @@ measured against an instrument - invariant 7.
    ns. The skew parameter is untested and 0: the one experiment ran on a
    board that was resetting between steps.
 5. **A USB device class**, if USB is to do anything.
+6. **A cycle-counted duty.** A hold's length is the link's: the shortest is
+   one write round trip, ~800 periods, and 100 ms asked for is 93-108 at the
+   FETs. A period count on the duty op, decremented in TIM1's update ISR and
+   zeroing the compares at zero, makes 10 ms exactly 500 cycles. Op 10
+   `alternate` (2026-08-30) shows the ISR already owns the compares.
+7. **`0x41`'s description still says "no timer, no PWM, no gate drive"** -
+   `cmd_board.c`, one string, stale since TIM1 armed. The board should not
+   describe itself wrongly; a reflash fixes it.
 
 ## Standing
 

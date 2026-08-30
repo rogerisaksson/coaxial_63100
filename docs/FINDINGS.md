@@ -1736,3 +1736,27 @@ on the duty op, cleared by the update ISR - is the only way to a number.
 Also seen: `rig.write(analog=...)` cost three `state()` reads (31 ms each)
 before the duty went out - `armed()`, the period and the held duties read
 separately. One read now; 110 ms became 15.
+
+## The pair alternates: op 10, and what the board said while it did
+
+Proto 2.1, 2026-08-30. `0x6E` device 4 op 10 takes two compare triples;
+TIM1's update ISR writes the other one at every OVERFLOW - DIR already
+reads down there - so the preloaded compares land at the underflow and
+each period, both slopes, is one triple. Written at the underflow instead,
+a period would carry A up one slope and B down the other and the two high
+sides would overlap. The dither is off while it runs; SetAll, SetAllFine
+and Disable end it.
+
+Proof from the board rather than the scope: 5 % U against V low as A,
+V against U low as B, `state()` read twelve times mid-run at ~50 ms -
+`duty` (118,0,0) five times, (0,118,0) seven, nothing else. Then 10, 30,
+30 and 60 s runs, 31 V link, 8 ohm across U and V: every one with the
+break clear under the bypass, 0 overruns, no gate shorts, a clean disarm.
+Both half-bridges switching on the scope.
+
+The NTC while it ran, 5 % duty, same mean power in the resistor as one
+direction: 41.9 C before, 48.5 after 10+30 s, 50.9 after 30 more, 56.0
+after 60 more - about +5 C a minute and not flattening, against +1.7 C
+per 30 s one-directional. Two high sides switch instead of one. Recorded,
+not explained; the thermal observer shows the margin to the record's
+ceiling.

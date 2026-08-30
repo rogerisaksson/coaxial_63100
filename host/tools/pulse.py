@@ -53,6 +53,11 @@ def main():
                    help='seconds on per pulse - 0 is as short as the link '
                         'allows, about 15 ms; longer waits before the off '
                         'write, with its 15 ms landing counted in')
+    p.add_argument('--alternate', action='store_true',
+                   help='the board swaps direction every PWM period: HIGH '
+                        'at the duty against LOW held low one period, LOW '
+                        'at the duty against HIGH the next - current back '
+                        'and forth through the load at 25 kHz')
     a = p.parse_args()
     high, low = a.high.upper(), a.low.upper()
     if high not in PHASES or low not in PHASES or high == low:
@@ -71,12 +76,18 @@ def main():
         # a 31 ms state read the pulse would be spent waiting for.
         ticks = [0, 0, 0]
         ticks[PHASES.index(high)] = int(a.duty * (state['period'] - 1))
+        back = [0, 0, 0]
+        back[PHASES.index(low)] = ticks[PHASES.index(high)]
         held = []
         for i in range(a.count):
             if i:
                 time.sleep(a.gap)
             t0 = time.perf_counter()
-            rig.board.gate_drivers.duty(ticks)
+            if a.alternate:
+                # The board swaps A and B every period from here on.
+                rig.board.gate_drivers.alternate(ticks, back)
+            else:
+                rig.board.gate_drivers.duty(ticks)
             t1 = time.perf_counter()
             if a.on > LANDING:
                 # Sleep to 2 ms short, then spin: Windows sleeps in

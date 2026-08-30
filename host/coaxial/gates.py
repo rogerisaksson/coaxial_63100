@@ -50,6 +50,11 @@ class GateControl(ABC):
         """The same, in Q16.16, so the mean duty is what was asked for."""
 
     @abstractmethod
+    def alternate(self, ticks_a, ticks_b):
+        """Two triples, A one period and B the next, swapped by the board
+        every PWM period until the next duty write."""
+
+    @abstractmethod
     def dead_time(self, nanoseconds=None, skew=None):
         """Read or set DTG and its skew. The board floors it at 20 ns."""
 

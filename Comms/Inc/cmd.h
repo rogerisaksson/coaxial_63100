@@ -195,6 +195,7 @@ extern "C" {
 #define GATEDRIVERS_OP_GAPRST   7U   /**< -> u8; forget the worst keepalive gap */
 #define GATEDRIVERS_OP_DUTYQ    8U   /**< u32 x3 ticks Q16.16 -> u8 took        */
 #define GATEDRIVERS_OP_DEADTIME 9U   /**< u32 ns, i8 skew -> u8 took            */
+#define GATEDRIVERS_OP_ALTERNATE 10U /**< u16 x3 ticks A, u16 x3 ticks B -> u8 took: A one period, B the next */
 
 /** Device 5's ops: the measurement ring. */
 #define LOG_OP_STATE    0U   /**< -> u8 sources, u16 count, u16 depth, u32 dropped */
@@ -257,7 +258,7 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 0U
+#define CMD_PROTO_MINOR 1U        /* 1: gate drivers op 10, alternate */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

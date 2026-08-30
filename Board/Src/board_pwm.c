@@ -31,6 +31,13 @@ static uint32_t s_want_q16[BOARD_PWM_PHASES];
 static uint32_t s_residue[BOARD_PWM_PHASES];
 static bool     s_dither;
 
+/** Two triples the update interrupt swaps between, one per PWM period,
+    and which of them the next period gets. A phase pair driven back and
+    forth every 20 us - what one host write per 15 ms cannot do. */
+static uint16_t s_alt[2][BOARD_PWM_PHASES];
+static volatile bool s_alternate;
+static volatile uint8_t s_alt_next;
+
 static uint8_t s_skew;                 /* DTG counts, one way then the other */
 static bool    s_skew_up;              /* true: the up-count edge gets more  */
 static uint8_t s_deadtime;             /* what was asked for, in DTG counts  */
@@ -103,6 +110,7 @@ void Board_PwmDisable(void)
      an update event. */
   s_armed = false;
   s_dither = false;
+  s_alternate = false;
 
   if ((RCC->APB2ENR & RCC_APB2ENR_TIM1EN) != 0U)
   {
@@ -336,6 +344,7 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
     s_residue[phase] = 0U;
   }
   s_dither = true;
+  s_alternate = false;
   if (!masked)
   {
     __enable_irq();
@@ -391,6 +400,7 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
      the interrupt has a second owner now, so it goes only when the skew
      does not want it either. */
   s_dither = false;
+  s_alternate = false;
   update_irq(s_skew != 0U);
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
@@ -408,6 +418,56 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
   {
     s_duty[phase] = ticks[phase];
   }
+  return NULL;
+}
+
+
+const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
+{
+  if ((a == NULL) || (b == NULL))
+  {
+    return "no duties given - pass two triples";
+  }
+  if (!Board_PwmIsEnabled())
+  {
+    return "the gate drivers are not enabled - enable it first, and clear or "
+           "bypass the break if one is latched";
+  }
+  for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
+  {
+    if ((a[phase] > TIM1->ARR) || (b[phase] > TIM1->ARR))
+    {
+      return "a duty is past ARR - the largest is period minus one, which "
+             "the state reports";
+    }
+  }
+
+  /* The interrupt owns the compares from here: the dither is off, A is
+     in the registers now and B is what the next overflow writes. Both
+     stay whole ticks, so nothing carries. */
+  const uint32_t masked = __get_PRIMASK();
+  __disable_irq();
+  s_dither = false;
+  for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
+  {
+    s_alt[0][phase] = a[phase];
+    s_alt[1][phase] = b[phase];
+    s_want_q16[phase] = (uint32_t)a[phase] << 16;
+    s_residue[phase] = 0U;
+    s_duty[phase] = a[phase];
+  }
+  TIM1->CCR1 = a[0];
+  TIM1->CCR2 = a[1];
+  TIM1->CCR3 = a[2];
+  s_alt_next = 1U;
+  s_alternate = true;
+  if (!masked)
+  {
+    __enable_irq();
+  }
+
+  TIM1->SR = ~TIM_SR_UIF;
+  update_irq(true);
   return NULL;
 }
 
@@ -680,7 +740,23 @@ void TIM1_UP_IRQHandler(void)
      already turned. */
   s_half ^= 1U;
 
-  if (s_half == 0U)
+  if (s_alternate && ((TIM1->CR1 & TIM_CR1_DIR) != 0U))
+  {
+    /* Just past the OVERFLOW - DIR already reads down - so these preloaded
+       compares land at the underflow and the whole next period, both
+       slopes, is one triple. Written at the underflow instead, a period
+       would carry A up one slope and B down the other. */
+    const uint16_t *next = s_alt[s_alt_next];
+
+    TIM1->CCR1 = next[0];
+    TIM1->CCR2 = next[1];
+    TIM1->CCR3 = next[2];
+    s_duty[0] = next[0];
+    s_duty[1] = next[1];
+    s_duty[2] = next[2];
+    s_alt_next ^= 1U;
+  }
+  else if (s_half == 0U)
   {
     Board_PwmDitherStep();
   }

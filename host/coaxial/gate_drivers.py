@@ -39,6 +39,7 @@ OP_CLEAR = 5
 OP_BYPASS = 6
 OP_DUTY_FINE = 8
 OP_GAP_RESET = 7
+OP_ALTERNATE = 10
 
 
 class GateDrivers(Subsystem, GateControl):
@@ -166,6 +167,24 @@ class GateDrivers(Subsystem, GateControl):
 
         payload = b''.join(int(t).to_bytes(2, 'big') for t in ticks)
         self.took(self._op(OP_DUTY, payload))
+        return True
+
+    def alternate(self, ticks_a, ticks_b):
+        """Two compare triples, A one PWM period and B the next, swapped by
+        TIM1's update interrupt for as long as they stand.
+
+        What one host write per 15 ms cannot do: a phase pair driven back
+        and forth every 20 us - A = (d, 0, 0), B = (0, d, 0) is U high
+        against V low, then V high against U low. Whole ticks against
+        `period - 1`; the next duty() or duty_fine() ends it.
+        """
+        ticks_a, ticks_b = tuple(ticks_a), tuple(ticks_b)
+        if len(ticks_a) != PHASES or len(ticks_b) != PHASES:
+            raise ValueError('two triples of %d compare values' % PHASES)
+
+        payload = b''.join(int(t).to_bytes(2, 'big')
+                           for t in ticks_a + ticks_b)
+        self.took(self._op(OP_ALTERNATE, payload))
         return True
 
     def duty_fine(self, fractions):

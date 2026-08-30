@@ -477,6 +477,11 @@ const char *Board_PwmSetAll(const uint16_t *ticks);
     of them; a first-order sigma-delta in TIM1's update interrupt spends
     the whole ticks and carries the fraction. Idle tones come with it. */
 const char *Board_PwmSetAllFine(const uint32_t *ticks_q16);
+
+/** Two compare triples, A one PWM period and B the next, swapped by the
+    update interrupt at every overflow so each lands - preloaded - at the
+    underflow and owns a whole period. NULL when taken, else the refusal. */
+const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b);
 void Board_PwmDutyRequested(uint32_t *ticks_q16);
 void Board_PwmDitherStep(void);
 

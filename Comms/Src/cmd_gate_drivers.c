@@ -156,6 +156,32 @@ static cmd_status_t h_gate_drivers_duty(rd_t *in, wr_t *out)
 }
 
 
+/** op 10 - two triples, A one period and B the next, swapped by TIM1's
+    update interrupt for as long as they stand. What a host cannot do at
+    one write per 15 ms: a phase pair driven back and forth every 20 us. */
+static cmd_status_t h_gate_drivers_alternate(rd_t *in, wr_t *out)
+{
+  uint16_t a[BOARD_PWM_PHASES];
+  uint16_t b[BOARD_PWM_PHASES];
+
+  for (uint8_t i = 0U; i < BOARD_PWM_PHASES; i++)
+  {
+    a[i] = rd_u16(in);
+  }
+  for (uint8_t i = 0U; i < BOARD_PWM_PHASES; i++)
+  {
+    b[i] = rd_u16(in);
+  }
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+
+  cmd_took(out, Board_PwmSetAlternate(a, b));
+  return CMD_OK;
+}
+
+
 /** op 8 - all three compares in ticks Q16.16, dithered.
   *
   * One tick of ARR 2375 is 0.0421 % of duty, so an asked-for 34.54 % is
@@ -312,6 +338,7 @@ cmd_status_t cmd_gate_drivers_op(uint8_t op, rd_t *in, wr_t *out)
     case GATEDRIVERS_OP_GAPRST:  return h_gate_drivers_gapreset(out);
     case GATEDRIVERS_OP_DUTYQ:   return h_gate_drivers_dutyq(in, out);
     case GATEDRIVERS_OP_DEADTIME: return h_gate_drivers_deadtime(in, out);
+    case GATEDRIVERS_OP_ALTERNATE: return h_gate_drivers_alternate(in, out);
     default:                return CMD_ERR_VALUE;
   }
 }

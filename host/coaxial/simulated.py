@@ -1181,6 +1181,21 @@ class SimulatedGateDrivers(GateControl):
         self._duty = tuple(max(0.0, min(1.0, f)) * period for f in fractions)
         return True
 
+    def alternate(self, ticks_a, ticks_b):
+        from .errors import RigError
+        ticks_a, ticks_b = tuple(int(t) for t in ticks_a), tuple(int(t) for t in ticks_b)
+        if len(ticks_a) != 3 or len(ticks_b) != 3:
+            raise ValueError('two triples of 3 compare values')
+        if not self._enabled:
+            raise RigError('the gate drivers are not enabled (simulated)')
+        if any(t > self.PERIOD - 1 for t in ticks_a + ticks_b):
+            raise RigError('the board refused %r / %r - past ARR (simulated)'
+                           % (ticks_a, ticks_b))
+        # The stand-in holds A: the real board's state shows whichever
+        # triple the last update wrote.
+        self._duty = ticks_a
+        return True
+
     def arm(self):
         self._armed = True
         return True

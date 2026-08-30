@@ -56,7 +56,12 @@ one that can turn a motor.
 15 ms, so the shortest pulse is ~800 cycles, and a hold asked for at 100 ms is
 93-108 ms at the FETs - the host measures round trips, not landings. Exactly
 N cycles needs a period count on the duty op, cleared by TIM1's update ISR:
-firmware, not yet written. FINDINGS has the numbers.
+firmware, not yet written. FINDINGS has the numbers. What the board CAN do
+per period since proto 2.1: op 10 `alternate` takes two compare triples and
+the update ISR swaps them at every overflow - U high against V low one
+period, V high against U low the next, current back and forth through the
+phase pair at 25 kHz; proven 2026-08-30 with twelve mid-run state reads
+showing both triples and nothing else, and both half-bridges on the scope.
 
 The gate drivers and the FETs are fitted (2EDL8034 x3, IAUCN10S7N021 -
 `electronics/`) and **their supply is not the MCU's to switch** - the Safe Torque

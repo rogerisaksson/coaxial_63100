@@ -132,7 +132,7 @@ def main():
             'link': ('echo', 'stats', 'loopback', 'port_stats'),
             'gate_drivers': ('state', 'enable', 'disable', 'duty', 'arm',
                        'disarm', 'trigger', 'clear_fault', 'bypass_break',
-                       'reset_worst_gap', 'duty_fine'),
+                       'reset_worst_gap', 'duty_fine', 'alternate'),
             'capture': ('state', 'arm', 'stop', 'take', 'drain'),
             # `acquire` drains what has arrived and `once` is the whole
               # capture in one call. `read` was the old name for the first and

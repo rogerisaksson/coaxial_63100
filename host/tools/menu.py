@@ -83,7 +83,7 @@ def masthead(port):
     bar = Table.grid(expand=True, padding=(0, 1))
     bar.add_column(justify='left')
     bar.add_column(justify='right')
-    bar.add_row(Text('  COAXIAL 63100', style='bar'), right)
+    bar.add_row(Text('    COAXIAL 63100', style='bar'), right)
     bar.style = 'bar.dim'
     return bar
 

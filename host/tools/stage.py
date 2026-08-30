@@ -182,7 +182,7 @@ def header(title, origin, extra=''):
     """
     bar = Table.grid(expand=True, padding=0)
     bar.add_column(justify='left')
-    line = Text.assemble(chip(origin), ('  ' + title, 'bar'),
+    line = Text.assemble(chip(origin), ('   ' + title, 'bar'),
                          ('   ' + extra if extra else '', 'bar.dim'))
     bar.add_row(line)
     bar.style = 'bar.dim'
@@ -302,9 +302,15 @@ def panels_of(console, origin, title, groups, keys, extra=''):
             strip.size = 1
         row_layouts.append(strip)
     body.split_column(*row_layouts)
+    # The grid sits in the same heavy frame the drawing views give their
+    # viewport, so a table page owns its region the way they do - the
+    # session read as loose boxes on the bare screen.
+    framed = Panel(body, title=Text(' %s ' % title, style='name'),
+                   title_align='left', box=box.HEAVY, border_style='frame',
+                   padding=0, expand=True)
 
     whole = Layout()
     whole.split_column(Layout(header(title, origin, extra), size=1),
-                       Layout(body, name='grid'),
+                       Layout(framed, name='grid'),
                        Layout(footer(keys), size=1))
     return whole
