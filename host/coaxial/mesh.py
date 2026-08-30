@@ -14,9 +14,8 @@ renderer weigh a face by its projected area, the thing point splatting cannot
 do and the reason the board kept drawing as a disc of noise.
 
 No numpy. requirements.txt says why it is not here, and the cost it would pay
-for is a one-off: the reduction runs once and is cached beside the model.
+for is a one-off: the reduction runs once per process and stays in memory.
 """
-import array
 import math
 import os
 import struct
@@ -27,11 +26,6 @@ import struct
 #: finer than the character grid either way - 74% of what it draws is
 #: sub-pixel - so the coarser one is the one worth having.
 GRID = 120
-
-#: Bumped when the reduction changes, so a stale cache is re-made rather than
-#: read as if it came from this code.
-CACHE_MAGIC = b'CX63IDX1'
-
 
 def _faces(raw):
     """(vertices, normal) per triangle, from an STL that may be either form."""
@@ -45,13 +39,12 @@ def _faces_binary(raw):
     if len(raw) < 84 + count * 50:
         raise ValueError('binary STL claims %d triangles and is %d bytes short'
                          % (count, 84 + count * 50 - len(raw)))
-
-    at = 84
-    for _ in range(count):
-        f = struct.unpack_from('<12f', raw, at)
-        at += 50
+    # One iter_unpack over the body, the attribute word skipped by the
+    # format: 0.60 s -> 0.46 s with the centring, 116,880 faces, against
+    # an unpack_from per face.
+    body = memoryview(raw)[84:84 + count * 50]
+    for f in struct.iter_unpack('<12f2x', body):
         yield ((f[3:6], f[6:9], f[9:12]), f[0:3])
-
 
 def _faces_ascii(text):
     normal = (0.0, 0.0, 1.0)
@@ -168,64 +161,39 @@ def _centred(faces):
     The renderer works in units of the board's outer radius, so a model in
     millimetres and one in inches draw the same size.
     """
-    low = [min(v[a] for corners, _n in faces for v in corners)
-           for a in range(3)]
-    high = [max(v[a] for corners, _n in faces for v in corners)
-            for a in range(3)]
-    mid = [(low[a] + high[a]) / 2.0 for a in range(3)]
-    span = max(high[a] - low[a] for a in range(2)) or 1.0
+    xs = [v[0] for corners, _n in faces for v in corners]
+    ys = [v[1] for corners, _n in faces for v in corners]
+    zs = [v[2] for corners, _n in faces for v in corners]
+    mx = (min(xs) + max(xs)) / 2.0
+    my = (min(ys) + max(ys)) / 2.0
+    mz = (min(zs) + max(zs)) / 2.0
+    span = max(max(xs) - min(xs), max(ys) - min(ys)) or 1.0
     k = 2.0 / span
 
-    return [(tuple(tuple((v[a] - mid[a]) * k for a in range(3))
-                   for v in corners), normal) for corners, normal in faces]
+    return [(tuple(((x - mx) * k, (y - my) * k, (z - mz) * k)
+                   for x, y, z in corners), normal)
+            for corners, normal in faces]
 
 
-def _cache_path(path, divisions):
-    stem = os.path.splitext(path)[0]
-    # The default keeps its historical name so an existing cache still
-    # reads; any other resolution gets its own file beside it.
-    if divisions == GRID:
-        return stem + '.facets'
-    return stem + '.%d.facets' % divisions
+#: The centred faces of the STL read by this process, by (path, mtime):
+#: every LOD and the shadow casters cluster from the same parse. The menu
+#: parsed twice, 0.6 s each, for its two solids.
+_LOADED = {}
 
 
-def _write_cache(path, positions, indices, normals):
-    with open(path, 'wb') as f:
-        f.write(CACHE_MAGIC)
-        f.write(struct.pack('<II', len(positions) // 3, len(normals) // 3))
-        array.array('f', positions).tofile(f)
-        array.array('i', indices).tofile(f)
-        array.array('f', normals).tofile(f)
-
-
-def _read_cache(path, newer_than):
-    """The cached triangles, or None if there is not a usable one.
-
-    None rather than an exception for every way it can be unusable - absent,
-    stale, from an older reduction, truncated by a run that was interrupted -
-    because every one of them means the same thing to the caller: read the
-    STL.
-    """
-    try:
-        if os.path.getmtime(path) < newer_than:
-            return None
+def loaded(path):
+    """The model's faces, centred and scaled, parsed once per process."""
+    stamp = (path, os.path.getmtime(path))
+    got = _LOADED.get(stamp)
+    if got is None:
+        _LOADED.clear()
         with open(path, 'rb') as f:
-            if f.read(len(CACHE_MAGIC)) != CACHE_MAGIC:
-                return None
-            points, faces = struct.unpack('<II', f.read(8))
-            positions = array.array('f')
-            indices = array.array('i')
-            normals = array.array('f')
-            positions.fromfile(f, points * 3)
-            indices.fromfile(f, faces * 3)
-            normals.fromfile(f, faces * 3)
-    except (OSError, EOFError, struct.error):
-        return None
+            got = _centred(list(_faces(f.read())))
+        _LOADED[stamp] = got
+    return got
 
-    # Lists, not the arrays they were stored as: reading an element of an
-    # array('f') builds a new Python float every time, and the render loop
-    # reads a dozen of them per triangle.
-    return list(positions), list(indices), list(normals)
+
+_FACETS = {}
 
 
 def facets(path, divisions=GRID):
@@ -233,19 +201,11 @@ def facets(path, divisions=GRID):
 
     Three floats per distinct vertex, three indices per triangle and three
     floats of unit normal per triangle, centred and scaled so the widest of
-    X and Y is two units. Cached beside the STL: parsing and
-    decimating 419,338 triangles takes about two seconds, which is two
-    seconds of a live view not being on screen.
+    X and Y is two units. Held in memory for the process - a cache file
+    beside the STL was tried and is not wanted in the tree.
     """
-    cache = _cache_path(path, divisions)
-    got = _read_cache(cache, os.path.getmtime(path))
-    if got is not None:
-        return got
-
-    positions, indices, normals = _clustered(
-        _centred(list(_faces(open(path, 'rb').read()))), divisions)
-    try:
-        _write_cache(cache, positions, indices, normals)
-    except OSError:
-        pass                      # a read-only tree still draws, just slower
-    return positions, indices, normals
+    stamp = (path, divisions, os.path.getmtime(path))
+    got = _FACETS.get(stamp)
+    if got is None:
+        got = _FACETS[stamp] = _clustered(loaded(path), divisions)
+    return got

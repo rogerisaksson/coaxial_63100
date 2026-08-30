@@ -13,24 +13,24 @@ only thing that sets MOE, and it re-reads the dead time first because the
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 . .\env.ps1                                                   # PATH + aliases
-.\demo.ps1                                                    # the chooser
-.\demo.ps1 adc -Simulated                                     # no cable needed
+.\coaxial_tty.ps1                                                    # the chooser
+.\coaxial_tty.ps1 adc -Simulated                                     # no cable needed
 ```
 
 ## Demos
 
-`.\demo.ps1` is the menu - `session` first, then six standalone views; each
+`.\coaxial_tty.ps1` is the menu - `session` first, then six standalone views; each
 of those is also `.\demos\<name>.ps1`. Every one takes
 `-Simulated` (no board) and `-Frames N` (stop after N).
 
-| view | what it shows |
+| view | on the menu |
 |---|---|
-| `session` | one dash over the whole board, the capture ring included |
-| `imu` | board attitude, the CAD export turned by the IMU |
-| `angle` | shaft angle on a protractor face |
-| `adc` | every analog channel on a meter bridge, in its own unit |
-| `gate_drivers` | the six gate signals as one instant, current, DC ripple, a timed burst |
-| `thermal` | the observer's heat map on the board itself |
+| `session` | SESSION - board dashpanel |
+| `imu` | BOARD ATTITUDE - board orientation visualizer |
+| `angle` | SHAFT ANGLE - motor axle rotation position |
+| `adc` | METER BRIDGE - metered channels |
+| `gate_drivers` | GATE DRIVERS - half bridge control |
+| `thermal` | THERMAL OBSERVER - thermals estimation |
 
 `gate_drivers` is the one that switches. `+ -` duty, `[ ]` step, `A` arm,
 `B` BKIN override, `I` interlock override, `1 2 3 4` run length, `R` run.

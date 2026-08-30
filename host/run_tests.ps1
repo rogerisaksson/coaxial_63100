@@ -71,7 +71,7 @@ param(
 # Continue, not Stop: a native exe writing to stderr becomes a
 # NativeCommandError in PowerShell 5.1, and the suites do write there.
 $ErrorActionPreference = 'Continue'
-$hostDir = Join-Path $PSScriptRoot 'host'
+$hostDir = $PSScriptRoot
 
 function Write-Rule([string]$Text) {
     Write-Host ''

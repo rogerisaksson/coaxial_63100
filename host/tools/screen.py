@@ -156,9 +156,10 @@ def stamp_crosses(lines, width, inset=2):
 # Defined in tools/stage.py: the THEME with every named style, and the
 # renderer built around it. Re-exported here because every view imports
 # its screen machinery from this module:
-# THEME boot chip curtain footer frame_of header hud panels_of stage viewport
-from stage import (THEME, boot, chip, curtain, footer,        # noqa: E402,F401
-                   frame_of, header, hud, panels_of, stage, viewport)
+# THEME band band_of boot chip curtain footer frame_of header hud live
+# panels_of stage viewport
+from stage import (THEME, band, band_of, boot, chip, curtain, footer,  # noqa: E402,F401
+                   frame_of, header, live, hud, panels_of, stage, viewport)
 
 
 def paced(keys, period, step=0.02):

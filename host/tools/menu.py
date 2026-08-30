@@ -26,25 +26,24 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rich.console import Group                             # noqa: E402
 from rich.layout import Layout                             # noqa: E402
 from rich.panel import Panel                               # noqa: E402
-from rich.table import Table                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
 from rich import box                                       # noqa: E402
 
 from coaxial import orientation                            # noqa: E402
-from screen import Keys, curtain, footer, paced, stage     # noqa: E402
+from screen import band_of, Keys, curtain, footer, live, paced, stage  # noqa: E402
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
-#: (hotkey, name, what) in demo.ps1's order - the exit code indexes this.
+#: (hotkey, name, what) in coaxial_tty.ps1's order - the exit code indexes this.
 #: The hotkeys are first letters, all six unique; digits work too.
 ENTRIES = (
-    ('S', 'SESSION', 'one dash over the whole board'),
-    ('B', 'BOARD ATTITUDE', 'the CAD export, turned by the IMU'),
-    ('A', 'SHAFT ANGLE', 'a protractor face over the A1335'),
-    ('M', 'METER BRIDGE', 'every analog channel, metered'),
-    ('G', 'GATE DRIVERS', 'six signals, currents, a burst'),
-    ('T', 'THERMAL OBSERVER', 'where the heat sits'),
+    ('S', 'SESSION', 'board dashpanel'),
+    ('B', 'BOARD ATTITUDE', 'board orientation visualizer'),
+    ('A', 'SHAFT ANGLE', 'motor axle rotation position'),
+    ('M', 'METER BRIDGE', 'metered channels'),
+    ('G', 'GATE DRIVERS', 'half bridge control'),
+    ('T', 'THERMAL OBSERVER', 'thermals estimation'),
 )
 
 #: Degrees of yaw per second for the idle tumble, with slower sways
@@ -52,7 +51,7 @@ ENTRIES = (
 #: fast enough to read as spinning.
 TURN_DPS = 30.0
 
-_BROKER = {'text': None}
+_BROKER = {'held': None}
 
 
 def _watch_broker():
@@ -61,31 +60,25 @@ def _watch_broker():
 
     while True:
         try:
-            serving = broker.serving()
-            count = broker.clients() or 0
+            # Nobody serving means no connect: the file outlives a killed
+            # broker, and a connect nothing answers takes its full 2 s.
+            count = broker.clients() if broker.serving() else None
         except Exception:                                     # noqa: BLE001
-            serving, count = None, 0
-        _BROKER['text'] = (('BROKER: %d SESSION%s'
-                            % (count, '' if count == 1 else 'S'))
-                           if serving else '')
+            count = None
+        # The broker holding the port IS a session; its clients ride on
+        # it. Counting clients alone read 0 SESSIONS on a page opened by
+        # the very demo that had the port.
+        _BROKER['held'] = count + 1 if count is not None else 0
         time.sleep(3.0)
 
 
 def masthead(port):
-    """The top strip: the terminal's name left, the live facts right."""
-    right = Text()
-    right.append('PORT: %s' % port, style='label')
-    status = _BROKER['text']
-    if status is None:
-        right.append('   LINK: PROBING', style='label')
-    elif status:
-        right.append('   ' + status, style='value')
-    bar = Table.grid(expand=True, padding=(0, 1))
-    bar.add_column(justify='left')
-    bar.add_column(justify='right')
-    bar.add_row(Text('    COAXIAL 63100', style='bar'), right)
-    bar.style = 'bar.dim'
-    return bar
+    """The top strip: the views' band, with the LIVE chip when the broker
+    holds the port."""
+    held = _BROKER['held']
+    tag = (Text('LINK: PROBING', style='bar.dim') if held is None
+           else live(held) if held else None)
+    return band_of('COAXIAL 63100', 'PORT: %s' % port, tag)
 
 
 def roster(picked):
@@ -95,7 +88,7 @@ def roster(picked):
     # EVERY row is the same one line whether picked or not - the framed
     # highlight changed the list's height and the whole page jumped with
     # each keypress. Only the COLOUR moves now.
-    lines = [Text('// MAIN TERMINAL ACCESS', style='name'), Text('')]
+    lines = [Text('')]
     for i, (key, name, what) in enumerate(ENTRIES):
         if i == picked:
             lines.append(Text.assemble(('  > ', 'value'), (key, 'value'),
@@ -189,12 +182,32 @@ def turntable(view, width=52, height=18):
     """The board on the stand, at the pose and zoom the view holds - lit
     as the render demo lights it: camera straight down the axis, no
     horizon. The attitude view's 34-degree tip folds into the lean and
-    dimmed the same board half a class."""
+    dimmed the same board half a class. Blank until `_warm` has built
+    the solids."""
+    if not _STAGE['ready']:
+        return ''
+    return _draw(view, width, height)
+
+
+def _draw(view, width, height):
     from coaxial import wireframe
 
     return wireframe.render(view['pose'], width, height, zoom=view['zoom'],
                             horizon=False, tip=0.0, lift=0.5,
                             least=wireframe.CREW_LEAST)
+
+
+#: The turntable's solids build off the frame loop: the page is up in the
+#: import's 0.3 s and the board arrives when the parse and two decimations
+#: are done. The first frame used to wait 2.0 s for them, the parse twice.
+_STAGE = {'ready': False}
+
+
+def _warm():
+    try:
+        _draw({'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM}, 8, 4)
+    finally:
+        _STAGE['ready'] = True
 
 
 #: The turntable's box: this many columns of the page, and the drawing
@@ -209,7 +222,9 @@ def compose(port, picked, view, size=None):
     body = Layout()
     body.split_row(
         Layout(Panel(roster(picked), box=box.ROUNDED,
-                     border_style='frame.hud', padding=(1, 2), expand=True),
+                     title=Text(' MAIN TERMINAL ACCESS ', style='name'),
+                     title_align='left', border_style='frame.hud',
+                     padding=(1, 2), expand=True),
                name='list'),
         Layout(Panel(Align(Text.from_ansi(turntable(view, BOX - 4, tall)),
                            align='center', vertical='middle'),
@@ -266,7 +281,7 @@ def main(argv=None):
 
     if not console and not args.frames:
         # No terminal to page on: read the choice as a line, the way the
-        # old chooser fell back. `echo 3 | demo.ps1` still picks a view,
+        # old chooser fell back. `echo 3 | coaxial_tty.ps1` still picks a view,
         # and a closed stdin is a quit rather than a spin.
         line = sys.stdin.readline().strip().lower()
         if line.isdigit() and 1 <= int(line) <= len(ENTRIES):
@@ -277,6 +292,10 @@ def main(argv=None):
         return 0
 
     threading.Thread(target=_watch_broker, daemon=True).start()
+    warm = threading.Thread(target=_warm, daemon=True)
+    warm.start()
+    if args.frames:
+        warm.join()      # the smoke test draws the board, not the wait
     hotkeys = {key.lower(): i for i, (key, _n, _w) in enumerate(ENTRIES)}
 
     with curtain(page) as live, Keys(console, mouse=True) as keys:

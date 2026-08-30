@@ -336,9 +336,9 @@ TOUCHES = (
     # because unmapped means the whole gate, and editing a demo wrapper used
     # to cost seven minutes and a model load.
     ('demos/',                        (STRUCTURE,)),
-    ('demo.ps1',                      (STRUCTURE,)),
+    ('coaxial_tty.ps1',                      (STRUCTURE,)),
     ('env.ps1',                       (STRUCTURE,)),
-    ('run_tests.ps1',                 (STRUCTURE,)),
+    ('host/run_tests.ps1',            (STRUCTURE,)),
     ('setup.ps1',                     (STRUCTURE,)),
     # Neither the CAD export nor the schematic is read by a suite. The parts
     # list and the pin map come off the board, not out of these.

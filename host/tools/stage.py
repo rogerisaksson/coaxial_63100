@@ -122,9 +122,11 @@ def boot(label, console=None):
         return
 
     bar = Progress(
-        TextColumn('[label]{task.description}'),
         BarColumn(bar_width=28, complete_style='value',
                   finished_style='value', style='frame.hud'),
+        # The text AFTER the bar, bracketed. Text first, each milestone
+        # shifted the bar by the difference in length and it flickered.
+        TextColumn('[{task.description}]', style='label', markup=False),
         console=court, transient=True)
     task = bar.add_task(label, total=100)
     stop = threading.Event()
@@ -162,30 +164,63 @@ def boot(label, console=None):
         step()
 
 
+def live(count):
+    """The green LIVE chip, with the sessions on the port when known."""
+    label = (' LIVE %d SESSION%s ' % (count, '' if count == 1 else 'S')
+             if count else ' LIVE ')
+    return Text(label, style='chip.live')
+
+
 def chip(origin):
     """The meaning tag. Green LIVE / yellow SIMULATED, never restyled."""
     if origin.real:
         from coaxial import broker
-        count = broker.clients() or 0
-        label = (' LIVE  %d session%s ' % (count, '' if count == 1 else 's')
-                 if count else ' LIVE ')
-        return Text(label, style='chip.live')
+        return live(broker.clients() or 0)
     return Text(' SIMULATED ', style='chip.sim')
 
 
-def header(title, origin, extra=''):
-    """The title band: the meaning chip HARD LEFT, then the name.
+def band_of(name, extra='', tag=None):
+    """The band every page wears: `name` hard left, `extra` dim after it,
+    `tag` right with one cell of air before the band's end.
 
-    The chip was right-justified once, and its cell's padding picked up
-    the band's background - on a wide terminal that read as a green field
-    across half the row. Leftmost, it is a chip and nothing else.
+    The tag sits in a column styled as the band, so its padding is the
+    band's: right-justified in a column of its own style it once painted
+    a green field across half a wide row.
     """
-    bar = Table.grid(expand=True, padding=0)
-    bar.add_column(justify='left')
-    line = Text.assemble(chip(origin), ('   ' + title, 'bar'),
+    left = Text.assemble((name, 'bar'),
                          ('   ' + extra if extra else '', 'bar.dim'))
-    bar.add_row(line)
-    bar.style = 'bar.dim'
+    right = Text.assemble(tag, (' ', 'bar.dim')) if tag else Text('')
+    return band(left, right)
+
+
+def header(title, origin):
+    """A view's band: its name, the port, the meaning chip right. A
+    stand-in that was fallen back to says so here - the port that failed
+    to answer is the diagnosis."""
+    where = ("PORT: %s" % origin.port if origin.real
+             else "" if origin.label == "Simulated" else origin.label)
+    return band_of(title, where, chip(origin))
+
+
+#: Cells the title band is set in from the left edge. Painted from column
+#: 0 it stood out left of every box under it; two cells in - the frames'
+#: title column - read as too far right. One.
+BAND_INSET = 1
+
+
+def band(*cells):
+    """The title band: `cells` on the band's colour, an inset unpainted
+    at both ends. One cell paints the row; two - a left and a right -
+    split it, the right one as wide as its text."""
+    bar = Table.grid(expand=True, padding=0)
+    bar.add_column(width=BAND_INSET)
+    bar.add_column(style='bar.dim', justify='left', ratio=1)
+    if len(cells) > 1:
+        # Sized to its content: right-justified, rich strips the cell's
+        # trailing spaces and the air before the band's end went with them.
+        bar.add_column(style='bar.dim', width=cells[-1].cell_len)
+    bar.add_column(width=BAND_INSET)
+    bar.add_row(Text(''), *cells, Text(''))
     return bar
 
 
@@ -251,7 +286,7 @@ def _fills(console):
     return bool(getattr(console, 'is_terminal', console))
 
 
-def frame_of(console, origin, title, art, boxes, keys, extra=''):
+def frame_of(console, origin, title, art, boxes, keys):
     """THE template: title band, viewport left, instruments right, key bar.
 
     One function, so the views cannot drift apart. On a terminal it fills
@@ -259,7 +294,7 @@ def frame_of(console, origin, title, art, boxes, keys, extra=''):
     same content in reading order.
     """
     if not _fills(console):
-        return Group(header(title, origin, extra),
+        return Group(header(title, origin),
                      viewport(title, art), *boxes, footer(keys))
 
     hud_width = 36
@@ -269,13 +304,13 @@ def frame_of(console, origin, title, art, boxes, keys, extra=''):
                           name='hud', size=hud_width))
 
     whole = Layout()
-    whole.split_column(Layout(header(title, origin, extra), size=1),
+    whole.split_column(Layout(header(title, origin), size=1),
                        Layout(body, name='body'),
                        Layout(footer(keys), size=1))
     return whole
 
 
-def panels_of(console, origin, title, groups, keys, extra=''):
+def panels_of(console, origin, title, groups, keys):
     """The template for table views: a FIXED grid of instruments, no art.
 
     `groups` is a list of rows, each row a list of huds. On a terminal
@@ -287,7 +322,7 @@ def panels_of(console, origin, title, groups, keys, extra=''):
     if not _fills(console):
         flat = [Columns(row, padding=(0, 1), expand=False)
                 for row in groups]
-        return Group(header(title, origin, extra), *flat, footer(keys))
+        return Group(header(title, origin), *flat, footer(keys))
 
     body = Layout(name='body')
     row_layouts = []
@@ -310,7 +345,7 @@ def panels_of(console, origin, title, groups, keys, extra=''):
                    padding=0, expand=True)
 
     whole = Layout()
-    whole.split_column(Layout(header(title, origin, extra), size=1),
+    whole.split_column(Layout(header(title, origin), size=1),
                        Layout(framed, name='grid'),
                        Layout(footer(keys), size=1))
     return whole

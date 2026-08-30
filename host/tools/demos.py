@@ -1,4 +1,4 @@
-"""One dashboard over one rig. `demo.ps1` runs this.
+"""One dashboard over one rig. `coaxial_tty.ps1` runs this.
 
 Six blocks in three columns - the analog channels, the thermal budget and
 the half-bridges over DIO, the IMU and the angle sensor - under one line
@@ -612,7 +612,7 @@ def frame(session, console, note):
     if note:
         keys.append(('', note))
     return panels_of(console, session.rig.origin, 'SESSION', rows,
-                     keys, extra=session.rig.origin.label)
+                     keys)
 
 
 class Plan:
@@ -672,7 +672,7 @@ class Plan:
                    max(0.0, left)))
 
 
-def teardown(session, console, drawn):
+def teardown(session, console, drawn, hold=True):
     """List what is being put back, under the last frame, and hold it there.
 
     NOT after `clear`. Clearing first put the list alone on a blank screen,
@@ -681,7 +681,8 @@ def teardown(session, console, drawn):
     times. Left under the dashboard it cannot be lost: nothing writes after.
 
     The hold is for the same reason. Two seconds is long enough to read six
-    lines and short enough not to be in the way.
+    lines and short enough not to be in the way - and nothing on the way to
+    the menu, which repaints over the list.
     """
     park(drawn, console)
     say('wait', 'stopping', 'putting back what the session started')
@@ -720,7 +721,7 @@ def teardown(session, console, drawn):
                    else session.rig.board.afe.disable)
     say('ok', 'AFE_ON', 'back the way the session found it')
     say('ok', 'board', 'nothing the session started is still running')
-    if console:
+    if console and hold:
         time.sleep(TEARDOWN_HOLD)
 
 
@@ -916,7 +917,7 @@ def main():
             pass
         finally:
             print()
-            teardown(session, console, 0)
+            teardown(session, console, 0, hold=leaving != 'menu')
 
     return TO_MENU if leaving == 'menu' else 0
 

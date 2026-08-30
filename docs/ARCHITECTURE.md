@@ -111,12 +111,19 @@ off the board, never from a hardcoded table.
 
 `orientation.py`, `dial.py` and `desk.py` are pure renderers - a reading in,
 text out - so all three test without a board; `mesh.py` reduces the CAD export
-in `render/models` to a surface the first can draw.
+in `render/models` to a surface the first can draw - parsed once per process
+and held in memory, nothing cached on disk.
 
 **The console style is `host/tools/stage.py`** - one rich Theme where every
 role is named (values glow amber, labels recede, the chip keeps its meaning
 colour) and the two templates every live view renders through: `frame_of`
 for a drawing with instruments beside it, `panels_of` for a grid of them.
+Every page wears one band, `band_of`: the name hard left, the port after it,
+the LIVE/SIMULATED chip right with a cell of air - `header()` builds it for a
+view, the front page's masthead the same way. `boot()` is the progress strip,
+its bar fixed at 28 cells and the milestone text after it in brackets. The
+front page, `tools/menu.py`, is up in 0.15 s: the turntable's solids build in
+a thread and the board appears at about 1 s.
 `test_views.py` runs each view whole against the stand-in, which is what
 holds the template together across restyles.
 

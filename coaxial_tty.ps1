@@ -38,10 +38,10 @@
     it, and it is how a view gets checked without someone holding Ctrl+C.
 
 .EXAMPLE
-    .\demo.ps1
-    .\demo.ps1 adc
-    .\demo.ps1 imu -Simulated
-    .\demo.ps1 adc -Simulated -Frames 3
+    .\coaxial_tty.ps1
+    .\coaxial_tty.ps1 adc
+    .\coaxial_tty.ps1 imu -Simulated
+    .\coaxial_tty.ps1 adc -Simulated -Frames 3
 #>
 param(
     [ValidateSet('session', 'imu', 'angle', 'adc',

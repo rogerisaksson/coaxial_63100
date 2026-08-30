@@ -42,8 +42,10 @@ On the bench the break is bypassed instead - `switch.py` and `pulse.py` do it
 by name - which is how 2026-08-30's switching into an 8 ohm load ran, at
 25-31 V and 2-50 %. The chain itself still has not released.
 
-Nothing has run near 63 V or 100 A. No number this board reports has been
-measured against an instrument - invariant 7.
+Nothing has run near 63 V or 100 A. One number this board reports has been
+measured against an instrument: the DC link, spanned against a DMM on
+2026-08-30 (31.04 read, 30.05 true, gain -32 418 ppm on channel 5, saved).
+Nothing else has - invariant 7.
 
 ## Next, in order
 

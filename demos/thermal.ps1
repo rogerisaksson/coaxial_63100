@@ -63,6 +63,6 @@ try {
 }
 
 # 64 is show_thermal.py's TO_MENU. Swallowing it here is what stopped ESC
-# from going back to demo.ps1's menu - the view returned it and the wrapper
+# from going back to coaxial_tty.ps1's menu - the view returned it and the wrapper
 # dropped it on the floor.
 exit $code

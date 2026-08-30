@@ -113,7 +113,7 @@ an op dispatcher beside it.
 | 1 | A1335 angle sensor | SPI4, mode 3, 1.86 MHz | 0 read register, 1 write register, 2 shared record, 3 hold, 4 resume, 5 which register the loop reads, 6 clock |
 | 2 | the three serial ports | USART3, USART2, UART5 | 0 loopback check, 1 per-port counters |
 | 3 | the calibration record | flash, bank 2 sector 7, CAL_VERSION 5 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults |
-| 4 | the gate drivers | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16, 9 dead time + skew, 10 alternate: u16 x3 A, u16 x3 B - A one PWM period, B the next, swapped by the update interrupt until the next duty write (MINOR 1) |
+| 4 | the gate drivers | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16, 9 dead time + skew, 10 alternate: u16 x3 A, u16 x3 B - A one PWM period, B the next, swapped by the update interrupt until the next duty write; the thermal observer is charged each leg's mean over the pair (MINOR 1) |
 | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
 | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live |
 | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |

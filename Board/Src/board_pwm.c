@@ -474,7 +474,19 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
 
 uint16_t Board_PwmGetDuty(uint8_t phase)
 {
-  return (phase < BOARD_PWM_PHASES) ? s_duty[phase] : 0U;
+  if (phase >= BOARD_PWM_PHASES)
+  {
+    return 0U;
+  }
+  if (s_alternate)
+  {
+    /* The MEAN over the pair of periods, which is the leg's load: the
+       compare itself swaps at 50 kHz, and the thermal observer sampling
+       it at its own rate sat phase-locked on one triple - the U driver
+       was charged with the whole run while V ran the same pulses. */
+    return (uint16_t)(((uint32_t)s_alt[0][phase] + s_alt[1][phase]) / 2U);
+  }
+  return s_duty[phase];
 }
 
 

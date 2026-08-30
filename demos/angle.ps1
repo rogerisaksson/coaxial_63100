@@ -64,7 +64,7 @@ try {
 
     & python @call
     # The view's own exit code, not this wrapper's: 64 is ESC asking
-    # demo.ps1 for the menu, and a script that does not pass it on
+    # coaxial_tty.ps1 for the menu, and a script that does not pass it on
     # exits 0 and the menu never comes back.
     $code = $LASTEXITCODE
 } finally {

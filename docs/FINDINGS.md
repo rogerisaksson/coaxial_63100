@@ -1760,3 +1760,50 @@ after 60 more - about +5 C a minute and not flattening, against +1.7 C
 per 30 s one-directional. Two high sides switch instead of one. Recorded,
 not explained; the thermal observer shows the margin to the record's
 ceiling.
+
+The observer charged U alone while it ran, though both legs switched: it
+samples `Board_PwmGetDuty` at its own 10 Hz, that returned the compare
+mirror the ISR swaps at 50 kHz, and the sample sat phase-locked on A.
+Fixed 2026-08-30: while alternating, `Board_PwmGetDuty` returns each leg's
+mean over the pair, (A+B)/2; `state()['duty']` still shows the triple of
+the moment. Measured, 20 % U<->V for 20 s, observer read every 5 s:
+driver_u 29.19 -> 40.51 C, driver_v 29.20 -> 40.51, driver_w 29.19 -> 29.62,
+`duty` (475,0,0) at 5 and 10 s and (0,475,0) at 15 and 20 s.
+
+## The DC link, spanned against a meter
+
+2026-08-30, the first number on this board held against an instrument. A
+DMM on the DC link read 30.05 V while the board, on the schematic's
+49.9k/2.2k, read 31.04 - 3.2 % high, more than 1 % resistors explain on
+their own; the reference sits in the same record and was not checked.
+`calibration.span(5, 30050)`: the board answered 26044 (the code it
+held) and stored gain -32,418 ppm on channel 5; read back 30.037 V,
+saved, reloaded from flash, 30.040 V. `stored` went False to True - the
+record is calibrated now, not the schematic's arithmetic. One point at one
+voltage: offset and gain are not separated by it.
+
+## The way back to the menu, timed
+
+2026-08-30. ESC in a view to the front page drawn again felt slow. Measured:
+
+| where | was | now |
+|---|---|---|
+| SESSION's teardown hold on the way to the menu | 2.0 s, `TEARDOWN_HOLD`, for lines a shell prompt would follow | none - the menu repaints over them; Q still holds |
+| menu, page on screen | 2.03 s | 0.15 s - the turntable's solids build in a thread |
+| menu, board on the stand | 2.03 s | 0.98 s |
+| STL parse + centre | 0.60 s, twice - the LOD-32 solid and the shadow casters each parsed | 0.46 s once a process: `mesh.loaded`, `iter_unpack`, flat min/max, output bit-identical |
+| `broker.clients()` with nothing serving | 2.0 s - a loopback connect to a closed port times out on Windows, no refusal | not asked unless `serving()` says so |
+
+The stale WHERE file came out of the same look: a broker killed with its
+view leaves the file, `serving()` returns it, `clients()` returns None after
+the 2 s, and `count + 1` read LIVE 1 SESSION on a page with no broker. None
+is nobody now.
+
+Two things about the bands and the strip, both rich: a right-justified cell
+is rstripped, so the air before a band's end and a chip's own trailing space
+were never drawn - the right column is sized to its text instead; and the
+boot strip's text column sat before the bar, so every milestone moved the
+bar by the difference in length - bar first, text after in brackets.
+
+`mesh.facets()` was still writing `Coaxial 63100.facets` beside the STL for
+the photo and toon paths. Gone: the facets live in memory for the process.

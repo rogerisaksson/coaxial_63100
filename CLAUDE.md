@@ -135,15 +135,15 @@ board_prompt -Ask "vad sitter på kortet?"    # the model, off the same wire
 `python tools/run_tests.py` - that is what it drives.
 
 ```powershell
-.\run_tests.ps1                      # ~25 % of every check, the default
-.\run_tests.ps1 -AutomaticMedium     # ~50 %, before handing work over
-.\run_tests.ps1 -AutomaticHigh       # ~75 %, adds conformance + live:tools
-.\run_tests.ps1 -All                 # 100 %, the gate
-.\run_tests.ps1 -Depth 40            # any 5 % step, when none of the four fits
-.\run_tests.ps1 -Scope test_mcp.py   # those files only, whatever the depth
-.\run_tests.ps1 -Only intent,picker  # named tests, nothing else
-.\run_tests.ps1 -Tags prompt,reply   # subjects, without asking the model
-.\run_tests.ps1 -Structure           # does host/ still hold together - 3 s
+.\host\run_tests.ps1                      # ~25 % of every check, the default
+.\host\run_tests.ps1 -AutomaticMedium     # ~50 %, before handing work over
+.\host\run_tests.ps1 -AutomaticHigh       # ~75 %, adds conformance + live:tools
+.\host\run_tests.ps1 -All                 # 100 %, the gate
+.\host\run_tests.ps1 -Depth 40            # any 5 % step, when none of the four fits
+.\host\run_tests.ps1 -Scope test_mcp.py   # those files only, whatever the depth
+.\host\run_tests.ps1 -Only intent,picker  # named tests, nothing else
+.\host\run_tests.ps1 -Tags prompt,reply   # subjects, without asking the model
+.\host\run_tests.ps1 -Structure           # does host/ still hold together - 3 s
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check    # what is missing
                             # -Yes installs the lot (winget, python packages,
                             # ST bundles, CubeMX, ST-Link driver, ollama);
@@ -414,14 +414,15 @@ working.
 Auto mode's classifier can refuse a Bash call that arms the stage - and once
 it has, everything Bash for a while, `run_tests.ps1` included. Reads went
 through the same afternoon the pulse did not. The hand-off, all three files
-git-ignored in the repo root:
+git-ignored, under `host/`:
 
-* `claude_watch.ps1` - the user starts it once; it forks hidden (PID in
-  `claude_watch.pid`), hashes `claude_do_it.ps1` every 0.5 s and runs it
-  after a 1 s settle. `-Stop` kills it, `-Status` asks.
-* `claude_do_it.ps1` - what you want run, as `Step 'what' 'look for' { ... }`
-  blocks; stops at the first non-zero exit. Rewrite it, wait for the next
-  `WATCH finished` line, read the log.
+* `host\claude_watch.ps1` - the user starts it once; it forks hidden (PID
+  in `claude_watch.pid` beside it), hashes `claude_do_it.ps1` every 0.5 s
+  and runs it after a 1 s settle. `-Stop` kills it, `-Status` asks.
+* `host\claude_do_it.ps1` - what you want run, as `Step 'what' 'look for'
+  { ... }` blocks, FROM `host/` - `python -X utf8 tools/x.py`,
+  `.\run_tests.ps1`; stops at the first non-zero exit. Rewrite it, wait
+  for the next `WATCH finished` line, read the log.
 * `claude_do_it.log` - UTF-8, timestamped: `WATCH started/running/finished`,
   `RUN started/done`, each `STEP`, its output, its exit.
 
@@ -499,7 +500,7 @@ Comms/       the comms stack: cmd over proto over dev, plus the console
 Modbus/      the protocol. Portable C11, no HAL in crc/slave/rtu.
 host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
              runner and dbg.py, testline/, tests, tools
-demo.ps1         the chooser: session first, then six standalone views
+coaxial_tty.ps1         the chooser: session first, then six standalone views
 demos/           imu.ps1 attitude, angle.ps1 shaft angle, adc.ps1 meter bridge
 setup.ps1        one-time environment setup; -Check changes nothing
 env.ps1          per-shell PATH and the board_prompt/dbg/board/cbuild/cflash aliases
@@ -542,8 +543,11 @@ Break one and something works until it doesn't.
    constants - never as a literal at a call site and never as a second copy in a
    host. The phase channels used to be exempt because their gain was unknown; it
    was traced off the schematic on 2026-08-26, so they report amperes now. What
-   has not changed: **no number this board reports has been measured against an
-   instrument.** Span before believing one.
+   has changed since: **one number this board reports has been measured
+   against an instrument** - the DC link, spanned against a DMM on
+   2026-08-30 (31.04 read, 30.05 true, -32 418 ppm on channel 5, saved to
+   the record). Every other number is still the schematic's arithmetic.
+   Span before believing one.
 8. **Nothing in the Python library returns a status code or None-for-failure.**
    Every call produces its result or raises from `coaxial.errors`.
 9. **AFE_ON decides what a reading means**, because it powers the ADC reference,

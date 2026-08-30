@@ -53,6 +53,11 @@ def main():
                    help='seconds on per pulse - 0 is as short as the link '
                         'allows, about 15 ms; longer waits before the off '
                         'write, with its 15 ms landing counted in')
+    p.add_argument('--prime', type=float, default=0.2,
+                   help='seconds at zero duty after arming, before the '
+                        'train: every low side on, phase nodes at ground, '
+                        'the bootstraps charging - the same PWM, no tricks; '
+                        "the train's first edge is what takes them low")
     p.add_argument('--alternate', action='store_true',
                    help='the board swaps direction every PWM period: HIGH '
                         'at the duty against LOW held low one period, LOW '
@@ -70,7 +75,15 @@ def main():
         rig.board.afe.disable()
         rig.gates.arm(bypass_sto=True, ignore_interlock=True)
         state = rig.gates.state()
-        print('armed, dead time %d ns' % state['deadtime_ns'])
+        pins = state['pins']
+        print('armed, dead time %d ns - low sides %s' % (
+            state['deadtime_ns'],
+            'ON' if pins['UL'] and pins['VL'] and pins['WL'] else str(pins)))
+        if a.prime > 0.0:
+            time.sleep(a.prime)
+            print('primed %.0f ms at zero duty: phase nodes at ground, '
+                  'bootstraps charged; the train takes them low'
+                  % (1000 * a.prime))
         # The raw compare write, twice, with nothing between: the stage
         # is armed by the line above, and rig.write()'s own arm check is
         # a 31 ms state read the pulse would be spent waiting for.

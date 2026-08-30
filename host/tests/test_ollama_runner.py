@@ -372,7 +372,7 @@ def test_smart_selection(report):
     # wrapper used to cost seven minutes.
     for paths, what in (
         (['demos/adc.ps1'], 'a demo wrapper'),
-        (['demo.ps1'], 'the demo picker'),
+        (['coaxial_tty.ps1'], 'the demo picker'),
         (['host/coaxial/desk.py'], 'a pure renderer'),
         (['host/tools/show_desk.py'], 'a live view'),
         (['datasheets/IMU/UserGuide.pdf'], 'something no suite reads'),

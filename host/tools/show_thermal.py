@@ -55,7 +55,7 @@ FOOT_LINES = 1
 #: Blank lines between the scale and the keys.
 TRAILING = 1
 
-#: What ESC and Q do. ESC returns TO_MENU so demo.ps1 draws its menu again.
+#: What ESC and Q do. ESC returns TO_MENU so coaxial_tty.ps1 draws its menu again.
 
 
 def summary(state):
@@ -263,8 +263,7 @@ def main():
                     live.update(frame_of(
                         board_view, origin, 'THERMAL OBSERVER',
                         '\n'.join(art), boxes,
-                        (('Q', 'EXIT'), ('ESC', 'MENU')),
-                        extra=origin.label), refresh=True)
+                        (('Q', 'EXIT'), ('ESC', 'MENU'))), refresh=True)
 
                     if a.frames and frame >= a.frames:
                         break

@@ -336,7 +336,7 @@ def test_no_escaping_scars(r):
 #: Prose that quotes a suite size. Each drifts the moment a check is added,
 #: and each was wrong at once: CLAUDE.md said 1679 with structure at 300
 #: when it was 349, and three more files carried a third total.
-COUNTED = ('CLAUDE.md', 'run_tests.ps1', 'docs/ARCHITECTURE.md',
+COUNTED = ('CLAUDE.md', 'host/run_tests.ps1', 'docs/ARCHITECTURE.md',
            'docs/TODO.md')
 
 

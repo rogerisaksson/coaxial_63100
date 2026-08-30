@@ -122,10 +122,7 @@ def _decimated(path, divisions):
         # the lot.
         if len(_MESHES) > 8:
             _MESHES.clear()
-        with open(path, 'rb') as f:
-            raw = f.read()
-        got = mesh._clustered(mesh._centred(list(mesh._faces(raw))),
-                              divisions)
+        got = mesh._clustered(mesh.loaded(path), divisions)
         _MESHES[stamp] = got
     return got
 
@@ -133,8 +130,9 @@ def _decimated(path, divisions):
 #: The decimation each zoom band earns, (zoom below, grid divisions).
 #: Finer decimates cost real raster time - measured at 94x36, single
 #: process: 16 -> 7.8 ms, 24 -> 13, 32 -> 29, 48 -> 37, 64 -> 63 - so
-#: each only draws past the zoom that can see it. Decimating one takes
-#: 0.8-0.9 s - all six 1.2 s in parallel - which is why a view loads
+#: each only draws past the zoom that can see it. The parse is 0.46 s
+#: once a process, then 0.14-0.18 s a grid; all six 1.2 s in parallel,
+#: each worker parsing its own - which is why a view loads
 #: them up front, behind its boot strip, not on the first zoom that
 #: wants one.
 LODS = ((1.0, 12), (1.5, 16), (2.0, 24), (2.7, 32), (3.6, 48), (None, 64))
