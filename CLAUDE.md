@@ -117,7 +117,7 @@ ones that go stale. Check it landed with:
 
 ```powershell
 python -c "import coaxial; [print(p) for p in coaxial.connect([1])[0].system.channel_map()['parts']]"
-board_prompt -Ask "vad sitter på kortet?"    # the model, off the same wire
+board_chat -Ask "vad sitter på kortet?"    # the model, off the same wire
 ```
 
 | Read | Before |
@@ -148,7 +148,7 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check    # what is missing
                             # -Yes installs the lot (winget, python packages,
                             # ST bundles, CubeMX, ST-Link driver, ollama);
                             # -FirmwarePackage X.zip adds FW_H7 to CubeMX.
-. .\env.ps1                 # PATH + board_prompt, dbg, board, cbuild, cflash, cubemx
+. .\env.ps1                 # PATH + board_chat, dbg, board, cbuild, cflash, cubemx
 ```
 
 **Refusals come from the board.** Anything taking parameters answers `u8 took`
@@ -212,10 +212,10 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Twenty-one suites, 1899 checks, sized from `host/tests/.counts.json` and so
+Twenty-one suites, 1965 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (434),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (214),
-`test_simulated.py` (194), `test_live_model.py` (146, needs ollama, `--live`),
+`test_simulated.py` (194), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
 `test_ollama_link.py` (96), `test_modbus_core.py` (68), `test_mcp.py` (44),
 `test_shtp_core.py` (38), `test_ollama_render.py` (32), `test_parity.py` (30),
@@ -259,11 +259,11 @@ you:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14, conformance
   0.29, live 4.6. The `test_ollama_*` suites are in from the first tier and
   narrow *themselves*; that is where the fine resolution lives, because 764 of
-  this tree's 1899 checks are in those nine files.
+  this tree's 1965 checks are in those nine files.
 
 * **The model is not asked when the path map already knows.** Where every
   changed file matched an explicit rule and the answer is `CHEAP` - structure,
-  core, shtp, simulated, none of which need a board or ollama - the pick is
+  core, shtp, simulated, views, render, none of which need a board or ollama - the pick is
   settled without a model. Asking costs a 7.6 GB load to be told what the map
   said, and the answer can only come back wider. Editing a demo wrapper is three
   seconds, not seven minutes.
@@ -297,7 +297,7 @@ question nobody asked. The suites are the gate *after* a change, not a step in
 finding one.
 
 **Problem, measured:** chasing why two of three gate driver stages ran 15 C
-hotter than the third, the full suite was started three times. None of the 1899
+hotter than the third, the full suite was started three times. None of the 1965
 checks could have said anything about it - the difference was on the bench.
 **What worked instead:** a 600-sample pin count and a register dump.
 
@@ -341,12 +341,12 @@ It is free per token and standing next to the hardware. Anything routine,
 mechanical, or already covered by its tools belongs there by default.
 
 ```powershell
-board_prompt -Ask "read the NTC and give me the temperature"
+board_chat -Ask "read the NTC and give me the temperature"
 python dbg.py -m auto -q "..."          # from host/, one layer down
 ```
 
 Both pick the tag this machine can run and **pull it if absent**, so "the model
-is not installed" is never a reason to answer from memory. `board_prompt` also
+is not installed" is never a reason to answer from memory. `board_chat` also
 tunes the ollama daemon so it stops crashing mid-session (docs/MODELS.md).
 
 **Reuse a model already loaded.** Check `ollama ps` first: two models at once is
@@ -388,7 +388,7 @@ tokens.** Two shapes of request, and the second is easy to miss:
 Either way, ask **minimally**:
 
 > **Local model, or here?**
-> *Local model* — board_prompt
+> *Local model* — board_chat
 > *Here* — I drive the library
 
 No paragraph about token cost, no preview of the output, no third option.
@@ -396,13 +396,13 @@ No paragraph about token cost, no preview of the output, no third option.
 On *Local model*: hand over the shortest way to the prompt and **stop**. The
 shortest way is a click, not a command to retype:
 
-    Terminal panel > the v beside + > Board prompt
+    Terminal panel > the v beside + > Board chat
 
 That profile is in `.vscode/settings.json`; **Ctrl+Shift+B** runs the "Ask the
 board" task in the same panel for one question. Only when the user is not in VS
 Code is the command itself the answer:
 
-    board_prompt -Ask "read all channels, the DC link and the NTC"
+    board_chat -Ask "read all channels, the DC link and the NTC"
 
 Nothing else. Do not run it, do not paraphrase what it would say, do not take the
 reading anyway to check. And **do not spawn a window** — `Start-Process
@@ -503,10 +503,12 @@ host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
 coaxial_tty.ps1         the chooser: session first, then six standalone views
 demos/           imu.ps1 attitude, angle.ps1 shaft angle, adc.ps1 meter bridge
 setup.ps1        one-time environment setup; -Check changes nothing
-env.ps1          per-shell PATH and the board_prompt/dbg/board/cbuild/cflash aliases
-board_prompt.ps1 preflight + prompt loop; orchestration only
-board_prompt/    Say, ComPort, Ollama, ModelChoice, Relaunch — one concern per
-                 file, dot-sourced, not meant to run alone
+env.ps1          per-shell PATH and the board_chat/dbg/board/cbuild/cflash aliases
+host/board_chat.ps1  preflight + prompt loop; orchestration only — also the
+                 chooser's BOARD CHAT page, which asks who answers: this,
+                 or claude with the coaxial MCP server. board_chat/ beside
+                 it holds Say, ComPort, Ollama, ModelChoice, Relaunch: one
+                 concern per file, dot-sourced, not meant to run alone
 docs/            this documentation
 ```
 

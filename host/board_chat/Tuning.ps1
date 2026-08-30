@@ -1,6 +1,6 @@
 <#
     What the ollama daemon has to be started with, and whether the one running
-    now was. No output and no dependencies: dot-sourced by board_prompt.ps1,
+    now was. No output and no dependencies: dot-sourced by board_chat.ps1,
     which reports through Say, and by setup.ps1, which reports through
     Write-Item. Both need the same four settings and the same answer to "is it
     already tuned".
@@ -189,8 +189,8 @@ function Set-DaemonEnvironment {
             Set-Content -Path $marker -Encoding utf8 -Value @(
                 (Get-Date).ToString('o'),
                 '# When this machine last had every LLAMA_ARG_/OLLAMA_ setting',
-                '# board_prompt.ps1 wants. A daemon started before this line',
-                '# did not inherit them - see board_prompt/Ollama.ps1.')
+                '# board_chat.ps1 wants. A daemon started before this line',
+                '# did not inherit them - see board_chat/Ollama.ps1.')
         } catch {
             # Best-effort: without the stamp the worst case is one extra
             # restart, next run.

@@ -3,7 +3,7 @@
 whether ollama's own reported `load_duration` actually gets shorter for it.
 
 Windows holds recently-read files in its standby list while nothing else needs
-the RAM, so a normal `dbg`/`board_prompt` session warms whatever it loads as a
+the RAM, so a normal `dbg`/`board_chat` session warms whatever it loads as a
 side effect. This covers the case that does not: a model untouched for a while,
 warmed on purpose rather than discovering the hard way that the standby list
 let it go.
@@ -18,7 +18,7 @@ timing measurement through the same `/api/chat` empty-message trick
 `client.py`'s `preload()` uses. Both loads pass `keep_alive=0`, so the model is
 left unloaded, as found.
 
---auto is the unattended one, from board_prompt.ps1's preflight. Measured
+--auto is the unattended one, from board_chat.ps1's preflight. Measured
 2.8-2.9 GB/s reading these blobs on this machine - three NVMe/SSDs, nothing
 spinning - so warming buys nothing and --auto skips it. A slower disk with RAM
 to spare should not need a different flag: the decision comes from what is
@@ -210,7 +210,7 @@ def main(argv=None):
     parser.add_argument('--auto', action='store_true',
                         help='decide from a measured disk speed and free '
                              'RAM, act on it, one or two lines - no '
-                             'before/after load timing. What board_prompt.ps1 '
+                             'before/after load timing. What board_chat.ps1 '
                              'runs on its own.')
     args = parser.parse_args(argv)
 

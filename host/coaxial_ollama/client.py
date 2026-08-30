@@ -240,7 +240,7 @@ class Ollama:
     def free_others(self):
         """Hand back the VRAM held by every model that is not this one.
 
-        What board_prompt.ps1 does before loading, here for the paths that do
+        What board_chat.ps1 does before loading, here for the paths that do
         not go through it. Not done at startup, on purpose: a resident model
         may be the one the operator is talking to in another window. By the
         time this runs the allocation has already failed, so something gives

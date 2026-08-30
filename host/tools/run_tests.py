@@ -354,11 +354,12 @@ TOUCHES = (
 # checked is one that drifts.
 FULL_EVERY = 10
 
-#: Suites the map may settle alone: no board, no ollama, under five seconds
-#: together - so asking the model costs a 7.6 GB load longer than the run.
-#: Where the map has an explicit rule it is also the better answer, written
-#: by someone reading the imports.
-CHEAP = frozenset({STRUCTURE, CORE, SHTP, 'test_simulated.py'})
+#: Suites the map may settle alone: no board, no ollama - about 40 s all
+#: six together, so asking the model costs a 7.6 GB load longer than the
+#: run. Where the map has an explicit rule it is also the better answer,
+#: written by someone reading the imports.
+CHEAP = frozenset({STRUCTURE, CORE, SHTP, 'test_simulated.py', VIEWS,
+                   RENDER})
 
 
 def _within_tier(args, live_sections):

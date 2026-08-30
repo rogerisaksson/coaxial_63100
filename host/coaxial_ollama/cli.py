@@ -1,4 +1,4 @@
-"""The command line: what `dbg.py` and `board_prompt` actually run.
+"""The command line: what `dbg.py` and `board_chat` actually run.
 
 Argument parsing, the session and client it builds, the prompt loop, and
 the one-shot question. The turn itself is `debug.Chat`; this module
@@ -118,7 +118,7 @@ def parse(argv):
                              % (KEEP_ALIVE_REPL, KEEP_ALIVE_ONCE))
     parser.add_argument('--num-gpu', type=int, default=None,
                         help='layers on the GPU; the rest run on the CPU.'
-                             ' Set for you by -m auto and by board_prompt.ps1')
+                             ' Set for you by -m auto and by board_chat.ps1')
     parser.add_argument('--lang',
                         help='answer in this language, whatever the machine '
                              'is set to. Default: the Windows locale, moved '
@@ -166,7 +166,7 @@ def parse(argv):
     parser.add_argument('--confirm', action='store_true',
                         help='ask before every state change - a pin write, '
                              'run_python, run_command. Off by default, same '
-                             'as board_prompt without the flag; the two tools '
+                             'as board_chat without the flag; the two tools '
                              'this loop is actually built for, analog_read '
                              'and docs, are reads and never ask.')
     return parser.parse_args(argv)

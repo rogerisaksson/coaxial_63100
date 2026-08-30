@@ -25,7 +25,7 @@
 
     It also defines the six commands this project is actually driven with:
 
-        board_prompt  the model, the board and a prompt     (board_prompt.ps1)
+        board_chat  the model, the board and a prompt     (board_chat.ps1)
         dbg      ask the local model about the board          (host/dbg.py)
         board    the plain CLI, no model                      (python -m coaxial)
         cbuild   build the firmware, zero warnings expected
@@ -203,10 +203,10 @@ function cubemx {
     Start-Process -FilePath $found -ArgumentList (Join-Path $script:CoaxialRoot $Ioc)
 }
 
-function board_prompt {
+function board_chat {
     <# The prompt loop, with the daemon started and the model already loaded.
-       board_prompt.ps1 does the preflight; this is the short way to say it. #>
-    & (Join-Path $script:CoaxialRoot 'board_prompt.ps1') @args
+       board_chat.ps1 does the preflight; this is the short way to say it. #>
+    & (Join-Path $script:CoaxialRoot 'host\board_chat.ps1') @args
 }
 
 function dbg {
@@ -332,10 +332,10 @@ function cubemx {
     Start-Process -FilePath $found -ArgumentList (Join-Path $script:CoaxialRoot $Ioc)
 }
 
-function board_prompt {
+function board_chat {
     <# The prompt loop, with the daemon started and the model already loaded.
-       board_prompt.ps1 does the preflight; this is the short way to say it. #>
-    & (Join-Path $script:CoaxialRoot 'board_prompt.ps1') @args
+       board_chat.ps1 does the preflight; this is the short way to say it. #>
+    & (Join-Path $script:CoaxialRoot 'host\board_chat.ps1') @args
 }
 
 function dbg {
@@ -402,5 +402,5 @@ if (-not $Quiet) {
         Write-Host ("absent: " + ($missing -join ', ') + "  -> run .\setup.ps1") `
             -ForegroundColor Yellow
     }
-    Write-Host 'commands: board_prompt, dbg, board, cbuild, cflash, cubemx, cube-release' -ForegroundColor DarkGray
+    Write-Host 'commands: board_chat, dbg, board, cbuild, cflash, cubemx, cube-release' -ForegroundColor DarkGray
 }

@@ -280,7 +280,7 @@ def _twice(answer, results):
 
 
 WORDS = 300        # debug.py's --words default
-TOOLS = 'code'     # and its --tools default, which is what board_prompt runs
+TOOLS = 'code'     # and its --tools default, which is what board_chat runs
 
 
 def matching(rows, needle, text):

@@ -1122,9 +1122,12 @@ def test_mouse(r):
     r.check('a keystroke mixed in with mouse reports is not eaten',
             keys.poll()[0] == 'quit')
 
+    # Held ONE poll on purpose: the same tail twice is a real lone ESC,
+    # once is maybe the front of a split arrow or mouse report.
     keys._buffer = chr(27)
-    r.check('and a bare ESC is still the menu, not a half-read report',
-            keys.poll()[0] == 'menu')
+    held = keys.poll()[0]
+    r.check('and a bare ESC is still the menu, one poll late, not a '
+            'half-read report', held is None and keys.poll()[0] == 'menu')
 
     r.check('a view with no terminal reads no mouse at all',
             screen.Keys(console=False, mouse=True).poll() == (None, 0.0))

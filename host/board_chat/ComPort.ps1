@@ -1,5 +1,5 @@
 ﻿<#
-    Finding which COM port this board is actually on - board_prompt.ps1's
+    Finding which COM port this board is actually on - board_chat.ps1's
     -AutodetectComport path. Needs Say (Say.ps1) to be dot-sourced already.
 
     Both functions here call into host/tools/find_board.py rather than

@@ -4,7 +4,7 @@ so "does this port answer" cannot drift between them:
 
   * host/coaxial_ollama/tools.py's link_diagnose tool - the model, mid-
     session, when a call has already failed.
-  * board_prompt/ComPort.ps1's Test-BoardPort/Find-BoardPort -
+  * board_chat/ComPort.ps1's Test-BoardPort/Find-BoardPort -
     -AutodetectComport, before a Python session even exists.
 
 It goes through coaxial.connect(), the same round trip a real session makes, so

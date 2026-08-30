@@ -1,8 +1,8 @@
 <#
     Daemon state: what tags exist, what is resident on the card, and
     unloading whatever should not be there before this run adds its own.
-    Needs Say (Say.ps1) and $Api (set in board_prompt.ps1 itself) already in
-    scope - Clear-Resident also reads $KeepOthers, board_prompt.ps1's own
+    Needs Say (Say.ps1) and $Api (set in board_chat.ps1 itself) already in
+    scope - Clear-Resident also reads $KeepOthers, board_chat.ps1's own
     switch, straight from the caller's scope.
 #>
 

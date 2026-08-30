@@ -577,7 +577,7 @@ def test_intent(r):
     r.check('every intent has a phrase the hint can say',
             set(intent.SAYS) == set(intent.INTENTS))
     # A console that cannot carry the diacritics is this bench's normal
-    # case, not an edge one: measured through board_prompt, "matvardena"
+    # case, not an edge one: measured through board_chat, "matvardena"
     # classified as `map` - "the inputs" - and put the channel map on screen
     # for a question about values. The classifier is told to read Swedish
     # both ways; this is what says the line is still there.

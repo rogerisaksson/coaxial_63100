@@ -1,6 +1,6 @@
 <#
     The one helper -NewWindow needs; the relaunch itself stays in
-    board_prompt.ps1 since it is the top of the script's own control flow,
+    board_chat.ps1 since it is the top of the script's own control flow,
     not something anything else calls into.
 #>
 

@@ -618,9 +618,10 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
         # cued strokes - coaxial.wireframe, not a wireframed mesh.
         from . import wireframe
         # Above the frame's centre: the model clears the horizon line
-        # instead of sitting on it.
+        # instead of sitting on it. 0.39 is one row below 0.36 at the
+        # view's 36 rows (cy = height * lift), asked 2026-08-30.
         return wireframe.render(q, width, height, zoom=zoom, colour=colour,
-                                horizon=frame_on, lift=0.36,
+                                horizon=frame_on, lift=0.39,
                                 crew=crew)
 
     cols, rows, _cell = ascii3d.grid(width, height)

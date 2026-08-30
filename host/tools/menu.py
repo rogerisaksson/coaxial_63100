@@ -36,7 +36,8 @@ import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 #: (hotkey, name, what) in coaxial_tty.ps1's order - the exit code indexes this.
-#: The hotkeys are first letters, all six unique; digits work too.
+#: The hotkeys are first letters - C for the chat, B being taken -
+#: all seven unique; digits work too.
 ENTRIES = (
     ('S', 'SESSION', 'board dashpanel'),
     ('B', 'BOARD ATTITUDE', 'board orientation visualizer'),
@@ -44,6 +45,18 @@ ENTRIES = (
     ('M', 'METER BRIDGE', 'metered channels'),
     ('G', 'GATE DRIVERS', 'half bridge control'),
     ('T', 'THERMAL OBSERVER', 'thermals estimation'),
+    ('C', 'BOARD CHAT', 'prompt the local llm, or claude'),
+)
+
+#: BOARD CHAT's second question, drawn in the same list: who answers.
+#: Local exits with the chat entry's own code, claude one past the
+#: list, and coaxial_tty maps both by position.
+CHAT_AT = 6
+CHAT_LOCAL = 101 + CHAT_AT
+CHAT_CLAUDE = 101 + len(ENTRIES)
+WHO = (
+    ('C', 'CCC', 'coaxial 63100 chat client - the local llm'),
+    ('A', 'ANTHROPIC', 'claude, the board tools over MCP'),
 )
 
 #: Degrees of yaw per second for the idle tumble, with slower sways
@@ -98,6 +111,21 @@ def roster(picked):
             lines.append(Text.assemble('    ', (key, 'label'), ('  ', ''),
                                        (name, 'label'),
                                        ('   ' + what, 'label')))
+        lines.append(Text(''))
+    return Group(*lines)
+
+
+def asking(who):
+    """The chat sub-list: the same quiet rows, only the pick lit."""
+    lines = [Text(''),
+             Text.assemble('    ', ('BOARD CHAT', 'name'),
+                           ('   who answers', 'label')),
+             Text('')]
+    for i, (key, name, what) in enumerate(WHO):
+        style = 'value' if i == who else 'label'
+        lines.append(Text.assemble(('  > ' if i == who else '    ',
+                                    'value'), (key, style), ('  ', ''),
+                                   (name, style), ('   ' + what, 'label')))
         lines.append(Text(''))
     return Group(*lines)
 
@@ -215,13 +243,14 @@ def _warm():
 BOX = 58
 
 
-def compose(port, picked, view, size=None):
+def compose(port, picked, view, size=None, who=None):
     from rich.align import Align
 
     tall = max(8, (size.height if size else 24) - 4)
     body = Layout()
     body.split_row(
-        Layout(Panel(roster(picked), box=box.ROUNDED,
+        Layout(Panel(asking(who) if who is not None else roster(picked),
+                     box=box.ROUNDED,
                      title=Text(' MAIN TERMINAL ACCESS ', style='name'),
                      title_align='left', border_style='frame.hud',
                      padding=(1, 2), expand=True),
@@ -237,7 +266,10 @@ def compose(port, picked, view, size=None):
         Layout(masthead(port), size=1),
         Layout(body, name='body'),
         Layout(footer((('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
-                       ('S B A M G T', 'DIRECT'), ('DRAG', 'TURN'),
+                       ('C A', 'DIRECT'), ('ESC', 'BACK'), ('Q', 'EXIT'))
+                      if who is not None else
+                      (('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
+                       ('S B A M G T C', 'DIRECT'), ('DRAG', 'TURN'),
                        ('WHEEL', 'ZOOM'), ('Q', 'EXIT'))),
                size=1))
     return whole
@@ -259,6 +291,20 @@ def _act(typed, picked, hotkeys):
     return picked, None
 
 
+def _who_act(typed, who):
+    """(new pick, chosen exit code or None) for the chat list."""
+    for key in typed:
+        if key in ('up', 'down'):
+            who = 1 - who
+        elif key in ('\r', '\n'):
+            return who, (CHAT_LOCAL, CHAT_CLAUDE)[who]
+        elif key.lower() == 'c':
+            return 0, CHAT_LOCAL
+        elif key.lower() == 'a':
+            return 1, CHAT_CLAUDE
+    return who, None
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', default='COM4')
@@ -272,6 +318,7 @@ def main(argv=None):
     page = stage()
     console = page.is_terminal
     picked, frame, began = 0, 0, time.monotonic()
+    who = None
     # The turntable's state: pose and zoom persist across a grab, so the
     # idle motion carries on from wherever the hand left it.
     view = {'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM,
@@ -304,16 +351,24 @@ def main(argv=None):
             now = time.monotonic()
             idle(view, now, now - last)
             last = now
-            live.update(compose(args.port, picked, view, page.size),
+            live.update(compose(args.port, picked, view, page.size, who),
                         refresh=True)
             if args.frames and frame >= args.frames:
                 return 0
 
             leave, moved, typed = paced(keys, 0.08)
+            if leave == 'menu' and who is not None:
+                who = None            # ESC backs out of the chat list
+                continue
             if leave:
                 return 0
             grab(view, keys, moved, time.monotonic())
-            picked, chosen = _act(typed, picked, hotkeys)
+            if who is not None:
+                who, chosen = _who_act(typed, who)
+            else:
+                picked, chosen = _act(typed, picked, hotkeys)
+                if chosen == CHAT_LOCAL:
+                    who, chosen = 0, None
             if chosen is not None:
                 return chosen
 

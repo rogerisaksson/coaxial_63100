@@ -528,7 +528,7 @@ class Toolbox:
         explains the silence rather than running the rest regardless.
 
         `tools/find_board.py` does the work - the same module
-        board_prompt/ComPort.ps1 shells out to, imported here since this call
+        board_chat/ComPort.ps1 shells out to, imported here since this call
         is already in-process, so "does this port answer" cannot drift
         between a live session and the preflight.
 

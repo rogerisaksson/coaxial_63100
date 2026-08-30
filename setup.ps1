@@ -185,10 +185,10 @@ $CubeIDEUrl = 'https://www.st.com/en/development-tools/stm32cubeide.html'
 $script:Todo = @()
 $script:Optional = @()
 
-# The daemon settings, shared with board_prompt.ps1 rather than written twice.
+# The daemon settings, shared with board_chat.ps1 rather than written twice.
 # That file prints nothing and needs nothing in scope, which is what lets both
 # a launcher and an installer use it.
-. (Join-Path $PSScriptRoot 'board_prompt\Tuning.ps1')
+. (Join-Path $PSScriptRoot 'host\board_chat\Tuning.ps1')
 
 # ---- reporting -------------------------------------------------------------
 
@@ -1328,16 +1328,16 @@ function Install-Ollama {
 
     # Before the daemon is started or asked anything: the settings that keep
     # llama-server from dying of std::bad_alloc partway through a bench
-    # session. board_prompt.ps1 applies the same four (one file, dot-sourced
+    # session. board_chat.ps1 applies the same four (one file, dot-sourced
     # by both) and restarts a daemon that predates them; here they go in
     # first, so a machine set up by this script never needs that restart.
-    # See board_prompt/Tuning.ps1 and docs/FINDINGS.md.
+    # See board_chat/Tuning.ps1 and docs/FINDINGS.md.
     $tuned = @()
     if (-not $Check) { $tuned = @(Set-DaemonEnvironment) }
     if ($tuned.Count -gt 0) {
         Write-Item 'daemon tuning' 'done' (($tuned -join ', ') + ' - prompt cache off, checkpoints capped')
     } elseif ((Test-DaemonTuned) -eq $false) {
-        Write-Item 'daemon tuning' 'missing' 'the running daemon predates it - board_prompt.ps1 restarts it once'
+        Write-Item 'daemon tuning' 'missing' 'the running daemon predates it - board_chat.ps1 restarts it once'
     } else {
         Write-Item 'daemon tuning' 'ok' 'prompt cache off, checkpoints capped'
     }
@@ -1538,14 +1538,14 @@ if ($script:Optional.Count -gt 0) {
 
 Write-Host ''
 Write-Host '  every shell:' -ForegroundColor White
-Write-Host '    . .\env.ps1                 tools on PATH, plus board_prompt/dbg/board/cbuild/cflash/cubemx'
+Write-Host '    . .\env.ps1                 tools on PATH, plus board_chat/dbg/board/cbuild/cflash/cubemx'
 Write-Host ''
 Write-Host '  then:' -ForegroundColor White
 Write-Host '    cbuild                      build, zero warnings expected'
 Write-Host '    cflash                      flash over SWD and start'
 Write-Host '    board all                   measure, no model involved'
 Write-Host '    dbg "why is the NTC 25.00?" ask the local model, cheaply'
-Write-Host '    board_prompt                a prompt with the model and the board in it'
+Write-Host '    board_chat                a prompt with the model and the board in it'
 Write-Host '    cubemx                      open the .ioc in STM32CubeMX'
 Write-Host ''
 if ($Check) {

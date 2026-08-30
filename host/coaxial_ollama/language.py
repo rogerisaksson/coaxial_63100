@@ -463,7 +463,7 @@ def greeting(model, name=None, encoding=None):
     English where there is no translation, and English where the console
     cannot encode the one there is: a bare `python dbg.py` on a cp1252
     console renders Japanese as a row of question marks, and a greeting
-    nobody can read is worse than one in the wrong language. board_prompt.ps1
+    nobody can read is worse than one in the wrong language. board_chat.ps1
     sets the console to UTF-8, so there the alphabet arrives.
     """
     name = name or system_language()

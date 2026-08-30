@@ -1,7 +1,7 @@
 <#
     Which model this run should use, and getting its weights into the OS
     file cache before ollama asks for them. Needs Say (Say.ps1) already in
-    scope; both functions here also read board_prompt.ps1's own $Root,
+    scope; both functions here also read board_chat.ps1's own $Root,
     $Prefer and $Reserve straight from the caller's scope.
 #>
 
@@ -18,7 +18,7 @@ function Invoke-Warm {
         not a reason to stop.  #>
     param([string]$Tag)
 
-    Push-Location (Join-Path $Root 'host')
+    Push-Location $Root
     try {
         $lines = & python (Join-Path 'tools' 'warm_model.py') $Tag --auto 2>&1
         foreach ($line in $lines) { Say 'ok' 'warm' $line }
@@ -38,7 +38,7 @@ function Get-Choice {
         reason to stop: fall back to the tag this bench was built on and say
         so.  #>
 
-    Push-Location (Join-Path $Root 'host')
+    Push-Location $Root
     try {
         $argv = @('-m', 'coaxial_ollama.capability', '--json', '--prefer', $Prefer)
         if ($Reserve -gt 0) { $argv += @('--reserve-gb', [string]$Reserve) }

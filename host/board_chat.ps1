@@ -2,11 +2,11 @@
 .SYNOPSIS
     One window with the model and the board in it.
 
-        . .\env.ps1 ; .\board_prompt.ps1
-        .\board_prompt.ps1 -NewWindow          the same, in its own window
-        .\board_prompt.ps1 -Plain              plain ollama chat, no board, no tools
-        .\board_prompt.ps1 -Simulated          board tools work, against invented data
-        .\board_prompt.ps1 -AutodetectComport  tries -Port, then every other COM port
+        . .\env.ps1 ; .\host\board_chat.ps1
+        .\host\board_chat.ps1 -NewWindow          the same, in its own window
+        .\host\board_chat.ps1 -Plain              plain ollama chat, no board, no tools
+        .\host\board_chat.ps1 -Simulated          board tools work, against invented data
+        .\host\board_chat.ps1 -AutodetectComport  tries -Port, then every other COM port
 
 .DESCRIPTION
     You asked for a terminal that talks to gemma. `ollama run gemma4:12b` is
@@ -138,7 +138,7 @@
     Leave the daemon's own settings alone. By default this script makes sure
     ollama is running with llama-server's prompt cache off and its context
     checkpoints capped, restarting the daemon once if it has to - see
-    $DaemonTuning in board_prompt/Tuning.ps1 for the measurements. Without
+    $DaemonTuning in board_chat/Tuning.ps1 for the measurements. Without
     that, a bench session of eight or ten questions reliably kills the model
     runner with std::bad_alloc partway through and reloads eight gigabytes
     mid-answer. Use this to reproduce that, or when something else on the
@@ -178,12 +178,12 @@ $ErrorActionPreference = 'Continue'
 $Root = $PSScriptRoot
 $Api = 'http://localhost:11434'
 
-# board_prompt/*.ps1 - Say first by convention, though load order does not
+# board_chat/*.ps1 - Say first by convention, though load order does not
 # actually matter: nothing in any of these files runs until well after all
 # five are dot-sourced, and PowerShell resolves a function call by name at
 # call time, not at definition time.
 foreach ($part in 'Say', 'Tuning', 'ComPort', 'Ollama', 'ModelChoice', 'Relaunch') {
-    . (Join-Path (Join-Path $Root 'board_prompt') "$part.ps1")
+    . (Join-Path (Join-Path $Root 'board_chat') "$part.ps1")
 }
 
 # UTF-8, console and all: dbg.py's prompt has a robot and a pager either side
@@ -252,7 +252,7 @@ if ($null -eq $tags) {
     $startedHere = $true
     Say 'wait' 'ollama serve' 'nothing on 11434 - starting the daemon'
     # The daemon inherits this shell's environment, so the tuning has to be in
-    # it before the process starts - see $DaemonTuning in board_prompt/Tuning.ps1
+    # it before the process starts - see $DaemonTuning in board_chat/Tuning.ps1
     # for what each variable is worth and what was measured without it.
     Set-DaemonEnvironment | Out-Null
     Start-Process -FilePath $ollama.Source -ArgumentList 'serve' -WindowStyle Hidden `
@@ -364,7 +364,7 @@ if ($NoBoard) {
     Say 'warn' 'board' '--simulated: no port opened, every reading is invented'
 } else {
     if ($AutodetectComport) {
-        $found = Find-BoardPort -PreferredPort $Port -HostDir (Join-Path $Root 'host')
+        $found = Find-BoardPort -PreferredPort $Port -HostDir $Root
         if ($found) { $Port = $found }
     }
     $ports = @()
@@ -408,7 +408,7 @@ if (-not $Normal) {
 
 # ---- the prompt itself -----------------------------------------------------
 
-Push-Location (Join-Path $Root 'host')
+Push-Location $Root
 try {
     if ($Plain) {
         if ($Ask) {

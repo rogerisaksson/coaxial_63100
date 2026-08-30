@@ -62,7 +62,7 @@ WHEEL_STEP = 0.12
 DRAG_STEP = 0.02
 
 
-#: Preflight colours, matching board_prompt/Say.ps1 so the two read the
+#: Preflight colours, matching board_chat/Say.ps1 so the two read the
 #: same. Green ok, cyan waiting, yellow worth knowing, red stop.
 STATES = {'ok': '32', 'wait': '36', 'warn': '33', 'fail': '31'}
 
@@ -201,7 +201,7 @@ def gauge(fraction, width, hot=0.85):
 
 
 def say(state, text, detail=''):
-    """One preflight line, the shape board_prompt.ps1 prints.
+    """One preflight line, the shape board_chat.ps1 prints.
 
     Written here rather than shelling out to Say.ps1 because the preflight
     and the view share one session: splitting them would open the port

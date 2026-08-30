@@ -55,7 +55,7 @@ param(
 $ErrorActionPreference = 'Continue'
 
 # The frames are box drawing; a console left on the OEM codepage prints
-# them as mojibake. Same line board_prompt.ps1 runs, for the same reason.
+# them as mojibake. Same line board_chat.ps1 runs, for the same reason.
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # The session first, because it is what most runs want and what the number
@@ -73,6 +73,10 @@ $Views = [ordered]@{
                  What   = 'the gate drivers: six signals, current, a burst' }
     'thermal' = @{ Script = 'thermal.ps1'
                  What   = 'where the heat sits, drawn on the board itself' }
+    'chat'  = @{ Script = $null; Chat = 'local'
+                 What   = 'CCC - the coaxial 63100 chat client' }
+    'claude' = @{ Script = $null; Chat = 'anthropic'
+                 What   = 'claude with the board over MCP' }
 }
 
 # 64 is show_*.py's TO_MENU: ESC asking to come back here rather than close.
@@ -216,6 +220,36 @@ do {
     # output captures the frames, and piping to Out-Host makes stdout a pipe
     # - so `sys.stdout.isatty()` went false, the session stopped clearing the
     # screen and repainted whole frames instead of the rows that changed.
+    if ($Views[$view].Chat) {
+        # A chat is its own process like every demo, and coming back from
+        # it is ALWAYS the menu: quitting a chat must not quit the
+        # terminal it was picked from.
+        Push-Location $PSScriptRoot
+        if ($Views[$view].Chat -eq 'anthropic') {
+            # Plain claude from the repo root: .mcp.json wires the coaxial
+            # MCP server to it, so the board tools are already in the room.
+            & claude
+        } else {
+            $call = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+                      (Join-Path $PSScriptRoot 'host\board_chat.ps1'),
+                      '-Port', $Port)
+            if ($Simulated) { $call += '-Simulated' }
+            & powershell @call
+        }
+        $said = $LASTEXITCODE
+        Pop-Location
+        if ($said -ne 0) {
+            Write-Host ''
+            Write-Host ('  {0} exited {1} - its last lines above say why' `
+                -f $view, $said) -ForegroundColor DarkYellow
+            Write-Host '  any key for the menu ' -NoNewline -ForegroundColor DarkGray
+            try { [void][Console]::ReadKey($true) } catch { }
+            Write-Host ''
+        }
+        $code = $TO_MENU
+        continue
+    }
+
     if (-not $Views[$view].Script) {
         Push-Location (Join-Path $PSScriptRoot 'host')
         $argv = @('tools/demos.py', '--port', $Port)

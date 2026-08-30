@@ -12,7 +12,7 @@ VRAM limits, deterministic host overrides and a hard prompt budget.
   `LLAMA_ARG_CTX_CHECKPOINTS=0` in the daemon.
 * **Eviction ladder:** out of VRAM, the host unloads inactive models, halves
   `num_ctx`, then aborts to a smaller tag.
-* **One load per batch** - `run_tests.py` for the suites, `board_prompt.ps1` for
+* **One load per batch** - `run_tests.py` for the suites, `board_chat.ps1` for
   a prompt or a list of `-Ask` questions. Neither end is free: unloading per
   question put most of a run's wall time into reloading 7.6 GB, and a one-shot
   that never unloaded pinned 8.4 GB for the full 30-minute keep-alive. `-Hold`

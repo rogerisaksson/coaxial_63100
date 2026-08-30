@@ -1,7 +1,7 @@
 <#
     One line of preflight output, coloured by state. Every other file in this
     folder calls this - dot-source it before any of the others, though in
-    practice board_prompt.ps1 dot-sources the whole folder up front and none
+    practice board_chat.ps1 dot-sources the whole folder up front and none
     of these functions run until well after that, so the order among them
     does not actually matter.
 #>

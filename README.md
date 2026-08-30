@@ -19,7 +19,8 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 
 ## Demos
 
-`.\coaxial_tty.ps1` is the menu - `session` first, then six standalone views; each
+`.\coaxial_tty.ps1` is the menu - `session` first, six standalone views and
+the board chat (local llm or claude over MCP); each view
 of those is also `.\demos\<name>.ps1`. Every one takes
 `-Simulated` (no board) and `-Frames N` (stop after N).
 
@@ -31,6 +32,7 @@ of those is also `.\demos\<name>.ps1`. Every one takes
 | `adc` | METER BRIDGE - metered channels |
 | `gate_drivers` | GATE DRIVERS - half bridge control |
 | `thermal` | THERMAL OBSERVER - thermals estimation |
+| `chat` | BOARD CHAT - CCC, the local llm, or claude over MCP |
 
 `gate_drivers` is the one that switches. `+ -` duty, `[ ]` step, `A` arm,
 `B` BKIN override, `I` interlock override, `1 2 3 4` run length, `R` run.
@@ -87,7 +89,7 @@ stand-in that labels itself.
 There is a local model on this machine with the board's tools wired to it.
 
 ```powershell
-board_prompt -Ask "vad sitter på kortet?"
+board_chat -Ask "vad sitter på kortet?"
 ```
 
 ## Where things are
