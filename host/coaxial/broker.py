@@ -256,12 +256,14 @@ class _Handler(socketserver.StreamRequestHandler):
                     message['unit'], message['function'],
                     bytes.fromhex(message['payload']),
                     message['exact_payload'], message['timeout'])
+            served.spoke()
             return {'payload': bytes(got).hex()}
         if op == 'broadcast':
             with served.lock:
                 served.transport.broadcast(
                     message['function'], bytes.fromhex(message['payload']),
                     message['settle'])
+            served.spoke()
             return {'payload': ''}
         return {'error': 'RigError', 'message': 'unknown op %r' % (op,)}
 
@@ -281,6 +283,43 @@ class _Server(socketserver.ThreadingTCPServer):
     #: test's clients - which it did, and the suite said so. stand_down
     #: stays immediate for whoever asks for the port by name.
     linger = 45.0
+
+    #: When a board frame last went out on anybody's behalf - clients and
+    #: the keepalive both stamp it.
+    heard = 0.0
+    #: Seconds of client silence before the broker speaks for them. The
+    #: firmware drops a silent host's rail claims after 10 s
+    #: (BOARD_POWER_HOST_QUIET_MS) - right for a killed script, wrong for
+    #: an operator thinking between chat turns. The margin is 3x.
+    KEEPALIVE = 3.0
+
+    def spoke(self):
+        import time
+        self.heard = time.monotonic()
+
+    def tick(self, stop):
+        """One version read per KEEPALIVE of quiet, only while somebody
+        is attached. The broker knows a thinking session from a dead one:
+        it counts clients. With none attached nothing ticks, and the
+        firmware's deadman does exactly its job."""
+        import time
+
+        from . import protocol
+        from .errors import RigError
+
+        while not stop.wait(0.5):
+            if self.clients <= 0:
+                continue
+            if time.monotonic() - self.heard < self.KEEPALIVE:
+                continue
+            try:
+                with self.lock:
+                    self.transport.request(1, protocol.VERSION, b'')
+                self.spoke()
+            except (RigError, OSError):
+                # The next real request finds out properly; a keepalive
+                # never owns an error.
+                pass
 
     def retrying(self, unit, function, payload, exact_payload, timeout):
         """One request, and one re-open if the board went quiet.
@@ -453,6 +492,8 @@ def serve(port, baud=115200, address=(HOST, PORT), transport=None,
     server.lock = threading.Lock()
     server.until_idle = until_idle
     server.linger = linger
+    quiet = threading.Event()
+    threading.Thread(target=server.tick, args=(quiet,), daemon=True).start()
 
     # The KIND too - debug probe or RS485. A client reaching the broker
     # cannot work it out: that answer comes from the Windows port listing,
@@ -463,6 +504,7 @@ def serve(port, baud=115200, address=(HOST, PORT), transport=None,
     try:
         server.serve_forever()
     finally:
+        quiet.set()
         server.server_close()
         if not handed:
             transport.close()

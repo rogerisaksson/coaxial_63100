@@ -143,7 +143,7 @@ Board-side scaling is kept only to cross-check the math.
 
 ## The test system
 
-Twenty-one suites, 1965 checks. `run_tests.ps1` is the only interface -
+Twenty-one suites, 1970 checks. `run_tests.ps1` is the only interface -
 `-AutomaticMinimal|Medium|High` for ~25/50/75 % of every check, `-All` the gate,
 `-Only NAMES` and `-Tags SUBJECTS` for one change's worth, `-Structure` for the
 package itself.

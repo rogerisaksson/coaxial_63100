@@ -226,19 +226,24 @@ do {
         # terminal it was picked from.
         Push-Location $PSScriptRoot
         if ($Views[$view].Chat -eq 'anthropic') {
-            # Plain claude from the repo root: .mcp.json wires the coaxial
-            # MCP server to it, so the board tools are already in the room.
-            & claude
+            # The same page as CCC, claude -p answering each turn - the
+            # view runs it from the repo root, where .mcp.json wires the
+            # coaxial MCP server to it.
+            Push-Location (Join-Path $PSScriptRoot 'host')
+            & python -X utf8 tools/show_chat.py --claude --port $Port
+            Pop-Location
         } else {
-            $call = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
-                      (Join-Path $PSScriptRoot 'host\board_chat.ps1'),
-                      '-Port', $Port)
-            if ($Simulated) { $call += '-Simulated' }
-            & powershell @call
+            # The CCC page: the same Chat the bench prompt drives,
+            # drawn inside the stage - a terminal in the terminal.
+            Push-Location (Join-Path $PSScriptRoot 'host')
+            $argv = @('-X', 'utf8', 'tools/show_chat.py', '--port', $Port)
+            if ($Simulated) { $argv += '--simulated' }
+            & python @argv
+            Pop-Location
         }
         $said = $LASTEXITCODE
         Pop-Location
-        if ($said -ne 0) {
+        if ($said -ne 0 -and $said -ne $TO_MENU) {
             Write-Host ''
             Write-Host ('  {0} exited {1} - its last lines above say why' `
                 -f $view, $said) -ForegroundColor DarkYellow

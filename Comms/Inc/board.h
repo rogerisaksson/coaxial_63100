@@ -462,6 +462,13 @@ bool Board_PwmFault(void);
 bool Board_PwmSetBreakBypass(bool on);
 bool Board_PwmBreakBypassed(void);
 
+/** The silent host's stage cleanup: MOE down, the break bypass back in
+    force. board_power.c calls it once per quiet transition, so a killed
+    script's armed stage does not outlive its rail claims. A live
+    session's broker keeps the link speaking; the observers never
+    stopped and are untouched. */
+void Board_PwmSessionDrop(void);
+
 /** Clear the break latch. Does NOT re-arm - the caller must ask again. */
 bool Board_PwmClearFault(void);
 

@@ -238,7 +238,8 @@ if ($NewWindow) {
 Write-Host ''
 Write-Host 'coaxial_63100 bench prompt' -ForegroundColor White
 
-. (Join-Path $Root 'env.ps1') -Quiet
+# env.ps1 stays at the repo root, one level above this script's host/.
+. (Join-Path (Split-Path $Root) 'env.ps1') -Quiet
 $ollama = Get-Command 'ollama' -ErrorAction SilentlyContinue
 if ($null -eq $ollama) {
     Say 'fail' 'ollama' 'not installed - run .\setup.ps1'

@@ -1807,3 +1807,29 @@ bar by the difference in length - bar first, text after in brackets.
 
 `mesh.facets()` was still writing `Coaxial 63100.facets` beside the STL for
 the photo and toon paths. Gone: the facets live in memory for the process.
+
+## The board cleans up after a dead host, and the broker speaks for a live one
+
+2026-08-30. Asked from the chat to turn the AFE on, the model did - and the
+firmware turned it off again ~10 s later. Board_PowerPoll's host deadman
+(BOARD_POWER_HOST_QUIET_MS, 10 s of link silence) drops every HOST rail
+claim: right for a killed script, wrong for an operator thinking between
+turns, where the link is naturally quiet.
+
+Two halves, both measured on the bench:
+
+* The broker answers for attached clients: one 0x41 read per 3 s of quiet,
+  only while clients > 0 (`_Server.tick`). AFE asked on, then 15 s of
+  client silence: still on, users ['host']. 13 s after a clean detach:
+  off, users [] - with no client the keepalive stops and the deadman
+  does exactly its job.
+* The target's cleanup got wider: on the quiet edge the firmware now also
+  runs Board_PwmSessionDrop - MOE down, break bypass back in force, once
+  per transition. A process that armed the stage with the bypass on and
+  died in os._exit: 13 s later pwm_enabled False, break_bypassed False,
+  all six pins low. The observers never stop either way; they hold their
+  own leases.
+
+The keepalive shares the transport lock, so a timed write can queue behind
+one version read - ~30 ms worst case. The cycle-counted duty (TODO item 6)
+is still the honest fix for exact holds.

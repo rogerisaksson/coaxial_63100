@@ -103,6 +103,12 @@ bool Board_PwmFault(void)
 }
 
 
+void Board_PwmSessionDrop(void)
+{
+  (void)Board_PwmSetBreakBypass(false);
+  Board_PwmDisable();
+}
+
 void Board_PwmDisable(void)
 {
   /* The one operation that must work whatever else is true. Clearing MOE

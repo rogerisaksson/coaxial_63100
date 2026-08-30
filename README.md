@@ -20,8 +20,8 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 ## Demos
 
 `.\coaxial_tty.ps1` is the menu - `session` first, six standalone views and
-the board chat (local llm or claude over MCP); each view
-of those is also `.\demos\<name>.ps1`. Every one takes
+the board chat (local llm or claude over MCP); each view is also
+`.\demos\<name>.ps1`. Every one takes
 `-Simulated` (no board) and `-Frames N` (stop after N).
 
 | view | on the menu |
@@ -77,7 +77,7 @@ told.
 cube-cmake --build --preset Debug      # must be zero warnings
 STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
 .\run_tests.ps1                        # ~25 % of the checks, the default
-.\run_tests.ps1 -All                   # 1738 checks, the gate
+.\run_tests.ps1 -All                   # 1970 checks, the gate
 .\run_tests.ps1 -Structure             # does host/ still hold together - 4 s
 ```
 

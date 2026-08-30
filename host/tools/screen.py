@@ -384,7 +384,10 @@ class Keys:
     #: and the halves' letters hit view bindings.
     PARTIAL_RE = re.compile(r'\033(\[(<[\d;]*)?)?$')
 
-    def __init__(self, console, mouse=False):
+    def __init__(self, console, mouse=False, quits=QUIT_KEYS):
+        # `quits` is which letters leave. A chat view passes
+        # frozenset(): there, q is a letter someone is typing.
+        self._quits = frozenset(quits)
         self.console = console
         self.mouse = mouse and console
         self._saved = None
@@ -480,7 +483,7 @@ class Keys:
         self._buffer = held
 
         for key in keys:
-            if leave is None and key in QUIT_KEYS:
+            if leave is None and key in self._quits:
                 leave = 'quit'
             elif leave is None and key in MENU_KEYS:
                 leave = 'menu'

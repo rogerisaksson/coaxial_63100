@@ -148,16 +148,21 @@ void Board_PowerPoll(void)
      not, and the rail goes down on its own. */
   static uint32_t seen_count;
   static uint32_t seen_at;
+  static bool     told;
   const uint32_t heard = link_rx_count();
 
   if (heard != seen_count)
   {
     seen_count = heard;
     seen_at = now;
+    told = false;
   }
 
-  if ((uint32_t)(now - seen_at) > BOARD_POWER_HOST_QUIET_MS)
+  /* Once per transition: claims can only reappear through traffic,
+     and traffic re-arms the edge. */
+  if (!told && ((uint32_t)(now - seen_at) > BOARD_POWER_HOST_QUIET_MS))
   {
+    told = true;
     for (uint8_t rail = 0U; rail < (uint8_t)BOARD_RAIL_COUNT; rail++)
     {
       if ((s_users[rail] & bit_of(BOARD_USER_HOST)) != 0U)
@@ -167,6 +172,9 @@ void Board_PowerPoll(void)
         apply((board_rail_t)rail);
       }
     }
+    /* The rest of the session's footprint: an armed stage must not
+       outlive the host that armed it. */
+    Board_PwmSessionDrop();
   }
 
   for (uint8_t rail = 0U; rail < (uint8_t)BOARD_RAIL_COUNT; rail++)
