@@ -499,18 +499,23 @@ class Coaxial63100(Acquisition):
                            'its only analog outputs are %s'
                            % (', '.join(unknown), ', '.join(legs)))
 
-        if not self.gates.armed():
+        # ONE state read serves the arm check, the period and the held
+        # duties. As three reads at 31 ms each it cost 110 ms before the
+        # duty went out - measured 2026-08-30 on a pulse meant to last
+        # two writes.
+        state = self.board.gate_drivers.state()
+        if not state['pwm_enabled']:
             raise RigError(
                 'the gate drivers are not armed, and writing a duty is not what '
                 'arms it - call gates.arm() first, which says what that '
                 'means. %s'
                 % ('The break is latched, so gates.arm(bypass_sto=True) '
                    'is what gets past it'
-                   if self.board.gate_drivers.state()['fault']
+                   if state['fault']
                    else 'Nothing is holding it off'))
 
-        period = self.board.gate_drivers.state()['period'] - 1
-        held = self.board.gate_drivers.state()['duty']
+        period = state['period'] - 1
+        held = state['duty']
         ticks = tuple(
             int(max(0.0, min(1.0, analog[name])) * period)
             if name in analog else held[i]

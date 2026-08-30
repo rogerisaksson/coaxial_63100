@@ -142,3 +142,9 @@ host/tools/.attitude_mount
 host/tools/.session.addr
 host/tools/.session.json
 host/tests/.session.addr.test
+
+# the hand-off script Claude rewrites and you run - not the project's
+claude_do_it.ps1
+claude_do_it.log
+claude_watch.ps1
+claude_watch.pid

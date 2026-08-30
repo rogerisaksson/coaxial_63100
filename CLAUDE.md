@@ -191,8 +191,8 @@ python dbg.py -m auto -q "read the NTC"  # one question, the model this machine 
 python dbg.py -q "run the test suites, build and flash, tell me if anything failed"
 ```
 
-Twenty-one suites, 1896 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (431),
+Twenty-one suites, 1899 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (434),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (214),
 `test_simulated.py` (194), `test_live_model.py` (146, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
@@ -238,7 +238,7 @@ you:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14, conformance
   0.29, live 4.6. The `test_ollama_*` suites are in from the first tier and
   narrow *themselves*; that is where the fine resolution lives, because 764 of
-  this tree's 1896 checks are in those nine files.
+  this tree's 1899 checks are in those nine files.
 
 * **The model is not asked when the path map already knows.** Where every
   changed file matched an explicit rule and the answer is `CHEAP` - structure,
@@ -276,7 +276,7 @@ question nobody asked. The suites are the gate *after* a change, not a step in
 finding one.
 
 **Problem, measured:** chasing why two of three gate driver stages ran 15 C
-hotter than the third, the full suite was started three times. None of the 1896
+hotter than the third, the full suite was started three times. None of the 1899
 checks could have said anything about it - the difference was on the bench.
 **What worked instead:** a 600-sample pin count and a register dump.
 

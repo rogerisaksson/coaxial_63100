@@ -12,7 +12,8 @@ channel, so ripple is measured rather than inferred.
     + -     common duty, one step        [ ]     step size
     A       arm / disarm the stage       B       BKIN override
     I       interlock override           R       run and capture
-    1 2 3 4 run length 1/10/100/1000 ms  Q / ESC close / menu
+    P       one pulse, U against V low   1 2 3 4 run length 1/10/100/1000 ms
+    Q / ESC close / menu
 
 **Arming arms a power stage**, and TIM1's 80 ns dead time is the only thing
 between the two FETs of a leg - the 2EDL8034 has no interlock of its own.
@@ -48,6 +49,14 @@ STEPS = (0.001, 0.005, 0.01, 0.05, 0.10)
 
 #: Legs, in the order the board reports its six gate signals.
 LEGS = (('U', 'UH', 'UL'), ('V', 'VH', 'VL'), ('W', 'WH', 'WL'))
+
+
+#: What P pulses: U at this duty against V held low, through whatever is
+#: wired across them - on the bench 2026-08-30 about 8 ohm, with the DC
+#: link read at 25 V: 3.1 A for the on-time, 60 mA mean. It lasts until
+#: the second compare write lands - 15.5 ms measured, ~780 cycles; the
+#: protocol has no cycle-counted burst.
+PULSE = 0.02
 
 
 def gate_rows(state, width):
@@ -235,6 +244,28 @@ def _interlock(view):
             if view['override'] else 'interlock back on')
 
 
+def _pulse(rig, view):
+    """U at PULSE against V low, W low, for two writes, then every leg
+    back to the common duty. Needs the operator's own A first: a pulse
+    that armed the stage would be a second way to arm one."""
+    state = rig.board.gate_drivers.state()
+    if not state['pwm_enabled']:
+        return 'arm first - A - then P pulses'
+    # Raw compare writes off ONE state read: rig.write()'s own arm check
+    # is a 31 ms read the pulse would be spent waiting for.
+    period = state['period'] - 1
+    back = int(view['duty'] * period)
+    rig.board.gate_drivers.duty((int(PULSE * period), 0, 0))
+    began = time.perf_counter()
+    rig.board.gate_drivers.duty((back, back, back))
+    held = time.perf_counter() - began
+    state = rig.board.gate_drivers.state()
+    return ('pulsed U %.0f %% against V low: %.0f ms, ~%d cycles - break %s,'
+            ' %d overruns'
+            % (PULSE * 100.0, held * 1e3, int(held * 50000),
+               'latched' if state['fault'] else 'clear', state['overruns']))
+
+
 def act(rig, key, view):
     """One keypress. Returns a line to show, or None.
 
@@ -256,6 +287,8 @@ def act(rig, key, view):
             return _bkin(rig)
         if key in ('i', 'I'):
             return _interlock(view)
+        if key in ('p', 'P'):
+            return _pulse(rig, view)
         if key in RUNS:
             view['seconds'] = RUNS[key]
             return 'run length %.0f ms' % (view['seconds'] * 1e3)
@@ -291,7 +324,8 @@ def compose(rig, origin, console, view, layout, width):
 
     keys = [('+ -', 'DUTY'), ('[ ]', 'STEP'), ('A', 'ARM'), ('B', 'BKIN'),
             ('I', 'INTERLOCK %s' % ('OFF' if view['override'] else 'ON')),
-            ('1-4', 'MS'), ('R', 'RUN'), ('Q', 'EXIT'), ('ESC', 'MENU')]
+            ('P', 'PULSE U-V'), ('1-4', 'MS'), ('R', 'RUN'), ('Q', 'EXIT'),
+            ('ESC', 'MENU')]
     if view.get('said'):
         keys.append(('', view['said']))
     return panels_of(console, origin, 'GATE DRIVERS',

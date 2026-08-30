@@ -1712,3 +1712,27 @@ change in MOUNT on the left - `MOUNT * (conj(tare) * q) * conj(MOUNT)`. The
 reversed order passed every numeric check under Rz180, because a 180 is its
 own conjugate and both orders coincide. Any future mount change re-runs the
 court in `attitude()`'s docstring; a 180 proves nothing about the order.
+
+## A duty write's round trip is 8 ms longer after 85 ms of silence
+
+`tools/pulse.py --on 0.1`, 2026-08-30, over the probe's COM port. Two
+compare writes back to back: the second lands in 15.0-16.6 ms (23 pulses,
+one run of twenty). The same write issued after 85 ms of idle: 23.5 ms,
+twice (109.3 and 108.5 ms measured for a 100 ms hold, exact wait). The
+extra 8 ms is on the wire or in the VCP driver waking, not in the sleep -
+the wait was spun to the microsecond the second time.
+
+Not monotonic in the idle, though: the same off write after 985 ms of
+silence (a 1 s hold, 18:35) landed in 14.2 ms - 999.2 ms measured for
+1000 asked. Two samples at 85 ms idle, one at 985: the 8 ms is real at
+85 ms and absent at 985, and what it tracks is not settled.
+
+What it means for timed switching: the host measures until the reply is
+back, and where in that round trip the frame LANDED on the board is not
+knowable from here, so a hold asked for at 100 ms is 93-108 ms at the
+FETs. A hold counted in PWM periods by the board itself - a cycle count
+on the duty op, cleared by the update ISR - is the only way to a number.
+
+Also seen: `rig.write(analog=...)` cost three `state()` reads (31 ms each)
+before the duty went out - `armed()`, the period and the held duties read
+separately. One read now; 110 ms became 15.
