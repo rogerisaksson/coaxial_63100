@@ -297,7 +297,9 @@ def frame_of(console, origin, title, art, boxes, keys):
         return Group(header(title, origin),
                      viewport(title, art), *boxes, footer(keys))
 
-    hud_width = 36
+    # 40 since 2026-08-30: the thermal LEVELS rows wanted air, and the
+    # column is the template's, so every view moves together.
+    hud_width = 40
     body = Layout()
     body.split_row(Layout(viewport(title, art), name='art'),
                    Layout(Group(*boxes) if boxes else Text(''),

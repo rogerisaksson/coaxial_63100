@@ -130,7 +130,9 @@ CELL = '  '
 RAMP = '.,:;~-=+ic*xX#$%8W@'
 
 #: The bar and its tick labels. Counted by the caller, so it is named.
-SCALE_LINES = 2
+#: Lines the scale spends BELOW the picture: none since 2026-08-30 -
+#: it rides beside the board as a vertical rail, hottest at the top.
+SCALE_LINES = 0
 
 
 def field(x_mm, y_mm, board_c, nodes, layout=None):
@@ -307,8 +309,9 @@ def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
     if cells is None:
         # SCALE_LINES plus the blank above them is what render itself adds;
         # anything else in the frame is the caller's to count.
-        cells = _fit(colour, (SCALE_LINES + 1 + trailing)
-                     if reserve is None else reserve, margin)
+        cells = _fit(colour, (SCALE_LINES + trailing)
+                     if reserve is None else reserve,
+                     margin + RAIL_W)
     layout = LAYOUT if layout is None else layout
 
     grid, lo, _hi = _grid(nodes, board_c, cells, layout, aspect)
@@ -318,32 +321,35 @@ def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
     out = []
     if title:
         out.extend(['  ' + title, ''])
-    out.extend(_half_rows(grid) if colour else _ramp_rows(grid))
-    out.append('')
-    out.extend(_scale(cells if colour else cells * len(CELL), colour))
+    art = _half_rows(grid) if colour else _ramp_rows(grid)
+    rail = _rail(len(art), colour)
+    out.extend(row + '  ' + tag for row, tag in zip(art, rail))
     out.extend([''] * trailing)
     return '\n'.join(out)
 
 
-def _scale(width, colour, ticks=(-20, 0, 20, 40, 60, 80, 100)):
-    """The temperature scale under the picture, same width as the board."""
+#: Columns the vertical scale spends right of the board: two of block,
+#: a space, and the widest label (' -20 C').
+RAIL_W = 9
+
+
+def _rail(rows, colour):
+    """The temperature scale as a column beside the board, hottest at the
+    top. It spends width, which a round board has spare, instead of the
+    rows it does not - the horizontal bar below cost the picture two
+    lines at every terminal height."""
     lo, hi = ansi.THERMAL_MIN, ansi.THERMAL_MAX
-
-    if colour:
-        bar = ''.join(
-            ansi.back(ansi.thermal(lo + (hi - lo) * i / (width - 1.0))) + ' '
-            for i in range(width)) + ansi.RESET
-    else:
-        bar = ''.join(
-            RAMP[int(i / (width - 1.0) * (len(RAMP) - 1))]
-            for i in range(width))
-
-    labels = [' '] * width
-    for t in ticks:
-        text = '%d' % t
-        at = int((t - lo) / (hi - lo) * (width - 1)) - len(text) // 2
-        at = max(0, min(width - len(text), at))
-        for k, ch in enumerate(text):
-            labels[at + k] = ch
-
-    return [bar, ''.join(labels).rstrip() + ' C']
+    marks = {}
+    for t in (100, 80, 60, 40, 20, 0, -20):
+        at = int(round((hi - t) / float(hi - lo) * (rows - 1)))
+        marks.setdefault(at, ' %d C' % t)
+    out = []
+    for r in range(rows):
+        t = hi - (hi - lo) * (r / float(rows - 1) if rows > 1 else 0.0)
+        if colour:
+            block = ansi.back(ansi.thermal(t)) + '  ' + ansi.RESET
+        else:
+            block = RAMP[int((t - lo) / float(hi - lo)
+                             * (len(RAMP) - 1))] * 2
+        out.append(block + marks.get(r, ''))
+    return out

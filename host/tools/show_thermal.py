@@ -52,8 +52,9 @@ HEAD_LINES = 4
 #: what made the frame feel closed in.
 FOOT_LINES = 1
 
-#: Blank lines between the scale and the keys.
-TRAILING = 1
+#: Blank lines between the scale and the keys. Zero since 2026-08-30:
+#: the row went to the board, which was asked a size up.
+TRAILING = 0
 
 #: What ESC and Q do. ESC returns TO_MENU so coaxial_tty.ps1 draws its menu again.
 
@@ -112,7 +113,7 @@ def budget_line(got):
 
 #: The status panel's field width, map margin included. Fixed, so the map
 #: never breathes when a number changes length.
-PANEL_W = 38
+PANEL_W = 42
 
 
 def status_boxes(state, budget):
@@ -176,8 +177,11 @@ def picture(state, console, reserve):
         return ['  the board sent no board node - device 8 is out of step']
 
     zones = {k: v for k, v in nodes.items() if k != 'board'}
-    return render(zones, board_c=board_c, colour=console, margin=PANEL_W,
-                  reserve=reserve, trailing=TRAILING).split('\n')
+    # The leading blank moves the board one row down the frame - asked
+    # 2026-08-30, and counted in the caller's reserve.
+    return [''] + render(zones, board_c=board_c, colour=console,
+                         margin=PANEL_W, reserve=reserve,
+                         trailing=TRAILING).split('\n')
 
 
 def main():
@@ -250,15 +254,13 @@ def main():
                     # corners - the reference crosses live in dead margin,
                     # so the margin is made rather than hoped for. The
                     # scale rides inside the frame, out of the stamp.
-                    field = max((visible(l) for l in body), default=0) + 12
-                    scale_rows = SCALE_LINES + TRAILING + 1
-                    if len(body) > scale_rows:
-                        art = stamp_crosses(
-                            ['      ' + l for l in body[:-scale_rows]],
-                            field)
-                        art += ['      ' + l for l in body[-scale_rows:]]
-                    else:
-                        art = body
+                    # The scale rides beside the board now - the whole
+                    # body is picture, and all of it is stamped.
+                    # Three cells of pad and eight of field: six and
+                    # twelve read as dead air around the board.
+                    field = max((visible(l) for l in body), default=0) + 8
+                    art = stamp_crosses(['   ' + l for l in body],
+                                        field)
 
                     live.update(frame_of(
                         board_view, origin, 'THERMAL OBSERVER',
