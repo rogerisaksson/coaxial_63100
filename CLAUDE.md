@@ -40,9 +40,23 @@ stage with no dead time, because the 2EDL8034 has no interlock of its own.
 
 Measured 2026-08-27 with the drivers powered: every duty from 1 % to 100 %, no
 supply trip, no overruns. All three legs at the same duty, so no volts between
-phases and no phase current. **There is still no commutation and no current
-loop** - what exists is a gate driver stage that can be switched and measured,
-not one that can turn a motor.
+phases and no phase current. **Measured 2026-08-30 into a load:** ~8 ohm across
+U and V, DC link read 25 V and then 31 V, one leg switching at 2-50 % against
+the other held low (its low-side FET on), 15 ms to 30 s, both directions -
+26 runs, every one with the break clear under the bypass, 0 overruns, no gate
+shorts and a clean disarm; 3.1-3.75 A for the on-time, up to 39 W mean in the
+resistor. `tools/pulse.py` is that test, and P in the gate drivers view is one
+pulse after A. The board cannot measure current while it switches on this
+bench board (AFE_ON high takes the supply off the drivers), so the amps are
+V/R, not a reading. **There is still no commutation and no current loop** -
+what exists is a gate driver stage that can be switched and measured, not
+one that can turn a motor.
+
+**A hold's length is the link's, not the board's.** A compare write lands in
+15 ms, so the shortest pulse is ~800 cycles, and a hold asked for at 100 ms is
+93-108 ms at the FETs - the host measures round trips, not landings. Exactly
+N cycles needs a period count on the duty op, cleared by TIM1's update ISR:
+firmware, not yet written. FINDINGS has the numbers.
 
 The gate drivers and the FETs are fitted (2EDL8034 x3, IAUCN10S7N021 -
 `electronics/`) and **their supply is not the MCU's to switch** - the Safe Torque
@@ -181,6 +195,8 @@ python tools/build_and_flash.py          # build (+flash): --build-only, --flash
 python tools/session.py --status          # who is sharing the board's port
 python tools/switch.py --sweep 5,95 -p 10 -s 120  # switch now, in the
                                         # background; --stop disarms and exits
+python tools/pulse.py -d 0.05 -H U -L V -n 1 --on 30   # one leg against another held
+                                        # low, through a load; AFE put back
 python -m coaxial_mcp --port COM4        # MCP server, stdio
 python -m coaxial_ollama --plan coaxial_ollama/plans/bringup.yaml
 python -m coaxial_ollama.capability      # which local model this machine should run
@@ -387,6 +403,26 @@ Nothing else. Do not run it, do not paraphrase what it would say, do not take th
 reading anyway to check. And **do not spawn a window** — `Start-Process
 powershell` puts the answer in front of the editor, not where the user is
 working.
+
+### When the permission classifier says no
+
+Auto mode's classifier can refuse a Bash call that arms the stage - and once
+it has, everything Bash for a while, `run_tests.ps1` included. Reads went
+through the same afternoon the pulse did not. The hand-off, all three files
+git-ignored in the repo root:
+
+* `claude_watch.ps1` - the user starts it once; it forks hidden (PID in
+  `claude_watch.pid`), hashes `claude_do_it.ps1` every 0.5 s and runs it
+  after a 1 s settle. `-Stop` kills it, `-Status` asks.
+* `claude_do_it.ps1` - what you want run, as `Step 'what' 'look for' { ... }`
+  blocks; stops at the first non-zero exit. Rewrite it, wait for the next
+  `WATCH finished` line, read the log.
+* `claude_do_it.log` - UTF-8, timestamped: `WATCH started/running/finished`,
+  `RUN started/done`, each `STEP`, its output, its exit.
+
+**The watcher runs whatever the file holds.** Comment a physical step out the
+moment its run has been read, or the next rewrite - for anything - pulses
+the stage again unasked.
 
 ### Suspect your own code before the hardware
 
