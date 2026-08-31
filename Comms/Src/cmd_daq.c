@@ -217,6 +217,7 @@ static cmd_status_t h_daq_state(wr_t *out)
   wr_u8(out, st.rung);
   wr_u8(out, st.rungs);
   wr_u32(out, st.rung_changes);
+  wr_u32(out, st.triggers);
   return CMD_OK;
 }
 

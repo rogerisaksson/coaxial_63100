@@ -325,6 +325,12 @@ typedef struct
   uint8_t  rung;         /**< which rung of the ladder is running        */
   uint8_t  rungs;        /**< how many the host sent                     */
   uint32_t rung_changes; /**< how often it has climbed or fallen         */
+  /* SWEEPS, not records: what the acquisition loop is actually managing
+     underneath the decimation. A host differentiates it and gets the
+     rate the converter is really running at, which is the number the
+     whole chain is designed against and the only one nothing else
+     reports. */
+  uint32_t triggers;
   board_daq_config_t config;
 } board_daq_state_t;
 

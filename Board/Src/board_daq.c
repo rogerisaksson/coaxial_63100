@@ -54,6 +54,8 @@ static volatile uint32_t s_produced;
    leisure is a level between the peaks, and the peak is what says
    whether the next one drops. */
 static volatile uint32_t s_worst;
+/* Every sweep that reached the accumulator, gated or not. */
+static volatile uint32_t s_triggers;
 
 static board_daq_config_t s_cfg;
 static volatile bool s_running;
@@ -386,6 +388,7 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
     return;                        /* decimated away */
   }
   s_skip = (uint16_t)(s_cfg.decimate - 1U);
+  s_triggers++;
 
   if (s_acc_n == 0U)
   {
@@ -1016,6 +1019,7 @@ void Board_DaqState(board_daq_state_t *out)
   out->rung = s_rung;
   out->rungs = s_rungs_held;
   out->rung_changes = s_rung_changes;
+  out->triggers = s_triggers;
   out->config = s_cfg;
 }
 

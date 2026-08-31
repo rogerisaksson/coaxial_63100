@@ -100,6 +100,10 @@ class Daq(Subsystem, Acquisition):
         else:
             state['rung'] = state['rungs'] = 0
             state['rung_changes'] = 0
+        # SWEEPS, not records: what the loop manages underneath the
+        # decimation. Differentiate it and you have the rate the
+        # chain was designed against, live.
+        state['triggers'] = r.u32() if r.remaining >= 4 else None
         return state
 
     def layout(self):

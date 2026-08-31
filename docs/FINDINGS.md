@@ -2257,3 +2257,46 @@ by construction - and is twice a second now. And the wrapper still had
 the old default: `demos/adc.ps1` passed `-Rate 200` over the view's new
 one, so through the chooser the ring sat at **339 of 356** while a direct
 run sat at 1. A default changed in one of two places is not changed.
+
+## The link off the draw loop, and both buffers on screen
+
+2026-08-31. A view that reads the board in its draw loop runs at the
+LINK's pace: METER BRIDGE spent three round trips a frame, 190 ms of a
+125 ms budget, and every one of them was the terminal sitting still.
+`screen.Feed` runs the reading on its own thread and hands the drawer
+whatever the last one produced. **40 frames went 9.3 s to 6.7 s.**
+
+**No lock, and that is the design rather than a shortcut.** The reader
+builds a whole object and assigns it to ONE attribute; the drawer reads
+that attribute once. An assignment is atomic under the GIL, so a frame
+draws one consistent snapshot and never half of two, and a lock would put
+the latency back in the draw loop - the thing being removed. The records
+cross in a `deque`, whose append and popleft are atomic for the same
+reason. ONE THREAD TOUCHES THE LINK: a serial transport is not
+re-entrant, so the drawer reads `latest` and nothing else, and the feed
+is stopped before anything starts putting the board back.
+
+**Both ends of the pipe are on screen**, because either can be the one
+that fills - and the first arrangement blamed the wrong one. With the
+reader's period tied to the frame rate, a terminal drawing once a second
+read twice a second and the TARGET ring overflowed: **356 of 356, 208
+dropped**, for a slowness that was entirely the terminal's. The reader's
+job is to keep the board's ring empty, which is the link's business and
+not the screen's, so its period is 10 ms and fixed. Same run after:
+**HOST peak 129, TARGET peak 8, 0 dropped.**
+
+The host's queue also had to become a real one. The reader replaced its
+last result each pass, so whatever the frame had not drawn went with it -
+a silent host-side drop. It is a bounded deque now and counts what it
+has to evict.
+
+**And the meter runs a real low-pass.** It was a clock-closed window,
+which averages but shapes nothing; it designs a Bessel against the loop
+rate it measures and shows what it got - cutoff 1.60 Hz at order 4,
+-26 dB of what would fold, sum 47 and keep one in three. The box reports
+the loop's rate LIVE off the board's own trigger count beside the figure
+the chain was designed against: **1398 sweeps/s against 1127 designed**,
+because the measuring run and the drawing run do not load the link the
+same way. Where the loop cannot be measured at all - the stand-in
+produces only when read, so it measures zero - there is nothing to design
+a chain against, and the window is the fallback rather than a traceback.

@@ -7,6 +7,7 @@ lives in two files.
 """
 import re
 import sys
+import threading
 
 from coaxial import ansi
 from coaxial.errors import (DeviceStateError, NoReplyError,  # noqa: E402
@@ -198,6 +199,70 @@ def gauge(fraction, width, hot=0.85):
     filled = int(round(fraction * width))
     bar = '=' * filled + tint('-' * (width - filled), ASH)
     return tint(bar, SODIUM) if fraction >= hot else bar
+
+
+class Feed:
+
+    """The board read on its own thread, so a frame draws at the screen's
+    pace rather than the link's.
+
+    A view that reads in its draw loop runs at the link's pace: measured on
+    METER BRIDGE, a frame spending three round trips took 190 ms of a
+    125 ms budget, and every one of them was the terminal sitting still.
+    This runs `read()` over and over in the background and hands the drawer
+    whatever the last one produced.
+
+    NO LOCK, deliberately. The reader builds a whole new object and assigns
+    it to ONE attribute; the drawer reads that attribute once. An
+    assignment is atomic under the GIL, so a frame draws one consistent
+    snapshot and never half of two. A lock would put the link's latency
+    back in the draw loop, which is the thing being taken out.
+
+    ONE THREAD TOUCHES THE LINK. That is the other half of the contract: a
+    serial transport is not re-entrant, so the drawer must read `latest`
+    and nothing else. What comes back is the caller's own object - this
+    knows nothing about what is in it.
+    """
+
+    def __init__(self, read, period=0.0):
+        self.read = read
+        self.period = period
+        self.latest = None
+        self.error = None
+        self.reads = 0
+        self._stop = threading.Event()
+        self._thread = None
+
+    def start(self):
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        return self
+
+    def _run(self):
+        import time as _time
+
+        while not self._stop.is_set():
+            try:
+                got = self.read()
+            except Exception as exc:                     # noqa: BLE001
+                # The board's own sentence, kept for the drawer to show.
+                # Raising here would kill the thread and freeze the view on
+                # its last frame with nothing saying why.
+                self.error = exc
+            else:
+                self.error = None
+                self.latest = got
+                self.reads += 1
+            if self.period:
+                _time.sleep(self.period)
+
+    def stop(self, wait=1.0):
+        """Ask it to stop and wait, so nothing touches the link after the
+        caller starts putting the board back."""
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(wait)
+        return self
 
 
 def open_rig(banner, **kwargs):
