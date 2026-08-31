@@ -1384,7 +1384,7 @@ class SimulatedDaq(Acquisition):
                             'decimate': 0, 'accumulate': 0, 'records': 0}
         return {'running': self._running, 'done': self._done,
                 'lost_power': False,
-                'stride': 4 + 4 * len(self._order), 'fields': len(self._order),
+                'stride': self._stride(), 'fields': len(self._order),
                 'available': 0, 'produced': self._produced, 'dropped': 0,
                 **cfg}
 
@@ -1399,8 +1399,18 @@ class SimulatedDaq(Acquisition):
             fields.append({'channel': i, 'unit': unit, 'differential': diff,
                            'signal': signal})
         pins = list(self.PINS) if (self._cfg or {}).get('digital') else []
-        return {'stride': 4 + 4 * len(self._order) + (4 if pins else 0),
-                'fields': fields, 'pins': pins}
+        return {'stride': self._stride(), 'fields': fields, 'pins': pins}
+
+    def _stride(self):
+        """The record's width, by the board's own arithmetic: the
+        timestamp, one sum per field, the digital word when the task has
+        one, and the sample count that closes every record.
+
+        One formula, not two: the stand-in quoted a stride two bytes
+        short of the board's the day the count was appended, and a
+        stride is exactly what a host decodes by."""
+        digital = 4 if (self._cfg or {}).get('digital') else 0
+        return 4 + 4 * len(self._order) + digital + 2
 
     def _resolve(self, channels):
         if isinstance(channels, int):
