@@ -270,9 +270,64 @@ def hud(title, rows):
                  padding=(0, 1), expand=True)
 
 
+#: The marquee's pace: cells per second of travel, and the hold at each
+#: end so the reader gets a full look before it turns back.
+SLIDE_CPS = 5.0
+SLIDE_HOLD = 1.2
+
+
+def _slide(extra):
+    """Where the window sits over art `extra` cells too wide: a ping-pong
+    on the wall clock, held at each end. Wall time rather than a frame
+    count, so every view slides at one pace whatever it redraws at."""
+    import time
+
+    travel = extra / SLIDE_CPS
+    cycle = 2.0 * (travel + SLIDE_HOLD)
+    t = time.monotonic() % cycle
+    if t < SLIDE_HOLD:
+        return 0
+    t -= SLIDE_HOLD
+    if t < travel:
+        return int(extra * t / travel)
+    t -= travel
+    if t < SLIDE_HOLD:
+        return extra
+    return int(extra * (1.0 - (t - SLIDE_HOLD) / travel))
+
+
+class Marquee:
+
+    """Art cropped to its frame instead of wrapped, slid back and forth
+    when it is wider: the bars shorten, and the hidden end comes past on
+    the slide. Content is single-cell glyphs, so character index and
+    display cell agree."""
+
+    def __init__(self, art):
+        self.lines = [Text.from_ansi(line) for line in art.split('\n')]
+        for line in self.lines:
+            line.no_wrap, line.overflow = True, 'crop'
+        self.wide = max((l.cell_len for l in self.lines), default=0)
+
+    def __rich_measure__(self, _console, options):
+        from rich.measure import Measurement
+        return Measurement(min(self.wide, options.max_width), self.wide)
+
+    def __rich_console__(self, _console, options):
+        width = options.max_width
+        extra = self.wide - width
+        at = _slide(extra) if extra > 0 else 0
+        for line in self.lines:
+            if at or line.cell_len > width:
+                line = line[at:at + width]
+                line.no_wrap, line.overflow = True, 'crop'
+            yield line
+
+
 def viewport(title, art):
-    """The drawing, centred in a heavy frame that owns its region."""
-    return Panel(Align(Text.from_ansi(art), align='center',
+    """The drawing, centred in a heavy frame that owns its region. Too
+    wide for the frame, it crops and slides rather than wraps."""
+    return Panel(Align(Marquee(art), align='center',
                        vertical='middle'),
                  title=Text(' %s ' % title, style='name'),
                  title_align='left', box=box.HEAVY, border_style='frame',

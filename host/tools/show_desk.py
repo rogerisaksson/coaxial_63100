@@ -197,7 +197,7 @@ def main(argv=None):
         columns = os.get_terminal_size().columns
     except OSError:
         columns = 100
-    gate_drivers = desk.Desk(bar=max(38, min(80, columns - 68)))
+    gate_drivers = desk.Desk(bar=max(20, min(80, columns - 72)))
     period = 1.0 / max(args.hz, 0.5)
     frame = 0
 
@@ -212,6 +212,11 @@ def main(argv=None):
         with curtain(board_view) as show, Keys(console) as keys:
             while True:
                 boxes = []
+                # Re-fitted every frame: the bars shrink with the tty
+                # instead of overflowing the frame and sliding. 72 is
+                # labels (~44) plus the instrument column's share.
+                width = board_view.size.width or 100
+                gate_drivers.bar = max(20, min(80, width - 72))
                 try:
                     live = rig.latest()
                     rows = scale(rows_from(live, layout), params)

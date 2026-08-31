@@ -104,13 +104,17 @@ def roster(picked):
     lines = [Text('')]
     for i, (key, name, what) in enumerate(ENTRIES):
         if i == picked:
-            lines.append(Text.assemble(('  > ', 'value'), (key, 'value'),
-                                       ('  ', ''), (name, 'value'),
-                                       ('   ' + what, 'label')))
+            row = Text.assemble((' > ', 'value'), (key, 'value'),
+                                ('  ', ''), (name, 'value'),
+                                ('   ' + what, 'label'))
         else:
-            lines.append(Text.assemble('    ', (key, 'label'), ('  ', ''),
-                                       (name, 'label'),
-                                       ('   ' + what, 'label')))
+            row = Text.assemble('   ', (key, 'label'), ('  ', ''),
+                                (name, 'label'),
+                                ('   ' + what, 'label'))
+        # Cropped, never wrapped: on a narrow tty a wrapped row doubled
+        # the list's height and the page scrolled.
+        row.no_wrap, row.overflow = True, 'ellipsis'
+        lines.append(row)
         lines.append(Text(''))
     return Group(*lines)
 
@@ -118,14 +122,16 @@ def roster(picked):
 def asking(who):
     """The chat sub-list: the same quiet rows, only the pick lit."""
     lines = [Text(''),
-             Text.assemble('    ', ('BOARD CHAT', 'name'),
+             Text.assemble('   ', ('BOARD CHAT', 'name'),
                            ('   who answers', 'label')),
              Text('')]
     for i, (key, name, what) in enumerate(WHO):
         style = 'value' if i == who else 'label'
-        lines.append(Text.assemble(('  > ' if i == who else '    ',
-                                    'value'), (key, style), ('  ', ''),
-                                   (name, style), ('   ' + what, 'label')))
+        row = Text.assemble((' > ' if i == who else '   ', 'value'),
+                            (key, style), ('  ', ''),
+                            (name, style), ('   ' + what, 'label'))
+        row.no_wrap, row.overflow = True, 'ellipsis'
+        lines.append(row)
         lines.append(Text(''))
     return Group(*lines)
 
@@ -247,19 +253,24 @@ def compose(port, picked, view, size=None, who=None):
     from rich.align import Align
 
     tall = max(8, (size.height if size else 24) - 4)
+    # The stand never outgrows the menu: at most BOX columns, at most
+    # half the terminal - on a small tty the board shrinks, the list
+    # does not.
+    wide = min(BOX, max(26, (size.width if size else 100) // 2))
     body = Layout()
     body.split_row(
         Layout(Panel(asking(who) if who is not None else roster(picked),
                      box=box.ROUNDED,
                      title=Text(' MAIN TERMINAL ACCESS ', style='name'),
                      title_align='left', border_style='frame.hud',
-                     padding=(1, 2), expand=True),
+                     padding=(1, 1), expand=True),
                name='list'),
-        Layout(Panel(Align(Text.from_ansi(turntable(view, BOX - 4, tall)),
+        Layout(Panel(Align(Text.from_ansi(turntable(view, wide - 4, tall)),
                            align='center', vertical='middle'),
                      title=Text(' COAXIAL 63100 ', style='name'),
                      title_align='left', box=box.HEAVY, border_style='frame',
-                     padding=(0, 1), expand=True), name='board', size=BOX))
+                     padding=(0, 1), expand=True), name='board',
+               size=wide))
 
     whole = Layout()
     whole.split_column(

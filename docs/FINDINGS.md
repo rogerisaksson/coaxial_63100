@@ -1831,5 +1831,5 @@ Two halves, both measured on the bench:
   own leases.
 
 The keepalive shares the transport lock, so a timed write can queue behind
-one version read - ~30 ms worst case. The cycle-counted duty (TODO item 6)
+one version read - ~30 ms worst case. The cycle-counted duty (TODO item 8)
 is still the honest fix for exact holds.

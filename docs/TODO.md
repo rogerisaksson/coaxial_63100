@@ -67,13 +67,26 @@ Nothing else has - invariant 7.
    duty on a cold dry board, against a simulated worst-corner need of 65
    ns. The skew parameter is untested and 0: the one experiment ran on a
    board that was resetting between steps.
-5. **A USB device class**, if USB is to do anything.
-6. **A cycle-counted duty.** A hold's length is the link's: the shortest is
+5. **Double-pulse at the voltage ladder.** An inductor on the bench, a
+   scope on the phase node, `pulse.py`'s path: t_r/t_f, overshoot
+   against the FETs' 100 V class, dead-time adequacy and body-diode
+   recovery, stepped 20 -> 31 -> 45 -> 63 V - one stress variable at a
+   time. Same rig as item 4, three measurements in one probe setup;
+   op 10 already makes the alternating train.
+6. **The observer's losses do not scale with temperature.** `rds_on`
+   is 1.8 mOhm flat (`Thermal/Src/thermal.c`); a 100 V Si FET's tempco
+   is ~+0.6-0.8 %/K, so a 100 C junction conducts at ~1.5-1.7x the
+   model - under-estimated exactly where margins thin. First order:
+   `rds_25 * (1 + alpha * (Tj - 25))` fed back from the leg's own node
+   estimate, alpha off the datasheet, verified against the camera in a
+   soak.
+7. **A USB device class**, if USB is to do anything.
+8. **A cycle-counted duty.** A hold's length is the link's: the shortest is
    one write round trip, ~800 periods, and 100 ms asked for is 93-108 at the
    FETs. A period count on the duty op, decremented in TIM1's update ISR and
    zeroing the compares at zero, makes 10 ms exactly 500 cycles. Op 10
    `alternate` (2026-08-30) shows the ISR already owns the compares.
-7. **`0x41`'s description still says "no timer, no PWM, no gate drive"** -
+9. **`0x41`'s description still says "no timer, no PWM, no gate drive"** -
    `cmd_board.c`, one string, stale since TIM1 armed. The board should not
    describe itself wrongly; a reflash fixes it.
 
