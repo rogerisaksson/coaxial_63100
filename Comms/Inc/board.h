@@ -396,8 +396,19 @@ const char *Board_DaqSetFilter(const void *sections, uint8_t count,
   *
   * `hz` of 0 turns it off and the converter is the source again.
   */
+/** What the generator makes. SINE is for the filter - it has a
+  * frequency, so the chain's answer to it is a gain and a phase. RAMP is
+  * for the transport: `offset + (n * hz) mod amplitude`, an integer
+  * sequence a host can compute in closed form, so every record can be
+  * checked EXACTLY rather than statistically. A float rotation cannot be
+  * - reproducing single-precision arithmetic on the host to the last bit
+  * is not a test of the link, it is a test of two compilers. */
+#define BOARD_DAQ_TONE_SINE 0U
+#define BOARD_DAQ_TONE_RAMP 1U
+
 const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
-                             int32_t amplitude, int32_t offset);
+                             int32_t amplitude, int32_t offset,
+                             uint8_t kind);
 
 /** Advance the tone generator. Called from the main loop; does nothing
   * unless a tone is on and a task is running. */

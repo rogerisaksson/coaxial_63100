@@ -411,11 +411,15 @@ class Coaxial63100(Acquisition):
         self.board.daq.shape(sections, decimate)
         return self
 
-    def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768):
-        """A known sine in the converter's place - for proving the path
-        carried every sample, not for measuring anything. `hz=0` puts the
-        converter back."""
-        self.board.daq.tone(hz, rate_hz, amplitude, offset)
+    def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768, kind=0):
+        """A known sequence in the converter's place - for proving the
+        path carried every sample, not for measuring anything.
+
+        `kind` 0 is a sine at `hz`; 1 is a ramp, `offset + (n * hz) mod
+        amplitude`, which a host computes in closed form so every record
+        can be checked exactly. `hz=0` puts the converter back.
+        """
+        self.board.daq.tone(hz, rate_hz, amplitude, offset, kind)
         return self
 
     def start(self):

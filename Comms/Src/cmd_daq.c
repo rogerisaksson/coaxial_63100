@@ -70,13 +70,17 @@ static cmd_status_t h_daq_tone(rd_t *in, wr_t *out)
   const uint32_t rate = rd_u32(in);
   const int32_t amplitude = rd_i32(in);
   const int32_t offset = rd_i32(in);
+  /* Appended: a request without it is a sine, which is what the op
+     meant before there was anything else to be. */
+  const uint8_t kind = (rd_left(in) > 0U) ? rd_u8(in)
+                                          : (uint8_t)BOARD_DAQ_TONE_SINE;
 
   if (!rd_ok(in))
   {
     return CMD_ERR_LENGTH;
   }
 
-  cmd_took(out, Board_DaqSetTone(hz, rate, amplitude, offset));
+  cmd_took(out, Board_DaqSetTone(hz, rate, amplitude, offset, kind));
   return CMD_OK;
 }
 

@@ -199,7 +199,14 @@ class Daq(Subsystem, Acquisition):
         self.took(self._op(DAQ_OP_FILTER, payload))
         return True
 
-    def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768):
+    #: What the generator makes. SINE has a frequency, so the chain's
+    #: answer to it is a gain and a phase. RAMP is `offset + (n * hz) mod
+    #: amplitude`, an integer sequence a host computes in closed form -
+    #: which is what lets every record be checked exactly rather than
+    #: statistically.
+    SINE, RAMP = 0, 1
+
+    def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768, kind=0):
         """A known sine in the converter's place, or `hz=0` for the
         converter again.
 
@@ -209,8 +216,9 @@ class Daq(Subsystem, Acquisition):
         shows up as a phase that jumped rather than as nothing at all.
         """
         self.took(self._op(DAQ_OP_TONE,
-                           struct.pack('>IIii', int(hz), int(rate_hz),
-                                       int(amplitude), int(offset))))
+                           struct.pack('>IIiiB', int(hz), int(rate_hz),
+                                       int(amplitude), int(offset),
+                                       int(kind))))
         return True
 
     def start(self):

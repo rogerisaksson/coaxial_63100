@@ -1469,7 +1469,7 @@ class SimulatedDaq(Acquisition):
         self._shape = (len(sections), int(decimate))
         return True
 
-    def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768):
+    def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768, kind=0):
         """Remembered, not generated: proving a transfer needs the real
         ring and the real link, which is what the tone is for."""
         self._tone = (int(hz), int(rate_hz))

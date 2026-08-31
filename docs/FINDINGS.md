@@ -2077,3 +2077,72 @@ arithmetic are honest, not that the front end's noise folds the way the
 design predicts. And the converter is still polled one channel per main
 loop turn - 13.2 k conversions/s - so the 3.75 Msps the silicon can do
 needs a DMA path that does not exist yet.
+
+## Every record exact, and what the chain costs the main loop
+
+2026-08-31. The sine passes judge a gain and a phase, which are
+aggregates. A ramp - `offset + (n * step) mod modulus` - is an integer
+sequence a host computes in closed form, so every record can be checked
+EXACTLY. A float rotation cannot be: reproducing single-precision
+arithmetic on the host to the last bit tests two compilers, not a link.
+
+`tools/daq_integrity.py`, 64 samples summed and every 4th boxcar kept,
+the ramp at 4093 (prime, so its period shares no factor with the record
+length):
+
+| | measured |
+|---|---|
+| the transport | **600 records, one candidate start, and under it every record is the exact integer** |
+| both fields | the same sample in all 600, so no stride slipped |
+| the sample count | 64 on every record, no exceptions |
+| through 2 biquads | worst **0.0110 codes of 4093** against the same filter in float64 - 2.7 ppm, which is float32 in the biquad state |
+| the ring | 0 dropped, peak 4 of 1170 |
+
+**Which boxcar the first record came from is not on the wire**, and one
+record does not pin it down: a ramp's sum over a window is piecewise
+linear in where the window starts, so several starts give the same
+total - three, over 8192 searched, all the same phase one period apart.
+So the question asked is the one that matters: is there a place these
+records could have come from where every one is exactly right? A stream
+with a record missing, repeated or altered has none. Searching 512
+boxcars - the first is `decimate-1`, and 512 is under one ramp period -
+leaves exactly one.
+
+Two criteria had to be made criteria first. Asking for the sine passes'
+1 MHz made 3906 records a second against the couple of hundred the link
+drains, and the ring said so exactly - **1192 dropped, peak 1170 of
+1170**; an exactness test on a stream with holes in it tests nothing.
+And the filter error was read relative to the sample, which near the
+start is nearly zero: 1.3e-3 at record 0 against nothing wrong. In codes
+it is 0.011.
+
+## What the chain costs the main loop
+
+Off the board's own keepalive gap, the instrument that already answers
+this. t1.5 is 143 us at 115200 and is the budget: past it RTU discards a
+frame.
+
+| | worst gap | samples/s |
+|---|---|---|
+| idle, no task | 24.2 us | - |
+| the converter polled, accumulate 64 | 34.6 us | 8 626 |
+| ramp, no biquads | 86.4 us | 580 017 |
+| ramp + 4 biquads | 84.9 us | 586 000 |
+
+**The biquads are free and the boxcar is the cost.** They run on what
+the boxcar dumped - one call per 250 samples - so an eighth-order chain
+measures the same as none at all, twice, and 3 MHz asked for gives the
+same 580 k as 1 MHz: the ceiling is the loop, not the arithmetic.
+
+**A generated sample costs 440 cycles** through `feed()` with two
+fields, not the 40 that was estimated - which is why the burst bound
+matters. At 256 the worst gap was **262 us**, over t1.5 by itself; at 64
+it is 86 us. Throughput fell 870 k to 580 k for it, because the loop is
+generator-dominated and the rest of a turn is only ~51 us. That is the
+right trade: a test source must not endanger the link it is testing.
+
+**The converter is still polled one channel a turn** - 8 626 sweeps a
+second - so the 3.75 Msps the silicon can do (16 bit, 1.5-cycle
+sampling, 37.5 MHz ADC clock) needs continuous conversion and DMA, which
+this firmware does not have. The generator's 580 k is what a main loop
+can carry, not what the ADC could.

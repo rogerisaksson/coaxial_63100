@@ -101,6 +101,9 @@ static bool             s_filtering;
    would cost a millisecond. Renormalised every so often - the rotation
    is stable in phase and creeps in magnitude. */
 static bool     s_tone_on;
+static uint8_t  s_tone_kind;
+static uint32_t s_tone_step;        /* the ramp's increment a sample   */
+static int32_t  s_tone_mod;         /* and what it counts up to        */
 static float    s_tone_cos;         /* per-sample rotation             */
 static float    s_tone_sin;
 static float    s_tone_x = 1.0f;    /* the rotating unit vector        */
@@ -519,7 +522,8 @@ const char *Board_DaqSetFilter(const void *sections, uint8_t count,
 
 
 const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
-                             int32_t amplitude, int32_t offset)
+                             int32_t amplitude, int32_t offset,
+                             uint8_t kind)
 {
   if (hz == 0U)
   {
@@ -528,13 +532,35 @@ const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
   }
   if (rate_hz == 0U)
   {
-    return "a tone needs a sample rate to be a frequency at all";
+    return "a generator needs a sample rate to be anything at all";
+  }
+  if (kind > BOARD_DAQ_TONE_RAMP)
+  {
+    return "kind is 0 for a sine or 1 for a ramp";
+  }
+  if (kind == BOARD_DAQ_TONE_RAMP)
+  {
+    if (amplitude < 2)
+    {
+      return "a ramp counts up to `amplitude`, so it needs at least 2";
+    }
+    s_tone_kind = kind;
+    s_tone_step = hz;
+    s_tone_mod = amplitude;
+    s_tone_offset = (float)offset;
+    s_tone_cycles = SystemCoreClock / rate_hz;
+    s_tone_at = Board_Cycles();
+    s_tone_owed = 0U;
+    s_tone_n = 0U;
+    s_tone_on = true;
+    return NULL;
   }
   if ((hz * 2U) > rate_hz)
   {
     return "a tone at or past half its own sample rate is an alias of "
            "something else - ask for a higher rate or a lower tone";
   }
+  s_tone_kind = BOARD_DAQ_TONE_SINE;
 
   const float step = 2.0f * 3.14159265358979f * (float)hz / (float)rate_hz;
 
@@ -557,6 +583,16 @@ const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
   * every 1024 so the rotation's magnitude cannot creep. */
 static int32_t tone_next(void)
 {
+  if (s_tone_kind == BOARD_DAQ_TONE_RAMP)
+  {
+    /* Integer all the way, so a host computes the same value rather
+       than something within a tolerance of it. */
+    const uint32_t n = s_tone_n++;
+
+    return (int32_t)s_tone_offset +
+           (int32_t)((n * s_tone_step) % (uint32_t)s_tone_mod);
+  }
+
   const float x = (s_tone_x * s_tone_cos) - (s_tone_y * s_tone_sin);
   const float y = (s_tone_x * s_tone_sin) + (s_tone_y * s_tone_cos);
 

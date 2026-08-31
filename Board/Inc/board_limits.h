@@ -169,15 +169,20 @@
   * the link - RTU discards a frame whose characters arrive more than
   * t1.5, 143 us at 115200, apart.
   *
-  * MEASURED, and 4096 was the first number here: the board went silent
-  * on the next 0x6E the moment a tone started, because one burst of
-  * them is milliseconds. 256 costs ~40 cycles a sample - the rotation,
-  * the accumulate over the fields, the amortised record - so about
-  * 22 us at 475 MHz, and a loop turning over at 15 kHz still sustains
-  * 3.8 Msps. What the clamp drops is dropped rather than owed: a debt
-  * carried forward would burst again on the next turn and never
-  * catch up. */
-#define BOARD_DAQ_TONE_BURST 256U
+  * MEASURED TWICE. 4096 was the first number and the board went silent
+  * on the next 0x6E the moment a tone started - one burst of them is
+  * milliseconds. 256 was the second, and the worst keepalive gap went
+  * from 24.9 us idle to 262 us: a SAMPLE COSTS 440 CYCLES through
+  * feed() with two fields, not the 40 that was estimated, so 256 of
+  * them is 237 us and over t1.5 all by itself.
+  *
+  * 64 costs nothing in throughput and buys the budget back: the loop
+  * is generator-dominated while a tone runs, so what it sustains is
+  * one sample per 440 cycles whatever the burst - about 1 Msample/s -
+  * and only the gap scales with the bound. What the clamp drops is
+  * dropped rather than owed: a debt carried forward bursts again next
+  * turn and never catches up. */
+#define BOARD_DAQ_TONE_BURST 64U
 
 /* ---- THE THERMAL OBSERVER ---------------------------------------------- */
 

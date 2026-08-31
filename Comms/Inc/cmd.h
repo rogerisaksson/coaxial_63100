@@ -232,7 +232,8 @@ extern "C" {
 /* MINOR 4: the anti-alias chain, and a tone to prove the path carried it.
    Coefficients cross as Q28 - the wire has no floating point. */
 #define DAQ_OP_FILTER    7U  /**< u8 count, u16 decimate, i32 x 5 x count   */
-#define DAQ_OP_TONE      8U  /**< u32 hz, u32 rate, i32 amp, i32 offset     */
+#define DAQ_OP_TONE      8U  /**< u32 hz, u32 rate, i32 amp, i32 offset,
+                                  u8 kind: 0 sine, 1 ramp                   */
 
 /** Device 7's ops: the cycle counter, latched. Op 0 is meant to be
     BROADCAST - no reply means no turnaround inside the measurement. */

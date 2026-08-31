@@ -139,6 +139,170 @@ def capture(device, chain, hz, args):
     return layout, got, state, span
 
 
+def ramp_record(first_sample, n, step, modulus, offset):
+    """The exact integer a record holds, for `n` ramp samples from
+    `first_sample`. Closed form, so nothing here is a tolerance."""
+    return sum(offset + ((first_sample + i) * step) % modulus
+               for i in range(n))
+
+
+def biquad_run(sections, values):
+    """The cascade in float64, transposed DF2 - the same difference
+    equation `Filter/Src/filter.c` runs, so a per-sample comparison is of
+    the arithmetic and not of two different filters."""
+    state = [[0.0, 0.0] for _ in sections]
+    out = []
+    for x in values:
+        for i, (b0, b1, b2, a1, a2) in enumerate(sections):
+            s1, s2 = state[i]
+            y = b0 * x + s1
+            state[i] = [b1 * x - a1 * y + s2, b2 * x - a2 * y]
+            x = y
+        out.append(x)
+    return out
+
+
+def ramp_capture(device, args, sections, report):
+    """Configure, run the ramp, drain. Shared by both exact passes."""
+    daq = device.daq
+    daq.shape()
+    layout = daq.configure(args.channels.split(','),
+                           accumulate=args.accumulate, digital=False)
+    daq.shape(sections, args.decimate)
+    # A RATE THE LINK CAN DRAIN. The generator does not care, the ring
+    # does: at the sine passes' 1 MHz this chain makes 3906 records a
+    # second against the couple of hundred the link carries, and the ring
+    # reported exactly that - 1192 dropped, peak 1170 of 1170. An exactness
+    # test on a stream with holes in it is a test of nothing.
+    rate = int(args.exact_out * args.accumulate * args.decimate)
+    daq.tone(hz=args.step, rate_hz=rate, amplitude=args.modulus,
+             offset=0, kind=1)
+    daq.start()
+
+    got, began = [], time.time()
+    while len(got) < args.records and time.time() - began < args.seconds:
+        block = daq.acquire()
+        if block:
+            got.extend(block)
+        else:
+            time.sleep(0.002)
+    span = time.time() - began
+    state = daq.state()
+    daq.stop()
+    daq.tone(0)
+    daq.shape()
+
+    report.check('records arrived', len(got) > 32,
+                 '%d in %.2f s' % (len(got), span))
+    report.check('the ring dropped nothing', state['dropped'] == 0,
+                 '%d dropped, peak %s of %s' % (state['dropped'],
+                                                state.get('worst'),
+                                                state.get('capacity')))
+    return layout, got
+
+
+def pass_exact_transport(device, args, report):
+    """EVERY RECORD, EXACTLY. A ramp the host computes in closed form.
+
+    No biquads: what is under test is the buffer, the subsampler and the
+    bus. The board sums `accumulate` consecutive ramp samples into a record
+    and keeps every `decimate`-th boxcar, so each record is one integer
+    with no tolerance anywhere in it - a byte that changed, a record
+    repeated, one dropped or two swapped all fail on the record they touch.
+    """
+    print('\n-- exact: a ramp, %d summed, every %dth kept --'
+          % (args.accumulate, args.decimate))
+    layout, got = ramp_capture(device, args, (), report)
+    if len(got) <= 32:
+        return
+    name = layout['fields'][0]['signal']
+    n, dec = args.accumulate, args.decimate
+
+    # WHICH BOXCAR THE FIRST RECORD CAME FROM IS NOT ON THE WIRE - the
+    # generator starts with the task and the host reads when it can. One
+    # record does not pin it down either: a ramp's sum over a window is
+    # piecewise linear in where the window starts, so several starts give
+    # the same total - three, measured, over 8192 searched. So the question
+    # asked is the one that matters: IS THERE A PLACE THESE RECORDS COULD
+    # HAVE COME FROM where every one of them is exactly right? A stream
+    # with a record missing, repeated or altered has no such place.
+    first = got[0][name]
+    starts = [b for b in range(args.search)
+              if ramp_record(b * n, n, args.step, args.modulus, 0) == first]
+
+    fits, best = [], None
+    for base in starts:
+        wrong = []
+        for k, record in enumerate(got):
+            want = ramp_record((base + k * dec) * n, n, args.step,
+                               args.modulus, 0)
+            if record[name] != want:
+                wrong.append((k, record[name], want))
+                break
+        if not wrong:
+            fits.append(base)
+        elif best is None or wrong[0][0] > best[0][0]:
+            best = wrong
+    report.check('EVERY record is the exact integer it should be',
+                 len(fits) >= 1,
+                 '%d records, %d candidate start(s), %d explain all of them%s'
+                 % (len(got), len(starts), len(fits),
+                    '' if fits or not best else
+                    '; best diverges at %d: got %d want %d' % best[0]))
+
+    counts = sorted(set(r['samples'] for r in got))
+    report.check('and carries the sample count that made it', counts == [n],
+                 'counts seen: %s' % counts)
+
+    # One record, two fields, both fed the same sample: a stride that
+    # slipped would show here and nowhere else.
+    if len(layout['fields']) > 1:
+        other = layout['fields'][1]['signal']
+        report.check('both fields of a record hold the same sample',
+                     all(r[other] == r[name] for r in got),
+                     '%s against %s over %d records'
+                     % (other, name, len(got)))
+
+
+def pass_exact_filter(device, chain, args, report):
+    """The filter, per sample, against the same arithmetic in float64.
+
+    The input is the ramp again - known exactly - so the host runs the very
+    difference equation the board runs and compares record by record. Not a
+    tolerance on a statistic: a tolerance on ONE sample, every one checked.
+    """
+    print('\n-- exact: the same ramp through %d biquads --'
+          % len(chain['sections']))
+    layout, got = ramp_capture(device, args, chain['sections'], report)
+    if len(got) <= 32:
+        return
+    name = layout['fields'][0]['signal']
+    n, dec = args.accumulate, args.decimate
+
+    # The board starts the filter from rest with the task, so the host runs
+    # the whole sequence from the same rest. Every boxcar mean the board
+    # made, in order, is the filter's input.
+    means = [ramp_record(b * n, n, args.step, args.modulus, 0) / float(n)
+             for b in range((len(got) + 2) * dec)]
+    kept = biquad_run(chain['sections'], means)
+
+    # IN CODES, not relative to the sample. The filter starts from rest and
+    # its first outputs are near zero, where a relative error is enormous
+    # and meaningless - 1.3e-3 at record 0, measured, against nothing wrong.
+    # A record is a sum of `n` codes, so dividing by `n` puts the comparison
+    # in the units the data is actually in.
+    worst, at = 0.0, -1
+    for k, record in enumerate(got):
+        want = kept[(k + 1) * dec - 1]
+        error = abs(float(record[name]) / n - want)
+        if error > worst:
+            worst, at = error, k
+    report.check('EVERY sample matches the same filter in double precision',
+                 worst < 0.05,
+                 'worst %.4f codes of a %d-code ramp, at record %d of %d'
+                 % (worst, args.modulus, at, len(got)))
+
+
 def pass_in_band(device, chain, args, report):
     """A tone the chain passes: it must arrive whole and in step."""
     hz = args.tone
@@ -243,6 +407,27 @@ def main(argv=None):
     p.add_argument('--records', type=int, default=600)
     p.add_argument('--seconds', type=float, default=20.0)
     p.add_argument('--channels', default='Phase U,NTC')
+    p.add_argument('--accumulate', type=int, default=64,
+                   help='ramp samples summed into a record, exact passes')
+    p.add_argument('--decimate', type=int, default=4,
+                   help='boxcars kept, one in this many')
+    p.add_argument('--step', type=int, default=1,
+                   help='what the ramp adds each sample')
+    p.add_argument('--modulus', type=int, default=4093,
+                   help='what the ramp counts up to. Prime, so its period '
+                        'and the record length share no factor and exactly '
+                        'one alignment fits')
+    p.add_argument('--exact-out', type=float, default=120.0,
+                   dest='exact_out',
+                   help='records a second for the exact passes. Under what '
+                        'the link drains, so the ring never overflows and '
+                        'the stream has no holes to excuse a mismatch')
+    p.add_argument('--search', type=int, default=512,
+                   help='boxcars searched for where the first record came '
+                        'from. The first is boxcar decimate-1, so a few '
+                        'hundred is ample - and staying under the ramp period '
+                        'keeps the answer unique instead of one hit per '
+                        'period: 8192 found three, all of them the same phase')
     args = p.parse_args(argv)
 
     device = Coaxial63100(port=args.port, power_afe=True,
@@ -275,6 +460,8 @@ def main(argv=None):
           % (chain['boxcar'] * chain['decimate'], chain['out_rate']))
 
     try:
+        pass_exact_transport(device, args, report)
+        pass_exact_filter(device, chain, args, report)
         pass_in_band(device, chain, args, report)
         pass_out_of_band(device, chain, args, report)
     except RigError as exc:
