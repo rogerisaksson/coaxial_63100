@@ -24,7 +24,6 @@ def test_reading_block(report):
     table straight underneath with no gap. The reading is counted and headed
     now, and the trace puts a blank line between blocks.
     """
-    from coaxial import simulated
     from coaxial.simulated import SimulatedSession as Sim
     from coaxial_mcp import tools as mcp
     from coaxial_ollama import debug, language

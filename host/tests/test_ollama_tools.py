@@ -892,7 +892,6 @@ def test_detail(report):
     """A frontier model over MCP can afford the whole description; gemma4:12b
     pays for it out of the same 8192 tokens the readings come out of. The
     text is picked by code, not written twice."""
-    from coaxial_mcp import detail
     from coaxial_ollama import debug
 
     report.check('a tag that names its size decides on the size',
