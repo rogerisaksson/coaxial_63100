@@ -19,10 +19,18 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 
 ## Demos
 
-`.\coaxial_tty.ps1` is the menu - `session` first, seven standalone views and
-the board chat (local llm or claude over MCP); each view is also
-`.\demos\<name>.ps1`. Every one takes
-`-Simulated` (no board) and `-Frames N` (stop after N).
+`.\coaxial_tty.ps1` is the chooser: one script in front of the live views,
+for looking at the board rather than remembering a filename.
+
+| | |
+|---|---|
+| front page | `host/tools/menu.py` - the turning board and the list. The pick comes back in the exit code (101 + position), because capturing stdout would turn the page's console into a pipe |
+| a view | its own process: `demos/<name>.ps1` wrapping `host/tools/show_<name>.py`, given `-Port`, `-Simulated`, `-Frames`. SESSION is `host/tools/demos.py` itself; BOARD CHAT is `show_chat.py`, with `--claude` for ANTHROPIC |
+| leaving a view | 0 (Q) quits the chooser; 64 (ESC, `TO_MENU`) returns to the front page - on the second question the view came from, with it lit; anything else is a failed view, its last lines kept on screen and any key back to the menu |
+| on the way out | `demos.py --leave` opens the port once and stops whatever a view left running, so "nothing was left running" is measured rather than assumed |
+| `-Name` | skips the front page: `session`, `imu`, `angle`, `adc`, `gate_drivers`, `rotor_observer`, `thermal_observer` |
+| `-Simulated` | no cable; every value invented, and every view says SIMULATED across the top |
+| `-Frames N` | a view ends after N frames - how the view suite runs each one |
 
 | view | on the menu |
 |---|---|
@@ -35,9 +43,8 @@ the board chat (local llm or claude over MCP); each view is also
 | `thermal_observer` | THERMAL OBSERVER - thermals estimation |
 | `chat` | BOARD CHAT - CCC, the local llm, or claude over MCP |
 
-MOTOR CONTROLLER and BOARD CHAT ask a second question; ESC in a view under
-either comes back to that question with the view lit, ESC on the front
-page quits.
+MOTOR CONTROLLER and BOARD CHAT ask a second question - which half, who
+answers.
 
 `gate_drivers` is the one that switches. `+ -` duty, `[ ]` step, `A` arm,
 `B` BKIN override, `I` interlock override, `1 2 3 4` run length, `R` run.
@@ -92,14 +99,6 @@ STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --s
 
 A missing cable is not a failing suite: every suite falls back to a
 stand-in that labels itself.
-
-## Ask the board
-
-There is a local model on this machine with the board's tools wired to it.
-
-```powershell
-board_chat -Ask "vad sitter på kortet?"
-```
 
 ## Where things are
 

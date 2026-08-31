@@ -89,8 +89,8 @@ way out:
 
 ## The local model
 
-`board_chat` is the way in ([../README.md](../README.md), *Ask the board*).
-Underneath, `coaxial_ollama` hands the board's tools to a model under
+`board_chat.ps1` is the way in; the chooser's BOARD CHAT page runs the same
+loop. Underneath, `coaxial_ollama` hands the board's tools to a model under
 Ollama, with a Python scope holding the live `board` and an allowlisted
 shell:
 
