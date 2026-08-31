@@ -229,6 +229,10 @@ extern "C" {
 #define DAQ_OP_READ      4U  /**< [u8 want] -> u8 got, then got x stride     */
 #define DAQ_OP_LAYOUT    5U  /**< -> what each field is, named by the board  */
 #define DAQ_OP_LIVE      6U  /**< -> u8 fresh, then the accumulator, reset   */
+/* MINOR 4: the anti-alias chain, and a tone to prove the path carried it.
+   Coefficients cross as Q28 - the wire has no floating point. */
+#define DAQ_OP_FILTER    7U  /**< u8 count, u16 decimate, i32 x 5 x count   */
+#define DAQ_OP_TONE      8U  /**< u32 hz, u32 rate, i32 amp, i32 offset     */
 
 /** Device 7's ops: the cycle counter, latched. Op 0 is meant to be
     BROADCAST - no reply means no turnaround inside the measurement. */
@@ -281,7 +285,7 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 3U        /* 1: gate drivers op 10, alternate
+#define CMD_PROTO_MINOR 4U        /* 1: gate drivers op 10, alternate
                                      2: device 10, the drive; the DC link
                                         appended to gate drivers op 0
                                      3: a daq record ends with u16 count,
@@ -289,7 +293,10 @@ extern "C" {
                                         clock. RESIZES the record, like
                                         the u16 channel mask did - op 5
                                         says the stride and a decoder
-                                        that recomputed it mis-frames  */
+                                        that recomputed it mis-frames
+                                     4: daq op 0 appends the buffer
+                                        level - capacity and the high
+                                        water mark                     */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

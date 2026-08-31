@@ -92,8 +92,8 @@ class Later:
 #: What the acquisition front door answers. A whitelist, not everything:
 #: `daq.write` reaching the pin writer would put the device vocabulary
 #: behind the wrong name.
-DAQ_DOOR = ('configure', 'start', 'stop', 'state', 'acquire', 'latest',
-            'blocks', 'channels', 'outputs')
+DAQ_DOOR = ('configure', 'shape', 'tone', 'start', 'stop', 'state',
+            'acquire', 'latest', 'blocks', 'channels', 'outputs')
 
 
 class DaqView:
@@ -400,6 +400,23 @@ class Coaxial63100(Acquisition):
             accumulate=accumulate, digital=digital, sample_rate=sample_rate,
             **burst)
         return self.layout
+
+    def shape(self, sections=(), decimate=1):
+        """Load the anti-alias chain `coaxial.bessel` designed.
+
+        The chain's boxcar is the task's `accumulate`, so configure with
+        `accumulate=chain['boxcar']` and pass the sections and
+        `chain['decimate']` here. No arguments clears it.
+        """
+        self.board.daq.shape(sections, decimate)
+        return self
+
+    def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768):
+        """A known sine in the converter's place - for proving the path
+        carried every sample, not for measuring anything. `hz=0` puts the
+        converter back."""
+        self.board.daq.tone(hz, rate_hz, amplitude, offset)
+        return self
 
     def start(self):
         """Begin sampling into the board's buffer."""

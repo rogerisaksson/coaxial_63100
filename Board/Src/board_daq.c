@@ -36,7 +36,9 @@
 #include "board_limits.h"
 #include "board.h"
 #include "board_hw.h"
+#include "filter.h"
 
+#include <math.h>
 #include <string.h>
 
 static uint8_t  s_buf[DAQ_BYTES];
@@ -44,6 +46,11 @@ static volatile uint32_t s_head;        /* byte offset of the next write */
 static volatile uint32_t s_tail;        /* byte offset of the next read  */
 static volatile uint32_t s_dropped;
 static volatile uint32_t s_produced;
+/* The fullest the ring has been, in records. Taken where a record is
+   pushed rather than where a host asks: a level read at the host's
+   leisure is a level between the peaks, and the peak is what says
+   whether the next one drops. */
+static volatile uint32_t s_worst;
 
 static board_daq_config_t s_cfg;
 static volatile bool s_running;
@@ -80,6 +87,30 @@ static uint8_t  s_live_any;
 static uint32_t s_live_first;
 static uint32_t s_live_last;
 static uint32_t s_live_digital;
+
+/* The host's anti-alias chain, and one running state per field. The
+   boxcar in `s_chain` is the task's own `accumulate`, set when the
+   filter is loaded and again when the task is configured - one first
+   stage, not two. */
+static filter_design_t  s_chain;
+static filter_channel_t s_filter[BOARD_DAQ_MAX_CHANNELS];
+static bool             s_filtering;
+
+/* The tone generator: a complex rotation, two multiplies a sample, so a
+   burst of thousands costs microseconds where as many sinf() calls
+   would cost a millisecond. Renormalised every so often - the rotation
+   is stable in phase and creeps in magnitude. */
+static bool     s_tone_on;
+static float    s_tone_cos;         /* per-sample rotation             */
+static float    s_tone_sin;
+static float    s_tone_x = 1.0f;    /* the rotating unit vector        */
+static float    s_tone_y;
+static float    s_tone_amp;
+static float    s_tone_offset;
+static uint32_t s_tone_cycles;      /* CYCCNT ticks per tone sample    */
+static uint32_t s_tone_at;          /* when the last sample was made   */
+static uint32_t s_tone_owed;        /* fractional ticks carried over   */
+static uint32_t s_tone_n;
 
 static uint8_t  s_next_field;
 static int32_t  s_pending[BOARD_DAQ_MAX_CHANNELS];
@@ -181,6 +212,13 @@ static void push_record(void)
   {
     put(rec, s_stride);
     s_produced++;
+
+    const uint32_t held = Board_DaqAvailable();
+
+    if (held > s_worst)
+    {
+      s_worst = held;
+    }
   }
   else
   {
@@ -200,6 +238,35 @@ static void push_record(void)
     s_running = false;
     s_done = true;
   }
+}
+
+
+/** The filter's answer for one field, or the sum unchanged.
+  *
+  * The record's field is a SUM and `samples` its divisor, and that does
+  * not change here: the chain's output is a mean, so it goes back on the
+  * wire multiplied by the divisor the record carries. A host divides as
+  * it always did and never learns there was a filter - which is the
+  * point, because the alternative was a second record shape.
+  */
+static bool filtered(uint8_t field, int32_t sum, uint16_t count,
+                     int32_t *out)
+{
+  float y = 0.0f;
+
+  /* THE MEAN, not the sum: the task's accumulate is the chain's first
+     stage and has already run, so what goes into the biquads is what
+     came out of it. Pushing the sum instead multiplied every reading by
+     the count - measured on the board, a 32768-code tone arrived as
+     8.2 million. Divided here rather than in an int, so the precision
+     the accumulate bought is not rounded away first. */
+  if (!filter_push_value(&s_chain, &s_filter[field],
+                         (float)sum / (float)count, &y))
+  {
+    return false;
+  }
+  *out = (int32_t)lrintf(y * (float)count);
+  return true;
 }
 
 
@@ -246,7 +313,10 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
   if (s_cfg.accumulate == 0U)
   {
     /* Closed by the clock. Unsigned elapsed arithmetic, so the CYCCNT
-       wrap costs nothing (invariant 2). */
+       wrap costs nothing (invariant 2). A clock-closed window and a
+       filter are alternatives: a fixed-rate filter needs a fixed
+       decimation, and this window's length is whatever the loop
+       managed. Board_DaqConfigure refuses the pair. */
     if ((uint32_t)(at - s_first_at) >= s_interval_cycles)
     {
       push_record();
@@ -254,10 +324,45 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
     return;
   }
 
-  if (s_acc_n >= s_cfg.accumulate)
+  if (s_acc_n < s_cfg.accumulate)
+  {
+    return;
+  }
+
+  if (!s_filtering)
   {
     push_record();
+    return;
   }
+
+  /* The boxcar has dumped; the shaping and the decimation happen here,
+     and only what comes out of them becomes a record. Every field is
+     pushed so their states stay in step - they share a decimation
+     counter's worth of history, and one field skipped would put the
+     record's channels a sample apart. */
+  bool ready = false;
+
+  for (uint8_t f = 0U; f < s_fields; f++)
+  {
+    int32_t shaped = 0;
+
+    if (filtered(f, s_acc[f], s_cfg.accumulate, &shaped))
+    {
+      s_acc[f] = shaped;
+      ready = true;
+    }
+  }
+
+  if (ready)
+  {
+    push_record();
+    return;
+  }
+
+  /* Swallowed by the decimation: the window is over, so the accumulator
+     starts the next one. */
+  memset(s_acc, 0, sizeof(s_acc));
+  s_acc_n = 0U;
 }
 
 
@@ -348,6 +453,14 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
            "software clock";
   }
 
+  if ((cfg->accumulate == 0U) && s_filtering)
+  {
+    return "a clock-closed record and a filter are alternatives: a "
+           "fixed-rate filter needs a fixed decimation, and a window's "
+           "length is whatever the loop managed. Ask for an accumulate, "
+           "or clear the filter";
+  }
+
   s_cfg = *cfg;
   s_interval_cycles = interval_cycles(cfg->interval_us);
   /* + 2 for the sample count every record carries. */
@@ -364,7 +477,148 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
   s_live_any = 0U;
   memset(s_live, 0, sizeof(s_live));
   memset(s_acc, 0, sizeof(s_acc));
+  memset(s_filter, 0, sizeof(s_filter));
   return NULL;
+}
+
+
+const char *Board_DaqSetFilter(const void *sections, uint8_t count,
+                               uint16_t decimate)
+{
+  if (s_running)
+  {
+    return "a task is running - stop it first, because coefficients "
+           "changing under a half-drained buffer hand out records of "
+           "two filters with nothing to say which was which";
+  }
+  if (count > FILTER_MAX_SECTIONS)
+  {
+    return "the board runs four biquads - an eighth-order Bessel. Ask "
+           "the design for a lower order";
+  }
+  if (decimate == 0U)
+  {
+    return "decimate counts filtered samples per record, so the "
+           "smallest is 1";
+  }
+
+  filter_pass_through(&s_chain);
+  s_chain.decimate = decimate;
+  s_chain.sections = count;
+  if (count > 0U)
+  {
+    memcpy(s_chain.section, sections,
+           (size_t)count * sizeof(s_chain.section[0]));
+  }
+  /* The task's accumulate IS the boxcar. One first stage. */
+  s_chain.boxcar = 1U;
+  s_filtering = (count > 0U) || (decimate > 1U);
+  memset(s_filter, 0, sizeof(s_filter));
+  return NULL;
+}
+
+
+const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
+                             int32_t amplitude, int32_t offset)
+{
+  if (hz == 0U)
+  {
+    s_tone_on = false;
+    return NULL;
+  }
+  if (rate_hz == 0U)
+  {
+    return "a tone needs a sample rate to be a frequency at all";
+  }
+  if ((hz * 2U) > rate_hz)
+  {
+    return "a tone at or past half its own sample rate is an alias of "
+           "something else - ask for a higher rate or a lower tone";
+  }
+
+  const float step = 2.0f * 3.14159265358979f * (float)hz / (float)rate_hz;
+
+  s_tone_cos = cosf(step);
+  s_tone_sin = sinf(step);
+  s_tone_x = 1.0f;
+  s_tone_y = 0.0f;
+  s_tone_amp = (float)amplitude;
+  s_tone_offset = (float)offset;
+  s_tone_cycles = SystemCoreClock / rate_hz;
+  s_tone_at = Board_Cycles();
+  s_tone_owed = 0U;
+  s_tone_n = 0U;
+  s_tone_on = true;
+  return NULL;
+}
+
+
+/** One tone sample: the unit vector turned by one step, renormalised
+  * every 1024 so the rotation's magnitude cannot creep. */
+static int32_t tone_next(void)
+{
+  const float x = (s_tone_x * s_tone_cos) - (s_tone_y * s_tone_sin);
+  const float y = (s_tone_x * s_tone_sin) + (s_tone_y * s_tone_cos);
+
+  s_tone_x = x;
+  s_tone_y = y;
+  if ((++s_tone_n & 1023U) == 0U)
+  {
+    const float size = sqrtf((x * x) + (y * y));
+
+    if (size > 1e-6f)
+    {
+      s_tone_x = x / size;
+      s_tone_y = y / size;
+    }
+  }
+  return (int32_t)lrintf(s_tone_offset + (s_tone_amp * s_tone_y));
+}
+
+
+void Board_DaqTonePoll(void)
+{
+  if (!s_tone_on || !s_running || (s_tone_cycles == 0U) ||
+      (s_cfg.clock != BOARD_DAQ_CLOCK_SOFTWARE))
+  {
+    return;
+  }
+
+  /* EXACTLY the samples the elapsed time owed, and the remainder is
+     carried rather than dropped: a generator that rounded down every
+     turn would run slow by a fraction of a sample per poll, and a host
+     checking phase would see the drift and call it a lost record. */
+  const uint32_t now = Board_Cycles();
+  const uint32_t elapsed = (uint32_t)(now - s_tone_at) + s_tone_owed;
+  uint32_t owed = elapsed / s_tone_cycles;
+
+  s_tone_owed = elapsed - (owed * s_tone_cycles);
+  s_tone_at = now;
+
+  /* A burst is bounded so one long gap cannot hold the main loop past a
+     frame boundary - RTU discards a frame whose characters arrive more
+     than t1.5 apart, and this runs beside the link. */
+  if (owed > BOARD_DAQ_TONE_BURST)
+  {
+    owed = BOARD_DAQ_TONE_BURST;
+  }
+
+  for (uint32_t i = 0U; i < owed; i++)
+  {
+    const int32_t sample = tone_next();
+
+    for (uint8_t f = 0U; f < s_fields; f++)
+    {
+      s_pending[f] = sample;
+    }
+    feed(s_pending, now, 0U);
+  }
+}
+
+
+bool Board_DaqToneOn(void)
+{
+  return s_tone_on;
 }
 
 
@@ -394,8 +648,12 @@ const char *Board_DaqStart(void)
   s_tail = 0U;
   s_dropped = 0U;
   s_produced = 0U;
+  s_worst = 0U;
   s_done = false;
   s_lost_power = false;
+  s_tone_at = Board_Cycles();
+  s_tone_owed = 0U;
+  memset(s_filter, 0, sizeof(s_filter));
   s_skip = 0U;
   s_next_field = 0U;
   s_acc_n = 0U;
@@ -516,6 +774,11 @@ void Board_DaqState(board_daq_state_t *out)
   out->available = Board_DaqAvailable();
   out->produced = s_produced;
   out->dropped = s_dropped;
+  /* What the ring holds at this stride, not what it holds in bytes: a
+     level is a fraction of something, and DAQ_BYTES is not what a host
+     counts records against. */
+  out->capacity = (s_stride != 0U) ? (DAQ_BYTES / s_stride) : 0U;
+  out->worst = s_worst;
   out->config = s_cfg;
 }
 
@@ -567,6 +830,15 @@ void Board_DaqPoll(void)
 
   if (!s_running || (s_cfg.clock != BOARD_DAQ_CLOCK_SOFTWARE) || !powered())
   {
+    return;
+  }
+
+  /* The generator is a SOURCE, in the converter's place: with a tone on,
+     the meter is not read at all, so what the ring holds is arithmetic
+     with a known answer and nothing of the board's analog front end. */
+  if (s_tone_on)
+  {
+    Board_DaqTonePoll();
     return;
   }
 

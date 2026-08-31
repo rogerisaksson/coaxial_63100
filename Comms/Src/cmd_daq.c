@@ -12,6 +12,7 @@
   */
 #include "cmd.h"
 #include "board.h"
+#include "filter.h"
 #include "dev_serial.h"
 #include "wire.h"
 
@@ -19,6 +20,65 @@
     whole records only - half of one is not a short read, it is a corrupt
     one, and the host has no way to tell the difference. */
 #define DAQ_REPLY_ROOM 240U
+
+
+/** Coefficients cross as Q28: the wire has no floating point (PROTOCOL,
+  * the header), and a biquad's a1 reaches -2, so a scale of 2^28 leaves
+  * a range of +/-8 and a resolution of 4e-9 - three orders inside what
+  * a float carries anyway. */
+#define DAQ_COEFF_SHIFT 28
+#define DAQ_COEFF_SCALE 268435456.0f
+
+
+/** op 7 - the anti-alias chain the host designed. */
+static cmd_status_t h_daq_filter(rd_t *in, wr_t *out)
+{
+  const uint8_t count = rd_u8(in);
+  const uint16_t decimate = rd_u16(in);
+  filter_biquad_t sections[FILTER_MAX_SECTIONS];
+
+  if (count > FILTER_MAX_SECTIONS)
+  {
+    cmd_took(out, "the board runs four biquads - an eighth-order "
+                  "Bessel. Ask the design for a lower order");
+    return CMD_OK;
+  }
+
+  for (uint8_t i = 0U; i < count; i++)
+  {
+    sections[i].b0 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].b1 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].b2 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].a1 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].a2 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+  }
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+
+  cmd_took(out, Board_DaqSetFilter(sections, count, decimate));
+  return CMD_OK;
+}
+
+
+/** op 8 - a known tone in the converter's place. */
+static cmd_status_t h_daq_tone(rd_t *in, wr_t *out)
+{
+  const uint32_t hz = rd_u32(in);
+  const uint32_t rate = rd_u32(in);
+  const int32_t amplitude = rd_i32(in);
+  const int32_t offset = rd_i32(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+
+  cmd_took(out, Board_DaqSetTone(hz, rate, amplitude, offset));
+  return CMD_OK;
+}
 
 
 static cmd_status_t h_daq_state(wr_t *out)
@@ -48,6 +108,10 @@ static cmd_status_t h_daq_state(wr_t *out)
   wr_u8(out, st.config.digital);
   wr_u32(out, st.config.interval_us);
   wr_u32(out, cmd_link_records_per_second(st.stride));
+  /* Appended (MINOR 4): the buffer level as the board measures it -
+     what the ring holds at this stride, and the fullest it has been. */
+  wr_u32(out, st.capacity);
+  wr_u32(out, st.worst);
   return CMD_OK;
 }
 
@@ -292,6 +356,8 @@ cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out)
     case DAQ_OP_READ:      return h_daq_read(in, out);
     case DAQ_OP_LAYOUT:    return h_daq_layout(out);
     case DAQ_OP_LIVE:      return h_daq_live(out);
+    case DAQ_OP_FILTER:    return h_daq_filter(in, out);
+    case DAQ_OP_TONE:      return h_daq_tone(in, out);
     default:               return CMD_ERR_VALUE;
   }
 }

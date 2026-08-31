@@ -32,6 +32,13 @@ DAQ_OP_STOP = 3
 DAQ_OP_READ = 4
 DAQ_OP_LAYOUT = 5
 DAQ_OP_LIVE = 6
+DAQ_OP_FILTER = 7
+DAQ_OP_TONE = 8
+
+#: Coefficients cross as Q28 - the wire carries no floating point, and a
+#: biquad's a1 reaches -2, so 2^28 leaves a range of +/-8 and a
+#: resolution three orders inside what a float holds anyway.
+COEFF_SCALE = 1 << 28
 
 #: BOARD_UNIT_* as Comms/Inc/board.h numbers them. Getting this wrong
 #: labelled the NTC 'mV' and the DC bus 'mA' without changing a value.
@@ -47,10 +54,15 @@ class Daq(Subsystem, Acquisition):
                             bytes([protocol.DEVICE_DAQ, op]) + bytes(payload))
 
     def state(self):
-        """What the task is, and what it has produced."""
+        """What the task is, what it has produced, and how full it is.
+
+        `available` against `capacity` is the buffer level; `worst` is the
+        fullest it has been, which is the number that says whether the
+        next record drops. Both are None on a board older than MINOR 4.
+        """
         r = Reader(self._op(DAQ_OP_STATE))
         flags = r.u8()
-        return {
+        state = {
             'running': bool(flags & 0x01),
             'done': bool(flags & 0x02),
             # Stopped because AFE_ON went off, and the buffers emptied with
@@ -72,6 +84,15 @@ class Daq(Subsystem, Acquisition):
             'interval_us': r.u32(),
             'max_rate_hz': r.u32(),
         }
+        # Appended by MINOR 4, and read only if it is there: a board
+        # older than that answers a shorter reply, and a decoder that
+        # assumed the field would raise on a board that is simply older.
+        if r.remaining >= 8:
+            state['capacity'] = r.u32()
+            state['worst'] = r.u32()
+        else:
+            state['capacity'] = state['worst'] = None
+        return state
 
     def layout(self):
         """What each field of a record carries, named by the board.
@@ -160,6 +181,37 @@ class Daq(Subsystem, Acquisition):
                               1 if digital else 0, int(interval_us))
         self.took(self._op(DAQ_OP_CONFIGURE, payload))
         return self.layout()
+
+    def shape(self, sections=(), decimate=1):
+        """Load the anti-alias chain `coaxial.bessel` designed.
+
+        THE CHAIN'S BOXCAR IS THE TASK'S `accumulate`, not a second
+        stage: configure with `accumulate=chain['boxcar']` and pass the
+        sections and `chain['decimate']` here. Two boxcars would be two
+        answers to what the first stage is.
+
+        No arguments clears it and the task sums as it did.
+        """
+        payload = struct.pack('>BH', len(sections), int(decimate))
+        for section in sections:
+            payload += struct.pack('>5i', *[int(round(c * COEFF_SCALE))
+                                            for c in section])
+        self.took(self._op(DAQ_OP_FILTER, payload))
+        return True
+
+    def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768):
+        """A known sine in the converter's place, or `hz=0` for the
+        converter again.
+
+        For proving the path rather than measuring anything: a host that
+        knows the frequency, the rate and the decimation knows what every
+        output sample should be, so a record that fell out of the ring
+        shows up as a phase that jumped rather than as nothing at all.
+        """
+        self.took(self._op(DAQ_OP_TONE,
+                           struct.pack('>IIii', int(hz), int(rate_hz),
+                                       int(amplitude), int(offset))))
+        return True
 
     def start(self):
         self.took(self._op(DAQ_OP_START))

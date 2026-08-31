@@ -43,7 +43,7 @@
 .PARAMETER Hz
     Screen refreshes per second.
 
-.PARAMETER Samples
+.PARAMETER Rate
     Burst length per refresh. The min and max ticks are taken over this
     window, so a longer one catches more and responds slower.
 
@@ -53,13 +53,13 @@
 .EXAMPLE
     .\demos\adc.ps1
     .\demos\adc.ps1 -Simulated
-    .\demos\adc.ps1 -Hz 4 -Samples 128
+    .\demos\adc.ps1 -Hz 4 -Rate 500
 #>
 param(
     [string]$Port = 'COM4',
     [switch]$Simulated,
     [double]$Hz = 8.0,
-    [int]$Samples = 32,
+    [double]$Rate = 200.0,
     [int]$Frames = 0
 )
 
@@ -73,7 +73,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 Push-Location (Join-Path $Root 'host')
 try {
     $call = @('tools/show_desk.py', '--hz', [string]$Hz, '--port', $Port,
-              '--samples', [string]$Samples)
+              '--rate', [string]$Rate)
     if ($Simulated) { $call += '--simulated' }
     if ($Frames -gt 0) { $call += @('--frames', [string]$Frames) }
 

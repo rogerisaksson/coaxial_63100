@@ -2014,3 +2014,66 @@ One more, found on the way: a suite that could not run recorded **0**
 checks over its real size, and the quoted total fell 2114 -> 2080 with
 four documents suddenly wrong. `counts.record` now drops a zero - a
 suite that ran nothing measured nothing.
+
+## The accumulator closes on the clock, measured
+
+2026-08-31, the board powered. `accumulate = 0` lets the converter run
+free and closes a record on `interval_us`. Asked for 100 records a
+second on two channels: **33 to 89 sweeps a window, mean 69.9** against
+the 66 the loop's 13.2 k conversions/s predicts, 89 records/s delivered,
+0 dropped, `interval_us` 10 000. The record's own count is what a host
+divides by: sum/count gave **39 610.9 codes against an independent
+burst's 39 614.0**, 0.008 % apart. Stride 14 as the formula says.
+
+## A known tone through the whole path
+
+`tools/daq_integrity.py`, same session. A tone is generated ON THE BOARD
+in the converter's place, filtered by the chain `coaxial.bessel`
+designed, decimated into the ring and read back - so the host knows what
+every output sample should be, and a record that fell out shows up as a
+phase that jumped rather than as nothing at all.
+
+Chain: boxcar 250 x decimate 8 off a 1 MHz generator, two biquads,
+cutoff 100 Hz, 500 records/s. Two passes, the alias placed so it folds
+onto the in-band tone's own output frequency - indistinguishable in the
+record, so only the filter can have stopped one.
+
+| | measured |
+|---|---|
+| in band, 61 Hz | **10 601.9 codes against the design's 10 621.5** - 0.2 % |
+| phase over 36 windows | worst step **0.0163 rad**; one lost record would be 0.7665 |
+| out of band, 250 061 Hz | **-261.6 dB**, against a prediction of -224 |
+| the ring | 0 dropped, peak 8 of 1170 records held |
+| every record | 250 samples, no exceptions |
+
+**Two things had to be got right before those numbers meant anything,
+and both were the test rather than the board.**
+
+The generator burst starved the link. A round trip between `tone` and
+`start` is 15 ms, which at 1 Msps owes 15 000 samples; the first bound
+was 4096 and one burst of them is milliseconds, so the next `0x6E`
+answered silence - RTU discards a frame whose characters arrive more
+than t1.5, 143 us, apart. `BOARD_DAQ_TONE_BURST` is 256: ~40 cycles a
+sample is 22 us, and a loop turning at 15 kHz still sustains 3.8 Msps.
+What the clamp drops is dropped rather than owed, or the next turn
+bursts again and never catches up.
+
+And the filter's settling was being judged as signal. Started from rest
+it meets a step - the tone's DC offset - and its answer to that is not
+the tone: judging from the first record put **0.2957 rad** in the phase
+track where every other window sat at 0.016, and read a stopped alias as
+**-39.6 dB** that was really the transient. Three time constants of the
+cutoff are dropped now, and the same run gives 0.0163 rad and -261.6 dB.
+
+One real defect on the board's side: the task's `accumulate` is the
+chain's first stage, so what goes into the biquads is the MEAN it
+produced. Pushing the sum instead multiplied every reading by the count
+and a 32 768-code tone arrived as 8.2 million - `filter_push_value` is
+the entry point that takes an already-averaged value.
+
+**What this does NOT say.** Nothing analog was involved: with a tone on,
+the meter is not read at all. It says the ring, the link and the
+arithmetic are honest, not that the front end's noise folds the way the
+design predicts. And the converter is still polled one channel per main
+loop turn - 13.2 k conversions/s - so the 3.75 Msps the silicon can do
+needs a DMA path that does not exist yet.

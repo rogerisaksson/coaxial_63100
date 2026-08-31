@@ -161,6 +161,24 @@
 
 #define LIVE_MAX_ADDITIONS 32767U
 
+/** Tone samples one poll may generate before it hands the loop back.
+  *
+  * The generator owes whatever the elapsed cycles bought, and a long gap
+  * owes thousands: a round trip between `tone` and `start` is 15 ms,
+  * which at 1 Msps is 15 000 samples. Bounded because it runs beside
+  * the link - RTU discards a frame whose characters arrive more than
+  * t1.5, 143 us at 115200, apart.
+  *
+  * MEASURED, and 4096 was the first number here: the board went silent
+  * on the next 0x6E the moment a tone started, because one burst of
+  * them is milliseconds. 256 costs ~40 cycles a sample - the rotation,
+  * the accumulate over the fields, the amortised record - so about
+  * 22 us at 475 MHz, and a loop turning over at 15 kHz still sustains
+  * 3.8 Msps. What the clamp drops is dropped rather than owed: a debt
+  * carried forward would burst again on the next turn and never
+  * catch up. */
+#define BOARD_DAQ_TONE_BURST 256U
+
 /* ---- THE THERMAL OBSERVER ---------------------------------------------- */
 
 /** How often the model is stepped from the main loop. The fastest node has a

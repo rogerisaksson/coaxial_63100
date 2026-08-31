@@ -34,6 +34,7 @@ STRUCTURE = 'test_structure.py'
 CORE = 'test_modbus_core.py'
 SHTP = 'test_shtp_core.py'
 DRIVE = 'test_drive_core.py'
+FILTER = 'test_filter_core.py'
 SENSORLESS = 'test_sensorless.py'
 #: test_ollama.py was 5,496 lines and 733 checks - a third of every check
 #: this tree has, in one file, and the reason a tier could not be asked for at
@@ -46,7 +47,8 @@ BENCH = 'test_bench.py'
 BROKER = 'test_broker.py'
 VIEWS = 'test_views.py'
 RENDER = 'test_render.py'
-DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, SENSORLESS, BROKER, VIEWS,
+DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, SENSORLESS,
+                   BROKER, VIEWS,
                    RENDER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -69,6 +71,9 @@ JOINS = (
     # The control law against a motor model, and the commissioning
     # against the stand-in: a compiler and a few seconds, no cable.
     (20, DRIVE),
+    # The anti-alias chain against the transfer function it was designed
+    # from, and a tone fed through it: a compiler and a second.
+    (20, FILTER),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
     (45, 'test_mcp.py'),
@@ -318,6 +323,10 @@ TOUCHES = (
     # The SHTP layer is hardware-free like the Modbus core, so the host build
     # is what covers it. Nothing on the Modbus wire changes when it does.
     ('Shtp/',                         (SHTP,)),
+    # The decimating filter is hardware-free the same way, and its
+    # design lives on the host beside it.
+    ('Filter/',                       (FILTER,)),
+    ('host/coaxial/bessel.py',        (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer, and its suite
     # closes the loop through a motor model - the only check on it that
     # needs no motor. The board glue in Board/ and Comms/ is the bench's.

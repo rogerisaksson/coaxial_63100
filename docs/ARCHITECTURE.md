@@ -15,6 +15,7 @@ dry - **no motor has turned**. Each layer knows only the one below it.
 | `Comms/` | dispatch and the wire. `cmd_device.c` fronts every peripheral behind `0x6E` - the one function code left - with an op dispatcher per device; `dev_uart.c` is the only file touching a USART; `link.c` runs one RTU state machine per port - one slave, three wires, the unit id the board's |
 | `Drive/` | the control law, one PWM period per call: dq current loop with decoupling and a dead-time table, min-max SVM, square-wave HF injection and its demodulator, a two-state PLL in Kalman form with a back-EMF error above a crossover speed, I/f, a polarity pulse, the window statistics a host judges it by. Portable C11, host-tested through `Drive/test/harness.c` against a PMSM model; `drive_model.c` is that model on the board, the second sample source (device 10 op 10) |
 | `Thermal/` | the ten-node observer, portable like `Drive/` |
+| `Filter/` | the decimating anti-alias chain: an integer boxcar at the converter's rate, then the Bessel biquads the host designed, then the decimation. Portable C11, host-tested by `test_filter_core.py`; `host/coaxial/bessel.py` designs the coefficients and reports what the chain fails to stop |
 
 Before editing `Board/` or `Comms/`:
 
@@ -110,7 +111,7 @@ tool routing, mid-session board and model swaps (MODELS.md).
 
 ## The test system
 
-Twenty-three suites, 2114 checks. `run_tests.ps1` is the only interface -
+Twenty-four suites, 2163 checks. `run_tests.ps1` is the only interface -
 CLAUDE.md, *Commands*, has the tiers and the rules.
 
 * **A missing cable is not a failure.** A disconnected board falls back to

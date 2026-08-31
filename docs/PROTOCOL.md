@@ -106,7 +106,7 @@ and an op dispatcher beside it. `coaxial.Coaxial63100` is the host side.
 | 3 | the calibration record | flash, bank 2 sector 7, CAL_VERSION 8 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults, 8 params (paged) |
 | 4 | the gate drivers | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16, 9 dead time + skew, 10 alternate: `u16 x3` A, `u16 x3` B - A one PWM period, B the next, swapped by the update interrupt until the next duty write; the thermal observer is charged each leg's mean over the pair (MINOR 1) |
 | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
-| 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live |
+| 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live, 7 filter, 8 tone |
 | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |
 | 8 | the thermal observer | NTC, both dies, the model | 0 state, 1 set node, 2 set board, 3 set sampling, 4 budget, 5 set limit |
 | 9 | the rails and who holds them | AFE_ON | 0 state, 1 release all |
@@ -336,6 +336,13 @@ whatever the record size; past that only fewer records help, which
 `accumulate` and `decimate` do on the target. Measured: seven channels and
 the digital word drop 3851 records at `accumulate` 1, none at 16.
 
+**Op 0 appends the buffer level** (MINOR 4): `u32 capacity, u32 worst` -
+what the ring holds at THIS stride, and the fullest it has been.
+`available` alone is a count nobody can read as full or empty without
+the first, and a level sampled at a host's leisure misses the peak that
+dropped a record - which is the one worth knowing, so the high-water
+mark is taken where a record is pushed.
+
 **Op 4** replies `u8 got`, then records of `u32 at`, one `i32` per
 enabled channel, the digital `u32` when the task has one, and `u16
 samples` last - whole records only. The count travels with the sums
@@ -350,6 +357,35 @@ bytes against 253. A host builds its decoder from that. Measured: the TIM1
 clock lands at 19.93/20.00/20.09 µs min/mean/max against 50 kHz;
 `decimate=2` with `accumulate=50` gives exactly 2000 µs per record; the
 software clock manages about 10.6 kHz on two channels.
+
+**Op 7 loads the anti-alias chain** (MINOR 4): `u8 count, u16 decimate`,
+then five `i32` a section in b0 b1 b2 a1 a2 order, **Q28** - the wire
+carries no floating point, and a biquad's a1 reaches -2, so a scale of
+2^28 leaves +/-8 of range. `count` of 0 clears it.
+
+THE TASK'S `accumulate` IS THE CHAIN'S FIRST STAGE. One boxcar, not two
+that would fight: configure with `chain['boxcar']` and send the sections
+and `chain['decimate']` here. What the biquads see is the mean that
+accumulate produced, at the precision it bought - pushing the sum
+instead multiplied every reading by the count, and a 32 768-code tone
+arrived as 8.2 million (FINDINGS). A filter and a clock-closed record
+are alternatives and the board refuses the pair: a fixed-rate filter
+needs a fixed decimation, and a window's length is whatever the loop
+managed. `host/coaxial/bessel.py` designs the coefficients and reports
+what the chain fails to stop, which is the number to read before
+believing one.
+
+**Op 8 puts a known tone in the converter's place**: `u32 hz, u32
+rate_hz, i32 amplitude, i32 offset`; `hz` of 0 gives the converter back.
+For proving the path rather than measuring anything - a host that knows
+the frequency, the rate and the decimation knows what every output
+sample should be, so a record that fell out of the ring shows up as a
+phase that jumped. The generator counts the cycles that elapsed and
+makes exactly the samples they bought, bounded at
+`BOARD_DAQ_TONE_BURST` a turn: the SEQUENCE is exact, the timing is
+bursty, and what the bound drops is dropped rather than owed - a debt
+carried forward bursts again and never catches up.
+`tools/daq_integrity.py` is the test; FINDINGS has what it measured.
 
 **Op 6 is the other way to read, and cannot overflow.** Every trigger adds
 into a static accumulator; op 6 takes it away and resets it - a late reader

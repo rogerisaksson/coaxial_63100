@@ -313,6 +313,14 @@ typedef struct
   uint32_t available;    /**< whole records waiting to be taken          */
   uint32_t produced;
   uint32_t dropped;      /**< records the buffer had no room for         */
+  /* THE BUFFER LEVEL, and it takes both numbers to be one: `available`
+     alone is a count nobody can read as full or empty without knowing
+     what the ring holds at THIS stride, which changes with the channel
+     count. `worst` is the high-water mark - a level sampled at a
+     host's leisure misses the peak that dropped a record, and the peak
+     is the thing worth knowing. */
+  uint32_t capacity;     /**< whole records the ring holds at `stride`   */
+  uint32_t worst;        /**< the fullest it has been since the start    */
   board_daq_config_t config;
 } board_daq_state_t;
 
@@ -358,6 +366,45 @@ void Board_DaqSetInterval(uint32_t interval_us);
 const char *Board_DaqStart(void);
 void Board_DaqStop(void);
 void Board_DaqState(board_daq_state_t *out);
+
+/**
+  * @brief  Load the anti-alias chain the host designed, or clear it.
+  *
+  * `sections` of 0 leaves the task summing and nothing else. The
+  * boxcar is the task's own `accumulate`, so there is ONE first stage
+  * rather than two that would fight; what this adds is the shaping and
+  * the decimation after it. Refused while a task runs - coefficients
+  * changing under a half-drained buffer hand out records of two
+  * filters with nothing to say which was which.
+  *
+  * @return NULL, or the board's own words for what is wrong.
+  */
+const char *Board_DaqSetFilter(const void *sections, uint8_t count,
+                               uint16_t decimate);
+
+/**
+  * @brief  A known tone in place of the converter, for proving the path.
+  *
+  * Every field is fed the same numerically generated sine instead of an
+  * ADC reading, at `rate_hz` whatever the loop is managing: the
+  * generator counts the cycles that elapsed and produces exactly the
+  * samples that belong to them, so the SEQUENCE is exact even though
+  * the timing is bursty. That is what a transfer test needs - a host
+  * that knows the frequency, the rate and the decimation knows what
+  * every output sample should be, and a record that fell out of the
+  * ring shows up as a phase that jumped.
+  *
+  * `hz` of 0 turns it off and the converter is the source again.
+  */
+const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
+                             int32_t amplitude, int32_t offset);
+
+/** Advance the tone generator. Called from the main loop; does nothing
+  * unless a tone is on and a task is running. */
+void Board_DaqTonePoll(void);
+
+/** Whether a tone is standing in for the converter. */
+bool Board_DaqToneOn(void);
 
 /** Which channel field `n` of a record carries. This is what lets a host
     decode the bytes without a copy of the record shape. */

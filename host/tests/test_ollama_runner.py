@@ -456,11 +456,13 @@ def test_smart_selection(report):
     # meaning what they did when they were a table.
     for percent, expect in ((25, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
-                                  run_tests.DRIVE, run_tests.SENSORLESS,
+                                  run_tests.DRIVE, run_tests.FILTER,
+                                  run_tests.SENSORLESS,
                                   } | set(run_tests.OLLAMA)),
                             (75, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
-                                  run_tests.DRIVE, run_tests.SENSORLESS,
+                                  run_tests.DRIVE, run_tests.FILTER,
+                                  run_tests.SENSORLESS,
                                   'test_parity.py', 'test_mcp.py',
                                   run_tests.CONFORMANCE, run_tests.BENCH}
                              | set(run_tests.OLLAMA))):

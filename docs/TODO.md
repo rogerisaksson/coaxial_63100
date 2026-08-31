@@ -4,10 +4,10 @@ State as of 2026-08-31.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2114 checks, 23 suites |
+| `run_tests.ps1 -All` | 2163 checks, 24 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
-| Protocol | MAJOR 2, MINOR 3 |
+| Protocol | MAJOR 2, MINOR 4 |
 | Firmware | 1.6.0 |
 | Calibration record | CAL_VERSION 8, 45 parameters, op 8 pages them |
 
@@ -30,6 +30,8 @@ not what it measured.
 | The model as the drive's source, and ROTOR OBSERVER on the chooser: the observer watched against a rotor whose angle is known, AFE off, no motor - locked to 0.002 rad, spun to 441 rad/s with 0.009 rad of error | PROTOCOL, *Device 10*; `tools/show_rotor_observer.py` |
 | The NTC and the DC link ride the injected sequence as rank 2, so the thermal observer keeps its thermometer under the drive | PROTOCOL, *Device 4* |
 | The commissioning: AFE noise floor, sample point, offsets, gain mismatch, dead time, L map, lambda, budget, gains, decision, verification - on the stand-in end to end, on the bench as far as the AFE | ARCHITECTURE, *Host*; `tools/commission.py` |
+| The clock-closed daq record: the converter free-running, a record closed on the interval carrying its own sample count - 33 to 89 sweeps a window, and the mean 0.008 % off an independent burst | FINDINGS, *The accumulator closes on the clock* |
+| The anti-alias chain: a tone generated on the board, filtered, decimated and read back - in band within 0.2 % of the design, an alias folded onto the same output frequency stopped at -261.6 dB, nothing dropped | FINDINGS, *A known tone through the whole path*; `tools/daq_integrity.py` |
 
 **USB is configured and nothing sits on it.** OTG_FS device, no device class,
 so a host sees one that fails enumeration. Nothing depends on it.
@@ -101,13 +103,12 @@ Nothing else has - invariant 7.
    first. Everything in DTCM is uncached either way; the win is flash
    literal pools and .rodata on the interrupt path. Measure before and
    after with device 10 op 0's `cyc_*` and `exit_ticks_max`.
-9. **The clock-closed daq record on the bench.** Written and built,
-   never run against a powered board: `accumulate=0` lets the converter
-   run free and closes a record on `interval_us`, carrying the count.
-   What a window actually holds - the loop manages ~13.2 k
-   conversions/s over all channels - and whether the saturation bound
-   is ever reached are both bench numbers. The host half runs against
-   the stand-in (`sample_rate=100` gave 66 samples a record).
+9. **The anti-alias chain on real converter samples.** Proven end to
+   end against a generated tone (FINDINGS, *A known tone through the
+   whole path*) - what it has never seen is the ADC: the tone stands
+   in for it, so nothing here says the front end's noise folds the way
+   the design predicts. Needs the AFE on, a signal on a channel, and
+   the same two passes.
 10. **A USB device class**, if USB is to do anything.
 11. **A cycle-counted duty.** A hold's length is the link's: the shortest is
     one write round trip, ~800 periods, and 100 ms asked for is 93-108 at the

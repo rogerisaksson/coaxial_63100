@@ -33,30 +33,81 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 SPAN_CODES = (1024, 64512)
 
 
-def rows_from(live, layout):
-    """The accumulator as the rows this renderer already understands.
+def drain(rig, cap=512):
+    """Every record the ring is holding, up to `cap`.
 
-    The gate drivers wants a mean and the two ends of the window. The task
-    reports a sum, a count and the lowest and highest it saw, per channel,
-    so the mean is a division and the ends are already measured - which is
-    what a meter's ticks should be rather than something inferred from a
-    mean.
+    REAL DAQ, not a point a frame: the board buffers at its own rate and
+    the link carries whole blocks, so a frame reads what accumulated
+    between frames instead of one reading and a shrug about the rest. One
+    `acquire` is one PDU - seventeen records at a two-channel stride - so
+    it takes several to empty a ring, and the cap is there so a frame
+    cannot stall on a task producing faster than this loop drains.
+    """
+    got = []
+    while len(got) < cap:
+        block = rig.acquire()
+        if not block:
+            break
+        got.extend(block)
+    return got
+
+
+def rows_from(records, layout):
+    """A drained block as the rows this renderer already understands.
+
+    The mean is every sum in the block over every count in it, so a frame
+    that drained forty records reports the mean of all of them rather than
+    of the last one.
+
+    THE ENDS ARE THE RECORDS', not the raw samples'. The board already
+    averaged inside each record - that is what stops the aliasing - so
+    the extremes here are of what it produced at the record rate, which
+    is what this meter is showing. The live accumulator's lowest and
+    highest were per sample and are a different measurement; nothing here
+    claims them.
     """
     out = []
     for field in layout['fields']:
         name = field['signal']
-        count = max(1, live['count'][name])
+        total = sum(r[name] for r in records)
+        count = sum(max(1, r['samples']) for r in records)
+        means = [r[name] / max(1, r['samples']) for r in records]
         out.append({
             'index': field['channel'],
             'signal': name,
             'unit': field['unit'],
             'differential': field['differential'],
-            'mean_raw': live['sum'][name] / count,
-            'min_raw': live['lowest'][name],
-            'max_raw': live['highest'][name],
+            'mean_raw': total / max(1, count),
+            'min_raw': min(means),
+            'max_raw': max(means),
             'samples': count,
         })
     return out
+
+
+def buffer_box(state, took):
+    """The board's own buffer level: what is waiting, what it holds, and
+    the fullest it has ever been.
+
+    The high-water mark is the number worth reading. A level sampled
+    after a drain is a level between the peaks and reads as an empty
+    ring right up until a record is dropped; `worst` is what says how
+    close the last one came.
+    """
+    from screen import gauge, hud
+
+    capacity = state.get('capacity') or 0
+    if not capacity:
+        return hud('BUFFER', ['  this board does not report a level'])
+
+    held, worst = state.get('available') or 0, state.get('worst') or 0
+    dropped = state.get('dropped') or 0
+    return hud('BUFFER', [
+        '  ' + gauge(worst / float(capacity), 22),
+        '  peak    %5d of %5d records' % (worst, capacity),
+        '  waiting %5d      took %4d' % (held, took),
+        '  dropped %5d' % dropped,
+    ])
 
 
 def scale(rows, params=None):
@@ -143,9 +194,11 @@ def main(argv=None):
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--hz', type=float, default=8.0,
                         help='screen refreshes per second')
-    parser.add_argument('--samples', type=int, default=32,
-                        help='burst length per refresh. The min and max ticks '
-                             'are taken over this window')
+    parser.add_argument('--rate', type=float, default=200.0,
+                        help='records a second the board produces. It samples '
+                             'flat out underneath and averages into each one, '
+                             'so this is what the link carries, not what the '
+                             'converter does')
     parser.add_argument('--simulated', action='store_true',
                         help='the stand-in, without probing for a board')
     parser.add_argument('--frames', type=int, default=0,
@@ -170,8 +223,7 @@ def main(argv=None):
     # one at a time: the accumulator carries the mean AND the two ends of
     # the window, which is exactly what a meter face wants.
     try:
-        layout = rig.configure(sample_rate=None, accumulate=args.samples,
-                               digital=False)
+        layout = rig.configure(sample_rate=args.rate, digital=False)
         params = rig.board.analog.scaling()
         rig.start()
     except RigError as exc:
@@ -196,6 +248,7 @@ def main(argv=None):
     from screen import frame_of, run_view, stage
 
     held = {}
+    last = {'rows': []}
     board_view = stage()
     console = board_view.is_terminal
     leaving = None
@@ -206,16 +259,28 @@ def main(argv=None):
         # instrument column's share.
         bridge.bar = max(20, min(80, (board_view.size.width or 100) - 72))
         try:
-            rows = scale(rows_from(rig.latest(), layout), params)
+            # The level BEFORE the drain: after it the ring is empty by
+            # construction and the gauge would read nothing on a task
+            # that is only just keeping up.
+            state = rig.state()
+            records = drain(rig)
         except RigError as exc:
             return frame_of(board_view, origin, 'METER BRIDGE',
                             'no reading: %s' % exc, [],
+                            (('Q', 'EXIT'), ('ESC', 'MENU')))
+        if records:
+            last['rows'] = scale(rows_from(records, layout), params)
+        rows = last['rows']
+        if not rows:
+            return frame_of(board_view, origin, 'METER BRIDGE',
+                            'waiting for the first block', 
+                            [buffer_box(state, 0)],
                             (('Q', 'EXIT'), ('ESC', 'MENU')))
         face = bridge.update(rows, colour=console)
         for row in rows:
             row['params'] = params
         return frame_of(board_view, origin, 'METER BRIDGE', face,
-                        [legend(rows, held)],
+                        [legend(rows, held), buffer_box(state, len(records))],
                         (('Q', 'EXIT'), ('ESC', 'MENU')))
 
     try:

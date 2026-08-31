@@ -65,6 +65,10 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Drive/Src/drive.c
     Drive/Src/drive_math.c
     Drive/Src/drive_model.c
+    # Filter: the decimating anti-alias chain. Portable C11 like Drive/,
+    # host-tested by test_filter_core.py against the Bessel design in
+    # host/coaxial/bessel.py.
+    Filter/Src/filter.c
 
     # Board layer: this hardware, behind Comms/Inc/board.h.
     Board/Src/board_imu.c
@@ -121,6 +125,7 @@ set(COAXIAL_SOURCES
     # four camera-calibrated states with the host gcc.
     Thermal/Src/thermal.c
     Drive/Src/drive.c Drive/Src/drive_math.c Drive/Src/drive_model.c
+    Filter/Src/filter.c
     Board/Src/board_adc.c Board/Src/board_clock.c Board/Src/board_selftest.c
     Board/Src/board_io.c Board/Src/board_imu.c Board/Src/board_angle.c
     Board/Src/board_cal.c
@@ -162,6 +167,7 @@ set_source_files_properties(
     # four camera-calibrated states with the host gcc.
     Thermal/Src/thermal.c
     Drive/Src/drive.c Drive/Src/drive_math.c Drive/Src/drive_model.c
+    Filter/Src/filter.c
     Comms/Src/wire.c Comms/Src/cmd.c Comms/Src/cmd_board.c
     Comms/Src/cmd_test.c Comms/Src/cmd_imu.c Comms/Src/cmd_cal.c
     Comms/Src/cmd_gate_drivers.c
@@ -180,6 +186,10 @@ set_source_files_properties(
 # warnings the lists above gave it.
 set_source_files_properties(
     Drive/Src/drive.c Drive/Src/drive_math.c Drive/Src/drive_model.c
+    # filter.c runs ONCE PER CONVERTER SAMPLE, which is the fastest thing
+    # on this board - the boxcar's single add is the whole point of the
+    # first stage, and at -O0 it is not a single add.
+    Filter/Src/filter.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 set_source_files_properties(
     Board/Src/board_drive.c Board/Src/board_sync.c
@@ -199,6 +209,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     Modbus/Inc
     Thermal/Inc
     Drive/Inc
+    Filter/Inc
     Shtp/Inc
     Comms/Inc
     Board/Inc

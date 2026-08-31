@@ -1382,10 +1382,14 @@ class SimulatedDaq(Acquisition):
     def state(self):
         cfg = self._cfg or {'channels': 0, 'clock': 'software', 'sample_time': 0,
                             'decimate': 0, 'accumulate': 0, 'records': 0}
+        held = self._buffered()
+        capacity = 16384 // max(1, self._stride())      # DAQ_BYTES
         return {'running': self._running, 'done': self._done,
                 'lost_power': False,
                 'stride': self._stride(), 'fields': len(self._order),
-                'available': 0, 'produced': self._produced, 'dropped': 0,
+                'available': held, 'produced': self._produced,
+                'dropped': 0, 'capacity': capacity,
+                'worst': min(capacity, held),
                 **cfg}
 
     PINS = ({'signal': 'AFE_ON', 'direction': 'out'},
@@ -1458,6 +1462,18 @@ class SimulatedDaq(Acquisition):
         self._produced = 0
         self._done = False
         return self.layout()
+
+    def shape(self, sections=(), decimate=1):
+        """Accepted and remembered; the stand-in invents values rather
+        than filtering them, and says so by changing nothing."""
+        self._shape = (len(sections), int(decimate))
+        return True
+
+    def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768):
+        """Remembered, not generated: proving a transfer needs the real
+        ring and the real link, which is what the tone is for."""
+        self._tone = (int(hz), int(rate_hz))
+        return True
 
     def start(self):
         from .errors import RigError
