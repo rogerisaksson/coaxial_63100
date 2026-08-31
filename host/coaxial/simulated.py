@@ -1413,7 +1413,11 @@ class SimulatedDaq(Acquisition):
         One formula, not two: the stand-in quoted a stride two bytes
         short of the board's the day the count was appended, and a
         stride is exactly what a host decodes by."""
-        digital = 4 if (self._cfg or {}).get('digital') else 0
+        # ONE BYTE A PIN, not one word: the pins go through the same
+        # window as everything else and come out as a duty. The stand-in
+        # quoted the board's old shape once already and a stride is what
+        # a host decodes by.
+        digital = len(self.PINS) if (self._cfg or {}).get('digital') else 0
         return 4 + 4 * len(self._order) + digital + 2
 
     def _resolve(self, channels):
@@ -1532,7 +1536,9 @@ class SimulatedDaq(Acquisition):
                 rec[f['signal']] = sum(centre + random.randint(-60, 60)
                                        for _ in range(took))
             if (layout or self.layout()).get('pins'):
-                rec['digital'] = {p['signal']: bool(random.getrandbits(1))
+                # A duty like the board's, not a level: 0.0 to 1.0 of the
+                # window the record covers.
+                rec['digital'] = {p['signal']: random.randint(0, 255) / 255.0
                                   for p in self.PINS}
             out.append(rec)
         self._produced += n

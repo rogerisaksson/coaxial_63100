@@ -22,7 +22,10 @@
   *
   * Accumulation SUMS rather than averages: it keeps the bits an average
   * throws away, and the count rides in the record, so a host divides by
-  * what actually went in rather than by what it asked for.
+  * what actually went in rather than by what it asked for. The digital
+  * pins go the same way and come out as a DUTY - a byte each, 0..255 of
+  * the window - because a level sampled once and decimated by two
+  * thousand is aliased by construction.
   *
   * TWO WAYS TO CLOSE A RECORD, and `accumulate` picks which. A COUNT
   * (accumulate >= 1) is the old one: N samples make a record, and
@@ -66,9 +69,17 @@ static int32_t  s_acc[BOARD_DAQ_MAX_CHANNELS];
 static uint16_t s_acc_n;
 static uint16_t s_skip;
 static uint32_t s_first_at;
+/* THE PINS AS A DUTY, not as a snapshot. A digital line decimated by
+   2000 and reported as the level it happened to have at one instant is
+   aliased by construction - KEEPALIVE toggles at ~100 kHz and would
+   read as a coin toss. Counted high over the window instead, which is
+   what a low-pass does to a square wave and is the only answer that
+   survives the decimation. */
+static uint16_t s_dacc[BOARD_DAQ_MAX_PINS];
 static uint32_t s_first_digital;
 static uint32_t s_last_trigger;
 static uint32_t s_interval_cycles;
+static bool     s_rate_auto;        /* no rate asked for: one was chosen */
 
 /* The live accumulator, kept beside the ring and fed by the same triggers.
    The ring is a capture and drops when it is full; this is the freshest
@@ -198,7 +209,16 @@ static void push_record(void)
 
   if (s_cfg.digital != 0U)
   {
-    at = put_be32(rec, at, s_first_digital);
+    /* 0..255 of the window, so a host divides by 255 and gets the
+       fraction of it the pin was high for. A byte is 0.4 % of a
+       window, which is finer than anything a decimated pin means. */
+    const uint8_t pins = Board_DigitalIoCount();
+    const uint32_t n = (s_acc_n > 0U) ? s_acc_n : 1U;
+
+    for (uint8_t p = 0U; (p < pins) && (p < BOARD_DAQ_MAX_PINS); p++)
+    {
+      rec[at++] = (uint8_t)(((uint32_t)s_dacc[p] * 255U + (n / 2U)) / n);
+    }
   }
 
   /* THE DIVISOR TRAVELS WITH THE SUM. Closed by the clock the count is
@@ -234,6 +254,7 @@ static void push_record(void)
   }
 
   memset(s_acc, 0, sizeof(s_acc));
+  memset(s_dacc, 0, sizeof(s_dacc));
   s_acc_n = 0U;
 
   if ((s_cfg.records != 0U) && (s_produced >= s_cfg.records))
@@ -310,6 +331,16 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
     {
       s_acc[f] += values[f];
     }
+    if (s_cfg.digital != 0U)
+    {
+      const uint8_t pins = Board_DigitalIoCount();
+
+      for (uint8_t p = 0U; (p < pins) && (p < BOARD_DAQ_MAX_PINS); p++)
+      {
+        s_dacc[p] = (uint16_t)(s_dacc[p] +
+                               (uint16_t)((digital >> p) & 1U));
+      }
+    }
     s_acc_n++;
   }
 
@@ -365,6 +396,7 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
   /* Swallowed by the decimation: the window is over, so the accumulator
      starts the next one. */
   memset(s_acc, 0, sizeof(s_acc));
+  memset(s_dacc, 0, sizeof(s_dacc));
   s_acc_n = 0U;
 }
 
@@ -465,10 +497,14 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
   }
 
   s_cfg = *cfg;
+  /* Remembered here, where the ASK is still visible. */
+  s_rate_auto = (cfg->interval_us == 0U) && (cfg->records == 0U);
   s_interval_cycles = interval_cycles(cfg->interval_us);
-  /* + 2 for the sample count every record carries. */
+  /* One byte of duty per pin where there used to be one snapshot word,
+     and + 2 for the sample count every record carries. */
   s_stride = (uint16_t)(4U + (4U * s_fields)
-                        + ((cfg->digital != 0U) ? 4U : 0U) + 2U);
+                        + ((cfg->digital != 0U)
+                           ? Board_DigitalIoCount() : 0U) + 2U);
   s_head = 0U;
   s_tail = 0U;
   s_dropped = 0U;
@@ -480,6 +516,7 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
   s_live_any = 0U;
   memset(s_live, 0, sizeof(s_live));
   memset(s_acc, 0, sizeof(s_acc));
+  memset(s_dacc, 0, sizeof(s_dacc));
   memset(s_filter, 0, sizeof(s_filter));
   return NULL;
 }
@@ -658,6 +695,24 @@ bool Board_DaqToneOn(void)
 }
 
 
+bool Board_DaqRateIsAuto(void)
+{
+  return s_rate_auto;
+}
+
+
+uint32_t Board_DaqTriggersPerRecord(void)
+{
+  const uint32_t accumulate = (s_cfg.accumulate != 0U)
+                              ? (uint32_t)s_cfg.accumulate : 1U;
+  const uint32_t decimate = (s_cfg.decimate != 0U)
+                            ? (uint32_t)s_cfg.decimate : 1U;
+  const uint32_t shaped = s_filtering ? (uint32_t)s_chain.decimate : 1U;
+
+  return accumulate * decimate * shaped;
+}
+
+
 void Board_DaqSetInterval(uint32_t interval_us)
 {
   s_cfg.interval_us = interval_us;
@@ -689,6 +744,7 @@ const char *Board_DaqStart(void)
   s_lost_power = false;
   s_tone_at = Board_Cycles();
   s_tone_owed = 0U;
+  memset(s_dacc, 0, sizeof(s_dacc));
   memset(s_filter, 0, sizeof(s_filter));
   s_skip = 0U;
   s_next_field = 0U;

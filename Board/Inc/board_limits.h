@@ -184,6 +184,11 @@
   * turn and never catches up. */
 #define BOARD_DAQ_TONE_BURST 64U
 
+/** Digital pins a record can carry a duty for. Three are drivable on
+  * this board (AFE_ON, UART5_TERM, KEEPALIVE); the headroom is for a
+  * revision that grows some, and costs one byte of the record each. */
+#define BOARD_DAQ_MAX_PINS 16U
+
 /* ---- THE THERMAL OBSERVER ---------------------------------------------- */
 
 /** How often the model is stepped from the main loop. The fastest node has a

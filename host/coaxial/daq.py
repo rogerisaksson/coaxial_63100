@@ -243,7 +243,7 @@ class Daq(Subsystem, Acquisition):
         # mis-frames every record after the first the day the record grows
         # a field - which is how the sample count arrived.
         stride = layout['stride']
-        fmt = '>I%di%sH' % (len(fields), 'I' if pins else '')
+        fmt = '>I%di%dBH' % (len(fields), len(pins))
         out = []
         for i in range(got):
             at = 1 + i * stride
@@ -251,9 +251,15 @@ class Daq(Subsystem, Acquisition):
             rec = {'at': values[0], 'samples': values[-1]}
             rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
             if pins:
-                bits = values[1 + len(fields)]
-                rec['digital'] = {p['signal']: bool(bits >> n & 1)
-                                  for n, p in enumerate(pins)}
+                # A DUTY, not a level: the pin went through the same
+                # window as everything else, and 255 is all of it. A
+                # level sampled once and decimated by two thousand is
+                # aliased by construction - KEEPALIVE toggles at
+                # ~100 kHz and read as a coin toss.
+                first = 1 + len(fields)
+                rec['digital'] = {
+                    p['signal']: values[first + n] / 255.0
+                    for n, p in enumerate(pins)}
             out.append(rec)
         return out
 

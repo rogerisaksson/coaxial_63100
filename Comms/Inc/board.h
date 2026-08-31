@@ -417,6 +417,21 @@ void Board_DaqTonePoll(void);
 /** Whether a tone is standing in for the converter. */
 bool Board_DaqToneOn(void);
 
+/** Triggers one record costs: the decimation, the accumulate AND the
+  * filter's own decimation. The last is why this is a function rather
+  * than a multiplication a caller can do from the config - the chain is
+  * not in the config, and a rate substituted without it under-runs by
+  * exactly the decimation. */
+uint32_t Board_DaqTriggersPerRecord(void);
+
+/** Whether the task asked for no rate and had one chosen for it.
+  *
+  * Asked, not effective: once a rate has been substituted the config no
+  * longer reads as zero, and a caller that re-derived the question from
+  * the answer would substitute exactly once - which is how a filter
+  * loaded after configure kept the rate that was chosen without it. */
+bool Board_DaqRateIsAuto(void);
+
 /** Which channel field `n` of a record carries. This is what lets a host
     decode the bytes without a copy of the record shape. */
 bool Board_DaqField(uint8_t field, uint8_t *channel);

@@ -339,6 +339,25 @@ def design(fs, out_rate, order=4, cutoff=None, headroom=8):
     return chain
 
 
+def for_link(fs, max_rate_hz, order=4, margin=0.8, **kw):
+    """The chain for a link that carries `max_rate_hz` records a second.
+
+    MORE CHANNELS IS A LONGER RECORD IS FEWER RECORDS A SECOND IS A LOWER
+    CUTOFF. The sampling theorem does not care how many channels were
+    wanted: whatever the link carries is the output rate, and the
+    passband is a fifth of it. The board reports what it can carry for
+    the stride it actually has - `state()['max_rate_hz']` - so this is
+    where that number becomes a filter.
+
+    `margin` keeps the task under the ceiling rather than on it: a ring
+    produced at exactly the drain rate overflows on the first slow read.
+    """
+    if max_rate_hz <= 0:
+        raise ValueError('a link that carries no records carries no '
+                         'measurement either')
+    return design(fs, float(max_rate_hz) * margin, order=order, **kw)
+
+
 def flat(sections_list):
     """The sections as one list of floats, b0 b1 b2 a1 a2 - the order the
     harness and the wire both take them in."""

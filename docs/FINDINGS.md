@@ -2146,3 +2146,54 @@ second - so the 3.75 Msps the silicon can do (16 bit, 1.5-cycle
 sampling, 37.5 MHz ADC clock) needs continuous conversion and DMA, which
 this firmware does not have. The generator's 580 k is what a main loop
 can carry, not what the ADC could.
+
+## Every channel through the chain, and what each one costs
+
+2026-08-31. All ten analog channels and the three drivable pins, filtered
+and decimated on the board. `tools/daq_allchannels.py --sweep`, every
+number read off the board rather than assumed:
+
+| ch | stride | sweeps/s | link/s | boxcar x d | out/s | cutoff | alias |
+|---|---|---|---|---|---|---|---|
+| 1 | 13 B | 3787 | 292 | 2 x 8 | 236.7 | 46.7 Hz | -31.2 dB |
+| 4 | 25 B | 2140 | 152 | 2 x 9 | 118.9 | 24.3 Hz | -32.0 dB |
+| 7 | 37 B | 1485 | 102 | 2 x 9 | 82.5 | 16.3 Hz | -32.3 dB |
+| 10 | 49 B | 1129 | 77 | 2 x 9 | 62.7 | 12.3 Hz | -32.3 dB |
+
+**More channels is a longer record is fewer records a second is a lower
+cutoff.** Nothing chooses that; it falls out of two measured rates - what
+the loop sweeps at, and what the link carries.
+
+A ten-channel run: 300 records in 8.63 s, 0 dropped, peak 2 of 334, and
+the readings where they should be - NTC 40.7 C, DC link 30.9 V, +5V
+5.083, Phase V -42.5 A (the op-amp fault HARDWARE records).
+
+**A digital pin through the chain is its DUTY.** A level sampled once and
+decimated is aliased by construction: KEEPALIVE toggles at ~100 kHz and
+read as a coin toss. Counted high over the window instead, it comes back
+**50.0 %** - which is the square wave the main loop makes, and a byte a
+pin where there used to be one snapshot word.
+
+### Three defects the numbers found
+
+**A chain designed for a rate the board does not have.** `fs` was
+hardcoded at 1 MHz while the polled loop gives 1129 sweeps/s on ten
+channels, so the boxcar wanted 8117 samples a record and delivered ONE
+record in fifteen seconds. The sweep rate is measured now.
+
+**Measuring that rate free-running measures the link, not the loop.**
+With `records=0` and no rate asked for the board substitutes what the
+link carries and gates the triggers to it - so accumulate 1 read 279
+sweeps a second where a finite burst gives 3787. A run that ends is left
+alone, because it ends.
+
+**And the substitution did not know about the filter.** It multiplied
+`decimate x accumulate` and the chain's own decimation was not in the
+config, so ten channels asked for 62.8 records a second and made 8 - the
+missing factor of 9 being the filter's. `Board_DaqTriggersPerRecord()`
+counts them on the board now, and the substitution runs from BOTH the
+configure and the filter op so the order they arrive in does not matter.
+That needed one more thing: the board remembers that the rate was
+AUTOMATIC rather than re-deriving it from the answer, because after the
+first substitution the config no longer reads as zero and the second call
+returned early. 8 records a second became 35.

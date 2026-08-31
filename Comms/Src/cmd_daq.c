@@ -30,6 +30,51 @@
 #define DAQ_COEFF_SCALE 268435456.0f
 
 
+/** The link's own answer where a task asked for no rate.
+  *
+  * Free-running with no rate is the one combination that took the link
+  * down, so it gets what the link can carry rather than "as fast as the
+  * loop can". A finite run is left alone: it stops on its own, and a
+  * short burst at full speed is the whole point of one.
+  *
+  * The ceiling is on RECORDS, and a record costs `decimate x accumulate
+  * x the chain's decimation` triggers. Gating at the record rate instead
+  * would sample sixteen times slower at accumulate 16 rather than
+  * averaging sixteen samples - the same output, every sample but one
+  * thrown away. Reduce on the target, do not slow it down.
+  *
+  * THE BOARD COUNTS THE TRIGGERS, because the filter's decimation is not
+  * in the config - and this runs from BOTH configure and the filter op,
+  * so the order they arrive in does not matter. Measured with it only in
+  * configure, where the filter is not loaded yet: ten channels asked for
+  * 62.8 records a second and made 8, the missing factor of 9 being the
+  * chain's.
+  */
+static void daq_substitute_interval(void)
+{
+  board_daq_state_t st;
+
+  Board_DaqState(&st);
+
+  if (!Board_DaqRateIsAuto())
+  {
+    return;
+  }
+
+  const uint32_t rps = cmd_link_records_per_second(st.stride);
+  const uint32_t per_record = Board_DaqTriggersPerRecord();
+
+  if ((rps != 0U) && (per_record != 0U) && (rps < (1000000U / per_record)))
+  {
+    Board_DaqSetInterval(1000000U / (rps * per_record));
+  }
+  else
+  {
+    Board_DaqSetInterval(0U);      /* faster than the loop can go anyway */
+  }
+}
+
+
 /** op 7 - the anti-alias chain the host designed. */
 static cmd_status_t h_daq_filter(rd_t *in, wr_t *out)
 {
@@ -58,7 +103,15 @@ static cmd_status_t h_daq_filter(rd_t *in, wr_t *out)
     return CMD_ERR_LENGTH;
   }
 
-  cmd_took(out, Board_DaqSetFilter(sections, count, decimate));
+  const char *refusal = Board_DaqSetFilter(sections, count, decimate);
+
+  if (refusal == NULL)
+  {
+    /* The chain changed what a record costs, so the rate the link was
+       promised is worked out again. */
+    daq_substitute_interval();
+  }
+  cmd_took(out, refusal);
   return CMD_OK;
 }
 
@@ -149,37 +202,7 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
     return CMD_OK;
   }
 
-  /* Free-running and no rate asked for is the one combination that took the
-     link down, so it gets the link's own answer rather than "as fast as the
-     loop can". A finite run is left alone: it stops on its own, and a short
-     burst at full speed is the whole point of one. */
-  if ((cfg.interval_us == 0U) && (cfg.records == 0U))
-  {
-    board_daq_state_t st;
-
-    Board_DaqState(&st);
-
-    /* The link's ceiling is on RECORDS, and a record is decimate x
-       accumulate triggers. Gating the triggers at the record rate would
-       have sampled sixteen times slower with accumulate at 16 instead of
-       averaging sixteen samples - the same output rate, and every sample
-       but one thrown away. Reduce on the target, do not slow it down. */
-    /* One trigger per record when the clock closes it: the substituted
-       interval IS the window, and the converter runs free inside it. */
-    const uint32_t rps = cmd_link_records_per_second(st.stride);
-    const uint32_t acc = (cfg.accumulate == 0U) ? 1U
-                                                : (uint32_t)cfg.accumulate;
-    const uint32_t per_record = (uint32_t)cfg.decimate * acc;
-
-    if ((rps != 0U) && (per_record != 0U) && (rps < (1000000U / per_record)))
-    {
-      Board_DaqSetInterval(1000000U / (rps * per_record));
-    }
-    else
-    {
-      Board_DaqSetInterval(0U);    /* faster than the loop can go anyway */
-    }
-  }
+  daq_substitute_interval();
 
   cmd_took(out, NULL);
   return CMD_OK;
