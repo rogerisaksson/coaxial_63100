@@ -2233,3 +2233,27 @@ of factors to split between a boxcar and a decimation: 151 x 1 leaves the
 biquads nothing to work with. A ladder that needs its bottom rung to be
 clean wants more rungs, closer together, or a converter rate with more
 divisors - the design reports the number either way, which is the point.
+
+## METER BRIDGE read as hung, and its own buffer box said why
+
+2026-08-31, straight after the view was moved onto real blocks. Three
+frames took **17.4 s** - 5.8 s each against the eight a second asked for.
+
+The BUFFER box diagnosed it without anything being added: `took 513`. The
+view asked the board for 200 records a second, drained up to 512 of them
+a frame - about a hundred round trips at five records a reply - and the
+board made another five hundred while it did, so the cap was hit every
+frame forever. The ring never overflowed and nothing was dropped; the
+view was simply doing a logger's work at a meter's frame rate.
+
+**A meter wants one averaged reading a frame**, which is exactly what the
+chain is for: the rate follows `--hz`, the board sums the whole frame's
+worth of samples into one record, and the drain cap is 32. Measured
+after: 40 frames in 9.3 s, `peak 2 of 356, waiting 1, took 2`.
+
+Two more things the fix needed. The state read for the buffer box was a
+round trip a frame - a third of the budget for a gauge that moves slowly
+by construction - and is twice a second now. And the wrapper still had
+the old default: `demos/adc.ps1` passed `-Rate 200` over the view's new
+one, so through the chooser the ring sat at **339 of 356** while a direct
+run sat at 1. A default changed in one of two places is not changed.

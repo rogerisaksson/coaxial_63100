@@ -44,7 +44,8 @@
     Screen refreshes per second.
 
 .PARAMETER Rate
-    Burst length per refresh. The min and max ticks are taken over this
+    Records a second the board produces. 0 follows -Hz, which is what a
+    meter wants: one reading a frame, averaged over the whole frame.
     window, so a longer one catches more and responds slower.
 
 .PARAMETER Frames
@@ -59,7 +60,7 @@ param(
     [string]$Port = 'COM4',
     [switch]$Simulated,
     [double]$Hz = 8.0,
-    [double]$Rate = 200.0,
+    [double]$Rate = 0,
     [int]$Frames = 0
 )
 

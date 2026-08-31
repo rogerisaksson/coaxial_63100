@@ -15,6 +15,7 @@ put back the way it was found on the way out.
 import argparse
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -33,15 +34,19 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 SPAN_CODES = (1024, 64512)
 
 
-def drain(rig, cap=512):
+def drain(rig, cap=32):
     """Every record the ring is holding, up to `cap`.
 
     REAL DAQ, not a point a frame: the board buffers at its own rate and
     the link carries whole blocks, so a frame reads what accumulated
-    between frames instead of one reading and a shrug about the rest. One
-    `acquire` is one PDU - seventeen records at a two-channel stride - so
-    it takes several to empty a ring, and the cap is there so a frame
-    cannot stall on a task producing faster than this loop drains.
+    between frames instead of one reading and a shrug about the rest.
+
+    THE CAP IS SMALL ON PURPOSE. One `acquire` is one PDU - five records
+    at a ten-channel stride - so a big cap is a hundred round trips in a
+    frame: measured at 512, a frame took 5.8 s and the view read as hung
+    while the board made another five hundred to replace them. A meter
+    face wants one averaged reading a frame, and asks the board for a
+    rate that gives it exactly that.
     """
     got = []
     while len(got) < cap:
@@ -194,11 +199,13 @@ def main(argv=None):
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--hz', type=float, default=8.0,
                         help='screen refreshes per second')
-    parser.add_argument('--rate', type=float, default=200.0,
-                        help='records a second the board produces. It samples '
-                             'flat out underneath and averages into each one, '
-                             'so this is what the link carries, not what the '
-                             'converter does')
+    parser.add_argument('--rate', type=float, default=0.0,
+                        help='records a second the board produces. Default 0 '
+                             'follows --hz, which is what a meter wants: one '
+                             'reading a frame, averaged over the whole frame. '
+                             'The converter is not slowed to it - it runs flat '
+                             'out underneath and the board sums into each '
+                             'record')
     parser.add_argument('--simulated', action='store_true',
                         help='the stand-in, without probing for a board')
     parser.add_argument('--frames', type=int, default=0,
@@ -223,7 +230,11 @@ def main(argv=None):
     # one at a time: the accumulator carries the mean AND the two ends of
     # the window, which is exactly what a meter face wants.
     try:
-        layout = rig.configure(sample_rate=args.rate, digital=False)
+        # A METER, NOT A LOGGER: one record a frame, averaged over the
+        # frame. Asking for more only fills a ring this view then has to
+        # spend round trips emptying.
+        rate = args.rate if args.rate > 0 else max(1.0, args.hz)
+        layout = rig.configure(sample_rate=rate, digital=False)
         params = rig.board.analog.scaling()
         rig.start()
     except RigError as exc:
@@ -248,7 +259,7 @@ def main(argv=None):
     from screen import frame_of, run_view, stage
 
     held = {}
-    last = {'rows': []}
+    last = {'rows': [], 'state': rig.state(), 'at': 0.0}
     board_view = stage()
     console = board_view.is_terminal
     leaving = None
@@ -262,7 +273,15 @@ def main(argv=None):
             # The level BEFORE the drain: after it the ring is empty by
             # construction and the gauge would read nothing on a task
             # that is only just keeping up.
-            state = rig.state()
+            #
+            # Twice a second, not every frame: it is a round trip spent
+            # on the buffer box alone, and at eight frames a second that
+            # is a third of the frame budget for a gauge that moves
+            # slowly by construction.
+            now = time.time()
+            if now - last['at'] > 0.5:
+                last['state'], last['at'] = rig.state(), now
+            state = last['state']
             records = drain(rig)
         except RigError as exc:
             return frame_of(board_view, origin, 'METER BRIDGE',
