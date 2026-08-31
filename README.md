@@ -70,16 +70,18 @@ cable.
 
 ```python
 from coaxial import Coaxial63100
-device = Coaxial63100(port='COM4')       # simulated_device=True: no cable
-daq = device.daq                         # the subsystem, and only it from here
+device = Coaxial63100(port='COM4', power_afe=True)   # simulated_device=True: no cable
+daq = device.daq                         # the data acquisition subsystem
 daq.open()
 device.set_time_from_pc()                # the board counts cycles, not time
-daq.configure(['Phase U', 'NTC'], accumulate=8)
+daq.configure(['Phase U', 'NTC'], rate_hz=100, accumulate=8)   # channels, rate, summing
 daq.start()
 for block in daq.blocks(20):
     r = block[-1]
     print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM of `samples`
-device.close()
+daq.stop()                               # sampling and buffering end
+daq.close()                              # the acquisition released
+device.close()                           # the port, and the supply as found
 ```
 
 Everything raises rather than returning a status. **What a device is, and

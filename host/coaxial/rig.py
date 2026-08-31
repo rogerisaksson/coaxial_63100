@@ -115,6 +115,12 @@ class DaqView:
         self._device.open()
         return self
 
+    def close(self):
+        """End the acquisition: the task stopped, what it buffered still
+        readable. The port is the device's to close."""
+        self._device.stop()
+        return self
+
     @property
     def layout(self):
         return self._device.layout
@@ -124,11 +130,11 @@ class DaqView:
             return getattr(self._device, name)
         raise AttributeError(
             '%r is not part of the acquisition front door. It has: open, '
-            'layout, %s' % (name, ', '.join(DAQ_DOOR)))
+            'close, layout, %s' % (name, ', '.join(DAQ_DOOR)))
 
     def __repr__(self):
         return ('<the acquisition front door - open(), configure(), '
-                'start(), acquire()/latest()/blocks(), stop()>')
+                'start(), acquire()/latest()/blocks(), stop(), close()>')
 
 
 class Coaxial63100(Acquisition):
