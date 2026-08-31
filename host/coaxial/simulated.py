@@ -1455,13 +1455,22 @@ class SimulatedDaq(Acquisition):
         self._produced = 0
         return True
 
+    def _buffered(self):
+        """What a stopped run still owes: the real board's buffer stays
+        readable after stop, so a bounded run's remainder is served -
+        measured jank: the timed-burst notebook drained 0 records here
+        while the board gave 512."""
+        if self._cfg is None or not self._cfg['records']:
+            return 0
+        return max(0, self._cfg['records'] - self._produced)
+
     def stop(self):
         self._running = False
         return True
 
     def acquire(self, want=0, layout=None):
         import random
-        if not self._running:
+        if not self._running and not self._buffered():
             return []
         fields = (layout or self.layout())['fields']
         stride = 4 + 4 * len(fields)
