@@ -461,7 +461,7 @@ bool Board_DaqField(uint8_t field, uint8_t *channel);
 void Board_DaqPoll(void);
 
 /** Fed from the injected end-of-sequence for a TIM1-clocked one. */
-void Board_DaqOnInjected(const int16_t *phase);
+void Board_DaqOnInjected(const board_sync_sample_t *sample);
 
 uint32_t Board_DaqAvailable(void);
 uint16_t Board_DaqTake(uint8_t *out, uint16_t max_records);
@@ -621,6 +621,15 @@ uint8_t Board_AdcSampleTime(void);
 /** Is this channel one the injected group converts? Only those three can
     be clocked from TIM1; everything else has to come through the meter. */
 bool    Board_AdcIsPhase(uint8_t index);
+
+/** Whether the injected sequence converts this channel at all - the
+  * three phases and, on rank 2, the DC link and the NTC. What a task
+  * on the TIM1 clock may ask for. */
+bool    Board_AdcInjected(uint8_t index);
+
+/** One channel's value out of a latched injected sample. */
+int32_t Board_AdcInjectedSlot(uint8_t index,
+                              const board_sync_sample_t *sample);
 int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase);
 
 uint8_t Board_AdcCount(void);

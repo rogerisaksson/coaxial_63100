@@ -358,6 +358,30 @@ int32_t Board_AdcPhaseSlot(uint8_t index, const int16_t *phase)
   return phase[2];
 }
 
+
+bool Board_AdcInjected(uint8_t index)
+{
+  /* WHAT THE SEQUENCE ACTUALLY CONVERTS, which is more than the triple:
+     rank 2 carries the DC link on ADC3 and the NTC on ADC1, and both
+     are latched at the same instant as the phases. A task on the TIM1
+     clock may have any of the five and nothing else. */
+  return Board_AdcIsPhase(index) || (index == CH_DCBUS) ||
+         (index == CH_NTC);
+}
+
+
+int32_t Board_AdcInjectedSlot(uint8_t index,
+                              const board_sync_sample_t *sample)
+{
+  if (sample == NULL)
+  {
+    return 0;
+  }
+  if (index == CH_DCBUS) { return (int32_t)sample->dcbus; }
+  if (index == CH_NTC)   { return (int32_t)sample->ntc; }
+  return Board_AdcPhaseSlot(index, sample->phase);
+}
+
 _Static_assert(BOARD_CAL_CHANNELS ==
                (sizeof(s_adcTable) / sizeof(s_adcTable[0])),
                "the calibration record and the ADC table disagree on how "

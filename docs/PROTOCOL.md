@@ -261,8 +261,9 @@ converters, one timer.
 **Op 1** takes `u16 channels, u8 clock, u8 sample_time, u16 decimate, u16
 accumulate, u32 records, u8 digital, u32 interval_us`. `channels` is a
 bitmask over `0x6D` kind 0; `clock` 0 is the main loop, 1 the injected
-group, one record per PWM period - a TIM1 clock **carries only the phases**
-and refuses any other channel; `sample_time` 0..7 over the H7's eight
+group, one record per PWM period - a TIM1 clock carries **what the injected
+sequence converts**: the three phases, and the DC link and the NTC that
+ride rank 2. Any other channel is refused; `sample_time` 0..7 over the H7's eight
 windows, shortest first; `decimate` keeps one trigger in N; `records` 0
 runs until stopped; `digital` appends one `u32` of drivable-pin levels per
 record, sampled at the record's timestamp.
@@ -353,7 +354,14 @@ decoder that recomputes it mis-frames every record after the first. **Op 5** mak
 fields, u16 stride`, per field `u8 channel, u8 unit, u8 differential, str
 signal`, then `u8 digital` and, when set, `u8 pins` and per pin `u8
 direction, str signal`. Drivable pins only: all twenty-three came to 312
-bytes against 253. A host builds its decoder from that. Measured: the TIM1
+bytes against 253. A host builds its decoder from that. **The TIM1 clock is the one FOC wants and it does not need the gates.**
+MOE is a separate thing: with the sync armed and the stage down the
+injected sequence still triggers, so the samples come at the PWM period
+whatever the bridge is doing - measured 49 300 samples/s over five
+channels, 0 dropped, against the software clock's 1129 sweeps a second
+with the same channel count and its scheduling jitter.
+
+Measured: the TIM1
 clock lands at 19.93/20.00/20.09 µs min/mean/max against 50 kHz;
 `decimate=2` with `accumulate=50` gives exactly 2000 µs per record; the
 software clock manages about 10.6 kHz on two channels.

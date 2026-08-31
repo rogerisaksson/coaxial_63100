@@ -489,13 +489,13 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
 }
 
 
-/** True when every selected field is a phase - all the injected group
-  * converts. */
-static bool only_phases(void)
+/** True when the injected sequence converts every selected field: the
+  * three phases, and the DC link and NTC that ride rank 2. */
+static bool only_injected(void)
 {
   for (uint8_t f = 0U; f < s_fields; f++)
   {
-    if (!Board_AdcIsPhase(s_order[f]))
+    if (!Board_AdcInjected(s_order[f]))
     {
       return false;
     }
@@ -569,11 +569,12 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
      phases and nothing else. Asking for a channel it does not carry is a
      configuration that cannot be honoured, so it is refused here rather
      than answered with zeros. */
-  if ((cfg->clock == BOARD_DAQ_CLOCK_TIM1) && !only_phases())
+  if ((cfg->clock == BOARD_DAQ_CLOCK_TIM1) && !only_injected())
   {
-    return "the TIM1 clock converts the three phases and nothing else - "
-           "any other channel has to come through the meter on the "
-           "software clock";
+    return "the TIM1 clock carries what the injected sequence converts - "
+           "the three phases, and the DC link and the NTC on rank 2. Any "
+           "other channel has to come through the meter on the software "
+           "clock";
   }
 
   if ((cfg->accumulate == 0U) && s_filtering)
@@ -1138,12 +1139,12 @@ void Board_DaqPoll(void)
 }
 
 
-void Board_DaqOnInjected(const int16_t *phase)
+void Board_DaqOnInjected(const board_sync_sample_t *sample)
 {
   int32_t values[BOARD_DAQ_MAX_CHANNELS];
 
-  if (!s_running || (s_cfg.clock != BOARD_DAQ_CLOCK_TIM1) || (phase == NULL)
-      || !powered())
+  if (!s_running || (s_cfg.clock != BOARD_DAQ_CLOCK_TIM1) ||
+      (sample == NULL) || !powered())
   {
     return;
   }
@@ -1153,7 +1154,7 @@ void Board_DaqOnInjected(const int16_t *phase)
 
   for (uint8_t f = 0U; f < s_fields; f++)
   {
-    values[f] = Board_AdcPhaseSlot(s_order[f], phase);
+    values[f] = Board_AdcInjectedSlot(s_order[f], sample);
     live_insert(f, values[f], at, digital);
   }
   feed(values, at, digital);

@@ -2353,3 +2353,31 @@ is a second answer of exactly the kind this tree deletes, so
 `Board_AdcClockHz()` reads it out of RCC and the ADC's own CCR and the
 clock op appends it. The board says 37.500 MHz. Every sampling time here
 is quoted in ADC cycles, and this is what turns one into seconds.
+
+## The TIM1 clock does not need the gates, and now carries five channels
+
+2026-08-31. FOC wants its samples at a known point in the PWM period, and
+that path already existed - `clock='tim1'` feeds the ring from the
+injected sequence at `trigger`, through the same filter chain as
+everything else. What was not obvious is that it needs no switching:
+**MOE is a separate thing from the sync**, so arming the injected group
+with the stage down still triggers at the PWM period.
+
+| | measured |
+|---|---|
+| TIM1 clock, gates DOWN | **49 239 samples/s**, 985 records/s at accumulate 50 |
+| triggers over 1.03 s | 50 749 - the 50 kHz period, one sample each |
+| software clock, same channels | 1129 sweeps/s, and whatever the loop's scheduling did that second |
+
+Forty-three times the rate, and jitter-free, for the price of arming the
+sync. So there is no second timer to add: TIM1 runs whether or not
+anything is switching, and it is the same clock the drive samples on.
+
+**And it carries more than the phases now.** The injected sequence has
+converted the DC link (ADC3 rank 2) and the NTC (ADC1 rank 2) since the
+drive needed them, latched at the same instant as the triple, but
+`Board_AdcPhaseSlot` mapped U and V and returned `phase[2]` for
+everything else - silently wrong for any other channel, which is why the
+configure refused all but the phases. `Board_AdcInjectedSlot` takes the
+whole latched sample. Measured, all five: **49 300 samples/s, 0 dropped**,
+NTC 42 072 codes and the DC link 26 039 beside the triple.
