@@ -10,7 +10,9 @@ a protocol or a transport can be swapped without cascading edits.
 
 **`Core/`** — CubeMX-generated. User code is the two sensor polls and
 `Board_StoKeepalive()`, which stays at the top of the loop because
-`link_active()` does a `continue`.
+`link_active()` does a `continue` - and `SCB_EnableICache()` in the Init
+block: CubeMX generated no cache, and the M7 fetched every instruction
+from flash at four wait states until 2026-08-31 (FINDINGS).
 
 **`Board/`** — this hardware behind `board.h`: `adc`, `cal`, `clock`, `io`,
 `imu`, `angle`, `pwm`, `sync`, `sto`, `log`, `daq`, `selftest`. Dependencies run
@@ -85,8 +87,11 @@ host-tested through `Drive/test/harness.c` against a PMSM model.
 `board_drive.c` runs it from ADC3's injected interrupt with the two
 conversions cached at each mode change, and the interrupt path carries
 `-O2` whatever the preset - one step at -O0 was longer than the period.
-Its parameters are the calibration record's (ids 15..44). Nothing has
-run into a motor.
+Its parameters are the calibration record's (ids 15..44). A PMSM model
+in `drive_model.c` is the second sample source (device 10 op 10): the law
+runs on its currents with no reference and no stage, the duties reaching
+real gates only if MOE is set - how the observer is watched on a bench
+that cannot switch and measure at once. Nothing has run into a motor.
 
 ## Host
 
@@ -143,7 +148,10 @@ holds the template together across restyles.
 SNR budget, the Kalman gains from the measured noise, the crossover speed,
 the decision - and `commission.py` the eight steps against a rig, every
 verdict the executive's rather than the board's; `tools/commission.py`
-runs them and prints the line.
+runs them and prints the line. `tools/show_observer.py` is the page - ROTOR
+OBSERVER on the chooser: the estimate on the dial, the model's own rotor
+marked on its rim, every drive parameter a switch checked against the
+stage before it is written, and A arms nothing unless `--switch` says so.
 
 **`host/coaxial_mcp/`** — MCP server built for a token budget: dense
 fixed-column text, 8.8x smaller than JSON. Probes OS ports and ST-Links for
@@ -161,7 +169,7 @@ Board-side scaling is kept only to cross-check the math.
 
 ## The test system
 
-Twenty-three suites, 2096 checks. `run_tests.ps1` is the only interface -
+Twenty-three suites, 2111 checks. `run_tests.ps1` is the only interface -
 `-AutomaticMinimal|Medium|High` for ~25/50/75 % of every check, `-All` the gate,
 `-Only NAMES` and `-Tags SUBJECTS` for one change's worth, `-Structure` for the
 package itself.

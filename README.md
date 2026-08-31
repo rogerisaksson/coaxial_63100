@@ -19,7 +19,7 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 
 ## Demos
 
-`.\coaxial_tty.ps1` is the menu - `session` first, six standalone views and
+`.\coaxial_tty.ps1` is the menu - `session` first, seven standalone views and
 the board chat (local llm or claude over MCP); each view is also
 `.\demos\<name>.ps1`. Every one takes
 `-Simulated` (no board) and `-Frames N` (stop after N).
@@ -30,9 +30,14 @@ the board chat (local llm or claude over MCP); each view is also
 | `imu` | BOARD ATTITUDE - board orientation visualizer |
 | `angle` | SHAFT ANGLE - motor axle rotation position |
 | `adc` | METER BRIDGE - metered channels |
-| `gate_drivers` | GATE DRIVERS - half bridge control |
+| `gate_drivers` | MOTOR CONTROLLER > GATE DRIVERS - half bridge control |
+| `observer` | MOTOR CONTROLLER > ROTOR OBSERVER - the drive on the model or the converters |
 | `thermal` | THERMAL OBSERVER - thermals estimation |
 | `chat` | BOARD CHAT - CCC, the local llm, or claude over MCP |
+
+MOTOR CONTROLLER and BOARD CHAT ask a second question; ESC in a view under
+either comes back to that question with the view lit, ESC on the front
+page quits.
 
 `gate_drivers` is the one that switches. `+ -` duty, `[ ]` step, `A` arm,
 `B` BKIN override, `I` interlock override, `1 2 3 4` run length, `R` run.
@@ -77,7 +82,7 @@ told.
 cube-cmake --build --preset Debug      # must be zero warnings
 STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
 .\run_tests.ps1                        # ~25 % of the checks, the default
-.\run_tests.ps1 -All                   # 2096 checks, the gate
+.\run_tests.ps1 -All                   # 2111 checks, the gate
 .\run_tests.ps1 -Structure             # does host/ still hold together - 4 s
 ```
 

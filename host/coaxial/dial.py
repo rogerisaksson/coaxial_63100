@@ -78,17 +78,21 @@ def _plot(grid, width, height, col, row, glyph):
         grid[r][c] = glyph
 
 
-def render(degrees, width=60, height=19, field=None):
+def render(degrees, width=60, height=19, field=None, radius=RADIUS):
     """The magnet at `degrees`, with the sensor below it.
 
     `field` is the gauss the part reports. Below a few tens of gauss there is
     no magnet in front of the sensor and the angle is noise; the picture says
     so rather than drawing a confident pointer at a number that means
     nothing.
+
+    `radius` in columns: the face the shaft view draws at 13, the rotor
+    observer's at 9 beside its four instrument boxes. The graduations keep
+    their pitch, so a smaller face carries fewer of them.
     """
     grid = [[' '] * width for _ in range(height)]
     cx = (width - 1) / 2.0
-    cy = (RADIUS + 2.0) * ROW_ASPECT + 1.5
+    cy = (radius + 2.0) * ROW_ASPECT + 1.5
 
     # A PROTRACTOR, not a plain circle: minor graduations every 6 degrees
     # around the whole rim, a heavier mark every 30, and the degree numbers
@@ -96,27 +100,27 @@ def render(degrees, width=60, height=19, field=None):
     for mark in range(0, 360, 6):
         phi = math.radians(mark)
         glyph = TICK if mark % 30 == 0 else RIM
-        _plot(grid, width, height, cx + RADIUS * math.cos(phi),
-              cy - RADIUS * math.sin(phi) * ROW_ASPECT, glyph)
+        _plot(grid, width, height, cx + radius * math.cos(phi),
+              cy - radius * math.sin(phi) * ROW_ASPECT, glyph)
         if mark % 30 == 0:
-            _plot(grid, width, height, cx + (RADIUS - 1.0) * math.cos(phi),
-                  cy - (RADIUS - 1.0) * math.sin(phi) * ROW_ASPECT, TICK)
+            _plot(grid, width, height, cx + (radius - 1.0) * math.cos(phi),
+                  cy - (radius - 1.0) * math.sin(phi) * ROW_ASPECT, TICK)
 
     for mark in range(0, 360, 30):
         phi = math.radians(mark)
         label = str(mark)
-        lx = cx + (RADIUS + 2.6) * math.cos(phi) - len(label) / 2.0 + 0.5
-        ly = cy - (RADIUS + 2.2) * math.sin(phi) * ROW_ASPECT
+        lx = cx + (radius + 2.6) * math.cos(phi) - len(label) / 2.0 + 0.5
+        ly = cy - (radius + 2.2) * math.sin(phi) * ROW_ASPECT
         for i, digit in enumerate(label):
             _plot(grid, width, height, lx + i, ly, digit)
 
     weak = field is not None and field < WEAK_GAUSS
     phi = math.radians(degrees)
     if not weak:
-        for i in range(1, int(RADIUS * 4) + 1):
-            r = RADIUS * i / (RADIUS * 4)
-            _plot(grid, width, height, cx + r * RADIUS * math.cos(phi) / RADIUS,
-                  cy - r * RADIUS * math.sin(phi) * ROW_ASPECT / RADIUS,
+        for i in range(1, int(radius * 4) + 1):
+            r = radius * i / (radius * 4)
+            _plot(grid, width, height, cx + r * radius * math.cos(phi) / radius,
+                  cy - r * radius * math.sin(phi) * ROW_ASPECT / radius,
                   POINTER)
     # The centre - the reference's circled cross - drawn LAST so the
     # pointer passes under it, not through it.

@@ -47,12 +47,27 @@ void Board_DriveMoments(drive_moments_t *out);
 void Board_DriveCycles(uint32_t *last, uint32_t *max);
 void Board_DriveCyclesReset(void);
 
+/** The worst end of a step in TIM1 ticks past the trigger - conversion,
+  * interrupt entry and step together, against the period's 2 x ARR. */
+uint16_t Board_DriveExitTicks(void);
+
 /** Whether the drive is committing the compares, so the host's own duty
   * writes are refused while it does. */
 bool Board_DriveOwnsCompares(void);
 
 /** Take the parameters out of the calibration record. */
 void Board_DriveParamsFromCal(void);
+
+/** Where the samples come from: 0 the converters, 1 the model. Refused
+  * while a mode runs. The model needs no reference and no stage; its
+  * duties reach the gates only if MOE happens to be set. */
+const char *Board_DriveSetSource(uint8_t source);
+
+/** One model parameter by id, in its integer unit - see cmd_drive.c. */
+const char *Board_DriveModelParam(uint8_t id, int32_t value);
+
+/** The rotor back to theta0, at rest, the pipeline empty. */
+void Board_DriveModelReset(void);
 
 /** From ADC3's injected end-of-sequence: the triple in raw centred codes,
   * the DC link raw single-ended. */

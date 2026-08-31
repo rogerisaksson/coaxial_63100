@@ -119,7 +119,7 @@ an op dispatcher beside it.
 | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |
 | 8 | the thermal observer | NTC, both dies, the model | 0 state, 1 set node, 2 set board, 3 set sampling, 4 budget, 5 set limit |
 | 9 | the rails and who holds them | AFE_ON | 0 state, 1 release all |
-| 10 | the drive | TIM1, the injected triple, the record | 0 state, 1 mode, 2 setpoint, 3 setpoints, 4 theta, 5 window, 6 moments arm, 7 moments, 8 reload, 9 cycles reset |
+| 10 | the drive | TIM1, the injected triple, the record, a PMSM model | 0 state, 1 mode, 2 setpoint, 3 setpoints, 4 theta, 5 window, 6 moments arm, 7 moments, 8 reload, 9 cycles reset, 10 source, 11 model param, 12 model, 13 model reset |
 
 `coaxial.Coaxial63100` is the host side and the preferred way in - `acquire()`
 and `write()` over the raw ops.
@@ -243,8 +243,13 @@ first: pwm ready, pwm enabled, break latched, sync ready, sync armed, AFE on,
 Cinj read, Clevel read. `flags2` bit 0 is the break bypass - appended rather
 than squeezed into the first byte, which is full, because moving an offset
 breaks every decoder for one bit. After the requested duties, the pins,
-the dead time and the gate shorts, MINOR 2 appends `u32 dcbus_raw`: the
-DC link as ADC3 rank 2 of the injected sequence read it beside the triple.
+the dead time and the gate shorts, MINOR 2 appends `u32 dcbus_raw` and
+`u32 ntc_raw`: the DC link as ADC3 rank 2 and the NTC as ADC1 rank 2 of
+the injected sequence read them beside the triple. Both need scan mode
+on their converter, which `Board_SyncArm` switches on once. While the
+sync is armed the meter is locked out of every channel but these two:
+`Board_Ntc` and `Board_DcBus` answer from the latch, so the thermal
+observer keeps its thermometer under the drive.
 
 `deadtime` is raw DTG, not nanoseconds. `trigger` is CCR4 in timer ticks. **Both
 ends of the range disable it**: 0 because OC4REF in PWM1 never goes active, ARR
@@ -252,7 +257,9 @@ because the compare never falls below the counter either - measured, `updates`
 stops and the latched triple freezes at its last value, which reads as a
 perfectly quiet channel. A value past ARR is refused with CCR4 unchanged, and op
 4 replies with the register as it reads back so the caller sees the refusal.
-`at` is `TIM1->CNT` as the interrupt read it, about 965 ticks (4.06 µs) after
+`at` is `TIM1->CNT` as the interrupt read it, 385 ticks (1.6 µs) after
+the sample with the instruction cache on since 2026-08-31 - 965 ticks,
+4.06 µs, before it - so
 the sample - the sample point is `trigger`, not `at`.
 
 `worst_gap` is the longest interval between keepalive edges in **raw CYCCNT
@@ -506,7 +513,7 @@ deviations in micro-units. MINOR 2.
 
 | Op | Request | Reply |
 |---|---|---|
-| 0 state | - | `u8 mode, u8 fault, u8 flags, i32 theta_hat, i32 omega_hat, i32 theta_cmd, i32 omega_cmd, i32 id, iq, vd, vq, vdc, i32 eps, eps_amps, ih, e_bemf, u32 periods, u32 isr_cycles_last, u32 isr_cycles_max, i32 pol_pos, pol_neg, u16 trigger, u32 ts_ns` |
+| 0 state | - | `u8 mode, u8 fault, u8 flags, i32 theta_hat, i32 omega_hat, i32 theta_cmd, i32 omega_cmd, i32 id, iq, vd, vq, vdc, i32 eps, eps_amps, ih, e_bemf, u32 periods, u32 isr_cycles_last, u32 isr_cycles_max, i32 pol_pos, pol_neg, u16 trigger, u32 ts_ns`, then appended: `u16 exit_ticks_max` (the whole interrupt, TIM1 ticks past the trigger), `u32 cyc_sample, cyc_step, cyc_advance` (the virtual step block by block; zero on the converters) |
 | 1 mode | `u8` 0 off, 1 volt, 2 hold, 3 sensorless, 4 polarity | `u8 took` |
 | 2 setpoint | `u8 id, i32` | `u8 took` |
 | 3 setpoints | - | `u8 count, i32 x count` |
@@ -516,6 +523,10 @@ deviations in micro-units. MINOR 2.
 | 7 moments | - | `u8 done, u32 n, u32 want, u16 trigger`, per channel U, V, W, DC bus: `i32 mean_milli, u32 sd_milli, i32 lo, i32 hi` |
 | 8 reload | - | `u8 took`: parameters out of the record |
 | 9 cycles reset | - | `u8`: forget the worst step cost |
+| 10 source | `u8` 0 converters, 1 model | `u8 took`; refused while a mode runs |
+| 11 model param | `u8 id, i32` | `u8 took` |
+| 12 model | - | `u8 source, i32 theta_urad, omega_mrad_s, id_ma, iq_ma, vdc_mv`, then the estimate in the same reply: `i32 theta_hat_urad, omega_hat_mrad_s` |
+| 13 model reset | - | `u8 took`: the rotor back to theta0, at rest |
 
 `flags`: bit 0 MOE, 1 AFE_ON, 2 injecting (two whole cycles seen), 3 the
 drive holds the compares, 4 sync armed. `fault`: 0 none, 1 overcurrent - a
@@ -539,12 +550,26 @@ voltage fraction; the shunt sign; the blend speeds; the dead-time table;
 the measured noise; the sample point. `coaxial.drive.PARAMS` carries the
 units. Op 1 reloads them on every mode change.
 
+**The model is the second source** (op 10). A PMSM the board integrates
+itself - dq in the rotor frame, Ld bent by the d current, friction, a load,
+the inverter's dead-time volts, the two-period pipeline - fed to the law
+in place of the converters, so the observer is watched against a rotor
+whose angle is known with the AFE off and no motor. A mode then needs
+neither MOE nor the reference; the duties reach real gates only if MOE
+happens to be set. Model parameters by id (op 11): 0 r uohm, 1 ld nH, 2 lq
+nH, 3 lambda uV.s, 4 pole pairs, 5 sat ppm, 6 i_sat mA, 7 J nkg.m2, 8 B
+nN.m.s, 9 load uN.m, 10 v_dt mV, 11 i_knee mA, 12 vdc mV, 13 noise uA,
+14 theta0 urad, 15 sub-steps. Op 12 carries the estimate beside the truth
+because two requests are 15 ms apart - six radians of rotor at 440 rad/s.
+
 **What the board decides**: nothing but the trip - a current past the one
 it was given, the same exception the thermal ceiling holds (invariant 10).
 
-Measured 2026-08-31, gates off, drivers unpowered: one step costs 2 922
-cycles, 6.2 us of the 20 us period; the DC link on ADC3 rank 2 read
-31.06 V against the meter's 31.05.
+Measured 2026-08-31, the instruction cache on, drivers unpowered: the
+idle step costs 1 780 cycles; sensorless on the model, injecting and
+spinning, the whole interrupt ends 12.3 us after the trigger of the 20 us
+period. The DC link on ADC3 rank 2 read 31.06 V against the meter's
+31.05. FINDINGS, *The caches were off*.
 
 ## Hardware safeguards and conformance
 

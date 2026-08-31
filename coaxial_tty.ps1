@@ -20,10 +20,13 @@
 
 .PARAMETER Name
     Skip the chooser and go straight to one of them: session, imu, angle,
-    adc, gate_drivers, thermal. The old capture view is a box in the session.
+    adc, gate_drivers, observer, thermal. On the front page gate_drivers
+    and observer sit under MOTOR CONTROLLER, which asks which half, and
+    chat and claude under BOARD CHAT, which asks who answers; ESC from a
+    view under either comes back to that question. The old capture view is a box in the session.
 
     `session` is the first entry and carries every panel over one port. The
-    other six are standalone and own the port on their own - which is what
+    other seven are standalone and own the port on their own - which is what
     the session exists to avoid, and still the way to the rich rendering its
     panels do not carry.
 
@@ -45,7 +48,7 @@
 #>
 param(
     [ValidateSet('session', 'imu', 'angle', 'adc',
-                 'gate_drivers', 'thermal')]
+                 'gate_drivers', 'observer', 'thermal')]
     [string]$Name,
     [string]$Port = 'COM4',
     [switch]$Simulated,
@@ -77,6 +80,10 @@ $Views = [ordered]@{
                  What   = 'CCC - the coaxial 63100 chat client' }
     'claude' = @{ Script = $null; Chat = 'anthropic'
                  What   = 'claude with the board over MCP' }
+    # Past the list on the front page like claude: MOTOR CONTROLLER's
+    # second answer. Its own code is gate_drivers', by position.
+    'observer' = @{ Script = 'observer.ps1'
+                 What   = 'the rotor observer: the drive on the model or the converters' }
 }
 
 # 64 is show_*.py's TO_MENU: ESC asking to come back here rather than close.
@@ -191,7 +198,18 @@ function Close-Demos {
 $asked = $Name
 $code = 0
 
+# The views a second question answers with. ESC from one of them reopens
+# the front page ON that question, with the view lit - not at the top of
+# the list, three keys away from where the reader was. Not $Asked:
+# PowerShell names are case-insensitive, and $Asked clobbered $asked,
+# the -Name parameter - $view became this list, the front page was
+# skipped and the chat branch opened on every start.
+$SubViews = @('gate_drivers', 'observer', 'chat', 'claude')
+$view = $null
+$from = $null
+
 do {
+    $from = $view
     $view = $asked
     $asked = $null
 
@@ -200,7 +218,10 @@ do {
         # access list - and the choice comes back in the EXIT CODE, because
         # capturing stdout would turn the page's console into a pipe.
         Push-Location (Join-Path $PSScriptRoot 'host')
-        & python -X utf8 tools/menu.py --port $Port
+        $page = @('-X', 'utf8', 'tools/menu.py', '--port', $Port)
+        if ($from -and $SubViews -contains $from) { $page += @('--open', $from) }
+        $from = $null
+        & python @page
         $picked = $LASTEXITCODE
         Pop-Location
         if ($picked -lt 101) {

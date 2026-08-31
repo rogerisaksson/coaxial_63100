@@ -64,6 +64,9 @@ void drive_model_init(drive_model_t *m)
   m->iq = 0.0f;
   m->rng = 0x2545F491UL;
   memset(m->duty_prev, 0, sizeof(m->duty_prev));
+  m->c = 1.0f;
+  m->s = 0.0f;
+  memset(m->i_abc, 0, sizeof(m->i_abc));
 }
 
 
@@ -95,15 +98,19 @@ void drive_model_sample(drive_model_t *m, drive_sample_t *out)
 {
   /* The three phase currents as the shunts would report them, at the top
      of the period - amplitude-invariant, with the noise the caller asked
-     for on each. */
-  const float c = cosf(m->theta);
-  const float s = sinf(m->theta);
-  const float ia = m->id * c - m->iq * s;
-  const float ib = m->id * s + m->iq * c;
+     for on each. The trig pair is kept for the advance that follows:
+     a period turns the rotor milliradians. */
+  drive_sincos(m->theta, &m->s, &m->c);
+  const float ia = m->id * m->c - m->iq * m->s;
+  const float ib = m->id * m->s + m->iq * m->c;
 
-  out->i[0] = ia + model_noise(m, m->p.noise);
-  out->i[1] = -0.5f * ia + HALF_SQRT3 * ib + model_noise(m, m->p.noise);
-  out->i[2] = -0.5f * ia - HALF_SQRT3 * ib + model_noise(m, m->p.noise);
+  m->i_abc[0] = ia;
+  m->i_abc[1] = -0.5f * ia + HALF_SQRT3 * ib;
+  m->i_abc[2] = -0.5f * ia - HALF_SQRT3 * ib;
+  for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
+  {
+    out->i[k] = m->i_abc[k] + model_noise(m, m->p.noise);
+  }
   out->vdc = m->p.vdc;
 }
 
@@ -122,27 +129,24 @@ void drive_model_advance(drive_model_t *m, const float *duty, float ts)
   }
   if (m->p.v_dt > 0.0f)
   {
-    drive_sample_t now;
-
-    drive_model_sample(m, &now);
     for (uint8_t k = 0U; k < DRIVE_PHASES; k++)
     {
-      v[k] -= m->p.v_dt * tanhf(now.i[k] / m->p.i_knee);
+      v[k] -= m->p.v_dt * tanhf(m->i_abc[k] / m->p.i_knee);
     }
   }
 
   const float va = (2.0f * v[0] - v[1] - v[2]) / 3.0f;
   const float vb = (v[1] - v[2]) * INV_SQRT3;
-  const float c = cosf(m->theta);
-  const float s = sinf(m->theta);
+  const float c = m->c;
+  const float s = m->s;
   const float vd = va * c + vb * s;
   const float vq = vb * c - va * s;
   const uint8_t sub = (m->p.sub == 0U) ? 1U : m->p.sub;
   const float dt = ts / (float)sub;
+  const float ld = model_ld(m);          /* once: it bends with the period's current */
 
   for (uint8_t k = 0U; k < sub; k++)
   {
-    const float ld = model_ld(m);
     const float did = (vd - m->p.r * m->id + m->omega * m->p.lq * m->iq) / ld;
     const float diq = (vq - m->p.r * m->iq - m->omega * ld * m->id
                        - m->omega * m->p.lambda) / m->p.lq;
@@ -168,12 +172,23 @@ bool drive_step_virtual(drive_t *d, drive_out_t *out)
      firmware's pipeline: what this step asks for shapes the period after
      the next one, so the model sees it a period late, like the stage. */
   drive_sample_t in;
+  const uint32_t t0 = d->cycles ? d->cycles() : 0U;
 
   drive_model_sample(&d->model, &in);
 
+  const uint32_t t1 = d->cycles ? d->cycles() : 0U;
   const bool trip = drive_step(d, &in, true, out);
+  const uint32_t t2 = d->cycles ? d->cycles() : 0U;
 
   drive_model_advance(&d->model, d->model.duty_prev, d->ts);
   memcpy(d->model.duty_prev, out->duty, sizeof(d->model.duty_prev));
+  if (d->cycles)
+  {
+    /* Where the period goes, so an interrupt that outgrew it can be read
+       block by block rather than guessed at. */
+    d->cyc_sample = t1 - t0;
+    d->cyc_step = t2 - t1;
+    d->cyc_advance = d->cycles() - t2;
+  }
   return trip;
 }

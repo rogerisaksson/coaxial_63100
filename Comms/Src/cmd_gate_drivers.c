@@ -106,6 +106,7 @@ static cmd_status_t h_gate_drivers_state(wr_t *out)
      2 on ADC3, raw single-ended - appended at MINOR 2. Zero until the
      sync has run once. */
   wr_u32(out, sync.latest.dcbus);
+  wr_u32(out, sync.latest.ntc);
 
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }

@@ -43,21 +43,34 @@ ENTRIES = (
     ('B', 'BOARD ATTITUDE', 'board orientation visualizer'),
     ('A', 'SHAFT ANGLE', 'motor axle rotation position'),
     ('M', 'METER BRIDGE', 'metered channels'),
-    ('G', 'GATE DRIVERS', 'half bridge control'),
+    ('G', 'MOTOR CONTROLLER', 'the gate drivers, or the rotor observer'),
     ('T', 'THERMAL OBSERVER', 'thermals estimation'),
     ('C', 'BOARD CHAT', 'prompt the local llm, or claude'),
 )
 
-#: BOARD CHAT's second question, drawn in the same list: who answers.
-#: Local exits with the chat entry's own code, claude one past the
-#: list, and coaxial_tty maps both by position.
-CHAT_AT = 6
+#: An entry with a second question, drawn in the same list. Each
+#: alternative carries the exit code it answers with: the entry's own
+#: for the first, codes past the list for the rest, and coaxial_tty maps
+#: every one by position - its $Views runs the entries, then claude, then
+#: the observer. The caption is the question.
+MOTOR_AT, CHAT_AT = 4, 6
 CHAT_LOCAL = 101 + CHAT_AT
 CHAT_CLAUDE = 101 + len(ENTRIES)
-WHO = (
-    ('C', 'CCC', 'coaxial 63100 chat client - the local llm'),
-    ('A', 'ANTHROPIC', 'claude, the board tools over MCP'),
-)
+OBSERVER = 101 + len(ENTRIES) + 1
+#: What `--open` takes: the view a second question answered with, as the
+#: chooser names it, and the (entry, pick) to open on. ESC from that view
+#: comes back here, not to the top of the list.
+OPEN = {'gate_drivers': (4, 0), 'observer': (4, 1),
+        'chat': (6, 0), 'claude': (6, 1)}
+SUB = {
+    MOTOR_AT: ('which half', (
+        ('G', 'GATE DRIVERS', 'half bridge control', 101 + MOTOR_AT),
+        ('R', 'ROTOR OBSERVER', 'the drive, on the model or the converters',
+         OBSERVER))),
+    CHAT_AT: ('who answers', (
+        ('C', 'CCC', 'coaxial 63100 chat client - the local llm', CHAT_LOCAL),
+        ('A', 'ANTHROPIC', 'claude, the board tools over MCP', CHAT_CLAUDE))),
+}
 
 #: Degrees of yaw per second for the idle tumble, with slower sways
 #: about the other two axes riding on top - all three turn, none of them
@@ -119,13 +132,16 @@ def roster(picked):
     return Group(*lines)
 
 
-def asking(who):
-    """The chat sub-list: the same quiet rows, only the pick lit."""
+def asking(sub):
+    """An entry's second question: the same quiet rows, only the pick
+    lit. `sub` is (entry, pick)."""
+    entry, who = sub
+    caption, options = SUB[entry]
     lines = [Text(''),
-             Text.assemble('   ', ('BOARD CHAT', 'name'),
-                           ('   who answers', 'label')),
+             Text.assemble('   ', (ENTRIES[entry][1], 'name'),
+                           ('   ' + caption, 'label')),
              Text('')]
-    for i, (key, name, what) in enumerate(WHO):
+    for i, (key, name, what, _code) in enumerate(options):
         style = 'value' if i == who else 'label'
         row = Text.assemble((' > ' if i == who else '   ', 'value'),
                             (key, style), ('  ', ''),
@@ -277,7 +293,8 @@ def compose(port, picked, view, size=None, who=None):
         Layout(masthead(port), size=1),
         Layout(body, name='body'),
         Layout(footer((('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
-                       ('C A', 'DIRECT'), ('ESC', 'BACK'), ('Q', 'EXIT'))
+                       (' '.join(o[0] for o in SUB[who[0]][1]), 'DIRECT'),
+                       ('ESC', 'BACK'), ('Q', 'EXIT'))
                       if who is not None else
                       (('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
                        ('S B A M G T C', 'DIRECT'), ('DRAG', 'TURN'),
@@ -302,18 +319,23 @@ def _act(typed, picked, hotkeys):
     return picked, None
 
 
-def _who_act(typed, who):
-    """(new pick, chosen exit code or None) for the chat list."""
+def _sub_act(typed, sub):
+    """(new (entry, pick), chosen exit code or None) for a second
+    question's list."""
+    entry, who = sub
+    options = SUB[entry][1]
     for key in typed:
-        if key in ('up', 'down'):
-            who = 1 - who
+        if key == 'up':
+            who = (who - 1) % len(options)
+        elif key == 'down':
+            who = (who + 1) % len(options)
         elif key in ('\r', '\n'):
-            return who, (CHAT_LOCAL, CHAT_CLAUDE)[who]
-        elif key.lower() == 'c':
-            return 0, CHAT_LOCAL
-        elif key.lower() == 'a':
-            return 1, CHAT_CLAUDE
-    return who, None
+            return (entry, who), options[who][3]
+        else:
+            for i, option in enumerate(options):
+                if key.lower() == option[0].lower():
+                    return (entry, i), option[3]
+    return (entry, who), None
 
 
 def main(argv=None):
@@ -324,12 +346,18 @@ def main(argv=None):
     parser.add_argument('--simulated', action='store_true',
                         help='accepted for the view suite; the page opens '
                              'no session either way')
+    parser.add_argument('--open', choices=sorted(OPEN), default=None,
+                        help='open on the second question this view was '
+                             'picked from, with it lit - the way back '
+                             'from ESC in a view under one')
     args = parser.parse_args(argv)
 
     page = stage()
     console = page.is_terminal
     picked, frame, began = 0, 0, time.monotonic()
-    who = None
+    who = OPEN.get(args.open)
+    if who is not None:
+        picked = who[0]
     # The turntable's state: pose and zoom persist across a grab, so the
     # idle motion carries on from wherever the hand left it.
     view = {'pose': (0.0, 0.0, 0.0, 1.0), 'zoom': SWELL_FROM,
@@ -347,6 +375,12 @@ def main(argv=None):
         for i, (key, _name, _what) in enumerate(ENTRIES):
             if line == key.lower():
                 return 101 + i
+        # The second questions' answers, by name, for a line that
+        # cannot be asked twice.
+        for _caption, options in SUB.values():
+            for _key, name, _what, code in options:
+                if line == name.lower():
+                    return code
         return 0
 
     threading.Thread(target=_watch_broker, daemon=True).start()
@@ -369,17 +403,17 @@ def main(argv=None):
 
             leave, moved, typed = paced(keys, 0.08)
             if leave == 'menu' and who is not None:
-                who = None            # ESC backs out of the chat list
+                who = None            # ESC backs out of the second question
                 continue
             if leave:
                 return 0
             grab(view, keys, moved, time.monotonic())
             if who is not None:
-                who, chosen = _who_act(typed, who)
+                who, chosen = _sub_act(typed, who)
             else:
                 picked, chosen = _act(typed, picked, hotkeys)
-                if chosen == CHAT_LOCAL:
-                    who, chosen = 0, None
+                if chosen is not None and (chosen - 101) in SUB:
+                    who, chosen = (chosen - 101, 0), None
             if chosen is not None:
                 return chosen
 

@@ -180,10 +180,19 @@ set_source_files_properties(
 # warnings the lists above gave it.
 set_source_files_properties(
     Drive/Src/drive.c Drive/Src/drive_math.c Drive/Src/drive_model.c
-    PROPERTIES COMPILE_OPTIONS "-O2;-Wextra;-Wshadow;-Wconversion")
+    PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 set_source_files_properties(
     Board/Src/board_drive.c Board/Src/board_sync.c
-    PROPERTIES COMPILE_OPTIONS "-O2;-Wextra;-Wshadow")
+    PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow")
+# And the HAL in front of it: HAL_ADC_IRQHandler is every flag check in
+# the peripheral before the callback runs, fifty thousand times a second.
+# These two are CubeMX's files in the generated target, so the property
+# is set into that directory rather than by editing what CubeMX rewrites.
+set_source_files_properties(
+    Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_adc.c
+    Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_adc_ex.c
+    DIRECTORY cmake/stm32cubemx
+    PROPERTIES COMPILE_OPTIONS "-O2")
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE

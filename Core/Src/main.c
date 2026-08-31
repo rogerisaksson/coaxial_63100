@@ -105,6 +105,16 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
+  /* The M7's instruction cache. CubeMX generated neither cache, so at
+     475 MHz every fetch waited on flash's four wait states: measured
+     2026-08-31, one virtual drive step cost 7 400 cycles with it off and
+     the interrupt outgrew the PWM period. Instructions only: the data
+     cache would need an invalidate after the calibration record is
+     programmed, since Board_CalSave reads the sector back through a
+     pointer, and nothing here is slow for want of it - .data and .bss
+     live in DTCM, which no cache touches. */
+  SCB_EnableICache();
+
   /* USER CODE END Init */
 
   /* Configure the system clock */

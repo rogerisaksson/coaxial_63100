@@ -4,9 +4,9 @@ State as of 2026-08-31.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2096 checks, 23 suites |
-| Debug build | 0 warnings; the four files on the drive's interrupt path at `-O2` |
-| FLASH / DTCMRAM | 161 816 B (8 %) / 49 808 B (38 %) - `build_and_flash.py` prints it |
+| `run_tests.ps1 -All` | 2111 checks, 23 suites |
+| Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
+| FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 2 |
 | Firmware | 1.6.0 |
 | Calibration record | CAL_VERSION 8, 45 parameters, op 8 pages them |
@@ -26,7 +26,9 @@ not what it measured.
 | The thermal observer: ten nodes, drivers and phases per leg, an SOA budget in flash | PROTOCOL, *Device 8* |
 | Rails reference counted, and who holds them on the wire | PROTOCOL, *Device 9* |
 | Switching into a load: one leg at a duty against another held low, or the pair swapped every PWM period by the board (`0x6E` device 4 op 10), 2-50 %, 25-31 V, up to 60 s | CLAUDE.md *Scope*; FINDINGS, *The pair alternates* |
-| The drive: current loop, injection, observer, I/f, polarity pulse, stepped on the board at 2 922 cycles a period - dry, drivers unpowered, no motor | PROTOCOL, *Device 10*; FINDINGS, *The drive* |
+| The drive: current loop, injection, observer, I/f, polarity pulse - idle 1 780 cycles a period; sensorless on the model, spinning, the interrupt ends 12.3 us of 20 after the trigger | PROTOCOL, *Device 10*; FINDINGS, *The caches were off* |
+| The model as the drive's source, and ROTOR OBSERVER on the chooser: the observer watched against a rotor whose angle is known, AFE off, no motor - locked to 0.002 rad, spun to 441 rad/s with 0.009 rad of error | PROTOCOL, *Device 10*; `tools/show_observer.py` |
+| The NTC and the DC link ride the injected sequence as rank 2, so the thermal observer keeps its thermometer under the drive | PROTOCOL, *Device 4* |
 | The commissioning: AFE noise floor, sample point, offsets, gain mismatch, dead time, L map, lambda, budget, gains, decision, verification - on the stand-in end to end, on the bench as far as the AFE | ARCHITECTURE, *Host*; `tools/commission.py` |
 
 **USB is configured and nothing sits on it.** OTG_FS device, no device class,
@@ -93,10 +95,12 @@ Nothing else has - invariant 7.
    `rds_25 * (1 + alpha * (Tj - 25))` fed back from the leg's own node
    estimate, alpha off the datasheet, verified against the camera in a
    soak.
-8. **The drive's interrupt at 31 %.** 2 922 cycles a period with the mode
-   off; a running mode adds the loop, the SVM and the injection. Budget it
-   on the board, not the host model: the window's `isr_cycles_max` is the
-   instrument.
+8. **The data cache.** Off, with the instruction cache on since
+   2026-08-31: `Board_CalSave` reads the sector back through a pointer
+   after programming and would need `SCB_InvalidateDCache_by_Addr` on it
+   first. Everything in DTCM is uncached either way; the win is flash
+   literal pools and .rodata on the interrupt path. Measure before and
+   after with device 10 op 0's `cyc_*` and `exit_ticks_max`.
 9. **A USB device class**, if USB is to do anything.
 10. **A cycle-counted duty.** A hold's length is the link's: the shortest is
     one write round trip, ~800 periods, and 100 ms asked for is 93-108 at the

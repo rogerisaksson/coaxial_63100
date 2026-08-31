@@ -27,6 +27,10 @@ static bool     s_ready;
 static bool     s_owned;          /**< the drive holds the compares       */
 static uint32_t s_cycles_last;    /**< what one step cost, raw CYCCNT     */
 static uint32_t s_cycles_max;
+/** Where TIM1 stood when the step ended, in ticks past the trigger: the
+    conversion, the HAL's interrupt entry and the step, all of it. The
+    cycle count above starts inside the step and misses the first two. */
+static uint16_t s_exit_ticks_max;
 
 /** The conversions, affine and cached: refreshed with the parameters.
     A call into board_adc.c per sample was most of the interrupt. */
@@ -111,6 +115,7 @@ void Board_DriveInit(void)
                    ? ((float)ticks / (float)hz) : 20e-6f;
 
   drive_init(&s_drive, ts);
+  s_drive.cycles = Board_Cycles;
   Board_DriveParamsFromCal();
   s_owned = false;
   s_cycles_max = 0U;
@@ -219,6 +224,83 @@ void Board_DriveSetpointsGet(int32_t *out)
 }
 
 
+const char *Board_DriveSetSource(uint8_t source)
+{
+  if (source > 1U)
+  {
+    return "source is 0 for the converters or 1 for the model";
+  }
+  if (s_drive.mode != DRIVE_OFF)
+  {
+    return "the drive is running - mode 0 first, then change where its "
+           "samples come from";
+  }
+
+  const uint32_t masked = __get_PRIMASK();
+  __disable_irq();
+  s_drive.source = (source != 0U) ? DRIVE_SOURCE_MODEL : DRIVE_SOURCE_ADC;
+  drive_model_init(&s_drive.model);
+  if (!masked)
+  {
+    __enable_irq();
+  }
+  return NULL;
+}
+
+
+const char *Board_DriveModelParam(uint8_t id, int32_t value)
+{
+  drive_model_params_t *p = &s_drive.model.p;
+  const float f = (float)value;
+
+  switch (id)
+  {
+    case 0U:  p->r = f / 1e6f; break;
+    case 1U:  if (value <= 0) { return "ld is nanohenry, above zero"; }
+              p->ld = f * 1e-9f; break;
+    case 2U:  if (value <= 0) { return "lq is nanohenry, above zero"; }
+              p->lq = f * 1e-9f; break;
+    case 3U:  p->lambda = f / 1e6f; break;
+    case 4U:  if (value <= 0) { return "pole pairs is a count above zero"; }
+              p->pole_pairs = f; break;
+    case 5U:  p->sat = f / 1e6f; break;
+    case 6U:  if (value <= 0) { return "i_sat is milliamperes, above zero"; }
+              p->i_sat = f / 1e3f; break;
+    case 7U:  if (value <= 0) { return "J is nano kg m2, above zero"; }
+              p->j = f * 1e-9f; break;
+    case 8U:  p->b = f * 1e-9f; break;
+    case 9U:  p->load = f / 1e6f; break;
+    case 10U: p->v_dt = f / 1e3f; break;
+    case 11U: if (value <= 0) { return "i_knee is milliamperes, above zero"; }
+              p->i_knee = f / 1e3f; break;
+    case 12U: if (value <= 0) { return "vdc is millivolts, above zero"; }
+              p->vdc = f / 1e3f; break;
+    case 13U: p->noise = f / 1e6f; break;
+    case 14U: p->theta0 = f / 1e6f; break;
+    case 15U: if ((value < 1) || (value > 16)) { return "substeps is 1..16"; }
+              p->sub = (uint8_t)value; break;
+    default:
+      return "no such model parameter - 0 r uohm, 1 ld nH, 2 lq nH, 3 lambda "
+             "uVs, 4 pole pairs, 5 sat ppm, 6 i_sat mA, 7 J nkgm2, 8 B nNms, "
+             "9 load uNm, 10 v_dt mV, 11 i_knee mA, 12 vdc mV, 13 noise uA, "
+             "14 theta0 urad, 15 substeps";
+  }
+  return NULL;
+}
+
+
+void Board_DriveModelReset(void)
+{
+  const uint32_t masked = __get_PRIMASK();
+  __disable_irq();
+  drive_model_init(&s_drive.model);
+  if (!masked)
+  {
+    __enable_irq();
+  }
+}
+
+
 void Board_DriveSetTheta(int32_t microradians)
 {
   const uint32_t masked = __get_PRIMASK();
@@ -277,6 +359,13 @@ void Board_DriveCycles(uint32_t *last, uint32_t *max)
 void Board_DriveCyclesReset(void)
 {
   s_cycles_max = 0U;
+  s_exit_ticks_max = 0U;
+}
+
+
+uint16_t Board_DriveExitTicks(void)
+{
+  return s_exit_ticks_max;
 }
 
 
@@ -311,8 +400,15 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
 
   const bool enabled = Board_PwmIsEnabled();
   const bool running = (s_drive.mode != DRIVE_OFF);
+  /* The model as the source: the law runs on its currents whether or
+     not a stage is armed, and the duties below reach the gates only if
+     one is - which is how the observer is watched on this bench, where
+     the converters and the drivers are never powered together. */
+  const bool trip = (s_drive.source == DRIVE_SOURCE_MODEL)
+                    ? drive_step_virtual(&s_drive, &out)
+                    : drive_step(&s_drive, &in, enabled, &out);
 
-  if (drive_step(&s_drive, &in, enabled, &out))
+  if (trip)
   {
     /* The trip: MOE down in hardware before this returns. */
     Board_PwmDisable();
@@ -366,4 +462,16 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
 
   s_cycles_last = Board_Cycles() - t0;
   s_cycles_max = (s_cycles_last > s_cycles_max) ? s_cycles_last : s_cycles_max;
+
+  /* The trigger fires on the down-slope at CCR5; the counter has fallen
+     since, or turned at zero and climbed. Either way the ticks since. */
+  const uint32_t cnt = TIM1->CNT;
+  const uint32_t trigger = TIM1->CCR5;
+  const uint32_t since = ((TIM1->CR1 & TIM_CR1_DIR) != 0U)
+                         ? (trigger - cnt) : (trigger + cnt);
+
+  if (since > s_exit_ticks_max)
+  {
+    s_exit_ticks_max = (uint16_t)since;
+  }
 }

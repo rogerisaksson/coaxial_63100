@@ -141,6 +141,9 @@ class GateDrivers(Subsystem, GateControl):
         # single-ended - rank 2 on ADC3, MINOR 2. Older firmware stops
         # before it.
         out['dcbus_raw'] = r.u32() if r.remaining >= 4 else None
+        # And the NTC, rank 2 on ADC1 - the thermal observer's thermometer
+        # while the drive holds the converters.
+        out['ntc_raw'] = r.u32() if r.remaining >= 4 else None
         return out
 
     def enable(self):

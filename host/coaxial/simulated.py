@@ -1644,6 +1644,13 @@ class SimulatedDrive:
         self._mom = None
         self._pol = (0.0, 0.0)
         self._cycles_max = 0
+        self._source = 'adc'
+        self._model = {'r': self.R, 'ld': self.LD, 'lq': self.LQ,
+                       'lambda': self.LAMBDA, 'pole_pairs': float(self.POLES),
+                       'sat': self.SAT, 'i_sat': self.I_SAT, 'j': 2e-5,
+                       'b': 1e-5, 'load': 0.0, 'v_dt': self.V_DT,
+                       'i_knee': self.I_KNEE, 'vdc': 24.0, 'noise': 0.0,
+                       'theta0': 0.0, 'sub': 4.0}
 
     def _p(self, name, default):
         return self._params.get(name, default)
@@ -1848,6 +1855,47 @@ class SimulatedDrive:
     def trigger(self, ticks):
         """The stand-in's sample point, moved by its gate drivers' trigger()."""
         self._trigger = int(ticks)
+
+    def source(self, name):
+        from .drive import SOURCES
+        if name not in SOURCES:
+            raise ValueError('%r is not a source; they are %s' % (name, ', '.join(SOURCES)))
+        if self._mode != 'off':
+            raise RigError('the drive is running - mode 0 first, then change '
+                           'where its samples come from (simulated)')
+        self._source = name
+        return True
+
+    def model_param(self, **values):
+        from .drive import MODEL_IDS
+        for name in values:
+            if name not in MODEL_IDS:
+                raise ValueError('%r is not a model parameter; they are %s'
+                                 % (name, ', '.join(MODEL_IDS)))
+        self._model.update({k: float(v) for k, v in values.items()})
+        return dict(values)
+
+    def model(self):
+        """The stand-in's rotor sits at zero, which is what its dq means
+        and its saliency are drawn around."""
+        iid, iq, _, _ = self._dq()
+        return {'source': self._source, 'theta': 0.0,
+                'omega': self._omega(), 'id': iid, 'iq': iq,
+                'vdc': self._model['vdc']}
+
+    def model_reset(self):
+        return True
+
+    def profile(self, path):
+        import json
+        with open(path, encoding='utf-8') as handle:
+            data = json.load(handle)
+        done = {'name': data.get('name', path)}
+        if data.get('drive'):
+            done['drive'] = self.set_params(**data['drive'])
+        if data.get('model'):
+            done['model'] = self.model_param(**data['model'])
+        return done
 
     #: What an uncommissioned board answers: the firmware's compiled-in
     #: placeholders (board_cal.c), in SI, the same as the real record reads.

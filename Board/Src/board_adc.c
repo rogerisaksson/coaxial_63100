@@ -394,6 +394,22 @@ static bool read_index(uint8_t index, int32_t *raw, float *volts)
 {
   const AdcChannelDesc *d = &s_adcTable[index];
 
+  /* The meter is locked out while the injected group owns PCSEL, but
+     two single-ended channels ride that group as rank 2 - the DC link
+     on ADC3, the NTC on ADC1 - so the thermal observer keeps its
+     thermometer and the link keeps reading under the drive. Their
+     meaning is still AFE_ON's (invariant 9); the observer already asks. */
+  if (Board_SyncArmed() && ((index == CH_NTC) || (index == CH_DCBUS)))
+  {
+    board_sync_sample_t latched;
+
+    Board_SyncLatest(&latched);
+    *raw = Board_CalApply(index, (int32_t)((index == CH_NTC)
+                                           ? latched.ntc : latched.dcbus));
+    *volts = code_to_volts(*raw, ADC_SINGLE_ENDED);
+    return true;
+  }
+
   if (!ADC_ReadOneChannel(d->hadc, d->channel, d->singleDiff, raw, volts,
                           d->sampleTime))
   {

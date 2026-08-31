@@ -41,6 +41,11 @@ extern ADC_HandleTypeDef hadc3;
     conversion on the sequence costs a third of a microsecond. */
 #define SYNC_DCBUS_CHANNEL ADC_CHANNEL_10 /* ADC3 IN10, PC0         */
 
+/** The NTC, rank 2 on ADC1 behind Phase V, for the same reason: the
+    thermal observer reads it through the meter, and the meter is locked
+    out for as long as the drive runs. */
+#define SYNC_NTC_CHANNEL ADC_CHANNEL_9    /* ADC1 IN9,  PB0         */
+
 /** How far below the top OC5REF falls. The trigger is its rising edge, so
     the ADC starts that far after the counter turns - inside the zero vector,
     no gate edge within the sampling window. 15 ticks is 63 ns. */
@@ -174,14 +179,15 @@ void Board_SyncOnInjected(const void *hadc)
     /* Through Board_AdcDifferential, not a cast: JDR is offset binary and
        casting it to int16_t put every quiet phase at the negative rail -
        measured, U read -31344 where the meter read +1423. */
-    s_latest.phase[SYNC_U] = (int16_t)Board_AdcDifferential(
-        HAL_ADCEx_InjectedGetValue(&hadc3, ADC_INJECTED_RANK_1));
-    s_latest.phase[SYNC_V] = (int16_t)Board_AdcDifferential(
-        HAL_ADCEx_InjectedGetValue(&hadc1, ADC_INJECTED_RANK_1));
-    s_latest.phase[SYNC_W] = (int16_t)Board_AdcDifferential(
-        HAL_ADCEx_InjectedGetValue(&hadc2, ADC_INJECTED_RANK_1));
+    /* The data registers themselves. HAL_ADCEx_InjectedGetValue is a
+       switch on the rank behind two asserts, compiled at -O0 five times
+       a period; JDRx is the number it returns. */
+    s_latest.phase[SYNC_U] = (int16_t)Board_AdcDifferential(hadc3.Instance->JDR1);
+    s_latest.phase[SYNC_V] = (int16_t)Board_AdcDifferential(hadc1.Instance->JDR1);
+    s_latest.phase[SYNC_W] = (int16_t)Board_AdcDifferential(hadc2.Instance->JDR1);
     s_latest.at = TIM1->CNT;
-    s_latest.dcbus = HAL_ADCEx_InjectedGetValue(&hadc3, ADC_INJECTED_RANK_2);
+    s_latest.dcbus = hadc3.Instance->JDR2;
+    s_latest.ntc = hadc1.Instance->JDR2;
     s_updates++;
 
     const int16_t logged[4] = { s_latest.phase[SYNC_U], s_latest.phase[SYNC_V],
@@ -237,13 +243,24 @@ const char *Board_SyncArm(void)
              "two-rank injected sequence needs - reset the board";
     }
   }
+  if (hadc1.Init.ScanConvMode != ADC_SCAN_ENABLE)
+  {
+    hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+    if (HAL_ADC_Init(&hadc1) != HAL_OK)
+    {
+      return "ADC1 would not re-initialise with scan mode on, which the "
+             "two-rank injected sequence needs - reset the board";
+    }
+  }
 
   if (!SYNC_ConfigPhase(&hadc3, SYNC_U_CHANNEL, ADC_INJECTED_RANK_1, 2U,
                         ADC_DIFFERENTIAL_ENDED)
       || !SYNC_ConfigPhase(&hadc3, SYNC_DCBUS_CHANNEL, ADC_INJECTED_RANK_2, 2U,
                            ADC_SINGLE_ENDED)
-      || !SYNC_ConfigPhase(&hadc1, SYNC_V_CHANNEL, ADC_INJECTED_RANK_1, 1U,
+      || !SYNC_ConfigPhase(&hadc1, SYNC_V_CHANNEL, ADC_INJECTED_RANK_1, 2U,
                            ADC_DIFFERENTIAL_ENDED)
+      || !SYNC_ConfigPhase(&hadc1, SYNC_NTC_CHANNEL, ADC_INJECTED_RANK_2, 2U,
+                           ADC_SINGLE_ENDED)
       || !SYNC_ConfigPhase(&hadc2, SYNC_W_CHANNEL, ADC_INJECTED_RANK_1, 1U,
                            ADC_DIFFERENTIAL_ENDED))
   {

@@ -362,8 +362,7 @@ static float bemf_error(drive_t *d, float alpha, float beta, float w,
   }
   if (c != c)                                    /* NAN: not the loop frame */
   {
-    c = cosf(d->theta_hat);
-    s = sinf(d->theta_hat);
+    drive_sincos(d->theta_hat, &s, &c);
   }
   drive_park_cs(alpha, beta, c, s, &idh, &iqh);
   drive_park_cs(d->va_out, d->vb_out, c, s, &vdh, &vqh);
@@ -556,9 +555,9 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
 
   /* One trig pair for the frame; the observer reuses it when the frame is
      its own, and every other transform below is built on it. */
-  const float c = cosf(th);
-  const float s = sinf(th);
+  float c, s;
 
+  drive_sincos(th, &s, &c);
   drive_park_cs(alpha, beta, c, s, &id_raw, &iq_raw);
 
   bool cycle_done = false;
@@ -642,8 +641,11 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
     d->sign_hist[d->periods & 3U] = d->inj_sign;
     if (d->p.inj_phase != 0.0f)
     {
-      va += amp * d->inj_sign * cosf(th + d->p.inj_phase);
-      vb += amp * d->inj_sign * sinf(th + d->p.inj_phase);
+      float si, ci;
+
+      drive_sincos(th + d->p.inj_phase, &si, &ci);
+      va += amp * d->inj_sign * ci;
+      vb += amp * d->inj_sign * si;
     }
     else
     {

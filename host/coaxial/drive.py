@@ -11,6 +11,7 @@ how they get there and `reload()` is how the drive picks them up.
 
 Every refusal is the board's own sentence.
 """
+import math
 import time
 
 from . import protocol
@@ -28,10 +29,26 @@ DRIVE_OP_MOMENTS_ARM = 6
 DRIVE_OP_MOMENTS = 7
 DRIVE_OP_RELOAD = 8
 DRIVE_OP_CYCLES_RESET = 9
+DRIVE_OP_SOURCE = 10
+DRIVE_OP_MODEL_PARAM = 11
+DRIVE_OP_MODEL = 12
+DRIVE_OP_MODEL_RESET = 13
 
 MODES = {'off': 0, 'volt': 1, 'hold': 2, 'sensorless': 3, 'polarity': 4}
 MODE_NAMES = {v: k for k, v in MODES.items()}
 FAULTS = {0: None, 1: 'overcurrent', 2: 'stage', 3: 'supply'}
+SOURCES = {'adc': 0, 'model': 1}
+SOURCE_NAMES = {v: k for k, v in SOURCES.items()}
+
+#: The on-board motor model's parameters by id, and the factor an SI value
+#: is multiplied by on the wire. The model is the second sample source: the
+#: observer watched against a rotor whose angle is known, with the AFE off.
+MODEL_PARAMS = (('r', 1e6), ('ld', 1e9), ('lq', 1e9), ('lambda', 1e6),
+                ('pole_pairs', 1.0), ('sat', 1e6), ('i_sat', 1e3),
+                ('j', 1e9), ('b', 1e9), ('load', 1e6), ('v_dt', 1e3),
+                ('i_knee', 1e3), ('vdc', 1e3), ('noise', 1e6),
+                ('theta0', 1e6), ('sub', 1.0))
+MODEL_IDS = {name: i for i, (name, _) in enumerate(MODEL_PARAMS)}
 
 #: Setpoints by id, and the factor an SI value is multiplied by on the wire.
 SETPOINTS = (('id_ref', 1e3), ('iq_ref', 1e3), ('theta', 1e3),
@@ -110,6 +127,13 @@ class Drive(Subsystem):
         out['pol_neg'] = r.i32() / 1e3
         out['trigger'] = r.u16()
         out['ts'] = r.u32() / 1e9
+        # The worst end of a step in TIM1 ticks past the trigger: the whole
+        # interrupt, against the period's 2 x ARR ticks. Appended.
+        out['exit_ticks_max'] = r.u16() if r.remaining >= 2 else None
+        # The virtual step block by block, raw cycles; zero on the ADC.
+        if r.remaining >= 12:
+            out['cycles'] = {'sample': r.u32(), 'step': r.u32(),
+                             'advance': r.u32()}
         return out
 
     def mode(self, name):
@@ -220,6 +244,72 @@ class Drive(Subsystem):
     def reset_cycles(self):
         """Forget the worst step cost, so a run is measured on its own."""
         return self._op(DRIVE_OP_CYCLES_RESET)[0] == 1
+
+    # -- the model as the source -----------------------------------------
+
+    def source(self, name):
+        """Where the samples come from: 'adc' or 'model'. Refused while a
+        mode runs. With the model the law needs no reference and no stage,
+        and its duties reach the gates only if MOE happens to be set."""
+        if name not in SOURCES:
+            raise ValueError('%r is not a source; they are %s'
+                             % (name, ', '.join(SOURCES)))
+        self.took(self._op(DRIVE_OP_SOURCE, bytes([SOURCES[name]])))
+        return True
+
+    def model_param(self, **values):
+        """Set model parameters by name, SI: r ohm, ld/lq H, lambda V.s,
+        pole_pairs, sat (fraction Ld bends by at i_sat), i_sat A, j kg.m2,
+        b N.m.s, load N.m, v_dt V, i_knee A, vdc V, noise A rms, theta0
+        rad, sub steps. Returns what was set."""
+        done = {}
+        for name, value in values.items():
+            if name not in MODEL_IDS:
+                raise ValueError('%r is not a model parameter; they are %s'
+                                 % (name, ', '.join(MODEL_IDS)))
+            scale = dict(MODEL_PARAMS)[name]
+            raw = int(round(value * scale))
+            self.took(self._op(DRIVE_OP_MODEL_PARAM, bytes([MODEL_IDS[name]])
+                               + raw.to_bytes(4, 'big', signed=True)))
+            done[name] = raw / scale
+        return done
+
+    def model(self):
+        """The model's truth: source, the rotor's angle and speed
+        (electrical), its dq currents, the link it runs from."""
+        r = Reader(self._op(DRIVE_OP_MODEL))
+        out = {'source': SOURCE_NAMES.get(r.u8(), 'unknown'),
+               'theta': r.i32() / 1e6, 'omega': r.i32() / 1e3,
+               'id': r.i32() / 1e3, 'iq': r.i32() / 1e3,
+               'vdc': r.i32() / 1e3}
+        # The estimate in the same reply, so the error means something at
+        # speed: two requests are 15 ms apart, six radians at 440 rad/s.
+        if r.remaining >= 8:
+            out['theta_hat'] = r.i32() / 1e6
+            out['omega_hat'] = r.i32() / 1e3
+            err = out['theta_hat'] - out['theta']
+            out['error'] = (err + math.pi) % (2.0 * math.pi) - math.pi
+        return out
+
+    def model_reset(self):
+        """The rotor back to theta0, at rest."""
+        self.took(self._op(DRIVE_OP_MODEL_RESET))
+        return True
+
+    def profile(self, path):
+        """A motor profile - a JSON file of `drive` parameters (the record's
+        names, SI) and `model` parameters - written to the board. Returns
+        what was written. The file says which motor; nothing here does."""
+        import json
+
+        with open(path, encoding='utf-8') as handle:
+            data = json.load(handle)
+        done = {'name': data.get('name', path)}
+        if data.get('drive'):
+            done['drive'] = self.set_params(**data['drive'])
+        if data.get('model'):
+            done['model'] = self.model_param(**data['model'])
+        return done
 
     # -- the record ------------------------------------------------------
 

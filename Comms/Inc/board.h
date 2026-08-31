@@ -263,6 +263,9 @@ typedef struct
   uint16_t at;                       /**< TIM1->CNT when it was latched    */
   uint32_t dcbus;                    /**< DC link, raw single-ended: rank 2
                                           on ADC3 of the same sequence      */
+  uint32_t ntc;                      /**< the thermistor, rank 2 on ADC1:
+                                          the observer's thermometer while
+                                          the drive holds the converters   */
 } board_sync_sample_t;
 
 /** What the synced path is doing, for the command layer to report. */

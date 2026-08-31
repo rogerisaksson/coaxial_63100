@@ -41,15 +41,58 @@ void drive_inv_park_cs(float d, float q, float c, float s, float *alpha,
 }
 
 
+void drive_sincos(float theta, float *s, float *c)
+{
+  /* A ninth-order odd polynomial on [-pi/2, pi/2] after folding, 3e-6 at
+     the worst point - a control law needs milliradians. newlib's sinf and
+     cosf are a range reduction and a table each, and four of them a period
+     were a fifth of the interrupt: measured 2026-08-31. */
+  float x = theta - TWO_PI * floorf((theta + 3.1415927f) / TWO_PI);   /* (-pi, pi] */
+  float xs = x;
+  float xc = 1.5707963f - x;                       /* cos x = sin(pi/2 - x) */
+
+  if (xs > 1.5707963f)
+  {
+    xs = 3.1415927f - xs;
+  }
+  else if (xs < -1.5707963f)
+  {
+    xs = -3.1415927f - xs;
+  }
+  if (xc > 1.5707963f)
+  {
+    xc = 3.1415927f - xc;
+  }
+  else if (xc < -1.5707963f)
+  {
+    xc = -3.1415927f - xc;
+  }
+
+  const float s2 = xs * xs;
+  const float c2 = xc * xc;
+
+  *s = xs * (1.0f + s2 * (-1.6666667e-1f + s2 * (8.3333333e-3f
+             + s2 * (-1.9841270e-4f + s2 * 2.7557319e-6f))));
+  *c = xc * (1.0f + c2 * (-1.6666667e-1f + c2 * (8.3333333e-3f
+             + c2 * (-1.9841270e-4f + c2 * 2.7557319e-6f))));
+}
+
+
 void drive_park(float alpha, float beta, float theta, float *d, float *q)
 {
-  drive_park_cs(alpha, beta, cosf(theta), sinf(theta), d, q);
+  float s, c;
+
+  drive_sincos(theta, &s, &c);
+  drive_park_cs(alpha, beta, c, s, d, q);
 }
 
 
 void drive_inv_park(float d, float q, float theta, float *alpha, float *beta)
 {
-  drive_inv_park_cs(d, q, cosf(theta), sinf(theta), alpha, beta);
+  float s, c;
+
+  drive_sincos(theta, &s, &c);
+  drive_inv_park_cs(d, q, c, s, alpha, beta);
 }
 
 
@@ -113,6 +156,21 @@ float drive_svm(float valpha, float vbeta, float vdc, float *duty)
 
 float drive_wrap(float theta)
 {
+  /* The two compares first: a step moves an angle by a fraction of a
+     turn, and floorf is a library call. The call stays for the odd caller
+     that is many turns out. */
+  if (theta >= 0.0f && theta < TWO_PI)
+  {
+    return theta;
+  }
+  if (theta >= TWO_PI && theta < 2.0f * TWO_PI)
+  {
+    return theta - TWO_PI;
+  }
+  if (theta < 0.0f && theta >= -TWO_PI)
+  {
+    return (theta + TWO_PI >= TWO_PI) ? 0.0f : theta + TWO_PI;
+  }
   theta -= TWO_PI * floorf(theta / TWO_PI);
   return (theta >= TWO_PI) ? 0.0f : theta;
 }

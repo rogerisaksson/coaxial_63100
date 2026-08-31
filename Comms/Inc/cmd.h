@@ -198,6 +198,10 @@ extern "C" {
 #define DRIVE_OP_MOMENTS      7U  /**< -> done, n, want, trigger, 4 x channel    */
 #define DRIVE_OP_RELOAD       8U  /**< parameters out of the record -> u8 took   */
 #define DRIVE_OP_CYCLES_RESET 9U  /**< forget the worst step cost -> u8          */
+#define DRIVE_OP_SOURCE      10U  /**< u8 0 converters, 1 the model -> u8 took   */
+#define DRIVE_OP_MODEL_PARAM 11U  /**< u8 id, i32 value -> u8 took               */
+#define DRIVE_OP_MODEL       12U  /**< -> u8 source, i32 theta, omega, id, iq, vdc */
+#define DRIVE_OP_MODEL_RESET 13U  /**< the rotor back to theta0, at rest -> u8   */
 
 /** Device 4's ops: the gate drivers, the synced triple and the STO chain. */
 #define GATEDRIVERS_OP_STATE    0U   /**< -> flags, registers, triple, STO      */

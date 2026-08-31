@@ -1,0 +1,35 @@
+{
+  "name": "outrunner 14p - PLACEHOLDER",
+  "note": "The firmware's compiled-in placeholders (board_cal.c), as a file: the order of magnitude of a small 14-pole outrunner, measured against nothing. tools/commission.py writes a real motor's numbers over the record; a profile like this one is how they are kept and put back. `drive` keys are coaxial.drive.PARAMS names in SI; `model` keys are coaxial.drive.MODEL_PARAMS names in SI.",
+  "drive": {
+    "motor_r_uohm": 0.05,
+    "motor_ld_nh": 20e-6,
+    "motor_lq_nh": 25e-6,
+    "motor_lambda_uvs": 0.005,
+    "motor_pole_pairs": 7,
+    "drv_i_max_ma": 5.0,
+    "drv_i_trip_ma": 20.0,
+    "drv_v_frac_ppm": 0.95,
+    "drv_sign": 1,
+    "drv_w_lo_mrad_s": 150.0,
+    "drv_w_hi_mrad_s": 300.0
+  },
+  "model": {
+    "r": 0.05,
+    "ld": 20e-6,
+    "lq": 25e-6,
+    "lambda": 0.005,
+    "pole_pairs": 7,
+    "sat": 0.3,
+    "i_sat": 5.0,
+    "j": 2e-5,
+    "b": 5e-4,
+    "load": 0.0,
+    "v_dt": 0.0,
+    "i_knee": 0.3,
+    "vdc": 24.0,
+    "noise": 0.02,
+    "theta0": 1.0,
+    "sub": 4
+  }
+}

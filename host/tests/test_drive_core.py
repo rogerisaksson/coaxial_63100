@@ -48,6 +48,12 @@ STATES = ('theta_hat', 'omega_hat', 'theta_cmd', 'omega_cmd', 'id', 'iq',
           'pol_neg', 'periods', 'demod_d', 'demod_q', 'vdc', 'e_bemf',
           'xd', 'xq')
 FIELDS = ('id', 'iq', 'vd', 'vq', 'eps', 'ih', 'vdc')
+MODEL = ('r', 'ld', 'lq', 'lambda', 'pole_pairs', 'sat', 'i_sat', 'j', 'b',
+         'load', 'v_dt', 'i_knee', 'vdc', 'noise', 'theta0', 'sub')
+MODEL_DEFAULTS = {'r': 0.05, 'ld': 20e-6, 'lq': 25e-6, 'lambda': 0.005,
+                  'pole_pairs': 7.0, 'sat': 0.0, 'i_sat': 5.0, 'j': 2e-5,
+                  'b': 1e-5, 'load': 0.0, 'v_dt': 0.0, 'i_knee': 0.3,
+                  'vdc': 24.0, 'noise': 0.0, 'theta0': 0.0, 'sub': 4.0}
 
 OFF, VOLT, HOLD, SENSORLESS, POLARITY = range(5)
 
@@ -145,6 +151,29 @@ class Drive:
             s, sq, lo, hi = v[2 + 4 * k:6 + 4 * k]
             out['channels'].append({'sum': s, 'sumsq': sq, 'lo': lo, 'hi': hi})
         return out
+
+    # -- the model as the source -------------------------------------------
+    def model_params(self, **kw):
+        n = self.lib.drv_model_param_count()
+        assert n == len(MODEL), n
+        got = dict(MODEL_DEFAULTS)
+        got.update(kw)
+        arr = (ctypes.c_float * n)(*[got[k] for k in MODEL])
+        self.lib.drv_model_params_set(self.h, arr, n)
+        return got
+
+    def source(self, model):
+        self.lib.drv_source(self.h, int(model))
+
+    def model_state(self):
+        arr = (ctypes.c_float * 4)()
+        self.lib.drv_model_state(self.h, arr)
+        return dict(zip(('theta', 'omega', 'id', 'iq'), arr))
+
+    def step_virtual(self):
+        duty = (ctypes.c_float * 3)()
+        trip = self.lib.drv_step_virtual(self.h, duty)
+        return bool(trip), tuple(duty)
 
     # -- the arithmetic on its own ---------------------------------------
     def svm(self, va, vb, vdc):
@@ -673,10 +702,90 @@ def test_moments(r, lib):
         d.close()
 
 
+def test_model_agrees(r, lib):
+    """The C model in drive_model.c against the Python Motor above, driven
+    by the same duties from the same controller."""
+    d = Drive(lib)
+    m = Motor(j=2e-5, b=1e-5, theta=0.4, sat=0.3, i_sat=4.0, v_dt=0.3,
+              i_knee=0.3, sub=4)
+    try:
+        d.model_params(theta0=0.4, sat=0.3, i_sat=4.0, v_dt=0.3, i_knee=0.3,
+                       sub=4.0)
+        d.source(True)
+        d.params(**loop_gains(m.r, m.ld0, 500.0))
+        d.setpoints(id_ref=2.0, iq_ref=0.5, theta=0.0)
+        d.mode(HOLD)
+        # the Python motor runs on the duties the C step asked for, with the
+        # same one-step lag the C model applies
+        prev = (0.0, 0.0, 0.0)
+        worst = 0.0
+        for _ in range(int(0.05 / TS)):
+            _, duty = d.step_virtual()
+            m.advance(prev, 24.0, TS)
+            prev = duty
+            c = d.model_state()
+            worst = max(worst, abs(c['id'] - m.id), abs(c['iq'] - m.iq),
+                        abs(wrap_pi(c['theta'] - m.theta)))
+        r.check('C and Python integrate to the same currents and angle '
+                '(worst gap under 0.05 A, 0.05 rad)', worst < 0.05, worst)
+        # The loop's own frame is the command frame; the model reports the
+        # rotor's, which the free rotor has turned away from it.
+        s = d.state()
+        # A tenth of an ampere: the rotor is free and turning under the
+        # torque, so the command frame's back-EMF term keeps moving.
+        r.check('the loop holds its reference against the C model',
+                abs(s['id'] - 2.0) < 0.1 and abs(s['iq'] - 0.5) < 0.1,
+                (s['id'], s['iq']))
+    finally:
+        d.close()
+
+
+def test_virtual_sensorless(r, lib):
+    """The board-side path: source model, a sensorless lock and a spin,
+    the observer judged against the model's own rotor."""
+    d = Drive(lib)
+    v_inj = 2.0
+    try:
+        d.model_params(theta0=1.0, b=5e-4, noise=0.02)
+        d.source(True)
+        d.params(inj_volts=v_inj, inj_periods=1, w_lo=150.0, w_hi=300.0,
+                 eps_gain=eps_gain(v_inj, 20e-6, 25e-6),
+                 **loop_gains(0.05, 20e-6, 500.0), **pll_gains(60.0, 2 * TS))
+        d.setpoints(id_ref=0.0, iq_ref=0.0)
+        d.set_theta(1.3)
+        why = d.mode(SENSORLESS, enabled=False, powered=False)
+        r.check('with the model as source a mode needs neither MOE nor the AFE',
+                why is None, why)
+        for _ in range(int(0.05 / TS)):
+            d.step_virtual()
+        err = wrap_pi(d.state()['theta_hat'] - d.model_state()['theta'])
+        r.check('the observer locks onto the modelled rotor at rest',
+                abs(err) < 0.05, err)
+        d.setpoints(iq_ref=0.6)
+        worst = 0.0
+        for k in range(int(0.4 / TS)):
+            trip, _ = d.step_virtual()
+            if k > 500:
+                worst = max(worst, abs(wrap_pi(d.state()['theta_hat']
+                                               - d.model_state()['theta'])))
+        s, ms = d.state(), d.model_state()
+        r.check('the modelled rotor turns above the crossover',
+                ms['omega'] > 300.0, ms['omega'])
+        r.check('and the observer follows it through', worst < 0.5
+                and abs(s['omega_hat'] - ms['omega']) < 0.1 * ms['omega'],
+                (worst, s['omega_hat'], ms['omega']))
+        d.source(False)
+        why = d.mode(HOLD, enabled=False, powered=False)
+        r.check('back on the converters the refusals are back', why is not None)
+    finally:
+        d.close()
+
+
 ROSTER = (test_math, test_mode_refusals, test_current_loop,
           test_trip_and_stage, test_if_spin, test_injection_map,
           test_saturation_map, test_observer_standstill, test_polarity,
-          test_deadtime, test_sensorless_run, test_moments)
+          test_deadtime, test_sensorless_run, test_moments,
+          test_model_agrees, test_virtual_sensorless)
 
 
 def main():

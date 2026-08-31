@@ -196,6 +196,8 @@ typedef struct
   float omega;         /**< electrical                                      */
   float id, iq;        /**< in the rotor's own frame                        */
   float duty_prev[DRIVE_PHASES]; /**< the pipeline: last step's duties     */
+  float c, s;                    /**< cos/sin of theta at the sample      */
+  float i_abc[DRIVE_PHASES];     /**< the sample's currents, noise-free   */
   uint32_t rng;
 } drive_model_t;
 
@@ -209,6 +211,12 @@ typedef struct
   drive_fault_t fault;
   drive_source_t source;
   drive_model_t model;
+
+  /** A cycle counter the board lends, or NULL: with it the virtual step
+    * records what its three blocks cost, so an interrupt that outgrew the
+    * period is read block by block rather than guessed at. */
+  uint32_t (*cycles)(void);
+  uint32_t cyc_sample, cyc_step, cyc_advance;
 
   /* the observer */
   float theta_hat;
@@ -327,6 +335,9 @@ float drive_svm(float valpha, float vbeta, float vdc, float *duty);
 
 /** Wrap to [0, 2 pi). */
 float drive_wrap(float theta);
+
+/** sin and cos together, a polynomial: 3e-6 worst, no library call. */
+void drive_sincos(float theta, float *s, float *c);
 
 /** The dead-time table at `amps`, odd in the current. */
 float drive_dt_volts(const drive_params_t *p, float amps);

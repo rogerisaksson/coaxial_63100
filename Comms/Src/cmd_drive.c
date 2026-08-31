@@ -69,6 +69,12 @@ static cmd_status_t h_drive_state(wr_t *out)
   wr_i32(out, milli_of(d->pol_neg));
   wr_u16(out, Board_SyncTrigger());
   wr_u32(out, (uint32_t)lrintf(Board_DriveTs() * 1e9f));
+  wr_u16(out, Board_DriveExitTicks());
+  /* The virtual step block by block, raw cycles: the model's sample,
+     the law, the model's advance. Zero on the converters. */
+  wr_u32(out, d->cyc_sample);
+  wr_u32(out, d->cyc_step);
+  wr_u32(out, d->cyc_advance);
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
@@ -247,6 +253,63 @@ static cmd_status_t h_drive_reload(wr_t *out)
 }
 
 
+/** op 10 - where the samples come from. */
+static cmd_status_t h_drive_source(rd_t *in, wr_t *out)
+{
+  const uint8_t source = rd_u8(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  cmd_took(out, Board_DriveSetSource(source));
+  return CMD_OK;
+}
+
+
+/** op 11 - one model parameter, by id, in its integer unit. */
+static cmd_status_t h_drive_model_param(rd_t *in, wr_t *out)
+{
+  const uint8_t id = rd_u8(in);
+  const int32_t value = rd_i32(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  cmd_took(out, Board_DriveModelParam(id, value));
+  return CMD_OK;
+}
+
+
+/** op 12 - the model's truth: the rotor the observer is judged by. */
+static cmd_status_t h_drive_model(wr_t *out)
+{
+  const drive_t *d = Board_Drive();
+
+  wr_u8(out, (uint8_t)d->source);
+  wr_i32(out, micro_of(d->model.theta));
+  wr_i32(out, milli_of(d->model.omega));
+  wr_i32(out, milli_of(d->model.id));
+  wr_i32(out, milli_of(d->model.iq));
+  wr_i32(out, milli_of(d->model.p.vdc));
+  /* The estimate in the same reply as the truth. Two requests are
+     15 ms apart, and at 440 rad/s that is six radians of rotor. */
+  wr_i32(out, micro_of(d->theta_hat));
+  wr_i32(out, milli_of(d->omega_hat));
+  return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
+}
+
+
+/** op 13 - the rotor back to theta0, at rest. */
+static cmd_status_t h_drive_model_reset(wr_t *out)
+{
+  Board_DriveModelReset();
+  cmd_took(out, NULL);
+  return CMD_OK;
+}
+
+
 /** op 9 - forget the worst step cost, so a run is measured on its own. */
 static cmd_status_t h_drive_cycles_reset(wr_t *out)
 {
@@ -270,6 +333,10 @@ cmd_status_t cmd_drive_op(uint8_t op, rd_t *in, wr_t *out)
     case DRIVE_OP_MOMENTS:     return h_drive_moments(out);
     case DRIVE_OP_RELOAD:      return h_drive_reload(out);
     case DRIVE_OP_CYCLES_RESET: return h_drive_cycles_reset(out);
+    case DRIVE_OP_SOURCE:      return h_drive_source(in, out);
+    case DRIVE_OP_MODEL_PARAM: return h_drive_model_param(in, out);
+    case DRIVE_OP_MODEL:       return h_drive_model(out);
+    case DRIVE_OP_MODEL_RESET: return h_drive_model_reset(out);
     default:                   return CMD_ERR_VALUE;
   }
 }
