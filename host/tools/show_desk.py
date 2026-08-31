@@ -20,7 +20,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import desk, scaling                          # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from coaxial import Coaxial63100                           # noqa: E402
 from screen import TO_MENU, closing, say                  # noqa: E402
 
 import screen as _screen                                   # noqa: E402
@@ -157,15 +156,10 @@ def main(argv=None):
     # power_afe SAID: invariant 9 - with the rail down the board refuses
     # to start the task at all, and that refusal used to escape as a
     # traceback rather than a said line.
-    try:
-        from screen import boot
-        with boot('LINKING CONVERTERS'):
-            rig = Coaxial63100(port=args.port, power_afe=True,
-                               simulated_device=bool(args.simulated)).open()
-    except RigError as exc:
-        # The board's own sentence - a rail refused while a stage is armed
-        # lands here - said instead of thrown, so the menu can come back.
-        say('fail', 'open', str(exc))
+    from screen import open_rig
+    rig = open_rig('LINKING CONVERTERS', port=args.port, power_afe=True,
+                   simulated_device=bool(args.simulated))
+    if rig is None:
         return 1
     origin = rig.origin
     say('ok' if origin.real else 'warn', 'link',

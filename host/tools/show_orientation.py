@@ -20,7 +20,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from coaxial import Coaxial63100                           # noqa: E402
 from screen import closing, say, TO_MENU                  # noqa: E402
 
 import screen as _screen                                   # noqa: E402
@@ -390,10 +389,12 @@ def launch(args):
     # power_afe SAID: the default went quiet-False when every connect
     # stopped flipping the rail, and this view inherited it - the part it
     # exists to show is AFE-powered, so it asks by name and puts it back.
-    from screen import boot
-    with boot('LINKING BNO085') as step:
-        rig = Coaxial63100(port=args.port, power_afe=True,
-                           simulated_device=bool(args.simulated)).open()
+    from screen import boot, open_rig
+    rig = open_rig('LINKING BNO085', port=args.port, power_afe=True,
+                   simulated_device=bool(args.simulated))
+    if rig is None:
+        return None
+    with boot('BRINGING THE PART UP') as step:
         origin, board = rig.origin, rig.board
         step(0.12, 'BNO085 LINKED')
         pool = bands(args, step)

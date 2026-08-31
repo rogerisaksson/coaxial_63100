@@ -116,6 +116,11 @@ class BrokerTransport:
                    'payload': bytes(payload).hex(), 'settle': settle})
         return None
 
+    def answers(self, unit=1):
+        """Whether the BOARD behind the broker replies. A look, not a use:
+        it does not make this client one of the sessions holding the port."""
+        return bool(self._ask({'op': 'answers', 'unit': unit})['answers'])
+
     @property
     def is_open(self):
         """Whether this CLIENT is still connected. Always False here.
@@ -236,6 +241,21 @@ class _Handler(socketserver.StreamRequestHandler):
             return {'port': served.serial_port}
         if op == 'clients':
             return {'clients': served.clients}
+        if op == 'answers':
+            # A LOOK, NOT A USE - the staleness check asks this before it
+            # commits `auto` to a real port, and whoever asks whether the
+            # board is there must not become the last one out. The same
+            # read the keepalive makes, under the same lock.
+            from . import protocol
+            try:
+                with served.lock:
+                    served.transport.request(
+                        message.get('unit', 1), protocol.VERSION, b'',
+                        None, 1.0)
+            except (errors.RigError, OSError):
+                return {'answers': False}
+            served.spoke()
+            return {'answers': True}
         if op == 'stand_down':
             # Only with nobody using it. A suite that needs the port raw -
             # conformance sends deliberately malformed frames, which is the

@@ -79,16 +79,60 @@ def tag(origin, unit=None, where=None):
     return '%s, %s' % (origin.label, _node(unit, where))
 
 
-def _answers(served):
-    """Whether the broker named by the address file is actually there."""
-    from coaxial import broker
+def _answers(served, unit=1):
+    """Whether the BOARD behind the broker answers - not just the broker.
 
+    A broker attaches, forwards, and reports silence when nothing is on
+    the other end, so proving the process is there proves nothing about
+    the board. It idles 45 s before freeing the port (`_Server.linger`),
+    and in that window a probe that found no board leaves one behind.
+
+    Measured 2026-08-31, the board deliberately unpowered: a lingering
+    broker made `auto` commit to a real port, and ROTOR OBSERVER died of
+    a ConnectError instead of falling back to the stand-in. The round
+    trip below is the one `find_board.probe` makes, through the socket.
+    """
+    from coaxial import broker
+    from coaxial.errors import RigError
+
+    # Long enough for the broker's own answer: it gives the board a
+    # second and retries once across a console handover before saying no.
     reached = broker.attach((served.get('host', broker.HOST),
-                             served.get('tcp', broker.PORT)), timeout=2.0)
+                             served.get('tcp', broker.PORT)), timeout=6.0)
     if reached is None:
         return False
-    reached.close()
-    return True
+    try:
+        return reached.answers(unit)
+    except (RigError, OSError):
+        # OSError too: the socket read times out before the broker gives up
+        # on a silent board - it retries the request across a console
+        # handover first - and a timeout is a no-answer like any other.
+        return False
+    finally:
+        reached.close()
+
+
+def board_answers(port=None, baud=115200, unit=1):
+    """Whether a board answers anywhere, without opening a session.
+
+    The two steps `open_session` takes when told to look, in its order -
+    a broker that forwards to a live board, then a probe of the ports -
+    so the front page's chip and a view's origin cannot disagree about
+    what is out there. Costly by construction: measured 8.4 s with the
+    board unpowered, which is why the caller asks it off its draw loop.
+    """
+    from coaxial import broker
+
+    served = broker.serving()
+    if served and _answers(served, unit):
+        return True
+
+    sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools'))
+    import find_board
+
+    found, _kind = find_board.discover(port, baud, unit)
+    return found is not None
 
 
 def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
@@ -127,7 +171,7 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     # connect fails - at which point `auto` had already committed to a real
     # port and raised instead of falling back to the stand-in.
     served = broker.serving() if only is None else None
-    if served and simulated is not True and not _answers(served):
+    if served and simulated is not True and not _answers(served, unit):
         served = None
 
     if served and simulated is not True:

@@ -1972,3 +1972,45 @@ opened FINDINGS for writing before the expression it was to write raised
 empty file, and commit 8a61a3d carried it. Restored from 86f433f plus the
 two later entries replayed from their scripts. Open for writing LAST,
 after every value exists - and read `git diff --numstat` before pushing.
+
+## A lingering broker over a dead board, and the view that traced back
+
+2026-08-31, the board deliberately unpowered to try simulated mode.
+ROTOR OBSERVER died of a ConnectError traceback instead of falling back
+to the stand-in. `Voltage 0.00V` off the probe confirmed the board was
+off; the probe itself enumerated fine (STLINK_V3S, VCP COM4).
+
+The chain, each link measured:
+
+1. A probe that finds no board still spawns a broker for the port, and
+   the broker idles **45 s** before freeing it (`_Server.linger`).
+2. Inside that window `open_session(simulated=None)` asked
+   `session._answers`, which attached to the broker's SOCKET and closed
+   it - proving the process was there and nothing about the board.
+3. So `auto` committed to a real port, `session.board` connected through
+   the broker, the board said silence, and ConnectError escaped: six of
+   the seven views called `.open()` with no guard at all.
+
+Three fixes. `_answers` now asks the BOARD, through a new broker op
+`answers` that is **a look, not a use** - the design's own words: a
+`request` makes a client one of the sessions holding the port, and
+`test_broker` states outright that asking must not be what takes it
+down. A first attempt used the ordinary `request` op and did exactly
+that: 22 passed 0 failed became 21/1 (the check ran against HEAD to
+prove the regression was mine). `screen.open_rig` says the board's own
+sentence and returns None, so no view dies of a traceback - it catches
+OSError beside RigError, because a socket that times out and a port
+another process holds are not RigErrors and mean the same to a reader.
+
+**The front page now says which.** `session.board_answers` is the
+decision `open_session` makes, asked by `menu.py` on its own thread, so
+the chooser's chip and a view's origin cannot disagree. It is not free:
+a full probe with the board unpowered measured **8.42 s**, against 0.00 s
+for `port_state`, so the page shows LINK: PROBING and flips to SIMULATED
+when the answer lands - re-asked every 30 s, skipped entirely under
+`--simulated`.
+
+One more, found on the way: a suite that could not run recorded **0**
+checks over its real size, and the quoted total fell 2114 -> 2080 with
+four documents suddenly wrong. `counts.record` now drops a zero - a
+suite that ran nothing measured nothing.

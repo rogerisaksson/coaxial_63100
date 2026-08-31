@@ -200,6 +200,29 @@ def gauge(fraction, width, hot=0.85):
     return tint(bar, SODIUM) if fraction >= hot else bar
 
 
+def open_rig(banner, **kwargs):
+    """The rig behind a boot strip, or None with the board's own words said.
+
+    `kwargs` are `Coaxial63100`'s. A view that cannot reach the board must
+    not die of a traceback: the chooser keeps the last lines on screen and
+    reads the exit code, so a stack trace there says `the menu crashed`
+    where the board said `nothing answered on COM4`. Measured 2026-08-31 -
+    the board unpowered on purpose, ROTOR OBSERVER traced back.
+    """
+    from coaxial import Coaxial63100
+    from coaxial.errors import RigError
+
+    try:
+        with boot(banner):
+            return Coaxial63100(**kwargs).open()
+    except (RigError, OSError) as exc:
+        # OSError as well: a port another process holds, and a broker socket
+        # that times out, both arrive here as something other than a RigError
+        # and both mean the same thing to a reader - no board.
+        say('fail', 'link', str(exc))
+        return None
+
+
 def run_view(board_view, console, period, frames, draw, on_input=None,
              tick=None, mouse=False):
     """The loop every view runs: draw, pace, take keys - until Q, ESC,

@@ -30,7 +30,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import Coaxial63100, scaling                   # noqa: E402
+from coaxial import scaling   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
 from screen import (ASH, LABEL, SODIUM, TO_MENU,  # noqa: E402
                     closing, say, tint)
@@ -361,10 +361,11 @@ def main(argv=None):
     # sets it itself, because which way round it goes is the whole question
     # here and leaving it as found makes the run mean different things on
     # different days.
-    from screen import boot
-    with boot('LINKING GATE DRIVERS'):
-        rig = Coaxial63100(port=args.port, power_afe=False,
-                           simulated_device=bool(args.simulated)).open()
+    from screen import open_rig
+    rig = open_rig('LINKING GATE DRIVERS', port=args.port, power_afe=False,
+                   simulated_device=bool(args.simulated))
+    if rig is None:
+        return 1
     origin, board = rig.origin, rig.board
     was_on = board.afe.is_on()
     if args.afe != was_on:

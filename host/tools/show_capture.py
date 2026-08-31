@@ -27,7 +27,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import scaling                                # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from coaxial import Coaxial63100                           # noqa: E402
 from screen import TO_MENU, Keys, closing, say  # noqa: E402
 
 ROTATION_VECTOR = 0x05
@@ -307,8 +306,11 @@ def main(argv=None):
     # power_afe SAID: both parts in the ring and the converter's reference
     # live behind AFE_ON, and the quiet-False default left all three dead -
     # the daq refused, the view returned 1 and the menu read that as quit.
-    rig = Coaxial63100(port=args.port, power_afe=True,
-                       simulated_device=bool(args.simulated)).open()
+    from screen import open_rig
+    rig = open_rig('LINKING THE RING', port=args.port, power_afe=True,
+                   simulated_device=bool(args.simulated))
+    if rig is None:
+        return 1
     origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))

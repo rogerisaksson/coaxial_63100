@@ -28,6 +28,11 @@ def record(section, sizes):
     must not forget the twenty-seven it did not touch, which are exactly the
     ones its own skipped count is about.
     """
+    # A SUITE THAT RAN NOTHING MEASURED NOTHING. A board-less run leaves
+    # parity and bench at zero checks, and recording that forgets what
+    # they last came to: measured 2026-08-31 with the board unpowered,
+    # the quoted total fell 2114 -> 2080 and four documents went wrong.
+    sizes = {name: n for name, n in sizes.items() if n}
     got = load()
     have = got.get(section)
     got[section] = dict(have if isinstance(have, dict) else {}, **sizes)

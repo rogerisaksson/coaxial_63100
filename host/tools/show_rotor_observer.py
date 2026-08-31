@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from rich.text import Text                                  # noqa: E402
 
-from coaxial import Coaxial63100, dial                      # noqa: E402
+from coaxial import dial      # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
 from coaxial.raster import cell                             # noqa: E402
 from screen import (ASH, SODIUM, TO_MENU,  # noqa: E402
@@ -350,10 +350,12 @@ def main(argv=None):
     args = parse_args(argv)
     sane(args)
 
-    from screen import boot, run_view, stage
-    with boot('LINKING ROTOR OBSERVER'):
-        rig = Coaxial63100(port=args.port, power_afe=False,
-                           simulated_device=bool(args.simulated)).open()
+    from screen import open_rig, run_view, stage
+    rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
+                   power_afe=False,
+                   simulated_device=bool(args.simulated))
+    if rig is None:
+        return 1
     origin, board = rig.origin, rig.board
     was_on = board.afe.is_on()
     want_afe = args.afe or args.source == 'adc'

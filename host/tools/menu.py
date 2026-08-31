@@ -76,7 +76,15 @@ SUB = {
 #: fast enough to read as spinning.
 TURN_DPS = 30.0
 
-_BROKER = {'held': None}
+#: What the masthead knows. `held` is how many sessions have the port,
+#: `board` whether one answers anywhere at all - None until asked.
+_BROKER = {'held': None, 'board': None}
+
+#: How often the front page re-asks whether a board answers. The broker
+#: question is a socket connect; this one probes every port and was
+#: measured at 8.4 s with the board unpowered, so it is asked once on the
+#: way up and sparingly after.
+PROBE_EVERY = 30.0
 
 
 def _watch_broker():
@@ -97,12 +105,40 @@ def _watch_broker():
         time.sleep(3.0)
 
 
+def _watch_link(port):
+    """Whether a board answers anywhere, on its own slow clock.
+
+    Its own thread and not the broker watcher's: one probe costs seconds
+    and the session count would stop moving for the length of it. Asked
+    through `session.board_answers`, which is the decision `open_session`
+    itself makes - the page must not say LIVE where the view gets the
+    stand-in.
+    """
+    from coaxial_mcp.session import board_answers
+
+    while True:
+        try:
+            _BROKER['board'] = board_answers(port)
+        except Exception:                                     # noqa: BLE001
+            _BROKER['board'] = False
+        time.sleep(PROBE_EVERY)
+
+
 def masthead(port):
-    """The top strip: the views' band, with the LIVE chip when the broker
-    holds the port."""
-    held = _BROKER['held']
-    tag = (Text('LINK: PROBING', style='bar.dim') if held is None
-           else live(held) if held else None)
+    """The top strip: the views' band, and the chip a view would wear.
+
+    SIMULATED here rather than one page later: with no board reachable
+    every view opens on the stand-in, and the front page is where that is
+    worth knowing - before a view is picked, not after its numbers have
+    been read as the board's.
+    """
+    held, board = _BROKER['held'], _BROKER['board']
+    if board is False:
+        tag = Text(' SIMULATED ', style='chip.sim')
+    elif board is None or held is None:
+        tag = Text('LINK: PROBING', style='bar.dim')
+    else:
+        tag = live(held) if held else None
     return band_of('COAXIAL 63100', 'PORT: %s' % port, tag)
 
 
@@ -343,8 +379,8 @@ def main(argv=None):
     parser.add_argument('--frames', type=int, default=0,
                         help='draw this many and exit 0 - the smoke test')
     parser.add_argument('--simulated', action='store_true',
-                        help='accepted for the view suite; the page opens '
-                             'no session either way')
+                        help='say SIMULATED without probing for a board; '
+                             'the page opens no session either way')
     parser.add_argument('--open', choices=sorted(OPEN), default=None,
                         help='open on the second question this view was '
                              'picked from, with it lit - the way back '
@@ -383,6 +419,13 @@ def main(argv=None):
         return 0
 
     threading.Thread(target=_watch_broker, daemon=True).start()
+    if args.simulated:
+        # Asked for by name: no probe, and the chip says so from the
+        # first frame rather than eight seconds into the page.
+        _BROKER['board'] = False
+    else:
+        threading.Thread(target=_watch_link, args=(args.port,),
+                         daemon=True).start()
     warm = threading.Thread(target=_warm, daemon=True)
     warm.start()
     if args.frames:

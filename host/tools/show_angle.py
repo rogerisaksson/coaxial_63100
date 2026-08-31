@@ -22,7 +22,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from coaxial import angle                                  # noqa: E402
 from coaxial import dial                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from coaxial import Coaxial63100                           # noqa: E402
 from screen import (closing, Freshness, say, stamp_crosses,  # noqa: E402
                     steady, TO_MENU)
 
@@ -130,10 +129,11 @@ def main(argv=None):
     # power_afe SAID: the default went quiet-False when every connect
     # stopped flipping the rail, and this view inherited it - the part it
     # exists to show is AFE-powered, so it asks by name and puts it back.
-    from screen import boot
-    with boot('LINKING A1335'):
-        rig = Coaxial63100(port=args.port, power_afe=True,
-                           simulated_device=bool(args.simulated)).open()
+    from screen import open_rig
+    rig = open_rig('LINKING A1335', port=args.port, power_afe=True,
+                   simulated_device=bool(args.simulated))
+    if rig is None:
+        return 1
     origin, board = rig.origin, rig.board
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
