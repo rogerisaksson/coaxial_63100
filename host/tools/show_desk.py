@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import desk, scaling                          # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import paced, TO_MENU, Keys, closing, say  # noqa: E402
+from screen import TO_MENU, closing, say                  # noqa: E402
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -196,50 +196,36 @@ def main(argv=None):
         columns = os.get_terminal_size().columns
     except OSError:
         columns = 100
-    gate_drivers = desk.Desk(bar=max(20, min(80, columns - 72)))
+    bridge = desk.Desk(bar=max(20, min(80, columns - 72)))
     period = 1.0 / max(args.hz, 0.5)
-    frame = 0
 
-    from screen import curtain, frame_of, stage
+    from screen import frame_of, run_view, stage
 
     held = {}
     board_view = stage()
     console = board_view.is_terminal
     leaving = None
 
+    def draw():
+        # Re-fitted every frame: the bars shrink with the tty instead of
+        # overflowing the frame and sliding. 72 is labels (~44) plus the
+        # instrument column's share.
+        bridge.bar = max(20, min(80, (board_view.size.width or 100) - 72))
+        try:
+            rows = scale(rows_from(rig.latest(), layout), params)
+        except RigError as exc:
+            return frame_of(board_view, origin, 'METER BRIDGE',
+                            'no reading: %s' % exc, [],
+                            (('Q', 'EXIT'), ('ESC', 'MENU')))
+        face = bridge.update(rows, colour=console)
+        for row in rows:
+            row['params'] = params
+        return frame_of(board_view, origin, 'METER BRIDGE', face,
+                        [legend(rows, held)],
+                        (('Q', 'EXIT'), ('ESC', 'MENU')))
+
     try:
-        with curtain(board_view) as show, Keys(console) as keys:
-            while True:
-                boxes = []
-                # Re-fitted every frame: the bars shrink with the tty
-                # instead of overflowing the frame and sliding. 72 is
-                # labels (~44) plus the instrument column's share.
-                width = board_view.size.width or 100
-                gate_drivers.bar = max(20, min(80, width - 72))
-                try:
-                    live = rig.latest()
-                    rows = scale(rows_from(live, layout), params)
-                    face = gate_drivers.update(rows, colour=console)
-                    for row in rows:
-                        row['params'] = params
-                    boxes = [legend(rows, held)]
-                except RigError as exc:
-                    face = 'no reading: %s' % exc
-
-                frame += 1
-                show.update(frame_of(board_view, origin, 'METER BRIDGE',
-                                     face, boxes,
-                                     (('Q', 'EXIT'), ('ESC', 'MENU'))),
-                            refresh=True)
-
-                if args.frames and frame >= args.frames:
-                    break
-                # These two have nothing to zoom, so the wheel is ignored.
-                leaving, _moved, _typed = paced(keys, period)
-                if leaving:
-                    break
-    except KeyboardInterrupt:
-        pass
+        leaving = run_view(board_view, console, period, args.frames, draw)
     finally:
         done = [('acquisition', 'task stopped')]
         rig.close()

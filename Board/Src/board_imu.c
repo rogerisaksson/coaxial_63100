@@ -592,6 +592,23 @@ static void note(uint8_t err)
 /* One cargo into the shared record. Only channel 3 and channel 4 carry
    sensor reports; the rest is the part talking about itself and is counted,
    not kept. */
+/** A rotation vector report into the shared record, and the ring. */
+static void take_rotation(uint8_t id, const uint8_t *r)
+{
+  s_state.report_id = id;
+  s_state.status    = r[2];
+  s_state.i    = (int16_t)((uint16_t)r[4] | ((uint16_t)r[5] << 8));
+  s_state.j    = (int16_t)((uint16_t)r[6] | ((uint16_t)r[7] << 8));
+  s_state.k    = (int16_t)((uint16_t)r[8] | ((uint16_t)r[9] << 8));
+  s_state.real = (int16_t)((uint16_t)r[10] | ((uint16_t)r[11] << 8));
+  s_state.have = true;
+  s_state.updates++;
+
+  const int16_t logged[4] = { s_state.i, s_state.j, s_state.k, s_state.real };
+  Board_LogPush(BOARD_LOG_SOURCE_IMU, logged, 4U);
+  note(BOARD_IMU_ERR_NONE);
+}
+
 static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
 {
   s_state.cargoes++;
@@ -631,23 +648,7 @@ static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
 
     if ((id == SH2_ROTATION_VECTOR) || (id == SH2_GAME_ROTATION_VECTOR))
     {
-      s_state.report_id = id;
-      s_state.status    = cargo[at + 2U];
-      s_state.i    = (int16_t)((uint16_t)cargo[at + 4U] |
-                               ((uint16_t)cargo[at + 5U] << 8));
-      s_state.j    = (int16_t)((uint16_t)cargo[at + 6U] |
-                               ((uint16_t)cargo[at + 7U] << 8));
-      s_state.k    = (int16_t)((uint16_t)cargo[at + 8U] |
-                               ((uint16_t)cargo[at + 9U] << 8));
-      s_state.real = (int16_t)((uint16_t)cargo[at + 10U] |
-                               ((uint16_t)cargo[at + 11U] << 8));
-      s_state.have = true;
-      s_state.updates++;
-
-      const int16_t logged[4] = { s_state.i, s_state.j, s_state.k,
-                                  s_state.real };
-      Board_LogPush(BOARD_LOG_SOURCE_IMU, logged, 4U);
-      note(BOARD_IMU_ERR_NONE);
+      take_rotation(id, &cargo[at]);
     }
 
     at = (uint16_t)(at + step);

@@ -161,6 +161,59 @@ class Runner:
             text += '\nAbout this bench:\n' + self.plan.context.strip() + '\n'
         return text
 
+    def _refuse_unmeasured(self, task, record, messages, name, args, st):
+        """A report with no board tool behind it, refused like a prose
+        stop: nudged twice, then unfinished. True when the step is over.
+
+        The same failure debug.py hardened against, here with higher
+        stakes: this report becomes a signed pass/fail, and SYSTEM already
+        says not to invent a number - which did not stop the model in
+        debug.py either.
+        """
+        st['nudges'] += 1
+        text = ('refused: no board tool was called this step, '
+                'so there is nothing behind that value. '
+                'Measure something, or call report with no '
+                'value and say what stopped you.')
+        self._say('   %-12s %s' % (name, text))
+        self.transcript.write('tool', id=task.id, turn=record.turns,
+                              name=name, args=args, result=text)
+        if st['nudges'] > 2:
+            record.note = text
+            record.verdict = 'unfinished'
+            record.warnings.append(
+                'called report with no board measurement this step')
+            return True
+        messages.append({'role': 'tool', 'tool_name': name, 'name': name,
+                         'content': '%s: %s' % (name, text)})
+        return False
+
+    def _take_call(self, task, record, messages, call, st):
+        """One tool call of a turn: the Reported that ends the step,
+        'give_up', or None to go on."""
+        name = (call.get('function') or {}).get('name', '?')
+        args = toolmod.arguments(call)
+        result = self.toolbox.call(name, args)
+        record.calls.append(name)
+        if name in toolmod.LINK_TOOLS:
+            st['board_touched'] = True
+
+        if isinstance(result, toolmod.Reported):
+            if not st['board_touched']:
+                over = self._refuse_unmeasured(task, record, messages, name,
+                                               args, st)
+                return 'give_up' if over else None
+            self.transcript.write('report', id=task.id, value=result.value,
+                                  unit=result.unit, note=result.note)
+            return result
+
+        self._say('   %-12s %s' % (name, _preview(args)))
+        self.transcript.write('tool', id=task.id, turn=record.turns,
+                              name=name, args=args, result=result)
+        messages.append({'role': 'tool', 'tool_name': name, 'name': name,
+                         'content': '%s: %s' % (name, result)})
+        return None
+
     def run_task(self, task):
         record = Record(task)
         started = time.time()
@@ -171,9 +224,11 @@ class Runner:
         messages = [{'role': 'system', 'content': self.system_prompt()},
                     {'role': 'user', 'content': task.brief()}]
         schemas = self.toolbox.schemas()
-        nudges = 0
+        # nudges: prose answers and unmeasured reports, two of either and
+        # the step is unfinished; board_touched: a real board tool was
+        # called this step.
+        st = {'nudges': 0, 'board_touched': False}
         reported = None
-        board_touched = False  # a real board tool was called this step
         giving_up = False
 
         # The tool schemas ride with every turn and come out of the same
@@ -205,8 +260,8 @@ class Runner:
             if not calls:
                 text = (message.get('content') or '').strip()
                 self._say('   ...%s' % text[:100].replace('\n', ' '))
-                nudges += 1
-                if nudges > 2:
+                st['nudges'] += 1
+                if st['nudges'] > 2:
                     record.note = text
                     record.verdict = 'unfinished'
                     record.warnings.append('stopped in prose, never reported')
@@ -218,54 +273,13 @@ class Runner:
                 continue
 
             for call in calls:
-                name = (call.get('function') or {}).get('name', '?')
-                args = toolmod.arguments(call)
-                result = self.toolbox.call(name, args)
-                record.calls.append(name)
-
-                if name in toolmod.LINK_TOOLS:
-                    board_touched = True
-
-                if isinstance(result, toolmod.Reported):
-                    if not board_touched:
-                        # The same failure debug.py hardened against, here with
-                        # higher stakes: this report becomes a signed pass/fail,
-                        # and SYSTEM already says not to invent a number - which
-                        # did not stop the model in debug.py either. Refused
-                        # like a prose stop: nudged twice, then unfinished.
-                        nudges += 1
-                        text = ('refused: no board tool was called this step, '
-                                'so there is nothing behind that value. '
-                                'Measure something, or call report with no '
-                                'value and say what stopped you.')
-                        self._say('   %-12s %s' % (name, text))
-                        self.transcript.write('tool', id=task.id,
-                                              turn=record.turns, name=name,
-                                              args=args, result=text)
-                        if nudges > 2:
-                            record.note = text
-                            record.verdict = 'unfinished'
-                            record.warnings.append(
-                                'called report with no board measurement '
-                                'this step')
-                            giving_up = True
-                            break
-                        messages.append({'role': 'tool', 'tool_name': name,
-                                         'name': name,
-                                         'content': '%s: %s' % (name, text)})
-                        continue
-                    reported = result
-                    self.transcript.write('report', id=task.id,
-                                          value=result.value, unit=result.unit,
-                                          note=result.note)
+                got = self._take_call(task, record, messages, call, st)
+                if got == 'give_up':
+                    giving_up = True
                     break
-
-                self._say('   %-12s %s' % (name, _preview(args)))
-                self.transcript.write('tool', id=task.id, turn=record.turns,
-                                      name=name, args=args, result=result)
-                messages.append({'role': 'tool', 'tool_name': name,
-                                 'name': name,
-                                 'content': '%s: %s' % (name, result)})
+                if got is not None:
+                    reported = got
+                    break
 
             if giving_up:
                 break

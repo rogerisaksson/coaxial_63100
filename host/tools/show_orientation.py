@@ -15,15 +15,13 @@ as it applies to a voltage.
 import argparse
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import (closing, Keys, paced,  # noqa: E402
-                    say, TO_MENU)
+from screen import closing, say, TO_MENU                  # noqa: E402
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -443,78 +441,52 @@ def main(argv=None):
     rig, origin, board, part, pid, pool, shop = started
 
     period = 1.0 / max(args.hz, 0.5)
-    quaternion = (0.0, 0.0, 0.0, 1.0)
-    stale = 0
-    frame = 0
-    # The report rate, measured off the target's own counter rather than
-    # assumed from the interval - the part adopts what it can.
-    rate, rate_seen, rate_at = 0.0, None, time.time()
-    # The board's own counter of rotation vectors written. A reading that has
-    # not moved and a link that has stopped look identical in the values.
-    seen = -1
-
-    # Only on a console: piped to a file the escapes are not interpreted and
-    # every frame arrives with the cursor moves printed in it.
-    console = sys.stdout.isatty()
-    from screen import curtain, stage
+    from screen import Freshness, run_view, stage
 
     board_view = stage()
     console = board_view.is_terminal
     leaving = None
 
-    # 1.0 is the guaranteed fit at ANY attitude; 1.5 rests larger and lets
-    # an axis tip clip in the extremes, which the eye forgives and the
+    # zoom: 1.0 is the guaranteed fit at ANY attitude; 1.5 rests larger and
+    # lets an axis tip clip in the extremes, which the eye forgives and the
     # wheel undoes. The wheel and a right-drag move it, clamped so the
     # model cannot be pushed through the camera or shrunk to nothing.
-    zoom = 1.44                          # 77% of the 1.875 it rested at
+    view = {'zoom': 1.44,                # 77% of the 1.875 it rested at
+            'quaternion': (0.0, 0.0, 0.0, 1.0), 'frame': 0}
     state = {'tare': None, 'flip': [False, False, False],
              'frame_on': True}
+    tally = Freshness()
+
+    def draw():
+        wide, tall = canvas(args)
+        record = latest(board)
+        fresh = record['quaternion'] if record else None
+        if fresh is not None and record['updates'] != tally.seen:
+            view['quaternion'] = (fresh['i'], fresh['j'], fresh['k'],
+                                  fresh['real'])
+            if tally.seen < 0:
+                # TARE ONCE, on the first real sample: the resting picture
+                # is the board as it lies, not its yaw history. T re-tares
+                # whenever wanted.
+                state['tare'] = view['quaternion']
+        tally.take(record['updates'] if record else None)
+        view['frame'] += 1
+        shown = dict(state, part=part, pid=pid, record=record,
+                     quaternion=view['quaternion'], rate=tally.rate,
+                     stale=tally.stale, frame=view['frame'],
+                     zoom=view['zoom'], shop=shop, crew=pool,
+                     wide=wide, tall=tall)
+        return compose(origin, args, shown,
+                       colour=console and not args.photo, console=console)
+
+    def on_input(typed, moved):
+        if moved:
+            view['zoom'] = max(0.25, min(6.0, view['zoom'] * (1.0 + moved)))
+        bindings(typed, state, view['quaternion'])
 
     try:
-        with curtain(board_view) as live, Keys(console, mouse=True) as keys:
-            while True:
-                wide, tall = canvas(args)
-
-                record = latest(board)
-                fresh = record['quaternion'] if record else None
-                if fresh is None or record['updates'] == seen:
-                    stale += 1
-                else:
-                    quaternion = (fresh['i'], fresh['j'], fresh['k'],
-                                  fresh['real'])
-                    if seen < 0:
-                        # TARE ONCE, on the first real sample: the resting
-                        # picture is the board as it lies, not its yaw
-                        # history. T re-tares whenever wanted.
-                        state['tare'] = quaternion
-                    seen, stale = record['updates'], 0
-
-                frame += 1
-                now = time.time()
-                if record and now - rate_at >= 1.0:
-                    if rate_seen is not None:
-                        rate = ((record['updates'] - rate_seen)
-                                / (now - rate_at))
-                    rate_seen, rate_at = record['updates'], now
-
-                view = dict(state, part=part, pid=pid, record=record,
-                            quaternion=quaternion, rate=rate,
-                            stale=stale, frame=frame, zoom=zoom,
-                            shop=shop, crew=pool, wide=wide, tall=tall)
-                live.update(compose(origin, args, view,
-                                    colour=console and not args.photo,
-                                    console=console), refresh=True)
-
-                if args.frames and frame >= args.frames:
-                    break
-                leaving, moved, typed = paced(keys, period)
-                if leaving:
-                    break
-                if moved:
-                    zoom = max(0.25, min(6.0, zoom * (1.0 + moved)))
-                bindings(typed, state, quaternion)
-    except KeyboardInterrupt:
-        pass
+        leaving = run_view(board_view, console, period, args.frames, draw,
+                           on_input, mouse=True)
     finally:
         sys.stdout.write('\n')
         if shop:

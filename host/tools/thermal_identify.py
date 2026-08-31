@@ -2,7 +2,7 @@
 
 Four states, each a step change in what the board dissipates. The NTC is
 logged through all of them - including the AFE-off ones, which used to be
-blind, because the observer now borrows the rail for a sample and gives it
+blind, because the thermal observer now borrows the rail for a sample and gives it
 back (`board_power.h`).
 
     1 passive  AFE off -> the drivers HAVE SUPPLY (the gate is inverted), no PWM
@@ -55,13 +55,13 @@ ASSUMED_PASSIVE_W = 24.0 * 0.050
 def ntc(rig, tries=8):
     """The NTC now, taking the rail if it has to. None if it stayed quiet.
 
-    NOT the observer's stored sample. Measured 2026-08-28: reading
+    NOT the thermal observer's stored sample. Measured 2026-08-28: reading
     `thermal.state()['ntc']` gave 36.36 C on every one of eleven samples in
-    the switching state - the observer refuses to sample while the stage is
+    the switching state - the thermal observer refuses to sample while the stage is
     armed, so the field was the same stale value each time and the run looked
     like a board that had stopped responding to heat.
 
-    The tool measures; the observer estimates. It has to take its own
+    The tool measures; the thermal observer estimates. It has to take its own
     reading, and it can: the caller has already brought the stage down.
     """
     for _ in range(tries):
@@ -156,8 +156,8 @@ def _undo_steps(rig, state, load):
     return []
 
 
-def observer(rig):
-    """The observer's nodes and its own thermometers, or None if quiet."""
+def thermal_observer(rig):
+    """The thermal observer's nodes and its own thermometers, or None if quiet."""
     for _ in range(6):
         try:
             return rig.board.thermal.state()
@@ -184,10 +184,10 @@ def hold(rig, state, seconds, every):
                     print('  %-8s %6.1f s   NTC %6.2f C'
                           % (state, now, got), flush=True)
 
-                # The observer's own estimates, per node, on the same clock.
+                # The thermal observer's own estimates, per node, on the same clock.
                 # This is what is being judged: the NTC above is only what
                 # it had to work from.
-                st = observer(rig)
+                st = thermal_observer(rig)
                 if st is not None:
                     for name, value in st['nodes'].items():
                         nodes.setdefault(name, []).append((now, value))
@@ -295,7 +295,7 @@ def apply_fit(rig, fits):
     rig.board.thermal.set_board(CFG['board_to_ambient'], capacity)
 
 
-#: What the camera saw, mapped onto the observer's node names. `dead` is the
+#: What the camera saw, mapped onto the thermal observer's node names. `dead` is the
 #: board itself; `bridge` is the half-bridge, which the model splits into the
 #: drivers and the phases and cannot tell apart.
 #: The camera's own state names. They are not the rig's: two of the four
@@ -321,7 +321,7 @@ def asymptote(series):
 
 
 def against_camera(node_runs):
-    """The observer's predicted equilibrium against what the camera saw.
+    """The thermal observer's predicted equilibrium against what the camera saw.
 
     The ASYMPTOTE, not the last sample: a run of a few minutes against a
     6.8-minute constant is nowhere near equilibrium, and the camera numbers
@@ -330,7 +330,7 @@ def against_camera(node_runs):
     `hotswap` is not here because the model has no such node - it ran
     unloaded through the whole campaign and has no measurement behind it.
     """
-    print('\n%s\n%s' % ('the observer against the camera, 2026-08-28',
+    print('\n%s\n%s' % ('the thermal observer against the camera, 2026-08-28',
                          '-' * 66))
     print('  %-9s %-11s %9s %9s %8s' % ('state', 'node', 'predicted',
                                         'camera', 'error'))
@@ -355,7 +355,7 @@ def against_camera(node_runs):
               % (len(errors), sum(errors) / len(errors), max(errors)))
         print('  The model was FITTED to these same four states, so this is '
               'not\n  a prediction of anything new - it is whether the '
-              'observer running\n  live reproduces the calibration it was '
+              'thermal observer running\n  live reproduces the calibration it was '
               'given.')
 
 

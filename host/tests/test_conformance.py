@@ -133,7 +133,7 @@ def coils_from(data: bytes, qty: int):
 
 # ---- test runner --------------------------------------------------------
 def thermal_nodes(bus):
-    """How many nodes the observer has, asked of the board.
+    """How many nodes the thermal observer has, asked of the board.
 
     Device 8 op 4 leads with `u8 nodes`, which is what makes this one
     request rather than a count written down here. It WAS written down - as
@@ -449,7 +449,7 @@ def cal_tests(run):
     at += 1
     want = thermal_nodes(b)
     run.check('one ceiling per thermal node', nodes == want,
-              'got %d, the observer has %d' % (nodes, want))
+              'got %d, the thermal observer has %d' % (nodes, want))
     at += nodes * 4 + 4                       # the limits, then throttle ppm
 
     run.check('the reply ends where the envelope does',
@@ -515,9 +515,9 @@ def map_tests(run):
     # it: 1 while the AFE is off, 0 once it is on. That makes the discrete input
     # an independent witness that the coil write reached the pin.
     def sampling(every_ms, settle_ms):
-        """Set the observer's NTC sampling. 0 stops it.
+        """Set the thermal observer's NTC sampling. 0 stops it.
 
-        THE RAIL IS SHARED. AFE_ON is reference counted, so the observer
+        THE RAIL IS SHARED. AFE_ON is reference counted, so the thermal observer
         borrowing it for a sample makes a coil written off read back on -
         truthfully, and at random. This check needs the rail to itself, so it
         says so instead of hoping. Measured: the borrow is 500 ms every 5 s,

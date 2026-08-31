@@ -169,7 +169,7 @@ def symbol(unit, signal=None):
     Not `UNIT_SYMBOL[unit]`: the die reports `centi-degC` like the NTC, and
     `converter` hands back volts at the pin for it because there is no curve
     here. Printing that under a C was a plausible temperature that was not
-    one - measured -5.8 C on a die the observer had at 38.
+    one - measured -5.8 C on a die the thermal observer had at 38.
     """
     if unit == 'centi-degC' and signal not in (None, THERMISTOR_SIGNAL):
         return 'V'
@@ -245,7 +245,7 @@ def converter(unit, differential=False, vref=3.3, signal=None, params=None):
     millivolts through three different dividers, and TWO report centi-degC:
     the NTC, which is a thermistor curve, and the MCU die, which is a linear
     sensor calibrated at the factory. Cooking the die as a thermistor gave
-    -5.8 C for a die the observer had at 38, so anything but the NTC falls
+    -5.8 C for a die the thermal observer had at 38, so anything but the NTC falls
     through to volts at the pin - `symbol` says so.
 
     `params` is `Analog.scaling()` - the board's own record. Without it the

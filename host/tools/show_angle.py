@@ -15,7 +15,6 @@ as it applies to a voltage.
 import argparse
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -24,8 +23,8 @@ from coaxial import angle                                  # noqa: E402
 from coaxial import dial                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from coaxial import Coaxial63100                           # noqa: E402
-from screen import (closing, Keys, paced,  # noqa: E402
-                    say, stamp_crosses, TO_MENU)
+from screen import (closing, Freshness, say, stamp_crosses,  # noqa: E402
+                    steady, TO_MENU)
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -158,50 +157,22 @@ def main(argv=None):
         'Q closes it, ESC goes back to the menu, and both undo the above')
 
     period = 1.0 / max(args.hz, 0.5)
-    frame = 0
-    seen = -1
-    stale = 0
-    rate, rate_seen, rate_at = 0.0, None, time.time()
+    tally = Freshness()
 
-    from screen import curtain, stage
+    from screen import run_view, stage
 
     board_view = stage()
     console = board_view.is_terminal
     leaving = None
 
+    def draw():
+        state = steady(board.angle.state)
+        tally.take(state['updates'] if state is not None else None)
+        return compose(origin, console, part, state, field, kelvin,
+                       tally.rate, tally.note)
+
     try:
-        with curtain(board_view) as live, Keys(console) as keys:
-            while True:
-                try:
-                    state = board.angle.state()
-                except RigError:
-                    state = None
-
-                if state is None or state['updates'] == seen:
-                    stale += 1
-                else:
-                    seen, stale = state['updates'], 0
-
-                frame += 1
-                now = time.time()
-                if state is not None and now - rate_at >= 1.0:
-                    if rate_seen is not None:
-                        rate = ((state['updates'] - rate_seen)
-                                / (now - rate_at))
-                    rate_seen, rate_at = state['updates'], now
-
-                note = (('stale %d frames' % stale) if stale else 'live')
-                live.update(compose(origin, console, part, state, field,
-                                    kelvin, rate, note), refresh=True)
-
-                if args.frames and frame >= args.frames:
-                    break
-                # These two have nothing to zoom, so the wheel is ignored.
-                leaving, _moved, _typed = paced(keys, period)
-                if leaving:
-                    break
-    except KeyboardInterrupt:
-        pass
+        leaving = run_view(board_view, console, period, args.frames, draw)
     finally:
         done = [('poll loop', 'running, as the board left it'),
                 ('registers', 'untouched - this view only reads')]

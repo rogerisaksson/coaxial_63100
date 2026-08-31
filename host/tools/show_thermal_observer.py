@@ -1,13 +1,13 @@
 """The board's thermal observer, live: one measurement and five estimates.
 
 The estimates come off the wire, not from this file. `0x6E` device 8 is the
-observer running in the firmware at 10 Hz, and drawing anything the host
+thermal observer running in the firmware at 10 Hz, and drawing anything the host
 recomputed would be a second answer to a question the board already settles.
 
 **The AFE stays as it was found.** The gate is inverted, so switching it on
 takes the gate drivers' supply away - a thermal view that powered the AFE
 would stop the load it is there to watch. With it off there is no NTC either,
-and the observer runs open on power and time; `open for` says how long.
+and the thermal observer runs open on power and time; `open for` says how long.
 
 `--switch` drives the load from inside this view. Not a convenience: the port
 is exclusive, so `switch.py` running beside this would keep it, and there was
@@ -19,8 +19,8 @@ import sys
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import (ASH, closing, gauge, Keys, NEON, paced,  # noqa: E402
-                    say, SODIUM, stamp_crosses, tint, TO_MENU, visible)
+from screen import (ASH, closing, gauge, NEON, say, SODIUM,  # noqa: E402
+                    stamp_crosses, tint, TO_MENU, visible)
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -115,7 +115,7 @@ PANEL_W = 42
 
 
 def status_boxes(state, budget):
-    """The observer's numbers as instrument boxes, every one the board's."""
+    """The thermal observer's numbers as instrument boxes, every one the board's."""
     from rich.text import Text
 
     from screen import hud
@@ -152,7 +152,7 @@ def status_boxes(state, budget):
                 (state_text, 'value' if state_text != 'ok' else 'label'))),
             ('to limit', ('%.0f s' % left) if left is not None
              else 'not heating')]))
-    # Every node the observer estimates, by name, plus what is MEASURED
+    # Every node the thermal observer estimates, by name, plus what is MEASURED
     # (the dies, the ambient it infers). The map shows where; this shows
     # how much, to the decimal.
     nodes = state.get('nodes') or {}
@@ -180,6 +180,28 @@ def picture(state, console, reserve):
     return [''] + render(zones, board_c=board_c, colour=console,
                          margin=PANEL_W, reserve=reserve,
                          trailing=TRAILING).split('\n')
+
+
+def put_back(rig, load):
+    """Undo what the run armed, step by step, and say what each did.
+
+    One failed step must not skip the next, and the way out is the only
+    place that says whether it took."""
+    if load is None:
+        return [('AFE_ON', 'untouched - this run only watched'),
+                ('gate stage', 'untouched, nothing was armed')]
+    done = []
+    for name, what, undo in (
+            ('duty', 'three legs to zero',
+             lambda: rig.write(analog=dict.fromkeys(load, 0.0))),
+            ('gate stage', 'disarmed, MOE clear', rig.gates.disarm)):
+        try:
+            undo()
+            done.append((name, what))
+        except (NoReplyError, RigError) as exc:
+            done.append((name, 'FAILED: %s' % exc))
+    done.append(('AFE_ON', 'back the way it was found'))
+    return done
 
 
 def main():
@@ -220,8 +242,7 @@ def main():
             say('warn', 'switching', '%s at %.0f %% - AFE off, STO bypassed'
                 % ('+'.join(legs), a.switch * 100))
 
-        console = sys.stdout.isatty()
-        from screen import curtain, frame_of, stage
+        from screen import frame_of, run_view, stage
 
         board_view = stage()
         console = board_view.is_terminal
@@ -231,65 +252,32 @@ def main():
         # the board to what is left. Counted, not guessed - a guess is what
         # clipped the bottom edge off.
         reserve = HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
-        frame, leaving = 0, None
-        body, boxes = ['  waiting for device 8'], []
+        last = {'body': ['  waiting for device 8'], 'boxes': []}
+        leaving = None
+
+        def draw():
+            try:
+                got = rig.board.thermal.state()
+                last['boxes'] = status_boxes(got, rig.board.thermal.budget())
+                last['body'] = picture(got, console, reserve)
+            except (NoReplyError, RigError):
+                pass    # keep the last good picture: the link goes quiet
+                        # now and then (FINDINGS); a blank board each time
+                        # made the view unreadable
+            # Three cells of pad and eight of field: six and twelve read as
+            # dead air around the board. The whole body is picture, all of
+            # it stamped - the scale rides beside the board.
+            body = last['body']
+            field = max((visible(l) for l in body), default=0) + 8
+            art = stamp_crosses(['   ' + l for l in body], field)
+            return frame_of(board_view, origin, 'THERMAL OBSERVER',
+                            '\n'.join(art), last['boxes'],
+                            (('Q', 'EXIT'), ('ESC', 'MENU')))
 
         try:
-            with curtain(board_view) as live, Keys(console) as keys:
-                while True:
-                    try:
-                        got = rig.board.thermal.state()
-                        boxes = status_boxes(got, rig.board.thermal.budget())
-                        body = picture(got, console, reserve)
-                    except (NoReplyError, RigError):
-                        # Keep the last good picture: the link goes quiet
-                        # now and then (FINDINGS), and blanking the board
-                        # every time it does makes the view unreadable.
-                        pass
-
-                    frame += 1
-                    # A GUTTER each side, because this map fills its own
-                    # corners - the reference crosses live in dead margin,
-                    # so the margin is made rather than hoped for. The
-                    # scale rides inside the frame, out of the stamp.
-                    # The scale rides beside the board now - the whole
-                    # body is picture, and all of it is stamped.
-                    # Three cells of pad and eight of field: six and
-                    # twelve read as dead air around the board.
-                    field = max((visible(l) for l in body), default=0) + 8
-                    art = stamp_crosses(['   ' + l for l in body],
-                                        field)
-
-                    live.update(frame_of(
-                        board_view, origin, 'THERMAL OBSERVER',
-                        '\n'.join(art), boxes,
-                        (('Q', 'EXIT'), ('ESC', 'MENU'))), refresh=True)
-
-                    if a.frames and frame >= a.frames:
-                        break
-                    leaving, _moved, _typed = paced(keys, period)
-                    if leaving:
-                        break
-        except KeyboardInterrupt:
-            pass
+            leaving = run_view(board_view, console, period, a.frames, draw)
         finally:
-            done = []
-            if load is not None:
-                for name, what, undo in (
-                        ('duty', 'three legs to zero',
-                         lambda: rig.write(analog=dict.fromkeys(load, 0.0))),
-                        ('gate stage', 'disarmed, MOE clear', rig.gates.disarm)):
-                    try:
-                        undo()
-                        done.append((name, what))
-                    except (NoReplyError, RigError) as exc:
-                        # One failed step must not skip the next, and the way
-                        # out is the only place that says whether it took.
-                        done.append((name, 'FAILED: %s' % exc))
-                done.append(('AFE_ON', 'back the way it was found'))
-            else:
-                done.append(('AFE_ON', 'untouched - this run only watched'))
-                done.append(('gate stage', 'untouched, nothing was armed'))
+            done = put_back(rig, load)
             sys.stdout.write('\n')
             closing(done, console, 0)
 

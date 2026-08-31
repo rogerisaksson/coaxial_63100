@@ -264,7 +264,7 @@ typedef struct
   uint32_t dcbus;                    /**< DC link, raw single-ended: rank 2
                                           on ADC3 of the same sequence      */
   uint32_t ntc;                      /**< the thermistor, rank 2 on ADC1:
-                                          the observer's thermometer while
+                                          the thermal observer's thermometer while
                                           the drive holds the converters   */
 } board_sync_sample_t;
 
@@ -473,7 +473,7 @@ bool Board_PwmBreakBypassed(void);
 /** The silent host's stage cleanup: MOE down, the break bypass back in
     force. board_power.c calls it once per quiet transition, so a killed
     script's armed stage does not outlive its rail claims. A live
-    session's broker keeps the link speaking; the observers never
+    session's broker keeps the link speaking; the thermal observer and the drive never
     stopped and are untouched. */
 void Board_PwmSessionDrop(void);
 
@@ -617,8 +617,8 @@ void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code);
 #define BOARD_CAL_MOTOR_POLE_PAIRS    19U
 #define BOARD_CAL_DRV_KP_MV_PER_A     20U  /**< current loop kp, mV/A          */
 #define BOARD_CAL_DRV_KI_V_PER_AS     21U  /**< current loop ki, V/(A.s)       */
-#define BOARD_CAL_DRV_L1_MILLI        22U  /**< observer angle gain, 1e-3      */
-#define BOARD_CAL_DRV_L2_MILLI        23U  /**< observer speed gain, 1e-3/s    */
+#define BOARD_CAL_DRV_L1_MILLI        22U  /**< rotor observer angle gain, 1e-3      */
+#define BOARD_CAL_DRV_L2_MILLI        23U  /**< rotor observer speed gain, 1e-3/s    */
 #define BOARD_CAL_DRV_INJ_MV          24U  /**< injection amplitude, mV; 0 off */
 #define BOARD_CAL_DRV_INJ_PERIODS     25U  /**< PWM periods per half cycle     */
 #define BOARD_CAL_DRV_INJ_PHASE_MRAD  26U  /**< injection axis off d, signed   */
@@ -1010,7 +1010,7 @@ uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity);
 void Board_RequestConsoleMode(void);
 
 
-/** What the observer knows: one measurement, the rest estimates.
+/** What the thermal observer knows: one measurement, the rest estimates.
   *
   * `ntc_measured` is what tells them apart and must not be ignored - with
   * AFE_ON low there is no NTC measurement at all, and the nodes then run
@@ -1062,7 +1062,7 @@ bool Board_ThermalSetNode(uint8_t node, float to_board, float capacity);
 bool Board_ThermalSetBoard(float to_ambient, float capacity);
 
 /**
-  * @brief  How often the observer borrows the AFE rail for an NTC sample.
+  * @brief  How often the thermal observer borrows the AFE rail for an NTC sample.
   * @param  every_ms   period between samples; 0 stops sampling entirely
   * @param  settle_ms  how long the reference is given before the read
   *

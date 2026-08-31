@@ -223,11 +223,11 @@ def error_paths(server, report):
     # text. The codes come back, under a line that cannot be read as one.
     #
     # `afe_power off` releases the HOST's reference and nothing more: the rail
-    # is on while any user holds it, and the observer borrows it for 500 ms
+    # is on while any user holds it, and the thermal observer borrows it for 500 ms
     # every 5 s. That borrow landed between these two calls - two failures in
     # one run, none when the suite ran alone, the worst shape a check has.
     #
-    # Waited out rather than switched off: no tool here can stop the observer,
+    # Waited out rather than switched off: no tool here can stop the thermal observer,
     # and it always gives the rail back, so one cycle is the bound.
     server.tool('afe_power', {'action': 'off'})
     deadline = time.time() + 8.0

@@ -22,7 +22,7 @@
   *
   * Frames: electrical radians, amplitude-invariant Clarke, the d axis on
   * the magnet. `theta_cmd` is the frame HOLD and VOLT work in; `theta_hat`
-  * is the observer's. Positive current is what the shunts call positive,
+  * is the rotor observer's. Positive current is what the shunts call positive,
   * times `sign` - a parameter, because the shunt direction is traced off a
   * schematic and nothing has run current through a leg to check it.
   ******************************************************************************
@@ -54,7 +54,7 @@ typedef enum
   DRIVE_VOLT,        /**< open loop: vd, vq in the command frame           */
   DRIVE_HOLD,        /**< current control in the command frame; I/f when
                           omega_target is not zero                        */
-  DRIVE_SENSORLESS,  /**< current control in the observer's frame          */
+  DRIVE_SENSORLESS,  /**< current control in the rotor observer's frame          */
   DRIVE_POLARITY,    /**< two voltage pulses along theta_hat, then OFF     */
   DRIVE_MODES
 } drive_mode_t;
@@ -77,8 +77,8 @@ typedef struct
   float pole_pairs;
   float kp;            /**< current loop, V/A                              */
   float ki;            /**< current loop, V/(A.s)                          */
-  float l1;            /**< observer angle gain, 1                         */
-  float l2;            /**< observer speed gain, 1/s                       */
+  float l1;            /**< rotor observer angle gain, 1                         */
+  float l2;            /**< rotor observer speed gain, 1/s                       */
   float inj_volts;     /**< HF injection amplitude, V                      */
   uint16_t inj_periods;/**< PWM periods per injection half cycle; 1 = fs/2 */
   float inj_phase;     /**< injection axis, rad from the frame's d axis    */
@@ -192,7 +192,7 @@ typedef struct
 typedef struct
 {
   drive_model_params_t p;
-  float theta;         /**< electrical, the truth the observer is judged by */
+  float theta;         /**< electrical, the truth the rotor observer is judged by */
   float omega;         /**< electrical                                      */
   float id, iq;        /**< in the rotor's own frame                        */
   float duty_prev[DRIVE_PHASES]; /**< the pipeline: last step's duties     */
@@ -218,7 +218,7 @@ typedef struct
   uint32_t (*cycles)(void);
   uint32_t cyc_sample, cyc_step, cyc_advance;
 
-  /* the observer */
+  /* the rotor observer */
   float theta_hat;
   float omega_hat;
   float eps;                         /**< last innovation, rad            */

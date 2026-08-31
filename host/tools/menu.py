@@ -51,7 +51,7 @@ ENTRIES = (
 #: alternative carries the exit code it answers with: the entry's own
 #: for the first, codes past the list for the rest, and coaxial_tty maps
 #: every one by position - its $Views runs the entries, then claude, then
-#: the observer. The caption is the question.
+#: the rotor observer. The caption is the question.
 MOTOR_AT, CHAT_AT = 4, 6
 CHAT_LOCAL = 101 + CHAT_AT
 CHAT_CLAUDE = 101 + len(ENTRIES)
@@ -59,7 +59,7 @@ OBSERVER = 101 + len(ENTRIES) + 1
 #: What `--open` takes: the view a second question answered with, as the
 #: chooser names it, and the (entry, pick) to open on. ESC from that view
 #: comes back here, not to the top of the list.
-OPEN = {'gate_drivers': (4, 0), 'observer': (4, 1),
+OPEN = {'gate_drivers': (4, 0), 'rotor_observer': (4, 1),
         'chat': (6, 0), 'claude': (6, 1)}
 SUB = {
     MOTOR_AT: ('which half', (

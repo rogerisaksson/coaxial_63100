@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """The rotor observer: the drive watched live, on the model or the converters.
 
-    python tools/show_observer.py --simulated
-    python tools/show_observer.py --port COM4 --source model --iq 0.5
-    python tools/show_observer.py --port COM4 --source model --switch
+    python tools/show_rotor_observer.py --simulated
+    python tools/show_rotor_observer.py --port COM4 --source model --iq 0.5
+    python tools/show_rotor_observer.py --port COM4 --source model --switch
 
 The drive (0x6E device 10) runs on the board at the PWM rate; this sets what
 it is asked to do and draws what it did: the estimated rotor angle on the
@@ -38,7 +38,7 @@ from coaxial import Coaxial63100, dial                      # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
 from coaxial.raster import cell                             # noqa: E402
 from screen import (ASH, SODIUM, TO_MENU,  # noqa: E402
-                    Keys, closing, say, tint)
+                    closing, say, tint)
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -350,7 +350,7 @@ def main(argv=None):
     args = parse_args(argv)
     sane(args)
 
-    from screen import boot, curtain, stage
+    from screen import boot, run_view, stage
     with boot('LINKING ROTOR OBSERVER'):
         rig = Coaxial63100(port=args.port, power_afe=False,
                            simulated_device=bool(args.simulated)).open()
@@ -383,35 +383,30 @@ def main(argv=None):
 
     board_view = stage()
     console = board_view.is_terminal
-    leaving, frame, last_thermal = None, 0, 0.0
+    leaving = None
+    thermal_at = [0.0]
+
+    def draw():
+        try:
+            view['state'] = board.drive.state()
+            view['gate'] = board.gate_drivers.state()
+            view['model'] = (board.drive.model()
+                             if view['source'] == 'model' else None)
+            if time.time() - thermal_at[0] > 2.0:   # the thermal observer, every 2 s
+                view['thermal'] = board.thermal.state()
+                view['budget'] = board.thermal.budget()
+                thermal_at[0] = time.time()
+        except RigError:
+            pass                    # a missed reply is a missed frame
+        return compose(rig, origin, console, view)
+
+    def on_input(typed, _moved):
+        for key in typed:
+            view['said'] = act(rig, key, view) or view['said']
+
     try:
-        with curtain(board_view) as show, Keys(console) as keys:
-            while True:
-                try:
-                    view['state'] = board.drive.state()
-                    view['gate'] = board.gate_drivers.state()
-                    view['model'] = (board.drive.model()
-                                     if view['source'] == 'model' else None)
-                    if time.time() - last_thermal > 2.0:
-                        view['thermal'] = board.thermal.state()
-                        view['budget'] = board.thermal.budget()
-                        last_thermal = time.time()
-                except RigError:
-                    pass                    # a missed reply is a missed frame
-                show.update(compose(rig, origin, console, view), refresh=True)
-                frame += 1
-                if args.frames and frame >= args.frames:
-                    break
-                leaving, _ = keys.poll()
-                if leaving:
-                    break
-                for key in keys.taken():
-                    said = act(rig, key, view)
-                    if said:
-                        view['said'] = said
-                time.sleep(1.0 / max(args.hz, 0.5))
-    except KeyboardInterrupt:
-        pass
+        leaving = run_view(board_view, console, 1.0 / max(args.hz, 0.5),
+                           args.frames, draw, on_input)
     finally:
         done = []
         try:

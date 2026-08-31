@@ -372,163 +372,9 @@ static cmd_status_t h_console(rd_t *in, wr_t *out)
 /* A pin, its direction and its signal name, with room to spare. */
 #define PIN_RECORD_MAX 40U
 
-static cmd_status_t h_channels(rd_t *in, wr_t *out)
+/** Kind 0: every analog channel, in the channel table's order. */
+static cmd_status_t analog_rows(wr_t *out)
 {
-  /* The map, and only the map - no reading. adc_table exists for "what does
-     it read now"; this answers "what is there", which is the question a host
-     must not answer from a table of its own.
-
-     One section per request: both together came to 273 bytes against
-     MB_MAX_PDU's 253, and the writer's overflow flag turned that into an
-     0x04 on the first live call. */
-  if (rd_left(in) < 1U)
-  {
-    return CMD_ERR_LENGTH;
-  }
-
-  const uint8_t kind = rd_u8(in);
-
-  if (kind > CHANNELS_PARTS)
-  {
-    return CMD_ERR_VALUE;
-  }
-
-  if (kind == CHANNELS_PARTS)
-  {
-    const uint8_t total = Board_PartCount();
-    const uint8_t first = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
-    uint8_t sent = 0U;
-
-    if (first > total)
-    {
-      return CMD_ERR_VALUE;
-    }
-
-    wr_u8(out, total);
-    wr_u8(out, first);
-    wr_u8(out, 0U);              /* how many follow - filled in below */
-
-    uint8_t *count_at = &out->buf[out->len - 1U];
-
-    for (uint8_t i = first; i < total; i++)
-    {
-      board_part_t part;
-
-      if ((out->len + PART_RECORD_MAX) > out->cap)
-      {
-        break;
-      }
-      if (!Board_Part(i, &part))
-      {
-        return CMD_ERR_DEVICE;
-      }
-
-      wr_str(out, part.name);
-      wr_str(out, part.what);
-      wr_str(out, part.where);
-      wr_str(out, part.power);
-      wr_u8(out, part.state);
-      sent++;
-    }
-
-    *count_at = sent;
-    return CMD_OK;
-  }
-
-  if (kind == CHANNELS_SUBSYSTEMS)
-  {
-    const uint8_t groups = cmd_group_count();
-
-    wr_u8(out, groups);
-
-    for (uint8_t i = 0U; i < groups; i++)
-    {
-      const cmd_group_t *g = cmd_group(i);
-
-      if (g == NULL)
-      {
-        return CMD_ERR_DEVICE;
-      }
-
-      wr_str(out, g->name);
-      wr_str(out, g->what);
-      wr_u8(out, g->commands);
-    }
-
-    return CMD_OK;
-  }
-
-  if (kind != CHANNELS_ANALOG)
-  {
-    /* I/O and infrastructure are two different questions and are kept two
-       different answers. Kind 1 is what a fixture may set or read without
-       breaking anything; kind 2 is the bus and the debug port, which are
-       listed only so "why was PB10 refused" has an answer, and are never
-       a channel to drive. */
-    const bool want_io = (kind == CHANNELS_DIGITAL);
-    const uint8_t rows = Board_DigitalCount();
-    const uint8_t first = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
-    uint8_t matching = 0U;
-    uint8_t sent = 0U;
-    uint8_t seen = 0U;
-
-    for (uint8_t i = 0U; i < rows; i++)
-    {
-      board_dchan_t d;
-
-      if (Board_DigitalChan(i, &d) && (d.usable == want_io))
-      {
-        matching++;
-      }
-    }
-
-    if (first > matching)
-    {
-      return CMD_ERR_VALUE;
-    }
-
-    /* Paged, like the parts list and for the same reason: the reserved
-       section went from 7 pins to 19 when SPI2, SPI4 and the IMU's control
-       pins were listed, and 19 rows are 418 bytes against MB_MAX_PDU's 253.
-       The whole section came back as an 0x04 from the writer's overflow
-       flag. */
-    wr_u8(out, matching);
-    wr_u8(out, first);
-    wr_u8(out, 0U);
-
-    uint8_t *count_at = &out->buf[out->len - 1U];
-
-    for (uint8_t i = 0U; i < rows; i++)
-    {
-      board_dchan_t d;
-
-      if (!Board_DigitalChan(i, &d))
-      {
-        return CMD_ERR_DEVICE;
-      }
-      if (d.usable != want_io)
-      {
-        continue;
-      }
-      if (seen++ < first)
-      {
-        continue;
-      }
-      if ((out->len + PIN_RECORD_MAX) > out->cap)
-      {
-        break;
-      }
-
-      wr_str(out, d.pin);
-      wr_u8(out, d.dir);
-      wr_str(out, d.signal);
-      sent++;
-    }
-
-    *count_at = sent;
-    return CMD_OK;
-  }
-
   const uint8_t analog = Board_AdcCount();
 
   wr_u8(out, analog);
@@ -553,6 +399,166 @@ static cmd_status_t h_channels(rd_t *in, wr_t *out)
   }
 
   return CMD_OK;
+}
+
+/** Kinds 1 and 2, paged from an optional `first`. I/O and infrastructure
+  * are two questions kept two answers: kind 1 is what a fixture may set or
+  * read without breaking anything; kind 2 is the bus and the debug port,
+  * listed only so "why was PB10 refused" has an answer, never a channel to
+  * drive. Paged like the parts list: the reserved section went from 7 pins
+  * to 19 when SPI2, SPI4 and the IMU's control pins were listed, and 19
+  * rows are 418 bytes against MB_MAX_PDU's 253 - the whole section came
+  * back as an 0x04 from the writer's overflow flag. */
+static cmd_status_t pin_page(rd_t *in, wr_t *out, bool want_io)
+{
+  const uint8_t rows = Board_DigitalCount();
+  const uint8_t first = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
+  uint8_t matching = 0U;
+  uint8_t sent = 0U;
+  uint8_t seen = 0U;
+
+  for (uint8_t i = 0U; i < rows; i++)
+  {
+    board_dchan_t d;
+
+    if (Board_DigitalChan(i, &d) && (d.usable == want_io))
+    {
+      matching++;
+    }
+  }
+
+  if (first > matching)
+  {
+    return CMD_ERR_VALUE;
+  }
+
+  wr_u8(out, matching);
+  wr_u8(out, first);
+  wr_u8(out, 0U);              /* how many follow - filled in below */
+
+  uint8_t *count_at = &out->buf[out->len - 1U];
+
+  for (uint8_t i = 0U; i < rows; i++)
+  {
+    board_dchan_t d;
+
+    if (!Board_DigitalChan(i, &d))
+    {
+      return CMD_ERR_DEVICE;
+    }
+    if (d.usable != want_io)
+    {
+      continue;
+    }
+    if (seen++ < first)
+    {
+      continue;
+    }
+    if ((out->len + PIN_RECORD_MAX) > out->cap)
+    {
+      break;
+    }
+
+    wr_str(out, d.pin);
+    wr_u8(out, d.dir);
+    wr_str(out, d.signal);
+    sent++;
+  }
+
+  *count_at = sent;
+  return CMD_OK;
+}
+
+/** Kind 3: the subsystems, one per command table. */
+static cmd_status_t subsystem_rows(wr_t *out)
+{
+  const uint8_t groups = cmd_group_count();
+
+  wr_u8(out, groups);
+
+  for (uint8_t i = 0U; i < groups; i++)
+  {
+    const cmd_group_t *g = cmd_group(i);
+
+    if (g == NULL)
+    {
+      return CMD_ERR_DEVICE;
+    }
+
+    wr_str(out, g->name);
+    wr_str(out, g->what);
+    wr_u8(out, g->commands);
+  }
+
+  return CMD_OK;
+}
+
+/** Kind 4: the fitted parts, paged from an optional `first`. */
+static cmd_status_t parts_page(rd_t *in, wr_t *out)
+{
+  const uint8_t total = Board_PartCount();
+  const uint8_t first = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
+  uint8_t sent = 0U;
+
+  if (first > total)
+  {
+    return CMD_ERR_VALUE;
+  }
+
+  wr_u8(out, total);
+  wr_u8(out, first);
+  wr_u8(out, 0U);              /* how many follow - filled in below */
+
+  uint8_t *count_at = &out->buf[out->len - 1U];
+
+  for (uint8_t i = first; i < total; i++)
+  {
+    board_part_t part;
+
+    if ((out->len + PART_RECORD_MAX) > out->cap)
+    {
+      break;
+    }
+    if (!Board_Part(i, &part))
+    {
+      return CMD_ERR_DEVICE;
+    }
+
+    wr_str(out, part.name);
+    wr_str(out, part.what);
+    wr_str(out, part.where);
+    wr_str(out, part.power);
+    wr_u8(out, part.state);
+    sent++;
+  }
+
+  *count_at = sent;
+  return CMD_OK;
+}
+
+static cmd_status_t h_channels(rd_t *in, wr_t *out)
+{
+  /* The map, and only the map - no reading. adc_table exists for "what does
+     it read now"; this answers "what is there", which is the question a host
+     must not answer from a table of its own.
+
+     One section per request: both together came to 273 bytes against
+     MB_MAX_PDU's 253, and the writer's overflow flag turned that into an
+     0x04 on the first live call. */
+  if (rd_left(in) < 1U)
+  {
+    return CMD_ERR_LENGTH;
+  }
+
+  switch (rd_u8(in))
+  {
+    case CHANNELS_ANALOG:     return analog_rows(out);
+    case CHANNELS_DIGITAL:    return pin_page(in, out, true);
+    case CHANNELS_RESERVED:   return pin_page(in, out, false);
+    case CHANNELS_SUBSYSTEMS: return subsystem_rows(out);
+    case CHANNELS_PARTS:      return parts_page(in, out);
+    default:                  return CMD_ERR_VALUE;
+  }
 }
 
 

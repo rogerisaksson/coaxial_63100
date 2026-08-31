@@ -219,6 +219,20 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
 }
 
 
+/** True when every selected field is a phase - all the injected group
+  * converts. */
+static bool only_phases(void)
+{
+  for (uint8_t f = 0U; f < s_fields; f++)
+  {
+    if (!Board_AdcIsPhase(s_order[f]))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 const char *Board_DaqConfigure(const board_daq_config_t *cfg)
 {
   /* Every refusal says which check failed, in the board's own words. The
@@ -289,17 +303,11 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
      phases and nothing else. Asking for a channel it does not carry is a
      configuration that cannot be honoured, so it is refused here rather
      than answered with zeros. */
-  if (cfg->clock == BOARD_DAQ_CLOCK_TIM1)
+  if ((cfg->clock == BOARD_DAQ_CLOCK_TIM1) && !only_phases())
   {
-    for (uint8_t f = 0U; f < s_fields; f++)
-    {
-      if (!Board_AdcIsPhase(s_order[f]))
-      {
-        return "the TIM1 clock converts the three phases and nothing else - "
-               "any other channel has to come through the meter on the "
-               "software clock";
-      }
-    }
+    return "the TIM1 clock converts the three phases and nothing else - "
+           "any other channel has to come through the meter on the "
+           "software clock";
   }
 
   s_cfg = *cfg;

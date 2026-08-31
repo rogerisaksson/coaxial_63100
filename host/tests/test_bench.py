@@ -15,10 +15,10 @@ WHAT IT WATCHES, and why each one is here rather than a loop counter:
                     with the rail off this reads 0 and means nothing.
     observer steps  the thermal model, which must keep its 10 Hz whatever the
                     sensors are doing. `steps`, not `seconds`: the latter is
-                    wall clock, so its rate is 1.0 however slow the observer
+                    wall clock, so its rate is 1.0 however slow the thermal observer
                     gets, and this check watched it for a day.
 
-Measured 2026-08-28: the observer's free-read path read two ADC channels -
+Measured 2026-08-28: the thermal observer's free-read path read two ADC channels -
 one at 810.5 cycles - and did two SPI4 transactions on EVERY poll whenever
 anything held AFE_ON, for an anchor whose gain is 0.05 Hz. That is the shape
 of regression this exists to catch.
@@ -43,7 +43,7 @@ BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 #: blocking - the free-read defect above cost far more than this.
 SLACK = 0.70
 
-#: Seconds per measurement. Long enough that the 5 s observer sample lands
+#: Seconds per measurement. Long enough that the 5 s thermal observer sample lands
 #: inside at least one of them, which is the point: its cost has to be in the
 #: number rather than dodged by a short window.
 WINDOW = 6.0
@@ -126,7 +126,7 @@ def main():
     from coaxial import Coaxial63100                # noqa: E402
     # AFE_ON HELD, and that is what the baseline was recorded under.
     # It powers the A1335, so the angle rate without it is 0 - and it
-    # is also the condition the observer's free-read path is measured
+    # is also the condition the thermal observer's free-read path is measured
     # in, which is the regression this suite exists to catch. The rig
     # puts the rail back the way it found it.
     with Coaxial63100(port=origin.port, power_afe=True) as rig:

@@ -329,7 +329,7 @@ TOUCHES = (
     ('host/tools/commission.py',      (STRUCTURE, SENSORLESS)),
     # BENCH is here and not with the host suites: what slows the board down
     # is firmware in the main loop, and the regression it guards against was
-    # exactly that - the observer reading two ADC channels and two SPI
+    # exactly that - the thermal observer reading two ADC channels and two SPI
     # transactions on every poll, and before that a poll blocking long enough
     # to lose a Modbus character. A host-side edit cannot cause either.
     ('Comms/',                        (CONFORMANCE, 'test_mcp.py', BENCH)),
@@ -681,6 +681,29 @@ def _plan(args):
     return tags, live_sections
 
 
+def _extra_for(name, args, tags, live_sections):
+    """The flags one suite takes from the plan: the model, its sections
+    and match for the live suite; the picked tests or the tags and coverage
+    for the ollama ones. No --release: this script owns the model's life,
+    holds it across every suite that needs it, and hands it back in _run's
+    `finally`. The suite releasing it per run was what put most of the wall
+    time into loading 7.6 GB again."""
+    extra = ['-m', args.model] if name == LIVE else []
+    if name == LIVE and live_sections:
+        extra += ['--sections', live_sections]
+    if name == LIVE and args.match:
+        extra += ['--match', args.match]
+    if name not in OLLAMA:
+        return extra
+    if args.only:
+        return extra + ['--only', args.only]
+    if tags:
+        extra += ['--tags', tags]
+        if args.coverage:
+            extra += ['--coverage', str(args.coverage)]
+    return extra
+
+
 def _run(args, tags, live_sections):
     """Run what the plan chose, and report it."""
     suites = list(args.file) if args.file else list(DEFAULT_SUITES)
@@ -716,22 +739,7 @@ def _run(args, tags, live_sections):
                 print('%-20s MISSING %s' % (name, path))
                 ok = False
                 continue
-            # No --release: this script owns the model's life, holds it
-            # across every suite that needs it, and hands it back in the
-            # `finally` below. The suite releasing it per run was what put
-            # most of the wall time into loading 7.6 GB again.
-            extra = ['-m', args.model] if name == LIVE else []
-            if name == LIVE and live_sections:
-                extra += ['--sections', live_sections]
-            if name == LIVE and args.match:
-                extra += ['--match', args.match]
-            if name in OLLAMA:
-                if args.only:
-                    extra += ['--only', args.only]
-                elif tags:
-                    extra += ['--tags', tags]
-                    if args.coverage:
-                        extra += ['--coverage', str(args.coverage)]
+            extra = _extra_for(name, args, tags, live_sections)
             tally, code, failing, elapsed, crash, groups = run_one(
                 path, timeout=1200 if name == LIVE else 300, extra=extra)
             if tally is None:

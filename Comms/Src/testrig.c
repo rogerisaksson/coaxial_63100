@@ -113,7 +113,7 @@ bool testrig_pin_write(char port, uint8_t pin, bool level)
 
   /* PB2 IS NOT A SIGNAL, IT IS A RAIL. AFE_ON is reference counted, and a
      write straight to the pad here is undone the moment anything acquires or
-     releases the rail - the observer borrowing it for an NTC sample was
+     releases the rail - the thermal observer borrowing it for an NTC sample was
      enough, and it made this path fail about one run in three with the pin
      reading back the opposite of what was written.
      So the write goes where every other request for this rail goes. The pin

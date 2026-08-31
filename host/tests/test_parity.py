@@ -202,7 +202,7 @@ def main():
         # the live side the AFE-on row set and the stand-in the other, and the
         # two disagree for a reason that is not a parity fault. Measured: it
         # failed about one run in three, and only inside a full suite run
-        # where something else had already woken the observer.
+        # where something else had already woken the thermal observer.
         # READ FIRST, so what goes back is what was there. A literal here
         # is the firmware's default copied to the host, and it went stale
         # the day that default moved - this suite put 5 s back on a board

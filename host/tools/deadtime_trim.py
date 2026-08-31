@@ -27,7 +27,7 @@ still averages the dead time asked for. It exists because the two transitions
 of a leg need not be symmetric - one gate turns off through a different
 impedance than the other turns on. Nothing here has been on a scope.
 
-The observer runs beside it: `drivers` and `phases` climbing faster at one
+The thermal observer runs beside it: `drivers` and `phases` climbing faster at one
 step than the last is the bridge heating from something the previous step did
 not have, which is what approaching the limit looks like from inside.
 """

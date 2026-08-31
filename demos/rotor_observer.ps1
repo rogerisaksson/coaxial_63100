@@ -40,14 +40,14 @@
     Stop after this many, for checking the view without a terminal to close.
 
 .PARAMETER Extra
-    Anything else, passed straight to show_observer.py - every parameter of
+    Anything else, passed straight to show_rotor_observer.py - every parameter of
     the drive is a switch there: --iq, --id, --omega, --v-inj, --kp, --ki,
     --l1, --l2, --i-max, --i-trip, --vdc, --load, --noise, --theta0 ...
 
 .EXAMPLE
-    .\demos\observer.ps1 -Simulated
-    .\demos\observer.ps1 -Source model -Motor outrunner_14p.json
-    .\demos\observer.ps1 -Source model -Switch -Extra '--iq','0.3'
+    .\demos\rotor_observer.ps1 -Simulated
+    .\demos\rotor_observer.ps1 -Source model -Motor outrunner_14p.json
+    .\demos\rotor_observer.ps1 -Source model -Switch -Extra '--iq','0.3'
 #>
 param(
     [string]$Port = 'COM4',
@@ -69,7 +69,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 
 Push-Location (Join-Path $Root 'host')
 try {
-    $call = @('tools/show_observer.py', '--hz', [string]$Hz, '--port', $Port,
+    $call = @('tools/show_rotor_observer.py', '--hz', [string]$Hz, '--port', $Port,
               '--source', $Source)
     if ($Motor)     { $call += @('--motor', $Motor) }
     if ($Switch)    { $call += '--switch' }

@@ -28,7 +28,8 @@ EXTRA = {
     'show_gate_drivers.py': [],
     'show_orientation.py': ['--width', '72', '--height', '14'],
     'show_angle.py': [],
-    'show_thermal.py': [],
+    'show_thermal_observer.py': [],
+    'show_rotor_observer.py': [],
 }
 
 

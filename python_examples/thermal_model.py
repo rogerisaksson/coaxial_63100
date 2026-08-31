@@ -26,7 +26,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), 'host'))
 
-# One definition, several consumers: this notebook, tools/show_thermal.py and
+# One definition, several consumers: this notebook, tools/show_thermal_observer.py and
 # tools/thermal_validate.py all read the model from the library.
 from coaxial.thermal import (CFG, DRIVER_RISE_SWITCHING, NODES, NTC_OFFSET,
                              NTC_SEES_DRIVERS, POWER_SWITCHING,

@@ -4,7 +4,7 @@
   * @brief   The rail reference counts behind 0x6E, device 9.
   *
   * The mask says WHICH subsystem holds a rail, which is the difference
-  * between a diagnosis and a guess - the observer once took AFE_ON, a
+  * between a diagnosis and a guess - the thermal observer once took AFE_ON, a
   * starved poll never released it, and nothing on the wire said why.
   *
   * `on` is the PIN, read back. Reporting both is for the case where the pin

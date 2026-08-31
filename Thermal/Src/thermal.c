@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @file    thermal.c
-  * @brief   The observer: integrate the network, then correct it with
+  * @brief   The thermal observer: integrate the network, then correct it with
   *          whichever thermometers answered.
   *
   * Explicit Euler. The fastest node here has a time constant of tens of

@@ -9,7 +9,7 @@ subsystem.
 agree, and the case worth catching is the one where they do not.
 
 Every hold but the host's is a LEASE and expires on its own. Measured
-2026-08-28: the observer took AFE_ON, the host then talked hard enough that
+2026-08-28: the thermal observer took AFE_ON, the host then talked hard enough that
 `link_busy()` starved the poll holding the release, and the rail stayed high
 indefinitely. The host's own hold does not expire - it was asked for by name
 over the wire, and only the wire takes it back.

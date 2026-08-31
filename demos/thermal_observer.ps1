@@ -10,7 +10,7 @@
     The field is diffuse on purpose: heat in a laminate spreads, and sharp
     zones would be a lie about the physics. Each source is a Gaussian blob.
 
-    The zone temperatures are the observer running in the firmware at 10 Hz,
+    The zone temperatures are the thermal observer running in the firmware at 10 Hz,
     read over 0x6E device 8 - not recomputed here.
 
     AFE_ON is left as found. The gate is inverted, so switching it on would
@@ -30,10 +30,10 @@
     Ctrl+C.
 
 .EXAMPLE
-    .\demos\thermal.ps1
-    .\demos\thermal.ps1 -Simulated
-    .\demos\thermal.ps1 -Hz 4
-    .\demos\thermal.ps1 -Switch 0.5
+    .\demos\thermal_observer.ps1
+    .\demos\thermal_observer.ps1 -Simulated
+    .\demos\thermal_observer.ps1 -Hz 4
+    .\demos\thermal_observer.ps1 -Switch 0.5
 #>
 [CmdletBinding()]
 param(
@@ -48,7 +48,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 
-$argv = @('tools/show_thermal.py', '--port', $Port)
+$argv = @('tools/show_thermal_observer.py', '--port', $Port)
 if ($Simulated) { $argv += '--simulated' }
 $argv += @('--hz', $Hz)
 if ($Frames -gt 0) { $argv += @('--frames', $Frames) }
@@ -62,7 +62,7 @@ try {
     Pop-Location
 }
 
-# 64 is show_thermal.py's TO_MENU. Swallowing it here is what stopped ESC
+# 64 is show_thermal_observer.py's TO_MENU. Swallowing it here is what stopped ESC
 # from going back to coaxial_tty.ps1's menu - the view returned it and the wrapper
 # dropped it on the floor.
 exit $code

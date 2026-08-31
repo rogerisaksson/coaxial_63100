@@ -1,4 +1,4 @@
-/* Run the observer against the campaign's four measured states.
+/* Run the thermal observer against the campaign's four measured states.
  *
  * Build and run with the host gcc, no hardware:
  *   gcc -std=c11 -Wall -Wextra -Wconversion -I../Inc ../Src/thermal.c check.c

@@ -2,7 +2,7 @@
 """The control law, on this machine, against a motor that exists only here.
 
 `Drive/` is hardware-free like the Modbus core, and for the same reason: so
-the current loop, the injection demodulator, the observer and the I/f ramp
+the current loop, the injection demodulator, the rotor observer and the I/f ramp
 can be run and judged without a motor, a power stage or a cable. This builds
 it with the host gcc, drives it through ctypes, and closes the loop through a
 PMSM model integrated in Python - saliency, saturation, back-EMF, a dead-time
@@ -639,7 +639,7 @@ def test_deadtime(r, lib):
 
 def test_sensorless_run(r, lib):
     """Torque from standstill under injection, through the crossover, onto
-    the back-EMF - the observer keeps the rotor the whole way."""
+    the back-EMF - the rotor observer keeps the rotor the whole way."""
     d = Drive(lib)
     # Friction sets the speed 0.6 A of torque reaches: 0.063 N.m over
     # 5e-4 is 126 rad/s mechanical, 882 electrical - past the crossover
@@ -742,7 +742,7 @@ def test_model_agrees(r, lib):
 
 def test_virtual_sensorless(r, lib):
     """The board-side path: source model, a sensorless lock and a spin,
-    the observer judged against the model's own rotor."""
+    the rotor observer judged against the model's own rotor."""
     d = Drive(lib)
     v_inj = 2.0
     try:
@@ -759,7 +759,7 @@ def test_virtual_sensorless(r, lib):
         for _ in range(int(0.05 / TS)):
             d.step_virtual()
         err = wrap_pi(d.state()['theta_hat'] - d.model_state()['theta'])
-        r.check('the observer locks onto the modelled rotor at rest',
+        r.check('the rotor observer locks onto the modelled rotor at rest',
                 abs(err) < 0.05, err)
         d.setpoints(iq_ref=0.6)
         worst = 0.0
@@ -771,7 +771,7 @@ def test_virtual_sensorless(r, lib):
         s, ms = d.state(), d.model_state()
         r.check('the modelled rotor turns above the crossover',
                 ms['omega'] > 300.0, ms['omega'])
-        r.check('and the observer follows it through', worst < 0.5
+        r.check('and the rotor observer follows it through', worst < 0.5
                 and abs(s['omega_hat'] - ms['omega']) < 0.1 * ms['omega'],
                 (worst, s['omega_hat'], ms['omega']))
         d.source(False)

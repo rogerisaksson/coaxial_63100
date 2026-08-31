@@ -87,7 +87,7 @@ def render(degrees, width=60, height=19, field=None, radius=RADIUS):
     nothing.
 
     `radius` in columns: the face the shaft view draws at 13, the rotor
-    observer's at 9 beside its four instrument boxes. The graduations keep
+    rotor observer's at 9 beside its four instrument boxes. The graduations keep
     their pitch, so a smaller face carries fewer of them.
     """
     grid = [[' '] * width for _ in range(height)]

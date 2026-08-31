@@ -37,7 +37,7 @@ class Thermal(Subsystem):
                             bytes([protocol.DEVICE_THERMAL, op]) + payload)
 
     def state(self):
-        """The observer's state.
+        """The thermal observer's state.
 
         `ntc` is None while AFE_ON is low - that is, while the gate drivers
         have supply and switching is running. Not a fault but what the board
@@ -80,7 +80,7 @@ class Thermal(Subsystem):
 
         got['seen_s_ago'] = r.u32() / 1000.0
 
-        # `seconds` is wall clock and its rate is 1.0 whatever the observer
+        # `seconds` is wall clock and its rate is 1.0 whatever the thermal observer
         # does. `steps` is what a benchmark can watch fall.
         got['steps'] = r.u32()
         got['error'] = ((got['expected_ntc'] - got['ntc'])
@@ -136,7 +136,7 @@ class Thermal(Subsystem):
             ('i32', int(round(throttle_at * 1000000))))))
 
     def set_sample(self, every_s, settle_s=0.3):
-        """How often the observer borrows AFE_ON for an NTC reading.
+        """How often the thermal observer borrows AFE_ON for an NTC reading.
 
         It only borrows when nothing else has the rail up. While another
         subsystem holds it the NTC is read every step instead, and this

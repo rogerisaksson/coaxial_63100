@@ -846,7 +846,7 @@ def test_ascii3d(report):
     report.check('and the fit is what fills the shorter axis',
                  max(len(line) for line in fit.split('\n')) <= 60)
 
-    # The light belongs to the world, not to the camera. Moving the observer
+    # The light belongs to the world, not to the camera. Moving the viewer
     # must not change how the board is lit - measured before this was fixed,
     # dropping the camera from 90 degrees to 60 darkened the whole board by
     # two ramp steps with nothing about the board or the light having moved.
@@ -872,7 +872,7 @@ def test_ascii3d(report):
                  inked(ascii3d.render(face, edgewise, 30, 10,
                                       distance=3.0)) == 0)
 
-    # The light belongs to the world, not to the camera. Moving the observer
+    # The light belongs to the world, not to the camera. Moving the viewer
     # must not change how a face is lit - measured before this was fixed,
     # dropping the camera from 90 degrees to 60 darkened the whole board by
     # two ramp steps with nothing about the board or the light having moved.
@@ -1236,7 +1236,7 @@ def test_dead_time(report):
 #: Every live view, run headless against the stand-in. The flag exists on
 #: all of them so a frame count can end one.
 VIEWS = ('show_angle', 'show_capture', 'show_desk', 'show_gate_drivers',
-         'show_orientation', 'show_thermal')
+         'show_orientation', 'show_thermal_observer', 'show_rotor_observer')
 
 
 def test_views(report):

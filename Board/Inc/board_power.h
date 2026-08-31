@@ -36,7 +36,7 @@ typedef enum
 typedef enum
 {
   BOARD_USER_HOST    = 0, /**< the host asked, over 0x6D or 0x6E          */
-  BOARD_USER_THERMAL = 1, /**< the observer, for a sample between steps   */
+  BOARD_USER_THERMAL = 1, /**< the thermal observer, for a sample between steps   */
   BOARD_USER_IMU     = 2, /**< the BNO08X poll                            */
   BOARD_USER_ANGLE   = 3, /**< the A1335 poll                             */
   BOARD_USER_DAQ     = 4, /**< a running acquisition                      */

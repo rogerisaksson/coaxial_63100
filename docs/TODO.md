@@ -4,7 +4,7 @@ State as of 2026-08-31.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2113 checks, 23 suites |
+| `run_tests.ps1 -All` | 2114 checks, 23 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 2 |
@@ -27,7 +27,7 @@ not what it measured.
 | Rails reference counted, and who holds them on the wire | PROTOCOL, *Device 9* |
 | Switching into a load: one leg at a duty against another held low, or the pair swapped every PWM period by the board (`0x6E` device 4 op 10), 2-50 %, 25-31 V, up to 60 s | CLAUDE.md *Scope*; FINDINGS, *The pair alternates* |
 | The drive: current loop, injection, observer, I/f, polarity pulse - idle 1 780 cycles a period; sensorless on the model, spinning, the interrupt ends 12.3 us of 20 after the trigger | PROTOCOL, *Device 10*; FINDINGS, *The caches were off* |
-| The model as the drive's source, and ROTOR OBSERVER on the chooser: the observer watched against a rotor whose angle is known, AFE off, no motor - locked to 0.002 rad, spun to 441 rad/s with 0.009 rad of error | PROTOCOL, *Device 10*; `tools/show_observer.py` |
+| The model as the drive's source, and ROTOR OBSERVER on the chooser: the observer watched against a rotor whose angle is known, AFE off, no motor - locked to 0.002 rad, spun to 441 rad/s with 0.009 rad of error | PROTOCOL, *Device 10*; `tools/show_rotor_observer.py` |
 | The NTC and the DC link ride the injected sequence as rank 2, so the thermal observer keeps its thermometer under the drive | PROTOCOL, *Device 4* |
 | The commissioning: AFE noise floor, sample point, offsets, gain mismatch, dead time, L map, lambda, budget, gains, decision, verification - on the stand-in end to end, on the bench as far as the AFE | ARCHITECTURE, *Host*; `tools/commission.py` |
 

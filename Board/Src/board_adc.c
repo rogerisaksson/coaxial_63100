@@ -318,7 +318,7 @@ uint8_t Board_AdcCount(void)
   * The synced triple latches its own codes inside the injected callback and
   * never goes through read_index, so the thermal observer had no way to the
   * conversion and fed itself zero. The alternative was a second copy of the
-  * shunt arithmetic next to the observer, which invariant 7 exists to stop.
+  * shunt arithmetic next to the thermal observer, which invariant 7 exists to stop.
   *
   * `centred` is what Board_AdcDifferential returns - offset binary already
   * taken out. Out of range, or a leg that is not one of three, is 0 A.
@@ -398,7 +398,7 @@ static bool read_index(uint8_t index, int32_t *raw, float *volts)
      two single-ended channels ride that group as rank 2 - the DC link
      on ADC3, the NTC on ADC1 - so the thermal observer keeps its
      thermometer and the link keeps reading under the drive. Their
-     meaning is still AFE_ON's (invariant 9); the observer already asks. */
+     meaning is still AFE_ON's (invariant 9); the thermal observer already asks. */
   if (Board_SyncArmed() && ((index == CH_NTC) || (index == CH_DCBUS)))
   {
     board_sync_sample_t latched;

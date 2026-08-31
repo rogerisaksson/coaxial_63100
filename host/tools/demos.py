@@ -5,7 +5,7 @@ the half-bridges over DIO, the IMU and the angle sensor - under one line
 saying what the system is doing. Nothing to page through: every standalone
 view in `demos/` opens its own rig and owns the port, so switching the gate
 drivers and watching the heat meant two processes and one serial port, which
-is why `show_thermal.py` had to grow a `--switch` of its own.
+is why `show_thermal_observer.py` had to grow a `--switch` of its own.
 
 ONE SNAPSHOT PER FRAME. Every block reads from the same round of calls, or
 two columns disagree about whether the stage is switching - which is the one
@@ -28,7 +28,7 @@ import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import (ASH, LABEL, gauge, Keys, park, QUIET,  # noqa: E402
+from screen import (ASH, LABEL, gauge, park, QUIET,  # noqa: E402
                     say, SODIUM, steady, tint, TO_MENU)
 
 import screen as _screen                                   # noqa: E402
@@ -41,7 +41,7 @@ from coaxial import Coaxial63100, angle, scaling, thermal  # noqa: E402
 #: measurement - the meter bridge view is the one that averages.
 ADC_SAMPLES = 16
 
-#: How often a switching run stands down to let the observer measure.
+#: How often a switching run stands down to let the thermal observer measure.
 #:
 #: THE BOARD CANNOT DO THIS ITSELF. AFE_ON high removes the gate drivers'
 #: supply, so `Board_PowerPoll` refuses the rail while MOE is set - a sample
@@ -183,7 +183,7 @@ class Session:
         return load
 
     def sample(self):
-        """Stand down, let the observer measure, and go back to switching.
+        """Stand down, let the thermal observer measure, and go back to switching.
 
         Ordered so the gates are never live without their supply: MOE clear
         first, then the rail up, then the reading, then the rail down, then
@@ -330,7 +330,7 @@ def snapshot(session):
     # Only while the rail is up. With it down read_all REFUSES (invariant
     # 9), and refusing through steady()'s four retries cost 0.6 s a frame
     # and drew the block as 'did not answer' - which flickered to values
-    # whenever the observer borrowed the rail for its 30 s sample. The
+    # whenever the thermal observer borrowed the rail for its 30 s sample. The
     # block says the actual state instead.
     afe_on = bool(got['afe'] and got['afe']['on'])
     got['analog'] = (steady(board.analog.read_all,
@@ -360,10 +360,10 @@ def adc_block(got):
         afe = got.get('afe')
         if afe is not None and not afe['on']:
             # Not a fault: the session leaves the rail down to save power
-            # and heat, and the observer borrows it on its own schedule.
+            # and heat, and the thermal observer borrows it on its own schedule.
             return block('ANALOG', [
                 tint('  AFE_ON down - no reference', LABEL),
-                tint('  observer borrows it for samples', LABEL)])
+                tint('  thermal observer borrows it for samples', LABEL)])
         return block('ANALOG', ['  did not answer'])
 
     params = got.get('scaling')
@@ -382,13 +382,13 @@ def thermal_block(got):
 
     The three THERMOMETERS are on the dash line instead: they are the widest
     thing there is and a column sized by them squeezed the two beside it.
-    They come from the observer either way - the die sensors are linear parts
+    They come from the thermal observer either way - the die sensors are linear parts
     calibrated at the factory, and that curve is in the MCU's system memory,
     so the board is the only side that can convert their codes at all.
     """
     spend = got.get('budget')
     if spend is None:
-        return block('THERMAL', ['  the observer did not answer'])
+        return block('THERMAL', ['  the thermal observer did not answer'])
 
     # ALL TEN, in the firmware's own order, so a leg keeps its row whether
     # it is heating or not - sorted-and-cut dropped driver W the moment two
@@ -563,29 +563,29 @@ def dash(session, got):
     return '  ' + '   '.join(bits)
 
 
-def act_on(session, typed, by_key):
-    """What one keystroke does.
+def toggle_rail(session):
+    """The rail, by name. Not while switching: the gate is inverted, so
+    raising it mid-run would drop the drivers with six inputs moving - the
+    switching activity owns the rail for as long as it runs."""
+    if 'switching' in session.running:
+        session.note = 'switching owns the rail - stop it first'
+        return
+    afe = session.rig.board.afe
+    got = steady(afe.state)
+    if got is None:
+        return
+    steady(afe.disable if got['on'] else afe.enable)
+    session.note = ''
 
-    Its own function because the draw loop was already as deep as this tree
-    allows - the structure suite refuses a nest past seven, and a binding
-    table growing inside a redraw is how a loop gets there.
-    """
+
+def act_on(session, typed, by_key):
+    """What one keystroke does."""
     if typed == 'up':
         session.set_duty(session.duty + DUTY_STEP)
     elif typed == 'down':
         session.set_duty(session.duty - DUTY_STEP)
     elif typed in ('a', 'A'):
-        # The rail, by name. Not while switching: the gate is inverted, so
-        # raising it mid-run would drop the drivers with six inputs moving -
-        # the switching activity owns the rail for as long as it runs.
-        afe = session.rig.board.afe
-        if 'switching' in session.running:
-            session.note = 'switching owns the rail - stop it first'
-        else:
-            got = steady(afe.state)
-            if got is not None:
-                steady(afe.disable if got['on'] else afe.enable)
-                session.note = ''
+        toggle_rail(session)
     elif typed in by_key:
         session.toggle(by_key[typed])
 
@@ -709,7 +709,7 @@ def teardown(session, console, drawn, hold=True):
 
     # PUT BACK, not just claimed: the session may have raised the rail on
     # the way in, or the user toggled it with A. Held by somebody else is
-    # theirs to keep - the observer mid-sample, another session measuring.
+    # theirs to keep - the thermal observer mid-sample, another session measuring.
     rail = steady(session.rig.board.afe.state)
     if session.afe_found is not None and rail is not None:
         held = [u for u in rail.get('users', ()) if u != 'host']
@@ -793,6 +793,18 @@ def leave(port, simulated):
     return 0
 
 
+def start_activities(session, names):
+    """Toggle the activities named on the command line, before any
+    keystroke: a session run in the background for somebody else to watch
+    has nobody to press one."""
+    by_name = dict((act.name, act) for act in ACTIVITIES)
+    for name in (n.strip() for n in names.split(',') if n.strip()):
+        if name not in by_name:
+            say('fail', 'start', '%s is not an activity' % name)
+            continue
+        session.toggle(by_name[name])
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', default='COM4')
@@ -801,7 +813,7 @@ def main():
     p.add_argument('--frames', type=int, default=0)
     p.add_argument('--sample-every', type=float, default=SAMPLE_EVERY_S,
                    metavar='S',
-                   help='stand the stage down this often so the observer can '
+                   help='stand the stage down this often so the thermal observer can '
                         'measure; 0 leaves it running blind')
     p.add_argument('--sequence', default='', metavar='U:45,VW:60,...',
                    help='legs to switch and for how long, in order; ends the '
@@ -852,7 +864,7 @@ def main():
         # leaves the box at 'none asked for', not the session dead.
         imu_started = rail is not None and _start_imu(rig)
 
-        from screen import curtain, stage
+        from screen import run_view, stage
 
         dashboard = stage()
         console = dashboard.is_terminal
@@ -861,57 +873,39 @@ def main():
         session.afe_found = session_afe_found
         session.imu_started = imu_started
         session.duty = min(1.0, max(0.0, a.duty))
-        leaving, count = None, 0
-        sampled = time.time()
         by_key = dict((act.key, act) for act in ACTIVITIES)
-
-        # Started here rather than by a keystroke, because a session run in
-        # the background for somebody else to watch has nobody to press one.
-        by_name = dict((act.name, act) for act in ACTIVITIES)
-        for name in (n.strip() for n in a.start.split(',') if n.strip()):
-            if name in by_name:
-                session.toggle(by_name[name])
-            else:
-                say('fail', 'start', '%s is not an activity' % name)
-
+        start_activities(session, a.start)
         if a.sequence:
             session.plan = Plan(a.sequence, a.duty)
+        sampled = [time.time()]
 
+        def draw():
+            return frame(session, console, session.note)
+
+        def tick():
+            # The thermal observer is blind while the stage is armed, so a
+            # run that never stands down is a run it estimates from end to
+            # end. Not on the frame count: the draw rate is whatever the
+            # link allows on the day.
+            if (a.sample_every > 0 and 'switching' in session.running
+                    and time.time() - sampled[0] >= a.sample_every):
+                session.sample()
+                sampled[0] = time.time()
+            if session.plan is None:
+                return False
+            if session.plan.advance(session, time.time()):
+                session.note = session.plan.caption(time.time())
+                return False
+            return session.plan.done()      # the last step ran: the run ends
+
+        def on_input(typed, _moved):
+            for key in typed:
+                act_on(session, key, by_key)
+
+        leaving = None
         try:
-            with curtain(dashboard) as live, Keys(console) as keys:
-                while True:
-                    count += 1
-                    live.update(frame(session, console, session.note),
-                                refresh=True)
-
-                    # The observer is blind while the stage is armed, so
-                    # a run that never stands down is a run it estimates
-                    # from end to end. Not on the frame count: the draw rate
-                    # is whatever the link allows on the day.
-                    if (a.sample_every > 0 and 'switching' in session.running
-                            and time.time() - sampled >= a.sample_every):
-                        session.sample()
-                        sampled = time.time()
-
-                    if session.plan is not None:
-                        if session.plan.advance(session, time.time()):
-                            session.note = session.plan.caption(time.time())
-                        elif session.plan.done():
-                            leaving = 'quit'
-                            break
-
-                    if a.frames and count >= a.frames:
-                        break
-                    leaving, _moved = keys.poll()
-                    if leaving:
-                        break
-
-                    for typed in keys.taken():
-                        act_on(session, typed, by_key)
-
-                    time.sleep(1.0 / max(a.hz, 0.2))
-        except KeyboardInterrupt:
-            pass
+            leaving = run_view(dashboard, console, 1.0 / max(a.hz, 0.2),
+                               a.frames, draw, on_input, tick)
         finally:
             print()
             teardown(session, console, 0, hold=leaving != 'menu')

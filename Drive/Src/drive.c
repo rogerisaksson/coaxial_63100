@@ -237,7 +237,7 @@ static float clampf(float x, float lo, float hi)
 
 
 /** How much of the angle error comes from the back-EMF, 0..1 by speed.
-  * `speed` is the command frame's under I/f - the observer has not found
+  * `speed` is the command frame's under I/f - the rotor observer has not found
   * the rotor yet, and a weight on its own estimate never let it start. */
 static float bemf_weight(const drive_t *d, float speed)
 {
@@ -348,9 +348,9 @@ static bool demodulate(drive_t *d, float alpha, float beta, float th,
 }
 
 
-/** The back-EMF's angle error in the observer's frame, or 0 below w_lo.
+/** The back-EMF's angle error in the rotor observer's frame, or 0 below w_lo.
   * `c`/`s` are cos/sin of theta_hat when the caller has them (the loop
-  * frame is the observer's), else NAN and taken here. */
+  * frame is the rotor observer's), else NAN and taken here. */
 static float bemf_error(drive_t *d, float alpha, float beta, float w,
                         float c, float s)
 {
@@ -379,8 +379,8 @@ static float bemf_error(drive_t *d, float alpha, float beta, float w,
 }
 
 
-static void observer(drive_t *d, float alpha, float beta, bool injecting,
-                     bool cycle_done, float w, float c, float s)
+static void rotor_observer(drive_t *d, float alpha, float beta, bool injecting,
+                           bool cycle_done, float w, float c, float s)
 {
   const float e_b = bemf_error(d, alpha, beta, w, c, s);
   bool have = false;
@@ -553,7 +553,7 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   const bool injecting = (amp > 0.0f) && (d->mode != DRIVE_OFF)
                          && (d->mode != DRIVE_POLARITY);
 
-  /* One trig pair for the frame; the observer reuses it when the frame is
+  /* One trig pair for the frame; the rotor observer reuses it when the frame is
      its own, and every other transform below is built on it. */
   float c, s;
 
@@ -580,8 +580,8 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   d->id = id;
   d->iq = iq;
 
-  observer(d, alpha, beta, injecting, cycle_done, w,
-           cmd_frame ? NAN : c, cmd_frame ? NAN : s);
+  rotor_observer(d, alpha, beta, injecting, cycle_done, w,
+                 cmd_frame ? NAN : c, cmd_frame ? NAN : s);
   command_frame(d);
 
   /* the fundamental */

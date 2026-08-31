@@ -79,7 +79,7 @@ def check_host_hold(rig, check):
 
 
 def check_observer_borrow(rig, check):
-    print('\nthe observer: borrows, then gives it back on its own')
+    print('\nthe thermal observer: borrows, then gives it back on its own')
     # What it was, so what goes back is what was there rather than a
     # copy of the firmware's default that goes stale when that moves.
     said = quiet(rig.board.thermal.state) or {}
@@ -99,7 +99,7 @@ def check_observer_borrow(rig, check):
             seen_leased = seen_leased or ('thermal' in st['leased'])
         time.sleep(0.05)
 
-    check('the observer was seen holding the rail', seen_thermal, True)
+    check('the thermal observer was seen holding the rail', seen_thermal, True)
     check('and its hold carries a lease', seen_leased, True)
     check('it is not held most of the time', high < n * 0.5, True)
 
@@ -118,7 +118,7 @@ def check_armed_refusal(rig, check):
         check('the rail reports itself blocked', st['blocked'], True)
         check('and is off, so the drivers have supply', st['on'], False)
 
-        # The observer is sampling every 5 s; give it several chances.
+        # The thermal observer is sampling every 5 s; give it several chances.
         quiet(rig.board.thermal.set_sample, 1.0, 0.3)
         high = 0
         end = time.time() + 6.0
@@ -126,7 +126,7 @@ def check_armed_refusal(rig, check):
             st = quiet(afe, rig)
             high += bool(st and st['on'])
             time.sleep(0.05)
-        check('the observer never got it while armed', high, 0)
+        check('the thermal observer never got it while armed', high, 0)
     finally:
         quiet(rig.board.thermal.set_sample, 5.0, 0.5)
         quiet(rig.gates.disarm)

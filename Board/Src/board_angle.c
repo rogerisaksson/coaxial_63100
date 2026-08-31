@@ -271,7 +271,7 @@ bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc)
 /** The A1335's own die, centi-degrees C. False if it did not answer.
   *
   * TSEN is eighths of a kelvin - a property of the part, not a calibratable
-  * parameter. DUPLICATED in `host/coaxial/angle.py`, which the observer
+  * parameter. DUPLICATED in `host/coaxial/angle.py`, which the thermal observer
   * cannot reach; one should go, by cmd_angle appending the converted value.
   *
   * It measures its own DIE. As a board thermometer it FELL 1.88 K during a

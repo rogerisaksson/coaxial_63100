@@ -97,7 +97,7 @@ typedef struct
   float capacity;        /**< J/K - what sets how fast it responds     */
 } thermal_node_cfg_t;
 
-/** What the observer needs to know about the board, once. */
+/** What the thermal observer needs to know about the board, once. */
 typedef struct
 {
   thermal_node_cfg_t node[THERMAL_NODES];
@@ -227,7 +227,7 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
                     const thermal_soa_t *soa, thermal_budget_t *out);
 
 /**
-  * @brief  Start the observer with every node at one temperature.
+  * @brief  Start the thermal observer with every node at one temperature.
   * @param  cfg      Network parameters. Copied.
   * @param  celsius  What to assume everything is at - a first reading.
   */
@@ -285,7 +285,7 @@ float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
 void thermal_defaults(thermal_cfg_t *cfg);
 
 /**
-  * @brief  Change one node's parameters while the observer runs.
+  * @brief  Change one node's parameters while the thermal observer runs.
   * @return False for an unknown node or a non-positive value.
   *
   * The calibration behind the defaults was taken with NOTHING connected to

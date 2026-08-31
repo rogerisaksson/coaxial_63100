@@ -200,6 +200,69 @@ def gauge(fraction, width, hot=0.85):
     return tint(bar, SODIUM) if fraction >= hot else bar
 
 
+def run_view(board_view, console, period, frames, draw, on_input=None,
+             tick=None, mouse=False):
+    """The loop every view runs: draw, pace, take keys - until Q, ESC,
+    Ctrl+C or `frames` frames.
+
+    `draw()` returns one frame's renderable. `tick()` runs after it and
+    returns True to end the run; `on_input(typed, moved)` takes the
+    frame's keys and wheel. Returns 'quit', 'menu', or None for frames
+    and Ctrl+C - the caller's `finally` puts the board back either way.
+    """
+    count = 0
+    try:
+        with curtain(board_view) as page, Keys(console, mouse=mouse) as keys:
+            while True:
+                count += 1
+                page.update(draw(), refresh=True)
+                if tick is not None and tick():
+                    return None
+                if frames and count >= frames:
+                    return None
+                leaving, moved, typed = paced(keys, period)
+                if leaving:
+                    return leaving
+                if on_input is not None:
+                    on_input(typed, moved)
+    except KeyboardInterrupt:
+        return None
+
+
+class Freshness:
+    """Whether the board's counter moved since the last frame, and how fast.
+
+    A reading that has not moved and a link that has stopped look the
+    same in the values; `updates` tells them apart. The rate is off the
+    counter over wall-clock seconds, not assumed from the interval.
+    """
+
+    def __init__(self):
+        import time
+        self.seen, self.stale = -1, 0
+        self.rate, self._rate_seen, self._rate_at = 0.0, None, time.time()
+
+    def take(self, updates):
+        """One frame's counter, or None for no reading."""
+        import time
+        if updates is None or updates == self.seen:
+            self.stale += 1
+        else:
+            self.seen, self.stale = updates, 0
+        if updates is None:
+            return
+        now = time.time()
+        if now - self._rate_at < 1.0:
+            return
+        if self._rate_seen is not None:
+            self.rate = (updates - self._rate_seen) / (now - self._rate_at)
+        self._rate_seen, self._rate_at = updates, now
+
+    @property
+    def note(self):
+        return ('stale %d frames' % self.stale) if self.stale else 'live'
+
+
 def say(state, text, detail=''):
     """One preflight line, the shape board_chat.ps1 prints.
 
@@ -581,6 +644,36 @@ class Keys:
             return got
         return self._drain_msvcrt()
 
+    @staticmethod
+    def _key_of(key):
+        """A key-down record as the characters a terminal would send."""
+        if key.ch and key.ch != '\x00':
+            return key.ch * max(1, key.repeat)
+        return {37: '\x1b[D', 38: '\x1b[A', 39: '\x1b[C',
+                40: '\x1b[B'}.get(key.vk, '')
+
+    def _mouse_of(self, mouse):
+        """A mouse record as SGR reports: presses, releases, and drags with
+        a button held. Motion with nothing held is nothing."""
+        x, y = mouse.pos.X + 1, mouse.pos.Y + 1
+        if mouse.flags & 0x1:                       # moved
+            if self._buttons & 0x1:
+                return ['\x1b[<32;%d;%dM' % (x, y)]
+            if self._buttons & 0x2:
+                return ['\x1b[<34;%d;%dM' % (x, y)]
+            return []
+        if mouse.flags != 0:                        # wheel, double click
+            return []
+        keys = []
+        for bit, name in ((0x1, 0), (0x2, 2)):
+            had, has = self._buttons & bit, mouse.buttons & bit
+            if has and not had:
+                keys.append('\x1b[<%d;%d;%dM' % (name, x, y))
+            elif had and not has:
+                keys.append('\x1b[<%d;%d;%dm' % (name, x, y))
+        self._buttons = mouse.buttons
+        return keys
+
     def _drain_records(self):
         import ctypes
 
@@ -605,30 +698,9 @@ class Keys:
         for i in range(read.value):
             record = buf[i]
             if record.type == 1 and record.event.key.down:
-                ch = record.event.key.ch
-                if ch and ch != '\x00':
-                    keys.append(ch * max(1, record.event.key.repeat))
-                else:
-                    keys.append({37: '\x1b[D', 38: '\x1b[A',
-                                 39: '\x1b[C', 40: '\x1b[B'}.get(
-                                     record.event.key.vk, ''))
+                keys.append(self._key_of(record.event.key))
             elif record.type == 2:
-                mouse = record.event.mouse
-                x, y = mouse.pos.X + 1, mouse.pos.Y + 1
-                if mouse.flags == 0:
-                    for bit, name in ((0x1, 0), (0x2, 2)):
-                        had = self._buttons & bit
-                        has = mouse.buttons & bit
-                        if has and not had:
-                            keys.append('\x1b[<%d;%d;%dM' % (name, x, y))
-                        elif had and not has:
-                            keys.append('\x1b[<%d;%d;%dm' % (name, x, y))
-                    self._buttons = mouse.buttons
-                elif mouse.flags & 0x1:
-                    if self._buttons & 0x1:
-                        keys.append('\x1b[<32;%d;%dM' % (x, y))
-                    elif self._buttons & 0x2:
-                        keys.append('\x1b[<34;%d;%dM' % (x, y))
+                keys.extend(self._mouse_of(record.event.mouse))
         return keys
 
     def _drain_msvcrt(self):

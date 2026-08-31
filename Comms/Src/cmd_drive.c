@@ -282,7 +282,7 @@ static cmd_status_t h_drive_model_param(rd_t *in, wr_t *out)
 }
 
 
-/** op 12 - the model's truth: the rotor the observer is judged by. */
+/** op 12 - the model's truth: the rotor the rotor observer is judged by. */
 static cmd_status_t h_drive_model(wr_t *out)
 {
   const drive_t *d = Board_Drive();

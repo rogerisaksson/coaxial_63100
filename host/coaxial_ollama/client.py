@@ -322,6 +322,25 @@ class Ollama:
             'rest of this session' % shrunk)
         return True
 
+    def _recover(self, exc, attempt, payload):
+        """Whether a failed POST is worth asking again: a crashed runner the
+        daemon respawns, or a full card something can be given back on.
+
+        A full card does not empty itself between two requests, so that
+        rung is not a wait - it is giving something back. Out of rungs,
+        the original error stands: a machine that cannot hold this model
+        at its smallest window has a problem no retry is going to solve,
+        and saying so beats looping.
+        """
+        if attempt >= RUNNER_RETRIES:
+            return False
+        if not _out_of_memory(exc):
+            return _runner_crashed(exc)
+        if not self._make_room(attempt):
+            raise OllamaError('%s\n%s' % (exc, _NO_ROOM_LEFT))
+        payload['options'] = dict(self.options)
+        return True
+
     def _chat_once(self, payload):
         """POST /api/chat, retrying a crashed model runner in silence.
 
@@ -336,19 +355,7 @@ class Ollama:
             try:
                 return self._post('/api/chat', payload)
             except OllamaError as exc:
-                if attempt >= RUNNER_RETRIES:
-                    raise
-                if _out_of_memory(exc):
-                    # A full card does not empty itself between two requests,
-                    # so this rung is not a wait - it is giving something
-                    # back. Out of rungs, the original error stands: a
-                    # machine that cannot hold this model at its smallest
-                    # window has a problem no retry is going to solve, and
-                    # saying so beats looping.
-                    if not self._make_room(attempt):
-                        raise OllamaError('%s\n%s' % (exc, _NO_ROOM_LEFT))
-                    payload['options'] = dict(self.options)
-                elif not _runner_crashed(exc):
+                if not self._recover(exc, attempt, payload):
                     raise
                 # The daemon needs a moment to notice its runner is gone and
                 # start another; asking again instantly just collects the

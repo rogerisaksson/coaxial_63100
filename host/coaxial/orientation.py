@@ -537,7 +537,7 @@ def _multiply(a, b):
 def viewpoint(azimuth=VIEW_AZIMUTH, elevation=VIEW_ELEVATION):
     """The rotation that carries a camera at (azimuth, elevation) onto +Z.
 
-    Applied before the board's own rotation, so it is where the observer
+    Applied before the board's own rotation, so it is where the viewer
     stands and not something the board is doing: the board still turns
     exactly as the IMU says, seen from a fixed corner of the room.
     """
@@ -563,7 +563,7 @@ VIEWPOINT = viewpoint()
 #: The key light, turned into the frame the viewpoint puts the model in.
 #:
 #: The light belongs to the world the board sits in, not to the camera: it
-#: has to stay put when the observer moves and swing when the BOARD moves,
+#: has to stay put when the viewer moves and swing when the BOARD moves,
 #: because a highlight that slides as the board tilts is a cue and one that
 #: slides when the camera tilts is a bug. Measured before this: dropping the
 #: camera from 90 degrees to 60 darkened the board by two whole ramp steps,

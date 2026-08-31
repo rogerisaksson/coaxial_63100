@@ -137,15 +137,15 @@ bool Board_PowerState(board_rail_t rail, board_rail_state_t *out)
   return true;
 }
 
-void Board_PowerPoll(void)
+/** THE HOST'S HOLDS DIE WITH THE HOST. Its reference is deliberately
+  * unleased so a session can keep a rail as long as it likes - and that is
+  * exactly why a killed script left AFE_ON high until somebody noticed. A
+  * live host talks; silence past BOARD_POWER_HOST_QUIET_MS is the board's
+  * evidence that this one does not, and the rail goes down on its own.
+  * Once per transition: claims can only reappear through traffic, and
+  * traffic re-arms the edge. */
+static void drop_host_claims(uint32_t now)
 {
-  const uint32_t now = HAL_GetTick();
-
-  /* THE HOST'S HOLDS DIE WITH THE HOST. Its reference is deliberately
-     unleased so a session can keep a rail as long as it likes - and that is
-     exactly why a killed script left AFE_ON high until somebody noticed.
-     A live host talks; silence is the board's evidence that this one does
-     not, and the rail goes down on its own. */
   static uint32_t seen_count;
   static uint32_t seen_at;
   static bool     told;
@@ -157,42 +157,55 @@ void Board_PowerPoll(void)
     seen_at = now;
     told = false;
   }
-
-  /* Once per transition: claims can only reappear through traffic,
-     and traffic re-arms the edge. */
-  if (!told && ((uint32_t)(now - seen_at) > BOARD_POWER_HOST_QUIET_MS))
+  if (told || ((uint32_t)(now - seen_at) <= BOARD_POWER_HOST_QUIET_MS))
   {
-    told = true;
-    for (uint8_t rail = 0U; rail < (uint8_t)BOARD_RAIL_COUNT; rail++)
-    {
-      if ((s_users[rail] & bit_of(BOARD_USER_HOST)) != 0U)
-      {
-        s_users[rail] &= (uint8_t)~bit_of(BOARD_USER_HOST);
-        s_expires[rail][BOARD_USER_HOST] = 0U;
-        apply((board_rail_t)rail);
-      }
-    }
-    /* The rest of the session's footprint: an armed stage must not
-       outlive the host that armed it. */
-    Board_PwmSessionDrop();
+    return;
   }
 
+  told = true;
+  for (uint8_t rail = 0U; rail < (uint8_t)BOARD_RAIL_COUNT; rail++)
+  {
+    if ((s_users[rail] & bit_of(BOARD_USER_HOST)) == 0U)
+    {
+      continue;
+    }
+    s_users[rail] &= (uint8_t)~bit_of(BOARD_USER_HOST);
+    s_expires[rail][BOARD_USER_HOST] = 0U;
+    apply((board_rail_t)rail);
+  }
+  /* The rest of the session's footprint: an armed stage must not
+     outlive the host that armed it. */
+  Board_PwmSessionDrop();
+}
+
+/** Every lease past its expiry is released. Signed difference, so the
+  * tick wrap costs nothing - the RTU timer's arithmetic, for the same
+  * reason. */
+static void expire_leases(uint32_t now)
+{
   for (uint8_t rail = 0U; rail < (uint8_t)BOARD_RAIL_COUNT; rail++)
   {
     for (uint8_t user = 0U; user < (uint8_t)BOARD_USER_COUNT; user++)
     {
       const uint32_t at = s_expires[rail][user];
 
-      /* Signed difference, so the tick wrap costs nothing - the same
-         arithmetic the RTU timer uses, and for the same reason. */
-      if ((at != 0U) && ((int32_t)(now - at) >= 0))
+      if ((at == 0U) || ((int32_t)(now - at) < 0))
       {
-        s_users[rail] &= (uint8_t)~bit_of((board_user_t)user);
-        s_expires[rail][user] = 0U;
-        apply((board_rail_t)rail);
+        continue;
       }
+      s_users[rail] &= (uint8_t)~bit_of((board_user_t)user);
+      s_expires[rail][user] = 0U;
+      apply((board_rail_t)rail);
     }
   }
+}
+
+void Board_PowerPoll(void)
+{
+  const uint32_t now = HAL_GetTick();
+
+  drop_host_claims(now);
+  expire_leases(now);
 }
 
 

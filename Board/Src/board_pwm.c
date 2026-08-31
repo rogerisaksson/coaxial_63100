@@ -193,6 +193,22 @@ bool Board_PwmClearFault(void)
 }
 
 
+/** Drive one leg's low-side input low, then high, and read the neighbour:
+  * only a path well below its pull-down lifts it. */
+static bool leg_follows(uint32_t drv, uint32_t obs)
+{
+  GPIOE->BSRR = 1UL << (drv + 16U);
+  for (volatile uint32_t d = 0U; d < 4000U; d++) { }
+  if (((GPIOE->IDR >> obs) & 1UL) != 0U)
+  {
+    return false;              /* high with the driver low: no path */
+  }
+
+  GPIOE->BSRR = 1UL << drv;
+  for (volatile uint32_t d = 0U; d < 4000U; d++) { }
+  return ((GPIOE->IDR >> obs) & 1UL) != 0U;
+}
+
 uint8_t Board_PwmGateShorts(void)
 {
   /* Each leg's two gate pins, low side first. Both belong to TIM1, so this
@@ -200,7 +216,7 @@ uint8_t Board_PwmGateShorts(void)
      back. Only with the outputs off: driving a gate input while the stage
      is live is not a diagnostic, it is a command.
 
-     The observer sinks through its own pull-down - about 40 k - so only a
+     The observing pin sinks through its own pull-down - about 40 k - so only a
      path well below that lifts it. Measured on a board with the W pair
      joined: the neighbour follows within 76 ns, against the 4 us a few
      hundred k into the pin capacitance would take. */
@@ -225,18 +241,9 @@ uint8_t Board_PwmGateShorts(void)
     GPIOE->PUPDR = (pupdr & ~both) | (2UL << (2U * obs));
     GPIOE->MODER = (moder & ~both) | (1UL << (2U * drv));
 
-    GPIOE->BSRR = 1UL << (drv + 16U);
-    for (volatile uint32_t d = 0U; d < 4000U; d++) { }
-
-    if (((GPIOE->IDR >> obs) & 1UL) == 0U)
+    if (leg_follows(drv, obs))
     {
-      GPIOE->BSRR = 1UL << drv;
-      for (volatile uint32_t d = 0U; d < 4000U; d++) { }
-
-      if (((GPIOE->IDR >> obs) & 1UL) != 0U)
-      {
-        shorts |= (uint8_t)(1U << k);
-      }
+      shorts |= (uint8_t)(1U << k);
     }
 
     GPIOE->BSRR   = 1UL << (drv + 16U);

@@ -1,7 +1,7 @@
 """The control law behind `0x6E` device 10: modes, setpoints, and what the
 board measured while it ran.
 
-The board runs a dq current loop, HF injection, an observer and an I/f ramp
+The board runs a dq current loop, HF injection, a rotor observer and an I/f ramp
 at the PWM rate; nothing here closes a loop. This sets what it is asked to
 do and reads back, in SI, what it did - the window's means and deviations,
 the innovation's autocorrelation, the raw-code moments at the sample point.
@@ -42,7 +42,7 @@ SOURCE_NAMES = {v: k for k, v in SOURCES.items()}
 
 #: The on-board motor model's parameters by id, and the factor an SI value
 #: is multiplied by on the wire. The model is the second sample source: the
-#: observer watched against a rotor whose angle is known, with the AFE off.
+#: rotor observer watched against a rotor whose angle is known, with the AFE off.
 MODEL_PARAMS = (('r', 1e6), ('ld', 1e9), ('lq', 1e9), ('lambda', 1e6),
                 ('pole_pairs', 1.0), ('sat', 1e6), ('i_sat', 1e3),
                 ('j', 1e9), ('b', 1e9), ('load', 1e6), ('v_dt', 1e3),
@@ -94,7 +94,7 @@ def from_wire(name, raw):
 
 class Drive(Subsystem):
 
-    """Device 10 behind 0x6E: the current loop, injection and observer."""
+    """Device 10 behind 0x6E: the current loop, injection and rotor observer."""
 
     def _op(self, op, payload=b''):
         return self.request(protocol.DEVICE,

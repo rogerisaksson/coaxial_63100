@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @file    board_thermal.c
-  * @brief   Runs the lumped observer on this hardware.
+  * @brief   Runs the lumped thermal observer on this hardware.
   *
   * `Thermal/` is the network and knows no hardware. This reads the sensors,
   * gathers what the board is doing, and steps the model from the main loop.
@@ -10,7 +10,7 @@
   * them in separate fields, and invariant 9 is why.
   *
   * All three thermometers sit behind AFE_ON, which the gate drivers share
-  * through an inverted gate. The observer borrows the rail, reads, and gives
+  * through an inverted gate. The thermal observer borrows the rail, reads, and gives
   * it back; `Board_PowerAcquire` refuses while the stage is armed, so a run
   * at duty is never interrupted and the model carries on open.
   ******************************************************************************
@@ -44,7 +44,7 @@ static thermal_loss_t s_loss;
   * board where the calibration says 9.1.
   *
   * The bus does not move when the rail toggles, so the last real reading is
-  * the honest one to carry. The observer's own periodic sample is what
+  * the honest one to carry. The thermal observer's own periodic sample is what
   * refreshes it - that runs with the AFE up, which is the point of it.
   */
 static float s_link_volts = -1.0f;
@@ -53,7 +53,7 @@ static thermal_budget_t s_budget;
 static uint32_t       s_trips;
 static bool           s_ready;
 static uint32_t       s_last_ms;
-static bool           s_holding;      /**< the observer holds the AFE rail  */
+static bool           s_holding;      /**< the thermal observer holds the AFE rail  */
 static uint32_t       s_held_ms;      /**< when it took it                  */
 static uint32_t       s_sampled_ms;   /**< when the last sample finished    */
 static thermal_sense_t s_last_seen = { NAN, NAN, NAN };
@@ -64,7 +64,7 @@ static uint32_t       s_settle_ms = THERMAL_SAMPLE_SETTLE_MS;
 static uint32_t       s_millis;
 static uint32_t       s_steps;        /**< model integrations, for a rate  */
 
-/** Copy the envelope out of the calibration record into the observer. */
+/** Copy the envelope out of the calibration record into the thermal observer. */
 static void soa_from_cal(void)
 {
   const board_cal_t *cal = Board_Cal();
@@ -130,7 +130,7 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
 
   /* Somebody else already has the rail up - read it and borrow nothing.
      STILL ON THE INTERVAL. This path used to read on EVERY poll, so with the
-     AFE held up by anything else the observer did two ADC conversions - one
+     AFE held up by anything else the thermal observer did two ADC conversions - one
      of them 810.5 cycles - and two SPI4 transactions ten times a second, for
      an anchor whose gain is 0.05 Hz. Free of the rail is not free of the
      bus, and the A1335's register rotation is shared with the angle poll. */
@@ -149,7 +149,7 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
   {
     /* Zero is OFF, and it has to be said out loud. The period test is
        unsigned, so `(now - then) < 0` is never true - a zero period made the
-       observer borrow the rail on EVERY poll instead of never, which is the
+       thermal observer borrow the rail on EVERY poll instead of never, which is the
        opposite of what the setter documents. Measured: it held AFE_ON
        continuously, which pinned PE15 low and made the conformance suite's
        independent witness read the same both ways. */
@@ -181,6 +181,50 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
 }
 
 
+/** What heats the board this step: the duties, the phase currents while
+  * the synced triple is armed, the link voltage when the AFE lets it be
+  * read. Unarmed, the current is unknown and zero is the only honest
+  * answer - a guessed current becomes a guessed conduction loss that
+  * looks measured. */
+static void load_now(thermal_load_t *load)
+{
+  const uint32_t period = Board_PwmPeriod();
+
+  load->afe_on = Board_AfeOn();
+  load->switching = Board_PwmIsEnabled();
+  for (uint8_t i = 0U; i < 3U; i++)
+  {
+    load->duty[i] = (period > 0U)
+                    ? ((float)Board_PwmGetDuty(i) / (float)period) : 0.0f;
+  }
+
+  if (Board_SyncArmed())
+  {
+    board_sync_sample_t sample;
+
+    Board_SyncLatest(&sample);
+    for (uint8_t i = 0U; i < 3U; i++)
+    {
+      /* Through Board_PhaseAmps, so the shunt and gain stay in the
+         calibration record (invariant 7) - this was a hard zero for want
+         of that path. Dry it reads ~0 A and that is right: nothing leaves
+         the bridge. No invariant 9 guard needed: the channels are
+         differential, so an unpowered reference's mid-scale is zero
+         amperes - the same answer unsupplied amplifiers give. */
+      load->phase_amps[i] = Board_PhaseAmps(i, sample.phase[i]);
+    }
+  }
+
+  int32_t dc_raw = 0, millivolt = 0;
+  if (load->afe_on && Board_DcBus(&dc_raw, &millivolt))
+  {
+    s_link_volts = (float)millivolt / 1000.0f;
+  }
+  /* Zero says "never measured", and the model falls back to the voltage its
+     switching figure was calibrated at rather than inventing a scale. */
+  load->link_volts = (s_link_volts > 0.0f) ? s_link_volts : 0.0f;
+}
+
 void Board_ThermalPoll(void)
 {
   if (!s_ready)
@@ -200,45 +244,7 @@ void Board_ThermalPoll(void)
   thermal_load_t load = { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f },
                           0.0f, -1.0f, false, false };
 
-  load.afe_on = Board_AfeOn();
-  load.switching = Board_PwmIsEnabled();
-
-  const uint32_t period = Board_PwmPeriod();
-
-  for (uint8_t i = 0U; i < 3U; i++)
-  {
-    load.duty[i] = (period > 0U)
-                   ? ((float)Board_PwmGetDuty(i) / (float)period) : 0.0f;
-  }
-
-  /* The phases come from the synced triple while it is armed. When it is
-     not, the current is unknown, and zero is then the only honest answer: a
-     guessed current becomes a guessed conduction loss that looks measured. */
-  if (Board_SyncArmed())
-  {
-    board_sync_sample_t sample;
-
-    Board_SyncLatest(&sample);
-    for (uint8_t i = 0U; i < 3U; i++)
-    {
-      /* Through Board_PhaseAmps, so the shunt and gain stay in the
-         calibration record (invariant 7) - this was a hard zero for want
-         of that path. Dry it reads ~0 A and that is right: nothing leaves
-         the bridge. No invariant 9 guard needed: the channels are
-         differential, so an unpowered reference's mid-scale is zero
-         amperes - the same answer unsupplied amplifiers give. */
-      load.phase_amps[i] = Board_PhaseAmps(i, sample.phase[i]);
-    }
-  }
-
-  int32_t dc_raw = 0, millivolt = 0;
-  if (load.afe_on && Board_DcBus(&dc_raw, &millivolt))
-  {
-    s_link_volts = (float)millivolt / 1000.0f;
-  }
-  /* Zero says "never measured", and the model falls back to the voltage its
-     switching figure was calibrated at rather than inventing a scale. */
-  load.link_volts = (s_link_volts > 0.0f) ? s_link_volts : 0.0f;
+  load_now(&load);
 
   thermal_power_t p;
   thermal_power_estimate(&p, &load, &s_loss);
@@ -339,7 +345,7 @@ bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at)
     return false;
   }
   /* Through the record, so a save persists it and one place holds the
-     envelope. Then re-read, so what the observer uses and what would be
+     envelope. Then re-read, so what the thermal observer uses and what would be
      written to flash cannot differ. */
   if (!Board_CalSetLimit(node, (int32_t)(limit_c * 100.0f)))
   {

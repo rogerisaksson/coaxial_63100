@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import Coaxial63100, scaling                   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
 from screen import (ASH, LABEL, SODIUM, TO_MENU,  # noqa: E402
-                    Keys, closing, say, tint)
+                    closing, say, tint)
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -408,39 +408,28 @@ def main(argv=None):
                            / (2.0 * (state['period'] - 1) * 50000.0),
             'scaling': board.analog.scaling()}
 
-    from screen import curtain, stage
+    from screen import run_view, stage
 
     board_view = stage()
     console = board_view.is_terminal
-    leaving, frame = None, 0
+    leaving = None
+
+    def draw():
+        try:
+            view['gate_drivers'] = board.gate_drivers.state()
+            if not refused:
+                view['live'] = rig.latest(block=False)
+        except RigError:
+            pass                    # a missed reply is a missed frame
+        return compose(rig, origin, console, view, layout, shutil_width())
+
+    def on_input(typed, _moved):
+        for key in typed:
+            view['said'] = act(rig, key, view) or view['said']
 
     try:
-        with curtain(board_view) as show, Keys(console) as keys:
-            while True:
-                try:
-                    view['gate_drivers'] = board.gate_drivers.state()
-                    if not refused:
-                        view['live'] = rig.latest(block=False)
-                except RigError:
-                    pass                    # a missed reply is a missed frame
-
-                width = shutil_width()
-                show.update(compose(rig, origin, console, view, layout,
-                                    width), refresh=True)
-                frame += 1
-                if args.frames and frame >= args.frames:
-                    break
-
-                leaving, _ = keys.poll()
-                if leaving:
-                    break
-                for key in keys.taken():
-                    said = act(rig, key, view)
-                    if said:
-                        view['said'] = said
-                time.sleep(1.0 / max(args.hz, 0.5))
-    except KeyboardInterrupt:
-        pass
+        leaving = run_view(board_view, console, 1.0 / max(args.hz, 0.5),
+                           args.frames, draw, on_input)
     finally:
         done = []
         try:

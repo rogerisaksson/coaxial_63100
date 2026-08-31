@@ -3,7 +3,7 @@
 # `# %%` cells: opens as a notebook, runs as a script.
 #
 # A burst does not ask how hot the board is. It asks **how long it may stay
-# at this power** - and that is a different number, one the observer can only
+# at this power** - and that is a different number, one the thermal observer can only
 # give because it dead-reckons from power and time between NTC samples.
 #
 # The board holds the ceilings; it does not invent them. They arrive the same
@@ -11,7 +11,7 @@
 # than a verdict. What it *does* act on is a trip: at a limit it drops MOE and
 # every gate goes to its idle level in hardware.
 #
-# **The observer needs no start either.** It runs on the board from boot and
+# **The thermal observer needs no start either.** It runs on the board from boot and
 # integrates whether anybody is reading - `set_sample()` is its configure,
 # `state()` and `budget()` are acquire, and there is nothing to stop. That is
 # what lets it answer for a burst that has already finished.
@@ -31,10 +31,10 @@ DUTY = 0.50
 
 device = Coaxial63100(port='COM4', power_afe=False,
                       simulated_device=SIMULATED)
-observer = device.thermal        # the model runs on the board, not here
-observer.open()
+thermal_observer = device.thermal        # the model runs on the board, not here
+thermal_observer.open()
 print(device)
-print(observer)
+print(thermal_observer)
 
 # %% [markdown]
 # ## What the ceilings are, and which of them is measured
@@ -43,7 +43,7 @@ print(observer)
 # measured must never look measured.
 
 # %%
-budget = observer.budget()
+budget = thermal_observer.budget()
 for name, used in sorted(budget['used'].items(), key=lambda kv: -kv[1]):
     print('  %-11s %5.1f %% of its budget' % (name, 100.0 * used))
 
@@ -74,7 +74,7 @@ device.write(analog=load)
 
 try:
     for _ in range(20):
-        b = observer.budget()
+        b = thermal_observer.budget()
         left = b['seconds_to_limit']
         print('%5.1f %%  %-11s  %s%s'
               % (100.0 * b['worst'], b['worst_node'],
@@ -99,5 +99,5 @@ finally:
 # behind it deserves - better than a guess that reads like a specification.
 
 # %%
-print(observer.set_limit('board', 105.0, throttle_at=0.85))
+print(thermal_observer.set_limit('board', 105.0, throttle_at=0.85))
 device.close()

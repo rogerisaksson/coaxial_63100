@@ -375,6 +375,41 @@ bool Board_DriveOwnsCompares(void)
 }
 
 
+/** What the law's duties do to the compares this period: nothing while
+  * the stage is down, the next triple while a mode runs on an armed stage,
+  * and one zero triple when a mode has just ended - polarity finishing, a
+  * stage drop, the host asking for OFF - before the compares are let go. */
+static void commit_duties(const drive_out_t *out, bool enabled, bool running)
+{
+  if (enabled && (s_drive.mode != DRIVE_OFF))
+  {
+    uint16_t ticks[BOARD_PWM_PHASES];
+    const float arr = (float)(Board_PwmPeriod() - 1U);
+
+    for (uint8_t k = 0U; k < BOARD_PWM_PHASES; k++)
+    {
+      ticks[k] = (uint16_t)lrintf(out->duty[k] * arr);
+    }
+    if (!s_owned)
+    {
+      Board_PwmDriveOwn(true);
+      s_owned = true;
+    }
+    Board_PwmSetNext(ticks);
+    return;
+  }
+  if (!(running || s_owned) || !s_owned)
+  {
+    return;
+  }
+
+  const uint16_t zeros[BOARD_PWM_PHASES] = { 0U, 0U, 0U };
+
+  Board_PwmSetNext(zeros);
+  Board_PwmDriveOwn(false);
+  s_owned = false;
+}
+
 void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
 {
   /* In ADC3's interrupt, straight after the triple was latched. Nothing
@@ -402,7 +437,7 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   const bool running = (s_drive.mode != DRIVE_OFF);
   /* The model as the source: the law runs on its currents whether or
      not a stage is armed, and the duties below reach the gates only if
-     one is - which is how the observer is watched on this bench, where
+     one is - which is how the rotor observer is watched on this bench, where
      the converters and the drivers are never powered together. */
   const bool trip = (s_drive.source == DRIVE_SOURCE_MODEL)
                     ? drive_step_virtual(&s_drive, &out)
@@ -414,37 +449,12 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
     Board_PwmDisable();
     s_owned = false;
   }
-  else if (enabled && (s_drive.mode != DRIVE_OFF))
+  else
   {
-    uint16_t ticks[BOARD_PWM_PHASES];
-    const float arr = (float)(Board_PwmPeriod() - 1U);
-
-    for (uint8_t k = 0U; k < BOARD_PWM_PHASES; k++)
-    {
-      ticks[k] = (uint16_t)lrintf(out.duty[k] * arr);
-    }
-    if (!s_owned)
-    {
-      Board_PwmDriveOwn(true);
-      s_owned = true;
-    }
-    Board_PwmSetNext(ticks);
-  }
-  else if (running || s_owned)
-  {
-    /* The mode ended this period - polarity finishing, a stage drop, the
-       host asking for OFF. Zero once, then let the compares go. */
-    const uint16_t zeros[BOARD_PWM_PHASES] = { 0U, 0U, 0U };
-
-    if (s_owned)
-    {
-      Board_PwmSetNext(zeros);
-      Board_PwmDriveOwn(false);
-      s_owned = false;
-    }
+    commit_duties(&out, enabled, running);
   }
 
-  /* The ring, when armed for this source: dq current, the observer's
+  /* The ring, when armed for this source: dq current, the rotor observer's
      angle as a turn in 65536, the innovation in 0.1 mrad. Converted only
      then - four lrintf calls a period for a ring nobody armed were in the
      8 us this interrupt cost. */

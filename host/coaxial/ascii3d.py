@@ -442,7 +442,7 @@ def render(model, matrix, width, height, distance=None, ramp=CHARACTERS,
     `light` is where the key light stands, in the SAME frame `matrix` puts
     the model into. A caller that bakes a viewpoint into `matrix` must turn
     the light with it, or the light is welded to the camera and the model
-    goes dark because the observer moved.
+    goes dark because the viewer moved.
 
     `cull` drops back faces on the sign of the projected area. See CULLING.
     """

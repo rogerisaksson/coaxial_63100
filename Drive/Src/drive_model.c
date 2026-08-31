@@ -6,7 +6,7 @@
   *
   * The second sample source. On the bench board AFE_ON high unpowers the
   * gate drivers, so the real currents and a switching stage are never
-  * available together; this is how the observer is watched working -
+  * available together; this is how the rotor observer is watched working -
   * predictably, against a rotor whose angle is known - while the half
   * bridges switch dry or not at all.
   *

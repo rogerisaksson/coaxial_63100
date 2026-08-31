@@ -368,6 +368,46 @@ def _matches(key, by_name):
             if name.startswith(key) or key.startswith(name) or key in name]
 
 
+def _index_of(text, by_name, notes):
+    """One requested channel as an index: a number, a name, an alias, a
+    spelling of one, or the words it was made of - with what it took to get
+    there on `notes`.
+
+    Several matches is not a typo, it is a question that has not been
+    narrowed - `phas` on a three-phase board. Naming them beats "unknown",
+    which reads as "no such thing" and sends the next call somewhere else
+    entirely.
+    """
+    key = _alias(_key(text), by_name)
+    if text.isdigit():
+        return int(text)
+    if key in by_name:
+        if notes is not None and key != _key(text):
+            notes.append('%s read as %s' % (text, key))
+        return by_name[key]
+    found = _matches(key, by_name)
+    if not found:
+        # Not a name, a spelling of one or a substring of one - so try the
+        # words it is made of. `BUS_VOLT` is not any channel, but `bus` is
+        # exactly one. Measured from the prompt, twice: `A0` and `BUS_VOLT`,
+        # both invented, both refused. A single letter is a phase name (`a`,
+        # `u`) only next to the word that says so: without that rule
+        # `not_a_channel` resolved to PhaseU through its `a`.
+        words = _words(text)
+        phased = any(w.startswith('phase') for w in words)
+        found = sorted({_alias(w, by_name) for w in words
+                        if len(w) > 1 or phased} & set(by_name))
+    if len(found) > 1:
+        raise ValueError('channel %r could be %s - say which'
+                         % (text, ' or '.join(found)))
+    if not found:
+        raise ValueError('unknown channel %r; names are %s'
+                         % (text, ','.join(sorted(by_name))))
+    if notes is not None:
+        notes.append('%s read as %s' % (text, found[0]))
+    return by_name[found[0]]
+
+
 def _resolve(session, wanted, notes=None):
     """Turn ['4', 'DC bus'] into channel indices.
 
@@ -400,43 +440,7 @@ def _resolve(session, wanted, notes=None):
     indices = []
     for item in wanted:
         text = str(item).strip()
-        key = _alias(_key(text), by_name)
-        if text.isdigit():
-            index = int(text)
-        elif key in by_name:
-            index = by_name[key]
-            if notes is not None and key != _key(text):
-                notes.append('%s read as %s' % (text, key))
-        else:
-            # Several matches is not a typo, it is a question that has not
-            # been narrowed - `phas` on a three-phase board. Naming them
-            # beats "unknown", which reads as "no such thing" and sends the
-            # next call somewhere else entirely.
-            found = _matches(key, by_name)
-            if not found:
-                # Not a name, a spelling of one or a substring of one - so
-                # try the words it is made of. `BUS_VOLT` is not any channel,
-                # but `bus` is exactly one. Measured from the prompt, twice:
-                # `A0` and `BUS_VOLT`, both invented, both refused.
-                words = _words(text)
-                # A single letter is a phase name (`a`, `u`) only next to the
-                # word that says so. Without that rule `not_a_channel`
-                # resolved to PhaseU through its `a`, which is the invented
-                # reading this whole file exists to prevent.
-                phased = any(w.startswith('phase') for w in words)
-                found = sorted(
-                    {_alias(w, by_name) for w in words
-                     if len(w) > 1 or phased} & set(by_name))
-            if len(found) == 1:
-                index = by_name[found[0]]
-                if notes is not None:
-                    notes.append('%s read as %s' % (text, found[0]))
-            elif len(found) > 1:
-                raise ValueError('channel %r could be %s - say which'
-                                 % (text, ' or '.join(found)))
-            else:
-                raise ValueError('unknown channel %r; names are %s'
-                                 % (text, ','.join(sorted(by_name))))
+        index = _index_of(text, by_name, notes)
         if not 0 <= index < len(channels):
             raise ValueError('channel %d out of range 0..%d'
                              % (index, len(channels) - 1))

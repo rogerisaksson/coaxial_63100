@@ -83,7 +83,7 @@ from a table; so does scaling (HARDWARE, *Scaling & Calibration*).
 `drive.py` is device 10; `sensorless.py` the design arithmetic - SNR budget,
 Kalman gains from the measured noise, crossover, decision; `commission.py`
 the eight steps against a rig, every verdict the executive's;
-`tools/commission.py` runs them. `tools/show_observer.py` is ROTOR
+`tools/commission.py` runs them. `tools/show_rotor_observer.py` is ROTOR
 OBSERVER: the estimate on the dial, the model's rotor on the rim, every
 parameter a switch checked against the stage, A arms nothing without
 `--switch`.
@@ -95,7 +95,9 @@ once per process, nothing cached on disk.
 **The console style is `host/tools/stage.py`**: one rich Theme with every
 role named, two templates (`frame_of` for a drawing with instruments beside
 it, `panels_of` for a grid), one band per page (`band_of` - name left, port,
-LIVE/SIMULATED chip right), `boot()` the 28-cell progress strip. The front
+LIVE/SIMULATED chip right), `boot()` the 28-cell progress strip, and
+`run_view()` in `tools/screen.py` the loop every view runs - draw, pace,
+take keys - so a view's `main` is setup, a `draw()` and a teardown. The front
 page, `tools/menu.py`, is up in 0.15 s with the board at about 1 s - the
 solids build in a thread. `test_views.py` draws every view against the
 stand-in.
@@ -108,7 +110,7 @@ tool routing, mid-session board and model swaps (MODELS.md).
 
 ## The test system
 
-Twenty-three suites, 2113 checks. `run_tests.ps1` is the only interface -
+Twenty-three suites, 2114 checks. `run_tests.ps1` is the only interface -
 CLAUDE.md, *Commands*, has the tiers and the rules.
 
 * **A missing cable is not a failure.** A disconnected board falls back to

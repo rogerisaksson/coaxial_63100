@@ -263,47 +263,55 @@ static uint32_t u_ticks_per_us(void *ctx)
   return (per == 0U) ? 1U : per;
 }
 
+/** Receive on interrupt. Priority 5: below anything that must not be
+  * delayed and above the systick the delays here use, so a byte is never
+  * late for a frame boundary. RXNE and the error sources both, because an
+  * overrun that nobody is told about is an overrun nobody clears. */
+static void arm_rx_irq(const dev_port_t *p)
+{
+  HAL_NVIC_SetPriority(p->irq, 5U, 0U);
+  HAL_NVIC_EnableIRQ(p->irq);
+  SET_BIT(p->uart->Instance->CR1, USART_CR1_RXNEIE_RXFNEIE);
+  SET_BIT(p->uart->Instance->CR3, USART_CR3_EIE);
+}
+
+/** Built on first use rather than as a static initialiser: huart2, huart3
+  * and huart5 are not constant expressions. */
+static void build_ports(void)
+{
+  s_ports[0].uart = &huart3;
+  s_ports[1].uart = &huart2;
+  s_ports[2].uart = &huart5;
+
+  for (uint8_t i = 0U; i < DEV_UART_COUNT; i++)
+  {
+    s_devs[i].get          = u_get;
+    s_devs[i].fault        = u_fault;
+    s_devs[i].put          = u_put;
+    s_devs[i].ticks        = u_ticks;
+    s_devs[i].ticks_per_us = u_ticks_per_us;
+    s_devs[i].purge        = u_purge;
+    s_devs[i].ctx          = &s_ports[i];
+
+    if (s_ports[i].interrupt)
+    {
+      arm_rx_irq(&s_ports[i]);
+    }
+  }
+
+  s_built = true;
+}
+
 const dev_serial_t *dev_uart(uint8_t index)
 {
   if (index >= DEV_UART_COUNT)
   {
     return NULL;
   }
-
-  /* Built on first use rather than as a static initialiser: huart2, huart3
-     and huart5 are not constant expressions. */
   if (!s_built)
   {
-    s_ports[0].uart = &huart3;
-    s_ports[1].uart = &huart2;
-    s_ports[2].uart = &huart5;
-
-    for (uint8_t i = 0U; i < DEV_UART_COUNT; i++)
-    {
-      s_devs[i].get          = u_get;
-      s_devs[i].fault        = u_fault;
-      s_devs[i].put          = u_put;
-      s_devs[i].ticks        = u_ticks;
-      s_devs[i].ticks_per_us = u_ticks_per_us;
-      s_devs[i].purge        = u_purge;
-      s_devs[i].ctx          = &s_ports[i];
-
-      if (s_ports[i].interrupt)
-      {
-        /* Priority 5: below anything that must not be delayed and above the
-           systick the delays here use, so a byte is never late for a frame
-           boundary. RXNE and the error sources both, because an overrun that
-           nobody is told about is an overrun nobody clears. */
-        HAL_NVIC_SetPriority(s_ports[i].irq, 5U, 0U);
-        HAL_NVIC_EnableIRQ(s_ports[i].irq);
-        SET_BIT(s_ports[i].uart->Instance->CR1, USART_CR1_RXNEIE_RXFNEIE);
-        SET_BIT(s_ports[i].uart->Instance->CR3, USART_CR3_EIE);
-      }
-    }
-
-    s_built = true;
+    build_ports();
   }
-
   return &s_devs[index];
 }
 
@@ -312,6 +320,32 @@ const dev_serial_t *dev_uart(uint8_t index)
    own receiver. 0x00 and 0xFF catch a line stuck at either rail, 0x5A and
    0xA5 one bit-shifted or inverted. */
 static const uint8_t DEV_ECHO_PATTERN[4] = { 0x00U, 0xFFU, 0x5AU, 0xA5U };
+
+/** Send one byte and wait for one back: 0 nothing came, 1 something else
+  * did, 2 the byte itself. One character at 115200 is 95 us; two
+  * milliseconds is twenty times that and still short enough that four of
+  * them cannot outlive a master's patience. */
+static uint8_t echo_one(const dev_serial_t *dev, uint8_t byte)
+{
+  dev_port_t *p = (dev_port_t *)dev->ctx;
+  uint8_t got = 0U;
+  uint32_t tick = 0U;
+
+  u_purge(dev->ctx);
+  (void)HAL_UART_Transmit(p->uart, &byte, 1U, 10U);
+
+  const uint32_t until = HAL_GetTick() + 2U;
+
+  while (HAL_GetTick() <= until)
+  {
+    if (!u_get(dev->ctx, &got, &tick))
+    {
+      continue;
+    }
+    return (got == byte) ? 2U : 1U;
+  }
+  return 0U;
+}
 
 uint8_t dev_uart_echo(uint8_t index, uint8_t *seen)
 {
@@ -324,33 +358,15 @@ uint8_t dev_uart_echo(uint8_t index, uint8_t *seen)
   }
 
   const dev_serial_t *dev = dev_uart(index);
-  dev_port_t         *p = (dev_port_t *)dev->ctx;
 
   for (uint8_t i = 0U; i < 4U; i++)
   {
-    uint8_t byte = DEV_ECHO_PATTERN[i];
-    uint8_t got = 0U;
-    uint32_t tick = 0U;
+    const uint8_t came = echo_one(dev, DEV_ECHO_PATTERN[i]);
 
-    u_purge(dev->ctx);
-    (void)HAL_UART_Transmit(p->uart, &byte, 1U, 10U);
-
-    /* One character at 115200 is 95 us. Two milliseconds is twenty times
-       that and still short enough that four of them cannot outlive a
-       master's patience. */
-    const uint32_t until = HAL_GetTick() + 2U;
-
-    while (HAL_GetTick() <= until)
+    back = (uint8_t)(back + ((came != 0U) ? 1U : 0U));
+    if (came == 2U)
     {
-      if (u_get(dev->ctx, &got, &tick))
-      {
-        back++;
-        if (got == byte)
-        {
-          matched |= (uint8_t)(1U << i);
-        }
-        break;
-      }
+      matched |= (uint8_t)(1U << i);
     }
   }
 

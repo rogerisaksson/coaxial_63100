@@ -100,7 +100,7 @@ def test_kalman(r):
     r.check('gains are positive and the angle gain under one',
             0.0 < k['l1'] < 1.0 and k['l2'] > 0.0, k)
     quieter = sensorless.kalman_gains(0.005, 40e-6, 2000.0)
-    r.check('quieter shunts, faster observer',
+    r.check('quieter shunts, faster rotor observer',
             quieter['wn_hz'] > k['wn_hz'], (quieter['wn_hz'], k['wn_hz']))
     r.check('the posterior angle noise is under the measurement noise',
             k['sigma_theta_est'] < 0.05, k['sigma_theta_est'])

@@ -2,7 +2,7 @@
 
 Pure functions, no board. The commissioning (commission.py) measures sigma_i,
 R, Ld, Lq, lambda and the dead-time curve; this turns them into the
-injection to run, the loop and observer gains to run it with, the speed the
+injection to run, the loop and rotor observer gains to run it with, the speed the
 back-EMF takes over at, and the decision between injection and an I/f start.
 
 The one definition that runs through all of it: the injection's signal is
@@ -147,7 +147,7 @@ def kalman_gains(sigma_theta_upd, t_upd, accel_sd, iterations=2000):
     `sigma_theta_upd` per update; the process noise is a white acceleration
     of sd `accel_sd` rad/s^2. The Riccati recursion is iterated to its
     fixed point, so the bandwidth that comes out is the noise's, not a
-    knob's: quieter shunts, faster observer.
+    knob's: quieter shunts, faster rotor observer.
     """
     t = t_upd
     q11, q12, q22 = (accel_sd ** 2 * t ** 3 / 3.0, accel_sd ** 2 * t ** 2 / 2.0,

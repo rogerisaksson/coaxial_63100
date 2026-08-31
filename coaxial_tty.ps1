@@ -20,8 +20,8 @@
 
 .PARAMETER Name
     Skip the chooser and go straight to one of them: session, imu, angle,
-    adc, gate_drivers, observer, thermal. On the front page gate_drivers
-    and observer sit under MOTOR CONTROLLER, which asks which half, and
+    adc, gate_drivers, rotor_observer, thermal_observer. On the front page
+    gate_drivers and rotor_observer sit under MOTOR CONTROLLER, which asks which half, and
     chat and claude under BOARD CHAT, which asks who answers; ESC from a
     view under either comes back to that question. The old capture view is a box in the session.
 
@@ -48,7 +48,7 @@
 #>
 param(
     [ValidateSet('session', 'imu', 'angle', 'adc',
-                 'gate_drivers', 'observer', 'thermal')]
+                 'gate_drivers', 'rotor_observer', 'thermal_observer')]
     [string]$Name,
     [string]$Port = 'COM4',
     [switch]$Simulated,
@@ -74,7 +74,7 @@ $Views = [ordered]@{
                  What   = 'every analog channel, on a meter bridge' }
     'gate_drivers' = @{ Script = 'gate_drivers.ps1'
                  What   = 'the gate drivers: six signals, current, a burst' }
-    'thermal' = @{ Script = 'thermal.ps1'
+    'thermal_observer' = @{ Script = 'thermal_observer.ps1'
                  What   = 'where the heat sits, drawn on the board itself' }
     'chat'  = @{ Script = $null; Chat = 'local'
                  What   = 'CCC - the coaxial 63100 chat client' }
@@ -82,7 +82,7 @@ $Views = [ordered]@{
                  What   = 'claude with the board over MCP' }
     # Past the list on the front page like claude: MOTOR CONTROLLER's
     # second answer. Its own code is gate_drivers', by position.
-    'observer' = @{ Script = 'observer.ps1'
+    'rotor_observer' = @{ Script = 'rotor_observer.ps1'
                  What   = 'the rotor observer: the drive on the model or the converters' }
 }
 
@@ -204,7 +204,7 @@ $code = 0
 # PowerShell names are case-insensitive, and $Asked clobbered $asked,
 # the -Name parameter - $view became this list, the front page was
 # skipped and the chat branch opened on every start.
-$SubViews = @('gate_drivers', 'observer', 'chat', 'claude')
+$SubViews = @('gate_drivers', 'rotor_observer', 'chat', 'claude')
 $view = $null
 $from = $null
 

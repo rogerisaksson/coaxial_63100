@@ -31,8 +31,8 @@ the board chat (local llm or claude over MCP); each view is also
 | `angle` | SHAFT ANGLE - motor axle rotation position |
 | `adc` | METER BRIDGE - metered channels |
 | `gate_drivers` | MOTOR CONTROLLER > GATE DRIVERS - half bridge control |
-| `observer` | MOTOR CONTROLLER > ROTOR OBSERVER - the drive on the model or the converters |
-| `thermal` | THERMAL OBSERVER - thermals estimation |
+| `rotor_observer` | MOTOR CONTROLLER > ROTOR OBSERVER - the drive on the model or the converters |
+| `thermal_observer` | THERMAL OBSERVER - thermals estimation |
 | `chat` | BOARD CHAT - CCC, the local llm, or claude over MCP |
 
 MOTOR CONTROLLER and BOARD CHAT ask a second question; ESC in a view under
@@ -57,7 +57,7 @@ cable.
 | `thermal_budget.py` | the SOA budget, and a burst planned against it |
 | `thermal_model.py` | the node network in Python, and how it was fitted |
 | `loss_calculation.py` | switching loss from the SPICE models, no board |
-| `observer_session.py` | the rotor observer on the board's own PMSM model - no motor, no stage |
+| `rotor_observer_session.py` | the rotor observer on the board's own PMSM model - no motor, no stage |
 
 ## The library
 
@@ -86,7 +86,7 @@ told.
 cube-cmake --build --preset Debug      # must be zero warnings
 STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
 .\run_tests.ps1                        # ~25 % of the checks, the default
-.\run_tests.ps1 -All                   # 2113 checks, the gate
+.\run_tests.ps1 -All                   # 2114 checks, the gate
 .\run_tests.ps1 -Structure             # does host/ still hold together - 4 s
 ```
 

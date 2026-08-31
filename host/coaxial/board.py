@@ -239,6 +239,35 @@ def _attach(port):
                           said.get('tcp', broker.PORT)))
 
 
+def _open_one(spec, transports, verify):
+    """One entry's Board, on a transport shared by port and bitrate.
+
+    The board boots into its text console, so the line has to be handed
+    over before any framing - once per port rather than once per unit,
+    and whether or not this call is going to probe. NOT THROUGH A BROKER:
+    it already did this when it took the port, and doing it again would
+    send the escape into a link that is already framed - which the board
+    answers by going back to the console for everyone.
+    """
+    unit, unit_baud, unit_port = spec
+    key = (unit_port, unit_baud)
+    fresh = key not in transports
+    if fresh:
+        transports[key] = _reach(unit_port, unit_baud)
+    board = Board(transports[key], unit)
+    if fresh and not getattr(transports[key], 'address', None):
+        board.open_binary()
+    if not verify:
+        return board
+    try:
+        return _build(board)
+    except UnsupportedProtocolError:
+        raise
+    except RigError as exc:
+        raise ConnectError('unit %d on %s@%d did not answer: %s'
+                           % (unit, unit_port, unit_baud, exc)) from exc
+
+
 def connect(units, port='COM4', baud=115200, verify=True):
     """Open the links and return one Board per entry, in the order given.
 
@@ -255,40 +284,9 @@ def connect(units, port='COM4', baud=115200, verify=True):
     """
     specs = [_normalise(entry, port, baud) for entry in units]
     transports = {}
-    boards = []
 
     try:
-        for unit, unit_baud, unit_port in specs:
-            key = (unit_port, unit_baud)
-            fresh = key not in transports
-            if fresh:
-                transports[key] = _reach(unit_port, unit_baud)
-
-            board = Board(transports[key], unit)
-
-            # The board boots into its text console, so the line has to be
-            # handed over before any framing - once per port rather than once
-            # per unit, and whether or not this call is going to probe. Skipping
-            # it would return boards that cannot talk at all.
-            #
-            # NOT THROUGH A BROKER. It already did this when it took the port,
-            # and doing it again would send the escape into a link that is
-            # already framed - which the board answers by going back to the
-            # console for everyone.
-            if fresh and not getattr(transports[key], 'address', None):
-                board.open_binary()
-
-            if not verify:
-                boards.append(board)
-                continue
-
-            try:
-                boards.append(_build(board))
-            except UnsupportedProtocolError:
-                raise
-            except RigError as exc:
-                raise ConnectError('unit %d on %s@%d did not answer: %s'
-                                   % (unit, unit_port, unit_baud, exc)) from exc
+        return [_open_one(spec, transports, verify) for spec in specs]
     except Exception:
         # No partial success: every transport opened here gets closed, even if
         # one of them refuses, and the original failure is what propagates.
@@ -298,8 +296,6 @@ def connect(units, port='COM4', baud=115200, verify=True):
             except RigError:
                 pass
         raise
-
-    return boards
 
 
 def disconnect(boards):

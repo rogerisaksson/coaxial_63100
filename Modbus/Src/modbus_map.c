@@ -324,54 +324,55 @@ static mb_exception_t validate_reg_value(void *ctx, uint16_t addr, uint16_t valu
   return check_hreg_value(addr, value);
 }
 
+/** Holding register 1: a command. 0 is nothing to do; anything else
+  * check_hreg_value has already refused. */
+static mb_exception_t run_command(mb_rtu_t *rtu, uint16_t value)
+{
+  if (value == 0U)
+  {
+    return MB_EX_NONE;
+  }
+  if (value == MB_CMD_CONSOLE_MODE)
+  {
+    Board_RequestConsoleMode();
+    return MB_EX_NONE;
+  }
+  if (value != MB_CMD_CLEAR_COUNTERS)
+  {
+    return MB_EX_ILLEGAL_DATA_VALUE;         /* unreachable, see above */
+  }
+  if (rtu == NULL)
+  {
+    return MB_EX_SERVER_DEVICE_FAILURE;
+  }
+  rtu->counters.bus_message        = 0U;
+  rtu->counters.bus_comm_error     = 0U;
+  rtu->counters.server_message     = 0U;
+  rtu->counters.server_exception   = 0U;
+  rtu->counters.server_no_response = 0U;
+  rtu->counters.char_overrun       = 0U;
+  return MB_EX_NONE;
+}
+
 static mb_exception_t write_reg(void *ctx, uint16_t addr, uint16_t value)
 {
-  mb_rtu_t *rtu = (mb_rtu_t *)ctx;
   const mb_exception_t bad = check_hreg_value(addr, value);
 
   if (bad != MB_EX_NONE)
   {
     return bad;
   }
-
-  switch (addr)
+  if (addr == MB_HREG_UNIT_ID)
   {
-    case MB_HREG_UNIT_ID:
-      (void)modbus_map_set_unit_id((uint8_t)value);   /* known valid: above */
-      return MB_EX_NONE;
-
-    case MB_HREG_COMMAND:
-      switch (value)
-      {
-        case 0U:
-          return MB_EX_NONE;
-
-        case MB_CMD_CONSOLE_MODE:
-          Board_RequestConsoleMode();
-          return MB_EX_NONE;
-
-        case MB_CMD_CLEAR_COUNTERS:
-          if (rtu == NULL)
-          {
-            return MB_EX_SERVER_DEVICE_FAILURE;
-          }
-          rtu->counters.bus_message        = 0U;
-          rtu->counters.bus_comm_error     = 0U;
-          rtu->counters.server_message     = 0U;
-          rtu->counters.server_exception   = 0U;
-          rtu->counters.server_no_response = 0U;
-          rtu->counters.char_overrun       = 0U;
-          return MB_EX_NONE;
-
-        default:
-          return MB_EX_ILLEGAL_DATA_VALUE;   /* unreachable: check_hreg_value
-                                                 above already refused this */
-      }
-
-    default:
-      return MB_EX_ILLEGAL_DATA_ADDRESS;     /* unreachable: check_span
-                                                 already gated the address */
+    (void)modbus_map_set_unit_id((uint8_t)value);   /* known valid: above */
+    return MB_EX_NONE;
   }
+  if (addr == MB_HREG_COMMAND)
+  {
+    return run_command((mb_rtu_t *)ctx, value);
+  }
+  return MB_EX_ILLEGAL_DATA_ADDRESS;         /* unreachable: check_span
+                                                already gated the address */
 }
 
 static mb_exception_t write_bit(void *ctx, uint16_t addr, bool value)

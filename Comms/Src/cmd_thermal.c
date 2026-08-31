@@ -9,7 +9,7 @@
   * time. A reply that put them in one list would be the mistake invariant 9
   * is about - a value that looks like a measurement without being one.
   *
-  * `seconds` is how long the observer has run. Without it an estimate cannot
+  * `seconds` is how long the thermal observer has run. Without it an estimate cannot
   * be judged: the network's time constant is 6.8 minutes, so anything under a
   * few minutes has not settled. Judge it on the host - the board does not
   * judge (invariant 10).
@@ -78,7 +78,7 @@ static cmd_status_t op_state(wr_t *out)
   wr_u32(out, th.seen_ms_ago);
 
   /* The integration count. `seconds` is wall clock, so its rate is 1.0 by
-     construction - a benchmark watching it could only ever see the observer
+     construction - a benchmark watching it could only ever see the thermal observer
      stop, never slow down. */
   wr_u32(out, th.steps);
   return CMD_OK;
@@ -109,7 +109,7 @@ static cmd_status_t op_set_node(rd_t *in, wr_t *out)
   if (!Board_ThermalSetNode(node, (float)to_board / 1000.0f,
                             (float)capacity / 1000.0f))
   {
-    cmd_took(out, "the observer is not running - it starts with the board");
+    cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
   cmd_took(out, NULL);
@@ -135,7 +135,7 @@ static cmd_status_t op_set_board(rd_t *in, wr_t *out)
   if (!Board_ThermalSetBoard((float)to_ambient / 1000.0f,
                              (float)capacity / 1000.0f))
   {
-    cmd_took(out, "the observer is not running - it starts with the board");
+    cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
   cmd_took(out, NULL);
@@ -160,7 +160,7 @@ static cmd_status_t op_set_sample(rd_t *in, wr_t *out)
   }
   if (!Board_ThermalSetSample(every_ms, settle_ms))
   {
-    cmd_took(out, "the observer is not running - it starts with the board");
+    cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
   cmd_took(out, NULL);
@@ -216,7 +216,7 @@ static cmd_status_t op_set_limit(rd_t *in, wr_t *out)
   if (!Board_ThermalSetLimit(node, (float)limit_milli / 1000.0f,
                              (float)throttle_ppm / 1000000.0f))
   {
-    cmd_took(out, "the observer is not running - it starts with the board");
+    cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
   cmd_took(out, NULL);

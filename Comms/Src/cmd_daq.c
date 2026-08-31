@@ -172,6 +172,30 @@ static cmd_status_t h_daq_read(rd_t *in, wr_t *out)
   * Field order is the channel table's order, so this and `0x6D` kind 0
   * agree by construction rather than by anyone keeping them in step.
   */
+/** The digital word, named bit by bit. Without this the host would be
+  * counting rows of a table it does not hold, which is the copy this
+  * whole layout exists to avoid. Only the drivable pins: all twenty-three
+  * came to 312 bytes against MB_MAX_PDU's 253 and the reply failed
+  * outright. */
+static cmd_status_t digital_rows(wr_t *out)
+{
+  const uint8_t pins = Board_DigitalIoCount();
+
+  wr_u8(out, pins);
+  for (uint8_t i = 0U; i < pins; i++)
+  {
+    board_dchan_t d;
+
+    if (!Board_DigitalIoChan(i, &d))
+    {
+      return CMD_ERR_DEVICE;
+    }
+    wr_u8(out, d.dir);
+    wr_str(out, d.signal);
+  }
+  return CMD_OK;
+}
+
 static cmd_status_t h_daq_layout(wr_t *out)
 {
   board_daq_state_t st;
@@ -196,28 +220,10 @@ static cmd_status_t h_daq_layout(wr_t *out)
     wr_str(out, info.signal);
   }
 
-  /* The digital word, named bit by bit. Without this the host would be
-     counting rows of a table it does not hold, which is the copy this whole
-     layout exists to avoid. Only the drivable pins: all twenty-three came
-     to 312 bytes against MB_MAX_PDU's 253 and the reply failed outright. */
   wr_u8(out, st.config.digital);
-
-  if (st.config.digital != 0U)
+  if ((st.config.digital != 0U) && (digital_rows(out) != CMD_OK))
   {
-    const uint8_t pins = Board_DigitalIoCount();
-
-    wr_u8(out, pins);
-    for (uint8_t i = 0U; i < pins; i++)
-    {
-      board_dchan_t d;
-
-      if (!Board_DigitalIoChan(i, &d))
-      {
-        return CMD_ERR_DEVICE;
-      }
-      wr_u8(out, d.dir);
-      wr_str(out, d.signal);
-    }
+    return CMD_ERR_DEVICE;
   }
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }

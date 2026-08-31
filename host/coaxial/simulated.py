@@ -978,7 +978,7 @@ class SimulatedAngle(PolledSensor):
 
 
 class SimulatedThermal:
-    """The observer without a board.
+    """The thermal observer without a board.
 
     Keeps the node order and the field shape of `0x6E` device 8 so a view
     running -Simulated does not crash. Every number is invented, and
@@ -1686,7 +1686,7 @@ class SimulatedDrive:
     def _ih(self):
         """The demodulated HF current step: V.T over the inductance along
         the injection axis, with the rotor at zero and the frame at
-        `theta` (HOLD) or the observer's estimate (SENSORLESS)."""
+        `theta` (HOLD) or the rotor observer's estimate (SENSORLESS)."""
         v_inj = self._p('drv_inj_mv', 0.0)
         if not v_inj or self._mode not in ('hold', 'sensorless'):
             return 0.0, 0.0
