@@ -57,6 +57,7 @@ cable.
 | `thermal_budget.py` | the SOA budget, and a burst planned against it |
 | `thermal_model.py` | the node network in Python, and how it was fitted |
 | `loss_calculation.py` | switching loss from the SPICE models, no board |
+| `observer_session.py` | the rotor observer on the board's own PMSM model - no motor, no stage |
 
 ## The library
 
