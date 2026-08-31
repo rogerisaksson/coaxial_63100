@@ -52,7 +52,7 @@ calibrated meter - an argument, not new firmware.
 
 ## Tests
 
-    .\run_tests.ps1                 # ~25 % of the 2111 checks, the default
+    .\run_tests.ps1                 # ~25 % of the 2113 checks, the default
     .\run_tests.ps1 -All            # the gate
     .\run_tests.ps1 -Structure      # does host/ still hold together - 5 s
     python examples/read_board.py   # the board, read end to end

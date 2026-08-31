@@ -29,7 +29,6 @@ from rich.panel import Panel                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
 from rich import box                                       # noqa: E402
 
-from coaxial import orientation                            # noqa: E402
 from screen import band_of, Keys, curtain, footer, live, paced, stage  # noqa: E402
 
 import screen as _screen                                   # noqa: E402

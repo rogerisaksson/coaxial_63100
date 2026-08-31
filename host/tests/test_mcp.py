@@ -150,6 +150,13 @@ def exercise(server, report):
     report.result('analog_read custom beta',
                   server.tool('analog_read', {'ch': ['NTC'], 'ntc_beta': 3950}),
                   ['NTC'])
+    # render.angle() shadowed the coaxial.angle module it converts with, and
+    # both replies raised AttributeError until 2026-08-31; the words below are
+    # the module's arithmetic showing through.
+    report.result('angle read', server.tool('angle'),
+                  ['angle:', 'counts of 4096'])
+    report.result('angle registers', server.tool('angle', {'op': 'registers'}),
+                  ['ANG', 'TSEN', 'K', 'gauss'])
     report.result('test_gate open', server.tool('test_gate', {'enable': True}),
                   ['gate=1'])
     # Not E15: that is TIM1_BKIN, and the pin path reconfigures what it

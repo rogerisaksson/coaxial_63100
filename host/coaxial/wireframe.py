@@ -536,7 +536,6 @@ def _casters(orientation):
     both solids by itself."""
     global _CASTERS
     if _CASTERS is None:
-        from . import mesh
         try:
             _CASTERS = _decimated(orientation.MODEL, 10)
         except (OSError, ValueError):

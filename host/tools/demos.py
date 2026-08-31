@@ -23,9 +23,6 @@ samples, and that is what it was built for.
     python tools/demos.py --simulated
 """
 import argparse
-import json
-import os
-import shutil
 import sys
 import time
 

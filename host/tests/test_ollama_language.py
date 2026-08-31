@@ -23,7 +23,6 @@ from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession,
 def test_screen_language(report):
     """A Swedish question answered in Swedish, under an English warning this
     project wrote itself, is one screen in two languages."""
-    import re
     from coaxial_ollama import debug, language
 
     banner = ('AFE OFF - the ADC reference is unpowered. These are the codes '

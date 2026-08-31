@@ -107,7 +107,6 @@ def test_bus(report):
     # Refused in one place, Board.request, which every read and every
     # read-back write comes through. It is one segment's broadcast, not the
     # machine's: five buses are five broadcast domains.
-    from coaxial.errors import DeviceStateError
     mcp.HANDLERS['devices'](session, op='use', unit=0)
     report.check('unit 0 is selectable even though it never answers',
                  session.unit == 0, str(session.unit))

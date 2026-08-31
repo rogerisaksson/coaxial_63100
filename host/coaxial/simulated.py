@@ -1992,7 +1992,7 @@ class SimulatedBoard:
         return None
 
     def request(self, *_a, **_k):
-        from .errors import DeviceStateError, RigError
+        from .errors import DeviceStateError
         if getattr(self, 'unit', 1) == 0:
             raise DeviceStateError(
                 'unit 0 is the broadcast address: every node acts on a '

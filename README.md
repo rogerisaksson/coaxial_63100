@@ -13,8 +13,8 @@ only thing that sets MOE, and it re-reads the dead time first because the
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 . .\env.ps1                                                   # PATH + aliases
-.\coaxial_tty.ps1                                                    # the chooser
-.\coaxial_tty.ps1 adc -Simulated                                     # no cable needed
+.\coaxial_tty.ps1                                             # the chooser
+.\coaxial_tty.ps1 adc -Simulated                              # no cable needed
 ```
 
 ## Demos
@@ -63,13 +63,16 @@ cable.
 
 ```python
 from coaxial import Coaxial63100
-with Coaxial63100(port='COM4') as device:   # simulated_device=True: no cable
-    device.set_time_from_pc()               # UTC, not this PC's idea of it
-    device.configure(['Phase U', 'NTC'], accumulate=8)
-    device.start()
-    for block in device.blocks(20):
-        r = block[-1]
-        print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM
+device = Coaxial63100(port='COM4')       # simulated_device=True: no cable
+daq = device.daq                         # the subsystem, and only it from here
+daq.open()
+device.set_time_from_pc()                # the board counts cycles, not time
+daq.configure(['Phase U', 'NTC'], accumulate=8)
+daq.start()
+for block in daq.blocks(20):
+    r = block[-1]
+    print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM of `samples`
+device.close()
 ```
 
 Everything raises rather than returning a status. **What a device is, and
@@ -83,7 +86,7 @@ told.
 cube-cmake --build --preset Debug      # must be zero warnings
 STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
 .\run_tests.ps1                        # ~25 % of the checks, the default
-.\run_tests.ps1 -All                   # 2111 checks, the gate
+.\run_tests.ps1 -All                   # 2113 checks, the gate
 .\run_tests.ps1 -Structure             # does host/ still hold together - 4 s
 ```
 

@@ -5,7 +5,6 @@ every answer, for reading back when there is no terminal scrollback to
 paste in. Overwritten each session, hidden on Windows so it does not
 clutter the working tree.
 """
-import ctypes
 import json
 import os
 import sys

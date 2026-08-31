@@ -15,9 +15,7 @@ otherwise no way to watch the zones move while anything switched. The gates go
 down through the same `finally` that puts the screen back.
 """
 import argparse
-import os
 import sys
-import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
@@ -29,7 +27,7 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
-from coaxial.thermal import ALL_NODES, pretty, tau_minutes  # noqa: E402
+from coaxial.thermal import ALL_NODES, pretty              # noqa: E402
 from coaxial.thermalmap import SCALE_LINES, render        # noqa: E402
 
 #: Above the picture: a blank, the banner, a blank, the state line,

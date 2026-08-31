@@ -26,24 +26,27 @@ testable on a desk with nothing plugged in.
 
 Imported by the test_ollama_* suites; not a suite itself.
 """
-import io
-import json
+# Every import here is also the suites' import: test_ollama_* take io,
+# json, simulated, detail and the rest FROM this module, so pyflakes'
+# 'unused' on any of them is wrong - removing eight crashed three suites.
+import io                                                  # noqa: F401
+import json                                                # noqa: F401
 import os
 import random
 import sys
-import tempfile
-import types
-import threading
+import tempfile                                            # noqa: F401
+import types                                               # noqa: F401
+import threading                                           # noqa: F401
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from coaxial import simulated                              # noqa: E402
+from coaxial import simulated                              # noqa: E402,F401
 from coaxial.errors import ConnectError, DeviceStateError   # noqa: E402
-from tests import counts                              # noqa: E402
+from tests import counts                                   # noqa: E402
 from coaxial_ollama import plan as planmod                 # noqa: E402
-from coaxial_ollama import replies                       # noqa: E402
+from coaxial_ollama import replies                         # noqa: E402,F401
 from coaxial_ollama import runner as runmod                # noqa: E402
 from coaxial_ollama import tools as toolmod                # noqa: E402
 from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
-from coaxial_mcp import detail                           # noqa: E402
+from coaxial_mcp import detail                             # noqa: E402,F401
 BSLASH = chr(92)
 
 

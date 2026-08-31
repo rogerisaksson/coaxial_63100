@@ -20,6 +20,10 @@ import platform
 import re
 import subprocess
 import urllib.request
+try:
+    import winreg              # _adapters and _gpu_at read it too: module level, not a local
+except ImportError:            # not Windows
+    winreg = None
 
 # Approximate resident size at Q4_K_M, in GB, and the layer count. Sizes are
 # what the daemon actually reported where a tag was pulled here, and ollama's
@@ -257,11 +261,7 @@ def _gpus_registry():
     exactly the range where this decision matters. Measured on a 16 GB card:
     qwMemorySize 16.0 GB, AdapterRAM 4.0 GB.
     """
-    if platform.system() != 'Windows':
-        return []
-    try:
-        import winreg
-    except ImportError:
+    if winreg is None:
         return []
 
     base = (r'SYSTEM\CurrentControlSet\Control\Class'

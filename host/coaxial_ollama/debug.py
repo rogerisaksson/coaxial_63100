@@ -23,7 +23,6 @@ import re
 import sys
 import textwrap
 import threading
-import time
 
 # host/ on the path: this file's own directory's parent, so it does
 # not matter what the working directory is or what any directory
@@ -32,14 +31,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial.errors import RigError                  # noqa: E402
 from coaxial_mcp import detail                       # noqa: E402
-from coaxial_mcp import render                       # noqa: E402
 
 from . import context                                # noqa: E402
 from . import intent
 from . import language                               # noqa: E402
 from . import replies                                # noqa: E402
 from . import tools as toolmod                       # noqa: E402
-from . import spinner as spin                        # noqa: E402
 from .context import approx_tokens                   # noqa: E402
 from .iolog import IOLog                             # noqa: E402
 from .sandbox import clip                            # noqa: E402

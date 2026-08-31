@@ -5,11 +5,9 @@ the one-shot question. The turn itself is `debug.Chat`; this module
 decides what that object is handed and what happens around it.
 """
 import argparse
-import io
 import json
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -73,8 +71,6 @@ class NoBoard:
 
 
 def parse(argv):
-    import argparse
-
     parser = argparse.ArgumentParser(
         prog='dbg', description='Ask a local model about this board, cheaply.')
     parser.add_argument('question', nargs='*', help='ask and exit; omit for a prompt')
@@ -205,7 +201,6 @@ def attach(paths, chars, limit=INPUT_LIMIT):
 
 
 def build(args):
-    from .client import Ollama
     from .tools import Toolbox
 
     tag, gpu_layers = args.model, args.num_gpu
@@ -252,8 +247,6 @@ def build(args):
 
 
 def repl(chat, hold=False):
-    from .client import OllamaError
-
     # One line, in this machine's language. What the tools are, what the
     # detail level is and what a turn costs are all a /help away; printed on
     # the way in they were three lines nobody read twice.
@@ -370,8 +363,6 @@ def repl(chat, hold=False):
 
 
 def main(argv=None):
-    from .client import OllamaError
-
     args = parse(argv)
     # Before anything prints: every path out of here, including the error
     # branches below, goes through a console that may not hold the alphabet

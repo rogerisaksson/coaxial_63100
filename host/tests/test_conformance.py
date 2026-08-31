@@ -401,7 +401,7 @@ def cal_tests(run):
     data = p[2]
     run.check('device 3 op 0 answers', True, '%d bytes' % len(data))
 
-    stored, version = data[0], (data[1] << 8) | data[2]
+    version = (data[1] << 8) | data[2]
     count = data[3]
     # Not compared against a number written here. It was 1/9, then 2/9, then
     # 3/13, and each edit only taught the check its own last value. What is

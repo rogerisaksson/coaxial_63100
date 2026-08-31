@@ -173,7 +173,7 @@ def paced(keys, period, step=0.02):
     """
     import time as _time
 
-    leave, zoom, typed = None, 0.0, []
+    zoom, typed = 0.0, []
     deadline = _time.monotonic() + period
     while True:
         got, moved = keys.poll()

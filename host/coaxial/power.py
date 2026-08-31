@@ -16,7 +16,7 @@ over the wire, and only the wire takes it back.
 """
 from . import protocol
 from .subsystem import Subsystem
-from .wire import Reader, pack
+from .wire import Reader
 
 POWER_OP_STATE = 0
 POWER_OP_RELEASE_ALL = 1

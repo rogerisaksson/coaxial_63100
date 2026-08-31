@@ -142,18 +142,20 @@ neither. `GateStage` is concrete: the arming policy, one of it.
 
 ```python
 from coaxial import Coaxial63100
-with Coaxial63100(port='COM4') as device:       # simulated_device=True: no cable
-    device.set_time_from_pc()                   # the board counts cycles, not time
-    device.configure(['Phase U', 'NTC'], accumulate=8)
-    device.write(digital={'UART5_TERM': True})
-    device.start()
-    for block in device.blocks(20):
-        r = block[-1]
-        print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM of `samples`
+device = Coaxial63100(port='COM4')       # simulated_device=True: no cable
+daq = device.daq                         # the subsystem, and only it from here
+daq.open()
+device.set_time_from_pc()                # the board counts cycles, not time
+daq.configure(['Phase U', 'NTC'], accumulate=8)
+daq.start()
+for block in daq.blocks(20):
+    r = block[-1]
+    print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM of `samples`
+device.close()
 ```
 
-Subsystems hang off it by name - `device.imu`, `.angle`, `.thermal`,
-`.gates`. `python_examples/daq_session.py` is the flow as a notebook.
+Subsystems hang off it by name - `device.daq`, `.imu`, `.angle`, `.thermal`,
+`.gates`, `.drive`. `python_examples/daq_session.py` is the flow as a notebook.
 
 ```bash
 cube-cmake --build --preset Debug        # must be zero warnings
@@ -175,7 +177,7 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-three suites, 2111 checks, sized from `host/tests/.counts.json` and so
+Twenty-three suites, 2113 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (458),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (214),
 `test_simulated.py` (194), `test_live_model.py` (212, needs ollama, `--live`),
@@ -183,7 +185,7 @@ measured rather than remembered: `test_structure.py` (458),
 `test_ollama_link.py` (96), `test_modbus_core.py` (68), `test_drive_core.py`
 (66, the control law against a motor model through the host gcc),
 `test_sensorless.py` (52, the design arithmetic and the commissioning
-against the stand-in), `test_mcp.py` (44),
+against the stand-in), `test_mcp.py` (46),
 `test_shtp_core.py` (38), `test_ollama_render.py` (32), `test_parity.py` (30),
 `test_ollama_board.py` (28), `test_ollama_bus.py` (28), `test_render.py`
 (27, the 3D engine stage by stage against an analytic oracle -
@@ -216,7 +218,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  764 of this tree's 2111 checks are in those nine files.
+  764 of this tree's 2113 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

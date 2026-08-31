@@ -1,10 +1,11 @@
 """Tool schemas and handlers.
 
-Eight tools, not twenty. Every one costs its name, description and schema on
-every turn, so the set is coarse: one per thing a fixture does, with a small
-enum where a family of operations would otherwise be a family of tools.
+Fourteen tools, not one per firmware command. Every one costs its name,
+description and schema on every turn, so the set is coarse: one per thing a
+fixture does, with a small enum where a family of operations would otherwise
+be a family of tools.
 
-The eighth, `docs`, touches no hardware. The documents in docs/ are what stop a
+`docs` touches no hardware. The documents in docs/ are what stop a
 reading being misinterpreted - the AFE gate, the unknown phase gain, what is
 already ruled out - and the model at the bench was the one reader who could not
 open them. Three optional strings, and it answers with an index.

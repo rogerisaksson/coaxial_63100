@@ -112,7 +112,7 @@ def receive_block(board, rounds=20):
     The download direction on its own. Nothing symmetrical can separate the
     two, and this is the shape a capture actually runs in.
     """
-    from .capture import LOG_OP_TAKE, MAX_BURST, RECORD_BYTES
+    from .capture import MAX_BURST, RECORD_BYTES
 
     board.capture.arm(['angle'])
     time.sleep(0.3)
