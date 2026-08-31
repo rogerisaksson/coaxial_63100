@@ -112,13 +112,14 @@ an op dispatcher beside it.
 | 0 | BNO08X IMU | SPI2, mode 3, 2.97 MHz | 0 product id, 1 raw cargo, 2 Set Feature, 3 raw bytes off the bus, 4 reset, 5 raw write on any SHTP channel, 6 per-pin drive/pull check, 7 time H_INTN's answer to a wake, 8 shared record, 9 hold, 10 resume |
 | 1 | A1335 angle sensor | SPI4, mode 3, 1.86 MHz | 0 read register, 1 write register, 2 shared record, 3 hold, 4 resume, 5 which register the loop reads, 6 clock |
 | 2 | the three serial ports | USART3, USART2, UART5 | 0 loopback check, 1 per-port counters |
-| 3 | the calibration record | flash, bank 2 sector 7, CAL_VERSION 5 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults |
+| 3 | the calibration record | flash, bank 2 sector 7, CAL_VERSION 8 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults, 8 params (paged) |
 | 4 | the gate drivers | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16, 9 dead time + skew, 10 alternate: u16 x3 A, u16 x3 B - A one PWM period, B the next, swapped by the update interrupt until the next duty write; the thermal observer is charged each leg's mean over the pair (MINOR 1) |
 | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
 | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live |
 | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |
 | 8 | the thermal observer | NTC, both dies, the model | 0 state, 1 set node, 2 set board, 3 set sampling, 4 budget, 5 set limit |
 | 9 | the rails and who holds them | AFE_ON | 0 state, 1 release all |
+| 10 | the drive | TIM1, the injected triple, the record | 0 state, 1 mode, 2 setpoint, 3 setpoints, 4 theta, 5 window, 6 moments arm, 7 moments, 8 reload, 9 cycles reset |
 
 `coaxial.Coaxial63100` is the host side and the preferred way in - `acquire()`
 and `write()` over the raw ops.
@@ -223,6 +224,12 @@ it provokes: the first version validated after assigning and rolled back by
 reloading flash, which does nothing on a board whose record has never been
 saved.
 
+**Op 8 pages every parameter**: `u8 first` -> `u8 total, u8 first, u8 count,
+u32 x count`. Op 0 carries the first fifteen and keeps its MINOR 1 shape:
+with forty-five its reply was 310 bytes against the PDU, and every read
+answered 0x04. CAL_VERSION 8 added ids 15..44, the drive's - device 10
+names them and `coaxial.drive.PARAMS` their units.
+
 ### Device 4 - the gate drivers
 
 TIM1, the synced phase triple and Safe Torque Off answer together because tuning
@@ -235,7 +242,9 @@ the sample point needs all three from the same moment.
 first: pwm ready, pwm enabled, break latched, sync ready, sync armed, AFE on,
 Cinj read, Clevel read. `flags2` bit 0 is the break bypass - appended rather
 than squeezed into the first byte, which is full, because moving an offset
-breaks every decoder for one bit.
+breaks every decoder for one bit. After the requested duties, the pins,
+the dead time and the gate shorts, MINOR 2 appends `u32 dcbus_raw`: the
+DC link as ADC3 rank 2 of the injected sequence read it beside the triple.
 
 `deadtime` is raw DTG, not nanoseconds. `trigger` is CCR4 in timer ticks. **Both
 ends of the range disable it**: 0 because OC4REF in PWM1 never goes active, ARR
@@ -487,6 +496,55 @@ the reference's noise over that window: 16.5 ppm at 60 s, 1.1 ppm at 900 s, on
 The board keeps no wall clock and is not given one. No RTC and no LSE, so a time
 it held would drift against nothing, and a board reporting a plausible wrong
 time is worse than one reporting ticks.
+
+### Device 10 - the drive
+
+The control law - `Drive/` behind `board_drive.c` - one step per PWM period
+from ADC3's injected interrupt. Angles in microradians, speeds in
+milliradians a second, currents mA, volts mV, the window's means and
+deviations in micro-units. MINOR 2.
+
+| Op | Request | Reply |
+|---|---|---|
+| 0 state | - | `u8 mode, u8 fault, u8 flags, i32 theta_hat, i32 omega_hat, i32 theta_cmd, i32 omega_cmd, i32 id, iq, vd, vq, vdc, i32 eps, eps_amps, ih, e_bemf, u32 periods, u32 isr_cycles_last, u32 isr_cycles_max, i32 pol_pos, pol_neg, u16 trigger, u32 ts_ns` |
+| 1 mode | `u8` 0 off, 1 volt, 2 hold, 3 sensorless, 4 polarity | `u8 took` |
+| 2 setpoint | `u8 id, i32` | `u8 took` |
+| 3 setpoints | - | `u8 count, i32 x count` |
+| 4 theta | `i32 urad` | `u8 took` - both frames |
+| 5 window | - | `u32 n`, then per field `u32 n, i32 mean, u32 sd` for id, iq, vd, vq, eps, ih, vdc; `u8 lags, i32 rho_ppm x lags, i32 i_peak_ma`. Resets |
+| 6 moments arm | `u32 periods` | `u8 took`; needs the sync armed |
+| 7 moments | - | `u8 done, u32 n, u32 want, u16 trigger`, per channel U, V, W, DC bus: `i32 mean_milli, u32 sd_milli, i32 lo, i32 hi` |
+| 8 reload | - | `u8 took`: parameters out of the record |
+| 9 cycles reset | - | `u8`: forget the worst step cost |
+
+`flags`: bit 0 MOE, 1 AFE_ON, 2 injecting (two whole cycles seen), 3 the
+drive holds the compares, 4 sync armed. `fault`: 0 none, 1 overcurrent - a
+phase passed `drv_i_trip_ma` and the stage was dropped, 2 the stage went
+away under a running mode, 3 the supply. Setpoints: 0 id_ref mA, 1 iq_ref
+mA, 2 theta mrad, 3 omega_target mrad/s, 4 accel mrad/s2, 5 vd mV, 6 vq
+mV, 7 pol_volts mV, 8 pol_periods, 9 pol_gap.
+
+**A mode that switches needs MOE set and AFE_ON on**, and says so. MOE
+stays the host's (`gates.arm()`); entering a mode arms the sync if it is
+not. While a mode runs the drive holds the compares - device 4 ops 2, 8
+and 10 are refused until mode 0 - and commits each triple at the
+UNDERFLOW, so the pulse it shapes is symmetric: written at the overflow it
+would land mid-pulse, and an fs/2 injection would average to nothing at
+the sample point.
+
+**The parameters are the record's** (device 3, ids 15..44): motor R, Ld,
+Lq, lambda, pole pairs; loop kp, ki; observer l1, l2; injection mV,
+periods, phase, the demodulated gain; the current clamp and the trip; the
+voltage fraction; the shunt sign; the blend speeds; the dead-time table;
+the measured noise; the sample point. `coaxial.drive.PARAMS` carries the
+units. Op 1 reloads them on every mode change.
+
+**What the board decides**: nothing but the trip - a current past the one
+it was given, the same exception the thermal ceiling holds (invariant 10).
+
+Measured 2026-08-31, gates off, drivers unpowered: one step costs 2 922
+cycles, 6.2 us of the 20 us period; the DC link on ADC3 rank 2 read
+31.06 V against the meter's 31.05.
 
 ## Hardware safeguards and conformance
 

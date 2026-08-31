@@ -3,8 +3,8 @@
 A three-phase BLDC inverter whose PCB sits coaxially behind the stator.
 **63 V, 100 A** - the rating is the name. STM32H753VIT6 at 475 MHz.
 
-Instrumentation, not a motor controller: the bridge switches on request and
-there is **no commutation and no current loop**. `gates.arm()` is the
+Instrumentation first: the bridge switches on request, and the control law
+(`Drive/`, device 10) has run only dry - **no motor has turned**. `gates.arm()` is the
 only thing that sets MOE, and it re-reads the dead time first because the
 2EDL8034 has no interlock of its own.
 
@@ -77,7 +77,7 @@ told.
 cube-cmake --build --preset Debug      # must be zero warnings
 STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
 .\run_tests.ps1                        # ~25 % of the checks, the default
-.\run_tests.ps1 -All                   # 1970 checks, the gate
+.\run_tests.ps1 -All                   # 2096 checks, the gate
 .\run_tests.ps1 -Structure             # does host/ still hold together - 4 s
 ```
 

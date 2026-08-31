@@ -1,10 +1,10 @@
 # Architecture
 
 Instrumentation stack for a 63 V / 100 A coaxial BLDC inverter. TIM1 and the
-synced current path are configured and reachable; **no control law is** -
-commutation and the current loop belong above `Board/` and beside `Comms/`, and
-neither exists. Each layer knows only the one below it, so a protocol or a
-transport can be swapped without cascading edits.
+synced current path are configured and reachable; the control law sits in
+`Drive/` beside `Modbus/` and `Thermal/`, portable and host-tested, and has run
+only dry - **no motor has turned**. Each layer knows only the one below it, so
+a protocol or a transport can be swapped without cascading edits.
 
 ## Firmware
 
@@ -76,6 +76,18 @@ belongs to the board.
 **`Shtp/`** — the BNO08X's transport framing. Portable C11 like `Modbus/`, and
 host-tested the same way by `test_shtp_core.py`.
 
+**`Drive/`** — the control law, one PWM period per call: a dq current loop
+with decoupling and a dead-time table, min-max SVM, square-wave HF
+injection and its demodulator, a two-state PLL in Kalman form with a
+back-EMF error above a crossover speed, I/f, a polarity pulse, and the
+window statistics a host judges it by. Portable C11 like `Thermal/`,
+host-tested through `Drive/test/harness.c` against a PMSM model.
+`board_drive.c` runs it from ADC3's injected interrupt with the two
+conversions cached at each mode change, and the interrupt path carries
+`-O2` whatever the preset - one step at -O0 was longer than the period.
+Its parameters are the calibration record's (ids 15..44). Nothing has
+run into a motor.
+
 ## Host
 
 **`host/coaxial/`** — three interfaces, then the parts that answer them.
@@ -127,6 +139,12 @@ a thread and the board appears at about 1 s.
 `test_views.py` runs each view whole against the stand-in, which is what
 holds the template together across restyles.
 
+`drive.py` is device 10. `sensorless.py` is the design arithmetic - the
+SNR budget, the Kalman gains from the measured noise, the crossover speed,
+the decision - and `commission.py` the eight steps against a rig, every
+verdict the executive's rather than the board's; `tools/commission.py`
+runs them and prints the line.
+
 **`host/coaxial_mcp/`** — MCP server built for a token budget: dense
 fixed-column text, 8.8x smaller than JSON. Probes OS ports and ST-Links for
 Modbus, falling back to a duck-typed `SimulatedSession`. Multi-node segments,
@@ -143,7 +161,7 @@ Board-side scaling is kept only to cross-check the math.
 
 ## The test system
 
-Twenty-one suites, 1970 checks. `run_tests.ps1` is the only interface -
+Twenty-three suites, 2096 checks. `run_tests.ps1` is the only interface -
 `-AutomaticMinimal|Medium|High` for ~25/50/75 % of every check, `-All` the gate,
 `-Only NAMES` and `-Tags SUBJECTS` for one change's worth, `-Structure` for the
 package itself.
@@ -158,6 +176,15 @@ run that costs three seconds and no cable.
 the host gcc and driven through ctypes with the tick counter injected, so t1.5,
 t3.5 and the 2^32 wrap are tested by arithmetic rather than by waiting. A
 missing compiler skips it; `setup.ps1` installs one.
+
+**The drive closes its loop on this machine.** `test_drive_core.py` builds
+`Drive/` with the host gcc and drives it through a PMSM model in Python -
+saliency, saturation, back-EMF, a dead-time voltage error and the
+firmware's two-period pipeline - so the current loop, the demodulator,
+the observer and I/f are judged against the model's own constants.
+`test_sensorless.py` checks the design arithmetic in closed form and runs
+the commissioning against the stand-in, whose motor has known numbers to
+recover.
 
 **Structure suite** — ~3 s, no board, no model. Every module under `host/`
 except the suites: imports cold, no cycles, no definition copied into two files,

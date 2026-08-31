@@ -66,6 +66,12 @@ static void update_irq(bool wanted)
 /** Set by Board_PwmEnable, cleared by Board_PwmDisable and by a break. */
 static bool s_armed;
 
+/** The drive's next triple, left by ADC3's interrupt and committed by
+    TIM1's update at the underflow. See Board_PwmDriveOwn. */
+static uint16_t s_next[BOARD_PWM_PHASES];
+static volatile bool s_next_pending;
+static volatile bool s_drive_owns;
+
 
 bool Board_PwmReady(void)
 {
@@ -117,6 +123,8 @@ void Board_PwmDisable(void)
   s_armed = false;
   s_dither = false;
   s_alternate = false;
+  s_drive_owns = false;
+  s_next_pending = false;
 
   if ((RCC->APB2ENR & RCC_APB2ENR_TIM1EN) != 0U)
   {
@@ -328,6 +336,11 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
     return "the gate drivers are not enabled - enable it first, and clear or "
            "bypass the break if one is latched";
   }
+  if (s_drive_owns)
+  {
+    return "the drive holds the compares - set drive mode 0 (off) first, "
+           "and it lets go";
+  }
 
   const uint32_t limit = (uint32_t)TIM1->ARR << 16;
 
@@ -389,6 +402,11 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
     return "the gate drivers are not enabled - enable it first, and clear or "
            "bypass the break if one is latched";
   }
+  if (s_drive_owns)
+  {
+    return "the drive holds the compares - set drive mode 0 (off) first, "
+           "and it lets go";
+  }
 
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
@@ -439,6 +457,11 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
     return "the gate drivers are not enabled - enable it first, and clear or "
            "bypass the break if one is latched";
   }
+  if (s_drive_owns)
+  {
+    return "the drive holds the compares - set drive mode 0 (off) first, "
+           "and it lets go";
+  }
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
     if ((a[phase] > TIM1->ARR) || (b[phase] > TIM1->ARR))
@@ -475,6 +498,39 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
   TIM1->SR = ~TIM_SR_UIF;
   update_irq(true);
   return NULL;
+}
+
+
+void Board_PwmDriveOwn(bool on)
+{
+  if (on)
+  {
+    s_dither = false;
+    s_alternate = false;
+    s_next_pending = false;
+    s_drive_owns = true;
+    TIM1->SR = ~TIM_SR_UIF;
+    update_irq(true);
+    return;
+  }
+  s_drive_owns = false;
+  s_next_pending = false;
+  update_irq((s_skew != 0U) || s_dither);
+}
+
+
+void Board_PwmSetNext(const uint16_t *ticks)
+{
+  /* From ADC3's interrupt, above TIM1_UP's, so these stores are never
+     split by the reader - it copies under PRIMASK. Clamped to ARR, which
+     is 100 %, rather than refused: an interrupt has nobody to tell. */
+  const uint32_t arr = TIM1->ARR;
+
+  for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
+  {
+    s_next[phase] = (ticks[phase] > arr) ? (uint16_t)arr : ticks[phase];
+  }
+  s_next_pending = true;
 }
 
 
@@ -773,6 +829,26 @@ void TIM1_UP_IRQHandler(void)
     s_duty[1] = next[1];
     s_duty[2] = next[2];
     s_alt_next ^= 1U;
+  }
+  else if (s_drive_owns)
+  {
+    /* Just past the UNDERFLOW - DIR reads up - so a triple written here
+       lands, preloaded, at the next overflow and shapes one symmetric
+       pulse centred on the underflow after it. drive.c's PIPELINE counts
+       on exactly that. Under PRIMASK because ADC3's interrupt, which
+       leaves the triple, outranks this one. */
+    if (s_next_pending && ((TIM1->CR1 & TIM_CR1_DIR) == 0U))
+    {
+      __disable_irq();
+      TIM1->CCR1 = s_next[0];
+      TIM1->CCR2 = s_next[1];
+      TIM1->CCR3 = s_next[2];
+      s_duty[0] = s_next[0];
+      s_duty[1] = s_next[1];
+      s_duty[2] = s_next[2];
+      s_next_pending = false;
+      __enable_irq();
+    }
   }
   else if (s_half == 0U)
   {

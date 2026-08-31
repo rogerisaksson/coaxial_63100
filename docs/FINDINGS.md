@@ -1833,3 +1833,71 @@ Two halves, both measured on the bench:
 The keepalive shares the transport lock, so a timed write can queue behind
 one version read - ~30 ms worst case. The cycle-counted duty (TODO item 8)
 is still the honest fix for exact holds.
+
+## The drive: a control law, written, and what the bench said about it
+
+2026-08-31. `Drive/` - dq current loop, dead-time table, min-max SVM,
+square-wave injection with its demodulator, a two-state PLL in Kalman
+form, a back-EMF error above a crossover speed, I/f, a polarity pulse -
+behind `0x6E` device 10, host-tested through ctypes against a PMSM model
+(`test_drive_core.py`, 59 checks). Nothing has run into a motor. What the
+bench could say with the drivers unpowered and the AFE on:
+
+| | |
+|---|---|
+| one step at -O0 | **10 040 cycles, 21 us** against a 20 us period; worst keepalive gap 16 ms |
+| the interrupt path at -O2 | 6 756 cycles, 71 % of the CPU - the UART interrupt slipped behind it and 17 of 19 requests failed CRC while `char_overrun` stayed 0 |
+| plus the conversions cached (`Board_PhaseScale`) | 3 874 |
+| plus one trig pair per step and the ring conversion gated | **2 922 cycles, 6.2 us**, worst keepalive gap 519 us |
+
+A control law at -O0 is not a thing: the four files on the interrupt path
+carry `-O2` whatever the preset (CMakeLists.txt).
+
+**A 71 % interrupt corrupts frames without an overrun.** The bytes arrive
+on interrupt with their timestamps; delayed variably behind the ADC
+interrupt, the recorded gaps crossed t1.5 and the frames split -
+`bus_comm_error` +17, `char_overrun` +0, and 0x41 (two bytes) answering
+where 0x6E (four) did not. Read over SWD while the link was like that:
+`s_cycles_last` 0x1A64.
+
+**Two replies outgrew the PDU on the same afternoon.** 0x41 at 205
+characters of description - every connect answered SERVER DEVICE FAILURE
+straight after the flash; the string is under 170 now and says why. Then
+device 3 op 0 with forty-five parameters: 310 bytes. Op 0 keeps its
+fifteen, byte-identical, and op 8 pages the rest.
+
+**Two injected ranks need scan mode.** With `ScanConvMode` off the HAL
+discards `InjectedNbrOfConversion` and writes JSQR from rank 1 alone:
+JSQR read 0x2A0 over SWD - JL 0, no JSQ2 - while PCSEL already carried
+channel 10, and the DC link read 0 beside a meter reading 31.05 V.
+`Board_SyncArm` switches ADC3 to scan once; the regular sequence keeps its
+length of one. Rank 2 then read **26037 raw, 31.06 V** against the
+meter's 31.05.
+
+**The sample-point scan is noise without switching.** Gates off, twelve
+points across the period: the argmin landed on 990 of 2376. The scan needs
+the zero vector under it, and refuses without the stage now.
+
+**The AFE, gates off, AFE on, CCR5 2360, 2000 periods:** U 54.9, V 55.6,
+W 74.9 codes rms - 0.35, 0.35, 0.47 A - sigma_i 0.40 A, ENOB 8.3 bits. The
+floor 2026-08-27's sweep found (0.35-0.41 A). W is a third noisier than U
+and V and nobody has asked why.
+
+**The demodulator re-seeded every cycle** and its window was 2n+1 samples
+against a sign pattern of 2n; at fs/4 a window could hold two of one sign
+and the fundamental's slope leaked in as inductance. Found by the host
+model: 99 estimates in 500 periods where 125 were due. Continuous now: 2n
+consecutive differences see n of each sign whatever the alignment.
+
+**The dead-time error of a phase-aligned vector is 4/3 V_dt in dq**, not
+V_dt: I on phase a and -I/2 on b and c give (-f(I), +f(I/2), +f(I/2)),
+which Clarke puts on d as (2/3)(f(I) + f(I/2)). The model's 0.767 V at 2 A
+was right and the first test expectation was not; the identification
+sweeps I and unfolds f from that.
+
+**Two headers had `\r\r\n` line endings** - board_limits.h, 196 lines,
+comms_limits.h, 71 - a stray CR on every line, committed. Normalised.
+
+**`Board_CalSetParam` refused zero for every id**, including the dead-time
+skew, so a skew could never be set back to none through the record. The
+refusal covers the thirteen divisors now.

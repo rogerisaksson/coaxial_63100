@@ -44,11 +44,12 @@
 /* 5: the half-bridge dead time joined the record. A stored 4 is refused
    rather than read with the new field as whatever flash held. */
 /* 6: and its lead-lag trim. */
-#define CAL_VERSION 7U   /* 7: per-leg thermal nodes, six ceilings to ten */
+/* 7: per-leg thermal nodes, six ceilings to ten. */
+#define CAL_VERSION 8U   /* 8: the drive - motor, gains, injection, dead time */
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
-   to a multiple of 32 bytes. sizeof(board_cal_t) is 120 today (version 7:
-   the four extra SOA ceilings added 16). */
+   to a multiple of 32 bytes; the record is a few hundred bytes against a
+   128 KB sector. */
 #define CAL_WORD_BYTES 32U
 #define CAL_IMAGE_BYTES (((sizeof(board_cal_t) + CAL_WORD_BYTES - 1U) / \
                           CAL_WORD_BYTES) * CAL_WORD_BYTES)
@@ -111,6 +112,35 @@ static const board_cal_t CAL_DEFAULTS =
   .ntc_beta_mk      = 3380000UL,      /* B25/50 = 3380 K, in milli-kelvin  */
   .ntc_rfixed_ohm   = 10000UL,        /* R100, ERA-3AEB103V 0.1 %          */
   .ntc_t25_ck       = 29815UL,        /* 298.15 K                          */
+
+  /* The drive, CAL_VERSION 8. Placeholders in the same sense as the rest
+     of this table: the commissioning measures each and writes it. The
+     injection is OFF and the trip sits at the stage's rating, so a board
+     that was never commissioned cannot inject and holds the one limit it
+     was given by its name (invariant 10). */
+  .motor_r_uohm             = 50000UL,      /* 50 mohm                      */
+  .motor_ld_nh              = 20000UL,      /* 20 uH                        */
+  .motor_lq_nh              = 25000UL,
+  .motor_lambda_uvs         = 5000UL,       /* 5 mV.s                       */
+  .motor_pole_pairs         = 7UL,
+  .drv_kp_mv_per_a          = 100UL,
+  .drv_ki_v_per_as          = 250UL,
+  .drv_l1_milli             = 100UL,
+  .drv_l2_milli             = 100000UL,
+  .drv_inj_mv               = 0UL,
+  .drv_inj_periods          = 1UL,
+  .drv_inj_phase_mrad       = 0UL,
+  .drv_eps_gain_ua_per_rad  = 0UL,
+  .drv_i_max_ma             = 5000UL,
+  .drv_i_trip_ma            = 100000UL,     /* the rating                   */
+  .drv_v_frac_ppm           = 950000UL,
+  .drv_sign                 = 1UL,
+  .drv_w_lo_mrad_s          = 60000UL,
+  .drv_w_hi_mrad_s          = 120000UL,
+  .drv_dt_step_ma           = 1000UL,
+  .drv_dt_mv                = { 0UL },
+  .drv_sigma_i_ua           = 0UL,
+  .drv_trigger_ticks        = 0UL,
   .chan             = { { 0, 0 } },   /* no offset, no gain trim           */
 };
 
@@ -230,6 +260,10 @@ bool Board_CalSave(void)
    two cannot drift into disagreeing about what id 6 is. */
 static uint32_t *cal_field(uint8_t id)
 {
+  if ((id >= BOARD_CAL_DRV_DT_MV) && (id < (BOARD_CAL_DRV_DT_MV + 8U)))
+  {
+    return &s_cal.drv_dt_mv[id - BOARD_CAL_DRV_DT_MV];
+  }
   switch (id)
   {
     case BOARD_CAL_VREF_UV:      return &s_cal.vref_uv;
@@ -247,6 +281,29 @@ static uint32_t *cal_field(uint8_t id)
     case BOARD_CAL_VG_R_BOTTOM:  return &s_cal.vg_r_bottom_ohm;
     case BOARD_CAL_DEADTIME_NS:  return &s_cal.deadtime_ns;
     case BOARD_CAL_DEADTIME_SKEW: return &s_cal.deadtime_skew;
+    case BOARD_CAL_MOTOR_R_UOHM:  return &s_cal.motor_r_uohm;
+    case BOARD_CAL_MOTOR_LD_NH:   return &s_cal.motor_ld_nh;
+    case BOARD_CAL_MOTOR_LQ_NH:   return &s_cal.motor_lq_nh;
+    case BOARD_CAL_MOTOR_LAMBDA_UVS: return &s_cal.motor_lambda_uvs;
+    case BOARD_CAL_MOTOR_POLE_PAIRS: return &s_cal.motor_pole_pairs;
+    case BOARD_CAL_DRV_KP_MV_PER_A: return &s_cal.drv_kp_mv_per_a;
+    case BOARD_CAL_DRV_KI_V_PER_AS: return &s_cal.drv_ki_v_per_as;
+    case BOARD_CAL_DRV_L1_MILLI:  return &s_cal.drv_l1_milli;
+    case BOARD_CAL_DRV_L2_MILLI:  return &s_cal.drv_l2_milli;
+    case BOARD_CAL_DRV_INJ_MV:    return &s_cal.drv_inj_mv;
+    case BOARD_CAL_DRV_INJ_PERIODS: return &s_cal.drv_inj_periods;
+    case BOARD_CAL_DRV_INJ_PHASE_MRAD: return &s_cal.drv_inj_phase_mrad;
+    case BOARD_CAL_DRV_EPS_GAIN_UA_PER_RAD:
+      return &s_cal.drv_eps_gain_ua_per_rad;
+    case BOARD_CAL_DRV_I_MAX_MA:  return &s_cal.drv_i_max_ma;
+    case BOARD_CAL_DRV_I_TRIP_MA: return &s_cal.drv_i_trip_ma;
+    case BOARD_CAL_DRV_V_FRAC_PPM: return &s_cal.drv_v_frac_ppm;
+    case BOARD_CAL_DRV_SIGN:      return &s_cal.drv_sign;
+    case BOARD_CAL_DRV_W_LO_MRAD_S: return &s_cal.drv_w_lo_mrad_s;
+    case BOARD_CAL_DRV_W_HI_MRAD_S: return &s_cal.drv_w_hi_mrad_s;
+    case BOARD_CAL_DRV_DT_STEP_MA: return &s_cal.drv_dt_step_ma;
+    case BOARD_CAL_DRV_SIGMA_I_UA: return &s_cal.drv_sigma_i_ua;
+    case BOARD_CAL_DRV_TRIGGER_TICKS: return &s_cal.drv_trigger_ticks;
     default:                     return NULL;
   }
 }
@@ -260,12 +317,15 @@ bool Board_CalSetParam(uint8_t id, uint32_t value)
     return false;
   }
 
-  /* Every one of the nine is a divisor or a multiplicand somewhere, so zero
-     is refused for all of them alike. Checked BEFORE the assignment: the
+  /* Every one of the thirteen scaling parameters is a divisor or a
+     multiplicand somewhere, so zero is refused for those alike - and only
+     those: the dead time's skew and the drive's numbers are legitimately
+     zero (no skew, injection off), and were refused at zero until
+     2026-08-31. Checked BEFORE the assignment: the
      version that assigned first and rolled back after did so by reloading
      flash, which does nothing at all on a board whose record has never been
      saved - measured by test_conformance.py, and it left vref at zero. */
-  if (value == 0U)
+  if ((value == 0U) && (id <= BOARD_CAL_VG_R_BOTTOM))
   {
     return false;
   }

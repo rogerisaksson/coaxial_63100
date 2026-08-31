@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "board.h"
+#include "board_drive.h"
 #include "board_power.h"
 #include "console.h"
 #include "link.h"
@@ -165,6 +166,10 @@ int main(void)
   /* The thermal observer. Starts on the NTC if the AFE happens to be up,
      otherwise on a guess the anchoring removes within a few minutes. */
   Board_ThermalInit();
+
+  /* The control law: parameters out of the record, the period off TIM1.
+     Nothing switches until a host asks for a mode. */
+  Board_DriveInit();
 
   /* USER CODE END 2 */
 

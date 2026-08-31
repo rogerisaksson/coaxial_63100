@@ -137,6 +137,10 @@ class GateDrivers(Subsystem, GateControl):
         shorts = r.u8()
         out['gate_shorts'] = tuple(
             name for i, name in enumerate(('U', 'V', 'W')) if shorts >> i & 1)
+        # The DC link the injected sequence read beside the triple, raw
+        # single-ended - rank 2 on ADC3, MINOR 2. Older firmware stops
+        # before it.
+        out['dcbus_raw'] = r.u32() if r.remaining >= 4 else None
         return out
 
     def enable(self):

@@ -261,6 +261,8 @@ typedef struct
 {
   int16_t  phase[BOARD_PWM_PHASES];  /**< U, V, W, raw codes               */
   uint16_t at;                       /**< TIM1->CNT when it was latched    */
+  uint32_t dcbus;                    /**< DC link, raw single-ended: rank 2
+                                          on ADC3 of the same sequence      */
 } board_sync_sample_t;
 
 /** What the synced path is doing, for the command layer to report. */
@@ -373,7 +375,10 @@ uint16_t Board_DaqTake(uint8_t *out, uint16_t max_records);
 #define BOARD_LOG_SOURCE_PHASES 0U   /**< v = U, V, W, TIM1->CNT at latch  */
 #define BOARD_LOG_SOURCE_ANGLE  1U   /**< v = value, crc, register         */
 #define BOARD_LOG_SOURCE_IMU    2U   /**< v = quaternion i, j, k, real     */
-#define BOARD_LOG_SOURCES       3U
+#define BOARD_LOG_SOURCE_DRIVE  3U   /**< v = id, iq in 10 mA, theta_hat as
+                                          a turn in 65536, innovation in
+                                          0.1 mrad                          */
+#define BOARD_LOG_SOURCES       4U
 
 /** 1024 x 16 B = 16 KB of DTCM, which is 20 ms of history at the injected
     group's 50 kHz - long enough to hold a burst while the host drains it
@@ -492,6 +497,15 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b);
 void Board_PwmDutyRequested(uint32_t *ticks_q16);
 void Board_PwmDitherStep(void);
 
+/** The drive's hold on the compares. While on: the dither and the
+    alternate are off, a host duty write is refused, and the triple
+    Board_PwmSetNext leaves is committed by the update interrupt at the
+    UNDERFLOW - so it lands, preloaded, at the next overflow and the pulse
+    it shapes is symmetric. Written at the overflow it would land mid-pulse,
+    and an fs/2 injection would average to nothing at the sample point. */
+void Board_PwmDriveOwn(bool on);
+void Board_PwmSetNext(const uint16_t *ticks);
+
 uint16_t Board_PwmGetDuty(uint8_t phase);
 
 void Board_PwmState(board_pwm_state_t *out);
@@ -540,6 +554,16 @@ bool Board_McuDie(int32_t *raw, int32_t *centidegc);
     The shunt and the amplifier gain come from the calibration record. */
 float Board_PhaseAmps(uint8_t leg, int32_t centred);
 
+/** The affine form of the two conversions the drive needs at 50 kHz:
+    quantity = (code - offset) * per_code, with the record's trim folded
+    into the factor. Cached by board_drive.c at every mode change, so an
+    edit to the record reaches the loop then - and the loop never calls
+    into the meter's -O0 arithmetic. Measured 2026-08-31: three
+    Board_PhaseAmps calls were most of a 6 756-cycle interrupt. */
+void Board_PhaseScale(uint8_t leg, int32_t *offset_raw,
+                      float *amps_per_code);
+void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code);
+
 /* ---- calibration -------------------------------------------------------- */
 
 /** Channels the record carries a correction for. The ADC table's length, and
@@ -578,7 +602,35 @@ float Board_PhaseAmps(uint8_t leg, int32_t centred);
    walks 0..COUNT-1, so an id added without moving this is a field the
    board holds and never reports - measured, deadtime_ns read back as
    absent from a record that had it. */
-#define BOARD_CAL_PARAM_COUNT 15U
+/* CAL_VERSION 8: what the drive is told. In the record for the reason the
+   dead time is - a board runs the same drive after a reset that it ran
+   before - and in the units that make them integers. A signed one travels
+   as its two's complement in the u32. The commissioning
+   (host/coaxial/commission.py) measures and writes them. */
+#define BOARD_CAL_MOTOR_R_UOHM        15U  /**< phase resistance, microhms     */
+#define BOARD_CAL_MOTOR_LD_NH         16U  /**< d inductance, nanohenry        */
+#define BOARD_CAL_MOTOR_LQ_NH         17U  /**< q inductance, nanohenry        */
+#define BOARD_CAL_MOTOR_LAMBDA_UVS    18U  /**< PM flux linkage, uV.s          */
+#define BOARD_CAL_MOTOR_POLE_PAIRS    19U
+#define BOARD_CAL_DRV_KP_MV_PER_A     20U  /**< current loop kp, mV/A          */
+#define BOARD_CAL_DRV_KI_V_PER_AS     21U  /**< current loop ki, V/(A.s)       */
+#define BOARD_CAL_DRV_L1_MILLI        22U  /**< observer angle gain, 1e-3      */
+#define BOARD_CAL_DRV_L2_MILLI        23U  /**< observer speed gain, 1e-3/s    */
+#define BOARD_CAL_DRV_INJ_MV          24U  /**< injection amplitude, mV; 0 off */
+#define BOARD_CAL_DRV_INJ_PERIODS     25U  /**< PWM periods per half cycle     */
+#define BOARD_CAL_DRV_INJ_PHASE_MRAD  26U  /**< injection axis off d, signed   */
+#define BOARD_CAL_DRV_EPS_GAIN_UA_PER_RAD 27U /**< demodulated uA/rad, signed */
+#define BOARD_CAL_DRV_I_MAX_MA        28U  /**< reference clamp, mA            */
+#define BOARD_CAL_DRV_I_TRIP_MA       29U  /**< the stage drops past this, mA  */
+#define BOARD_CAL_DRV_V_FRAC_PPM      30U  /**< of Vdc/sqrt3 the vector may use*/
+#define BOARD_CAL_DRV_SIGN            31U  /**< 1, or -1 as 0xFFFFFFFF         */
+#define BOARD_CAL_DRV_W_LO_MRAD_S     32U  /**< back-EMF blend starts, mrad/s  */
+#define BOARD_CAL_DRV_W_HI_MRAD_S     33U  /**< injection off above, mrad/s    */
+#define BOARD_CAL_DRV_DT_STEP_MA      34U  /**< dead-time table spacing, mA    */
+#define BOARD_CAL_DRV_DT_MV           35U  /**< 35..42: the table, mV          */
+#define BOARD_CAL_DRV_SIGMA_I_UA      43U  /**< measured current noise, uA rms */
+#define BOARD_CAL_DRV_TRIGGER_TICKS   44U  /**< the sample point chosen; 0 none*/
+#define BOARD_CAL_PARAM_COUNT 45U
 
 /** One channel's correction, applied to the raw code before any scaling. */
 typedef struct
@@ -639,6 +691,32 @@ typedef struct
      behind it deserves. */
   int32_t  soa_limit_centi[BOARD_THERMAL_NODES];
   uint32_t soa_throttle_ppm;   /**< where derating starts, parts per million */
+
+  /* CAL_VERSION 8: the drive. Ids BOARD_CAL_MOTOR_* and BOARD_CAL_DRV_*,
+     in that order; board_drive.c turns them into the floats it runs on. */
+  uint32_t motor_r_uohm;
+  uint32_t motor_ld_nh;
+  uint32_t motor_lq_nh;
+  uint32_t motor_lambda_uvs;
+  uint32_t motor_pole_pairs;
+  uint32_t drv_kp_mv_per_a;
+  uint32_t drv_ki_v_per_as;
+  uint32_t drv_l1_milli;
+  uint32_t drv_l2_milli;
+  uint32_t drv_inj_mv;
+  uint32_t drv_inj_periods;
+  uint32_t drv_inj_phase_mrad;
+  uint32_t drv_eps_gain_ua_per_rad;
+  uint32_t drv_i_max_ma;
+  uint32_t drv_i_trip_ma;
+  uint32_t drv_v_frac_ppm;
+  uint32_t drv_sign;
+  uint32_t drv_w_lo_mrad_s;
+  uint32_t drv_w_hi_mrad_s;
+  uint32_t drv_dt_step_ma;
+  uint32_t drv_dt_mv[8];
+  uint32_t drv_sigma_i_ua;
+  uint32_t drv_trigger_ticks;
 
   uint16_t crc;
 } board_cal_t;

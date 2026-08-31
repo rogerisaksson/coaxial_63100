@@ -50,9 +50,7 @@ class Calibration(Subsystem):
         # is how the reader fell four fields behind and stayed there.
         params = {}
         for i in range(reader.u8()):
-            name = (protocol.CAL_PARAMS[i] if i < len(protocol.CAL_PARAMS)
-                    else 'param%d' % i)
-            params[name] = reader.u32()
+            params[self._name(i)] = reader.u32()
 
         channels = []
         for index in range(reader.u8()):
@@ -65,10 +63,41 @@ class Calibration(Subsystem):
         # with no measurement behind it should carry rather than a guess.
         limits = [reader.i32() / 100.0 for _ in range(reader.u8())]
 
+        throttle = reader.u32() / 1e6
+        params.update(self._paged(len(params)))
         return {'stored': stored, 'version': version,
                 'params': params, 'channels': channels,
                 'soa_limit_c': limits,
-                'soa_throttle_at': reader.u32() / 1e6}
+                'soa_throttle_at': throttle}
+
+    @staticmethod
+    def _name(ident):
+        return (protocol.CAL_PARAMS[ident] if ident < len(protocol.CAL_PARAMS)
+                else 'param%d' % ident)
+
+    def _paged(self, first):
+        """The parameters past what op 0 carries, through op 8.
+
+        Op 0 kept its first fifteen when the record grew to forty-five -
+        the whole reply was 310 bytes against a 253-byte PDU. A firmware
+        without op 8 answers ILLEGAL DATA VALUE and has nothing past the
+        fifteen anyway.
+        """
+        from .errors import ModbusException
+
+        out = {}
+        while True:
+            try:
+                reader = Reader(self._op(protocol.CAL_OP_PARAMS,
+                                         bytes([first])))
+            except ModbusException:
+                return out
+            total, first, count = reader.u8(), reader.u8(), reader.u8()
+            for i in range(first, first + count):
+                out[self._name(i)] = reader.u32()
+            first += count
+            if first >= total or count == 0:
+                return out
 
     def set_param(self, name, value):
         """One scalar, by the name read() returns it under."""

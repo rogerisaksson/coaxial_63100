@@ -71,6 +71,7 @@ DEVICE_DAQ = 6
 DEVICE_TIME = 7
 DEVICE_THERMAL = 8
 DEVICE_POWER = 9
+DEVICE_DRIVE = 10
 CAL_OP_GET = 0
 CAL_OP_SET_PARAM = 1
 CAL_OP_SET_CHANNEL = 2
@@ -79,6 +80,7 @@ CAL_OP_SPAN = 4
 CAL_OP_SAVE = 5
 CAL_OP_LOAD = 6
 CAL_OP_DEFAULTS = 7
+CAL_OP_PARAMS = 8
 
 CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               'bus_r_top_ohm', 'bus_r_bottom_ohm',
@@ -98,7 +100,21 @@ CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               # id 14, the lead-lag trim in DTG counts. The gate drive is
               # asymmetric by design, so the two transitions of a leg need
               # not want the same dead time.
-              'deadtime_skew')
+              'deadtime_skew',
+              # ids 15..44, CAL_VERSION 8: what the drive is told. The
+              # names carry the unit; coaxial.drive.PARAMS carries the
+              # scale, so a commissioning writes SI.
+              'motor_r_uohm', 'motor_ld_nh', 'motor_lq_nh',
+              'motor_lambda_uvs', 'motor_pole_pairs',
+              'drv_kp_mv_per_a', 'drv_ki_v_per_as',
+              'drv_l1_milli', 'drv_l2_milli',
+              'drv_inj_mv', 'drv_inj_periods', 'drv_inj_phase_mrad',
+              'drv_eps_gain_ua_per_rad', 'drv_i_max_ma', 'drv_i_trip_ma',
+              'drv_v_frac_ppm', 'drv_sign',
+              'drv_w_lo_mrad_s', 'drv_w_hi_mrad_s', 'drv_dt_step_ma',
+              'drv_dt_mv0', 'drv_dt_mv1', 'drv_dt_mv2', 'drv_dt_mv3',
+              'drv_dt_mv4', 'drv_dt_mv5', 'drv_dt_mv6', 'drv_dt_mv7',
+              'drv_sigma_i_ua', 'drv_trigger_ticks')
 """The record's scalars, in the order 0x6E device 3 op 0 sends them, and the
 order their ids run in. Integers in the unit that makes them integers, because
 the wire bans floating point - the names carry the unit for the same reason

@@ -19,7 +19,8 @@ parts come from `0x6D` kind 4, never inferred from the name.
 
 ## Scope: instrumentation, not yet a motor controller
 
-**TIM1 is armed on request, and there is still no commutation.** The `.ioc`
+**TIM1 is armed on request; the control law exists and no motor has
+turned.** The `.ioc`
 enables sixteen IPs - ADC1/2/3, SPI2, SPI4, USART2, USART3, UART5, **TIM1**,
 CORTEX_M7, RCC, SYS, DEBUG, MEMORYMAP, NVIC, VREFBUF. TIM1 is centre-aligned
 at **50 kHz** (ARR 2375 off 237.5 MHz), break on PE15 active low, AOE off.
@@ -43,8 +44,12 @@ clear under the bypass, 0 overruns, no gate shorts, clean disarms;
 3.1-3.75 A on-time, up to 39 W mean in the resistor. `tools/pulse.py` is that
 test; P in the gate drivers view is one pulse after A. The board cannot
 measure current while switching on this bench (AFE_ON high unpowers the
-drivers), so the amps are V/R. **No commutation, no current loop** - a gate
-stage that can be switched and measured, not one that can turn a motor.
+drivers), so the amps are V/R. **The drive is written and dry-run only:**
+`Drive/` behind `0x6E` device 10 is a dq current loop, HF injection, a
+Kalman-form PLL, I/f and a polarity pulse, host-tested against a motor
+model (`test_drive_core.py`) and stepped on the board at 2 922 cycles a
+period with the drivers unpowered. No current has closed a loop through a
+winding; `tools/commission.py` is the procedure for when one can.
 
 **A hold's length is the link's, not the board's.** A compare write lands in
 15 ms (~800 cycles minimum); a 100 ms hold is 93-108 ms at the FETs. Exactly
@@ -162,18 +167,23 @@ python tools/build_and_flash.py          # build (+flash): --build-only, --flash
 python tools/session.py --status         # who is sharing the board's port
 python tools/switch.py --sweep 5,95 -p 10 -s 120  # background; --stop disarms
 python tools/pulse.py -d 0.05 -H U -L V -n 1 --on 30   # one leg against another
+python tools/commission.py --simulated   # the eight steps on the stand-in;
+                                         # --arm --port COM4 at the bench
 python -m coaxial_mcp --port COM4        # MCP server, stdio
 python -m coaxial_ollama.capability      # which local model this machine runs
 python dbg.py --repl                     # prompt loop; /py and /sh cost no tokens
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-one suites, 1970 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (437),
+Twenty-three suites, 2096 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (452),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (214),
 `test_simulated.py` (194), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
-`test_ollama_link.py` (96), `test_modbus_core.py` (68), `test_mcp.py` (44),
+`test_ollama_link.py` (96), `test_modbus_core.py` (68), `test_drive_core.py`
+(59, the control law against a motor model through the host gcc),
+`test_sensorless.py` (52, the design arithmetic and the commissioning
+against the stand-in), `test_mcp.py` (44),
 `test_shtp_core.py` (38), `test_ollama_render.py` (32), `test_parity.py` (30),
 `test_ollama_board.py` (28), `test_ollama_bus.py` (28), `test_render.py`
 (27, the 3D engine stage by stage against an analytic oracle -
@@ -206,7 +216,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  764 of this tree's 1970 checks are in those nine files.
+  764 of this tree's 2096 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
@@ -390,6 +400,7 @@ render/      the CAD export the attitude view draws from
 Board/       this hardware, behind Comms/Inc/board.h
 Comms/       the comms stack: cmd over proto over dev, plus the console
 Modbus/      the protocol. Portable C11, no HAL in crc/slave/rtu.
+Drive/       the control law. Portable C11, host-tested against a motor model
 host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
              runner and dbg.py, testline/, tests, tools
 coaxial_tty.ps1  the chooser: session, six views, the board chat

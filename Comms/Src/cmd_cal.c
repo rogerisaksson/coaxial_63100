@@ -17,6 +17,16 @@
 #include "board.h"
 #include "wire.h"
 
+/** How many parameters op 0 carries: the fifteen it had at MINOR 1. The
+    record grew to forty-five with the drive and the whole reply came to
+    310 bytes against MB_MAX_PDU's 253 - measured 2026-08-31, every read
+    answering SERVER DEVICE FAILURE. Op 0 keeps its shape for a host that
+    never heard of the rest; op 8 pages all of them. */
+#define CAL_LEGACY_PARAMS 15U
+
+/** Parameters one op 8 reply carries: 60 x 4 = 240 bytes, plus three. */
+#define CAL_PAGE 60U
+
 /**
   * @brief op 0 - the whole record, plus whether flash holds one.
   *
@@ -32,9 +42,9 @@ static cmd_status_t h_cal_get(rd_t *in, wr_t *out)
 
   wr_u8(out, (uint8_t)(Board_CalStored() ? 1U : 0U));
   wr_u16(out, cal->version);
-  wr_u8(out, (uint8_t)BOARD_CAL_PARAM_COUNT);
+  wr_u8(out, (uint8_t)CAL_LEGACY_PARAMS);
 
-  for (uint8_t id = 0U; id < BOARD_CAL_PARAM_COUNT; id++)
+  for (uint8_t id = 0U; id < CAL_LEGACY_PARAMS; id++)
   {
     uint32_t value = 0U;
 
@@ -66,6 +76,36 @@ static cmd_status_t h_cal_get(rd_t *in, wr_t *out)
   wr_u32(out, cal->soa_throttle_ppm);
 
   return CMD_OK;
+}
+
+/** @brief op 8 - every scalar parameter, paged from `first`. */
+static cmd_status_t h_cal_params(rd_t *in, wr_t *out)
+{
+  const uint8_t first = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  if (first > (uint8_t)BOARD_CAL_PARAM_COUNT)
+  {
+    return CMD_ERR_VALUE;
+  }
+
+  uint8_t count = (uint8_t)(BOARD_CAL_PARAM_COUNT - first);
+
+  count = (count > CAL_PAGE) ? CAL_PAGE : count;
+  wr_u8(out, (uint8_t)BOARD_CAL_PARAM_COUNT);
+  wr_u8(out, first);
+  wr_u8(out, count);
+  for (uint8_t id = first; id < (uint8_t)(first + count); id++)
+  {
+    uint32_t value = 0U;
+
+    (void)Board_CalGetParam(id, &value);
+    wr_u32(out, value);
+  }
+  return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
 /** @brief op 1 - one scalar parameter. */
@@ -227,6 +267,7 @@ cmd_status_t cmd_cal_op(uint8_t op, rd_t *in, wr_t *out)
     case CAL_OP_SAVE:        return h_cal_save(in, out);
     case CAL_OP_LOAD:        return h_cal_load(in, out);
     case CAL_OP_DEFAULTS:    return h_cal_defaults(in, out);
+    case CAL_OP_PARAMS:      return h_cal_params(in, out);
     default:                 return CMD_ERR_VALUE;
   }
 }

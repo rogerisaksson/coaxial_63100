@@ -20,6 +20,7 @@ from .thermal_device import Thermal
 from .capture import Capture
 from .clock import Clock
 from .daq import Daq
+from .drive import Drive
 from .calibration import Calibration
 from .errors import (ConnectError, CrcError, DeviceStateError, FrameError,
                      NoReplyError, RigError, UnsupportedProtocolError)
@@ -55,6 +56,7 @@ class Board:
         self.capture = Capture(self)
         self.clock = Clock(self)
         self.daq = Daq(self)
+        self.drive = Drive(self)
 
     @property
     def baud(self):

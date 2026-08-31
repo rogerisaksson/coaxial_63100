@@ -60,6 +60,12 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # four camera-calibrated states with the host gcc.
     Thermal/Src/thermal.c
 
+    # Drive: the control law. Portable C11 like Thermal/, host-tested by
+    # test_drive_core.py against a motor model through Drive/test/harness.c.
+    Drive/Src/drive.c
+    Drive/Src/drive_math.c
+    Drive/Src/drive_model.c
+
     # Board layer: this hardware, behind Comms/Inc/board.h.
     Board/Src/board_imu.c
     Board/Src/board_angle.c
@@ -75,6 +81,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Board/Src/board_daq.c
     Board/Src/board_thermal.c
     Board/Src/board_power.c
+    Board/Src/board_drive.c
 
     # Comms stack: cmd (request/response) over proto (Modbus) over dev (USART3).
     Comms/Src/console.c
@@ -94,6 +101,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Comms/Src/cmd_time.c
     Comms/Src/cmd_thermal.c
     Comms/Src/cmd_power.c
+    Comms/Src/cmd_drive.c
     Comms/Src/testrig.c
     Comms/Src/link.c
     Comms/Src/link_report.c
@@ -112,6 +120,7 @@ set(COAXIAL_SOURCES
     # host-testable the same way - Thermal/test/check.c runs it against the
     # four camera-calibrated states with the host gcc.
     Thermal/Src/thermal.c
+    Drive/Src/drive.c Drive/Src/drive_math.c Drive/Src/drive_model.c
     Board/Src/board_adc.c Board/Src/board_clock.c Board/Src/board_selftest.c
     Board/Src/board_io.c Board/Src/board_imu.c Board/Src/board_angle.c
     Board/Src/board_cal.c
@@ -121,12 +130,14 @@ set(COAXIAL_SOURCES
     Board/Src/board_daq.c
     Board/Src/board_thermal.c
     Board/Src/board_power.c
+    Board/Src/board_drive.c
     Comms/Src/console.c Comms/Src/wire.c Comms/Src/dev_uart.c
     Comms/Src/cmd.c Comms/Src/cmd_board.c Comms/Src/cmd_test.c
     Comms/Src/cmd_angle.c Comms/Src/cmd_device.c Comms/Src/cmd_link.c
     Comms/Src/cmd_cal.c Comms/Src/cmd_gate_drivers.c Comms/Src/cmd_log.c
     Comms/Src/cmd_daq.c Comms/Src/cmd_time.c
     Comms/Src/cmd_power.c
+    Comms/Src/cmd_drive.c
     Comms/Src/testrig.c Comms/Src/link.c Comms/Src/link_report.c
 )
 set_source_files_properties(${COAXIAL_SOURCES} PROPERTIES
@@ -150,18 +161,35 @@ set_source_files_properties(
     # host-testable the same way - Thermal/test/check.c runs it against the
     # four camera-calibrated states with the host gcc.
     Thermal/Src/thermal.c
+    Drive/Src/drive.c Drive/Src/drive_math.c Drive/Src/drive_model.c
     Comms/Src/wire.c Comms/Src/cmd.c Comms/Src/cmd_board.c
     Comms/Src/cmd_test.c Comms/Src/cmd_imu.c Comms/Src/cmd_cal.c
     Comms/Src/cmd_gate_drivers.c
     Comms/Src/cmd_log.c Comms/Src/cmd_daq.c Comms/Src/cmd_time.c
     Comms/Src/cmd_power.c
+    Comms/Src/cmd_drive.c
     Comms/Src/link.c Comms/Src/link_report.c
     PROPERTIES COMPILE_OPTIONS "-Wextra;-Wshadow;-Wconversion")
+
+# The interrupt path the drive runs on, optimised whatever the preset. A
+# control law at -O0 is not a thing: measured 2026-08-31 on the Debug
+# build, one step of drive_step() cost 10 040 cycles, 21 us against the
+# 20 us PWM period, and the main loop's worst keepalive gap went to 16 ms.
+# None of these four carries debugger-facing state worth -O0.
+# COMPILE_OPTIONS replaces rather than appends, so each set carries the
+# warnings the lists above gave it.
+set_source_files_properties(
+    Drive/Src/drive.c Drive/Src/drive_math.c Drive/Src/drive_model.c
+    PROPERTIES COMPILE_OPTIONS "-O2;-Wextra;-Wshadow;-Wconversion")
+set_source_files_properties(
+    Board/Src/board_drive.c Board/Src/board_sync.c
+    PROPERTIES COMPILE_OPTIONS "-O2;-Wextra;-Wshadow")
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     Modbus/Inc
     Thermal/Inc
+    Drive/Inc
     Shtp/Inc
     Comms/Inc
     Board/Inc

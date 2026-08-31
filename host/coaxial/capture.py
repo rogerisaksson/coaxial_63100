@@ -18,8 +18,10 @@ from .wire import Reader
 PHASES = 0      #: v = U, V, W, TIM1->CNT at latch
 ANGLE = 1       #: v = value, crc, register
 IMU = 2         #: v = quaternion i, j, k, real
+DRIVE = 3       #: v = id, iq in 10 mA, theta_hat as a turn in 65536,
+                #: the innovation in 0.1 mrad
 
-NAMES = {PHASES: 'phases', ANGLE: 'angle', IMU: 'imu'}
+NAMES = {PHASES: 'phases', ANGLE: 'angle', IMU: 'imu', DRIVE: 'drive'}
 BY_NAME = {v: k for k, v in NAMES.items()}
 
 # Named as the firmware names them, in Comms/Inc/cmd.h: the bare OP_STATE

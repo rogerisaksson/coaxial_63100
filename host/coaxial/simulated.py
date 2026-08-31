@@ -547,9 +547,49 @@ class SimulatedCalibration:
     instrument here. Empty params is what an uncalibrated board answers,
     and `from_calibration({})` already reads that as the fallback.
     """
+    #: Channels the record trims, as many as the board's ADC table has.
+    CHANNELS = 10
+
+    def __init__(self):
+        self._params = {}
+        self._channels = [{'index': i, 'offset_raw': 0, 'gain_ppm': 0}
+                          for i in range(self.CHANNELS)]
+
     def read(self):
-        return {'stored': False, 'version': 0, 'params': {},
-                'channels': [], 'soa_limit_c': [], 'soa_throttle_at': 0.0}
+        return {'stored': False, 'version': 0, 'params': dict(self._params),
+                'channels': [dict(c) for c in self._channels],
+                'soa_limit_c': [], 'soa_throttle_at': 0.0}
+
+    def set_param(self, name, value):
+        """Held, not invented: what a caller wrote is what it reads back."""
+        if name not in protocol.CAL_PARAMS:
+            raise DeviceStateError('%r is not a calibration parameter (simulated)'
+                                   % (name,))
+        self._params[name] = int(value) & 0xFFFFFFFF
+
+    def set_channel(self, index, offset_raw, gain_ppm):
+        if not 0 <= index < self.CHANNELS:
+            raise DeviceStateError('no channel %d (simulated)' % index)
+        self._channels[index] = {'index': index, 'offset_raw': int(offset_raw),
+                                 'gain_ppm': int(gain_ppm)}
+
+    def zero(self, index):
+        self.set_channel(index, 0, self._channels[index]['gain_ppm'])
+        return 0
+
+    def span(self, index, reference):
+        raise DeviceStateError('the stand-in has no instrument to span '
+                               'against (simulated)')
+
+    def save(self):
+        return True
+
+    def load(self):
+        return False
+
+    def defaults(self):
+        self.__init__()
+        return True
 
 
 class SimulatedGpio:
@@ -1033,9 +1073,9 @@ class SimulatedGateDrivers(GateControl):
     """TIM1, the injected triple and the STO chain, without any of them.
 
     The numbers are the real board's registers as configured: ARR 2375 for
-    50 kHz off 237.5 MHz, DTG 19 for 80 ns. The gate drivers never enables,
-    because on the real board it cannot until the STO chain releases and
-    nothing here can release it.
+    50 kHz off 237.5 MHz, DTG 19 for 80 ns. Enabling is refused until the
+    break is bypassed, as the real board refuses it until the STO chain
+    releases - and nothing here can release it.
     """
 
     PERIOD = 2376
@@ -1207,6 +1247,9 @@ class SimulatedGateDrivers(GateControl):
     def trigger(self, ticks=None):
         if ticks is not None:
             self._trigger = min(int(ticks), self.PERIOD - 1)
+            drive = getattr(self, '_drive', None)
+            if drive is not None:
+                drive.trigger(self._trigger)
         return self._trigger
 
     def clear_fault(self):
@@ -1555,6 +1598,287 @@ class SimulatedClock:
         return (before + after) / 2.0, after - before
 
 
+class SimulatedDrive:
+    """The control law's device without a motor: a locked rotor at zero
+    electrical angle, a phase resistance, two inductances that bend with
+    the d current, a flux linkage and a dead-time voltage error - enough
+    for every commissioning step to recover a number it can check against
+    the constants below. Time runs at the PWM rate off the wall clock, so
+    a window or a moments run fills at 50 kHz.
+    """
+
+    R = 0.05
+    LD = 20e-6
+    LQ = 30e-6
+    LAMBDA = 0.005
+    POLES = 7
+    SAT = 0.3           #: Ld bends by this much at I_SAT of d current
+    I_SAT = 4.0
+    V_DT = 0.5          #: the inverter's dead-time voltage error, V
+    I_KNEE = 0.3
+    SIGMA_I = 0.02      #: current noise on the shunts, A rms
+    TS = 20e-6
+    FS = 50000.0
+    CENTRE = (1400.0, -8030.0, 360.0, 20775.0)   #: raw codes at rest
+    NOISE = (24.0, 22.0, 25.0, 8.0)              #: codes rms at the quiet point
+    BEST_TRIGGER = 2300                          #: where the pickup is least
+    PERIOD = 2376
+    #: Amps per code, the stand-in's own scaling (scaling.PHASE_ONBOARD):
+    #: 3.3 V over 32768 codes, through 3.5 mohm x 4.5455.
+    APC = 3.3 / 32768.0 / (0.0035 * 1500.0 / 330.0)
+    #: The shunt chains' gain mismatch the commissioning has to find.
+    GAIN = (1.0, 1.01, 0.995)
+
+    def __init__(self):
+        self._mode = 'off'
+        self._fault = None
+        self._sp = {'id_ref': 0.0, 'iq_ref': 0.0, 'theta': 0.0,
+                    'omega_target': 0.0, 'accel': 0.0, 'vd': 0.0, 'vq': 0.0,
+                    'pol_volts': 0.0, 'pol_periods': 0, 'pol_gap': 0}
+        self._params = {}
+        self._theta_hat = 0.7
+        self._theta_hat_at = time.time()
+        self._trigger = 2360
+        self._mode_at = time.time()
+        self._window_at = time.time()
+        self._mom = None
+        self._pol = (0.0, 0.0)
+        self._cycles_max = 0
+
+    def _p(self, name, default):
+        return self._params.get(name, default)
+
+    def _ld(self, id_bias):
+        return self.LD * (1.0 - self.SAT * math.tanh(id_bias / self.I_SAT))
+
+    def _dt(self, amps):
+        return self.V_DT * math.tanh(amps / self.I_KNEE)
+
+    def _periods_since(self, at):
+        return int((time.time() - at) * self.FS)
+
+    def _omega(self):
+        return self._sp['omega_target'] if self._mode == 'hold' else 0.0
+
+    def _dq(self):
+        """The loop's dq means for the mode it is in."""
+        if self._mode == 'volt':
+            iid = self._sp['vd'] / self.R * self._p('drv_sign', 1.0)
+            return iid, self._sp['vq'] / self.R, self._sp['vd'], self._sp['vq']
+        if self._mode not in ('hold', 'sensorless'):
+            return 0.0, 0.0, 0.0, 0.0
+        i_max = self._p('drv_i_max_ma', 5.0)
+        iid = max(-i_max, min(i_max, self._sp['id_ref']))
+        iq = max(-i_max, min(i_max, self._sp['iq_ref']))
+        omega = self._omega()
+        vd = self.R * iid + (2.0 / 3.0) * (self._dt(iid) + self._dt(iid / 2.0)) \
+            - omega * self.LQ * iq
+        vq = self.R * iq + omega * self._ld(iid) * iid + omega * self.LAMBDA
+        return iid, iq, vd, vq
+
+    def _ih(self):
+        """The demodulated HF current step: V.T over the inductance along
+        the injection axis, with the rotor at zero and the frame at
+        `theta` (HOLD) or the observer's estimate (SENSORLESS)."""
+        v_inj = self._p('drv_inj_mv', 0.0)
+        if not v_inj or self._mode not in ('hold', 'sensorless'):
+            return 0.0, 0.0
+        frame = self._sp['theta'] if self._mode == 'hold' else self._theta_hat
+        phi = frame + self._p('drv_inj_phase_mrad', 0.0)
+        iid = self._sp['id_ref'] if self._mode == 'hold' else 0.0
+        ld = self._ld(iid)
+        l_sum, l_del = (ld + self.LQ) / 2.0, (ld - self.LQ) / 2.0
+        inv = (l_sum - l_del * math.cos(2.0 * phi)) / (ld * self.LQ)
+        ih = v_inj * self.TS * inv
+        eps = v_inj * self.TS * l_del * math.sin(2.0 * phi) / (ld * self.LQ)
+        return ih, -eps
+
+    def _converge(self):
+        """SENSORLESS pulls theta_hat onto the rotor (0) or pi off it."""
+        if self._mode != 'sensorless' or not self._p('drv_inj_mv', 0.0):
+            return
+        dt = time.time() - self._theta_hat_at
+        self._theta_hat_at = time.time()
+        target = 0.0 if math.cos(self._theta_hat) >= 0.0 else math.pi
+        err = (self._theta_hat - target + math.pi) % (2 * math.pi) - math.pi
+        self._theta_hat = (target + err * math.exp(-dt * 60.0)) % (2 * math.pi)
+
+    def state(self):
+        self._converge()
+        iid, iq, vd, vq = self._dq()
+        ih, eps_amps = self._ih()
+        periods = self._periods_since(self._mode_at)
+        if self._mode == 'polarity':
+            need = 2 * self._sp['pol_periods'] + 2 * self._sp['pol_gap'] + 4
+            if periods >= need:
+                aligned = math.cos(self._theta_hat) >= 0.0
+                big, small = 34.0, 18.0
+                self._pol = (big, small) if aligned else (small, big)
+                self._mode = 'off'
+        gain = self._p('drv_eps_gain_ua_per_rad', 0.0)
+        return {
+            'mode': self._mode, 'fault': self._fault,
+            'stage_enabled': self._mode != 'off', 'afe_on': True,
+            'injecting': bool(self._p('drv_inj_mv', 0.0)) and self._mode in ('hold', 'sensorless'),
+            'owns_compares': self._mode != 'off', 'sync_armed': True,
+            'theta_hat': self._theta_hat, 'omega_hat': 0.0,
+            'theta_cmd': (self._sp['theta'] + self._omega() * (time.time() - self._mode_at)) % (2 * math.pi),
+            'omega_cmd': self._omega(),
+            'id': iid, 'iq': iq, 'vd': vd, 'vq': vq, 'vdc': 24.0,
+            'eps': (eps_amps / gain) if gain else 0.0, 'eps_amps': eps_amps,
+            'ih': ih, 'e_bemf': 0.0, 'periods': periods,
+            'isr_cycles_last': 1450, 'isr_cycles_max': max(self._cycles_max, 1620),
+            'pol_pos': self._pol[0], 'pol_neg': self._pol[1],
+            'trigger': self._trigger, 'ts': self.TS,
+        }
+
+    def mode(self, name):
+        from .drive import MODES
+        if name not in MODES:
+            raise ValueError('%r is not a mode; they are %s' % (name, ', '.join(MODES)))
+        if name == 'polarity' and not self._sp['pol_periods']:
+            raise RigError('polarity needs pol_periods above zero - one pulse '
+                           'of no length measures nothing (simulated)')
+        self._mode = name
+        self._fault = None
+        self._mode_at = time.time()
+        if name != 'off':
+            self._pol = (0.0, 0.0)
+        return True
+
+    def off(self):
+        return self.mode('off')
+
+    def setpoint(self, **values):
+        for name in values:
+            if name not in self._sp:
+                raise ValueError('%r is not a setpoint; they are %s' % (name, ', '.join(self._sp)))
+        self._sp.update({k: float(v) for k, v in values.items()})
+        return dict(values)
+
+    def setpoints(self):
+        return dict(self._sp)
+
+    def set_theta(self, radians):
+        self._theta_hat = radians % (2 * math.pi)
+        self._theta_hat_at = time.time()
+        return True
+
+    def window(self):
+        self._converge()
+        n = max(1, self._periods_since(self._window_at))
+        self._window_at = time.time()
+        iid, iq, vd, vq = self._dq()
+        ih, eps_amps = self._ih()
+        gain = self._p('drv_eps_gain_ua_per_rad', 0.0)
+        n_inj = self._p('drv_inj_periods', 1.0) or 1.0
+        sd_eps = (self.SIGMA_I / n_inj / gain) if gain else 0.0
+        fields = {
+            'id': {'n': n, 'mean': iid, 'sd': self.SIGMA_I},
+            'iq': {'n': n, 'mean': iq, 'sd': self.SIGMA_I},
+            'vd': {'n': n, 'mean': vd, 'sd': 0.01},
+            'vq': {'n': n, 'mean': vq, 'sd': 0.01},
+            'eps': {'n': n // 2, 'mean': 0.0, 'sd': sd_eps},
+            'ih': {'n': n // 2, 'mean': ih, 'sd': self.SIGMA_I / math.sqrt(2)},
+            'vdc': {'n': n, 'mean': 24.0, 'sd': 0.003},
+        }
+        rng = random.Random(n)
+        return {'n': n, 'fields': fields,
+                'rho': [rng.uniform(-0.008, 0.008) for _ in range(7)],
+                'i_peak': math.hypot(iid, iq) + 3 * self.SIGMA_I}
+
+    def _phase_amps(self):
+        """The held current vector as the three phase currents, with the
+        gain mismatch each shunt chain puts on its own."""
+        iid, iq, _, _ = self._dq()
+        if self._mode not in ('hold', 'volt'):
+            return (0.0, 0.0, 0.0)
+        th = self._sp['theta']
+        ia = iid * math.cos(th) - iq * math.sin(th)
+        ib = iid * math.sin(th) + iq * math.cos(th)
+        return (ia, -0.5 * ia + 0.8660254 * ib, -0.5 * ia - 0.8660254 * ib)
+
+    def _pickup(self):
+        """Switching pickup at the sample point: a bump mid-period, where a
+        50 % edge sits, and least near the top of the triangle."""
+        x = (self._trigger - self.PERIOD / 2.0) / (self.PERIOD / 4.0)
+        return 90.0 * math.exp(-x * x)
+
+    def moments_arm(self, periods):
+        self._mom = (time.time(), int(periods))
+        return True
+
+    def moments(self):
+        if self._mom is None:
+            n, want = 0, 0
+        else:
+            n = min(self._periods_since(self._mom[0]), self._mom[1])
+            want = self._mom[1]
+        rng = random.Random(self._trigger + n)
+        channels = {}
+        iabc = self._phase_amps()
+        for k, name in enumerate(('Phase U', 'Phase V', 'Phase W', 'DC bus')):
+            sd = self.NOISE[k] + (self._pickup() if k < 3 else 0.0)
+            mean = self.CENTRE[k] + rng.gauss(0.0, sd / math.sqrt(max(n, 1)))
+            if k < 3:
+                mean += self.GAIN[k] * iabc[k] / self.APC
+            channels[name] = {'mean': mean, 'sd': sd,
+                              'lo': int(mean - 3.5 * sd), 'hi': int(mean + 3.5 * sd)}
+        return {'done': bool(want) and n >= want, 'n': n, 'want': want,
+                'trigger': self._trigger, 'channels': channels}
+
+    def moments_run(self, periods, timeout=5.0, poll=0.02):
+        self.moments_arm(periods)
+        deadline = time.time() + timeout
+        while True:
+            got = self.moments()
+            if got['done']:
+                return got
+            if time.time() > deadline:
+                raise RigError('%d of %d periods counted (simulated)' % (got['n'], periods))
+            time.sleep(poll)
+
+    def reload(self):
+        return True
+
+    def reset_cycles(self):
+        self._cycles_max = 0
+        return True
+
+    def trigger(self, ticks):
+        """The stand-in's sample point, moved by its gate drivers' trigger()."""
+        self._trigger = int(ticks)
+
+    #: What an uncommissioned board answers: the firmware's compiled-in
+    #: placeholders (board_cal.c), in SI, the same as the real record reads.
+    DEFAULTS = {
+        'motor_r_uohm': 0.05, 'motor_ld_nh': 20e-6, 'motor_lq_nh': 25e-6,
+        'motor_lambda_uvs': 0.005, 'motor_pole_pairs': 7.0,
+        'drv_kp_mv_per_a': 0.1, 'drv_ki_v_per_as': 250.0,
+        'drv_l1_milli': 0.1, 'drv_l2_milli': 100.0,
+        'drv_inj_mv': 0.0, 'drv_inj_periods': 1.0, 'drv_inj_phase_mrad': 0.0,
+        'drv_eps_gain_ua_per_rad': 0.0, 'drv_i_max_ma': 5.0,
+        'drv_i_trip_ma': 100.0, 'drv_v_frac_ppm': 0.95, 'drv_sign': 1.0,
+        'drv_w_lo_mrad_s': 60.0, 'drv_w_hi_mrad_s': 120.0,
+        'drv_dt_step_ma': 1.0, 'drv_sigma_i_ua': 0.0, 'drv_trigger_ticks': 0.0,
+    }
+
+    def params(self):
+        from .drive import PARAMS
+        return {name: self._params.get(name, self.DEFAULTS.get(name, 0.0))
+                for name in PARAMS}
+
+    def set_params(self, **values):
+        from .drive import PARAMS
+        for name in values:
+            if name not in PARAMS:
+                raise ValueError('%r is not a drive parameter; they are %s' % (name, ', '.join(PARAMS)))
+        self._params.update({k: float(v) for k, v in values.items()})
+        if 'drv_trigger_ticks' in values and values['drv_trigger_ticks']:
+            self._trigger = int(values['drv_trigger_ticks'])
+        return dict(values)
+
+
 class SimulatedBoard:
     """A whole board without a board. Duck-typed against the real one, so
     the tools above cannot tell which they are holding - except that
@@ -1587,6 +1911,7 @@ class SimulatedBoard:
             self.analog = self.gpio = self.imu = refuse
             self.calibration = refuse
             self.angle = self.gate_drivers = self.capture = self.daq = refuse
+            self.drive = refuse
             self.clock = refuse
         else:
             self.system = SimulatedSystem(self.version_info)
@@ -1603,6 +1928,10 @@ class SimulatedBoard:
             self.capture = SimulatedCapture()
             self.clock = SimulatedClock()
             self.daq = SimulatedDaq()
+            self.drive = SimulatedDrive()
+            # The sample point is one register: moving it through the
+            # gate drivers moves the drive's moments too.
+            self.gate_drivers._drive = self.drive
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'

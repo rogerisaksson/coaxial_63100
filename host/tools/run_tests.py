@@ -33,6 +33,8 @@ from tests import counts                             # noqa: E402
 STRUCTURE = 'test_structure.py'
 CORE = 'test_modbus_core.py'
 SHTP = 'test_shtp_core.py'
+DRIVE = 'test_drive_core.py'
+SENSORLESS = 'test_sensorless.py'
 #: test_ollama.py was 5,496 lines and 733 checks - a third of every check
 #: this tree has, in one file, and the reason a tier could not be asked for at
 #: any useful resolution. One file per subject now: the largest is 218 checks
@@ -44,7 +46,8 @@ BENCH = 'test_bench.py'
 BROKER = 'test_broker.py'
 VIEWS = 'test_views.py'
 RENDER = 'test_render.py'
-DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, BROKER, VIEWS, RENDER) + OLLAMA
+DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, SENSORLESS, BROKER, VIEWS,
+                   RENDER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
 CONFORMANCE = 'test_conformance.py'
@@ -63,6 +66,10 @@ JOINS = (
     (10, 'test_simulated.py'),
     (15, CORE),
     (20, SHTP),
+    # The control law against a motor model, and the commissioning
+    # against the stand-in: a compiler and a few seconds, no cable.
+    (20, DRIVE),
+    (20, SENSORLESS),
     (35, 'test_parity.py'),
     (45, 'test_mcp.py'),
     (65, CONFORMANCE),
@@ -311,6 +318,15 @@ TOUCHES = (
     # The SHTP layer is hardware-free like the Modbus core, so the host build
     # is what covers it. Nothing on the Modbus wire changes when it does.
     ('Shtp/',                         (SHTP,)),
+    # The control law is hardware-free like the SHTP layer, and its suite
+    # closes the loop through a motor model - the only check on it that
+    # needs no motor. The board glue in Board/ and Comms/ is the bench's.
+    ('Drive/',                        (DRIVE,)),
+    ('host/coaxial/drive.py',         (SENSORLESS, 'test_simulated.py',
+                                       'test_parity.py')),
+    ('host/coaxial/sensorless.py',    (SENSORLESS,)),
+    ('host/coaxial/commission.py',    (SENSORLESS,)),
+    ('host/tools/commission.py',      (STRUCTURE, SENSORLESS)),
     # BENCH is here and not with the host suites: what slows the board down
     # is firmware in the main loop, and the regression it guards against was
     # exactly that - the observer reading two ADC channels and two SPI
@@ -358,8 +374,8 @@ FULL_EVERY = 10
 #: six together, so asking the model costs a 7.6 GB load longer than the
 #: run. Where the map has an explicit rule it is also the better answer,
 #: written by someone reading the imports.
-CHEAP = frozenset({STRUCTURE, CORE, SHTP, 'test_simulated.py', VIEWS,
-                   RENDER})
+CHEAP = frozenset({STRUCTURE, CORE, SHTP, DRIVE, SENSORLESS,
+                   'test_simulated.py', VIEWS, RENDER})
 
 
 def _within_tier(args, live_sections):

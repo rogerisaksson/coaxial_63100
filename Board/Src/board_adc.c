@@ -533,6 +533,41 @@ bool Board_PhaseRaw(int32_t *u, int32_t *v, int32_t *w)
   return true;
 }
 
+void Board_PhaseScale(uint8_t leg, int32_t *offset_raw, float *amps_per_code)
+{
+  /* Board_PhaseAmps, linearised: the record is affine in the code and
+     the shunt arithmetic is linear in the volts, so one factor carries
+     the lot. The definition stays here (invariant 7); the drive only
+     holds the number this hands it. */
+  static const uint8_t index[3] = { CH_PHASE_U, CH_PHASE_V, CH_PHASE_W };
+  int32_t offset = 0;
+  int32_t ppm = 0;
+
+  if (leg >= 3U)
+  {
+    *offset_raw = 0;
+    *amps_per_code = 0.0f;
+    return;
+  }
+  (void)Board_CalChannel(index[leg], &offset, &ppm);
+  *offset_raw = offset;
+  *amps_per_code = (1.0f + (float)ppm / 1000000.0f)
+                   * PHASE_AmpsFromShunt(code_to_volts(1, ADC_DIFFERENTIAL_ENDED));
+}
+
+
+void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code)
+{
+  int32_t offset = 0;
+  int32_t ppm = 0;
+
+  (void)Board_CalChannel(CH_DCBUS, &offset, &ppm);
+  *offset_raw = offset;
+  *volts_per_code = (1.0f + (float)ppm / 1000000.0f)
+                    * DC_BUS_VoltsFromDivider(code_to_volts(1, ADC_SINGLE_ENDED));
+}
+
+
 bool Board_DcBus(int32_t *raw, int32_t *millivolts)
 {
   float v;

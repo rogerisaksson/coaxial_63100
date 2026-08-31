@@ -17,10 +17,10 @@
 #define VERSION_H
 
 #define FW_VERSION_MAJOR 1U
-#define FW_VERSION_MINOR 5U
+#define FW_VERSION_MINOR 6U
 #define FW_VERSION_PATCH 0U
 
-#define FW_VERSION_STRING "1.5.0"
+#define FW_VERSION_STRING "1.6.0"
 
 /* Costs reproducibility, deliberately: a rig that cannot tell which build a
    board carries cannot investigate a failure after the fact. */
@@ -36,7 +36,11 @@
 /* A name is not a description: "coaxial_63100" picks a codec and says nothing
  * about what is on the other end. With several units answering, that is a list
  * of devices instead of a list of numbers. The rating is in it because the
- * rating is the name; no measured value ever is - invariant 10. */
-#define FW_DEVICE_DESCRIPTION   "Three-phase BLDC inverter, 63 V / 100 A, PCB mounted coaxially behind an "   "outrunner's stator. Instrumentation only: no timer, no PWM, no gate drive."
+ * rating is the name; no measured value ever is - invariant 10.
+ *
+ * UNDER 170 CHARACTERS. 0x41 carries this beside five other strings in one
+ * 253-byte PDU; at 205 the reply overflowed and every connect answered
+ * SERVER DEVICE FAILURE - measured 2026-08-31, straight after a flash. */
+#define FW_DEVICE_DESCRIPTION   "Three-phase BLDC inverter, 63 V / 100 A, PCB mounted coaxially behind an "   "outrunner's stator. Gate stage armed on request; drive written, unproven on a motor."
 
 #endif /* VERSION_H */

@@ -17,6 +17,7 @@
   ******************************************************************************
   */
 #include "board.h"
+#include "board_drive.h"
 #include "stm32h7xx_hal.h"
 
 extern ADC_HandleTypeDef hadc1;
@@ -34,6 +35,11 @@ extern ADC_HandleTypeDef hadc3;
 #define SYNC_U_CHANNEL ADC_CHANNEL_1     /* ADC3 IN1,  PC3_C/PC2_C */
 #define SYNC_V_CHANNEL ADC_CHANNEL_3     /* ADC1 IN3,  PA6/PA7     */
 #define SYNC_W_CHANNEL ADC_CHANNEL_4     /* ADC2 IN4,  PC4/PC5     */
+
+/** The DC link, rank 2 on ADC3 behind Phase U. The drive needs it every
+    period and the meter is locked out while this is armed; one more
+    conversion on the sequence costs a third of a microsecond. */
+#define SYNC_DCBUS_CHANNEL ADC_CHANNEL_10 /* ADC3 IN10, PC0         */
 
 /** How far below the top OC5REF falls. The trigger is its rising edge, so
     the ADC starts that far after the counter turns - inside the zero vector,
@@ -80,7 +86,8 @@ uint16_t Board_SyncTrigger(void)
   return Board_PwmReady() ? (uint16_t)TIM1->CCR5 : 0U;
 }
 
-static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel)
+static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel,
+                             uint32_t rank, uint32_t nbr, uint32_t single_diff)
 {
   /* Through HAL, not by writing PCSEL directly. Two reasons, one of which
      cost a build: ADC_CHANNEL_n is an encoded register value and not a
@@ -92,11 +99,11 @@ static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel)
   ADC_InjectionConfTypeDef in = {0};
 
   in.InjectedChannel = channel;
-  in.InjectedRank = ADC_INJECTED_RANK_1;
+  in.InjectedRank = rank;
   in.InjectedSamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-  in.InjectedSingleDiff = ADC_DIFFERENTIAL_ENDED;
+  in.InjectedSingleDiff = single_diff;
   in.InjectedOffsetNumber = ADC_OFFSET_NONE;
-  in.InjectedNbrOfConversion = 1U;
+  in.InjectedNbrOfConversion = nbr;
   in.InjectedDiscontinuousConvMode = DISABLE;
   in.AutoInjectedConv = DISABLE;
   in.QueueInjectedContext = DISABLE;
@@ -174,12 +181,14 @@ void Board_SyncOnInjected(const void *hadc)
     s_latest.phase[SYNC_W] = (int16_t)Board_AdcDifferential(
         HAL_ADCEx_InjectedGetValue(&hadc2, ADC_INJECTED_RANK_1));
     s_latest.at = TIM1->CNT;
+    s_latest.dcbus = HAL_ADCEx_InjectedGetValue(&hadc3, ADC_INJECTED_RANK_2);
     s_updates++;
 
     const int16_t logged[4] = { s_latest.phase[SYNC_U], s_latest.phase[SYNC_V],
                                 s_latest.phase[SYNC_W], (int16_t)s_latest.at };
     Board_LogPush(BOARD_LOG_SOURCE_PHASES, logged, 4U);
     Board_DaqOnInjected(s_latest.phase);
+    Board_DriveOnSample(s_latest.phase, s_latest.dcbus);
   }
 }
 
@@ -212,9 +221,31 @@ const char *Board_SyncArm(void)
      Invariant 6 says every read path configures its channel and clears
      PCSEL. This path does it once, here, rather than per conversion,
      because a hardware trigger leaves nowhere to do it per conversion. */
-  if (!SYNC_ConfigPhase(&hadc3, SYNC_U_CHANNEL)
-      || !SYNC_ConfigPhase(&hadc1, SYNC_V_CHANNEL)
-      || !SYNC_ConfigPhase(&hadc2, SYNC_W_CHANNEL))
+  /* Two ranks need scan mode. With it off the HAL discards
+     InjectedNbrOfConversion and writes JSQR from rank 1 alone - measured
+     2026-08-31 over SWD, JSQR 0x2A0: JL 0, no JSQ2, the DC link reading
+     zero while PCSEL already carried its channel. CubeMX generates ADC3
+     with scan off because the meter converts one channel at a time, and
+     it still does: the regular sequence keeps its length of one. Once,
+     here, because this is the one path that needs it. */
+  if (hadc3.Init.ScanConvMode != ADC_SCAN_ENABLE)
+  {
+    hadc3.Init.ScanConvMode = ADC_SCAN_ENABLE;
+    if (HAL_ADC_Init(&hadc3) != HAL_OK)
+    {
+      return "ADC3 would not re-initialise with scan mode on, which the "
+             "two-rank injected sequence needs - reset the board";
+    }
+  }
+
+  if (!SYNC_ConfigPhase(&hadc3, SYNC_U_CHANNEL, ADC_INJECTED_RANK_1, 2U,
+                        ADC_DIFFERENTIAL_ENDED)
+      || !SYNC_ConfigPhase(&hadc3, SYNC_DCBUS_CHANNEL, ADC_INJECTED_RANK_2, 2U,
+                           ADC_SINGLE_ENDED)
+      || !SYNC_ConfigPhase(&hadc1, SYNC_V_CHANNEL, ADC_INJECTED_RANK_1, 1U,
+                           ADC_DIFFERENTIAL_ENDED)
+      || !SYNC_ConfigPhase(&hadc2, SYNC_W_CHANNEL, ADC_INJECTED_RANK_1, 1U,
+                           ADC_DIFFERENTIAL_ENDED))
   {
     return "an injected group would not configure - check AFE_ON is on "
            "and that no meter read is in flight";

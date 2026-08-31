@@ -53,10 +53,6 @@ static uint32_t s_first_digital;
 static uint32_t s_last_trigger;
 static uint32_t s_interval_cycles;
 
-/* The software poll reads ONE channel per turn of the main loop, so a
-   record is assembled across several. That is not a compromise on
-   simultaneity - a software clock reads the channels one after another
-   whatever it does - and it is what keeps the loop responsive. */
 /* The live accumulator, kept beside the ring and fed by the same triggers.
    The ring is a capture and drops when it is full; this is the freshest
    average and cannot drop, because a reader that is late just gets a wider

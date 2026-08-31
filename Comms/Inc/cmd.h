@@ -183,6 +183,21 @@ extern "C" {
 #define DEVICE_TIME      7U
 #define DEVICE_THERMAL   8U
 #define DEVICE_POWER     9U
+#define DEVICE_DRIVE    10U
+
+/** Device 10's ops: the control law. Angles in microradians, speeds in
+    milliradians a second, currents mA, volts mV; the window's means and
+    deviations in micro-units. cmd_drive.c has the layouts. */
+#define DRIVE_OP_STATE        0U  /**< -> mode, fault, flags, frames, dq, costs */
+#define DRIVE_OP_MODE         1U  /**< u8 mode -> u8 took                        */
+#define DRIVE_OP_SETPOINT     2U  /**< u8 id, i32 value -> u8 took               */
+#define DRIVE_OP_SETPOINTS    3U  /**< -> u8 count, i32 x count                  */
+#define DRIVE_OP_THETA        4U  /**< i32 urad -> u8 took; both frames          */
+#define DRIVE_OP_WINDOW       5U  /**< -> the window since the last take, reset  */
+#define DRIVE_OP_MOMENTS_ARM  6U  /**< u32 periods -> u8 took                    */
+#define DRIVE_OP_MOMENTS      7U  /**< -> done, n, want, trigger, 4 x channel    */
+#define DRIVE_OP_RELOAD       8U  /**< parameters out of the record -> u8 took   */
+#define DRIVE_OP_CYCLES_RESET 9U  /**< forget the worst step cost -> u8          */
 
 /** Device 4's ops: the gate drivers, the synced triple and the STO chain. */
 #define GATEDRIVERS_OP_STATE    0U   /**< -> flags, registers, triple, STO      */
@@ -251,6 +266,10 @@ extern "C" {
 #define CAL_OP_SAVE        5U
 #define CAL_OP_LOAD        6U
 #define CAL_OP_DEFAULTS    7U
+/* MINOR 2: u8 first -> u8 total, u8 first, u8 count, u32 x count. Op 0
+   still carries the first fifteen only - with forty-five its reply was
+   310 bytes against MB_MAX_PDU, and every read answered 0x04. */
+#define CAL_OP_PARAMS      8U
 
 /* 2.0, 2026-08-29: the thermal nodes went per leg, which REPURPOSED wire
    indices - device 8 node order and the cal record's ceilings both. The
@@ -258,7 +277,9 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 1U        /* 1: gate drivers op 10, alternate */
+#define CMD_PROTO_MINOR 2U        /* 1: gate drivers op 10, alternate
+                                     2: device 10, the drive; the DC link
+                                        appended to gate drivers op 0     */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU
@@ -295,7 +316,7 @@ const cmd_desc_t *cmd_board_table(uint8_t *count);
 /** Test fixture commands, defined in cmd_test.c. */
 const cmd_desc_t *cmd_test_table(uint8_t *count);
 
-/** The BNO08X commands. See cmd_imu.c. */
+/** Command 0x6E, the device dispatch. See cmd_device.c. */
 const cmd_desc_t *cmd_device_table(uint8_t *count);
 
 /** One device's operations. Called by cmd_device.c after it has taken the
@@ -309,6 +330,7 @@ cmd_status_t cmd_log_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_power_op(uint8_t op, rd_t *in, wr_t *out);
+cmd_status_t cmd_drive_op(uint8_t op, rd_t *in, wr_t *out);
 cmd_status_t cmd_time_op(uint8_t op, rd_t *in, wr_t *out);
 
 /** `u8 took`, and on a refusal the board's own reason after it: what is
