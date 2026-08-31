@@ -2300,3 +2300,56 @@ because the measuring run and the drawing run do not load the link the
 same way. Where the loop cannot be measured at all - the stand-in
 produces only when read, so it measures zero - there is nothing to design
 a chain against, and the window is the fallback rather than a traceback.
+
+## Where a 115200 link actually goes
+
+2026-08-31. 115200 8N1 is 11 520 B/s of line. The acquisition path was
+getting 3 800, and the reason is not the baud rate.
+
+**Half of that 3 800 was a measurement artefact.** With `records=0` and
+no rate asked for, the board gates itself to what the link carries, so
+the ring never holds a full PDU and every read came back a quarter full -
+10.3 records of a possible 24. Told an explicit interval so the ring
+overfills, every read is a whole 240-byte PDU and the payload is
+**5128 B/s, 45 % of the raw rate**.
+
+The other half is a fixed cost per round trip, not a bandwidth:
+
+| read | payload | round trip | line time | waiting |
+|---|---|---|---|---|
+| gated | 103 B | 33.05 ms | 10.03 ms | 23.0 ms (70 %) |
+| full PDU | 240 B | 46.80 ms | 21.88 ms | 24.9 ms (53 %) |
+
+**About 25 ms whatever the payload** - a VCP driver's latency timer and
+the host's scheduling, the same thing the clock probe measured from the
+other side (a 16-byte reply is 1.7 ms of line and 35.9 ms of round trip).
+A Modbus PDU caps a reply at 253 bytes, so there is no bigger read to
+amortise it with: the ceiling is 240 bytes per round trip, and the round
+trip is mostly waiting. Raising the baud rate shortens only the 22 ms
+that is line - at 921 600 the round trip would be ~28 ms rather than 47,
+which is 8.6 kB/s and still latency-bound.
+
+## The ring moved into the 512 K that was standing empty
+
+The acquisition ring was 16 K of DTCM - 334 records at ten channels, five
+seconds, and a terminal that stopped drawing for six overflowed it. AXI
+SRAM, 512 K of it at 0x24000000, was entirely unused.
+
+A `.buffers` section in the linker script and the ring is **256 K**:
+26 214 records of one channel, 5349 of ten, and **DTCM fell from 39 % to
+26 %** into the bargain. Nothing on an interrupt path touches it - the
+main loop fills it a byte at a time and a command handler empties it the
+same way - and with no DMA and the data cache off there is no coherency
+question, which are the two things that usually make that region awkward.
+NOLOAD, so a quarter megabyte of zeroes is not carried in the image:
+flash is unchanged.
+
+## The ADC clock is on the wire now
+
+Asked what the converters run at, the answer had to be read out of
+`main.c`: PLL2 at M2 N12 P2 off a 25 MHz HSE is a 150 MHz VCO and a
+**75 MHz kernel**, and each ADC's DIV2 prescaler makes **37.5 MHz**. That
+is a second answer of exactly the kind this tree deletes, so
+`Board_AdcClockHz()` reads it out of RCC and the ADC's own CCR and the
+clock op appends it. The board says 37.500 MHz. Every sampling time here
+is quoted in ADC cycles, and this is what turns one into seconds.

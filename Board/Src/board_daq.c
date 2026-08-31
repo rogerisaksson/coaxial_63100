@@ -44,7 +44,9 @@
 #include <math.h>
 #include <string.h>
 
-static uint8_t  s_buf[DAQ_BYTES];
+/* `.buffers` is the AXI SRAM section in STM32H753xx_FLASH.ld. NOLOAD,
+   so a quarter of a megabyte of zeroes is not carried in the image. */
+static uint8_t  s_buf[DAQ_BYTES] __attribute__((section(".buffers")));
 static volatile uint32_t s_head;        /* byte offset of the next write */
 static volatile uint32_t s_tail;        /* byte offset of the next read  */
 static volatile uint32_t s_dropped;

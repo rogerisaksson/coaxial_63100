@@ -216,6 +216,10 @@ static cmd_status_t h_clock(rd_t *in, wr_t *out)
   wr_u32(out, Board_Cycles());
   wr_u32(out, link_ticks_per_us());
   wr_u8(out, Board_SysClkSource());
+  /* Appended: what the converters run at after the prescaler. Every
+     sampling time this board quotes is in ADC cycles, and turning one
+     into seconds needed main.c read by hand until now. */
+  wr_u32(out, Board_AdcClockHz());
 
   return CMD_OK;
 }

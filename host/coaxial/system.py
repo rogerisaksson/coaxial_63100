@@ -46,13 +46,18 @@ class System(Subsystem):
     def clock(self):
         """The live clock tree, as the board itself measures it."""
         reader = Reader(self.request(protocol.CLOCK))
-        return {
+        out = {
             'sysclk_hz': reader.u32(),
             'hclk_hz': reader.u32(),
             'cycle_counter': reader.u32(),
             'ticks_per_us': reader.u32(),
             'source': protocol.CLOCK_SOURCES.get(reader.u8(), 'unknown'),
         }
+        # Appended, so a board older than this answers a shorter reply.
+        # What the CONVERTERS run at, after the prescaler - the number
+        # every sampling time on this board is quoted against.
+        out['adc_hz'] = reader.u32() if reader.remaining >= 4 else None
+        return out
 
     def channel_map(self, refresh=False):
         """Every channel this board has, analog and digital, and which way

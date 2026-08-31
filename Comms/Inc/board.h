@@ -1006,6 +1006,16 @@ bool Board_Pe15(void);
 
 uint32_t Board_SysClkHz(void);
 uint32_t Board_HclkHz(void);
+
+/** What the converters are actually clocked at, after the prescaler.
+  *
+  * Read out of RCC and the ADC's own CCR rather than computed from the
+  * .ioc: the kernel comes off PLL2 and each ADC divides it again, and a
+  * host that wanted the number had to read main.c for it - which is a
+  * second answer, and the sort that goes stale. Every sampling time on
+  * this board is quoted in ADC cycles, so this is what turns one into
+  * seconds. */
+uint32_t Board_AdcClockHz(void);
 uint8_t  Board_SysClkSource(void);   /**< 0 HSI, 1 CSI, 2 HSE, 3 PLL1, 4 other */
 uint32_t Board_Cycles(void);
 

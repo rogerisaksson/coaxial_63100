@@ -24,6 +24,23 @@ uint32_t Board_SysClkHz(void)
   return HAL_RCC_GetSysClockFreq();
 }
 
+uint32_t Board_AdcClockHz(void)
+{
+  /* The kernel first - whichever source the RCC was told to use - then
+     the common prescaler in ADC12's CCR, which ADC3 shares the encoding
+     of. HAL gives the first; the second is four bits that mean 1, 2, 4,
+     6, 8, 10, 12, 16, 32, 64, 128, 256. */
+  static const uint16_t divider[16] = { 1U, 2U, 4U, 6U, 8U, 10U, 12U,
+                                        16U, 32U, 64U, 128U, 256U,
+                                        256U, 256U, 256U, 256U };
+  const uint32_t kernel = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_ADC);
+  const uint32_t presc = (ADC12_COMMON->CCR & ADC_CCR_PRESC)
+                         >> ADC_CCR_PRESC_Pos;
+
+  return kernel / divider[presc & 0xFU];
+}
+
+
 uint32_t Board_HclkHz(void)
 {
   return HAL_RCC_GetHCLKFreq();

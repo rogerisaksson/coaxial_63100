@@ -241,6 +241,23 @@ SECTIONS
     . = ALIGN(8);
   } >DTCMRAM
 
+  /* THE BIG BUFFERS, in the 512 K of AXI SRAM that was standing empty
+     while the acquisition ring made do with 16 K of DTCM.
+
+     Here rather than DTCM because DTCM is 128 K and holds .data,
+     .bss, the heap and the stack; and because nothing on an
+     interrupt path touches these. The ring is filled by the main
+     loop and emptied by a command handler, both a byte-copy at a
+     time, so the AXI bus costs it nothing that matters. There is no
+     DMA and the data cache is off, so no coherency question either
+     - the two things that usually make this region awkward. */
+  .buffers (NOLOAD) : ALIGN(8)
+  {
+    *(.buffers)
+    *(.buffers*)
+    . = ALIGN(8);
+  } >RAM
+
 
 
   /* Remove information from the standard libraries */

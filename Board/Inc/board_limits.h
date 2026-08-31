@@ -151,7 +151,19 @@
 
 /** 16 KB of DTCM. At one channel that is 2048 records, at all nine 409. */
 
-#define DAQ_BYTES 16384U
+/* THE ACQUISITION RING, in the AXI SRAM rather than DTCM.
+
+   256 K of the 512 K that was standing empty. At ten channels and a
+   49-byte record that is 5350 records - a minute and a half at the 63
+   a second ten channels leave, or 22 seconds at the 240 one channel
+   does. The old 16 K held 334 records, five seconds, and a terminal
+   that stopped drawing for six overflowed it (FINDINGS).
+
+   Nothing on an interrupt path touches it: the main loop fills it a
+   byte at a time and a command handler empties it the same way, so
+   the AXI bus costs it nothing that matters - and with no DMA and the
+   data cache off there is no coherency question either. */
+#define DAQ_BYTES (256U * 1024U)
 
 
 

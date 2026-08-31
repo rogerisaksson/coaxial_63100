@@ -353,7 +353,9 @@ class SimulatedSystem:
 
     def clock(self):
         return {'sysclk_hz': 475000000, 'hclk_hz': 237500000,
-                'cycle_counter': 0, 'ticks_per_us': 475, 'source': 'PLL1'}
+                'cycle_counter': 0, 'ticks_per_us': 475, 'source': 'PLL1',
+                # PLL2 at 75 MHz through the ADCs' DIV2 prescaler.
+                'adc_hz': 37500000}
 
 
 class SimulatedAfe:
