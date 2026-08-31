@@ -217,6 +217,20 @@
 #define BOARD_DAQ_CLIMB_AT 6U
 #define BOARD_DAQ_FALL_AT  1U
 
+/** And a ceiling on that in records, because THE LADDER ANSWERS LATENCY
+  * AND THE RING ABSORBS BURSTS - two jobs for one buffer, and only the
+  * first should move a rung.
+  *
+  * MEASURED: the ring went from 16 K to 256 K and the ladder stopped
+  * working. Six eighths of 780 records was five seconds of silence;
+  * six eighths of 14 000 is seventy, so a host that stopped reading was
+  * a minute of backlog before anything adapted - and every record in it
+  * older than the last. A backlog is what a rung is for; headroom for a
+  * burst is what the rest of the ring is for. 512 records is three or
+  * four seconds at the rates this link carries, and the fall mark is an
+  * eighth of it for the same hysteresis as before. */
+#define BOARD_DAQ_CLIMB_MAX 512U
+
 /** Records at the low mark before a task steps back down. A ring empties
   * the instant a host reads it, so the level alone says nothing about
   * whether the link has caught up - only that it just drained. */

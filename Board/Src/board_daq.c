@@ -259,14 +259,28 @@ static void ladder_step(void)
   }
 
   const uint32_t held = Board_DaqAvailable();
+  /* The lower of the two: a fraction of a small ring, a fixed backlog of
+     a large one. A rung answers how far BEHIND the link is, and that is
+     a count of records rather than a share of whatever was allocated. */
+  uint32_t climb = (capacity * BOARD_DAQ_CLIMB_AT) / 8U;
+  uint32_t fall = (capacity * BOARD_DAQ_FALL_AT) / 8U;
 
-  if (held >= ((capacity * BOARD_DAQ_CLIMB_AT) / 8U))
+  if (climb > BOARD_DAQ_CLIMB_MAX)
+  {
+    climb = BOARD_DAQ_CLIMB_MAX;
+  }
+  if (fall > (BOARD_DAQ_CLIMB_MAX / 8U))
+  {
+    fall = BOARD_DAQ_CLIMB_MAX / 8U;
+  }
+
+  if (held >= climb)
   {
     take_rung((uint8_t)(s_rung + 1U));
     return;
   }
 
-  if (held > ((capacity * BOARD_DAQ_FALL_AT) / 8U))
+  if (held > fall)
   {
     s_low_for = 0U;
     return;
