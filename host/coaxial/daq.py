@@ -111,14 +111,29 @@ class Daq(Subsystem, Acquisition):
         return mask
 
     def configure(self, channels, clock='software', sample_time=0,
-                  decimate=1, accumulate=1, records=0, digital=False,
-                  rate_hz=None, interval_us=None):
+                  decimate=1, accumulate=None, records=0, digital=False,
+                  sample_rate=None, interval_us=None):
         """Replace the task. Refused while one is running.
 
-        `accumulate` sums, it does not average: summing keeps the bits an
-        average would throw away and the count is right here to divide by.
-        `decimate` keeps one trigger in N. `records` of 0 runs until stopped.
+        `sample_rate` is what the HOST gets, in records a second. The
+        converter is not slowed to it: it runs at whatever the loop
+        manages - megasamples a second is the reason to sum on the target
+        at all - and the board closes a record on the clock, carrying the
+        sum of everything that arrived and the count that made it. Ask for
+        a rate the link can drain and the averaging is free.
+
+        `accumulate` is the other way to close a record: N samples make
+        one, and `sample_rate` then gates the triggers instead. Left unset
+        it follows `sample_rate` - a rate means the clock closes it, no
+        rate means one sample per record.
+
+        Summing rather than averaging keeps the bits an average would
+        throw away; `record['samples']` is the divisor and comes off the
+        wire with the sums. `decimate` keeps one trigger in N. `records`
+        of 0 runs until stopped.
         """
+        if accumulate is None:
+            accumulate = 0 if sample_rate is not None else 1
         # Only what stops the request being FORMED is checked here - a name
         # that is not a clock cannot be packed into a byte. Everything the
         # board can judge, the board judges, and says why.
@@ -133,7 +148,8 @@ class Daq(Subsystem, Acquisition):
         # apart. Unlimited is still reachable, and is only safe for a short
         # finite run.
         if interval_us is None:
-            interval_us = 0 if rate_hz is None else int(1e6 / float(rate_hz))
+            interval_us = (0 if sample_rate is None
+                           else int(1e6 / float(sample_rate)))
 
         # The mask is 16 bits: the ninth channel did not fit in eight, and
         # a mask that silently dropped one would configure a task the
@@ -162,13 +178,17 @@ class Daq(Subsystem, Acquisition):
         fields, pins = layout['fields'], layout.get('pins') or []
         raw = self._op(DAQ_OP_READ, bytes([min(int(want), 255)]))
         got = raw[0]
-        stride = 4 + 4 * len(fields) + (4 if pins else 0)
-        fmt = '>I%di%s' % (len(fields), 'I' if pins else '')
+        # THE BOARD'S STRIDE, not one worked out here. It says so in the
+        # layout for exactly this reason, and a decoder that recomputes it
+        # mis-frames every record after the first the day the record grows
+        # a field - which is how the sample count arrived.
+        stride = layout['stride']
+        fmt = '>I%di%sH' % (len(fields), 'I' if pins else '')
         out = []
         for i in range(got):
             at = 1 + i * stride
             values = struct.unpack(fmt, raw[at:at + stride])
-            rec = {'at': values[0]}
+            rec = {'at': values[0], 'samples': values[-1]}
             rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
             if pins:
                 bits = values[1 + len(fields)]
@@ -249,7 +269,7 @@ class Daq(Subsystem, Acquisition):
 
     def once(self, channels, records, clock='software', sample_time=0,
                 decimate=1, accumulate=1, timeout=10.0, digital=False,
-                rate_hz=None):
+                sample_rate=None):
         """Configure, start, drain until the task says done. The one-shot.
 
         Called `once` and not `acquire` because `acquire` is the loop: start
@@ -263,7 +283,7 @@ class Daq(Subsystem, Acquisition):
         layout = self.configure(channels, clock=clock, sample_time=sample_time,
                                 decimate=decimate, accumulate=accumulate,
                                 records=records, digital=digital,
-                                rate_hz=rate_hz)
+                                sample_rate=sample_rate)
         self.start()
 
         out = []

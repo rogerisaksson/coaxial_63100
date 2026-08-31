@@ -219,6 +219,10 @@ do {
         # capturing stdout would turn the page's console into a pipe.
         Push-Location (Join-Path $PSScriptRoot 'host')
         $page = @('-X', 'utf8', 'tools/menu.py', '--port', $Port)
+        # The front page wears the chip a view will wear. Without this it
+        # probed for a board, found one, and said LIVE over a menu whose
+        # every view was about to open the stand-in.
+        if ($Simulated) { $page += '--simulated' }
         if ($from -and $SubViews -contains $from) { $page += @('--open', $from) }
         $from = $null
         & python @page

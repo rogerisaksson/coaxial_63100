@@ -146,7 +146,7 @@ device = Coaxial63100(port='COM4', power_afe=True)   # simulated_device=True: no
 daq = device.daq                         # the data acquisition subsystem
 daq.open()
 device.set_time_from_pc()                # the board counts cycles, not time
-daq.configure(['Phase U', 'NTC'], rate_hz=100, accumulate=8)   # channels, rate, summing
+daq.configure(['Phase U', 'NTC'], sample_rate=100)   # 100 records/s, the board averages
 daq.start()
 for block in daq.blocks(20):
     r = block[-1]

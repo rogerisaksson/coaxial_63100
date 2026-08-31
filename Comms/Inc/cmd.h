@@ -281,9 +281,15 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 2U        /* 1: gate drivers op 10, alternate
+#define CMD_PROTO_MINOR 3U        /* 1: gate drivers op 10, alternate
                                      2: device 10, the drive; the DC link
-                                        appended to gate drivers op 0     */
+                                        appended to gate drivers op 0
+                                     3: a daq record ends with u16 count,
+                                        and accumulate 0 closes it on the
+                                        clock. RESIZES the record, like
+                                        the u16 channel mask did - op 5
+                                        says the stride and a decoder
+                                        that recomputed it mis-frames  */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

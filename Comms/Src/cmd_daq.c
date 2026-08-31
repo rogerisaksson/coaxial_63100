@@ -96,9 +96,12 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
        have sampled sixteen times slower with accumulate at 16 instead of
        averaging sixteen samples - the same output rate, and every sample
        but one thrown away. Reduce on the target, do not slow it down. */
+    /* One trigger per record when the clock closes it: the substituted
+       interval IS the window, and the converter runs free inside it. */
     const uint32_t rps = cmd_link_records_per_second(st.stride);
-    const uint32_t per_record = (uint32_t)cfg.decimate *
-                                (uint32_t)cfg.accumulate;
+    const uint32_t acc = (cfg.accumulate == 0U) ? 1U
+                                                : (uint32_t)cfg.accumulate;
+    const uint32_t per_record = (uint32_t)cfg.decimate * acc;
 
     if ((rps != 0U) && (per_record != 0U) && (rps < (1000000U / per_record)))
     {

@@ -360,17 +360,21 @@ class Coaxial63100(Acquisition):
         """What the board says it has. Not a list written down here."""
         return self.board.analog.names()
 
-    def configure(self, channels=None, rate_hz=None, accumulate=1,
+    def configure(self, channels=None, sample_rate=None, accumulate=None,
                   decimate=1, digital=True, clock='software',
                   sample_time=0, records=None, interval_us=None):
         """Set up the acquisition. Replaces whatever was there.
 
         channels    names, e.g. ['Phase U', 'NTC']. None takes all of them.
-        rate_hz     how often to sample. None lets the board choose what
-                    the link can carry, which is the safe default.
-        accumulate  sum this many samples into each record - averaging that
-                    keeps what an average throws away, since the record
-                    carries the sum and the count.
+        sample_rate records a second the HOST gets. The converter is not
+                    slowed to it - it runs flat out and the board sums
+                    into a record the clock closes, so a rate the link
+                    can drain costs no samples. None lets the board
+                    choose what the link carries, which is the safe
+                    default.
+        accumulate  close each record on this many samples instead, and
+                    let `sample_rate` gate the triggers. Unset it follows
+                    `sample_rate`.
         decimate    keep one sample in N and discard the rest. Prefer
                     `accumulate`; it keeps what this loses.
         digital     put the board's digital pins in every record.
@@ -393,7 +397,7 @@ class Coaxial63100(Acquisition):
         self.layout = self.board.daq.configure(
             channels if channels is not None else self.channels(),
             clock=clock, sample_time=sample_time, decimate=decimate,
-            accumulate=accumulate, digital=digital, rate_hz=rate_hz,
+            accumulate=accumulate, digital=digital, sample_rate=sample_rate,
             **burst)
         return self.layout
 
@@ -423,11 +427,11 @@ class Coaxial63100(Acquisition):
         `record['NTC'] / record['samples']`. The board sends the sum
         because it keeps the bits an average throws away.
         """
-        records = self.board.daq.acquire(layout=self.layout)
-        samples = max(1, self.board.daq.state()['accumulate'])
-        for record in records:
-            record['samples'] = samples
-        return self._timed(records)
+        # `samples` rides in the record now, so this no longer spends a
+        # round trip on state() per block to ask what it was configured
+        # with - which was the wrong number the moment the clock, rather
+        # than a count, closed the record.
+        return self._timed(self.board.daq.acquire(layout=self.layout))
 
     #: Consecutive unanswered reads that still count as a busy link.
     MISSES_ALLOWED = 5
@@ -532,11 +536,16 @@ class Coaxial63100(Acquisition):
     def blocks(self, count):
         """`count` non-empty blocks, one at a time, for a `for` loop.
 
+        NEGATIVE runs the whole capture: blocks keep coming until the task
+        stops on its own - a `records=` run reaching its end - or the
+        caller breaks out. A free-running task never stops, which is what
+        `for block in daq.blocks(-1)` is for.
+
         Waits for the board rather than spinning: an empty block means the
         buffer has not filled yet, not that anything is wrong.
         """
         seen, missed = 0, 0
-        while seen < count:
+        while count < 0 or seen < count:
             try:
                 block = self.acquire()
             except (NoReplyError, CrcError) as exc:
@@ -557,6 +566,8 @@ class Coaxial63100(Acquisition):
                 continue
             missed = 0
             if not block:
+                if count < 0 and self.state()['done']:
+                    return          # the run ended and the buffer is dry
                 time.sleep(0.005)
                 continue
             seen += 1

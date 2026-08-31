@@ -11,7 +11,8 @@
   *   clock        SOFTWARE (the main loop) or TIM1 (the injected group)
   *   sample_time  0..7, the converter's own window
   *   decimate     keep one trigger in N
-  *   accumulate   sum N samples per record
+  *   accumulate   sum N samples per record; 0 closes the record on
+  *                `interval_us` instead, with the converter free
   *   records      stop after this many, 0 to run until stopped
   *
   * The buffer is bytes and the stride comes from the config, so no host holds
@@ -20,7 +21,16 @@
   * to one question, and the mirror goes stale.
   *
   * Accumulation SUMS rather than averages: it keeps the bits an average
-  * throws away, and a host that wants the mean has the count.
+  * throws away, and the count rides in the record, so a host divides by
+  * what actually went in rather than by what it asked for.
+  *
+  * TWO WAYS TO CLOSE A RECORD, and `accumulate` picks which. A COUNT
+  * (accumulate >= 1) is the old one: N samples make a record, and
+  * `interval_us` gates the triggers. A CLOCK (accumulate == 0) is the
+  * other: the converter runs at whatever the loop manages - megasamples
+  * a second is the whole reason to sum on the target - and `interval_us`
+  * closes the record, so the host gets the rate it can drain and every
+  * sample taken in between is in the sum rather than thrown away.
   ******************************************************************************
   */
 #include "board_limits.h"
@@ -144,7 +154,7 @@ static uint16_t put_be32(uint8_t *dst, uint16_t at, uint32_t v)
 
 static void push_record(void)
 {
-  uint8_t rec[4U + (4U * BOARD_DAQ_MAX_CHANNELS) + 4U];
+  uint8_t rec[4U + (4U * BOARD_DAQ_MAX_CHANNELS) + 4U + 2U];
   uint16_t at = put_be32(rec, 0U, s_first_at);
 
   for (uint8_t f = 0U; f < s_fields; f++)
@@ -156,6 +166,13 @@ static void push_record(void)
   {
     at = put_be32(rec, at, s_first_digital);
   }
+
+  /* THE DIVISOR TRAVELS WITH THE SUM. Closed by the clock the count is
+     whatever the window held, and a host that took it from the config
+     would divide by a number the board never used. Last in the record
+     so the fields keep the offsets a reader already knows. */
+  rec[at++] = (uint8_t)((s_acc_n >> 8) & 0xFFU);
+  rec[at++] = (uint8_t)(s_acc_n & 0xFFU);
 
   const uint32_t masked = __get_PRIMASK();
   __disable_irq();
@@ -207,12 +224,37 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
     s_first_digital = digital;
   }
 
-  for (uint8_t f = 0U; f < s_fields; f++)
+  /* SATURATE, do not wrap. A window closed by the clock has no bound on
+     how many samples it holds, and `s_acc` is int32 against a
+     single-ended code of 65535 - so past LIVE_MAX_ADDITIONS the sum
+     would go negative and the host would divide the wreck by the count
+     and report it as a mean. Stopping instead keeps the mean over what
+     did go in true, and the count says how many that was.
+
+     The same bound and the same reasoning as the live accumulator's:
+     INT32_MAX / 65535, so the next addition cannot carry it past the
+     end whatever the channel read. */
+  if (s_acc_n < LIVE_MAX_ADDITIONS)
   {
-    s_acc[f] += values[f];
+    for (uint8_t f = 0U; f < s_fields; f++)
+    {
+      s_acc[f] += values[f];
+    }
+    s_acc_n++;
   }
 
-  if (++s_acc_n >= s_cfg.accumulate)
+  if (s_cfg.accumulate == 0U)
+  {
+    /* Closed by the clock. Unsigned elapsed arithmetic, so the CYCCNT
+       wrap costs nothing (invariant 2). */
+    if ((uint32_t)(at - s_first_at) >= s_interval_cycles)
+    {
+      push_record();
+    }
+    return;
+  }
+
+  if (s_acc_n >= s_cfg.accumulate)
   {
     push_record();
   }
@@ -258,10 +300,6 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
   if (cfg->decimate == 0U)
   {
     return "decimate counts triggers, so the smallest is 1";
-  }
-  if (cfg->accumulate == 0U)
-  {
-    return "accumulate counts samples per record, so the smallest is 1";
   }
   if ((uint64_t)cfg->interval_us * (uint64_t)(SystemCoreClock / 1000000U)
       > (uint64_t)UINT32_MAX)
@@ -312,7 +350,9 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
 
   s_cfg = *cfg;
   s_interval_cycles = interval_cycles(cfg->interval_us);
-  s_stride = (uint16_t)(4U + (4U * s_fields) + ((cfg->digital != 0U) ? 4U : 0U));
+  /* + 2 for the sample count every record carries. */
+  s_stride = (uint16_t)(4U + (4U * s_fields)
+                        + ((cfg->digital != 0U) ? 4U : 0U) + 2U);
   s_head = 0U;
   s_tail = 0U;
   s_dropped = 0U;
@@ -555,8 +595,19 @@ void Board_DaqPoll(void)
   {
     s_next_field = 0U;
 
-    /* `interval_us` gates RECORDS, not samples. The ring is a capture and
-       its rate is the link's business; the accumulator's is not. */
+    /* CLOSED BY THE CLOCK: nothing gates the triggers. Every sweep the
+       loop manages goes into the sum, and `interval_us` decides when the
+       record is finished rather than when the next sample may be taken -
+       which is the whole point of summing on the target. */
+    if (s_cfg.accumulate == 0U)
+    {
+      feed(s_pending, s_pending_at, s_pending_digital);
+      return;
+    }
+
+    /* Closed by a count: `interval_us` gates RECORDS by gating the
+       triggers that make one. The ring is a capture and its rate is the
+       link's business; the accumulator's is not. */
     if (s_interval_cycles != 0U)
     {
       const uint32_t now = Board_Cycles();

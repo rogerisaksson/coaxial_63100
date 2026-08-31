@@ -87,7 +87,6 @@ failed; a host listing causes goes stale when a check moves. The host
 validates only what stops a request being formed.
 
 ```
-accumulate=0      -> accumulate counts samples per record, so the smallest is 1
 NTC on tim1       -> the TIM1 clock converts the three phases and nothing else -
                      any other channel has to come through the meter on the
                      software clock
@@ -264,11 +263,31 @@ accumulate, u32 records, u8 digital, u32 interval_us`. `channels` is a
 bitmask over `0x6D` kind 0; `clock` 0 is the main loop, 1 the injected
 group, one record per PWM period - a TIM1 clock **carries only the phases**
 and refuses any other channel; `sample_time` 0..7 over the H7's eight
-windows, shortest first; `decimate` keeps one trigger in N; `accumulate`
-**sums** N samples into a record - the bits an average throws away, and the
-host has the count; `records` 0 runs until stopped; `digital` appends one
-`u32` of drivable-pin levels per record, sampled at the record's timestamp;
-`interval_us` is the software clock's minimum gap.
+windows, shortest first; `decimate` keeps one trigger in N; `records` 0
+runs until stopped; `digital` appends one `u32` of drivable-pin levels per
+record, sampled at the record's timestamp.
+
+**Two ways to close a record, and `accumulate` picks which** (MINOR 3).
+
+| `accumulate` | closes on | `interval_us` gates | samples a record holds |
+|---|---|---|---|
+| >= 1 | a count of N | the triggers | N |
+| 0 | the clock | the record | whatever the window held |
+
+The clock is what a host wants when the converter is faster than the
+link: nothing gates the triggers, every sweep the loop manages goes into
+the sum, and the record closes on `interval_us` - so asking for 100
+records a second costs no samples, it averages them. Either way the sum
+is a SUM: it keeps the bits an average throws away, and the divisor is in
+the record.
+
+**The sum saturates rather than wrapping.** A window has no bound on how
+many samples it holds and the accumulator is `i32` against a single-ended
+code of 65535, so it stops at `LIVE_MAX_ADDITIONS` (INT32_MAX / 65535 =
+32767) - the same bound and the same reasoning as the live accumulator's.
+The mean over what did go in stays true, and the count says how many that
+was; a wrapped sum would divide a negative wreck by the count and call it
+a mean. A window that held nothing is not pushed at all.
 
 **The channel mask is `u16`, from MINOR 23** - it was `u8` and the ninth
 channel did not fit. A resized field, not an appended one: a host older
@@ -317,8 +336,13 @@ whatever the record size; past that only fewer records help, which
 `accumulate` and `decimate` do on the target. Measured: seven channels and
 the digital word drop 3851 records at `accumulate` 1, none at 16.
 
-**Op 4** replies `u8 got`, then records of `u32 at` plus one `i32` per
-enabled channel - whole records only. **Op 5** makes op 4 decodable: `u8
+**Op 4** replies `u8 got`, then records of `u32 at`, one `i32` per
+enabled channel, the digital `u32` when the task has one, and `u16
+samples` last - whole records only. The count travels with the sums
+because the clock decides it: a host that took it from the config would
+divide by a number the board never used. **This RESIZED the record**
+(MINOR 3), like the `u16` channel mask did - op 5 says the stride and a
+decoder that recomputes it mis-frames every record after the first. **Op 5** makes op 4 decodable: `u8
 fields, u16 stride`, per field `u8 channel, u8 unit, u8 differential, str
 signal`, then `u8 digital` and, when set, `u8 pins` and per pin `u8
 direction, str signal`. Drivable pins only: all twenty-three came to 312

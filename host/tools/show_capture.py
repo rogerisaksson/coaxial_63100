@@ -63,7 +63,7 @@ def start(rig, args):
                            sample_time=args.sample_time,
                            decimate=args.decimate,
                                accumulate=args.accumulate,
-                               rate_hz=args.rate)
+                               sample_rate=args.rate)
     rig.start()
     say('ok', 'task', '%d channels + %d pins, stride %d, %s clock'
         % (len(layout['fields']), len(layout['pins']), layout['stride'],
@@ -256,7 +256,7 @@ def adapt(rig, layout, args, view):
         fresh = rig.configure(clock=args.clock, digital=True,
                               sample_time=args.sample_time,
                               decimate=args.decimate, accumulate=want,
-                                  rate_hz=args.rate)
+                                  sample_rate=args.rate)
         rig.start()
     except RigError:
         view['missed'] += 1

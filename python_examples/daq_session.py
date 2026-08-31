@@ -48,11 +48,13 @@ print(device.set_time_from_pc())
 
 # %% [markdown]
 # ## Configure, then start
-# `accumulate=8` sums 8 samples per record - averaging that loses nothing.
-# `rate_hz=None` lets the board pick what the link carries.
+# `sample_rate=100` asks for 100 records a second and lets the BOARD do
+# the averaging: the converter runs flat out and each record carries the
+# sum of everything the window held, with `samples` as the divisor.
+# `accumulate=N` is the other way - N samples close a record instead.
 
 # %%
-daq.configure(['Phase U', 'NTC'], rate_hz=None, accumulate=8, digital=True)
+daq.configure(['Phase U', 'NTC'], sample_rate=100, digital=True)
 daq.start()
 
 # %% [markdown]

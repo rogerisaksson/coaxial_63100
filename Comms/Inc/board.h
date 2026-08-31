@@ -295,7 +295,8 @@ typedef struct
   uint8_t  clock;        /**< BOARD_DAQ_CLOCK_*                          */
   uint8_t  sample_time;  /**< 0..7, the converter's own sampling window  */
   uint16_t decimate;     /**< keep one trigger in N; 1 keeps every one   */
-  uint16_t accumulate;   /**< sum N samples per record; 1 sums nothing   */
+  uint16_t accumulate;   /**< sum N samples per record; 1 sums nothing,
+                              0 closes the record on interval_us instead */
   uint32_t records;      /**< stop after this many, or 0 to run on       */
   uint8_t  digital;      /**< append the digital pins to every record    */
   uint32_t interval_us;  /**< software clock: minimum gap between samples*/

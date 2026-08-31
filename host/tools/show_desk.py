@@ -170,7 +170,7 @@ def main(argv=None):
     # one at a time: the accumulator carries the mean AND the two ends of
     # the window, which is exactly what a meter face wants.
     try:
-        layout = rig.configure(rate_hz=None, accumulate=args.samples,
+        layout = rig.configure(sample_rate=None, accumulate=args.samples,
                                digital=False)
         params = rig.board.analog.scaling()
         rig.start()

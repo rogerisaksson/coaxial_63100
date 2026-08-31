@@ -1418,14 +1418,17 @@ class SimulatedDaq(Acquisition):
         return sorted(out)
 
     def configure(self, channels, clock='software', sample_time=0,
-                  decimate=1, accumulate=1, records=0, digital=False,
-                  rate_hz=None, interval_us=None):
+                  decimate=1, accumulate=None, records=0, digital=False,
+                  sample_rate=None, interval_us=None):
         from .errors import RigError
+        if accumulate is None:
+            accumulate = 0 if sample_rate is not None else 1
         if clock not in ('software', 'tim1', 0, 1):
             raise ValueError('clock is %s, not one of software, tim1' % clock)
-        if decimate < 1 or accumulate < 1:
-            raise ValueError('decimate and accumulate count samples, so both '
-                             'are at least 1')
+        if decimate < 1 or accumulate < 0:
+            raise ValueError('decimate counts samples so it is at least 1, '
+                             'and accumulate at least 0 - zero closes the '
+                             'record on the clock instead')
         if self._running:
             raise RigError('the board refused that task - it is running '
                            '(simulated)')
@@ -1436,7 +1439,8 @@ class SimulatedDaq(Acquisition):
                            'carries only the phases (simulated)')
         self._order = order
         if interval_us is None:
-            interval_us = 0 if rate_hz is None else int(1e6 / float(rate_hz))
+            interval_us = (0 if sample_rate is None
+                           else int(1e6 / float(sample_rate)))
         self._cfg = {'channels': sum(1 << i for i in order), 'clock': clock,
                      'sample_time': sample_time, 'decimate': decimate,
                      'accumulate': accumulate, 'records': records,
@@ -1468,6 +1472,20 @@ class SimulatedDaq(Acquisition):
         self._running = False
         return True
 
+    #: Conversions a second the board's own loop manages, all channels
+    #: together - PROTOCOL.md, device 6, measured. What a window holds is
+    #: that divided by the fields in a sweep.
+    LOOP_HZ = 13200
+
+    def _samples_per_record(self, fields):
+        """How many sweeps a record holds: `accumulate`, or what the loop
+        would fit in the window when the clock closes it."""
+        if self._cfg['accumulate']:
+            return self._cfg['accumulate']
+        window_s = (self._cfg['interval_us'] or 0) / 1e6
+        sweeps = self.LOOP_HZ / max(1, fields) * window_s
+        return max(1, min(32767, int(sweeps)))
+
     def acquire(self, want=0, layout=None):
         import random
         if not self._running and not self._buffered():
@@ -1481,11 +1499,12 @@ class SimulatedDaq(Acquisition):
         out = []
         for _ in range(n):
             self._at = (self._at + int(self._period_us() * 475)) & 0xFFFFFFFF
-            rec = {'at': self._at}
+            took = self._samples_per_record(len(fields))
+            rec = {'at': self._at, 'samples': took}
             for f in fields:
                 centre = self.CENTRE[f['channel']]
                 rec[f['signal']] = sum(centre + random.randint(-60, 60)
-                                       for _ in range(self._cfg['accumulate']))
+                                       for _ in range(took))
             if (layout or self.layout()).get('pins'):
                 rec['digital'] = {p['signal']: bool(random.getrandbits(1))
                                   for p in self.PINS}
@@ -1538,11 +1557,11 @@ class SimulatedDaq(Acquisition):
 
     def once(self, channels, records, clock='software', sample_time=0,
                 decimate=1, accumulate=1, timeout=10.0, digital=False,
-                rate_hz=None):
+                sample_rate=None):
         layout = self.configure(channels, clock=clock, sample_time=sample_time,
                                 decimate=decimate, accumulate=accumulate,
                                 records=records, digital=digital,
-                                rate_hz=rate_hz)
+                                sample_rate=sample_rate)
         self.start()
         out = []
         while len(out) < records:

@@ -7,7 +7,7 @@ State as of 2026-08-31.
 | `run_tests.ps1 -All` | 2114 checks, 23 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
-| Protocol | MAJOR 2, MINOR 2 |
+| Protocol | MAJOR 2, MINOR 3 |
 | Firmware | 1.6.0 |
 | Calibration record | CAL_VERSION 8, 45 parameters, op 8 pages them |
 
@@ -101,8 +101,15 @@ Nothing else has - invariant 7.
    first. Everything in DTCM is uncached either way; the win is flash
    literal pools and .rodata on the interrupt path. Measure before and
    after with device 10 op 0's `cyc_*` and `exit_ticks_max`.
-9. **A USB device class**, if USB is to do anything.
-10. **A cycle-counted duty.** A hold's length is the link's: the shortest is
+9. **The clock-closed daq record on the bench.** Written and built,
+   never run against a powered board: `accumulate=0` lets the converter
+   run free and closes a record on `interval_us`, carrying the count.
+   What a window actually holds - the loop manages ~13.2 k
+   conversions/s over all channels - and whether the saturation bound
+   is ever reached are both bench numbers. The host half runs against
+   the stand-in (`sample_rate=100` gave 66 samples a record).
+10. **A USB device class**, if USB is to do anything.
+11. **A cycle-counted duty.** A hold's length is the link's: the shortest is
     one write round trip, ~800 periods, and 100 ms asked for is 93-108 at the
     FETs. A period count on the duty op, decremented in TIM1's update ISR and
     zeroing the compares at zero, makes 10 ms exactly 500 cycles. Op 10
