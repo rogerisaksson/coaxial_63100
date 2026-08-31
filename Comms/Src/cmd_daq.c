@@ -116,6 +116,48 @@ static cmd_status_t h_daq_filter(rd_t *in, wr_t *out)
 }
 
 
+/** op 9 - one rung of the ladder. */
+static cmd_status_t h_daq_rung(rd_t *in, wr_t *out)
+{
+  const uint8_t rung = rd_u8(in);
+  const uint16_t boxcar = rd_u16(in);
+  const uint8_t count = rd_u8(in);
+  const uint16_t decimate = rd_u16(in);
+  filter_biquad_t sections[FILTER_MAX_SECTIONS];
+
+  if (count > FILTER_MAX_SECTIONS)
+  {
+    cmd_took(out, "the board runs four biquads - an eighth-order "
+                  "Bessel");
+    return CMD_OK;
+  }
+
+  for (uint8_t i = 0U; i < count; i++)
+  {
+    sections[i].b0 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].b1 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].b2 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].a1 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+    sections[i].a2 = (float)rd_i32(in) / DAQ_COEFF_SCALE;
+  }
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+
+  const char *refusal = Board_DaqSetRung(rung, boxcar, sections, count,
+                                         decimate);
+
+  if ((refusal == NULL) && (rung == 0U))
+  {
+    daq_substitute_interval();
+  }
+  cmd_took(out, refusal);
+  return CMD_OK;
+}
+
+
 /** op 8 - a known tone in the converter's place. */
 static cmd_status_t h_daq_tone(rd_t *in, wr_t *out)
 {
@@ -169,6 +211,12 @@ static cmd_status_t h_daq_state(wr_t *out)
      what the ring holds at this stride, and the fullest it has been. */
   wr_u32(out, st.capacity);
   wr_u32(out, st.worst);
+  /* Which rung is running, how many there are, and how often it has
+     moved - a host that sees `samples` change needs to know whether the
+     board climbed or the task was reconfigured. */
+  wr_u8(out, st.rung);
+  wr_u8(out, st.rungs);
+  wr_u32(out, st.rung_changes);
   return CMD_OK;
 }
 
@@ -188,6 +236,9 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
   cfg.records = rd_u32(in);
   cfg.digital = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
   cfg.interval_us = (rd_left(in) > 0U) ? rd_u32(in) : 0U;
+  /* Appended: a request without it does not adapt, which is what the
+     op meant before there was a ladder to climb. */
+  cfg.adapt = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
 
   if (!rd_ok(in))
   {
@@ -385,6 +436,7 @@ cmd_status_t cmd_daq_op(uint8_t op, rd_t *in, wr_t *out)
     case DAQ_OP_LIVE:      return h_daq_live(out);
     case DAQ_OP_FILTER:    return h_daq_filter(in, out);
     case DAQ_OP_TONE:      return h_daq_tone(in, out);
+    case DAQ_OP_RUNG:      return h_daq_rung(in, out);
     default:               return CMD_ERR_VALUE;
   }
 }

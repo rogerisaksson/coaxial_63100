@@ -2197,3 +2197,39 @@ That needed one more thing: the board remembers that the rate was
 AUTOMATIC rather than re-deriving it from the answer, because after the
 first substitution the config no longer reads as zero and the second call
 returned early. 8 records a second became 35.
+
+## The board filters harder when the link cannot keep up
+
+2026-08-31. A ladder of whole chains goes down to the board; it climbs
+when its ring fills and comes back down when the link has caught up. What
+a slow link costs is then BANDWIDTH rather than records.
+
+Three channels, 1450 sweeps a second, a link carrying 181:
+
+| rung | boxcar x dec | records/s | cutoff | alias |
+|---|---|---|---|---|
+| 0 | 2 x 10 | 144.9 | 29.0 Hz | -32.5 dB |
+| 1 | 2 x 19 | 71.8 | 14.5 Hz | -34.3 dB |
+| 2 | 15 x 5 | 36.4 | 7.2 Hz | -30.6 dB |
+| 3 | 151 x 1 | 18.1 | 3.6 Hz | -15.6 dB |
+
+**Measured, the whole cycle**: reading, the ring sat at 6 of 780. The
+host then stopped reading for five seconds - the ring climbed to 590 and
+the board went 0 to rung 3. The host read hard again: the ring emptied
+and over the next twenty seconds the board came back down to rung 0. Six
+changes, and **0 records dropped in the whole run**.
+
+It climbs all three rungs in a few records rather than one at a time, and
+that is the right response rather than a defect: a ring at six eighths and
+rising means the link is gone, and the evidence is the drop count. Coming
+down is deliberately slow - 64 records below an eighth per step, which at
+rung 3's 18 records a second is three and a half seconds a rung. A ring
+empties the instant a host reads it, so one look says only that it just
+drained, and every change costs the filter its settling.
+
+**Rung 3's -15.6 dB is the honest cost of the bottom of a ladder.** Four
+rungs at a factor of two is 8x, and by the last one the ratio has run out
+of factors to split between a boxcar and a decimation: 151 x 1 leaves the
+biquads nothing to work with. A ladder that needs its bottom rung to be
+clean wants more rungs, closer together, or a converter rate with more
+divisors - the design reports the number either way, which is the point.

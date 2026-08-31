@@ -189,6 +189,27 @@
   * revision that grows some, and costs one byte of the record each. */
 #define BOARD_DAQ_MAX_PINS 16U
 
+/** Rungs of the ladder a task can climb when its ring fills.
+  *
+  * Each rung is a WHOLE design - boxcar, coefficients, decimation - so
+  * climbing one is still an anti-alias filter and not just fewer
+  * samples. Decimating harder without redesigning is how a fold gets
+  * in, and the board has no way to design anything: the host does that
+  * and sends the ladder. Four rungs is 336 bytes and covers 8x. */
+#define BOARD_DAQ_LADDER 4U
+
+/** Where the ring is when a task climbs, and when it comes back down,
+  * in eighths of capacity. Hysteresis, because a level that crosses one
+  * threshold both ways chatters between rungs and every change costs
+  * the filter its settling. */
+#define BOARD_DAQ_CLIMB_AT 6U
+#define BOARD_DAQ_FALL_AT  1U
+
+/** Records at the low mark before a task steps back down. A ring empties
+  * the instant a host reads it, so the level alone says nothing about
+  * whether the link has caught up - only that it just drained. */
+#define BOARD_DAQ_FALL_AFTER 64U
+
 /* ---- THE THERMAL OBSERVER ---------------------------------------------- */
 
 /** How often the model is stepped from the main loop. The fastest node has a

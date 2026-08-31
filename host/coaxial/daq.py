@@ -34,6 +34,7 @@ DAQ_OP_LAYOUT = 5
 DAQ_OP_LIVE = 6
 DAQ_OP_FILTER = 7
 DAQ_OP_TONE = 8
+DAQ_OP_RUNG = 9
 
 #: Coefficients cross as Q28 - the wire carries no floating point, and a
 #: biquad's a1 reaches -2, so 2^28 leaves a range of +/-8 and a
@@ -92,6 +93,13 @@ class Daq(Subsystem, Acquisition):
             state['worst'] = r.u32()
         else:
             state['capacity'] = state['worst'] = None
+        if r.remaining >= 6:
+            state['rung'] = r.u8()
+            state['rungs'] = r.u8()
+            state['rung_changes'] = r.u32()
+        else:
+            state['rung'] = state['rungs'] = 0
+            state['rung_changes'] = 0
         return state
 
     def layout(self):
@@ -133,7 +141,7 @@ class Daq(Subsystem, Acquisition):
 
     def configure(self, channels, clock='software', sample_time=0,
                   decimate=1, accumulate=None, records=0, digital=False,
-                  sample_rate=None, interval_us=None):
+                  sample_rate=None, interval_us=None, adapt=False):
         """Replace the task. Refused while one is running.
 
         `sample_rate` is what the HOST gets, in records a second. The
@@ -175,10 +183,11 @@ class Daq(Subsystem, Acquisition):
         # The mask is 16 bits: the ninth channel did not fit in eight, and
         # a mask that silently dropped one would configure a task the
         # caller did not ask for.
-        payload = struct.pack('>HBBHHIBI', self._resolve(channels),
+        payload = struct.pack('>HBBHHIBIB', self._resolve(channels),
                               CLOCKS.get(clock, clock), sample_time,
                               decimate, accumulate, records,
-                              1 if digital else 0, int(interval_us))
+                              1 if digital else 0, int(interval_us),
+                              1 if adapt else 0)
         self.took(self._op(DAQ_OP_CONFIGURE, payload))
         return self.layout()
 
@@ -205,6 +214,30 @@ class Daq(Subsystem, Acquisition):
     #: which is what lets every record be checked exactly rather than
     #: statistically.
     SINE, RAMP = 0, 1
+
+    def ladder(self, chains):
+        """Load the whole ladder, bottom rung first.
+
+        The board climbs it when its ring fills and comes back down when
+        the link has caught up, so what a slow link costs is bandwidth
+        rather than records. Rung 0 forgets every rung above it, which is
+        what stops a rebuilt ladder leaving a stale one behind - so this
+        sends 0 first, always.
+
+        Each rung is a whole design: `configure(adapt=True)` and the
+        board does the rest. `state()['rung']` says which one is running
+        and `record['samples']` says it again, per record.
+        """
+        for n, chain in enumerate(chains):
+            payload = struct.pack('>BHBH', n, int(chain['boxcar']),
+                                  len(chain['sections']),
+                                  int(chain['decimate']))
+            for section in chain['sections']:
+                payload += struct.pack('>5i',
+                                       *[int(round(c * COEFF_SCALE))
+                                         for c in section])
+            self.took(self._op(DAQ_OP_RUNG, payload))
+        return True
 
     def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768, kind=0):
         """A known sine in the converter's place, or `hz=0` for the

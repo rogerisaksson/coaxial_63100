@@ -92,8 +92,8 @@ class Later:
 #: What the acquisition front door answers. A whitelist, not everything:
 #: `daq.write` reaching the pin writer would put the device vocabulary
 #: behind the wrong name.
-DAQ_DOOR = ('configure', 'shape', 'tone', 'start', 'stop', 'state',
-            'acquire', 'latest', 'blocks', 'channels', 'outputs')
+DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
+            'state', 'acquire', 'latest', 'blocks', 'channels', 'outputs')
 
 
 class DaqView:
@@ -362,7 +362,8 @@ class Coaxial63100(Acquisition):
 
     def configure(self, channels=None, sample_rate=None, accumulate=None,
                   decimate=1, digital=True, clock='software',
-                  sample_time=0, records=None, interval_us=None):
+                  sample_time=0, records=None, interval_us=None,
+                  adapt=False):
         """Set up the acquisition. Replaces whatever was there.
 
         channels    names, e.g. ['Phase U', 'NTC']. None takes all of them.
@@ -398,6 +399,7 @@ class Coaxial63100(Acquisition):
             channels if channels is not None else self.channels(),
             clock=clock, sample_time=sample_time, decimate=decimate,
             accumulate=accumulate, digital=digital, sample_rate=sample_rate,
+            adapt=adapt,
             **burst)
         return self.layout
 
@@ -409,6 +411,17 @@ class Coaxial63100(Acquisition):
         `chain['decimate']` here. No arguments clears it.
         """
         self.board.daq.shape(sections, decimate)
+        return self
+
+    def ladder(self, chains):
+        """Load the ladder of chains the board climbs when its ring fills.
+
+        Every rung is a whole design, so climbing one is still an
+        anti-alias filter and not just fewer samples. Ask for
+        `configure(adapt=True)` and the board does the choosing;
+        `state()['rung']` says which it chose.
+        """
+        self.board.daq.ladder(chains)
         return self
 
     def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768, kind=0):

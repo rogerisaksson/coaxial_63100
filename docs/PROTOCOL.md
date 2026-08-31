@@ -106,7 +106,7 @@ and an op dispatcher beside it. `coaxial.Coaxial63100` is the host side.
 | 3 | the calibration record | flash, bank 2 sector 7, CAL_VERSION 8 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults, 8 params (paged) |
 | 4 | the gate drivers | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16, 9 dead time + skew, 10 alternate: `u16 x3` A, `u16 x3` B - A one PWM period, B the next, swapped by the update interrupt until the next duty write; the thermal observer is charged each leg's mean over the pair (MINOR 1) |
 | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
-| 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live, 7 filter, 8 tone |
+| 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live, 7 filter, 8 tone, 9 rung |
 | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |
 | 8 | the thermal observer | NTC, both dies, the model | 0 state, 1 set node, 2 set board, 3 set sampling, 4 budget, 5 set limit |
 | 9 | the rails and who holds them | AFE_ON | 0 state, 1 release all |
@@ -374,6 +374,26 @@ needs a fixed decimation, and a window's length is whatever the loop
 managed. `host/coaxial/bessel.py` designs the coefficients and reports
 what the chain fails to stop, which is the number to read before
 believing one.
+
+**Op 9 loads one rung of the ladder**: `u8 rung, u16 boxcar, u8 count,
+u16 decimate`, then the sections as op 7 takes them. With
+`configure(adapt)` the board CLIMBS IT WHEN ITS RING FILLS and comes
+back down when the link has caught up, so what a slow link costs is
+bandwidth rather than records.
+
+Every rung is a WHOLE design - boxcar, coefficients, decimation -
+because decimating harder without redesigning is exactly how a fold
+gets in. The board cannot design anything; it chooses between designs
+sent to it. Rung 0 forgets every rung above it, so a rebuilt ladder
+leaves no stale rung to climb into, and a rung is refused while a task
+runs.
+
+It climbs at six eighths of the ring and falls below one eighth after
+64 records there - hysteresis, because a level that crosses one
+threshold both ways chatters between rungs and every change costs the
+filter its settling. A record says which rung made it without a field
+for it: `samples` IS that rung's boxcar. Op 0 appends `u8 rung, u8
+rungs, u32 rung_changes` beside it.
 
 **Op 8 puts a known tone in the converter's place**: `u32 hz, u32
 rate_hz, i32 amplitude, i32 offset`; `hz` of 0 gives the converter back.

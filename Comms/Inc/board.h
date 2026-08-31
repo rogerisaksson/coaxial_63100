@@ -300,6 +300,7 @@ typedef struct
   uint32_t records;      /**< stop after this many, or 0 to run on       */
   uint8_t  digital;      /**< append the digital pins to every record    */
   uint32_t interval_us;  /**< software clock: minimum gap between samples*/
+  uint8_t  adapt;        /**< climb the ladder when the ring fills      */
 } board_daq_config_t;
 
 typedef struct
@@ -321,6 +322,9 @@ typedef struct
      is the thing worth knowing. */
   uint32_t capacity;     /**< whole records the ring holds at `stride`   */
   uint32_t worst;        /**< the fullest it has been since the start    */
+  uint8_t  rung;         /**< which rung of the ladder is running        */
+  uint8_t  rungs;        /**< how many the host sent                     */
+  uint32_t rung_changes; /**< how often it has climbed or fallen         */
   board_daq_config_t config;
 } board_daq_state_t;
 
@@ -381,6 +385,17 @@ void Board_DaqState(board_daq_state_t *out);
   */
 const char *Board_DaqSetFilter(const void *sections, uint8_t count,
                                uint16_t decimate);
+
+/**
+  * @brief  One rung of the ladder: a whole design and its boxcar.
+  *
+  * Rung 0 is what a task starts on. Sending rung 0 forgets every rung
+  * above it, so a host builds the ladder bottom up and cannot leave a
+  * stale rung behind. Refused while a task runs.
+  */
+const char *Board_DaqSetRung(uint8_t rung, uint16_t boxcar,
+                             const void *sections, uint8_t count,
+                             uint16_t decimate);
 
 /**
   * @brief  A known tone in place of the converter, for proving the path.

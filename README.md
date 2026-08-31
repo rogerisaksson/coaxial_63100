@@ -95,7 +95,7 @@ told.
 cube-cmake --build --preset Debug      # must be zero warnings
 STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
 .\run_tests.ps1                        # ~25 % of the checks, the default
-.\run_tests.ps1 -All                   # 2163 checks, the gate
+.\run_tests.ps1 -All                   # 2169 checks, the gate
 .\run_tests.ps1 -Structure             # does host/ still hold together - 4 s
 ```
 

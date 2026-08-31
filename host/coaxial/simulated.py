@@ -1390,6 +1390,8 @@ class SimulatedDaq(Acquisition):
                 'available': held, 'produced': self._produced,
                 'dropped': 0, 'capacity': capacity,
                 'worst': min(capacity, held),
+                'rung': 0, 'rungs': getattr(self, '_ladder', 0),
+                'rung_changes': 0,
                 **cfg}
 
     PINS = ({'signal': 'AFE_ON', 'direction': 'out'},
@@ -1437,7 +1439,7 @@ class SimulatedDaq(Acquisition):
 
     def configure(self, channels, clock='software', sample_time=0,
                   decimate=1, accumulate=None, records=0, digital=False,
-                  sample_rate=None, interval_us=None):
+                  sample_rate=None, interval_us=None, adapt=False):
         from .errors import RigError
         if accumulate is None:
             accumulate = 0 if sample_rate is not None else 1
@@ -1466,6 +1468,12 @@ class SimulatedDaq(Acquisition):
         self._produced = 0
         self._done = False
         return self.layout()
+
+    def ladder(self, chains):
+        """Remembered, not climbed: what a ladder answers is what a real
+        ring does under a real link, and the stand-in has neither."""
+        self._ladder = len(chains)
+        return True
 
     def shape(self, sections=(), decimate=1):
         """Accepted and remembered; the stand-in invents values rather

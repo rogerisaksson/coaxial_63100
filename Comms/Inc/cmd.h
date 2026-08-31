@@ -234,6 +234,8 @@ extern "C" {
 #define DAQ_OP_FILTER    7U  /**< u8 count, u16 decimate, i32 x 5 x count   */
 #define DAQ_OP_TONE      8U  /**< u32 hz, u32 rate, i32 amp, i32 offset,
                                   u8 kind: 0 sine, 1 ramp                   */
+#define DAQ_OP_RUNG      9U  /**< u8 rung, u16 boxcar, u8 count,
+                                  u16 decimate, i32 x 5 x count             */
 
 /** Device 7's ops: the cycle counter, latched. Op 0 is meant to be
     BROADCAST - no reply means no turnaround inside the measurement. */

@@ -358,6 +358,33 @@ def for_link(fs, max_rate_hz, order=4, margin=0.8, **kw):
     return design(fs, float(max_rate_hz) * margin, order=order, **kw)
 
 
+def ladder(fs, max_rate_hz, rungs=4, order=4, margin=0.8, step=2.0):
+    """A ladder of whole chains, each `step` times slower than the last.
+
+    The board climbs it when its ring fills and comes back down when the
+    link has caught up. Every rung is a COMPLETE design - boxcar,
+    coefficients, decimation - because decimating harder without
+    redesigning is exactly how a fold gets in, and the board cannot
+    design anything: it chooses between designs sent to it.
+
+    Rung 0 is what the link carries today. Four rungs at a factor of two
+    cover 8x, which is a fibre against a bottle.
+    """
+    out = []
+    for n in range(rungs):
+        rate = float(max_rate_hz) * margin / (step ** n)
+        if rate * (step if n else 1.0) < 1.0:
+            break
+        try:
+            out.append(design(fs, rate, order=order))
+        except ValueError:
+            break              # the ratio ran out of factors: stop here
+    if not out:
+        raise ValueError('no rung fits a %g Hz link off a %g Hz converter'
+                         % (max_rate_hz, fs))
+    return out
+
+
 def flat(sections_list):
     """The sections as one list of floats, b0 b1 b2 a1 a2 - the order the
     harness and the wire both take them in."""

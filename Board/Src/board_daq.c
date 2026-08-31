@@ -107,6 +107,18 @@ static filter_design_t  s_chain;
 static filter_channel_t s_filter[BOARD_DAQ_MAX_CHANNELS];
 static bool             s_filtering;
 
+/* THE LADDER. Each rung is a whole design and its own boxcar, so a
+   record says which one made it without a field for it: `samples` IS
+   the rung's accumulate. The board climbs when the ring fills and comes
+   back down when it has been empty a while - it cannot design anything
+   itself, so what it does is choose between designs the host sent. */
+static filter_design_t s_rungs[BOARD_DAQ_LADDER];
+static uint16_t        s_rung_boxcar[BOARD_DAQ_LADDER];
+static uint8_t         s_rungs_held;
+static uint8_t         s_rung;
+static uint32_t        s_rung_changes;
+static uint32_t        s_low_for;
+
 /* The tone generator: a complex rotation, two multiplies a sample, so a
    burst of thousands costs microseconds where as many sinf() calls
    would cost a millisecond. Renormalised every so often - the rotation
@@ -197,6 +209,75 @@ static uint16_t put_be32(uint8_t *dst, uint16_t at, uint32_t v)
 }
 
 
+/** Take rung `n`: its whole design, and the accumulate that goes with
+  * it. The filter state goes with them - coefficients changing under a
+  * running biquad is a transient nothing in the record would explain,
+  * and the settling is the price of the step. */
+static void take_rung(uint8_t n)
+{
+  if ((n >= s_rungs_held) || (n == s_rung))
+  {
+    return;
+  }
+  s_rung = n;
+  s_chain = s_rungs[n];
+  s_cfg.accumulate = s_rung_boxcar[n];
+  s_filtering = (s_chain.sections > 0U) || (s_chain.decimate > 1U);
+  s_rung_changes++;
+  s_low_for = 0U;
+  memset(s_filter, 0, sizeof(s_filter));
+  memset(s_acc, 0, sizeof(s_acc));
+  memset(s_dacc, 0, sizeof(s_dacc));
+  s_acc_n = 0U;
+}
+
+
+/** One record's worth of pressure on the ring, and what it costs.
+  *
+  * Climbing means filtering and decimating harder, which is the only
+  * answer a board has to a link that cannot keep up: dropping records
+  * loses what happened, and a slower converter loses it too. Coming back
+  * down needs the ring to have been empty a WHILE - it empties the
+  * instant a host reads it, so one look says only that it just drained.
+  */
+static void ladder_step(void)
+{
+  if ((s_rungs_held < 2U) || !s_cfg.adapt)
+  {
+    return;
+  }
+
+  const uint32_t capacity = (s_stride != 0U) ? (DAQ_BYTES / s_stride) : 0U;
+
+  if (capacity == 0U)
+  {
+    return;
+  }
+
+  const uint32_t held = Board_DaqAvailable();
+
+  if (held >= ((capacity * BOARD_DAQ_CLIMB_AT) / 8U))
+  {
+    take_rung((uint8_t)(s_rung + 1U));
+    return;
+  }
+
+  if (held > ((capacity * BOARD_DAQ_FALL_AT) / 8U))
+  {
+    s_low_for = 0U;
+    return;
+  }
+  if (++s_low_for >= BOARD_DAQ_FALL_AFTER)
+  {
+    s_low_for = 0U;
+    if (s_rung > 0U)
+    {
+      take_rung((uint8_t)(s_rung - 1U));
+    }
+  }
+}
+
+
 static void push_record(void)
 {
   uint8_t rec[4U + (4U * BOARD_DAQ_MAX_CHANNELS) + 4U + 2U];
@@ -262,6 +343,8 @@ static void push_record(void)
     s_running = false;
     s_done = true;
   }
+
+  ladder_step();
 }
 
 
@@ -518,6 +601,11 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
   memset(s_acc, 0, sizeof(s_acc));
   memset(s_dacc, 0, sizeof(s_dacc));
   memset(s_filter, 0, sizeof(s_filter));
+  /* A new task starts at the bottom: the ladder was designed against a
+     stride, and the stride is what just changed. */
+  s_rung = 0U;
+  s_low_for = 0U;
+  s_rung_changes = 0U;
   return NULL;
 }
 
@@ -554,6 +642,60 @@ const char *Board_DaqSetFilter(const void *sections, uint8_t count,
   s_chain.boxcar = 1U;
   s_filtering = (count > 0U) || (decimate > 1U);
   memset(s_filter, 0, sizeof(s_filter));
+  return NULL;
+}
+
+
+const char *Board_DaqSetRung(uint8_t rung, uint16_t boxcar,
+                             const void *sections, uint8_t count,
+                             uint16_t decimate)
+{
+  if (s_running)
+  {
+    return "a task is running - stop it first, because a ladder that "
+           "changed under a half-drained buffer hands out records of "
+           "two designs with nothing to say which was which";
+  }
+  if (rung >= BOARD_DAQ_LADDER)
+  {
+    return "the board holds four rungs - ask the ladder for fewer, or "
+           "a wider step between them";
+  }
+  if (rung > s_rungs_held)
+  {
+    return "rungs are built from the bottom: send 0, then 1, and so on, "
+           "so there is never a gap the board would climb into";
+  }
+  if (count > FILTER_MAX_SECTIONS)
+  {
+    return "the board runs four biquads - an eighth-order Bessel";
+  }
+  if ((decimate == 0U) || (boxcar == 0U))
+  {
+    return "a rung needs a boxcar and a decimation of at least 1 each";
+  }
+
+  filter_pass_through(&s_rungs[rung]);
+  s_rungs[rung].decimate = decimate;
+  s_rungs[rung].sections = count;
+  if (count > 0U)
+  {
+    memcpy(s_rungs[rung].section, sections,
+           (size_t)count * sizeof(s_rungs[rung].section[0]));
+  }
+  s_rung_boxcar[rung] = boxcar;
+
+  /* Rung 0 forgets what was above it, so a host that rebuilds the
+     ladder cannot leave a stale rung for the board to climb into. */
+  s_rungs_held = (rung == 0U) ? 1U : (uint8_t)(rung + 1U);
+  if (rung == 0U)
+  {
+    s_rung = 0U;
+    s_chain = s_rungs[0];
+    s_cfg.accumulate = boxcar;
+    s_filtering = (count > 0U) || (decimate > 1U);
+    memset(s_filter, 0, sizeof(s_filter));
+  }
   return NULL;
 }
 
@@ -871,6 +1013,9 @@ void Board_DaqState(board_daq_state_t *out)
      counts records against. */
   out->capacity = (s_stride != 0U) ? (DAQ_BYTES / s_stride) : 0U;
   out->worst = s_worst;
+  out->rung = s_rung;
+  out->rungs = s_rungs_held;
+  out->rung_changes = s_rung_changes;
   out->config = s_cfg;
 }
 
