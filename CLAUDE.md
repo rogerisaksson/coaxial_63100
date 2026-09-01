@@ -157,7 +157,9 @@ device.close()                           # the port, and the supply as found
 ```
 
 Subsystems hang off it by name - `device.daq`, `.imu`, `.angle`, `.thermal`,
-`.gates`, `.drive`. `python_examples/daq_session.py` is the flow as a notebook.
+`.gates`, `.drive`. `python_examples/daq_session.py` is the flow as a notebook;
+`python_examples/propeller_sweep.ipynb` is the 5230SL and its propeller from
+rest to 6717 rpm and back, checked against Hobbywing's own thrust stand.
 
 **`daq.catalogue()` is what the board can record**, each row saying its
 kind and whether `configure()` may ask for it - the sensor fields
