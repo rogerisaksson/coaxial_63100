@@ -121,6 +121,20 @@ typedef struct
   int16_t  j;
   int16_t  k;
   int16_t  real;        /**< all four Q14 counts - the scale is the host's */
+
+  /* THE THREE VECTORS, each on its own report and its own Q point - the
+     scale stays the host's, as the quaternion's does. `have_*` says
+     whether the part has ever sent one: a feature that was never enabled
+     leaves zeros, and zero is a legal reading. */
+  bool     have_accel;
+  bool     have_gyro;
+  bool     have_mag;
+  int16_t  accel[3];    /**< SH2 0x01, Q8, m/s^2                          */
+  int16_t  gyro[3];     /**< SH2 0x02, Q9, rad/s                          */
+  int16_t  mag[3];      /**< SH2 0x03, Q4, uT                             */
+  uint8_t  accel_status;
+  uint8_t  gyro_status;
+  uint8_t  mag_status;
 } board_imu_state_t;
 
 #define BOARD_IMU_LOOP_OFF   0U  /**< AFE_ON is low; nothing to poll     */

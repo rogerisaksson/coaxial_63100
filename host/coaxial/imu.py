@@ -224,7 +224,39 @@ class Imu(Subsystem, PolledSensor):
         # a second is 'none' every time a host looks.
         got['last_fault'] = LOOP_ERRORS.get(r.u8(), 'unknown')
         got['last_fault_id'] = r.u8()
+
+        # The three vectors, appended by MINOR 6 and read only if
+        # they are there - a board older than that answers a reply
+        # that stops above, and a decoder that assumed the bytes
+        # would raise on one that is simply older.
+        for name, report in (('accelerometer', 0x01),
+                             ('gyroscope', 0x02),
+                             ('magnetometer', 0x03)):
+            got[name] = self._vector(r, report)
         return got
+
+    @staticmethod
+    def _vector(r, report_id):
+        """One three-axis report, or None when it never arrived.
+
+        EACH CARRIES ITS OWN `have`. A feature nobody enabled leaves
+        zeros, and zero is a legal reading - so the flag is what
+        tells a caller the difference, not the value.
+        """
+        if not r.remaining:
+            return None
+        have = bool(r.u8())
+        status = r.u8()
+        counts = [r.i16(), r.i16(), r.i16()]
+        if not have:
+            return None
+        bits, unit = SCALE[report_id]
+        divisor = float(1 << bits)
+        return {'accuracy': ACCURACY.get(status & 0x03, 'unknown'),
+                'unit': unit,
+                'counts': dict(zip('xyz', counts)),
+                'value': dict(zip('xyz',
+                                  (c / divisor for c in counts)))}
 
     def latest(self):
         """The newest quaternion, or None when the loop has not seen one."""

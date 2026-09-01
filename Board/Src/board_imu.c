@@ -609,6 +609,21 @@ static void take_rotation(uint8_t id, const uint8_t *r)
   note(BOARD_IMU_ERR_NONE);
 }
 
+/* The three-axis reports share one shape with each other and with the
+   rotation vector's first three fields: a five-byte header (id, sequence,
+   status, delay) then x, y, z little-endian. One reader, because three
+   copies of the same offsets is three places for a byte order to go
+   wrong - which it already did once here, on a feature interval. */
+static void take_vector(const uint8_t *r, int16_t *out, uint8_t *status)
+{
+  *status = r[2];
+  out[0] = (int16_t)((uint16_t)r[4] | ((uint16_t)r[5] << 8));
+  out[1] = (int16_t)((uint16_t)r[6] | ((uint16_t)r[7] << 8));
+  out[2] = (int16_t)((uint16_t)r[8] | ((uint16_t)r[9] << 8));
+  note(BOARD_IMU_ERR_NONE);
+}
+
+
 static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
 {
   s_state.cargoes++;
@@ -650,6 +665,21 @@ static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
     {
       take_rotation(id, &cargo[at]);
     }
+    else if (id == SH2_REPORT_ACCELEROMETER)
+    {
+      take_vector(&cargo[at], s_state.accel, &s_state.accel_status);
+      s_state.have_accel = true;
+    }
+    else if (id == SH2_REPORT_GYROSCOPE)
+    {
+      take_vector(&cargo[at], s_state.gyro, &s_state.gyro_status);
+      s_state.have_gyro = true;
+    }
+    else if (id == SH2_REPORT_MAGNETIC_FIELD)
+    {
+      take_vector(&cargo[at], s_state.mag, &s_state.mag_status);
+      s_state.have_mag = true;
+    }
 
     at = (uint16_t)(at + step);
   }
@@ -670,8 +700,45 @@ static uint32_t s_stage_at;
   * loses it on every reset and AFE_ON resets it; nothing re-applied it, so
   * one blink of the rail stopped the reports while the loop still said
   * `running`. Zero interval means nothing has been asked for. */
+/* EVERY FEATURE ASKED FOR, not the last one. A host wanting the
+   quaternion AND the three vectors asks four times, and a reset throws
+   away all four - re-applying only the most recent left the other three
+   silent while the loop still said `running`, which is the same defect
+   the single slot was written to fix, one report wider. Four slots
+   because four is what the part is asked for here; a fifth would say so
+   by being refused. */
+#define IMU_FEATURES 4U
+
+static uint8_t  s_feature_id_of[IMU_FEATURES];
+static uint32_t s_feature_us_of[IMU_FEATURES];
+static uint8_t  s_features;
+
+/* The most recent, for the command layer's one-feature question. */
 static uint8_t  s_feature_id;
 static uint32_t s_feature_us;
+
+
+/** Remember one, replacing an entry for the same report. Returns false
+  * when there is no room, which is a refusal the caller must pass on. */
+static bool feature_keep(uint8_t report_id, uint32_t interval_us)
+{
+  for (uint8_t i = 0U; i < s_features; i++)
+  {
+    if (s_feature_id_of[i] == report_id)
+    {
+      s_feature_us_of[i] = interval_us;
+      return true;
+    }
+  }
+  if (s_features >= IMU_FEATURES)
+  {
+    return false;
+  }
+  s_feature_id_of[s_features] = report_id;
+  s_feature_us_of[s_features] = interval_us;
+  s_features++;
+  return true;
+}
 
 /** Set when a reset has thrown the feature away and it has not been asked
   * for again yet. Applied from the poll's quiet path, never from the init:
@@ -682,6 +749,9 @@ static uint32_t s_feature_us;
   * Letting the ordinary read path consume the queue first makes the write
   * short. */
 static bool s_feature_pending;
+
+/** Which slot the re-apply has got to, since it does one a turn. */
+static uint8_t s_feature_next;
 static uint32_t s_cargoes_at_reset;   /**< to know the part has spoken */
 static uint32_t s_last_cargo_ms;      /**< when the last one arrived   */
 
@@ -702,6 +772,7 @@ bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us)
      is doing, and re-applying it after a reset would be a second lie. */
   s_feature_id = report_id;
   s_feature_us = interval_us;
+  (void)feature_keep(report_id, interval_us);
   return true;
 }
 
@@ -753,7 +824,8 @@ static void poll_init(void)
       /* Ask again for whatever was asked for before the reset - but not
          here. The part came up with a queue, and emptying it is what makes
          the write long. Flagged, and done below once the queue is gone. */
-      s_feature_pending = (s_feature_us != 0U);
+      s_feature_pending = (s_features != 0U);
+      s_feature_next = 0U;
       s_cargoes_at_reset = s_state.cargoes;
       return;
   }
@@ -831,7 +903,16 @@ void Board_ImuPoll(void)
       && ((HAL_GetTick() - s_last_cargo_ms) > IMU_QUIET_MS)
       && !intn_asserted())
   {
-    s_feature_pending = !Board_ImuSetFeature(s_feature_id, s_feature_us);
+    /* ONE PER TURN. Each Set Feature empties the part before it
+       speaks, and four in a row held the main loop long enough that
+       a Modbus reply came back late - the same measurement that put
+       this on the quiet path in the first place. */
+    if (Board_ImuSetFeature(s_feature_id_of[s_feature_next],
+                            s_feature_us_of[s_feature_next]))
+    {
+      s_feature_next++;
+      s_feature_pending = (s_feature_next < s_features);
+    }
     return;
   }
 

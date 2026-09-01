@@ -350,6 +350,30 @@ static cmd_status_t h_imu_latest(rd_t *in, wr_t *out)
      counter climb and never learns of what. */
   wr_u8(out, st.last_fault);
   wr_u8(out, st.last_fault_id);
+
+  /* THE THREE VECTORS, appended like everything else here. Each is
+     its own SH-2 report and arrives only if the host asked for it,
+     so each carries its own `have` - zero is a legal reading and a
+     feature that was never enabled must not look like one. The Q
+     points are the part's (accel Q8, gyro Q9, mag Q4) and the
+     scaling is the host's, exactly as the quaternion's is. */
+  wr_u8(out, st.have_accel ? 1U : 0U);
+  wr_u8(out, st.accel_status);
+  wr_u16(out, (uint16_t)st.accel[0]);
+  wr_u16(out, (uint16_t)st.accel[1]);
+  wr_u16(out, (uint16_t)st.accel[2]);
+
+  wr_u8(out, st.have_gyro ? 1U : 0U);
+  wr_u8(out, st.gyro_status);
+  wr_u16(out, (uint16_t)st.gyro[0]);
+  wr_u16(out, (uint16_t)st.gyro[1]);
+  wr_u16(out, (uint16_t)st.gyro[2]);
+
+  wr_u8(out, st.have_mag ? 1U : 0U);
+  wr_u8(out, st.mag_status);
+  wr_u16(out, (uint16_t)st.mag[0]);
+  wr_u16(out, (uint16_t)st.mag[1]);
+  wr_u16(out, (uint16_t)st.mag[2]);
   return CMD_OK;
 }
 

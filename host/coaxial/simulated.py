@@ -850,9 +850,41 @@ class SimulatedImu(PolledSensor):
                 'counts': dict(zip(('i', 'j', 'k', 'real'), report['raw'])),
                 'quaternion': report['quaternion'],
             })
+            self._vectors(got)
             return got
         got['quaternion'] = None
+        self._vectors(got)
         return got
+
+    #: Q points the part uses, the same table `coaxial.imu` divides
+    #: by: accelerometer Q8 in m/s^2, gyroscope Q9 in rad/s,
+    #: magnetometer Q4 in uT.
+    VECTORS = (('accelerometer', 0x01, 8, 'm/s^2', (0.0, 0.0, 9.81)),
+               ('gyroscope', 0x02, 9, 'rad/s', (0.0, 0.0, 0.0)),
+               ('magnetometer', 0x03, 4, 'uT', (22.0, -3.0, 41.0)))
+
+    def _vectors(self, got):
+        """The three vectors, present only when enabled.
+
+        A FEATURE NOBODY ASKED FOR IS NOT A READING. The board sends
+        each vector with its own `have`, and answers None here for
+        the same reason: zeros from a report that was never enabled
+        must not look like a still part.
+        """
+        import random as _r
+
+        for name, report, bits, unit, rest in self.VECTORS:
+            if report not in self._enabled:
+                got[name] = None
+                continue
+            value = [v + _r.gauss(0.0, 0.02) for v in rest]
+            got[name] = {
+                'accuracy': 'high',
+                'unit': unit,
+                'counts': dict(zip('xyz',
+                                   (int(v * (1 << bits))
+                                    for v in value))),
+                'value': dict(zip('xyz', value))}
 
     def latest(self):
         return self.state()['quaternion']
