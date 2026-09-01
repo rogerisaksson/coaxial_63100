@@ -67,6 +67,30 @@ class Record(dict):
         """Readings the board summed into every value in this record."""
         return self.get('samples', 1)
 
+    def sample(self, name):
+        """One channel's `Sample`, by name.
+
+        The way to reach a single channel. Without it the example
+        for it was `dict(zip(r.channel_name, (s.value for s in
+        r.samples)))['NTC']`, which is a gap in this class dressed up
+        as a comprehension: the ordered tuple is right for walking a
+        record and wrong for asking it one question.
+        """
+        for s in self.samples:
+            if s.name == name:
+                return s
+        raise KeyError('%r is not in this record. It has: %s'
+                       % (name, ', '.join(self.channel_name)))
+
+    def value(self, name):
+        """One channel's mean - its sum over the count that made it.
+
+        `record.value('NTC')` against `record['NTC'] / record.count`,
+        which is the same arithmetic done by hand every time and one
+        of the two places a caller can get it wrong.
+        """
+        return self.sample(name).value
+
     @property
     def channel_name(self):
         """The channels in this record, in `samples` order.

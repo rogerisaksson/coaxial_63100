@@ -164,7 +164,8 @@ kind and whether `configure()` may ask for it - the sensor fields
 listed and NOT yet selectable: they read through `board.imu` and
 `board.angle`, and carrying them inside a record is a wire format the
 firmware does not have. A `Record` is a `dict` underneath, so `r['NTC']` is
-still the SUM and `r['samples']` still the count; `r.samples` is the ARRAY
+still the SUM and `r['samples']` still the count; `r.value('NTC')` is one channel's mean and
+`r.sample('NTC')` the struct behind it; `r.samples` is the ARRAY
 and `r.count` the count. `daq.channel_names()` and `daq.columns(values)`
 are the two helpers around it.
 

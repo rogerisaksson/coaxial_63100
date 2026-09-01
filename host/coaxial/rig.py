@@ -121,7 +121,7 @@ SENSOR_FIELDS = (
 DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
-            'channel_names', 'columns')
+            'channel_names', 'columns', 'series')
 
 
 class DaqView:
@@ -160,9 +160,28 @@ class DaqView:
             '%r is not part of the acquisition front door. It has: open, '
             'close, layout, %s' % (name, ', '.join(DAQ_DOOR)))
 
+    def __enter__(self):
+        """Start the task, and stop it on the way out however that goes.
+
+            with device.daq as daq:
+                rec = daq.read(-1)
+
+        The bracket a task wants, and not for tidiness: a script that dies
+        between start() and stop() leaves the board sampling, and the next
+        run is refused with "a task is running - stop it first" until
+        somebody clears it by hand. That happened repeatedly while this
+        library was being written, which is the argument for it.
+        """
+        self._device.start()
+        return self
+
+    def __exit__(self, *_):
+        self._device.stop()
+        return False
+
     def __repr__(self):
-        return ('<the acquisition front door - open(), configure(), '
-                'start(), acquire()/latest()/blocks(), stop(), close()>')
+        return ('<the acquisition front door - configure(), then `with` it '
+                'or start(); read()/series()/columns(); stop(), close()>')
 
 
 class Coaxial63100(Acquisition):
@@ -413,6 +432,41 @@ class Coaxial63100(Acquisition):
                     if f['signal'] in record]
         return [f['signal']
                 for f in (self.layout or {}).get('fields') or []]
+
+    def series(self, records, name):
+        """One channel out of a run, as a plain list of means.
+
+        THE COMMON CASE, and the terse one:
+
+            rec = daq.read(-1)
+            t   = daq.series(rec, 'time')
+            ntc = daq.series(rec, 'ntc')
+            for i in range(len(ntc)):
+                print(t[i], ntc[i])
+
+        `columns()` is the whole table and wants a dict to hold it; this is
+        one column and wants nothing. `time` and `dt` are spellings too, so
+        a plot's two axes come out the same way. The name matches the way
+        `pick()` matches - case and punctuation do not count - because a
+        long channel name is what makes this shape worth having.
+        """
+        if not records:
+            return []
+        want = self._match(name)
+        if want in ('time', 'starttime'):
+            return [r.start_time for r in records]
+        if want == 'dt':
+            return [r.dt for r in records]
+        spelling = None
+        for s in getattr(records[0], 'samples', ()):
+            if self._match(s.name) == want:
+                spelling = s.name
+                break
+        if spelling is None:
+            raise RigError(
+                'no channel called %r in these records. They have: %s'
+                % (name, ', '.join(records[0].channel_name)))
+        return [r.value(spelling) for r in records]
 
     def columns(self, records):
         """Records as columns: {name: values}, plus `time` and `dt`.

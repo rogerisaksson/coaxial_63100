@@ -44,16 +44,25 @@ The layering - subsystems over protocol over transport over codecs - is in
 daq = device.daq
 print(daq.catalogue())               # everything this board can record
 daq.configure('phaseU', 'NTC')       # names in any spelling, or a list
-daq.start()                          # host and target both buffer
-values = daq.read(-1)                # blocks for the first, takes the lot
-daq.stop()
 
-values[0].start_time                 # when the window opened
-values[0].dt                         # how long it covered, MEASURED
-values[0].channel_name               # ('Phase U', 'NTC')
-values[0].samples[0].value           # the sum over its count
-daq.columns(values)                  # one array per channel, plus time, dt
+with daq:                            # start, and stop however it goes
+    rec = daq.read(-1)               # blocks for the first, takes the lot
+
+t = daq.series(rec, 'time')          # one channel, one plain list
+ntc = daq.series(rec, 'ntc')
+for i in range(len(ntc)):
+    print(t[i] - t[0], ntc[i])
 ```
+
+`series()` is the common case - one channel and its values - and takes the
+name as loosely as `configure()` does, because a long channel name is what
+makes the shape worth having. `columns()` is the whole table the same way.
+A record underneath carries `start_time`, `dt` (MEASURED, from the gap to
+the next), `channel_name`, `samples`, and `value('NTC')` for one of them.
+
+`with daq` is the bracket a task wants and not for tidiness: a script that
+dies between `start()` and `stop()` leaves the board sampling, and the next
+run is refused until somebody clears it by hand.
 
 `catalogue()` is the board's own list - analog channels and sampled pins
 off `0x6D`, plus the sensor fields - each row saying its kind and whether

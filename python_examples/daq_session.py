@@ -100,29 +100,45 @@ print(device.write(digital={'UART5_TERM': False}))
 # told it has, not one written down here (invariant 7).
 
 # %%
-ntc = device.analog.scaling()['ntc']
-print('scaling from:', ntc.name)
+ntc_scale = device.analog.scaling()['ntc']
+print('scaling from:', ntc_scale.name)
 
 for n in range(1, BLOCKS + 1):
     values = daq.read(-1)
     r = values[-1]
-    code = dict(zip(r.channel_name, (s.value for s in r.samples)))['NTC']
+    code = r.value('NTC')            # the sum over the count that made it
     print('%2d  %s  dt %6.4f  %d records  NTC %7.1f = %5.2f C  AFE %s'
           % (n, time.strftime('%H:%M:%S', time.localtime(r.start_time)),
-             r.dt or 0.0, len(values), code, ntc.celsius(code),
+             r.dt or 0.0, len(values), code, ntc_scale.celsius(code),
              '%3.0f%%' % (100.0 * r.digital['AFE_ON'])))
 
 # %% [markdown]
-# ## The same run as columns
-# A record is a struct and a run is an array of them, which is the shape
-# the link delivers. Anything that plots or fits wants one array per
-# channel, and `columns()` is that flip.
+# ## One channel, and its values
+# The common case is not the whole table - it is one channel and its
+# series. `series()` gives a plain list and takes the name loosely, so a
+# long channel name costs one short line rather than a comprehension.
+# `time` and `dt` are spellings too, so a plot's two axes come out the
+# same way.
 
 # %%
-cols = daq.columns(daq.read(-1))
+rec = daq.read(-1)
+t = daq.series(rec, 'time')
+ntc = daq.series(rec, 'ntc')
+
+for i in range(min(6, len(rec))):
+    print('  %8.4f s   %9.1f codes   %6.2f C'
+          % (t[i] - t[0], ntc[i], ntc_scale.celsius(ntc[i])))
+
+# %% [markdown]
+# ## The whole run as columns
+# A record is a struct and a run is an array of them, which is the shape
+# the link delivers. Anything that plots or fits wants one array per
+# channel, and `columns()` is that flip - `series()` for one, this for all.
+
+# %%
+cols = daq.columns(rec)
 for name in daq.channel_names():
     print('  %-10s %s' % (name, [round(v, 1) for v in cols[name][:6]]))
-print('  %-10s %s' % ('dt', [round(v or 0, 6) for v in cols['dt'][:6]]))
 
 # %% [markdown]
 # ## Or the running average, which widens instead of dropping
