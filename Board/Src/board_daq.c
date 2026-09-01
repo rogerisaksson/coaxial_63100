@@ -311,7 +311,7 @@ static void push_record(void)
     /* 0..255 of the window, so a host divides by 255 and gets the
        fraction of it the pin was high for. A byte is 0.4 % of a
        window, which is finer than anything a decimated pin means. */
-    const uint8_t pins = Board_DigitalIoCount();
+    const uint8_t pins = Board_DigitalSampledCount();
     const uint32_t n = (s_acc_n > 0U) ? s_acc_n : 1U;
 
     for (uint8_t p = 0U; (p < pins) && (p < BOARD_DAQ_MAX_PINS); p++)
@@ -435,7 +435,7 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
     }
     if (s_cfg.digital != 0U)
     {
-      const uint8_t pins = Board_DigitalIoCount();
+      const uint8_t pins = Board_DigitalSampledCount();
 
       for (uint8_t p = 0U; (p < pins) && (p < BOARD_DAQ_MAX_PINS); p++)
       {
@@ -607,7 +607,7 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
      and + 2 for the sample count every record carries. */
   s_stride = (uint16_t)(4U + (4U * s_fields)
                         + ((cfg->digital != 0U)
-                           ? Board_DigitalIoCount() : 0U) + 2U);
+                           ? Board_DigitalSampledCount() : 0U) + 2U);
   s_head = 0U;
   s_tail = 0U;
   s_dropped = 0U;

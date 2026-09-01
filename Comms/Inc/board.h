@@ -67,6 +67,11 @@ uint8_t Board_DigitalCount(void);
 uint32_t Board_DigitalMask(void);
 uint8_t  Board_DigitalIoCount(void);
 bool     Board_DigitalIoChan(uint8_t slot, board_dchan_t *info);
+
+/** How many pins a DAQ record carries, and which. NOT the writable
+  * set: a gate signal is read freely and driven never. */
+uint8_t  Board_DigitalSampledCount(void);
+bool     Board_DigitalSampledChan(uint8_t slot, board_dchan_t *info);
 bool    Board_DigitalChan(uint8_t index, board_dchan_t *info);
 
 /**

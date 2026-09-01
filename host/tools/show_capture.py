@@ -59,6 +59,15 @@ def start(rig, args):
     `read()` off the same object is what puts `samples` on a record.
     """
     board = rig.board
+    # TAKING THE BOARD OVER STARTS BY TAKING IT OVER. A session that
+    # died between start() and stop() leaves a task running, and the
+    # board then refuses every shape() and configure() - correctly, since
+    # coefficients must not change under a half-drained buffer. This view
+    # is replacing the task wholesale, so that buffer is not its concern.
+    # MEASURED 2026-09-01: a crashed script left one running and the view
+    # printed the board's refusal instead of drawing, every run, until
+    # someone stopped it by hand. stop() is idempotent - checked idle.
+    rig.stop()
     layout = rig.configure(clock=args.clock, digital=True,
                            sample_time=args.sample_time,
                            decimate=args.decimate,

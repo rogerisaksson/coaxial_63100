@@ -163,7 +163,7 @@
    byte at a time and a command handler empties it the same way, so
    the AXI bus costs it nothing that matters - and with no DMA and the
    data cache off there is no coherency question either. */
-#define DAQ_BYTES (256U * 1024U)
+#define DAQ_BYTES (448U * 1024U)
 
 
 

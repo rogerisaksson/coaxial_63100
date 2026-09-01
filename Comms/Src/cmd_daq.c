@@ -309,6 +309,18 @@ static cmd_status_t h_daq_read(rd_t *in, wr_t *out)
 
   wr_u8(out, (uint8_t)got);
   wr_bytes(out, batch, (uint16_t)(got * st.stride));
+
+  /* THE BACKLOG, THE WAY A DAQ CARD ANSWERS ONE: what is still in the
+     ring after this read, in the same transaction that took the
+     records. A host pacing itself to the link needs the level it had
+     AFTER its own read, and asking separately both costs a round trip
+     and answers about a different moment.
+
+     Appended, so a host that slices `got` records by the stride and
+     stops sees exactly what it saw before. Worst case 1 + 240 + 4 =
+     245 against the 252 the PDU leaves after the function code, so
+     DAQ_REPLY_ROOM does not move and neither does the link's rate. */
+  wr_u32(out, Board_DaqAvailable());
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
@@ -325,14 +337,14 @@ static cmd_status_t h_daq_read(rd_t *in, wr_t *out)
   * outright. */
 static cmd_status_t digital_rows(wr_t *out)
 {
-  const uint8_t pins = Board_DigitalIoCount();
+  const uint8_t pins = Board_DigitalSampledCount();
 
   wr_u8(out, pins);
   for (uint8_t i = 0U; i < pins; i++)
   {
     board_dchan_t d;
 
-    if (!Board_DigitalIoChan(i, &d))
+    if (!Board_DigitalSampledChan(i, &d))
     {
       return CMD_ERR_DEVICE;
     }

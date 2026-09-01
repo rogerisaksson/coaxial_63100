@@ -326,12 +326,23 @@ class Marquee:
 
 def viewport(title, art):
     """The drawing, centred in a heavy frame that owns its region. Too
-    wide for the frame, it crops and slides rather than wraps."""
+    wide for the frame, it crops and slides rather than wraps.
+
+    `title` is the REGION's name, which is not always the page's: a page
+    showing two kinds of thing names the region for what is in it.
+    """
     return Panel(Align(Marquee(art), align='center',
                        vertical='middle'),
                  title=Text(' %s ' % title, style='name'),
                  title_align='left', box=box.HEAVY, border_style='frame',
                  padding=(0, 1), expand=True)
+
+
+def _rows_of(panel):
+    """Content lines in a hud, for sizing its Layout. The renderable is a
+    grid, so its row count is what the frame has to make room for."""
+    inner = getattr(panel, 'renderable', None)
+    return len(getattr(inner, 'rows', []) or [1])
 
 
 def _fills(console):
@@ -341,7 +352,8 @@ def _fills(console):
     return bool(getattr(console, 'is_terminal', console))
 
 
-def frame_of(console, origin, title, art, boxes, keys):
+def frame_of(console, origin, title, art, boxes, keys, art_title=None,
+             under=None):
     """THE template: title band, viewport left, instruments right, key bar.
 
     One function, so the views cannot drift apart. On a terminal it fills
@@ -350,13 +362,25 @@ def frame_of(console, origin, title, art, boxes, keys):
     """
     if not _fills(console):
         return Group(header(title, origin),
-                     viewport(title, art), *boxes, footer(keys))
+                     viewport(art_title or title, art),
+                     *([under] if under is not None else []),
+                     *boxes, footer(keys))
 
     # 40 since 2026-08-30: the thermal LEVELS rows wanted air, and the
     # column is the template's, so every view moves together.
     hud_width = 40
     body = Layout()
-    body.split_row(Layout(viewport(title, art), name='art'),
+    art_region = Layout(name='art')
+    if under is None:
+        art_region.update(viewport(art_title or title, art))
+    else:
+        # `under` is a fixed height because the viewport takes the rest:
+        # a box that grew with its content would push the bars off the
+        # bottom of a short terminal instead of the other way round.
+        art_region.split_column(
+            Layout(viewport(art_title or title, art), name='top'),
+            Layout(under, name='under', size=_rows_of(under) + 2))
+    body.split_row(art_region,
                    Layout(Group(*boxes) if boxes else Text(''),
                           name='hud', size=hud_width))
 

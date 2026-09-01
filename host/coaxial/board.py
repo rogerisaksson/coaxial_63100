@@ -72,7 +72,8 @@ class Board:
 
     # -- the single point where a transaction happens ----------------------
 
-    def request(self, function, payload=b'', exact_payload=None, timeout=None):
+    def request(self, function, payload=b'', exact_payload=None,
+                timeout=None, reply_shape=None):
         if self.unit == BROADCAST:
             # One place, because every read and every read-back write comes
             # through here. Silence from unit 0 is the protocol working, not
@@ -80,7 +81,7 @@ class Board:
             from .simulated import BROADCAST_REFUSAL
             raise DeviceStateError(BROADCAST_REFUSAL)
         return self.transport.request(self.unit, function, payload,
-                                      exact_payload, timeout)
+                                      exact_payload, timeout, reply_shape)
 
     def broadcast(self, function, payload=b'', settle=0.05):
         """Acted on by every unit on the wire, answered by none."""

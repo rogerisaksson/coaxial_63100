@@ -59,7 +59,7 @@ class Fake:
         self.closed = False
 
     def request(self, unit, function, payload=b'', exact_payload=None,
-                timeout=None):
+                timeout=None, reply_shape=None):
         self.inside += 1
         self.overlapped = self.overlapped or self.inside > 1
         try:

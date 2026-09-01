@@ -10,6 +10,7 @@ command: the board starts printing ASCII the moment it hands the UART back, and
 a quiet-time reader would swallow that text into the frame.
 """
 import struct
+import threading
 import time
 from contextlib import contextmanager
 
@@ -72,6 +73,13 @@ class Transport:
         except (serial.SerialException, ValueError, OSError) as exc:
             raise ConnectError('cannot open %s at %d baud: %s'
                                % (port, baud, exc)) from exc
+        # ONE TRANSACTION AT A TIME ON THE WIRE. A request is a transmit
+        # and then a receive, and two threads interleaving those halves
+        # put one thread's reply in the other's hands - or, on RTU,
+        # scatter a frame's characters past t1.5 and lose both. Held for
+        # the whole exchange and released between them, so a reader
+        # thread draining the ring still lets a state() through.
+        self._wire = threading.RLock()
 
     def __repr__(self):
         return '<Transport %s@%d>' % (self.port, self.baud)
@@ -143,12 +151,12 @@ class Transport:
             self.serial.write(frame)
             self.serial.flush()
 
-    def receive(self, exact_payload=None, timeout=None):
+    def receive(self, exact_payload=None, timeout=None, reply_shape=None):
         budget = self.DEFAULT_TIMEOUT if timeout is None else timeout
         with self._link_errors('reading a reply'):
             if exact_payload is not None:
                 return self._read_exactly(4 + exact_payload, budget)
-            return self._read_until_quiet(budget)
+            return self._read_until_quiet(budget, reply_shape)
 
     def _first_byte(self, budget):
         """Wait up to `budget` for a reply to start, in QUIET_TIME slices.
@@ -178,7 +186,7 @@ class Transport:
             buffer += chunk
         return buffer
 
-    def _read_until_quiet(self, budget):
+    def _read_until_quiet(self, budget, reply_shape=None):
         """Wait the budget for the first byte, then read until a gap.
 
         The two waits differ on purpose. A reply may legitimately be seconds
@@ -194,9 +202,19 @@ class Transport:
         if not buffer:
             return buffer
 
-        while len(buffer) < self.MAX_FRAME:
+        want = self.MAX_FRAME
+        while len(buffer) < want:
+            if want == self.MAX_FRAME:
+                # The length is knowable for some replies as soon as the
+                # counted field has arrived, and once it is known the read
+                # stops on the last byte instead of on QUIET_TIME of
+                # silence after it. That wait is 8 ms of every transaction.
+                sized = frame_length(reply_shape, buffer)
+                if sized:
+                    want = min(sized, self.MAX_FRAME)
+                    continue
             waiting = self.serial.in_waiting
-            chunk = self.serial.read(min(waiting, self.MAX_FRAME - len(buffer))
+            chunk = self.serial.read(min(waiting, want - len(buffer))
                                      if waiting else 1)
             if not chunk:
                 break
@@ -205,10 +223,12 @@ class Transport:
 
     # -- one transaction ---------------------------------------------------
 
-    def request(self, unit, function, payload=b'', exact_payload=None, timeout=None):
+    def request(self, unit, function, payload=b'', exact_payload=None,
+                timeout=None, reply_shape=None):
         """Send a request and return the reply payload, or raise."""
-        self.transmit(unit, function, payload)
-        reply = self.receive(exact_payload, timeout)
+        with self._wire:
+            self.transmit(unit, function, payload)
+            reply = self.receive(exact_payload, timeout, reply_shape)
         return validate(reply, unit, function)
 
     def broadcast(self, function, payload=b'', settle=0.05):
@@ -222,6 +242,24 @@ class Transport:
         self.transmit(BROADCAST, function, payload)
         if settle:
             time.sleep(settle)
+
+
+def frame_length(shape, buffer):
+    """Whole frame length from `shape` and what has arrived, or 0.
+
+    `shape` is {'at': index of a count byte in the PAYLOAD, 'head': bytes
+    before the records, 'stride': one record, 'tail': bytes after them} -
+    a dict rather than a callable so it crosses the broker as JSON. 0
+    means not knowable yet, and the caller keeps reading until quiet.
+    """
+    if not shape:
+        return 0
+    at = 2 + int(shape.get('at', 0))          # past unit and function code
+    if len(buffer) <= at:
+        return 0
+    payload = (int(shape['head']) + buffer[at] * int(shape['stride'])
+               + int(shape.get('tail', 0)))
+    return 2 + payload + 2                    # unit, fc, payload, CRC
 
 
 def validate(reply, unit, function):

@@ -28,6 +28,12 @@ from .acquisition import Acquisition
 from .clock import NTP_SERVER, unwrap
 from .errors import CrcError, NoReplyError, RigError
 from .gates import GateStage
+from .reader import BufferedReader
+
+#: Bytes the board leaves for records in one reply - `DAQ_REPLY_ROOM` in
+#: `cmd_daq.c`. Named here because it decides how many records a single
+#: transaction is worth waiting for.
+REPLY_ROOM = 240
 
 
 _KNOWN_SUBSYSTEMS = None
@@ -93,7 +99,8 @@ class Later:
 #: `daq.write` reaching the pin writer would put the device vocabulary
 #: behind the wrong name.
 DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
-            'state', 'acquire', 'latest', 'blocks', 'channels', 'outputs')
+            'state', 'acquire', 'latest', 'blocks', 'read_buffer',
+            'buffered', 'channels', 'outputs')
 
 
 class DaqView:
@@ -186,6 +193,8 @@ class Coaxial63100(Acquisition):
         self.layout = None
         self.sync = None
         self._afe_was_on = None
+        # The host-side reader, alive only between start() and stop().
+        self._reader = None
 
     # -- opening and closing --------------------------------------------
 
@@ -390,6 +399,19 @@ class Coaxial63100(Acquisition):
         # configure wants the new shape either way. A script that died
         # holding one otherwise leaves the next one unable to start.
         self.board.daq.stop()
+
+        # AND THE CHAIN CLEARED, for the same reason and the same failure.
+        # A clock-closed record and a filter are alternatives the board
+        # refuses to hold at once - a fixed decimation needs a fixed rate,
+        # and a window's length is whatever the loop managed. A view that
+        # loaded a chain and exited leaves one behind, and the next plain
+        # `configure(sample_rate=...)` is refused by a filter its caller
+        # never asked for. MEASURED 2026-09-01: the README example, run
+        # verbatim after METER BRIDGE, raised on exactly that. A caller
+        # loading a chain passes `accumulate`, so this leaves those alone.
+        if accumulate is None:
+            self.board.daq.shape()
+
         burst = {}
         if records is not None:
             burst['records'] = records          # a run that ENDS: the burst
@@ -436,14 +458,54 @@ class Coaxial63100(Acquisition):
         return self
 
     def start(self):
-        """Begin sampling into the board's buffer."""
+        """Begin sampling into the board's buffer, and into the host's.
+
+        TWO BUFFERS, THE WAY A DAQ CARD HAS TWO: the board's ring fills at
+        the sample rate, and a reader thread here empties it into a host
+        queue as fast as the link goes. `read_buffer()` takes from that
+        queue, so the caller's own work - a print, a plot, a terminal -
+        never sits between two round trips.
+        """
         self.board.daq.start()
+        # A reply carries as many records as fit in the board's own reply
+        # room, and that is what the reader waits for rather than reading
+        # the instant one record lands.
+        stride = (self.layout or {}).get('stride') or 0
+        self._reader = BufferedReader(
+            acquire=lambda: self._timed(
+                self.board.daq.acquire(layout=self.layout)),
+            backlog=lambda: self.board.daq.backlog,
+            batch=(REPLY_ROOM // stride) if stride else 1).start()
         return self
 
     def stop(self):
-        """Stop sampling. What is already buffered stays readable."""
+        """Stop sampling. What is already buffered stays readable.
+
+        The reader is stopped and JOINED before the board is told anything:
+        two threads on one serial transport is the one thing this
+        arrangement must not do.
+        """
+        if self._reader is not None:
+            self._reader.stop()
+            self._reader = None
         self.board.daq.stop()
         return self
+
+    @property
+    def buffered(self):
+        """Blocks waiting on the host, and records still on the board.
+
+        `backlog` is the board's own answer to the last read, carried by
+        that same transaction - not a second round trip asking about a
+        later moment.
+        """
+        r = self._reader
+        if r is None:
+            return {'host': 0, 'peak': 0, 'dropped': 0, 'backlog': None,
+                    'reads': 0, 'records': 0}
+        return {'host': len(r), 'peak': r.peak, 'dropped': r.dropped,
+                'backlog': r.backlog, 'reads': r.reads,
+                'records': r.records}
 
     def state(self):
         """How the task is doing: rate, what is buffered, what was lost."""
@@ -461,6 +523,14 @@ class Coaxial63100(Acquisition):
         `record['NTC'] / record['samples']`. The board sends the sum
         because it keeps the bits an average throws away.
         """
+        # ONE DRAINER. While the reader thread is on the link it is the
+        # only thing that may take records: two drainers split the ring
+        # between them and each sees gaps the other took. So this serves
+        # from the host queue instead - same records, same order, and no
+        # round trip at all.
+        if self._reader is not None:
+            return self._reader.take() or []
+
         # `samples` rides in the record now, so this no longer spends a
         # round trip on state() per block to ask what it was configured
         # with - which was the wrong number the moment the clock, rather
@@ -567,6 +637,33 @@ class Coaxial63100(Acquisition):
         self.board.gate_drivers.duty(ticks)
         return dict(zip(legs, (t / period for t in ticks)))
 
+    def read_buffer(self, count):
+        """`count` blocks off the HOST buffer, one at a time.
+
+        The reader thread is already filling it; this only takes, so the
+        loop body costs the link nothing. NEGATIVE runs until the task ends
+        or the caller breaks out.
+
+        Needs `start()` - that is what puts a reader on the link. To read
+        the board directly instead, one round trip per block on the calling
+        thread, use `blocks()`.
+        """
+        if self._reader is None:
+            raise RigError('nothing is buffering yet - start() puts the '
+                           'reader on the link, and read_buffer() takes '
+                           'what it has collected')
+        seen = 0
+        while count < 0 or seen < count:
+            self._reader.raise_if_failed()
+            block = self._reader.take()
+            if block:
+                seen += 1
+                yield block
+                continue
+            if not self._reader.running:
+                return                    # the link is gone, or stopped
+            time.sleep(0.002)
+
     def blocks(self, count):
         """`count` non-empty blocks, one at a time, for a `for` loop.
 
@@ -577,7 +674,16 @@ class Coaxial63100(Acquisition):
 
         Waits for the board rather than spinning: an empty block means the
         buffer has not filled yet, not that anything is wrong.
+
+        With a reader thread running - which `start()` puts there - this is
+        `read_buffer()`: the queue it fills is the same records in the same
+        order, and a second drainer would only take some of them.
         """
+        if self._reader is not None:
+            for block in self.read_buffer(count):
+                yield block
+            return
+
         seen, missed = 0, 0
         while count < 0 or seen < count:
             try:

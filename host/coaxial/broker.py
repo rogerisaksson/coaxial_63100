@@ -105,10 +105,14 @@ class BrokerTransport:
         return answer
 
     def request(self, unit, function, payload=b'', exact_payload=None,
-                timeout=None):
+                timeout=None, reply_shape=None):
+        # `reply_shape` is a plain dict for this reason: the saving it buys
+        # is on the OTHER side of this socket, where the serial port is, so
+        # it has to survive the trip as JSON.
         got = self._ask({'op': 'request', 'unit': unit, 'function': function,
                          'payload': bytes(payload).hex(),
-                         'exact_payload': exact_payload, 'timeout': timeout})
+                         'exact_payload': exact_payload, 'timeout': timeout,
+                         'reply_shape': reply_shape})
         return bytes.fromhex(got['payload'])
 
     def broadcast(self, function, payload=b'', settle=0.05):
@@ -275,7 +279,8 @@ class _Handler(socketserver.StreamRequestHandler):
                 got = served.retrying(
                     message['unit'], message['function'],
                     bytes.fromhex(message['payload']),
-                    message['exact_payload'], message['timeout'])
+                    message['exact_payload'], message['timeout'],
+                    message.get('reply_shape'))
             served.spoke()
             return {'payload': bytes(got).hex()}
         if op == 'broadcast':
@@ -341,7 +346,8 @@ class _Server(socketserver.ThreadingTCPServer):
                 # never owns an error.
                 pass
 
-    def retrying(self, unit, function, payload, exact_payload, timeout):
+    def retrying(self, unit, function, payload, exact_payload,
+                 timeout, reply_shape=None):
         """One request, and one re-open if the board went quiet.
 
         A RESET PUTS THE BOARD BACK IN ITS TEXT CONSOLE. The handover happens
@@ -357,14 +363,14 @@ class _Server(socketserver.ThreadingTCPServer):
 
         try:
             return self.transport.request(unit, function, payload,
-                                          exact_payload, timeout)
+                                          exact_payload, timeout, reply_shape)
         except NoReplyError:
             pass
 
         from .board import Board
         Board(self.transport, unit).open_binary()
         return self.transport.request(unit, function, payload,
-                                      exact_payload, timeout)
+                                      exact_payload, timeout, reply_shape)
 
 
 def serving():

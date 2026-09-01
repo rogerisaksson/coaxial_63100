@@ -74,15 +74,30 @@ device = Coaxial63100(port='COM4', power_afe=True)   # simulated_device=True: no
 daq = device.daq                         # the data acquisition subsystem
 daq.open()
 device.set_time_from_pc()                # the board counts cycles, not time
-daq.configure(['Phase U', 'NTC'], sample_rate=100)   # 100 records/s, the board averages
-daq.start()
-for block in daq.blocks(20):
+daq.configure(['Phase U', 'NTC'], sample_rate=1000)  # 1000 records/s, the board averages
+daq.start()                              # buffering starts in the host and target
+for block in daq.read_buffer(20):        # off the host queue a thread keeps full
     r = block[-1]
     print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM of `samples`
-daq.stop()                               # sampling and buffering end
+daq.stop()                               # buffering stops at target
 daq.close()                              # the acquisition released
 device.close()                           # the port, and the supply as found
 ```
+
+**Two buffers, the way a DAQ card has two.** The board's ring fills at the
+sample rate; `start()` also puts a reader thread on the link here, and it
+drains that ring into a host queue as fast as the link goes. `read_buffer()`
+takes from the queue, so the `print` in the loop never sits between two
+round trips - pyserial releases the GIL on read and write, so that is real
+overlap. Measured on the debug probe's VCP, ten channels and the pins, with
+4 ms of work a block: **84.4 records/s reading the board directly, 134.6
+through the queue**, and the board's backlog ends at 0 instead of climbing.
+
+Every read answers its own backlog - records still on the board the instant
+it took its own - so pacing costs no extra round trip. `daq.buffered` is
+both ends: `{'host', 'peak', 'dropped', 'backlog', 'reads'}`. `daq.blocks()`
+is the same records when no reader is running: one round trip per block, on
+the calling thread.
 
 Everything raises rather than returning a status. **What a device is, and
 which channels it has, come from the board** - add a row to

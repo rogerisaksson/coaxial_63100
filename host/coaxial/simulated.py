@@ -1354,6 +1354,11 @@ class SimulatedDaq(Acquisition):
     first call that reached for it.
     """
 
+    #: Records still owed after the last `acquire()` - the stand-in's
+    #: answer to the board's backlog field. A free-running task owes
+    #: nothing, because it invents each record as it is asked for.
+    backlog = None
+
     #: Channel index -> (signal, unit, differential), the stand-in's table.
     #: Built from CHANNELS rather than written out. It was written out, and
     #: two supply senses added to the board's table left the stand-in's DAQ
@@ -1396,9 +1401,19 @@ class SimulatedDaq(Acquisition):
                 'rung_changes': 0,
                 **cfg}
 
+    #: What a record carries, in the board's order - the sampled set, not
+    #: the writable one. The six gates are read and never driven, and the
+    #: buses and the debug port stay out; `s_digital`'s `sampled` column is
+    #: the original and this follows it or the parity suite says so.
     PINS = ({'signal': 'AFE_ON', 'direction': 'out'},
-            {'signal': 'UART5_TERM', 'direction': 'out'},
-            {'signal': 'KEEPALIVE', 'direction': 'out'})
+            {'signal': 'nFAULT/TIM1_BKIN', 'direction': 'in'},
+            {'signal': 'KEEPALIVE', 'direction': 'out'},
+            {'signal': 'TIM1_CH1N/PWMUL', 'direction': 'out'},
+            {'signal': 'TIM1_CH1/PWMUH', 'direction': 'out'},
+            {'signal': 'TIM1_CH2N/PWMVL', 'direction': 'out'},
+            {'signal': 'TIM1_CH2/PWMVH', 'direction': 'out'},
+            {'signal': 'TIM1_CH3N/PWMWL', 'direction': 'out'},
+            {'signal': 'TIM1_CH3/PWMWH', 'direction': 'out'})
 
     def layout(self):
         fields = []
@@ -1555,6 +1570,7 @@ class SimulatedDaq(Acquisition):
         if self._cfg['records'] and self._produced >= self._cfg['records']:
             self._running = False
             self._done = True
+        self.backlog = self._buffered()
         return out
 
     def drain(self, limit=None, layout=None):

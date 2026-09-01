@@ -15,6 +15,7 @@ put back the way it was found on the way out.
 import argparse
 import collections
 import os
+import re
 import sys
 import time
 
@@ -91,10 +92,30 @@ def rows_from(records, layout):
     return out
 
 
+def duties_from(records):
+    """Each pin's duty, meaned over the block. {} when none were asked for.
+
+    Kept apart from `rows_from` because a row is one analog channel and a
+    duty belongs to the record - averaging it per row would report the
+    same number as many times as there are channels.
+    """
+    seen = [r['digital'] for r in records if r.get('digital')]
+    if not seen:
+        return {}
+    return {name: sum(d[name] for d in seen) / len(seen)
+            for name in seen[0]}
+
+
 #: Records the host holds between the reader and the frame that draws
 #: them. Its own ring, and it can overflow the same way the board's
 #: does - which is the point of showing both.
-HOST_RING = 256
+HOST_RING = 2048
+
+
+#: How much of what the board says it can carry a task actually asks
+#: for. A ring produced at exactly the drain rate overflows on the first
+#: slow read; `bessel.for_link` uses the same 0.8 for the same reason.
+LINK_SHARE = 0.8
 
 
 def sweep_rate(rig, records=300, timeout=6.0):
@@ -106,7 +127,7 @@ def sweep_rate(rig, records=300, timeout=6.0):
     because it ends.
     """
     rig.shape()
-    rig.configure(accumulate=1, digital=False, records=records,
+    rig.configure(accumulate=1, digital=True, records=records,
                   interval_us=0)
     began = time.time()
     rig.start()
@@ -127,8 +148,28 @@ def plan(rig, args):
     cutoff is a fifth of that frame rate, which is the design's default
     and the reason a needle settles instead of dancing.
     """
-    rate = args.rate if args.rate > 0 else max(1.0, args.hz)
+    # TAKING THE BOARD OVER STARTS BY TAKING IT OVER. A session that
+    # died between start() and stop() leaves a task running, and the
+    # board then refuses every shape() and configure() - correctly, since
+    # coefficients must not change under a half-drained buffer. This view
+    # is replacing the task wholesale, so that buffer is not its concern.
+    # MEASURED 2026-09-01: a crashed script left one running and the view
+    # printed the board's refusal instead of drawing, every run, until
+    # someone stopped it by hand. stop() is idempotent - checked idle.
+    rig.stop()
     sweeps = sweep_rate(rig)
+    # WHAT THE LINK CARRIES, NOT WHAT THE SCREEN DRAWS. Pinned to the frame
+    # rate the meter asked for 8 rec/s and a 1.60 Hz passband - a needle so
+    # damped it read as broken. The board says what it can carry for the
+    # stride it actually has, and a fifth of that is the passband: 12.3 Hz
+    # for ten channels and the pins, with -70 dB of what would fold against
+    # the -34 dB the frame rate bought. `--rate` still takes you at your
+    # word. The records land in the host queue either way; the frame draws
+    # whatever is there.
+    carries = (rig.state() or {}).get('max_rate_hz') or 0
+    rate = args.rate if args.rate > 0 else carries * LINK_SHARE
+    if rate <= 0:
+        rate = max(1.0, args.hz)
     rig.shape()
 
     # A CHAIN NEEDS A RATE TO BE DESIGNED AGAINST. Where the loop cannot
@@ -140,15 +181,15 @@ def plan(rig, args):
     try:
         chain = bessel.design(fs=sweeps, out_rate=rate, order=args.order)
     except ValueError:
-        return rig.configure(sample_rate=rate, digital=False), None
+        return rig.configure(sample_rate=rate, digital=True), None
 
-    layout = rig.configure(accumulate=chain['boxcar'], digital=False)
+    layout = rig.configure(accumulate=chain['boxcar'], digital=True)
     rig.shape(chain['sections'], chain['decimate'])
     chain['sweeps'] = sweeps
     return layout, chain
 
 
-def chain_box(chain, sweeps):
+def chain_box(chain, sweeps, channels=0):
     """The low-pass the board is running, and the loop underneath it.
 
     `sweeps` is measured live off the board's own trigger count, not the
@@ -157,14 +198,16 @@ def chain_box(chain, sweeps):
     """
     from screen import hud
 
+    title = ('LOW PASS (%d CHANNELS)' % channels if channels
+             else 'LOW PASS')
     if chain is None:
-        return hud('LOW PASS', [
+        return hud(title, [
             '  none - the window averages instead',
             '  the loop could not be measured to design one',
             '  loop    %8s sweeps/s' % ('%.0f' % sweeps if sweeps else '-'),
         ])
 
-    return hud('LOW PASS', [
+    return hud(title, [
         '  cutoff  %8.2f Hz   order %d' % (chain['cutoff'],
                                             chain['order']),
         '  rejects %8.1f dB   %d biquads' % (chain['worst_alias_db'],
@@ -179,36 +222,176 @@ def chain_box(chain, sweeps):
     ])
 
 
-def buffer_box(state, host):
-    """Both ends of the pipe, because either can be the one that fills.
+#: The indicator, and the two colours it comes in. One glyph, so the
+#: only difference is the colour - U+25A3, a thin-framed box with a fill.
+#: Written as ANSI because the art reaches the frame as a string that
+#: `Marquee` parses; a Rich style object would arrive as literal text.
+BOX = '\u25a3'
+LIT = '\x1b[38;5;40m'          # green: the pin was high for most of the window
+DARK = '\x1b[38;5;242m'        # grey: it was not
+OFF = '\x1b[0m'
+LABEL = '\x1b[38;5;66m'        # the theme's `label`, the street
+VALUE = '[38;5;214m'       # the theme's `value`, the light source
 
-    HOST is what the reader thread has taken off the link and the frame
-    has not drawn yet; TARGET is the board's own ring. A slow link fills
-    the second; a slow terminal fills the first, and neither says
-    anything about the other.
 
-    The high-water marks are what to read. A level sampled between
-    frames is a level between the peaks, and the peak is the one that
-    says how close the next record came to being dropped.
+#: The half of a pin's name that is a PERIPHERAL FUNCTION rather than a
+#: signal. The board names a pin both ways - `TIM1_CH1N/PWMUL` is the
+#: timer's channel and the schematic's gate - and truncating the string
+#: keeps the wrong one: six gates all read `TIM1_CH1N/` and nothing said
+#: which leg. Dropped, `PWMUL` and `nFAULT` are what is left.
+PERIPHERAL = re.compile(r'^(TIM|SPI|USART|UART|JT|NJ)')
+
+
+def short(name):
+    """The signal half of a pin's name, at most nine cells."""
+    parts = [p for p in name.split('/') if not PERIPHERAL.match(p)]
+    return (parts[0] if parts else name)[:9]
+
+
+def digital_box(pins, width=34):
+    """Every sampled pin as a lit or dark box, in its own frame.
+
+    A DUTY, NOT A LEVEL. The record carries what fraction of the window
+    the pin was high, because a level sampled once and decimated is
+    aliased by construction - KEEPALIVE toggles at ~100 kHz and read as a
+    coin toss. So the box is lit when the pin was high for most of the
+    window, and the percentage beside it is what it actually did.
+    """
+    from screen import hud
+
+    if not pins:
+        return hud('DIGITAL', ['  this task carries no pins'])
+
+    # THE COLOUR IS THE VALUE. The record carries a duty because the
+    # window is long and a pin can toggle inside it; under a half the box
+    # is dark and over it is lit, and printing the same bit as a digit
+    # beside it only asks the eye to read twice. A switching gate then
+    # flickers, which is the reading rather than noise in it.
+    cells = ['%s%s%s %s%-10s%s'
+             % (LIT if duty >= 0.5 else DARK, BOX, OFF, LABEL,
+                short(name), OFF)
+             for name, duty in pins.items()]
+
+    # Wrapped to the region rather than the terminal: the frame crops, and
+    # a row that ran past it would slide instead of showing.
+    lines, line = [], ''
+    for cell in cells:
+        plain = re.sub(r'\x1b\[[0-9;]*m', '', line + cell)
+        if line and len(plain) > width:
+            lines.append(line.rstrip())
+            line = ''
+        line += cell + '  '
+    if line:
+        lines.append(line.rstrip())
+    return hud('DIGITAL', lines)
+
+
+#: Bytes a read costs beyond its records: unit, function code and CRC
+#: on the request and the reply, plus the count byte and the backlog the
+#: reply appends.
+PER_READ_BYTES = 4 + 4 + 1 + 4
+
+
+def wire_rate(bits):
+    """Bits a second as the largest unit that still leaves digits."""
+    if bits >= 1e6:
+        return '%.1f Mbit/s' % (bits / 1e6)
+    if bits >= 1e3:
+        return '%.1f kbit/s' % (bits / 1e3)
+    return '%.0f bit/s' % bits
+
+
+def take_link(link, seen, now):
+    """Fold one sample of the library reader's queue into `link`.
+
+    `reads` is a counter, so the rate is differentiated here the way the
+    trigger rate is - and the first sample only sets the origin. It used
+    to read `link['at'] or now`, which takes a starting 0.0 as falsy and
+    made every interval zero, so the rate never left 0.
+    """
+    if not link['at']:
+        link['reads'], link['seen'] = seen['reads'], seen['records']
+        link['at'] = now
+    elif now - link['at'] > 0.2:
+        since = now - link['at']
+        link['rate'] = (seen['reads'] - link['reads']) / since
+        # WHAT ACTUALLY GOES DOWN THE WIRE, not the records' own size: a
+        # record's bytes plus the transaction around it - unit, function,
+        # the count byte, the backlog and the CRC - and ten bits a byte,
+        # because 8N1 sends a start and a stop with every one.
+        payload = (seen['records'] - link['seen']) * link['stride']
+        frames = (seen['reads'] - link['reads']) * PER_READ_BYTES
+        link['bits'] = (payload + frames) * 10.0 / since
+        link['reads'], link['seen'] = seen['reads'], seen['records']
+        link['at'] = now
+    link.update({k: seen[k] for k in ('host', 'peak', 'dropped', 'backlog')})
+
+
+def buffer_box(state, host, link=None):
+    """Every buffer between the converter and the frame, and the rate.
+
+    THREE PLACES A RECORD CAN WAIT, and each fills for its own reason:
+    TARGET when the link cannot keep up, LINK when the reader thread is
+    starved of turns, HOST when the terminal is slow. Naming them apart
+    is the whole point - a slowness charged to the wrong one sent 208
+    dropped records to the board's account once.
+
+    Levels are sampled BEFORE the frame drains them, and the bar runs to
+    each buffer's own high-water mark rather than its capacity: the ring
+    holds 5349 records and a reader that is keeping up leaves 1 in it, so
+    a bar against capacity is pinned at zero however hard the link works.
+    The peak is what says how close the next record came to being
+    dropped, and it is the number to read.
     """
     from screen import gauge, hud
 
-    lines = ['  HOST    ' + gauge(host['held'] / float(HOST_RING), 14) +
-             ' %4d/%-4d' % (host['held'], HOST_RING),
-             '          peak %4d   dropped %d'
-             % (host['peak'], host['dropped'])]
+    def row(name, held, peak, dropped, capacity=None):
+        # the scale is the buffer's OWN PEAK, never its capacity: the ring
+        # holds thousands and a reader keeping up leaves one in it, so a
+        # bar against capacity is pinned at zero however hard the link
+        # works. Against the peak it answers a question worth asking -
+        # how full is this now, against the worst it has been.
+        top = float(max(peak, 1))
+        room = '' if capacity is None else ' of %d' % capacity
+        bar = gauge(min(1.0, held / top), 12)
+        return ['  %-7s ' % name + bar + ' %4d' % held,
+                '          peak %4d%s   dropped %d' % (peak, room, dropped)]
+
+    lines = []
+    if link is not None:
+        lines += row('LINK', link['host'], link['peak'], link['dropped'])
+    lines += row('HOST', host['held'], host['peak'], host['dropped'])
 
     capacity = (state or {}).get('capacity') or 0
     if not capacity:
         lines.append('  TARGET  this board reports no level')
-        return hud('BUFFER', lines)
+    else:
+        lines += row('TARGET', state.get('available') or 0,
+                     state.get('worst') or 0, state.get('dropped') or 0,
+                     capacity)
+    if link is not None and link.get('rate'):
+        # How much of the line the stream is actually claiming. The
+        # question this answers was asked out loud once - a 115200 link
+        # carries 11.5 kB/s and a task at 57 records a second is using a
+        # third of it, with the rest going to the fixed cost of a
+        # transaction rather than to records.
+        share = ''
+        if link.get('baud') and link.get('bits'):
+            share = '   %2.0f%% of line' % (100.0 * link['bits']
+                                            / float(link['baud']))
+        lines.append('  link    %6.1f reads/s%s' % (link['rate'], share))
 
-    held = (state.get('available') or 0)
-    lines.append('  TARGET  ' + gauge(held / float(capacity), 14) +
-                 ' %4d/%-4d' % (held, capacity))
-    lines.append('          peak %4d   dropped %d'
-                 % (state.get('worst') or 0, state.get('dropped') or 0))
-    return hud('BUFFER', lines)
+    # THE RATE IN THE TITLE, the way LOW PASS carries its channel count -
+    # and in a unit that has digits to show. Megabits was stone dead on
+    # this link: 0.035 rounds to 0.0 and stays there however hard the
+    # stream works, so the scale follows the number instead of the number
+    # being flattened to fit one scale. Fibre will read in Mbit/s on its
+    # own.
+    title = 'BUFFER'
+    if link is not None and link.get('bits'):
+        title = 'BUFFER (%s)' % wire_rate(link['bits'])
+    return hud(title, lines)
+
 
 def scale(rows, params=None):
     """Add the scaled value and the channel's own scale, in its own unit.
@@ -368,7 +551,7 @@ def watch(rig, args, layout, chain, params):
     from screen import frame_of, run_view, stage
 
     held = {}
-    last = {'rows': []}
+    last = {'rows': [], 'pins': {}}
     board_view = stage()
     console = board_view.is_terminal
     leaving = None
@@ -378,6 +561,13 @@ def watch(rig, args, layout, chain, params):
     # touches the board not at all, so a frame costs what it costs to
     # render and the round trips happen while it is on screen.
     clock = {'at': 0.0, 'state': None, 'triggers': None, 'sweeps': 0.0}
+    # The library's own reader, sampled BEFORE the drain below empties it.
+    # Its `reads` is a counter, so the rate is differentiated here the way
+    # the trigger rate is.
+    link = {'host': 0, 'peak': 0, 'dropped': 0, 'backlog': None,
+            'rate': 0.0, 'reads': 0, 'records': 0, 'seen': 0, 'bits': 0.0,
+            'at': 0.0, 'stride': layout.get('stride') or 0,
+            'baud': getattr(rig, 'baud', 0) or 0}
     # The host's own ring. `deque` because append and popleft are atomic
     # under the GIL - the reader fills one end and the frame empties the
     # other, and neither waits for the other to finish.
@@ -398,9 +588,10 @@ def watch(rig, args, layout, chain, params):
                 clock['sweeps'] = (seen - clock['triggers']) / since
             clock['triggers'] = seen
             clock['state'], clock['at'] = state, now
-        # The level BEFORE the drain: after it the ring is empty by
+        # The level BEFORE the drain: after it every queue is empty by
         # construction and the gauge would read nothing on a task that
         # is only just keeping up.
+        take_link(link, rig.buffered, now)
         for record in drain(rig):
             if len(inbox) >= HOST_RING:
                 # THE HOST'S OWN DROP, counted rather than hidden. It was
@@ -433,21 +624,25 @@ def watch(rig, args, layout, chain, params):
         host['held'] = len(inbox)
         if records:
             last['rows'] = scale(rows_from(records, layout), params)
+            last['pins'] = duties_from(records)
         rows = last['rows']
         if not rows:
             said = ('no reading: %s' % feed.error if feed.error
                     else 'waiting for the first block')
             return frame_of(board_view, origin, 'METER BRIDGE', said,
-                            [buffer_box(feed.latest, host)],
-                            (('Q', 'EXIT'), ('ESC', 'MENU')))
+                            [buffer_box(feed.latest, host, link)],
+                            (('Q', 'EXIT'), ('ESC', 'MENU')),
+                            art_title='ANALOGUE')
         face = bridge.update(rows, colour=console)
         for row in rows:
             row['params'] = params
         return frame_of(board_view, origin, 'METER BRIDGE', face,
                         [legend(rows, held),
-                         chain_box(chain, clock['sweeps']),
-                         buffer_box(feed.latest, host)],
-                        (('Q', 'EXIT'), ('ESC', 'MENU')))
+                         chain_box(chain, clock['sweeps'], len(rows)),
+                         buffer_box(feed.latest, host, link)],
+                        (('Q', 'EXIT'), ('ESC', 'MENU')),
+                        art_title='ANALOGUE',
+                        under=digital_box(last['pins'], bridge.bar + 30))
 
     try:
         leaving = run_view(board_view, console, period, args.frames, draw)

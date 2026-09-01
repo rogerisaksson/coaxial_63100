@@ -50,9 +50,15 @@ class Daq(Subsystem, Acquisition):
 
     """Configure, trigger, read - against the board's own channel table."""
 
-    def _op(self, op, payload=b''):
+    #: Records still in the board's ring after the last `acquire()`,
+    #: straight off that same reply. None before the first read, and on
+    #: a board older than protocol MINOR 5.
+    backlog = None
+
+    def _op(self, op, payload=b'', **kwargs):
         return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_DAQ, op]) + bytes(payload))
+                            bytes([protocol.DEVICE_DAQ, op]) + bytes(payload),
+                            **kwargs)
 
     def state(self):
         """What the task is, what it has produced, and how full it is.
@@ -273,13 +279,20 @@ class Daq(Subsystem, Acquisition):
         """
         layout = layout or self.layout()
         fields, pins = layout['fields'], layout.get('pins') or []
-        raw = self._op(DAQ_OP_READ, bytes([min(int(want), 255)]))
-        got = raw[0]
         # THE BOARD'S STRIDE, not one worked out here. It says so in the
         # layout for exactly this reason, and a decoder that recomputes it
         # mis-frames every record after the first the day the record grows
         # a field - which is how the sample count arrived.
         stride = layout['stride']
+        # AND ITS REPLY'S LENGTH IS KNOWABLE, so say so: the first
+        # payload byte is the record count and the stride is already in
+        # hand, which turns the 8 ms of silence that ends every other
+        # transaction into nothing. `tail` is the backlog MINOR 5
+        # appends.
+        raw = self._op(DAQ_OP_READ, bytes([min(int(want), 255)]),
+                       reply_shape={'at': 0, 'head': 1, 'stride': stride,
+                                    'tail': 4})
+        got = raw[0]
         fmt = '>I%di%dBH' % (len(fields), len(pins))
         out = []
         for i in range(got):
@@ -298,6 +311,18 @@ class Daq(Subsystem, Acquisition):
                     p['signal']: values[first + n] / 255.0
                     for n, p in enumerate(pins)}
             out.append(rec)
+
+        # THE BACKLOG THE READ ITSELF ANSWERED, the way a DAQ card does
+        # it: records still in the board's ring the instant this read
+        # took its own. A separate state() costs a round trip and
+        # answers about a different moment, which is the wrong number
+        # to pace a reader with.
+        #
+        # Read only if it is there - appended by MINOR 5, and a board
+        # older than that answers a reply that stops after the records.
+        end = 1 + (got * stride)
+        self.backlog = (struct.unpack('>I', raw[end:end + 4])[0]
+                        if len(raw) >= end + 4 else None)
         return out
 
     def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
