@@ -1359,6 +1359,26 @@ class SimulatedDaq(Acquisition):
     #: nothing, because it invents each record as it is asked for.
     backlog = None
 
+    #: The line this stand-in pretends to be on. Set from the session's
+    #: baud, and it is what makes a simulated run mean anything about
+    #: throughput: without it every reply is instant and the host looks
+    #: infinitely fast. 10 Mbit/s is an RS485 segment; 115200 is the
+    #: debug probe's VCP.
+    baud = 115200
+
+    #: Bytes a reply carries beyond its records - unit, function code,
+    #: the count byte, the backlog and the CRC - plus the request. The
+    #: board's own arithmetic, so the emulated line charges for the same
+    #: frame the real one sends.
+    FRAME_BYTES = 2 + 1 + 4 + 2 + 8
+
+    #: Fixed cost of a transaction, whatever it carries. On the real link
+    #: this is t3.5 and the board's turnaround: measured 1.75 ms and
+    #: 2.70 ms on the port itself. It does not shrink with the bitrate,
+    #: which is the whole point of emulating it - at 10 Mbit/s it is what
+    #: is left.
+    TURNAROUND = 0.0
+
     #: Channel index -> (signal, unit, differential), the stand-in's table.
     #: Built from CHANNELS rather than written out. It was written out, and
     #: two supply senses added to the board's table left the stand-in's DAQ
@@ -1382,6 +1402,60 @@ class SimulatedDaq(Acquisition):
         self._produced = 0
         self._at = 0
 
+    #: Emulated line time owed but not yet slept. `time.sleep` cannot
+    #: honour a sub-millisecond wait on Windows - profiled at an
+    #: emulated 10 Mbit/s, where a reply is 292 us, it slept 2.878 s
+    #: of a 4 s run and the emulator became the bottleneck it was
+    #: written to measure. Owed time is banked and paid in one sleep
+    #: when it is worth sleeping, so the AVERAGE rate is right at any
+    #: bitrate and no single wait is below the clock's resolution.
+    _owed = 0.0
+
+    #: Bank this much before sleeping it off.
+    SLEEP_FLOOR = 0.002
+
+    #: Noise drawn once and cycled, rather than drawn per field per
+    #: record. PROFILED at an emulated 10 Mbit/s: 401 200 gauss calls
+    #: and 361 080 randint calls in four seconds, which was the top
+    #: of the profile - the library's own decode did not appear in
+    #: it at all. A stand-in that costs more than the code it stands
+    #: in for cannot benchmark it. Same distribution to a reader,
+    #: and a pool this size does not repeat visibly.
+    _POOL = 1021
+
+    def _noise(self):
+        """One unit-variance noise term, O(1) and no RNG call."""
+        pool = getattr(self, '_noise_pool', None)
+        if pool is None:
+            pool = [random.gauss(0.0, 1.0) for _ in range(self._POOL)]
+            self._noise_pool = pool
+            self._noise_at = 0
+        self._noise_at = (self._noise_at + 1) % self._POOL
+        return pool[self._noise_at]
+
+    def _duty(self):
+        """A pin's duty for one record, from the same pool."""
+        return (self._noise() * 0.25 + 0.5) % 1.0
+
+    def _wire_time(self, records):
+        """What a reply of `records` costs on the emulated line."""
+        if not self.baud:
+            return 0.0
+        octets = self.FRAME_BYTES + records * self._stride()
+        return (octets * 10.0 / float(self.baud)) + self.TURNAROUND
+
+    def _charge_line(self, records):
+        """Bank this reply's line time, and pay when it is worth it."""
+        self._owed += self._wire_time(records)
+        if self._owed >= self.SLEEP_FLOOR:
+            began = time.time()
+            time.sleep(self._owed)
+            # Whatever the sleep overshot comes off the next bill,
+            # so a coarse clock does not compound into a slow line.
+            self._owed -= (time.time() - began)
+            if self._owed < 0.0:
+                self._owed = max(self._owed, -self.SLEEP_FLOOR)
+
     def _period_us(self):
         base = 20.0 if (self._cfg or {}).get('clock') == 'tim1' else 47.0
         return base * self._cfg['decimate'] * self._cfg['accumulate']
@@ -1390,7 +1464,10 @@ class SimulatedDaq(Acquisition):
         cfg = self._cfg or {'channels': 0, 'clock': 'software', 'sample_time': 0,
                             'decimate': 0, 'accumulate': 0, 'records': 0}
         held = self._buffered()
-        capacity = 16384 // max(1, self._stride())      # DAQ_BYTES
+        # DAQ_BYTES, and the board's number: 16384 was the ring before it
+        # moved into the AXI SRAM, and a stand-in quoting the old one
+        # reports a capacity no host would ever see.
+        capacity = (448 * 1024) // max(1, self._stride())
         return {'running': self._running, 'done': self._done,
                 'lost_power': False,
                 'stride': self._stride(), 'fields': len(self._order),
@@ -1399,6 +1476,12 @@ class SimulatedDaq(Acquisition):
                 'worst': min(capacity, held),
                 'rung': 0, 'rungs': getattr(self, '_ladder', 0),
                 'rung_changes': 0,
+                # `cmd_link_records_per_second`, the board's own formula,
+                # against this stand-in's line. Missing here until now,
+                # so a view asking what the link carries got nothing and
+                # fell back to the frame rate.
+                'max_rate_hz': int(((self.baud // 10) * 75 // 100)
+                                   // max(1, self._stride())),
                 **cfg}
 
     #: What a record carries, in the board's order - the sampled set, not
@@ -1556,14 +1639,25 @@ class SimulatedDaq(Acquisition):
             self._at = (self._at + int(self._period_us() * 475)) & 0xFFFFFFFF
             took = self._samples_per_record(len(fields))
             rec = {'at': self._at, 'samples': took}
+            # THE SUM, NOT THE SAMPLES. Drawing `took` uniform noise
+            # terms per field and adding them was the single most
+            # expensive thing in the stand-in: profiled at an
+            # emulated 10 Mbit/s it made 384 275 randint calls in
+            # four seconds and was most of what the run measured,
+            # so a benchmark against it was benchmarking the
+            # simulator. A sum of `took` draws from [-60, 60] has
+            # mean 0 and variance took * 1210, and one gauss call
+            # gives the same distribution to a reader that only
+            # ever sees the sum.
+            spread = math.sqrt(took * 1210.0)
             for f in fields:
                 centre = self.CENTRE[f['channel']]
-                rec[f['signal']] = sum(centre + random.randint(-60, 60)
-                                       for _ in range(took))
+                rec[f['signal']] = (centre * took
+                                    + int(spread * self._noise()))
             if (layout or self.layout()).get('pins'):
                 # A duty like the board's, not a level: 0.0 to 1.0 of the
                 # window the record covers.
-                rec['digital'] = {p['signal']: random.randint(0, 255) / 255.0
+                rec['digital'] = {p['signal']: self._duty()
                                   for p in self.PINS}
             out.append(rec)
         self._produced += n
@@ -1571,6 +1665,9 @@ class SimulatedDaq(Acquisition):
             self._running = False
             self._done = True
         self.backlog = self._buffered()
+        # THE LINE, CHARGED IN TIME. A stand-in that answers instantly
+        # measures the host and calls it the link.
+        self._charge_line(len(out))
         return out
 
     def drain(self, limit=None, layout=None):
@@ -2121,6 +2218,12 @@ class SimulatedSession:
         self.port = self.bus
         self.unit = int(unit)
         self._board = SimulatedBoard(self.unit, self.bus)
+        # THE SESSION'S LINE REACHES THE BOARD. Without it a stand-in
+        # asked to emulate a 10 Mbit/s segment still charged 115200
+        # for every reply, and every throughput number off it was the
+        # debug probe's whatever the caller asked for.
+        self._board.baud = self.baud
+        self._board.daq.baud = self.baud
         self._info = None
 
     def buses(self):
