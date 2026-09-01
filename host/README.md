@@ -91,6 +91,25 @@ pandas is imported **where it is called**, so the library still runs on a
 bench without it: `columns()` is a dict of plain lists, which is what
 `DataFrame` takes anyway.
 
+**Zero and span.** `daq.compensate(name, gain=, offset=)` writes one
+channel's gain and offset into the calibration record - classic offset then
+gain, `(code - offset) * gain`, in the order the board applies them. `gain`
+is a plain multiplier here and parts per million on the wire. Either may be
+left out to keep what the channel has.
+
+```python
+daq.tare('phaseU', auto=True, save=False)   # measure now, write it
+daq.tare()                                  # every current channel, saved
+```
+
+`tare()` is a measurement and then a `compensate()`: with `auto` it reads a
+burst here and writes the mean as the offset, and with `auto=False` it asks
+the board to do both in one op. Refused with the AFE off - it powers the
+converter's reference, so every channel reads exact mid-scale and a tare
+against that stores a plausible number that means nothing. The board keeps
+it either way: `save=True` commits the record to flash, so the next session
+and every other host read the channel the same way.
+
 **Buffers.** `daq.configure_buffer(10000)` sizes the circular buffer in
 RECORDS. With a broker in the path that is the BROKER'S ring, and every
 client on it - another process, another thread, a view and a chat session

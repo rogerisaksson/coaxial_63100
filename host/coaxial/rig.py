@@ -121,7 +121,7 @@ SENSOR_FIELDS = (
 DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
-            'configure_buffer', 'tare',
+            'configure_buffer', 'tare', 'compensate',
             'channel_names', 'columns', 'series', 'frame', 'frames')
 
 
@@ -825,29 +825,66 @@ class Coaxial63100(Acquisition):
     #: of the link and several seconds of headroom at the other.
     BUFFER_RECORDS = 10000
 
-    def tare(self, *names, **kw):
-        """Zero the current channels: whatever they read now becomes zero.
+    def compensate(self, name, gain=None, offset=None, save=True):
+        """Write one channel's gain and offset into the calibration record.
 
-            device.tare()                 # the three phases
-            device.tare('phaseU')         # one of them
-            device.tare(save=False)       # this session only
+            daq.compensate('phaseU', gain=1.002, offset=-7155)
 
-        THE BOARD DOES THE ZEROING AND THE BOARD KEEPS IT. `cal.zero()`
-        measures the channel and stores the reading as its offset in the
-        calibration record, and `save()` commits that to flash - so the
-        next session, and every other host, sees the same zero. A host-side
-        subtraction would be one more copy of a conversion that invariant 7
-        says lives in exactly one place.
+        CLASSIC OFFSET AND GAIN, in the order the board applies them:
+        `(code - offset) * gain`. `gain` is a plain multiplier here and
+        parts per million on the wire, because 1.002 is what an operator
+        means and 2000 is what the record stores.
 
-        NOTHING HERE KNOWS WHAT IS ON THE INPUT. Pointing it at a live
-        channel stores a live reading as zero, which is the operator's
-        mistake to make; the codes it returns are what make it visible.
-        Returns `{name: code}`.
+        Either may be left out to keep what the channel already has - a
+        span that must not disturb a zero, or the other way round.
 
-        Refused with the AFE off: the reference is unpowered, every channel
-        reads exact mid-scale, and taring against that would write a
-        plausible number that means nothing (invariant 9).
+        THE BOARD KEEPS IT. It goes in the calibration record behind
+        `0x6E` device 3, where invariant 7 says every conversion lives, so
+        the next session and every other host read the same channel the
+        same way. `save=False` holds it in RAM for this session only;
+        `save=True` commits the whole record to flash.
+
+        Returns `{'offset_raw', 'gain_ppm'}` as stored.
         """
+        spelling = self.pick(name)[0]
+        index = {c['signal']: c['index']
+                 for c in self.board.system.channel_map()['analog']}[spelling]
+        was = {c['index']: c for c in
+               self.board.calibration.read()['channels']}.get(index, {})
+
+        offset_raw = (was.get('offset_raw') or 0 if offset is None
+                      else int(round(offset)))
+        gain_ppm = (was.get('gain_ppm') or 0 if gain is None
+                    else int(round((float(gain) - 1.0) * 1e6)))
+
+        self.board.calibration.set_channel(index, offset_raw, gain_ppm)
+        if save:
+            self.board.calibration.save()
+        return {'offset_raw': offset_raw, 'gain_ppm': gain_ppm}
+
+    def tare(self, *names, **kw):
+        """Zero the current channels: what they read now becomes zero.
+
+            daq.tare('phaseU', auto=True, save=False)
+            daq.tare()                    # every current channel, saved
+
+        A MEASUREMENT AND THEN A `compensate()`. With `auto` it reads the
+        channel here and writes what it read as the offset; with
+        `auto=False` it asks the board to do both in one op, which is what
+        `cal.zero()` is - the same answer, one round trip, and no window in
+        which the host holds a number the board has not agreed to.
+
+        NOTHING HERE KNOWS WHAT IS ON THE INPUT. Taring a live channel
+        stores a live reading as zero, which is the operator's mistake to
+        make; the codes returned are what make it visible.
+
+        Refused with the AFE off: it powers the converter's reference, so
+        every channel reads exact mid-scale and a tare against that writes
+        a plausible number that means nothing (invariant 9).
+
+        Returns `{name: code}`.
+        """
+        auto = kw.pop('auto', True)
         save = kw.pop('save', True)
         if kw:
             raise TypeError('tare() got %s' % ', '.join(sorted(kw)))
@@ -860,14 +897,32 @@ class Coaxial63100(Acquisition):
         wanted = self.pick(*names) if names else [
             r['name'] for r in self.catalogue()
             if r['kind'] == 'analog' and r.get('unit') == 'mA']
+
         index = {c['signal']: c['index']
                  for c in self.board.system.channel_map()['analog']}
         got = {}
-        for name in wanted:
-            got[name] = self.board.calibration.zero(index[name])
+        for spelling in wanted:
+            if auto:
+                code = self._read_now(spelling)
+                self.compensate(spelling, offset=code, save=False)
+            else:
+                code = self.board.calibration.zero(index[spelling])
+            got[spelling] = code
         if save:
             self.board.calibration.save()
         return got
+
+    def _read_now(self, name):
+        """One channel's code, meaned over a burst, for a tare to keep.
+
+        A BURST AND NOT A SAMPLE. A zero taken from one conversion carries
+        that conversion's noise into every reading afterwards, which is the
+        opposite of what a tare is for.
+        """
+        for row in self.board.analog.read_all()['channels']:
+            if row['signal'] == name:
+                return int(round(row['mean_raw']))
+        raise RigError('%r is not a channel this board reads' % name)
 
     def configure_buffer(self, records):
         """Size the circular buffer the records land in, in RECORDS.
