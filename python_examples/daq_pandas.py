@@ -40,10 +40,11 @@ args = p.parse_args()
 # records from its own cursor.
 
 # %%
-with Coaxial63100(port=args.port, power_afe=True,
+with Coaxial63100(port=args.port,
                   simulated_device=args.simulated) as device:
     device.set_time_from_pc()
     daq = device.daq
+    daq.enable()               # powers the analog front end
 
     daq.configure_buffer(10000)
     daq.configure('phaseU', 'phaseV', 'ntc', 'DC bus', sample_rate=500)

@@ -70,9 +70,10 @@ cable.
 
 ```python
 from coaxial import Coaxial63100
-device = Coaxial63100(port='COM4', power_afe=True)   # simulated_device=True: no cable
+device = Coaxial63100(port='COM4')       # simulated_device=True: no cable
 daq = device.daq                         # the data acquisition subsystem
 daq.open()
+daq.enable()                             # powers the analog front end
 device.set_time_from_pc()                # the board counts cycles, not time
 daq.configure(['Phase U', 'NTC'], sample_rate=1000)  # 1000 records/s, the board averages
 daq.start()                              # buffering starts in the host and target

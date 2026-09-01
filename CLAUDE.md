@@ -142,9 +142,10 @@ neither. `GateStage` is concrete: the arming policy, one of it.
 
 ```python
 from coaxial import Coaxial63100
-device = Coaxial63100(port='COM4', power_afe=True)   # simulated_device=True: no cable
+device = Coaxial63100(port='COM4')       # simulated_device=True: no cable
 daq = device.daq                         # the data acquisition subsystem
 daq.open()
+daq.enable()                             # powers the analog front end
 device.set_time_from_pc()                # the board counts cycles, not time
 daq.configure('phaseU', 'NTC')           # names in any spelling, or a list
 daq.start()                              # host and target both buffer

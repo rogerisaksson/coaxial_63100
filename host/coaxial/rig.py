@@ -121,7 +121,7 @@ SENSOR_FIELDS = (
 DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
-            'configure_buffer',
+            'configure_buffer', 'enable', 'disable',
             'channel_names', 'columns', 'series', 'frame', 'frames',
             'legs', 'currents', 'history')
 
@@ -235,6 +235,9 @@ class Coaxial63100(Acquisition):
         self.layout = None
         self.sync = None
         self._afe_was_on = None
+        #: Whether this session holds a reference on the AFE rail, so
+        #: close() releases exactly what it took and no more.
+        self._afe_held = False
         # The host-side reader, alive only between start() and stop().
         self._reader = None
         self._buffer_records = self.BUFFER_RECORDS
@@ -266,6 +269,7 @@ class Coaxial63100(Acquisition):
             # opened onto a lit rail and its configure was refused with
             # 'AFE_ON is off' one round trip later.
             self.board.afe.enable()
+            self._afe_held = True
             if not already:
                 # The parts need their supply up before anything talks to
                 # them. Enabling and configuring in the same breath answered
@@ -361,10 +365,13 @@ class Coaxial63100(Acquisition):
             except RigError:
                 pass
             try:
-                if self.power_afe:
+                if self._afe_held:
                     # Release OUR reference; the refcount keeps the rail up
-                    # for whoever else holds it.
+                    # for whoever else holds it. Tracked rather than taken
+                    # from `power_afe`, so a session that called enable()
+                    # itself is released the same way.
                     self.board.afe.disable()
+                    self._afe_held = False
             except RigError:
                 pass                    # closing is not the place to raise
         if self.session is not None:
@@ -894,6 +901,41 @@ class Coaxial63100(Acquisition):
     #: fifty-byte stride is half a megabyte, which is nothing at this end
     #: of the link and several seconds of headroom at the other.
     BUFFER_RECORDS = 10000
+
+    def enable(self):
+        """Power the analog front end for this session.
+
+            daq.enable()          # powers the analog front end
+            daq.configure('phaseU', 'NTC')
+
+        AFE_ON powers the converter's REFERENCE, not just the signal path:
+        with it off every channel reads exact mid-scale and the NTC exactly
+        25.00 C - plausible, and not a measurement (invariant 9).
+
+        HERE AND NOT ON `afe` BECAUSE THE RAIL IS REFERENCE COUNTED.
+        `board.afe.enable()` takes a reference that nothing releases, so
+        the rail stays up after this session has gone; taken here it is
+        released by `close()`, Ctrl+C included. The raw op is still
+        `board.afe.enable()` for a caller that means to hold it past a
+        session.
+
+        Idempotent: a second call is not a second reference.
+        """
+        if not self._afe_held:
+            self.board.afe.enable()
+            self._afe_held = True
+        return self
+
+    def disable(self):
+        """Release this session's hold on the front end.
+
+        The refcount keeps the rail up for whoever else holds it, so this
+        is a release and not a switch-off.
+        """
+        if self._afe_held:
+            self.board.afe.disable()
+            self._afe_held = False
+        return self
 
     def configure_buffer(self, records):
         """Size the circular buffer the records land in, in RECORDS.

@@ -55,10 +55,11 @@ figure, axes = pyplot.subplots(4, 1, sharex=True, figsize=(9, 8),
                                gridspec_kw={'height_ratios': [6, 1, 1, 1]})
 amps_ax, leg_axes = axes[0], axes[1:]
 
-with Coaxial63100(port=args.port, power_afe=True,
+with Coaxial63100(port=args.port,
                   simulated_device=args.simulated) as device:
     device.set_time_from_pc()
     daq = device.daq
+    daq.enable()               # powers the analog front end
     daq.configure_buffer(20000)
     daq.configure('phaseU', 'phaseV', 'phaseW', 'AFE_ON', sample_rate=500)
 
