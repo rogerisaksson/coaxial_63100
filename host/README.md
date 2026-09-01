@@ -129,6 +129,15 @@ against that stores a plausible number that means nothing. The board keeps
 it either way: `save=True` commits the record to flash, so the next session
 and every other host read the channel the same way.
 
+**Single shot.** `daq.capture('phaseU', 'phaseV')` is the opposite of a
+stream: no chain, nothing gating it, every sweep the loop manages becoming
+a record until the ring is full - and only then does the slow link get
+involved. The board samples ahead of the link for as long as the ring
+lasts, which is what having one is for. `records` defaults to what the
+board says its ring holds at this stride, so the burst ends when the
+buffer is full rather than at a number somebody guessed, and nothing is
+dropped by construction.
+
 **Buffers.** `daq.configure_buffer(10000)` sizes the circular buffer in
 RECORDS. With a broker in the path that is the BROKER'S ring, and every
 client on it - another process, another thread, a view and a chat session

@@ -176,6 +176,43 @@ def test_read_of_a_running_task(report):
                      lot and set(lot[0].channel_name) == {'Phase U', 'NTC'})
 
 
+def test_capture_is_a_single_shot(report):
+    """A burst at the loop's rate, ended by the record count.
+
+    WHAT THE STAND-IN CANNOT SHOW, and it is the point of the feature: it
+    invents a record when one is asked for, so its buffer never fills
+    faster than the link empties it. The property that a capture samples
+    ahead of the link for as long as the ring lasts needs the board. What
+    is checked here is everything else - that the count is exact, that
+    nothing is dropped, that no chain is left shaping it, and that the
+    records come back whole.
+    """
+    with opened() as device:
+        daq = device.daq
+        for ask in (400, 1500):
+            burst = daq.capture('phaseU', 'phaseV', records=ask)
+            state = daq.state()
+            report.check('capture(records=%d) returns exactly that' % ask,
+                         len(burst) == ask, len(burst))
+            report.check('and drops nothing, since the run ends at the ring',
+                         not state.get('dropped'), state.get('dropped'))
+
+        report.check('the records carry every channel asked for',
+                     set(burst[0].channel_name) == {'Phase U', 'Phase V'},
+                     burst[0].channel_name)
+        report.check('nothing gates it: one sample a record',
+                     burst[0].count == 1, burst[0].count)
+        report.check('and the task is stopped afterwards',
+                     not daq.state()['running'])
+
+        # A capture with no count fills the ring, which is what the board
+        # says it holds at this stride rather than a number chosen here.
+        daq.configure('phaseU', accumulate=1, interval_us=0)
+        capacity = daq.state()['capacity']
+        report.check('the ring size comes from the board',
+                     capacity > 1000, capacity)
+
+
 def test_the_task_brackets_itself(report):
     with opened() as device:
         daq = device.daq
@@ -392,6 +429,7 @@ def main():
     for test in (test_catalogue, test_pick,
                  test_configure_takes_names_or_a_list,
                  test_read_of_a_finite_run, test_read_of_a_running_task,
+                 test_capture_is_a_single_shot,
                  test_the_task_brackets_itself,
                  test_record_shape, test_series_and_columns,
                  test_configure_buffer, test_fanout_ring,

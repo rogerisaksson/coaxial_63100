@@ -121,7 +121,7 @@ SENSOR_FIELDS = (
 DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
-            'configure_buffer', 'enable', 'disable',
+            'configure_buffer', 'capture', 'enable', 'disable',
             'channel_names', 'columns', 'series', 'frame', 'frames',
             'history')
 
@@ -916,6 +916,76 @@ class Coaxial63100(Acquisition):
             self._afe_held = False
         return self
 
+    def capture(self, *channels, **kw):
+        """One burst at the loop's full rate, then read it out. Single shot.
+
+            burst = daq.capture('phaseU', 'phaseV')     # fill the ring
+            burst = daq.capture('phaseU', records=2000)
+
+        THE OPPOSITE OF `frames()`. A stream is shaped: the chain decimates
+        so what comes out is what the link carries, continuously and
+        forever. A capture is not shaped at all - every sweep the loop
+        manages becomes a record until the ring is full, and only then does
+        the slow link get involved. The board samples faster than the link
+        can carry for as long as the ring lasts, which is the whole point
+        of having one.
+
+        Nothing gates it. `interval_us` 0 with a record COUNT is left alone
+        by the board's rate substitution - that only steps in for a
+        free-running task with no end, which is the one that would take the
+        link down. A finite run is the burst.
+
+        `records` defaults to what the ring holds at this stride, so the
+        capture ends exactly when the buffer is full rather than at a
+        number somebody guessed. `timeout` bounds the wait.
+
+        Returns the records. `state()['dropped']` is 0 for a capture by
+        construction: the run stops at the ring's size, so there is nothing
+        for a full ring to drop.
+        """
+        digital = kw.pop('digital', True)
+        records = kw.pop('records', None)
+        timeout = kw.pop('timeout', 30.0)
+        sample_time = kw.pop('sample_time', 0)
+        if kw:
+            raise TypeError('capture() got %s' % ', '.join(sorted(kw)))
+
+        # NO CHAIN. A capture is raw sweeps; a filter would be decimating
+        # what the ring exists to keep whole, and the board refuses a
+        # clock-closed record under one anyway.
+        self.board.daq.shape()
+        self.configure(*channels, accumulate=1, interval_us=0,
+                       digital=digital, sample_time=sample_time)
+        if records is None:
+            # The ring's own size at THIS stride, asked rather than worked
+            # out here: the board knows what its buffer holds and the
+            # arithmetic changes with every field added to a record.
+            records = (self.state() or {}).get('capacity') or 1
+            self.configure(*channels, accumulate=1, interval_us=0,
+                           digital=digital, sample_time=sample_time,
+                           records=records)
+        else:
+            self.configure(*channels, accumulate=1, interval_us=0,
+                           digital=digital, sample_time=sample_time,
+                           records=int(records))
+
+        self.start()
+        got = []
+        try:
+            # TO EXHAUSTION, not `read(-1)`. That waits for a block and
+            # drains what is queued behind it, which misses whatever the
+            # reader has in flight - measured, 380 records of a 400 record
+            # burst. The generator ends when the run is done AND both ends
+            # are empty, which is exactly when a capture is complete.
+            deadline = time.time() + timeout
+            for block in self.read_buffer(-1):
+                got.extend(block)
+                if time.time() > deadline:
+                    break
+        finally:
+            self.stop()
+        return got
+
     def configure_buffer(self, records):
         """Size the circular buffer the records land in, in RECORDS.
 
@@ -1168,7 +1238,16 @@ class Coaxial63100(Acquisition):
             return out
         for block in self.read_buffer(-1):
             out.extend(block)
-            if count < 0 or len(out) >= count:
+            if count < 0:
+                # EVERYTHING THERE IS, not the first block of it. Breaking
+                # here returned one reply's worth - 20 records of a 400
+                # record capture - while the docstring said it drained what
+                # the board had. `drain()` takes what is queued and does not
+                # wait, so this still returns the moment the queue is dry.
+                for more in self._reader.drain():
+                    out.extend(more)
+                break
+            if len(out) >= count:
                 break
         # WHAT THERE IS, when a finite run ends first. This used to be three
         # loops - the one above, then a `while len(out) < count` around a
