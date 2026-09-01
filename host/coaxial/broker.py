@@ -117,10 +117,10 @@ class BrokerTransport:
 
     # -- the shared ring --------------------------------------------------
 
-    def stream(self, stride, records):
-        """Ask the broker to drain the task into a ring of `records`."""
+    def stream(self, stride, records, unit=1):
+        """Ask the broker to drain unit `unit` into a ring of `records`."""
         return self._ask({'op': 'daq_stream', 'stride': stride,
-                          'records': records})
+                          'records': records, 'unit': unit})
 
     def unstream(self):
         return self._ask({'op': 'daq_unstream'})
@@ -308,7 +308,8 @@ class _Handler(socketserver.StreamRequestHandler):
             served.spoke()
             return {'payload': bytes(got).hex()}
         if op == 'daq_stream':
-            served.stream(int(message['stride']), int(message['records']))
+            served.stream(int(message['stride']), int(message['records']),
+                          int(message.get('unit') or 1))
             return served.fanout.state()
         if op == 'daq_unstream':
             served.unstream()
@@ -361,6 +362,8 @@ class _Server(socketserver.ThreadingTCPServer):
     #: `coaxial.fanout` from its own cursor.
     fanout = None
     streaming = False
+    #: Which unit the ring is being filled from.
+    stream_unit = 1
     _streamer = None
     _stop_stream = None
 
@@ -377,8 +380,8 @@ class _Server(socketserver.ThreadingTCPServer):
     #: an operator thinking between chat turns. The margin is 3x.
     KEEPALIVE = 3.0
 
-    def stream(self, stride, records):
-        """Start draining the task into a ring of `records`, or resize it.
+    def stream(self, stride, records, unit=1):
+        """Start draining unit `unit` into a ring of `records`, or resize it.
 
         Resizing makes a NEW ring, so every cursor is stale - clients are
         told where the new one starts by `daq_state` and take from there.
@@ -390,11 +393,13 @@ class _Server(socketserver.ThreadingTCPServer):
         with self.lock:
             same = (self.fanout is not None
                     and self.fanout.stride == stride
-                    and self.fanout.capacity == records)
+                    and self.fanout.capacity == records
+                    and self.stream_unit == unit)
         if same and self.streaming:
             return
         self.unstream()
         self.fanout = Fanout(stride, records)
+        self.stream_unit = unit
         self._stop_stream = threading.Event()
         self._streamer = threading.Thread(
             target=_stream_loop, args=(self, self._stop_stream),
@@ -479,11 +484,17 @@ def _stream_loop(served, stop):
 
     payload = bytes([protocol.DEVICE_DAQ, 4, 0])
     stride = served.fanout.stride
+    # THE UNIT THE CLIENT ASKED FOR, not 1. A broker serves a SEGMENT -
+    # `/node RL 2` is the knee on the right leg - and a hardcoded 1 streamed
+    # from whichever node happens to be first while the client believed it
+    # was reading the one it configured.
+    unit = served.stream_unit
     idle = 0.002
     while not stop.is_set():
         try:
             with served.lock:
-                reply = served.transport.request(1, protocol.DEVICE, payload)
+                reply = served.transport.request(unit, protocol.DEVICE,
+                                                 payload)
             served.spoke()
         except Exception:                              # noqa: BLE001
             # A quiet board is not a reason to stop streaming: the task may

@@ -31,119 +31,119 @@ class CalibrationOps:
     `read` and `zero`, which is exactly the wire.
     """
 
-    def compensate(self, name, gain=None, offset=None, save=True):
-        """Write one channel's gain and offset, by name.
-
-            board.calibration.compensate('phaseU', gain=1.002, offset=-7155)
-
-        `set_channel()` takes an index and both numbers; this takes the
-        board's own channel name and lets either stand, so a span does not
-        have to restate a zero it must not disturb.
-
-        CLASSIC OFFSET AND GAIN, in the order the board applies them:
-        `(code - offset) * gain`. `gain` is a plain multiplier here and
-        parts per million on the wire, because 1.002 is what an operator
-        means and 2000 is what the record stores.
-
-        Returns `{'offset_raw', 'gain_ppm'}` as stored.
-        """
-        index = self._index_of(name)
-        was = {c['index']: c for c in self.read()['channels']}.get(index, {})
-        offset_raw = (was.get('offset_raw') or 0 if offset is None
-                      else int(round(offset)))
-        gain_ppm = (was.get('gain_ppm') or 0 if gain is None
-                    else int(round((float(gain) - 1.0) * 1e6)))
-        self.set_channel(index, offset_raw, gain_ppm)
-        if save:
-            self.save()
-        return {'offset_raw': offset_raw, 'gain_ppm': gain_ppm}
-
-    def tare(self, *names, **kw):
-        """Zero channels: what they read now becomes zero.
-
-            board.calibration.tare('phaseU', auto=True, save=False)
-            board.calibration.tare()      # every current channel, saved
-
-        A MEASUREMENT AND THEN A `compensate()`. With `auto` it reads a
-        BURST here - a zero taken from one conversion carries that
-        conversion's noise into every reading after it - and writes the
-        mean as the offset, leaving the gain alone. With `auto=False` it
-        asks the board to do both in one op, which is what `zero()` is:
-        the same answer in one round trip, and no window in which the host
-        holds a number the board has not agreed to.
-
-        NOTHING HERE KNOWS WHAT IS ON THE INPUT. Taring a live channel
-        stores a live reading as zero, which is the operator's mistake to
-        make; the codes returned are what make it visible.
-
-        Refused with the AFE off: it powers the converter's reference, so
-        every channel reads exact mid-scale and a tare against that writes
-        a plausible number that means nothing (invariant 9).
-
-        Returns `{name: code}`.
-        """
-        from .errors import RigError
-
-        auto = kw.pop('auto', True)
-        save = kw.pop('save', True)
-        if kw:
-            raise TypeError('tare() got %s' % ', '.join(sorted(kw)))
-        if not self.board.afe.is_on():
-            raise RigError(
-                'AFE_ON is off, and it powers the converter reference - '
-                'every channel reads exact mid-scale, so a tare would store '
-                'that as zero. Switch it on first')
-
-        rows = self.board.system.channel_map()['analog']
-        wanted = ([self._spell(n) for n in names] if names
-                  else [r['signal'] for r in rows if r.get('unit') == 'mA'])
-        got = {}
-        for name in wanted:
-            if auto:
-                code = self._burst_mean(name)
-                self.compensate(name, offset=code, save=False)
-            else:
-                code = self.zero(self._index_of(name))
-            got[name] = code
-        if save:
-            self.save()
-        return got
-
-    # -- naming, which is the board's ------------------------------------
-
-    def _rows(self):
-        return self.board.system.channel_map()['analog']
-
-    @staticmethod
-    def _match(name):
-        import re
-
-        return re.sub(r'[^a-z0-9]', '', str(name).lower())
-
-    def _spell(self, name):
-        """The board's own spelling of `name`, or a raise naming its list."""
-        from .errors import RigError
-
-        for row in self._rows():
-            if self._match(row['signal']) == self._match(name):
-                return row['signal']
-        raise RigError('no channel called %r. This board has: %s'
-                       % (name, ', '.join(r['signal'] for r in self._rows())))
-
-    def _index_of(self, name):
-        spelling = self._spell(name)
-        for row in self._rows():
-            if row['signal'] == spelling:
-                return row['index']
-        raise AssertionError('unreachable: %r was just spelled' % name)
-
-    def _burst_mean(self, name):
-        """One channel's code, meaned over a burst, for a tare to keep."""
-        from .errors import RigError
-
-        for row in self.board.analog.read_all()['channels']:
-            if row['signal'] == name:
-                return int(round(row['mean_raw']))
+    def compensate(self, name, gain=None, offset=None, save=True):
+        """Write one channel's gain and offset, by name.
+
+            board.calibration.compensate('phaseU', gain=1.002, offset=-7155)
+
+        `set_channel()` takes an index and both numbers; this takes the
+        board's own channel name and lets either stand, so a span does not
+        have to restate a zero it must not disturb.
+
+        CLASSIC OFFSET AND GAIN, in the order the board applies them:
+        `(code - offset) * gain`. `gain` is a plain multiplier here and
+        parts per million on the wire, because 1.002 is what an operator
+        means and 2000 is what the record stores.
+
+        Returns `{'offset_raw', 'gain_ppm'}` as stored.
+        """
+        index = self._index_of(name)
+        was = {c['index']: c for c in self.read()['channels']}.get(index, {})
+        offset_raw = (was.get('offset_raw') or 0 if offset is None
+                      else int(round(offset)))
+        gain_ppm = (was.get('gain_ppm') or 0 if gain is None
+                    else int(round((float(gain) - 1.0) * 1e6)))
+        self.set_channel(index, offset_raw, gain_ppm)
+        if save:
+            self.save()
+        return {'offset_raw': offset_raw, 'gain_ppm': gain_ppm}
+
+    def tare(self, *names, **kw):
+        """Zero channels: what they read now becomes zero.
+
+            board.calibration.tare('phaseU', auto=True, save=False)
+            board.calibration.tare()      # every current channel, saved
+
+        A MEASUREMENT AND THEN A `compensate()`. With `auto` it reads a
+        BURST here - a zero taken from one conversion carries that
+        conversion's noise into every reading after it - and writes the
+        mean as the offset, leaving the gain alone. With `auto=False` it
+        asks the board to do both in one op, which is what `zero()` is:
+        the same answer in one round trip, and no window in which the host
+        holds a number the board has not agreed to.
+
+        NOTHING HERE KNOWS WHAT IS ON THE INPUT. Taring a live channel
+        stores a live reading as zero, which is the operator's mistake to
+        make; the codes returned are what make it visible.
+
+        Refused with the AFE off: it powers the converter's reference, so
+        every channel reads exact mid-scale and a tare against that writes
+        a plausible number that means nothing (invariant 9).
+
+        Returns `{name: code}`.
+        """
+        from .errors import RigError
+
+        auto = kw.pop('auto', True)
+        save = kw.pop('save', True)
+        if kw:
+            raise TypeError('tare() got %s' % ', '.join(sorted(kw)))
+        if not self.board.afe.is_on():
+            raise RigError(
+                'AFE_ON is off, and it powers the converter reference - '
+                'every channel reads exact mid-scale, so a tare would store '
+                'that as zero. Switch it on first')
+
+        rows = self.board.system.channel_map()['analog']
+        wanted = ([self._spell(n) for n in names] if names
+                  else [r['signal'] for r in rows if r.get('unit') == 'mA'])
+        got = {}
+        for name in wanted:
+            if auto:
+                code = self._burst_mean(name)
+                self.compensate(name, offset=code, save=False)
+            else:
+                code = self.zero(self._index_of(name))
+            got[name] = code
+        if save:
+            self.save()
+        return got
+
+    # -- naming, which is the board's ------------------------------------
+
+    def _rows(self):
+        return self.board.system.channel_map()['analog']
+
+    @staticmethod
+    def _match(name):
+        import re
+
+        return re.sub(r'[^a-z0-9]', '', str(name).lower())
+
+    def _spell(self, name):
+        """The board's own spelling of `name`, or a raise naming its list."""
+        from .errors import RigError
+
+        for row in self._rows():
+            if self._match(row['signal']) == self._match(name):
+                return row['signal']
+        raise RigError('no channel called %r. This board has: %s'
+                       % (name, ', '.join(r['signal'] for r in self._rows())))
+
+    def _index_of(self, name):
+        spelling = self._spell(name)
+        for row in self._rows():
+            if row['signal'] == spelling:
+                return row['index']
+        raise AssertionError('unreachable: %r was just spelled' % name)
+
+    def _burst_mean(self, name):
+        """One channel's code, meaned over a burst, for a tare to keep."""
+        from .errors import RigError
+
+        for row in self.board.analog.read_all()['channels']:
+            if row['signal'] == name:
+                return int(round(row['mean_raw']))
         raise RigError('%r is not a channel this board reads' % name)
 
 
@@ -161,14 +161,37 @@ class Calibration(CalibrationOps, Subsystem):
                             bytes([protocol.DEVICE_CAL, op]) + bytes(payload),
                             timeout=timeout)
 
-    def read(self):
+    #: The record as last read. It changes only when something writes it,
+    #: and every writer below drops this - the same bargain
+    #: `analog.scaling()` makes. MEASURED: uncached, a scaled frame asked
+    #: for the channel trims and paid a FULL ROUND TRIP per frame for a
+    #: record nobody had touched - eight a second in a live plot, on the
+    #: link this tree spent a day widening. Invisible against the stand-in,
+    #: where the call is local.
+    _cached = None
+
+    def _forget(self):
+        """Drop the cached record.
+
+        Every writer here calls it. A cache the writers do not clear is
+        worse than no cache: it hands back a record the board no longer
+        holds, and nothing says the two have parted company.
+        """
+        self._cached = None
+
+    def read(self, refresh=False):
         """The whole record, plus whether flash holds one.
+
+        Cached. `refresh` goes to the board, which is what the writers here
+        do for you; nothing else changes it.
 
         `stored` false means these are the firmware's compiled-in defaults -
         the schematic's arithmetic, never measured. It is the difference
         between a calibrated board and an uncalibrated one, and nothing else
         in the reply shows it.
         """
+        if self._cached is not None and not refresh:
+            return self._cached
         reader = Reader(self._op(protocol.CAL_OP_GET))
         stored = bool(reader.u8())
         version = reader.u16()
@@ -192,10 +215,11 @@ class Calibration(CalibrationOps, Subsystem):
 
         throttle = reader.u32() / 1e6
         params.update(self._paged(len(params)))
-        return {'stored': stored, 'version': version,
-                'params': params, 'channels': channels,
-                'soa_limit_c': limits,
-                'soa_throttle_at': throttle}
+        self._cached = {'stored': stored, 'version': version,
+                        'params': params, 'channels': channels,
+                        'soa_limit_c': limits,
+                        'soa_throttle_at': throttle}
+        return self._cached
 
     @staticmethod
     def _name(ident):
@@ -238,6 +262,7 @@ class Calibration(CalibrationOps, Subsystem):
 
         self._op(protocol.CAL_OP_SET_PARAM,
                  bytes([ident]) + int(value).to_bytes(4, 'big'))
+        self._forget()
 
     def set_channel(self, index, offset_raw, gain_ppm):
         """Both corrections for one channel, together.
@@ -250,6 +275,7 @@ class Calibration(CalibrationOps, Subsystem):
                  bytes([index]) +
                  int(offset_raw).to_bytes(4, 'big', signed=True) +
                  int(gain_ppm).to_bytes(4, 'big', signed=True))
+        self._forget()
 
     def zero(self, index):
         """Measure the channel now and keep the reading as its offset.
@@ -258,7 +284,9 @@ class Calibration(CalibrationOps, Subsystem):
         the input - pointing it at a live one is the operator's mistake to
         make, and the returned code is what makes it visible.
         """
-        return Reader(self._op(protocol.CAL_OP_ZERO, bytes([index]))).i32()
+        got = Reader(self._op(protocol.CAL_OP_ZERO, bytes([index]))).i32()
+        self._forget()
+        return got
 
     def span(self, index, reference):
         """Trim the gain so the channel reports `reference`.
@@ -268,10 +296,12 @@ class Calibration(CalibrationOps, Subsystem):
         conversion is logarithmic and has no scale factor, and for a channel
         reading zero, which no finite gain turns into something.
         """
-        return Reader(self._op(protocol.CAL_OP_SPAN,
-                               bytes([index]) +
-                               int(reference).to_bytes(4, 'big',
-                                                       signed=True))).i32()
+        got = Reader(self._op(protocol.CAL_OP_SPAN,
+                              bytes([index]) +
+                              int(reference).to_bytes(4, 'big',
+                                                      signed=True))).i32()
+        self._forget()
+        return got
 
     def save(self):
         """Commit to flash. Erases and rewrites one sector, then reads back.
@@ -280,11 +310,13 @@ class Calibration(CalibrationOps, Subsystem):
         return None, which invariant 8 exists to forbid: every call produces
         its result or raises, and a caller cannot tell None from a habit.
         """
+        self._forget()
         return bool(Reader(self._op(protocol.CAL_OP_SAVE,
                                     timeout=self.SAVE_TIMEOUT)).u8())
 
     def load(self):
         """Re-read flash, discarding uncommitted edits."""
+        self._forget()
         return bool(Reader(self._op(protocol.CAL_OP_LOAD)).u8())
 
     def defaults(self):

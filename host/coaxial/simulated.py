@@ -1820,17 +1820,23 @@ class SimulatedDaq(Acquisition):
             self._last_spin = self._spin(took * self._period_us() * 1e-6)
             theta, amps, _index, _delta = self._last_spin
             for f in fields:
-                centre = self.CENTRE[f['channel']]
-                offset = 0
+                index = f['channel']
+                centre = self.CENTRE[index]
                 leg = self.PHASE_LEG.get(f['signal'])
                 if leg is not None and amps:
-                    # Balanced three-phase, in codes: the dq magnitude the
-                    # drive was given, put back into the stator frame
+                    # Balanced three-phase, in codes: the dq solution the
+                    # drive settled at, put back into the stator frame
                     # through the stand-in's own amps-per-code.
-                    offset = int(took * amps
-                                 * math.cos(theta - leg * self.PHASE_STEP)
-                                 / self.AMPS_PER_CODE)
-                rec[f['signal']] = (centre * took + offset
+                    offset = took * amps * math.cos(
+                        theta - leg * self.PHASE_STEP) / self.AMPS_PER_CODE
+                else:
+                    # ONE SOURCE FOR A QUIET CHANNEL. `_sweep` is what a
+                    # read of this channel returns, and a record that made
+                    # up its own quiet point could never be zeroed by a
+                    # tare measured through the other path - the offset was
+                    # stored, applied, and wrong.
+                    offset = took * _sweep(index)
+                rec[f['signal']] = (centre * took + int(offset)
                                     + int(spread * self._noise()))
             if (layout or self.layout()).get('pins'):
                 # A duty like the board's, not a level: 0.0 to 1.0 of the

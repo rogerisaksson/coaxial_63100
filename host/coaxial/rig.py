@@ -963,7 +963,9 @@ class Coaxial63100(Acquisition):
         wire = getattr(self.board, 'transport', None)
         if not stride or not hasattr(wire, 'stream'):
             return None
-        wire.stream(stride, self._buffer_records)
+        # This session's unit, so a segment with several nodes fills
+        # the ring from the one this rig configured.
+        wire.stream(stride, self._buffer_records, self.unit)
         self._cursor = wire.stream_state().get('head', 0)
 
         def take():

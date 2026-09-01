@@ -79,15 +79,23 @@ Nothing else has - invariant 7.
    host-tested only, because the board has had no power since
    2026-09-01. That is the subsystem CLAUDE.md records as six defects and
    four dead hardware hypotheses, so the numbers wait for the rail.
-0b. **Prove `tare()` end to end on hardware.** `device.tare()` calls the
-   board's own `cal.zero()` and `save()`, so the zero is measured by the
-   board and kept in flash where invariant 7 says a conversion lives, and
-   `frame(scaled=True)` applies `offset_raw` then `gain_ppm`. THAT PATH IS
-   UNVERIFIED. On the stand-in a tare stores a code and the records do not
-   move, because `SimulatedAnalog.read_all()` and `SimulatedDaq` still
-   invent a channel two different ways - the shared quiet-point table was
-   unified, and something past it is not. On the board both come off the
-   same ADC, so the question cannot be settled here.
+0b. **Prove `tare()` end to end on hardware.** `board.calibration.tare()`
+   measures and calls `compensate()`, which writes the record where
+   invariant 7 says a conversion lives, and `frame(scaled=True)` applies
+   `offset_raw` then `gain_ppm`. It now works against the stand-in - a
+   phase reads exactly 0.00 A after a tare, and the mean of the three fell
+   from 43 A to about 1 - but the stand-in is a model this repository also
+   wrote. What is left there is the phases genuinely rotating between the
+   tare and the read, which is a live input and not something a tare
+   chases.
+
+0c. **A flake with no reproduction.** `test_simulated`'s `show_desk draws
+   simulated` failed once under a full offline run and passed every
+   attempt since, including three in isolation and several full gates.
+   `plan()` now spends two measurement passes of several seconds at
+   startup, which is the obvious suspect and is NOT evidence. Nothing has
+   been changed for it: fixing an unreproduced flake is guessing, and this
+   file is where a guess would otherwise become a habit.
 1. **The drive on a motor.** Everything past the AFE step of
    `tools/commission.py` needs current through a winding: the AFE patch
    first, then a motor on the bench, then the sign check, the dead-time
