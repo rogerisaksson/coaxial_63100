@@ -53,8 +53,24 @@ print(device.set_time_from_pc())
 # sum of everything the window held, with `samples` as the divisor.
 # `accumulate=N` is the other way - N samples close a record instead.
 
+# %% [markdown]
+# `catalogue()` is the board's own list of everything it can put in a
+# record - the analog channels, the sampled pins, and the sensor fields it
+# does not carry yet, each row saying which it is.
+
 # %%
-daq.configure(['Phase U', 'NTC'], sample_rate=100, digital=True)
+for row in daq.catalogue():
+    print('  %-16s %-8s %-10s %s'
+          % (row['name'], row['kind'], row['unit'], row['selectable']))
+
+# %% [markdown]
+# Names go in as arguments or as a list, in any spelling: `phaseU`,
+# `Phase U` and `phase_u` are one channel. Naming a pin turns the whole
+# group on, because the board puts every sampled pin in a record or none.
+
+# %%
+daq.configure('phaseU', 'NTC', 'AFE_ON', sample_rate=100)
+print('recording:', daq.channel_names())
 daq.start()
 
 # %% [markdown]
@@ -70,10 +86,14 @@ print('out:', daq.outputs())
 print(device.write(digital={'UART5_TERM': False}))
 
 # %% [markdown]
-# ## Acquire, in a loop
-# A channel's value is the SUM of `samples` readings. Divide for the mean.
-# `acquire()` drains what has arrived since the last call; the buffer drops
-# when full, so a slow reader loses records rather than falling behind.
+# ## Read
+# `read(-1)` blocks until there is something and then takes everything the
+# board has; `read(n)` waits for n records. A reader thread has been on the
+# link since `start()`, so the loop body below costs the link nothing.
+#
+# A record is an object AND the mapping it came from. `sample.raw` is the
+# SUM the board sent, `sample.value` is that sum over `record.count` - the
+# mean of the window. `dt` is measured, from the gap to the next record.
 #
 # The task buffers converter codes and scales nothing, so the code is what
 # arrives. `scaling()` is the board's own record - the thermistor it was
@@ -84,14 +104,25 @@ ntc = device.analog.scaling()['ntc']
 print('scaling from:', ntc.name)
 
 for n in range(1, BLOCKS + 1):
-    block = daq.acquire()
-    if not block:
-        continue
-    r = block[-1]
-    code = r['NTC'] / r['samples']
-    print('%2d  %s  NTC %7.1f = %5.2f C  AFE %s'
-          % (n, time.strftime('%H:%M:%S', time.localtime(r['time'])),
-             code, ntc.celsius(code), r['digital']['AFE_ON']))
+    values = daq.read(-1)
+    r = values[-1]
+    code = dict(zip(r.channel_name, (s.value for s in r.samples)))['NTC']
+    print('%2d  %s  dt %6.4f  %d records  NTC %7.1f = %5.2f C  AFE %s'
+          % (n, time.strftime('%H:%M:%S', time.localtime(r.start_time)),
+             r.dt or 0.0, len(values), code, ntc.celsius(code),
+             '%3.0f%%' % (100.0 * r.digital['AFE_ON'])))
+
+# %% [markdown]
+# ## The same run as columns
+# A record is a struct and a run is an array of them, which is the shape
+# the link delivers. Anything that plots or fits wants one array per
+# channel, and `columns()` is that flip.
+
+# %%
+cols = daq.columns(daq.read(-1))
+for name in daq.channel_names():
+    print('  %-10s %s' % (name, [round(v, 1) for v in cols[name][:6]]))
+print('  %-10s %s' % ('dt', [round(v or 0, 6) for v in cols['dt'][:6]]))
 
 # %% [markdown]
 # ## Or the running average, which widens instead of dropping

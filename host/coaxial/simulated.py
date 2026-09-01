@@ -1465,9 +1465,23 @@ class SimulatedDaq(Acquisition):
         self._noise_at = (self._noise_at + 1) % self._POOL
         return pool[self._noise_at]
 
-    def _duty(self):
-        """A pin's duty for one record, from the same pool."""
-        return (self._noise() * 0.25 + 0.5) % 1.0
+    #: What each pin is doing, as a duty over the record's window.
+    #: A STEADY OUTPUT IS STEADY: AFE_ON reads 1.0 when the rail is
+    #: up, not a fresh random number every record - noise there made
+    #: the stand-in's own example print `AFE 0.43` for a pin that is
+    #: simply on. KEEPALIVE is the one that genuinely toggles, at
+    #: ~100 kHz, so it lands near half; the gates are down until
+    #: something arms them.
+    STEADY = {'AFE_ON': 1.0, 'nFAULT/TIM1_BKIN': 1.0,
+              'KEEPALIVE': 0.5}
+
+    def _pin_duty(self, signal):
+        """One pin's duty for one record."""
+        level = self.STEADY.get(signal, 0.0)
+        if level in (0.0, 1.0):
+            return level
+        # Only what actually toggles gets jitter, and only a little.
+        return min(1.0, max(0.0, level + self._noise() * 0.02))
 
     def _wire_time(self, records):
         """What a reply of `records` costs on the emulated line."""
@@ -1697,7 +1711,7 @@ class SimulatedDaq(Acquisition):
             if (layout or self.layout()).get('pins'):
                 # A duty like the board's, not a level: 0.0 to 1.0 of the
                 # window the record covers.
-                rec['digital'] = {p['signal']: self._duty()
+                rec['digital'] = {p['signal']: self._pin_duty(p['signal'])
                                   for p in self.PINS}
             out.append(rec)
         self._produced += n
