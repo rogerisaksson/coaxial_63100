@@ -74,6 +74,12 @@ API int flt_design(rig_t *r, uint16_t boxcar, uint16_t decimate,
 }
 
 
+API void flt_prime(rig_t *r, double value)
+{
+  filter_prime(&r->design, &r->channel, (float)value);
+}
+
+
 API void flt_reset(rig_t *r)
 {
   if (r != NULL)

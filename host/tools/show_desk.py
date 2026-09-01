@@ -119,9 +119,14 @@ HOST_RING = 2048
 #: ONE on purpose: the board should stay a little ahead of the link
 #: so every read finds a full reply and the ring absorbs the rest.
 #: Measured at ten channels and stride 55, ring flat and nothing
-#: dropped: 0.8 held 39% of the line, 1.45 holds 65%, and 1.8 fills
-#: the ring instead of the link.
-LINK_SHARE = 1.45
+#: dropped: 0.8 held 39% of the line, 1.2 held 56%, 1.45 held 65% and
+#: 2.5 holds 73%. Higher asks buy throughput by taking DECIMATION out
+#: - ratio 7, then 4, then 2 - and two is the floor: at one there is
+#: nothing left for the chain to shape. The passband follows the rate
+#: that actually comes out (see `bessel.design`), so this cannot buy
+#: speed by putting the cutoff above Nyquist, which is what it did
+#: before that was fixed.
+LINK_SHARE = 2.5
 
 #: Sweeps a record below which the anti-alias chain would cost more
 #: link than it is worth - the loop spends N sweeps for one record

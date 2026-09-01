@@ -229,7 +229,17 @@ static void take_rung(uint8_t n)
   s_filtering = (s_chain.sections > 0U) || (s_chain.decimate > 1U);
   s_rung_changes++;
   s_low_for = 0U;
-  memset(s_filter, 0, sizeof(s_filter));
+
+  /* PRIMED, NOT ZEROED. A rung is taken while the task is running and the
+     host is watching; zeroing every channel's state made the new chain
+     climb from nothing, so a step the board took to keep up showed in the
+     data as every channel falling to zero and recovering. The new
+     coefficients now start where the old ones left the signal, and only
+     the shaping changes. */
+  for (uint8_t f = 0U; f < s_fields; f++)
+  {
+    filter_prime(&s_chain, &s_filter[f], (float)s_pending[f]);
+  }
   memset(s_acc, 0, sizeof(s_acc));
   memset(s_dacc, 0, sizeof(s_dacc));
   s_acc_n = 0U;

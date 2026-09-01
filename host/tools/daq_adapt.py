@@ -71,12 +71,18 @@ def main(argv=None):
 
     device = Coaxial63100(port=args.port, power_afe=True,
                           simulated_device=bool(args.simulated))
-    daq = device.daq
+    # THE BOARD'S LADDER, SO THE BOARD'S HANDLE. `device.daq` starts a
+    # reader thread that drains the ring continuously, and this tool
+    # starves the board by not reading - the two cancel, and the ladder
+    # never climbs. Measured: 0 moves where the same run made 6 before the
+    # reader existed.
     try:
-        daq.open()
+        device.open()
     except RigError as exc:
         print('  could not open the board: %s' % exc)
         return 1
+    daq = device.board.daq
+    daq.stop()          # a task a dead session left would refuse the rest
     print('link: %s' % device.origin.label)
 
     names = args.channels.split(',')

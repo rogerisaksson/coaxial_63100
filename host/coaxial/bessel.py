@@ -321,11 +321,19 @@ def design(fs, out_rate, order=4, cutoff=None, headroom=8):
     ratio = int(round(fs / float(out_rate)))
     boxcar, decimate = _split(max(1, ratio), headroom)
     mid_rate = fs / float(boxcar)
-    edge = float(cutoff) if cutoff else 0.2 * out_rate
+    # THE ACHIEVED RATE, NOT THE ASKED ONE. `ratio` is an integer, so what
+    # comes out can be well under what was requested - and a passband set
+    # from the request then sits above the real Nyquist. MEASURED
+    # 2026-09-01: asked 400 records/s off a 288 Hz loop, the chain made 144
+    # and put its -3 dB at 80 Hz against a Nyquist of 72. That is not a
+    # filter, it is the aliasing it was written to stop, and it was bought
+    # by asking for a rate the loop could not reach.
+    achieved = fs / float(boxcar * decimate)
+    edge = float(cutoff) if cutoff else 0.2 * achieved
 
     chain = {
         'fs': float(fs),
-        'out_rate': fs / float(boxcar * decimate),
+        'out_rate': achieved,
         'mid_rate': mid_rate,
         'boxcar': boxcar,
         'decimate': decimate,

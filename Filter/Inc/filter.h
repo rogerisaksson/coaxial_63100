@@ -86,6 +86,26 @@ typedef struct
 void filter_reset(filter_channel_t *ch);
 
 /**
+  * @brief  Put a channel's state where it would be if `value` had been on
+  *         the input forever.
+  *
+  *         For a LADDER STEP, not a reconfigure. Zeroing the state makes
+  *         the new filter climb from nothing to the signal, and that ramp
+  *         is a transient in the measurement that nothing in the record
+  *         explains - a rung taken under load would show as a fall and a
+  *         recovery in every channel at once. Primed, the new coefficients
+  *         start at the level the old ones left, and only the shaping
+  *         changes.
+  *
+  *         Each section is solved at DC: y = x * (b0+b1+b2)/(1+a1+a2), and
+  *         the two states are what hold it there. Exact for a steady
+  *         input, and for a moving one it starts a filter's length closer
+  *         than zero does.
+  */
+void filter_prime(const filter_design_t *design, filter_channel_t *ch,
+                  float value);
+
+/**
   * @brief  A design that changes nothing - no boxcar, no sections, no
   *         decimation. What a task gets before the host has designed one.
   */

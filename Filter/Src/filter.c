@@ -20,6 +20,37 @@ void filter_reset(filter_channel_t *ch)
 }
 
 
+void filter_prime(const filter_design_t *design, filter_channel_t *ch,
+                  float value)
+{
+  if ((design == NULL) || (ch == NULL))
+  {
+    return;
+  }
+
+  ch->box_sum = 0;
+  ch->box_n = 0U;
+  ch->out_n = 0U;
+  ch->taken = 0U;
+
+  float x = value;
+
+  for (uint8_t i = 0U; i < design->sections; i++)
+  {
+    const filter_biquad_t *s = &design->section[i];
+    const float den = 1.0f + s->a1 + s->a2;
+    /* A section whose poles sum to -1 has no DC gain to solve for; it
+       cannot be primed, and zero is what it would settle to anyway. */
+    const float y = (den != 0.0f)
+                    ? (x * ((s->b0 + s->b1 + s->b2) / den)) : 0.0f;
+
+    ch->s2[i] = (s->b2 * x) - (s->a2 * y);
+    ch->s1[i] = (s->b1 * x) - (s->a1 * y) + ch->s2[i];
+    x = y;
+  }
+}
+
+
 void filter_pass_through(filter_design_t *design)
 {
   if (design == NULL)
