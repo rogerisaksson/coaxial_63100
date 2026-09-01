@@ -117,6 +117,20 @@ HOST_RING = 2048
 #: slow read; `bessel.for_link` uses the same 0.8 for the same reason.
 LINK_SHARE = 0.8
 
+#: Sweeps a record below which the anti-alias chain costs more link than
+#: it is worth. Four rather than three: measured at ten channels the ratio
+#: lands on 2.95 and flapped either side of a threshold of three between
+#: runs, and `loaded_rate` overstates anyway - it measures while the reader
+#: is still reaching its pace, 370 sweeps/s against the 230 the loop
+#: settles at. See `plan`.
+MIN_OVERSAMPLE = 4.0
+
+#: How far ahead of the link the board is asked to run when no
+#: chain is gating it. Measured: 2x gave 53% of the line, 4x 63%,
+#: 6x 68%, and 10x nothing more - the transaction floor is what is
+#: left. Six, where it flattens.
+RUN_AHEAD = 6.0
+
 
 def sweep_rate(rig, records=300, timeout=6.0):
     """What the acquisition loop manages, in sweeps a second.
@@ -137,6 +151,47 @@ def sweep_rate(rig, records=300, timeout=6.0):
     state = rig.state()
     rig.stop()
     return (state['produced'] + state['dropped']) / max(span, 1e-6)
+
+
+def loaded_rate(rig, settle=0.4, window=1.2):
+    """The acquisition loop's rate while the link is streaming.
+
+    NOT THE SAME LOOP. `sweep_rate` measures a finite burst with the link
+    almost idle; sampling and the Modbus handler share main(), so under a
+    steady stream the loop is slower - measured 517 sweeps/s designing,
+    308 running. A chain designed against the idle figure decimates about
+    1.7x too hard and the view produces less than the link would carry.
+
+    Differentiated off the board's own trigger counter, so it counts what
+    the loop did rather than what arrived here.
+    """
+    rig.start()
+    time.sleep(settle)                       # the reader reaches its pace
+    first = (rig.state() or {}).get('triggers')
+    began = time.time()
+    time.sleep(window)
+    last = (rig.state() or {}).get('triggers')
+    span = time.time() - began
+    rig.stop()
+    if first is None or last is None or span <= 0 or last < first:
+        return 0.0
+    return (last - first) / span
+
+
+def load(rig, args, sweeps, rate):
+    """Design for `sweeps` and put it on the board. (layout, chain)."""
+    rig.shape()
+    try:
+        chain = bessel.design(fs=sweeps, out_rate=rate, order=args.order)
+    except ValueError:
+        # A CHAIN NEEDS A RATE TO BE DESIGNED AGAINST. Where the loop
+        # cannot be measured - the stand-in produces only when read, so it
+        # measures zero - the clock-closed window is the honest fallback.
+        return rig.configure(sample_rate=rate, digital=True), None
+    layout = rig.configure(accumulate=chain['boxcar'], digital=True)
+    rig.shape(chain['sections'], chain['decimate'])
+    chain['sweeps'] = sweeps
+    return layout, chain
 
 
 def plan(rig, args):
@@ -161,31 +216,58 @@ def plan(rig, args):
     # WHAT THE LINK CARRIES, NOT WHAT THE SCREEN DRAWS. Pinned to the frame
     # rate the meter asked for 8 rec/s and a 1.60 Hz passband - a needle so
     # damped it read as broken. The board says what it can carry for the
-    # stride it actually has, and a fifth of that is the passband: 12.3 Hz
-    # for ten channels and the pins, with -70 dB of what would fold against
-    # the -34 dB the frame rate bought. `--rate` still takes you at your
-    # word. The records land in the host queue either way; the frame draws
-    # whatever is there.
+    # stride it actually has, and a fifth of that is the passband. `--rate`
+    # still takes you at your word. The records land in the host queue
+    # either way; the frame draws whatever is there.
     carries = (rig.state() or {}).get('max_rate_hz') or 0
     rate = args.rate if args.rate > 0 else carries * LINK_SHARE
     if rate <= 0:
         rate = max(1.0, args.hz)
-    rig.shape()
 
-    # A CHAIN NEEDS A RATE TO BE DESIGNED AGAINST. Where the loop cannot
-    # be measured - the stand-in produces only when read, so it measures
-    # zero - there is nothing to design, and the clock-closed window is
-    # the honest fallback: it needs no design, averages whatever the
-    # window held, and says so in the box rather than drawing a filter
-    # that is not running.
-    try:
-        chain = bessel.design(fs=sweeps, out_rate=rate, order=args.order)
-    except ValueError:
-        return rig.configure(sample_rate=rate, digital=True), None
+    # A CHAIN ONLY EARNS ITS KEEP ON OVERSAMPLING. Decimating by N means
+    # the loop spends N sweeps to produce one record, and on this board
+    # the loop and the Modbus handler share main() - so those sweeps come
+    # straight off the link. MEASURED, ten channels at stride 55: the
+    # chain at ratio 3 moved 44.5 kbit/s, at ratio 1 moved 48.8, and the
+    # clock-closed window with no chain at all moved 72.1 - 63% of the
+    # line against 39%. Below three sweeps a record there is not enough
+    # oversampling left to be worth that, so the window takes it.
+    layout, chain = load(rig, args, sweeps, rate)
+    if chain is None:
+        return layout, chain
 
-    layout = rig.configure(accumulate=chain['boxcar'], digital=True)
-    rig.shape(chain['sections'], chain['decimate'])
-    chain['sweeps'] = sweeps
+    # AND THEN AGAINST THE LOOP IT WILL RUN IN. `sweep_rate` measured a
+    # burst with the link idle; a second of streaming says what the loop
+    # really is, and it is a third slower - 378 sweeps/s designing, 230
+    # running. Every decision below uses the running figure.
+    live = loaded_rate(rig) or sweeps
+
+    # A CHAIN ONLY EARNS ITS KEEP ON OVERSAMPLING. Decimating by N means
+    # the loop spends N sweeps for one record, and sampling and the
+    # Modbus handler share main() on this board - so those sweeps come
+    # straight off the link. MEASURED, ten channels at stride 55: the
+    # chain at ratio 3 moved 44.5 kbit/s, at ratio 1 moved 48.8, and the
+    # clock-closed window with no chain at all moved 72.1 - 63% of the
+    # line against 39%. Below three sweeps a record there is not enough
+    # oversampling left to pay for that, and the window is the honest
+    # instrument: it averages every sweep the window held and claims no
+    # filter it is not running.
+    if rate > 0 and live / rate < MIN_OVERSAMPLE:
+        # AND ASKED TO RUN AHEAD, not gated to the link. A record the
+        # board has already made costs the link nothing to fetch, and a
+        # read that finds four of them waiting pays one transaction for
+        # four records instead of one. Gated exactly at the carry the
+        # board made 78 records/s and the link moved 45.7 kbit/s; asked
+        # for several times it, 135 records/s and 78.7 kbit/s - 68% of
+        # the line, with the ring holding 4 to 9 of its 8340 and nothing
+        # dropped. The ring is the buffer; this is what it is for.
+        return rig.configure(sample_rate=rate * RUN_AHEAD,
+                             digital=True), None
+
+    if abs(live - sweeps) > 0.2 * sweeps:
+        layout, chain = load(rig, args, live, rate)
+        if chain is not None:
+            chain['idle_sweeps'] = sweeps
     return layout, chain
 
 

@@ -80,6 +80,12 @@ class Transport:
         # the whole exchange and released between them, so a reader
         # thread draining the ring still lets a state() through.
         self._wire = threading.RLock()
+        #: When the line last went quiet, so t3.5 is only slept for what is
+        #: actually owed.
+        self._quiet_since = time.monotonic()
+        #: Whether the last exchange ended with a validated reply. False
+        #: makes the next transmit purge whatever is left over.
+        self._clean = False
 
     def __repr__(self):
         return '<Transport %s@%d>' % (self.port, self.baud)
@@ -145,9 +151,24 @@ class Transport:
     def transmit(self, unit, function, payload=b''):
         frame = bytes([unit, function]) + payload
         frame += struct.pack('<H', crc16(frame))    # low byte first, unlike every
-        time.sleep(self.interframe_gap)             # other field in the frame
+                                                    # other field in the frame
+        # T3.5 IS SILENCE ON THE BUS, NOT A SLEEP TO PERFORM. Decoding the
+        # last reply, deciding what to ask next and crossing the broker all
+        # happen in that silence, and on a busy reader they already exceed
+        # 1.75 ms - sleeping it again is 1.75 ms of every transaction spent
+        # proving something that was already true.
+        owed = self.interframe_gap - (time.monotonic() - self._quiet_since)
+        if owed > 0:
+            time.sleep(owed)
         with self._link_errors('transmitting'):
-            self.serial.reset_input_buffer()
+            # ONLY WHEN THE LAST EXCHANGE DID NOT END CLEANLY. A validated
+            # reply leaves the buffer empty by construction; purging it
+            # anyway is a driver round trip on the critical path. After a
+            # timeout or a bad CRC there may well be a stale tail, and that
+            # is exactly when this still runs.
+            if not self._clean:
+                self.serial.reset_input_buffer()
+            self._clean = False
             self.serial.write(frame)
             self.serial.flush()
 
@@ -229,7 +250,10 @@ class Transport:
         with self._wire:
             self.transmit(unit, function, payload)
             reply = self.receive(exact_payload, timeout, reply_shape)
-        return validate(reply, unit, function)
+            self._quiet_since = time.monotonic()
+        payload = validate(reply, unit, function)
+        self._clean = True          # only past validate: a raise is not clean
+        return payload
 
     def broadcast(self, function, payload=b'', settle=0.05):
         """Acted on by every slave, answered by none. Nothing to return.
