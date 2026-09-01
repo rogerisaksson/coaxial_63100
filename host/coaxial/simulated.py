@@ -1724,6 +1724,19 @@ class SimulatedDaq(Acquisition):
         self._charge_line(len(out))
         return out
 
+    def decode(self, blob, layout=None):
+        """Records out of raw record bytes, as the board's decoder does.
+
+        THE STAND-IN HAS NO WIRE, so there is no blob to decode: records
+        are invented whole. It answers the name because the front door
+        calls it when a broker's ring hands over bytes, and a name that
+        exists on one side of the parity and not the other fails at the
+        first call that reaches for it - which is what this suite is for.
+        """
+        layout = layout or self.layout()
+        stride = layout['stride'] or 1
+        return self.acquire(want=len(blob) // stride, layout=layout)
+
     def drain(self, limit=None, layout=None):
         out = []
         while limit is None or len(out) < limit:

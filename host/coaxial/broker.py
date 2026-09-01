@@ -115,6 +115,30 @@ class BrokerTransport:
                          'reply_shape': reply_shape})
         return bytes.fromhex(got['payload'])
 
+    # -- the shared ring --------------------------------------------------
+
+    def stream(self, stride, records):
+        """Ask the broker to drain the task into a ring of `records`."""
+        return self._ask({'op': 'daq_stream', 'stride': stride,
+                          'records': records})
+
+    def unstream(self):
+        return self._ask({'op': 'daq_unstream'})
+
+    def stream_state(self):
+        return self._ask({'op': 'daq_state'})
+
+    def take(self, cursor, most=0):
+        """Records from `cursor`. (blob, first, lost, next).
+
+        `lost` is what the writer overwrote before this cursor reached
+        them - reported, never hidden, because a gap nobody counted is the
+        one failure a shared ring must not have.
+        """
+        got = self._ask({'op': 'daq_take', 'from': cursor, 'max': most})
+        return (bytes.fromhex(got['blob']), got['first'], got['lost'],
+                got['next'])
+
     def broadcast(self, function, payload=b'', settle=0.05):
         self._ask({'op': 'broadcast', 'function': function,
                    'payload': bytes(payload).hex(), 'settle': settle})
@@ -283,6 +307,27 @@ class _Handler(socketserver.StreamRequestHandler):
                     message.get('reply_shape'))
             served.spoke()
             return {'payload': bytes(got).hex()}
+        if op == 'daq_stream':
+            served.stream(int(message['stride']), int(message['records']))
+            return served.fanout.state()
+        if op == 'daq_unstream':
+            served.unstream()
+            return {'streaming': False}
+        if op == 'daq_state':
+            if served.fanout is None:
+                return {'streaming': False}
+            got = served.fanout.state()
+            got['streaming'] = served.streaming
+            return got
+        if op == 'daq_take':
+            if served.fanout is None:
+                raise errors.RigError(
+                    'nothing is streaming - daq_stream first, and the '
+                    'broker will keep the ring for every client on it')
+            blob, first, lost, nxt = served.fanout.take(
+                int(message['from']), int(message.get('max') or 0))
+            return {'blob': blob.hex(), 'first': first, 'lost': lost,
+                    'next': nxt}
         if op == 'broadcast':
             with served.lock:
                 served.transport.broadcast(
@@ -309,6 +354,20 @@ class _Server(socketserver.ThreadingTCPServer):
     #: stays immediate for whoever asks for the port by name.
     linger = 45.0
 
+    #: The shared ring, and the thread that fills it. ONE READER OF THE
+    #: BOARD, many readers of the ring: the link is a single wire and a
+    #: second drainer would take records the first never sees, so the
+    #: broker drains it once and every client reads its own way through
+    #: `coaxial.fanout` from its own cursor.
+    fanout = None
+    streaming = False
+    _streamer = None
+    _stop_stream = None
+
+    #: Records a client asks for in one go. Whole replies only - the board
+    #: fits four or so in a PDU, and asking for more is a loop here.
+    STREAM_BATCH = 0
+
     #: When a board frame last went out on anybody's behalf - clients and
     #: the keepalive both stamp it.
     heard = 0.0
@@ -317,6 +376,41 @@ class _Server(socketserver.ThreadingTCPServer):
     #: (BOARD_POWER_HOST_QUIET_MS) - right for a killed script, wrong for
     #: an operator thinking between chat turns. The margin is 3x.
     KEEPALIVE = 3.0
+
+    def stream(self, stride, records):
+        """Start draining the task into a ring of `records`, or resize it.
+
+        Resizing makes a NEW ring, so every cursor is stale - clients are
+        told where the new one starts by `daq_state` and take from there.
+        Sizing a live ring in place would move records under readers that
+        were counting on their sequence numbers meaning something.
+        """
+        from .fanout import Fanout
+
+        with self.lock:
+            same = (self.fanout is not None
+                    and self.fanout.stride == stride
+                    and self.fanout.capacity == records)
+        if same and self.streaming:
+            return
+        self.unstream()
+        self.fanout = Fanout(stride, records)
+        self._stop_stream = threading.Event()
+        self._streamer = threading.Thread(
+            target=_stream_loop, args=(self, self._stop_stream),
+            name='broker-daq', daemon=True)
+        self.streaming = True
+        self._streamer.start()
+
+    def unstream(self):
+        """Stop draining. What the ring holds stays readable."""
+        if self._stop_stream is not None:
+            self._stop_stream.set()
+        if self._streamer is not None:
+            self._streamer.join(2.0)
+        self._streamer = None
+        self._stop_stream = None
+        self.streaming = False
 
     def spoke(self):
         import time
@@ -371,6 +465,36 @@ class _Server(socketserver.ThreadingTCPServer):
         Board(self.transport, unit).open_binary()
         return self.transport.request(unit, function, payload,
                                       exact_payload, timeout, reply_shape)
+
+
+def _stream_loop(served, stop):
+    """Drain the board into the ring until told to stop.
+
+    The broker's own reader, and the only one: a client that also read the
+    board would take records this never sees. It costs the link exactly
+    what one reader costs, however many clients are attached, which is the
+    reason to put it here rather than in each of them.
+    """
+    from . import protocol
+
+    payload = bytes([protocol.DEVICE_DAQ, 4, 0])
+    stride = served.fanout.stride
+    idle = 0.002
+    while not stop.is_set():
+        try:
+            with served.lock:
+                reply = served.transport.request(1, protocol.DEVICE, payload)
+            served.spoke()
+        except Exception:                              # noqa: BLE001
+            # A quiet board is not a reason to stop streaming: the task may
+            # be between configurations, and the next turn asks again.
+            stop.wait(0.05)
+            continue
+        got = reply[0] if reply else 0
+        if got:
+            served.fanout.put(reply[1:1 + got * stride])
+        else:
+            stop.wait(idle)
 
 
 def serving():

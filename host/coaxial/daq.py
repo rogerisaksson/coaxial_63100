@@ -272,6 +272,39 @@ class Daq(Subsystem, Acquisition):
         self._op(DAQ_OP_STOP)
         return True
 
+    def decode(self, blob, layout=None):
+        """Whole records out of raw record bytes.
+
+        ONE DECODER FOR THE WIRE. The bytes arrive two ways now - straight
+        off a read, or out of the broker's shared ring, which holds them
+        exactly as they came - and two decoders for one format is how a
+        stride drifts. `blob` is whole records and nothing else: no count
+        byte in front, no backlog behind.
+        """
+        layout = layout or self.layout()
+        fields, pins = layout['fields'], layout.get('pins') or []
+        stride = layout['stride']
+        fmt = '>I%di%dBH' % (len(fields), len(pins))
+        out = []
+        for i in range(len(blob) // stride):
+            at = i * stride
+            values = struct.unpack(fmt, blob[at:at + stride])
+            rec = {'at': values[0], 'samples': values[-1]}
+            rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
+            if pins:
+                # A DUTY, not a level: the pin went through the same
+                # window as everything else, and 255 is all of it. A
+                # level sampled once and decimated by two thousand is
+                # aliased by construction - KEEPALIVE toggles at
+                # ~100 kHz and read as a coin toss.
+                first = 1 + len(fields)
+                rec['digital'] = {
+                    p['signal']: values[first + n] / 255.0
+                    for n, p in enumerate(pins)}
+            out.append(rec)
+
+        return out
+
     def acquire(self, want=0, layout=None):
         """Whole records, oldest first, decoded from the board's layout.
 
@@ -293,24 +326,7 @@ class Daq(Subsystem, Acquisition):
                        reply_shape={'at': 0, 'head': 1, 'stride': stride,
                                     'tail': 4})
         got = raw[0]
-        fmt = '>I%di%dBH' % (len(fields), len(pins))
-        out = []
-        for i in range(got):
-            at = 1 + i * stride
-            values = struct.unpack(fmt, raw[at:at + stride])
-            rec = {'at': values[0], 'samples': values[-1]}
-            rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
-            if pins:
-                # A DUTY, not a level: the pin went through the same
-                # window as everything else, and 255 is all of it. A
-                # level sampled once and decimated by two thousand is
-                # aliased by construction - KEEPALIVE toggles at
-                # ~100 kHz and read as a coin toss.
-                first = 1 + len(fields)
-                rec['digital'] = {
-                    p['signal']: values[first + n] / 255.0
-                    for n, p in enumerate(pins)}
-            out.append(rec)
+        out = self.decode(raw[1:1 + (got * stride)], layout)
 
         # THE BACKLOG THE READ ITSELF ANSWERED, the way a DAQ card does
         # it: records still in the board's ring the instant this read

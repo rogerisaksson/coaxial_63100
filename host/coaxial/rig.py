@@ -121,6 +121,7 @@ SENSOR_FIELDS = (
 DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
+            'configure_buffer',
             'channel_names', 'columns', 'series')
 
 
@@ -235,6 +236,9 @@ class Coaxial63100(Acquisition):
         self._afe_was_on = None
         # The host-side reader, alive only between start() and stop().
         self._reader = None
+        self._buffer_records = self.BUFFER_RECORDS
+        self._cursor = 0
+        self._lost = 0
 
     # -- opening and closing --------------------------------------------
 
@@ -691,6 +695,31 @@ class Coaxial63100(Acquisition):
         self.board.daq.tone(hz, rate_hz, amplitude, offset, kind)
         return self
 
+    #: Records the host keeps when nobody has said. Ten thousand at a
+    #: fifty-byte stride is half a megabyte, which is nothing at this end
+    #: of the link and several seconds of headroom at the other.
+    BUFFER_RECORDS = 10000
+
+    def configure_buffer(self, records):
+        """Size the circular buffer the records land in, in RECORDS.
+
+            daq.configure_buffer(10000)
+
+        WHERE it lands depends on who owns the link. With a broker in the
+        path this sizes the BROKER'S ring, and every client on it - another
+        process, another thread, a view and a chat session at once - reads
+        that one ring from its own cursor without taking records from the
+        others. Alone on the port it sizes this process's own queue.
+
+        A reader that falls far enough behind for the writer to lap it does
+        lose records, because a ring is finite and the alternative is
+        stalling the board for the slowest reader in the building. It is
+        told how many, in `buffered()['lost']`. A gap nobody counted is the
+        one outcome a shared ring must not have.
+        """
+        self._buffer_records = max(1, int(records))
+        return self._buffer_records
+
     def start(self):
         """Begin sampling into the board's buffer, and into the host's.
 
@@ -705,12 +734,35 @@ class Coaxial63100(Acquisition):
         # room, and that is what the reader waits for rather than reading
         # the instant one record lands.
         stride = (self.layout or {}).get('stride') or 0
+        take = self._from_broker(stride)
         self._reader = BufferedReader(
-            acquire=lambda: self._timed(
-                self.board.daq.acquire(layout=self.layout)),
+            acquire=take or (lambda: self._timed(
+                self.board.daq.acquire(layout=self.layout))),
             backlog=lambda: self.board.daq.backlog,
             batch=(REPLY_ROOM // stride) if stride else 1).start()
         return self
+
+    def _from_broker(self, stride):
+        """A reader that takes from the broker's ring, or None.
+
+        ONE DRAINER OF THE BOARD, and when a broker owns the port it is the
+        broker's thread - so this process reads the ring rather than the
+        wire, and every other client on that broker gets the same records
+        from its own place in it.
+        """
+        wire = getattr(self.board, 'transport', None)
+        if not stride or not hasattr(wire, 'stream'):
+            return None
+        wire.stream(stride, self._buffer_records)
+        self._cursor = wire.stream_state().get('head', 0)
+
+        def take():
+            blob, first, lost, nxt = wire.take(self._cursor)
+            self._lost += lost
+            self._cursor = nxt
+            return self._timed(self.board.daq.decode(blob, self.layout))
+
+        return take
 
     def stop(self):
         """Stop sampling. What is already buffered stays readable.
@@ -736,13 +788,15 @@ class Coaxial63100(Acquisition):
         r = self._reader
         if r is None:
             return {'host': 0, 'peak': 0, 'dropped': 0, 'backlog': None,
-                    'reads': 0, 'records': 0, 'rate': 0.0}
+                    'reads': 0, 'records': 0, 'rate': 0.0,
+                    'lost': self._lost, 'cursor': self._cursor}
         # `taken`, not `records`: the reader resets that one to measure
         # its own rate, and a byte rate differentiated off a counter
         # that resets reads as negative throughput.
         return {'host': len(r), 'peak': r.peak, 'dropped': r.dropped,
                 'backlog': r.backlog, 'reads': r.reads,
-                'records': r.taken, 'rate': r.rate}
+                'records': r.taken, 'rate': r.rate,
+                'lost': self._lost, 'cursor': self._cursor}
 
     def state(self):
         """How the task is doing: rate, what is buffered, what was lost."""
