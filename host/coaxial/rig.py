@@ -22,6 +22,7 @@ because a script ended is a change nobody asked for.
 Nothing here judges a reading. Raw codes and the board's own units;
 `board.analog` has the conversions.
 """
+import re
 import time
 
 from .acquisition import Acquisition
@@ -95,12 +96,30 @@ class Later:
         return repr(self._live())
 
 
+#: Everything the board can measure that is not an ADC channel or a pin.
+#: Listed here rather than read off the board because it is the ONE thing
+#: in this file that the wire does not carry yet - `catalogue()` marks
+#: them unselectable until the firmware puts them in a record, so a caller
+#: sees the name and the reason rather than a silent nothing.
+SENSOR_FIELDS = (
+    {'name': 'orientation', 'kind': 'sensor', 'direction': 'in',
+     'unit': 'quaternion'},
+    {'name': 'acceleration', 'kind': 'sensor', 'direction': 'in',
+     'unit': 'm/s^2'},
+    {'name': 'rotation rate', 'kind': 'sensor', 'direction': 'in',
+     'unit': 'rad/s'},
+    {'name': 'magnetic field', 'kind': 'sensor', 'direction': 'in',
+     'unit': 'uT'},
+    {'name': 'shaft angle', 'kind': 'sensor', 'direction': 'in',
+     'unit': 'deg'},
+)
+
 #: What the acquisition front door answers. A whitelist, not everything:
 #: `daq.write` reaching the pin writer would put the device vocabulary
 #: behind the wrong name.
 DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
-            'buffered', 'channels', 'outputs')
+            'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read')
 
 
 class DaqView:
@@ -369,10 +388,85 @@ class Coaxial63100(Acquisition):
         """What the board says it has. Not a list written down here."""
         return self.board.analog.names()
 
-    def configure(self, channels=None, sample_rate=None, accumulate=None,
-                  decimate=1, digital=True, clock='software',
-                  sample_time=0, records=None, interval_us=None,
-                  adapt=False):
+    def catalogue(self):
+        """Everything this board can put in a record, named.
+
+        THE BOARD'S OWN LIST, not one written here: the analog channels and
+        the sampled pins come off `0x6D`, so a board that grows a channel
+        grows an entry and nothing above it is told twice.
+
+        Each row is `{'name', 'kind', 'direction', 'unit', 'selectable'}`.
+        `kind` is 'analog', 'digital' or 'sensor'; `selectable` says whether
+        `configure()` can ask for it today - a sensor the firmware does not
+        yet put in a record is listed and refused, which is a better answer
+        than a name that silently does nothing.
+        """
+        chart = self.board.system.channel_map()
+        rows = [{'name': c['signal'], 'kind': 'analog',
+                 'direction': c.get('direction', 'in'),
+                 'unit': c.get('unit'), 'selectable': True}
+                for c in chart['analog']]
+        # A GROUP, NOT A CHOICE. The board puts every sampled pin in a
+        # record or none of them, so picking one picks them all -
+        # selectable, and `configure` turns the group on.
+        rows += [{'name': p['signal'], 'kind': 'digital',
+                  'direction': p.get('direction', 'out'),
+                  'unit': 'duty', 'selectable': True}
+                 for p in chart['digital']]
+        rows += [dict(row, selectable=self._sensors_carried())
+                 for row in SENSOR_FIELDS]
+        return rows
+
+    def _sensors_carried(self):
+        """Whether this board puts sensor fields in a DAQ record.
+
+        The IMU and the shaft angle are readable through their own
+        subsystems on every board here; carrying them INSIDE a record is a
+        wire format the firmware has to have. Asked of the board rather
+        than assumed, so this file does not have to know which builds do.
+        """
+        return bool((self.state() or {}).get('sensors_supported'))
+
+    @staticmethod
+    def _match(name):
+        """A name as it compares: case and punctuation do not count.
+
+        `phaseU`, `Phase U` and `phase_u` are the same channel, because a
+        caller typing a name into a script should not have to reproduce
+        the board's spacing.
+        """
+        return re.sub(r'[^a-z0-9]', '', str(name).lower())
+
+    def pick(self, *names):
+        """Resolve names to the board's own spelling, in the board's order.
+
+        Raises with what it does have when a name is not one of them: a
+        list of channels is exactly the kind of thing a caller gets one
+        character wrong, and the board's list is the answer.
+        """
+        rows = self.catalogue()
+        by_name = {self._match(r['name']): r for r in rows}
+        wanted, missing = [], []
+        for name in names:
+            row = by_name.get(self._match(name))
+            if row is None:
+                missing.append(str(name))
+            elif not row['selectable']:
+                raise RigError(
+                    '%r is a %s this board does not put in a record yet - '
+                    'read it through its own subsystem instead'
+                    % (row['name'], row['kind']))
+            else:
+                wanted.append(row)
+        if missing:
+            raise RigError(
+                'no channel called %s. This board has: %s'
+                % (', '.join(repr(m) for m in missing),
+                   ', '.join(r['name'] for r in rows if r['selectable'])))
+        order = [r['name'] for r in rows]
+        return sorted({r['name'] for r in wanted}, key=order.index)
+
+    def configure(self, *channels, **kw):
         """Set up the acquisition. Replaces whatever was there.
 
         channels    names, e.g. ['Phase U', 'NTC']. None takes all of them.
@@ -393,6 +487,41 @@ class Coaxial63100(Acquisition):
         sample_time 0..7, the converter's own sampling window, shortest
                     first.
         """
+        # NAMES AS ARGUMENTS, OR A LIST. Both read well and neither is
+        # ambiguous: `configure('phaseU', 'NTC')` for a script written
+        # by hand, `configure(daq.channels()[:5])` for one that took
+        # the board's own list and sliced it.
+        sample_rate = kw.pop('sample_rate', None)
+        accumulate = kw.pop('accumulate', None)
+        decimate = kw.pop('decimate', 1)
+        digital = kw.pop('digital', True)
+        clock = kw.pop('clock', 'software')
+        sample_time = kw.pop('sample_time', 0)
+        records = kw.pop('records', None)
+        interval_us = kw.pop('interval_us', None)
+        adapt = kw.pop('adapt', False)
+        if kw:
+            raise TypeError('configure() got %s'
+                            % ', '.join(sorted(kw)))
+        if len(channels) == 1 and not isinstance(channels[0], str):
+            channels = channels[0]        # a list, sliced or whole
+        channels = list(channels) if channels else None
+        if channels is not None:
+            kinds = {r['name']: r['kind'] for r in self.catalogue()}
+            channels = self.pick(*channels)
+            # A pin among the names turns the group on, and the pins
+            # ride the record as one - they are not analog fields
+            # and do not go in the channel mask.
+            if any(kinds.get(c) == 'digital' for c in channels):
+                digital = True
+            channels = [c for c in channels
+                        if kinds.get(c) == 'analog']
+            if not channels:
+                raise RigError(
+                    'a record needs at least one analog channel - '
+                    'the pins ride along, they do not make a record '
+                    'on their own')
+
         # Stopped first, because the board refuses to reconfigure under a
         # running task - a stride changing beneath a half-drained buffer
         # hands out records of two shapes - and a caller reaching for
@@ -639,6 +768,37 @@ class Coaxial63100(Acquisition):
             for i, name in enumerate(legs))
         self.board.gate_drivers.duty(ticks)
         return dict(zip(legs, (t / period for t in ticks)))
+
+    def read(self, count=-1):
+        """Records, waiting for them. NEGATIVE means everything there is.
+
+        The blocking read the loop-free shape wants:
+
+            daq.configure('Phase U', 'NTC')
+            daq.start()
+            values = daq.read(-1)
+            daq.stop()
+
+        With `count` negative it drains what the board has and returns it,
+        waiting for at least one record so a caller never gets an empty
+        list from a healthy link. With a count it waits for that many.
+
+        Returns a flat list of records, not blocks: a block is how the
+        link carried them and nothing a caller should have to know.
+        """
+        out = []
+        if count == 0:
+            return out
+        for block in self.read_buffer(-1):
+            out.extend(block)
+            if count < 0 or len(out) >= count:
+                break
+        if count > 0:
+            while len(out) < count:
+                for block in self.read_buffer(-1):
+                    out.extend(block)
+                    break
+        return out[:count] if count > 0 else out
 
     def read_buffer(self, count):
         """`count` blocks off the HOST buffer, one at a time.
