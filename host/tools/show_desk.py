@@ -115,20 +115,25 @@ HOST_RING = 2048
 #: How much of what the board says it can carry a task actually asks
 #: for. A ring produced at exactly the drain rate overflows on the first
 #: slow read; `bessel.for_link` uses the same 0.8 for the same reason.
-LINK_SHARE = 0.8
+#: What a task asks for against what the board says it carries. OVER
+#: ONE on purpose: the board should stay a little ahead of the link
+#: so every read finds a full reply and the ring absorbs the rest.
+#: Measured at ten channels and stride 55, ring flat and nothing
+#: dropped: 0.8 held 39% of the line, 1.45 holds 65%, and 1.8 fills
+#: the ring instead of the link.
+LINK_SHARE = 1.45
 
-#: Sweeps a record below which the anti-alias chain costs more link than
-#: it is worth. Four rather than three: measured at ten channels the ratio
-#: lands on 2.95 and flapped either side of a threshold of three between
-#: runs, and `loaded_rate` overstates anyway - it measures while the reader
-#: is still reaching its pace, 370 sweeps/s against the 230 the loop
-#: settles at. See `plan`.
+#: Sweeps a record below which the anti-alias chain would cost more
+#: link than it is worth - the loop spends N sweeps for one record
+#: and those sweeps come off the link, because sampling and the
+#: Modbus handler share main(). Not reached since the board started
+#: sampling while the UART drains, which took the loop from 380 to
+#: 1880 sweeps/s and left plenty to decimate.
 MIN_OVERSAMPLE = 4.0
 
-#: How far ahead of the link the board is asked to run when no
-#: chain is gating it. Measured: 2x gave 53% of the line, 4x 63%,
-#: 6x 68%, and 10x nothing more - the transaction floor is what is
-#: left. Six, where it flattens.
+#: How far ahead of the link the board is asked to run when nothing
+#: is gating it. Measured: 2x gave 53% of the line, 4x 63%, 6x 68%,
+#: 10x nothing more - the transaction floor is what is left.
 RUN_AHEAD = 6.0
 
 
@@ -153,29 +158,38 @@ def sweep_rate(rig, records=300, timeout=6.0):
     return (state['produced'] + state['dropped']) / max(span, 1e-6)
 
 
-def loaded_rate(rig, settle=0.4, window=1.2):
-    """The acquisition loop's rate while the link is streaming.
+def under_load(rig, settle=0.5, window=1.5):
+    """(sweeps/s, records/s, ring drift) while the link is streaming.
 
-    NOT THE SAME LOOP. `sweep_rate` measures a finite burst with the link
-    almost idle; sampling and the Modbus handler share main(), so under a
-    steady stream the loop is slower - measured 517 sweeps/s designing,
-    308 running. A chain designed against the idle figure decimates about
-    1.7x too hard and the view produces less than the link would carry.
+    NOT THE SAME LOOP, AND NOT THE SAME LINK. Sampling and the Modbus
+    handler share main() on this board, so the loop measured with the link
+    idle is not the one a stream runs in - measured 1870 sweeps/s designing
+    against 635 running. And the rate the link sustains is not the rate it
+    was asked for. Both come from the board's own counters, so this counts
+    what happened rather than what was intended.
 
-    Differentiated off the board's own trigger counter, so it counts what
-    the loop did rather than what arrived here.
+    `drift` is what the ring gained over the window. Positive means the
+    board is making more than the link takes, which is the aliasing-free
+    way to overrun and also the way to fill 8340 records and start
+    dropping - so it is the signal to decimate harder.
     """
     rig.start()
-    time.sleep(settle)                       # the reader reaches its pace
-    first = (rig.state() or {}).get('triggers')
+    time.sleep(settle)                        # the reader reaches its pace
+    was = rig.state() or {}
+    first = rig.buffered
     began = time.time()
     time.sleep(window)
-    last = (rig.state() or {}).get('triggers')
+    now = rig.state() or {}
+    last = rig.buffered
     span = time.time() - began
     rig.stop()
-    if first is None or last is None or span <= 0 or last < first:
-        return 0.0
-    return (last - first) / span
+    if span <= 0 or was.get('triggers') is None:
+        return 0.0, 0.0, 0, 0.0
+    sweeps = max(0.0, (now['triggers'] - was['triggers']) / span)
+    records = max(0.0, (last['records'] - first['records']) / span)
+    drift = (now.get('available') or 0) - (was.get('available') or 0)
+    reads = max(1e-9, (last['reads'] - first['reads']) / span)
+    return sweeps, records, drift, records / reads
 
 
 def load(rig, args, sweeps, rate):
@@ -232,41 +246,41 @@ def plan(rig, args):
     # clock-closed window with no chain at all moved 72.1 - 63% of the
     # line against 39%. Below three sweeps a record there is not enough
     # oversampling left to be worth that, so the window takes it.
+    # THE CHAIN IS A FIXED POINT, NOT A CALCULATION. Its decimation sets
+    # how many sweeps the loop spends per record; those sweeps come off
+    # the link, which changes the loop, which changes the right
+    # decimation. Designing once against a loop measured with the link
+    # idle over-decimated by about 1.7x and left the view at 39% of the
+    # line. So: design, run it, measure what the board and the link
+    # actually did, design again against those. It settles in two or
+    # three rounds and each costs two seconds of startup.
+    #
+    # WITHOUT ALIASING, which is the whole constraint. Every round is a
+    # COMPLETE design for the loop rate measured in it - boxcar,
+    # coefficients and decimation together - so the passband is always a
+    # fifth of the output the link is actually carrying and what folds is
+    # always stopped by a filter that ran at the rate it was designed for.
+    # Raising the output alone would be the aliasing.
     layout, chain = load(rig, args, sweeps, rate)
     if chain is None:
         return layout, chain
 
-    # AND THEN AGAINST THE LOOP IT WILL RUN IN. `sweep_rate` measured a
-    # burst with the link idle; a second of streaming says what the loop
-    # really is, and it is a third slower - 378 sweeps/s designing, 230
-    # running. Every decision below uses the running figure.
-    live = loaded_rate(rig) or sweeps
-
-    # A CHAIN ONLY EARNS ITS KEEP ON OVERSAMPLING. Decimating by N means
-    # the loop spends N sweeps for one record, and sampling and the
-    # Modbus handler share main() on this board - so those sweeps come
-    # straight off the link. MEASURED, ten channels at stride 55: the
-    # chain at ratio 3 moved 44.5 kbit/s, at ratio 1 moved 48.8, and the
-    # clock-closed window with no chain at all moved 72.1 - 63% of the
-    # line against 39%. Below three sweeps a record there is not enough
-    # oversampling left to pay for that, and the window is the honest
-    # instrument: it averages every sweep the window held and claims no
-    # filter it is not running.
-    if rate > 0 and live / rate < MIN_OVERSAMPLE:
-        # AND ASKED TO RUN AHEAD, not gated to the link. A record the
-        # board has already made costs the link nothing to fetch, and a
-        # read that finds four of them waiting pays one transaction for
-        # four records instead of one. Gated exactly at the carry the
-        # board made 78 records/s and the link moved 45.7 kbit/s; asked
-        # for several times it, 135 records/s and 78.7 kbit/s - 68% of
-        # the line, with the ring holding 4 to 9 of its 8340 and nothing
-        # dropped. The ring is the buffer; this is what it is for.
-        return rig.configure(sample_rate=rate * RUN_AHEAD,
-                             digital=True), None
-
-    if abs(live - sweeps) > 0.2 * sweeps:
-        layout, chain = load(rig, args, live, rate)
-        if chain is not None:
+    # ONE REDESIGN, AGAINST THE LOOP IT WILL RUN IN. `sweep_rate` measures
+    # a burst with the link idle and that is not the loop a stream runs in.
+    #
+    # A CLOSED LOOP WAS TRIED AND MEASURED WORSE. Three rounds of "run it,
+    # measure what the board and the link did, design again" settled at 43%
+    # of the line where this fixed ask holds 65%: `under_load` has to read
+    # the loop rate while the reader is still reaching its pace, so it
+    # overstates - 2780 sweeps/s against the 635 the stream settles at - and
+    # every round then over-decimates. Making the window long enough to be
+    # honest costs ten seconds of startup, which a meter does not have. The
+    # controller is the right shape and the measurement under it is not.
+    live, made, drift, per_read = under_load(rig)
+    if live and abs(live - sweeps) > 0.2 * sweeps:
+        fresh = load(rig, args, live, rate)
+        if fresh[1] is not None:
+            layout, chain = fresh
             chain['idle_sweeps'] = sweeps
     return layout, chain
 

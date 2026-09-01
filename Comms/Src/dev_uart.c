@@ -224,12 +224,27 @@ static void u_put(void *ctx, const uint8_t *data, uint16_t len)
      that one: HAL_UART_Transmit blocks for the whole frame. Measured, a
      53-byte reply at 115200 stalled the main loop 4.6 ms - ten times what
      the STO latch holds, and by far the worst gap on the board. The wait is
-     a spin either way; this one feeds the charge pump while it waits. */
+     a spin either way; this one feeds the charge pump while it waits.
+
+     AND SAMPLES WHILE IT WAITS. A 229-byte DAQ reply is 19.9 ms of line
+     time, and spinning through it cost the acquisition loop 72 % of its
+     rate: measured 2026-09-01, the board made 477 records/s with the link
+     idle and 133 while serving it, so a link that could carry 194 was fed
+     by a board that could no longer make them.
+
+     Safe because of WHERE the spin is. TXFNF means the TX FIFO has room,
+     so this loop only waits when the FIFO is FULL - sixteen bytes, 1.39 ms
+     of transmission still queued. One channel of the sweep costs about
+     78 us against that, so the FIFO never runs dry and no gap opens inside
+     the frame. A gap past t1.5 (143 us) would split the reply into two
+     frames at the master, which is the failure this arrangement must not
+     have. */
   for (uint16_t i = 0U; i < len; i++)
   {
     while ((u->ISR & USART_ISR_TXE_TXFNF) == 0U)
     {
       Board_StoKeepalive();
+      Board_DaqPoll();
     }
     u->TDR = data[i];
   }
@@ -237,6 +252,7 @@ static void u_put(void *ctx, const uint8_t *data, uint16_t len)
   while ((u->ISR & USART_ISR_TC) == 0U)
   {
     Board_StoKeepalive();
+    Board_DaqPoll();
   }
 
   /* Everything just sent came back in on the RS485 ports, through the
