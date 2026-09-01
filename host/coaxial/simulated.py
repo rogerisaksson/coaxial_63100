@@ -26,6 +26,7 @@ import time
 
 from . import angle
 from . import protocol
+from .calibration import CalibrationOps
 from . import thermal
 from .acquisition import Acquisition
 from .errors import DeviceStateError, RigError
@@ -540,7 +541,7 @@ class SimulatedAnalog:
                 'channels': rows}
 
 
-class SimulatedCalibration:
+class SimulatedCalibration(CalibrationOps):
     """The record an uncalibrated board holds: `stored` false, and the
     firmware's compiled-in defaults behind it.
 

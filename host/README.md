@@ -91,15 +91,18 @@ pandas is imported **where it is called**, so the library still runs on a
 bench without it: `columns()` is a dict of plain lists, which is what
 `DataFrame` takes anyway.
 
-**Zero and span.** `daq.compensate(name, gain=, offset=)` writes one
+**Zero and span belong to the calibration block**, not to the acquisition
+one: they write the calibration record, so they live where it does.
+`board.calibration.compensate(name, gain=, offset=)` writes one
 channel's gain and offset into the calibration record - classic offset then
 gain, `(code - offset) * gain`, in the order the board applies them. `gain`
 is a plain multiplier here and parts per million on the wire. Either may be
 left out to keep what the channel has.
 
 ```python
-daq.tare('phaseU', auto=True, save=False)   # measure now, write it
-daq.tare()                                  # every current channel, saved
+cal = device.board.calibration
+cal.tare('phaseU', auto=True, save=False)   # measure now, write it
+cal.tare()                                  # every current channel, saved
 ```
 
 `tare()` is a measurement and then a `compensate()`: with `auto` it reads a
