@@ -1,13 +1,13 @@
 # TODO
 
-State as of 2026-08-31.
+State as of 2026-09-01.
 
 | | Value |
 |---|---|
 | `run_tests.ps1 -All` | 2177 checks, 24 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
-| Protocol | MAJOR 2, MINOR 4 |
+| Protocol | MAJOR 2, MINOR 6 |
 | Firmware | 1.6.0 |
 | Calibration record | CAL_VERSION 8, 45 parameters, op 8 pages them |
 
@@ -32,6 +32,11 @@ not what it measured.
 | The commissioning: AFE noise floor, sample point, offsets, gain mismatch, dead time, L map, lambda, budget, gains, decision, verification - on the stand-in end to end, on the bench as far as the AFE | ARCHITECTURE, *Host*; `tools/commission.py` |
 | The clock-closed daq record: the converter free-running, a record closed on the interval carrying its own sample count - 33 to 89 sweeps a window, and the mean 0.008 % off an independent burst | FINDINGS, *The accumulator closes on the clock* |
 | The anti-alias chain: a tone generated on the board, filtered, decimated and read back - in band within 0.2 % of the design, an alias folded onto the same output frequency stopped at -261.6 dB, nothing dropped | FINDINGS, *A known tone through the whole path*; `tools/daq_integrity.py` |
+| The link at **73 % of 115200** with the chain running: a read that stops on its own known length, a reader that waits for a reply's worth, and a board that samples while the UART drains | FINDINGS, *Where the 115200 line actually went*; *The board spent 72 % of its loop* |
+| A rung change that does not show in the data: the new coefficients primed to where the old ones left the signal - 8 changes, nothing past 59 codes in a run spanning 36742 | FINDINGS, *A rung change was visible in the data* |
+| The acquisition front door by name: `catalogue()`, `configure('phaseU', 'NTC')` or a sliced list, `read(-1)`, and records with `start_time`, `dt`, `samples` and `channel_name` | `host/README.md`, *Acquisition, end to end* |
+| The host stack at **87 % of an emulated 10 Mbit/s** - 44 us of host per transaction, so the library is not what limits a fast link | FINDINGS, *The stand-in was its own benchmark, twice* |
+| The IMU's three vectors beside the quaternion, and four features held at once instead of one | PROTOCOL, *Devices 0 and 1* |
 
 **USB is configured and nothing sits on it.** OTG_FS device, no device class,
 so a host sees one that fails enumeration. Nothing depends on it.
@@ -61,6 +66,19 @@ Nothing else has - invariant 7.
 
 ## Next, in order
 
+0. **The IMU and the shaft angle inside a DAQ record, and the IMU on
+   hardware.** `catalogue()` lists orientation, acceleration, rotation
+   rate, magnetic field and shaft angle and refuses them: they read
+   through their own subsystems, and carrying them in a record is a wire
+   format that does not exist. The constraint is named - the channel mask
+   is a `u16` with ten analog channels in it, so fourteen more fields need
+   a SECOND appended mask, not a wider one, which would be a MAJOR - and
+   they have to be snapshots rather than sums, since a summed quaternion
+   means nothing. **And none of the IMU work is measured**: the three
+   vectors, the multi-feature re-apply and the MINOR 6 reply are built and
+   host-tested only, because the board has had no power since
+   2026-09-01. That is the subsystem CLAUDE.md records as six defects and
+   four dead hardware hypotheses, so the numbers wait for the rail.
 1. **The drive on a motor.** Everything past the AFE step of
    `tools/commission.py` needs current through a winding: the AFE patch
    first, then a motor on the bench, then the sign check, the dead-time

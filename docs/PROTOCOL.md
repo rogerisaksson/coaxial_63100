@@ -38,7 +38,9 @@ FUNCTION from the protocol layer before dispatch saw it.
 ### 0x41 Version
 
 Append-only, the frozen record. A host binds decoding to `CMD_PROTO_MAJOR`
-alone; appending a field is a MINOR. MAJOR 2, 2026-08-29: the thermal nodes
+alone; appending a field is a MINOR. **MINOR 6, 2026-09-01**: imu op 8
+appends the three vectors. **MINOR 5**: daq op 4 appends the backlog.
+MAJOR 2, 2026-08-29: the thermal nodes
 went per leg, repurposing device 8's node order and the record's ceiling
 indices - cmd.h has the reasoning beside the number.
 
@@ -121,8 +123,23 @@ configure, resume.
 
 | Record | Layout |
 |---|---|
-| IMU | `u8 loop, u8 error, u32 updates, u32 cargoes, u32 errors, u8 have`, then `u8 report_id, u8 status` and four Q14 counts |
+| IMU | `u8 loop, u8 error, u32 updates, u32 cargoes, u32 errors, u8 have`, then `u8 report_id, u8 status` and four Q14 counts, then the feature asked for, `u8 last_fault, u8 last_fault_id`, then the three vectors |
 | Angle | `u8 loop, u8 error, u32 updates, u32 errors, u8 have, u8 register, u16 value, u8 crc` |
+
+**The three vectors, appended by MINOR 6**: accelerometer, gyroscope and
+magnetometer, each `u8 have, u8 status` and three `i16`. Each carries its
+own `have` because each is its own SH-2 report and arrives only if the
+host asked for it - a feature nobody enabled leaves zeros, and zero is a
+legal reading. The Q points are the part's and the scaling is the host's,
+exactly as the quaternion's is: accelerometer Q8 in m/s^2, gyroscope Q9 in
+rad/s, magnetometer Q4 in uT.
+
+**The part holds four features now, not one.** It remembered the last id
+asked for, and a reset throws them all away and re-applied only that one -
+so a host wanting the quaternion AND the vectors got three silent reports
+while the loop still said `running`. The re-apply walks every slot, one a
+turn, because four Set Features in a row hold the main loop long enough to
+time a Modbus reply out.
 
 `updates` is monotonic in both, so a new reading is told from the same one
 read twice. The A1335's packet is 20 bits (Figure 31): MOSI SYNC=0, R/W,
@@ -259,14 +276,30 @@ Configure / start / read - DAQmx's shape cut to one task: one MCU, three
 converters, one timer.
 
 **Op 1** takes `u16 channels, u8 clock, u8 sample_time, u16 decimate, u16
-accumulate, u32 records, u8 digital, u32 interval_us`. `channels` is a
-bitmask over `0x6D` kind 0; `clock` 0 is the main loop, 1 the injected
+accumulate, u32 records, u8 digital, u32 interval_us, u8 adapt`. `channels`
+is a bitmask over `0x6D` kind 0; `clock` 0 is the main loop, 1 the injected
 group, one record per PWM period - a TIM1 clock carries **what the injected
 sequence converts**: the three phases, and the DC link and the NTC that
 ride rank 2. Any other channel is refused; `sample_time` 0..7 over the H7's eight
 windows, shortest first; `decimate` keeps one trigger in N; `records` 0
-runs until stopped; `digital` appends one `u32` of drivable-pin levels per
-record, sampled at the record's timestamp.
+runs until stopped; `adapt` lets the board climb the rung ladder.
+
+**`digital` appends one BYTE PER SAMPLED PIN, and a byte is a duty.** Not
+a level and not a word of them: the pin goes through the same window as
+everything else, 255 is all of it, and a level sampled once and decimated
+by two thousand is aliased by construction - KEEPALIVE toggles at ~100 kHz
+and read as a coin toss.
+
+**Which pins is a different question from which a host may drive.**
+`s_digital` carries two flags: `usable` says a host may write it through
+the test path, `sampled` says it goes in a record. Reading a pin costs it
+nothing, so the six gate signals and the break are in a record and none of
+them may be written - HAL_GPIO_Init on a gate takes the pin off the timer
+and latches one FET of a half bridge on. Nine pins are sampled: AFE_ON,
+nFAULT/TIM1_BKIN, KEEPALIVE and the six PWM gates. The buses and the debug
+port stay out; sampling JTAG at the converters' rate names a channel
+nobody asked for, and all twenty-three overflowed the layout reply at 312
+bytes against 253.
 
 **Two ways to close a record, and `accumulate` picks which** (MINOR 3).
 
@@ -312,9 +345,17 @@ can carry from the stride and the answering port's baud; op 0 reports it as
 | 7 | 32 | 118 | 8474 µs |
 | 7 + digital | 36 | 105 | 9523 µs |
 
-A third of the line rate is measured, not derived - 3.8 kB/s of payload
-against 11.52 kB/s raw. Running free at the board's own rate delivered 88
-rec/s with **zero drops**. A finite run is left alone. The ceiling is on
+The share is `CMD_LINK_SHARE_PCT`, and it moved from 33 to 75
+(2026-09-01). The 33 was measured when every reply ended on 8 ms of
+silence, because nothing in a Modbus frame says where it ends; a DAQ read
+says its own length now and the reader waits for a reply's worth of
+records, so the same stream sustains far more of the line. Re-measured at
+ten channels and nine pins, stride 55: **124.8 records/s at 4.00 records a
+read, 72.7 kbit/s, 63 % of the line**, against 43 % before. It is still a
+SHARE - one board on one cable can have the line, a populated RS485
+segment cannot, and that constant is what to bring back down when one
+exists. Running free at the board's own rate delivered 88 rec/s with
+**zero drops**. A finite run is left alone. The ceiling is on
 records, and a record is `decimate` × `accumulate` triggers, so the
 substituted interval gates the triggers at that multiple - gating at the
 record rate would have sampled sixteen times slower at `accumulate` 16
@@ -345,16 +386,35 @@ dropped a record - which is the one worth knowing, so the high-water
 mark is taken where a record is pushed.
 
 **Op 4** replies `u8 got`, then records of `u32 at`, one `i32` per
-enabled channel, the digital `u32` when the task has one, and `u16
-samples` last - whole records only. The count travels with the sums
+enabled channel, one `u8` duty per sampled pin when the task has them, and
+`u16 samples` last - whole records only - and then `u32 backlog`, what is
+still in the ring after this read (MINOR 5).
+
+**The backlog is the way a DAQ card answers one**: the level AFTER the
+read that took the records, in the same transaction. A host pacing itself
+needs that number and asking separately both costs a round trip and
+answers about a different moment. Appended, so a host that slices `got`
+records by the stride and stops sees exactly what it saw before; worst
+case 1 + 240 + 4 = 245 against the 252 the PDU leaves after the function
+code, so `DAQ_REPLY_ROOM` does not move and neither does the link's rate.
+
+**A read's length is therefore knowable, and the host stops waiting for
+it.** The first payload byte is the record count and the stride is already
+in hand, so the transport stops on the last byte instead of on QUIET_TIME
+of silence after it - 8 ms of every transaction. Measured on the port
+itself with a four-record reply: the body takes 19.84 ms against 19.88 ms
+of theoretical line time, so the wire is saturated while it streams, and
+the dead time is 4.56 ms - t3.5 at 1.75 and the board's turnaround at
+2.70. The Modbus frame ceiling is **92.8 %**: 220 of every 237 bytes on
+the wire are records. The count travels with the sums
 because the clock decides it: a host that took it from the config would
 divide by a number the board never used. **This RESIZED the record**
 (MINOR 3), like the `u16` channel mask did - op 5 says the stride and a
 decoder that recomputes it mis-frames every record after the first. **Op 5** makes op 4 decodable: `u8
 fields, u16 stride`, per field `u8 channel, u8 unit, u8 differential, str
 signal`, then `u8 digital` and, when set, `u8 pins` and per pin `u8
-direction, str signal`. Drivable pins only: all twenty-three came to 312
-bytes against 253. A host builds its decoder from that. **The TIM1 clock is the one FOC wants and it does not need the gates.**
+direction, str signal`. The SAMPLED pins, not the drivable ones - see op 1
+above; all twenty-three came to 312 bytes against 253. A host builds its decoder from that. **The TIM1 clock is the one FOC wants and it does not need the gates.**
 MOE is a separate thing: with the sync armed and the stage down the
 injected sequence still triggers, so the samples come at the PWM period
 whatever the bridge is doing - measured 49 300 samples/s over five

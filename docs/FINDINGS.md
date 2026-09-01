@@ -2381,3 +2381,140 @@ everything else - silently wrong for any other channel, which is why the
 configure refused all but the phases. `Board_AdcInjectedSlot` takes the
 whole latched sample. Measured, all five: **49 300 samples/s, 0 dropped**,
 NTC 42 072 codes and the DC link 26 039 beside the triple.
+
+## Where the 115200 line actually went, phase by phase
+
+Measured 2026-09-01 on the port itself, no broker, a four-record reply at
+stride 55:
+
+| phase | ms |
+|---|---|
+| write | 0.11 |
+| board turnaround | 2.70 |
+| reply body | 19.84 |
+| **total** | **22.65** |
+| t3.5 before each | 1.75 |
+
+The reply body takes 19.84 ms against 19.88 ms of theoretical line time,
+so **the wire is saturated while it streams** and the dead time is
+4.56 ms. The Modbus frame ceiling is 92.8 %: 220 of every 237 bytes on the
+wire are records.
+
+Three things were costing the rest, largest first.
+
+**Every transaction waited out 8 ms of silence.** Nothing in a Modbus
+reply says where it ends, so `QUIET_TIME` was paid at the end of each one.
+A DAQ read's length IS knowable - the first payload byte is the count and
+the stride is in hand - so the transport stops on the last byte. 43 % to
+56 % of the line.
+
+**`CMD_LINK_SHARE_PCT` was 33, measured before that.** Re-measured: 75.
+
+**Eager reads were a feedback loop.** Sampling and the Modbus handler
+share `main()`, so every read steals acquisition time, which leaves one
+record per read, which needs more reads. Bottom of it: 95 reads/s at 1.00
+records each. The reader waits a COMPUTED time now - the shortfall over the
+rate it is seeing. Two guesses were measured and backed out: a fixed 20 ms
+gave up just short of four records (1.55 a read), and counting a zero
+backlog with a fixed 50 ms took 140 records/s down to 76.
+
+| board ahead | rec/s | reads/s | rec/read | kbit/s | % line |
+|---|---|---|---|---|---|
+| 2x | 104.7 | 26.2 | 4.00 | 61.0 | 53 % |
+| 4x | 124.7 | 31.2 | 4.00 | 72.6 | 63 % |
+| 6x | 135.2 | 33.8 | 4.00 | 78.7 | 68 % |
+
+**Not the optimiser.** The Release preset puts every file at -O2 and moved
+the figure from 45.4 to 44.4 kbit/s. The hypothesis is dead.
+
+**Not the broker either.** Direct port 162.8 records/s, through
+`open_session` 162.1 - 0.4 %.
+
+## The board spent 72 % of its loop watching the UART
+
+Measured 2026-09-01: the board made **477.4 records/s with the link idle
+and 133.1 while serving it**, so a link that could carry 194 was fed by a
+board that could no longer make them.
+
+`u_put` spun per byte waiting for TXE. A 229-byte DAQ reply is 19.9 ms of
+line time and the acquisition loop spent all of it waiting. The spin polls
+the acquisition now, and it is safe because of WHERE it is: TXFNF means
+the FIFO has room, so the wait only happens when the FIFO is FULL -
+sixteen bytes, 1.39 ms still queued against a channel read of about 78 us,
+so nothing opens a gap past t1.5 inside the frame. **The loop went from
+380 to 1880 sweeps/s.**
+
+With that headroom: 144.5 records/s, 4.00 a read, 84.2 kbit/s, **73 % of
+the line**, ring flat and nothing dropped, with the chain running.
+
+## A chain costs sweeps, and the passband was lying
+
+Decimating by N spends N sweeps of the loop for one record, and those
+sweeps come off the link. Measured at ten channels, stride 55: the chain
+at ratio 3 moved 44.5 kbit/s, at ratio 1 moved 48.8, and the clock-closed
+window with no chain at all moved 72.1.
+
+And `bessel.design` set its passband from the rate ASKED for, not the one
+the integer ratio produces. **Asked 400 records/s off a 288 Hz loop, the
+chain made 144 and put -3 dB at 80 Hz against a Nyquist of 72** - buying
+throughput by moving the cutoff past the fold it exists to stop. It
+follows the achieved rate now.
+
+**A closed loop was tried and measured worse.** Three rounds of "run it,
+measure what the board and the link did, design again" settled at 43 %
+where a fixed ask holds 65 %: the loop rate has to be read while the
+reader is still reaching its pace, so it overstates - 2780 sweeps/s
+against the 635 a stream settles at - and every round over-decimates. A
+window long enough to be honest costs ten seconds of startup.
+
+## A rung change was visible in the data
+
+`take_rung` zeroed every channel's filter state, so a step the board took
+to keep up appeared in the measurement as every channel falling to zero
+and climbing back. `filter_prime()` solves each section at DC and sets the
+two states that hold it there.
+
+Measured over **2856 records and 8 rung changes**: the four largest steps
+are 13854, 2112, 436 and 59 codes at records 1 to 4 - the task's own
+settling, which has no earlier value to be primed from - and after that
+nothing exceeds 59 codes in a run spanning 36742.
+
+## The stand-in was its own benchmark, twice
+
+Emulating a fast link needs the stand-in to charge time for its bytes.
+Two things made a measurement against it measure the simulator instead.
+
+**`time.sleep` cannot honour a sub-millisecond wait on Windows.** A reply
+at 10 Mbit/s is 292 us; slept per reply it spent 2.878 s of a 4 s run.
+Banked and paid past 2 ms: 46 % to 84 % of the line.
+
+**Inventing the data cost more than decoding it**: 401 200 gauss and
+361 080 randint calls in four seconds, top of the profile, with the
+library's own decode not appearing at all. Noise drawn once into a pool of
+1021 and cycled: 84 % to 87 %.
+
+The host stack, through the full library path:
+
+| baud | rec/s | reads/s | rec/read | kbit/s | % line |
+|---|---|---|---|---|---|
+| 115200 | 196 | 39 | 5.00 | 115 | 100 % |
+| 921600 | 1544 | 309 | 5.00 | 902 | 98 % |
+| 3000000 | 4869 | 974 | 5.00 | 2844 | 95 % |
+| 10000000 | 14868 | 2974 | 5.00 | 8683 | 87 % |
+
+At 10 Mbit/s that is 336 us a transaction of which 292 is line, so 44 us
+is host. **The library is not what limits a fast link.**
+
+## A lingering broker halves the bench, and a held one serves nobody
+
+`test_bench`'s `round_trips_per_s` read 31.2 against a 64.2 baseline,
+reproducibly, and nothing in the tree had changed: a broker left over from
+an earlier run was sharing the port, and a second client on the segment
+halves the round-trip rate. With the port unshared: 64.2 of 64.2. A
+measurement taken while something else drives the same bench is not a
+measurement.
+
+`session.py --force` stood a broker down that had **no clients** and the
+tool said so first. Forcing one that a session holds takes that session
+with it - which happened once here, mid-view, and produced a traceback in
+`broker.py:_ask` that looked like a library fault and was not.

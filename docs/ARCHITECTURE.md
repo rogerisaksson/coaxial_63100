@@ -65,8 +65,33 @@ reached for it.
 | Interface | Answers | Real | Stand-in |
 |---|---|---|---|
 | `Acquisition` | `configure`, `start`, `stop`, `read`, `latest`, `state` | `Daq`, `Coaxial63100` | `SimulatedDaq` |
+
+**The stand-in has a line.** It carries a bitrate and charges time for the
+bytes it returns, which is what makes a throughput number off it mean
+anything, and it answers `max_rate_hz` by the board's own formula. Line
+time is BANKED and paid in one sleep past 2 ms: `time.sleep` cannot honour
+a sub-millisecond wait on Windows, and a reply at 10 Mbit/s is 292 us - per
+reply it spent 2.878 s of a 4 s run and the emulator became the bottleneck
+it was written to measure.
 | `PolledSensor` | `state`, `read`, `write`, `hold`, `resume`, `configuring` | `Imu`, `Angle` | `SimulatedImu`, `SimulatedAngle` |
 | `GateControl` | the twelve `0x6E` device 4 ops | `GateDrivers` | `SimulatedGateDrivers` |
+
+**Two more files carry one concern each.** `reader.py` is the host-side
+reader thread: between `start()` and `stop()` it is the ONLY thing that
+touches the transport, and the consumer takes from a deque it fills - so a
+`print` in a loop never sits between two round trips. `record.py` is what
+comes back: a `Record` is a `dict` underneath, so the mapping keeps
+working, with `start_time`, `dt`, `samples` and `channel_name` for a script
+to read. `dt` is MEASURED, from the gap to the next record's timestamp,
+because what a task asked for and what the loop managed are different
+numbers.
+
+**One transaction at a time on the wire.** `Transport.request` holds an
+RLock for the whole exchange: two threads interleaving a transmit and a
+receive put one thread's reply in the other's hands, or scatter a frame's
+characters past t1.5 and lose both. And one drainer of the ring - while the
+reader lives, `acquire()` and `blocks()` serve from its queue, because two
+drainers each see the hole the other took.
 
 `GateStage` is concrete: the arming policy - dead-time check, interlock,
 bypass - and there is one of it. The board's ops stay a dumb slave's

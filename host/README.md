@@ -38,6 +38,36 @@ the notebooks are `../python_examples/`. From a shell:
 The layering - subsystems over protocol over transport over codecs - is in
 [../docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
 
+## Acquisition, end to end
+
+```python
+daq = device.daq
+print(daq.catalogue())               # everything this board can record
+daq.configure('phaseU', 'NTC')       # names in any spelling, or a list
+daq.start()                          # host and target both buffer
+values = daq.read(-1)                # blocks for the first, takes the lot
+daq.stop()
+
+values[0].start_time                 # when the window opened
+values[0].dt                         # how long it covered, MEASURED
+values[0].channel_name               # ('Phase U', 'NTC')
+values[0].samples[0].value           # the sum over its count
+daq.columns(values)                  # one array per channel, plus time, dt
+```
+
+`catalogue()` is the board's own list - analog channels and sampled pins
+off `0x6D`, plus the sensor fields - each row saying its kind and whether
+`configure()` can ask for it. The sensor fields (orientation, acceleration,
+rotation rate, magnetic field, shaft angle) are **listed and not yet
+selectable**: they are readable through `board.imu` and `board.angle`, and
+carrying them inside a record is a wire format the firmware does not have.
+
+`start()` puts a reader thread on the link and `read()` takes from the
+queue it fills, so the loop body costs the link nothing. Every read answers
+its own backlog, so pacing costs no extra round trip. `daq.buffered` is
+both ends: `{'host', 'peak', 'dropped', 'backlog', 'reads', 'records',
+'rate'}`.
+
 ## Two rules the library keeps
 
 **Nothing returns a status.** Every call produces its result or raises from
