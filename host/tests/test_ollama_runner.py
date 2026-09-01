@@ -229,11 +229,13 @@ def test_scope_repairs(report):
     report.check('a real syntax error is still a syntax error',
                  'SyntaxError' in scope.run('x = ('))
 
-    # pandas is absent by decision, so the failure has to name the alternative
-    # rather than only the refusal.
-    missing = scope.run('import pandas as pd')
+    # A package that is genuinely not here, so the failure has to name
+    # the alternative rather than only the refusal. NOT pandas: it is
+    # installed now, for `daq.frame()`, and a test that asserted its
+    # absence was testing the bench rather than the runner.
+    missing = scope.run('import scipy')
     report.check('a missing package says what is here instead',
-                 'no pandas' in missing and 'statistics' in missing,
+                 'statistics' in missing and 'namespace holds' in missing,
                  missing.splitlines()[-1][:52])
 
     # The tool names and the method names are different words, and a model

@@ -19,6 +19,7 @@ and 100 A that is the honest arrangement: bounded by review, not by a sandbox.
 A failure in either is a *result*, not an exception: the model has to see its
 own traceback to correct itself.
 """
+import importlib.util
 import contextlib
 import io
 import os
@@ -176,11 +177,20 @@ class Scope:
     def available(self):
         """What this namespace holds, for a snippet that reached past it."""
         names = sorted(n for n in self.namespace if not n.startswith('__'))
-        return ('This namespace has no third-party packages - no pandas, no '
-                'numpy, by decision. It holds: %s. Means and standard '
-                'deviations arrive from board.analog.burst() already computed '
-                'on the board; statistics covers the rest.'
-                % ', '.join(names))
+        # WHAT IS ACTUALLY IMPORTABLE, not what was decided once. The
+        # message named pandas and numpy as absent by decision; pandas
+        # arrived for `daq.frame()` and the sentence became a claim
+        # the interpreter contradicts on the next line.
+        extra = []
+        for name in ('pandas', 'numpy'):
+            if importlib.util.find_spec(name) is not None:
+                extra.append(name)
+        have = ('%s can be imported here. ' % ' and '.join(extra)
+                if extra else 'No third-party packages are here. ')
+        return ('%sThis namespace holds: %s. Means and standard '
+                'deviations arrive from board.analog.burst() already '
+                'computed on the board; statistics covers the rest.'
+                % (have, ', '.join(names)))
 
     def run(self, code):
         """Execute `code`, return its output.

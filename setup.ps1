@@ -575,6 +575,7 @@ function Install-PythonDeps {
 import importlib.util as util
 
 WANTED = {'serial': 'pyserial', 'yaml': 'PyYAML', 'mcp': 'mcp',
+          'pandas': 'pandas', 'matplotlib': 'matplotlib',
           'anyio': 'anyio', 'pytest': 'pytest'}
 print(','.join(dist for module, dist in WANTED.items()
                if util.find_spec(module) is None))

@@ -64,6 +64,28 @@ the next), `channel_name`, `samples`, and `value('NTC')` for one of them.
 dies between `start()` and `stop()` leaves the board sampling, and the next
 run is refused until somebody clears it by hand.
 
+## Notebooks
+
+```python
+df = daq.frame(rec)                  # DataFrame, time index, a column each
+df['NTC'].rolling(50).mean().plot()
+daq.plot(rec, 'phaseU')              # or straight to matplotlib
+```
+
+`frame()` and `plot()` import pandas and matplotlib **where they are
+called**, and refuse with the install line when they are absent - neither
+is a dependency of this library, for the reason `requirements.txt` gives.
+Everything they do is reachable without them: `columns()` is a dict of
+plain lists, which is what `DataFrame` takes anyway.
+
+**Buffers.** `daq.configure_buffer(10000)` sizes the circular buffer in
+RECORDS. With a broker in the path that is the BROKER'S ring, and every
+client on it - another process, another thread, a view and a chat session
+at once - reads that one ring from its own cursor without taking records
+from the others. A reader lapped by the writer is told how many it lost in
+`buffered()['lost']`; a gap nobody counted is the one outcome a shared ring
+must not have.
+
 `catalogue()` is the board's own list - analog channels and sampled pins
 off `0x6D`, plus the sensor fields - each row saying its kind and whether
 `configure()` can ask for it. The sensor fields (orientation, acceleration,

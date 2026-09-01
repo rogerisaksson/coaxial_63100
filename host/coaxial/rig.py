@@ -122,7 +122,7 @@ DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
             'configure_buffer',
-            'channel_names', 'columns', 'series')
+            'channel_names', 'columns', 'series', 'frame', 'plot')
 
 
 class DaqView:
@@ -467,10 +467,87 @@ class Coaxial63100(Acquisition):
                 spelling = s.name
                 break
         if spelling is None:
+            # A pin, then. Same records, same window, a duty instead of a
+            # mean - and named as loosely as everything else here.
+            for pin in (getattr(records[0], 'digital', None) or {}):
+                if self._match(pin) == want or self._match(
+                        pin.split('/')[-1]) == want:
+                    return [(getattr(r, 'digital', None) or {}).get(pin)
+                            for r in records]
+        if spelling is None:
             raise RigError(
                 'no channel called %r in these records. They have: %s'
                 % (name, ', '.join(records[0].channel_name)))
         return [r.value(spelling) for r in records]
+
+    def frame(self, records, index='time'):
+        """A run as a pandas DataFrame: one column per channel.
+
+            df = daq.frame(daq.read(-1))
+            df['NTC'].rolling(50).mean().plot()
+            df.describe()
+
+        `index` is 'time' for the wall clock, 'elapsed' for seconds from
+        the first record, or None to keep a plain range. The columns are
+        the board's own channel names, so a notebook reads the same names
+        `catalogue()` listed and `configure()` took.
+
+        pandas is NOT a dependency of this library and is imported here
+        rather than at the top: a bench that only reads a thermistor
+        should not have to install it, and the refusal below says what to
+        do rather than raising ImportError at a call three frames up.
+        """
+        try:
+            import pandas
+        except ImportError:
+            raise RigError(
+                'frame() needs pandas, which this library does not require '
+                '- `pip install pandas`, or use columns() and build what '
+                'you like from plain lists') from None
+
+        cols = self.columns(records)
+        frame = pandas.DataFrame(cols)
+        if index == 'elapsed' and cols['time'] and cols['time'][0] is not None:
+            frame['elapsed'] = [t - cols['time'][0] for t in cols['time']]
+            return frame.set_index('elapsed')
+        if index == 'time' and cols['time'] and cols['time'][0] is not None:
+            # A real timestamp rather than a float, so resample() and the
+            # rest of the time machinery work without a conversion the
+            # caller has to remember.
+            frame['time'] = pandas.to_datetime(frame['time'], unit='s')
+            return frame.set_index('time')
+        return frame
+
+    def plot(self, records, *names, **kw):
+        """The channels against time, in one line, for a notebook.
+
+            daq.plot(daq.read(-1))
+            daq.plot(rec, 'phaseU')
+
+        With no names it draws every channel. Returns the axes, so a
+        caller can label or save it. matplotlib is imported here for the
+        same reason pandas is - it is not a dependency.
+        """
+        try:
+            from matplotlib import pyplot
+        except ImportError:
+            raise RigError(
+                'plot() needs matplotlib, which this library does not '
+                'require - `pip install matplotlib`, or take series() and '
+                'draw it however you like') from None
+
+        wanted = list(names) or self.channel_names(
+            records[0] if records else None)
+        t = self.series(records, 'time')
+        base = t[0] if t and t[0] is not None else 0
+        axes = kw.pop('ax', None) or pyplot.subplots()[1]
+        for name in wanted:
+            spelling = self.pick(name)[0] if names else name
+            axes.plot([x - base for x in t],
+                      self.series(records, spelling), label=spelling, **kw)
+        axes.set_xlabel('s')
+        axes.legend()
+        return axes
 
     def columns(self, records):
         """Records as columns: {name: values}, plus `time` and `dt`.
@@ -486,13 +563,23 @@ class Coaxial63100(Acquisition):
             plot(cols['time'], cols['Phase U'])
         """
         names = self.channel_names(records[0] if records else None)
-        out = {name: [] for name in names}
+        # THE PINS ARE COLUMNS TOO. They ride the same records as the
+        # analog fields, so every point on both is the SAME window - which
+        # is the whole reason to plot a gate against a phase current. They
+        # were dropped here, and a live plot of the switches came back
+        # empty with nothing saying why.
+        pins = list((getattr(records[0], 'digital', None) or {})
+                    if records else {})
+        out = {name: [] for name in names + pins}
         out['time'] = []
         out['dt'] = []
         for record in records:
             for sample in getattr(record, 'samples', ()):
                 if sample.name in out:
                     out[sample.name].append(sample.value)
+            duties = getattr(record, 'digital', None) or {}
+            for pin in pins:
+                out[pin].append(duties.get(pin))
             out['time'].append(getattr(record, 'start_time', None))
             out['dt'].append(getattr(record, 'dt', None))
         return out

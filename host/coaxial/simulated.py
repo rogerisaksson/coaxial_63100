@@ -1648,6 +1648,11 @@ class SimulatedDaq(Acquisition):
                            '(simulated)')
         self._running = True
         self._done = False
+        # Anchored where the clock is now, then advanced by the period: a
+        # record's stamp has to be on the same timebase the sync was made
+        # against, and monotone within a burst.
+        if getattr(self, 'clock', None) is not None:
+            self._at = self.clock.read_latch()['now']
         self._produced = 0
         return True
 
@@ -1841,10 +1846,18 @@ class SimulatedClock:
                           ntp_server=ntp_server or NTP_SERVER)
 
     def _bracket(self):
+        """One latch, bracketed - on `perf_counter`, as the real one is.
+
+        THE SAME CLOCK BASE, because `Clock.sync` converts what this
+        returns from perf to wall with `time.time() - perf_counter()`.
+        Returning a wall time here made it add the offset to a value
+        that already had it: `at_host` came out at exactly twice the
+        epoch, and a DataFrame indexed by it landed in the year 2083.
+        """
         import time
-        before = time.time()
+        before = time.perf_counter()
         self.latch()
-        after = time.time()
+        after = time.perf_counter()
         return (before + after) / 2.0, after - before
 
 
@@ -2226,6 +2239,13 @@ class SimulatedBoard:
             self.capture = SimulatedCapture()
             self.clock = SimulatedClock()
             self.daq = SimulatedDaq()
+            # ONE TIMEBASE, as the board has one. A record's `at` and
+            # the clock's cycles both come off DWT->CYCCNT there; here
+            # they were two counters that started at zero at different
+            # moments, so `sync.to_host()` mapped a DAQ stamp through a
+            # calibration made for the other - measured, a DataFrame
+            # indexed in the year 2083.
+            self.daq.clock = self.clock
             self.drive = SimulatedDrive()
             # The sample point is one register: moving it through the
             # gate drivers moves the drive's moments too.

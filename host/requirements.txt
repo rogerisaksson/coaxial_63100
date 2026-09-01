@@ -12,16 +12,25 @@
 #              that measured escape codes wrong once per restyle; pure
 #              Python, no compiled wheels, so the bench PC constraint holds.
 #
-# Deliberately absent: numpy, pandas, reportlab, requests, the ollama client.
-# The statistics this repository computes are means and standard deviations over
-# a few hundred samples, its PDF writer is 172 lines of PDF 1.4, and its Ollama
-# client is urllib. A bench PC at a contract manufacturer keeps working through
-# the next OS image in proportion to how little it needs installed.
+#   pandas     notebooks. `daq.frame()` gives a DataFrame with a time index
+#   matplotlib and a column per channel, pins included, and `daq.plot()` draws
+#              it. BOTH ARE IMPORTED WHERE THEY ARE CALLED and refuse with the
+#              install line when absent, so the library itself still runs on a
+#              bench that has neither - `columns()` is a dict of plain lists,
+#              which is what DataFrame takes anyway.
+#
+# Deliberately absent: reportlab, requests, the ollama client. The PDF writer
+# is 172 lines of PDF 1.4 and the Ollama client is urllib. A bench PC at a
+# contract manufacturer keeps working through the next OS image in proportion
+# to how little it needs installed - which is why the two above are optional at
+# the call site even though they are pinned here.
 pyserial>=3.5
 PyYAML>=6.0
 mcp>=1.2
 anyio>=4.0
 rich>=13.0
+pandas>=2.0
+matplotlib>=3.7
 
 # Only for examples/pytest_production_line.py. Nothing else in tests/ needs it:
 # the conformance, MCP and runner suites are plain scripts with their own
