@@ -121,7 +121,7 @@ SENSOR_FIELDS = (
 DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
-            'configure_buffer',
+            'configure_buffer', 'tare',
             'channel_names', 'columns', 'series', 'frame', 'frames')
 
 
@@ -533,6 +533,13 @@ class Coaxial63100(Acquisition):
         pick = {'centi-degC': ('ntc', 'celsius', 'C'),
                 'mA': ('phase', 'amps', 'A'),
                 'mV': ('dcbus', 'volts', 'V')}
+        # THE CHANNEL'S OWN ZERO AND GAIN, from the calibration
+        # record - what `tare()` wrote. Without this a tare stored an
+        # offset the board kept and no column ever used, so the
+        # currents came back exactly as they went in and nothing said
+        # the call had done nothing.
+        trim = {c['index']: c for c in
+                self.board.calibration.read()['channels']}
         out = {}
         for field in (self.layout or {}).get('fields') or []:
             got = pick.get(field.get('unit'))
@@ -540,8 +547,11 @@ class Coaxial63100(Acquisition):
                 continue
             part, method, short = got
             convert = getattr(scale[part], method)
+            fix = trim.get(field['channel'], {})
+            offset = fix.get('offset_raw') or 0
+            gain = 1.0 + (fix.get('gain_ppm') or 0) / 1e6
             out['%s (%s)' % (field['signal'], short)] = [
-                convert(v) for v in cols[field['signal']]]
+                convert((v - offset) * gain) for v in cols[field['signal']]]
         return out
 
     def frames(self, window=2.0, seconds=None, scaled=False, **kw):
@@ -814,6 +824,50 @@ class Coaxial63100(Acquisition):
     #: fifty-byte stride is half a megabyte, which is nothing at this end
     #: of the link and several seconds of headroom at the other.
     BUFFER_RECORDS = 10000
+
+    def tare(self, *names, **kw):
+        """Zero the current channels: whatever they read now becomes zero.
+
+            device.tare()                 # the three phases
+            device.tare('phaseU')         # one of them
+            device.tare(save=False)       # this session only
+
+        THE BOARD DOES THE ZEROING AND THE BOARD KEEPS IT. `cal.zero()`
+        measures the channel and stores the reading as its offset in the
+        calibration record, and `save()` commits that to flash - so the
+        next session, and every other host, sees the same zero. A host-side
+        subtraction would be one more copy of a conversion that invariant 7
+        says lives in exactly one place.
+
+        NOTHING HERE KNOWS WHAT IS ON THE INPUT. Pointing it at a live
+        channel stores a live reading as zero, which is the operator's
+        mistake to make; the codes it returns are what make it visible.
+        Returns `{name: code}`.
+
+        Refused with the AFE off: the reference is unpowered, every channel
+        reads exact mid-scale, and taring against that would write a
+        plausible number that means nothing (invariant 9).
+        """
+        save = kw.pop('save', True)
+        if kw:
+            raise TypeError('tare() got %s' % ', '.join(sorted(kw)))
+        if not self.board.afe.is_on():
+            raise RigError(
+                'AFE_ON is off, and it powers the converter reference - '
+                'every channel reads exact mid-scale, so a tare would store '
+                'that as zero. Switch it on first')
+
+        wanted = self.pick(*names) if names else [
+            r['name'] for r in self.catalogue()
+            if r['kind'] == 'analog' and r.get('unit') == 'mA']
+        index = {c['signal']: c['index']
+                 for c in self.board.system.channel_map()['analog']}
+        got = {}
+        for name in wanted:
+            got[name] = self.board.calibration.zero(index[name])
+        if save:
+            self.board.calibration.save()
+        return got
 
     def configure_buffer(self, records):
         """Size the circular buffer the records land in, in RECORDS.

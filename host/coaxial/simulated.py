@@ -552,6 +552,10 @@ class SimulatedCalibration:
     #: Channels the record trims, as many as the board's ADC table has.
     CHANNELS = 10
 
+    #: The board this belongs to, so `zero()` can read a channel the
+    #: way the real one does. Set by SimulatedBoard.
+    board = None
+
     def __init__(self):
         self._params = {}
         self._channels = [{'index': i, 'offset_raw': 0, 'gain_ppm': 0}
@@ -576,8 +580,22 @@ class SimulatedCalibration:
                                  'gain_ppm': int(gain_ppm)}
 
     def zero(self, index):
-        self.set_channel(index, 0, self._channels[index]['gain_ppm'])
-        return 0
+        """Measure the channel now and keep the reading as its offset.
+
+        IT HAS TO MEASURE. Storing a flat zero made a tare on the
+        stand-in a no-op that still reported success - the currents
+        came back at the same offset they went in with, and nothing
+        said the call had done nothing. The board reads the channel;
+        so does this.
+        """
+        code = 0
+        if self.board is not None:
+            for row in self.board.analog.read_all()['channels']:
+                if row['index'] == index:
+                    code = int(row['mean_raw'])
+                    break
+        self.set_channel(index, code, self._channels[index]['gain_ppm'])
+        return code
 
     def span(self, index, reference):
         raise DeviceStateError('the stand-in has no instrument to span '
@@ -1423,8 +1441,13 @@ class SimulatedDaq(Acquisition):
     # One per channel the board reports. A channel added to `s_analog` and
     # not here is a KeyError on the first frame, which is what happened when
     # the die thermometer took index 9.
-    CENTRE = {0: 1400, 1: -8030, 2: 360, 3: 1300, 4: 40500, 5: 20775,
-              6: 15200, 7: 50700, 8: 1030, 9: 22400}
+    #: ONE TABLE FOR ONE BOARD. This was a second set of quiet points,
+    #: different from the one `SimulatedAnalog` reads through - Phase U
+    #: sat at 1400 in a record and 900 in a read of the same channel.
+    #: A tare could then never zero a record: `cal.zero()` measures
+    #: through the analog path and the records came from somewhere
+    #: else, so the offset was stored, applied, and wrong.
+    CENTRE = NOMINAL
 
     def __init__(self):
         self._cfg = None
@@ -1475,8 +1498,87 @@ class SimulatedDaq(Acquisition):
     STEADY = {'AFE_ON': 1.0, 'nFAULT/TIM1_BKIN': 1.0,
               'KEEPALIVE': 0.5}
 
+    #: Where the electrical angle is, and when it was there. Advanced by
+    #: the drive's own omega, so a record's currents and the gate duties in
+    #: the same record are one rotation seen twice.
+    _theta = 0.0
+    _theta_at = None
+
+    def _spin(self, seconds):
+        """(theta, amps, modulation index, voltage angle) for this record.
+
+        THE MOTOR IS THE ONE IN `SimulatedDrive`: R 0.05 ohm, Ld 20 uH,
+        Lq 30 uH, lambda 0.005 Wb, 7 pole pairs, 50 kHz. Nothing here
+        invents a constant - the currents are the dq references the drive
+        was given, put back into the stator frame, and the duties are the
+        voltage vector that drive computed for them over the DC link this
+        stand-in reports.
+
+        Zero amps and a half duty when nothing is commanded, which is what
+        a bench with the stage down looks like.
+        """
+        drive = getattr(self, 'drive', None)
+        if drive is None:
+            return 0.0, 0.0, 0.0, 0.0
+
+        omega = drive._omega()                 # electrical rad/s
+        self._theta = (self._theta + omega * seconds) % (2.0 * math.pi)
+
+        # The drive's own solution: what current it settled at and
+        # what voltage it needed, not the references it was handed.
+        iid, iq, vd, vq = drive._dq()
+        amps = math.hypot(iid, iq)
+        volts = math.hypot(vd, vq)
+        # The link this stand-in reports, through its own scaling: the
+        # modulation index is what fraction of half the link the vector
+        # asks for, and it cannot exceed one.
+        vdc = self.CENTRE_DCBUS_V
+        index = min(1.0, (2.0 * volts / vdc) if vdc else 0.0)
+        return self._theta, amps, index, math.atan2(vq, vd)
+
+    #: What the stand-in's DC link reads, in volts - `CENTRE`'s 20775 codes
+    #: through the divider. Named because the modulation index divides by
+    #: it and a bare 31.0 in an expression is a constant nobody can trace.
+    CENTRE_DCBUS_V = 31.0
+
+    #: Radians a phase lags the one before it.
+    PHASE_STEP = 2.0 * math.pi / 3.0
+
+    #: Which leg each phase channel is, by the board's own name.
+    PHASE_LEG = {'Phase U': 0, 'Phase V': 1, 'Phase W': 2}
+
+    #: Amps per code on a phase shunt - `SimulatedDrive.APC`, the same
+    #: number `scaling.PHASE_ONBOARD` gives: 3.3 V over 32768 codes
+    #: through 3.5 mohm times 4.5455.
+    AMPS_PER_CODE = 3.3 / 32768.0 / (0.0035 * 1500.0 / 330.0)
+
+    #: The last (theta, amps, index, delta), so the pins in a record
+    #: use the angle its currents were taken at.
+    _last_spin = (0.0, 0.0, 0.0, 0.0)
+
+    #: Which leg each gate belongs to, and whether it is the high side.
+    #: The board's own spelling, so this table and `PINS` agree by being
+    #: the same strings rather than by anyone keeping them in step.
+    GATES = {'TIM1_CH1/PWMUH': (0, True), 'TIM1_CH1N/PWMUL': (0, False),
+             'TIM1_CH2/PWMVH': (1, True), 'TIM1_CH2N/PWMVL': (1, False),
+             'TIM1_CH3/PWMWH': (2, True), 'TIM1_CH3N/PWMWL': (2, False)}
+
     def _pin_duty(self, signal):
         """One pin's duty for one record."""
+        got = self.GATES.get(signal)
+        if got is not None:
+            leg, high = got
+            theta, _amps, index, delta = self._last_spin
+            if index <= 0.0:
+                return 0.0            # the stage is down; both gates idle
+            # Sine modulation about half: the voltage vector's angle, one
+            # third of a turn per leg. The low side is the complement,
+            # which is what a half bridge is.
+            duty = 0.5 + (index / 2.0) * math.cos(
+                theta + delta - leg * self.PHASE_STEP)
+            duty = min(1.0, max(0.0, duty))
+            return duty if high else 1.0 - duty
+
         level = self.STEADY.get(signal, 0.0)
         if level in (0.0, 1.0):
             return level
@@ -1709,9 +1811,25 @@ class SimulatedDaq(Acquisition):
             # gives the same distribution to a reader that only
             # ever sees the sum.
             spread = math.sqrt(took * 1210.0)
+            # ONE ROTATION, SEEN TWICE. The currents below and the gate
+            # duties further down come from the same electrical angle, so
+            # a trace and the modulation that produced it line up because
+            # they ARE the same thing rather than because two generators
+            # were started together.
+            self._last_spin = self._spin(took * self._period_us() * 1e-6)
+            theta, amps, _index, _delta = self._last_spin
             for f in fields:
                 centre = self.CENTRE[f['channel']]
-                rec[f['signal']] = (centre * took
+                offset = 0
+                leg = self.PHASE_LEG.get(f['signal'])
+                if leg is not None and amps:
+                    # Balanced three-phase, in codes: the dq magnitude the
+                    # drive was given, put back into the stator frame
+                    # through the stand-in's own amps-per-code.
+                    offset = int(took * amps
+                                 * math.cos(theta - leg * self.PHASE_STEP)
+                                 / self.AMPS_PER_CODE)
+                rec[f['signal']] = (centre * took + offset
                                     + int(spread * self._noise()))
             if (layout or self.layout()).get('pins'):
                 # A duty like the board's, not a level: 0.0 to 1.0 of the
@@ -2250,6 +2368,14 @@ class SimulatedBoard:
             # The sample point is one register: moving it through the
             # gate drivers moves the drive's moments too.
             self.gate_drivers._drive = self.drive
+            # The drive is what the phases and the gates FOLLOW: a
+            # record and the modulation that produced it come from
+            # one electrical angle, or they are two inventions that
+            # happen to be printed together.
+            self.daq.drive = self.drive
+            # `zero()` reads a channel, so it needs the board that
+            # has them.
+            self.calibration.board = self
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'

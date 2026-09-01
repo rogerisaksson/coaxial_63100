@@ -79,6 +79,15 @@ Nothing else has - invariant 7.
    host-tested only, because the board has had no power since
    2026-09-01. That is the subsystem CLAUDE.md records as six defects and
    four dead hardware hypotheses, so the numbers wait for the rail.
+0b. **Prove `tare()` end to end on hardware.** `device.tare()` calls the
+   board's own `cal.zero()` and `save()`, so the zero is measured by the
+   board and kept in flash where invariant 7 says a conversion lives, and
+   `frame(scaled=True)` applies `offset_raw` then `gain_ppm`. THAT PATH IS
+   UNVERIFIED. On the stand-in a tare stores a code and the records do not
+   move, because `SimulatedAnalog.read_all()` and `SimulatedDaq` still
+   invent a channel two different ways - the shared quiet-point table was
+   unified, and something past it is not. On the board both come off the
+   same ADC, so the question cannot be settled here.
 1. **The drive on a motor.** Everything past the AFE step of
    `tools/commission.py` needs current through a winding: the AFE patch
    first, then a motor on the bench, then the sign check, the dead-time
