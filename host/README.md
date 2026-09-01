@@ -42,6 +42,7 @@ The layering - subsystems over protocol over transport over codecs - is in
 
 ```python
 daq = device.daq
+daq.enable()                         # powers the analog front end
 print(daq.catalogue())               # everything this board can record
 daq.configure('phaseU', 'NTC')       # names in any spelling, or a list
 
@@ -63,6 +64,13 @@ the next), `channel_name`, `samples`, and `value('NTC')` for one of them.
 `with daq` is the bracket a task wants and not for tidiness: a script that
 dies between `start()` and `stop()` leaves the board sampling, and the next
 run is refused until somebody clears it by hand.
+
+`daq.enable()` powers AFE_ON, which powers the converter's REFERENCE and
+not only the signal path: off, every channel reads exact mid-scale and the
+NTC exactly 25.00 C - plausible, and not a measurement. It is on the
+acquisition rather than on `afe` because the rail is REFERENCE COUNTED -
+taken here it is released when the session closes, Ctrl+C included, while
+`board.afe.enable()` takes one that nothing gives back.
 
 ## Notebooks
 
