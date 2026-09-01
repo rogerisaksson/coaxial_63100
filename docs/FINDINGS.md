@@ -2518,3 +2518,46 @@ measurement.
 tool said so first. Forcing one that a session holds takes that session
 with it - which happened once here, mid-view, and produced a traceback in
 `broker.py:_ask` that looked like a library fault and was not.
+
+## The rotor observer's limit is acceleration and a bandwidth window, not speed
+
+`tools/observer_run.py` builds `Drive/` with the host gcc and runs the
+firmware's own observer against `coaxial.motor.PLATINUM_5230SL` - the
+estimated 5230SL, propeller loaded, 37 V link, currents only. Model
+arithmetic, not a measurement: R, Ld, Lq and J are size-class estimates
+and the saliency is what an injection observer lives on.
+
+| iq A | rpm | f_e Hz | PWM/rev | start deg | run deg | |
+|---|---|---|---|---|---|---|
+| 5 | 1805 | 421 | 119 | 1.5 | 1.5 | locks |
+| 20 | 3776 | 881 | 57 | 3.0 | 3.0 | locks |
+| 35 | 5051 | 1179 | 42 | 4.1 | 4.1 | locks |
+| 45 | 5493 | 1282 | 39 | 12.1 | 12.1 | locks |
+| 50 | 27 | - | - | 180 | - | stalls at the handover |
+| 58 | -80 | - | - | 180 | 178 | reverses |
+
+**Torque at standstill is the limit, not speed.** 45 A holds
+(230 krad/s^2 electrical); 50 A never reaches the 984 rad/s crossover.
+Traced millisecond by millisecond at 58 A: the injection lock is excellent
+(0.014 rad), the rotor accelerates correctly for 2 ms, the angle error
+grows ~80 deg/ms past 90 deg and the torque reverses. `eps` bounces of
+order 1 rad - the demodulator is swamped while the rotor leaves the
+injection region faster than it can follow. The board's 100 A rating and
+the motor's 112.5 A are both far above this: **a q-current step is the
+wrong way to start this machine**, which is what the I/f ramp is for.
+
+**The PLL has a window, at 35 A**: 60 Hz 11.0 deg, 150 Hz 4.0, 332 Hz 4.1,
+and 600 Hz and above lose the rotor at the handover. The Kalman fixed
+point (332 Hz, `sensorless.kalman_gains`) sits at the top edge of what
+works, not in the middle of it.
+
+Two wrong turns worth not repeating. **The polarity pulse was missing**
+from the tool, not from the firmware: injection locates the d axis and
+only saturation says which end carries the magnet. Adding
+`drive_set_mode(POLARITY)` before the run is what made 60 Hz lock at all.
+It did **not** rescue 50 A or 58 A - the failure there is the one above.
+**One worst-case figure hid the answer**: the handover transient and the
+steady tracking are different quantities, and a single number read as "the
+observer is bad at 40 A" when it meant "the start is hard and the run is
+fine" - 40 A peaked at 34.9 deg and still reached 5413 rpm. A stalled
+rotor also scored 0.00 deg steady, having never been sampled once.

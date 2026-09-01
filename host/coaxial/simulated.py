@@ -33,6 +33,7 @@ from .errors import DeviceStateError, RigError
 from .gates import GateControl
 from .sensor import PolledSensor
 from .gpio import reserved_reason
+from .motor import BENCH_MOTOR
 
 CHANNELS = [
     {'index': 0, 'adc': 3, 'channel': 1, 'pin': 'PC3_C/PC2_C',
@@ -1995,11 +1996,13 @@ class SimulatedDrive:
     a window or a moments run fills at 50 kHz.
     """
 
-    R = 0.05
-    LD = 20e-6
-    LQ = 30e-6
-    LAMBDA = 0.005
-    POLES = 7
+    #: One definition, in `coaxial.motor`, so this machine cannot drift
+    #: away from the ones the identification and the notebook use.
+    R = BENCH_MOTOR.r
+    LD = BENCH_MOTOR.ld
+    LQ = BENCH_MOTOR.lq
+    LAMBDA = BENCH_MOTOR.lam
+    POLES = BENCH_MOTOR.poles
     SAT = 0.3           #: Ld bends by this much at I_SAT of d current
     I_SAT = 4.0
     V_DT = 0.5          #: the inverter's dead-time voltage error, V
