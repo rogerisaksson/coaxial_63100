@@ -122,7 +122,8 @@ DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
             'configure_buffer',
-            'channel_names', 'columns', 'series', 'frame', 'frames')
+            'channel_names', 'columns', 'series', 'frame', 'frames',
+            'legs', 'currents', 'history')
 
 
 class DaqView:
@@ -237,6 +238,7 @@ class Coaxial63100(Acquisition):
         # The host-side reader, alive only between start() and stop().
         self._reader = None
         self._buffer_records = self.BUFFER_RECORDS
+        self._history = []
         self._cursor = 0
         self._lost = 0
 
@@ -509,7 +511,15 @@ class Coaxial63100(Acquisition):
         if scaled:
             cols.update(self._in_units(cols))
         frame = pandas.DataFrame(cols)
-        if index == 'elapsed' and cols['time'] and cols['time'][0] is not None:
+        stamped = cols['time'] and cols['time'][0] is not None
+        if index == 'since' and stamped:
+            # SECONDS BEFORE NOW: newest at 0, older negative. A live plot
+            # then has a FIXED axis and the data scrolls through it, which
+            # is what a scope does - sliding the limits instead makes the
+            # ticks crawl and the eye follows them rather than the trace.
+            frame['since'] = [t - cols['time'][-1] for t in cols['time']]
+            return frame.set_index('since')
+        if index == 'elapsed' and stamped:
             frame['elapsed'] = [t - cols['time'][0] for t in cols['time']]
             return frame.set_index('elapsed')
         if index == 'time' and cols['time'] and cols['time'][0] is not None:
@@ -554,38 +564,90 @@ class Coaxial63100(Acquisition):
                 convert((v - offset) * gain) for v in cols[field['signal']]]
         return out
 
-    def frames(self, window=2.0, seconds=None, scaled=False, **kw):
-        """A rolling window of the last `window` seconds, as it arrives.
+    def legs(self):
+        """The half bridges as `(name, high side, low side)` column names.
+
+        The board names its pins; this only pairs them, so an example that
+        draws a leg does not carry a table of six strings that goes stale
+        the day one is renamed. Empty when the task has no pins.
+        """
+        pins = [r['name'] for r in self.catalogue() if r['kind'] == 'digital']
+        out = []
+        for leg in ('U', 'V', 'W'):
+            high = [p for p in pins if p.endswith('PWM%sH' % leg)]
+            low = [p for p in pins if p.endswith('PWM%sL' % leg)]
+            if high and low:
+                out.append((leg, high[0], low[0]))
+        return out
+
+    def frames(self, window=2.0, buffer=None, seconds=None, scaled=False,
+               **kw):
+        """The last `window` seconds, again each time records arrive.
 
             with daq:
                 for df in daq.frames(window=2.0, seconds=10, scaled=True):
                     redraw(df)
 
-        The bookkeeping a live plot was doing by hand: a None sentinel, a
-        concat per turn, a trim by index, and the whole window rescaled
-        every frame. It belongs here - the window is records, not frames,
-        so nothing is concatenated and nothing grows, and a plot that
-        forgets to trim cannot become the bottleneck that fills the ring.
+        WHAT IS YIELDED IS WHAT IS ON SCREEN. `buffer` seconds are kept
+        behind it - `history()` is that - so panning back after a pause
+        costs nothing and needs no second run. Defaults to the window,
+        which is the case with nothing behind it.
 
-        Ends after `seconds`, or when the task does, or when the caller
-        breaks out.
+        The bookkeeping a live plot was doing by hand: a None sentinel, a
+        concat per turn, a trim by index, a second trim for the view, and
+        the whole thing rescaled every frame. The buffer is RECORDS, so
+        nothing is concatenated and nothing grows, and a plot that forgets
+        to trim cannot become the bottleneck that fills the ring.
+
+        Indexed on `since` - seconds before now, newest at 0 - because a
+        live axis should stand still while the data moves through it.
+
+        Ends after `seconds`, or when the task does, or on a break.
         """
         import time as _t
 
-        held = []
+        deep = max(float(buffer or window), float(window))
+        self._history = []
         began = _t.time()
+        kw.setdefault('index', 'since')
         while seconds is None or _t.time() - began < seconds:
             got = self.read(-1)
             if not got:
                 if self.state().get('done'):
                     return
                 continue
-            held.extend(got)
-            edge = held[-1].start_time
-            if edge is not None and window:
-                held = [r for r in held
-                        if r.start_time is None or r.start_time > edge - window]
-            yield self.frame(held, scaled=scaled, **kw)
+            self._history.extend(got)
+            edge = self._history[-1].start_time
+            if edge is not None:
+                self._history = [
+                    r for r in self._history
+                    if r.start_time is None or r.start_time > edge - deep]
+                shown = [r for r in self._history
+                         if r.start_time is None
+                         or r.start_time > edge - window]
+            else:
+                shown = self._history
+            yield self.frame(shown, scaled=scaled, **kw)
+
+    def history(self, scaled=False, **kw):
+        """Everything `frames()` still holds - the buffer behind the window.
+
+        What a pause is for: the loop draws the window, and this is the
+        rest of it, already in a frame.
+        """
+        kw.setdefault('index', 'since')
+        return self.frame(self._history, scaled=scaled, **kw)
+
+    def currents(self, scaled=True):
+        """The current channels' column names, as `frame()` spells them.
+
+        `['Phase U (A)', ...]` scaled, the codes' own names raw. Beside
+        `legs()`, so a plot names neither its columns nor its pins - both
+        come off the board and neither goes stale when one is renamed.
+        """
+        got = [f['signal'] for f in (self.layout or {}).get('fields') or []
+               if f.get('unit') == 'mA']
+        return ['%s (A)' % n for n in got] if scaled else got
 
     def columns(self, records):
         """Records as columns: {name: values}, plus `time` and `dt`.
@@ -643,10 +705,18 @@ class Coaxial63100(Acquisition):
         # A GROUP, NOT A CHOICE. The board puts every sampled pin in a
         # record or none of them, so picking one picks them all -
         # selectable, and `configure` turns the group on.
+        #
+        # THE SAMPLED SET, NOT THE WRITABLE ONE. `0x6D` kind 1 lists
+        # what a host may DRIVE - three pins - while a record carries
+        # what the board SAMPLES, which is nine: the supply, the
+        # break and the six gates, none of which may be written. The
+        # layout is the only place that says so, so it wins when
+        # there is one.
+        pins = (self.layout or {}).get('pins') or chart['digital']
         rows += [{'name': p['signal'], 'kind': 'digital',
                   'direction': p.get('direction', 'out'),
                   'unit': 'duty', 'selectable': True}
-                 for p in chart['digital']]
+                 for p in pins]
         rows += [dict(row, selectable=self._sensors_carried())
                  for row in SENSOR_FIELDS]
         return rows
