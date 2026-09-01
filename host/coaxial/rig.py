@@ -120,7 +120,8 @@ SENSOR_FIELDS = (
 #: behind the wrong name.
 DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
-            'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read')
+            'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
+            'channel_names', 'columns')
 
 
 class DaqView:
@@ -388,6 +389,55 @@ class Coaxial63100(Acquisition):
     def channels(self):
         """What the board says it has. Not a list written down here."""
         return self.board.analog.names()
+
+    def channel_names(self, record=None):
+        """What the records carry, in the order they carry it.
+
+        With no argument it answers off the CONFIGURED TASK, so a caller
+        can write its header before the first record has arrived. With a
+        record it answers that record's, which is the same list whenever
+        the task has not been reconfigured under it - and is not, when it
+        has, which is the reason to be able to ask a record directly.
+
+            names = daq.channel_names()          # before reading
+            names = daq.channel_names(values[0]) # off what arrived
+        """
+        if record is not None:
+            got = getattr(record, 'channel_name', None)
+            if got is not None:
+                return list(got)
+            # A plain mapping - from `board.daq` rather than the front
+            # door, or one a caller built. The layout's order is what
+            # makes it a sequence rather than whatever the dict holds.
+            return [f['signal'] for f in (self.layout or {}).get('fields') or []
+                    if f['signal'] in record]
+        return [f['signal']
+                for f in (self.layout or {}).get('fields') or []]
+
+    def columns(self, records):
+        """Records as columns: {name: values}, plus `time` and `dt`.
+
+        THE OTHER WAY ROUND. A record is a struct and a run is an array of
+        them, which is the shape the link delivers; anything that plots or
+        fits wants one array per channel. This is that flip, and it is here
+        rather than in a caller because the order comes from the layout and
+        the mean comes from the count - two things a caller would have to
+        get right the same way every time.
+
+            cols = daq.columns(daq.read(-1))
+            plot(cols['time'], cols['Phase U'])
+        """
+        names = self.channel_names(records[0] if records else None)
+        out = {name: [] for name in names}
+        out['time'] = []
+        out['dt'] = []
+        for record in records:
+            for sample in getattr(record, 'samples', ()):
+                if sample.name in out:
+                    out[sample.name].append(sample.value)
+            out['time'].append(getattr(record, 'start_time', None))
+            out['dt'].append(getattr(record, 'dt', None))
+        return out
 
     def catalogue(self):
         """Everything this board can put in a record, named.

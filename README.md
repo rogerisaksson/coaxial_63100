@@ -89,7 +89,9 @@ A record is an object AND the mapping it came from: `r.start_time`,
 still the SUM the board sent and `r['samples']` still the count that made
 it. `r.samples[n]` is one channel - `.name`, `.unit`, `.raw`, `.count` and
 `.value`, the sum over the count - and `r.channel_name` is the same
-order as a header row. `daq.catalogue()` is everything this
+order as a header row. `daq.channel_names()` answers that before the
+first record arrives, and `daq.columns(values)` turns a run of
+records into one array per channel plus `time` and `dt`. `daq.catalogue()` is everything this
 board can put in a record, and `daq.configure()` takes those names in any
 spelling: `configure('phaseU', 'NTC')` or `configure(daq.channels()[:5])`.
 
