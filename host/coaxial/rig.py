@@ -242,6 +242,8 @@ class Coaxial63100(Acquisition):
         self._reader = None
         self._buffer_records = self.BUFFER_RECORDS
         self._history = []
+        self._asked_done = 0.0
+        self._done_seen = 0
         self._cursor = 0
         self._lost = 0
 
@@ -875,6 +877,10 @@ class Coaxial63100(Acquisition):
     #: of the link and several seconds of headroom at the other.
     BUFFER_RECORDS = 10000
 
+    #: How often an idle read asks whether a finite run has ended.
+    #: A round trip, so not on every turn of a 2 ms poll.
+    DONE_EVERY = 0.25
+
     def enable(self):
         """Power the analog front end for this session.
 
@@ -1164,11 +1170,10 @@ class Coaxial63100(Acquisition):
             out.extend(block)
             if count < 0 or len(out) >= count:
                 break
-        if count > 0:
-            while len(out) < count:
-                for block in self.read_buffer(-1):
-                    out.extend(block)
-                    break
+        # WHAT THERE IS, when a finite run ends first. This used to be three
+        # loops - the one above, then a `while len(out) < count` around a
+        # `for ... break` - and asking a 5-record run for 50 spun forever:
+        # the generator returned immediately and the while called it again.
         return out[:count] if count > 0 else out
 
     def read_buffer(self, count):
@@ -1187,6 +1192,7 @@ class Coaxial63100(Acquisition):
                            'reader on the link, and read_buffer() takes '
                            'what it has collected')
         seen = 0
+        self._done_seen = 0
         while count < 0 or seen < count:
             self._reader.raise_if_failed()
             block = self._reader.take()
@@ -1196,6 +1202,28 @@ class Coaxial63100(Acquisition):
                 continue
             if not self._reader.running:
                 return                    # the link is gone, or stopped
+            # A FINITE RUN THAT HAS ENDED AND DRAINED. Without this the
+            # reader keeps polling an empty ring and this never returns, so
+            # a caller asking for more records than the run makes waits for
+            # them forever. Asked only on the empty path and not oftener
+            # than `DONE_EVERY`, because it is a round trip.
+            now = time.time()
+            if now - self._asked_done > self.DONE_EVERY:
+                self._asked_done = now
+                state = self.state() or {}
+                # ENDED, EMPTY AT BOTH ENDS, AND STILL SO A MOMENT LATER.
+                # `done` alone comes true while the ring still holds what
+                # the run made. Even done-and-empty is not enough on its
+                # own: the reader may be mid-read, and returning on one
+                # look threw away every record - measured, a 5-record run
+                # answered 0 twice over. Two consecutive looks with a poll
+                # between them is what a read in flight cannot survive.
+                ended = (state.get('done')
+                         and not (state.get('available') or 0)
+                         and not len(self._reader))
+                self._done_seen = self._done_seen + 1 if ended else 0
+                if self._done_seen >= 2:
+                    return
             time.sleep(0.002)
 
     def blocks(self, count):
