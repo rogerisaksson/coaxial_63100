@@ -1490,7 +1490,15 @@ class SimulatedDaq(Acquisition):
 
     def _period_us(self):
         base = 20.0 if (self._cfg or {}).get('clock') == 'tim1' else 47.0
-        return base * self._cfg['decimate'] * self._cfg['accumulate']
+        cfg = self._cfg or {}
+        # A CLOCK-CLOSED RECORD HAS NO ACCUMULATE, and multiplying by
+        # it gave a period of zero: every record carried the same
+        # timestamp, so `dt` came out 0.0 and a host could not tell
+        # how long a window covered. The clock's own interval is what
+        # closes those, exactly as it does on the board.
+        if not cfg.get('accumulate'):
+            return float(cfg.get('interval_us') or base)
+        return base * cfg['decimate'] * cfg['accumulate']
 
     def state(self):
         cfg = self._cfg or {'channels': 0, 'clock': 'software', 'sample_time': 0,

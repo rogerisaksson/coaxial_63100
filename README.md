@@ -76,13 +76,21 @@ daq.open()
 device.set_time_from_pc()                # the board counts cycles, not time
 daq.configure(['Phase U', 'NTC'], sample_rate=1000)  # 1000 records/s, the board averages
 daq.start()                              # buffering starts in the host and target
-for block in daq.read_buffer(20):        # off the host queue a thread keeps full
-    r = block[-1]
-    print(r['time'], r['NTC'] / r['samples'])   # a value is a SUM of `samples`
+values = daq.read(-1)                    # blocks for the first, then takes the lot
+for r in values:
+    print(r.start_time, r.dt, [(s.name, s.value) for s in r.samples])
 daq.stop()                               # buffering stops at target
 daq.close()                              # the acquisition released
 device.close()                           # the port, and the supply as found
 ```
+
+A record is an object AND the mapping it came from: `r.start_time`,
+`r.dt` and `r.samples` are the shape a script reads, while `r['NTC']` is
+still the SUM the board sent and `r['samples']` still the count that made
+it. `r.samples[n]` is one channel - `.name`, `.unit`, `.raw`, `.count` and
+`.value`, the sum over the count. `daq.catalogue()` is everything this
+board can put in a record, and `daq.configure()` takes those names in any
+spelling: `configure('phaseU', 'NTC')` or `configure(daq.channels()[:5])`.
 
 **Two buffers, the way a DAQ card has two.** The board's ring fills at the
 sample rate; `start()` also puts a reader thread on the link here, and it

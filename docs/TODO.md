@@ -4,7 +4,7 @@ State as of 2026-08-31.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2173 checks, 24 suites |
+| `run_tests.ps1 -All` | 2177 checks, 24 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 4 |

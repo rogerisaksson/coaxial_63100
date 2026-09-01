@@ -30,6 +30,7 @@ from .clock import NTP_SERVER, unwrap
 from .errors import CrcError, NoReplyError, RigError
 from .gates import GateStage
 from .reader import BufferedReader
+from .record import build
 
 #: Bytes the board leaves for records in one reply - `DAQ_REPLY_ROOM` in
 #: `cmd_daq.c`. Named here because it decides how many records a single
@@ -891,15 +892,26 @@ class Coaxial63100(Acquisition):
         return self.board.daq.latest(layout=self.layout, block=block)
 
     def _timed(self, records):
-        """Put a wall-clock time on each record, if the clock was set.
+        """Wall-clock time on each record, and each as a `Record`.
 
         The counter is 32 bits and wraps every nine seconds at 475 MHz, so
         the raw stamps are unwrapped first. Per block is enough as long as
         blocks are read more often than the counter wraps.
+
+        A `Record` is a dict underneath, so `r['NTC']` and `r['samples']`
+        mean exactly what they meant before; `r.start_time`, `r.dt` and
+        `r.samples` are the shape a script reads. `coaxial.record` says
+        why one word carries two meanings.
         """
-        if not records or self.sync is None:
+        if not records:
             return records
 
-        for record, cycles in zip(records, unwrap([r['at'] for r in records])):
-            record['time'] = self.sync.to_host(cycles)
-        return records
+        stamps = None
+        if self.sync is not None:
+            stamps = [self.sync.to_host(c)
+                      for c in unwrap([r['at'] for r in records])]
+            for record, when in zip(records, stamps):
+                record['time'] = when
+
+        fields = (self.layout or {}).get('fields') or []
+        return build(records, fields, stamps)
