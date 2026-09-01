@@ -502,10 +502,13 @@ class Coaxial63100(Acquisition):
         r = self._reader
         if r is None:
             return {'host': 0, 'peak': 0, 'dropped': 0, 'backlog': None,
-                    'reads': 0, 'records': 0}
+                    'reads': 0, 'records': 0, 'rate': 0.0}
+        # `taken`, not `records`: the reader resets that one to measure
+        # its own rate, and a byte rate differentiated off a counter
+        # that resets reads as negative throughput.
         return {'host': len(r), 'peak': r.peak, 'dropped': r.dropped,
                 'backlog': r.backlog, 'reads': r.reads,
-                'records': r.records}
+                'records': r.taken, 'rate': r.rate}
 
     def state(self):
         """How the task is doing: rate, what is buffered, what was lost."""

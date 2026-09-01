@@ -47,7 +47,7 @@ class BufferedReader:
     """
 
     def __init__(self, acquire, backlog=None, idle=0.005, batch=1,
-                 patience=4):
+                 max_wait=0.06):
         self._acquire, self._backlog_of = acquire, backlog
         self._idle = idle
         #: Records a reply can carry. A transaction costs the same whether
@@ -57,11 +57,15 @@ class BufferedReader:
         #: took 56% of the line; waiting for a full reply is worth more
         #: than the milliseconds it costs.
         self._batch = max(1, int(batch))
-        #: How many idle slices to spend waiting for one. The bound is
-        #: what keeps this a throughput trade and not a latency leak:
-        #: patience * idle is the worst a record waits that could have
-        #: gone earlier.
-        self._patience = max(0, int(patience))
+        #: Longest this will wait for a reply to fill. The wait itself
+        #: is COMPUTED - the shortfall over the observed record rate -
+        #: because a guessed slice is wrong in both directions: 20 ms gave
+        #: up just short of four records and ran at 1.55 a read, and 50 ms
+        #: overshot and took 140 records/s down to 76. This is only the
+        #: ceiling on it, so a stalled board cannot hold the reader.
+        self._max_wait = float(max_wait)
+        self._rate = 0.0                      # records/s, this reader's own
+        self._since = None
         self._blocks = collections.deque()
         self._thread = None
         self._stop = threading.Event()
@@ -78,9 +82,11 @@ class BufferedReader:
         #: one is the public reading.
         self._backlog = None
         self.reads = 0
-        #: Records taken, not reads: a read carries as many as fit, so
-        #: this is what a byte rate has to be worked out from.
+        #: Records taken in the current rate window - see `_hold`.
         self.records = 0
+        #: Every record taken, which is what a byte rate is worked out
+        #: from. Kept apart because `records` is reset to measure a rate.
+        self._total = 0
 
     # -- lifecycle -------------------------------------------------------
 
@@ -118,6 +124,16 @@ class BufferedReader:
     def __len__(self):
         return len(self._blocks)
 
+    @property
+    def taken(self):
+        """Every record this reader has taken."""
+        return self._total + self.records
+
+    @property
+    def rate(self):
+        """Records a second, as this reader is seeing them."""
+        return self._rate
+
     def take(self):
         """The oldest block, or None. Never waits."""
         try:
@@ -141,6 +157,19 @@ class BufferedReader:
 
     # -- the thread ------------------------------------------------------
 
+    def _hold(self):
+        """Sleep until a reply's worth should have accumulated.
+
+        The wait is the shortfall over this reader's own record rate, so
+        it tracks whatever the board is managing rather than a constant
+        that is wrong the moment the task changes. Capped, and skipped
+        entirely until a rate has been observed.
+        """
+        short = self._batch - (self._backlog or 0)
+        if short <= 0 or self._rate <= 0.0:
+            return
+        time.sleep(min(short / self._rate, self._max_wait))
+
     def _keep(self, block):
         if len(self._blocks) >= HOST_BLOCKS:
             self._blocks.popleft()
@@ -149,17 +178,18 @@ class BufferedReader:
         self.peak = max(self.peak, len(self._blocks))
 
     def _run(self):
-        misses, waited = 0, 0
+        misses = 0
+        self._since = time.time()
         while not self._stop.is_set():
-            # A PARTIAL RING IS WORTH WAITING FOR, up to a bound. The
-            # backlog came free with the last reply, so this costs no
-            # round trip to decide.
-            if (self._backlog is not None and 0 < self._backlog < self._batch
-                    and waited < self._patience):
-                waited += 1
-                time.sleep(self._idle)
-                continue
-            waited = 0
+            # A TRANSACTION COSTS THE SAME WHATEVER IT CARRIES, and on this
+            # board it costs the acquisition loop as well - the sampling
+            # and the Modbus handler share main(). Reading the instant one
+            # record lands is therefore a feedback loop: eager reads slow
+            # production, which leaves one record per read, which needs
+            # more reads. Measured at the bottom of it: 95 reads/s, 1.00
+            # records each, 95 records/s. Waiting for a reply's worth
+            # breaks it - 31 reads/s at 4.00 records is 124.8 records/s.
+            self._hold()
             try:
                 block = self._acquire()
             except (NoReplyError, CrcError) as exc:
@@ -180,6 +210,15 @@ class BufferedReader:
                 self.backlog = self._backlog = self._backlog_of()
             if block:
                 self.records += len(block)
+                # The rate this reader is actually seeing, smoothed. It is
+                # what `_hold` divides the shortfall by.
+                span = time.time() - self._since
+                if span > 0.5:
+                    seen = self.records / span
+                    self._rate = seen if not self._rate else (
+                        0.7 * self._rate + 0.3 * seen)
+                    self.records, self._since = 0, time.time()
+                    self._total += int(seen * span)
                 self._keep(block)
             # PACED BY THE BOARD, NOT BY A CLOCK. While records are still
             # queued on the target the next read goes out with no wait, so

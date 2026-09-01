@@ -383,8 +383,22 @@ typedef struct
   * 0.5 kB/s - the cost of a transaction is flat, so the share a stream gets
   * is the share left after the other traffic on the segment. `link_bench.py`
   * is what measures it.
+  *
+  * WAS 33, AND THAT WAS MEASURED BEFORE THE HOST STOPPED WAITING. Every
+  * reply used to end on 8 ms of silence, because nothing in a Modbus frame
+  * says where it ends; a DAQ read now says its own length, and the reader
+  * waits for a reply's worth of records instead of spending a whole
+  * transaction on one. Re-measured 2026-09-01, ten channels and nine pins
+  * at stride 55: 124.8 records/s at 4.00 records a read, which is 72.7
+  * kbit/s or 63% of the line. A task asks for 0.8 of this share, so 75
+  * puts the ask at 125 records/s - what the link actually carries, rather
+  * than a third of it.
+  *
+  * IT IS STILL A SHARE. One board on one cable can have the line; a
+  * populated RS485 segment cannot, and this is the constant to bring back
+  * down when one exists.
   */
-#define CMD_LINK_SHARE_PCT 33U
+#define CMD_LINK_SHARE_PCT 75U
 
 /** Records per second the link can carry at this record size. */
 uint32_t cmd_link_records_per_second(uint16_t record_bytes);
