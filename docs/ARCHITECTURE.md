@@ -136,7 +136,7 @@ tool routing, mid-session board and model swaps (MODELS.md).
 
 ## The test system
 
-Twenty-five suites, 2254 checks. `run_tests.ps1` is the only interface -
+Twenty-five suites, 2262 checks. `run_tests.ps1` is the only interface -
 CLAUDE.md, *Commands*, has the tiers and the rules.
 
 * **A missing cable is not a failure.** A disconnected board falls back to

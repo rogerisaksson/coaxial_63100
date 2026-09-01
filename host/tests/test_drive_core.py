@@ -25,6 +25,8 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.dirname(HERE))
 
 from test_modbus_core import Report, build, find_cc          # noqa: E402
+sys.path.insert(0, os.path.dirname(HERE))
+from coaxial.motor import Motor                              # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(HERE))
 DRIVE = os.path.join(REPO, 'Drive')
@@ -206,63 +208,10 @@ class Drive:
         return self.lib.drv_dt_volts(self.h, ctypes.c_float(amps))
 
 
-class Motor:
-    """A PMSM in its own dq frame, an inverter in front of it.
-
-    `sat` bends Ld with the d current - the saturation saliency an SPM
-    shows - and `v_dt` is the inverter's dead-time voltage error, odd in
-    the phase current and saturating over `i_knee`. Both default off.
-    """
-
-    def __init__(self, r=0.05, ld=20e-6, lq=30e-6, lam=0.005, p=7,
-                 j=2e-5, b=1e-5, load=0.0, sat=0.0, i_sat=5.0,
-                 v_dt=0.0, i_knee=0.3, theta=0.0, locked=False, sub=10):
-        self.r, self.ld0, self.lq, self.lam, self.p = r, ld, lq, lam, p
-        self.j, self.b, self.load = j, b, load
-        self.sat, self.i_sat, self.v_dt, self.i_knee = sat, i_sat, v_dt, i_knee
-        self.theta = theta        # electrical
-        self.omega = 0.0          # electrical
-        self.id = self.iq = 0.0
-        self.locked = locked
-        self.sub = sub
-
-    def ld(self):
-        return self.ld0 * (1.0 - self.sat * math.tanh(self.id / self.i_sat))
-
-    def currents(self):
-        """Phase currents now, amplitude-invariant."""
-        c, s = math.cos(self.theta), math.sin(self.theta)
-        ia = self.id * c - self.iq * s
-        ib_ = self.id * s + self.iq * c
-        return (ia, -0.5 * ia + 0.8660254 * ib_, -0.5 * ia - 0.8660254 * ib_)
-
-    def advance(self, duty, vdc, ts):
-        """One PWM period at these duties - the average-voltage model."""
-        mean = sum(duty) / 3.0
-        v = [vdc * (d - mean) for d in duty]
-        if self.v_dt:
-            for k, i in enumerate(self.currents()):
-                v[k] -= self.v_dt * math.tanh(i / self.i_knee)
-        va = (2.0 * v[0] - v[1] - v[2]) / 3.0
-        vb = (v[1] - v[2]) / math.sqrt(3.0)
-        dt = ts / self.sub
-        for _ in range(self.sub):
-            c, s = math.cos(self.theta), math.sin(self.theta)
-            vd = va * c + vb * s
-            vq = vb * c - va * s
-            ld = self.ld()
-            did = (vd - self.r * self.id + self.omega * self.lq * self.iq) / ld
-            diq = (vq - self.r * self.iq - self.omega * ld * self.id
-                   - self.omega * self.lam) / self.lq
-            self.id += did * dt
-            self.iq += diq * dt
-            if not self.locked:
-                torque = 1.5 * self.p * (self.lam * self.iq
-                                         + (ld - self.lq) * self.id * self.iq)
-                wm = self.omega / self.p
-                wm += (torque - self.b * wm - self.load) / self.j * dt
-                self.omega = wm * self.p
-            self.theta = (self.theta + self.omega * dt) % TWO_PI
+# The motor lives in `coaxial.motor` now: the DAQ stand-in, the system
+# identification and a notebook all close a loop around the same one,
+# and four copies of a machine is four places for an inductance to
+# drift. Imported at the top.
 
 
 def run(drive, motor, seconds, vdc=24.0, noise=0.0, enabled=True, seed=1,
