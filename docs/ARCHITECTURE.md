@@ -114,6 +114,23 @@ OBSERVER: the estimate on the dial, the model's rotor on the rim, every
 parameter a switch checked against the stage, A arms nothing without
 `--switch`.
 
+`motor.py` is the machine itself, in one place: the PMSM integrator, a
+`Parameters` set that says whether it was `measured` and where it came
+from, the propeller law, and the two machines this tree has - the
+5230SL and the stand-in's own. It exists because the model was a copy in
+`test_drive_core.py`, a second set of constants on `SimulatedDrive` and a
+third in the DAQ stand-in's spin; four copies of a machine is four places
+for an inductance to drift. `sysid.py` recovers R, Ld, Lq and lambda from
+a run by least squares in dq and reports a **per-parameter uncertainty**,
+because a V/f run cannot see Lq - without `di/dt` the `omega Lq iq` column
+is collinear with lambda, measured at -73 % and correctly flagged
+untrusted.
+
+`tools/observer_run.py` runs the firmware's own observer, not a model of
+it: it builds `Drive/` with the host gcc through the same ctypes bench the
+suite uses, and asks how hard the thing can be driven rather than whether
+it still works. FINDINGS has what it found.
+
 `orientation.py`, `dial.py` and `desk.py` are pure renderers - a reading
 in, text out; `mesh.py` reduces the CAD export in `render/models`, parsed
 once per process, nothing cached on disk.

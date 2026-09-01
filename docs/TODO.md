@@ -28,6 +28,11 @@ not what it measured.
 | Switching into a load: one leg at a duty against another held low, or the pair swapped every PWM period by the board (`0x6E` device 4 op 10), 2-50 %, 25-31 V, up to 60 s | CLAUDE.md *Scope*; FINDINGS, *The pair alternates* |
 | The drive: current loop, injection, observer, I/f, polarity pulse - idle 1 780 cycles a period; sensorless on the model, spinning, the interrupt ends 12.3 us of 20 after the trigger | PROTOCOL, *Device 10*; FINDINGS, *The caches were off* |
 | The model as the drive's source, and ROTOR OBSERVER on the chooser: the observer watched against a rotor whose angle is known, AFE off, no motor - locked to 0.002 rad, spun to 441 rad/s with 0.009 rad of error | PROTOCOL, *Device 10*; `tools/show_rotor_observer.py` |
+| One machine in one place: the PMSM, the propeller law, the 5230SL off its two datasheets (24N28P, and 3.0 A at 44.4 V giving b = 1.71e-4, 4.3x the guess it replaced) and the stand-in's own | ARCHITECTURE, *Host*; `coaxial/motor.py` |
+| System identification with a **per-parameter** trust: R, Ld, Lq, lambda by least squares in dq, and Lq flagged untrusted on a V/f run at -73 % because its column is collinear with lambda | ARCHITECTURE, *Host*; `coaxial/sysid.py` |
+| The firmware's own observer driven to its limit on this machine: 45 A of startup torque holds, 50 A stalls in the handover, and the PLL works between 150 and 332 Hz - the Kalman fixed point sits at the top edge, not the middle | FINDINGS, *The rotor observer's limit*; `tools/observer_run.py` |
+| The stand-in's virtual source turning a real rotor, so a chain built against it can watch an estimate track: torque from its own dq solution, and a type-2 PLL's `alpha / wn^2` lag - a tenth of the torque lags a tenth as much, a fifth of the bandwidth 25.0x | `coaxial/simulated.py`; `test_simulated.py`, *virtual rotor* |
+| The propeller from rest to 6717 rpm and back, against Hobbywing's own 22 points - and the disagreement it turns up: 28.3 V of phase demand where linear SVM off 10S makes 21.4, on a stand that reached those rpm on 10S | `python_examples/propeller_sweep.ipynb` |
 | The NTC and the DC link ride the injected sequence as rank 2, so the thermal observer keeps its thermometer under the drive | PROTOCOL, *Device 4* |
 | The commissioning: AFE noise floor, sample point, offsets, gain mismatch, dead time, L map, lambda, budget, gains, decision, verification - on the stand-in end to end, on the bench as far as the AFE | ARCHITECTURE, *Host*; `tools/commission.py` |
 | The clock-closed daq record: the converter free-running, a record closed on the interval carrying its own sample count - 33 to 89 sweeps a window, and the mean 0.008 % off an independent burst | FINDINGS, *The accumulator closes on the clock* |
@@ -101,6 +106,17 @@ Nothing else has - invariant 7.
    first, then a motor on the bench, then the sign check, the dead-time
    sweep, the L map, lambda, and a verification run. The board's numbers
    are placeholders until then (board_cal.c says so).
+
+   **What is ready for that day, and what it is worth.** The machine is
+   described (`motor.py`), the recovery is written and reports its own
+   uncertainty (`sysid.py`), and the observer has been driven to its limit
+   against the firmware's C (`tools/observer_run.py`). All of it rests on
+   `PLATINUM_5230SL`, whose R, Ld, Lq and J are size-class estimates -
+   `measured=False`, and `Lq` is both the least trustworthy and the one
+   the injection observer lives on. Two independent results already point
+   at it: `sysid` cannot see it without `di/dt`, and the notebook's
+   voltage demand exceeds what the thrust stand evidently managed on the
+   same pack. **The first current through a winding settles both.**
 2. **Move the sensor polls off the blocking path.** The worst gap is 163 µs,
    inside the latch's ~200-400 µs, but the edge rate is 36 kHz against the 100
    kHz asked for. Measured by holding each in turn: the **A1335 costs 42 µs per

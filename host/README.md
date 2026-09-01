@@ -107,6 +107,12 @@ pandas is imported **where it is called**, so the library still runs on a
 bench without it: `columns()` is a dict of plain lists, which is what
 `DataFrame` takes anyway.
 
+`python_examples/propeller_sweep.ipynb` needs no board at all: the 5230SL
+and an APC20x10E from rest to 6717 rpm and back on a raised-cosine profile,
+the power budget split into propeller, iron, copper and the rotor's own
+borrowed energy, and the model laid back over Hobbywing's 22-point thrust
+stand. It is checked in with its outputs, so it reads without running.
+
 **Zero and span belong to the calibration block**, not to the acquisition
 one: they write the calibration record, so they live where it does.
 `board.calibration.compensate(name, gain=, offset=)` writes one
