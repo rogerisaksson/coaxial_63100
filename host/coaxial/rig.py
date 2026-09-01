@@ -122,7 +122,7 @@ DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'state', 'acquire', 'latest', 'blocks', 'read_buffer',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
             'configure_buffer',
-            'channel_names', 'columns', 'series', 'frame', 'plot')
+            'channel_names', 'columns', 'series', 'frame', 'frames')
 
 
 class DaqView:
@@ -480,7 +480,7 @@ class Coaxial63100(Acquisition):
                 % (name, ', '.join(records[0].channel_name)))
         return [r.value(spelling) for r in records]
 
-    def frame(self, records, index='time'):
+    def frame(self, records, index='time', scaled=False):
         """A run as a pandas DataFrame: one column per channel.
 
             df = daq.frame(daq.read(-1))
@@ -506,6 +506,8 @@ class Coaxial63100(Acquisition):
                 'you like from plain lists') from None
 
         cols = self.columns(records)
+        if scaled:
+            cols.update(self._in_units(cols))
         frame = pandas.DataFrame(cols)
         if index == 'elapsed' and cols['time'] and cols['time'][0] is not None:
             frame['elapsed'] = [t - cols['time'][0] for t in cols['time']]
@@ -518,36 +520,62 @@ class Coaxial63100(Acquisition):
             return frame.set_index('time')
         return frame
 
-    def plot(self, records, *names, **kw):
-        """The channels against time, in one line, for a notebook.
+    def _in_units(self, cols):
+        """Real-unit columns beside the codes, named `Phase U (A)`.
 
-            daq.plot(daq.read(-1))
-            daq.plot(rec, 'phaseU')
-
-        With no names it draws every channel. Returns the axes, so a
-        caller can label or save it. matplotlib is imported here for the
-        same reason pandas is - it is not a dependency.
+        The board's OWN converters (invariant 7): every scaling lives in
+        the calibration record, so this asks `board.analog` rather than
+        holding a constant. Codes stay in the frame under their own names
+        - what arrived and what it means are two columns, not one that
+        quietly became the other.
         """
-        try:
-            from matplotlib import pyplot
-        except ImportError:
-            raise RigError(
-                'plot() needs matplotlib, which this library does not '
-                'require - `pip install matplotlib`, or take series() and '
-                'draw it however you like') from None
+        scale = self.board.analog.scaling()
+        pick = {'centi-degC': ('ntc', 'celsius', 'C'),
+                'mA': ('phase', 'amps', 'A'),
+                'mV': ('dcbus', 'volts', 'V')}
+        out = {}
+        for field in (self.layout or {}).get('fields') or []:
+            got = pick.get(field.get('unit'))
+            if got is None or field['signal'] not in cols:
+                continue
+            part, method, short = got
+            convert = getattr(scale[part], method)
+            out['%s (%s)' % (field['signal'], short)] = [
+                convert(v) for v in cols[field['signal']]]
+        return out
 
-        wanted = list(names) or self.channel_names(
-            records[0] if records else None)
-        t = self.series(records, 'time')
-        base = t[0] if t and t[0] is not None else 0
-        axes = kw.pop('ax', None) or pyplot.subplots()[1]
-        for name in wanted:
-            spelling = self.pick(name)[0] if names else name
-            axes.plot([x - base for x in t],
-                      self.series(records, spelling), label=spelling, **kw)
-        axes.set_xlabel('s')
-        axes.legend()
-        return axes
+    def frames(self, window=2.0, seconds=None, scaled=False, **kw):
+        """A rolling window of the last `window` seconds, as it arrives.
+
+            with daq:
+                for df in daq.frames(window=2.0, seconds=10, scaled=True):
+                    redraw(df)
+
+        The bookkeeping a live plot was doing by hand: a None sentinel, a
+        concat per turn, a trim by index, and the whole window rescaled
+        every frame. It belongs here - the window is records, not frames,
+        so nothing is concatenated and nothing grows, and a plot that
+        forgets to trim cannot become the bottleneck that fills the ring.
+
+        Ends after `seconds`, or when the task does, or when the caller
+        breaks out.
+        """
+        import time as _t
+
+        held = []
+        began = _t.time()
+        while seconds is None or _t.time() - began < seconds:
+            got = self.read(-1)
+            if not got:
+                if self.state().get('done'):
+                    return
+                continue
+            held.extend(got)
+            edge = held[-1].start_time
+            if edge is not None and window:
+                held = [r for r in held
+                        if r.start_time is None or r.start_time > edge - window]
+            yield self.frame(held, scaled=scaled, **kw)
 
     def columns(self, records):
         """Records as columns: {name: values}, plus `time` and `dt`.

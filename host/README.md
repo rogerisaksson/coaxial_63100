@@ -67,16 +67,29 @@ run is refused until somebody clears it by hand.
 ## Notebooks
 
 ```python
-df = daq.frame(rec)                  # DataFrame, time index, a column each
-df['NTC'].rolling(50).mean().plot()
-daq.plot(rec, 'phaseU')              # or straight to matplotlib
+df = daq.frame(rec, scaled=True)     # time index, a column per channel
+df['NTC (C)'].rolling(50).mean().plot()
+
+with daq:                            # a rolling window, live
+    for df in daq.frames(window=2.0, seconds=10, scaled=True):
+        redraw(df)
 ```
 
-`frame()` and `plot()` import pandas and matplotlib **where they are
-called**, and refuse with the install line when they are absent - neither
-is a dependency of this library, for the reason `requirements.txt` gives.
-Everything they do is reachable without them: `columns()` is a dict of
-plain lists, which is what `DataFrame` takes anyway.
+`frame()` gives a DataFrame indexed by time with one column per channel -
+the sampled pins included, so a gate duty and the current it produced are
+columns of the SAME record. `scaled=True` adds real-unit columns from the
+board's own calibration beside the codes.
+
+`frames()` is the live case: it keeps the last `window` seconds of
+RECORDS and builds each frame from them, so nothing is concatenated and
+nothing grows. A plot that trims by hand becomes the bottleneck that fills
+the board's ring, which is the bookkeeping this exists to take away.
+Drawing is plain matplotlib - `python_examples/daq_live_plot.py` puts the
+phase currents over one axis per leg, HS and LS.
+
+pandas is imported **where it is called**, so the library still runs on a
+bench without it: `columns()` is a dict of plain lists, which is what
+`DataFrame` takes anyway.
 
 **Buffers.** `daq.configure_buffer(10000)` sizes the circular buffer in
 RECORDS. With a broker in the path that is the BROKER'S ring, and every
