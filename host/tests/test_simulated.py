@@ -1262,6 +1262,64 @@ def test_views(report):
                      done.returncode == 0, tail[-1] if tail else '')
 
 
+def test_virtual_rotor(report):
+    """The model source turns a rotor; the ADC source deliberately does not.
+
+    `model()` answered theta 0.0 and omega_hat 0.0 whichever source was
+    picked, so nothing built against the stand-in could watch an observer
+    track anything. The ADC source still answers a still rotor - the
+    commissioning steps are checked against a machine at zero - and the
+    model source integrates one.
+    """
+    import time
+    from coaxial.simulated import SimulatedDrive
+
+    still = SimulatedDrive().model()
+    report.check('the ADC source keeps its still rotor',
+                 still['theta'] == 0.0 and 'theta_hat' not in still, still)
+
+    def spin(iq, l2, seconds=0.05):
+        drive = SimulatedDrive()
+        drive.source('model')
+        drive.model_reset()
+        drive.set_params(drv_l2_milli=l2)
+        drive.setpoint(iq_ref=iq)
+        drive._mode = 'hold'
+        drive._sp['omega_target'] = 400.0
+        time.sleep(seconds)
+        drive.model()
+        time.sleep(seconds)
+        return drive.model()
+
+    fast = spin(2.0, 100.0)
+    report.check('torque turns the virtual rotor', fast['omega'] > 100.0,
+                 fast['omega'])
+    report.check('and the estimate comes back with it',
+                 'theta_hat' in fast and 'error' in fast, sorted(fast))
+
+    slow = spin(0.2, 100.0)
+    report.check('a tenth of the torque lags a fraction as much',
+                 abs(fast['error']) > 5.0 * abs(slow['error']),
+                 (fast['error'], slow['error']))
+
+    # alpha / wn^2, so a fifth of the natural frequency is twenty-five
+    # times the lag. Measured 25.1 against the 25.4 the gains imply.
+    loose = spin(2.0, 4.0)
+    ratio = abs(loose['error']) / abs(fast['error'])
+    report.check('the lag goes as 1 / wn^2', 15.0 < ratio < 40.0, ratio)
+
+    turning = SimulatedDrive()
+    turning.source('model')
+    turning.setpoint(iq_ref=2.0)
+    turning._mode = 'hold'
+    time.sleep(0.05)
+    turning.model()
+    turning.model_reset()
+    report.check('model_reset puts the rotor back at rest',
+                 abs(turning.model()['omega']) < 1.0,
+                 turning.model()['omega'])
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
@@ -1272,7 +1330,7 @@ def main():
                  test_clock_reference, test_link_bench,
                  test_gate_driver_arming, test_gate_snapshot,
                  test_closing_leaves_another_session_armed,
-                 test_dead_time, test_views):
+                 test_dead_time, test_views, test_virtual_rotor):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

@@ -33,7 +33,7 @@ from .errors import DeviceStateError, RigError
 from .gates import GateControl
 from .sensor import PolledSensor
 from .gpio import reserved_reason
-from .motor import BENCH_MOTOR
+from .motor import BENCH_MOTOR, Motor
 
 CHANNELS = [
     {'index': 0, 'adc': 3, 'channel': 1, 'pin': 'PC3_C/PC2_C',
@@ -2036,6 +2036,13 @@ class SimulatedDrive:
         self._pol = (0.0, 0.0)
         self._cycles_max = 0
         self._source = 'adc'
+        #: The virtual source's rotor, built on demand. The ADC source is
+        #: what every existing caller uses and its rotor is deliberately
+        #: still (see `model`), so a machine integrating in the background
+        #: would be work nobody asked for.
+        self._motor = None
+        self._motor_at = 0.0
+        self._omega_hat = 0.0
         self._model = {'r': self.R, 'ld': self.LD, 'lq': self.LQ,
                        'lambda': self.LAMBDA, 'pole_pairs': float(self.POLES),
                        'sat': self.SAT, 'i_sat': self.I_SAT, 'j': 2e-5,
@@ -2266,15 +2273,101 @@ class SimulatedDrive:
         self._model.update({k: float(v) for k, v in values.items()})
         return dict(values)
 
+    def _pll_hz(self):
+        """The natural frequency the loaded PLL gains imply.
+
+        `pll_gains` puts l2 = wn^2 * t_update at t_update = 2 Ts, so wn
+        comes back out of l2. A caller that tightens the observer sees a
+        tighter estimate here, which is the only reason this reads the
+        parameters at all rather than picking a number.
+        """
+        l2 = self._p('drv_l2_milli', 100.0)
+        wn = math.sqrt(max(l2, 1e-9) / (2.0 * self.TS))
+        return min(max(wn / (2.0 * math.pi), 1.0), 5000.0)
+
+    def _advance_model(self):
+        """Turn the virtual rotor by the torque the dq solution makes.
+
+        MECHANICS ONLY, on purpose: `_dq()` is the electrical steady state
+        the loop settled at, so integrating the electrical equations again
+        would solve them twice. The rotor is what was missing - `model()`
+        used to answer theta 0.0 and omega_hat 0.0, so nothing reading this
+        stand-in could see an observer track anything.
+
+        `theta_hat` follows the rotor through a one-pole lag at the PLL's
+        own natural frequency. It is NOT the firmware's observer - that is
+        C, and `tools/observer_run.py` is what runs the real one. It is a
+        lag with the right bandwidth, so a chain built against this
+        stand-in exercises its own arithmetic and not a fabricated error.
+        """
+        motor = self._machine()
+        now = time.time()
+        dt = min(now - self._motor_at, 0.25)     # bounded catch-up
+        self._motor_at = now
+        if dt <= 0.0:
+            return motor
+        if self._mode != 'off':
+            iid, iq, _, _ = self._dq()
+            ld = self._ld(iid)
+            torque = 1.5 * motor.p * (motor.lam * iq
+                                      + (ld - motor.lq) * iid * iq)
+            wm = motor.omega / motor.p
+            wm += (torque - motor.b * wm - motor.load) / motor.j * dt
+            motor.omega = wm * motor.p
+            motor.theta = (motor.theta + motor.omega * dt) % (2.0 * math.pi)
+        # THE LAG IS CLOSED FORM, NOT INTEGRATED. A one-pole decay over dt
+        # was tried first and read exactly 0.0000 rad: a caller polling
+        # 50 ms apart is twelve PLL time constants apart, so the lag had
+        # always fully settled and the field was useless. A type-2 PLL
+        # tracking constant acceleration settles at alpha / wn^2 instead -
+        # zero error at constant speed, growing with acceleration, and
+        # independent of how often anyone asks.
+        wn = 2.0 * math.pi * self._pll_hz()
+        alpha = (motor.omega - self._omega_hat) / dt if dt > 0.0 else 0.0
+        self._omega_hat = motor.omega
+        self._theta_hat = (motor.theta + alpha / (wn * wn)) % (2.0 * math.pi)
+        return motor
+
+    def _machine(self):
+        if self._motor is None:
+            m = self._model
+            self._motor = Motor(r=m['r'], ld=m['ld'], lq=m['lq'],
+                                lam=m['lambda'], p=int(m['pole_pairs']),
+                                j=m['j'], b=m['b'], load=m['load'],
+                                sat=m['sat'], i_sat=m['i_sat'],
+                                v_dt=m['v_dt'], i_knee=m['i_knee'],
+                                theta=m['theta0'])
+            self._motor_at = time.time()
+        return self._motor
+
     def model(self):
-        """The stand-in's rotor sits at zero, which is what its dq means
-        and its saliency are drawn around."""
+        """The virtual source's rotor, or a still one on the ADC source.
+
+        WHY THE ADC SOURCE ANSWERS ZERO. Its rotor is what the stand-in's
+        dq means and its saliency are drawn around, and every commissioning
+        step is checked against that - a machine that started turning under
+        them would change what they recover. The rotor turns when the
+        source is the model, which is what the model source is for.
+        """
         iid, iq, _, _ = self._dq()
-        return {'source': self._source, 'theta': 0.0,
-                'omega': self._omega(), 'id': iid, 'iq': iq,
-                'vdc': self._model['vdc']}
+        if self._source != 'model':
+            return {'source': self._source, 'theta': 0.0,
+                    'omega': self._omega(), 'id': iid, 'iq': iq,
+                    'vdc': self._model['vdc']}
+        motor = self._advance_model()
+        err = ((self._theta_hat - motor.theta + math.pi)
+               % (2.0 * math.pi) - math.pi)
+        return {'source': self._source, 'theta': motor.theta,
+                'omega': motor.omega, 'id': iid, 'iq': iq,
+                'vdc': self._model['vdc'],
+                'theta_hat': self._theta_hat, 'omega_hat': self._omega_hat,
+                'error': err}
 
     def model_reset(self):
+        """The rotor back to theta0, at rest - the contract `drive.py` states."""
+        self._motor = None
+        self._omega_hat = 0.0
+        self._theta_hat = self._model['theta0']
         return True
 
     def profile(self, path):
