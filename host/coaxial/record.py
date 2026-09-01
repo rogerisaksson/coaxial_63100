@@ -67,6 +67,18 @@ class Record(dict):
         """Readings the board summed into every value in this record."""
         return self.get('samples', 1)
 
+    @property
+    def channel_name(self):
+        """The channels in this record, in `samples` order.
+
+        Parallel to `.samples`, so `channel_name[n]` names
+        `samples[n]` - the two are one table read two ways, and a
+        caller plotting columns wants the header without walking the
+        samples for it. The board's own spelling, which is what
+        `catalogue()` and `configure()` both use.
+        """
+        return tuple(s.name for s in self.samples)
+
     def __getattr__(self, name):
         # Channels by attribute where the name allows it, so `r.NTC` reads
         # as well as `r['NTC']`. Only after the slots above, and only for
