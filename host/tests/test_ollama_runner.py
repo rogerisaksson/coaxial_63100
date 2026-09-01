@@ -456,15 +456,17 @@ def test_smart_selection(report):
 
     # The four named switches are what everybody types. They have to keep
     # meaning what they did when they were a table.
+    # DAQ_API joined at 12 % - the acquisition front door against the
+    # stand-in, no board and no compiler - so both tiers below buy it.
     for percent, expect in ((25, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
                                   run_tests.DRIVE, run_tests.FILTER,
-                                  run_tests.SENSORLESS,
+                                  run_tests.SENSORLESS, run_tests.DAQ_API,
                                   } | set(run_tests.OLLAMA)),
                             (75, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
                                   run_tests.DRIVE, run_tests.FILTER,
-                                  run_tests.SENSORLESS,
+                                  run_tests.SENSORLESS, run_tests.DAQ_API,
                                   'test_parity.py', 'test_mcp.py',
                                   run_tests.CONFORMANCE, run_tests.BENCH}
                              | set(run_tests.OLLAMA))):

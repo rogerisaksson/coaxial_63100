@@ -45,10 +45,14 @@ OLLAMA = tuple('test_ollama_%s.py' % tag for tag in
                 'board', 'reply', 'language'))
 BENCH = 'test_bench.py'
 BROKER = 'test_broker.py'
+#: The acquisition front door against the stand-in - naming, reading,
+#: the record's shape, the buffers. No board and no compiler, so it is
+#: one of the cheapest suites here and joins first.
+DAQ_API = 'test_daq_api.py'
 VIEWS = 'test_views.py'
 RENDER = 'test_render.py'
 DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, SENSORLESS,
-                   BROKER, VIEWS,
+                   BROKER, DAQ_API, VIEWS,
                    RENDER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
                      BENCH))
@@ -66,6 +70,7 @@ ALL_SUITES = DEFAULT_SUITES + (CONFORMANCE, LIVE)
 #: resolution lives.
 JOINS = (
     (10, 'test_simulated.py'),
+    (12, DAQ_API),
     (15, CORE),
     (20, SHTP),
     # The control law against a motor model, and the commissioning
@@ -278,7 +283,14 @@ TOUCHES = (
     # The broker is the port itself: every session goes through it when one
     # is up, so its own suite runs whenever it or the two files that reach
     # for it change.
-    ('host/coaxial/broker.py',        (BROKER, 'test_parity.py')),
+    ('host/coaxial/broker.py',        (BROKER, DAQ_API,
+                                      'test_parity.py')),
+    ('host/coaxial/rig.py',           (DAQ_API, 'test_simulated.py',
+                                      VIEWS)),
+    ('host/coaxial/record.py',        (DAQ_API,)),
+    ('host/coaxial/fanout.py',        (DAQ_API, BROKER)),
+    ('host/coaxial/reader.py',        (DAQ_API,)),
+    ('host/coaxial/calibration.py',   (DAQ_API, 'test_simulated.py')),
     ('host/coaxial/board.py',         (BROKER, 'test_simulated.py',
                                        'test_parity.py', 'test_mcp.py')),
     ('host/coaxial_mcp/session.py',   (BROKER, 'test_mcp.py',
