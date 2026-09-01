@@ -55,6 +55,14 @@ for i in range(len(ntc)):
     print(t[i] - t[0], ntc[i])
 ```
 
+`series()`The frame already says what each column is, so a plot needs no help
+naming them:  is the currents and
+ the U leg, in plain pandas.
+
+The frame already says what each column is, so a plot needs no help
+naming them - `df.filter(like=' (A)')` is the currents and
+`df.filter(like='PWMU')` the U leg, in plain pandas.
+
 `series()` is the common case - one channel and its values - and takes the
 name as loosely as `configure()` does, because a long channel name is what
 makes the shape worth having. `columns()` is the whole table the same way.

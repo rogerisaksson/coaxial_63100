@@ -63,21 +63,24 @@ with Coaxial63100(port=args.port,
     daq.configure_buffer(20000)
     daq.configure('phaseU', 'phaseV', 'phaseW', 'AFE_ON', sample_rate=500)
 
-    amps, legs = daq.currents(), daq.legs()   # both off the board
-
     with daq:
         for df in daq.frames(window=args.window, buffer=args.buffer,
                              seconds=args.seconds, scaled=True):
             for axis in axes:
                 axis.clear()
 
-            df[amps].plot(ax=amps_ax,
-                          color=['tab:red', 'tab:green', 'tab:blue'])
+            # The frame already says what each column is: `scaled` names the
+            # currents in amperes, and the gates carry the board's own pin
+            # names. Sorted, the high side comes before the low - H before
+            # L - so the solid line is always HS.
+            df.filter(like=' (A)').plot(
+                ax=amps_ax, color=['tab:red', 'tab:green', 'tab:blue'])
             amps_ax.set(ylabel='A', xlim=(-args.window, 0))
 
-            for axis, (leg, high, low) in zip(leg_axes, legs):
-                df[[high, low]].plot(ax=axis, legend=False, color='black',
-                                     style=['-', '--'], linewidth=0.8)
+            for axis, leg in zip(leg_axes, 'UVW'):
+                df.filter(like='PWM' + leg).sort_index(axis=1).plot(
+                    ax=axis, legend=False, color='black',
+                    style=['-', '--'], linewidth=0.8)
                 axis.set(ylabel=leg, ylim=(-0.05, 1.05), yticks=[0, 1])
 
             leg_axes[-1].set_xlabel('seconds before now')
@@ -91,7 +94,7 @@ print('%d records on screen (%.1f s), %d buffered behind them (%.0f s)'
       % (len(df), args.window, len(held), args.buffer))
 print('host peak %d, dropped %d, lost %d'
       % (buffered['peak'], buffered['dropped'], buffered['lost']))
-print(held[amps].describe().loc[['mean', 'std', 'min', 'max']]
+print(held.filter(like=' (A)').describe().loc[['mean', 'std', 'min', 'max']]
       .to_string(float_format='%.3f'))
 
 if args.save:

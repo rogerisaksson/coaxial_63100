@@ -123,7 +123,7 @@ DAQ_DOOR = ('configure', 'shape', 'ladder', 'tone', 'start', 'stop',
             'buffered', 'channels', 'outputs', 'catalogue', 'pick', 'read',
             'configure_buffer', 'enable', 'disable',
             'channel_names', 'columns', 'series', 'frame', 'frames',
-            'legs', 'currents', 'history')
+            'history')
 
 
 class DaqView:
@@ -571,22 +571,6 @@ class Coaxial63100(Acquisition):
                 convert((v - offset) * gain) for v in cols[field['signal']]]
         return out
 
-    def legs(self):
-        """The half bridges as `(name, high side, low side)` column names.
-
-        The board names its pins; this only pairs them, so an example that
-        draws a leg does not carry a table of six strings that goes stale
-        the day one is renamed. Empty when the task has no pins.
-        """
-        pins = [r['name'] for r in self.catalogue() if r['kind'] == 'digital']
-        out = []
-        for leg in ('U', 'V', 'W'):
-            high = [p for p in pins if p.endswith('PWM%sH' % leg)]
-            low = [p for p in pins if p.endswith('PWM%sL' % leg)]
-            if high and low:
-                out.append((leg, high[0], low[0]))
-        return out
-
     def frames(self, window=2.0, buffer=None, seconds=None, scaled=False,
                **kw):
         """The last `window` seconds, again each time records arrive.
@@ -644,17 +628,6 @@ class Coaxial63100(Acquisition):
         """
         kw.setdefault('index', 'since')
         return self.frame(self._history, scaled=scaled, **kw)
-
-    def currents(self, scaled=True):
-        """The current channels' column names, as `frame()` spells them.
-
-        `['Phase U (A)', ...]` scaled, the codes' own names raw. Beside
-        `legs()`, so a plot names neither its columns nor its pins - both
-        come off the board and neither goes stale when one is renamed.
-        """
-        got = [f['signal'] for f in (self.layout or {}).get('fields') or []
-               if f.get('unit') == 'mA']
-        return ['%s (A)' % n for n in got] if scaled else got
 
     def columns(self, records):
         """Records as columns: {name: values}, plus `time` and `dt`.
