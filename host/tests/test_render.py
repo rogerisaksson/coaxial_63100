@@ -307,10 +307,10 @@ def test_outline(report):
             wireframe._outline_source = real
         return n, grid
 
-    # At zoom 1 this camera puts 6.5 cells on a unit, so the 0.4 box is
-    # 2.6 cells - under OUTLINE_CELLS, filtered; at zoom 3 it is 7.8.
+    # At zoom 0.6 this camera puts 3.9 cells on a unit, so the 0.4 box is
+    # 1.6 cells - under OUTLINE_CELLS, filtered; at zoom 3 it is 7.8.
     report.check('outline: a loop under OUTLINE_CELLS is not drawn',
-                 drawn_at(1.0)[0] == 0, str(drawn_at(1.0)[0]))
+                 drawn_at(0.6)[0] == 0, str(drawn_at(0.6)[0]))
     n, grid = drawn_at(3.0)
     braille = [g for row in grid for g in row if 0x2800 <= ord(g) < 0x2900]
     report.check('outline: past the cells it draws, in braille dots',

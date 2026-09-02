@@ -215,9 +215,29 @@ FLOOR = 0.55
 #: depth buffer.
 _BACKDROP = {}
 
+#: The backdrop's greys, 24-bit so the haze is continuous: a fan line
+#: at the camera's feet and the horizon itself. AERIAL PERSPECTIVE - a
+#: line's contrast falls as exp(-depth / L), and FAN_HAZE is what is
+#: left of it at the horizon. Flat-toned, the fan got BRIGHTER toward
+#: the horizon ("more realistic", the bench asked): the lines converge,
+#: several land in one cell, and a cell of six dots at one tone is
+#: three times the ink of one with two. So a cell's grey is divided by
+#: the square root of the LINES through it - lines, not dots: a steep
+#: line puts four dots in a cell and a shallow one two, the same ink
+#: per length of line, and counting dots would have thinned the steep
+#: ones. Measured at 150x44, a row's ink per column (its cells' grey x
+#: dots over the width): flat at grey 68, the row under the horizon
+#: carried 62 against 7 at the frame's foot - nine to one, the
+#: convergence itself; hazed and divided, 47 against 12. The far band
+#: is still denser, as a real floor's is, but faint now, not bright.
+FAN_GREY = 118
+FAN_HAZE = 0.4
+HORIZON_GREY = 128
+
 
 def _backdrop(width, height, distance, view):
-    """[(px, py, stroke)] for the ground grid: own scale, own centre.
+    """{cell: (braille mask, grey (r, g, b))} for the ground grid: own
+    scale, own centre.
 
     NOT the board's projection. The fitted scale magnifies a dinner
     plate to fill the frame, and at that magnification the horizon
@@ -251,42 +271,85 @@ def _backdrop(width, height, distance, view):
 
     def cast(wx, wy):
         # ray() already carries the perspective weight in its x and y.
+        # FLOAT cells: the dots below land on the sub-row and sub-column
+        # the geometry says, not the cell it rounds to.
         sx, sy, w = ray(wx, wy)
-        return int(cx + scale * sx), int(cy - scale * 0.5 * sy), w
+        return cx + scale * sx, cy - scale * 0.5 * sy, w
 
-    marks = []
-    hy = int(round(hrow))
-    for px in range(width):
-        marks.append((px, hy, '-'))
+    # The backdrop is BRAILLE, like the outline: a 2x4 dot matrix per
+    # cell. The horizon is one row of dots at its exact sub-row across
+    # the width; the fan's lines are sampled and JOINED at the matrix's
+    # pitch, so a line is a fine continuous run of dots rather than the
+    # one dot per row it was - which alternated `.` cells with blanks on
+    # every shallow slope and read as a stair. Every line runs to the
+    # horizon's own sub-row and meets it: a gap of three sub-rows was
+    # left under the horizon first, and the bench saw the lines "stop
+    # before they reach the horizon".
+    # Per cell: the mask, whether the horizon runs through it, the sum
+    # of its dots' depths, the dot count, and the lines through it.
+    cells = {}
 
-    # The fan is DOTTED, one dot per row per line. Directional strokes
-    # were tried first: near-horizontal segments alternated glyphs and
-    # every line came out ragged - `/-` `|-` pairs all the way down.
-    # Dots have no direction to disagree about, and a dotted floor under
-    # a block-shaded subject is the separation itself.
-    # SEVEN dotted lines, a dot per row, nothing else. Thirteen lines
-    # needed a crowding veto near the convergence, and every veto tried
-    # - modular, greedy row-claim, sign-alternating - broke the fan's
-    # symmetry some way the eye caught. Few enough lines never crowd,
-    # and the small cluster where they meet the horizon IS the
-    # vanishing point.
-    # Wide enough that the outer lines meet the horizon past the frame
-    # edges - the fan covers the WHOLE line, not a band in the middle.
+    def dot(fx, fy, depth, line):
+        px, py = int(fx), int(fy)
+        if not (0 <= px < width and 0 <= py < height):
+            return
+        col = 1 if fx - px >= 0.5 else 0
+        row = min(3, int((fy - py) * 4.0))
+        cell = cells.setdefault(py * width + px, [0, False, 0.0, 0, set()])
+        cell[0] |= BRAILLE_BITS[col][row]
+        cell[1] |= line == 'horizon'
+        cell[2] += depth
+        cell[3] += 1
+        cell[4].add(line)
+
+    _x, _y, w_far = ray(0.0, far)
+    far_depth = 1.0 / w_far
+    for half in range(2 * width):
+        dot(half / 2.0 + 0.25, hrow, far_depth, 'horizon')
+
+    # Seventeen lines, wide enough that the outer ones meet the horizon
+    # past the frame edges - the fan covers the WHOLE line, not a band
+    # in the middle. Dotted rather than stroked: directional glyphs
+    # alternated `/-` `|-` on every shallow slope and came out ragged,
+    # and a dotted floor under a block-shaded subject is the separation
+    # itself.
     samples = height * 6
+    near_depth = far_depth
     for k in range(-8, 9):
         fixed = k * 2.2
-        drawn = height + 9
+        prev = None
         for i in range(samples + 1):
             wy = south + (far - south) * (i / samples) ** 2
-            px, py, w = cast(fixed, wy)
-            if w <= 0.0 or w > 2.0 or py >= drawn:
+            fx, fy, w = cast(fixed, wy)
+            if w <= 0.0 or w > 2.0 or fy < hrow:
+                prev = None
                 continue
-            if 0 <= px < width and hy < py < height:
-                marks.append((px, py, '.'))
-                drawn = py
+            depth = 1.0 / w
+            if prev is not None:
+                dx, dy, dd = fx - prev[0], fy - prev[1], depth - prev[2]
+                steps = max(1, int(max(2.0 * abs(dx), 4.0 * abs(dy))))
+                for s in range(steps + 1):
+                    t = s / steps
+                    dot(prev[0] + dx * t, prev[1] + dy * t,
+                        prev[2] + dd * t, k)
+                if fy < height:
+                    near_depth = min(near_depth, depth)
+            prev = (fx, fy, depth)
 
-    _BACKDROP[(width, height)] = marks
-    return marks
+    # The grey per cell: the horizon's own, or the fan's hazed by the
+    # cell's mean depth; either divided by the lines through the cell.
+    reach = max(1e-9, far_depth - near_depth)
+    masks = {}
+    for at, (mask, horizon, depth, dots, lines) in cells.items():
+        if horizon:
+            grey = HORIZON_GREY
+        else:
+            grey = FAN_GREY * FAN_HAZE ** ((depth / dots - near_depth) / reach)
+        grey = int(grey / math.sqrt(len(lines)) + 0.5)
+        masks[at] = (mask, (grey, grey, grey))
+
+    _BACKDROP[(width, height)] = masks
+    return masks
 
 
 def _ground(grid, tone, buf, distance, width, height, colour, view):
@@ -297,12 +360,11 @@ def _ground(grid, tone, buf, distance, width, height, colour, view):
     reaches a cell or two past the visible dither, and the one-cell
     keepout tried on top of that clipped the backdrop visibly far from
     the subject. Solid blocks against dim dots need no gap to separate."""
-    dim = 238 if colour else None
-    ash = 244 if colour else None
-    for px, py, stroke in _backdrop(width, height, distance, view):
-        if buf[py * width + px] == 0.0 and grid[py][px] == ' ':
-            grid[py][px] = stroke
-            tone[py][px] = ash if stroke == '-' else dim
+    for at, (mask, grey) in _backdrop(width, height, distance, view).items():
+        r, c = divmod(at, width)
+        if buf[at] == 0.0 and grid[r][c] == ' ':
+            grid[r][c] = chr(BRAILLE + mask)
+            tone[r][c] = grey if colour else None
 
 
 
@@ -347,8 +409,9 @@ GLOW_RGB = tuple(_rgb(c) for c in GLOW)
 
 
 def _blend(heat):
-    """The ladder colour at a fractional heat, linearly between rungs."""
-    lo = int(heat)
+    """The ladder colour at a fractional heat, linearly between rungs;
+    the top rung itself is the ladder's last colour."""
+    lo = min(int(heat), len(GLOW_RGB) - 2)
     f = heat - lo
     a, b = GLOW_RGB[lo], GLOW_RGB[lo + 1]
     return (int(a[0] + (b[0] - a[0]) * f + 0.5),
@@ -637,10 +700,14 @@ OUTLINE_GRACE = 0.012
 #: How far a vertex may sit from the slab's measured top and still count
 #: as on it: the copper and mask layers are 0.0007 units (35 um) proud.
 OUTLINE_LEVEL = 0.003
-#: Three, from five, on the bench's word - "more of the edge enhancer,
-#: also on somewhat smaller objects": two more rings of parts come into
-#: the drawing at the view's zoom.
-OUTLINE_CELLS = 3
+#: Two, from five by way of three, on the bench's word - "more of the
+#: edge enhancer, also on somewhat smaller objects", then "even smaller
+#: components highlighted". Counted at the view's zoom (46.8 cells per
+#: unit): five drew 43 loops, three 65, two 95 - a part 2.1 mm wide is
+#: the smallest now, an 0805 on its edge; 1.5 would draw 112 and one
+#: 167, into the 0603s and the chip-scale parts, which OUTLINE_MIN_EDGE
+#: would strip to a dot or two each.
+OUTLINE_CELLS = 2
 OUTLINE_EXACT = 200000
 
 #: The line's tone: the cell's OWN heat lifted OUTLINE_LIFT rungs - "a
@@ -655,7 +722,16 @@ OUTLINE_EXACT = 200000
 #: "highlighted with the light, not just thicker", the bench's words.
 #: OUTLINE_BASE is the heat a line cell takes where the face gave none
 #: - the rim's dots half off the silhouette.
-OUTLINE_LIFT = 2.5
+#:
+#: 4.5, from 2.5, MEASURED: in Rec.709 luma at the view's size over
+#: four attitudes, a 2.5 lift put the line +51 over the face beside it
+#: (174 against 122, a tenth of the cells within +5) and the bench read
+#: it as "barely noticeable" - a braille dot carries less ink than the
+#: face's `.` and `:`, so a line needs more tone than a face to look
+#: brighter at all. At 4.5 the line sits +82 (205 against 124, the
+#: tenth at +38), and it may reach the ladder's top rung, which HOTTEST
+#: keeps from the face: in the lamp's pool an edge glints white-cyan.
+OUTLINE_LIFT = 4.5
 OUTLINE_BASE = 3.0
 
 #: The line's pixels: braille, a 2x4 dot matrix per cell, so an edge
@@ -946,7 +1022,7 @@ def _outline_loops(solid):
 def _outline(grid, tone, buf, cam, m, colour, heat=None):
     """The wireframe overlay: every loop wide enough to read, as dotted
     lines in the cells' 2x4 braille matrix, hidden where the solid
-    stands in front - the 2 % grace keeps an edge from losing to the
+    stands in front - OUTLINE_GRACE keeps an edge from losing to the
     face it borders. `heat` is the glow pass's per-cell heat, which the
     line lifts by OUTLINE_LIFT. Cells drawn, for the caller that
     counts."""
@@ -957,6 +1033,9 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
     min_extent = OUTLINE_CELLS / (scale / distance)
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     top_heat = len(GLOW) - 1 + HOTTEST
+    # The line may reach the ladder's top rung, which HOTTEST keeps from
+    # the face: readable ink is what that rung is reserved for.
+    ceiling = len(GLOW) - 1
     seen = {}
     masks = {}
 
@@ -1017,7 +1096,7 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
         if colour:
             base = heat[at] if heat is not None and heat[at] else OUTLINE_BASE
             lift = OUTLINE_LIFT * (0.5 + 0.5 * base / top_heat)
-            tone[r][c] = _blend(min(top_heat, base + lift))
+            tone[r][c] = _blend(min(ceiling, base + lift))
     return len(masks)
 
 

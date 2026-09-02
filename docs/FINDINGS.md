@@ -3020,3 +3020,55 @@ three loops, the size gate, the braille, and the key light's sign -
   The lift follows the light: a cell at the ladder's top lifts the full
   OUTLINE_LIFT (2.5 rungs now), one at the floor half of it - an edge
   in the lamp's pool glints, one in shade only shows.
+* *"The horizon and the perspective in the braille font too."* The
+  backdrop's `-` horizon and its one-dot-per-row fan were the last
+  ASCII in the frame. `_backdrop` now casts to FLOAT cells and sets
+  dots: the horizon is one row of dots at its exact sub-row across the
+  width, and each of the seventeen fan lines is sampled and JOINED at
+  the matrix's pitch, a fine continuous run instead of the stair of
+  `.` cells the shallow slopes made. Still computed once per window
+  size and replayed against the depth buffer: 932 cells at 150x44.
+  First cut stopped the lines three sub-rows under the horizon, to
+  keep a clear vanishing point; the bench: *"now the perspective
+  lines stop before they reach the horizon"*. The fan's far ends are
+  spread along the whole horizon by construction (there is no
+  vanishing point on screen - the outer lines meet the horizon past
+  the frame edges), so the gap protected nothing. Every line runs to
+  the horizon's own sub-row and meets it.
+* *"A touch brighter edges - now barely noticeable - and even smaller
+  components highlighted."* Measured before touching, in Rec.709 luma
+  from the frame's own 24-bit tones over four attitudes (rest, x20z15,
+  y45, x-35): at OUTLINE_LIFT 2.5 an outline cell sat +51 over the mean
+  of the lit face cells beside it (174 against 122), a tenth of them
+  within +5. The number said "brighter" and the bench said "barely" -
+  because a braille dot carries less ink than the face's `.` and `:`,
+  so a line needs more tone than a face to look brighter at all. At
+  4.5 the line is +82 (205 against 124, the tenth at +38), and the
+  outline may reach the ladder's top rung, which HOTTEST keeps from
+  the face - readable ink is what that rung was reserved for
+  (`_blend` now holds the top rung as its last colour instead of
+  stepping off the ladder). OUTLINE_CELLS three to two: counted at the
+  view's zoom (46.8 cells per unit), five drew 43 loops, three 65, two
+  95 - an 0805 on its edge is the smallest part now; 1.5 would draw
+  112 and one 167, into the 0603s, which OUTLINE_MIN_EDGE would strip
+  to a dot or two each. 620 outline cells at 150x44 against 535.
+* *"Now the perspective lines get brighter toward the horizon - more
+  realistic?"* Two causes, both measured at 150x44 as a row's ink per
+  column (its fan cells' grey x dots over the width). The convergence
+  itself: at one flat grey (palette 238, 68) the row under the horizon
+  carried 62 against 7 at the frame's foot, nine to one, because
+  seventeen lines that are 5-9 cells apart at the foot are 59 cells
+  in one row up there. And the joins: where lines cross, or meet the
+  horizon, a cell holds four to six dots at the one tone - three times
+  the ink of a cell with two. The fix is aerial perspective: the fan
+  is 24-bit grey now, FAN_GREY 118 at the camera's feet falling as
+  exp(-depth / L) to FAN_HAZE 40 % of it at the horizon (the cell's
+  mean depth, carried per dot from the cast), and a cell's grey is
+  divided by the square root of the LINES through it - lines, not
+  dots, since a steep line puts four dots in a cell and a shallow one
+  two for the same ink per length of line. The horizon keeps its 128
+  and divides the same way where lines meet it. Hazed, the far row
+  carries 47 against 12: still denser, as a real floor's far end is,
+  but faint now instead of bright. The dot's depth rides the join
+  interpolation, so nothing here costs the frame - the backdrop is
+  cached per window size as before; the replay is 0.18 ms.
