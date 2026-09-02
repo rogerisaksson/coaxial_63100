@@ -65,6 +65,8 @@ reached for it.
 | Interface | Answers | Real | Stand-in |
 |---|---|---|---|
 | `Acquisition` | `configure`, `start`, `stop`, `read`, `latest`, `state` | `Daq`, `Coaxial63100` | `SimulatedDaq` |
+| `PolledSensor` | `state`, `read`, `write`, `hold`, `resume`, `configuring` | `Imu`, `Angle` | `SimulatedImu`, `SimulatedAngle` |
+| `GateControl` | the twelve `0x6E` device 4 ops | `GateDrivers` | `SimulatedGateDrivers` |
 
 **The stand-in has a line.** It carries a bitrate and charges time for the
 bytes it returns, which is what makes a throughput number off it mean
@@ -72,9 +74,10 @@ anything, and it answers `max_rate_hz` by the board's own formula. Line
 time is BANKED and paid in one sleep past 2 ms: `time.sleep` cannot honour
 a sub-millisecond wait on Windows, and a reply at 10 Mbit/s is 292 us - per
 reply it spent 2.878 s of a 4 s run and the emulator became the bottleneck
-it was written to measure.
-| `PolledSensor` | `state`, `read`, `write`, `hold`, `resume`, `configuring` | `Imu`, `Angle` | `SimulatedImu`, `SimulatedAngle` |
-| `GateControl` | the twelve `0x6E` device 4 ops | `GateDrivers` | `SimulatedGateDrivers` |
+it was written to measure. And one rotor is seen everywhere at once: the
+DAQ's records, the shaft sensor and the drive's own model advance the same
+virtual machine, or a loop closed across two of them would be closed
+between two inventions.
 
 **Two more files carry one concern each.** `reader.py` is the host-side
 reader thread: between `start()` and `stop()` it is the ONLY thing that
@@ -208,7 +211,8 @@ CLAUDE.md, *Commands*, has the tiers and the rules.
   arithmetic in closed form and runs the commissioning against the stand-in,
   whose motor has known numbers to recover.
 * **Structure suite** - ~3 s, no board, no model. Every module under `host/`
-  except the suites: imports cold, no cycles, no definition in two files, no
+  except the suites, and the notebooks beside it - their code cells parse as
+  one module each: imports cold, no cycles, no definition in two files, no
   dead imports, nothing past 130 lines or 7 deep, every module and class
   documented. It exists because the behavioural suites pass while the rest
   of the package is broken - five NameErrors in one afternoon of moving

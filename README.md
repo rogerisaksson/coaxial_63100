@@ -17,10 +17,11 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check   # what is missing
 .\coaxial_tty.ps1 adc -Simulated                              # no cable needed
 ```
 
-## Demos
+## The terminal
 
-`.\coaxial_tty.ps1` is the chooser: one script in front of the live views,
-for looking at the board rather than remembering a filename.
+`.\coaxial_tty.ps1` is the chooser: one script in front of the live views
+in `terminal/`, for looking at the board rather than remembering a
+filename.
 
 | | |
 |---|---|
@@ -60,15 +61,20 @@ without running; `SIMULATED = False` and a port at the bench.
 | `gate_drivers_session.ipynb` | dead time, arm, duty, the gate snapshot, a burst |
 | `shared_session.ipynb` | two sessions on one port, and who else is attached |
 | `imu_session.ipynb` | the BNO085, and the three things it refuses over |
+| `daq_pandas.ipynb` | a run into a DataFrame, scaled by the board's record |
+| `daq_live_plot.ipynb` | currents over the switches, one time base, live |
+| `angle_session.ipynb` | the A1335's registers, and whether there is a magnet |
+| `thermal_budget.ipynb` | the SOA budget, and a burst planned against it |
+| `thermal_model.ipynb` | the node network in Python, and how it was fitted |
+| `loss_calculation.ipynb` | switching loss from the SPICE models, no board |
+| `rotor_observer_session.ipynb` | the rotor observer on the board's own PMSM model |
+| `propeller_sweep.ipynb` | the 5230SL and its propeller against Hobbywing's stand |
+| `speed_loop.ipynb` | `coaxial.loop`'s chain, identified back out of its own run |
+| `foc_montecarlo.ipynb` | the firmware's law searched over the 23-63 V link sweep |
 | `auto_tune.ipynb` | the bench day: commission, identify, tune, write, verify |
 | `position_servo.ipynb` | the PMSM as stepper and servo, ring and sag measured |
 | `position_and_sensorless.ipynb` | observer vs shaft sensor, one rotor two answers |
 | `app_*.ipynb` | quad lane, wing cruise, two-joint arm, precision hold |
-| `angle_session.py` | the A1335's registers, and whether there is a magnet |
-| `thermal_budget.py` | the SOA budget, and a burst planned against it |
-| `thermal_model.py` | the node network in Python, and how it was fitted |
-| `loss_calculation.py` | switching loss from the SPICE models, no board |
-| `rotor_observer_session.py` | the rotor observer on the board's own PMSM model - no motor, no stage |
 
 ## The library
 
@@ -88,6 +94,11 @@ daq.stop()                               # buffering stops at target
 daq.close()                              # the acquisition released
 device.close()                           # the port, and the supply as found
 ```
+
+`device.motion` is the drive as three verbs - `stepper`, `servo`,
+`velocity` - each a `with` block that needs the stage armed first and
+leaves the drive OFF; and `configure('phaseU', 'shaft angle')` rides the
+sensor fields in every record as snapshots beside the sums (MINOR 7).
 
 A record is an object AND the mapping it came from: `r.start_time`,
 `r.dt` and `r.samples` are the shape a script reads, while `r['NTC']` is
@@ -127,7 +138,7 @@ told.
 cube-cmake --build --preset Debug      # must be zero warnings
 STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
 .\run_tests.ps1                        # ~25 % of the checks, the default
-.\run_tests.ps1 -All                   # 2169 checks, the gate
+.\run_tests.ps1 -All                   # 100 %, the gate - CLAUDE.md holds the count
 .\run_tests.ps1 -Structure             # does host/ still hold together - 4 s
 ```
 

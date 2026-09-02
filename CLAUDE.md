@@ -440,8 +440,14 @@ Board/       this hardware, behind Comms/Inc/board.h
 Comms/       the comms stack: cmd over proto over dev, plus the console
 Modbus/      the protocol. Portable C11, no HAL in crc/slave/rtu.
 Drive/       the control law. Portable C11, host-tested against a motor model
+Shtp/ Thermal/ Filter/  the other portable cores: the BNO08X transport, the
+             ten-node observer, the anti-alias chain - each host-tested
 host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
              runner and dbg.py, testline/, tests, tools
+notebook_examples/  executed notebooks, checked in with the stand-in's
+             outputs - root README.md tables them
+electronic_simulations/  LTSpice, a git submodule (SSH key on the bench
+             machine); coaxial/inverter.py carries its traced constants
 coaxial_tty.ps1  the chooser: session, seven views (the gate drivers and the
                  rotor observer under MOTOR CONTROLLER), the board chat
 terminal/        imu.ps1 attitude, angle.ps1 shaft angle, adc.ps1 meter bridge,

@@ -12,7 +12,7 @@
       motors/           the profiles the drive loads (outrunner_14p.json)
       tests/            twenty-five suites; run_tests.ps1 is the interface
       tools/            run_tests.py, pick_tests.py, the views, pulse, switch
-      data/             measurement logs and run transcripts
+      data/             run transcripts, created on first run
 
 ## Quick start
 
