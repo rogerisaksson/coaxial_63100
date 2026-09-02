@@ -30,6 +30,7 @@ def test_power_check_cannot_halt(report):
     whether the board answers, so the checklist was able to cause the
     silence it went on to report.
     """
+    import build_and_flash
     import find_board
     import subprocess
 
@@ -43,12 +44,18 @@ def test_power_check_cannot_halt(report):
         seen['timeout'] = kw.get('timeout')
         return Done()
 
+    # The question here is the shape of the call, not whether this machine
+    # has the programmer installed - a runner does not, and without the
+    # stub check_power returns early and the spy never sees the argv.
     real_run = subprocess.run
+    real_find = build_and_flash.find_programmer
     try:
         subprocess.run = spy
+        build_and_flash.find_programmer = lambda path: 'STM32_Programmer_CLI'
         voltage, _ = find_board.check_power()
     finally:
         subprocess.run = real_run
+        build_and_flash.find_programmer = real_find
 
     argv = seen.get('argv') or []
     report.check('check_power reads the voltage', voltage == 3.27, str(voltage))

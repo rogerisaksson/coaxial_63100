@@ -432,7 +432,7 @@ def facets(steps=PHI_STEPS, tinted=False, relief=1.0):
 #: gets a picture, and every test runs without a 21 MB file.
 MODEL = os.path.join(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))), 'render', 'models',
-    'Coaxial 63100.stl')
+    'coaxial_63100.stl')
 
 
 def _load_model():

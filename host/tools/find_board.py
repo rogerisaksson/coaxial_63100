@@ -107,10 +107,19 @@ def list_ports():
 
 
 def kinds():
-    """[(device, PROBE|SERIAL)], in the order Windows enumerates them."""
+    """[(device, PROBE|SERIAL)], in the order the OS enumerates them.
+
+    USB ports only (`p.vid` set): the debug probe is a USB VCP and RS485
+    arrives on a USB dongle, so a port with no USB identity is never this
+    board. It is also what keeps discovery bounded on a machine with
+    legacy UARTs - a Linux host lists /dev/ttyS* with nothing behind
+    them, opening one succeeds, and the close can sit in the driver's
+    drain for the better part of a minute. Measured on CI: three suites
+    at ~257 s each, every second of it probing motherboard UARTs.
+    """
     import serial.tools.list_ports
     return [(p.device, PROBE if p.vid == ST_VID else SERIAL)
-            for p in serial.tools.list_ports.comports()]
+            for p in serial.tools.list_ports.comports() if p.vid]
 
 
 def kind_of(device):
