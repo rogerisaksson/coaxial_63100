@@ -15,6 +15,7 @@ as it applies to a voltage.
 import argparse
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -351,7 +352,8 @@ def compose(origin, args, view, colour, console):
         zoom=view['zoom'] * (0.88 if not args.photo else 1.0),
         shop=view['shop'], toon=not args.photo, wire=not args.photo,
         colour=colour, frame_on=view['frame_on'],
-        crew=view.get('crew'), persist=view.get('persist')).splitlines()
+        crew=view.get('crew'), persist=view.get('persist'),
+        scroll=view.get('scroll')).splitlines()
     margin = min((len(l) - len(l.lstrip(' '))
                   for l in art if l.strip()), default=0)
     art = [l[margin:] for l in art]
@@ -467,8 +469,10 @@ def main(argv=None):
             'quaternion': (0.0, 0.0, 0.0, 1.0), 'frame': 0}
     # `persist` holds the two frames before this one, so three can vote
     # per cell - wireframe._steady, one frame of latency for no blinks.
+    # `t0` is when the ground started moving under the camera
+    # (wireframe.GROUND_SPEED): the view's clock, not the board's.
     state = {'tare': None, 'flip': [False, False, False],
-             'frame_on': True, 'persist': {}}
+             'frame_on': True, 'persist': {}, 't0': time.monotonic()}
     tally = Freshness()
 
     def draw():
@@ -500,7 +504,8 @@ def main(argv=None):
                      quaternion=view['quaternion'], rate=tally.rate,
                      stale=tally.stale, frame=view['frame'],
                      zoom=view['zoom'], shop=shop, crew=pool,
-                     wide=wide, tall=tall)
+                     wide=wide, tall=tall,
+                     scroll=time.monotonic() - state['t0'])
         return compose(origin, args, shown,
                        colour=console and not args.photo, console=console)
 

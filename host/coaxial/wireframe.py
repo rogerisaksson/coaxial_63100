@@ -209,10 +209,10 @@ BIAS = 0.06
 FLOOR = 0.55
 
 
-#: Backdrop samples per window size. The ground never moves - it is the
-#: camera's world, not the board's - so the projection is computed once
-#: per (width, height) and each frame only replays it against the
-#: depth buffer.
+#: Backdrop cells per (window size, scroll step). The ground is the
+#: camera's world, not the board's: it does not turn with the
+#: attitude, so a backdrop is cast once per size and step and each
+#: frame only replays it against the depth buffer.
 _BACKDROP = {}
 
 #: The backdrop's greys, 24-bit so the haze is continuous: a fan line
@@ -234,10 +234,125 @@ FAN_GREY = 118
 FAN_HAZE = 0.4
 HORIZON_GREY = 128
 
+#: THE GROUND MOVES. Rungs across the fan - the grid's cross lines,
+#: one every RUNG_SPACING of world, the fan's own pitch so the floor
+#: is square - slide toward the camera at GROUND_SPEED spacings a
+#: second, and the scene drifts slowly forward (a bonus the bench
+#: asked for). A rung's phase is quantised to RUNG_STEPS per spacing
+#: so a backdrop is built once per step and replayed: the horizon and
+#: the fan are cast once per window size (_BACKDROP_STATIC), the rungs
+#: added per step (_BACKDROP). Near the horizon the rungs crowd - at
+#: 150x44 the horizon sits at row 6.6 and the far rungs at 7.2, 7.9,
+#: 8.7, 9.7 - so each fades by the rows to the next, RUNG_FADE rows
+#: for its full grey, and the far ones dissolve into the haze instead
+#: of stacking into a bar. A rung under half its grey stays out of a
+#: cell another line already holds: one tone per cell would lend it
+#: the fan's.
+RUNG_SPACING = 2.2
+GROUND_SPEED = 0.2
+RUNG_STEPS = 24
+RUNG_FADE = 1.5
+_BACKDROP_STATIC = {}
 
-def _backdrop(width, height, distance, view):
-    """{cell: (braille mask, grey (r, g, b))} for the ground grid: own
-    scale, own centre.
+
+def _ground_dot(cells, width, height, fx, fy, depth, line, fade=1.0):
+    """One braille dot into the backdrop's cells: the mask, whether the
+    horizon runs through the cell, the sum of its dots' depths, the dot
+    count, the lines through it and the brightest line's fade."""
+    if fx < 0.0 or fy < 0.0:
+        return
+    px, py = int(fx), int(fy)
+    if px >= width or py >= height:
+        return
+    at = py * width + px
+    cell = cells.get(at)
+    if cell is None:
+        cell = cells[at] = [0, False, 0.0, 0, set(), fade]
+    elif fade < 0.5 and cell[4]:
+        return
+    col = 1 if fx - px >= 0.5 else 0
+    row = min(3, int((fy - py) * 4.0))
+    cell[0] |= BRAILLE_BITS[col][row]
+    cell[1] |= line == 'horizon'
+    cell[2] += depth
+    cell[3] += 1
+    cell[4].add(line)
+    cell[5] = max(cell[5], fade)
+
+
+def _rungs(static, phase):
+    """The rungs at `phase` (0..1 of a spacing, toward the camera):
+    [(row at the frame's centre, w, x0, y0, w0, x1, y1, w1)] from the
+    nearest out, each spanning the fan's width. Rungs beyond the
+    frame's foot are listed too - the fade of the last visible one
+    is measured against the next."""
+    cast, south, far = static['cast'], static['south'], static['far']
+    out = []
+    for k in range(int((far - south) / RUNG_SPACING)):
+        wy = south + (k + 1.0 - phase) * RUNG_SPACING
+        _cx, yc, wc = cast(0.0, wy)
+        x0, y0, w0 = cast(-8.0 * RUNG_SPACING, wy)
+        x1, y1, w1 = cast(8.0 * RUNG_SPACING, wy)
+        out.append((yc, wc, x0, y0, w0, x1, y1, w1))
+    return out
+
+
+def _backdrop(width, height, distance, view, phase=0.0):
+    """{cell: (braille mask, grey (r, g, b))} for the ground grid at a
+    phase of its scroll: the static horizon and fan, the rungs at the
+    phase's step, greys settled per cell. Cached per size and step."""
+    step = int(phase * RUNG_STEPS + 0.5) % RUNG_STEPS
+    key = (width, height, step)
+    got = _BACKDROP.get(key)
+    if got is not None:
+        return got
+    static = _BACKDROP_STATIC.get((width, height))
+    if static is None:
+        static = _ground_static(width, height, distance, view)
+        _BACKDROP_STATIC[(width, height)] = static
+    cells = {at: [m, h, d, n, set(lines), fade]
+             for at, (m, h, d, n, lines, fade) in static['cells'].items()}
+    hrow = static['hrow']
+    rungs = _rungs(static, step / RUNG_STEPS)
+    for k, (yc, wc, x0, y0, w0, x1, y1, w1) in enumerate(rungs):
+        if wc <= 0.0 or wc > 2.0 or yc < hrow:
+            continue
+        beyond = rungs[k + 1][0] if k + 1 < len(rungs) else hrow
+        fade = min(1.0, max(0.0, (yc - beyond) / RUNG_FADE))
+        if fade < 0.1:
+            continue
+        depth = 1.0 / wc
+        for half in range(2 * width):
+            fx = half / 2.0 + 0.25
+            t = (fx - x0) / (x1 - x0)
+            if not 0.0 <= t <= 1.0:
+                continue
+            fy = y0 + (y1 - y0) * t
+            if fy >= hrow:
+                _ground_dot(cells, width, height, fx, fy, depth,
+                            ('rung', k), fade)
+
+    # The grey per cell: the horizon's own, or the fan's hazed by the
+    # cell's mean depth; either divided by the lines through the cell,
+    # and dimmed by the brightest line's fade.
+    near_depth = static['near_depth']
+    reach = max(1e-9, static['far_depth'] - near_depth)
+    masks = {}
+    for at, (mask, horizon, depth, dots, lines, fade) in cells.items():
+        if horizon:
+            grey = HORIZON_GREY
+        else:
+            grey = FAN_GREY * FAN_HAZE ** ((depth / dots - near_depth) / reach)
+        grey = int(grey * fade / math.sqrt(len(lines)) + 0.5)
+        masks[at] = (mask, (grey, grey, grey))
+    _BACKDROP[key] = masks
+    return masks
+
+
+def _ground_static(width, height, distance, view):
+    """The horizon and the fan for a window size: own scale, own
+    centre, cast once. {'cells', 'cast', 'hrow', 'south', 'far',
+    'near_depth', 'far_depth'} - what _backdrop adds the rungs to.
 
     NOT the board's projection. The fitted scale magnifies a dinner
     plate to fill the frame, and at that magnification the horizon
@@ -248,10 +363,6 @@ def _backdrop(width, height, distance, view):
     the top of the frame, the ground under the camera just off the
     bottom, so lines always rise from the lower edge and terminate ON
     the horizon."""
-    got = _BACKDROP.get((width, height))
-    if got is not None:
-        return got
-
     v0, v1, v2, v3, v4, v5, v6, v7, v8 = view
     south, far = -5.0, 30.0
 
@@ -285,22 +396,10 @@ def _backdrop(width, height, distance, view):
     # horizon's own sub-row and meets it: a gap of three sub-rows was
     # left under the horizon first, and the bench saw the lines "stop
     # before they reach the horizon".
-    # Per cell: the mask, whether the horizon runs through it, the sum
-    # of its dots' depths, the dot count, and the lines through it.
     cells = {}
 
     def dot(fx, fy, depth, line):
-        px, py = int(fx), int(fy)
-        if not (0 <= px < width and 0 <= py < height):
-            return
-        col = 1 if fx - px >= 0.5 else 0
-        row = min(3, int((fy - py) * 4.0))
-        cell = cells.setdefault(py * width + px, [0, False, 0.0, 0, set()])
-        cell[0] |= BRAILLE_BITS[col][row]
-        cell[1] |= line == 'horizon'
-        cell[2] += depth
-        cell[3] += 1
-        cell[4].add(line)
+        _ground_dot(cells, width, height, fx, fy, depth, line)
 
     _x, _y, w_far = ray(0.0, far)
     far_depth = 1.0 / w_far
@@ -336,31 +435,22 @@ def _backdrop(width, height, distance, view):
                     near_depth = min(near_depth, depth)
             prev = (fx, fy, depth)
 
-    # The grey per cell: the horizon's own, or the fan's hazed by the
-    # cell's mean depth; either divided by the lines through the cell.
-    reach = max(1e-9, far_depth - near_depth)
-    masks = {}
-    for at, (mask, horizon, depth, dots, lines) in cells.items():
-        if horizon:
-            grey = HORIZON_GREY
-        else:
-            grey = FAN_GREY * FAN_HAZE ** ((depth / dots - near_depth) / reach)
-        grey = int(grey / math.sqrt(len(lines)) + 0.5)
-        masks[at] = (mask, (grey, grey, grey))
-
-    _BACKDROP[(width, height)] = masks
-    return masks
+    return {'cells': cells, 'cast': cast, 'hrow': hrow, 'south': south,
+            'far': far, 'near_depth': near_depth, 'far_depth': far_depth}
 
 
-def _ground(grid, tone, buf, distance, width, height, colour, view):
-    """The landscape behind the board: the cached backdrop, replayed
-    against this frame's depth buffer so the board occludes it.
+def _ground(grid, tone, buf, distance, width, height, colour, view,
+            phase=0.0):
+    """The landscape behind the board: the cached backdrop at this
+    phase of its scroll, replayed against this frame's depth buffer so
+    the board occludes it.
 
     Plain occlusion, no halo: the depth solid's footprint already
     reaches a cell or two past the visible dither, and the one-cell
     keepout tried on top of that clipped the backdrop visibly far from
     the subject. Solid blocks against dim dots need no gap to separate."""
-    for at, (mask, grey) in _backdrop(width, height, distance, view).items():
+    for at, (mask, grey) in _backdrop(width, height, distance, view,
+                                      phase).items():
         r, c = divmod(at, width)
         if buf[at] == 0.0 and grid[r][c] == ' ':
             grid[r][c] = chr(BRAILLE + mask)
@@ -1443,7 +1533,7 @@ def _cells(solid, m, cam, crew, face, foreign):
 def render(q, width, height, zoom=1.0, colour=True,
            horizon=True, face=True, tip=None, solid=None,
            distance=None, lift=0.44, crew=None, least=0, triad=False,
-           persist=None):
+           persist=None, scroll=None):
     """The board under rotation `q`, as a vector drawing.
 
     Cell-resolution: the strokes ARE the picture, so there is no half-block
@@ -1455,7 +1545,8 @@ def render(q, width, height, zoom=1.0, colour=True,
     holding THIS solid: the raster runs as row bands in its processes.
     `persist` is a dict the caller keeps between frames so three of
     them can vote per cell (_steady); without it every frame stands
-    alone."""
+    alone. `scroll` is seconds of travel over the ground: the grid's
+    rungs slide toward the camera at GROUND_SPEED; None holds still."""
     from . import ansi, engine, orientation
 
     # `solid` overrides the board with another mesh - facecheck proves
@@ -1507,8 +1598,9 @@ def render(q, width, height, zoom=1.0, colour=True,
     tone = [[None] * width for _ in range(height)]
 
     if horizon:
-        tipm = view
-        _ground(grid, tone, buf, distance, width, height, colour, tipm)
+        phase = (scroll * GROUND_SPEED) % 1.0 if scroll is not None else 0.0
+        _ground(grid, tone, buf, distance, width, height, colour, view,
+                phase)
 
     if face:
         heat = [0.0] * (width * height) if colour else None

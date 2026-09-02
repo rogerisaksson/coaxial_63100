@@ -413,6 +413,24 @@ def test_steady(report):
                  draw(b, state) == fresh_b, 'not shown')
 
 
+def test_scroll(report):
+    """The ground moves: a quarter spacing on, every rung sits nearer
+    the camera - lower on the screen - and the backdrop differs."""
+    cam = engine.camera(60, 20, 1.5, distance=3.2, zoom=1.0,
+                        tip=wireframe.CAMERA_TIP)
+    static = wireframe._ground_static(60, 20, 3.2, cam['view'])
+    before = wireframe._rungs(static, 0.0)
+    after = wireframe._rungs(static, 0.25)
+    report.check('scroll: a quarter spacing on, every rung is nearer',
+                 len(before) == len(after)
+                 and all(b[0] < a[0] for b, a in zip(before, after)),
+                 '%d rungs' % len(before))
+    report.check('scroll: the backdrop differs between the two phases',
+                 wireframe._backdrop(60, 20, 3.2, cam['view'], 0.0)
+                 != wireframe._backdrop(60, 20, 3.2, cam['view'], 0.25),
+                 'the same')
+
+
 def main():
     report = Report()
     print('\n-- the 3D engine, stage by stage --')
@@ -424,6 +442,7 @@ def main():
     test_key_light(report)
     test_triad(report)
     test_steady(report)
+    test_scroll(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 
