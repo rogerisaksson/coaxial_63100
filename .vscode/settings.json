@@ -39,5 +39,14 @@
         "starm-clangd",
         "--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gcc*",
         "--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-g++*"
+    ],
+    // Pylance reads code, it does not run it: the notebooks and tools put
+    // host/ on sys.path at execution time, which static analysis cannot
+    // see - so `import coaxial` was flagged unresolved in every notebook
+    // on an interpreter without `pip install -e host/`. This tells the
+    // analyzer what the runtime does.
+    "python.analysis.extraPaths": [
+        "host",
+        "host/tools"
     ]
 }
