@@ -42,8 +42,12 @@ class Sample:
         self.value = raw / float(count) if count else float(raw)
 
     def __repr__(self):
-        return '<%s %.6g%s>' % (self.name, self.value,
-                                ' ' + self.unit if self.unit else '')
+        # RAW, and it says so: the window's mean in converter codes, with
+        # the unit the calibration record scales it into. Printing bare
+        # '-825 mA' sent a debugging session chasing an 825 milliampere
+        # phantom that was 825 CODES of standing offset.
+        return '<%s %.6g raw%s>' % (self.name, self.value,
+                                    ' -> ' + self.unit if self.unit else '')
 
 
 class Record(dict):

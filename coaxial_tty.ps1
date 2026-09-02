@@ -188,7 +188,7 @@ function Read-View($Views) {
 # that was killed, or a session that ended badly, leaves a stage armed with
 # nothing on screen to say it. One port open on the way out buys the right
 # to say `nothing was left running` and mean it.
-function Close-Demos {
+function Close-Session {
     Push-Location (Join-Path $PSScriptRoot 'host')
     $argv = @('tools/demos.py', '--leave', '--port', $Port)
     if ($Simulated) { $argv += '--simulated' }
@@ -230,13 +230,13 @@ do {
         $picked = $LASTEXITCODE
         Pop-Location
         if ($picked -lt 101) {
-            Close-Demos
+            Close-Session
             exit 0
         }
         $names = @($Views.Keys)
         $view = $names[$picked - 101]
         if ($null -eq $view) {
-            Close-Demos
+            Close-Session
             exit 0
         }
     }
@@ -327,5 +327,5 @@ do {
 # The other way out: a view closed with Q rather than coming back here. It
 # put its own things back and said so - this checks nothing was missed, and
 # says that too, so both exits read the same.
-Close-Demos
+Close-Session
 exit $code

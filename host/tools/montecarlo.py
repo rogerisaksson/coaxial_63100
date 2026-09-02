@@ -145,6 +145,7 @@ def run_job(job):
     and `i_h_max` retune the whole run for another machine - the auto-tune
     notebook hands in what the commissioning just identified and the
     search sizes itself to it. Absent, the 5230SL and the board's limits.
+    The row carries everything that shaped it, `bemf_only` included.
     """
     vdc, knobs, seed = job['vdc'], job['knobs'], job['seed']
     motor = Parameters(**job['motor']) if 'motor' in job else PLATINUM_5230SL
@@ -209,7 +210,8 @@ def run_job(job):
         st = d.state()
         sigma = math.sqrt(sq_th / n) if n else math.pi
         speed_err = math.sqrt(sq_w / n) if n else 1.0
-        out = {'vdc': vdc, 'seed': seed, 'trip': trip, 'sigma_theta': sigma,
+        out = {'vdc': vdc, 'seed': seed, 'trip': trip,
+               'bemf_only': bemf_only, 'sigma_theta': sigma,
                'worst_theta': worst, 'speed_err': speed_err,
                'lock0': lock, 'lock': abs(wrap(st['theta_hat'] - d.model_state()['theta'])),
                'i_peak': d.window()['i_peak'], 'i_h': params['inj_volts'] * int(knobs['n_inj']) * TS / (2.0 * motor.ld),
@@ -329,9 +331,7 @@ def verify(pool, best, draws=48, seed=5):
         for s in range(draws):
             jobs.append({'vdc': float(row.vdc), 'knobs': knobs, 'seed': 7000 + 100 * seed + s})
             jobs.append({'vdc': float(row.vdc), 'knobs': knobs, 'seed': 7000 + 100 * seed + s, 'bemf_only': True})
-    frame = sweep(pool, jobs)
-    frame['bemf_only'] = [j.get('bemf_only', False) for j in jobs]
-    return frame
+    return sweep(pool, jobs)
 
 
 def main():

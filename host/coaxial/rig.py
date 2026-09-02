@@ -25,6 +25,7 @@ Nothing here judges a reading. Raw codes and the board's own units;
 import re
 import time
 
+from . import angle as angle_scaling
 from .acquisition import Acquisition
 from .clock import NTP_SERVER, unwrap
 from .errors import CrcError, NoReplyError, RigError
@@ -586,7 +587,6 @@ class Coaxial63100(Acquisition):
         # The sensor snapshots' real units, the same one-place scalings
         # the subsystems use: the shaft through coaxial.angle, the
         # quaternion out of Q14. The raw words stay in their own columns.
-        from . import angle as angle_scaling
         if 'shaft angle value' in cols:
             out['shaft angle (deg)'] = [
                 None if v is None else angle_scaling.degrees(v & 0xFFFF)

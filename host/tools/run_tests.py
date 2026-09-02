@@ -453,6 +453,11 @@ def _ask_model(args, live_sections):
 
     # The picker loads the model too. Registered here so the release at the
     # end of the run covers it, whether or not a suite needs it.
+    if args.model == 'auto':
+        # The machine's own pick, resolved once - a hardcoded default tag
+        # asked a 16 GB bench to test against a model an 8 GB one runs.
+        from coaxial_ollama.capability import choose, probe
+        args.model = choose(probe()).tag
     plan, reason = pick_tests.pick(args.model)
     _LOADED.append(_client_for(args.model))
 
@@ -555,10 +560,12 @@ def _options(argv):
     parser.add_argument('--conformance', action='store_true',
                         help='also run test_conformance.py - needs a real '
                              'board on COM4, not just simulated')
-    parser.add_argument('--model', default='gemma4:12b',
-                        help='the tag test_live_model.py runs against. This '
-                             'script loads it once and releases it when the '
-                             'run ends.')
+    parser.add_argument('--model', default='auto',
+                        help="the tag test_live_model.py runs against, or "
+                             "'auto' for the tag THIS machine runs - the "
+                             "same capability pick board_chat makes. This "
+                             "script loads it once and releases it when "
+                             "the run ends.")
     parser.add_argument('--smart', action='store_true',
                         help='run what the changes can have broken, and the '
                              'whole lot every %dth commit. --dry-run says '

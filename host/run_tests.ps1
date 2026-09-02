@@ -64,7 +64,7 @@ param(
     [int]$Depth,
     [string[]]$Tags,
     [string[]]$Scope,
-    [string]$Model = 'gemma4:12b',
+    [string]$Model = 'auto',
     [switch]$DryRun
 )
 

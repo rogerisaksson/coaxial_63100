@@ -10,7 +10,7 @@
       examples/         read_board.py (measure, judge nothing),
                         pytest_production_line.py (where limits belong)
       motors/           the profiles the drive loads (outrunner_14p.json)
-      tests/            twenty-three suites; run_tests.ps1 is the interface
+      tests/            twenty-five suites; run_tests.ps1 is the interface
       tools/            run_tests.py, pick_tests.py, the views, pulse, switch
       data/             measurement logs and run transcripts
 

@@ -43,6 +43,20 @@ class _Mode:
     def __exit__(self, *exc):
         self.drive.off()
 
+    def _slew_to(self, theta_e, deg_s, pitch=0.25):
+        """Walk the command to `theta_e`, `pitch` mech degrees a write:
+        the spring is never asked to span more than a few degrees at
+        once. THE slew - the stepper's move and the servo's correction
+        are this one loop, not two copies of it."""
+        step = math.radians(pitch) * self.poles
+        pause = pitch / deg_s
+        while abs(theta_e - self._theta_e) > step:
+            self._theta_e += math.copysign(step, theta_e - self._theta_e)
+            self.drive.setpoint(theta=self._theta_e)
+            time.sleep(pause)
+        self._theta_e = theta_e
+        self.drive.setpoint(theta=self._theta_e)
+
     def _energize(self, amps, steps=6, settle=0.05):
         """HOLD, with the current RAMPED - a stepper driver's soft
         energize. Snapping full current onto an unknown rotor is a yank
@@ -94,15 +108,8 @@ class Stepper(_Mode):
 
     def to(self, degrees, pitch=0.25):
         """Slew the command to `degrees`, `pitch` mech degrees a write."""
-        target = self._zero + math.radians(degrees) * self.poles
-        step = math.radians(pitch) * self.poles
-        pause = pitch / self.deg_s
-        while abs(target - self._theta_e) > step:
-            self._theta_e += math.copysign(step, target - self._theta_e)
-            self.drive.setpoint(theta=self._theta_e)
-            time.sleep(pause)
-        self._theta_e = target
-        self.drive.setpoint(theta=self._theta_e)
+        self._slew_to(self._zero + math.radians(degrees) * self.poles,
+                      self.deg_s, pitch)
         return self.position
 
     def step(self, n=1, degrees=1.8):
@@ -160,18 +167,9 @@ class Servo(_Mode):
         """Target minus shaft, mech degrees, from the last correction."""
         return self._error
 
-    def _slew(self, by_degrees, pitch=0.25):
-        """The command, walked - the stepper's move, the spring never
-        asked to span more than `pitch` at once."""
-        target = self._theta_e + math.radians(by_degrees) * self.poles
-        step = math.radians(pitch) * self.poles
-        pause = pitch / self.deg_s
-        while abs(target - self._theta_e) > step:
-            self._theta_e += math.copysign(step, target - self._theta_e)
-            self.drive.setpoint(theta=self._theta_e)
-            time.sleep(pause)
-        self._theta_e = target
-        self.drive.setpoint(theta=self._theta_e)
+    def _slew(self, by_degrees):
+        self._slew_to(self._theta_e + math.radians(by_degrees) * self.poles,
+                      self.deg_s)
 
     def _measure(self, reads=9, span=0.2):
         """The shaft as a short MEAN: the ring is symmetric about the
@@ -258,8 +256,11 @@ class Velocity(_Mode):
         """
         w_ref = self.bus.w_ref
         w_target = float(target) * TWO_PI / 60.0
-        slew = ((accel_rpm_s or abs(target - w_ref * 60.0 / TWO_PI) * 3.0
-                 / max(seconds, 0.1)) * TWO_PI / 60.0)
+        if accel_rpm_s is None:
+            # Reach the target in a third of the block, whole rpm terms.
+            accel_rpm_s = (abs(target - w_ref * 60.0 / TWO_PI) * 3.0
+                           / max(seconds, 0.1))
+        slew = accel_rpm_s * TWO_PI / 60.0
         end = time.monotonic() + seconds
         last = time.monotonic()
         while time.monotonic() < end:
