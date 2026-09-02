@@ -288,7 +288,7 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 8U        /* 1: gate drivers op 10, alternate
+#define CMD_PROTO_MINOR 9U        /* 1: gate drivers op 10, alternate
                                      2: device 10, the drive; the DC link
                                         appended to gate drivers op 0
                                      3: a daq record ends with u16 count,
@@ -318,7 +318,11 @@ extern "C" {
                                         optional u32 period count - the
                                         update ISR zeroes the compares
                                         after exactly that many periods;
-                                        op 0 appends u32 periods_left */
+                                        op 0 appends u32 periods_left
+                                     9: requests whose shape is fixed
+                                        dispatch on their own CRC, not
+                                        t3.5 (cmd_length.c) - a host may
+                                        drop its pre-TX gap for those */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

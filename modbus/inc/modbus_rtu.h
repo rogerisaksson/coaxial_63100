@@ -54,10 +54,25 @@ typedef struct
   uint32_t char_overrun;       /**< frames lost to a UART overrun          */
 } mb_rtu_counters_t;
 
+/** The request-length oracle, for ending a frame without the silence.
+
+    Given the PDU bytes received so far, returns the full PDU length when
+    that is already knowable - a fixed-shape function code, or a variable
+    one whose bytes so far settle it - and 0 when it is not. With an
+    oracle set, a frame whose length matches and whose CRC checks is
+    delivered the moment its last byte arrives instead of after t3.5 of
+    silence: 1.75 ms of every such transaction, both directions of the
+    spec's fixed gap. A wrong answer is not slow, it is CORRUPTION - a
+    truncated frame executed on a lucky CRC - so the oracle's table is
+    validated against the real encoders by the test suite, and anything
+    it cannot prove waits out the silence exactly as before. */
+typedef uint16_t (*mb_rtu_length_fn)(const uint8_t *pdu, uint16_t have);
+
 typedef struct
 {
   mb_slave_t *slave;
   uint8_t     unit_id;
+  mb_rtu_length_fn length_hint;   /**< NULL: every frame waits t3.5 */
 
   uint32_t t15_ticks;
   uint32_t t35_ticks;
@@ -89,6 +104,11 @@ void mb_rtu_init(mb_rtu_t *rtu, mb_slave_t *slave, uint8_t unit_id,
 
 /** Feed one received byte. */
 void mb_rtu_on_byte(mb_rtu_t *rtu, uint8_t byte, uint32_t now_ticks);
+
+/** Install the request-length oracle (NULL removes it). Separate from
+    init so the timing behaviour is opt-in per port and the init
+    signature every test drives stays put. */
+void mb_rtu_set_length_hint(mb_rtu_t *rtu, mb_rtu_length_fn hint);
 
 /**
   * @brief  Report a UART receive error: overrun, framing, parity or noise.

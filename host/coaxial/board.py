@@ -121,6 +121,14 @@ class Board:
         for _ in range(max(1, tries)):
             try:
                 self.version_info = self.system.version()
+                # MINOR 9: the board dispatches proven requests on their
+                # own CRC, so the transport can stop paying the pre-TX
+                # gap after one. A broker proxy has no such attribute and
+                # keeps the spec gap - correct, just unoptimised there.
+                if (self.version_info.get('proto_major') == 2
+                        and self.version_info.get('proto_minor', 0) >= 9
+                        and hasattr(self.transport, 'proven_dispatch')):
+                    self.transport.proven_dispatch = True
                 return self.version_info
             except (NoReplyError, CrcError, FrameError) as exc:
                 last = exc

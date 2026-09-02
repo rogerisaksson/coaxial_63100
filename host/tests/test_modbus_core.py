@@ -32,7 +32,16 @@ OUT = os.path.join(REPO, 'build', 'hosttest')
 SOURCES = [os.path.join(CORE, 'test', 'harness.c'),
            os.path.join(CORE, 'src', 'modbus_crc.c'),
            os.path.join(CORE, 'src', 'modbus_slave.c'),
-           os.path.join(CORE, 'src', 'modbus_rtu.c')]
+           os.path.join(CORE, 'src', 'modbus_rtu.c'),
+           # The request-length oracle rides along: the harness installs
+           # it on the RTU under test, and the suite drives it directly
+           # for the prefix sweep. The stub stands in for the dispatch
+           # tables, which live beside HAL handlers.
+           os.path.join(REPO, 'comms', 'src', 'cmd_length.c'),
+           os.path.join(REPO, 'comms', 'test', 'cmd_find_stub.c')]
+
+INCLUDES = [os.path.join(CORE, 'inc'), os.path.join(REPO, 'comms', 'inc'),
+            os.path.join(REPO, 'board', 'inc')]
 
 # The same warnings the firmware build puts on these three files. A host
 # compiler is a second opinion on them, not just a way to run them.
@@ -68,7 +77,7 @@ def build(cc, sources=None, includes=None, name='mbcore'):
     os.makedirs(OUT, exist_ok=True)
     lib = os.path.join(OUT, name + ('.dll' if os.name == 'nt' else '.so'))
     flags = []
-    for path in (includes or [os.path.join(CORE, 'inc')]):
+    for path in (includes or INCLUDES):
         flags += ['-I', path]
     done = subprocess.run([cc, '-shared', '-o', lib] + FLAGS +
                           (sources or SOURCES) + flags,
@@ -168,6 +177,9 @@ class Core:
         n = self.lib.mbh_rtu_service(self.h, ctypes.c_uint32(ticks), buf,
                                      ctypes.c_size_t(256))
         return bytes(buf[:n])
+
+    def hint(self, on):
+        self.lib.mbh_rtu_hint(self.h, ctypes.c_int(1 if on else 0))
 
     def counters(self):
         six = (ctypes.c_uint32 * 6)()
@@ -589,6 +601,175 @@ ROSTER = (test_crc, test_quantities, test_span, test_reads, test_capacity,
           test_writes, test_half_write, test_dispatch, test_server_id,
           test_rtu_frame, test_rtu_gap, test_rtu_wrap, test_rtu_addressing,
           test_rtu_rejects, test_rtu_exception)
+
+
+def test_rtu_early_dispatch(report, lib):
+    """A proven request is delivered on its own CRC, not after t3.5.
+
+    The oracle names the length, the CRC checks, the address is ours -
+    the silence had nothing left to say. Everything the oracle cannot
+    prove, and every damaged frame, waits it out exactly as before:
+    the early path is an escape from the delimiter, never from a rule.
+    """
+    h = Core(lib)
+    h.rtu_init()
+    h.hint(True)
+
+    # FC 0x03, a fixed five-byte PDU the host-built oracle proves. The
+    # very tick the last byte lands, service hands the frame over.
+    frame = h.adu(1, [0x03, 0x00, 0x00, 0x00, 0x01])
+    last = h.feed(frame)
+    reply = h.service(last)
+    report.check('a proven frame is served the tick its last byte lands',
+                 len(reply) > 0 and reply[1] == 0x03, reply.hex(' '))
+    report.check('and the transport is idle again, mid-silence',
+                 not h.busy(), h.busy())
+
+    # The same frame with its CRC broken: the early path must NOT consume
+    # it - the t3.5 judge sees the same bytes and counts the error.
+    bad = frame[:-2] + bytes([frame[-2] ^ 0xFF, frame[-1]])
+    last = h.feed(bad)
+    early = h.service(last)
+    before = h.counters()['bus_comm_error']
+    late = h.service((last + h.t35() + 1) & 0xFFFFFFFF)
+    after = h.counters()['bus_comm_error']
+    report.check('a broken CRC is never taken early',
+                 early == b'' and late == b'', (early + late).hex(' '))
+    report.check('and the silence-path judges it, once',
+                 after == before + 1, '%d -> %d' % (before, after))
+
+    # An unproven shape - FC 0x42's optional tail - waits the silence out
+    # even though its CRC is fine.
+    frame = h.adu(1, [0x42])
+    last = h.feed(frame)
+    report.check('an unproven shape still waits out t3.5',
+                 h.service(last) == b'' and h.busy(), h.busy())
+    h.service((last + h.t35() + 1) & 0xFFFFFFFF)
+
+    # Another unit's frame is another unit's shape: never proven here.
+    frame = h.adu(9, [0x03, 0x00, 0x00, 0x00, 0x01])
+    last = h.feed(frame)
+    report.check("another node's frame is not early-delivered",
+                 h.service(last) == b'' and h.busy(), h.busy())
+    h.service((last + h.t35() + 1) & 0xFFFFFFFF)
+
+    # With no oracle installed the old world is byte-for-byte back.
+    h.hint(False)
+    frame = h.adu(1, [0x03, 0x00, 0x00, 0x00, 0x01])
+    last = h.feed(frame)
+    report.check('without the oracle every frame waits, as it always did',
+                 h.service(last) == b'' and h.busy(), h.busy())
+    h.close()
+
+
+def test_oracle_prefixes(report, lib):
+    """The C oracle and the Python mirror, over every prefix of every
+    hinted shape - and over the shapes that must never prove.
+
+    THE INVARIANT (cmd_length.c): a non-zero answer must equal the full
+    length of every real request it can match. A row that fires at or
+    under the bytes in hand is the corruption class this sweep exists
+    to fail.
+    """
+    from coaxial.protocol import request_length as mirror
+
+    fn = lib.mbh_request_length
+    fn.restype = ctypes.c_uint16
+
+    def oracle(pdu, have):
+        return fn(bytes(pdu), ctypes.c_uint16(have))
+
+    # Real request PDUs, encoded exactly as the host classes send them.
+    proven = [
+        bytes([0x03, 0x00, 0x10, 0x00, 0x02]),            # FC03 read
+        bytes([0x06, 0x00, 0x01, 0x00, 0x01]),            # FC06 write
+        bytes([0x6E, 3, 1, 45, 0, 1, 0xC2, 0x00]),        # cal set_param
+        bytes([0x6E, 4, 2, 0, 100, 0, 0, 0, 0,
+               0, 0, 1, 0xF4]),                           # duty + periods
+        bytes([0x6E, 6, 4, 15]),                          # daq read, want
+        bytes([0x6E, 6, 0]),                              # daq state
+        bytes([0x6E, 7, 0]),                              # clock latch
+        bytes([0x6E, 10, 1, 3]),                          # drive mode
+        bytes([0x6E, 10, 2, 1, 0, 0, 0x03, 0xE8]),        # drive setpoint
+        bytes([0x6E, 10, 4, 0, 0x0F, 0x42, 0x40]),        # drive theta
+    ]
+    never = [
+        bytes([0x6E, 4, 2, 0, 100, 0, 0, 0, 0]),          # duty, short form
+        bytes([0x6E, 6, 4]),                              # daq read, no want
+        bytes([0x42, 3]),                                 # adc table, paged
+        bytes([0x6E, 5, 2, 4]),                           # ring take: unhinted
+    ]
+
+    bad = []
+    for pdu in proven + never:
+        full = len(pdu)
+        expect_full = full if pdu in proven else 0
+        for have in range(1, full + 1):
+            c = oracle(pdu[:have], have)
+            m = mirror(pdu[:have], have)
+            if c != m:
+                bad.append('%s@%d: C %d mirror %d'
+                           % (pdu.hex(), have, c, m))
+            # A shape may name its full length before the tail arrives -
+            # the early path only fires once the bytes are all IN HAND -
+            # so the one forbidden answer is a length at or under `have`
+            # that is not the true end, and at the end, anything but the
+            # truth.
+            if c != 0:
+                if c < have or (have == full and c != expect_full
+                                and expect_full != 0):
+                    bad.append('%s@%d fires wrong: %d'
+                               % (pdu.hex(), have, c))
+                if expect_full == 0 and c == have:
+                    bad.append('%s@%d proves a never-shape'
+                               % (pdu.hex(), have))
+    report.check('the C oracle and the mirror agree on every prefix',
+                 not bad, '; '.join(bad[:3]))
+
+
+def test_fixed_dict_matches_tables(report, lib):
+    """The mirror's non-0x6E lengths against the dispatch tables' own
+    req_len rows, read out of the C source - the same binding
+    test_simulated uses on s_adcTable. The firmware's oracle asks
+    cmd_find at runtime and cannot drift; this holds the MIRROR to it.
+    """
+    import io
+    import re
+    from coaxial.protocol import request_length as mirror
+
+    rows = {}
+    names = {}
+    for line in io.open(os.path.join(REPO, 'comms', 'inc', 'cmd.h'),
+                        encoding='utf-8'):
+        m = re.match(r'#define (CMD_\w+)\s+(0x[0-9A-Fa-f]+)U', line)
+        if m:
+            names[m.group(1)] = int(m.group(2), 16)
+    for fname in ('cmd_board.c', 'cmd_test.c'):
+        for line in io.open(os.path.join(REPO, 'comms', 'src', fname),
+                            encoding='utf-8'):
+            m = re.match(r'\s*\{ (CMD_\w+),\s*"[^"]+",\s*'
+                         r'(CMD_LEN_VARIABLE|\d+)U?,', line)
+            if m and m.group(1) in names:
+                code = names[m.group(1)]
+                rows[code] = (None if m.group(2) == 'CMD_LEN_VARIABLE'
+                              else int(m.group(2)))
+
+    bad = []
+    for code, req_len in sorted(rows.items()):
+        if code == 0x6E:
+            continue
+        probe = bytes([code]) + bytes(9)
+        got = mirror(probe, len(probe))
+        want = 0 if req_len is None else 1 + req_len
+        if got != want:
+            bad.append('0x%02X: mirror %d, table %s' % (code, got, want))
+    report.check('the mirror matches the dispatch tables row for row',
+                 len(rows) >= 15 and not bad,
+                 '; '.join(bad[:3]) or '%d rows' % len(rows))
+
+
+ROSTER = ROSTER + (test_rtu_early_dispatch, test_oracle_prefixes,
+                   test_fixed_dict_matches_tables)
 
 
 def main():

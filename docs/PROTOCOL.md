@@ -11,7 +11,7 @@ point, strings as one length byte then that many ASCII characters.
 
 | | |
 |---|---|
-| Delimiters | silence only - t1.5 = 750 µs, t3.5 = 1750 µs at 475 MHz |
+| Delimiters | silence - t1.5 = 750 µs, t3.5 = 1750 µs - or, from MINOR 9, a request whose shape is fixed ends where its bytes and CRC say (`cmd_length.c`); anything unproven still waits the silence |
 | CRC error | silence, never an exception, so multidrop cannot collide |
 | Illegal quantity | `0x03`, checked in 32-bit math so the count cannot wrap |
 | Reading not taken | `0x04`, never a zero - on a differential channel code 0 *is* 0 V |
@@ -38,7 +38,13 @@ FUNCTION from the protocol layer before dispatch saw it.
 ### 0x41 Version
 
 Append-only, the frozen record. A host binds decoding to `CMD_PROTO_MAJOR`
-alone; appending a field is a MINOR. **MINOR 8, 2026-09-02**: gate
+alone; appending a field is a MINOR. **MINOR 9, 2026-09-02**: a request
+whose shape the board can prove - the fixed function codes, and the
+audited `0x6E` ops in `cmd_length.c` - is dispatched the tick its last
+byte lands, on its own CRC, instead of after t3.5 of silence; a host
+that sent one owes no inter-frame gap before its next. No byte moved:
+the MINOR is there so a host can gate the gap on it. **MINOR 8,
+2026-09-02**: gate
 drivers op 2 takes an optional `u32` period count - the update ISR
 zeroes the compares after exactly that many PWM periods, so a hold's
 length stops being the link's; op 0 appends `u32 periods_left`.

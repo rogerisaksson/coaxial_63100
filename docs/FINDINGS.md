@@ -2777,3 +2777,47 @@ outside the parameter: the debug probe stays the recovery path whatever
 the record says. NOT yet verified against an external master - no RS485
 master exists on this bench; the pilot-tone hardware day is the first
 chance to see the pair at a known rate from the far end.
+
+## Two silences per transaction, and the bytes that already said everything
+
+Built 2026-09-02 against the anatomy above (*Where the 115200 line
+actually went*, *Where the write-class transaction's 15 ms goes*), dry:
+no board answered, the arithmetic is the claim and the bench is owed
+the measurement.
+
+**What was left after the ack shape**: two fixed 1.75 ms silences per
+transaction - the host's before it transmits, the board's before it
+dispatches - both the spec's t3.5, both delimiting a frame whose length
+was knowable from its first bytes. On a 24.4 ms streaming cycle that
+is 3.5 ms; on a ~7 ms write it is half.
+
+**What changed**: `mb_rtu` takes a length oracle (`cmd_length.c`). A
+frame the oracle can prove - length arrived exactly, CRC checks,
+address ours - is delivered the tick its last byte lands. Everything
+unproven, and every damaged frame, waits the silence exactly as before:
+the early path is an escape from the delimiter, never from a rule, and
+a CRC miss is not consumed by it - the silence gate judges the same
+bytes a moment later with the same counters. The host, told by the
+version (MINOR 9), owes no pre-TX gap after a frame the mirror proves;
+the broker path keeps the spec gap until it learns the version too.
+
+**The oracle's invariant, and why it is tested the way it is**: a wrong
+non-zero answer is not slow, it executes a truncated frame on a lucky
+CRC (one in 65536 - and *One false frame end in 4096 prefixes* above
+says how often a prefix passes). So the 0x6E rows are hand-audited,
+answer only shapes with a fixed tail, and only once the shorter form is
+ruled out (gate drivers op 2: nine bytes prove nothing, the tenth
+settles thirteen; daq read: three prove nothing, the fourth settles
+four). The suite drives every prefix of every real request through the
+C oracle AND the Python mirror and fails any disagreement or any answer
+at or under the bytes in hand. The non-0x6E commands answer from the
+dispatch table's own `req_len` at runtime and cannot drift; the mirror
+is held to those rows by parsing the C tables (77 checks now, 9 new).
+
+**Expected, not measured**: streaming cycle 24.4 -> ~20.9 ms at four
+records a read, so ~145 -> ~170 records/s if the board's loop keeps
+making them (it made 477 idle); the write class ~7 -> ~3.5 ms, which is
+what `motion.py`'s per-write loops are priced in. The broadcast clock
+latch (device 7 op 0) is proven too, so its bracket should tighten by
+the board-side silence. The bench writes the numbers; `link_bench.py`
+is the step.

@@ -6,6 +6,7 @@
   */
 #include "comms_limits.h"
 #include "link.h"
+#include "cmd_length.h"
 #include "cmd.h"
 #include "dev_serial.h"
 #include "modbus_map.h"
@@ -94,6 +95,12 @@ static void build(link_port_t *l)
               dev_uart_port_baud((uint8_t)(l - s_links)),
               LINK_BITS_PER_CHAR,
               l->dev->ticks_per_us(l->dev->ctx));
+
+  /* The early path: a request whose shape the oracle can prove is
+     dispatched on its own CRC instead of after t3.5 of silence - 1.75 ms
+     off every proven transaction (MINOR 9). Anything unproven waits the
+     silence exactly as before. */
+  mb_rtu_set_length_hint(&l->rtu, cmd_request_length);
 
   l->rtu.counters = saved;
 }

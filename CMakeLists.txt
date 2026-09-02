@@ -92,6 +92,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     comms/src/wire.c
     comms/src/dev_uart.c
     comms/src/cmd.c
+    comms/src/cmd_length.c
     comms/src/cmd_board.c
     comms/src/cmd_test.c
     comms/src/cmd_imu.c

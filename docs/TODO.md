@@ -4,10 +4,10 @@ State as of 2026-09-02.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2406 checks, 25 suites |
+| `run_tests.ps1 -All` | 2415 checks, 25 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
-| Protocol | MAJOR 2, MINOR 7 |
+| Protocol | MAJOR 2, MINOR 9 |
 | Firmware | 1.6.0 |
 | Calibration record | CAL_VERSION 9, 46 parameters, op 8 pages them |
 
@@ -122,11 +122,14 @@ here arms the stage.
    baud this link will ask. The `link_baud` parameter EXISTS now
    (CAL_VERSION 9, id 45, RS485 pair only, USART3 the fixed recovery
    path) - and adding it found the pair had run at CubeMX's 9 216 000
-   all along (FINDINGS). Still in order: the debug probe VCP's
-   real ceiling measured, and both ends' t3.5 re-derived - the
-   spec fixes 1.75 ms above 19200, which at 921600 is 150 character
-   times of silence per frame, paid twice per transaction. A baud change
-   with no board attached is blind, so this waits for the bench.
+   all along (FINDINGS). And the two t3.5 silences per transaction
+   are GONE for every request whose shape is fixed (MINOR 9,
+   2026-09-02): the board dispatches a proven request on its own CRC,
+   and the host owes no gap after one - arithmetic says the streaming
+   cycle drops from 24.4 to ~20.9 ms and a write from ~7 to ~3.5 ms;
+   the bench measures it. Still in order: the debug probe VCP's real
+   ceiling measured, then a rate above 115200 on the pair - blind
+   with no board attached, so it waits for the bench.
 
 0. **Sensor fields on hardware.** The wire format exists now (MINOR 7,
    2026-09-02): a second appended `u16` mask, four-`i16` snapshots per

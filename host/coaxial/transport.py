@@ -39,6 +39,11 @@ class Transport:
         return 0.00175 if self.baud > 19200 else 3.5 * 11.0 / self.baud
 
     QUIET_TIME = 0.008
+
+    #: The firmware dispatches proven requests on their own CRC (MINOR 9)
+    #: - Board.probe() sets this when the version says so. Off, every
+    #: transaction pays the spec gap exactly as before.
+    proven_dispatch = False
     """Gap that ends an inbound frame.
 
     Measured on the debug probe's VCP at 115200, reading greedily with
@@ -86,6 +91,9 @@ class Transport:
         #: Whether the last exchange ended with a validated reply. False
         #: makes the next transmit purge whatever is left over.
         self._clean = False
+        #: Whether the previous request was one the length oracle proves -
+        #: with `proven_dispatch`, the next transmit owes no gap for it.
+        self._last_proven = False
 
     def __repr__(self):
         return '<Transport %s@%d>' % (self.port, self.baud)
@@ -157,9 +165,23 @@ class Transport:
         # happen in that silence, and on a busy reader they already exceed
         # 1.75 ms - sleeping it again is 1.75 ms of every transaction spent
         # proving something that was already true.
-        owed = self.interframe_gap - (time.monotonic() - self._quiet_since)
-        if owed > 0:
-            time.sleep(owed)
+        #
+        # And since MINOR 9 a PROVEN previous frame owes none at all: the
+        # board dispatched it on its own CRC (cmd_length.c), so nothing on
+        # the far side is still counting silence toward it. Gated on both
+        # the firmware saying so (`proven_dispatch`, set by Board.probe)
+        # and the previous frame having been one the oracle proves - an
+        # unproven frame still ends by t3.5 over there, and the gap after
+        # it is what delimits it.
+        if not (self.proven_dispatch and self._last_proven):
+            owed = self.interframe_gap - (time.monotonic()
+                                          - self._quiet_since)
+            if owed > 0:
+                time.sleep(owed)
+        from .protocol import request_length
+        pdu_len = len(frame) - 3
+        self._last_proven = (request_length(frame[1:-2]) == pdu_len
+                             and pdu_len > 0)
         with self._link_errors('transmitting'):
             # ONLY WHEN THE LAST EXCHANGE DID NOT END CLEANLY. A validated
             # reply leaves the buffer empty by construction; purging it

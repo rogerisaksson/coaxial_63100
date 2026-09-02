@@ -244,6 +244,22 @@ API void mbh_rtu_error(harness_t *h, uint32_t ticks)
 
 API int mbh_rtu_busy(harness_t *h) { return mb_rtu_busy(&h->rtu) ? 1 : 0; }
 
+/* The real oracle, linked in by the suite's build beside a cmd_find stub
+   (comms/test/cmd_find_stub.c): the 0x6E arm and the standard-FC arm are
+   the hand-maintained code under test; the dispatch-table arm is bound to
+   its tables by the suite's source parse instead. */
+extern uint16_t cmd_request_length(const uint8_t *pdu, uint16_t have);
+
+API void mbh_rtu_hint(harness_t *h, int on)
+{
+  mb_rtu_set_length_hint(&h->rtu, on ? cmd_request_length : NULL);
+}
+
+API uint16_t mbh_request_length(const uint8_t *pdu, uint16_t have)
+{
+  return cmd_request_length(pdu, have);
+}
+
 API uint32_t mbh_rtu_t35(harness_t *h) { return h->rtu.t35_ticks; }
 API uint32_t mbh_rtu_t15(harness_t *h) { return h->rtu.t15_ticks; }
 

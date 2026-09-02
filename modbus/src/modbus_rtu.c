@@ -69,6 +69,40 @@ void mb_rtu_init(mb_rtu_t *rtu, mb_slave_t *slave, uint8_t unit_id,
   rtu->receiving = false;
   rtu->frame_bad = false;
   rtu->rx_len    = 0U;
+  rtu->length_hint = NULL;
+}
+
+void mb_rtu_set_length_hint(mb_rtu_t *rtu, mb_rtu_length_fn hint)
+{
+  rtu->length_hint = hint;
+}
+
+/** True when the oracle can already prove this frame whole: the length it
+    names has arrived exactly, the CRC over it checks, and the address is
+    ours - a frame for another node is another node's shape, and its
+    length is not this oracle's to know. Every failure of proof simply
+    waits out t3.5, which is the behaviour this path is an escape from,
+    never a replacement for: a CRC miss here is NOT counted or consumed,
+    because the silence gate will judge the same bytes with the same
+    rules a moment later. */
+static bool frame_proven(const mb_rtu_t *rtu)
+{
+  if ((rtu->length_hint == NULL) || rtu->frame_bad || rtu->saw_overrun
+      || (rtu->rx_len < MB_RTU_ADU_MIN))
+  {
+    return false;
+  }
+  if ((rtu->rx[0] != rtu->unit_id) && (rtu->rx[0] != MB_RTU_BROADCAST))
+  {
+    return false;
+  }
+
+  const uint16_t want = rtu->length_hint(&rtu->rx[1],
+                                         (uint16_t)(rtu->rx_len - 1U));
+
+  return (want != 0U)
+      && (rtu->rx_len == (uint16_t)(want + 3U))
+      && (modbus_crc_check(rtu->rx, rtu->rx_len) != 0);
 }
 
 void mb_rtu_on_byte(mb_rtu_t *rtu, uint8_t byte, uint32_t now_ticks)
@@ -126,8 +160,12 @@ size_t mb_rtu_service(mb_rtu_t *rtu, uint32_t now_ticks, const uint8_t **out)
     return 0U;
   }
 
-  /* A frame ends when, and only when, the line has been quiet for t3.5. */
-  if (elapsed(now_ticks, rtu->last_event_ticks) < rtu->t35_ticks)
+  /* A frame ends when the line has been quiet for t3.5 - or the moment
+     the oracle proves it whole, which is where the spec's fixed silence
+     stops being paid on a frame whose own bytes already say everything
+     the silence would. */
+  if ((elapsed(now_ticks, rtu->last_event_ticks) < rtu->t35_ticks)
+      && !frame_proven(rtu))
   {
     return 0U;
   }

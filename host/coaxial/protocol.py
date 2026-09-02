@@ -124,6 +124,60 @@ order their ids run in. Integers in the unit that makes them integers, because
 the wire bans floating point - the names carry the unit for the same reason
 the firmware's do."""
 
+def request_length(pdu, have=None):
+    """Full PDU length of the request these bytes begin, or 0 when the
+    bytes so far cannot prove it - the Python mirror of the firmware's
+    `cmd_length.c`, which is the authority. The suite binds the two: the
+    prefix sweep in test_modbus_core drives every hinted shape through
+    BOTH and fails on any disagreement, so this cannot drift quietly.
+
+    What it is for: since MINOR 9 the board dispatches a proven request
+    on its own CRC instead of after t3.5 of silence, and a host that
+    just sent a proven frame owes no inter-frame gap before its next -
+    the previous frame cannot still be open on the board's side.
+    """
+    have = len(pdu) if have is None else have
+    if have == 0:
+        return 0
+    fc = pdu[0]
+    if fc == 0x6E:
+        if have < 3:
+            return 0
+        device, op = pdu[1], pdu[2]
+        if device == 3:
+            return 8 if op == 1 else (3 if op == 0 else 0)
+        if device == 4:
+            if op == 2:
+                return 13 if have >= 10 else 0
+            return 3 if op == 0 else 0
+        if device == 6:
+            if op == 4:
+                return 4 if have >= 4 else 0
+            return 3 if op in (0, 2, 3, 5, 6) else 0
+        if device == 7:
+            return 3 if op in (0, 1) else 0
+        if device == 8:
+            return 3 if op in (0, 4) else 0
+        if device == 9:
+            return 3 if op == 0 else 0
+        if device == 10:
+            return {0: 3, 1: 4, 2: 8, 3: 3, 4: 7,
+                    9: 3, 12: 3, 13: 3}.get(op, 0)
+        return 0
+    # The custom commands outside 0x6E state their length in the
+    # firmware's dispatch table; the fixed ones are mirrored here.
+    fixed = {0x41: 1, 0x43: 1, 0x44: 4, 0x45: 1, 0x46: 2, 0x47: 1,
+             0x48: 1, 0x64: 6, 0x66: 5, 0x67: 3, 0x68: 4, 0x69: 2,
+             0x6A: 6, 0x6B: 9, 0x6C: 1}
+    if fc in fixed:
+        return fixed[fc]
+    if fc in (0x01, 0x02, 0x03, 0x04, 0x05, 0x06):
+        return 5
+    if fc in (0x0F, 0x10):
+        return 6 + pdu[5] if have >= 6 else 0
+    return 0
+
+
 PORTS = {0: 'USART3', 1: 'USART2', 2: 'UART5'}
 """The board's three Modbus ports. 0 is the debug probe's VCP and shares its
 wire with the ASCII console; 1 and 2 are RS485 and carry Modbus only."""
