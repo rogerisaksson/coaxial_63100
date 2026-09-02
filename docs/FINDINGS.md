@@ -3125,3 +3125,46 @@ three loops, the size gate, the braille, and the key light's sign -
   together. test_render holds it: each axis lettered once, X right
   and Y up at rest, a quarter turn about Z putting X where Y was - 37
   checks.
+* *"The triad's labels do not glide smoothly; the axes in different
+  colours, chosen by the theme otherwise."* Measured in a 2-degree-a-
+  frame tumble, 120 frames: the X letter moved 26 times, reversed
+  direction 12 of them and vanished under another letter for 4
+  frames; Y 16 and 7; Z 30 and 4. The rule snapped a letter a second
+  cell out whenever it shared the tip's cell, and the snap went back
+  and forth with the tip's sub-cell position. Now the letter is the
+  cell one letter past the tip along the axis (a column wide, a row
+  tall, in the screen's aspect), a point that moves as the tip does;
+  one landing on another letter's cell, or the origin, steps once
+  more out. Same tumble: X 19 moves, 0 reversals, 0 lost; Y 14 and 0;
+  Z 29 and 1. The colours are the console motif's three roles and
+  nothing else (tools/screen.py: NEON teal 44 names things, SODIUM
+  amber 214 is the value that matters, ASH grey 242 the frame): X
+  sodium, Y neon, Z ash - three colours the theme already owns rather
+  than a christmas tree of red, green and blue, which the motif's own
+  comment forbids. Depth-cued in 24-bit: full toward the camera, 45 %
+  away, the letter 35 % toward white over its line. Where two axes
+  cross a cell, the nearer one's ink - at rest Y and Z both point up
+  and Z, toward the camera, has the cell.
+* *"Still Schroedinger's pixels."* Counted over EVERY cell this time,
+  not the outline's alone: any glyph that changed and changed back
+  within three frames of the 0.6-degree tumble - 617 events over 38
+  frames, 16.2 a frame, 615 of them on the board. The outline's 2.7
+  and the face's on-off 2.1 were the smaller part; the rest was a
+  face cell's `.`-`:`-`.` where the shading's quantum sits on a cell,
+  and an outline cell's dot pattern flipping and back. A one-sided
+  phosphor was built first - a covered cell that lost ink keeps last
+  frame's for one frame - and measured 524: it fills an off frame but
+  cannot remove an on one, and stretches every blip a frame. Replaced
+  by `_steady`: THREE FRAMES VOTE per cell, the previous frame's glyph
+  and tone standing unless the frames before and after agree on
+  something else. 41 events, 1.1 a frame, and what remains alternates
+  every frame, which no three-frame rule can reach. The price is one
+  frame of latency, 50 ms at 20 fps - under the IMU's own tens of
+  milliseconds; a change that stays shows one frame late and stays,
+  and a turning board leaves no trail. The state is the view's dict
+  (`persist`), two frames deep, keyed by size; `render` without it is
+  as pure as before, which is how test_render holds the vote in three
+  checks - a one-frame blink outvoted, a change shown one frame late,
+  then staying. 40 checks. Cost at 150x44: 0.79 ms a frame under
+  motion, 0.28 at rest (a row all three frames agree on is skipped
+  whole).

@@ -391,7 +391,10 @@ GLOW = (16, 23, 30, 37, 44, 51, 87, 123, 195)
 
 
 def _rgb(code):
-    """An xterm-256 cube colour as (r, g, b)."""
+    """An xterm-256 cube or grey-ramp colour as (r, g, b)."""
+    if code >= 232:
+        grey = 8 + 10 * (code - 232)
+        return (grey, grey, grey)
     c = code - 16
     return tuple(0 if v == 0 else 55 + 40 * v
                  for v in (c // 36, (c // 6) % 6, c % 6))
@@ -1144,22 +1147,27 @@ def _trace(x0, y0, w0, x1, y1, w1, dot):
 
 #: THE TRIAD: the board's own X, Y and Z as a small gizmo in the
 #: frame's lower left, turning with the board - the reference every
-#: CAD view keeps in a corner, in this view's own ink: braille lines
-#: from an origin, the letter one cell past each tip, an axis toward
-#: the camera brighter than one away (TRIAD_RUNG, the ladder's rungs
-#: at the two extremes; the letter TRIAD_LABEL_LIFT above its line).
-#: TRIAD_REACH bounds the length of an axis lying in the screen's
-#: plane, in columns (half that in rows), sized from the frame at a
-#: sixth of its rows: neither a smudge on a 24-row terminal (four)
-#: nor a second subject at 44 (seven). The backdrop is cleared behind it, a window
-#: cut in the floor; the board, where it reaches the corner, is not -
-#: the subject stays the subject.
+#: CAD view keeps in a corner: braille lines from an origin, the
+#: letter one letter past each tip. Each axis in one of the console
+#: motif's three roles (tools/screen.py: NEON teal 44 names things,
+#: SODIUM amber 214 is the value that matters, ASH grey 242 the
+#: frame) - three colours the theme already owns, not a christmas
+#: tree of red, green and blue - X sodium, Y neon, Z ash, asked for as
+#: "different colours, chosen by the theme otherwise". An axis toward
+#: the camera carries its colour in full, one away TRIAD_DIM of it;
+#: the letter is a step brighter than its line (TRIAD_LABEL_LIFT of
+#: white mixed in). TRIAD_REACH bounds the length of an axis lying in
+#: the screen's plane, in columns (half that in rows), sized from the
+#: frame at a sixth of its rows: neither a smudge on a 24-row terminal
+#: (four) nor a second subject at 44 (seven). The backdrop is cleared
+#: behind it, a window cut in the floor; the board, where it reaches
+#: the corner, is not - the subject stays the subject.
 TRIAD_REACH = (4, 7)
 TRIAD_MARGIN = (2, 1)
-TRIAD_RUNG = (3.0, 5.5)
-TRIAD_LABEL_LIFT = 1.5
-TRIAD_AXES = (((1.0, 0.0, 0.0), 'X'), ((0.0, 1.0, 0.0), 'Y'),
-              ((0.0, 0.0, 1.0), 'Z'))
+TRIAD_DIM = 0.45
+TRIAD_LABEL_LIFT = 0.35
+TRIAD_AXES = (((1.0, 0.0, 0.0), 'X', 214), ((0.0, 1.0, 0.0), 'Y', 44),
+              ((0.0, 0.0, 1.0), 'Z', 242))
 
 
 def _triad(grid, tone, buf, cam, m, colour):
@@ -1171,7 +1179,6 @@ def _triad(grid, tone, buf, cam, m, colour):
     ox = TRIAD_MARGIN[0] + reach + 1
     oy = height - 1 - TRIAD_MARGIN[1] - half
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
-    ceiling = len(GLOW) - 1
 
     def free(px, py):
         return 0 <= px < width and 0 <= py < height and not buf[py * width + px]
@@ -1182,16 +1189,22 @@ def _triad(grid, tone, buf, cam, m, colour):
                 grid[py][px] = ' '
                 tone[py][px] = None
 
-    masks, rungs, letters = {}, {}, []
-    for (x, y, z), letter in TRIAD_AXES:
+    def shade(code, cue, lift=0.0):
+        r, g, b = _rgb(code)
+        return (int(r * cue + (255 - r * cue) * lift + 0.5),
+                int(g * cue + (255 - g * cue) * lift + 0.5),
+                int(b * cue + (255 - b * cue) * lift + 0.5))
+
+    masks, inks, letters, taken = {}, {}, [], set()
+    for (x, y, z), letter, code in TRIAD_AXES:
         vx = m0 * x + m1 * y + m2 * z
         vy = m3 * x + m4 * y + m5 * z
         vz = m6 * x + m7 * y + m8 * z
-        rung = TRIAD_RUNG[0] + (TRIAD_RUNG[1] - TRIAD_RUNG[0]) * 0.5 * (vz + 1.0)
+        cue = TRIAD_DIM + (1.0 - TRIAD_DIM) * 0.5 * (vz + 1.0)
         x0, y0 = ox + 0.5, oy + 0.5
         dx, dy = reach * vx, -0.5 * reach * vy
 
-        def dot(fx, fy, _w, rung=rung):
+        def dot(fx, fy, _w, cue=cue, code=code):
             if fx < 0.0 or fy < 0.0:
                 return
             px, py = int(fx), int(fy)
@@ -1201,33 +1214,94 @@ def _triad(grid, tone, buf, cam, m, colour):
             col = 1 if fx - px >= 0.5 else 0
             row = min(3, int((fy - py) * 4.0))
             masks[at] = masks.get(at, 0) | BRAILLE_BITS[col][row]
-            rungs[at] = max(rungs.get(at, 0.0), rung)
+            # Where two axes cross a cell, the nearer one's ink.
+            if at not in inks or inks[at][0] < cue:
+                inks[at] = (cue, code)
 
         _trace(x0, y0, 1.0, x0 + dx, y0 + dy, 1.0, dot)
-        # The letter one column past the tip along the axis, measured
-        # in the screen's aspect; an axis pointing at the camera has no
-        # tip to speak of and its letter sits beside the origin.
+        # The letter: the cell one letter past the tip along the axis,
+        # a letter being a column wide and a row tall - the point moves
+        # as smoothly as the tip does, so the letter follows a cell at
+        # a time. (Snapping the letter a second cell out whenever it
+        # shared the tip's cell was tried first, and in a 2-degree-a-
+        # frame tumble the X reversed direction 12 times in 119 frames
+        # and vanished under another letter for 4 - "the labels do not
+        # glide smoothly", the bench.) A letter that would land on
+        # another's cell, or the origin's, steps once more out.
         run = math.sqrt(dx * dx + 4.0 * dy * dy)
         if run < 0.5:
             ex, ey = 1.0, 0.0
         else:
             ex, ey = dx / run, 2.0 * dy / run
-        lx, ly = int(x0 + dx + 1.2 * ex), int(y0 + dy + 0.6 * ey)
-        if (lx, ly) == (int(x0 + dx), int(y0 + dy)):
-            lx, ly = int(x0 + dx + 2.4 * ex), int(y0 + dy + 1.2 * ey)
-        letters.append((lx, ly, letter, rung))
+        for out in (1.0, 2.0, 3.0):
+            lx, ly = int(x0 + dx + out * ex), int(y0 + dy + out * ey)
+            if (lx, ly) not in taken and (lx, ly) != (ox, oy):
+                break
+        taken.add((lx, ly))
+        letters.append((lx, ly, letter, cue, code))
 
     for at, mask in masks.items():
         r, c = divmod(at, width)
         grid[r][c] = chr(BRAILLE + mask)
         if colour:
-            tone[r][c] = _blend(min(ceiling, rungs[at]))
-    for lx, ly, letter, rung in letters:
+            cue, code = inks[at]
+            tone[r][c] = shade(code, cue)
+    for lx, ly, letter, cue, code in letters:
         if free(lx, ly):
             grid[ly][lx] = letter
             if colour:
-                tone[ly][lx] = _blend(min(ceiling, rung + TRIAD_LABEL_LIFT))
+                tone[ly][lx] = shade(code, cue, TRIAD_LABEL_LIFT)
     return ox, oy, reach
+
+
+def _steady(grid, tone, width, height, persist):
+    """THREE FRAMES VOTE, per cell: what shows is the PREVIOUS frame's
+    glyph and tone, unless the frames before and after it agree on
+    something else - then that. So nothing exists for a single frame
+    and nothing vanishes for one: on-off-on and off-on-off both go,
+    and so do a face cell's `.`-`:`-`.` and an outline cell's dot
+    pattern flipping and flipping back. The price is one frame of
+    latency, 50 ms at 20 fps - under an IMU's own tens of milliseconds
+    and a hand's turn, and nothing else: a cell that stays changed
+    shows changed one frame late and stays; a turning board leaves no
+    trail.
+
+    The last of Schroedinger's pixels. With the outline's edges merged
+    and its dots on the matrix's lines, what still blinked was the
+    hidden-line test at cell resolution (2.7 outline cells a frame in
+    a 0.6-degree-a-frame tumble at 150x44), the face's own dither at
+    the art's blanks and the shadows' edges (2.1 a frame), and glyphs
+    that changed and changed back inside a frame - 16.2 events a frame
+    in all, measured over every cell. A one-sided phosphor was built
+    first, holding a cell that lost ink for one frame: it took the
+    count to 13.8, because it could only fill an off frame, never
+    remove an on one, and left every blip a frame longer. The vote
+    takes both. At rest under the deadband the frames are identical
+    and the vote changes nothing. State is the caller's dict, the two
+    frames before this one, keyed by size: a resized window starts
+    clean, and the first two frames of a run show as they are."""
+    frames = persist.get('steady')
+    if frames is None or frames['size'] != (width, height):
+        frames = {'size': (width, height), 'held': []}
+    held = frames['held']
+    now = ([row[:] for row in grid], [row[:] for row in tone])
+    if len(held) == 2:
+        (g2, t2), (g1, t1) = held
+        g0, t0 = now
+        for py in range(height):
+            r2, r1, r0 = g2[py], g1[py], g0[py]
+            if r2 == r1 == r0:
+                continue                      # a still row: as it is
+            out_g, out_t = grid[py], tone[py]
+            c1, c0 = t1[py], t0[py]
+            for px in range(width):
+                if r2[px] == r0[px] != r1[px]:
+                    out_g[px], out_t[px] = r0[px], c0[px]
+                else:
+                    out_g[px], out_t[px] = r1[px], c1[px]
+    held.append(now)
+    del held[:-2]
+    persist['steady'] = frames
 
 
 def _outline(grid, tone, buf, cam, m, colour, heat=None):
@@ -1368,7 +1442,8 @@ def _cells(solid, m, cam, crew, face, foreign):
 
 def render(q, width, height, zoom=1.0, colour=True,
            horizon=True, face=True, tip=None, solid=None,
-           distance=None, lift=0.44, crew=None, least=0, triad=False):
+           distance=None, lift=0.44, crew=None, least=0, triad=False,
+           persist=None):
     """The board under rotation `q`, as a vector drawing.
 
     Cell-resolution: the strokes ARE the picture, so there is no half-block
@@ -1377,7 +1452,10 @@ def render(q, width, height, zoom=1.0, colour=True,
     not; `triad` draws the BOARD's axes as a gizmo in the lower left,
     which does tilt. `lift` is the model's vertical centre as a share of the frame
     (0.5 dead centre, smaller is higher). `crew` is a coaxial.crew.Crew
-    holding THIS solid: the raster runs as row bands in its processes."""
+    holding THIS solid: the raster runs as row bands in its processes.
+    `persist` is a dict the caller keeps between frames so three of
+    them can vote per cell (_steady); without it every frame stands
+    alone."""
     from . import ansi, engine, orientation
 
     # `solid` overrides the board with another mesh - facecheck proves
@@ -1444,6 +1522,8 @@ def render(q, width, height, zoom=1.0, colour=True,
             _outline(grid, tone, buf, cam, m, colour, heat=heat)
     if triad:
         _triad(grid, tone, buf, cam, m, colour)
+    if persist is not None:
+        _steady(grid, tone, width, height, persist)
 
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     # The lit raster IS the picture; the chosen edges only draw in wire

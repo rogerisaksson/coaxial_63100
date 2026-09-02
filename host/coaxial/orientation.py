@@ -614,7 +614,7 @@ def _fit(cols, rows, zoom=1.0, model=None):
 
 def render(q, width=44, height=19, zoom=1.0, shop=None,
            ramp=ascii3d.CHARACTERS, toon=False, colour=False, wire=False,
-           frame_on=True, crew=None):
+           frame_on=True, crew=None, persist=None):
     """The board under rotation `q`, as `height` lines of `width` characters.
 
     The drawing is `ascii3d`, which is three.js's AsciiEffect ported out of
@@ -636,7 +636,7 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
         # view's 36 rows (cy = height * lift), asked 2026-08-30.
         return wireframe.render(q, width, height, zoom=zoom, colour=colour,
                                 horizon=frame_on, triad=frame_on, lift=0.39,
-                                crew=crew)
+                                crew=crew, persist=persist)
 
     cols, rows, _cell = ascii3d.grid(width, height)
     if (toon or wire) and shop is None:

@@ -389,6 +389,30 @@ def test_triad(report):
                  '%s vs %s' % (turned.get('X'), rest.get('Y')))
 
 
+def test_steady(report):
+    """Three frames vote: a frame that differs from both its neighbours
+    is outvoted, a change that stays shows one frame late and stays."""
+    def draw(q, persist=None):
+        return wireframe.render(q, 60, 20, zoom=1.0, colour=False,
+                                horizon=False, persist=persist)
+
+    a = (0.0, 0.0, 0.0, 1.0)
+    b = (0.0, 0.0, math.sin(math.radians(2.0)), math.cos(math.radians(2.0)))
+    fresh_a, fresh_b = draw(a), draw(b)
+    state = {}
+    draw(a, state)
+    draw(b, state)
+    report.check('steady: a one-frame blink is outvoted by its neighbours',
+                 draw(a, state) == fresh_a, 'the blink showed')
+    state = {}
+    draw(a, state)
+    draw(a, state)
+    report.check('steady: a change shows one frame late',
+                 draw(b, state) == fresh_a, 'shown at once')
+    report.check('steady: and then stays',
+                 draw(b, state) == fresh_b, 'not shown')
+
+
 def main():
     report = Report()
     print('\n-- the 3D engine, stage by stage --')
@@ -399,6 +423,7 @@ def main():
     test_outline(report)
     test_key_light(report)
     test_triad(report)
+    test_steady(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

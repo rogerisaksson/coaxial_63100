@@ -351,7 +351,7 @@ def compose(origin, args, view, colour, console):
         zoom=view['zoom'] * (0.88 if not args.photo else 1.0),
         shop=view['shop'], toon=not args.photo, wire=not args.photo,
         colour=colour, frame_on=view['frame_on'],
-        crew=view.get('crew')).splitlines()
+        crew=view.get('crew'), persist=view.get('persist')).splitlines()
     margin = min((len(l) - len(l.lstrip(' '))
                   for l in art if l.strip()), default=0)
     art = [l[margin:] for l in art]
@@ -465,8 +465,10 @@ def main(argv=None):
     # model cannot be pushed through the camera or shrunk to nothing.
     view = {'zoom': 1.44,                # 77% of the 1.875 it rested at
             'quaternion': (0.0, 0.0, 0.0, 1.0), 'frame': 0}
+    # `persist` holds the two frames before this one, so three can vote
+    # per cell - wireframe._steady, one frame of latency for no blinks.
     state = {'tare': None, 'flip': [False, False, False],
-             'frame_on': True}
+             'frame_on': True, 'persist': {}}
     tally = Freshness()
 
     def draw():
