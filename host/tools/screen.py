@@ -298,17 +298,27 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     frame's keys and wheel. Returns 'quit', 'menu', or None for frames
     and Ctrl+C - the caller's `finally` puts the board back either way.
     """
+    import time as _time
+
     count = 0
     try:
         with curtain(board_view) as page, Keys(console, mouse=mouse) as keys:
             while True:
                 count += 1
+                # The period is FRAME TO FRAME, measured from this draw's
+                # start - not a sleep after it. Slept after, a 50 ms
+                # attitude frame at --hz 20 paced itself at 50 + 50 ms:
+                # the view asked for twenty a second and drew ten,
+                # measured. A frame slower than the period pays no
+                # sleep at all and the keys are still polled once.
+                started = _time.monotonic()
                 page.update(draw(), refresh=True)
                 if tick is not None and tick():
                     return None
                 if frames and count >= frames:
                     return None
-                leaving, moved, typed = paced(keys, period)
+                leaving, moved, typed = paced(
+                    keys, max(0.0, period - (_time.monotonic() - started)))
                 if leaving:
                     return leaving
                 if on_input is not None:
