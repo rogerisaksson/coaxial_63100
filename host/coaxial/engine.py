@@ -122,7 +122,12 @@ def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
         nz = m6 * bx + m7 * by + m8 * bz
         if nz < 0.0:
             nx, ny, nz = -nx, -ny, -nz
-        lit = nx * lx + ny * ly + nz * lz > sun_min
+        # Shadow-eligible: facing the beam, AND on the component side of
+        # the board (body +z). The solder side has nothing standing on it
+        # to cast a shadow, and testing it anyway against the coarse
+        # caster map chattered at grazing angles - cells flipping in and
+        # out of shade frame to frame, seen on the bench from below.
+        lit = bz > 0.0 and nx * lx + ny * ly + nz * lz > sun_min
         flat = bz > 0.9 or bz < -0.9
 
         x0, y0, x1, y1, x2, y2 = sx[a], sy[a], sx[b], sy[b], sx[c], sy[c]

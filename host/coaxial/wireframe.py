@@ -378,13 +378,38 @@ TONE_SPAN = 7.0
 #: fractions (upper right), SPOT_R is its radius, SPOT its strength in
 #: t-units; the falloff is quadratic to the rim. Tone only - the glyph
 #: classes, the oracle and the calibration never see it.
-SPOT = 0.20
+SPOT = 0.30
 
 #: Global dusk: the whole scene sits this far down the ramp before the
 #: spot lifts its pool - the weak backlight, a shade darker on request.
 DUSK = 0.24
 SPOT_AT = (1.05, -0.08)
 SPOT_R = 3.45
+
+#: THE KEY LIGHT, on the tone. The glyph classes are depth and stay
+#: depth (the exporter's evidence, above); the colour was flat with
+#: them - measured, luma 97-142 for 80 % of the face and identical at
+#: rest, 25 and 45 degrees of tilt, because the tone was the class plus
+#: the lamp's pool and nothing that saw the surface. This is Lambert
+#: on the SCREEN-SPACE normal: the gradient of `bare` (a linear
+#: function of view z) between neighbouring cells, scaled by the cell's
+#: size in view units, against LIGHT - the same beam the cast shadows
+#: come from, one light for both. KEY is rungs per unit of n.L; KEY_REST
+#: is n.L for a face-on board (LIGHT's z), subtracted so the calibrated
+#: rest tone stands and a tilt toward the light brightens, away
+#: darkens, and a part's wall turned from the beam falls into shade.
+#:
+#: A POINT, not a direction. Directional, a flat board at rest was one
+#: tone - "all the pixels the same brightness" from the bench - because
+#: a plane under a parallel beam IS uniform. The lamp sits KEY_DISTANCE
+#: along LIGHT in view space, so the direction to it changes across the
+#: face: the near side takes it squarely, the far side obliquely, and a
+#: resting board carries a gradient the way one under a desk lamp does.
+#: KEY_REST is n.L at the frame's centre for a face-on board, kept so
+#: the calibrated middle stands.
+KEY = 3.5
+KEY_REST = 0.77
+KEY_DISTANCE = 2.2
 
 #: Screen-space relief off the real depth buffer: a cell is compared
 #: with its neighbour TOWARD the lamp, so a component edge facing the
@@ -557,31 +582,81 @@ SLOPE = 1.30
 #: ladder's top. Edges projected from FIXED vertices slide with the
 #: picture instead. What an edge is: a crease where two faces meet past
 #: OUTLINE_DEG (a part's top against its wall - 60 rather than 45 drops
-#: chamfers and the facets of a round can), taken from the grid-64
-#: decimate whatever the frame draws (a 1/64 corner error is under a
-#: cell at any view size; grid 32's was a visible zigzag). Gated by
-#: HEIGHT: only edges with a vertex above OUTLINE_RISE in the body frame
-#: - the slab's top is z 0 in the export's units (TOON_BANDS), parts
-#: stand 0.02 and more above it, and the pads, holes, rim and bore that
-#: made the raw crease graph one 4,762-edge tangle sit at z 0 and fall
-#: away. Then grouped into connected LOOPS and drawn only when a loop
-#: spans OUTLINE_CELLS on screen: a part smaller than that is a
-#: flickering fragment, not a drawing - filtered rather than drawn, on
-#: the bench's word - and comes back as the zoom brings it up. Measured
-#: on the export at 120x36: 292 loops of 4,388 edges raw; 41 loops of
-#: 302 after the height gate; 9 loops, 170 edges, 430 cells, 0.7 ms a
-#: frame after the size filter - the connector and FET rectangles.
+#: chamfers and the facets of a round can), taken from the EXACT mesh
+#: whatever the frame draws: the export indexed at OUTLINE_EXACT, a
+#: clustering step of a hundredth of a micron that merges duplicate
+#: corners and moves nothing. A decimate cannot do this job - its cell
+#: is a floor on the height a part needs to keep its walls: grid 64
+#: (1.56 mm cells) found 9 wide loops, grid 128 twenty, and the 1.5 mm
+#: micro none at any grid, because a part under a cell tall clusters
+#: flat - and the height gate below cannot come down to meet it, since
+#: the slab's own corners sit a cell up too. Exact, the same export gave
+#: 28 loops wider than 0.12 units including the 1.5 mm class at z 0.031,
+#: for 0.37 s of indexing and 0.21 s of edges once a process (116,880
+#: faces). Gated by HEIGHT ABOVE THE SLAB: only edges with a vertex
+#: more than OUTLINE_RISE above the slab's top, and the slab's top is
+#: MEASURED from the mesh (`_slab_top`), not assumed - it was assumed
+#: to be z 0 for an evening, and the export centres on its bounding
+#: box so the slab sits at z -0.069, which put the gate 5 mm up and
+#: hid every part under that height, the 1.5 mm micro first. With the
+#: gate a millimetre over the measured slab the same export gives 44
+#: loops wider than 0.12 units, the micro's among them. The pads,
+#: holes and copper on the slab's face sit within 0.035 mm of it and
+#: fall under the gate; the slab's own RIM and BORE are wanted - "the
+#: board's edge, enhanced too" - and come back in as the slab-level
+#: crease loops wider than OUTLINE_RIM, which on the exact mesh are
+#: their own loops and no tangle. Then grouped into connected LOOPS and
+#: drawn only when a loop spans OUTLINE_CELLS on screen: a part smaller
+#: than that is a flickering fragment, not a drawing - filtered rather
+#: than drawn, on the bench's word - and comes back as the zoom brings
+#: it up.
 OUTLINE_DEG = 60.0
 OUTLINE_RISE = 0.02
-OUTLINE_CELLS = 5
-OUTLINE_GRID = 64
+#: A slab-level loop this wide is the board's own edge (the rim is 2.0,
+#: the bore 0.2); the mounting holes at 0.14 and the copper are not.
+OUTLINE_RIM = 0.19
+#: An edge shorter than this on SCREEN, in cells, is not drawn: a QFP's
+#: hundred pin creases and a can's facets are a third of a cell each at
+#: the view's zoom, and stacking their dots in one cell drew a solid
+#: braille blob where the part was. Measured over the 90 loops wider
+#: than 0.06 units: the blobs had 24-190 edges of 0.3-0.6 mm, the
+#: outlines edges of millimetres. Judged per EDGE and per FRAME rather
+#: than per loop, because a loop's total length could not tell a box
+#: with its footprint (twice the perimeter) from the pins - and because
+#: it is the zoom that decides: bring a can up and its facets draw.
+OUTLINE_MIN_EDGE = 0.5
+#: And per LOOP, in model units: edges adding up to more than this many
+#: widths is crease detail, not an outline. See _outline_loops.
+OUTLINE_DENSITY = 6.0
+#: How far behind the frame's surface an edge may sit and still draw,
+#: in model units: the raster's own error across a cell is under half
+#: a millimetre at any view size, and the slab is 1.6 mm - so 0.6 mm
+#: keeps an edge on its face and hides a top-side part seen from below.
+#: A relative 2 % grace, the wire mode's, let 1.0 % of slab through.
+OUTLINE_GRACE = 0.012
+#: How far a vertex may sit from the slab's measured top and still count
+#: as on it: the copper and mask layers are 0.0007 units (35 um) proud.
+OUTLINE_LEVEL = 0.003
+#: Three, from five, on the bench's word - "more of the edge enhancer,
+#: also on somewhat smaller objects": two more rings of parts come into
+#: the drawing at the view's zoom.
+OUTLINE_CELLS = 3
+OUTLINE_EXACT = 200000
 
-#: The line's tone: the ladder's fourth rung, one above the brightest
-#: face (measured 1.7-2.8) and five under the top, which was the crest
-#: pass's white and read as sparkle. Asked for as a FAINT edge highlight
-#: - a subtle overlay, pure enhancement of the larger parts - and this
-#: is the one number that sets how much.
-OUTLINE_TONE = 4
+#: The line's tone: the cell's OWN heat lifted OUTLINE_LIFT rungs - "a
+#: touch brighter than the rest of the object", the bench's words - so
+#: an edge in the key light's shade is a touch brighter shade and one
+#: in its pool a touch brighter pool, and the line never flattens the
+#: lighting it sits on. A fixed rung came before it (four, then six on
+#: "more of the edge enhancer") and read as one colour painted over a
+#: lit surface. The lift itself follows the light: a cell at the top of
+#: the ladder lifts the full OUTLINE_LIFT, one at the floor half of it,
+#: so an edge in the lamp's pool glints and one in shade only shows -
+#: "highlighted with the light, not just thicker", the bench's words.
+#: OUTLINE_BASE is the heat a line cell takes where the face gave none
+#: - the rim's dots half off the silhouette.
+OUTLINE_LIFT = 2.5
+OUTLINE_BASE = 3.0
 
 #: The line's pixels: braille, a 2x4 dot matrix per cell, so an edge
 #: rasters at twice the column and four times the row resolution and
@@ -596,20 +671,39 @@ BRAILLE_BITS = ((0x01, 0x02, 0x04, 0x40), (0x08, 0x10, 0x20, 0x80))
 
 
 def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
-          colour):
+          colour, cam=None, buf=None, heat_out=None):
     """Classes to glyphs, unrounded levels to the colour ramp.
 
     The level spans PIVOT +- SLOPE by construction (view-z over reach
     is +-1), normalised and bent through the EDGE sigmoid: shadows
     deepen and highlights sharpen while the midtone stands. The SPOT
-    adds its radial pool of light; a staircase corner on the
-    SILHOUETTE thins its glyph, and nothing dims - the exporter's rim
-    is as bright as his interior."""
+    adds its radial pool of light and the KEY light shades by the
+    surface's slope; a staircase corner on the SILHOUETTE thins its
+    glyph, and nothing dims - the exporter's rim is as bright as his
+    interior. `cam` sizes the cells for the key light; without it the
+    key is off (the tests that hold the pool's arithmetic pass none)."""
     steps = len(GLOW) - 1
     lo, span = TONE_LO, TONE_SPAN
     spot_x, spot_y = SPOT_AT
     rr = SPOT_R * SPOT_R
     top_heat = steps + HOTTEST
+    # View z per unit of `bare`, and the cell's size in view units: one
+    # column is (distance - z)/scale across, one row twice that down.
+    # Both at the board's own depth - the gradient is a slope, and a
+    # per-cell depth in the divisor moved the answer by under 1 %.
+    key = None
+    if cam is not None and KEY:
+        per_bare = cam.get('reach', 1.0) / SLOPE
+        distance, scale = cam['distance'], cam['scale']
+        cx, cy = cam['cx'], cam['cy']
+        across = distance / scale
+        key = (0.5 * per_bare / across, 0.5 * per_bare / (2.0 * across))
+        lx, ly, lz = LIGHT
+        lamp = (lx * KEY_DISTANCE, ly * KEY_DISTANCE, lz * KEY_DISTANCE)
+        # The projection's per-column and per-row factors, once: the
+        # inner loop multiplies, it does not divide.
+        colf = [(c + 0.5 - cx) / scale for c in range(width)]
+        rowf = [(cy - (r + 0.5)) / (scale * 0.5) for r in range(height)]
     for py in range(height):
         row = py * width
         ny = (py + 0.5) / height - spot_y
@@ -650,6 +744,32 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             grain = GRAIN_DOT if cls == 1 else GRAIN_COLON
             heat = (hot * steps + RELIEF_CAP * steps * rel
                     + grain * (seed[at] - 0.5))
+            # The key light: central differences of bare geometry where
+            # both neighbours are covered, else the face-on rest, so a
+            # silhouette cell neither flares nor drops.
+            if key is not None:
+                lit = KEY_REST
+                if (0 < px < width - 1 and 0 < py < height - 1
+                        and classes[at - 1] and classes[at + 1]
+                        and classes[at - width] and classes[at + width]):
+                    gx = (bare[at + 1] - bare[at - 1]) * key[0]
+                    gy = (bare[at - width] - bare[at + width]) * key[1]
+                    # The direction to the lamp from THIS cell's point,
+                    # back out of the projection as engine.shade does;
+                    # without a depth buffer, the beam's direction.
+                    dx, dy, dz = lx, ly, lz
+                    if buf is not None and buf[at]:
+                        inv = 1.0 / buf[at]
+                        dx = lamp[0] - colf[px] * inv
+                        dy = lamp[1] - rowf[py] * inv
+                        dz = lamp[2] - distance + inv
+                        dn = math.sqrt(dx * dx + dy * dy + dz * dz) or 1.0
+                        dx, dy, dz = dx / dn, dy / dn, dz / dn
+                    lit = ((dz - gx * dx - gy * dy)
+                           / math.sqrt(gx * gx + gy * gy + 1.0))
+                    if lit < 0.0:
+                        lit = 0.0
+                heat += KEY * (lit - KEY_REST)
             # Anti-aliasing is the GLYPH only: a staircase corner (two
             # or more empty neighbours) thins ':' to '.'. The tone once
             # feathered too, and that drew the LOD line: every cell on
@@ -667,12 +787,36 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
                 heat -= FEATHER * missed
                 if missed >= 0.5 and cls == 2:
                     grid[py][px] = LIT[1]
-            tone[py][px] = _blend(DIMMEST if heat < DIMMEST else
-                                  (top_heat if heat > top_heat else heat))
+            heat = (DIMMEST if heat < DIMMEST else
+                    (top_heat if heat > top_heat else heat))
+            if heat_out is not None:
+                heat_out[at] = heat
+            tone[py][px] = _blend(heat)
 
 
-def _features(solid, min_deg=OUTLINE_DEG, min_rise=OUTLINE_RISE):
-    """[(a, b)] vertex pairs: the creases of `solid` above `min_rise`.
+def _slab_top(pos):
+    """The z of the slab's top face, from the mesh: the most populated
+    z level - unless a level at least 60 % as populated lies a
+    millimetre or more ABOVE it, which is the slab's other face when
+    the bottom happened to win the count. A part's lid never comes
+    near the slab's population. Measured, never assumed - see
+    OUTLINE_RISE."""
+    counts = {}
+    for i in range(2, len(pos), 3):
+        key = round(pos[i], 4)
+        counts[key] = counts.get(key, 0) + 1
+    if not counts:
+        return 0.0
+    mode = max(counts, key=counts.get)
+    floor = 0.6 * counts[mode]
+    higher = [z for z, n in counts.items()
+              if n >= floor and z - mode >= 0.02]
+    return max(higher) if higher else mode
+
+
+def _features(solid, min_deg=OUTLINE_DEG, min_rise=None):
+    """[(a, b)] vertex pairs: the creases of `solid`, above `min_rise`
+    when one is given.
 
     An edge shared by two faces whose normals differ by more than
     `min_deg`, or belonging to one face only (a shell boundary), with at
@@ -691,7 +835,8 @@ def _features(solid, min_deg=OUTLINE_DEG, min_rise=OUTLINE_RISE):
             shared.setdefault((a, b) if a < b else (b, a), []).append(t)
     out = []
     for (a, b), tris in shared.items():
-        if max(pos[3 * a + 2], pos[3 * b + 2]) <= min_rise:
+        if (min_rise is not None
+                and max(pos[3 * a + 2], pos[3 * b + 2]) <= min_rise):
             continue
         if len(tris) == 1:
             out.append((a, b))
@@ -737,11 +882,12 @@ _OUTLINES = {}
 
 
 def _outline_source():
-    """(solid, loops) the outline draws from: the grid-64 decimate of
-    the export, or the parametric board where there is none."""
+    """(solid, loops) the outline draws from: the export indexed exact
+    (see OUTLINE_EXACT), or the parametric board where there is none.
+    Built once a process; a view warms it behind its boot strip."""
     from . import orientation
     try:
-        solid = _decimated(orientation.MODEL, OUTLINE_GRID)
+        solid = _decimated(orientation.MODEL, OUTLINE_EXACT)
     except (OSError, ValueError):
         global _SOLID
         if _SOLID is None:
@@ -751,23 +897,66 @@ def _outline_source():
     if got is None:
         if len(_OUTLINES) > 4:
             _OUTLINES.clear()
-        got = _OUTLINES[id(solid)] = (solid, _loops(_features(solid),
-                                                      solid[0]))
+        got = _OUTLINES[id(solid)] = (solid, _outline_loops(solid))
     return got
 
 
-def _outline(grid, tone, buf, cam, m, colour):
+def _outline_loops(solid):
+    """The loops the outline draws: every part standing OUTLINE_RISE
+    over the measured slab, and the slab's own edge - the slab-level
+    crease loops wider than OUTLINE_RIM."""
+    pos = solid[0]
+    top = _slab_top(pos)
+    gate = top + OUTLINE_RISE
+
+    # Split by height BEFORE grouping. Grouping first and judging the
+    # loop whole was tried: a part's footprint shares corners with the
+    # copper around it, so the pads joined the part and drew - 11,982
+    # edges against 3,123, and the blobs back. Split, a part's lid and
+    # corners are one loop and its footprint on the slab another, drawn
+    # when it is OUTLINE_RIM wide like the rim and the bore; the copper,
+    # pads and holes under that width are nothing to draw.
+    parts, level = [], []
+    for a, b in _features(solid):
+        za, zb = pos[3 * a + 2], pos[3 * b + 2]
+        if max(za, zb) > gate:
+            parts.append((a, b))
+        elif abs(za - top) <= OUTLINE_LEVEL and abs(zb - top) <= OUTLINE_LEVEL:
+            level.append((a, b))
+    loops = _loops(parts, pos)
+    loops += [(extent, members) for extent, members in _loops(level, pos)
+              if extent >= OUTLINE_RIM]
+
+    # And a loop that is more crease than outline - its edges adding up
+    # to over OUTLINE_DENSITY times its width - is a pin field or a
+    # fin stack, not a part's shape. Measured over the 90 loops wider
+    # than 0.06 units: outlines at 1.1-5 (the rim's circle exactly 3.1),
+    # the blobs at 9-31.
+    def sparse(extent, members):
+        length = 0.0
+        for a, b in members:
+            length += math.sqrt((pos[3 * a] - pos[3 * b]) ** 2
+                                + (pos[3 * a + 1] - pos[3 * b + 1]) ** 2
+                                + (pos[3 * a + 2] - pos[3 * b + 2]) ** 2)
+        return length <= OUTLINE_DENSITY * extent
+
+    return [(e, m) for e, m in loops if sparse(e, m)]
+
+
+def _outline(grid, tone, buf, cam, m, colour, heat=None):
     """The wireframe overlay: every loop wide enough to read, as dotted
     lines in the cells' 2x4 braille matrix, hidden where the solid
     stands in front - the 2 % grace keeps an edge from losing to the
-    face it borders. Cells drawn, for the caller that counts."""
+    face it borders. `heat` is the glow pass's per-cell heat, which the
+    line lifts by OUTLINE_LIFT. Cells drawn, for the caller that
+    counts."""
     solid, loops = _outline_source()
     pts = solid[0]
     width, height = cam['width'], cam['height']
     scale, cx, cy, distance = cam['scale'], cam['cx'], cam['cy'], cam['distance']
     min_extent = OUTLINE_CELLS / (scale / distance)
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
-    ink = GLOW_RGB[OUTLINE_TONE] if colour else None
+    top_heat = len(GLOW) - 1 + HOTTEST
     seen = {}
     masks = {}
 
@@ -790,23 +979,45 @@ def _outline(grid, tone, buf, cam, m, colour):
         for a, b in members:
             x0, y0, wa = project(a)
             x1, y1, wb = project(b)
-            steps = max(1, int(max(2.0 * abs(x1 - x0),
-                                   4.0 * abs(y1 - y0))))
+            span = max(abs(x1 - x0), 2.0 * abs(y1 - y0))
+            if span < OUTLINE_MIN_EDGE:
+                continue                    # sub-pixel detail, see above
+            steps = max(1, int(2.0 * span))
             for i in range(steps + 1):
                 t = i / steps
                 fx, fy = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
                 px, py = int(fx), int(fy)
                 if not (0 <= px < width and 0 <= py < height):
                     continue
-                if wa + (wb - wa) * t < buf[py * width + px] * 0.98:
-                    continue
                 at = py * width + px
+                near = buf[at]
+                we = wa + (wb - wa) * t
+                if near and we > 0.0 and 1.0 / we - 1.0 / near > OUTLINE_GRACE:
+                    continue                          # behind the surface
                 col = 1 if fx - px >= 0.5 else 0
                 row = min(3, int((fy - py) * 4.0))
                 masks[at] = masks.get(at, 0) | BRAILLE_BITS[col][row]
-                tone[py][px] = ink
+    # Strays: a line is a chain of neighbouring cells, so a cell with no
+    # drawn neighbour in its eight is a sample that cleared the depth
+    # test alone - a grazing edge, a corner half behind a wall - and
+    # not a line. Dropped, on the bench's word ("stray pixels here and
+    # there"); a median filter would have eaten the lines themselves,
+    # which are one dot thick by design.
+    lone = [at for at in masks
+            if not any((at + dr * width + dc) in masks
+                       for dr in (-1, 0, 1) for dc in (-1, 0, 1)
+                       if (dr or dc)
+                       and 0 <= at % width + dc < width
+                       and 0 <= at // width + dr < height)]
+    for at in lone:
+        del masks[at]
     for at, mask in masks.items():
-        grid[at // width][at % width] = chr(BRAILLE + mask)
+        r, c = divmod(at, width)
+        grid[r][c] = chr(BRAILLE + mask)
+        if colour:
+            base = heat[at] if heat is not None and heat[at] else OUTLINE_BASE
+            lift = OUTLINE_LIFT * (0.5 + 0.5 * base / top_heat)
+            tone[r][c] = _blend(min(top_heat, base + lift))
     return len(masks)
 
 
@@ -934,14 +1145,15 @@ def render(q, width, height, zoom=1.0, colour=True,
         _ground(grid, tone, buf, distance, width, height, colour, tipm)
 
     if face:
+        heat = [0.0] * (width * height) if colour else None
         _glow(grid, tone, classes, levels, bare, seed, coverage, width,
-              height, colour)
+              height, colour, cam=cam, buf=buf, heat_out=heat)
         # The outline, last, over the shading: the parts' edges as a
         # wireframe overlay from the mesh's own creases - see
         # OUTLINE_DEG. Measured before any of this: the parts were tone
         # relief alone, a rung's worth, and the board read as one sheet.
         if not foreign:
-            _outline(grid, tone, buf, cam, m, colour)
+            _outline(grid, tone, buf, cam, m, colour, heat=heat)
 
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     # The lit raster IS the picture; the chosen edges only draw in wire

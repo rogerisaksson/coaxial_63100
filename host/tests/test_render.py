@@ -272,17 +272,23 @@ def test_outline(report):
         quad(lo[i], lo[j], hi[j], hi[i])
     solid = (pos, idx, nrm)
 
-    edges = {tuple(sorted(e)) for e in wireframe._features(solid)}
+    report.check('outline: the slab top is measured, not assumed',
+                 abs(wireframe._slab_top(pos)) < 1e-9,
+                 '%.4f' % wireframe._slab_top(pos))
+    edges = {tuple(sorted(e))
+             for e in wireframe._features(solid, min_rise=0.02)}
     want = {tuple(sorted((hi[i], hi[(i + 1) % 4]))) for i in range(4)}
     want |= {tuple(sorted((lo[i], hi[i]))) for i in range(4)}
     report.check('outline: a box on a slab is its lid and its corners',
                  edges == want,
                  'extra %s, missing %s' % (sorted(edges - want),
                                            sorted(want - edges)))
-    loops = wireframe._loops(sorted(edges), pos)
-    report.check('outline: one loop, as wide as the box',
-                 len(loops) == 1 and abs(loops[0][0] - 0.4) < 1e-9,
-                 str([(round(e, 3), len(m)) for e, m in loops]))
+    loops = wireframe._outline_loops(solid)
+    shape = sorted((round(e, 3), len(m)) for e, m in loops)
+    report.check("outline: the box's lid and corners, its footprint on the "
+                 "slab, and the slab's own rim",
+                 shape == [(0.4, 4), (0.4, 8), (2.0, 4)], str(shape))
+    loops = [(e, m) for e, m in loops if len(m) == 8]   # the box alone below
     # The size filter: at a camera where 0.4 units is under OUTLINE_CELLS
     # the loop is skipped; where it spans the frame it draws. Same box,
     # two zooms, drawn onto a buffer the box's lid occupies at depth 1.
@@ -312,6 +318,46 @@ def test_outline(report):
                  '%d cells, %d braille' % (n, len(braille)))
 
 
+def test_key_light(report):
+    """The key light on a synthetic plane: leaning into the beam is
+    brighter than flat, leaning away is darker - the sign, held exactly.
+
+    Nine cells of class 2 at one level, no grain, full coverage. `bare`
+    is view z per cell: flat, rising to the LEFT (the surface's normal
+    leans right, into LIGHT's +x), and rising to the right (away). The
+    centre cell's tone luma orders the three.
+    """
+    w = h = 3
+    cam = {'width': w, 'height': h, 'distance': 3.2, 'scale': 60.0,
+           'reach': 1.0, 'cx': 1.5, 'cy': 1.5}
+    classes = bytearray([2] * 9)
+    levels = [2.0] * 9
+    seed = [0.5] * 9
+    coverage = [1.0] * 9
+
+    def luma_at_centre(slope):
+        bare = [2.0 + slope * (c - 1) for _r in range(h) for c in range(w)]
+        grid = [[' '] * w for _ in range(h)]
+        tone = [[None] * w for _ in range(h)]
+        wireframe._glow(grid, tone, classes, levels, bare, seed, coverage,
+                        w, h, True, cam=cam)
+        r, g, b = tone[1][1]
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    # A gentle slope: this camera scales a bare step of 0.04 a cell to a
+    # gradient of 0.3 - a plane a third tilted. Steeper than the beam's
+    # own angle a plane tilts PAST the light and darkens on both sides,
+    # which the first draft of this test measured and misread as a sign
+    # error: a 77-degree plane facing a beam that is 77 % frontal gets
+    # less of it than face-on.
+    flat, toward, away = (luma_at_centre(0.0), luma_at_centre(-0.04),
+                          luma_at_centre(0.04))
+    report.check('key light: a plane leaning into the beam is brighter',
+                 toward > flat + 1.0, '%.1f vs %.1f' % (toward, flat))
+    report.check('key light: a plane leaning away is darker',
+                 away < flat - 1.0, '%.1f vs %.1f' % (away, flat))
+
+
 def main():
     report = Report()
     print('\n-- the 3D engine, stage by stage --')
@@ -320,6 +366,7 @@ def main():
     test_shade_units(report)
     test_chain(report)
     test_outline(report)
+    test_key_light(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

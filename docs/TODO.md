@@ -4,7 +4,7 @@ State as of 2026-09-02.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2422 checks, 25 suites |
+| `run_tests.ps1 -All` | 2425 checks, 25 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 9 |
@@ -46,7 +46,7 @@ not what it measured.
 | The acquisition front door by name: `catalogue()`, `configure('phaseU', 'NTC')` or a sliced list, `read(-1)`, and records with `start_time`, `dt`, `samples` and `channel_name` | `host/README.md`, *Acquisition, end to end* |
 | The host stack at **87 % of an emulated 10 Mbit/s** - 44 us of host per transaction, so the library is not what limits a fast link | FINDINGS, *The stand-in was its own benchmark, twice* |
 | The IMU's three vectors beside the quaternion, and four features held at once instead of one | PROTOCOL, *Devices 0 and 1* |
-| The attitude view at its asked rate, still at rest, with the parts outlined: the period frame to frame (10 -> 20 fps at --hz 20, measured), a 0.35-degree deadband under the display's own resolution so a resting board redraws bit-identical, and the larger parts outlined as a subtle wireframe overlay from the mesh's own creases - height-gated, grouped into loops, drawn only past five cells wide, hidden lines removed, as braille dot-matrix lines: 9 loops, 170 edges, ~1 ms a frame, proven on a synthetic box | FINDINGS, *The attitude view drew ten frames a second*; `coaxial/wireframe.py`, OUTLINE_DEG |
+| The attitude view at its asked rate, still at rest, with the parts outlined: the period frame to frame (10 -> 20 fps at --hz 20, measured), a 0.35-degree deadband under the display's own resolution so a resting board redraws bit-identical, and the parts outlined as a subtle braille wireframe from the export's EXACT creases - the slab's top measured from the mesh, parts a millimetre over it and the slab's own rim and bore, footprints included, loops past three cells wide, edges under half a cell and crease-dense loops skipped, hidden lines removed with a 0.6 mm grace so a top-side part never shows through the 1.6 mm slab from below, lone dots dropped - 535 cells and 3.9 ms at 150x44, each line a touch brighter than the cell it sits on; and a POINT key light on the tone, Lambert on the screen-space normal, so a resting board carries a gradient and a part's wall falls into shade (luma band 42-163 at rest, 45 wide before) | FINDINGS, *The attitude view drew ten frames a second*; `coaxial/wireframe.py`, OUTLINE_DEG |
 
 **USB is configured and nothing sits on it.** OTG_FS device, no device class,
 so a host sees one that fails enumeration. Nothing depends on it.

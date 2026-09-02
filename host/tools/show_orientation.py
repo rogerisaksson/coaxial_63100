@@ -160,6 +160,10 @@ def bands(args, step):
     solids = wireframe._lods(landed)
     step(0.62, 'SHADOW CASTERS')
     wireframe._shadowmap((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
+    # The outline's exact index and its loops: 0.6 s once, here behind
+    # the strip rather than as a hitch on the first frame.
+    step(0.66, 'OUTLINE EDGES')
+    wireframe._outline_source()
     if args.photo or (args.frames and args.frames <= 4):
         return None
     step(0.70, 'SPAWNING %d PROCESSES' % crew.MAX_WORKERS)

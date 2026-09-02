@@ -2924,3 +2924,99 @@ ASCII stroke fallback for a console without UTF-8 was built beside it
 and taken out the same hour, on the bench's word: the slashes read as
 jank next to the dots, and the console this runs on already shows the
 spinner. Dots only; test_render holds the dots.
+
+**"The light is quite flat on the object."** It was, by construction:
+the glyph classes are depth (the exporter's evidence, above) and the
+colour tone was the class plus the lamp's pool - TONE_DEPTH 0, nothing
+that saw the surface. Measured at 150x44 over 2,700-2,900 face cells:
+luma 97-142 for the middle 80 %, max 154, 118 distinct tones, and the
+SAME at rest, at 25 and at 45 degrees of tilt. A directional key light
+on the tone fixed it - Lambert on the screen-space normal, the
+gradient of `bare` (a linear function of view z) between neighbouring
+cells scaled by the cell's size in view units, against LIGHT, the very
+beam the cast shadows come from. KEY = 3 rungs per unit of n.L, less
+the face-on rest (LIGHT's z) so the calibrated tone at rest stands.
+After: luma 62-164 for the middle 80 % (a band twice as wide), max
+192, 160 tones, and different per attitude - +25 degrees about X reads
+136 median against -25's 120, +25 about Y 122 against 101. The sign is
+held on a synthetic plane in test_render: leaning into the beam
+brighter, away darker. SPOT rose 0.20 -> 0.30 with it, and the edge
+overlay went to rung 6 and four cells on the bench's "more of the edge
+enhancer". Costs 2 ms a frame (52 -> 54). The glyph classes are
+untouched - the oracle checks pass as before - and a monochrome frame
+is byte-identical.
+
+**Then, over one evening at the bench's elbow, the rest of it.** Each
+on the bench's word, each measured:
+
+* *"The light is quite flat - all the pixels the same brightness."*
+  Directional Lambert leaves a flat board at rest one tone, because a
+  plane under a parallel beam IS uniform. The key light is a POINT now,
+  KEY_DISTANCE along the beam in view space, the direction to it taken
+  per cell from the depth buffer: at rest the middle 80 % of the face
+  spans luma 42-163 (45 wide before any of this), KEY 3.5 so the far
+  side lifts off the ladder's floor. The sign is held on a synthetic
+  plane, with a gentle slope - the first draft tilted the plane PAST a
+  77 %-frontal beam and darkened both ways, misread as a sign error.
+* *"More large but flat parts - the micro, the connectors."* A decimate
+  cannot see them: grid 64's cell is 1.56 mm and a 1.5 mm part
+  clusters flat; grid 128 found twenty wide loops and the micro at
+  none. The outline reads the export's EXACT mesh now - indexed at a
+  hundredth of a micron, dedup and nothing else, 116,880 faces (the
+  419,338 in older comments is an older export), 0.37 s of indexing
+  and 0.21 s of creases once a process, warmed behind the boot strip.
+  And the slab's top was never z 0: the export centres on its bounding
+  box, the slab sits at z -0.0686 (copper layers 35 um proud in five
+  modes, the bottom at -0.1006), and the gate assumed at z 0.02 had
+  stood 5 mm over the slab all evening, hiding every part under that.
+  `_slab_top` measures it from the mesh - the most populated z level,
+  unless a level 60 % as populated lies a millimetre higher - and the
+  gate is a millimetre over it: 44 wide loops, the micro's 1.6 mm
+  among them, against 9.
+* *"The board's rim too."* On the exact mesh the slab-level creases
+  are no tangle - the rim is its own 136-edge loop of width 2.00, the
+  bore 0.20, the mounting holes 0.14 - so slab-level loops wider than
+  OUTLINE_RIM draw and the copper does not.
+* *"Not too thick - a touch brighter than the rest."* Braille is one
+  dot thick by construction; the tone is the cell's OWN heat lifted
+  OUTLINE_LIFT rungs, so a line in shade is a touch brighter shade. A
+  fixed rung read as one colour painted over a lit surface.
+* *"Edges cut through from the underside, lol."* The wire mode's 2 %
+  grace on 1/z is larger than the slab: 1.6 mm is 1.0 % at distance
+  3.2. The grace is 0.6 mm in model units now - the raster's own error
+  across a cell is under half a millimetre at any view size.
+* *"Stray pixels - a median filter?"* A median would eat the lines. A
+  line is a chain of neighbouring cells, so a braille cell with no
+  drawn neighbour in its eight is a sample that cleared the depth test
+  alone - dropped.
+* Blobs: a QFP's hundred pins and a can's facets stacked their dots in
+  one cell. Two gates, both measured: edges under half a cell on
+  screen are not drawn (zoom-adaptive - bring the can up and its
+  facets draw), and a loop whose edges add up to over six times its
+  width is crease detail (outlines measured 1.1-5, the rim's circle
+  3.1, the blobs 9-31). Grouping the creases BEFORE splitting them by
+  height was tried in between and undone: a part's footprint shares
+  corners with the copper around it, the pads joined the parts and
+  drew - 11,982 edges against 3,123, blobs back.
+
+At the view's size: 535 braille cells, 3.9 ms; the live loop with
+the crew 51.4 ms a frame, 19.5 fps at --hz 20, startup 6.9 s (the
+exact index and its loops behind the strip). test_render holds the
+slab-top rule, the box's lid and corners, its footprint and the rim as
+three loops, the size gate, the braille, and the key light's sign -
+34 checks.
+
+* *"Shadow flickering at some angles on the underside."* The cast
+  shadows test every beam-facing horizontal cell against the caster
+  map - grid 10, 5 mm cells - and from below, at grazing angles, the
+  comparison sat on its bias and flipped cell by cell as the picture
+  slid. The solder side has nothing standing on it to cast a shadow,
+  so `engine.raster` marks a cell shadow-eligible only on the
+  component side (body +z): measured at 300x88 subsamples, the board
+  at 20 degrees keeps 4,778 eligible cells of 12,188 covered, flipped
+  to 160 degrees 1,116 of 9,068 - those the top-side faces still in
+  view at the rim, which is where a shadow can honestly fall.
+* *"The wireframe more highlighted with the light, not just thicker."*
+  The lift follows the light: a cell at the ladder's top lifts the full
+  OUTLINE_LIFT (2.5 rungs now), one at the floor half of it - an edge
+  in the lamp's pool glints, one in shade only shows.
