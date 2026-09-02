@@ -9,7 +9,7 @@ The framing state machine, the span checks and the half-written-register guard
 - the code where a defect does the most damage - were the least covered in the
 repository.
 
-This builds them with the host gcc, together with `Modbus/test/harness.c`, and
+This builds them with the host gcc, together with `modbus/test/harness.c`, and
 drives the result through ctypes. The clock is injected, so t1.5, t3.5 and the
 2^32 wrap are tested by arithmetic rather than by waiting.
 
@@ -26,13 +26,13 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = os.path.dirname(HERE)
 REPO = os.path.dirname(HOST)
-CORE = os.path.join(REPO, 'Modbus')
+CORE = os.path.join(REPO, 'modbus')
 OUT = os.path.join(REPO, 'build', 'hosttest')
 
 SOURCES = [os.path.join(CORE, 'test', 'harness.c'),
-           os.path.join(CORE, 'Src', 'modbus_crc.c'),
-           os.path.join(CORE, 'Src', 'modbus_slave.c'),
-           os.path.join(CORE, 'Src', 'modbus_rtu.c')]
+           os.path.join(CORE, 'src', 'modbus_crc.c'),
+           os.path.join(CORE, 'src', 'modbus_slave.c'),
+           os.path.join(CORE, 'src', 'modbus_rtu.c')]
 
 # The same warnings the firmware build puts on these three files. A host
 # compiler is a second opinion on them, not just a way to run them.
@@ -68,7 +68,7 @@ def build(cc, sources=None, includes=None, name='mbcore'):
     os.makedirs(OUT, exist_ok=True)
     lib = os.path.join(OUT, name + ('.dll' if os.name == 'nt' else '.so'))
     flags = []
-    for path in (includes or [os.path.join(CORE, 'Inc')]):
+    for path in (includes or [os.path.join(CORE, 'inc')]):
         flags += ['-I', path]
     done = subprocess.run([cc, '-shared', '-o', lib] + FLAGS +
                           (sources or SOURCES) + flags,

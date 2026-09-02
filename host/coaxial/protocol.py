@@ -201,7 +201,7 @@ arrived on, and the rest cost the ability to reflash.
 
 A second copy of a hardware fact is one edit from disagreeing with the first.
 This one is kept deliberately and is not to be extended - a new pin belongs in
-the firmware's own table, `Board/Src/board_io.c`, where the board can report
+the firmware's own table, `board/src/board_io.c`, where the board can report
 it."""
 
 CHECK_STATUS = {0: 'pass', 1: 'fail', 2: 'info'}

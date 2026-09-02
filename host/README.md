@@ -256,7 +256,7 @@ sixty times an afternoon:
     python dbg.py -q "which channel is the DC link?"       # answer only
     python dbg.py -m auto -q "read the NTC"                # the model this machine runs
     python dbg.py --repl                                   # prompt loop
-    python dbg.py --no-board --file ../Core/Src/main.c "what configures ADC3?"
+    python dbg.py --no-board --file ../core/src/main.c "what configures ADC3?"
 
 Where the tokens went, measured on this tree:
 

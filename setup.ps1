@@ -26,7 +26,7 @@
                                         pack, cpptools, python, and Ollama's
                                         own - see .vscode/extensions.json
       STM32Cube FW_H7                   st.com, and only for CubeMX. The build
-                                        has Drivers/ in the repository.
+                                        has drivers/ in the repository.
       STM32CubeIDE                      st.com - optional, not part of this
                                         project's own workflow (that is VS
                                         Code); offered for whoever wants it.
@@ -96,7 +96,7 @@
 
 .PARAMETER SkipCubeMX
     Do not install STM32CubeMX at all. The bundle is 308 MB down and 835 MB on
-    disk and nothing in the build needs it - only regenerating Core/ from the
+    disk and nothing in the build needs it - only regenerating core/ from the
     .ioc does. On a bench that never opens the .ioc, this is the switch that
     saves the disk.
 
@@ -125,7 +125,7 @@
 
 .PARAMETER SkipFirmware
     Do not look for the STM32Cube FW_H7 package. Nothing in the build needs it -
-    Drivers/ is in this repository - so a machine that only builds and flashes
+    drivers/ is in this repository - so a machine that only builds and flashes
     can ignore it entirely.
 
 .PARAMETER FirmwarePackage
@@ -621,7 +621,7 @@ $BundleNeeds = [ordered]@{
 }
 
 # Not in the table above because it is 835 MB on disk and nothing in the build
-# reaches for it: CubeMX regenerates Core/ from the .ioc and is otherwise idle.
+# reaches for it: CubeMX regenerates core/ from the .ioc and is otherwise idle.
 # -SkipCubeMX is how a bench that never opens the .ioc says so.
 if (-not $SkipCubeMX) { $BundleNeeds['stm32cubemx-application'] = '' }
 
@@ -633,7 +633,7 @@ if (-not $SkipCubeMX) { $BundleNeeds['stm32cubemx-application'] = '' }
 #                    the serial monitor, the memory inspector, clangd and the
 #                    debug adapters as a pack. Installing it installs fifteen.
 #   cpptools         .vscode/c_cpp_properties.json is written for it; without it
-#                    nothing in Core/ or Drivers/ resolves.
+#                    nothing in core/ or drivers/ resolves.
 #   python           host/ is the other half of this project.
 #
 # Ollama.ollama is not here: it belongs to the model half and is installed with
@@ -857,7 +857,7 @@ function Install-CubeMXFromInstaller {
         -CubeMXInstaller runs an installer already on disk. Without it, the
         download page is opened and the run carries on: a missing CubeMX stops
         nothing here. It is not needed to build, flash, measure or drive the
-        model - only to regenerate Core/ from the .ioc.  #>
+        model - only to regenerate core/ from the .ioc.  #>
 
     if ($SkipCubeMX) { return }
     if ($null -ne (Find-CubeMX)) { return }
@@ -1006,12 +1006,12 @@ function Install-FirmwarePackage {
     <#  The STM32Cube FW_H7 package, which is the one thing here that ST still
         puts behind a login.
 
-        First, what it is and is not for. The build does not need it: Drivers/
+        First, what it is and is not for. The build does not need it: drivers/
         is in this repository, so gcc has its HAL and CMSIS whether or not this
         step ever runs. What needs it is CubeMX - opening the .ioc against a
         repository that has no FW_H7 V1.13.0 in it means CubeMX offers to
         download one, and regenerating against a different version is a
-        different Core/ than the one in git.
+        different core/ than the one in git.
 
         Three ways in, in the order they are worth trying:
 
@@ -1028,7 +1028,7 @@ function Install-FirmwarePackage {
         What this function will not do is scrape a download out of st.com with
         a fabricated user agent. The URLs that used to serve these unauthenticated
         (sw-center.st.com) answer 404 now, and the GitHub mirror is submodules -
-        `Drivers/STM32H7xx_HAL_Driver` is a gitlink there, so a zipball of the
+        `drivers/STM32H7xx_HAL_Driver` is a gitlink there, so a zipball of the
         tag contains none of the sources that matter.  #>
 
     if ($SkipFirmware) { return }

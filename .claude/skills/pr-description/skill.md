@@ -14,7 +14,7 @@ One line, under 70 characters. Prefix with the affected module or peripheral in 
 
 ## CubeMX & Code Generation
 - Note if the `.ioc` file was modified and briefly describe what changed (clock tree, peripheral config, pin assignment, middleware, FreeRTOS heap/stack settings).
-- Confirm that generated files (`Core/Src/`, `Core/Inc/`, `Drivers/`, `Middlewares/`) were regenerated cleanly and that no hand-edits inside `/* USER CODE BEGIN */` / `/* USER CODE END */` blocks were lost.
+- Confirm that generated files (`core/src/`, `core/inc/`, `drivers/`, `Middlewares/`) were regenerated cleanly and that no hand-edits inside `/* USER CODE BEGIN */` / `/* USER CODE END */` blocks were lost.
 - State the CubeMX version used if it changed.
 - Flag any generated code that was intentionally NOT regenerated and why.
 

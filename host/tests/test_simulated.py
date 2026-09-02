@@ -27,7 +27,7 @@ from coaxial_mcp import tools as toolmod                # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))
-ADC_C = os.path.join(REPO, 'Board', 'Src', 'board_adc.c')
+ADC_C = os.path.join(REPO, 'board', 'src', 'board_adc.c')
 
 # One row of s_adcTable. Only the fields the stand-in also claims: the ADC,
 # the channel number, the pin string, whether it is differential, the signal

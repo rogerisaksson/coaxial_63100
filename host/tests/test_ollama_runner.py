@@ -324,12 +324,12 @@ def test_smart_selection(report):
              'a renderer cannot change which tool gets called'),
             (['docs/HARDWARE.md'], {'test_ollama_runner.py'}, set(),
              'a document can only break the docs index'),
-            (['Modbus/Src/modbus_rtu.c'],
+            (['modbus/src/modbus_rtu.c'],
              {'test_modbus_core.py', 'test_conformance.py', 'test_mcp.py'},
              set(),
              'the byte-level master for the wire, and the host build for '
              'the framing itself - which needs no cable'),
-            (['Shtp/Src/shtp.c'], {'test_shtp_core.py'}, set(),
+            (['shtp/src/shtp.c'], {'test_shtp_core.py'}, set(),
              'the SHTP layer is built and run here, and touches no Modbus '
              'wire'),
             (['host/tests/test_parity.py'], {'test_parity.py'}, set(),
@@ -360,7 +360,7 @@ def test_smart_selection(report):
 
     # And the other half of that: an entry deliberately mapped to nothing is
     # a rule, not a hole, and must not fall through to the whole gate.
-    suites, live, why = run_tests.pick(['datasheets/IMU/UserGuide.pdf'])
+    suites, live, why = run_tests.pick(['datasheets/imu/UserGuide.pdf'])
     report.check('a path nothing reads runs nothing, and says that instead',
                  not suites and not live and 'nothing reads it' in why[-1],
                  why[-1][:52])
@@ -377,7 +377,7 @@ def test_smart_selection(report):
         (['coaxial_tty.ps1'], 'the demo picker'),
         (['host/coaxial/desk.py'], 'a pure renderer'),
         (['host/tools/show_desk.py'], 'a live view'),
-        (['datasheets/IMU/UserGuide.pdf'], 'something no suite reads'),
+        (['datasheets/imu/UserGuide.pdf'], 'something no suite reads'),
     ):
         suites, _, why = run_tests.pick(paths)
         report.check('%s does not need the model' % what,
@@ -386,7 +386,7 @@ def test_smart_selection(report):
 
     for paths, what in (
         (['host/coaxial/board.py'], 'the library'),
-        (['Board/Src/board_cal.c'], 'firmware'),
+        (['board/src/board_cal.c'], 'firmware'),
         (['nothing/the/map/knows.xyz'], 'an unmapped path'),
     ):
         suites, _, why = run_tests.pick(paths)

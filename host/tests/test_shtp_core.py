@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SHTP framing and SH-2 decoding, on this machine, with no IMU.
 
-`Shtp/Src/shtp.c` is hardware-free for the same reason the Modbus core is: it
+`shtp/src/shtp.c` is hardware-free for the same reason the Modbus core is: it
 turns a byte buffer into a header and a cargo and nothing else, so it can be
 built here and driven through ctypes. Every buffer in this file is a frame the
 BNO08X datasheet writes out byte by byte, so what is asserted is the document
@@ -25,8 +25,8 @@ sys.path.insert(0, os.path.dirname(HERE))
 from test_modbus_core import Report, build, find_cc          # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(HERE))
-SHTP = os.path.join(REPO, 'Shtp')
-SOURCES = [os.path.join(SHTP, 'Src', 'shtp.c')]
+SHTP = os.path.join(REPO, 'shtp')
+SOURCES = [os.path.join(SHTP, 'src', 'shtp.c')]
 
 CH_CONTROL = 2
 CH_INPUT = 3
@@ -263,7 +263,7 @@ def main():
     print('-- %s --' % cc)
     try:
         lib_path, warnings = build(cc, SOURCES,
-                                   [os.path.join(SHTP, 'Inc')], 'shtpcore')
+                                   [os.path.join(SHTP, 'inc')], 'shtpcore')
     except RuntimeError as exc:
         print('  FAIL  %-58s %s' % ('the SHTP layer builds on this host',
                                     str(exc).splitlines()[-1][:80]))

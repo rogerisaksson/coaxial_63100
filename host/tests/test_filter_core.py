@@ -1,6 +1,6 @@
 """The anti-alias chain, run for real and judged against the arithmetic.
 
-`Filter/` is hardware-free like the Modbus core, and for the same reason: a
+`filter/` is hardware-free like the Modbus core, and for the same reason: a
 decimating filter is either right or it quietly folds a tone onto the answer,
 and that can be settled on a desk. This builds it with the host gcc, drives
 it through ctypes, and checks it against `coaxial.bessel` - which is the
@@ -25,9 +25,9 @@ from test_modbus_core import Report, build, find_cc          # noqa: E402
 from coaxial import bessel                                    # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(HERE))
-FILTER = os.path.join(REPO, 'Filter')
+FILTER = os.path.join(REPO, 'filter')
 SOURCES = [os.path.join(FILTER, 'test', 'harness.c'),
-           os.path.join(FILTER, 'Src', 'filter.c')]
+           os.path.join(FILTER, 'src', 'filter.c')]
 
 
 class Chain:
@@ -338,11 +338,11 @@ def main():
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    lib_path, warnings = build(cc, SOURCES, [os.path.join(FILTER, 'Inc')],
+    lib_path, warnings = build(cc, SOURCES, [os.path.join(FILTER, 'inc')],
                                name='filtercore')
     lib = ctypes.CDLL(lib_path)
     report = Report()
-    report.check('Filter/ builds warning-free with the firmware flags',
+    report.check('filter/ builds warning-free with the firmware flags',
                  not warnings, '; '.join(warnings[:3]))
     for test in ROSTER:
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The target's rotor observer, against a motor, on this machine.
 
-THE C IS THE FIRMWARE'S. `Drive/` is hardware-free for exactly this
+THE C IS THE FIRMWARE'S. `drive/` is hardware-free for exactly this
 reason: `tests/test_drive_core.py` already builds drive.c, drive_math.c
 and the harness with the host gcc and drives them through ctypes. This
 tool borrows that bench and asks a different question from a test's - not
@@ -186,7 +186,7 @@ def main():
         print('no host C compiler; setup.ps1 installs one')
         return 1
     path, warnings = build(cc, H.SOURCES,
-                           [os.path.join(H.DRIVE, 'Inc')], name='drivecore')
+                           [os.path.join(H.DRIVE, 'inc')], name='drivecore')
     if warnings:
         print('BUILD WARNINGS: %s' % '; '.join(warnings[:3]))
     lib = ctypes.CDLL(path)

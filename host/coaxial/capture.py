@@ -24,7 +24,7 @@ DRIVE = 3       #: v = id, iq in 10 mA, theta_hat as a turn in 65536,
 NAMES = {PHASES: 'phases', ANGLE: 'angle', IMU: 'imu', DRIVE: 'drive'}
 BY_NAME = {v: k for k, v in NAMES.items()}
 
-# Named as the firmware names them, in Comms/Inc/cmd.h: the bare OP_STATE
+# Named as the firmware names them, in comms/inc/cmd.h: the bare OP_STATE
 # is gate_drivers.py's, and one definition per name across the package is a rule
 # the structure suite enforces.
 LOG_OP_STATE = 0

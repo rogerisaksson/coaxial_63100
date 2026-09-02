@@ -1,4 +1,4 @@
-"""Binary payload codecs, mirroring Comms/Inc/wire.h on the firmware side.
+"""Binary payload codecs, mirroring comms/inc/wire.h on the firmware side.
 
 Big-endian throughout, matching every field in a Modbus PDU except the CRC.
 No floating point ever goes on the wire: physical quantities travel as scaled

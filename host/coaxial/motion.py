@@ -2,7 +2,7 @@
 
 Host-side loops over the link. A write lands in ~7 ms, so nothing here
 runs faster than a few tens of hertz - an arm's outer loop, a gimbal, a
-thrust command. A quad's rate loop belongs where 50 kHz lives (`Drive/`);
+thrust command. A quad's rate loop belongs where 50 kHz lives (`drive/`);
 what runs here is what a flight controller or a motion planner would do
 with this board on the other end of a wire.
 

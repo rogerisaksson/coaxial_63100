@@ -69,7 +69,7 @@ them in code:
 Confirmed once the framing was right: `TSEN` 2471 counts = 308.9 K = 35.7 C,
 `FIELD` 2 gauss, the poll loop at ~22,000 reads a second with no errors.
 
-The register map is not in `datasheets/AngleSensor` - that datasheet defers
+The register map is not in `datasheets/angle_sensor` - that datasheet defers
 it to the Programming Manual. Addresses come from
 `github.com/ScranchNew/Allegro-A1335-Sensor-library`, and `0x6E` device 1
 op 5 sets which one the loop reads so a better address needs no rebuild. The
@@ -1668,7 +1668,7 @@ Two things fell out of it:
 
 * The NTC anchors `driver_v`, its physical neighbour, not the lump. An idle
   leg's estimate used to follow a neighbour that was switching.
-* `Thermal/test/check.c` stepped at 0.5 s against the board's own 0.1 s. With
+* `thermal/test/check.c` stepped at 0.5 s against the board's own 0.1 s. With
   a third of the capacity per leg, 35 W crossed the whole ceiling inside one
   step and the budget was asked to warn about something already over. It
   steps at THERMAL_STEP_MS now.
@@ -1836,7 +1836,7 @@ is still the honest fix for exact holds.
 
 ## The drive: a control law, written, and what the bench said about it
 
-2026-08-31. `Drive/` - dq current loop, dead-time table, min-max SVM,
+2026-08-31. `drive/` - dq current loop, dead-time table, min-max SVM,
 square-wave injection with its demodulator, a two-state PLL in Kalman
 form, a back-EMF error above a crossover speed, I/f, a polarity pulse -
 behind `0x6E` device 10, host-tested through ctypes against a PMSM model
@@ -2521,7 +2521,7 @@ with it - which happened once here, mid-view, and produced a traceback in
 
 ## The rotor observer's limit is acceleration and a bandwidth window, not speed
 
-`tools/observer_run.py` builds `Drive/` with the host gcc and runs the
+`tools/observer_run.py` builds `drive/` with the host gcc and runs the
 firmware's own observer against `coaxial.motor.PLATINUM_5230SL` - the
 estimated 5230SL, propeller loaded, 37 V link, currents only. Model
 arithmetic, not a measurement: R, Ld, Lq and J are size-class estimates
@@ -2672,7 +2672,7 @@ The 8 ms was the price of not knowing where a reply ends, and for the
 `u8 took` class it IS knowable: `1` alone, or `0` and a length-prefixed
 refusal. `transport.ACK` is that shape, `Subsystem._ack` passes it, and
 all 24 pure-ack ops go through it - audited against every handler in
-`Comms/Src/cmd_*.c` (23 write only through `cmd_took`; the bypass op
+`comms/src/cmd_*.c` (23 write only through `cmd_took`; the bypass op
 writes a bare 0/1, whose refusal degrades to the quiet read and nothing
 worse). An exception frame is now sized under any shape: one code byte.
 Arithmetic says ~7 ms a write; the bench re-measures the day a cable is

@@ -6,7 +6,7 @@ was there rather than adding to it.
 
 Nothing here knows the record's shape. `layout()` asks the board what each
 field is and `read()` decodes from that, so a channel added to
-`Board/Src/board_adc.c` shows up in a capture without this file being told.
+`board/src/board_adc.c` shows up in a capture without this file being told.
 A decoder written against a fixed field order is the copy that goes stale.
 """
 import struct
@@ -41,7 +41,7 @@ DAQ_OP_RUNG = 9
 #: resolution three orders inside what a float holds anyway.
 COEFF_SCALE = 1 << 28
 
-#: BOARD_UNIT_* as Comms/Inc/board.h numbers them. Getting this wrong
+#: BOARD_UNIT_* as comms/inc/board.h numbers them. Getting this wrong
 #: labelled the NTC 'mV' and the DC bus 'mA' without changing a value.
 UNITS = {0: None, 1: 'mV', 2: 'centi-degC', 3: 'mA'}
 

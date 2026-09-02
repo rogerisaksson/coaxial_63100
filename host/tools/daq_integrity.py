@@ -148,7 +148,7 @@ def ramp_record(first_sample, n, step, modulus, offset):
 
 def biquad_run(sections, values):
     """The cascade in float64, transposed DF2 - the same difference
-    equation `Filter/Src/filter.c` runs, so a per-sample comparison is of
+    equation `filter/src/filter.c` runs, so a per-sample comparison is of
     the arithmetic and not of two different filters."""
     state = [[0.0, 0.0] for _ in sections]
     out = []

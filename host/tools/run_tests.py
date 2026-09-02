@@ -331,18 +331,18 @@ TOUCHES = (
     # Firmware and protocol: the byte-level master is the point of it - but
     # the portable core is also compiled and run on this machine, which is
     # the only check on it that does not need a cable.
-    ('Modbus/',                       (CORE, CONFORMANCE, 'test_mcp.py')),
+    ('modbus/',                       (CORE, CONFORMANCE, 'test_mcp.py')),
     # The SHTP layer is hardware-free like the Modbus core, so the host build
     # is what covers it. Nothing on the Modbus wire changes when it does.
-    ('Shtp/',                         (SHTP,)),
+    ('shtp/',                         (SHTP,)),
     # The decimating filter is hardware-free the same way, and its
     # design lives on the host beside it.
-    ('Filter/',                       (FILTER,)),
+    ('filter/',                       (FILTER,)),
     ('host/coaxial/bessel.py',        (FILTER, STRUCTURE)),
     # The control law is hardware-free like the SHTP layer, and its suite
     # closes the loop through a motor model - the only check on it that
-    # needs no motor. The board glue in Board/ and Comms/ is the bench's.
-    ('Drive/',                        (DRIVE,)),
+    # needs no motor. The board glue in board/ and comms/ is the bench's.
+    ('drive/',                        (DRIVE,)),
     ('host/coaxial/drive.py',         (SENSORLESS, 'test_simulated.py',
                                        'test_parity.py')),
     ('host/coaxial/sensorless.py',    (SENSORLESS,)),
@@ -359,11 +359,11 @@ TOUCHES = (
     # exactly that - the thermal observer reading two ADC channels and two SPI
     # transactions on every poll, and before that a poll blocking long enough
     # to lose a Modbus character. A host-side edit cannot cause either.
-    ('Comms/',                        (CONFORMANCE, 'test_mcp.py', BENCH)),
-    ('Board/',                        (CONFORMANCE, 'test_mcp.py',
+    ('comms/',                        (CONFORMANCE, 'test_mcp.py', BENCH)),
+    ('board/',                        (CONFORMANCE, 'test_mcp.py',
                                        'test_parity.py', BENCH)),
-    ('Core/',                         (CONFORMANCE, BENCH)),
-    ('Thermal/',                      (CONFORMANCE, BENCH)),
+    ('core/',                         (CONFORMANCE, BENCH)),
+    ('thermal/',                      (CONFORMANCE, BENCH)),
     # A NOTEBOOK EXAMPLE reaches the library and nothing else reaches it.
     # What it can break is naming a method that does not exist, which is
     # the structure suite's AST pass - measured: it caught a rename that

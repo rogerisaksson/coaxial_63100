@@ -4,7 +4,7 @@ A three-phase BLDC inverter whose PCB sits coaxially behind the stator.
 **63 V, 100 A** - the rating is the name. STM32H753VIT6 at 475 MHz.
 
 Instrumentation first: the bridge switches on request, and the control law
-(`Drive/`, device 10) has run only dry - **no motor has turned**. `gates.arm()` is the
+(`drive/`, device 10) has run only dry - **no motor has turned**. `gates.arm()` is the
 only thing that sets MOE, and it re-reads the dead time first because the
 2EDL8034 has no interlock of its own.
 
@@ -129,7 +129,7 @@ the calling thread.
 
 Everything raises rather than returning a status. **What a device is, and
 which channels it has, come from the board** - add a row to
-`Board/Src/board_adc.c` and every demo above shows it with nothing else
+`board/src/board_adc.c` and every demo above shows it with nothing else
 told.
 
 ## Build, flash, test
@@ -151,9 +151,9 @@ bench's.
 
 | | |
 |---|---|
-| `Board/` | this hardware, behind `Comms/Inc/board.h` |
-| `Comms/` | the command stack over Modbus RTU |
-| `Modbus/` | the protocol. Portable C11, host-tested, no HAL |
+| `board/` | this hardware, behind `comms/inc/board.h` |
+| `comms/` | the command stack over Modbus RTU |
+| `modbus/` | the protocol. Portable C11, host-tested, no HAL |
 | `host/` | `coaxial/` library, MCP server, ollama runner, suites |
 | `electronics/` | schematic and BOM - the authority on what is fitted |
 | `docs/` | [ARCHITECTURE](docs/ARCHITECTURE.md), [PROTOCOL](docs/PROTOCOL.md), [HARDWARE](docs/HARDWARE.md), [FINDINGS](docs/FINDINGS.md), [TODO](docs/TODO.md) |

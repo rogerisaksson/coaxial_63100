@@ -7,7 +7,7 @@ here.
 
 Register addresses come from the reference library at
 github.com/ScranchNew/Allegro-A1335-Sensor-library, not from
-datasheets/AngleSensor - that datasheet defers the register map to the
+datasheets/angle_sensor - that datasheet defers the register map to the
 Programming Manual, which is not in this tree.
 """
 import contextlib

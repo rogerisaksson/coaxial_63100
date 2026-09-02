@@ -30,7 +30,7 @@ is the ceiling and both converge in a few dozen iterations.
 import cmath
 import math
 
-#: Biquads the board will run. `Filter/Inc/filter.h`'s FILTER_MAX_SECTIONS,
+#: Biquads the board will run. `filter/inc/filter.h`'s FILTER_MAX_SECTIONS,
 #: and the one place a host may not simply ask for more.
 MAX_SECTIONS = 4
 

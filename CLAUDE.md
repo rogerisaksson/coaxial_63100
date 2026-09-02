@@ -45,7 +45,7 @@ clear under the bypass, 0 overruns, no gate shorts, clean disarms;
 test; P in the gate drivers view is one pulse after A. The board cannot
 measure current while switching on this bench (AFE_ON high unpowers the
 drivers), so the amps are V/R. **The drive is written and dry-run only:**
-`Drive/` behind `0x6E` device 10 is a dq current loop, HF injection, a
+`drive/` behind `0x6E` device 10 is a dq current loop, HF injection, a
 Kalman-form PLL, I/f and a polarity pulse, host-tested against a motor
 model (`test_drive_core.py`) and stepped on the board at 2 922 cycles a
 period with the drivers unpowered. No current has closed a loop through a
@@ -84,7 +84,7 @@ refused, the prompt goes red.
 `0x6D channels` reports every analog channel and digital pin with direction;
 kind 4 is the parts list - name, role, place, **what powers it**, answered.
 A pin table in a document or prompt is a second answer to "what is PB10":
-add a pin to `Board/Src/board_io.c` and everything above it follows.
+add a pin to `board/src/board_io.c` and everything above it follows.
 **Problem:** AFE_ON powers the BNO08X too; off, the part answers reads,
 resets and advertises normally while acting on no write - every symptom
 pointed at SPI and a day was spent there before the supply was checked.
@@ -210,7 +210,7 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-five suites, 2368 checks, sized from `host/tests/.counts.json` and so
+Twenty-five suites, 2370 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (545),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (216),
 `test_simulated.py` (201), `test_live_model.py` (212, needs ollama, `--live`),
@@ -226,7 +226,7 @@ chain against the transfer function it was designed from), `test_ollama_render.p
 (27, the 3D engine stage by stage against an analytic oracle -
 `render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23), `test_broker.py`
 (33, the shared session and the reply shapes on a scripted port, no board), `test_views.py`
-(22, every view and the front page drawn twice, no board), `test_ollama_language.py` (12),
+(24, every view and the front page drawn twice, no board), `test_ollama_language.py` (12),
 `test_daq_api.py` (75, the acquisition front door against the
 stand-in - naming, reading, the record shape, the buffers),
 `test_bench.py` (4, the board's loop rates against a recorded baseline).
@@ -255,7 +255,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  766 of this tree's 2368 checks are in those nine files.
+  766 of this tree's 2370 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
@@ -334,7 +334,7 @@ the ollama daemon (docs/MODELS.md). **Reuse a loaded model** - check
 | What does the board read now? Is the AFE on? Temperature, DC link, frame counters? | **the local model** — offer the command, then stop |
 | Is this channel odd? What does `self_test` say? | **the local model**, then read FINDINGS before investigating |
 | Does it still build/flash/pass? | **the local model** — `dbg -q "run the test suites, then build and flash, tell me if anything failed"`; the tools report parsed tallies, not summaries |
-| Why is this C function written this way? `Board/` or `Comms/`? Is this a protocol MAJOR? | **you** — measured failure mode: on design questions it substitutes plausible hardware constants (FINDINGS) |
+| Why is this C function written this way? `board/` or `comms/`? Is this a protocol MAJOR? | **you** — measured failure mode: on design questions it substitutes plausible hardware constants (FINDINGS) |
 | What is the wire format of command 0x41? | **you**, from docs/PROTOCOL.md |
 
 A failing build or a regressed test is still yours to judge - the rule is
@@ -431,16 +431,16 @@ documentation, and is not shortened.
 ## Layout
 
 ```
-Core/        CubeMX-generated. main.c holds ONLY CubeMX functions, main(),
+core/        CubeMX-generated. main.c holds ONLY CubeMX functions, main(),
              the two poll calls the sensors need, and the STO keepalive
              toggle. Keep it that way.
 electronics/ schematic and BOM - the authority on what is fitted
 render/      the CAD export the attitude view draws from
-Board/       this hardware, behind Comms/Inc/board.h
-Comms/       the comms stack: cmd over proto over dev, plus the console
-Modbus/      the protocol. Portable C11, no HAL in crc/slave/rtu.
-Drive/       the control law. Portable C11, host-tested against a motor model
-Shtp/ Thermal/ Filter/  the other portable cores: the BNO08X transport, the
+board/       this hardware, behind comms/inc/board.h
+comms/       the comms stack: cmd over proto over dev, plus the console
+modbus/      the protocol. Portable C11, no HAL in crc/slave/rtu.
+drive/       the control law. Portable C11, host-tested against a motor model
+shtp/ thermal/ filter/  the other portable cores: the BNO08X transport, the
              ten-node observer, the anti-alias chain - each host-tested
 host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
              runner and dbg.py, testline/, tests, tools
@@ -464,6 +464,10 @@ docs/            this documentation
 
 `cmake/stm32cubemx/CMakeLists.txt` is regenerated by CubeMX — **never add
 sources there**. New sources go in the root `CMakeLists.txt` user blocks.
+Regeneration also writes ST's `Core/`/`Drivers/` case back into it; Windows
+resolves that against the lowercase tree, so the bench still builds —
+re-lowercase the paths when the file is next touched. `.ioc` and
+`.mxproject` are CubeMX's own bookkeeping: leave their case alone.
 
 ## Invariants
 
@@ -473,7 +477,7 @@ Break one and something works until it doesn't.
    `modbus_slave.c`, `modbus_rtu.c` include only `<stdint.h>`, `<stddef.h>`,
    `<stdbool.h>`, `<string.h>` - host-testable, and `test_modbus_core.py`
    does it: built with host gcc, driven through ctypes, clock injected.
-   `-Wconversion` is on them in both builds. Only `Comms/Src/dev_uart.c`
+   `-Wconversion` is on them in both builds. Only `comms/src/dev_uart.c`
    touches a USART.
 2. **RTU timing is raw `DWT->CYCCNT` ticks, never microseconds** - dividing
    moves the wrap off a power of two and the unsigned elapsed arithmetic
@@ -537,7 +541,7 @@ it before believing anything analog or an IMU that looks present.
 - C escape sequences through a Python string inside a bash heredoc get
   mangled: `\r\n` arrives as a real CR+LF. Build the backslash with
   `chr(92)`, or write the code to a file and splice it.
-- `Core/Src/main.c` is LF-terminated; Python `open(...)` without
+- `core/src/main.c` is LF-terminated; Python `open(...)` without
   `newline=''` converts it to CRLF on write.
 - Long `cat > file <<'EOF'` heredocs get truncated. Split them.
 - Most files here are CRLF. A multi-line `str.replace` pattern written in a

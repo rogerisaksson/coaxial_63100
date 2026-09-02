@@ -4,7 +4,7 @@ Modbus RTU, 115200 8N1, on three ports. USART3 shares the wire with the ASCII
 console at boot; binary mode needs `0x48` or Holding Register `0x0001`. The
 RS485 ports carry Modbus only, from boot. Big-endian integers, no floating
 point, strings as one length byte then that many ASCII characters.
-`Comms/Inc/cmd.h` carries the byte layouts; this file what a host has to
+`comms/inc/cmd.h` carries the byte layouts; this file what a host has to
 *decide* from.
 
 ## RTU framing and compliance
@@ -84,7 +84,7 @@ reserved pins 418. Kind 4 answers `u8 total, u8 first, u8 count`, then per
 part `str name, str what, str where, str power, u8 state`. `power` names
 what must be on for the part to work; `state` is `0` not probed, `1`
 ready, `2` unpowered, `3` silent - measured, never asserted (invariant
-10). Adding a part is one row in `Board/Src/board_io.c`.
+10). Adding a part is one row in `board/src/board_io.c`.
 
 ### Refusals come from the board, with a fix
 
@@ -569,7 +569,7 @@ count implies; the case worth reporting is where they disagree.
 
 ### Device 10 - the drive
 
-The control law - `Drive/` behind `board_drive.c` - one step per PWM period
+The control law - `drive/` behind `board_drive.c` - one step per PWM period
 from ADC3's injected interrupt. Angles in microradians, speeds in
 milliradians a second, currents mA, volts mV, the window's means and
 deviations in micro-units. MINOR 2.

@@ -1,4 +1,4 @@
-"""The node network `Thermal/Src/thermal.c` runs in firmware, on the host.
+"""The node network `thermal/src/thermal.c` runs in firmware, on the host.
 
 Same six nodes and same parameters, here so they can be fitted against
 measurements without a reflash. Firmware integrates continuously; this is for

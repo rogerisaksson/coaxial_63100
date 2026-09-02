@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The control law, on this machine, against a motor that exists only here.
 
-`Drive/` is hardware-free like the Modbus core, and for the same reason: so
+`drive/` is hardware-free like the Modbus core, and for the same reason: so
 the current loop, the injection demodulator, the rotor observer and the I/f ramp
 can be run and judged without a motor, a power stage or a cable. This builds
 it with the host gcc, drives it through ctypes, and closes the loop through a
@@ -29,11 +29,11 @@ sys.path.insert(0, os.path.dirname(HERE))
 from coaxial.motor import Motor                              # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(HERE))
-DRIVE = os.path.join(REPO, 'Drive')
+DRIVE = os.path.join(REPO, 'drive')
 SOURCES = [os.path.join(DRIVE, 'test', 'harness.c'),
-           os.path.join(DRIVE, 'Src', 'drive.c'),
-           os.path.join(DRIVE, 'Src', 'drive_math.c'),
-           os.path.join(DRIVE, 'Src', 'drive_model.c')]
+           os.path.join(DRIVE, 'src', 'drive.c'),
+           os.path.join(DRIVE, 'src', 'drive_math.c'),
+           os.path.join(DRIVE, 'src', 'drive_model.c')]
 
 TS = 20e-6
 TWO_PI = 2.0 * math.pi
@@ -774,11 +774,11 @@ def main():
         print('  SKIP  no host C compiler; setup.ps1 installs one')
         print('\n0 passed, 0 failed')
         return 0
-    lib_path, warnings = build(cc, SOURCES, [os.path.join(DRIVE, 'Inc')],
+    lib_path, warnings = build(cc, SOURCES, [os.path.join(DRIVE, 'inc')],
                                name='drivecore')
     lib = ctypes.CDLL(lib_path)
     report = Report()
-    report.check('Drive/ builds warning-free with the firmware flags',
+    report.check('drive/ builds warning-free with the firmware flags',
                  not warnings, '; '.join(warnings[:3]))
     for test in ROSTER:
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))

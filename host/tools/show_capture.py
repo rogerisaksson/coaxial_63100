@@ -12,7 +12,7 @@ with the rates the board actually managed.
 
 Every name here comes off the wire. The analog fields and the digital bits
 are named by the task's own layout, and the SPI rows by the ring's source
-tags - a channel added to `Board/Src/board_adc.c` appears with nothing
+tags - a channel added to `board/src/board_adc.c` appears with nothing
 here told.
 
 Nothing judges a reading. Raw codes and the board's own units, and

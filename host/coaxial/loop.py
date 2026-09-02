@@ -7,7 +7,7 @@ result feeds `identify`, which hands the run to `coaxial.sysid` and gets
 the machine's constants back with their uncertainty.
 
 Everything here is arithmetic on a model - `measured=False` all the way
-down. The firmware's own loop lives in `Drive/`; this module exists so a
+down. The firmware's own loop lives in `drive/`; this module exists so a
 notebook and a Monte Carlo can close a speed loop without a board.
 """
 import math

@@ -290,7 +290,7 @@ RESERVED = [
     {'pin': 'PE6',  'direction': 'out',   'signal': 'SPI4_MOSI'},
 ]
 
-# What is fitted, mirroring s_parts in Board/Src/board_io.c. The stand-in's
+# What is fitted, mirroring s_parts in board/src/board_io.c. The stand-in's
 # states are what a powered board reports, because a stand-in with no supply
 # to switch has nothing else to say.
 PARTS = [

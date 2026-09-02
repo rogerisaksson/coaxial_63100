@@ -472,7 +472,7 @@ OWNED = ('_MAX_HZ', '_POLL_HZ', '_BUF', '_CARGO', '_RING', '_BAUD',
 
 #: Where they live. Two files, one per layer, and everything else is a
 #: duplicate: the drivers' numbers and the wire's, so the includes run one
-#: way - Comms/ may reach down into Board/, and Board/ never reaches up.
+#: way - comms/ may reach down into board/, and board/ never reaches up.
 LIMITS = ('board_limits.h', 'comms_limits.h')
 
 
@@ -486,8 +486,8 @@ def test_limits_live_in_one_file(r):
     import glob
 
     stray = []
-    for where in ('Board/Src/*.c', 'Board/Inc/*.h', 'Comms/Src/*.c',
-                  'Comms/Inc/*.h', 'Thermal/Src/*.c', 'Thermal/Inc/*.h'):
+    for where in ('board/src/*.c', 'board/inc/*.h', 'comms/src/*.c',
+                  'comms/inc/*.h', 'thermal/src/*.c', 'thermal/inc/*.h'):
         for path in glob.glob(os.path.join(REPO, *where.split('/'))):
             if os.path.basename(path) in LIMITS:
                 continue
@@ -505,11 +505,11 @@ def test_limits_live_in_one_file(r):
     # into the comms stack is the include that goes round in a circle the
     # moment somebody adds a wire number a driver wants.
     up = [os.path.basename(path)
-          for where in ('Board/Src/*.c', 'Board/Inc/*.h')
+          for where in ('board/src/*.c', 'board/inc/*.h')
           for path in glob.glob(os.path.join(REPO, *where.split('/')))
           if '#include "comms_limits.h"'
           in io.open(path, encoding='utf-8').read()]
-    r.check('nothing in Board/ includes the comms limits',
+    r.check('nothing in board/ includes the comms limits',
             not up, ', '.join(up))
 
 
