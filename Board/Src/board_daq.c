@@ -321,10 +321,13 @@ static uint8_t sensor_count(uint16_t mask)
 /** One sensor field's four words, SNAPSHOT at the record's close - raw
   * and source-defined, the scale stays the host's as everywhere else.
   * Software clock only (Board_DaqConfigure refuses the other), so these
-  * reads and the poll loops that write them share the main loop. */
-static void sensor_words(uint8_t bit, int16_t v[4])
+  * reads and the poll loops that write them share the main loop. The
+  * IMU state comes in from the caller, read ONCE per record: four
+  * enabled fields were four copies of the same struct, and a record is
+  * one instant, not four close ones. */
+static void sensor_words(uint8_t bit, const board_imu_state_t *imu,
+                         int16_t v[4])
 {
-  board_imu_state_t imu;
   board_angle_state_t angle;
 
   v[0] = 0; v[1] = 0; v[2] = 0; v[3] = 0;
@@ -337,23 +340,22 @@ static void sensor_words(uint8_t bit, int16_t v[4])
     v[3] = angle.have ? 1 : 0;
     return;
   }
-  Board_ImuState(&imu);
   switch (bit)
   {
     case 0U:
-      v[0] = imu.i;  v[1] = imu.j;  v[2] = imu.k;  v[3] = imu.real;
+      v[0] = imu->i;  v[1] = imu->j;  v[2] = imu->k;  v[3] = imu->real;
       break;
     case 1U:
-      v[0] = imu.accel[0]; v[1] = imu.accel[1]; v[2] = imu.accel[2];
-      v[3] = (int16_t)imu.accel_status;
+      v[0] = imu->accel[0]; v[1] = imu->accel[1]; v[2] = imu->accel[2];
+      v[3] = (int16_t)imu->accel_status;
       break;
     case 2U:
-      v[0] = imu.gyro[0];  v[1] = imu.gyro[1];  v[2] = imu.gyro[2];
-      v[3] = (int16_t)imu.gyro_status;
+      v[0] = imu->gyro[0];  v[1] = imu->gyro[1];  v[2] = imu->gyro[2];
+      v[3] = (int16_t)imu->gyro_status;
       break;
     default:
-      v[0] = imu.mag[0];   v[1] = imu.mag[1];   v[2] = imu.mag[2];
-      v[3] = (int16_t)imu.mag_status;
+      v[0] = imu->mag[0];   v[1] = imu->mag[1];   v[2] = imu->mag[2];
+      v[3] = (int16_t)imu->mag_status;
       break;
   }
 }
@@ -385,7 +387,15 @@ static void push_record(void)
   }
 
   /* The sensor snapshots, after the pins and before the count: an
-     appended field, seen only by a host that asked for it. */
+     appended field, seen only by a host that asked for it. The IMU's
+     shared record is read once, so the four possible IMU fields are
+     one instant. */
+  board_imu_state_t imu = {0};
+
+  if ((s_cfg.sensors & 0x0FU) != 0U)
+  {
+    Board_ImuState(&imu);
+  }
   for (uint8_t b = 0U; b < BOARD_DAQ_MAX_SENSORS; b++)
   {
     if ((s_cfg.sensors & (1U << b)) == 0U)
@@ -394,7 +404,7 @@ static void push_record(void)
     }
     int16_t v[4];
 
-    sensor_words(b, v);
+    sensor_words(b, &imu, v);
     for (uint8_t w = 0U; w < 4U; w++)
     {
       rec[at++] = (uint8_t)(((uint16_t)v[w] >> 8) & 0xFFU);

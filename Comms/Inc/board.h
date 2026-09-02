@@ -345,7 +345,9 @@ typedef struct
   bool     done;         /**< a finite task reached its record count     */
   bool     lost_power;   /**< stopped because AFE_ON went off, and the
                               buffers were emptied with it - invariant 9  */
-  uint16_t stride;       /**< bytes per record: 4 + 4 per enabled channel*/
+  uint16_t stride;       /**< bytes per record: 4 (stamp) + 4 per channel
+                              + 1 per sampled pin + 8 per sensor field
+                              + 2 (count). Board_DaqConfigure owns it     */
   uint8_t  fields;
   uint32_t available;    /**< whole records waiting to be taken          */
   uint32_t produced;

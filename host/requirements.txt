@@ -12,6 +12,9 @@
 #              that measured escape codes wrong once per restyle; pure
 #              Python, no compiled wheels, so the bench PC constraint holds.
 #
+#   numpy      the least squares in sysid.py and loop.py's runs. It arrived
+#              transitively with pandas and the suites imported it directly -
+#              a dependency that is real is a dependency that is written.
 #   pandas     notebooks. `daq.frame()` gives a DataFrame with a time index
 #   matplotlib and a column per channel, pins included, and `daq.plot()` draws
 #              it. BOTH ARE IMPORTED WHERE THEY ARE CALLED and refuse with the
@@ -25,6 +28,7 @@
 # to how little it needs installed - which is why the two above are optional at
 # the call site even though they are pinned here.
 pyserial>=3.5
+numpy>=1.24
 PyYAML>=6.0
 mcp>=1.2,<2      # 2.x removed the low-level Server decorator API this uses
 anyio>=4.0

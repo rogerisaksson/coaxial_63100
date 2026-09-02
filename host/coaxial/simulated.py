@@ -20,8 +20,10 @@ with it on. None of it is a claim about calibration - see `coaxial.scaling`
 for the one thing that already is.
 """
 import contextlib
+import functools
 import math
 import random
+import threading
 import time
 
 from . import angle
@@ -2068,6 +2070,20 @@ class SimulatedClock:
         return (before + after) / 2.0, after - before
 
 
+def _rotor_locked(method):
+    """Run a rotor-touching method under `self._lock`.
+
+    The whole body, so 'advance to now, then apply the input' is atomic:
+    no other thread's advance lands between the two. Re-entrant, so a
+    guarded reader (`state`) calling a guarded advancer (`model`) is fine.
+    """
+    @functools.wraps(method)
+    def wrapped(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+    return wrapped
+
+
 class SimulatedDrive:
     """The control law's device without a motor: a locked rotor at zero
     electrical angle, a phase resistance, two inductances that bend with
@@ -2107,6 +2123,16 @@ class SimulatedDrive:
     GAIN = (1.0, 1.01, 0.995)
 
     def __init__(self):
+        # ONE ROTOR, TWO THREADS. The DAQ reader thread reaches this rotor
+        # through the shaft sensor (`SimulatedAngle._turn` -> `model()`)
+        # while a motion loop on the main thread calls `state`/`setpoint`
+        # here - both funnel into `_advance_model`, a read-modify-write of
+        # `_motor_at` and the rotor. Two interleaved advances each compute
+        # the same `dt` and the second clobbers: the glitch the position
+        # notebook worked around by single-threading its trace. Re-entrant
+        # because the guarded readers call the guarded advancers - the
+        # same shape as `Transport.request`'s lock on the real wire.
+        self._lock = threading.RLock()
         self._mode = 'off'
         self._fault = None
         self._sp = {'id_ref': 0.0, 'iq_ref': 0.0, 'theta': 0.0,
@@ -2200,6 +2226,7 @@ class SimulatedDrive:
         err = (self._theta_hat - target + math.pi) % (2 * math.pi) - math.pi
         self._theta_hat = (target + err * math.exp(-dt * 60.0)) % (2 * math.pi)
 
+    @_rotor_locked
     def state(self):
         if self._source == 'model':
             self.model()                   # the rotor up to now, first
@@ -2242,6 +2269,7 @@ class SimulatedDrive:
             'cycles': {'sample': 610, 'step': 1690, 'advance': 620},
         }
 
+    @_rotor_locked
     def mode(self, name):
         from .drive import MODES
         if name not in MODES:
@@ -2265,6 +2293,7 @@ class SimulatedDrive:
     def off(self):
         return self.mode('off')
 
+    @_rotor_locked
     def setpoint(self, **values):
         for name in values:
             if name not in self._sp:
@@ -2277,6 +2306,7 @@ class SimulatedDrive:
     def setpoints(self):
         return dict(self._sp)
 
+    @_rotor_locked
     def set_theta(self, radians):
         self._theta_hat = radians % (2 * math.pi)
         self._theta_hat_at = time.time()
@@ -2367,6 +2397,7 @@ class SimulatedDrive:
         """The stand-in's sample point, moved by its gate drivers' trigger()."""
         self._trigger = int(ticks)
 
+    @_rotor_locked
     def source(self, name):
         from .drive import SOURCES
         if name not in SOURCES:
@@ -2377,6 +2408,7 @@ class SimulatedDrive:
         self._source = name
         return True
 
+    @_rotor_locked
     def model_param(self, **values):
         from .drive import MODEL_IDS
         for name in values:
@@ -2503,6 +2535,7 @@ class SimulatedDrive:
             self._motor_at = time.time()
         return self._motor
 
+    @_rotor_locked
     def model(self):
         """The virtual source's rotor, or a still one on the ADC source.
 
@@ -2526,6 +2559,7 @@ class SimulatedDrive:
                 'theta_hat': self._theta_hat, 'omega_hat': self._omega_hat,
                 'error': err}
 
+    @_rotor_locked
     def model_reset(self):
         """The rotor back to theta0, at rest - the contract `drive.py` states."""
         self._motor = None

@@ -43,6 +43,20 @@ class _Mode:
     def __exit__(self, *exc):
         self.drive.off()
 
+    def _check(self):
+        """Raise with the board's own word if the stage tripped.
+
+        Every verb polls this each pass. Without it a trip mid-move -
+        overcurrent, the supply, the stage taken away - was commanded
+        against for the rest of the block, since nothing here read the
+        fault the state reply carries. The drive holds its own hardware
+        against a trip; this is so the LOOP stops asking, and the caller
+        hears why rather than watching a dead shaft not move."""
+        fault = self.drive.state()['fault']
+        if fault:
+            raise RigError('the drive tripped mid-move - %s. The stage is '
+                           'down; the block is over.' % fault)
+
     def _slew_to(self, theta_e, deg_s, pitch=0.25):
         """Walk the command to `theta_e`, `pitch` mech degrees a write:
         the spring is never asked to span more than a few degrees at
@@ -51,6 +65,7 @@ class _Mode:
         step = math.radians(pitch) * self.poles
         pause = pitch / deg_s
         while abs(theta_e - self._theta_e) > step:
+            self._check()
             self._theta_e += math.copysign(step, theta_e - self._theta_e)
             self.drive.setpoint(theta=self._theta_e)
             time.sleep(pause)
@@ -70,7 +85,8 @@ class _Mode:
         self.drive.mode('hold')
         for k in range(2, steps + 1):
             time.sleep(settle)
-            self.drive.setpoint(id_ref=amps * k / steps)
+            self._check()              # a trip mid-ramp must not be
+            self.drive.setpoint(id_ref=amps * k / steps)   # stepped past
         time.sleep(2.0 * settle)
 
 
@@ -190,6 +206,7 @@ class Servo(_Mode):
         return code.
         """
         for _ in range(int(tries)):
+            self._check()
             got = self._measure()
             self._error = degrees - got
             if abs(self._error) <= tol:
@@ -220,6 +237,10 @@ class Velocity(_Mode):
     identify the real pair (`speed_loop.ipynb`) at the bench.
     """
 
+    #: `load_k` is the LOOP's knowledge - the propeller law its
+    #: feedforward leans on. It moves no air: on the stand-in the plant's
+    #: drag is fed separately (`model_param(load=...)` from a `watch`,
+    #: as the notebooks do), and at the bench the air is the air.
     def __init__(self, device, amps, hz=3.0, j=2e-5, b=1e-5, load_k=0.0,
                  rate_hz=25.0):
         super().__init__(device)
@@ -270,7 +291,15 @@ class Velocity(_Mode):
             w_ref += move
             self.bus.w_ref = w_ref
             self.bus.a_ref = move / dt if dt else 0.0
-            self.bus.w = (self.drive.state()['omega_hat'] / self.poles)
+            # One state read a pass, and the fault rides it: a trip here
+            # is a runaway or an overcurrent, the one place stopping the
+            # loop matters most. No extra round trip - omega_hat and the
+            # fault come off the same reply.
+            st = self.drive.state()
+            if st['fault']:
+                raise RigError('the drive tripped mid-spin - %s. The stage '
+                               'is down; the loop is over.' % st['fault'])
+            self.bus.w = st['omega_hat'] / self.poles
             self.loop(self.bus, dt)
             self.drive.setpoint(iq_ref=self.bus.iq_ref)
             if watch is not None:

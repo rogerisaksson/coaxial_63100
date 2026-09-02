@@ -13,6 +13,7 @@ Run from the host directory:  python tests/test_sensorless.py
 import math
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -342,6 +343,68 @@ def test_motion(r):
             r.check('and brings the rotor back to rest', abs(got) < 60.0, got)
         r.check('the drive is OFF after every block',
                 rig.drive.state()['mode'] == 'off')
+
+        # THE DANGEROUS PATHS: what a block does when the plant misbehaves.
+        with rig.motion.servo(amps=3.0, settle=0.15) as s:
+            rig.drive.model_param(load=0.06)     # a load pulse winds it
+            time.sleep(0.3)
+            sagged = s._measure()
+            rig.drive.model_param(load=0.0)
+            got = s.to(0.0, tol=0.8)
+            r.check('a load pulse sags the hold and the servo takes it back',
+                    sagged < -1.0 and abs(got) <= 0.8, (sagged, got))
+            rig.drive.model_param(load=0.4)      # past 3 A of holding torque
+            try:
+                s.to(30.0, tol=0.5, tries=2)
+                r.check('an overpowered servo raises, not returns', False)
+            except RigError as exc:
+                r.check('an overpowered servo raises, not returns',
+                        'holding torque' in str(exc), exc)
+            rig.drive.model_param(load=0.0)
+        sim = rig.board.drive
+        try:
+            with rig.motion.velocity(amps=4.0, hz=2.0) as v:
+                def trip(_):
+                    sim._fault = 'overcurrent'
+                v.rpm(600, seconds=2.0, watch=trip)
+            r.check('a trip mid-spin ends the loop with the reason', False)
+        except RigError as exc:
+            r.check('a trip mid-spin ends the loop with the reason',
+                    'overcurrent' in str(exc), exc)
+        sim._fault = None
+        r.check('and the drive is OFF after the aborted block',
+                rig.drive.state()['mode'] == 'off')
+
+        # The aborted block leaves a coasting flywheel (tau = j/b is
+        # seconds); the next check wants a known rotor, as a bench block
+        # would brake first.
+        rig.drive.model_reset()
+
+        # ONE ROTOR, TWO THREADS. A reader hammering the shaft sensor -
+        # the DAQ path's own route into the rotor - while a motion loop
+        # runs it: before the lock, two interleaved advances double-
+        # integrated and the shaft read in megaradians.
+        import threading
+        stop, seen = [False], []
+
+        def reader():
+            while not stop[0]:
+                seen.append(rig.angle.state()['degrees'])
+                time.sleep(0.001)
+
+        t = threading.Thread(target=reader)
+        t.start()
+        try:
+            with rig.motion.velocity(amps=4.0, hz=2.0) as v:
+                got = v.rpm(600, seconds=1.5)
+        finally:
+            stop[0] = True
+            t.join()
+        r.check('the loop holds under a concurrent reader',
+                abs(got - 600.0) < 60.0, got)
+        r.check('and every concurrent shaft read stays a real angle',
+                seen and all(-1.0 <= d <= 361.0 for d in seen),
+                (len(seen), max(seen, default=0)))
     finally:
         rig.close()
 

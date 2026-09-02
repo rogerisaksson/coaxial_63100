@@ -341,12 +341,89 @@ def test_frame_length(report):
                  frame_length(None, took) == 0)
 
 
+def test_ack_skips_the_quiet_time(report):
+    """The ACK shape through the REAL read loop, on a scripted port.
+
+    `frame_length` is checked above; this drives `_read_until_quiet`
+    itself. The stub port scripts the reply and counts the reads that
+    found nothing - each of those is a QUIET_TIME the caller waited out.
+    A shaped ack must finish with zero; the same frame without a shape
+    must pay at least one, or the 8 ms this machinery removed is back.
+    """
+    import types
+
+    from coaxial import transport as tmod
+    from coaxial.crc import crc16
+
+    class _StubSerial:
+        """A slave in four methods: the scripted `reply` arrives when
+        the request is WRITTEN - preloading the stream instead met
+        transmit()'s purge-on-unclean and tested an empty wire."""
+
+        def __init__(self, *args, **kwargs):
+            self.stream = b''
+            self.reply = b''
+            self.hungry = 0            # reads that returned nothing
+
+        @property
+        def in_waiting(self):
+            return len(self.stream)
+
+        def read(self, n=1):
+            if not self.stream:
+                self.hungry += 1
+                return b''
+            got, self.stream = self.stream[:n], self.stream[n:]
+            return got
+
+        def write(self, data):
+            self.stream = self.reply
+            return len(data)
+
+        def flush(self):
+            pass
+
+        def reset_input_buffer(self):
+            self.stream = b''
+
+    def framed(payload, fc=0x6E):
+        body = bytes([1, fc]) + payload
+        return body + crc16(body).to_bytes(2, 'little')
+
+    real = tmod.serial
+    tmod.serial = types.SimpleNamespace(Serial=_StubSerial,
+                                        SerialException=Exception)
+    try:
+        port = tmod.Transport('STUB', 115200)
+        port.serial.reply = framed(b'\x01')
+        got = port.request(1, 0x6E, b'', reply_shape=tmod.ACK)
+        report.check('a shaped ack returns its payload', got == b'\x01', got)
+        report.check('without one hungry read - no quiet time paid',
+                     port.serial.hungry == 0, port.serial.hungry)
+
+        port.serial.reply = framed(b'\x01')
+        got = port.request(1, 0x6E, b'')
+        report.check('the same frame unshaped still decodes', got == b'\x01')
+        report.check('but pays the quiet wait, which is what the shape buys',
+                     port.serial.hungry >= 1, port.serial.hungry)
+
+        port.serial.hungry = 0
+        port.serial.reply = framed(b'\x00\x05hands')
+        got = port.request(1, 0x6E, b'', reply_shape=tmod.ACK)
+        report.check('a shaped refusal arrives whole, still without a wait',
+                     got == b'\x00\x05hands' and port.serial.hungry == 0,
+                     (got, port.serial.hungry))
+    finally:
+        tmod.serial = real
+
+
 def main():
     report = Report()
     for test in (test_one_client, test_two_sessions,
                  test_errors_cross_as_themselves,
                  test_a_client_never_hands_the_line_back,
-                 test_a_stale_address_is_not_a_broker, test_frame_length):
+                 test_a_stale_address_is_not_a_broker, test_frame_length,
+                 test_ack_skips_the_quiet_time):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
