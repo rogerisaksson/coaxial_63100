@@ -358,6 +358,37 @@ def test_key_light(report):
                  away < flat - 1.0, '%.1f vs %.1f' % (away, flat))
 
 
+def test_triad(report):
+    """The board's axes in the corner: each lettered once, X right and
+    Y up at rest, and a quarter turn about Z puts X where Y was."""
+    def letters(q):
+        text = wireframe.render(q, 60, 20, zoom=1.0, colour=False,
+                                horizon=False, triad=True)
+        found = {}
+        for r, line in enumerate(text.split('\n')):
+            for c, ch in enumerate(line):
+                if ch in 'XYZ':
+                    found.setdefault(ch, []).append((c, r))
+        return found
+
+    rest = letters((0.0, 0.0, 0.0, 1.0))
+    report.check('triad: X, Y and Z each lettered once at rest',
+                 sorted(rest) == ['X', 'Y', 'Z']
+                 and all(len(v) == 1 for v in rest.values()), str(rest))
+    # Reach 4 at 20 rows (the floor), so the origin sits at column 7,
+    # row 15 - see _triad.
+    ox, oy = 7, 15
+    x_at = rest.get('X', [(0, 0)])[0]
+    y_at = rest.get('Y', [(0, 99)])[0]
+    report.check('triad: at rest X points right and Y up',
+                 x_at[0] > ox and y_at[1] < oy, '%s %s' % (x_at, y_at))
+    half = math.sqrt(0.5)
+    turned = letters((0.0, 0.0, half, half))        # a quarter turn about Z
+    report.check('triad: a quarter turn about Z puts X where Y was',
+                 turned.get('X') == rest.get('Y'),
+                 '%s vs %s' % (turned.get('X'), rest.get('Y')))
+
+
 def main():
     report = Report()
     print('\n-- the 3D engine, stage by stage --')
@@ -367,6 +398,7 @@ def main():
     test_chain(report)
     test_outline(report)
     test_key_light(report)
+    test_triad(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

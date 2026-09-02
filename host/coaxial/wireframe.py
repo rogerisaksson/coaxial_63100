@@ -709,6 +709,21 @@ OUTLINE_LEVEL = 0.003
 #: would strip to a dot or two each.
 OUTLINE_CELLS = 2
 OUTLINE_EXACT = 200000
+#: Consecutive creases that bend by less than this chord deviation, in
+#: model units (0.15 mm), are ONE segment for the drawing. The export
+#: tessellates a fillet into edges of a third of a millimetre and a
+#: can's rim into dozens: measured at the view's zoom, 914 of the 1,458
+#: edges in the 95 loops drawn were under half a cell face-on - every
+#: one on OUTLINE_MIN_EDGE's threshold, popping in and out as the view
+#: turned ("Schroedinger's pixels", the bench). Merged once per solid,
+#: Douglas-Peucker along each chain of a loop: 778 edges from 1,458,
+#: 20 % under half a cell from 63 %; the rim's 136 facets of 2.3 mm
+#: become 64 chords of 4.9 mm, 0.06 mm off the circle; a fillet is a
+#: bevel or two. A pin field's zigzag turns too sharply to merge and
+#: stays under the min-edge filter as before. Blink events in a
+#: 0.6-degree-a-frame tumble at the view's size: 227 to 102 over 38
+#: frames, with the fixed-phase dots below.
+OUTLINE_CHORD = 0.003
 
 #: The line's tone: the cell's OWN heat lifted OUTLINE_LIFT rungs - "a
 #: touch brighter than the rest of the object", the bench's words - so
@@ -953,6 +968,75 @@ def _loops(edges, pos):
     return out
 
 
+def _chains(members):
+    """A loop's edges as vertex chains: walked from every vertex that is
+    not a plain link - an end, or a corner where three creases meet -
+    then whatever closed rings are left, each ending on its start."""
+    adj = {}
+    for a, b in members:
+        adj.setdefault(a, []).append(b)
+        adj.setdefault(b, []).append(a)
+    used = set()
+
+    def walk(start, nxt):
+        chain = [start, nxt]
+        used.add((start, nxt) if start < nxt else (nxt, start))
+        prev, at = start, nxt
+        while len(adj[at]) == 2 and at != start:
+            nxt = adj[at][0] if adj[at][1] == prev else adj[at][1]
+            key = (at, nxt) if at < nxt else (nxt, at)
+            if key in used:
+                break
+            used.add(key)
+            chain.append(nxt)
+            prev, at = at, nxt
+        return chain
+
+    chains = []
+    for v, links in adj.items():
+        if len(links) != 2:
+            for nxt in links:
+                if ((v, nxt) if v < nxt else (nxt, v)) not in used:
+                    chains.append(walk(v, nxt))
+    for a, b in members:
+        if ((a, b) if a < b else (b, a)) not in used:
+            chains.append(walk(a, b))
+    return chains
+
+
+def _simplify(chain, pos, tol):
+    """The chain's vertices with every one within `tol` of the chord
+    between its kept neighbours dropped: Douglas-Peucker, iterative,
+    in the model's three dimensions."""
+    keep = [False] * len(chain)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(chain) - 1)]
+    while stack:
+        i, j = stack.pop()
+        if j - i < 2:
+            continue
+        a, b = 3 * chain[i], 3 * chain[j]
+        ax, ay, az = pos[a], pos[a + 1], pos[a + 2]
+        dx, dy, dz = pos[b] - ax, pos[b + 1] - ay, pos[b + 2] - az
+        dd = dx * dx + dy * dy + dz * dz
+        worst, where = tol * tol, -1
+        for k in range(i + 1, j):
+            p = 3 * chain[k]
+            px, py, pz = pos[p] - ax, pos[p + 1] - ay, pos[p + 2] - az
+            if dd:
+                t = (px * dx + py * dy + pz * dz) / dd
+                t = 0.0 if t < 0.0 else (1.0 if t > 1.0 else t)
+                px, py, pz = px - t * dx, py - t * dy, pz - t * dz
+            d2 = px * px + py * py + pz * pz
+            if d2 > worst:
+                worst, where = d2, k
+        if where >= 0:
+            keep[where] = True
+            stack.append((i, where))
+            stack.append((where, j))
+    return [v for v, k in zip(chain, keep) if k]
+
+
 #: The outline's loops per source solid, built once per process.
 _OUTLINES = {}
 
@@ -1016,7 +1100,134 @@ def _outline_loops(solid):
                                 + (pos[3 * a + 2] - pos[3 * b + 2]) ** 2)
         return length <= OUTLINE_DENSITY * extent
 
-    return [(e, m) for e, m in loops if sparse(e, m)]
+    # What remains is merged along its chains (OUTLINE_CHORD) - after
+    # the density gate, which judges the creases as the mesh has them.
+    drawn = []
+    for extent, members in loops:
+        if not sparse(extent, members):
+            continue
+        merged = []
+        for chain in _chains(members):
+            kept = _simplify(chain, pos, OUTLINE_CHORD)
+            merged.extend(zip(kept, kept[1:]))
+        drawn.append((extent, merged))
+    return drawn
+
+
+def _trace(x0, y0, w0, x1, y1, w1, dot):
+    """`dot(fx, fy, w)` wherever the segment crosses one of the braille
+    matrix's own lines: the sub-columns at half-cell pitch when it runs
+    flatter than the matrix's aspect, the sub-rows at quarter pitch
+    when steeper. So a dot's place is the geometry's alone. Sampled
+    along the segment's own parameter first, the samples slid with its
+    projected length, and every cell where a shallow line sat on a row
+    boundary blinked as the view turned - measured, 108 of 227 blink
+    events in a tumble. `w` rides along for the depth test."""
+    dx, dy, dw = x1 - x0, y1 - y0, w1 - w0
+    if abs(dx) >= 2.0 * abs(dy):
+        if dx == 0.0:
+            return
+        lo, hi = (x0, x1) if x0 < x1 else (x1, x0)
+        for k in range(int(math.ceil(2.0 * lo - 0.5)),
+                       int(math.floor(2.0 * hi - 0.5)) + 1):
+            fx = (k + 0.5) / 2.0
+            t = (fx - x0) / dx
+            dot(fx, y0 + dy * t, w0 + dw * t)
+    else:
+        lo, hi = (y0, y1) if y0 < y1 else (y1, y0)
+        for j in range(int(math.ceil(4.0 * lo - 0.5)),
+                       int(math.floor(4.0 * hi - 0.5)) + 1):
+            fy = (j + 0.5) / 4.0
+            t = (fy - y0) / dy
+            dot(x0 + dx * t, fy, w0 + dw * t)
+
+
+#: THE TRIAD: the board's own X, Y and Z as a small gizmo in the
+#: frame's lower left, turning with the board - the reference every
+#: CAD view keeps in a corner, in this view's own ink: braille lines
+#: from an origin, the letter one cell past each tip, an axis toward
+#: the camera brighter than one away (TRIAD_RUNG, the ladder's rungs
+#: at the two extremes; the letter TRIAD_LABEL_LIFT above its line).
+#: TRIAD_REACH bounds the length of an axis lying in the screen's
+#: plane, in columns (half that in rows), sized from the frame at a
+#: sixth of its rows: neither a smudge on a 24-row terminal (four)
+#: nor a second subject at 44 (seven). The backdrop is cleared behind it, a window
+#: cut in the floor; the board, where it reaches the corner, is not -
+#: the subject stays the subject.
+TRIAD_REACH = (4, 7)
+TRIAD_MARGIN = (2, 1)
+TRIAD_RUNG = (3.0, 5.5)
+TRIAD_LABEL_LIFT = 1.5
+TRIAD_AXES = (((1.0, 0.0, 0.0), 'X'), ((0.0, 1.0, 0.0), 'Y'),
+              ((0.0, 0.0, 1.0), 'Z'))
+
+
+def _triad(grid, tone, buf, cam, m, colour):
+    """The board's axes as a gizmo in the lower left - see TRIAD_REACH.
+    (origin column, origin row, reach), for the test that reads it."""
+    width, height = cam['width'], cam['height']
+    reach = max(TRIAD_REACH[0], min(TRIAD_REACH[1], height // 6))
+    half = reach // 2 + 1
+    ox = TRIAD_MARGIN[0] + reach + 1
+    oy = height - 1 - TRIAD_MARGIN[1] - half
+    m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
+    ceiling = len(GLOW) - 1
+
+    def free(px, py):
+        return 0 <= px < width and 0 <= py < height and not buf[py * width + px]
+
+    for py in range(oy - half, oy + half + 1):
+        for px in range(ox - reach - 1, ox + reach + 2):
+            if free(px, py):
+                grid[py][px] = ' '
+                tone[py][px] = None
+
+    masks, rungs, letters = {}, {}, []
+    for (x, y, z), letter in TRIAD_AXES:
+        vx = m0 * x + m1 * y + m2 * z
+        vy = m3 * x + m4 * y + m5 * z
+        vz = m6 * x + m7 * y + m8 * z
+        rung = TRIAD_RUNG[0] + (TRIAD_RUNG[1] - TRIAD_RUNG[0]) * 0.5 * (vz + 1.0)
+        x0, y0 = ox + 0.5, oy + 0.5
+        dx, dy = reach * vx, -0.5 * reach * vy
+
+        def dot(fx, fy, _w, rung=rung):
+            if fx < 0.0 or fy < 0.0:
+                return
+            px, py = int(fx), int(fy)
+            if not free(px, py):
+                return
+            at = py * width + px
+            col = 1 if fx - px >= 0.5 else 0
+            row = min(3, int((fy - py) * 4.0))
+            masks[at] = masks.get(at, 0) | BRAILLE_BITS[col][row]
+            rungs[at] = max(rungs.get(at, 0.0), rung)
+
+        _trace(x0, y0, 1.0, x0 + dx, y0 + dy, 1.0, dot)
+        # The letter one column past the tip along the axis, measured
+        # in the screen's aspect; an axis pointing at the camera has no
+        # tip to speak of and its letter sits beside the origin.
+        run = math.sqrt(dx * dx + 4.0 * dy * dy)
+        if run < 0.5:
+            ex, ey = 1.0, 0.0
+        else:
+            ex, ey = dx / run, 2.0 * dy / run
+        lx, ly = int(x0 + dx + 1.2 * ex), int(y0 + dy + 0.6 * ey)
+        if (lx, ly) == (int(x0 + dx), int(y0 + dy)):
+            lx, ly = int(x0 + dx + 2.4 * ex), int(y0 + dy + 1.2 * ey)
+        letters.append((lx, ly, letter, rung))
+
+    for at, mask in masks.items():
+        r, c = divmod(at, width)
+        grid[r][c] = chr(BRAILLE + mask)
+        if colour:
+            tone[r][c] = _blend(min(ceiling, rungs[at]))
+    for lx, ly, letter, rung in letters:
+        if free(lx, ly):
+            grid[ly][lx] = letter
+            if colour:
+                tone[ly][lx] = _blend(min(ceiling, rung + TRIAD_LABEL_LIFT))
+    return ox, oy, reach
 
 
 def _outline(grid, tone, buf, cam, m, colour, heat=None):
@@ -1050,32 +1261,29 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
                                                      + m5 * z), w)
         return got
 
-    # The edge is sampled at the matrix's own pitch - half a cell
-    # across, a quarter down - and each sample sets one dot.
+    def dot(fx, fy, we):
+        if fx < 0.0 or fy < 0.0:
+            return
+        px, py = int(fx), int(fy)
+        if px >= width or py >= height:
+            return
+        at = py * width + px
+        near = buf[at]
+        if near and we > 0.0 and 1.0 / we - 1.0 / near > OUTLINE_GRACE:
+            return                                    # behind the surface
+        col = 1 if fx - px >= 0.5 else 0
+        row = min(3, int((fy - py) * 4.0))
+        masks[at] = masks.get(at, 0) | BRAILLE_BITS[col][row]
+
     for extent, members in loops:
         if extent < min_extent:
             continue
         for a, b in members:
             x0, y0, wa = project(a)
             x1, y1, wb = project(b)
-            span = max(abs(x1 - x0), 2.0 * abs(y1 - y0))
-            if span < OUTLINE_MIN_EDGE:
+            if max(abs(x1 - x0), 2.0 * abs(y1 - y0)) < OUTLINE_MIN_EDGE:
                 continue                    # sub-pixel detail, see above
-            steps = max(1, int(2.0 * span))
-            for i in range(steps + 1):
-                t = i / steps
-                fx, fy = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
-                px, py = int(fx), int(fy)
-                if not (0 <= px < width and 0 <= py < height):
-                    continue
-                at = py * width + px
-                near = buf[at]
-                we = wa + (wb - wa) * t
-                if near and we > 0.0 and 1.0 / we - 1.0 / near > OUTLINE_GRACE:
-                    continue                          # behind the surface
-                col = 1 if fx - px >= 0.5 else 0
-                row = min(3, int((fy - py) * 4.0))
-                masks[at] = masks.get(at, 0) | BRAILLE_BITS[col][row]
+            _trace(x0, y0, wa, x1, y1, wb, dot)
     # Strays: a line is a chain of neighbouring cells, so a cell with no
     # drawn neighbour in its eight is a sample that cleared the depth
     # test alone - a grazing edge, a corner half behind a wall - and
@@ -1160,13 +1368,14 @@ def _cells(solid, m, cam, crew, face, foreign):
 
 def render(q, width, height, zoom=1.0, colour=True,
            horizon=True, face=True, tip=None, solid=None,
-           distance=None, lift=0.44, crew=None, least=0):
+           distance=None, lift=0.44, crew=None, least=0, triad=False):
     """The board under rotation `q`, as a vector drawing.
 
     Cell-resolution: the strokes ARE the picture, so there is no half-block
     supersampling to average them away. `horizon` draws the WORLD's level line behind
     everything, the old flight-sim cue: the board tilts, the horizon does
-    not. `lift` is the model's vertical centre as a share of the frame
+    not; `triad` draws the BOARD's axes as a gizmo in the lower left,
+    which does tilt. `lift` is the model's vertical centre as a share of the frame
     (0.5 dead centre, smaller is higher). `crew` is a coaxial.crew.Crew
     holding THIS solid: the raster runs as row bands in its processes."""
     from . import ansi, engine, orientation
@@ -1233,6 +1442,8 @@ def render(q, width, height, zoom=1.0, colour=True,
         # relief alone, a rung's worth, and the board read as one sheet.
         if not foreign:
             _outline(grid, tone, buf, cam, m, colour, heat=heat)
+    if triad:
+        _triad(grid, tone, buf, cam, m, colour)
 
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     # The lit raster IS the picture; the chosen edges only draw in wire

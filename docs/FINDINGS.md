@@ -3072,3 +3072,56 @@ three loops, the size gate, the braille, and the key light's sign -
   but faint now instead of bright. The dot's depth rides the join
   interpolation, so nothing here costs the frame - the backdrop is
   cached per window size as before; the replay is 0.18 ms.
+* *"Still pixels near the board's edge flickering in and out of
+  existence - Schroedinger's pixels."* Measured before touching: a
+  0.6-degree-a-frame tumble at 150x44, 40 frames, every outline cell
+  that went on-off-on or off-on-off counted and, in its off frame,
+  asked what emptied it. 227 events over 38 frames, 6.0 a frame: 108
+  had NO dot at all that frame, 44 had dots lost to the span filter
+  and the depth test both, 43 to the depth test, 24 were dropped as
+  lone cells, 8 to the span filter alone; 29 sat on the silhouette,
+  197 inside the board. Two causes behind the big numbers. First, the
+  edges themselves: of the 1,458 edges in the 95 loops drawn at the
+  view's zoom, 914 (63 %) were under half a cell face-on - the export
+  tessellates every fillet and rim into fractions of a millimetre -
+  so most of a part's outline sat on OUTLINE_MIN_EDGE's threshold and
+  crossed it as the view turned. Second, the sampling: an edge was
+  sampled along its own parameter at `int(2 x span)` steps, so the
+  samples slid with the edge's projected length, and a cell where a
+  shallow line sat on a row boundary got a dot or not by the phase.
+  The fixes: `_chains` and `_simplify` merge each loop's edges along
+  their chains once per solid (Douglas-Peucker in three dimensions,
+  OUTLINE_CHORD 0.15 mm) - 778 edges from 1,458, 20 % under half a
+  cell, the rim's 136 facets of 2.3 mm now 64 chords of 4.9 mm and
+  0.06 mm off the circle; and `_outline` puts a dot wherever an edge
+  crosses one of the matrix's own lines (sub-columns at half-cell
+  pitch for an edge flatter than the matrix's aspect, sub-rows at
+  quarter pitch for a steeper one), so a dot's place is the geometry's
+  alone. Counted again: 102 events, 2.7 a frame - depth 45, no dot 27,
+  lone 14, span and depth 10, span 6; 8 on the silhouette. Tried and
+  rejected, measured: testing each dot against the raster's own 2x2
+  subsample instead of the cell's nearest depth, expecting the depth
+  blinks to halve - it passed more dots (634 cells a frame against
+  547, the slab behind a part's wall now answering for dots beside
+  the wall) and blinked MORE, 140 events against 102. The cell's
+  nearest depth stays. What remains is the hidden-line test at cell
+  resolution on a part's far corner edges and the ends of chains, at
+  half a per cent of the outline's cells a frame. Cost: `_outline` at
+  the view's size 4.3 ms from 5.0 - fewer edges, and the merge itself
+  is once per solid behind the boot strip.
+* *"Then an X, Y, Z coordinate system, the same retro-futurism theme,
+  not too big, small or janky."* `_triad`: the board's own axes as a
+  gizmo in the frame's lower left, turning with the board - braille
+  lines from an origin through the same `_trace` the outline draws
+  with, the letter one column past each tip along the axis in the
+  screen's aspect, an axis toward the camera at rung 5.5 of the ladder
+  and one away at 3.0, the letter a rung and a half over its line.
+  Sized from the frame: a sixth of its rows, held between four and
+  seven columns of reach (a 24-row terminal, the 44-row view). The
+  fan is cleared behind it in a window, the board is not - where the
+  board reaches the corner it covers the gizmo, the subject staying
+  the subject. `orientation.render` ties it to the same key as the
+  horizon (C, FRAME): the world's reference and the board's go
+  together. test_render holds it: each axis lettered once, X right
+  and Y up at rest, a quarter turn about Z putting X where Y was - 37
+  checks.
