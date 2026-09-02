@@ -368,6 +368,7 @@ TOUCHES = (
     # the structure suite's AST pass - measured: it caught a rename that
     # left `print(daq)` behind in two of them.
     ('python_examples/',              (STRUCTURE,)),
+    ('notebook_examples/',            (STRUCTURE,)),
     # A document can only break the docs index and the phrase table.
     ('docs/',                         ('test_ollama_runner.py',)),
     ('CLAUDE.md',                     ('test_ollama_runner.py',)),

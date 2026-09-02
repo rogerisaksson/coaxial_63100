@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.join(__file__.rsplit('tools', 1)[0], 'tests'))
 
 from coaxial import inverter, sensorless                         # noqa: E402
 from coaxial.loop import Signals, SpeedLoop                      # noqa: E402
-from coaxial.motor import APC20x10E, PLATINUM_5230SL             # noqa: E402
+from coaxial.motor import APC20x10E, PLATINUM_5230SL, Parameters, Propeller  # noqa: E402
 import test_drive_core as H                                      # noqa: E402
 from test_modbus_core import build, find_cc                      # noqa: E402
 
@@ -76,7 +76,7 @@ def wrap(x):
     return (x + math.pi) % TWO_PI - math.pi
 
 
-def draw(seed, vdc, motor=PLATINUM_5230SL):
+def draw(seed, vdc, motor=PLATINUM_5230SL, k_prop=APC20x10E.k):
     """A plant the controller was not told about. Copper to 125 C on R,
     the size-class estimates' quarter on L, a saliency from barely there to
     1.5, the dead time either side of the commissioned one, the AFE at its
@@ -92,15 +92,16 @@ def draw(seed, vdc, motor=PLATINUM_5230SL):
             'v_dt': inverter.dead_time_volts(vdc, t_dead),
             'i_knee': inverter.knee_amps(vdc, t_dead) * u(0.7, 1.4),
             'vdc': vdc, 'noise': u(*inverter.NOISE_A), 'theta0': u(0.0, TWO_PI),
-            'sub': 4.0, 'theta_err0': u(-1.2, 1.2), 'k_prop': APC20x10E.k * u(0.8, 1.2)}
+            'sub': 4.0, 'theta_err0': u(-1.2, 1.2), 'k_prop': k_prop * u(0.8, 1.2)}
 
 
-def design(knobs, vdc, motor=PLATINUM_5230SL):
+def design(knobs, vdc, motor=PLATINUM_5230SL, i_max=I_MAX, i_trip=I_TRIP,
+           i_h_max=I_H_MAX):
     """The firmware's parameters from the knobs and what it believes."""
     w = TWO_PI * knobs['bw_i']
     n = int(knobs['n_inj'])
     v_inj = min(knobs['v_inj'] * vdc / math.sqrt(3.0),
-                2.0 * motor.ld * I_H_MAX / (n * TS))
+                2.0 * motor.ld * i_h_max / (n * TS))
     wn = TWO_PI * knobs['f_pll']
     t_upd = 2 * n * TS
     step, table = inverter.dt_table(vdc)
@@ -109,7 +110,7 @@ def design(knobs, vdc, motor=PLATINUM_5230SL):
          'l1': 2.0 * knobs['zeta'] * wn * t_upd, 'l2': wn * wn * t_upd,
          'inj_volts': v_inj, 'inj_periods': float(n), 'inj_phase': 0.0,
          'eps_gain': sensorless.demod_gain(v_inj, TS, motor.ld, motor.lq),
-         'i_max': I_MAX, 'i_trip': I_TRIP, 'v_frac': inverter.V_FRAC, 'sign': 1.0,
+         'i_max': i_max, 'i_trip': i_trip, 'v_frac': inverter.V_FRAC, 'sign': 1.0,
          'w_lo': knobs['w_lo'], 'w_hi': knobs['w_lo'] * knobs['w_ratio'],
          'dt_step': step}
     p.update(('dt%d' % k, v) for k, v in enumerate(table))
@@ -138,22 +139,32 @@ def profile(t, w_top, t_lock=0.15, rise=0.8, hold=0.4, fall=1.0):
 
 def run_job(job):
     """One run. `job`: vdc, knobs, seed; `bemf_only` descends with the
-    injection off from the hold on, and reports where the rotor was lost."""
+    injection off from the hold on, and reports where the rotor was lost.
+
+    `motor` (a dict of `Parameters` fields), `k_prop`, `i_max`, `i_trip`
+    and `i_h_max` retune the whole run for another machine - the auto-tune
+    notebook hands in what the commissioning just identified and the
+    search sizes itself to it. Absent, the 5230SL and the board's limits.
+    """
     vdc, knobs, seed = job['vdc'], job['knobs'], job['seed']
-    motor = PLATINUM_5230SL
-    plant = draw(seed, vdc)
+    motor = Parameters(**job['motor']) if 'motor' in job else PLATINUM_5230SL
+    i_max = job.get('i_max', I_MAX)
+    i_trip = job.get('i_trip', I_TRIP)
+    k_prop = job.get('k_prop', APC20x10E.k)
+    plant = draw(seed, vdc, motor, k_prop)
     d = H.Drive(_LIB, TS)
     try:
         d.model_params(**{k: plant[k] for k in H.MODEL})
         d.source(True)
-        params = design(knobs, vdc)
+        params = design(knobs, vdc, motor, i_max, i_trip,
+                        job.get('i_h_max', I_H_MAX))
         d.params(**params)
         d.setpoints(id_ref=0.0, iq_ref=0.0)
         d.set_theta(plant['theta0'] + plant['theta_err0'])
         d.mode(H.SENSORLESS, enabled=False, powered=False)
-        speed = SpeedLoop(knobs['bw_w'], I_MAX, motor, load=APC20x10E)
+        speed = SpeedLoop(knobs['bw_w'], i_max, motor, load=Propeller(k_prop))
         s = Signals()
-        w_top = top_speed(vdc)
+        w_top = top_speed(vdc, motor)
         t_hold = 0.15 + 0.8
         model = {k: plant[k] for k in H.MODEL}
         sq_th = sq_w = n = 0

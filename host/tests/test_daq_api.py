@@ -424,6 +424,41 @@ def test_frames_rolls_a_window(report):
                  abs(deep.index[-1]) < 1e-6, deep.index[-1])
 
 
+def test_open_is_idempotent(report):
+    """open() twice is one session. `daq.open()` opens the device it
+    belongs to, so a script that already opened the device built a SECOND
+    stand-in board - every command went to a rotor the records never saw,
+    and on a port it would be a collision."""
+    device = Coaxial63100(simulated_device=True).open()
+    try:
+        board = device.board
+        device.daq.open()
+        report.check('a second open keeps the session and the board',
+                     device.board is board)
+    finally:
+        device.close()
+
+
+def test_records_track_the_wall(report):
+    """A free-running task's stamps span the wall time it covered. They
+    advanced 47 us a record while the line paced ~300 a second: half a
+    second of run stamped as 9 ms, and an omega differentiated off the
+    frame came out in megaradians."""
+    with opened() as device:
+        daq = device.daq
+        daq.configure('NTC')
+        daq.start()
+        time.sleep(0.5)
+        recs = list(daq.read(-1))
+        daq.stop()
+    span = ((recs[-1]['at'] - recs[0]['at']) & 0xFFFFFFFF) / 475e6
+    report.check('the at stamps span the wall, not the sweep count',
+                 0.2 < span < 2.0, span)
+    report.check('start_time spans it the same way',
+                 0.2 < recs[-1].start_time - recs[0].start_time < 2.0,
+                 recs[-1].start_time - recs[0].start_time)
+
+
 def main():
     report = Report()
     for test in (test_catalogue, test_pick,
@@ -435,7 +470,8 @@ def main():
                  test_configure_buffer, test_fanout_ring,
                  test_enable_is_session_scoped, test_compensate_and_tare,
                  test_scaled_columns_use_the_record,
-                 test_frames_rolls_a_window):
+                 test_frames_rolls_a_window,
+                 test_open_is_idempotent, test_records_track_the_wall):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

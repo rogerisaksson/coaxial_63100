@@ -72,9 +72,16 @@ CHANNELS = [
 # 7 and 8 are the supply senses, near what the board reads: +5 through a
 # 10 k/10 k divider is 2.55 V of 3.3, and the gate supply sits near zero
 # because the STO chain has not released it.
-NOMINAL = {0: 900.0, 1: -8650.0, 2: -80.0, 3: 1010.0, 4: 41000.0,
-          5: 21000.0, 6: 16500.0, 7: 50700.0, 8: 1030.0,
+NOMINAL = {0: 1400.0, 1: -8030.0, 2: 360.0, 3: 1010.0, 4: 41000.0,
+          5: 20775.0, 6: 16500.0, 7: 50700.0, 8: 1030.0,
           9: 33000.0}
+
+#: What the stand-in's DC link IS, in volts: its rest code through the
+#: divider (78.15 V full scale over 16 bits). One number, derived - the
+#: drive reported 24.0, the DAQ's modulation index divided by 31.0 and
+#: the DC bus channel read 24.8, and an identification off a recorded
+#: frame folded the disagreement into every constant it recovered.
+DCBUS_V = NOMINAL[5] * 78.15 / 65536.0
 DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0,
          7: 30.0, 8: 20.0, 9: 60.0}
 
@@ -1534,14 +1541,10 @@ class SimulatedDaq(Acquisition):
         # The link this stand-in reports, through its own scaling: the
         # modulation index is what fraction of half the link the vector
         # asks for, and it cannot exceed one.
-        vdc = self.CENTRE_DCBUS_V
+        vdc = DCBUS_V
         index = min(1.0, (2.0 * volts / vdc) if vdc else 0.0)
         return self._theta, amps, index, math.atan2(vq, vd)
 
-    #: What the stand-in's DC link reads, in volts - `CENTRE`'s 20775 codes
-    #: through the divider. Named because the modulation index divides by
-    #: it and a bare 31.0 in an expression is a constant nobody can trace.
-    CENTRE_DCBUS_V = 31.0
 
     #: Radians a phase lags the one before it.
     PHASE_STEP = 2.0 * math.pi / 3.0
@@ -1797,9 +1800,25 @@ class SimulatedDaq(Acquisition):
         n = min(int(want) or room, room)
         left = self._cfg['records'] - self._produced if self._cfg['records'] else n
         n = max(0, min(n, left))
+        # THE STAMPS TRACK THE WALL. A free-running software clock (no
+        # accumulate, no interval) stamped every record `base` apart while
+        # the line paced how many were actually made: 192 records "in"
+        # 9 ms of stamp against 0.6 s of wall, and an omega read off a
+        # recorded frame came out in megaradians. The records a batch
+        # invents span the wall time since the last batch, floored at the
+        # sweep cost; a clock-closed config keeps its own interval, as the
+        # board does.
+        step_us = self._period_us()
+        cfg = self._cfg or {}
+        if n and not cfg.get('interval_us'):
+            now = time.time()
+            since = getattr(self, '_wall', None)
+            if since is not None:
+                step_us = max(step_us, (now - since) * 1e6 / n)
+            self._wall = now
         out = []
         for _ in range(n):
-            self._at = (self._at + int(self._period_us() * 475)) & 0xFFFFFFFF
+            self._at = (self._at + int(step_us * 475)) & 0xFFFFFFFF
             took = self._samples_per_record(len(fields))
             rec = {'at': self._at, 'samples': took}
             # THE SUM, NOT THE SAMPLES. Drawing `took` uniform noise
@@ -1817,8 +1836,10 @@ class SimulatedDaq(Acquisition):
             # duties further down come from the same electrical angle, so
             # a trace and the modulation that produced it line up because
             # they ARE the same thing rather than because two generators
-            # were started together.
-            self._last_spin = self._spin(took * self._period_us() * 1e-6)
+            # were started together. The rotor advances by the SAME step
+            # the stamp does - theta against `at` is what an
+            # identification differentiates.
+            self._last_spin = self._spin(step_us * 1e-6)
             theta, amps, _index, _delta = self._last_spin
             for f in fields:
                 index = f['channel']
@@ -2010,7 +2031,12 @@ class SimulatedDrive:
     SIGMA_I = 0.02      #: current noise on the shunts, A rms
     TS = 20e-6
     FS = 50000.0
-    CENTRE = (1400.0, -8030.0, 360.0, 20775.0)   #: raw codes at rest
+    #: Raw codes at rest - THE SAME rest point every other path reads
+    #: (`NOMINAL`), U, V, W and the DC link. It was a second table with
+    #: its own numbers, and `offsets()` tared through this one while the
+    #: DAQ records sat on the other: -500 codes of phantom current on
+    #: every phase of a recorded frame.
+    CENTRE = (NOMINAL[0], NOMINAL[1], NOMINAL[2], NOMINAL[5])
     NOISE = (24.0, 22.0, 25.0, 8.0)              #: codes rms at the quiet point
     BEST_TRIGGER = 2300                          #: where the pickup is least
     PERIOD = 2376
@@ -2047,7 +2073,7 @@ class SimulatedDrive:
                        'lambda': self.LAMBDA, 'pole_pairs': float(self.POLES),
                        'sat': self.SAT, 'i_sat': self.I_SAT, 'j': 2e-5,
                        'b': 1e-5, 'load': 0.0, 'v_dt': self.V_DT,
-                       'i_knee': self.I_KNEE, 'vdc': 24.0, 'noise': 0.0,
+                       'i_knee': self.I_KNEE, 'vdc': DCBUS_V, 'noise': 0.0,
                        'theta0': 0.0, 'sub': 4.0}
 
     def _p(self, name, default):
@@ -2129,7 +2155,7 @@ class SimulatedDrive:
             'theta_hat': self._theta_hat, 'omega_hat': 0.0,
             'theta_cmd': (self._sp['theta'] + self._omega() * (time.time() - self._mode_at)) % (2 * math.pi),
             'omega_cmd': self._omega(),
-            'id': iid, 'iq': iq, 'vd': vd, 'vq': vq, 'vdc': 24.0,
+            'id': iid, 'iq': iq, 'vd': vd, 'vq': vq, 'vdc': DCBUS_V,
             'eps': (eps_amps / gain) if gain else 0.0, 'eps_amps': eps_amps,
             'ih': ih, 'e_bemf': 0.0, 'periods': periods,
             'isr_cycles_last': 1450, 'isr_cycles_max': max(self._cycles_max, 1620),
@@ -2185,7 +2211,7 @@ class SimulatedDrive:
             'vq': {'n': n, 'mean': vq, 'sd': 0.01},
             'eps': {'n': n // 2, 'mean': 0.0, 'sd': sd_eps},
             'ih': {'n': n // 2, 'mean': ih, 'sd': self.SIGMA_I / math.sqrt(2)},
-            'vdc': {'n': n, 'mean': 24.0, 'sd': 0.003},
+            'vdc': {'n': n, 'mean': DCBUS_V, 'sd': 0.003},
         }
         rng = random.Random(n)
         return {'n': n, 'fields': fields,

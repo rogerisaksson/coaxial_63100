@@ -29,7 +29,7 @@ disconnect(boards)
 `Coaxial63100` is the front door for one board - the AFE preflight, the
 supply put back as found, the subsystems by name (`.daq`, `.imu`, `.angle`,
 `.thermal`, `.gates`, `.drive`). Its example is in [../README.md](../README.md);
-the notebooks are `../python_examples/`. From a shell:
+the notebooks are `../notebook_examples/`. From a shell:
 
     python -m coaxial all
     python -m coaxial temp
@@ -54,10 +54,6 @@ ntc = daq.series(rec, 'ntc')
 for i in range(len(ntc)):
     print(t[i] - t[0], ntc[i])
 ```
-
-`series()`The frame already says what each column is, so a plot needs no help
-naming them:  is the currents and
- the U leg, in plain pandas.
 
 The frame already says what each column is, so a plot needs no help
 naming them - `df.filter(like=' (A)')` is the currents and
@@ -107,21 +103,24 @@ pandas is imported **where it is called**, so the library still runs on a
 bench without it: `columns()` is a dict of plain lists, which is what
 `DataFrame` takes anyway.
 
-`python_examples/propeller_sweep.ipynb` needs no board at all: the 5230SL
+`notebook_examples/propeller_sweep.ipynb` needs no board at all: the 5230SL
 and an APC20x10E from rest to 6717 rpm and back on a raised-cosine profile,
 the power budget split into propeller, iron, copper and the rotor's own
 borrowed energy, and the model laid back over Hobbywing's 22-point thrust
 stand. It is checked in with its outputs, so it reads without running.
 
-`python_examples/speed_loop.ipynb` closes `coaxial.loop`'s chain over the
+`notebook_examples/speed_loop.ipynb` closes `coaxial.loop`'s chain over the
 same machine - reference, d-axis probe, speed PI, current PI - and then
 `identify` pulls R, Ld, Lq and lambda back OUT of the run, uncertainties
 attached: the rehearsal for the day `sysid.from_frame` meets real records.
-`python_examples/foc_montecarlo.ipynb` compiles the firmware's own control
+`notebook_examples/foc_montecarlo.ipynb` compiles the firmware's own control
 law and searches its tuning against thousands of drawn plants across the
 23-63 V link sweep, one process per core - the controller schedule, its
 robustness, and the speed where back-EMF alone loses the rotor. Both are
-checked in with their outputs.
+checked in with their outputs. `notebook_examples/auto_tune.ipynb` is the
+bench-day procedure end to end - commission, identify, search a robust
+tune with the compiled control law, write the calibration record, verify
+- rehearsed against the stand-in until a motor can answer.
 
 **Zero and span belong to the calibration block**, not to the acquisition
 one: they write the calibration record, so they live where it does.

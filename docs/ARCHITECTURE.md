@@ -148,10 +148,14 @@ that bench into a search: one process per core, each running the compiled
 control law against a plant drawn around the 5230SL's estimates and a
 stage drawn around `inverter.py`'s, a host speed loop from `loop.py` over
 the observer's own speed, and a cost that prices a lost rotor at ten times
-a bad one. It schedules the controller across the 23-63 V link sweep;
-`python_examples/foc_montecarlo.ipynb` is the run, the schedule and the
-sensorless floor it found, and `speed_loop.ipynb` is `loop.py`'s chain
-identified back out of its own run.
+a bad one. A job can carry another machine and its limits, which is how the
+auto-tune notebook hands the search what the commissioning just
+identified. It schedules the controller across the 23-63 V link sweep;
+`notebook_examples/foc_montecarlo.ipynb` is the run, the schedule and the
+sensorless floor it found, `speed_loop.ipynb` is `loop.py`'s chain
+identified back out of its own run, and `auto_tune.ipynb` is the whole
+bench-day pipeline - commission, identify, search, write, verify -
+rehearsed against the stand-in.
 
 `orientation.py`, `dial.py` and `desk.py` are pure renderers - a reading
 in, text out; `mesh.py` reduces the CAD export in `render/models`, parsed
@@ -175,7 +179,7 @@ tool routing, mid-session board and model swaps (MODELS.md).
 
 ## The test system
 
-Twenty-five suites, 2299 checks. `run_tests.ps1` is the only interface -
+Twenty-five suites, 2303 checks. `run_tests.ps1` is the only interface -
 CLAUDE.md, *Commands*, has the tiers and the rules.
 
 * **A missing cable is not a failure.** A disconnected board falls back to

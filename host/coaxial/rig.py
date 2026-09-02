@@ -250,7 +250,16 @@ class Coaxial63100(Acquisition):
     # -- opening and closing --------------------------------------------
 
     def open(self):
-        """Open the link, bring the supply up, and hand back self."""
+        """Open the link, bring the supply up, and hand back self.
+
+        Idempotent: a device already open keeps its session. `daq.open()`
+        opens the device it belongs to, so `Coaxial63100(...).open()`
+        followed by `daq.open()` used to open a SECOND session - on the
+        stand-in that is a second board, and every command went to a rotor
+        the records never saw; on a port it is a collision.
+        """
+        if self.session is not None:
+            return self
         from coaxial_mcp.session import open_session
 
         simulated = True if self.simulated_device else (

@@ -747,6 +747,18 @@ def test_montecarlo(r, lib):
     bemf = mc.run_job(dict(job, bemf_only=True))
     r.check('back-EMF alone loses the same rotor on the way down',
             bemf['min_rpm'] > 0.0, bemf['min_rpm'])
+    from coaxial.motor import BENCH_MOTOR
+    little = {'name': BENCH_MOTOR.name, 'r': BENCH_MOTOR.r,
+              'ld': BENCH_MOTOR.ld, 'lq': BENCH_MOTOR.lq,
+              'lam': BENCH_MOTOR.lam, 'poles': BENCH_MOTOR.poles,
+              'j': BENCH_MOTOR.j, 'b': BENCH_MOTOR.b,
+              'sat': BENCH_MOTOR.sat, 'i_sat': BENCH_MOTOR.i_sat}
+    row = mc.run_job({'vdc': 24.8, 'knobs': mc.candidates(4, 2)[1], 'seed': 5,
+                      'motor': little, 'i_max': 5.0, 'i_trip': 8.0,
+                      'i_h_max': 0.8, 'k_prop': 2e-7})
+    r.check('a job carries another machine and the run sizes itself to it',
+            not row['trip'] and row['i_peak'] < 5.5,
+            (row['trip'], row['i_peak']))
 
 
 ROSTER = (test_math, test_mode_refusals, test_current_loop,

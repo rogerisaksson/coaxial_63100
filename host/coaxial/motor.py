@@ -72,8 +72,11 @@ class Parameters:
 
     @property
     def kv(self):
-        """The KV this flux linkage implies, by `flux_from_kv` inverted."""
-        return 60.0 / (math.sqrt(3.0) * TWO_PI * self.poles * self.lam)
+        """The KV this flux linkage implies, by `flux_from_kv` inverted.
+        Infinite at zero flux rather than a crash: a failed identification
+        hands back lam 0.0, and its repr still has to print."""
+        got = math.sqrt(3.0) * TWO_PI * self.poles * self.lam
+        return 60.0 / got if got else float('inf')
 
     @property
     def saliency(self):

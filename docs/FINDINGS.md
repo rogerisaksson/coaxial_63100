@@ -2568,7 +2568,7 @@ rotor also scored 0.00 deg steady, having never been sampled once.
 demodulator, observer, dead-time table - against plants drawn around the
 5230SL's estimates and a stage drawn around `coaxial.inverter`'s, 16 draws
 a candidate, cost `sigma_theta + speed_err + 10*trip` scored mean + p90.
-6 240 runs over 23-63 V (`python_examples/foc_montecarlo.ipynb`, 164 s at
+6 240 runs over 23-63 V (`notebook_examples/foc_montecarlo.ipynb`, 164 s at
 16 processes; 0.21 s a run through ctypes). Model arithmetic end to end.
 
 * **The injection optimum is volts, not a fraction**: 2.0-4.9 V across the
@@ -2611,3 +2611,45 @@ driver 591.66), not the download. `llama3.1:8b` runs correctly on the same
 daemon, GPU included, and `capability` picks it for this machine. A winget
 upgrade of ollama was cancelled mid-flight; the GPU driver update was in
 progress when this was written - re-run `test_live_model.py` after either.
+
+## The stand-in could not rehearse an identification, for four reasons
+
+Found preparing the auto-tune notebook: driving the stand-in's rotor and
+recording it through the DAQ front door - the exact flow a real motor will
+get - produced currents 17x off, duties flat at zero, and an omega in
+megaradians. All four causes were the stand-in's, none the flow's:
+
+* **`Coaxial63100.open()` was not idempotent.** `daq.open()` opens the
+  device it belongs to, so `device.open()` followed by `daq.open()` built
+  a SECOND SimulatedSession - commands went to one board's drive while
+  records came from the other's, whose rotor never moved. Ruled out
+  first: the wiring (`daq.drive` was correct on both). open() now keeps
+  a live session; on a real port the second open was a collision anyway.
+* **Three rest-point tables for one channel.** `NOMINAL` (analog + DAQ
+  records: U 900, V -8650), `SimulatedDrive.CENTRE` (moments: 1400,
+  -8030) and `CENTRE_DCBUS_V` (31.0 against a DC code reading 24.8 and a
+  drive reporting 24.0). `offsets()` tared through the moments and the
+  frame subtracted it from records centred 500 codes away: -3.2 A of
+  phantom on every phase. One table now (`NOMINAL`, the documented
+  reference-board values) and one link voltage (`DCBUS_V`, the rest code
+  through the divider).
+* **Stamps at the sweep, production at the line.** A free-running task
+  stamped every record 47 us apart while the emulated line paced ~300 a
+  second: half a second of run spanned 9 ms of timestamp, and the omega
+  differentiated off a frame came out in megaradians. Records now span
+  the wall time their batch covered, floored at the sweep cost; a
+  clock-closed config keeps its interval, as the board does.
+* **The record's u8 duties are a real limit, not a bug.** 1/255 of a
+  24.8 V link is 97 mV a leg, against omega L i terms of tens of mV - an
+  identification off recorded duties is quantisation-limited at low
+  modulation ON THE REAL BOARD TOO, and correlated within a steady
+  segment, so it does not average away. The commissioning's window path
+  (the controller's own vd/vq, unquantised) is the sysid backbone;
+  `sysid.from_frame` earns its keep at high modulation, or when a shaft
+  angle rides in records (TODO 0).
+
+The suites could not have caught the first three: invariant 10 keeps
+expected physical values out of the tests, and every value here was
+plausible alone - only closing the identification loop, which needs all
+of them at once, showed them. `test_daq_api.py` now closes two of the
+loops (idempotent open, stamps against the wall).
