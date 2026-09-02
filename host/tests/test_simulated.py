@@ -14,6 +14,7 @@ import math
 import os
 import re
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -1088,6 +1089,22 @@ def test_gate_driver_arming(report):
         report.check('and the same write goes through',
                      rig.write(analog={'Phase U': 0.25})['Phase U'] > 0,
                      rig.board.gate_drivers.state()['duty'])
+
+        # The counted hold, MINOR 8: the virtual interrupt zeroes the
+        # compares when the count runs out, and state() is where that is
+        # seen - 250 periods is 5 ms at the stand-in's 50 kHz.
+        gd = rig.board.gate_drivers
+        gd.duty((100, 0, 0), periods=250)
+        live = gd.state()
+        report.check('a counted duty holds and reports its count',
+                     live['duty'][0] == 100 and live['periods_left'] > 0,
+                     '%s left %s' % (live['duty'], live['periods_left']))
+        time.sleep(0.02)
+        done = gd.state()
+        report.check('and the compares are zero when the count runs out',
+                     done['duty'] == (0, 0, 0) and done['periods_left'] == 0,
+                     '%s left %s' % (done['duty'], done['periods_left']))
+        gd.duty((0, 0, 0))
 
         rig.gates.disarm()
         report.check('gates.disarm() clears it again',

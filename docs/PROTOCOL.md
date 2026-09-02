@@ -38,7 +38,11 @@ FUNCTION from the protocol layer before dispatch saw it.
 ### 0x41 Version
 
 Append-only, the frozen record. A host binds decoding to `CMD_PROTO_MAJOR`
-alone; appending a field is a MINOR. **MINOR 7, 2026-09-02**: daq op 1
+alone; appending a field is a MINOR. **MINOR 8, 2026-09-02**: gate
+drivers op 2 takes an optional `u32` period count - the update ISR
+zeroes the compares after exactly that many PWM periods, so a hold's
+length stops being the link's; op 0 appends `u32 periods_left`.
+**MINOR 7, 2026-09-02**: daq op 1
 appends a `u16` sensor mask, records append four-`i16` SNAPSHOTS per
 sensor between the pins and the count, op 5 appends the sensor rows and
 op 0 the two masks - software clock only, since a TIM1-clocked record
@@ -111,7 +115,7 @@ and an op dispatcher beside it. `coaxial.Coaxial63100` is the host side.
 | 1 | A1335 angle sensor | SPI4, mode 3, 1.86 MHz | 0 read register, 1 write register, 2 shared record, 3 hold, 4 resume, 5 which register the loop reads, 6 clock |
 | 2 | the three serial ports | USART3, USART2, UART5 | 0 loopback check, 1 per-port counters |
 | 3 | the calibration record | flash, bank 2 sector 7, CAL_VERSION 8 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults, 8 params (paged) |
-| 4 | the gate drivers | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3, 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16, 9 dead time + skew, 10 alternate: `u16 x3` A, `u16 x3` B - A one PWM period, B the next, swapped by the update interrupt until the next duty write; the thermal observer is charged each leg's mean over the pair (MINOR 1) |
+| 4 | the gate drivers | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3 (+ optional `u32` periods, MINOR 8), 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16, 9 dead time + skew, 10 alternate: `u16 x3` A, `u16 x3` B - A one PWM period, B the next, swapped by the update interrupt until the next duty write; the thermal observer is charged each leg's mean over the pair (MINOR 1) |
 | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
 | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live, 7 filter, 8 tone, 9 rung |
 | 7 | the cycle counter | latched, for a host to tie a clock to | 0 latch, 1 read |
@@ -245,7 +249,13 @@ because with nFAULT low the break is a *level* and hardware holds MOE clear
 whatever software does. Bench only; a reset restores it. What makes it safe
 is the STO chain gating the drivers' own DC/DC, which no MCU pin reaches.
 
-Op 2 takes all three compares or none. Op 1 always enables at zero duty. Op
+Op 2 takes all three compares or none, and from MINOR 8 an optional
+`u32` period count after them: the update interrupt zeroes the compares
+after exactly that many PWM periods - 500 is 10.000 ms at 50 kHz, where
+a link-timed hold measured 93-108 ms - and op 0 appends `u32
+periods_left` (0 free-running) so a host can watch the count run. Any
+new duty command, the alternate, the fine path or the drive taking the
+compares clears the count. Op 1 always enables at zero duty. Op
 5 clears the break latch and does **not** re-arm; with nFAULT still low it
 re-latches before op 1 can succeed - the STO interlock, not a bug.
 

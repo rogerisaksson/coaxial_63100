@@ -206,7 +206,7 @@ extern "C" {
 /** Device 4's ops: the gate drivers, the synced triple and the STO chain. */
 #define GATEDRIVERS_OP_STATE    0U   /**< -> flags, registers, triple, STO      */
 #define GATEDRIVERS_OP_PWM      1U   /**< u8 on  -> u8 took                     */
-#define GATEDRIVERS_OP_DUTY     2U   /**< u16 x3 -> u8 took, all three or none  */
+#define GATEDRIVERS_OP_DUTY     2U   /**< u16 x3 [, u32 periods] -> u8 took     */
 #define GATEDRIVERS_OP_SYNC     3U   /**< u8 on  -> u8 took                     */
 #define GATEDRIVERS_OP_TRIGGER  4U   /**< u16 CCR4 -> u16 as it reads back      */
 #define GATEDRIVERS_OP_CLEAR    5U   /**< -> u8 took; does NOT re-arm           */
@@ -288,7 +288,7 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 7U        /* 1: gate drivers op 10, alternate
+#define CMD_PROTO_MINOR 8U        /* 1: gate drivers op 10, alternate
                                      2: device 10, the drive; the DC link
                                         appended to gate drivers op 0
                                      3: a daq record ends with u16 count,
@@ -313,7 +313,12 @@ extern "C" {
                                         the pins; op 5 appends the rows.
                                         Software clock only - a TIM1
                                         record closes in ADC3's ISR and
-                                        would read the poll records torn */
+                                        would read the poll records torn
+                                     8: gate drivers op 2 takes an
+                                        optional u32 period count - the
+                                        update ISR zeroes the compares
+                                        after exactly that many periods;
+                                        op 0 appends u32 periods_left */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

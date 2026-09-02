@@ -43,6 +43,12 @@ static bool    s_skew_up;              /* true: the up-count edge gets more  */
 static uint8_t s_deadtime;             /* what was asked for, in DTG counts  */
 static volatile uint8_t s_half;        /* which half of the period this is   */
 
+/* Periods left of a counted hold, 0 when free-running. Decremented once per
+   PWM period in the update interrupt; at zero the compares drop to zero in
+   the same interrupt that owns them, so 10 ms asked for is exactly 500
+   periods rather than the link's 93-108 ms (FINDINGS has those numbers). */
+static volatile uint32_t s_countdown;
+
 /* The update interrupt, which the dither and the dead-time skew both need.
    Two owners and one switch: whoever stops has to ask whether the other is
    still using it, or the first one to finish turns it off under the second.
@@ -123,6 +129,7 @@ void Board_PwmDisable(void)
   s_armed = false;
   s_dither = false;
   s_alternate = false;
+  s_countdown = 0U;
   s_drive_owns = false;
   s_next_pending = false;
 
@@ -371,6 +378,7 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
   }
   s_dither = true;
   s_alternate = false;
+  s_countdown = 0U;
   if (!masked)
   {
     __enable_irq();
@@ -432,6 +440,7 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
      does not want it either. */
   s_dither = false;
   s_alternate = false;
+  s_countdown = 0U;
   update_irq(s_skew != 0U);
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
@@ -450,6 +459,32 @@ const char *Board_PwmSetAll(const uint16_t *ticks)
     s_duty[phase] = ticks[phase];
   }
   return NULL;
+}
+
+
+const char *Board_PwmSetAllCounted(const uint16_t *ticks, uint32_t periods)
+{
+  /* The same triple, held for exactly `periods` PWM periods and then
+     zeroed by the update interrupt. 0 periods is the plain set: run
+     until the next command, exactly as before the count existed. */
+  const char *why = Board_PwmSetAll(ticks);
+
+  if (why != NULL)
+  {
+    return why;
+  }
+  if (periods != 0U)
+  {
+    s_countdown = periods;
+    update_irq(true);
+  }
+  return NULL;
+}
+
+
+uint32_t Board_PwmPeriodsLeft(void)
+{
+  return s_countdown;
 }
 
 
@@ -484,6 +519,7 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
   const uint32_t masked = __get_PRIMASK();
   __disable_irq();
   s_dither = false;
+  s_countdown = 0U;
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
     s_alt[0][phase] = a[phase];
@@ -514,6 +550,7 @@ void Board_PwmDriveOwn(bool on)
   {
     s_dither = false;
     s_alternate = false;
+    s_countdown = 0U;
     s_next_pending = false;
     s_drive_owns = true;
     TIM1->SR = ~TIM_SR_UIF;
@@ -820,6 +857,32 @@ void TIM1_UP_IRQHandler(void)
      counter is going *now*, and by the time this reads it the direction has
      already turned. */
   s_half ^= 1U;
+
+  /* The counted hold. Stood down BEFORE the mode branches so that on the
+     expiring event neither the alternate nor the dither writes a compare
+     after the zero lands. */
+  if ((s_countdown != 0U) && (s_half == 0U))
+  {
+    s_countdown--;
+    if (s_countdown == 0U)
+    {
+      s_alternate = false;
+      s_dither = false;
+      TIM1->CCR1 = 0U;
+      TIM1->CCR2 = 0U;
+      TIM1->CCR3 = 0U;
+      for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
+      {
+        s_duty[phase] = 0U;
+        s_want_q16[phase] = 0U;
+        s_residue[phase] = 0U;
+      }
+      if (s_skew == 0U)
+      {
+        update_irq(false);
+      }
+    }
+  }
 
   if (s_alternate && ((TIM1->CR1 & TIM_CR1_DIR) != 0U))
   {

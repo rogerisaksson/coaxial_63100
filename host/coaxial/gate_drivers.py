@@ -144,6 +144,8 @@ class GateDrivers(Subsystem, GateControl):
         # And the NTC, rank 2 on ADC1 - the thermal observer's thermometer
         # while the drive holds the converters.
         out['ntc_raw'] = r.u32() if r.remaining >= 4 else None
+        # Periods left of a counted hold, MINOR 8. Zero when free-running.
+        out['periods_left'] = r.u32() if r.remaining >= 4 else None
         return out
 
     def enable(self):
@@ -161,18 +163,25 @@ class GateDrivers(Subsystem, GateControl):
         self._op(OP_PWM, b'\x00')
         return True
 
-    def duty(self, ticks):
+    def duty(self, ticks, periods=0):
         """All three compare registers, or none of them.
 
         `ticks` is three compare values against `period - 1`. A half update
         would run one cycle with two phases from this call and one from the
         last, which is a step nobody asked for.
+
+        `periods` > 0 rides as an optional u32 (MINOR 8): the board's
+        update interrupt zeroes the compares after exactly that many PWM
+        periods - 500 is 10.000 ms at 50 kHz, where a link-timed hold was
+        93-108. Older firmware refuses the longer payload in its own words.
         """
         ticks = tuple(ticks)
         if len(ticks) != PHASES:
             raise ValueError('%d compare values, not %d' % (PHASES, len(ticks)))
 
         payload = b''.join(int(t).to_bytes(2, 'big') for t in ticks)
+        if periods:
+            payload += int(periods).to_bytes(4, 'big')
         self._ack(OP_DUTY, payload)
         return True
 

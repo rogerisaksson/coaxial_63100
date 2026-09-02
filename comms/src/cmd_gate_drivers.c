@@ -108,6 +108,11 @@ static cmd_status_t h_gate_drivers_state(wr_t *out)
   wr_u32(out, sync.latest.dcbus);
   wr_u32(out, sync.latest.ntc);
 
+  /* Periods left of a counted hold - appended at MINOR 8. Zero when the
+     duty is free-running, so an old decoder that stops early loses only
+     the countdown it never asked for. */
+  wr_u32(out, Board_PwmPeriodsLeft());
+
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }
 
@@ -143,21 +148,31 @@ static cmd_status_t h_gate_drivers_pwm(rd_t *in, wr_t *out)
 
 
 /** op 2 - all three compares, or none. A half update is a step nobody asked
-    for, so the board takes the triple together or refuses it. */
+    for, so the board takes the triple together or refuses it.
+
+    An optional u32 period count follows (MINOR 8): the interrupt zeroes
+    the compares after exactly that many PWM periods, so a hold's length
+    stops being the link's. Absent or zero runs until the next command,
+    byte for byte the old behaviour. */
 static cmd_status_t h_gate_drivers_duty(rd_t *in, wr_t *out)
 {
   uint16_t ticks[BOARD_PWM_PHASES];
+  uint32_t periods = 0U;
 
   for (uint8_t i = 0U; i < BOARD_PWM_PHASES; i++)
   {
     ticks[i] = rd_u16(in);
+  }
+  if (rd_left(in) != 0U)
+  {
+    periods = rd_u32(in);
   }
   if (!rd_ok(in))
   {
     return CMD_ERR_LENGTH;
   }
 
-  cmd_took(out, Board_PwmSetAll(ticks));
+  cmd_took(out, Board_PwmSetAllCounted(ticks, periods));
   return CMD_OK;
 }
 

@@ -38,11 +38,14 @@ class GateControl(ABC):
         """Clear MOE."""
 
     @abstractmethod
-    def duty(self, ticks):
+    def duty(self, ticks, periods=0):
         """All three compares in timer ticks, or none of them.
 
         A half update runs one cycle with two phases from this call and one
-        from the last.
+        from the last. `periods` > 0 holds the triple for exactly that many
+        PWM periods - the board's update interrupt zeroes the compares when
+        the count runs out, so the hold's length stops being the link's
+        (MINOR 8; older firmware refuses the longer payload).
         """
 
     @abstractmethod

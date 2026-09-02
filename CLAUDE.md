@@ -51,10 +51,12 @@ model (`test_drive_core.py`) and stepped on the board at 2 922 cycles a
 period with the drivers unpowered. No current has closed a loop through a
 winding; `tools/commission.py` is the procedure for when one can.
 
-**A hold's length is the link's, not the board's.** A compare write lands in
-15 ms (~800 cycles minimum); a 100 ms hold is 93-108 ms at the FETs. Exactly
-N cycles needs a period count in firmware, not yet written - FINDINGS has the
-numbers. Since proto 2.1 the board CAN alternate per period: op 10 takes two
+**A hold's length was the link's; since MINOR 8 it can be the board's.** A
+compare write lands in 15 ms (~800 cycles minimum); a 100 ms hold is 93-108 ms
+at the FETs - FINDINGS has the numbers. Op 2 now takes an optional period
+count and the update ISR zeroes the compares at zero: 500 periods is
+10.000 ms exactly. Built 2026-09-02, dry only - no counted hold has been
+scoped yet. Since proto 2.1 the board CAN alternate per period: op 10 takes two
 compare triples and the update ISR swaps them every overflow - current back
 and forth through the phase pair at 25 kHz; proven 2026-08-30 with twelve
 mid-run state reads showing both triples and nothing else, and both
@@ -210,10 +212,10 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-five suites, 2404 checks, sized from `host/tests/.counts.json` and so
+Twenty-five suites, 2406 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (579),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (216),
-`test_simulated.py` (201), `test_live_model.py` (212, needs ollama, `--live`),
+`test_simulated.py` (203), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
 `test_ollama_link.py` (96), `test_drive_core.py`
 (70, the control law against a motor model through the host gcc, the Monte
@@ -255,7 +257,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  766 of this tree's 2404 checks are in those nine files.
+  766 of this tree's 2406 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

@@ -620,6 +620,14 @@ uint8_t Board_PwmGateShorts(void);
 /** All three, or none: never a cycle built from two calls. */
 const char *Board_PwmSetAll(const uint16_t *ticks);
 
+/** The same triple held for exactly `periods` PWM periods, then zeroed by
+  * TIM1's update interrupt - 10 ms asked for is 500 periods, not the
+  * link's 93-108 ms. 0 periods is the plain set. */
+const char *Board_PwmSetAllCounted(const uint16_t *ticks, uint32_t periods);
+
+/** Periods left of a counted hold, 0 when free-running or expired. */
+uint32_t Board_PwmPeriodsLeft(void);
+
 /** Duty in ticks Q16.16, dithered so the MEAN is what was asked for.
     One tick of ARR 2375 is 0.0421 % of duty, so 34.54 % lands between two
     of them; a first-order sigma-delta in TIM1's update interrupt spends

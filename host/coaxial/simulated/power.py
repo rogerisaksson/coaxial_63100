@@ -1,5 +1,7 @@
 """The power stage stood down: thermal observer, power rails and the
 gate drivers with the real arming policy."""
+import time
+
 from .. import thermal
 from ..errors import RigError
 from ..gates import GateControl
@@ -117,6 +119,7 @@ class SimulatedGateDrivers(GateControl):
         self._armed = False
         self._enabled = False
         self._duty = (0, 0, 0)
+        self._hold_until = None
         self._trigger = self.TRIGGER
         self._updates = 0
         self._keepalive = 0
@@ -126,6 +129,14 @@ class SimulatedGateDrivers(GateControl):
         self._keepalive += 214000        # the measured idle toggle rate
         if self._armed:
             self._updates += 50000
+        left = 0
+        if self._hold_until is not None:
+            remaining = self._hold_until - time.monotonic()
+            if remaining <= 0.0:
+                self._duty = (0, 0, 0)
+                self._hold_until = None
+            else:
+                left = max(1, int(remaining * 50000.0))
         at = self._cnt()
         return {
             'pwm_ready': True, 'pwm_enabled': self._enabled,
@@ -148,6 +159,7 @@ class SimulatedGateDrivers(GateControl):
             'pins_at': at,
             'deadtime_ns': self._deadtime_ns,
             'deadtime_skew': self._skew,
+            'periods_left': left,
             'deadtime_floor': self.DEADTIME_FLOOR,
             'gate_shorts': (),
         }
@@ -227,7 +239,7 @@ class SimulatedGateDrivers(GateControl):
         self._duty = (0, 0, 0)
         return True
 
-    def duty(self, ticks):
+    def duty(self, ticks, periods=0):
         from ..errors import RigError
         ticks = tuple(int(t) for t in ticks)
         if not self._enabled:
@@ -236,6 +248,12 @@ class SimulatedGateDrivers(GateControl):
             raise RigError('the board refused %r - past ARR (simulated)'
                            % (ticks,))
         self._duty = ticks
+        # The counted hold, wall-paced like the rest of the stand-in: the
+        # virtual interrupt zeroes the compares when the count runs out,
+        # and state() is where the expiry is noticed - the board's own
+        # shape, seen from the link.
+        self._hold_until = (time.monotonic() + periods / 50000.0
+                            if periods else None)
         return True
 
     def duty_fine(self, fractions):
