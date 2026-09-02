@@ -73,6 +73,44 @@ measured against an instrument: the DC link, spanned against a DMM on
 2026-08-30 (31.04 read, 30.05 true, gain -32 418 ppm on channel 5, saved).
 Nothing else has - invariant 7.
 
+## The first powered day, in order
+
+Everything below waits on the rail; this is the sequence, so the day is
+spent measuring rather than deciding. Each step names what it closes.
+Instrumentation first, AFE second, switching-adjacent last - and nothing
+here arms the stage.
+
+1. **Link up, nothing powered past the probe.** `setup.ps1 -Check`, then
+   `python -m coaxial all` and `tools/session.py --status`. The board
+   answers on USART3 before anything else is trusted.
+2. **The write-class timing, re-measured.** `tools/link_bench.py` against
+   FINDINGS *Where the write-class transaction's 15 ms goes* - the ack
+   shape says ~7 ms by arithmetic; the bench writes the number.
+3. **AFE on, tare and span** (closes 0b). `cal.tare()` with the phases
+   genuinely still, then the DC link against the DMM again - invariant 7's
+   one instrument-measured number, refreshed.
+4. **Sensors in records** (closes 0's hardware half). `run_tests.ps1
+   -Scope test_daq_api.py` on the board, then `angle_session.ipynb` cells
+   with a magnet in front of the A1335, then
+   `position_and_sensorless.ipynb` past its link-rate Nyquist ceiling
+   using the shaft column in the stream.
+5. **The IMU's MINOR 6 numbers** (closes 0's other half): the three
+   vectors, the multi-feature re-apply, rates - `imu_session.ipynb` on
+   hardware.
+6. **The suites, measured on hardware.** `run_tests.ps1 -All` with the
+   board attached: parity, bench and conformance stop being seeded
+   numbers in `.counts.json` and become this bench's own; `test_bench`'s
+   loop-rate baseline re-recorded.
+7. **The auto-tune rehearsal at the AFE wall.** `auto_tune.ipynb` with
+   `SIMULATED = False`: the AFE steps run for real, the switching steps
+   say `measured: False` until the AFE gate is patched - the boundary
+   CLAUDE.md's *Scope* draws.
+8. **The link ceiling's first fact** (starts 0.5): the THVD1450 rated
+   figure off its datasheet into `docs/HARDWARE.md`, and the probe VCP's
+   real ceiling measured. No baud change that day.
+9. **Watch for 0c.** The `show_desk` flake gets its reproduction or
+   another year of silence; either is information.
+
 ## Next, in order
 
 0.5. **The link above 115200.** The `.ioc` carries 9216000 on the RS485
