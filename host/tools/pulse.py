@@ -10,8 +10,10 @@ the two sees the DC link for `duty` of every period. The pulse lasts
 as long as the second compare write takes to land: 15.5 ms measured
 2026-08-30, ~780 cycles at 50 kHz. It was 110 ms through rig.write(),
 whose arm check and period lookup were three state reads at 31 ms
-each. The protocol has no cycle-counted burst; ten cycles is firmware
-work.
+each. **From protocol 2.8 the board counts the pulse itself**: --on
+rides as a period count with the duty write and the update ISR zeroes
+the compares after exactly that many periods - 10 ms is 500 cycles,
+not 93-108. Older firmware gets the link-timed train unchanged.
 
 Like switch.py it turns the AFE off and bypasses the STO break before
 arming - on this bench board AFE_ON high takes the supply off the gate
@@ -36,7 +38,8 @@ from switch import PHASES                                  # noqa: E402
 LANDING = 0.015
 
 SHOWN = ('pwm_enabled', 'sync_armed', 'fault', 'break_bypassed', 'updates',
-         'overruns', 'duty', 'pins', 'worst_gap_cycles', 'gate_shorts')
+         'overruns', 'duty', 'pins', 'worst_gap_cycles', 'gate_shorts',
+         'periods_left')
 
 
 def main():
@@ -91,6 +94,16 @@ def main():
         ticks[PHASES.index(high)] = int(a.duty * (state['period'] - 1))
         back = [0, 0, 0]
         back[PHASES.index(low)] = ticks[PHASES.index(high)]
+
+        # The counted pulse, where the firmware speaks it. The alternate
+        # train stays link-timed - op 10 carries no count yet.
+        counted = 0
+        if a.on > 0.0 and not a.alternate:
+            info = rig.board.version_info or rig.board.system.version()
+            if (info['proto_major'], info['proto_minor']) >= (2, 8):
+                counted = max(1, round(a.on * 50000))
+                print('counted: %d periods on the board, %.3f ms exactly'
+                      % (counted, counted / 50.0))
         held = []
         for i in range(a.count):
             if i:
@@ -99,28 +112,43 @@ def main():
             if a.alternate:
                 # The board swaps A and B every period from here on.
                 rig.board.gate_drivers.alternate(ticks, back)
+            elif counted:
+                rig.board.gate_drivers.duty(ticks, periods=counted)
             else:
                 rig.board.gate_drivers.duty(ticks)
             t1 = time.perf_counter()
-            if a.on > LANDING:
-                # Sleep to 2 ms short, then spin: Windows sleeps in
-                # ~15 ms steps, and 100 ms asked for came out 109.
-                until = t1 + a.on - LANDING
-                if until - time.perf_counter() > 0.002:
-                    time.sleep(until - time.perf_counter() - 0.002)
-                while time.perf_counter() < until:
-                    pass
-            rig.board.gate_drivers.duty(zeros)
-            held.append(time.perf_counter() - t1)
+            if counted:
+                # The board owns the off-edge; the sleep only keeps the
+                # next pulse's write from landing inside this one.
+                time.sleep(a.on + 0.002)
+                held.append(counted / 50000.0)
+            else:
+                if a.on > LANDING:
+                    # Sleep to 2 ms short, then spin: Windows sleeps in
+                    # ~15 ms steps, and 100 ms asked for came out 109.
+                    until = t1 + a.on - LANDING
+                    if until - time.perf_counter() > 0.002:
+                        time.sleep(until - time.perf_counter() - 0.002)
+                    while time.perf_counter() < until:
+                        pass
+                rig.board.gate_drivers.duty(zeros)
+                held.append(time.perf_counter() - t1)
             if a.count == 1:
                 print('%.1f ms to land' % (1000 * (t1 - t0)))
         after = rig.gates.state()
         on = sorted(held)
-        print('%s at %.1f %% against %s low, %d pulse%s: on %.1f ms min, '
-              '%.1f median, %.1f max - ~%d cycles each at 50 kHz'
-              % (high, 100 * a.duty, low, len(on), '' if len(on) == 1 else 's',
-                 1000 * on[0], 1000 * on[len(on) // 2], 1000 * on[-1],
-                 int(on[len(on) // 2] * 50000)))
+        if counted:
+            print('%s at %.1f %% against %s low, %d pulse%s: %d periods '
+                  'each, counted by the board - %.3f ms at 50 kHz'
+                  % (high, 100 * a.duty, low, len(on),
+                     '' if len(on) == 1 else 's', counted, counted / 50.0))
+        else:
+            print('%s at %.1f %% against %s low, %d pulse%s: on %.1f ms min, '
+                  '%.1f median, %.1f max - ~%d cycles each at 50 kHz'
+                  % (high, 100 * a.duty, low, len(on),
+                     '' if len(on) == 1 else 's',
+                     1000 * on[0], 1000 * on[len(on) // 2], 1000 * on[-1],
+                     int(on[len(on) // 2] * 50000)))
         print('after:', {k: after[k] for k in SHOWN})
     finally:
         try:

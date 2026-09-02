@@ -9,7 +9,7 @@ State as of 2026-09-02.
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 7 |
 | Firmware | 1.6.0 |
-| Calibration record | CAL_VERSION 8, 45 parameters, op 8 pages them |
+| Calibration record | CAL_VERSION 9, 46 parameters, op 8 pages them |
 
 ## What runs
 
@@ -119,9 +119,11 @@ here arms the stage.
    shape is the two spec silences. The transceiver's number is in:
    the THVD1450 is rated 50 Mbps (datasheet fetched 2026-09-02,
    `datasheets/rs485_transceiver/`), so the part is not the limit at any
-   baud this link will ask. Still in order: the debug probe VCP's
-   real ceiling measured, a `link_baud` calibration parameter applied at
-   init with 115200 the default, and both ends' t3.5 re-derived - the
+   baud this link will ask. The `link_baud` parameter EXISTS now
+   (CAL_VERSION 9, id 45, RS485 pair only, USART3 the fixed recovery
+   path) - and adding it found the pair had run at CubeMX's 9 216 000
+   all along (FINDINGS). Still in order: the debug probe VCP's
+   real ceiling measured, and both ends' t3.5 re-derived - the
    spec fixes 1.75 ms above 19200, which at 921600 is 150 character
    times of silence per frame, paid twice per transaction. A baud change
    with no board attached is blind, so this waits for the bench.

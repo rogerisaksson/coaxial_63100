@@ -91,7 +91,8 @@ static void build(link_port_t *l)
   l->model = *modbus_map_model(&l->rtu, user_function);
   mb_slave_init(&l->slave, &l->model);
   mb_rtu_init(&l->rtu, &l->slave, modbus_map_unit_id(),
-              dev_uart_baud(), LINK_BITS_PER_CHAR,
+              dev_uart_port_baud((uint8_t)(l - s_links)),
+              LINK_BITS_PER_CHAR,
               l->dev->ticks_per_us(l->dev->ctx));
 
   l->rtu.counters = saved;
@@ -288,6 +289,5 @@ bool link_is_rs485(uint8_t index)
 
 uint32_t link_baud(uint8_t index)
 {
-  (void)index;
-  return dev_uart_baud();
+  return dev_uart_port_baud(index);
 }

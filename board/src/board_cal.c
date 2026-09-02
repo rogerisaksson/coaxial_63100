@@ -45,7 +45,12 @@
    rather than read with the new field as whatever flash held. */
 /* 6: and its lead-lag trim. */
 /* 7: per-leg thermal nodes, six ceilings to ten. */
-#define CAL_VERSION 8U   /* 8: the drive - motor, gains, injection, dead time */
+/* 8: the drive - motor, gains, injection, dead time. */
+#define CAL_VERSION 9U   /* 9: the RS485 pair's baud. Found the day the
+                            THVD1450's rating went into HARDWARE.md: CubeMX
+                            left USART2/UART5 at 9 216 000 and nothing wrote
+                            the 115200 everything reported - the wire ran at
+                            80x the number in the link report. */
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes; the record is a few hundred bytes against a
@@ -141,6 +146,7 @@ static const board_cal_t CAL_DEFAULTS =
   .drv_dt_mv                = { 0UL },
   .drv_sigma_i_ua           = 0UL,
   .drv_trigger_ticks        = 0UL,
+  .link_baud                = 115200UL,     /* the number the docs promised */
   .chan             = { { 0, 0 } },   /* no offset, no gain trim           */
 };
 
@@ -281,6 +287,7 @@ static uint32_t *cal_field(uint8_t id)
     case BOARD_CAL_VG_R_BOTTOM:  return &s_cal.vg_r_bottom_ohm;
     case BOARD_CAL_DEADTIME_NS:  return &s_cal.deadtime_ns;
     case BOARD_CAL_DEADTIME_SKEW: return &s_cal.deadtime_skew;
+    case BOARD_CAL_LINK_RATE:    return &s_cal.link_baud;
     case BOARD_CAL_MOTOR_R_UOHM:  return &s_cal.motor_r_uohm;
     case BOARD_CAL_MOTOR_LD_NH:   return &s_cal.motor_ld_nh;
     case BOARD_CAL_MOTOR_LQ_NH:   return &s_cal.motor_lq_nh;
@@ -326,6 +333,18 @@ bool Board_CalSetParam(uint8_t id, uint32_t value)
      flash, which does nothing at all on a board whose record has never been
      saved - measured by test_conformance.py, and it left vref at zero. */
   if ((value == 0U) && (id <= BOARD_CAL_VG_R_BOTTOM))
+  {
+    return false;
+  }
+
+  /* The RS485 baud is bounded, not judged: below 9600 the RTU silences
+     stop fitting the deadman's numbers, above 921600 nothing on this bench
+     has been measured (the THVD1450 itself is rated 50 Mbps). USART3 never
+     follows this parameter, so a wrong value cannot cost the recovery
+     path - but a rate no UART can make should be refused where it is
+     written, not discovered at the next boot. */
+  if ((id == BOARD_CAL_LINK_RATE)
+      && ((value < 9600U) || (value > 921600U)))
   {
     return false;
   }

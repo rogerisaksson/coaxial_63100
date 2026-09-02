@@ -114,7 +114,7 @@ and an op dispatcher beside it. `coaxial.Coaxial63100` is the host side.
 | 0 | BNO08X IMU | SPI2, mode 3, 2.97 MHz | 0 product id, 1 raw cargo, 2 Set Feature, 3 raw bytes off the bus, 4 reset, 5 raw write on any SHTP channel, 6 per-pin drive/pull check, 7 time H_INTN's answer to a wake, 8 shared record, 9 hold, 10 resume |
 | 1 | A1335 angle sensor | SPI4, mode 3, 1.86 MHz | 0 read register, 1 write register, 2 shared record, 3 hold, 4 resume, 5 which register the loop reads, 6 clock |
 | 2 | the three serial ports | USART3, USART2, UART5 | 0 loopback check, 1 per-port counters |
-| 3 | the calibration record | flash, bank 2 sector 7, CAL_VERSION 8 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults, 8 params (paged) |
+| 3 | the calibration record | flash, bank 2 sector 7, CAL_VERSION 9 | 0 get, 1 set param, 2 set channel, 3 zero, 4 span, 5 save, 6 load, 7 defaults, 8 params (paged) |
 | 4 | the gate drivers | TIM1, injected ADC, STO chain | 0 state, 1 pwm on/off, 2 duty x3 (+ optional `u32` periods, MINOR 8), 3 sync arm/disarm, 4 sample point, 5 clear break, 6 bypass break, 7 reset worst gap, 8 duty Q16.16, 9 dead time + skew, 10 alternate: `u16 x3` A, `u16 x3` B - A one PWM period, B the next, swapped by the update interrupt until the next duty write; the thermal observer is charged each leg's mean over the pair (MINOR 1) |
 | 5 | the measurement ring | phases, angle, IMU | 0 state, 1 arm a source mask, 2 take a burst |
 | 6 | one acquisition task | ADC, optionally clocked by TIM1 | 0 state, 1 configure, 2 start, 3 stop, 4 read, 5 layout, 6 live, 7 filter, 8 tone, 9 rung |
@@ -194,7 +194,11 @@ has never been saved.
 count, u32 x count`. Op 0 carries the first fifteen and keeps its MINOR 1
 shape: with forty-five its reply was 310 bytes against the PDU and every
 read answered 0x04. CAL_VERSION 8 added ids 15..44, the drive's - device 10
-names them, `coaxial.drive.PARAMS` their units.
+names them, `coaxial.drive.PARAMS` their units. CAL_VERSION 9 adds id 45,
+`link_baud`: the RS485 pair's rate, applied to USART2 and UART5 at init
+and bounded 9600..921600 at the write. USART3 never follows it - the
+debug probe's VCP stays at 115200, so a mistyped rate cannot take the
+recovery path with it.
 
 ### Device 4 - the gate drivers
 

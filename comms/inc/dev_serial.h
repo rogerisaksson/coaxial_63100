@@ -99,6 +99,14 @@ uint32_t dev_uart_dropped(uint8_t index);
 /** The rate all three run. Not what the .ioc carries on the RS485 pair. */
 uint32_t dev_uart_baud(void);
 
+/** One port's actual rate: USART3 is always 115200 (the recovery path),
+  * the RS485 pair follows the calibration record's `link_baud`. */
+uint32_t dev_uart_port_baud(uint8_t index);
+
+/** Re-init USART2 and UART5 at `baud` - the record's value, applied from
+  * main() after the record loads and before link_init(). */
+bool dev_uart_set_rs485_baud(uint32_t baud);
+
 #ifdef __cplusplus
 }
 #endif

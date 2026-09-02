@@ -2743,3 +2743,37 @@ shaft alone bore 34), `model_param` reaches the RUNNING motor as the
 firmware's own model does, and the substeps are symplectic so the spring
 rings instead of exploding. The shaft sensor and the DAQ records read
 the same rotor the drive torques - one rotation, now seen three ways.
+
+## The RS485 pair ran at eighty times the number in every report
+
+Found 2026-09-02, the same hour the THVD1450's 50 Mbps rating went into
+HARDWARE.md - reading where the runtime baud was applied, to add a
+`link_baud` parameter, found nothing applying one.
+
+**Believed**: "CubeMX carries 9216000 baud on the RS485 pair. The
+firmware sets 115200 at init, as it sets the SPI word sizes"
+(docs/HARDWARE.md, and `DEV_UART_BAUD 115200U` in comms_limits.h saying
+"the runtime value is this one"). **True**: nothing ever wrote the
+UARTs. `MX_USART2_UART_Init`/`MX_UART5_Init` left `Init.BaudRate` at the
+.ioc's 9 216 000 and no board or comms code re-initialised either port -
+the SPI word sizes ARE re-set by the drivers, the UARTs never were. The
+wire ran at 9.216 Mbaud while `dev_uart_baud()` told the RTU timing, the
+link report and `cmd_link_records_per_second` 115200.
+
+**Why nothing caught it**: `0x6E` device 2 op 0's echo check transmits
+and receives on the SAME port at the SAME setting - an absolute rate
+cannot fail a loopback against itself, and all four patterns came back
+clean on both ports (2026-08-28, recorded above). No external RS485
+master has ever been on the segment; every bench session rode USART3,
+whose CubeMX value happens to be the same 115200 the firmware assumes.
+The RTU silences were computed for 115200 (t3.5 = 1750 us) and applied
+to a 9.2 Mbaud wire, where a whole frame fits inside one silence.
+
+**Fix**: CAL_VERSION 9 adds `link_baud` (id 45, default 115200, bounded
+9600..921600 at the write), and main() applies it to USART2/UART5 after
+the record loads, before `link_init()` derives the RTU silences -
+`dev_uart_port_baud(index)` now answers per port. USART3 is deliberately
+outside the parameter: the debug probe stays the recovery path whatever
+the record says. NOT yet verified against an external master - no RS485
+master exists on this bench; the pilot-tone hardware day is the first
+chance to see the pair at a known rate from the far end.

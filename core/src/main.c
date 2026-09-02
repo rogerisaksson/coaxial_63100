@@ -25,6 +25,7 @@
 #include "board_drive.h"
 #include "board_power.h"
 #include "console.h"
+#include "dev_serial.h"
 #include "link.h"
 /* USER CODE END Includes */
 
@@ -157,6 +158,12 @@ int main(void)
      microseconds and this replaces it. Nothing is armed in between. */
   (void)Board_PwmSetDeadTime(Board_Cal()->deadtime_ns);
   (void)Board_PwmSetDeadTimeSkew((int8_t)Board_Cal()->deadtime_skew);
+
+  /* The RS485 pair's baud is the record's too, and must land before
+     link_init() derives the RTU silences from it. USART3 stays at 115200
+     whatever the record says - the recovery path. Before CAL_VERSION 9
+     nothing wrote these ports and they ran at CubeMX's 9 216 000. */
+  (void)dev_uart_set_rs485_baud(Board_Cal()->link_baud);
 
   /* Differential-mode offset calibration, recommended before first use for
      absolute accuracy rather than mere repeatability. Note that it runs with

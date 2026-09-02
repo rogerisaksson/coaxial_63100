@@ -303,8 +303,13 @@ on, and the unit id belongs to the board.
 * **No RX FIFO on any port** - `HAL_UARTEx_DisableFifoMode` on each. One
   character held, 87 µs at 115200: an overrun drops the frame, and a
   latched ORE ends reception until ICR clears it.
-* **CubeMX carries 9216000 baud on the RS485 pair.** The firmware sets
-  115200 at init, as it sets the SPI word sizes.
+* **CubeMX carries 9216000 baud on the RS485 pair - and until
+  CAL_VERSION 9 that was the rate on the wire.** The claim that stood
+  here ("the firmware sets 115200 at init") was false: nothing wrote the
+  UARTs, and the same-port echo check cannot see an absolute rate
+  (FINDINGS, *The RS485 pair ran at eighty times*). Since 2026-09-02 the
+  record's `link_baud` (id 45, default 115200) is applied to USART2 and
+  UART5 at init; USART3 stays at 115200 as the recovery path.
 * **The transceiver is not the ceiling.** The THVD1450 is rated 50 Mbps
   signaling (datasheet, recommended operating conditions -
   `datasheets/rs485_transceiver/`), so 115200 uses 0.23 % of the part.

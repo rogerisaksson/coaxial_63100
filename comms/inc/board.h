@@ -783,7 +783,10 @@ void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code);
 #define BOARD_CAL_DRV_DT_MV           35U  /**< 35..42: the table, mV          */
 #define BOARD_CAL_DRV_SIGMA_I_UA      43U  /**< measured current noise, uA rms */
 #define BOARD_CAL_DRV_TRIGGER_TICKS   44U  /**< the sample point chosen; 0 none*/
-#define BOARD_CAL_PARAM_COUNT 45U
+/* CAL_VERSION 9. */
+#define BOARD_CAL_LINK_RATE           45U  /**< the RS485 pair's rate (the wire
+                                                and the host say `link_baud`)   */
+#define BOARD_CAL_PARAM_COUNT 46U
 
 /** One channel's correction, applied to the raw code before any scaling. */
 typedef struct
@@ -870,6 +873,11 @@ typedef struct
   uint32_t drv_dt_mv[8];
   uint32_t drv_sigma_i_ua;
   uint32_t drv_trigger_ticks;
+
+  /* CAL_VERSION 9: the RS485 pair's baud, applied to USART2 and UART5 at
+     init. USART3 stays at 115200 whatever this says - the debug probe is
+     the recovery path, and a mistyped rate here must not take it too. */
+  uint32_t link_baud;
 
   uint16_t crc;
 } board_cal_t;

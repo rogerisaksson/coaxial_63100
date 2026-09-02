@@ -411,7 +411,65 @@ bool dev_uart_rs485(uint8_t index)
   return (index < DEV_UART_COUNT) && s_ports[index].echoes;
 }
 
+/* The RS485 pair's runtime rate. DEV_UART_BAUD until the record says
+   otherwise: for the whole life of CAL_VERSION 8 nothing wrote it, so the
+   pair ran at CubeMX's 9 216 000 while every report said 115200 - the
+   same-port echo check cannot see an absolute rate, so it never told. */
+static uint32_t s_rs485_baud = DEV_UART_BAUD;
+
 uint32_t dev_uart_baud(void)
 {
   return DEV_UART_BAUD;
+}
+
+uint32_t dev_uart_port_baud(uint8_t index)
+{
+  /* Index 0 is USART3, the debug probe's VCP: 115200 whatever the record
+     says, so a mistyped rate cannot take the recovery path with it. */
+  return (index == 0U) ? DEV_UART_BAUD : s_rs485_baud;
+}
+
+bool dev_uart_set_rs485_baud(uint32_t baud)
+{
+  /* Re-init both RS485 ports at the asked rate. HAL_UART_Init resets the
+     peripheral, so everything the boot path set is set again here - DE
+     polarity, FIFO thresholds, FIFO off - and the receive interrupt is
+     re-armed where a port had one. Called from main() after the record
+     loads, before link_init() computes the RTU silences from this rate. */
+  UART_HandleTypeDef *pair[2] = { &huart2, &huart5 };
+
+  if ((baud < 9600U) || (baud > 921600U))
+  {
+    return false;
+  }
+
+  for (uint8_t i = 0U; i < 2U; i++)
+  {
+    pair[i]->Init.BaudRate = baud;
+    if (HAL_RS485Ex_Init(pair[i], UART_DE_POLARITY_HIGH, 0U, 0U) != HAL_OK)
+    {
+      return false;
+    }
+    if ((HAL_UARTEx_SetTxFifoThreshold(pair[i],
+                                       UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+        || (HAL_UARTEx_SetRxFifoThreshold(pair[i],
+                                          UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+        || (HAL_UARTEx_DisableFifoMode(pair[i]) != HAL_OK))
+    {
+      return false;
+    }
+  }
+  s_rs485_baud = baud;
+
+  if (s_built)
+  {
+    for (uint8_t i = 1U; i < DEV_UART_COUNT; i++)
+    {
+      if (s_ports[i].interrupt)
+      {
+        arm_rx_irq(&s_ports[i]);
+      }
+    }
+  }
+  return true;
 }

@@ -27,7 +27,13 @@ class SimulatedBoard:
             ('coaxial_63100', 'bldc_inverter',
              'unassigned unit %d on %s' % (self.unit, bus)))
         self.version_info = {
-            'proto_major': 2, 'proto_minor': 0, 'firmware': 'simulated',
+            # The MINOR is the one this stand-in actually implements -
+            # sensor fields in records (7) and the counted duty (8) - so a
+            # host gating a feature on the version exercises the same gate
+            # here that it will at the bench. It sat at 0 while the
+            # firmware moved to 2.8, and pulse.py's counted path would
+            # have silently link-timed every simulated rehearsal.
+            'proto_major': 2, 'proto_minor': 8, 'firmware': 'simulated',
             'device': name, 'mcu': 'STM32H753 (simulated)',
             'build': 'simulated', 'commands': 21, 'type': kind,
             # Says what it is AND that it is invented, in the same line, so

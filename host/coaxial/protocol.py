@@ -114,7 +114,11 @@ CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               'drv_w_lo_mrad_s', 'drv_w_hi_mrad_s', 'drv_dt_step_ma',
               'drv_dt_mv0', 'drv_dt_mv1', 'drv_dt_mv2', 'drv_dt_mv3',
               'drv_dt_mv4', 'drv_dt_mv5', 'drv_dt_mv6', 'drv_dt_mv7',
-              'drv_sigma_i_ua', 'drv_trigger_ticks')
+              'drv_sigma_i_ua', 'drv_trigger_ticks',
+              # id 45, CAL_VERSION 9: the RS485 pair's baud, applied to
+              # USART2 and UART5 at init. USART3 never follows it - the
+              # debug probe stays the recovery path at 115200.
+              'link_baud')
 """The record's scalars, in the order 0x6E device 3 op 0 sends them, and the
 order their ids run in. Integers in the unit that makes them integers, because
 the wire bans floating point - the names carry the unit for the same reason
