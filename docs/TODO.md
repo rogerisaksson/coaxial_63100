@@ -4,7 +4,7 @@ State as of 2026-09-02.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2404 checks, 25 suites |
+| `run_tests.ps1 -All` | 2406 checks, 25 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 7 |
@@ -183,9 +183,13 @@ here arms the stage.
 3. **Cinj and Clevel cannot be sampled asynchronously** - apparent duty tracks
    the sample rate. Take them through the injected group, or with a longer
    sampling time. FINDINGS has the table.
-4. **Replace the conformance check `PE15 follows AFE_ON`.** It reads a pin the
-   MCU does not drive and changes meaning the moment the STO chain releases.
-   Replace it before the supply is switched on, not after.
+4. **The conformance witness survives the STO release** (replaced
+   2026-09-02, first run against a board still owed). `PE15 follows
+   AFE_ON` read a pin the MCU does not drive and changed meaning the
+   moment the STO chain released; the coil write's independent witness
+   is now the rail's own physics - raw NTC bit-frozen at exact
+   mid-scale with AFE off, a live code thousands of counts away with
+   it on (invariant 9's mechanism). Same meaning on the powered day.
 5. **Dead time on a scope.** The OCP trim (FINDINGS) bounded it from one
    side - 33.7 ns held, 29.5 tripped - but that is one data point at one
    duty on a cold dry board, against a simulated worst-corner need of 65
@@ -219,11 +223,14 @@ here arms the stage.
    the design predicts. Needs the AFE on, a signal on a channel, and
    the same two passes.
 10. **A USB device class**, if USB is to do anything.
-11. **A cycle-counted duty.** A hold's length is the link's: the shortest is
-    one write round trip, ~800 periods, and 100 ms asked for is 93-108 at the
-    FETs. A period count on the duty op, decremented in TIM1's update ISR and
-    zeroing the compares at zero, makes 10 ms exactly 500 cycles. Op 10
-    `alternate` (2026-08-30) shows the ISR already owns the compares.
+11. **The cycle-counted duty is built** (2026-09-02, MINOR 8; no scope
+    has seen it). Op 2 takes an optional u32 period count, TIM1's update
+    ISR decrements once per period and zeroes the compares at zero -
+    10 ms is exactly 500 cycles; op 0 appends `periods_left`. Any other
+    duty path clears the count. Host: `gates duty(ticks, periods=)` on
+    both implementations, the stand-in expiring wall-paced. Left for
+    the bench: one counted pulse on the scope against the wall clock,
+    and `pulse.py` taught to use it.
 
 ## Standing
 

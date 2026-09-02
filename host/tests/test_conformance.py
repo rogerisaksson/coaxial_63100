@@ -511,9 +511,14 @@ def map_tests(run):
         run.check('command register reads 0', v[1] == 0, 'got %d' % v[1])
 
     print('\n-- coil drives real hardware --')
-    # AFE_ON also powers the voltage reference, and PE15 was measured to follow
-    # it: 1 while the AFE is off, 0 once it is on. That makes the discrete input
-    # an independent witness that the coil write reached the pin.
+    # AFE_ON powers the voltage reference, and that is the witness: with the
+    # rail off every raw code is EXACT mid-scale and bit-frozen across reads
+    # (the reference is unpowered - invariant 9's mechanism, a physical fact
+    # of the rail the coil drives); on, the NTC channel reads a live code
+    # thousands of counts away, wiggling. The witness used to be PE15
+    # following AFE_ON inversely - a pin the MCU does not drive, whose
+    # meaning changes the moment the STO chain releases (TODO item 4); this
+    # one means the same thing on the powered day.
     def sampling(every_ms, settle_ms):
         """Set the thermal observer's NTC sampling. 0 stops it.
 
@@ -545,14 +550,23 @@ def map_tests(run):
             time.sleep(0.2)
         return None
 
+    def ntc_raw():
+        """The NTC channel's raw code (FC04 register 4), retried like a bit."""
+        for _ in range(6):
+            got = parse(b.request(pdu_read(0x04, 0x0004, 1)))
+            if got and got[3]:
+                return regs_from(got[2])[0]
+            time.sleep(0.2)
+        return None
+
     b.request(pdu_w_single_coil(0x0000, False))
     time.sleep(0.2)
-    off_din = read_bit(0x02)
+    off_codes = [ntc_raw() for _ in range(4)]
     off_coil = read_bit(0x01)
 
     b.request(pdu_w_single_coil(0x0000, True))
     time.sleep(0.4)
-    on_din = read_bit(0x02)
+    on_code = ntc_raw()
     on_coil = read_bit(0x01)
 
     sampling(5000, 500)
@@ -560,9 +574,10 @@ def map_tests(run):
     run.check('coil 0 reads back its written state',
               off_coil is False and on_coil is True,
               'off->%s on->%s' % (off_coil, on_coil))
-    run.check('PE15 follows AFE_ON (independent witness)',
-              off_din is True and on_din is False,
-              'AFE off -> PE15=%s, AFE on -> PE15=%s' % (off_din, on_din))
+    run.check('the rail is a physical fact: raw NTC frozen off, moved on',
+              None not in off_codes and on_code is not None
+              and len(set(off_codes)) == 1 and on_code != off_codes[0],
+              'off -> %s, on -> %s' % (off_codes, on_code))
 
     print('\n-- scaled physical quantities (AFE on) --')
     p = parse(b.request(pdu_read(0x04, 0x0010, 2)))
