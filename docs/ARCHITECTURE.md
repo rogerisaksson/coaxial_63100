@@ -1,23 +1,23 @@
 # Architecture
 
 Instrumentation stack for a 63 V / 100 A coaxial BLDC inverter. TIM1 and the
-synced current path are reachable; the control law in `Drive/` has run only
+synced current path are reachable; the control law in `drive/` has run only
 dry - **no motor has turned**. Each layer knows only the one below it.
 
 ## Firmware
 
 | | |
 |---|---|
-| `Core/` | CubeMX-generated. User code: the two sensor polls, `Board_StoKeepalive()` at the top of the loop (`link_active()` does a `continue`), and `SCB_EnableICache()` in Init - CubeMX generated no cache, and the M7 fetched every instruction from flash at four wait states until 2026-08-31 (FINDINGS) |
-| `Board/` | this hardware behind `board.h`: `adc`, `cal`, `clock`, `io`, `imu`, `angle`, `pwm`, `sync`, `sto`, `log`, `daq`, `drive`, `thermal`, `selftest`. Dependencies run one way |
-| `Modbus/` | RTU stack - CRC, PDU, framing. C standard library only. Lookup tables, not switches |
-| `Shtp/` | the BNO08X's transport framing. Portable C11, host-tested by `test_shtp_core.py` |
-| `Comms/` | dispatch and the wire. `cmd_device.c` fronts every peripheral behind `0x6E` - the one function code left - with an op dispatcher per device; `dev_uart.c` is the only file touching a USART; `link.c` runs one RTU state machine per port - one slave, three wires, the unit id the board's |
-| `Drive/` | the control law, one PWM period per call: dq current loop with decoupling and a dead-time table, min-max SVM, square-wave HF injection and its demodulator, a two-state PLL in Kalman form with a back-EMF error above a crossover speed, I/f, a polarity pulse, the window statistics a host judges it by. Portable C11, host-tested through `Drive/test/harness.c` against a PMSM model; `drive_model.c` is that model on the board, the second sample source (device 10 op 10) |
-| `Thermal/` | the ten-node observer, portable like `Drive/` |
-| `Filter/` | the decimating anti-alias chain: an integer boxcar at the converter's rate, then the Bessel biquads the host designed, then the decimation. Portable C11, host-tested by `test_filter_core.py`; `host/coaxial/bessel.py` designs the coefficients and reports what the chain fails to stop |
+| `core/` | CubeMX-generated. User code: the two sensor polls, `Board_StoKeepalive()` at the top of the loop (`link_active()` does a `continue`), and `SCB_EnableICache()` in Init - CubeMX generated no cache, and the M7 fetched every instruction from flash at four wait states until 2026-08-31 (FINDINGS) |
+| `board/` | this hardware behind `board.h`: `adc`, `cal`, `clock`, `io`, `imu`, `angle`, `pwm`, `sync`, `sto`, `log`, `daq`, `drive`, `thermal`, `selftest`. Dependencies run one way |
+| `modbus/` | RTU stack - CRC, PDU, framing. C standard library only. Lookup tables, not switches |
+| `shtp/` | the BNO08X's transport framing. Portable C11, host-tested by `test_shtp_core.py` |
+| `comms/` | dispatch and the wire. `cmd_device.c` fronts every peripheral behind `0x6E` - the one function code left - with an op dispatcher per device; `dev_uart.c` is the only file touching a USART; `link.c` runs one RTU state machine per port - one slave, three wires, the unit id the board's |
+| `drive/` | the control law, one PWM period per call: dq current loop with decoupling and a dead-time table, min-max SVM, square-wave HF injection and its demodulator, a two-state PLL in Kalman form with a back-EMF error above a crossover speed, I/f, a polarity pulse, the window statistics a host judges it by. Portable C11, host-tested through `drive/test/harness.c` against a PMSM model; `drive_model.c` is that model on the board, the second sample source (device 10 op 10) |
+| `thermal/` | the ten-node observer, portable like `drive/` |
+| `filter/` | the decimating anti-alias chain: an integer boxcar at the converter's rate, then the Bessel biquads the host designed, then the decimation. Portable C11, host-tested by `test_filter_core.py`; `host/coaxial/bessel.py` designs the coefficients and reports what the chain fails to stop |
 
-Before editing `Board/` or `Comms/`:
+Before editing `board/` or `comms/`:
 
 * `board_pwm.c` and `board_sync.c` use CMSIS, not `htim1`: clearing MOE has
   to be one store that cannot fail partway.
@@ -35,14 +35,14 @@ Before editing `Board/` or `Comms/`:
   handler, not one per field.
 
 **The limits headers.** Every fixed number the firmware depends on, each
-beside the measurement that chose it: `Board/Inc/board_limits.h` the
+beside the measurement that chose it: `board/inc/board_limits.h` the
 drivers' (part clocks, buffers, poll rates, settle times, the dead-time
-floor), `Comms/Inc/comms_limits.h` the wire's, including the first where a
+floor), `comms/inc/comms_limits.h` the wire's, including the first where a
 number must hold against one below. `IMU_CARGO <= IMU_BUF` is a
 `_Static_assert`: invisible across two layers, a cargo arrived truncated.
 Anything the board can be TOLD is in the calibration record instead
 (invariant 7); `test_structure` fails a matching `#define` anywhere else and
-a `Board/` file including the comms header - the dead time was in three
+a `board/` file including the comms header - the dead time was in three
 places at once and the one that mattered was a stale binary.
 
 **The broker** (`host/coaxial/broker.py`): one process owns the port, the
@@ -153,7 +153,7 @@ contract. Every block requires the stage armed first through
 `gates.arm()` and leaves the drive OFF however it ends.
 
 `tools/observer_run.py` runs the firmware's own observer, not a model of
-it: it builds `Drive/` with the host gcc through the same ctypes bench the
+it: it builds `drive/` with the host gcc through the same ctypes bench the
 suite uses, and asks how hard the thing can be driven rather than whether
 it still works. FINDINGS has what it found. `tools/montecarlo.py` turns
 that bench into a search: one process per core, each running the compiled
@@ -191,7 +191,7 @@ tool routing, mid-session board and model swaps (MODELS.md).
 
 ## The test system
 
-Twenty-five suites, 2368 checks. `run_tests.ps1` is the only interface -
+Twenty-five suites, 2370 checks. `run_tests.ps1` is the only interface -
 CLAUDE.md, *Commands*, has the tiers and the rules. CI runs
 `run_tests.py --offline` on 3.10 and 3.12 at every push; a runner is a
 machine with no daemon and no board, and every degradation it relies on
@@ -207,7 +207,7 @@ is one the suites already had.
   t1.5, t3.5 and the 2^32 wrap are tested by arithmetic. A missing compiler
   skips it; `setup.ps1` installs one.
 * **The drive closes its loop on this machine.** `test_drive_core.py` builds
-  `Drive/` with the host gcc and drives it through a PMSM model in Python -
+  `drive/` with the host gcc and drives it through a PMSM model in Python -
   saliency, saturation, back-EMF, a dead-time voltage error, the two-period
   pipeline - so the loop, the demodulator, the observer and I/f are judged
   against the model's own constants. `test_sensorless.py` checks the design

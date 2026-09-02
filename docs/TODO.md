@@ -4,7 +4,7 @@ State as of 2026-09-02.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2368 checks, 25 suites |
+| `run_tests.ps1 -All` | 2370 checks, 25 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 6 |
@@ -196,7 +196,7 @@ here arms the stage.
    time. Same rig as item 5, three measurements in one probe setup;
    op 10 already makes the alternating train.
 7. **The observer's losses do not scale with temperature.** `rds_on`
-   is 1.8 mOhm flat (`Thermal/Src/thermal.c`); a 100 V Si FET's tempco
+   is 1.8 mOhm flat (`thermal/src/thermal.c`); a 100 V Si FET's tempco
    is ~+0.6-0.8 %/K, so a 100 C junction conducts at ~1.5-1.7x the
    model - under-estimated exactly where margins thin. First order:
    `rds_25 * (1 + alpha * (Tj - 25))` fed back from the leg's own node
@@ -226,7 +226,7 @@ here arms the stage.
 - `electronic_simulations/motor_inverters/half_bridge.asc` has three `mc()`
   calls with no `run`/`val` wrapper, unlike `amplifiers.asc` and `hot_swap.asc`.
   Running that file randomises trace inductance and the shunt.
-- CubeMX rewrites `Core/Src/main.c` to CRLF on every generation. Git normalises
+- CubeMX rewrites `core/src/main.c` to CRLF on every generation. Git normalises
   it back; byte-level edits must match `\r\n`.
 - Phase W's noise floor is a third above U and V (74.9 against 55 codes rms,
   2026-08-31). Not chased.
