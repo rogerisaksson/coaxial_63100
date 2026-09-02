@@ -64,13 +64,20 @@ class Report:
 
 
 def modules():
-    """Every importable module under the packages, as dotted names."""
+    """Every importable module under the packages, as dotted names.
+
+    Subpackages recurse - coaxial.simulated is nine files behind one
+    __init__, and each is judged exactly like a top-level module.
+    """
     found = []
     for package in PACKAGES:
         root = os.path.join(HOST, package)
-        for name in sorted(os.listdir(root)):
-            if name.endswith('.py') and not name.startswith('_'):
-                found.append('%s.%s' % (package, name[:-3]))
+        for here, dirs, names in os.walk(root):
+            dirs[:] = [d for d in dirs if d != '__pycache__']
+            dotted = os.path.relpath(here, HOST).replace(os.sep, '.')
+            for name in sorted(names):
+                if name.endswith('.py') and not name.startswith('_'):
+                    found.append('%s.%s' % (dotted, name[:-3]))
     return found
 
 
@@ -93,15 +100,18 @@ def sources(beside=True):
                 else os.path.join(HOST, where))
         if not os.path.isdir(root):
             continue
-        for name in sorted(os.listdir(root)):
-            path = os.path.join(root, name)
-            if name.endswith('.py'):
-                text = io.open(path, encoding='utf-8').read()
-            elif name.endswith('.ipynb'):
-                text = notebook_source(path)
-            else:
-                continue
-            out.append((os.path.join(where, name), text, ast.parse(text)))
+        for here, dirs, names in os.walk(root):
+            dirs[:] = [d for d in dirs if d != '__pycache__']
+            for name in sorted(names):
+                path = os.path.join(here, name)
+                if name.endswith('.py'):
+                    text = io.open(path, encoding='utf-8').read()
+                elif name.endswith('.ipynb'):
+                    text = notebook_source(path)
+                else:
+                    continue
+                rel = os.path.relpath(path, root)
+                out.append((os.path.join(where, rel), text, ast.parse(text)))
     return out
 
 

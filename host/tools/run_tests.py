@@ -130,7 +130,12 @@ def plan_for(percent):
 NEEDS_BOARD = (CONFORMANCE,)
 
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
-FAIL_RE = re.compile(r'^\s*FAIL\s+(.+?)\s{2,}')
+# The whole line after FAIL, detail included: a check's detail is the
+# compiler warning, the wrong value, the reason - and on a runner the
+# summary (relayed as a commit comment) is the only place it surfaces.
+# The old form stopped at the first two-space gap and a name at exactly
+# the pad width lost its line entirely.
+FAIL_RE = re.compile(r'^\s{1,8}FAIL\s+(\S.*?)\s*$')
 # The ollama suites under --tags say what they left out. Surfaced here: the
 # count that matters is the one against the whole file.
 GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
@@ -278,7 +283,7 @@ TOUCHES = (
     ('host/coaxial_mcp/render.py',    ('test_mcp.py', 'test_parity.py')
                                       + OLLAMA),
     ('host/coaxial_mcp/',             ('test_mcp.py', 'test_parity.py')),
-    ('host/coaxial/simulated.py',     ('test_simulated.py',
+    ('host/coaxial/simulated',        ('test_simulated.py',
                                        'test_parity.py') + OLLAMA),
     # The broker is the port itself: every session goes through it when one
     # is up, so its own suite runs whenever it or the two files that reach
