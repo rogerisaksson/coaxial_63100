@@ -174,11 +174,11 @@ search a robust tune for exactly that machine, write the record, and the
 drive verifies itself.
 
 **`daq.catalogue()` is what the board can record**, each row saying its
-kind and whether `configure()` may ask for it - the sensor fields
-(orientation, acceleration, rotation rate, magnetic field, shaft angle) are
-listed and NOT yet selectable: they read through `board.imu` and
-`board.angle`, and carrying them inside a record is a wire format the
-firmware does not have. A `Record` is a `dict` underneath, so `r['NTC']` is
+kind and whether `configure()` may ask for it - since MINOR 7 the sensor
+fields (orientation, acceleration, rotation rate, magnetic field, shaft
+angle) ride any software-clocked record as four-word SNAPSHOTS beside the
+sums: `configure('phaseU', 'shaft angle')`, and the frame scales them.
+On older firmware the rows are listed and refused with the reason. A `Record` is a `dict` underneath, so `r['NTC']` is
 still the SUM and `r['samples']` still the count; `r.value('NTC')` is one channel's mean and
 `r.sample('NTC')` the struct behind it; `r.samples` is the ARRAY
 and `r.count` the count. `daq.channel_names()` and `daq.columns(values)`
@@ -210,7 +210,7 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-five suites, 2350 checks, sized from `host/tests/.counts.json` and so
+Twenty-five suites, 2355 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (545),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (214),
 `test_simulated.py` (201), `test_live_model.py` (212, needs ollama, `--live`),
@@ -227,7 +227,7 @@ chain against the transfer function it was designed from), `test_ollama_render.p
 `render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23), `test_broker.py`
 (28, the shared session and the reply shapes, no board), `test_views.py`
 (22, every view and the front page drawn twice, no board), `test_ollama_language.py` (12),
-`test_daq_api.py` (70, the acquisition front door against the
+`test_daq_api.py` (75, the acquisition front door against the
 stand-in - naming, reading, the record shape, the buffers),
 `test_bench.py` (4, the board's loop rates against a recorded baseline).
 Wiring: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system). The
@@ -255,7 +255,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  764 of this tree's 2350 checks are in those nine files.
+  764 of this tree's 2355 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

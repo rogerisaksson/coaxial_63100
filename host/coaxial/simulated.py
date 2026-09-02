@@ -1577,6 +1577,30 @@ class SimulatedDaq(Acquisition):
              'TIM1_CH2/PWMVH': (1, True), 'TIM1_CH2N/PWMVL': (1, False),
              'TIM1_CH3/PWMWH': (2, True), 'TIM1_CH3N/PWMWL': (2, False)}
 
+    def _sensor_words(self, bit):
+        """Four raw words, the board's own encodings - the shaft off the
+        SAME rotor the drive torques, the IMU off the poll record. Wired
+        by `SimulatedBoard` like `drive` is; unwired, zeros with have 0,
+        which is what an absent part answers."""
+        if bit == 4:
+            part = getattr(self, 'angle', None)
+            if part is None:
+                return (0, 0, 0, 0)
+            got = part.read(0x20)
+            return (got['value'] - 0x10000 if got['value'] >= 0x8000
+                    else got['value'], got['crc'], 0x20, 1)
+        part = getattr(self, 'imu', None)
+        state = part.state() if part is not None else {}
+        if bit == 0:
+            q = state.get('quaternion') or {}
+            return tuple(int(q.get(k, 0.0) * 16384) for k in
+                         ('i', 'j', 'k', 'real'))
+        name = ('acceleration', 'rotation rate', 'magnetic field')[bit - 1]
+        v = state.get(name) or {}
+        scale = (256.0, 512.0, 16.0)[bit - 1]      # Q8, Q9, Q4
+        return (int(v.get('x', 0.0) * scale), int(v.get('y', 0.0) * scale),
+                int(v.get('z', 0.0) * scale), 3)
+
     def _pin_duty(self, signal):
         """One pin's duty for one record."""
         got = self.GATES.get(signal)
@@ -1652,6 +1676,8 @@ class SimulatedDaq(Acquisition):
                 # fell back to the frame rate.
                 'max_rate_hz': int(((self.baud // 10) * 75 // 100)
                                    // max(1, self._stride())),
+                'sensors_available': (1 << len(self.SENSORS)) - 1,
+                'sensors_supported': True,
                 **cfg}
 
     #: What a record carries, in the board's order - the sampled set, not
@@ -1675,7 +1701,11 @@ class SimulatedDaq(Acquisition):
             fields.append({'channel': i, 'unit': unit, 'differential': diff,
                            'signal': signal})
         pins = list(self.PINS) if (self._cfg or {}).get('digital') else []
-        return {'stride': self._stride(), 'fields': fields, 'pins': pins}
+        mask = (self._cfg or {}).get('sensors') or 0
+        rows = [{'bit': b, 'words': 4, 'signal': name}
+                for b, name in enumerate(self.SENSORS) if mask & (1 << b)]
+        return {'stride': self._stride(), 'fields': fields, 'pins': pins,
+                'sensors': rows}
 
     def _stride(self):
         """The record's width, by the board's own arithmetic: the
@@ -1690,7 +1720,9 @@ class SimulatedDaq(Acquisition):
         # quoted the board's old shape once already and a stride is what
         # a host decodes by.
         digital = len(self.PINS) if (self._cfg or {}).get('digital') else 0
-        return 4 + 4 * len(self._order) + digital + 2
+        mask = (self._cfg or {}).get('sensors') or 0
+        return (4 + 4 * len(self._order) + digital
+                + 8 * bin(mask).count('1') + 2)
 
     def _resolve(self, channels):
         if isinstance(channels, int):
@@ -1707,9 +1739,14 @@ class SimulatedDaq(Acquisition):
                                'reports %r' % (c, sorted(by_name)))
         return sorted(out)
 
+    #: The sensor rows, index = wire bit (MINOR 7), the board's spelling.
+    SENSORS = ('orientation', 'acceleration', 'rotation rate',
+               'magnetic field', 'shaft angle')
+
     def configure(self, channels, clock='software', sample_time=0,
                   decimate=1, accumulate=None, records=0, digital=False,
-                  sample_rate=None, interval_us=None, adapt=False):
+                  sample_rate=None, interval_us=None, adapt=False,
+                  sensors=0):
         from .errors import RigError
         if accumulate is None:
             accumulate = 0 if sample_rate is not None else 1
@@ -1727,6 +1764,14 @@ class SimulatedDaq(Acquisition):
         if clock == 'tim1' and any(i not in self.PHASES for i in order):
             raise RigError('the board refused that task - a TIM1 clock '
                            'carries only the phases (simulated)')
+        if int(sensors) >> len(self.SENSORS):
+            raise RigError('the board refused that task - the sensor mask '
+                           'has five bits (simulated)')
+        if sensors and clock == 'tim1':
+            raise RigError('the board refused that task - sensor fields '
+                           'ride the software clock only: a TIM1 record '
+                           'closes in the interrupt, which would read the '
+                           'poll records torn (simulated)')
         self._order = order
         if interval_us is None:
             interval_us = (0 if sample_rate is None
@@ -1734,7 +1779,8 @@ class SimulatedDaq(Acquisition):
         self._cfg = {'channels': sum(1 << i for i in order), 'clock': clock,
                      'sample_time': sample_time, 'decimate': decimate,
                      'accumulate': accumulate, 'records': records,
-                     'digital': bool(digital), 'interval_us': interval_us}
+                     'digital': bool(digital), 'interval_us': interval_us,
+                     'sensors': int(sensors)}
         self._produced = 0
         self._done = False
         return self.layout()
@@ -1874,6 +1920,11 @@ class SimulatedDaq(Acquisition):
                 # window the record covers.
                 rec['digital'] = {p['signal']: self._pin_duty(p['signal'])
                                   for p in self.PINS}
+            mask = (self._cfg or {}).get('sensors') or 0
+            if mask:
+                rec['sensors'] = {name: self._sensor_words(b)
+                                  for b, name in enumerate(self.SENSORS)
+                                  if mask & (1 << b)}
             out.append(rec)
         self._produced += n
         if self._cfg['records'] and self._produced >= self._cfg['records']:
@@ -2590,8 +2641,11 @@ class SimulatedBoard:
             self.daq.drive = self.drive
             # The shaft sensor reads the SAME rotor: a servo closed over
             # the A1335 moves what the drive torques, or the loop it
-            # closes is between two inventions.
+            # closes is between two inventions. The DAQ's sensor fields
+            # read the same parts the subsystems answer for.
             self.angle.drive = self.drive
+            self.daq.angle = self.angle
+            self.daq.imu = self.imu
             # `zero()` reads a channel, so it needs the board that
             # has them.
             self.calibration.board = self

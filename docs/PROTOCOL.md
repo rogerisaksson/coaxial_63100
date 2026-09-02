@@ -38,7 +38,12 @@ FUNCTION from the protocol layer before dispatch saw it.
 ### 0x41 Version
 
 Append-only, the frozen record. A host binds decoding to `CMD_PROTO_MAJOR`
-alone; appending a field is a MINOR. **MINOR 6, 2026-09-01**: imu op 8
+alone; appending a field is a MINOR. **MINOR 7, 2026-09-02**: daq op 1
+appends a `u16` sensor mask, records append four-`i16` SNAPSHOTS per
+sensor between the pins and the count, op 5 appends the sensor rows and
+op 0 the two masks - software clock only, since a TIM1-clocked record
+closes in ADC3's interrupt and would read the poll records torn.
+**MINOR 6, 2026-09-01**: imu op 8
 appends the three vectors. **MINOR 5**: daq op 4 appends the backlog.
 MAJOR 2, 2026-08-29: the thermal nodes
 went per leg, repurposing device 8's node order and the record's ceiling
@@ -283,6 +288,17 @@ sequence converts**: the three phases, and the DC link and the NTC that
 ride rank 2. Any other channel is refused; `sample_time` 0..7 over the H7's eight
 windows, shortest first; `decimate` keeps one trigger in N; `records` 0
 runs until stopped; `adapt` lets the board climb the rung ladder.
+
+**The sensor mask (appended, MINOR 7)** is a second `u16` after `adapt`:
+bit 0 orientation (i, j, k, real - Q14), 1 acceleration (x, y, z, status -
+Q8), 2 rotation rate (Q9), 3 magnetic field (Q4), 4 shaft angle (value,
+crc, reg, have). Each enabled bit appends four `i16` words to every
+record, between the pins and the count - SNAPSHOTS of the poll records at
+the close, never sums: a summed quaternion means nothing. Raw and
+source-defined exactly as device 5 carries them; the scale stays the
+host's. Software clock only, refused on TIM1 with the reason. Op 0
+appends `u16 sensors, u16 sensors_available`; op 5 appends the rows -
+`u8 count`, then `u8 bit, u8 words, str name` per field.
 
 **`digital` appends one BYTE PER SAMPLED PIN, and a byte is a duty.** Not
 a level and not a word of them: the pin goes through the same window as

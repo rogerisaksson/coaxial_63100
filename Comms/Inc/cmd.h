@@ -288,7 +288,7 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 6U        /* 1: gate drivers op 10, alternate
+#define CMD_PROTO_MINOR 7U        /* 1: gate drivers op 10, alternate
                                      2: device 10, the drive; the DC link
                                         appended to gate drivers op 0
                                      3: a daq record ends with u16 count,
@@ -306,7 +306,14 @@ extern "C" {
                                      6: imu op 8 appends the three
                                         vectors - accelerometer,
                                         gyroscope, magnetometer,
-                                        each with its own `have`  */
+                                        each with its own `have`
+                                     7: daq op 1 appends a u16 sensor
+                                        mask; records append four i16
+                                        SNAPSHOT words per sensor after
+                                        the pins; op 5 appends the rows.
+                                        Software clock only - a TIM1
+                                        record closes in ADC3's ISR and
+                                        would read the poll records torn */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

@@ -110,6 +110,15 @@ class Daq(Subsystem, Acquisition):
         # decimation. Differentiate it and you have the rate the
         # chain was designed against, live.
         state['triggers'] = r.u32() if r.remaining >= 4 else None
+        # Appended, MINOR 7: which sensor fields this build can put in a
+        # record, and which the task carries now. None on older boards -
+        # `catalogue()` marks the rows unselectable off exactly this.
+        if r.remaining >= 4:
+            state['sensors'] = r.u16()
+            state['sensors_available'] = r.u16()
+        else:
+            state['sensors'] = state['sensors_available'] = None
+        state['sensors_supported'] = state['sensors_available'] is not None
         return state
 
     def layout(self):
@@ -151,7 +160,8 @@ class Daq(Subsystem, Acquisition):
 
     def configure(self, channels, clock='software', sample_time=0,
                   decimate=1, accumulate=None, records=0, digital=False,
-                  sample_rate=None, interval_us=None, adapt=False):
+                  sample_rate=None, interval_us=None, adapt=False,
+                  sensors=0):
         """Replace the task. Refused while one is running.
 
         `sample_rate` is what the HOST gets, in records a second. The
@@ -198,6 +208,12 @@ class Daq(Subsystem, Acquisition):
                               decimate, accumulate, records,
                               1 if digital else 0, int(interval_us),
                               1 if adapt else 0)
+        if sensors:
+            # Appended, MINOR 7 - SNAPSHOT fields, software clock only.
+            # Sent only when asked for: an older board ignores unread
+            # tail bytes, and a silently dropped request is exactly what
+            # the front door's `selectable` gate exists to refuse first.
+            payload += struct.pack('>H', int(sensors))
         self._ack(DAQ_OP_CONFIGURE, payload)
         return self.layout()
 
@@ -283,26 +299,37 @@ class Daq(Subsystem, Acquisition):
         """
         layout = layout or self.layout()
         fields, pins = layout['fields'], layout.get('pins') or []
+        sensors = layout.get('sensors') or []
+        words = sum(x['words'] for x in sensors)
         stride = layout['stride']
-        fmt = '>I%di%dBH' % (len(fields), len(pins))
-        out = []
-        for i in range(len(blob) // stride):
-            at = i * stride
-            values = struct.unpack(fmt, blob[at:at + stride])
-            rec = {'at': values[0], 'samples': values[-1]}
-            rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
-            if pins:
-                # A DUTY, not a level: the pin went through the same
-                # window as everything else, and 255 is all of it. A
-                # level sampled once and decimated by two thousand is
-                # aliased by construction - KEEPALIVE toggles at
-                # ~100 kHz and read as a coin toss.
-                first = 1 + len(fields)
-                rec['digital'] = {
-                    p['signal']: values[first + n] / 255.0
-                    for n, p in enumerate(pins)}
-            out.append(rec)
-
+        fmt = '>I%di%dB%dhH' % (len(fields), len(pins), words)
+        out = []
+        for i in range(len(blob) // stride):
+            at = i * stride
+            values = struct.unpack(fmt, blob[at:at + stride])
+            rec = {'at': values[0], 'samples': values[-1]}
+            rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
+            if pins:
+                # A DUTY, not a level: the pin went through the same
+                # window as everything else, and 255 is all of it. A
+                # level sampled once and decimated by two thousand is
+                # aliased by construction - KEEPALIVE toggles at
+                # ~100 kHz and read as a coin toss.
+                first = 1 + len(fields)
+                rec['digital'] = {
+                    p['signal']: values[first + n] / 255.0
+                    for n, p in enumerate(pins)}
+            if sensors:
+                # SNAPSHOTS, not sums: raw and source-defined, the way
+                # device 5 carries them - the scale stays this host's.
+                first = 1 + len(fields) + len(pins)
+                rec['sensors'] = {}
+                for x in sensors:
+                    rec['sensors'][x['signal']] = tuple(
+                        values[first:first + x['words']])
+                    first += x['words']
+            out.append(rec)
+
         return out
 
     def acquire(self, want=0, layout=None):

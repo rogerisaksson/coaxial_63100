@@ -306,9 +306,63 @@ static void ladder_step(void)
 }
 
 
+static uint8_t sensor_count(uint16_t mask)
+{
+  uint8_t n = 0U;
+
+  for (uint8_t b = 0U; b < BOARD_DAQ_MAX_SENSORS; b++)
+  {
+    n = (uint8_t)(n + ((mask >> b) & 1U));
+  }
+  return n;
+}
+
+
+/** One sensor field's four words, SNAPSHOT at the record's close - raw
+  * and source-defined, the scale stays the host's as everywhere else.
+  * Software clock only (Board_DaqConfigure refuses the other), so these
+  * reads and the poll loops that write them share the main loop. */
+static void sensor_words(uint8_t bit, int16_t v[4])
+{
+  board_imu_state_t imu;
+  board_angle_state_t angle;
+
+  v[0] = 0; v[1] = 0; v[2] = 0; v[3] = 0;
+  if (bit == 4U)
+  {
+    Board_AngleState(&angle);
+    v[0] = (int16_t)angle.value;
+    v[1] = (int16_t)angle.crc;
+    v[2] = (int16_t)angle.reg;
+    v[3] = angle.have ? 1 : 0;
+    return;
+  }
+  Board_ImuState(&imu);
+  switch (bit)
+  {
+    case 0U:
+      v[0] = imu.i;  v[1] = imu.j;  v[2] = imu.k;  v[3] = imu.real;
+      break;
+    case 1U:
+      v[0] = imu.accel[0]; v[1] = imu.accel[1]; v[2] = imu.accel[2];
+      v[3] = (int16_t)imu.accel_status;
+      break;
+    case 2U:
+      v[0] = imu.gyro[0];  v[1] = imu.gyro[1];  v[2] = imu.gyro[2];
+      v[3] = (int16_t)imu.gyro_status;
+      break;
+    default:
+      v[0] = imu.mag[0];   v[1] = imu.mag[1];   v[2] = imu.mag[2];
+      v[3] = (int16_t)imu.mag_status;
+      break;
+  }
+}
+
+
 static void push_record(void)
 {
-  uint8_t rec[4U + (4U * BOARD_DAQ_MAX_CHANNELS) + 4U + 2U];
+  uint8_t rec[4U + (4U * BOARD_DAQ_MAX_CHANNELS) + BOARD_DAQ_MAX_PINS
+              + (8U * BOARD_DAQ_MAX_SENSORS) + 2U];
   uint16_t at = put_be32(rec, 0U, s_first_at);
 
   for (uint8_t f = 0U; f < s_fields; f++)
@@ -327,6 +381,24 @@ static void push_record(void)
     for (uint8_t p = 0U; (p < pins) && (p < BOARD_DAQ_MAX_PINS); p++)
     {
       rec[at++] = (uint8_t)(((uint32_t)s_dacc[p] * 255U + (n / 2U)) / n);
+    }
+  }
+
+  /* The sensor snapshots, after the pins and before the count: an
+     appended field, seen only by a host that asked for it. */
+  for (uint8_t b = 0U; b < BOARD_DAQ_MAX_SENSORS; b++)
+  {
+    if ((s_cfg.sensors & (1U << b)) == 0U)
+    {
+      continue;
+    }
+    int16_t v[4];
+
+    sensor_words(b, v);
+    for (uint8_t w = 0U; w < 4U; w++)
+    {
+      rec[at++] = (uint8_t)(((uint16_t)v[w] >> 8) & 0xFFU);
+      rec[at++] = (uint8_t)((uint16_t)v[w] & 0xFFU);
     }
   }
 
@@ -609,15 +681,29 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
            "or clear the filter";
   }
 
+  if ((cfg->sensors >> BOARD_DAQ_MAX_SENSORS) != 0U)
+  {
+    return "the sensor mask has five bits: orientation, acceleration, "
+           "rotation rate, magnetic field, shaft angle";
+  }
+  if ((cfg->sensors != 0U) && (cfg->clock == BOARD_DAQ_CLOCK_TIM1))
+  {
+    return "sensor fields ride the software clock only - the poll "
+           "records belong to the main loop, and a TIM1-clocked record "
+           "closes inside ADC3's interrupt, which would read them torn";
+  }
+
   s_cfg = *cfg;
   /* Remembered here, where the ASK is still visible. */
   s_rate_auto = (cfg->interval_us == 0U) && (cfg->records == 0U);
   s_interval_cycles = interval_cycles(cfg->interval_us);
   /* One byte of duty per pin where there used to be one snapshot word,
-     and + 2 for the sample count every record carries. */
+     eight bytes per sensor field, and + 2 for the sample count every
+     record carries. */
   s_stride = (uint16_t)(4U + (4U * s_fields)
                         + ((cfg->digital != 0U)
-                           ? Board_DigitalSampledCount() : 0U) + 2U);
+                           ? Board_DigitalSampledCount() : 0U)
+                        + (8U * sensor_count(cfg->sensors)) + 2U);
   s_head = 0U;
   s_tail = 0U;
   s_dropped = 0U;

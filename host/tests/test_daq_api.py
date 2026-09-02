@@ -69,13 +69,14 @@ def test_catalogue(report):
                  all('selectable' in r for r in rows))
     report.check('the analog channels are the board\'s own',
                  'Phase U' in names and 'NTC' in names)
-    # The sensor fields are listed AND refused: a name that is simply
-    # missing tells a caller nothing about why.
+    # Selectable since MINOR 7 put snapshots in the record; on an older
+    # board the same rows are listed and refused, which the pick's gate
+    # still guards.
     sensors = [r for r in rows if r['kind'] == 'sensor']
     report.check('the sensor fields are listed', len(sensors) == 5,
                  [r['name'] for r in sensors])
-    report.check('and marked not selectable, since no record carries them',
-                 not any(r['selectable'] for r in sensors))
+    report.check('and selectable, since MINOR 7 rides them in a record',
+                 all(r['selectable'] for r in sensors))
 
 
 def test_pick(report):
@@ -97,12 +98,9 @@ def test_pick(report):
             report.check('naming what the board does have',
                          'Phase U' in str(exc), str(exc)[:60])
 
-        try:
-            daq.pick('orientation')
-            report.check('a listed-but-unselectable name is refused', False)
-        except RigError as exc:
-            report.check('a listed-but-unselectable name is refused',
-                         'record' in str(exc), str(exc)[:60])
+        got = daq.pick('shaft_angle')
+        report.check('a sensor name resolves like any other',
+                     got == ['shaft angle'], got)
 
 
 def test_configure_takes_names_or_a_list(report):
@@ -459,6 +457,46 @@ def test_records_track_the_wall(report):
                  recs[-1].start_time - recs[0].start_time)
 
 
+def test_sensor_fields_ride_the_record(report):
+    """MINOR 7: snapshots beside the sums - the shaft angle in the same
+    record as the current that moved it, off the SAME virtual rotor."""
+    with opened(power_afe=False) as device:
+        device.board.drive.source('model')
+        device.gates.arm(bypass_sto=True, ignore_interlock=True)
+        daq = device.daq
+        rows = {r['name']: r for r in daq.catalogue()}
+        report.check('the sensor rows are selectable on this build',
+                     rows['shaft angle']['selectable']
+                     and rows['orientation']['selectable'])
+        daq.configure('Phase U', 'shaft angle', sample_rate=100,
+                      digital=False)
+        d = device.drive
+        d.setpoint(id_ref=2.0, iq_ref=0.0, theta=0.0, omega_target=200.0,
+                   accel=400.0)
+        d.mode('hold')
+        daq.start()
+        time.sleep(0.8)
+        recs = list(daq.read(-1))
+        daq.stop()
+        d.off()
+        r = recs[-1]
+        report.check('a record carries the snapshot, four words',
+                     len(r.sensors['shaft angle']) == 4, r.sensors)
+        vals = [rec.sensors['shaft angle'][0] & 0x0FFF for rec in recs]
+        report.check('and the shaft in the stream is the rotor turning',
+                     max(vals) - min(vals) > 500, (min(vals), max(vals)))
+        frame = daq.frame(recs, scaled=True)
+        report.check('the frame scales it to degrees beside the amps',
+                     'shaft angle (deg)' in frame
+                     and 'Phase U (A)' in frame, list(frame.columns))
+        try:
+            daq.configure('Phase U', 'shaft angle', clock='tim1')
+            report.check('the TIM1 clock refuses sensor fields', False)
+        except RigError as exc:
+            report.check('the TIM1 clock refuses sensor fields',
+                         'torn' in str(exc), exc)
+
+
 def main():
     report = Report()
     for test in (test_catalogue, test_pick,
@@ -471,7 +509,8 @@ def main():
                  test_enable_is_session_scoped, test_compensate_and_tare,
                  test_scaled_columns_use_the_record,
                  test_frames_rolls_a_window,
-                 test_open_is_idempotent, test_records_track_the_wall):
+                 test_open_is_idempotent, test_records_track_the_wall,
+                 test_sensor_fields_ride_the_record):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

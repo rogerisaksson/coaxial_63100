@@ -98,10 +98,10 @@ class Later:
 
 
 #: Everything the board can measure that is not an ADC channel or a pin.
-#: Listed here rather than read off the board because it is the ONE thing
-#: in this file that the wire does not carry yet - `catalogue()` marks
-#: them unselectable until the firmware puts them in a record, so a caller
-#: sees the name and the reason rather than a silent nothing.
+#: The ORDER IS THE WIRE'S: a row's index is its bit in daq op 1's
+#: appended sensor mask (MINOR 7). `catalogue()` marks them unselectable
+#: on a board whose firmware predates that, so a caller sees the name and
+#: the reason rather than a silent nothing.
 SENSOR_FIELDS = (
     {'name': 'orientation', 'kind': 'sensor', 'direction': 'in',
      'unit': 'quaternion'},
@@ -114,6 +114,16 @@ SENSOR_FIELDS = (
     {'name': 'shaft angle', 'kind': 'sensor', 'direction': 'in',
      'unit': 'deg'},
 )
+
+#: Each sensor field's four words, in wire order - the encodings device 5
+#: established, raw with the scale left to the caller.
+SENSOR_WORDS = {
+    'orientation': ('i', 'j', 'k', 'real'),
+    'acceleration': ('x', 'y', 'z', 'status'),
+    'rotation rate': ('x', 'y', 'z', 'status'),
+    'magnetic field': ('x', 'y', 'z', 'status'),
+    'shaft angle': ('value', 'crc', 'reg', 'have'),
+}
 
 #: What the acquisition front door answers. A whitelist, not everything:
 #: `daq.write` reaching the pin writer would put the device vocabulary
@@ -573,6 +583,19 @@ class Coaxial63100(Acquisition):
         trim = {c['index']: c for c in
                 self.board.calibration.read()['channels']}
         out = {}
+        # The sensor snapshots' real units, the same one-place scalings
+        # the subsystems use: the shaft through coaxial.angle, the
+        # quaternion out of Q14. The raw words stay in their own columns.
+        from . import angle as angle_scaling
+        if 'shaft angle value' in cols:
+            out['shaft angle (deg)'] = [
+                None if v is None else angle_scaling.degrees(v & 0xFFFF)
+                for v in cols['shaft angle value']]
+        if 'orientation real' in cols:
+            for word in ('i', 'j', 'k', 'real'):
+                out['orientation %s (unit)' % word] = [
+                    None if v is None else v / 16384.0
+                    for v in cols['orientation %s' % word]]
         for field in (self.layout or {}).get('fields') or []:
             got = pick.get(field.get('unit'))
             if got is None or field['signal'] not in cols:
@@ -665,7 +688,15 @@ class Coaxial63100(Acquisition):
         # empty with nothing saying why.
         pins = list((getattr(records[0], 'digital', None) or {})
                     if records else {})
-        out = {name: [] for name in names + pins}
+        # And the sensor snapshots (MINOR 7), one column per word:
+        # 'shaft angle value' beside the currents it was latched with.
+        first = (getattr(records[0], 'sensors', None) or {}) if records else {}
+        subs = {field: ['%s %s' % (field, w) for w in
+                        SENSOR_WORDS.get(field,
+                                         ('w0', 'w1', 'w2', 'w3'))]
+                for field in first}
+        flat = [col for cols in subs.values() for col in cols]
+        out = {name: [] for name in names + pins + flat}
         out['time'] = []
         out['dt'] = []
         for record in records:
@@ -675,6 +706,11 @@ class Coaxial63100(Acquisition):
             duties = getattr(record, 'digital', None) or {}
             for pin in pins:
                 out[pin].append(duties.get(pin))
+            snaps = getattr(record, 'sensors', None) or {}
+            for field, cols in subs.items():
+                words = snaps.get(field) or (None,) * len(cols)
+                for col, word in zip(cols, words):
+                    out[col].append(word)
             out['time'].append(getattr(record, 'start_time', None))
             out['dt'].append(getattr(record, 'dt', None))
         return out
@@ -805,6 +841,7 @@ class Coaxial63100(Acquisition):
         if len(channels) == 1 and not isinstance(channels[0], str):
             channels = channels[0]        # a list, sliced or whole
         channels = list(channels) if channels else None
+        sensors = 0
         if channels is not None:
             kinds = {r['name']: r['kind'] for r in self.catalogue()}
             channels = self.pick(*channels)
@@ -813,13 +850,20 @@ class Coaxial63100(Acquisition):
             # and do not go in the channel mask.
             if any(kinds.get(c) == 'digital' for c in channels):
                 digital = True
+            # A sensor among the names sets its bit in the SECOND mask
+            # (MINOR 7): four snapshot words ride each record. pick()
+            # already refused them on a board that cannot carry them.
+            bits = {row['name']: b for b, row in enumerate(SENSOR_FIELDS)}
+            for c in channels:
+                if kinds.get(c) == 'sensor':
+                    sensors |= 1 << bits[c]
             channels = [c for c in channels
                         if kinds.get(c) == 'analog']
             if not channels:
                 raise RigError(
                     'a record needs at least one analog channel - '
-                    'the pins ride along, they do not make a record '
-                    'on their own')
+                    'the pins and the sensors ride along, they do not '
+                    'make a record on their own')
 
         # Stopped first, because the board refuses to reconfigure under a
         # running task - a stride changing beneath a half-drained buffer
@@ -845,6 +889,8 @@ class Coaxial63100(Acquisition):
             burst['records'] = records          # a run that ENDS: the burst
         if interval_us is not None:
             burst['interval_us'] = interval_us  # vocabulary, passed through
+        if sensors:
+            burst['sensors'] = sensors
         self.layout = self.board.daq.configure(
             channels if channels is not None else self.channels(),
             clock=clock, sample_time=sample_time, decimate=decimate,

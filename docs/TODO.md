@@ -4,7 +4,7 @@ State as of 2026-09-02.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2350 checks, 25 suites |
+| `run_tests.ps1 -All` | 2355 checks, 25 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 6 |
@@ -86,19 +86,20 @@ Nothing else has - invariant 7.
    times of silence per frame, paid twice per transaction. A baud change
    with no board attached is blind, so this waits for the bench.
 
-0. **The IMU and the shaft angle inside a DAQ record, and the IMU on
-   hardware.** `catalogue()` lists orientation, acceleration, rotation
-   rate, magnetic field and shaft angle and refuses them: they read
-   through their own subsystems, and carrying them in a record is a wire
-   format that does not exist. The constraint is named - the channel mask
-   is a `u16` with ten analog channels in it, so fourteen more fields need
-   a SECOND appended mask, not a wider one, which would be a MAJOR - and
-   they have to be snapshots rather than sums, since a summed quaternion
-   means nothing. **And none of the IMU work is measured**: the three
-   vectors, the multi-feature re-apply and the MINOR 6 reply are built and
-   host-tested only, because the board has had no power since
-   2026-09-01. That is the subsystem CLAUDE.md records as six defects and
-   four dead hardware hypotheses, so the numbers wait for the rail.
+0. **Sensor fields on hardware.** The wire format exists now (MINOR 7,
+   2026-09-02): a second appended `u16` mask, four-`i16` snapshots per
+   sensor between the pins and the count, software clock only. Built,
+   zero-warning compiled, and host-tested against the stand-in - the
+   shaft angle streams beside the currents off the same virtual rotor,
+   and `frame(scaled=True)` puts degrees beside amperes. NOT measured:
+   like the IMU's MINOR 6 work below, the board has had no power since
+   2026-09-01, so the first bench day runs `test_daq_api`'s sensor check
+   against real records and the position_and_sensorless notebook past
+   its link-rate Nyquist ceiling. **And none of the IMU work is
+   measured**: the three vectors, the multi-feature re-apply and the
+   MINOR 6 reply are built and host-tested only. That is the subsystem
+   CLAUDE.md records as six defects and four dead hardware hypotheses,
+   so the numbers wait for the rail.
 0b. **Prove `tare()` end to end on hardware.** `board.calibration.tare()`
    measures and calls `compensate()`, which writes the record where
    invariant 7 says a conversion lives, and `frame(scaled=True)` applies

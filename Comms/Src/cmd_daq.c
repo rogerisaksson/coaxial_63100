@@ -218,6 +218,10 @@ static cmd_status_t h_daq_state(wr_t *out)
   wr_u8(out, st.rungs);
   wr_u32(out, st.rung_changes);
   wr_u32(out, st.triggers);
+  /* Appended, MINOR 7: what the task carries and what this build CAN
+     carry - the mask the catalogue's `selectable` answers from. */
+  wr_u16(out, st.config.sensors);
+  wr_u16(out, (uint16_t)((1U << BOARD_DAQ_MAX_SENSORS) - 1U));
   return CMD_OK;
 }
 
@@ -240,6 +244,9 @@ static cmd_status_t h_daq_configure(rd_t *in, wr_t *out)
   /* Appended: a request without it does not adapt, which is what the
      op meant before there was a ladder to climb. */
   cfg.adapt = (rd_left(in) > 0U) ? rd_u8(in) : 0U;
+  /* Appended, MINOR 7: the sensor snapshot mask. Absent means none,
+     which is every record this op ever made before it. */
+  cfg.sensors = (rd_left(in) > 0U) ? rd_u16(in) : 0U;
 
   if (!rd_ok(in))
   {
@@ -382,6 +389,32 @@ static cmd_status_t h_daq_layout(wr_t *out)
   if ((st.config.digital != 0U) && (digital_rows(out) != CMD_OK))
   {
     return CMD_ERR_DEVICE;
+  }
+
+  /* Appended, MINOR 7: the sensor rows, in bit order. Names on the
+     wire like everything else - a host counting rows of a table it
+     does not hold is the copy the layout exists to avoid. */
+  {
+    static const char *const names[BOARD_DAQ_MAX_SENSORS] = {
+      "orientation", "acceleration", "rotation rate", "magnetic field",
+      "shaft angle",
+    };
+    uint8_t count = 0U;
+
+    for (uint8_t b = 0U; b < BOARD_DAQ_MAX_SENSORS; b++)
+    {
+      count = (uint8_t)(count + ((st.config.sensors >> b) & 1U));
+    }
+    wr_u8(out, count);
+    for (uint8_t b = 0U; b < BOARD_DAQ_MAX_SENSORS; b++)
+    {
+      if ((st.config.sensors & (1U << b)) != 0U)
+      {
+        wr_u8(out, b);
+        wr_u8(out, 4U);              /* words per field, all of them */
+        wr_str(out, names[b]);
+      }
+    }
   }
   return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
 }

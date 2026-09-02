@@ -306,6 +306,19 @@ typedef struct
 #define BOARD_DAQ_CLOCK_SOFTWARE 0U  /**< the main loop, as fast as it gets round */
 #define BOARD_DAQ_CLOCK_TIM1     1U  /**< the injected group, one per PWM period  */
 
+/** The sensor fields a record may append - SNAPSHOTS, never sums: a
+  * summed quaternion means nothing. Four i16 words each, raw and
+  * source-defined like device 5's, taken from the shared poll records at
+  * the moment the record closes. The second mask TODO 0 called for: the
+  * channel mask's sixteen bits hold ten analog rows and could not grow
+  * without a MAJOR. */
+#define BOARD_DAQ_SENSOR_ORIENTATION (1U << 0)  /**< i, j, k, real - Q14  */
+#define BOARD_DAQ_SENSOR_ACCEL       (1U << 1)  /**< x, y, z, status - Q8 */
+#define BOARD_DAQ_SENSOR_GYRO        (1U << 2)  /**< x, y, z, status - Q9 */
+#define BOARD_DAQ_SENSOR_MAG         (1U << 3)  /**< x, y, z, status - Q4 */
+#define BOARD_DAQ_SENSOR_SHAFT       (1U << 4)  /**< value, crc, reg, have */
+#define BOARD_DAQ_MAX_SENSORS 5U
+
 /** What a task is. Every field is the caller's; nothing is inferred. */
 typedef struct
 {
@@ -320,6 +333,10 @@ typedef struct
   uint8_t  digital;      /**< append the digital pins to every record    */
   uint32_t interval_us;  /**< software clock: minimum gap between samples*/
   uint8_t  adapt;        /**< climb the ladder when the ring fills      */
+  uint16_t sensors;      /**< BOARD_DAQ_SENSOR_* mask; software clock only
+                              - the poll records are the main loop's, and
+                              a TIM1-clocked record closes in ADC3's
+                              interrupt, which would read them torn */
 } board_daq_config_t;
 
 typedef struct

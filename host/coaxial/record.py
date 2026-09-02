@@ -50,13 +50,16 @@ class Record(dict):
 
     """One record: when it started, how long it covered, what it holds."""
 
-    __slots__ = ('start_time', 'dt', 'samples', 'digital')
+    __slots__ = ('start_time', 'dt', 'samples', 'digital', 'sensors')
 
     def __init__(self, mapping, fields, start_time=None, dt=None):
         dict.__init__(self, mapping)
         self.start_time = start_time
         self.dt = dt
         self.digital = mapping.get('digital')
+        #: SNAPSHOTS, four raw words per sensor field - never sums, a
+        #: summed quaternion means nothing (MINOR 7).
+        self.sensors = mapping.get('sensors')
         count = mapping.get('samples', 1)
         self.samples = tuple(
             Sample(f['signal'], f.get('unit'), mapping[f['signal']], count)
