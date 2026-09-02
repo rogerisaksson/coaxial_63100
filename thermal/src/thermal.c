@@ -212,8 +212,14 @@ void thermal_losses(thermal_loss_t *loss)
   }
   memset(loss, 0, sizeof(*loss));
 
-  /* The IAUCN10S7N021 VDMOS model in electronic_simulations: Ron 1.8 mOhm. */
-  loss->rds_on = 1.8e-3f;
+  /* The IAUCN10S7N021 VDMOS model in electronic_simulations: Ron 1.8 mOhm
+     at 25 C. The tempco is the datasheet's (rev 1.2, fig 8, the VGS=10 V
+     ID=88 A curve, datasheets/mosfet/): 1.8 mOhm at 25 C, ~2.55 at 100,
+     ~4.1 at 175. A first-order chord 25->150 C gives 7.8e-3 per K - the
+     curve is superlinear, so the chord under-reads above 150 where the
+     trip should already have acted, and over-reads a little below 0 C. */
+  loss->rds_on    = 1.8e-3f;
+  loss->rds_alpha = 7.8e-3f;
 
   /* RU1||RU2, two Vishay WSHM28187L000FEA of 7 mOhm - docs/HARDWARE.md.
      THIS ONE DOMINATES UNDER LOAD: 100 A through 3.5 mOhm is 35 W against
@@ -239,7 +245,8 @@ void thermal_losses(thermal_loss_t *loss)
 }
 
 void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
-                            const thermal_loss_t *loss)
+                            const thermal_loss_t *loss,
+                            const float *phase_c)
 {
   if ((out == NULL) || (load == NULL) || (loss == NULL))
   {
@@ -271,9 +278,24 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
        this phase - and both halves of a leg carry the same squared current
        over a period, so the sum does not depend on duty. Dry it measures
        zero, and that is correct: nothing leaves the bridge, so the shunts
-       decide, not the duty. */
+       decide, not the duty.
+
+       The FET's resistance follows the node it heats: first order off the
+       datasheet chord, floored so a garbage estimate cannot make the loss
+       vanish. The shunt stays flat - WSHM28187 is metal strip, its tempco
+       two orders below the FET's. */
     const float a = load->phase_amps[leg];
-    out->watt[THERMAL_PHASE(leg)] = a * a * (loss->rds_on + loss->r_shunt);
+    float rds = loss->rds_on;
+    if ((phase_c != NULL) && !isnan(phase_c[leg]))
+    {
+      float factor = 1.0f + loss->rds_alpha * (phase_c[leg] - 25.0f);
+      if (factor < 0.5f)
+      {
+        factor = 0.5f;
+      }
+      rds *= factor;
+    }
+    out->watt[THERMAL_PHASE(leg)] = a * a * (rds + loss->r_shunt);
     link_from_phases += load->duty[leg] * a;
 
     if (load->switching && (load->duty[leg] > 0.0f))

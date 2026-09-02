@@ -105,9 +105,9 @@ here arms the stage.
    `SIMULATED = False`: the AFE steps run for real, the switching steps
    say `measured: False` until the AFE gate is patched - the boundary
    CLAUDE.md's *Scope* draws.
-8. **The link ceiling's first fact** (starts 0.5): the THVD1450 rated
-   figure off its datasheet into `docs/HARDWARE.md`, and the probe VCP's
-   real ceiling measured. No baud change that day.
+8. **The link ceiling's second fact** (continues 0.5): the probe VCP's
+   real ceiling measured. The THVD1450's rated 50 Mbps is already in
+   `docs/HARDWARE.md` (2026-09-02). No baud change that day.
 9. **Watch for 0c.** The `show_desk` flake gets its reproduction or
    another year of silence; either is information.
 
@@ -116,8 +116,10 @@ here arms the stage.
 0.5. **The link above 115200.** The `.ioc` carries 9216000 on the RS485
    pair and the firmware sets 115200 at init; every streaming figure in
    FINDINGS is line-limited, and the write-class floor after the ack
-   shape is the two spec silences. In order: the THVD1450's rated ceiling
-   off its DATASHEET (not in this repository yet), the debug probe VCP's
+   shape is the two spec silences. The transceiver's number is in:
+   the THVD1450 is rated 50 Mbps (datasheet fetched 2026-09-02,
+   `datasheets/rs485_transceiver/`), so the part is not the limit at any
+   baud this link will ask. Still in order: the debug probe VCP's
    real ceiling measured, a `link_baud` calibration parameter applied at
    init with 115200 the default, and both ends' t3.5 re-derived - the
    spec fixes 1.75 ms above 19200, which at 921600 is 150 character
@@ -195,13 +197,15 @@ here arms the stage.
    recovery, stepped 20 -> 31 -> 45 -> 63 V - one stress variable at a
    time. Same rig as item 5, three measurements in one probe setup;
    op 10 already makes the alternating train.
-7. **The observer's losses do not scale with temperature.** `rds_on`
-   is 1.8 mOhm flat (`thermal/src/thermal.c`); a 100 V Si FET's tempco
-   is ~+0.6-0.8 %/K, so a 100 C junction conducts at ~1.5-1.7x the
-   model - under-estimated exactly where margins thin. First order:
-   `rds_25 * (1 + alpha * (Tj - 25))` fed back from the leg's own node
-   estimate, alpha off the datasheet, verified against the camera in a
-   soak.
+7. **The observer's losses scale with temperature now** (built
+   2026-09-02, camera soak still owed). `rds_25 * (1 + alpha*(Tj-25))`
+   fed back from the leg's own phase-node estimate, alpha 7.8e-3/K off
+   the datasheet chord 25->150 C (rev 1.2 fig 8, `datasheets/mosfet/`,
+   fetched the same day); a NULL or NaN estimate keeps the flat figure
+   and a floor at 0.5x stops a garbage estimate erasing the loss.
+   `thermal/test/check.c` proves the arithmetic (ratio 1.585 at a
+   100 C node) and the campaign's four states still land within 2 K.
+   Left for the bench: the soak against the camera.
 8. **The data cache.** Off, with the instruction cache on since
    2026-08-31: `Board_CalSave` reads the sector back through a pointer
    after programming and would need `SCB_InvalidateDCache_by_Addr` on it

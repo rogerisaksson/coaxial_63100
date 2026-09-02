@@ -155,7 +155,8 @@ typedef struct
 /** Resistances the estimator needs. Ohms, from electronics/ and the models. */
 typedef struct
 {
-  float rds_on;          /**< one FET, IAUCN10S7N021 VDMOS Ron = 1.8 mOhm */
+  float rds_on;          /**< one FET at 25 C, IAUCN10S7N021 = 1.8 mOhm   */
+  float rds_alpha;       /**< its tempco, per K - rds_on*(1+a*(Tj-25))    */
   float r_shunt;         /**< phase shunt, RU1||RU2 = 3.5 mOhm            */
   float r_hotswap;       /**< LM5069 pass FET, in the link                */
   float switching_watt;  /**< the whole switching loss at `switch_volts`  */
@@ -180,9 +181,16 @@ void thermal_losses(thermal_loss_t *loss);
   * `link_amps` below zero is estimated as sum(duty * phase_amps), which is
   * what the link has to supply when nothing is stored. That is the only way
   * to it: this board senses link VOLTS, not link amps.
+  *
+  * `phase_c` is the three phase nodes' current temperatures - the
+  * observer's own estimate, fed back so the FET's on-resistance rises
+  * with the junction it models: a 100 V Si FET conducts at ~1.6x its
+  * 25 C figure at 100 C, which under-estimated exactly where margins
+  * thin. NULL, or a NaN entry, keeps that leg at the 25 C figure.
   */
 void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
-                            const thermal_loss_t *loss);
+                            const thermal_loss_t *loss,
+                            const float *phase_c);
 
 /** What each node may reach. Not the board's opinion: the ceilings live in
   * the calibration record (invariant 7). The board holds a limit it was

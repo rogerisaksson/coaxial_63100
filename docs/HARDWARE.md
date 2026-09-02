@@ -305,3 +305,8 @@ on, and the unit id belongs to the board.
   latched ORE ends reception until ICR clears it.
 * **CubeMX carries 9216000 baud on the RS485 pair.** The firmware sets
   115200 at init, as it sets the SPI word sizes.
+* **The transceiver is not the ceiling.** The THVD1450 is rated 50 Mbps
+  signaling (datasheet, recommended operating conditions -
+  `datasheets/rs485_transceiver/`), so 115200 uses 0.23 % of the part.
+  What actually bounds the link is unmeasured: the debug probe VCP's real
+  ceiling, and the two spec silences per frame (TODO, item 0.5).

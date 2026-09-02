@@ -247,7 +247,16 @@ void Board_ThermalPoll(void)
   load_now(&load);
 
   thermal_power_t p;
-  thermal_power_estimate(&p, &load, &s_loss);
+
+  /* The FET tempco feeds on the observer's own last estimate: the phase
+     node a leg heats is the junction its on-resistance follows. One step
+     of lag at these time constants is nothing; at start the nodes sit at
+     ambient and the correction is a few percent. */
+  const float phase_c[3] = { s_th.t[THERMAL_PHASE(0)],
+                             s_th.t[THERMAL_PHASE(1)],
+                             s_th.t[THERMAL_PHASE(2)] };
+
+  thermal_power_estimate(&p, &load, &s_loss, phase_c);
 
   thermal_sense_t seen;
 

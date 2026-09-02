@@ -7,10 +7,15 @@
     // clangd and debug adapters, cmake-tools, the serial monitor and the memory
     // inspector with it. Those are deliberately not listed here - the pack owns
     // them, and a second list of the same ids goes stale on ST's schedule.
+    // jupyter runs notebook_examples/ in the editor; claude-code is the
+    // ANTHROPIC half of the chooser's BOARD CHAT page (.mcp.json wires the
+    // coaxial MCP server to it, and show_chat finds its bundled binary).
     "recommendations": [
         "stmicroelectronics.stm32-vscode-extension",
         "ms-vscode.cpptools",
         "ms-python.python",
-        "ollama.ollama"
+        "ms-toolsai.jupyter",
+        "ollama.ollama",
+        "anthropic.claude-code"
     ]
 }

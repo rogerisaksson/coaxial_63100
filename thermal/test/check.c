@@ -175,6 +175,61 @@ static int burst_budget(void)
   return bad;
 }
 
+static int rds_tempco(void)
+{
+  /* The FET's on-resistance follows the node it heats. 100 A through one
+     leg: at 25 C the FET makes 18 W beside the shunt's 35; at a 100 C
+     phase node the datasheet chord says 1.585x that, and a NULL or NaN
+     estimate keeps the flat figure - the pre-tempco behaviour, bit for
+     bit. */
+  thermal_loss_t loss;
+  thermal_load_t load;
+  thermal_power_t flat, hot, cold;
+  int bad = 0;
+
+  thermal_losses(&loss);
+  memset(&load, 0, sizeof(load));
+  load.phase_amps[0] = 100.0f;
+  load.link_amps = 0.0f;
+
+  const float at_100[3] = { 100.0f, 25.0f, 25.0f };
+  const float frozen[3] = { -300.0f, 25.0f, 25.0f };
+
+  thermal_power_estimate(&flat, &load, &loss, NULL);
+  thermal_power_estimate(&hot, &load, &loss, at_100);
+  thermal_power_estimate(&cold, &load, &loss, frozen);
+
+  const float fet_flat = flat.watt[THERMAL_PHASE_U]
+                         - 100.0f * 100.0f * loss.r_shunt;
+  const float fet_hot = hot.watt[THERMAL_PHASE_U]
+                        - 100.0f * 100.0f * loss.r_shunt;
+  const float want = 1.0f + loss.rds_alpha * 75.0f;
+
+  printf("\n100 A conduction, the FET share by phase-node temperature\n");
+  printf("  25 C %6.2f W   100 C %6.2f W   ratio %.3f against %.3f asked\n",
+         (double)fet_flat, (double)fet_hot,
+         (double)(fet_hot / fet_flat), (double)want);
+
+  if (fabsf(fet_hot / fet_flat - want) > 0.01f)
+  {
+    printf("  ^ the tempco is not the datasheet chord\n");
+    bad++;
+  }
+  if (fabsf(fet_flat - 100.0f * 100.0f * loss.rds_on) > 0.01f)
+  {
+    printf("  ^ a NULL estimate no longer means the 25 C figure\n");
+    bad++;
+  }
+  if (cold.watt[THERMAL_PHASE_U]
+      < 100.0f * 100.0f * (0.5f * loss.rds_on + loss.r_shunt) - 0.01f)
+  {
+    printf("  ^ the cold floor did not hold - a garbage estimate can "
+           "erase the loss\n");
+    bad++;
+  }
+  return bad;
+}
+
 
 int main(void)
 {
@@ -233,5 +288,6 @@ int main(void)
                        : "all four within 2 K");
   bad += die_anchor();
   bad += burst_budget();
+  bad += rds_tempco();
   return bad ? 1 : 0;
 }
