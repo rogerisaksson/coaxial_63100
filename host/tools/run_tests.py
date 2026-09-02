@@ -348,6 +348,11 @@ TOUCHES = (
     ('host/coaxial/sensorless.py',    (SENSORLESS,)),
     ('host/coaxial/commission.py',    (SENSORLESS,)),
     ('host/tools/commission.py',      (STRUCTURE, SENSORLESS)),
+    # The stage constants and the host control loops are design arithmetic
+    # with closed-form checks; the Monte Carlo drives the compiled law.
+    ('host/coaxial/inverter.py',      (SENSORLESS,)),
+    ('host/coaxial/loop.py',          (SENSORLESS, DRIVE)),
+    ('host/tools/montecarlo.py',      (STRUCTURE, DRIVE)),
     # BENCH is here and not with the host suites: what slows the board down
     # is firmware in the main loop, and the regression it guards against was
     # exactly that - the thermal observer reading two ADC channels and two SPI

@@ -35,6 +35,71 @@ class Report:
                                   '' if ok else detail))
 
 
+def test_inverter(r):
+    from coaxial import inverter
+    r.check('Coss at zero volts is the model CJO',
+            inverter.coss(0.0) == inverter.CJO)
+    h = 1e-3
+    dq = (inverter.qoss(30.0 + h) - inverter.qoss(30.0 - h)) / (2.0 * h)
+    r.check('Qoss is the junction law integrated: dQ/dV is Coss',
+            abs(dq / inverter.coss(30.0) - 1.0) < 1e-6, dq)
+    ring = inverter.ring(44.4)
+    r.check('the ring at the no-load link: 36 MHz off 4 nH against 2 Coss',
+            36e6 < ring['f_hz'] < 37e6, ring['f_hz'])
+    r.check('the ring settles before the sample across the whole sweep',
+            all(inverter.blanking(v) > 100e-9 for v in (23.0, 43.0, 63.0)),
+            [inverter.blanking(v) for v in (23.0, 63.0)])
+    r.check('v_dt is Vdc t_dead / Ts: 75 mV at the no-load link',
+            abs(inverter.dead_time_volts(44.4) - 0.0748) < 5e-4,
+            inverter.dead_time_volts(44.4))
+    r.check('the knee is 2 Qoss over the dead time',
+            abs(inverter.knee_amps(63.0)
+                - 2.0 * inverter.qoss(63.0) / inverter.T_DEAD) < 1e-9)
+    step, table = inverter.dt_table(44.4)
+    r.check('the table: zero first, half a knee a step, saturating to v_dt',
+            step == inverter.knee_amps(44.4) / 2.0 and table[0] == 0.0
+            and all(b > a for a, b in zip(table, table[1:]))
+            and table[-1] < inverter.dead_time_volts(44.4),
+            (step, table[-1]))
+
+
+def test_loop(r):
+    from coaxial.loop import (CurrentLoop, Machine, Probe, Ramp, Signals,
+                              SpeedLoop, identify)
+    from coaxial.motor import BENCH_MOTOR
+    s = Signals()
+    try:
+        s.wref = 1.0
+        ok = False
+    except AttributeError:
+        ok = True
+    r.check('a typo on the bus fails instead of vanishing', ok)
+    from coaxial.motor import Propeller
+    prop = Propeller(k=3.2e-6)      # q excitation: without a load iq spans
+    chain = (Ramp(250.0, 0.4) >> Probe(1.0, 300.0)      # 0.4 A and the fit
+             >> SpeedLoop(8.0, 60.0, BENCH_MOTOR, load=prop)  # returns a
+             >> CurrentLoop(2000.0, BENCH_MOTOR, 24.0)  # CONFIDENT Lq 50 %
+             >> Machine(BENCH_MOTOR, 24.0, load=prop, noise=0.02))  # off
+    run = chain.run(0.8, 5e-5, every=5)
+    at_top = run['w'][abs(run['t'] - 0.4) < 0.01]
+    r.check('the speed loop tracks the raised cosine to its top',
+            abs(at_top.mean() / 250.0 - 1.0) < 0.05, at_top.mean())
+    r.check('and brings the machine back to rest',
+            abs(run['w'][-1]) < 10.0, run['w'][-1])
+    r.check('an easy ramp never hits the voltage ceiling',
+            not run['v_sat'].any())
+    fit, got = identify(run, BENCH_MOTOR.poles)
+    r.check('the run identifies the machine it closed around',
+            abs(got['r'] / BENCH_MOTOR.r - 1.0) < 0.10
+            and abs(got['lam'] / BENCH_MOTOR.lam - 1.0) < 0.02
+            and abs(got['ld'] / BENCH_MOTOR.ld - 1.0) < 0.15,
+            {k: got[k] for k in ('r', 'ld', 'lam')})
+    r.check('Lq, riding only on the ramp, still lands inside a quarter',
+            abs(got['lq'] / BENCH_MOTOR.lq - 1.0) < 0.25, got['lq'])
+    r.check('with the probe, Ld comes out trusted',
+            got['trusted']['ld'], got['uncertainty']['ld'])
+
+
 def test_arithmetic(r):
     r.check('ENOB: 16 bits with no noise, 12.6 at 4 codes rms',
             sensorless.enob(0.0) == 16.0
@@ -243,7 +308,7 @@ def test_commissioning_recovers_the_stand_in(r):
         rig.close()
 
 
-ROSTER = (test_arithmetic, test_budget, test_kalman,
+ROSTER = (test_inverter, test_loop, test_arithmetic, test_budget, test_kalman,
           test_crossover_and_verdicts, test_record_units, test_fits,
           test_commissioning_refuses_to_switch,
           test_commissioning_recovers_the_stand_in)

@@ -2561,3 +2561,53 @@ steady tracking are different quantities, and a single number read as "the
 observer is bad at 40 A" when it meant "the start is hard and the run is
 fine" - 40 A peaked at 34.9 deg and still reached 5413 rpm. A stalled
 rotor also scored 0.00 deg steady, having never been sampled once.
+
+## The controller schedule over the link sweep, and the sensorless floor
+
+`tools/montecarlo.py` runs the firmware's compiled control law - loop,
+demodulator, observer, dead-time table - against plants drawn around the
+5230SL's estimates and a stage drawn around `coaxial.inverter`'s, 16 draws
+a candidate, cost `sigma_theta + speed_err + 10*trip` scored mean + p90.
+6 240 runs over 23-63 V (`python_examples/foc_montecarlo.ipynb`, 164 s at
+16 processes; 0.21 s a run through ctypes). Model arithmetic end to end.
+
+* **The injection optimum is volts, not a fraction**: 2.0-4.9 V across the
+  whole sweep while the knob (a fraction of Vdc/sqrt 3) falls from 0.20 to
+  0.05. The observer sits at 54-78 Hz at every link voltage.
+* **Zero trips in 240 verification runs** on fresh plants, worst angle
+  error p90 0.27-0.56 rad, speed error under 2 % rms.
+* **The sensorless floor is the descent**: with injection cut at the top
+  of the hold, the back-EMF observer alone loses the rotor at a median
+  24-69 rpm (p90 36-175, worst at 63 V because the same one-second descent
+  falls from a higher top). With injection left on, every descent reached
+  rest locked. `sensorless.crossover`'s envelope (margin 3, 20 % residual)
+  says ~190 rpm - the optimised blend holds 3-5x lower.
+
+## One numpy scalar in a job took down two pools, then a machine
+
+The Monte Carlo's round 2 died with `OSError 1455` / OpenBLAS allocation
+failures in the workers while round 1, the same code, always survived.
+Ruled out first: worker count (61 vs 16, both died), pandas in the workers
+(only the parent imports it), the DLL build (loads fine). The cause:
+round 2's knobs are read out of a pandas `score()` row, so they were
+**numpy.float64**, and unpickling ONE such scalar imports numpy - so every
+worker imported numpy+OpenBLAS in the same instant, and the simultaneous
+buffer-pool commit spike exhausted a machine with no page-file headroom.
+The threadripper went down for good during exactly this. Fix in
+`montecarlo.py`: jobs carry builtin floats only (`float()` at both places
+a DataFrame row leaks into a job), `OPENBLAS_NUM_THREADS=1` in the worker
+initializer as the backstop, and one pool per session instead of one per
+round - respawning 61 interpreters three times was its own commit spike.
+
+## gemma4:12b stopped loading on the laptop; the blob was not the fault
+
+`test_live_model.py` crashed on this machine twice: first `CUDA error: a
+PTX JIT compilation failed` (0xc0000409 in llama-server), then, retried,
+`Failed to load CLIP model from ...sha256-675ad...`. Corruption is ruled
+out: the named blob was deleted and re-pulled, came back byte-identical
+(175 115 584 B, same digest), and failed the same way - so the fault is
+ollama 0.33.1's loader/CUDA build against this RTX 4060 Laptop (8 GB,
+driver 591.66), not the download. `llama3.1:8b` runs correctly on the same
+daemon, GPU included, and `capability` picks it for this machine. A winget
+upgrade of ollama was cancelled mid-flight; the GPU driver update was in
+progress when this was written - re-run `test_live_model.py` after either.

@@ -113,6 +113,16 @@ the power budget split into propeller, iron, copper and the rotor's own
 borrowed energy, and the model laid back over Hobbywing's 22-point thrust
 stand. It is checked in with its outputs, so it reads without running.
 
+`python_examples/speed_loop.ipynb` closes `coaxial.loop`'s chain over the
+same machine - reference, d-axis probe, speed PI, current PI - and then
+`identify` pulls R, Ld, Lq and lambda back OUT of the run, uncertainties
+attached: the rehearsal for the day `sysid.from_frame` meets real records.
+`python_examples/foc_montecarlo.ipynb` compiles the firmware's own control
+law and searches its tuning against thousands of drawn plants across the
+23-63 V link sweep, one process per core - the controller schedule, its
+robustness, and the speed where back-EMF alone loses the rotor. Both are
+checked in with their outputs.
+
 **Zero and span belong to the calibration block**, not to the acquisition
 one: they write the calibration record, so they live where it does.
 `board.calibration.compensate(name, gain=, offset=)` writes one

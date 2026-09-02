@@ -126,10 +126,32 @@ because a V/f run cannot see Lq - without `di/dt` the `omega Lq iq` column
 is collinear with lambda, measured at -73 % and correctly flagged
 untrusted.
 
+`inverter.py` is the power stage's numbers the same way `motor.py` is the
+machine's: dead time, the FET's charge curves, the switch-node ring, the
+sense chain's measured floor - each traced to the schematic, the LTSpice
+model or FINDINGS, and the derived arithmetic (dead-time volts, the knee,
+the compensation table, the sampling margin) defined once for everything
+that simulates this drive. `loop.py` closes host control loops around
+`motor.py` - blocks on one slotted bus, `>>` chaining reference, d-axis
+probe, speed PI, current PI and machine - and `identify` hands a run to
+`sysid.py`. Two lessons are in its comments: the voltage vector is aimed
+half a period ahead because it is held in the stator frame while the rotor
+turns (without it the fit read R at -218 %), and the machine publishes
+before it advances so a recorded row pairs a voltage with the state it
+acts on (published after, R read +17 % and Lq -4 % from alignment alone).
+
 `tools/observer_run.py` runs the firmware's own observer, not a model of
 it: it builds `Drive/` with the host gcc through the same ctypes bench the
 suite uses, and asks how hard the thing can be driven rather than whether
-it still works. FINDINGS has what it found.
+it still works. FINDINGS has what it found. `tools/montecarlo.py` turns
+that bench into a search: one process per core, each running the compiled
+control law against a plant drawn around the 5230SL's estimates and a
+stage drawn around `inverter.py`'s, a host speed loop from `loop.py` over
+the observer's own speed, and a cost that prices a lost rotor at ten times
+a bad one. It schedules the controller across the 23-63 V link sweep;
+`python_examples/foc_montecarlo.ipynb` is the run, the schedule and the
+sensorless floor it found, and `speed_loop.ipynb` is `loop.py`'s chain
+identified back out of its own run.
 
 `orientation.py`, `dial.py` and `desk.py` are pure renderers - a reading
 in, text out; `mesh.py` reduces the CAD export in `render/models`, parsed
@@ -153,7 +175,7 @@ tool routing, mid-session board and model swaps (MODELS.md).
 
 ## The test system
 
-Twenty-five suites, 2271 checks. `run_tests.ps1` is the only interface -
+Twenty-five suites, 2299 checks. `run_tests.ps1` is the only interface -
 CLAUDE.md, *Commands*, has the tiers and the rules.
 
 * **A missing cable is not a failure.** A disconnected board falls back to

@@ -730,11 +730,30 @@ def test_virtual_sensorless(r, lib):
         d.close()
 
 
+def test_montecarlo(r, lib):
+    """One of tools/montecarlo.py's jobs, in process: a drawn plant the
+    controller was not told about, locked, spun and brought back."""
+    sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'tools'))
+    import montecarlo as mc
+    mc._LIB = lib
+    job = {'vdc': 43.0, 'knobs': mc.candidates(4, 1)[0], 'seed': 3}
+    row = mc.run_job(job)
+    r.check('a drawn plant locks, spins and returns without a trip',
+            not row['trip'] and row['sigma_theta'] < 0.35,
+            (row['trip'], row['sigma_theta']))
+    r.check('the initial error is the draw, and the lock closes it',
+            1.0 < row['lock0'] < 1.2 and row['lock'] < 0.2,
+            (row['lock0'], row['lock']))
+    bemf = mc.run_job(dict(job, bemf_only=True))
+    r.check('back-EMF alone loses the same rotor on the way down',
+            bemf['min_rpm'] > 0.0, bemf['min_rpm'])
+
+
 ROSTER = (test_math, test_mode_refusals, test_current_loop,
           test_trip_and_stage, test_if_spin, test_injection_map,
           test_saturation_map, test_observer_standstill, test_polarity,
           test_deadtime, test_sensorless_run, test_moments,
-          test_model_agrees, test_virtual_sensorless)
+          test_model_agrees, test_virtual_sensorless, test_montecarlo)
 
 
 def main():

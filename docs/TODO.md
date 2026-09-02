@@ -1,10 +1,10 @@
 # TODO
 
-State as of 2026-09-01.
+State as of 2026-09-02.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2271 checks, 25 suites |
+| `run_tests.ps1 -All` | 2299 checks, 25 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 6 |
@@ -33,6 +33,8 @@ not what it measured.
 | The firmware's own observer driven to its limit on this machine: 45 A of startup torque holds, 50 A stalls in the handover, and the PLL works between 150 and 332 Hz - the Kalman fixed point sits at the top edge, not the middle | FINDINGS, *The rotor observer's limit*; `tools/observer_run.py` |
 | The stand-in's virtual source turning a real rotor, so a chain built against it can watch an estimate track: torque from its own dq solution, and a type-2 PLL's `alpha / wn^2` lag - a tenth of the torque lags a tenth as much, a fifth of the bandwidth 25.0x | `coaxial/simulated.py`; `test_simulated.py`, *virtual rotor* |
 | The propeller from rest to 6717 rpm and back, against Hobbywing's own 22 points - and the disagreement it turns up: 28.3 V of phase demand where linear SVM off 10S makes 21.4, on a stand that reached those rpm on 10S | `python_examples/propeller_sweep.ipynb` |
+| The host speed loop closed over the model and identified back out of its own run: R, Ld, lambda recovered inside 9 %, and the two alignment lessons the fit taught (half a period of angle advance, sample before advance) written into `loop.py` | `python_examples/speed_loop.ipynb`; ARCHITECTURE, *Host* |
+| The firmware's control law Monte Carlo'd over the 23-63 V link sweep, 6 240 runs, one process per core: a controller schedule per link voltage, zero trips over 48 fresh plants each, and the sensorless floor measured - back-EMF alone loses the rotor at a median 24-69 rpm; with injection every descent reaches rest locked | `python_examples/foc_montecarlo.ipynb`; `tools/montecarlo.py` |
 | The NTC and the DC link ride the injected sequence as rank 2, so the thermal observer keeps its thermometer under the drive | PROTOCOL, *Device 4* |
 | The commissioning: AFE noise floor, sample point, offsets, gain mismatch, dead time, L map, lambda, budget, gains, decision, verification - on the stand-in end to end, on the bench as far as the AFE | ARCHITECTURE, *Host*; `tools/commission.py` |
 | The clock-closed daq record: the converter free-running, a record closed on the interval carrying its own sample count - 33 to 89 sweeps a window, and the mean 0.008 % off an independent burst | FINDINGS, *The accumulator closes on the clock* |
