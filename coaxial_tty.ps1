@@ -3,7 +3,7 @@
     Pick one of the board's live views.
 
 .DESCRIPTION
-    The views live in .\demos and each one runs on its own. This is the menu
+    The views live in .	erminal and each one runs on its own. This is the menu
     in front of them, for when you want to look at the board rather than
     remember a filename.
 
@@ -62,7 +62,8 @@ $ErrorActionPreference = 'Continue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # The session first, because it is what most runs want and what the number
-# keys land on. Script $null marks it: it is not one of demos/, it IS demos.
+# keys land on. Script $null marks it: it is not one of terminal/, it IS
+# the session itself.
 $Views = [ordered]@{
     'session' = @{ Script = $null
                  What   = 'one dash: analog, thermals, bridges, DIO, IMU, angle' }
@@ -301,7 +302,7 @@ do {
     }
 
     $call = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
-              (Join-Path $PSScriptRoot (Join-Path 'demos' $Views[$view].Script)),
+              (Join-Path $PSScriptRoot (Join-Path 'terminal' $Views[$view].Script)),
               '-Port', $Port)
     if ($Simulated) { $call += '-Simulated' }
     if ($Frames -gt 0) { $call += @('-Frames', [string]$Frames) }

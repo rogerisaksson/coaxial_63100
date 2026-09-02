@@ -378,7 +378,7 @@ TOUCHES = (
     # suite's three seconds are for. Listed rather than left unmapped
     # because unmapped means the whole gate, and editing a demo wrapper used
     # to cost seven minutes and a model load.
-    ('demos/',                        (STRUCTURE,)),
+    ('terminal/',                     (STRUCTURE,)),
     ('coaxial_tty.ps1',                      (STRUCTURE,)),
     ('env.ps1',                       (STRUCTURE,)),
     ('host/run_tests.ps1',            (STRUCTURE,)),

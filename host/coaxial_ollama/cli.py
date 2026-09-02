@@ -354,12 +354,10 @@ def repl(chat, hold=False):
         # 27 minutes at 1% utilisation. `--keep-alive` is how to say "no,
         # really, leave it" - anything explicit there means the operator
         # already decided, and this leaves that alone.
-        if not hold:
-            try:
-                chat.client.unload()
-            except OllamaError:
-                pass
-        chat.io_log.close()
+        if hold:
+            chat.io_log.close()
+        else:
+            chat.close()               # unload AND the log - one definition
 
 
 def main(argv=None):

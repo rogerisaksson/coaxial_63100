@@ -1434,6 +1434,25 @@ class Chat:
         return bool(self.budget) and \
             usage['prompt_tokens'] + usage['eval_tokens'] >= self.budget
 
+    def close(self):
+        """Hand the card back and close the log - every page's way out.
+
+        The chooser's chat page tears down with `chat.close()`; only the
+        claude page had one, so leaving BOARD CHAT parked the local model
+        on the GPU for its whole keep_alive - the 9.69 GB at 1 %
+        utilisation board_chat.ps1's own release comment measured, back
+        again through the other door. Idempotent, and quiet about a
+        daemon that is already gone: the card cannot be double-freed.
+        """
+        from .client import OllamaError
+        try:
+            self.client.unload()
+        except OllamaError:
+            pass
+        log = getattr(self, 'io_log', None)
+        if log is not None:
+            log.close()
+
     def cost_line(self):
         usage = self.client.usage()
         total = usage['prompt_tokens'] + usage['eval_tokens']

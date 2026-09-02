@@ -373,7 +373,7 @@ def test_smart_selection(report):
     # model's answer can only widen it - which is how editing a demo
     # wrapper used to cost seven minutes.
     for paths, what in (
-        (['demos/adc.ps1'], 'a demo wrapper'),
+        (['terminal/adc.ps1'], 'a demo wrapper'),
         (['coaxial_tty.ps1'], 'the demo picker'),
         (['host/coaxial/desk.py'], 'a pure renderer'),
         (['host/tools/show_desk.py'], 'a live view'),
@@ -899,6 +899,32 @@ def test_keep_alive(report):
 
 # ---- the tag follows the machine ------------------------------------------
 
+def test_chat_hands_the_card_back(report):
+    """Chat.close() unloads - the teardown every page reaches for.
+
+    The chooser's chat page ends with `getattr(chat, 'close', None)`;
+    only the claude page had one, so leaving BOARD CHAT parked the local
+    model for its whole keep_alive. A getattr default of None fails
+    SILENTLY, which is why this is a check and not a code review note.
+    """
+    from coaxial_ollama.client import Ollama
+    from coaxial_ollama.debug import Chat
+
+    unloaded = []
+    client = Ollama('gemma4:12b')
+    client.unload = lambda: unloaded.append(True)
+    chat = Chat.__new__(Chat)
+    chat.client = client
+    chat.io_log = None
+    chat.close()
+    report.check('close() unloads the model', unloaded == [True])
+    closed = []
+    chat.io_log = type('L', (), {'close': lambda self: closed.append(True)})()
+    chat.close()
+    report.check('and closes the io log when there is one',
+                 closed == [True])
+
+
 def test_capability(report):
     """Picked from cores, RAM and VRAM - not from whoever cloned the repo."""
     import os
@@ -1170,6 +1196,7 @@ ROSTER = (
     (test_runner_crash_retry, ('runner',)),
     (test_out_of_memory, ('runner',)),
     (test_keep_alive, ('runner',)),
+    (test_chat_hands_the_card_back, ('runner',)),
     (test_capability, ('runner',)),
     (test_picker, ('runner',)),
     (test_tag_roster, ('runner',)),
