@@ -81,7 +81,10 @@ static float model_noise(drive_model_t *m, float sd)
 
   for (uint8_t k = 0U; k < 3U; k++)
   {
-    m->rng = m->rng * 1664525UL + 1013904223UL;
+    m->rng = m->rng * 1664525U + 1013904223U;   /* U: the LCG wraps in
+                                       uint32_t on every target; UL made an
+                                       LP64 host widen the product to 64
+                                       bits before the same wrap */
     sum += (float)(m->rng >> 8) / 16777216.0f - 0.5f;
   }
   return sum * 2.0f * sd;                 /* three uniforms: sd is 0.5 */

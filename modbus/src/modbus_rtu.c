@@ -42,7 +42,11 @@ void mb_rtu_init(mb_rtu_t *rtu, mb_slave_t *slave, uint8_t unit_id,
     /* Character time in microseconds, rounded up so the silence is never
        computed shorter than the specification requires. */
     const uint32_t bits = (bits_per_char == 0U) ? 11U : (uint32_t)bits_per_char;
-    const uint32_t char_us = ((bits * 1000000UL) + (baud - 1U)) / baud;
+    /* 1000000U, not UL: on ARM and Windows unsigned long is 32 bits and
+       this always computed in uint32_t; an LP64 host test widened it to
+       64 and -Wconversion rightly flagged the narrowing back.  255 bits
+       * 1e6 is 2.55e8 against 4.29e9, so 32 bits is the arithmetic. */
+    const uint32_t char_us = ((bits * 1000000U) + (baud - 1U)) / baud;
 
     t15_us = ((char_us * 3U) + 1U) / 2U;   /* 1.5 characters */
     t35_us = ((char_us * 7U) + 1U) / 2U;   /* 3.5 characters */

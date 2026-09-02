@@ -689,10 +689,15 @@ def test_fallback(report):
         sessionmod.open_session = original
 
     # /model: same idea one layer up. No weights are loaded here - every path
-    # below either refuses or is a no-op, which is the whole logic.
-    from coaxial_ollama.client import Ollama, OllamaError
+    # below either refuses or is a no-op, which is the whole logic. The tag
+    # list is stubbed on the class: the refusal is what is under test, and
+    # asking a live daemon for it made the check fail on any machine
+    # without one - which a CI runner is by design.
+    from coaxial_ollama.client import Ollama
     swap.client = Ollama('gemma4:12b', keep_alive=0)
     swap.detail, swap.tool_names = detail.TERSE, ()
+    real_models = Ollama.models
+    Ollama.models = lambda self: ['gemma4:12b']
     try:
         before = swap.client.model
         said = swap.command('/model no-such-tag:9b')
@@ -702,8 +707,8 @@ def test_fallback(report):
         report.check('/model on the tag already running is a no-op',
                      swap.command('/model gemma4:12b') == 'model: gemma4:12b '
                      'already', swap.client.model)
-    except OllamaError as exc:
-        report.check('/model needs a local ollama daemon', False, str(exc)[:52])
+    finally:
+        Ollama.models = real_models
 
     class VT(io.StringIO):
         encoding = 'utf-8'

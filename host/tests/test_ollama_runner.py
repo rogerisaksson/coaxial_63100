@@ -1018,7 +1018,9 @@ def test_picker(r):
 
     # No ollama, no answer, no narrowing. The import inside pick() is what
     # this substitutes, so the failure lands exactly where a missing daemon
-    # would put it.
+    # would put it. The diff is stubbed nonempty too: on a clean worktree
+    # (a CI runner) pick() answers 'nothing has changed' before it ever
+    # reaches for the client, and this check is about the reach.
     real = sys.modules.get('coaxial_ollama.client')
     broken = types.ModuleType('coaxial_ollama.client')
 
@@ -1026,9 +1028,13 @@ def test_picker(r):
         raise OSError('connection refused')
     broken.Ollama = explode
     sys.modules['coaxial_ollama.client'] = broken
+    real_diff = pick_tests.diff_text
+    pick_tests.diff_text = lambda against='HEAD': (
+        'diff --git a/host/coaxial_ollama/replies.py b/x\n+edited\n')
     try:
         plan, why = pick_tests.pick(against='HEAD')
     finally:
+        pick_tests.diff_text = real_diff
         if real is None:
             sys.modules.pop('coaxial_ollama.client', None)
         else:
