@@ -45,9 +45,9 @@
     --l1, --l2, --i-max, --i-trip, --vdc, --load, --noise, --theta0 ...
 
 .EXAMPLE
-    .\demos\rotor_observer.ps1 -Simulated
-    .\demos\rotor_observer.ps1 -Source model -Motor outrunner_14p.json
-    .\demos\rotor_observer.ps1 -Source model -Switch -Extra '--iq','0.3'
+    .\terminal\rotor_observer.ps1 -Simulated
+    .\terminal\rotor_observer.ps1 -Source model -Motor outrunner_14p.json
+    .\terminal\rotor_observer.ps1 -Source model -Switch -Extra '--iq','0.3'
 #>
 param(
     [string]$Port = 'COM4',

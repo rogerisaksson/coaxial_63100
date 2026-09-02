@@ -38,9 +38,9 @@
     Stop after this many, for checking the view without a terminal to close.
 
 .EXAMPLE
-    .\demos\gate_drivers.ps1
-    .\demos\gate_drivers.ps1 -Afe
-    .\demos\gate_drivers.ps1 -Simulated
+    .\terminal\gate_drivers.ps1
+    .\terminal\gate_drivers.ps1 -Afe
+    .\terminal\gate_drivers.ps1 -Simulated
 #>
 param(
     [string]$Port = 'COM4',

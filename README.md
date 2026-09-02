@@ -26,9 +26,9 @@ filename.
 | | |
 |---|---|
 | front page | `host/tools/menu.py` - the turning board and the list. The pick comes back in the exit code (101 + position), because capturing stdout would turn the page's console into a pipe |
-| a view | its own process: `terminal/<name>.ps1` wrapping `host/tools/show_<name>.py`, given `-Port`, `-Simulated`, `-Frames`. SESSION is `host/tools/demos.py` itself; BOARD CHAT is `show_chat.py`, with `--claude` for ANTHROPIC |
+| a view | its own process: `terminal/<name>.ps1` wrapping `host/tools/show_<name>.py`, given `-Port`, `-Simulated`, `-Frames`. SESSION is `host/tools/show_session.py` itself; BOARD CHAT is `show_chat.py`, with `--claude` for ANTHROPIC |
 | leaving a view | 0 (Q) quits the chooser; 64 (ESC, `TO_MENU`) returns to the front page - on the second question the view came from, with it lit; anything else is a failed view, its last lines kept on screen and any key back to the menu |
-| on the way out | `demos.py --leave` opens the port once and stops whatever a view left running, so "nothing was left running" is measured rather than assumed |
+| on the way out | `show_session.py --leave` opens the port once and stops whatever a view left running, so "nothing was left running" is measured rather than assumed |
 | `-Name` | skips the front page: `session`, `imu`, `angle`, `adc`, `gate_drivers`, `rotor_observer`, `thermal_observer` |
 | `-Simulated` | no cable; every value invented, and every view says SIMULATED across the top |
 | `-Frames N` | a view ends after N frames - how the view suite runs each one |

@@ -190,7 +190,7 @@ function Read-View($Views) {
 # to say `nothing was left running` and mean it.
 function Close-Session {
     Push-Location (Join-Path $PSScriptRoot 'host')
-    $argv = @('tools/demos.py', '--leave', '--port', $Port)
+    $argv = @('tools/show_session.py', '--leave', '--port', $Port)
     if ($Simulated) { $argv += '--simulated' }
     & python @argv
     Pop-Location
@@ -283,7 +283,7 @@ do {
 
     if (-not $Views[$view].Script) {
         Push-Location (Join-Path $PSScriptRoot 'host')
-        $argv = @('tools/demos.py', '--port', $Port)
+        $argv = @('tools/show_session.py', '--port', $Port)
         if ($Simulated) { $argv += '--simulated' }
         if ($Frames -gt 0) { $argv += @('--frames', $Frames) }
         & python @argv

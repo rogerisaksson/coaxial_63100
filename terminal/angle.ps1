@@ -38,9 +38,9 @@
     Stop after this many rather than running until closed.
 
 .EXAMPLE
-    .\demos\angle.ps1
-    .\demos\angle.ps1 -Simulated
-    .\demos\angle.ps1 -Frames 40
+    .\terminal\angle.ps1
+    .\terminal\angle.ps1 -Simulated
+    .\terminal\angle.ps1 -Frames 40
 #>
 param(
     [string]$Port = 'COM4',

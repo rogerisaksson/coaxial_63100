@@ -21,7 +21,7 @@ HOST = os.path.dirname(HERE)
 #: Every view, with the flags its two-frame run needs. Read off tools/
 #: rather than hardcoded where possible - a new show_*.py joins by existing.
 EXTRA = {
-    'demos.py': [],
+    'show_session.py': [],
     'menu.py': [],
     'show_capture.py': [],
     'show_desk.py': [],
@@ -47,7 +47,7 @@ def views():
     """The scripts under tools/ that are views, plus the session."""
     got = sorted(name for name in os.listdir(os.path.join(HOST, 'tools'))
                  if name.startswith('show_') and name.endswith('.py'))
-    return ['demos.py', 'menu.py'] + got
+    return ['show_session.py', 'menu.py'] + got
 
 
 def run_view(name):

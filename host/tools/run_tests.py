@@ -319,7 +319,7 @@ TOUCHES = (
     # by running them by hand.
     ('host/tools/show_',              (STRUCTURE, VIEWS,
                                        'test_simulated.py')),
-    ('host/tools/demos.py',           (VIEWS,) + OLLAMA),
+    ('host/tools/show_session.py',    (VIEWS,) + OLLAMA),
     ('host/tools/screen.py',          (STRUCTURE, VIEWS,
                                        'test_simulated.py')),
     # A CACHE THE TOOLS WRITE, not code they read for behaviour. It is

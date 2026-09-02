@@ -52,9 +52,9 @@
     Stop after this many rather than running until closed.
 
 .EXAMPLE
-    .\demos\adc.ps1
-    .\demos\adc.ps1 -Simulated
-    .\demos\adc.ps1 -Hz 4 -Rate 500
+    .\terminal\adc.ps1
+    .\terminal\adc.ps1 -Simulated
+    .\terminal\adc.ps1 -Hz 4 -Rate 500
 #>
 param(
     [string]$Port = 'COM4',

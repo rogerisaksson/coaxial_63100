@@ -3,7 +3,7 @@
 Six blocks in three columns - the analog channels, the thermal budget and
 the half-bridges over DIO, the IMU and the angle sensor - under one line
 saying what the system is doing. Nothing to page through: every standalone
-view in `demos/` opens its own rig and owns the port, so switching the gate
+view in `terminal/` opens its own rig and owns the port, so switching the gate
 drivers and watching the heat meant two processes and one serial port, which
 is why `show_thermal_observer.py` had to grow a `--switch` of its own.
 
@@ -19,8 +19,8 @@ react to switching. It is unpowered for the duration. The thermal observer is
 the one thing that keeps answering, because it runs on power and time between
 samples, and that is what it was built for.
 
-    python tools/demos.py
-    python tools/demos.py --simulated
+    python tools/show_session.py
+    python tools/show_session.py --simulated
 """
 import argparse
 import sys
@@ -727,7 +727,7 @@ def sweep(rig):
 
     For LEAVING THE MENU, which holds no rig of its own: a view that was
     killed, or a session that ended badly, can leave a stage armed or a task
-    filling a ring, and the way out of the demos has to say so rather than
+    filling a ring, and the way out of the terminal has to say so rather than
     let the shell prompt be the last word.
 
     Reads before it acts, so it can name what it found. Empty means nothing
@@ -757,7 +757,7 @@ def sweep(rig):
 
 
 def leave(port, simulated):
-    """Stop whatever the demos left running, and say so - or say nothing.
+    """Stop whatever the terminal left running, and say so - or say nothing.
 
     SILENT WHEN THERE IS NOTHING. A clean exit should be an exit, not four
     lines confirming that four things nobody started are not running. The
@@ -786,7 +786,7 @@ def leave(port, simulated):
 
     if not found:
         return 0
-    say('wait', 'leaving', 'the demos left something running')
+    say('wait', 'leaving', 'the terminal left something running')
     for name, what in found:
         say('warn', name, what)
     say('ok', 'board', 'put back')
@@ -824,7 +824,7 @@ def main():
     p.add_argument('--duty', type=float, default=DEFAULT_DUTY,
                    help='what the gate stage starts at, 0..1')
     p.add_argument('--leave', action='store_true',
-                   help='report and stop whatever the demos left running')
+                   help='report and stop whatever the terminal left running')
     a = p.parse_args()
 
     if a.leave:

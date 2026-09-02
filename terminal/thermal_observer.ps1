@@ -30,10 +30,10 @@
     Ctrl+C.
 
 .EXAMPLE
-    .\demos\thermal_observer.ps1
-    .\demos\thermal_observer.ps1 -Simulated
-    .\demos\thermal_observer.ps1 -Hz 4
-    .\demos\thermal_observer.ps1 -Switch 0.5
+    .\terminal\thermal_observer.ps1
+    .\terminal\thermal_observer.ps1 -Simulated
+    .\terminal\thermal_observer.ps1 -Hz 4
+    .\terminal\thermal_observer.ps1 -Switch 0.5
 #>
 [CmdletBinding()]
 param(

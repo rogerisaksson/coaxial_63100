@@ -38,9 +38,9 @@
     board and without a terminal to close.
 
 .EXAMPLE
-    .\demos\imu.ps1
-    .\demos\imu.ps1 -Simulated
-    .\demos\imu.ps1 -Once
+    .\terminal\imu.ps1
+    .\terminal\imu.ps1 -Simulated
+    .\terminal\imu.ps1 -Once
 #>
 param(
     [string]$Port = 'COM4',

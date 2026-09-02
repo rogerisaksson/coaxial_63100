@@ -89,7 +89,7 @@ sits on the AFE, and the two would otherwise be mutually exclusive.
 
 Two statements in this tree therefore disagree and are both right: `0x6D`
 kind 4 says the 2EDL8034 and the FETs are powered by the **STO chain** (the
-schematic); `tools/demos.py` says `AFE_ON` high removes their supply (this
+schematic); `tools/show_session.py` says `AFE_ON` high removes their supply (this
 board). The parts list is what stays true after the mod.
 
 | While it stands | |
