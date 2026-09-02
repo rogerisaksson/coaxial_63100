@@ -115,6 +115,37 @@ PAGE = ('You are the ANTHROPIC page of coaxial_tty. The operator chose '
         'coaxial MCP tools and answer here, briefly.')
 
 
+def find_claude():
+    """claude, wherever this machine keeps it - a path, or None.
+
+    `shutil.which` only sees PATH, and two of the three ways claude
+    arrives on Windows never touch the PATH of an already-open shell:
+    the native installer's ~/.local/bin, and the VS Code extension,
+    which bundles the same binary under resources/native-binary.
+    Measured on this bench: the chooser's ANTHROPIC page refused with
+    'not on PATH' while that very binary was answering in the editor
+    one window over. Same policy as setup.ps1's Find-Ollama - look in
+    the known homes before concluding absent.
+    """
+    import glob
+    import shutil
+
+    found = shutil.which('claude')
+    if found:
+        return found
+    home = os.path.expanduser('~')
+    fixed = [os.path.join(home, '.local', 'bin', 'claude.exe'),
+             os.path.join(os.environ.get('APPDATA', ''), 'npm',
+                          'claude.cmd')]
+    bundled = sorted(glob.glob(os.path.join(
+        home, '.vscode', 'extensions', 'anthropic.claude-code-*',
+        'resources', 'native-binary', 'claude.exe')), reverse=True)
+    for path in fixed + bundled:
+        if path and os.path.isfile(path):
+            return path
+    return None
+
+
 class _Claude:
     """The ANTHROPIC backend: one `claude -p` per turn, continued in the
     repo root. The MCP config is generated with absolute paths and passed
@@ -122,13 +153,14 @@ class _Claude:
     interactive run approves it, and -p cannot ask - measured as a page
     that answered nothing at all."""
 
-    def __init__(self, port, script):
+    def __init__(self, port, script, exe='claude'):
         import json
         import tempfile
 
         self.turns = 0
         self.script = script
         self.proc = None
+        self.exe = exe
         self.root = os.path.dirname(os.path.dirname(
             os.path.dirname(os.path.abspath(__file__))))
         host = os.path.join(self.root, 'host')
@@ -172,7 +204,7 @@ class _Claude:
         import json
         import subprocess
 
-        cmd = (['claude', '-p'] + (['--continue'] if self.turns else [])
+        cmd = ([self.exe, '-p'] + (['--continue'] if self.turns else [])
                + [line, '--allowedTools', 'mcp__coaxial',
                   '--mcp-config', self.config, '--strict-mcp-config',
                   '--append-system-prompt', PAGE,
@@ -349,13 +381,13 @@ def main():
         origin = _Origin('Simulated', False, a.port)
         state['tools'] = ('board_info', 'analog_read', 'docs')
     elif a.claude:
-        import shutil
-        if not shutil.which('claude'):
-            print('claude is not on PATH - claude.ai/code has the install')
+        exe = find_claude()
+        if exe is None:
+            print('claude was not found - claude.ai/code has the install')
             return 2
         from screen import boot
         with boot('LINKING ANTHROPIC') as step:
-            chat = _Claude(a.port, script)
+            chat = _Claude(a.port, script, exe)
             step(0.3, 'MCP CONFIG')
             mcp_ready(chat, a.port, script, step)
         origin = _Origin('claude + coaxial MCP', True, a.port)
