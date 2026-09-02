@@ -549,31 +549,50 @@ def _casters(orientation):
 PIVOT = 2.375
 SLOPE = 1.30
 
-#: The contour pass: a part's OUTLINE, drawn where the depth buffer
-#: crests. A cell is a crest when it drops to a neighbour by more than
-#: CONTOUR_STEP of its own 1/z and does not climb from the opposite
-#: neighbour by CONTOUR_FLAT - the top edge of a part, never the
-#: staircase of its side wall (a wall cell drops one way and climbs the
-#: other, and marking those drew every wall as a band). The silhouette
-#: against the background is NOT ink: the contrast draws it, and inking
-#: it framed the whole disc in a heavy ring. Sized from the geometry: a
-#: part 3 mm proud of the 100 mm board at camera distance 3.2 radii is
-#: a 1.2 % step in 1/z, and the steepest flat-face gradient between two
-#: adjacent cells at 150 columns is 0.44 % - so 0.012 separates them
-#: with margin either way, and 0.010 and 0.014 measured the same set to
-#: within four cells. Measured on the export at 120x36: 6 % of covered
-#: cells, the FET and connector rectangles and nothing else.
-#:
-#: HOW an edge is drawn: not a glyph. A '#' ink lasted an hour - on the
-#: bench's eye it read as a gimmick, a texture laid over the picture.
-#: The way a solid modeller enhances edges is with LIGHT: the cell keeps
-#: its own character and its tone goes to the ladder's reserved top rung,
-#: a thin bright line where the surface breaks. Where the face glyph is
-#: blank the line still needs a mark, so a blank lifts to '.'; in
-#: monochrome, where there is no tone, the glyph lifts one class instead
-#: - the same statement in characters.
-CONTOUR_STEP = 0.012
-CONTOUR_FLAT = 0.004
+#: THE OUTLINE: the parts' edges as a wireframe overlay, from the mesh's
+#: own geometry - not from the raster. Two raster passes came before it
+#: and both flickered under motion, because a per-cell test on a depth
+#: buffer re-decides every cell as the picture slides a fraction of a
+#: cell: a crest test inked 6 % of the cells and blinked them at the
+#: ladder's top. Edges projected from FIXED vertices slide with the
+#: picture instead. What an edge is: a crease where two faces meet past
+#: OUTLINE_DEG (a part's top against its wall - 60 rather than 45 drops
+#: chamfers and the facets of a round can), taken from the grid-64
+#: decimate whatever the frame draws (a 1/64 corner error is under a
+#: cell at any view size; grid 32's was a visible zigzag). Gated by
+#: HEIGHT: only edges with a vertex above OUTLINE_RISE in the body frame
+#: - the slab's top is z 0 in the export's units (TOON_BANDS), parts
+#: stand 0.02 and more above it, and the pads, holes, rim and bore that
+#: made the raw crease graph one 4,762-edge tangle sit at z 0 and fall
+#: away. Then grouped into connected LOOPS and drawn only when a loop
+#: spans OUTLINE_CELLS on screen: a part smaller than that is a
+#: flickering fragment, not a drawing - filtered rather than drawn, on
+#: the bench's word - and comes back as the zoom brings it up. Measured
+#: on the export at 120x36: 292 loops of 4,388 edges raw; 41 loops of
+#: 302 after the height gate; 9 loops, 170 edges, 430 cells, 0.7 ms a
+#: frame after the size filter - the connector and FET rectangles.
+OUTLINE_DEG = 60.0
+OUTLINE_RISE = 0.02
+OUTLINE_CELLS = 5
+OUTLINE_GRID = 64
+
+#: The line's tone: the ladder's fourth rung, one above the brightest
+#: face (measured 1.7-2.8) and five under the top, which was the crest
+#: pass's white and read as sparkle. Asked for as a FAINT edge highlight
+#: - a subtle overlay, pure enhancement of the larger parts - and this
+#: is the one number that sets how much.
+OUTLINE_TONE = 4
+
+#: The line's pixels: braille, a 2x4 dot matrix per cell, so an edge
+#: rasters at twice the column and four times the row resolution and
+#: reads as a fine dotted line - the same dots the chat page's spinner
+#: spins, asked for by the bench as "pixels". Dots only: an ASCII
+#: stroke fallback (`- | / \`) was built and taken out on the
+#: bench's word - the slashes read as jank next to the dots, and the
+#: console that runs this already shows the spinner.
+BRAILLE = 0x2800
+#: Bit for (column, row) of the 2x4 cell, the braille standard's order.
+BRAILLE_BITS = ((0x01, 0x02, 0x04, 0x40), (0x08, 0x10, 0x20, 0x80))
 
 
 def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
@@ -652,38 +671,143 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
                                   (top_heat if heat > top_heat else heat))
 
 
-def _contours(buf, width, height, step=CONTOUR_STEP, flat=CONTOUR_FLAT):
-    """The crest cells of a depth buffer - see CONTOUR_STEP.
+def _features(solid, min_deg=OUTLINE_DEG, min_rise=OUTLINE_RISE):
+    """[(a, b)] vertex pairs: the creases of `solid` above `min_rise`.
 
-    Pure: a cell-resolution 1/z field in, the set of outline cells out,
-    so test_render can hold it to a synthetic plateau exactly. A cell
-    is asked about each axis both ways: a drop to one side past `step`
-    with no matching climb from the other side is a crest.
+    An edge shared by two faces whose normals differ by more than
+    `min_deg`, or belonging to one face only (a shell boundary), with at
+    least one end above `min_rise` in z. Pure, and exact on a synthetic
+    box - test_render holds it there. The normals are the mesh's own
+    per-triangle ones, which for a decimate are the ORIGINAL faces' (so
+    a flat top stays one plane and makes no creases of its own).
     """
-    marks = set()
-    for r in range(height):
-        row = r * width
-        for c in range(width):
-            at = row + c
-            here = buf[at]
-            if not here:
-                continue
-            left = at - 1 if c else -1
-            right = at + 1 if c + 1 < width else -1
-            up = at - width if r else -1
-            down = at + width if r + 1 < height else -1
-            for near, far in ((left, right), (right, left),
-                              (up, down), (down, up)):
-                if near < 0:
+    pos, idx, nrm = solid
+    cos_lim = math.cos(math.radians(min_deg))
+    shared = {}
+    for t in range(len(idx) // 3):
+        tri = (idx[3 * t], idx[3 * t + 1], idx[3 * t + 2])
+        for i in range(3):
+            a, b = tri[i], tri[(i + 1) % 3]
+            shared.setdefault((a, b) if a < b else (b, a), []).append(t)
+    out = []
+    for (a, b), tris in shared.items():
+        if max(pos[3 * a + 2], pos[3 * b + 2]) <= min_rise:
+            continue
+        if len(tris) == 1:
+            out.append((a, b))
+            continue
+        t0, t1 = tris[0], tris[1]
+        dot = (nrm[3 * t0] * nrm[3 * t1] + nrm[3 * t0 + 1] * nrm[3 * t1 + 1]
+               + nrm[3 * t0 + 2] * nrm[3 * t1 + 2])
+        if abs(dot) < cos_lim:
+            out.append((a, b))
+    return out
+
+
+def _loops(edges, pos):
+    """[(extent, [(a, b), ...])]: the connected pieces of an edge set,
+    each with its XY extent in model units - what the size filter
+    judges. Union-find, no recursion."""
+    parent = {}
+
+    def find(v):
+        while parent.setdefault(v, v) != v:
+            parent[v] = parent[parent[v]]
+            v = parent[v]
+        return v
+
+    for a, b in edges:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+    groups = {}
+    for a, b in edges:
+        groups.setdefault(find(a), []).append((a, b))
+    out = []
+    for members in groups.values():
+        verts = {v for e in members for v in e}
+        xs = [pos[3 * v] for v in verts]
+        ys = [pos[3 * v + 1] for v in verts]
+        out.append((max(max(xs) - min(xs), max(ys) - min(ys)), members))
+    return out
+
+
+#: The outline's loops per source solid, built once per process.
+_OUTLINES = {}
+
+
+def _outline_source():
+    """(solid, loops) the outline draws from: the grid-64 decimate of
+    the export, or the parametric board where there is none."""
+    from . import orientation
+    try:
+        solid = _decimated(orientation.MODEL, OUTLINE_GRID)
+    except (OSError, ValueError):
+        global _SOLID
+        if _SOLID is None:
+            _SOLID = orientation.facets(steps=48, relief=1.5)
+        solid = _SOLID
+    got = _OUTLINES.get(id(solid))
+    if got is None:
+        if len(_OUTLINES) > 4:
+            _OUTLINES.clear()
+        got = _OUTLINES[id(solid)] = (solid, _loops(_features(solid),
+                                                      solid[0]))
+    return got
+
+
+def _outline(grid, tone, buf, cam, m, colour):
+    """The wireframe overlay: every loop wide enough to read, as dotted
+    lines in the cells' 2x4 braille matrix, hidden where the solid
+    stands in front - the 2 % grace keeps an edge from losing to the
+    face it borders. Cells drawn, for the caller that counts."""
+    solid, loops = _outline_source()
+    pts = solid[0]
+    width, height = cam['width'], cam['height']
+    scale, cx, cy, distance = cam['scale'], cam['cx'], cam['cy'], cam['distance']
+    min_extent = OUTLINE_CELLS / (scale / distance)
+    m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
+    ink = GLOW_RGB[OUTLINE_TONE] if colour else None
+    seen = {}
+    masks = {}
+
+    def project(v):
+        got = seen.get(v)
+        if got is None:
+            x, y, z = pts[3 * v], pts[3 * v + 1], pts[3 * v + 2]
+            tz = m6 * x + m7 * y + m8 * z
+            w = 1.0 / (distance - tz)
+            got = seen[v] = (cx + scale * w * (m0 * x + m1 * y + m2 * z),
+                             cy - scale * 0.5 * w * (m3 * x + m4 * y
+                                                     + m5 * z), w)
+        return got
+
+    # The edge is sampled at the matrix's own pitch - half a cell
+    # across, a quarter down - and each sample sets one dot.
+    for extent, members in loops:
+        if extent < min_extent:
+            continue
+        for a, b in members:
+            x0, y0, wa = project(a)
+            x1, y1, wb = project(b)
+            steps = max(1, int(max(2.0 * abs(x1 - x0),
+                                   4.0 * abs(y1 - y0))))
+            for i in range(steps + 1):
+                t = i / steps
+                fx, fy = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+                px, py = int(fx), int(fy)
+                if not (0 <= px < width and 0 <= py < height):
                     continue
-                there = buf[near]
-                if not there or here - there <= step * here:
+                if wa + (wb - wa) * t < buf[py * width + px] * 0.98:
                     continue
-                opposite = buf[far] if far >= 0 else 0.0
-                if not opposite or opposite - here < flat * here:
-                    marks.add(at)
-                    break
-    return marks
+                at = py * width + px
+                col = 1 if fx - px >= 0.5 else 0
+                row = min(3, int((fy - py) * 4.0))
+                masks[at] = masks.get(at, 0) | BRAILLE_BITS[col][row]
+                tone[py][px] = ink
+    for at, mask in masks.items():
+        grid[at // width][at % width] = chr(BRAILLE + mask)
+    return len(masks)
 
 
 def _glyph(dx, dy):
@@ -812,21 +936,12 @@ def render(q, width, height, zoom=1.0, colour=True,
     if face:
         _glow(grid, tone, classes, levels, bare, seed, coverage, width,
               height, colour)
-        # The outline, last, over the shading: the parts' top edges lit
-        # at the ladder's reserved top rung, their own glyphs kept - the
-        # object keeps its one hue, an edge is just where the light is
-        # sharpest. Measured before this: the parts were tone-relief
-        # alone, a rung's worth, and the board read as one sheet.
-        ink = GLOW_RGB[-1]
-        for at in _contours(buf, width, height):
-            r, c = divmod(at, width)
-            glyph = grid[r][c]
-            if colour:
-                if glyph == ' ':
-                    grid[r][c] = LIT[1]
-                tone[r][c] = ink
-            elif glyph in LIT:
-                grid[r][c] = LIT[min(2, LIT.index(glyph) + 1)]
+        # The outline, last, over the shading: the parts' edges as a
+        # wireframe overlay from the mesh's own creases - see
+        # OUTLINE_DEG. Measured before any of this: the parts were tone
+        # relief alone, a rung's worth, and the board read as one sheet.
+        if not foreign:
+            _outline(grid, tone, buf, cam, m, colour)
 
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     # The lit raster IS the picture; the chosen edges only draw in wire

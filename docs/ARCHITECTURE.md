@@ -191,7 +191,7 @@ tool routing, mid-session board and model swaps (MODELS.md).
 
 ## The test system
 
-Twenty-five suites, 2421 checks. `run_tests.ps1` is the only interface -
+Twenty-five suites, 2422 checks. `run_tests.ps1` is the only interface -
 CLAUDE.md, *Commands*, has the tiers and the rules. CI runs
 `run_tests.py --offline` on 3.10 and 3.12 at every push; a runner is a
 machine with no daemon and no board, and every degradation it relies on

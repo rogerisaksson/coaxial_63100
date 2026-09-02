@@ -2882,3 +2882,45 @@ only how it is drawn changed, and the plateau checks are glyph-blind.
 Honest limit of the mono form: a face already at ':' has no brighter
 class, so in monochrome the edges show only where the face is dimmer
 - the live view is colour, and there the line is the ladder's top.
+
+**And the lit crest lasted another hour: it sparkled.** On the stand-in
+the board tumbles without pause, the deadband never holds, and a crest
+test on a raster re-decides every cell as the picture slides a fraction
+of a cell - the brightest cells in the picture blinking in and out. The
+bench asked for something less aggressive, connected, a wireframe
+overlay indicating the larger parts and nothing for the small ones. So
+the outline comes from GEOMETRY now, not from the raster: the creases
+of the grid-64 decimate (two faces past 60 degrees, or a shell
+boundary) projected as strokes with hidden lines removed against the
+frame's depth buffer - vertices that are fixed slide with the picture
+instead of re-deciding. Raw, that graph was a tangle: 4,762 edges at
+45 degrees, 4,388 at 60, in ~290 connected pieces of which two spanned
+the whole board - the slab's rim, bore, pads and holes all knit into
+one 2.0-unit component that a size filter could not reach. The height
+gate cut it: only edges with a vertex above z 0.02 in the body frame
+(the slab's top is z 0, TOON_BANDS' own threshold), leaving 302 edges
+in 41 loops - the parts. Then loops under five screen cells wide are
+skipped, on the bench's word - a fragment flickers, a filtered part
+does not, and it returns as the zoom brings it up: 9 loops, 170 edges,
+430 cells, 0.7 ms a frame at 120x36; 52 ms a frame at 150x44 all in,
+where the crest pass had cost 54. Grid 64 for the edges whatever the
+frame draws, because a 1/64 corner error is under a cell at any view
+size and grid 32's was a visible zigzag. The strokes are the wire
+mode's own `- | / \`, ASCII so a console never put in UTF-8 still
+draws them, at the glow ladder's fifth rung - two above the brightest
+face, four under the white that sparkled. test_render holds the edge
+choice exact on a synthetic box on a slab (its lid and corners, never
+its base or the slab's diagonals), the loop grouping, and the size
+filter at two zooms.
+
+**Then the pixels.** The bench pointed at a dot-matrix spinner: the
+lines should be made of dots. Braille is a 2x4 dot matrix per cell, the
+same characters the chat page's spinner spins, so an edge is sampled
+at half a column and a quarter of a row and sets one bit per sample -
+a line rasters at twice the column and four times the row resolution
+and reads as a fine dotted stroke instead of a cell-wide `-` or `|`.
+Measured at 150x44: 191 braille cells for the same nine loops. An
+ASCII stroke fallback for a console without UTF-8 was built beside it
+and taken out the same hour, on the bench's word: the slashes read as
+jank next to the dots, and the console this runs on already shows the
+spinner. Dots only; test_render holds the dots.

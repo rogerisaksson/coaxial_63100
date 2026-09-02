@@ -17,7 +17,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from coaxial import engine, orientation                      # noqa: E402
+from coaxial import engine, mesh, orientation                # noqa: E402
 from coaxial.orientation import _qmul                        # noqa: E402
 from coaxial import wireframe                                # noqa: E402
 
@@ -235,47 +235,81 @@ def test_chain(report):
                      share >= 0.995, '%.1f%% inre' % (100 * share))
 
 
-def test_contours(report):
-    """The outline pass on a synthetic depth field, cell by cell.
+def test_outline(report):
+    """The wireframe overlay's edge choice on a synthetic solid, exactly.
 
-    A 9x9 buffer: a tilted plane (1/z rising 0.3 % a column - under the
-    step) with a 3x3 plateau standing 2 % proud of it in the middle, and
-    the frame's first column empty for a silhouette. What must be ink:
-    the plateau's eight rim cells. What must not: its centre, the plane
-    around it, the plane's own gradient, and the plane's edge against
-    the empty column - the silhouette is the background's to draw.
+    A box 0.1 tall on a slab at z 0, both as indexed triangles with the
+    real face normals. The creases: the box's four top edges and four
+    vertical corners - eight, one loop, extent the box's width. Not
+    creases: the slab's own diagonals (coplanar), the box top's diagonal
+    (coplanar), and the box's four base edges - at z 0 the height gate
+    drops them, as it drops every pad and hole on the real board.
     """
-    w = h = 9
-    buf = [0.0] * (w * h)
-    for r in range(h):
-        for c in range(1, w):
-            buf[r * w + c] = 1.0 + 0.003 * c
-    for r in range(3, 6):
-        for c in range(3, 6):
-            buf[r * w + c] *= 1.02
-    got = wireframe._contours(buf, w, h)
-    rim = {r * w + c for r in range(3, 6) for c in range(3, 6)} - {4 * w + 4}
-    report.check('contours: the plateau rim and only the rim',
-                 got == rim,
-                 'extra %s, missing %s'
-                 % (sorted(got - rim), sorted(rim - got)))
-    flat = [0.0] * (w * h)
-    for r in range(h):
-        for c in range(w):
-            flat[r * w + c] = 1.0 + 0.004 * c + 0.002 * r
-    report.check('contours: a tilted plane draws none',
-                 not wireframe._contours(flat, w, h),
-                 str(sorted(wireframe._contours(flat, w, h))[:6]))
-    # A wall: the plateau seen edge-on is a staircase, three columns each
-    # 2 % nearer than the last. Only the top step is a crest.
-    stair = [0.0] * (w * h)
-    for r in range(h):
-        for c in range(w):
-            stair[r * w + c] = 1.0 * (1.02 ** min(c, 3))
-    crests = wireframe._contours(stair, w, h)
-    report.check('contours: a staircase inks its top step, not every tread',
-                 crests and all(at % w == 3 for at in crests),
-                 str(sorted(at % w for at in crests)[:8]))
+    pos, idx, nrm = [], [], []
+
+    def vertex(p):
+        pos.extend(p)
+        return len(pos) // 3 - 1
+
+    def quad(a, b, c, d):
+        for tri in ((a, b, c), (a, c, d)):
+            idx.extend(tri)
+            n = mesh.face_normal(pos[3 * tri[0]:3 * tri[0] + 3],
+                                 pos[3 * tri[1]:3 * tri[1] + 3],
+                                 pos[3 * tri[2]:3 * tri[2] + 3],
+                                 (0.0, 0.0, 1.0))
+            nrm.extend(n)
+
+    s = [vertex(p) for p in ((-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0))]
+    quad(*s)                                             # the slab
+    lo = [vertex(p) for p in ((-.2, -.2, 0), (.2, -.2, 0),
+                              (.2, .2, 0), (-.2, .2, 0))]
+    hi = [vertex(p) for p in ((-.2, -.2, .1), (.2, -.2, .1),
+                              (.2, .2, .1), (-.2, .2, .1))]
+    quad(*hi)                                            # the lid
+    for i in range(4):                                   # the walls
+        j = (i + 1) % 4
+        quad(lo[i], lo[j], hi[j], hi[i])
+    solid = (pos, idx, nrm)
+
+    edges = {tuple(sorted(e)) for e in wireframe._features(solid)}
+    want = {tuple(sorted((hi[i], hi[(i + 1) % 4]))) for i in range(4)}
+    want |= {tuple(sorted((lo[i], hi[i]))) for i in range(4)}
+    report.check('outline: a box on a slab is its lid and its corners',
+                 edges == want,
+                 'extra %s, missing %s' % (sorted(edges - want),
+                                           sorted(want - edges)))
+    loops = wireframe._loops(sorted(edges), pos)
+    report.check('outline: one loop, as wide as the box',
+                 len(loops) == 1 and abs(loops[0][0] - 0.4) < 1e-9,
+                 str([(round(e, 3), len(m)) for e, m in loops]))
+    # The size filter: at a camera where 0.4 units is under OUTLINE_CELLS
+    # the loop is skipped; where it spans the frame it draws. Same box,
+    # two zooms, drawn onto a buffer the box's lid occupies at depth 1.
+    def drawn_at(zoom):
+        cam = engine.camera(40, 12, 1.5, distance=3.2, zoom=zoom)
+        m = (1, 0, 0, 0, 1, 0, 0, 0, 1)
+        grid = [[' '] * 40 for _ in range(12)]
+        tone = [[None] * 40 for _ in range(12)]
+        # A depth buffer the lines always pass: nothing in front.
+        buf = [0.0] * (40 * 12)
+        real = wireframe._outline_source
+        wireframe._outline_source = lambda: (solid, loops)
+        try:
+            n = wireframe._outline(grid, tone, buf, cam, m, False)
+        finally:
+            wireframe._outline_source = real
+        return n, grid
+
+    # At zoom 1 this camera puts 6.5 cells on a unit, so the 0.4 box is
+    # 2.6 cells - under OUTLINE_CELLS, filtered; at zoom 3 it is 7.8.
+    report.check('outline: a loop under OUTLINE_CELLS is not drawn',
+                 drawn_at(1.0)[0] == 0, str(drawn_at(1.0)[0]))
+    n, grid = drawn_at(3.0)
+    braille = [g for row in grid for g in row if 0x2800 <= ord(g) < 0x2900]
+    report.check('outline: past the cells it draws, in braille dots',
+                 n > 0 and len(braille) == n,
+                 '%d cells, %d braille' % (n, len(braille)))
 
 
 def main():
@@ -285,7 +319,7 @@ def main():
     test_camera(report)
     test_shade_units(report)
     test_chain(report)
-    test_contours(report)
+    test_outline(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 
