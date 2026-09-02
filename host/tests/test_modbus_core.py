@@ -29,6 +29,12 @@ REPO = os.path.dirname(HOST)
 CORE = os.path.join(REPO, 'modbus')
 OUT = os.path.join(REPO, 'build', 'hosttest')
 
+# The oracle's Python mirror lives in coaxial.protocol. On a bench with the
+# editable install this resolves anyway; a fresh clone (the CI runner) has
+# only what the suite puts on the path - and this suite, unlike its
+# siblings, never had to before it grew a mirror to hold the C to.
+sys.path.insert(0, HOST)
+
 SOURCES = [os.path.join(CORE, 'test', 'harness.c'),
            os.path.join(CORE, 'src', 'modbus_crc.c'),
            os.path.join(CORE, 'src', 'modbus_slave.c'),
