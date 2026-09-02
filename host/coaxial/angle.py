@@ -76,11 +76,11 @@ class Angle(Subsystem, PolledSensor):
     """The A1335 behind SPI4. Every call raises rather than returning a
     status: a reading that did not happen is not a reading of zero."""
 
-    def _op(self, op, payload=b''):
+    def _op(self, op, payload=b'', **kwargs):
         """One 0x6E request for this device. The device byte lives here."""
         return self.request(protocol.DEVICE,
                             bytes([protocol.DEVICE_ANGLE, op])
-                            + bytes(payload))
+                            + bytes(payload), **kwargs)
 
     def state(self):
         """The poll loop's shared record, and the reading in it.

@@ -29,10 +29,10 @@ class Link(Subsystem):
 
         return data
 
-    def _op(self, op, payload=b''):
+    def _op(self, op, payload=b'', **kwargs):
         """One 0x6E request for the link device. The device byte lives here."""
         return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_LINK, op]) + bytes(payload))
+                            bytes([protocol.DEVICE_LINK, op]) + bytes(payload), **kwargs)
 
     def loopback(self, port):
         """Have the board send four patterns on `port` and say what returned.

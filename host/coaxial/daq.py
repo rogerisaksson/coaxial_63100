@@ -198,7 +198,7 @@ class Daq(Subsystem, Acquisition):
                               decimate, accumulate, records,
                               1 if digital else 0, int(interval_us),
                               1 if adapt else 0)
-        self.took(self._op(DAQ_OP_CONFIGURE, payload))
+        self._ack(DAQ_OP_CONFIGURE, payload)
         return self.layout()
 
     def shape(self, sections=(), decimate=1):
@@ -215,7 +215,7 @@ class Daq(Subsystem, Acquisition):
         for section in sections:
             payload += struct.pack('>5i', *[int(round(c * COEFF_SCALE))
                                             for c in section])
-        self.took(self._op(DAQ_OP_FILTER, payload))
+        self._ack(DAQ_OP_FILTER, payload)
         return True
 
     #: What the generator makes. SINE has a frequency, so the chain's
@@ -246,7 +246,7 @@ class Daq(Subsystem, Acquisition):
                 payload += struct.pack('>5i',
                                        *[int(round(c * COEFF_SCALE))
                                          for c in section])
-            self.took(self._op(DAQ_OP_RUNG, payload))
+            self._ack(DAQ_OP_RUNG, payload)
         return True
 
     def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768, kind=0):
@@ -258,14 +258,14 @@ class Daq(Subsystem, Acquisition):
         output sample should be, so a record that fell out of the ring
         shows up as a phase that jumped rather than as nothing at all.
         """
-        self.took(self._op(DAQ_OP_TONE,
+        self._ack(DAQ_OP_TONE,
                            struct.pack('>IIiiB', int(hz), int(rate_hz),
                                        int(amplitude), int(offset),
-                                       int(kind))))
+                                       int(kind)))
         return True
 
     def start(self):
-        self.took(self._op(DAQ_OP_START))
+        self._ack(DAQ_OP_START)
         return True
 
     def stop(self):

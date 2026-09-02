@@ -32,9 +32,9 @@ class Thermal(Subsystem):
 
     """What each region of the board is at: one measurement, the rest model."""
 
-    def _op(self, op, payload=b''):
+    def _op(self, op, payload=b'', **kwargs):
         return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_THERMAL, op]) + payload)
+                            bytes([protocol.DEVICE_THERMAL, op]) + payload, **kwargs)
 
     def state(self):
         """The thermal observer's state.
@@ -130,9 +130,9 @@ class Thermal(Subsystem):
         limit should be left rather than guessed at.
         """
         index = ALL_NODES.index(node) if isinstance(node, str) else int(node)
-        return self.took(self._op(THERMAL_OP_SET_LIMIT, pack(
+        return self._ack(THERMAL_OP_SET_LIMIT, pack(
             ('u8', index),
-            ('i32', int(round(limit_c * 1000))),
+            ('i32', int(round(limit_c * 1000)),
             ('i32', int(round(throttle_at * 1000000))))))
 
     def set_sample(self, every_s, settle_s=0.3):
@@ -147,8 +147,8 @@ class Thermal(Subsystem):
         is shared with the gate drivers and an acquire is refused while the
         stage is armed.
         """
-        return self.took(self._op(THERMAL_OP_SET_SAMPLE, pack(
-            ('u32', int(round(every_s * 1000))),
+        return self._ack(THERMAL_OP_SET_SAMPLE, pack(
+            ('u32', int(round(every_s * 1000)),
             ('u32', int(round(settle_s * 1000))))))
 
     def set_node(self, node, to_board, capacity):
@@ -164,9 +164,9 @@ class Thermal(Subsystem):
         from a camera against a dead patch of soldermask.
         """
         index = ALL_NODES.index(node) if isinstance(node, str) else int(node)
-        return self.took(self._op(THERMAL_OP_SET_NODE, pack(
+        return self._ack(THERMAL_OP_SET_NODE, pack(
             ('u8', index),
-            ('i32', int(round(to_board * 1000))),
+            ('i32', int(round(to_board * 1000)),
             ('i32', int(round(capacity * 1000))))))
 
     def set_board(self, to_ambient, capacity):
@@ -177,6 +177,6 @@ class Thermal(Subsystem):
         the one that moves if the board is ever mounted behind a stator
         instead of lying on a bench. Still air is not a rotor.
         """
-        return self.took(self._op(THERMAL_OP_SET_BOARD, pack(
-            ('i32', int(round(to_ambient * 1000))),
+        return self._ack(THERMAL_OP_SET_BOARD, pack(
+            ('i32', int(round(to_ambient * 1000)),
             ('i32', int(round(capacity * 1000))))))

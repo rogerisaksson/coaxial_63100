@@ -151,9 +151,9 @@ class Clock(Subsystem):
 
     """Tie the board's counter to this machine's, and keep the rate."""
 
-    def _op(self, op, payload=b''):
+    def _op(self, op, payload=b'', **kwargs):
         return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_TIME, op]) + bytes(payload))
+                            bytes([protocol.DEVICE_TIME, op]) + bytes(payload), **kwargs)
 
     def latch(self, settle=0.05):
         """Broadcast a latch: the board takes CYCCNT, and nobody replies.

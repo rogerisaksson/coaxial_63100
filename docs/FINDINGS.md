@@ -2653,3 +2653,35 @@ expected physical values out of the tests, and every value here was
 plausible alone - only closing the identification loop, which needs all
 of them at once, showed them. `test_daq_api.py` now closes two of the
 loops (idempotent open, stamps against the wall).
+
+## Where the write-class transaction's 15 ms goes, and the 8 ms that left
+
+Anatomy of a small request at 115200, off the 2026-09-01 phase
+measurements and the two ends' own constants - the class `CLAUDE.md`
+quotes as "a compare write lands in 15 ms":
+
+| phase | ms | owned by |
+|---|---|---|
+| host t3.5 before TX | 1.75 | the spec: fixed above 19200 baud |
+| request on the wire | ~0.3 | the line |
+| board t3.5 + loop + parse | ~2.7 | the spec again, plus the poll |
+| reply on the wire | ~0.5 | the line |
+| host QUIET_TIME after the last byte | **8.0** | nothing - the frame was whole |
+
+The 8 ms was the price of not knowing where a reply ends, and for the
+`u8 took` class it IS knowable: `1` alone, or `0` and a length-prefixed
+refusal. `transport.ACK` is that shape, `Subsystem._ack` passes it, and
+all 24 pure-ack ops go through it - audited against every handler in
+`Comms/Src/cmd_*.c` (23 write only through `cmd_took`; the bypass op
+writes a bare 0/1, whose refusal degrades to the quiet read and nothing
+worse). An exception frame is now sized under any shape: one code byte.
+Arithmetic says ~7 ms a write; the bench re-measures the day a cable is
+back. NOT taken, again: stopping on a valid CRC - measured at one false
+frame end in 4096 prefixes (above), and the VCP's per-byte chunking makes
+nearly every byte boundary a candidate.
+
+What remains is the spec's, not slack: two fixed 1.75 ms silences per
+transaction and the board's parse-at-the-loop. Both ends are this
+repository's, so a shorter t3.5 on a closed link is possible - but it is
+a framing constant on real silicon, and nothing here changes framing
+without a scope on the wire and a bench to prove it.

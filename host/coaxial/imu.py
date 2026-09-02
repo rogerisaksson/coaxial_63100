@@ -75,7 +75,7 @@ class Imu(Subsystem, PolledSensor):
     """The BNO08X behind SPI2. Every call raises rather than returning a
     status: a reading that did not happen is not a reading of zero."""
 
-    def _op(self, op, payload=b''):
+    def _op(self, op, payload=b'', **kwargs):
         """One 0x6E request for this device.
 
         The device byte lives here and nowhere else: 0x6E carries every
@@ -85,7 +85,7 @@ class Imu(Subsystem, PolledSensor):
         try:
             return self.request(protocol.DEVICE,
                                 bytes([protocol.DEVICE_IMU, op])
-                                + bytes(payload))
+                                + bytes(payload), **kwargs)
         except RigError as exc:
             raise self._explain(op, exc) from exc
 

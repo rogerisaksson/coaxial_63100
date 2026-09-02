@@ -46,10 +46,10 @@ class GateDrivers(Subsystem, GateControl):
 
     """TIM1's compare registers, the injected triple and the STO chain."""
 
-    def _op(self, op, payload=b''):
+    def _op(self, op, payload=b'', **kwargs):
         """One 0x6E request for the gate drivers device."""
         return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_GATE_DRIVERS, op]) + bytes(payload))
+                            bytes([protocol.DEVICE_GATE_DRIVERS, op]) + bytes(payload), **kwargs)
 
     def dead_time(self, nanoseconds=None, skew=0):
         """Read the dead time, or set it and its skew.
@@ -153,7 +153,7 @@ class GateDrivers(Subsystem, GateControl):
         re-latches the moment it is cleared while nFAULT is still low, so a
         refusal here usually means the STO chain has not released.
         """
-        self.took(self._op(OP_PWM, b'\x01'))
+        self._ack(OP_PWM, b'\x01')
         return True
 
     def disable(self):
@@ -173,7 +173,7 @@ class GateDrivers(Subsystem, GateControl):
             raise ValueError('%d compare values, not %d' % (PHASES, len(ticks)))
 
         payload = b''.join(int(t).to_bytes(2, 'big') for t in ticks)
-        self.took(self._op(OP_DUTY, payload))
+        self._ack(OP_DUTY, payload)
         return True
 
     def alternate(self, ticks_a, ticks_b):
@@ -191,7 +191,7 @@ class GateDrivers(Subsystem, GateControl):
 
         payload = b''.join(int(t).to_bytes(2, 'big')
                            for t in ticks_a + ticks_b)
-        self.took(self._op(OP_ALTERNATE, payload))
+        self._ack(OP_ALTERNATE, payload)
         return True
 
     def duty_fine(self, fractions):
@@ -214,7 +214,7 @@ class GateDrivers(Subsystem, GateControl):
         payload = b''.join(
             int(round(max(0.0, min(1.0, f)) * period * 65536)).to_bytes(4, 'big')
             for f in fractions)
-        self.took(self._op(OP_DUTY_FINE, payload))
+        self._ack(OP_DUTY_FINE, payload)
         return True
 
     def arm(self):
@@ -224,7 +224,7 @@ class GateDrivers(Subsystem, GateControl):
         is armed: the injected sequence needs all three phases preselected at
         once, and the meter clears PCSEL per read.
         """
-        self.took(self._op(OP_SYNC, b'\x01'))
+        self._ack(OP_SYNC, b'\x01')
         return True
 
     def disarm(self):
@@ -257,7 +257,7 @@ class GateDrivers(Subsystem, GateControl):
         tone the drivers have no supply and the six outputs toggle into
         unpowered inputs. A reset puts the break back.
         """
-        self.took(self._op(OP_BYPASS, bytes([1 if on else 0])))
+        self._ack(OP_BYPASS, bytes([1 if on else 0]))
         return True
 
     def reset_worst_gap(self):

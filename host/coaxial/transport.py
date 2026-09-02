@@ -268,6 +268,13 @@ class Transport:
             time.sleep(settle)
 
 
+#: The shape of every `u8 took` reply: one byte on success, the
+#: length-prefixed refusal behind it otherwise. Passed as `reply_shape` so
+#: the read stops on the last byte instead of waiting out QUIET_TIME -
+#: 8 ms on the write class of transaction, which was most of its 15 ms.
+ACK = {'ack': True}
+
+
 def frame_length(shape, buffer):
     """Whole frame length from `shape` and what has arrived, or 0.
 
@@ -275,9 +282,28 @@ def frame_length(shape, buffer):
     before the records, 'stride': one record, 'tail': bytes after them} -
     a dict rather than a callable so it crosses the broker as JSON. 0
     means not knowable yet, and the caller keeps reading until quiet.
+
+    {'ack': True} is the `u8 took` reply: `1` alone, or `0` and the
+    board's length-prefixed refusal - knowable either way, unlike the
+    general reply (stopping on a valid CRC was measured and rejected: a
+    prefix passes about once in 4096, the QUIET_TIME docstring above).
+
+    An exception frame (fc | 0x80) is sized for ANY shape: it is always
+    exactly one code byte, and a shaped read of a refused request
+    otherwise waited out the quiet time to learn it was refused.
     """
-    if not shape:
+    if not shape or len(buffer) < 2:
         return 0
+    if buffer[1] & 0x80:
+        return 5                              # unit, fc | 0x80, code, CRC
+    if shape.get('ack'):
+        if len(buffer) < 3:
+            return 0
+        if buffer[2]:
+            return 5                          # unit, fc, took=1, CRC
+        if len(buffer) < 4:
+            return 0
+        return 2 + 2 + buffer[3] + 2          # took=0, length, string, CRC
     at = 2 + int(shape.get('at', 0))          # past unit and function code
     if len(buffer) <= at:
         return 0

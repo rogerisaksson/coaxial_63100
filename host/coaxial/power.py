@@ -41,9 +41,9 @@ class Power(Subsystem):
 
     """The rail reference counts, and a way out of a leaked hold."""
 
-    def _op(self, op, payload=b''):
+    def _op(self, op, payload=b'', **kwargs):
         return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_POWER, op]) + payload)
+                            bytes([protocol.DEVICE_POWER, op]) + payload, **kwargs)
 
     def state(self):
         """{rail: {...}} for every rail the board switches.
@@ -77,4 +77,4 @@ class Power(Subsystem):
         is armed - it switches AFE_ON off, which gives the drivers their
         supply rather than taking it away.
         """
-        return self.took(self._op(POWER_OP_RELEASE_ALL))
+        return self._ack(POWER_OP_RELEASE_ALL)

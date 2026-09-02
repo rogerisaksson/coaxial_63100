@@ -96,9 +96,9 @@ class Drive(Subsystem):
 
     """Device 10 behind 0x6E: the current loop, injection and rotor observer."""
 
-    def _op(self, op, payload=b''):
+    def _op(self, op, payload=b'', **kwargs):
         return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_DRIVE, op]) + bytes(payload))
+                            bytes([protocol.DEVICE_DRIVE, op]) + bytes(payload), **kwargs)
 
     def state(self):
         """What the drive is doing now, in SI. Angles rad, speeds rad/s
@@ -142,7 +142,7 @@ class Drive(Subsystem):
         if name not in MODES:
             raise ValueError('%r is not a mode; they are %s'
                              % (name, ', '.join(MODES)))
-        self.took(self._op(DRIVE_OP_MODE, bytes([MODES[name]])))
+        self._ack(DRIVE_OP_MODE, bytes([MODES[name]]))
         return True
 
     def off(self):
@@ -160,8 +160,8 @@ class Drive(Subsystem):
                                  % (name, ', '.join(SETPOINT_IDS)))
             scale = dict(SETPOINTS)[name]
             raw = int(round(value * scale))
-            self.took(self._op(DRIVE_OP_SETPOINT, bytes([SETPOINT_IDS[name]])
-                               + raw.to_bytes(4, 'big', signed=True)))
+            self._ack(DRIVE_OP_SETPOINT, bytes([SETPOINT_IDS[name]])
+                               + raw.to_bytes(4, 'big', signed=True))
             done[name] = raw / scale
         return done
 
@@ -180,7 +180,7 @@ class Drive(Subsystem):
     def set_theta(self, radians):
         """Put both frames at an angle: the polarity flip, or a known start."""
         raw = int(round(radians * 1e6))
-        self.took(self._op(DRIVE_OP_THETA, raw.to_bytes(4, 'big', signed=True)))
+        self._ack(DRIVE_OP_THETA, raw.to_bytes(4, 'big', signed=True))
         return True
 
     def window(self):
@@ -206,7 +206,7 @@ class Drive(Subsystem):
     def moments_arm(self, periods):
         """Count raw codes at the sample point for this many periods.
         Needs the sync armed; the board says so otherwise."""
-        self.took(self._op(DRIVE_OP_MOMENTS_ARM, int(periods).to_bytes(4, 'big')))
+        self._ack(DRIVE_OP_MOMENTS_ARM, int(periods).to_bytes(4, 'big'))
         return True
 
     def moments(self):
@@ -238,7 +238,7 @@ class Drive(Subsystem):
 
     def reload(self):
         """Take the parameters out of the calibration record again."""
-        self.took(self._op(DRIVE_OP_RELOAD))
+        self._ack(DRIVE_OP_RELOAD)
         return True
 
     def reset_cycles(self):
@@ -254,7 +254,7 @@ class Drive(Subsystem):
         if name not in SOURCES:
             raise ValueError('%r is not a source; they are %s'
                              % (name, ', '.join(SOURCES)))
-        self.took(self._op(DRIVE_OP_SOURCE, bytes([SOURCES[name]])))
+        self._ack(DRIVE_OP_SOURCE, bytes([SOURCES[name]]))
         return True
 
     def model_param(self, **values):
@@ -269,8 +269,8 @@ class Drive(Subsystem):
                                  % (name, ', '.join(MODEL_IDS)))
             scale = dict(MODEL_PARAMS)[name]
             raw = int(round(value * scale))
-            self.took(self._op(DRIVE_OP_MODEL_PARAM, bytes([MODEL_IDS[name]])
-                               + raw.to_bytes(4, 'big', signed=True)))
+            self._ack(DRIVE_OP_MODEL_PARAM, bytes([MODEL_IDS[name]])
+                               + raw.to_bytes(4, 'big', signed=True))
             done[name] = raw / scale
         return done
 
@@ -293,7 +293,7 @@ class Drive(Subsystem):
 
     def model_reset(self):
         """The rotor back to theta0, at rest."""
-        self.took(self._op(DRIVE_OP_MODEL_RESET))
+        self._ack(DRIVE_OP_MODEL_RESET)
         return True
 
     def profile(self, path):

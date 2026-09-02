@@ -26,6 +26,17 @@ class Subsystem:
     def request(self, function, payload=b'', **kwargs):
         return self._board.request(function, payload, **kwargs)
 
+    def _ack(self, op, payload=b''):
+        """One `u8 took` op, stopped on the ack byte.
+
+        The reply's length is knowable from its first payload byte - `1`
+        alone, or `0` and the length-prefixed refusal - so the transport
+        stops on the last byte instead of waiting out QUIET_TIME. That
+        wait was 8 ms of the ~15 ms every write-class transaction cost.
+        """
+        from .transport import ACK
+        return self.took(self._op(op, payload, reply_shape=ACK))
+
     @staticmethod
     def took(reply):
         """Raise with the board's own reason when it refused.

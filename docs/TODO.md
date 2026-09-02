@@ -4,7 +4,7 @@ State as of 2026-09-02.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2303 checks, 25 suites |
+| `run_tests.ps1 -All` | 2309 checks, 25 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 6 |
@@ -73,6 +73,17 @@ measured against an instrument: the DC link, spanned against a DMM on
 Nothing else has - invariant 7.
 
 ## Next, in order
+
+0.5. **The link above 115200.** The `.ioc` carries 9216000 on the RS485
+   pair and the firmware sets 115200 at init; every streaming figure in
+   FINDINGS is line-limited, and the write-class floor after the ack
+   shape is the two spec silences. In order: the THVD1450's rated ceiling
+   off its DATASHEET (not in this repository yet), the debug probe VCP's
+   real ceiling measured, a `link_baud` calibration parameter applied at
+   init with 115200 the default, and both ends' t3.5 re-derived - the
+   spec fixes 1.75 ms above 19200, which at 921600 is 150 character
+   times of silence per frame, paid twice per transaction. A baud change
+   with no board attached is blind, so this waits for the bench.
 
 0. **The IMU and the shaft angle inside a DAQ record, and the IMU on
    hardware.** `catalogue()` lists orientation, acceleration, rotation

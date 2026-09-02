@@ -305,12 +305,48 @@ def test_a_stale_address_is_not_a_broker(report):
         stop()
 
 
+def test_frame_length(report):
+    """The reply shapes that stop a read on its last byte.
+
+    They cross the broker as JSON, which is why they are dicts and why
+    this suite owns them. The `ack` shape is every `u8 took` reply; the
+    counted shape is the DAQ's; an exception frame is sized whatever the
+    shape said, because it is always one code byte.
+    """
+    from coaxial.crc import crc16
+    from coaxial.transport import ACK, frame_length
+
+    def framed(payload, unit=1, fc=0x6E):
+        body = bytes([unit, fc]) + payload
+        return body + crc16(body).to_bytes(2, 'little')
+
+    took = framed(b'\x01')
+    report.check('an ack: took=1 is five bytes, known from the third',
+                 frame_length(ACK, took[:3]) == 5 == len(took))
+    refusal = framed(b'\x00\x05hands')
+    report.check('a refusal: the length-prefixed reason is counted in',
+                 frame_length(ACK, refusal[:4]) == len(refusal))
+    report.check('and neither is knowable before its deciding byte',
+                 frame_length(ACK, took[:2]) == 0
+                 and frame_length(ACK, refusal[:3]) == 0)
+    exc = framed(b'\x03', fc=0x6E | 0x80)[:5]
+    report.check('an exception frame is five bytes under ANY shape',
+                 frame_length(ACK, exc[:2]) == 5
+                 and frame_length({'at': 0, 'head': 1, 'stride': 55}, exc[:2]) == 5)
+    counted = framed(bytes([2]) + b'x' * 110)
+    shape = {'at': 0, 'head': 1, 'stride': 55}
+    report.check('a counted reply is head + count x stride',
+                 frame_length(shape, counted[:3]) == len(counted))
+    report.check('no shape means read until quiet',
+                 frame_length(None, took) == 0)
+
+
 def main():
     report = Report()
     for test in (test_one_client, test_two_sessions,
                  test_errors_cross_as_themselves,
                  test_a_client_never_hands_the_line_back,
-                 test_a_stale_address_is_not_a_broker):
+                 test_a_stale_address_is_not_a_broker, test_frame_length):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

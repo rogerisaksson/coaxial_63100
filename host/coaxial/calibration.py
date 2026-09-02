@@ -156,10 +156,10 @@ class Calibration(CalibrationOps, Subsystem):
     # back. The default 0.5 s budget would time out on a save that worked.
     SAVE_TIMEOUT = 6.0
 
-    def _op(self, op, payload=b'', timeout=None):
+    def _op(self, op, payload=b'', timeout=None, **kwargs):
         return self.request(protocol.DEVICE,
                             bytes([protocol.DEVICE_CAL, op]) + bytes(payload),
-                            timeout=timeout)
+                            timeout=timeout, **kwargs)
 
     #: The record as last read. It changes only when something writes it,
     #: and every writer below drops this - the same bargain

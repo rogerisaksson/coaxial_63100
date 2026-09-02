@@ -43,9 +43,9 @@ class Capture(Subsystem):
 
     """Arm a set of sources, then drain what they produced."""
 
-    def _op(self, op, payload=b''):
+    def _op(self, op, payload=b'', **kwargs):
         return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_LOG, op]) + bytes(payload))
+                            bytes([protocol.DEVICE_LOG, op]) + bytes(payload), **kwargs)
 
     def state(self):
         """What is armed, how much is waiting, and how much did not make it.
