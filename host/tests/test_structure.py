@@ -34,7 +34,10 @@ PACKAGES = ('coaxial', 'coaxial_mcp', 'coaxial_ollama', 'testline')
 SCRIPTS = ('tools', 'examples')
 
 #: Outside host/, and judged the same: a reader copies from these.
-BESIDE = ('../python_examples',)
+#: Notebooks included - their code cells are concatenated and parsed as
+#: one module, so a rename that leaves `print(daq)` behind in a cell
+#: fails here exactly as it did when the examples were .py files.
+BESIDE = ('../notebook_examples',)
 
 # The ceiling is the worst that survives a deliberate reading, not an ideal.
 # It exists to stop the next 250-line function, not to condemn the scanners
@@ -74,10 +77,10 @@ def modules():
 def sources(beside=True):
     """(path, tree) for everything this suite judges, scripts included.
 
-    `python_examples/` sits beside host/ rather than under it and was out of
-    reach for that reason alone - which is how a third caller of the renamed
-    `daq.read` sat in gate_drivers_session.py, in the file a reader is most
-    likely to copy from.
+    `notebook_examples/` sits beside host/ rather than under it and was out
+    of reach for that reason alone - which is how a third caller of the
+    renamed `daq.read` sat in gate_drivers_session, in the file a reader is
+    most likely to copy from.
 
     `beside=False` leaves those out. They are notebooks: the first cell is a
     markdown heading rather than a docstring, and the `SIMULATED` knob at the
@@ -88,13 +91,33 @@ def sources(beside=True):
     for where in PACKAGES + SCRIPTS + (BESIDE if beside else ()):
         root = (os.path.join(REPO, where[3:]) if where.startswith('../')
                 else os.path.join(HOST, where))
+        if not os.path.isdir(root):
+            continue
         for name in sorted(os.listdir(root)):
-            if not name.endswith('.py'):
-                continue
             path = os.path.join(root, name)
-            text = io.open(path, encoding='utf-8').read()
+            if name.endswith('.py'):
+                text = io.open(path, encoding='utf-8').read()
+            elif name.endswith('.ipynb'):
+                text = notebook_source(path)
+            else:
+                continue
             out.append((os.path.join(where, name), text, ast.parse(text)))
     return out
+
+
+def notebook_source(path):
+    """A notebook's code cells as one module, for the same AST checks.
+
+    Cell outputs are not read and markdown is not code; what remains is
+    exactly what executes, in order, sharing one namespace - which is what
+    a module is. The join keeps line COUNTS honest; per-cell line numbers
+    are close enough for a failure to be findable.
+    """
+    import json
+    with io.open(path, encoding='utf-8') as handle:
+        cells = json.load(handle)['cells']
+    return '\n\n'.join(''.join(c['source']) for c in cells
+                       if c['cell_type'] == 'code')
 
 
 def depth(node, at=0):

@@ -2161,6 +2161,12 @@ class SimulatedDrive:
             'isr_cycles_last': 1450, 'isr_cycles_max': max(self._cycles_max, 1620),
             'pol_pos': self._pol[0], 'pol_neg': self._pol[1],
             'trigger': self._trigger, 'ts': self.TS,
+            # The MINOR 2 appendix the board's op 0 carries - absent here,
+            # rotor_observer_session read a KeyError off the stand-in.
+            # The numbers are the bench's own measured shape (FINDINGS,
+            # *The caches were off*): invented, like everything above.
+            'exit_ticks_max': 2921,
+            'cycles': {'sample': 610, 'step': 1690, 'advance': 620},
         }
 
     def mode(self, name):
@@ -2338,9 +2344,21 @@ class SimulatedDrive:
             torque = 1.5 * motor.p * (motor.lam * iq
                                       + (ld - motor.lq) * iid * iq)
             wm = motor.omega / motor.p
-            wm += (torque - motor.b * wm - motor.load) / motor.j * dt
+            # SUBSTEPPED. One Euler step over a poll gap diverges: the
+            # mechanical constant is j/b, a caller reads 0.2 s apart, and
+            # (1 - dt b/j) at the placeholder profile is -4 - the rotor
+            # read +1896, -5770, +24964 rad/s on three polls. Each slice
+            # stays a tenth of the constant, so the step is contractive
+            # whatever the cadence.
+            step = min(0.002, 0.1 * motor.j / max(motor.b, 1e-12))
+            n = max(1, int(math.ceil(dt / step)))
+            h = dt / n
+            theta = motor.theta
+            for _ in range(n):
+                wm += (torque - motor.b * wm - motor.load) / motor.j * h
+                theta += wm * motor.p * h
             motor.omega = wm * motor.p
-            motor.theta = (motor.theta + motor.omega * dt) % (2.0 * math.pi)
+            motor.theta = theta % (2.0 * math.pi)
         # THE LAG IS CLOSED FORM, NOT INTEGRATED. A one-pole decay over dt
         # was tried first and read exactly 0.0000 rad: a caller polling
         # 50 ms apart is twelve PLL time constants apart, so the lag had

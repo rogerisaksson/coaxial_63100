@@ -49,17 +49,18 @@ answers.
 `gate_drivers` is the one that switches. `+ -` duty, `[ ]` step, `A` arm,
 `B` BKIN override, `I` interlock override, `1 2 3 4` run length, `R` run.
 
-## python_examples
+## notebook_examples
 
-Notebooks that open as scripts - `# %%` cells, `SIMULATED = True` for no
-cable.
+Executed notebooks, checked in with the stand-in's outputs so they read
+without running; `SIMULATED = False` and a port at the bench.
 
 | file | what it walks through |
 |---|---|
-| `daq_session.py` | connect, configure, set the clock, acquire in a loop |
-| `gate_drivers_session.py` | dead time, arm, duty, the gate snapshot, a burst |
-| `shared_session.py` | two sessions on one port, and who else is attached |
-| `imu_session.py` | the BNO085, and the three things it refuses over |
+| `daq_session.ipynb` | connect, configure, set the clock, acquire in a loop |
+| `gate_drivers_session.ipynb` | dead time, arm, duty, the gate snapshot, a burst |
+| `shared_session.ipynb` | two sessions on one port, and who else is attached |
+| `imu_session.ipynb` | the BNO085, and the three things it refuses over |
+| `auto_tune.ipynb` | the bench day: commission, identify, tune, write, verify |
 | `angle_session.py` | the A1335's registers, and whether there is a magnet |
 | `thermal_budget.py` | the SOA budget, and a burst planned against it |
 | `thermal_model.py` | the node network in Python, and how it was fitted |

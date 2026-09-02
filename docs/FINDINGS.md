@@ -2685,3 +2685,27 @@ transaction and the board's parse-at-the-loop. Both ends are this
 repository's, so a shorter t3.5 on a closed link is possible - but it is
 a framing constant on real silicon, and nothing here changes framing
 without a scope on the wire and a bench to prove it.
+
+## The examples became notebooks, and two more stand-in defects fell out
+
+Porting the eleven `# %%` examples to executed notebooks ran every one of
+them against the stand-in - several for the first time, since their
+`SIMULATED` default was False and the bench always had the board. Two
+defects only that execution could show:
+
+* **The virtual rotor diverged at poll cadence.** `_advance_model` took
+  ONE Euler step over the wall-clock gap between reads; the mechanical
+  constant j/b of the placeholder profile makes (1 - dt b/j) = -4 at a
+  0.2 s poll, and rotor_observer_session read +1896, -5770, +24964 rad/s
+  on consecutive polls. Substepped now - each slice a tenth of the
+  constant - and the same 0.5 A settles at the friction equilibrium,
+  367 rad/s electrical, whatever the cadence.
+* **`SimulatedDrive.state()` lacked the MINOR 2 appendix** (`cycles`,
+  `exit_ticks_max`): a KeyError on the stand-in for code the board
+  answers. The parity suite holds the two together but needs a board to
+  run; an example executed dry is what caught it.
+
+The structure suite parses notebook code cells as modules now (BESIDE),
+so the AST net that once caught a stale `daq.read` in
+gate_drivers_session still covers the examples in their new form -
+523 checks, 12 of them the notebooks'.

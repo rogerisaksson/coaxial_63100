@@ -96,7 +96,7 @@ board's own calibration beside the codes.
 RECORDS and builds each frame from them, so nothing is concatenated and
 nothing grows. A plot that trims by hand becomes the bottleneck that fills
 the board's ring, which is the bookkeeping this exists to take away.
-Drawing is plain matplotlib - `python_examples/daq_live_plot.py` puts the
+Drawing is plain matplotlib - `notebook_examples/daq_live_plot.ipynb` puts the
 phase currents over one axis per leg, HS and LS.
 
 pandas is imported **where it is called**, so the library still runs on a
