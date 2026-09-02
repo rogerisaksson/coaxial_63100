@@ -4,7 +4,7 @@ State as of 2026-09-02.
 
 | | Value |
 |---|---|
-| `run_tests.ps1 -All` | 2415 checks, 25 suites |
+| `run_tests.ps1 -All` | 2421 checks, 25 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
 | Protocol | MAJOR 2, MINOR 9 |
@@ -46,6 +46,7 @@ not what it measured.
 | The acquisition front door by name: `catalogue()`, `configure('phaseU', 'NTC')` or a sliced list, `read(-1)`, and records with `start_time`, `dt`, `samples` and `channel_name` | `host/README.md`, *Acquisition, end to end* |
 | The host stack at **87 % of an emulated 10 Mbit/s** - 44 us of host per transaction, so the library is not what limits a fast link | FINDINGS, *The stand-in was its own benchmark, twice* |
 | The IMU's three vectors beside the quaternion, and four features held at once instead of one | PROTOCOL, *Devices 0 and 1* |
+| The attitude view at its asked rate, still at rest, with the parts outlined: the period frame to frame (10 -> 20 fps at --hz 20, measured), a 0.35-degree deadband under the display's own resolution so a resting board redraws bit-identical, and a crest-contour pass over the depth buffer - 6 % of the cells, the FET and connector rectangles, proven cell by cell on a synthetic plateau | FINDINGS, *The attitude view drew ten frames a second*; `coaxial/wireframe.py`, CONTOUR_STEP |
 
 **USB is configured and nothing sits on it.** OTG_FS device, no device class,
 so a host sees one that fails enumeration. Nothing depends on it.

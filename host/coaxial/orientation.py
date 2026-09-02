@@ -209,6 +209,20 @@ def normalise(q):
     return (i / n, j / n, k / n, w / n)
 
 
+def angle_between(a, b):
+    """Degrees of rotation from attitude `a` to attitude `b`.
+
+    The rotation taking one to the other has a real part equal to the
+    cosine of half the angle - |<a, b>| for unit quaternions, the
+    absolute value because q and -q are the same rotation. Pure, for a
+    view to ask "did the board actually move" before it redraws.
+    """
+    ai, aj, ak, aw = normalise(a)
+    bi, bj, bk, bw = normalise(b)
+    dot = abs(ai * bi + aj * bj + ak * bk + aw * bw)
+    return math.degrees(2.0 * math.acos(min(1.0, dot)))
+
+
 def euler_degrees(q):
     """(roll, pitch, yaw) in degrees, for the caption above the picture.
 

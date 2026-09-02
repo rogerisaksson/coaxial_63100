@@ -443,7 +443,10 @@ def main(argv=None):
             if args.frames and frame >= args.frames:
                 return 0
 
-            leave, moved, typed = paced(keys, 0.08)
+            # Frame to frame, like run_view: the turntable's 0.08 s is the
+            # period, not a pause after a draw that already took most of it.
+            leave, moved, typed = paced(
+                keys, max(0.0, 0.08 - (time.monotonic() - now)))
             if leave == 'menu' and who is not None:
                 who = None            # ESC backs out of the second question
                 continue

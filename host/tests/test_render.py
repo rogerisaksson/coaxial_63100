@@ -235,6 +235,49 @@ def test_chain(report):
                      share >= 0.995, '%.1f%% inre' % (100 * share))
 
 
+def test_contours(report):
+    """The outline pass on a synthetic depth field, cell by cell.
+
+    A 9x9 buffer: a tilted plane (1/z rising 0.3 % a column - under the
+    step) with a 3x3 plateau standing 2 % proud of it in the middle, and
+    the frame's first column empty for a silhouette. What must be ink:
+    the plateau's eight rim cells. What must not: its centre, the plane
+    around it, the plane's own gradient, and the plane's edge against
+    the empty column - the silhouette is the background's to draw.
+    """
+    w = h = 9
+    buf = [0.0] * (w * h)
+    for r in range(h):
+        for c in range(1, w):
+            buf[r * w + c] = 1.0 + 0.003 * c
+    for r in range(3, 6):
+        for c in range(3, 6):
+            buf[r * w + c] *= 1.02
+    got = wireframe._contours(buf, w, h)
+    rim = {r * w + c for r in range(3, 6) for c in range(3, 6)} - {4 * w + 4}
+    report.check('contours: the plateau rim and only the rim',
+                 got == rim,
+                 'extra %s, missing %s'
+                 % (sorted(got - rim), sorted(rim - got)))
+    flat = [0.0] * (w * h)
+    for r in range(h):
+        for c in range(w):
+            flat[r * w + c] = 1.0 + 0.004 * c + 0.002 * r
+    report.check('contours: a tilted plane draws none',
+                 not wireframe._contours(flat, w, h),
+                 str(sorted(wireframe._contours(flat, w, h))[:6]))
+    # A wall: the plateau seen edge-on is a staircase, three columns each
+    # 2 % nearer than the last. Only the top step is a crest.
+    stair = [0.0] * (w * h)
+    for r in range(h):
+        for c in range(w):
+            stair[r * w + c] = 1.0 * (1.02 ** min(c, 3))
+    crests = wireframe._contours(stair, w, h)
+    report.check('contours: a staircase inks its top step, not every tread',
+                 crests and all(at % w == 3 for at in crests),
+                 str(sorted(at % w for at in crests)[:8]))
+
+
 def main():
     report = Report()
     print('\n-- the 3D engine, stage by stage --')
@@ -242,6 +285,7 @@ def main():
     test_camera(report)
     test_shade_units(report)
     test_chain(report)
+    test_contours(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

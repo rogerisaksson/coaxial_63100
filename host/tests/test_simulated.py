@@ -400,6 +400,19 @@ def test_orientation(report):
                      and all(abs(a) < 0.01 for a in others),
                      ' '.join('%.3f' % a for a in angles))
 
+    # The attitude view's deadband asks this: how far did the board turn.
+    rest = (0.0, 0.0, 0.0, 1.0)
+    tilt = (math.sin(third / 2), 0.0, 0.0, math.cos(third / 2))
+    report.check('angle_between: an attitude is zero degrees from itself',
+                 o.angle_between(rest, rest) < 1e-9,
+                 '%.6f' % o.angle_between(rest, rest))
+    report.check('angle_between: thirty degrees about X is thirty',
+                 abs(o.angle_between(rest, tilt) - 30.0) < 1e-6,
+                 '%.6f' % o.angle_between(rest, tilt))
+    report.check('angle_between: q and -q are the same attitude',
+                 o.angle_between(tilt, tuple(-v for v in tilt)) < 1e-9,
+                 '%.6f' % o.angle_between(tilt, tuple(-v for v in tilt)))
+
     # The clamp in euler_degrees: asin of anything past 1.0 is a domain
     # error, and floating point gets there on a legitimate quarter turn.
     straight_up = o.euler_degrees((0.0, math.sin(math.radians(45)), 0.0,

@@ -549,6 +549,26 @@ def _casters(orientation):
 PIVOT = 2.375
 SLOPE = 1.30
 
+#: The contour pass: a part's OUTLINE, drawn where the depth buffer
+#: crests. A cell is a crest when it drops to a neighbour by more than
+#: CONTOUR_STEP of its own 1/z and does not climb from the opposite
+#: neighbour by CONTOUR_FLAT - the top edge of a part, never the
+#: staircase of its side wall (a wall cell drops one way and climbs the
+#: other, and marking those drew every wall as a band). The silhouette
+#: against the background is NOT ink: the contrast draws it, and inking
+#: it framed the whole disc in a heavy ring. Sized from the geometry: a
+#: part 3 mm proud of the 100 mm board at camera distance 3.2 radii is
+#: a 1.2 % step in 1/z, and the steepest flat-face gradient between two
+#: adjacent cells at 150 columns is 0.44 % - so 0.012 separates them
+#: with margin either way, and 0.010 and 0.014 measured the same set to
+#: within four cells. Measured on the export at 120x36: 6 % of covered
+#: cells, the FET and connector rectangles and nothing else.
+CONTOUR_STEP = 0.012
+CONTOUR_FLAT = 0.004
+#: Outside the face's ' .:' ramp on purpose, as the toon path's ink was:
+#: an outline that shared a fill glyph would read as a bright face.
+CONTOUR = '#'
+
 
 def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
           colour):
@@ -624,6 +644,40 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
                     grid[py][px] = LIT[1]
             tone[py][px] = _blend(DIMMEST if heat < DIMMEST else
                                   (top_heat if heat > top_heat else heat))
+
+
+def _contours(buf, width, height, step=CONTOUR_STEP, flat=CONTOUR_FLAT):
+    """The crest cells of a depth buffer - see CONTOUR_STEP.
+
+    Pure: a cell-resolution 1/z field in, the set of outline cells out,
+    so test_render can hold it to a synthetic plateau exactly. A cell
+    is asked about each axis both ways: a drop to one side past `step`
+    with no matching climb from the other side is a crest.
+    """
+    marks = set()
+    for r in range(height):
+        row = r * width
+        for c in range(width):
+            at = row + c
+            here = buf[at]
+            if not here:
+                continue
+            left = at - 1 if c else -1
+            right = at + 1 if c + 1 < width else -1
+            up = at - width if r else -1
+            down = at + width if r + 1 < height else -1
+            for near, far in ((left, right), (right, left),
+                              (up, down), (down, up)):
+                if near < 0:
+                    continue
+                there = buf[near]
+                if not there or here - there <= step * here:
+                    continue
+                opposite = buf[far] if far >= 0 else 0.0
+                if not opposite or opposite - here < flat * here:
+                    marks.add(at)
+                    break
+    return marks
 
 
 def _glyph(dx, dy):
@@ -752,6 +806,15 @@ def render(q, width, height, zoom=1.0, colour=True,
     if face:
         _glow(grid, tone, classes, levels, bare, seed, coverage, width,
               height, colour)
+        # The outline, last, over the shading: the parts' top edges in
+        # the ink glyph, lit at the ladder's reserved top rung - the
+        # object keeps its one hue, an edge is just where the light is
+        # sharpest. Measured before this: the parts were tone-relief
+        # alone, a rung's worth, and the board read as one sheet.
+        ink = GLOW_RGB[-1] if colour else None
+        for at in _contours(buf, width, height):
+            grid[at // width][at % width] = CONTOUR
+            tone[at // width][at % width] = ink
 
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     # The lit raster IS the picture; the chosen edges only draw in wire

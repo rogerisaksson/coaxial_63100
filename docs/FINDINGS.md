@@ -2821,3 +2821,52 @@ what `motion.py`'s per-write loops are priced in. The broadcast clock
 latch (device 7 op 0) is proven too, so its bracket should tighten by
 the board-side silence. The bench writes the numbers; `link_bench.py`
 is the step.
+
+## The attitude view drew ten frames a second, shimmered at rest, and hid its parts
+
+Three complaints from the bench, 2026-09-02 - low frame rate, shading
+that flickers, component outlines hard to see - each measured before it
+was touched.
+
+**Ten frames a second, asked for twenty.** `run_view` slept the whole
+period AFTER `page.update`: a 150x44 attitude frame costs 50 ms single-
+process (measured, 49-55 over twelve frames) and the loop then slept
+another 50 - 20 Hz asked, 10 drawn. The front page's turntable had the
+same shape (`paced(keys, 0.08)` after its draw). Both pace from the
+draw's START now; measured over 40 vs 80 frames at --hz 20: 49.0 ms a
+frame, 20.4 fps, with 6.0 s of startup (six decimations and the crew
+spawn) outside it.
+
+**The shimmer was the sensor, not the shading.** Two frames that differ
+by attitude noise alone (0.6 degree rms gaussian, forty samples about
+one pose) differ in 1.7 % of their glyphs and in the tone of 317 of 396
+rows - every rotation, however small, re-lands every class boundary and
+re-blends every 24-bit tone. The shadow map was NOT it: its ~9 degree
+bins rebuilt zero times in those forty frames. The fix is a deadband at
+the VIEW, not a filter in the renderer: the attitude redraws only past
+DEADBAND_DEG = 0.35, under which the frame is bit-identical by
+construction. Sized under the display: at 150 columns one cell on the
+board's rim is about a degree, so a change under the band could not
+have moved a glyph, and a real turn clears it inside one frame. The
+BNO085's resting wander is not measured here - the board has had no
+power since 2026-09-01 - and the band's value is the display's
+argument, to be checked against the part when the rail is back.
+
+**The parts were tone-relief alone.** In the face raster a component
+was a rung of colour relief and nothing in the glyphs; the board read
+as one sheet. A one-sided depth-step test (the toon path's old ink
+rule) on the folded 1/z buffer inked 17 % of the covered cells - the
+disc's silhouette and every side wall as a staircase band, the "all
+outline" picture INK_STEP was tuned away from once. Two rules fixed it:
+a CREST is a drop past CONTOUR_STEP with no matching climb from the
+opposite neighbour (a wall cell has both), and the silhouette is not
+ink - the background contrast draws it. Internal crests only: 6 % of
+the covered cells, the FET and connector rectangles, identical to
+within four cells between thresholds 0.010 and 0.014 (0.012 chosen: a
+3 mm part is a 1.2 % step at distance 3.2, the steepest flat-face
+gradient between adjacent cells 0.44 %). Costs 4 ms a frame (50 -> 54
+single-process). The glyph is '#', outside the ' .:' fill ramp as the
+toon ink was, lit at the glow ladder's reserved top rung so the object
+keeps its one hue. test_render holds `_contours` to a synthetic plateau
+cell by cell: the rim and only the rim, a tilted plane draws none, a
+staircase inks its top tread alone.

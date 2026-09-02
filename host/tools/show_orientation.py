@@ -27,6 +27,13 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 
 ROTATION_VECTOR = 0x05
 
+#: Degrees the attitude has to move before the picture redraws with it.
+#: Under this the frame is held bit-identical, which is what stops the
+#: part's resting wander from shimmering the shading. Sized under the
+#: display's own resolution: at 150 columns one cell on the board's rim
+#: is ~1 degree, so a change this small could not have moved a glyph.
+DEADBAND_DEG = 0.35
+
 
 def latest(board):
     """The board's shared record, or None if it could not be read.
@@ -463,8 +470,19 @@ def main(argv=None):
         record = latest(board)
         fresh = record['quaternion'] if record else None
         if fresh is not None and record['updates'] != tally.seen:
-            view['quaternion'] = (fresh['i'], fresh['j'], fresh['k'],
-                                  fresh['real'])
+            new = (fresh['i'], fresh['j'], fresh['k'], fresh['real'])
+            # THE DEADBAND. The part's rotation vector wanders a few tenths
+            # of a degree at rest, and every wander redrew the board:
+            # measured, 1.7 % of the cells changed glyph and 80 % of the
+            # rows changed tone between two frames that differed by noise
+            # alone - the shimmer. Held under DEADBAND_DEG the picture is
+            # bit-identical frame to frame, and a real turn passes the
+            # band inside one frame. Nothing is lost: at this view's size
+            # one cell on the board's rim is about a degree, so a change
+            # under the band could not have moved a glyph anyway.
+            if (tally.seen < 0 or orientation.angle_between(
+                    new, view['quaternion']) >= DEADBAND_DEG):
+                view['quaternion'] = new
             if tally.seen < 0:
                 # TARE ONCE, on the first real sample: the resting picture
                 # is the board as it lies, not its yaw history. T re-tares
