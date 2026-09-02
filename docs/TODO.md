@@ -7,7 +7,7 @@ State as of 2026-09-02.
 | `run_tests.ps1 -All` | 2404 checks, 25 suites |
 | Debug build | 0 warnings; the drive's interrupt path and the HAL ADC files at `-O2`; the I-cache on, the D-cache off |
 | FLASH / DTCMRAM | 158 728 B (8 %) / 49 856 B (38 %) - `build_and_flash.py` prints it |
-| Protocol | MAJOR 2, MINOR 6 |
+| Protocol | MAJOR 2, MINOR 7 |
 | Firmware | 1.6.0 |
 | Calibration record | CAL_VERSION 8, 45 parameters, op 8 pages them |
 
@@ -31,7 +31,7 @@ not what it measured.
 | One machine in one place: the PMSM, the propeller law, the 5230SL off its two datasheets (24N28P, and 3.0 A at 44.4 V giving b = 1.71e-4, 4.3x the guess it replaced) and the stand-in's own | ARCHITECTURE, *Host*; `coaxial/motor.py` |
 | System identification with a **per-parameter** trust: R, Ld, Lq, lambda by least squares in dq, and Lq flagged untrusted on a V/f run at -73 % because its column is collinear with lambda | ARCHITECTURE, *Host*; `coaxial/sysid.py` |
 | The firmware's own observer driven to its limit on this machine: 45 A of startup torque holds, 50 A stalls in the handover, and the PLL works between 150 and 332 Hz - the Kalman fixed point sits at the top edge, not the middle | FINDINGS, *The rotor observer's limit*; `tools/observer_run.py` |
-| The stand-in's virtual source turning a real rotor, so a chain built against it can watch an estimate track: torque from its own dq solution, and a type-2 PLL's `alpha / wn^2` lag - a tenth of the torque lags a tenth as much, a fifth of the bandwidth 25.0x | `coaxial/simulated.py`; `test_simulated.py`, *virtual rotor* |
+| The stand-in's virtual source turning a real rotor, so a chain built against it can watch an estimate track: torque from its own dq solution, and a type-2 PLL's `alpha / wn^2` lag - a tenth of the torque lags a tenth as much, a fifth of the bandwidth 25.0x | `coaxial/simulated/`; `test_simulated.py`, *virtual rotor* |
 | The propeller from rest to 6717 rpm and back, against Hobbywing's own 22 points - and the disagreement it turns up: 28.3 V of phase demand where linear SVM off 10S makes 21.4, on a stand that reached those rpm on 10S | `notebook_examples/propeller_sweep.ipynb` |
 | The host speed loop closed over the model and identified back out of its own run: R, Ld, lambda recovered inside 9 %, and the two alignment lessons the fit taught (half a period of angle advance, sample before advance) written into `loop.py` | `notebook_examples/speed_loop.ipynb`; ARCHITECTURE, *Host* |
 | The firmware's control law Monte Carlo'd over the 23-63 V link sweep, 6 240 runs, one process per core: a controller schedule per link voltage, zero trips over 48 fresh plants each, and the sensorless floor measured - back-EMF alone loses the rotor at a median 24-69 rpm; with injection every descent reaches rest locked | `notebook_examples/foc_montecarlo.ipynb`; `tools/montecarlo.py` |

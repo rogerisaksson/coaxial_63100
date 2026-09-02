@@ -167,9 +167,10 @@ must not have.
 `catalogue()` is the board's own list - analog channels and sampled pins
 off `0x6D`, plus the sensor fields - each row saying its kind and whether
 `configure()` can ask for it. The sensor fields (orientation, acceleration,
-rotation rate, magnetic field, shaft angle) are **listed and not yet
-selectable**: they are readable through `board.imu` and `board.angle`, and
-carrying them inside a record is a wire format the firmware does not have.
+rotation rate, magnetic field, shaft angle) ride any software-clocked
+record since MINOR 7 - four-word SNAPSHOTS beside the sums:
+`configure('phaseU', 'shaft angle')`, and `frame()` scales them. On older
+firmware the rows are listed and refused with the reason.
 
 `start()` puts a reader thread on the link and `read()` takes from the
 queue it fills, so the loop body costs the link nothing. Every read answers
@@ -191,9 +192,9 @@ calibrated meter - an argument, not new firmware.
 
 ## Tests
 
-    .\run_tests.ps1                 # ~25 % of the 2114 checks, the default
+    .\run_tests.ps1                 # ~25 % of every check, the default
     .\run_tests.ps1 -All            # the gate
-    .\run_tests.ps1 -Structure      # does host/ still hold together - 5 s
+    .\run_tests.ps1 -Structure      # does host/ still hold together - 4 s
     python examples/read_board.py   # the board, read end to end
 
 The suites and their sizes are listed in [../CLAUDE.md](../CLAUDE.md#commands).
@@ -203,7 +204,7 @@ A missing cable is not a failing suite: every one opens through
 ## MCP server
 
     python -m coaxial_mcp --port COM4        # stdio JSON-RPC
-    python tests/test_mcp.py                 # 44 checks, drives it over stdio
+    python tests/test_mcp.py                 # 46 checks, drives it over stdio
 
 `../.mcp.json` registers it for this workspace. Fourteen tools, not one per
 firmware command, because the whole tool list is re-read on every turn:

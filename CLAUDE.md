@@ -121,7 +121,7 @@ board_chat -Ask "vad sitter på kortet?"    # the model, off the same wire
 .\host\run_tests.ps1 -Scope test_mcp.py   # those files only, whatever the depth
 .\host\run_tests.ps1 -Only intent,picker  # named tests, nothing else
 .\host\run_tests.ps1 -Tags prompt,reply   # subjects, without asking the model
-.\host\run_tests.ps1 -Structure           # does host/ still hold together - 3 s
+.\host\run_tests.ps1 -Structure           # does host/ still hold together - 4 s
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Check    # what is missing
                             # -Yes installs the lot; -FirmwarePackage X.zip
                             # adds FW_H7 to CubeMX.

@@ -261,7 +261,7 @@ records and hands out fifteen at a time.
 | 1 arm | source bitmask: bit 0 phases, 1 angle, 2 IMU | **empties the ring** - a burst whose first records predate the run is worse than an empty one |
 | 2 take | optional `u8 want` | `u8 got`, then 14-byte records `u32 at, u8 source, u8 seq, i16 v[4]` |
 
-`thinned` (appended, MINOR 21) is not `dropped`: dropped had no room,
+`thinned` (appended at major 1's MINOR 21) is not `dropped`: dropped had no room,
 thinned was declined because that source had used its share of what the
 link can drain - `cmd_link_records_per_second(14) / armed`, a minimum gap
 in raw CYCCNT. Without it the angle loop's 24 kHz filled the ring in 43 ms
@@ -339,7 +339,7 @@ The mean over what did go in stays true, and the count says how many that
 was; a wrapped sum would divide a negative wreck by the count and call it
 a mean. A window that held nothing is not pushed at all.
 
-**The channel mask is `u16`, from MINOR 23** - it was `u8` and the ninth
+**The channel mask is `u16`, from major 1's MINOR 23** - it was `u8` and the ninth
 channel did not fit. A resized field, not an appended one: a host older
 than 23 mis-decodes rather than misses. Not a MAJOR - invariant 3 is
 0x41's, and 0x41 is untouched - but a break, written down here.
@@ -426,18 +426,20 @@ the wire are records. The count travels with the sums
 because the clock decides it: a host that took it from the config would
 divide by a number the board never used. **This RESIZED the record**
 (MINOR 3), like the `u16` channel mask did - op 5 says the stride and a
-decoder that recomputes it mis-frames every record after the first. **Op 5** makes op 4 decodable: `u8
-fields, u16 stride`, per field `u8 channel, u8 unit, u8 differential, str
-signal`, then `u8 digital` and, when set, `u8 pins` and per pin `u8
-direction, str signal`. The SAMPLED pins, not the drivable ones - see op 1
-above; all twenty-three came to 312 bytes against 253. A host builds its decoder from that. **The TIM1 clock is the one FOC wants and it does not need the gates.**
+decoder that recomputes it mis-frames every record after the first.
+
+**Op 5** makes op 4 decodable: `u8 fields, u16 stride`, per field `u8
+channel, u8 unit, u8 differential, str signal`, then `u8 digital` and,
+when set, `u8 pins` and per pin `u8 direction, str signal`. The SAMPLED
+pins, not the drivable ones - see op 1 above; all twenty-three came to
+312 bytes against 253. A host builds its decoder from that.
+
+**The TIM1 clock is the one FOC wants and it does not need the gates.**
 MOE is a separate thing: with the sync armed and the stage down the
 injected sequence still triggers, so the samples come at the PWM period
 whatever the bridge is doing - measured 49 300 samples/s over five
 channels, 0 dropped, against the software clock's 1129 sweeps a second
-with the same channel count and its scheduling jitter.
-
-Measured: the TIM1
+with the same channel count and its scheduling jitter. Measured: the TIM1
 clock lands at 19.93/20.00/20.09 µs min/mean/max against 50 kHz;
 `decimate=2` with `accumulate=50` gives exactly 2000 µs per record; the
 software clock manages about 10.6 kHz on two channels.
