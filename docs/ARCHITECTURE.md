@@ -192,7 +192,10 @@ tool routing, mid-session board and model swaps (MODELS.md).
 ## The test system
 
 Twenty-five suites, 2368 checks. `run_tests.ps1` is the only interface -
-CLAUDE.md, *Commands*, has the tiers and the rules.
+CLAUDE.md, *Commands*, has the tiers and the rules. CI runs
+`run_tests.py --offline` on 3.10 and 3.12 at every push; a runner is a
+machine with no daemon and no board, and every degradation it relies on
+is one the suites already had.
 
 * **A missing cable is not a failure.** A disconnected board falls back to
   the stand-in; conformance and parity skip. Parity refuses to compare a

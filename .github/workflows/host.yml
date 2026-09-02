@@ -1,0 +1,33 @@
+# The offline gate, on every push: the suites that need no board, no
+# ollama daemon and no bench - the same set `run_tests.py --offline` has
+# always named. The C cores (Modbus, SHTP, Filter, Drive) build with the
+# runner's own gcc exactly as they do with the bench's; the model-driven
+# test pick degrades to the path map on a machine with no daemon, which a
+# runner is. What CI cannot judge stays what it always was: parity,
+# bench, conformance and the live model wait for hardware, and the
+# .counts.json totals check states that a fresh clone has measured
+# nothing rather than failing on it.
+name: host
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12']   # the declared floor, and a current one
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: host/requirements.txt
+      - run: pip install -r host/requirements.txt
+      - run: python tools/run_tests.py --offline
+        working-directory: host

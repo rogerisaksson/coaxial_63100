@@ -1,0 +1,32 @@
+# The host stack as an installable package: `pip install -e host/` puts
+# coaxial, coaxial_mcp and coaxial_ollama on the path and hands out the
+# console entries, so nothing outside this tree needs sys.path surgery to
+# use the library. The scripts inside the tree keep their root-finders -
+# they must run from a bare clone, installed or not.
+#
+# ONE DEPENDENCY LIST. `requirements.txt` stays the annotated authority -
+# its comments say why each package is here - and `dynamic` reads it, so
+# `pip install -e .` and `pip install -r requirements.txt` cannot drift.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coaxial63100"
+version = "1.6.0"                    # tracks the firmware it speaks to
+description = "Host stack for the coaxial 63100 BLDC inverter: library, MCP server, local-model runner"
+readme = "README.md"
+requires-python = ">=3.10"           # developed and gated on 3.14
+dynamic = ["dependencies"]
+
+[project.scripts]
+coaxial = "coaxial.cli:main"
+coaxial-dbg = "coaxial_ollama.cli:main"
+coaxial-mcp = "coaxial_mcp.server:main"
+
+[tool.setuptools]
+packages = ["coaxial", "coaxial_mcp", "coaxial_ollama", "testline"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }

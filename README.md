@@ -143,7 +143,9 @@ STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --s
 ```
 
 A missing cable is not a failing suite: every suite falls back to a
-stand-in that labels itself.
+stand-in that labels itself. CI runs the same `--offline` set on every
+push (`.github/workflows/host.yml`) - what needs the bench stays the
+bench's.
 
 ## Where things are
 

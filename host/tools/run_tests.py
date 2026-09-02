@@ -456,8 +456,14 @@ def _ask_model(args, live_sections):
     if args.model == 'auto':
         # The machine's own pick, resolved once - a hardcoded default tag
         # asked a 16 GB bench to test against a model an 8 GB one runs.
-        from coaxial_ollama.capability import choose, probe
-        args.model = choose(probe()).tag
+        # A machine with no daemon and no GPU (a CI runner) falls back to
+        # the roster's first tag; the pick degrades to the path map there
+        # anyway, so the name only has to be a name.
+        try:
+            from coaxial_ollama.capability import choose, probe
+            args.model = choose(probe()).tag
+        except Exception:                                     # noqa: BLE001
+            args.model = 'gemma4:12b'
     plan, reason = pick_tests.pick(args.model)
     _LOADED.append(_client_for(args.model))
 

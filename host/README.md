@@ -29,7 +29,10 @@ disconnect(boards)
 `Coaxial63100` is the front door for one board - the AFE preflight, the
 supply put back as found, the subsystems by name (`.daq`, `.imu`, `.angle`,
 `.thermal`, `.gates`, `.drive`). Its example is in [../README.md](../README.md);
-the notebooks are `../notebook_examples/`. From a shell:
+the notebooks are `../notebook_examples/`. `pip install -e host/` makes the
+packages importable anywhere and hands out `coaxial`, `coaxial-dbg` and
+`coaxial-mcp` as commands; `pyproject.toml` reads its dependencies from
+`requirements.txt`, so the two cannot drift. From a shell:
 
     python -m coaxial all
     python -m coaxial temp
