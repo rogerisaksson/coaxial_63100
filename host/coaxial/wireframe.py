@@ -563,11 +563,17 @@ SLOPE = 1.30
 #: with margin either way, and 0.010 and 0.014 measured the same set to
 #: within four cells. Measured on the export at 120x36: 6 % of covered
 #: cells, the FET and connector rectangles and nothing else.
+#:
+#: HOW an edge is drawn: not a glyph. A '#' ink lasted an hour - on the
+#: bench's eye it read as a gimmick, a texture laid over the picture.
+#: The way a solid modeller enhances edges is with LIGHT: the cell keeps
+#: its own character and its tone goes to the ladder's reserved top rung,
+#: a thin bright line where the surface breaks. Where the face glyph is
+#: blank the line still needs a mark, so a blank lifts to '.'; in
+#: monochrome, where there is no tone, the glyph lifts one class instead
+#: - the same statement in characters.
 CONTOUR_STEP = 0.012
 CONTOUR_FLAT = 0.004
-#: Outside the face's ' .:' ramp on purpose, as the toon path's ink was:
-#: an outline that shared a fill glyph would read as a bright face.
-CONTOUR = '#'
 
 
 def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
@@ -806,15 +812,21 @@ def render(q, width, height, zoom=1.0, colour=True,
     if face:
         _glow(grid, tone, classes, levels, bare, seed, coverage, width,
               height, colour)
-        # The outline, last, over the shading: the parts' top edges in
-        # the ink glyph, lit at the ladder's reserved top rung - the
+        # The outline, last, over the shading: the parts' top edges lit
+        # at the ladder's reserved top rung, their own glyphs kept - the
         # object keeps its one hue, an edge is just where the light is
         # sharpest. Measured before this: the parts were tone-relief
         # alone, a rung's worth, and the board read as one sheet.
-        ink = GLOW_RGB[-1] if colour else None
+        ink = GLOW_RGB[-1]
         for at in _contours(buf, width, height):
-            grid[at // width][at % width] = CONTOUR
-            tone[at // width][at % width] = ink
+            r, c = divmod(at, width)
+            glyph = grid[r][c]
+            if colour:
+                if glyph == ' ':
+                    grid[r][c] = LIT[1]
+                tone[r][c] = ink
+            elif glyph in LIT:
+                grid[r][c] = LIT[min(2, LIT.index(glyph) + 1)]
 
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     # The lit raster IS the picture; the chosen edges only draw in wire

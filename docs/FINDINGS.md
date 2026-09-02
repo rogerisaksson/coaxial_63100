@@ -2870,3 +2870,15 @@ toon ink was, lit at the glow ladder's reserved top rung so the object
 keeps its one hue. test_render holds `_contours` to a synthetic plateau
 cell by cell: the rim and only the rim, a tilted plane draws none, a
 staircase inks its top tread alone.
+
+**The '#' lasted an hour.** On the bench's eye it read as a gimmick - a
+texture laid over the picture, not a drawing. A solid modeller
+enhances an edge with light, not with a different pen: the cell keeps
+its own character and its tone goes to the ladder's reserved top rung,
+a thin bright line where the surface breaks; a blank face glyph under
+the line lifts to '.' so the line exists, and in monochrome, with no
+tone to lift, the glyph lifts one class. The crest set is the same;
+only how it is drawn changed, and the plateau checks are glyph-blind.
+Honest limit of the mono form: a face already at ':' has no brighter
+class, so in monochrome the edges show only where the face is dimmer
+- the live view is colour, and there the line is the ladder's top.
