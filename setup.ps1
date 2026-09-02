@@ -514,6 +514,43 @@ print('%d.%d.%d  %s' % (sys.version_info[0], sys.version_info[1],
         Write-Item 'git' 'ok' $git
     }
 
+    # gh reads what CI could not say in public. A red run posts its log tail
+    # as a commit comment (readable with nothing but a browser), but watching
+    # a run live or re-running one is `gh run` - and that wants a one-time
+    # `gh auth login`. Optional: nothing in the build or the bench needs it.
+    $gh = Get-Tool 'gh'
+    if ($null -eq $gh) {
+        $ghExe = Join-Path $env:ProgramFiles 'GitHub CLI\gh.exe'
+        if (Test-Path $ghExe) { $gh = $ghExe }
+    }
+    if ($null -eq $gh) {
+        Write-Item 'gh' 'missing' 'optional - GitHub.cli, for watching CI runs'
+        Add-Todo -Optional 'winget install --id GitHub.cli --exact, then once: gh auth login'
+    } else {
+        $authed = ((& $gh auth status 2>&1) -join ' ') -match 'Logged in'
+        if ($authed) {
+            Write-Item 'gh' 'ok' $gh
+        } else {
+            Write-Item 'gh' 'ok' 'installed - `gh auth login` once to watch CI runs'
+            Add-Todo -Optional 'gh auth login   (one time - lets `gh run watch` follow CI)'
+        }
+    }
+
+    # The LTSpice models are a submodule with its deploy key on the bench
+    # machine's GitLab account - a clone elsewhere fails at fetch, not at
+    # checkout, and everything that needs its numbers reads them from
+    # coaxial/inverter.py, which carries the traced constants in-tree. So:
+    # reported, never demanded.
+    if ($null -ne $git) {
+        $sub = (& $git -C $Root submodule status electronic_simulations 2>$null)
+        if ($null -ne $sub -and $sub -match '^-') {
+            Write-Item 'electronic_simulations' 'missing' 'optional - LTSpice sources; the traced constants are in coaxial/inverter.py'
+            Add-Todo -Optional 'git submodule update --init electronic_simulations   (needs the GitLab SSH key)'
+        } elseif ($null -ne $sub) {
+            Write-Item 'electronic_simulations' 'ok' 'submodule checked out'
+        }
+    }
+
     # A host C compiler, for test_modbus_core.py. The portable Modbus core is
     # hardware-free so it can be built and run here; until this it never was,
     # and its only verification needed a board on the far end of a cable.
@@ -569,33 +606,73 @@ function Install-PythonDeps {
         return
     }
 
-    # Import names, not distribution names: pyserial imports as serial and PyYAML
-    # as yaml, and asking the interpreter is far quicker than asking pip.
+    # The list to probe comes from requirements.txt itself, never a copy here:
+    # a copy drifted once - numpy and rich joined the file and this probe kept
+    # saying 'all present' on a machine that had neither. Import names differ
+    # from distribution names for two of them; everything else imports as its
+    # lowercased distribution, and a new dependency is probed the day it is
+    # written. Asking the interpreter is far quicker than asking pip.
     $absent = Invoke-Python -Python $Python -Code @'
 import importlib.util as util
+import re
 
-WANTED = {'serial': 'pyserial', 'yaml': 'PyYAML', 'mcp': 'mcp',
-          'pandas': 'pandas', 'matplotlib': 'matplotlib',
-          'anyio': 'anyio', 'pytest': 'pytest'}
-print(','.join(dist for module, dist in WANTED.items()
-               if util.find_spec(module) is None))
-'@
+RENAMED = {'pyserial': 'serial', 'pyyaml': 'yaml'}
+missing = []
+for line in open(r'REQUIREMENTS_PATH', encoding='utf-8'):
+    line = line.split('#')[0].strip()
+    if not line:
+        continue
+    dist = re.split(r'[<>=!~\[ ]', line)[0]
+    module = RENAMED.get(dist.lower(), dist.lower().replace('-', '_'))
+    if util.find_spec(module) is None:
+        missing.append(dist)
+print(','.join(missing))
+'@.Replace('REQUIREMENTS_PATH', $requirements)
 
     if ([string]::IsNullOrWhiteSpace($absent)) {
         Write-Item 'requirements' 'ok' 'all present'
-        return
-    }
-    Write-Item 'requirements' 'missing' $absent
-    if (Confirm-Step "pip install -r host/requirements.txt ?") {
-        & $Python -m pip install --disable-pip-version-check -r $requirements
-        if ($LASTEXITCODE -eq 0) {
-            Write-Item 'requirements' 'done' 'installed'
-        } else {
-            Write-Item 'requirements' 'failed' "pip exit $LASTEXITCODE"
-            Add-Todo "pip install -r host/requirements.txt failed - read the output above"
-        }
     } else {
-        Add-Todo "python -m pip install -r host/requirements.txt"
+        Write-Item 'requirements' 'missing' $absent
+        if (Confirm-Step "pip install -r host/requirements.txt ?") {
+            & $Python -m pip install --disable-pip-version-check -r $requirements
+            if ($LASTEXITCODE -eq 0) {
+                Write-Item 'requirements' 'done' 'installed'
+            } else {
+                Write-Item 'requirements' 'failed' "pip exit $LASTEXITCODE"
+                Add-Todo "pip install -r host/requirements.txt failed - read the output above"
+            }
+        } else {
+            Add-Todo "python -m pip install -r host/requirements.txt"
+        }
+    }
+
+    # The stack as an installed package, not a sys.path accident: pyproject
+    # hands out `coaxial`, `coaxial-dbg` and `coaxial-mcp` as commands and
+    # makes the imports work from any directory. Editable, so the checkout
+    # stays the one source; its dependency list is requirements.txt read
+    # dynamically, so this cannot pull anything the step above did not.
+    $installed = Invoke-Python -Python $Python -Code @'
+try:
+    from importlib.metadata import version
+    print(version('coaxial63100'))
+except Exception:
+    print('')
+'@
+    if (-not [string]::IsNullOrWhiteSpace($installed)) {
+        Write-Item 'pip install -e host/' 'ok' ('coaxial63100 ' + $installed)
+    } else {
+        Write-Item 'pip install -e host/' 'missing' 'coaxial, coaxial-dbg, coaxial-mcp as commands'
+        if (Confirm-Step 'pip install -e host/ ?  (editable: the checkout stays the source)') {
+            & $Python -m pip install --disable-pip-version-check -e $Host_
+            if ($LASTEXITCODE -eq 0) {
+                Write-Item 'pip install -e host/' 'done' 'installed'
+            } else {
+                Write-Item 'pip install -e host/' 'failed' "pip exit $LASTEXITCODE"
+                Add-Todo 'pip install -e host/ failed - read the output above'
+            }
+        } else {
+            Add-Todo 'python -m pip install -e host/'
+        }
     }
 }
 
@@ -700,8 +777,10 @@ function Install-VsCodeExtensions {
     }
 
     # --list-extensions is one call and it is not a fast one, so it is asked
-    # once here rather than per extension.
-    $installed = (& $code --list-extensions)
+    # once here rather than per extension. Its stderr is dropped: VS Code's
+    # crash handler logs a harmless CreateFile complaint there on every
+    # start, and a setup report full of someone else's noise reads broken.
+    $installed = (& $code --list-extensions 2>$null)
     foreach ($id in $Extensions.Keys) {
         $why = $Extensions[$id]
         if ($installed -contains $id) {
@@ -831,7 +910,7 @@ function Find-CubeMX {
 
     $bundle = Get-NewestBundle 'stm32cubemx-application'
     if ($null -ne $bundle) {
-        $exe = Get-ChildItem $bundle.FullName -Recurse -Filter 'STM32CubeMX.exe' `
+        $exe = Get-ChildItem $bundle.FullName -Recurse -Filter 'STM32CubeMX*.exe' `
                              -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($null -ne $exe) { return $exe.FullName }
     }
@@ -1085,12 +1164,16 @@ function Install-FirmwarePackage {
         return
     }
 
-    # 2. CubeMX, if it is here
+    # 2. CubeMX, if it is here. Optional-class either way: the build has
+    # drivers/ in the repository, so a bench without this package builds,
+    # flashes, tests and prompts - only regenerating core/ from the .ioc
+    # wants it, and pinning that to the .ioc's own version is what these
+    # two routes are for.
     $mx = Get-NewestBundle 'stm32cubemx-application'
     if ($null -ne $mx) {
         Write-Item 'STM32CubeMX' 'ok' 'its package manager can fetch this one'
-        Add-Todo ('open CubeMX (the `cubemx` command) and let it install ' + $name +
-                  ' - Help > Manage embedded software packages')
+        Add-Todo -Optional ('open CubeMX (the `cubemx` command) and let it install ' + $name +
+                            ' - Help > Manage embedded software packages')
     }
 
     # 3. the page
@@ -1098,8 +1181,8 @@ function Install-FirmwarePackage {
         Start-Process $CubeH7Url
         Write-Item 'download page' 'done' $CubeH7Url
     }
-    Add-Todo ($CubeH7Url + '  -> download ' + $name +
-              ', then: setup.ps1 -FirmwarePackage <the zip>')
+    Add-Todo -Optional ($CubeH7Url + '  -> download ' + $name +
+                        ', then: setup.ps1 -FirmwarePackage <the zip>')
 }
 
 function Install-WingetToolchain {
@@ -1242,7 +1325,7 @@ function Install-OllamaExtension {
     }
 
     $id = 'Ollama.ollama'
-    if ((& $code --list-extensions) -contains $id) {
+    if ((& $code --list-extensions 2>$null) -contains $id) {
         Write-Item $id 'ok' ''
         return
     }
@@ -1546,7 +1629,7 @@ Write-Host '    cbuild                      build, zero warnings expected'
 Write-Host '    cflash                      flash over SWD and start'
 Write-Host '    board all                   measure, no model involved'
 Write-Host '    dbg "why is the NTC 25.00?" ask the local model, cheaply'
-Write-Host '    board_chat                a prompt with the model and the board in it'
+Write-Host '    board_chat                  a prompt with the model and the board in it'
 Write-Host '    cubemx                      open the .ioc in STM32CubeMX'
 Write-Host ''
 if ($Check) {

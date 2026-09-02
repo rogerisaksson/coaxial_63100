@@ -40,3 +40,9 @@ matplotlib>=3.7
 # the conformance, MCP and runner suites are plain scripts with their own
 # reporters, so they run on a machine with nothing but the four above.
 pytest>=8.0
+
+# Only for RE-EXECUTING notebook_examples/ (jupyter nbconvert --execute) and
+# for running them in an editor. Reading them costs nothing - they are checked
+# in with their outputs - and the library imports neither.
+nbconvert>=7.0
+ipykernel>=6.0
