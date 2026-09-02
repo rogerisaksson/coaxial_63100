@@ -308,7 +308,46 @@ def test_commissioning_recovers_the_stand_in(r):
         rig.close()
 
 
-ROSTER = (test_inverter, test_loop, test_arithmetic, test_budget, test_kalman,
+def test_motion(r):
+    """The three motion verbs close their loops on the stand-in's own
+    virtual rotor - the shaft sensor reads what the drive torques."""
+    from coaxial import Coaxial63100
+    from coaxial.errors import RigError
+    rig = Coaxial63100(port='COM99', simulated_device=True,
+                       power_afe=False).open()
+    try:
+        rig.drive.source('model')
+        try:
+            rig.motion.stepper(amps=2.0)
+            r.check('motion refuses an unarmed stage', False)
+        except RigError as exc:
+            r.check('motion refuses an unarmed stage',
+                    'gates.arm' in str(exc), exc)
+        rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+        with rig.motion.stepper(amps=3.0, deg_s=120.0) as m:
+            got = m.to(45.0)
+            r.check('the stepper slews the command where it was asked',
+                    abs(got - 45.0) < 0.3, got)
+        with rig.motion.servo(amps=3.0) as s:
+            got = s.to(30.0, tol=0.7)
+            r.check('the servo lands the SHAFT inside tolerance',
+                    abs(got - 30.0) < 0.7, got)
+            got = s.to(-10.0, tol=0.7)
+            r.check('and comes back through zero', abs(got + 10.0) < 0.7, got)
+        with rig.motion.velocity(amps=4.0, hz=2.0) as v:
+            got = v.rpm(900, seconds=2.0)
+            r.check('the velocity loop reaches the asked speed',
+                    abs(got - 900.0) < 60.0, got)
+            got = v.stop(1.2)
+            r.check('and brings the rotor back to rest', abs(got) < 60.0, got)
+        r.check('the drive is OFF after every block',
+                rig.drive.state()['mode'] == 'off')
+    finally:
+        rig.close()
+
+
+ROSTER = (test_inverter, test_loop, test_motion,
+          test_arithmetic, test_budget, test_kalman,
           test_crossover_and_verdicts, test_record_units, test_fits,
           test_commissioning_refuses_to_switch,
           test_commissioning_recovers_the_stand_in)

@@ -967,7 +967,16 @@ class SimulatedAngle(PolledSensor):
         self._held = False
 
     def _turn(self):
-        """One turn every twelve seconds, in counts."""
+        """The shaft in counts: the virtual rotor's when one is turning,
+        else one invented turn every twelve seconds - a stand-in that
+        reports one angle for ever is indistinguishable from a dead link.
+        The wiring is `SimulatedBoard`'s, like the DAQ's: a servo closed
+        over this sensor moves the SAME rotor the drive torques."""
+        drive = getattr(self, 'drive', None)
+        if drive is not None and drive._source == 'model':
+            drive.model()                      # advance to now
+            return int(getattr(drive, '_mech', 0.0)
+                       / (2.0 * math.pi) * 4096.0) % 4096
         return int(((time.monotonic() - self._at) / 12.0) * 4096.0) % 4096
 
     def _value(self, register):
@@ -2101,7 +2110,13 @@ class SimulatedDrive:
         i_max = self._p('drv_i_max_ma', 5.0)
         iid = max(-i_max, min(i_max, self._sp['id_ref']))
         iq = max(-i_max, min(i_max, self._sp['iq_ref']))
+        # The speed in the voltage solution: HOLD's is the command's,
+        # SENSORLESS on the model is the tracker's - it was 0.0 there,
+        # vq lost its back-EMF term, and a power measurement read
+        # 0.34 W where the shaft alone carried 34.
         omega = self._omega()
+        if self._mode == 'sensorless' and self._source == 'model':
+            omega = self._omega_hat
         vd = self.R * iid + (2.0 / 3.0) * (self._dt(iid) + self._dt(iid / 2.0)) \
             - omega * self.LQ * iq
         vq = self.R * iq + omega * self._ld(iid) * iid + omega * self.LAMBDA
@@ -2135,6 +2150,8 @@ class SimulatedDrive:
         self._theta_hat = (target + err * math.exp(-dt * 60.0)) % (2 * math.pi)
 
     def state(self):
+        if self._source == 'model':
+            self.model()                   # the rotor up to now, first
         self._converge()
         iid, iq, vd, vq = self._dq()
         ih, eps_amps = self._ih()
@@ -2152,7 +2169,12 @@ class SimulatedDrive:
             'stage_enabled': self._mode != 'off', 'afe_on': True,
             'injecting': bool(self._p('drv_inj_mv', 0.0)) and self._mode in ('hold', 'sensorless'),
             'owns_compares': self._mode != 'off', 'sync_armed': True,
-            'theta_hat': self._theta_hat, 'omega_hat': 0.0,
+            # On the model source the observer is the tracker that
+            # follows the virtual rotor - a speed loop over omega_hat
+            # read 0.0 for ever while the rotor did 8600 rad/s.
+            'theta_hat': self._theta_hat,
+            'omega_hat': (self._omega_hat if self._source == 'model'
+                          else 0.0),
             'theta_cmd': (self._sp['theta'] + self._omega() * (time.time() - self._mode_at)) % (2 * math.pi),
             'omega_cmd': self._omega(),
             'id': iid, 'iq': iq, 'vd': vd, 'vq': vq, 'vdc': DCBUS_V,
@@ -2176,6 +2198,12 @@ class SimulatedDrive:
         if name == 'polarity' and not self._sp['pol_periods']:
             raise RigError('polarity needs pol_periods above zero - one pulse '
                            'of no length measures nothing (simulated)')
+        # INTEGRATE, THEN CHANGE. The rotor advances lazily, so the time
+        # up to this input change belongs to the OLD mode and command - a
+        # stepper that wrote 180 setpoints and read once handed the rotor
+        # one 45-degree leap and a pole slip instead of a slew.
+        if self._source == 'model':
+            self.model()
         self._mode = name
         self._fault = None
         self._mode_at = time.time()
@@ -2190,6 +2218,8 @@ class SimulatedDrive:
         for name in values:
             if name not in self._sp:
                 raise ValueError('%r is not a setpoint; they are %s' % (name, ', '.join(self._sp)))
+        if self._source == 'model':
+            self.model()                       # the old command's time, first
         self._sp.update({k: float(v) for k, v in values.items()})
         return dict(values)
 
@@ -2302,7 +2332,21 @@ class SimulatedDrive:
             if name not in MODEL_IDS:
                 raise ValueError('%r is not a model parameter; they are %s'
                                  % (name, ', '.join(MODEL_IDS)))
+        if self._source == 'model':
+            self.model()                   # the old parameters' time, first
         self._model.update({k: float(v) for k, v in values.items()})
+        # The RUNNING rotor too, as the firmware's own model applies them:
+        # writing `load` mid-hold reached only the dict, and the servo's
+        # sag demo measured nothing because nothing sagged. The map is
+        # explicit - `ld` is a METHOD on Motor (`ld0` holds the number)
+        # and a guessed setattr would shadow it.
+        if self._motor is not None:
+            live = {'r': 'r', 'ld': 'ld0', 'lq': 'lq', 'lambda': 'lam',
+                    'sat': 'sat', 'i_sat': 'i_sat', 'j': 'j', 'b': 'b',
+                    'load': 'load', 'v_dt': 'v_dt', 'i_knee': 'i_knee'}
+            for k, v in values.items():
+                if k in live:
+                    setattr(self._motor, live[k], float(v))
         return dict(values)
 
     def _pll_hz(self):
@@ -2341,22 +2385,46 @@ class SimulatedDrive:
         if self._mode != 'off':
             iid, iq, _, _ = self._dq()
             ld = self._ld(iid)
-            torque = 1.5 * motor.p * (motor.lam * iq
-                                      + (ld - motor.lq) * iid * iq)
+            # TORQUE BY MODE. SENSORLESS commutates on the rotor, so iq is
+            # torque current. HOLD commutates on the COMMANDED angle - a
+            # stepper - and the rotor is dragged by the load-angle spring
+            # `kt i sin(cmd - theta)`: it follows a slewed command, rings
+            # after a step as a stepper does, and slips a pole if the
+            # spring is overpowered, which is what a stepper is.
+            hold = self._mode == 'hold'
+            k_t = 1.5 * motor.p * motor.lam
+            i_mag = math.hypot(iid, iq)
+            if not hold:
+                torque = 1.5 * motor.p * (motor.lam * iq
+                                          + (ld - motor.lq) * iid * iq)
+            cmd = (self._sp['theta']
+                   + self._omega() * (now - dt - self._mode_at))
+            w_cmd = self._omega()
             wm = motor.omega / motor.p
-            # SUBSTEPPED. One Euler step over a poll gap diverges: the
-            # mechanical constant is j/b, a caller reads 0.2 s apart, and
-            # (1 - dt b/j) at the placeholder profile is -4 - the rotor
-            # read +1896, -5770, +24964 rad/s on three polls. Each slice
-            # stays a tenth of the constant, so the step is contractive
-            # whatever the cadence.
+            # SUBSTEPPED, SYMPLECTIC. One Euler step over a poll gap
+            # diverges: (1 - dt b/j) at the placeholder profile is -4 at a
+            # 0.2 s poll and the rotor read +1896, -5770, +24964 rad/s on
+            # three of them. Each slice stays a tenth of the mechanical
+            # constant AND a twentieth of the spring's period; speed then
+            # angle keeps the spring bounded rather than spiralling.
             step = min(0.002, 0.1 * motor.j / max(motor.b, 1e-12))
+            if hold and i_mag > 0.0:
+                spring = 1.5 * motor.p * motor.p * motor.lam * i_mag
+                step = min(step, 0.3 * math.sqrt(motor.j / spring))
             n = max(1, int(math.ceil(dt / step)))
             h = dt / n
             theta = motor.theta
             for _ in range(n):
+                if hold:
+                    cmd += w_cmd * h
+                    torque = k_t * i_mag * math.sin(cmd - theta)
                 wm += (torque - motor.b * wm - motor.load) / motor.j * h
                 theta += wm * motor.p * h
+            # The SHAFT, accumulated: electrical theta wraps at 2 pi and a
+            # shaft sensor reads the mechanical angle, which is 1/p of the
+            # whole unwrapped travel - `SimulatedAngle` reads this.
+            self._mech = (getattr(self, '_mech', 0.0)
+                          + (theta - motor.theta) / motor.p)
             motor.omega = wm * motor.p
             motor.theta = theta % (2.0 * math.pi)
         # THE LAG IS CLOSED FORM, NOT INTEGRATED. A one-pole decay over dt
@@ -2520,6 +2588,10 @@ class SimulatedBoard:
             # one electrical angle, or they are two inventions that
             # happen to be printed together.
             self.daq.drive = self.drive
+            # The shaft sensor reads the SAME rotor: a servo closed over
+            # the A1335 moves what the drive torques, or the loop it
+            # closes is between two inventions.
+            self.angle.drive = self.drive
             # `zero()` reads a channel, so it needs the board that
             # has them.
             self.calibration.board = self

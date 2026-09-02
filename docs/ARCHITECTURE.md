@@ -140,6 +140,15 @@ turns (without it the fit read R at -218 %), and the machine publishes
 before it advances so a recorded row pairs a voltage with the state it
 acts on (published after, R read +17 % and Lq -4 % from alignment alone).
 
+`motion.py` is the drive as three verbs - stepper, servo, velocity -
+host loops priced by the link: ~7 ms a write buys tens of hertz, so the
+stepper slews, the servo corrects BETWEEN moves (a per-pass position
+loop at link rate samples the load-angle resonance aliased and pumps it
+- measured, six clean passes wound the rotor through a pole slip), and
+the velocity loop is `coaxial.loop`'s law over `omega_hat` - an ESC's
+contract. Every block requires the stage armed first through
+`gates.arm()` and leaves the drive OFF however it ends.
+
 `tools/observer_run.py` runs the firmware's own observer, not a model of
 it: it builds `Drive/` with the host gcc through the same ctypes bench the
 suite uses, and asks how hard the thing can be driven rather than whether
@@ -179,7 +188,7 @@ tool routing, mid-session board and model swaps (MODELS.md).
 
 ## The test system
 
-Twenty-five suites, 2321 checks. `run_tests.ps1` is the only interface -
+Twenty-five suites, 2350 checks. `run_tests.ps1` is the only interface -
 CLAUDE.md, *Commands*, has the tiers and the rules.
 
 * **A missing cable is not a failure.** A disconnected board falls back to

@@ -230,6 +230,10 @@ class Coaxial63100(Acquisition):
         # a Later whose open() opens the device. open() below sets the real
         # GateStage over it.
         self.daq = DaqView(self)
+        # Motion, the same way: bound before open() so `device.motion`
+        # reads like `device.daq`, opened lazily by its factories.
+        from .motion import Motion
+        self.motion = Motion(self)
         self.origin = None
         self.simulated = simulated_device
         self.layout = None

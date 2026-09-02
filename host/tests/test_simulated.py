@@ -1279,13 +1279,15 @@ def test_virtual_rotor(report):
                  still['theta'] == 0.0 and 'theta_hat' not in still, still)
 
     def spin(iq, l2, seconds=0.05):
+        # SENSORLESS is the torque path: iq commutated on the rotor. HOLD
+        # is a load-angle spring since the stepper physics landed, and a
+        # torque check through it would measure the spring instead.
         drive = SimulatedDrive()
         drive.source('model')
         drive.model_reset()
         drive.set_params(drv_l2_milli=l2)
         drive.setpoint(iq_ref=iq)
-        drive._mode = 'hold'
-        drive._sp['omega_target'] = 400.0
+        drive._mode = 'sensorless'
         time.sleep(seconds)
         drive.model()
         time.sleep(seconds)

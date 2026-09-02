@@ -352,6 +352,7 @@ TOUCHES = (
     # with closed-form checks; the Monte Carlo drives the compiled law.
     ('host/coaxial/inverter.py',      (SENSORLESS,)),
     ('host/coaxial/loop.py',          (SENSORLESS, DRIVE)),
+    ('host/coaxial/motion.py',        (SENSORLESS, 'test_simulated.py')),
     ('host/tools/montecarlo.py',      (STRUCTURE, DRIVE)),
     # BENCH is here and not with the host suites: what slows the board down
     # is firmware in the main loop, and the regression it guards against was

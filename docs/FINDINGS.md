@@ -2709,3 +2709,37 @@ The structure suite parses notebook code cells as modules now (BESIDE),
 so the AST net that once caught a stale `daq.read` in
 gate_drivers_session still covers the examples in their new form -
 523 checks, 12 of them the notebooks'.
+
+## Motion at link rate: what a 7 ms write can and cannot close
+
+Building `coaxial.motion` against the stand-in's rotor, three control
+lessons, each measured before it was believed:
+
+* **A per-pass position loop pumps the resonance it cannot see.** The
+  load-angle spring on the placeholder profile rings at ~37 Hz; the link
+  corrects at ~25. P alone: six converging passes, then a pole slip into
+  a 50 rad/s freewheel. PD: worse (the derivative of an aliased signal).
+  The shape that works is the closed-loop stepper's: slew smoothly,
+  let the ring die, read the sensor as a short MEAN (the ring is
+  symmetric about the load's equilibrium - one read froze up to its
+  amplitude into the reference frame), correct what the load stole.
+* **An overstated inertia is an overstated gain.** The velocity loop
+  with j assumed five times the plant put per-pass loop gain at 2.5:
+  +900 rpm asked, -1552 delivered, the sign alternating and doubling.
+  Defaults are now the SMALLEST plausible machine - understating is
+  merely sluggish.
+* **Energize softly, count from the detent.** Full current onto an
+  unknown rotor is a yank of up to half a pole that an underdamped rotor
+  rides through pole after pole; ramped over six writes it detents and
+  stays. The angle frame is incremental from there - absolute waits on
+  an encoder-offset commissioning that does not exist yet.
+
+And the stand-in physics that had to become real before any of it could
+be tested: HOLD is a load-angle spring now (a stepper that follows,
+rings, and slips), the lazy rotor integrates up to EVERY input change
+(180 setpoint writes used to arrive as one 45-degree leap), sensorless
+dq carries the back-EMF term (a power measurement read 0.34 W where the
+shaft alone bore 34), `model_param` reaches the RUNNING motor as the
+firmware's own model does, and the substeps are symplectic so the spring
+rings instead of exploding. The shaft sensor and the DAQ records read
+the same rotor the drive torques - one rotation, now seen three ways.

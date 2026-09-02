@@ -61,6 +61,9 @@ without running; `SIMULATED = False` and a port at the bench.
 | `shared_session.ipynb` | two sessions on one port, and who else is attached |
 | `imu_session.ipynb` | the BNO085, and the three things it refuses over |
 | `auto_tune.ipynb` | the bench day: commission, identify, tune, write, verify |
+| `position_servo.ipynb` | the PMSM as stepper and servo, ring and sag measured |
+| `position_and_sensorless.ipynb` | observer vs shaft sensor, one rotor two answers |
+| `app_*.ipynb` | quad lane, wing cruise, two-joint arm, precision hold |
 | `angle_session.py` | the A1335's registers, and whether there is a magnet |
 | `thermal_budget.py` | the SOA budget, and a burst planned against it |
 | `thermal_model.py` | the node network in Python, and how it was fitted |
