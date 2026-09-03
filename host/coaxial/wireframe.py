@@ -1266,7 +1266,16 @@ def _trace(x0, y0, w0, x1, y1, w1, dot):
 #: face glyph there is nothing to OR with and the dots replace it,
 #: which is what drawing in front means.
 TRIAD_REACH = (4, 7)
-TRIAD_MARGIN = (2, 1)
+#: Flush into the corner, no inset. The reach is measured to the TIP
+#: and a letter lands one cell past it, so the letter is what the
+#: margin ever protected - and it does not need protecting: swept over
+#: 60 orientations at 60x20, 80x24, 120x36 and 150x44, every one of X,
+#: Y and Z is lettered exactly once at (0, 0). What the inset cost was
+#: the corner itself: at 80x24 and zoom 1.6 the board reached into the
+#: gizmo's footprint in 17 of 40 frames and 37 cells at the old (2, 1),
+#: against 15 and 19 flush; at 150x44, 9 frames and 21 cells against 5
+#: and 6.
+TRIAD_MARGIN = (0, 0)
 TRIAD_DIM = 0.45
 TRIAD_LABEL_LIFT = 0.35
 TRIAD_AXES = (((1.0, 0.0, 0.0), 'X', 214), ((0.0, 1.0, 0.0), 'Y', 44),
