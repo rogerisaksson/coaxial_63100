@@ -27,6 +27,12 @@ source, the dq currents, the innovation, the interrupt's cost.
     A       arm / disarm the stage - only with --switch
     Q / ESC close / menu
 
+If the machine reads as an ellipse rather than a circle, that is the
+terminal's font and not the drawing: `--cell-aspect` corrects it. The
+geometry is round at 2.0 - measured, 25.16 cell-widths each way - and a
+taller cell stretches it in Y by the same ratio. A row is four dots, so
+the steps are coarse; 2.4 is what rounds it at this size.
+
 The two loops are independent and drive different axes - the speed loop
 `iq` and the shaft, the load loop `id` - so either runs alone or both
 together. On the stand-in the speed loop starts on its own, because a
@@ -396,10 +402,15 @@ def gutter_caption():
     # by the row above it; these have nothing above them but the drawing,
     # so the arrows say which is which - the winding is the upper of the
     # two and the power the lower.
-    foot = '%s WINDING C' % UP
+    # EACH LABEL IN ITS OWN BAR'S INK. One grey line named two gauges
+    # drawn in two colours, so which word went with which bar was left to
+    # the arrows alone. The colour is the faster half of that answer.
+    head = '%s WINDING C' % UP
     tail = 'kW %s' % DOWN
-    return (''.join(top), ''.join(bottom),
-            foot.ljust(ART_WIDTH - len(tail))[:ART_WIDTH - len(tail)] + tail)
+    pad = ART_WIDTH - len(head) - len(tail)
+    foot = (tint(head, machine.INK[machine.SOA_WARN]) + ' ' * max(0, pad)
+            + tint(tail, machine.INK[machine.WATTS]))
+    return ''.join(top), ''.join(bottom), foot
 
 
 def phase_amps(view):
@@ -1235,7 +1246,7 @@ def compose(rig, origin, console, view):
     # costs the machine one of its own, which is cheaper than the guess.
     heads = gutter_caption()
     caption = [tint(line, ASH) for line in heads[:2]]
-    foot = tint(heads[2], ASH)
+    foot = heads[2]          # already inked, one colour per gauge
     turned = math.degrees(s['theta_hat']) / pole_pairs
     # THE CAN AND THE POINTER ARE DIFFERENT QUANTITIES. The can is drawn
     # from the electrical angle over the pole pairs, which is right
@@ -1249,7 +1260,7 @@ def compose(rig, origin, console, view):
                          ART_WIDTH, ART_HEIGHT - 3,
                          truth_deg=(math.degrees(truth['theta']) / pole_pairs
                                     if truth else None),
-                         amps=amps, full=full,
+                         amps=amps, full=full, aspect=view['aspect'],
                          pointer_deg=view['travel'] - view['tare'],
                          left=soa_bars(view, SOA_NODES),
                          right=soa_bars(view, BOARD_NODES),
@@ -1399,6 +1410,14 @@ def parse_args(argv):
     p.add_argument('--hz', type=float, default=8.0)
     p.add_argument('--source', choices=('model', 'adc'), default='model')
     p.add_argument('--motor', help='a profile under motors/, written first')
+    p.add_argument('--cell-aspect', type=float, default=machine.CELL_ASPECT,
+                   help='what makes the can round on THIS terminal. The '
+                        'geometry is exactly round at 2.0 - measured, 25.16 '
+                        'cell-widths each way - so an ellipse is the font '
+                        'being taller than one by two. The steps are coarse: '
+                        'a row is four dots, about 8 %% of the diameter, so '
+                        'the value that rounds it is not always the font\'s '
+                        'true ratio. Try 2.4 if it looks stretched in Y.')
     p.add_argument('--slots', type=int, default=24,
                    help='stator teeth to draw. NOT a measurement: the slot '
                         'count is not in the calibration record and cannot '
@@ -1450,6 +1469,24 @@ def preflight(rig, args):
     say('ok', 'trip', '%.1f A clamp, %.1f A trip, rating %.0f'
         % (params['drv_i_max_ma'], params['drv_i_trip_ma'], RATING_A))
     return params
+
+
+def demo_stage(rig, origin):
+    """Give the stand-in a bridge to switch. Simulated only.
+
+    Everything on this page worth watching is downstream of current in
+    the legs, and there is no current without MOE: the thermal observer
+    saw a stage that never switched, so nothing warmed, SOA HEADROOM sat
+    at its ceiling and the switch thermometers at ambient.
+
+    On a board this is `--switch` and a key press, because arming one is
+    arming a power stage. A stand-in has no stage, and a page that cannot
+    show the envelope working is not worth opening.
+    """
+    if origin.real:
+        return
+    rig.board.gate_drivers.bypass_break(True)
+    rig.board.gate_drivers.enable()
 
 
 def demo_defaults(args, origin):
@@ -1533,6 +1570,8 @@ def main(argv=None):
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
     view_step = demo_defaults(args, origin)
+    demo_stage(rig, origin)
+
     try:
         params = preflight(rig, args)
     except RigError as exc:
@@ -1547,6 +1586,7 @@ def main(argv=None):
             'vd': args.vd, 'v_inj': args.v_inj, 'inject': True,
             'inj_periods': int(params.get('drv_inj_periods') or 1),
             'step': view_step, 'slots': args.slots, 'switch': args.switch,
+            'aspect': args.cell_aspect,
             'spin': not origin.real, 'spin_at': time.time(),
             'simulated': not origin.real,
             'tare': 0.0, 'sweep_at': time.time(),

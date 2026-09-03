@@ -34,12 +34,19 @@ not a claim about which way the shaft turns (invariant 10).
 import math
 
 from . import ansi
+from .ascii3d import CELL_ASPECT
 from .raster import BRAILLE, BRAILLE_BITS
 
 #: A character cell is about one wide by two tall and a braille cell is
-#: two dots by four, so a DOT IS SQUARE and nothing here needs an aspect
+#: two dots by four, so a DOT IS SQUARE and the circle is round without
 #: correction.
 DOTS_X, DOTS_Y = 2, 4
+
+#: HOW TALL A CELL ACTUALLY IS, in units of its width - `ascii3d`'s, not
+#: a second copy: it is a property of the terminal's font and every
+#: renderer in this tree has to agree about it or two pictures on one
+#: page are drawn at different aspects. A font that runs taller draws
+#: this circle as an ellipse, tall by exactly the ratio.
 
 #: How much of the box the machine fills. Under one: a drawing that ends
 #: exactly on the frame reads as something cropped rather than something
@@ -54,7 +61,7 @@ DOTS_X, DOTS_Y = 2, 4
 #: columns and at 0.70 they ran to the frame's edge: the left group sat
 #: hard against the machine while the right had two columns of air, and
 #: the two sides read as different distances because they were.
-F_FIT = 0.62
+F_FIT = 0.68
 
 #: Every radius as a fraction of the outermost, which is sized to the box
 #: it is drawn in. NOT fixed dot counts: the drawing was tuned at 40x14,
@@ -442,7 +449,7 @@ def _bars(dots, owner, width, height, left, right, r, floors=1):
 
 
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
-            pointer_deg, left, right, top, bottom):
+            pointer_deg, left, right, top, bottom, aspect):
     """Dots and their owners, one entry per character cell."""
     dots = [[0] * width for _ in range(height)]
     owner = [[-1] * width for _ in range(height)]
@@ -459,11 +466,12 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             if cls is not None and cls > owner[row][col]:
                 owner[row][col] = cls
 
+    stretch = aspect / DOTS_Y * DOTS_X
     for y in range(height * DOTS_Y):
         for x in range(width * DOTS_X):
             cls = None
             for ox, oy in SUBDOT:
-                dx, dy = x + ox - cx, cy - y - oy
+                dx, dy = x + ox - cx, (cy - y - oy) * stretch
                 at = _classify(math.hypot(dx, dy), math.atan2(dy, dx),
                                rotor, slots, poles, r, drive)
                 if at is not None and (cls is None or at > cls):
@@ -541,7 +549,7 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
 def render(rotor_deg, slots=24, poles=28, width=40, height=22,
            truth_deg=None, amps=None, full=None, pointer_deg=None,
            left=None, right=None, top=None, bottom=None,
-           colour=False):
+           aspect=CELL_ASPECT, colour=False):
     """The cross-section, `rotor_deg` being how far the can has turned.
 
     `rotor_deg` is mechanical: the electrical angle over the pole pairs.
@@ -567,6 +575,12 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     of them on the last rows, one each. What they measure is the
     caller's; this draws levels.
 
+    `aspect` is how tall the terminal's cell is against its width. The
+    geometry is exactly round at 2.0 - measured, 25.16 cell-widths each
+    way - so a can that reads as an ellipse is the FONT saying it is not
+    2.0, and this is where a bench tells the drawing what its font does.
+    Ten per cent tall is a 2.2 cell, which several fonts are.
+
     Colour is asked for here rather than applied afterwards: a braille
     cell carries dots from up to eight places and its glyph does not say
     which, so there is nothing for a `colourise(text)` to key on.
@@ -576,7 +590,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     drive = _drive(amps, full)
     dots, owner = _raster(rotor_deg, slots, poles, width, height,
                           truth_deg, drive, pointer_deg, left, right,
-                          top, bottom)
+                          top, bottom, aspect)
     ink = phase_ink(drive)
     lines = []
     for row in range(height):

@@ -336,7 +336,17 @@ class SimulatedDrive:
         gain = self._p('drv_eps_gain_ua_per_rad', 0.0)
         return {
             'mode': self._mode, 'fault': self._fault,
-            'stage_enabled': self._mode != 'off', 'afe_on': True,
+            # THE BRIDGE, NOT THE MODE. `cmd_drive.c` packs this bit
+            # from `Board_PwmIsEnabled()` - MOE - and this answered
+            # whether the drive was in a mode, which is a different fact:
+            # a drive can be running a mode with the gates held off, and
+            # that is exactly what the thermal envelope does to it. The
+            # page said `stage ARMED` while nothing switched, and the
+            # thermal observer - which keys off the real one - saw no
+            # current and reported a board that never warmed.
+            'stage_enabled': bool(self._switching()) if self._switching
+                             else self._mode != 'off',
+            'afe_on': True,
             'injecting': bool(self._p('drv_inj_mv', 0.0)) and self._mode in ('hold', 'sensorless'),
             'owns_compares': self._mode != 'off', 'sync_armed': True,
             # On the model source the observer is the tracker that
