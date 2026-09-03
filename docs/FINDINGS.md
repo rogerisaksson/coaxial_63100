@@ -338,6 +338,51 @@ happened between two polls.
   slices, stepping and evaluating on each, capped at `THERMAL_CATCHUP_MS`
   = 2000. Past that the power sample is too stale to integrate: a model
   fed one reading for two seconds is inventing the heat it did not see.
+### The burst budget rests on a number nobody took, 2026-09-03
+
+Traced after reading Silva 2022 (Appl. Sci. 12, 12555) on the transient
+response of thermal circuits. `thermal.c` has said it since the campaign:
+
+> Heat capacity. The board dominates: tau 6.8 min against 8.33 K/W is
+> about 49 J/K. **The parts' own are not measured** - they respond in
+> seconds, below what this rig can resolve, and **only affect the
+> settling**.
+
+* The board's 49 J/K is fitted to a MEASURED transient, so it is already
+  an effective capacity. The leg nodes' 0.35/3 and 1.20/3 J/K are not
+  measured at all - the four camera states were each held 25 minutes,
+  which is equilibrium, so nothing in the campaign could see a leg's time
+  constant.
+* **The last clause is no longer true.** The envelope divides by exactly
+  those numbers: `soak_j` is `capacity x (limit - t)`, `hold_seconds` is
+  that over the net watts, and the throttle's reaction window is a
+  multiple of it. Every burst figure above rests on them.
+* Silva's Eq. 12-14 bounds how wrong: a lumped element's EFFECTIVE
+  transient capacity is `gamma C` with `gamma = 1/3` less a negative term
+  per contact with a better conductor, because heat crosses a distributed
+  body in one direction. If 0.35 J/K was a guess at the PHYSICAL
+  capacity, the transient one is up to three times smaller; if it was
+  already a guess at the effective one, it stands. Nothing on record says
+  which, so the honest answer is a band. Measured in
+  `test_thermal_core.py`:
+
+  | driver node capacity | soak at 100 A | burst to the ceiling | throttle first acts |
+  |---|---|---|---|
+  | 0.1167 J/K *(on record)* | 12.25 J | **0.67 s** | 0.40 s |
+  | 0.0389 J/K *(x gamma)* | 4.08 J | **0.22 s** | **0.00 s** |
+
+* THE TWO UNMEASURED NUMBERS ARE COUPLED. At gamma the node's whole hold
+  from ambient is shorter than `soa_lookahead_ms` = 2000, so the clamp
+  closes from a cold board and the 100 A burst is forbidden outright -
+  the same failure the old temperature projection had, arrived at from
+  the other side. A reaction window is only sane against a capacity that
+  is known.
+* WHAT SETTLES IT, and it is the only soft number a TRANSIENT can reach
+  rather than an equilibrium: a power step and the NTC's slope. With the
+  coupling at one the thermistor reads the leg lump, so `dT/dt` right
+  after a step is `P / capacity` outright - no camera needed, and
+  `tools/pulse.py` already makes the step.
+
 ### The NTC coupling is one point, stretched ten times, 2026-09-03
 
 Raised at the bench: the NTC runs away as soon as the stage switches, and

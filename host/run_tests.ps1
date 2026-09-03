@@ -31,7 +31,7 @@
     order of seconds per check, so the first of a budget buys the cheapest
     checks there are. The ollama suites are in from the first tier and narrow
     THEMSELVES - the depth reaches their own subject budget, which is where
-    the fine resolution lives, because 766 of this tree's 2570 checks are in
+    the fine resolution lives, because 766 of this tree's 2576 checks are in
     that one file.
 
     Which subjects, and which suites the changes can have broken, is the

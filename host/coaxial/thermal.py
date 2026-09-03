@@ -98,6 +98,41 @@ def pretty(node):
 LEG_TO_BOARD = 45.6
 DRIVER_SWITCH_WATT = 0.60 / 3
 
+#: The leg nodes' heat capacity, J/K, LUMPED FOR THREE and divided below.
+#:
+#: **NOT MEASURED.** `thermal.c` has said so since the campaign - "the
+#: parts' own are not measured, they respond in seconds, below what this
+#: rig can resolve, and only affect the settling" - and that last clause
+#: was true when this model was a steady-state fit and is FALSE NOW. The
+#: envelope divides by exactly these numbers: `soak_j` is
+#: `capacity x (limit - t)`, `hold_seconds` is that over the net watts,
+#: and the throttle's whole reaction window is a multiple of it. Every
+#: burst figure in FINDINGS rests on a number nobody took.
+#:
+#: HOW WRONG IT COULD BE, from Silva 2022 (Appl. Sci. 12, 12555): a
+#: lumped element's EFFECTIVE transient capacity is `C* = gamma C` with
+#: gamma = 1/3 less a negative term for every contact with a better
+#: conductor - heat crosses a distributed body in one direction, so a
+#: third of the mass is what the transient sees. If 0.35 was a guess at
+#: the physical capacity, the transient one is up to three times smaller
+#: and every burst is three times shorter. If it was already a guess at
+#: the effective one, it stands. Nothing on record says which, so the
+#: honest reading is a BAND rather than a value, and
+#: `test_thermal_core.py` measures what the band is worth.
+#:
+#: WHAT WOULD SETTLE IT, and it is the one soft number a transient can
+#: reach: a power step and the NTC's slope. With the coupling at one the
+#: thermistor reads the leg lump, so `dT/dt` right after a step is
+#: `P / capacity` directly - no camera, and `tools/pulse.py` already
+#: makes the step.
+LEG_CAPACITY_DRIVERS = 0.35
+LEG_CAPACITY_PHASES = 1.20
+
+#: Silva's leading term, for a bench that wants to see the other end of
+#: the band. NOT APPLIED - applying it would be correcting an unattributed
+#: number by a factor and calling the product measured.
+CAPACITY_GAMMA = 1.0 / 3.0
+
 #: How far the drivers node sat above the board while switching, K.
 #:
 #: NOT A MEASUREMENT AND NOT A CONSTANT OF ITS OWN - it is the product
@@ -151,7 +186,7 @@ NTC_SEES_DRIVERS = 1.0
 #: is named here rather than buried so that a bench day can replace it
 #: with the real one. It bounds a RATE and touches no steady state: the
 #: campaign is reproduced exactly either way.
-NTC_TAU_S = (0.35 / 3) * LEG_TO_BOARD
+NTC_TAU_S = (LEG_CAPACITY_DRIVERS / 3) * LEG_TO_BOARD
 
 #: What the campaign's switching state misses by with the coupling at
 #: one. Kept as a number rather than absorbed into a slope: it is the
@@ -177,8 +212,8 @@ CFG = {
     # times as far and three times as fast, which is the whole point.
     'to_board': dict([(n, LEG_TO_BOARD) for n in DRIVERS + PHASES]
                      + [('mcu', 22.5), ('regulators', 15.0), ('afe', 41.5)]),
-    'capacity': dict([(n, 0.35 / 3) for n in DRIVERS]
-                     + [(n, 1.20 / 3) for n in PHASES]
+    'capacity': dict([(n, LEG_CAPACITY_DRIVERS / 3) for n in DRIVERS]
+                     + [(n, LEG_CAPACITY_PHASES / 3) for n in PHASES]
                      + [('mcu', 0.90), ('regulators', 0.80), ('afe', 0.30)]),
 }
 

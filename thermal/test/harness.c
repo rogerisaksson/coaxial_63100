@@ -113,6 +113,21 @@ API float thm_at(const thermal_t *th, int node)
 }
 
 
+/** Move one node's network parameters, so a test can ask what an
+  * unmeasured constant is worth. `thermal_set_node`'s own refusals apply:
+  * a non-positive resistance or capacity is declined rather than stored.
+  */
+API int thm_set_node(thermal_t *th, int node, float to_board, float capacity)
+{
+  if ((th == NULL) || (node < 0) || (node >= (int)THERMAL_NODES))
+  {
+    return 0;
+  }
+  return thermal_set_node(th, (thermal_node_t)node, to_board, capacity)
+         ? 1 : 0;
+}
+
+
 /** The modelled thermistor reading - the lagged state, not the algebra. */
 API float thm_ntc(const thermal_t *th)
 {

@@ -86,6 +86,12 @@ class Model:
     def capacity(self, node):
         return self.lib.thm_capacity(self.h, NODES.index(node))
 
+    def set_node(self, node, to_board, capacity):
+        return bool(self.lib.thm_set_node(self.h,
+                                          ctypes.c_int(NODES.index(node)),
+                                          ctypes.c_float(to_board),
+                                          ctypes.c_float(capacity)))
+
     def ntc(self):
         return self.lib.thm_ntc(self.h)
 
@@ -621,6 +627,81 @@ def test_the_thermistor_has_mass(report, lib):
                  '%.2f C against %.2f' % (model.ntc(), target))
 
 
+#: Silva 2022 (Appl. Sci. 12, 12555), Eq. 12-14: a lumped element's
+#: effective transient capacity is `gamma C`, gamma = 1/3 less a negative
+#: term per contact with a better conductor, because heat crosses a
+#: distributed body in one direction.
+GAMMA = 1.0 / 3.0
+
+
+def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
+    """What the leg capacity is worth, since nobody measured it.
+
+    `thermal.c` has said so since the campaign: "the parts' own are not
+    measured - they respond in seconds, below what this rig can resolve,
+    and only affect the settling". THE LAST CLAUSE IS NO LONGER TRUE. The
+    envelope divides by exactly these numbers - `soak_j` is
+    `capacity x (limit - t)`, `hold_seconds` is that over the net watts,
+    and the throttle's reaction window is a multiple of it.
+
+    So this does not assert a value. It measures the BAND: what the burst
+    budget becomes at the capacity on record and at Silva's gamma, which
+    is the other end of what the number could honestly be. A test that
+    pinned one of them would be claiming a measurement nobody took.
+    """
+    watt = power(lib, phase_amps=(100.0, 0.0, 0.0), duty=(0.5, 0.0, 0.0),
+                 link_volts=48.0, switching=True)
+    seen = {}
+    for name, scale in (('on record', 1.0), ('at gamma', GAMMA)):
+        model = Model(lib)
+        base = model.capacity('driver_u')
+        report.check('the capacity moves when a bench moves it (%s)' % name,
+                     model.set_node('driver_u', 45.6, base * scale),
+                     '%.4f J/K' % (base * scale))
+        got = model.budget(watt, lookahead_s=LOOKAHEAD_S)
+        # Seconds from ambient to the ceiling at this power, which is what
+        # a burst is spending.
+        seen[name] = (got['soak_j']['driver_u'],
+                      got['soak_j']['driver_u'] / watt['driver_u'])
+
+    report.check('the soak scales with it exactly - it IS the capacity '
+                 'times the rise left',
+                 abs(seen['at gamma'][0] / seen['on record'][0] - GAMMA)
+                 < 1e-3,
+                 '%.2f J against %.2f J' % (seen['at gamma'][0],
+                                            seen['on record'][0]))
+    report.check('and so does the burst, one for one',
+                 abs(seen['at gamma'][1] / seen['on record'][1] - GAMMA)
+                 < 1e-3,
+                 '%.2f s against %.2f s at 100 A'
+                 % (seen['at gamma'][1], seen['on record'][1]))
+
+    # THE BAND, stated as a number a bench can act on. Nothing here says
+    # which end is right; that is what the power step would answer.
+    report.check('so the 100 A burst budget is a band, not a figure',
+                 seen['at gamma'][1] < seen['on record'][1],
+                 'between %.2f s and %.2f s on the driver node'
+                 % (seen['at gamma'][1], seen['on record'][1]))
+
+    # AND THE THROTTLE MOVES WITH IT. The lookahead window is a fixed time,
+    # so a lighter node crosses it sooner - the reaction the envelope gets
+    # is shorter by the same factor, which is the part that costs silicon.
+    first = {}
+    for name, scale in (('on record', 1.0), ('at gamma', GAMMA)):
+        model = Model(lib)
+        model.set_node('driver_u', 45.6, model.capacity('driver_u') * scale)
+        for step in range(4000):
+            model.step(watt, 0.02)
+            if model.budget(watt, lookahead_s=LOOKAHEAD_S)['derate'] < 0.999:
+                first[name] = step * 0.02
+                break
+    report.check('the throttle acts sooner on a lighter node, by the same '
+                 'factor the capacity moved',
+                 'at gamma' in first and first['at gamma'] < first['on record'],
+                 '%.2f s against %.2f s' % (first.get('at gamma', -1),
+                                            first.get('on record', -1)))
+
+
 def test_it_refuses_nothing_and_returns_no_codes(report, lib):
     """No limit set is not an error, it is a node nobody constrained.
 
@@ -684,6 +765,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_conduction_is_split_where_it_is_made,
           test_conduction_is_a_mean_square_not_a_sample,
           test_the_thermistor_has_mass,
+          test_the_burst_budget_rests_on_an_unmeasured_capacity,
           test_it_refuses_nothing_and_returns_no_codes,
           test_the_time_left_is_reported_or_not_claimed)
 

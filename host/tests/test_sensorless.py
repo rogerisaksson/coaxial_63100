@@ -407,7 +407,17 @@ def test_motion(r):
             got = s.to(0.0, tol=0.8)
             r.check('a load pulse sags the hold and the servo takes it back',
                     sagged < -1.0 and abs(got) <= 0.8, (sagged, got))
-            rig.drive.model_param(load=0.4)      # past 3 A of holding torque
+            # PAST 3 A OF HOLDING TORQUE BY A MARGIN THAT NO TIMING CAN
+            # CLOSE. It was 0.4 N.m against the 0.18 that 3 A makes on this
+            # machine - twice over, and still it returned about one run in
+            # four, but only inside the full offline gate and never in six
+            # runs of this suite alone. The stand-in integrates against the
+            # WALL CLOCK, so a loaded machine hands each try a different
+            # amount of model time and a wound-up servo can swing through
+            # the target. A load this far past the torque cannot be held
+            # for any amount of model time, which is what the check is
+            # about; the margin is the fix, not a longer timeout.
+            rig.drive.model_param(load=1.2)
             try:
                 s.to(30.0, tol=0.5, tries=2)
                 r.check('an overpowered servo raises, not returns', False)

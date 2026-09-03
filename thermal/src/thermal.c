@@ -76,8 +76,29 @@ void thermal_defaults(thermal_cfg_t *cfg)
   cfg->node[THERMAL_BOARD].to_board      = 0.0f;    /* it is the board */
 
   /* Heat capacity. The board dominates: tau 6.8 min against 8.33 K/W is
-     about 49 J/K. The parts' own are not measured - they respond in seconds,
-     below what this rig can resolve, and only affect the settling. */
+     about 49 J/K, and that one is MEASURED - fitted to a transient, so it
+     is already an effective capacity.
+
+     THE PARTS' OWN ARE NOT MEASURED. This comment used to end "and only
+     affect the settling", which was true while the model was a
+     steady-state fit and is false now: the envelope divides by exactly
+     these numbers. `soak_j` is capacity x (limit - t), `hold_seconds` is
+     that over the net watts, and the throttle's reaction window is a
+     multiple of it. Every burst figure on record rests on a number
+     nobody took.
+
+     Silva 2022 (Appl. Sci. 12, 12555) puts a bound on how wrong: a
+     lumped element's effective transient capacity is gamma C, gamma =
+     1/3 less a negative term per contact with a better conductor,
+     because heat crosses a distributed body one way. If 0.35 was a guess
+     at the physical capacity then the transient one is up to three times
+     smaller and every burst is three times shorter; if it was already a
+     guess at the effective one it stands. Nothing on record says which.
+
+     A power step and the NTC's slope would settle it - with the coupling
+     at one the thermistor reads the leg lump, so dT/dt after a step is
+     P / capacity outright. It is the only one of the soft numbers a
+     transient can reach rather than an equilibrium. */
   for (int leg = 0; leg < 3; leg++)
   {
     /* A third each, so the three together store what the lumped node did -
