@@ -370,6 +370,55 @@ arithmetic says the doubt is the right one.
   per leg. All three of this model's soft numbers are fitted at one tenth
   of the load the board is rated for.
 
+**Test vectors, 2026-09-03.** Run on the lumped model after the bench saw
+the NTC spike ABOVE the switch temperatures.
+
+* The model is `NTC = board + c (driver_v - board) + k` with c = 1.053
+  and k = 6.0, so `NTC - driver_v = 0.053 x rise + 6.0` - **positive at
+  every rise, by construction**. Swept: +6.0 K over the driver node at
+  rest, +6.5 K at the 9.1 K rise it was fitted at, +9.8 K at 70 K, +11.5 K
+  at 100 K. A passive sensor cannot be hotter than the thing heating it.
+* It is already wrong AT THE FIT POINT. The camera saw the NTC 15.6 K over
+  the board in the switching state while the model's driver node rose only
+  9.1 K, so the fit says the sensor sat 6.5 K above its own source before
+  anything was extrapolated.
+* ONE MEASUREMENT, TWO UNKNOWNS. That state fixes only the product:
+  `c x to_board = 48.0 K/W`, since the driver's switching share is
+  0.20 W. Every pair on that curve fits the camera exactly:
+
+  | to_board | coupling | driver rise at fit | NTC - driver at fit | NTC when a driver is at 100 C over a 45 C board |
+  |---|---|---|---|---|
+  | 45.6 K/W *(current)* | 1.053 | 9.1 K | **+6.5 K** | 108.9 C (+9 K) |
+  | 60 | 0.800 | 12.0 K | +3.6 K | 95.0 C (-5 K) |
+  | 78 | 0.615 | 15.6 K | 0.0 K | 84.8 C (-15 K) |
+  | 100 | 0.480 | 20.0 K | -4.4 K | 77.4 C (-23 K) |
+  | 150 | 0.320 | 30.0 K | -14.4 K | 68.6 C (-31 K) |
+  | 250 | 0.192 | 50.0 K | -34.4 K | 61.6 C (-38 K) |
+  | 400 | 0.120 | 80.0 K | -64.4 K | 57.6 C (-42 K) |
+
+  **`to_board` must exceed 78 K/W for the sensor to sit below its source
+  at all.** The campaign fixed it at 45.6 - itself three times a lumped
+  15.2 the camera saw once - and solved for the coupling; fixing the
+  coupling at something physical and solving for `to_board` fits the same
+  measurement just as well. The bench's own expectation, the NTC 40-50 K
+  below a 100 C local hot spot, lands at 250-400 K/W with a coupling of
+  0.12-0.19.
+* THE LIKELIEST READING: the model has no board GRADIENT. `board` in that
+  state is the camera at one spot and the copper under the thermistor need
+  not be that spot; a fit with nowhere else to put the difference puts it
+  in the coupling. Six kelvin of local gradient at the fit point would
+  take the coupling to about 0.4 and leave `to_board` alone.
+* Also structural: the modelled NTC has NO TIME CONSTANT of its own. It is
+  algebra on the driver node, so it follows a fast silicon node one for
+  one, where a thermistor in copper is a low pass with the copper's own
+  mass behind it. A coupling well below 1 gives that for free - the
+  reading becomes mostly the slow board node - which is the same fix, from
+  the other end.
+* `DRIVER_RISE_SWITCHING` was a bare 9.1 written beside the two numbers it
+  is the product of. Derived now (`DRIVER_SWITCH_WATT * LEG_TO_BOARD`), so
+  the dependency is where a reader will trip over it: the coupling is
+  solved against a fitted number, not a measured one.
+
 ### Conduction was one sample squared, 2026-09-03
 
 Found auditing the model after the bench asked why the switches were not

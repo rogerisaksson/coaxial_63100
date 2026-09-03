@@ -48,21 +48,10 @@ MEASURED = {
     'switching': {'ntc': 55.6, 'board': 40.0},
 }
 
-#: How far the drivers node sat above the board while switching, K. The
-#: model's own node rise, which is what the NTC coupling is solved against.
-DRIVER_RISE_SWITCHING = 9.1
-
 #: The NTC's constant offset over the board, K. Mounting and the channel's
 #: own calibration, not physics: taken in the passive state, where no driver
 #: was warming anything.
 NTC_OFFSET = MEASURED['passive']['ntc'] - MEASURED['passive']['board']
-
-#: How much of the drivers' rise the NTC picks up. Above 1 because it sits
-#: closer to the heat than the point the node stands for - a cap at 1.0 cost
-#: 5.6 K in the switching state before it was solved properly.
-NTC_SEES_DRIVERS = ((MEASURED['switching']['ntc']
-                     - MEASURED['switching']['board'])
-                    - NTC_OFFSET) / DRIVER_RISE_SWITCHING
 
 #: The four states the bench can hold. Here and not in a tool because two
 #: tools drive them, and a second copy is the one that goes stale.
@@ -100,6 +89,41 @@ def pretty(node):
     head, _, leg = node.rpartition('_')
     return '%s %s' % (head, leg.upper()) if leg in LEGS else node
 
+#: K/W from a leg node's surface into the board, and the driver's share of
+#: the switching loss. NAMED BECAUSE THE NTC COUPLING IS SOLVED AGAINST
+#: THEIR PRODUCT: the campaign's one switching state fixes
+#: `ntc_sees_drivers x to_board x watt` and nothing more, so a change to
+#: either of these without re-solving the coupling silently stops the model
+#: reproducing its own measurement.
+LEG_TO_BOARD = 45.6
+DRIVER_SWITCH_WATT = 0.60 / 3
+
+#: How far the drivers node sat above the board while switching, K.
+#:
+#: NOT A MEASUREMENT AND NOT A CONSTANT OF ITS OWN - it is the product
+#: above, and it was written here as a bare 9.1 beside the two numbers it
+#: is made of, free to drift from them.
+DRIVER_RISE_SWITCHING = DRIVER_SWITCH_WATT * LEG_TO_BOARD
+
+#: How much of the drivers' rise the NTC picks up, solved from that one
+#: state. It comes out ABOVE 1, and that is not a property a sensor can
+#: have: `expected_ntc` then reads the thermistor hotter than the node it
+#: is coupled to at every rise - 6.0 K over it at rest and 11.5 K over it
+#: at a 100 K rise, in `test_sensorless.py`. The note here used to
+#: rationalise it as "closer to the heat than the point the node stands
+#: for", and a cap at 1.0 was tried and dropped for costing 5.6 K in the
+#: switching state.
+#:
+#: What is more likely is that the model has NO BOARD GRADIENT. `board` in
+#: that state is the camera at one spot, the copper under the thermistor
+#: need not be that spot, and a fit with nowhere else to put the
+#: difference puts it in the coupling. FINDINGS has the family of
+#: (to_board, coupling) pairs that fit the measurement exactly; this is
+#: the only one on the curve that puts the sensor above its own source.
+NTC_SEES_DRIVERS = ((MEASURED['switching']['ntc']
+                     - MEASURED['switching']['board'])
+                    - NTC_OFFSET) / DRIVER_RISE_SWITCHING
+
 #: The network. **Only `board_to_ambient` and `board_capacity` have a clean
 #: measurement behind them.**
 #:
@@ -114,7 +138,7 @@ CFG = {
     # in parallel are what the camera measured - the split moved where the
     # heat is drawn, not how much there is. One leg alone now rises three
     # times as far and three times as fast, which is the whole point.
-    'to_board': dict([(n, 45.6) for n in DRIVERS + PHASES]
+    'to_board': dict([(n, LEG_TO_BOARD) for n in DRIVERS + PHASES]
                      + [('mcu', 22.5), ('regulators', 15.0), ('afe', 41.5)]),
     'capacity': dict([(n, 0.35 / 3) for n in DRIVERS]
                      + [(n, 1.20 / 3) for n in PHASES]
@@ -124,7 +148,7 @@ CFG = {
 #: Power per node while three legs switch at 50 %. The 1.20 W from difference
 #: 4-1 fell roughly half on the supply corner - gate charge comes out of the
 #: +15V7 buck - and half on the bridge.
-POWER_SWITCHING = dict([(n, 0.60 / 3) for n in DRIVERS]
+POWER_SWITCHING = dict([(n, DRIVER_SWITCH_WATT) for n in DRIVERS]
                        + [(n, 0.0) for n in PHASES]
                        + [('mcu', 0.666), ('regulators', 1.134), ('afe', 0.0)])
 
