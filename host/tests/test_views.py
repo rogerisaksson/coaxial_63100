@@ -124,31 +124,128 @@ def test_the_instruments_stand_clear_of_the_machine(report):
 
 
 def test_each_gutter_says_its_hottest_node(report):
-    """The caption's third row, in degrees, per group.
+    """The caption's third row, in degrees, and WHICH node each one is.
 
     A share of a ceiling is what the board acts on and it is not a
     temperature: the tubes cannot say 118 C and a bench asks for exactly
-    that. The check is that the figure is the HOTTEST of its group and
-    not the first or the mean - fed one hot leg among five cool ones,
-    that is the one that has to appear.
+    that. The left figure is the hottest of the six power nodes, which is
+    what SWITCH TEMPS means.
+
+    THE RIGHT ONE IS THE COPPER, not the hottest of its four. It was the
+    hottest, and the bench read SWITCH TEMPS below BOARD TEMPS and took it
+    for a broken model - the right gutter's hottest is almost always the
+    MCU, 15 K over the copper on an idle board, so the caption said BOARD
+    and reported something else. The other three are still tubes, and the
+    SOA HEADROOM gauge is what says which node of all ten is worst.
     """
     sys.path.insert(0, HOST)
     from tools import show_rotor_observer as view
 
     nodes = dict.fromkeys(view.SOA_NODES + view.BOARD_NODES, 30.0)
-    nodes['phase_v'], nodes['regulators'] = 118.4, 71.2
-    said = {'thermal': {'nodes': nodes},
-            'budget': {'used': {'phase_v': 0.95}, 'tripped': False}}
+    nodes['phase_v'], nodes['regulators'], nodes['board'] = 118.4, 71.2, 44.5
+    # `used` for every node, because `soa_bars` draws only what the board
+    # reported a spend for - a node with no ceiling in the record is a node
+    # it says nothing about.
+    said = {'thermal': {'nodes': nodes, 'ambient': 20.0},
+            'budget': {'used': {name: (nodes[name] - 20.0) / 105.0
+                                for name in nodes},
+                       'tripped': False}}
+    said['budget']['used']['phase_v'] = 0.95
     peak, cls = view.hottest(said, view.SOA_NODES)
     report.check('the switch caption takes the hottest leg',
                  peak == 118.4, 'said %s' % (peak,))
     report.check('and its colour comes from that same node margin',
                  cls == view.machine.SOA_WARN, 'class %s' % (cls,))
+
     peak, _ = view.hottest(said, view.BOARD_NODES)
-    report.check('the board caption takes the hottest board node',
+    report.check('the board caption takes the hottest of its four, which '
+                 'is the tube standing tallest beside it',
                  peak == 71.2, 'said %s' % (peak,))
+    # REPORTING THE COPPER INSTEAD WAS TRIED AND WITHDRAWN. It bought the
+    # ordering a reader expects and broke something worse: the figure then
+    # disagreed with its own gutter, 20.9 C under a stack whose tallest
+    # tube was the regulators at 33.7. What fixed the confusion was the
+    # shared scale below, not the choice of node.
+    bars = view.soa_bars(said, view.BOARD_NODES)
+    tallest = max(zip(view.BOARD_NODES, bars), key=lambda p: p[1][0])[0]
+    report.check('and it names the tallest tube, not some other node',
+                 nodes[tallest] == peak,
+                 '%s at %.1f C' % (tallest, nodes[tallest]))
     report.check('a group with nothing measured says nothing',
                  view.hottest({}, view.SOA_NODES)[0] is None)
+
+
+def test_both_gutters_run_on_one_scale(report):
+    """Height is degrees, colour is margin, and they are two questions.
+
+    THE TUBES HAD TWO RULERS. Each was its node's share of its OWN
+    ceiling, and the ceilings differ - the copper's is 105 where the
+    silicon's is 125 - so two tubes at the same height were two different
+    temperatures, standing under captions in degrees that disagreed with
+    them. The check is a copper and a FET at the SAME temperature: the
+    heights have to match and the colours must not.
+    """
+    sys.path.insert(0, HOST)
+    from coaxial import machine
+    from tools import show_rotor_observer as view
+
+    nodes = dict.fromkeys(view.SOA_NODES + view.BOARD_NODES, 20.0)
+    nodes['phase_u'] = nodes['board'] = 100.0
+    said = {'thermal': {'nodes': nodes, 'ambient': 20.0},
+            'budget': {'used': {'phase_u': 80.0 / 105.0,
+                                'board': 80.0 / 85.0},
+                       'tripped': False}}
+    left = view.soa_bars(said, ('phase_u',))[0]
+    right = view.soa_bars(said, ('board',))[0]
+    report.check('two nodes at one temperature draw one height',
+                 abs(left[0] - right[0]) < 1e-9,
+                 '%.4f against %.4f' % (left[0], right[0]))
+    report.check('and the copper still colours hotter, because its ceiling '
+                 'is lower - the margin is what the colour carries',
+                 left[1] == machine.SOA_OK and right[1] == machine.SOA_WARN,
+                 'phase %s, board %s' % (left[1], right[1]))
+    report.check('the scale is stated, not taken from a limit the board '
+                 'acts on',
+                 view.TEMP_SCALE_C == 125.0, '%.0f C' % view.TEMP_SCALE_C)
+
+
+def test_a_power_node_never_reads_below_the_copper(report):
+    """It sheds INTO the board, so it cannot be colder than the board.
+
+    The relation the bench expected and the page was hiding. It holds in
+    the model by construction - `thermal_step` sheds `(t - board) /
+    to_board`, so a node below the copper takes a negative shed and is
+    pulled back up - and this is the check that the two captions can
+    actually be compared now that the right one is the copper.
+
+    Against the stand-in rather than by inspection: it is the model, the
+    limits and the labels together that have to come out right.
+    """
+    sys.path.insert(0, HOST)
+    from coaxial import Coaxial63100
+    from tools import show_rotor_observer as view
+
+    rig = Coaxial63100(simulated_device=True)
+    rig.open()
+    try:
+        rig.board.gate_drivers.bypass_break(True)
+        rig.board.gate_drivers.enable()
+        rig.drive.mode('hold')
+        rig.drive.setpoint(iq_ref=30.0)
+        worst = None
+        for _ in range(8):
+            time.sleep(0.15)
+            said = {'thermal': rig.thermal.state(),
+                    'budget': rig.thermal.budget()}
+            switch = view.hottest(said, view.SOA_NODES)[0]
+            copper = said['thermal']['nodes']['board']
+            gap = switch - copper
+            worst = gap if worst is None else min(worst, gap)
+        report.check('no power node ever reads below the copper it sheds '
+                     'into - the thing the gutters looked like they denied',
+                     worst >= -1e-6, 'closest %.4f K' % worst)
+    finally:
+        rig.close()
 
 
 def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
@@ -188,6 +285,8 @@ def main():
     print('\n-- the rotor observer\'s geometry --')
     test_the_instruments_stand_clear_of_the_machine(report)
     test_each_gutter_says_its_hottest_node(report)
+    test_both_gutters_run_on_one_scale(report)
+    test_a_power_node_never_reads_below_the_copper(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0

@@ -338,6 +338,64 @@ happened between two polls.
   slices, stepping and evaluating on each, capped at `THERMAL_CATCHUP_MS`
   = 2000. Past that the power sample is too stale to integrate: a model
   fed one reading for two seconds is inventing the heat it did not see.
+### Is 70-80 C on the board plausible? 2026-09-03
+
+Asked at the bench after the rotor observer showed it. Arithmetic on the
+record's own constants, no measurement.
+
+* `board_to_ambient` is 8.33 K/W and it rests on ONE point: the passive
+  state, 1.2 W from the supply's own 0.050 A, the camera at 30 C in a
+  20 C room. 10 K over 1.2 W.
+* Linearly, then: the board node needs **6.00 W to reach 70 C** and
+  **7.20 W to reach 80 C** (10.20 W is its 105 C ceiling). Settled in
+  the model that is about 13-15 A rms a phase - and at that current the
+  driver nodes are already 120-135 C, past their own ceiling, so the
+  throttle acts long before the copper gets there. Switching alone at
+  48 V with no phase current is 3.67 W and settles the board at 50.6 C.
+* **The linear extrapolation is pessimistic and this is where the 70-80
+  came from.** Natural convection has h proportional to dT^0.25, so the
+  resistance falls as it heats: solving dT = P * 8.33 * (10/dT)^0.25
+  gives dT = (14.8 P)^0.8, which is **56 C at 6 W and 62 C at 7.2 W**,
+  not 70 and 80. Radiation is not small at those temperatures either -
+  about 0.012 m^2 of board at 60 C into a 20 C room is roughly 3 W at
+  emissivity 0.9, comparable to the convection, and almost none of it
+  was present at the dT = 10 K where the constant was taken.
+* So the model errs toward safety: it will throttle earlier than the
+  copper requires and it overstates a reading. It is not a temperature
+  to trust as a measurement above about 40 C.
+* The softer number is worse. `to_board` at 45.6 K/W a leg node is NOT a
+  measurement - the camera saw one bridge zone, and per leg is three
+  times the lumped 15.2 K/W, recorded above with "no measurement says
+  otherwise yet". It sets every steady-state current figure here: 18 W
+  through 45.6 K/W is 821 K over the copper. The transients are better
+  grounded, being governed by the capacities.
+* What would settle both: a camera run under real load, spanning
+  `board_to_ambient` at high dT and `to_board` per leg.
+
+### SWITCH TEMPS below BOARD TEMPS is the label, not the model, 2026-09-03
+
+* Read at the bench as a broken observer. It is not: idle, every driver
+  and phase node settles at **31.08 C, which is the board node exactly**,
+  and a node below the copper cannot happen - `thermal_step` sheds
+  `(t - board) / to_board`, so it takes a negative shed and is pulled
+  back up.
+* The right gutter is four nodes and its hottest is almost always the
+  **MCU at 46.06 C**, 0.666 W through a linear LDO, 15 K over a copper at
+  31.08. The caption said BOARD and reported that. The two figures were
+  not comparable at all.
+* Reporting the copper instead was tried and WITHDRAWN. It bought the
+  ordering a reader expects and broke something worse: the figure then
+  disagreed with its own gutter, saying 20.9 C under a stack whose
+  tallest tube was the regulators at 33.7 C.
+* What actually fixed it was the TUBES. Each was a share of its own
+  ceiling, and the ceilings differ - the copper's 105 against the
+  silicon's 125 - so two tubes at one height were two different
+  temperatures and the two gutters could not be compared at all. Height
+  is degrees on one scale now and colour is the margin against each
+  node's own ceiling, so a copper at 100 C goes amber where a FET at
+  100 C has not. With one ruler the surprise stops being one: the MCU
+  tube is visibly the tallest and the caption names it.
+
 * A false lead on the way, recorded so it is not chased twice: the
   stand-in's clamp appeared not to bind - `derate 0.25` left the sampled
   current at 77.94 A - and that was the measurement's own fault.

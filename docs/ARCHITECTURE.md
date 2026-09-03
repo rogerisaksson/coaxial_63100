@@ -210,17 +210,27 @@ there is when no magnet is in front of the sensor.
 The rotor observer draws the machine itself - `coaxial/machine.py`, a
 braille cross-section of rotor and stator whose slot and pole counts
 come from what was identified, teeth as long as their phase is driven.
-Instruments stand around it and every one is a level against its own
-ceiling: six thermometers to the left for the FET and shunt of each
-leg, four to the right for MCU, regulators, AFE and board, the SOA
-headroom across the top, and the winding estimate and the link power
-along the foot. `machine.layout()` is the one place that decides where
+Instruments stand around it: six thermometers to the left for the FET
+and shunt of each leg, four to the right for MCU, regulators, AFE and
+board, the SOA headroom across the top, and the winding estimate and the
+link power along the foot. In the gutters HEIGHT IS DEGREES on one scale
+shared by all ten and COLOUR IS THE MARGIN against each node's own
+ceiling - they were each a share of their own ceiling, and since the
+copper's is 105 where the silicon's is 125, two tubes at one height were
+two different temperatures under captions in degrees that disagreed with
+them. `machine.layout()` is the one place that decides where
 any of it goes - the machine is centred BETWEEN the gutters rather than
 in the box, which is what makes both groups stand the same distance off
 it and lets the can fill what is left. The captions carry the numbers
-the levels cannot: each gutter says its hottest node in degrees, in the
-ink of that node's own margin, because a share of a limit is the right
-thing for the board to act on and the wrong thing to read off a page.
+the levels cannot, in the ink of that node's own margin, because a share
+of a limit is the right thing for the board to act on and the wrong thing
+to read off a page. Each figure is the hottest of its own group, which
+with one ruler under it is also the tallest tube beside it. Reporting the
+copper on the right was tried, to keep SWITCH above BOARD on an idle
+stage, and withdrawn: it made the figure disagree with its own gutter.
+The ordering was never the fault - a power node cannot be below the
+copper it sheds into, and on an idle stage the MCU simply is hotter than
+a FET carrying nothing.
 Every title sits on the row nearest the thing it names - the gutters
 take two rows each for their two-word names, and `SOA HEADROOM` rides
 the third beside the readings so it stands directly over its own scale
@@ -235,7 +245,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2547 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2552 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -262,7 +272,7 @@ by `counts.py`:
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 36 | every view drawn twice, and the rotor observer's geometry |
+| test_views.py | 41 | every view drawn twice, and the rotor observer's geometry |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |

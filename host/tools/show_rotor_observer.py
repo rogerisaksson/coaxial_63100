@@ -239,6 +239,32 @@ SOA_NODES = ('driver_u', 'phase_u', 'driver_v', 'phase_v',
 #: rails that feed it, the front end, and the laminate everything sits
 #: on. Drawn on the other side of the machine because they fail for
 #: different reasons and are read for different ones.
+#: WHY BOTH FIGURES ARE THEIR GROUP'S HOTTEST, after two goes at it.
+#:
+#: The bench read SWITCH TEMPS below BOARD TEMPS and took it for a broken
+#: model. It is not: idle, every driver and phase node settles at
+#: 31.08 C, which is the board node exactly, and a node below the copper
+#: cannot happen - `thermal_step` sheds `(t - board) / to_board`, so it
+#: takes a negative shed and is pulled back up. The right gutter's
+#: hottest is simply the MCU, 0.666 W through a linear LDO, 15 K over the
+#: copper, and on an idle stage that IS hotter than a FET carrying
+#: nothing.
+#:
+#: FIRST FIX, WITHDRAWN: report the copper on the right, so the ordering
+#: a reader expects held by construction. It bought the ordering by
+#: breaking something worse - the caption then disagreed with its own
+#: gutter, saying 20.9 C under a stack whose tallest tube was the
+#: regulators at 33.7 C. A figure that does not name the tube beside it
+#: is worse than a figure that surprises.
+#:
+#: WHAT ACTUALLY FIXED IT was the tubes, not the caption: they were each
+#: a share of their OWN ceiling, so two at the same height were two
+#: different temperatures and the two gutters could not be compared at
+#: all. `soa_bars` puts them on one temperature scale now. With one
+#: ruler the surprise stops being one - the MCU tube is visibly the
+#: tallest, the caption names it, and both figures are the tallest tube
+#: in their own gutter.
+
 BOARD_NODES = ('mcu', 'regulators', 'afe', 'board')
 
 
@@ -1126,13 +1152,52 @@ def soa_class(share, tripped=False):
     return machine.SOA_WARN if share >= THROTTLE_AT else machine.SOA_OK
 
 
+#: The gutters' common temperature scale, degrees C.
+#:
+#: A DRAWING SCALE, not a limit: the board judges nothing by it
+#: (invariant 10) and the colours below carry the real ceilings. The
+#: record's own highest is 125, so a full tube is a node at the hottest
+#: thing the record allows anything to be.
+TEMP_SCALE_C = 125.0
+
+
 def soa_bars(view, names):
-    """`(fraction, class)` per node, for the gutters beside the machine."""
+    """`(fraction, class)` per node: HEIGHT IS HEAT, COLOUR IS MARGIN.
+
+    THE TWO GUTTERS HAD DIFFERENT SCALES and it read as one drawing with
+    two rulers. Every tube used to be its node's share of its OWN
+    ceiling, and the ceilings differ - the copper's is 105 where the
+    silicon's is 125 - so two tubes at the same height were two different
+    temperatures, under captions in degrees that disagreed with them.
+
+    Split, both questions get answered and neither is asked twice. The
+    height is degrees on one scale, so the ten tubes are comparable with
+    each other and with the figures above them. The colour is still
+    `soa_class` on the node's own margin, so a copper at 100 C goes red
+    where a FET at 100 C has not - which is exactly the fact the shared
+    scale would otherwise have flattened.
+
+    How close anything is to acting stays the SOA HEADROOM gauge's
+    question; it takes the worst of all ten and pulses when the board
+    does something about it.
+    """
     budget = view.get('budget') or {}
     used = budget.get('used') or {}
+    seen = view.get('thermal') or {}
+    nodes = seen.get('nodes') or {}
+    ambient = seen.get('ambient')
+    if ambient is None:
+        ambient = 20.0
+    span = max(1.0, TEMP_SCALE_C - ambient)
     tripped = bool(budget.get('tripped'))
-    return [(used[name], soa_class(used[name], tripped))
-            for name in names if name in used]
+    out = []
+    for name in names:
+        if name not in used or nodes.get(name) is None:
+            continue
+        share = (nodes[name] - ambient) / span
+        out.append((max(0.0, min(1.0, share)),
+                    soa_class(used[name], tripped)))
+    return out
 
 
 def soa_bar(share, tripped=False):
