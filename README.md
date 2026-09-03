@@ -70,7 +70,7 @@ without running; `SIMULATED = False` and a port at the bench.
 | `rotor_observer_session.ipynb` | the rotor observer on the board's own PMSM model |
 | `propeller_sweep.ipynb` | the 5230SL and its propeller against Hobbywing's stand |
 | `speed_loop.ipynb` | `coaxial.loop`'s chain, identified back out of its own run |
-| `foc_montecarlo.ipynb` | the firmware's law searched over the 23-63 V link sweep |
+| `foc_montecarlo.ipynb` | the SMO and flux linkage observers, then the firmware's law over the 23-63 V sweep |
 | `auto_tune.ipynb` | commissioning: measure the machine, tune against it, write the record |
 | `position_servo.ipynb` | the PMSM as stepper and servo, ring and sag measured |
 | `position_and_sensorless.ipynb` | observer vs shaft sensor, one rotor two answers |
