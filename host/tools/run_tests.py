@@ -35,6 +35,11 @@ CORE = 'test_modbus_core.py'
 SHTP = 'test_shtp_core.py'
 DRIVE = 'test_drive_core.py'
 FILTER = 'test_filter_core.py'
+#: The thermal envelope as the C that will run on the board. The
+#: network had `check.c` - the calibration campaign's own report -
+#: and the SOA arithmetic that gates a real stage had nothing at all,
+#: only a tested Python mirror. That was the wrong way round.
+THERMAL = 'test_thermal_core.py'
 SENSORLESS = 'test_sensorless.py'
 #: test_ollama.py was 5,496 lines and 733 checks - a third of every check
 #: this tree has, in one file, and the reason a tier could not be asked for at
@@ -51,7 +56,7 @@ BROKER = 'test_broker.py'
 DAQ_API = 'test_daq_api.py'
 VIEWS = 'test_views.py'
 RENDER = 'test_render.py'
-DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, SENSORLESS,
+DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, SENSORLESS,
                    BROKER, DAQ_API, VIEWS,
                    RENDER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
@@ -79,6 +84,11 @@ JOINS = (
     # The anti-alias chain against the transfer function it was designed
     # from, and a tone fed through it: a compiler and a second.
     (20, FILTER),
+    # The SOA envelope, same shape and same cost: a compiler and a second.
+    # It joins with the other portable cores because what it guards is the
+    # thing that decides whether a stage backs off, and a tier that cannot
+    # afford that check is a tier that should not be run before a bench day.
+    (20, THERMAL),
     (20, SENSORLESS),
     (35, 'test_parity.py'),
     (45, 'test_mcp.py'),
@@ -368,7 +378,12 @@ TOUCHES = (
     ('board/',                        (CONFORMANCE, 'test_mcp.py',
                                        'test_parity.py', BENCH)),
     ('core/',                         (CONFORMANCE, BENCH)),
-    ('thermal/',                      (CONFORMANCE, BENCH)),
+    # The observer and its envelope are hardware-free like the filter,
+    # so the host build is what covers them; the board glue that acts
+    # on the budget lives in board/ and is the bench's.
+    ('thermal/',                      (THERMAL, CONFORMANCE, BENCH)),
+    ('host/coaxial/thermal.py',       (THERMAL, 'test_sensorless.py',
+                                       STRUCTURE)),
     # A NOTEBOOK EXAMPLE reaches the library and nothing else reaches it.
     # What it can break is naming a method that does not exist, which is
     # the structure suite's AST pass - measured: it caught a rename that

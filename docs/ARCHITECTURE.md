@@ -224,7 +224,7 @@ thing for the board to act on and the wrong thing to read off a page.
 
 ## The test system
 
-Twenty-five suites, 2500 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2536 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -244,6 +244,7 @@ by `counts.py`:
 | test_mcp.py | 46 | the MCP server |
 | test_render.py | 42 | the 3D engine stage by stage against an analytic oracle |
 | test_filter_core.py | 42 | the anti-alias chain against its transfer function |
+| test_thermal_core.py | 36 | the SOA envelope through the host gcc - derate, lookahead, soak, the conduction split |
 | test_shtp_core.py | 38 | the SHTP parser |
 | test_broker.py | 33 | the shared session on a scripted port |
 | test_ollama_render.py | 32 | what the runner draws |

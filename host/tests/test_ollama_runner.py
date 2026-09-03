@@ -458,14 +458,18 @@ def test_smart_selection(report):
     # meaning what they did when they were a table.
     # DAQ_API joined at 12 % - the acquisition front door against the
     # stand-in, no board and no compiler - so both tiers below buy it.
+    # THERMAL joined at 20 % with the other portable cores: a compiler and
+    # a second, and what it guards is whether a stage backs off.
     for percent, expect in ((25, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
                                   run_tests.DRIVE, run_tests.FILTER,
+                                  run_tests.THERMAL,
                                   run_tests.SENSORLESS, run_tests.DAQ_API,
                                   } | set(run_tests.OLLAMA)),
                             (75, {run_tests.STRUCTURE, run_tests.CORE,
                                   run_tests.SHTP, 'test_simulated.py',
                                   run_tests.DRIVE, run_tests.FILTER,
+                                  run_tests.THERMAL,
                                   run_tests.SENSORLESS, run_tests.DAQ_API,
                                   'test_parity.py', 'test_mcp.py',
                                   run_tests.CONFORMANCE, run_tests.BENCH}

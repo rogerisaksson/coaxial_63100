@@ -231,6 +231,49 @@ survived a measurement.
   channels and two SPI transactions on every poll, and before that a
   poll blocking long enough to lose a Modbus character.
 
+### The envelope's arithmetic, 2026-09-03
+
+Computed in `test_thermal_core.py` against the C that will run on the
+board - the first time any of it was exercised outside the Python
+mirror. Not measured on hardware; the capacities are the calibration
+record's and the currents are the rating.
+
+* A 100 A burst in one leg, 48 V, switching: 18.39 W on the driver
+  node, 35.00 W on the phase node. **The FET is the binding part, not
+  the shunt** - 0.12 J/K against 0.40, so 12.3 J of headroom against
+  42.0, and ambient to the 125 C ceiling is **0.67 s on the driver
+  node** against 1.20 s on the phase node. The conduction split is what
+  made this visible: booked entirely on the phase node, the FET's own
+  heat capacity was not in the picture at all.
+* `soa_lookahead_ms` is 2000 in the record, and 2000 ms is three times
+  the FET node's whole burst budget. The projection therefore says
+  "over the ceiling" the instant full current is asked for, from
+  ambient, and the derate goes to 0.00 before the burst starts. The
+  envelope forbids the transient rather than shaping it.
+* What each horizon does to a 35 W phase-node burst from 20 C -
+  the clamp from cold, and where it first comes off 1.00:
+
+  | lookahead | from cold | first backs off |
+  |---|---|---|
+  | 0 ms | 1.00 | 1.04 s at 110.2 C |
+  | 100 ms | 1.00 | 0.94 s at 101.9 C |
+  | 250 ms | 1.00 | 0.78 s at 88.5 C |
+  | 600 ms | 1.00 | 0.42 s at 58.1 C |
+  | 1000 ms | 1.00 | 0.02 s at 23.5 C |
+  | 2000 ms | **0.00** | never runs |
+
+  With every node live at 250 ms the clamp starts closing at 0.34 s on
+  `driver_u`, 75.0 C, with the phase node still at 51.2 C.
+* `THERMAL_STEP_MS` is 100, so a horizon under 100 ms cannot see past
+  its own step. The band that both shapes a burst and outruns a poll is
+  a few steps wide.
+* The lookahead is a feedback loop, not a gate: the clamp scales the
+  current, which lowers the power, which lowers the projection, so it
+  settles where the horizon lands on the ceiling. `board_thermal.c`
+  slews the recovery at 0.05/s, which is what stops it chattering
+  there - measured on the stand-in at 0.25/s, it oscillated 1.00 to
+  0.00 every 100 ms against the node's 18 s constant.
+
 ## The DAQ
 
 * The reader thread: 84.4 to 134.6 records/s with 4 ms of work a
