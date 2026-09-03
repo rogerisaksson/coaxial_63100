@@ -381,6 +381,7 @@ def test_counts_are_measured(r):
     number to write. That is the intended cost - four files quoting three
     different totals is what it replaces.
     """
+    import glob
     import json
 
     try:
@@ -400,6 +401,23 @@ def test_counts_are_measured(r):
         return
     total = sum(suites.values())
 
+    # A total needs every suite, and a tier runs a subset by design - the
+    # default one runs two. So .counts.json is normally partial, and summing
+    # it is not the tree's total: 671 on a bench that had run structure and
+    # drive_core, beside the 2486 the documents carry. Measured 2026-09-03 on
+    # a machine whose first run ever was the 25 % tier - three files reported
+    # wrong and every number in them right.
+    #
+    # Partial is one run behind on the suites it did measure, which the
+    # per-suite check below still catches, and says nothing at all about the
+    # total. Same reasoning as the empty file above, one step along: the
+    # documents keep the last measured bench's total until every suite has
+    # run here at least once. The check is asked either way so that the size
+    # of this suite does not depend on how much of the tree has been run.
+    everything = set(os.path.basename(p)
+                     for p in glob.glob(os.path.join(HERE, 'test_*.py')))
+    complete = not (everything - set(suites))
+
     for name in COUNTED:
         path = os.path.join(REPO, *name.split('/'))
         text = open(path, encoding='utf-8').read()
@@ -416,8 +434,13 @@ def test_counts_are_measured(r):
         totals |= set(int(n) for n in
                       re.findall(r'suites, (\d+) checks', text))
         totals |= set(int(n) for n in re.findall(r'\| (\d+) checks,', text))
-        r.check('%s quotes the total as %d' % (name, total),
-                totals <= {total}, ', '.join(str(n) for n in sorted(totals)))
+        if complete:
+            r.check('%s quotes the total as %d' % (name, total),
+                    totals <= {total},
+                    ', '.join(str(n) for n in sorted(totals)))
+        else:
+            r.check('%s keeps its total until all %d suites have run here'
+                    % (name, len(everything)), True)
 
 
 #: `board.<name>.<method>()` is how every view and tool reaches the hardware.
