@@ -1226,12 +1226,14 @@ print('            without    %s' % [n for n in ('r', 'ld', 'lq', 'lam') if got2
 _FOC_INTRO = [
     md("# FOC Monte Carlo, and two sensorless observers\n\n"
        "Three parts, in this order:\n\n"
-       "1. **Sliding Mode Observer (SMO)** and **Flux Linkage Observer** - "
-       "the two back-EMF observers in `coaxial.sensorless`, each simulated "
-       "over drawn plants, with the **Extended Back-EMF Observer** as the "
-       "flux observer's close relative and what it fixes under load; then "
-       "the hybrid that blends them, and what the flux observer's magnitude "
-       "measures about the machine.\n"
+       "1. **Five sensorless observers**, each simulated over drawn plants "
+       "and ranked by what they measure rather than by reputation: the "
+       "**Sliding Mode Observer (SMO)**, the **Flux Linkage Observer** with "
+       "the **Extended Back-EMF Observer** as its close relative, the "
+       "**Extended State Observer (ESO / ADRC)**, the **Adaptive Luenberger "
+       "Observer** and the **Dual Flux Linkage Observer**. Then the hybrid "
+       "that blends two of them, and what the flux magnitude measures about "
+       "the machine itself.\n"
        "2. **The firmware's own control law**, searched over the 23-63 V "
        "link sweep with `tools/montecarlo.py`.\n"
        "3. **The envelope** both land in: speed, torque, the thermal "
@@ -1397,16 +1399,16 @@ for vdc in VDCS:
 ]
 
 _FOC_OBSERVERS = [
-    md("## Part 1: two back-EMF observers\n\n"
+    md("## Part 1: five sensorless observers\n\n"
        "The firmware holds the rotor at rest by injecting and demodulating, "
-       "and blends to back-EMF above `w_lo`. The **Sliding Mode Observer "
-       "(SMO)** and the **Flux Linkage Observer** are the two ways to do "
-       "that upper half. Both live in `coaxial.sensorless`, both are fed by "
-       "nothing but the phase voltages and currents, and both are run here "
+       "and blends to back-EMF above `w_lo`. Everything in this part is "
+       "about that upper half: five observers, all in `coaxial.sensorless`, "
+       "all fed by nothing but the phase voltages and currents, all run "
        "over plants drawn with the same tolerances the search uses in part "
        "2.\n\n"
-       "This first sweep runs them side by side; the two sections after it "
-       "take each one on its own."),
+       "The sweep below runs the two oldest side by side - sliding mode and "
+       "flux linkage - and the sections that follow take each observer on "
+       "its own before all five are ranked together."),
     code("""import math
 from coaxial import inverter, sensorless
 from coaxial.loop import CurrentLoop, Machine, Signals
@@ -1610,6 +1612,149 @@ for row in table:
 lo, hi = band_of('flux')
 print()
 print('inside %.0f deg from %.0f rpm to %.0f rpm' % (CRITERION_DEG, rpm(lo), rpm(hi)))"""),
+    md("## Extended State Observer (ESO / ADRC)\n\n"
+       "The one that refuses to model anything. `di/dt = v/L + f`, and `f` "
+       "is everything else at once - the resistive drop, the back-EMF, the "
+       "parameter error, the switching pickup, whatever the sense chain "
+       "does. ADRC estimates `f` as a state instead of separating them, so "
+       "there is **no low-pass on the signal it wants**, and nothing in its "
+       "angle rests on the speed it is estimating.\n\n"
+       "That is the argument for it, and it is a good one: the lag "
+       "correction is what makes the SMO stiff at the top and the flux "
+       "observer worthless at the bottom. One knob, the observer bandwidth "
+       "`wo`, with both poles placed there - `beta1 = 2 wo`, "
+       "`beta2 = wo^2`.\n\n"
+       "The catch is that `wo` has to sit above the electrical frequency "
+       "and below what the step can integrate. At the drive's 20 us and an "
+       "explicit step, `wo` past about 12 000 rad/s is where the second "
+       "pole stops being stable - and 12 000 is only six times the 2 000 "
+       "rad/s at the top of this sweep. It has the bandwidth for the middle "
+       "and runs out at both ends, which the numbers below show plainly."),
+    md("## Adaptive Luenberger observer\n\n"
+       "A current observer whose back-EMF is an integrator on the current "
+       "error, with R adapted from the part of that error lying along the "
+       "current. The point is thermal: a winding rises about 0.4 % per "
+       "kelvin, every observer here integrates `v - R i`, and the R they "
+       "were handed at commissioning is not the R an hour of load leaves "
+       "behind.\n\n"
+       "As a back-EMF observer it behaves like one - poor at rest, best of "
+       "all five at the top of the sweep. **The adaptation does not "
+       "converge in this arrangement**, and the measurement below says so "
+       "rather than the prose hiding it: `e_hat` and `r_hat` feed on one "
+       "residual, `e_hat` is three orders faster, and what is left for "
+       "`r_hat` is not a clean function of the R error. Low-passing the "
+       "projection to separate the timescales moves R the wrong way; "
+       "raising the gain diverges.\n\n"
+       "What that says is that R needs an excitation the back-EMF cannot "
+       "explain - a d-axis current the rotor does not answer - which is "
+       "exactly what `commission.deadtime` already does offline, and why "
+       "it is a commissioning step rather than a loop."),
+    md("## Dual Flux Linkage Observer\n\n"
+       "Two flux models correcting each other. The voltage model "
+       "`integral of (v - R i)` is right at speed and drifts at rest; the "
+       "current model `L i + lambda` is right at rest and wrong wherever L "
+       "or lambda are. Feeding the difference back into the integrator is "
+       "what holds the DC down - the current model, not a high-pass, so "
+       "there is no leak to correct for and no `atan(wc/w)` to pay.\n\n"
+       "The angle comes off a **PLL** rather than an `atan2` of the flux. "
+       "An `atan2` passes every bit of flux noise into the angle and, "
+       "through the difference, into the speed; the PLL is second order "
+       "with the angle as its state, so the speed falls out of the loop "
+       "instead of out of a subtraction.\n\n"
+       "It measures best of the five below, and by a wide margin where the "
+       "others struggle. The condition is that the PLL is running - handed "
+       "the speed it had a moment ago, the way a drive hands its observer "
+       "the previous estimate. From a standing start it has to slew in, "
+       "which is a lock time rather than an error."),
+    md("## The five, ranked by measurement\n\n"
+       "Same plants, same step, same current. The PLL and the speed states "
+       "start where a running drive would leave them."),
+    code("""from coaxial.motor import Parameters as _P
+
+RANKED = ('dual', 'smo', 'luen', 'eso', 'flux')
+
+def five(fitted, w_e):
+    \"\"\"One of each, with the states a running drive would hand over.\"\"\"
+    made = {
+        'eso': sensorless.ExtendedStateObserver(fitted.r, fitted.ld, wo=12000.0),
+        'luen': sensorless.AdaptiveLuenberger(fitted.r, fitted.ld),
+        'dual': sensorless.DualFluxObserver(fitted.r, fitted.ld, fitted.lam,
+                                            cross=20.0),
+        'smo': sensorless.SlidingModeObserver(
+            fitted.r, fitted.ld, k=1.5 * fitted.lam * abs(w_e) + 1.0),
+        'flux': sensorless.FluxObserver(fitted.r, fitted.ld, wc=20.0),
+    }
+    for one in made.values():
+        one.omega = w_e
+    return made
+
+def compare(plant, w_e, seconds=1.0, iq=2.0):
+    \"\"\"All five against a rotor held at w_e. Degrees rms.\"\"\"
+    fitted = _P(name='drawn', r=plant['r'], ld=plant['ld'], lq=plant['lq'],
+                lam=plant['lambda'], poles=int(plant['pole_pairs']),
+                measured=False)
+    dt = inverter.TS
+    loop = CurrentLoop(hz=800.0, motor=fitted, vdc=plant['vdc'])
+    machine = Machine(fitted, vdc=plant['vdc'], noise=plant['noise'], sub=4,
+                      locked=True)
+    machine.motor.omega = w_e
+    made = five(fitted, w_e)
+    s = Signals()
+    s.iq_ref = iq
+    err = {k: [] for k in made}
+    for step in range(int(seconds / dt)):
+        s.t = step * dt
+        loop(s, dt)
+        machine(s, dt)
+        c, sn = math.cos(s.theta), math.sin(s.theta)
+        va, vb = s.vd * c - s.vq * sn, s.vd * sn + s.vq * c
+        ia, ib = s.id * c - s.iq * sn, s.id * sn + s.iq * c
+        for name, one in made.items():
+            th = one.update(va, vb, ia, ib, dt)
+            if s.t > 0.5 * seconds:
+                err[name].append(sensorless._wrap(th - s.theta))
+    return {k: math.degrees(math.sqrt(sum(e * e for e in v) / len(v)))
+            for k, v in err.items()}
+
+ranked = []
+print('deg rms, median of %d plants, iq 2 A' % PLANTS)
+print('  rad/s el    rpm ' + ''.join('%8s' % n for n in RANKED))
+for w_e in (20.0, 100.0, 500.0, 2000.0):
+    rows = [compare(p, w_e) for p in plants]
+    got = {}
+    for name in RANKED:
+        v = sorted(r[name] for r in rows)
+        got[name] = v[len(v) // 2]
+    ranked.append((w_e, got))
+    print('%10.0f %6.0f ' % (w_e, rpm(w_e))
+          + ''.join('%8.1f' % got[n] for n in RANKED))
+print()
+for name in RANKED:
+    worst = max(row[1][name] for row in ranked)
+    best = min(row[1][name] for row in ranked)
+    print('%-6s %5.1f deg at its best, %5.1f at its worst' % (name, best, worst))"""),
+    md("The ranking that comes out is not the one the literature's "
+       "reputations suggest, and it is worth saying which parts are the "
+       "method and which are this bench.\n\n"
+       "**Dual flux with a PLL wins**, and by an order of magnitude where "
+       "the others are weakest. It is the only one of the five with neither "
+       "a lag to correct nor a leak to pay for, and the PLL keeps its speed "
+       "out of a difference. That is a property of the arrangement, not of "
+       "this simulation.\n\n"
+       "**The sliding-mode observer is the solid one** across the whole "
+       "range and the cheapest to reason about, which is why it is the "
+       "classic. **The adaptive Luenberger** is the best of the five at the "
+       "top and useless at the bottom - a back-EMF observer behaving like "
+       "one.\n\n"
+       "**The ESO comes last here, and that is this bench.** Its case is "
+       "sound: no filter, so no lag, so nothing resting on its own speed. "
+       "But the bandwidth that buys has to fit inside a 20 us explicit "
+       "step, and at 12 000 rad/s it is only six times the top of the "
+       "sweep. On a faster loop, or with the observer discretised properly "
+       "rather than by forward Euler, the argument would be tested "
+       "differently - what is measured here is an ESO at a bandwidth this "
+       "step can carry, and that is the number that matters for **this** "
+       "board."),
     md("## Running both, and the hybrid\n\n"
        "They fail at opposite ends, so there are three ways to use the pair, "
        "in rising order of what they ask for.\n\n"

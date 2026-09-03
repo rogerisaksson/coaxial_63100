@@ -294,6 +294,162 @@ class FluxObserver(_BackEmfObserver):
                                         psi_a - self.l * i_alpha), dt)
 
 
+class ExtendedStateObserver(_BackEmfObserver):
+
+    """The rotor angle from an extended state observer - ADRC's estimator.
+
+    The stator's current equation is `di/dt = v/L + f`, where `f` carries
+    everything that is not the applied voltage: the resistive drop, the
+    back-EMF, the parameter error, the switching pickup, whatever the
+    sense chain is doing. ADRC's move is to stop modelling those
+    separately and estimate `f` itself as a state - a total disturbance -
+    which is why this is the one observer here with **no low-pass on the
+    signal it wants**.
+
+    That matters because the low-pass is what the other two pay for. The
+    sliding-mode observer filters its switching term and gets `atan(w/wc)`
+    of lag; the flux observer leaks its integrator and gets
+    `atan(wc/w)`. Both then correct for the lag using the speed they are
+    estimating. This one has no filter to correct, so nothing in its
+    angle rests on its own speed estimate.
+
+    One knob, the observer bandwidth `wo`: `beta1 = 2 wo`, `beta2 = wo^2`
+    places both poles there. Above the current loop and below the
+    switching frequency, or it estimates the ripple as signal.
+    """
+
+    def __init__(self, r, l, wo=3000.0):
+        super().__init__()
+        self.r, self.l, self.wo = r, l, wo
+        self.i_alpha = self.i_beta = 0.0
+        self.f_alpha = self.f_beta = 0.0
+
+    def update(self, v_alpha, v_beta, i_alpha, i_beta, dt):
+        """One step. Returns the estimated electrical angle."""
+        b0 = 1.0 / self.l
+        beta1, beta2 = 2.0 * self.wo, self.wo * self.wo
+        err_a = self.i_alpha - i_alpha
+        err_b = self.i_beta - i_beta
+        self.i_alpha += dt * (self.f_alpha + b0 * v_alpha - beta1 * err_a)
+        self.i_beta += dt * (self.f_beta + b0 * v_beta - beta1 * err_b)
+        self.f_alpha -= dt * beta2 * err_a
+        self.f_beta -= dt * beta2 * err_b
+        # f absorbed -(R i + e)/L, so the back-EMF is what is left of it.
+        e_alpha = -(self.l * self.f_alpha + self.r * i_alpha)
+        e_beta = -(self.l * self.f_beta + self.r * i_beta)
+        return self._advance(math.atan2(-e_alpha, e_beta), dt)
+
+
+class AdaptiveLuenberger(_BackEmfObserver):
+
+    """A current observer that adapts R while it runs.
+
+    The plain observers are told R once and believe it. A winding goes up
+    by a third of a percent per kelvin, so an hour into a mission the R
+    they were given is not the R they are looking at - and every one of
+    them integrates `v - R i`, so that error lands straight in the
+    estimate.
+
+    Here the same current error drives two integrators: `e_hat`, which is
+    the back-EMF and moves at the machine's electrical rate, and `r_hat`,
+    which moves at a thermal one. `gamma` is small for exactly that
+    reason - the two would otherwise explain each other's error, and the
+    one that is allowed to move fast wins. R drifts in minutes; nothing
+    is lost by adapting it in seconds.
+    """
+
+    #: Corner of the low-pass the R adaptation reads its residual
+    #: through, rad/s. Far below the back-EMF integrator's own rate: the
+    #: two feed on one residual, and whichever is allowed to move fast
+    #: owns it.
+    ADAPT_CORNER = 20.0
+
+    def __init__(self, r, l, gain=3000.0, ki=3000.0, gamma=0.0):
+        super().__init__()
+        self.r_hat, self.l = r, l
+        self.gain, self.ki, self.gamma = gain, ki, gamma
+        self.i_alpha = self.i_beta = 0.0
+        self.e_alpha = self.e_beta = 0.0
+        self.residual = 0.0
+
+    def update(self, v_alpha, v_beta, i_alpha, i_beta, dt):
+        """One step. Returns the estimated electrical angle."""
+        err_a = i_alpha - self.i_alpha
+        err_b = i_beta - self.i_beta
+        self.i_alpha += dt * ((v_alpha - self.r_hat * self.i_alpha
+                               - self.e_alpha) / self.l + self.gain * err_a)
+        self.i_beta += dt * ((v_beta - self.r_hat * self.i_beta
+                              - self.e_beta) / self.l + self.gain * err_b)
+        # MINUS, not plus. An `e_hat` that is too small lets the model
+        # current run away from the measured one, so a positive error
+        # means the back-EMF being subtracted is too small - the sign the
+        # other way round is positive feedback, and the observer leaves
+        # for infinity in a few hundred steps.
+        self.e_alpha -= dt * self.ki * err_a
+        self.e_beta -= dt * self.ki * err_b
+        # The error projected on the current is what a resistance error
+        # looks like; the part across it belongs to the back-EMF. The
+        # projection is low-passed before it moves R, because R drifts on
+        # a thermal timescale and the residual it is read from is mostly
+        # the electrical one.
+        size = i_alpha * i_alpha + i_beta * i_beta
+        if size > 0.0 and self.gamma:
+            now = (err_a * i_alpha + err_b * i_beta) / size
+            alpha = min(1.0, self.ADAPT_CORNER * dt)
+            self.residual += alpha * (now - self.residual)
+            self.r_hat = max(0.0, self.r_hat - dt * self.gamma * self.residual)
+        return self._advance(math.atan2(-self.e_alpha, self.e_beta), dt)
+
+
+class DualFluxObserver(_BackEmfObserver):
+
+    """Two flux models correcting each other, with a PLL on the result.
+
+    The voltage model `integral of (v - R i)` is right at speed and drifts
+    at rest; the current model `L i + lambda` is right at rest and wrong
+    wherever L or lambda are. Running both and feeding the difference back
+    into the integrator is what removes the DC drift without the leak the
+    plain flux observer pays for - the current model, not a high-pass, is
+    what holds the integrator down.
+
+    The angle comes off a PLL rather than an `atan2` of the flux. An
+    `atan2` passes every bit of noise on the flux straight into the angle
+    and, through it, into the speed; the PLL is a second-order filter with
+    the angle as its state, so the estimate stays smooth across a noisy
+    sample and the speed comes out of the loop rather than out of a
+    difference.
+    """
+
+    def __init__(self, r, l, lam, cross=200.0, kp=200.0, ki=8000.0):
+        super().__init__()
+        self.r, self.l, self.lam = r, l, lam
+        self.cross, self.kp, self.ki = cross, kp, ki
+        self.psi_alpha = lam
+        self.psi_beta = 0.0
+
+    def update(self, v_alpha, v_beta, i_alpha, i_beta, dt):
+        """One step. Returns the estimated electrical angle."""
+        # The current model at the angle the PLL is holding.
+        model_a = self.l * i_alpha + self.lam * math.cos(self.theta)
+        model_b = self.l * i_beta + self.lam * math.sin(self.theta)
+        self.psi_alpha += dt * (v_alpha - self.r * i_alpha
+                                + self.cross * (model_a - self.psi_alpha))
+        self.psi_beta += dt * (v_beta - self.r * i_beta
+                               + self.cross * (model_b - self.psi_beta))
+        rotor_a = self.psi_alpha - self.l * i_alpha
+        rotor_b = self.psi_beta - self.l * i_beta
+        size = math.hypot(rotor_a, rotor_b)
+        if size <= 0.0:
+            return self.theta
+        # The PLL's error: the rotor flux's component across the angle the
+        # loop holds, which is sin(difference) and needs no atan2.
+        eps = (rotor_b * math.cos(self.theta)
+               - rotor_a * math.sin(self.theta)) / size
+        self.omega += self.ki * eps * dt
+        self.theta = _wrap(self.theta + (self.omega + self.kp * eps) * dt)
+        return self.theta
+
+
 class SlidingModeObserver(_BackEmfObserver):
 
     """The rotor angle from a sliding-mode current observer.
