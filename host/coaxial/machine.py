@@ -106,11 +106,15 @@ F_LINE = 0.032
 #: vanished left a stator with holes in it rather than one at rest.
 TOOTH_STUB = 0.22
 
-#: How far in from the top and bottom edges the horizontal gauges sit,
-#: in rows. NOT ZERO: hard against the frame they read as part of it, and
-#: a level drawn on the border of a box is a border. One row of air at
-#: each end and they are instruments lying beside the machine.
-GAUGE_INSET = 1
+#: How far in from the top edge the horizontal gauge sits, in rows.
+#:
+#: ZERO NOW, for the reason `FLOOR_INSET` is: the caller writes the
+#: scale's name on the row above the box, and a blank row between a gauge
+#: and the words naming it read as the gauge belonging to the drawing.
+#: The old note said NOT ZERO because hard against the frame a level
+#: reads as part of it - true while there was nothing but frame up there,
+#: and the title is what changed it.
+GAUGE_INSET = 0
 
 #: And none at the foot. The caller writes its labels on the row under
 #: the box, and a blank row between a gauge and the words naming it read

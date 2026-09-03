@@ -461,7 +461,6 @@ def gutter_caption(view):
     over_machine = list(range(first, last + 1))
     top, bottom = [' '] * ART_WIDTH, [' '] * ART_WIDTH
     _place(top, 'SWITCH', left)
-    _place(top, HEADROOM_TITLE, over_machine)
     _place(top, 'BOARD', right)
     # PLURAL: each group is six thermometers and four, not one.
     _place(bottom, 'TEMPS', left)
@@ -473,7 +472,22 @@ def gutter_caption(view):
     # it. Each figure takes the ink of its own node's margin, so the row
     # says how hot and how close in one glance.
     hot = [' '] * ART_WIDTH
+    # THE HEADROOM TITLE ON THE LAST CAPTION ROW, not the first. The
+    # gutters need three rows for their own two-word names and their
+    # readings; the scale it titles is two rows below THAT, so on the top
+    # row it stood four rows clear of the thing it named and read as a
+    # heading for the whole page. The middle of this row is empty - the
+    # readings sit out over the gutters - so it costs nothing to put it
+    # where it belongs, directly above its own gauge.
     marks = []
+    # IN ASH LIKE THE OTHER TWO ROWS. This row is inked in pieces - each
+    # reading takes its own node's colour - so anything left unmarked on
+    # it keeps the terminal's own foreground, which is brighter than every
+    # other caption on the page. A name is a name whichever row it landed
+    # on.
+    title_at = _place(hot, HEADROOM_TITLE, over_machine)
+    if title_at is not None:
+        marks.append((title_at, len(HEADROOM_TITLE), ASH))
     for group, columns in ((SOA_NODES, left), (BOARD_NODES, right)):
         peak, cls = hottest(view, group)
         if peak is None:

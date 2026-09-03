@@ -221,6 +221,17 @@ it and lets the can fill what is left. The captions carry the numbers
 the levels cannot: each gutter says its hottest node in degrees, in the
 ink of that node's own margin, because a share of a limit is the right
 thing for the board to act on and the wrong thing to read off a page.
+Every title sits on the row nearest the thing it names - the gutters
+take two rows each for their two-word names, and `SOA HEADROOM` rides
+the third beside the readings so it stands directly over its own scale
+rather than four rows clear of it at the top of the page.
+
+The SOA gauge PULSES white while the envelope is acting. A red bar
+cannot get redder, so a stage being held back by its own throttle looked
+exactly like one sitting near a limit; the pulse is the difference. It
+keys on the board's own `throttling` and `tripped` and never on a level
+the page picked - being near a limit is not an event, and being held
+back because of one is (invariant 10).
 
 ## The test system
 
