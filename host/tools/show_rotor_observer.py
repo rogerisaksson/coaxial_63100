@@ -36,6 +36,7 @@ from rich.text import Text                                  # noqa: E402
 
 from coaxial import machine   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
+from coaxial.thermal_device import THROTTLE_AT             # noqa: E402
 from screen import (ASH, SODIUM, TO_MENU,  # noqa: E402
                     closing, say, tint)
 
@@ -106,9 +107,21 @@ SWEEP_GAIN = 0.0005
 #: ink as the picture it is a key to.
 BAR_CELLS = 12
 BAR_GLYPH = chr(0x28FF)
+TRACK_GLYPH = chr(0x2812)
 #: The scroll affordances. Triangles rather than dots: they are
 #: not part of the picture, they are something to click.
 UP, DOWN = chr(0x25B2), chr(0x25BC)
+
+#: The thermal nodes a duty cycle can drive into the SOA: the shunt a
+#: phase current crosses and the half-bridge above it, per leg. Named in
+#: `coaxial.thermal`, ordered here the way a leg is read.
+SOA_NODES = ('driver_u', 'phase_u', 'driver_v', 'phase_v',
+             'driver_w', 'phase_w')
+#: And the rest of the network, which no duty cycle drives: the die, the
+#: rails that feed it, the front end, and the laminate everything sits
+#: on. Drawn on the other side of the machine because they fail for
+#: different reasons and are read for different ones.
+BOARD_NODES = ('mcu', 'regulators', 'afe', 'board')
 
 
 def sane(args):
@@ -420,16 +433,89 @@ def loop_rows(view):
             ('periods', '%7d' % s['periods'])]
 
 
+def soa_class(share, tripped=False):
+    """Which band a node's margin is in - `machine.SOA_CLASS`'s order.
+
+    THE BANDS ARE THE BOARD'S. `used` is the fraction of a node's ceiling
+    and the ceiling came from the calibration record; amber is
+    `THROTTLE_AT`, the same number `set_limit` writes and the board backs
+    off at; red is the ceiling. The margin is reported - the action is
+    the board's, and it takes it by dropping MOE (invariant 10).
+    """
+    if tripped or share >= 1.0:
+        return machine.SOA_TRIP
+    return machine.SOA_WARN if share >= THROTTLE_AT else machine.SOA_OK
+
+
+def soa_bars(view, names):
+    """`(fraction, class)` per node, for the gutters beside the machine."""
+    budget = view.get('budget') or {}
+    used = budget.get('used') or {}
+    tripped = bool(budget.get('tripped'))
+    return [(used[name], soa_class(used[name], tripped))
+            for name in names if name in used]
+
+
+def soa_bar(share, tripped=False):
+    """One node's margin as a bar, in the same ink the gutters use."""
+    share = max(0.0, min(1.0, share))
+    ink = machine.INK[soa_class(share, tripped)]
+    bar = Text()
+    bar.append(BAR_GLYPH * max(1, int(share * BAR_CELLS + 0.5)),
+               style='color(%d)' % ink)
+    # The rest of the tube. A THINNER GLYPH, not the same one dimmed:
+    # dimmed, a captured page shows every bar full, and the colour was
+    # doing all the work of saying which part was level and which was
+    # room left.
+    bar.append(TRACK_GLYPH * (BAR_CELLS - len(bar.plain)),
+               style='color(%d)' % machine.INK[machine.TRACK])
+    return bar
+
+
 def thermal_rows(view):
+    """The six nodes that carry the current, as bars against their ceilings.
+
+    THE SHUNTS AND THE BRIDGES, because they are what a drive can cook:
+    `phase_*` is the sense resistor a hundred amps goes through and
+    `driver_*` is the half-bridge above it. A number per node said how hot
+    each was and nothing about how close - a temperature cannot say that
+    without its limit beside it, which is why the board sends the fraction
+    and keeps the degrees on `state()`.
+
+    The rest of the network (mcu, regulators, afe, board) is not drawn
+    per node: it cannot be driven into the SOA by a duty cycle, and
+    whichever of it is worst arrives on the summary row anyway.
+    """
+    from coaxial import thermal as _thermal
+
     th, budget = view.get('thermal'), view.get('budget')
     if not th:
         return ['  (not read yet)']
-    rows = [('NTC', '%7.1f C' % th['ntc'] if th.get('ntc') is not None
-             else '%7s' % 'unread')]
+    used = (budget or {}).get('used') or {}
+    degrees = th.get('nodes') or {}
+    tripped = bool((budget or {}).get('tripped'))
+    rows = []
+    for node in SOA_NODES:
+        if node not in used:
+            continue
+        bar = soa_bar(used[node], tripped)
+        bar.append('%3.0f%% %5.1fC' % (100.0 * used[node],
+                                       degrees.get(node, float('nan'))))
+        rows.append((_thermal.pretty(node), bar))
+    for node in BOARD_NODES:
+        if node in used:
+            rows.append((node, soa_bar(used[node], tripped).append(
+                '%3.0f%% %5.1fC' % (100.0 * used[node],
+                                    degrees.get(node, float('nan'))))
+                or None))
+    rows.append(('NTC', '%7.1f C' % th['ntc'] if th.get('ntc') is not None
+                 else '%7s' % 'unread'))
     if budget:
-        rows.append(('budget', '%7d %%   worst %s'
-                     % (round(100.0 * budget['worst'] / 255.0),
-                        budget.get('worst_node', '?'))))
+        left = budget.get('seconds_to_limit')
+        rows.append(('worst', '%-11s %3.0f%%%s'
+                     % (budget.get('worst_node', '?'),
+                        100.0 * budget['worst'],
+                        '  %.0f s' % left if left is not None else '')))
     return rows
 
 
@@ -551,6 +637,8 @@ def compose(rig, origin, console, view):
                                     if truth else None),
                          amps=amps, full=full,
                          pointer_deg=view['travel'] - view['tare'],
+                         left=soa_bars(view, SOA_NODES),
+                         right=soa_bars(view, BOARD_NODES),
                          colour=True)
     panels = [('STATUS', status_rows(view)),
               ('DRIVE', drive_rows(view)),

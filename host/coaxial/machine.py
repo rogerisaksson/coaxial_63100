@@ -46,8 +46,12 @@ DOTS_X, DOTS_Y = 2, 4
 #: drawn, and the can needs somewhere to be round in - and outside it,
 #: room for the pointer's dot to be round in too, which is what set this
 #: number. At 0.84 the dot's outer edge landed within a third of a dot of
-#: the frame and came out flattened on one side at three o'clock.
-F_FIT = 0.78
+#: the frame and came out flattened on one side at three o'clock. It came
+#: down again from 0.78 to leave GUTTERS: six bar columns to the left of
+#: the machine and four to the right, which is where the thermal margins
+#: are drawn - beside the thing that gets hot rather than in a box
+#: somewhere else on the page.
+F_FIT = 0.70
 
 #: Every radius as a fraction of the outermost, which is sized to the box
 #: it is drawn in. NOT fixed dot counts: the drawing was tuned at 40x14,
@@ -161,8 +165,8 @@ SUBDOT = ((-0.25, -0.25), (0.25, -0.25), (-0.25, 0.25), (0.25, 0.25))
 #: took the magnet's amber and the outer ring came out yellow wherever a
 #: north pole passed behind it - a rotor leaking into the stationary
 #: part, which is the one thing this picture must not say.
-(BORE, YOKE, TOOTH_U, TOOTH_V, TOOTH_W, SOUTH, NORTH, CAN, TRUTH,
- POINTER) = range(10)
+(TRACK, BORE, YOKE, TOOTH_U, TOOTH_V, TOOTH_W, SOUTH, NORTH, CAN,
+ TRUTH, POINTER, SOA_OK, SOA_WARN, SOA_TRIP) = range(14)
 PHASE_CLASS = (TOOTH_U, TOOTH_V, TOOTH_W)
 #: What they are called, in the order the teeth take them. Here
 #: rather than in the view because the drawing and the legend beside
@@ -174,9 +178,16 @@ PHASE_NAMES = ('U', 'V', 'W')
 #: fixed furniture that still has to be told apart, which in braille it
 #: can only be by colour - a cell carries one, and the two polarities sit
 #: within a cell of each other.
-INK = {BORE: 240, CAN: 23, YOKE: 23,
+INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
        TOOTH_U: 38, TOOTH_V: 71, TOOTH_W: 103,
-       SOUTH: 94, NORTH: ansi.AMBER, TRUTH: 252, POINTER: 231}
+       SOUTH: 94, NORTH: ansi.AMBER, TRUTH: 252, POINTER: 231,
+       SOA_OK: 41, SOA_WARN: 178, SOA_TRIP: 196}
+
+#: The bar classes in the order a fraction picks one: below the
+#: board's throttle point, past it, at the ceiling. Which fraction
+#: means which is the CALLER's - the ceilings live in the
+#: calibration record and the board is what acts on them.
+SOA_CLASS = (SOA_OK, SOA_WARN, SOA_TRIP)
 
 #: A PHASE BRIGHTENS WITH ITS CURRENT. One hue each so a tooth says which
 #: phase it belongs to, four steps of it so the same tooth says how hard
@@ -285,8 +296,58 @@ def _classify(radius, phi, rotor, slots, poles, r, drive):
     return None
 
 
+def _bars(dots, owner, width, height, left, right):
+    """Vertical margin bars, filled from the bottom, one cell wide.
+
+    LEFT AND RIGHT ARE THE CALLER'S SUBJECTS, not this module's: it draws
+    fractions in gutters and knows nothing about what is hot. Each entry
+    is `(fraction, class)`, and the class is one of `SOA_CLASS`.
+
+    THERMOMETERS, not bars: each column is a tube the full height of the
+    box with the level rising inside it. The tube is what makes the level
+    mean anything - a column half the height of nothing is a number, a
+    column half the height of its own ceiling is a margin.
+
+    In the gutters and never over the machine: one drawn through the
+    drawing would be a thermometer through a motor. Filled from the
+    bottom because that is which way a level goes.
+    """
+    tall = height * DOTS_Y
+    for bars, side in ((left, 'left'), (right, 'right')):
+        for index, entry in enumerate(bars or ()):
+            share, cls = entry
+            # Adjacent, not spaced: six bars and four have to fit the
+            # gutters the machine leaves, and a bar chart's bars touch.
+            # What separates them is their heights and their colours.
+            col = index if side == 'left' else width - 1 - index
+            if not 0 <= col < width:
+                continue
+            filled = int(max(0.0, min(1.0, share)) * tall + 0.5)
+            for step in range(tall):
+                y = tall - 1 - step
+                row = y // DOTS_Y
+                if step < filled:
+                    # The column of mercury: both dots, solid, in the
+                    # band's own colour.
+                    for x in (col * DOTS_X, col * DOTS_X + 1):
+                        dots[row][x // DOTS_X] |= \
+                            BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
+                    if cls > owner[row][col]:
+                        owner[row][col] = cls
+                elif step % 2 == 0:
+                    # THE TUBE ABOVE IT. A bar with nothing over it says
+                    # how hot a node is; a bar in a tube says how hot it
+                    # is OF WHAT IT MAY BE, which is the only version of
+                    # the question a ceiling makes sense of. Every other
+                    # dot, one side, so the empty part reads as a scale
+                    # and not as more level.
+                    dots[row][col] |= BRAILLE_BITS[0][y % DOTS_Y]
+                    if TRACK > owner[row][col]:
+                        owner[row][col] = TRACK
+
+
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
-            pointer_deg):
+            pointer_deg, left, right):
     """Dots and their owners, one entry per character cell."""
     dots = [[0] * width for _ in range(height)]
     owner = [[-1] * width for _ in range(height)]
@@ -372,12 +433,13 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             radius = r.tooth_out + 0.5 + step * 0.25
             put(cx + radius * math.cos(phi), cy - radius * math.sin(phi),
                 TRUTH)
+    _bars(dots, owner, width, height, left, right)
     return dots, owner
 
 
 def render(rotor_deg, slots=24, poles=28, width=40, height=22,
            truth_deg=None, amps=None, full=None, pointer_deg=None,
-           colour=False):
+           left=None, right=None, colour=False):
     """The cross-section, `rotor_deg` being how far the can has turned.
 
     `rotor_deg` is mechanical: the electrical angle over the pole pairs.
@@ -397,6 +459,10 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     when something knows it. The gap between the notch and the magnet
     band under it IS the observer's error, in the units a magnet works in.
 
+    `left` and `right` are margin bars - `(fraction, class)` each - drawn
+    in the gutters either side. What they measure is the caller's; this
+    draws levels.
+
     Colour is asked for here rather than applied afterwards: a braille
     cell carries dots from up to eight places and its glyph does not say
     which, so there is nothing for a `colourise(text)` to key on.
@@ -405,7 +471,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     slots = max(3, int(slots))
     drive = _drive(amps, full)
     dots, owner = _raster(rotor_deg, slots, poles, width, height,
-                          truth_deg, drive, pointer_deg)
+                          truth_deg, drive, pointer_deg, left, right)
     ink = phase_ink(drive)
     lines = []
     for row in range(height):

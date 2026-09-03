@@ -15,6 +15,14 @@ an estimate under a few minutes has not settled against the network's
 from . import protocol
 from .subsystem import Subsystem
 from .thermal import ALL_NODES
+
+#: Where the board starts backing off, as a fraction of a node's ceiling.
+#: `set_limit`'s default and therefore what is in the record unless a
+#: bench wrote something else - named here so a page drawing a margin
+#: draws it against the same number the board acts on, rather than one of
+#: its own. The board still owns the action; this is only where the bar
+#: changes colour.
+THROTTLE_AT = 0.85
 from .wire import Reader, pack
 
 #: Op codes. Prefixed because every device has its own op 0 and the bare
@@ -122,7 +130,7 @@ class Thermal(Subsystem):
             'trips': r.u32(),
         }
 
-    def set_limit(self, node, limit_c, throttle_at=0.85):
+    def set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
         """One node's ceiling in degrees C, and where derating starts.
 
         The board holds a limit; it does not invent one. Zero disables that
