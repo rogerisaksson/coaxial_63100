@@ -1228,8 +1228,10 @@ _FOC_INTRO = [
        "Three parts, in this order:\n\n"
        "1. **Sliding Mode Observer (SMO)** and **Flux Linkage Observer** - "
        "the two back-EMF observers in `coaxial.sensorless`, each simulated "
-       "over drawn plants, then the hybrid that blends them and what the "
-       "flux observer's magnitude measures about the machine.\n"
+       "over drawn plants, with the **Extended Back-EMF Observer** as the "
+       "flux observer's close relative and what it fixes under load; then "
+       "the hybrid that blends them, and what the flux observer's magnitude "
+       "measures about the machine.\n"
        "2. **The firmware's own control law**, searched over the 23-63 V "
        "link sweep with `tools/montecarlo.py`.\n"
        "3. **The envelope** both land in: speed, torque, the thermal "
@@ -1553,6 +1555,51 @@ print('inside %.0f deg from %.0f rpm to %.0f rpm' % (CRITERION_DEG, rpm(lo), rpm
        "flux's magnitude should be lambda, so the observer can check itself "
        "without a reference - which the sliding-mode observer cannot do from "
        "its angle alone."),
+    md("## Extended Back-EMF Observer\n\n"
+       "The flux observer's close relative, and what it fixes.\n\n"
+       "`psi - L i` needs one L, and a salient machine has two. Subtracting "
+       "Ld along both axes leaves `(Lq - Ld) iq` sitting on the q axis of "
+       "what is supposed to be the rotor's flux, so the estimate is pulled "
+       "round by an angle that grows with **load** and vanishes at no load - "
+       "which is why a flux observer can look perfect on a bench and lose "
+       "the rotor pulling a propeller.\n\n"
+       "The extended back-EMF formulation is the same physics arranged so "
+       "that this cannot happen. Write the stator equation with Ld as the "
+       "inductance in both axes and everything left over goes into one term:\n\n"
+       "        E_ex = (Ld - Lq)(w id - d iq/dt) + w lambda\n\n"
+       "        v = (R + p Ld) i + E_ex (-sin theta, cos theta)\n\n"
+       "All the position is in `E_ex`, and `E_ex` points along the same axis "
+       "the plain back-EMF does - so an observer estimating it recovers the "
+       "angle with no saliency error at all. At `id = 0` and steady speed "
+       "the saliency terms drop out and `E_ex = w lambda`, which is why the "
+       "two agree at no load and part company under it.\n\n"
+       "It costs one extra term and gives back the load error below."),
+    code("""print('what one L costs the flux observer under load, 5230SL')
+print('Ld %.1f uH, Lq %.1f uH, saliency %.2f, lambda %.5f Wb'
+      % (motor.ld * 1e6, motor.lq * 1e6, motor.saliency, motor.lam))
+print()
+print('   iq A   (Lq-Ld) iq uWb   angle error deg   torque lost %')
+for iq in (0.0, 2.0, 10.0, 30.0, 60.0, 100.0):
+    stray = (motor.lq - motor.ld) * iq
+    err = math.atan2(stray, motor.lam)
+    print('%7.0f %17.1f %17.2f %13.1f'
+          % (iq, stray * 1e6, math.degrees(err),
+             100.0 * (1.0 - math.cos(err))))
+print()
+print('the extended back-EMF form carries the same term instead of')
+print('leaving it in the estimate, so its error here is zero at every iq.')"""),
+    md("At the 2 A the sweep above runs, the error is a fifth of a degree "
+       "and invisible - which is exactly how this gets missed. At the "
+       "current the board is rated for it is not small, and it is a **bias**, "
+       "not noise: it does not average out, and it moves with torque, so a "
+       "speed loop chasing it sees the machine's own gain change.\n\n"
+       "Nothing here implements the extended form; `sensorless.FluxObserver` "
+       "is the plain one, and its saliency error is the table above. On a "
+       "surface-magnet outrunner - saliency near 1 - the two forms coincide "
+       "and the plain observer is the right one. The more saliency a machine "
+       "has, the more the injection has to work with at rest and the more "
+       "the flux observer needs the extended form at speed, which is the "
+       "same constant paying twice in opposite directions."),
     code("""print('flux linkage, deg rms, over %d drawn plants' % PLANTS)
 print('  rad/s el    rpm    median   worst   wc/w correction   |psi| off lambda')
 for row in table:
