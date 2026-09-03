@@ -412,6 +412,36 @@ def _place(row, name, columns, right_edge=False, until=None):
     return at
 
 
+def reference(view):
+    """The NTC, as text: the one MEASURED temperature on this page.
+
+    EVERY OTHER FIGURE HERE IS AN ESTIMATE. The ten node temperatures are
+    a lumped network's opinion, the winding is `3 i^2 R` relaxed into a
+    placeholder pair, and none of them has a sensor in it. The NTC has
+    one - a thermistor beside the middle gate driver - and it is the only
+    thing on the drawing a thermocouple could argue with. It sits above
+    the headroom scale as the reference the rest is judged against, in
+    the ink this page gives what is known rather than modelled.
+
+    `None` is what the board answers with AFE_ON low, because the AFE
+    powers the ADC reference and there is no reading at all then
+    (invariant 9). It says so rather than drawing a number: a dash cannot
+    be mistaken for a cold board.
+
+    AGAINST THE STAND-IN IT IS NOT A MEASUREMENT. `SimulatedThermal`
+    computes it with `thermal.expected_ntc` off its own nodes, so
+    simulated this line is the model agreeing with itself and proves
+    nothing about the model. The page's own SIMULATED banner is what says
+    which one you are looking at; there is no second caveat here because
+    a field that cried wolf on every simulated run would be ignored on
+    the one that mattered.
+    """
+    seen = (view.get('thermal') or {}).get('ntc')
+    if seen is None:
+        return 'NTC  unread'
+    return 'NTC %.1f %sC' % (seen, DEGREE)
+
+
 def hottest(view, names):
     """The hottest node of a group: `(celsius, class)`.
 
@@ -491,6 +521,15 @@ def gutter_caption(view):
     # PLURAL: each group is six thermometers and four, not one.
     _place(bottom, 'TEMPS', left)
     _place(bottom, 'TEMPS', right)
+    # AND THE MEASUREMENT ABOVE THE HEADROOM SCALE. Everything below this
+    # row is modelled; this is the one number with a sensor behind it, so
+    # it stands over the scale the model's own verdict is drawn on and
+    # takes TRUTH's ink - the same colour this page gives the rotor's real
+    # angle, and for the same reason.
+    shown = reference(view)
+    seen_at = _place(bottom, shown, over_machine)
+    bottom_marks = ([(seen_at, len(shown), machine.INK[machine.TRUTH])]
+                    if seen_at is not None else [])
     # AND THE HOTTEST OF EACH, IN DEGREES, under its own name. The tubes
     # are fractions of a ceiling - the right thing to act on and the
     # wrong thing to say out loud, because a bench asks how hot the FETs
@@ -538,7 +577,8 @@ def gutter_caption(view):
     pad = ART_WIDTH - len(head) - len(tail)
     foot = (tint(head, machine.INK[machine.SOA_WARN]) + ' ' * max(0, pad)
             + tint(tail, machine.INK[machine.WATTS]))
-    return ''.join(top), ''.join(bottom), _tinted(hot, marks), foot
+    return (''.join(top), _tinted(bottom, bottom_marks),
+            _tinted(hot, marks), foot)
 
 
 def phase_amps(view):
@@ -1438,7 +1478,10 @@ def compose(rig, origin, console, view):
     # costs the machine one of its own, which is cheaper than the guess.
     heads = gutter_caption(view)
     # The names in ash, the readings in their own inks already.
-    caption = [tint(line, ASH) for line in heads[:2]] + [heads[2]]
+    # ONLY THE FIRST ROW IS ONE COLOUR. The other two carry figures in
+    # their own inks - the NTC as the measurement it is, the readings as
+    # their nodes' margins - so they arrive already tinted in pieces.
+    caption = [tint(heads[0], ASH), heads[1], heads[2]]
     foot = heads[3]          # already inked, one colour per gauge
     turned = math.degrees(s['theta_hat']) / pole_pairs
     # THE CAN AND THE POINTER ARE DIFFERENT QUANTITIES. The can is drawn

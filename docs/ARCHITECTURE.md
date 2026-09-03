@@ -236,6 +236,15 @@ take two rows each for their two-word names, and `SOA HEADROOM` rides
 the third beside the readings so it stands directly over its own scale
 rather than four rows clear of it at the top of the page.
 
+Above the headroom scale stands the NTC, and it is there because it is
+the one MEASURED temperature on the page - a thermistor beside the middle
+gate driver, in the ink the drawing gives what is known rather than
+modelled. Every other figure is an estimate: ten nodes of a lumped
+network and a winding relaxed into a placeholder pair, none of them with
+a sensor in it. Against the stand-in it is `expected_ntc` off the model's
+own nodes, so simulated it proves nothing - the page's SIMULATED banner
+is what says which one is on screen.
+
 The SOA gauge PULSES white while the envelope is acting. A red bar
 cannot get redder, so a stage being held back by its own throttle looked
 exactly like one sitting near a limit; the pulse is the difference. It
@@ -245,7 +254,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2561 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2566 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -272,7 +281,7 @@ by `counts.py`:
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 41 | every view drawn twice, and the rotor observer's geometry |
+| test_views.py | 46 | every view drawn twice, and the rotor observer's geometry |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |

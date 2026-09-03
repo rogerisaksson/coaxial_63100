@@ -248,6 +248,47 @@ def test_a_power_node_never_reads_below_the_copper(report):
         rig.close()
 
 
+def test_the_ntc_is_shown_as_the_one_measurement(report):
+    """The reference above the headroom scale, and what it says unread.
+
+    Every other figure on the page is an estimate - ten nodes of a lumped
+    network, a winding relaxed into a placeholder pair - and the NTC is
+    the only one with a sensor behind it. It stands over the scale the
+    model's own verdict is drawn on, in TRUTH's ink, which is what this
+    page gives what is known rather than modelled.
+    """
+    sys.path.insert(0, HOST)
+    from coaxial import machine
+    from tools import show_rotor_observer as view
+
+    report.check('a reading is shown in degrees',
+                 view.reference({'thermal': {'ntc': 38.04}})
+                 == 'NTC 38.0 %sC' % view.DEGREE,
+                 view.reference({'thermal': {'ntc': 38.04}}))
+    # AFE_ON LOW IS NOT A COLD BOARD. The board answers None because the
+    # AFE powers the ADC reference and there is no reading at all then
+    # (invariant 9), and a dash cannot be mistaken for a temperature.
+    for empty in ({'thermal': {'ntc': None}}, {}):
+        report.check('and no reading says so rather than drawing a number',
+                     'unread' in view.reference(empty),
+                     view.reference(empty))
+
+    rows = view.gutter_caption({
+        'thermal': {'nodes': dict.fromkeys(view.SOA_NODES + view.BOARD_NODES,
+                                           40.0),
+                    'ambient': 20.0, 'ntc': 38.0},
+        'budget': {'used': {}, 'tripped': False},
+        'state': {'id': 0.0, 'iq': 0.0, 'vd': 0.0, 'vq': 0.0},
+        'params': {}, 'winding_at': None})
+    ink = 'color(%d)' % machine.INK[machine.TRUTH]
+    report.check('it rides the row above SOA HEADROOM',
+                 'NTC' in rows[1] and 'NTC' not in rows[2],
+                 rows[1].replace(chr(27), '^'))
+    report.check('and takes the ink this page gives what is measured',
+                 '38;5;%d' % machine.INK[machine.TRUTH] in rows[1],
+                 'wanted %s' % ink)
+
+
 def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
     """The alarm is the envelope acting, not a level this page picked.
 
@@ -287,6 +328,7 @@ def main():
     test_each_gutter_says_its_hottest_node(report)
     test_both_gutters_run_on_one_scale(report)
     test_a_power_node_never_reads_below_the_copper(report)
+    test_the_ntc_is_shown_as_the_one_measurement(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0

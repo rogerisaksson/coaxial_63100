@@ -338,6 +338,38 @@ happened between two polls.
   slices, stepping and evaluating on each, capped at `THERMAL_CATCHUP_MS`
   = 2000. Past that the power sample is too stale to integrate: a model
   fed one reading for two seconds is inventing the heat it did not see.
+### The NTC coupling is one point, stretched ten times, 2026-09-03
+
+Raised at the bench: the NTC runs away as soon as the stage switches, and
+the thermistor is not really that close to the switch nodes. The
+arithmetic says the doubt is the right one.
+
+* `NTC_OFFSET` = 36.0 - 30.0 = **6.0 K**, from the passive state where
+  nothing was warming anything. That one is fine - it is a mounting and
+  channel offset taken where there is no driver term to confuse it.
+* `NTC_SEES_DRIVERS` = ((55.6 - 40.0) - 6.0) / 9.1 = 9.6 / 9.1 =
+  **1.055**, and that is a slope FITTED FROM ONE POINT, at a driver rise
+  of **9.1 K**. Both terms in the numerator are camera readings; +/-0.5 K
+  on each gives a slope anywhere from **0.95 to 1.16**.
+* The demo, and any real burst, drives the driver node 70-100 K over the
+  board - **ten times the rise the slope was fitted at**. Extrapolated,
+  the NTC reads +79.8 K over the board at a 70 K driver rise, and the
+  camera error alone spreads that over 72 to 88 K. It is the fastest
+  moving number on the page and the least supported.
+* A slope of 1.055 says the thermistor tracks the driver node one for
+  one - thermally ON it, not a few millimetres away on the laminate. The
+  note beside the constant rationalises that as "closer to the heat than
+  the point the node stands for", which may be true; it may equally be
+  the fit absorbing a board GRADIENT, since `board` in that state is the
+  camera's reading at one spot and the copper under the thermistor need
+  not be that spot. Nothing distinguishes the two from one point.
+* Not changed. The constant comes off the campaign's own measurements and
+  there is no measurement that says otherwise (invariant 10). What would
+  settle it is a camera run at a driver rise of tens of kelvin - the same
+  bench day that would span `board_to_ambient` at high dT and `to_board`
+  per leg. All three of this model's soft numbers are fitted at one tenth
+  of the load the board is rated for.
+
 ### Conduction was one sample squared, 2026-09-03
 
 Found auditing the model after the bench asked why the switches were not
