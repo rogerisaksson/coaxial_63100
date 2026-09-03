@@ -88,7 +88,21 @@ STEPS = (0.05, 0.1, 0.25, 0.5, 1.0)
 
 #: The dial, drawn smaller than the shaft view's: four instrument boxes
 #: sit beside it and the face is a pointer, not a protractor to read.
-ART_WIDTH, ART_HEIGHT = 40, 22
+ART_WIDTH, ART_HEIGHT = 40, 23
+
+#: Rows of the box that are captions rather than drawing: three above -
+#: the group names over two lines and their hottest reading under them -
+#: and one below for the foot gauges' labels.
+CAPTION_ROWS, FOOT_ROWS = 3, 1
+
+#: What is left for the machine. NINETEEN ROWS AND NO INSET AT THE FOOT:
+#: at nineteen with an inset the can came out rows 2..16 and the winding
+#: gauge was drawn on row 16, through the bottom of the can - measured.
+#: A twentieth row cleared it and left the labels a blank row from the
+#: gauges they name; `machine.FLOOR_INSET` clears it the other way, by
+#: spending the row of air that was under the bottom gauge. Can 2..16,
+#: winding 17, watts 18, labels on the row below the box.
+ART_ROWS = ART_HEIGHT - CAPTION_ROWS - FOOT_ROWS
 
 #: HOW CLOSE TO THE FLOOR IS TOO CLOSE. The chain reports `wc`, the leak's
 #: corner, and calls itself invalid below it - both observers live on
@@ -213,6 +227,8 @@ TRACK_GLYPH = chr(0x2812)
 #: The scroll affordances. Triangles rather than dots: they are
 #: not part of the picture, they are something to click.
 UP, DOWN = chr(0x25B2), chr(0x25BC)
+#: The degree sign. A bare C beside a number is a coulomb.
+DEGREE = chr(0xB0)
 
 #: The thermal nodes a duty cycle can drive into the SOA: the shunt a
 #: phase current crosses and the half-bridge above it, per leg. Named in
@@ -342,13 +358,18 @@ def travel(view):
 def _place(row, name, columns, right_edge=False, until=None):
     """Write `name` over `columns`, centred, clamped to the frame.
 
+    Answers the column it started at, or None if it wrote nothing: a
+    row with two readings on it in two different inks has to be cut where
+    they actually landed, and the clamps above mean that is not where the
+    caller asked for them.
+
     `until` is the last column it may occupy, for a name that has a
     neighbour outboard of it: `BOARD` is five characters over four
     columns of thermometers and `kW` sits two columns further out, so
     without one they came out as `BOARDkW` with nothing between them.
     """
     if not columns or not name:
-        return
+        return None
     middle = (min(columns) + max(columns)) / 2.0
     at = (ART_WIDTH - len(name) if right_edge
           else int(round(middle - (len(name) - 1) / 2.0)))
@@ -362,10 +383,55 @@ def _place(row, name, columns, right_edge=False, until=None):
         at = min(at, until + 1 - len(name))
     at = max(0, min(ART_WIDTH - len(name), at))
     row[at:at + len(name)] = name
+    return at
 
 
-def gutter_caption():
-    """The captions: two rows over the gutters, and one under the foot.
+def hottest(view, names):
+    """The hottest node of a group: `(celsius, class)`.
+
+    THE HOTTEST, not the mean. A group is as hot as its worst part, and
+    an average over six legs hides the one that is cooking behind five
+    that are not - the same reason `headroom` takes the worst node.
+
+    Degrees off `state`, colour off `budget`: the tubes below are
+    fractions of each node's own ceiling and this is a temperature, so
+    the tallest tube and the hottest node can be different nodes. They
+    are two questions - how close, and how hot - and the board answers
+    both because neither can be worked out from the other without the
+    limit, which lives in the calibration record.
+    """
+    nodes = (view.get('thermal') or {}).get('nodes') or {}
+    budget = view.get('budget') or {}
+    seen = [name for name in names if nodes.get(name) is not None]
+    if not seen:
+        return None, machine.TRACK
+    at = max(seen, key=lambda name: nodes[name])
+    return nodes[at], soa_class((budget.get('used') or {}).get(at, 0.0),
+                                bool(budget.get('tripped')))
+
+
+def _tinted(row, marks):
+    """`row`, a list of characters, as a string with `marks` coloured.
+
+    `marks` are `(at, length, ink)`. Two readings on one row in two inks
+    cannot be tinted as a line - one colour would have to lie about one
+    of them - so the row is cut where each actually landed.
+    """
+    out, cut = [], 0
+    for at, length, ink in sorted(marks):
+        out.append(''.join(row[cut:at]))
+        out.append(tint(''.join(row[at:at + length]), ink))
+        cut = at + length
+    out.append(''.join(row[cut:]))
+    return ''.join(out)
+
+
+def gutter_caption(view):
+    """The captions: three rows over the gutters, and one under the foot.
+
+    It takes the view because the foot labels carry their gauges' values:
+    a level says how far along a scale it is and never what it is worth,
+    and the box that holds those figures is several boxes down the column.
 
     CENTRED ON THE COLUMNS, not on the halves of the frame. Written
     against the halves it read as badly aimed - the left group is six
@@ -388,29 +454,51 @@ def gutter_caption():
     phase current crosses - and it read as watts, which is the one thing
     in the gutters it is not.
     """
-    left, right = machine.gutters(ART_WIDTH, ART_HEIGHT - 3,
+    left, right = machine.gutters(ART_WIDTH, ART_ROWS,
                                   len(SOA_NODES), len(BOARD_NODES))
-    first, last = machine.span(ART_WIDTH, ART_HEIGHT - 3)
+    first, last = machine.span(ART_WIDTH, ART_ROWS,
+                               len(SOA_NODES), len(BOARD_NODES))
     over_machine = list(range(first, last + 1))
     top, bottom = [' '] * ART_WIDTH, [' '] * ART_WIDTH
     _place(top, 'SWITCH', left)
     _place(top, HEADROOM_TITLE, over_machine)
     _place(top, 'BOARD', right)
-    _place(bottom, 'TEMP', left)
-    _place(bottom, 'TEMP', right)
-    # THE TWO ALONG THE FOOT, named under them. The top gauge is titled
-    # by the row above it; these have nothing above them but the drawing,
-    # so the arrows say which is which - the winding is the upper of the
-    # two and the power the lower.
+    # PLURAL: each group is six thermometers and four, not one.
+    _place(bottom, 'TEMPS', left)
+    _place(bottom, 'TEMPS', right)
+    # AND THE HOTTEST OF EACH, IN DEGREES, under its own name. The tubes
+    # are fractions of a ceiling - the right thing to act on and the
+    # wrong thing to say out loud, because a bench asks how hot the FETs
+    # are and no share of a limit answers that without the limit beside
+    # it. Each figure takes the ink of its own node's margin, so the row
+    # says how hot and how close in one glance.
+    hot = [' '] * ART_WIDTH
+    marks = []
+    for group, columns in ((SOA_NODES, left), (BOARD_NODES, right)):
+        peak, cls = hottest(view, group)
+        if peak is None:
+            continue
+        text = '%.1f %sC' % (peak, DEGREE)
+        at = _place(hot, text, columns)
+        if at is not None:
+            marks.append((at, len(text), machine.INK[cls]))
+    # THE TWO ALONG THE FOOT, named under them and CARRYING THEIR OWN
+    # NUMBERS. The top gauge is titled by the row above it; these have
+    # nothing above them but the drawing, so the arrows say which is
+    # which - the winding is the upper of the two and the power the
+    # lower. The value goes in the label because a level on a scale says
+    # how far along it is and never what it is worth, and the box that
+    # held the figures is four boxes down the column.
+    #
     # EACH LABEL IN ITS OWN BAR'S INK. One grey line named two gauges
     # drawn in two colours, so which word went with which bar was left to
     # the arrows alone. The colour is the faster half of that answer.
-    head = '%s WINDING C' % UP
-    tail = 'kW %s' % DOWN
+    head = '%s WINDING %.1f %sC' % (UP, winding(view), DEGREE)
+    tail = '%.2f kW %s' % (watts(view) / 1000.0, DOWN)
     pad = ART_WIDTH - len(head) - len(tail)
     foot = (tint(head, machine.INK[machine.SOA_WARN]) + ' ' * max(0, pad)
             + tint(tail, machine.INK[machine.WATTS]))
-    return ''.join(top), ''.join(bottom), foot
+    return ''.join(top), ''.join(bottom), _tinted(hot, marks), foot
 
 
 def phase_amps(view):
@@ -1244,9 +1332,10 @@ def compose(rig, origin, console, view):
     # column of braille cannot carry a letter, and a stack of unlabelled
     # tubes beside a motor is a reader guessing which is which. The row
     # costs the machine one of its own, which is cheaper than the guess.
-    heads = gutter_caption()
-    caption = [tint(line, ASH) for line in heads[:2]]
-    foot = heads[2]          # already inked, one colour per gauge
+    heads = gutter_caption(view)
+    # The names in ash, the readings in their own inks already.
+    caption = [tint(line, ASH) for line in heads[:2]] + [heads[2]]
+    foot = heads[3]          # already inked, one colour per gauge
     turned = math.degrees(s['theta_hat']) / pole_pairs
     # THE CAN AND THE POINTER ARE DIFFERENT QUANTITIES. The can is drawn
     # from the electrical angle over the pole pairs, which is right
@@ -1257,7 +1346,7 @@ def compose(rig, origin, console, view):
     # travel this view has accumulated instead - the observed speed
     # integrated, which is mechanical revolutions and what a tare is for.
     art = machine.render(turned, view['slots'], 2 * pole_pairs,
-                         ART_WIDTH, ART_HEIGHT - 3,
+                         ART_WIDTH, ART_ROWS,
                          truth_deg=(math.degrees(truth['theta']) / pole_pairs
                                     if truth else None),
                          amps=amps, full=full, aspect=view['aspect'],

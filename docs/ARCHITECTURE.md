@@ -197,9 +197,24 @@ frame spending three round trips took 190 ms of a 125 ms budget. The
 front page's only live datum is whether a broker is serving, fetched
 by a background thread - probed inline it cost 2 029 ms a frame.
 
+The rotor observer draws the machine itself - `coaxial/machine.py`, a
+braille cross-section of rotor and stator whose slot and pole counts
+come from what was identified, teeth as long as their phase is driven.
+Instruments stand around it and every one is a level against its own
+ceiling: six thermometers to the left for the FET and shunt of each
+leg, four to the right for MCU, regulators, AFE and board, the SOA
+headroom across the top, and the winding estimate and the link power
+along the foot. `machine.layout()` is the one place that decides where
+any of it goes - the machine is centred BETWEEN the gutters rather than
+in the box, which is what makes both groups stand the same distance off
+it and lets the can fill what is left. The captions carry the numbers
+the levels cannot: each gutter says its hottest node in degrees, in the
+ink of that node's own margin, because a share of a limit is the right
+thing for the board to act on and the wrong thing to read off a page.
+
 ## The test system
 
-Twenty-five suites, 2486 checks, counted in `host/tests/.counts.json`
+Twenty-five suites, 2494 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -225,7 +240,7 @@ by `counts.py`:
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 24 | every view and the front page drawn twice |
+| test_views.py | 32 | every view drawn twice, and the rotor observer's geometry |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |

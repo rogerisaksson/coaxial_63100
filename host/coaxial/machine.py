@@ -57,11 +57,15 @@ DOTS_X, DOTS_Y = 2, 4
 #: down from 0.78 to leave GUTTERS: six bar columns to the left of the
 #: machine and four to the right, which is where the thermal margins are
 #: drawn - beside the thing that gets hot rather than in a box somewhere
-#: else on the page. And down again from 0.70, because six bars need six
-#: columns and at 0.70 they ran to the frame's edge: the left group sat
-#: hard against the machine while the right had two columns of air, and
-#: the two sides read as different distances because they were.
-F_FIT = 0.68
+#: else on the page.
+#:
+#: AND BACK TO ONE, because `layout` now hands the machine exactly the
+#: columns the gutters leave it: the air is `BAR_GAP`, reserved before
+#: the radius is worked out, so a fraction here would be a second helping
+#: of the same margin. Every earlier value of this - 0.84, 0.78, 0.70,
+#: 0.62 - was fighting a centre that sat in the middle of the box while
+#: the gutters were six columns one side and four the other.
+F_FIT = 1.0
 
 #: Every radius as a fraction of the outermost, which is sized to the box
 #: it is drawn in. NOT fixed dot counts: the drawing was tuned at 40x14,
@@ -112,6 +116,13 @@ TOOTH_STUB = 0.22
 #: a level drawn on the border of a box is a border. One row of air at
 #: each end and they are instruments lying beside the machine.
 GAUGE_INSET = 1
+
+#: And none at the foot. The caller writes its labels on the row under
+#: the box, and a blank row between a gauge and the words naming it read
+#: as the gauge belonging to the drawing rather than to the label. The
+#: top gauge keeps its row of air because what is above it is a frame,
+#: not a caption.
+FLOOR_INSET = 0
 
 
 def _drive(amps, full=None):
@@ -213,7 +224,10 @@ SOA_CLASS = (SOA_OK, SOA_WARN, SOA_TRIP)
 #: can's own edge rather than off the frame: counted from the frame,
 #: six bars and four put the two groups at different distances and
 #: the page looked lopsided.
-BAR_GAP = 2
+#: One column, not two. Two columns of air each side cost the machine
+#: eight per cent of its diameter at this width, and the gutters read as
+#: separate from it at one.
+BAR_GAP = 1
 
 #: A PHASE BRIGHTENS WITH ITS CURRENT. One hue each so a tooth says which
 #: phase it belongs to, four steps of it so the same tooth says how hard
@@ -322,34 +336,56 @@ def _classify(radius, phi, rotor, slots, poles, r, drive):
     return None
 
 
+def layout(width, height, n_left=0, n_right=0):
+    """Where everything goes: `(centre_x, radii, left_cols, right_cols)`.
+
+    ONE SOURCE FOR ALL OF IT. The span, the gutters, the raster and the
+    caption each worked the geometry out again, and any two of them
+    disagreeing put a scale through a thermometer or a title over a
+    gutter. They all come here now.
+
+    THE MACHINE IS CENTRED BETWEEN THE GUTTERS, not in the box. Six
+    thermometers stand to its left and four to its right, so centred in
+    the frame it sat nearer the left group than the right - measured, one
+    column of air against two - and could not grow either, because the
+    wider gutter reached the frame first. Centred on what is actually
+    left over, it is symmetric AND bigger: one rule gives both.
+    """
+    lead = (n_left + BAR_GAP) if n_left else 0
+    trail = (n_right + BAR_GAP) if n_right else 0
+    room = max(1, width - lead - trail)
+    r = _Radii(room, height)
+    cx = (lead + room / 2.0) * DOTS_X - 0.5
+    left = [c for c in (lead - BAR_GAP - 1 - i for i in range(n_left))
+            if 0 <= c < width]
+    right = [c for c in (width - trail + BAR_GAP + i for i in range(n_right))
+             if 0 <= c < width]
+    return cx, r, left, right
+
+
 def gutters(width, height, n_left, n_right):
     """Which columns the margin bars land in, `(left, right)`.
 
     Exported because a caption has to sit over its own group and the only
-    thing that knows where a group went is what put it there. Written
-    down once here rather than guessed twice.
+    thing that knows where a group went is what put it there.
     """
-    first, last = span(width, height)
-    inner, outer = first - BAR_GAP, last + BAR_GAP
-    return ([c for c in (inner - i for i in range(n_left)) if 0 <= c < width],
-            [c for c in (outer + i for i in range(n_right)) if 0 <= c < width])
+    return layout(width, height, n_left, n_right)[2:]
 
 
-def span(width, height):
+def span(width, height, n_left=0, n_right=0):
     """The columns the machine itself occupies, first and last.
 
-    One definition: `gutters` puts the bars either side of it, `_gauge`
-    runs between them and a caption is centred over it, and any two of
-    those disagreeing about where the machine is would put a scale
-    through a thermometer or a title over a gutter.
+    FLOORED AT BOTH ENDS. Ceiling the right one put its edge a column
+    further out than the circle actually reached, so the gutter measured
+    off it stood two columns clear where the left stood one.
     """
-    r = _Radii(width, height)
-    middle = width * DOTS_X / 2.0 - 0.5
-    return (int(math.floor((middle - r.can) / DOTS_X)),
-            int(math.ceil((middle + r.can) / DOTS_X)))
+    cx, r, _, _ = layout(width, height, n_left, n_right)
+    return (int(math.floor((cx - r.can) / DOTS_X)),
+            int(math.floor((cx + r.can) / DOTS_X)))
 
 
-def _gauge(dots, owner, width, height, row, share, cls):
+def _gauge(dots, owner, width, height, row, share, cls,
+           n_left=0, n_right=0):
     """One horizontal level across the MACHINE'S width, from the left.
 
     Not the whole row: run edge to edge it passed above and below the
@@ -364,7 +400,7 @@ def _gauge(dots, owner, width, height, row, share, cls):
     """
     if row < 0 or row >= height:
         return
-    first, last = span(width, height)
+    first, last = span(width, height, n_left, n_right)
     lo, hi = max(0, first) * DOTS_X, min(width - 1, last) * DOTS_X + DOTS_X
     wide = hi - lo
     filled = int(max(0.0, min(1.0, share)) * wide + 0.5)
@@ -407,15 +443,17 @@ def _bars(dots, owner, width, height, left, right, r, floors=1):
     # it and the scale appeared to run through the thermometers. `floors`
     # is how many rows are taken at the bottom - one gauge or several.
     top_row = GAUGE_INSET + 1
-    tall = max(1, height - 2 * GAUGE_INSET - 1 - max(1, floors)) * DOTS_Y
+    tall = max(1, height - GAUGE_INSET - FLOOR_INSET - 1
+               - max(1, floors)) * DOTS_Y
     # Floor one side and ceil the other inside `gutters`: the centre sits
     # between two columns, so flooring both put the machine's right edge
     # half a column further out than its left and the gaps came out 1
     # and 0. Adjacent, not spaced: six bars and four have to fit what the
     # machine leaves, and a bar chart's bars touch - what separates them
     # is their heights and their colours.
-    where = gutters(width, height, len(left or ()), len(right or ()))
-    for bars, columns in ((left, where[0]), (right, where[1])):
+    _, _, at_left, at_right = layout(width, height,
+                                     len(left or ()), len(right or ()))
+    for bars, columns in ((left, at_left), (right, at_right)):
         for index, entry in enumerate(bars or ()):
             if index >= len(columns) or entry is None:
                 # A None is a SPACER: it takes a column and draws
@@ -453,10 +491,9 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
     """Dots and their owners, one entry per character cell."""
     dots = [[0] * width for _ in range(height)]
     owner = [[-1] * width for _ in range(height)]
-    cx = width * DOTS_X / 2.0 - 0.5
+    cx, r, _, _ = layout(width, height, len(left or ()), len(right or ()))
     cy = height * DOTS_Y / 2.0 - 0.5
     rotor = math.radians(rotor_deg)
-    r = _Radii(width, height)
 
     def put(x, y, cls):
         """Light one dot. `cls` None lights it and claims nothing."""
@@ -539,10 +576,12 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
     floor = list(bottom or ())
     _bars(dots, owner, width, height, left, right, r, len(floor))
     if top is not None:
-        _gauge(dots, owner, width, height, GAUGE_INSET, top[0], top[1])
+        _gauge(dots, owner, width, height, GAUGE_INSET, top[0], top[1],
+               len(left or ()), len(right or ()))
     for index, gauge in enumerate(floor):
         _gauge(dots, owner, width, height,
-               height - GAUGE_INSET - len(floor) + index, gauge[0], gauge[1])
+               height - FLOOR_INSET - len(floor) + index, gauge[0], gauge[1],
+               len(left or ()), len(right or ()))
     return dots, owner
 
 
