@@ -22,9 +22,9 @@
       cube-cmake                        the STM32 VS Code extension
       ollama and one model              winget or ollama.com/install.ps1,
                                         then `ollama pull`
-      the VS Code extensions            code --install-extension: the STM32
-                                        pack, cpptools, python, and Ollama's
-                                        own - see .vscode/extensions.json
+      the VS Code extensions            code --install-extension, over the ids
+                                        in .vscode/extensions.json - that file
+                                        is the list, read rather than repeated
       STM32Cube FW_H7                   st.com, and only for CubeMX. The build
                                         has drivers/ in the repository.
       STM32CubeIDE                      st.com - optional, not part of this
@@ -302,6 +302,55 @@ function Install-WingetPackage {
     return ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq -1978335189)
 }
 
+function Update-WingetPackage {
+    <#  One winget upgrade, and the exit codes that mean "already newest".
+
+        Installed is not the same as current, and for the editor the
+        difference is real: the STM32 extension pack is version-matched to
+        VS Code, and a bench two years behind on the editor gets extensions
+        that decline to load rather than an error that says why.
+
+        Two codes are a no-op rather than a failure, and they are the same
+        code twice. -1978335189 is UPDATE_NOT_APPLICABLE, which is what
+        $LASTEXITCODE holds inside this script; 43 is that number as anything
+        outside sees it, because a process exit code is truncated to its low
+        byte and 0x8A15002B ends in 0x2B. Both are checked so this reads the
+        same whether it is called here or from a wrapper.
+
+        Two situations answer with it, measured 2026-09-03: a package that is
+        already newest, and one winget did not install - VS Code on this bench
+        came from somewhere else, and `winget list --id
+        Microsoft.VisualStudioCode --exact` prints "No installed package
+        found" and still exits 0, so the list is no use as a test. Neither is
+        a failure and neither belongs on the todo list: an editor winget does
+        not manage is one that updates itself.
+
+        Anything else is reported and left on the todo list: an upgrade that
+        half-ran is worth knowing about, and this script never has the
+        package's own updater's context for why it declined.  #>
+    param([string]$Id, [string]$What, [string]$Why = '')
+
+    if ($null -eq (Get-Tool 'winget')) { return $false }
+
+    $prompt = "winget upgrade $Id ?"
+    if ($Why -ne '') { $prompt = $prompt + "  ($Why)" }
+    if (-not (Confirm-Step $prompt)) { return $false }
+
+    winget upgrade --id $Id --exact --silent `
+                   --accept-package-agreements --accept-source-agreements
+    if ($LASTEXITCODE -eq 0) {
+        Write-Item $What 'done' 'upgraded to the newest winget offers'
+        return $true
+    }
+    if (($LASTEXITCODE -eq 43) -or ($LASTEXITCODE -eq -1978335189)) {
+        Write-Item $What 'ok' 'nothing newer from winget (already current, or not a winget install)'
+        return $false
+    }
+    Write-Item $What 'failed' "winget exit $LASTEXITCODE"
+    Add-Todo "winget upgrade --id $Id --exact"
+    return $false
+}
+
 function Find-Code {
     <#  `code` is a .cmd shim, and the installer adds its directory to the user
         PATH - which reaches shells opened afterwards, never this one. Look
@@ -324,6 +373,67 @@ function Find-Code {
     return $null
 }
 
+function Test-PythonRuns {
+    <#  Does this python.exe start, and is it new enough to run host/ ?
+
+        Answering to the name is not the same as being one, and this machine
+        had both ways of failing at once (measured 2026-09-03):
+
+          the Store alias   %LOCALAPPDATA%\Microsoft\WindowsApps\python.exe is
+                            a zero-byte reparse point that prints "Python was
+                            not found" and exits 49. Get-Command returns it, so
+                            `Get-Tool 'python'` was satisfied, this script
+                            reported `ok python` with a blank version, and then
+                            everything downstream failed for its own
+                            apparent reason: pip, the suites, the model probe,
+                            host gcc - which is asked of test_modbus_core.py
+                            --which-cc and so goes through python too - and the
+                            MCP server in .mcp.json. Five symptoms, one cause,
+                            and the report pointed at none of them.
+          an old one        Anaconda's 3.8 and Visual Studio's 3.6 were both on
+                            that machine. host/pyproject.toml is
+                            requires-python >= 3.10.
+
+        So run it and read the version back. A probe that spawns the thing is
+        worth its 40 ms here: everything after this point assumes it works.  #>
+    param([string]$Exe)
+
+    if ([string]::IsNullOrWhiteSpace($Exe)) { return $false }
+    if (-not (Test-Path $Exe)) { return $false }
+
+    # The stub is zero bytes. Checking that first is not just faster - spawning
+    # it writes its own error into the middle of this script's report.
+    $item = Get-Item $Exe -ErrorAction SilentlyContinue
+    if (($null -ne $item) -and ($item.Length -eq 0)) { return $false }
+
+    # --version rather than -c: PowerShell 5.1 rewrites the quoting of a -c
+    # snippet on its way to a native executable, which is why Invoke-Python
+    # exists. There is nothing to quote here.
+    $line = ''
+    try { $line = (& $Exe --version 2>$null | Select-Object -First 1) } catch { return $false }
+    if ($line -notmatch '^Python\s+(\d+)\.(\d+)') { return $false }
+
+    $major = [int]$Matches[1]
+    $minor = [int]$Matches[2]
+    if ($major -gt 3) { return $true }
+    return (($major -eq 3) -and ($minor -ge 10))   # host/pyproject.toml
+}
+
+function Get-CodeVersion {
+    <#  The editor's version and where it is, as one line for the report.
+
+        `code --version` prints three: the version, the commit and the
+        architecture. The first is the one worth reading, and a path with no
+        version beside it does not answer "is this bench current?" - which is
+        the question the upgrade step below exists for.  #>
+    param([string]$Code)
+
+    $version = ''
+    try { $version = (& $Code --version 2>$null | Select-Object -First 1) } catch { $version = '' }
+    if ([string]::IsNullOrWhiteSpace($version)) { return $Code }
+    return ($version + '  ' + $Code)
+}
+
 function Find-Python {
     <#  python.exe, from a python.org per-user install.
 
@@ -332,19 +442,51 @@ function Find-Python {
         this script, reaches shells opened after it and not this one. Look in
         the well-known install directory before concluding python is absent, so
         an install this same run just performed does not get reported as
-        missing a moment later.  #>
+        missing a moment later.
+
+        Every candidate is run before it is believed - see Test-PythonRuns for
+        what was on the bench machine that made that necessary.  #>
     $found = Get-Tool 'python'
-    if ($null -ne $found) { return $found }
+    if (Test-PythonRuns $found) { return $found }
 
     $root = Join-Path $env:LOCALAPPDATA 'Programs\Python'
-    if (-not (Test-Path $root)) { return $null }
-    $dir = Get-ChildItem $root -Directory -Filter 'Python3*' -ErrorAction SilentlyContinue |
-        Sort-Object Name -Descending | Select-Object -First 1
-    if ($null -eq $dir) { return $null }
-    $exe = Join-Path $dir.FullName 'python.exe'
-    if (-not (Test-Path $exe)) { return $null }
-    $env:PATH = $dir.FullName + ';' + (Join-Path $dir.FullName 'Scripts') + ';' + $env:PATH
-    return $exe
+    if (Test-Path $root) {
+        # Sorted on the number, not the name: as strings Python39 comes after
+        # Python314, which is exactly the pair this project sits between.
+        $dirs = Get-ChildItem $root -Directory -Filter 'Python3*' -ErrorAction SilentlyContinue |
+            Sort-Object {
+                $m = [regex]::Match($_.Name, '^Python3(\d+)$')
+                if ($m.Success) { [int]$m.Groups[1].Value } else { -1 }
+            } -Descending
+        foreach ($dir in $dirs) {
+            $exe = Join-Path $dir.FullName 'python.exe'
+            if (Test-PythonRuns $exe) {
+                $env:PATH = $dir.FullName + ';' + (Join-Path $dir.FullName 'Scripts') + ';' + $env:PATH
+                return $exe
+            }
+        }
+    }
+
+    # Last, the launcher: it knows about installs this script did not make - an
+    # all-users one, or a path nobody would guess. Its list is ordered by its
+    # own preference rather than by version, so every line is tried and
+    # Test-PythonRuns decides. Paths with a space come back quoted.
+    $launcher = Get-Tool 'py'
+    if ($null -ne $launcher) {
+        $listed = @()
+        try { $listed = (& $launcher -0p 2>$null) } catch { $listed = @() }
+        foreach ($line in $listed) {
+            if ($line -match '([A-Za-z]:\\[^"]+python\.exe)') {
+                $exe = $Matches[1].Trim()
+                if (Test-PythonRuns $exe) {
+                    $env:PATH = (Split-Path $exe) + ';' + $env:PATH
+                    return $exe
+                }
+            }
+        }
+    }
+
+    return $null
 }
 
 function Resolve-PythonVersion {
@@ -702,25 +844,69 @@ $BundleNeeds = [ordered]@{
 # -SkipCubeMX is how a bench that never opens the .ioc says so.
 if (-not $SkipCubeMX) { $BundleNeeds['stm32cubemx-application'] = '' }
 
-# The editor side, and only what this repository actually configures. Each one
-# earns its place, because an extension installed "just in case" is a thing to
-# keep updated on every bench for no reason:
+# ONE EXTENSION LIST, the same way pyproject.toml has one dependency list.
+# .vscode/extensions.json is the authority: it is what VS Code offers when the
+# folder is opened on a machine nobody has set up, and this script installs
+# what it says from a shell, so the editor's idea of the project and this
+# script's cannot drift.
 #
-#   the STM32 pack   carries cube.exe and cube-cmake, and pulls in cmake-tools,
-#                    the serial monitor, the memory inspector, clangd and the
-#                    debug adapters as a pack. Installing it installs fifteen.
-#   cpptools         .vscode/c_cpp_properties.json is written for it; without it
-#                    nothing in core/ or drivers/ resolves.
-#   python           host/ is the other half of this project.
+# Measured 2026-09-03: they had. extensions.json recommended six and the list
+# here held three, so jupyter and claude-code arrived on a bench only if
+# somebody noticed the notification and clicked it.
 #
-# Ollama.ollama is not here: it belongs to the model half and is installed with
-# it, so -SkipOllama leaves it out. Anything the pack already brings is left to
-# the pack rather than listed twice.
-$Extensions = [ordered]@{
+# Each id still earns its place - an extension installed "just in case" is a
+# thing to keep updated on every bench for no reason - but the reasoning that
+# used to live in this comment lives beside the ids, in the file VS Code reads.
+# What is here is the one line the report prints for each. An id with no entry
+# is installed all the same, with a blank.
+$ExtensionWhy = @{
     'stmicroelectronics.stm32-vscode-extension' = 'the toolchain, the debuggers and cube.exe'
     'ms-vscode.cpptools'                        = 'IntelliSense over the HAL'
     'ms-python.python'                          = 'host/'
+    'ms-toolsai.jupyter'                        = 'notebook_examples/ in the editor'
+    'ollama.ollama'                             = "the local model in VS Code's chat picker"
+    'anthropic.claude-code'                     = "the chooser's BOARD CHAT page; .mcp.json wires it to the board"
 }
+
+function Get-RecommendedExtensions {
+    <#  The ids out of .vscode/extensions.json.
+
+        ConvertFrom-Json will not read that file as it stands - it is JSONC,
+        VS Code allows // comments and this repository uses them to say why
+        each id is there. Whole-line comments come out first; nothing in the
+        file puts one after code, and a // inside a string would have to be a
+        URL, which an extension id cannot contain.
+
+        Ollama.ollama is dropped here on purpose. Install-Ollama owns it - the
+        editor half of the same daemon - so -SkipOllama still leaves the two
+        out together, which is what that switch promises.
+
+        A tree without the file still gets the three without which nothing in
+        this repository resolves, rather than a setup that installs nothing.  #>
+
+    $fallback = @(
+        'stmicroelectronics.stm32-vscode-extension',
+        'ms-vscode.cpptools',
+        'ms-python.python'
+    )
+
+    $path = Join-Path $Root '.vscode\extensions.json'
+    if (-not (Test-Path $path)) { return $fallback }
+
+    try {
+        $stripped = (Get-Content $path) | Where-Object { $_ -notmatch '^\s*//' }
+        $json = ($stripped -join "`n") | ConvertFrom-Json
+    } catch {
+        Write-Item 'extensions.json' 'failed' ('unreadable: ' + $_.Exception.Message)
+        return $fallback
+    }
+
+    $ids = @($json.recommendations)
+    if ($ids.Count -eq 0) { return $fallback }
+    return @($ids | Where-Object { $_ -ne 'ollama.ollama' })
+}
+
+$Extensions = Get-RecommendedExtensions
 
 function Test-Bundles {
     Write-Head 'ST toolchain (bundles under %LOCALAPPDATA%\stm32cube)'
@@ -771,9 +957,17 @@ function Install-VsCodeExtensions {
                       '-WingetToolchain for a build toolchain that does not need it')
             return
         }
-        Write-Item 'vs code' 'done' $code
+        Write-Item 'vs code' 'done' (Get-CodeVersion $code)
     } else {
-        Write-Item 'vs code' 'ok' $code
+        Write-Item 'vs code' 'ok' (Get-CodeVersion $code)
+
+        # Installed is not current, and here that is not cosmetic: the STM32
+        # pack is version-matched to the editor, and an editor left behind gets
+        # extensions that decline to load rather than an error saying why. VS
+        # Code updates itself when it is opened - this is for the bench where
+        # it is opened rarely and set up from a shell.
+        Update-WingetPackage -Id 'Microsoft.VisualStudioCode' -What 'vs code' `
+                             -Why 'the STM32 pack is version-matched to the editor' | Out-Null
     }
 
     # --list-extensions is one call and it is not a fast one, so it is asked
@@ -781,14 +975,17 @@ function Install-VsCodeExtensions {
     # crash handler logs a harmless CreateFile complaint there on every
     # start, and a setup report full of someone else's noise reads broken.
     $installed = (& $code --list-extensions 2>$null)
-    foreach ($id in $Extensions.Keys) {
-        $why = $Extensions[$id]
+    foreach ($id in $Extensions) {
+        $why = $ExtensionWhy[$id]
+        if ($null -eq $why) { $why = '' }
         if ($installed -contains $id) {
             Write-Item $id 'ok' $why
             continue
         }
         Write-Item $id 'missing' $why
-        if (Confirm-Step "code --install-extension $id ?  ($why)") {
+        $prompt = "code --install-extension $id ?"
+        if ($why -ne '') { $prompt = $prompt + "  ($why)" }
+        if (Confirm-Step $prompt) {
             & $code --install-extension $id --force
             if ($LASTEXITCODE -eq 0) {
                 Write-Item $id 'done' 'installed'
@@ -799,6 +996,27 @@ function Install-VsCodeExtensions {
         } else {
             Add-Todo "code --install-extension $id"
         }
+    }
+
+    # The editor's configuration is checked in, so on a full clone it is
+    # already right and there is nothing to install: the Board chat terminal
+    # profile, Ctrl+Shift+B, IntelliSense over the HAL and the MCP server all
+    # arrive with the repository. Said here because a report that mentions
+    # none of it leaves the reader wondering what is still theirs to wire up.
+    $config = @(
+        '.vscode\settings.json',
+        '.vscode\tasks.json',
+        '.vscode\extensions.json',
+        '.vscode\c_cpp_properties.json',
+        '.mcp.json'
+    )
+    $gone = @($config | Where-Object { -not (Test-Path (Join-Path $Root $_)) })
+    if ($gone.Count -eq 0) {
+        Write-Item 'workspace config' 'ok' 'terminal profile, tasks, IntelliSense, MCP server'
+    } else {
+        Write-Item 'workspace config' 'missing' ($gone -join ', ')
+        Add-Todo ('these are checked in and absent here - restore them with ' +
+                  '`git checkout -- ' + ($gone -join ' ') + '`')
     }
 
     Install-Bundles -Absent $Absent

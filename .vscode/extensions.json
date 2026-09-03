@@ -1,7 +1,14 @@
 {
-    // What this project is edited with. setup.ps1 installs the same list from a
-    // shell; this file is what makes VS Code offer it when the folder is opened
-    // on a machine that has not been set up yet.
+    // What this project is edited with, and the only list of it. VS Code offers
+    // these when the folder is opened on a machine nobody has set up, and
+    // setup.ps1 READS THIS FILE and installs what it names - so adding an id
+    // here is the whole change, and the editor and the setup script cannot
+    // disagree about what the project needs. They had: this list said six and
+    // the script's own copy said three (2026-09-03).
+    //
+    // ollama.ollama is the exception setup.ps1 makes: its ollama step installs
+    // that one, so -SkipOllama leaves the daemon and its editor half out
+    // together.
     //
     // The STM32 extension is a pack: it brings cube.exe and cube-cmake, the
     // clangd and debug adapters, cmake-tools, the serial monitor and the memory
