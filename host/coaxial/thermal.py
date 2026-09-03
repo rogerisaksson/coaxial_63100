@@ -37,6 +37,8 @@ state          dead     mcu  regulators  bridge   afe
 """
 import math
 
+from . import inverter
+
 #: The room, measured. The board cannot read it itself.
 AMBIENT = 20.0
 
@@ -160,22 +162,40 @@ def settled_fraction(minutes, cfg=CFG):
     return 1.0 - math.exp(-minutes / tau_minutes(cfg))
 
 
+#: How much of the conduction path is the FET rather than the shunt.
+#: `inverter` holds both - 1.8 mohm of Rds(on) against 3.5 of shunt - and
+#: this is the ratio between them, so a caller that still passes one
+#: lumped `r_phase` gets it split the way the parts actually divide it.
+SWITCH_SHARE = inverter.RDS_ON / (inverter.RDS_ON + inverter.SHUNT)
+
+
 def phase_power(amps_rms, r_phase, switching=True, cfg_power=None):
-    """Power per node at `amps_rms` a phase: conduction on the phases,
-    the drivers' share where the stage is switching, the housekeeping
-    always.
+    """Power per node at `amps_rms` a phase: the conduction split between
+    the FET and the shunt it sits in series with, the drivers' switching
+    share where the stage is switching, the housekeeping always.
 
     `r_phase` is what the current sees - the FET's Rds(on) and the shunt
     together, which `coaxial.inverter` holds. One definition, because a
     burst plan and a continuous rating that disagree about it disagree
     about everything downstream.
+
+    SPLIT, NOT ALL ON THE PHASE NODE. Every watt of it used to land on
+    `phase_*`, so the model said the shunt cooked while the FET beside it
+    in the same current path stayed cold: measured, fifteen cells of
+    seventeen on the phase thermometer against three on the driver's.
+    They are two parts and they heat separately. The nodes keep their
+    names - `driver_*` is now the FET's conduction as well as its
+    switching, and `phase_*` is the shunt.
     """
     out = dict(cfg_power or POWER_SWITCHING)
     if not switching:
         for name in DRIVERS:
             out[name] = 0.0
+    heat = amps_rms * amps_rms * r_phase
+    for name in DRIVERS:
+        out[name] = out.get(name, 0.0) + heat * SWITCH_SHARE
     for name in PHASES:
-        out[name] = amps_rms * amps_rms * r_phase
+        out[name] = heat * (1.0 - SWITCH_SHARE)
     return out
 
 

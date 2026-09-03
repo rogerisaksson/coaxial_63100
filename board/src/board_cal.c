@@ -46,11 +46,12 @@
 /* 6: and its lead-lag trim. */
 /* 7: per-leg thermal nodes, six ceilings to ten. */
 /* 8: the drive - motor, gains, injection, dead time. */
-#define CAL_VERSION 9U   /* 9: the RS485 pair's baud. Found the day the
-                            THVD1450's rating went into HARDWARE.md: CubeMX
-                            left USART2/UART5 at 9 216 000 and nothing wrote
-                            the 115200 everything reported - the wire ran at
-                            80x the number in the link report. */
+/* 9: the RS485 pair's baud. Found the day the THVD1450's rating went into
+      HARDWARE.md: CubeMX left USART2/UART5 at 9 216 000 and nothing wrote
+      the 115200 everything reported - the wire ran at 80x the number in
+      the link report. */
+#define CAL_VERSION 10U  /* 10: soa_lookahead_ms, so the throttle can act
+                            on a ramp rather than on a reading. */
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes; the record is a few hundred bytes against a
@@ -91,6 +92,15 @@ static const board_cal_t CAL_DEFAULTS =
                         12500, 12500, 12500,      /* phase  U, V, W */
                         12500, 12500, 12500, 10500 },
   .soa_throttle_ppm = 850000UL,
+  /* Two seconds of warning. The phase node's own constant is about
+     eighteen seconds and a deep burst crosses its whole throttle band in
+     under one, so a throttle looking only at the present never sees the
+     band at all: measured on the stand-in at 45 A, the derate stayed at
+     1.0 through a crossing from a fifth of the budget to over the
+     ceiling. Two seconds is long enough to catch that ramp and short
+     enough that a slow warm-up is not derated for a future it will not
+     reach. */
+  .soa_lookahead_ms = 2000UL,
   .vref_uv          = 3300000UL,      /* U2 REF2033, 3.3 V +/-0.05 %       */
   .shunt_uohm       = 3500UL,         /* RU1 || RU2, 7 mohm each           */
   .amp_gain_ppm     = 4545455UL,      /* THS4551, Rf 1.5k / Rg 330         */

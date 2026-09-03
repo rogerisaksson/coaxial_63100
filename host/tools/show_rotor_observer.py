@@ -14,8 +14,24 @@ source, the dq currents, the innovation, the interrupt's cost.
     V       source: model / adc          I   injection on / off
     + -     iq_ref                       [ ] step size
     O / L   I/f speed target up / down   R   reset the model's rotor
+    E       the demo cycle: hold, rock either way to 200 rpm, send it at
+            the clamp, brake back to rest - and round again
+    W       load loop: d current up and back down, so the watts ramp and
+            the thermometers follow them
+    B       heavy start: a second at the clamp accelerating hard, which
+            takes the phase nodes to the top of their thermal budget,
+            then seconds at half the machine's no-load speed against a
+            load, which is where the watts are - then back to the loops
+            and the cooling
+    T       tare the rotor mark
     A       arm / disarm the stage - only with --switch
     Q / ESC close / menu
+
+The two loops are independent and drive different axes - the speed loop
+`iq` and the shaft, the load loop `id` - so either runs alone or both
+together. On the stand-in the speed loop starts on its own, because a
+page opened onto a rotor that is not turning shows nothing; against a
+board neither starts until it is asked for.
 
 Every drive parameter is a switch, and every one is checked against the
 stage before it is written: the trip cannot exceed the FETs' rating, the
@@ -92,7 +108,7 @@ FLOOR_MARGIN = 3.0
 #: something turning - no refresh rate fixes that, only a slower rotor.
 #: Ninety just reaches the speed at which the chain is comfortably clear
 #: of its floor, which is the top of the range worth showing here.
-SWEEP_LO_RPM, SWEEP_HI_RPM, SWEEP_S = 8.0, 90.0, 20.0
+SWEEP_LO_RPM, SWEEP_HI_RPM, SWEEP_S = 8.0, 200.0, 16.0
 #: How hard the sweep pulls the speed toward its target: amps per rpm of
 #: error PER SECOND. Closed on the speed rather than open on a current -
 #: the current that holds a given speed depends on the damping, and this
@@ -104,11 +120,54 @@ SWEEP_LO_RPM, SWEEP_HI_RPM, SWEEP_S = 8.0, 90.0, 20.0
 #: came back. Against this machine it settles in about two seconds, which
 #: is short against a forty-second sweep and long against the rotor.
 SWEEP_GAIN = 0.0005
+#: The rock's own gain, amps per rpm of error per second. Twenty times
+#: `SWEEP_GAIN` because the rock has a few seconds to reach 200 rpm and
+#: reverse, where the old triangle had twenty to walk 90.
+ROCK_GAIN = 0.01
 #: How much of each pass the demo puts current through the legs, and how
 #: much. Twenty amps is half the clamp and a fifth of the stage's rating
 #: - enough that the thermometers move within seconds, well short of
 #: anything the stage would refuse.
 SWEEP_LOAD_FRACTION, SWEEP_LOAD_A, SWEEP_LOAD_NM = 0.34, 20.0, 0.015
+
+#: The load loop's peak and its period. Thirty amps is inside the clamp
+#: the view writes and well inside the stage's hundred; forty seconds
+#: because the legs' own constant is seconds and the board's is minutes,
+#: and a cycle shorter than the slow one never shows the lag between
+#: them. The smallest change worth a round trip is a fifth of an amp -
+#: under what any thermometer here can show.
+#: The heavy start: how hard, how long, and how fast it is asked to get
+#: there. Forty-three amps is under the clamp this page writes and under
+#: half the stage's rating; a second of it takes the phase nodes to
+#: about nine tenths of their thermal budget - measured, not aimed at -
+#: which is where a start belongs: bounded by HEAT rather than by the
+#: current limit, close enough to the ceiling to see the bar go amber
+#: and short enough that the envelope does not have to act.
+#:
+#: At 38 A into a 40 A clamp it only reached 0.70 of the budget, which
+#: is not near anything; the clamp went to 50 to make room for this.
+BURST_A = 43.0
+BURST_S = 1.0
+BURST_ACCEL = 12000.0
+#: And the burn after it: how long, how much torque current, and what it
+#: is pushing against. The load is what makes the power - at half the
+#: no-load speed the back-EMF is real volts, and volts times amps is the
+#: only thing on this page that reaches the kW bar.
+#: How often the sequence takes the machine out to its envelope on its
+#: own. Long against the two loops - they have their own periods of 20
+#: and 40 s - so a burst reads as an event rather than as another cycle.
+BURST_EVERY_S = 45.0
+BURST_HOLD_S = 3.0
+BURST_HOLD_A = 20.0
+#: Sized so the burn SETTLES at half the no-load speed rather than
+#: being aimed at it: `torque x fade = b w + load`, and at half speed the
+#: link has taken half the back-EMF so `fade` is a half too. At 0.8 N.m
+#: it sat at 778 rpm of a 3902 no-load; at this it sits near 1950.
+BURST_LOAD_NM = 0.42
+
+LOAD_PEAK_A = 30.0
+LOAD_PERIOD_S = 40.0
+LOAD_GRAIN = 0.2
 #: How wide the legend's bar is, in cells, and what it is drawn
 #: with - the full braille cell, so the legend is made of the same
 #: ink as the picture it is a key to.
@@ -120,11 +179,29 @@ DRAG_ROWS = 6.0
 #: SCALE, not a limit: nothing on this board says what the magnet wire
 #: may take, and this page does not either (invariant 10).
 WINDING_SCALE_C = 150.0
-#: The face of the power bar beside the board's thermometers, watts.
+#: The face of the power bar beside the board's thermometers: watts, and
+#: LOGARITHMIC over its decades.
+#:
+#: Linear to 2 kW it did not move. Measured over a full cycle of both
+#: loops the peak electrical input is 97 W - 4.9 % of the face, under
+#: two cells of the bar - because this page runs the machine at ninety
+#: rpm so the rotor mark reads as motion, and ninety rpm with thirty
+#: amps of d current is an I^2 R number rather than a kilowatt one.
+#: Kilowatts want the machine's envelope, 11 371 rpm at the measured
+#: link, and that is a different page.
+#:
+#: So the face keeps its 2 kW and counts decades instead: a watt at the
+#: bottom, two kilowatts at the top, and each ten-fold a fixed share of
+#: the bar. 97 W lands at 60 % of it. A log face is a choice about
+#: legibility and says so - the number beside it in the box is the watts
+#: themselves, undistorted.
 WATTS_SCALE = 2000.0
+WATTS_FLOOR = 1.0
 #: Where the headroom gauge stops being green. The scale's own, not the
 #: board's - see `headroom_class`.
 HEADROOM_AMBER = 0.5
+#: What the top gauge is called, over the machine it spans.
+HEADROOM_TITLE = 'SOA HEADROOM'
 BAR_GLYPH = chr(0x28FF)
 TRACK_GLYPH = chr(0x2812)
 #: The scroll affordances. Triangles rather than dots: they are
@@ -256,30 +333,73 @@ def travel(view):
     view['travel'] += math.degrees(speed / pairs) * min(0.5, now - was)
 
 
+def _place(row, name, columns, right_edge=False, until=None):
+    """Write `name` over `columns`, centred, clamped to the frame.
+
+    `until` is the last column it may occupy, for a name that has a
+    neighbour outboard of it: `BOARD` is five characters over four
+    columns of thermometers and `kW` sits two columns further out, so
+    without one they came out as `BOARDkW` with nothing between them.
+    """
+    if not columns or not name:
+        return
+    middle = (min(columns) + max(columns)) / 2.0
+    at = (ART_WIDTH - len(name) if right_edge
+          else int(round(middle - (len(name) - 1) / 2.0)))
+    # A NAME WIDER THAN ITS GROUP LEANS INWARD. `BOARD` is five over four
+    # columns of thermometers, and centred it ran one past them and took
+    # the `D` off itself when `kW` landed on the same cell. Toward the
+    # machine there is always air; outward there is the frame.
+    if not right_edge:
+        at = min(at, max(columns) + 1 - len(name))
+    if until is not None:
+        at = min(at, until + 1 - len(name))
+    at = max(0, min(ART_WIDTH - len(name), at))
+    row[at:at + len(name)] = name
+
+
 def gutter_caption():
-    """The two thermometer groups named, each centred over its own bars.
+    """The captions: two rows over the gutters, and one under the foot.
 
     CENTRED ON THE COLUMNS, not on the halves of the frame. Written
     against the halves it read as badly aimed - the left group is six
     columns at the far edge and a label centred in twenty sat well to the
     right of it. `machine.gutters` is asked where the bars actually went.
 
-    Short names because the group is six columns wide and a caption
-    wider than what it names points at the wrong thing: POWER is the path
-    the phase current takes, the FET and the shunt under it; BOARD is the
-    housekeeping that runs whether the stage switches or not.
+    TWO ROWS BECAUSE THE NAMES ARE TWO WORDS. `SWITCH TEMP` is eleven
+    characters over six columns of bars, and a caption wider than what it
+    names points at the wrong thing; broken over two rows each half fits
+    its own group.
+
+    The power gauge used to be a seventh column out here and its `kW`
+    could not be fitted beside `BOARD` without the two running together.
+    It is a level across the foot of the drawing now, under the winding's
+    and above the key bar, which is also where it belongs: the gutters
+    are temperatures and it is not one.
+
+    EVERY TUBE IS A TEMPERATURE, so both groups say so. The left was
+    captioned POWER, meaning the power path - the FET and the shunt the
+    phase current crosses - and it read as watts, which is the one thing
+    in the gutters it is not.
     """
-    left, right = machine.gutters(ART_WIDTH, ART_HEIGHT - 1,
-                                  len(SOA_NODES), len(BOARD_NODES) + 1)
-    row = [' '] * ART_WIDTH
-    for name, columns in (('POWER', left), ('BOARD', right)):
-        if not columns:
-            continue
-        middle = (min(columns) + max(columns)) / 2.0
-        at = int(round(middle - (len(name) - 1) / 2.0))
-        at = max(0, min(ART_WIDTH - len(name), at))
-        row[at:at + len(name)] = name
-    return ''.join(row)
+    left, right = machine.gutters(ART_WIDTH, ART_HEIGHT - 3,
+                                  len(SOA_NODES), len(BOARD_NODES))
+    first, last = machine.span(ART_WIDTH, ART_HEIGHT - 3)
+    over_machine = list(range(first, last + 1))
+    top, bottom = [' '] * ART_WIDTH, [' '] * ART_WIDTH
+    _place(top, 'SWITCH', left)
+    _place(top, HEADROOM_TITLE, over_machine)
+    _place(top, 'BOARD', right)
+    _place(bottom, 'TEMP', left)
+    _place(bottom, 'TEMP', right)
+    # THE TWO ALONG THE FOOT, named under them. The top gauge is titled
+    # by the row above it; these have nothing above them but the drawing,
+    # so the arrows say which is which - the winding is the upper of the
+    # two and the power the lower.
+    foot = '%s WINDING C' % UP
+    tail = 'kW %s' % DOWN
+    return (''.join(top), ''.join(bottom),
+            foot.ljust(ART_WIDTH - len(tail))[:ART_WIDTH - len(tail)] + tail)
 
 
 def phase_amps(view):
@@ -335,6 +455,53 @@ def phase_rows(view):
     return rows
 
 
+def identity(view):
+    """What machine the record says is on the shaft, or that it cannot say.
+
+    THE RECORD IS THE ONLY SOURCE. `motor_pole_pairs` and
+    `motor_lambda_uvs` are what `observer.autodetect` and
+    `tools/commission.py` write there, and a record without them is a
+    board that has not been told what it is driving - a state worth
+    naming rather than a row of zeros. Until it has been, every rpm on
+    this page is an electrical speed divided by a pole count nobody
+    measured, so the chip is amber and says IDENTIFYING.
+
+    The slot count is not in the record and cannot be: it is `--slots`,
+    a parameter of the drawing, and the name reads `24N28P` only because
+    a bench said the 24.
+    """
+    params = view['params']
+    pairs = int(params.get('motor_pole_pairs') or 0)
+    lam = params.get('motor_lambda_uvs') or 0.0
+    if not pairs or not lam:
+        return Text(' IDENTIFYING ', style='chip.sim')
+    kv = motor.Parameters('', params.get('motor_r_uohm') or 0.0,
+                          params.get('motor_ld_nh') or 0.0,
+                          params.get('motor_lq_nh') or 0.0,
+                          lam, pairs).kv
+    return '%dN%dP %2d pp  KV %4.0f' % (view['slots'], 2 * pairs, pairs, kv)
+
+
+def torque(view):
+    """Shaft torque from the loop's own dq, newton-metres.
+
+    `1.5 p (lambda iq + (Ld - Lq) id iq)` - the magnet term and the
+    reluctance one - out of the calibration record's own constants, so it
+    is the same expression the firmware's model and every notebook use
+    rather than a fourth copy of it.
+
+    It is what the CURRENT implies, not what a shaft is measuring: this
+    board has no torque sensor, and an angle error the observers have not
+    noticed shows up here as torque that is not there.
+    """
+    s, params = view['state'], view['params']
+    pairs = params.get('motor_pole_pairs') or 0.0
+    lam = params.get('motor_lambda_uvs') or 0.0
+    ld = params.get('motor_ld_nh') or 0.0
+    lq = params.get('motor_lq_nh') or 0.0
+    return 1.5 * pairs * (lam * s['iq'] + (ld - lq) * s['id'] * s['iq'])
+
+
 def status_rows(view):
     """Two rows, and neither of them is anywhere else on the page.
 
@@ -349,7 +516,19 @@ def status_rows(view):
     """
     o = view.get('chain') or {}
     gone = view['travel'] - view['tare']
-    return [('back-EMF', regime(view)),
+    loops = ' + '.join([n for n, on in (('speed', view['spin']),
+                                        ('load', view['load'])) if on])
+    if view['spin'] and view['stage']:
+        loops = '%s: %s' % (view['stage'].upper(), loops)
+    if time.time() < view['burst_until']:
+        loops = 'BURST' + (' + ' + loops if loops else '')
+    pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
+    speed = (view.get('chain') or {}).get('omega') or 0.0
+    return [('machine', identity(view)),
+            ('shaft', '%8.0f rpm %8.3f N.m'
+             % (speed / pairs * 60.0 / math.tau, torque(view))),
+            ('back-EMF', regime(view)),
+            ('loops', loops or 'none - the drive is on its own'),
             ('travel', '%9.1f deg %7.2f turns %s'
              % (gone, gone / 360.0,
                 'cw' if (o.get('omega') or 0.0) >= 0.0 else 'ccw'))]
@@ -379,81 +558,277 @@ def regime(view):
     return Text(' HOLDING ', style='chip.live')
 
 
-def sweep(rig, view):
-    """Walk the stand-in's speed across the sensorless floor and back.
+def no_load_rpm(view):
+    """What the link will spin this machine to with nothing on the shaft.
 
-    A stand-in sitting at one speed shows one regime, and the regime is
-    the interesting part: this drives the rotor down until the back-EMF
-    observers have nothing left, hands commutation to the microstepper
-    there, and takes it back on the way up. HOLD is the trivial
-    controller - it commutates on the COMMANDED angle and asks the rotor
-    nothing - which is what is left when nothing can see the rotor, and
-    it costs the current that an open loop always costs.
+    `vdc / (sqrt(3) lambda)` is the electrical speed at which the
+    back-EMF has taken the whole link, and the mechanical one is that
+    over the pole pairs. Out of the record and the measured link, so a
+    page that says HALF MAX SPEED means half of THIS machine's.
+    """
+    params = view['params']
+    lam = params.get('motor_lambda_uvs') or 0.0
+    pairs = max(1.0, params.get('motor_pole_pairs') or 1.0)
+    vdc = (view['state'] or {}).get('vdc') or 0.0
+    if lam <= 0.0 or vdc <= 0.0:
+        return 0.0
+    return vdc / (math.sqrt(3.0) * lam) / pairs * 60.0 / math.tau
 
-    Simulated only. Switching a commutation strategy under a rotor is a
-    decision with a power stage behind it, and this is a demonstration.
+
+def heavy_start(rig, view):
+    """A start, a burn, and then back to the dutter. Three stages.
+
+    WHAT A START ACTUALLY IS. Every other cycle on this page is gentle
+    enough to watch; a machine breaking away from rest is not.
+
+    FIRST, `BURST_S` of everything the clamp allows: the torque current
+    goes to `BURST_A` and the rotor is accelerated with all of it. The
+    phase nodes climb to about nine tenths of their budget in that
+    second - measured - which is the point of it: a burst is bounded by
+    HEAT and not by the current limit, and the only thing that says how
+    long one may last is the thermal observer.
+
+    THEN `BURST_HOLD_S` at half the machine's no-load speed against a
+    load, which is where the WATTS are. A start is amps and barely any
+    power; power is amps times volts and the volts are the back-EMF, so
+    nothing on this page burns a real number until the rotor is turning.
+    Half of `no_load_rpm` because the whole of it is no-load by
+    definition - there is no headroom left at the top to push against.
+
+    THEN it lets go, and the loops take the drive back and everything
+    cools. What a node does on the way down is half of what the observer
+    is for.
+
+    It is deliberately close to the ceiling and deliberately not over it.
+    If it does go over, the envelope drops the stage and the page shows
+    that instead - the board's decision, not this function's.
+    """
+    drive = rig.board.drive
+    pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
+    left = view['burst_until'] - time.time()
+    if left > BURST_HOLD_S:
+        # Breaking away: everything the clamp allows, at the top of the
+        # speed range, and no load in the way of it.
+        drive.model_param(load=0.0)
+        drive.setpoint(id_ref=0.0, iq_ref=BURST_A, accel=BURST_ACCEL,
+                       omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
+        view['iq'] = BURST_A
+        return
+    # Burning: half the no-load speed, and a load to make the volts and
+    # the amps happen at the same time.
+    drive.model_param(load=BURST_LOAD_NM)
+    drive.setpoint(id_ref=0.0, iq_ref=BURST_HOLD_A, accel=BURST_ACCEL,
+                   omega_target=no_load_rpm(view) / 120.0 * math.tau * pairs)
+    view['iq'] = BURST_HOLD_A
+
+
+def turn_the_handle(rig, view):
+    """Whichever of the three is driving this frame, and only one of them.
+
+    The burst outranks the loops while it runs and hands the drive back
+    the way it found it - two things writing `iq_ref` a frame apart is
+    one of them winning at random, and the load it leaned on would
+    otherwise stay on the shaft after it let go.
+    """
+    if view['state']['mode'] == 'off':
+        return
+    now = time.time()
+    # THE BURST IS PART OF THE SEQUENCE, not only a key. The speed loop
+    # dutters between 8 and 90 rpm because that is the range where the
+    # sensorless hand-over happens and where a rotor mark reads as
+    # motion - and nothing in it ever approaches the machine's no-load
+    # speed or puts a real number on the kW bar. Left alone, the page
+    # showed the slow half of the machine and none of the fast one.
+    #
+    # Simulated only, and only while the speed loop is running: it is a
+    # demonstration, and on a board a burst is something somebody asks
+    # for.
+    if (view['simulated'] and view['spin']
+            and now - view['burst_at'] > BURST_EVERY_S):
+        view['burst_at'] = now
+        view['burst_until'] = now + BURST_S + BURST_HOLD_S
+    if now < view['burst_until']:
+        heavy_start(rig, view)
+        view['bursting'] = True
+        return
+    if view['bursting']:
+        view['bursting'] = False
+        view['leaning'] = False
+        rig.board.drive.model_param(load=0.0)
+        rig.board.drive.setpoint(id_ref=0.0, iq_ref=view['iq'])
+    if view['load']:
+        load_loop(rig, view)
+    if view['spin']:
+        sweep(rig, view)
+
+
+def load_loop(rig, view):
+    """D current up and back down, continuously, the shape the speed loop has.
+
+    A TRIANGLE AND NOT A STAIRCASE. Treads with ramps between them were
+    still a set of edges, and every edge put a corner in the power and a
+    kink in each thermometer - a page of steps reads as something
+    switching rather than as a machine being worked. Rising and falling
+    without a corner anywhere, the watts ramp and the temperatures lag
+    them, and the lag is the whole thing a thermal observer has to show.
+
+    Down as well as up, for the same reason the speed loop goes both
+    ways: what a node does while it COOLS is half of what the model is
+    for, and a cycle that only climbs never shows it.
+
+    D CURRENT, not torque: on a machine this round it makes none, so the
+    rotor keeps whatever the speed loop is doing and the only thing that
+    changes is what the legs carry. It is also what a bench uses to heat
+    a stage on purpose, for the same reason.
+
+    The stage judges nothing about it - `drv_i_max_ma` clamps it like any
+    other current, and the peak here is inside the clamp the view wrote
+    at preflight.
     """
     now = time.time()
-    passes = int((now - view['sweep']) / SWEEP_S)
-    phase = ((now - view['sweep']) % SWEEP_S) / SWEEP_S
+    phase = ((now - view['load_at']) % LOAD_PERIOD_S) / LOAD_PERIOD_S
     ramp = 2.0 * phase if phase < 0.5 else 2.0 * (1.0 - phase)
-    # BOTH WAYS ROUND, a pass each. A drive that only ever ran one way is
-    # a drive whose sign errors are invisible: the observers carry a
-    # signed speed, the leak correction leads one way and lags the other,
-    # and the blend is on a magnitude. Reversing every pass is what makes
-    # a wrong sign show up as a rotor that will not hold rather than as
-    # nothing at all.
-    way = 1.0 if passes % 2 == 0 else -1.0
-    target = way * (SWEEP_HI_RPM - ramp * (SWEEP_HI_RPM - SWEEP_LO_RPM))
-    o = view.get('chain') or {}
-    pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
-    rpm = abs(o.get('omega') or 0.0) / pairs * 60.0 / math.tau
+    view['load_amps'] = LOAD_PEAK_A * ramp
+    view['load_rising'] = phase < 0.5
+    # Only when it has moved enough to matter: a setpoint is a round trip,
+    # and one a frame against a board is the link's whole budget. The
+    # grain is well under what a thermometer can show, so nothing of the
+    # ramp is lost to it.
+    if abs(view['load_amps'] - view['load_written']) >= LOAD_GRAIN:
+        view['load_written'] = view['load_amps']
+        rig.board.drive.setpoint(id_ref=view['load_amps'])
+
+
+#: The demo cycle, as fractions of `SWEEP_S`. Four things a drive does,
+#: in the order it does them: hold the rotor still against a current,
+#: rock it either way, send it at everything the clamp allows, and brake
+#: it back to rest. Then again.
+#:
+#: IT IS THE SEND THAT MAKES THE PAGE MOVE. With only the gentle half of
+#: the machine running, the worst thermal node is `regulators` - a fixed
+#: housekeeping watt that changes only as the board does - so SOA
+#: HEADROOM sat still and the switch thermometers with it. The legs have
+#: to actually get hot for either to mean anything, and a send at the
+#: clamp is what does that.
+#: The brake gets as much of the cycle as the send does: it is fighting
+#: the same inertia with the same clamp, and the thermal derate is cutting
+#: ITS current too - at 0.82 the rotor was still turning at 1100 rpm when
+#: the hold came round, and a position lock cannot catch that.
+CYCLE_HOLD, CYCLE_ROCK, CYCLE_SEND = 0.14, 0.46, 0.73
+#: What the rock peaks at, and what the hold holds with.
+ROCK_RPM = 200.0
+HOLD_A = 12.0
+#: Above this the brake pulls the whole clamp and below it proportionally
+#: less, so the rotor arrives at zero rather than through it. A quarter of
+#: the electrical no-load speed: enough of the stop is at full current to
+#: be quick, and the last of it is gentle enough to land.
+BRAKE_FULL_RAD_S = 700.0
+
+
+
+def cycle_phase(view):
+    """Where in the demo cycle we are, and how far into that phase."""
+    turn = ((time.time() - view['spin_at']) % SWEEP_S) / SWEEP_S
+    if turn < CYCLE_HOLD:
+        return 'hold', turn / CYCLE_HOLD
+    if turn < CYCLE_ROCK:
+        return 'rock', (turn - CYCLE_HOLD) / (CYCLE_ROCK - CYCLE_HOLD)
+    if turn < CYCLE_SEND:
+        return 'send', (turn - CYCLE_ROCK) / (CYCLE_SEND - CYCLE_ROCK)
+    return 'brake', (turn - CYCLE_SEND) / (1.0 - CYCLE_SEND)
+
+
+def sweep(rig, view):
+    """The demo cycle: hold, rock, send, brake, and round again.
+
+    FOUR THINGS A DRIVE DOES, in the order it does them, rather than one
+    triangle in speed. Each of them exercises something different on the
+    page and none of them is the same picture:
+
+    HOLD commutates on the commanded angle with the rotor stationary -
+    a microstepper holding position against a current. The back-EMF
+    chain has nothing to see and says so, which is the honest state at
+    zero speed and the one the whole sensorless floor is about.
+
+    ROCK runs the speed loop either way to `ROCK_RPM` and back. Both
+    directions, because a sign is the easiest thing in a drive to have
+    backwards, and through the floor each way so the hand-over between
+    the stepper and the back-EMF observers happens four times a cycle.
+
+    SEND gives it the clamp and lets it run at the envelope. This is the
+    only part that makes real heat and real watts, and therefore the
+    only part that moves the thermal gauges - which is why it is here
+    rather than on a key.
+
+    BRAKE takes it back to rest against the current, so the cycle starts
+    from the same place every time and the cooling is visible.
+    """
     drive = rig.board.drive
-    if not o.get('valid'):
-        # The stepper has no rotor to follow, so the sweep tells it which
-        # way to walk rather than reading it back off an observer that
-        # has nothing.
-        rpm = math.copysign(rpm, target)
-    want = 'hold' if not o.get('valid') else 'sensorless'
-    if view['state']['mode'] != want:
-        # The hand-over both ways: the stepper is given the speed the
-        # chain last saw, so it picks the rotor up where it was left
-        # rather than from a standstill it is not at.
-        drive.setpoint(omega_target=target / 60.0 * math.tau * pairs)
-        drive.mode(want)
-    # THE LOAD, ON AND OFF, AS D CURRENT. A sweep that only changes speed
-    # changes the current barely at all - the damping torque at a hundred
-    # rpm is five millinewton-metres - and the thermal observer has
-    # nothing to answer. A load TORQUE was tried and is the wrong lever:
-    # holding 2 N.m needs forty amps, the speed loop here winds up at
-    # half an amp a second, and while it tried the rotor stalled and the
-    # chain read 37 000 rpm.
+    stage, into = cycle_phase(view)
+    pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
+    clamp = view['params'].get('drv_i_max_ma') or 5.0
+    if stage != view['stage']:
+        view['stage'] = stage
+        view['leaning'] = False
+        drive.model_param(load=0.0)
+        drive.mode('hold' if stage == 'hold' else 'sensorless')
+    if stage == 'hold':
+        drive.setpoint(id_ref=HOLD_A, iq_ref=0.0, omega_target=0.0,
+                       theta=0.0)
+        view['iq'] = 0.0
+        return
+    if stage == 'rock':
+        # ONE swing each way, not two: the speed integrator needs about a
+        # second to reach 200 rpm and two swings in five gave it 2.8 s a
+        # side, so it spent the whole phase chasing a target that had
+        # already reversed and never left 25 rpm.
+        target = ROCK_RPM * math.sin(math.tau * into)
+        view['iq'] = _toward(view, target, clamp)
+        drive.setpoint(id_ref=0.0, iq_ref=view['iq'],
+                       omega_target=abs(target) / 60.0 * math.tau * pairs)
+        return
+    if stage == 'send':
+        drive.setpoint(id_ref=0.0, iq_ref=clamp, accel=BURST_ACCEL,
+                       omega_target=no_load_rpm(view) / 60.0 * math.tau * pairs)
+        view['iq'] = clamp
+        return
+    # BRAKE: the same current the other way until it is stopped, then let
+    # it be. Coasting would take the rotor's own damping constant, which
+    # on this machine is longer than the whole cycle.
+    # BRAKE IS CURRENT THE OTHER WAY, eased off as it slows.
     #
-    # D current is the lever a bench actually uses. On a machine this
-    # round it makes no torque, so the rotor keeps its speed and the
-    # sweep keeps its shape, and the legs carry it all the same: twenty
-    # amps is fourteen rms a phase across 5.3 milliohms, three watts in
-    # the shunts against 1.8 of housekeeping.
-    leaning = phase < SWEEP_LOAD_FRACTION
-    if leaning != view['leaning']:
-        view['leaning'] = leaning
-        drive.setpoint(id_ref=SWEEP_LOAD_A if leaning else 0.0)
-        # AND A LOAD ON THE SHAFT, sized to what the speed loop here can
-        # actually hold: fifteen millinewton-metres against the four the
-        # damping already takes, so `iq` goes up four-fold and the speed
-        # dips and comes back. Two newton-metres was tried and is a
-        # different experiment - it needs forty amps, and while the loop
-        # reached for them the rotor stalled and the chain read 37 000
-        # rpm. The heat is the d current's job; this is so the loop is
-        # visibly working for it.
-        drive.model_param(load=SWEEP_LOAD_NM if leaning else 0.0)
-    turning = math.copysign(rpm, o.get('omega') or target)
+    # IT ONLY WORKS BECAUSE THE INERTIA IS REAL. Against the stand-in's
+    # placeholder 2e-5 kg m^2 this drove the rotor from +3621 rpm through
+    # zero to -3395 in one phase - 2.6 N.m stops that in milliseconds and
+    # the page redraws every seventy, so any current that had to reverse
+    # inside a frame overshot by whatever it was still applying, and a
+    # position lock was the only thing that could stop it. With a rotor
+    # that weighs something the deceleration is 328 rad/s^2 and the stop
+    # takes about a second: slower than a frame, so a proportional brake
+    # lands on zero instead of passing through it. A position lock cannot
+    # do this job at all now - the spring is 0.63 N.m against an inertia
+    # that needs four seconds of it.
+    turning = (view.get('chain') or {}).get('omega') or 0.0
+    share = min(1.0, abs(turning) / BRAKE_FULL_RAD_S)
+    view['iq'] = -math.copysign(clamp * share, turning) if share > 0.03 else 0.0
+    drive.setpoint(id_ref=0.0, iq_ref=view['iq'], omega_target=0.0)
+
+
+def _toward(view, rpm, clamp):
+    """The speed loop's integrator, one frame. Amps toward `rpm`.
+
+    Closed on the speed rather than open on a current: what holds a given
+    speed depends on the damping, and this page is meant to work whatever
+    machine the record describes.
+    """
+    now = time.time()
     dt = min(0.5, max(0.0, now - view['sweep_at']))
     view['sweep_at'] = now
-    view['iq'] = max(-0.6, min(0.6, view['iq']
-                               + SWEEP_GAIN * (target - turning) * dt))
-    drive.setpoint(iq_ref=view['iq'],
-                   omega_target=target / 60.0 * math.tau * pairs)
+    pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
+    turning = ((view.get('chain') or {}).get('omega') or 0.0) \
+        / pairs * 60.0 / math.tau
+    return max(-clamp, min(clamp,
+                           view['iq'] + ROCK_GAIN * (rpm - turning) * dt))
 
 
 def chain_rows(view):
@@ -537,7 +912,8 @@ def winding(view):
     # THE SAME HASTE THE STAND-IN'S BOARD MODEL TAKES, and only there:
     # this winding's constant is nearly seven minutes, which is right and
     # unwatchable. Against a board the clock is the clock.
-    tau = max(1e-3, k * heat) / (SimulatedThermal.HASTE if view['sweep'] else 1.0)
+    tau = max(1e-3, k * heat) / (SimulatedThermal.HASTE
+                                if view['simulated'] else 1.0)
     view['winding'] += (target - view['winding']) * min(1.0, (now - was) / tau)
     return view['winding']
 
@@ -562,7 +938,9 @@ def watts_bar(view):
     before anything else on this page runs out first. A SCALE, and the
     board judges nothing by it.
     """
-    return (min(1.0, abs(watts(view)) / WATTS_SCALE), machine.WATTS)
+    decades = math.log10(WATTS_SCALE / WATTS_FLOOR)
+    share = math.log10(max(WATTS_FLOOR, abs(watts(view))) / WATTS_FLOOR)
+    return (min(1.0, share / decades), machine.WATTS)
 
 
 def headroom(view):
@@ -674,9 +1052,30 @@ def thermal_rows(view):
     rows.append(('headroom', '%9.0f %% left, worst %s'
                  % (100.0 * headroom(view),
                     (budget or {}).get('worst_node', '?'))))
-    rows.append(('winding', '%9.1f C estimated, no sensor' % winding(view)))
-    rows.append(('power', '%9.1f W of %.0f on the bar'
-                 % (watts(view), WATTS_SCALE)))
+    # THE THROTTLE AND THE BUDGET. `derate` is what the envelope is doing
+    # to the current clamp right now - under one and the stage is still
+    # driving, which is the whole difference between this and a trip.
+    # `soak_j` is what the worst node can still absorb: divide by a power
+    # and the answer is seconds at THAT power, not only at this one.
+    factor = (budget or {}).get('derate')
+    if factor is not None:
+        rows.append(('throttle', Text(' %3.0f %% of the clamp ' % (100 * factor),
+                                      style='chip.live' if factor > 0.99
+                                      else 'chip.sim' if factor > 0.0
+                                      else 'alarm')))
+    soak = (budget or {}).get('soak_j') or {}
+    worst_node = (budget or {}).get('worst_node')
+    if worst_node in soak:
+        rows.append(('soak', '%9.1f J left in %s' % (soak[worst_node],
+                                                     worst_node)))
+    # The two gauges along the foot, named in the order they lie there.
+    rows.append(('winding', '%9.1f C est, upper foot bar' % winding(view)))
+    rows.append(('power', '%9.1f W of %.0f log, lower' % (watts(view),
+                                                          WATTS_SCALE)))
+    if view['load']:
+        rows.append(('load loop', '%9.1f A of %.0f, %s'
+                     % (view['load_amps'], LOAD_PEAK_A,
+                        'rising' if view['load_rising'] else 'falling')))
     rows.append(('NTC', '%7.1f C' % th['ntc'] if th.get('ntc') is not None
                  else '%7s' % 'unread'))
     if budget:
@@ -697,15 +1096,20 @@ HUD_WIDTH = 40
 BOX_BORDER = 2
 
 
-def rows_of(console):
-    """The terminal's height, or 0 where there is no terminal."""
+def screen_size(view):
+    """The terminal's (width, height), or zeros when there is no terminal.
+
+    Off `view['screen']`, the rich Console - NOT off the `console` every
+    function here is handed, which is `is_terminal` and has no size.
+    """
+    screen = view.get('screen')
     try:
-        return console.size.height if console else 0
+        return (screen.size.width, screen.size.height) if screen else (0, 0)
     except (AttributeError, OSError):
-        return 0
+        return (0, 0)
 
 
-def paged(view, panels, console, hud):
+def paged(view, panels, hud):
     """The instrument column, windowed, with an arrow where it continues.
 
     SEVEN BOXES DO NOT FIT. The column is the page's right-hand forty
@@ -720,7 +1124,10 @@ def paged(view, panels, console, hud):
     """
     from rich.text import Text as _Text
 
-    room = rows_of(console) - 2                  # the header and the key bar
+    # ONLY ON A TERMINAL. A pipe has a nominal size too - 79 by 25 - so
+    # sizing alone would page a captured page, and a capture is read in
+    # order and has no bottom to fall off.
+    room = screen_size(view)[1] - 2 if view.get('terminal') else 0
     if room <= 0:
         view['pages'] = 1
         return [hud(title, rows) for title, rows in panels]
@@ -750,7 +1157,7 @@ def paged(view, panels, console, hud):
     return out
 
 
-def hauled(view, console, dx, dy):
+def hauled(view, dx, dy):
     """A left-drag on the instrument column, dragged like a page.
 
     ONLY A DRAG THAT STARTED THERE. The press sets `grip`, so a drag
@@ -780,7 +1187,7 @@ def hauled(view, console, dx, dy):
             break
 
 
-def scrolled(view, console, column, row):
+def scrolled(view, column, row):
     """One click: the arrows at the top and bottom of the box column.
 
     The hit test is the page template's own geometry rather than
@@ -789,13 +1196,8 @@ def scrolled(view, console, column, row):
     `HUD_WIDTH` cells of everything between. The arrows are the first
     and last rows of that, which is where they are drawn.
     """
-    width = 0
-    try:
-        width = console.size.width if console else 0
-    except (AttributeError, OSError):
-        return
-    height = rows_of(console)
-    if not width or not height:
+    width, height = screen_size(view)
+    if not view.get('terminal') or not width or not height:
         return
     if column <= width - HUD_WIDTH:
         view['grip'] = False
@@ -831,7 +1233,9 @@ def compose(rig, origin, console, view):
     # column of braille cannot carry a letter, and a stack of unlabelled
     # tubes beside a motor is a reader guessing which is which. The row
     # costs the machine one of its own, which is cheaper than the guess.
-    caption = tint(gutter_caption(), ASH)
+    heads = gutter_caption()
+    caption = [tint(line, ASH) for line in heads[:2]]
+    foot = tint(heads[2], ASH)
     turned = math.degrees(s['theta_hat']) / pole_pairs
     # THE CAN AND THE POINTER ARE DIFFERENT QUANTITIES. The can is drawn
     # from the electrical angle over the pole pairs, which is right
@@ -842,20 +1246,21 @@ def compose(rig, origin, console, view):
     # travel this view has accumulated instead - the observed speed
     # integrated, which is mechanical revolutions and what a tare is for.
     art = machine.render(turned, view['slots'], 2 * pole_pairs,
-                         ART_WIDTH, ART_HEIGHT - 1,
+                         ART_WIDTH, ART_HEIGHT - 3,
                          truth_deg=(math.degrees(truth['theta']) / pole_pairs
                                     if truth else None),
                          amps=amps, full=full,
                          pointer_deg=view['travel'] - view['tare'],
                          left=soa_bars(view, SOA_NODES),
-                         right=soa_bars(view, BOARD_NODES) + [watts_bar(view)],
+                         right=soa_bars(view, BOARD_NODES),
                          top=(headroom(view),
                               headroom_class(headroom(view))),
-                         bottom=(min(1.0, (winding(view) - 20.0)
-                                     / (WINDING_SCALE_C - 20.0)),
-                                 machine.SOA_WARN),
+                         bottom=[(min(1.0, (winding(view) - 20.0)
+                                      / (WINDING_SCALE_C - 20.0)),
+                                  machine.SOA_WARN),
+                                 watts_bar(view)],
                          colour=True)
-    art = caption + '\n' + art
+    art = '\n'.join(caption + [art, foot])
     panels = [('STATUS', status_rows(view)),
               ('DRIVE', drive_rows(view)),
               ('PHASES', phase_rows(view)),
@@ -863,15 +1268,29 @@ def compose(rig, origin, console, view):
               ('CHAIN', chain_rows(view)),
               ('LOOP', loop_rows(view)),
               ('THERMAL', thermal_rows(view))]
-    boxes = paged(view, panels, console, hud)
-    keys = [('S', 'STOP' if s['mode'] != 'off' else 'START'),
-            ('M', s['mode'].upper() if s['mode'] != 'off' else view['mode'].upper()),
+    boxes = paged(view, panels, hud)
+    # FIXED-WIDTH LABELS. The bar wraps to whatever fits, so a label
+    # that changed length reflowed the whole of it and the bottom of the
+    # page jumped a line every time the mode changed - SENSORLESS is ten
+    # characters and HOLD is four. Padded, the bar is the same length
+    # whatever the drive is doing and only the words inside it change.
+    keys = [('S', '%-5s' % ('STOP' if s['mode'] != 'off' else 'START')),
+            ('M', '%-10s' % (s['mode'].upper() if s['mode'] != 'off'
+                             else view['mode'].upper())),
             ('V', view['source'].upper()), ('I', 'INJ'),
             ('+ -', 'IQ'), ('[ ]', 'STEP'), ('O L', 'I/F'), ('R', 'RESET'),
-            ('T', 'TARE'), (UP + ' ' + DOWN, 'CLICK')]
+            ('T', 'TARE'),
+            # The word stays and the colour changes: a chip that
+            # appeared and vanished moved every key after it.
+            ('B', Text('START', style='alarm')
+             if time.time() < view['burst_until'] else 'START'),
+            ('E', Text('SPEED', style='chip.live') if view['spin']
+             else 'SPEED'),
+            ('W', Text('LOAD', style='chip.live') if view['load']
+             else 'LOAD'), (UP + ' ' + DOWN, 'CLICK')]
     if view['switch']:
         keys.append(('A', Text('ARMED', style='chip.live')
-                     if s['stage_enabled'] else 'ARM'))
+                     if s['stage_enabled'] else 'ARM  '))
     keys += [('Q', 'EXIT'), ('ESC', 'MENU')]
     if view.get('said'):
         keys.append(('', view['said']))
@@ -928,6 +1347,26 @@ def act(rig, key, view):
                                          view['omega'] + (50.0 if key == 'o' else -50.0)))
             d.setpoint(omega_target=view['omega'] if view['mode'] == 'hold' else 0.0)
             return 'I/f target %.0f rad/s' % view['omega']
+        if key == 'b':
+            view['burst_at'] = time.time()
+            view['burst_until'] = view['burst_at'] + BURST_S + BURST_HOLD_S
+            return ('heavy start - %.0f A for %.1f s, then %.0f s at half '
+                    'speed' % (BURST_A, BURST_S, BURST_HOLD_S))
+        if key == 'e':
+            view['spin'] = not view['spin']
+            view['spin_at'] = time.time()
+            if not view['spin']:
+                d.setpoint(omega_target=0.0)
+            return ('speed loop running - down through the floor and back'
+                    if view['spin'] else 'speed loop off')
+        if key == 'w':
+            view['load'] = not view['load']
+            view['load_at'] = time.time()
+            view['load_amps'] = view['load_written'] = 0.0
+            if not view['load']:
+                d.setpoint(id_ref=0.0)
+            return ('load loop running - d current in steps'
+                    if view['load'] else 'load loop off')
         if key == 't':
             # TARE: the pointer's zero, not the board's. Nothing is
             # written to the machine and no estimate moves - this is a
@@ -1044,6 +1483,20 @@ def demo_defaults(args, origin):
             # observers stop, up to a hundred.
             if args.b is None:
                 args.b = 5e-4
+            # AND SOMETHING TO TURN. The stand-in's placeholder inertia
+            # is 2e-5 kg m^2, which is not even the bare rotor: a 63100
+            # can is a steel shell 63 mm across with magnets in it, about
+            # 0.64 kg at an effective 29 mm, so 5.4e-4 on its own. At the
+            # placeholder the send reached three thousand rpm inside one
+            # frame - the page redraws every seventy milliseconds and the
+            # spin-up took less than one, so there was nothing to watch.
+            #
+            # This is the rotor AND a load on the shaft, which is what a
+            # drive on a bench is turning. It is a stand-in's number and
+            # says so; a bench with a real machine writes its own through
+            # `--j` or a motor profile.
+            if args.j is None:
+                args.j = 8e-3
             if not args.iq:
                 args.iq = 0.06
             # A CLAMP THE LOAD CAN REACH. The record's placeholder is 5 A
@@ -1054,9 +1507,9 @@ def demo_defaults(args, origin):
             # rating and puts 25 W in the legs, which the thermal
             # observer answers in seconds rather than in an afternoon.
             if args.i_max is None:
-                args.i_max = 40.0
+                args.i_max = 50.0
             if args.i_trip is None:
-                args.i_trip = 60.0
+                args.i_trip = 70.0
             view_step = 0.01
     return 0.1
 
@@ -1088,15 +1541,21 @@ def main(argv=None):
         return 1
 
     view = {'scroll': 0, 'pages': None, 'haul': 0.0, 'grip': False,
+            'screen': None, 'terminal': False,
             'source': args.source, 'mode': args.mode, 'iq': args.iq,
             'id': args.id, 'omega': args.omega, 'accel': args.accel,
             'vd': args.vd, 'v_inj': args.v_inj, 'inject': True,
             'inj_periods': int(params.get('drv_inj_periods') or 1),
             'step': view_step, 'slots': args.slots, 'switch': args.switch,
-            'sweep': time.time() if not origin.real else None,
+            'spin': not origin.real, 'spin_at': time.time(),
+            'simulated': not origin.real,
             'tare': 0.0, 'sweep_at': time.time(),
             'travel': 0.0, 'travel_at': None, 'leaning': False,
             'winding': 20.0, 'winding_at': None,
+            'burst_until': 0.0, 'bursting': False, 'stage': None,
+            'burst_at': time.time(),
+            'load': False, 'load_at': 0.0, 'load_rising': True,
+            'load_amps': 0.0, 'load_written': 0.0,
             'interlock': args.interlock,
             'i_max': params['drv_i_max_ma'], 'theta0': args.theta0 or 0.0,
             'params': params, 'said': '', 'state': board.drive.state(),
@@ -1108,8 +1567,22 @@ def main(argv=None):
 
     board_view = stage()
     console = board_view.is_terminal
+    # THE CONSOLE ITSELF, not the boolean. `console` here is
+    # `is_terminal` - every view in this tree passes that around under
+    # that name and `frame_of` only wants its truth - but the paging has
+    # to ASK THE TERMINAL HOW BIG IT IS. Reading `.size` off the boolean
+    # raised, the guard swallowed it, `rows_of` answered zero, and the
+    # column silently never paged: no arrows, and nothing to drag.
+    view['screen'] = board_view
+    view['terminal'] = console
     leaving = None
     thermal_at = [0.0]
+    # HOW OFTEN THE THERMAL OBSERVER IS READ. Two seconds against a board
+    # because it is two round trips on a link that is also carrying the
+    # drive; there is no link to a stand-in, and at two seconds its
+    # temperatures arrived in visible stairs however smoothly they were
+    # integrated - a reading is only as continuous as its refresh.
+    thermal_every = 2.0 if origin.real else 0.25
 
     def draw():
         try:
@@ -1130,9 +1603,8 @@ def main(argv=None):
             # samples, with no shaft sensor behind it.
             view['chain'] = board.drive.observers()
             travel(view)
-            if view['sweep'] and view['state']['mode'] != 'off':
-                sweep(rig, view)
-            if time.time() - thermal_at[0] > 2.0:   # the thermal observer, every 2 s
+            turn_the_handle(rig, view)
+            if time.time() - thermal_at[0] > thermal_every:
                 view['thermal'] = board.thermal.state()
                 view['budget'] = board.thermal.budget()
                 thermal_at[0] = time.time()
@@ -1147,8 +1619,8 @@ def main(argv=None):
     try:
         leaving = run_view(board_view, console, 1.0 / max(args.hz, 0.5),
                            args.frames, draw, on_input, mouse=True,
-                           on_click=lambda c, r: scrolled(view, console, c, r),
-                           on_drag=lambda dx, dy: hauled(view, console, dx, dy))
+                           on_click=lambda c, r: scrolled(view, c, r),
+                           on_drag=lambda dx, dy: hauled(view, dx, dy))
     finally:
         done = []
         try:

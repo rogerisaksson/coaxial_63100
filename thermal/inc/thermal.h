@@ -200,6 +200,21 @@ typedef struct
 {
   float limit_c[THERMAL_NODES];  /**< absolute ceiling per node, degrees C */
   float throttle_at;             /**< fraction of budget where derating starts */
+  /** How far ahead the throttle looks, seconds.
+    *
+    * DERATING ON WHERE A NODE IS GOING, not where it is. The record
+    * already said why: "a deep burst moves a node in seconds, so a
+    * throttle that waits for the ceiling arrives after it." It arrives
+    * after it on the throttle POINT too - measured on the stand-in, a
+    * phase node at 45 A crossed from a fifth of its budget to over the
+    * ceiling inside three polls, so the whole 85-to-100 band went past
+    * between two looks and the derate never left 1.0.
+    *
+    * The node is projected forward at its present rate and the derate
+    * takes whichever of now and then is worse. Zero disables it and
+    * leaves the throttle looking only at the present, which is what it
+    * did before this existed. */
+  float lookahead_s;
 } thermal_soa_t;
 
 /** What is spent of the thermal budget, and how long is left.
@@ -219,6 +234,31 @@ typedef struct
   int32_t millis_to_limit;   /**< for `worst_node`; -1 = not heading there */
   bool    throttling;        /**< past throttle_at: derate now            */
   bool    tripped;           /**< at or past a limit: stop                */
+  /** What a current clamp should be multiplied by, 1.0 down to 0.0.
+    *
+    * ONE AT THE THROTTLE POINT AND ZERO AT THE CEILING, linear between.
+    * A stage that runs at full current until the ceiling and then stops
+    * is a cliff, and a cliff is what `tripped` alone made this: the
+    * envelope computed a throttle band nothing acted on. Derating the
+    * CLAMP rather than the duty keeps the current loop in charge of its
+    * own limit - a duty ceiling applied behind its back is a
+    * disturbance it cannot explain.
+    *
+    * Still not a verdict on a reading: the factor is arithmetic on the
+    * ceilings the calibration record gave, and what uses it decides
+    * what to do with it. */
+  float   derate;
+  /** How much energy each node can still absorb before its ceiling,
+    * joules: `capacity * (limit - t)`.
+    *
+    * THE BUDGET A HOST CAN PLAN WITH. `used` is where a node is and
+    * `millis_to_limit` is how long at THIS power; neither answers "how
+    * much work is left in it", which is what a control system asking
+    * for a burst actually wants. Joules do, and they are the honest
+    * thermodynamic quantity: capacity times the temperature rise still
+    * available. Divide by a planned power to get seconds, at any power
+    * rather than only the present one. */
+  float   soak_j[THERMAL_NODES];
 } thermal_budget_t;
 
 /* No thermal_soa_defaults here on purpose. The envelope lives in the

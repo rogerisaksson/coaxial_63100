@@ -1308,10 +1308,20 @@ def test_virtual_rotor(report):
     report.check('the ADC source keeps its still rotor',
                  still['theta'] == 0.0 and 'theta_hat' not in still, still)
 
-    def spin(iq, l2, seconds=0.05):
+    def spin(iq, l2, seconds=0.02):
         # SENSORLESS is the torque path: iq commutated on the rotor. HOLD
         # is a load-angle spring since the stepper physics landed, and a
         # torque check through it would measure the spring instead.
+        #
+        # AND SHORT ENOUGH TO STAY IN THE CONSTANT-TORQUE REGION. The lag
+        # this measures is `alpha / wn^2`, so it only compares two
+        # accelerations while both rotors are still accelerating. At 0.05
+        # s a side, 2 A reached the model's no-load speed inside the
+        # window - the link takes the back-EMF at 78 ms there - its
+        # acceleration went to zero and the lag with it, and the ratio
+        # collapsed from over five to 4.2. That is the machine, not the
+        # PLL: the model grew a link ceiling it did not have when this
+        # was written.
         drive = SimulatedDrive()
         drive.source('model')
         drive.model_reset()

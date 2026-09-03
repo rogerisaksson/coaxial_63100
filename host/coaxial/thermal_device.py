@@ -119,7 +119,7 @@ class Thermal(Subsystem):
         worst = r.u8() / 255.0
         index = r.u8()
         millis = r.i32()
-        return {
+        got = {
             'used': used,
             'worst': worst,
             'worst_node': (ALL_NODES[index] if index < len(ALL_NODES)
@@ -129,6 +129,18 @@ class Thermal(Subsystem):
             'tripped': bool(r.u8()),
             'trips': r.u32(),
         }
+        # MINOR 11 appended the three below. Read only if they are there:
+        # a board on an older firmware answers a shorter frame, and the
+        # host selects on the protocol MAJOR alone (invariant 4) so it
+        # cannot refuse one for being short.
+        if r.remaining >= 4:
+            got['derate'] = r.i32() / 1e6
+            got['soak_j'] = {}
+            for i in range(len(used)):
+                name = ALL_NODES[i] if i < len(ALL_NODES) else 'node%d' % i
+                got['soak_j'][name] = r.i32() / 1e3
+            got['duty'] = [r.i32() / 1e6 for _ in range(3)]
+        return got
 
     def set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
         """One node's ceiling in degrees C, and where derating starts.

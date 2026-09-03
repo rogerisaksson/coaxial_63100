@@ -100,6 +100,12 @@ F_LINE = 0.032
 #: vanished left a stator with holes in it rather than one at rest.
 TOOTH_STUB = 0.22
 
+#: How far in from the top and bottom edges the horizontal gauges sit,
+#: in rows. NOT ZERO: hard against the frame they read as part of it, and
+#: a level drawn on the border of a box is a border. One row of air at
+#: each end and they are instruments lying beside the machine.
+GAUGE_INSET = 1
+
 
 def _drive(amps, full=None):
     """The three phase currents as shares of full scale, or None.
@@ -316,18 +322,19 @@ def gutters(width, height, n_left, n_right):
     thing that knows where a group went is what put it there. Written
     down once here rather than guessed twice.
     """
-    first, last = _span(width, height)
+    first, last = span(width, height)
     inner, outer = first - BAR_GAP, last + BAR_GAP
     return ([c for c in (inner - i for i in range(n_left)) if 0 <= c < width],
             [c for c in (outer + i for i in range(n_right)) if 0 <= c < width])
 
 
-def _span(width, height):
+def span(width, height):
     """The columns the machine itself occupies, first and last.
 
-    One definition: `gutters` puts the bars either side of it and
-    `_gauge` runs between them, and the two disagreeing about where the
-    machine is would put a scale through a thermometer.
+    One definition: `gutters` puts the bars either side of it, `_gauge`
+    runs between them and a caption is centred over it, and any two of
+    those disagreeing about where the machine is would put a scale
+    through a thermometer or a title over a gutter.
     """
     r = _Radii(width, height)
     middle = width * DOTS_X / 2.0 - 0.5
@@ -350,7 +357,7 @@ def _gauge(dots, owner, width, height, row, share, cls):
     """
     if row < 0 or row >= height:
         return
-    first, last = _span(width, height)
+    first, last = span(width, height)
     lo, hi = max(0, first) * DOTS_X, min(width - 1, last) * DOTS_X + DOTS_X
     wide = hi - lo
     filled = int(max(0.0, min(1.0, share)) * wide + 0.5)
@@ -368,7 +375,7 @@ def _gauge(dots, owner, width, height, row, share, cls):
                 owner[row][col] = TRACK
 
 
-def _bars(dots, owner, width, height, left, right, r):
+def _bars(dots, owner, width, height, left, right, r, floors=1):
     """Vertical margin bars, filled from the bottom, one cell wide.
 
     LEFT AND RIGHT ARE THE CALLER'S SUBJECTS, not this module's: it draws
@@ -388,11 +395,12 @@ def _bars(dots, owner, width, height, left, right, r):
     each side is the one nearest the machine, so both groups read
     outwards from it.
     """
-    # THE FIRST ROW AND THE LAST BELONG TO THE GAUGES. Run full height,
-    # the tubes shared row 0 with the headroom scale drawn across it and
-    # the scale appeared to run through the BOARD and POWER thermometers.
-    top_row = 1
-    tall = max(1, (height - 2)) * DOTS_Y
+    # THE FIRST ROW AND THE LAST FEW BELONG TO THE GAUGES. Run full
+    # height, the tubes shared row 0 with the headroom scale drawn across
+    # it and the scale appeared to run through the thermometers. `floors`
+    # is how many rows are taken at the bottom - one gauge or several.
+    top_row = GAUGE_INSET + 1
+    tall = max(1, height - 2 * GAUGE_INSET - 1 - max(1, floors)) * DOTS_Y
     # Floor one side and ceil the other inside `gutters`: the centre sits
     # between two columns, so flooring both put the machine's right edge
     # half a column further out than its left and the gaps came out 1
@@ -402,7 +410,10 @@ def _bars(dots, owner, width, height, left, right, r):
     where = gutters(width, height, len(left or ()), len(right or ()))
     for bars, columns in ((left, where[0]), (right, where[1])):
         for index, entry in enumerate(bars or ()):
-            if index >= len(columns):
+            if index >= len(columns) or entry is None:
+                # A None is a SPACER: it takes a column and draws
+                # nothing, which is how a caller puts air between two
+                # groups of bars that measure different things.
                 continue
             share, cls = entry
             col = columns[index]
@@ -517,11 +528,13 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             radius = r.tooth_out + 0.5 + step * 0.25
             put(cx + radius * math.cos(phi), cy - radius * math.sin(phi),
                 TRUTH)
-    _bars(dots, owner, width, height, left, right, r)
+    floor = list(bottom or ())
+    _bars(dots, owner, width, height, left, right, r, len(floor))
     if top is not None:
-        _gauge(dots, owner, width, height, 0, top[0], top[1])
-    if bottom is not None:
-        _gauge(dots, owner, width, height, height - 1, bottom[0], bottom[1])
+        _gauge(dots, owner, width, height, GAUGE_INSET, top[0], top[1])
+    for index, gauge in enumerate(floor):
+        _gauge(dots, owner, width, height,
+               height - GAUGE_INSET - len(floor) + index, gauge[0], gauge[1])
     return dots, owner
 
 
@@ -549,9 +562,10 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     band under it IS the observer's error, in the units a magnet works in.
 
     `left` and `right` are margin bars - `(fraction, class)` each - drawn
-    in the gutters either side, and `top` and `bottom` the same pair
-    drawn as a level across the whole width, on the first row and the
-    last. What they measure is the caller's; this draws levels.
+    in the gutters either side. `top` is one such pair drawn as a level
+    across the machine's width on the first row, and `bottom` a SEQUENCE
+    of them on the last rows, one each. What they measure is the
+    caller's; this draws levels.
 
     Colour is asked for here rather than applied afterwards: a braille
     cell carries dots from up to eight places and its glyph does not say

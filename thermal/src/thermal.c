@@ -177,6 +177,13 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
     }
     out->used[i] = (uint8_t)(part * 255.0f);
 
+    /* What is left in it, in joules. Never negative: a node past its
+       ceiling has no budget rather than a debt, and the trip is what
+       says so. */
+    const float left = limit - th->t[i];
+
+    out->soak_j[i] = (left > 0.0f) ? (th->cfg.node[i].capacity * left) : 0.0f;
+
     if (out->used[i] >= out->worst)
     {
       out->worst = out->used[i];
@@ -186,6 +193,59 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
 
   out->throttling = ((float)out->worst / 255.0f) >= soa->throttle_at;
   out->tripped = (out->worst >= 255U);
+
+  /* The clamp's factor: one below the throttle point, falling to zero at
+     the ceiling. A stage that is derating is still driving, which is the
+     whole difference between this and the trip.
+
+     ON THE WORSE OF NOW AND SOON. Every node is projected forward by
+     `lookahead_s` at its present rate, and the factor is taken on
+     whichever fraction is larger. A throttle that only reads the present
+     cannot act on a ramp steeper than its own poll interval, and those
+     are exactly the ramps worth acting on. */
+  float spent = (float)out->worst / 255.0f;
+
+  if (soa->lookahead_s > 0.0f)
+  {
+    for (uint8_t i = 0U; i < THERMAL_NODES; i++)
+    {
+      const float span = soa->limit_c[i] - th->ambient;
+      const float capacity = th->cfg.node[i].capacity;
+
+      if (!(span > 0.0f) || !(capacity > 0.0f))
+      {
+        continue;
+      }
+
+      const float rate = net_watt(th, p, (thermal_node_t)i) / capacity;
+
+      if (!(rate > 0.0f))
+      {
+        continue;             /* not heading anywhere warmer */
+      }
+
+      const float soon = (th->t[i] + rate * soa->lookahead_s - th->ambient)
+                         / span;
+
+      if (soon > spent)
+      {
+        spent = (soon > 1.0f) ? 1.0f : soon;
+      }
+    }
+  }
+
+  const float band = 1.0f - soa->throttle_at;
+
+  if ((spent <= soa->throttle_at) || !(band > 0.0f))
+  {
+    out->derate = 1.0f;
+  }
+  else
+  {
+    const float over = (spent - soa->throttle_at) / band;
+
+    out->derate = (over >= 1.0f) ? 0.0f : (1.0f - over);
+  }
 
   /* Time left, for the node that has least of it. Capacity over net power:
      if it is not gaining, it is not heading for the limit and -1 says so
@@ -295,7 +355,15 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
       }
       rds *= factor;
     }
-    out->watt[THERMAL_PHASE(leg)] = a * a * (rds + loss->r_shunt);
+    /* SPLIT WHERE THE HEAT IS MADE. Both of these were booked on the
+       phase node, so the model said the shunt cooked while the FET beside
+       it in the same current path stayed cold - measured on the stand-in,
+       fifteen cells of seventeen on the phase thermometer against three
+       on the driver's. They are two parts and they heat separately: the
+       FET's watts are the FET's, and it is the one whose resistance
+       climbs with its own temperature. The nodes keep their names. */
+    out->watt[THERMAL_DRIVER(leg)] += a * a * rds;
+    out->watt[THERMAL_PHASE(leg)] = a * a * loss->r_shunt;
     link_from_phases += load->duty[leg] * a;
 
     if (load->switching && (load->duty[leg] > 0.0f))

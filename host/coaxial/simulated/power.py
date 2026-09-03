@@ -1,8 +1,10 @@
 """The power stage stood down: thermal observer, power rails and the
 gate drivers with the real arming policy."""
+import math
 import time
 
 from .. import thermal
+from ..thermal_device import THROTTLE_AT
 from ..errors import RigError
 from ..gates import GateControl
 
@@ -32,18 +34,129 @@ class SimulatedThermal:
     #: though it gets there sooner.
     HASTE = 10.0
 
-    def __init__(self, watts=None):
+    #: How fast the tracked rms follows the samples, seconds. Long enough
+    #: that a single sample cannot move it - one instant of a rotating
+    #: three-phase current is a vector, not an amplitude - and short
+    #: enough that a load step is in the temperatures within a second.
+    RMS_TAU = 0.5
+
+    #: How far ahead the throttle looks, seconds. `soa_lookahead_ms` in
+    #: the board's record, and the same two seconds it defaults to.
+    LOOKAHEAD_S = 2.0
+
+    #: How fast the derate may recover, per second of model time.
+    #: `THERMAL_DERATE_RECOVER_PER_S` in the firmware.
+    DERATE_RECOVER_PER_S = 0.05
+
+    #: The longest slice the integrator takes, seconds of model time. A
+    #: fifth of the fastest node's constant - a driver is 0.35/3 J/K
+    #: across 45.6 K/W, about five seconds - so every step is small
+    #: against what it is stepping.
+    STEP_S = 1.0
+
+    def __init__(self, sample=None):
         self._seconds = 0
         self._every_s = 5.0
         self._settle_s = 0.3
-        #: What is being dissipated, asked for rather than told: the
-        #: drive changes what it is doing between two reads of this and
-        #: nothing would have carried the news.
-        self._watts = watts or (lambda: dict(thermal.POWER_SWITCHING))
+        #: WHERE IT LOOKS, not what it is told. A sampler that answers
+        #: the phase currents and whether the bridge is switching - the
+        #: two things this board has - and nothing about how hot
+        #: anything is or is going to be. Without one it sees a stage
+        #: that is not switching, which is what an unplugged observer
+        #: should see.
+        self._sample = sample or (lambda: {'amps': (0.0, 0.0, 0.0),
+                                           'switching': False})
+        #: An rms per phase, tracked across samples. A single sample of a
+        #: three-phase current says where the vector is pointing, not how
+        #: big it has been: the observer squares and leaks, which is what
+        #: a firmware one does between its own reads.
+        self._rms = 0.0
+        #: WHAT IT DROPS WHEN A NODE REACHES ITS CEILING. The board wires
+        #: the gate drivers' own disable here, which is the same path the
+        #: break uses; without one this observer reports and does not act,
+        #: which is what it did before and is not what the board does.
+        self._gate = None
+        self._trips = 0
+        #: What the effective duty is, asked of whatever owns the
+        #: compares. The board wires the gate drivers' own; without one
+        #: there is no stage and the answer is zeros.
+        self._duty = lambda: (0.0, 0.0, 0.0)
+        #: Where the derate goes. The board wires the drive's clamp.
+        self._derate_to = None
+        self._last_power = None
+        self._derate_held = 1.0
+        self._derate_at = None
         self._node = {n: thermal.AMBIENT for n in self.NODES}
         self._at = None
 
     def _advance(self):
+        """The network integrated forward to now, in steps it can take.
+
+        SUB-STEPPED, and it has to be. One explicit step across a whole
+        poll gap was what made the temperatures move in stairs: the view
+        reads this every couple of seconds, ten times hurried is twenty
+        seconds of model time, and the fastest node's constant is five -
+        so `dt / tau` clamped at one and the node JUMPED to wherever the
+        power put it, waited, and jumped again. A first-order step is
+        only first order while it is small against the constant it is
+        stepping.
+
+        The same lesson `_advance_model` has next door for the rotor, and
+        for the same reason: an Euler step the size of the thing it is
+        integrating is not an integration.
+
+        Reading it twice in a row is also harmless now - the second read
+        finds no elapsed time and does nothing, where before it was the
+        one that got the whole step and its neighbour got none.
+        """
+        now = time.time()
+        was, self._at = self._at, now
+        if was is None:
+            return
+        elapsed = min(now - was, 5.0)
+        if elapsed <= 0.0:
+            return
+        # ONE SAMPLE FOR THE WHOLE GAP. What the drive is doing is what it
+        # is doing now; sampling it again inside the loop would be reading
+        # the same value and pretending it was news.
+        seen = self._sample()
+        left = elapsed * self.HASTE
+        while left > 0.0:
+            step = min(self.STEP_S, left)
+            left -= step
+            self._integrate(step, seen)
+        self._envelope()
+
+    def _envelope(self):
+        """THE ONE PLACE THIS CLASS ACTS RATHER THAN REPORTS.
+
+        A trip drops the stage, and the estimate is reported either way.
+        `board_thermal.c` does exactly this after every step of the real
+        observer - `if (s_budget.tripped && Board_PwmIsEnabled())
+        Board_PwmDisable();` - and a stand-in whose observer watched a
+        node go past its ceiling and did nothing would be a stand-in you
+        could not rehearse the envelope against. The limits come from the
+        record; nothing here decides one (invariant 10).
+
+        Latched by construction, as it is there: dropping the stage is
+        not a state this class holds, it is a thing it does, and only an
+        arm brings the gates back.
+        """
+        # FIRST IT DERATES. Past the throttle point the drive's clamp is
+        # scaled toward zero, so the stage keeps driving on less - which
+        # is what an envelope is for, and what `board_thermal.c` does one
+        # line before it considers dropping anything. Without it the
+        # envelope was a cliff and the page went dead at the first trip.
+        worst = self._worst()[0]
+        if self._derate_to is not None:
+            self._derate_to(self._derate_applied(self.derate(worst)))
+        # THEN, only if that was not enough.
+        if self._gate is None or worst < 1.0:
+            return
+        if self._gate():
+            self._trips += 1
+
+    def _integrate(self, dt, seen):
         """One first-order step per node, on the model's own network.
 
         TWO LEVELS, as the network is: the board relaxes toward what the
@@ -53,12 +166,9 @@ class SimulatedThermal:
         one - a stand-in whose temperatures disagreed with `steady()`
         would be worth less than no temperatures at all.
         """
-        now = time.time()
-        was, self._at = self._at, now
-        if was is None:
-            return
-        dt = min(now - was, 5.0) * self.HASTE
-        power = self._watts()
+        power = self._power(dt, seen)
+        #: Kept so the lookahead can project without sampling again.
+        self._last_power = power
         cfg = thermal.CFG
         total = sum(power.values())
         r_board = cfg['board_to_ambient']
@@ -73,6 +183,33 @@ class SimulatedThermal:
             target = board + power.get(name, 0.0) * r
             self._node[name] += (target - self._node[name]) * \
                 min(1.0, dt / tau)
+
+    def _power(self, dt, seen):
+        """Watts per node, worked out from the sample. The observer's job.
+
+        `i^2 R` on what the shunts actually carried, across the
+        resistance the current crosses - `inverter` holds the FET's
+        Rds(on) and the shunt - plus the housekeeping, which does not
+        care whether anything switches. `coaxial.thermal.phase_power` is
+        that split, and it is the same function the bench arithmetic and
+        the notebooks use.
+
+        The rms is tracked rather than taken from one sample: three
+        phase currents at an instant are a vector, and a vector says
+        nothing about how long it has been that big. It leaks toward the
+        instantaneous magnitude at `RMS_TAU`, which is what a firmware
+        observer does between reads.
+        """
+        from .. import inverter
+
+        amps = seen.get('amps') or (0.0, 0.0, 0.0)
+        now = math.sqrt(sum(a * a for a in amps) / 3.0)
+        self._rms += (now - self._rms) * min(1.0, dt / self.RMS_TAU)
+        if not seen.get('switching'):
+            self._rms *= max(0.0, 1.0 - dt / self.RMS_TAU)
+        return thermal.phase_power(self._rms,
+                                   inverter.RDS_ON + inverter.SHUNT,
+                                   switching=bool(seen.get('switching')))
 
     def state(self):
         self._seconds += 1
@@ -100,18 +237,122 @@ class SimulatedThermal:
         self._every_s, self._settle_s = every_s, settle_s
         return True
 
-    def budget(self):
-        self._advance()
+    def _used(self):
+        """Each node as a fraction of its own ceiling.
+
+        One definition: `budget()` answers it and `_envelope()` acts on
+        it, and the two disagreeing about how close a node is would be a
+        stage that trips at a number nobody reported.
+        """
         used = {}
         for name in self.NODES:
             top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
             used[name] = max(0.0, (self._node[name] - thermal.AMBIENT)
                              / (top - thermal.AMBIENT))
-        worst = max(used, key=lambda n: used[n])
-        return {'used': used, 'worst': used[worst], 'worst_node': worst,
+        return used
+
+    def _worst(self):
+        used = self._used()
+        name = max(used, key=lambda n: used[n])
+        return used[name], name, used
+
+    def derate(self, worst=None):
+        """What the current clamp should be multiplied by, 1 down to 0.
+
+        One at the throttle point and zero at the ceiling, linear
+        between - `thermal.c`'s own arithmetic, which is why the two
+        agree about when a stage backs off and by how much.
+        """
+        spent = self._worst()[0] if worst is None else worst
+        # ON THE WORSE OF NOW AND SOON, as `thermal.c` does. A node at
+        # 45 A crosses the whole throttle band between two polls, so a
+        # throttle reading only the present never sees it: measured, the
+        # derate stayed at 1.0 through a crossing from a fifth of the
+        # budget to over the ceiling, and the stage tripped instead.
+        spent = max(spent, self._soon())
+        band = 1.0 - THROTTLE_AT
+        if spent <= THROTTLE_AT or band <= 0.0:
+            return 1.0
+        return max(0.0, 1.0 - (spent - THROTTLE_AT) / band)
+
+    def _derate_applied(self, want):
+        """The factor after the recovery slew. Down is immediate.
+
+        ASYMMETRIC ON PURPOSE, and `board_thermal.c` does the same. The
+        factor is part of a loop: cut the clamp and the ramp goes away,
+        so the next look sees no ramp and asks for full current again.
+        Measured, that oscillated between 1.00 and 0.00 every hundred
+        milliseconds with the node at nine tenths of its ceiling - a
+        stage chattering at its own poll rate, which is worse for the
+        silicon than the derate was for. Recovering over a few seconds
+        gives the node time to actually cool first.
+        """
+        now = time.time()
+        was, self._derate_at = self._derate_at, now
+        if want <= self._derate_held or was is None:
+            self._derate_held = want
+        else:
+            step = self.DERATE_RECOVER_PER_S * min(5.0, now - was) * self.HASTE
+            self._derate_held = min(want, self._derate_held + step)
+        self._derate_held = max(0.0, min(1.0, self._derate_held))
+        return self._derate_held
+
+    def _soon(self):
+        """The worst node's budget `LOOKAHEAD_S` from now, at this rate.
+
+        Projected forward at the present power, which is the same dead
+        reckoning `millis_to_limit` is - the difference is that this one
+        is used for something.
+        """
+        power = self._last_power or {}
+        cfg = thermal.CFG
+        worst = 0.0
+        for name in self.NODES:
+            top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
+            capacity = (cfg['board_capacity'] if name == 'board'
+                        else cfg['capacity'].get(name, 0.0))
+            span = top - thermal.AMBIENT
+            if capacity <= 0.0 or span <= 0.0:
+                continue
+            r = (cfg['board_to_ambient'] if name == 'board'
+                 else cfg['to_board'].get(name, 0.0))
+            reference = (thermal.AMBIENT if name == 'board'
+                         else self._node['board'])
+            net = power.get(name, 0.0) - (self._node[name] - reference) / r                 if r > 0.0 else power.get(name, 0.0)
+            if net <= 0.0:
+                continue
+            soon = (self._node[name] + net / capacity * self.LOOKAHEAD_S
+                    - thermal.AMBIENT) / span
+            worst = max(worst, min(1.0, soon))
+        return worst
+
+    def soak_j(self):
+        """Joules each node can still absorb before its ceiling.
+
+        `capacity x (limit - t)`, and never negative: a node past its
+        ceiling has no budget rather than a debt. It is the quantity a
+        control system plans a burst with - divide by the power it means
+        to spend and the answer is seconds, at any power rather than
+        only the present one.
+        """
+        cfg = thermal.CFG
+        out = {}
+        for name in self.NODES:
+            top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
+            capacity = (cfg['board_capacity'] if name == 'board'
+                        else cfg['capacity'].get(name, 0.0))
+            out[name] = max(0.0, capacity * (top - self._node[name]))
+        return out
+
+    def budget(self):
+        self._advance()
+        worst, name, used = self._worst()
+        return {'used': used, 'worst': worst, 'worst_node': name,
                 'seconds_to_limit': None,
-                'throttling': used[worst] >= 0.85,
-                'tripped': used[worst] >= 1.0, 'trips': 0}
+                'throttling': worst >= THROTTLE_AT,
+                'tripped': worst >= 1.0, 'trips': self._trips,
+                'derate': self._derate_held, 'soak_j': self.soak_j(),
+                'duty': list(self._duty() or (0.0, 0.0, 0.0))}
 
     def set_limit(self, node, limit_c, throttle_at=0.85):
         return True

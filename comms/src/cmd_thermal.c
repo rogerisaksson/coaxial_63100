@@ -194,6 +194,20 @@ static cmd_status_t op_budget(wr_t *out)
   wr_u8(out, b.throttling ? 1U : 0U);
   wr_u8(out, b.tripped ? 1U : 0U);
   wr_u32(out, b.trips);
+  /* MINOR 11, appended (invariant 3). The clamp's factor in micro, the
+     joules each node can still absorb in milli, and the effective duty
+     per phase in micro - what the compares hold, not what was asked
+     for. A host on an older codec stops reading at `trips` and is right
+     about everything it read. */
+  wr_i32(out, (int32_t)(b.derate * 1000000.0f));
+  for (uint8_t i = 0U; i < (uint8_t)BOARD_THERMAL_NODES; i++)
+  {
+    wr_i32(out, (int32_t)(b.soak_j[i] * 1000.0f));
+  }
+  for (uint8_t i = 0U; i < (uint8_t)BOARD_PWM_PHASES; i++)
+  {
+    wr_i32(out, (int32_t)(b.duty[i] * 1000000.0f));
+  }
   return CMD_OK;
 }
 

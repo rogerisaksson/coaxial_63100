@@ -166,6 +166,12 @@ class SimulatedDrive:
         self._obs_frame = 0.0
         self._obs_flux_omega = 0.0
         self._obs_synced = None
+        #: Whether the bridge is actually switching, asked of whatever
+        #: owns the gates. None until the board wires it, and then the
+        #: drive's own mode stands in - a drive with no stage behind it.
+        self._switching = None
+        #: What the thermal envelope is scaling the clamp by, 1 to 0.
+        self._derate = 1.0
         self._omega_hat = 0.0
         self._model = {'r': self.R, 'ld': self.LD, 'lq': self.LQ,
                        'lambda': self.LAMBDA, 'pole_pairs': float(self.POLES),
@@ -234,7 +240,11 @@ class SimulatedDrive:
             return iid, self._sp['vq'] / self._r, self._sp['vd'], self._sp['vq']
         if self._mode not in ('hold', 'sensorless'):
             return 0.0, 0.0, 0.0, 0.0
-        i_max = self._p('drv_i_max_ma', 5.0)
+        # THE CLAMP, AS THE ENVELOPE LEFT IT. `board_drive.c` multiplies
+        # the record's `drv_i_max_ma` by the thermal factor every time the
+        # observer polls, and the loop sees its own limit move rather than
+        # fighting a duty ceiling applied behind its back.
+        i_max = self._p('drv_i_max_ma', 5.0) * self._derate
         iid = max(-i_max, min(i_max, self._sp['id_ref']))
         iq = max(-i_max, min(i_max, self._sp['iq_ref']))
         # The speed in the voltage solution: HOLD's is the command's,
@@ -249,28 +259,37 @@ class SimulatedDrive:
         vq = self._r * iq + omega * self._ld(iid) * iid + omega * self._lam
         return iid, iq, vd, vq
 
-    def dissipation(self):
-        """Watts per thermal node from what the loop is doing right now.
+    def sample(self):
+        """What a sampler in the control interrupt would see, this period.
 
-        THE SAME SPLIT THE THERMAL MODEL IS WRITTEN IN: `phase_power`
-        takes an rms phase current and the resistance it crosses, and
-        returns the node dictionary `steady()` and the observer both
-        speak. Nothing is invented here - `inverter` holds the FET's
-        Rds(on) and the shunt, and `coaxial.thermal` holds the
-        housekeeping, so a stand-in that is asked how hot it is answers
-        out of the same constants the bench arithmetic uses.
+        THE THREE PHASE CURRENTS AND WHETHER THE BRIDGE IS SWITCHING -
+        the two things the board actually has. It used to hand the
+        thermal observer a finished power budget, which made the
+        observer a formality: it was being told the answer by the thing
+        it was supposed to be watching. An observer that is given watts
+        is not observing anything.
 
-        With the stage off, the conduction goes and the housekeeping
-        stays: the MCU and the rails do not care whether anything
-        switches.
+        The currents are the dq solution rotated out to the phases, the
+        same inverse Park and Clarke the firmware does on its way to the
+        compares, at the angle the loop is commutating on.
         """
-        from .. import inverter, thermal
-
         iid, iq, _, _ = self._dq()
-        switching = self._mode != 'off'
-        amps_rms = math.hypot(iid, iq) / math.sqrt(2.0) if switching else 0.0
-        return thermal.phase_power(amps_rms, inverter.RDS_ON + inverter.SHUNT,
-                                   switching=switching)
+        theta = self._sp['theta'] if self._mode == 'hold' else self._theta_hat
+        cos, sin = math.cos(theta), math.sin(theta)
+        alpha = iid * cos - iq * sin
+        beta = iid * sin + iq * cos
+        root3 = math.sqrt(3.0) / 2.0
+        # SWITCHING IS THE BRIDGE'S ANSWER, NOT THE LOOP'S. The drive can
+        # be running a mode with MOE already dropped - which is exactly
+        # what the thermal envelope does to it - and a sampler that read
+        # the mode would go on reporting current through a stage that has
+        # none. `board_thermal.c` takes `Board_PwmIsEnabled()` for this
+        # field, so this takes the same thing.
+        on = self._switching() if self._switching else self._mode != 'off'
+        return {'amps': (alpha, -0.5 * alpha + root3 * beta,
+                         -0.5 * alpha - root3 * beta) if on
+                        else (0.0, 0.0, 0.0),
+                'switching': bool(on)}
 
     def _ih(self):
         """The demodulated HF current step: V.T over the inductance along
@@ -581,11 +600,27 @@ class SimulatedDrive:
             n = max(1, int(math.ceil(dt / step)))
             h = dt / n
             theta = motor.theta
+            # THE LINK RUNS OUT, and until now it never did. The back-EMF
+            # is `sqrt(3) lambda omega_el` and the inverter cannot push
+            # current against more than it has: at that speed there is no
+            # torque left, which is what a no-load speed IS.
+            #
+            # INSIDE THE SUB-STEP, because the rotor crosses it inside
+            # one. Evaluated once per call it clamped a speed the rotor
+            # had already left: at 43 A into this inertia the acceleration
+            # is 113 000 rad/s^2, so a single 60 ms poll gap overshot the
+            # ceiling twenty-fold. The model reported 43 115 rpm on a
+            # machine whose no-load speed is 3 902, and 10.3 kW out of a
+            # stage rated 6.3 - which made every thermal and power reading
+            # downstream a fiction.
+            ceiling = (self._model['vdc'] / (math.sqrt(3.0) * motor.lam)
+                       if motor.lam > 0.0 else float('inf'))
             for _ in range(n):
                 if hold:
                     cmd += w_cmd * h
                     torque = k_t * i_mag * math.sin(cmd - theta)
-                wm += (torque - motor.b * wm - motor.load) / motor.j * h
+                fade = max(0.0, 1.0 - abs(wm * motor.p) / ceiling)
+                wm += (torque * fade - motor.b * wm - motor.load)                     / motor.j * h
                 theta += wm * motor.p * h
             # The SHAFT, accumulated: electrical theta wraps at 2 pi and a
             # shaft sensor reads the mechanical angle, which is 1/p of the

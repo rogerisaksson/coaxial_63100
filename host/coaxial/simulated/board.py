@@ -80,13 +80,29 @@ class SimulatedBoard:
             # indexed in the year 2083.
             self.daq.clock = self.clock
             self.drive = SimulatedDrive()
-            # WHERE THE HEAT COMES FROM. The thermal observer is asked
-            # for the power rather than told it, because the drive
-            # changes what it is doing between two reads of it and
-            # nothing would have carried the news. On the board it is
-            # the same shape: the firmware samples the currents in the
-            # loop and the observer integrates whatever they were.
-            self.thermal._watts = self.drive.dissipation
+            # WHERE IT LOOKS. The observer is given a SAMPLER - the
+            # phase currents and whether the bridge is switching - and
+            # works the dissipation out itself. It was handed a finished
+            # power budget, which made it a formality: it was being told
+            # the answer by the thing it was watching. On the board it is
+            # this shape too - the firmware samples currents in the
+            # control interrupt and the observer integrates what it saw,
+            # and neither of them knows where the current came from.
+            self.thermal._sample = self.drive.sample
+            # AND WHAT IT DROPS. `board_thermal.c` calls
+            # `Board_PwmDisable()` after every step where the budget says
+            # tripped, guarded by `Board_PwmIsEnabled()` so a stage that
+            # is already down is not dropped again - that guard is what
+            # makes the trip counter count TRIPS and not steps. The same
+            # guard is here.
+            self.thermal._gate = self._drop_stage
+            # And what the drive reports as switching: the bridge, so a
+            # dropped stage stops making current in the model too.
+            self.drive._switching = lambda: self.gate_drivers._enabled
+            # AND THE HAND ON THE THROTTLE. `Board_DriveDerate()` there;
+            # a scaling on the drive's own clamp here.
+            self.thermal._derate_to = self._derate_drive
+            self.thermal._duty = self._effective_duty
             # The sample point is one register: moving it through the
             # gate drivers moves the drive's moments too.
             self.gate_drivers._drive = self.drive
@@ -108,6 +124,34 @@ class SimulatedBoard:
 
     def __repr__(self):
         return '<SimulatedBoard - no port, no cable, invented values>'
+
+    def _derate_drive(self, factor):
+        """Scale the drive's current clamp. `Board_DriveDerate`'s twin."""
+        self.drive._derate = max(0.0, min(1.0, factor))
+
+    def _effective_duty(self):
+        """What the compares hold, as a fraction of the period.
+
+        The EFFECTIVE duty: what the clamp and the derate left, not what
+        anything asked for. Zero with the stage down, because that is
+        what the compares are worth then.
+        """
+        if not self.gate_drivers._enabled:
+            return (0.0, 0.0, 0.0)
+        period = float(self.gate_drivers.PERIOD or 1)
+        return tuple(t / period for t in self.gate_drivers._duty)
+
+    def _drop_stage(self):
+        """Drop the gates for the thermal envelope. True if it did.
+
+        The board's own `Board_PwmDisable()` behind the same
+        `Board_PwmIsEnabled()` guard: a stage already down is not dropped
+        again, so what the counter counts is trips.
+        """
+        if not self.gate_drivers._enabled:
+            return False
+        self.gate_drivers.disable()
+        return True
 
     def close_binary(self):
         pass

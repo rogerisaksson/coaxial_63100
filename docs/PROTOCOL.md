@@ -537,6 +537,45 @@ is down there. The board says so and judges nothing further - invariant
 
 The pair, and the two it beat, are `notebook_examples/foc_montecarlo.ipynb`.
 
+### The thermal envelope: derate, soak, duty
+
+THE ENVELOPE WAS A CLIFF. `thermal_budget` had computed `throttling` -
+past the record's `soa_throttle_ppm` - since the nodes went per leg, and
+nothing consumed it: full current until the ceiling, then MOE off. MINOR
+11 is the band being used rather than only reported.
+
+`derate` is what the drive's current clamp is being multiplied by, one
+down to zero, micro on the wire. One at the throttle point and zero at
+the ceiling. THE CLAMP AND NOT THE DUTY: a duty ceiling applied behind
+the current loop's back is a disturbance it cannot explain, while a
+clamp that moves is a limit it already knows how to respect.
+
+It is taken on the WORSE OF NOW AND SOON. Every node is projected
+forward by `soa_lookahead_ms` at its present rate and the larger
+fraction wins, because a throttle that reads only the present cannot act
+on a ramp steeper than its own poll: measured, a phase node at 45 A
+crossed the whole 85-to-100 % band between two polls and the derate
+never left 1.0.
+
+And it falls immediately but recovers over twenty seconds. The factor is
+part of a loop - cut the clamp and the ramp goes away, so the next poll
+asks for full current again - which oscillated between 1.00 and 0.00
+every hundred milliseconds until the recovery was made slow against the
+node's own eighteen-second constant rather than against the poll.
+
+`soak_j` is what each node can still absorb before its ceiling, in
+millijoules: `capacity x (limit - t)`. `used` says where a node is and
+`millis_to_limit` how long at THIS power; neither answers how much work
+is left in it, which is what a control system planning a burst wants.
+Divide the joules by the power it means to spend and the answer is
+seconds at that power.
+
+`duty` is the EFFECTIVE duty per phase, micro: what the compares hold
+after the clamp and the derate, not what anything asked for.
+
+A host on an older codec stops reading at `trips` and is right about
+everything it read (invariant 3).
+
 ## Versioning
 
 MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
@@ -553,6 +592,7 @@ MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 | 8 | gate op 2 takes an optional period count; op 0 appends `periods_left` |
 | 9 | fixed-shape requests dispatch on their own CRC, not t3.5 |
 | 10 | drive op 14, the back-EMF observer chain |
+| 11 | thermal budget appends the derate, the soak joules and the effective duty |
 
 MAJOR 2, 2026-08-29: the thermal nodes went per leg and the node
 indices were repurposed - a host could follow the length and not the

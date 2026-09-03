@@ -24,6 +24,12 @@
 
 static drive_t  s_drive;
 static bool     s_ready;
+/** What the thermal envelope is scaling the current clamp by, 1 to 0.
+    Held here rather than read from the observer in the interrupt: the
+    poll runs at 10 Hz on the main loop and this is read at 50 kHz. */
+static float    s_derate = 1.0f;
+/** The clamp the record asked for, before any derating. */
+static float    s_i_max_cal = 0.0f;
 static bool     s_owned;          /**< the drive holds the compares       */
 static uint32_t s_cycles_last;    /**< what one step cost, raw CYCCNT     */
 static uint32_t s_cycles_max;
@@ -31,6 +37,33 @@ static uint32_t s_cycles_max;
     conversion, the HAL's interrupt entry and the step, all of it. The
     cycle count above starts inside the step and misses the first two. */
 static uint16_t s_exit_ticks_max;
+
+void Board_DriveDerate(float factor)
+{
+  /* Clamped here rather than trusted: this is a multiplier on a current
+     limit, and a value outside 0..1 would be a limit RAISED by the
+     thermal envelope, which is the one thing it must never do. */
+  if (!(factor >= 0.0f))
+  {
+    factor = 0.0f;
+  }
+  if (factor > 1.0f)
+  {
+    factor = 1.0f;
+  }
+  s_derate = factor;
+  if (s_ready)
+  {
+    s_drive.p.i_max = s_i_max_cal * s_derate;
+  }
+}
+
+
+float Board_DriveDerating(void)
+{
+  return s_derate;
+}
+
 
 /** The conversions, affine and cached: refreshed with the parameters.
     A call into board_adc.c per sample was most of the interrupt. */
@@ -78,7 +111,8 @@ void Board_DriveParamsFromCal(void)
   p->inj_periods = (uint16_t)cal->drv_inj_periods;
   p->inj_phase = milli_signed(cal->drv_inj_phase_mrad);
   p->eps_gain = (float)(int32_t)cal->drv_eps_gain_ua_per_rad / 1000000.0f;
-  p->i_max = milli(cal->drv_i_max_ma);
+  s_i_max_cal = milli(cal->drv_i_max_ma);
+  p->i_max = s_i_max_cal * s_derate;
   p->i_trip = milli(cal->drv_i_trip_ma);
   p->v_frac = micro(cal->drv_v_frac_ppm);
   p->sign = ((int32_t)cal->drv_sign < 0) ? -1.0f : 1.0f;

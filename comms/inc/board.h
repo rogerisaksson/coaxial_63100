@@ -847,6 +847,10 @@ typedef struct
      behind it deserves. */
   int32_t  soa_limit_centi[BOARD_THERMAL_NODES];
   uint32_t soa_throttle_ppm;   /**< where derating starts, parts per million */
+  /* CAL_VERSION 10: how far ahead the throttle looks, milliseconds. A
+     limit the board is given, like the ceilings beside it - the firmware
+     does not choose how much warning it wants. */
+  uint32_t soa_lookahead_ms;
 
   /* CAL_VERSION 8: the drive. Ids BOARD_CAL_MOTOR_* and BOARD_CAL_DRV_*,
      in that order; board_drive.c turns them into the floats it runs on. */
@@ -1216,12 +1220,35 @@ typedef struct
   bool     throttling;
   bool     tripped;
   uint32_t trips;            /**< how many times it has stopped the stage */
+  /** What the current clamp is being multiplied by right now, 1 to 0.
+    * The stage is still driving while this is under one - that is the
+    * difference between derating and tripping. */
+  float    derate;
+  /** Joules each node can still absorb before its ceiling. A host
+    * planning a burst divides by the power it means to spend. */
+  float    soak_j[BOARD_THERMAL_NODES];
+  /** What the compares actually hold, as a fraction of the period.
+    * The EFFECTIVE duty: what the derate and the clamp left, not what
+    * anything asked for. */
+  float    duty[BOARD_PWM_PHASES];
 } board_budget_t;
 
 bool Board_ThermalBudget(board_budget_t *out);
 
 /** Set one node's ceiling, degrees C. Zero disables that node's limit. */
 bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at);
+
+/**
+  * @brief  Scale the drive's current clamp, 1.0 down to 0.0.
+  *
+  * The thermal envelope's hand on the throttle. Clamped to 0..1 inside:
+  * a factor above one would be an envelope RAISING a limit, which is the
+  * one thing it must never do.
+  */
+void Board_DriveDerate(float factor);
+
+/** What that factor is now. */
+float Board_DriveDerating(void);
 
 void Board_ThermalInit(void);
 void Board_ThermalPoll(void);

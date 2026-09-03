@@ -75,6 +75,7 @@ static void soa_from_cal(void)
     s_soa.limit_c[i] = (float)cal->soa_limit_centi[i] / 100.0f;
   }
   s_soa.throttle_at = (float)cal->soa_throttle_ppm / 1000000.0f;
+  s_soa.lookahead_s = (float)cal->soa_lookahead_ms / 1000.0f;
 }
 
 
@@ -107,6 +108,53 @@ void Board_ThermalInit(void)
 /** Read every thermometer. One borrow serves all three - they are never
   * available apart, so reading them separately would triple the time the
   * drivers spend unpowered and buy nothing. */
+/** How fast the derate may RECOVER, per second. Falling is immediate.
+  *
+  * ASYMMETRIC ON PURPOSE. `thermal_budget` reports the factor the
+  * present ramp deserves, and that factor is part of a loop: cut the
+  * clamp and the ramp goes away, so the next poll sees no ramp and asks
+  * for full current again. Measured on the stand-in, that oscillated
+  * between 1.00 and 0.00 every hundred milliseconds while the node sat
+  * at nine tenths of its ceiling - a stage chattering at its own poll
+  * rate, which is worse for the silicon than the derate was for.
+  *
+  * Cutting instantly and recovering over twenty seconds breaks the loop:
+  * the node has time to actually cool before the current comes back.
+  * FOUR SECONDS WAS NOT ENOUGH - the phase node's own constant is about
+  * eighteen, so a derate that recovered in four re-heated it before it
+  * had cooled and the stage tripped anyway. The recovery has to be slow
+  * against the thing it is protecting, not against the poll.
+  */
+#define THERMAL_DERATE_RECOVER_PER_S 0.05f
+
+static float derate_applied(float want, uint32_t since_ms)
+{
+  static float held = 1.0f;
+
+  if (want <= held)
+  {
+    held = want;              /* down is immediate */
+  }
+  else
+  {
+    held += THERMAL_DERATE_RECOVER_PER_S * ((float)since_ms / 1000.0f);
+    if (held > want)
+    {
+      held = want;
+    }
+  }
+  if (held < 0.0f)
+  {
+    held = 0.0f;
+  }
+  if (held > 1.0f)
+  {
+    held = 1.0f;
+  }
+  return held;
+}
+
+
 static void sense_read(thermal_sense_t *out)
 {
   int32_t raw = 0, centi = 0;
@@ -276,11 +324,21 @@ void Board_ThermalPoll(void)
 
   thermal_budget(&s_th, &p, &s_soa, &s_budget);
 
-  /* THE ONE PLACE THIS FILE ACTS RATHER THAN REPORTS. A trip drops MOE, so
-     every gate goes to its idle level in hardware and stays there until
-     something arms it again - the same path the break uses. It is protection,
-     not a verdict on a reading: the estimate is still reported either way,
-     and the limits came from the calibration record rather than from here. */
+  /* THE ONE PLACE THIS FILE ACTS RATHER THAN REPORTS, and it acts twice.
+
+     FIRST IT DERATES. Past the throttle point the drive's current clamp
+     is scaled toward zero, so the stage keeps driving on less - which is
+     what a thermal envelope is for. Without it the envelope was a cliff:
+     full current until the ceiling and then MOE off, with a throttle
+     band that was computed, published and used by nothing.
+
+     THEN, only if that was not enough, it drops MOE - every gate to its
+     idle level in hardware, staying there until something arms it again,
+     the same path the break uses. Protection, not a verdict on a
+     reading: the estimate is reported either way and the limits came
+     from the calibration record rather than from here. */
+  Board_DriveDerate(derate_applied(s_budget.derate, since));
+
   if (s_budget.tripped && Board_PwmIsEnabled())
   {
     Board_PwmDisable();
@@ -342,6 +400,25 @@ bool Board_ThermalBudget(board_budget_t *out)
   out->millis_to_limit = s_budget.millis_to_limit;
   out->throttling = s_budget.throttling;
   out->tripped = s_budget.tripped;
+  /* What is APPLIED, not what the arithmetic asked for: the recovery
+     slew is part of the answer and a host that saw the raw factor would
+     see it flicker while the clamp did not. */
+  out->derate = Board_DriveDerating();
+  for (uint8_t i = 0U; i < BOARD_THERMAL_NODES; i++)
+  {
+    out->soak_j[i] = s_budget.soak_j[i];
+  }
+  /* The EFFECTIVE duty, off the compares themselves rather than off
+     whatever was last asked for: what the clamp and the derate left. */
+  {
+    const uint32_t period = Board_PwmPeriod();
+
+    for (uint8_t i = 0U; i < BOARD_PWM_PHASES; i++)
+    {
+      out->duty[i] = (period > 0U)
+        ? ((float)Board_PwmGetDuty(i) / (float)period) : 0.0f;
+    }
+  }
   out->trips = s_trips;
   return true;
 }
