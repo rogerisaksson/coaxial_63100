@@ -375,9 +375,9 @@ def test_triad(report):
     report.check('triad: X, Y and Z each lettered once at rest',
                  sorted(rest) == ['X', 'Y', 'Z']
                  and all(len(v) == 1 for v in rest.values()), str(rest))
-    # Reach 4 at 20 rows (the floor), so the origin sits at column 7,
-    # row 15 - see _triad.
-    ox, oy = 7, 15
+    # Reach 4 at 20 rows (the floor), so in a 60-column frame the origin
+    # sits at column 52, row 4 - upper right, see _triad.
+    ox, oy = 52, 4
     x_at = rest.get('X', [(0, 0)])[0]
     y_at = rest.get('Y', [(0, 99)])[0]
     report.check('triad: at rest X points right and Y up',

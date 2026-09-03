@@ -1236,7 +1236,7 @@ def _trace(x0, y0, w0, x1, y1, w1, dot):
 
 
 #: THE TRIAD: the board's own X, Y and Z as a small gizmo in the
-#: frame's lower left, turning with the board - the reference every
+#: frame's upper right, turning with the board - the reference every
 #: CAD view keeps in a corner: braille lines from an origin, the
 #: letter one letter past each tip. Each axis in one of the console
 #: motif's three roles (tools/screen.py: NEON teal 44 names things,
@@ -1251,13 +1251,20 @@ def _trace(x0, y0, w0, x1, y1, w1, dot):
 #: frame at a sixth of its rows: neither a smudge on a 24-row terminal
 #: (four) nor a second subject at 44 (seven).
 #:
-#: NOTHING IS CLEARED BEHIND IT. The backdrop and the axes are both a
-#: 2x4 dot matrix, so an axis ORs its dots into the cell the floor
-#: already drew and the fan runs on through the gizmo; the axis owns
-#: the cell's colour, being the nearer thing in it. A box blanked
-#: behind the triad was a rectangular hole in the floor that moved
-#: with the frame. The board still occludes it, as it occludes the
-#: floor - the subject stays the subject.
+#: IT IS DRAWN LAST AND CLIPPED BY NOTHING. A gizmo is the frame's
+#: own furniture, not something standing in the scene: it reads the
+#: rotation, so it has to be legible whatever the board is doing, and
+#: a corner the board happens to reach is exactly when the rotation is
+#: worth reading. The depth buffer is not consulted.
+#:
+#: NOTHING IS CLEARED BEHIND IT EITHER. The backdrop, the outline and
+#: the axes are all a 2x4 dot matrix, so an axis ORs its dots into
+#: whatever the cell already held and the fan, the horizon and the
+#: board's own edges run on through the gizmo; the axis takes the
+#: cell's colour, being the thing in front. A box blanked behind the
+#: triad was a rectangular hole that travelled with the frame. Over a
+#: face glyph there is nothing to OR with and the dots replace it,
+#: which is what drawing in front means.
 TRIAD_REACH = (4, 7)
 TRIAD_MARGIN = (2, 1)
 TRIAD_DIM = 0.45
@@ -1266,18 +1273,18 @@ TRIAD_AXES = (((1.0, 0.0, 0.0), 'X', 214), ((0.0, 1.0, 0.0), 'Y', 44),
               ((0.0, 0.0, 1.0), 'Z', 242))
 
 
-def _triad(grid, tone, buf, cam, m, colour):
-    """The board's axes as a gizmo in the lower left - see TRIAD_REACH.
+def _triad(grid, tone, cam, m, colour):
+    """The board's axes as a gizmo in the upper right - see TRIAD_REACH.
     (origin column, origin row, reach), for the test that reads it."""
     width, height = cam['width'], cam['height']
     reach = max(TRIAD_REACH[0], min(TRIAD_REACH[1], height // 6))
     half = reach // 2 + 1
-    ox = TRIAD_MARGIN[0] + reach + 1
-    oy = height - 1 - TRIAD_MARGIN[1] - half
+    ox = width - 2 - TRIAD_MARGIN[0] - reach
+    oy = TRIAD_MARGIN[1] + half
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
 
-    def free(px, py):
-        return 0 <= px < width and 0 <= py < height and not buf[py * width + px]
+    def inside(px, py):
+        return 0 <= px < width and 0 <= py < height
 
     def shade(code, cue, lift=0.0):
         r, g, b = _rgb(code)
@@ -1298,7 +1305,7 @@ def _triad(grid, tone, buf, cam, m, colour):
             if fx < 0.0 or fy < 0.0:
                 return
             px, py = int(fx), int(fy)
-            if not free(px, py):
+            if not inside(px, py):
                 return
             at = py * width + px
             col = 1 if fx - px >= 0.5 else 0
@@ -1343,7 +1350,7 @@ def _triad(grid, tone, buf, cam, m, colour):
             cue, code = inks[at]
             tone[r][c] = shade(code, cue)
     for lx, ly, letter, cue, code in letters:
-        if free(lx, ly):
+        if inside(lx, ly):
             grid[ly][lx] = letter
             if colour:
                 tone[ly][lx] = shade(code, cue, TRIAD_LABEL_LIFT)
@@ -1545,7 +1552,7 @@ def render(q, width, height, zoom=1.0, colour=True,
     Cell-resolution: the strokes ARE the picture, so there is no half-block
     supersampling to average them away. `horizon` draws the WORLD's level line behind
     everything, the old flight-sim cue: the board tilts, the horizon does
-    not; `triad` draws the BOARD's axes as a gizmo in the lower left,
+    not; `triad` draws the BOARD's axes as a gizmo in the upper right,
     which does tilt. `lift` is the model's vertical centre as a share of the frame
     (0.5 dead centre, smaller is higher). `crew` is a coaxial.crew.Crew
     holding THIS solid: the raster runs as row bands in its processes.
@@ -1619,7 +1626,7 @@ def render(q, width, height, zoom=1.0, colour=True,
         if not foreign:
             _outline(grid, tone, buf, cam, m, colour, heat=heat)
     if triad:
-        _triad(grid, tone, buf, cam, m, colour)
+        _triad(grid, tone, cam, m, colour)
     if persist is not None:
         _steady(grid, tone, width, height, persist)
 
