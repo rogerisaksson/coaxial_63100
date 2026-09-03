@@ -80,6 +80,13 @@ class SimulatedBoard:
             # indexed in the year 2083.
             self.daq.clock = self.clock
             self.drive = SimulatedDrive()
+            # WHERE THE HEAT COMES FROM. The thermal observer is asked
+            # for the power rather than told it, because the drive
+            # changes what it is doing between two reads of it and
+            # nothing would have carried the news. On the board it is
+            # the same shape: the firmware samples the currents in the
+            # loop and the observer integrates whatever they were.
+            self.thermal._watts = self.drive.dissipation
             # The sample point is one register: moving it through the
             # gate drivers moves the drive's moments too.
             self.gate_drivers._drive = self.drive

@@ -249,6 +249,29 @@ class SimulatedDrive:
         vq = self._r * iq + omega * self._ld(iid) * iid + omega * self._lam
         return iid, iq, vd, vq
 
+    def dissipation(self):
+        """Watts per thermal node from what the loop is doing right now.
+
+        THE SAME SPLIT THE THERMAL MODEL IS WRITTEN IN: `phase_power`
+        takes an rms phase current and the resistance it crosses, and
+        returns the node dictionary `steady()` and the observer both
+        speak. Nothing is invented here - `inverter` holds the FET's
+        Rds(on) and the shunt, and `coaxial.thermal` holds the
+        housekeeping, so a stand-in that is asked how hot it is answers
+        out of the same constants the bench arithmetic uses.
+
+        With the stage off, the conduction goes and the housekeeping
+        stays: the MCU and the rails do not care whether anything
+        switches.
+        """
+        from .. import inverter, thermal
+
+        iid, iq, _, _ = self._dq()
+        switching = self._mode != 'off'
+        amps_rms = math.hypot(iid, iq) / math.sqrt(2.0) if switching else 0.0
+        return thermal.phase_power(amps_rms, inverter.RDS_ON + inverter.SHUNT,
+                                   switching=switching)
+
     def _ih(self):
         """The demodulated HF current step: V.T over the inductance along
         the injection axis, with the rotor at zero and the frame at

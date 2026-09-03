@@ -289,14 +289,17 @@ def open_rig(banner, **kwargs):
 
 
 def run_view(board_view, console, period, frames, draw, on_input=None,
-             tick=None, mouse=False, on_click=None):
+             tick=None, mouse=False, on_click=None, on_drag=None):
     """The loop every view runs: draw, pace, take keys - until Q, ESC,
     Ctrl+C or `frames` frames.
 
     `draw()` returns one frame's renderable. `tick()` runs after it and
     returns True to end the run; `on_input(typed, moved)` takes the
-    frame's keys and wheel, and `on_click(column, row)` each left press,
-    one-based, for a view that draws something to click on. Returns
+    frame's keys and wheel, `on_click(column, row)` each left press,
+    one-based, for a view that draws something to click on, and
+    `on_drag(dx, dy)` the cells a left-drag has moved since the last
+    frame - drained only when a view asks, so one that reads
+    `keys.dragged()` itself still gets it. Returns
     'quit', 'menu', or None for frames and Ctrl+C - the caller's
     `finally` puts the board back either way.
     """
@@ -328,6 +331,10 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 if on_click is not None:
                     for col, row in keys.clicked():
                         on_click(col, row)
+                if on_drag is not None:
+                    dx, dy = keys.dragged()
+                    if dx or dy:
+                        on_drag(dx, dy)
     except KeyboardInterrupt:
         return None
 

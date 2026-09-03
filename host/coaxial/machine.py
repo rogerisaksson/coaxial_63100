@@ -47,11 +47,14 @@ DOTS_X, DOTS_Y = 2, 4
 #: room for the pointer's dot to be round in too, which is what set this
 #: number. At 0.84 the dot's outer edge landed within a third of a dot of
 #: the frame and came out flattened on one side at three o'clock. It came
-#: down again from 0.78 to leave GUTTERS: six bar columns to the left of
-#: the machine and four to the right, which is where the thermal margins
-#: are drawn - beside the thing that gets hot rather than in a box
-#: somewhere else on the page.
-F_FIT = 0.70
+#: down from 0.78 to leave GUTTERS: six bar columns to the left of the
+#: machine and four to the right, which is where the thermal margins are
+#: drawn - beside the thing that gets hot rather than in a box somewhere
+#: else on the page. And down again from 0.70, because six bars need six
+#: columns and at 0.70 they ran to the frame's edge: the left group sat
+#: hard against the machine while the right had two columns of air, and
+#: the two sides read as different distances because they were.
+F_FIT = 0.62
 
 #: Every radius as a fraction of the outermost, which is sized to the box
 #: it is drawn in. NOT fixed dot counts: the drawing was tuned at 40x14,
@@ -166,7 +169,7 @@ SUBDOT = ((-0.25, -0.25), (0.25, -0.25), (-0.25, 0.25), (0.25, 0.25))
 #: north pole passed behind it - a rotor leaking into the stationary
 #: part, which is the one thing this picture must not say.
 (TRACK, BORE, YOKE, TOOTH_U, TOOTH_V, TOOTH_W, SOUTH, NORTH, CAN,
- TRUTH, POINTER, SOA_OK, SOA_WARN, SOA_TRIP) = range(14)
+ TRUTH, POINTER, SOA_OK, SOA_WARN, SOA_TRIP, WATTS) = range(15)
 PHASE_CLASS = (TOOTH_U, TOOTH_V, TOOTH_W)
 #: What they are called, in the order the teeth take them. Here
 #: rather than in the view because the drawing and the legend beside
@@ -181,13 +184,23 @@ PHASE_NAMES = ('U', 'V', 'W')
 INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
        TOOTH_U: 38, TOOTH_V: 71, TOOTH_W: 103,
        SOUTH: 94, NORTH: ansi.AMBER, TRUTH: 252, POINTER: 231,
-       SOA_OK: 41, SOA_WARN: 178, SOA_TRIP: 196}
+       SOA_OK: 41, SOA_WARN: 178, SOA_TRIP: 196,
+       #: Not a margin against a ceiling like the rest of them, so
+       #: not one of their colours: this one is a quantity.
+       WATTS: 45}
 
 #: The bar classes in the order a fraction picks one: below the
 #: board's throttle point, past it, at the ceiling. Which fraction
 #: means which is the CALLER's - the ceilings live in the
 #: calibration record and the board is what acts on them.
 SOA_CLASS = (SOA_OK, SOA_WARN, SOA_TRIP)
+
+#: Columns of air between the machine and the nearest bar. THE SAME
+#: ON BOTH SIDES, which is why the placement is measured off the
+#: can's own edge rather than off the frame: counted from the frame,
+#: six bars and four put the two groups at different distances and
+#: the page looked lopsided.
+BAR_GAP = 2
 
 #: A PHASE BRIGHTENS WITH ITS CURRENT. One hue each so a tooth says which
 #: phase it belongs to, four steps of it so the same tooth says how hard
@@ -296,7 +309,66 @@ def _classify(radius, phi, rotor, slots, poles, r, drive):
     return None
 
 
-def _bars(dots, owner, width, height, left, right):
+def gutters(width, height, n_left, n_right):
+    """Which columns the margin bars land in, `(left, right)`.
+
+    Exported because a caption has to sit over its own group and the only
+    thing that knows where a group went is what put it there. Written
+    down once here rather than guessed twice.
+    """
+    first, last = _span(width, height)
+    inner, outer = first - BAR_GAP, last + BAR_GAP
+    return ([c for c in (inner - i for i in range(n_left)) if 0 <= c < width],
+            [c for c in (outer + i for i in range(n_right)) if 0 <= c < width])
+
+
+def _span(width, height):
+    """The columns the machine itself occupies, first and last.
+
+    One definition: `gutters` puts the bars either side of it and
+    `_gauge` runs between them, and the two disagreeing about where the
+    machine is would put a scale through a thermometer.
+    """
+    r = _Radii(width, height)
+    middle = width * DOTS_X / 2.0 - 0.5
+    return (int(math.floor((middle - r.can) / DOTS_X)),
+            int(math.ceil((middle + r.can) / DOTS_X)))
+
+
+def _gauge(dots, owner, width, height, row, share, cls):
+    """One horizontal level across the MACHINE'S width, from the left.
+
+    Not the whole row: run edge to edge it passed above and below the
+    gutter thermometers and the four corners of the box read as one
+    instrument crossing another. Between the gutters it is over the
+    thing it describes and the corners are empty.
+
+    The same instrument as the gutters turned on its side, and drawn the
+    same way: the level solid, the rest of the scale every other dot, so
+    a reader sees how far along the scale the level is and not only that
+    there is one.
+    """
+    if row < 0 or row >= height:
+        return
+    first, last = _span(width, height)
+    lo, hi = max(0, first) * DOTS_X, min(width - 1, last) * DOTS_X + DOTS_X
+    wide = hi - lo
+    filled = int(max(0.0, min(1.0, share)) * wide + 0.5)
+    for step in range(wide):
+        x = lo + step
+        col = x // DOTS_X
+        if step < filled:
+            for y in (row * DOTS_Y + 1, row * DOTS_Y + 2):
+                dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
+            if cls > owner[row][col]:
+                owner[row][col] = cls
+        elif step % 4 == 0:
+            dots[row][col] |= BRAILLE_BITS[x % DOTS_X][2]
+            if TRACK > owner[row][col]:
+                owner[row][col] = TRACK
+
+
+def _bars(dots, owner, width, height, left, right, r):
     """Vertical margin bars, filled from the bottom, one cell wide.
 
     LEFT AND RIGHT ARE THE CALLER'S SUBJECTS, not this module's: it draws
@@ -309,22 +381,34 @@ def _bars(dots, owner, width, height, left, right):
     column half the height of its own ceiling is a margin.
 
     In the gutters and never over the machine: one drawn through the
-    drawing would be a thermometer through a motor. Filled from the
-    bottom because that is which way a level goes.
+    drawing would be a thermometer through a motor. Placed `BAR_GAP`
+    columns from the CAN'S EDGE on each side, so both groups stand the
+    same distance off whatever size the machine came out. Filled from the
+    bottom because that is which way a level goes. The first entry of
+    each side is the one nearest the machine, so both groups read
+    outwards from it.
     """
-    tall = height * DOTS_Y
-    for bars, side in ((left, 'left'), (right, 'right')):
+    # THE FIRST ROW AND THE LAST BELONG TO THE GAUGES. Run full height,
+    # the tubes shared row 0 with the headroom scale drawn across it and
+    # the scale appeared to run through the BOARD and POWER thermometers.
+    top_row = 1
+    tall = max(1, (height - 2)) * DOTS_Y
+    # Floor one side and ceil the other inside `gutters`: the centre sits
+    # between two columns, so flooring both put the machine's right edge
+    # half a column further out than its left and the gaps came out 1
+    # and 0. Adjacent, not spaced: six bars and four have to fit what the
+    # machine leaves, and a bar chart's bars touch - what separates them
+    # is their heights and their colours.
+    where = gutters(width, height, len(left or ()), len(right or ()))
+    for bars, columns in ((left, where[0]), (right, where[1])):
         for index, entry in enumerate(bars or ()):
-            share, cls = entry
-            # Adjacent, not spaced: six bars and four have to fit the
-            # gutters the machine leaves, and a bar chart's bars touch.
-            # What separates them is their heights and their colours.
-            col = index if side == 'left' else width - 1 - index
-            if not 0 <= col < width:
+            if index >= len(columns):
                 continue
+            share, cls = entry
+            col = columns[index]
             filled = int(max(0.0, min(1.0, share)) * tall + 0.5)
             for step in range(tall):
-                y = tall - 1 - step
+                y = top_row * DOTS_Y + tall - 1 - step
                 row = y // DOTS_Y
                 if step < filled:
                     # The column of mercury: both dots, solid, in the
@@ -347,7 +431,7 @@ def _bars(dots, owner, width, height, left, right):
 
 
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
-            pointer_deg, left, right):
+            pointer_deg, left, right, top, bottom):
     """Dots and their owners, one entry per character cell."""
     dots = [[0] * width for _ in range(height)]
     owner = [[-1] * width for _ in range(height)]
@@ -433,13 +517,18 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             radius = r.tooth_out + 0.5 + step * 0.25
             put(cx + radius * math.cos(phi), cy - radius * math.sin(phi),
                 TRUTH)
-    _bars(dots, owner, width, height, left, right)
+    _bars(dots, owner, width, height, left, right, r)
+    if top is not None:
+        _gauge(dots, owner, width, height, 0, top[0], top[1])
+    if bottom is not None:
+        _gauge(dots, owner, width, height, height - 1, bottom[0], bottom[1])
     return dots, owner
 
 
 def render(rotor_deg, slots=24, poles=28, width=40, height=22,
            truth_deg=None, amps=None, full=None, pointer_deg=None,
-           left=None, right=None, colour=False):
+           left=None, right=None, top=None, bottom=None,
+           colour=False):
     """The cross-section, `rotor_deg` being how far the can has turned.
 
     `rotor_deg` is mechanical: the electrical angle over the pole pairs.
@@ -460,8 +549,9 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     band under it IS the observer's error, in the units a magnet works in.
 
     `left` and `right` are margin bars - `(fraction, class)` each - drawn
-    in the gutters either side. What they measure is the caller's; this
-    draws levels.
+    in the gutters either side, and `top` and `bottom` the same pair
+    drawn as a level across the whole width, on the first row and the
+    last. What they measure is the caller's; this draws levels.
 
     Colour is asked for here rather than applied afterwards: a braille
     cell carries dots from up to eight places and its glyph does not say
@@ -471,7 +561,8 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     slots = max(3, int(slots))
     drive = _drive(amps, full)
     dots, owner = _raster(rotor_deg, slots, poles, width, height,
-                          truth_deg, drive, pointer_deg, left, right)
+                          truth_deg, drive, pointer_deg, left, right,
+                          top, bottom)
     ink = phase_ink(drive)
     lines = []
     for row in range(height):

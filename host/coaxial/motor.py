@@ -45,6 +45,16 @@ def flux_from_kv(kv_rpm_per_volt, pole_pairs):
     return 60.0 / (math.sqrt(3.0) * TWO_PI * pole_pairs * kv_rpm_per_volt)
 
 
+#: The winding against still air, and its heat capacity. PLACEHOLDERS,
+#: the order of magnitude an outrunner of this size has and measured
+#: against nothing - a motor profile carries its own pair, and a bench
+#: with a thermocouple writes real ones over them. They exist so an
+#: estimate is made from a number that travels with the machine rather
+#: than one written at whatever call site wanted a temperature.
+WINDING_K_PER_W = 2.2
+WINDING_J_PER_K = 180.0
+
+
 class Parameters:
 
     """One machine's constants, and where they came from.
@@ -55,10 +65,13 @@ class Parameters:
     """
 
     __slots__ = ('name', 'r', 'ld', 'lq', 'lam', 'poles', 'j', 'b',
-                 'sat', 'i_sat', 'measured', 'source')
+                 'sat', 'i_sat', 'measured', 'source',
+                 'winding_k_per_w', 'winding_j_per_k')
 
     def __init__(self, name, r, ld, lq, lam, poles, j=2e-5, b=1e-5,
-                 sat=0.0, i_sat=5.0, measured=False, source=''):
+                 sat=0.0, i_sat=5.0, measured=False, source='',
+                 winding_k_per_w=WINDING_K_PER_W,
+                 winding_j_per_k=WINDING_J_PER_K):
         self.name = name
         self.r, self.ld, self.lq, self.lam = r, ld, lq, lam
         self.poles = poles              # pole PAIRS
@@ -69,6 +82,12 @@ class Parameters:
         self.sat, self.i_sat = sat, i_sat
         self.measured = measured
         self.source = source
+        #: How the winding sheds what it makes, and how much it holds.
+        #: NOT MEASURED and not measurable from the terminals - `measured`
+        #: says nothing about these two, and a page that estimates a
+        #: winding temperature from them says estimate.
+        self.winding_k_per_w = winding_k_per_w
+        self.winding_j_per_k = winding_j_per_k
 
     @property
     def kv(self):

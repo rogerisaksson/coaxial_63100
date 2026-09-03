@@ -18,33 +18,79 @@ class SimulatedThermal:
 
     NODES = thermal.ALL_NODES
 
-    #: Rise over the board per node, invented but stable - both state()
-    #: and budget() read this one copy, so they describe the same board.
-    RISE = dict([(n, 1.0) for n in thermal.DRIVERS]
-                + [(n, 0.4) for n in thermal.PHASES]
-                + [('mcu', 15.0), ('regulators', 8.0),
-                   ('afe', 5.9), ('board', 0.0)])
+    #: The ceiling each node is judged against. `board` lower than the
+    #: rest because the laminate is what everything else sits on.
+    LIMIT = {'board': 105.0}
+    DEFAULT_LIMIT = 125.0
 
-    def __init__(self):
+    #: How much longer than wall time this stand-in heats. The board's
+    #: own constant is about seven minutes, and a view nobody watches for
+    #: seven minutes shows a flat line: at ten, a load step is visible in
+    #: half a minute. It is the CLOCK that is sped up and nothing else -
+    #: the network, the capacities and the ceilings are the real ones out
+    #: of `coaxial.thermal`, so what a step settles at is right even
+    #: though it gets there sooner.
+    HASTE = 10.0
+
+    def __init__(self, watts=None):
         self._seconds = 0
         self._every_s = 5.0
         self._settle_s = 0.3
+        #: What is being dissipated, asked for rather than told: the
+        #: drive changes what it is doing between two reads of this and
+        #: nothing would have carried the news.
+        self._watts = watts or (lambda: dict(thermal.POWER_SWITCHING))
+        self._node = {n: thermal.AMBIENT for n in self.NODES}
+        self._at = None
+
+    def _advance(self):
+        """One first-order step per node, on the model's own network.
+
+        TWO LEVELS, as the network is: the board relaxes toward what the
+        total power puts it at, and every source relaxes toward the board
+        plus its own rise. `coaxial.thermal`'s CFG holds both the K/W and
+        the J/K, so this is that model integrated rather than a second
+        one - a stand-in whose temperatures disagreed with `steady()`
+        would be worth less than no temperatures at all.
+        """
+        now = time.time()
+        was, self._at = self._at, now
+        if was is None:
+            return
+        dt = min(now - was, 5.0) * self.HASTE
+        power = self._watts()
+        cfg = thermal.CFG
+        total = sum(power.values())
+        r_board = cfg['board_to_ambient']
+        tau_board = cfg['board_capacity'] * r_board
+        board = self._node['board']
+        board += (thermal.AMBIENT + total * r_board - board) * \
+            min(1.0, dt / tau_board)
+        self._node['board'] = board
+        for name in thermal.NODES:
+            r = cfg['to_board'][name]
+            tau = cfg['capacity'][name] * r
+            target = board + power.get(name, 0.0) * r
+            self._node[name] += (target - self._node[name]) * \
+                min(1.0, dt / tau)
 
     def state(self):
         self._seconds += 1
-        board = 31.0
-        rise = self.RISE
+        self._advance()
+        board = self._node['board']
         return {
-            'ntc': board + 6.0,
-            'nodes': {n: board + rise[n] for n in self.NODES},
-            'ambient': 20.0,
-            'expected_ntc': board + 6.0,
+            'ntc': thermal.expected_ntc(
+                board, self._node[thermal.NTC_NEIGHBOUR] - board),
+            'nodes': dict(self._node),
+            'ambient': thermal.AMBIENT,
+            'expected_ntc': thermal.expected_ntc(
+                board, self._node[thermal.NTC_NEIGHBOUR] - board),
             'seconds': self._seconds,
             'settled': True,
             'sample_every_s': self._every_s,
             'sample_settle_s': self._settle_s,
-            'afe': board + rise['afe'],
-            'mcu': board + rise['mcu'],
+            'afe': self._node['afe'],
+            'mcu': self._node['mcu'],
             'seen_s_ago': 0.4,
             'steps': 1200,
             'error': 0.0,
@@ -55,17 +101,17 @@ class SimulatedThermal:
         return True
 
     def budget(self):
-        board = 31.0
-        rise = self.RISE
-        limit = {'board': 105.0}
+        self._advance()
         used = {}
         for name in self.NODES:
-            top = limit.get(name, 125.0)
-            used[name] = max(0.0, (board + rise[name] - 20.0) / (top - 20.0))
+            top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
+            used[name] = max(0.0, (self._node[name] - thermal.AMBIENT)
+                             / (top - thermal.AMBIENT))
         worst = max(used, key=lambda n: used[n])
         return {'used': used, 'worst': used[worst], 'worst_node': worst,
-                'seconds_to_limit': None, 'throttling': False,
-                'tripped': False, 'trips': 0}
+                'seconds_to_limit': None,
+                'throttling': used[worst] >= 0.85,
+                'tripped': used[worst] >= 1.0, 'trips': 0}
 
     def set_limit(self, node, limit_c, throttle_at=0.85):
         return True
