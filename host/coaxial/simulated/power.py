@@ -40,19 +40,32 @@ class SimulatedThermal:
     #: enough that a load step is in the temperatures within a second.
     RMS_TAU = 0.5
 
-    #: How far ahead the throttle looks, seconds. `soa_lookahead_ms` in
-    #: the board's record, and the same two seconds it defaults to.
+    #: The window of remaining hold the throttle insists on, seconds.
+    #: `soa_lookahead_ms` in the board's record, and the same two seconds
+    #: it defaults to. Not a distance to project a temperature - see
+    #: `_soon` for why that shape was taken out.
     LOOKAHEAD_S = 2.0
 
     #: How fast the derate may recover, per second of model time.
     #: `THERMAL_DERATE_RECOVER_PER_S` in the firmware.
     DERATE_RECOVER_PER_S = 0.05
 
-    #: The longest slice the integrator takes, seconds of model time. A
-    #: fifth of the fastest node's constant - a driver is 0.35/3 J/K
-    #: across 45.6 K/W, about five seconds - so every step is small
-    #: against what it is stepping.
-    STEP_S = 1.0
+    #: The longest slice the integrator takes, seconds of model time.
+    #: `THERMAL_STEP_MS` in the firmware, and the same number for the same
+    #: reason: the envelope is evaluated once per step, and a step longer
+    #: than the throttle's ramp steps straight over it.
+    #:
+    #: IT WAS ONE SECOND, chosen as a fifth of the fastest node's constant
+    #: - a driver is 0.35/3 J/K across 45.6 K/W, about five seconds - and
+    #: that is the right rule for INTEGRATING and the wrong one for
+    #: ACTING. The ramp is the last `lookahead_s * (1 - throttle_at)` of a
+    #: node's hold, 300 ms at the record's numbers, so a one second step
+    #: cannot land inside it. Measured 2026-09-03 on the stand-in at 90 A:
+    #: 20.0 C on one poll and 158.6 C on the next, 33 K past a 125 C
+    #: ceiling, derate 1.00 then 0.00, and the trip - the drive killed
+    #: rather than throttled, which is the one thing the envelope is
+    #: there to avoid.
+    STEP_S = 0.1
 
     def __init__(self, sample=None):
         self._seconds = 0
@@ -116,16 +129,32 @@ class SimulatedThermal:
         elapsed = min(now - was, 5.0)
         if elapsed <= 0.0:
             return
-        # ONE SAMPLE FOR THE WHOLE GAP. What the drive is doing is what it
-        # is doing now; sampling it again inside the loop would be reading
-        # the same value and pretending it was news.
-        seen = self._sample()
         left = elapsed * self.HASTE
         while left > 0.0:
             step = min(self.STEP_S, left)
             left -= step
-            self._integrate(step, seen)
-        self._envelope()
+            # SAMPLED EVERY SLICE, not once for the gap. It was once - "what
+            # the drive is doing is what it is doing now, and sampling it
+            # again inside the loop would be reading the same value and
+            # pretending it was news" - and that was true only while nothing
+            # inside the loop could change the current. The envelope below
+            # changes it: it writes the clamp into the drive, and `_dq`
+            # applies it. Frozen, the model went on integrating the
+            # pre-throttle current for the rest of the gap and cooked the
+            # node the throttle had already backed off - measured at 90 A,
+            # the stage tripped at a reported spend of 0.756 because the
+            # peak happened between two polls.
+            self._integrate(step, self._sample())
+            # THE ENVELOPE INSIDE THE LOOP, not after it. `board_thermal.c`
+            # runs the budget every THERMAL_STEP_MS - one step, one look -
+            # and a stand-in that integrated a whole poll gap and then
+            # looked once was not rehearsing that. It was a model that
+            # could only ever see the aftermath: at 90 A it ran 2.5 s of
+            # model time at full current, overshot the ceiling by 33 K,
+            # and the first evaluation it made had nothing left to do but
+            # trip. The throttle needs to be asked while there is still
+            # something to throttle.
+            self._envelope()
 
     def _envelope(self):
         """THE ONE PLACE THIS CLASS ACTS RATHER THAN REPORTS.
@@ -298,11 +327,23 @@ class SimulatedThermal:
         return self._derate_held
 
     def _soon(self):
-        """The worst node's budget `LOOKAHEAD_S` from now, at this rate.
+        """How far into the last `LOOKAHEAD_S` of hold the worst node is.
 
-        Projected forward at the present power, which is the same dead
-        reckoning `millis_to_limit` is - the difference is that this one
-        is used for something.
+        THE SAME ARITHMETIC `thermal.c` DOES, and it has to be: a
+        stand-in that throttles on a different rule from the board is a
+        rehearsal of the wrong play. `hold` is the soak over the power
+        spending it - seconds this node can stay here - and the fraction
+        is how much of the window has gone.
+
+        IT WAS A PROJECTED TEMPERATURE, forward `LOOKAHEAD_S` at the
+        present rate, and that shape fails on the case this board is
+        for. Measured 2026-09-03: 100 A puts 18.4 W into a driver node
+        of 0.12 J/K, 0.67 s from ambient to its ceiling, and a two
+        second projection lands past it from a cold board - the clamp
+        went to zero before the burst began. Time does not do that: a
+        node at ambient has its whole soak in front of it however much
+        power is on it, so the burst runs and what closes the clamp is
+        the hold falling into the window.
         """
         power = self._last_power or {}
         cfg = thermal.CFG
@@ -311,19 +352,19 @@ class SimulatedThermal:
             top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
             capacity = (cfg['board_capacity'] if name == 'board'
                         else cfg['capacity'].get(name, 0.0))
-            span = top - thermal.AMBIENT
-            if capacity <= 0.0 or span <= 0.0:
+            if capacity <= 0.0 or top <= thermal.AMBIENT:
                 continue
             r = (cfg['board_to_ambient'] if name == 'board'
                  else cfg['to_board'].get(name, 0.0))
             reference = (thermal.AMBIENT if name == 'board'
                          else self._node['board'])
-            net = power.get(name, 0.0) - (self._node[name] - reference) / r                 if r > 0.0 else power.get(name, 0.0)
+            net = (power.get(name, 0.0) - (self._node[name] - reference) / r
+                   if r > 0.0 else power.get(name, 0.0))
             if net <= 0.0:
-                continue
-            soon = (self._node[name] + net / capacity * self.LOOKAHEAD_S
-                    - thermal.AMBIENT) / span
-            worst = max(worst, min(1.0, soon))
+                continue                # not heading anywhere warmer
+            togo = top - self._node[name]
+            hold = (togo * capacity / net) if togo > 0.0 else 0.0
+            worst = max(worst, min(1.0, 1.0 - hold / self.LOOKAHEAD_S))
         return worst
 
     def soak_j(self):

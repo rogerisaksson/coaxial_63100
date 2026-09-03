@@ -205,37 +205,36 @@ def test_derating_is_not_tripping(report, lib):
 
 
 def test_the_lookahead_catches_a_ramp(report, lib):
-    """Derating on where a node is going, not where it is.
+    """The throttle acts on time left, not on a projected temperature.
 
-    THE DEFECT THIS EXISTS FOR, measured on the stand-in: a phase node at
+    THE DEFECT IT EXISTS FOR, measured on the stand-in: a phase node at
     45 A crossed from a fifth of its budget to over the ceiling inside
     three polls, so the whole 85-to-100 band went past between two looks
-    and the derate never left 1.0. Reproduced here in the C.
+    and the derate never left 1.0.
 
-    AT A POWER THAT DOES NOT SATURATE THE PROJECTION. Written first with
-    35 W - the 100 A conduction - both budgets were compared and the
-    lookahead one closed the clamp on its FIRST step, from 24 C. It was
-    not wrong, it was saturated: 35 W into a 0.40 J/K node is 87 K/s, so
-    two seconds ahead is 175 K and over any ceiling from anywhere. The
-    check passed and measured nothing. 8 W, about 48 A a leg, is a ramp
-    steep enough to outrun a poll and shallow enough that WHEN the
-    projection fires is a fact about the projection.
+    AND THE DEFECT ITS FIRST SHAPE HAD. It projected each node forward
+    `lookahead_s` at its present rate and derated on where that landed,
+    which fails on the case this board is for. 100 A puts 18.4 W into a
+    driver node of 0.12 J/K - 0.67 s from ambient to its ceiling - and a
+    two second projection lands past it from a COLD board: the clamp went
+    to 0.00 before the burst began. Measured here 2026-09-03, and the
+    reason the rule is now `hold / lookahead_s`.
     """
-    watt = {'phase_u': 8.0}
+    watt = {'phase_u': 35.0}
     first = {}
     for name, ahead in (('now', 0.0), ('soon', LOOKAHEAD_S)):
         model = Model(lib)
         for step in range(4000):
-            model.step(watt, 0.05)
+            model.step(watt, 0.02)
             got = model.budget(watt, lookahead_s=ahead)
             if got['derate'] < 0.999:
-                first[name] = (step * 0.05, model.at('phase_u'), got['worst'])
+                first[name] = (step * 0.02, model.at('phase_u'), got['worst'])
                 break
 
     report.check('both eventually back off - a node heading there must',
                  'now' in first and 'soon' in first, str(first))
     if len(first) == 2:
-        report.check('the lookahead backs off EARLIER than the present does',
+        report.check('the time rule backs off EARLIER than the present does',
                      first['soon'][0] < first['now'][0],
                      '%.2f s ahead against %.2f s' % (first['soon'][0],
                                                       first['now'][0]))
@@ -243,49 +242,139 @@ def test_the_lookahead_catches_a_ramp(report, lib):
                      first['soon'][1] < first['now'][1],
                      '%.1f C against %.1f C' % (first['soon'][1],
                                                 first['now'][1]))
-        report.check('but not from cold - at this power it is a projection, '
-                     'not a refusal to run',
-                     first['soon'][0] > 0.0 and first['soon'][2] > 0.2,
-                     '%.2f s in, %.0f %% spent' % (first['soon'][0],
-                                                   100.0 * first['soon'][2]))
         report.check('the present-only one waits for the throttle point '
                      'itself, which is what arrives too late',
                      first['now'][2] >= THROTTLE_AT - 0.01,
                      '%.3f spent' % first['now'][2])
 
-    # AND AT THE FULL 100 A CONDUCTION IT CLOSES FROM COLD, which is the
-    # envelope's own arithmetic and not a bug: 35 W into 0.40 J/K crosses
-    # the ceiling inside two seconds from ambient, so a stage asking for
-    # that current is asking for something the node cannot hold. The clamp
-    # scales the current, which lowers the power, which lowers the
-    # projection - it settles where two seconds ahead lands on the
-    # ceiling, and `board_thermal.c` slews the recovery so it cannot
-    # chatter there. Written down because a bench reading `derate 0.00` at
-    # 100 A should find it recorded rather than investigate it.
+    # THE BURST RUNS. This is the whole difference from the projection,
+    # and the reason it was changed: a node at ambient has its entire soak
+    # in front of it however much power is on it, so full current is
+    # allowed to start. What closes the clamp is the hold falling into the
+    # window, not the size of the power.
     cold = Model(lib)
-    deep = cold.budget({'phase_u': 35.0}, lookahead_s=LOOKAHEAD_S)
-    report.check('35 W from ambient closes the clamp on the projection '
-                 'alone - the node cannot hold 100 A for the lookahead',
-                 deep['derate'] == 0.0 and not deep['tripped'],
-                 'clamp %.2f at %.1f C, %.0f %% spent'
-                 % (deep['derate'], cold.at('phase_u'), 100.0 * deep['worst']))
+    for watts in (8.0, 35.0):
+        got = cold.budget({'phase_u': watts}, lookahead_s=LOOKAHEAD_S)
+        report.check('%.0f W from ambient leaves the clamp open - the burst '
+                     'is shaped, not forbidden' % watts,
+                     got['derate'] == 1.0,
+                     'clamp %.2f, %.0f %% spent' % (got['derate'],
+                                                    100.0 * got['worst']))
+
+    # UP TO WHAT THE NODE CAN HOLD FOR THE REACTION WINDOW, and no
+    # further. 35 W is the 100 A rating and the node holds it 1.2 s; 200 W
+    # would be some 240 A, which it cannot hold for the 0.3 s the ramp
+    # needs, so the clamp is not open even from ambient. That is the rule
+    # doing its job rather than an exception to it - a power a part cannot
+    # survive the reaction to is not a burst, it is a fault.
+    fault = cold.budget({'phase_u': 200.0}, lookahead_s=LOOKAHEAD_S)
+    report.check('a power past what the node can hold for the window is '
+                 'throttled from cold, and that is the rule, not a hole in it',
+                 0.0 < fault['derate'] < 1.0 and not fault['tripped'],
+                 'clamp %.2f at ambient' % fault['derate'])
+
+    # AND THE KNOB IS MONOTONE. It used to be fatal past the burst budget
+    # - 2000 ms against a 670 ms node stopped the drive dead - so raising
+    # it made the envelope qualitatively different rather than earlier. A
+    # longer window now only means a longer, gentler ramp.
+    at = {}
+    for window in (0.5, 1.0, 2.0, 4.0):
+        model = Model(lib)
+        for step in range(4000):
+            model.step(watt, 0.02)
+            if model.budget(watt, lookahead_s=window)['derate'] < 0.999:
+                at[window] = model.at('phase_u')
+                break
+    order = [at[w] for w in sorted(at)]
+    report.check('a longer window backs off earlier, and never refuses to '
+                 'start',
+                 len(at) == 4 and order == sorted(order, reverse=True),
+                 ', '.join('%.1f s: %.0f C' % (w, at[w])
+                           for w in sorted(at)))
+
+    # ONE DEFINITION: the throttle acts on the hold, and `millis_to_limit`
+    # reports the hold. A board backing off on one number while a host
+    # plans a burst on another would be two envelopes.
+    model = Model(lib)
+    model.place('phase_u', 100.0)
+    got = model.budget(watt, lookahead_s=LOOKAHEAD_S)
+    hold = got['millis'] / 1000.0
+    report.check('the derate follows the same hold the board reports',
+                 abs(got['derate'] - wanted(1.0 - hold / LOOKAHEAD_S)) < 0.01,
+                 'clamp %.3f at %.3f s of hold' % (got['derate'], hold))
 
     # ZERO DISABLES IT, bit for bit: the pre-lookahead behaviour has to
     # remain reachable, because a record that never had the field reads
     # back as zero and must still get the old envelope.
     model = Model(lib)
-    # AT 85 C, NOT 60: two seconds of 8 W is about 36 K on this node, so
-    # from 60 the projection lands at 96 - short of the throttle point,
-    # both budgets answer 1.0, and the check compared two untouched
-    # clamps. From 85 the projection crosses and the present does not,
-    # which is the only place the two can be told apart.
-    model.place('phase_u', 85.0)
-    report.check('a cooling node is not projected anywhere warmer',
+    # AT 105 C: at 85 the node still holds 35 W for half a second, which is
+    # outside the window, so both rules answered 1.0 and the check compared
+    # two untouched clamps. The window binds from about 100 C at this power.
+    model.place('phase_u', 105.0)
+    report.check('a cooling node has no hold to run out of',
                  model.budget(lookahead_s=LOOKAHEAD_S)['derate'] == 1.0)
-    hot = model.budget({'phase_u': 8.0}, lookahead_s=LOOKAHEAD_S)['derate']
-    flat = model.budget({'phase_u': 8.0}, lookahead_s=0.0)['derate']
-    report.check('and with power on it, the projection is what differs',
-                 hot < flat, 'ahead %.3f against now %.3f' % (hot, flat))
+    hot = model.budget(watt, lookahead_s=LOOKAHEAD_S)['derate']
+    flat = model.budget(watt, lookahead_s=0.0)['derate']
+    report.check('and with power on it, the window is what differs',
+                 hot < flat, 'window %.3f against present-only %.3f'
+                 % (hot, flat))
+
+
+def test_the_step_must_land_inside_the_ramp(report, lib):
+    """A throttle band is only there if something looks inside it.
+
+    THE DEFECT THIS GUARDS, found 2026-09-03 by the bench in the rotor
+    observer: the envelope peaked and then collapsed, because the
+    integration ran a whole poll gap and evaluated the budget once at the
+    end. The ramp is the last `lookahead_s * (1 - throttle_at)` of a
+    node's hold - 300 ms at the record's numbers - so a step longer than
+    that lands on the far side of it and the only thing left to do is
+    trip. `Board_ThermalPoll` consumes a late gap in THERMAL_STEP_MS
+    slices for exactly this reason, and the stand-in does the same.
+
+    The same two seconds of model time at every step size, and what the
+    throttle saw the first time it looked.
+    """
+    # THE REAL LOAD, every node live. Fed only the phase node the case is
+    # too gentle to show it: 35 W into 0.40 J/K is slow enough that even a
+    # one second step lands at 108 C with the clamp at 0.71. It is the
+    # DRIVER node that makes it - 18.4 W into 0.12 J/K - and that is the
+    # node a bench actually has.
+    watt = power(lib, phase_amps=(100.0, 0.0, 0.0), duty=(0.5, 0.0, 0.0),
+                 link_volts=48.0, switching=True)
+    first = {}
+    for dt in (0.1, 0.5, 1.0, 2.0):
+        model = Model(lib)
+        gone, acted = 0.0, None
+        while gone < 2.0 - 1e-9:
+            model.step(watt, dt)
+            gone += dt
+            got = model.budget(watt, lookahead_s=LOOKAHEAD_S)
+            if acted is None and got['derate'] < 0.999:
+                acted = (got['worst'], got['derate'], model.at('driver_u'))
+        first[dt] = acted
+
+    report.check('at the step the firmware takes, the throttle sees the '
+                 'band while the worst node is still under its ceiling',
+                 first[0.1] is not None and first[0.1][0] < 1.0,
+                 '%.0f %% spent, clamp %.2f, driver %.0f C'
+                 % (100.0 * first[0.1][0], first[0.1][1], first[0.1][2]))
+    report.check('and the clamp is still near open when it first acts - a '
+                 'ramp, not a cliff',
+                 first[0.1][1] > 0.5, '%.2f' % first[0.1][1])
+
+    # THE COUNTER-EXAMPLE, kept because it is what the defect looked like:
+    # at a step longer than the ramp the first evaluation is already past
+    # the ceiling with the clamp shut, and the only thing left is the trip.
+    report.check('a step ten times longer steps over the band entirely',
+                 first[1.0] is not None and first[1.0][0] >= 1.0
+                 and first[1.0][1] == 0.0,
+                 '%.0f %% spent, clamp %.2f, driver %.0f C'
+                 % (100.0 * first[1.0][0], first[1.0][1], first[1.0][2]))
+    report.check('and the longest step the core will take is worse still',
+                 first[2.0][2] > first[1.0][2],
+                 'driver %.0f C against %.0f C' % (first[2.0][2],
+                                                   first[1.0][2]))
 
 
 def test_the_soak_is_joules(report, lib):
@@ -445,7 +534,8 @@ def test_the_time_left_is_reported_or_not_claimed(report, lib):
 
 
 ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
-          test_the_lookahead_catches_a_ramp, test_the_soak_is_joules,
+          test_the_lookahead_catches_a_ramp,
+          test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,
           test_the_conduction_is_split_where_it_is_made,
           test_it_refuses_nothing_and_returns_no_codes,

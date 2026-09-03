@@ -243,6 +243,17 @@
 
 #define THERMAL_STEP_MS 100U
 
+/** The most catch-up one poll will integrate, milliseconds.
+  *
+  * `Board_ThermalPoll` consumes a late gap in THERMAL_STEP_MS slices and
+  * evaluates the envelope on each, so a starved main loop cannot cost the
+  * throttle its resolution. This bounds the work that costs: twenty
+  * slices, and past that the power sample it is integrating is too stale
+  * to be worth spending time on - a model fed one reading for two seconds
+  * is inventing the heat it did not see.
+  */
+#define THERMAL_CATCHUP_MS 2000U
+
 
 
 /** How often the rail is borrowed for a sample, by default.

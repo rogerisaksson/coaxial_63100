@@ -224,7 +224,7 @@ thing for the board to act on and the wrong thing to read off a page.
 
 ## The test system
 
-Twenty-six suites, 2536 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2547 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -244,14 +244,14 @@ by `counts.py`:
 | test_mcp.py | 46 | the MCP server |
 | test_render.py | 42 | the 3D engine stage by stage against an analytic oracle |
 | test_filter_core.py | 42 | the anti-alias chain against its transfer function |
-| test_thermal_core.py | 36 | the SOA envelope through the host gcc - derate, lookahead, soak, the conduction split |
+| test_thermal_core.py | 43 | the SOA envelope through the host gcc - derate, lookahead, soak, the conduction split |
 | test_shtp_core.py | 38 | the SHTP parser |
 | test_broker.py | 33 | the shared session on a scripted port |
 | test_ollama_render.py | 32 | what the runner draws |
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 32 | every view drawn twice, and the rotor observer's geometry |
+| test_views.py | 36 | every view drawn twice, and the rotor observer's geometry |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |

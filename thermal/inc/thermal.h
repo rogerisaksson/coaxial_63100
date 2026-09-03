@@ -200,9 +200,9 @@ typedef struct
 {
   float limit_c[THERMAL_NODES];  /**< absolute ceiling per node, degrees C */
   float throttle_at;             /**< fraction of budget where derating starts */
-  /** How far ahead the throttle looks, seconds.
+  /** The reaction window the throttle keeps, seconds.
     *
-    * DERATING ON WHERE A NODE IS GOING, not where it is. The record
+    * DERATING ON HOW LONG A NODE HAS, not on where it is. The record
     * already said why: "a deep burst moves a node in seconds, so a
     * throttle that waits for the ceiling arrives after it." It arrives
     * after it on the throttle POINT too - measured on the stand-in, a
@@ -210,10 +210,34 @@ typedef struct
     * ceiling inside three polls, so the whole 85-to-100 band went past
     * between two looks and the derate never left 1.0.
     *
-    * The node is projected forward at its present rate and the derate
-    * takes whichever of now and then is worse. Zero disables it and
-    * leaves the throttle looking only at the present, which is what it
-    * did before this existed. */
+    * Each node's HOLD - its soak over the power spending it, the same
+    * seconds `millis_to_limit` reports - is measured against this
+    * window, and the fraction `1 - hold/window` joins the temperature
+    * fraction. The derate takes whichever is worse.
+    *
+    * IT WAS A DISTANCE TO PROJECT A TEMPERATURE, forward this many
+    * seconds at the present rate, and that shape forbade the transient
+    * this board exists to make. Measured 2026-09-03 in
+    * `test_thermal_core.py`: 100 A in one leg puts 18.4 W into a driver
+    * node of 0.12 J/K, which is 0.67 s from ambient to a 125 C ceiling,
+    * so a two second projection landed past the ceiling from a COLD
+    * board and the clamp went to 0.00 before the burst began.
+    *
+    * Time does not do that. A node at ambient has its whole soak in
+    * front of it however much power is on it, so the burst runs; what
+    * closes the clamp is the hold falling into the window. It is also
+    * scale-free across the nodes - a part with twice the power has half
+    * the hold and derates twice as early in degrees, which is right,
+    * because it has half the time to act - and the knob behaves: a
+    * longer window is an earlier, gentler ramp rather than a stage that
+    * will not start.
+    *
+    * A power so large the node cannot hold it for the window at all is
+    * throttled from ambient. That is the rule working: a current a part
+    * cannot survive the reaction to is not a burst.
+    *
+    * Zero disables it and leaves the throttle looking only at the
+    * present, which is what it did before this existed. */
   float lookahead_s;
 } thermal_soa_t;
 

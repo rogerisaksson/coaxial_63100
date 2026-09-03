@@ -183,7 +183,7 @@ TOOTH_FILL = 0.5
 #: north pole passed behind it - a rotor leaking into the stationary
 #: part, which is the one thing this picture must not say.
 (TRACK, BORE, YOKE, TOOTH_U, TOOTH_V, TOOTH_W, SOUTH, NORTH, CAN,
- TRUTH, POINTER, SOA_OK, SOA_WARN, SOA_TRIP, WATTS) = range(15)
+ TRUTH, POINTER, SOA_OK, SOA_WARN, SOA_TRIP, WATTS, SOA_FLASH) = range(16)
 PHASE_CLASS = (TOOTH_U, TOOTH_V, TOOTH_W)
 #: What they are called, in the order the teeth take them. Here
 #: rather than in the view because the drawing and the legend beside
@@ -201,7 +201,14 @@ INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
        SOA_OK: 41, SOA_WARN: 178, SOA_TRIP: 196,
        #: Not a margin against a ceiling like the rest of them, so
        #: not one of their colours: this one is a quantity.
-       WATTS: 45}
+       WATTS: 45,
+       #: The other half of the alarm pulse. A LEVEL THAT IS ALREADY RED
+       #: cannot get redder, so a stage being held back by its own
+       #: envelope looked exactly like one sitting near a limit: the
+       #: pulse is the difference, and white against 196 is the loudest
+       #: pair on the page. Which frames take it is the caller's - this
+       #: is a colour, not a clock.
+       SOA_FLASH: 231}
 
 #: The bar classes in the order a fraction picks one: below the
 #: board's throttle point, past it, at the ceiling. Which fraction

@@ -14,6 +14,7 @@ so the loop, the painter and the teardown all execute once.
 import os
 import subprocess
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = os.path.dirname(HERE)
@@ -150,6 +151,36 @@ def test_each_gutter_says_its_hottest_node(report):
                  view.hottest({}, view.SOA_NODES)[0] is None)
 
 
+def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
+    """The alarm is the envelope acting, not a level this page picked.
+
+    A red bar cannot get redder, so a stage being HELD BACK by its own
+    envelope looked exactly like one sitting near a limit. The pulse is
+    the difference. What it keys on is `throttling` and `tripped`, which
+    the board reports out of the ceilings its record gave it - the page
+    inventing a threshold to flash at would be the page judging a
+    reading (invariant 10).
+    """
+    sys.path.insert(0, HOST)
+    from tools import show_rotor_observer as view
+
+    report.check('an idle board does not pulse', not view.flashing({}))
+    report.check('nor does one merely close to a limit - near is not an '
+                 'event',
+                 not view.flashing({'budget': {'worst': 0.99,
+                                               'throttling': False}}))
+
+    for flag in ('throttling', 'tripped'):
+        seen = set()
+        until = time.monotonic() + 1.0
+        while time.monotonic() < until:
+            seen.add(view.flashing({'budget': {flag: True}}))
+            time.sleep(0.01)
+        report.check('while %s it pulses - both halves inside a second at '
+                     '%.0f Hz' % (flag, view.FLASH_HZ),
+                     seen == {True, False}, str(sorted(seen)))
+
+
 def main():
     report = Report()
     print('\n-- every view, two frames, no board --')
@@ -157,6 +188,7 @@ def main():
     print('\n-- the rotor observer\'s geometry --')
     test_the_instruments_stand_clear_of_the_machine(report)
     test_each_gutter_says_its_hottest_node(report)
+    test_the_soa_gauge_pulses_only_when_the_board_acts(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

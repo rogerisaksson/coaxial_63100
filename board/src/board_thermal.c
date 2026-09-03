@@ -295,17 +295,6 @@ void Board_ThermalPoll(void)
   load_now(&load);
 
   thermal_power_t p;
-
-  /* The FET tempco feeds on the observer's own last estimate: the phase
-     node a leg heats is the junction its on-resistance follows. One step
-     of lag at these time constants is nothing; at start the nodes sit at
-     ambient and the correction is a few percent. */
-  const float phase_c[3] = { s_th.t[THERMAL_PHASE(0)],
-                             s_th.t[THERMAL_PHASE(1)],
-                             s_th.t[THERMAL_PHASE(2)] };
-
-  thermal_power_estimate(&p, &load, &s_loss, phase_c);
-
   thermal_sense_t seen;
 
   sense_sample(now, &seen);
@@ -320,35 +309,73 @@ void Board_ThermalPoll(void)
     s_seen = true;
   }
 
-  thermal_step(&s_th, &p, &seen, (float)since / 1000.0f);
+  /* IN SLICES, AND THE ENVELOPE ON EVERY ONE. The gap is normally exactly
+     THERMAL_STEP_MS and this loop runs once; what it exists for is the gap
+     that is not, because a starved main loop used to cost the throttle its
+     whole ramp. The ramp is the last `lookahead_s * (1 - throttle_at)` of a
+     node's hold - 300 ms at the record's numbers - and one step longer than
+     that lands on the far side of it.
 
-  thermal_budget(&s_th, &p, &s_soa, &s_budget);
+     Measured 2026-09-03 in `test_thermal_core.py`, a 100 A burst over the
+     same two seconds of model time: at 100 ms steps the throttle first
+     acts at 0.40 s with the node at 81 C and the clamp still coming off
+     1.00; at 1 s steps the first look is at 178 C with the clamp already
+     at 0.00, and at 2 s - which is all `thermal.c` will integrate at once -
+     at 335 C. Same envelope, same power, different step: the throttle band
+     is only there if something looks inside it.
 
-  /* THE ONE PLACE THIS FILE ACTS RATHER THAN REPORTS, and it acts twice.
+     The stand-in had the same defect in its own shape and it is fixed the
+     same way (`coaxial/simulated/power.py`), so the two still rehearse the
+     same play. */
+  uint32_t left = (since > THERMAL_CATCHUP_MS) ? THERMAL_CATCHUP_MS : since;
 
-     FIRST IT DERATES. Past the throttle point the drive's current clamp
-     is scaled toward zero, so the stage keeps driving on less - which is
-     what a thermal envelope is for. Without it the envelope was a cliff:
-     full current until the ceiling and then MOE off, with a throttle
-     band that was computed, published and used by nothing.
-
-     THEN, only if that was not enough, it drops MOE - every gate to its
-     idle level in hardware, staying there until something arms it again,
-     the same path the break uses. Protection, not a verdict on a
-     reading: the estimate is reported either way and the limits came
-     from the calibration record rather than from here. */
-  Board_DriveDerate(derate_applied(s_budget.derate, since));
-
-  if (s_budget.tripped && Board_PwmIsEnabled())
+  while (left > 0U)
   {
-    Board_PwmDisable();
-    s_trips++;
+    const uint32_t slice = (left > THERMAL_STEP_MS) ? THERMAL_STEP_MS : left;
+
+    left -= slice;
+
+    /* The FET tempco feeds on the observer's own last estimate: the phase
+       node a leg heats is the junction its on-resistance follows. Taken
+       inside the loop because the estimate is what the previous slice just
+       moved; at start the nodes sit at ambient and the correction is a few
+       percent. */
+    const float phase_c[3] = { s_th.t[THERMAL_PHASE(0)],
+                               s_th.t[THERMAL_PHASE(1)],
+                               s_th.t[THERMAL_PHASE(2)] };
+
+    thermal_power_estimate(&p, &load, &s_loss, phase_c);
+    thermal_step(&s_th, &p, &seen, (float)slice / 1000.0f);
+    thermal_budget(&s_th, &p, &s_soa, &s_budget);
+
+    /* THE ONE PLACE THIS FILE ACTS RATHER THAN REPORTS, and it acts twice.
+
+       FIRST IT DERATES. Past the throttle point the drive's current clamp
+       is scaled toward zero, so the stage keeps driving on less - which is
+       what a thermal envelope is for. Without it the envelope was a cliff:
+       full current until the ceiling and then MOE off, with a throttle
+       band that was computed, published and used by nothing.
+
+       THEN, only if that was not enough, it drops MOE - every gate to its
+       idle level in hardware, staying there until something arms it again,
+       the same path the break uses. Protection, not a verdict on a
+       reading: the estimate is reported either way and the limits came
+       from the calibration record rather than from here. */
+    Board_DriveDerate(derate_applied(s_budget.derate, slice));
+
+    if (s_budget.tripped && Board_PwmIsEnabled())
+    {
+      Board_PwmDisable();
+      s_trips++;
+    }
+    s_steps++;
   }
 
   /* Milliseconds, divided only on the way out. `since / 1000U` per step was
-     integer division of about 100, so the counter never left zero. */
+     integer division of about 100, so the counter never left zero. The whole
+     gap, not the slices: this is wall time, and a stall happened whether or
+     not the observer chose to integrate all of it. */
   s_millis += since;
-  s_steps++;
 }
 
 bool Board_ThermalState(board_thermal_t *out)

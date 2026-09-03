@@ -245,13 +245,17 @@ record's and the currents are the rating.
   node** against 1.20 s on the phase node. The conduction split is what
   made this visible: booked entirely on the phase node, the FET's own
   heat capacity was not in the picture at all.
-* `soa_lookahead_ms` is 2000 in the record, and 2000 ms is three times
-  the FET node's whole burst budget. The projection therefore says
-  "over the ceiling" the instant full current is asked for, from
-  ambient, and the derate goes to 0.00 before the burst starts. The
-  envelope forbids the transient rather than shaping it.
-* What each horizon does to a 35 W phase-node burst from 20 C -
-  the clamp from cold, and where it first comes off 1.00:
+* `soa_lookahead_ms` is 2000 in the record, and 2000 ms was three
+  times the FET node's whole burst budget. **Under the projection that
+  first implemented it** - each node stepped forward `lookahead_s` at
+  its present rate - it therefore said "over the ceiling" the instant
+  full current was asked for, from ambient, and the derate went to 0.00
+  before the burst started. The envelope forbade the transient rather
+  than shaping it. Changed the same day: the window is time left, not a
+  projected temperature.
+* Under that projection, what each horizon did to a 35 W phase-node
+  burst from 20 C - the clamp from cold, and where it first came off
+  1.00. Kept because it is what condemned the shape:
 
   | lookahead | from cold | first backs off |
   |---|---|---|
@@ -262,8 +266,83 @@ record's and the currents are the rating.
   | 1000 ms | 1.00 | 0.02 s at 23.5 C |
   | 2000 ms | **0.00** | never runs |
 
-  With every node live at 250 ms the clamp starts closing at 0.34 s on
-  `driver_u`, 75.0 C, with the phase node still at 51.2 C.
+  The knob was not monotone: past about 1 s it stopped being a warning
+  and became a refusal.
+
+### The window that replaced it, 2026-09-03
+
+Each node's HOLD - `capacity x (limit - t)` over the net watts, the same
+seconds `millis_to_limit` reports - measured against `lookahead_s`. The
+fraction `1 - hold/window` joins the temperature fraction and the derate
+takes whichever is worse.
+
+* A 100 A burst, every node live, at the record's 2000 ms: the clamp is
+  **1.00 from ambient**, starts closing at 0.40 s on `driver_u` at
+  83.8 C, and open-loop reaches zero at 0.70 s. The knob is monotone -
+  0.5 s backs off at 109.6 C, 1.0 s at 103.9, 2.0 s at 83.8, 4.0 s at
+  32.5 - and no window refuses to start.
+* CLOSED LOOP, the clamp scaling the current and conduction going as
+  I^2, with the firmware's own asymmetric slew (instant down, 0.05/s
+  up): 100 A at t=0, driver node to 119.6 C by 3 s, clamp to 0.34, then
+  a glide to about **25 A continuous with the driver at 75 C and the
+  phase node at 121 C. Never tripped.** That is the burst-then-throttle
+  the board is for, and 25 A is what this cooling supports
+  continuously - on the model, not on a bench.
+* A power the node cannot hold for the window at all is throttled from
+  ambient: 200 W into the phase node - some 240 A - starts at a clamp
+  of 0.70. That is the rule working rather than a hole in it.
+* The threshold is `hold < window x (1 - throttle_at)`, so at 2000 ms
+  and 0.85 the ramp occupies the last 300 ms of hold - three
+  `THERMAL_STEP_MS` steps. Raising the window lengthens the ramp; it can
+  no longer stop the drive.
+
+### A throttle band is only there if something looks inside it, 2026-09-03
+
+Found on the bench, in the rotor observer: the estimator peaked hard and
+then collapsed toward zero and never came back. The stage had tripped -
+`worst` read 0.756 when the host next looked, because the whole peak
+happened between two polls.
+
+* The stand-in integrated a whole poll gap in sub-steps and evaluated the
+  envelope ONCE, after the loop. At 10x haste a 0.25 s poll is 2.5 s of
+  model time: it ran the lot at full current, went 33 K past a 125 C
+  ceiling, and the first evaluation it made had nothing left but the
+  trip. Measured: 20.0 C on one poll, 158.6 C on the next, derate 1.00
+  then 0.00.
+* Three things were wrong with it, and all three had to go:
+  * the envelope ran once per gap, not once per step;
+  * `STEP_S` was 1.0 s, chosen as a fifth of the fastest node's constant
+    - the right rule for integrating and the wrong one for acting, since
+    the ramp is 300 ms wide;
+  * the drive was sampled ONCE for the gap, so the model went on
+    integrating the pre-throttle current after the clamp had closed.
+  Fixed, the same 90 A hold gives: clamp 1.00, then 0.52 at 47 A with the
+  driver node at 116.7 C, settling at **about 30 A with the phase node at
+  119.5 C and no trip at all**.
+* **The firmware had the same defect, conditional on main-loop latency.**
+  `Board_ThermalPoll` took one step of whatever `since` was - `thermal.c`
+  clamps a step at 2.0 s - and evaluated once. At the normal 100 ms it is
+  fine; a starved loop loses the band. Measured in the C, a 100 A burst
+  over the same two seconds of model time, and where the throttle first
+  looked:
+
+  | step | first sees the band at |
+  |---|---|
+  | 100 ms | driver 81 C, clamp still 1.00 |
+  | 250 ms | driver 97 C, clamp 0.65 |
+  | 500 ms | driver 99 C, clamp 0.61 |
+  | 1000 ms | driver 178 C, clamp 0.00 |
+  | 2000 ms | driver 335 C, clamp 0.00 |
+
+  `Board_ThermalPoll` now consumes a late gap in `THERMAL_STEP_MS`
+  slices, stepping and evaluating on each, capped at `THERMAL_CATCHUP_MS`
+  = 2000. Past that the power sample is too stale to integrate: a model
+  fed one reading for two seconds is inventing the heat it did not see.
+* A false lead on the way, recorded so it is not chased twice: the
+  stand-in's clamp appeared not to bind - `derate 0.25` left the sampled
+  current at 77.94 A - and that was the measurement's own fault.
+  `Drive.set_params` takes **SI**, so `drv_i_max_ma=90000` asks for
+  90 000 A, not 90 A. The units are in the name and the value is not.
 * `THERMAL_STEP_MS` is 100, so a horizon under 100 ms cannot see past
   its own step. The band that both shapes a burst and outruns a poll is
   a few steps wide.

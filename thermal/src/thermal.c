@@ -145,6 +145,36 @@ static float net_watt(const thermal_t *th, const thermal_power_t *p,
 }
 
 
+/** How long this node can stay at this power before its ceiling, seconds.
+  *
+  * The soak divided by what is going into it: `capacity * (limit - t)`
+  * over the net watts. ONE DEFINITION, because the throttle and the
+  * reported `millis_to_limit` are the same question asked by two callers,
+  * and a throttle acting on one number while the host plans on another
+  * would be two envelopes.
+  *
+  * Negative when it is not heading there at all - a node that is cooling
+  * has no time to a limit, and a large number would read like a promise.
+  */
+static float hold_seconds(const thermal_t *th, const thermal_power_t *p,
+                          const thermal_soa_t *soa, thermal_node_t node)
+{
+  const float gain = net_watt(th, p, node);
+  const float capacity = th->cfg.node[node].capacity;
+  const float togo = soa->limit_c[node] - th->t[node];
+
+  if (!(gain > 0.0f) || !(capacity > 0.0f))
+  {
+    return -1.0f;                      /* not heading anywhere warmer */
+  }
+  if (togo <= 0.0f)
+  {
+    return 0.0f;                       /* already there */
+  }
+  return togo * capacity / gain;
+}
+
+
 void thermal_budget(const thermal_t *th, const thermal_power_t *p,
                     const thermal_soa_t *soa, thermal_budget_t *out)
 {
@@ -198,11 +228,33 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
      the ceiling. A stage that is derating is still driving, which is the
      whole difference between this and the trip.
 
-     ON THE WORSE OF NOW AND SOON. Every node is projected forward by
-     `lookahead_s` at its present rate, and the factor is taken on
-     whichever fraction is larger. A throttle that only reads the present
-     cannot act on a ramp steeper than its own poll interval, and those
-     are exactly the ramps worth acting on. */
+     ON THE WORSE OF WHERE A NODE IS AND HOW LONG IT HAS. The temperature
+     fraction above is where it is. The second fraction is TIME: how far
+     into `lookahead_s` of remaining hold the node has come, which is the
+     soak divided by the power spending it.
+
+     WHY TIME AND NOT A PROJECTED TEMPERATURE. This projected each node
+     forward `lookahead_s` at its present rate and derated on where that
+     landed. It is the same idea and it fails on exactly the case this
+     board is for: a hard burst into the SOA. Measured 2026-09-03 in
+     `test_thermal_core.py` - 100 A in one leg puts 18.4 W into a driver
+     node of 0.12 J/K, which is 0.67 s from ambient to a 125 C ceiling,
+     and a 2000 ms horizon projects straight past it. The clamp went to
+     0.00 from a cold board: the envelope forbade the transient instead
+     of shaping it, and a drive that cannot burst is not a drive.
+
+     Time does not have that failure. A node at ambient has its whole
+     soak in front of it however much power is on it, so the burst runs;
+     what closes the clamp is the hold falling into the window, and the
+     window is a reaction time rather than a temperature. It is also
+     scale-free across the nodes: a part with twice the power has half
+     the hold and derates twice as early in degrees, which is right,
+     because it has half the time to act.
+
+     And the knob behaves. `lookahead_s` used to be fatal past the burst
+     budget; now raising it only makes the throttle earlier and gentler,
+     which is what a bench would expect from a number called lookahead.
+     Zero still disables it and leaves the present-only envelope. */
   float spent = (float)out->worst / 255.0f;
 
   if (soa->lookahead_s > 0.0f)
@@ -210,26 +262,24 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
     for (uint8_t i = 0U; i < THERMAL_NODES; i++)
     {
       const float span = soa->limit_c[i] - th->ambient;
-      const float capacity = th->cfg.node[i].capacity;
 
-      if (!(span > 0.0f) || !(capacity > 0.0f))
+      if (!(span > 0.0f))
       {
         continue;
       }
 
-      const float rate = net_watt(th, p, (thermal_node_t)i) / capacity;
+      const float hold = hold_seconds(th, p, soa, (thermal_node_t)i);
 
-      if (!(rate > 0.0f))
+      if (hold < 0.0f)
       {
         continue;             /* not heading anywhere warmer */
       }
 
-      const float soon = (th->t[i] + rate * soa->lookahead_s - th->ambient)
-                         / span;
+      const float pressed = 1.0f - (hold / soa->lookahead_s);
 
-      if (soon > spent)
+      if (pressed > spent)
       {
-        spent = (soon > 1.0f) ? 1.0f : soon;
+        spent = (pressed > 1.0f) ? 1.0f : pressed;
       }
     }
   }
@@ -247,17 +297,15 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
     out->derate = (over >= 1.0f) ? 0.0f : (1.0f - over);
   }
 
-  /* Time left, for the node that has least of it. Capacity over net power:
-     if it is not gaining, it is not heading for the limit and -1 says so
+  /* Time left, for the node that has least of it - the same `hold_seconds`
+     the throttle acts on, so the number a host plans a burst with is the
+     number the board backed off on. -1 while it is not heading there,
      rather than a large number that reads like a promise. */
-  const thermal_node_t node = (thermal_node_t)out->worst_node;
-  const float gain = net_watt(th, p, node);
-  const float capacity = th->cfg.node[node].capacity;
-  const float togo = soa->limit_c[node] - th->t[node];
+  const float left = hold_seconds(th, p, soa, (thermal_node_t)out->worst_node);
 
-  if ((gain > 0.0f) && (capacity > 0.0f) && (togo > 0.0f))
+  if (left > 0.0f)
   {
-    const float millis = 1000.0f * togo * capacity / gain;
+    const float millis = 1000.0f * left;
 
     out->millis_to_limit = (millis > 2.0e9f) ? 2000000000 : (int32_t)millis;
   }

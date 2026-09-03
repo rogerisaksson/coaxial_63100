@@ -1053,6 +1053,31 @@ def headroom(view):
     return 1.0 - min(1.0, max(0.0, worst)) if worst is not None else 1.0
 
 
+#: How fast the SOA gauge pulses while the envelope is acting, hertz.
+#: FAST ENOUGH TO CATCH THE CORNER OF AN EYE, slow enough to read the
+#: level under it. The level itself never blinks - only its colour - so
+#: what the bar says stays readable through the pulse.
+FLASH_HZ = 3.0
+
+
+def flashing(view):
+    """Whether this frame takes the bright half of the alarm pulse.
+
+    ON THE BOARD'S OWN VERDICT, never a threshold this page invented: it
+    pulses while the envelope is ACTING - throttling, or tripped - and
+    both are facts the board reports out of limits it was given
+    (invariant 10). Being near a limit is not an event; being held back
+    because of one is, and that is the thing worth a flash.
+
+    On wall time rather than a frame count, so it pulses at the same rate
+    whatever the view's frame rate is doing.
+    """
+    budget = view.get('budget') or {}
+    if not (budget.get('throttling') or budget.get('tripped')):
+        return False
+    return (time.monotonic() * FLASH_HZ * 2.0) % 2.0 < 1.0
+
+
 def headroom_class(left):
     """The headroom gauge's colour: green, then amber, then red.
 
@@ -1354,7 +1379,8 @@ def compose(rig, origin, console, view):
                          left=soa_bars(view, SOA_NODES),
                          right=soa_bars(view, BOARD_NODES),
                          top=(headroom(view),
-                              headroom_class(headroom(view))),
+                              machine.SOA_FLASH if flashing(view)
+                              else headroom_class(headroom(view))),
                          bottom=[(min(1.0, (winding(view) - 20.0)
                                       / (WINDING_SCALE_C - 20.0)),
                                   machine.SOA_WARN),

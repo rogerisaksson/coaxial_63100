@@ -92,14 +92,20 @@ static const board_cal_t CAL_DEFAULTS =
                         12500, 12500, 12500,      /* phase  U, V, W */
                         12500, 12500, 12500, 10500 },
   .soa_throttle_ppm = 850000UL,
-  /* Two seconds of warning. The phase node's own constant is about
-     eighteen seconds and a deep burst crosses its whole throttle band in
-     under one, so a throttle looking only at the present never sees the
-     band at all: measured on the stand-in at 45 A, the derate stayed at
-     1.0 through a crossing from a fifth of the budget to over the
-     ceiling. Two seconds is long enough to catch that ramp and short
-     enough that a slow warm-up is not derated for a future it will not
-     reach. */
+  /* Two seconds of reaction window. The phase node's own constant is
+     about eighteen seconds and a deep burst crosses its whole throttle
+     band in under one, so a throttle looking only at the present never
+     sees the band at all: measured on the stand-in at 45 A, the derate
+     stayed at 1.0 through a crossing from a fifth of the budget to over
+     the ceiling.
+
+     THE WINDOW IS TIME LEFT, not a distance to project a temperature -
+     `thermal.h` has why, and `THERMAL_STEP_MS` is 100, so two seconds is
+     twenty steps of ramp. Under the old projection this number was
+     dangerous in the raising direction: two seconds against a driver
+     node that holds 100 A for 0.67 s stopped the drive from a cold
+     board. It is a shape now, not a cliff, and a bench that wants more
+     warning may raise it. */
   .soa_lookahead_ms = 2000UL,
   .vref_uv          = 3300000UL,      /* U2 REF2033, 3.3 V +/-0.05 %       */
   .shunt_uohm       = 3500UL,         /* RU1 || RU2, 7 mohm each           */
