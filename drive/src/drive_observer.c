@@ -46,6 +46,7 @@
 #include "drive.h"
 
 #include <math.h>
+#include <stddef.h>
 
 /** Wrap to (-pi, pi]. */
 static float wrap(float a)
