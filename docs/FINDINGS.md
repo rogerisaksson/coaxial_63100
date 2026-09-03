@@ -338,6 +338,54 @@ happened between two polls.
   slices, stepping and evaluating on each, capped at `THERMAL_CATCHUP_MS`
   = 2000. Past that the power sample is too stale to integrate: a model
   fed one reading for two seconds is inventing the heat it did not see.
+### Conduction was one sample squared, 2026-09-03
+
+Found auditing the model after the bench asked why the switches were not
+the hottest thing on the page. They are, at any real current - at 20 A
+rms a phase the driver nodes settle at 187 C against the MCU's 118 - and
+the demo simply runs a few amps, where 1.33 W of housekeeping genuinely
+dominates. But the audit turned up a real defect beside it.
+
+* `load_now` handed `thermal_power_estimate` ONE synced sample per
+  `THERMAL_STEP_MS` and it squared it. A single instant of a rotating
+  three-phase current says where the vector is pointing, not how big it
+  has been: measured in the core, a sample at the peak claims 35.00 W
+  where the true loss is 17.50, and a sample at the zero crossing claims
+  none at all.
+* Unbiased over a uniform phase, and the node's own 5 s constant filters
+  50 samples - so the TEMPERATURE was tolerable. The ENVELOPE was not:
+  `hold_seconds` divides by that same power, so a sample near a crossing
+  reads as "not heading anywhere warmer" and the throttle sees no
+  pressure in the step where it matters.
+* And the sampler is SYNCHRONOUS - the trigger is a tick inside the PWM
+  period - so this is worse than a coin toss. At a speed whose electrical
+  period divides the poll interval the alias LOCKS, and a leg carrying
+  its peak reads as a leg carrying nothing for as long as the speed
+  holds. A leaky average over the polls cannot cure a locked alias; only
+  accumulating at the sample rate can.
+* `Board_SyncMeanSquare` accumulates sum and sum-of-squares per leg in
+  the injected callback - three integer multiply-accumulates, in COUNTS,
+  so the interrupt does no floating point - and undoes the affine
+  conversion once per read from two evaluations of `Board_PhaseAmps`,
+  which keeps what a count is worth in one place (invariant 7).
+  `thermal_load_t.phase_sq` carries it; zero means not measured and the
+  estimator squares the sample as before. The ISR cost is UNMEASURED -
+  `test_bench.py` at the bench is what would confirm it.
+* Per leg and not a three-phase sum, deliberately. For a balanced set the
+  three squares sum to a constant and could be shared out, but this board
+  also drives one leg against another - `tools/pulse.py` is exactly that
+  test - and spreading U's heat over an idle W would be a model that
+  could not represent its own bench test.
+* Two things checked and found NOT wrong on the way: the host's
+  `phase_power` and the C agree watt for watt once both are given the
+  same rms (the earlier disagreement was peak against rms in the
+  comparison itself), and the host's `POWER_SWITCHING` regulators entry
+  of 1.134 W is exactly the C's `ldo_watt` 0.534 plus the non-driver half
+  of the 1.2 W switching loss. No watts are lost between them. The host
+  gives the AFE 0 W where the C gives 0.130, and that is right: the AFE
+  only draws with AFE_ON high, and AFE_ON high unpowers the gate drivers,
+  so `switching` and `afe_on` are not a state this board can be in.
+
 ### Is 70-80 C on the board plausible? 2026-09-03
 
 Asked at the bench after the rotor observer showed it. Arithmetic on the

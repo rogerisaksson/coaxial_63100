@@ -41,8 +41,8 @@
 #define BUDGET_SLOTS (6 + 2 * THERMAL_NODES)
 
 /* LOAD_ORDER: phase_amps[0..2], duty[0..2], link_volts, link_amps,
-   switching, afe_on. */
-#define LOAD_SLOTS 10
+   switching, afe_on, phase_sq[0..2]. */
+#define LOAD_SLOTS 13
 
 
 API int thm_nodes(void)
@@ -216,6 +216,9 @@ API void thm_power(const float *load, const float *phase_c, float *out)
   in.link_amps = load[7];
   in.switching = (load[8] != 0.0f);
   in.afe_on = (load[9] != 0.0f);
+  in.phase_sq[0] = load[10];
+  in.phase_sq[1] = load[11];
+  in.phase_sq[2] = load[12];
 
   thermal_losses(&loss);
   thermal_power_estimate(&p, &in, &loss, phase_c);

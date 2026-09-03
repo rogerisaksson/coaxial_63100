@@ -114,11 +114,16 @@ class Model:
 
 def power(lib, phase_amps=(0.0, 0.0, 0.0), duty=(0.0, 0.0, 0.0),
           link_volts=24.0, link_amps=-1.0, switching=True, afe_on=False,
-          phase_c=None):
-    """The estimator's answer, per node, watts."""
+          phase_c=None, phase_sq=(0.0, 0.0, 0.0)):
+    """The estimator's answer, per node, watts.
+
+    `phase_sq` is the mean of the squared current a leg has carried since
+    the last estimate. Zero means none was measured and the estimator
+    squares the instantaneous sample instead.
+    """
     load = list(phase_amps) + list(duty) + [link_volts, link_amps,
                                            1.0 if switching else 0.0,
-                                           1.0 if afe_on else 0.0]
+                                           1.0 if afe_on else 0.0]         + list(phase_sq)
     out = (ctypes.c_float * len(NODES))()
     temps = None
     if phase_c is not None:
@@ -477,6 +482,84 @@ def test_the_conduction_is_split_where_it_is_made(report, lib):
                  '%.3f W against %.3f' % (hot['phase_u'], got['phase_u']))
 
 
+def test_conduction_is_a_mean_square_not_a_sample(report, lib):
+    """One instant squared is the loss only if that instant was the rms.
+
+    THE DEFECT, and it is the board's rather than the model's: `load_now`
+    handed the estimator ONE sample per 100 ms and it squared it. A single
+    instant of a rotating three-phase current says where the vector is
+    pointing, not how big it has been - squared, it runs from zero to
+    twice the true loss depending only on where in the electrical period
+    the sample landed.
+
+    Worse here than a coin toss would be, because the sampler is
+    SYNCHRONOUS: the trigger is a tick inside the PWM period, so at a
+    speed whose electrical period divides the poll interval the alias
+    LOCKS and a leg at its peak reads as a leg at zero for as long as the
+    speed holds. `Board_SyncMeanSquare` accumulates in the injected
+    callback instead, and `phase_sq` is what it hands over.
+    """
+    peak = 100.0
+    rms_sq = peak * peak / 2.0
+
+    # The two instants a sampler can land on, and what each says the loss
+    # is when it is squared on its own.
+    at_peak = power(lib, phase_amps=(peak, 0.0, 0.0), switching=False)
+    at_zero = power(lib, phase_amps=(0.0, 0.0, 0.0), switching=False)
+    report.check('a sample at the peak claims twice the conduction',
+                 abs(at_peak['phase_u'] / (rms_sq * losses(lib)['r_shunt'])
+                     - 2.0) < 0.01,
+                 '%.2f W against a true %.2f'
+                 % (at_peak['phase_u'], rms_sq * losses(lib)['r_shunt']))
+    report.check('and a sample at the zero crossing claims none at all',
+                 at_zero['phase_u'] == 0.0, '%.3f W' % at_zero['phase_u'])
+
+    # The mean square says the same thing wherever the sample fell.
+    true_w = rms_sq * losses(lib)['r_shunt']
+    for name, sample in (('at the peak', peak), ('at the crossing', 0.0)):
+        got = power(lib, phase_amps=(sample, 0.0, 0.0), switching=False,
+                    phase_sq=(rms_sq, 0.0, 0.0))
+        report.check('with a mean square the conduction is the same %s'
+                     % name,
+                     abs(got['phase_u'] - true_w) < 0.01,
+                     '%.3f W against %.3f' % (got['phase_u'], true_w))
+
+    # AND IT IS PER LEG. A three-phase sum would be constant and could be
+    # shared out, but this board also drives one leg against another -
+    # `tools/pulse.py` does exactly that - and spreading U's heat over an
+    # idle W would be a model that could not represent its own bench test.
+    one_leg = power(lib, phase_amps=(0.0, 0.0, 0.0), switching=False,
+                    phase_sq=(rms_sq, rms_sq, 0.0))
+    report.check('an idle leg stays cold while two carry current',
+                 one_leg['phase_w'] == 0.0 and one_leg['phase_u'] > 0.0,
+                 'U %.2f W, W %.3f W' % (one_leg['phase_u'],
+                                         one_leg['phase_w']))
+
+    # THE FALLBACK IS THE OLD BEHAVIOUR, bit for bit: a caller with only a
+    # sample - the harness, a host, a board whose sampler is not armed -
+    # gets what it always got rather than zero.
+    report.check('no mean square means the sample is squared, as before',
+                 power(lib, phase_amps=(peak, 0.0, 0.0), switching=False,
+                       phase_sq=(0.0, 0.0, 0.0))['phase_u']
+                 == at_peak['phase_u'])
+    report.check('and a negative one is not measured either',
+                 power(lib, phase_amps=(peak, 0.0, 0.0), switching=False,
+                       phase_sq=(-1.0, 0.0, 0.0))['phase_u']
+                 == at_peak['phase_u'])
+
+    # The link estimate keeps the SIGNED sample: a mean square has none.
+    fwd = power(lib, phase_amps=(50.0, 0.0, 0.0), duty=(1.0, 0.0, 0.0),
+                switching=False, phase_sq=(rms_sq, 0.0, 0.0))
+    back = power(lib, phase_amps=(-50.0, 0.0, 0.0), duty=(1.0, 0.0, 0.0),
+                 switching=False, phase_sq=(rms_sq, 0.0, 0.0))
+    report.check('the conduction does not care which way the current went',
+                 abs(fwd['phase_u'] - back['phase_u']) < 1e-6,
+                 '%.3f against %.3f' % (fwd['phase_u'], back['phase_u']))
+    report.check('and the hot swap still sees the same link current either '
+                 'way, because it squares it too',
+                 abs(fwd['regulators'] - back['regulators']) < 1e-6)
+
+
 def test_it_refuses_nothing_and_returns_no_codes(report, lib):
     """No limit set is not an error, it is a node nobody constrained.
 
@@ -538,6 +621,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,
           test_the_conduction_is_split_where_it_is_made,
+          test_conduction_is_a_mean_square_not_a_sample,
           test_it_refuses_nothing_and_returns_no_codes,
           test_the_time_left_is_reported_or_not_claimed)
 

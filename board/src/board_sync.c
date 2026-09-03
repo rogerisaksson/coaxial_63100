@@ -56,6 +56,22 @@ extern ADC_HandleTypeDef hadc3;
     default lead. Kept across disarm so a tuning run is not undone by it. */
 static uint16_t s_trigger;
 
+/* THE MEAN SQUARE, ACCUMULATED WHERE THE SAMPLES ARE. The thermal model
+   needs a cycle average of i^2 and a poll at 10 Hz cannot give it one: the
+   trigger is a tick inside the PWM period, so the sampler is synchronous
+   and the alias can LOCK - a leg at its peak reading as a leg at zero for
+   as long as the speed holds. Summed here it is exact whatever the speed,
+   and whatever the balance, because each leg keeps its own sum.
+
+   IN COUNTS, not amperes. The conversion is the calibration record's
+   (invariant 7) and belongs in `Board_PhaseAmps`; squaring counts is three
+   integer multiply-accumulates in an interrupt whose budget is measured in
+   the LOOP panel, and the affine conversion is undone once per read
+   instead - see `Board_SyncMeanSquare`. */
+static int64_t s_sq[3];
+static int64_t s_sum[3];
+static uint32_t s_squares;
+
 
 static void SYNC_ConfigTrigger(void)
 {
@@ -142,6 +158,67 @@ bool Board_SyncReady(void)
 }
 
 
+bool Board_SyncMeanSquare(float *out)
+{
+  int64_t sq[3], sum[3];
+  uint32_t n;
+
+  if (out == NULL)
+  {
+    return false;
+  }
+
+  /* Taken and reset under one disabled interrupt, as `Board_SyncLatest`
+     copies the triple: a reader that caught the sum from one period and
+     the count from the next would divide by the wrong number. */
+  const uint32_t masked = __get_PRIMASK();
+  __disable_irq();
+  for (uint8_t leg = 0U; leg < 3U; leg++)
+  {
+    sq[leg] = s_sq[leg];
+    sum[leg] = s_sum[leg];
+    s_sq[leg] = 0;
+    s_sum[leg] = 0;
+  }
+  n = s_squares;
+  s_squares = 0U;
+  if (!masked)
+  {
+    __enable_irq();
+  }
+
+  if (n == 0U)
+  {
+    return false;
+  }
+
+  /* THE AFFINE CONVERSION UNDONE ONCE, not per sample. `Board_PhaseAmps`
+     is linear in the count - offset and gain out of the record - so two
+     evaluations give both terms and the mean of the squares in amperes
+     follows from the mean of the squares in counts:
+
+       f(c) = g c + k,  g = f(1) - f(0),  k = f(0)
+       mean(f^2) = g^2 mean(c^2) + 2 g k mean(c) + k^2
+
+     One definition of what a count is worth (invariant 7), and the
+     interrupt does integer arithmetic only. */
+  for (uint8_t leg = 0U; leg < 3U; leg++)
+  {
+    const float k = Board_PhaseAmps(leg, 0);
+    const float g = Board_PhaseAmps(leg, 1) - k;
+    const float mean_sq = (float)((double)sq[leg] / (double)n);
+    const float mean_c = (float)((double)sum[leg] / (double)n);
+
+    out[leg] = (g * g * mean_sq) + (2.0f * g * k * mean_c) + (k * k);
+    if (out[leg] < 0.0f)
+    {
+      out[leg] = 0.0f;
+    }
+  }
+  return true;
+}
+
+
 void Board_SyncLatest(board_sync_sample_t *out)
 {
   if (out == NULL)
@@ -185,6 +262,14 @@ void Board_SyncOnInjected(const void *hadc)
     s_latest.phase[SYNC_U] = (int16_t)Board_AdcDifferential(hadc3.Instance->JDR1);
     s_latest.phase[SYNC_V] = (int16_t)Board_AdcDifferential(hadc1.Instance->JDR1);
     s_latest.phase[SYNC_W] = (int16_t)Board_AdcDifferential(hadc2.Instance->JDR1);
+    for (uint8_t leg = 0U; leg < 3U; leg++)
+    {
+      const int32_t c = s_latest.phase[leg];
+
+      s_sq[leg] += (int64_t)c * (int64_t)c;
+      s_sum[leg] += c;
+    }
+    s_squares++;
     s_latest.at = TIM1->CNT;
     s_latest.dcbus = hadc3.Instance->JDR2;
     s_latest.ntc = hadc1.Instance->JDR2;

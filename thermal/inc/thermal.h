@@ -145,6 +145,26 @@ typedef struct
 typedef struct
 {
   float phase_amps[3];   /**< per leg, signed, as the shunts measure it   */
+  /** Mean of the squared phase current since the last estimate, A^2 a leg.
+    *
+    * CONDUCTION IS A MEAN SQUARE AND A SAMPLE IS NOT ONE. `phase_amps` is
+    * one instant, and one instant of a rotating three-phase current says
+    * where the vector is pointing, not how big it has been: squared, it
+    * ranges from zero to twice the true loss depending only on where in
+    * the electrical period the sample landed. Worse on this board than
+    * on most, because the sampler is SYNCHRONOUS - the trigger is a tick
+    * inside the PWM period - so the alias can lock to one electrical
+    * angle and stay there, and a leg carrying its peak can read as a leg
+    * carrying nothing for as long as the speed holds.
+    *
+    * Zero or negative means "not measured", and the estimator falls back
+    * to squaring `phase_amps` - which is what it did before this existed
+    * and what a caller with only a sample can still ask for.
+    *
+    * The signed sample is still what the link current is estimated from:
+    * a mean square has no sign, and `duty * a` needs one.
+    */
+  float phase_sq[3];
   float duty[3];         /**< 0..1 per leg, for the conduction split      */
   float link_volts;      /**< DC link, for the switching terms            */
   float link_amps;       /**< into the board. <0 = estimate from phases   */

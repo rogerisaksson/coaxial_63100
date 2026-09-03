@@ -261,6 +261,12 @@ static void load_now(thermal_load_t *load)
          amperes - the same answer unsupplied amplifiers give. */
       load->phase_amps[i] = Board_PhaseAmps(i, sample.phase[i]);
     }
+
+    /* AND THE MEAN SQUARE, which is what the conduction is actually made
+       of. The sample above stays for the link estimate, which needs a
+       sign; `phase_sq` zero means none arrived and the estimator falls
+       back to squaring the sample. */
+    (void)Board_SyncMeanSquare(load->phase_sq);
   }
 
   int32_t dc_raw = 0, millivolt = 0;
@@ -289,8 +295,14 @@ void Board_ThermalPoll(void)
   }
   s_last_ms = now;
 
-  thermal_load_t load = { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f },
-                          0.0f, -1.0f, false, false };
+  /* Zeroed and then the one field that is not zero. Positionally the
+     initializer had to be rewritten every time the struct grew a member,
+     and the compiler was right to complain about it - `phase_sq` arrived
+     and it was two warnings, in a build whose bar is none. */
+  thermal_load_t load;
+
+  memset(&load, 0, sizeof(load));
+  load.link_amps = -1.0f;               /* < 0: estimate it from the phases */
 
   load_now(&load);
 

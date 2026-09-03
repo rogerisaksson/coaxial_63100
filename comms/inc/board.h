@@ -566,6 +566,19 @@ bool Board_SyncArmed(void);
 /** The last triple, copied whole so no reader mixes two conversions. */
 void Board_SyncLatest(board_sync_sample_t *out);
 
+/** Mean of the squared phase current since the last call, A^2 a leg.
+  *
+  * Accumulated in the injected callback and RESET BY THIS CALL, so it is
+  * the average over exactly the window between two readers. False when no
+  * sample arrived in that window - the caller then has nothing, which is
+  * not the same as zero current.
+  *
+  * The thermal model's conduction wants this and not `Board_SyncLatest`:
+  * the sampler is synchronous, so one sample squared can alias to a fixed
+  * electrical angle and stay there.
+  */
+bool Board_SyncMeanSquare(float *out);
+
 /** Where in the PWM period the triple is taken, as CCR4 in timer ticks.
     Takes effect immediately, armed or not. False if out of range. */
 bool Board_SyncSetTrigger(uint16_t ticks);

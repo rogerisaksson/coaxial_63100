@@ -410,8 +410,16 @@ void thermal_power_estimate(thermal_power_t *out, const thermal_load_t *load,
        on the driver's. They are two parts and they heat separately: the
        FET's watts are the FET's, and it is the one whose resistance
        climbs with its own temperature. The nodes keep their names. */
-    out->watt[THERMAL_DRIVER(leg)] += a * a * rds;
-    out->watt[THERMAL_PHASE(leg)] = a * a * loss->r_shunt;
+    /* THE MEAN SQUARE WHERE THERE IS ONE. `a * a` is one instant squared,
+       which is the loss only if that instant happened to be the rms - see
+       `phase_sq` in the header for why a synchronous sampler makes that
+       worse than a coin toss. The signed sample still carries the link
+       estimate below, because a mean square has no sign. */
+    const float sq = (load->phase_sq[leg] > 0.0f) ? load->phase_sq[leg]
+                                                  : (a * a);
+
+    out->watt[THERMAL_DRIVER(leg)] += sq * rds;
+    out->watt[THERMAL_PHASE(leg)] = sq * loss->r_shunt;
     link_from_phases += load->duty[leg] * a;
 
     if (load->switching && (load->duty[leg] > 0.0f))
