@@ -37,9 +37,6 @@ where the source is. Nothing here is a limit or a verdict - invariant
 
 ## The link
 
-* The link goes quiet now and then. Open. 600 requests ruled out four
-  causes; `power_check.py`, `thermal_calibrate.py` and the conformance
-  suite tolerate the silence and retry.
 * USART3 was polled until 2026-08-29 and cost 0.45 % of frames: 1393
   requests, 7 silent, `char_overrun` +7 to match. The cause was the
   IMU poll - a 276-byte cargo at 1.48 MHz is 1.5 ms, longer than one
@@ -371,5 +368,3 @@ apparent duty tracks the sample rate.
 * Stopping a reply on a valid CRC: a prefix passes once in 4096.
 * The IMU's H_INTN never asserting: it asserts; the 77 highs were an
   artefact of 15 ms round trips.
-* Four causes of the occasional quiet link, over 600 requests. The
-  fault itself stays open.

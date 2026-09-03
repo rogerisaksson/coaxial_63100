@@ -71,8 +71,6 @@ is still arithmetic. Every item names the file or record it lives in.
 * The gate op 10 alternate has no period count; only op 2 does.
 * PE15 reading 0 with the front end powered: what drives it is not
   established.
-* The occasional quiet link: open after 600 requests and four causes
-  ruled out.
 * `electronic_simulations` is a submodule with an SSH key on the bench
   machine and is not checked out here; `inverter.py` carries its
   traced constants.
