@@ -71,7 +71,7 @@ without running; `SIMULATED = False` and a port at the bench.
 | `propeller_sweep.ipynb` | the 5230SL and its propeller against Hobbywing's stand |
 | `speed_loop.ipynb` | `coaxial.loop`'s chain, identified back out of its own run |
 | `foc_montecarlo.ipynb` | the firmware's law searched over the 23-63 V link sweep |
-| `auto_tune.ipynb` | the bench day: commission, identify, tune, write, verify |
+| `auto_tune.ipynb` | commissioning: measure the machine, tune against it, write the record |
 | `position_servo.ipynb` | the PMSM as stepper and servo, ring and sag measured |
 | `position_and_sensorless.ipynb` | observer vs shaft sensor, one rotor two answers |
 | `app_*.ipynb` | quad lane, wing cruise, two-joint arm, precision hold |
