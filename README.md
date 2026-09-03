@@ -55,6 +55,15 @@ answers.
 Executed notebooks, checked in with the stand-in's outputs so they read
 without running; `SIMULATED = False` and a port at the bench.
 
+They are written from `host/tools/make_notebooks.py`, which holds every
+cell - edit there, not in the JSON, or a cell's code and its printed
+output part company:
+
+```powershell
+python tools/make_notebooks.py --execute            # all of them
+python tools/make_notebooks.py --execute daq_session
+```
+
 | file | what it walks through |
 |---|---|
 | `daq_session.ipynb` | connect, configure, set the clock, acquire in a loop |

@@ -199,12 +199,12 @@ by a background thread - probed inline it cost 2 029 ms a frame.
 
 ## The test system
 
-Twenty-five suites, 2433 checks, counted in `host/tests/.counts.json`
+Twenty-five suites, 2436 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 |---|---|---|
-| test_structure.py | 579 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
+| test_structure.py | 582 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 218 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 216 | the runner, the path map, the docs index |
 | test_simulated.py | 206 | the stand-in and the renderers |

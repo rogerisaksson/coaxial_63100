@@ -374,6 +374,10 @@ TOUCHES = (
     # the structure suite's AST pass - measured: it caught a rename that
     # left `print(daq)` behind in two of them.
     ('notebook_examples/',            (STRUCTURE,)),
+    # And the file the notebooks are written FROM. Its own code is a few
+    # short functions; what it holds is their cells, so what it can break
+    # is the same AST pass one step earlier.
+    ('host/tools/make_notebooks.py',  (STRUCTURE,)),
     # A document can only break the docs index and the phrase table.
     ('docs/',                         ('test_ollama_runner.py',)),
     ('CLAUDE.md',                     ('test_ollama_runner.py',)),
