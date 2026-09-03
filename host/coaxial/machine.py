@@ -35,12 +35,7 @@ import math
 
 from . import ansi
 from .ascii3d import CELL_ASPECT
-from .raster import BRAILLE, BRAILLE_BITS
-
-#: A character cell is about one wide by two tall and a braille cell is
-#: two dots by four, so a DOT IS SQUARE and the circle is round without
-#: correction.
-DOTS_X, DOTS_Y = 2, 4
+from .raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT
 
 #: HOW TALL A CELL ACTUALLY IS, in units of its width - `ascii3d`'s, not
 #: a second copy: it is a property of the terminal's font and every
@@ -176,11 +171,6 @@ POINTER_PROUD = 1.0
 #: open or the teeth merge into a ring and the count cannot be read off
 #: the picture, which is the only reason to draw the stator at all.
 TOOTH_FILL = 0.5
-#: Where inside a dot the shape is tested - the four corners, not the
-#: middle. One sample at a dot's centre lights the dot where a ring
-#: happens to pass through that point and not where it passes either
-#: side: the can came out a dashed circle and the tooth tips a stipple.
-SUBDOT = ((-0.25, -0.25), (0.25, -0.25), (-0.25, 0.25), (0.25, 0.25))
 
 #: What owns a cell, and so what colour it takes. A cell holds dots from
 #: whatever passes through it and the highest class present wins.

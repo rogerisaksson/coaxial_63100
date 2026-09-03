@@ -197,6 +197,16 @@ frame spending three round trips took 190 ms of a 125 ms budget. The
 front page's only live datum is whether a broker is serving, fetched
 by a background thread - probed inline it cost 2 029 ms a frame.
 
+The shaft angle view draws a protractor - `coaxial/dial.py`: the
+graduations every 6 degrees with the thirties heavier, the numbers
+outside in ash, and the reading as a tail swept from zero under a
+tapered needle with a bead at its tip. The tail FADES behind the needle
+over about seventy degrees, so a large angle reads as a bright recent
+arc over a faint trace back to zero rather than as a band louder than
+the reading it belongs to. Below `WEAK_GAUSS` the instrument is drawn
+and the reading is not - a face with no needle on it, which is what
+there is when no magnet is in front of the sensor.
+
 The rotor observer draws the machine itself - `coaxial/machine.py`, a
 braille cross-section of rotor and stator whose slot and pole counts
 come from what was identified, teeth as long as their phase is driven.
@@ -214,7 +224,7 @@ thing for the board to act on and the wrong thing to read off a page.
 
 ## The test system
 
-Twenty-five suites, 2494 checks, counted in `host/tests/.counts.json`
+Twenty-five suites, 2500 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -222,7 +232,7 @@ by `counts.py`:
 | test_structure.py | 590 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 218 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 216 | the runner, the path map, the docs index |
-| test_simulated.py | 206 | the stand-in and the renderers |
+| test_simulated.py | 212 | the stand-in and the renderers |
 | test_live_model.py | 212 | the model, `--live` |
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
 | test_conformance.py | 110 | the live board against PROTOCOL.md, `--conformance` |

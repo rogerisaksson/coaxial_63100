@@ -22,8 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from coaxial import angle                                  # noqa: E402
 from coaxial import dial                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from screen import (closing, Freshness, say, stamp_crosses,  # noqa: E402
-                    steady, TO_MENU)
+from screen import closing, Freshness, say, steady, TO_MENU  # noqa: E402
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -31,6 +30,13 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 REG_ANG = 0x20
 REG_TSEN = 0x28
 REG_FIELD = 0x2A
+
+#: The face, in character cells. WIDER AND TALLER THAN THE CHARACTER ONE
+#: WAS: at 52 by 21 the old rim was thirteen columns of full stops, and
+#: the dot matrix that replaced it buys four times the rows and twice the
+#: columns - a face worth drawing bigger. Bounded by the height, since a
+#: dot is square and the circle is round.
+ART_WIDTH, ART_HEIGHT = 64, 23
 
 
 def capability(board):
@@ -78,6 +84,21 @@ def preflight(board, part):
     return field, kelvin
 
 
+def _foot(console, degrees, field):
+    """The reading under the face, in the needle's own colour.
+
+    THE SAME RULE THE ROTOR OBSERVER'S FOOT FOLLOWS: a scale says how far
+    along it is and never what it is worth, and the box that carries the
+    figures is the next one down the page. In the needle's ink so the
+    line and the thing it names read as one.
+    """
+    from coaxial import ansi
+
+    text = dial.caption(degrees, field)
+    line = ' ' * max(0, (ART_WIDTH - len(text)) // 2) + text
+    return ansi.paint(line, dial.INK[dial.NEEDLE]) if console else line
+
+
 def compose(origin, console, part, state, field, kelvin, rate, note):
     """One frame on the stage: the dial left, the target's numbers right."""
     from screen import frame_of, hud
@@ -89,12 +110,19 @@ def compose(origin, console, part, state, field, kelvin, rate, note):
         degrees = state.get('degrees', counts * 360.0 / 4096.0)
         weak = field is not None and field < dial.WEAK_GAUSS
 
-        face = dial.render(degrees, 52, 21, field)
-        art_lines = (dial.colourise(face) if console else face).splitlines()
-        margin = min((len(l) - len(l.lstrip(' '))
-                      for l in art_lines if l.strip()), default=0)
+        # COLOURED AT THE RENDER, not after it: a braille cell carries
+        # dots from up to eight places and its glyph does not say which,
+        # so there is nothing for a `colourise(text)` to key on. That is
+        # what took the old one out.
+        #
+        # And no registration crosses. They are written only into cells
+        # holding a plain space, and every cell of a dot drawing holds
+        # U+2800 instead - the mark could never land, and a call that
+        # cannot do anything is worse than no call.
         art = '\n'.join(
-            stamp_crosses([l[max(0, margin - 1):] for l in art_lines], 48))
+            [dial.render(degrees, ART_WIDTH, ART_HEIGHT, field,
+                         colour=console),
+             _foot(console, degrees, field)])
 
         side = [hud(part['name'], [
                     ('angle', '--   (no magnet)' if weak

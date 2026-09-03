@@ -46,7 +46,7 @@ def surface_attitude():
 
 def surface_protractor():
     from coaxial import dial
-    return lambda: dial.colourise(dial.render(215.0, 52, 21, field=380))
+    return lambda: dial.render(215.0, 64, 23, field=380, colour=True)
 
 
 def surface_thermalmap():

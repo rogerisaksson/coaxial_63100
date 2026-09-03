@@ -515,41 +515,98 @@ def test_orientation(report):
 
     turned = dial.render(90.0, field=380).split(chr(10))
     report.check('the dial is the height it was asked for',
-                 len(turned) == 19, '%d rows' % len(turned))
+                 len(turned) == 23, '%d rows' % len(turned))
 
     # A PROTRACTOR since 2026-08-29: degree labels every 30 all the way
-    # round, like the reference face. The axis row is the one carrying both
-    # the 180 label and the bare 0.
+    # round, like the reference face. They are the one thing on the face
+    # that is still text - a braille cell cannot carry a letter - and they
+    # are written only onto cells no dot reached, so a missing one means
+    # the face has outgrown its box.
     face = chr(10).join(turned)
     marks = [str(deg) for deg in range(0, 360, 30)]
     missing = [m for m in marks if m not in face]
     report.check('every 30-degree graduation is labelled',
-                 not missing, 'missing %s' % ', '.join(missing))
+                 not missing, 'missing %s' % ', '.join(marks and missing))
 
-    axis = [i for i, row in enumerate(turned)
-            if '180' in row and row.rstrip().endswith('0')]
-    report.check('the 180-to-0 axis is one row', len(axis) == 1, axis)
+    # WHERE THINGS ARE COMES OFF THE OWNER GRID, not off the glyphs. A
+    # braille cell carries dots from up to eight places and its character
+    # does not say which, so a test that looks for a needle by its glyph -
+    # which the character face allowed - cannot be written here at all.
+    def owners(deg, kind, field=380):
+        weak = field < dial.WEAK_GAUSS
+        _, owner, _, geom = dial._raster(deg, 64, 23, weak, 2.0)
+        return ([row for row in range(23)
+                 if any(owner[row][col] == kind for col in range(64))], geom)
 
-    # The pointer at 90 degrees goes up from the axis and at 270 down. If
-    # those come out the same way round the picture is upside down, which is
-    # the one thing a shaft-angle drawing cannot be.
-    def pointer_rows(deg):
-        drawn = dial.render(deg, field=380).split(chr(10))
-        return [i for i, row in enumerate(drawn) if dial.POINTER in row]
+    hub, geom = owners(0.0, dial.HUB)
+    # THREE ROWS, NOT ONE: the hub is a disc of 2.6 dots and a row is four,
+    # so a disc centred on a row boundary reaches into the rows either
+    # side. The axis is the row the centre is in.
+    axis = [int(geom.cy) // dial.DOTS_Y]
+    report.check('the hub straddles the row the axis is in',
+                 axis[0] in hub and len(hub) <= 3, '%s, axis %d' % (hub, axis[0]))
 
-    up, down = pointer_rows(90.0), pointer_rows(270.0)
-    report.check('the pointer goes up at 90 degrees and down at 270',
+    # The needle at 90 degrees goes up from the axis and at 270 down. If
+    # those come out the same way round the picture is upside down, which
+    # is the one thing a shaft-angle drawing cannot be.
+    up = owners(90.0, dial.NEEDLE)[0]
+    down = owners(270.0, dial.NEEDLE)[0]
+    report.check('the needle goes up at 90 degrees and down at 270',
                  min(up) < axis[0] <= max(down),
                  'up %s, axis %d, down %s' % (up[:2], axis[0], down[-2:]))
 
-    flat = dial.render(0.0, field=380).split(chr(10))[axis[0]]
-    report.check('and at zero it reaches toward the rim along the axis',
-                 flat.count(dial.POINTER) >= int(dial.RADIUS) - 4, flat)
+    flat, _ = owners(0.0, dial.NEEDLE)
+    report.check('and at zero it lies flat along that row and no other',
+                 flat == axis, '%s against %s' % (flat, axis))
 
-    report.check('a weak field draws no pointer at all',
-                 dial.POINTER not in dial.render(90.0, field=3),
-                 'field 3 gauss')
-    report.check('and the caption says why',
+    # The bead is the reading's own end, and it stands against the scale:
+    # short of the rim, and past everything the needle crosses.
+    bead, geom = owners(0.0, dial.BEAD)
+    report.check('the bead sits at the needle tip, inside the graduations',
+                 bool(bead) and geom.needle < geom.rim - dial.MAJOR_TICK + 1e-9,
+                 'needle %.1f, rim %.1f dots' % (geom.needle, geom.rim))
+
+    report.check('a weak field draws no needle at all',
+                 not owners(90.0, dial.NEEDLE, field=3)[0], 'field 3 gauss')
+    report.check('and no tail behind it',
+                 not any(owners(90.0, step, field=3)[0]
+                         for step in dial.SWEEP), 'field 3 gauss')
+    report.check('but the instrument is still drawn - a face with no '
+                 'reading on it, which is what there is',
+                 bool(owners(90.0, dial.FACE, field=3)[0]))
+
+    # THE SWEEP IS THE READING FROM ZERO, so more angle is more band. A
+    # sliver at 10 degrees and most of the face at 350 is the whole
+    # difference between a protractor and a decoration.
+    def swept(deg):
+        _, owner, _, _ = dial._raster(deg, 64, 23, False, 2.0)
+        return sum(cls in dial.SWEEP for row in owner for cls in row)
+
+    little, most = swept(20.0), swept(340.0)
+    report.check('the tail grows with the reading',
+                 little < most / 4.0, '%d cells at 20 deg, %d at 340'
+                 % (little, most))
+
+    # AND FADES BEHIND THE NEEDLE, fast. The far end of a long tail is a
+    # trace and the end the needle stands on is nearly its own colour: at
+    # one weight the whole way, the band was the loudest thing on the face
+    # at large angles and the needle read against its own trail.
+    _, owner, _, _ = dial._raster(340.0, 64, 23, False, 2.0)
+    steps = [sum(row.count(step) for row in owner) for step in dial.SWEEP]
+    report.check('and fades behind the needle - most of a long one is trace',
+                 steps[0] > 4 * max(steps[1:]), '%s cells a step' % steps)
+    # NOT AN ORDERING CHECK ON THE CODES: 236 is darker than 172 and
+    # larger, so a numeric comparison of ansi-256 indices says nothing
+    # about brightness. What can be checked is that there is one colour
+    # per step and that none of them is the needle's own - a tail that
+    # reached the needle's amber would read as part of it.
+    report.check('one colour per step of the fade, and none the needle own',
+                 (len(dial.SWEEP_RAMP) == dial.SWEEP_STEPS
+                  and ansi.AMBER not in dial.SWEEP_RAMP
+                  and len(set(dial.SWEEP_RAMP)) == dial.SWEEP_STEPS),
+                 '%s against needle %d' % (dial.SWEEP_RAMP, ansi.AMBER))
+
+    report.check('and the caption says why there is no reading',
                  'no magnet' in dial.picture({'value': 20, 'degrees': 1.8,
                                               'loop': 'running', 'updates': 1,
                                               'errors': 0, 'field': 3}))
