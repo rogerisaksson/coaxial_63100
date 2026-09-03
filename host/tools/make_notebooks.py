@@ -2063,6 +2063,159 @@ print('   re-fit first             the phase node to_board, with current flowing
        "resistance turns out to be once it has been re-fit with current "
        "flowing - which is the one measurement that would move every number "
        "in this section."),
+    md("## The grip, in quantities the board can measure\n\n"
+       "Everything below is read off this hardware or computed from what "
+       "it reads. The board has three phase-current channels, a DC link "
+       "channel, an NTC, two die thermometers and the supply senses; it "
+       "has **no phase-voltage sense**, so the voltage every observer here "
+       "integrates is reconstructed from the commanded duties and the "
+       "measured link. That is not a simplification for the simulation - "
+       "it is what the electronics can do, and it is why the DC link "
+       "channel sits in the loop rather than beside it."),
+    code("""print('WHAT THE BOARD MEASURES')
+print('%-14s %-9s %13s   %s' % ('channel', 'unit', 'per count', 'floor'))
+print('%-14s %-9s %13.5f   %s A rms measured'
+      % ('Phase U/V/W', 'A', inverter.AFE_A_PER_COUNT, inverter.NOISE_A))
+print('%-14s %-9s %13.6f   78.15 V full scale, 49.9k/2.2k'
+      % ('DC bus', 'V', 78.15 / 65536))
+print('%-14s %-9s %13s   30 mK, and it sits in the drivers hot spot'
+      % ('NTC', 'centi-C', '-'))
+print('%-14s %-9s %13s   0.125 K, reset by every AFE cycle'
+      % ('A1335 TSEN', 'K/8', '-'))
+print('%-14s %-9s %13s   the die itself, 810.5 ADC cycles'
+      % ('MCU VSENSE', 'C', '-'))
+print()
+print('WHAT IT DOES NOT MEASURE')
+print('   phase voltage    reconstructed from duty x DC link')
+print('   rotor angle      only with a magnet at the A1335 - the sensor')
+print('                    these observers exist to replace')
+print('   torque           Kt x iq, and Kt is the sheet, not a stand')"""),
+    md("So the observers are fed two things: three currents at 3.2 mA a "
+       "count with a 0.4 A floor, and a link voltage at 1.2 mV a count. "
+       "Every number below comes out of those two, the record's constants, "
+       "and the duties the drive commanded itself."),
+    code("""FULL = (20.0, 100.0, 500.0, 2000.0, 5000.0, 10000.0, 15000.0)
+CHAIN_BAND = (800.0, 3000.0)
+VDC_TOP = 63.0
+
+def sweep_all(plant, w_e, seconds=0.6, iq=2.0):
+    \"\"\"Every observer and the chain, one held speed. Degrees rms.\"\"\"
+    fitted = _P(name='drawn', r=plant['r'], ld=plant['ld'], lq=plant['lq'],
+                lam=plant['lambda'], poles=int(plant['pole_pairs']),
+                measured=False)
+    dt = inverter.TS
+    loop = CurrentLoop(hz=800.0, motor=fitted, vdc=plant['vdc'])
+    machine = Machine(fitted, vdc=plant['vdc'], noise=plant['noise'], sub=4,
+                      locked=True)
+    machine.motor.omega = w_e
+    made = five(fitted, w_e)
+    lo, hi = CHAIN_BAND
+    s = Signals()
+    s.iq_ref = iq
+    err = dict((k, []) for k in made)
+    err['chain'] = []
+    for step in range(int(seconds / dt)):
+        s.t = step * dt
+        loop(s, dt)
+        machine(s, dt)
+        c, sn = math.cos(s.theta), math.sin(s.theta)
+        va, vb = s.vd * c - s.vq * sn, s.vd * sn + s.vq * c
+        ia, ib = s.id * c - s.iq * sn, s.id * sn + s.iq * c
+        angles = dict((n, o.update(va, vb, ia, ib, dt))
+                      for n, o in made.items())
+        g = min(1.0, max(0.0, (abs(made['dual'].omega) - lo) / (hi - lo)))
+        x = (1.0 - g) * math.cos(angles['dual']) + g * math.cos(angles['flux'])
+        y = (1.0 - g) * math.sin(angles['dual']) + g * math.sin(angles['flux'])
+        if s.t > 0.5 * seconds:
+            for n, th in angles.items():
+                err[n].append(sensorless._wrap(th - s.theta))
+            err['chain'].append(sensorless._wrap(math.atan2(y, x) - s.theta))
+    out = {}
+    for n, v in err.items():
+        out[n] = (float('nan') if any(e != e for e in v)
+                  else math.degrees(math.sqrt(sum(e * e for e in v) / len(v))))
+    return out
+
+tall = [dict(mc.draw(90 + i, VDC_TOP), vdc=VDC_TOP) for i in range(PLANTS)]
+ORDER = ('chain', 'dual', 'smo', 'flux', 'luen', 'eso')
+grid = []
+print('angle error deg rms, median of %d plants, %.0f V link' % (PLANTS, VDC_TOP))
+print('  rad/s el     rpm ' + ''.join('%7s' % n for n in ORDER))
+for w_e in FULL:
+    rows = [sweep_all(p, w_e) for p in tall]
+    got = {}
+    for name in ORDER:
+        v = sorted(r[name] for r in rows)
+        got[name] = v[len(v) // 2]
+    grid.append((w_e, got))
+    print('%10.0f %7.0f ' % (w_e, rpm(w_e))
+          + ''.join('%7.1f' % got[n] for n in ORDER))"""),
+    md("The picture inverts at the top. Below a few hundred rad/s the dual "
+       "flux observer is the only one close; above ten thousand it is the "
+       "plain flux observer, whose leak has stopped mattering while every "
+       "filter and PLL in the others has run out of bandwidth. Chaining "
+       "the two is what holds the whole range."),
+    code("""KT = 1.5 * motor.poles * motor.lam
+TOP_RAD_S = inverter.V_FRAC * VDC_TOP / math.sqrt(3.0) / motor.lam
+
+def band(name):
+    inside = [w for w, got in grid if got[name] <= CRITERION_DEG]
+    return (min(inside), max(inside)) if inside else (None, None)
+
+print('THE OBSERVERS AGAINST THE MACHINE THIS BOARD DRIVES')
+print('%-7s %15s %10s %9s %13s'
+      % ('', 'holds rpm', 'worst deg', 'torque', 'of the range'))
+for name in ORDER:
+    lo, hi = band(name)
+    if lo is None:
+        print('%-7s %15s' % (name, 'nowhere inside %.0f deg' % CRITERION_DEG))
+        continue
+    worst = max(got[name] for w, got in grid if lo <= w <= hi)
+    print('%-7s %6.0f - %6.0f %10.1f %8.1f %% %11.0f %%'
+          % (name, rpm(lo), rpm(hi), worst,
+             100.0 * math.cos(math.radians(worst)),
+             100.0 * (hi - lo) / TOP_RAD_S))
+print()
+print('THE MACHINE, IN WHAT THE BOARD READS')
+print('%-20s %.1f V on channel 5' % ('link, measured', VDC_TOP))
+print('%-20s %.0f rpm, V_FRAC Vdc/sqrt3 over lambda'
+      % ('no-load speed', TOP_RAD_S / motor.poles * 60.0 / TWO_PI))
+print('%-20s %.0f A on the phase channels = %.2f N.m at Kt %.4f'
+      % ('peak current', I_RATING, KT * I_RATING, KT))
+print('%-20s %.1f A rms a phase = %.2f N.m, the thermal ceiling'
+      % ('continuous', i_rms, KT * iq_cont))
+print('%-20s %.0f rad/s2 = %.0f rpm/s at the peak'
+      % ('acceleration', KT * I_RATING / motor.j,
+         KT * I_RATING / motor.j / motor.poles * 60.0 / TWO_PI))
+print('%-20s %.3f s from rest to %.0f rpm, unloaded'
+      % ('so the sweep takes', TOP_RAD_S / motor.poles
+         / (KT * I_RATING / motor.j),
+         TOP_RAD_S / motor.poles * 60.0 / TWO_PI))
+print()
+print('WHAT THE BOARD WOULD SEE IF AN OBSERVER SLIPPED')
+print('   iq for the torque  rises as 1/cos(error), on the phase channels')
+print('   DC link           the power rises with it, and the link sags')
+print('   the drive window  eps sd and rho, op 5, and no reference needed')
+print('   the NTC           minutes later, on the board time constant')"""),
+    md("**The chain is the answer.** Dual flux below 800 rad/s, plain flux "
+       "above 3000, blended between: half a degree at 14 rpm and seven at "
+       "10 231, so better than 99 % of the commanded torque arrives at "
+       "every speed the link can reach. Nothing in it needs a sensor this "
+       "board does not have.\n\n"
+       "Two limits, in the board's own terms. Neither observer sees "
+       "anything at a **standstill** - both live on `v - R i`, and a rotor "
+       "that is not turning makes no back-EMF to find. That is the "
+       "injection's job, and the injection is what the saliency pays for. "
+       "And the acceleration this stage commands sweeps the whole speed "
+       "range in a few hundredths of a second, so the hand-overs are not "
+       "leisurely: the blend has to ride a quantity the observer already "
+       "holds, which is why it rides its own speed estimate rather than a "
+       "scheduler.\n\n"
+       "What a bench can check without a reference is the current it takes "
+       "to hold a speed. An angle error costs torque as `cos`, so the "
+       "phase channels see `1/cos` more current for the same shaft "
+       "torque - 0.7 % at seven degrees, inside the AFE's own noise, and "
+       "6 % at twenty, which is not."),
     md("## Conclusions\n\n"
        "The angle is covered end to end, and by three different mechanisms "
        "rather than one: saliency at rest, a switching term through the "
