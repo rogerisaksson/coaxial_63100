@@ -36,9 +36,10 @@ says so when the CPU is busy.
 ### The reserve
 
 `reserve_for(vram, used)` is the largest of a quarter of the card,
-2 GB, or what is already used plus `HEADROOM_GB` = 2. The desktop alone
-was using 2.6 GB on the reference bench at 0 % utilisation, so a flat
-quarter of that card left 1.4 GB of slack. `COAXIAL_VRAM_RESERVE_GB`
+2 GB, or what is already used plus `HEADROOM_GB` = 2. It has to count
+what is already resident rather than take a flat fraction: a desktop
+driving screens holds VRAM at idle, and a quarter of a 16 GB card left
+too little behind it. `COAXIAL_VRAM_RESERVE_GB`
 overrides it, as does `board_chat -Reserve 8` (`--reserve-gb` one layer
 down): raise it if the screens stutter while the model answers. Windows
 reports `AdapterRAM` in a 32-bit field - 4 GB for every card larger
@@ -58,8 +59,8 @@ half the weights for about a fifth of the speed.
 
 ### Tuning
 
-`board_chat/Tuning.ps1` starts the daemon with four variables, each
-measured on this machine:
+`board_chat/Tuning.ps1` starts the daemon with four variables, each one
+a failure it removes:
 
 | Variable | Value | Why |
 |---|---|---|
@@ -80,8 +81,8 @@ in the REPL and 2m for one question, local hosts only unless
 `remote_ok`. A crashed runner is retried twice, 1.5 s apart, in
 silence. Out of memory runs a ladder: free every other resident model,
 then flush, then halve the context down to `MIN_NUM_CTX` = 2048, then
-raise. `release()` hands VRAM back with `keep_alive` 0: a session left
-running held 9.69 GB for another 27 minutes at 1 % utilisation. Two
+raise. `release()` hands VRAM back with `keep_alive` 0, because the
+weights stay resident for the whole of it otherwise, idle or not. Two
 clients at different `num_ctx` evict each other and reload 7.6 GB per
 question, which is why a typed sentence is classified on the turn's own
 client and never a second `Ollama`.
@@ -259,11 +260,12 @@ transcript:
   English words flipped a Swedish session on the next trim.
 * On the 25 % tier the model's pick put `live:all` back: 398 s, 352 of
   them that suite. The tier now clamps and says what it refused.
-* Two `dbg.py` sessions had COM4 open; every probe read silent, and
-  the board was diagnosed as halted, started over SWD and reflashed.
-  None of that was the matter with it.
-* Killed from outside, 8.4 GB stayed on the card until released by
-  hand; Ctrl+C is `STOPPED`, exit 130, and the `finally` releases.
+* A port already held by another session reads silent to every probe,
+  and that was diagnosed as a halted board and reflashed. The link
+  diagnosis asks the session it has instead of opening the port again.
+* A run killed from outside leaves the weights resident until they are
+  released by hand; Ctrl+C is `STOPPED`, exit 130, and the `finally`
+  releases.
 
 ## Test picking
 

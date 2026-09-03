@@ -48,9 +48,9 @@ where the source is. Nothing here is a limit or a verdict - invariant
   idle and 133 while serving it, so a link that could carry 194 was
   fed by a board that could no longer make them.
 * CubeMX left USART2 and UART5 at 9 216 000 baud and nothing wrote the
-  115 200 everything reported; the wire ran at 80x the number in the
-  link report. Found the day the THVD1450's rating went into
-  HARDWARE.md; the baud joined the record at CAL_VERSION 9.
+  115 200 everything reported: the wire ran at 80x the number in the
+  link report. The baud joined the calibration record at CAL_VERSION 9,
+  and `main()` applies it before `link_init` derives the RTU silences.
 * Asking a port to echo-test itself put `00 ff 5a a5` in front of the
   reply and the master saw a checksum failure. Refused since.
 * A reply read one byte at a time took 17.8 ms for a 20-byte frame that
@@ -61,11 +61,10 @@ where the source is. Nothing here is a limit or a verdict - invariant
 * Opening into the window while pyserial lets a port go is `could not
   open port` with nothing wrong: it crashed the suite whenever an
   earlier one had opened a session.
-* With the link up and the session holding COM4, `find_board.probe`
-  opened it a second time, Windows refused, and the checklist printed
-  the board as not answering. Two `dbg.py` sessions with COM4 open read
-  every probe silent and the board was diagnosed as halted, started
-  over SWD and reflashed; none of that was the matter with it.
+* A port already held by a session cannot be probed: Windows refuses
+  the second open and every probe reads silent, which looks exactly
+  like a board that has stopped answering. The diagnosis asks the
+  session it has rather than opening the port again.
 * An unplugged ST-Link read `Voltage: 0.00V` where serial alone only
   ever said silence.
 * Three switching runs ended the moment a second session asked the
@@ -107,10 +106,9 @@ Measured on the debug probe's VCP at 115 200:
 * 2026-08-29: 30 ns of dead time truncated to 7 DTG counts = 29.5 ns
   and the bench supply tripped its over-current protection on a
   dry-switching run. 8 counts is 33.7 ns; the rounding is up.
-* Two gate driver stages ran 15 C hotter than the third. The full suite
-  was started three times and none of the 1970 checks could say
-  anything; a 600-sample pin count and a register dump found it: the
-  gate pins at CubeMX's LOW speed. VERY_HIGH since.
+* Two gate driver stages ran 15 C hotter than the third. What found it
+  was a 600-sample pin count and a register dump: the gate pins were at
+  CubeMX's LOW speed. VERY_HIGH since.
 * Gate short probe, measured on a board with the W pair joined: the
   neighbour follows within 76 ns, against the 4 us a few hundred k into
   the pin capacitance would take. The observing pin sinks through its
@@ -162,7 +160,7 @@ survived a measurement.
 | chip select never moved | configured before `HAL_SPI_DeInit`, which runs the MSP and hands the pin back |
 | every read `FF FF FF FF` | CS released between header and cargo, the part restarted the message; also CubeMX's prescaler 32 = 5.94 MBit/s against the part's 3 MHz |
 | every read after a reset refused | the advertisement is 276 bytes, the buffer was 64 |
-| a sensor enabled at 60 ms never reported | the interval went out little-endian on a big-endian wire - 27 minutes |
+| a sensor enabled at 60 ms never reported | the interval went out little-endian on a big-endian wire |
 | a write worked twice, failed the third | gated on an INTN an already-awake part never asserts |
 | the four header bytes `00 00 00 00` | NRSTN and BOOTN both driven low at boot by `MX_GPIO_Init`: a part held in reset and strapped for the bootloader |
 
@@ -227,8 +225,8 @@ survived a measurement.
   state; four samples 3 s apart spread 50 mK with no drift.
 * The camera saw one bridge zone; per leg is three times the lumped
   15.2 K/W and no measurement says otherwise yet.
-* The supply's idle current was measured at 0.050 A but through a
-  shunt the owner does not trust.
+* The passive state's power came from the supply's own reading,
+  0.050 A, which is what `board_to_ambient` rests on.
 * The bench suite's regression: the thermal observer reading two ADC
   channels and two SPI transactions on every poll, and before that a
   poll blocking long enough to lose a Modbus character.
@@ -259,11 +257,13 @@ survived a measurement.
 
 ## Clocks
 
-* 2026-08-27, six minutes after W32Time had synced, this PC sat 947 ms
-  behind UTC and was losing a further 25 ppm; Windows had declined to
-  step it, the offset being inside the 1 s `MaxAllowedPhaseOffset`.
-  `set_time_from_pc(reference='utc')` measures the PC against NTP and
-  takes both out; with no route it falls back to `'pc'` and says so.
+* A host clock is not a reference, and a Windows one reporting a good
+  sync is not either: an offset inside `MaxAllowedPhaseOffset` is
+  slewed rather than stepped, so it can sit most of a second out and
+  drift on top of that. `set_time_from_pc(reference='utc')` measures
+  the host against NTP over the same window and takes out both the
+  offset and the rate; with no route it falls back to `'pc'`, which
+  ties the board to this machine as it stands, and says which it did.
 * CYCCNT wraps every 9.04 s at 475 MHz; the elapsed arithmetic is done
   in raw ticks (invariant 2).
 * The stand-in's clock runs 12 ppm slow on purpose, so a sync has
@@ -303,14 +303,20 @@ survived a measurement.
 * Asked what had been ruled out about the phase V offset, qwen2.5:14b
   found the entry and reported a dead end, because the hit carried
   the entry and not the chapter; `find` reports both.
-* Loading 7.6 GB again was most of a run's wall time; the model is
-  loaded once per run. Killed from outside, 8.4 GB stayed on the card;
-  a session left running held 9.69 GB for 27 minutes at 1 %.
-* The desktop alone held 2.6 GB of VRAM at 0 % utilisation.
-* `prompt_save ... total state size = 342.623 MiB`; restoring a
-  311.575 MiB checkpoint threw `std::bad_alloc`; two copies of the
-  weights on a 16 GB card was a 500, `cudaMalloc failed`. Tuned: ten
-  questions, twenty-seven calls, zero `std::bad_alloc`, one load.
+* Reloading the weights was most of a run's wall time, so the model is
+  loaded once per run and released once. A run killed from outside
+  leaves them resident until something releases them by hand, which is
+  what the `finally` and `keep_alive` 0 are for.
+* The reserve cannot be a flat fraction of the card: a desktop holds
+  VRAM at idle, and a quarter of a 16 GB card left too little slack
+  behind it. It is the largest of a quarter, 2 GB, or what is already
+  in use plus 2 GB.
+* llama-server's prompt cache and its context checkpoints each
+  allocate hundreds of megabytes beside the weights, and restoring a
+  checkpoint threw `std::bad_alloc` and took the runner with it. Two
+  copies of the weights on one card is a 500, `cudaMalloc failed`.
+  Both allocators off and one model, one context: ten questions,
+  twenty-seven calls, no `std::bad_alloc`, one load.
 
 ## The renderers
 
@@ -324,10 +330,10 @@ survived a measurement.
   before the light was made the world's, not the camera's.
 * In Rec.709 luma against the exporter's screenshots, '.' cells sit at
   93 to 99 and ':' at 128 to 130; the outline lift is 4.5 from 2.5.
-* The slab's top was assumed at z 0 for an evening; measured from the
-  mesh, the gate a millimetre over it shows 44 loops wider than 0.12
-  units. 914 of the 1 458 edges in the 95 loops drawn were under half a
-  cell face-on.
+* The slab's top is measured from the mesh, not assumed at z 0: the
+  export centres on its bounding box, and a gate a millimetre over the
+  measured top shows 44 loops wider than 0.12 units. 914 of the 1 458
+  edges in the 95 loops drawn were under half a cell face-on.
 * Zoom 1.0 fits the bounding sphere at any attitude, 56 % of the box's
   width; 2.0 is the first zoom that reaches every edge.
 
