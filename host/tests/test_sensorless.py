@@ -10,6 +10,7 @@ motor has known constants, every step has a number it must recover.
 
 Run from the host directory:  python tests/test_sensorless.py
 """
+import io
 import math
 import os
 import sys
@@ -309,6 +310,59 @@ def test_commissioning_recovers_the_stand_in(r):
         rig.close()
 
 
+def test_autodetect_recovers_each_machine(r):
+    """`observer.autodetect` against five different simulated outrunners.
+
+    A ROUND TRIP, and the only kind of check that can catch what it
+    caught. The profiles under `host/motors/` are shapes, not
+    measurements - what makes them useful is that they are DIFFERENT, so
+    a step that silently answers the stand-in's own defaults is visible.
+    Two did: the stand-in's electrical model and its dead-time voltage
+    both read class constants rather than the machine that had been
+    written to them, and the identifier recovered 0.051 ohm and 19.5 uH
+    from every one of five machines in turn - which reads as a working
+    identifier until a second machine goes through it.
+
+    The pole count is the one the board measures itself, against the
+    shaft sensor; the rest come off the commissioning steps and land in
+    the record. Both are held here.
+    """
+    import glob
+    import json
+    import os
+
+    here = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), 'motors')
+    profiles = sorted(glob.glob(os.path.join(here, 'outrunner_*.json')))
+    r.check('there is more than one machine to identify', len(profiles) > 1,
+            '%d profiles' % len(profiles))
+    for path in profiles:
+        want = json.load(io.open(path, encoding='utf-8'))
+        rig = Coaxial63100(simulated_device=True, power_afe=True).open()
+        try:
+            rig.board.drive.profile(path)
+            rig.board.drive.source('model')
+            got = rig.observer.autodetect(
+                arm=dict(bypass_sto=True, ignore_interlock=True),
+                slots=want.get('slots'))
+        finally:
+            rig.close()
+        name = os.path.basename(path)
+        for field, key, tol in (('r', 'motor_r_uohm', 0.05),
+                                ('ld', 'motor_ld_nh', 0.05),
+                                ('lq', 'motor_lq_nh', 0.05),
+                                ('lam', 'motor_lambda_uvs', 0.05)):
+            truth = want['drive'][key]
+            found = getattr(got, field)
+            r.check('%s: %s within %d%%' % (name, field, 100 * tol),
+                    abs(found - truth) <= tol * truth,
+                    '%.6g against %.6g' % (found, truth))
+        r.check('%s: the pole count is the one on the shaft' % name,
+                got.poles == want['drive']['motor_pole_pairs'],
+                '%d against %d' % (got.poles, want['drive']['motor_pole_pairs']))
+        r.check('%s: and it says it was measured' % name, got.measured is True)
+
+
 def test_motion(r):
     """The three motion verbs close their loops on the stand-in's own
     virtual rotor - the shaft sensor reads what the drive torques."""
@@ -410,6 +464,7 @@ def test_motion(r):
 
 
 ROSTER = (test_inverter, test_loop, test_motion,
+          test_autodetect_recovers_each_machine,
           test_arithmetic, test_budget, test_kalman,
           test_crossover_and_verdicts, test_record_units, test_fits,
           test_commissioning_refuses_to_switch,

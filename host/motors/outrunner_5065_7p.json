@@ -1,0 +1,36 @@
+{
+  "name": "outrunner 5065 7p - SHAPE, not measured",
+  "note": "Not a measurement. A SHAPE for the identifier to recover: numbers of the order a 50 mm, 65 mm stack, high KV outrunner has, so autodetect is exercised against more than one machine and a step that only works on the placeholder is caught. `tools/commission.py` and `observer.autodetect` write a real motor over the record; a profile is how one is kept and put back. `drive` keys are coaxial.drive.PARAMS names in SI, `model` keys coaxial.drive.MODEL_PARAMS names.",
+  "slots": 12,
+  "drive": {
+    "motor_r_uohm": 0.09,
+    "motor_ld_nh": 1.4e-05,
+    "motor_lq_nh": 1.7e-05,
+    "motor_lambda_uvs": 0.0018,
+    "motor_pole_pairs": 7,
+    "drv_i_max_ma": 5.0,
+    "drv_i_trip_ma": 20.0,
+    "drv_v_frac_ppm": 0.95,
+    "drv_sign": 1,
+    "drv_w_lo_mrad_s": 150.0,
+    "drv_w_hi_mrad_s": 300.0
+  },
+  "model": {
+    "r": 0.09,
+    "ld": 1.4e-05,
+    "lq": 1.7e-05,
+    "lambda": 0.0018,
+    "pole_pairs": 7,
+    "sat": 0.3,
+    "i_sat": 5.0,
+    "j": 1.4e-05,
+    "b": 0.0002,
+    "load": 0.0,
+    "v_dt": 0.0,
+    "i_knee": 0.3,
+    "vdc": 24.0,
+    "noise": 0.0,
+    "theta0": 0.0,
+    "sub": 4.0
+  }
+}

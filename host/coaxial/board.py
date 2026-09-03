@@ -21,6 +21,7 @@ from .capture import Capture
 from .clock import Clock
 from .daq import Daq
 from .drive import Drive
+from .observer import Observer
 from .calibration import Calibration
 from .errors import (ConnectError, CrcError, DeviceStateError, FrameError,
                      NoReplyError, RigError, UnsupportedProtocolError)
@@ -57,6 +58,7 @@ class Board:
         self.clock = Clock(self)
         self.daq = Daq(self)
         self.drive = Drive(self)
+        self.observer = Observer(self)
 
     @property
     def baud(self):

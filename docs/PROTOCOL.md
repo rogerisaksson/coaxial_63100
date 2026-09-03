@@ -496,6 +496,7 @@ means and deviations in micro-units.
 | 11 model param | `u8 id, i32 value` | `u8 took`; 16 ids |
 | 12 model | - | `u8 source, i32 theta, i32 omega, i32 id, i32 iq, i32 vdc, i32 theta_hat, i32 omega_hat` |
 | 13 model reset | - | `u8` |
+| 14 observers | - | `u8 valid, i32 theta, i32 omega, i32 blend, i32 dual_theta, i32 dual_omega, i32 flux_theta, i32 flux_omega, i32 lambda_hat, i32 theta_hat, i32 omega_hat, i32 blend_lo, i32 blend_hi, i32 wc` |
 
 Op 0: `u8 mode, u8 fault, u8 flags` (0x01 MOE, 0x02 afe_on,
 0x04 injection valid, 0x08 drive owns the compares, 0x10 sync armed),
@@ -512,6 +513,30 @@ mrad/s, 4 accel mrad/s², 5 vd mV, 6 vq mV, 7 pol_volts, 8 pol_periods,
 9 pol_gap. The host names and scales are `coaxial.drive.SETPOINTS` and
 `PARAMS`.
 
+### Drive op 14, the observer chain
+
+A SECOND ANSWER TO THE ANGLE, not a second controller. `drive_observer.c`
+runs beside the loop on the same samples and drives nothing; op 14 is how
+a bench reads it. It exists because the board has no shaft sensor on the
+machine it commutates, so the only way to ask whether the estimate is
+right is to compute it a second time from different arithmetic and
+compare - which is what `error`, `theta` minus `theta_hat`, is.
+
+Angles are microradians, speeds milliradians a second, `blend` and
+`lambda_hat` micro-units; every field is `i32` and they are read in that
+order. `blend` is 0 where the dual flux model carries the estimate and
+1e6 where the leaking flux model does, ramping between `blend_lo` and
+`blend_hi` - both derived from `wc`, the leak's corner, and all three
+reported so a host need not know the firmware's constants.
+
+`valid` is 0 below `wc`. Both observers live on `v - R i` and a rotor at
+rest makes no back-EMF, so under that speed the chain is reporting
+arithmetic and not an angle; the injection is what knows where the rotor
+is down there. The board says so and judges nothing further - invariant
+10.
+
+The pair, and the two it beat, are `notebook_examples/foc_montecarlo.ipynb`.
+
 ## Versioning
 
 MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
@@ -527,6 +552,7 @@ MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 | 7 | DAQ op 1 appends a sensor mask; records append four i16 per sensor after the pins; op 5 appends the rows |
 | 8 | gate op 2 takes an optional period count; op 0 appends `periods_left` |
 | 9 | fixed-shape requests dispatch on their own CRC, not t3.5 |
+| 10 | drive op 14, the back-EMF observer chain |
 
 MAJOR 2, 2026-08-29: the thermal nodes went per leg and the node
 indices were repurposed - a host could follow the length and not the

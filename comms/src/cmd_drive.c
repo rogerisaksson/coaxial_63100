@@ -319,6 +319,41 @@ static cmd_status_t h_drive_cycles_reset(wr_t *out)
 }
 
 
+/** op 14 - the back-EMF observer chain, drive_observer.c.
+  *
+  * Read-only: it runs beside the loop on the same samples and steers
+  * nothing, so a bench can watch a second answer to the same question
+  * without a shaft sensor. Angles in microradians, speeds in
+  * milliradians a second, the blend and the flux magnitude in
+  * micro-units, like everything else here.
+  */
+static cmd_status_t h_drive_observers(wr_t *out)
+{
+  const drive_t *d = Board_Drive();
+  const drive_obs_t *o = &d->obs;
+
+  wr_u8(out, o->valid ? 1U : 0U);
+  wr_i32(out, micro_of(o->theta));
+  wr_i32(out, milli_of(o->omega));
+  wr_i32(out, micro_of(o->blend));
+  wr_i32(out, micro_of(o->dual_theta));
+  wr_i32(out, milli_of(o->pll_omega));
+  wr_i32(out, micro_of(o->flux_only));
+  wr_i32(out, milli_of(o->flux_omega));
+  wr_i32(out, micro_of(o->lambda_hat));
+  /* What it is against: the loop's own estimate, so the difference is
+     one subtraction on the host and needs no second request. */
+  wr_i32(out, micro_of(d->theta_hat));
+  wr_i32(out, milli_of(d->omega_hat));
+  /* And the band it hands over across, so a host reading this needs no
+     copy of the constants. */
+  wr_i32(out, milli_of(o->blend_lo));
+  wr_i32(out, milli_of(o->blend_hi));
+  wr_i32(out, milli_of(o->wc));
+  return wr_ok(out) ? CMD_OK : CMD_ERR_DEVICE;
+}
+
+
 cmd_status_t cmd_drive_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
@@ -337,6 +372,7 @@ cmd_status_t cmd_drive_op(uint8_t op, rd_t *in, wr_t *out)
     case DRIVE_OP_MODEL_PARAM: return h_drive_model_param(in, out);
     case DRIVE_OP_MODEL:       return h_drive_model(out);
     case DRIVE_OP_MODEL_RESET: return h_drive_model_reset(out);
+    case DRIVE_OP_OBSERVERS:   return h_drive_observers(out);
     default:                   return CMD_ERR_VALUE;
   }
 }

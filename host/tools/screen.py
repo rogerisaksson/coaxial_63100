@@ -289,14 +289,16 @@ def open_rig(banner, **kwargs):
 
 
 def run_view(board_view, console, period, frames, draw, on_input=None,
-             tick=None, mouse=False):
+             tick=None, mouse=False, on_click=None):
     """The loop every view runs: draw, pace, take keys - until Q, ESC,
     Ctrl+C or `frames` frames.
 
     `draw()` returns one frame's renderable. `tick()` runs after it and
     returns True to end the run; `on_input(typed, moved)` takes the
-    frame's keys and wheel. Returns 'quit', 'menu', or None for frames
-    and Ctrl+C - the caller's `finally` puts the board back either way.
+    frame's keys and wheel, and `on_click(column, row)` each left press,
+    one-based, for a view that draws something to click on. Returns
+    'quit', 'menu', or None for frames and Ctrl+C - the caller's
+    `finally` puts the board back either way.
     """
     import time as _time
 
@@ -323,6 +325,9 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                     return leaving
                 if on_input is not None:
                     on_input(typed, moved)
+                if on_click is not None:
+                    for col, row in keys.clicked():
+                        on_click(col, row)
     except KeyboardInterrupt:
         return None
 
@@ -551,6 +556,7 @@ class Keys:
         self._quits = frozenset(quits)
         self.console = console
         self.mouse = mouse and console
+        self._clicked = []
         self._saved = None
         self._was_mode = None
         self._posix = None
@@ -705,6 +711,10 @@ class Keys:
         # 0 is the left button, 32 its drag bit.
         if button == 0 and kind == 'M':
             self._holding, self._grip = True, (col, row)
+            # The press is kept as well as the grip: a drag starts the
+            # same way a click does, and a view that draws something to
+            # click on needs the cell, not the delta.
+            self._clicked.append((col, row))
             return 0.0
         if button == 0 and kind == 'm':
             self._holding = False
@@ -719,6 +729,16 @@ class Keys:
     def dragged(self):
         """Left-drag cell deltas (dx, dy) since the last call, drained."""
         out, self._spun = self._spun, (0.0, 0.0)
+        return out
+
+    def clicked(self):
+        """Left-button presses as (column, row) since the last call.
+
+        Drained, so a click is acted on once however many frames it
+        takes to notice it. One-based, the way the terminal reports
+        them.
+        """
+        out, self._clicked = self._clicked, []
         return out
 
     def _drain(self):

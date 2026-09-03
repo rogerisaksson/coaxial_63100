@@ -33,7 +33,8 @@ DRIVE = os.path.join(REPO, 'drive')
 SOURCES = [os.path.join(DRIVE, 'test', 'harness.c'),
            os.path.join(DRIVE, 'src', 'drive.c'),
            os.path.join(DRIVE, 'src', 'drive_math.c'),
-           os.path.join(DRIVE, 'src', 'drive_model.c')]
+           os.path.join(DRIVE, 'src', 'drive_model.c'),
+           os.path.join(DRIVE, 'src', 'drive_observer.c')]
 
 TS = 20e-6
 TWO_PI = 2.0 * math.pi
@@ -82,6 +83,24 @@ class Drive:
         self.n_moments = lib.drv_moments_count()
         assert self.n_params == len(PARAMS), self.n_params
         assert self.n_states == len(STATES), self.n_states
+
+    def obs_sync(self, theta, omega):
+        """Hand the chain an estimate, the way the drive does on a mode."""
+        self.lib.drv_obs_sync(self.h, ctypes.c_float(theta),
+                              ctypes.c_float(omega))
+
+    def obs_step(self, va, vb, ia, ib):
+        """One observer step on stationary-frame voltage and current."""
+        self.lib.drv_obs_step(self.h, ctypes.c_float(va), ctypes.c_float(vb),
+                              ctypes.c_float(ia), ctypes.c_float(ib))
+
+    def obs(self):
+        """The chain's state: what drv_obs writes, named."""
+        buf = (ctypes.c_float * 8)()
+        self.lib.drv_obs(self.h, buf, 8)
+        return dict(zip(('theta', 'omega', 'blend', 'dual_theta',
+                         'dual_omega', 'flux_theta', 'flux_omega',
+                         'lambda_hat'), list(buf)))
 
     def close(self):
         self.lib.drv_free(self.h)
@@ -730,6 +749,117 @@ def test_virtual_sensorless(r, lib):
         d.close()
 
 
+def test_observer_chain(r, lib):
+    """The firmware's observer chain against the Python it was ported from.
+
+    foc_montecarlo.ipynb ranked five observers and picked this pair;
+    drive_observer.c is that pair in C. Both are driven with the same
+    voltages and currents from the same machine, so agreement here is
+    what says the notebook's numbers describe what the board will do.
+
+    Measured, degrees rms, at 63 V: 0.5 at 20 rad/s electrical, 1.1 at
+    500, 2.8 at 2000, 6.9 at 15 000 - the same in both to a tenth.
+    """
+    from coaxial import sensorless
+    from coaxial.loop import CurrentLoop, Machine, Signals
+    from coaxial.motor import BENCH_MOTOR
+
+    motor = BENCH_MOTOR
+    for w_e in (100.0, 2000.0, 10000.0):
+        d = Drive(lib)
+        d.params(r=motor.r, ld=motor.ld, lq=motor.lq, **{'lambda': motor.lam})
+        d.obs_sync(0.0, w_e)
+        dual = sensorless.DualFluxObserver(motor.r, motor.ld, motor.lam,
+                                           cross=20.0)
+        flux = sensorless.FluxObserver(motor.r, motor.ld, wc=20.0)
+        dual.omega = flux.omega = w_e
+        loop = CurrentLoop(hz=800.0, motor=motor, vdc=24.0)
+        plant = Machine(motor, vdc=24.0, noise=0.0, sub=4, locked=True)
+        plant.motor.omega = w_e
+        s = Signals()
+        s.iq_ref = 2.0
+        c_err, py_err = [], []
+        steps = int(0.4 / TS)
+        for k in range(steps):
+            s.t = k * TS
+            loop(s, TS)
+            plant(s, TS)
+            cs, sn = math.cos(s.theta), math.sin(s.theta)
+            va, vb = s.vd * cs - s.vq * sn, s.vd * sn + s.vq * cs
+            ia, ib = s.id * cs - s.iq * sn, s.id * sn + s.iq * cs
+            d.obs_step(va, vb, ia, ib)
+            th_d = dual.update(va, vb, ia, ib, TS)
+            th_f = flux.update(va, vb, ia, ib, TS)
+            g = min(1.0, max(0.0, (abs(dual.omega) - 800.0) / 2200.0))
+            x = (1 - g) * math.cos(th_d) + g * math.cos(th_f)
+            y = (1 - g) * math.sin(th_d) + g * math.sin(th_f)
+            if k > steps // 2:
+                c_err.append(sensorless._wrap(d.obs()['theta'] - s.theta))
+                py_err.append(sensorless._wrap(math.atan2(y, x) - s.theta))
+        rms = lambda v: math.degrees(math.sqrt(sum(e * e for e in v) / len(v)))
+        got, want = rms(c_err), rms(py_err)
+        r.check('observer chain at %.0f rad/s: the C matches the Python'
+                % w_e, abs(got - want) < 0.5,
+                '%.2f deg against %.2f' % (got, want))
+        # And it is worth having: an angle error under the line the
+        # notebook draws at 20 degrees, where the torque is still there.
+        r.check('observer chain at %.0f rad/s holds the rotor' % w_e,
+                got < 20.0, '%.2f deg' % got)
+        # The magnitude the flux model carries IS lambda, which is the
+        # one thing on this board that can see the magnets.
+        seen = d.obs()['lambda_hat'] / motor.lam
+        r.check('observer chain at %.0f rad/s recovers lambda' % w_e,
+                0.8 < seen < 1.25, '%.3f of the truth' % seen)
+        d.close()
+
+
+def test_observer_needs_a_handover(r, lib):
+    """It cannot acquire a speed from nothing, and that is by construction.
+
+    The PLL acquires at `pll_ki`, 8000 rad/s^2 - a quarter of a second to
+    reach 2000 rad/s. Started at rest against a rotor already turning it
+    reads a quarter turn out for the whole of a short run, because the
+    leak correction `sqrt(1 + (wc/w)^2)` divides by the speed it has not
+    got. drive_observer_sync is the hand-over, and drive.c calls it on
+    every mode change.
+    """
+    from coaxial import sensorless
+    from coaxial.loop import CurrentLoop, Machine, Signals
+    from coaxial.motor import BENCH_MOTOR
+
+    motor = BENCH_MOTOR
+    w_e = 4000.0
+    got = {}
+    for name, seed in (('cold', 0.0), ('handed over', w_e)):
+        d = Drive(lib)
+        d.params(r=motor.r, ld=motor.ld, lq=motor.lq, **{'lambda': motor.lam})
+        d.obs_sync(0.0, seed)
+        loop = CurrentLoop(hz=800.0, motor=motor, vdc=24.0)
+        plant = Machine(motor, vdc=24.0, noise=0.0, sub=4, locked=True)
+        plant.motor.omega = w_e
+        s = Signals()
+        s.iq_ref = 2.0
+        err = []
+        steps = int(0.3 / TS)
+        for k in range(steps):
+            s.t = k * TS
+            loop(s, TS)
+            plant(s, TS)
+            cs, sn = math.cos(s.theta), math.sin(s.theta)
+            d.obs_step(s.vd * cs - s.vq * sn, s.vd * sn + s.vq * cs,
+                       s.id * cs - s.iq * sn, s.id * sn + s.iq * cs)
+            if k > steps // 2:
+                err.append(sensorless._wrap(d.obs()['theta'] - s.theta))
+        got[name] = math.degrees(math.sqrt(sum(e * e for e in err) / len(err)))
+        d.close()
+    r.check('the chain handed an estimate holds the rotor',
+            got['handed over'] < 20.0, '%.1f deg' % got['handed over'])
+    r.check('and cold from rest it does not, which is why sync exists',
+            got['cold'] > got['handed over'] * 3.0,
+            'cold %.1f deg against %.1f handed over'
+            % (got['cold'], got['handed over']))
+
+
 def test_montecarlo(r, lib):
     """One of tools/montecarlo.py's jobs, in process: a drawn plant the
     controller was not told about, locked, spun and brought back."""
@@ -762,6 +892,7 @@ def test_montecarlo(r, lib):
 
 
 ROSTER = (test_math, test_mode_refusals, test_current_loop,
+          test_observer_chain, test_observer_needs_a_handover,
           test_trip_and_stage, test_if_spin, test_injection_map,
           test_saturation_map, test_observer_standstill, test_polarity,
           test_deadtime, test_sensorless_run, test_moments,

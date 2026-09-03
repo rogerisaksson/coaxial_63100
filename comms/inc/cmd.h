@@ -202,6 +202,7 @@ extern "C" {
 #define DRIVE_OP_MODEL_PARAM 11U  /**< u8 id, i32 value -> u8 took               */
 #define DRIVE_OP_MODEL       12U  /**< -> u8 source, i32 theta, omega, id, iq, vdc */
 #define DRIVE_OP_MODEL_RESET 13U  /**< the rotor back to theta0, at rest -> u8   */
+#define DRIVE_OP_OBSERVERS   14U  /**< -> the back-EMF chain beside the loop     */
 
 /** Device 4's ops: the gate drivers, the synced triple and the STO chain. */
 #define GATEDRIVERS_OP_STATE    0U   /**< -> flags, registers, triple, STO      */
@@ -288,7 +289,7 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 9U        /* 1: gate drivers op 10, alternate
+#define CMD_PROTO_MINOR 10U        /* 1: gate drivers op 10, alternate
                                      2: device 10, the drive; the DC link
                                         appended to gate drivers op 0
                                      3: a daq record ends with u16 count,
@@ -322,7 +323,11 @@ extern "C" {
                                      9: requests whose shape is fixed
                                         dispatch on their own CRC, not
                                         t3.5 (cmd_length.c) - a host may
-                                        drop its pre-TX gap for those */
+                                        drop its pre-TX gap for those
+                                    10: drive op 14 - the back-EMF
+                                        observer chain that runs beside
+                                        the loop (drive_observer.c),
+                                        read-only and steering nothing */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

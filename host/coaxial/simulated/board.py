@@ -7,6 +7,7 @@ from .analog import SimulatedAfe, SimulatedAnalog, SimulatedCalibration
 from .sensors import SimulatedAngle, SimulatedImu
 from .power import SimulatedGateDrivers, SimulatedPower, SimulatedThermal
 from .daq import SimulatedCapture, SimulatedClock, SimulatedDaq
+from ..observer import Observer
 from .drive import SimulatedDrive
 
 
@@ -48,7 +49,7 @@ class SimulatedBoard:
             self.analog = self.gpio = self.imu = refuse
             self.calibration = refuse
             self.angle = self.gate_drivers = self.capture = self.daq = refuse
-            self.drive = refuse
+            self.drive = self.observer = refuse
             self.clock = refuse
         else:
             self.system = SimulatedSystem(self.version_info)
@@ -61,6 +62,12 @@ class SimulatedBoard:
             self.angle = SimulatedAngle()
             self.gate_drivers = SimulatedGateDrivers()
             self.thermal = SimulatedThermal()
+            # THE SAME CLASS AS THE BOARD'S, not a stand-in for it.
+            # `Observer` is composed out of ops that already exist -
+            # the drive's, the shaft sensor's - so there is nothing
+            # here for it to talk to that differs, and a second
+            # implementation would only be a second thing to drift.
+            self.observer = Observer(self)
             self.power = SimulatedPower()
             self.capture = SimulatedCapture()
             self.clock = SimulatedClock()

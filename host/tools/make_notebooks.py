@@ -1016,8 +1016,85 @@ plt.show()"""),
 print('n', w['n'], 'i_peak', w['i_peak'])
 for name, f in w['fields'].items():
     print('%-4s n %-7s mean %s sd %s' % (name, f['n'], f['mean'], f['sd']))
-print('rho', [round(r, 4) for r in w['rho']])
-drive.model_reset()
+print('rho', [round(r, 4) for r in w['rho']])"""),
+    md("## The back-EMF chain\n\n"
+       "Op 14 answers a second observer, running beside the loop on the "
+       "same samples: `drive_observer.c`, the pair `foc_montecarlo.ipynb` "
+       "ranked first over the drawn plants - a dual flux model with a PLL "
+       "below 800 rad/s electrical, a leaking flux integrator with its lag "
+       "put back above 3000, blended on the unit vectors between. It "
+       "drives nothing. It is a second answer to the angle, from different "
+       "arithmetic, so the loop's estimate can be checked without a shaft "
+       "sensor.\n\n"
+       "The chain reads `v - R i`. A rotor at rest makes no back-EMF, so "
+       "`valid` is false below the leak's corner, and down there the "
+       "injection is the only thing that knows where the rotor is."),
+    code("""drive.model_reset()
+drive.model_param(j=2e-5, b=6e-5, load=0.0, noise=0.0)
+drive.setpoint(id_ref=0.0, iq_ref=0.05, theta=0.0, omega_target=0.0)
+drive.mode('sensorless')
+chain = []
+for iq in (0.05, 0.15, 0.35, 0.60):
+    drive.setpoint(iq_ref=iq)
+    settle = time.monotonic() + 3.0        # the rotor's j/b is 0.33 s
+    while time.monotonic() < settle:
+        drive.observers()
+        time.sleep(0.02)
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < 1.5:
+        o = drive.observers()
+        m = drive.model()
+        chain.append((m['omega'], o['error'], m['error'], o['blend'],
+                      o['lambda_hat'], o['valid']))
+        time.sleep(0.02)
+last = drive.observers()
+drive.off()
+print({k: last[k] for k in ('valid', 'blend', 'blend_lo', 'blend_hi', 'wc')})"""),
+    md("`o['error']` is the chain minus the loop's estimate, both out of ONE "
+       "reply. The rotor's true angle is in another, and at 4000 rad/s "
+       "electrical a 15 ms round trip is 60 radians - which is why the two "
+       "columns below are read from the replies that carry them, not "
+       "differenced across the link.\n\n"
+       "Four torque currents, each let settle before it is sampled: the "
+       "speeds they hold span the hand-over, so the table below is the "
+       "blend crossing from one observer to the other rather than one "
+       "operating point four times."),
+    code("""import math
+
+def wrap(a):
+    return (a + math.pi) % (2.0 * math.pi) - math.pi
+
+def rms_deg(v):
+    return math.degrees(math.sqrt(sum(e * e for e in v) / len(v)))
+
+pp = drive.params()['motor_pole_pairs'] or 1
+edges = [0.0, 500.0, 1200.0, 2500.0, 1e9]
+print('%10s %8s %5s %11s %13s %7s'
+      % ('rad/s el', 'rpm', 'n', 'loop deg', 'chain-loop deg', 'blend'))
+for lo, hi in zip(edges, edges[1:]):
+    band = [r for r in chain if lo <= abs(r[0]) < hi]
+    if not band:
+        continue
+    speed = sum(abs(r[0]) for r in band) / len(band)
+    print('%10.0f %8.0f %5d %11.2f %13.2f %7.2f'
+          % (speed, speed / pp * 60.0 / math.tau, len(band),
+             rms_deg([wrap(r[2]) for r in band]),
+             rms_deg([wrap(r[1]) for r in band]),
+             sum(r[3] for r in band) / len(band)))
+print('lambda   %.5f V.s carried, %.5f in the record'
+      % (last['lambda_hat'], drive.params()['motor_lambda_uvs']))"""),
+    code("""fig, axes = plt.subplots(3, 1, sharex=True, figsize=(9, 7))
+t = [i * 0.02 for i in range(len(chain))]
+axes[0].plot(t, [r[0] for r in chain], label='omega (model)')
+axes[0].set_ylabel('rad/s el'); axes[0].legend()
+axes[1].plot(t, [math.degrees(wrap(r[2])) for r in chain], label='loop - rotor')
+axes[1].plot(t, [math.degrees(wrap(r[1])) for r in chain], label='chain - loop')
+axes[1].set_ylabel('error deg'); axes[1].legend()
+axes[2].plot(t, [r[3] for r in chain], label='blend: 0 dual, 1 flux')
+axes[2].plot(t, [1.0 if r[5] else 0.0 for r in chain], label='valid')
+axes[2].set_xlabel('s'); axes[2].legend()
+plt.show()"""),
+    code("""drive.model_reset()
 drive.source('adc')
 device.close()"""),
     md("## Conclusions"),
@@ -1035,7 +1112,12 @@ print('exit             %d TIM1 ticks past the trigger, of %d in a period'
       % (state['exit_ticks_max'], 2 * 2375))
 print('virtual step     sample %d, law %d, advance %d cycles'
       % (state['cycles']['sample'], state['cycles']['step'], state['cycles']['advance']))
-print('window           %d periods, i_peak %.3f A' % (w['n'], w['i_peak']))"""),
+print('window           %d periods, i_peak %.3f A' % (w['n'], w['i_peak']))
+held = [abs(wrap(r[1])) for r in chain if r[5]]
+print('chain            %.2f deg rms from the loop where it is valid, %d of %d'
+      % (rms_deg(held) if held else float('nan'), len(held), len(chain)))
+print('hand-over        dual below %.0f rad/s, flux above %.0f, blended between'
+      % (last['blend_lo'], last['blend_hi']))"""),
     md("Device 10 has two sample sources. On the converters the law reads the "
        "injected triple; on the model it reads a PMSM the firmware steps in "
        "the same interrupt, so it runs with the AFE off, no stage, and a "
@@ -1049,7 +1131,19 @@ print('window           %d periods, i_peak %.3f A' % (w['n'], w['i_peak']))"""),
        "cache on and -O2 it is 6 756, and the board steps at 2 922 cycles a "
        "period with the drivers unpowered (FINDINGS, *The caches were off*).\n\n"
        "`rho` is the innovation's autocorrelation: a residual that is not "
-       "white is a model that is wrong, and `ljung_box` judges it."),
+       "white is a model that is wrong, and `ljung_box` judges it.\n\n"
+       "The chain is arithmetic this board already has. There is no "
+       "phase-voltage sense on this hardware, so the voltage it integrates "
+       "is the commanded duty against the measured DC link, and the "
+       "current is the three phase channels at 3.2 mA a count. Its "
+       "`lambda_hat` is the magnitude the flux model carries, which is the "
+       "one quantity here that sees the magnets - the NTC is on the PCB "
+       "and the rotor is across an air gap.\n\n"
+       "Against the stand-in the chain answers off the stand-in's own "
+       "rotor, so its error column is zero by construction; the C runs on "
+       "the board. `test_drive_core.py` holds that C to the Python it was "
+       "ported from, over plants drawn with the Monte Carlo's own "
+       "tolerances."),
 ]
 
 # ------------------------------------------------------------ propeller_sweep

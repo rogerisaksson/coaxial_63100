@@ -33,6 +33,7 @@ DRIVE_OP_SOURCE = 10
 DRIVE_OP_MODEL_PARAM = 11
 DRIVE_OP_MODEL = 12
 DRIVE_OP_MODEL_RESET = 13
+DRIVE_OP_OBSERVERS = 14
 
 MODES = {'off': 0, 'volt': 1, 'hold': 2, 'sensorless': 3, 'polarity': 4}
 MODE_NAMES = {v: k for k, v in MODES.items()}
@@ -289,6 +290,33 @@ class Drive(Subsystem):
             out['omega_hat'] = r.i32() / 1e3
             err = out['theta_hat'] - out['theta']
             out['error'] = (err + math.pi) % (2.0 * math.pi) - math.pi
+        return out
+
+    def observers(self):
+        """The back-EMF observer chain that runs beside the loop, in SI.
+
+        `drive_observer.c`: a dual flux model with a PLL below the band,
+        a leaking flux model above it, blended across. It steers nothing
+        - it is a second answer to the same question, on the same
+        samples, so a bench can see what a sensorless estimate is worth
+        without fitting a shaft sensor.
+
+        `error` is the chain against the loop's own estimate, which is
+        the number a bench watches: two observers disagreeing is the
+        first thing either of them being wrong looks like.
+        """
+        r = Reader(self._op(DRIVE_OP_OBSERVERS))
+        out = {'valid': bool(r.u8()),
+               'theta': r.i32() / 1e6, 'omega': r.i32() / 1e3,
+               'blend': r.i32() / 1e6,
+               'dual_theta': r.i32() / 1e6, 'dual_omega': r.i32() / 1e3,
+               'flux_theta': r.i32() / 1e6, 'flux_omega': r.i32() / 1e3,
+               'lambda_hat': r.i32() / 1e6,
+               'theta_hat': r.i32() / 1e6, 'omega_hat': r.i32() / 1e3,
+               'blend_lo': r.i32() / 1e3, 'blend_hi': r.i32() / 1e3,
+               'wc': r.i32() / 1e3}
+        err = out['theta'] - out['theta_hat']
+        out['error'] = (err + math.pi) % (2.0 * math.pi) - math.pi
         return out
 
     def model_reset(self):

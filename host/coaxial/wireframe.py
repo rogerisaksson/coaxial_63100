@@ -27,6 +27,7 @@ import math
 #: 1.6 mm laminate reads as a single line, and the two rim rings are what
 #: sells the turn.
 from .orientation import BORE, OUTER                       # noqa: E402
+from .raster import BRAILLE, BRAILLE_BITS                  # noqa: E402
 
 THICK = 0.05
 
@@ -842,16 +843,6 @@ OUTLINE_CHORD = 0.003
 OUTLINE_LIFT = 4.5
 OUTLINE_BASE = 3.0
 
-#: The line's pixels: braille, a 2x4 dot matrix per cell, so an edge
-#: rasters at twice the column and four times the row resolution and
-#: reads as a fine dotted line - the same dots the chat page's spinner
-#: spins, asked for by the bench as "pixels". Dots only: an ASCII
-#: stroke fallback (`- | / \`) was built and taken out on the
-#: bench's word - the slashes read as jank next to the dots, and the
-#: console that runs this already shows the spinner.
-BRAILLE = 0x2800
-#: Bit for (column, row) of the 2x4 cell, the braille standard's order.
-BRAILLE_BITS = ((0x01, 0x02, 0x04, 0x40), (0x08, 0x10, 0x20, 0x80))
 
 
 def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,

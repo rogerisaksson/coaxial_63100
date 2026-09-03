@@ -315,6 +315,53 @@ API void drv_model_state(const drive_t *d, float *v)
 }
 
 
+/** The observer chain's state, drive_observer.c, in the order
+  * test_drive_core.py and coaxial.drive read it: the blend, then each
+  * observer on its own, then what the chain says about the machine. */
+/** The observer chain on its own, fed the stationary-frame voltage and
+  * current directly. The suite drives the same signals through this and
+  * through coaxial.sensorless, so the C and the Python that ranked these
+  * observers are held to the same numbers. */
+API void drv_obs_step(drive_t *d, float va, float vb, float ia, float ib)
+{
+  drive_observer_step(&d->obs, &d->p, va, vb, ia, ib, d->ts);
+}
+
+
+API void drv_obs_sync(drive_t *d, float theta, float omega)
+{
+  drive_observer_sync(&d->obs, &d->p, theta, omega);
+}
+
+
+API void drv_obs_reset(drive_t *d)
+{
+  drive_observer_init(&d->obs, &d->p, d->ts);
+}
+
+
+API int drv_obs_count(void)
+{
+  return 8;
+}
+
+
+API void drv_obs(const drive_t *d, float *v, int n)
+{
+  const float got[8] = {
+    d->obs.theta, d->obs.omega, d->obs.blend,
+    d->obs.dual_theta, d->obs.pll_omega,
+    d->obs.flux_only, d->obs.flux_omega,
+    d->obs.lambda_hat,
+  };
+
+  for (int k = 0; (k < n) && (k < 8); k++)
+  {
+    v[k] = got[k];
+  }
+}
+
+
 API int drv_step_virtual(drive_t *d, float *duty3)
 {
   drive_out_t out;

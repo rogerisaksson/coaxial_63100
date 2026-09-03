@@ -199,12 +199,12 @@ by a background thread - probed inline it cost 2 029 ms a frame.
 
 ## The test system
 
-Twenty-five suites, 2436 checks, counted in `host/tests/.counts.json`
+Twenty-five suites, 2486 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 |---|---|---|
-| test_structure.py | 582 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
+| test_structure.py | 590 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 218 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 216 | the runner, the path map, the docs index |
 | test_simulated.py | 206 | the stand-in and the renderers |
@@ -212,10 +212,10 @@ by `counts.py`:
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
 | test_conformance.py | 110 | the live board against PROTOCOL.md, `--conformance` |
 | test_ollama_link.py | 96 | the link diagnosis |
-| test_sensorless.py | 79 | the design arithmetic, the commissioning and the motion verbs against the stand-in |
+| test_sensorless.py | 110 | the design arithmetic, the commissioning and the motion verbs against the stand-in |
 | test_modbus_core.py | 77 | the Modbus core through ctypes, clock injected, the oracle's prefix sweep |
 | test_daq_api.py | 75 | the acquisition front door against the stand-in |
-| test_drive_core.py | 70 | the control law against the motor model through the host gcc, the Monte Carlo included |
+| test_drive_core.py | 81 | the control law against the motor model through the host gcc, the Monte Carlo included |
 | test_mcp.py | 46 | the MCP server |
 | test_render.py | 42 | the 3D engine stage by stage against an analytic oracle |
 | test_filter_core.py | 42 | the anti-alias chain against its transfer function |

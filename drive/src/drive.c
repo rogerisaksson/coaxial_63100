@@ -91,6 +91,7 @@ void drive_init(drive_t *d, float ts)
   drive_model_defaults(&d->model.p);
   drive_model_init(&d->model);
   d->source = DRIVE_SOURCE_ADC;
+  drive_observer_init(&d->obs, &d->p, ts);
   d->inj_sign = 1.0f;
   loop_reset(d);
 }
@@ -154,6 +155,9 @@ const char *drive_set_mode(drive_t *d, drive_mode_t mode, bool stage_enabled,
     d->pol_neg = 0.0f;
   }
   d->mode = mode;
+  /* The chain cannot acquire a speed from nothing, so it takes the
+     estimate the drive already holds whenever a mode starts. */
+  drive_observer_sync(&d->obs, &d->p, d->theta_hat, d->omega_hat);
   return NULL;
 }
 
@@ -616,6 +620,11 @@ bool drive_step(drive_t *d, const drive_sample_t *in, bool stage_enabled,
   drive_inv_park_cs(vd, vq, c, s, &va, &vb);
   d->va_out = va;
   d->vb_out = vb;
+
+  /* The observer chain, on the same samples and steering nothing: the
+     voltage the modulator is about to apply and the current just
+     measured, both in the stationary frame. drive_observer.c. */
+  drive_observer_step(&d->obs, &d->p, va, vb, alpha, beta, d->ts);
 
   /* the inverter's error, cancelled before it happens */
   float comp[DRIVE_PHASES];

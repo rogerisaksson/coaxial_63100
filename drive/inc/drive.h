@@ -201,6 +201,55 @@ typedef struct
   uint32_t rng;
 } drive_model_t;
 
+/** THE BACK-EMF OBSERVER CHAIN, drive_observer.c. Runs beside the
+  * injection and the PLL on the same samples; commutation is unchanged.
+  *
+  * The constants are the ones the Monte Carlo measured over drawn plants
+  * - foc_montecarlo.ipynb - and every one of them scales off `wc`, the
+  * leak that decides where the plain flux model starts working. */
+#define DRIVE_OBS_WC           20.0f   /**< the leak, rad/s electrical   */
+#define DRIVE_OBS_CROSS        20.0f   /**< current model pull, rad/s    */
+#define DRIVE_OBS_PLL_KP      200.0f
+#define DRIVE_OBS_PLL_KI     8000.0f
+#define DRIVE_OBS_BLEND_LO     40.0f   /**< x wc: all dual below         */
+#define DRIVE_OBS_BLEND_HI    150.0f   /**< x wc: all flux above         */
+#define DRIVE_OBS_SPEED_FILTER 300.0f  /**< on the flux model's own speed */
+
+/** What the chain holds. Fed by drive_observer_step, read by 0x6E device
+  * 10 op 14 - nothing here steers the machine. */
+typedef struct
+{
+  float psi_a, psi_b;        /**< dual: the voltage model, held down      */
+  float leak_a, leak_b;      /**< plain: the leaking integrator           */
+  float pll_theta, pll_omega;/**< dual: the PLL's state                   */
+  float flux_theta;          /**< plain: its angle                        */
+  float flux_omega;          /**< plain: its filtered speed               */
+  float dual_theta;          /**< what each reported this step            */
+  float flux_only;
+  float theta;               /**< the blend, rad electrical               */
+  float omega;               /**< the blend's speed, rad/s electrical     */
+  float blend;               /**< 0 all dual, 1 all flux                  */
+  float lambda_hat;          /**< |psi_r| - the magnets, across the gap   */
+  float wc, cross, pll_kp, pll_ki, blend_lo, blend_hi;
+  float ts;
+  bool  valid;               /**< above wc, so there is a back-EMF at all */
+} drive_obs_t;
+
+/** Start the chain from the parameters the drive is running. */
+void drive_observer_init(drive_obs_t *o, const drive_params_t *p, float ts);
+
+/** Hand the chain the estimate the drive already holds. The PLL cannot
+  * acquire a speed from nothing in any useful time, so this is how it
+  * starts and how it recovers. */
+void drive_observer_sync(drive_obs_t *o, const drive_params_t *p,
+                         float theta, float omega);
+
+/** One step, on the applied voltage and the measured current, both in
+  * the stationary frame. Alpha and beta, not dq: the whole point is that
+  * it never uses the angle it is estimating. */
+void drive_observer_step(drive_obs_t *o, const drive_params_t *p,
+                         float va, float vb, float ia, float ib, float ts);
+
 /** The whole controller. Owned by the caller; drive_init fills it. */
 typedef struct
 {
@@ -225,6 +274,9 @@ typedef struct
   float eps_amps;                    /**< last demodulated error, A       */
   float ih;                          /**< last HF current amplitude, A    */
   float e_bemf;                      /**< last back-EMF angle error, rad  */
+
+  /* the back-EMF observer chain, beside it */
+  drive_obs_t obs;
 
   /* the command frame */
   float theta_cmd;

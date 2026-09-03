@@ -275,6 +275,7 @@ class FluxObserver(_BackEmfObserver):
         super().__init__()
         self.r, self.l, self.wc = r, l, wc
         self.psi_alpha = self.psi_beta = 0.0
+        self.lam_hat = 0.0
 
     def update(self, v_alpha, v_beta, i_alpha, i_beta, dt):
         """One step. Returns the estimated electrical angle."""
@@ -290,8 +291,13 @@ class FluxObserver(_BackEmfObserver):
         cos_l, sin_l = math.cos(lead), math.sin(lead)
         psi_a = gain * (self.psi_alpha * cos_l - self.psi_beta * sin_l)
         psi_b = gain * (self.psi_alpha * sin_l + self.psi_beta * cos_l)
-        return self._advance(math.atan2(psi_b - self.l * i_beta,
-                                        psi_a - self.l * i_alpha), dt)
+        rotor_a = psi_a - self.l * i_alpha
+        rotor_b = psi_b - self.l * i_beta
+        #: The magnitude the rotor flux carries, which IS lambda wherever
+        #: `R i` is small against `v` - the one quantity here that sees the
+        #: magnets. Low down an error in R lands in it instead.
+        self.lam_hat = math.hypot(rotor_a, rotor_b)
+        return self._advance(math.atan2(rotor_b, rotor_a), dt)
 
 
 class ExtendedStateObserver(_BackEmfObserver):

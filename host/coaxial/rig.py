@@ -284,6 +284,12 @@ class Coaxial63100(Acquisition):
             self.port, baud=self.baud, unit=self.unit, simulated=simulated)
         self.board = self.session.board
         self.gates = GateStage(self.board)
+        # THE WAY BACK. `observer.autodetect` drives the commissioning
+        # steps, which arm the stage and read the shunt scaling - rig
+        # things, not board things - and a subsystem only ever holds the
+        # board. Set here, where the rig takes ownership, so a subsystem
+        # never has to guess how it was reached.
+        self.board.rig = self
         self.simulated = not self.origin.real
 
         if self.power_afe:
