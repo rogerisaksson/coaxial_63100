@@ -113,6 +113,20 @@ typedef struct
     */
   float ntc_sees_drivers;
 
+  /** How slowly the modelled thermistor follows, seconds.
+    *
+    * NOT A NEW MEASUREMENT - it is the leg node's own RC, `capacity x
+    * to_board`, on the argument that a sensor sitting in a lump cannot be
+    * quicker than the lump. A thermistor a centimetre off is slower
+    * still, so this is a FLOOR on the lag and not a fit: it says the
+    * modelled reading may not outrun the copper, which is the sanity the
+    * algebra had none of.
+    *
+    * Zero means no lag and the reading is the algebra outright, which is
+    * what it was before this existed.
+    */
+  float ntc_tau_s;
+
   /** The NTC's constant offset over the board, in K. Mounting and the
     * channel's own calibration, not physics: 6.00 measured against a camera
     * in the passive state, where no driver was warming anything. */
@@ -125,6 +139,22 @@ typedef struct
   thermal_cfg_t cfg;
   float t[THERMAL_NODES];   /**< degrees C per node          */
   float ambient;            /**< estimated, not measured     */
+  /** The modelled thermistor reading, LAGGED. Not a node: a state.
+    *
+    * A THERMISTOR HAS MASS AND THE ALGEBRA DID NOT. `thermal_expected_ntc`
+    * used to be a function of the driver node alone, so a modelled sensor
+    * followed a small fast lump instantly - 18 W into 0.12 J/K is 150 K a
+    * second, and the page showed an NTC doing exactly that. A thermistor a
+    * centimetre from the nearest switch node cannot: the heat has to cross
+    * copper that has its own mass, and what arrives is low passed.
+    *
+    * So the algebra is the TARGET and this relaxes toward it at
+    * `ntc_tau_s`. Steady state is unchanged - the campaign is reproduced
+    * exactly - and the rate is bounded by something physical rather than
+    * by a clamp: the fastest it can move is the distance to the target
+    * over the constant.
+    */
+  float ntc;
   bool  settled;            /**< true once the anchor has converged */
   uint32_t steps;
 } thermal_t;

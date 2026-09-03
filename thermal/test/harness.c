@@ -113,6 +113,13 @@ API float thm_at(const thermal_t *th, int node)
 }
 
 
+/** The modelled thermistor reading - the lagged state, not the algebra. */
+API float thm_ntc(const thermal_t *th)
+{
+  return (th == NULL) ? NAN : thermal_expected_ntc(th);
+}
+
+
 API float thm_capacity(const thermal_t *th, int node)
 {
   if ((th == NULL) || (node < 0) || (node >= (int)THERMAL_NODES))

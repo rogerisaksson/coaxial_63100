@@ -105,7 +105,31 @@ void thermal_defaults(thermal_cfg_t *cfg)
   cfg->node[THERMAL_MCU].die_over_node = 27.0f;
   cfg->node[THERMAL_AFE].die_over_node = 0.5f;
 
-  cfg->ntc_sees_drivers = 1.055f;
+  /* ONE, not a fit: the thermistor sits IN the lump the node stands for,
+     beside the middle gate driver, so its rise IS that node's rise and the
+     number is ONE BY CONSTRUCTION rather than fitted.
+
+     IT WAS 1.055, solved from the one switching camera state, and a slope
+     above one is not something a sensor can have: `expected_ntc` then read
+     the thermistor hotter than the node heating it at every rise - 6.0 K
+     over it at rest, 11.5 K at a 100 K rise. Where the 0.055 came from is
+     measurable: the local copper of leg V rose 0.20 W x 45.6 K/W = 9.12 K in
+     that state, so a thermistor in it should have read 55.12 C and the
+     camera read 55.6. A 0.48 K miss between two instruments, turned into a
+     slope by dividing by 9.12.
+
+     What is left is the OFFSET, and that one is a reading artefact rather
+     than a temperature - mounting and the channel's own calibration, taken
+     in the passive state where no driver was warming anything.
+
+     The die is still missing: `driver_*` is the local copper a camera
+     can see, and the junction sits above it by the FET's own thermal
+     resistance, which no node here represents. The SOA ceilings are
+     junction limits applied to a copper temperature. FINDINGS. */
+  cfg->ntc_sees_drivers = 1.0f;
+  /* The leg node's own RC: a sensor in a lump is not quicker than the
+     lump, and a thermistor a centimetre off is slower still. */
+  cfg->ntc_tau_s = 0.35f / 3.0f * 45.6f;
   cfg->ntc_offset       = 6.00f;
 }
 
@@ -489,7 +513,20 @@ void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius)
     th->t[i] = celsius;
   }
   th->ambient = celsius;
+  /* The lagged reading starts where everything else does, plus whatever
+     the channel offset is: a first reading, not a ramp from nowhere. */
+  th->ntc = celsius + th->cfg.ntc_offset;
 }
+
+/** Where the thermistor is HEADING - the algebra, without the lag. */
+static float ntc_target(const thermal_t *th)
+{
+  const float board = th->t[THERMAL_BOARD];
+  const float rise  = th->t[THERMAL_NTC_NEIGHBOUR] - board;
+
+  return board + th->cfg.ntc_sees_drivers * rise + th->cfg.ntc_offset;
+}
+
 
 float thermal_expected_ntc(const thermal_t *th)
 {
@@ -497,9 +534,9 @@ float thermal_expected_ntc(const thermal_t *th)
   {
     return NAN;
   }
-  const float board = th->t[THERMAL_BOARD];
-  const float rise  = th->t[THERMAL_NTC_NEIGHBOUR] - board;
-  return board + th->cfg.ntc_sees_drivers * rise + th->cfg.ntc_offset;
+  /* THE LAGGED STATE, not the target. With no lag configured, or before
+     the first step has run, they are the same number. */
+  return (th->cfg.ntc_tau_s > 0.0f) ? th->ntc : ntc_target(th);
 }
 
 float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
@@ -623,6 +660,24 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
     const float bulk = thermal_board_from_ntc(&th->cfg, seen->ntc_c, rise);
     th->t[THERMAL_BOARD] += k * (bulk - th->t[THERMAL_BOARD]);
     th->settled = false;
+  }
+
+  /* THE THERMISTOR FOLLOWS, it does not jump. First order toward the
+     algebra at `ntc_tau_s`, clamped like every other step here so a dt
+     bigger than the constant lands ON the target rather than past it. */
+  if (th->cfg.ntc_tau_s > 0.0f)
+  {
+    float share = dt_s / th->cfg.ntc_tau_s;
+
+    if (share > 1.0f)
+    {
+      share = 1.0f;
+    }
+    th->ntc += (ntc_target(th) - th->ntc) * share;
+  }
+  else
+  {
+    th->ntc = ntc_target(th);
   }
 
   th->steps++;

@@ -66,6 +66,8 @@ class Model:
         lib.thm_at.argtypes = [ctypes.c_void_p, ctypes.c_int]
         lib.thm_capacity.restype = ctypes.c_float
         lib.thm_capacity.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        lib.thm_ntc.restype = ctypes.c_float
+        lib.thm_ntc.argtypes = [ctypes.c_void_p]
         self.lib = lib
         self.n = lib.thm_nodes()
         self.slots = lib.thm_budget_slots()
@@ -83,6 +85,9 @@ class Model:
 
     def capacity(self, node):
         return self.lib.thm_capacity(self.h, NODES.index(node))
+
+    def ntc(self):
+        return self.lib.thm_ntc(self.h)
 
     def step(self, watt, dt_s, seen=(math.nan, math.nan, math.nan)):
         self.lib.thm_step(self.h, self._floats(self._watt(watt)),
@@ -560,6 +565,62 @@ def test_conduction_is_a_mean_square_not_a_sample(report, lib):
                  abs(fwd['regulators'] - back['regulators']) < 1e-6)
 
 
+def test_the_thermistor_has_mass(report, lib):
+    """A sensor a centimetre from the silicon cannot slew like silicon.
+
+    THE SANITY RULE THE ALGEBRA HAD NONE OF. `thermal_expected_ntc` was a
+    function of the driver node alone, so the modelled reading followed a
+    small fast lump instantly - 18 W into 0.12 J/K is 150 K a second, and
+    the page showed an NTC doing exactly that. Heat has to cross copper
+    that has its own mass, and what arrives is low passed.
+
+    The lag is the leg node's own RC, on the argument that a sensor in a
+    lump is not quicker than the lump - a floor, not a fit. Steady state
+    is untouched, which is the point: this bounds the RATE and nothing
+    else.
+    """
+    # ALL THREE LEGS. The thermistor watches leg V, so a load on U alone
+    # leaves the target where it started and the check measures nothing -
+    # which is what the first version of it did.
+    peak = 100.0
+    watt = power(lib, phase_amps=(peak, -peak / 2, -peak / 2),
+                 duty=(0.5, 0.5, 0.5), link_volts=48.0, switching=True)
+    model = Model(lib)
+    start = model.ntc()
+    fastest, was = 0.0, start
+    for _ in range(10):
+        model.step(watt, 0.1)
+        fastest = max(fastest, (model.ntc() - was) / 0.1)
+        was = model.ntc()
+    rose = model.ntc() - start
+    report.check('a hard burst does not move the reading 60 K in a second',
+                 rose < 60.0, '%.1f K in the first second' % rose)
+    report.check('and the fastest it climbs is bounded by the copper, not '
+                 'by the silicon it is watching',
+                 fastest < 60.0, '%.1f K/s at its steepest' % fastest)
+
+    # THE NODE IT WATCHES IS FREE TO SLEW - only the reading is not. A lag
+    # that slowed the model itself would be a slower envelope, and the
+    # envelope is the one thing that must not be.
+    report.check('the driver node itself is not slowed by it',
+                 model.at('driver_u') - AMBIENT > rose,
+                 'driver +%.1f K against the reading +%.1f K'
+                 % (model.at('driver_u') - AMBIENT, rose))
+
+    # AND IT ARRIVES. A lag is not a cap: given time the reading reaches
+    # the algebra, so the campaign's steady state is untouched.
+    # Long enough for the BOARD to settle too - its own constant is
+    # 49 J/K across 8.33 K/W, near seven minutes, and a reading chasing a
+    # target that is itself still climbing lands behind it.
+    for _ in range(20000):
+        model.step(watt, 1.0)
+    board = model.at('board')
+    target = board + (model.at('driver_v') - board) + 6.0
+    report.check('given time it lands exactly where the algebra says',
+                 abs(model.ntc() - target) < 0.1,
+                 '%.2f C against %.2f' % (model.ntc(), target))
+
+
 def test_it_refuses_nothing_and_returns_no_codes(report, lib):
     """No limit set is not an error, it is a node nobody constrained.
 
@@ -622,6 +683,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_worst_node_is_the_one_acted_on,
           test_the_conduction_is_split_where_it_is_made,
           test_conduction_is_a_mean_square_not_a_sample,
+          test_the_thermistor_has_mass,
           test_it_refuses_nothing_and_returns_no_codes,
           test_the_time_left_is_reported_or_not_claimed)
 

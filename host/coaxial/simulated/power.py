@@ -100,6 +100,10 @@ class SimulatedThermal:
         self._derate_held = 1.0
         self._derate_at = None
         self._node = {n: thermal.AMBIENT for n in self.NODES}
+        #: THE READING, LAGGED. See `thermal.NTC_TAU_S`: the algebra had
+        #: no mass, so a modelled thermistor followed a small fast node
+        #: instantly and the page showed one climbing like silicon.
+        self._ntc = thermal.AMBIENT + thermal.NTC_OFFSET
         self._at = None
 
     def _advance(self):
@@ -212,6 +216,12 @@ class SimulatedThermal:
             target = board + power.get(name, 0.0) * r
             self._node[name] += (target - self._node[name]) * \
                 min(1.0, dt / tau)
+        # THE READING FOLLOWS THE NODES, it does not jump with them.
+        # `thermal.NTC_TAU_S` has why: the algebra had no mass and a
+        # modelled thermistor climbed like the silicon it watches.
+        want = thermal.expected_ntc(
+            board, self._node[thermal.NTC_NEIGHBOUR] - board)
+        self._ntc += (want - self._ntc) * min(1.0, dt / thermal.NTC_TAU_S)
 
     def _power(self, dt, seen):
         """Watts per node, worked out from the sample. The observer's job.
@@ -245,8 +255,11 @@ class SimulatedThermal:
         self._advance()
         board = self._node['board']
         return {
-            'ntc': thermal.expected_ntc(
-                board, self._node[thermal.NTC_NEIGHBOUR] - board),
+            # LAGGED, where `expected_ntc` below is the algebra it heads
+            # for. The board reports both for the same reason: what the
+            # thermistor says and what the model expects it to say are two
+            # facts, and their difference is the observer's report card.
+            'ntc': self._ntc,
             'nodes': dict(self._node),
             'ambient': thermal.AMBIENT,
             'expected_ntc': thermal.expected_ntc(
