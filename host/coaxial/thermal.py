@@ -160,6 +160,48 @@ def settled_fraction(minutes, cfg=CFG):
     return 1.0 - math.exp(-minutes / tau_minutes(cfg))
 
 
+def phase_power(amps_rms, r_phase, switching=True, cfg_power=None):
+    """Power per node at `amps_rms` a phase: conduction on the phases,
+    the drivers' share where the stage is switching, the housekeeping
+    always.
+
+    `r_phase` is what the current sees - the FET's Rds(on) and the shunt
+    together, which `coaxial.inverter` holds. One definition, because a
+    burst plan and a continuous rating that disagree about it disagree
+    about everything downstream.
+    """
+    out = dict(cfg_power or POWER_SWITCHING)
+    if not switching:
+        for name in DRIVERS:
+            out[name] = 0.0
+    for name in PHASES:
+        out[name] = amps_rms * amps_rms * r_phase
+    return out
+
+
+def continuous_amps(r_phase, ceiling_c, cfg=CFG, ambient=AMBIENT,
+                    rounds=60):
+    """Amps rms a phase the board holds for ever, against `ceiling_c`.
+
+    Where the worst node's equilibrium reaches the ceiling: below it a
+    state can be held, above it every state is timed and the board's own
+    envelope is what ends it. Bisected rather than solved, because the
+    worst node is not always the same one - at low current it is the
+    regulators and only later a phase.
+    """
+    def worst(amps):
+        at = steady(phase_power(amps, r_phase), cfg=cfg, ambient=ambient)
+        return max(at[name] for name in NODES)
+
+    lo, hi = 0.0, 1000.0
+    if worst(lo) > ceiling_c:
+        return 0.0
+    for _ in range(rounds):
+        mid = 0.5 * (lo + hi)
+        lo, hi = (mid, hi) if worst(mid) < ceiling_c else (lo, mid)
+    return lo
+
+
 def calibrate(camera, board_c, power=None):
     """Node resistances from a thermal camera's degrees, K/W.
 

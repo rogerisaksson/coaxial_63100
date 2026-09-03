@@ -1,6 +1,7 @@
 """The sensorless design arithmetic: what the measurements buy.
 
-Pure functions, no board. The commissioning (commission.py) measures sigma_i,
+No board. The functions are pure; the two observers at the end carry the
+state an observer is. The commissioning (commission.py) measures sigma_i,
 R, Ld, Lq, lambda and the dead-time curve; this turns them into the
 injection to run, the loop and rotor observer gains to run it with, the speed the
 back-EMF takes over at, and the decision between injection and an I/f start.
@@ -214,3 +215,128 @@ def summary(zero_speed, snr_db, min_speed_pct, iloop_hz, sigma_theta_deg,
             '%.0f Hz, sigma_theta %.1f deg at %.0f %%'
             % ('yes' if zero_speed else 'no', snr_db, min_speed_pct,
                iloop_hz, sigma_theta_deg, at_pct))
+
+
+#: A back-EMF observer's speed estimate comes out of its own angle, so it
+#: needs a filter to be usable: this is the corner, in rad/s electrical.
+#: Fast enough to follow the ramps the drive commands, slow enough that the
+#: angle's own noise does not become speed noise.
+OMEGA_FILTER_RAD_S = 300.0
+
+
+def _wrap(angle):
+    """To (-pi, pi]."""
+    return (angle + math.pi) % TWO_PI - math.pi
+
+
+class _BackEmfObserver:
+    """What the two back-EMF observers share: a filtered speed off their
+    own angle, and the wrapping that goes with it.
+
+    Both estimate the rotor's angle from the stator equation rather than
+    from an injected signal, so both need the speed for their own lag
+    compensation, and neither has a speed to start from. The estimate is
+    the angle's own derivative, filtered at OMEGA_FILTER_RAD_S.
+    """
+
+    def __init__(self):
+        self.theta = 0.0
+        self.omega = 0.0
+
+    def _advance(self, theta, dt):
+        """Take the new angle, update the speed, return the angle."""
+        if dt > 0.0:
+            raw = _wrap(theta - self.theta) / dt
+            alpha = min(1.0, OMEGA_FILTER_RAD_S * dt)
+            self.omega += alpha * (raw - self.omega)
+        self.theta = theta
+        return theta
+
+
+class FluxObserver(_BackEmfObserver):
+
+    """The rotor angle from the stator flux linkage, stationary frame.
+
+    `psi = integral of (v - R i)` is the stator's flux and `psi - L i` is
+    the rotor's, whose angle is the rotor's. A pure integrator walks away
+    on any offset in v, in the current, or in R, so the integrator is a
+    low-pass at `wc` instead - and that costs exactly what it saves: at
+    electrical speed w the estimate is short by `sqrt(1 + (wc/w)^2)` and
+    late by `atan(wc/w)`, which this puts back.
+
+    That correction is the observer's floor. At w = wc it is 45 degrees
+    and a factor of 1.41; below wc it is neither small nor knowable,
+    because the speed it rests on is the one being estimated. `wc` is
+    therefore the speed this observer stops holding at, and it cannot be
+    lowered without giving the integrator back its drift.
+    """
+
+    def __init__(self, r, l, wc=20.0):
+        super().__init__()
+        self.r, self.l, self.wc = r, l, wc
+        self.psi_alpha = self.psi_beta = 0.0
+
+    def update(self, v_alpha, v_beta, i_alpha, i_beta, dt):
+        """One step. Returns the estimated electrical angle."""
+        self.psi_alpha += dt * (v_alpha - self.r * i_alpha
+                                - self.wc * self.psi_alpha)
+        self.psi_beta += dt * (v_beta - self.r * i_beta
+                               - self.wc * self.psi_beta)
+        w = abs(self.omega)
+        gain, lead = 1.0, 0.0
+        if w > 0.0:
+            gain = math.sqrt(1.0 + (self.wc / w) ** 2)
+            lead = math.atan2(self.wc, w) * (1.0 if self.omega >= 0.0 else -1.0)
+        cos_l, sin_l = math.cos(lead), math.sin(lead)
+        psi_a = gain * (self.psi_alpha * cos_l - self.psi_beta * sin_l)
+        psi_b = gain * (self.psi_alpha * sin_l + self.psi_beta * cos_l)
+        return self._advance(math.atan2(psi_b - self.l * i_beta,
+                                        psi_a - self.l * i_alpha), dt)
+
+
+class SlidingModeObserver(_BackEmfObserver):
+
+    """The rotor angle from a sliding-mode current observer.
+
+    The observer runs the stator's own current equation and drives the
+    error to zero with a switching term. Once it is sliding, that term
+    IS the back-EMF - it is the only thing the model was missing - so a
+    low-pass on it is the estimate, and `e = lambda w (-sin, cos)` gives
+    the angle.
+
+    `k` has to exceed the back-EMF the machine can make or the error
+    cannot be driven to zero, which is why it is sized from `lambda w_max`
+    rather than tuned. `boundary` replaces `sign` with a saturation over
+    that many amps: pure switching at a finite step rate chatters, and the
+    chatter lands in the estimate. The low-pass costs `atan(w/wc)` of lag,
+    which this puts back, and the same trade as the flux observer's sits
+    underneath it - the compensation needs the speed it is estimating.
+    """
+
+    def __init__(self, r, l, k, wc=500.0, boundary=0.5):
+        super().__init__()
+        self.r, self.l, self.k, self.wc = r, l, k, wc
+        self.boundary = boundary
+        self.i_alpha = self.i_beta = 0.0
+        self.e_alpha = self.e_beta = 0.0
+
+    def _switch(self, error):
+        """The switching term, saturated over the boundary layer."""
+        if self.boundary <= 0.0:
+            return self.k * (1.0 if error > 0.0 else -1.0 if error else 0.0)
+        return self.k * max(-1.0, min(1.0, error / self.boundary))
+
+    def update(self, v_alpha, v_beta, i_alpha, i_beta, dt):
+        """One step. Returns the estimated electrical angle."""
+        z_alpha = self._switch(self.i_alpha - i_alpha)
+        z_beta = self._switch(self.i_beta - i_beta)
+        self.i_alpha += dt * (v_alpha - self.r * self.i_alpha - z_alpha) / self.l
+        self.i_beta += dt * (v_beta - self.r * self.i_beta - z_beta) / self.l
+        alpha = min(1.0, self.wc * dt)
+        self.e_alpha += alpha * (z_alpha - self.e_alpha)
+        self.e_beta += alpha * (z_beta - self.e_beta)
+        theta = math.atan2(-self.e_alpha, self.e_beta)
+        # The low-pass is a lag of atan(w / wc) on the back-EMF, so it is
+        # a lag of the same on the angle taken out of it.
+        return self._advance(_wrap(theta + math.atan2(self.omega, self.wc)),
+                             dt)
