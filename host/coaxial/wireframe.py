@@ -1249,9 +1249,15 @@ def _trace(x0, y0, w0, x1, y1, w1, dot):
 #: white mixed in). TRIAD_REACH bounds the length of an axis lying in
 #: the screen's plane, in columns (half that in rows), sized from the
 #: frame at a sixth of its rows: neither a smudge on a 24-row terminal
-#: (four) nor a second subject at 44 (seven). The backdrop is cleared
-#: behind it, a window cut in the floor; the board, where it reaches
-#: the corner, is not - the subject stays the subject.
+#: (four) nor a second subject at 44 (seven).
+#:
+#: NOTHING IS CLEARED BEHIND IT. The backdrop and the axes are both a
+#: 2x4 dot matrix, so an axis ORs its dots into the cell the floor
+#: already drew and the fan runs on through the gizmo; the axis owns
+#: the cell's colour, being the nearer thing in it. A box blanked
+#: behind the triad was a rectangular hole in the floor that moved
+#: with the frame. The board still occludes it, as it occludes the
+#: floor - the subject stays the subject.
 TRIAD_REACH = (4, 7)
 TRIAD_MARGIN = (2, 1)
 TRIAD_DIM = 0.45
@@ -1272,12 +1278,6 @@ def _triad(grid, tone, buf, cam, m, colour):
 
     def free(px, py):
         return 0 <= px < width and 0 <= py < height and not buf[py * width + px]
-
-    for py in range(oy - half, oy + half + 1):
-        for px in range(ox - reach - 1, ox + reach + 2):
-            if free(px, py):
-                grid[py][px] = ' '
-                tone[py][px] = None
 
     def shade(code, cue, lift=0.0):
         r, g, b = _rgb(code)
@@ -1332,6 +1332,12 @@ def _triad(grid, tone, buf, cam, m, colour):
 
     for at, mask in masks.items():
         r, c = divmod(at, width)
+        # OR, not replace: the floor's dots in this cell are part of the
+        # same matrix, and an axis crossing them should read as crossing
+        # them rather than as a bite taken out of the fan.
+        under = ord(grid[r][c]) - BRAILLE
+        if 0 <= under <= 0xFF:
+            mask |= under
         grid[r][c] = chr(BRAILLE + mask)
         if colour:
             cue, code = inks[at]
