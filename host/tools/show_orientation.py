@@ -293,6 +293,13 @@ def put_back(board, part):
     return done
 
 
+def _lit(word):
+    """One footer word in the live chip's colours."""
+    from rich.text import Text
+
+    return Text(word, style='chip.live')
+
+
 def _mirror_keys(flip):
     """One footer pair per axis. An INVERTED axis burns sodium on the bar,
     so a wild ride on the empirical dial always shows where it is."""
@@ -364,6 +371,7 @@ def compose(origin, args, view, colour, console):
         boxes(view['part'], view['pid'], view['record'], q, view['rate']),
         (tuple(_mirror_keys(view['flip']))
          + (('C', 'FRAME'), ('T', 'TARE'), ('WHEEL', 'ZOOM'),
+            ('F', _lit('SELECT') if _screen.selecting() else 'SELECT'),
             ('Q', 'EXIT'), ('ESC', 'MENU'), ('', note))))
 
 

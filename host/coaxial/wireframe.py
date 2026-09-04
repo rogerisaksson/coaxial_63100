@@ -27,7 +27,7 @@ import math
 #: 1.6 mm laminate reads as a single line, and the two rim rings are what
 #: sells the turn.
 from .orientation import BORE, OUTER                       # noqa: E402
-from .raster import BRAILLE, BRAILLE_BITS                  # noqa: E402
+from .raster import BRAILLE, BRAILLE_BITS, RUNGS, SHADE    # noqa: E402
 
 THICK = 0.05
 
@@ -472,7 +472,45 @@ def _ground(grid, tone, buf, distance, width, height, colour, view,
 #: denser glyphs and starve a far edge to sparser ones - so lighting
 #: that only changed the COLOUR of a constant ':' carpet read as no 3D
 #: at all, twice, on two different attempts.
-LIT = ' .:'
+LIT = SHADE
+
+#: What each class is worth on the ladder in a MONO render, where there
+#: is no light to ask and the class is the whole signal. Blank, sparse,
+#: and most of the way up.
+#:
+#: NOT THE EXPORTER'S OWN DENSITIES. His ' ', '.' and ':' measure 0, 96
+#: and 129 of 255 in Rec.709 luma, which on nine rungs is nothing, three
+#: dots and four - one rung between the two glyphs a picture is made of,
+#: and that is the flat carpet the ASCII ramp drew. Six against two
+#: keeps his ordering and spends the ladder, which is the whole reason
+#: for having one. The unrounded level grades between them.
+CLASS_RUNG = (0, 2, 6)
+
+#: The band of level the ladder spans WHERE THERE IS NO LIGHT TO ASK.
+#: The class scale is 0 to 2 by construction, and rung 0 is blank, so a
+#: drawn cell starts at rung 1 and the seven above it carry the depth
+#: that used to fall through a single step. Only the mono path uses it:
+#: with colour on, the glyph comes off `heat`, which is the same number
+#: the tone does - see `_glow`.
+LEVEL_LO, LEVEL_HI = 0.0, 2.0
+
+#: The band of `heat` the ladder spans, as a share of DIMMEST to the top
+#: of the glow. NOT THE WHOLE OF IT: the lamp puts most of a board inside
+#: a narrow band and stretching the ladder over the full range left every
+#: interior cell on the same rung - the picture went solid. This is the
+#: window the shading actually moves in, and what falls outside pins.
+#: FITTED on the shipped board at zoom 1: 368 lit cells span heat 0.92
+#: to 4.70 with the fifth and ninety-fifth percentiles at 1.87 and
+#: 3.83, which as a share of DIMMEST to the top of the glow is 0.22 to
+#: 0.52. What falls outside pins, which is what a percentile band is
+#: for.
+HEAT_LO, HEAT_HI = 0.20, 0.55
+
+#: How many rungs a stair corner drops. The glyph is the anti-aliasing:
+#: a rim cell missing half its coverage thins, and on three glyphs that
+#: was ':' to '.' - one step of two. Two rungs of eight is the same
+#: fraction of the ladder.
+THIN_RUNGS = 2
 #: ONE hue, the console theme's cyan, as a pure luminance ladder:
 #: black through the teals to white-cyan for the sharpest highlight.
 #: The object never changes colour - only how much light its
@@ -845,6 +883,78 @@ OUTLINE_BASE = 3.0
 
 
 
+def _mono(level, phase=0.0):
+    """One cell from the CLASS scale alone, for a render with no colour.
+
+    `level` is the unrounded 0 to 2, so the rung is `CLASS_RUNG`
+    interpolated: a cell three quarters of the way from one class to the
+    next sits three quarters of the way up the rungs between them.
+    """
+    low = 0 if level < 1.0 else 1
+    step = level - low
+    step = 0.0 if step < 0.0 else (1.0 if step > 1.0 else step)
+    rung = CLASS_RUNG[low] + step * (CLASS_RUNG[low + 1] - CLASS_RUNG[low])
+    return _pattern(int(rung + 0.5), phase)
+
+
+def _pattern(rung, phase):
+    """The glyph for `rung` dots, phased. A DRAWN CELL IS NEVER BLANK:
+    the class already said there is something here, so the darkest a lit
+    cell goes is one dot - rung 0 would punch holes in a face the
+    geometry calls solid."""
+    rung = 1 if rung < 1 else (RUNGS if rung > RUNGS else rung)
+    row = LIT[rung]
+    # BIASED HARD TOWARD THE EVEN END of the rung. Spread uniformly over
+    # the 28 patterns that carry six dots, neighbouring cells at one tone
+    # wore completely different arrangements and a flat face read as
+    # static - the ASCII carpet was at least flat. Cubed, the smoothest
+    # pattern is what a surface mostly wears and the tail is still
+    # reachable, so the block is spent across a picture without the
+    # grain drowning the shading it is supposed to sit on.
+    return row[int(phase * phase * phase * len(row)) % len(row)]
+
+
+def _rung(level, phase=0.0, drop=0):
+    """One cell of the tone ladder: `level` on the class scale, `phase`
+    the grain hash that picks among the patterns of that density.
+
+    A DRAWN CELL IS NEVER BLANK. The class already decided there is
+    something here, so the darkest a lit cell goes is one dot - falling
+    to rung 0 would punch holes in a face the geometry says is solid.
+    """
+    span = LEVEL_HI - LEVEL_LO
+    step = (level - LEVEL_LO) / span if span else 0.0
+    return _pattern(int(step * RUNGS + 0.5) - drop, phase)
+
+
+def _keylight(cam, width, height):
+    """What the key light needs, once per frame, or `key` None with it off.
+
+    OUT OF `_glow` BECAUSE IT IS SET-UP, not shading: the loop under it
+    is the picture and this is the six numbers it reads. Answers
+    `(key, lamp, colf, rowf, distance, scale)`.
+
+    View z per unit of `bare`, and the cell's size in view units: one
+    column is (distance - z)/scale across, one row twice that down. Both
+    at the board's own depth - the gradient is a slope, and a per-cell
+    depth in the divisor moved the answer by under 1 %.
+    """
+    if cam is None or not KEY:
+        return None, None, None, None, None, None
+    per_bare = cam.get('reach', 1.0) / SLOPE
+    distance, scale = cam['distance'], cam['scale']
+    cx, cy = cam['cx'], cam['cy']
+    across = distance / scale
+    lx, ly, lz = LIGHT
+    # The projection's per-column and per-row factors, once: the inner
+    # loop multiplies, it does not divide.
+    return ((0.5 * per_bare / across, 0.5 * per_bare / (2.0 * across)),
+            (lx * KEY_DISTANCE, ly * KEY_DISTANCE, lz * KEY_DISTANCE),
+            [(c + 0.5 - cx) / scale for c in range(width)],
+            [(cy - (r + 0.5)) / (scale * 0.5) for r in range(height)],
+            distance, scale)
+
+
 def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
           colour, cam=None, buf=None, heat_out=None):
     """Classes to glyphs, unrounded levels to the colour ramp.
@@ -862,23 +972,7 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
     spot_x, spot_y = SPOT_AT
     rr = SPOT_R * SPOT_R
     top_heat = steps + HOTTEST
-    # View z per unit of `bare`, and the cell's size in view units: one
-    # column is (distance - z)/scale across, one row twice that down.
-    # Both at the board's own depth - the gradient is a slope, and a
-    # per-cell depth in the divisor moved the answer by under 1 %.
-    key = None
-    if cam is not None and KEY:
-        per_bare = cam.get('reach', 1.0) / SLOPE
-        distance, scale = cam['distance'], cam['scale']
-        cx, cy = cam['cx'], cam['cy']
-        across = distance / scale
-        key = (0.5 * per_bare / across, 0.5 * per_bare / (2.0 * across))
-        lx, ly, lz = LIGHT
-        lamp = (lx * KEY_DISTANCE, ly * KEY_DISTANCE, lz * KEY_DISTANCE)
-        # The projection's per-column and per-row factors, once: the
-        # inner loop multiplies, it does not divide.
-        colf = [(c + 0.5 - cx) / scale for c in range(width)]
-        rowf = [(cy - (r + 0.5)) / (scale * 0.5) for r in range(height)]
+    key, lamp, colf, rowf, distance, scale = _keylight(cam, width, height)
     for py in range(height):
         row = py * width
         ny = (py + 0.5) / height - spot_y
@@ -886,10 +980,23 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             cls = classes[row + px]
             if not cls:
                 continue
-            grid[py][px] = LIT[cls]
+            at = row + px
+            # THE GLYPH CARRIES THE LEVEL, not the rounded class. Three
+            # characters gave a leaning face one step to fall through and
+            # a board came out flat; nine rungs of dots grade it. The
+            # PHASE is the cell's own grain hash where there is one, so
+            # two cells at one level wear different dots and a shallow
+            # gradient does not band.
+            # THE GLYPH IS THE LIGHT WHERE THERE IS LIGHT. With colour
+            # on it is overwritten below from `heat` - the same number
+            # the tone is blended from - so the lamp, the key and the
+            # feather show in the dots as well as the hue. Here it is the
+            # depth alone, which is all a mono render has.
+            grain = seed[at] if seed is not None else 0.0
+            grid[py][px] = _mono(
+                levels[at] if levels is not None else float(cls), grain)
             if not colour:
                 continue
-            at = row + px
             nx = (px + 0.5) / width - spot_x
             # The desk-lamp pool: squared falloff lands at ZERO slope
             # on the rim. Linear-in-d2 ended at its steepest - a
@@ -932,7 +1039,7 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
                     # The direction to the lamp from THIS cell's point,
                     # back out of the projection as engine.shade does;
                     # without a depth buffer, the beam's direction.
-                    dx, dy, dz = lx, ly, lz
+                    dx, dy, dz = LIGHT
                     if buf is not None and buf[at]:
                         inv = 1.0 / buf[at]
                         dx = lamp[0] - colf[px] * inv
@@ -960,13 +1067,23 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             missed = 1.0 - coverage[at]
             if missed:
                 heat -= FEATHER * missed
-                if missed >= 0.5 and cls == 2:
-                    grid[py][px] = LIT[1]
             heat = (DIMMEST if heat < DIMMEST else
                     (top_heat if heat > top_heat else heat))
             if heat_out is not None:
                 heat_out[at] = heat
             tone[py][px] = _blend(heat)
+            # AND THE GLYPH OFF THE SAME NUMBER. An ASCII render carries
+            # its 3D in the characters and the colour was carrying all of
+            # it here - a constant carpet of one glyph, which is what the
+            # three-character ramp could not avoid and eight dots can.
+            # The stair corner still thins: it is the anti-aliasing, and
+            # a rim cell missing half its coverage drops two rungs.
+            lift = (heat - DIMMEST) / (top_heat - DIMMEST)
+            lift = (lift - HEAT_LO) / (HEAT_HI - HEAT_LO)
+            grid[py][px] = _rung(
+                (0.0 if lift < 0.0 else (1.0 if lift > 1.0 else lift))
+                * (LEVEL_HI - LEVEL_LO) + LEVEL_LO, grain,
+                drop=(THIN_RUNGS if missed >= 0.5 else 0))
 
 
 def _slab_top(pos):

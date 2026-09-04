@@ -333,7 +333,8 @@ def compose(port, picked, view, size=None, who=None):
                       if who is not None else
                       (('UP DOWN', 'NAVIGATE'), ('ENTER', 'SELECT'),
                        ('S B A M G T C', 'DIRECT'), ('DRAG', 'TURN'),
-                       ('WHEEL', 'ZOOM'), ('Q', 'EXIT'))),
+                       ('WHEEL', 'ZOOM'), ('F', 'SELECT'),
+                       ('Q', 'EXIT'))),
                size=1))
     return whole
 
@@ -438,8 +439,11 @@ def main(argv=None):
             now = time.monotonic()
             idle(view, now, now - last)
             last = now
-            live.update(compose(args.port, picked, view, page.size, who),
-                        refresh=True)
+            # HELD WHILE THE MOUSE IS THE TERMINAL'S - `screen.run_view`
+            # has why.
+            if not keys.selecting():
+                live.update(compose(args.port, picked, view, page.size, who),
+                            refresh=True)
             if args.frames and frame >= args.frames:
                 return 0
 

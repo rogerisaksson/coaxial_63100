@@ -119,7 +119,8 @@ def compose(view, size):
         Layout(footer((('DRAG', 'TURN'), ('UP DN', 'LIGHT'),
                        ('LT RT', 'SPOT'), ('x/X y/Y z/Z', 'DEG'),
                        ('SPACE', 'SPIN'), ('R', 'RESET'), ('M', 'MODEL'),
-                       ('WHEEL', 'ZOOM'), ('Q', 'EXIT'))), size=1))
+                       ('WHEEL', 'ZOOM'), ('F', 'SELECT'),
+                       ('Q', 'EXIT'))), size=1))
     return whole
 
 
@@ -194,7 +195,11 @@ def loop(args, page, view, frame, last):
             last = now
 
             frame += 1
-            live.update(compose(view, page.size), refresh=True)
+            # HELD WHILE THE MOUSE IS THE TERMINAL'S, as `run_view` holds
+            # its own: a drag that selects has to survive to the mouse
+            # coming up, and a redraw wipes it under the hand.
+            if not keys.selecting():
+                live.update(compose(view, page.size), refresh=True)
             if args.frames and frame >= args.frames:
                 return 0
 

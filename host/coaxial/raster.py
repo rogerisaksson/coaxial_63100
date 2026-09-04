@@ -32,6 +32,61 @@ DOTS_X, DOTS_Y = 2, 4
 SUBDOT = ((-0.25, -0.25), (0.25, -0.25), (-0.25, 0.25), (0.25, 0.25))
 
 
+#: The order a cell's eight dots light up in, dispersed rather than
+#: filled: a 2x2 Bayer matrix tiled down the cell, so two dots are one in
+#: each half and not two side by side. Filled in reading order a ladder
+#: reads as a bar growing out of a corner, which is a bar chart and not a
+#: tone.
+DOT_RANK = ((0, 6, 1, 7), (4, 2, 5, 3))
+
+
+def _spread(bits):
+    """How scattered one pattern's dots are: adjacent lit pairs, then the
+    dispersed order as a tie-break. Lower is more even."""
+    lit = [(x, y) for x in range(DOTS_X) for y in range(DOTS_Y)
+           if bits & BRAILLE_BITS[x][y]]
+    touching = sum(1 for i, a in enumerate(lit) for b in lit[i + 1:]
+                   if abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1)
+    return (touching, sum(DOT_RANK[x][y] for x, y in lit))
+
+
+#: The tone ladder, `SHADE[rung][phase]`: nine rungs by how many of the
+#: cell's eight dots are lit, and under each rung EVERY pattern with that
+#: many - 1, 8, 28, 56, 70, 56, 28, 8, 1, which is all 256 of U+2800.
+#: Ordered within a rung by how evenly the dots are spread, so phase 0 is
+#: the smoothest arrangement and the rest are there for grain.
+#:
+#: WHY THE WHOLE BLOCK AND NOT THREE GLYPHS. An ASCII render carries its
+#: 3D in the characters, and ' .:' has two above blank - so a surface
+#: leaning away had one step to fall through and a board came out as a
+#: flat carpet with a rim. Eight dots in the same cell is a nine-step
+#: ladder, and the PHASE spends the rest of the block: two cells at one
+#: level can wear different dots, which breaks the banding a single
+#: pattern per level draws across a shallow gradient. The count is the
+#: tone; which dots carry it is not.
+SHADE = tuple(
+    tuple(chr(BRAILLE + bits) for bits in
+          sorted((b for b in range(256) if bin(b).count('1') == rung),
+                 key=_spread))
+    for rung in range(9))
+
+#: How many rungs the ladder has above blank.
+RUNGS = len(SHADE) - 1
+
+
+def shade(level, phase=0):
+    """One cell of tone: `level` 0 to 1 up the ladder, blank at zero.
+
+    `phase` picks among the patterns of that density - any stable
+    per-cell number will do, and the renderers hand it the grain hash
+    they already keep.
+    """
+    rung = int(level * RUNGS + 0.5)
+    rung = 0 if rung < 0 else (RUNGS if rung > RUNGS else rung)
+    row = SHADE[rung]
+    return row[phase % len(row)]
+
+
 def cell(value):
     """`value` to the nearest cell, halves always upward.
 

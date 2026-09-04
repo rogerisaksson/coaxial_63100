@@ -31,8 +31,11 @@ MENU_KEYS = frozenset({chr(27)})
 #: which one the mouse is doing belongs to whoever is holding it.
 #:
 #: Handled HERE rather than in each view, so any page that asked for the
-#: mouse can give it back with the same key.
-SELECT_KEYS = frozenset({'c', 'C'})
+#: mouse can give it back with the same key - which is why it is `F` and
+#: not the obvious `C`: the attitude view binds C to its frame and the
+#: menu to a direct entry, and a key taken universally has to be free
+#: EVERYWHERE, not only where it was written.
+SELECT_KEYS = frozenset({'f', 'F'})
 
 #: The `Keys` holding the mouse, if one is. MODULE STATE BECAUSE THE
 #: MOUSE IS: there is one of it, the terminal owns it, and a view drawing

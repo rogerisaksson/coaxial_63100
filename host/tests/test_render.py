@@ -431,6 +431,65 @@ def test_scroll(report):
                  'the same')
 
 
+def test_ladder(report):
+    """The tone ladder: every pattern in U+2800, bucketed by dot count.
+
+    A GLYPH RAMP OF THREE CHARACTERS HAS TWO STEPS ABOVE BLANK, and an
+    ASCII render carries its 3D in the characters - so a leaning face had
+    one step to fall through and a board came out as a flat carpet with a
+    rim. Eight dots in a cell is a nine-step ladder in the same space,
+    and the phases spend the rest of the block.
+    """
+    from coaxial import raster, wireframe
+
+    rows = raster.SHADE
+    report.check('nine rungs, blank to all eight dots', len(rows) == 9,
+                 str([len(r) for r in rows]))
+    report.check('every pattern in the block, once',
+                 len({c for r in rows for c in r}) == 256
+                 and sum(len(r) for r in rows) == 256,
+                 '%d distinct of %d'
+                 % (len({c for r in rows for c in r}),
+                    sum(len(r) for r in rows)))
+    report.check('a rung holds the patterns with that many dots',
+                 all(all(bin(ord(c) - raster.BRAILLE).count('1') == rung
+                         for c in row) for rung, row in enumerate(rows)))
+    # THE EVEN ONE FIRST. Phase 0 is what a flat surface wears, so it has
+    # to be the arrangement that reads as a tone rather than a clump: the
+    # ordering is by adjacent lit pairs, and rung 4's first pattern has
+    # none where its last has four.
+    report.check('each rung is ordered smoothest first',
+                 raster._spread(ord(rows[4][0]) - raster.BRAILLE)
+                 < raster._spread(ord(rows[4][-1]) - raster.BRAILLE),
+                 '%s then %s' % (rows[4][0], rows[4][-1]))
+    report.check('a drawn cell is never blank, however dark',
+                 wireframe._pattern(0, 0.0) != rows[0][0]
+                 and wireframe._pattern(-3, 0.9) != rows[0][0])
+    report.check('and never past the top',
+                 wireframe._pattern(99, 0.0) == rows[8][0])
+
+    # THE GRAIN IS BIASED to the even end - uniform over the 28 patterns
+    # that carry six dots, neighbouring cells at one tone wore completely
+    # different arrangements and a flat face read as static.
+    phases = [wireframe._pattern(6, i / 32.0) for i in range(32)]
+    common = max(set(phases), key=phases.count)
+    report.check('the smoothest pattern is what most cells wear',
+                 common == rows[6][0]
+                 and phases.count(common) >= len(phases) // 4,
+                 '%s, %d of %d' % (common, phases.count(common), len(phases)))
+    report.check('and the tail is still reachable',
+                 len(set(phases)) > 1, '%d distinct' % len(set(phases)))
+
+    # THE MONO LADDER IS THE CLASS SCALE, spread and in the exporter's
+    # own order: his ' ', '.' and ':' rank the same way, only further
+    # apart, because one rung between the two glyphs a picture is made of
+    # is the carpet this replaces.
+    dots = [bin(ord(wireframe._mono(float(c))) - raster.BRAILLE).count('1')
+            for c in (0, 1, 2)]
+    report.check('mono keeps the exporter\'s ordering and spends the ladder',
+                 dots[0] < dots[1] < dots[2] and dots[2] >= 6, str(dots))
+
+
 def main():
     report = Report()
     print('\n-- the 3D engine, stage by stage --')
@@ -443,6 +502,7 @@ def main():
     test_triad(report)
     test_steady(report)
     test_scroll(report)
+    test_ladder(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

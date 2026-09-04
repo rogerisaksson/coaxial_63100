@@ -1906,7 +1906,7 @@ def compose(rig, origin, console, view):
             # WHO HAS THE MOUSE. Lit while the terminal does, because
             # that is the state a reader cannot see any other way - the
             # page looks identical and the wheel has stopped working.
-            ('C', Text('SELECT', style='chip.live') if _screen.selecting()
+            ('F', Text('SELECT', style='chip.live') if _screen.selecting()
              else 'SELECT')]
     if view['switch']:
         keys.append(('A', Text('ARMED', style='chip.live')
