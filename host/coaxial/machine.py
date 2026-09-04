@@ -227,6 +227,13 @@ INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
        #: leaves the shouting for something that deserves it.
        SOA_FLASH: 210}
 
+#: The legend's own furniture - arrowheads, runs, the lines that fall to
+#: a tube. A NOTCH LIGHTER THAN `TRACK`, which is the empty half of a
+#: thermometer: both are things to be read past rather than read, but a
+#: leader is the thread between a name and its level and disappeared
+#: entirely at the track's grey.
+LEADER_GREY = 243
+
 #: Blue at the cold end, red at the hot. The steps are wide because a
 #: tube one column across cannot carry a gradient - what it can carry is
 #: which band it is in.

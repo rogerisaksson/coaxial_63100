@@ -628,9 +628,13 @@ def _legend_rows(view, left, right):
                 machine.INK[cls], right[HEADROOM_AT + index], True))
     peak, cls = hottest(view, BOARD_NODES)
     if peak is not None and right:
+        # ONE TUBE FURTHER IN than the middle of its four. Its run passes
+        # under two lines already falling to the margins outboard of it,
+        # and reaching the middle it ended a hair from them; a notch
+        # shorter and the row has air where the others have ink.
         said.append(_legend(
             len(said), 'BOARD TEMPS %.1f %sC' % (peak, DEGREE),
-            machine.INK[cls], right[len(BOARD_NODES) // 2], True))
+            machine.INK[cls], right[len(BOARD_NODES) // 2 - 1], True))
 
     rows = []
     for index in range(CAPTION_ROWS):
@@ -643,7 +647,7 @@ def _legend_rows(view, left, right):
         for row, _text, _ink, column, _in in said:
             if row < index:
                 line[column] = DROP
-                marks.append((column, 1, machine.INK[machine.TRACK]))
+                marks.append((column, 1, machine.LEADER_GREY))
         for row, text, ink, column, centred in said:
             if row != index:
                 continue
@@ -670,17 +674,24 @@ def _legend_rows(view, left, right):
             # says which way to look, and the braille carries the eye the
             # rest of the way to the tube.
             if column < at:
-                head, span = at - 2, range(column, at - 2)
+                head, span = at - 2, list(range(column, at - 2))
                 line[head] = AIM_LEFT
             else:
                 head = at + len(text) + 1
-                span = range(head + 1, column + 1)
+                span = list(range(head + 1, column + 1))
                 line[head] = AIM_RIGHT
+            # A COLUMN OF AIR BEFORE ANYTHING ALREADY FALLING. Two runs
+            # ending on adjacent tubes met their neighbour's drop and the
+            # pair read as one bracket; each stops short of the other's
+            # line now, which is what makes them separate pointers.
+            span = [step for step in span
+                    if line[step] != DROP
+                    and not (step + 1 < ART_WIDTH and line[step + 1] == DROP)]
             for step in span:
                 line[step] = LEADER
-            marks.append((head, 1, machine.INK[machine.TRACK]))
+            marks.append((head, 1, machine.LEADER_GREY))
             for step in span:
-                marks.append((step, 1, machine.INK[machine.TRACK]))
+                marks.append((step, 1, machine.LEADER_GREY))
         rows.append((line, marks))
 
     return [_tinted(line, marks) for line, marks in rows]
@@ -709,10 +720,23 @@ def _foot_line(view):
     # which is an ordering a reader has to be told; the COLOUR already
     # pairs each name with its own level, and the same head on both says
     # the same thing the four legends above say.
-    head = '%s WINDING %.1f %sC' % (UP, winding(view), DEGREE)
-    tail = '%.2f kW %s' % (watts(view) / 1000.0, UP)
-    pad = ART_WIDTH - len(head) - len(tail)
-    foot = (tint(head, machine.INK[machine.SOA_WARN]) + ' ' * max(0, pad)
+    # THE HEAD INBOARD, so the stroke can leave it and climb. It sat at
+    # the outer end with the words between it and the machine, which put
+    # the arrow as far from the level as the row allowed.
+    head = 'WINDING %.1f %sC %s' % (winding(view), DEGREE, UP)
+    tail = '%s %.2f kW' % (UP, watts(view) / 1000.0)
+    # A STROKE EACH, LEAVING THE HEAD AND RISING toward the level above
+    # it. The dots climb the cell - low pair, middle pair, top pair - so
+    # the line reads as one that goes out from the arrow, up, and then
+    # levels off along the bar it names. Flat, it pointed along the row
+    # and the bar it meant was the one nobody was looking at.
+    rise = ''.join(LEADER_RISE)
+    fall = ''.join(reversed(LEADER_RISE))
+    pad = ART_WIDTH - len(head) - len(tail) - len(rise) - len(fall)
+    foot = (tint(head, machine.INK[machine.SOA_WARN])
+            + tint(rise, machine.LEADER_GREY)
+            + ' ' * max(0, pad)
+            + tint(fall, machine.LEADER_GREY)
             + tint(tail, machine.INK[machine.WATTS]))
     return foot
 
@@ -1336,6 +1360,12 @@ LEADER_DROP = len(HEADROOM_ROWS)
 AIM_LEFT, AIM_RIGHT = chr(0x25C0), chr(0x25B6)
 LEADER, DROP = chr(0x2824), chr(0x2847)
 
+#: The foot's stroke, climbing out of its arrowhead: the low pair of
+#: dots, then the middle, then the top. Short, because the levels it
+#: names lie right above it and run the machine's whole width - it says
+#: which way to look and nothing more.
+LEADER_RISE = (chr(0x2824), chr(0x2812), chr(0x2809), chr(0x2809))
+
 
 def ntc_bar(view):
     """The thermistor as a tube, on the same scale as every other.
@@ -1387,9 +1417,14 @@ def headrooms(view):
     """
     board = headroom(view)
     motor = motor_headroom(view)
-    return [(board, machine.SOA_FLASH if flashing(view)
+    # THE LEVEL IS WHAT IS SPENT, not what is left. Drawn as the margin
+    # the tube emptied as things got hot, which is backwards for a
+    # thermometer standing beside five that fill: everything else on this
+    # page rises toward its limit and these fell away from theirs. The
+    # COLOUR still comes from the margin, so a full tube is a red one.
+    return [(1.0 - board, machine.SOA_FLASH if flashing(view)
              else headroom_class(board)),
-            (motor, headroom_class(motor))]
+            (1.0 - motor, headroom_class(motor))]
 
 
 def motor_headroom(view):
