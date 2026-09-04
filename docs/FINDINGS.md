@@ -901,6 +901,32 @@ record's own constants, no measurement.
 
 ## The renderers
 
+* **`coaxial/braille.py` holds the block and the vocabulary.** Glyphs
+  picked by hand at call sites (`chr(0x2824)` for a run, `chr(0x2847)`
+  for a drop) stay a handful and the corners come out wrong: a run
+  ending against a column under it is two marks that happen to touch,
+  and `chr(0x28A4)` has to be decoded before it can be reviewed. A
+  corner the line ENDS at is a hook (`⠲`); one it falls THROUGH reaches
+  the cell's floor (`⢲`) or it breaks against the row below.
+* **The dimmed track was drawn at two different rates.** The gutter
+  tubes put a dot every other row in ONE lane, so the empty half of a
+  thermometer was narrower than the mercury under it; the flat gauges
+  put one every FOURTH dot column, which is a dash in every other cell.
+  Both read as some bars having a scale and some not. One dot a cell,
+  both lanes, everywhere.
+* **The pointer bead has been wrong three ways.** A radial spur read as
+  a tick at the top of the can and a dash at its sides. A square of dots
+  centred on the rim was clipped to the silhouette and what survived was
+  a crescent, cut differently at every angle. A sampled disc seated
+  inside the rim was round and spread over three cells - a smear on the
+  band. A dot is square, so FOUR IN A SQUARE are round: always the same
+  four, over one cell or two or four depending only on where the block
+  falls across the grid.
+* The two gutters must be the same width or the legends are not
+  symmetric: a legend's arrowhead sits on the machine's own edge, so a
+  left gutter of eight columns against a right of seven put nine
+  columns of leader on one side and eight on the other.
+
 * Decimation cost at 94x36, single process: grid 16 → 7.8 ms, 24 →
   13, 32 → 29, 48 → 37, 64 → 63.
 * A shadow map rebuilt every frame cost 14 ms and the frame rate fell

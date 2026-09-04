@@ -35,6 +35,7 @@ import math
 
 from . import ansi
 from .ascii3d import CELL_ASPECT
+from . import braille
 from .raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT,
                      dithered)
 
@@ -470,7 +471,12 @@ def _gauge(dots, owner, width, height, row, share, cls,
                 dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y]
             if cls > owner[row][col]:
                 owner[row][col] = cls
-        elif step % 4 == 0:
+        elif step % 2 == 0:
+            # ONE DOT A CELL, the same rate the tubes' track runs at.
+            # Every FOURTH dot put one in every other cell, so the empty
+            # half of a gauge came out as a dashed line with gaps a cell
+            # wide - readable as a scale on a long bar and, beside the
+            # tubes' unbroken track, as nothing at all.
             dots[row][col] |= BRAILLE_BITS[x % DOTS_X][RULE_Y]
             if TRACK > owner[row][col]:
                 owner[row][col] = TRACK
@@ -547,10 +553,17 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
                     # THE TUBE ABOVE IT. A bar with nothing over it says
                     # how hot a node is; a bar in a tube says how hot it
                     # is OF WHAT IT MAY BE, which is the only version of
-                    # the question a ceiling makes sense of. Every other
-                    # dot, one side, so the empty part reads as a scale
-                    # and not as more level.
-                    dots[row][col] |= BRAILLE_BITS[0][y % DOTS_Y]
+                    # the question a ceiling makes sense of.
+                    #
+                    # THE TUBE'S OWN WIDTH, both lanes. One lane made the
+                    # empty half of a thermometer narrower than the
+                    # mercury under it, so a tall tube read as a scale
+                    # and a short one as a stray dot beside a bar - which
+                    # is why the bench saw the dimmed pixels on some
+                    # thermometers and not others. Every other dot ROW
+                    # still, so it stays a scale and not more level.
+                    for lane in range(DOTS_X):
+                        dots[row][col] |= BRAILLE_BITS[lane][y % DOTS_Y]
                     if TRACK > owner[row][col]:
                         owner[row][col] = TRACK
 
@@ -580,7 +593,13 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
     # the middle two dot rows, so a rule on the top row floated a dot
     # clear of the bar it was pointing at and read as a separate line
     # over it. On the bar's own upper row it arrives ON the level.
+    # WHERE A RULE RUNS, so a column meeting one can turn instead of
+    # crossing it.
     lit = []
+    met = {}
+    for row, from_col, to_col, _shade in list(rules or ()):
+        lo, hi = min(from_col, to_col), max(from_col, to_col)
+        met.setdefault(row, []).append((lo, hi))
     for entry in list(leaders or ()):
         from_row, col, to_row, shade = entry[:4]
         # WHICH HALF OF THE CELL IT FALLS DOWN. Left by default, which is
@@ -593,8 +612,26 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
         lane = entry[4] if len(entry) > 4 else 0
         for row in range(from_row, to_row):
             if 0 <= row < height and 0 <= col < width:
-                for y in range(DOTS_Y):
-                    dots[row][col] |= BRAILLE_BITS[lane][y]
+                # A HOOK WHERE IT MEETS A RULE, not a bar through it. The
+                # column ran the full cell height in the corner, so the
+                # junction came out as `\u28ba` - four dots of solid stroke
+                # standing off a two-dot rule, which reads as a post the
+                # line happens to end at. Turning at the rule and going
+                # two dots down makes `\u2832`: a line that arrives, turns,
+                # and carries on at the weight it came in at.
+                turn = any(lo <= col <= hi for lo, hi in met.get(row, ()))
+                # A CORNER WHERE IT MEETS A RULE, a stroke where it
+                # does not - and how far down the corner reaches
+                # depends on whether the line carries on.
+                # `braille.corner` has both, and why getting it
+                # wrong is visible.
+                if turn:
+                    dots[row][col] |= braille.mask(braille.lit(
+                        braille.corner(RULE_Y, lane,
+                                       through=row + 1 < to_row)))
+                else:
+                    dots[row][col] |= braille.mask(
+                        (lane, y) for y in range(DOTS_Y))
                 lit.append((row, col, shade))
 
     # AND THE HORIZONTAL HALF OF THE SAME FURNITURE. `(row, from_col,
@@ -655,6 +692,52 @@ def _body(put, cx, cy, rotor, slots, poles, r, drive, width, height,
                 put(x, y, cls)
 
 
+def _bead(dots, owner, width, height, cx, cy, r, pointer_deg):
+    """The bench's own zero, riding the can's rim.
+
+    OUT OF `_raster` BECAUSE IT IS A MARK, not the machine: that one
+    draws a rotor and this puts a bead on it, and together they ran past
+    what a reader can hold.
+
+    ROUND AT EVERY ANGLE, WHICH IS THE WHOLE JOB. It has been three
+    things. A radial spur first - a line of dots along the radius, which
+    at the top of the can lay across four rows of one cell and read as a
+    tick, and at the sides across two columns and read as a dash. Then a
+    square of dots centred ON the rim, clipped to the rotor's
+    silhouette: what survived was a crescent, and a crescent cut by a
+    circle is a different shape at every angle too. Then a sampled disc
+    seated inside the rim, which was round but spread over three cells
+    and read as a smear on the band rather than a mark on it.
+
+    A 2x2 BLOCK OF DOTS is the answer, because a dot is square: four
+    dots in a square are a round mark at any position on the grid, they
+    are always the same four, and they take one cell or two depending
+    only on where they land - `⠛`, `⠶`, `⣤` and the pairs that straddle
+    a column. Compact enough to sit ON the band without covering it.
+    """
+    import math
+
+    phi = math.radians(pointer_deg)
+    # ON THE RIM, half in and half out. Seated inside it the four dots
+    # landed on the can's own and the mark was colour alone - which is
+    # nothing at all in a mono terminal. Straddling, it breaks the
+    # silhouette where it is and closes behind it, which is what a bead
+    # on a rim does.
+    seat = r.can + POINTER_SEAT
+    at_x = cx + seat * math.cos(phi)
+    at_y = cy - seat * math.sin(phi)
+    # The nearest gap between dots, so the four round it are the four
+    # nearest the exact point however the fraction fell.
+    x0, y0 = int(math.floor(at_x)), int(math.floor(at_y))
+    for y in (y0, y0 + 1):
+        for x in (x0, x0 + 1):
+            col, row = x // DOTS_X, y // DOTS_Y
+            if 0 <= row < height and 0 <= col < width:
+                dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
+                owner[row][col] = POINTER
+
+
+
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             pointer_deg, left, right, top, bottom, aspect, labels=None,
             leaders=None, rules=None):
@@ -692,49 +775,7 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
     _body(put, cx, cy, rotor, slots, poles, r, drive, width, height,
           aspect / DOTS_Y * DOTS_X)
     if pointer_deg is not None:
-        # OUTSIDE THE CAN, where a mark on a real rotor would be. It is
-        # the only thing in the picture that is allowed to be arbitrary:
-        # `tare` puts it wherever a bench decides zero is, and the whole
-        # point of a zero is that the machine has no opinion about where
-        # it should be. It follows the rotor, so what it reads off is
-        # travel from that zero rather than an electrical angle.
-        #
-        # A BEAD ON THE RIM. It rides the can's own outer edge, so it
-        # travels with the drawing instead of orbiting it, and because
-        # POINTER outranks CAN the cells it passes through take its
-        # colour - the rim opens for it and closes behind it.
-        #
-        # A ROUND DOT, not a radial spur. The spur was a line of dots
-        # along the radius: at the top and bottom of the can it lay
-        # across four rows of one cell and read as a tick mark, at the
-        # sides it lay along two columns and read as a dash, and a mark
-        # whose shape depends on where it is is a mark you cannot follow
-        # round. A disc is the same shape at every angle, which is the
-        # whole job.
-        phi = math.radians(pointer_deg)
-        seat = r.can + POINTER_SEAT
-        at_x = cx + seat * math.cos(phi)
-        at_y = cy - seat * math.sin(phi)
-        reach = POINTER_SIDE // 2
-        share = {}
-        for dy in range(-reach, reach + 1):
-            for dx in range(-reach, reach + 1):
-                x, y = round(at_x) + dx, round(at_y) + dy
-                # CLIPPED TO THE ROTOR. Nothing of the bead is drawn past
-                # the can's outer edge: the rotor's silhouette is the
-                # drawing's own boundary and a mark that crosses it stops
-                # being part of the machine.
-                if math.hypot(x - cx, cy - y) > r.can + r.line + POINTER_PROUD:
-                    continue
-                put(x, y, None)
-                share[(int(y) // DOTS_Y, int(x) // DOTS_X)] = True
-        home = (int(at_y) // DOTS_Y, int(at_x) // DOTS_X)
-        for row, col in share:
-            middle = math.hypot(col * DOTS_X + (DOTS_X - 1) / 2.0 - at_x,
-                                row * DOTS_Y + (DOTS_Y - 1) / 2.0 - at_y)
-            if (middle <= POINTER_SIDE / 2.0 or (row, col) == home) \
-                    and 0 <= row < height and 0 <= col < width:
-                owner[row][col] = POINTER
+        _bead(dots, owner, width, height, cx, cy, r, pointer_deg)
     if truth_deg is not None:
         # A TICK IN THE AIR GAP, inside the magnet band it is read
         # against. It was a notch cut outward through the can first: the

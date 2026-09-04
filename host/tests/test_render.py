@@ -490,6 +490,60 @@ def test_ladder(report):
                  dots[0] < dots[1] < dots[2] and dots[2] >= 6, str(dots))
 
 
+def test_the_alphabet(report):
+    """`coaxial.braille`: the whole block, and the words to ask for one.
+
+    HAND-PICKED GLYPHS STAY A HANDFUL AND THE CORNERS COME OUT WRONG. A
+    run of dots ending against a column under it is two marks that happen
+    to touch, and nobody notices until the drawing is read closely -
+    `chr(0x28A4)` at a call site is a guess that has to be decoded before
+    it can be reviewed. The alphabet is the fix: a cell is eight dots in
+    two lanes, and the line-drawing names sit on top of that.
+    """
+    from coaxial import braille as b
+
+    report.check('all 256 patterns, in order',
+                 len(b.ALL) == 256 and len(set(b.ALL)) == 256
+                 and b.ALL[0] == chr(0x2800) and b.ALL[255] == chr(0x28FF))
+    report.check('a dot number and a coordinate name the same dot',
+                 all(b.numbered(n) == b.glyph([at])
+                     for n, at in b.AT.items()))
+    report.check('what is read back is what was drawn',
+                 all(b.glyph(b.lit(c)) == c for c in b.ALL))
+    # THE BENCH ASKS IN DOT NUMBERS: `⠲` is 2, 5 and 6, and that is how
+    # the corner arrived in the first place.
+    report.check('the chart\'s own numbering answers the chart\'s glyph',
+                 b.numbered(2, 5, 6) == chr(0x2832), b.numbered(2, 5, 6))
+
+    report.check('a run is a horizontal on its dot row',
+                 b.RUN == ('\u2809', '\u2812', '\u2824', '\u28c0'),
+                 ''.join(b.RUN))
+    report.check('a fall is a column in its own lane',
+                 b.FALL == ('\u2847', '\u28b8'), ''.join(b.FALL))
+
+    # A CORNER THE LINE ENDS AT IS A HOOK; one it falls THROUGH has to
+    # reach the cell's floor or it breaks against the row below.
+    report.check('a hook stops two dots along',
+                 (b.corner(1, 0), b.corner(1, 1)) == ('\u2816', '\u2832'),
+                 b.corner(1, 0) + b.corner(1, 1))
+    report.check('and carrying on reaches the floor',
+                 (b.corner(1, 0, through=True),
+                  b.corner(1, 1, through=True)) == ('\u2856', '\u28b2'),
+                 b.corner(1, 0, through=True)
+                 + b.corner(1, 1, through=True))
+    report.check('a tee is met, not turned',
+                 (b.tee(0, 0), b.tee(0, 1)) == ('\u284f', '\u28b9'),
+                 b.tee(0, 0) + b.tee(0, 1))
+    # THE SAME TURN THE OTHER WAY: a run on dot row 2 climbing to
+    # the cell's top in the far lane, for a leader that rises to
+    # what it names instead of falling to it.
+    report.check('a corner turning up mirrors one turning down',
+                 b.corner(2, 1, up=True, through=True) == '\u283c',
+                 b.corner(2, 1, up=True, through=True))
+    report.check('a dot off the cell is not drawn',
+                 b.glyph([(9, 9), (0, 0)]) == b.glyph([(0, 0)]))
+
+
 def main():
     report = Report()
     print('\n-- the 3D engine, stage by stage --')
@@ -503,6 +557,7 @@ def main():
     test_steady(report)
     test_scroll(report)
     test_ladder(report)
+    test_the_alphabet(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

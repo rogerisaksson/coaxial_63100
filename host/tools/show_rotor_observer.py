@@ -56,6 +56,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from rich.text import Text                                  # noqa: E402
 
+from coaxial import braille   # noqa: E402
 from coaxial import machine   # noqa: E402
 from coaxial import motor     # noqa: E402
 from coaxial.simulated.power import SimulatedThermal   # noqa: E402
@@ -282,7 +283,15 @@ HEADROOM_GROUP = 'SOA'
 #: six tubes read as one stack and a reader counts them as six nodes.
 #: `machine._bars` skips a None entry, so the gap costs a column and no
 #: special case.
-HEADROOM_GAP = 1
+#:
+#: TWO, SO THE TWO GUTTERS ARE THE SAME WIDTH. The left is six leg nodes,
+#: a gap and the NTC - eight columns. At one, the right came to seven,
+#: and since a legend's arrowhead sits on the machine's own edge the two
+#: runs then reached different distances from the frame: measured, nine
+#: columns of leader on the left against eight on the right, which is
+#: exactly the extra space the bench saw beside `NTC`. The air is worth
+#: having anyway, and here it buys the symmetry as well.
+HEADROOM_GAP = 2
 
 BAR_GLYPH = chr(0x28FF)
 TRACK_GLYPH = chr(0x2812)
@@ -566,6 +575,18 @@ def _tinted(row, marks):
     return ''.join(out)
 
 
+def _lane(column, first):
+    """Which half of its cell a leader falls down: 0 left, 1 right.
+
+    THE FAR SIDE FROM WHERE THE RUN CAME. A line arriving from the left
+    and turning down on the left lane crosses the corner and comes back
+    a dot, which reads as an overshoot; on the right lane it turns where
+    it arrives. `first` is the machine's left edge, so a tube inboard of
+    it was reached from the right and one outboard from the left.
+    """
+    return 0 if column < first else 1
+
+
 def _legend(row, text, ink, column, centred):
     """One legend: a name with its value, an arrowhead over its own
     column, and the row it was written on.
@@ -613,7 +634,13 @@ def _legend_targets(view, left, right):
         # THE MIDDLE OF ITS OWN GROUP, not the edge nearest the machine.
         # A line falling on the inner tube said "this one" about a stack
         # of six; falling on the middle of them it says "these".
-        seat = columns[len(columns) // 2]
+        #
+        # TWO TUBES INBOARD OF THE HALFWAY MARK. The group is eight
+        # columns wide with a spacer and the NTC in it, so the middle of
+        # the LIST is two columns outboard of the middle of the six this
+        # legend actually names - and against BOARD TEMPS, which sits
+        # inboard on its own four, the two stacks read as leaning apart.
+        seat = columns[len(columns) // 2 - 2]
         said.append(_legend(len(said), '%s %.1f %sC' % (name, peak, DEGREE),
                             machine.INK[cls], seat, centred))
 
@@ -662,8 +689,14 @@ def foot_furniture():
     first, last = machine.span(ART_WIDTH, ART_ROWS,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
     grey = machine.LEADER_GREY
-    return ([(ART_ROWS - 2, 0, ART_ROWS, grey, 0),
-             (ART_ROWS - 1, ART_WIDTH - 1, ART_ROWS, grey, 1)],
+    # BOTH RUN PAST THE LAST ART ROW, because both carry on into the
+    # foot line where the arrowhead is. `machine` clips what falls off
+    # the drawing; what the extra row buys is the CORNER - one the line
+    # ends at is a hook and one it falls through reaches the cell's
+    # floor, and the kW corner came out `⠲` when the stroke below it
+    # is an arrow one row down.
+    return ([(ART_ROWS - 2, 0, ART_ROWS + 1, grey, 0),
+             (ART_ROWS - 1, ART_WIDTH - 1, ART_ROWS + 1, grey, 1)],
             [(ART_ROWS - 2, 0, max(0, first - 1), grey),
              (ART_ROWS - 1, min(ART_WIDTH - 1, last + 1), ART_WIDTH - 1,
               grey)])
@@ -678,7 +711,9 @@ def legend_drops(view, left, right):
     stops, where the four above it are lines that arrive. One art
     row is reserved for the hop, so all five land the same way.
     """
-    return [(0, column, 1, machine.LEADER_GREY)
+    first, _last = machine.span(ART_WIDTH, ART_ROWS,
+                                LEFT_COLUMNS, RIGHT_COLUMNS)
+    return [(0, column, 1, machine.LEADER_GREY, _lane(column, first))
             for _row, _text, _ink, column, _centred
             in _legend_targets(view, left, right)]
 
@@ -709,7 +744,7 @@ def _legend_rows(view, left, right):
         # drawing, which read as two marks and not one line.
         for row, _text, _ink, column, _in in said:
             if row < index:
-                line[column] = DROP
+                line[column] = DROP[_lane(column, first)]
                 marks.append((column, 1, machine.LEADER_GREY))
         for row, text, ink, column, centred in said:
             if row != index:
@@ -736,22 +771,41 @@ def _legend_rows(view, left, right):
             # the middle with no thread between them; beside the text it
             # says which way to look, and the braille carries the eye the
             # rest of the way to the tube.
+            # A COLUMN OF AIR EITHER SIDE OF THE HEAD. Hard against
+            # the run, the arrowhead and the first dots read as one
+            # glyph - the head stopped being a head and became the end
+            # of the line. A space and it points AT something.
             if column < at:
-                head, span = at - 2, list(range(column, at - 2))
+                head, span = at - 2, list(range(column, at - 3))
                 line[head] = AIM_LEFT
             else:
                 head = at + len(text) + 1
-                span = list(range(head + 1, column + 1))
+                span = list(range(head + 2, column + 1))
                 line[head] = AIM_RIGHT
             # A COLUMN OF AIR BEFORE ANYTHING ALREADY FALLING. Two runs
             # ending on adjacent tubes met their neighbour's drop and the
             # pair read as one bracket; each stops short of the other's
             # line now, which is what makes them separate pointers.
             span = [step for step in span
-                    if line[step] != DROP
-                    and not (step + 1 < ART_WIDTH and line[step + 1] == DROP)]
+                    if line[step] not in DROP
+                    and not (step + 1 < ART_WIDTH
+                             and line[step + 1] in DROP)]
             for step in span:
                 line[step] = LEADER
+            # AND THE FAR END TURNS, whatever the air rule did to the
+            # run. The corner is where the leader LANDS - trimmed with
+            # the rest for standing next to a neighbour's drop, the
+            # SWITCH SOA row ran six cells and then pointed at nothing.
+            # The air belongs to the horizontal; the endpoint is the
+            # whole errand.
+            if 0 <= column < ART_WIDTH and line[column] not in DROP:
+                line[column] = TURN[_lane(column, first)]
+                # ONE MARK A CELL. `_tinted` cuts the row at each mark
+                # and cannot overlap two - a second entry for a cell the
+                # run already marked emitted the character twice and
+                # every legend row came out a cell longer.
+                if column not in span:
+                    marks.append((column, 1, machine.LEADER_GREY))
             marks.append((head, 1, machine.LEADER_GREY))
             for step in span:
                 marks.append((step, 1, machine.LEADER_GREY))
@@ -1419,7 +1473,22 @@ LEADER_DROP = len(HEADROOM_ROWS)
 #: that reaches out to the column is braille, like everything else the
 #: page draws. `DROP` is the same line continuing down a later row.
 AIM_LEFT, AIM_RIGHT = chr(0x25C0), chr(0x25B6)
-LEADER, DROP = chr(0x2824), chr(0x2847)
+#: The run, the corner it turns at, and the column it falls down - all
+#: off `coaxial.braille`, which holds the whole block and the vocabulary
+#: for asking. Typed as `chr(0x28A4)` these were guesses that had to be
+#: decoded before they could be reviewed, and a corner is exactly the
+#: glyph nobody checks.
+#:
+#: THE RUN AND THE DROP HAVE TO JOIN. A run of dots ending against a
+#: column under it is two marks that happen to touch: the horizontal
+#: crosses the whole cell and the vertical stands beside where it
+#: stopped, so the eye reads a line and then a post. The corner carries
+#: the horizontal into the lane it is going to fall in - left where the
+#: tube is left of its name, right where it is right - and the drop
+#: follows in the same lane, so nothing doubles back.
+LEADER = braille.RUN[2]
+TURN = tuple(braille.corner(2, lane, through=True) for lane in (0, 1))
+DROP = braille.FALL
 
 #: The foot's stroke, climbing out of its arrowhead: the low pair of
 #: dots, then the middle, then the top. Short, because the levels it
@@ -1902,7 +1971,7 @@ def compose(rig, origin, console, view):
             ('E', Text('SPEED', style='chip.live') if view['spin']
              else 'SPEED'),
             ('W', Text('LOAD', style='chip.live') if view['load']
-             else 'LOAD'), (UP + ' ' + DOWN, 'CLICK'),
+             else 'LOAD'), (UP + ' ' + DOWN, 'SCROLL'),
             # WHO HAS THE MOUSE. Lit while the terminal does, because
             # that is the state a reader cannot see any other way - the
             # page looks identical and the wheel has stopped working.
@@ -1937,6 +2006,18 @@ def start(rig, view):
 def act(rig, key, view):
     """One keystroke against the board; returns what to say."""
     d = rig.board.drive
+    # THE BOX COLUMN ON KEYS, not only on its own arrows. Those are
+    # clicked, and a click needs the view to hold the mouse - which it
+    # does not unless asked, so the terminal can mark text. Everything
+    # else in the panels was reachable from the keyboard and the one
+    # thing that scrolled them was not.
+    if key in ('up', 'down'):
+        at, seen, total = view.get('pages') or (0, 0, 0)
+        if key == 'up' and at:
+            view['scroll'] = at - 1
+        elif key == 'down' and seen < total:
+            view['scroll'] = at + 1
+        return None
     try:
         if key == 's':
             if view['state']['mode'] != 'off':

@@ -13,6 +13,7 @@ so the loop, the painter and the teardown all execute once.
 """
 import os
 import subprocess
+import math
 import sys
 import time
 
@@ -338,6 +339,107 @@ def test_two_headrooms_named_apart(report):
                  '%.3f at %.0f C' % (view.motor_headroom_of(half), half))
 
 
+def test_every_gauge_shows_its_own_scale(report):
+    """The dimmed track runs the whole of every bar, at its own width.
+
+    A BAR WITH NOTHING OVER IT SAYS HOW HOT A NODE IS; a bar in a tube
+    says how hot it is OF WHAT IT MAY BE, which is the only version of
+    the question a ceiling makes sense of. Two ways it was not saying it:
+    the tubes drew their track in ONE lane, so the empty half of a
+    thermometer was narrower than the mercury under it, and the flat
+    gauges put a dot every FOURTH one, which is a dash in every other
+    cell. Both read as some bars having a scale and some not.
+    """
+    from coaxial import machine
+
+    n = 4
+    art = machine.render(0.0, 24, 28, 46, 18,
+                         left=[(0.0, machine.SOA_OK)] * n,
+                         right=[(0.0, machine.SOA_OK)] * n,
+                         bottom=[(0.0, machine.SOA_WARN), (0.0, machine.WATTS)])
+    rows = art.split(chr(10))
+    left, right = machine.gutters(46, 18, n, n)
+
+    # EVERY TUBE, EVERY ROW OF IT. Empty bars, so what is drawn is track
+    # and nothing else.
+    seen = set()
+    for row in rows[1:-2]:
+        for col in list(left) + list(right):
+            seen.add(row[col])
+    report.check('an empty tube is drawn in every one of its rows',
+                 ' ' not in seen and chr(0x2800) not in seen,
+                 ''.join(sorted(seen)))
+    report.check('and every tube is drawn the same way',
+                 len(seen) == 1, ''.join(sorted(seen)))
+    report.check('at the tube\'s own width, both lanes',
+                 all(ord(c) - 0x2800 & 0x08 or ord(c) - 0x2800 & 0x10
+                     or ord(c) - 0x2800 & 0x20 or ord(c) - 0x2800 & 0x80
+                     for c in seen), ''.join(sorted(seen)))
+
+    # AND THE FLAT GAUGES ALONG THE FOOT, one dot a cell rather than one
+    # every other cell.
+    first, last = machine.span(46, 18, n, n)
+    floor = rows[-1]
+    drawn = [floor[col] for col in range(first, last + 1)]
+    report.check('the foot gauge draws a scale in every cell it spans',
+                 all(c != ' ' and c != chr(0x2800) for c in drawn),
+                 '%d of %d blank'
+                 % (sum(1 for c in drawn if c in (' ', chr(0x2800))),
+                    len(drawn)))
+
+
+def test_the_bead_is_round_at_every_angle(report):
+    """The pointer is four dots in a square, wherever it lands.
+
+    A MARK WHOSE SHAPE DEPENDS ON WHERE IT IS IS A MARK YOU CANNOT FOLLOW
+    ROUND, and it has been three of those. A radial spur read as a tick
+    at the top of the can and a dash at its sides. A square of dots
+    centred on the rim was clipped to the rotor's silhouette and what
+    survived was a crescent, cut differently at every angle. A sampled
+    disc seated inside the rim was round and spread over three cells,
+    which is a smear on the band rather than a mark on it.
+
+    A dot is square, so four in a square are round - always the same
+    four, taking one cell or two or four depending only on where the
+    block falls across the grid.
+    """
+    from coaxial import machine
+
+    was = None
+    for deg in range(0, 360, 5):
+        dots, owner, _text, _lit = machine._raster(
+            0.0, 24, 28, 46, 18, None, None, float(deg), None, None, None,
+            None, machine.CELL_ASPECT)
+        at = [(r, c) for r in range(18) for c in range(46)
+              if owner[r][c] == machine.POINTER]
+        n = sum(bin(dots[r][c]).count('1') for r, c in at)
+        if not at:
+            was = ('nothing drawn at %d degrees' % deg, 0)
+            break
+        # ONE ROW AND ONE COLUMN AT MOST: four dots in a square straddle
+        # at most two cells each way, and never a third.
+        rows = {r for r, _c in at}
+        cols = {c for _r, c in at}
+        if len(rows) > 2 or len(cols) > 2 or n < 4:
+            was = ('%d degrees: %d cells, %d dots' % (deg, len(at), n), n)
+            break
+    report.check('the bead is drawn, whole, at every angle round the can',
+                 was is None, was[0] if was else '72 angles')
+
+    # AND IT RIDES THE RIM: the same distance out at every angle, which
+    # is what makes it a mark on the rotor and not a mark near it.
+    cx, r, _, _ = machine.layout(46, 18, 0, 0, rows=18)
+    cy = 18 * 4 / 2.0 - 0.5
+    reach = []
+    for deg in range(0, 360, 5):
+        phi = math.radians(deg)
+        seat = r.can + machine.POINTER_SEAT
+        reach.append(math.hypot(seat * math.cos(phi), seat * math.sin(phi)))
+    report.check('and rides the rim at one radius',
+                 max(reach) - min(reach) < 1e-9,
+                 '%.3f to %.3f' % (min(reach), max(reach)))
+
+
 def test_the_flat_drawings_spend_the_block(report):
     """The 2D drawings antialias their fringe instead of rounding it up.
 
@@ -422,6 +524,8 @@ def main():
     test_two_headrooms_named_apart(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
     test_the_flat_drawings_spend_the_block(report)
+    test_every_gauge_shows_its_own_scale(report)
+    test_the_bead_is_round_at_every_angle(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 
