@@ -132,13 +132,28 @@ void thermal_defaults(thermal_cfg_t *cfg)
      the header: it is a weighted average of the leg node and the board,
      so it cannot leave the interval between them at any value of this.
 
-     HALF, AND NOT MEASURED. The campaign implies 1.05, which no passive
-     body can be, so there is nothing to fit to; a point sensor soldered
-     to FR4 a centimetre from the pad is somewhere between a tenth and
-     two thirds of the way, and this is the middle of that pending the
-     power step that would settle it. What matters is that no value of it
-     can produce a reading above its own source. */
-  cfg->ntc_sees_drivers = 0.5f;
+0.30, AND IT IS GEOMETRY NOW. `electronics/Coaxial 63100
+     Pick-Place.csv` places NTC1 at (99.62, 79.83) mm and every power part
+     beside it, so the fraction stops being a midpoint of a hand-waved range:
+
+        U1V, the V gate driver     8.2 mm    f = 0.50
+        Q2V, a V half-bridge FET  15.1 mm    f = 0.33
+        Q1V, the other            17.7 mm    f = 0.28
+        the next-nearest driver   28.0 mm
+
+     Two-dimensional radial spreading in a plate gives `f = ln(R/r)/ln(R/a)`
+     with R half the board's short side, 46 mm off the placements, and `a`
+     the source's own radius - 1.5 mm for these packages. The old 0.5 was
+     right for the DRIVER IC alone; it is wrong for the node, because the
+     model lumps the driver's switching loss and both FETs' conduction onto
+     one lump and the thermistor is 8 mm from one of them and 15 to 18 mm
+     from the other two. At 100 A the FETs make 18.4 W of that node's 18.6,
+     so the fraction is theirs: power-weighted, 0.304.
+
+     AND IT CONFIRMS `THERMAL_NTC_NEIGHBOUR`. U1V is the nearest power part
+     by a factor of 3.4 over the next driver, so anchoring the V leg is
+     right - that was an assumption until the placements arrived. */
+  cfg->ntc_sees_drivers = 0.30f;
   /* AN ELEMENT BETWEEN TWO NODES LAGS BETWEEN THEIR CONSTANTS, and the
      geometric mean is what "between" means for time constants - the
      log-midpoint, not the arithmetic one, because a lag is a ratio and

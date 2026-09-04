@@ -386,6 +386,47 @@ Not retuned here. Moving `to_board` moves every steady-state current
 figure and the whole SOA behaviour, and that is a bench decision - but it
 is now a decision with three numbers behind it instead of one.
 
+### The placements settle two of the guesses, 2026-09-04
+
+`electronics/Coaxial 63100 Pick-Place.csv` arrived, and it is the
+authority on where things are the way the parts list is on what is
+fitted. NTC1 sits at (99.62, 79.83) mm; every distance below is to it.
+
+| part | mm | what the thermistor sees of it |
+|---|---|---|
+| U1V, the V gate driver | **8.2** | 0.50 |
+| Q2V, a V half-bridge FET | 15.1 | 0.33 |
+| Q1V, the other | 17.7 | 0.28 |
+| U1W, the next driver | 28.0 | - |
+| RV1, the nearest shunt | 29.7 | - |
+| U1U, the far driver | 30.3 | - |
+
+* **`THERMAL_NTC_NEIGHBOUR = driver_v` is CONFIRMED.** U1V is the nearest
+  power part by a factor of 3.4 over the next driver. It was an
+  assumption until the file arrived.
+* **The element fraction is 0.30, not 0.50, and it is geometry now.**
+  Two-dimensional radial spreading in a plate gives
+  `f = ln(R/r) / ln(R/a)`, with R half the short side of the placement
+  extent (46 mm) and `a` a package's own radius (1.5 mm). The old 0.5 was
+  right for the DRIVER IC alone - and wrong for the node, because the
+  model lumps the driver's switching loss and both FETs' conduction onto
+  one lump while the thermistor is 8 mm from one and 15 to 18 mm from the
+  other two. At 100 A the FETs make 18.4 W of that node's 18.6, so the
+  fraction is theirs: power-weighted, **0.304**.
+* What it does to the reading: a leg node 100 K over the board now shows
+  the thermistor 70 K BELOW it rather than 50. The campaign residual
+  moves 11.04 to 12.86 K, which is the same inconsistency seen from a
+  slightly different fraction and not new information.
+* THE OFFSET DOES NOT MATTER. The exporter's origin is shifted, and every
+  quantity used is either a distance between two parts or the extent of
+  the whole set - both differences, so a constant shift falls out.
+* R IS A FLOOR. The extent is the parts' bounding box, not the board
+  outline, so the real R is larger and f slightly higher: at R = 55 mm
+  the weighted fraction is 0.34 rather than 0.30.
+* `test_sensorless.py` reads the file and checks both claims, so a board
+  revision that moves the thermistor fails the suite rather than the
+  bench.
+
 ### A more plausible lumped model, 2026-09-04
 
 From `docs/papers/`: Ziegenfelder 2022 (USU) for the heat-transfer form,

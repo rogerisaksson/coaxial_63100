@@ -84,8 +84,9 @@ is still arithmetic. Every item names the file or record it lives in.
   4.08 J to 12.25 J. A power step and the NTC's slope would settle it -
   the only one of these a transient can reach rather than an
   equilibrium, and `tools/pulse.py` already makes the step.
-* The thermistor's element fraction (`ntc_sees_drivers` 0.5) is not
-  measured, and the campaign cannot measure it: its one switching state
+* The thermistor's element fraction (`ntc_sees_drivers` 0.30) comes off
+  the pick and place by two-dimensional radial spreading, not off a
+  measurement, and the campaign cannot measure it: its one switching state
   implies 1.05, which no passive body between two others can have. The
   same state now shows an 11.04 K residual, which is that inconsistency
   made visible instead of absorbed into a coupling.

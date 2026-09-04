@@ -57,8 +57,9 @@ AMBIENT = 20.0
 #: How far the thermistor's element sits toward the leg node, as
 #: `thermal_defaults` sets it. Named here rather than read back, because a
 #: test that asked the code for its own expectation would agree with a
-#: typo.
-NTC_SEES_LEG = 0.5
+#: typo - and it is `electronics/`'s pick and place that says what it
+#: should be, which `test_sensorless.py` checks against the file.
+NTC_SEES_LEG = 0.30
 
 
 class Model:

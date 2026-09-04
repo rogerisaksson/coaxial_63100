@@ -479,6 +479,85 @@ def test_motion(r):
         rig.close()
 
 
+def test_the_placements_behind_the_thermal_model(r):
+    """What `electronics/` places, and what the model claims about it.
+
+    THE PICK AND PLACE IS THE AUTHORITY ON WHERE THINGS ARE, the way the
+    parts list is the authority on what is fitted. Two of the thermal
+    model's numbers rest on it now - which leg the thermistor anchors,
+    and how much of that leg's rise it sees - so both are checked against
+    the file rather than against a comment.
+
+    ONLY DIFFERENCES ARE USED. The exporter's origin is offset, and every
+    quantity here is either a distance between two parts or the extent of
+    the whole set, so a constant shift falls out of both.
+    """
+    import csv
+    import os
+
+    from coaxial import thermal
+
+    here = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+    path = os.path.join(here, 'electronics', 'Coaxial 63100 Pick-Place.csv')
+    if not os.path.exists(path):
+        r.check('the pick and place is in the tree', False, path)
+        return
+
+    at = {}
+    with open(path, encoding='latin-1') as handle:
+        for line in handle:
+            if not line.startswith('"'):
+                continue
+            row = next(csv.reader([line]))
+            try:
+                at[row[0]] = (float(row[4]), float(row[5]))
+            except ValueError:
+                continue
+
+    def away(ref):
+        return math.hypot(at[ref][0] - at['NTC1'][0],
+                          at[ref][1] - at['NTC1'][1])
+
+    drivers = ('U1U', 'U1V', 'U1W')
+    r.check('every part the thermal model names is placed',
+            all(ref in at for ref in drivers + ('NTC1', 'Q1V', 'Q2V')),
+            '%d placements' % len(at))
+
+    near = min(drivers, key=away)
+    second = sorted(away(ref) for ref in drivers)[1]
+    r.check('the thermistor anchors the leg it is actually next to - '
+            'THERMAL_NTC_NEIGHBOUR is driver_v',
+            near == 'U1V' and second > 3.0 * away(near),
+            '%s at %.1f mm, next at %.1f' % (near, away(near), second))
+
+    # THE FRACTION, from two-dimensional radial spreading in a plate:
+    # `f = ln(R/r) / ln(R/a)`. R is half the short side of the placement
+    # extent - the parts' box, not the board outline, so it is a floor -
+    # and `a` is a package's own radius.
+    xs = [p[0] for p in at.values()]
+    ys = [p[1] for p in at.values()]
+    reach = min(max(xs) - min(xs), max(ys) - min(ys)) / 2.0
+    source = 1.5
+
+    def share(ref):
+        return math.log(reach / away(ref)) / math.log(reach / source)
+
+    # At 100 A the two FETs make 18.4 W of the leg node's 18.6, so the
+    # fraction is theirs and not the driver IC's - which is the whole
+    # correction the placements bought.
+    weighted = (0.2 * share('U1V') + 9.2 * share('Q2V')
+                + 9.2 * share('Q1V')) / 18.6
+    r.check('the model fraction is what the placements imply under load',
+            abs(thermal.NTC_SEES_DRIVERS - weighted) < 0.05,
+            'model %.2f against %.3f from geometry'
+            % (thermal.NTC_SEES_DRIVERS, weighted))
+    r.check('and it is well below what the driver IC alone would give, '
+            'which is what the model used to carry',
+            weighted < 0.8 * share('U1V'),
+            '%.3f against the IC own %.3f' % (weighted, share('U1V')))
+
+
 def test_the_datasheet_against_the_thermal_model(r):
     """What `datasheets/mosfet/` settles, and where it disagrees.
 
@@ -521,7 +600,8 @@ def test_the_datasheet_against_the_thermal_model(r):
             '%.1f mOhm typ against 2.1 max' % (inverter.RDS_ON * 1e3))
 
 
-ROSTER = (test_inverter, test_the_datasheet_against_the_thermal_model,
+ROSTER = (test_inverter, test_the_placements_behind_the_thermal_model,
+          test_the_datasheet_against_the_thermal_model,
           test_loop, test_motion,
           test_autodetect_recovers_each_machine,
           test_arithmetic, test_budget, test_kalman,
