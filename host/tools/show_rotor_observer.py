@@ -519,8 +519,17 @@ def gutter_caption(view):
     _place(top, 'SWITCH', left)
     _place(top, 'BOARD', right)
     # PLURAL: each group is six thermometers and four, not one.
-    _place(bottom, 'TEMPS', left)
-    _place(bottom, 'TEMPS', right)
+    # MARKED, NOT JUST PLACED. This row is inked in pieces since the NTC
+    # arrived on it, and a piecewise row gives anything unmarked the
+    # terminal's own foreground - which is brighter than every other
+    # caption on the page. The same thing happened to SOA HEADROOM the
+    # day it moved onto a piecewise row; a name is a name whichever row
+    # it lands on.
+    bottom_marks = []
+    for columns in (left, right):
+        at = _place(bottom, 'TEMPS', columns)
+        if at is not None:
+            bottom_marks.append((at, len('TEMPS'), ASH))
     # AND THE MEASUREMENT ABOVE THE HEADROOM SCALE. Everything below this
     # row is modelled; this is the one number with a sensor behind it, so
     # it stands over the scale the model's own verdict is drawn on and
@@ -528,8 +537,17 @@ def gutter_caption(view):
     # angle, and for the same reason.
     shown = reference(view)
     seen_at = _place(bottom, shown, over_machine)
-    bottom_marks = ([(seen_at, len(shown), machine.INK[machine.TRUTH])]
-                    if seen_at is not None else [])
+    if seen_at is not None:
+        # THE NAME IN ASH AND THE VALUE IN ITS OWN INK, which is the
+        # grammar the rest of the page already speaks: every caption is
+        # grey and every figure carries the colour of what it measures.
+        # Inked whole, the word NTC read as a heading brighter than the
+        # three beside it.
+        head = shown.split(' ')[0]
+        bottom_marks.append((seen_at, len(head), ASH))
+        bottom_marks.append((seen_at + len(head) + 1,
+                             len(shown) - len(head) - 1,
+                             machine.INK[machine.TRUTH]))
     # AND THE HOTTEST OF EACH, IN DEGREES, under its own name. The tubes
     # are fractions of a ceiling - the right thing to act on and the
     # wrong thing to say out loud, because a bench asks how hot the FETs
