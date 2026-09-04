@@ -30,8 +30,8 @@ from rich import box                                       # noqa: E402
 from coaxial import wireframe                              # noqa: E402
 from coaxial.orientation import _qmul, matrix, normalise   # noqa: E402
 import facecheck                                           # noqa: E402
-from screen import (Keys, curtain, footer, hold_still, paced,  # noqa: E402
-                    stage,
+from screen import (Keys, WHEEL_STEP, curtain, footer,  # noqa: E402
+                    paced, stage,
                     TO_MENU)
 
 import screen as _screen                                   # noqa: E402
@@ -117,10 +117,14 @@ def compose(view, size):
     whole = Layout()
     whole.split_column(
         Layout(body, name='body'),
-        Layout(footer((('DRAG', 'TURN'), ('UP DN', 'LIGHT'),
-                       ('LT RT', 'SPOT'), ('x/X y/Y z/Z', 'DEG'),
-                       ('SPACE', 'SPIN'), ('R', 'RESET'), ('M', 'MODEL'),
-                       ('WHEEL', 'ZOOM'), ('F', 'SELECT'),
+        # SELECT NEAR THE FRONT. The footer is one line and these keys
+        # overrun it - measured, the row ended at `SPACE:` and the chip
+        # that says how to copy anything off the page was past the cut.
+        # A key nobody can see is a key nobody has.
+        Layout(footer((('F', 'MOUSE'), ('+ -', 'ZOOM'),
+                       ('UP DN', 'LIGHT'), ('LT RT', 'SPOT'),
+                       ('x/X y/Y z/Z', 'DEG'), ('SPACE', 'SPIN'),
+                       ('R', 'RESET'), ('M', 'MODEL'),
                        ('Q', 'EXIT'))), size=1))
     return whole
 
@@ -130,6 +134,14 @@ AXES3 = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
 def act_on(typed, view):
     for key in typed:
+        # ZOOM ON KEYS AS WELL AS THE WHEEL. The wheel needs the view to
+        # hold the mouse, and it does not unless asked - the terminal has
+        # it so a left-drag can mark text. A view whose only way in was
+        # the wheel would be a view you had to give the text up to use.
+        if key in '+=-_':
+            step = 1.0 + (WHEEL_STEP if key in '+=' else -WHEEL_STEP)
+            view['zoom'] = max(0.3, min(4.0, view['zoom'] * step))
+            continue
         if key in ('up', 'down'):
             step = -0.03 if key == 'up' else 0.03
             wireframe.DUSK = min(0.60, max(-0.30, wireframe.DUSK + step))
@@ -187,7 +199,6 @@ def main(argv=None):
 
 
 def loop(args, page, view, frame, last):
-    held = False
     with curtain(page) as live, Keys(page.is_terminal, mouse=True) as keys:
         while True:
             now = time.monotonic()
@@ -197,16 +208,7 @@ def loop(args, page, view, frame, last):
             last = now
 
             frame += 1
-            # OUT OF THE ALTERNATE SCREEN WHILE THE MOUSE IS THE
-            # TERMINAL'S, as `run_view` does - `screen.hold_still` has
-            # why a frozen Live is not enough.
-            if not held:
-                shown = compose(view, page.size)
-                if not keys.selecting():
-                    live.update(shown, refresh=True)
-                held = hold_still(live, keys, shown, held)
-            else:
-                held = hold_still(live, keys, None, held)
+            live.update(compose(view, page.size), refresh=True)
             if args.frames and frame >= args.frames:
                 return 0
 

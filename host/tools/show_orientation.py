@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import farm, orientation                      # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
-from screen import closing, say, TO_MENU                  # noqa: E402
+from screen import closing, say, TO_MENU, WHEEL_STEP      # noqa: E402
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -371,7 +371,10 @@ def compose(origin, args, view, colour, console):
         boxes(view['part'], view['pid'], view['record'], q, view['rate']),
         (tuple(_mirror_keys(view['flip']))
          + (('C', 'FRAME'), ('T', 'TARE'), ('WHEEL', 'ZOOM'),
-            ('F', _lit('SELECT') if _screen.selecting() else 'SELECT'),
+            ('+ -', 'ZOOM'),
+            # LIT WHILE THE VIEW HAS THE MOUSE, dark while the terminal
+            # does - which is the default, so a left-drag marks text.
+            ('F', _lit('MOUSE') if _screen.holding() else 'MOUSE'),
             ('Q', 'EXIT'), ('ESC', 'MENU'), ('', note))))
 
 
@@ -518,6 +521,12 @@ def main(argv=None):
                        colour=console and not args.photo, console=console)
 
     def on_input(typed, moved):
+        # THE KEYS ZOOM TOO. The wheel needs the view to hold the mouse,
+        # and it does not unless asked - the terminal has it so a
+        # left-drag can mark text, braille included.
+        for key in typed:
+            if key in '+=-_':
+                moved += WHEEL_STEP if key in '+=' else -WHEEL_STEP
         if moved:
             view['zoom'] = max(0.25, min(6.0, view['zoom'] * (1.0 + moved)))
         bindings(typed, state, view['quaternion'])

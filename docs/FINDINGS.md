@@ -881,17 +881,23 @@ record's own constants, no measurement.
 
 ## The views
 
-* **Handing the mouse back does not make a view selectable.** Taking the
-  wheel clears QUICK_EDIT and asks for SGR reports, so a drag inside one
-  of these pages does nothing; releasing both and freezing the redraw
-  still left it unselectable, reported from the bench. The reason is the
-  ALTERNATE SCREEN: a view runs inside a `Live` with `screen=True`, and
-  a terminal that will happily select its own scrollback fights a drag
-  across that buffer. `screen.hold_still` steps out - `Live.stop()`,
-  print the frame once as plain output, `Live.start()` to go back - and
-  a selection there behaves like any other. `F` is the key in every
-  mouse view; C was taken by the attitude view's frame and the menu's
-  direct entry.
+* **A view that reports the mouse cannot be selected from, and the
+  default was to report it.** Asking for SGR reports and clearing
+  QUICK_EDIT is exactly what a terminal uses to let a reader left-drag
+  across a line and copy it, so no number and no braille cell on any of
+  these pages could be marked. **Two wrong fixes first, both shipped:**
+  a key that handed the mouse back, then that key ALSO stepping the page
+  out of the alternate screen and printing it plainly - each reported
+  still broken, because the common case (read the page, copy a figure
+  off it) stayed behind a keystroke nobody had reason to press. The
+  answer was the DEFAULT: the terminal keeps the mouse, `F` lends it to
+  the view for the wheel and the trackball, and left-drag marks text
+  everywhere with no key at all. The alternate screen was never the
+  problem - a terminal's selection is anchored to the buffer and
+  survives the cells under it being rewritten. Zoom moved onto `+ -` in
+  the two views that had it only on the wheel; C was not free (the
+  attitude view's frame, the menu's direct entry), which is why the key
+  is F.
 
 ## The renderers
 

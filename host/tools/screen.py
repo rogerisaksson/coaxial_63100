@@ -20,15 +20,22 @@ ansi.utf8_stdout()          # every view draws outside ASCII
 QUIT_KEYS = frozenset({'q', 'Q'})
 MENU_KEYS = frozenset({chr(27)})
 
-#: What hands the mouse back to the terminal, and takes it again.
+#: What lends the mouse to the view, and gives it back.
 #:
-#: A VIEW THAT REPORTS THE MOUSE CANNOT BE SELECTED FROM. Taking the
-#: wheel means clearing QUICK_EDIT and asking for SGR reports, and both
-#: of those are what a terminal uses to let a reader drag across a line
-#: and copy it - so every number on these pages was unreachable to a
-#: bench that wanted to paste one into a note. It is not a setting a view
-#: should own either: the wheel is worth having and so is the text, and
-#: which one the mouse is doing belongs to whoever is holding it.
+#: A VIEW THAT REPORTS THE MOUSE CANNOT BE SELECTED FROM, and the mouse
+#: is now the TERMINAL'S until asked for. Reporting the wheel means
+#: asking for SGR reports and clearing QUICK_EDIT, and those are exactly
+#: what a terminal uses to let a reader left-drag across a line and copy
+#: it - so with the view holding the mouse, no number and no braille cell
+#: on any of these pages could be marked.
+#:
+#: IT WAS THE OTHER WAY ROUND AND IT WAS WRONG. The view took the mouse
+#: on entry and a key handed it back, which put the common case - read
+#: the page, copy a figure off it - behind a keystroke nobody had reason
+#: to know about, and left every page unselectable until they did.
+#: Reported three times from the bench before the default moved. The
+#: wheel and the trackball are the special case: worth a key, not worth
+#: the text.
 #:
 #: Handled HERE rather than in each view, so any page that asked for the
 #: mouse can give it back with the same key - which is why it is `F` and
@@ -45,9 +52,9 @@ SELECT_KEYS = frozenset({'f', 'F'})
 _HOLDER = None
 
 
-def selecting():
-    """Whether the mouse is the terminal's right now, for a key legend."""
-    return _HOLDER is not None and _HOLDER.selecting()
+def holding():
+    """Whether a view has the mouse right now, for a key legend."""
+    return _HOLDER is not None and _HOLDER.holding()
 
 #: What a view exits with when ESC sent it back. Distinct from 0 so the menu
 #: can tell "show me again" from "that is all", and from 130 so neither is
@@ -317,32 +324,6 @@ def open_rig(banner, **kwargs):
         return None
 
 
-def hold_still(page, keys, frame, held):
-    """Freeze or thaw the page around a selection. Answers the new `held`.
-
-    LEAVING THE ALTERNATE SCREEN IS THE POINT. Handing the mouse back and
-    stopping the redraw was not enough - a view runs inside a `Live` on
-    the alternate buffer, and a terminal that will happily select ordinary
-    scrollback fights a drag across one. So the page steps OUT: `Live`
-    stops, the frame is printed once as plain output where the shell's own
-    text lives, and a selection there behaves like a selection anywhere
-    else. The same key puts it back and the view carries on from where it
-    stood.
-
-    The frame printed is drawn AFTER the mouse is handed over, so the key
-    legend on it says which state the page is in.
-    """
-    want = keys.selecting()
-    if want == held:
-        return held
-    if want:
-        page.stop()
-        page.console.print(frame)
-    else:
-        page.start(refresh=True)
-    return want
-
-
 def run_view(board_view, console, period, frames, draw, on_input=None,
              tick=None, mouse=False, on_click=None, on_drag=None):
     """The loop every view runs: draw, pace, take keys - until Q, ESC,
@@ -361,7 +342,6 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     import time as _time
 
     count = 0
-    held = False
     try:
         with curtain(board_view) as page, Keys(console, mouse=mouse) as keys:
             while True:
@@ -373,17 +353,13 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 # measured. A frame slower than the period pays no
                 # sleep at all and the keys are still polled once.
                 started = _time.monotonic()
-                # AND THE PAGE STEPS OUT OF THE ALTERNATE SCREEN WHILE
-                # THE MOUSE IS THE TERMINAL'S - `hold_still` has why.
-                # One last frame is drawn as it goes, so the legend on
-                # the copy says which state the page is in.
-                if not held:
-                    shown = draw()
-                    if not keys.selecting():
-                        page.update(shown, refresh=True)
-                    held = hold_still(page, keys, shown, held)
-                else:
-                    held = hold_still(page, keys, None, held)
+                # AND IT KEEPS DRAWING. Stepping out of the alternate
+                # screen to be copied from was a fix for the wrong
+                # thing: what stopped a drag was the view REPORTING the
+                # mouse, and it does not any more unless asked. A
+                # terminal's selection is anchored to the buffer, so it
+                # survives the cells under it being rewritten.
+                page.update(draw(), refresh=True)
                 if tick is not None and tick():
                     return None
                 if frames and count >= frames:
@@ -657,8 +633,9 @@ class Keys:
         except Exception:               # noqa: BLE001 - Windows, or no tty
             self._saved = None
 
+        # THE TERMINAL KEEPS THE MOUSE until a view is asked to take
+        # it. `SELECT_KEYS` has why.
         global _HOLDER
-        self.grab(True)
         if self.mouse:
             _HOLDER = self
         return self
@@ -737,14 +714,15 @@ class Keys:
                 self._typed.append(key)
         return leave, zoom
 
-    def selecting(self):
-        """Whether the mouse is the terminal's at the moment.
+    def holding(self):
+        """Whether the VIEW has the mouse at the moment.
 
         A view asks so it can say so - the key does nothing visible on the
-        page otherwise, and a reader who pressed it needs to know whether
-        the drag they are about to make will select or spin.
+        page otherwise, and a reader needs to know whether the drag they
+        are about to make will select or spin. False is the default and
+        the quiet state: the terminal has it, and a left-drag marks text.
         """
-        return self.mouse and not self._grabbed
+        return self.mouse and self._grabbed
 
     def grab(self, on):
         """Take the mouse for the view, or hand it to the terminal.
