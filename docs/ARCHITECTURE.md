@@ -236,16 +236,23 @@ take two rows each for their two-word names, and `SOA HEADROOM` rides
 the third beside the readings so it stands directly over its own scale
 rather than four rows clear of it at the top of the page.
 
-TWO MARGINS SIT ABOVE EVERYTHING ELSE, because they are what a bench
-looks at first: `BOARD SOA` is the worst of the ten board nodes against
-ceilings the calibration record gave it, and `MOTOR SOA` is the winding
-against this page's own scale. One is a margin the board acts on - it
-throttles, and at a ceiling it drops MOE - and the other only the
-operator can, which is why they are named apart rather than averaged.
-Both stand up as tubes in the right gutter, outboard of the board's
-thermometers with a column of air between them, and each name ends in an
-arrowhead with a dotted line falling to its own bar. The outer one falls
-further, which makes the pair a staircase rather than two brackets.
+EVERY GUTTER GROUP IS A LEGEND: a name, its value, an arrowhead over its
+own column and a dotted line falling to what it names, unbroken from the
+caption rows into the machine's own dots. Four of them, in the order a
+bench reads - `MOTOR SOA` and `BOARD SOA` first, because they are the two
+ways to cook it, then `SWITCH TEMPS` and `BOARD TEMPS`, with the NTC on
+the last row under all of them. Names lean inboard from their arrowheads
+so nothing sits against the frame, and the lines fall different distances,
+which is what makes them read as a staircase rather than as brackets.
+
+The two margins are different facts and named apart for it: `BOARD SOA`
+is the worst of the ten board nodes against ceilings the calibration
+record gave it and the board acts on that itself - it throttles, and at a
+ceiling it drops MOE - while `MOTOR SOA` is the winding against this
+page's own scale, which only the operator can act on. Both stand up as
+tubes in the right gutter, outboard of the board's thermometers with a
+column of air between: four are node temperatures and two are margins,
+and adjacent they read as one stack of six.
 
 Above the headroom scale stands the NTC, and it is there because it is
 the one MEASURED temperature on the page - a thermistor beside the middle

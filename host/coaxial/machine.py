@@ -433,7 +433,8 @@ def _gauge(dots, owner, width, height, row, share, cls,
                 owner[row][col] = TRACK
 
 
-def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0):
+def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
+          has_top=True):
     """Vertical margin bars, filled from the bottom, one cell wide.
 
     LEFT AND RIGHT ARE THE CALLER'S SUBJECTS, not this module's: it draws
@@ -462,9 +463,14 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0):
     # dot reached, so a tube running through those rows ate the words -
     # measured, `MOTOR SOA 41 %` came out as `MOTOR SOA` with the value
     # chewed off by the board's own thermometers.
-    top_row = GAUGE_INSET + 1 + reserve
-    tall = max(1, height - GAUGE_INSET - FLOOR_INSET - 1 - reserve
-               - max(1, floors)) * DOTS_Y
+    # THE ROW AFTER THE TOP GAUGE, or the first row when there is none.
+    # The `+1` was unconditional and left an empty row under the captions
+    # once the headroom scales moved out of the drawing - which broke
+    # every leader falling into a tube exactly where it should have
+    # landed.
+    top_row = GAUGE_INSET + (1 if has_top else 0) + reserve
+    tall = max(1, height - GAUGE_INSET - FLOOR_INSET - reserve
+               - (1 if has_top else 0) - max(1, floors)) * DOTS_Y
     # Floor one side and ceil the other inside `gutters`: the centre sits
     # between two columns, so flooring both put the machine's right edge
     # half a column further out than its left and the gaps came out 1
@@ -640,7 +646,8 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
     floor = list(bottom or ())
     written = [row for row, _col, _said, _ink in list(labels or ())]
     _bars(dots, owner, width, height, left, right, r, len(floor),
-          reserve=(max(written) + 1) if written else 0)
+          reserve=(max(written) + 1) if written else 0,
+          has_top=bool(top))
     # A ROW OF THEM, side by side across the machine's width. It was one
     # gauge; a page that has to say how much is left of the BOARD and of
     # the WINDINGS at once cannot say it in one bar, and stacking them

@@ -531,49 +531,86 @@ def _tinted(row, marks):
     return ''.join(out)
 
 
-def _margin_rows(view, right):
-    """The two margin rows above everything, each on its own leader.
+def _legend(row, text, ink, column, inboard):
+    """One legend: a name with its value, an arrowhead over its own
+    column, and the row it was written on.
 
-    THE OUTER TUBE FIRST, on the upper row with the longer rule, so the
-    pair steps down and inward instead of crossing. Each name carries its
-    own value and its own colour, and the rule that reaches out to its
-    tube is TRACK's grey - furniture says which bar, not how much is
-    left, and the empty half of every thermometer here is already that
-    grey.
-
-    Braille glyphs written as text, not rasterised: a caption row is a
-    string, and these are the same dots the drawing would have made.
+    `inboard` says which way the words run from the head - right for the
+    left-hand gutter, left for the right-hand one - so every label leans
+    toward the machine and the page has no text against its own frame.
     """
-    rows = []
+    return (row, text, ink, column, inboard)
+
+
+def _legend_rows(view, left, right):
+    """The caption rows: four legends and the NTC, in dots and text.
+
+    EVERY GROUP IS NAMED THE SAME WAY NOW. It was two rows of bare names
+    over the gutters with the readings on a third, which put `SWITCH` and
+    `BOARD` hard against the frame and made a reader carry the name down
+    to the tubes themselves. A name, its value, an arrowhead and a line
+    falling to what it names says the whole thing in one row and leans
+    the words inboard where there is room for them.
+
+    The lines run unbroken: a glyph in every row below their own, down to
+    the tubes they land on.
+    """
     bars = headrooms(view)
+    said = []
     order = list(reversed(range(len(HEADROOM_TITLES))))
     for step, index in enumerate(order):
+        if len(right) > HEADROOM_AT:
+            share, cls = bars[index]
+            said.append(_legend(
+                step, '%s %.0f %%' % (HEADROOM_NAMES[index], 100.0 * share),
+                machine.INK[cls], right[HEADROOM_AT + index], False))
+    for group, columns, name, inboard in (
+            (SOA_NODES, left, 'SWITCH TEMPS', True),
+            (BOARD_NODES, right, 'BOARD TEMPS', False)):
+        peak, cls = hottest(view, group)
+        if peak is None or not columns:
+            continue
+        seat = max(columns) if inboard else min(columns)
+        said.append(_legend(len(said), '%s %.1f %sC' % (name, peak, DEGREE),
+                            machine.INK[cls], seat, inboard))
+
+    rows = []
+    for index in range(CAPTION_ROWS):
         line = [' '] * ART_WIDTH
         marks = []
-        # THE LINES ALREADY FALLING pass through this row before anything
-        # is written on it. Without them each leader broke at the caption
-        # rows and picked up again inside the drawing, which read as two
-        # marks rather than one line - and the name on this row had to be
-        # pulled clear of the column they use.
-        for above in order[:step]:
-            if len(right) > HEADROOM_AT:
-                through = right[HEADROOM_AT + above]
-                line[through] = DROP
-                marks.append((through, 1, machine.INK[machine.TRACK]))
-        if len(right) > HEADROOM_AT:
-            column = right[HEADROOM_AT + index]
-            share, cls = bars[index]
-            said = '%s %.0f %%' % (HEADROOM_NAMES[index], 100.0 * share)
-            # A SPACE BEFORE THE HEAD, and the whole thing pulled clear
-            # of any line already falling to its right.
-            said += ' '
-            at = column - len(said)
-            line[at:at + len(said)] = said
+        # THE LINES ALREADY FALLING pass through before anything is
+        # written, and the words are placed clear of them: without that a
+        # leader broke at the captions and picked up again inside the
+        # drawing, which read as two marks and not one line.
+        for row, _text, _ink, column, _in in said:
+            if row < index:
+                line[column] = DROP
+                marks.append((column, 1, machine.INK[machine.TRACK]))
+        for row, text, ink, column, inboard in said:
+            if row != index:
+                continue
+            at = (column + 2) if inboard else (column - len(text) - 1)
             line[column] = POINTER
-            marks.append((at, len(said), machine.INK[cls]))
+            line[at:at + len(text)] = text
             marks.append((column, 1, machine.INK[machine.TRACK]))
-        rows.append(_tinted(line, marks))
-    return rows
+            marks.append((at, len(text), ink))
+        rows.append((line, marks))
+
+    # THE ONE MEASUREMENT, on the last caption row and centred over the
+    # machine: everything above it is an estimate and this is the only
+    # figure with a sensor behind it. `reference` has the rest.
+    line, marks = rows[-1]
+    shown = reference(view)
+    first, last = machine.span(ART_WIDTH, ART_ROWS,
+                               len(SOA_NODES), RIGHT_COLUMNS)
+    at = max(0, (first + last - len(shown)) // 2)
+    if all(ch == ' ' for ch in line[at:at + len(shown)]):
+        line[at:at + len(shown)] = shown
+        head = shown.split(' ')[0]
+        marks.append((at, len(head), ASH))
+        marks.append((at + len(head) + 1, len(shown) - len(head) - 1,
+                      machine.INK[machine.TRUTH]))
+    return [_tinted(line, marks) for line, marks in rows]
 
 
 def _foot_line(view):
@@ -603,128 +640,15 @@ def _foot_line(view):
 
 
 def gutter_caption(view):
-    """The captions: three rows over the gutters, and one under the foot.
+    """The caption rows above the drawing, and the one under its foot.
 
-    It takes the view because the foot labels carry their gauges' values:
-    a level says how far along a scale it is and never what it is worth,
-    and the box that holds those figures is several boxes down the column.
-
-    CENTRED ON THE COLUMNS, not on the halves of the frame. Written
-    against the halves it read as badly aimed - the left group is six
-    columns at the far edge and a label centred in twenty sat well to the
-    right of it. `machine.gutters` is asked where the bars actually went.
-
-    TWO ROWS BECAUSE THE NAMES ARE TWO WORDS. `SWITCH TEMP` is eleven
-    characters over six columns of bars, and a caption wider than what it
-    names points at the wrong thing; broken over two rows each half fits
-    its own group.
-
-    The power gauge used to be a seventh column out here and its `kW`
-    could not be fitted beside `BOARD` without the two running together.
-    It is a level across the foot of the drawing now, under the winding's
-    and above the key bar, which is also where it belongs: the gutters
-    are temperatures and it is not one.
-
-    EVERY TUBE IS A TEMPERATURE, so both groups say so. The left was
-    captioned POWER, meaning the power path - the FET and the shunt the
-    phase current crosses - and it read as watts, which is the one thing
-    in the gutters it is not.
+    Every gutter group is a legend now - `_legend_rows` has the shape -
+    and the foot keeps its own two, which name levels that lie along the
+    bottom of the drawing rather than stand in a gutter.
     """
     left, right = machine.gutters(ART_WIDTH, ART_ROWS,
                                   len(SOA_NODES), RIGHT_COLUMNS)
-    first, last = machine.span(ART_WIDTH, ART_ROWS,
-                               len(SOA_NODES), RIGHT_COLUMNS)
-    over_machine = list(range(first, last + 1))
-    top, bottom = [' '] * ART_WIDTH, [' '] * ART_WIDTH
-    _place(top, 'SWITCH', left)
-    # STOPPING SHORT OF THE HEADROOM PAIR. `BOARD` is five characters over
-    # four columns and leans outward to fit; unstopped it ran into the SOA
-    # beside it and the row read `BOARSOA`.
-    soa_at = right[HEADROOM_AT] if len(right) > HEADROOM_AT else None
-    # The pair is named INSIDE the drawing, on leaders beside their own
-    # tubes - `headroom_labels` has why - so nothing goes over them here.
-    soa_at = None
-    # THREE, not two: `until` is the last column a name MAY occupy, so
-    # stopping one short of the SOA still leaves them touching.
-    room = (soa_at - 3) if soa_at is not None else None
-    _place(top, 'BOARD', right[:len(BOARD_NODES)], until=room)
-
-    # PLURAL: each group is six thermometers and four, not one.
-    # MARKED, NOT JUST PLACED. This row is inked in pieces since the NTC
-    # arrived on it, and a piecewise row gives anything unmarked the
-    # terminal's own foreground - which is brighter than every other
-    # caption on the page. The same thing happened to SOA HEADROOM the
-    # day it moved onto a piecewise row; a name is a name whichever row
-    # it lands on.
-    bottom_marks = []
-    for columns in (left, right[:len(BOARD_NODES)]):
-        at = _place(bottom, 'TEMPS', columns,
-                    until=(room if columns is not left else None))
-        if at is not None:
-            bottom_marks.append((at, len('TEMPS'), ASH))
-
-    # AND THE MEASUREMENT ABOVE THE HEADROOM SCALE. Everything below this
-    # row is modelled; this is the one number with a sensor behind it, so
-    # it stands over the scale the model's own verdict is drawn on and
-    # takes TRUTH's ink - the same colour this page gives the rotor's real
-    # angle, and for the same reason.
-    shown = reference(view)
-    seen_at = _place(bottom, shown, over_machine)
-    if seen_at is not None:
-        # THE NAME IN ASH AND THE VALUE IN ITS OWN INK, which is the
-        # grammar the rest of the page already speaks: every caption is
-        # grey and every figure carries the colour of what it measures.
-        # Inked whole, the word NTC read as a heading brighter than the
-        # three beside it.
-        head = shown.split(' ')[0]
-        bottom_marks.append((seen_at, len(head), ASH))
-        bottom_marks.append((seen_at + len(head) + 1,
-                             len(shown) - len(head) - 1,
-                             machine.INK[machine.TRUTH]))
-    # AND THE HOTTEST OF EACH, IN DEGREES, under its own name. The tubes
-    # are fractions of a ceiling - the right thing to act on and the
-    # wrong thing to say out loud, because a bench asks how hot the FETs
-    # are and no share of a limit answers that without the limit beside
-    # it. Each figure takes the ink of its own node's margin, so the row
-    # says how hot and how close in one glance.
-    hot = [' '] * ART_WIDTH
-    # THE HEADROOM TITLE ON THE LAST CAPTION ROW, not the first. The
-    # gutters need three rows for their own two-word names and their
-    # readings; the scale it titles is two rows below THAT, so on the top
-    # row it stood four rows clear of the thing it named and read as a
-    # heading for the whole page. The middle of this row is empty - the
-    # readings sit out over the gutters - so it costs nothing to put it
-    # where it belongs, directly above its own gauge.
-    marks = []
-    # IN ASH LIKE THE OTHER TWO ROWS. This row is inked in pieces - each
-    # reading takes its own node's colour - so anything left unmarked on
-    # it keeps the terminal's own foreground, which is brighter than every
-    # other caption on the page. A name is a name whichever row it landed
-    # on.
-    # ONE NAME OVER EACH GAUGE. They share the machine's width end to
-    # end, so each title is centred over its own half - a reader matching
-    # a bar to a name by their order is a reader who will get it wrong on
-    # the day it matters.
-    # THE READINGS, each over its own group of tubes.
-    for group, columns in ((SOA_NODES, left), (BOARD_NODES, right)):
-        peak, cls = hottest(view, group)
-        if peak is None:
-            continue
-        text = '%.1f %sC' % (peak, DEGREE)
-        at = _place(hot, text, columns)
-        if at is not None:
-            marks.append((at, len(text), machine.INK[cls]))
-            if columns is right:
-                edge = at
-    # ONE NAME OVER EACH GAUGE. They share the machine's width end to
-    # end, so each title is centred over its own half - a reader matching
-    # a bar to a name by their order is a reader who will get it wrong on
-    # the day it matters.
-
-    foot = _foot_line(view)
-    return (_margin_rows(view, right)
-            + [''.join(top), _tinted(bottom, bottom_marks),
-               _tinted(hot, marks), foot])
+    return _legend_rows(view, left, right) + [_foot_line(view)]
 
 
 def phase_amps(view):
@@ -1331,60 +1255,6 @@ LEADER_DROP = len(HEADROOM_ROWS)
 POINTER, DROP = chr(0x25BC), chr(0x2847)
 
 
-def headroom_drops(right):
-    """`(from_row, col, to_row, ink)` for the two falling leaders.
-
-    Each starts under its own name's arrowhead in the caption rows and
-    lands on the top of its own tube. The outer one falls further,
-    because its name is on the upper row - which is what makes the pair
-    a staircase rather than two brackets.
-    """
-    if len(right) <= HEADROOM_AT:
-        return []
-    out = []
-    for step, index in enumerate(reversed(range(len(HEADROOM_TITLES)))):
-        out.append((step, right[HEADROOM_AT + index], LEADER_DROP,
-                    machine.INK[machine.TRACK]))
-    return out
-
-
-def headroom_labels(view, right):
-    """`(words, rules)` for the two names, in the drawing's air.
-
-    Right-aligned so each rule ends against its own tube, and inked with
-    the bar it names - the grammar the foot already speaks, where the
-    figure and the level it belongs to share a colour.
-    """
-    if len(right) <= HEADROOM_AT:
-        return [], []
-    words, rules = [], []
-    bars = headrooms(view)
-    # THE OUTER TUBE FIRST, on the upper row with the longer rule, so the
-    # two leaders step down and inward instead of crossing. Each ends in
-    # a stub that turns down into its own bar - a rule that merely stops
-    # beside a stack of tubes leaves a reader counting columns.
-    #
-    # IN DOTS, not box-drawing. Everything else on this page is the
-    # braille matrix, and a rule borrowed from another block reads as a
-    # different pen - the same complaint that took the ASCII stroke set
-    # out of `raster`.
-    for step, index in enumerate(reversed(range(len(HEADROOM_TITLES)))):
-        column = right[HEADROOM_AT + index]
-        share, cls = bars[index]
-        said = '%s %.0f %%' % (HEADROOM_NAMES[index], 100.0 * share)
-        row, reach = HEADROOM_ROWS[step], index + 1
-        words.append((row, column - len(said) - reach, said,
-                      machine.INK[cls]))
-        # THE RULE IN THE TRACK'S GREY, not the label's colour. It is
-        # furniture - it says WHICH bar, not how much is left - and in
-        # the bar's own ink it read as part of the level. The empty half
-        # of every thermometer on this page is already that grey, so the
-        # page has one colour for "this is here to be pointed along".
-        rules.append((row, column - reach, column, LEADER_DROP,
-                      machine.INK[machine.TRACK]))
-    return words, rules
-
-
 def headrooms(view):
     """The two margins as gutter tubes: the board's, then the motor's.
 
@@ -1757,10 +1627,11 @@ def compose(rig, origin, console, view):
     # ONLY THE FIRST ROW IS ONE COLOUR. The other two carry figures in
     # their own inks - the NTC as the measurement it is, the readings as
     # their nodes' margins - so they arrive already tinted in pieces.
-    # The two margin rows arrive inked; only the group names are one
-    # colour, and the rest carry their own.
-    caption = heads[:2] + [tint(heads[2], ASH), heads[3], heads[4]]
-    foot = heads[5]          # already inked, one colour per gauge
+    # EVERY CAPTION ROW ARRIVES INKED, in pieces: a name in its group's
+    # colour, a leader in the track's grey, the one measurement in
+    # TRUTH's. Nothing here is one colour any more.
+    caption = list(heads[:CAPTION_ROWS])
+    foot = heads[CAPTION_ROWS]
     turned = math.degrees(s['theta_hat']) / pole_pairs
     # THE CAN AND THE POINTER ARE DIFFERENT QUANTITIES. The can is drawn
     # from the electrical angle over the pole pairs, which is right
@@ -1784,9 +1655,6 @@ def compose(rig, origin, console, view):
                                       / (WINDING_SCALE_C - 20.0)),
                                   machine.SOA_WARN),
                                  watts_bar(view)],
-                         leaders=headroom_drops(machine.gutters(
-                             ART_WIDTH, ART_ROWS,
-                             len(SOA_NODES), RIGHT_COLUMNS)[1]),
                          colour=True)
     art = '\n'.join(caption + [art, foot])
     panels = [('STATUS', status_rows(view)),

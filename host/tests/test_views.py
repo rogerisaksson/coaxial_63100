@@ -284,13 +284,14 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
         'budget': {'used': {}, 'tripped': False},
         'state': {'id': 0.0, 'iq': 0.0, 'vd': 0.0, 'vq': 0.0},
         'params': {}, 'winding_at': None})
-    # ROW THREE SINCE THE MARGINS TOOK THE TOP. `gutter_caption` hands
-    # back the two margin rows first, then the group names over two rows
-    # and the readings on a third; the NTC rides the second of those.
+    # THE LAST CAPTION ROW, since every gutter group became a legend of
+    # its own: two margins, then the switch and board temperatures, and
+    # the one measurement under all of them.
     ink = 'color(%d)' % machine.INK[machine.TRUTH]
-    said = rows[len(view.HEADROOM_TITLES) + 1]
-    report.check('it rides the row with the group names, not the readings',
-                 'NTC' in said and 'NTC' not in rows[-2],
+    said = rows[view.CAPTION_ROWS - 1]
+    report.check('it rides the last caption row, under every legend',
+                 'NTC' in said and not any('NTC' in row
+                                           for row in rows[:-2]),
                  said.replace(chr(27), '^'))
     report.check('and takes the ink this page gives what is measured',
                  '38;5;%d' % machine.INK[machine.TRUTH] in said,
