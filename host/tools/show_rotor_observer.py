@@ -531,15 +531,16 @@ def _tinted(row, marks):
     return ''.join(out)
 
 
-def _legend(row, text, ink, column, inboard):
+def _legend(row, text, ink, column, centred):
     """One legend: a name with its value, an arrowhead over its own
     column, and the row it was written on.
 
-    `inboard` says which way the words run from the head - right for the
-    left-hand gutter, left for the right-hand one - so every label leans
-    toward the machine and the page has no text against its own frame.
+    `centred` puts the words over the machine rather than against the
+    head. A head out in the middle of a gutter has room for them there,
+    and two labels leaning toward their own sides sat at different depths
+    and read as ragged.
     """
-    return (row, text, ink, column, inboard)
+    return (row, text, ink, column, centred)
 
 
 def _legend_rows(view, left, right):
@@ -563,16 +564,25 @@ def _legend_rows(view, left, right):
             share, cls = bars[index]
             said.append(_legend(
                 step, '%s %.0f %%' % (HEADROOM_NAMES[index], 100.0 * share),
-                machine.INK[cls], right[HEADROOM_AT + index], False))
-    for group, columns, name, inboard in (
-            (SOA_NODES, left, 'SWITCH TEMPS', True),
-            (BOARD_NODES, right, 'BOARD TEMPS', False)):
+                machine.INK[cls], right[HEADROOM_AT + index], True))
+    first, last = machine.span(ART_WIDTH, ART_ROWS,
+                               len(SOA_NODES), RIGHT_COLUMNS)
+    # BOARD ABOVE SWITCH, so SWITCH TEMPS lands directly over the NTC on
+    # the last row: the two of them are the same question asked of the
+    # power path - what it is estimated at, and what the one sensor
+    # beside it actually reads - and they belong together.
+    for group, columns, name, centred in (
+            (BOARD_NODES, right, 'BOARD TEMPS', True),
+            (SOA_NODES, left, 'SWITCH TEMPS', True)):
         peak, cls = hottest(view, group)
         if peak is None or not columns:
             continue
-        seat = max(columns) if inboard else min(columns)
+        # THE MIDDLE OF ITS OWN GROUP, not the edge nearest the machine.
+        # A line falling on the inner tube said "this one" about a stack
+        # of six; falling on the middle of them it says "these".
+        seat = columns[len(columns) // 2]
         said.append(_legend(len(said), '%s %.1f %sC' % (name, peak, DEGREE),
-                            machine.INK[cls], seat, inboard))
+                            machine.INK[cls], seat, centred))
 
     rows = []
     for index in range(CAPTION_ROWS):
@@ -586,14 +596,34 @@ def _legend_rows(view, left, right):
             if row < index:
                 line[column] = DROP
                 marks.append((column, 1, machine.INK[machine.TRACK]))
-        for row, text, ink, column, inboard in said:
+        for row, text, ink, column, centred in said:
             if row != index:
                 continue
-            at = (column + 2) if inboard else (column - len(text) - 1)
-            line[column] = POINTER
+            # CENTRED OVER THE MACHINE when the head is out in a gutter's
+            # middle, hard against the head when it is the outermost
+            # tube. The two gutter groups read as one stack that way -
+            # leaning each toward its own side put them at different
+            # depths and the rows looked ragged.
+            at = max(0, (first + last - len(text)) // 2)
             line[at:at + len(text)] = text
-            marks.append((column, 1, machine.INK[machine.TRACK]))
             marks.append((at, len(text), ink))
+            # THE HEAD AGAINST THE WORDS, the run in dots. An arrowhead
+            # parked out over its own column left the name floating in
+            # the middle with no thread between them; beside the text it
+            # says which way to look, and the braille carries the eye the
+            # rest of the way to the tube.
+            if column < at:
+                head, span = at - 2, range(column, at - 2)
+                line[head] = AIM_LEFT
+            else:
+                head = at + len(text) + 1
+                span = range(head + 1, column + 1)
+                line[head] = AIM_RIGHT
+            for step in span:
+                line[step] = LEADER
+            marks.append((head, 1, machine.INK[machine.TRACK]))
+            for step in span:
+                marks.append((step, 1, machine.INK[machine.TRACK]))
         rows.append((line, marks))
 
     # THE ONE MEASUREMENT, on the last caption row and centred over the
@@ -601,8 +631,6 @@ def _legend_rows(view, left, right):
     # figure with a sensor behind it. `reference` has the rest.
     line, marks = rows[-1]
     shown = reference(view)
-    first, last = machine.span(ART_WIDTH, ART_ROWS,
-                               len(SOA_NODES), RIGHT_COLUMNS)
     at = max(0, (first + last - len(shown)) // 2)
     if all(ch == ' ' for ch in line[at:at + len(shown)]):
         line[at:at + len(shown)] = shown
@@ -631,8 +659,13 @@ def _foot_line(view):
     # EACH LABEL IN ITS OWN BAR'S INK. One grey line named two gauges
     # drawn in two colours, so which word went with which bar was left to
     # the arrows alone. The colour is the faster half of that answer.
+    # BOTH POINT UP, because both bars are above this row. It was an up
+    # and a down arrow meaning "the upper one" and "the lower one",
+    # which is an ordering a reader has to be told; the COLOUR already
+    # pairs each name with its own level, and the same head on both says
+    # the same thing the four legends above say.
     head = '%s WINDING %.1f %sC' % (UP, winding(view), DEGREE)
-    tail = '%.2f kW %s' % (watts(view) / 1000.0, DOWN)
+    tail = '%.2f kW %s' % (watts(view) / 1000.0, UP)
     pad = ART_WIDTH - len(head) - len(tail)
     foot = (tint(head, machine.INK[machine.SOA_WARN]) + ' ' * max(0, pad)
             + tint(tail, machine.INK[machine.WATTS]))
@@ -1252,7 +1285,11 @@ LEADER_DROP = len(HEADROOM_ROWS)
 #: drop continues into the machine's own dots below the captions; this is
 #: the part of it that crosses the caption rows, where a row is a string
 #: and not a raster.
-POINTER, DROP = chr(0x25BC), chr(0x2847)
+#: The head sits against the words and says which way to look; the run
+#: that reaches out to the column is braille, like everything else the
+#: page draws. `DROP` is the same line continuing down a later row.
+AIM_LEFT, AIM_RIGHT = chr(0x25C0), chr(0x25B6)
+LEADER, DROP = chr(0x2824), chr(0x2847)
 
 
 def headrooms(view):
