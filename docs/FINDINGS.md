@@ -338,6 +338,44 @@ happened between two polls.
   slices, stepping and evaluating on each, capped at `THERMAL_CATCHUP_MS`
   = 2000. Past that the power sample is too stale to integrate: a model
   fed one reading for two seconds is inventing the heat it did not see.
+### The thermistor becomes an element, 2026-09-04
+
+Implemented from Silva 2022 (Appl. Sci. 12, 12555), whose form is that
+every thermal object is a resistance and a heat capacitor in parallel and
+objects join into a network. The thermistor is now one such object, tied
+to the leg node on one side and the board on the other.
+
+* **It cannot leave the interval between them, at any parameter value.**
+  Its steady state is `board + f (leg - board)` with f clamped to [0, 1],
+  which is a weighted average. That is the property the old form could
+  not have: `board + c x rise + offset` with c fitted at 1.055 and an
+  additive offset put the sensor above its own source at every load -
+  6.0 K over at rest, 11.5 K at a 100 K rise - and capping c at one left
+  the offset still doing it.
+* **The 6.0 K offset is no longer a temperature.** It is the passive
+  state's disagreement between a thermistor and a CAMERA, and the camera
+  is the instrument reading mixed copper and soldermask through an
+  emissivity nobody corrected. It is recorded, not applied, and both
+  inversions - `thermal_board_from_ntc` and the NTC anchor in
+  `thermal_step` - dropped it.
+* f is **0.5 and not measured**, and the campaign cannot measure it: its
+  one switching state implies 9.6 K of thermistor rise against 9.12 K of
+  leg rise, a fraction of 1.05. A point sensor soldered to FR4 a
+  centimetre from the pad is somewhere between a tenth and two thirds of
+  the way; this is the middle of that, and no value of it can produce an
+  unphysical reading.
+* THE PRICE, and it is recorded rather than hidden: the campaign's
+  switching state now misses by **11.04 K**. The inconsistency was always
+  there - it had been living inside the coupling, which is what made the
+  coupling impossible. Which of the three inputs is wrong is still open:
+  the leg's spreading resistance (three times a lumped figure the camera
+  saw once), the driver's share of the switching loss, or the camera's
+  board reference.
+* Measured on the stand-in, 60 A hold: the hottest switch node settles at
+  116.5 C, the board at 33 C, and **the NTC reads 58 C - 57 K below the
+  switches and 25 K above the board**, which is the picture the bench
+  described from the start.
+
 ### The burst budget rests on a number nobody took, 2026-09-03
 
 Traced after reading Silva 2022 (Appl. Sci. 12, 12555) on the transient

@@ -54,6 +54,12 @@ THROTTLE_AT, LOOKAHEAD_S = 0.85, 2.0
 
 AMBIENT = 20.0
 
+#: How far the thermistor's element sits toward the leg node, as
+#: `thermal_defaults` sets it. Named here rather than read back, because a
+#: test that asked the code for its own expectation would agree with a
+#: typo.
+NTC_SEES_LEG = 0.5
+
 
 class Model:
 
@@ -620,11 +626,21 @@ def test_the_thermistor_has_mass(report, lib):
     # target that is itself still climbing lands behind it.
     for _ in range(20000):
         model.step(watt, 1.0)
+    # THE ELEMENT'S OWN STEADY STATE: a weighted average of the two nodes
+    # it is tied to, with no additive offset. `NTC_SEES_DRIVERS` is the
+    # weight, and the point of the form is that it lands BETWEEN them for
+    # any weight at all.
     board = model.at('board')
-    target = board + (model.at('driver_v') - board) + 6.0
-    report.check('given time it lands exactly where the algebra says',
+    leg = model.at('driver_v')
+    target = board + NTC_SEES_LEG * (leg - board)
+    report.check('given time it lands on the weighted average of the two '
+                 'nodes it is tied to',
                  abs(model.ntc() - target) < 0.1,
                  '%.2f C against %.2f' % (model.ntc(), target))
+    report.check('and it is between them, which no weight can break',
+                 board - 1e-6 <= model.ntc() <= leg + 1e-6,
+                 'board %.1f, ntc %.1f, leg %.1f'
+                 % (board, model.ntc(), leg))
 
 
 #: Silva 2022 (Appl. Sci. 12, 12555), Eq. 12-14: a lumped element's

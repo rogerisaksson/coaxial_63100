@@ -103,7 +103,9 @@ class SimulatedThermal:
         #: THE READING, LAGGED. See `thermal.NTC_TAU_S`: the algebra had
         #: no mass, so a modelled thermistor followed a small fast node
         #: instantly and the page showed one climbing like silicon.
-        self._ntc = thermal.AMBIENT + thermal.NTC_OFFSET
+        #: No offset: the 6.0 K is an instrument disagreement, recorded
+        #: rather than added to a temperature. See `thermal.NTC_OFFSET`.
+        self._ntc = thermal.AMBIENT
         self._at = None
 
     def _advance(self):

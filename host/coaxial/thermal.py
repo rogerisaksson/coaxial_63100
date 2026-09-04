@@ -140,30 +140,36 @@ CAPACITY_GAMMA = 1.0 / 3.0
 #: is made of, free to drift from them.
 DRIVER_RISE_SWITCHING = DRIVER_SWITCH_WATT * LEG_TO_BOARD
 
-#: How much of the drivers' rise the NTC picks up: ONE, because
-#: the thermistor sits IN the lump the node stands for,
-#: beside the middle gate driver, so its rise IS that node's rise and the
-#: number is ONE BY CONSTRUCTION rather than fitted.
+#: How far the thermistor's own element sits toward the leg node, 0 to 1.
 #:
-#: IT WAS 1.055, solved from the one switching camera state, and a slope
-#: above one is not something a sensor can have: `expected_ntc` then read
-#: the thermistor hotter than the node heating it at every rise - 6.0 K
-#: over it at rest, 11.5 K at a 100 K rise. Where the 0.055 came from is
-#: measurable: the local copper of leg V rose 0.20 W x 45.6 K/W = 9.12 K in
-#: that state, so a thermistor in it should have read 55.12 C and the
-#: camera read 55.6. A 0.48 K miss between two instruments, turned into a
-#: slope by dividing by 9.12.
+#: AN ELEMENT NOW, NOT A COEFFICIENT. Silva 2022 (Appl. Sci. 12, 12555)
+#: is the form: every thermal object is a resistance and a heat capacitor
+#: in parallel, and objects join into a network. The thermistor is one
+#: such object, tied to the leg on one side and the board on the other,
+#: so its temperature is a WEIGHTED AVERAGE of the two and cannot leave
+#: the interval between them whatever this number is.
 #:
-#: What is left is the OFFSET, and that one is a reading artefact rather
-#: than a temperature - mounting and the channel's own calibration, taken
-#: in the passive state where no driver was warming anything.
+#: That is the property the old form could not have. It was
+#: `board + c x rise + offset`, with c FITTED at 1.055 and an additive
+#: offset on top, so the modelled sensor read hotter than the node
+#: heating it at every load - 6.0 K over at rest, 11.5 K at a 100 K rise.
+#: Capping c at one left the offset still doing it.
 #:
-#: THE DIE IS STILL MISSING, and that is the gap this leaves. `driver_*`
-#: is the local copper a camera can see; the junction inside the package
-#: sits above it by the FET's own thermal resistance, which no node here
-#: represents. The SOA ceilings are junction limits applied to a copper
-#: temperature - optimistic, which is the direction that costs silicon.
-NTC_SEES_DRIVERS = 1.0
+#: NOT MEASURED, AND THE CAMPAIGN CANNOT MEASURE IT. Its one switching
+#: state implies 9.6 K of thermistor rise against 9.12 K of leg rise, a
+#: fraction of 1.05, which no passive body can have. Something among the
+#: three inputs is wrong - the leg's spreading resistance (itself three
+#: times a lumped figure the camera saw once), the driver's share of the
+#: switching loss, or the camera's board reference, which reads mixed
+#: copper and soldermask through an emissivity nobody corrected. The
+#: model can no longer absorb that in a coupling, so it comes out as a
+#: residual, which is where an inconsistency belongs.
+#:
+#: HALF, pending the power step. A point sensor soldered to FR4 a
+#: centimetre from the pad is somewhere between a tenth and two thirds of
+#: the way; this is the middle of that. No value of it can produce a
+#: reading above its own source, which is the whole point of the change.
+NTC_SEES_DRIVERS = 0.5
 
 #: How slowly a modelled thermistor follows, seconds.
 #:
@@ -188,13 +194,13 @@ NTC_SEES_DRIVERS = 1.0
 #: campaign is reproduced exactly either way.
 NTC_TAU_S = (LEG_CAPACITY_DRIVERS / 3) * LEG_TO_BOARD
 
-#: What the campaign's switching state misses by with the coupling at
-#: one. Kept as a number rather than absorbed into a slope: it is the
+#: What the campaign's switching state misses by with the element in
+#: place of the old coupling. Kept as a number rather than absorbed into a slope: it is the
 #: disagreement between a thermistor and a camera, and it belongs where a
 #: bench can see how big it is.
 NTC_CAMPAIGN_RESIDUAL_K = (MEASURED['switching']['ntc']
                            - (MEASURED['switching']['board']
-                              + DRIVER_RISE_SWITCHING + NTC_OFFSET))
+                              + NTC_SEES_DRIVERS * DRIVER_RISE_SWITCHING))
 
 #: The network. **Only `board_to_ambient` and `board_capacity` have a clean
 #: measurement behind them.**
@@ -226,17 +232,25 @@ POWER_SWITCHING = dict([(n, DRIVER_SWITCH_WATT) for n in DRIVERS]
 
 
 def board_from_ntc(ntc_c, driver_rise_k=0.0):
-    """Board temperature from the NTC, hot spot taken out.
+    """Board temperature from the NTC, the leg's share taken out.
 
-    `driver_rise_k` is how far the drivers node sits above the board. Zero
-    with nothing switching, which is when the offset alone applies.
+    `driver_rise_k` is how far the leg node sits above the board. NO
+    OFFSET SUBTRACTED: the 6.0 K the campaign found is a disagreement
+    between a thermistor and a CAMERA, and it is the camera that reads
+    mixed copper and soldermask through an uncorrected emissivity. The
+    board's own sensor is the thermistor.
     """
-    return ntc_c - NTC_OFFSET - NTC_SEES_DRIVERS * driver_rise_k
+    return ntc_c - NTC_SEES_DRIVERS * driver_rise_k
 
 
 def expected_ntc(board_c, driver_rise_k=0.0):
-    """What the NTC should read. The inverse of `board_from_ntc`."""
-    return board_c + NTC_SEES_DRIVERS * driver_rise_k + NTC_OFFSET
+    """Where the thermistor's element is heading: the weighted average of
+    the two nodes it is tied to, and so always between them.
+
+    The inverse of `board_from_ntc`, and the steady state the lagged
+    reading relaxes toward at `NTC_TAU_S`.
+    """
+    return board_c + min(1.0, max(0.0, NTC_SEES_DRIVERS)) * driver_rise_k
 
 
 def steady(power, cfg=CFG, ambient=AMBIENT):

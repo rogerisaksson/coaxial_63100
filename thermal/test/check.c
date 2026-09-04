@@ -235,6 +235,13 @@ int main(void)
 {
   int bad = 0;
 
+  /* THE NTC COLUMNS NOW CARRY A RESIDUAL, and it is not a regression.
+     The thermistor is an element between the leg node and the board
+     since 2026-09-04, so it can no longer be hotter than what heats it,
+     and the campaign's one switching state implies a fraction of 1.05 -
+     which no passive body can have. The disagreement had been living in
+     the coupling; it shows here instead. FINDINGS has which of the three
+     inputs is the suspect. */
   printf("%-11s %9s %10s %8s   %9s %9s\n",
          "state", "board mod", "board meas", "err", "ntc mod", "ntc meas");
 

@@ -111,6 +111,33 @@ typedef struct
     * states 2026-08-28 it is **1.055**, and a cap at 1.0 cost 5.6 K in the
     * switching state.
     */
+  /** How much of the leg node the thermistor's own node is tied to, 0 to
+    * 1: the steady-state fraction `R_board / (R_leg + R_board)` of the
+    * element it sits in.
+    *
+    * AN ELEMENT NOW, NOT A COEFFICIENT. Silva 2022 (Appl. Sci. 12,
+    * 12555) is the form: every thermal object is a resistance and a heat
+    * capacitor in parallel, and objects join into a network. The
+    * thermistor is one such object, tied to the leg on one side and the
+    * board on the other, so its temperature is a WEIGHTED AVERAGE of the
+    * two and cannot leave the interval between them whatever this number
+    * is. That is the property the old form could not have: it was
+    * `board + c x rise + offset` with c fitted at 1.055 and an additive
+    * offset on top, so the sensor read hotter than the node heating it
+    * at every load - 6.0 K over at rest, 11.5 K at a 100 K rise.
+    *
+    * NOT MEASURED, AND THE CAMPAIGN CANNOT MEASURE IT. Its one switching
+    * state implies 9.6 K of thermistor rise against 9.12 K of leg rise,
+    * a fraction of 1.05, which no passive element can have - a body
+    * between two others is not hotter than both. Something among the
+    * three inputs is wrong: the leg's spreading resistance (itself three
+    * times a lumped figure the camera saw once), the driver's share of
+    * the switching loss, or the camera's board reference, which reads a
+    * mixed copper and soldermask surface through an emissivity nobody
+    * corrected. The model can no longer absorb that inconsistency in a
+    * coupling, so it shows up as a residual instead, which is where an
+    * inconsistency belongs.
+    */
   float ntc_sees_drivers;
 
   /** How slowly the modelled thermistor follows, seconds.
@@ -154,7 +181,7 @@ typedef struct
     * by a clamp: the fastest it can move is the distance to the target
     * over the constant.
     */
-  float ntc;
+  float ntc;      /**< the element's own temperature, integrated */
   bool  settled;            /**< true once the anchor has converged */
   uint32_t steps;
 } thermal_t;

@@ -126,31 +126,23 @@ void thermal_defaults(thermal_cfg_t *cfg)
   cfg->node[THERMAL_MCU].die_over_node = 27.0f;
   cfg->node[THERMAL_AFE].die_over_node = 0.5f;
 
-  /* ONE, not a fit: the thermistor sits IN the lump the node stands for,
-     beside the middle gate driver, so its rise IS that node's rise and the
-     number is ONE BY CONSTRUCTION rather than fitted.
+  /* HOW FAR THE THERMISTOR'S ELEMENT SITS TOWARD THE LEG, 0 to 1. See
+     the header: it is a weighted average of the leg node and the board,
+     so it cannot leave the interval between them at any value of this.
 
-     IT WAS 1.055, solved from the one switching camera state, and a slope
-     above one is not something a sensor can have: `expected_ntc` then read
-     the thermistor hotter than the node heating it at every rise - 6.0 K
-     over it at rest, 11.5 K at a 100 K rise. Where the 0.055 came from is
-     measurable: the local copper of leg V rose 0.20 W x 45.6 K/W = 9.12 K in
-     that state, so a thermistor in it should have read 55.12 C and the
-     camera read 55.6. A 0.48 K miss between two instruments, turned into a
-     slope by dividing by 9.12.
-
-     What is left is the OFFSET, and that one is a reading artefact rather
-     than a temperature - mounting and the channel's own calibration, taken
-     in the passive state where no driver was warming anything.
-
-     The die is still missing: `driver_*` is the local copper a camera
-     can see, and the junction sits above it by the FET's own thermal
-     resistance, which no node here represents. The SOA ceilings are
-     junction limits applied to a copper temperature. FINDINGS. */
-  cfg->ntc_sees_drivers = 1.0f;
-  /* The leg node's own RC: a sensor in a lump is not quicker than the
-     lump, and a thermistor a centimetre off is slower still. */
+     HALF, AND NOT MEASURED. The campaign implies 1.05, which no passive
+     body can be, so there is nothing to fit to; a point sensor soldered
+     to FR4 a centimetre from the pad is somewhere between a tenth and
+     two thirds of the way, and this is the middle of that pending the
+     power step that would settle it. What matters is that no value of it
+     can produce a reading above its own source. */
+  cfg->ntc_sees_drivers = 0.5f;
   cfg->ntc_tau_s = 0.35f / 3.0f * 45.6f;
+  /* RECORDED, NOT APPLIED. The passive state had the thermistor 6.0 K
+     over the camera's board with no driver warming anything, and adding
+     that to a node made the node hotter than its own source. It is an
+     instrument disagreement - kept so a bench can see how big it is, and
+     no longer part of any temperature. */
   cfg->ntc_offset       = 6.00f;
 }
 
@@ -536,16 +528,36 @@ void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius)
   th->ambient = celsius;
   /* The lagged reading starts where everything else does, plus whatever
      the channel offset is: a first reading, not a ramp from nowhere. */
-  th->ntc = celsius + th->cfg.ntc_offset;
+  th->ntc = celsius;
 }
 
-/** Where the thermistor is HEADING - the algebra, without the lag. */
+/** Where the thermistor's element is HEADING: the weighted average of
+  * the two nodes it is tied to.
+  *
+  * BETWEEN THEM, ALWAYS. `f` is clamped to [0, 1] here rather than
+  * trusted, because a record is a thing a bench writes and an element
+  * outside its own interval is the defect this replaced.
+  *
+  * NO ADDITIVE OFFSET. The 6.0 K the passive state showed is a
+  * disagreement between a thermistor and a camera, not a temperature,
+  * and adding it to a node made the node hotter than its source. It is
+  * reported as a residual now.
+  */
 static float ntc_target(const thermal_t *th)
 {
   const float board = th->t[THERMAL_BOARD];
-  const float rise  = th->t[THERMAL_NTC_NEIGHBOUR] - board;
+  const float leg = th->t[THERMAL_NTC_NEIGHBOUR];
+  float f = th->cfg.ntc_sees_drivers;
 
-  return board + th->cfg.ntc_sees_drivers * rise + th->cfg.ntc_offset;
+  if (f < 0.0f)
+  {
+    f = 0.0f;
+  }
+  if (f > 1.0f)
+  {
+    f = 1.0f;
+  }
+  return board + f * (leg - board);
 }
 
 
@@ -567,7 +579,13 @@ float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
   {
     return ntc_c;
   }
-  return ntc_c - cfg->ntc_offset - cfg->ntc_sees_drivers * driver_rise_k;
+  /* The element inverted: `ntc = board + f (leg - board)`, so the board
+     is the reading less the share of the rise the thermistor sees. NO
+     OFFSET SUBTRACTED - the 6.0 K the campaign found is a disagreement
+     between a thermistor and a CAMERA, and it is the camera that reads a
+     mixed copper and soldermask surface through an emissivity nobody
+     corrected. The board's own sensor is the thermistor. */
+  return ntc_c - cfg->ntc_sees_drivers * driver_rise_k;
 }
 
 /** Pull one node to its die, and return the board that implies: the node is
@@ -655,8 +673,7 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
     {
       /* What the NTC sees beyond the board is the drivers' share of their
          rise. Invert that to correct the drivers node. */
-      const float over = seen->ntc_c - th->cfg.ntc_offset
-                         - th->t[THERMAL_BOARD];
+      const float over = seen->ntc_c - th->t[THERMAL_BOARD];
       if (th->cfg.ntc_sees_drivers > 0.01f)
       {
         const float at = th->t[THERMAL_BOARD]
