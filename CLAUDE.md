@@ -220,8 +220,9 @@ measured rather than remembered: `test_structure.py` (590),
 `test_ollama_link.py` (96), `test_drive_core.py`
 (81, the control law against a motor model through the host gcc, the Monte
 Carlo's job included), `test_modbus_core.py` (77), `test_sensorless.py`
-(110, the design arithmetic - the power stage's too - the commissioning
-and the motion verbs, dangerous paths included, against the stand-in), `test_mcp.py` (46),
+(114, the design arithmetic - the power stage's too, and the datasheet
+against the thermal model - the commissioning and the motion verbs,
+dangerous paths included, against the stand-in), `test_mcp.py` (46),
 `test_shtp_core.py` (38), `test_filter_core.py` (42, the anti-alias
 chain against the transfer function it was designed from),
 `test_thermal_core.py` (63, the SOA envelope as the C that will run -
