@@ -273,19 +273,27 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
                      'unread' in view.reference(empty),
                      view.reference(empty))
 
+    # `simulated` and `spin` are view keys the real page always carries;
+    # the caption reaches the winding estimate through the margin rows
+    # now, and that asks how fast the stand-in's clock is running.
     rows = view.gutter_caption({
+        'simulated': True, 'spin': 0.0,
         'thermal': {'nodes': dict.fromkeys(view.SOA_NODES + view.BOARD_NODES,
                                            40.0),
                     'ambient': 20.0, 'ntc': 38.0},
         'budget': {'used': {}, 'tripped': False},
         'state': {'id': 0.0, 'iq': 0.0, 'vd': 0.0, 'vq': 0.0},
         'params': {}, 'winding_at': None})
+    # ROW THREE SINCE THE MARGINS TOOK THE TOP. `gutter_caption` hands
+    # back the two margin rows first, then the group names over two rows
+    # and the readings on a third; the NTC rides the second of those.
     ink = 'color(%d)' % machine.INK[machine.TRUTH]
-    report.check('it rides the row above SOA HEADROOM',
-                 'NTC' in rows[1] and 'NTC' not in rows[2],
-                 rows[1].replace(chr(27), '^'))
+    said = rows[len(view.HEADROOM_TITLES) + 1]
+    report.check('it rides the row with the group names, not the readings',
+                 'NTC' in said and 'NTC' not in rows[-2],
+                 said.replace(chr(27), '^'))
     report.check('and takes the ink this page gives what is measured',
-                 '38;5;%d' % machine.INK[machine.TRUTH] in rows[1],
+                 '38;5;%d' % machine.INK[machine.TRUTH] in said,
                  'wanted %s' % ink)
 
 

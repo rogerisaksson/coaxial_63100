@@ -209,10 +209,15 @@ INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
        #: The other half of the alarm pulse. A LEVEL THAT IS ALREADY RED
        #: cannot get redder, so a stage being held back by its own
        #: envelope looked exactly like one sitting near a limit: the
-       #: pulse is the difference, and white against 196 is the loudest
-       #: pair on the page. Which frames take it is the caller's - this
-       #: is a colour, not a clock.
-       SOA_FLASH: 231}
+       #: pulse is the difference. Which frames take it is the caller's -
+       #: this is a colour, not a clock.
+       #:
+       #: WITHIN THE RED FAMILY, not white against it. 231 was the
+       #: loudest pair on the page and read as an emergency where the
+       #: board is doing exactly what it was built to do - hold the
+       #: stage back. A lighter red still says "this is moving" and
+       #: leaves the shouting for something that deserves it.
+       SOA_FLASH: 210}
 
 #: The bar classes in the order a fraction picks one: below the
 #: board's throttle point, past it, at the ceiling. Which fraction
@@ -513,30 +518,22 @@ def _overlay(dots, text, width, height, labels, leaders):
     caller can colour them without giving them an owner class - a
     leader belongs to its label, not to the machine.
     """
-    # THE LEADERS, IN DOTS. Everything else on this page is the braille
-    # matrix and a rule borrowed from the box-drawing block reads as a
-    # different pen - the same complaint that took the ASCII stroke set
-    # out of `raster`. A run along the row's lower dot line, then a stub
-    # turning down into the bar it points at.
+    # THE LEADERS, IN DOTS, AND THEY FALL. `(from_row, col, to_row, ink)`
+    # is a dotted column dropping from under a name in the caption rows
+    # to the top of the bar it points at - the shape a bench drew on the
+    # back of the page: a label, an arrowhead, and a line falling to the
+    # thing it names.
     #
-    # `(row, from_col, to_col, drop_to, ink)`: the run, the row the stub
-    # falls into, and the colour - a leader takes its label's, so the
-    # rule and the words that own it read as one thing. The CALLER owns
-    # where they go and what they mean.
+    # It was a horizontal run with a corner. That works and it reads as a
+    # bracket rather than a pointer, and two of them at different lengths
+    # read as two brackets rather than a staircase.
     lit = []
-    for row, from_col, to_col, drop_to, shade in list(leaders or ()):
-        line = row * DOTS_Y + 2
-        for x in range(from_col * DOTS_X, to_col * DOTS_X + DOTS_X):
-            col = x // DOTS_X
+    for from_row, col, to_row, shade in list(leaders or ()):
+        for row in range(from_row, to_row):
             if 0 <= row < height and 0 <= col < width:
-                dots[row][col] |= BRAILLE_BITS[x % DOTS_X][2]
+                for y in range(DOTS_Y):
+                    dots[row][col] |= BRAILLE_BITS[0][y]
                 lit.append((row, col, shade))
-        x = to_col * DOTS_X + DOTS_X - 1
-        for y in range(line, drop_to * DOTS_Y):
-            here, col = y // DOTS_Y, x // DOTS_X
-            if 0 <= here < height and 0 <= col < width:
-                dots[here][col] |= BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
-                lit.append((here, col, shade))
 
     # THE OVERLAY LAST, and only where no dot went. A braille cell cannot
     # carry a letter, so a name inside the drawing has to replace a cell

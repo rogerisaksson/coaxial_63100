@@ -236,6 +236,17 @@ take two rows each for their two-word names, and `SOA HEADROOM` rides
 the third beside the readings so it stands directly over its own scale
 rather than four rows clear of it at the top of the page.
 
+TWO MARGINS SIT ABOVE EVERYTHING ELSE, because they are what a bench
+looks at first: `BOARD SOA` is the worst of the ten board nodes against
+ceilings the calibration record gave it, and `MOTOR SOA` is the winding
+against this page's own scale. One is a margin the board acts on - it
+throttles, and at a ceiling it drops MOE - and the other only the
+operator can, which is why they are named apart rather than averaged.
+Both stand up as tubes in the right gutter, outboard of the board's
+thermometers with a column of air between them, and each name ends in an
+arrowhead with a dotted line falling to its own bar. The outer one falls
+further, which makes the pair a staircase rather than two brackets.
+
 Above the headroom scale stands the NTC, and it is there because it is
 the one MEASURED temperature on the page - a thermistor beside the middle
 gate driver, in the ink the drawing gives what is known rather than

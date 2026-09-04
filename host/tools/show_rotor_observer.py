@@ -88,12 +88,22 @@ STEPS = (0.05, 0.1, 0.25, 0.5, 1.0)
 
 #: The dial, drawn smaller than the shaft view's: four instrument boxes
 #: sit beside it and the face is a pointer, not a protractor to read.
-ART_WIDTH, ART_HEIGHT = 40, 23
+ART_WIDTH, ART_HEIGHT = 40, 25
 
-#: Rows of the box that are captions rather than drawing: three above -
-#: the group names over two lines and their hottest reading under them -
-#: and one below for the foot gauges' labels.
-CAPTION_ROWS, FOOT_ROWS = 3, 1
+#: Rows of the box that are captions rather than drawing: five above and
+#: one below.
+#:
+#: THE TOP TWO ARE THE MARGINS, and they are first because they are what
+#: a bench looks at first - how much is left of the board and of the
+#: windings. Under them the two gutter groups name themselves over two
+#: rows and put their hottest reading on a third, beside the NTC.
+#:
+#: The margins were drawn INSIDE the machine's air for a day, on leaders
+#: reaching out to their tubes. It worked and it read as an afterthought:
+#: the two things you must not cook were tucked into the drawing while
+#: the furniture had the top of the page. Rows are cheap - the can is
+#: bound by the width here, so two more cost the machine nothing.
+CAPTION_ROWS, FOOT_ROWS = 5, 1
 
 #: What is left for the machine. NINETEEN ROWS AND NO INSET AT THE FOOT:
 #: at nineteen with an inset the can came out rows 2..16 and the winding
@@ -521,6 +531,51 @@ def _tinted(row, marks):
     return ''.join(out)
 
 
+def _margin_rows(view, right):
+    """The two margin rows above everything, each on its own leader.
+
+    THE OUTER TUBE FIRST, on the upper row with the longer rule, so the
+    pair steps down and inward instead of crossing. Each name carries its
+    own value and its own colour, and the rule that reaches out to its
+    tube is TRACK's grey - furniture says which bar, not how much is
+    left, and the empty half of every thermometer here is already that
+    grey.
+
+    Braille glyphs written as text, not rasterised: a caption row is a
+    string, and these are the same dots the drawing would have made.
+    """
+    rows = []
+    bars = headrooms(view)
+    order = list(reversed(range(len(HEADROOM_TITLES))))
+    for step, index in enumerate(order):
+        line = [' '] * ART_WIDTH
+        marks = []
+        # THE LINES ALREADY FALLING pass through this row before anything
+        # is written on it. Without them each leader broke at the caption
+        # rows and picked up again inside the drawing, which read as two
+        # marks rather than one line - and the name on this row had to be
+        # pulled clear of the column they use.
+        for above in order[:step]:
+            if len(right) > HEADROOM_AT:
+                through = right[HEADROOM_AT + above]
+                line[through] = DROP
+                marks.append((through, 1, machine.INK[machine.TRACK]))
+        if len(right) > HEADROOM_AT:
+            column = right[HEADROOM_AT + index]
+            share, cls = bars[index]
+            said = '%s %.0f %%' % (HEADROOM_NAMES[index], 100.0 * share)
+            # A SPACE BEFORE THE HEAD, and the whole thing pulled clear
+            # of any line already falling to its right.
+            said += ' '
+            at = column - len(said)
+            line[at:at + len(said)] = said
+            line[column] = POINTER
+            marks.append((at, len(said), machine.INK[cls]))
+            marks.append((column, 1, machine.INK[machine.TRACK]))
+        rows.append(_tinted(line, marks))
+    return rows
+
+
 def _foot_line(view):
     """The row under the box: the winding and the link power.
 
@@ -667,8 +722,9 @@ def gutter_caption(view):
     # the day it matters.
 
     foot = _foot_line(view)
-    return (''.join(top), _tinted(bottom, bottom_marks),
-            _tinted(hot, marks), foot)
+    return (_margin_rows(view, right)
+            + [''.join(top), _tinted(bottom, bottom_marks),
+               _tinted(hot, marks), foot])
 
 
 def phase_amps(view):
@@ -1227,7 +1283,12 @@ def headroom(view):
 #: FAST ENOUGH TO CATCH THE CORNER OF AN EYE, slow enough to read the
 #: level under it. The level itself never blinks - only its colour - so
 #: what the bar says stays readable through the pulse.
-FLASH_HZ = 3.0
+#:
+#: DOWN FROM 3. At three it read as an emergency; the board throttling
+#: is the envelope working, not a fault, and a page that shouts about
+#: routine work teaches a bench to stop looking. A slow pulse in a
+#: lighter red says the same thing without the alarm.
+FLASH_HZ = 1.5
 
 
 def flashing(view):
@@ -1262,6 +1323,29 @@ HEADROOM_ROWS = (0, 1)
 #: `machine` keeps the bars below whatever was written above them, so
 #: this is only how far the stub has to reach to touch one.
 LEADER_DROP = len(HEADROOM_ROWS)
+
+#: The arrowhead a margin's name ends on, and the line it starts. The
+#: drop continues into the machine's own dots below the captions; this is
+#: the part of it that crosses the caption rows, where a row is a string
+#: and not a raster.
+POINTER, DROP = chr(0x25BC), chr(0x2847)
+
+
+def headroom_drops(right):
+    """`(from_row, col, to_row, ink)` for the two falling leaders.
+
+    Each starts under its own name's arrowhead in the caption rows and
+    lands on the top of its own tube. The outer one falls further,
+    because its name is on the upper row - which is what makes the pair
+    a staircase rather than two brackets.
+    """
+    if len(right) <= HEADROOM_AT:
+        return []
+    out = []
+    for step, index in enumerate(reversed(range(len(HEADROOM_TITLES)))):
+        out.append((step, right[HEADROOM_AT + index], LEADER_DROP,
+                    machine.INK[machine.TRACK]))
+    return out
 
 
 def headroom_labels(view, right):
@@ -1673,8 +1757,10 @@ def compose(rig, origin, console, view):
     # ONLY THE FIRST ROW IS ONE COLOUR. The other two carry figures in
     # their own inks - the NTC as the measurement it is, the readings as
     # their nodes' margins - so they arrive already tinted in pieces.
-    caption = [tint(heads[0], ASH), heads[1], heads[2]]
-    foot = heads[3]          # already inked, one colour per gauge
+    # The two margin rows arrive inked; only the group names are one
+    # colour, and the rest carry their own.
+    caption = heads[:2] + [tint(heads[2], ASH), heads[3], heads[4]]
+    foot = heads[5]          # already inked, one colour per gauge
     turned = math.degrees(s['theta_hat']) / pole_pairs
     # THE CAN AND THE POINTER ARE DIFFERENT QUANTITIES. The can is drawn
     # from the electrical angle over the pole pairs, which is right
@@ -1684,8 +1770,6 @@ def compose(rig, origin, console, view):
     # 14-pole machine and jumped back, over and over. So it rides the
     # travel this view has accumulated instead - the observed speed
     # integrated, which is mechanical revolutions and what a tare is for.
-    said = headroom_labels(view, machine.gutters(
-        ART_WIDTH, ART_ROWS, len(SOA_NODES), RIGHT_COLUMNS)[1])
     art = machine.render(turned, view['slots'], 2 * pole_pairs,
                          ART_WIDTH, ART_ROWS,
                          truth_deg=(math.degrees(truth['theta']) / pole_pairs
@@ -1700,7 +1784,9 @@ def compose(rig, origin, console, view):
                                       / (WINDING_SCALE_C - 20.0)),
                                   machine.SOA_WARN),
                                  watts_bar(view)],
-                         labels=said[0], leaders=said[1],
+                         leaders=headroom_drops(machine.gutters(
+                             ART_WIDTH, ART_ROWS,
+                             len(SOA_NODES), RIGHT_COLUMNS)[1]),
                          colour=True)
     art = '\n'.join(caption + [art, foot])
     panels = [('STATUS', status_rows(view)),
