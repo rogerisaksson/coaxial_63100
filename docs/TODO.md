@@ -37,7 +37,20 @@ is still arithmetic. Every item names the file or record it lives in.
 * **The thermal envelope** acts (drops MOE at a ceiling) and the
   ceilings for the drivers, regulators and AFE are estimates - those
   datasheets are not in this tree. The board's 105 C is an estimate
-  for the laminate.
+  for the laminate. The FET's IS in the tree since 2026-09-04:
+  `datasheets/mosfet/` gives Tj 175 C and Rth JC 0.69 K/W, so a 125 C
+  ceiling on the copper is about 131 C at the junction - 44 K of margin,
+  and the ceiling is conservative rather than optimistic.
+* **The whole SOA path has never run on the target.** It builds clean -
+  the derate, the soak joules, the reaction window, `Board_DriveDerate`,
+  `Board_SyncMeanSquare` - and has never been flashed. Of the five-step
+  validation only the build and the host-side suite are done; the dry
+  `budget()` read over the wire, the gate proof with a lowered ceiling on
+  a cold board, and a real load run are not.
+* **`Board_SyncMeanSquare` costs an unmeasured amount of ISR.** Three
+  int64 multiply-accumulates in the injected callback, against an
+  interrupt the LOOP panel reports at 1620 cycles. `test_bench.py` at the
+  bench is what would confirm it.
 * **The motion verbs** (`stepper`, `servo`, `velocity`) and the four
   `app_*` notebooks run against the stand-in.
 * **The commissioning's outputs** - `motor_r`, `ld`, `lq`, `lambda`,
@@ -54,7 +67,49 @@ is still arithmetic. Every item names the file or record it lives in.
 * `r_hotswap` 5 mΩ in the thermal losses is not measured.
 * `die_over_node` for the MCU, 27 K, is assumed.
 * The per-leg thermal spreading (45.6 K/W) is three times the lumped
-  15.2 the camera saw; no measurement separates the legs.
+  15.2 the camera saw; no measurement separates the legs. **Three
+  lines of evidence now disagree about it** and FINDINGS has the
+  arithmetic: the camera's zone tripled says 45.6, the NTC's own rise
+  needs above 48 if the sensor is to sit below its source, and the
+  datasheet's whole junction-to-air on a lesser board is 25.9. The
+  likeliest odd input is the camera's board reference in the switching
+  state, read off mixed copper and soldermask through an uncorrected
+  emissivity.
+* **The leg nodes' heat capacity is not measured and it sets the whole
+  burst budget.** `thermal.c` always said so - "the parts' own are not
+  measured" - and added "they only affect the settling", which stopped
+  being true when the envelope started dividing by them. Silva 2022 puts
+  the effective transient capacity at up to a third of the physical, so
+  the 100 A burst on a driver node is a BAND: 0.22 s to 0.67 s, soak
+  4.08 J to 12.25 J. A power step and the NTC's slope would settle it -
+  the only one of these a transient can reach rather than an
+  equilibrium, and `tools/pulse.py` already makes the step.
+* The thermistor's element fraction (`ntc_sees_drivers` 0.5) is not
+  measured, and the campaign cannot measure it: its one switching state
+  implies 1.05, which no passive body between two others can have. The
+  same state now shows an 11.04 K residual, which is that inconsistency
+  made visible instead of absorbed into a coupling.
+* `NTC_TAU_S` is the geometric mean of the leg node's constant and the
+  board's, 46.6 s. The model has no node for the local laminate the part
+  is soldered into, so this is the pair it sits between standing in for
+  a lag nobody measured.
+* `board_to_ambient` is a correlation now - convection as the fourth
+  root of the rise, radiation as `(T^2+T0^2)(T+T0)` - but it is still
+  anchored at ONE measured point, 1.2 W over 10 K, and the 35 % radiation
+  share at that point comes from a paper rather than this board.
+* `RDS_ON` is the datasheet TYPICAL, 1.8 mOhm against a 2.1 max, so the
+  envelope under-books a worst-case part by 17 %. The LTspice model this
+  tree traces is the typical one, which is why the two are left agreeing.
+* The lumped R-C class this model belongs to is worth about +/-10 %
+  (`docs/papers`, against +/-5 % for a Fourier hybrid and +/-2 % for full
+  3D CFD). Every unmeasured constant above is outside that band, so the
+  method is not the limit here.
+* `test_sensorless`'s overpowered-servo check returns instead of raising
+  about one run in four, but only inside the full offline gate and never
+  in six runs of that suite alone. Raising the load to 1.2 N.m did not
+  fix it and twelve runs under CPU contention all raised correctly, so
+  the wall-clock hypothesis is not established. The check now reports the
+  angle that passed for a hold.
 * The 5230SL's `r`, `ld`, `lq`, `j` and `b` in `motor.py` are
   estimates; the propeller curve is Hobbywing's stand, not this one.
 * `BENCH_MOTOR` in `motor.py` and the drive defaults in the record are
