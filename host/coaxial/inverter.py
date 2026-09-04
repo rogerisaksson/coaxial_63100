@@ -25,7 +25,45 @@ T_MIN_PULSE = 76e-9           #: 18 ticks: TPW 40 ns + DTG 8 -> 0.38 % duty
 V_FRAC = 0.95                 #: of the link the modulator may use
 
 # IAUCN10S7N021, from the vendor VDMOS model in half_bridge.asc.
+#
+# TYPICAL, NOT MAXIMUM, and the datasheet has both: 1.8 mOhm typ against
+# 2.1 max at Vgs 10 V and Id 88 A (Rev 1.2, p.4); at Vgs 7 V it is 2.0 typ
+# and 2.4 max. An SOA envelope built on the typical under-books the
+# conduction by 17 % against a part that is within spec, which is the
+# wrong direction for a limit - flagged rather than changed, because the
+# LTspice model this tree traces is the typical one and the two would
+# then disagree.
 RDS_ON = 1.8e-3
+
+#: Junction to case, K/W. `datasheets/mosfet/IAUCN10S7N021-Datasheet.pdf`
+#: Rev 1.2 p.4, maximum - the only figure the sheet gives for it.
+#:
+#: THE DIE THE THERMAL MODEL HAS NO NODE FOR. `thermal`'s `driver_*` is
+#: the copper a camera can see, and this is how far the junction sits
+#: above its own case: at 100 A each FET carries about 9 W over a period,
+#: so 6.2 K. The SOA ceiling of 125 C on the copper is therefore about
+#: 131 C at the junction against the sheet's 175 C limit - 44 K of margin,
+#: so the ceiling is CONSERVATIVE rather than optimistic, which is the
+#: opposite of what was feared before this number was looked up.
+RTH_JC = 0.69
+
+#: Junction to ambient, K/W, typical. Same sheet, and the conditions
+#: matter: "device on 2s2p FR4 PCB defined in accordance with JEDEC
+#: standards (JESD51-5, -7). PCB is vertical in still air."
+#:
+#: AN INDEPENDENT CHECK ON THE SPREADING RESISTANCE, and it disagrees
+#: with the model. One FET's whole path to air on a JEDEC board is
+#: 25.9 K/W; the model's own path for one leg is `to_board` 45.6 plus
+#: `board_to_ambient` 8.33, about 54 K/W - so the model's SPREADING TERM
+#: ALONE is nearly twice the datasheet's entire junction-to-air, on a
+#: board that carries heavier copper than 2s2p. FINDINGS has what that
+#: means for the campaign.
+RTH_JA_JEDEC = 25.9
+
+#: The junction limit the sheet actually states, degrees C. Not the SOA
+#: ceiling - that lives in the calibration record and is the board's to
+#: hold (invariant 10) - but the number the ceiling has to stay under.
+T_J_MAX = 175.0
 CJO, M, VJ = 15.6e-9, 0.45, 0.7    #: output capacitance at 0 V, and its law
 CGS, QG, RG = 5.48e-9, 81e-9, 2.2
 

@@ -338,6 +338,54 @@ happened between two polls.
   slices, stepping and evaluating on each, capped at `THERMAL_CATCHUP_MS`
   = 2000. Past that the power sample is too stale to integrate: a model
   fed one reading for two seconds is inventing the heat it did not see.
+### The datasheet was in the tree the whole time, 2026-09-04
+
+Three numbers said to need a bench day are in
+`datasheets/mosfet/IAUCN10S7N021-Datasheet.pdf` Rev 1.2, and two of them
+change what we thought.
+
+* **Rth JC 0.69 K/W max** (p.4). At 100 A a FET carries its half of the
+  period, about 9 W, so the junction sits **6.2 K** over its own case.
+  The die the network has no node for is therefore a few kelvin, not
+  tens: a 125 C ceiling on the copper is about **131 C at the junction
+  against the sheet's 175 C limit**, 44 K of margin. **The ceiling is
+  CONSERVATIVE, not optimistic** - the opposite of what was written here
+  before the sheet was looked up, and that correction is the point of
+  looking things up.
+* **Rth JA 25.9 K/W typ**, on a JEDEC 2s2p FR4 board, vertical, still air.
+  One FET's WHOLE path to air. The model's own path for one leg is
+  `to_board` 45.6 plus `board_to_ambient` 8.33, about 54 K/W - so **the
+  model's spreading term alone is 1.8x the datasheet's entire
+  junction-to-air**, on a board carrying heavier copper than 2s2p. They
+  cannot both be right.
+* **Rds(on) 1.8 mOhm typ against 2.1 max** at Vgs 10 V. The model books
+  the typical, so the envelope under-books a worst-case part by 17 %.
+  Flagged and not changed: the LTspice model this tree traces is the
+  typical one, and the two would then disagree.
+
+**AND THAT SETTLES WHICH CAMPAIGN INPUT IS WRONG.** Three lines of
+evidence about `to_board`, pulling two ways:
+
+| evidence | says about the leg's spreading resistance |
+|---|---|
+| camera, one bridge zone at 15.2 K/W lumped, tripled per leg | 45.6 K/W |
+| the NTC's own rise, if it is to sit below its source | **above 48 K/W** |
+| the datasheet, whole junction-to-air on a lesser board | **well under 25.9 K/W** |
+
+The datasheet and the NTC point in opposite directions, and the
+datasheet is a characterised measurement on a defined board while the
+NTC constraint rests on the camera's board reference in the switching
+state. So the odd input is the one already under suspicion: **the
+camera's `board` 40.0 C**, read off mixed copper and soldermask through
+an emissivity nobody corrected. If the copper under the thermistor was
+really nearer 46 C, the NTC's rise above its LOCAL board is 3.6 K rather
+than 9.6, the fraction falls to about 0.24, and the model's `to_board`
+can come down toward the datasheet instead of up away from it.
+
+Not retuned here. Moving `to_board` moves every steady-state current
+figure and the whole SOA behaviour, and that is a bench decision - but it
+is now a decision with three numbers behind it instead of one.
+
 ### The thermistor becomes an element, 2026-09-04
 
 Implemented from Silva 2022 (Appl. Sci. 12, 12555), whose form is that

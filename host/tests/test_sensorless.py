@@ -473,7 +473,50 @@ def test_motion(r):
         rig.close()
 
 
-ROSTER = (test_inverter, test_loop, test_motion,
+def test_the_datasheet_against_the_thermal_model(r):
+    """What `datasheets/mosfet/` settles, and where it disagrees.
+
+    THREE NUMBERS THAT WERE SAID TO NEED A BENCH DAY and were in the tree
+    all along - the sheet is `IAUCN10S7N021-Datasheet.pdf` Rev 1.2, and
+    the arithmetic here is what it does to the model.
+    """
+    from coaxial import inverter, thermal
+
+    # THE DIE, which the network has no node for. At 100 A each FET
+    # carries its half of the period, so about 9 W, and Rth JC puts the
+    # junction that far above its own case.
+    watt = 100.0 ** 2 * inverter.RDS_ON * 0.5
+    over = watt * inverter.RTH_JC
+    r.check('one FET at 100 A puts its junction a few K over its case, '
+            'not tens',
+            5.0 < over < 8.0, '%.1f W, %.1f K over' % (watt, over))
+    r.check('so a 125 C ceiling on the copper is well under the 175 C the '
+            'sheet allows - the ceiling is conservative, not optimistic',
+            125.0 + over < inverter.T_J_MAX - 30.0,
+            '%.0f C junction against %.0f C' % (125.0 + over,
+                                                inverter.T_J_MAX))
+
+    # THE SPREADING RESISTANCE, and here the sheet and the model fight.
+    # One FET's whole path to air on a JEDEC 2s2p board is 25.9 K/W; the
+    # model's spreading term alone is 45.6, on a board with heavier copper
+    # than 2s2p. FINDINGS has what that means for the campaign.
+    leg = thermal.CFG['to_board']['driver_v']
+    r.check('the model spreading term alone exceeds the datasheet whole '
+            'junction-to-air path, which cannot both be right',
+            leg > inverter.RTH_JA_JEDEC,
+            '%.1f K/W against %.1f' % (leg, inverter.RTH_JA_JEDEC))
+
+    # AND THE CONDUCTION IS BOOKED ON THE TYPICAL. The sheet's maximum is
+    # within spec for a part that ships, and an envelope built on typ
+    # under-books it.
+    r.check('Rds(on) is the typical, so the envelope under-books a '
+            'worst-case part by about a sixth',
+            abs(2.1e-3 / inverter.RDS_ON - 1.167) < 0.01,
+            '%.1f mOhm typ against 2.1 max' % (inverter.RDS_ON * 1e3))
+
+
+ROSTER = (test_inverter, test_the_datasheet_against_the_thermal_model,
+          test_loop, test_motion,
           test_autodetect_recovers_each_machine,
           test_arithmetic, test_budget, test_kalman,
           test_crossover_and_verdicts, test_record_units, test_fits,
