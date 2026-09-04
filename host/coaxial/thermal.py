@@ -249,6 +249,20 @@ BOARD_CAL_RISE_K = 10.0
 #: calibration point lets them be scaled apart.
 BOARD_RAD_SHARE = 0.35
 
+#: The power of the rise that free convection carries with, from
+#: `Nu = C Ra^n` and Ra linear in the rise.
+#:
+#: A QUARTER, AND IT IS THE REGIME RATHER THAN A CHOICE. A horizontal
+#: plate is laminar while Ra < 1e7 and a vertical one while Ra < 1e9, and
+#: both give n = 1/4 there; only past those does it become a third. This
+#: board, 92 by 93 mm off the placements, runs Ra = 1.3e4 to 6.4e4 taken
+#: on A/P and 8e5 to 4e6 taken on the side, over rises of 10 to 85 K - so
+#: it is three to four decades short of leaving laminar, whichever way it
+#: is mounted, and the orientation does not even have to be settled to
+#: pick the exponent. `test_sensorless.py` recomputes the Rayleigh number
+#: and fails if a board or a rise ever leaves the regime.
+CONVECTION_EXPONENT = 0.25
+
 #: The room the campaign was taken in, kelvin. Radiation is a fourth
 #: power, so it needs an absolute temperature and not a difference.
 ROOM_K = 293.15
@@ -279,7 +293,7 @@ def board_to_ambient_at(rise_k, cfg=None):
     cal = cfg.get('board_cal_rise_k', BOARD_CAL_RISE_K)
     if cal <= 0.0 or rise_k <= cal:
         return flat
-    conv = (rise_k / cal) ** 0.25
+    conv = (rise_k / cal) ** CONVECTION_EXPONENT
     now, was = ROOM_K + rise_k, ROOM_K + cal
     rad = (((now * now + ROOM_K * ROOM_K) * (now + ROOM_K))
            / ((was * was + ROOM_K * ROOM_K) * (was + ROOM_K)))

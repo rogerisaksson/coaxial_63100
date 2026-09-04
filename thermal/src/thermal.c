@@ -203,11 +203,18 @@ float thermal_board_to_ambient_at(const thermal_cfg_t *cfg, float rise_k)
     return cfg->board_to_ambient;
   }
 
-  /* CONVECTION, as the fourth root of the rise. `Nu = C Ra^(1/4)` for
-     laminar free convection and `Ra` is linear in the rise, so `h` goes
-     as `dT^0.25` and everything else in it - the fluid properties, the
-     characteristic length, the area - is already inside the calibration
-     value. */
+  /* CONVECTION, as the fourth root of the rise. `Nu = C Ra^n` with Ra
+     linear in the rise, so `h` goes as `dT^n` and everything else in it -
+     the fluid properties, the characteristic length, the area - is
+     already inside the calibration value.
+
+     A QUARTER, AND IT IS THE REGIME RATHER THAN A CHOICE. A horizontal
+     plate is laminar while Ra < 1e7 and a vertical one while Ra < 1e9,
+     and both give n = 1/4 there; only past those does it become a third.
+     This board runs Ra = 1.3e4 to 6.4e4 on A/P and 8e5 to 4e6 on its own
+     side, over rises of 10 to 85 K - three to four decades short of
+     leaving laminar, whichever way it is mounted. The orientation does
+     not have to be settled to pick the exponent. */
   const float conv = powf(rise_k / cal, 0.25f);
 
   /* RADIATION, exactly. `h_rad = eps sigma (T^2 + T0^2)(T + T0)`, and

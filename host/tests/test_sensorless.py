@@ -558,6 +558,43 @@ def test_the_placements_behind_the_thermal_model(r):
             '%.3f against the IC own %.3f' % (weighted, share('U1V')))
 
 
+def test_the_board_stays_in_the_laminar_regime(r):
+    """The convection exponent is the regime, not a choice.
+
+    `board_to_ambient_at` scales convection as the fourth root of the
+    rise, which is `Nu = C Ra^n` with n = 1/4 - true while the flow is
+    laminar and 1/3 once it is not. Whether this board is ever anywhere
+    near that boundary is a computable question and this computes it,
+    from the placements' own extent, so a bigger board or a hotter rise
+    fails here rather than quietly using the wrong power.
+    """
+    import math
+
+    from coaxial import thermal
+
+    # The board's extent, off the same file the element fraction uses.
+    side = 0.093
+    plate = (0.092 * side) / (2 * (0.092 + side))     # A/P, horizontal
+    worst = 0.0
+    for rise in (10.0, 40.0, 85.0):
+        film = 293.15 + rise / 2.0
+        nu = 1.46e-5 * (film / 293.15) ** 1.75
+        def ra(length):
+            return (9.81 * (1.0 / film) * rise * length ** 3
+                    / (nu * nu) * 0.71)
+        # Horizontal turns turbulent at 1e7, vertical at 1e9: the margin
+        # is how far the worse of the two is from its own boundary.
+        worst = max(worst, ra(plate) / 1e7, ra(side) / 1e9)
+
+    r.check('the board is laminar at every rise the ceilings allow, so '
+            'the quarter power is the regime',
+            worst < 0.1, 'closest approach %.1f %% of a boundary'
+            % (100.0 * worst))
+    r.check('and the model uses that exponent',
+            abs(thermal.CONVECTION_EXPONENT - 0.25) < 1e-9,
+            '%.3f' % thermal.CONVECTION_EXPONENT)
+
+
 def test_the_datasheet_against_the_thermal_model(r):
     """What `datasheets/mosfet/` settles, and where it disagrees.
 
@@ -601,6 +638,7 @@ def test_the_datasheet_against_the_thermal_model(r):
 
 
 ROSTER = (test_inverter, test_the_placements_behind_the_thermal_model,
+          test_the_board_stays_in_the_laminar_regime,
           test_the_datasheet_against_the_thermal_model,
           test_loop, test_motion,
           test_autodetect_recovers_each_machine,

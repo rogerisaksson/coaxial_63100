@@ -197,6 +197,31 @@ class Servo(_Mode):
             time.sleep(span / reads)
         return got / reads
 
+    def _arrived(self, degrees, tol):
+        """Within `tol` of `degrees` AND STILL THERE a settle later.
+
+        ONE READING CANNOT TELL A HOLD FROM A PASS. A shaft the load is
+        dragging sweeps through every angle on its way, and a measurement
+        that lands while it crosses the target reads exactly like an arm
+        holding on it - so `to()` returned success for a shaft it could
+        not hold. Caught by CI 2026-09-04, which is the only place it
+        ever showed: 29.84 deg against a 30.0 target under 1.2 N.m of
+        load with 3 A of holding torque, which is 0.18 N.m. The reading
+        was true and the conclusion was not.
+
+        Two readings a settle apart cost one settle on the way out and
+        settle the question: a held shaft is in tolerance twice, a
+        slipping one has moved on.
+        """
+        got = self._measure()
+        self._error = degrees - got
+        if abs(self._error) > tol:
+            return False
+        time.sleep(self.settle)
+        again = self._measure()
+        self._error = degrees - again
+        return abs(self._error) <= tol
+
     def to(self, degrees, tol=0.5, tries=4):
         """Drive the shaft to `degrees`: move, settle, measure, correct.
 
@@ -204,19 +229,19 @@ class Servo(_Mode):
         holding torque, or poles slipped outright. Raises after `tries`
         corrections still outside `tol`: a stalled arm is a fact, not a
         return code.
+
+        ARRIVING IS TWO READINGS, not one - `_arrived` has why. A shaft
+        being dragged past the target reads like one holding on it.
         """
         for _ in range(int(tries)):
             self._check()
-            got = self._measure()
-            self._error = degrees - got
-            if abs(self._error) <= tol:
-                return got
+            if self._arrived(degrees, tol):
+                return degrees - self._error
             self._slew(self._error)
             time.sleep(self.settle)
-        got = self._measure()
-        self._error = degrees - got
-        if abs(self._error) <= tol:
-            return got
+        self._check()
+        if self._arrived(degrees, tol):
+            return degrees - self._error
         raise RigError('the shaft stayed %.1f deg short of %.1f after %d '
                        'corrections - load past %.1f A of holding torque, '
                        'or no magnet in front of the sensor'
