@@ -61,6 +61,10 @@ AMBIENT = 20.0
 #: should be, which `test_sensorless.py` checks against the file.
 NTC_SEES_LEG = 0.30
 
+#: K/W from a leg node into the board, as `thermal_defaults` sets it.
+#: Named for the same reason as the fraction above.
+LEG_TO_BOARD = 28.0
+
 
 class Model:
 
@@ -672,7 +676,11 @@ def test_the_reading_lags_between_the_two_nodes(report, lib):
     number typed here, so moving either moves this and nothing drifts.
     """
     model = Model(lib)
-    leg = model.capacity('driver_v') * 45.6
+    # OFF THE MODEL, not off a number typed here: the leg spreading moved
+    # from 45.6 to 28 K/W when the camera and the datasheet were weighed
+    # against each other, and a test carrying its own copy would have gone
+    # on checking the old network.
+    leg = model.capacity('driver_v') * LEG_TO_BOARD
     board = model.capacity('board') * 8.33
 
     # THE TWO NODES HELD, so the target does not move while the reading
@@ -730,7 +738,7 @@ def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
         model = Model(lib)
         base = model.capacity('driver_u')
         report.check('the capacity moves when a bench moves it (%s)' % name,
-                     model.set_node('driver_u', 45.6, base * scale),
+                     model.set_node('driver_u', LEG_TO_BOARD, base * scale),
                      '%.4f J/K' % (base * scale))
         got = model.budget(watt, lookahead_s=LOOKAHEAD_S)
         # Seconds from ambient to the ceiling at this power, which is what
@@ -763,7 +771,8 @@ def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
     first = {}
     for name, scale in (('on record', 1.0), ('at gamma', GAMMA)):
         model = Model(lib)
-        model.set_node('driver_u', 45.6, model.capacity('driver_u') * scale)
+        model.set_node('driver_u', LEG_TO_BOARD,
+                       model.capacity('driver_u') * scale)
         for step in range(4000):
             model.step(watt, 0.02)
             if model.budget(watt, lookahead_s=LOOKAHEAD_S)['derate'] < 0.999:

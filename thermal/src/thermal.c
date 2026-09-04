@@ -69,8 +69,41 @@ void thermal_defaults(thermal_cfg_t *cfg)
      not how much of it there is. */
   for (int leg = 0; leg < 3; leg++)
   {
-    cfg->node[THERMAL_DRIVER(leg)].to_board = 45.6f;
-    cfg->node[THERMAL_PHASE(leg)].to_board  = 45.6f;
+    /* 28 K/W A LEG, and it is a hip shot between two readings that
+       disagree - said so here rather than dressed as a measurement.
+
+          the camera's bridge zone, 15.2 K/W lumped, x3 for three
+          parallel legs                                        45.6 K/W
+          the datasheet's 25.9 K/W junction-to-air on a 2s2p
+          coupon, less Rth JC 0.69 and the board's own 8.33     16.9 K/W
+          the geometric mean of the two                         27.7 K/W
+
+       NEITHER DOMINATES. The camera measured THIS board but read a mixed
+       copper and soldermask surface through an emissivity nobody corrected -
+       the same suspicion the NTC campaign raised. The datasheet is
+       characterised on a defined board, but not on this one, and with a single
+       device dissipating where ours carries six FETs and three drivers. The
+       log-midpoint is what "between two estimates" means when both are ratios.
+
+       WHAT IT COSTS AND WHAT IT KEEPS. Three legs equally loaded, 20 C room,
+       against the record's 125 C nodes and 105 C board:
+
+          R_leg    continuous rating   binding node
+          45.6     15 to 18 A rms      the shunt
+          28       20 to 22 A rms      the shunt
+          16.9     about 25 A rms      the shunt
+
+       THE SHUNT BINDS IN EVERY CASE, not the FET - it is 3.5 mOhm against the
+       FET's 1.8 and has no case path to hide behind. And the FET's own ceiling
+       keeps its margin: at 100 A each carries about 9 W, so Rth JC 0.69 K/W
+       puts the junction 6.2 K over its node, and a 125 C node is 131 C at the
+       junction against the sheet's 175 C limit. Cutting the spreading by 1.6
+       does not spend that 44 K.
+
+       WHAT WOULD REPLACE IT: a camera run under real load, with the board
+       reference taken on a surface whose emissivity was corrected. */
+    cfg->node[THERMAL_DRIVER(leg)].to_board = 28.0f;
+    cfg->node[THERMAL_PHASE(leg)].to_board  = 28.0f;
   }
   cfg->node[THERMAL_MCU].to_board        = 22.5f;
   cfg->node[THERMAL_REGULATORS].to_board = 15.0f;
@@ -173,7 +206,7 @@ void thermal_defaults(thermal_cfg_t *cfg)
      for that local patch - only the leg and the bulk board. This is the
      pair it sits between; a power step and the NTC's own slope would
      replace it with a measurement. */
-  cfg->ntc_tau_s = sqrtf((0.35f / 3.0f * 45.6f)
+  cfg->ntc_tau_s = sqrtf((0.35f / 3.0f * 28.0f)
                          * (cfg->node[THERMAL_BOARD].capacity
                             * cfg->board_to_ambient));
   /* RECORDED, NOT APPLIED. The passive state had the thermistor 6.0 K

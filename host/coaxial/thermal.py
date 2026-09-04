@@ -89,13 +89,42 @@ def pretty(node):
     head, _, leg = node.rpartition('_')
     return '%s %s' % (head, leg.upper()) if leg in LEGS else node
 
-#: K/W from a leg node's surface into the board, and the driver's share of
-#: the switching loss. NAMED BECAUSE THE NTC COUPLING IS SOLVED AGAINST
-#: THEIR PRODUCT: the campaign's one switching state fixes
-#: `ntc_sees_drivers x to_board x watt` and nothing more, so a change to
-#: either of these without re-solving the coupling silently stops the model
-#: reproducing its own measurement.
-LEG_TO_BOARD = 45.6
+#: K/W from a leg node's surface into the board.
+#:
+#: 28 K/W A LEG, and it is a hip shot between two readings that
+#: disagree - said so here rather than dressed as a measurement.
+#:
+#:    the camera's bridge zone, 15.2 K/W lumped, x3 for three
+#:    parallel legs                                        45.6 K/W
+#:    the datasheet's 25.9 K/W junction-to-air on a 2s2p
+#:    coupon, less Rth JC 0.69 and the board's own 8.33     16.9 K/W
+#:    the geometric mean of the two                         27.7 K/W
+#:
+#: NEITHER DOMINATES. The camera measured THIS board but read a mixed
+#: copper and soldermask surface through an emissivity nobody corrected -
+#: the same suspicion the NTC campaign raised. The datasheet is
+#: characterised on a defined board, but not on this one, and with a single
+#: device dissipating where ours carries six FETs and three drivers. The
+#: log-midpoint is what "between two estimates" means when both are ratios.
+#:
+#: WHAT IT COSTS AND WHAT IT KEEPS. Three legs equally loaded, 20 C room,
+#: against the record's 125 C nodes and 105 C board:
+#:
+#:    R_leg    continuous rating   binding node
+#:    45.6     15 to 18 A rms      the shunt
+#:    28       20 to 22 A rms      the shunt
+#:    16.9     about 25 A rms      the shunt
+#:
+#: THE SHUNT BINDS IN EVERY CASE, not the FET - it is 3.5 mOhm against the
+#: FET's 1.8 and has no case path to hide behind. And the FET's own ceiling
+#: keeps its margin: at 100 A each carries about 9 W, so Rth JC 0.69 K/W
+#: puts the junction 6.2 K over its node, and a 125 C node is 131 C at the
+#: junction against the sheet's 175 C limit. Cutting the spreading by 1.6
+#: does not spend that 44 K.
+#:
+#: WHAT WOULD REPLACE IT: a camera run under real load, with the board
+#: reference taken on a surface whose emissivity was corrected.
+LEG_TO_BOARD = 28.0
 DRIVER_SWITCH_WATT = 0.60 / 3
 
 #: The leg nodes' heat capacity, J/K, LUMPED FOR THREE and divided below.

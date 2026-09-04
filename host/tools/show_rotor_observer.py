@@ -221,7 +221,40 @@ WATTS_FLOOR = 1.0
 #: board's - see `headroom_class`.
 HEADROOM_AMBER = 0.5
 #: What the top gauge is called, over the machine it spans.
-HEADROOM_TITLE = 'SOA HEADROOM'
+#: The two headroom scales, in the order they stand in the gutter.
+#:
+#: TWO, BECAUSE THERE ARE TWO WAYS TO COOK THIS BENCH. The board's is the
+#: worst of ten nodes against ceilings the calibration record gave it -
+#: silicon and copper. The motor's is the winding, which the board has no
+#: sensor for and no authority over: it is `3 i^2 R` relaxed into a
+#: placeholder pair, drawn against this page's own `WINDING_SCALE_C`. One
+#: is a margin the board acts on; the other is a margin only the operator
+#: can act on, and saying so is why they are named apart.
+#: OUTBOARD OF THE BOARD TEMPS, as two more tubes rather than a level
+#: across the drawing. A margin is a level against a ceiling and every
+#: other level on this page stands up in a gutter; the headrooms were the
+#: only ones lying down, which made them read as a scale over the machine
+#: rather than as two more things with room left in them.
+#:
+#: One column each, so the names are a letter each under a shared SOA -
+#: `BOARD SOA` is nine characters and a tube is one wide.
+HEADROOM_TITLES = ('B', 'M')
+
+#: What the leaders inside the drawing call them. Spelled out there
+#: because there is room in the air where there is none over a
+#: one-column tube.
+HEADROOM_NAMES = ('BOARD SOA', 'MOTOR SOA')
+HEADROOM_GROUP = 'SOA'
+
+#: Columns of air between the board's thermometers and the two headroom
+#: tubes. THEY ARE NOT THE SAME KIND OF THING: four of them are node
+#: temperatures against their own ceilings and two are margins, one of
+#: which the board acts on and one it has no authority over. Adjacent,
+#: six tubes read as one stack and a reader counts them as six nodes.
+#: `machine._bars` skips a None entry, so the gap costs a column and no
+#: special case.
+HEADROOM_GAP = 1
+
 BAR_GLYPH = chr(0x28FF)
 TRACK_GLYPH = chr(0x2812)
 #: The scroll affordances. Triangles rather than dots: they are
@@ -266,6 +299,12 @@ SOA_NODES = ('driver_u', 'phase_u', 'driver_v', 'phase_v',
 #: in their own gutter.
 
 BOARD_NODES = ('mcu', 'regulators', 'afe', 'board')
+
+#: Where the pair starts inside the right gutter.
+HEADROOM_AT = len(BOARD_NODES) + HEADROOM_GAP
+
+#: How many columns the right gutter needs for all of it.
+RIGHT_COLUMNS = HEADROOM_AT + len(HEADROOM_TITLES)
 
 
 def sane(args):
@@ -482,6 +521,32 @@ def _tinted(row, marks):
     return ''.join(out)
 
 
+def _foot_line(view):
+    """The row under the box: the winding and the link power.
+
+    OUT OF `gutter_caption` BECAUSE THAT ONE GREW PAST WHAT A
+    READER CAN HOLD. Three caption rows and a foot are four
+    different pieces of furniture; they were one function.
+    """
+    # THE TWO ALONG THE FOOT, named under them and CARRYING THEIR OWN
+    # NUMBERS. The top gauge is titled by the row above it; these have
+    # nothing above them but the drawing, so the arrows say which is
+    # which - the winding is the upper of the two and the power the
+    # lower. The value goes in the label because a level on a scale says
+    # how far along it is and never what it is worth, and the box that
+    # held the figures is four boxes down the column.
+    #
+    # EACH LABEL IN ITS OWN BAR'S INK. One grey line named two gauges
+    # drawn in two colours, so which word went with which bar was left to
+    # the arrows alone. The colour is the faster half of that answer.
+    head = '%s WINDING %.1f %sC' % (UP, winding(view), DEGREE)
+    tail = '%.2f kW %s' % (watts(view) / 1000.0, DOWN)
+    pad = ART_WIDTH - len(head) - len(tail)
+    foot = (tint(head, machine.INK[machine.SOA_WARN]) + ' ' * max(0, pad)
+            + tint(tail, machine.INK[machine.WATTS]))
+    return foot
+
+
 def gutter_caption(view):
     """The captions: three rows over the gutters, and one under the foot.
 
@@ -511,13 +576,24 @@ def gutter_caption(view):
     in the gutters it is not.
     """
     left, right = machine.gutters(ART_WIDTH, ART_ROWS,
-                                  len(SOA_NODES), len(BOARD_NODES))
+                                  len(SOA_NODES), RIGHT_COLUMNS)
     first, last = machine.span(ART_WIDTH, ART_ROWS,
-                               len(SOA_NODES), len(BOARD_NODES))
+                               len(SOA_NODES), RIGHT_COLUMNS)
     over_machine = list(range(first, last + 1))
     top, bottom = [' '] * ART_WIDTH, [' '] * ART_WIDTH
     _place(top, 'SWITCH', left)
-    _place(top, 'BOARD', right)
+    # STOPPING SHORT OF THE HEADROOM PAIR. `BOARD` is five characters over
+    # four columns and leans outward to fit; unstopped it ran into the SOA
+    # beside it and the row read `BOARSOA`.
+    soa_at = right[HEADROOM_AT] if len(right) > HEADROOM_AT else None
+    # The pair is named INSIDE the drawing, on leaders beside their own
+    # tubes - `headroom_labels` has why - so nothing goes over them here.
+    soa_at = None
+    # THREE, not two: `until` is the last column a name MAY occupy, so
+    # stopping one short of the SOA still leaves them touching.
+    room = (soa_at - 3) if soa_at is not None else None
+    _place(top, 'BOARD', right[:len(BOARD_NODES)], until=room)
+
     # PLURAL: each group is six thermometers and four, not one.
     # MARKED, NOT JUST PLACED. This row is inked in pieces since the NTC
     # arrived on it, and a piecewise row gives anything unmarked the
@@ -526,10 +602,12 @@ def gutter_caption(view):
     # day it moved onto a piecewise row; a name is a name whichever row
     # it lands on.
     bottom_marks = []
-    for columns in (left, right):
-        at = _place(bottom, 'TEMPS', columns)
+    for columns in (left, right[:len(BOARD_NODES)]):
+        at = _place(bottom, 'TEMPS', columns,
+                    until=(room if columns is not left else None))
         if at is not None:
             bottom_marks.append((at, len('TEMPS'), ASH))
+
     # AND THE MEASUREMENT ABOVE THE HEADROOM SCALE. Everything below this
     # row is modelled; this is the one number with a sensor behind it, so
     # it stands over the scale the model's own verdict is drawn on and
@@ -568,9 +646,11 @@ def gutter_caption(view):
     # it keeps the terminal's own foreground, which is brighter than every
     # other caption on the page. A name is a name whichever row it landed
     # on.
-    title_at = _place(hot, HEADROOM_TITLE, over_machine)
-    if title_at is not None:
-        marks.append((title_at, len(HEADROOM_TITLE), ASH))
+    # ONE NAME OVER EACH GAUGE. They share the machine's width end to
+    # end, so each title is centred over its own half - a reader matching
+    # a bar to a name by their order is a reader who will get it wrong on
+    # the day it matters.
+    # THE READINGS, each over its own group of tubes.
     for group, columns in ((SOA_NODES, left), (BOARD_NODES, right)):
         peak, cls = hottest(view, group)
         if peak is None:
@@ -579,22 +659,14 @@ def gutter_caption(view):
         at = _place(hot, text, columns)
         if at is not None:
             marks.append((at, len(text), machine.INK[cls]))
-    # THE TWO ALONG THE FOOT, named under them and CARRYING THEIR OWN
-    # NUMBERS. The top gauge is titled by the row above it; these have
-    # nothing above them but the drawing, so the arrows say which is
-    # which - the winding is the upper of the two and the power the
-    # lower. The value goes in the label because a level on a scale says
-    # how far along it is and never what it is worth, and the box that
-    # held the figures is four boxes down the column.
-    #
-    # EACH LABEL IN ITS OWN BAR'S INK. One grey line named two gauges
-    # drawn in two colours, so which word went with which bar was left to
-    # the arrows alone. The colour is the faster half of that answer.
-    head = '%s WINDING %.1f %sC' % (UP, winding(view), DEGREE)
-    tail = '%.2f kW %s' % (watts(view) / 1000.0, DOWN)
-    pad = ART_WIDTH - len(head) - len(tail)
-    foot = (tint(head, machine.INK[machine.SOA_WARN]) + ' ' * max(0, pad)
-            + tint(tail, machine.INK[machine.WATTS]))
+            if columns is right:
+                edge = at
+    # ONE NAME OVER EACH GAUGE. They share the machine's width end to
+    # end, so each title is centred over its own half - a reader matching
+    # a bar to a name by their order is a reader who will get it wrong on
+    # the day it matters.
+
+    foot = _foot_line(view)
     return (''.join(top), _tinted(bottom, bottom_marks),
             _tinted(hot, marks), foot)
 
@@ -1176,6 +1248,108 @@ def flashing(view):
     return (time.monotonic() * FLASH_HZ * 2.0) % 2.0 < 1.0
 
 
+#: The rows inside the drawing the two headroom names sit on, and the
+#: line that reaches from each to its own tube.
+#:
+#: A STAIRCASE, one row apart. Two tubes one column wide cannot carry a
+#: name between them - `BOARD SOA` is nine characters - and stacking the
+#: names above them left a reader matching two bars to two words by their
+#: order. On its own row beside its own bar, with a rule reaching across
+#: to touch it, each name says which one it means and carries its value
+#: the way the foot gauges carry theirs.
+HEADROOM_ROWS = (0, 1)
+#: How far a leader's stub falls: the first row the tubes may use.
+#: `machine` keeps the bars below whatever was written above them, so
+#: this is only how far the stub has to reach to touch one.
+LEADER_DROP = len(HEADROOM_ROWS)
+
+
+def headroom_labels(view, right):
+    """`(words, rules)` for the two names, in the drawing's air.
+
+    Right-aligned so each rule ends against its own tube, and inked with
+    the bar it names - the grammar the foot already speaks, where the
+    figure and the level it belongs to share a colour.
+    """
+    if len(right) <= HEADROOM_AT:
+        return [], []
+    words, rules = [], []
+    bars = headrooms(view)
+    # THE OUTER TUBE FIRST, on the upper row with the longer rule, so the
+    # two leaders step down and inward instead of crossing. Each ends in
+    # a stub that turns down into its own bar - a rule that merely stops
+    # beside a stack of tubes leaves a reader counting columns.
+    #
+    # IN DOTS, not box-drawing. Everything else on this page is the
+    # braille matrix, and a rule borrowed from another block reads as a
+    # different pen - the same complaint that took the ASCII stroke set
+    # out of `raster`.
+    for step, index in enumerate(reversed(range(len(HEADROOM_TITLES)))):
+        column = right[HEADROOM_AT + index]
+        share, cls = bars[index]
+        said = '%s %.0f %%' % (HEADROOM_NAMES[index], 100.0 * share)
+        row, reach = HEADROOM_ROWS[step], index + 1
+        words.append((row, column - len(said) - reach, said,
+                      machine.INK[cls]))
+        # THE RULE IN THE TRACK'S GREY, not the label's colour. It is
+        # furniture - it says WHICH bar, not how much is left - and in
+        # the bar's own ink it read as part of the level. The empty half
+        # of every thermometer on this page is already that grey, so the
+        # page has one colour for "this is here to be pointed along".
+        rules.append((row, column - reach, column, LEADER_DROP,
+                      machine.INK[machine.TRACK]))
+    return words, rules
+
+
+def headrooms(view):
+    """The two margins as gutter tubes: the board's, then the motor's.
+
+    THEY STAND UP LIKE EVERYTHING ELSE. A margin is a level against a
+    ceiling and every other level on this page is a tube in a gutter;
+    these were the only ones lying across the drawing, which read as a
+    scale over the machine rather than as two more things with room left.
+
+    The board's still pulses while the envelope is acting - that is the
+    board doing something, and the only alarm on the page. The motor's
+    does not: nothing acts on it, and a flashing bar nobody can obey is
+    noise.
+    """
+    board = headroom(view)
+    motor = motor_headroom(view)
+    return [(board, machine.SOA_FLASH if flashing(view)
+             else headroom_class(board)),
+            (motor, headroom_class(motor))]
+
+
+def motor_headroom(view):
+    """What is left of the winding's scale, 0 to 1.
+
+    THE OTHER WAY TO COOK A BENCH. The board's headroom is the worst of
+    ten nodes against ceilings its calibration record gave it, and the
+    board acts on that itself. The winding has no sensor and no ceiling
+    the board was given: it is `3 i^2 R` relaxed into a placeholder pair
+    (`coaxial.motor`), drawn against `WINDING_SCALE_C`, which is this
+    PAGE's scale and not a rating off a motor datasheet - there is no
+    motor datasheet in this tree.
+
+    So it is a margin only the operator can act on, and it is named apart
+    from the board's for that reason. The board still judges nothing
+    here; the page is doing the arithmetic and saying whose it is.
+    """
+    return motor_headroom_of(winding(view))
+
+
+def motor_headroom_of(celsius):
+    """The same margin from a temperature alone.
+
+    SPLIT OUT SO IT CAN BE CHECKED. `winding` integrates against the
+    wall clock off the drive's own state, and a test that had to build
+    that just to ask what 85 C is worth would be testing the integrator.
+    """
+    span = max(1.0, WINDING_SCALE_C - 20.0)
+    return max(0.0, min(1.0, 1.0 - (celsius - 20.0) / span))
+
+
 def headroom_class(left):
     """The headroom gauge's colour: green, then amber, then red.
 
@@ -1510,6 +1684,8 @@ def compose(rig, origin, console, view):
     # 14-pole machine and jumped back, over and over. So it rides the
     # travel this view has accumulated instead - the observed speed
     # integrated, which is mechanical revolutions and what a tare is for.
+    said = headroom_labels(view, machine.gutters(
+        ART_WIDTH, ART_ROWS, len(SOA_NODES), RIGHT_COLUMNS)[1])
     art = machine.render(turned, view['slots'], 2 * pole_pairs,
                          ART_WIDTH, ART_ROWS,
                          truth_deg=(math.degrees(truth['theta']) / pole_pairs
@@ -1517,14 +1693,14 @@ def compose(rig, origin, console, view):
                          amps=amps, full=full, aspect=view['aspect'],
                          pointer_deg=view['travel'] - view['tare'],
                          left=soa_bars(view, SOA_NODES),
-                         right=soa_bars(view, BOARD_NODES),
-                         top=(headroom(view),
-                              machine.SOA_FLASH if flashing(view)
-                              else headroom_class(headroom(view))),
+                         right=(soa_bars(view, BOARD_NODES)
+                                + [None] * HEADROOM_GAP + headrooms(view)),
+                         top=None,
                          bottom=[(min(1.0, (winding(view) - 20.0)
                                       / (WINDING_SCALE_C - 20.0)),
                                   machine.SOA_WARN),
                                  watts_bar(view)],
+                         labels=said[0], leaders=said[1],
                          colour=True)
     art = '\n'.join(caption + [art, foot])
     panels = [('STATUS', status_rows(view)),

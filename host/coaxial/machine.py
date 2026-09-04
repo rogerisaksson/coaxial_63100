@@ -386,7 +386,7 @@ def span(width, height, n_left=0, n_right=0):
 
 
 def _gauge(dots, owner, width, height, row, share, cls,
-           n_left=0, n_right=0):
+           n_left=0, n_right=0, part=None):
     """One horizontal level across the MACHINE'S width, from the left.
 
     Not the whole row: run edge to edge it passed above and below the
@@ -402,6 +402,15 @@ def _gauge(dots, owner, width, height, row, share, cls,
     if row < 0 or row >= height:
         return
     first, last = span(width, height, n_left, n_right)
+    if part is not None:
+        # ONE OF SEVERAL ACROSS THE SAME WIDTH. `part` is `(index, count)`
+        # and the gauges share the machine's span end to end, so each
+        # sits under its own name instead of a stack of bars that have to
+        # be told apart by their order.
+        index, count = part
+        step = (last - first + 1) / float(max(1, count))
+        first, last = (int(first + index * step),
+                       int(first + (index + 1) * step) - 1)
     lo, hi = max(0, first) * DOTS_X, min(width - 1, last) * DOTS_X + DOTS_X
     wide = hi - lo
     filled = int(max(0.0, min(1.0, share)) * wide + 0.5)
@@ -419,7 +428,7 @@ def _gauge(dots, owner, width, height, row, share, cls,
                 owner[row][col] = TRACK
 
 
-def _bars(dots, owner, width, height, left, right, r, floors=1):
+def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0):
     """Vertical margin bars, filled from the bottom, one cell wide.
 
     LEFT AND RIGHT ARE THE CALLER'S SUBJECTS, not this module's: it draws
@@ -443,8 +452,13 @@ def _bars(dots, owner, width, height, left, right, r, floors=1):
     # height, the tubes shared row 0 with the headroom scale drawn across
     # it and the scale appeared to run through the thermometers. `floors`
     # is how many rows are taken at the bottom - one gauge or several.
-    top_row = GAUGE_INSET + 1
-    tall = max(1, height - GAUGE_INSET - FLOOR_INSET - 1
+    # `reserve` is how many rows the caller wrote text into. THE TUBES
+    # KEEP OUT OF IT: a label inside the drawing can only take cells no
+    # dot reached, so a tube running through those rows ate the words -
+    # measured, `MOTOR SOA 41 %` came out as `MOTOR SOA` with the value
+    # chewed off by the board's own thermometers.
+    top_row = GAUGE_INSET + 1 + reserve
+    tall = max(1, height - GAUGE_INSET - FLOOR_INSET - 1 - reserve
                - max(1, floors)) * DOTS_Y
     # Floor one side and ceil the other inside `gutters`: the centre sits
     # between two columns, so flooring both put the machine's right edge
@@ -487,11 +501,63 @@ def _bars(dots, owner, width, height, left, right, r, floors=1):
                         owner[row][col] = TRACK
 
 
+def _overlay(dots, text, width, height, labels, leaders):
+    """Leaders in dots and names in text, over cells no drawing
+    reached.
+
+    OUT OF `_raster` BECAUSE IT IS A DIFFERENT JOB. That one turns
+    a machine into dots; this writes a legend on the air beside it,
+    and the two together ran past what a reader can hold.
+
+    Answers the cells the leaders lit, `(row, col, ink)`, so the
+    caller can colour them without giving them an owner class - a
+    leader belongs to its label, not to the machine.
+    """
+    # THE LEADERS, IN DOTS. Everything else on this page is the braille
+    # matrix and a rule borrowed from the box-drawing block reads as a
+    # different pen - the same complaint that took the ASCII stroke set
+    # out of `raster`. A run along the row's lower dot line, then a stub
+    # turning down into the bar it points at.
+    #
+    # `(row, from_col, to_col, drop_to, ink)`: the run, the row the stub
+    # falls into, and the colour - a leader takes its label's, so the
+    # rule and the words that own it read as one thing. The CALLER owns
+    # where they go and what they mean.
+    lit = []
+    for row, from_col, to_col, drop_to, shade in list(leaders or ()):
+        line = row * DOTS_Y + 2
+        for x in range(from_col * DOTS_X, to_col * DOTS_X + DOTS_X):
+            col = x // DOTS_X
+            if 0 <= row < height and 0 <= col < width:
+                dots[row][col] |= BRAILLE_BITS[x % DOTS_X][2]
+                lit.append((row, col, shade))
+        x = to_col * DOTS_X + DOTS_X - 1
+        for y in range(line, drop_to * DOTS_Y):
+            here, col = y // DOTS_Y, x // DOTS_X
+            if 0 <= here < height and 0 <= col < width:
+                dots[here][col] |= BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
+                lit.append((here, col, shade))
+
+    # THE OVERLAY LAST, and only where no dot went. A braille cell cannot
+    # carry a letter, so a name inside the drawing has to replace a cell
+    # outright - which is fine over air and never over the machine. Each
+    # entry is `(row, col, text, ink)` and the CALLER owns the placement:
+    # this module draws a rotor, not a legend.
+    for row, col, said, _ink in list(labels or ()):
+        for step, ch in enumerate(said):
+            here = col + step
+            if 0 <= row < height and 0 <= here < width and not dots[row][here]:
+                text[row][here] = ch
+    return lit
+
+
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
-            pointer_deg, left, right, top, bottom, aspect):
-    """Dots and their owners, one entry per character cell."""
+            pointer_deg, left, right, top, bottom, aspect, labels=None,
+            leaders=None):
+    """Dots, their owners and a text overlay, one entry per cell."""
     dots = [[0] * width for _ in range(height)]
     owner = [[-1] * width for _ in range(height)]
+    text = [[None] * width for _ in range(height)]
     cx, r, _, _ = layout(width, height, len(left or ()), len(right or ()))
     cy = height * DOTS_Y / 2.0 - 0.5
     rotor = math.radians(rotor_deg)
@@ -575,21 +641,31 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             put(cx + radius * math.cos(phi), cy - radius * math.sin(phi),
                 TRUTH)
     floor = list(bottom or ())
-    _bars(dots, owner, width, height, left, right, r, len(floor))
-    if top is not None:
-        _gauge(dots, owner, width, height, GAUGE_INSET, top[0], top[1],
-               len(left or ()), len(right or ()))
+    written = [row for row, _col, _said, _ink in list(labels or ())]
+    _bars(dots, owner, width, height, left, right, r, len(floor),
+          reserve=(max(written) + 1) if written else 0)
+    # A ROW OF THEM, side by side across the machine's width. It was one
+    # gauge; a page that has to say how much is left of the BOARD and of
+    # the WINDINGS at once cannot say it in one bar, and stacking them
+    # would need two rows and leave a reader matching bars to names by
+    # their order.
+    for index, gauge in enumerate(list(top or ())):
+        _gauge(dots, owner, width, height, GAUGE_INSET, gauge[0], gauge[1],
+               len(left or ()), len(right or ()),
+               part=(index, len(top)))
     for index, gauge in enumerate(floor):
         _gauge(dots, owner, width, height,
                height - FLOOR_INSET - len(floor) + index, gauge[0], gauge[1],
                len(left or ()), len(right or ()))
-    return dots, owner
+
+    lit = _overlay(dots, text, width, height, labels, leaders)
+    return dots, owner, text, lit
 
 
 def render(rotor_deg, slots=24, poles=28, width=40, height=22,
            truth_deg=None, amps=None, full=None, pointer_deg=None,
            left=None, right=None, top=None, bottom=None,
-           aspect=CELL_ASPECT, colour=False):
+           aspect=CELL_ASPECT, colour=False, labels=None, leaders=None):
     """The cross-section, `rotor_deg` being how far the can has turned.
 
     `rotor_deg` is mechanical: the electrical angle over the pole pairs.
@@ -610,10 +686,15 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     band under it IS the observer's error, in the units a magnet works in.
 
     `left` and `right` are margin bars - `(fraction, class)` each - drawn
-    in the gutters either side. `top` is one such pair drawn as a level
-    across the machine's width on the first row, and `bottom` a SEQUENCE
-    of them on the last rows, one each. What they measure is the
+    in the gutters either side. `top` is a SEQUENCE of such pairs sharing
+    the first row end to end, and `bottom` a sequence on the last rows,
+    one each. What they measure is the
     caller's; this draws levels.
+
+    `labels` are `(row, col, text, ink)` written over cells no dot
+    reached - a name inside the drawing, which a braille cell cannot
+    carry any other way. Where they go is the caller's: this draws a
+    rotor, not a legend.
 
     `aspect` is how tall the terminal's cell is against its width. The
     geometry is exactly round at 2.0 - measured, 25.16 cell-widths each
@@ -628,19 +709,28 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     poles = max(2, int(poles) - int(poles) % 2)
     slots = max(3, int(slots))
     drive = _drive(amps, full)
-    dots, owner = _raster(rotor_deg, slots, poles, width, height,
-                          truth_deg, drive, pointer_deg, left, right,
-                          top, bottom, aspect)
+    dots, owner, text, lit = _raster(rotor_deg, slots, poles, width, height,
+                                     truth_deg, drive, pointer_deg, left,
+                                     right, top, bottom, aspect, labels,
+                                     leaders)
     ink = phase_ink(drive)
+    at = {}
+    for row, col, said, said_ink in list(labels or ()):
+        for step in range(len(said)):
+            at[(row, col + step)] = said_ink
+    # A LEADER TAKES ITS LABEL'S COLOUR, so the rule and the words that
+    # own it read as one thing. The cells keep their braille glyph - only
+    # the ink is overridden - which is why this is a map and not a class.
+    for row, col, shade in lit:
+        at.setdefault((row, col), shade)
     lines = []
     for row in range(height):
-        if colour:
-            lines.append(ansi.run([(chr(BRAILLE + dots[row][col]),
-                                    ink.get(owner[row][col]))
-                                   for col in range(width)]))
-        else:
-            lines.append(''.join(chr(BRAILLE + dots[row][col])
-                                 for col in range(width)))
+        cells = [(text[row][col] or chr(BRAILLE + dots[row][col]),
+                  at[(row, col)] if (row, col) in at
+                  else ink.get(owner[row][col]))
+                 for col in range(width)]
+        lines.append(ansi.run(cells) if colour
+                     else ''.join(char for char, _ in cells))
     return '\n'.join(lines)
 
 

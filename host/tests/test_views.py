@@ -97,10 +97,10 @@ def test_the_instruments_stand_clear_of_the_machine(report):
 
     width, height = view.ART_WIDTH, view.ART_ROWS
     n_left, n_right = len(view.SOA_NODES), len(view.BOARD_NODES)
-    _, owner = machine._raster(
+    _, owner, _text, _lit = machine._raster(
         6.0, 24, 28, width, height, None, None, None,
         [(0.4, machine.SOA_OK)] * n_left, [(0.3, machine.SOA_OK)] * n_right,
-        (0.5, machine.SOA_OK),
+        [(0.5, machine.SOA_OK)],
         [(0.4, machine.SOA_WARN), (0.3, machine.WATTS)], 2.0)
     can = [col for row in range(height) for col in range(width)
            if owner[row][col] == machine.CAN]
@@ -289,6 +289,42 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
                  'wanted %s' % ink)
 
 
+def test_two_headrooms_named_apart(report):
+    """The board's margin and the motor's are different facts.
+
+    TWO WAYS TO COOK A BENCH. The board's headroom is the worst of ten
+    nodes against ceilings the calibration record gave it, and the board
+    acts on that itself - it throttles, and at a ceiling it drops MOE.
+    The winding has no sensor and no ceiling the board was given: it is
+    `3 i^2 R` relaxed into a placeholder pair, drawn against this page's
+    own scale. One is a margin the board acts on and the other only the
+    operator can, which is why they are named apart rather than averaged
+    into one bar.
+    """
+    sys.path.insert(0, HOST)
+    from tools import show_rotor_observer as view
+
+    report.check('both scales are named, and named differently',
+                 len(view.HEADROOM_TITLES) == 2
+                 and len(set(view.HEADROOM_TITLES)) == 2,
+                 str(view.HEADROOM_TITLES))
+
+    # A COLD MOTOR HAS ALL OF ITS MARGIN, a cooking one has none, and
+    # neither ever leaves the scale - a headroom below zero would draw a
+    # bar longer than its own track.
+    for celsius, want in ((20.0, 1.0), (view.WINDING_SCALE_C, 0.0),
+                          (view.WINDING_SCALE_C + 80.0, 0.0)):
+        got = view.motor_headroom_of(celsius)
+        report.check('a winding at %.0f C leaves %.0f %% of the scale'
+                     % (celsius, 100.0 * want),
+                     abs(got - want) < 0.02, '%.3f' % got)
+
+    half = (20.0 + view.WINDING_SCALE_C) / 2.0
+    report.check('and half way up the scale is half the margin',
+                 abs(view.motor_headroom_of(half) - 0.5) < 0.02,
+                 '%.3f at %.0f C' % (view.motor_headroom_of(half), half))
+
+
 def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
     """The alarm is the envelope acting, not a level this page picked.
 
@@ -329,6 +365,7 @@ def main():
     test_both_gutters_run_on_one_scale(report)
     test_a_power_node_never_reads_below_the_copper(report)
     test_the_ntc_is_shown_as_the_one_measurement(report)
+    test_two_headrooms_named_apart(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
