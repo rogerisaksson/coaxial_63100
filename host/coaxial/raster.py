@@ -74,6 +74,31 @@ SHADE = tuple(
 RUNGS = len(SHADE) - 1
 
 
+#: An ordered threshold per dot, a 4x4 Bayer over the DOT grid. What it
+#: is for: a shape covering a quarter of a dot used to light it whole,
+#: because a dot is one bit and the four corners `SUBDOT` samples were
+#: read as "any". Every arc in a drawing came out a dot fatter than it
+#: is and every edge stepped. Against this, a quarter-covered dot lights
+#: at a quarter of the positions - which is the fringe drawn in the
+#: patterns between solid and blank, and the reason the block has 256 of
+#: them.
+BAYER4 = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
+
+
+def dithered(hits, of, x, y):
+    """Whether a dot `hits` of `of` samples deep lights, at (x, y).
+
+    HALF A DOT OR MORE ALWAYS LIGHTS. Only the outermost fringe is
+    dithered: a rim, a coil wire or a tooth edge one dot wide is a line
+    the drawing means, and thresholding all of it would break it into
+    dashes. What this softens is the quarter-covered dot beyond that.
+    """
+    if hits * 2 >= of:
+        return hits > 0
+    return (hits > 0
+            and (BAYER4[y % 4][x % 4] + 0.5) / 16.0 < float(hits) / of)
+
+
 def shade(level, phase=0):
     """One cell of tone: `level` 0 to 1 up the ladder, blank at zero.
 

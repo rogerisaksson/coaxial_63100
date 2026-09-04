@@ -897,6 +897,22 @@ record's own constants, no measurement.
   edges in the 95 loops drawn were under half a cell face-on.
 * Zoom 1.0 fits the bounding sphere at any attitude, 56 % of the box's
   width; 2.0 is the first zoom that reaches every edge.
+* **The glyph ramp was two steps above blank and the 3D lived in it.**
+  ' .:' gave a leaning face one step to fall through, so a board drew as
+  a flat carpet with a rim and the lighting could only change its colour.
+  `raster.SHADE` is nine rungs by dot count holding all 256 patterns of
+  U+2800 - 1, 8, 28, 56, 70, 56, 28, 8, 1 - ordered smoothest first, the
+  phase cubed off the grain hash so a flat face mostly wears the even
+  arrangement. With colour the rung comes off `heat`; fitted on the
+  shipped board at zoom 1, 515 lit cells span heat 0.92 to 4.70 with p5
+  and p95 at 1.87 and 3.83, which is 0.22 to 0.52 of DIMMEST to the top
+  of the glow.
+* **A dot is one bit and `SUBDOT` samples four corners.** Read as "any",
+  a shape covering a quarter of a dot lit it whole: every arc in the
+  rotor and the protractor came out a dot fatter than it is. Read as
+  coverage against a 4x4 Bayer - half a dot or more always lit, the
+  fringe dithered - the rotor draws 97 distinct patterns and the
+  protractor 72, where both were a handful.
 
 ## Ruled Out
 

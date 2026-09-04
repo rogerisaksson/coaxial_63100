@@ -338,6 +338,47 @@ def test_two_headrooms_named_apart(report):
                  '%.3f at %.0f C' % (view.motor_headroom_of(half), half))
 
 
+def test_the_flat_drawings_spend_the_block(report):
+    """The 2D drawings antialias their fringe instead of rounding it up.
+
+    A DOT IS ONE BIT AND `SUBDOT` SAMPLES FOUR CORNERS. Read as "any", a
+    shape covering a quarter of a dot lit it whole - so every arc came
+    out a dot fatter than it is and the can's rim stepped against the
+    magnets inside it. Read as COVERAGE, half a dot or more still lights
+    outright and the fringe beyond that is dithered, which is what puts
+    the patterns between solid and blank on the page.
+    """
+    from coaxial import dial, machine, raster
+
+    of = len(raster.SUBDOT)
+    report.check('a dot the shape covers lights wherever it is',
+                 all(raster.dithered(of, of, x, y)
+                     for x in range(4) for y in range(4)))
+    report.check('a dot it misses never does',
+                 not any(raster.dithered(0, of, x, y)
+                         for x in range(4) for y in range(4)))
+    report.check('half a dot always lights - a one-dot rim is a line',
+                 all(raster.dithered(2, of, x, y)
+                     for x in range(4) for y in range(4)))
+    quarter = [raster.dithered(1, of, x, y)
+               for x in range(4) for y in range(4)]
+    report.check('a quarter of one lights at a quarter of the positions',
+                 sum(quarter) == 4, '%d of 16' % sum(quarter))
+
+    # AND THE DRAWINGS ARE RICHER FOR IT: the rotor and the protractor
+    # both raster through the same rule, so both wear patterns a fringe
+    # rounded up to solid could never produce.
+    art = machine.render(0.0, 24, 28, 46, 18)
+    face = dial.render(137.0, 60, 20)
+    for name, drawn in (('the rotor', art), ('the protractor', face)):
+        seen = {c for c in drawn if 0x2800 < ord(c) < 0x2900}
+        report.check('%s draws more than a handful of patterns' % name,
+                     len(seen) >= 40, '%d distinct' % len(seen))
+        report.check('%s draws partial cells, not only solid ones' % name,
+                     any(0 < bin(ord(c) - 0x2800).count('1') < 8
+                         for c in seen))
+
+
 def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
     """The alarm is the envelope acting, not a level this page picked.
 
@@ -380,6 +421,7 @@ def main():
     test_the_ntc_is_shown_as_the_one_measurement(report)
     test_two_headrooms_named_apart(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
+    test_the_flat_drawings_spend_the_block(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

@@ -34,7 +34,8 @@ import math
 from . import angle
 from . import ansi
 from .ascii3d import CELL_ASPECT
-from .raster import BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y, SUBDOT
+from .raster import (BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y,
+                     SUBDOT, dithered)
 
 #: Dots between the rim and the ring the numbers stand on, and the room
 #: their own row needs beyond that. The face is sized to whatever is left
@@ -229,13 +230,21 @@ def _raster(degrees, width, height, weak, aspect):
     stretch = aspect / DOTS_Y * DOTS_X
     for y in range(height * DOTS_Y):
         for x in range(width * DOTS_X):
-            cls = None
+            cls, hits = None, 0
             for ox, oy in SUBDOT:
                 at = _classify(x + ox - geom.cx, (geom.cy - y - oy) * stretch,
                                geom, span, needle_at)
-                if at is not None and (cls is None or at > cls):
-                    cls = at
-            if cls is None:
+                if at is not None:
+                    hits += 1
+                    if cls is None or at > cls:
+                        cls = at
+            # THE CORNERS ARE COVERAGE. One of four lit the dot whole, so
+            # the rim and the sweep both came out a dot fat and stepped
+            # against each other; half a dot or more still lights outright
+            # - a one-dot tick is a mark the face means - and the fringe
+            # beyond it is dithered. `machine._raster` reads them the
+            # same way, and they are the same drawing problem.
+            if cls is None or not dithered(hits, len(SUBDOT), x, y):
                 continue
             col, row = int(x) // DOTS_X, int(y) // DOTS_Y
             if 0 <= row < height and 0 <= col < width:

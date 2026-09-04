@@ -35,7 +35,8 @@ import math
 
 from . import ansi
 from .ascii3d import CELL_ASPECT
-from .raster import BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT
+from .raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT,
+                     dithered)
 
 #: HOW TALL A CELL ACTUALLY IS, in units of its width - `ascii3d`'s, not
 #: a second copy: it is a property of the terminal's font and every
@@ -623,6 +624,37 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
     return lit
 
 
+def _body(put, cx, cy, rotor, slots, poles, r, drive, width, height,
+          stretch):
+    """The machine itself, dot by dot, through `put`.
+
+    OUT OF `_raster` BECAUSE THAT ONE IS ASSEMBLY and this is the
+    drawing: the caller works out where everything goes and how much
+    room it has, and this is the only part that asks what is at a point.
+
+    THE CORNERS ARE COVERAGE, not a vote on whether anything is there.
+    One corner of four lit the dot whole, so every arc came out a dot
+    fatter than it is and the can's rim stepped against the magnets
+    inside it. Half a dot or more still lights outright - a one-dot rim
+    is a line the drawing means - and the fringe beyond that is
+    dithered, which is what puts the patterns between solid and blank
+    on the page.
+    """
+    for y in range(height * DOTS_Y):
+        for x in range(width * DOTS_X):
+            cls, hits = None, 0
+            for ox, oy in SUBDOT:
+                dx, dy = x + ox - cx, (cy - y - oy) * stretch
+                at = _classify(math.hypot(dx, dy), math.atan2(dy, dx),
+                               rotor, slots, poles, r, drive)
+                if at is not None:
+                    hits += 1
+                    if cls is None or at > cls:
+                        cls = at
+            if cls is not None and dithered(hits, len(SUBDOT), x, y):
+                put(x, y, cls)
+
+
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             pointer_deg, left, right, top, bottom, aspect, labels=None,
             leaders=None, rules=None):
@@ -657,18 +689,8 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             if cls is not None and cls > owner[row][col]:
                 owner[row][col] = cls
 
-    stretch = aspect / DOTS_Y * DOTS_X
-    for y in range(height * DOTS_Y):
-        for x in range(width * DOTS_X):
-            cls = None
-            for ox, oy in SUBDOT:
-                dx, dy = x + ox - cx, (cy - y - oy) * stretch
-                at = _classify(math.hypot(dx, dy), math.atan2(dy, dx),
-                               rotor, slots, poles, r, drive)
-                if at is not None and (cls is None or at > cls):
-                    cls = at
-            if cls is not None:
-                put(x, y, cls)
+    _body(put, cx, cy, rotor, slots, poles, r, drive, width, height,
+          aspect / DOTS_Y * DOTS_X)
     if pointer_deg is not None:
         # OUTSIDE THE CAN, where a mark on a real rotor would be. It is
         # the only thing in the picture that is allowed to be arbitrary:
