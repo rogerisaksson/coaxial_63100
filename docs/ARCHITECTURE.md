@@ -272,7 +272,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2596 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2603 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |

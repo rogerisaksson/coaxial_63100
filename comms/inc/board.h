@@ -742,6 +742,21 @@ void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code);
   * changed, which is why this was CMD_PROTO MAJOR 2 (cmd.h). */
 #define BOARD_THERMAL_NODES 10
 
+/** The indices, for a record or a host that has to name one. `thermal.h`
+  * has the enum and this mirrors it, because the calibration record is on
+  * the wire and the portable core is not - a file that includes one does
+  * not include the other. */
+#define BOARD_THERMAL_DRIVER_U   0
+#define BOARD_THERMAL_DRIVER_V   1
+#define BOARD_THERMAL_DRIVER_W   2
+#define BOARD_THERMAL_PHASE_U    3
+#define BOARD_THERMAL_PHASE_V    4
+#define BOARD_THERMAL_PHASE_W    5
+#define BOARD_THERMAL_MCU        6
+#define BOARD_THERMAL_REGULATORS 7
+#define BOARD_THERMAL_AFE        8
+#define BOARD_THERMAL_BOARD      9
+
 #define BOARD_CAL_CHANNELS 10U
 
 /** Which scalar Board_CalSetParam/GetParam addresses. Integers in the unit
@@ -864,6 +879,24 @@ typedef struct
      limit the board is given, like the ceilings beside it - the firmware
      does not choose how much warning it wants. */
   uint32_t soa_lookahead_ms;
+  /* CAL_VERSION 11: which nodes the current clamp cannot cool, one bit
+     per BOARD_THERMAL_NODES index, bit 0 the first.
+
+     A THROTTLE NEEDS AN ACTUATOR. The clamp scales the phase current, so
+     it moves what the legs dissipate and nothing at all on the MCU, the
+     regulators or the front end - those draw the same watts at zero duty
+     as at full. Weighed into the worst node they put a floor under the
+     margin that no derating can lift: an idle board settles with the
+     regulators near 51 C, which against their 125 C ceiling is 0.30 of
+     the budget spent before the stage has done any work.
+
+     They are still judged - every node has a ceiling and any node
+     reaching one still trips. What the mask says is only which of them
+     it is worth asking the clamp about.
+
+     Zero is every node driven, which is what the record did before this
+     field existed and what a board with no opinion should do. */
+  uint32_t soa_undriven_mask;
 
   /* CAL_VERSION 8: the drive. Ids BOARD_CAL_MOTOR_* and BOARD_CAL_DRV_*,
      in that order; board_drive.c turns them into the floats it runs on. */

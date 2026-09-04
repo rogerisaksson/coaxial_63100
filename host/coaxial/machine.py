@@ -234,6 +234,20 @@ INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
 #: entirely at the track's grey.
 LEADER_GREY = 243
 
+#: Which dot rows of its cell a gauge's level fills, and which one a
+#: horizontal leader runs along.
+#:
+#: THREE TALL SO A LEADER CAN ARRIVE IN THE MIDDLE OF IT. Two dots tall
+#: there is no middle: a run either sat on the level's top row or floated
+#: a dot above it, and both read as a line beside the bar rather than one
+#: that lands on it. Three has a centre, and `RULE_Y` is that centre.
+#:
+#: THE COLUMN IT MEETS STILL RUNS THE WHOLE CELL. Clipped to start at the
+#: run, the corner came out as a vertical that fell short; full height it
+#: makes a T, which is the junction the bench drew.
+GAUGE_Y = (0, 1, 2)
+RULE_Y = 1
+
 #: Blue at the cold end, red at the hot. The steps are wide because a
 #: tube one column across cannot carry a gradient - what it can carry is
 #: which band it is in.
@@ -451,12 +465,12 @@ def _gauge(dots, owner, width, height, row, share, cls,
         x = lo + step
         col = x // DOTS_X
         if step < filled:
-            for y in (row * DOTS_Y + 1, row * DOTS_Y + 2):
-                dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
+            for y in GAUGE_Y:
+                dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y]
             if cls > owner[row][col]:
                 owner[row][col] = cls
         elif step % 4 == 0:
-            dots[row][col] |= BRAILLE_BITS[x % DOTS_X][2]
+            dots[row][col] |= BRAILLE_BITS[x % DOTS_X][RULE_Y]
             if TRACK > owner[row][col]:
                 owner[row][col] = TRACK
 
@@ -540,7 +554,7 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
                         owner[row][col] = TRACK
 
 
-def _overlay(dots, text, width, height, labels, leaders):
+def _overlay(dots, text, width, height, labels, leaders, rules):
     """Leaders in dots and names in text, over cells no drawing
     reached.
 
@@ -561,12 +575,39 @@ def _overlay(dots, text, width, height, labels, leaders):
     # It was a horizontal run with a corner. That works and it reads as a
     # bracket rather than a pointer, and two of them at different lengths
     # read as two brackets rather than a staircase.
+    # WHERE A RULE RUNS INSIDE ITS CELL. The gauges draw their level on
+    # the middle two dot rows, so a rule on the top row floated a dot
+    # clear of the bar it was pointing at and read as a separate line
+    # over it. On the bar's own upper row it arrives ON the level.
     lit = []
-    for from_row, col, to_row, shade in list(leaders or ()):
+    for entry in list(leaders or ()):
+        from_row, col, to_row, shade = entry[:4]
+        # WHICH HALF OF THE CELL IT FALLS DOWN. Left by default, which is
+        # where a line falling from a caption belongs; a fifth element
+        # puts it in the right half instead, so a run arriving from the
+        # left turns UP at the cell's right edge and the corner mirrors.
+        # Drawn in the left lane both sides, the right-hand corner came
+        # out as the left one and the L read as pointing back the way it
+        # came.
+        lane = entry[4] if len(entry) > 4 else 0
         for row in range(from_row, to_row):
             if 0 <= row < height and 0 <= col < width:
                 for y in range(DOTS_Y):
-                    dots[row][col] |= BRAILLE_BITS[0][y]
+                    dots[row][col] |= BRAILLE_BITS[lane][y]
+                lit.append((row, col, shade))
+
+    # AND THE HORIZONTAL HALF OF THE SAME FURNITURE. `(row, from_col,
+    # to_col, ink)` runs along the TOP of its cells, so a run meeting the
+    # top of a falling column makes the corner of an upside-down L: a
+    # line that leaves an arrowhead, climbs, and turns in toward the
+    # thing it names. A leader alone can only point at something above
+    # it, and the two levels along the foot lie inboard of the arrows
+    # that name them, not over them.
+    for row, from_col, to_col, shade in list(rules or ()):
+        for col in range(min(from_col, to_col), max(from_col, to_col) + 1):
+            if 0 <= row < height and 0 <= col < width:
+                for x in range(DOTS_X):
+                    dots[row][col] |= BRAILLE_BITS[x][RULE_Y]
                 lit.append((row, col, shade))
 
     # THE OVERLAY LAST, and only where no dot went. A braille cell cannot
@@ -584,14 +625,22 @@ def _overlay(dots, text, width, height, labels, leaders):
 
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             pointer_deg, left, right, top, bottom, aspect, labels=None,
-            leaders=None):
+            leaders=None, rules=None):
     """Dots, their owners and a text overlay, one entry per cell."""
     dots = [[0] * width for _ in range(height)]
     owner = [[-1] * width for _ in range(height)]
     text = [[None] * width for _ in range(height)]
     floors = max(1, len(list(bottom or ())))
-    written = [row for row, _col, _said, _ink in list(labels or ())]
-    reserve = (max(written) + 1) if written else 0
+    # A LABEL'S ROW IS WRITTEN ON, A LEADER'S `to_row` IS PAST ITS LAST:
+    # the two are one column of arithmetic with different ends, and the
+    # can has to start under both.
+    # A LEADER THAT STARTS AT THE TOP pushes the can down; one starting
+    # lower is drawn in rows the floor gauges already own, and counting
+    # it here would reserve the whole box.
+    written = [row + 1 for row, _col, _said, _ink in list(labels or ())]
+    written += [entry[2] for entry in list(leaders or ())
+                if entry[0] == 0]
+    reserve = max(written) if written else 0
     band = max(1, height - floors - reserve)
     cx, r, _, _ = layout(width, height, len(left or ()), len(right or ()),
                          rows=band)
@@ -680,8 +729,7 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
                 TRUTH)
     floor = list(bottom or ())
     _bars(dots, owner, width, height, left, right, r, len(floor),
-          reserve=(max(written) + 1) if written else 0,
-          has_top=bool(top))
+          reserve=reserve, has_top=bool(top))
     # A ROW OF THEM, side by side across the machine's width. It was one
     # gauge; a page that has to say how much is left of the BOARD and of
     # the WINDINGS at once cannot say it in one bar, and stacking them
@@ -696,14 +744,15 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
                height - FLOOR_INSET - len(floor) + index, gauge[0], gauge[1],
                len(left or ()), len(right or ()))
 
-    lit = _overlay(dots, text, width, height, labels, leaders)
+    lit = _overlay(dots, text, width, height, labels, leaders, rules)
     return dots, owner, text, lit
 
 
 def render(rotor_deg, slots=24, poles=28, width=40, height=22,
            truth_deg=None, amps=None, full=None, pointer_deg=None,
            left=None, right=None, top=None, bottom=None,
-           aspect=CELL_ASPECT, colour=False, labels=None, leaders=None):
+           aspect=CELL_ASPECT, colour=False, labels=None, leaders=None,
+           rules=None):
     """The cross-section, `rotor_deg` being how far the can has turned.
 
     `rotor_deg` is mechanical: the electrical angle over the pole pairs.
@@ -750,7 +799,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     dots, owner, text, lit = _raster(rotor_deg, slots, poles, width, height,
                                      truth_deg, drive, pointer_deg, left,
                                      right, top, bottom, aspect, labels,
-                                     leaders)
+                                     leaders, rules)
     ink = phase_ink(drive)
     at = {}
     for row, col, said, said_ink in list(labels or ()):

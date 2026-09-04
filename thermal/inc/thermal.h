@@ -352,6 +352,31 @@ typedef struct
     * Zero disables it and leaves the throttle looking only at the
     * present, which is what it did before this existed. */
   float lookahead_s;
+  /** Nodes the current clamp cannot cool. `false` for all of them is the
+    * old behaviour, which is why the flag reads this way round: a caller
+    * that zeroes this struct gets the envelope it had.
+    *
+    * A THROTTLE IS A CONTROL LOOP AND IT NEEDS AN ACTUATOR. The clamp
+    * scales the phase current, so it moves the conduction and switching
+    * loss in the drivers, the FETs and the shunts, and it moves NOTHING
+    * on the MCU, the regulators or the front end - those draw the same
+    * watts at zero duty as at full. Weighed into `worst`, they set a
+    * floor under the margin that no derating can lift: measured on the
+    * stand-in 2026-09-04, an idle board with nothing switching settles
+    * with the regulators at 51.1 C and the MCU at 49.1 C, which against
+    * a 125 C ceiling from a 20 C ambient is 0.30 of the budget spent
+    * before the stage has done any work at all. The page showed a third
+    * of the board's SOA gone on a cold bench, and the two thirds left
+    * were the only part that ever moved.
+    *
+    * They are still judged: `used` and `soak_j` are filled for every
+    * node and `tripped` spans all of them, because an MCU at its ceiling
+    * is a stop whatever caused it. What changes is that they no longer
+    * ask for a throttle that cannot answer.
+    *
+    * Which nodes these are is the CALIBRATION RECORD'S to say, like the
+    * ceilings beside them - invariant 7. */
+  bool undriven[THERMAL_NODES];
 } thermal_soa_t;
 
 /** What is spent of the thermal budget, and how long is left.
@@ -366,11 +391,13 @@ typedef struct
 typedef struct
 {
   uint8_t used[THERMAL_NODES];
-  uint8_t worst;             /**< the largest of `used`                   */
+  /** The largest of `used` AMONG THE NODES THE CLAMP REACHES - see
+    * `thermal_soa_t::undriven`. `tripped` still spans every node. */
+  uint8_t worst;
   uint8_t worst_node;        /**< which one it was                        */
   int32_t millis_to_limit;   /**< for `worst_node`; -1 = not heading there */
   bool    throttling;        /**< past throttle_at: derate now            */
-  bool    tripped;           /**< at or past a limit: stop                */
+  bool    tripped;           /**< ANY node at or past a limit: stop       */
   /** What a current clamp should be multiplied by, 1.0 down to 0.0.
     *
     * ONE AT THE THROTTLE POINT AND ZERO AT THE CEILING, linear between.

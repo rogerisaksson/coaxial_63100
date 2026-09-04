@@ -179,7 +179,7 @@ API void thm_step(thermal_t *th, const float *watt,
   */
 API void thm_budget(const thermal_t *th, const float *watt,
                     const float *limit_c, float throttle_at,
-                    float lookahead_s, float *out)
+                    float lookahead_s, const float *undriven, float *out)
 {
   thermal_power_t p;
   thermal_soa_t soa;
@@ -195,6 +195,9 @@ API void thm_budget(const thermal_t *th, const float *watt,
   {
     p.watt[i] = watt[i];
     soa.limit_c[i] = limit_c[i];
+    /* Floats because nothing crosses this boundary as anything else -
+       NULL is every node driven, which is the struct's own default. */
+    soa.undriven[i] = (undriven != NULL) && (undriven[i] != 0.0f);
   }
   soa.throttle_at = throttle_at;
   soa.lookahead_s = lookahead_s;

@@ -73,6 +73,9 @@ static void soa_from_cal(void)
   for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
   {
     s_soa.limit_c[i] = (float)cal->soa_limit_centi[i] / 100.0f;
+    /* Which of them the clamp can actually cool - `board.h` has why the
+       housekeeping nodes are judged but not throttled on. */
+    s_soa.undriven[i] = ((cal->soa_undriven_mask >> i) & 1UL) != 0UL;
   }
   s_soa.throttle_at = (float)cal->soa_throttle_ppm / 1000000.0f;
   s_soa.lookahead_s = (float)cal->soa_lookahead_ms / 1000.0f;

@@ -856,6 +856,29 @@ record's own constants, no measurement.
   Both allocators off and one model, one context: ten questions,
   twenty-seven calls, no `std::bad_alloc`, one load.
 
+## The SOA envelope
+
+* **A throttle weighed nodes it could not cool.** `thermal_budget`'s
+  worst node ran over all ten, and three of them - MCU, regulators, AFE -
+  draw the same watts at zero duty as at full. Measured on the stand-in
+  2026-09-04, an idle board with nothing switching settles at 49.1 C on
+  the MCU and 51.1 C on the regulators; against a 125 C ceiling from a
+  20 C ambient that is 0.30 of the budget spent before the stage has done
+  any work, and no derating can lift it. The page read 38 % of the
+  board's SOA gone on a lukewarm bench. Fix: `soa_undriven_mask` in the
+  calibration record (CAL_VERSION 11) marks the three, and the throttle,
+  the ramp and `millis_to_limit` skip them. `used`, `soak_j` and
+  **`tripped` still span every node** - a regulator at its ceiling is a
+  stop whatever a clamp could have done about it. Idle worst is now the
+  laminate at 0.003; at 30 A rms it is `phase_u`, as it should be.
+* The laminate is NOT masked: the legs are most of what heats it, so the
+  clamp moves it and it belongs in the throttle.
+* Steady state at 5.30 mOhm a phase, from `coaxial.thermal`: 20 A gives
+  board 71.7 C / driver 97.5 / phase 110.9; 30 A gives 105.8 / 156.8 /
+  194.0. Continuous against a 105 C laminate is 19.1 A, against a 125 C
+  junction 22.0 A. The shunt node binds first in steady state - the
+  board's ceiling is not what limits a continuous rating.
+
 ## The renderers
 
 * Decimation cost at 94x36, single process: grid 16 → 7.8 ms, 24 →

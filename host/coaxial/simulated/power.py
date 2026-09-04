@@ -25,6 +25,26 @@ class SimulatedThermal:
     LIMIT = {'board': 105.0}
     DEFAULT_LIMIT = 125.0
 
+    #: Which nodes the current clamp cannot cool - `soa_undriven_mask` in
+    #: the calibration record, and the same three for the same reason.
+    #:
+    #: A THROTTLE NEEDS AN ACTUATOR. The clamp scales the phase current,
+    #: so it moves the legs and nothing at all on the MCU, the regulators
+    #: or the front end: those draw the same watts at zero duty as at
+    #: full. Weighed into the worst node they put a floor under the
+    #: margin that no derating can lift - measured here 2026-09-04, an
+    #: idle board with nothing switching settles at 49.1 C on the MCU and
+    #: 51.1 C on the regulators, which against a 125 C ceiling from a
+    #: 20 C ambient is 0.30 of the budget gone before the stage has done
+    #: any work. The page showed a third of the board's SOA spent on a
+    #: cold bench.
+    #:
+    #: They are still judged: `used` is reported for every node and a
+    #: node reaching its ceiling still trips, whichever it is. The
+    #: laminate is NOT among them - the legs are most of what heats it,
+    #: so the clamp moves it and it belongs in the throttle.
+    UNDRIVEN = ('mcu', 'regulators', 'afe')
+
     #: How much longer than wall time this stand-in heats. The board's
     #: own constant is about seven minutes, and a view nobody watches for
     #: seven minutes shows a flat line: at ten, a load step is visible in
@@ -185,8 +205,11 @@ class SimulatedThermal:
         worst = self._worst()[0]
         if self._derate_to is not None:
             self._derate_to(self._derate_applied(self.derate(worst)))
-        # THEN, only if that was not enough.
-        if self._gate is None or worst < 1.0:
+        # THEN, only if that was not enough - AND ON EVERY NODE, not just
+        # the ones the clamp reaches. A regulator at its ceiling is a stop
+        # whatever a derate could have done about it; the mask says what is
+        # worth throttling on, never what counts as too hot.
+        if self._gate is None or not self._tripped():
             return
         if self._gate():
             self._trips += 1
@@ -301,9 +324,25 @@ class SimulatedThermal:
         return used
 
     def _worst(self):
+        """The worst node the clamp can reach, and every node's spend.
+
+        `UNDRIVEN` says which are left out of the first and never out of
+        the second: what is reported is all ten, what is throttled on is
+        what a derate could move.
+        """
         used = self._used()
-        name = max(used, key=lambda n: used[n])
+        driven = [n for n in used if n not in self.UNDRIVEN] or list(used)
+        name = max(driven, key=lambda n: used[n])
         return used[name], name, used
+
+    def _tripped(self):
+        """Whether ANY node is at its ceiling, driven or not.
+
+        A regulator at 125 C is a stop whatever the clamp could have done
+        about it - the mask decides what is worth throttling on, not what
+        counts as too hot.
+        """
+        return max(self._used().values(), default=0.0) >= 1.0
 
     def derate(self, worst=None):
         """What the current clamp should be multiplied by, 1 down to 0.
@@ -369,6 +408,8 @@ class SimulatedThermal:
         cfg = thermal.CFG
         worst = 0.0
         for name in self.NODES:
+            if name in self.UNDRIVEN:
+                continue            # nothing the clamp does moves this one
             top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
             capacity = (cfg['board_capacity'] if name == 'board'
                         else cfg['capacity'].get(name, 0.0))
@@ -412,7 +453,7 @@ class SimulatedThermal:
         return {'used': used, 'worst': worst, 'worst_node': name,
                 'seconds_to_limit': None,
                 'throttling': worst >= THROTTLE_AT,
-                'tripped': worst >= 1.0, 'trips': self._trips,
+                'tripped': self._tripped(), 'trips': self._trips,
                 'derate': self._derate_held, 'soak_j': self.soak_j(),
                 'duty': list(self._duty() or (0.0, 0.0, 0.0))}
 

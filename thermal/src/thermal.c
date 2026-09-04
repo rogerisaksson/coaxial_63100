@@ -371,6 +371,11 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
     }
     out->used[i] = (uint8_t)(part * 255.0f);
 
+    if (out->used[i] >= 255U)
+    {
+      out->tripped = true;   /* any node at its ceiling, driven or not */
+    }
+
     /* What is left in it, in joules. Never negative: a node past its
        ceiling has no budget rather than a debt, and the trip is what
        says so. */
@@ -378,6 +383,10 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
 
     out->soak_j[i] = (left > 0.0f) ? (th->cfg.node[i].capacity * left) : 0.0f;
 
+    if (soa->undriven[i])
+    {
+      continue;              /* nothing the clamp does moves this one */
+    }
     if (out->used[i] >= out->worst)
     {
       out->worst = out->used[i];
@@ -386,7 +395,6 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
   }
 
   out->throttling = ((float)out->worst / 255.0f) >= soa->throttle_at;
-  out->tripped = (out->worst >= 255U);
 
   /* The clamp's factor: one below the throttle point, falling to zero at
      the ceiling. A stage that is derating is still driving, which is the
@@ -427,7 +435,7 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
     {
       const float span = soa->limit_c[i] - th->ambient;
 
-      if (!(span > 0.0f))
+      if (!(span > 0.0f) || soa->undriven[i])
       {
         continue;
       }

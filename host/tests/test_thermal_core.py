@@ -65,6 +65,11 @@ NTC_SEES_LEG = 0.30
 #: Named for the same reason as the fraction above.
 LEG_TO_BOARD = 28.0
 
+#: The nodes a current clamp cannot cool - `soa_undriven_mask` in the
+#: calibration record, and the record's own default. Here so a test can
+#: pass something else and watch the envelope change its mind.
+UNDRIVEN = ('mcu', 'regulators', 'afe')
+
 
 class Model:
 
@@ -119,12 +124,14 @@ class Model:
                 for name in NODES]
 
     def budget(self, watt=None, throttle_at=THROTTLE_AT, lookahead_s=0.0,
-               limits=None):
+               limits=None, undriven=UNDRIVEN):
         out = (ctypes.c_float * self.slots)()
+        mask = [1.0 if name in (undriven or ()) else 0.0 for name in NODES]
         self.lib.thm_budget(self.h, self._floats(self._watt(watt or {})),
                             self._floats(limits or self.limits()),
                             ctypes.c_float(throttle_at),
-                            ctypes.c_float(lookahead_s), out)
+                            ctypes.c_float(lookahead_s),
+                            self._floats(mask), out)
         got = dict(zip(BUDGET, list(out)[:len(BUDGET)]))
         got['worst_node'] = NODES[int(got['worst_node'])]
         got['throttling'] = bool(got['throttling'])
@@ -460,6 +467,58 @@ def test_the_worst_node_is_the_one_acted_on(report, lib):
     report.check('the hottest node and the closest node are different here '
                  '- a temperature cannot say how close without its limit',
                  model.at('phase_u') > model.at('board'))
+
+
+def test_a_throttle_weighs_only_what_a_clamp_can_cool(report, lib):
+    """The housekeeping nodes are judged and not throttled on.
+
+    A THROTTLE IS A CONTROL LOOP AND IT NEEDS AN ACTUATOR. The clamp
+    scales the phase current, so it moves the legs and nothing at all on
+    the MCU, the regulators or the front end - those draw the same watts
+    at zero duty as at full. Weighed into the worst node they set a floor
+    under the margin that no derating can lift: measured on the stand-in
+    2026-09-04, an idle board settles with the regulators at 51.1 C,
+    which against a 125 C ceiling from a 20 C ambient is 0.30 of the
+    budget spent before the stage has done any work.
+
+    What is NOT given up: every node still reports its own spend, and any
+    of them at its ceiling still trips.
+    """
+    model = Model(lib)
+    model.place('regulators', 110.0)
+    model.place('phase_u', 60.0)
+    got = model.budget()
+    report.check('a regulator at 110 of 125 does not become the worst node',
+                 got['worst_node'] == 'phase_u',
+                 '%s at %.0f %%, regulators at %.0f %%'
+                 % (got['worst_node'], 100.0 * got['worst'],
+                    100.0 * got['used']['regulators']))
+    report.check('and it is still reported, at its own ceiling',
+                 abs(got['used']['regulators']
+                     - (110.0 - AMBIENT) / (LIMIT_C - AMBIENT)) < 0.01,
+                 '%.3f' % got['used']['regulators'])
+    report.check('so the clamp stays open on a board doing no work',
+                 got['derate'] == 1.0, '%.2f' % got['derate'])
+
+    # AND THE MASK IS THE RECORD'S, not the core's: hand it the other
+    # answer and the same board derates. A core that had the three names
+    # compiled in would pass the checks above and still be wrong.
+    same = model.budget(undriven=())
+    report.check('told every node is driven, the same board picks the '
+                 'regulator back up', same['worst_node'] == 'regulators',
+                 same['worst_node'])
+    report.check('and derates on it', same['derate'] < 1.0,
+                 '%.2f' % same['derate'])
+
+    # THE TRIP IS NOT MASKED. A regulator at its ceiling is a stop
+    # whatever a derate could have done about it.
+    model.place('regulators', LIMIT_C + 5.0)
+    hot = model.budget()
+    report.check('a masked node at its ceiling still trips', hot['tripped'],
+                 'worst %s at %.0f %%'
+                 % (hot['worst_node'], 100.0 * hot['worst']))
+    report.check('though it is not what the throttle is looking at',
+                 hot['worst_node'] == 'phase_u', hot['worst_node'])
 
 
 def test_the_conduction_is_split_where_it_is_made(report, lib):
@@ -845,6 +904,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_lookahead_catches_a_ramp,
           test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,
+          test_a_throttle_weighs_only_what_a_clamp_can_cool,
           test_the_conduction_is_split_where_it_is_made,
           test_conduction_is_a_mean_square_not_a_sample,
           test_the_thermistor_has_mass,

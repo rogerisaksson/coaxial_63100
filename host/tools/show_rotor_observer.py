@@ -257,13 +257,22 @@ HEADROOM_AMBER = 0.5
 #: rather than as two more things with room left in them.
 #:
 #: One column each, so the names are a letter each under a shared SOA -
-#: `BOARD SOA` is nine characters and a tube is one wide.
-HEADROOM_TITLES = ('B', 'M')
+#: `SWITCH SOA` is ten characters and a tube is one wide.
+HEADROOM_TITLES = ('S', 'M')
 
 #: What the leaders inside the drawing call them. Spelled out there
 #: because there is room in the air where there is none over a
 #: one-column tube.
-HEADROOM_NAMES = ('BOARD SOA', 'MOTOR SOA')
+#:
+#: IT WAS `BOARD SOA` AND THE BOARD STOPPED BEING WHAT IT MEASURED. The
+#: margin is the worst node a current clamp can cool - the six leg nodes
+#: and the laminate they heat - and since the housekeeping nodes came out
+#: of that (`soa_undriven_mask`, `board.h`) what is left is the switching
+#: and what the switching warms. The MCU and the regulators are still
+#: drawn, still judged and still trip; they are just not in this number,
+#: so calling it the board's was naming it after the half it had
+#: dropped.
+HEADROOM_NAMES = ('SWITCH SOA', 'MOTOR SOA')
 HEADROOM_GROUP = 'SOA'
 
 #: Columns of air between the board's thermometers and the two headroom
@@ -569,18 +578,13 @@ def _legend(row, text, ink, column, centred):
     return (row, text, ink, column, centred)
 
 
-def _legend_rows(view, left, right):
-    """The caption rows: four legends and the NTC, in dots and text.
+def _legend_targets(view, left, right):
+    """Every legend as `(row, text, ink, column, centred)`.
 
-    EVERY GROUP IS NAMED THE SAME WAY NOW. It was two rows of bare names
-    over the gutters with the readings on a third, which put `SWITCH` and
-    `BOARD` hard against the frame and made a reader carry the name down
-    to the tubes themselves. A name, its value, an arrowhead and a line
-    falling to what it names says the whole thing in one row and leans
-    the words inboard where there is room for them.
-
-    The lines run unbroken: a glyph in every row below their own, down to
-    the tubes they land on.
+    SPLIT OUT BECAUSE TWO THINGS DRAW THEM. The caption needs the
+    whole row and the drawing needs only the COLUMNS each one
+    lands on, and building the list twice is two answers to where
+    a legend points.
     """
     bars = headrooms(view)
     said = []
@@ -636,6 +640,65 @@ def _legend_rows(view, left, right):
             len(said), 'BOARD TEMPS %.1f %sC' % (peak, DEGREE),
             machine.INK[cls], right[len(BOARD_NODES) // 2 - 1], True))
 
+    return said
+
+
+def foot_furniture():
+    """The two upside-down L's under the drawing, `(leaders, rules)`.
+
+    THE STROKE LEAVES THE ARROWHEAD, CLIMBS, AND TURNS IN. It used to
+    lie in the foot row itself, four braille cells rising through the
+    height of a single line - which is as much climb as one row has, and
+    at that size a stroke that rises reads as a stroke that is dotty.
+    The levels it names are IN the drawing, so the line goes there: a
+    column up from the head and a run inboard along the top of it, which
+    puts the corner over the bar and the whole shape between the label
+    and its level.
+
+    The winding is the upper of the two floor gauges and the power the
+    lower, so the left L climbs two rows and the right one, and neither
+    passes through the other.
+    """
+    first, last = machine.span(ART_WIDTH, ART_ROWS,
+                               LEFT_COLUMNS, RIGHT_COLUMNS)
+    grey = machine.LEADER_GREY
+    return ([(ART_ROWS - 2, 0, ART_ROWS, grey, 0),
+             (ART_ROWS - 1, ART_WIDTH - 1, ART_ROWS, grey, 1)],
+            [(ART_ROWS - 2, 0, max(0, first - 1), grey),
+             (ART_ROWS - 1, min(ART_WIDTH - 1, last + 1), ART_WIDTH - 1,
+              grey)])
+
+
+def legend_drops(view, left, right):
+    """One dotted hop into the drawing, under every legend.
+
+    THE LAST ROW HAD NONE. A leader falls through the caption rows
+    below its own, so the legend written on the bottom row ran
+    sideways and met its tube with nothing in between - a run that
+    stops, where the four above it are lines that arrive. One art
+    row is reserved for the hop, so all five land the same way.
+    """
+    return [(0, column, 1, machine.LEADER_GREY)
+            for _row, _text, _ink, column, _centred
+            in _legend_targets(view, left, right)]
+
+
+def _legend_rows(view, left, right):
+    """The caption rows: four legends and the NTC, in dots and text.
+
+    EVERY GROUP IS NAMED THE SAME WAY NOW. It was two rows of bare names
+    over the gutters with the readings on a third, which put `SWITCH` and
+    `BOARD` hard against the frame and made a reader carry the name down
+    to the tubes themselves. A name, its value, an arrowhead and a line
+    falling to what it names says the whole thing in one row and leans
+    the words inboard where there is room for them.
+
+    The lines run unbroken: a glyph in every row below their own, down to
+    the tubes they land on.
+    """
+    said = _legend_targets(view, left, right)
+    first, last = machine.span(ART_WIDTH, ART_ROWS,
+                               LEFT_COLUMNS, RIGHT_COLUMNS)
     rows = []
     for index in range(CAPTION_ROWS):
         line = [' '] * ART_WIDTH
@@ -720,23 +783,21 @@ def _foot_line(view):
     # which is an ordering a reader has to be told; the COLOUR already
     # pairs each name with its own level, and the same head on both says
     # the same thing the four legends above say.
-    # THE HEAD INBOARD, so the stroke can leave it and climb. It sat at
-    # the outer end with the words between it and the machine, which put
-    # the arrow as far from the level as the row allowed.
-    head = 'WINDING %.1f %sC %s' % (winding(view), DEGREE, UP)
-    tail = '%s %.2f kW' % (UP, watts(view) / 1000.0)
+    # THE HEAD OUTBOARD, AT THE EDGE, and its line drawn in the picture
+    # above rather than along this row - `foot_furniture` has the shape
+    # and why. Inboard, the two strokes climbed toward each other across
+    # the middle of the row and the pair read as one broken rule between
+    # the labels.
+    head = '%s WINDING %.1f %sC' % (UP, winding(view), DEGREE)
+    tail = '%.2f kW %s' % (watts(view) / 1000.0, UP)
     # A STROKE EACH, LEAVING THE HEAD AND RISING toward the level above
     # it. The dots climb the cell - low pair, middle pair, top pair - so
     # the line reads as one that goes out from the arrow, up, and then
     # levels off along the bar it names. Flat, it pointed along the row
     # and the bar it meant was the one nobody was looking at.
-    rise = ''.join(LEADER_RISE)
-    fall = ''.join(reversed(LEADER_RISE))
-    pad = ART_WIDTH - len(head) - len(tail) - len(rise) - len(fall)
+    pad = ART_WIDTH - len(head) - len(tail)
     foot = (tint(head, machine.INK[machine.SOA_WARN])
-            + tint(rise, machine.LEADER_GREY)
             + ' ' * max(0, pad)
-            + tint(fall, machine.LEADER_GREY)
             + tint(tail, machine.INK[machine.WATTS]))
     return foot
 
@@ -1803,6 +1864,11 @@ def compose(rig, origin, console, view):
                                + [None] * NTC_GAP + ntc_bar(view)),
                          right=(soa_bars(view, BOARD_NODES)
                                 + [None] * HEADROOM_GAP + headrooms(view)),
+                         leaders=legend_drops(view, *machine.gutters(
+                             ART_WIDTH, ART_ROWS,
+                             LEFT_COLUMNS, RIGHT_COLUMNS))
+                         + foot_furniture()[0],
+                         rules=foot_furniture()[1],
                          top=None,
                          bottom=[(min(1.0, (winding(view) - 20.0)
                                       / (WINDING_SCALE_C - 20.0)),
@@ -1836,7 +1902,12 @@ def compose(rig, origin, console, view):
             ('E', Text('SPEED', style='chip.live') if view['spin']
              else 'SPEED'),
             ('W', Text('LOAD', style='chip.live') if view['load']
-             else 'LOAD'), (UP + ' ' + DOWN, 'CLICK')]
+             else 'LOAD'), (UP + ' ' + DOWN, 'CLICK'),
+            # WHO HAS THE MOUSE. Lit while the terminal does, because
+            # that is the state a reader cannot see any other way - the
+            # page looks identical and the wheel has stopped working.
+            ('C', Text('SELECT', style='chip.live') if _screen.selecting()
+             else 'SELECT')]
     if view['switch']:
         keys.append(('A', Text('ARMED', style='chip.live')
                      if s['stage_enabled'] else 'ARM  '))

@@ -50,8 +50,11 @@
       HARDWARE.md: CubeMX left USART2/UART5 at 9 216 000 and nothing wrote
       the 115200 everything reported - the wire ran at 80x the number in
       the link report. */
-#define CAL_VERSION 10U  /* 10: soa_lookahead_ms, so the throttle can act
-                            on a ramp rather than on a reading. */
+/* 10: soa_lookahead_ms, so the throttle can act on a ramp rather than on
+      a reading. */
+#define CAL_VERSION 11U  /* 11: soa_undriven_mask - the housekeeping nodes
+                            are judged but not throttled on, because a
+                            clamp on the phase current cannot cool them. */
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes; the record is a few hundred bytes against a
@@ -107,6 +110,14 @@ static const board_cal_t CAL_DEFAULTS =
      board. It is a shape now, not a cliff, and a bench that wants more
      warning may raise it. */
   .soa_lookahead_ms = 2000UL,
+  /* The MCU, the regulators and the front end. Their power does not
+     depend on the duty, so a derate asked for on their account is a loop
+     with no actuator - `board.h` has the measurement. The laminate is
+     NOT among them: the legs are most of what heats it, so the clamp
+     moves it and it belongs in the throttle. */
+  .soa_undriven_mask = (1UL << BOARD_THERMAL_MCU)
+                     | (1UL << BOARD_THERMAL_REGULATORS)
+                     | (1UL << BOARD_THERMAL_AFE),
   .vref_uv          = 3300000UL,      /* U2 REF2033, 3.3 V +/-0.05 %       */
   .shunt_uohm       = 3500UL,         /* RU1 || RU2, 7 mohm each           */
   .amp_gain_ppm     = 4545455UL,      /* THS4551, Rf 1.5k / Rg 330         */

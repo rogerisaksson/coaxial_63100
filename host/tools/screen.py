@@ -20,6 +20,32 @@ ansi.utf8_stdout()          # every view draws outside ASCII
 QUIT_KEYS = frozenset({'q', 'Q'})
 MENU_KEYS = frozenset({chr(27)})
 
+#: What hands the mouse back to the terminal, and takes it again.
+#:
+#: A VIEW THAT REPORTS THE MOUSE CANNOT BE SELECTED FROM. Taking the
+#: wheel means clearing QUICK_EDIT and asking for SGR reports, and both
+#: of those are what a terminal uses to let a reader drag across a line
+#: and copy it - so every number on these pages was unreachable to a
+#: bench that wanted to paste one into a note. It is not a setting a view
+#: should own either: the wheel is worth having and so is the text, and
+#: which one the mouse is doing belongs to whoever is holding it.
+#:
+#: Handled HERE rather than in each view, so any page that asked for the
+#: mouse can give it back with the same key.
+SELECT_KEYS = frozenset({'c', 'C'})
+
+#: The `Keys` holding the mouse, if one is. MODULE STATE BECAUSE THE
+#: MOUSE IS: there is one of it, the terminal owns it, and a view drawing
+#: a chip that says who has it should not have to be handed the object to
+#: ask. Set on entry and cleared on exit, so a view outside a run reads
+#: False rather than a stale True.
+_HOLDER = None
+
+
+def selecting():
+    """Whether the mouse is the terminal's right now, for a key legend."""
+    return _HOLDER is not None and _HOLDER.selecting()
+
 #: What a view exits with when ESC sent it back. Distinct from 0 so the menu
 #: can tell "show me again" from "that is all", and from 130 so neither is
 #: mistaken for Ctrl+C.
@@ -306,6 +332,7 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     import time as _time
 
     count = 0
+    held = False
     try:
         with curtain(board_view) as page, Keys(console, mouse=mouse) as keys:
             while True:
@@ -317,7 +344,22 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 # measured. A frame slower than the period pays no
                 # sleep at all and the keys are still polled once.
                 started = _time.monotonic()
-                page.update(draw(), refresh=True)
+                # AND THE PAGE HOLDS STILL WHILE THE MOUSE IS THE
+                # TERMINAL'S. Handing the mouse back is half of being
+                # able to copy a number off one of these views: the other
+                # half is that a drag survives long enough to finish.
+                # Redrawing at 8 to 20 Hz wipes the selection under the
+                # hand, so the picture and the text both were unreachable
+                # even with the wheel released. Frozen, what is on screen
+                # is what gets copied - and the keys are still polled, so
+                # the same key thaws it.
+                # ONE MORE FRAME AS IT FREEZES, so the key legend can
+                # say so. Stopped before that draw, the page a reader is
+                # about to select from is the one where nothing had
+                # happened yet and the chip is still dark.
+                if not keys.selecting() or not held:
+                    page.update(draw(), refresh=True)
+                held = keys.selecting()
                 if tick is not None and tick():
                     return None
                 if frames and count >= frames:
@@ -576,6 +618,7 @@ class Keys:
         self._pending = ''
         self._buttons = 0
         self._typed = []
+        self._grabbed = False
 
     def __enter__(self):
         if not self.console:
@@ -590,19 +633,17 @@ class Keys:
         except Exception:               # noqa: BLE001 - Windows, or no tty
             self._saved = None
 
+        global _HOLDER
+        self.grab(True)
         if self.mouse:
-            self._was_mode = _set_console_mode()
-            (sys.__stdout__ or sys.stdout).write(MOUSE_ON)
-            (sys.__stdout__ or sys.stdout).flush()
-            sys.stdout.flush()
+            _HOLDER = self
         return self
 
     def __exit__(self, *exc_info):
-        if self.mouse:
-            (sys.__stdout__ or sys.stdout).write(MOUSE_OFF)
-            (sys.__stdout__ or sys.stdout).flush()
-            sys.stdout.flush()
-            _set_console_mode(self._was_mode)
+        global _HOLDER
+        self.grab(False)
+        if _HOLDER is self:
+            _HOLDER = None
         if self._saved is not None:
             self._posix.tcsetattr(sys.stdin, self._posix.TCSADRAIN,
                                   self._saved)
@@ -661,12 +702,47 @@ class Keys:
                 leave = 'quit'
             elif leave is None and key in MENU_KEYS:
                 leave = 'menu'
+            elif self.mouse and key in SELECT_KEYS:
+                # SWALLOWED, not passed on: no view binds it, and one that
+                # did would fight the terminal for the same gesture.
+                self.grab(not self._grabbed)
             else:
                 # Kept for a view that binds keys of its own. Every other
                 # view ignores this and is unaffected; poll() still answers
                 # the same two things it always did.
                 self._typed.append(key)
         return leave, zoom
+
+    def selecting(self):
+        """Whether the mouse is the terminal's at the moment.
+
+        A view asks so it can say so - the key does nothing visible on the
+        page otherwise, and a reader who pressed it needs to know whether
+        the drag they are about to make will select or spin.
+        """
+        return self.mouse and not self._grabbed
+
+    def grab(self, on):
+        """Take the mouse for the view, or hand it to the terminal.
+
+        The console mode goes back to what it was ALONG WITH the reporting
+        sequences: on Windows the selection lives in QUICK_EDIT and the
+        wheel in the SGR reports, and releasing one without the other
+        gives a page that neither spins nor selects.
+        """
+        if not self.mouse or on == self._grabbed:
+            return self._grabbed
+        out = sys.__stdout__ or sys.stdout
+        if on:
+            self._was_mode = _set_console_mode()
+            out.write(MOUSE_ON)
+        else:
+            out.write(MOUSE_OFF)
+            _set_console_mode(self._was_mode)
+        out.flush()
+        sys.stdout.flush()
+        self._grabbed = on
+        return self._grabbed
 
     def taken(self):
         """Characters typed since the last call, for a view with bindings.
