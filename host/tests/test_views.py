@@ -284,18 +284,22 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
         'budget': {'used': {}, 'tripped': False},
         'state': {'id': 0.0, 'iq': 0.0, 'vd': 0.0, 'vq': 0.0},
         'params': {}, 'winding_at': None})
-    # THE LAST CAPTION ROW, since every gutter group became a legend of
-    # its own: two margins, then the switch and board temperatures, and
-    # the one measurement under all of them.
-    ink = 'color(%d)' % machine.INK[machine.TRUTH]
-    said = rows[view.CAPTION_ROWS - 1]
-    report.check('it rides the last caption row, under every legend',
+    # THE FIRST CAPTION ROW, and it has a tube of its own now. Everything
+    # under it is an estimate, and a page that opens with a model teaches
+    # a bench to trust one.
+    said = rows[0]
+    report.check('it opens the stack, above every estimate',
                  'NTC' in said and not any('NTC' in row
-                                           for row in rows[:-2]),
+                                           for row in rows[1:]),
                  said.replace(chr(27), '^'))
-    report.check('and takes the ink this page gives what is measured',
-                 '38;5;%d' % machine.INK[machine.TRUTH] in said,
-                 'wanted %s' % ink)
+    # ITS OWN TUBE'S COLOUR, which is the thermometer ramp - blue at the
+    # cold end and red at the hot - because the thermistor has no ceiling
+    # to be a margin against. Every legend here shares an ink with the
+    # level it names.
+    report.check('and takes its own tube colour, off the thermometer ramp',
+                 any('38;5;%d' % machine.INK[step] in said
+                     for step in machine.NTC_RAMP),
+                 said.replace(chr(27), '^'))
 
 
 def test_two_headrooms_named_apart(report):

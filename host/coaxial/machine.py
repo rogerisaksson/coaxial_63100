@@ -188,6 +188,14 @@ TOOTH_FILL = 0.5
 #: part, which is the one thing this picture must not say.
 (TRACK, BORE, YOKE, TOOTH_U, TOOTH_V, TOOTH_W, SOUTH, NORTH, CAN,
  TRUTH, POINTER, SOA_OK, SOA_WARN, SOA_TRIP, WATTS, SOA_FLASH) = range(16)
+
+#: A THERMOMETER'S OWN COLOURS, cold to hot. Every other level here takes
+#: its colour from a MARGIN - how close a node is to a ceiling it was
+#: given - and the thermistor has no ceiling: it reads a temperature and
+#: nothing on this board was given a limit for it. So it is coloured like
+#: a thermometer instead, blue through to red, which says the one thing
+#: about it that can be said.
+NTC_RAMP = tuple(range(SOA_FLASH + 1, SOA_FLASH + 6))
 PHASE_CLASS = (TOOTH_U, TOOTH_V, TOOTH_W)
 #: What they are called, in the order the teeth take them. Here
 #: rather than in the view because the drawing and the legend beside
@@ -219,6 +227,11 @@ INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
        #: leaves the shouting for something that deserves it.
        SOA_FLASH: 210}
 
+#: Blue at the cold end, red at the hot. The steps are wide because a
+#: tube one column across cannot carry a gradient - what it can carry is
+#: which band it is in.
+INK.update(dict(zip(NTC_RAMP, (33, 45, 41, 178, 196))))
+
 #: The bar classes in the order a fraction picks one: below the
 #: board's throttle point, past it, at the ceiling. Which fraction
 #: means which is the CALLER's - the ceilings live in the
@@ -230,9 +243,10 @@ SOA_CLASS = (SOA_OK, SOA_WARN, SOA_TRIP)
 #: can's own edge rather than off the frame: counted from the frame,
 #: six bars and four put the two groups at different distances and
 #: the page looked lopsided.
-#: One column, not two. Two columns of air each side cost the machine
-#: eight per cent of its diameter at this width, and the gutters read as
-#: separate from it at one.
+#: ONE COLUMN. Closed up entirely the tubes read as part of the drawing
+#: rather than as instruments beside it - a bar chart's bars touch each
+#: other, not the subject. Two was too much; this is the air that says
+#: "these are separate things" and nothing more.
 BAR_GAP = 1
 
 #: A PHASE BRIGHTENS WITH ITS CURRENT. One hue each so a tooth says which
@@ -342,7 +356,7 @@ def _classify(radius, phi, rotor, slots, poles, r, drive):
     return None
 
 
-def layout(width, height, n_left=0, n_right=0):
+def layout(width, height, n_left=0, n_right=0, rows=None):
     """Where everything goes: `(centre_x, radii, left_cols, right_cols)`.
 
     ONE SOURCE FOR ALL OF IT. The span, the gutters, the raster and the
@@ -360,7 +374,14 @@ def layout(width, height, n_left=0, n_right=0):
     lead = (n_left + BAR_GAP) if n_left else 0
     trail = (n_right + BAR_GAP) if n_right else 0
     room = max(1, width - lead - trail)
-    r = _Radii(room, height)
+    # THE CAN IS SIZED AGAINST ITS OWN BAND, not the whole box. Given the
+    # box it grew to fill it, so every row added for the foot gauges made
+    # the can a row taller and it ran into them again - a loop that
+    # cannot be escaped by changing the height, because the height was
+    # the thing feeding it. `rows` is what is left after the gauges and
+    # anything written above them, so the can's size follows the WIDTH
+    # and the rows only change how much air is around it.
+    r = _Radii(room, rows if rows else height)
     cx = (lead + room / 2.0) * DOTS_X - 0.5
     left = [c for c in (lead - BAR_GAP - 1 - i for i in range(n_left))
             if 0 <= c < width]
@@ -378,14 +399,14 @@ def gutters(width, height, n_left, n_right):
     return layout(width, height, n_left, n_right)[2:]
 
 
-def span(width, height, n_left=0, n_right=0):
+def span(width, height, n_left=0, n_right=0, rows=None):
     """The columns the machine itself occupies, first and last.
 
     FLOORED AT BOTH ENDS. Ceiling the right one put its edge a column
     further out than the circle actually reached, so the gutter measured
     off it stood two columns clear where the left stood one.
     """
-    cx, r, _, _ = layout(width, height, n_left, n_right)
+    cx, r, _, _ = layout(width, height, n_left, n_right, rows)
     return (int(math.floor((cx - r.can) / DOTS_X)),
             int(math.floor((cx + r.can) / DOTS_X)))
 
@@ -561,8 +582,15 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
     dots = [[0] * width for _ in range(height)]
     owner = [[-1] * width for _ in range(height)]
     text = [[None] * width for _ in range(height)]
-    cx, r, _, _ = layout(width, height, len(left or ()), len(right or ()))
-    cy = height * DOTS_Y / 2.0 - 0.5
+    floors = max(1, len(list(bottom or ())))
+    written = [row for row, _col, _said, _ink in list(labels or ())]
+    reserve = (max(written) + 1) if written else 0
+    band = max(1, height - floors - reserve)
+    cx, r, _, _ = layout(width, height, len(left or ()), len(right or ()),
+                         rows=band)
+    # AND CENTRED IN THAT BAND, so the air it does not use is shared
+    # above and below it rather than pushing it into the gauges.
+    cy = (reserve + band / 2.0) * DOTS_Y - 0.5
     rotor = math.radians(rotor_deg)
 
     def put(x, y, cls):
@@ -644,7 +672,6 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             put(cx + radius * math.cos(phi), cy - radius * math.sin(phi),
                 TRUTH)
     floor = list(bottom or ())
-    written = [row for row, _col, _said, _ink in list(labels or ())]
     _bars(dots, owner, width, height, left, right, r, len(floor),
           reserve=(max(written) + 1) if written else 0,
           has_top=bool(top))

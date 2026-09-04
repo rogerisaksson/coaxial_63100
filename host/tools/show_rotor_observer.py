@@ -88,7 +88,17 @@ STEPS = (0.05, 0.1, 0.25, 0.5, 1.0)
 
 #: The dial, drawn smaller than the shaft view's: four instrument boxes
 #: sit beside it and the face is a pointer, not a protractor to read.
-ART_WIDTH, ART_HEIGHT = 40, 25
+#: THE TIGHTEST BOX THAT KEEPS THE MACHINE'S SIZE. The can is sized
+#: against its own band now - what is left after the foot gauges - so it
+#: no longer grows to fill whatever height it is given, and rows can come
+#: off without it running into anything. Swept: it holds 28 dots of
+#: radius down to twenty-four and only starts shrinking below that, which
+#: is where the band becomes the binding dimension rather than the width.
+#:
+#: It cost an afternoon of adding a row, watching the can grow into the
+#: gauges, and adding another. The height was feeding the thing it was
+#: meant to fix.
+ART_WIDTH, ART_HEIGHT = 46, 24
 
 #: Rows of the box that are captions rather than drawing: five above and
 #: one below.
@@ -309,6 +319,22 @@ SOA_NODES = ('driver_u', 'phase_u', 'driver_v', 'phase_v',
 #: in their own gutter.
 
 BOARD_NODES = ('mcu', 'regulators', 'afe', 'board')
+
+#: The ends of the thermistor's own colour ramp, degrees C. A BENCH
+#: SCALE, not a limit: nothing on this board was given a ceiling for the
+#: NTC, and these are the two ends of what a reader would call cold and
+#: hot on it.
+NTC_COLD_C, NTC_HOT_C = -20.0, 100.0
+
+#: Columns of air between the switch thermometers and the NTC's own,
+#: and where the NTC sits in the left gutter. OUTERMOST, so the six
+#: estimates stand together and the one measurement stands apart from
+#: them - the same reason the margins are outboard of the board's four.
+NTC_GAP = 1
+NTC_AT = len(SOA_NODES) + NTC_GAP
+
+#: How many columns the left gutter needs.
+LEFT_COLUMNS = NTC_AT + 1
 
 #: Where the pair starts inside the right gutter.
 HEADROOM_AT = len(BOARD_NODES) + HEADROOM_GAP
@@ -558,22 +584,25 @@ def _legend_rows(view, left, right):
     """
     bars = headrooms(view)
     said = []
-    order = list(reversed(range(len(HEADROOM_TITLES))))
-    for step, index in enumerate(order):
-        if len(right) > HEADROOM_AT:
-            share, cls = bars[index]
-            said.append(_legend(
-                step, '%s %.0f %%' % (HEADROOM_NAMES[index], 100.0 * share),
-                machine.INK[cls], right[HEADROOM_AT + index], True))
     first, last = machine.span(ART_WIDTH, ART_ROWS,
-                               len(SOA_NODES), RIGHT_COLUMNS)
-    # BOARD ABOVE SWITCH, so SWITCH TEMPS lands directly over the NTC on
-    # the last row: the two of them are the same question asked of the
-    # power path - what it is estimated at, and what the one sensor
-    # beside it actually reads - and they belong together.
+                               LEFT_COLUMNS, RIGHT_COLUMNS)
+    # THE MEASUREMENT FIRST, at the top, because everything under it is
+    # an estimate and a page that opens with a model teaches a bench to
+    # trust one. It had a row of its own and no tube to point at; it
+    # names the tube that carries it now, like everything else here.
+    seen = (view.get('thermal') or {}).get('ntc')
+    if len(left) > NTC_AT and seen is not None:
+        # ITS OWN TUBE'S COLOUR, like every other legend here: the name
+        # and the level it belongs to share an ink, and for this one that
+        # is the thermometer ramp rather than a margin's green to red.
+        said.append(_legend(0, reference(view),
+                            machine.INK[ntc_class(seen)], left[NTC_AT], True))
+    # SWITCH SECOND AND BOARD LAST, with the motor's margin between them.
+    # NOTHING CROSSES that way: each leader reaches further out than the
+    # one above it on its own side, so no line has to pass under another
+    # name to get where it is going.
     for group, columns, name, centred in (
-            (BOARD_NODES, right, 'BOARD TEMPS', True),
-            (SOA_NODES, left, 'SWITCH TEMPS', True)):
+            (SOA_NODES, left, 'SWITCH TEMPS', True),):
         peak, cls = hottest(view, group)
         if peak is None or not columns:
             continue
@@ -583,6 +612,25 @@ def _legend_rows(view, left, right):
         seat = columns[len(columns) // 2]
         said.append(_legend(len(said), '%s %.1f %sC' % (name, peak, DEGREE),
                             machine.INK[cls], seat, centred))
+
+    # THE MARGINS LAST, under the NTC and nearest the tubes they name.
+    # They were first, at the top of the page, on the argument that a
+    # bench looks at them first - and their lines then had to fall the
+    # whole depth of the stack past three other legends. Read top down
+    # the page now says what the parts are, what the one sensor reads,
+    # and then how much room is left, and every leader is short.
+    for index in reversed(range(len(HEADROOM_TITLES))):
+        if len(right) > HEADROOM_AT:
+            share, cls = bars[index]
+            said.append(_legend(
+                len(said),
+                '%s %.0f %%' % (HEADROOM_NAMES[index], 100.0 * share),
+                machine.INK[cls], right[HEADROOM_AT + index], True))
+    peak, cls = hottest(view, BOARD_NODES)
+    if peak is not None and right:
+        said.append(_legend(
+            len(said), 'BOARD TEMPS %.1f %sC' % (peak, DEGREE),
+            machine.INK[cls], right[len(BOARD_NODES) // 2], True))
 
     rows = []
     for index in range(CAPTION_ROWS):
@@ -604,7 +652,16 @@ def _legend_rows(view, left, right):
             # tube. The two gutter groups read as one stack that way -
             # leaning each toward its own side put them at different
             # depths and the rows looked ragged.
-            at = max(0, (first + last - len(text)) // 2)
+            # JUSTIFIED TO ITS OWN SIDE, not centred. Every arrowhead
+            # on the left sits in one column and every one on the right
+            # in another, so the two stacks read as two columns of
+            # pointers rather than five names at five depths. Centred,
+            # each head landed wherever its own name happened to end.
+            if column < first:
+                at = first + 2
+            else:
+                at = last - 2 - len(text) + 1
+            at = max(0, min(ART_WIDTH - len(text), at))
             line[at:at + len(text)] = text
             marks.append((at, len(text), ink))
             # THE HEAD AGAINST THE WORDS, the run in dots. An arrowhead
@@ -626,18 +683,6 @@ def _legend_rows(view, left, right):
                 marks.append((step, 1, machine.INK[machine.TRACK]))
         rows.append((line, marks))
 
-    # THE ONE MEASUREMENT, on the last caption row and centred over the
-    # machine: everything above it is an estimate and this is the only
-    # figure with a sensor behind it. `reference` has the rest.
-    line, marks = rows[-1]
-    shown = reference(view)
-    at = max(0, (first + last - len(shown)) // 2)
-    if all(ch == ' ' for ch in line[at:at + len(shown)]):
-        line[at:at + len(shown)] = shown
-        head = shown.split(' ')[0]
-        marks.append((at, len(head), ASH))
-        marks.append((at + len(head) + 1, len(shown) - len(head) - 1,
-                      machine.INK[machine.TRUTH]))
     return [_tinted(line, marks) for line, marks in rows]
 
 
@@ -680,7 +725,7 @@ def gutter_caption(view):
     bottom of the drawing rather than stand in a gutter.
     """
     left, right = machine.gutters(ART_WIDTH, ART_ROWS,
-                                  len(SOA_NODES), RIGHT_COLUMNS)
+                                  LEFT_COLUMNS, RIGHT_COLUMNS)
     return _legend_rows(view, left, right) + [_foot_line(view)]
 
 
@@ -1292,6 +1337,41 @@ AIM_LEFT, AIM_RIGHT = chr(0x25C0), chr(0x25B6)
 LEADER, DROP = chr(0x2824), chr(0x2847)
 
 
+def ntc_bar(view):
+    """The thermistor as a tube, on the same scale as every other.
+
+    THE ONE MEASURED LEVEL, in TRUTH's ink - the colour this page gives
+    what is known rather than modelled, the same the rotor's real angle
+    takes. It has no ceiling and so no margin colour: a thermistor reads
+    a temperature and nothing on this board was given a limit for it.
+
+    Empty when the AFE is off and there is no reading at all, which
+    draws an empty tube rather than a cold one.
+    """
+    seen = (view.get('thermal') or {}).get('ntc')
+    if seen is None:
+        return []
+    ambient = (view.get('thermal') or {}).get('ambient')
+    if ambient is None:
+        ambient = 20.0
+    span = max(1.0, TEMP_SCALE_C - ambient)
+    return [(max(0.0, min(1.0, (seen - ambient) / span)), ntc_class(seen))]
+
+
+def ntc_class(celsius):
+    """Which band of the thermometer ramp a reading is in.
+
+    COLD TO HOT, blue at `NTC_COLD_C` and red at `NTC_HOT_C`, because the
+    thermistor has no ceiling to be a margin against. Every other level
+    on this page is coloured by how close it is to a limit it was given;
+    this one is coloured by what it says.
+    """
+    span = max(1.0, NTC_HOT_C - NTC_COLD_C)
+    share = (celsius - NTC_COLD_C) / span
+    step = int(share * (len(machine.NTC_RAMP) - 1) + 0.5)
+    return machine.NTC_RAMP[max(0, min(len(machine.NTC_RAMP) - 1, step))]
+
+
 def headrooms(view):
     """The two margins as gutter tubes: the board's, then the motor's.
 
@@ -1684,7 +1764,8 @@ def compose(rig, origin, console, view):
                                     if truth else None),
                          amps=amps, full=full, aspect=view['aspect'],
                          pointer_deg=view['travel'] - view['tare'],
-                         left=soa_bars(view, SOA_NODES),
+                         left=(soa_bars(view, SOA_NODES)
+                               + [None] * NTC_GAP + ntc_bar(view)),
                          right=(soa_bars(view, BOARD_NODES)
                                 + [None] * HEADROOM_GAP + headrooms(view)),
                          top=None,
