@@ -419,8 +419,14 @@ def test_motion(r):
             # about; the margin is the fix, not a longer timeout.
             rig.drive.model_param(load=1.2)
             try:
-                s.to(30.0, tol=0.5, tries=2)
-                r.check('an overpowered servo raises, not returns', False)
+                got = s.to(30.0, tol=0.5, tries=2)
+                # WITH WHAT IT SAW. This returned about one run in four
+                # inside the full gate and never on its own, and a bare
+                # False said nothing about why - the next occurrence will
+                # carry the angle that passed for a hold.
+                r.check('an overpowered servo raises, not returns', False,
+                        'returned %.2f deg under 1.2 N.m at %.1f A'
+                        % (got, s.amps))
             except RigError as exc:
                 r.check('an overpowered servo raises, not returns',
                         'holding torque' in str(exc), exc)

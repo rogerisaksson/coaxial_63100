@@ -611,6 +611,17 @@ def test_the_thermistor_has_mass(report, lib):
                  'by the silicon it is watching',
                  fastest < 60.0, '%.1f K/s at its steepest' % fastest)
 
+    # SUBSTANTIALLY SLOWER THAN THE SOA ACTS, which is the whole point.
+    # The envelope moves on the leg node in a fifth of a second to two
+    # thirds at 100 A; a sensor soldered into laminate that kept up with
+    # that would not be a sensor in laminate, it would be a second copy of
+    # the FET. Its lag was exactly the leg's own until 2026-09-04.
+    leg_rose = model.at('driver_v') - AMBIENT
+    report.check('the reading trails the node it watches by a wide margin '
+                 'over the same second',
+                 leg_rose > 20.0 * rose,
+                 'leg +%.1f K, reading +%.1f K' % (leg_rose, rose))
+
     # THE NODE IT WATCHES IS FREE TO SLEW - only the reading is not. A lag
     # that slowed the model itself would be a slower envelope, and the
     # envelope is the one thing that must not be.
@@ -648,6 +659,52 @@ def test_the_thermistor_has_mass(report, lib):
 #: term per contact with a better conductor, because heat crosses a
 #: distributed body in one direction.
 GAMMA = 1.0 / 3.0
+
+
+def test_the_reading_lags_between_the_two_nodes(report, lib):
+    """Its constant is the geometric mean of the pair it sits between.
+
+    AN ELEMENT BETWEEN TWO NODES LAGS BETWEEN THEIR CONSTANTS, and the
+    geometric mean is what "between" means for a time constant - the
+    log-midpoint, because a lag is a ratio and not a difference. Checked
+    against the two the model already carries rather than against a
+    number typed here, so moving either moves this and nothing drifts.
+    """
+    model = Model(lib)
+    leg = model.capacity('driver_v') * 45.6
+    board = model.capacity('board') * 8.33
+
+    # THE TWO NODES HELD, so the target does not move while the reading
+    # walks toward it. Measured any other way this reads the leg's own
+    # constant as well as the thermistor's, and the first version of this
+    # check did exactly that - it stepped once with the nodes still at
+    # ambient and divided by a target that had not appeared yet.
+    hot, cold = 120.0, 40.0
+    target = cold + NTC_SEES_LEG * (hot - cold)
+    zero = {}
+    start = None
+    for step in range(400):
+        model.place('driver_v', hot)
+        model.place('board', cold)
+        if start is None:
+            model.step(zero, 1e-4)
+            start = model.ntc()
+        model.step(zero, 0.05)
+        if (step + 1) * 0.05 >= 1.0:
+            break
+    share = (model.ntc() - start) / max(1e-9, target - start)
+    tau = -1.0 / math.log(max(1e-9, 1.0 - min(0.999999, share)))
+
+    report.check('the reading lags well past the node it watches',
+                 tau > 5.0 * leg, '%.1f s against the leg %.2f s'
+                 % (tau, leg))
+    report.check('and well short of the bulk board, which is the other '
+                 'end of what it sits between',
+                 tau < board / 5.0, '%.1f s against the board %.0f s'
+                 % (tau, board))
+    report.check('the geometric mean of the two, near enough',
+                 abs(tau / math.sqrt(leg * board) - 1.0) < 0.15,
+                 '%.1f s against %.1f' % (tau, math.sqrt(leg * board)))
 
 
 def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
@@ -781,6 +838,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_conduction_is_split_where_it_is_made,
           test_conduction_is_a_mean_square_not_a_sample,
           test_the_thermistor_has_mass,
+          test_the_reading_lags_between_the_two_nodes,
           test_the_burst_budget_rests_on_an_unmeasured_capacity,
           test_it_refuses_nothing_and_returns_no_codes,
           test_the_time_left_is_reported_or_not_claimed)

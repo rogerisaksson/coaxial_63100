@@ -61,6 +61,8 @@ void thermal_defaults(thermal_cfg_t *cfg)
      corner sits 3 K under, so there is one more term there that scales with
      switching. */
   cfg->board_to_ambient = 8.33f;
+  cfg->board_cal_rise_k = 10.0f;   /* the passive state: 1.2 W, +10 K */
+  cfg->board_rad_share  = 0.35f;   /* docs/papers: 30-40 % at passive */
 
   /* Three times the lumped value each, so the three in parallel are the
      15.2 K/W the camera measured. The split moved where the heat is drawn,
@@ -137,7 +139,28 @@ void thermal_defaults(thermal_cfg_t *cfg)
      power step that would settle it. What matters is that no value of it
      can produce a reading above its own source. */
   cfg->ntc_sees_drivers = 0.5f;
-  cfg->ntc_tau_s = 0.35f / 3.0f * 45.6f;
+  /* AN ELEMENT BETWEEN TWO NODES LAGS BETWEEN THEIR CONSTANTS, and the
+     geometric mean is what "between" means for time constants - the
+     log-midpoint, not the arithmetic one, because a lag is a ratio and
+     not a difference. The leg node is 5.3 s and the board 408 s, so this
+     is 47 s.
+
+     IT WAS THE LEG'S OWN, 5.32 s, which made the modelled thermistor
+     exactly as quick as the thing it watches. That is the one speed it
+     cannot have: the SOA acts on silicon in a fifth of a second to two
+     thirds, and a sensor soldered into laminate has to be far slower
+     than that or it is not a sensor in laminate, it is a second copy of
+     the FET. At 47 s a 100 A burst moves the reading about a kelvin and
+     a half in its first second while the leg node moves a hundred and
+     forty.
+
+     What lags is the LAMINATE around the part, and the model has no node
+     for that local patch - only the leg and the bulk board. This is the
+     pair it sits between; a power step and the NTC's own slope would
+     replace it with a measurement. */
+  cfg->ntc_tau_s = sqrtf((0.35f / 3.0f * 45.6f)
+                         * (cfg->node[THERMAL_BOARD].capacity
+                            * cfg->board_to_ambient));
   /* RECORDED, NOT APPLIED. The passive state had the thermistor 6.0 K
      over the camera's board with no driver warming anything, and adding
      that to a node made the node hotter than its own source. It is an
@@ -151,6 +174,55 @@ void thermal_defaults(thermal_cfg_t *cfg)
   * The same two terms `thermal_step` integrates, so the budget's dead
   * reckoning and the model cannot drift apart.
   */
+float thermal_board_to_ambient_at(const thermal_cfg_t *cfg, float rise_k)
+{
+  if (cfg == NULL)
+  {
+    return 0.0f;
+  }
+
+  const float cal = cfg->board_cal_rise_k;
+
+  if (!(cal > 0.0f) || !(rise_k > cal))
+  {
+    return cfg->board_to_ambient;
+  }
+
+  /* CONVECTION, as the fourth root of the rise. `Nu = C Ra^(1/4)` for
+     laminar free convection and `Ra` is linear in the rise, so `h` goes
+     as `dT^0.25` and everything else in it - the fluid properties, the
+     characteristic length, the area - is already inside the calibration
+     value. */
+  const float conv = powf(rise_k / cal, 0.25f);
+
+  /* RADIATION, exactly. `h_rad = eps sigma (T^2 + T0^2)(T + T0)`, and
+     the emissivity and area are again inside the calibration value, so
+     only the ratio of the bracket is needed. Kelvin, because a fourth
+     power is not a difference. */
+  const float t0 = 293.15f;               /* the 20 C room the fit used */
+  const float now = t0 + rise_k;
+  const float was = t0 + cal;
+  const float rad = ((now * now + t0 * t0) * (now + t0))
+                    / ((was * was + t0 * t0) * (was + t0));
+
+  float share = cfg->board_rad_share;
+
+  if (share < 0.0f)
+  {
+    share = 0.0f;
+  }
+  if (share > 1.0f)
+  {
+    share = 1.0f;
+  }
+  /* The two carry in parallel, so their CONDUCTANCES add. */
+  const float better = (1.0f - share) * conv + share * rad;
+
+  return (better > 0.0f) ? (cfg->board_to_ambient / better)
+                         : cfg->board_to_ambient;
+}
+
+
 static float net_watt(const thermal_t *th, const thermal_power_t *p,
                       thermal_node_t node)
 {
@@ -167,9 +239,9 @@ static float net_watt(const thermal_t *th, const thermal_power_t *p,
         into += (th->t[i] - th->t[THERMAL_BOARD]) / th->cfg.node[i].to_board;
       }
     }
-    const float lost = (th->cfg.board_to_ambient > 0.0f)
-                       ? ((th->t[THERMAL_BOARD] - th->ambient)
-                          / th->cfg.board_to_ambient) : 0.0f;
+    const float rise = th->t[THERMAL_BOARD] - th->ambient;
+    const float away = thermal_board_to_ambient_at(&th->cfg, rise);
+    const float lost = (away > 0.0f) ? (rise / away) : 0.0f;
     return made + into - lost;
   }
 
@@ -638,7 +710,8 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
   const thermal_node_cfg_t *b = &th->cfg.node[THERMAL_BOARD];
   if ((b->capacity > 0.0f) && (th->cfg.board_to_ambient > 0.0f))
   {
-    const float lost = (board - th->ambient) / th->cfg.board_to_ambient;
+    const float rise = board - th->ambient;
+    const float lost = rise / thermal_board_to_ambient_at(&th->cfg, rise);
     th->t[THERMAL_BOARD] += (into_board + p->watt[THERMAL_BOARD] - lost)
                             * dt_s / b->capacity;
   }
@@ -686,8 +759,14 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
     /* Ambient is what the board's own losses imply, once it is anchored.
        The board carries no ambient sensor, so this is the only way to it. */
     const float lost = into_board + p->watt[THERMAL_BOARD];
-    th->ambient += k * ((th->t[THERMAL_BOARD]
-                         - lost * th->cfg.board_to_ambient) - th->ambient);
+    /* AT THE PRESENT RISE. The path off the board is a function of it, so
+       inverting exactly would need an iteration; the estimator is already
+       a slow filter on `k`, and evaluating the resistance where the board
+       is now is the linearisation that filter can carry. */
+    const float away = thermal_board_to_ambient_at(
+        &th->cfg, th->t[THERMAL_BOARD] - th->ambient);
+
+    th->ambient += k * ((th->t[THERMAL_BOARD] - lost * away) - th->ambient);
   }
   else if (!isnan(seen->ntc_c))
   {

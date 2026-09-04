@@ -206,9 +206,14 @@ class SimulatedThermal:
         self._last_power = power
         cfg = thermal.CFG
         total = sum(power.values())
-        r_board = cfg['board_to_ambient']
-        tau_board = cfg['board_capacity'] * r_board
         board = self._node['board']
+        # AT THE RISE IT IS CARRYING. The path off the board is
+        # convection and radiation, and neither is linear in the
+        # rise - `thermal.board_to_ambient_at` has the two shapes.
+        # Frozen at the calibration rise the stand-in ran the board
+        # ten to fifteen kelvin hot at the powers a burst makes.
+        r_board = thermal.board_to_ambient_at(board - thermal.AMBIENT)
+        tau_board = cfg['board_capacity'] * r_board
         board += (thermal.AMBIENT + total * r_board - board) * \
             min(1.0, dt / tau_board)
         self._node['board'] = board
@@ -369,8 +374,9 @@ class SimulatedThermal:
                         else cfg['capacity'].get(name, 0.0))
             if capacity <= 0.0 or top <= thermal.AMBIENT:
                 continue
-            r = (cfg['board_to_ambient'] if name == 'board'
-                 else cfg['to_board'].get(name, 0.0))
+            r = (thermal.board_to_ambient_at(self._node['board']
+                                             - thermal.AMBIENT)
+                 if name == 'board' else cfg['to_board'].get(name, 0.0))
             reference = (thermal.AMBIENT if name == 'board'
                          else self._node['board'])
             net = (power.get(name, 0.0) - (self._node[name] - reference) / r

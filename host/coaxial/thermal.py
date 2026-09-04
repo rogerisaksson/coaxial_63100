@@ -171,28 +171,38 @@ DRIVER_RISE_SWITCHING = DRIVER_SWITCH_WATT * LEG_TO_BOARD
 #: reading above its own source, which is the whole point of the change.
 NTC_SEES_DRIVERS = 0.5
 
+#: K/W off the board at the calibration rise, and the board's own heat
+#: capacity. NAMED ABOVE THE NETWORK because `NTC_TAU_S` is derived from
+#: them and a constant that reads its own dict is a constant defined
+#: twice.
+BOARD_TO_AMBIENT = 8.33
+BOARD_CAPACITY = 49.0
+
 #: How slowly a modelled thermistor follows, seconds.
 #:
-#: IT WAS ABSENT ENTIRELY. The algebra had no mass, so a modelled reading
-#: followed a small fast node instantly - 18 W into 0.12 J/K is 150 K a
-#: second - and a bench watching it asked, rightly, what kind of NTC
-#: climbs 60 K in a second a centimetre from the switch node. None does.
+#: AN ELEMENT BETWEEN TWO NODES LAGS BETWEEN THEIR CONSTANTS, and the
+#: geometric mean is what "between" means for time constants - the
+#: log-midpoint, not the arithmetic one, because a lag is a ratio and not a
+#: difference. The leg node is 5.3 s and the board 408 s, so this is 47 s.
+#:
+#: IT WAS THE LEG'S OWN, 5.32 s, which made the modelled thermistor exactly
+#: as quick as the thing it watches. That is the one speed it cannot have:
+#: the SOA acts on silicon in a fifth of a second to two thirds, and a
+#: sensor soldered into laminate has to be far slower than that or it is not
+#: a sensor in laminate, it is a second copy of the FET. At 47 s a 100 A
+#: burst moves the reading about a kelvin and a half in its first second
+#: while the leg node moves a hundred and forty - which is the separation
+#: the bench asked for in as many words.
 #:
 #: WHAT SETS IT IS NOT THE THERMISTOR. The part is soldered to the board -
 #: a point sensor on FR4 with copper only to its own pads - and its own
-#: ceramic is a milligram, some 0.001 J/K, which through any coupling at
-#: all settles in well under a second. What it actually reads is the
-#: LAMINATE AROUND IT, and that lags because the copper and glass near
-#: the bridge have mass.
-#:
-#: THE MODEL HAS NO NODE FOR THAT LOCAL LAMINATE - only the leg node and
-#: the bulk board, and the bulk is 49 J/K across 8.33 K/W, near seven
-#: minutes, far too slow for a point beside one half bridge. So this is
-#: the leg node's own RC standing in for a number nobody measured, and it
-#: is named here rather than buried so that a bench day can replace it
-#: with the real one. It bounds a RATE and touches no steady state: the
-#: campaign is reproduced exactly either way.
-NTC_TAU_S = (LEG_CAPACITY_DRIVERS / 3) * LEG_TO_BOARD
+#: ceramic is a milligram, which settles in well under a second. What
+#: lags is the LAMINATE AROUND IT, and the model has no node for that
+#: local patch: only the leg and the bulk board. This is the pair it sits
+#: between, and a bench day with a power step and the NTC's own slope
+#: would replace it with a measurement.
+NTC_TAU_S = math.sqrt((LEG_CAPACITY_DRIVERS / 3) * LEG_TO_BOARD
+                      * BOARD_CAPACITY * BOARD_TO_AMBIENT)
 
 #: What the campaign's switching state misses by with the element in
 #: place of the old coupling. Kept as a number rather than absorbed into a slope: it is the
@@ -208,9 +218,65 @@ NTC_CAMPAIGN_RESIDUAL_K = (MEASURED['switching']['ntc']
 #: `to_board` is a **spreading resistance in the laminate**, K/W from the
 #: surface at a source to the board some way off - a few K/W, not a
 #: junction-to-board on tens.
+#: The rise `board_to_ambient` was measured at, K: the passive state's
+#: 1.2 W over a 10 K rise.
+BOARD_CAL_RISE_K = 10.0
+
+#: How much of the board's loss at that rise is radiation.
+#:
+#: NOT MEASURED HERE. It is the 30 to 40 % a compendium of PCBA thermal
+#: work gives for passive cooling - "stralning star for 30-40 % av den
+#: totala varmeavledningen vid passiv kylning och kan inte forsummas"
+#: (docs/papers) - and the split matters because the two mechanisms have
+#: DIFFERENT SHAPES against the rise, so only their proportion at the
+#: calibration point lets them be scaled apart.
+BOARD_RAD_SHARE = 0.35
+
+#: The room the campaign was taken in, kelvin. Radiation is a fourth
+#: power, so it needs an absolute temperature and not a difference.
+ROOM_K = 293.15
+
+
+def board_to_ambient_at(rise_k, cfg=None):
+    """K/W off the board at `rise_k` over ambient.
+
+    A BOARD LOSES HEAT TO AIR TWO WAYS AND NEITHER IS LINEAR. Free
+    convection carries `h = Nu k / L` with `Nu` a power of the Rayleigh
+    number, and Ra is linear in the rise, so h goes as about the fourth
+    root of it (Ziegenfelder 2022, USU: `q = h A dT` with
+    `Gr = (g/nu^2) beta dT P^3`). Radiation carries
+    `h_rad = eps sigma (T^2 + T0^2)(T + T0)` (Silva 2022, Eq. 5), which
+    grows faster still. A single K/W is both of them frozen at one rise.
+
+    THAT RISE WAS 10 K, and the board was then asked about loads putting
+    sixty kelvin on it. Held flat the model over-predicted the copper by
+    ten to fifteen kelvin at the powers a burst makes.
+
+    Everything else - the area, the emissivity, the fluid properties, the
+    characteristic length - stays inside the calibration value, so this
+    reproduces the measurement exactly at its own point and only the
+    shape away from it comes from the correlations.
+    """
+    cfg = cfg or CFG
+    flat = cfg['board_to_ambient']
+    cal = cfg.get('board_cal_rise_k', BOARD_CAL_RISE_K)
+    if cal <= 0.0 or rise_k <= cal:
+        return flat
+    conv = (rise_k / cal) ** 0.25
+    now, was = ROOM_K + rise_k, ROOM_K + cal
+    rad = (((now * now + ROOM_K * ROOM_K) * (now + ROOM_K))
+           / ((was * was + ROOM_K * ROOM_K) * (was + ROOM_K)))
+    share = min(1.0, max(0.0, cfg.get('board_rad_share', BOARD_RAD_SHARE)))
+    # In parallel, so their CONDUCTANCES add.
+    better = (1.0 - share) * conv + share * rad
+    return flat / better if better > 0.0 else flat
+
+
 CFG = {
-    'board_to_ambient': 8.33,     # K/W, passive state against the supply
-    'board_capacity': 49.0,       # J/K, from tau ~6.8 min
+    'board_to_ambient': BOARD_TO_AMBIENT,     # K/W at BOARD_CAL_RISE_K, not a constant
+    'board_cal_rise_k': BOARD_CAL_RISE_K,
+    'board_rad_share': BOARD_RAD_SHARE,
+    'board_capacity': BOARD_CAPACITY,   # J/K, from tau ~6.8 min
     'ntc_sees_drivers': NTC_SEES_DRIVERS,
     # Three times the lumped K/W each and a third of the J/K, so the three
     # in parallel are what the camera measured - the split moved where the
@@ -254,8 +320,18 @@ def expected_ntc(board_c, driver_rise_k=0.0):
 
 
 def steady(power, cfg=CFG, ambient=AMBIENT):
-    """Equilibrium temperature per node for a power split, degrees C."""
-    board = ambient + sum(power.values()) * cfg['board_to_ambient']
+    """Equilibrium temperature per node for a power split, degrees C.
+
+    THE BOARD'S RISE IS IMPLICIT NOW: the path off it depends on the rise
+    it is carrying, so this iterates rather than multiplies. A handful of
+    passes is enough - the resistance moves as the fourth root, so the
+    fixed point is a gentle one.
+    """
+    total = sum(power.values())
+    rise = total * cfg['board_to_ambient']
+    for _ in range(24):
+        rise = total * board_to_ambient_at(rise, cfg)
+    board = ambient + rise
     out = {'board': board}
     for name in NODES:
         out[name] = board + power.get(name, 0.0) * cfg['to_board'][name]

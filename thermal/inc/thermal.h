@@ -101,7 +101,43 @@ typedef struct
 typedef struct
 {
   thermal_node_cfg_t node[THERMAL_NODES];
-  float board_to_ambient;  /**< K/W, the only path off the board        */
+  /** K/W off the board, AT `board_cal_rise_k`. Not a constant.
+    *
+    * A BOARD LOSES HEAT TO AIR TWO WAYS AND NEITHER IS LINEAR. Free
+    * convection carries `h = Nu k/L` with `Nu` a power of the Rayleigh
+    * number, so `h` grows as roughly the fourth root of the rise
+    * (Ziegenfelder 2022, USU thesis, Eq. 2.4-2.6: `q = h A dT`, with
+    * `Gr = (g/nu^2) beta dT P^3`); radiation carries
+    * `h_rad = eps sigma (T^2 + T0^2)(T + T0)` (Silva 2022, Eq. 5), which
+    * grows faster still. A single K/W is both of them frozen at one
+    * temperature.
+    *
+    * THAT ONE TEMPERATURE WAS 10 K. The figure came from the passive
+    * state - 1.2 W over a 10 K rise - and the board was then asked about
+    * loads that put sixty kelvin on it, where the same two mechanisms
+    * carry far more per kelvin. Held flat it over-predicted: the copper
+    * needed 6.00 W to reach 70 C on the old arithmetic and about 8 W on
+    * this one.
+    *
+    * `board_to_ambient_at` is what everything asks now. This stays the
+    * value AT the calibration rise, so the measurement is reproduced
+    * exactly at its own point and only the shape away from it is the
+    * correlations'.
+    */
+  float board_to_ambient;
+  /** The rise `board_to_ambient` was measured at, K. */
+  float board_cal_rise_k;
+  /** How much of the loss at that rise is radiation, 0 to 1.
+    *
+    * The two mechanisms have DIFFERENT SHAPES, so the split at the
+    * calibration point is what lets them be scaled apart. Not measured
+    * here: it is the 30 to 40 % that a compendium of PCBA thermal work
+    * gives for passive cooling, which is also why it cannot be dropped -
+    * "stralning star for 30-40 % av den totala varmeavledningen vid
+    * passiv kylning och kan inte forsummas" (docs/papers). Zero disables
+    * the split and leaves convection carrying all of it.
+    */
+  float board_rad_share;
 
   /** How much of the drivers' rise the NTC sees. Not capped at 1.
     *
@@ -366,6 +402,18 @@ typedef struct
    board's calibration record - one definition, and one that travels with the
    board rather than with the firmware. A copy here would be a second answer
    to "what may this node reach", and the two would drift. */
+
+/**
+  * @brief  K/W off the board at a given rise over ambient.
+  *
+  * The calibration value scaled by how much better the two mechanisms
+  * carry heat at this rise than at the one it was measured at. Below the
+  * calibration rise it is not extrapolated downward - a fourth root has
+  * no useful behaviour at zero, and a board that cool is losing nothing
+  * anybody is waiting for.
+  */
+float thermal_board_to_ambient_at(const thermal_cfg_t *cfg, float rise_k);
+
 
 /**
   * @brief  Spend of the thermal budget, and the time left at this power.

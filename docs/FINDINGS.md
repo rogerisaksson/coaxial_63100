@@ -386,6 +386,63 @@ Not retuned here. Moving `to_board` moves every steady-state current
 figure and the whole SOA behaviour, and that is a bench decision - but it
 is now a decision with three numbers behind it instead of one.
 
+### A more plausible lumped model, 2026-09-04
+
+From `docs/papers/`: Ziegenfelder 2022 (USU) for the heat-transfer form,
+and the PCBA compendium for what a lumped R-C network is worth and what
+radiation carries.
+
+**THE PATH OFF THE BOARD IS NOT A CONSTANT.** Free convection carries
+`h = Nu k / L` with Nu a power of the Rayleigh number, and Ra is linear
+in the rise, so h goes as about the fourth root of it (Ziegenfelder Eq.
+2.4-2.6: `q = h A dT`, `Gr = (g/nu^2) beta dT P^3`). Radiation carries
+`h_rad = eps sigma (T^2 + T0^2)(T + T0)` (Silva Eq. 5), which grows
+faster still. The model held both frozen at the one rise the campaign
+measured - 1.2 W over 10 K - and then asked about loads putting sixty
+kelvin on the board.
+
+* `thermal_board_to_ambient_at` scales the calibration value by how much
+  better the two mechanisms carry at the present rise. Everything else -
+  area, emissivity, fluid properties, characteristic length - stays
+  inside the calibration value, so the measurement is reproduced exactly
+  at its own point and only the shape away from it is the correlations'.
+* The split at the calibration point is **35 % radiation**, from the
+  compendium's "stralning star for 30-40 % av den totala
+  varmeavledningen vid passiv kylning och kan inte forsummas". It is
+  needed because the two shapes differ, so only their proportion lets
+  them be scaled apart.
+* What it does:
+
+  | rise | K/W off the board | board temperature | needs, flat | needs, now |
+  |---|---|---|---|---|
+  | 10 K | 8.33 *(the calibration point)* | 30 C | 1.20 W | 1.20 W |
+  | 20 K | 7.30 | 40 C | 2.40 W | 2.74 W |
+  | 40 K | 6.28 | 60 C | 4.80 W | 6.37 W |
+  | 60 K | 5.68 | 80 C | 7.20 W | 10.56 W |
+  | 85 K | 5.24 | 105 C *(ceiling)* | 10.20 W | 16.50 W |
+
+  So the copper needs **8.40 W to reach 70 C** where the flat model said
+  6.00, and the earlier hand estimate of "about 56 C at 6 W" against the
+  flat model's 70 comes out of the model itself now.
+* `steady()` iterates rather than multiplies, since the rise is implicit
+  in its own resistance. A handful of passes: the resistance moves as a
+  fourth root, so the fixed point is a gentle one.
+
+**AND THE READING IS SLOW.** `NTC_TAU_S` was the leg node's own 5.32 s,
+which made the modelled thermistor exactly as quick as the thing it
+watches - the one speed it cannot have, since the SOA acts on silicon in
+0.22 to 0.67 s at 100 A. It is the GEOMETRIC MEAN of the pair the element
+sits between now, 5.32 s and 408 s, so **46.6 s**: the log-midpoint, which
+is what "between" means for a time constant. Measured on the stand-in at
+a 70 A hold, the hottest switch node reaches 117.5 C in the first model
+second while the reading is at 29.9 - **trailing by 88 K** - and it is
+still 69 K behind six seconds later.
+
+The compendium also sets the error bar this whole model class carries:
+lumped R-C is **±10 %**, against ±5 % for a Fourier hybrid and ±2 % for
+full 3D CFD. Our unmeasured constants are far outside that, which is
+worth saying beside any number this model prints.
+
 ### The thermistor becomes an element, 2026-09-04
 
 Implemented from Silva 2022 (Appl. Sci. 12, 12555), whose form is that
