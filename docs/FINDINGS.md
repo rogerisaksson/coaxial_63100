@@ -879,6 +879,20 @@ record's own constants, no measurement.
   junction 22.0 A. The shunt node binds first in steady state - the
   board's ceiling is not what limits a continuous rating.
 
+## The views
+
+* **Handing the mouse back does not make a view selectable.** Taking the
+  wheel clears QUICK_EDIT and asks for SGR reports, so a drag inside one
+  of these pages does nothing; releasing both and freezing the redraw
+  still left it unselectable, reported from the bench. The reason is the
+  ALTERNATE SCREEN: a view runs inside a `Live` with `screen=True`, and
+  a terminal that will happily select its own scrollback fights a drag
+  across that buffer. `screen.hold_still` steps out - `Live.stop()`,
+  print the frame once as plain output, `Live.start()` to go back - and
+  a selection there behaves like any other. `F` is the key in every
+  mouse view; C was taken by the attitude view's frame and the menu's
+  direct entry.
+
 ## The renderers
 
 * Decimation cost at 94x36, single process: grid 16 → 7.8 ms, 24 →

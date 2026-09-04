@@ -29,7 +29,8 @@ from rich.panel import Panel                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
 from rich import box                                       # noqa: E402
 
-from screen import band_of, Keys, curtain, footer, live, paced, stage  # noqa: E402
+from screen import (band_of, Keys, curtain, footer,  # noqa: E402
+                    hold_still, live, paced, stage)
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -433,17 +434,22 @@ def main(argv=None):
         warm.join()      # the smoke test draws the board, not the wait
     hotkeys = {key.lower(): i for i, (key, _n, _w) in enumerate(ENTRIES)}
 
+    held = False
     with curtain(page) as live, Keys(console, mouse=True) as keys:
         while True:
             frame += 1
             now = time.monotonic()
             idle(view, now, now - last)
             last = now
-            # HELD WHILE THE MOUSE IS THE TERMINAL'S - `screen.run_view`
-            # has why.
-            if not keys.selecting():
-                live.update(compose(args.port, picked, view, page.size, who),
-                            refresh=True)
+            # OUT OF THE ALTERNATE SCREEN WHILE THE MOUSE IS THE
+            # TERMINAL'S - `screen.hold_still` has why.
+            if not held:
+                shown = compose(args.port, picked, view, page.size, who)
+                if not keys.selecting():
+                    live.update(shown, refresh=True)
+                held = hold_still(live, keys, shown, held)
+            else:
+                held = hold_still(live, keys, None, held)
             if args.frames and frame >= args.frames:
                 return 0
 

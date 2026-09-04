@@ -1123,6 +1123,68 @@ def test_tag_roster(r):
                                          for tag in marks_of[f]})))
 
 
+def test_hold_still(r):
+    """F hands the mouse back AND steps out of the alternate screen.
+
+    STOPPING THE REDRAW WAS NOT ENOUGH. A view runs inside a `Live` on
+    the alternate buffer, and a terminal that will happily select its own
+    scrollback fights a drag across one - so the page steps out, prints
+    the frame once as plain output, and a selection there behaves like a
+    selection anywhere else. Reported as still broken after the mouse
+    alone was handed over.
+    """
+    from screen import Keys, SELECT_KEYS, hold_still
+
+    class Page:
+        def __init__(self):
+            self.console, self.acts, self.said = self, [], []
+
+        def print(self, what):
+            self.said.append(what)
+
+        def stop(self):
+            self.acts.append('stop')
+
+        def start(self, refresh=False):
+            self.acts.append('start')
+
+    keys = Keys(console=False, mouse=True)
+    keys.mouse = True                   # no terminal to take, the state only
+    keys._grabbed = True
+    page = Page()
+
+    held = hold_still(page, keys, 'FRAME', False)
+    r.check('a page nobody asked to freeze is left alone',
+            not held and not page.acts)
+
+    keys._grabbed = False               # what pressing F does
+    held = hold_still(page, keys, 'FRAME', held)
+    r.check('freezing leaves the alternate screen', page.acts == ['stop'],
+            str(page.acts))
+    r.check('and prints the frame where the shell own text lives',
+            page.said == ['FRAME'], str(page.said))
+    r.check('it reports itself held', held)
+
+    held = hold_still(page, keys, None, held)
+    r.check('a frozen page is not printed again every frame',
+            page.acts == ['stop'] and len(page.said) == 1,
+            '%s %d' % (page.acts, len(page.said)))
+
+    keys._grabbed = True
+    held = hold_still(page, keys, None, held)
+    r.check('and the same key puts the page back',
+            page.acts == ['stop', 'start'] and not held, str(page.acts))
+
+    # THE KEY IS SWALLOWED, never handed to a view: no view binds it, and
+    # one that did would fight the terminal for the same gesture. F and
+    # not C - the attitude view binds C to its frame, the menu to a
+    # direct entry, and a key taken universally has to be free
+    # everywhere.
+    r.check('F is the key, and C is left to the views that bind it',
+            'f' in SELECT_KEYS and 'F' in SELECT_KEYS
+            and 'c' not in SELECT_KEYS)
+
+
 def test_mouse(r):
     """The wheel and the right-drag, out of a terminal's own reports.
 
@@ -1211,6 +1273,7 @@ ROSTER = (
     (test_picker, ('runner',)),
     (test_tag_roster, ('runner',)),
     (test_mouse, ('runner',)),
+    (test_hold_still, ('runner',)),
 )
 
 

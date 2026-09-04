@@ -317,6 +317,32 @@ def open_rig(banner, **kwargs):
         return None
 
 
+def hold_still(page, keys, frame, held):
+    """Freeze or thaw the page around a selection. Answers the new `held`.
+
+    LEAVING THE ALTERNATE SCREEN IS THE POINT. Handing the mouse back and
+    stopping the redraw was not enough - a view runs inside a `Live` on
+    the alternate buffer, and a terminal that will happily select ordinary
+    scrollback fights a drag across one. So the page steps OUT: `Live`
+    stops, the frame is printed once as plain output where the shell's own
+    text lives, and a selection there behaves like a selection anywhere
+    else. The same key puts it back and the view carries on from where it
+    stood.
+
+    The frame printed is drawn AFTER the mouse is handed over, so the key
+    legend on it says which state the page is in.
+    """
+    want = keys.selecting()
+    if want == held:
+        return held
+    if want:
+        page.stop()
+        page.console.print(frame)
+    else:
+        page.start(refresh=True)
+    return want
+
+
 def run_view(board_view, console, period, frames, draw, on_input=None,
              tick=None, mouse=False, on_click=None, on_drag=None):
     """The loop every view runs: draw, pace, take keys - until Q, ESC,
@@ -347,22 +373,17 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 # measured. A frame slower than the period pays no
                 # sleep at all and the keys are still polled once.
                 started = _time.monotonic()
-                # AND THE PAGE HOLDS STILL WHILE THE MOUSE IS THE
-                # TERMINAL'S. Handing the mouse back is half of being
-                # able to copy a number off one of these views: the other
-                # half is that a drag survives long enough to finish.
-                # Redrawing at 8 to 20 Hz wipes the selection under the
-                # hand, so the picture and the text both were unreachable
-                # even with the wheel released. Frozen, what is on screen
-                # is what gets copied - and the keys are still polled, so
-                # the same key thaws it.
-                # ONE MORE FRAME AS IT FREEZES, so the key legend can
-                # say so. Stopped before that draw, the page a reader is
-                # about to select from is the one where nothing had
-                # happened yet and the chip is still dark.
-                if not keys.selecting() or not held:
-                    page.update(draw(), refresh=True)
-                held = keys.selecting()
+                # AND THE PAGE STEPS OUT OF THE ALTERNATE SCREEN WHILE
+                # THE MOUSE IS THE TERMINAL'S - `hold_still` has why.
+                # One last frame is drawn as it goes, so the legend on
+                # the copy says which state the page is in.
+                if not held:
+                    shown = draw()
+                    if not keys.selecting():
+                        page.update(shown, refresh=True)
+                    held = hold_still(page, keys, shown, held)
+                else:
+                    held = hold_still(page, keys, None, held)
                 if tick is not None and tick():
                     return None
                 if frames and count >= frames:

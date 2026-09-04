@@ -30,7 +30,8 @@ from rich import box                                       # noqa: E402
 from coaxial import wireframe                              # noqa: E402
 from coaxial.orientation import _qmul, matrix, normalise   # noqa: E402
 import facecheck                                           # noqa: E402
-from screen import (Keys, curtain, footer, paced, stage,   # noqa: E402
+from screen import (Keys, curtain, footer, hold_still, paced,  # noqa: E402
+                    stage,
                     TO_MENU)
 
 import screen as _screen                                   # noqa: E402
@@ -186,6 +187,7 @@ def main(argv=None):
 
 
 def loop(args, page, view, frame, last):
+    held = False
     with curtain(page) as live, Keys(page.is_terminal, mouse=True) as keys:
         while True:
             now = time.monotonic()
@@ -195,11 +197,16 @@ def loop(args, page, view, frame, last):
             last = now
 
             frame += 1
-            # HELD WHILE THE MOUSE IS THE TERMINAL'S, as `run_view` holds
-            # its own: a drag that selects has to survive to the mouse
-            # coming up, and a redraw wipes it under the hand.
-            if not keys.selecting():
-                live.update(compose(view, page.size), refresh=True)
+            # OUT OF THE ALTERNATE SCREEN WHILE THE MOUSE IS THE
+            # TERMINAL'S, as `run_view` does - `screen.hold_still` has
+            # why a frozen Live is not enough.
+            if not held:
+                shown = compose(view, page.size)
+                if not keys.selecting():
+                    live.update(shown, refresh=True)
+                held = hold_still(live, keys, shown, held)
+            else:
+                held = hold_still(live, keys, None, held)
             if args.frames and frame >= args.frames:
                 return 0
 
