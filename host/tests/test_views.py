@@ -396,33 +396,42 @@ def test_every_gauge_shows_its_own_scale(report):
                     len(drawn)))
 
 
-def test_the_headroom_box_carries_a_bar_three_rows_tall(report):
-    """The thermal observer's spend is HEADROOM, its level a bar three
-    braille rows tall labelled `soak` - the bench's word: the box was
-    BUDGET, the level `[⣿⣿⠒⠒] 42 %` on one row, and the ask was the
-    brackets gone and "something nicer, three rows of braille"."""
+def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
+    """The thermal observer's spend is HEADROOM, its level one row of
+    `⣿` ending in an orange `⡇` or `⢸`, labelled `soak` - the bench's
+    word, twice: the box was BUDGET and the level `[⣿⣿⠒⠒] 42 %`; the
+    brackets went and three rows of braille came, and the answer was
+    "no, one row of ⣿, terminated with an orange ⢸ or ⡇"."""
     import re
     from rich.console import Console
 
     sys.path.insert(0, HOST)
-    from coaxial import gauges
+    from coaxial import ansi, gauges
     from tools import show_thermal_observer as page
     from tools import stage
 
-    lines = [re.sub('\x1b\\[[0-9;]*m', '', l)
-             for l in gauges.bar(0.5, 16, marks=[(0.9, gauges.MARK)])]
-    report.check('a bar is three rows of sixteen cells',
-                 len(lines) == 3 and all(len(l) == 16 for l in lines),
-                 str([len(l) for l in lines]))
-    report.check('its block is one thick bar with a dot of air round it - '
-                 '⣶ over ⣿ over ⠿ - to half way',
-                 lines[0][:8] == '⣶' * 8 and lines[1][:8] == '⣿' * 8
-                 and lines[2][:8] == '⠿' * 8, '|'.join(lines))
-    report.check('the empty scale is a dotted track on the middle row only',
-                 lines[0][8:14].strip('⠀ ') == '' and lines[2][8:14].strip('⠀ ') == ''
-                 and '⠇' in lines[1][8:14], '|'.join(lines))
-    report.check('and the throttle mark runs the bar\'s whole height',
-                 all(l[14] == '⡇' for l in lines), '|'.join(lines))
+    half = gauges.bar(0.5, 16)
+    line = re.sub('\x1b\\[[0-9;]*m', '', half)
+    report.check('a bar is one row of sixteen cells',
+                 len(line) == 16, str(len(line)))
+    report.check('solid ⣿ to half way, then the tip in the lane the '
+                 'level ends in - ⡇ - then the dotted track',
+                 line[:8] == '⣿' * 8 and line[8] == '⡇'
+                 and '⣿' not in line[9:] and '⠇' in line[9:], line)
+    report.check('and the tip is orange',
+                 '38;5;%dm' % ansi.AMBER in half,
+                 half.replace(chr(27), '^'))
+    odd = re.sub('\x1b\\[[0-9;]*m', '', gauges.bar(17.0 / 32.0, 16))
+    report.check('a level ending in the other lane tips with ⢸, the '
+                 'tip\'s cell holding the tip alone',
+                 odd[:8] == '⣿' * 8 and odd[8] == '⢸', odd)
+    empty = re.sub('\x1b\\[[0-9;]*m', '', gauges.bar(0.0, 16))
+    full = re.sub('\x1b\\[[0-9;]*m', '', gauges.bar(1.0, 16))
+    report.check('nothing spent is a tip at the start; everything, a '
+                 'solid row to a tip at the end',
+                 empty[0] == '⡇' and '⣿' not in empty
+                 and full[:15] == '⣿' * 15 and full[15] == '⢸',
+                 '%s | %s' % (empty, full))
 
     state = {'nodes': {}, 'ntc': None, 'seconds': 3, 'settled': False,
              'seen_s_ago': None, 'sample_every_s': 5.0, 'mcu': 40.0,
@@ -439,9 +448,9 @@ def test_the_headroom_box_carries_a_bar_three_rows_tall(report):
                  said)
     braille_rows = [l for l in said.splitlines()
                     if any(0x2800 <= ord(ch) < 0x2900 for ch in l)]
-    report.check('three braille rows, no brackets, the figure beside it',
-                 len(braille_rows) == 3 and '[' not in said
-                 and '42 %' in said, said)
+    report.check('one braille row, no brackets, the figure beside it',
+                 len(braille_rows) == 1 and '[' not in said
+                 and '42 %' in said and '⣿' in said, said)
 
 
 def test_the_attitude_caps_its_frame_rate(report):
@@ -1499,7 +1508,7 @@ def main():
     print('\n-- the attitude\'s frame rate --')
     test_the_attitude_caps_its_frame_rate(report)
     print('\n-- the thermal observer\'s headroom --')
-    test_the_headroom_box_carries_a_bar_three_rows_tall(report)
+    test_the_headroom_box_carries_a_solid_bar_with_a_tip(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

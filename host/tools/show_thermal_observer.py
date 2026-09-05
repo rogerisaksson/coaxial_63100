@@ -63,34 +63,22 @@ TRAILING = 0
 #: never breathes when a number changes length.
 PANEL_W = 42
 
-#: The soak bar: cells wide, and three braille rows tall on the bench's
-#: word - the spend against the worst node's ceiling, the one level on
-#: the page that is not a temperature.
+#: The soak bar's width in cells: the spend against the worst node's
+#: ceiling, the one level on the page that is not a temperature.
 SOAK_CELLS = 16
-SOAK_ROWS = 3
 
 
 def soak(budget):
-    """The HEADROOM box's rows: the spend as a bar SOAK_ROWS tall in the
-    margin's colour, the throttle point marked through it, the figure on
-    its middle row beside the label. It was `[⣿⣿⠒⠒] 42 %` on one row;
-    the bench asked for the brackets gone and three rows of braille."""
+    """The HEADROOM box's row: the spend as a solid bar in the margin's
+    colour with an orange tip, the figure beside it. It was `[⣿⣿⠒⠒]
+    42 %`; the bench asked for the brackets gone, then for one row of
+    `⣿` terminated with an orange `⢸` or `⡇`."""
     from rich.text import Text
 
-    from coaxial.thermal_device import THROTTLE_AT
-
     used = budget['worst']
-    lines = gauges.bar(used, SOAK_CELLS, SOAK_ROWS,
-                       cls=gauges.margin_class(used, budget['tripped']),
-                       marks=[(THROTTLE_AT, gauges.MARK)])
-    rows = []
-    for index, line in enumerate(lines):
-        if index == SOAK_ROWS // 2:
-            rows.append(('soak', Text.from_ansi('%s  %3.0f %%'
-                                                % (line, 100.0 * used))))
-        else:
-            rows.append(('', Text.from_ansi(line)))
-    return rows
+    line = gauges.bar(used, SOAK_CELLS,
+                      cls=gauges.margin_class(used, budget['tripped']))
+    return [('soak', Text.from_ansi('%s  %3.0f %%' % (line, 100.0 * used)))]
 
 
 def status_boxes(state, budget, aspect=None):
