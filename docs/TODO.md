@@ -85,9 +85,10 @@ is still arithmetic. Every item names the file or record it lives in.
   static regressor at idle (the MCU die against the thermistor at
   rest IS the MCU's edge) is what would free the spread. Still to
   build of the bench's list: the stand-in running the same identifier
-  against a ground truth whose situation switches, the stand-in's
-  record as a file between runs, and the state as a field on the
-  observer pages with the margin it carries.
+  against a ground truth whose situation switches, and the stand-in's
+  record as a file between runs. The state is on both observer pages
+  with its margin (THERMAL OBSERVER's SENSE, ROTOR OBSERVER's foot);
+  on the stand-in it reads UNCERTAIN until the stand-in identifies.
 * The phase gain (3.5 mΩ x 4.5455) is traced off the schematic and has
   never been spanned; the DC link is the only spanned channel.
 * `Q_RING` = 1.0 in `inverter.py` is assumed; the scope is the answer.

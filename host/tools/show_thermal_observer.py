@@ -16,6 +16,7 @@ down through the same `finally` that puts the screen back.
 """
 import argparse
 import sys
+import time
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
@@ -81,10 +82,40 @@ def soak(budget):
     return [('soak', Text.from_ansi('%s  %3.0f %%' % (line, 100.0 * used)))]
 
 
-def status_boxes(state, budget, aspect=None):
+#: How the identification's state is worn in SENSE: a chip in the colour
+#: the policy deserves - the margin it trims the ceilings by is beside it.
+IDENT_STYLE = {'STABLE': 'chip.live', 'CONVERGING': 'chip.sim',
+               'UNCERTAIN': 'alarm'}
+
+#: How often the page asks for the identification, seconds. It moves once
+#: a sample - every thirty seconds on the board.
+IDENT_EVERY_S = 5.0
+
+
+def ident_rows(ident):
+    """The identification's state and what it holds, for SENSE: the
+    state as a chip with the envelope's margin, then the two scales the
+    samples move with their sigma - the bench's field, "the observer's
+    status/policy in SENSE"."""
+    from rich.text import Text
+
+    state = ident['state']
+    rows = [('model', Text.assemble(
+        (' %s ' % state, IDENT_STYLE.get(state, 'value')),
+        '  margin %.2f' % ident['margin']))]
+    scales, sigma = ident['scales'], ident['sigma']
+    rows.append(('scales', '  '.join(
+        '%s %.2f±%.2f' % ('cap' if name == 'capacity' else name,
+                               scales[name], sigma[name])
+        for name in ident['online'] if name in scales)))
+    return rows
+
+
+def status_boxes(state, budget, aspect=None, ident=None):
     """The thermal observer's numbers as instrument boxes, every one the
     board's - and, given `(aspect, how)`, the one number that is the
-    terminal's: how tall its cell was measured, or assumed, to be."""
+    terminal's: how tall its cell was measured, or assumed, to be.
+    `ident` is `Thermal.identification()`, shown in SENSE when given."""
     from rich.text import Text
 
     from screen import hud
@@ -107,6 +138,8 @@ def status_boxes(state, budget, aspect=None):
                                       else 'settling')),
               ('sample', 'every %.0f s - last %s'
                % (every, '%.0f s ago' % age if age is not None else '-'))]
+    if ident is not None:
+        sense += ident_rows(ident)
     if aspect is not None:
         sense.append(('cell', '%.2f tall %s' % aspect))
 
@@ -291,14 +324,21 @@ def main():
         # the board to what is left. Counted, not guessed - a guess is what
         # clipped the bottom edge off.
         reserve = HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
-        last = {'body': ['  waiting for device 8'], 'boxes': []}
+        last = {'body': ['  waiting for device 8'], 'boxes': [],
+                'ident': None, 'ident_at': 0.0}
         leaving = None
 
         def draw():
             try:
                 got = rig.board.thermal.state()
+                # The identification moves once a sample, every thirty
+                # seconds on the board: one round trip every few seconds
+                # is plenty, and one a frame was a fifth of the frame.
+                if time.time() - last['ident_at'] > IDENT_EVERY_S:
+                    last['ident'] = rig.board.thermal.identification()
+                    last['ident_at'] = time.time()
                 last['boxes'] = status_boxes(got, rig.board.thermal.budget(),
-                                             aspect)
+                                             aspect, ident=last['ident'])
                 last['body'] = picture(got, console, reserve,
                                        aspect[0] / 2.0)
             except (NoReplyError, RigError):

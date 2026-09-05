@@ -1119,6 +1119,31 @@ looking at the estimate alone.
   bead itself is the palette's orange now, the north pole's, not
   white.
 
+### The identification on the pages, 2026-09-05
+
+* **ROTOR OBSERVER's instrument column did not scroll.** The bench:
+  "no arrow up/down for more in the right column". `run_view` scrolls
+  every page on the console's own state and `frame_of` pages the boxes
+  from it - and this page handed `frame_of` the boolean every view
+  calls `console` (`board_view.is_terminal`). The comment above that
+  line said exactly this had happened once and been fixed; the fix was
+  the comment, the call was not changed. `compose` takes the console
+  now. The thermal page passed `board_view` all along.
+* **The policy on both pages.** THERMAL OBSERVER's SENSE carries
+  `model  UNCERTAIN  margin 0.85` as a chip in the margin's colour and
+  `scales air 1.00±0.50  cap 1.00±0.20` - the two the samples move,
+  with their sigma; read every 5 s, since it moves once a sample.
+  ROTOR OBSERVER's foot, at the bench's placement "between WINDING and
+  kW": `▴ WINDING 25.0 °C   TH OBS UNCR   POWER  0.02 kW ▴` - TH OBS
+  in the leaders' grey and the state's word in the margin's ink, UNCR
+  red, CONV yellow, STABLE green, the bench's abbreviations. THERMAL
+  OBSERVER with a policy word was 57 to 60 cells against fifty-two;
+  the first cut put the word on a second foot row under the title and
+  the bench abbreviated it back onto one. `POWER %5.2f` so a negative
+  kilowatt does not shift the row (the bench's word) - to ±9.99, and
+  100 A of link is 6.3. On the stand-in the state reads UNCERTAIN until
+  it identifies.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder

@@ -310,6 +310,68 @@ def test_the_ntc_is_shown_as_the_one_measurement(report):
                  said.replace(chr(27), '^'))
 
 
+def test_the_foot_carries_the_policy(report):
+    """TH OBS and the policy between WINDING and POWER, in the margin's
+    colours, and nothing moves when the power goes negative.
+
+    The bench's placement and words, 2026-09-05: "put THERMAL OBSERVER
+    and then the policy between WINDING and kW, and call it POWER xy.z
+    kW"; "make POWER so it does not shift when the power goes
+    negative"; then "THERMAL OBSERVER can be TH OBS, not in bright red
+    - UNCR in red, CONV in yellow, STABLE in green". At fifty-two
+    columns the full title and a policy word had not fitted the row.
+    """
+    sys.path.insert(0, HOST)
+    sys.path.insert(0, os.path.join(HOST, 'tools'))
+    from coaxial import machine
+    from screen import plain as visible      # the row without its inks
+    from tools import show_rotor_observer as view
+
+    def a_view(watts, ident):
+        # `watts(view)` is 1.5 (vd id + vq iq) off the loop's means; a
+        # volt of vq makes the current the power, and its sign.
+        return {'simulated': True, 'spin': 0.0,
+                'thermal': {'nodes': dict.fromkeys(
+                    view.SOA_NODES + view.BOARD_NODES, 40.0),
+                    'ambient': 20.0, 'ntc': 38.0},
+                'budget': {'used': {}, 'tripped': False},
+                'state': {'id': 0.0, 'iq': watts / 1.5, 'vd': 0.0,
+                          'vq': 1.0, 'vdc': 24.0},
+                'params': {}, 'winding_at': None, 'ident': ident}
+
+    stable = {'state': 'STABLE', 'margin': 1.0}
+    foot = view.gutter_caption(a_view(20.0, stable))[-1]
+    plain = visible(foot)
+    report.check('the foot row names WINDING, TH OBS with its state, and '
+                 'POWER, in that order, and is the art\'s width',
+                 plain.find('WINDING') < plain.find('TH OBS STABLE')
+                 < plain.find('POWER') and len(plain) == view.ART_WIDTH,
+                 '%d: %s' % (len(plain), plain))
+    at = plain.find('TH OBS')
+    inks = {}
+    for state in ('STABLE', 'CONVERGING', 'UNCERTAIN'):
+        row = view.gutter_caption(a_view(20.0, {'state': state,
+                                                'margin': 1.0}))[-1]
+        inks[state] = ('38;5;%dm%s' % (machine.INK[view.POLICY_INK[state]],
+                                       view.POLICY_WORD[state])) in row
+    report.check('the word wears the margin\'s ink: STABLE green, CONV '
+                 'yellow, UNCR red - and TH OBS the leaders\' grey',
+                 all(inks.values())
+                 and ('38;5;%dmTH OBS' % machine.LEADER_GREY) in foot,
+                 '%s %s' % (inks, foot.replace(chr(27), '^')))
+    negative = visible(view.gutter_caption(a_view(-20.0, stable))[-1])
+    report.check('and a negative kilowatt shifts nothing: POWER, TH OBS '
+                 'and the arrows stay where they are',
+                 negative.find('POWER') == plain.find('POWER')
+                 and negative.find('TH OBS') == at
+                 and len(negative) == len(plain) and '-0.02 kW' in negative,
+                 negative)
+    absent = visible(view.gutter_caption(a_view(20.0, None))[-1])
+    report.check('and a dash before the board has answered op 10',
+                 'TH OBS -' in absent and absent.find('POWER')
+                 == plain.find('POWER'), absent)
+
+
 def test_two_headrooms_named_apart(report):
     """The board's margin and the motor's are different facts.
 
@@ -1489,6 +1551,7 @@ def main():
     test_a_power_node_never_reads_below_the_copper(report)
     test_the_ntc_is_shown_as_the_one_measurement(report)
     test_two_headrooms_named_apart(report)
+    test_the_foot_carries_the_policy(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
     test_the_mode_says_whether_the_board_holds_it_back(report)
     test_the_flat_drawings_spend_the_block(report)

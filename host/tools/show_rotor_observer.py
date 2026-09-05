@@ -112,7 +112,9 @@ STEPS = (0.05, 0.1, 0.25, 0.5, 1.0)
 ART_WIDTH, ART_HEIGHT = 52, 24
 
 #: Rows of the box that are captions rather than drawing: five above and
-#: one below.
+#: one below - the foot gauges' names with the thermal observer's policy
+#: between them (bench 2026-09-05: "TH OBS, then UNCR in red, CONV in
+#: yellow, STABLE in green, between WINDING and POWER").
 #:
 #: THE TOP TWO ARE THE MARGINS, and they are first because they are what
 #: a bench looks at first - how much is left of the board and of the
@@ -929,20 +931,52 @@ def _foot_line(view):
     # the middle of the row and the pair read as one broken rule between
     # the labels.
     head = '%s WINDING %.1f %sC' % (UP, winding(view), DEGREE)
-    tail = '%.2f kW %s' % (watts(view) / 1000.0, UP)
+    tail = 'POWER %5.2f kW %s' % (watts(view) / 1000.0, UP)
     # A STROKE EACH, LEAVING THE HEAD AND RISING toward the level above
     # it. The dots climb the cell - low pair, middle pair, top pair - so
     # the line reads as one that goes out from the arrow, up, and then
     # levels off along the bar it names. Flat, it pointed along the row
     # and the bar it meant was the one nobody was looking at.
-    pad = ART_WIDTH - len(head) - len(tail)
+    #
+    # THE THERMAL OBSERVER'S POLICY BETWEEN THEM: `TH OBS` in the
+    # leaders' grey, then the state's word in the margin's own colour -
+    # UNCR red, CONV yellow, STABLE green - since the state decides what
+    # the envelope keeps in hand. The bench's placement and words,
+    # 2026-09-05: between WINDING and the power, which is named POWER
+    # since; THERMAL OBSERVER with a policy word did not fit the row.
+    label, word, ink = _policy(view)
+    middle = len(label) + 1 + len(word)
+    room = ART_WIDTH - len(head) - len(tail)
+    left = max(0, (room - middle) // 2)
+    right = max(0, room - middle - left)
     # THE FIGURE WEARS THE BAR'S INK: past 2 kW the bar goes the deep
     # red of a limit, and a blue number under a red bar would be two
     # answers to the same watt.
     foot = (tint(head, machine.INK[machine.SOA_WARN])
-            + ' ' * max(0, pad)
+            + ' ' * left
+            + tint(label, machine.LEADER_GREY) + ' ' + tint(word, ink)
+            + ' ' * right
             + tint(tail, machine.INK[watts_bar(view)[1]]))
     return foot
+
+
+#: The identification's states as the foot says them and the inks they
+#: wear - the margin's own, since a state is what the envelope keeps in
+#: hand. The bench's abbreviations.
+POLICY_WORD = {'STABLE': 'STABLE', 'CONVERGING': 'CONV',
+               'UNCERTAIN': 'UNCR'}
+POLICY_INK = {'STABLE': machine.SOA_OK, 'CONVERGING': machine.SOA_WARN,
+              'UNCERTAIN': machine.SOA_TRIP}
+
+
+def _policy(view):
+    """`(label, word, ink)` for the foot: TH OBS and the state, or a dash
+    in the leaders' grey before the board has answered op 10."""
+    ident = view.get('ident')
+    state = ident['state'] if ident else None
+    if state in POLICY_INK:
+        return 'TH OBS', POLICY_WORD[state], machine.INK[POLICY_INK[state]]
+    return 'TH OBS', '-', machine.LEADER_GREY
 
 
 def gutter_caption(view):
@@ -1917,7 +1951,7 @@ def compose(rig, origin, console, view):
     # colour, a leader in the track's grey, the one measurement in
     # TRUTH's. Nothing here is one colour any more.
     caption = list(heads[:CAPTION_ROWS])
-    foot = heads[CAPTION_ROWS]
+    foot = list(heads[CAPTION_ROWS:])          # FOOT_ROWS of them
     turned = math.degrees(s['theta_hat']) / pole_pairs
     # THE CAN AND THE POINTER ARE DIFFERENT QUANTITIES. The can is drawn
     # from the electrical angle over the pole pairs, which is right
@@ -1956,7 +1990,7 @@ def compose(rig, origin, console, view):
                                   machine.SOA_WARN),
                                  watts_bar(view)],
                          colour=True)
-    art = '\n'.join(caption + [art, foot])
+    art = '\n'.join(caption + [art] + foot)
     panels = [('STATUS', status_rows(view)),
               ('DRIVE', drive_rows(view)),
               ('PHASES', phase_rows(view)),
@@ -2347,7 +2381,7 @@ def main(argv=None):
             'params': params, 'said': '', 'state': board.drive.state(),
             'chain': board.drive.observers(),
             'gate': board.gate_drivers.state(), 'model': None,
-            'thermal': None, 'budget': None}
+            'thermal': None, 'budget': None, 'ident': None}
     if args.start:
         view['said'] = act(rig, 's', view)
 
@@ -2391,10 +2425,17 @@ def main(argv=None):
             if time.time() - thermal_at[0] > thermal_every:
                 view['thermal'] = board.thermal.state()
                 view['budget'] = board.thermal.budget()
+                view['ident'] = board.thermal.identification()
                 thermal_at[0] = time.time()
         except RigError:
             pass                    # a missed reply is a missed frame
-        return compose(rig, origin, console, view)
+        # THE CONSOLE, not `console`: `frame_of` pages the instrument
+        # column on the console's own scroll state and asks it how tall
+        # it is, and this page handed it the boolean every view calls
+        # `console` - the comment above `board_view` was written and the
+        # call was not changed. Bench 2026-09-05: "ROTOR OBSERVER has no
+        # arrow up/down for more in the right column."
+        return compose(rig, origin, board_view, view)
 
     def on_input(typed, _moved):
         for key in typed:
