@@ -1270,6 +1270,26 @@ record's own constants, no measurement.
   pages (`--cell-aspect`, the SENSE box says measured or assumed).
   Measured: 88 cells draws in 44 ms once the geometry mask is cached
   (73 the first time), against 40 for the half blocks.
+* **The thermal map's regions are frames, and the rim is a dot wide,
+  2026-09-05.** The blocks with white edges were "grey areas" on the
+  bench, and the rim a thick band: a cell is one colour, so a cell an
+  edge crossed lit its field dots white too, and every line was a cell
+  wide. Now a cell with a mark in it draws the mark's dots ALONE - the
+  rim, the bore's edge, a frame - so a line is one dot with a dot of
+  dark beside it, "ideally one pixel". And the marks are frames round
+  the GROUPS rather than boxes round the packages: `thermalmap.frame`
+  is the bounding box of the members' bodies a millimetre out, the
+  field's halftone untouched inside, the label on a side of it or
+  inside where there is room. Each phase's frame takes its shunts, on
+  the bench's word - RU1/RU2, RV1/RV2, RW1/RW2, the WSHM2818 7 mOhm
+  pairs from the pick and place, up at the rim by the terminals, 35 W
+  between a pair at 100 A - so the U and W frames run into the rim,
+  which is where those parts are; the phase blobs took a second point
+  on the shunts, since the node's watts are the FET's and the shunt's.
+  Rastered before landing (`tools/ansi2png.py`): eight frames, a
+  dotted rim, no solid cell in the mark ink. Held: no marked cell is
+  solid and the marks are under a fifth of the lit cells; each phase's
+  two shunts sit inside that phase's frame, U left of V left of W.
 * **BOARD ATTITUDE holds its face at rest and caps itself at 30 Hz,
   2026-09-05.** The bench's word: "the laptop's fans run away". Profiled
   at 108x40, zoom 1.27: a frame cost 104 ms in one process - 75 of

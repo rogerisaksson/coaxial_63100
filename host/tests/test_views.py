@@ -483,8 +483,24 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
                                          dots(strip(said))))
     report.check('the ramp is blended to 24 bits on the field',
                  '38;2;' in said)
-    report.check('the edges and the labels wear the mark ink',
+    report.check('the frames and the labels wear the mark ink',
                  '38;5;%dm' % ansi.WHITE in said)
+
+    # FRAMES, NOT AREAS: a marked cell draws the line's dots alone, so
+    # no marked cell is solid and the marks are a thin share of the
+    # board - the bench's word against the blocks that came before.
+    from tools import ansi2png
+    white = ansi.rgb(ansi.WHITE)
+    lit = [(ch, fg) for row in ansi2png.parse(said) for ch, fg, _bg in row
+           if 0x2800 <= ord(ch) < 0x2900]
+    marked = [ch for ch, fg in lit if fg == white]
+    report.check('a marked cell is a line, never a solid block',
+                 marked and all(dots(ch) < 8 for ch in marked),
+                 '%d solid of %d' % (sum(dots(ch) == 8 for ch in marked),
+                                     len(marked)))
+    report.check('and the frames are a thin share of the board',
+                 0 < len(marked) < 0.2 * len(lit),
+                 '%d marked of %d lit' % (len(marked), len(lit)))
 
     rail = [row[cells + 2:cells + 4] for row in rows if len(row) > cells + 3]
     report.check('the scale beside it is braille too, denser at the hot '

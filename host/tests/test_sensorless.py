@@ -542,10 +542,26 @@ def test_the_map_places_its_parts_from_the_file(r):
             'a millimetre', abs(u + w) < 1.0 and u < -20.0 < 20.0 < w,
             'U at %.2f, W at %.2f' % (u, w))
 
-    for label, refs, (ox, oy) in thermalmap.MARKS:
-        lxs, lys = zip(*(thermalmap.placed(ref) for ref in refs))
-        lx = sum(lxs) / len(lxs) + ox
-        ly = sum(lys) / len(lys) + oy
+    # EACH PHASE'S FRAME TAKES ITS SHUNTS - the bench's word - and they
+    # are the phase's own: the U shunts left of the V shunts left of the
+    # W shunts, each pair within its leg's frame.
+    frames = {label: thermalmap.frame(refs)
+              for label, refs, _where in thermalmap.MARKS}
+    shunts = {leg: [thermalmap.placed('R%s%d' % (leg, i)) for i in (1, 2)]
+              for leg in 'UVW'}
+    inside = all(abs(x - frames[leg][0]) <= frames[leg][2]
+                 and abs(y - frames[leg][1]) <= frames[leg][3]
+                 for leg in 'UVW' for x, y in shunts[leg])
+    r.check('each phase\'s two shunts sit inside that phase\'s frame',
+            inside and max(x for x, _ in shunts['U'])
+            < min(x for x, _ in shunts['V'])
+            and max(x for x, _ in shunts['V'])
+            < min(x for x, _ in shunts['W']),
+            str({leg: [round(x, 1) for x, _ in shunts[leg]]
+                 for leg in 'UVW'}))
+
+    for label, refs, where in thermalmap.MARKS:
+        lx, ly = thermalmap.label_at(thermalmap.frame(refs), where, label)
         reach = math.hypot(lx, ly)
         r.check('%s is labelled on the board, clear of the rim and the bore'
                 % label,

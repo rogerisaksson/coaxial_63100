@@ -46,11 +46,17 @@ the three phase pairs' symmetry agrees with to half a millimetre.
 switches were drawn 12 mm too high, the hot swap 15 mm too far out, and
 the drivers a leg's width from their legs.
 
-MARKED, on the bench's word: the MCU, the six switches, the three
-front-end amplifiers and the hot-swap controller - outlines at their
-packages' size, a label beside each group and inside the one big enough
-to hold it. The labels are the one place a glyph sits on the field, and
-they wear the outline's ink so they read as marks and not as cold spots.
+MARKED, on the bench's word: the MCU, the regulators, each phase's
+switches WITH ITS SHUNTS, the front-end amplifiers, the hot-swap
+controller and the thermistor - each group as a FRAME one dot wide
+round the parts, the field's own halftone untouched inside it, and a
+label. It was every package as a block with a white edge, and on the
+bench those were "grey areas": a cell is one colour, so an edge cell
+went white whole, and the small packages were all edge. A frame's cells
+light only the frame's dots, so the line is a dot wide with a dot of
+dark beside it - the same treatment the rim gets, "ideally one pixel".
+The labels are the one place a glyph sits on the field, and they wear
+the frame's ink so they read as marks and not as cold spots.
 """
 import math
 import shutil
@@ -137,6 +143,12 @@ PLACED = {
     'Q2V':  (102.5906, 94.6150, 5.2, 6.2),
     'Q1W':  (137.5410, 93.2434, 5.2, 6.2),
     'Q2W':  (130.7592, 93.2434, 5.2, 6.2),
+    'RU1':  (74.9260, 107.6333, 4.6, 7.1),    # WSHM2818, 7 mOhm: the two
+    'RU2':  (82.8260, 111.7833, 4.6, 7.1),    # shunts a phase, in parallel,
+    'RV1':  (101.9260, 109.4333, 4.6, 7.1),   # up by the terminals at the
+    'RV2':  (110.9260, 109.4333, 4.6, 7.1),   # rim - 35 W between them at
+    'RW1':  (130.0260, 111.7833, 4.6, 7.1),   # 100 A (HARDWARE.md)
+    'RW2':  (137.9260, 107.6333, 4.6, 7.1),
     'U1U':  (70.1040, 86.7664, 4.9, 3.0),     # 2EDL8034, PG-TSDSO-14
     'U1V':  (98.9076, 88.0364, 4.9, 3.0),
     'U1W':  (126.7460, 86.8684, 4.9, 3.0),
@@ -173,14 +185,16 @@ def _blob(sigma, *refs):
 #: `sigma` is how wide the blob is laid down, not the part's size - spreading
 #: in copper is wider than the device feeding it. A row of points is a row of
 #: parts, and they sum. Every point is a placed part or the middle of a
-#: pair: one blob a leg so the same watts draw the same size whichever leg
-#: made them, the middle driver the NTC's neighbour - which is why the NTC
-#: reads that hot spot and not the board - and the front end as its three
-#: chains and the reference.
+#: pair: a blob for a leg's switches and one for its shunts - the phase
+#: node's watts are the FET's conduction AND the shunt's, and `field`
+#: takes the strongest point so both reach the node's temperature - the
+#: middle driver the NTC's neighbour, which is why the NTC reads that hot
+#: spot and not the board, and the front end as its three chains and the
+#: reference.
 LAYOUT = {
-    'phase_u': [_blob(8, 'Q1U', 'Q2U')],
-    'phase_v': [_blob(8, 'Q1V', 'Q2V')],
-    'phase_w': [_blob(8, 'Q1W', 'Q2W')],
+    'phase_u': [_blob(8, 'Q1U', 'Q2U'), _blob(7, 'RU1', 'RU2')],
+    'phase_v': [_blob(8, 'Q1V', 'Q2V'), _blob(7, 'RV1', 'RV2')],
+    'phase_w': [_blob(8, 'Q1W', 'Q2W'), _blob(7, 'RW1', 'RW2')],
     'driver_u': [_blob(9, 'U1U')],
     'driver_v': [_blob(9, 'U1V')],
     'driver_w': [_blob(9, 'U1W')],
@@ -192,23 +206,62 @@ LAYOUT = {
     'hotswap': [_blob(10, 'U12')],
 }
 
-#: What the picture marks: a label, the parts it stands for, and where the
-#: label sits as an offset from the group's centre, millimetres - zero
-#: puts it inside the part, which only the LQFP is big enough for, or
-#: between the parts where the group has a gap. REG is the two bucks and
-#: the two LDOs left of the MCU - they warm a little bringing 63 V down to
-#: what the board runs on - and NTC is the thermistor beside the bore, its
-#: label above the hole; both on the bench's word.
+#: What the picture marks: a label, the parts the frame goes round, and
+#: where the label sits - a side of the frame, `inside` where the frame
+#: has room (the LQFP, and the gap between a leg's switches and its
+#: shunts), or a point in millimetres. REG is the two bucks and the two
+#: LDOs left of the MCU - they warm a little bringing 63 V down to what
+#: the board runs on - and NTC is the thermistor beside the bore, its
+#: label above the hole; each phase's frame takes its shunts, which sit
+#: at the rim by the terminals; all on the bench's word.
 MARKS = (
-    ('MCU', ('U3',), (0.0, 0.0)),
-    ('REG', ('U8', 'U9', 'U1', 'U7'), (0.0, 0.0)),
-    ('U', ('Q1U', 'Q2U'), (0.0, 8.0)),
-    ('V', ('Q1V', 'Q2V'), (0.0, 8.0)),
-    ('W', ('Q1W', 'Q2W'), (0.0, 8.0)),
-    ('AFE', ('OP1U', 'OP1V', 'OP1W'), (0.0, -7.0)),
-    ('HS', ('U12',), (6.5, 0.0)),
-    ('NTC', ('NTC1',), (6.6, 4.0)),
+    ('MCU', ('U3',), 'inside'),
+    ('REG', ('U8', 'U9', 'U1', 'U7'), 'inside'),
+    ('U', ('Q1U', 'Q2U', 'RU1', 'RU2'), 'inside'),
+    ('V', ('Q1V', 'Q2V', 'RV1', 'RV2'), 'inside'),
+    ('W', ('Q1W', 'Q2W', 'RW1', 'RW2'), 'inside'),
+    ('AFE', ('OP1U', 'OP2U', 'OP1V', 'OP2V', 'OP1W', 'OP2W'), 'below'),
+    ('HS', ('U12',), 'right'),
+    ('NTC', ('NTC1',), (0.0, 9.6)),
 )
+
+#: How far a frame stands off the parts inside it, millimetres.
+FRAME_MM = 1.0
+
+#: A label's cell is about this wide in millimetres on an 88-cell board;
+#: what a side placement steps a label clear of its frame by.
+LABEL_STEP_MM = 2.5
+
+
+def frame(refs):
+    """`(cx, cy, hw, hh)`: the box round some parts' bodies, FRAME_MM
+    out, millimetres from the board's centre and half-sizes."""
+    left = right = top = bottom = None
+    for ref in refs:
+        x, y, w, h = PLACED[ref]
+        cx, cy = from_pnp(x, y)
+        left = cx - w / 2.0 if left is None else min(left, cx - w / 2.0)
+        right = cx + w / 2.0 if right is None else max(right, cx + w / 2.0)
+        bottom = cy - h / 2.0 if bottom is None else min(bottom, cy - h / 2.0)
+        top = cy + h / 2.0 if top is None else max(top, cy + h / 2.0)
+    left, right = left - FRAME_MM, right + FRAME_MM
+    bottom, top = bottom - FRAME_MM, top + FRAME_MM
+    return ((left + right) / 2.0, (bottom + top) / 2.0,
+            (right - left) / 2.0, (top - bottom) / 2.0)
+
+
+def label_at(box, where, label):
+    """Where a label's centre goes, millimetres, for a frame `box` and a
+    placement: `inside`, `above`, `below`, `left`, `right`, or a point."""
+    if isinstance(where, tuple):
+        return where
+    cx, cy, hw, hh = box
+    half = LABEL_STEP_MM * len(label) / 2.0
+    return {'inside': (cx, cy),
+            'above': (cx, cy + hh + LABEL_STEP_MM),
+            'below': (cx, cy - hh - LABEL_STEP_MM),
+            'right': (cx + hw + half + 1.0, cy),
+            'left': (cx - hw - half - 1.0, cy)}[where]
 
 #: Two characters a cell in the plain ramp, so pixels come out square. In
 #: the halftone a cell is one character.
@@ -244,14 +297,14 @@ NOISE_LEVELS = NOISE_N * NOISE_N
 #: ramp itself - 85 C - and an outline in it would vanish over a hot leg.
 MARK_INK = ansi.WHITE
 
-#: What a dot is, by geometry alone: off the board, the field's halftone,
-#: an edge in MARK_INK, or the inside of a part - every dot lit, in the
-#: field's colour, so a part is a solid block on a stipple with a white
-#: edge round it. THE OUTLINE ALONE WAS NOT ENOUGH: a dot-wide ring over
-#: the same stipple that filled it read as a faint frame, and the bench
-#: asked for "clearer blocks, or with edges". Both, since a block with
-#: no edge would be a dense patch of field and a hot part is that already.
-OFF, FIELD, MARK, SOLID = 0, 1, 2, 3
+#: What a dot is, by geometry alone: off the board, the field's
+#: halftone, or a MARK - the rim, the bore's edge, a frame - which its
+#: cell draws alone, in MARK_INK. Two shapes before this, both on the
+#: bench: a dot-wide outline over the stipple that filled each package,
+#: "a faint frame"; then every package a solid block with a white edge,
+#: "grey areas". A frame round the GROUP, its cells lit only where the
+#: line runs, is what reads as a frame.
+OFF, FIELD, MARK = 0, 1, 2
 
 
 def field(x_mm, y_mm, board_c, nodes, layout=None):
@@ -346,16 +399,14 @@ _MASKS = {}
 
 def _mask(cells, down, marks):
     """What every dot is by geometry alone - off the board, field, or a
-    mark: the rim, the bore's edge, a part's outline - and which cells a
+    mark: the rim, the bore's edge, a frame's line - and which cells a
     label covers. Cached by size, because none of it moves between frames
-    and the outline test is eleven boxes a dot.
+    and the line test is eight frames a dot.
 
-    The rim and a part's edge are ONE DOT wide - `edge` is half a dot
-    pitch either side of the line - which is what draws them as a line
-    the dots follow rather than a band the cells step. A cell is one
-    colour, so every cell an edge crosses is white whole: at two dots the
-    frame took a cell column each side and a package smaller than the
-    MCU was all frame, seen in the raster. Inside the frame is SOLID.
+    The rim and a frame are ONE DOT wide - `edge` is half a dot pitch
+    either side of the line - which is what draws them as a line the dots
+    follow rather than a band the cells step. A frame that reaches past
+    the rim - the shunts sit at the terminals - stops at the rim.
     """
     key = (cells, down, marks)
     got = _MASKS.get(key)
@@ -366,12 +417,7 @@ def _mask(cells, down, marks):
     dx, dy = per_cell / 2.0, per_row / 2.0
     edge = 0.5 * max(dx, dy)
     bore = max(BORE_MM, per_cell)
-    boxes = []
-    for _label, refs, _at in marks:
-        for ref in refs:
-            x, y, w, h = PLACED[ref]
-            cx, cy = from_pnp(x, y)
-            boxes.append((cx, cy, w / 2.0, h / 2.0))
+    boxes = [frame(refs) for _label, refs, _where in marks]
 
     wide, high = 2 * cells, 2 * down
     rows = []
@@ -390,18 +436,16 @@ def _mask(cells, down, marks):
             kind = FIELD
             for cx, cy, hw, hh in boxes:
                 ax, ay = abs(x - cx), abs(y - cy)
-                if ax <= hw + edge and ay <= hh + edge:
-                    kind = (SOLID if ax < hw - edge and ay < hh - edge
-                            else MARK)
+                if ((abs(ax - hw) <= edge and ay <= hh + edge)
+                        or (abs(ay - hh) <= edge and ax <= hw + edge)):
+                    kind = MARK
                     break
             line.append(kind)
         rows.append(line)
 
     labels = {}
-    for label, refs, (ox, oy) in marks:
-        xs, ys = zip(*(placed(ref) for ref in refs))
-        lx = sum(xs) / len(xs) + ox
-        ly = sum(ys) / len(ys) + oy
+    for (label, refs, where), box in zip(marks, boxes):
+        lx, ly = label_at(box, where, label)
         col = int((lx / dx + (wide - 1) / 2.0) // 2) - len(label) // 2
         row = int(((high - 1) / 2.0 - ly / dy) // 4)
         for k, ch in enumerate(label):
@@ -423,9 +467,12 @@ def _braille_rows(grid, marks=MARKS):
     cell one, so the dots within a cell share a temperature and only the
     mask varies between them.
 
-    A cell with a mark in it wears MARK_INK whole: one colour a cell is
-    what a terminal gives, and a rim a dot wide is mostly rim. A cell whose
-    field centre is off the board can still hold rim dots, and draws them.
+    A CELL WITH A MARK IN IT DRAWS THE MARK ALONE, in MARK_INK: one
+    colour a cell is what a terminal gives, and lighting the field's dots
+    in that cell too made every line a cell wide and white - the "grey
+    areas" and the thick rim the bench saw. Only the line's dots, and the
+    line is a dot wide with a dot of dark beside it. A cell whose field
+    centre is off the board can still hold rim dots, and draws them.
     """
     down, cells = len(grid), len(grid[0])
     mask, labels = _mask(cells, down, tuple(marks or ()))
@@ -454,7 +501,7 @@ def _braille_rows(grid, marks=MARKS):
             else:
                 share0 = _density(t0) * levels
                 share1 = _density(t1) * levels
-            bits, marked = 0, False
+            marks, dots = 0, 0
             for lane in (0, 1):
                 i = 2 * c + lane
                 ni = i % n
@@ -463,18 +510,16 @@ def _braille_rows(grid, marks=MARKS):
                     if m == OFF:
                         continue
                     if m == MARK:
-                        bits |= bit[lane][y]
-                        marked = True
-                    elif m == SOLID:
-                        bits |= bit[lane][y]
+                        marks |= bit[lane][y]
                     elif (share0 if y < 2 else share1) > nrows[y][ni] + 0.5:
-                        bits |= bit[lane][y]
-            if not bits:
+                        dots |= bit[lane][y]
+            if marks:
+                line.append((chr(BRAILLE + marks), MARK_INK))
+            elif dots:
+                line.append((chr(BRAILLE + dots),
+                             ansi.thermal_rgb(int((t0 + t1) / 2.0 + 0.5))))
+            else:
                 line.append((' ', None))
-                continue
-            colour = (MARK_INK if marked
-                      else ansi.thermal_rgb(int((t0 + t1) / 2.0 + 0.5)))
-            line.append((chr(BRAILLE + bits), colour))
         out.append(ansi.run(line))
     return out
 
