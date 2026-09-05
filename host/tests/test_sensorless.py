@@ -479,6 +479,80 @@ def test_motion(r):
         rig.close()
 
 
+def pick_and_place():
+    """Every placement in `electronics/`, by designator, as the exporter's
+    (x, y) in millimetres - `(None, path)` when the file is not in the
+    tree. THE PICK AND PLACE IS THE AUTHORITY ON WHERE THINGS ARE, and two
+    tests below hold the host's copies to it."""
+    import csv
+    import os
+
+    here = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+    path = os.path.join(here, 'electronics', 'Coaxial 63100 Pick-Place.csv')
+    if not os.path.exists(path):
+        return None, path
+    at = {}
+    with open(path, encoding='latin-1') as handle:
+        for line in handle:
+            if not line.startswith('"'):
+                continue
+            row = next(csv.reader([line]))
+            try:
+                at[row[0]] = (float(row[4]), float(row[5]))
+            except ValueError:
+                continue
+    return at, path
+
+
+def test_the_map_places_its_parts_from_the_file(r):
+    """The thermal picture's parts sit where the pick and place puts them.
+
+    `thermalmap.PLACED` is a copy of the file's coordinates for the parts
+    the model heats and the picture marks, and `PNP_CENTRE` the board's
+    centre in the exporter's frame. A copy drifts; this holds it to the
+    file to a hundredth of a millimetre, the centre to the placements'
+    extents, and the switch pairs symmetric about it - which is the check
+    that the centre is the board's and not merely the parts' box's. And
+    every label lands on the board, clear of the rim and the bore.
+    """
+    from coaxial import thermalmap
+
+    at, path = pick_and_place()
+    if at is None:
+        r.check('the pick and place is in the tree', False, path)
+        return
+
+    off = [(ref, x, y) for ref, (x, y, _w, _h) in thermalmap.PLACED.items()
+           if ref not in at or abs(at[ref][0] - x) > 0.01
+           or abs(at[ref][1] - y) > 0.01]
+    r.check('every part the map places is where the file puts it, '
+            'to a hundredth of a millimetre', not off, str(off[:3]))
+
+    xs = [p[0] for p in at.values()]
+    ys = [p[1] for p in at.values()]
+    mid = ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0)
+    r.check('the centre is the placements\' midpoint to half a millimetre',
+            abs(mid[0] - thermalmap.PNP_CENTRE[0]) < 0.5
+            and abs(mid[1] - thermalmap.PNP_CENTRE[1]) < 0.5,
+            '(%.2f, %.2f) against %s' % (mid + (thermalmap.PNP_CENTRE,)))
+    u = (thermalmap.placed('Q1U')[0] + thermalmap.placed('Q2U')[0]) / 2.0
+    w = (thermalmap.placed('Q1W')[0] + thermalmap.placed('Q2W')[0]) / 2.0
+    r.check('and the U and W switch pairs sit either side of it, to half '
+            'a millimetre', abs(u + w) < 1.0 and u < -20.0 < 20.0 < w,
+            'U at %.2f, W at %.2f' % (u, w))
+
+    for label, refs, (ox, oy) in thermalmap.MARKS:
+        lxs, lys = zip(*(thermalmap.placed(ref) for ref in refs))
+        lx = sum(lxs) / len(lxs) + ox
+        ly = sum(lys) / len(lys) + oy
+        reach = math.hypot(lx, ly)
+        r.check('%s is labelled on the board, clear of the rim and the bore'
+                % label,
+                thermalmap.BORE_MM + 2.0 < reach < thermalmap.OUTER_MM - 3.0,
+                '(%.1f, %.1f), %.1f mm out' % (lx, ly, reach))
+
+
 def test_the_placements_behind_the_thermal_model(r):
     """What `electronics/` places, and what the model claims about it.
 
@@ -492,28 +566,12 @@ def test_the_placements_behind_the_thermal_model(r):
     quantity here is either a distance between two parts or the extent of
     the whole set, so a constant shift falls out of both.
     """
-    import csv
-    import os
-
     from coaxial import thermal
 
-    here = os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))))
-    path = os.path.join(here, 'electronics', 'Coaxial 63100 Pick-Place.csv')
-    if not os.path.exists(path):
+    at, path = pick_and_place()
+    if at is None:
         r.check('the pick and place is in the tree', False, path)
         return
-
-    at = {}
-    with open(path, encoding='latin-1') as handle:
-        for line in handle:
-            if not line.startswith('"'):
-                continue
-            row = next(csv.reader([line]))
-            try:
-                at[row[0]] = (float(row[4]), float(row[5]))
-            except ValueError:
-                continue
 
     def away(ref):
         return math.hypot(at[ref][0] - at['NTC1'][0],
@@ -731,6 +789,7 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
 
 
 ROSTER = (test_inverter, test_the_placements_behind_the_thermal_model,
+          test_the_map_places_its_parts_from_the_file,
           test_the_board_stays_in_the_laminar_regime,
           test_the_datasheet_against_the_thermal_model,
           test_the_stand_in_thermistor_stays_between_its_nodes,

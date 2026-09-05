@@ -27,7 +27,9 @@ import math
 #: 1.6 mm laminate reads as a single line, and the two rim rings are what
 #: sells the turn.
 from .orientation import BORE, OUTER                       # noqa: E402
-from .raster import BRAILLE, BRAILLE_BITS, RUNGS, SHADE    # noqa: E402
+from .ansi import rgb as _rgb                              # noqa: E402
+from .raster import (BRAILLE, BRAILLE_BITS, NOISE, NOISE_N,  # noqa: E402
+                     RUNGS, SHADE)
 
 THICK = 0.05
 
@@ -526,28 +528,13 @@ LEVEL_LO, LEVEL_HI = 0.0, 2.0
 #: for.
 HEAT_LO, HEAT_HI = 0.20, 0.55
 
-def _bluenoise():
-    """The threshold mask beside this module - `tools/bluenoise.py`'s
-    output, 64 x 64 ranks 0..4095 by void-and-cluster - as rows. Read,
-    not computed: the generator wants numpy and a second, and a renderer
-    wants neither."""
-    import os
-    import struct
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        'bluenoise64.bin')
-    with open(path, 'rb') as f:
-        data = f.read()
-    n = int(round(math.sqrt(len(data) // 2)))
-    flat = struct.unpack('<%dH' % (n * n), data)
-    return n, [flat[y * n:(y + 1) * n] for y in range(n)]
-
-
 #: THE FACE IS A HALFTONE, at dot resolution. Each of a cell's eight
 #: dots is lit where the light at the dot's own position clears its
-#: threshold in a BLUE-NOISE mask laid over the DOTS - 64 by 64, thirty-
-#: two cells wide and sixteen tall, four thousand densities - fixed in
-#: screen space, so a board turning under it moves the density and not
-#: the dots.
+#: threshold in a BLUE-NOISE mask laid over the DOTS - `raster.NOISE`,
+#: 64 by 64, thirty-two cells wide and sixteen tall, four thousand
+#: densities - fixed in screen space, so a board turning under it moves
+#: the density and not the dots. The thermal picture draws through the
+#: same mask.
 #:
 #: Three things before it, each seen in a raster of the frame rather
 #: than in glyph counts. One rung per cell rounded a desk-lamp gradient
@@ -561,8 +548,7 @@ def _bluenoise():
 #: as hell". Interleaved gradient noise and the R2 sequence were
 #: rastered beside it - a regular diagonal screen, and a half-structured
 #: one. Blue noise has no structure at any density; the generator has
-#: the method and the file beside this module is its output.
-NOISE_N, NOISE = _bluenoise()
+#: the method and the file beside `raster` is its output.
 
 #: Where each of a cell's eight dots sits, in cells from the cell's
 #: centre - two lanes a quarter cell either side, four rows at eighths
@@ -647,16 +633,6 @@ KNEE = 1.0
 #: characters carry. Plain grey was tried and read as a dead channel
 #: next to the stage's phosphor.
 GLOW = (16, 23, 30, 37, 44, 51, 87, 123, 195)
-
-
-def _rgb(code):
-    """An xterm-256 cube or grey-ramp colour as (r, g, b)."""
-    if code >= 232:
-        grey = 8 + 10 * (code - 232)
-        return (grey, grey, grey)
-    c = code - 16
-    return tuple(0 if v == 0 else 55 + 40 * v
-                 for v in (c // 36, (c // 6) % 6, c % 6))
 
 
 #: The same ladder as RGB, so a fractional heat can sit BETWEEN two

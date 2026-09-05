@@ -396,6 +396,97 @@ def test_every_gauge_shows_its_own_scale(report):
                     len(drawn)))
 
 
+def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
+    """The thermal observer's board is braille: a blue-noise stipple denser
+    where it is hotter, in the ramp blended to 24 bits, the rim a dot wide,
+    and the parts that make the heat drawn on it as blocks with edges and a
+    label - placed from the pick and place. On the bench's word, in turn:
+    "the thermal observer's style to braille too, more anti-aliased",
+    "clearer blocks, or with edges", "the temperature scale in braille
+    too", "not black at -20, a shade of blue", REG and NTC. It was half
+    blocks, a nearest palette stop a cell, and a solid bar.
+    """
+    import re
+    from coaxial import ansi, thermalmap
+    from coaxial.thermal import ALL_NODES
+
+    warm = {n: 40.0 for n in ALL_NODES if n != 'board'}
+    cells = 88
+
+    def picture(nodes):
+        return thermalmap.render(nodes, board_c=30.0, cells=cells,
+                                 colour=True, reserve=0, trailing=0)
+
+    def strip(text):
+        return re.sub('\x1b\\[[0-9;]*m', '', text)
+
+    def dots(text):
+        return sum(bin(ord(ch) - 0x2800).count('1') for ch in text
+                   if 0x2800 <= ord(ch) < 0x2900)
+
+    said = picture(warm)
+    rows = strip(said).split('\n')
+    art = [row[:cells] for row in rows]
+    letters = set(''.join(label for label, _, _ in thermalmap.MARKS))
+    stray = set(ch for row in art for ch in row
+                if ch != ' ' and not 0x2800 <= ord(ch) < 0x2900
+                and ch not in letters)
+    report.check('the board is braille, and the only letters on it are '
+                 'the labels', not stray, repr(''.join(sorted(stray))))
+    for label, _refs, _at in thermalmap.MARKS:
+        report.check('%s is written on it' % label,
+                     any(label in row for row in art))
+
+    # ROUND, AND NOTHING PAST THE RIM: every lit cell's centre inside the
+    # radius plus a cell, the top row narrow, the middle row the width.
+    per_cell = 2.0 * thermalmap.OUTER_MM / cells
+    per_line = 4.0 * thermalmap.OUTER_MM / (2 * len(art))
+    worst = 0.0
+    spans = []
+    for r, row in enumerate(art):
+        lit = [c for c, ch in enumerate(row) if ch != ' ']
+        spans.append((lit[-1] - lit[0] + 1) if lit else 0)
+        for c in lit:
+            x = (c - (cells - 1) / 2.0) * per_cell
+            y = ((len(art) - 1) / 2.0 - r) * per_line
+            worst = max(worst, math.hypot(x, y))
+    report.check('nothing is lit past the rim',
+                 worst <= thermalmap.OUTER_MM + per_line, '%.1f mm' % worst)
+    report.check('and it is round: narrow at the top, the full width in '
+                 'the middle',
+                 spans[0] < cells // 2 and max(spans) >= cells - 2,
+                 'spans %d .. %d of %d' % (spans[0], max(spans), cells))
+
+    hot = picture(dict(warm, mcu=95.0))
+    report.check('a hotter MCU is a denser halftone',
+                 dots(strip(hot)) > dots(strip(said)) + 40,
+                 '%d dots against %d' % (dots(strip(hot)),
+                                         dots(strip(said))))
+    report.check('the ramp is blended to 24 bits on the field',
+                 '38;2;' in said)
+    report.check('the edges and the labels wear the mark ink',
+                 '38;5;%dm' % ansi.WHITE in said)
+
+    rail = [row[cells + 2:cells + 4] for row in rows if len(row) > cells + 3]
+    report.check('the scale beside it is braille too, denser at the hot '
+                 'end than the cold',
+                 rail and all(0x2800 <= ord(ch) < 0x2900
+                              for cell in rail for ch in cell)
+                 and dots(rail[0]) > dots(rail[-1]),
+                 '%s .. %s' % (rail[:1], rail[-1:]))
+    cold = ansi.thermal_rgb(ansi.THERMAL_MIN)
+    report.check('and the cold end of the scale is blue, not black',
+                 cold[2] >= 128 and cold[0] == 0 and cold[1] == 0, str(cold))
+
+    plain = thermalmap.render(warm, board_c=30.0, cells=40, colour=False,
+                              reserve=0, trailing=0).split('\n')
+    report.check('a pipe still gets the character ramp',
+                 all(ch in thermalmap.RAMP + ' ' for ch in plain[0][:80])
+                 and any(ch in thermalmap.RAMP for row in plain
+                         for ch in row[:80]),
+                 plain[len(plain) // 2][:80])
+
+
 def test_the_demo_actually_loads_the_machine(report):
     """Two hundred frames of the stand-in warm the winding and spend the
     switches' margin - the demo puts a load on, and it stays on.
@@ -1306,6 +1397,8 @@ def main():
     test_the_dial_is_round_on_this_terminal(report)
     test_every_page_scrolls_its_boxes(report)
     test_the_terminal_is_asked_how_tall_a_cell_is(report)
+    print('\n-- the thermal observer\'s board --')
+    test_the_thermal_map_is_a_halftone_with_its_parts_marked(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

@@ -1,39 +1,63 @@
-"""The board as a thermal picture: stylised zones, in colour.
+"""The board as a thermal picture: a braille halftone in the thermal ramp,
+with the rim and the parts that make the heat drawn on it.
 
 A reading in, text out. No serial port, no terminal, no clock - so it tests
 without a board, the same way `orientation.py` and `dial.py` do.
 
 **Stylised, not a CAD render.** The board's own ASCII from `ascii3d.py` shows
-every component and is unreadable as a temperature field; this shows where the
-heat is and nothing else. Solid cells painted by temperature, the way an IR
-camera draws one - no letters on the field, because a glyph on a thermal
-picture reads as a cold spot.
+every component and is unreadable as a temperature field; this shows where
+the heat is and what makes it. THE FIELD IS A HALFTONE: each of a braille
+cell's eight dots is lit where the temperature under it clears its
+threshold in the blue-noise mask the attitude page's face uses
+(`raster.NOISE`), so a hot zone is dense and a cool one sparse, and the
+cell wears the thermal ramp's colour blended to 24 bits between its stops.
+The rim, the bore's edge and the marked parts are drawn over it in solid
+dots.
+
+IT WAS HALF BLOCKS: one palette stop a cell, the nearest, and a circle
+stepped at the cell. The bench's word was "pixelly", and "the thermal
+observer's style to braille too, more anti-aliased" - the face BOARD
+ATTITUDE had already settled on. Dots are twice the columns and four
+times the rows, the rim is one dot wide, and the colour no longer bands.
 
 **The field is diffuse on purpose.** Heat in a laminate spreads; sharp zone
-edges would be a lie about the physics, and would invite reading a cell as if
-it were a measurement. Every source is a Gaussian blob and they sum.
+edges would be a lie about the physics, and would invite reading a cell as
+if it were a measurement. Every source is a Gaussian blob and they sum.
 
 GEOMETRY
 An annulus, 100 mm across with a 10 mm bore, mounted coaxially behind an
 outrunner's stator. Millimetres from centre, +y up, quadrants as in
 mathematics - Q1 upper right.
 
-    switches      across the top
+    switches      across the top, two a leg, each pair over its driver
     regulators    left
-    mcu           left, below centre
+    mcu           left of centre, below it
     afe           along the bottom
     hot swap      right
     DC link       Q1 and just into Q2, out at the rim
 
-**Placed by tape measure, not from CAD.** Good enough to see where the heat
-sits and too coarse to compute with. `render` takes the layout as an argument
-so a better set can be passed in without touching this file.
+**Placed from the pick and place, 2026-09-05.** `electronics/Coaxial 63100
+Pick-Place.csv` is the authority on where a part sits, the way the parts
+list is on what is fitted: `PLACED` carries its coordinates for the parts
+the model heats and the picture marks, and `PNP_CENTRE` is the board's
+centre in the exporter's frame - the midpoint of the parts' extents, which
+the three phase pairs' symmetry agrees with to half a millimetre.
+`test_sensorless` holds both to the file. It was a tape measure: the
+switches were drawn 12 mm too high, the hot swap 15 mm too far out, and
+the drivers a leg's width from their legs.
+
+MARKED, on the bench's word: the MCU, the six switches, the three
+front-end amplifiers and the hot-swap controller - outlines at their
+packages' size, a label beside each group and inside the one big enough
+to hold it. The labels are the one place a glyph sits on the field, and
+they wear the outline's ink so they read as marks and not as cold spots.
 """
 import math
 import shutil
 import sys
 
 from . import ansi
+from .raster import BRAILLE, BRAILLE_BITS, NOISE, NOISE_N
 
 #: Board dimensions, RADII in millimetres: 100 mm across with a 10 mm bore,
 #: confirmed 2026-08-29. `electronics/` is the authority on the rest.
@@ -46,33 +70,35 @@ BORE_MM = 5.0
 #:
 #: It was 44, which is what made the circle read as a staircase: the raster
 #: is the only antialiasing there is, and half the cells is twice the step.
+#: The halftone puts four dots on every field row and two on every column,
+#: so the field is still evaluated here and only the DOTS are finer.
 CELLS_MAX = 88
 
-#: How tall a drawn cell is against its width, on the screen.
+#: How tall a drawn FIELD ROW is against a cell's width, on the screen.
 #:
-#: BOTH RENDERERS ARE SQUARE IN CELLS - the ramp spends two characters a cell
-#: and one row, the half-block one character and half a row - so a circle of
-#: equal cells each way is round only if a cell is square on the glass. It is
-#: not: a terminal character is about 9 x 20 pixels, so the cell comes out a
-#: tenth taller than it is wide and the board stands up as an oval.
+#: BOTH RENDERERS ARE SQUARE IN CELLS - the ramp spends two characters a
+#: cell and one row, the halftone one character and half a row - so a circle
+#: of equal cells each way is round only if a cell is square on the glass.
+#: It is not: a terminal character is about 9 x 20 pixels, so the cell comes
+#: out a tenth taller than it is wide and the board stands up as an oval.
 #:
 #: Applied to the FIELD rather than to the grid: the row spacing in
 #: millimetres is stretched by this, so fewer rows fit inside the radius and
 #: the drawn shape comes back round. Tunable because it belongs to the font,
-#: not to the board - `--aspect` on the views.
+#: not to the board - half the character aspect `screen.aspect_of` measures.
 CELL_ASPECT = 1.10
 
-#: The bore is drawn at least this many CELLS across, whatever the board's
-#: millimetres work out to at the resolution in hand.
+#: The bore is drawn at least this many CELLS across on the plain ramp,
+#: whatever the board's millimetres work out to at the resolution in hand.
 #:
 #: A drawing concession and not a dimension: 5 mm of 50 is a tenth of the
 #: radius, which lands on one cell at any terminal size worth using, and one
 #: cell is a dent rather than a hole. Widened here rather than in BORE_MM,
 #: because that one is what the board IS and belongs to `electronics/`.
 #:
-#: It only bites on the COARSE grid. The colour renderer spends one character
-#: a cell and half a row, so it affords two or three times the cells and the
-#: physical 5 mm resolves on its own - this is the plain ramp's floor.
+#: It only bites on the COARSE grid. The halftone spends a dot every half
+#: cell and the physical 5 mm resolves on its own - this is the plain
+#: ramp's floor, for a pipe or a log.
 #:
 #: SIZE IS THE ONLY KNOB. A superellipse was tried at three exponents and
 #: changed nothing - the raster is too coarse to care about the shape of the
@@ -82,46 +108,110 @@ CELL_ASPECT = 1.10
 #:   2.4               4-4-4-4         a square
 #:   3.2               4-6-6-6-6-4     an octagon
 #:
-#: 2.0, because the colour renderer carries TWO field rows per character
-#: row: 2-4-4-2 is four characters across and two rows down, which is round
-#: on the glass. The three larger shapes were each tried on the bench and
-#: read as a square or a punched-out middle.
-#:
-#: The plain ramp spends a whole row per field row, so the same shape is
-#: twice as tall there and coarser for it. That is the fallback - a pipe, a
-#: log - and the colour path is what anybody looks at.
+#: The three larger shapes were each tried on the bench and read as a
+#: square or a punched-out middle.
 BORE_MIN_CELLS = 2.0
+
+#: The board's centre in the pick and place's frame, millimetres. The
+#: exporter's origin is a corner of its own; this is the midpoint of the
+#: 527 top-layer placements' extents (x 60.5 to 152.0, y 27.9 to 120.5),
+#: and the U and W switch pairs sit 28.7 mm either side of it.
+PNP_CENTRE = (106.25, 74.2)
+
+
+def from_pnp(x_mm, y_mm):
+    """A pick-and-place coordinate as millimetres from the board's centre."""
+    return (x_mm - PNP_CENTRE[0], y_mm - PNP_CENTRE[1])
+
+
+#: Where the pick and place puts the parts this module needs, by
+#: designator: the exporter's x and y, and the package's body wide by tall
+#: as mounted, millimetres. Bodies from the datasheets - LQFP100,
+#: PG-TDSON-8, PG-TSDSO-14, VSSOP - and the size is the drawing's, not a
+#: dimension anything computes with.
+PLACED = {
+    'U3':   (89.4245, 65.2677, 14.0, 14.0),   # STM32H753VIT6, LQFP100
+    'Q1U':  (80.9244, 93.2180, 5.2, 6.2),     # IAUCN10S7N021, PG-TDSON-8
+    'Q2U':  (74.1172, 93.2180, 5.2, 6.2),
+    'Q1V':  (109.3724, 94.6150, 5.2, 6.2),
+    'Q2V':  (102.5906, 94.6150, 5.2, 6.2),
+    'Q1W':  (137.5410, 93.2434, 5.2, 6.2),
+    'Q2W':  (130.7592, 93.2434, 5.2, 6.2),
+    'U1U':  (70.1040, 86.7664, 4.9, 3.0),     # 2EDL8034, PG-TSDSO-14
+    'U1V':  (98.9076, 88.0364, 4.9, 3.0),
+    'U1W':  (126.7460, 86.8684, 4.9, 3.0),
+    'OP1U': (90.9070, 40.0100, 3.0, 3.0),     # THS4551, VSSOP-8: the two
+    'OP2U': (90.8816, 47.7012, 3.0, 3.0),     # amplifiers of a chain
+    'OP1V': (104.1654, 36.0934, 3.0, 3.0),
+    'OP2V': (104.1400, 43.7846, 3.0, 3.0),
+    'OP1W': (117.4750, 36.9062, 3.0, 3.0),
+    'OP2W': (117.4554, 44.5988, 3.0, 3.0),
+    'U2':   (81.6102, 41.0464, 2.9, 1.6),     # REF2033, SOT-23-6
+    'U8':   (68.8576, 64.6084, 4.0, 4.0),     # MP4541, QFN: the two bucks
+    'U9':   (67.4879, 78.1307, 4.0, 4.0),     # that bring 63 V down
+    'U1':   (78.2754, 78.2771, 3.0, 3.0),     # LDI8119-3.3, the 3.3 V LDO
+    'U7':   (78.3844, 56.7919, 3.0, 3.0),     # LDI92-05, the 5 V LDO
+    'U12':  (129.2097, 73.9139, 3.0, 3.0),    # LM5069, VSSOP-10
+    'NTC1': (99.6188, 79.8322, 1.6, 0.8),     # 0603
+}
+
+
+def placed(ref):
+    """A part's centre, millimetres from the board's."""
+    x, y, _w, _h = PLACED[ref]
+    return from_pnp(x, y)
+
+
+def _blob(sigma, *refs):
+    """A heat source at the mean of some parts' centres."""
+    xs, ys = zip(*(placed(ref) for ref in refs))
+    return (sum(xs) / len(xs), sum(ys) / len(ys), sigma)
+
 
 #: Where the heat sources sit: (x, y, sigma) in millimetres per zone.
 #:
 #: `sigma` is how wide the blob is laid down, not the part's size - spreading
 #: in copper is wider than the device feeding it. A row of points is a row of
-#: parts, and they sum.
+#: parts, and they sum. Every point is a placed part or the middle of a
+#: pair: one blob a leg so the same watts draw the same size whichever leg
+#: made them, the middle driver the NTC's neighbour - which is why the NTC
+#: reads that hot spot and not the board - and the front end as its three
+#: chains and the reference.
 LAYOUT = {
-    #: The six FETs sit just inside the three phase terminals along the top,
-    #: two per leg, and each pair sits above its own driver. One blob each so
-    #: the same watts draw the same size whichever leg made them - the row
-    #: used to be four undivided points and a hot U spread over all of it.
-    'phase_u': [(-24, 31, 8)],
-    'phase_v': [(-2, 36, 8)],
-    'phase_w': [(19, 32, 8)],
-    #: The drivers are a band below them, and the middle one is the NTC's
-    #: neighbour - which is why the NTC reads that hot spot and not the board.
-    'driver_u': [(-20, 19, 9)],
-    'driver_v': [(0, 22, 9)],
-    'driver_w': [(17, 19, 9)],
-    #: The supply corner: bucks, LDOs and the LED droppers, out on the left.
-    'regulators': [(-39, 8, 10), (-40, -4, 10), (-34, 1, 9)],
-    #: The LQFP, left of centre and below it.
-    'mcu': [(-16, -13, 12)],
-    #: The amplifiers along the bottom.
-    'afe': [(-16, -33, 9), (2, -37, 9), (19, -33, 9)],
-    #: The hot swap and its terminal, on the right.
-    'hotswap': [(38, -6, 10), (35, 4, 9)],
+    'phase_u': [_blob(8, 'Q1U', 'Q2U')],
+    'phase_v': [_blob(8, 'Q1V', 'Q2V')],
+    'phase_w': [_blob(8, 'Q1W', 'Q2W')],
+    'driver_u': [_blob(9, 'U1U')],
+    'driver_v': [_blob(9, 'U1V')],
+    'driver_w': [_blob(9, 'U1W')],
+    'regulators': [_blob(10, 'U8'), _blob(10, 'U9'), _blob(8, 'U1'),
+                   _blob(8, 'U7')],
+    'mcu': [_blob(12, 'U3')],
+    'afe': [_blob(9, 'OP1U', 'OP2U'), _blob(9, 'OP1V', 'OP2V'),
+            _blob(9, 'OP1W', 'OP2W'), _blob(8, 'U2')],
+    'hotswap': [_blob(10, 'U12')],
 }
 
+#: What the picture marks: a label, the parts it stands for, and where the
+#: label sits as an offset from the group's centre, millimetres - zero
+#: puts it inside the part, which only the LQFP is big enough for, or
+#: between the parts where the group has a gap. REG is the two bucks and
+#: the two LDOs left of the MCU - they warm a little bringing 63 V down to
+#: what the board runs on - and NTC is the thermistor beside the bore, its
+#: label above the hole; both on the bench's word.
+MARKS = (
+    ('MCU', ('U3',), (0.0, 0.0)),
+    ('REG', ('U8', 'U9', 'U1', 'U7'), (0.0, 0.0)),
+    ('U', ('Q1U', 'Q2U'), (0.0, 8.0)),
+    ('V', ('Q1V', 'Q2V'), (0.0, 8.0)),
+    ('W', ('Q1W', 'Q2W'), (0.0, 8.0)),
+    ('AFE', ('OP1U', 'OP1V', 'OP1W'), (0.0, -7.0)),
+    ('HS', ('U12',), (6.5, 0.0)),
+    ('NTC', ('NTC1',), (6.6, 4.0)),
+)
+
 #: Two characters a cell in the plain ramp, so pixels come out square. In
-#: colour the half block buys that back and a cell is one character.
+#: the halftone a cell is one character.
 CELL = '  '
 
 #: Plain-text ramp, coolest first. No leading space - a space means off the
@@ -133,6 +223,35 @@ RAMP = '.,:;~-=+ic*xX#$%8W@'
 #: Lines the scale spends BELOW the picture: none since 2026-08-30 -
 #: it rides beside the board as a vertical rail, hottest at the top.
 SCALE_LINES = 0
+
+#: The halftone's range: the share of a cell's dots lit at the ramp's cold
+#: end and at its hot end. THE COLOUR CARRIES THE TEMPERATURE and the dots
+#: carry it again, so a hot zone reads hot with the palette off. Not down
+#: to nothing: under four dots in ten a cool board dissolved into grain in
+#: the raster, and the rim was the only shape left. NOT UP EITHER: five
+#: was tried when the scale's cold end read black on the bench, and it
+#: put an idle board at seven dots in ten - inside the range the
+#: attitude page measured as a brick wall, every cell a block with dark
+#: mortar round it (`wireframe.DENSITY_FLOOR`). The cold end's fix was
+#: its colour, in `ansi.THERMAL_STOPS`.
+DENSITY_COLD, DENSITY_HOT = 0.40, 1.0
+
+#: How many ranks the mask has: a share of one clears every one of them.
+NOISE_LEVELS = NOISE_N * NOISE_N
+
+#: The rim, the outlines and the labels: white, which every stop of the
+#: ramp is darker than. The amber the gauges mark with is a stop of the
+#: ramp itself - 85 C - and an outline in it would vanish over a hot leg.
+MARK_INK = ansi.WHITE
+
+#: What a dot is, by geometry alone: off the board, the field's halftone,
+#: an edge in MARK_INK, or the inside of a part - every dot lit, in the
+#: field's colour, so a part is a solid block on a stipple with a white
+#: edge round it. THE OUTLINE ALONE WAS NOT ENOUGH: a dot-wide ring over
+#: the same stipple that filled it read as a faint frame, and the bench
+#: asked for "clearer blocks, or with edges". Both, since a block with
+#: no edge would be a dense patch of field and a hot part is that already.
+OFF, FIELD, MARK, SOLID = 0, 1, 2, 3
 
 
 def field(x_mm, y_mm, board_c, nodes, layout=None):
@@ -171,7 +290,7 @@ def _grid(nodes, board_c, cells, layout, aspect=CELL_ASPECT):
     # leaves one more at the top than the bottom. Measured: the outline read
     # 16, 24, 30 down the top and 26, 20, 10 up from the bottom.
     #
-    # Even, because the half-block renderer pairs rows two to a line.
+    # Even, because the halftone pairs field rows two to a character row.
     down = max(4, int(round(cells / aspect)) // 2 * 2)
     per_row = 2.0 * OUTER_MM / down
 
@@ -209,60 +328,154 @@ def _fit(colour, reserve, margin=0):
     else:
         wide, high = columns // 2, rows
 
-    # EVEN. The half-block renderer draws two field rows per character row,
-    # so an odd count leaves the last one unpaired - it comes out as a solid
-    # background block and the bottom of the board reads blockier than the
-    # top. Rounded DOWN, so it still fits what was measured to be free.
+    # EVEN. The halftone draws two field rows per character row, so an odd
+    # count leaves the last one unpaired. Rounded DOWN, so it still fits
+    # what was measured to be free.
     return max(10, min(CELLS_MAX, min(wide, high))) // 2 * 2
 
 
-def _half_rows(grid):
-    """Colour rows, two picture rows per line, through `ansi.HALF`.
+def _density(celsius):
+    """The share of a cell's dots a temperature lights, before the mask."""
+    f = (celsius - ansi.THERMAL_MIN) / (ansi.THERMAL_MAX - ansi.THERMAL_MIN)
+    f = 0.0 if f < 0.0 else (1.0 if f > 1.0 else f)
+    return DENSITY_COLD + (DENSITY_HOT - DENSITY_COLD) * f
 
-    The glyph is a LOWER half block: the background paints the row above it
-    and the foreground the row below. One character row therefore carries two
-    rows of the field, so the picture stays square at one character per cell
-    instead of two - half the width and half the height of the plain ramp.
 
-    An edge cell has only one of the two, and BOTH cases get a half block -
-    the upper one its own glyph. Painting the upper-only case as a
-    background-coloured space filled the whole cell, which made the bottom
-    of a round board a cell coarser than the top.
+_MASKS = {}
+
+
+def _mask(cells, down, marks):
+    """What every dot is by geometry alone - off the board, field, or a
+    mark: the rim, the bore's edge, a part's outline - and which cells a
+    label covers. Cached by size, because none of it moves between frames
+    and the outline test is eleven boxes a dot.
+
+    The rim and a part's edge are ONE DOT wide - `edge` is half a dot
+    pitch either side of the line - which is what draws them as a line
+    the dots follow rather than a band the cells step. A cell is one
+    colour, so every cell an edge crosses is white whole: at two dots the
+    frame took a cell column each side and a package smaller than the
+    MCU was all frame, seen in the raster. Inside the frame is SOLID.
     """
+    key = (cells, down, marks)
+    got = _MASKS.get(key)
+    if got is not None:
+        return got
+    per_cell = 2.0 * OUTER_MM / cells
+    per_row = 2.0 * OUTER_MM / down
+    dx, dy = per_cell / 2.0, per_row / 2.0
+    edge = 0.5 * max(dx, dy)
+    bore = max(BORE_MM, per_cell)
+    boxes = []
+    for _label, refs, _at in marks:
+        for ref in refs:
+            x, y, w, h = PLACED[ref]
+            cx, cy = from_pnp(x, y)
+            boxes.append((cx, cy, w / 2.0, h / 2.0))
+
+    wide, high = 2 * cells, 2 * down
+    rows = []
+    for j in range(high):
+        y = ((high - 1) / 2.0 - j) * dy
+        line = []
+        for i in range(wide):
+            x = (i - (wide - 1) / 2.0) * dx
+            r = math.hypot(x, y)
+            if r > OUTER_MM or r < bore:
+                line.append(OFF)
+                continue
+            if r > OUTER_MM - 2.0 * edge or r < bore + 2.0 * edge:
+                line.append(MARK)
+                continue
+            kind = FIELD
+            for cx, cy, hw, hh in boxes:
+                ax, ay = abs(x - cx), abs(y - cy)
+                if ax <= hw + edge and ay <= hh + edge:
+                    kind = (SOLID if ax < hw - edge and ay < hh - edge
+                            else MARK)
+                    break
+            line.append(kind)
+        rows.append(line)
+
+    labels = {}
+    for label, refs, (ox, oy) in marks:
+        xs, ys = zip(*(placed(ref) for ref in refs))
+        lx = sum(xs) / len(xs) + ox
+        ly = sum(ys) / len(ys) + oy
+        col = int((lx / dx + (wide - 1) / 2.0) // 2) - len(label) // 2
+        row = int(((high - 1) / 2.0 - ly / dy) // 4)
+        for k, ch in enumerate(label):
+            labels[(row, col + k)] = ch
+    got = (rows, labels)
+    _MASKS[key] = got
+    return got
+
+
+def _braille_rows(grid, marks=MARKS):
+    """Colour rows: one character a cell, its four dot rows over the two
+    field rows of the grid, in the ramp's colour blended per cell.
+
+    A DOT IS LIT BY THE MASK, not by its neighbours: the temperature under
+    it sets a share and the blue-noise rank at its own screen position
+    decides, so a flat region is an even stipple and a gradient a smooth
+    one, with no structure at any density (`wireframe` has the history).
+    The field is sampled per cell - a blob is eight millimetres wide and a
+    cell one, so the dots within a cell share a temperature and only the
+    mask varies between them.
+
+    A cell with a mark in it wears MARK_INK whole: one colour a cell is
+    what a terminal gives, and a rim a dot wide is mostly rim. A cell whose
+    field centre is off the board can still hold rim dots, and draws them.
+    """
+    down, cells = len(grid), len(grid[0])
+    mask, labels = _mask(cells, down, tuple(marks or ()))
+    bit = BRAILLE_BITS
+    levels = NOISE_LEVELS
+    n = NOISE_N
     out = []
-    for top in range(0, len(grid), 2):
-        upper = grid[top]
-        lower = grid[top + 1] if top + 1 < len(grid) else [None] * len(upper)
-        parts, current = [], None
-
-        for col, over in enumerate(upper):
-            under = lower[col]
-            # Each `want` fully determines the cell, so runs of equal colour
-            # collapse to one escape - a smooth region costs a handful a line
-            # rather than one per cell.
-            if over is None and under is None:
-                want, text = ansi.RESET, ' '
-            elif under is None:
-                # The UPPER half block, not a background-coloured space: a
-                # space paints the whole cell, so the bottom edge of the
-                # board came out a cell coarser than the top and read as
-                # blocky against it.
-                want = ansi.RESET + ansi.code(ansi.thermal(over))
-                text = ansi.HALF_UP
-            elif over is None:
-                want = ansi.RESET + ansi.code(ansi.thermal(under))
-                text = ansi.HALF
+    for r in range(down // 2):
+        top = grid[2 * r]
+        low = grid[2 * r + 1] if 2 * r + 1 < down else [None] * cells
+        mrows = mask[4 * r:4 * r + 4]
+        nrows = [NOISE[(4 * r + y) % n] for y in range(4)]
+        line = []
+        for c in range(cells):
+            label = labels.get((r, c))
+            if label is not None:
+                line.append((label, MARK_INK))
+                continue
+            t0, t1 = top[c], low[c]
+            if t0 is None:
+                t0 = t1
+            if t1 is None:
+                t1 = t0
+            if t0 is None:
+                share0 = share1 = -1.0      # off the field: marks only
             else:
-                want = (ansi.back(ansi.thermal(over))
-                        + ansi.code(ansi.thermal(under)))
-                text = ansi.HALF
-
-            if want != current:
-                parts.append(want)
-                current = want
-            parts.append(text)
-
-        out.append(''.join(parts) + ansi.RESET)
+                share0 = _density(t0) * levels
+                share1 = _density(t1) * levels
+            bits, marked = 0, False
+            for lane in (0, 1):
+                i = 2 * c + lane
+                ni = i % n
+                for y in range(4):
+                    m = mrows[y][i]
+                    if m == OFF:
+                        continue
+                    if m == MARK:
+                        bits |= bit[lane][y]
+                        marked = True
+                    elif m == SOLID:
+                        bits |= bit[lane][y]
+                    elif (share0 if y < 2 else share1) > nrows[y][ni] + 0.5:
+                        bits |= bit[lane][y]
+            if not bits:
+                line.append((' ', None))
+                continue
+            colour = (MARK_INK if marked
+                      else ansi.thermal_rgb(int((t0 + t1) / 2.0 + 0.5)))
+            line.append((chr(BRAILLE + bits), colour))
+        out.append(ansi.run(line))
     return out
 
 
@@ -284,7 +497,8 @@ def _ramp_rows(grid):
 
 
 def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
-           reserve=None, trailing=2, aspect=CELL_ASPECT, margin=0):
+           reserve=None, trailing=2, aspect=CELL_ASPECT, margin=0,
+           marks=MARKS):
     """The board as a thermal picture.
 
     `nodes` is {zone: degrees} and `board_c` the bulk the field falls back to
@@ -302,7 +516,8 @@ def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
     is not the last row of the terminal.
 
     `colour` None asks the terminal: escapes into a pipe or a log are noise,
-    and the character ramp reads fine there.
+    and the character ramp reads fine there. `marks` is what the halftone
+    outlines and labels; None draws the field alone.
     """
     if colour is None:
         colour = bool(getattr(sys.stdout, 'isatty', lambda: False)())
@@ -321,7 +536,7 @@ def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
     out = []
     if title:
         out.extend(['  ' + title, ''])
-    art = _half_rows(grid) if colour else _ramp_rows(grid)
+    art = _braille_rows(grid, marks) if colour else _ramp_rows(grid)
     rail = _rail(len(art), colour)
     out.extend(row + '  ' + tag for row, tag in zip(art, rail))
     out.extend([''] * trailing)
@@ -333,11 +548,30 @@ def render(nodes, board_c, cells=None, colour=None, layout=None, title=None,
 RAIL_W = 9
 
 
+def _swatch(celsius, row, col):
+    """One cell of the rail: the field's own halftone at this temperature,
+    through the mask at this screen position - so the rail is the legend
+    for the dots as well as for the colour."""
+    share = _density(celsius) * NOISE_LEVELS
+    n = NOISE_N
+    bits = 0
+    for lane in (0, 1):
+        for y in range(4):
+            if share > NOISE[(4 * row + y) % n][(2 * col + lane) % n] + 0.5:
+                bits |= BRAILLE_BITS[lane][y]
+    return chr(BRAILLE + bits)
+
+
 def _rail(rows, colour):
     """The temperature scale as a column beside the board, hottest at the
     top. It spends width, which a round board has spare, instead of the
     rows it does not - the horizontal bar below cost the picture two
-    lines at every terminal height."""
+    lines at every terminal height. Blended like the field, so the rail
+    is the ramp and not a stack of its stops, and IN BRAILLE like the
+    field - two cells of the same halftone the board wears at that
+    temperature, on the bench's word ("the temperature scale in braille
+    too"). It was two background-painted spaces, a solid bar beside a
+    dotted board."""
     lo, hi = ansi.THERMAL_MIN, ansi.THERMAL_MAX
     marks = {}
     for t in (100, 80, 60, 40, 20, 0, -20):
@@ -347,7 +581,8 @@ def _rail(rows, colour):
     for r in range(rows):
         t = hi - (hi - lo) * (r / float(rows - 1) if rows > 1 else 0.0)
         if colour:
-            block = ansi.back(ansi.thermal(t)) + '  ' + ansi.RESET
+            block = ansi.run([(_swatch(t, r, 0) + _swatch(t, r, 1),
+                               ansi.thermal_rgb(t))])
         else:
             block = RAMP[int((t - lo) / float(hi - lo)
                              * (len(RAMP) - 1))] * 2

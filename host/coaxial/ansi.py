@@ -66,8 +66,21 @@ def code(number):
 
 
 def back(number):
-    """One 256-colour background escape."""
+    """One background escape: a palette number, or an (r, g, b) tuple as
+    24-bit colour, as `code` takes them."""
+    if isinstance(number, tuple):
+        return '\033[48;2;%d;%d;%dm' % number
     return '\033[48;5;%dm' % number
+
+
+def rgb(number):
+    """An xterm-256 cube or grey-ramp colour as (r, g, b)."""
+    if number >= 232:
+        grey = 8 + 10 * (number - 232)
+        return (grey, grey, grey)
+    c = number - 16
+    return tuple(0 if v == 0 else 55 + 40 * v
+                 for v in (c // 36, (c // 6) % 6, c % 6))
 
 
 #: Lower half block. A cell drawn with it carries two colours - foreground
@@ -108,8 +121,10 @@ BOARD_RAMP = (22, 22, 28, 34, 40, 46, 47, 83, 119, 155, 191, 227, 231)
 #: the board idles near 30 C, so 20-60 gets the resolution and red starts at
 #: 90, where a laminate is in trouble rather than merely working.
 THERMAL_STOPS = (
-    (-20.0, 17),    # deep blue
-    (0.0, 19),
+    (-20.0, 19),    # blue - 19, not 17: at four dots in ten the
+                    # halftone's cold end was black on the bench, and a
+                    # scale's floor should be a colour, "bottom-frozen"
+    (0.0, 20),
     (15.0, 25),
     (25.0, 31),     # ambient, and where the resolution has to be fine:
     (30.0, 37),     # this board idles near 30 and works between 30 and 60,
@@ -146,6 +161,24 @@ def thermal(celsius):
             half = (lo_c + hi_c) / 2.0
             return lo_n if celsius < half else hi_n
     return THERMAL_STOPS[-1][1]
+
+
+def thermal_rgb(celsius):
+    """The ramp's colour BETWEEN its stops, as (r, g, b): linear from one
+    stop's colour to the next, so a field that varies by a kelvin a cell
+    is a gradient and not a staircase of bands. `thermal` above stays
+    the banded one for anything that wants a band to read as a band.
+    """
+    if celsius <= THERMAL_STOPS[0][0]:
+        return rgb(THERMAL_STOPS[0][1])
+    for (lo_c, lo_n), (hi_c, hi_n) in zip(THERMAL_STOPS, THERMAL_STOPS[1:]):
+        if celsius <= hi_c:
+            f = (celsius - lo_c) / (hi_c - lo_c)
+            a, b = rgb(lo_n), rgb(hi_n)
+            return (int(a[0] + (b[0] - a[0]) * f + 0.5),
+                    int(a[1] + (b[1] - a[1]) * f + 0.5),
+                    int(a[2] + (b[2] - a[2]) * f + 0.5))
+    return rgb(THERMAL_STOPS[-1][1])
 
 
 def board(fraction):

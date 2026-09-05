@@ -83,6 +83,32 @@ SHADE = tuple(
 RUNGS = len(SHADE) - 1
 
 
+def _bluenoise():
+    """The threshold mask beside this module - `tools/bluenoise.py`'s
+    output, 64 x 64 ranks 0..4095 by void-and-cluster - as rows. Read,
+    not computed: the generator wants numpy and a second, and a renderer
+    wants neither."""
+    import os
+    import struct
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        'bluenoise64.bin')
+    with open(path, 'rb') as f:
+        data = f.read()
+    n = int(round(math.sqrt(len(data) // 2)))
+    flat = struct.unpack('<%dH' % (n * n), data)
+    return n, [flat[y * n:(y + 1) * n] for y in range(n)]
+
+
+#: THE HALFTONE MASK, shared: a dot is lit where the value at its own
+#: position clears the rank at its own screen position, so a surface is a
+#: stipple with no structure at any density. Laid over the DOTS - 64 by
+#: 64, thirty-two cells wide and sixteen tall - and fixed in screen space,
+#: so a board turning under it moves the density and not the dots. The
+#: attitude's face and the thermal picture both draw through it;
+#: `wireframe` has the history of what it replaced.
+NOISE_N, NOISE = _bluenoise()
+
+
 def covered(hits, of, x=0, y=0):
     """Whether a dot the shape covers `hits` of `of` samples deep lights.
 

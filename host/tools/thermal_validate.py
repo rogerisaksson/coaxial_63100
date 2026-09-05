@@ -111,9 +111,7 @@ def main():
     for name, why in (
             ('every capacity but board', 'parts settle in seconds, below what'
                                          ' this rig resolves'),
-            ('mcu position in LAYOUT', 'nobody has looked at where it sits'),
-            ('hotswap K/W', 'it ran unloaded through the whole campaign'),
-            ('all LAYOUT coordinates', 'tape measure, not CAD')):
+            ('hotswap K/W', 'it ran unloaded through the whole campaign')):
         print('  %-26s %8s    ASSUMED - %s' % (name, '-', why))
 
     rule('7. The board as a picture, switching state')

@@ -1235,6 +1235,41 @@ record's own constants, no measurement.
   the stage gets its factor, and the ceiling drops the stage through
   the gate the nodes use. Built, 0 warnings; not flashed - no motor is
   on the bench to check a winding against.
+* **The thermal observer's board is a braille halftone with its parts
+  on it, 2026-09-05.** It was half blocks - one palette stop a cell, the
+  nearest, two field rows a character - and the bench's word was
+  "pixelly": the rim stepped at the cell and the field banded at the
+  stops. Now each of a cell's eight dots is lit where the temperature
+  under it clears the blue-noise mask the attitude face uses
+  (`raster.NOISE`, moved there to be shared), denser as it is hotter,
+  in `ansi.thermal_rgb` - the same stops, blended to 24 bits between
+  them. The rim and the bore's edge are one dot wide. THE PARTS ARE ON
+  IT, from the pick and place: `thermalmap.PLACED` copies the file's
+  coordinates and `PNP_CENTRE` (106.25, 74.2) is the board's centre in
+  the exporter's frame - the placements' extents' midpoint, and the U
+  and W switch pairs sit 28.7 mm either side of it; `test_sensorless`
+  holds both to the file to a hundredth. The heat blobs moved with
+  them: the tape measure had the switches 12 mm too high and the hot
+  swap 15 mm too far out. Marked as blocks with edges: MCU, REG (the
+  two bucks and the two LDOs), U V W, AFE, HS and NTC - every dot
+  inside a package lit in the field's colour, a two-dot white edge
+  round it, a label beside or inside. Asked in four steps on the
+  bench, each after seeing the last: braille and anti-aliased; then
+  "clearer blocks, or with edges" (the dot-wide outline alone read as
+  a faint frame); then the scale in braille too - two cells of the
+  same halftone at each temperature, so the rail is the legend for the
+  dots as well as the colour; then "not black at -20, a shade of blue"
+  - the cold stops went from xterm 17 and 19 to 19 and 20. The
+  halftone's floor stayed at four dots in ten: five was tried first
+  and rastered, and it put an idle board at seven in ten, inside the
+  brick range the attitude page had measured. The same raster showed
+  the two-dot edge turning a cell column white each side, so a package
+  smaller than the MCU was all frame - one dot now, like the rim. REG
+  and NTC were the last two asks.
+  The page asks the terminal for its cell aspect like the other round
+  pages (`--cell-aspect`, the SENSE box says measured or assumed).
+  Measured: 88 cells draws in 44 ms once the geometry mask is cached
+  (73 the first time), against 40 for the half blocks.
 * **The can is seated at the top of its band, not centred.** Centred,
   whatever the band had over the can's height was split above and
   below - and on a terminal whose cell the view could not measure,

@@ -29,7 +29,8 @@ from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
 from coaxial import gauges                                 # noqa: E402
 from coaxial.thermal import ALL_NODES, pretty              # noqa: E402
-from coaxial.thermalmap import SCALE_LINES, render        # noqa: E402
+from coaxial.thermalmap import (CELL_ASPECT, SCALE_LINES,  # noqa: E402
+                                render)
 
 #: Above the picture: a blank, the banner, a blank, the state line,
 #: the budget line, a blank.
@@ -116,8 +117,10 @@ def budget_line(got):
 PANEL_W = 42
 
 
-def status_boxes(state, budget):
-    """The thermal observer's numbers as instrument boxes, every one the board's."""
+def status_boxes(state, budget, aspect=None):
+    """The thermal observer's numbers as instrument boxes, every one the
+    board's - and, given `(aspect, how)`, the one number that is the
+    terminal's: how tall its cell was measured, or assumed, to be."""
     from rich.text import Text
 
     from screen import hud
@@ -140,6 +143,8 @@ def status_boxes(state, budget):
                                       else 'settling')),
               ('sample', 'every %.0f s - last %s'
                % (every, '%.0f s ago' % age if age is not None else '-'))]
+    if aspect is not None:
+        sense.append(('cell', '%.2f tall %s' % aspect))
 
     boxes = [hud('SENSE', sense)]
     if budget is not None:
@@ -210,8 +215,14 @@ def tubes(state, budget):
     return gauges.tubes(entries, TUBE_ROWS, labels, pitch=3)
 
 
-def picture(state, console, reserve):
-    """The board and its scale. Nothing else."""
+def picture(state, console, reserve, aspect=CELL_ASPECT):
+    """The board and its scale. Nothing else.
+
+    `aspect` is the FIELD row's height against a cell's width - half the
+    character aspect `screen.aspect_of` measures, since the halftone puts
+    two field rows in a character row - so the board is round on the
+    terminal it is drawn on rather than on an assumed one.
+    """
     nodes = state['nodes']
     board_c = nodes.get('board')
     if board_c is None:
@@ -222,7 +233,7 @@ def picture(state, console, reserve):
     # 2026-08-30, and counted in the caller's reserve.
     return [''] + render(zones, board_c=board_c, colour=console,
                          margin=PANEL_W, reserve=reserve,
-                         trailing=TRAILING).split('\n')
+                         trailing=TRAILING, aspect=aspect).split('\n')
 
 
 def put_back(rig, load):
@@ -258,6 +269,9 @@ def main():
                    help='arm the gate drivers at this duty (0-1) and hold it '
                         'while drawing, so the zones have something to move')
     p.add_argument('-P', '--phases', default='U,V,W')
+    p.add_argument('--cell-aspect', type=float, default=None,
+                   help='how tall a character cell is against its width; '
+                        'measured off the terminal when not given')
     a = p.parse_args()
 
     # power_afe=False, and it is not a preference. AFE_ON high unpowers the
@@ -289,6 +303,9 @@ def main():
 
         board_view = stage()
         console = board_view.is_terminal
+        # ROUND ON THIS TERMINAL: the field's row aspect is half the
+        # character's, and the character's is asked, not assumed.
+        aspect = _screen.aspect_of(a.cell_aspect)
 
         period = 1.0 / max(a.hz, 0.2)
         # Everything in the frame that is not picture, so `render` can size
@@ -301,8 +318,10 @@ def main():
         def draw():
             try:
                 got = rig.board.thermal.state()
-                last['boxes'] = status_boxes(got, rig.board.thermal.budget())
-                last['body'] = picture(got, console, reserve)
+                last['boxes'] = status_boxes(got, rig.board.thermal.budget(),
+                                             aspect)
+                last['body'] = picture(got, console, reserve,
+                                       aspect[0] / 2.0)
             except (NoReplyError, RigError):
                 pass    # keep the last good picture: the link goes quiet
                         # now and then (FINDINGS); a blank board each time
