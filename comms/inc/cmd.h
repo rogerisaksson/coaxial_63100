@@ -289,7 +289,7 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 11U        /* 1: gate drivers op 10, alternate
+#define CMD_PROTO_MINOR 12U        /* 1: gate drivers op 10, alternate
                                      2: device 10, the drive; the DC link
                                         appended to gate drivers op 0
                                      3: a daq record ends with u16 count,
@@ -327,7 +327,15 @@ extern "C" {
                                     10: drive op 14 - the back-EMF
                                         observer chain that runs beside
                                         the loop (drive_observer.c),
-                                        read-only and steering nothing */
+                                        read-only and steering nothing
+                                    11: thermal op 4 appends the derate,
+                                        the soak joules and the duty
+                                    12: thermal op 4 appends the winding
+                                        - its estimate, spend and own
+                                        factor - and op 6 sets its
+                                        envelope: the stage throttles on
+                                        the motor's SOA as well as the
+                                        switches' */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

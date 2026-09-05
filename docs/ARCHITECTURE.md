@@ -284,7 +284,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2736 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2749 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -297,14 +297,14 @@ by `counts.py`:
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
 | test_conformance.py | 110 | the live board against PROTOCOL.md, `--conformance` |
 | test_ollama_link.py | 96 | the link diagnosis |
-| test_sensorless.py | 122 | the design arithmetic, the commissioning and the motion verbs against the stand-in, its thermistor bounded |
+| test_sensorless.py | 126 | the design arithmetic, the commissioning and the motion verbs against the stand-in, its thermistor bounded, its stage throttled on the winding |
 | test_modbus_core.py | 77 | the Modbus core through ctypes, clock injected, the oracle's prefix sweep |
 | test_daq_api.py | 75 | the acquisition front door against the stand-in |
 | test_drive_core.py | 81 | the control law against the motor model through the host gcc, the Monte Carlo included |
 | test_mcp.py | 46 | the MCP server |
 | test_render.py | 73 | the 3D engine stage by stage against an analytic oracle, the scanline halftone and the drawn rim |
 | test_filter_core.py | 42 | the anti-alias chain against its transfer function |
-| test_thermal_core.py | 78 | the SOA envelope through the host gcc - derate, lookahead, soak, the conduction split, the thermistor bounded by its pair |
+| test_thermal_core.py | 87 | the SOA envelope through the host gcc - derate, lookahead, soak, the conduction split, the thermistor bounded by its pair, the winding as an envelope of its own |
 | test_shtp_core.py | 38 | the SHTP parser |
 | test_broker.py | 33 | the shared session on a scripted port |
 | test_ollama_render.py | 32 | what the runner draws |

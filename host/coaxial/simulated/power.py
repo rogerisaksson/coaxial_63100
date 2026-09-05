@@ -3,6 +3,7 @@ gate drivers with the real arming policy."""
 import math
 import time
 
+from .. import motor
 from .. import thermal
 from ..thermal_device import THROTTLE_AT
 from ..errors import RigError
@@ -87,6 +88,18 @@ class SimulatedThermal:
     #: there to avoid.
     STEP_S = 0.1
 
+    #: THE WINDING'S ENVELOPE, the record's CAL_VERSION 12 defaults: the
+    #: motor profile's placeholder pair and an estimated ceiling, over
+    #: the stand-in record's phase resistance. The one element that is
+    #: not on the board - it sheds to the air it turns in, not the
+    #: laminate - stepped on the same slice and judged by the same ramp,
+    #: because the bench asked for the stage to throttle on how close
+    #: BOTH the switches and the motor are to their SOA.
+    WINDING_R = motor.BENCH_MOTOR.r
+    WINDING_K_PER_W = motor.WINDING_K_PER_W
+    WINDING_J_PER_K = motor.WINDING_J_PER_K
+    WINDING_LIMIT_C = 120.0
+
     def __init__(self, sample=None):
         self._seconds = 0
         self._every_s = 5.0
@@ -127,6 +140,10 @@ class SimulatedThermal:
         #: rather than added to a temperature. See `thermal.NTC_OFFSET`.
         self._ntc = thermal.AMBIENT
         self._at = None
+        #: The winding, and the copper loss last put into it - kept so
+        #: the hold can be projected without sampling again.
+        self._winding = thermal.AMBIENT
+        self._copper = 0.0
 
     def _advance(self):
         """The network integrated forward to now, in steps it can take.
@@ -203,13 +220,17 @@ class SimulatedThermal:
         # line before it considers dropping anything. Without it the
         # envelope was a cliff and the page went dead at the first trip.
         worst = self._worst()[0]
+        # ONE CLAMP, TWO ENVELOPES: the smaller of the board's factor and
+        # the winding's, as `board_thermal.c` takes it.
+        want = min(self.derate(worst), self.winding_derate())
         if self._derate_to is not None:
-            self._derate_to(self._derate_applied(self.derate(worst)))
+            self._derate_to(self._derate_applied(want))
         # THEN, only if that was not enough - AND ON EVERY NODE, not just
         # the ones the clamp reaches. A regulator at its ceiling is a stop
         # whatever a derate could have done about it; the mask says what is
-        # worth throttling on, never what counts as too hot.
-        if self._gate is None or not self._tripped():
+        # worth throttling on, never what counts as too hot. The winding
+        # at its ceiling is the same stop.
+        if self._gate is None or not (self._tripped() or self._winding_used() >= 1.0):
             return
         if self._gate():
             self._trips += 1
@@ -261,6 +282,42 @@ class SimulatedThermal:
         # bound is the chain's.
         leg = self._node[thermal.NTC_NEIGHBOUR]
         self._ntc = min(max(self._ntc, min(board, leg)), max(board, leg))
+        # THE WINDING, off the same tracked rms: `3 i_rms^2 R` into its
+        # own pair, relaxing toward the air rather than the board. Its
+        # constant is nearly seven minutes of model time, which is right;
+        # HASTE is on the clock, not the element.
+        self._copper = 3.0 * self._rms * self._rms * self.WINDING_R
+        self._winding += ((self._copper
+                           - (self._winding - thermal.AMBIENT)
+                           / self.WINDING_K_PER_W)
+                          * dt / self.WINDING_J_PER_K)
+
+    def _winding_used(self):
+        """The winding's spend against its ceiling, 0 at ambient, 1 at it."""
+        span = self.WINDING_LIMIT_C - thermal.AMBIENT
+        if span <= 0.0:
+            return 0.0              # no ceiling: nothing spent, ever
+        return max(0.0, (self._winding - thermal.AMBIENT) / span)
+
+    def _winding_soon(self):
+        """How far into the last `LOOKAHEAD_S` of hold the winding is.
+
+        `_soon` for one more element: the soak left over the net power
+        spending it, as a fraction of the window gone.
+        """
+        if self.WINDING_LIMIT_C <= thermal.AMBIENT:
+            return 0.0
+        net = (self._copper
+               - (self._winding - thermal.AMBIENT) / self.WINDING_K_PER_W)
+        if net <= 0.0:
+            return 0.0
+        togo = self.WINDING_LIMIT_C - self._winding
+        hold = (togo * self.WINDING_J_PER_K / net) if togo > 0.0 else 0.0
+        return min(1.0, 1.0 - hold / self.LOOKAHEAD_S)
+
+    def winding_derate(self):
+        """The winding's OWN factor: the same ramp, on its own spend."""
+        return self._ramp(max(self._winding_used(), self._winding_soon()))
 
     def _power(self, dt, seen):
         """Watts per node, worked out from the sample. The observer's job.
@@ -367,6 +424,17 @@ class SimulatedThermal:
         # derate stayed at 1.0 through a crossing from a fifth of the
         # budget to over the ceiling, and the stage tripped instead.
         spent = max(spent, self._soon())
+        return self._ramp(spent)
+
+    @staticmethod
+    def _ramp(spent):
+        """One at the throttle point, zero at the ceiling, linear between.
+
+        ONE DEFINITION for the board's nodes and the winding, as
+        `thermal.c`'s `derate_of` is one function for both: two ramps
+        that could drift apart would be two envelopes that disagree
+        about when a stage backs off.
+        """
         band = 1.0 - THROTTLE_AT
         if spent <= THROTTLE_AT or band <= 0.0:
             return 1.0
@@ -459,14 +527,29 @@ class SimulatedThermal:
     def budget(self):
         self._advance()
         worst, name, used = self._worst()
+        wound = self._winding_used()
         return {'used': used, 'worst': worst, 'worst_node': name,
                 'seconds_to_limit': None,
-                'throttling': worst >= THROTTLE_AT,
-                'tripped': self._tripped(), 'trips': self._trips,
+                'throttling': worst >= THROTTLE_AT or wound >= THROTTLE_AT,
+                'tripped': self._tripped() or wound >= 1.0,
+                'trips': self._trips,
                 'derate': self._derate_held, 'soak_j': self.soak_j(),
-                'duty': list(self._duty() or (0.0, 0.0, 0.0))}
+                'duty': list(self._duty() or (0.0, 0.0, 0.0)),
+                # MINOR 12: the winding's estimate, spend and OWN factor,
+                # beside `derate`, which is what the stage got.
+                'winding_c': self._winding, 'winding_used': wound,
+                'winding_derate': self.winding_derate()}
 
     def set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
+        return True
+
+    def set_winding(self, limit_c, k_per_w, j_per_k):
+        if k_per_w <= 0.0 or j_per_k <= 0.0:
+            raise RigError('the winding needs a positive K/W and J/K; '
+                           'a zero ceiling is how it is disabled')
+        self.WINDING_LIMIT_C = float(limit_c)
+        self.WINDING_K_PER_W = float(k_per_w)
+        self.WINDING_J_PER_K = float(j_per_k)
         return True
 
     def set_node(self, node, to_board, capacity):

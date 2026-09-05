@@ -425,6 +425,73 @@ typedef struct
   float   soak_j[THERMAL_NODES];
 } thermal_budget_t;
 
+/** THE WINDING: the one node that is not on the board.
+  *
+  * The stage's envelope was the board's - ten nodes, all of them copper
+  * or silicon behind the stator - and the motor it drives was a page's
+  * estimate that nothing acted on. The bench asked for the inverter to
+  * throttle on how close BOTH are to their SOA, the switches and the
+  * motor. So the winding is modelled here, the same shape as a board
+  * node with a different sink: it sheds to the air it turns in, not to
+  * the laminate, which is why it is not one more entry in the star.
+  *
+  * Copper loss is the phases' mean-square current through the phase
+  * resistance the record carries - `sum(phase_sq) * r_phase`, the same
+  * mean squares the shunts give the conduction split, so the two
+  * estimates rest on one measurement. `k_per_w` and `capacity` are the
+  * motor profile's pair, PLACEHOLDERS until a thermocouple writes real
+  * ones (host/coaxial/motor.py says so at length), and `limit_c` is the
+  * record's: a ceiling the board was given, not one it invented
+  * (invariant 10). Zero disables the ceiling and the winding says
+  * nothing.
+  */
+typedef struct
+{
+  float r_phase;    /**< ohms, line to neutral: the record's motor_r     */
+  float k_per_w;    /**< K/W, the winding into the air it turns in       */
+  float capacity;   /**< J/K                                              */
+  float limit_c;    /**< ceiling, degrees C; zero disables               */
+} thermal_winding_cfg_t;
+
+typedef struct
+{
+  thermal_winding_cfg_t cfg;
+  float c;          /**< the winding's estimate, degrees C               */
+} thermal_winding_t;
+
+/** The winding's spend and factor against the SAME envelope the board's
+  * nodes are judged by - the record's throttle point and lookahead, the
+  * same ramp. `used` is the fraction of the way from ambient to the
+  * ceiling, `derate` the clamp's factor from that and from the hold,
+  * `tripped` the ceiling reached. What acts on it takes the smaller of
+  * this factor and the board's: one clamp, two envelopes. */
+typedef struct
+{
+  float used;
+  float derate;
+  bool  throttling;
+  bool  tripped;
+} thermal_winding_budget_t;
+
+void thermal_winding_init(thermal_winding_t *w,
+                          const thermal_winding_cfg_t *cfg, float celsius);
+
+/** Copper loss, watts: the three legs' mean squares through `r_phase`,
+  * the instantaneous sample squared where no mean square arrived - the
+  * same rule `thermal_power_estimate` follows for the conduction. */
+float thermal_winding_watt(const thermal_winding_cfg_t *cfg,
+                           const thermal_load_t *load);
+
+/** One step: what it makes less what it sheds to `ambient`, into its
+  * capacity. `dt_s` past the winding's own constant lands ON the target
+  * rather than past it, as every step in this file does. */
+void thermal_winding_step(thermal_winding_t *w, float watt, float ambient,
+                          float dt_s);
+
+void thermal_winding_budget(const thermal_winding_t *w, float watt,
+                            float ambient, const thermal_soa_t *soa,
+                            thermal_winding_budget_t *out);
+
 /* No thermal_soa_defaults here on purpose. The envelope lives in the
    board's calibration record - one definition, and one that travels with the
    board rather than with the firmware. A copy here would be a second answer

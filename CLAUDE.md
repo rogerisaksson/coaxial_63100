@@ -212,7 +212,7 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2736 checks, sized from `host/tests/.counts.json` and so
+Twenty-six suites, 2749 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (601),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (223),
 `test_simulated.py` (213), `test_live_model.py` (212, needs ollama, `--live`),
@@ -220,12 +220,12 @@ measured rather than remembered: `test_structure.py` (601),
 `test_ollama_link.py` (96), `test_drive_core.py`
 (81, the control law against a motor model through the host gcc, the Monte
 Carlo's job included), `test_modbus_core.py` (77), `test_sensorless.py`
-(122, the design arithmetic - the power stage's too, and the datasheet
+(126, the design arithmetic - the power stage's too, and the datasheet
 against the thermal model - the commissioning and the motion verbs,
 dangerous paths included, against the stand-in), `test_mcp.py` (46),
 `test_shtp_core.py` (38), `test_filter_core.py` (42, the anti-alias
 chain against the transfer function it was designed from),
-`test_thermal_core.py` (78, the SOA envelope as the C that will run -
+`test_thermal_core.py` (87, the SOA envelope as the C that will run -
 the derate ramp, the lookahead, the soak joules and the conduction
 split, through the host gcc), `test_ollama_render.py` (32), `test_parity.py` (30),
 `test_ollama_board.py` (28), `test_ollama_bus.py` (28), `test_render.py`
@@ -262,7 +262,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2736 checks are in those nine files.
+  773 of this tree's 2749 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

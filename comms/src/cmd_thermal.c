@@ -19,8 +19,10 @@
   *   1  set node   - u8 node, i32 to_board_milli, i32 capacity_milli
   *   2  set board  - i32 to_ambient_milli, i32 capacity_milli
  *   3  set sample - u32 every_ms, u32 settle_ms
- *   4  budget     - the SOA spend, one byte a node
+ *   4  budget     - the SOA spend, one byte a node; MINOR 12 appends the
+ *                   winding's estimate, spend and own factor
  *   5  set limit  - u8 node, i32 limit_milli_c, i32 throttle_ppm
+ *   6  set winding - i32 limit_milli_c, i32 k_per_w_milli, i32 j_per_k_milli
   ******************************************************************************
   */
 #include "board.h"
@@ -33,6 +35,7 @@
 #define OP_SET_SAMPLE 3U
 #define OP_BUDGET     4U
 #define OP_SET_LIMIT  5U
+#define OP_SET_WINDING 6U
 
 
 static cmd_status_t op_state(wr_t *out)
@@ -208,6 +211,44 @@ static cmd_status_t op_budget(wr_t *out)
   {
     wr_i32(out, (int32_t)(b.duty[i] * 1000000.0f));
   }
+  /* MINOR 12, appended (invariant 3): the winding - its estimate in
+     centi-degrees, its spend as a byte like a node's, and its OWN clamp
+     factor in micro, so a host can say which envelope is holding the
+     stage back; `derate` above is the smaller of the two. */
+  wr_i32(out, (int32_t)(b.winding_c * 100.0f));
+  wr_u8(out, b.winding_used);
+  wr_i32(out, (int32_t)(b.winding_derate * 1000000.0f));
+  return CMD_OK;
+}
+
+
+/** op 6 - the winding's envelope: ceiling, K/W and J/K, milli-units. A
+  * zero ceiling disables the winding; the constants must be positive. */
+static cmd_status_t op_set_winding(rd_t *in, wr_t *out)
+{
+  const int32_t limit_milli = rd_i32(in);
+  const int32_t k_per_w_milli = rd_i32(in);
+  const int32_t j_per_k_milli = rd_i32(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  if ((limit_milli < 0) || (k_per_w_milli <= 0) || (j_per_k_milli <= 0))
+  {
+    cmd_took(out, "milli-units: a ceiling of 120000 is 120 C and zero "
+                  "disables it; 2200 is 2.2 K/W and 180000 is 180 J/K, "
+                  "both positive");
+    return CMD_OK;
+  }
+  if (!Board_ThermalSetWinding((float)limit_milli / 1000.0f,
+                               (float)k_per_w_milli / 1000.0f,
+                               (float)j_per_k_milli / 1000.0f))
+  {
+    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    return CMD_OK;
+  }
+  cmd_took(out, NULL);
   return CMD_OK;
 }
 
@@ -248,6 +289,7 @@ cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
     case OP_SET_SAMPLE: return op_set_sample(in, out);
     case OP_BUDGET:     return op_budget(out);
     case OP_SET_LIMIT:  return op_set_limit(in, out);
+    case OP_SET_WINDING: return op_set_winding(in, out);
     default:           return CMD_ERR_VALUE;
   }
 }

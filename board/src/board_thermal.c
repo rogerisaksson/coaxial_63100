@@ -50,6 +50,11 @@ static thermal_loss_t s_loss;
 static float s_link_volts = -1.0f;
 static thermal_soa_t  s_soa;
 static thermal_budget_t s_budget;
+/** The winding: the node that is not on the board, judged by the same
+  * envelope. `s_wound` is its last budget, and the clamp gets the
+  * smaller of its factor and the board's. */
+static thermal_winding_t s_winding;
+static thermal_winding_budget_t s_wound;
 static uint32_t       s_trips;
 static bool           s_ready;
 static uint32_t       s_last_ms;
@@ -82,6 +87,19 @@ static void soa_from_cal(void)
 }
 
 
+/** The winding's parameters out of the record: the phase resistance the
+  * drive already runs on, and the three CAL_VERSION 12 added. */
+static void winding_from_cal(void)
+{
+  const board_cal_t *cal = Board_Cal();
+
+  s_winding.cfg.r_phase = (float)cal->motor_r_uohm / 1.0e6f;
+  s_winding.cfg.k_per_w = (float)cal->winding_k_per_w_milli / 1000.0f;
+  s_winding.cfg.capacity = (float)cal->winding_j_per_k_milli / 1000.0f;
+  s_winding.cfg.limit_c = (float)cal->winding_limit_centi / 100.0f;
+}
+
+
 void Board_ThermalInit(void)
 {
   thermal_cfg_t cfg;
@@ -99,6 +117,12 @@ void Board_ThermalInit(void)
   const bool have = Board_Ntc(&raw, &centi);
 
   thermal_init(&s_th, &cfg, have ? ((float)centi / 100.0f) : 25.0f);
+  /* The winding starts where the board does: the one temperature there
+     is a reading for, and a motor that has not turned is at the room. */
+  winding_from_cal();
+  thermal_winding_init(&s_winding, &s_winding.cfg, s_th.t[THERMAL_BOARD]);
+  memset(&s_wound, 0, sizeof(s_wound));
+  s_wound.derate = 1.0f;
   s_last_ms = HAL_GetTick();
   s_sampled_ms = s_last_ms;
   s_held_ms = s_last_ms;
@@ -363,6 +387,18 @@ void Board_ThermalPoll(void)
     thermal_step(&s_th, &p, &seen, (float)slice / 1000.0f);
     thermal_budget(&s_th, &p, &s_soa, &s_budget);
 
+    /* AND THE WINDING, the node that is not on the board, on the same
+       slice and against the same envelope: its copper loss from the
+       shunts' mean squares through the record's phase resistance, shed
+       to the room. The bench asked for the stage to throttle on how
+       close BOTH the switches and the motor are to their SOA. */
+    const float copper = thermal_winding_watt(&s_winding.cfg, &load);
+
+    thermal_winding_step(&s_winding, copper, s_th.ambient,
+                         (float)slice / 1000.0f);
+    thermal_winding_budget(&s_winding, copper, s_th.ambient, &s_soa,
+                           &s_wound);
+
     /* THE ONE PLACE THIS FILE ACTS RATHER THAN REPORTS, and it acts twice.
 
        FIRST IT DERATES. Past the throttle point the drive's current clamp
@@ -376,9 +412,15 @@ void Board_ThermalPoll(void)
        the same path the break uses. Protection, not a verdict on a
        reading: the estimate is reported either way and the limits came
        from the calibration record rather than from here. */
-    Board_DriveDerate(derate_applied(s_budget.derate, slice));
+    /* ONE CLAMP, TWO ENVELOPES: the smaller factor is the one applied,
+       so whichever of the board and the motor is nearer its ceiling is
+       the one the stage backs off for. */
+    const float want = (s_wound.derate < s_budget.derate)
+                       ? s_wound.derate : s_budget.derate;
 
-    if (s_budget.tripped && Board_PwmIsEnabled())
+    Board_DriveDerate(derate_applied(want, slice));
+
+    if ((s_budget.tripped || s_wound.tripped) && Board_PwmIsEnabled())
     {
       Board_PwmDisable();
       s_trips++;
@@ -440,8 +482,9 @@ bool Board_ThermalBudget(board_budget_t *out)
   out->worst = s_budget.worst;
   out->worst_node = s_budget.worst_node;
   out->millis_to_limit = s_budget.millis_to_limit;
-  out->throttling = s_budget.throttling;
-  out->tripped = s_budget.tripped;
+  /* Either envelope: the board's nodes or the winding. */
+  out->throttling = s_budget.throttling || s_wound.throttling;
+  out->tripped = s_budget.tripped || s_wound.tripped;
   /* What is APPLIED, not what the arithmetic asked for: the recovery
      slew is part of the answer and a host that saw the raw factor would
      see it flicker while the clamp did not. */
@@ -462,6 +505,31 @@ bool Board_ThermalBudget(board_budget_t *out)
     }
   }
   out->trips = s_trips;
+  /* MINOR 12: the winding. The stage's factor above is the smaller of
+     its and the board's; this is its own, so a host can say which
+     envelope is holding the stage back. */
+  out->winding_c = s_winding.c;
+  out->winding_used = (uint8_t)(s_wound.used * 255.0f);
+  out->winding_derate = s_wound.derate;
+  return true;
+}
+
+
+bool Board_ThermalSetWinding(float limit_c, float k_per_w, float j_per_k)
+{
+  if (!s_ready)
+  {
+    return false;
+  }
+  if (!Board_CalSetWinding((int32_t)(limit_c * 100.0f),
+                           (uint32_t)(k_per_w * 1000.0f),
+                           (uint32_t)(j_per_k * 1000.0f)))
+  {
+    return false;
+  }
+  /* The estimate carries on from where it is: a new ceiling or a new
+     constant changes what the winding is judged by, not what it is at. */
+  winding_from_cal();
   return true;
 }
 

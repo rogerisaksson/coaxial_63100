@@ -671,10 +671,70 @@ def test_the_stand_in_thermistor_stays_between_its_nodes(r):
     r.check('and it still lags on the way up', lagged)
 
 
+def test_the_stand_in_throttles_on_the_winding_too(r):
+    """The stand-in's stage backs off on the motor's SOA as well as the
+    switches', the way `board_thermal.c` does since MINOR 12.
+
+    The board's ten nodes are lifted out of the way - ceilings the
+    copper cannot reach - so what is left is the winding: 60 A rms into
+    the record's 50 mOhm is 540 W into 180 J/K, three kelvin a second,
+    and the ceiling is 95 K up. The budget must carry the winding, its
+    OWN factor must be the one the stage gets once the board's is still
+    open, and the ceiling must trip the stage - through the same gate
+    the nodes use.
+    """
+    from coaxial.simulated.power import SimulatedThermal
+    from coaxial.thermal_device import THROTTLE_AT
+
+    model = SimulatedThermal()
+    model.LIMIT, model.DEFAULT_LIMIT = {}, 1e4
+    got, gate = [], []
+    model._derate_to = got.append
+    model._gate = lambda: gate.append(True) or True
+    # One instant of a balanced 60 A rms three-phase current: the peak
+    # on one leg and half of it back on the other two.
+    peak = 60.0 * math.sqrt(2.0)
+    seen = {'amps': (peak, -peak / 2.0, -peak / 2.0), 'switching': True}
+    cold = model.budget()
+    r.check('the budget carries the winding: at rest it is at ambient with '
+            'nothing spent and its clamp open',
+            abs(cold['winding_c'] - 25.0) < 1e-6 and cold['winding_used'] == 0.0
+            and cold['winding_derate'] == 1.0, str(cold))
+    throttled_at, tripped_at, stage_got = None, None, None
+    for i in range(int(120.0 / 0.1)):
+        model._integrate(0.1, seen)
+        model._envelope()
+        b = model.budget()
+        if throttled_at is None and b['winding_derate'] < 1.0:
+            # The factor the stage held AT THAT MOMENT: by the end of the
+            # loop the winding is at its ceiling and the clamp is shut.
+            throttled_at, stage_got = b, got[-1]
+        if tripped_at is None and gate:
+            tripped_at = b
+            break
+    r.check('60 A warms the winding and the board\'s nodes stay clear',
+            throttled_at is not None
+            and throttled_at['worst'] < THROTTLE_AT,
+            str(throttled_at and (throttled_at['winding_c'],
+                                  throttled_at['worst'])))
+    r.check('the winding throttles first, and what the stage got is the '
+            'winding\'s own factor - the smaller of the two',
+            throttled_at is not None and stage_got is not None
+            and abs(stage_got - throttled_at['winding_derate']) < 1e-6
+            and throttled_at['throttling'],
+            '%s vs %s' % (stage_got,
+                          throttled_at and throttled_at['winding_derate']))
+    r.check('and at its ceiling the stage is dropped through the same gate',
+            tripped_at is not None and tripped_at['tripped']
+            and tripped_at['winding_used'] >= 1.0,
+            str(tripped_at and tripped_at['winding_c']))
+
+
 ROSTER = (test_inverter, test_the_placements_behind_the_thermal_model,
           test_the_board_stays_in_the_laminar_regime,
           test_the_datasheet_against_the_thermal_model,
           test_the_stand_in_thermistor_stays_between_its_nodes,
+          test_the_stand_in_throttles_on_the_winding_too,
           test_loop, test_motion,
           test_autodetect_recovers_each_machine,
           test_arithmetic, test_budget, test_kalman,

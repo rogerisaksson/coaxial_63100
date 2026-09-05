@@ -1207,6 +1207,34 @@ record's own constants, no measurement.
   the shutter and the cap - 0.07 s and 90 degrees from 0.1 and 120 -
   and narrower is the dots a dot apart along the arc rather than half
   a dot: a lighter line, the same fade.
+* **The stage throttles on the motor's SOA as well as the switches',
+  2026-09-05.** THE MOTOR HAD NO ENVELOPE: ten nodes, every one on
+  the board, and the winding was the rotor observer's own estimate
+  that nothing acted on. The bench asked for the stage to back off on
+  how close BOTH are. The winding is one more element in `thermal.c` -
+  `3 i_rms^2 R` off the phases' mean squares through the record's
+  `motor_r_uohm`, shedding to the air it turns in rather than the
+  laminate, stepped on the same slice by `board_thermal.c` - judged by
+  `derate_of`, the one ramp both envelopes use; its K/W, J/K and
+  ceiling are CAL_VERSION 12's three fields, the motor profile's
+  placeholder pair and 120 C until a thermocouple writes real ones.
+  ONE CLAMP, TWO ENVELOPES: the stage gets the smaller factor and
+  either ceiling trips it through the same path. Op 4 appends the
+  winding's estimate, spend and OWN factor (MINOR 12), so the page can
+  say which envelope holds the stage back; op 6 sets the three. The
+  stand-in mirrors it and the page draws the board's winding when the
+  budget carries one, its own estimate marked `est` when it does not.
+  Held on the core through the host gcc: 15 W settles the winding
+  33 K up; at the same spend a node and the winding get the same
+  factor to within the wire's byte - the node's spend crosses as
+  `u8`, the winding's was compared at what the byte said, 0.945 not
+  0.947, after the first draft failed on exactly that; a cold winding
+  whose hold has fallen into the window is throttled on the hold; a
+  zero ceiling disables it. On the stand-in, 60 A rms with the
+  board's ceilings lifted out of the way: the winding throttles first,
+  the stage gets its factor, and the ceiling drops the stage through
+  the gate the nodes use. Built, 0 warnings; not flashed - no motor is
+  on the bench to check a winding against.
 * **The can is seated at the top of its band, not centred.** Centred,
   whatever the band had over the can's height was split above and
   below - and on a terminal whose cell the view could not measure,

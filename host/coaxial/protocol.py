@@ -118,7 +118,14 @@ CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               # id 45, CAL_VERSION 9: the RS485 pair's baud, applied to
               # USART2 and UART5 at init. USART3 never follows it - the
               # debug probe stays the recovery path at 115200.
-              'link_baud')
+              'link_baud',
+              # ids 46..48, CAL_VERSION 12: the winding's envelope - K/W
+              # to the air and J/K in milli, and a ceiling in
+              # centi-degrees that zero disables. The one node that is
+              # not on the board, so the stage throttles on the motor's
+              # SOA as well as the switches'.
+              'winding_k_per_w_milli', 'winding_j_per_k_milli',
+              'winding_limit_centi')
 """The record's scalars, in the order 0x6E device 3 op 0 sends them, and the
 order their ids run in. Integers in the unit that makes them integers, because
 the wire bans floating point - the names carry the unit for the same reason

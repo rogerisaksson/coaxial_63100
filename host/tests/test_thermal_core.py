@@ -141,6 +141,57 @@ class Model:
         return got
 
 
+#: The winding's envelope as the record carries it, CAL_VERSION 12: the
+#: motor profile's placeholder pair and an estimated ceiling.
+WINDING_K_PER_W = 2.2
+WINDING_J_PER_K = 180.0
+WINDING_LIMIT_C = 120.0
+
+
+class Winding:
+
+    """The one element that is not on the board, behind the harness."""
+
+    def __init__(self, lib, r_phase=0.05, k_per_w=WINDING_K_PER_W,
+                 capacity=WINDING_J_PER_K, limit_c=WINDING_LIMIT_C,
+                 celsius=AMBIENT):
+        f = ctypes.c_float
+        lib.thm_winding_new.restype = ctypes.c_void_p
+        lib.thm_winding_new.argtypes = [f, f, f, f, f]
+        lib.thm_winding_c.restype = f
+        lib.thm_winding_c.argtypes = [ctypes.c_void_p]
+        lib.thm_winding_watt.restype = f
+        lib.thm_winding_watt.argtypes = [f, ctypes.POINTER(f)]
+        lib.thm_winding_step.argtypes = [ctypes.c_void_p, f, f, f]
+        lib.thm_winding_budget.argtypes = [ctypes.c_void_p, f, f, f, f,
+                                           ctypes.POINTER(f)]
+        self.lib = lib
+        self.r_phase = r_phase
+        self.h = ctypes.c_void_p(lib.thm_winding_new(r_phase, k_per_w,
+                                                     capacity, limit_c,
+                                                     celsius))
+
+    def c(self):
+        return self.lib.thm_winding_c(self.h)
+
+    def watt(self, phase_amps=(0.0, 0.0, 0.0), phase_sq=(0.0, 0.0, 0.0)):
+        load = (list(phase_amps) + [0.0, 0.0, 0.0, 24.0, -1.0, 1.0, 0.0]
+                + list(phase_sq))
+        return self.lib.thm_winding_watt(
+            self.r_phase, (ctypes.c_float * len(load))(*load))
+
+    def step(self, watt, dt_s, ambient=AMBIENT):
+        self.lib.thm_winding_step(self.h, watt, ambient, dt_s)
+
+    def budget(self, watt=0.0, throttle_at=THROTTLE_AT, lookahead_s=0.0,
+               ambient=AMBIENT):
+        out = (ctypes.c_float * 4)()
+        self.lib.thm_winding_budget(self.h, watt, ambient, throttle_at,
+                                    lookahead_s, out)
+        return {'used': out[0], 'derate': out[1], 'throttling': out[2] > 0.5,
+                'tripped': out[3] > 0.5}
+
+
 def power(lib, phase_amps=(0.0, 0.0, 0.0), duty=(0.0, 0.0, 0.0),
           link_volts=24.0, link_amps=-1.0, switching=True, afe_on=False,
           phase_c=None, phase_sq=(0.0, 0.0, 0.0)):
@@ -948,7 +999,90 @@ def test_the_time_left_is_reported_or_not_claimed(report, lib):
                  '%.2f s' % (hot['millis'] / 1000.0))
 
 
+def test_the_winding_is_an_envelope_of_its_own(report, lib):
+    """The motor's copper, stepped and judged like a node - by the same ramp.
+
+    THE MOTOR HAD NO ENVELOPE. Ten nodes, all on the board; the winding
+    was a page's estimate nothing acted on. The bench asked for the stage
+    to throttle on how close BOTH the switches and the motor are to
+    their SOA, so the winding is one more element - shedding to the air
+    it turns in, not the laminate - fed by the phases' mean squares
+    through the record's phase resistance and judged by `derate_of`, the
+    ONE ramp both envelopes use. Held here: the copper loss, the step's
+    steady state, the spend and the ramp against the board's own, the
+    hold-based lookahead, and that a zero ceiling disables it.
+    """
+    w = Winding(lib)
+    # `3 i_rms^2 R` off the mean squares when they are there ...
+    report.check('10 A rms on every phase through 50 mOhm is 15 W of copper',
+                 abs(w.watt(phase_sq=(100.0, 100.0, 100.0)) - 15.0) < 1e-3,
+                 '%.3f W' % w.watt(phase_sq=(100.0, 100.0, 100.0)))
+    # ... and the instantaneous sample squared when they are not.
+    report.check('and with no mean squares the sample is squared instead',
+                 abs(w.watt(phase_amps=(10.0, 0.0, 0.0)) - 5.0) < 1e-3,
+                 '%.3f W' % w.watt(phase_amps=(10.0, 0.0, 0.0)))
+
+    # 15 W across 2.2 K/W is a 33 K rise; 180 J/K makes the constant 396
+    # s, and five of them settle it.
+    for _ in range(20000):
+        w.step(15.0, 0.1)
+    report.check('15 W settles the winding 33 K over ambient',
+                 abs(w.c() - (AMBIENT + 33.0)) < 0.5, '%.2f C' % w.c())
+    got = w.budget()
+    report.check('a third of the way to the ceiling spends a third',
+                 abs(got['used'] - 33.0 / (WINDING_LIMIT_C - AMBIENT)) < 0.01
+                 and got['derate'] == 1.0 and not got['throttling'],
+                 '%.3f spent, clamp %.3f' % (got['used'], got['derate']))
+
+    # THE SAME RAMP AS THE BOARD'S, and there is only one way to be sure:
+    # put a node and the winding the same fraction up their own scales
+    # and ask both.
+    # The node's spend crosses the wire as a byte, so the comparison is
+    # made at the spend the byte says, not the one the placement asked.
+    node = Model(lib)
+    node.place('phase_u', AMBIENT + 0.947 * (LIMIT_C - AMBIENT))
+    b = node.budget()
+    spend = b['used']['phase_u']
+    hot = Winding(lib, celsius=AMBIENT + spend * (WINDING_LIMIT_C - AMBIENT))
+    a = hot.budget()
+    report.check('at %.3f of its ceiling the winding throttles' % spend,
+                 a['throttling'] and 0.0 < a['derate'] < 1.0
+                 and not a['tripped'],
+                 'clamp %.3f' % a['derate'])
+    report.check('by exactly the factor a node at %.3f of its own gets - '
+                 'one ramp, one definition' % spend,
+                 abs(a['derate'] - b['derate']) < 2e-3,
+                 'winding %.3f, node %.3f' % (a['derate'], b['derate']))
+
+    cooked = Winding(lib, celsius=WINDING_LIMIT_C + 1.0)
+    got = cooked.budget()
+    report.check('past its ceiling it trips and the clamp is closed',
+                 got['tripped'] and got['derate'] == 0.0,
+                 '%.3f spent, clamp %.3f' % (got['used'], got['derate']))
+
+    # THE HOLD, NOT THE TEMPERATURE. A cold winding with a hundred watts
+    # on it and one joule per kelvin has under a second to its ceiling:
+    # inside a twenty second window that is most of the window gone.
+    thin = Winding(lib, capacity=1.0)
+    soon = thin.budget(watt=100.0, lookahead_s=20.0)
+    now = thin.budget(watt=100.0, lookahead_s=0.0)
+    report.check('a cold winding whose hold has fallen into the window '
+                 'is throttled on the hold',
+                 soon['derate'] < 1.0 and now['derate'] == 1.0,
+                 'with lookahead %.3f, without %.3f'
+                 % (soon['derate'], now['derate']))
+
+    off = Winding(lib, limit_c=0.0, celsius=200.0)
+    got = off.budget()
+    report.check('a zero ceiling disables the winding: nothing spent, '
+                 'nothing tripped, the clamp open',
+                 got['used'] == 0.0 and not got['tripped']
+                 and got['derate'] == 1.0,
+                 '%.3f spent, clamp %.3f' % (got['used'], got['derate']))
+
+
 ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
+          test_the_winding_is_an_envelope_of_its_own,
           test_the_lookahead_catches_a_ramp,
           test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,

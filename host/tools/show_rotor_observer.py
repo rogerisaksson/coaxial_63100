@@ -1456,9 +1456,22 @@ def winding(view):
     it.
 
     First order like the board's own observer, and integrated here
-    because nothing on the wire carries it.
+    only when nothing on the wire carries it.
+
+    THE BOARD'S, SINCE MINOR 12. The winding is one more element the
+    board steps on the same slice as its ten nodes and judges by the
+    same envelope - the bench asked for the stage to throttle on how
+    close BOTH the switches and the motor are to their SOA - and the
+    budget carries its estimate. The page draws what the board acts on;
+    the local integration below is for older firmware, and the legend
+    says which it is.
     """
 
+    budget = view.get('budget') or {}
+    if 'winding_c' in budget:
+        view['winding'] = budget['winding_c']
+        view['winding_at'] = time.monotonic()
+        return view['winding']
     now = time.monotonic()
     was, view['winding_at'] = view.get('winding_at'), now
     params = view['params']
@@ -1706,7 +1719,15 @@ def motor_headroom(view):
     So it is a margin only the operator can act on, and it is named apart
     from the board's for that reason. The board still judges nothing
     here; the page is doing the arithmetic and saying whose it is.
+
+    UNLESS THE BOARD HAS THE WINDING - MINOR 12 - in which case the
+    margin is what is left against the ceiling its record was given,
+    the same fraction the board throttles the stage on, and this page
+    draws that instead of its own scale.
     """
+    budget = view.get('budget') or {}
+    if 'winding_used' in budget:
+        return max(0.0, 1.0 - budget['winding_used'])
     return motor_headroom_of(winding(view))
 
 
@@ -1846,7 +1867,10 @@ def thermal_rows(view):
         rows.append(('soak', '%9.1f J left in %s' % (soak[worst_node],
                                                      worst_node)))
     # The two gauges along the foot, named in the order they lie there.
-    rows.append(('winding', '%9.1f C est, upper foot bar' % winding(view)))
+    rows.append(('winding', '%9.1f C %s, upper foot bar'
+                 % (winding(view),
+                    'board' if 'winding_c' in (view.get('budget') or {})
+                    else 'est')))
     rows.append(('power', '%9.1f W of %.0f log, lower' % (watts(view),
                                                           WATTS_SCALE)))
     if view['load']:

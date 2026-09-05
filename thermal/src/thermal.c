@@ -339,6 +339,24 @@ static float hold_seconds(const thermal_t *th, const thermal_power_t *p,
 }
 
 
+/** The clamp's factor for a spend: one below the throttle point,
+  * falling to zero at the ceiling, linear between. ONE DEFINITION for
+  * the board's nodes and the winding, so the two envelopes back off on
+  * the same ramp and a bench tuning the throttle point tunes both. */
+static float derate_of(float spent, const thermal_soa_t *soa)
+{
+  const float band = 1.0f - soa->throttle_at;
+
+  if ((spent <= soa->throttle_at) || !(band > 0.0f))
+  {
+    return 1.0f;
+  }
+  const float over = (spent - soa->throttle_at) / band;
+
+  return (over >= 1.0f) ? 0.0f : (1.0f - over);
+}
+
+
 void thermal_budget(const thermal_t *th, const thermal_power_t *p,
                     const thermal_soa_t *soa, thermal_budget_t *out)
 {
@@ -456,18 +474,7 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
     }
   }
 
-  const float band = 1.0f - soa->throttle_at;
-
-  if ((spent <= soa->throttle_at) || !(band > 0.0f))
-  {
-    out->derate = 1.0f;
-  }
-  else
-  {
-    const float over = (spent - soa->throttle_at) / band;
-
-    out->derate = (over >= 1.0f) ? 0.0f : (1.0f - over);
-  }
+  out->derate = derate_of(spent, soa);
 
   /* Time left, for the node that has least of it - the same `hold_seconds`
      the throttle acts on, so the number a host plans a burst with is the
@@ -481,6 +488,119 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
 
     out->millis_to_limit = (millis > 2.0e9f) ? 2000000000 : (int32_t)millis;
   }
+}
+
+
+void thermal_winding_init(thermal_winding_t *w,
+                          const thermal_winding_cfg_t *cfg, float celsius)
+{
+  if ((w == NULL) || (cfg == NULL))
+  {
+    return;
+  }
+  w->cfg = *cfg;
+  w->c = celsius;
+}
+
+
+float thermal_winding_watt(const thermal_winding_cfg_t *cfg,
+                           const thermal_load_t *load)
+{
+  if ((cfg == NULL) || (load == NULL))
+  {
+    return 0.0f;
+  }
+  float sq = 0.0f;
+
+  for (int leg = 0; leg < 3; leg++)
+  {
+    const float a = load->phase_amps[leg];
+
+    sq += (load->phase_sq[leg] > 0.0f) ? load->phase_sq[leg] : (a * a);
+  }
+  return sq * cfg->r_phase;
+}
+
+
+void thermal_winding_step(thermal_winding_t *w, float watt, float ambient,
+                          float dt_s)
+{
+  if ((w == NULL) || !(dt_s > 0.0f) || !(w->cfg.capacity > 0.0f))
+  {
+    return;
+  }
+  const float tau = w->cfg.k_per_w * w->cfg.capacity;
+
+  if ((tau > 0.0f) && (dt_s > tau))
+  {
+    dt_s = tau;
+  }
+  const float shed = (w->cfg.k_per_w > 0.0f)
+                     ? (w->c - ambient) / w->cfg.k_per_w : 0.0f;
+
+  w->c += (watt - shed) * dt_s / w->cfg.capacity;
+}
+
+
+void thermal_winding_budget(const thermal_winding_t *w, float watt,
+                            float ambient, const thermal_soa_t *soa,
+                            thermal_winding_budget_t *out)
+{
+  if (out == NULL)
+  {
+    return;
+  }
+  memset(out, 0, sizeof(*out));
+  out->derate = 1.0f;
+  if ((w == NULL) || (soa == NULL))
+  {
+    return;
+  }
+  const float span = w->cfg.limit_c - ambient;
+
+  if (!(span > 0.0f))
+  {
+    return;                    /* no ceiling: the winding says nothing */
+  }
+  float used = (w->c - ambient) / span;
+
+  if (used < 0.0f)
+  {
+    used = 0.0f;
+  }
+  if (used > 1.0f)
+  {
+    used = 1.0f;
+  }
+  out->used = used;
+  out->tripped = used >= 1.0f;
+
+  /* THE SAME TWO FRACTIONS AS A BOARD NODE: where it is, and how far into
+     the reaction window its hold has come - the soak over the net power
+     spending it. The bigger wins, and the ramp is `derate_of`'s. */
+  float spent = used;
+
+  if ((soa->lookahead_s > 0.0f) && (w->cfg.capacity > 0.0f))
+  {
+    const float shed = (w->cfg.k_per_w > 0.0f)
+                       ? (w->c - ambient) / w->cfg.k_per_w : 0.0f;
+    const float gain = watt - shed;
+    const float togo = w->cfg.limit_c - w->c;
+
+    if (gain > 0.0f)
+    {
+      const float hold = (togo > 0.0f) ? (togo * w->cfg.capacity / gain)
+                                       : 0.0f;
+      const float pressed = 1.0f - (hold / soa->lookahead_s);
+
+      if (pressed > spent)
+      {
+        spent = (pressed > 1.0f) ? 1.0f : pressed;
+      }
+    }
+  }
+  out->throttling = spent >= soa->throttle_at;
+  out->derate = derate_of(spent, soa);
 }
 
 

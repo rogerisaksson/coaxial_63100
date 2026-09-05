@@ -217,6 +217,101 @@ API void thm_budget(const thermal_t *th, const float *watt,
 }
 
 
+/** LOAD_ORDER into the struct - one place, for the estimator and the
+  * winding both. */
+static void load_from(thermal_load_t *in, const float *load)
+{
+  memset(in, 0, sizeof(*in));
+  in->phase_amps[0] = load[0];
+  in->phase_amps[1] = load[1];
+  in->phase_amps[2] = load[2];
+  in->duty[0] = load[3];
+  in->duty[1] = load[4];
+  in->duty[2] = load[5];
+  in->link_volts = load[6];
+  in->link_amps = load[7];
+  in->switching = (load[8] != 0.0f);
+  in->afe_on = (load[9] != 0.0f);
+  in->phase_sq[0] = load[10];
+  in->phase_sq[1] = load[11];
+  in->phase_sq[2] = load[12];
+}
+
+
+/** The winding: a heap object like `thm_new`, its four parameters and a
+  * starting temperature. */
+API thermal_winding_t *thm_winding_new(float r_phase, float k_per_w,
+                                       float capacity, float limit_c,
+                                       float celsius)
+{
+  thermal_winding_t *w = calloc(1, sizeof(*w));
+  thermal_winding_cfg_t cfg;
+
+  cfg.r_phase = r_phase;
+  cfg.k_per_w = k_per_w;
+  cfg.capacity = capacity;
+  cfg.limit_c = limit_c;
+  if (w != NULL)
+  {
+    thermal_winding_init(w, &cfg, celsius);
+  }
+  return w;
+}
+
+
+API float thm_winding_c(const thermal_winding_t *w)
+{
+  return (w != NULL) ? w->c : NAN;
+}
+
+
+/** Copper loss for a LOAD_ORDER load through `r_phase`. */
+API float thm_winding_watt(float r_phase, const float *load)
+{
+  thermal_load_t in;
+  thermal_winding_cfg_t cfg;
+
+  if (load == NULL)
+  {
+    return 0.0f;
+  }
+  load_from(&in, load);
+  memset(&cfg, 0, sizeof(cfg));
+  cfg.r_phase = r_phase;
+  return thermal_winding_watt(&cfg, &in);
+}
+
+
+API void thm_winding_step(thermal_winding_t *w, float watt, float ambient,
+                          float dt_s)
+{
+  thermal_winding_step(w, watt, ambient, dt_s);
+}
+
+
+/** WINDING_ORDER: used, derate, throttling, tripped. */
+API void thm_winding_budget(const thermal_winding_t *w, float watt,
+                            float ambient, float throttle_at,
+                            float lookahead_s, float *out)
+{
+  thermal_soa_t soa;
+  thermal_winding_budget_t b;
+
+  if (out == NULL)
+  {
+    return;
+  }
+  memset(&soa, 0, sizeof(soa));
+  soa.throttle_at = throttle_at;
+  soa.lookahead_s = lookahead_s;
+  thermal_winding_budget(w, watt, ambient, &soa, &b);
+  out[0] = b.used;
+  out[1] = b.derate;
+  out[2] = b.throttling ? 1.0f : 0.0f;
+  out[3] = b.tripped ? 1.0f : 0.0f;
+}
+
+
 /** The power estimator. `load` is LOAD_SLOTS long, `phase_c` three node
   * temperatures or NULL for the flat 25 C figure, `out` THERMAL_NODES.
   */
@@ -230,20 +325,7 @@ API void thm_power(const float *load, const float *phase_c, float *out)
   {
     return;
   }
-  memset(&in, 0, sizeof(in));
-  in.phase_amps[0] = load[0];
-  in.phase_amps[1] = load[1];
-  in.phase_amps[2] = load[2];
-  in.duty[0] = load[3];
-  in.duty[1] = load[4];
-  in.duty[2] = load[5];
-  in.link_volts = load[6];
-  in.link_amps = load[7];
-  in.switching = (load[8] != 0.0f);
-  in.afe_on = (load[9] != 0.0f);
-  in.phase_sq[0] = load[10];
-  in.phase_sq[1] = load[11];
-  in.phase_sq[2] = load[12];
+  load_from(&in, load);
 
   thermal_losses(&loss);
   thermal_power_estimate(&p, &in, &loss, phase_c);

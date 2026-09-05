@@ -52,9 +52,12 @@
       the link report. */
 /* 10: soa_lookahead_ms, so the throttle can act on a ramp rather than on
       a reading. */
-#define CAL_VERSION 11U  /* 11: soa_undriven_mask - the housekeeping nodes
-                            are judged but not throttled on, because a
-                            clamp on the phase current cannot cool them. */
+/* 11: soa_undriven_mask - the housekeeping nodes are judged but not
+      throttled on, because a clamp on the phase current cannot cool them. */
+#define CAL_VERSION 12U  /* 12: the winding's envelope - K/W, J/K and a
+                            ceiling for the one node that is not on the
+                            board, so the stage throttles on the motor's
+                            SOA as well as the switches'. */
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes; the record is a few hundred bytes against a
@@ -120,6 +123,15 @@ static const board_cal_t CAL_DEFAULTS =
   .soa_undriven_mask = (1UL << BOARD_THERMAL_MCU)
                      | (1UL << BOARD_THERMAL_REGULATORS)
                      | (1UL << BOARD_THERMAL_AFE),
+  /* The winding, CAL_VERSION 12. 2.2 K/W and 180 J/K are the motor
+     profile's PLACEHOLDERS (host/coaxial/motor.py: the order of magnitude
+     an outrunner of this size has, measured against nothing), and 120 C
+     is an ESTIMATE of a ceiling - under class F magnet wire's 155 and
+     nearer where a bonded magnet starts to lose flux than any datasheet
+     in this tree says. A bench with a thermocouple writes real ones. */
+  .winding_k_per_w_milli = 2200UL,
+  .winding_j_per_k_milli = 180000UL,
+  .winding_limit_centi   = 12000,
   .vref_uv          = 3300000UL,      /* U2 REF2033, 3.3 V +/-0.05 %       */
   .shunt_uohm       = 3500UL,         /* RU1 || RU2, 7 mohm each           */
   .amp_gain_ppm     = 4545455UL,      /* THS4551, Rf 1.5k / Rg 330         */
@@ -340,6 +352,12 @@ static uint32_t *cal_field(uint8_t id)
     case BOARD_CAL_DRV_DT_STEP_MA: return &s_cal.drv_dt_step_ma;
     case BOARD_CAL_DRV_SIGMA_I_UA: return &s_cal.drv_sigma_i_ua;
     case BOARD_CAL_DRV_TRIGGER_TICKS: return &s_cal.drv_trigger_ticks;
+    case BOARD_CAL_WINDING_K_MILLI: return &s_cal.winding_k_per_w_milli;
+    case BOARD_CAL_WINDING_J_MILLI: return &s_cal.winding_j_per_k_milli;
+    /* Signed in the record, a u32 on the wire and here: the same
+       two's-complement carriage every signed parameter uses. */
+    case BOARD_CAL_WINDING_LIMIT_CENTI:
+      return (uint32_t *)&s_cal.winding_limit_centi;
     default:                     return NULL;
   }
 }
@@ -414,6 +432,23 @@ bool Board_CalSetThrottle(uint32_t ppm)
     return false;
   }
   s_cal.soa_throttle_ppm = ppm;
+  s_cal.crc = cal_crc(&s_cal);
+  return true;
+}
+
+
+bool Board_CalSetWinding(int32_t limit_centi, uint32_t k_per_w_milli,
+                         uint32_t j_per_k_milli)
+{
+  /* A zero ceiling disables the winding and is allowed; the two
+     constants divide the step and are not. */
+  if ((limit_centi < 0) || (k_per_w_milli == 0U) || (j_per_k_milli == 0U))
+  {
+    return false;
+  }
+  s_cal.winding_limit_centi = limit_centi;
+  s_cal.winding_k_per_w_milli = k_per_w_milli;
+  s_cal.winding_j_per_k_milli = j_per_k_milli;
   s_cal.crc = cal_crc(&s_cal);
   return true;
 }

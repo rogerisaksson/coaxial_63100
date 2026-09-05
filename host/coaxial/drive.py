@@ -76,8 +76,13 @@ PARAMS = {
     'drv_v_frac_ppm': 1e6, 'drv_sign': 1.0,
     'drv_w_lo_mrad_s': 1e3, 'drv_w_hi_mrad_s': 1e3, 'drv_dt_step_ma': 1e3,
     'drv_sigma_i_ua': 1e6, 'drv_trigger_ticks': 1.0,
+    # The winding's envelope, CAL_VERSION 12: K/W and J/K in milli, the
+    # ceiling in centi-degrees.
+    'winding_k_per_w_milli': 1e3, 'winding_j_per_k_milli': 1e3,
+    'winding_limit_centi': 1e2,
 }
-SIGNED = ('drv_inj_phase_mrad', 'drv_eps_gain_ua_per_rad', 'drv_sign')
+SIGNED = ('drv_inj_phase_mrad', 'drv_eps_gain_ua_per_rad', 'drv_sign',
+          'winding_limit_centi')
 
 
 def to_wire(name, value):

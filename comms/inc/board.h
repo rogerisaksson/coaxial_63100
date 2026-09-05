@@ -814,6 +814,11 @@ void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code);
 /* CAL_VERSION 9. */
 #define BOARD_CAL_LINK_RATE           45U  /**< the RS485 pair's rate (the wire
                                                 and the host say `link_baud`)   */
+/* CAL_VERSION 12: the winding's envelope. The ceiling travels as its
+   centi-degrees in the u32, two's complement like every signed one. */
+#define BOARD_CAL_WINDING_K_MILLI     46U  /**< K/W to the air, milli         */
+#define BOARD_CAL_WINDING_J_MILLI     47U  /**< J/K, milli                     */
+#define BOARD_CAL_WINDING_LIMIT_CENTI 48U  /**< ceiling, centi-degrees; 0 off  */
 #define BOARD_CAL_PARAM_COUNT 46U
 
 /** One channel's correction, applied to the raw code before any scaling. */
@@ -929,6 +934,19 @@ typedef struct
      the recovery path, and a mistyped rate here must not take it too. */
   uint32_t link_baud;
 
+  /* CAL_VERSION 12: the winding's envelope. The motor is not on the board
+     and had no ceiling the board acted on; the bench asked for the stage
+     to throttle on how close BOTH the switches and the motor are to
+     their SOA. `motor_r_uohm` above is the resistance the copper loss
+     goes through; these are the winding's K/W to the air it turns in,
+     its J/K, and its ceiling in centi-degrees - the motor profile's
+     placeholder pair (host/coaxial/motor.py) and an ESTIMATE of a
+     ceiling, none of the three measured, and zero on the ceiling
+     disables the lot. */
+  uint32_t winding_k_per_w_milli;
+  uint32_t winding_j_per_k_milli;
+  int32_t  winding_limit_centi;
+
   uint16_t crc;
 } board_cal_t;
 
@@ -966,6 +984,11 @@ bool Board_CalSetLimit(uint8_t node, int32_t limit_centi);
 
 /** Where derating starts, parts per million of the budget. */
 bool Board_CalSetThrottle(uint32_t ppm);
+
+/** The winding's envelope: ceiling in centi-degrees (zero disables), K/W
+  * and J/K in milli. Refused where a value is not positive. */
+bool Board_CalSetWinding(int32_t limit_centi, uint32_t k_per_w_milli,
+                         uint32_t j_per_k_milli);
 bool Board_CalChannel(uint8_t index, int32_t *offset_raw, int32_t *gain_ppm);
 
 /**
@@ -1277,12 +1300,24 @@ typedef struct
     * The EFFECTIVE duty: what the derate and the clamp left, not what
     * anything asked for. */
   float    duty[BOARD_PWM_PHASES];
+  /** MINOR 12: THE WINDING, the one node that is not on the board.
+    * Its estimate in degrees C, its spend against the record's
+    * `winding_limit_centi` (0 at ambient, 255 at the ceiling), and its
+    * OWN clamp factor - `derate` above is what the stage got, the
+    * smaller of this and the board's. Zero ceiling: 0, 1.0. */
+  float    winding_c;
+  uint8_t  winding_used;
+  float    winding_derate;
 } board_budget_t;
 
 bool Board_ThermalBudget(board_budget_t *out);
 
 /** Set one node's ceiling, degrees C. Zero disables that node's limit. */
 bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at);
+
+/** The winding's ceiling, degrees C (zero disables), and its K/W and J/K:
+  * written to the record and taken up by the observer at once. */
+bool Board_ThermalSetWinding(float limit_c, float k_per_w, float j_per_k);
 
 /**
   * @brief  Scale the drive's current clamp, 1.0 down to 0.0.

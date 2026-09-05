@@ -460,9 +460,15 @@ i32 capacity_milli` → `u8 took`. Op 2 set board: `i32 to_ambient_milli,
 i32 capacity_milli` → `u8 took`. Op 3 set sample: `u32 every_ms,
 u32 settle_ms` → `u8 took`. Op 4 budget: `u8 10`, per node `u8 used`
 (0 at ambient, 255 at the limit), `u8 worst, u8 worst_node,
-i32 millis_to_limit, u8 throttling, u8 tripped, u32 trips`. Op 5 set
-limit: `u8 node, i32 limit_milli_c, i32 throttle_ppm` → `u8 took`.
-Nodes 0 .. 9: driver U/V/W, phase U/V/W, mcu, regulators, afe, board.
+i32 millis_to_limit, u8 throttling, u8 tripped, u32 trips`; MINOR 11
+appends `i32 derate_micro`, per node `i32 soak_mj`, per phase
+`i32 duty_micro`; MINOR 12 appends the winding, `i32 winding_centi,
+u8 winding_used, i32 winding_derate_micro`. Op 5 set limit: `u8 node,
+i32 limit_milli_c, i32 throttle_ppm` → `u8 took`. Op 6 set winding
+(MINOR 12): `i32 limit_milli_c, i32 k_per_w_milli, i32 j_per_k_milli` →
+`u8 took`; a zero ceiling disables the winding, the constants must be
+positive. Nodes 0 .. 9: driver U/V/W, phase U/V/W, mcu, regulators, afe,
+board.
 MAJOR 2 (2026-08-29) gave each leg its own node and repurposed the
 indices.
 
@@ -576,6 +582,27 @@ after the clamp and the derate, not what anything asked for.
 A host on an older codec stops reading at `trips` and is right about
 everything it read (invariant 3).
 
+### The winding, MINOR 12
+
+THE MOTOR HAD NO ENVELOPE. Ten nodes, every one of them on the board;
+the winding was a page's estimate that nothing acted on. The bench
+asked for the stage to throttle on how close BOTH the switches and the
+motor are to their SOA. The winding is one more element with a
+different sink - it sheds to the air it turns in, not to the laminate -
+stepped on the same slice and judged by the SAME envelope: the record's
+throttle point, its lookahead, the same ramp (`thermal.c`'s `derate_of`,
+one definition for both). Its copper loss is the phases' mean squares
+through the record's `motor_r_uohm`, the same measurement the
+conduction split rests on; its K/W, J/K and ceiling are CAL_VERSION 12's
+three fields, ids 46 to 48, the motor profile's placeholder pair and an
+estimated ceiling until a thermocouple writes real ones.
+
+ONE CLAMP, TWO ENVELOPES: the stage gets the smaller of the board's
+factor and the winding's, and either at its ceiling trips. Op 4 appends
+the winding's estimate, its spend and its OWN factor so a host can say
+which envelope is holding the stage back; `derate` stays what was
+applied. `throttling` and `tripped` cover both.
+
 ## Versioning
 
 MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
@@ -593,6 +620,7 @@ MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 | 9 | fixed-shape requests dispatch on their own CRC, not t3.5 |
 | 10 | drive op 14, the back-EMF observer chain |
 | 11 | thermal budget appends the derate, the soak joules and the effective duty |
+| 12 | thermal budget appends the winding - estimate, spend, own factor; thermal op 6 sets its envelope |
 
 MAJOR 2, 2026-08-29: the thermal nodes went per leg and the node
 indices were repurposed - a host could follow the length and not the

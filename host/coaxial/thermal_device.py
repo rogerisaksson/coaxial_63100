@@ -40,6 +40,7 @@ THERMAL_OP_SET_BOARD = 2
 THERMAL_OP_SET_SAMPLE = 3
 THERMAL_OP_BUDGET = 4
 THERMAL_OP_SET_LIMIT = 5
+THERMAL_OP_SET_WINDING = 6
 
 
 class Thermal(Subsystem):
@@ -146,7 +147,32 @@ class Thermal(Subsystem):
                 name = ALL_NODES[i] if i < len(ALL_NODES) else 'node%d' % i
                 got['soak_j'][name] = r.i32() / 1e3
             got['duty'] = [r.i32() / 1e6 for _ in range(3)]
+        # MINOR 12: the winding - the one node that is not on the board.
+        # Its estimate, its spend against the record's ceiling, and its
+        # OWN factor; `derate` above is what the stage got, the smaller
+        # of it and the board's, so the two say which envelope holds
+        # the stage back. Absent on older firmware, and absent is
+        # honest: the page then estimates the winding itself and says
+        # so.
+        if r.remaining >= 9:
+            got['winding_c'] = r.i32() / 100.0
+            got['winding_used'] = r.u8() / 255.0
+            got['winding_derate'] = r.i32() / 1e6
         return got
+
+    def set_winding(self, limit_c, k_per_w, j_per_k):
+        """The winding's envelope: its ceiling in degrees C - zero
+        disables it - and its K/W to the air and J/K.
+
+        The board holds these; it does not invent them (invariant 10).
+        The record's defaults are the motor profile's placeholder pair
+        and an estimated ceiling; a bench with a thermocouple on the
+        winding writes what it measured over them.
+        """
+        return self._ack(THERMAL_OP_SET_WINDING, pack(
+            ('i32', int(round(limit_c * 1000))),
+            ('i32', int(round(k_per_w * 1000))),
+            ('i32', int(round(j_per_k * 1000)))))
 
     def set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
         """One node's ceiling in degrees C, and where derating starts.
