@@ -1130,6 +1130,18 @@ record's own constants, no measurement.
   follows the silhouette, in the bright edge tone, and the face inside
   it stays a stipple in the light's tone: two vocabularies on one
   board.
+* **"A shade pixelly" - the face is scanlines now, 2026-09-05.** A
+  stipple of scattered single points on black is grain however evenly
+  the mask spreads it, and no density inside the window smooths it
+  without the bricks coming back. Rastered at the bench's framing: the
+  stipple as shipped, the same with a cap of four dots a cell, and the
+  same dots confined to alternate dot rows (`SCAN_ROWS`, rows 0 and 2,
+  the density doubled along them so a cell carries the same ink). The
+  lines were the smooth one: fine broken horizontal lines that close up
+  in the highlights, the coherent structure a stipple has none of and
+  the retro terminal's own - and with two rows of four always dark a
+  cell cannot fill, so the bricks stay gone by construction. The face's
+  alphabet is the sixteen patterns two rows make, plus the rim's lines.
 * **The can is seated at the top of its band, not centred.** Centred,
   whatever the band had over the can's height was split above and
   below - and on a terminal whose cell the view could not measure,

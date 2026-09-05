@@ -406,8 +406,10 @@ def test_the_face_is_a_halftone(report):
         said.append('%.2f: %d of %d' % (s, got, want))
         # A cell the mask leaves blank keeps one dot - a drawn cell is
         # never blank - so at the floor, one dot a cell on average, the
-        # count runs over by up to a dot for every cell left blank.
-        ok = ok and want <= got <= want + (n // 2) * (n // 4)
+        # count runs over by up to a dot for every cell left blank; and
+        # on two rows of four the mask's ranks are a sample of the whole,
+        # so the count sits within a couple of per cent of its share.
+        ok = ok and want - 0.02 * n * n <= got <= want + (n // 2) * (n // 4)
     report.check('a flat field lights the mask\'s share of a tile: the '
                  'floor, then the light, up to the ceiling',
                  ok, ', '.join(said))
@@ -494,8 +496,10 @@ def test_the_face_is_a_halftone(report):
                  and all(hist[r] for r in range(1, 5)),
                  '%.2f lit, %s' % (mean, ' '.join(
                      '%d:%d' % (r, hist[r]) for r in range(0, 9))))
-    report.check('and it wears the block - dozens of glyphs, not eight',
-                 len(set(face)) >= 40, '%d distinct' % len(set(face)))
+    # Scanlines light two rows of four, so the face's own alphabet is the
+    # sixteen patterns those rows make, plus the rim's lines.
+    report.check('and it wears more than the ladder\'s eight glyphs',
+                 len(set(face)) >= 16, '%d distinct' % len(set(face)))
 
     # THE RIM, CLIPPED AND LIT. A part-covered cell's dots all lie in
     # quadrants the 2x2 raster reached - nothing spills past the board -

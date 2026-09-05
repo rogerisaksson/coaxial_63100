@@ -599,6 +599,18 @@ DENSITY_FLOOR = 0.12
 #: their own terms, so an edge is still a line.
 DENSITY_CEIL = 0.45
 
+#: THE FACE IS SCANLINES. Of a cell's four dot rows only these light,
+#: and the density rides along them doubled, so a cell carries the same
+#: ink in half its rows. "A shade pixelly" was the stipple's last word
+#: on the bench: scattered single points on black, however evenly
+#: spread, are grain. Confined to alternate rows the same dots join into
+#: fine broken horizontal lines that close up in the highlights - the
+#: coherent structure a stipple has none of, and the retro terminal's
+#: own - and with two rows of four always dark no cell can fill, so the
+#: bricks cannot come back. Rastered beside the stipple and a per-cell
+#: cap at the bench's framing; the lines were the smooth one.
+SCAN_ROWS = (0, 2)
+
 #: The exposure: which percentiles of the frame's lit heat land at the
 #: ladder's ends, and how fast the window follows from frame to frame.
 #: PER FRAME, because a fixed window was fitted on one frame - 368 cells
@@ -1099,6 +1111,7 @@ def _dots(grid, heat, classes, coverage, width, height, window,
     gain = 1.0 / (hi - lo) if hi > lo else 0.0
     levels = float(NOISE_N * NOISE_N)
     span = DENSITY_CEIL - DENSITY_FLOOR
+    along = 4.0 / len(SCAN_ROWS)
     for py in range(height):
         row = py * width
         for px in range(width):
@@ -1119,15 +1132,18 @@ def _dots(grid, heat, classes, coverage, width, height, window,
             base = (here - lo) * gain
             mask = 0
             for ox, oy, bit in DOT_AT:
+                y = int((oy + 0.5) * 4.0)
+                if y not in SCAN_ROWS:
+                    continue
                 if not reach & (1 << ((0 if ox < 0.0 else 1)
                                       + (0 if oy < 0.0 else 2))):
                     continue
                 share = base + (gx * ox + gy * oy) * gain
                 share = 0.0 if share < 0.0 else (1.0 if share > 1.0
                                                  else share)
-                share = DENSITY_FLOOR + span * share
+                share = min(1.0, (DENSITY_FLOOR + span * share) * along)
                 dx = (px * 2 + (0 if ox < 0.0 else 1)) % NOISE_N
-                dy = (py * 4 + int((oy + 0.5) * 4.0)) % NOISE_N
+                dy = (py * 4 + y) % NOISE_N
                 if share * levels > NOISE[dy][dx] + 0.5:
                     mask |= bit
             grid[py][px] = chr(BRAILLE + (mask or DOT_AT[0][2]))
