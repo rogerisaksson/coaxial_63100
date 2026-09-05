@@ -69,8 +69,11 @@ def bar(share, cells, cls=SOA_OK, tip=MARK, colour=True):
     """One row, `cells` wide: a SOLID level - every dot of every cell to
     the level, `⣿⣿⣿` in `cls` - ending in a column of `tip`'s ink, `⡇`
     or `⢸` whichever lane the level ends in, and the rest of the scale
-    the dotted track. The tip's cell holds the tip alone, so it reads
-    as a line and not as a cell of the level in another colour.
+    a track of grey columns the cell's full height, `⡇` a cell. The
+    tip's cell holds the tip alone, so it reads as a line and not as a
+    cell of the level in another colour. The track is four dots tall,
+    not the gauge's three, on the bench's word - "the grey rows four
+    tall too" - so the scale is as tall as the level that fills it.
 
     THE BENCH ASKED FOR IT, twice: the thermal observer's spend was a
     one-row gauge in square brackets, `[⣿⣿⣿⠒⠒⠒] 42 %`, and the word
@@ -92,7 +95,11 @@ def bar(share, cells, cls=SOA_OK, tip=MARK, colour=True):
         if cls > frame.owner[0][col]:
             frame.owner[0][col] = cls
     machine._mark(frame.dots, frame.owner, 0, at, tip, range(DOTS_Y))
-    machine._level(frame.dots, frame.owner, 0, at + 1, wide, 0, 0, cls)
+    for col in range(at // DOTS_X + 1, cells):
+        for y in range(DOTS_Y):
+            frame.dots[0][col] |= machine.BRAILLE_BITS[0][y]
+        if TRACK > frame.owner[0][col]:
+            frame.owner[0][col] = TRACK
     return frame.lines(INK, colour=colour)[0]
 
 

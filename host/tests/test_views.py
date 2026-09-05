@@ -406,7 +406,7 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     from rich.console import Console
 
     sys.path.insert(0, HOST)
-    from coaxial import ansi, gauges
+    from coaxial import ansi, gauges, machine
     from tools import show_thermal_observer as page
     from tools import stage
 
@@ -415,11 +415,13 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
     report.check('a bar is one row of sixteen cells',
                  len(line) == 16, str(len(line)))
     report.check('solid ⣿ to half way, then the tip in the lane the '
-                 'level ends in - ⡇ - then the dotted track',
+                 'level ends in - ⡇ - then the track, a grey column the '
+                 'cell\'s full height in every cell',
                  line[:8] == '⣿' * 8 and line[8] == '⡇'
-                 and '⣿' not in line[9:] and '⠇' in line[9:], line)
-    report.check('and the tip is orange',
-                 '38;5;%dm' % ansi.AMBER in half,
+                 and line[9:] == '⡇' * 7, line)
+    report.check('the tip is orange and the track is the track\'s grey',
+                 '38;5;%dm' % ansi.AMBER in half
+                 and '38;5;%dm' % machine.INK[machine.TRACK] in half,
                  half.replace(chr(27), '^'))
     odd = re.sub('\x1b\\[[0-9;]*m', '', gauges.bar(17.0 / 32.0, 16))
     report.check('a level ending in the other lane tips with ⢸, the '
@@ -427,9 +429,9 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
                  odd[:8] == '⣿' * 8 and odd[8] == '⢸', odd)
     empty = re.sub('\x1b\\[[0-9;]*m', '', gauges.bar(0.0, 16))
     full = re.sub('\x1b\\[[0-9;]*m', '', gauges.bar(1.0, 16))
-    report.check('nothing spent is a tip at the start; everything, a '
-                 'solid row to a tip at the end',
-                 empty[0] == '⡇' and '⣿' not in empty
+    report.check('nothing spent is a tip at the start of a full-height '
+                 'track; everything, a solid row to a tip at the end',
+                 empty == '⡇' * 16
                  and full[:15] == '⣿' * 15 and full[15] == '⢸',
                  '%s | %s' % (empty, full))
 

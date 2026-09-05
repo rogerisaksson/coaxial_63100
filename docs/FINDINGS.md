@@ -1325,10 +1325,13 @@ record's own constants, no measurement.
   row, every dot of every cell to the level in the margin's colour, a
   tip column in the mark's amber in whichever lane the level ends -
   its cell holding the tip alone, so it is a line and not a coloured
-  cell of level - and the dotted track beyond. No throttle mark: the
-  margin's colour says where the throttle point is, as the shared
-  gauge does. The old one-line `budget_line` and the `summary` line
-  went - both dead since the boxes replaced them.
+  cell of level - and the track beyond. No throttle mark: the margin's
+  colour says where the throttle point is, as the shared gauge does.
+  Then "the grey rows four tall too": the track was the gauge's
+  three-dot `⠇` a cell and is a full-height `⡇` a cell in the track's
+  grey, so the scale stands as tall as the level that fills it. The
+  old one-line `budget_line` and the `summary` line went - both dead
+  since the boxes replaced them.
 * **The clock sync guarded its first NTP query and not its second,
   2026-09-05.** CI on Python 3.10 crashed the whole DAQ suite with
   `TimeoutError: timed out` out of `ntp_offset` - a runner that reached
