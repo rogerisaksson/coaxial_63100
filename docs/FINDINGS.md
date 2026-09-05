@@ -1290,6 +1290,16 @@ record's own constants, no measurement.
   dotted rim, no solid cell in the mark ink. Held: no marked cell is
   solid and the marks are under a fifth of the lit cells; each phase's
   two shunts sit inside that phase's frame, U left of V left of W.
+  AND THEN RIGHT ANGLES, the bench's next word with its own glyphs:
+  "braille with just a border and right angles ⠒⢲, ⡖⠒". A frame
+  sampled from its millimetres put each line on whatever dot row the
+  edge fell and left the corners ragged. `_draw_frame` snaps the box
+  to the cell grid and draws it through the cells' own dots - the top
+  across dot row 1, the bottom across row 2, the sides down a lane -
+  so a frame is `⡖⠒⠒⢲` over `⠧⠤⠤⠼` with `⡇` and `⢸` between, box
+  drawing in braille; never under two cells each way, and it still
+  stops at the rim. Held: five of each corner glyph and ten of each
+  run on the demo board.
 * **BOARD ATTITUDE holds its face at rest and caps itself at 30 Hz,
   2026-09-05.** The bench's word: "the laptop's fans run away". Profiled
   at 108x40, zoom 1.27: a frame cost 104 ms in one process - 75 of

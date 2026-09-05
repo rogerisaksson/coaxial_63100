@@ -396,6 +396,49 @@ def _density(celsius):
 
 _MASKS = {}
 
+#: A frame's lines in a cell's dots: the top across dot row 1, the
+#: bottom across dot row 2, the sides down a lane - so the corners are
+#: right angles, `⡖⠒⠒⢲` over `⠧⠤⠤⠼`, the bench's own glyphs ("braille
+#: with just a border and right angles"). A frame sampled from its
+#: millimetres landed its lines on whatever dot row the edge fell, and
+#: the corners came out ragged.
+FRAME_TOP, FRAME_BOTTOM = 1, 2
+
+
+def _draw_frame(rows, box, cells, down, dx, dy):
+    """A frame SNAPPED TO THE CELL GRID: the box's edges land in the
+    cells that hold them and are drawn as lines through those cells'
+    dots - FRAME_TOP and FRAME_BOTTOM across, a lane down - so every
+    corner is a right angle and every side a straight run. Never less
+    than two cells each way, so a small part still gets a box; a dot
+    past the rim is left as it is, so a frame that reaches the rim
+    stops there."""
+    cx, cy, hw, hh = box
+    wide, high = 2 * cells, 2 * down
+    c0 = int(((cx - hw) / dx + (wide - 1) / 2.0) // 2)
+    c1 = int(((cx + hw) / dx + (wide - 1) / 2.0) // 2)
+    r0 = int(((high - 1) / 2.0 - (cy + hh) / dy) // 4)
+    r1 = int(((high - 1) / 2.0 - (cy - hh) / dy) // 4)
+    c0, c1 = max(0, c0), min(cells - 1, max(c1, c0 + 1))
+    r0, r1 = max(0, r0), min(down // 2 - 1, max(r1, r0 + 1))
+
+    def mark(r, c, lane, y):
+        j, i = 4 * r + y, 2 * c + lane
+        if 0 <= j < high and 0 <= i < wide and rows[j][i] != OFF:
+            rows[j][i] = MARK
+
+    for c in range(c0, c1 + 1):
+        for lane in (0, 1):
+            mark(r0, c, lane, FRAME_TOP)
+            mark(r1, c, lane, FRAME_BOTTOM)
+    for r in range(r0, r1 + 1):
+        for y in range(4):
+            # The corner starts AT the line, not above or below it.
+            if (r == r0 and y < FRAME_TOP) or (r == r1 and y > FRAME_BOTTOM):
+                continue
+            mark(r, c0, 0, y)
+            mark(r, c1, 1, y)
+
 
 def _mask(cells, down, marks):
     """What every dot is by geometry alone - off the board, field, or a
@@ -403,10 +446,11 @@ def _mask(cells, down, marks):
     label covers. Cached by size, because none of it moves between frames
     and the line test is eight frames a dot.
 
-    The rim and a frame are ONE DOT wide - `edge` is half a dot pitch
-    either side of the line - which is what draws them as a line the dots
-    follow rather than a band the cells step. A frame that reaches past
-    the rim - the shunts sit at the terminals - stops at the rim.
+    The rim is ONE DOT wide - `edge` is half a dot pitch either side of
+    the circle - which is what draws it as a line the dots follow rather
+    than a band the cells step. A frame is drawn by `_draw_frame` on the
+    cell grid, and one that reaches past the rim - the shunts sit at the
+    terminals - stops at the rim.
     """
     key = (cells, down, marks)
     got = _MASKS.get(key)
@@ -430,18 +474,11 @@ def _mask(cells, down, marks):
             if r > OUTER_MM or r < bore:
                 line.append(OFF)
                 continue
-            if r > OUTER_MM - 2.0 * edge or r < bore + 2.0 * edge:
-                line.append(MARK)
-                continue
-            kind = FIELD
-            for cx, cy, hw, hh in boxes:
-                ax, ay = abs(x - cx), abs(y - cy)
-                if ((abs(ax - hw) <= edge and ay <= hh + edge)
-                        or (abs(ay - hh) <= edge and ax <= hw + edge)):
-                    kind = MARK
-                    break
-            line.append(kind)
+            line.append(MARK if (r > OUTER_MM - 2.0 * edge
+                                 or r < bore + 2.0 * edge) else FIELD)
         rows.append(line)
+    for box in boxes:
+        _draw_frame(rows, box, cells, down, dx, dy)
 
     labels = {}
     for (label, refs, where), box in zip(marks, boxes):

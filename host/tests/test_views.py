@@ -494,13 +494,25 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     lit = [(ch, fg) for row in ansi2png.parse(said) for ch, fg, _bg in row
            if 0x2800 <= ord(ch) < 0x2900]
     marked = [ch for ch, fg in lit if fg == white]
+    # A solid marked cell is two frames' sides sharing a cell column -
+    # REG's right and the MCU's left are a millimetre apart - and
+    # nothing else: a handful, never an area.
+    solid = sum(dots(ch) == 8 for ch in marked)
     report.check('a marked cell is a line, never a solid block',
-                 marked and all(dots(ch) < 8 for ch in marked),
-                 '%d solid of %d' % (sum(dots(ch) == 8 for ch in marked),
-                                     len(marked)))
+                 marked and solid <= 0.02 * len(marked),
+                 '%d solid of %d' % (solid, len(marked)))
     report.check('and the frames are a thin share of the board',
                  0 < len(marked) < 0.2 * len(lit),
                  '%d marked of %d lit' % (len(marked), len(lit)))
+    # RIGHT ANGLES: the frames are box-drawing in braille, the bench's
+    # own glyphs - corners, and straight runs between them.
+    corners = {ch: marked.count(ch) for ch in '⡖⢲⠧⠼'}
+    runs = {ch: marked.count(ch) for ch in '⠒⠤⡇⢸'}
+    report.check('the frames have right-angled corners - '
+                 '⡖⠒⠒⢲ over ⠧⠤⠤⠼',
+                 all(n >= 5 for n in corners.values()), str(corners))
+    report.check('and straight sides between them',
+                 all(n >= 10 for n in runs.values()), str(runs))
 
     rail = [row[cells + 2:cells + 4] for row in rows if len(row) > cells + 3]
     report.check('the scale beside it is braille too, denser at the hot '
