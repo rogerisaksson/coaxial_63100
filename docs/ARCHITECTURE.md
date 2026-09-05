@@ -207,6 +207,18 @@ the reading it belongs to. Below `WEAK_GAUSS` the instrument is drawn
 and the reading is not - a face with no needle on it, which is what
 there is when no magnet is in front of the sensor.
 
+Every level on every page is one instrument - `coaxial/gauges.py`: a
+horizontal gauge one row tall (bipolar with a centre and ticks for the
+meter bridge) and a rank of vertical tubes with labels, drawn by the
+same code as the machine's gutters and floor (`machine._level`,
+`machine._tube`) on a `machine.Frame`. `screen.gauge` delegates to it,
+so the session's boxes, the desk's buffer gauge, the meter bridge's
+bars and the thermal observer's TUBES box all draw the level the motor
+page draws: mercury at dot resolution, the empty scale in the track's
+grey, the colour a margin. The temperature scale every thermometer
+shares (-35 to 130 C) and the two colour bands - margin against a
+ceiling, and the thermistor's cold-to-hot ramp - live there too.
+
 The rotor observer draws the machine itself - `coaxial/machine.py`, a
 braille cross-section of rotor and stator whose slot and pole counts
 come from what was identified, teeth as long as their phase is driven.
@@ -272,15 +284,15 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2712 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2722 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 |---|---|---|
-| test_structure.py | 594 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
+| test_structure.py | 598 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 218 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
-| test_simulated.py | 212 | the stand-in and the renderers |
+| test_simulated.py | 213 | the stand-in and the renderers, the desk's braille bars |
 | test_live_model.py | 212 | the model, `--live` |
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
 | test_conformance.py | 110 | the live board against PROTOCOL.md, `--conformance` |
@@ -290,7 +302,7 @@ by `counts.py`:
 | test_daq_api.py | 75 | the acquisition front door against the stand-in |
 | test_drive_core.py | 81 | the control law against the motor model through the host gcc, the Monte Carlo included |
 | test_mcp.py | 46 | the MCP server |
-| test_render.py | 71 | the 3D engine stage by stage against an analytic oracle, the sampled braille ladder |
+| test_render.py | 72 | the 3D engine stage by stage against an analytic oracle, the halftone and the clipped rim |
 | test_filter_core.py | 42 | the anti-alias chain against its transfer function |
 | test_thermal_core.py | 78 | the SOA envelope through the host gcc - derate, lookahead, soak, the conduction split, the thermistor bounded by its pair |
 | test_shtp_core.py | 38 | the SHTP parser |
@@ -299,7 +311,7 @@ by `counts.py`:
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 114 | every view and the front page drawn twice, the rotor observer's geometry, its gauges on one scale and its DRIVE box |
+| test_views.py | 118 | every view and the front page drawn twice, the rotor observer's geometry, its gauges on one scale, the bead's wake and its DRIVE box |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |

@@ -49,9 +49,10 @@ def _band(job):
     depth, top, sun = engine.raster(_BODIES[which], m, fine, beam=beam,
                                     sun_min=sun_min,
                                     band=(2 * first, 2 * last))
-    depth, top, sun, coverage = engine.fold(depth, top, sun, width, rows)
+    depth, top, sun, coverage, quads = engine.fold(depth, top, sun, width,
+                                                   rows)
     if shading is None:
-        return depth, top, sun, coverage
+        return depth, top, sun, coverage, quads
     pivot, slope, floor, shadow, shadow_step, bias, art = shading
     # shade() back-projects each cell from its row: hand it a camera
     # whose cy is shifted by the band's first row so row 0 of the strip
@@ -63,7 +64,7 @@ def _band(job):
                            art=_ART if art else None, shadow=shadow,
                            shadow_step=shadow_step, bias=bias,
                            levels=levels, bare=bare, seed=seed)
-    return depth, coverage, classes, levels, bare, seed
+    return depth, coverage, quads, classes, levels, bare, seed
 
 
 def _decimate(job):
@@ -138,32 +139,36 @@ class Crew:
         return next(i for i, held in enumerate(self.solids) if held is solid)
 
     def raster(self, solid, m, cam, beam=None, sun_min=0.0):
-        """(depth, top, sun, coverage) at cell resolution for the whole
-        frame: 2x2 raster and fold, as bands, concatenated in order."""
+        """(depth, top, sun, coverage, quads) at cell resolution for the
+        whole frame: 2x2 raster and fold, as bands, concatenated in
+        order."""
         jobs = [(self._which(solid), m, cam, beam, sun_min, band, None)
                 for band in split(cam['height'], self.workers)]
         depth, top, sun, coverage = [], bytearray(), bytearray(), []
-        for d, t, s, c in self.pool.map(_band, jobs):
+        quads = bytearray()
+        for d, t, s, c, q in self.pool.map(_band, jobs):
             depth += d
             top += t
             sun += s
             coverage += c
-        return depth, top, sun, coverage
+            quads += q
+        return depth, top, sun, coverage, quads
 
     def frame(self, solid, m, cam, beam, sun_min, shading):
-        """(depth, coverage, classes, levels, bare, seed) for the whole
-        frame, each band rastered, folded AND shaded by its worker.
+        """(depth, coverage, quads, classes, levels, bare, seed) for the
+        whole frame, each band rastered, folded AND shaded by its worker.
         `shading` = (pivot, slope, floor, shadow, shadow_step, bias,
         art) - `art` a flag: the worker holds the face itself."""
         jobs = [(self._which(solid), m, cam, beam, sun_min, band, shading)
                 for band in split(cam['height'], self.workers)]
-        depth, coverage, classes = [], [], bytearray()
+        depth, coverage, quads, classes = [], [], bytearray(), bytearray()
         levels, bare, seed = [], [], []
-        for d, c, k, lv, b, s in self.pool.map(_band, jobs):
+        for d, c, q, k, lv, b, s in self.pool.map(_band, jobs):
             depth += d
             coverage += c
+            quads += q
             classes += k
             levels += lv
             bare += b
             seed += s
-        return depth, coverage, classes, levels, bare, seed
+        return depth, coverage, quads, classes, levels, bare, seed

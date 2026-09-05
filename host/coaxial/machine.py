@@ -226,7 +226,7 @@ PHASE_NAMES = ('U', 'V', 'W')
 #: within a cell of each other.
 INK = {TRACK: 237, BORE: 240, CAN: 23, YOKE: 23,
        TOOTH_U: 38, TOOTH_V: 71, TOOTH_W: 103,
-       SOUTH: 94, NORTH: ansi.AMBER, TRUTH: 252, POINTER: 231,
+       SOUTH: 94, NORTH: ansi.AMBER, TRUTH: 252, POINTER: ansi.AMBER,
        SOA_OK: 41, SOA_WARN: 178, SOA_TRIP: 196,
        #: Not a margin against a ceiling like the rest of them, so
        #: not one of their colours: this one is a quantity.
@@ -269,6 +269,24 @@ RULE_Y = 1
 #: tube one column across cannot carry a gradient - what it can carry is
 #: which band it is in.
 INK.update(dict(zip(NTC_RAMP, (33, 45, 41, 178, 196))))
+
+#: A MARK on a gauge - a burst's extreme, a held peak - above every
+#: level class, because a tick that yields to the level it marks is
+#: not seen. The palette's orange, the ink every page gives the thing
+#: to be found: the bead on the rim, a value in a box, a mark on a
+#: meter.
+MARK = NTC_RAMP[-1] + 1
+INK[MARK] = ansi.AMBER
+
+#: THE BEAD'S WAKE, nearest first: the arc behind the bead is how fast
+#: the can turns and which way, and it fades from the bead's own
+#: orange into the south pole's brown so it reads as motion and not as
+#: three more marks. Drawn over the rim it rides - a smear across the
+#: can is what a moving thing looks like - and `Frame.put` lets it, as
+#: it lets the truth stroke.
+TRAIL = tuple(range(MARK + 1, MARK + 4))
+INK.update(dict(zip(TRAIL, (208, 172, 130))))
+MARKS = frozenset((TRUTH,) + TRAIL)
 
 #: The bar classes in the order a fraction picks one: below the
 #: board's throttle point, past it, at the ceiling. Which fraction
@@ -526,35 +544,57 @@ def _gauge(dots, owner, width, height, row, share, cls,
         first, last = (int(first + index * step),
                        int(first + (index + 1) * step) - 1)
     lo, hi = max(0, first) * DOTS_X, min(width - 1, last) * DOTS_X + DOTS_X
-    wide = hi - lo
-    filled = int(max(0.0, min(1.0, share)) * wide + 0.5)
-    # THE CELL THE LEVEL ENDS IN HOLDS LEVEL AND NOTHING ELSE, for the
-    # reason `_bars` gives: a track dot inside it took the level's
-    # colour and the bar read a whole cell long whatever the level was.
-    # Kept clear, the end of the bar is drawn at the dot - one lane or
-    # two - and a level that moves one dot is seen to move.
-    edge = (lo + filled - 1) // DOTS_X if filled else -1
-    for step in range(wide):
-        x = lo + step
+    filled = int(max(0.0, min(1.0, share)) * (hi - lo) + 0.5)
+    _level(dots, owner, row, lo, hi, lo, lo + filled, cls)
+
+
+def _level(dots, owner, row, lo, hi, start, end, cls):
+    """A horizontal level on `row`, in DOT columns: the scale runs `lo`
+    to `hi` (exclusive) and the level fills `start` to `end` in `cls`;
+    the rest of the scale is track. The same instrument wherever a page
+    draws a level - `gauges` calls it for every other view.
+
+    THE CELLS THE LEVEL ENDS IN HOLD LEVEL AND NOTHING ELSE, for the
+    reason `_tube` gives: a track dot inside one took the level's colour
+    and the bar read a whole cell long whatever the level was. Kept
+    clear, the end of the bar is drawn at the dot - one lane or two -
+    and a level that moves one dot is seen to move. Both ends, because a
+    bipolar gauge's level starts at its centre and not at the scale's.
+
+    ONE COLUMN A CELL, AT THE GAUGE'S OWN HEIGHT. Every fourth dot put
+    one in every other cell, so the empty half of a gauge came out as a
+    dashed line with gaps a cell wide; one dot a cell on the middle row
+    was a scale, but a scale a single dot tall beside a level three tall
+    - the tubes' track runs the tube's whole width, and the bench asked
+    for the same here: the empty half of the gauge is the gauge's own
+    height, in the track's grey.
+    """
+    ends = ({start // DOTS_X, (end - 1) // DOTS_X} if end > start
+            else set())
+    for x in range(lo, hi):
         col = x // DOTS_X
-        if step < filled:
+        if start <= x < end:
             for y in GAUGE_Y:
                 dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y]
             if cls > owner[row][col]:
                 owner[row][col] = cls
-        elif x % DOTS_X == 0 and col != edge:
-            # ONE COLUMN A CELL, AT THE GAUGE'S OWN HEIGHT. Every fourth
-            # dot put one in every other cell, so the empty half of a
-            # gauge came out as a dashed line with gaps a cell wide; one
-            # dot a cell on the middle row was a scale, but a scale a
-            # single dot tall beside a level three tall - the tubes' track
-            # runs the tube's whole width, and the bench asked for the
-            # same here: the empty half of the gauge is the gauge's own
-            # height, in the track's grey.
+        elif x % DOTS_X == 0 and col not in ends:
             for y in GAUGE_Y:
                 dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y]
             if TRACK > owner[row][col]:
                 owner[row][col] = TRACK
+
+
+def _mark(dots, owner, row, x, cls, ys=GAUGE_Y):
+    """A tick at dot column `x`, on dot rows `ys` - a level's height for
+    a burst's extreme, the top dot alone for a held peak. Drawn over
+    whatever is there and claiming the cell, because a mark that yields
+    to the level it marks is not seen."""
+    col = x // DOTS_X
+    if 0 <= row < len(dots) and 0 <= col < len(dots[row]):
+        for y in ys:
+            dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y]
+        owner[row][col] = cls
 
 
 def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
@@ -611,48 +651,53 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
                 # groups of bars that measure different things.
                 continue
             share, cls = entry
-            col = columns[index]
-            filled = int(max(0.0, min(1.0, share)) * tall + 0.5)
-            # THE CELL THE MERCURY ENDS IN HOLDS MERCURY AND NOTHING
-            # ELSE. A cell is one colour, and the mercury's class wins
-            # it - so a track dot drawn above the level inside that cell
-            # took the mercury's colour and the level read a row higher
-            # than it was. Worse, it read a WHOLE row: the top of every
-            # bar came out `⣿` whatever the level, and a tube that fills
-            # in cell steps barely moves. Kept clear, the top of the
-            # mercury is drawn at the dot - `⣀`, `⣤`, `⣶`, `⣿` - and a
-            # level that moves one dot is seen to move.
-            edge = ((top_row * DOTS_Y + tall - filled) // DOTS_Y
-                    if filled else -1)
-            for step in range(tall):
-                y = top_row * DOTS_Y + tall - 1 - step
-                row = y // DOTS_Y
-                if step < filled:
-                    # The column of mercury: both dots, solid, in the
-                    # band's own colour.
-                    for x in (col * DOTS_X, col * DOTS_X + 1):
-                        dots[row][x // DOTS_X] |= \
-                            BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
-                    if cls > owner[row][col]:
-                        owner[row][col] = cls
-                elif y % DOTS_Y in (1, 3) and row != edge:
-                    # THE TUBE ABOVE IT, on the cell's own second and
-                    # fourth rows so every track cell is the same `⣒`. A bar with nothing over it says
-                    # how hot a node is; a bar in a tube says how hot it
-                    # is OF WHAT IT MAY BE, which is the only version of
-                    # the question a ceiling makes sense of.
-                    #
-                    # THE TUBE'S OWN WIDTH, both lanes. One lane made the
-                    # empty half of a thermometer narrower than the
-                    # mercury under it, so a tall tube read as a scale
-                    # and a short one as a stray dot beside a bar - which
-                    # is why the bench saw the dimmed pixels on some
-                    # thermometers and not others. Every other dot ROW
-                    # still, so it stays a scale and not more level.
-                    for lane in range(DOTS_X):
-                        dots[row][col] |= BRAILLE_BITS[lane][y % DOTS_Y]
-                    if TRACK > owner[row][col]:
-                        owner[row][col] = TRACK
+            _tube(dots, owner, columns[index], top_row * DOTS_Y, tall,
+                  share, cls)
+
+
+def _tube(dots, owner, col, top, tall, share, cls):
+    """One thermometer in cell column `col`: a tube `tall` dots high from
+    dot row `top`, the mercury `share` of it from the bottom in `cls`,
+    the rest track. The same instrument wherever a page draws a
+    thermometer - `gauges` calls it for every other view.
+
+    THE CELL THE MERCURY ENDS IN HOLDS MERCURY AND NOTHING ELSE. A cell
+    is one colour, and the mercury's class wins it - so a track dot
+    drawn above the level inside that cell took the mercury's colour
+    and the level read a row higher than it was. Worse, it read a WHOLE
+    row: the top of every bar came out `⣿` whatever the level, and a
+    tube that fills in cell steps barely moves. Kept clear, the top of
+    the mercury is drawn at the dot - `⣀`, `⣤`, `⣶`, `⣿` - and a level
+    that moves one dot is seen to move.
+
+    THE TUBE ABOVE IT, on the cell's own second and fourth rows so every
+    track cell is the same `⣒`. A bar with nothing over it says how hot
+    a node is; a bar in a tube says how hot it is OF WHAT IT MAY BE,
+    which is the only version of the question a ceiling makes sense of.
+    THE TUBE'S OWN WIDTH, both lanes: one lane made the empty half of a
+    thermometer narrower than the mercury under it, so a tall tube read
+    as a scale and a short one as a stray dot beside a bar - which is
+    why the bench saw the dimmed pixels on some thermometers and not
+    others. Every other dot ROW still, so it stays a scale and not more
+    level.
+    """
+    filled = int(max(0.0, min(1.0, share)) * tall + 0.5)
+    edge = (top + tall - filled) // DOTS_Y if filled else -1
+    for step in range(tall):
+        y = top + tall - 1 - step
+        row = y // DOTS_Y
+        if not (0 <= row < len(dots)):
+            continue
+        if step < filled:
+            for lane in range(DOTS_X):
+                dots[row][col] |= BRAILLE_BITS[lane][y % DOTS_Y]
+            if cls > owner[row][col]:
+                owner[row][col] = cls
+        elif y % DOTS_Y in (1, 3) and row != edge:
+            for lane in range(DOTS_X):
+                dots[row][col] |= BRAILLE_BITS[lane][y % DOTS_Y]
+            if TRACK > owner[row][col]:
+                owner[row][col] = TRACK
 
 
 def _overlay(dots, text, width, height, labels, leaders, rules):
@@ -826,7 +871,8 @@ class Frame:
                 running = ([c for c in tally if c != TRUTH]
                            if set(tally) & TEETH else tally)
                 self.owner[row][col] = max(
-                    running, key=lambda c: (c == TRUTH, c in LINES, tally[c], c))
+                    running, key=lambda c: (c in MARKS, c in LINES,
+                                            tally[c], c))
 
     def claim(self, row, col, cls, said=None):
         """Give a CELL to `cls`, and a character with it where the mark
@@ -940,7 +986,7 @@ def _body(frame, seat, rotor_deg, slots, poles, drive):
                 frame.put(x, y, max(votes, key=lambda c: (votes[c], c)))
 
 
-def _bead(frame, seat, pointer_deg, glyph=None):
+def _bead(frame, seat, pointer_deg, glyph=None, rate=None):
     """The bench's own zero, riding the can's rim.
 
     `POINTER_GLYPH` IS THE BEAD AND THAT IS SETTLED. It is the bench's
@@ -990,6 +1036,39 @@ def _bead(frame, seat, pointer_deg, glyph=None):
     col = int(math.floor((at_x - (DOTS_X - 1) / 2.0) / DOTS_X + 0.5))
     row = int(math.floor((at_y - (DOTS_Y - 1) / 2.0) / DOTS_Y + 0.5))
     frame.claim(row, col, POINTER, glyph or POINTER_GLYPH)
+    if rate:
+        _wake(frame, seat, phi, seat_r, rate, (row, col))
+
+
+#: The wake's shutter, seconds of travel the trail shows. At 60 rpm a
+#: tenth of a second is 36 degrees of rim - a tenth of the way round,
+#: seen from across a bench; at a crawl it is a few dots; and the cap
+#: keeps a fast can from wearing a ring, which would say nothing about
+#: which way it turns.
+TRAIL_S = 0.1
+TRAIL_MAX_DEG = 120.0
+
+
+def _wake(frame, seat, phi, seat_r, rate, bead_cell):
+    """The trail behind the bead: an arc on the rim, TRAIL_S of travel
+    long at `rate` degrees a second, on the side the bead came from,
+    fading in thirds through `TRAIL`. Its length is the speed and its
+    side is the direction, which is what a smear behind a moving thing
+    says. It stays out of the bead's own cell, or it would take the
+    bead's colour with it."""
+    length = min(TRAIL_MAX_DEG, abs(rate) * TRAIL_S)
+    if length <= 0.0:
+        return
+    back = -1.0 if rate > 0.0 else 1.0
+    steps = max(2, int(seat_r * math.radians(length) / 0.5) + 1)
+    for i in range(1, steps + 1):
+        t = i / float(steps)
+        a = phi + back * math.radians(length) * t
+        x = seat.cx + seat_r * math.cos(a)
+        y = seat.cy - seat_r * math.sin(a) / seat.stretch
+        if (int(y) // DOTS_Y, int(x) // DOTS_X) == bead_cell:
+            continue
+        frame.put(x, y, TRAIL[min(len(TRAIL) - 1, int(t * len(TRAIL)))])
 
 
 def _truth(frame, seat, truth_deg):
@@ -1033,7 +1112,7 @@ def _truth(frame, seat, truth_deg):
 
 
 def _machine(frame, seat, rotor_deg, slots, poles, drive,
-             truth_deg=None, pointer_deg=None, bead=None):
+             truth_deg=None, pointer_deg=None, bead=None, pointer_rate=None):
     """THE MACHINE AND NOTHING ELSE: the cross-section, the bench's mark
     on the rim, and the tick a shaft sensor claims.
 
@@ -1044,7 +1123,7 @@ def _machine(frame, seat, rotor_deg, slots, poles, drive,
     if truth_deg is not None:
         _truth(frame, seat, truth_deg)
     if pointer_deg is not None:
-        _bead(frame, seat, pointer_deg, bead)
+        _bead(frame, seat, pointer_deg, bead, pointer_rate)
 
 
 def _instruments(frame, seat, left, right, top, bottom):
@@ -1071,7 +1150,7 @@ def _instruments(frame, seat, left, right, top, bottom):
 
 def motor(rotor_deg, slots=24, poles=28, width=40, height=22, drive=None,
           truth_deg=None, pointer_deg=None, aspect=CELL_ASPECT,
-          colour=False, bead=None):
+          colour=False, bead=None, pointer_rate=None):
     """The machine alone, as text rows - no gutters, no gauges, no
     legend.
 
@@ -1081,13 +1160,14 @@ def motor(rotor_deg, slots=24, poles=28, width=40, height=22, drive=None,
     frame = Frame(width, height)
     seat = Seat(width, height, None, None, None, None, None, None, aspect)
     _machine(frame, seat, rotor_deg, slots, poles, drive,
-             truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead)
+             truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead,
+             pointer_rate=pointer_rate)
     return frame.lines(phase_ink(drive), colour=colour)
 
 
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             pointer_deg, left, right, top, bottom, aspect, labels=None,
-            leaders=None, rules=None, bead=None):
+            leaders=None, rules=None, bead=None, pointer_rate=None):
     """The whole page: the machine, its instruments, and the legend over
     both. Three passes and the seat they share - each has its own
     function, and this one only says the order."""
@@ -1095,7 +1175,8 @@ def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
     seat = Seat(width, height, left, right, top, bottom, labels, leaders,
                 aspect)
     _machine(frame, seat, rotor_deg, slots, poles, drive,
-             truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead)
+             truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead,
+             pointer_rate=pointer_rate)
     _instruments(frame, seat, left, right, top, bottom)
     lit = _overlay(frame.dots, frame.text, width, height, labels, leaders,
                    rules)
@@ -1107,7 +1188,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
            truth_deg=None, amps=None, full=None, pointer_deg=None,
            left=None, right=None, top=None, bottom=None,
            aspect=CELL_ASPECT, colour=False, labels=None, leaders=None,
-           rules=None, bead=None):
+           rules=None, bead=None, pointer_rate=None):
     """The cross-section, `rotor_deg` being how far the can has turned.
 
     `rotor_deg` is mechanical: the electrical angle over the pole pairs.
@@ -1154,7 +1235,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     frame, lit = _raster(rotor_deg, slots, poles, width, height,
                          truth_deg, drive, pointer_deg, left, right,
                          top, bottom, aspect, labels, leaders, rules,
-                         bead)
+                         bead, pointer_rate)
     # THE ONLY THING LEFT HERE IS WHO GETS WHICH COLOUR. The buffer holds
     # the picture; a legend's words and the leader that belongs to them
     # keep their own ink without owning the cells they cross, which is

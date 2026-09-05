@@ -335,20 +335,24 @@ def paced(keys, period, step=0.02):
 
 
 def gauge(fraction, width, hot=THROTTLE_AT):
-    """A meter in the motif: filled cells, ash rest, sodium past `hot`.
+    """A meter in the motif: the level in dots, the rest of the scale in
+    the track's grey, the margin's amber past `hot`.
 
     `hot` defaults to the board's own throttle point, so a meter turns
     colour where the board acts rather than at a number of this file's.
     It was a literal 0.85 here, and stayed at 0.85 when the record moved.
 
-    The glyphs are ASCII on purpose - the session may run on a console
-    that was never put in UTF-8, and a meter that half-renders is worse
-    than a plain one.
+    IT WAS `====----` IN ASCII, "on purpose - the session may run on a
+    console that was never put in UTF-8". Every view on that console has
+    drawn in braille since, so the caution protected nothing and left
+    the session's levels a different instrument from the motor page's.
+    The bench asked for one; `coaxial.gauges` is it.
     """
+    from coaxial import gauges, machine
     fraction = max(0.0, min(1.0, fraction))
-    filled = int(round(fraction * width))
-    bar = '=' * filled + tint('-' * (width - filled), ASH)
-    return tint(bar, SODIUM) if fraction >= hot else bar
+    return gauges.gauge(fraction, width,
+                        cls=machine.SOA_WARN if fraction >= hot
+                        else machine.SOA_OK)
 
 
 class Feed:

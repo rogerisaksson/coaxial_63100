@@ -18,7 +18,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import ansi, ascii3d, desk                  # noqa: E402
+from coaxial import ansi, ascii3d, desk, raster          # noqa: E402
 from coaxial import orientation, scaling               # noqa: E402
 from coaxial.errors import DeviceStateError            # noqa: E402
 from coaxial import simulated
@@ -749,13 +749,25 @@ def test_desk(report):
                  and all('3.3' in line for line in face[3:]),
                  face[0].strip()[:34])
 
-    report.check('a bipolar channel is drawn from the centre',
-                 desk.CENTRE in face[0] or desk.FULL in face[0],
-                 repr(face[0][18:40]))
-    # Column 18 is where the bar starts: three for the name, a space, and
-    # SCALE for the channel's own ends.
+    # THE BAR IS BRAILLE NOW - the motor page's gauge, one instrument on
+    # every page. A level cell carries the three gauge rows in both
+    # lanes (`⠿`); a track cell the left lane alone (`⠇`). Column 18 is
+    # where the bar starts: three for the name, a space, and SCALE for
+    # the channel's own ends.
+    from coaxial import gauges
+    level = chr(raster.BRAILLE | 0x3F)
+    track = chr(raster.BRAILLE | 0x07)
+    middle = 18 + desk.BAR // 2
+    report.check('a bipolar channel is drawn from the centre: the middle '
+                 'cell is level or its mark, and the far left is track',
+                 face[0][middle] != ' ' and face[0][18] == track
+                 and level in face[0], repr(face[0][18:40]))
     report.check('a unipolar one from the left',
-                 face[3][18] == desk.FULL, repr(face[3][18:34]))
+                 face[3][18] == level, repr(face[3][18:34]))
+    report.check('and it is the same gauge the motor page draws',
+                 gauges.gauge(1.0, 10, colour=False) == level * 10
+                 and gauges.gauge(0.5, 10, colour=False)[0] == level
+                 and gauges.gauge(0.5, 10, colour=False)[-1] == track)
 
     # The span is the caller's to compute: deriving it from the reading and
     # its fraction of full scale is right for a linear channel and wrong for
@@ -767,10 +779,12 @@ def test_desk(report):
                  desk.span(bare) is None
                  and '?' in desk.Desk().update([bare]))
 
+    from coaxial import machine
     report.check('the ink says where the converter is before the number is '
-                 'read', (desk.Desk._ink(0.1), desk.Desk._ink(0.8),
-                          desk.Desk._ink(0.99))
-                 == (ansi.GREEN, ansi.AMBER, ansi.RED))
+                 'read - the motor page\'s own three classes',
+                 (desk.Desk._ink(0.1), desk.Desk._ink(0.8),
+                  desk.Desk._ink(0.99))
+                 == (machine.SOA_OK, machine.SOA_WARN, machine.SOA_TRIP))
 
     gate_drivers = desk.Desk(decay=0.04)
     loud = _desk_rows(**{'Phase U': 30000})

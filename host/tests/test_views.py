@@ -416,8 +416,12 @@ def test_the_demo_actually_loads_the_machine(report):
     import re
 
     env = dict(os.environ, PYTHONIOENCODING='utf-8')
+    # No `-P`: it arrived in Python 3.11, and on the 3.10 runner CI
+    # declares as its floor it is "unknown option", exit 2 - four red
+    # runs before anyone read the tail. The view puts its own directory
+    # on sys.path itself; nothing in tools/ shadows a module it needs.
     done = subprocess.run(
-        [sys.executable, '-P', '-X', 'utf8',
+        [sys.executable, '-X', 'utf8',
          os.path.join('tools', 'show_rotor_observer.py'),
          '--simulated', '--frames', '200'],
         cwd=HOST, env=env, capture_output=True, text=True,
@@ -1067,6 +1071,59 @@ def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
                      seen == {True, False}, str(sorted(seen)))
 
 
+def test_the_bead_trails_its_speed(report):
+    """The wake behind the bead: its length is the speed, its side the
+    direction, and it fades from the bead's orange into the south
+    pole's brown.
+
+    A bead alone says where the can is, and a bench watching a
+    sensorless start could not tell from it which way or how fast the
+    can turned - a mark that moves a cell a frame looks the same
+    clockwise or counter. The wake is TRAIL_S of travel on the rim, on
+    the side the bead came from, capped so a fast can does not wear a
+    ring; and the bead wears the palette's orange like everything else
+    on these pages that is there to be found.
+    """
+    import re
+
+    sys.path.insert(0, HOST)
+    from coaxial import ansi, machine
+
+    inks = {machine.INK[c] for c in machine.TRAIL}
+
+    def wake(rate):
+        lines = machine.motor(0.0, width=60, height=30, pointer_deg=0.0,
+                              pointer_rate=rate, colour=True)
+        rows = []
+        for row, line in enumerate(lines):
+            for hit in re.finditer(chr(27) + r'\[38;5;(\d+)m([^' + chr(27)
+                                   + ']*)', line):
+                if int(hit.group(1)) in inks:
+                    rows += [row] * len(hit.group(2))
+        bead = next(row for row, line in enumerate(lines)
+                    if machine.POINTER_GLYPH in line)
+        return rows, bead
+
+    still, _ = wake(0.0)
+    slow, bead = wake(360.0)
+    fast, _ = wake(1200.0)
+    back, _ = wake(-360.0)
+    report.check('no wake at rest', not still, '%d cells' % len(still))
+    report.check('and a longer one the faster the can turns',
+                 0 < len(slow) < len(fast),
+                 '%d cells at 360, %d at 1200' % (len(slow), len(fast)))
+    report.check('behind the bead: at three o\'clock, below it turning '
+                 'counter-clockwise and above it turning clockwise',
+                 bool(slow and back)
+                 and sum(slow) / len(slow) > bead > sum(back) / len(back),
+                 'rows %.1f and %.1f about the bead\'s %d'
+                 % (sum(slow) / max(1, len(slow)),
+                    sum(back) / max(1, len(back)), bead))
+    report.check('the bead wears the palette\'s orange, the north pole\'s',
+                 machine.INK[machine.POINTER] == ansi.AMBER
+                 == machine.INK[machine.NORTH])
+
+
 def test_the_mode_says_whether_the_board_holds_it_back(report):
     """`HOLD (NORM)`, `SENSORLESS (THR)`: the envelope's state beside the mode.
 
@@ -1145,6 +1202,7 @@ def main():
     test_a_line_keeps_the_cell_it_shares_with_an_area(report)
     test_nothing_in_the_drawing_can_be_sheared(report)
     test_the_bead_is_round_at_every_angle(report)
+    test_the_bead_trails_its_speed(report)
     test_the_terminal_is_asked_how_tall_a_cell_is(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0

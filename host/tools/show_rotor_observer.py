@@ -259,24 +259,15 @@ BAR_CELLS = 12
 #: Cells of drag per box scrolled. About a box's own height, so the
 #: column moves at the hand's speed rather than flying.
 DRAG_ROWS = 6.0
-#: ONE SCALE FOR EVERY THERMOMETER ON THE PAGE, degrees C: the switch
-#: tubes, the NTC, the winding at the foot. A DRAWING SCALE, not a
-#: limit - the board judges nothing by it (invariant 10) and the colours
-#: carry the real ceilings, and nothing on this board says what the
-#: magnet wire may take. From -35 so a winter bench starts on the tube
-#: rather than under it, to 130 so a node at the record's highest
-#: ceiling (125) is seen short of the top - the bench's numbers,
-#: 2026-09-05. It was 125 from the reported ambient for the gutters and
-#: 150 from 20 for the winding: two rulers on one page, and a scale
-#: whose bottom moved with the room.
-TEMP_FLOOR_C, TEMP_SCALE_C = -35.0, 130.0
-
-
-def temp_share(celsius):
-    """Where a temperature sits on the page's scale, 0 at the floor and
-    1 at the top, clamped: the height of every tube."""
-    span = TEMP_SCALE_C - TEMP_FLOOR_C
-    return max(0.0, min(1.0, (celsius - TEMP_FLOOR_C) / span))
+#: ONE SCALE FOR EVERY THERMOMETER ON EVERY PAGE - `coaxial.gauges` owns
+#: it, and the margin and thermometer bands with it, since the thermal
+#: observer and the session draw the same tubes. This page keeps the
+#: names its legend and its tests use. Nothing on this board says what
+#: the magnet wire may take: the winding is drawn against the same
+#: ruler, and that is a scale, not a limit (invariant 10).
+from coaxial.gauges import (TEMP_FLOOR_C, TEMP_SCALE_C,  # noqa: E402
+                            margin_class as soa_class,
+                            temp_share, thermometer_class as ntc_class)
 #: The face of the power bar beside the board's thermometers: watts, on
 #: a POWER LAW pinned by where its middle sits.
 #:
@@ -539,9 +530,16 @@ def travel(view):
     view['travel_at'] = now
     if was is None:
         return
+    view['travel'] += pointer_rate(view) * min(0.5, now - was)
+
+
+def pointer_rate(view):
+    """How fast the bead travels, degrees a second, signed: the loop's
+    speed over the pole pairs - the one number `travel` integrates and
+    the drawing trails the bead by, so the wake and the travel agree."""
     pairs = max(1.0, view['params'].get('motor_pole_pairs') or 1.0)
     speed = (view.get('chain') or {}).get('omega') or 0.0
-    view['travel'] += math.degrees(speed / pairs) * min(0.5, now - was)
+    return math.degrees(speed / pairs)
 
 
 def _place(row, name, columns, right_edge=False, until=None):
@@ -1666,20 +1664,6 @@ def ntc_bar(view):
     return [(temp_share(seen), ntc_class(seen))]
 
 
-def ntc_class(celsius):
-    """Which band of the thermometer ramp a reading is in.
-
-    COLD TO HOT, blue at `NTC_COLD_C` and red at `NTC_HOT_C`, because the
-    thermistor has no ceiling to be a margin against. Every other level
-    on this page is coloured by how close it is to a limit it was given;
-    this one is coloured by what it says.
-    """
-    span = max(1.0, NTC_HOT_C - NTC_COLD_C)
-    share = (celsius - NTC_COLD_C) / span
-    step = int(share * (len(machine.NTC_RAMP) - 1) + 0.5)
-    return machine.NTC_RAMP[max(0, min(len(machine.NTC_RAMP) - 1, step))]
-
-
 def headrooms(view):
     """The two margins as gutter tubes: the board's, then the motor's.
 
@@ -1751,20 +1735,6 @@ def headroom_class(left):
     if left <= 1.0 - THROTTLE_AT:
         return machine.SOA_TRIP
     return machine.SOA_WARN if left <= HEADROOM_AMBER else machine.SOA_OK
-
-
-def soa_class(share, tripped=False):
-    """Which band a node's margin is in - `machine.SOA_CLASS`'s order.
-
-    THE BANDS ARE THE BOARD'S. `used` is the fraction of a node's ceiling
-    and the ceiling came from the calibration record; amber is
-    `THROTTLE_AT`, the same number `set_limit` writes and the board backs
-    off at; red is the ceiling. The margin is reported - the action is
-    the board's, and it takes it by dropping MOE (invariant 10).
-    """
-    if tripped or share >= 1.0:
-        return machine.SOA_TRIP
-    return machine.SOA_WARN if share >= THROTTLE_AT else machine.SOA_OK
 
 
 def soa_bars(view, names):
@@ -2069,6 +2039,7 @@ def compose(rig, origin, console, view):
                          truth_deg=None,
                          amps=amps, full=full, aspect=view['aspect'],
                          pointer_deg=view['travel'] - view['tare'],
+                         pointer_rate=pointer_rate(view),
                          left=(soa_bars(view, SOA_NODES)
                                + [None] * NTC_GAP + ntc_bar(view)),
                          right=(soa_bars(view, BOARD_NODES)

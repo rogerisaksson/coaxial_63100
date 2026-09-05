@@ -27,6 +27,7 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
+from coaxial import gauges                                 # noqa: E402
 from coaxial.thermal import ALL_NODES, pretty              # noqa: E402
 from coaxial.thermalmap import SCALE_LINES, render        # noqa: E402
 
@@ -165,7 +166,48 @@ def status_boxes(state, budget):
              ('a1335 die', '%.1f C' % state['afe']
               if state.get('afe') is not None else '-')]
     boxes.append(hud('LEVELS', rows))
+    boxes.append(hud('TUBES  %.0f to %.0f C' % (gauges.TEMP_FLOOR_C,
+                                                gauges.TEMP_SCALE_C),
+                     [Text.from_ansi(line) for line in tubes(state, budget)]))
     return boxes
+
+
+#: What each tube is called under itself, two letters at the tubes'
+#: pitch of three: the leg for the drivers and the phases, the part for
+#: the rest.
+SHORT_NODE = {'driver_u': 'dU', 'driver_v': 'dV', 'driver_w': 'dW',
+              'phase_u': 'pU', 'phase_v': 'pV', 'phase_w': 'pW',
+              'mcu': 'MC', 'regulators': 'RG', 'afe': 'AF', 'board': 'PB'}
+TUBE_ROWS = 8
+
+
+def tubes(state, budget):
+    """The ten nodes and the thermistor as thermometers - the motor
+    page's own, on this page too.
+
+    HEIGHT IS DEGREES ON THE ONE SCALE every page shares, colour is the
+    node's margin against its own ceiling (the board's bands, from the
+    record), and the NTC wears the thermometer ramp because it has no
+    ceiling to be a margin against. The map beside them says WHERE the
+    heat sits; these say how much, against the same rulers the motor
+    page uses, so a reader moving between the two pages reads one
+    instrument.
+    """
+    nodes = state.get('nodes') or {}
+    used = (budget or {}).get('used') or {}
+    tripped = bool((budget or {}).get('tripped'))
+    entries, labels = [], []
+    for name in ALL_NODES:
+        if name in nodes:
+            entries.append((gauges.temp_share(nodes[name]),
+                            gauges.margin_class(used.get(name, 0.0),
+                                                tripped)))
+            labels.append(SHORT_NODE.get(name, name[:2]))
+    if state.get('ntc') is not None:
+        entries += [None, (gauges.temp_share(state['ntc']),
+                           gauges.thermometer_class(state['ntc']))]
+        labels += ['', 'NTC']
+    return gauges.tubes(entries, TUBE_ROWS, labels, pitch=3)
 
 
 def picture(state, console, reserve):

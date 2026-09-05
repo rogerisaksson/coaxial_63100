@@ -958,6 +958,49 @@ record's own constants, no measurement.
   The room sits at 36 % of the tube, and MOTOR SOA at rest reads 64 %
   left rather than 100: a margin against the top of a scale that
   starts under the room.
+* **CI was red for four pushes on one flag, 2026-09-05.** The demo
+  test launched the rotor observer with `python -P`, and `-P` arrived
+  in Python 3.11: on the 3.10 runner the workflow declares as its floor
+  it is "unknown option", exit 2, and `the view ran two hundred frames
+  simulated` failed while 2346 checks passed around it. The 3.12 leg
+  was green, so the tree looked right from the bench. Read off the
+  commit comment the failure step posts - the public API serves it
+  without a login, which is what it is for. The flag is gone; nothing
+  in `tools/` shadows a module the view needs, which was the only
+  thing it guarded against on the bench.
+* **One instrument on every page, 2026-09-05.** MOTOR CONTROLLER drew
+  its levels in dots - the tube with the mercury at dot resolution and
+  the grey track - and the session, the thermal observer and the
+  meter bridge each drew their own: `====----` in ASCII, `█` on `─`
+  with `╵` and `│` for the marks. The bench asked for the same
+  thermometers everywhere. `coaxial/gauges.py` is the instrument on
+  its own, drawn by THE SAME CODE as the machine's gutters
+  (`machine._level`, `machine._tube`, extracted so a level is drawn
+  once): `gauge` a row, bipolar with a centre and ticks for a meter
+  bridge, `tubes` a rank of thermometers with labels. `screen.gauge`
+  delegates to it, so the session's THERMAL box and the desk's buffer
+  gauge changed without a line in their views; the session's ANALOG
+  box gained the bridge's gauge beside each number; the meter bridge's
+  bars are the gauge with its centre marked and the burst extremes and
+  held peaks as ticks; and the thermal observer has a TUBES box - the
+  ten nodes and the NTC beside its map, on the shared scale, coloured
+  by each node's margin. The scale and the two colour bands
+  (`temp_share`, `margin_class`, `thermometer_class`) moved into
+  `gauges` with them; the rotor observer imports them under the names
+  its tests use. Marks wear the palette's orange, not white: one ink
+  for the thing to be found.
+* **The bead has a wake, 2026-09-05.** A bead alone says where the can
+  is; a bench watching a sensorless start could not tell from it
+  which way or how fast, because a mark moving a cell a frame looks
+  the same either way. `_wake` draws TRAIL_S (0.1 s) of travel on the
+  rim behind the bead - 36 degrees at 60 rpm, a few dots at a crawl,
+  capped at 120 so a fast can does not wear a ring - in three inks
+  fading from the bead's orange to the south pole's brown, drawn over
+  the rim it rides as the truth stroke is (`Frame.put`'s MARKS). The
+  rate is the loop's speed over the pole pairs, the same number
+  `travel` integrates, so the wake and the travel figure agree. The
+  bead itself is the palette's orange now, the north pole's, not
+  white.
 
 ## The renderers
 
@@ -1011,6 +1054,34 @@ record's own constants, no measurement.
   part's relief, which is where they belong; the histogram's gain is
   the exposure's and the knee's. The mono path is untouched: no light
   to sample.
+* **Seen in a raster, the sampled ladder was the artefact, 2026-09-05.**
+  The glyph counts above said the ladder was spent; a PNG of the frame
+  (Consolas for text, Segoe UI Symbol for the braille Consolas lacks -
+  the fallback the terminal uses) showed what the bench saw: a sparse
+  lattice, eight dot positions in one fixed order so every cell at a
+  rung put its dots in the same places, rows of dots a cell apart on
+  the dark half, brightness encoded twice - few dots AND a dim tone -
+  so that half dissolved into speckle. Three changes, each judged in
+  the raster and not in a count. THE FACE IS A HALFTONE: an 8x8 Bayer
+  matrix over the DOTS, four cells wide and two tall - square on
+  screen - sixty-four densities, fixed in screen space so a turning
+  board moves the density and not the dots, on the light sampled per
+  dot as before. A DENSITY FLOOR of 0.3: with the tone carrying the
+  light the dots need only carry the shape, and three dots in ten
+  keeps the dark side a surface (0 was scattered dots, 0.5 flattened
+  the shading, in the raster). And THE RIM, CLIPPED AND LIT: the fold
+  now keeps which of a cell's four quadrants the 2x2 raster reached
+  (`engine.fold`'s `quads`); a dot in a quadrant the model missed is a
+  dot outside the board and stays dark - the spill the bench asked
+  cut - and a part-covered cell, or one with an uncovered neighbour,
+  is drawn solid in its reached quadrants at the outline's tone: a
+  hard line of light round every silhouette and every hole, one cell
+  thick, the Nostromo look the bench named. The coverage thinning is
+  gone with nothing left to do. Measured at the page's pose: the face
+  0.59 lit with no cell under two dots, thirteen distinct glyphs (a
+  Bayer tile over 2x4 cells repeats its cell patterns - that is what an
+  even lattice is), no dot past the rim over its cells, the rim's
+  median luma above the face's; 17 ms a frame against 12.
 * **The can is seated at the top of its band, not centred.** Centred,
   whatever the band had over the can's height was split above and
   below - and on a terminal whose cell the view could not measure,

@@ -168,26 +168,36 @@ def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
 
 def fold(depth, top, sun, width, height):
     """A 2x2-supersampled raster down to cells: (depth, top, sun,
-    coverage). A cell takes its NEAREST subsample's depth and flags,
-    and the share of its four subsamples that hit - the anti-aliasing
-    a glyph grid can carry: a rim cell a quarter covered draws faint,
-    one three-quarters covered nearly full. Neighbour-counting stood
-    in for this and could not tell a straight edge from a stair."""
+    coverage, quads). A cell takes its NEAREST subsample's depth and
+    flags, and the share of its four subsamples that hit - the
+    anti-aliasing a glyph grid can carry: a rim cell a quarter covered
+    draws faint, one three-quarters covered nearly full. Neighbour-
+    counting stood in for this and could not tell a straight edge from
+    a stair.
+
+    `quads` is WHICH of the four hit, a bit each - top-left 1, top-right
+    2, bottom-left 4, bottom-right 8. A braille dot sits in the quadrant
+    its lane and its half of the cell name, so a dot grid can be clipped
+    to the model's own silhouette: a dot in a quadrant the model missed
+    is a dot outside the board, and the bench saw those spill past the
+    rim."""
     wide = 2 * width
     out_depth = [0.0] * (width * height)
     out_top = bytearray(width * height)
     out_sun = bytearray(width * height)
     coverage = [0.0] * (width * height)
+    quads = bytearray(width * height)
     for py in range(height):
         row = py * width
         above, below = 2 * py * wide, (2 * py + 1) * wide
         for px in range(width):
             a, b = above + 2 * px, below + 2 * px
-            best, hits, where = 0.0, 0, a
-            for at in (a, a + 1, b, b + 1):
+            best, hits, where, bits = 0.0, 0, a, 0
+            for bit, at in ((1, a), (2, a + 1), (4, b), (8, b + 1)):
                 d = depth[at]
                 if d:
                     hits += 1
+                    bits |= bit
                     if d > best:
                         best, where = d, at
             if hits:
@@ -195,7 +205,8 @@ def fold(depth, top, sun, width, height):
                 out_top[row + px] = top[where]
                 out_sun[row + px] = sun[where]
                 coverage[row + px] = hits / 4.0
-    return out_depth, out_top, out_sun, coverage
+                quads[row + px] = bits
+    return out_depth, out_top, out_sun, coverage, quads
 
 
 def shade(depth, top, sun, cam, m, pivot, slope, floor,

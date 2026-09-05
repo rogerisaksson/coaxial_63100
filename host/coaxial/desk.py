@@ -49,11 +49,13 @@ DECAY = 0.015
 HOT_ABOVE = 0.70
 RAIL_ABOVE = 0.98
 
-FULL = '█'
-TRACK = '─'
-CENTRE = '┼'
-PEAK = '╵'
-TICK = '│'
+#: THE BAR IS THE MOTOR PAGE'S GAUGE, in dots: `coaxial.gauges` draws it,
+#: the level three dots tall at dot resolution, the empty scale in the
+#: track's grey, the centre of a bipolar channel marked, the burst's
+#: extremes as full-height ticks and the held peaks as a single top dot.
+#: It was `█` on `─` with `╵` and `│` for the marks - a third drawing
+#: convention on a terminal whose other pages draw in braille, and the
+#: bench asked for one instrument on every page.
 
 #: What a row is labelled with, from the board's own signal name.
 SHORT = {'Phase U': 'U', 'Phase V': 'V', 'Phase W': 'W', 'DC bus': 'DC',
@@ -130,51 +132,38 @@ class Desk:
 
     @staticmethod
     def _ink(magnitude):
-        """Green, amber, red - read before any scale is."""
+        """The level's class - the motor page's green, amber, red - read
+        before any scale is: a converter near its rail has stopped
+        moving, which is worth seeing before the number is read."""
+        from . import machine
         if magnitude >= RAIL_ABOVE:
-            return ansi.RED
-        return ansi.AMBER if magnitude >= HOT_ABOVE else ansi.GREEN
+            return machine.SOA_TRIP
+        return machine.SOA_WARN if magnitude >= HOT_ABOVE else machine.SOA_OK
 
     def _bar(self, row, colour):
         """One channel's bar, as a string of BAR columns."""
+        from . import gauges
+
         bipolar = row['differential']
         here = fraction(row)
         least = _at(row, row.get('min_raw', row['mean_raw']))
         most = _at(row, row.get('max_raw', row['mean_raw']))
         held_low, held_high = self._hold(row['index'], least, most)
 
-        origin = (self.bar - 1) / 2.0 if bipolar else 0.0
-        wide = (self.bar - 1) / 2.0 if bipolar else (self.bar - 1)
-
-        def column(value):
-            return int(round(origin + value * wide))
+        def share(value):
+            # A bipolar channel's -1..+1 laid on the gauge's 0..1.
+            return (value + 1.0) / 2.0 if bipolar else value
 
         # Both ends on a channel that swings either way; only the top on one
         # that cannot go below zero, where a mark at the floor says nothing.
-        peaks = {column(held_high)}
-        ticks = {column(most)}
+        marks = [(share(most), gauges.MARK),
+                 (share(held_high), gauges.MARK, gauges.PEAK)]
         if bipolar:
-            peaks.add(column(held_low))
-            ticks.add(column(least))
-
-        low, high = sorted((column(0.0) if bipolar else 0, column(here)))
-        cells = []
-
-        for index in range(self.bar):
-            if low <= index <= high and (bipolar or index <= column(here)):
-                cells.append((FULL, self._ink(abs(here)) if colour else None))
-            elif index in peaks:
-                cells.append((PEAK, ansi.WHITE if colour else None))
-            elif index in ticks:
-                cells.append((TICK, ansi.WHITE if colour else None))
-            elif bipolar and index == column(0.0):
-                cells.append((CENTRE, ansi.DIM if colour else None))
-            else:
-                cells.append((TRACK, ansi.DIM if colour else None))
-
-        if colour:
-            return ansi.run(cells)
-        return ''.join(text for text, _ in cells)
+            marks += [(share(least), gauges.MARK),
+                      (share(held_low), gauges.MARK, gauges.PEAK)]
+        return gauges.gauge(share(here), self.bar, cls=self._ink(abs(here)),
+                            centre=0.5 if bipolar else None, marks=marks,
+                            colour=colour)
 
     @staticmethod
     def _scale(row):

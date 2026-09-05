@@ -366,14 +366,25 @@ def adc_block(got):
                 tint('  thermal observer borrows it for samples', LABEL)])
         return block('ANALOG', ['  did not answer'])
 
+    from coaxial import desk, gauges
+
     params = got.get('scaling')
     rows = []
     for r in table['channels']:
         to = scaling.converter(r.get('unit'), r['differential'],
                                signal=r.get('signal'), params=params)
-        rows.append('  %-8s %9.3f %s'
+        # THE METER BRIDGE'S GAUGE BESIDE THE NUMBER: where the reading
+        # sits in the converter's own range, a bipolar channel about its
+        # centre - the same instrument that page draws, at the width the
+        # thermal box below draws its levels.
+        share = desk.fraction(r)
+        rows.append('  %-8s %9.3f %-2s %s'
                     % (r['signal'][:8], to(r['mean_raw']),
-                       scaling.symbol(r.get('unit'), r.get('signal'))))
+                       scaling.symbol(r.get('unit'), r.get('signal')),
+                       gauges.gauge((share + 1.0) / 2.0 if r['differential']
+                                    else share, BAR,
+                                    centre=0.5 if r['differential']
+                                    else None)))
     return block('ANALOG', rows)
 
 

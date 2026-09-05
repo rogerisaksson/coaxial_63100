@@ -197,7 +197,8 @@ def test_shade_units(report):
     depth2 = [0.5, 0.0,
               0.7, 0.9]
     top2, sun2 = bytearray([0, 0, 0, 1]), bytearray([1, 1, 1, 0])
-    fdepth, ftop, fsun, cover = engine.fold(depth2, top2, sun2, 1, 1)
+    fdepth, ftop, fsun, cover, _quads = engine.fold(depth2, top2, sun2,
+                                                    1, 1)
     report.check('fold: nearest subsample, its flags, and 3/4 coverage',
                  (fdepth, bytes(ftop), bytes(fsun), cover)
                  == ([0.9], b'\x01', b'\x00', [0.75]))
@@ -358,16 +359,19 @@ def test_key_light(report):
                  away < flat - 1.0, '%.1f vs %.1f' % (away, flat))
 
 
-def test_the_dots_are_sampled(report):
-    """The glyph is sampled per dot off the heat field, on the ladder's
-    own order: flat is the ladder, a gradient is the glyphs between.
+def test_the_face_is_a_halftone(report):
+    """The glyph is an ordered dither at dot resolution: an 8 x 8 Bayer
+    matrix laid over the dots, four cells wide and two tall, against
+    the light sampled at each dot.
 
-    ONE RUNG PER CELL WAS THE BLOCK. A desk-lamp gradient of a fraction
-    of a rung a cell rounded to one rung across the whole face, and the
-    attitude page drew a carpet of `⢕` with the parts on it - blocky,
-    the bench said, twice. Held here on synthetic fields, and on the
-    shipped board at the page's own size, where the ladder's window was
-    fitted on one frame and rungs 6-8 held one cell.
+    ONE RUNG PER CELL WAS THE BLOCK, and sampling the light per dot on
+    the ladder's own order was the speckle after it: eight positions in
+    one fixed order put every cell's dots in the same places, and the
+    dark half of the board was rows of dots a cell apart - seen in a
+    raster of the frame, which the glyph counts never showed. A halftone
+    spreads the dots evenly at every density and has no cell period, and
+    a density floor keeps the dark side a surface. Held here on synthetic
+    fields, and on the shipped board at the page's own size.
     """
     import collections
     import math
@@ -375,48 +379,48 @@ def test_the_dots_are_sampled(report):
     from coaxial import orientation, raster
     w = wireframe
 
-    bits, nested = 0, True
-    for rung in range(1, raster.RUNGS + 1):
-        bits |= w.LADDER[rung - 1]
-        nested = nested and chr(raster.BRAILLE + bits) == w.LIT[rung][0]
-    report.check('the ladder is nested: each rung is the one below plus a '
-                 'dot, and eight rungs are the whole cell',
-                 nested and len(set(w.LADDER)) == 8 and bits == 0xFF)
+    flat = sorted(v for row in w.BAYER for v in row)
+    report.check('the matrix holds every threshold once, 0 to 63, off the '
+                 'classic seed',
+                 flat == list(range(64)) and w._bayer(2) == [[0, 2], [3, 1]])
 
     def field(width, height, heat_of):
         classes = bytearray([1] * (width * height))
         coverage = [1.0] * (width * height)
         heat = [heat_of(x, y) for y in range(height) for x in range(width)]
         grid = [[' '] * width for _ in range(height)]
-        w._dots(grid, heat, classes, coverage, width, height, (0.0, 8.0))
+        w._dots(grid, heat, classes, coverage, width, height, (0.0, 1.0))
         return grid
 
-    report.check('a flat field draws the ladder glyph of its rung, exactly',
-                 all(field(5, 5, lambda x, y, r=r: float(r))[2][2]
-                     == w.LIT[r][0] for r in range(1, 9)))
-    report.check('and a cell whose heat clears no dot keeps the first',
-                 field(3, 3, lambda x, y: 0.0)[1][1] == w.LIT[1][0])
+    def dots_in(grid, x0, y0, wide, tall):
+        return sum(bin(ord(grid[y][x]) - raster.BRAILLE).count('1')
+                   for y in range(y0, y0 + tall)
+                   for x in range(x0, x0 + wide))
 
-    ladder = {w.LIT[r][0] for r in range(1, 9)}
-    ramp = field(64, 1, lambda x, y: 0.5 + 8.0 * x / 63.0)[0]
-    counts = [bin(ord(g) - raster.BRAILLE).count('1') for g in ramp]
-    report.check('a gentle ramp climbs the ladder and never loses a dot',
-                 counts == sorted(counts) and set(ramp) <= ladder,
-                 ''.join(ramp))
-    # Five rungs a cell downward, four at the centre: the ladder's fifth
-    # dot is 4 (upper right) and the sampling lights 7 (lower left)
-    # instead - the bright side first, and a glyph the ladder alone never
-    # draws. Measured on synthetic ramps: a gradient under about 1.3
-    # rungs a cell reproduces the ladder exactly, whatever its direction.
-    # The glyphs between appear where the light changes STEEPLY inside a
-    # cell - an edge, a part's relief - which is where they belong.
-    tall = ord(field(3, 3, lambda x, y: 4.0 + 5.0 * (y - 1))[1][1])
-    tall -= raster.BRAILLE
-    report.check('a steep gradient down the cell lights its lower dots '
-                 'first - a glyph the ladder alone never draws',
-                 tall & 0x40 and not tall & 0x08
-                 and chr(raster.BRAILLE + tall) not in ladder,
-                 chr(raster.BRAILLE + tall))
+    floor = w.DENSITY_FLOOR
+    ok, said = True, []
+    for s in (0.0, 0.25, 0.5, 0.75, 1.0):
+        want = int((floor + (1.0 - floor) * s) * 64.0 + 0.5)
+        got = dots_in(field(8, 4, lambda x, y, s=s: s), 0, 0, 4, 2)
+        said.append('%.2f: %d of %d' % (s, got, want))
+        ok = ok and got == want
+    report.check('a flat field lights the matrix\'s share of a tile: the '
+                 'density floor, then the light', ok, ', '.join(said))
+
+    half = (0.5 - floor) / (1.0 - floor)
+    grid = field(8, 4, lambda x, y: half)
+    report.check('at half density every cell holds four dots - the '
+                 'checkerboard, no cell period',
+                 all(bin(ord(g) - raster.BRAILLE).count('1') == 4
+                     for row in grid for g in row))
+    report.check('and a cell whose density clears no dot keeps one',
+                 all(ord(g) > raster.BRAILLE
+                     for row in field(8, 4, lambda x, y: -5.0) for g in row))
+
+    ramp = field(64, 2, lambda x, y: x / 63.0)
+    columns = [dots_in(ramp, x, 0, 4, 2) for x in range(0, 64, 4)]
+    report.check('a ramp never loses a dot from one tile to the next',
+                 columns == sorted(columns), ' '.join(map(str, columns)))
 
     report.check('the floor rolls off: continuous at the knee, ordered '
                  'below it, never DIMMEST',
@@ -440,8 +444,8 @@ def test_the_dots_are_sampled(report):
     # stand-in reports - `(i, j, k, real)`, rpy -5.6, +2.8, -0.6: a board
     # lying on a bench. The colour path's own stages, so the count is of
     # the FACE's cells and not the ground grid's. Measured before, at
-    # this pose: 299 of 561 lit cells on rung 1, the top three rungs
-    # 9.8 % of the face, eight glyphs.
+    # this pose: 299 of 561 lit cells at one dot, eight glyphs, the face
+    # a fifth lit.
     from coaxial import engine
     q = (-0.0489, 0.0245, -0.0036, 0.9984)
     width, height, zoom = 78, 30, 0.88
@@ -453,7 +457,7 @@ def test_the_dots_are_sampled(report):
     cam = engine.camera(width, height, reach, distance=3.2, zoom=zoom,
                         tip=w.CAMERA_TIP, lift=0.39)
     m = engine.multiply(cam['view'], orientation.matrix(q))
-    buf, coverage, classes, levels, bare, seed = w._cells(
+    buf, coverage, quads, classes, levels, bare, seed = w._cells(
         solid, m, cam, None, True, False)
     grid = [[' '] * width for _ in range(height)]
     tone = [[None] * width for _ in range(height)]
@@ -461,20 +465,60 @@ def test_the_dots_are_sampled(report):
     w._glow(grid, tone, classes, levels, bare, seed, coverage, width,
             height, True, cam=cam, buf=buf, heat_out=heat)
     w._dots(grid, heat, classes, coverage, width, height,
-            w._expose(heat, classes))
+            w._expose(heat, classes), quads)
+    w._rim(grid, tone, classes, quads, heat, width, height, True)
     face = [grid[i // width][i % width] for i in range(width * height)
             if classes[i]]
-    hist = collections.Counter(
-        bin(ord(g) - raster.BRAILLE).count('1') for g in face)
-    report.check('the shipped board at the page\'s size spends every rung',
-                 all(hist[r] for r in range(1, 9)),
-                 ' '.join('%d:%d' % (r, hist[r]) for r in range(1, 9)))
-    top3 = sum(hist[r] for r in (6, 7, 8))
-    report.check('and the top three rungs hold a seventh of the face, up '
-                 'from a tenth', top3 >= 0.14 * len(face),
-                 '%d of %d' % (top3, len(face)))
-    report.check('and the face wears more glyphs than the ladder\'s eight',
-                 len(set(face)) > 8, '%d distinct' % len(set(face)))
+    counts = [bin(ord(g) - raster.BRAILLE).count('1') for g in face]
+    hist = collections.Counter(counts)
+    mean = sum(counts) / float(8 * len(face))
+    # Measured after: 0.59 lit, no cell under two dots (the floor), and
+    # thirteen distinct glyphs - a Bayer tile over two-by-four cells
+    # repeats its cell patterns, which is what an even lattice IS; the
+    # block's other glyphs come where the light changes, not as texture.
+    report.check('the shipped board at the page\'s size is a surface: every '
+                 'dot count from the floor up occurs and the face is a '
+                 'third to three quarters lit',
+                 all(hist[r] for r in range(2, 9)) and 0.33 <= mean <= 0.75,
+                 '%.2f lit, %s' % (mean, ' '.join(
+                     '%d:%d' % (r, hist[r]) for r in range(1, 9))))
+    report.check('and no cell of it is a lone dot: the floor holds',
+                 hist[1] == 0 and len(set(face)) >= 10,
+                 '%d at one dot, %d distinct' % (hist[1], len(set(face))))
+
+    # THE RIM, CLIPPED AND LIT. A part-covered cell's dots all lie in
+    # quadrants the 2x2 raster reached - nothing spills past the board -
+    # and the rim cells wear the edge tone, brighter than the face.
+    def luma(rgb):
+        return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+
+    rim, spilled, edge, inside = 0, 0, [], []
+    for i in range(width * height):
+        if not classes[i]:
+            continue
+        cell = tone[i // width][i % width]
+        if quads[i] in (0, 15):
+            inside.append(luma(cell))
+            continue
+        rim += 1
+        edge.append(luma(cell))
+        mask = ord(grid[i // width][i % width]) - raster.BRAILLE
+        for lane in range(2):
+            for y in range(4):
+                if (mask & raster.BRAILLE_BITS[lane][y]
+                        and not quads[i] & (1 << (lane + 2 * (y // 2)))):
+                    spilled += 1
+    edge.sort()
+    inside.sort()
+    report.check('no dot past the rim: every dot of a part-covered cell is '
+                 'in a quadrant the model reaches',
+                 rim > 0 and spilled == 0,
+                 '%d spilled over %d rim cells' % (spilled, rim))
+    report.check('and the rim is a line of light, brighter than the face',
+                 edge and inside
+                 and edge[len(edge) // 2] > inside[len(inside) // 2],
+                 'rim %.0f against face %.0f luma'
+                 % (edge[len(edge) // 2], inside[len(inside) // 2]))
 
 
 def test_triad(report):
@@ -672,7 +716,7 @@ def main():
     test_chain(report)
     test_outline(report)
     test_key_light(report)
-    test_the_dots_are_sampled(report)
+    test_the_face_is_a_halftone(report)
     test_triad(report)
     test_steady(report)
     test_scroll(report)

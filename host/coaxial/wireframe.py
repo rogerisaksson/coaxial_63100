@@ -508,47 +508,55 @@ LEVEL_LO, LEVEL_HI = 0.0, 2.0
 #: for.
 HEAT_LO, HEAT_HI = 0.20, 0.55
 
-#: How many rungs a stair corner drops. The glyph is the anti-aliasing:
-#: a rim cell missing half its coverage thins, and on three glyphs that
-#: was ':' to '.' - one step of two. Two rungs of eight is the same
-#: fraction of the ladder.
-THIN_RUNGS = 2
+def _bayer(n):
+    """The n x n ordered-dither matrix, thresholds 0 to n*n - 1, built
+    the classic recursive way from the 2 x 2 seed."""
+    if n == 2:
+        return [[0, 2], [3, 1]]
+    half = _bayer(n // 2)
+    seed = _bayer(2)
+    return [[4 * half[y % (n // 2)][x % (n // 2)]
+             + seed[y // (n // 2)][x // (n // 2)] for x in range(n)]
+            for y in range(n)]
 
 
-def _ladder():
-    """The order the ladder lights a cell's dots in, read off `LIT` so
-    the sampled glyphs and the flat ones are ONE alphabet: rung r is the
-    first r dots of this order, and a cell sampled flat draws exactly
-    the glyph `_pattern` gives that rung. Loud if `raster.SHADE` ever
-    sorts a rung whose smoothest pattern is not the one below plus a
-    dot - the sampling below rests on it."""
-    order, seen = [], 0
-    for rung in range(1, RUNGS + 1):
-        new = (ord(LIT[rung][0]) - BRAILLE) & ~seen
-        if not new or new & (new - 1):
-            raise ValueError('the ladder is not nested at rung %d' % rung)
-        order.append(new)
-        seen |= new
-    return tuple(order)
-
-
-LADDER = _ladder()
-RANK = {bit: rank for rank, bit in enumerate(LADDER)}
+#: THE FACE IS A HALFTONE, at dot resolution. Each of a cell's eight
+#: dots is lit where the light at the dot's own position clears its
+#: threshold in an 8 x 8 Bayer matrix laid over the DOTS - four cells
+#: wide, two tall, which is square on screen at a 2:1 cell. Sixty-four
+#: densities, and the pattern is fixed in screen space, so a board
+#: turning under it moves the density and not the dots.
+#:
+#: Two things before it, both seen in a raster of the frame rather than
+#: in glyph counts. One rung per cell rounded a desk-lamp gradient of a
+#: fraction of a rung a cell to the same rung across the whole face -
+#: a carpet of `⢕` with the parts drawn on it. Sampling the light per
+#: dot on the ladder's own nesting order fixed the carpet and left the
+#: face a sparse lattice: eight dot positions a cell in one fixed
+#: order, so every cell at the same rung put its dots in the same
+#: places and the dark half of the board was rows of dots a cell apart
+#: - speckle with banding, the artefacts the bench pointed at. A
+#: halftone spreads the dots the way a printer does: even at every
+#: density, no cell period in it, and the glyphs the block has all
+#: occur, each where the density and the matrix put it.
+BAYER = _bayer(8)
+BAYER_N = 8
 
 #: Where each of a cell's eight dots sits, in cells from the cell's
-#: centre: two lanes a quarter cell either side, four rows at eighths
-#: down. THE LIGHT IS SAMPLED HERE, not once per cell. One rung per
-#: cell, a desk-lamp gradient of a fraction of a rung a cell rounded to
-#: the same rung across the whole face, and the face was a carpet of
-#: one glyph with the parts drawn on it - `⢕` over 90 % of a resting
-#: board at the attitude page's size, which the bench called blocky
-#: twice. Sampled at the dots off the cell's own heat gradient, the
-#: rung changes dot by dot across a cell, and the glyphs between the
-#: ladder's eight appear exactly where the light changes inside a
-#: cell: a flat cell is still one flat pattern, a gradient is every
-#: pattern the block has, in order.
+#: centre - two lanes a quarter cell either side, four rows at eighths
+#: down - and which bit it is.
 DOT_AT = tuple((lane * 0.5 - 0.25, (y - 1.5) / 4.0, BRAILLE_BITS[lane][y])
                for lane in range(2) for y in range(4))
+
+#: The darkest a lit cell's density goes, as a share of its dots. THE
+#: BRIGHTNESS WAS ENCODED TWICE: a dark cell was few dots AND a dim
+#: tone, contrast squared, and the half of the board the lamp reaches
+#: least dissolved into speckle. With the tone carrying the light, the
+#: dots need only carry the shape - a floor of three dots in ten keeps
+#: the face a surface at its darkest. Measured in a raster: at 0 the
+#: dark side was scattered dots, at 0.5 the shading flattened; 0.3
+#: keeps the gradient and the surface both.
+DENSITY_FLOOR = 0.3
 
 #: The exposure: which percentiles of the frame's lit heat land at the
 #: ladder's ends, and how fast the window follows from frame to frame.
@@ -1025,27 +1033,36 @@ def _slope(before, here, after):
     return 0.0
 
 
-def _dots(grid, heat, classes, coverage, width, height, window):
+def _dots(grid, heat, classes, coverage, width, height, window,
+          quads=None):
     """The glyphs, off the heat field: each of a cell's eight dots is lit
-    where the heat sampled AT THE DOT clears that dot's rung.
+    where the density at the dot clears its Bayer threshold.
 
     The heat at a dot is the cell's own plus its gradient - `_slope`
-    from the lit neighbours - times the dot's offset; the rung a dot
-    needs is its place in `LADDER`, so a cell with no gradient draws
-    exactly `_pattern`'s glyph for its rung and a cell with one draws
-    the glyph between. A DRAWN CELL IS NEVER BLANK: the class already
-    decided there is something here, and a cell whose heat clears no
-    dot keeps the ladder's first. A stair corner on the silhouette
-    still thins by THIN_RUNGS - that is the anti-aliasing, and a rim
-    cell missing half its coverage drops two rungs."""
+    from the lit neighbours - times the dot's offset, normalised by
+    `window` to a share of the ladder and lifted onto DENSITY_FLOOR.
+    The threshold is the dot's place in BAYER, by the dot's position on
+    the SCREEN, so the matrix tiles across cells and a flat region is
+    one even lattice at its density. A DRAWN CELL IS NEVER BLANK: the
+    class already decided there is something here, and a cell whose
+    density clears no dot keeps one.
+
+    CLIPPED TO THE MODEL: `quads` says which quadrants of a cell the
+    2x2 raster reached, and a dot in a quadrant it missed stays dark -
+    that dot is outside the board. Before this a rim cell a quarter
+    covered drew its whole cell's density thinned by two rungs, and the
+    dots spilled past the rim; the bench asked for them cut. With the
+    clipping the thinning has nothing left to do and is gone."""
     lo, hi = window
-    gain = RUNGS / (hi - lo) if hi > lo else 0.0
+    gain = 1.0 / (hi - lo) if hi > lo else 0.0
+    levels = float(BAYER_N * BAYER_N)
     for py in range(height):
         row = py * width
         for px in range(width):
             at = row + px
             if not classes[at]:
                 continue
+            reach = quads[at] if quads is not None and quads[at] else 15
             here = heat[at]
             gx = _slope(heat[at - 1] if px and classes[at - 1] else None,
                         here,
@@ -1057,13 +1074,68 @@ def _dots(grid, heat, classes, coverage, width, height, window):
                         heat[at + width] if py < height - 1
                         and classes[at + width] else None)
             base = (here - lo) * gain
-            if 1.0 - coverage[at] >= 0.5:
-                base -= THIN_RUNGS
             mask = 0
             for ox, oy, bit in DOT_AT:
-                if base + (gx * ox + gy * oy) * gain > RANK[bit] + 0.5:
+                if not reach & (1 << ((0 if ox < 0.0 else 1)
+                                      + (0 if oy < 0.0 else 2))):
+                    continue
+                share = base + (gx * ox + gy * oy) * gain
+                share = 0.0 if share < 0.0 else (1.0 if share > 1.0
+                                                 else share)
+                share = DENSITY_FLOOR + (1.0 - DENSITY_FLOOR) * share
+                dx = (px * 2 + (0 if ox < 0.0 else 1)) % BAYER_N
+                dy = (py * 4 + int((oy + 0.5) * 4.0)) % BAYER_N
+                if share * levels > BAYER[dy][dx] + 0.5:
                     mask |= bit
-            grid[py][px] = chr(BRAILLE + (mask or LADDER[0]))
+            grid[py][px] = chr(BRAILLE + (mask or DOT_AT[0][2]))
+
+
+def _edge_tone(base):
+    """The tone an edge takes - a part's outline, the rim - off the
+    heat under it, lifted by OUTLINE_LIFT toward the ladder's top rung,
+    which HOTTEST keeps from the face: readable ink is what that rung
+    is reserved for."""
+    top_heat = len(GLOW) - 1 + HOTTEST
+    return _blend(min(len(GLOW) - 1,
+                      base + OUTLINE_LIFT * (0.5 + 0.5 * base / top_heat)))
+
+
+def _rim(grid, tone, classes, quads, heat, width, height, colour):
+    """THE EDGE, ENHANCED. A cell the model covers only in part, or one
+    with a neighbour the model misses, is on a silhouette - the board's
+    rim, a hole's edge - and is drawn SOLID in the quadrants the model
+    reaches, in the outline's tone: a hard bright line round every
+    shape, one cell thick, over the halftone inside it.
+
+    The bench asked for the retro-futurist terminal - Nostromo, Blade
+    Runner - and that look is edges: a face is a texture, an edge is a
+    line of light. Before this the rim was the halftone thinned by
+    coverage, a soft edge with dots past the board wherever a cell was
+    a quarter covered. The mono render takes the solid glyph and no
+    tone: there the edge is the dots alone."""
+    for py in range(height):
+        row = py * width
+        for px in range(width):
+            at = row + px
+            if not classes[at]:
+                continue
+            reach = quads[at] if quads is not None and quads[at] else 15
+            if reach == 15 and (
+                    (px == 0 or classes[at - 1])
+                    and (px == width - 1 or classes[at + 1])
+                    and (py == 0 or classes[at - width])
+                    and (py == height - 1 or classes[at + width])):
+                continue
+            mask = 0
+            for lane in range(2):
+                for y in range(4):
+                    if reach & (1 << (lane + 2 * (y // 2))):
+                        mask |= BRAILLE_BITS[lane][y]
+            grid[py][px] = chr(BRAILLE + (mask or BRAILLE_BITS[0][0]))
+            if colour:
+                base = (heat[at] if heat is not None and heat[at]
+                        else OUTLINE_BASE)
+                tone[py][px] = _edge_tone(base)
 
 
 def _keylight(cam, width, height):
@@ -1102,9 +1174,10 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
     is +-1), normalised and bent through the EDGE sigmoid: shadows
     deepen and highlights sharpen while the midtone stands. The SPOT
     adds its radial pool of light and the KEY light shades by the
-    surface's slope; a staircase corner on the SILHOUETTE thins its
-    glyph, and nothing dims - the exporter's rim is as bright as his
-    interior. `cam` sizes the cells for the key light; without it the
+    surface's slope; the rim is `_rim`'s, a line of light clipped to
+    the model over the halftone's edge, and nothing dims - the
+    exporter's rim is as bright as his interior. `cam` sizes the cells
+    for the key light; without it the
     key is off (the tests that hold the pool's arithmetic pass none)."""
     steps = len(GLOW) - 1
     lo, span = TONE_LO, TONE_SPAN
@@ -1668,10 +1741,6 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
     scale, cx, cy, distance = cam['scale'], cam['cx'], cam['cy'], cam['distance']
     min_extent = OUTLINE_CELLS / (scale / distance)
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
-    top_heat = len(GLOW) - 1 + HOTTEST
-    # The line may reach the ladder's top rung, which HOTTEST keeps from
-    # the face: readable ink is what that rung is reserved for.
-    ceiling = len(GLOW) - 1
     seen = {}
     masks = {}
 
@@ -1727,9 +1796,8 @@ def _outline(grid, tone, buf, cam, m, colour, heat=None):
         r, c = divmod(at, width)
         grid[r][c] = chr(BRAILLE + mask)
         if colour:
-            base = heat[at] if heat is not None and heat[at] else OUTLINE_BASE
-            lift = OUTLINE_LIFT * (0.5 + 0.5 * base / top_heat)
-            tone[r][c] = _blend(min(ceiling, base + lift))
+            tone[r][c] = _edge_tone(heat[at] if heat is not None
+                                    and heat[at] else OUTLINE_BASE)
     return len(masks)
 
 
@@ -1747,10 +1815,11 @@ def _glyph(dx, dy):
 
 
 def _raster(solid, m, cam, crew):
-    """(depth, top, sun, coverage) at cell resolution: rastered at 2x2
-    subsamples per cell - the camera doubled - and FOLDED, so every
-    cell knows its coverage, which the rim's anti-aliasing runs on.
-    Four times the raster, which is what the crew is for."""
+    """(depth, top, sun, coverage, quads) at cell resolution: rastered
+    at 2x2 subsamples per cell - the camera doubled - and FOLDED, so
+    every cell knows its coverage and which quadrants of it the model
+    reaches, which the rim's clipping runs on. Four times the raster,
+    which is what the crew is for."""
     from . import engine
     fine = dict(cam, width=2 * cam['width'], height=2 * cam['height'],
                 scale=2.0 * cam['scale'], cx=2.0 * cam['cx'],
@@ -1765,9 +1834,9 @@ def _raster(solid, m, cam, crew):
 
 
 def _cells(solid, m, cam, crew, face, foreign):
-    """Every per-cell stage: (depth, coverage, classes, levels, bare,
-    seed). With a crew holding the solid the workers raster, fold and
-    shade their own bands and the parent keeps only the glow, which
+    """Every per-cell stage: (depth, coverage, quads, classes, levels,
+    bare, seed). With a crew holding the solid the workers raster, fold
+    and shade their own bands and the parent keeps only the glow, which
     needs neighbours. A foreign solid gets no cast shadows and no art;
     `face=False` leaves the class fields None for the wire drawing."""
     from . import engine
@@ -1776,9 +1845,9 @@ def _cells(solid, m, cam, crew, face, foreign):
         shading = (PIVOT, SLOPE, FLOOR, None if foreign else _shadowmap(m),
                    SHADOW_DIM, BIAS, not foreign)
         return crew.frame(solid, m, cam, LIGHT, SUN_MIN, shading)
-    buf, topf, sun, coverage = _raster(solid, m, cam, crew)
+    buf, topf, sun, coverage, quads = _raster(solid, m, cam, crew)
     if not face:
-        return buf, coverage, None, None, None, None
+        return buf, coverage, quads, None, None, None, None
     levels = [0.0] * (width * height)
     bare = [0.0] * (width * height)
     seed = [0.0] * (width * height)
@@ -1788,7 +1857,7 @@ def _cells(solid, m, cam, crew, face, foreign):
         shadow=None if foreign else _shadowmap(m),
         shadow_step=SHADOW_DIM, bias=BIAS, levels=levels, bare=bare,
         seed=seed)
-    return buf, coverage, classes, levels, bare, seed
+    return buf, coverage, quads, classes, levels, bare, seed
 
 
 def render(q, width, height, zoom=1.0, colour=True,
@@ -1849,7 +1918,7 @@ def render(q, width, height, zoom=1.0, colour=True,
     m = engine.multiply(view, orientation.matrix(q))
     scale, cx, cy = cam['scale'], cam['cx'], cam['cy']
 
-    buf, coverage, classes, levels, bare, seed = _cells(
+    buf, coverage, quads, classes, levels, bare, seed = _cells(
         solid, m, cam, crew, face, foreign)
     z_lo = min((v for v in buf if v), default=0.0)
     z_hi = max(buf, default=1.0) or 1.0
@@ -1869,7 +1938,8 @@ def render(q, width, height, zoom=1.0, colour=True,
               height, colour, cam=cam, buf=buf, heat_out=heat)
         if colour:
             _dots(grid, heat, classes, coverage, width, height,
-                  _expose(heat, classes, persist))
+                  _expose(heat, classes, persist), quads)
+        _rim(grid, tone, classes, quads, heat, width, height, colour)
         # The outline, last, over the shading: the parts' edges as a
         # wireframe overlay from the mesh's own creases - see
         # OUTLINE_DEG. Measured before any of this: the parts were tone
