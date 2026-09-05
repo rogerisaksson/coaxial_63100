@@ -22,7 +22,7 @@ comms/       cmd (the command tables) over link (which port, which mode)
 modbus/      modbus_crc, modbus_slave, modbus_rtu, modbus_map - C11, no HAL
 drive/       drive.c, drive_math.c, drive_model.c - the control law and a
              motor model, C11, no HAL
-thermal/     the ten-node observer, C11
+thermal/     the ten-node observer and the winding's envelope, C11
 filter/      the anti-alias biquad chain, C11
 shtp/        the BNO08X transport parser, C11
 ```
@@ -260,18 +260,24 @@ which is what makes them read as a staircase rather than as brackets.
 The two margins are different facts and named apart for it: `BOARD SOA`
 is the worst of the ten board nodes against ceilings the calibration
 record gave it and the board acts on that itself - it throttles, and at a
-ceiling it drops MOE - while `MOTOR SOA` is the winding against this
-page's own scale, which only the operator can act on. Both stand up as
-tubes in the right gutter, outboard of the board's thermometers with a
-column of air between: four are node temperatures and two are margins,
-and adjacent they read as one stack of six.
+ceiling it drops MOE - while `MOTOR SOA` is the winding. Since MINOR 12
+the board carries that too: the winding is one more element in
+`thermal.c`, shedding to the air rather than the laminate, judged by the
+same ramp, and the stage gets the smaller of the two factors - the page
+draws the board's winding and its spend against the record's ceiling when
+the budget carries them, and its own estimate against the page's scale,
+marked `est`, on older firmware. Both stand up as tubes in the right
+gutter, outboard of the board's thermometers with a column of air
+between: four are node temperatures and two are margins, and adjacent
+they read as one stack of six.
 
 Above the headroom scale stands the NTC, and it is there because it is
 the one MEASURED temperature on the page - a thermistor beside the middle
 gate driver, in the ink the drawing gives what is known rather than
 modelled. Every other figure is an estimate: ten nodes of a lumped
-network and a winding relaxed into a placeholder pair, none of them with
-a sensor in it. Against the stand-in it is `expected_ntc` off the model's
+network and a winding relaxed into a placeholder pair - on the board
+since MINOR 12, on the page before that - none of them with a sensor in
+it. Against the stand-in it is `expected_ntc` off the model's
 own nodes, so simulated it proves nothing - the page's SIMULATED banner
 is what says which one is on screen.
 

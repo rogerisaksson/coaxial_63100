@@ -40,10 +40,16 @@ is still arithmetic. Every item names the file or record it lives in.
   for the laminate. The FET's IS in the tree since 2026-09-04:
   `datasheets/mosfet/` gives Tj 175 C and Rth JC 0.69 K/W, so a 125 C
   ceiling on the copper is about 131 C at the junction - 44 K of margin,
-  and the ceiling is conservative rather than optimistic.
+  and the ceiling is conservative rather than optimistic. **The winding
+  is an envelope of its own since 2026-09-05** (MINOR 12, CAL_VERSION
+  12): the stage throttles on the smaller of the board's factor and the
+  winding's, and its K/W, J/K and 120 C ceiling are the motor profile's
+  placeholder pair and an estimate - no thermocouple has been on a
+  winding, and no motor on the bench.
 * **The whole SOA path has never run on the target.** It builds clean -
   the derate, the soak joules, the reaction window, `Board_DriveDerate`,
-  `Board_SyncMeanSquare` - and has never been flashed. Of the five-step
+  `Board_SyncMeanSquare`, the winding element and thermal op 6 - and
+  has never been flashed. Of the five-step
   validation only the build and the host-side suite are done; the dry
   `budget()` read over the wire, the gate proof with a lowered ceiling on
   a cold board, and a real load run are not.
