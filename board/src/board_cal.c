@@ -88,13 +88,15 @@ static const board_cal_t CAL_DEFAULTS =
      it is the part's junction limit, and the three carry the same part.
      What the split buys is that one leg reaches it on its own.
 
-     Derate at 85 %: the board's constant is 6.8 minutes but a deep burst
+     Derate at 90 %: the board's constant is 6.8 minutes but a deep burst
      moves a node in seconds, so a throttle that waits for the ceiling
-     arrives after it. */
+     arrives after it. Ninety from eighty-five on the bench's word - at
+     eighty-five the ramp took the last sixth of every node's budget away
+     from a burst the board is there to survive. */
   .soa_limit_centi  = { 12500, 12500, 12500,      /* driver U, V, W */
                         12500, 12500, 12500,      /* phase  U, V, W */
                         12500, 12500, 12500, 10500 },
-  .soa_throttle_ppm = 850000UL,
+  .soa_throttle_ppm = 900000UL,
   /* Two seconds of reaction window. The phase node's own constant is
      about eighteen seconds and a deep burst crosses its whole throttle
      band in under one, so a throttle looking only at the present never

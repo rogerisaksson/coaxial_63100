@@ -878,6 +878,27 @@ record's own constants, no measurement.
   194.0. Continuous against a 105 C laminate is 19.1 A, against a 125 C
   junction 22.0 A. The shunt node binds first in steady state - the
   board's ceiling is not what limits a continuous rating.
+* **The throttle point moved from 85 % to 90 % of the span, 2026-09-05,
+  on the bench's word.** `THROTTLE_AT`, the record's `soa_throttle_ppm`
+  (900 000), the stand-in and the notebook builder all carry it. With
+  the two-second lookahead the ramp is now the LAST 200 ms of hold
+  rather than 300 (`lookahead x (1 - throttle)`), which is what moved
+  three checks in `test_thermal_core.py` - none of them a change of
+  rule, all of them a scenario that sat inside the old band and under
+  the new one. Measured on the core (phase node 0.400 J/K): 200 W from
+  ambient holds 0.21 s and just clears a 0.2 s ramp, clamp 1.00, where
+  it was throttled at 85; the fault check is 300 W now, clamp 0.70.
+  35 W on a node placed hot: the window binds from about 110 C
+  (100 C before) - 108 C still 1.000, 110 C 0.944, 112 C 0.820 against
+  a present-only 1.000, so the check sits at 112. And an unmasked
+  regulator at 110 C is 0.857 of its span, under the point; the check
+  places it at 116 (0.86 unmasked, 1.00 masked). **The one that was
+  wrong before the move:** `screen.gauge` turned sodium at a literal
+  `hot=0.85` of its own, a second copy of the throttle point that
+  would have stayed at 85 while the board acted at 90 - it defaults to
+  `THROTTLE_AT` now. What the notebooks print (`foc_montecarlo`,
+  `thermal_model`) still quotes 85 until they are re-executed; the
+  builder says 90.
 
 ## The views
 
@@ -898,6 +919,30 @@ record's own constants, no measurement.
   the two views that had it only on the wheel; C was not free (the
   attitude view's frame, the menu's direct entry), which is why the key
   is F.
+* **The kW foot gauge, 2026-09-05.** Linear over 0-2 kW it showed
+  nothing for the loads the bench actually runs - a few tens of watts is
+  a sliver of a 2 kW bar; log-scaled it was the other failure, the top
+  half of the bar spent between 200 W and 2 kW with the interesting end
+  compressed. The bench asked for small draws visible at the start,
+  the middle of the scale near 500 W, the last stretch up to 2 kW and
+  deep red past it. That is a power law with its exponent fixed by the
+  midpoint: `share = (W / 2000) ^ p`, `p = ln 0.5 / ln (500 / 2000)` =
+  0.5, a square root. 50 W sits at 16 % of the bar, 125 W at 25 %,
+  500 W at 50 %, 1125 W at 75 %, 2 kW at the end; above 2 kW the bar
+  is full and takes `SOA_TRIP`'s red, and the foot label wears the
+  same ink as the bar. `WATTS_MID` is the only knob - move it and the
+  exponent follows. `test_the_power_face_has_its_middle_at_half_a_kilowatt`
+  pins the midpoint, the monotone rise, and the red.
+* **DRIVE's mode row carries the envelope, 2026-09-05.** It said
+  `RUNNING SENSORLESS`, and whether the board was clamping the current
+  it ran under sat three rows down as `throttle 63 % of the clamp`. Now
+  `HOLD (NORM)` / `SENSORLESS (NORM)`, and `(THR)` in `THROTTLE_RED`
+  (xterm 124, a red darker than the trip's 196 and the pulse's 210)
+  while the board holds it back - on the board's own `throttling` or
+  `tripped`, the same verdict the SOA gauge pulses on, now one
+  predicate (`envelope_acting`) for both. The darker red is deliberate:
+  the envelope working is not a fault, and the page has already been
+  taught once (FLASH_HZ, down from 3) not to shout about routine work.
 
 ## The renderers
 

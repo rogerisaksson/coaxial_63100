@@ -272,14 +272,14 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2679 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2695 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 |---|---|---|
-| test_structure.py | 590 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
+| test_structure.py | 594 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 218 | the runner's tools, the docs tool |
-| test_ollama_runner.py | 216 | the runner, the path map, the docs index |
+| test_ollama_runner.py | 223 | the runner, the path map, the docs index |
 | test_simulated.py | 212 | the stand-in and the renderers |
 | test_live_model.py | 212 | the model, `--live` |
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
@@ -290,16 +290,16 @@ by `counts.py`:
 | test_daq_api.py | 75 | the acquisition front door against the stand-in |
 | test_drive_core.py | 81 | the control law against the motor model through the host gcc, the Monte Carlo included |
 | test_mcp.py | 46 | the MCP server |
-| test_render.py | 42 | the 3D engine stage by stage against an analytic oracle |
+| test_render.py | 61 | the 3D engine stage by stage against an analytic oracle |
 | test_filter_core.py | 42 | the anti-alias chain against its transfer function |
-| test_thermal_core.py | 67 | the SOA envelope through the host gcc - derate, lookahead, soak, the conduction split |
+| test_thermal_core.py | 74 | the SOA envelope through the host gcc - derate, lookahead, soak, the conduction split |
 | test_shtp_core.py | 38 | the SHTP parser |
 | test_broker.py | 33 | the shared session on a scripted port |
 | test_ollama_render.py | 32 | what the runner draws |
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 51 | every view drawn twice, and the rotor observer's geometry |
+| test_views.py | 113 | every view and the front page drawn twice, the rotor observer's geometry, its gauges and its DRIVE box |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |

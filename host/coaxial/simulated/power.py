@@ -457,7 +457,7 @@ class SimulatedThermal:
                 'derate': self._derate_held, 'soak_j': self.soak_j(),
                 'duty': list(self._duty() or (0.0, 0.0, 0.0))}
 
-    def set_limit(self, node, limit_c, throttle_at=0.85):
+    def set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
         return True
 
     def set_node(self, node, to_board, capacity):

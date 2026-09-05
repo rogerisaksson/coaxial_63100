@@ -262,8 +262,8 @@ DRAG_ROWS = 6.0
 #: SCALE, not a limit: nothing on this board says what the magnet wire
 #: may take, and this page does not either (invariant 10).
 WINDING_SCALE_C = 150.0
-#: The face of the power bar beside the board's thermometers: watts, and
-#: LOGARITHMIC over its decades.
+#: The face of the power bar beside the board's thermometers: watts, on
+#: a POWER LAW pinned by where its middle sits.
 #:
 #: Linear to 2 kW it did not move. Measured over a full cycle of both
 #: loops the peak electrical input is 97 W - 4.9 % of the face, under
@@ -273,13 +273,19 @@ WINDING_SCALE_C = 150.0
 #: Kilowatts want the machine's envelope, 11 371 rpm at the measured
 #: link, and that is a different page.
 #:
-#: So the face keeps its 2 kW and counts decades instead: a watt at the
-#: bottom, two kilowatts at the top, and each ten-fold a fixed share of
-#: the bar. 97 W lands at 60 % of it. A log face is a choice about
-#: legibility and says so - the number beside it in the box is the watts
-#: themselves, undistorted.
+#: LOGARITHMIC WAS TOO MUCH THE OTHER WAY. Decades from one watt put
+#: 97 W at 60 % of the face and 500 W at 82 %: the whole working range
+#: of the stage lived in the top fifth, and the last part to 2 kW was a
+#: sliver. The bench asked to see small draws at the bottom, half the
+#: bar at about 500 W, and the run up to 2 kW to have room - so the
+#: face is `(W / 2 kW) ^ p` with `p` chosen so `WATTS_MID` lands at
+#: half: 500 of 2000 makes p one half, a square root. 20 W is a tenth
+#: of the bar, 100 W is 22 %, 500 W half, 2 kW full, and past full the
+#: bar and the figure beside it go the deep red of a limit. A curved
+#: face is a choice about legibility and says so - the number beside it
+#: is the watts themselves, undistorted.
 WATTS_SCALE = 2000.0
-WATTS_FLOOR = 1.0
+WATTS_MID = 500.0
 #: Where the headroom gauge stops being green. The scale's own, not the
 #: board's - see `headroom_class`.
 HEADROOM_AMBER = 0.5
@@ -460,11 +466,8 @@ def eps_gain(params, v_inj, ts):
 #: twenty-four fit beside the frame. Longer rows were cropped mid-word.
 def drive_rows(view):
     s = view['state']
-    running = s['mode'] != 'off'
     return [
-        ('mode', Text.from_ansi(
-            tint('RUNNING %s' % s['mode'].upper(), SODIUM)
-            if running else tint('STOPPED', ASH))),
+        ('mode', Text.from_ansi(mode_text(view))),
         ('source', view['source'].upper()),
         ('stage', 'ARMED' if s['stage_enabled'] else 'idle'),
         ('AFE', 'on' if s['afe_on'] else 'off'),
@@ -917,9 +920,12 @@ def _foot_line(view):
     # levels off along the bar it names. Flat, it pointed along the row
     # and the bar it meant was the one nobody was looking at.
     pad = ART_WIDTH - len(head) - len(tail)
+    # THE FIGURE WEARS THE BAR'S INK: past 2 kW the bar goes the deep
+    # red of a limit, and a blue number under a red bar would be two
+    # answers to the same watt.
     foot = (tint(head, machine.INK[machine.SOA_WARN])
             + ' ' * max(0, pad)
-            + tint(tail, machine.INK[machine.WATTS]))
+            + tint(tail, machine.INK[watts_bar(view)[1]]))
     return foot
 
 
@@ -1038,7 +1044,8 @@ def torque(view):
 def status_rows(view):
     """Two rows, and neither of them is anywhere else on the page.
 
-    It said RUNNING SENSORLESS and the rpm, and DRIVE says the mode two
+    It said RUNNING SENSORLESS and the rpm, and DRIVE says the mode
+    (`SENSORLESS (NORM)` now) two
     boxes down while CHAIN says the speed two boxes up - a status box
     that repeats its neighbours is three places to check for one fact.
     What is left is what nothing else carries: whether the back-EMF
@@ -1077,7 +1084,7 @@ def status_rows(view):
 def regime(view):
     """The status chip: which commutation is running, and whether it can.
 
-    NOT THE MODE: DRIVE already prints RUNNING SENSORLESS, and this
+    NOT THE MODE: DRIVE already prints `SENSORLESS (NORM)`, and this
     carried the same words and the rpm besides. What is left is the one
     thing neither box says - whether the back-EMF chain has a rotor to
     work with, or whether the microstepper is carrying it because
@@ -1478,9 +1485,23 @@ def watts_bar(view):
     before anything else on this page runs out first. A SCALE, and the
     board judges nothing by it.
     """
-    decades = math.log10(WATTS_SCALE / WATTS_FLOOR)
-    share = math.log10(max(WATTS_FLOOR, abs(watts(view))) / WATTS_FLOOR)
-    return (min(1.0, share / decades), machine.WATTS)
+    return watts_share(watts(view))
+
+
+def watts_share(w):
+    """Watts to `(share, class)` on the power face - `WATTS_SCALE` has
+    the shape and why.
+
+    Its own function so the face can be checked at a watt, not only
+    through a running view: half at `WATTS_MID`, full at `WATTS_SCALE`,
+    and past full the bar goes the deep red of a limit while the figure
+    beside it keeps counting.
+    """
+    power = math.log(0.5) / math.log(WATTS_MID / WATTS_SCALE)
+    share = (abs(w) / WATTS_SCALE) ** power
+    if share > 1.0:
+        return 1.0, machine.SOA_TRIP
+    return share, machine.WATTS
 
 
 def headroom(view):
@@ -1492,6 +1513,44 @@ def headroom(view):
     """
     worst = (view.get('budget') or {}).get('worst')
     return 1.0 - min(1.0, max(0.0, worst)) if worst is not None else 1.0
+
+
+#: The envelope's word beside the mode, in a red DARKER than the trip's
+#: 196 and the pulse's 210. The DRIVE box has no level to pulse, so the
+#: word carries what the gauges carry by colour: the board holding the
+#: stage back is the envelope working, not a fault, and a dark red says
+#: held rather than hurt. The bench's own words: nearly red, darker, as
+#: when it SOA-throttles.
+THROTTLE_RED = 124
+
+
+def envelope_acting(view):
+    """Whether the board is holding the stage back - throttling, or tripped.
+
+    ON THE BOARD'S OWN VERDICT, never a threshold this page invented:
+    both are facts the board reports out of limits it was given
+    (invariant 10). Being near a limit is not an event; being held back
+    because of one is.
+    """
+    budget = view.get('budget') or {}
+    return bool(budget.get('throttling') or budget.get('tripped'))
+
+
+def mode_text(view):
+    """`HOLD (NORM)`, `SENSORLESS (THR)`: the mode, and whether the
+    envelope is holding it back. STOPPED while the drive is off.
+
+    It said `RUNNING SENSORLESS`, and whether the board was clamping the
+    current it ran under sat three boxes down as a percentage. The mode
+    and its state are one glance now: NORM while the board drives what
+    it is asked, THR in `THROTTLE_RED` while it is held back.
+    """
+    s = view['state']
+    if s['mode'] == 'off':
+        return tint('STOPPED', ASH)
+    state = (tint('(THR)', THROTTLE_RED) if envelope_acting(view)
+             else tint('(NORM)', SODIUM))
+    return tint('%s ' % s['mode'].upper(), SODIUM) + state
 
 
 #: How fast the SOA gauge pulses while the envelope is acting, hertz.
@@ -1509,17 +1568,13 @@ FLASH_HZ = 1.5
 def flashing(view):
     """Whether this frame takes the bright half of the alarm pulse.
 
-    ON THE BOARD'S OWN VERDICT, never a threshold this page invented: it
-    pulses while the envelope is ACTING - throttling, or tripped - and
-    both are facts the board reports out of limits it was given
-    (invariant 10). Being near a limit is not an event; being held back
-    because of one is, and that is the thing worth a flash.
+    It pulses while the envelope is ACTING - `envelope_acting`, the
+    board's verdict - because being held back is the thing worth a flash.
 
     On wall time rather than a frame count, so it pulses at the same rate
     whatever the view's frame rate is doing.
     """
-    budget = view.get('budget') or {}
-    if not (budget.get('throttling') or budget.get('tripped')):
+    if not envelope_acting(view):
         return False
     return (time.monotonic() * FLASH_HZ * 2.0) % 2.0 < 1.0
 

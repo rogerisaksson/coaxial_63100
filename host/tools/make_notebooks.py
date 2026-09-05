@@ -783,7 +783,7 @@ def split(iq=0.0, switching=True):
         out[n] = rms * rms * R_PHASE
     return out
 
-CEILING_C = 125.0 * 0.85             # the record's throttle point
+CEILING_C = 125.0 * 0.90             # the record's throttle point
 STATES = (('quiet, no PWM', 0.0, False),
           ('switching, no current', 0.0, True),
           ('switching, 10 A of iq', 10.0, True),
@@ -827,7 +827,7 @@ for minutes in (1, 5, 10, 25):
           % (minutes, 100 * thermal.settled_fraction(minutes)))"""),
     md("A burst is over long before either constant matters: the phase node "
        "climbs at `P / capacity` from wherever it started, and what stops it "
-       "is the ceiling in the calibration record, throttled at 85 %."),
+       "is the ceiling in the calibration record, throttled at 90 %."),
     code("""capacity = thermal.CFG['capacity']['phase_u']
 
 print('  iq A   W a phase   K/s      s from ambient   s from a warm board (60 C)')
@@ -2001,7 +2001,7 @@ for vdc in (23.0, 43.0, 63.0):
     code("""from coaxial import thermal
 
 R_PHASE = inverter.RDS_ON + inverter.SHUNT
-CEILING_C = 125.0 * 0.85            # the record's throttle point
+CEILING_C = 125.0 * 0.90            # the record's throttle point
 AMBIENT_C = thermal.AMBIENT
 capacity = thermal.CFG['capacity']['phase_u']
 
@@ -2025,7 +2025,7 @@ for iq in (20.0, 40.0, 60.0, 100.0):
        "the node holds a third of a joule per kelvin, so it moves in seconds "
        "while the board under it moves in 6.8 minutes. That separation is why "
        "a burst is planned against `seconds_to_limit` rather than a steady "
-       "state, and why the envelope throttles at 85 % of the ceiling rather "
+       "state, and why the envelope throttles at 90 % of the ceiling rather "
        "than waiting for it.\n\n"
        "The network was fitted **dry** - nothing on the phases, nothing "
        "through the hot swap - so the phase node's `to_board` is the first "
@@ -2138,7 +2138,7 @@ print('                            cost is HF current, so i_h_max is the knob')
 print()
 print('THERMAL OBSERVER')
 print('   node ceilings            125 C the FETs and the MCU, 105 C the board')
-print('   throttle at              85 %% = %.1f C, and it acts by dropping MOE' % CEILING_C)
+print('   throttle at              90 %% = %.1f C, and it acts by dropping MOE' % CEILING_C)
 print('   continuous               %.1f A rms a phase = %.2f N.m'
       % (i_rms, kt * iq_cont))
 print('   burst                    timed, not held: %.1f s at 100 A from ambient'

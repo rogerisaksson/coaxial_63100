@@ -11,6 +11,7 @@ import sys
 import threading
 
 from coaxial import ansi
+from coaxial.thermal_device import THROTTLE_AT
 from coaxial.errors import (DeviceStateError, NoReplyError,  # noqa: E402
                             RigError)
 
@@ -333,8 +334,12 @@ def paced(keys, period, step=0.02):
         _time.sleep(min(step, deadline - now))
 
 
-def gauge(fraction, width, hot=0.85):
+def gauge(fraction, width, hot=THROTTLE_AT):
     """A meter in the motif: filled cells, ash rest, sodium past `hot`.
+
+    `hot` defaults to the board's own throttle point, so a meter turns
+    colour where the board acts rather than at a number of this file's.
+    It was a literal 0.85 here, and stayed at 0.85 when the record moved.
 
     The glyphs are ASCII on purpose - the session may run on a console
     that was never put in UTF-8, and a meter that half-renders is worse

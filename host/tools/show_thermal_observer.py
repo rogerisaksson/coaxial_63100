@@ -98,8 +98,9 @@ def budget_line(got):
     used, worst = got['worst'], pretty(got['worst_node'])
     left = got['seconds_to_limit']
 
-    # The gauge turns sodium at 0.85 - where the board itself would start
-    # throttling - and the verdict words wear the state they carry.
+    # The gauge turns sodium at the throttle point - `gauge`'s default is
+    # `THROTTLE_AT`, where the board itself starts throttling - and the
+    # verdict words wear the state they carry.
     where = (tint('tripped', SODIUM) if got['tripped']
              else tint('THROTTLING', SODIUM) if got['throttling']
              else tint('ok', ASH))

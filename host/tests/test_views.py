@@ -429,6 +429,37 @@ def test_the_demo_actually_loads_the_machine(report):
                      '%s %%, floor 20' % soa.group(1))
 
 
+def test_the_power_face_has_its_middle_at_half_a_kilowatt(report):
+    """The kW bar is a power law pinned at 500 W, full at 2 kW, red past.
+
+    LOGARITHMIC WAS TOO MUCH THE OTHER WAY: decades from one watt put
+    97 W at 60 % of the face and 500 W at 82 %, so the stage's whole
+    working range lived in the top fifth and the run up to 2 kW was a
+    sliver. The bench asked to see small draws at the bottom, half the
+    bar at about 500 W, room up to 2 kW, and deep red beyond. 500 of
+    2000 makes the exponent one half: 20 W is a tenth, 100 W is 22 %,
+    500 W half, 2 kW full.
+    """
+    sys.path.insert(0, HOST)
+    from coaxial import machine
+    from tools import show_rotor_observer as view
+
+    at = {w: view.watts_share(w) for w in (0, 20, 100, 500, 2000, 2500)}
+    report.check('nothing draws nothing', at[0][0] == 0.0)
+    report.check('twenty watts is a tenth of the bar - a small draw is seen',
+                 abs(at[20][0] - 0.1) < 0.01, '%.3f' % at[20][0])
+    report.check('and a hundred is not yet a quarter',
+                 0.2 < at[100][0] < 0.25, '%.3f' % at[100][0])
+    report.check('half a kilowatt is half the bar',
+                 abs(at[500][0] - 0.5) < 1e-9, '%.3f' % at[500][0])
+    report.check('two kilowatts is the whole of it, still in its own ink',
+                 at[2000] == (1.0, machine.WATTS), str(at[2000]))
+    report.check('and past it the bar is full and deep red',
+                 at[2500] == (1.0, machine.SOA_TRIP), str(at[2500]))
+    report.check('the middle is a named constant, not a magic exponent',
+                 view.WATTS_MID == 500.0 and view.WATTS_SCALE == 2000.0)
+
+
 def test_the_level_is_drawn_at_the_dot(report):
     """The top of a bar's mercury is `⣀`, `⣤`, `⣶`, `⣿` - one dot a step.
 
@@ -1028,6 +1059,61 @@ def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
                      seen == {True, False}, str(sorted(seen)))
 
 
+def test_the_mode_says_whether_the_board_holds_it_back(report):
+    """`HOLD (NORM)`, `SENSORLESS (THR)`: the envelope's state beside the mode.
+
+    IT SAID `RUNNING SENSORLESS`, and whether the board was clamping the
+    current sat three boxes down as a percentage of the clamp. The bench
+    asked for both in one glance: the mode, then NORM while the board
+    drives what it is asked and THR - in a red darker than the trip's -
+    while the envelope holds it back. On the board's own verdict, the
+    same one the gauge pulses on.
+    """
+    sys.path.insert(0, HOST)
+    from rich.text import Text
+    from coaxial import machine
+    from tools import show_rotor_observer as view
+
+    def said(mode, budget=None):
+        raw = view.mode_text({'state': {'mode': mode}, 'budget': budget})
+        return Text.from_ansi(raw).plain, raw
+
+    plain, raw = said('off')
+    report.check('off, the drive is STOPPED', plain == 'STOPPED', plain)
+    plain, raw = said('hold')
+    report.check('holding with no budget answered, HOLD (NORM)',
+                 plain == 'HOLD (NORM)', plain)
+    report.check('and nothing in it wears the throttle red',
+                 ('38;5;%d' % view.THROTTLE_RED) not in raw,
+                 raw.replace(chr(27), '^'))
+    plain, raw = said('sensorless', {'throttling': True})
+    report.check('throttling, SENSORLESS (THR)',
+                 plain == 'SENSORLESS (THR)', plain)
+    report.check('with THR in the throttle red',
+                 ('38;5;%dm(THR)' % view.THROTTLE_RED) in raw,
+                 raw.replace(chr(27), '^'))
+    report.check('tripped is held back too',
+                 said('hold', {'tripped': True})[0] == 'HOLD (THR)')
+    report.check('and a clamp merely open is NORM',
+                 said('hold', {'throttling': False, 'derate': 1.0})[0]
+                 == 'HOLD (NORM)')
+
+    # THE RED IS A DARKER ONE: in the 6x6x6 cube, less red and no green
+    # or blue - not the trip's 196, not the pulse's 210.
+    def cube(index):
+        i = index - 16
+        return i // 36, i // 6 % 6, i % 6
+
+    ours, trip = cube(view.THROTTLE_RED), cube(machine.INK[machine.SOA_TRIP])
+    report.check('THR is a red darker than the trip',
+                 ours[1] == 0 and ours[2] == 0 and ours[0] < trip[0],
+                 '%s against %s' % (ours, trip))
+    report.check('and the word and the pulse take the same verdict',
+                 view.envelope_acting({'budget': {'throttling': True}})
+                 and not view.envelope_acting({'budget': {'derate': 0.5}})
+                 and not view.flashing({'budget': None}))
+
+
 def main():
     report = Report()
     print('\n-- every view, two frames, no board --')
@@ -1040,9 +1126,11 @@ def main():
     test_the_ntc_is_shown_as_the_one_measurement(report)
     test_two_headrooms_named_apart(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
+    test_the_mode_says_whether_the_board_holds_it_back(report)
     test_the_flat_drawings_spend_the_block(report)
     test_every_gauge_shows_its_own_scale(report)
     test_the_demo_actually_loads_the_machine(report)
+    test_the_power_face_has_its_middle_at_half_a_kilowatt(report)
     test_the_level_is_drawn_at_the_dot(report)
     test_the_teeth_keep_their_length_and_a_shared_cell_goes_to_the_most(
         report)

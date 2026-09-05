@@ -393,7 +393,8 @@ def thermal_block(got):
     # ALL TEN, in the firmware's own order, so a leg keeps its row whether
     # it is heating or not - sorted-and-cut dropped driver W the moment two
     # other nodes warmed, on the dashboard that exists to show one leg
-    # heating alone. The gauge turns sodium at 0.85, where the board acts.
+    # heating alone. The gauge turns sodium at the throttle point, where
+    # the board acts - `gauge`'s default is `THROTTLE_AT`, not a number here.
     used = spend['used']
     rows = []
     for name in (n for n in thermal.ALL_NODES if n in used):

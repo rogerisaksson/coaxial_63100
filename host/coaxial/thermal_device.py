@@ -22,7 +22,13 @@ from .thermal import ALL_NODES
 #: draws it against the same number the board acts on, rather than one of
 #: its own. The board still owns the action; this is only where the bar
 #: changes colour.
-THROTTLE_AT = 0.85
+#:
+#: NINETY, FROM EIGHTY-FIVE, on the bench's word: the ramp from here to
+#: the ceiling is where the clamp comes off, and at eighty-five it took
+#: the last sixth of every node's budget away from a burst the board is
+#: there to survive. The record's `soa_throttle_ppm` carries the same
+#: number, and a bench that wants more warning writes a smaller one.
+THROTTLE_AT = 0.90
 from .wire import Reader, pack
 
 #: Op codes. Prefixed because every device has its own op 0 and the bare

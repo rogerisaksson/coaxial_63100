@@ -46,11 +46,11 @@ BUDGET = ('worst', 'worst_node', 'millis', 'throttling', 'tripped', 'derate')
 
 #: The envelope this tree's calibration record carries, stated rather than
 #: read: 125 C on every node but the board's copper, 105 there, throttling
-#: from 85 % of the span and looking two seconds ahead. A bench with a
+#: from 90 % of the span and looking two seconds ahead. A bench with a
 #: different board writes different numbers into its own record and this
 #: test would still be testing the same arithmetic.
 LIMIT_C, BOARD_LIMIT_C = 125.0, 105.0
-THROTTLE_AT, LOOKAHEAD_S = 0.85, 2.0
+THROTTLE_AT, LOOKAHEAD_S = 0.90, 2.0
 
 AMBIENT = 20.0
 
@@ -296,12 +296,14 @@ def test_the_lookahead_catches_a_ramp(report, lib):
                                                     100.0 * got['worst']))
 
     # UP TO WHAT THE NODE CAN HOLD FOR THE REACTION WINDOW, and no
-    # further. 35 W is the 100 A rating and the node holds it 1.2 s; 200 W
-    # would be some 240 A, which it cannot hold for the 0.3 s the ramp
+    # further. 35 W is the 100 A rating and the node holds it 1.2 s; 300 W
+    # would be some 290 A, which it cannot hold for the 0.2 s the ramp
     # needs, so the clamp is not open even from ambient. That is the rule
     # doing its job rather than an exception to it - a power a part cannot
-    # survive the reaction to is not a burst, it is a fault.
-    fault = cold.budget({'phase_u': 200.0}, lookahead_s=LOOKAHEAD_S)
+    # survive the reaction to is not a burst, it is a fault. (200 W was
+    # the figure at a throttle of 85: at 90 its 0.21 s hold just clears
+    # the shorter ramp, measured, and the clamp stays open.)
+    fault = cold.budget({'phase_u': 300.0}, lookahead_s=LOOKAHEAD_S)
     report.check('a power past what the node can hold for the window is '
                  'throttled from cold, and that is the rule, not a hole in it',
                  0.0 < fault['derate'] < 1.0 and not fault['tripped'],
@@ -341,10 +343,12 @@ def test_the_lookahead_catches_a_ramp(report, lib):
     # remain reachable, because a record that never had the field reads
     # back as zero and must still get the old envelope.
     model = Model(lib)
-    # AT 105 C: at 85 the node still holds 35 W for half a second, which is
-    # outside the window, so both rules answered 1.0 and the check compared
-    # two untouched clamps. The window binds from about 100 C at this power.
-    model.place('phase_u', 105.0)
+    # AT 112 C: lower, the node still holds 35 W for longer than the ramp's
+    # 0.2 s, which is outside the window, so both rules answered 1.0 and the
+    # check compared two untouched clamps. Measured on the core: the window
+    # binds from about 110 C at this power (it was 100 C at a throttle of
+    # 85, and the check sat at 105 C then).
+    model.place('phase_u', 112.0)
     report.check('a cooling node has no hold to run out of',
                  model.budget(lookahead_s=LOOKAHEAD_S)['derate'] == 1.0)
     hot = model.budget(watt, lookahead_s=LOOKAHEAD_S)['derate']
@@ -484,18 +488,20 @@ def test_a_throttle_weighs_only_what_a_clamp_can_cool(report, lib):
     What is NOT given up: every node still reports its own spend, and any
     of them at its ceiling still trips.
     """
+    # 116 C is inside the 90 % band (114.5 C on this record); 110 was
+    # inside the 85 % one and sits under the point now.
     model = Model(lib)
-    model.place('regulators', 110.0)
+    model.place('regulators', 116.0)
     model.place('phase_u', 60.0)
     got = model.budget()
-    report.check('a regulator at 110 of 125 does not become the worst node',
+    report.check('a regulator at 116 of 125 does not become the worst node',
                  got['worst_node'] == 'phase_u',
                  '%s at %.0f %%, regulators at %.0f %%'
                  % (got['worst_node'], 100.0 * got['worst'],
                     100.0 * got['used']['regulators']))
     report.check('and it is still reported, at its own ceiling',
                  abs(got['used']['regulators']
-                     - (110.0 - AMBIENT) / (LIMIT_C - AMBIENT)) < 0.01,
+                     - (116.0 - AMBIENT) / (LIMIT_C - AMBIENT)) < 0.01,
                  '%.3f' % got['used']['regulators'])
     report.check('so the clamp stays open on a board doing no work',
                  got['derate'] == 1.0, '%.2f' % got['derate'])

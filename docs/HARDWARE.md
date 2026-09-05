@@ -286,7 +286,7 @@ Per channel, ten of them: `offset_raw` subtracted first, then
 `gain_ppm`. The thermal envelope: ten SOA ceilings in centi-degrees
 (driver U/V/W, phase U/V/W, mcu, regulators, afe at 125.00 - the FETs'
 and the MCU's Tj max, the rest an estimate; board 105.00, an estimate
-for the laminate) and a throttle at 85 %. The drive block (15 .. 44) is
+for the laminate) and a throttle at 90 %. The drive block (15 .. 44) is
 placeholders in the same sense: the injection is off and the trip sits
 at the rating until `tools/commission.py` measures and writes them.
 CAL_VERSION history: 2 the supply senses, 4 the envelope, 5 the dead
