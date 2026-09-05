@@ -901,6 +901,46 @@ record's own constants, no measurement.
 
 ## The renderers
 
+* **A per-cell grain is what made the board blocky.** The tone ladder
+  picked among the 28 patterns that carry six dots by a per-cell hash,
+  uniformly and then cubed toward the even end, and either way a flat
+  face wore a different pattern in every cell: 107 distinct glyphs on
+  the board's top at one pose against 79 with it off, and the 79 are
+  real edges. A flat surface is a flat pattern; the block is spent where
+  the LEVEL changes. And the mono ladder sat two rungs heavy - class 2
+  at six dots read as a slab where the exporter's `:` is two; four now,
+  2.8 dots a cell measured against 3.6.
+* **The can is seated at the top of its band, not centred.** Centred,
+  whatever the band had over the can's height was split above and
+  below - and on a terminal whose cell the view could not measure,
+  drawn at an assumed 2.0, that was a row of air under the legend that
+  nothing explained. Seated, there is nothing between the last legend
+  and the motor at any aspect (measured 2.0 and 2.3), and the leaders'
+  hop row went with it: the corner glyph turns each run down in its
+  last cell and the tube it lands on is a column. STATUS now says
+  `cell 2.31 tall measured` or `2.00 tall assumed`, because a number
+  that was not measured is worth a word on the page.
+* **The bead is U+0298, drawn by Consolas itself.** The circled bullet
+  is narrow and still came out squeezed to half its width, three times
+  reported: Consolas has neither it nor a single braille cell, so the
+  whole drawing goes to the fallback font and the fallback draws the
+  bullet into a cell that is not its own. The bilabial click is the
+  same mark - a ring round a dot - and the terminal's own font carries
+  it. Narrow round marks Consolas has, for the record: `◦` `◌` `∙` `ʘ`.
+* **The foot gauges' track is the gauge's own height**, `⠇` a cell in
+  the track's grey, as the tubes' track runs the tube's whole width. A
+  single dot on the middle row beside a level three dots tall was a
+  scale a third the size of what it measured.
+* **The thermistor can read a few tenths above a leg that has just
+  stopped, and that is physical.** Measured on the stand-in: under
+  25 A the NTC sits at 28 C against legs at 83; load off, the legs fall
+  to the board in five seconds and the NTC, with thirty-six seconds of
+  its own mass on the FR4, follows behind. A leg cannot fall below the
+  board it sheds to, and the NTC sits on that board - so it leads only
+  while the leg is hot and lags only while the leg cools. Not clamped:
+  a display that forbids the sensor to read above the source would be
+  lying about the sensor.
+
 * **The thermometers went dead because the demo lost its load, not
   because the model changed.** Reported three times as "nearly static"
   and blamed on the thermal recalibration. Measured: the stand-in warmed

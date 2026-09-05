@@ -461,14 +461,20 @@ def test_the_level_is_drawn_at_the_dot(report):
     report.check('two dots a step - both lanes - and never a whole cell',
                  all(b - a == 2 for a, b in zip(dots, dots[1:])), str(dots))
 
-    # AND ALONG THE FOOT, one lane at a time.
+    # AND ALONG THE FOOT, one lane at a time. By OWNER, not by glyph: the
+    # track is the gauge's own height now, `⠇` a cell, which is also
+    # what a level ending on one lane looks like.
     ends = []
     for k in range(1, 5):
         share = (k + 0.5) / 60.0
-        art = machine.render(0.0, 24, 28, 30, 12,
-                             bottom=[(share, machine.WATTS)]).split(chr(10))
-        foot = [c for c in art[-1] if c not in (chr(0x2802), chr(0x2800))]
-        ends.append(foot[-1] if foot else '?')
+        frame, _lit = machine._raster(
+            0.0, 24, 28, 30, 12, None, None, None, None, None, None,
+            [(share, machine.WATTS)], 2.0)
+        row = frame.height - 1
+        level = [col for col in range(frame.width)
+                 if frame.owner[row][col] == machine.WATTS]
+        ends.append(chr(0x2800 + frame.dots[row][max(level)]) if level
+                    else '?')
     report.check('the foot gauge ends on a lane, not a cell',
                  ends == [chr(0x2807), chr(0x283F), chr(0x2807), chr(0x283F)],
                  ''.join(ends))

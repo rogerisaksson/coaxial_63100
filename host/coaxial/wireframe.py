@@ -478,13 +478,15 @@ LIT = SHADE
 #: is no light to ask and the class is the whole signal. Blank, sparse,
 #: and most of the way up.
 #:
-#: NOT THE EXPORTER'S OWN DENSITIES. His ' ', '.' and ':' measure 0, 96
+#: NEAR THE EXPORTER'S OWN DENSITIES. His ' ', '.' and ':' measure 0, 96
 #: and 129 of 255 in Rec.709 luma, which on nine rungs is nothing, three
-#: dots and four - one rung between the two glyphs a picture is made of,
-#: and that is the flat carpet the ASCII ramp drew. Six against two
-#: keeps his ordering and spends the ladder, which is the whole reason
-#: for having one. The unrounded level grades between them.
-CLASS_RUNG = (0, 2, 6)
+#: dots and four. Six against two was tried to spend the ladder and it
+#: read as a slab: the board's top at 3.6 dots a cell where the exporter
+#: draws two, "blocky" on the bench. Four against two keeps his ordering
+#: and his weight - 2.8 dots a cell, measured - and the unrounded level
+#: grades between them; the rungs above are for the light, in the colour
+#: pass, where a surface actually turns away.
+CLASS_RUNG = (0, 2, 4)
 
 #: The band of level the ladder spans WHERE THERE IS NO LIGHT TO ASK.
 #: The class scale is 0 to 2 by construction, and rung 0 is blank, so a
@@ -903,15 +905,17 @@ def _pattern(rung, phase):
     cell goes is one dot - rung 0 would punch holes in a face the
     geometry calls solid."""
     rung = 1 if rung < 1 else (RUNGS if rung > RUNGS else rung)
-    row = LIT[rung]
-    # BIASED HARD TOWARD THE EVEN END of the rung. Spread uniformly over
-    # the 28 patterns that carry six dots, neighbouring cells at one tone
-    # wore completely different arrangements and a flat face read as
-    # static - the ASCII carpet was at least flat. Cubed, the smoothest
-    # pattern is what a surface mostly wears and the tail is still
-    # reachable, so the block is spent across a picture without the
-    # grain drowning the shading it is supposed to sit on.
-    return row[int(phase * phase * phase * len(row)) % len(row)]
+    # THE SMOOTHEST PATTERN OF THE RUNG, EVERY TIME. A per-cell grain
+    # picked among the 28 arrangements that carry six dots, first
+    # uniformly and then cubed toward the even end, and either way a
+    # flat face wore a different pattern in every cell: 107 distinct
+    # glyphs on the board's top at a single pose, against 79 with the
+    # grain off - and the 79 are real edges. The bench called it blocky,
+    # which is what a texture with no structure looks like. A flat
+    # surface is a flat pattern; the block is spent where the LEVEL
+    # changes, which is what the nine rungs are for. `phase` is kept in
+    # the signature so a caller that computed one need not stop.
+    return LIT[rung][0]
 
 
 def _rung(level, phase=0.0, drop=0):

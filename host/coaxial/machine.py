@@ -146,16 +146,23 @@ def _drive(amps, full=None):
 #: attached to the thing whose position it indicates indicates nothing.
 POINTER_SEAT = 0.6
 
-#: The bead. A CIRCLED BULLET - `_bead` has why, what it costs, and the
-#: four dot answers that were built and not kept. THE CHOICE IS MADE.
+#: The bead: a ring with a dot in it - `_bead` has why a glyph, what it
+#: costs, and the four dot answers that were built and not kept.
 #:
-#: AND IT CANNOT BE SHEARED: U+29BF is unambiguously NARROW, so no
-#: terminal setting draws it two columns wide. A fallback was built for
-#: that and taken out - the character chosen for it, U+25CF, is EAST
-#: ASIAN AMBIGUOUS, so the safe substitute was the only unsafe one in the
-#: pair. What actually shears these pages is the arrowheads and the
-#: degree sign; the view has the note.
-POINTER_GLYPH = chr(0x29BF)
+#: U+0298 AND NOT U+29BF, FOR THE FONT'S SAKE. The circled bullet is
+#: what the bench asked for and it is unambiguously narrow - no terminal
+#: setting widens it - and it still came out squeezed to half its width
+#: on the bench, three times reported. Measured: Consolas, the terminal's
+#: default, has neither U+29BF nor a single braille cell, so the whole
+#: drawing is rendered by the fallback font, and the fallback draws the
+#: bullet into a cell whose proportions are not its own. The bilabial
+#: click is the same mark - a ring round a dot - and Consolas carries it,
+#: so the terminal draws it with its own metrics. Round marks it has and
+#: that are narrow, for the record: `◦` `◌` `∙` `ʘ`.
+#:
+#: What actually shears these pages is the arrowheads and the degree
+#: sign, which were East Asian ambiguous; the view has the note.
+POINTER_GLYPH = chr(0x0298)
 
 #: WHICH CELLS THE BEAD MAY COLOUR: the ones whose CENTRE it covers, plus
 #: the one it sits in. A braille cell is eight dots and one colour, two
@@ -536,12 +543,16 @@ def _gauge(dots, owner, width, height, row, share, cls,
             if cls > owner[row][col]:
                 owner[row][col] = cls
         elif x % DOTS_X == 0 and col != edge:
-            # ONE DOT A CELL, the same rate the tubes' track runs at.
-            # Every FOURTH dot put one in every other cell, so the empty
-            # half of a gauge came out as a dashed line with gaps a cell
-            # wide - readable as a scale on a long bar and, beside the
-            # tubes' unbroken track, as nothing at all.
-            dots[row][col] |= BRAILLE_BITS[x % DOTS_X][RULE_Y]
+            # ONE COLUMN A CELL, AT THE GAUGE'S OWN HEIGHT. Every fourth
+            # dot put one in every other cell, so the empty half of a
+            # gauge came out as a dashed line with gaps a cell wide; one
+            # dot a cell on the middle row was a scale, but a scale a
+            # single dot tall beside a level three tall - the tubes' track
+            # runs the tube's whole width, and the bench asked for the
+            # same here: the empty half of the gauge is the gauge's own
+            # height, in the track's grey.
+            for y in GAUGE_Y:
+                dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y]
             if TRACK > owner[row][col]:
                 owner[row][col] = TRACK
 
@@ -881,9 +892,17 @@ class Seat:
         self.cx, self.radii, _, _ = layout(
             width, height, len(left or ()), len(right or ()), rows=self.band,
             stretch=self.stretch)
-        # AND CENTRED IN THAT BAND, so the air it does not use is shared
-        # above and below it rather than pushing it into the gauges.
-        self.cy = (self.reserve + self.band / 2.0) * DOTS_Y - 0.5
+        # AND SEATED AT THE TOP OF THAT BAND, its first dot in the first
+        # row under the reserve. It was centred, so whatever the band had
+        # over the can's height was split above and below it - and on a
+        # terminal whose cell the view could not measure, drawn at an
+        # assumed 2.0, that was a row of air between the legend and the
+        # motor that nothing explained. Seated, there is exactly the
+        # leaders' hop between them whatever the terminal says, and the
+        # spare - if any - lies over the foot gauges, which name levels
+        # and not the machine.
+        self.cy = (self.reserve * DOTS_Y + 0.5
+                   + self.radii.can / self.stretch)
 
 
 def _body(frame, seat, rotor_deg, slots, poles, drive):

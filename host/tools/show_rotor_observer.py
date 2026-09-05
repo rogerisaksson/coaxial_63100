@@ -125,10 +125,16 @@ CAPTION_ROWS, FOOT_ROWS = 5, 1
 #: winding 17, watts 18, labels on the row below the box.
 ART_ROWS = ART_HEIGHT - CAPTION_ROWS - FOOT_ROWS
 
-#: What the drawing keeps above the machine - the one row the leaders
-#: hop into - and below it, the two floor gauges. `fit_rows` adds these
-#: to the can's own rows.
-HOP_ROWS, FLOOR_GAUGES = 1, 2
+#: What the drawing keeps above the machine and below it - the two floor
+#: gauges. `fit_rows` adds these to the can's own rows.
+#:
+#: NOTHING ABOVE. One row was kept for the leaders to hop into, so the
+#: legend on the bottom caption row arrived at its tube with a vertical
+#: stroke like the four above it. The corner glyph does that job now -
+#: the run turns down in its last cell and the tube it lands on is a
+#: column - and the row read as a line break too many between the words
+#: and the motor, twice from the bench.
+HOP_ROWS, FLOOR_GAUGES = 0, 2
 
 
 def fit_rows(aspect):
@@ -767,11 +773,16 @@ def legend_drops(view, left, right):
     stops, where the four above it are lines that arrive. One art
     row is reserved for the hop, so all five land the same way.
     """
-    first, _last = machine.span(ART_WIDTH, ART_ROWS,
-                                LEFT_COLUMNS, RIGHT_COLUMNS)
-    return [(0, column, 1, machine.LEADER_GREY, _lane(column, first))
+    # NONE, SINCE `HOP_ROWS` WENT TO ZERO - the corner glyph turns each
+    # run down in its last cell and the tube it lands on is a column, so
+    # the hop row bought nothing but a line break the bench counted. The
+    # function stays so the render call reads the same and a hop can
+    # come back by one constant if a tube ever stops being a column.
+    return [(0, column, HOP_ROWS, machine.LEADER_GREY,
+             _lane(column, machine.span(ART_WIDTH, ART_ROWS,
+                                        LEFT_COLUMNS, RIGHT_COLUMNS)[0]))
             for _row, _text, _ink, column, _centred
-            in _legend_targets(view, left, right)]
+            in _legend_targets(view, left, right)] if HOP_ROWS else []
 
 
 def _legend_rows(view, left, right):
@@ -1053,7 +1064,14 @@ def status_rows(view):
             ('loops', loops or 'none - the drive is on its own'),
             ('travel', '%9.1f deg %7.2f turns %s'
              % (gone, gone / 360.0,
-                'cw' if (o.get('omega') or 0.0) >= 0.0 else 'ccw'))]
+                'cw' if (o.get('omega') or 0.0) >= 0.0 else 'ccw')),
+            # THE CELL'S SHAPE, AND WHERE THE NUMBER CAME FROM. Every
+            # round thing on this page is drawn to it; a terminal that
+            # did not answer the query is drawn at an assumed 2.0, and
+            # that is worth a word on the page rather than a row of air
+            # over the motor nobody can explain.
+            ('cell', '%.2f tall %s' % (view.get('aspect', machine.CELL_ASPECT),
+                                       view.get('aspect_how', 'assumed')))]
 
 
 def regime(view):
@@ -2182,8 +2200,16 @@ def aspect_of(args):
     does not do XTWINOPS.
     """
     if args.cell_aspect is not None:
-        return args.cell_aspect
-    return _screen.probe_aspect() or machine.CELL_ASPECT
+        return args.cell_aspect, 'given'
+    # SAID ON THE PAGE, whichever it was. A terminal that does not answer
+    # the query gets the assumed 2.0, and at 2.3 that leaves the can a
+    # row short of its band - air over the motor the bench could see and
+    # nobody could explain, because nothing said the measurement had not
+    # happened. STATUS carries it now.
+    seen = _screen.probe_aspect()
+    if seen:
+        return seen, 'measured'
+    return machine.CELL_ASPECT, 'assumed'
 
 
 def parse_args(argv):
@@ -2391,7 +2417,7 @@ def main(argv=None):
 
     # MEASURED ONCE, at start-up: the cell's shape is the terminal's and
     # cannot change under a running view, and the box is sized to it.
-    aspect = aspect_of(args)
+    aspect, aspect_how = aspect_of(args)
     fit_rows(aspect)
     view = {'scroll': 0, 'pages': None, 'haul': 0.0, 'grip': False,
             'screen': None, 'terminal': False,
@@ -2400,7 +2426,7 @@ def main(argv=None):
             'vd': args.vd, 'v_inj': args.v_inj, 'inject': True,
             'inj_periods': int(params.get('drv_inj_periods') or 1),
             'step': view_step, 'slots': args.slots, 'switch': args.switch,
-            'aspect': aspect,
+            'aspect': aspect, 'aspect_how': aspect_how,
             'spin': not origin.real, 'spin_at': time.time(),
             'simulated': not origin.real,
             'tare': 0.0, 'sweep_at': time.time(),

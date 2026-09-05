@@ -468,17 +468,16 @@ def test_ladder(report):
     report.check('and never past the top',
                  wireframe._pattern(99, 0.0) == rows[8][0])
 
-    # THE GRAIN IS BIASED to the even end - uniform over the 28 patterns
-    # that carry six dots, neighbouring cells at one tone wore completely
-    # different arrangements and a flat face read as static.
-    phases = [wireframe._pattern(6, i / 32.0) for i in range(32)]
-    common = max(set(phases), key=phases.count)
-    report.check('the smoothest pattern is what most cells wear',
-                 common == rows[6][0]
-                 and phases.count(common) >= len(phases) // 4,
-                 '%s, %d of %d' % (common, phases.count(common), len(phases)))
-    report.check('and the tail is still reachable',
-                 len(set(phases)) > 1, '%d distinct' % len(set(phases)))
+    # NO GRAIN. A per-cell phase picked among the 28 patterns that carry
+    # six dots, uniformly and then cubed toward the even end, and either
+    # way a flat face wore a different pattern in every cell - 107
+    # distinct glyphs on the board's top at one pose against 79 with it
+    # off, and the 79 are real edges. "Blocky", on the bench. A flat
+    # surface is a flat pattern; the block is spent where the level
+    # changes.
+    phases = {wireframe._pattern(6, i / 32.0) for i in range(32)}
+    report.check('a rung is one pattern whatever the phase',
+                 phases == {rows[6][0]}, ''.join(sorted(phases)))
 
     # THE MONO LADDER IS THE CLASS SCALE, spread and in the exporter's
     # own order: his ' ', '.' and ':' rank the same way, only further
@@ -486,8 +485,9 @@ def test_ladder(report):
     # is the carpet this replaces.
     dots = [bin(ord(wireframe._mono(float(c))) - raster.BRAILLE).count('1')
             for c in (0, 1, 2)]
-    report.check('mono keeps the exporter\'s ordering and spends the ladder',
-                 dots[0] < dots[1] < dots[2] and dots[2] >= 6, str(dots))
+    # Two and four, near the exporter's own luma; six read as a slab.
+    report.check('mono keeps the exporter\'s ordering at his weight',
+                 dots == [1, 2, 4], str(dots))
 
 
 def test_the_alphabet(report):
