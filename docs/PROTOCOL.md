@@ -493,7 +493,11 @@ margin_micro` (what the envelope keeps in hand for the state: every
 ceiling's span over 25 C is multiplied by it on the board - 800 000
 UNCERTAIN, 900 000 CONVERGING, 1 000 000 STABLE), `u32 updates,
 u32 saves, u32 since_save_s` (all ones until the record has been
-written this boot). Only air and capacity are online; spread and ntc
+written this boot); MINOR 15 appends `i32 ambient_centi, i32
+ambient_sigma_centi` - THE ROOM AS IDENTIFIED beside the scales, in the
+same Kalman step, since the board has no ambient sensor and the room is
+what the observer's `ambient` is set from. Only air, capacity and the
+room are online; spread and ntc
 ride at the record's values (FINDINGS, 2026-09-05: unobservable from a
 cooldown). Op 11 ident reset → `u8 took`: scales to one, UNCERTAIN, the
 record rewritten without them; refused while the stage is armed. The
@@ -662,6 +666,7 @@ MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 | 12 | thermal budget appends the winding - estimate, spend, own factor; thermal op 6 sets its envelope |
 | 13 | twenty thermal nodes, the count says so; op 0 appends the FET junction rises and the speed; ops 7, 8, 9 read the node table, the edge table, set an edge |
 | 14 | thermal op 10 reads the online identification - state, which scales move, each scale and sigma, innovation, the envelope's margin, saves; op 11 resets it |
+| 15 | thermal op 10 appends the room as identified, `i32 ambient_centi, i32 ambient_sigma_centi` - the board has no ambient sensor |
 
 MAJOR 2, 2026-08-29: the thermal nodes went per leg and the node
 indices were repurposed - a host could follow the length and not the

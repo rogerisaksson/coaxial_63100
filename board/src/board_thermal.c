@@ -49,8 +49,8 @@ _Static_assert(BOARD_THERMAL_NODES == (int)THERMAL_NODES,
                "reply array would be written past its end");
 _Static_assert(BOARD_THERMAL_EDGES == THERMAL_EDGES,
                "board.h's edge count and thermal.h's table disagree");
-_Static_assert(BOARD_THERMAL_IDENT_SCALES == (int)THERMAL_IDENT_PARAMS,
-               "board.h's scale count and thermal_ident.h's enum disagree");
+_Static_assert(BOARD_THERMAL_IDENT_SCALES == THERMAL_IDENT_RECORD,
+               "board.h's scale count and thermal_ident.h's record disagree");
 
 static thermal_t      s_th;
 static thermal_loss_t s_loss;
@@ -271,13 +271,13 @@ static void network_refresh(void)
 /** The identification from the record: resumed CONVERGING at the saved
   * scales where a record holds them, fresh and UNCERTAIN at one where it
   * does not. */
-static void ident_from_cal(void)
+static void ident_from_cal(float start_c)
 {
   const board_cal_t *cal = Board_Cal();
-  float scale[THERMAL_IDENT_PARAMS];
+  float scale[THERMAL_IDENT_RECORD];
   bool any = false;
 
-  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
   {
     const uint32_t milli = cal->thermal_ident_scale_milli[k];
 
@@ -286,11 +286,11 @@ static void ident_from_cal(void)
   }
   if (any)
   {
-    thermal_ident_resume(&s_ident, scale, THERMAL_IDENT_NOISE_K);
+    thermal_ident_resume(&s_ident, scale, start_c, THERMAL_IDENT_NOISE_K);
   }
   else
   {
-    thermal_ident_init(&s_ident, THERMAL_IDENT_NOISE_K);
+    thermal_ident_init(&s_ident, start_c, THERMAL_IDENT_NOISE_K);
   }
   memcpy(s_saved_scale, s_ident.scale, sizeof(s_saved_scale));
   s_saved_ms = HAL_GetTick();
@@ -304,9 +304,18 @@ void Board_ThermalInit(void)
 {
   thermal_cfg_t cfg;
 
+  /* Start on the NTC if there is one, otherwise somewhere plausible. A wrong
+     starting point is gone within a few minutes through the anchoring. The
+     motor starts where the board does: a motor that has not turned is at
+     the room - and so the ROOM starts there too, for the identification
+     to carry from. */
+  int32_t raw = 0, centi = 0;
+  const bool have = Board_Ntc(&raw, &centi);
+  const float start_c = have ? ((float)centi / 100.0f) : 25.0f;
+
   network_from_cal(&s_base);
   losses_from_cal();
-  ident_from_cal();
+  ident_from_cal(start_c);
   thermal_ident_apply(&s_ident, &s_base, &cfg);
   /* The envelope comes from the calibration record, not from this file. A
      ceiling the firmware invented would be the judgement invariant 10
@@ -314,14 +323,7 @@ void Board_ThermalInit(void)
      identification, whose state trims it. */
   soa_from_cal();
 
-  /* Start on the NTC if there is one, otherwise somewhere plausible. A wrong
-     starting point is gone within a few minutes through the anchoring. The
-     motor starts where the board does: a motor that has not turned is at
-     the room. */
-  int32_t raw = 0, centi = 0;
-  const bool have = Board_Ntc(&raw, &centi);
-
-  thermal_init(&s_th, &cfg, have ? ((float)centi / 100.0f) : 25.0f);
+  thermal_init(&s_th, &cfg, start_c);
   memset(&s_power, 0, sizeof(s_power));
   s_winding_derate = 1.0f;
   s_last_ms = HAL_GetTick();
@@ -525,9 +527,9 @@ static void load_now(thermal_load_t *load)
   * every poll. */
 static void ident_save(uint32_t now)
 {
-  uint32_t milli[THERMAL_IDENT_PARAMS];
+  uint32_t milli[THERMAL_IDENT_RECORD];
 
-  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
   {
     milli[k] = (uint32_t)(s_ident.scale[k] * 1000.0f + 0.5f);
   }
@@ -561,7 +563,8 @@ static void ident_policy(uint32_t now)
 
   float moved = 0.0f;
 
-  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  /* The record's scales only: the room is identified but never saved. */
+  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
   {
     if (thermal_ident_online((thermal_ident_param_t)k))
     {
@@ -647,6 +650,10 @@ void Board_ThermalPoll(void)
     {
       thermal_ident_apply(&s_ident, &s_base, &s_th.cfg);
     }
+    /* THE ROOM IS THE IDENTIFICATION'S: the board has no ambient sensor,
+       and the observer's rise is against what the identification says
+       the room is. */
+    s_th.ambient = thermal_ident_ambient(&s_ident);
     thermal_budget(&s_th, &s_power, &s_soa, &s_budget);
     /* The winding's own factor, so a host can say which envelope holds
        the stage back; the whole's already includes it. */
@@ -945,7 +952,7 @@ bool Board_ThermalIdent(board_thermal_ident_t *out)
   }
   out->state = (uint8_t)s_ident.state;
   out->online_mask = 0U;
-  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
   {
     if (thermal_ident_online((thermal_ident_param_t)k))
     {
@@ -960,6 +967,8 @@ bool Board_ThermalIdent(board_thermal_ident_t *out)
   out->saves = s_ident_saves;
   out->ever_saved = s_ever_saved;
   out->since_save_s = s_ever_saved ? ((HAL_GetTick() - s_saved_ms) / 1000U) : 0U;
+  out->ambient_c = thermal_ident_ambient(&s_ident);
+  out->ambient_sigma_k = thermal_ident_sigma(&s_ident, THERMAL_IDENT_AMBIENT);
   return true;
 }
 
@@ -970,10 +979,10 @@ bool Board_ThermalIdentReset(void)
   {
     return false;
   }
-  uint32_t zero[THERMAL_IDENT_PARAMS];
+  uint32_t zero[THERMAL_IDENT_RECORD];
 
   memset(zero, 0, sizeof(zero));
-  thermal_ident_init(&s_ident, THERMAL_IDENT_NOISE_K);
+  thermal_ident_init(&s_ident, s_th.ambient, THERMAL_IDENT_NOISE_K);
   thermal_ident_apply(&s_ident, &s_base, &s_th.cfg);
   memcpy(s_saved_scale, s_ident.scale, sizeof(s_saved_scale));
   soa_from_cal();

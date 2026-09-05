@@ -1376,6 +1376,11 @@ typedef struct
   uint32_t saves;                   /**< records written since boot         */
   bool     ever_saved;              /**< since boot                         */
   uint32_t since_save_s;            /**< valid only when ever_saved         */
+  /** MINOR 15: the room as identified beside the scales, degrees C, and
+    * how sure - the board has no ambient sensor; this is what the
+    * observer's `ambient` is set from. */
+  float    ambient_c;
+  float    ambient_sigma_k;
 } board_thermal_ident_t;
 
 bool Board_ThermalIdent(board_thermal_ident_t *out);

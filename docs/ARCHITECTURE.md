@@ -25,8 +25,9 @@ drive/       drive.c, drive_math.c, drive_model.c - the control law and a
 thermal/     the twenty-node graph observer - seven laminate patches, the
              parts, the hot swap, the motor - and its envelope, C11;
              thermal_ident.c identifies the network's air path and
-             capacity online from the board's three thermometers, a
-             shadow model and a Kalman step on its prediction error
+             capacity - and the room, which no sensor reads - online
+             from the board's three thermometers, a shadow model and a
+             Kalman step on its prediction error
 filter/      the anti-alias biquad chain, C11
 shtp/        the BNO08X transport parser, C11
 ```

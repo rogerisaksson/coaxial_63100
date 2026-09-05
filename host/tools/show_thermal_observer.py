@@ -109,13 +109,19 @@ def ident_rows(ident):
         '%s %.2f±%.2f' % ('cap' if name == 'capacity' else name,
                                scales[name], sigma[name])
         for name in ident['online'] if name in scales)))
+    # THE ROOM, identified beside the scales (MINOR 15): the board has no
+    # ambient sensor, so this is what its rise is measured against.
+    if ident.get('ambient') is not None:
+        rows.append(('room', '%.1f±%.1f C  identified' % (
+            ident['ambient'], ident.get('ambient_sigma', 0.0))))
     # THE TRUTH, on the stand-in only: the situation its hypothetical
     # board is in and the scales that make it, beside what the observer
     # has found - a board has no truth to tell, and the row is absent.
     truth = ident.get('truth')
     if truth:
-        rows.append(('truth', '%s  air %.2f  cap %.2f  %s'
+        rows.append(('truth', '%s  air %.2f  cap %.2f  room %.0f C  %s'
                      % (truth['situation'], truth['air'], truth['capacity'],
+                        truth.get('ambient', 25.0),
                         '%.0f min' % (truth['since_s'] / 60.0))))
     return rows
 

@@ -24,24 +24,53 @@
   * out where the air path bends; on a scale, a fraction of it. */
 #define IDENT_EPS_T 0.5f
 #define IDENT_EPS_S 0.02f
+#define IDENT_EPS_AMB 0.5f
 
 /** What the scales start out believed to, one sigma each: the air path
   * and the spread are the ones a situation or a layout can double, the
   * laminate's capacity was measured (49 J/K off a settling) and the
   * thermistor's seat comes off the pick and place. */
 static const float PRIOR_SIGMA[THERMAL_IDENT_PARAMS] = { 0.5f, 0.2f, 0.5f,
-                                                        0.3f };
+                                                        0.3f, 10.0f };
+/* THE ROOM'S PRIOR IS TEN KELVIN, AND IT IS A WEIGHT. In the Kalman step
+   the prior decides who takes an innovation neither quantity predicted,
+   and a room that steps 45 K must be able to take it: at three kelvin a
+   board carried to -20 C moved its room 0.6 K a gated sample and the
+   air scale took the rest, 2.9 for a truth of 0.8 (host ground truth
+   and stand-in alike, 2026-09-05). At ten the room is found within 5 K
+   in both directions and the air scale stays near the truth; the price
+   is that the room also takes some of a cooldown's early state error -
+   19.6 C for a bench at 25 after the first cycle - which the anchored
+   nodes do not feel and later cycles correct. */
+
+/** Below what sigma each is CONVERGING, and STABLE: a tenth and three
+  * tenths of a scale, two and six kelvin of room. */
+static const float SIGMA_CONVERGING[THERMAL_IDENT_PARAMS] = { 0.30f, 0.30f,
+                                                             0.30f, 0.30f,
+                                                             6.0f };
+static const float SIGMA_STABLE[THERMAL_IDENT_PARAMS] = { 0.10f, 0.10f, 0.10f,
+                                                         0.10f, 2.0f };
+
+/** The process noise a sample: a random walk of half a percent on a
+  * scale - a hundred samples without excitation grow a sigma by five
+  * percent, no more - and 0.14 K on the room, which drifts. The
+  * alternative, dividing the covariance by a forgetting factor, inflated
+  * every direction whenever any was updated and no scale could ever be
+  * known to a tenth. */
+static const float DRIFT_VAR[THERMAL_IDENT_PARAMS] = { 2.5e-5f, 2.5e-5f,
+                                                      2.5e-5f, 2.5e-5f,
+                                                      0.02f };
 
 /** How much of its prior each scale's sigma is floored at while the
   * model is UNCERTAIN - kept free to move, since it is not predicting.
   * HALF for the air path, which is what a box or a fan changes, a
   * QUARTER for the rest: at a quarter of 0.2 the capacity's floor sat
-  * exactly on IDENT_SIGMA_STABLE and a board could never be STABLE
+  * exactly on SIGMA_STABLE and a board could never be STABLE
   * again after a switch; and with the two floored alike the capacity
   * took a third of a fan's correction and was left 35 % low - measured
   * on the stand-in's ground truth, 2026-09-05. */
 static const float FLOOR_SHARE[THERMAL_IDENT_PARAMS] = { 0.5f, 0.25f, 0.25f,
-                                                        0.25f };
+                                                        0.25f, 0.5f };
 
 /** Which scales the samples are allowed to move. AIR and CAPACITY: a
   * cooldown's level and time constant, which the three thermometers see
@@ -55,7 +84,8 @@ static const float FLOOR_SHARE[THERMAL_IDENT_PARAMS] = { 0.5f, 0.25f, 0.25f,
   * They stay on the wire and in the record for a bench to set, and for
   * a static regressor at idle (the MCU die against the thermistor, at
   * rest, IS the MCU's edge) to free when it is written. */
-static const bool ONLINE[THERMAL_IDENT_PARAMS] = { true, true, false, false };
+static const bool ONLINE[THERMAL_IDENT_PARAMS] = { true, true, false, false,
+                                                  true };
 
 bool thermal_ident_online(thermal_ident_param_t which)
 {
@@ -68,21 +98,14 @@ bool thermal_ident_online(thermal_ident_param_t which)
   * exact and a sample is not to be believed to its last hundredth. */
 #define IDENT_NOISE_GAIN 3.0f
 
-/** How fast the scales are allowed to drift when nothing is said about
-  * them: the process noise added to every variance per sample, a random
-  * walk of half a percent a sample - a hundred samples without excitation
-  * grow a sigma by five percent, no more. The alternative, dividing the
-  * covariance by a forgetting factor, inflated every direction whenever
-  * any was updated and no scale could ever be known to a tenth. */
-#define IDENT_DRIFT_VAR 2.5e-5f
-
 /** Below this much sensitivity squared a sample carries nothing about
   * the scales and is not fed to the filter. */
 #define IDENT_EXCITATION_MIN 1.0e-4f
 
 /** The covariance's ceiling on any diagonal: a scale is never less known
-  * than plus or minus its own size. */
-#define IDENT_VAR_MAX 1.0f
+  * than plus or minus its own size, the room than its prior. */
+static const float VAR_MAX[THERMAL_IDENT_PARAMS] = { 1.0f, 1.0f, 1.0f, 1.0f,
+                                                    100.0f };
 
 /** The innovation filter: a fifth of the way to each new sample. */
 #define IDENT_INNOVATION_FOLLOW 0.2f
@@ -106,10 +129,9 @@ bool thermal_ident_online(thermal_ident_param_t which)
   * on that would be confidence from silence. */
 #define IDENT_STILL_GAIN 3.0f
 
-/** What the states are: sigma below which a scale is known, and the
-  * innovation against the noise floor that says the model predicts. */
-#define IDENT_SIGMA_CONVERGING 0.30f
-#define IDENT_SIGMA_STABLE     0.10f
+/** What the states are: the innovation against the noise floor that says
+  * the model predicts (the sigmas are SIGMA_CONVERGING and SIGMA_STABLE
+  * above, one each). */
 #define IDENT_RATIO_STABLE     2.0f
 #define IDENT_RATIO_UNCERTAIN  3.0f
 #define IDENT_STABLE_RUNS      5U
@@ -122,7 +144,7 @@ static thermal_t s_probe;
 
 static void clamp_scales(thermal_ident_t *id)
 {
-  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
   {
     if (id->scale[k] < THERMAL_IDENT_SCALE_MIN)
     {
@@ -132,6 +154,17 @@ static void clamp_scales(thermal_ident_t *id)
     {
       id->scale[k] = THERMAL_IDENT_SCALE_MAX;
     }
+  }
+  /* The room is degrees, not a scale, and its own range. */
+  float *room = &id->scale[THERMAL_IDENT_AMBIENT];
+
+  if (*room < THERMAL_IDENT_AMBIENT_MIN_C)
+  {
+    *room = THERMAL_IDENT_AMBIENT_MIN_C;
+  }
+  if (*room > THERMAL_IDENT_AMBIENT_MAX_C)
+  {
+    *room = THERMAL_IDENT_AMBIENT_MAX_C;
   }
 }
 
@@ -143,24 +176,29 @@ static void set_covariance(thermal_ident_t *id, float sigma)
   {
     /* The prior's own where a blanket sigma is wider than it: a saved
        model narrows every scale, a fresh one only to what is known. */
-    const float s = (sigma < PRIOR_SIGMA[k]) ? sigma : PRIOR_SIGMA[k];
+    /* The room is never a saved model's: it is as wide as its prior
+       however the scales came. */
+    const float s = ((sigma < PRIOR_SIGMA[k]) && (k != THERMAL_IDENT_AMBIENT))
+                    ? sigma : PRIOR_SIGMA[k];
 
     id->p[k][k] = s * s;
   }
 }
 
 
-void thermal_ident_init(thermal_ident_t *id, float noise_k)
+void thermal_ident_init(thermal_ident_t *id, float ambient_c, float noise_k)
 {
   if (id == NULL)
   {
     return;
   }
   memset(id, 0, sizeof(*id));
-  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
   {
     id->scale[k] = 1.0f;
   }
+  id->scale[THERMAL_IDENT_AMBIENT] = ambient_c;
+  clamp_scales(id);
   set_covariance(id, 0.5f);
   id->noise_k = (noise_k > 0.0f) ? noise_k : 0.1f;
   id->innovation_k = id->noise_k;
@@ -169,20 +207,26 @@ void thermal_ident_init(thermal_ident_t *id, float noise_k)
 
 
 void thermal_ident_resume(thermal_ident_t *id, const float *scale,
-                          float noise_k)
+                          float ambient_c, float noise_k)
 {
-  thermal_ident_init(id, noise_k);
+  thermal_ident_init(id, ambient_c, noise_k);
   if ((id == NULL) || (scale == NULL))
   {
     return;
   }
-  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
   {
     id->scale[k] = scale[k];
   }
   clamp_scales(id);
   set_covariance(id, 0.15f);
   id->state = THERMAL_IDENT_CONVERGING;
+}
+
+
+float thermal_ident_ambient(const thermal_ident_t *id)
+{
+  return (id != NULL) ? id->scale[THERMAL_IDENT_AMBIENT] : NAN;
 }
 
 
@@ -277,7 +321,18 @@ static void propagate(thermal_ident_t *id, const thermal_cfg_t *base,
     {
       ds[i] = (f1[i] - f0[i]) / eps;
     }
-    /* df/ds_k */
+    /* df/ds_k: the room nudged half a kelvin, a scale by a fraction. */
+    if (k == THERMAL_IDENT_AMBIENT)
+    {
+      s_probe = id->shadow;
+      s_probe.ambient += IDENT_EPS_AMB;
+      rates(&s_probe, p, speed_rpm, f1);
+      for (int i = 0; i < THERMAL_NODES; i++)
+      {
+        ds[i] += (f1[i] - f0[i]) / IDENT_EPS_AMB;
+      }
+    }
+    else
     {
       float nudged[THERMAL_IDENT_PARAMS];
 
@@ -361,6 +416,7 @@ static void reseat(thermal_ident_t *id, const thermal_t *th,
   float f0[THERMAL_NODES];
 
   id->shadow = *th;
+  id->shadow.ambient = id->scale[THERMAL_IDENT_AMBIENT];   /* the room as identified */
   apply(id->scale, base, &id->shadow.cfg);
   rates(&id->shadow, p, speed_rpm, f0);   /* the nodes' own K/s here */
   memset(id->s, 0, sizeof(id->s));
@@ -473,9 +529,9 @@ static bool update(thermal_ident_t *id, const float *h_all, float innovation)
     {
       id->p[k][j] -= ph[k] * ph[j] / denom;
     }
-    if (id->p[k][k] > IDENT_VAR_MAX)
+    if (id->p[k][k] > VAR_MAX[k])
     {
-      id->p[k][k] = IDENT_VAR_MAX;
+      id->p[k][k] = VAR_MAX[k];
     }
   }
   clamp_scales(id);
@@ -483,22 +539,21 @@ static bool update(thermal_ident_t *id, const float *h_all, float innovation)
 }
 
 
-static float sigma_max(const thermal_ident_t *id)
+/** Whether every online quantity is known to within its own threshold -
+  * a scale to a fraction, the room to kelvin. A held scale's sigma is
+  * its prior, honestly, and not what the state is judged on: it is not
+  * being identified. */
+static bool known(const thermal_ident_t *id, const float *threshold)
 {
-  float worst = 0.0f;
-
   for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
   {
-    const float s = thermal_ident_sigma(id, (thermal_ident_param_t)k);
-
-    /* A held scale's sigma is its prior, honestly, and not what the
-       state is judged on: it is not being identified. */
-    if (ONLINE[k] && (s > worst))
+    if (ONLINE[k]
+        && (thermal_ident_sigma(id, (thermal_ident_param_t)k) >= threshold[k]))
     {
-      worst = s;
+      return false;
     }
   }
-  return worst;
+  return true;
 }
 
 
@@ -508,7 +563,6 @@ static float sigma_max(const thermal_ident_t *id)
 static void judge(thermal_ident_t *id)
 {
   const float ratio = id->innovation_k / id->noise_k;
-  const float sig = sigma_max(id);
 
   switch (id->state)
   {
@@ -521,7 +575,9 @@ static void judge(thermal_ident_t *id)
         id->stable_runs = 0U;
         for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
         {
-          id->p[k][k] += 0.25f;
+          const float floor_sigma = FLOOR_SHARE[k] * PRIOR_SIGMA[k];
+
+          id->p[k][k] += floor_sigma * floor_sigma;
         }
       }
       break;
@@ -532,7 +588,7 @@ static void judge(thermal_ident_t *id)
         id->state = THERMAL_IDENT_UNCERTAIN;
         id->stable_runs = 0U;
       }
-      else if ((sig < IDENT_SIGMA_STABLE) && (ratio < IDENT_RATIO_STABLE))
+      else if (known(id, SIGMA_STABLE) && (ratio < IDENT_RATIO_STABLE))
       {
         if (++id->stable_runs >= IDENT_STABLE_RUNS)
         {
@@ -547,7 +603,7 @@ static void judge(thermal_ident_t *id)
 
     case THERMAL_IDENT_UNCERTAIN:
     default:
-      if ((sig < IDENT_SIGMA_CONVERGING) && (ratio < IDENT_RATIO_UNCERTAIN))
+      if (known(id, SIGMA_CONVERGING) && (ratio < IDENT_RATIO_UNCERTAIN))
       {
         id->state = THERMAL_IDENT_CONVERGING;
         id->stable_runs = 0U;
@@ -732,7 +788,7 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
       {
         if (ONLINE[k])
         {
-          id->p[k][k] += IDENT_DRIFT_VAR;
+          id->p[k][k] += DRIFT_VAR[k];
         }
       }
       judge(id);

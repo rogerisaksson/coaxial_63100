@@ -1503,7 +1503,8 @@ def test_thermal_identification(report):
                      'truth beside them',
                      set(got) == {'state', 'scales', 'sigma', 'online',
                                   'innovation_k', 'margin', 'updates',
-                                  'saves', 'since_save_s', 'truth'},
+                                  'saves', 'since_save_s', 'truth',
+                                  'ambient', 'ambient_sigma'},
                      sorted(got))
         report.check('its state is one of the three and the scales are the '
                      'four, in wire order',
@@ -1597,6 +1598,47 @@ def test_thermal_identification(report):
                  'anything else is refused in words',
                  model.situation('random')['situation'] in model.SITUATIONS
                  and _refused(lambda: model.situation('attic')))
+
+    # OUT INTO THE COLD AND BACK IN. The bench: the whole assembly, motor
+    # and electronics, from a 25 C room to -20 C outdoors and back. No
+    # sensor reads the room; it is the fifth identified quantity, and a
+    # cooldown tells a cold room from a good air path - the first two
+    # estimators could not (FINDINGS). The truth's outdoors has a light
+    # wind, air 0.8.
+    cold = SimulatedThermal(situation='bench', nvm='')
+    run_on = lambda m, seen, model=cold: model.fast_forward(60.0 * m, seen=seen)
+    run_on(6, load)
+    run_on(8, idle)
+    cold.situation('outdoors')
+    states = []
+    for _ in range(20):
+        run_on(1, idle)
+        state = cold.identification()['state']
+        if not states or states[-1] != state:
+            states.append(state)
+    got = cold.identification()
+    report.check('carried to -20 C outdoors: UNCERTAIN, then the room found '
+                 'within twenty idle minutes and the air path not blamed',
+                 'UNCERTAIN' in states and abs(got['ambient'] + 20.0) < 6.0
+                 and 0.5 <= got['scales']['air'] <= 1.4,
+                 'room %.1f±%.1f C, air %.2f, %s' % (
+                     got['ambient'], got['ambient_sigma'], got['scales']['air'],
+                     ' > '.join(states)))
+    cold.situation('bench')
+    run_on(20, idle)
+    got = cold.identification()
+    report.check('and back into the room: found again',
+                 abs(got['ambient'] - 25.0) < 6.0,
+                 'room %.1f±%.1f C, air %.2f, %s' % (
+                     got['ambient'], got['ambient_sigma'], got['scales']['air'],
+                     got['state']))
+    report.check('the truth tells its room beside the estimate, and a '
+                 'situation is one of the bench\'s rooms too',
+                 got['truth']['ambient'] == 25.0
+                 and cold.situation('freezer')['ambient'] == -25.0
+                 and cold.situation('thai')['ambient'] == 45.0
+                 and cold.situation('warehouse')['ambient'] == 20.0,
+                 got['truth'])
 
     # AN IDLING BOARD STAYS UNCERTAIN - the bench's rule: nothing burning,
     # nothing moving, nothing to learn from, so the margin stays in hand

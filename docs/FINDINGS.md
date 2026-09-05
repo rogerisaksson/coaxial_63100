@@ -1211,6 +1211,45 @@ looking at the estimate alone.
   (72 % of the SOA UNCERTAIN, 81 CONVERGING, 90 STABLE) and the ceiling
   is the trip. The motor's legend pulses too since the winding is a node
   the envelope acts on. Also on the foot - "make it
+* **The room is the fifth identified quantity**, 2026-09-05, after the
+  bench's "take the motor and the electronics from 25 C indoors to
+  -20 C outdoors and back in" and "a robot from a 20 C warehouse into a
+  -25 C freezer and out into 45 C". The board has no ambient sensor.
+  THREE ESTIMATORS, TWO OF THEM WRONG. (1) `thermal.c`'s anchor had
+  inferred the room as the mean patch less the laminate's losses through
+  the bulk path: an identity when the patches are evenly warm and a
+  downward drift when they are not - the fourth-root law evaluated per
+  patch on one side and at the mean on the other - and it carried
+  nothing about the room. Ported to the stand-in with the anchor's new
+  78 % pull it walked to -173 C for a room at 25 within an hour and drove
+  the air scale to its clamp behind it; on the board it had been pulling
+  0.5 % a sample and nobody saw. (2) An integral of the dies'
+  common-mode correction, gated on quiet legs: reads a step in the room
+  in a couple of minutes but cannot tell a cold room from a good air
+  path - both make the board colder - and overshot to -44 C for -20
+  while the air scale went to 2.4 for 0.8; the fan case broke too. (3)
+  The room beside the scales in the Kalman step (THERMAL_IDENT_AMBIENT,
+  MINOR 15 on op 10), its sensitivity by finite difference like theirs:
+  the room's is the same at every rise, the air path's grows with it, so
+  a cooldown separates them, and an idle board tells neither - the
+  still rule already skips it. Its prior is ten kelvin AND IT IS A
+  WEIGHT: at three the room moved 0.6 K a gated sample and the air
+  scale took the rest (2.9 for 0.8, both mirrors); at ten the room is
+  found within 5 K both ways with the air scale near the truth, at the
+  price of some of a cooldown's early state error landing in the room -
+  19.6 C for a bench at 25 after the first cycle, which the anchored
+  nodes do not feel and the next cycles correct. Measured: C ground
+  truth, a run and a cooldown at 25 then idle at -20 - room -18.7 C,
+  air 0.75 for 0.8-ish (the truth kept 1.0 there: 0.75), back to 23.0;
+  stand-in, six minutes at 30 A and eight cooling on the bench then
+  twenty idle minutes outdoors - UNCERTAIN, CONVERGING, room -23.4 ± 4.3
+  for -20, air 1.12 for 0.8; back in, 26.7 ± 2.3 for 25. The room is
+  never saved: it is where the board is, not what it is. The rooms a
+  situation can lay on the stand-in: bench 25, outdoors -20, warehouse
+  20, freezer -25, thai 45. And the bench's word on the record: a good
+  observer earns STABLE within a few cooldown samples, so the flash save
+  is not needed for safety; it stays because a resumed record starts at
+  90 % instead of 80 and costs nothing.
   visible that it throttles at 80 % of the SOA already, then 90, then
   100 as the model's uncertainty goes to zero": `TH OBS UNCR 80%`,
   `TH OBS CONV 90%`, `TH OBS STABLE` alone at the whole span, since

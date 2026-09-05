@@ -244,6 +244,12 @@ class Thermal(Subsystem):
                'updates': r.u32(), 'saves': r.u32()}
         since = r.u32()
         got['since_save_s'] = None if since == _NEVER_SAVED else since
+        # MINOR 15: the room as identified beside the scales, and how
+        # sure - the board has no ambient sensor. Absent on older
+        # firmware, and absent is honest.
+        if r.remaining >= 8:
+            got['ambient'] = r.i32() / 100.0
+            got['ambient_sigma'] = r.i32() / 100.0
         return got
 
     def reset_identification(self):

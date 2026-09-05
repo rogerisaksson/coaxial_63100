@@ -33,7 +33,8 @@
   *   9  set edge    - u8 edge, i32 k_per_w_milli; negative opens it
   *  10  ident       - MINOR 14: the online identification - state, which
   *                    scales move, each scale and its sigma, the filtered
-  *                    innovation, the envelope's margin, updates, saves
+  *                    innovation, the envelope's margin, updates, saves;
+  *                    MINOR 15 appends the room as identified and its sigma
   *  11  ident reset - scales to one, UNCERTAIN, the record rewritten;
   *                    refused while the stage is armed
   ******************************************************************************
@@ -417,6 +418,10 @@ static cmd_status_t op_ident(wr_t *out)
   wr_u32(out, id.updates);
   wr_u32(out, id.saves);
   wr_u32(out, id.ever_saved ? id.since_save_s : 0xFFFFFFFFUL);
+  /* MINOR 15, appended (invariant 3): the room as identified, centi-C,
+     and its sigma in centi-kelvin. */
+  wr_i32(out, (int32_t)(id.ambient_c * 100.0f));
+  wr_i32(out, (int32_t)(id.ambient_sigma_k * 100.0f));
   return CMD_OK;
 }
 

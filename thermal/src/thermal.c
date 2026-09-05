@@ -1275,35 +1275,17 @@ static void anchor(thermal_t *th, const thermal_power_t *p,
       }
     }
 
-    /* Ambient is what the laminate's own losses imply, once it is
-       anchored: the mean patch less the whole face's loss through the
-       bulk's path at the present rise. The board carries no ambient
-       sensor, so this is the only way to it. */
-    float mean = 0.0f, lost = 0.0f, share = 0.0f;
-
-    for (int i = 0; i < THERMAL_NODES; i++)
-    {
-      const thermal_node_cfg_t *n = &th->cfg.node[i];
-
-      if (n->area_share > 0.0f)
-      {
-        const float rise = th->t[i] - th->ambient;
-        const float away = thermal_to_ambient_at(&th->cfg, (thermal_node_t)i,
-                                                 rise, speed_rpm);
-
-        mean += th->t[i] * n->area_share;
-        share += n->area_share;
-        lost += (away > 0.0f) ? (rise / away) : 0.0f;
-      }
-    }
-    if (share > 0.0f)
-    {
-      mean /= share;
-      const float away = thermal_board_to_ambient_at(&th->cfg,
-                                                     mean - th->ambient);
-
-      th->ambient += k * ((mean - lost * away) - th->ambient);
-    }
+    /* THE ROOM IS NOT ESTIMATED HERE. It was - the mean patch less the
+       face's losses through the bulk's path - and that is an identity
+       when the patches are evenly warm and a downward drift when they
+       are not (the fourth-root law per patch on one side, at the mean on
+       the other): measured on the stand-in 2026-09-05, -173 C for a room
+       at 25 within an hour, the air scale driven to its clamp behind it.
+       An integral of the common-mode correction was tried next and could
+       not tell a cold room from a good air path. The room is a quantity
+       the identification estimates beside the scales (thermal_ident.h,
+       THERMAL_IDENT_AMBIENT), where a cooldown tells the two apart; the
+       caller sets `ambient` from it after every step. */
   }
   else if (!isnan(seen->ntc_c))
   {

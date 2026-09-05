@@ -91,8 +91,10 @@ is still arithmetic. Every item names the file or record it lives in.
   between runs (`COAXIAL_SIM_NVM`); the pages switch the situation at
   random every three to six minutes in simulated mode and show the
   state on both (THERMAL OBSERVER's SENSE with the truth beside it,
-  ROTOR OBSERVER's foot). What remains is the board: nothing here has
-  run on it yet.
+  ROTOR OBSERVER's foot); the room is the fifth identified quantity
+  and the situations include the bench's rooms (outdoors -20 C,
+  warehouse 20, freezer -25, thai 45). What remains is the board:
+  nothing here has run on it yet.
 * The phase gain (3.5 mΩ x 4.5455) is traced off the schematic and has
   never been spanned; the DC link is the only spanned channel.
 * `Q_RING` = 1.0 in `inverter.py` is assumed; the scope is the answer.

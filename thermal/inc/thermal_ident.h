@@ -77,15 +77,43 @@
 extern "C" {
 #endif
 
-/** The scales, in wire order. Append only. */
+/** The identified quantities, in wire order. Append only. The first
+  * THERMAL_IDENT_RECORD are SCALES on the record's network and are what
+  * the record keeps; AMBIENT is the ROOM in degrees C - a state the
+  * identification tracks, never saved, since a room is not a property of
+  * the board.
+  *
+  * THE ROOM IS IDENTIFIED, NOT INFERRED. The board carries no ambient
+  * sensor. It was inferred in `thermal.c`'s anchor as the mean patch less
+  * the laminate's losses through the bulk path - an identity when the
+  * patches are evenly warm, a downward drift when they are not (the
+  * fourth-root law per patch on one side, at the mean on the other):
+  * measured on the stand-in 2026-09-05, -173 C for a room at 25 within an
+  * hour. Then as an integral of the dies' common-mode correction, which
+  * could not tell a cold room from a good air path - both make the board
+  * colder - and drove the air scale to 2.4 for a truth of 0.8 while the
+  * room overshot to -44 C for -20. In the Kalman step the two separate:
+  * the room's sensitivity is the same at every rise while the air path's
+  * grows with it, so a cooldown tells them apart and idle - where neither
+  * shows - is skipped by the still rule. The bench's scenario: a machine
+  * carried from a 25 C room to -20 C outdoors and back; a robot from a
+  * 20 C warehouse into a -25 C freezer and out into 45 C. */
 typedef enum
 {
   THERMAL_IDENT_AIR = 0,
   THERMAL_IDENT_CAPACITY,
   THERMAL_IDENT_SPREAD,
   THERMAL_IDENT_NTC,
+  THERMAL_IDENT_AMBIENT,
   THERMAL_IDENT_PARAMS
 } thermal_ident_param_t;
+
+/** How many of them are scales the record keeps: the first four. */
+#define THERMAL_IDENT_RECORD 4
+
+/** Where the room may be identified to, degrees C. */
+#define THERMAL_IDENT_AMBIENT_MIN_C -40.0f
+#define THERMAL_IDENT_AMBIENT_MAX_C  85.0f
 
 /** What the estimate is worth, in wire order. */
 typedef enum
@@ -104,7 +132,8 @@ typedef enum
 typedef struct
 {
   /** The scales on the derived defaults, 1.0 each until the sensors say
-    * otherwise. */
+    * otherwise - and, at THERMAL_IDENT_AMBIENT, the room in degrees C,
+    * which is not a scale but is estimated by the same step. */
   float scale[THERMAL_IDENT_PARAMS];
   /** The covariance of the scales, the RLS's own. Its diagonal's square
     * roots are `sigma` below. */
@@ -166,15 +195,23 @@ typedef struct
   bool primed;
 } thermal_ident_t;
 
-/** Start: scales at one, covariance wide, state UNCERTAIN. `noise_k` is
-  * the thermometers' floor - 0.1 K for this board's NTC and dies. */
-void thermal_ident_init(thermal_ident_t *id, float noise_k);
+/** Start: scales at one, the room at `ambient_c` (what the thermistor
+  * read at boot - a board that has not run is at the room), covariance
+  * wide, state UNCERTAIN. `noise_k` is the thermometers' floor - 0.1 K
+  * for this board's NTC and dies. */
+void thermal_ident_init(thermal_ident_t *id, float ambient_c, float noise_k);
 
-/** Start from scales a record kept: the covariance narrowed to what a
-  * saved model deserves, the state CONVERGING - trusted enough to run on,
-  * not yet proved against this boot's sensors. */
+/** Start from the THERMAL_IDENT_RECORD scales a record kept: the
+  * covariance narrowed to what a saved model deserves, the state
+  * CONVERGING - trusted enough to run on, not yet proved against this
+  * boot's sensors. The room starts at `ambient_c` as wide as ever: a
+  * record does not know where the board woke up. */
 void thermal_ident_resume(thermal_ident_t *id, const float *scale,
-                          float noise_k);
+                          float ambient_c, float noise_k);
+
+/** The room as identified, degrees C: what the observer's `ambient`
+  * should be set to after every step. */
+float thermal_ident_ambient(const thermal_ident_t *id);
 
 /** `out` = `base` with the scales applied. The caller runs the observer
   * on `out` and keeps `base` as the derived defaults (with the record's

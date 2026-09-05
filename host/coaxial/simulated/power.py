@@ -103,8 +103,23 @@ class SimulatedThermal:
     #: another thermal situation over it" - and, in simulated mode, "a
     #: switch at random, moderate intervals so ROTOR OBSERVER and THERMAL
     #: OBSERVER show the logic in action".
-    SITUATIONS = {'bench': (1.0, 1.0), 'box': (2.0, 1.0), 'fan': (0.5, 1.0),
-                  'heatsink': (0.35, 1.6), 'stuffy': (1.5, 1.0)}
+    #: Each situation: a scale on the air path, one on the laminate's
+    #: capacity, and the ROOM - `outdoors` is the whole assembly, motor
+    #: and electronics, carried to -20 C in a light wind, the bench's
+    #: "from 25 C indoors to -20 C outdoors and back in again"; the
+    #: observer is not told the room and reads its way there from its
+    #: own losses, as the board does.
+    SITUATIONS = {'bench': {'air': 1.0, 'capacity': 1.0, 'ambient': 25.0},
+                  'box': {'air': 2.0, 'capacity': 1.0, 'ambient': 25.0},
+                  'fan': {'air': 0.5, 'capacity': 1.0, 'ambient': 25.0},
+                  'heatsink': {'air': 0.35, 'capacity': 1.6, 'ambient': 25.0},
+                  'stuffy': {'air': 1.5, 'capacity': 1.0, 'ambient': 25.0},
+                  'outdoors': {'air': 0.8, 'capacity': 1.0, 'ambient': -20.0},
+                  # The bench's robot: a warehouse, a freezer room, and
+                  # out into the Thai midsummer.
+                  'warehouse': {'air': 1.0, 'capacity': 1.0, 'ambient': 20.0},
+                  'freezer': {'air': 0.9, 'capacity': 1.0, 'ambient': -25.0},
+                  'thai': {'air': 1.2, 'capacity': 1.0, 'ambient': 45.0}}
     #: Wall seconds between switches when they are on: long enough for
     #: STABLE to be reached between them at HASTE, short enough to watch.
     SWITCH_EVERY_S = (180.0, 360.0)
@@ -172,6 +187,11 @@ class SimulatedThermal:
         self._random = random.Random(seed)
         self._truth = {n: thermal.AMBIENT for n in self.NODES}
         self._truth_ntc = thermal.AMBIENT
+        #: The room the truth stands in, and the observer's ESTIMATE of
+        #: it - `thermal.c` infers ambient from the laminate's losses,
+        #: there being no sensor for it, and so does the mirror's anchor.
+        self._truth_ambient = thermal.AMBIENT
+        self._ambient = thermal.AMBIENT
         self._situation = None
         self._truth_cfg = None
         self._switching = False
@@ -183,7 +203,8 @@ class SimulatedThermal:
         self._since_seen_s = 0.0
         self._seen = {}
         self._settled = False
-        self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K)
+        self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K,
+                                               thermal.AMBIENT)
         self._saves = 0
         self._saved_s = 0.0
         self._ever_saved = False
@@ -267,16 +288,17 @@ class SimulatedThermal:
         # THE TRUTH FIRST, on its own network, its thermistor by the same
         # rule as the observer's below.
         net = thermal.net_flows(self._truth, power, self._truth_cfg,
-                                thermal.AMBIENT, self._speed_rpm)
+                                self._truth_ambient, self._speed_rpm)
         for name in self.NODES:
             capacity = self._truth_cfg['capacity'].get(name, 0.0)
             if capacity > 0.0:
                 self._truth[name] += net[name] * dt / capacity
         self._truth_ntc = thermal_ident.ntc_follow(
             self._truth, self._truth_ntc, self._truth_cfg, dt)[0]
-        # THEN THE OBSERVER, on the base with the identified scales.
+        # THEN THE OBSERVER, on the base with the identified scales and
+        # the room as it believes it to be.
         net = thermal.net_flows(self._node, power, self._cfg,
-                                thermal.AMBIENT, self._speed_rpm)
+                                self._ambient, self._speed_rpm)
         self._last_net = net
         for name in self.NODES:
             capacity = self._cfg['capacity'].get(name, 0.0)
@@ -295,7 +317,7 @@ class SimulatedThermal:
             self._seen = dict(sample)
             self._ntc, self._settled = thermal_ident.anchor(
                 self._node, self._ntc, self._cfg, power, sample,
-                self._speed_rpm, self._since_seen_s)
+                self._speed_rpm, self._since_seen_s, self._ambient)
             self._since_seen_s = 0.0
         # THE READING FOLLOWS THE PATCHES, it does not jump with them:
         # toward the weighted average of the two it sits between, at the
@@ -308,6 +330,9 @@ class SimulatedThermal:
         if self._ident.step(self._node, self._ntc, self._base, power,
                             self._speed_rpm, sample, dt):
             self._cfg = self._ident.apply(self._base)
+        # THE ROOM IS THE IDENTIFICATION'S, as on the board: no sensor
+        # reads it, and the observer's rise is against what it believes.
+        self._ambient = self._ident.ambient
         self._policy(bool(seen.get('switching')))
 
     def _read_truth(self, power):
@@ -332,7 +357,8 @@ class SimulatedThermal:
         if switching or self._ident.state == thermal_ident.UNCERTAIN:
             return
         moved = max(abs(self._ident.scale[k] - self._saved_scale[k])
-                    for k in range(4) if thermal_ident.ONLINE[k])
+                    for k in range(thermal_ident.RECORD)
+                    if thermal_ident.ONLINE[k])
         if moved < self.SAVE_MOVED:
             return
         if disarmed_now or self._model_s - self._saved_s >= self.SAVE_EVERY_S:
@@ -357,7 +383,8 @@ class SimulatedThermal:
         except (OSError, ValueError):
             return
         if scales and any(abs(float(s) - 1.0) > 1e-9 for s in scales):
-            self._ident.resume([float(s) for s in scales], self.IDENT_NOISE_K)
+            self._ident.resume([float(s) for s in scales], self._ident.ambient,
+                               self.IDENT_NOISE_K)
             self._saved_scale = list(self._ident.scale)
 
     def _nvm_save(self):
@@ -366,7 +393,8 @@ class SimulatedThermal:
             return
         try:
             with open(self._nvm, 'w', encoding='utf-8') as f:
-                json.dump({'thermal_ident_scale': list(self._ident.scale),
+                json.dump({'thermal_ident_scale':
+                           list(self._ident.scale[:thermal_ident.RECORD]),
                            'saved_at': time.time()}, f)
         except OSError:
             return
@@ -393,13 +421,14 @@ class SimulatedThermal:
             if name not in self.SITUATIONS:
                 raise RigError('a situation is one of %s, or random'
                                % ', '.join(self.SITUATIONS))
-            air, capacity = self.SITUATIONS[name]
+            laid = self.SITUATIONS[name]
             if self._situation is not None:
                 self._switches += 1
             self._situation = name
             self._switched_s = self._model_s
-            self._truth_cfg = thermal_ident.apply((air, capacity, 1.0, 1.0),
-                                                  self._base)
+            self._truth_ambient = float(laid['ambient'])
+            self._truth_cfg = thermal_ident.apply(
+                (laid['air'], laid['capacity'], 1.0, 1.0), self._base)
             if self._switching:
                 self._switch_at = time.time() + self._random.uniform(
                     *self.SWITCH_EVERY_S)
@@ -410,8 +439,12 @@ class SimulatedThermal:
         its network, the observer on its own - as a board is after an hour
         of idling: where a test starts that asks what idling teaches."""
         power = self._power(1.0, seen or self._sample())
-        self._truth = thermal.steady(power, self._truth_cfg)
-        self._node = thermal.steady(power, self._cfg)
+        # An hour of idling has told the identification the room as well.
+        self._ident.scale[thermal_ident.AMBIENT] = self._truth_ambient
+        self._ambient = self._truth_ambient
+        self._truth = thermal.steady(power, self._truth_cfg,
+                                     ambient=self._truth_ambient)
+        self._node = thermal.steady(power, self._cfg, ambient=self._ambient)
         for temps in (self._truth, self._node):
             for name in self.NODES:
                 temps.setdefault(name, thermal.AMBIENT)
@@ -425,9 +458,10 @@ class SimulatedThermal:
         """The ground truth as a page may show it beside the estimate:
         its situation, the scales that make it, and how long it has
         stood - absent on a board, which has no truth to tell."""
-        air, capacity = self.SITUATIONS[self._situation]
-        return {'situation': self._situation, 'air': air,
-                'capacity': capacity, 'switches': self._switches,
+        laid = self.SITUATIONS[self._situation]
+        return {'situation': self._situation, 'air': laid['air'],
+                'capacity': laid['capacity'], 'ambient': self._truth_ambient,
+                'switches': self._switches,
                 'since_s': self._model_s - self._switched_s,
                 'switching': self._switching}
 
@@ -470,7 +504,7 @@ class SimulatedThermal:
         return {
             'ntc': ntc,
             'nodes': dict(self._node),
-            'ambient': thermal.AMBIENT,
+            'ambient': self._ambient,          # ESTIMATED, as the board's
             'expected_ntc': self._ntc,
             'seconds': self._seconds,
             'settled': self._settled or not seen,
@@ -698,6 +732,8 @@ class SimulatedThermal:
                           if thermal_ident.ONLINE[k]],
                'innovation_k': ident.innovation_k,
                'margin': ident.margin(),
+               'ambient': ident.ambient,
+               'ambient_sigma': ident.sigma(thermal_ident.AMBIENT),
                'updates': ident.updates, 'saves': self._saves,
                'since_save_s': ((self._model_s - self._saved_s)
                                 if self._ever_saved else None),
@@ -707,7 +743,8 @@ class SimulatedThermal:
     def reset_identification(self):
         """Forget what was identified: scales to one, UNCERTAIN, the
         record written without them."""
-        self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K)
+        self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K,
+                                               self._ambient)
         self._cfg = self._ident.apply(self._base)
         self._saved_scale = list(self._ident.scale)
         self._nvm_save()

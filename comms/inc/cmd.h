@@ -289,7 +289,7 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 14U        /* 1: gate drivers op 10, alternate
+#define CMD_PROTO_MINOR 15U        /* 1: gate drivers op 10, alternate
                                      2: device 10, the drive; the DC link
                                         appended to gate drivers op 0
                                      3: a daq record ends with u16 count,
@@ -341,7 +341,9 @@ extern "C" {
                                     14: thermal op 10 - the online
                                         identification's scales,
                                         sigmas, state and margin;
-                                        op 11 resets it */
+                                        op 11 resets it
+                                    15: thermal op 10 appends the room
+                                        as identified and its sigma */
 
 /** Request payload length of a command that takes a variable-length payload. */
 #define CMD_LEN_VARIABLE 0xFFU

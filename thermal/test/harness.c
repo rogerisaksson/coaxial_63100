@@ -477,7 +477,7 @@ API void *thm_ident_new(const thermal_t *th, float noise_k)
   if ((box != NULL) && (th != NULL))
   {
     box->base = th->cfg;
-    thermal_ident_init(&box->id, noise_k);
+    thermal_ident_init(&box->id, th->ambient, noise_k);
   }
   return box;
 }
@@ -493,7 +493,9 @@ API void thm_ident_resume(void *box, const float *scale, float noise_k)
 {
   if (box != NULL)
   {
-    thermal_ident_resume(&((ident_box_t *)box)->id, scale, noise_k);
+    thermal_ident_t *id = &((ident_box_t *)box)->id;
+
+    thermal_ident_resume(id, scale, thermal_ident_ambient(id), noise_k);
   }
 }
 
@@ -510,7 +512,6 @@ API int thm_ident_run(void *box, thermal_t *th, const float *watt,
   thermal_power_t p;
   thermal_sense_t seen;
   thermal_load_t load;
-  const float ambient = (th != NULL) ? th->ambient : 0.0f;
 
   if ((b == NULL) || (th == NULL) || (watt == NULL))
   {
@@ -529,9 +530,12 @@ API int thm_ident_run(void *box, thermal_t *th, const float *watt,
 
   thermal_ident_apply(&b->id, &b->base, &th->cfg);
   thermal_step(th, &p, &seen, &load, dt_s);
-  th->ambient = ambient;               /* the room does not drift here */
   const bool moved = thermal_ident_step(&b->id, th, &b->base, &p, &load,
                                         &seen, dt_s);
+
+  /* The room is the identification's: what the board's glue does after
+     every step. */
+  th->ambient = thermal_ident_ambient(&b->id);
 
   if (moved)
   {
@@ -584,6 +588,14 @@ API float thm_ident_margin(int state)
 {
   return thermal_ident_margin((thermal_ident_state_t)state);
 }
+
+
+API float thm_ident_ambient(const void *box)
+{
+  return (box != NULL) ? thermal_ident_ambient(&((const ident_box_t *)box)->id)
+                       : NAN;
+}
+
 
 
 API int thm_ident_online(int which)

@@ -159,8 +159,9 @@ device.close()                           # the port, and the supply as found
 ```
 
 In simulated mode the thermal stand-in is a HYPOTHETICAL BOARD: a ground
-truth in a situation (bench, box, fan, heat sink, stuffy) heating on the
-same losses the observer estimates, read through three noisy thermometers
+truth in a situation (bench, box, fan, heat sink, stuffy, and the rooms -
+outdoors -20 C, warehouse 20, freezer -25, thai 45) heating on the same
+losses the observer estimates, read through three noisy thermometers
 every sample, and identified by the same identifier the board runs
 (`coaxial/thermal_ident.py` mirrors `thermal/src/thermal_ident.c`), so
 the state walks UNCERTAIN, CONVERGING, STABLE for the same reasons. The
@@ -169,8 +170,12 @@ record is a file, `COAXIAL_SIM_NVM` (unset in the suites, the temporary
 directory for the pages). `rig.thermal.situation('box')` lays one on. **An
 idling board stays UNCERTAIN**: nothing burning, nothing moving, nothing to
 learn from - a sample whose thermometers moved less than three floors since
-the seat is not judged, and the envelope keeps 80 % of every span until
-something switches; 90 % CONVERGING, 100 % STABLE.
+the seat moves neither the quantities nor their covariance, and the
+envelope keeps 80 % of every span until something switches; 90 %
+CONVERGING, 100 % STABLE. **The room is the fifth identified quantity**
+(the board has no ambient sensor): two ways of inferring it ran off,
+FINDINGS has both; a cooldown tells a cold room from a good air path and
+nothing else does.
 
 Subsystems hang off it by name - `device.daq`, `.imu`, `.angle`, `.thermal`,
 `.gates`, `.drive` - and `device.motion` is the drive as three verbs:

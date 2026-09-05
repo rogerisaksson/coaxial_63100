@@ -310,6 +310,12 @@ class Ident:
         self.lib.thm_ident_resume(self.h, self.observer._floats(
             [scales.get(s, 1.0) for s in SCALES]), noise_k)
 
+    def ambient(self):
+        """The room as identified - the fifth quantity, degrees C."""
+        self.lib.thm_ident_ambient.restype = ctypes.c_float
+        self.lib.thm_ident_ambient.argtypes = [ctypes.c_void_p]
+        return self.lib.thm_ident_ambient(self.h)
+
 
 class GroundTruth:
 
@@ -356,6 +362,59 @@ class GroundTruth:
             if ident.run({}, dt_s, seen) and trace is not None:
                 trace.append((ident.state(), ident.scale('air'),
                               ident.sigma('air'), ident.innovation()))
+
+
+def test_the_room_is_identified(report, lib):
+    """The board has no ambient sensor: the room is the fifth quantity.
+
+    THE BENCH'S SCENARIO: the whole assembly carried from a 25 C room to
+    -20 C outdoors, and back in; a robot from a 20 C warehouse into a
+    -25 C freezer and out into 45 C. A cold room and a good air path both
+    make the board colder, and an integral of the anchor's common-mode
+    correction could not tell them apart (FINDINGS). In the Kalman step
+    they separate: the room's sensitivity is the same at every rise, the
+    air path's grows with it, so a cooldown tells them apart. The truth
+    here keeps its air path and only its room moves.
+    """
+    truth = GroundTruth(lib, air=1.0)
+    observer = Model(lib)
+    ident = Ident(lib, observer)
+    lib.thm_ambient.argtypes = [ctypes.c_void_p, ctypes.c_float]
+    watt = power(lib, phase_sq=(900.0, 900.0, 900.0), duty=(0.5, 0.5, 0.5),
+                 link_volts=48.0, switching=True)
+    quiet = power(lib)
+    truth.cycle(ident, watt, 600.0, 1200.0)
+    # Within six kelvin after ONE cycle: the room's wide prior lets it
+    # take some of the cooldown's early state error, which the anchored
+    # nodes do not feel and the next cycles correct.
+    report.check('a run and a cooldown in the room it woke in: the room is '
+                 'identified within six kelvin, the air scale near one',
+                 abs(ident.ambient() - 25.0) < 6.0
+                 and abs(ident.scale('air') - 1.0) < 0.4,
+                 'room %.1f C, air %.2f, %s'
+                 % (ident.ambient(), ident.scale('air'), ident.state()))
+    # OUT INTO THE COLD, idling: the board cools toward a room the model
+    # has not been told about.
+    lib.thm_ambient(truth.model.h, -20.0)
+    trace = []
+    truth.cycle(ident, quiet, 0.0, 2400.0, trace=trace)
+    states = [t[0] for t in trace]
+    report.check('carried to -20 C: UNCERTAIN, then the room found within '
+                 'forty minutes and the air scale not blamed for it',
+                 'UNCERTAIN' in states and abs(ident.ambient() + 20.0) < 6.0
+                 and abs(ident.scale('air') - 1.0) < 0.5,
+                 'room %.1f C, air %.2f, %s' % (ident.ambient(),
+                                               ident.scale('air'),
+                                               ' > '.join(s for i, s in enumerate(states)
+                                                          if i == 0 or s != states[i - 1])))
+    # AND BACK IN.
+    lib.thm_ambient(truth.model.h, 25.0)
+    truth.cycle(ident, quiet, 0.0, 2400.0)
+    report.check('and back into the room: found again',
+                 abs(ident.ambient() - 25.0) < 6.0
+                 and abs(ident.scale('air') - 1.0) < 0.5,
+                 'room %.1f C, air %.2f, %s' % (ident.ambient(),
+                                               ident.scale('air'), ident.state()))
 
 
 def test_an_idle_board_stays_uncertain(report, lib):
@@ -1641,6 +1700,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_a_long_step_is_sub_stepped,
           test_the_scales_are_identified_against_a_ground_truth,
           test_an_idle_board_stays_uncertain,
+          test_the_room_is_identified,
           test_the_lookahead_catches_a_ramp,
           test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,
