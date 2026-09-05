@@ -446,13 +446,13 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     said = picture(warm)
     rows = strip(said).split('\n')
     art = [row[:cells] for row in rows]
-    letters = set(''.join(label for label, _, _ in thermalmap.MARKS))
+    letters = set(''.join(mark[0] for mark in thermalmap.MARKS))
     stray = set(ch for row in art for ch in row
                 if ch != ' ' and not 0x2800 <= ord(ch) < 0x2900
                 and ch not in letters)
     report.check('the board is braille, and the only letters on it are '
                  'the labels', not stray, repr(''.join(sorted(stray))))
-    for label, _refs, _at in thermalmap.MARKS:
+    for label, _refs, _where, _margin in thermalmap.MARKS:
         report.check('%s is written on it' % label,
                      any(label in row for row in art))
 
@@ -501,8 +501,10 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     report.check('a marked cell is a line, never a solid block',
                  marked and solid <= 0.02 * len(marked),
                  '%d solid of %d' % (solid, len(marked)))
+    # A quarter: the rim alone is two fifths of the marks, and eight
+    # frames' perimeters the rest - lines, however many of them.
     report.check('and the frames are a thin share of the board',
-                 0 < len(marked) < 0.2 * len(lit),
+                 0 < len(marked) < 0.25 * len(lit),
                  '%d marked of %d lit' % (len(marked), len(lit)))
     # RIGHT ANGLES: the frames are box-drawing in braille, the bench's
     # own glyphs - corners, and straight runs between them.

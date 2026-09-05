@@ -1300,6 +1300,32 @@ record's own constants, no measurement.
   drawing in braille; never under two cells each way, and it still
   stops at the rim. Held: five of each corner glyph and ten of each
   run on the demo board.
+  THEN FOUR MORE, in one message: the labels INTO the bottom line
+  (`⠧⠤⠤MCU⠤⠤⠼`, `label_at('bottom')`); the hot-swap frame round
+  the controller WITH its back-to-back FETs and the fuse - Q3 and Q4
+  at 14 and 15 mm just right of the bore, U12 at 23, the fuse RTS1 and
+  the varistor V1 at 31, the terminals at 40: the chain runs from the
+  bore's edge to the rim, which is why the bench thought the area sat
+  further right than a box round U12 alone; REG and the MCU sharing
+  one edge - `_share_edges` draws the second frame's side on the
+  first's column and lane where they land within a cell of each
+  other, either side, since the MCU's frame now stands 3 mm off its
+  package (`MARKS` carries a margin per frame) so the temperature
+  inside it shows. The first draft caught only a frame landing right
+  of the other's edge, and the bigger MCU landed a cell inside REG's:
+  two lines a cell apart, seen in the render before the raster.
+* **The clock sync guarded its first NTP query and not its second,
+  2026-09-05.** CI on Python 3.10 crashed the whole DAQ suite with
+  `TimeoutError: timed out` out of `ntp_offset` - a runner that reached
+  time.google.com at the start of a 0.2 s sync and not at the end.
+  `Clock.sync` fell back to the PC clock, said, when the FIRST query
+  failed, and raised on the second; a rate against UTC needs both ends,
+  so now the second failing is the same fall-back with its own note.
+  The 3.12 job passed the same commit: the network, not the code
+  under test, and the suite that crashed was the stand-in's, which
+  reaches for NTP because `set_time_from_pc` does - honest about this
+  machine's clock, and now honest about a server that answers once.
+  Held on the stand-in with NTP stubbed to answer once and time out.
 * **BOARD ATTITUDE holds its face at rest and caps itself at 30 Hz,
   2026-09-05.** The bench's word: "the laptop's fans run away". Profiled
   at 108x40, zoom 1.27: a frame cost 104 ms in one process - 75 of

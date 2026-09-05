@@ -280,8 +280,20 @@ class Clock(Subsystem):
         pc_ppm = None
         floor = max(m[2] for m in (marks[0], marks[-1])) / elapsed * 1e6
 
+        last_offset = None
         if reference == 'utc':
-            last_offset, _ = ntp_offset(ntp_server, rounds=4, timeout=1.0)
+            # GUARDED LIKE THE FIRST. The second query can fail where the
+            # first did not - measured on CI 2026-09-05, a runner that
+            # reached time.google.com once and timed out on the return,
+            # and the whole DAQ suite crashed on a clock nobody asked
+            # about. A rate against UTC needs both ends; with one it is
+            # the PC's clock, said.
+            try:
+                last_offset, _ = ntp_offset(ntp_server, rounds=4, timeout=1.0)
+            except (RigError, OSError) as why:
+                reference = 'pc'
+                note = 'NTP answered at the start and not at the end (%s)' % why
+        if last_offset is not None:
             # Positive pc_ppm is this machine falling behind UTC, which
             # means it under-counts: a real second arrives as slightly less
             # than one of its own. Dividing cycles by that short elapsed

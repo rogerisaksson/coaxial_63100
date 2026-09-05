@@ -163,7 +163,11 @@ PLACED = {
     'U9':   (67.4879, 78.1307, 4.0, 4.0),     # that bring 63 V down
     'U1':   (78.2754, 78.2771, 3.0, 3.0),     # LDI8119-3.3, the 3.3 V LDO
     'U7':   (78.3844, 56.7919, 3.0, 3.0),     # LDI92-05, the 5 V LDO
-    'U12':  (129.2097, 73.9139, 3.0, 3.0),    # LM5069, VSSOP-10
+    'U12':  (129.2097, 73.9139, 3.0, 3.0),    # LM5069, VSSOP-10: the hot
+    'Q3':   (120.4214, 69.2150, 6.2, 5.2),    # swap, its back-to-back
+    'Q4':   (121.6914, 75.9460, 6.2, 5.2),    # FETs - the bridge's part -
+    'RTS1': (137.0330, 76.9366, 3.0, 10.1),   # and the fuse, Schurter UMT,
+    'V1':   (136.8806, 67.6656, 3.2, 2.5),    # and the varistor, 1210
     'NTC1': (99.6188, 79.8322, 1.6, 0.8),     # 0603
 }
 
@@ -206,35 +210,43 @@ LAYOUT = {
     'hotswap': [_blob(10, 'U12')],
 }
 
-#: What the picture marks: a label, the parts the frame goes round, and
-#: where the label sits - a side of the frame, `inside` where the frame
-#: has room (the LQFP, and the gap between a leg's switches and its
-#: shunts), or a point in millimetres. REG is the two bucks and the two
-#: LDOs left of the MCU - they warm a little bringing 63 V down to what
-#: the board runs on - and NTC is the thermistor beside the bore, its
-#: label above the hole; each phase's frame takes its shunts, which sit
-#: at the rim by the terminals; all on the bench's word.
-MARKS = (
-    ('MCU', ('U3',), 'inside'),
-    ('REG', ('U8', 'U9', 'U1', 'U7'), 'inside'),
-    ('U', ('Q1U', 'Q2U', 'RU1', 'RU2'), 'inside'),
-    ('V', ('Q1V', 'Q2V', 'RV1', 'RV2'), 'inside'),
-    ('W', ('Q1W', 'Q2W', 'RW1', 'RW2'), 'inside'),
-    ('AFE', ('OP1U', 'OP2U', 'OP1V', 'OP2V', 'OP1W', 'OP2W'), 'below'),
-    ('HS', ('U12',), 'right'),
-    ('NTC', ('NTC1',), (0.0, 9.6)),
-)
-
 #: How far a frame stands off the parts inside it, millimetres.
 FRAME_MM = 1.0
+
+#: What the picture marks: a label, the parts the frame goes round,
+#: where the label sits - `bottom` writes it INTO the frame's bottom
+#: line, `⠧⠤MCU⠤⠼`, the bench's word for every label but one; a side,
+#: `inside`, or a point in millimetres - and how far the frame stands
+#: off its parts. REG is the two bucks and the two LDOs left of the
+#: MCU - they warm a little bringing 63 V down to what the board runs
+#: on - and shares an edge with the MCU's frame, which stands three
+#: millimetres off the package so the temperature inside it shows; HS
+#: is the controller with its back-to-back FETs and the fuse; each
+#: phase's frame takes its shunts, which sit at the rim by the
+#: terminals; NTC is the thermistor beside the bore, its label above
+#: the hole. All on the bench's word. The hot swap runs from the bore's
+#: edge to the rim: the FETs at 14 and 15 mm, the controller at 23, the
+#: fuse and the varistor at 31, the terminals at 40 - which is where the
+#: bench thought the area was, and where its input end is.
+MARKS = (
+    ('MCU', ('U3',), 'bottom', 3.0),
+    ('REG', ('U8', 'U9', 'U1', 'U7'), 'bottom', FRAME_MM),
+    ('U', ('Q1U', 'Q2U', 'RU1', 'RU2'), 'bottom', FRAME_MM),
+    ('V', ('Q1V', 'Q2V', 'RV1', 'RV2'), 'bottom', FRAME_MM),
+    ('W', ('Q1W', 'Q2W', 'RW1', 'RW2'), 'bottom', FRAME_MM),
+    ('AFE', ('OP1U', 'OP2U', 'OP1V', 'OP2V', 'OP1W', 'OP2W'), 'bottom',
+     FRAME_MM),
+    ('HS', ('U12', 'Q3', 'Q4', 'RTS1', 'V1'), 'bottom', FRAME_MM),
+    ('NTC', ('NTC1',), (0.0, 9.6), FRAME_MM),
+)
 
 #: A label's cell is about this wide in millimetres on an 88-cell board;
 #: what a side placement steps a label clear of its frame by.
 LABEL_STEP_MM = 2.5
 
 
-def frame(refs):
-    """`(cx, cy, hw, hh)`: the box round some parts' bodies, FRAME_MM
+def frame(refs, margin=FRAME_MM):
+    """`(cx, cy, hw, hh)`: the box round some parts' bodies, `margin`
     out, millimetres from the board's centre and half-sizes."""
     left = right = top = bottom = None
     for ref in refs:
@@ -244,20 +256,23 @@ def frame(refs):
         right = cx + w / 2.0 if right is None else max(right, cx + w / 2.0)
         bottom = cy - h / 2.0 if bottom is None else min(bottom, cy - h / 2.0)
         top = cy + h / 2.0 if top is None else max(top, cy + h / 2.0)
-    left, right = left - FRAME_MM, right + FRAME_MM
-    bottom, top = bottom - FRAME_MM, top + FRAME_MM
+    left, right = left - margin, right + margin
+    bottom, top = bottom - margin, top + margin
     return ((left + right) / 2.0, (bottom + top) / 2.0,
             (right - left) / 2.0, (top - bottom) / 2.0)
 
 
 def label_at(box, where, label):
     """Where a label's centre goes, millimetres, for a frame `box` and a
-    placement: `inside`, `above`, `below`, `left`, `right`, or a point."""
+    placement: `bottom` or `top` ON the frame's line, `inside`, `above`,
+    `below`, `left`, `right` beside it, or a point."""
     if isinstance(where, tuple):
         return where
     cx, cy, hw, hh = box
     half = LABEL_STEP_MM * len(label) / 2.0
     return {'inside': (cx, cy),
+            'bottom': (cx, cy - hh),
+            'top': (cx, cy + hh),
             'above': (cx, cy + hh + LABEL_STEP_MM),
             'below': (cx, cy - hh - LABEL_STEP_MM),
             'right': (cx + hw + half + 1.0, cy),
@@ -405,39 +420,62 @@ _MASKS = {}
 FRAME_TOP, FRAME_BOTTOM = 1, 2
 
 
-def _draw_frame(rows, box, cells, down, dx, dy):
-    """A frame SNAPPED TO THE CELL GRID: the box's edges land in the
-    cells that hold them and are drawn as lines through those cells'
-    dots - FRAME_TOP and FRAME_BOTTOM across, a lane down - so every
-    corner is a right angle and every side a straight run. Never less
-    than two cells each way, so a small part still gets a box; a dot
-    past the rim is left as it is, so a frame that reaches the rim
-    stops there."""
+def _cell_rect(box, cells, down, dx, dy):
+    """`[c0, c1, r0, r1]`: the cells a frame's edges land in. Never less
+    than two cells each way, so a small part still gets a box."""
     cx, cy, hw, hh = box
     wide, high = 2 * cells, 2 * down
     c0 = int(((cx - hw) / dx + (wide - 1) / 2.0) // 2)
     c1 = int(((cx + hw) / dx + (wide - 1) / 2.0) // 2)
     r0 = int(((high - 1) / 2.0 - (cy + hh) / dy) // 4)
     r1 = int(((high - 1) / 2.0 - (cy - hh) / dy) // 4)
-    c0, c1 = max(0, c0), min(cells - 1, max(c1, c0 + 1))
-    r0, r1 = max(0, r0), min(down // 2 - 1, max(r1, r0 + 1))
+    return [max(0, c0), min(cells - 1, max(c1, c0 + 1)),
+            max(0, r0), min(down // 2 - 1, max(r1, r0 + 1))]
 
-    def mark(r, c, lane, y):
-        j, i = 4 * r + y, 2 * c + lane
+
+def _share_edges(rects, lanes):
+    """Two frames side by side SHARE THE LINE between them: where one's
+    right edge and the other's left land within a cell column of each
+    other, the second is drawn on the first's column, in the first's
+    lane - one line, not two a dot apart into a solid column, nor two a
+    cell apart. REG and the MCU are a millimetre apart, and the bench
+    asked for one edge; the MCU's frame stands three millimetres off
+    its package, so its edge can land a cell inside REG's as well as
+    beside it, and either way it is the one line."""
+    for a, (ac0, ac1, ar0, ar1) in enumerate(rects):
+        for b, (bc0, bc1, br0, br1) in enumerate(rects):
+            if a == b or not (ar0 <= br1 and br0 <= ar1):
+                continue
+            if abs(bc0 - ac1) <= 1 and bc1 > ac1:
+                rects[b][0] = ac1
+                lanes[b][0] = lanes[a][1]
+
+
+def _draw_frame(rows, rect, lane, cells, down):
+    """A frame SNAPPED TO THE CELL GRID: drawn as lines through its
+    cells' dots - FRAME_TOP and FRAME_BOTTOM across, a lane down each
+    side - so every corner is a right angle and every side a straight
+    run. A dot past the rim is left as it is, so a frame that reaches
+    the rim stops there."""
+    c0, c1, r0, r1 = rect
+    wide, high = 2 * cells, 2 * down
+
+    def mark(r, c, which, y):
+        j, i = 4 * r + y, 2 * c + which
         if 0 <= j < high and 0 <= i < wide and rows[j][i] != OFF:
             rows[j][i] = MARK
 
     for c in range(c0, c1 + 1):
-        for lane in (0, 1):
-            mark(r0, c, lane, FRAME_TOP)
-            mark(r1, c, lane, FRAME_BOTTOM)
+        for which in (0, 1):
+            mark(r0, c, which, FRAME_TOP)
+            mark(r1, c, which, FRAME_BOTTOM)
     for r in range(r0, r1 + 1):
         for y in range(4):
             # The corner starts AT the line, not above or below it.
             if (r == r0 and y < FRAME_TOP) or (r == r1 and y > FRAME_BOTTOM):
                 continue
-            mark(r, c0, 0, y)
-            mark(r, c1, 1, y)
+            mark(r, c0, lane[0], y)
+            mark(r, c1, lane[1], y)
 
 
 def _mask(cells, down, marks):
@@ -461,7 +499,7 @@ def _mask(cells, down, marks):
     dx, dy = per_cell / 2.0, per_row / 2.0
     edge = 0.5 * max(dx, dy)
     bore = max(BORE_MM, per_cell)
-    boxes = [frame(refs) for _label, refs, _where in marks]
+    boxes = [frame(refs, margin) for _label, refs, _where, margin in marks]
 
     wide, high = 2 * cells, 2 * down
     rows = []
@@ -477,11 +515,14 @@ def _mask(cells, down, marks):
             line.append(MARK if (r > OUTER_MM - 2.0 * edge
                                  or r < bore + 2.0 * edge) else FIELD)
         rows.append(line)
-    for box in boxes:
-        _draw_frame(rows, box, cells, down, dx, dy)
+    rects = [_cell_rect(box, cells, down, dx, dy) for box in boxes]
+    lanes = [[0, 1] for _box in boxes]
+    _share_edges(rects, lanes)
+    for rect, lane in zip(rects, lanes):
+        _draw_frame(rows, rect, lane, cells, down)
 
     labels = {}
-    for (label, refs, where), box in zip(marks, boxes):
+    for (label, _refs, where, _margin), box in zip(marks, boxes):
         lx, ly = label_at(box, where, label)
         col = int((lx / dx + (wide - 1) / 2.0) // 2) - len(label) // 2
         row = int(((high - 1) / 2.0 - ly / dy) // 4)

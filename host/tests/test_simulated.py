@@ -1063,6 +1063,30 @@ def test_clock_reference(report):
                  'it can be called bounded rather than measured',
                  flat.floor_ppm > 0, flat.floor_ppm)
 
+    # THE SECOND QUERY CAN FAIL WHERE THE FIRST DID NOT. Measured on CI
+    # 2026-09-05: a runner reached time.google.com once and timed out on
+    # the return, and the whole DAQ suite crashed on a clock nobody had
+    # asked about. A rate against UTC needs both ends; with one it is
+    # the PC's clock, said - never a raise.
+    answers = iter([(0.0, 0.001)])
+
+    def once(*_, **__):
+        try:
+            return next(answers)
+        except StopIteration:
+            raise TimeoutError('timed out')
+
+    clockmod.ntp_offset = once
+    try:
+        halfway = session.board.clock.sync(seconds=0.2, rounds=1)
+    finally:
+        clockmod.ntp_offset = real
+    report.check('NTP answering at the start and not at the end lands on '
+                 'the PC clock, and says so',
+                 halfway.reference == 'pc' and 'not at the end' in halfway.note
+                 and halfway.pc_ppm is None and halfway.hz > 0,
+                 '%s: %s' % (halfway.reference, halfway.note))
+
 
 def test_link_bench(report):
     """What a transaction costs against what its bitrate allows.
