@@ -200,6 +200,8 @@ cd host
 python -m coaxial all                    # CLI against the board
 python tools/run_tests.py --offline      # the suites needing no board
 python tools/pick_tests.py --explain     # which subjects, and why
+python tools/ansi2png.py frame.txt frame.png   # a braille frame as the
+                                         # terminal draws it - judge it here
 python tools/build_and_flash.py          # build (+flash): --build-only, --flash-only
 python tools/session.py --status         # who is sharing the board's port
 python tools/switch.py --sweep 5,95 -p 10 -s 120  # background; --stop disarms
@@ -212,8 +214,8 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2787 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (601),
+Twenty-six suites, 2790 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (604),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (223),
 `test_simulated.py` (213), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
@@ -262,7 +264,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2787 checks are in those nine files.
+  773 of this tree's 2790 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
@@ -307,10 +309,41 @@ pre-existing and carried through four more items; the change that broke them
 was no longer identifiable. **Fix:** the label is a note on the way to the
 fix, not a substitute.
 
-## After a change lands
+## The routine, one item at a time
 
-Once a change is made, tested and verified, ask - every time, as the last
-step:
+"Testa, dokumentera, committa, pusha." A list is that routine run per
+item, in the order given, one commit each; *Continue* means the next
+item. Measured over a day of it (2026-09-05, seven items): what held
+was the order, and every step skipped was paid for later.
+
+1. **Test the narrow thing.** The suites whose names match the change,
+   from `host/`: `python -X utf8 tests/<suite>.py`; then `-Structure`
+   after anything under `host/`. The offline gate (`python
+   tools/run_tests.py --offline`, ~6 min, in the background) before a
+   push that changes `coaxial/` itself; CI runs it on every push either
+   way. A new check counts: sync the number in this file,
+   `run_tests.ps1`, ARCHITECTURE's table and `tests/.counts.json` -
+   test_structure holds them to each other and fails one run behind.
+2. **A picture is judged in a raster, not in glyph counts.** Anything
+   braille is written to a file and rasterised at the bench's framing
+   before it lands: `python tools/ansi2png.py frame.txt frame.png`, then
+   READ the PNG. Three attitude renders that passed every check were
+   "blocky as hell" on the bench; two choices in the thermal map were
+   reversed on the raster before the bench saw them. The bench's verdict
+   still decides - the raster is what stops it seeing the obvious.
+3. **Document.** A FINDINGS bullet, dated: the measurement, what was
+   tried and taken out, and the bench's own words that asked for it.
+   PROTOCOL for anything on the wire - a MINOR per appended field, the
+   version table. ARCHITECTURE and TODO wherever they describe the
+   thing; a stale sentence there is a second answer.
+4. **Commit and push.** The title one sentence in the tree's voice, the
+   body what changed and what was measured; `git push origin main`; then
+   CI, read off the public API with no token:
+   `curl -s https://api.github.com/repos/rogerisaksson/coaxial_63100/actions/runs?per_page=3`.
+   A run takes five to six minutes - measured, after one was mistaken
+   for hung at three. A red run is fixed before the next item ("Green
+   before the next thing"); its log tail is posted as a commit comment.
+5. **Ask** - every time, as the last step:
 
 > **Continue, or commit and push?**
 > *Continue* — keep working in this session
@@ -319,6 +352,10 @@ step:
 Two options, nothing else. **Known failure mode:** the question gets
 replaced by a summary and the session carries on - it happened on the first
 change after this rule was written.
+
+A mid-turn message from the bench is part of the routine, not an
+interruption: "now it works, but ..." is the next item, taken before
+the current one is declared done.
 
 ## Spend the local model, not the expensive one
 
