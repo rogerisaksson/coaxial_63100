@@ -1,38 +1,50 @@
 /**
   ******************************************************************************
   * @file    board_thermal.c
-  * @brief   Runs the lumped thermal observer on this hardware.
+  * @brief   Runs the lumped-network thermal observer on this hardware.
   *
   * `thermal/` is the network and knows no hardware. This reads the sensors,
-  * gathers what the board is doing, and steps the model from the main loop.
+  * gathers what the board is doing - the currents, the link, the dead time
+  * out of the record, the speed out of the drive - and steps the model from
+  * the main loop.
   *
   * The NTC is a MEASUREMENT; every node is an estimate. `0x6E` device 8 keeps
   * them in separate fields, and invariant 9 is why.
   *
   * All three thermometers sit behind AFE_ON, which the gate drivers share
-  * through an inverted gate. The thermal observer borrows the rail, reads, and gives
-  * it back; `Board_PowerAcquire` refuses while the stage is armed, so a run
-  * at duty is never interrupted and the model carries on open.
+  * through an inverted gate. The thermal observer borrows the rail, reads,
+  * and gives it back; `Board_PowerAcquire` refuses while the stage is armed,
+  * so a run at duty is never interrupted and the model carries on open.
+  *
+  * THE NETWORK IS THE RECORD'S, over the core's derived defaults: every
+  * non-zero entry in `board_cal_t`'s thermal tables overlays the default
+  * for that one field at init and whenever a setter writes one, so what the
+  * observer runs and what a save would keep cannot differ.
   ******************************************************************************
   */
 #include "board_limits.h"
 #include "board.h"
+#include "board_drive.h"
 #include "board_hw.h"
 #include "board_power.h"
+#include "drive.h"
 #include "thermal.h"
 
 #include <math.h>
 #include <string.h>
 
-/* The reply's array is sized by a literal in board.h; the loop that fills it
-   runs to the enum in thermal.h. Nothing tied them, so adding a node to the
-   enum wrote past the end of a caller's stack local. */
+/* The reply's arrays are sized by literals in board.h; the loops that fill
+   them run to the enum in thermal.h. Nothing tied them, so adding a node to
+   the enum wrote past the end of a caller's stack local. */
 _Static_assert(BOARD_THERMAL_NODES == (int)THERMAL_NODES,
                "board.h's node count and thermal.h's enum disagree - the "
                "reply array would be written past its end");
+_Static_assert(BOARD_THERMAL_EDGES == THERMAL_EDGES,
+               "board.h's edge count and thermal.h's table disagree");
 
 static thermal_t      s_th;
 static thermal_loss_t s_loss;
+static thermal_power_t s_power;
 
 /** The last DC link voltage that was a MEASUREMENT, volts. Negative: none yet.
   *
@@ -44,17 +56,15 @@ static thermal_loss_t s_loss;
   * board where the calibration says 9.1.
   *
   * The bus does not move when the rail toggles, so the last real reading is
-  * the honest one to carry. The thermal observer's own periodic sample is what
-  * refreshes it - that runs with the AFE up, which is the point of it.
+  * the honest one to carry. The thermal observer's own periodic sample is
+  * what refreshes it - that runs with the AFE up, which is the point of it.
   */
 static float s_link_volts = -1.0f;
 static thermal_soa_t  s_soa;
 static thermal_budget_t s_budget;
-/** The winding: the node that is not on the board, judged by the same
-  * envelope. `s_wound` is its last budget, and the clamp gets the
-  * smaller of its factor and the board's. */
-static thermal_winding_t s_winding;
-static thermal_winding_budget_t s_wound;
+/** The winding's own factor, beside the whole's: which envelope holds
+  * the stage back. */
+static float          s_winding_derate = 1.0f;
 static uint32_t       s_trips;
 static bool           s_ready;
 static uint32_t       s_last_ms;
@@ -68,6 +78,8 @@ static uint32_t       s_every_ms = THERMAL_SAMPLE_EVERY_MS;
 static uint32_t       s_settle_ms = THERMAL_SAMPLE_SETTLE_MS;
 static uint32_t       s_millis;
 static uint32_t       s_steps;        /**< model integrations, for a rate  */
+static float          s_speed_rpm;    /**< the rotor at the last step      */
+
 
 /** Copy the envelope out of the calibration record into the thermal observer. */
 static void soa_from_cal(void)
@@ -82,21 +94,120 @@ static void soa_from_cal(void)
        housekeeping nodes are judged but not throttled on. */
     s_soa.undriven[i] = ((cal->soa_undriven_mask >> i) & 1UL) != 0UL;
   }
+  /* The winding's ceiling is the record's own field, kept since 12 so
+     op 6 and id 48 keep their meaning; zero disables it as before. */
+  s_soa.limit_c[THERMAL_WINDING] = (float)cal->winding_limit_centi / 100.0f;
   s_soa.throttle_at = (float)cal->soa_throttle_ppm / 1000000.0f;
   s_soa.lookahead_s = (float)cal->soa_lookahead_ms / 1000.0f;
 }
 
 
-/** The winding's parameters out of the record: the phase resistance the
-  * drive already runs on, and the three CAL_VERSION 12 added. */
-static void winding_from_cal(void)
+/** The network: the core's defaults with every non-zero record entry laid
+  * over its own field. The winding's three record fields feed its node
+  * and its edge into the iron the way they did the separate element:
+  * a quarter of the K/W into the iron, the rest the iron's air path. */
+static void network_from_cal(thermal_cfg_t *cfg)
 {
   const board_cal_t *cal = Board_Cal();
 
-  s_winding.cfg.r_phase = (float)cal->motor_r_uohm / 1.0e6f;
-  s_winding.cfg.k_per_w = (float)cal->winding_k_per_w_milli / 1000.0f;
-  s_winding.cfg.capacity = (float)cal->winding_j_per_k_milli / 1000.0f;
-  s_winding.cfg.limit_c = (float)cal->winding_limit_centi / 100.0f;
+  thermal_defaults(cfg);
+
+  if (cal->thermal_to_ambient_milli != 0U)
+  {
+    cfg->board_to_ambient = (float)cal->thermal_to_ambient_milli / 1000.0f;
+  }
+  if (cal->thermal_rad_share_ppm != 0U)
+  {
+    cfg->board_rad_share = (float)cal->thermal_rad_share_ppm / 1.0e6f;
+  }
+  if (cal->thermal_ntc_sees_ppm != 0U)
+  {
+    cfg->ntc_sees = (float)cal->thermal_ntc_sees_ppm / 1.0e6f;
+  }
+  if (cal->thermal_ntc_tau_ms != 0U)
+  {
+    cfg->ntc_tau_s = (float)cal->thermal_ntc_tau_ms / 1000.0f;
+  }
+  cfg->rad_board_stator = (float)cal->thermal_rad_board_stator_micro / 1.0e6f;
+
+  /* The bulk laminate: shared out by area, as `thermal_set_board` does,
+     before any patch's own entry overrides its share. */
+  for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
+  {
+    thermal_node_cfg_t *n = &cfg->node[i];
+
+    if (n->area_share > 0.0f)
+    {
+      if (cal->thermal_to_ambient_milli != 0U)
+      {
+        n->to_ambient = cfg->board_to_ambient / n->area_share;
+      }
+      if (cal->thermal_capacity_milli != 0U)
+      {
+        n->capacity = ((float)cal->thermal_capacity_milli / 1000.0f)
+                      * n->area_share;
+      }
+    }
+  }
+  for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
+  {
+    const board_cal_node_t *rec = &cal->thermal_node[i];
+    thermal_node_cfg_t *n = &cfg->node[i];
+
+    if (rec->capacity_milli != 0U)
+    {
+      n->capacity = (float)rec->capacity_milli / 1000.0f;
+    }
+    if (rec->to_ambient_milli != 0U)
+    {
+      n->to_ambient = (float)rec->to_ambient_milli / 1000.0f;
+    }
+    if (rec->forced_milli != 0U)
+    {
+      n->forced = (float)rec->forced_milli / 1000.0f;
+    }
+    if (rec->rth_milli != 0U)
+    {
+      n->rth_die = (float)rec->rth_milli / 1000.0f;
+    }
+  }
+  for (uint8_t e = 0U; e < (uint8_t)THERMAL_EDGES; e++)
+  {
+    const uint32_t milli = cal->thermal_edge_milli[e];
+
+    if (milli == BOARD_CAL_EDGE_OPEN)
+    {
+      cfg->r_edge[e] = 0.0f;
+    }
+    else if (milli != 0U)
+    {
+      cfg->r_edge[e] = (float)milli / 1000.0f;
+    }
+  }
+
+  /* The winding, from its own three fields (CAL_VERSION 12). */
+  {
+    const float k = (float)cal->winding_k_per_w_milli / 1000.0f;
+    const int into_iron = thermal_sink_edge(THERMAL_WINDING);
+
+    cfg->node[THERMAL_WINDING].capacity =
+        (float)cal->winding_j_per_k_milli / 1000.0f;
+    if ((k > 0.0f) && (into_iron >= 0))
+    {
+      cfg->r_edge[into_iron] = 0.25f * k;
+      cfg->node[THERMAL_STATOR].to_ambient = 0.75f * k;
+    }
+  }
+}
+
+
+/** The losses: the core's table with the record's phase resistance, the
+  * one loss constant the record carries. */
+static void losses_from_cal(void)
+{
+  thermal_losses(&s_loss);
+  s_loss.r_phase = (float)Board_Cal()->motor_r_uohm / 1.0e6f;
+  s_loss.k_iron = (float)Board_Cal()->thermal_k_iron_milli / 1000.0f;
 }
 
 
@@ -104,37 +215,34 @@ void Board_ThermalInit(void)
 {
   thermal_cfg_t cfg;
 
-  thermal_defaults(&cfg);
-  thermal_losses(&s_loss);
+  network_from_cal(&cfg);
+  losses_from_cal();
   /* The envelope comes from the calibration record, not from this file. A
      ceiling the firmware invented would be the judgement invariant 10
      forbids; one it was given is a parameter like any other. */
   soa_from_cal();
 
   /* Start on the NTC if there is one, otherwise somewhere plausible. A wrong
-     starting point is gone within a few minutes through the anchoring. */
+     starting point is gone within a few minutes through the anchoring. The
+     motor starts where the board does: a motor that has not turned is at
+     the room. */
   int32_t raw = 0, centi = 0;
   const bool have = Board_Ntc(&raw, &centi);
 
   thermal_init(&s_th, &cfg, have ? ((float)centi / 100.0f) : 25.0f);
-  /* The winding starts where the board does: the one temperature there
-     is a reading for, and a motor that has not turned is at the room. */
-  winding_from_cal();
-  thermal_winding_init(&s_winding, &s_winding.cfg, s_th.t[THERMAL_BOARD]);
-  memset(&s_wound, 0, sizeof(s_wound));
-  s_wound.derate = 1.0f;
+  memset(&s_power, 0, sizeof(s_power));
+  s_winding_derate = 1.0f;
   s_last_ms = HAL_GetTick();
   s_sampled_ms = s_last_ms;
   s_held_ms = s_last_ms;
   s_holding = false;
   s_millis = 0U;
   s_steps = 0U;
+  s_speed_rpm = 0.0f;
   s_ready = true;
 }
 
-/** Read every thermometer. One borrow serves all three - they are never
-  * available apart, so reading them separately would triple the time the
-  * drivers spend unpowered and buy nothing. */
+
 /** How fast the derate may RECOVER, per second. Falling is immediate.
   *
   * ASYMMETRIC ON PURPOSE. `thermal_budget` reports the factor the
@@ -182,6 +290,9 @@ static float derate_applied(float want, uint32_t since_ms)
 }
 
 
+/** Read every thermometer. One borrow serves all three - they are never
+  * available apart, so reading them separately would triple the time the
+  * drivers spend unpowered and buy nothing. */
 static void sense_read(thermal_sense_t *out)
 {
   int32_t raw = 0, centi = 0;
@@ -204,11 +315,8 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
   out->mcu_c = NAN;
 
   /* Somebody else already has the rail up - read it and borrow nothing.
-     STILL ON THE INTERVAL. This path used to read on EVERY poll, so with the
-     AFE held up by anything else the thermal observer did two ADC conversions - one
-     of them 810.5 cycles - and two SPI4 transactions ten times a second, for
-     an anchor whose gain is 0.05 Hz. Free of the rail is not free of the
-     bus, and the A1335's register rotation is shared with the angle poll. */
+     STILL ON THE INTERVAL: free of the rail is not free of the bus, and
+     the A1335's register rotation is shared with the angle poll. */
   if (!s_holding && Board_AfeOn())
   {
     if ((s_every_ms == 0U) || ((now - s_sampled_ms) < s_every_ms))
@@ -222,12 +330,9 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
 
   if (!s_holding)
   {
-    /* Zero is OFF, and it has to be said out loud. The period test is
-       unsigned, so `(now - then) < 0` is never true - a zero period made the
-       thermal observer borrow the rail on EVERY poll instead of never, which is the
-       opposite of what the setter documents. Measured: it held AFE_ON
-       continuously, which pinned PE15 low and made the conformance suite's
-       independent witness read the same both ways. */
+    /* Zero is OFF, and it has to be said out loud: the period test is
+       unsigned, so a zero period made the observer borrow the rail on
+       EVERY poll instead of never, and pinned PE15 low. */
     if ((s_every_ms == 0U) || ((now - s_sampled_ms) < s_every_ms))
     {
       return;
@@ -256,11 +361,28 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
 }
 
 
+/** The rotor's mechanical speed, rpm, off the drive's observer: its
+  * electrical rad/s over the record's pole pairs. Zero when the drive is
+  * not running its law - a speed nobody estimated is not a speed. */
+static float speed_now(void)
+{
+  const drive_t *d = Board_Drive();
+  const uint32_t pairs = Board_Cal()->motor_pole_pairs;
+
+  if ((d == NULL) || (pairs == 0U) || (d->mode == DRIVE_OFF))
+  {
+    return 0.0f;
+  }
+  const float mech = fabsf(d->obs.omega) / (float)pairs;   /* rad/s */
+
+  return mech * 60.0f / (2.0f * 3.14159265f);
+}
+
+
 /** What heats the board this step: the duties, the phase currents while
   * the synced triple is armed, the link voltage when the AFE lets it be
-  * read. Unarmed, the current is unknown and zero is the only honest
-  * answer - a guessed current becomes a guessed conduction loss that
-  * looks measured. */
+  * read, the dead time the record holds, the speed the drive estimates.
+  * Unarmed, the current is unknown and zero is the only honest answer. */
 static void load_now(thermal_load_t *load)
 {
   const uint32_t period = Board_PwmPeriod();
@@ -281,18 +403,15 @@ static void load_now(thermal_load_t *load)
     for (uint8_t i = 0U; i < 3U; i++)
     {
       /* Through Board_PhaseAmps, so the shunt and gain stay in the
-         calibration record (invariant 7) - this was a hard zero for want
-         of that path. Dry it reads ~0 A and that is right: nothing leaves
-         the bridge. No invariant 9 guard needed: the channels are
-         differential, so an unpowered reference's mid-scale is zero
-         amperes - the same answer unsupplied amplifiers give. */
+         calibration record (invariant 7). No invariant 9 guard needed:
+         the channels are differential, so an unpowered reference's
+         mid-scale is zero amperes. */
       load->phase_amps[i] = Board_PhaseAmps(i, sample.phase[i]);
     }
 
     /* AND THE MEAN SQUARE, which is what the conduction is actually made
        of. The sample above stays for the link estimate, which needs a
-       sign; `phase_sq` zero means none arrived and the estimator falls
-       back to squaring the sample. */
+       sign; `phase_sq` zero means none arrived. */
     (void)Board_SyncMeanSquare(load->phase_sq);
   }
 
@@ -304,7 +423,10 @@ static void load_now(thermal_load_t *load)
   /* Zero says "never measured", and the model falls back to the voltage its
      switching figure was calibrated at rather than inventing a scale. */
   load->link_volts = (s_link_volts > 0.0f) ? s_link_volts : 0.0f;
+  load->t_dead_s = (float)Board_Cal()->deadtime_ns * 1.0e-9f;
+  load->speed_rpm = speed_now();
 }
+
 
 void Board_ThermalPoll(void)
 {
@@ -322,25 +444,19 @@ void Board_ThermalPoll(void)
   }
   s_last_ms = now;
 
-  /* Zeroed and then the one field that is not zero. Positionally the
-     initializer had to be rewritten every time the struct grew a member,
-     and the compiler was right to complain about it - `phase_sq` arrived
-     and it was two warnings, in a build whose bar is none. */
   thermal_load_t load;
 
   memset(&load, 0, sizeof(load));
   load.link_amps = -1.0f;               /* < 0: estimate it from the phases */
 
   load_now(&load);
+  s_speed_rpm = load.speed_rpm;
 
-  thermal_power_t p;
   thermal_sense_t seen;
 
   sense_sample(now, &seen);
 
-  /* Keep whatever answered. Board_ThermalState used to take its own ADC
-     reading on every query, which cost a conversion per host poll and could
-     land in the middle of the sampler's borrow. */
+  /* Keep whatever answered. */
   if (!isnan(seen.ntc_c) || !isnan(seen.afe_c) || !isnan(seen.mcu_c))
   {
     s_last_seen = seen;
@@ -351,21 +467,11 @@ void Board_ThermalPoll(void)
   /* IN SLICES, AND THE ENVELOPE ON EVERY ONE. The gap is normally exactly
      THERMAL_STEP_MS and this loop runs once; what it exists for is the gap
      that is not, because a starved main loop used to cost the throttle its
-     whole ramp. The ramp is the last `lookahead_s * (1 - throttle_at)` of a
-     node's hold - 300 ms at the record's numbers - and one step longer than
-     that lands on the far side of it.
-
-     Measured 2026-09-03 in `test_thermal_core.py`, a 100 A burst over the
-     same two seconds of model time: at 100 ms steps the throttle first
-     acts at 0.40 s with the node at 81 C and the clamp still coming off
-     1.00; at 1 s steps the first look is at 178 C with the clamp already
-     at 0.00, and at 2 s - which is all `thermal.c` will integrate at once -
-     at 335 C. Same envelope, same power, different step: the throttle band
-     is only there if something looks inside it.
-
-     The stand-in had the same defect in its own shape and it is fixed the
-     same way (`coaxial/simulated/power.py`), so the two still rehearse the
-     same play. */
+     whole ramp - the ramp is the last `lookahead_s * (1 - throttle_at)` of
+     a node's hold, 200 ms at the record's numbers, and one step longer
+     than that lands on the far side of it. Measured 2026-09-03 in
+     `test_thermal_core.py`. The core sub-steps its own integration inside
+     each slice; the slice is the ENVELOPE's cadence. */
   uint32_t left = (since > THERMAL_CATCHUP_MS) ? THERMAL_CATCHUP_MS : since;
 
   while (left > 0U)
@@ -374,53 +480,33 @@ void Board_ThermalPoll(void)
 
     left -= slice;
 
-    /* The FET tempco feeds on the observer's own last estimate: the phase
-       node a leg heats is the junction its on-resistance follows. Taken
-       inside the loop because the estimate is what the previous slice just
-       moved; at start the nodes sit at ambient and the correction is a few
-       percent. */
-    const float phase_c[3] = { s_th.t[THERMAL_PHASE(0)],
-                               s_th.t[THERMAL_PHASE(1)],
-                               s_th.t[THERMAL_PHASE(2)] };
+    /* The FET tempco feeds on the observer's own last estimate: the
+       driver node a leg heats is the junction its on-resistance follows. */
+    const float phase_c[3] = { s_th.t[THERMAL_DRIVER(0)],
+                               s_th.t[THERMAL_DRIVER(1)],
+                               s_th.t[THERMAL_DRIVER(2)] };
 
-    thermal_power_estimate(&p, &load, &s_loss, phase_c);
-    thermal_step(&s_th, &p, &seen, (float)slice / 1000.0f);
-    thermal_budget(&s_th, &p, &s_soa, &s_budget);
-
-    /* AND THE WINDING, the node that is not on the board, on the same
-       slice and against the same envelope: its copper loss from the
-       shunts' mean squares through the record's phase resistance, shed
-       to the room. The bench asked for the stage to throttle on how
-       close BOTH the switches and the motor are to their SOA. */
-    const float copper = thermal_winding_watt(&s_winding.cfg, &load);
-
-    thermal_winding_step(&s_winding, copper, s_th.ambient,
-                         (float)slice / 1000.0f);
-    thermal_winding_budget(&s_winding, copper, s_th.ambient, &s_soa,
-                           &s_wound);
+    thermal_power_estimate(&s_power, &load, &s_loss, phase_c);
+    thermal_step(&s_th, &s_power, &seen, &load, (float)slice / 1000.0f);
+    thermal_budget(&s_th, &s_power, &s_soa, &s_budget);
+    /* The winding's own factor, so a host can say which envelope holds
+       the stage back; the whole's already includes it. */
+    s_winding_derate = thermal_node_derate(&s_th, &s_power, &s_soa,
+                                           THERMAL_WINDING);
 
     /* THE ONE PLACE THIS FILE ACTS RATHER THAN REPORTS, and it acts twice.
 
        FIRST IT DERATES. Past the throttle point the drive's current clamp
        is scaled toward zero, so the stage keeps driving on less - which is
-       what a thermal envelope is for. Without it the envelope was a cliff:
-       full current until the ceiling and then MOE off, with a throttle
-       band that was computed, published and used by nothing.
+       what a thermal envelope is for. THEN, only if that was not enough,
+       it drops MOE - every gate to its idle level in hardware, the same
+       path the break uses. Protection, not a verdict on a reading: the
+       estimate is reported either way and the limits came from the
+       calibration record rather than from here. One clamp, every node the
+       clamp reaches - the winding among them since it is a node. */
+    Board_DriveDerate(derate_applied(s_budget.derate, slice));
 
-       THEN, only if that was not enough, it drops MOE - every gate to its
-       idle level in hardware, staying there until something arms it again,
-       the same path the break uses. Protection, not a verdict on a
-       reading: the estimate is reported either way and the limits came
-       from the calibration record rather than from here. */
-    /* ONE CLAMP, TWO ENVELOPES: the smaller factor is the one applied,
-       so whichever of the board and the motor is nearer its ceiling is
-       the one the stage backs off for. */
-    const float want = (s_wound.derate < s_budget.derate)
-                       ? s_wound.derate : s_budget.derate;
-
-    Board_DriveDerate(derate_applied(want, slice));
-
-    if ((s_budget.tripped || s_wound.tripped) && Board_PwmIsEnabled())
+    if (s_budget.tripped && Board_PwmIsEnabled())
     {
       Board_PwmDisable();
       s_trips++;
@@ -428,12 +514,12 @@ void Board_ThermalPoll(void)
     s_steps++;
   }
 
-  /* Milliseconds, divided only on the way out. `since / 1000U` per step was
-     integer division of about 100, so the counter never left zero. The whole
-     gap, not the slices: this is wall time, and a stall happened whether or
-     not the observer chose to integrate all of it. */
+  /* Milliseconds, divided only on the way out. The whole gap, not the
+     slices: this is wall time, and a stall happened whether or not the
+     observer chose to integrate all of it. */
   s_millis += since;
 }
+
 
 bool Board_ThermalState(board_thermal_t *out)
 {
@@ -453,7 +539,7 @@ bool Board_ThermalState(board_thermal_t *out)
                        ? (int32_t)(s_last_seen.mcu_c * 100.0f) : 0;
   /* A flag, not `s_seen_ms != 0`: HAL_GetTick() is 0 at boot and again every
      49.7 days, and a sample taken on that tick would read "just now" for as
-     long as the board stayed up. Same shape as the lease sentinel. */
+     long as the board stayed up. */
   out->seen_ms_ago = s_seen ? (HAL_GetTick() - s_seen_ms) : 0U;
 
   for (int i = 0; i < THERMAL_NODES; i++)
@@ -465,8 +551,17 @@ bool Board_ThermalState(board_thermal_t *out)
   out->seconds = s_millis / 1000U;
   out->steps = s_steps;
   out->settled = s_th.settled;
+  for (int leg = 0; leg < 3; leg++)
+  {
+    const float over = thermal_junction(&s_th, &s_power, THERMAL_DRIVER(leg))
+                       - s_th.t[THERMAL_DRIVER(leg)];
+
+    out->junction_over_centi[leg] = (int32_t)(over * 100.0f);
+  }
+  out->speed_rpm = (int32_t)s_speed_rpm;
   return true;
 }
+
 
 bool Board_ThermalBudget(board_budget_t *out)
 {
@@ -482,9 +577,8 @@ bool Board_ThermalBudget(board_budget_t *out)
   out->worst = s_budget.worst;
   out->worst_node = s_budget.worst_node;
   out->millis_to_limit = s_budget.millis_to_limit;
-  /* Either envelope: the board's nodes or the winding. */
-  out->throttling = s_budget.throttling || s_wound.throttling;
-  out->tripped = s_budget.tripped || s_wound.tripped;
+  out->throttling = s_budget.throttling;
+  out->tripped = s_budget.tripped;
   /* What is APPLIED, not what the arithmetic asked for: the recovery
      slew is part of the answer and a host that saw the raw factor would
      see it flicker while the clamp did not. */
@@ -505,12 +599,11 @@ bool Board_ThermalBudget(board_budget_t *out)
     }
   }
   out->trips = s_trips;
-  /* MINOR 12: the winding. The stage's factor above is the smaller of
-     its and the board's; this is its own, so a host can say which
-     envelope is holding the stage back. */
-  out->winding_c = s_winding.c;
-  out->winding_used = (uint8_t)(s_wound.used * 255.0f);
-  out->winding_derate = s_wound.derate;
+  /* MINOR 12's winding fields, from the node it is now: the same numbers
+     a host read when it was a separate element. */
+  out->winding_c = s_th.t[THERMAL_WINDING];
+  out->winding_used = s_budget.used[THERMAL_WINDING];
+  out->winding_derate = s_winding_derate;
   return true;
 }
 
@@ -529,7 +622,11 @@ bool Board_ThermalSetWinding(float limit_c, float k_per_w, float j_per_k)
   }
   /* The estimate carries on from where it is: a new ceiling or a new
      constant changes what the winding is judged by, not what it is at. */
-  winding_from_cal();
+  thermal_cfg_t cfg;
+
+  network_from_cal(&cfg);
+  s_th.cfg = cfg;
+  soa_from_cal();
   return true;
 }
 
@@ -541,9 +638,19 @@ bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at)
     return false;
   }
   /* Through the record, so a save persists it and one place holds the
-     envelope. Then re-read, so what the thermal observer uses and what would be
-     written to flash cannot differ. */
-  if (!Board_CalSetLimit(node, (int32_t)(limit_c * 100.0f)))
+     envelope. The winding's ceiling is its own field. */
+  if (node == (uint8_t)THERMAL_WINDING)
+  {
+    const board_cal_t *cal = Board_Cal();
+
+    if (!Board_CalSetWinding((int32_t)(limit_c * 100.0f),
+                             cal->winding_k_per_w_milli,
+                             cal->winding_j_per_k_milli))
+    {
+      return false;
+    }
+  }
+  else if (!Board_CalSetLimit(node, (int32_t)(limit_c * 100.0f)))
   {
     return false;
   }
@@ -556,11 +663,84 @@ bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at)
 }
 
 
-bool Board_ThermalSetNode(uint8_t node, float to_board, float capacity)
+bool Board_ThermalSetNode(uint8_t node, float k_per_w, float capacity)
 {
-  return s_ready && thermal_set_node(&s_th, (thermal_node_t)node,
-                                     to_board, capacity);
+  if (!s_ready
+      || !thermal_set_node(&s_th, (thermal_node_t)node, k_per_w, capacity))
+  {
+    return false;
+  }
+  /* And into the record's RAM copy, the same number: what the observer
+     runs and what a save would keep cannot differ. A sink that is an edge
+     goes to the edge table; one that is the air to the node's. */
+  const int edge = thermal_sink_edge((thermal_node_t)node);
+
+  if (edge >= 0)
+  {
+    (void)Board_CalSetThermalEdge((uint8_t)edge,
+                                  (uint32_t)(k_per_w * 1000.0f));
+    (void)Board_CalSetThermalNode(node, (uint32_t)(capacity * 1000.0f),
+                                  Board_Cal()->thermal_node[node]
+                                      .to_ambient_milli);
+  }
+  else
+  {
+    (void)Board_CalSetThermalNode(node, (uint32_t)(capacity * 1000.0f),
+                                  (uint32_t)(k_per_w * 1000.0f));
+  }
+  return true;
 }
+
+
+bool Board_ThermalSetEdge(uint8_t edge, float k_per_w)
+{
+  if (!s_ready || (edge >= (uint8_t)THERMAL_EDGES))
+  {
+    return false;
+  }
+  const float r = (k_per_w < 0.0f) ? 0.0f : k_per_w;
+
+  if (!thermal_set_edge(&s_th, (int)edge, r))
+  {
+    return false;
+  }
+  return Board_CalSetThermalEdge(edge, (k_per_w < 0.0f)
+                                 ? BOARD_CAL_EDGE_OPEN
+                                 : (uint32_t)(k_per_w * 1000.0f));
+}
+
+
+bool Board_ThermalEdge(uint8_t edge, uint8_t *a, uint8_t *b, float *k_per_w)
+{
+  if (!s_ready || (edge >= (uint8_t)THERMAL_EDGES) || (a == NULL)
+      || (b == NULL) || (k_per_w == NULL))
+  {
+    return false;
+  }
+  *a = THERMAL_EDGE_ENDS[edge].a;
+  *b = THERMAL_EDGE_ENDS[edge].b;
+  *k_per_w = s_th.cfg.r_edge[edge];
+  return true;
+}
+
+
+bool Board_ThermalNodeCfg(uint8_t node, float *capacity, float *to_ambient,
+                          float *area_share, float *rth_die, float *forced)
+{
+  if (!s_ready || (node >= (uint8_t)THERMAL_NODES))
+  {
+    return false;
+  }
+  const thermal_node_cfg_t *n = &s_th.cfg.node[node];
+
+  *capacity = n->capacity;
+  *to_ambient = n->to_ambient;
+  *area_share = n->area_share;
+  *rth_die = n->rth_die;
+  *forced = n->forced;
+  return true;
+}
+
 
 bool Board_ThermalSetSample(uint32_t every_ms, uint32_t settle_ms)
 {
@@ -573,13 +753,20 @@ bool Board_ThermalSetSample(uint32_t every_ms, uint32_t settle_ms)
   return true;
 }
 
+
 void Board_ThermalSampling(uint32_t *every_ms, uint32_t *settle_ms)
 {
   *every_ms = s_every_ms;
   *settle_ms = s_settle_ms;
 }
 
+
 bool Board_ThermalSetBoard(float to_ambient, float capacity)
 {
-  return s_ready && thermal_set_board(&s_th, to_ambient, capacity);
+  if (!s_ready || !thermal_set_board(&s_th, to_ambient, capacity))
+  {
+    return false;
+  }
+  return Board_CalSetThermalBulk((uint32_t)(to_ambient * 1000.0f),
+                                 (uint32_t)(capacity * 1000.0f));
 }

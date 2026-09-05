@@ -1,5 +1,6 @@
 """The power stage stood down: thermal observer, power rails and the
 gate drivers with the real arming policy."""
+import copy
 import math
 import time
 
@@ -11,7 +12,10 @@ from ..gates import GateControl
 
 
 class SimulatedThermal:
-    """The thermal observer without a board.
+    """The thermal observer without a board: the same twenty-node graph
+    `thermal.c` integrates, on `coaxial.thermal`'s tables, so a view
+    running -Simulated draws the network the board runs and the envelope
+    rehearses the same play.
 
     Keeps the node order and the field shape of `0x6E` device 8 so a view
     running -Simulated does not crash. Every number is invented, and
@@ -21,29 +25,23 @@ class SimulatedThermal:
 
     NODES = thermal.ALL_NODES
 
-    #: The ceiling each node is judged against. `board` lower than the
-    #: rest because the laminate is what everything else sits on.
-    LIMIT = {'board': 105.0}
+    #: The ceiling each node is judged against - the record's defaults:
+    #: laminate lower than the rest because it is what everything else sits
+    #: on, the motor's three at the winding's.
+    LIMIT = dict([(n, 105.0) for n in thermal.LAMINATE]
+                 + [(n, 120.0) for n in thermal.MOTOR])
     DEFAULT_LIMIT = 125.0
 
     #: Which nodes the current clamp cannot cool - `soa_undriven_mask` in
     #: the calibration record, and the same three for the same reason.
     #:
     #: A THROTTLE NEEDS AN ACTUATOR. The clamp scales the phase current,
-    #: so it moves the legs and nothing at all on the MCU, the regulators
-    #: or the front end: those draw the same watts at zero duty as at
-    #: full. Weighed into the worst node they put a floor under the
-    #: margin that no derating can lift - measured here 2026-09-04, an
-    #: idle board with nothing switching settles at 49.1 C on the MCU and
-    #: 51.1 C on the regulators, which against a 125 C ceiling from a
-    #: 20 C ambient is 0.30 of the budget gone before the stage has done
-    #: any work. The page showed a third of the board's SOA spent on a
-    #: cold bench.
-    #:
-    #: They are still judged: `used` is reported for every node and a
-    #: node reaching its ceiling still trips, whichever it is. The
-    #: laminate is NOT among them - the legs are most of what heats it,
-    #: so the clamp moves it and it belongs in the throttle.
+    #: so it moves the legs, the hot swap and the motor, and nothing at all
+    #: on the MCU, the regulators or the front end: those draw the same
+    #: watts at zero duty as at full. Weighed into the worst node they put
+    #: a floor under the margin that no derating can lift - measured here
+    #: 2026-09-04, an idle board settles at 49.1 C on the MCU and 51.1 C
+    #: on the regulators, 0.30 of the budget gone on a cold bench.
     UNDRIVEN = ('mcu', 'regulators', 'afe')
 
     #: How much longer than wall time this stand-in heats. The board's
@@ -63,8 +61,7 @@ class SimulatedThermal:
 
     #: The window of remaining hold the throttle insists on, seconds.
     #: `soa_lookahead_ms` in the board's record, and the same two seconds
-    #: it defaults to. Not a distance to project a temperature - see
-    #: `_soon` for why that shape was taken out.
+    #: it defaults to.
     LOOKAHEAD_S = 2.0
 
     #: How fast the derate may recover, per second of model time.
@@ -74,31 +71,26 @@ class SimulatedThermal:
     #: The longest slice the integrator takes, seconds of model time.
     #: `THERMAL_STEP_MS` in the firmware, and the same number for the same
     #: reason: the envelope is evaluated once per step, and a step longer
-    #: than the throttle's ramp steps straight over it.
-    #:
-    #: IT WAS ONE SECOND, chosen as a fifth of the fastest node's constant
-    #: - a driver is 0.35/3 J/K across 45.6 K/W, about five seconds - and
-    #: that is the right rule for INTEGRATING and the wrong one for
-    #: ACTING. The ramp is the last `lookahead_s * (1 - throttle_at)` of a
-    #: node's hold, 200 ms at the record's numbers (300 at the eighty-five
-    #: it throttled at first), so a one second step cannot land inside it. Measured 2026-09-03 on the stand-in at 90 A:
-    #: 20.0 C on one poll and 158.6 C on the next, 33 K past a 125 C
-    #: ceiling, derate 1.00 then 0.00, and the trip - the drive killed
-    #: rather than throttled, which is the one thing the envelope is
-    #: there to avoid.
+    #: than the throttle's ramp steps straight over it. A fifth of the
+    #: stiffest node's constant, too - a leg's silicon at 1.4 s - so the
+    #: explicit step is an integration and not an oscillation.
     STEP_S = 0.1
 
     #: THE WINDING'S ENVELOPE, the record's CAL_VERSION 12 defaults: the
-    #: motor profile's placeholder pair and an estimated ceiling, over
-    #: the stand-in record's phase resistance. The one element that is
-    #: not on the board - it sheds to the air it turns in, not the
-    #: laminate - stepped on the same slice and judged by the same ramp,
-    #: because the bench asked for the stage to throttle on how close
-    #: BOTH the switches and the motor are to their SOA.
+    #: motor profile's placeholder pair and an estimated ceiling, over the
+    #: stand-in record's phase resistance. Split into the graph as the
+    #: firmware splits it: a quarter of the K/W from the copper into the
+    #: iron, the rest the iron's air path.
     WINDING_R = motor.BENCH_MOTOR.r
     WINDING_K_PER_W = motor.WINDING_K_PER_W
     WINDING_J_PER_K = motor.WINDING_J_PER_K
     WINDING_LIMIT_C = 120.0
+
+    #: The hot swap's two pass FETs in series - the bridge's own part,
+    #: `thermal_losses` says 3.6 mOhm - and the link current they see is
+    #: the phases' at the duty, estimated as half the rms here since the
+    #: stand-in's sampler has no duty to weigh by.
+    HOTSWAP_R = 3.6e-3
 
     def __init__(self, sample=None):
         self._seconds = 0
@@ -107,63 +99,48 @@ class SimulatedThermal:
         #: WHERE IT LOOKS, not what it is told. A sampler that answers
         #: the phase currents and whether the bridge is switching - the
         #: two things this board has - and nothing about how hot
-        #: anything is or is going to be. Without one it sees a stage
-        #: that is not switching, which is what an unplugged observer
-        #: should see.
+        #: anything is or is going to be.
         self._sample = sample or (lambda: {'amps': (0.0, 0.0, 0.0),
                                            'switching': False})
-        #: An rms per phase, tracked across samples. A single sample of a
-        #: three-phase current says where the vector is pointing, not how
-        #: big it has been: the observer squares and leaks, which is what
-        #: a firmware one does between its own reads.
+        #: An rms per phase, tracked across samples.
         self._rms = 0.0
         #: WHAT IT DROPS WHEN A NODE REACHES ITS CEILING. The board wires
-        #: the gate drivers' own disable here, which is the same path the
-        #: break uses; without one this observer reports and does not act,
-        #: which is what it did before and is not what the board does.
+        #: the gate drivers' own disable here.
         self._gate = None
         self._trips = 0
-        #: What the effective duty is, asked of whatever owns the
-        #: compares. The board wires the gate drivers' own; without one
-        #: there is no stage and the answer is zeros.
+        #: What the effective duty is, asked of whatever owns the compares.
         self._duty = lambda: (0.0, 0.0, 0.0)
         #: Where the derate goes. The board wires the drive's clamp.
         self._derate_to = None
         self._last_power = None
+        self._last_net = None
         self._derate_held = 1.0
         self._derate_at = None
         self._node = {n: thermal.AMBIENT for n in self.NODES}
-        #: THE READING, LAGGED. See `thermal.NTC_TAU_S`: the algebra had
-        #: no mass, so a modelled thermistor followed a small fast node
-        #: instantly and the page showed one climbing like silicon.
-        #: No offset: the 6.0 K is an instrument disagreement, recorded
-        #: rather than added to a temperature. See `thermal.NTC_OFFSET`.
+        #: THE READING, LAGGED. See `thermal.NTC_TAU_S`.
         self._ntc = thermal.AMBIENT
         self._at = None
-        #: The winding, and the copper loss last put into it - kept so
-        #: the hold can be projected without sampling again.
-        self._winding = thermal.AMBIENT
-        self._copper = 0.0
+        #: The rotor's speed the air paths see, rpm: what the drive says,
+        #: or nothing.
+        self._speed_rpm = 0.0
+        self._speed_of = lambda: 0.0
+        #: THE GRAPH'S PARAMETERS, a copy this stand-in can move - the
+        #: mirror's tables with the winding's record fields laid over, as
+        #: `board_thermal.c` lays them.
+        self._cfg = copy.deepcopy(thermal.CFG)
+        self._cfg['capacity']['winding'] = self.WINDING_J_PER_K
+        self._cfg['edges'][thermal.EDGE_WINDING_STATOR] = \
+            0.25 * self.WINDING_K_PER_W
+        self._cfg['to_ambient']['stator'] = 0.75 * self.WINDING_K_PER_W
 
     def _advance(self):
         """The network integrated forward to now, in steps it can take.
 
         SUB-STEPPED, and it has to be. One explicit step across a whole
-        poll gap was what made the temperatures move in stairs: the view
-        reads this every couple of seconds, ten times hurried is twenty
-        seconds of model time, and the fastest node's constant is five -
-        so `dt / tau` clamped at one and the node JUMPED to wherever the
-        power put it, waited, and jumped again. A first-order step is
-        only first order while it is small against the constant it is
-        stepping.
-
-        The same lesson `_advance_model` has next door for the rotor, and
-        for the same reason: an Euler step the size of the thing it is
-        integrating is not an integration.
-
-        Reading it twice in a row is also harmless now - the second read
-        finds no elapsed time and does nothing, where before it was the
-        one that got the whole step and its neighbour got none.
+        poll gap was what made the temperatures move in stairs, and a
+        first-order step is only first order while it is small against
+        the constant it is stepping. Reading it twice in a row is
+        harmless: the second read finds no elapsed time and does nothing.
         """
         now = time.time()
         was, self._at = self._at, now
@@ -176,27 +153,12 @@ class SimulatedThermal:
         while left > 0.0:
             step = min(self.STEP_S, left)
             left -= step
-            # SAMPLED EVERY SLICE, not once for the gap. It was once - "what
-            # the drive is doing is what it is doing now, and sampling it
-            # again inside the loop would be reading the same value and
-            # pretending it was news" - and that was true only while nothing
-            # inside the loop could change the current. The envelope below
-            # changes it: it writes the clamp into the drive, and `_dq`
-            # applies it. Frozen, the model went on integrating the
-            # pre-throttle current for the rest of the gap and cooked the
-            # node the throttle had already backed off - measured at 90 A,
-            # the stage tripped at a reported spend of 0.756 because the
-            # peak happened between two polls.
+            # SAMPLED EVERY SLICE, not once for the gap: the envelope
+            # below writes the clamp into the drive, and the next slice
+            # has to see what that did to the current.
             self._integrate(step, self._sample())
             # THE ENVELOPE INSIDE THE LOOP, not after it. `board_thermal.c`
-            # runs the budget every THERMAL_STEP_MS - one step, one look -
-            # and a stand-in that integrated a whole poll gap and then
-            # looked once was not rehearsing that. It was a model that
-            # could only ever see the aftermath: at 90 A it ran 2.5 s of
-            # model time at full current, overshot the ceiling by 33 K,
-            # and the first evaluation it made had nothing left to do but
-            # trip. The throttle needs to be asked while there is still
-            # something to throttle.
+            # runs the budget every THERMAL_STEP_MS - one step, one look.
             self._envelope()
 
     def _envelope(self):
@@ -204,120 +166,46 @@ class SimulatedThermal:
 
         A trip drops the stage, and the estimate is reported either way.
         `board_thermal.c` does exactly this after every step of the real
-        observer - `if (s_budget.tripped && Board_PwmIsEnabled())
-        Board_PwmDisable();` - and a stand-in whose observer watched a
-        node go past its ceiling and did nothing would be a stand-in you
-        could not rehearse the envelope against. The limits come from the
-        record; nothing here decides one (invariant 10).
-
-        Latched by construction, as it is there: dropping the stage is
-        not a state this class holds, it is a thing it does, and only an
-        arm brings the gates back.
+        observer. The limits come from the record; nothing here decides
+        one (invariant 10). Latched by construction: dropping the stage is
+        a thing it does, and only an arm brings the gates back.
         """
         # FIRST IT DERATES. Past the throttle point the drive's clamp is
-        # scaled toward zero, so the stage keeps driving on less - which
-        # is what an envelope is for, and what `board_thermal.c` does one
-        # line before it considers dropping anything. Without it the
-        # envelope was a cliff and the page went dead at the first trip.
-        worst = self._worst()[0]
-        # ONE CLAMP, TWO ENVELOPES: the smaller of the board's factor and
-        # the winding's, as `board_thermal.c` takes it.
-        want = min(self.derate(worst), self.winding_derate())
+        # scaled toward zero, so the stage keeps driving on less. One
+        # clamp over every node the clamp reaches - the winding is one of
+        # them since it is a node of the graph.
         if self._derate_to is not None:
-            self._derate_to(self._derate_applied(want))
+            self._derate_to(self._derate_applied(self.derate()))
         # THEN, only if that was not enough - AND ON EVERY NODE, not just
-        # the ones the clamp reaches. A regulator at its ceiling is a stop
-        # whatever a derate could have done about it; the mask says what is
-        # worth throttling on, never what counts as too hot. The winding
-        # at its ceiling is the same stop.
-        if self._gate is None or not (self._tripped() or self._winding_used() >= 1.0):
+        # the ones the clamp reaches.
+        if self._gate is None or not self._tripped():
             return
         if self._gate():
             self._trips += 1
 
     def _integrate(self, dt, seen):
-        """One first-order step per node, on the model's own network.
-
-        TWO LEVELS, as the network is: the board relaxes toward what the
-        total power puts it at, and every source relaxes toward the board
-        plus its own rise. `coaxial.thermal`'s CFG holds both the K/W and
-        the J/K, so this is that model integrated rather than a second
-        one - a stand-in whose temperatures disagreed with `steady()`
-        would be worth less than no temperatures at all.
+        """One explicit step over the whole graph: `thermal.net_flows` is
+        the same arithmetic `thermal.c` steps, so the stand-in's
+        temperatures are that model integrated rather than a second one.
         """
         power = self._power(dt, seen)
-        #: Kept so the lookahead can project without sampling again.
         self._last_power = power
-        cfg = thermal.CFG
-        total = sum(power.values())
-        board = self._node['board']
-        # AT THE RISE IT IS CARRYING. The path off the board is
-        # convection and radiation, and neither is linear in the
-        # rise - `thermal.board_to_ambient_at` has the two shapes.
-        # Frozen at the calibration rise the stand-in ran the board
-        # ten to fifteen kelvin hot at the powers a burst makes.
-        r_board = thermal.board_to_ambient_at(board - thermal.AMBIENT)
-        tau_board = cfg['board_capacity'] * r_board
-        board += (thermal.AMBIENT + total * r_board - board) * \
-            min(1.0, dt / tau_board)
-        self._node['board'] = board
-        for name in thermal.NODES:
-            r = cfg['to_board'][name]
-            tau = cfg['capacity'][name] * r
-            target = board + power.get(name, 0.0) * r
-            self._node[name] += (target - self._node[name]) * \
-                min(1.0, dt / tau)
-        # THE READING FOLLOWS THE NODES, it does not jump with them.
-        # `thermal.NTC_TAU_S` has why: the algebra had no mass and a
-        # modelled thermistor climbed like the silicon it watches.
-        want = thermal.expected_ntc(
-            board, self._node[thermal.NTC_NEIGHBOUR] - board)
+        self._speed_rpm = float(self._speed_of() or 0.0)
+        net = thermal.net_flows(self._node, power, self._cfg,
+                                thermal.AMBIENT, self._speed_rpm)
+        self._last_net = net
+        for name in self.NODES:
+            capacity = self._cfg['capacity'].get(name, 0.0)
+            if capacity > 0.0:
+                self._node[name] += net[name] * dt / capacity
+        # THE READING FOLLOWS THE PATCHES, it does not jump with them:
+        # toward the weighted average of the two it sits between, at the
+        # laminate's own lag, and never past either of them - a passive
+        # link in a chain cannot read outside the pair (docs/papers, 2.3).
+        centre, leg = self._node['board'], self._node[thermal.NTC_PATCH]
+        want = thermal.expected_ntc(centre, leg - centre)
         self._ntc += (want - self._ntc) * min(1.0, dt / thermal.NTC_TAU_S)
-        # AND NEVER PAST EITHER OF THEM. The element sits on the copper
-        # the leg sheds through, between the leg and the bulk - a chain
-        # with its only source at the leg end, and a passive link in a
-        # chain cannot read above the end it is fed from (thermal.c has
-        # the argument, and the bench had the picture: an NTC warmer
-        # than the switches that heat it). The lag is the patch's; the
-        # bound is the chain's.
-        leg = self._node[thermal.NTC_NEIGHBOUR]
-        self._ntc = min(max(self._ntc, min(board, leg)), max(board, leg))
-        # THE WINDING, off the same tracked rms: `3 i_rms^2 R` into its
-        # own pair, relaxing toward the air rather than the board. Its
-        # constant is nearly seven minutes of model time, which is right;
-        # HASTE is on the clock, not the element.
-        self._copper = 3.0 * self._rms * self._rms * self.WINDING_R
-        self._winding += ((self._copper
-                           - (self._winding - thermal.AMBIENT)
-                           / self.WINDING_K_PER_W)
-                          * dt / self.WINDING_J_PER_K)
-
-    def _winding_used(self):
-        """The winding's spend against its ceiling, 0 at ambient, 1 at it."""
-        span = self.WINDING_LIMIT_C - thermal.AMBIENT
-        if span <= 0.0:
-            return 0.0              # no ceiling: nothing spent, ever
-        return max(0.0, (self._winding - thermal.AMBIENT) / span)
-
-    def _winding_soon(self):
-        """How far into the last `LOOKAHEAD_S` of hold the winding is.
-
-        `_soon` for one more element: the soak left over the net power
-        spending it, as a fraction of the window gone.
-        """
-        if self.WINDING_LIMIT_C <= thermal.AMBIENT:
-            return 0.0
-        net = (self._copper
-               - (self._winding - thermal.AMBIENT) / self.WINDING_K_PER_W)
-        if net <= 0.0:
-            return 0.0
-        togo = self.WINDING_LIMIT_C - self._winding
-        hold = (togo * self.WINDING_J_PER_K / net) if togo > 0.0 else 0.0
-        return min(1.0, 1.0 - hold / self.LOOKAHEAD_S)
-
-    def winding_derate(self):
-        """The winding's OWN factor: the same ramp, on its own spend."""
-        return self._ramp(max(self._winding_used(), self._winding_soon()))
+        self._ntc = min(max(self._ntc, min(centre, leg)), max(centre, leg))
 
     def _power(self, dt, seen):
         """Watts per node, worked out from the sample. The observer's job.
@@ -325,15 +213,11 @@ class SimulatedThermal:
         `i^2 R` on what the shunts actually carried, across the
         resistance the current crosses - `inverter` holds the FET's
         Rds(on) and the shunt - plus the housekeeping, which does not
-        care whether anything switches. `coaxial.thermal.phase_power` is
-        that split, and it is the same function the bench arithmetic and
-        the notebooks use.
-
-        The rms is tracked rather than taken from one sample: three
-        phase currents at an instant are a vector, and a vector says
-        nothing about how long it has been that big. It leaks toward the
-        instantaneous magnitude at `RMS_TAU`, which is what a firmware
-        observer does between reads.
+        care whether anything switches; the hot swap's two FETs on the
+        link current; the winding's copper on the same mean square. The
+        rms is tracked rather than taken from one sample: three phase
+        currents at an instant are a vector, and a vector says nothing
+        about how long it has been that big.
         """
         from .. import inverter
 
@@ -342,24 +226,27 @@ class SimulatedThermal:
         self._rms += (now - self._rms) * min(1.0, dt / self.RMS_TAU)
         if not seen.get('switching'):
             self._rms *= max(0.0, 1.0 - dt / self.RMS_TAU)
-        return thermal.phase_power(self._rms,
+        watt = thermal.phase_power(self._rms,
                                    inverter.RDS_ON + inverter.SHUNT,
                                    switching=bool(seen.get('switching')))
+        watt['hotswap'] = (0.5 * self._rms) ** 2 * self.HOTSWAP_R
+        watt['winding'] = 3.0 * self._rms * self._rms * self.WINDING_R
+        return watt
 
     def state(self):
         self._seconds += 1
         self._advance()
-        board = self._node['board']
+        centre = self._node['board']
+        power = self._last_power or {}
         return {
             # LAGGED, where `expected_ntc` below is the algebra it heads
-            # for. The board reports both for the same reason: what the
-            # thermistor says and what the model expects it to say are two
-            # facts, and their difference is the observer's report card.
+            # for. The board reports both: what the thermistor says and
+            # what the model expects it to say are two facts.
             'ntc': self._ntc,
             'nodes': dict(self._node),
             'ambient': thermal.AMBIENT,
             'expected_ntc': thermal.expected_ntc(
-                board, self._node[thermal.NTC_NEIGHBOUR] - board),
+                centre, self._node[thermal.NTC_PATCH] - centre),
             'seconds': self._seconds,
             'settled': True,
             'sample_every_s': self._every_s,
@@ -369,6 +256,12 @@ class SimulatedThermal:
             'seen_s_ago': 0.4,
             'steps': 1200,
             'error': 0.0,
+            # MINOR 13: each leg's FET junction over its node - half the
+            # node's watts through R_th,JC - and the speed the air saw.
+            'junction_over': [0.5 * power.get(n, 0.0)
+                              * self._cfg['rth_die'].get(n, 0.0)
+                              for n in thermal.DRIVERS],
+            'speed_rpm': int(self._speed_rpm),
         }
 
     def set_sample(self, every_s, settle_s=0.3):
@@ -376,12 +269,8 @@ class SimulatedThermal:
         return True
 
     def _used(self):
-        """Each node as a fraction of its own ceiling.
-
-        One definition: `budget()` answers it and `_envelope()` acts on
-        it, and the two disagreeing about how close a node is would be a
-        stage that trips at a number nobody reported.
-        """
+        """Each node as a fraction of its own ceiling. One definition:
+        `budget()` answers it and `_envelope()` acts on it."""
         used = {}
         for name in self.NODES:
             top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
@@ -390,51 +279,30 @@ class SimulatedThermal:
         return used
 
     def _worst(self):
-        """The worst node the clamp can reach, and every node's spend.
-
-        `UNDRIVEN` says which are left out of the first and never out of
-        the second: what is reported is all ten, what is throttled on is
-        what a derate could move.
-        """
+        """The worst node the clamp can reach, and every node's spend."""
         used = self._used()
         driven = [n for n in used if n not in self.UNDRIVEN] or list(used)
         name = max(driven, key=lambda n: used[n])
         return used[name], name, used
 
     def _tripped(self):
-        """Whether ANY node is at its ceiling, driven or not.
-
-        A regulator at 125 C is a stop whatever the clamp could have done
-        about it - the mask decides what is worth throttling on, not what
-        counts as too hot.
-        """
+        """Whether ANY node is at its ceiling, driven or not."""
         return max(self._used().values(), default=0.0) >= 1.0
 
     def derate(self, worst=None):
-        """What the current clamp should be multiplied by, 1 down to 0.
-
-        One at the throttle point and zero at the ceiling, linear
-        between - `thermal.c`'s own arithmetic, which is why the two
-        agree about when a stage backs off and by how much.
-        """
+        """What the current clamp should be multiplied by, 1 down to 0:
+        one at the throttle point and zero at the ceiling, linear
+        between, on the worse of where the worst node is and how far
+        into the window any driven node's hold has come - `thermal.c`'s
+        own arithmetic."""
         spent = self._worst()[0] if worst is None else worst
-        # ON THE WORSE OF NOW AND SOON, as `thermal.c` does. A node at
-        # 45 A crosses the whole throttle band between two polls, so a
-        # throttle reading only the present never sees it: measured, the
-        # derate stayed at 1.0 through a crossing from a fifth of the
-        # budget to over the ceiling, and the stage tripped instead.
         spent = max(spent, self._soon())
         return self._ramp(spent)
 
     @staticmethod
     def _ramp(spent):
         """One at the throttle point, zero at the ceiling, linear between.
-
-        ONE DEFINITION for the board's nodes and the winding, as
-        `thermal.c`'s `derate_of` is one function for both: two ramps
-        that could drift apart would be two envelopes that disagree
-        about when a stage backs off.
-        """
+        ONE DEFINITION for every node, as `thermal.c`'s `derate_of`."""
         band = 1.0 - THROTTLE_AT
         if spent <= THROTTLE_AT or band <= 0.0:
             return 1.0
@@ -443,14 +311,11 @@ class SimulatedThermal:
     def _derate_applied(self, want):
         """The factor after the recovery slew. Down is immediate.
 
-        ASYMMETRIC ON PURPOSE, and `board_thermal.c` does the same. The
-        factor is part of a loop: cut the clamp and the ramp goes away,
-        so the next look sees no ramp and asks for full current again.
-        Measured, that oscillated between 1.00 and 0.00 every hundred
-        milliseconds with the node at nine tenths of its ceiling - a
-        stage chattering at its own poll rate, which is worse for the
-        silicon than the derate was for. Recovering over a few seconds
-        gives the node time to actually cool first.
+        ASYMMETRIC ON PURPOSE, and `board_thermal.c` does the same: cut
+        the clamp and the ramp goes away, so the next look sees no ramp
+        and asks for full current again - measured, that oscillated
+        between 1.00 and 0.00 every hundred milliseconds. Recovering over
+        seconds gives the node time to cool first.
         """
         now = time.time()
         was, self._derate_at = self._derate_at, now
@@ -462,83 +327,79 @@ class SimulatedThermal:
         self._derate_held = max(0.0, min(1.0, self._derate_held))
         return self._derate_held
 
+    def _hold(self, name):
+        """Seconds this node can stay at its net power before its ceiling
+        - the soak over what is going into it - or None when it is not
+        heading there. The same net flows the step integrated."""
+        net = (self._last_net or {}).get(name, 0.0)
+        capacity = self._cfg['capacity'].get(name, 0.0)
+        top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
+        if net <= 0.0 or capacity <= 0.0 or top <= thermal.AMBIENT:
+            return None
+        togo = top - self._node[name]
+        return (togo * capacity / net) if togo > 0.0 else 0.0
+
     def _soon(self):
-        """How far into the last `LOOKAHEAD_S` of hold the worst node is.
-
-        THE SAME ARITHMETIC `thermal.c` DOES, and it has to be: a
-        stand-in that throttles on a different rule from the board is a
-        rehearsal of the wrong play. `hold` is the soak over the power
-        spending it - seconds this node can stay here - and the fraction
-        is how much of the window has gone.
-
-        IT WAS A PROJECTED TEMPERATURE, forward `LOOKAHEAD_S` at the
-        present rate, and that shape fails on the case this board is
-        for. Measured 2026-09-03: 100 A puts 18.4 W into a driver node
-        of 0.12 J/K, 0.67 s from ambient to its ceiling, and a two
-        second projection lands past it from a cold board - the clamp
-        went to zero before the burst began. Time does not do that: a
-        node at ambient has its whole soak in front of it however much
-        power is on it, so the burst runs and what closes the clamp is
-        the hold falling into the window.
-        """
-        power = self._last_power or {}
-        cfg = thermal.CFG
+        """How far into the last `LOOKAHEAD_S` of hold the worst driven
+        node is - THE SAME ARITHMETIC `thermal.c` DOES: time left, not a
+        projected temperature, so a node at ambient has its whole soak
+        in front of it and a burst runs."""
         worst = 0.0
         for name in self.NODES:
             if name in self.UNDRIVEN:
-                continue            # nothing the clamp does moves this one
-            top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
-            capacity = (cfg['board_capacity'] if name == 'board'
-                        else cfg['capacity'].get(name, 0.0))
-            if capacity <= 0.0 or top <= thermal.AMBIENT:
                 continue
-            r = (thermal.board_to_ambient_at(self._node['board']
-                                             - thermal.AMBIENT)
-                 if name == 'board' else cfg['to_board'].get(name, 0.0))
-            reference = (thermal.AMBIENT if name == 'board'
-                         else self._node['board'])
-            net = (power.get(name, 0.0) - (self._node[name] - reference) / r
-                   if r > 0.0 else power.get(name, 0.0))
-            if net <= 0.0:
-                continue                # not heading anywhere warmer
-            togo = top - self._node[name]
-            hold = (togo * capacity / net) if togo > 0.0 else 0.0
+            hold = self._hold(name)
+            if hold is None:
+                continue
             worst = max(worst, min(1.0, 1.0 - hold / self.LOOKAHEAD_S))
         return worst
 
-    def soak_j(self):
-        """Joules each node can still absorb before its ceiling.
+    def node_derate(self, name):
+        """One node's OWN factor - its spend and its hold alone."""
+        used = self._used().get(name, 0.0)
+        hold = self._hold(name)
+        soon = min(1.0, 1.0 - hold / self.LOOKAHEAD_S) if hold is not None \
+            else 0.0
+        return self._ramp(max(used, soon))
 
-        `capacity x (limit - t)`, and never negative: a node past its
-        ceiling has no budget rather than a debt. It is the quantity a
-        control system plans a burst with - divide by the power it means
-        to spend and the answer is seconds, at any power rather than
-        only the present one.
-        """
-        cfg = thermal.CFG
+    def soak_j(self):
+        """Joules each node can still absorb before its ceiling:
+        `capacity x (limit - t)`, never negative."""
         out = {}
         for name in self.NODES:
             top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
-            capacity = (cfg['board_capacity'] if name == 'board'
-                        else cfg['capacity'].get(name, 0.0))
-            out[name] = max(0.0, capacity * (top - self._node[name]))
+            out[name] = max(0.0, self._cfg['capacity'].get(name, 0.0)
+                            * (top - self._node[name]))
         return out
 
     def budget(self):
         self._advance()
         worst, name, used = self._worst()
-        wound = self._winding_used()
         return {'used': used, 'worst': worst, 'worst_node': name,
                 'seconds_to_limit': None,
-                'throttling': worst >= THROTTLE_AT or wound >= THROTTLE_AT,
-                'tripped': self._tripped() or wound >= 1.0,
-                'trips': self._trips,
+                'throttling': worst >= THROTTLE_AT,
+                'tripped': self._tripped(), 'trips': self._trips,
                 'derate': self._derate_held, 'soak_j': self.soak_j(),
                 'duty': list(self._duty() or (0.0, 0.0, 0.0)),
                 # MINOR 12: the winding's estimate, spend and OWN factor,
-                # beside `derate`, which is what the stage got.
-                'winding_c': self._winding, 'winding_used': wound,
-                'winding_derate': self.winding_derate()}
+                # from the node it is, beside `derate` - the stage's.
+                'winding_c': self._node['winding'],
+                'winding_used': used['winding'],
+                'winding_derate': self.node_derate('winding')}
+
+    def network(self):
+        """The graph as the stand-in holds it - the same shape
+        `Thermal.network()` reads off a board."""
+        nodes = {}
+        for name in self.NODES:
+            nodes[name] = {'capacity': self._cfg['capacity'].get(name, 0.0),
+                           'to_ambient': self._cfg['to_ambient'].get(name, 0.0),
+                           'area_share': self._cfg['area_share'].get(name, 0.0),
+                           'rth_die': self._cfg['rth_die'].get(name, 0.0),
+                           'forced': self._cfg['forced'].get(name, 0.0)}
+        edges = [(a, b, r) for (a, b, _r), r
+                 in zip(thermal.EDGES, self._cfg['edges'])]
+        return {'nodes': nodes, 'edges': edges}
 
     def set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
         return True
@@ -547,15 +408,43 @@ class SimulatedThermal:
         if k_per_w <= 0.0 or j_per_k <= 0.0:
             raise RigError('the winding needs a positive K/W and J/K; '
                            'a zero ceiling is how it is disabled')
-        self.WINDING_LIMIT_C = float(limit_c)
+        self.LIMIT = dict(self.LIMIT, winding=float(limit_c))
         self.WINDING_K_PER_W = float(k_per_w)
         self.WINDING_J_PER_K = float(j_per_k)
+        self._cfg['capacity']['winding'] = float(j_per_k)
+        self._cfg['edges'][thermal.EDGE_WINDING_STATOR] = 0.25 * float(k_per_w)
+        self._cfg['to_ambient']['stator'] = 0.75 * float(k_per_w)
         return True
 
     def set_node(self, node, to_board, capacity):
+        """One node's first path out and its capacity - the sink edge for
+        a source, the air for a patch, as `thermal_set_node` does."""
+        if to_board <= 0.0 or capacity <= 0.0:
+            raise RigError('a K/W and a heat capacity are both positive')
+        edge = thermal.sink_edge(node)
+        if edge is not None:
+            self._cfg['edges'][edge] = float(to_board)
+        else:
+            self._cfg['to_ambient'][node] = float(to_board)
+        self._cfg['capacity'][node] = float(capacity)
+        return True
+
+    def set_edge(self, edge, k_per_w):
+        """One edge's K/W by index; None opens it."""
+        self._cfg['edges'][int(edge)] = 0.0 if k_per_w is None \
+            else float(k_per_w)
         return True
 
     def set_board(self, to_ambient, capacity):
+        """The bulk's two numbers, shared out by area as the core does."""
+        if to_ambient <= 0.0 or capacity <= 0.0:
+            raise RigError('both are positive')
+        self._cfg['board_to_ambient'] = float(to_ambient)
+        self._cfg['board_capacity'] = float(capacity)
+        for name in thermal.LAMINATE:
+            share = self._cfg['area_share'][name]
+            self._cfg['to_ambient'][name] = float(to_ambient) / share
+            self._cfg['capacity'][name] = float(capacity) * share
         return True
 
 

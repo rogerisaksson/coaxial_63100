@@ -144,8 +144,21 @@ def status_boxes(state, budget, aspect=None):
 #: the rest.
 SHORT_NODE = {'driver_u': 'dU', 'driver_v': 'dV', 'driver_w': 'dW',
               'phase_u': 'pU', 'phase_v': 'pV', 'phase_w': 'pW',
-              'mcu': 'MC', 'regulators': 'RG', 'afe': 'AF', 'board': 'PB'}
+              'mcu': 'MC', 'regulators': 'RG', 'afe': 'AF', 'board': 'PB',
+              'hotswap': 'HS', 'patch_u': 'lU', 'patch_v': 'lV',
+              'patch_w': 'lW', 'patch_left': 'lL', 'patch_bottom': 'lB',
+              'patch_right': 'lR', 'winding': 'WI', 'stator': 'ST',
+              'rotor': 'RO'}
 TUBE_ROWS = 8
+
+#: Two rows of tubes since the graph: the parts, then the laminate's
+#: patches and the motor - twenty tubes at a pitch of three would be
+#: sixty columns in a forty-column box.
+TUBE_ROWS_OF = (('driver_u', 'driver_v', 'driver_w', 'phase_u', 'phase_v',
+                 'phase_w', 'mcu', 'regulators', 'afe', 'hotswap'),
+                ('board', 'patch_u', 'patch_v', 'patch_w', 'patch_left',
+                 'patch_bottom', 'patch_right', 'winding', 'stator',
+                 'rotor'))
 
 
 def tubes(state, budget):
@@ -163,18 +176,22 @@ def tubes(state, budget):
     nodes = state.get('nodes') or {}
     used = (budget or {}).get('used') or {}
     tripped = bool((budget or {}).get('tripped'))
-    entries, labels = [], []
-    for name in ALL_NODES:
-        if name in nodes:
-            entries.append((gauges.temp_share(nodes[name]),
-                            gauges.margin_class(used.get(name, 0.0),
-                                                tripped)))
-            labels.append(SHORT_NODE.get(name, name[:2]))
-    if state.get('ntc') is not None:
-        entries += [None, (gauges.temp_share(state['ntc']),
-                           gauges.thermometer_class(state['ntc']))]
-        labels += ['', 'NTC']
-    return gauges.tubes(entries, TUBE_ROWS, labels, pitch=3)
+    lines = []
+    for index, row in enumerate(TUBE_ROWS_OF):
+        entries, labels = [], []
+        for name in row:
+            if name in nodes:
+                entries.append((gauges.temp_share(nodes[name]),
+                                gauges.margin_class(used.get(name, 0.0),
+                                                    tripped)))
+                labels.append(SHORT_NODE.get(name, name[:2]))
+        if index == 0 and state.get('ntc') is not None:
+            entries += [None, (gauges.temp_share(state['ntc']),
+                               gauges.thermometer_class(state['ntc']))]
+            labels += ['', 'NTC']
+        if entries:
+            lines += gauges.tubes(entries, TUBE_ROWS, labels, pitch=3)
+    return lines
 
 
 def picture(state, console, reserve, aspect=CELL_ASPECT):

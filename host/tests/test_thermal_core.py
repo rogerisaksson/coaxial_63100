@@ -39,7 +39,18 @@ SOURCES = [os.path.join(THERMAL, 'test', 'harness.c'),
 #: The nodes, in the order `thermal.h` declares them. Named here so a
 #: failure says `phase_u` and not `3`; the count is asked of the C.
 NODES = ('driver_u', 'driver_v', 'driver_w', 'phase_u', 'phase_v', 'phase_w',
-         'mcu', 'regulators', 'afe', 'board')
+         'mcu', 'regulators', 'afe', 'board', 'hotswap',
+         'patch_u', 'patch_v', 'patch_w', 'patch_left', 'patch_bottom',
+         'patch_right', 'winding', 'stator', 'rotor')
+
+#: The laminate: the centre patch, which an older host reads as `board`,
+#: and the six round it. One ceiling for all of them.
+LAMINATE = ('board', 'patch_u', 'patch_v', 'patch_w', 'patch_left',
+            'patch_bottom', 'patch_right')
+
+#: The edges as `thermal.c`'s table lays them, named here so a failure
+#: says which two nodes and not which index.
+EDGE_WINDING_STATOR, EDGE_STATOR_ROTOR, EDGE_MOUNT_FIRST = 22, 23, 24
 
 #: BUDGET_ORDER, as `harness.c` flattens it.
 BUDGET = ('worst', 'worst_node', 'millis', 'throttling', 'tripped', 'derate')
@@ -49,7 +60,7 @@ BUDGET = ('worst', 'worst_node', 'millis', 'throttling', 'tripped', 'derate')
 #: from 90 % of the span and looking two seconds ahead. A bench with a
 #: different board writes different numbers into its own record and this
 #: test would still be testing the same arithmetic.
-LIMIT_C, BOARD_LIMIT_C = 125.0, 105.0
+LIMIT_C, BOARD_LIMIT_C, WINDING_LIMIT_C = 125.0, 105.0, 120.0
 THROTTLE_AT, LOOKAHEAD_S = 0.90, 2.0
 
 AMBIENT = 20.0
@@ -61,9 +72,12 @@ AMBIENT = 20.0
 #: should be, which `test_sensorless.py` checks against the file.
 NTC_SEES_LEG = 0.30
 
-#: K/W from a leg node into the board, as `thermal_defaults` sets it.
-#: Named for the same reason as the fraction above.
-LEG_TO_BOARD = 28.0
+#: K/W from a leg's switches into the laminate under them, as
+#: `thermal_defaults` sets it. Named for the same reason as the fraction
+#: above; the patch's own 15 K/W to the rest of the board is what makes
+#: the leg's 27 - the record's 28 - and it is the graph's, not this
+#: number's.
+DRIVER_TO_PATCH = 12.0
 
 #: The nodes a current clamp cannot cool - `soa_undriven_mask` in the
 #: calibration record, and the record's own default. Here so a test can
@@ -76,18 +90,37 @@ class Model:
     """One observer behind the harness, standing where a test puts it."""
 
     def __init__(self, lib, celsius=AMBIENT):
-        lib.thm_new.restype = ctypes.c_void_p
-        lib.thm_new.argtypes = [ctypes.c_float]
-        lib.thm_at.restype = ctypes.c_float
-        lib.thm_at.argtypes = [ctypes.c_void_p, ctypes.c_int]
-        lib.thm_capacity.restype = ctypes.c_float
-        lib.thm_capacity.argtypes = [ctypes.c_void_p, ctypes.c_int]
-        lib.thm_ntc.restype = ctypes.c_float
-        lib.thm_ntc.argtypes = [ctypes.c_void_p]
+        f, p, i = ctypes.c_float, ctypes.c_void_p, ctypes.c_int
+        fp = ctypes.POINTER(f)
+        lib.thm_new.restype = p
+        lib.thm_new.argtypes = [f]
+        lib.thm_at.restype = f
+        lib.thm_at.argtypes = [p, i]
+        lib.thm_capacity.restype = f
+        lib.thm_capacity.argtypes = [p, i]
+        lib.thm_ntc.restype = f
+        lib.thm_ntc.argtypes = [p]
+        lib.thm_edge_r.restype = f
+        lib.thm_edge_r.argtypes = [p, i]
+        lib.thm_set_edge.argtypes = [p, i, f]
+        lib.thm_set_board.argtypes = [p, f, f]
+        lib.thm_set_rad_board_stator.argtypes = [p, f]
+        lib.thm_to_ambient_at.restype = f
+        lib.thm_to_ambient_at.argtypes = [p, i, f, f]
+        lib.thm_step_at.argtypes = [p, fp, f, f, f, f, f]
+        lib.thm_node_derate.restype = f
+        lib.thm_node_derate.argtypes = [p, fp, fp, f, f, fp, i]
+        lib.thm_junction.restype = f
+        lib.thm_junction.argtypes = [p, fp, i]
+        lib.thm_coss_energy.restype = f
+        lib.thm_coss_energy.argtypes = [f]
+        lib.thm_power_r.argtypes = [fp, fp, f, fp]
         self.lib = lib
         self.n = lib.thm_nodes()
         self.slots = lib.thm_budget_slots()
         self.h = ctypes.c_void_p(lib.thm_new(ctypes.c_float(celsius)))
+        assert self.n == len(NODES), 'the C has %d nodes, this file %d' % (
+            self.n, len(NODES))
 
     def _floats(self, values):
         return (ctypes.c_float * len(values))(*values)
@@ -111,17 +144,46 @@ class Model:
     def ntc(self):
         return self.lib.thm_ntc(self.h)
 
-    def step(self, watt, dt_s, seen=(math.nan, math.nan, math.nan)):
-        self.lib.thm_step(self.h, self._floats(self._watt(watt)),
-                          ctypes.c_float(seen[0]), ctypes.c_float(seen[1]),
-                          ctypes.c_float(seen[2]), ctypes.c_float(dt_s))
+    def step(self, watt, dt_s, seen=(math.nan, math.nan, math.nan),
+             speed_rpm=0.0):
+        self.lib.thm_step_at(self.h, self._floats(self._watt(watt)),
+                             seen[0], seen[1], seen[2], speed_rpm, dt_s)
 
     def _watt(self, watt):
         return [float(watt.get(name, 0.0)) for name in NODES]
 
     def limits(self):
-        return [BOARD_LIMIT_C if name == 'board' else LIMIT_C
+        return [BOARD_LIMIT_C if name in LAMINATE
+                else WINDING_LIMIT_C if name == 'winding' else LIMIT_C
                 for name in NODES]
+
+    def edge_r(self, edge):
+        return self.lib.thm_edge_r(self.h, edge)
+
+    def set_edge(self, edge, k_per_w):
+        return bool(self.lib.thm_set_edge(self.h, edge, k_per_w))
+
+    def set_board(self, to_ambient, capacity):
+        return bool(self.lib.thm_set_board(self.h, to_ambient, capacity))
+
+    def radiate_to_stator(self, w_per_k):
+        self.lib.thm_set_rad_board_stator(self.h, w_per_k)
+
+    def to_ambient_at(self, node, rise_k, speed_rpm=0.0):
+        return self.lib.thm_to_ambient_at(self.h, NODES.index(node), rise_k,
+                                          speed_rpm)
+
+    def junction(self, watt, node):
+        return self.lib.thm_junction(self.h, self._floats(self._watt(watt)),
+                                     NODES.index(node))
+
+    def node_derate(self, node, watt=None, throttle_at=THROTTLE_AT,
+                    lookahead_s=0.0, limits=None, undriven=UNDRIVEN):
+        mask = [1.0 if name in (undriven or ()) else 0.0 for name in NODES]
+        return self.lib.thm_node_derate(
+            self.h, self._floats(self._watt(watt or {})),
+            self._floats(limits or self.limits()), throttle_at, lookahead_s,
+            self._floats(mask), NODES.index(node))
 
     def budget(self, watt=None, throttle_at=THROTTLE_AT, lookahead_s=0.0,
                limits=None, undriven=UNDRIVEN):
@@ -141,84 +203,50 @@ class Model:
         return got
 
 
-#: The winding's envelope as the record carries it, CAL_VERSION 12: the
-#: motor profile's placeholder pair and an estimated ceiling.
-WINDING_K_PER_W = 2.2
-WINDING_J_PER_K = 180.0
-WINDING_LIMIT_C = 120.0
-
-
-class Winding:
-
-    """The one element that is not on the board, behind the harness."""
-
-    def __init__(self, lib, r_phase=0.05, k_per_w=WINDING_K_PER_W,
-                 capacity=WINDING_J_PER_K, limit_c=WINDING_LIMIT_C,
-                 celsius=AMBIENT):
-        f = ctypes.c_float
-        lib.thm_winding_new.restype = ctypes.c_void_p
-        lib.thm_winding_new.argtypes = [f, f, f, f, f]
-        lib.thm_winding_c.restype = f
-        lib.thm_winding_c.argtypes = [ctypes.c_void_p]
-        lib.thm_winding_watt.restype = f
-        lib.thm_winding_watt.argtypes = [f, ctypes.POINTER(f)]
-        lib.thm_winding_step.argtypes = [ctypes.c_void_p, f, f, f]
-        lib.thm_winding_budget.argtypes = [ctypes.c_void_p, f, f, f, f,
-                                           ctypes.POINTER(f)]
-        self.lib = lib
-        self.r_phase = r_phase
-        self.h = ctypes.c_void_p(lib.thm_winding_new(r_phase, k_per_w,
-                                                     capacity, limit_c,
-                                                     celsius))
-
-    def c(self):
-        return self.lib.thm_winding_c(self.h)
-
-    def watt(self, phase_amps=(0.0, 0.0, 0.0), phase_sq=(0.0, 0.0, 0.0)):
-        load = (list(phase_amps) + [0.0, 0.0, 0.0, 24.0, -1.0, 1.0, 0.0]
-                + list(phase_sq))
-        return self.lib.thm_winding_watt(
-            self.r_phase, (ctypes.c_float * len(load))(*load))
-
-    def step(self, watt, dt_s, ambient=AMBIENT):
-        self.lib.thm_winding_step(self.h, watt, ambient, dt_s)
-
-    def budget(self, watt=0.0, throttle_at=THROTTLE_AT, lookahead_s=0.0,
-               ambient=AMBIENT):
-        out = (ctypes.c_float * 4)()
-        self.lib.thm_winding_budget(self.h, watt, ambient, throttle_at,
-                                    lookahead_s, out)
-        return {'used': out[0], 'derate': out[1], 'throttling': out[2] > 0.5,
-                'tripped': out[3] > 0.5}
-
-
 def power(lib, phase_amps=(0.0, 0.0, 0.0), duty=(0.0, 0.0, 0.0),
           link_volts=24.0, link_amps=-1.0, switching=True, afe_on=False,
-          phase_c=None, phase_sq=(0.0, 0.0, 0.0)):
+          phase_c=None, phase_sq=(0.0, 0.0, 0.0), speed_rpm=0.0,
+          t_dead_s=0.0, r_phase=0.0):
     """The estimator's answer, per node, watts.
 
     `phase_sq` is the mean of the squared current a leg has carried since
     the last estimate. Zero means none was measured and the estimator
-    squares the instantaneous sample instead.
+    squares the instantaneous sample instead. `r_phase` positive stands in
+    for the record's, the way the board's glue hands it in.
     """
-    load = list(phase_amps) + list(duty) + [link_volts, link_amps,
-                                           1.0 if switching else 0.0,
-                                           1.0 if afe_on else 0.0]         + list(phase_sq)
+    load = (list(phase_amps) + list(duty)
+            + [link_volts, link_amps, 1.0 if switching else 0.0,
+               1.0 if afe_on else 0.0] + list(phase_sq)
+            + [speed_rpm, t_dead_s])
+    assert len(load) == lib.thm_load_slots()
     out = (ctypes.c_float * len(NODES))()
     temps = None
     if phase_c is not None:
         temps = (ctypes.c_float * 3)(*phase_c)
-    lib.thm_power((ctypes.c_float * len(load))(*load), temps, out)
+    lib.thm_power_r.argtypes = [ctypes.POINTER(ctypes.c_float),
+                                ctypes.POINTER(ctypes.c_float),
+                                ctypes.c_float,
+                                ctypes.POINTER(ctypes.c_float)]
+    lib.thm_power_r((ctypes.c_float * len(load))(*load), temps, r_phase, out)
     return dict(zip(NODES, list(out)))
 
 
 def losses(lib):
     names = ('rds_on', 'rds_alpha', 'r_shunt', 'r_hotswap', 'switching_watt',
              'switch_volts', 'driver_share', 'mcu_watt', 'ldo_watt',
-             'afe_watt')
+             'afe_watt', 'f_sw', 'coss_cjo', 'coss_m', 'coss_vj',
+             't_switch_s', 'v_sd', 'q_g', 'v_drive', 'buck_eff', 'r_phase',
+             'k_iron')
+    assert len(names) == lib.thm_loss_slots()
     out = (ctypes.c_float * len(names))()
     lib.thm_losses(out)
     return dict(zip(names, list(out)))
+
+
+def edges(lib):
+    """Every edge as `(a, b)` node names, in the C's order."""
+    return [(NODES[lib.thm_edge_end(e, 0)], NODES[lib.thm_edge_end(e, 1)])
+            for e in range(lib.thm_edges())]
 
 
 def wanted(spent, throttle_at=THROTTLE_AT):
@@ -394,12 +422,13 @@ def test_the_lookahead_catches_a_ramp(report, lib):
     # remain reachable, because a record that never had the field reads
     # back as zero and must still get the old envelope.
     model = Model(lib)
-    # AT 112 C: lower, the node still holds 35 W for longer than the ramp's
+    # AT 114 C: lower, the node still holds 35 W for longer than the ramp's
     # 0.2 s, which is outside the window, so both rules answered 1.0 and the
     # check compared two untouched clamps. Measured on the core: the window
-    # binds from about 110 C at this power (it was 100 C at a throttle of
-    # 85, and the check sat at 105 C then).
-    model.place('phase_u', 112.0)
+    # binds from about 113 C at this power with the shunts' own 8 K/W into
+    # their patch (it was 110 with 28 K/W to a bulk board, and 100 at a
+    # throttle of 85).
+    model.place('phase_u', 114.0)
     report.check('a cooling node has no hold to run out of',
                  model.budget(lookahead_s=LOOKAHEAD_S)['derate'] == 1.0)
     hot = model.budget(watt, lookahead_s=LOOKAHEAD_S)['derate']
@@ -695,7 +724,9 @@ def test_conduction_is_a_mean_square_not_a_sample(report, lib):
                  '%.3f against %.3f' % (fwd['phase_u'], back['phase_u']))
     report.check('and the hot swap still sees the same link current either '
                  'way, because it squares it too',
-                 abs(fwd['regulators'] - back['regulators']) < 1e-6)
+                 abs(fwd['hotswap'] - back['hotswap']) < 1e-6
+                 and fwd['hotswap'] > 0.0,
+                 '%.3f W against %.3f' % (fwd['hotswap'], back['hotswap']))
 
 
 def test_the_thermistor_has_mass(report, lib):
@@ -738,8 +769,8 @@ def test_the_thermistor_has_mass(report, lib):
     # that would not be a sensor in laminate, it would be a second copy of
     # the FET. Its lag was exactly the leg's own until 2026-09-04.
     leg_rose = model.at('driver_v') - AMBIENT
-    report.check('the reading trails the node it watches by a wide margin '
-                 'over the same second',
+    report.check('the reading trails the silicon it sits beside by a wide '
+                 'margin over the same second',
                  leg_rose > 20.0 * rose,
                  'leg +%.1f K, reading +%.1f K' % (leg_rose, rose))
 
@@ -763,10 +794,10 @@ def test_the_thermistor_has_mass(report, lib):
     # weight, and the point of the form is that it lands BETWEEN them for
     # any weight at all.
     board = model.at('board')
-    leg = model.at('driver_v')
+    leg = model.at('patch_v')
     target = board + NTC_SEES_LEG * (leg - board)
     report.check('given time it lands on the weighted average of the two '
-                 'nodes it is tied to',
+                 'patches it is tied to',
                  abs(model.ntc() - target) < 0.1,
                  '%.2f C against %.2f' % (model.ntc(), target))
     report.check('and it is between them, which no weight can break',
@@ -792,12 +823,12 @@ def test_the_reading_lags_between_the_two_nodes(report, lib):
     number typed here, so moving either moves this and nothing drifts.
     """
     model = Model(lib)
-    # OFF THE MODEL, not off a number typed here: the leg spreading moved
-    # from 45.6 to 28 K/W when the camera and the datasheet were weighed
-    # against each other, and a test carrying its own copy would have gone
-    # on checking the old network.
-    leg = model.capacity('driver_v') * LEG_TO_BOARD
-    board = model.capacity('board') * 8.33
+    # OFF THE MODEL, not off a number typed here: the pair is the V leg's
+    # patch and the centre, and their constants are their capacities
+    # across the paths `thermal_defaults` quotes for them - 15 K/W from
+    # the leg's patch to the rest of the board, 48 from the centre.
+    leg = model.capacity('patch_v') * 15.0
+    board = model.capacity('board') * 48.0
 
     # THE TWO NODES HELD, so the target does not move while the reading
     # walks toward it. Measured any other way this reads the leg's own
@@ -809,7 +840,7 @@ def test_the_reading_lags_between_the_two_nodes(report, lib):
     zero = {}
     start = None
     for step in range(400):
-        model.place('driver_v', hot)
+        model.place('patch_v', hot)
         model.place('board', cold)
         if start is None:
             model.step(zero, 1e-4)
@@ -820,12 +851,17 @@ def test_the_reading_lags_between_the_two_nodes(report, lib):
     share = (model.ntc() - start) / max(1e-9, target - start)
     tau = -1.0 / math.log(max(1e-9, 1.0 - min(0.999999, share)))
 
-    report.check('the reading lags well past the node it watches',
-                 tau > 5.0 * leg, '%.1f s against the leg %.2f s'
+    # BETWEEN THE TWO PATCHES it sits between. They were a leg's silicon
+    # at five seconds and a bulk board at four hundred, and the reading
+    # sat well clear of both; the pair is the V leg's patch and the
+    # centre now, a factor of five apart, so "between" is the check and
+    # the mean below is the number.
+    report.check('the reading lags past the patch it watches',
+                 tau > leg, '%.1f s against the leg patch %.1f s'
                  % (tau, leg))
-    report.check('and well short of the bulk board, which is the other '
-                 'end of what it sits between',
-                 tau < board / 5.0, '%.1f s against the board %.0f s'
+    report.check('and short of the centre, which is the other end of what '
+                 'it sits between',
+                 tau < board, '%.1f s against the centre %.0f s'
                  % (tau, board))
     report.check('the geometric mean of the two, near enough',
                  abs(tau / math.sqrt(leg * board) - 1.0) < 0.15,
@@ -857,13 +893,13 @@ def test_the_thermistor_never_reads_above_its_source(report, lib):
         worst = -1e9
         for _ in range(int(120.0 / dt)):
             model.step(watt, dt)
-            leg, board = model.at('driver_v'), model.at('board')
+            leg, board = model.at('patch_v'), model.at('board')
             ntc = model.ntc()
             lagged = lagged or ntc < board + NTC_SEES_LEG * (leg - board) - 1.0
             worst = max(worst, ntc - max(leg, board))
         for _ in range(int(120.0 / dt)):
             model.step({}, dt)
-            leg, board = model.at('driver_v'), model.at('board')
+            leg, board = model.at('patch_v'), model.at('board')
             ntc = model.ntc()
             worst = max(worst, ntc - max(leg, board), min(leg, board) - ntc)
         report.check('%.0f A for two minutes then off: the reading never '
@@ -896,7 +932,7 @@ def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
         model = Model(lib)
         base = model.capacity('driver_u')
         report.check('the capacity moves when a bench moves it (%s)' % name,
-                     model.set_node('driver_u', LEG_TO_BOARD, base * scale),
+                     model.set_node('driver_u', DRIVER_TO_PATCH, base * scale),
                      '%.4f J/K' % (base * scale))
         got = model.budget(watt, lookahead_s=LOOKAHEAD_S)
         # Seconds from ambient to the ceiling at this power, which is what
@@ -929,7 +965,7 @@ def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
     first = {}
     for name, scale in (('on record', 1.0), ('at gamma', GAMMA)):
         model = Model(lib)
-        model.set_node('driver_u', LEG_TO_BOARD,
+        model.set_node('driver_u', DRIVER_TO_PATCH,
                        model.capacity('driver_u') * scale)
         for step in range(4000):
             model.step(watt, 0.02)
@@ -1000,89 +1036,363 @@ def test_the_time_left_is_reported_or_not_claimed(report, lib):
 
 
 def test_the_winding_is_an_envelope_of_its_own(report, lib):
-    """The motor's copper, stepped and judged like a node - by the same ramp.
+    """The motor's copper, a node of the graph: judged like a node, by the
+    same ramp, shedding through the iron and the bell to the air and not
+    into the laminate.
 
-    THE MOTOR HAD NO ENVELOPE. Ten nodes, all on the board; the winding
-    was a page's estimate nothing acted on. The bench asked for the stage
-    to throttle on how close BOTH the switches and the motor are to
-    their SOA, so the winding is one more element - shedding to the air
-    it turns in, not the laminate - fed by the phases' mean squares
-    through the record's phase resistance and judged by `derate_of`, the
-    ONE ramp both envelopes use. Held here: the copper loss, the step's
-    steady state, the spend and the ramp against the board's own, the
-    hold-based lookahead, and that a zero ceiling disables it.
+    THE MOTOR HAD NO ENVELOPE, and then it was a separate element beside
+    the star; since the graph it is three nodes of it. Held here: the
+    copper loss off the phases' mean squares, the step's steady state
+    through the motor's own paths, the spend and the ramp against a board
+    node's, the winding's OWN factor, the hold-based lookahead, and that
+    a zero ceiling disables it.
     """
-    w = Winding(lib)
     # `3 i_rms^2 R` off the mean squares when they are there ...
+    got = power(lib, phase_sq=(100.0, 100.0, 100.0), r_phase=0.05,
+                switching=False)
     report.check('10 A rms on every phase through 50 mOhm is 15 W of copper',
-                 abs(w.watt(phase_sq=(100.0, 100.0, 100.0)) - 15.0) < 1e-3,
-                 '%.3f W' % w.watt(phase_sq=(100.0, 100.0, 100.0)))
+                 abs(got['winding'] - 15.0) < 1e-3, '%.3f W' % got['winding'])
     # ... and the instantaneous sample squared when they are not.
+    got = power(lib, phase_amps=(10.0, 0.0, 0.0), r_phase=0.05,
+                switching=False)
     report.check('and with no mean squares the sample is squared instead',
-                 abs(w.watt(phase_amps=(10.0, 0.0, 0.0)) - 5.0) < 1e-3,
-                 '%.3f W' % w.watt(phase_amps=(10.0, 0.0, 0.0)))
+                 abs(got['winding'] - 5.0) < 1e-3, '%.3f W' % got['winding'])
 
-    # 15 W across 2.2 K/W is a 33 K rise; 180 J/K makes the constant 396
-    # s, and five of them settle it.
-    for _ in range(20000):
-        w.step(15.0, 0.1)
-    report.check('15 W settles the winding 33 K over ambient',
-                 abs(w.c() - (AMBIENT + 33.0)) < 0.5, '%.2f C' % w.c())
-    got = w.budget()
-    report.check('a third of the way to the ceiling spends a third',
-                 abs(got['used'] - 33.0 / (WINDING_LIMIT_C - AMBIENT)) < 0.01
-                 and got['derate'] == 1.0 and not got['throttling'],
-                 '%.3f spent, clamp %.3f' % (got['used'], got['derate']))
+    # THE STEADY STATE IS THE GRAPH'S: the copper into the iron, the iron
+    # to the air directly and through the bell, in parallel - read off the
+    # model's own edges, not typed here.
+    model = Model(lib)
+    r_ws = model.edge_r(EDGE_WINDING_STATOR)
+    r_sr = model.edge_r(EDGE_STATOR_ROTOR)
+    r_sa = model.to_ambient_at('stator', 0.0)
+    r_ra = model.to_ambient_at('rotor', 0.0)
+    expect = 15.0 * (r_ws + 1.0 / (1.0 / r_sa + 1.0 / (r_sr + r_ra)))
+    for _ in range(6000):
+        model.step({'winding': 15.0}, 1.0)
+    rose = model.at('winding') - AMBIENT
+    report.check('15 W settles the winding where its paths to the air say',
+                 abs(rose - expect) < 0.5,
+                 '%.1f K against %.1f' % (rose, expect))
+    report.check('and the heat runs copper to iron to bell to air',
+                 model.at('winding') > model.at('stator') > model.at('rotor')
+                 > AMBIENT + 0.1,
+                 '%.1f > %.1f > %.1f' % (model.at('winding'),
+                                         model.at('stator'),
+                                         model.at('rotor')))
+    report.check('with the mount open, none of it reaches the board',
+                 all(abs(model.at(n) - AMBIENT) < 1e-3 for n in LAMINATE),
+                 str([round(model.at(n) - AMBIENT, 3) for n in LAMINATE]))
 
-    # THE SAME RAMP AS THE BOARD'S, and there is only one way to be sure:
-    # put a node and the winding the same fraction up their own scales
-    # and ask both.
-    # The node's spend crosses the wire as a byte, so the comparison is
-    # made at the spend the byte says, not the one the placement asked.
+    # THE SAME RAMP AS A BOARD NODE'S: a node and the winding the same
+    # fraction up their own scales get the same factor - one definition.
     node = Model(lib)
     node.place('phase_u', AMBIENT + 0.947 * (LIMIT_C - AMBIENT))
     b = node.budget()
     spend = b['used']['phase_u']
-    hot = Winding(lib, celsius=AMBIENT + spend * (WINDING_LIMIT_C - AMBIENT))
+    hot = Model(lib)
+    hot.place('winding', AMBIENT + spend * (WINDING_LIMIT_C - AMBIENT))
     a = hot.budget()
-    report.check('at %.3f of its ceiling the winding throttles' % spend,
-                 a['throttling'] and 0.0 < a['derate'] < 1.0
-                 and not a['tripped'],
-                 'clamp %.3f' % a['derate'])
-    report.check('by exactly the factor a node at %.3f of its own gets - '
-                 'one ramp, one definition' % spend,
-                 abs(a['derate'] - b['derate']) < 2e-3,
+    report.check('at %.3f of its ceiling the winding is the worst node and '
+                 'throttles' % spend,
+                 a['worst_node'] == 'winding' and a['throttling']
+                 and 0.0 < a['derate'] < 1.0 and not a['tripped'],
+                 '%s, clamp %.3f' % (a['worst_node'], a['derate']))
+    report.check('by exactly the factor a node at %.3f of its own gets'
+                 % spend, abs(a['derate'] - b['derate']) < 2e-3,
                  'winding %.3f, node %.3f' % (a['derate'], b['derate']))
+    report.check('and its OWN factor is what the wire reports beside the '
+                 'whole',
+                 abs(hot.node_derate('winding') - a['derate']) < 1e-6,
+                 '%.3f' % hot.node_derate('winding'))
 
-    cooked = Winding(lib, celsius=WINDING_LIMIT_C + 1.0)
+    cooked = Model(lib)
+    cooked.place('winding', WINDING_LIMIT_C + 1.0)
     got = cooked.budget()
     report.check('past its ceiling it trips and the clamp is closed',
                  got['tripped'] and got['derate'] == 0.0,
-                 '%.3f spent, clamp %.3f' % (got['used'], got['derate']))
+                 'clamp %.3f' % got['derate'])
 
-    # THE HOLD, NOT THE TEMPERATURE. A cold winding with a hundred watts
-    # on it and one joule per kelvin has under a second to its ceiling:
-    # inside a twenty second window that is most of the window gone.
-    thin = Winding(lib, capacity=1.0)
-    soon = thin.budget(watt=100.0, lookahead_s=20.0)
-    now = thin.budget(watt=100.0, lookahead_s=0.0)
+    # THE HOLD, NOT THE TEMPERATURE: a cold winding of one joule per
+    # kelvin with a hundred watts on it has under a second to its ceiling.
+    thin = Model(lib)
+    thin.set_node('winding', r_ws, 1.0)
+    soon = thin.budget({'winding': 100.0}, lookahead_s=20.0)
+    now = thin.budget({'winding': 100.0}, lookahead_s=0.0)
     report.check('a cold winding whose hold has fallen into the window '
                  'is throttled on the hold',
                  soon['derate'] < 1.0 and now['derate'] == 1.0,
                  'with lookahead %.3f, without %.3f'
                  % (soon['derate'], now['derate']))
 
-    off = Winding(lib, limit_c=0.0, celsius=200.0)
-    got = off.budget()
+    off = Model(lib)
+    off.place('winding', 200.0)
+    limits = off.limits()
+    limits[NODES.index('winding')] = 0.0
+    got = off.budget(limits=limits)
     report.check('a zero ceiling disables the winding: nothing spent, '
                  'nothing tripped, the clamp open',
-                 got['used'] == 0.0 and not got['tripped']
+                 got['used']['winding'] == 0.0 and not got['tripped']
                  and got['derate'] == 1.0,
-                 '%.3f spent, clamp %.3f' % (got['used'], got['derate']))
+                 '%.3f spent, clamp %.3f' % (got['used']['winding'],
+                                             got['derate']))
+
+
+def test_the_laminate_is_a_graph_that_reproduces_the_bulk(report, lib):
+    """Seven patches whose capacities and air paths sum to the one board
+    the camera measured, joined by the copper's own conductances - and a
+    leg that warms its neighbour.
+
+    THE STAR COULD NOT: one board node for a disc with a seventeen kelvin
+    gradient across it, six leg nodes that could not warm each other
+    except through that average. The patches follow the picture's frames
+    and their areas the outline; the conductances between them are a
+    sheet conductance times shared boundary over centre distance, with
+    the one sheet figure chosen so the V leg's patch sees the 15.2 K/W
+    the camera measured lumped - so the campaign is reproduced and the
+    geometry is the rest.
+    """
+    model = Model(lib)
+    cap = sum(model.capacity(n) for n in LAMINATE)
+    report.check('the patches\' capacities sum to the measured 49 J/K',
+                 abs(cap - 49.0) < 0.05, '%.2f J/K' % cap)
+    g_air = sum(1.0 / model.to_ambient_at(n, 5.0) for n in LAMINATE)
+    report.check('and their air paths in parallel to the measured 8.33 K/W',
+                 abs(1.0 / g_air - 8.33) < 0.1, '%.2f K/W' % (1.0 / g_air))
+    report.check('each patch\'s path is the bulk\'s over its share of the '
+                 'face',
+                 abs(model.to_ambient_at('board', 5.0) * 0.199 - 8.33) < 0.05,
+                 '%.1f K/W x 0.199' % model.to_ambient_at('board', 5.0))
+
+    joins = edges(lib)
+    g = sum(1.0 / model.edge_r(e) for e, (a, b) in enumerate(joins)
+            if 'patch_v' in (a, b) and {a, b} <= set(LAMINATE))
+    report.check('the V patch\'s neighbours in parallel are the camera\'s '
+                 'lumped bridge-to-board', abs(1.0 / g - 15.2) < 0.5,
+                 '%.1f K/W' % (1.0 / g))
+    report.check('and a leg\'s switches into that patch make the record\'s '
+                 '28 a leg',
+                 abs(model.edge_r(0) + 1.0 / g - 28.0) < 1.5,
+                 '%.1f K/W' % (model.edge_r(0) + 1.0 / g))
+
+    # A LEG WARMS ITS NEIGHBOUR. 20 W on U's switches, settled: U's patch
+    # hottest, then V's beside it, then W's across the board; and the
+    # regulators' corner beside U warmer than the hot swap's beside W.
+    for _ in range(20000):
+        model.step({'driver_u': 20.0}, 1.0)
+    report.check('20 W on U warms U\'s patch most, V\'s next, W\'s least',
+                 model.at('patch_u') > model.at('patch_v')
+                 > model.at('patch_w') > AMBIENT + 1.0,
+                 'U %.1f, V %.1f, W %.1f' % (model.at('patch_u'),
+                                             model.at('patch_v'),
+                                             model.at('patch_w')))
+    report.check('and the corner beside U more than the corner beside W',
+                 model.at('patch_left') > model.at('patch_right') + 0.5,
+                 'left %.1f, right %.1f' % (model.at('patch_left'),
+                                            model.at('patch_right')))
+    lost = sum((model.at(n) - AMBIENT)
+               / model.to_ambient_at(n, model.at(n) - AMBIENT)
+               for n in LAMINATE)
+    report.check('settled, the face loses to the air what the leg makes',
+                 abs(lost - 20.0) < 0.1, '%.2f W' % lost)
+
+
+def test_the_switching_loss_follows_the_coss_law(report, lib):
+    """The no-load switching scales as the stored C_oss energy, not
+    linearly; with current, the overlap, the body diode and the gate
+    charge join it, each with a datasheet behind it.
+
+    IT WAS A POINT MEASUREMENT SCALED WITH VOLTAGE ALONE - 1.2 W at
+    24.6 V, times V/24.6 - so at 63 V the model booked 2.6x where the
+    C_oss law gives 4.3x, and no current dependence at all.
+    """
+    loss = losses(lib)
+    e_cal = lib.thm_coss_energy(loss['switch_volts'])
+    e_63 = lib.thm_coss_energy(63.0)
+    m, vj = loss['coss_m'], loss['coss_vj']
+
+    def law(v):
+        u = 1.0 + v / vj
+        return ((u ** (2.0 - m) - 1.0) / (2.0 - m)
+                - (u ** (1.0 - m) - 1.0) / (1.0 - m))
+
+    report.check('the C_oss energy is the closed form of the model\'s law',
+                 abs(e_63 / e_cal - law(63.0) / law(loss['switch_volts']))
+                 < 1e-3,
+                 '%.3f against %.3f'
+                 % (e_63 / e_cal, law(63.0) / law(loss['switch_volts'])))
+    report.check('and at 63 V it is over four times the 24.6 V figure, '
+                 'where a line gave 2.6',
+                 e_63 / e_cal > 4.0 and e_63 / e_cal > 63.0 / 24.6,
+                 '%.2fx' % (e_63 / e_cal))
+
+    gate = 2.0 * loss['q_g'] * loss['v_drive'] * loss['f_sw']
+    drivers = ('driver_u', 'driver_v', 'driver_w')
+    at_cal = power(lib, duty=(0.5, 0.5, 0.5),
+                   link_volts=loss['switch_volts'], switching=True)
+    at_63 = power(lib, duty=(0.5, 0.5, 0.5), link_volts=63.0,
+                  switching=True)
+    sw_cal = sum(at_cal[n] for n in drivers) - 3.0 * gate
+    sw_63 = sum(at_63[n] for n in drivers) - 3.0 * gate
+    report.check('no load at the calibration link: the measured 1.2 W, its '
+                 'driver share on the switches',
+                 abs(sw_cal - loss['switching_watt'] * loss['driver_share'])
+                 < 1e-3, '%.3f W' % sw_cal)
+    report.check('no load at 63 V: the same times the C_oss ratio',
+                 abs(sw_63 / sw_cal - e_63 / e_cal) < 1e-3,
+                 '%.2fx' % (sw_63 / sw_cal))
+
+    # WITH CURRENT: 100 A rms on U at 48 V, dead time 30 ns.
+    sq = 100.0 ** 2
+    t_dead = 30e-9
+    loaded = power(lib, phase_sq=(sq, 0.0, 0.0), duty=(0.5, 0.0, 0.0),
+                   link_volts=48.0, switching=True, t_dead_s=t_dead)
+    still = power(lib, phase_sq=(sq, 0.0, 0.0), duty=(0.5, 0.0, 0.0),
+                  link_volts=48.0, switching=False, t_dead_s=t_dead)
+    e_48 = lib.thm_coss_energy(48.0)
+    noload = ((loss['switching_watt'] / 3.0) * (e_48 / e_cal)
+              * loss['driver_share'])
+    overlap = 48.0 * 100.0 * loss['t_switch_s'] * loss['f_sw']
+    diode = 2.0 * loss['v_sd'] * 0.9 * 100.0 * t_dead * loss['f_sw']
+    extra = loaded['driver_u'] - still['driver_u']
+    report.check('switching 100 A adds the C_oss dump, the overlap, the body '
+                 'diode across the dead time and the gate charge',
+                 abs(extra - (noload + overlap + diode + gate)) < 0.02,
+                 '%.3f W against %.3f'
+                 % (extra, noload + overlap + diode + gate))
+    report.check('the overlap is the biggest of them at this current',
+                 overlap > noload and overlap > diode and overlap > gate,
+                 'overlap %.2f, C_oss %.2f, diode %.2f, gate %.2f'
+                 % (overlap, noload, diode, gate))
+    report.check('and none of it without switching - conduction only',
+                 abs(still['driver_u'] - sq * loss['rds_on']) < 1e-3,
+                 '%.3f W' % still['driver_u'])
+    report.check('the buck pays the gate charge\'s conversion loss on the '
+                 'regulators',
+                 abs((loaded['regulators'] - still['regulators'])
+                     - ((loss['switching_watt'] / 3.0) * (e_48 / e_cal)
+                        * (1.0 - loss['driver_share'])
+                        + gate * (1.0 / loss['buck_eff'] - 1.0))) < 1e-3,
+                 '%.3f W' % (loaded['regulators'] - still['regulators']))
+
+
+def test_the_junction_rides_the_node(report, lib):
+    """A die is its node plus its own power through R_th - not a constant.
+
+    The MCU sat a fixed 27 K over its package; that was 0.666 W through
+    40.5 K/W, and a die that does more sits higher. A FET's is the
+    datasheet's 0.69 K/W R_th,JC on half a leg's watts - what the 175 C
+    limit is against, and why a 125 C copper ceiling keeps 44 K.
+    """
+    model = Model(lib)
+    model.place('driver_u', 100.0)
+    model.place('mcu', 45.0)
+    watt = {'driver_u': 18.0, 'mcu': 0.666}
+    report.check('a FET\'s junction is its node plus half the leg\'s watts '
+                 'through R_th,JC',
+                 abs(model.junction(watt, 'driver_u') - (100.0 + 9.0 * 0.69))
+                 < 1e-3, '%.2f C' % model.junction(watt, 'driver_u'))
+    report.check('the MCU\'s die at its static watts is the campaign\'s 27 K '
+                 'over its package',
+                 abs(model.junction(watt, 'mcu') - 45.0 - 27.0) < 0.05,
+                 '%.2f C' % model.junction(watt, 'mcu'))
+    report.check('and no power, no rise',
+                 model.junction({}, 'driver_u') == 100.0)
+
+    # THE ANCHOR TAKES IT OFF: a die seen at 72 C with 0.666 W in it is a
+    # package at 45, and the patch under it 0.666 x 22.5 lower again.
+    seen = Model(lib)
+    for _ in range(3000):
+        seen.step({'mcu': 0.666}, 1.0, (math.nan, math.nan, 72.0))
+    report.check('a die read at 72 C anchors its node about 27 K under it',
+                 abs((72.0 - seen.at('mcu')) - 27.0) < 3.0,
+                 'node %.1f C' % seen.at('mcu'))
+    report.check('and the patch under it lower by its watts through its edge',
+                 seen.at('mcu') > seen.at('board') + 10.0,
+                 'node %.1f, centre %.1f' % (seen.at('mcu'), seen.at('board')))
+
+
+def test_the_motor_is_the_boards_boundary(report, lib):
+    """The rotor's air, the mount and the faces: what a bench does not have
+    and a motor does.
+
+    Forced convection with speed - `Nu ~ Re^1/2`, so an air path improves
+    with the square root of the rpm; the standoffs as edges from the
+    stator into the rim patches, open on the bench; the faces radiating
+    at each other by the bracket. Each a named parameter at zero or its
+    still-air value until a record says the board is on a motor.
+    """
+    model = Model(lib)
+    report.check('the bell in still air is its still-air figure',
+                 abs(model.to_ambient_at('rotor', 5.0, 0.0) - 4.0) < 1e-3,
+                 '%.2f K/W' % model.to_ambient_at('rotor', 5.0, 0.0))
+    report.check('and at 4000 rpm a third of it - one unit per sqrt(krpm)',
+                 abs(model.to_ambient_at('rotor', 5.0, 4000.0) - 4.0 / 3.0)
+                 < 1e-3,
+                 '%.2f K/W' % model.to_ambient_at('rotor', 5.0, 4000.0))
+    report.check('a patch behind the rotor gets a third of that improvement',
+                 abs(model.to_ambient_at('board', 5.0, 4000.0)
+                     / model.to_ambient_at('board', 5.0, 0.0) - 1.0 / 1.6)
+                 < 1e-3)
+
+    # A SPINNING MOTOR SHEDS FASTER. The same 15 W in the copper settles
+    # lower at speed than at rest.
+    rest, spun = Model(lib), Model(lib)
+    for _ in range(6000):
+        rest.step({'winding': 15.0}, 1.0)
+        spun.step({'winding': 15.0}, 1.0, speed_rpm=4000.0)
+    report.check('15 W in the copper settles lower at 4000 rpm than at rest',
+                 spun.at('winding') < rest.at('winding') - 5.0,
+                 '%.1f C against %.1f' % (spun.at('winding'),
+                                          rest.at('winding')))
+
+    # MOUNTED: six standoffs at 30 K/W each and the faces at 0.034 W/K.
+    # A stator held at 100 C then warms the rim patches, where on the
+    # bench it warmed nothing (the winding test has that side).
+    mounted = Model(lib)
+    for m in range(6):
+        mounted.set_edge(EDGE_MOUNT_FIRST + m, 30.0)
+    mounted.radiate_to_stator(0.034)
+    mounted.place('stator', 100.0)
+    mounted.set_node('stator', 1e6, 1e9)       # held hot: a motor running
+    for _ in range(600):
+        mounted.step({}, 1.0)
+    report.check('mounted, a hot stator warms the rim patches through the '
+                 'standoffs and the faces',
+                 all(mounted.at(n) > AMBIENT + 2.0
+                     for n in ('patch_u', 'patch_v', 'patch_w', 'patch_left',
+                               'patch_bottom', 'patch_right')),
+                 str([round(mounted.at(n) - AMBIENT, 1) for n in LAMINATE]))
+    report.check('and the centre through them',
+                 mounted.at('board') > AMBIENT + 1.0,
+                 '%.1f C' % mounted.at('board'))
+
+
+def test_a_long_step_is_sub_stepped(report, lib):
+    """An explicit step longer than a node's own constant oscillates; the
+    core slices any gap into quarter seconds, so a stalled main loop
+    lands where the fine integration does.
+    """
+    fine, coarse = Model(lib), Model(lib)
+    watt = {'driver_u': 18.0}
+    for _ in range(100):
+        fine.step(watt, 0.1)
+    for _ in range(5):
+        coarse.step(watt, 2.0)
+    report.check('ten seconds at 2 s steps lands where ten seconds at 0.1 s '
+                 'does, on a node whose constant is under two seconds',
+                 abs(fine.at('driver_u') - coarse.at('driver_u')) < 3.0
+                 and math.isfinite(coarse.at('driver_u')),
+                 '%.1f C against %.1f' % (coarse.at('driver_u'),
+                                          fine.at('driver_u')))
 
 
 ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_winding_is_an_envelope_of_its_own,
+          test_the_laminate_is_a_graph_that_reproduces_the_bulk,
+          test_the_switching_loss_follows_the_coss_law,
+          test_the_junction_rides_the_node,
+          test_the_motor_is_the_boards_boundary,
+          test_a_long_step_is_sub_stepped,
           test_the_lookahead_catches_a_ramp,
           test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,

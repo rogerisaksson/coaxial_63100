@@ -41,6 +41,9 @@ THERMAL_OP_SET_SAMPLE = 3
 THERMAL_OP_BUDGET = 4
 THERMAL_OP_SET_LIMIT = 5
 THERMAL_OP_SET_WINDING = 6
+THERMAL_OP_NODES = 7
+THERMAL_OP_EDGES = 8
+THERMAL_OP_SET_EDGE = 9
 
 
 class Thermal(Subsystem):
@@ -100,7 +103,51 @@ class Thermal(Subsystem):
         got['steps'] = r.u32()
         got['error'] = ((got['expected_ntc'] - got['ntc'])
                         if got['ntc'] is not None else None)
+        # MINOR 13: each leg's FET junction over its node - half the node's
+        # watts through R_th,JC - and the rotor speed the air paths were
+        # evaluated at. Absent on older firmware, and absent is honest.
+        if r.remaining >= 16:
+            got['junction_over'] = [r.i32() / 100.0 for _ in range(3)]
+            got['speed_rpm'] = r.i32()
         return got
+
+    def network(self):
+        """The graph the board runs: every node's capacity, air path, share
+        of the face, junction-per-watt and forced-convection gain, and
+        every edge's two nodes and K/W - what the record overlays on the
+        core's defaults, as the observer holds it now. MINOR 13; a board
+        without it refuses the op, and the raise says so.
+        """
+        nodes = {}
+        first = 0
+        while True:
+            r = Reader(self._op(THERMAL_OP_NODES, pack(('u8', first))))
+            count, first, n = r.u8(), r.u8(), r.u8()
+            for i in range(first, first + n):
+                name = ALL_NODES[i] if i < len(ALL_NODES) else 'node%d' % i
+                nodes[name] = {'capacity': r.i32() / 1e3,
+                               'to_ambient': r.i32() / 1e3,
+                               'area_share': r.i32() / 1e6,
+                               'rth_die': r.i32() / 1e3,
+                               'forced': r.i32() / 1e3}
+            first += n
+            if first >= count or n == 0:
+                break
+        r = Reader(self._op(THERMAL_OP_EDGES))
+        edges = []
+        for _ in range(r.u8()):
+            a, b = r.u8(), r.u8()
+            edges.append((ALL_NODES[a] if a < len(ALL_NODES) else 'node%d' % a,
+                          ALL_NODES[b] if b < len(ALL_NODES) else 'node%d' % b,
+                          r.i32() / 1e3))
+        return {'nodes': nodes, 'edges': edges}
+
+    def set_edge(self, edge, k_per_w):
+        """One edge's K/W, by index in the table `network()` lists; None
+        opens it. Written to the observer and to the record's RAM copy."""
+        milli = -1 if k_per_w is None else int(round(k_per_w * 1000))
+        return self._ack(THERMAL_OP_SET_EDGE, pack(('u8', int(edge)),
+                                                   ('i32', milli)))
 
     def budget(self):
         """What is left of the thermal budget, per node.
@@ -204,16 +251,18 @@ class Thermal(Subsystem):
             ('u32', int(round(settle_s * 1000))))))
 
     def set_node(self, node, to_board, capacity):
-        """Set one node's spreading resistance (K/W) and heat capacity (J/K).
+        """Set one node's first path out (K/W) and heat capacity (J/K).
 
-        The calibration behind the defaults was taken **dry** - nothing on the
-        phases, nothing drawn through the hot swap. Both change the moment
-        current flows: the phase node gains a conduction loss it has never
-        had, and at 100 A the shunt alone makes 35 W against the whole dry
+        The path is the node's edge into the laminate under it for a
+        source, its air path for a patch or the rotor, its edge into the
+        iron for the winding - `thermal_sink_edge`'s rule. The calibration
+        behind the defaults was taken **dry** - nothing on the phases,
+        nothing drawn through the hot swap. Both change the moment current
+        flows: at 100 A the shunt alone makes 35 W against the whole dry
         budget's 1.2 W.
 
-        Re-fitting is one division per node: `(T_zone - T_board) / P`, with T
-        from a camera against a dead patch of soldermask.
+        Re-fitting is one division per node: `(T_zone - T_patch) / P`, with
+        T from a camera against a dead patch of soldermask.
         """
         index = ALL_NODES.index(node) if isinstance(node, str) else int(node)
         return self._ack(THERMAL_OP_SET_NODE, pack(

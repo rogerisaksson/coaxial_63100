@@ -295,18 +295,39 @@ record of another version is refused, not misread.
 
 ## Thermal network
 
-`thermal/src/thermal.c`, ten nodes, fitted from a camera 2026-08-28
-at a 20 C room. Board to ambient 8.33 K/W, board capacity 49 J/K
-(tau 6.8 min). Per leg, driver and phase each 45.6 K/W to the board
-(the camera saw one bridge zone, 15.2 K/W lumped; per leg is three
-times that and no measurement says otherwise yet); mcu 22.5,
-regulators 15.0, afe 41.5 K/W. Capacities: driver 0.35 / 3, phase
-1.20 / 3, mcu 0.90, regulators 0.80, afe 0.30 J/K. The NTC sees the
-drivers at 1.055 with a 6.00 K offset; die over node: mcu 27 K
-(assumed), afe 0.5 K. Losses: Rds(on) 1.8 mΩ with alpha 7.8e-3 /K,
-shunt 3.5 mΩ, hot-swap 5 mΩ (not measured), switching 1.20 W for
-three legs at 50 % on 24.6 V, driver share 0.5, mcu 0.666 W, LDO
-0.534 W, afe 0.13 W.
+`thermal/src/thermal.c`, TWENTY NODES AND THIRTY EDGES since
+2026-09-05, anchored on a camera campaign of 2026-08-28 at a 20 C
+room: board to ambient 8.33 K/W and 49 J/K (tau 6.8 min) for the whole
+face, shared out over seven laminate patches by area - centre 0.199,
+U 0.109, V 0.134, W 0.109, left 0.126, bottom 0.197, right 0.126 of
+7776 mm² - joined in-plane by `1/(0.020 W/K x L/d)` over the raster's
+shared boundaries and centre distances (U-V 39, V-W 39, U-left 62,
+W-right 62, left-centre 48, centre-right 48, left-bottom 109,
+centre-bottom 32, right-bottom 109, V-centre 67, U-centre 263,
+W-centre 263 K/W; the sheet figure makes V's neighbours the camera's
+15.2 K/W lumped, and is what 2 oz on two layers at 40 % coverage
+computes to). Sources into their patches: a leg's switches 12 K/W
+(with the patch's 15 that is the record's 28 a leg, itself the
+log-midpoint of the camera's 45.6 and the datasheet's 16.9), its
+shunts 8, mcu 22.5, regulators 15.0, afe 41.5, hot swap 12 (estimate).
+Capacities: driver 0.35 / 3, phase 1.20 / 3, mcu 0.90, regulators
+0.80, afe 0.30, hot swap 0.50 J/K - NOT MEASURED, and the envelope
+divides by them. Junction over node per watt: FET 0.69 (R_th,JC), mcu
+40.5 (27 K at 0.666 W, assumed), afe 3.8. The motor: winding 180 J/K
+into the stator across 0.55 K/W, stator 360 J/K to still air at 1.65
+K/W and to the rotor across 2.0, rotor 180 J/K to still air at 4.0;
+forced convection per sqrt(krpm): stator 0.5, rotor 1.0, patches 0.3;
+the mount and the faces open on a bench - estimates, every one. The
+NTC sits in the centre patch 0.30 toward the V leg's patch, lagging
+about 215 s, with a 6.00 K instrument offset recorded and not applied.
+Losses: Rds(on) 1.8 mΩ with alpha 7.8e-3 /K, shunt 3.5 mΩ, hot swap
+3.6 mΩ (Q3 and Q4, the bridge's part, in series), the no-load
+switching 1.20 W for three legs at 50 % on 24.6 V scaled by the C_oss
+energy's law (CJO 15.6 nF, M 0.45, VJ 0.7: near V^1.55), driver share
+0.5, overlap 14 ns of `V I` a period (Q_gd 18 nC against 3.4 A on and
+2 A off), body diode 0.85 V across both dead times, gate charge 81 nC
+at 12 V from a buck at 85 %, mcu 0.666 W, LDO 0.534 W, afe 0.13 W.
+`test_thermal_core` holds every number to the core's defaults.
 
 The camera states the fit came from (NTC, then the rises of the
 bridge, the MCU, the regulators, the AFE):

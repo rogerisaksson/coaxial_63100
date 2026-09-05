@@ -322,15 +322,58 @@ MARK_INK = ansi.WHITE
 OFF, FIELD, MARK = 0, 1, 2
 
 
+#: Where each laminate patch's centre sits, millimetres from the board's,
+#: off the same raster that gave the model its areas - and how wide the
+#: blend between them is laid. THE PARTITION IS THE MODEL'S, NOT THE
+#: LAMINATE'S: read one patch per point the picture drew a step across
+#: the band's edge where the copper has a gradient, so the laminate under
+#: a point is the patches' temperatures weighted by a Gaussian of their
+#: distance - smooth, and each patch's own value at its own centre.
+PATCH_CENTRE = {'board': (0.0, -6.8), 'patch_u': (-27.6, 26.1),
+                'patch_v': (0.0, 30.7), 'patch_w': (27.6, 26.1),
+                'patch_left': (-35.3, -5.9), 'patch_bottom': (0.0, -35.3),
+                'patch_right': (35.3, -5.9)}
+PATCH_BLEND_MM = 14.0
+
+
+def laminate_at(x_mm, y_mm, nodes, board_c):
+    """The laminate under a point: the patches' temperatures blended by
+    distance where the observer reports patches, the bulk `board_c`
+    where an older firmware reports none."""
+    weight, total = 0.0, 0.0
+    two_sigma_sq = 2.0 * PATCH_BLEND_MM * PATCH_BLEND_MM
+    for name, (cx, cy) in PATCH_CENTRE.items():
+        value = nodes.get(name)
+        if value is None:
+            continue
+        d2 = (x_mm - cx) ** 2 + (y_mm - cy) ** 2
+        w = math.exp(-d2 / two_sigma_sq)
+        weight += w
+        total += w * value
+    return total / weight if weight > 1e-9 else board_c
+
+
 def field(x_mm, y_mm, board_c, nodes, layout=None):
-    """Temperature at one point: the board plus every source's contribution."""
+    """Temperature at one point: the laminate under it plus every source's
+    contribution.
+
+    THE LAMINATE IS THE PATCHES', when the observer has patches: since
+    the graph the board reports seven laminate temperatures, and the
+    picture blends them under the point (`laminate_at`) rather than one
+    bulk figure - so the front end's edge can sit cool while the bridge's
+    band is hot, which is what the camera saw and what one board node
+    could not draw. An older firmware reports no patches and the bulk
+    `board_c` stands for all of them.
+    """
     layout = LAYOUT if layout is None else layout
-    got = board_c
+    got = laminate_at(x_mm, y_mm, nodes, board_c)
     for name, spots in layout.items():
         value = nodes.get(name)
         if value is None:
             continue
-        over = value - board_c
+        # A source's rise is over the laminate it sits on - its patch
+        # where there is one - not over the bulk.
+        over = value - got
         if abs(over) < 1e-6:
             continue
         # STRONGEST point in the zone, not the sum of them. Dividing the rise

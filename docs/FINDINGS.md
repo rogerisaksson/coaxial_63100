@@ -1207,6 +1207,57 @@ record's own constants, no measurement.
   the shutter and the cap - 0.07 s and 90 degrees from 0.1 and 120 -
   and narrower is the dots a dot apart along the arc rather than half
   a dot: a lighter line, the same fade.
+* **The thermal observer is a graph of twenty nodes that follows the
+  copper, 2026-09-05.** The bench asked for the modelling taken to ten
+  of ten given the target. Judged against the lumped-network class the
+  papers in docs/papers put at about ten percent, the star was a six:
+  one board node for a disc with a seventeen kelvin gradient across it
+  in the camera's switching state, six leg nodes that could not warm
+  each other except through that average, the switching loss a point
+  scaled with voltage alone, the junction a constant, still room air
+  for a board behind a stator. Each is a coarser graph than the
+  physics, not a wrong equation, so each is closed by adding to the
+  graph: SEVEN LAMINATE PATCHES whose areas come off a quarter-mm
+  raster of the outline over the thermal picture's own partition (7776
+  mm² in all) and whose in-plane conductances are one sheet figure -
+  0.020 W/K per L/d, chosen so the V patch's three neighbours in
+  parallel are the 15.2 K/W the camera measured lumped, and what 2 oz
+  on two layers at 40 % coverage computes to - times shared boundary
+  over centre distance off the same raster; the legs warm each other
+  through them; THE HOT SWAP A NODE (35 W at 100 A had been booked on
+  the regulators, and its FETs are Q3 and Q4, the bridge's part, 3.6
+  mΩ in series - the plausible 5 mΩ was for "a hot-swap FET" before the
+  pick and place said which); THE MOTOR THE BOARD'S BOUNDARY - winding,
+  stator, rotor, the mount and the faces open on a bench, forced
+  convection per sqrt(krpm) off the drive's own speed; LOSSES AS
+  FUNCTIONS - the no-load switching scaled by the C_oss energy's own
+  law (near V^1.55: 4.3x at 63 V where a line gave 2.6x), the overlap
+  from Q_gd 18 nC against the driver's 3.4 A on and the resistor's 2 A
+  off, the body diode across both dead times off the record's
+  `deadtime_ns`, the gate charge 81 nC from a buck at 85 %; JUNCTIONS as
+  R_th times the part's watts, so the MCU's campaign 27 K is 0.666 W
+  through 40.5 K/W and rises with load. The integrator sub-steps to a
+  quarter second whatever the caller's gap: a leg's silicon is 1.4 s
+  now and an explicit 2 s step oscillated. The wire follows the count
+  (twenty, MINOR 13; ops 7, 8, 9 carry the table), CAL_VERSION 13 holds
+  the network with zero meaning the derived default, so an
+  identification has somewhere to keep what it learns, and the record's
+  winding fields feed its node as they fed the element. The host mirror
+  (`coaxial.thermal`) carries the same tables, relaxes the graph to a
+  steady state in 2 ms, and the stand-in integrates it; the thermal
+  picture reads its laminate off the patch under each point. Held on
+  the core through the host gcc, thirty checks: the patches sum to the
+  measured bulk, a leg warms its neighbour and the face loses what the
+  leg makes, the C_oss law and the four switching terms, the junction,
+  the mount open and closed, the rotor's air at speed, a 2 s step
+  landing where a 0.1 s one does. EVERY NEW NUMBER IS AN ESTIMATE WITH
+  A DERIVATION and no measurement, said in `thermal_defaults` beside
+  each; nine remains the papers' own numerical methods, which do not
+  belong in a 10 Hz loop on the target. Firmware 183.8 kB, 0 warnings,
+  not flashed. Two test assumptions went with the star: the leg's 28
+  K/W no longer exceeds the datasheet's 25.9 whole path on its own (the
+  graph's whole leg path, 35, still does, by a third), and lifting every
+  board ceiling now lifts the winding's too since it is a node.
 * **The stage throttles on the motor's SOA as well as the switches',
   2026-09-05.** THE MOTOR HAD NO ENVELOPE: ten nodes, every one on
   the board, and the winding was the rotor observer's own estimate

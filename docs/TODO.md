@@ -67,6 +67,16 @@ is still arithmetic. Every item names the file or record it lives in.
 
 ## Still arithmetic
 
+* **The thermal graph's new numbers are derived, none measured**
+  (2026-09-05): the seven patches' areas off the outline, the sheet
+  conductance chosen to reproduce the camera's lumped 15.2 K/W, the
+  sources' edges into their patches, the hot swap's 12 K/W and 0.5 J/K,
+  the motor's three capacities and four paths, the forced-convection
+  gains, the switching overlap's 14 ns, the body diode's 0.85 V, the
+  buck's 85 %. Each has a name in `thermal_defaults` and a place in the
+  record so the online identification can move it; a camera under
+  load, a switch node on a scope and a thermocouple on a winding are
+  the measurements that would settle them.
 * The phase gain (3.5 mΩ x 4.5455) is traced off the schematic and has
   never been spanned; the DC link is the only spanned channel.
 * `Q_RING` = 1.0 in `inverter.py` is assumed; the scope is the answer.

@@ -9,33 +9,47 @@
   * time. A reply that put them in one list would be the mistake invariant 9
   * is about - a value that looks like a measurement without being one.
   *
-  * `seconds` is how long the thermal observer has run. Without it an estimate cannot
-  * be judged: the network's time constant is 6.8 minutes, so anything under a
-  * few minutes has not settled. Judge it on the host - the board does not
-  * judge (invariant 10).
+  * `seconds` is how long the thermal observer has run. Without it an
+  * estimate cannot be judged: the laminate's time constant is minutes, so
+  * anything under a few has not settled. Judge it on the host - the board
+  * does not judge (invariant 10).
   *
   * Ops:
-  *   0  state      - measured NTC, estimated nodes, ambient, seconds
-  *   1  set node   - u8 node, i32 to_board_milli, i32 capacity_milli
-  *   2  set board  - i32 to_ambient_milli, i32 capacity_milli
- *   3  set sample - u32 every_ms, u32 settle_ms
- *   4  budget     - the SOA spend, one byte a node; MINOR 12 appends the
- *                   winding's estimate, spend and own factor
- *   5  set limit  - u8 node, i32 limit_milli_c, i32 throttle_ppm
- *   6  set winding - i32 limit_milli_c, i32 k_per_w_milli, i32 j_per_k_milli
+  *   0  state       - measured NTC, estimated nodes, ambient, seconds;
+  *                    MINOR 13 appends the three FET junction rises and
+  *                    the speed
+  *   1  set node    - u8 node, i32 k_per_w_milli, i32 capacity_milli: the
+  *                    node's first path out and its J/K
+  *   2  set board   - i32 to_ambient_milli, i32 capacity_milli: the bulk,
+  *                    shared out by area
+  *   3  set sample  - u32 every_ms, u32 settle_ms
+  *   4  budget      - the SOA spend, one byte a node; MINOR 12 appends the
+  *                    winding's estimate, spend and own factor
+  *   5  set limit   - u8 node, i32 limit_milli_c, i32 throttle_ppm
+  *   6  set winding - i32 limit_milli_c, i32 k_per_w_milli, i32 j_per_k_milli
+  *   7  nodes       - u8 first: the network's node table from there, ten a
+  *                    page: capacity, air path, area share, R_th, forced
+  *   8  edges       - the whole edge table: a, b, K/W each
+  *   9  set edge    - u8 edge, i32 k_per_w_milli; negative opens it
   ******************************************************************************
   */
 #include "board.h"
 #include "cmd.h"
 #include "wire.h"
 
-#define OP_STATE     0U
-#define OP_SET_NODE  1U
-#define OP_SET_BOARD 2U
+#define OP_STATE      0U
+#define OP_SET_NODE   1U
+#define OP_SET_BOARD  2U
 #define OP_SET_SAMPLE 3U
 #define OP_BUDGET     4U
 #define OP_SET_LIMIT  5U
 #define OP_SET_WINDING 6U
+#define OP_NODES      7U
+#define OP_EDGES      8U
+#define OP_SET_EDGE   9U
+
+/** Nodes a page of op 7 carries: five i32 each, so ten fit a frame. */
+#define NODES_A_PAGE 10U
 
 
 static cmd_status_t op_state(wr_t *out)
@@ -52,7 +66,8 @@ static cmd_status_t op_state(wr_t *out)
   wr_u8(out, th.ntc_measured ? 1U : 0U);
   wr_i32(out, th.ntc_centidegc);
 
-  /* Then the estimates, in node order. Append-only like everything here. */
+  /* Then the estimates, in node order. Append-only like everything here;
+     the count is what a host follows. */
   wr_u8(out, (uint8_t)BOARD_THERMAL_NODES);
   for (uint8_t i = 0U; i < (uint8_t)BOARD_THERMAL_NODES; i++)
   {
@@ -63,27 +78,28 @@ static cmd_status_t op_state(wr_t *out)
   wr_u32(out, th.seconds);
   wr_u8(out, th.settled ? 1U : 0U);
 
-  /* What the sampling is set to. Appended, so an older host stops reading
-     here and still parses everything above it. */
   uint32_t every_ms = 0U, settle_ms = 0U;
 
   Board_ThermalSampling(&every_ms, &settle_ms);
   wr_u32(out, every_ms);
   wr_u32(out, settle_ms);
 
-  /* The other two thermometers, each with its own flag. Separate fields
-     because they answer separately: all three share AFE_ON, but a die that
-     did not respond over SPI is not the same as a rail that was down. */
+  /* The other two thermometers, each with its own flag. */
   wr_u8(out, th.afe_measured ? 1U : 0U);
   wr_i32(out, th.afe_centidegc);
   wr_u8(out, th.mcu_measured ? 1U : 0U);
   wr_i32(out, th.mcu_centidegc);
   wr_u32(out, th.seen_ms_ago);
-
-  /* The integration count. `seconds` is wall clock, so its rate is 1.0 by
-     construction - a benchmark watching it could only ever see the thermal observer
-     stop, never slow down. */
   wr_u32(out, th.steps);
+
+  /* MINOR 13, appended (invariant 3): each leg's FET junction over its
+     node in centi-kelvin - what the datasheet's 175 C is against - and
+     the rotor speed the air paths were evaluated at. */
+  for (uint8_t leg = 0U; leg < 3U; leg++)
+  {
+    wr_i32(out, th.junction_over_centi[leg]);
+  }
+  wr_i32(out, th.speed_rpm);
   return CMD_OK;
 }
 
@@ -91,7 +107,7 @@ static cmd_status_t op_state(wr_t *out)
 static cmd_status_t op_set_node(rd_t *in, wr_t *out)
 {
   const uint8_t node = rd_u8(in);
-  const int32_t to_board = rd_i32(in);
+  const int32_t k_per_w = rd_i32(in);
   const int32_t capacity = rd_i32(in);
 
   if (!rd_ok(in))
@@ -100,16 +116,16 @@ static cmd_status_t op_set_node(rd_t *in, wr_t *out)
   }
   if (node >= (uint8_t)BOARD_THERMAL_NODES)
   {
-    cmd_took(out, "there are six nodes, 0..5 - see 0x6E device 8 op 0");
+    cmd_took(out, "there are twenty nodes, 0..19 - op 0 lists them");
     return CMD_OK;
   }
-  if ((to_board <= 0) || (capacity <= 0))
+  if ((k_per_w <= 0) || (capacity <= 0))
   {
-    cmd_took(out, "a spreading resistance and a heat capacity are both "
-                  "positive; milli-units, so 15200 is 15.2 K/W");
+    cmd_took(out, "a K/W and a heat capacity are both positive; "
+                  "milli-units, so 12000 is 12 K/W");
     return CMD_OK;
   }
-  if (!Board_ThermalSetNode(node, (float)to_board / 1000.0f,
+  if (!Board_ThermalSetNode(node, (float)k_per_w / 1000.0f,
                             (float)capacity / 1000.0f))
   {
     cmd_took(out, "the thermal observer is not running - it starts with the board");
@@ -171,12 +187,8 @@ static cmd_status_t op_set_sample(rd_t *in, wr_t *out)
 }
 
 
-/** op 4 - what is left of the thermal budget.
-  *
-  * One byte a node, 0 at ambient and 255 at the limit; degrees stay on op 0.
-  * `millis_to_limit` is what a burst plans on - 35 W into the phase node
-  * crosses the throttle point with under a second to go.
-  */
+/** op 4 - what is left of the thermal budget. One byte a node, 0 at
+  * ambient and 255 at the limit; degrees stay on op 0. */
 static cmd_status_t op_budget(wr_t *out)
 {
   board_budget_t b;
@@ -199,9 +211,7 @@ static cmd_status_t op_budget(wr_t *out)
   wr_u32(out, b.trips);
   /* MINOR 11, appended (invariant 3). The clamp's factor in micro, the
      joules each node can still absorb in milli, and the effective duty
-     per phase in micro - what the compares hold, not what was asked
-     for. A host on an older codec stops reading at `trips` and is right
-     about everything it read. */
+     per phase in micro. */
   wr_i32(out, (int32_t)(b.derate * 1000000.0f));
   for (uint8_t i = 0U; i < (uint8_t)BOARD_THERMAL_NODES; i++)
   {
@@ -211,10 +221,8 @@ static cmd_status_t op_budget(wr_t *out)
   {
     wr_i32(out, (int32_t)(b.duty[i] * 1000000.0f));
   }
-  /* MINOR 12, appended (invariant 3): the winding - its estimate in
-     centi-degrees, its spend as a byte like a node's, and its OWN clamp
-     factor in micro, so a host can say which envelope is holding the
-     stage back; `derate` above is the smaller of the two. */
+  /* MINOR 12, appended: the winding - its estimate in centi-degrees, its
+     spend as a byte like a node's, and its OWN clamp factor in micro. */
   wr_i32(out, (int32_t)(b.winding_c * 100.0f));
   wr_u8(out, b.winding_used);
   wr_i32(out, (int32_t)(b.winding_derate * 1000000.0f));
@@ -265,7 +273,7 @@ static cmd_status_t op_set_limit(rd_t *in, wr_t *out)
   }
   if (node >= (uint8_t)BOARD_THERMAL_NODES)
   {
-    cmd_took(out, "there are six nodes, 0..5 - see 0x6E device 8 op 0");
+    cmd_took(out, "there are twenty nodes, 0..19 - op 0 lists them");
     return CMD_OK;
   }
   if (!Board_ThermalSetLimit(node, (float)limit_milli / 1000.0f,
@@ -279,17 +287,117 @@ static cmd_status_t op_set_limit(rd_t *in, wr_t *out)
 }
 
 
+/** op 7 - the node table from `first`, NODES_A_PAGE at most: capacity in
+  * milli J/K, the air path in milli K/W (0: none), the area share in ppm,
+  * R_th in milli K/W, the forced-convection gain in milli. */
+static cmd_status_t op_nodes(rd_t *in, wr_t *out)
+{
+  const uint8_t first = rd_u8(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  if (first >= (uint8_t)BOARD_THERMAL_NODES)
+  {
+    return CMD_ERR_VALUE;
+  }
+  uint8_t count = (uint8_t)(BOARD_THERMAL_NODES - first);
+
+  if (count > NODES_A_PAGE)
+  {
+    count = NODES_A_PAGE;
+  }
+  wr_u8(out, (uint8_t)BOARD_THERMAL_NODES);
+  wr_u8(out, first);
+  wr_u8(out, count);
+  for (uint8_t i = first; i < (uint8_t)(first + count); i++)
+  {
+    float capacity = 0.0f, to_ambient = 0.0f, share = 0.0f, rth = 0.0f;
+    float forced = 0.0f;
+
+    if (!Board_ThermalNodeCfg(i, &capacity, &to_ambient, &share, &rth,
+                              &forced))
+    {
+      return CMD_ERR_DEVICE;
+    }
+    wr_i32(out, (int32_t)(capacity * 1000.0f));
+    wr_i32(out, (int32_t)(to_ambient * 1000.0f));
+    wr_i32(out, (int32_t)(share * 1000000.0f));
+    wr_i32(out, (int32_t)(rth * 1000.0f));
+    wr_i32(out, (int32_t)(forced * 1000.0f));
+  }
+  return CMD_OK;
+}
+
+
+/** op 8 - every edge: the two nodes it joins and the K/W across it in
+  * milli, zero for an open one. */
+static cmd_status_t op_edges(wr_t *out)
+{
+  wr_u8(out, (uint8_t)BOARD_THERMAL_EDGES);
+  for (uint8_t e = 0U; e < (uint8_t)BOARD_THERMAL_EDGES; e++)
+  {
+    uint8_t a = 0U, b = 0U;
+    float r = 0.0f;
+
+    if (!Board_ThermalEdge(e, &a, &b, &r))
+    {
+      return CMD_ERR_DEVICE;
+    }
+    wr_u8(out, a);
+    wr_u8(out, b);
+    wr_i32(out, (int32_t)(r * 1000.0f));
+  }
+  return CMD_OK;
+}
+
+
+/** op 9 - one edge's K/W, milli; negative opens it. */
+static cmd_status_t op_set_edge(rd_t *in, wr_t *out)
+{
+  const uint8_t edge = rd_u8(in);
+  const int32_t k_per_w_milli = rd_i32(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  if (edge >= (uint8_t)BOARD_THERMAL_EDGES)
+  {
+    cmd_took(out, "there are thirty edges, 0..29 - op 8 lists them");
+    return CMD_OK;
+  }
+  if (k_per_w_milli == 0)
+  {
+    cmd_took(out, "zero is no path at all - send a negative K/W to open an "
+                  "edge, or a positive one in milli-units to set it");
+    return CMD_OK;
+  }
+  if (!Board_ThermalSetEdge(edge, (float)k_per_w_milli / 1000.0f))
+  {
+    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    return CMD_OK;
+  }
+  cmd_took(out, NULL);
+  return CMD_OK;
+}
+
+
 cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
   {
-    case OP_STATE:     return op_state(out);
-    case OP_SET_NODE:  return op_set_node(in, out);
-    case OP_SET_BOARD: return op_set_board(in, out);
-    case OP_SET_SAMPLE: return op_set_sample(in, out);
-    case OP_BUDGET:     return op_budget(out);
-    case OP_SET_LIMIT:  return op_set_limit(in, out);
+    case OP_STATE:       return op_state(out);
+    case OP_SET_NODE:    return op_set_node(in, out);
+    case OP_SET_BOARD:   return op_set_board(in, out);
+    case OP_SET_SAMPLE:  return op_set_sample(in, out);
+    case OP_BUDGET:      return op_budget(out);
+    case OP_SET_LIMIT:   return op_set_limit(in, out);
     case OP_SET_WINDING: return op_set_winding(in, out);
-    default:           return CMD_ERR_VALUE;
+    case OP_NODES:       return op_nodes(in, out);
+    case OP_EDGES:       return op_edges(out);
+    case OP_SET_EDGE:    return op_set_edge(in, out);
+    default:             return CMD_ERR_VALUE;
   }
 }

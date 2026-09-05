@@ -289,7 +289,7 @@ extern "C" {
    set_limit('mcu') would land on driver W. That is invariant 3's MAJOR,
    whether meant or not. */
 #define CMD_PROTO_MAJOR 2U
-#define CMD_PROTO_MINOR 12U        /* 1: gate drivers op 10, alternate
+#define CMD_PROTO_MINOR 13U        /* 1: gate drivers op 10, alternate
                                      2: device 10, the drive; the DC link
                                         appended to gate drivers op 0
                                      3: a daq record ends with u16 count,
@@ -330,6 +330,14 @@ extern "C" {
                                         read-only and steering nothing
                                     11: thermal op 4 appends the derate,
                                         the soak joules and the duty
+                                    12: thermal op 4 appends the winding
+                                        - estimate, spend, own factor;
+                                        op 6 sets its envelope
+                                    13: twenty thermal nodes from ten,
+                                        the count says so; op 0 appends
+                                        the FET junction rises and the
+                                        speed; ops 7, 8, 9 - the node
+                                        table, the edge table, set edge
                                     12: thermal op 4 appends the winding
                                         - its estimate, spend and own
                                         factor - and op 6 sets its

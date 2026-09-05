@@ -694,13 +694,23 @@ def test_the_datasheet_against_the_thermal_model(r):
                                                 inverter.T_J_MAX))
 
     # THE SPREADING RESISTANCE, and here the sheet and the model fight.
-    # One FET's whole path to air on a JEDEC 2s2p board is 25.9 K/W; the
-    # model's spreading term alone is 45.6, on a board with heavier copper
-    # than 2s2p. FINDINGS has what that means for the campaign.
-    leg = thermal.CFG['to_board']['driver_v']
-    r.check('the model spreading term alone exceeds the datasheet whole '
-            'junction-to-air path, which cannot both be right',
-            leg > inverter.RTH_JA_JEDEC,
+    # One FET's whole path to air on a JEDEC 2s2p board is 25.9 K/W. The
+    # star's spreading term alone was 45.6, then 28, on a board with
+    # heavier copper than 2s2p; the graph's leg is its edge into its
+    # patch, the patch's neighbours in parallel and the bulk to the air -
+    # about 35, still longer than the sheet's whole path, by a third
+    # where the star was double. FINDINGS has what that means.
+    patch = 0.0
+    for (a, b, _r), r_edge in zip(thermal.EDGES, thermal.CFG['edges']):
+        if r_edge > 0.0 and 'patch_v' in (a, b) \
+                and {a, b} <= set(thermal.LAMINATE):
+            patch += 1.0 / r_edge
+    leg = (thermal.CFG['to_board']['driver_v'] + 1.0 / patch
+           + thermal.CFG['board_to_ambient'])
+    r.check('the model\'s whole leg path to the air still exceeds the '
+            'datasheet\'s junction-to-air on a coupon, by less than the '
+            'star did',
+            inverter.RTH_JA_JEDEC < leg < 2.0 * inverter.RTH_JA_JEDEC,
             '%.1f K/W against %.1f' % (leg, inverter.RTH_JA_JEDEC))
 
     # AND THE CONDUCTION IS BOOKED ON THE TYPICAL. The sheet's maximum is
@@ -762,7 +772,10 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
     from coaxial.thermal_device import THROTTLE_AT
 
     model = SimulatedThermal()
-    model.LIMIT, model.DEFAULT_LIMIT = {}, 1e4
+    # The board's ceilings lifted out of the way; the winding keeps its
+    # own - it is a node of the same graph since the graph, and its
+    # ceiling is the record's 120.
+    model.LIMIT, model.DEFAULT_LIMIT = {'winding': 120.0}, 1e4
     got, gate = [], []
     model._derate_to = got.append
     model._gate = lambda: gate.append(True) or True
@@ -787,11 +800,13 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
         if tripped_at is None and gate:
             tripped_at = b
             break
+    from coaxial import thermal as thermal_mirror
+    board_only = (max(v for n, v in throttled_at['used'].items()
+                      if n not in thermal_mirror.MOTOR)
+                  if throttled_at else None)
     r.check('60 A warms the winding and the board\'s nodes stay clear',
-            throttled_at is not None
-            and throttled_at['worst'] < THROTTLE_AT,
-            str(throttled_at and (throttled_at['winding_c'],
-                                  throttled_at['worst'])))
+            throttled_at is not None and board_only < THROTTLE_AT,
+            str(throttled_at and (throttled_at['winding_c'], board_only)))
     r.check('the winding throttles first, and what the stage got is the '
             'winding\'s own factor - the smaller of the two',
             throttled_at is not None and stage_got is not None

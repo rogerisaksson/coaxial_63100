@@ -467,8 +467,23 @@ u8 winding_used, i32 winding_derate_micro`. Op 5 set limit: `u8 node,
 i32 limit_milli_c, i32 throttle_ppm` → `u8 took`. Op 6 set winding
 (MINOR 12): `i32 limit_milli_c, i32 k_per_w_milli, i32 j_per_k_milli` →
 `u8 took`; a zero ceiling disables the winding, the constants must be
-positive. Nodes 0 .. 9: driver U/V/W, phase U/V/W, mcu, regulators, afe,
-board.
+positive. MINOR 13 appends to op 0 `i32 junction_over_centi[3]` - each
+leg's FET junction over its node - and `i32 speed_rpm`, and adds op 7
+nodes (`u8 first` → `u8 count, u8 first, u8 n`, then per node
+`i32 capacity_milli, i32 to_ambient_milli, i32 area_ppm, i32 rth_milli,
+i32 forced_milli`, ten a page), op 8 edges (`u8 count`, then per edge
+`u8 a, u8 b, i32 r_milli`, zero for an open one) and op 9 set edge
+(`u8 edge, i32 r_milli` → `u8 took`; negative opens it). Op 1's first
+value is the node's FIRST PATH OUT - its edge into the laminate under it
+for a source, its air path for a patch.
+
+TWENTY NODES SINCE MINOR 13, from ten. 0 .. 9 keep their indices and
+their meaning - driver U/V/W, phase U/V/W, mcu, regulators, afe, and
+`board`, the laminate's CENTRE patch, which is what the bulk node most
+nearly was; then 10 hotswap, 11 .. 16 the laminate under U, V, W, the
+regulators, the front end and the hot swap, 17 winding, 18 stator, 19
+rotor. The count byte lets a host follow the length (invariant 3): an
+older codec reads the first ten as it did and never sees the rest.
 MAJOR 2 (2026-08-29) gave each leg its own node and repurposed the
 indices.
 
@@ -621,6 +636,7 @@ MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 | 10 | drive op 14, the back-EMF observer chain |
 | 11 | thermal budget appends the derate, the soak joules and the effective duty |
 | 12 | thermal budget appends the winding - estimate, spend, own factor; thermal op 6 sets its envelope |
+| 13 | twenty thermal nodes, the count says so; op 0 appends the FET junction rises and the speed; ops 7, 8, 9 read the node table, the edge table, set an edge |
 
 MAJOR 2, 2026-08-29: the thermal nodes went per leg and the node
 indices were repurposed - a host could follow the length and not the

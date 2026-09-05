@@ -740,22 +740,57 @@ void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code);
   * drivers and the phases are three nodes each, one per leg. The count on
   * the wire lets a host follow the LENGTH - the meaning of the indices
   * changed, which is why this was CMD_PROTO MAJOR 2 (cmd.h). */
-#define BOARD_THERMAL_NODES 10
+/** TWENTY SINCE 2026-09-05, from ten: the laminate as seven patches that
+  * follow the copper, the hot swap as a node of its own, and the motor
+  * behind the board as three - the winding, the stator's iron and the
+  * rotor's bell. The first ten keep their indices and their meaning, so a
+  * host on an older codec reads them as it did (invariant 3); the count on
+  * the wire lets it follow the length. */
+#define BOARD_THERMAL_NODES 20
+
+/** The edges of the network, `thermal.c`'s table: each a K/W the record
+  * can overlay and the wire can name. */
+#define BOARD_THERMAL_EDGES 30
 
 /** The indices, for a record or a host that has to name one. `thermal.h`
   * has the enum and this mirrors it, because the calibration record is on
   * the wire and the portable core is not - a file that includes one does
   * not include the other. */
-#define BOARD_THERMAL_DRIVER_U   0
-#define BOARD_THERMAL_DRIVER_V   1
-#define BOARD_THERMAL_DRIVER_W   2
-#define BOARD_THERMAL_PHASE_U    3
-#define BOARD_THERMAL_PHASE_V    4
-#define BOARD_THERMAL_PHASE_W    5
-#define BOARD_THERMAL_MCU        6
-#define BOARD_THERMAL_REGULATORS 7
-#define BOARD_THERMAL_AFE        8
-#define BOARD_THERMAL_BOARD      9
+#define BOARD_THERMAL_DRIVER_U     0
+#define BOARD_THERMAL_DRIVER_V     1
+#define BOARD_THERMAL_DRIVER_W     2
+#define BOARD_THERMAL_PHASE_U      3
+#define BOARD_THERMAL_PHASE_V      4
+#define BOARD_THERMAL_PHASE_W      5
+#define BOARD_THERMAL_MCU          6
+#define BOARD_THERMAL_REGULATORS   7
+#define BOARD_THERMAL_AFE          8
+#define BOARD_THERMAL_BOARD        9    /**< the laminate's centre patch */
+#define BOARD_THERMAL_HOTSWAP      10
+#define BOARD_THERMAL_PATCH_U      11
+#define BOARD_THERMAL_PATCH_V      12
+#define BOARD_THERMAL_PATCH_W      13
+#define BOARD_THERMAL_PATCH_LEFT   14
+#define BOARD_THERMAL_PATCH_BOTTOM 15
+#define BOARD_THERMAL_PATCH_RIGHT  16
+#define BOARD_THERMAL_WINDING      17
+#define BOARD_THERMAL_STATOR       18
+#define BOARD_THERMAL_ROTOR        19
+
+/** One node's network entry in the record, milli-units; ZERO MEANS THE
+  * CORE'S DEFAULT for that field, so a record that never carried the
+  * network gets the derived one, and a default that improves reaches a
+  * board whose record has nothing to say about it. */
+typedef struct
+{
+  uint32_t capacity_milli;     /**< J/K                                  */
+  uint32_t to_ambient_milli;   /**< K/W to the air; a patch's own share  */
+  uint32_t forced_milli;       /**< per sqrt(krpm)                       */
+  uint32_t rth_milli;          /**< junction over node per watt          */
+} board_cal_node_t;
+
+/** An edge the record OPENS rather than defaults: the mount on a bench. */
+#define BOARD_CAL_EDGE_OPEN 0xFFFFFFFFUL
 
 #define BOARD_CAL_CHANNELS 10U
 
@@ -947,8 +982,36 @@ typedef struct
   uint32_t winding_j_per_k_milli;
   int32_t  winding_limit_centi;
 
+  /* CAL_VERSION 13: THE NETWORK, so the board carries the model it runs
+     and an identification running on the board has somewhere to put what
+     it learns. Every entry zero means the core's derived default; the
+     overlay is per field, so a record can hold one measured capacity
+     beside nineteen defaults. The edges in `thermal.c`'s table order,
+     milli K/W, BOARD_CAL_EDGE_OPEN to open one. The bulk's five and the
+     motor's iron loss beside them. The winding's own three above stay
+     its own: its capacity and its edge into the iron come from them, not
+     from these. */
+  board_cal_node_t thermal_node[BOARD_THERMAL_NODES];
+  uint32_t thermal_edge_milli[BOARD_THERMAL_EDGES];
+  uint32_t thermal_to_ambient_milli;     /**< the whole face, K/W          */
+  uint32_t thermal_capacity_milli;       /**< the whole laminate, J/K      */
+  uint32_t thermal_rad_share_ppm;
+  uint32_t thermal_ntc_sees_ppm;
+  uint32_t thermal_ntc_tau_ms;
+  uint32_t thermal_rad_board_stator_micro; /**< W/K at 300 K; 0 = bench    */
+  uint32_t thermal_k_iron_milli;         /**< W per (krpm)^2              */
+
   uint16_t crc;
 } board_cal_t;
+
+/** Overlay one node's, one edge's or the bulk's network entry in the
+  * record's RAM copy; `Board_CalSave` is what commits it. Milli-units,
+  * zero to fall back to the default; false for an index past the table. */
+bool Board_CalSetThermalNode(uint8_t node, uint32_t capacity_milli,
+                             uint32_t to_ambient_milli);
+bool Board_CalSetThermalEdge(uint8_t edge, uint32_t k_per_w_milli);
+bool Board_CalSetThermalBulk(uint32_t to_ambient_milli,
+                             uint32_t capacity_milli);
 
 /** Load the stored record, or fall back to the compiled-in defaults. Called
     once from main() before anything reads a channel. */
@@ -1272,7 +1335,23 @@ typedef struct
   int32_t expected_ntc_centidegc;              /**< the model's own NTC, for the error   */
   uint32_t seconds;                            /**< how long it has run                  */
   bool    settled;                             /**< the anchoring has converged          */
+  /** MINOR 13: each leg's FET junction over its node, centi-K - half the
+    * node's watts through R_th,JC - and the rotor speed the air paths
+    * were evaluated at. */
+  int32_t junction_over_centi[3];
+  int32_t speed_rpm;
 } board_thermal_t;
+
+/** One edge of the network: which two nodes, and the K/W across it now. */
+bool Board_ThermalEdge(uint8_t edge, uint8_t *a, uint8_t *b, float *k_per_w);
+
+/** Change one edge's K/W, in the observer and in the record's RAM copy;
+  * negative opens it. */
+bool Board_ThermalSetEdge(uint8_t edge, float k_per_w);
+
+/** One node's network entry as the observer runs it. */
+bool Board_ThermalNodeCfg(uint8_t node, float *capacity, float *to_ambient,
+                          float *area_share, float *rth_die, float *forced);
 
 /** The thermal budget: how much is spent and how long is left.
   *

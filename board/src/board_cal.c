@@ -54,10 +54,16 @@
       a reading. */
 /* 11: soa_undriven_mask - the housekeeping nodes are judged but not
       throttled on, because a clamp on the phase current cannot cool them. */
-#define CAL_VERSION 12U  /* 12: the winding's envelope - K/W, J/K and a
-                            ceiling for the one node that is not on the
-                            board, so the stage throttles on the motor's
-                            SOA as well as the switches'. */
+/* 12: the winding's envelope - K/W, J/K and a ceiling for the one node
+      that is not on the board, so the stage throttles on the motor's SOA
+      as well as the switches'. */
+#define CAL_VERSION 13U  /* 13: twenty nodes from ten - the laminate as
+                            seven patches, the hot swap, the motor as
+                            three - and THE NETWORK ITSELF in the record:
+                            a capacity, an air path and an edge each, zero
+                            for the core's derived default, so an
+                            identification on the board has somewhere to
+                            keep what it learns. */
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes; the record is a few hundred bytes against a
@@ -98,7 +104,18 @@ static const board_cal_t CAL_DEFAULTS =
      from a burst the board is there to survive. */
   .soa_limit_centi  = { 12500, 12500, 12500,      /* driver U, V, W */
                         12500, 12500, 12500,      /* phase  U, V, W */
-                        12500, 12500, 12500, 10500 },
+                        12500, 12500, 12500, 10500,  /* mcu, regs, afe, centre */
+                        /* CAL_VERSION 13: the hot swap's FETs are the
+                           bridge's part, so its junction limit; the six
+                           patches are laminate like the centre; the
+                           winding its own 120 (see below), the stator's
+                           iron and the rotor's magnets ESTIMATES at the
+                           winding's, since a bonded magnet's flux is the
+                           first thing lost above it. */
+                        12500,                         /* hotswap        */
+                        10500, 10500, 10500,           /* patch U, V, W  */
+                        10500, 10500, 10500,           /* left, bottom, right */
+                        12000, 12000, 12000 },         /* winding, stator, rotor */
   .soa_throttle_ppm = 900000UL,
   /* Two seconds of reaction window. The phase node's own constant is
      about eighteen seconds and a deep burst crosses its whole throttle
@@ -449,6 +466,42 @@ bool Board_CalSetWinding(int32_t limit_centi, uint32_t k_per_w_milli,
   s_cal.winding_limit_centi = limit_centi;
   s_cal.winding_k_per_w_milli = k_per_w_milli;
   s_cal.winding_j_per_k_milli = j_per_k_milli;
+  s_cal.crc = cal_crc(&s_cal);
+  return true;
+}
+
+
+bool Board_CalSetThermalNode(uint8_t node, uint32_t capacity_milli,
+                             uint32_t to_ambient_milli)
+{
+  if (node >= (uint8_t)BOARD_THERMAL_NODES)
+  {
+    return false;
+  }
+  s_cal.thermal_node[node].capacity_milli = capacity_milli;
+  s_cal.thermal_node[node].to_ambient_milli = to_ambient_milli;
+  s_cal.crc = cal_crc(&s_cal);
+  return true;
+}
+
+
+bool Board_CalSetThermalEdge(uint8_t edge, uint32_t k_per_w_milli)
+{
+  if (edge >= (uint8_t)BOARD_THERMAL_EDGES)
+  {
+    return false;
+  }
+  s_cal.thermal_edge_milli[edge] = k_per_w_milli;
+  s_cal.crc = cal_crc(&s_cal);
+  return true;
+}
+
+
+bool Board_CalSetThermalBulk(uint32_t to_ambient_milli,
+                             uint32_t capacity_milli)
+{
+  s_cal.thermal_to_ambient_milli = to_ambient_milli;
+  s_cal.thermal_capacity_milli = capacity_milli;
   s_cal.crc = cal_crc(&s_cal);
   return true;
 }
