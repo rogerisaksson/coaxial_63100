@@ -100,7 +100,15 @@ STEPS = (0.05, 0.1, 0.25, 0.5, 1.0)
 #: It cost an afternoon of adding a row, watching the can grow into the
 #: gauges, and adding another. The height was feeding the thing it was
 #: meant to fix.
-ART_WIDTH, ART_HEIGHT = 46, 24
+#:
+#: FIFTY-TWO WIDE, FROM FORTY-SIX, on the bench's word: "a shade bigger,
+#: and scale everything after it". The width is what sizes the can -
+#: the gutters take their columns first and the machine gets the rest -
+#: so six more columns are six more dots of radius, a fifth more motor;
+#: the rows follow through `fit_rows`, the legend's runs and the foot's
+#: rules through `machine.gutters`, and the instrument column keeps its
+#: forty. Nothing else is placed by a number of its own.
+ART_WIDTH, ART_HEIGHT = 52, 24
 
 #: Rows of the box that are captions rather than drawing: five above and
 #: one below.
@@ -2217,19 +2225,13 @@ def aspect_of(args):
 
     `--cell-aspect` still wins, because a bench that has measured its own
     font beats a query, and the query answers None on every terminal that
-    does not do XTWINOPS.
+    does not do XTWINOPS. SAID ON THE PAGE, whichever it was: at 2.3 an
+    assumed 2.0 left the can a row short of its band - air over the motor
+    the bench could see and nobody could explain, because nothing said
+    the measurement had not happened. STATUS carries it. The probe itself
+    is `screen.aspect_of`, shared with the shaft angle's face.
     """
-    if args.cell_aspect is not None:
-        return args.cell_aspect, 'given'
-    # SAID ON THE PAGE, whichever it was. A terminal that does not answer
-    # the query gets the assumed 2.0, and at 2.3 that leaves the can a
-    # row short of its band - air over the motor the bench could see and
-    # nobody could explain, because nothing said the measurement had not
-    # happened. STATUS carries it now.
-    seen = _screen.probe_aspect()
-    if seen:
-        return seen, 'measured'
-    return machine.CELL_ASPECT, 'assumed'
+    return _screen.aspect_of(args.cell_aspect)
 
 
 def parse_args(argv):

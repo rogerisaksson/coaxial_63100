@@ -334,6 +334,33 @@ def paced(keys, period, step=0.02):
         _time.sleep(min(step, deadline - now))
 
 
+def aspect_of(cell_aspect=None):
+    """`(aspect, how)`: what makes a circle round on THIS terminal.
+
+    ASKED, NOT ASSUMED. The renderers work in square dots and fold the
+    cell's shape in at the end, so getting this wrong does not blur a
+    picture - it stretches it, and a can drawn wide of round reads as a
+    rotor that is turned when it is not. 2.0 was the default because
+    most monospace fonts are near it; a terminal with its line height
+    turned up is not, and the bench saw every circle come out an oval -
+    the rotor observer's can first, then the shaft angle's face, which
+    is why this is here and not in either view.
+
+    A given `cell_aspect` wins, because a bench that has measured its
+    own font beats a query; the query answers None on every terminal
+    that does not do XTWINOPS, and then the assumed 2.0 stands - said,
+    whichever it was, so a page can show that the measurement did not
+    happen.
+    """
+    if cell_aspect is not None:
+        return cell_aspect, 'given'
+    seen = probe_aspect()
+    if seen:
+        return seen, 'measured'
+    from coaxial.ascii3d import CELL_ASPECT
+    return CELL_ASPECT, 'assumed'
+
+
 def gauge(fraction, width, hot=THROTTLE_AT):
     """A meter in the motif: the level in dots, the rest of the scale in
     the track's grey, the margin's amber past `hot`.

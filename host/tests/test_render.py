@@ -430,10 +430,16 @@ def test_the_face_is_a_halftone(report):
                  all(ord(g) > raster.BRAILLE
                      for row in field(8, 4, lambda x, y: -5.0) for g in row))
 
+    # On two rows of four the mask is a sample of itself, so a band can
+    # come out a dot or two under the one before it; the ramp still
+    # climbs, and end to end it climbs by more than any dip.
     ramp = field(n, 4, lambda x, y: x / float(n - 1))
     columns = [dots_in(ramp, x, 0, 8, 4) for x in range(0, n, 8)]
-    report.check('a ramp gains dots from one band to the next',
-                 columns == sorted(columns), ' '.join(map(str, columns)))
+    report.check('a ramp gains dots from one band to the next, within the '
+                 'mask\'s own grain',
+                 all(b >= a - 3 for a, b in zip(columns, columns[1:]))
+                 and columns[-1] > columns[0] + 8,
+                 ' '.join(map(str, columns)))
 
     report.check('the floor rolls off: continuous at the knee, ordered '
                  'below it, never DIMMEST',
@@ -482,6 +488,15 @@ def test_the_face_is_a_halftone(report):
     w._rim(grid, tone, classes, quads, heat, width, height, True)
     face = [grid[i // width][i % width] for i in range(width * height)
             if classes[i]]
+    # NO SURFACE UNDER THE DOTS. A background per cell - the face's tone
+    # dimmed, then blurred and coverage-weighted - was built and taken
+    # out on the bench's word: blocks in colour, then a haze. The tone
+    # stays a foreground alone, and a cell's ink is one RGB tuple.
+    report.check('no lit cell carries a background: the ink is the '
+                 'foreground alone',
+                 all(isinstance(tone[i // width][i % width], tuple)
+                     and len(tone[i // width][i % width]) == 3
+                     for i in range(width * height) if classes[i]))
     counts = [bin(ord(g) - raster.BRAILLE).count('1') for g in face]
     hist = collections.Counter(counts)
     mean = sum(counts) / float(8 * len(face))
@@ -489,17 +504,17 @@ def test_the_face_is_a_halftone(report):
     # terminal the glyph box is narrower than the cell, and past about
     # three dots in ten every cell reads as a brick. The face sits
     # between the floor and the ceiling, the rim cells solid above it.
-    report.check('the shipped board at the page\'s size is a stipple, not '
-                 'a wall: the face sits inside the density window and no '
-                 'cell is blank',
+    report.check('the shipped board at the page\'s size is scanlines, not '
+                 'a wall: the face sits inside the density window, no '
+                 'cell is blank, and whole and broken lines both occur',
                  floor - 0.03 <= mean <= ceil + 0.05 and hist[0] == 0
-                 and all(hist[r] for r in range(1, 5)),
+                 and hist[4] and (hist[2] or hist[3]),
                  '%.2f lit, %s' % (mean, ' '.join(
                      '%d:%d' % (r, hist[r]) for r in range(0, 9))))
-    # Scanlines light two rows of four, so the face's own alphabet is the
-    # sixteen patterns those rows make, plus the rim's lines.
-    report.check('and it wears more than the ladder\'s eight glyphs',
-                 len(set(face)) >= 16, '%d distinct' % len(set(face)))
+    # Near-whole scanlines on two rows of four: the face's own alphabet
+    # is the handful of patterns those rows make, plus the rim's lines.
+    report.check('and it wears more glyphs than a carpet of one',
+                 len(set(face)) >= 8, '%d distinct' % len(set(face)))
 
     # THE RIM, CLIPPED AND LIT. A part-covered cell's dots all lie in
     # quadrants the 2x2 raster reached - nothing spills past the board -

@@ -590,14 +590,22 @@ DOT_AT = tuple((lane * 0.5 - 0.25, (y - 1.5) / 4.0, BRAILLE_BITS[lane][y])
 #: 0.15 to 0.50 a stippled surface, 0.08 to 0.35 a light dusting with
 #: the shape in the rim and the outlines. The tone carries the light;
 #: the dots carry the shape, and few of them do it best.
-DENSITY_FLOOR = 0.12
+#:
+#: AND UP AGAIN TO 0.42 ONCE THE FACE WAS SCANLINES: "still a bit
+#: pixelly", and the pixels were the breaks in the lines. With the tone
+#: carrying the light, the lines can run nearly whole - 0.42 is 84 % of
+#: a lit row, so only the darkest of the board keeps a gap here and
+#: there, and the ceiling's 0.5 is a whole row. Rastered at 0.35, 0.42
+#: and 0.5 at the bench's framing: the whole lines were the smoothest,
+#: and 0.42 keeps a trace of shading in the dots on top of the tone's.
+DENSITY_FLOOR = 0.42
 
 #: And the brightest, well short of every dot, for the same reason: a
 #: raised part lit squarely and its relief ignited saturated into a
 #: solid bright rectangle. Under half its dots the brightest face is a
 #: denser stipple, not a block; the rim and the outline draw solid on
 #: their own terms, so an edge is still a line.
-DENSITY_CEIL = 0.45
+DENSITY_CEIL = 0.5
 
 #: THE FACE IS SCANLINES. Of a cell's four dot rows only these light,
 #: and the density rides along them doubled, so a cell carries the same
@@ -1951,7 +1959,12 @@ def _cells(solid, m, cam, crew, face, foreign):
 def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
     """The face: glow, halftone, rim, outline - in that order, each over
     the last. Out of `render` so that reads as the order of the passes
-    rather than as their arguments."""
+    rather than as their arguments. NO SURFACE UNDER THE DOTS: a
+    background per cell was built twice - flat, and blurred two cells
+    each way with the rim weighted by coverage - and taken out on the
+    bench's word: the flat one made the parts hard rectangles of colour,
+    the blurred one a haze over the board, and the crispest picture is
+    the braille alone with the edges drawn."""
     buf, coverage, quads, classes, levels, bare, seed = cells
     width, height = cam['width'], cam['height']
     heat = [0.0] * (width * height) if colour else None
@@ -1961,10 +1974,10 @@ def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
         _dots(grid, heat, classes, coverage, width, height,
               _expose(heat, classes, persist), quads)
     _rim(grid, tone, classes, quads, heat, width, height, colour)
-    # The outline, last, over the shading: the parts' edges as a
-    # wireframe overlay from the mesh's own creases - see OUTLINE_DEG.
-    # Measured before any of this: the parts were tone relief alone, a
-    # rung's worth, and the board read as one sheet.
+    # The outline, last of the ink, over the shading: the parts' edges
+    # as a wireframe overlay from the mesh's own creases - see
+    # OUTLINE_DEG. Measured before any of this: the parts were tone
+    # relief alone, a rung's worth, and the board read as one sheet.
     if not foreign:
         _outline(grid, tone, buf, cam, m, colour, heat=heat)
 

@@ -141,10 +141,14 @@ def _drive(amps, full=None):
     return tuple(max(-1.0, min(1.0, a / scale)) for a in amps)
 
 
-#: How far the bead stands proud of the can's outer edge, in dots. It
-#: rides ON the rim rather than clear of it: a position indicator not
-#: attached to the thing whose position it indicates indicates nothing.
-POINTER_SEAT = 0.6
+#: Where the bead rides, as a fraction of the can's radius: IN THE CAN'S
+#: WALL, midway between its two edges, and its wake with it - the air
+#: between the rings is a race for it to run in. It rode on the outer
+#: rim, half in and half out, until the bench asked for it between the
+#: two outer circles; a position indicator not attached to the thing
+#: whose position it indicates indicates nothing, and the wall is the
+#: rotor.
+POINTER_SEAT = (1.0 + F_CAN_INNER) / 2.0
 
 #: The bead: a ring with a dot in it - `_bead` has why a glyph, what it
 #: costs, and the four dot answers that were built and not kept.
@@ -1016,15 +1020,15 @@ def _bead(frame, seat, pointer_deg, glyph=None, rate=None):
     them, and still a mark whose size changes as it travels.
     """
     phi = math.radians(pointer_deg)
-    # ON THE RIM, half in and half out, so it breaks the silhouette
-    # where it is and closes behind it.
+    # IN THE WALL, between the can's two edges, so the rings stay whole
+    # and the bead runs in the race between them.
     #
     # `stretch` IS NOT OPTIONAL, and leaving it out was a real bug. The
     # radii are in x-dots and `_body` scales y by it, so a bead placed
     # with plain trigonometry rode the rim only where a dot happened to
     # be square. On a terminal whose cell is not two-by-one it sat
     # outside the periphery, which is where the bench found it.
-    seat_r = seat.radii.can + POINTER_SEAT
+    seat_r = seat.radii.can * POINTER_SEAT
     at_x = seat.cx + seat_r * math.cos(phi)
     at_y = seat.cy - seat_r * math.sin(phi) / seat.stretch
     # THE NEAREST CELL, MEASURED FROM ITS CENTRE. Truncating puts the

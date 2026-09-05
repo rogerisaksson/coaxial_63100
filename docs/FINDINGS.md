@@ -1142,6 +1142,54 @@ record's own constants, no measurement.
   the retro terminal's own - and with two rows of four always dark a
   cell cannot fill, so the bricks stay gone by construction. The face's
   alphabet is the sixteen patterns two rows make, plus the rim's lines.
+* **"Some smart trick" - the phosphor, built twice and taken out,
+  2026-09-05.** The one channel a braille cell has that nothing had
+  used: its BACKGROUND. Every lit cell's background painted with a dim
+  copy of the face's own tone, so there is no terminal black between
+  the dots, and a dot is a highlight on a surface rather than a point
+  in the dark. Flat, it showed the tone field's own cell steps - a
+  raised part was a hard bright rectangle of background, "a bit too
+  blocky with those shapes as background". Blurred two cells each way
+  by two sliding passes, and weighted by the cell's coverage from the
+  fold so the disc's silhouette anti-aliased in colour instead of
+  stepping by whole cells, it was smooth - and "a light haze over the
+  board": the surface took the crispness the dots had. The bench's
+  verdict, kept as the rule: the crispest picture is the braille alone,
+  rendered with the edges drawn. Both variants are gone, the escape
+  emitter's background pair with them, and the watch on the bench was
+  138 ms a frame at 150x44 for the blurred one against 67 without.
+  Rasters of both are the reason not to build a third.
+* **The bead runs in the can's wall, 2026-09-05.** It rode on the
+  outer rim, half in and half out; the bench asked for it between the
+  two outer circles, and the air between the can's edges is a race for
+  it to run in - `POINTER_SEAT` is the wall's middle as a fraction of
+  the can's radius now, and the wake runs the same race behind it, on
+  the side it came from, so the rings stay whole and the smear is
+  inside the rotor rather than across it.
+* **"Still a bit pixelly" - the breaks in the lines, 2026-09-05.** With
+  the face scanlines, what was left to be a pixel was every gap in a
+  line. The tone carries the light, so the lines can run nearly whole:
+  the density window is 0.42 to 0.5 - 84 % of a lit row at the floor,
+  a whole row at the ceiling - and only the darkest of the board keeps
+  a gap here and there. Rastered at 0.35, 0.42 and 0.5 at the bench's
+  framing: whole lines were the smoothest; 0.42 keeps a trace of the
+  light in the dots on top of the tone's.
+* **The shaft angle's face was the second oval, 2026-09-05.** The same
+  geometry as the can, the same fault: drawn at an assumed 2.0 cell on
+  a terminal whose cell is taller, and flattened across. The probe the
+  rotor observer grew for its can is `screen.aspect_of` now, one
+  definition for both views; the angle page asks it once, draws the
+  face round, and says in its box whether the cell was measured, given
+  or assumed. And a notch smaller - 58 by 21 from 64 by 23 - on the
+  bench's word, once it was round.
+* **The motor a fifth bigger, 2026-09-05.** "A shade bigger, and scale
+  everything after it": the rotor observer's box is 52 columns from
+  46. The width is what sizes the can - the gutters take their columns
+  first and the machine gets the rest - so six columns are six dots of
+  radius; the rows follow through `fit_rows`, the legend's runs and the
+  foot's rules through `machine.gutters`, and the instrument column
+  keeps its forty. Nothing else on the page is placed by a number of
+  its own, which is what made it one line.
 * **The can is seated at the top of its band, not centred.** Centred,
   whatever the band had over the can's height was split above and
   below - and on a terminal whose cell the view could not measure,

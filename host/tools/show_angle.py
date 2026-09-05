@@ -35,8 +35,11 @@ REG_FIELD = 0x2A
 #: WAS: at 52 by 21 the old rim was thirteen columns of full stops, and
 #: the dot matrix that replaced it buys four times the rows and twice the
 #: columns - a face worth drawing bigger. Bounded by the height, since a
-#: dot is square and the circle is round.
-ART_WIDTH, ART_HEIGHT = 64, 23
+#: dot is square and the circle is round. A NOTCH SMALLER AND TIGHTER
+#: than 64 by 23, on the bench's word, once the face was drawn round on
+#: its terminal (`screen.aspect_of`, the rotor observer's probe): the
+#: same theme as the motor page, an instrument that fills its box.
+ART_WIDTH, ART_HEIGHT = 58, 21
 
 
 def capability(board):
@@ -99,8 +102,11 @@ def _foot(console, degrees, field):
     return ansi.paint(line, dial.INK[dial.NEEDLE]) if console else line
 
 
-def compose(origin, console, part, state, field, kelvin, rate, note):
-    """One frame on the stage: the dial left, the target's numbers right."""
+def compose(origin, console, part, state, field, kelvin, rate, note,
+            aspect=(dial.CELL_ASPECT, 'assumed')):
+    """One frame on the stage: the dial left, the target's numbers right.
+    `aspect` is `(cell aspect, how it was known)` - the face is drawn
+    round for THIS terminal, and the box says whether that was measured."""
     from screen import frame_of, hud
 
     if state is None:
@@ -121,7 +127,7 @@ def compose(origin, console, part, state, field, kelvin, rate, note):
         # cannot do anything is worse than no call.
         art = '\n'.join(
             [dial.render(degrees, ART_WIDTH, ART_HEIGHT, field,
-                         colour=console),
+                         aspect=aspect[0], colour=console),
              _foot(console, degrees, field)])
 
         side = [hud(part['name'], [
@@ -130,7 +136,8 @@ def compose(origin, console, part, state, field, kelvin, rate, note):
                     ('counts', '%4d of 4096   flags %X'
                      % (counts, state['value'] >> 12)),
                     ('field', '%d gauss' % (field or 0)),
-                    ('die', '%.1f C' % ((kelvin or 273.15) - 273.15))]),
+                    ('die', '%.1f C' % ((kelvin or 273.15) - 273.15)),
+                    ('cell', '%.2f tall %s' % aspect)]),
                 hud('LOOP', [
                     ('state', str(state.get('loop', '?'))),
                     ('rate', '%.0f readings/s' % rate),
@@ -152,6 +159,9 @@ def main(argv=None):
     parser.add_argument('--frames', type=int, default=0,
                         help='stop after this many, instead of running until '
                              'closed')
+    parser.add_argument('--cell-aspect', type=float, default=None,
+                        help='how tall this terminal\'s cell is against its '
+                             'width; asked of the terminal when not given')
     args = parser.parse_args(argv)
 
     # power_afe SAID: the default went quiet-False when every connect
@@ -192,12 +202,17 @@ def main(argv=None):
     board_view = stage()
     console = board_view.is_terminal
     leaving = None
+    # THE CELL'S SHAPE, ASKED ONCE: the face is drawn round for this
+    # terminal the way the rotor observer's can is, and the box says
+    # whether the measurement happened.
+    aspect = _screen.aspect_of(args.cell_aspect)
+    say('ok', 'cell', '%.2f tall, %s' % aspect)
 
     def draw():
         state = steady(board.angle.state)
         tally.take(state['updates'] if state is not None else None)
         return compose(origin, console, part, state, field, kelvin,
-                       tally.rate, tally.note)
+                       tally.rate, tally.note, aspect)
 
     try:
         leaving = run_view(board_view, console, period, args.frames, draw)

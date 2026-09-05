@@ -1071,6 +1071,42 @@ def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
                      seen == {True, False}, str(sorted(seen)))
 
 
+def test_the_dial_is_round_on_this_terminal(report):
+    """The shaft angle's face takes the measured cell aspect, and is a
+    notch smaller than it was.
+
+    THE SECOND OVAL. The rotor observer's can was drawn at an assumed
+    2.0 cell and came out an ellipse on a terminal whose cell is taller;
+    it asks the terminal now, and the shaft angle's face - the same
+    geometry, the same fault - drew on at 2.0 until the bench saw it
+    flattened too. One probe (`screen.aspect_of`) serves both, and the
+    box says whether it measured.
+    """
+    sys.path.insert(0, HOST)
+    import screen
+    from coaxial import dial
+    from tools import show_angle as view
+
+    report.check('a given aspect wins, said as given',
+                 screen.aspect_of(2.3) == (2.3, 'given'))
+    report.check('and the face is a notch smaller than 64 by 23',
+                 (view.ART_WIDTH, view.ART_HEIGHT) < (64, 23)
+                 and view.ART_HEIGHT >= 19,
+                 '%d by %d' % (view.ART_WIDTH, view.ART_HEIGHT))
+
+    def rows_of(aspect):
+        lines = dial.render(0.0, view.ART_WIDTH, view.ART_HEIGHT, 100,
+                            aspect=aspect).split('\n')
+        return sum(1 for line in lines
+                   if any(0x2800 < ord(c) <= 0x28FF for c in line))
+
+    report.check('a taller cell draws the face over fewer rows - the '
+                 'circle stays a circle on the screen',
+                 rows_of(2.3) < rows_of(2.0),
+                 '%d rows at 2.3 against %d at 2.0'
+                 % (rows_of(2.3), rows_of(2.0)))
+
+
 def test_the_bead_trails_its_speed(report):
     """The wake behind the bead: its length is the speed, its side the
     direction, and it fades from the bead's orange into the south
@@ -1203,6 +1239,7 @@ def main():
     test_nothing_in_the_drawing_can_be_sheared(report)
     test_the_bead_is_round_at_every_angle(report)
     test_the_bead_trails_its_speed(report)
+    test_the_dial_is_round_on_this_terminal(report)
     test_the_terminal_is_asked_how_tall_a_cell_is(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
