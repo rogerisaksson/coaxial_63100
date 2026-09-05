@@ -1141,8 +1141,12 @@ looking at the estimate alone.
   the first cut put the word on a second foot row under the title and
   the bench abbreviated it back onto one. `POWER %5.2f` so a negative
   kilowatt does not shift the row (the bench's word) - to ±9.99, and
-  100 A of link is 6.3. On the stand-in the state reads UNCERTAIN until
-  it identifies.
+  100 A of link is 6.3. And `WINDING %5.1f` after the bench asked
+  whether three digits push on TH OBS: measured at 100.0 and 123.4 C
+  the head grew a cell and took it from its own gap, TH OBS and POWER
+  keeping their columns - by the parity of the centring, which the
+  fixed width no longer relies on. On the stand-in the state reads
+  UNCERTAIN until it identifies.
 
 ## The renderers
 

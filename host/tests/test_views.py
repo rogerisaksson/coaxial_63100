@@ -370,6 +370,19 @@ def test_the_foot_carries_the_policy(report):
     report.check('and a dash before the board has answered op 10',
                  'TH OBS -' in absent and absent.find('POWER')
                  == plain.find('POWER'), absent)
+    # THREE DIGITS ON THE WINDING. The bench's check: "see that WINDING
+    # xy.z C pushes on TH OBS when the temperature goes to three
+    # digits". Measured before the width was fixed: the head grew a cell
+    # and took it from its own gap, TH OBS stayed put - by the parity of
+    # the centring. Fixed at five cells it does not depend on that.
+    hot = a_view(20.0, stable)
+    hot['budget']['winding_c'] = 123.4
+    three = visible(view.gutter_caption(hot)[-1])
+    report.check('and a three-digit winding pushes nothing: TH OBS and '
+                 'POWER keep their columns',
+                 'WINDING 123.4' in three and three.find('TH OBS') == at
+                 and three.find('POWER') == plain.find('POWER')
+                 and len(three) == view.ART_WIDTH, three)
 
 
 def test_two_headrooms_named_apart(report):
@@ -688,7 +701,7 @@ def test_the_demo_actually_loads_the_machine(report):
         cwd=HOST, env=env, capture_output=True, text=True,
         encoding='utf-8', errors='replace', timeout=300)
     out = done.stdout + done.stderr
-    winding = re.search(r'WINDING ([0-9.]+)', out)
+    winding = re.search(r'WINDING +([0-9.]+)', out)   # %5.1f: a space at two digits
     soa = re.search(r'SWITCH SOA ([0-9.]+) %', out)
     report.check('the view ran two hundred frames simulated',
                  done.returncode == 0 and winding and soa,

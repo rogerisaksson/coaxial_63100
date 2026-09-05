@@ -930,7 +930,7 @@ def _foot_line(view):
     # and why. Inboard, the two strokes climbed toward each other across
     # the middle of the row and the pair read as one broken rule between
     # the labels.
-    head = '%s WINDING %.1f %sC' % (UP, winding(view), DEGREE)
+    head = '%s WINDING %5.1f %sC' % (UP, winding(view), DEGREE)
     tail = 'POWER %5.2f kW %s' % (watts(view) / 1000.0, UP)
     # A STROKE EACH, LEAVING THE HEAD AND RISING toward the level above
     # it. The dots climb the cell - low pair, middle pair, top pair - so
