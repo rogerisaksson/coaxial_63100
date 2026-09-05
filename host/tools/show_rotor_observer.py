@@ -59,6 +59,7 @@ from rich.text import Text                                  # noqa: E402
 from coaxial import braille   # noqa: E402
 from coaxial import machine   # noqa: E402
 from coaxial import motor     # noqa: E402
+from coaxial import thermal as _thermal   # noqa: E402
 from coaxial.simulated.power import SimulatedThermal   # noqa: E402
 from coaxial.errors import RigError                         # noqa: E402
 from coaxial.thermal_device import THROTTLE_AT             # noqa: E402
@@ -258,10 +259,24 @@ BAR_CELLS = 12
 #: Cells of drag per box scrolled. About a box's own height, so the
 #: column moves at the hand's speed rather than flying.
 DRAG_ROWS = 6.0
-#: The face of the winding thermometer at the foot of the drawing. A
-#: SCALE, not a limit: nothing on this board says what the magnet wire
-#: may take, and this page does not either (invariant 10).
-WINDING_SCALE_C = 150.0
+#: ONE SCALE FOR EVERY THERMOMETER ON THE PAGE, degrees C: the switch
+#: tubes, the NTC, the winding at the foot. A DRAWING SCALE, not a
+#: limit - the board judges nothing by it (invariant 10) and the colours
+#: carry the real ceilings, and nothing on this board says what the
+#: magnet wire may take. From -35 so a winter bench starts on the tube
+#: rather than under it, to 130 so a node at the record's highest
+#: ceiling (125) is seen short of the top - the bench's numbers,
+#: 2026-09-05. It was 125 from the reported ambient for the gutters and
+#: 150 from 20 for the winding: two rulers on one page, and a scale
+#: whose bottom moved with the room.
+TEMP_FLOOR_C, TEMP_SCALE_C = -35.0, 130.0
+
+
+def temp_share(celsius):
+    """Where a temperature sits on the page's scale, 0 at the floor and
+    1 at the top, clamped: the height of every tube."""
+    span = TEMP_SCALE_C - TEMP_FLOOR_C
+    return max(0.0, min(1.0, (celsius - TEMP_FLOOR_C) / span))
 #: The face of the power bar beside the board's thermometers: watts, on
 #: a POWER LAW pinned by where its middle sits.
 #:
@@ -296,7 +311,7 @@ HEADROOM_AMBER = 0.5
 #: worst of ten nodes against ceilings the calibration record gave it -
 #: silicon and copper. The motor's is the winding, which the board has no
 #: sensor for and no authority over: it is `3 i^2 R` relaxed into a
-#: placeholder pair, drawn against this page's own `WINDING_SCALE_C`. One
+#: placeholder pair, drawn against this page's own `TEMP_SCALE_C`. One
 #: is a margin the board acts on; the other is a margin only the operator
 #: can act on, and saying so is why they are named apart.
 #: OUTBOARD OF THE BOARD TEMPS, as two more tubes rather than a level
@@ -396,11 +411,11 @@ SOA_NODES = ('driver_u', 'phase_u', 'driver_v', 'phase_v',
 
 BOARD_NODES = ('mcu', 'regulators', 'afe', 'board')
 
-#: The ends of the thermistor's own colour ramp, degrees C. A BENCH
+#: The ends of the thermistor's own colour ramp, degrees C: the page's
+#: scale, so blue is the bottom of the tube and red its top. A BENCH
 #: SCALE, not a limit: nothing on this board was given a ceiling for the
-#: NTC, and these are the two ends of what a reader would call cold and
-#: hot on it.
-NTC_COLD_C, NTC_HOT_C = -20.0, 100.0
+#: NTC. (They were -20 and 100, a third ruler.)
+NTC_COLD_C, NTC_HOT_C = TEMP_FLOOR_C, TEMP_SCALE_C
 
 #: Columns of air between the switch thermometers and the NTC's own,
 #: and where the NTC sits in the left gutter. OUTERMOST, so the six
@@ -1442,7 +1457,6 @@ def winding(view):
     First order like the board's own observer, and integrated here
     because nothing on the wire carries it.
     """
-    from coaxial import thermal as _thermal
 
     now = time.monotonic()
     was, view['winding_at'] = view.get('winding_at'), now
@@ -1649,11 +1663,7 @@ def ntc_bar(view):
     seen = (view.get('thermal') or {}).get('ntc')
     if seen is None:
         return []
-    ambient = (view.get('thermal') or {}).get('ambient')
-    if ambient is None:
-        ambient = 20.0
-    span = max(1.0, TEMP_SCALE_C - ambient)
-    return [(max(0.0, min(1.0, (seen - ambient) / span)), ntc_class(seen))]
+    return [(temp_share(seen), ntc_class(seen))]
 
 
 def ntc_class(celsius):
@@ -1702,7 +1712,7 @@ def motor_headroom(view):
     ten nodes against ceilings its calibration record gave it, and the
     board acts on that itself. The winding has no sensor and no ceiling
     the board was given: it is `3 i^2 R` relaxed into a placeholder pair
-    (`coaxial.motor`), drawn against `WINDING_SCALE_C`, which is this
+    (`coaxial.motor`), drawn against `TEMP_SCALE_C`, which is this
     PAGE's scale and not a rating off a motor datasheet - there is no
     motor datasheet in this tree.
 
@@ -1720,8 +1730,7 @@ def motor_headroom_of(celsius):
     wall clock off the drive's own state, and a test that had to build
     that just to ask what 85 C is worth would be testing the integrator.
     """
-    span = max(1.0, WINDING_SCALE_C - 20.0)
-    return max(0.0, min(1.0, 1.0 - (celsius - 20.0) / span))
+    return 1.0 - temp_share(celsius)
 
 
 def headroom_class(left):
@@ -1758,15 +1767,6 @@ def soa_class(share, tripped=False):
     return machine.SOA_WARN if share >= THROTTLE_AT else machine.SOA_OK
 
 
-#: The gutters' common temperature scale, degrees C.
-#:
-#: A DRAWING SCALE, not a limit: the board judges nothing by it
-#: (invariant 10) and the colours below carry the real ceilings. The
-#: record's own highest is 125, so a full tube is a node at the hottest
-#: thing the record allows anything to be.
-TEMP_SCALE_C = 125.0
-
-
 def soa_bars(view, names):
     """`(fraction, class)` per node: HEIGHT IS HEAT, COLOUR IS MARGIN.
 
@@ -1791,16 +1791,12 @@ def soa_bars(view, names):
     used = budget.get('used') or {}
     seen = view.get('thermal') or {}
     nodes = seen.get('nodes') or {}
-    ambient = seen.get('ambient')
-    if ambient is None:
-        ambient = 20.0
-    span = max(1.0, TEMP_SCALE_C - ambient)
     tripped = bool(budget.get('tripped'))
     out = []
     for name in names:
         if name not in used or nodes.get(name) is None:
             continue
-        share = (nodes[name] - ambient) / span
+        share = temp_share(nodes[name])
         out.append((max(0.0, min(1.0, share)),
                     soa_class(used[name], tripped)))
     return out
@@ -1836,7 +1832,6 @@ def thermal_rows(view):
     per node: it cannot be driven into the SOA by a duty cycle, and
     whichever of it is worst arrives on the summary row anyway.
     """
-    from coaxial import thermal as _thermal
 
     th, budget = view.get('thermal'), view.get('budget')
     if not th:
@@ -2084,8 +2079,7 @@ def compose(rig, origin, console, view):
                          + foot_furniture()[0],
                          rules=foot_furniture()[1],
                          top=None,
-                         bottom=[(min(1.0, (winding(view) - 20.0)
-                                      / (WINDING_SCALE_C - 20.0)),
+                         bottom=[(temp_share(winding(view)),
                                   machine.SOA_WARN),
                                  watts_bar(view)],
                          colour=True)
@@ -2486,7 +2480,7 @@ def main(argv=None):
             'simulated': not origin.real,
             'tare': 0.0, 'sweep_at': time.time(),
             'travel': 0.0, 'travel_at': None, 'leaning': False,
-            'winding': 20.0, 'winding_at': None,
+            'winding': _thermal.AMBIENT, 'winding_at': None,
             'burst_until': 0.0, 'bursting': False, 'stage': None,
             'burst_at': time.time(),
             'load': False, 'load_at': 0.0, 'load_rising': True,

@@ -358,6 +358,125 @@ def test_key_light(report):
                  away < flat - 1.0, '%.1f vs %.1f' % (away, flat))
 
 
+def test_the_dots_are_sampled(report):
+    """The glyph is sampled per dot off the heat field, on the ladder's
+    own order: flat is the ladder, a gradient is the glyphs between.
+
+    ONE RUNG PER CELL WAS THE BLOCK. A desk-lamp gradient of a fraction
+    of a rung a cell rounded to one rung across the whole face, and the
+    attitude page drew a carpet of `⢕` with the parts on it - blocky,
+    the bench said, twice. Held here on synthetic fields, and on the
+    shipped board at the page's own size, where the ladder's window was
+    fitted on one frame and rungs 6-8 held one cell.
+    """
+    import collections
+    import math
+
+    from coaxial import orientation, raster
+    w = wireframe
+
+    bits, nested = 0, True
+    for rung in range(1, raster.RUNGS + 1):
+        bits |= w.LADDER[rung - 1]
+        nested = nested and chr(raster.BRAILLE + bits) == w.LIT[rung][0]
+    report.check('the ladder is nested: each rung is the one below plus a '
+                 'dot, and eight rungs are the whole cell',
+                 nested and len(set(w.LADDER)) == 8 and bits == 0xFF)
+
+    def field(width, height, heat_of):
+        classes = bytearray([1] * (width * height))
+        coverage = [1.0] * (width * height)
+        heat = [heat_of(x, y) for y in range(height) for x in range(width)]
+        grid = [[' '] * width for _ in range(height)]
+        w._dots(grid, heat, classes, coverage, width, height, (0.0, 8.0))
+        return grid
+
+    report.check('a flat field draws the ladder glyph of its rung, exactly',
+                 all(field(5, 5, lambda x, y, r=r: float(r))[2][2]
+                     == w.LIT[r][0] for r in range(1, 9)))
+    report.check('and a cell whose heat clears no dot keeps the first',
+                 field(3, 3, lambda x, y: 0.0)[1][1] == w.LIT[1][0])
+
+    ladder = {w.LIT[r][0] for r in range(1, 9)}
+    ramp = field(64, 1, lambda x, y: 0.5 + 8.0 * x / 63.0)[0]
+    counts = [bin(ord(g) - raster.BRAILLE).count('1') for g in ramp]
+    report.check('a gentle ramp climbs the ladder and never loses a dot',
+                 counts == sorted(counts) and set(ramp) <= ladder,
+                 ''.join(ramp))
+    # Five rungs a cell downward, four at the centre: the ladder's fifth
+    # dot is 4 (upper right) and the sampling lights 7 (lower left)
+    # instead - the bright side first, and a glyph the ladder alone never
+    # draws. Measured on synthetic ramps: a gradient under about 1.3
+    # rungs a cell reproduces the ladder exactly, whatever its direction.
+    # The glyphs between appear where the light changes STEEPLY inside a
+    # cell - an edge, a part's relief - which is where they belong.
+    tall = ord(field(3, 3, lambda x, y: 4.0 + 5.0 * (y - 1))[1][1])
+    tall -= raster.BRAILLE
+    report.check('a steep gradient down the cell lights its lower dots '
+                 'first - a glyph the ladder alone never draws',
+                 tall & 0x40 and not tall & 0x08
+                 and chr(raster.BRAILLE + tall) not in ladder,
+                 chr(raster.BRAILLE + tall))
+
+    report.check('the floor rolls off: continuous at the knee, ordered '
+                 'below it, never DIMMEST',
+                 w._floor(w.DIMMEST + w.KNEE) == w.DIMMEST + w.KNEE
+                 and w.DIMMEST < w._floor(-10.0) < w._floor(0.0)
+                 < w._floor(0.3) < w._floor(w.DIMMEST + w.KNEE))
+
+    classes = bytearray([1] * 100)
+    heat_a = [1.0 + 2.0 * i / 99.0 for i in range(100)]
+    heat_b = [h + 3.0 for h in heat_a]
+    persist = {}
+    lo_a, hi_a = w._expose(heat_a, classes, persist)
+    lo_b, hi_b = w._expose(heat_b, classes, persist)
+    raw_lo, raw_hi = w._expose(heat_b, classes)
+    report.check('the exposure follows a jump a third of the way a frame',
+                 abs((lo_b - lo_a) - w.EXPOSE_FOLLOW * (raw_lo - lo_a)) < 1e-9
+                 and hi_a < hi_b < raw_hi,
+                 '%.2f -> %.2f toward %.2f' % (lo_a, lo_b, raw_lo))
+
+    # THE SHIPPED BOARD at the attitude page's size, at the attitude the
+    # stand-in reports - `(i, j, k, real)`, rpy -5.6, +2.8, -0.6: a board
+    # lying on a bench. The colour path's own stages, so the count is of
+    # the FACE's cells and not the ground grid's. Measured before, at
+    # this pose: 299 of 561 lit cells on rung 1, the top three rungs
+    # 9.8 % of the face, eight glyphs.
+    from coaxial import engine
+    q = (-0.0489, 0.0245, -0.0036, 0.9984)
+    width, height, zoom = 78, 30, 0.88
+    _edges, solid = w._model(zoom, 0)
+    pts = solid[0]
+    reach = max(math.sqrt(pts[3 * i] ** 2 + pts[3 * i + 1] ** 2
+                          + pts[3 * i + 2] ** 2)
+                for i in range(len(pts) // 3))
+    cam = engine.camera(width, height, reach, distance=3.2, zoom=zoom,
+                        tip=w.CAMERA_TIP, lift=0.39)
+    m = engine.multiply(cam['view'], orientation.matrix(q))
+    buf, coverage, classes, levels, bare, seed = w._cells(
+        solid, m, cam, None, True, False)
+    grid = [[' '] * width for _ in range(height)]
+    tone = [[None] * width for _ in range(height)]
+    heat = [0.0] * (width * height)
+    w._glow(grid, tone, classes, levels, bare, seed, coverage, width,
+            height, True, cam=cam, buf=buf, heat_out=heat)
+    w._dots(grid, heat, classes, coverage, width, height,
+            w._expose(heat, classes))
+    face = [grid[i // width][i % width] for i in range(width * height)
+            if classes[i]]
+    hist = collections.Counter(
+        bin(ord(g) - raster.BRAILLE).count('1') for g in face)
+    report.check('the shipped board at the page\'s size spends every rung',
+                 all(hist[r] for r in range(1, 9)),
+                 ' '.join('%d:%d' % (r, hist[r]) for r in range(1, 9)))
+    top3 = sum(hist[r] for r in (6, 7, 8))
+    report.check('and the top three rungs hold a seventh of the face, up '
+                 'from a tenth', top3 >= 0.14 * len(face),
+                 '%d of %d' % (top3, len(face)))
+    report.check('and the face wears more glyphs than the ladder\'s eight',
+                 len(set(face)) > 8, '%d distinct' % len(set(face)))
+
+
 def test_triad(report):
     """The board's axes in the corner: each lettered once, X right and
     Y up at rest, and a quarter turn about Z puts X where Y was."""
@@ -553,6 +672,7 @@ def main():
     test_chain(report)
     test_outline(report)
     test_key_light(report)
+    test_the_dots_are_sampled(report)
     test_triad(report)
     test_steady(report)
     test_scroll(report)

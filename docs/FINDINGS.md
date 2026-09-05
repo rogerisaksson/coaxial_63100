@@ -943,6 +943,21 @@ record's own constants, no measurement.
   predicate (`envelope_acting`) for both. The darker red is deliberate:
   the envelope working is not a fault, and the page has already been
   taught once (FLASH_HZ, down from 3) not to shout about routine work.
+* **One ruler for every thermometer, 2026-09-05: -35 to 130 C, the
+  room at 25.** The gutters ran 125 C from the REPORTED ambient, the
+  winding at the foot 150 from a literal 20, and the NTC's colour ramp
+  -20 to 100 - three scales on one page, one of them moving with the
+  room. `TEMP_FLOOR_C, TEMP_SCALE_C` and `temp_share` are the one
+  definition now; the NTC ramp's ends are the scale's. The floor is
+  under a winter bench so a cold board starts on the tube, the top is
+  past the record's highest ceiling (125) so a node at its ceiling is
+  seen short of the top. The stand-in's `AMBIENT` is 25 (it was 20):
+  every idle figure recorded above from the stand-in - 49.1 C on the
+  MCU, 51.1 on the regulators, 0.30 of the budget spent idle - reads
+  about 5 K higher on it now, and the C core's test keeps its own 20.
+  The room sits at 36 % of the tube, and MOTOR SOA at rest reads 64 %
+  left rather than 100: a margin against the top of a scale that
+  starts under the room.
 
 ## The renderers
 
@@ -955,6 +970,47 @@ record's own constants, no measurement.
   the LEVEL changes. And the mono ladder sat two rungs heavy - class 2
   at six dots read as a slab where the exporter's `:` is two; four now,
   2.8 dots a cell measured against 3.6.
+* **Still blocky with the grain off, 2026-09-05: one rung per cell was
+  the block.** At the attitude page's own size and pose (100x34, the
+  board near flat) the face was a carpet of `⢕` - the desk lamp's
+  gradient is a fraction of a rung a cell, and rounded once per cell
+  the whole face rounded to the same rung, with the parts' outlines
+  drawn on a tile. Two things, measured: the ladder's window was
+  FITTED ON ONE FRAME (368 cells, zoom 1, one pose) and at the page's
+  size (78x30, zoom 0.88) at the attitude the stand-in reports - the
+  board lying on a bench, rpy -5.6 +2.8 -0.6 - it put 299 of the
+  face's 561 lit cells on rung 1; and at other poses the face fell
+  under the floor and half of it sat at exactly `DIMMEST` (p50 0.40)
+  - one tone, one rung, a slab. (Poses here are quaternions in the
+  page's own `(i, j, k, real)` order; a first survey passed `(real,
+  i, j, k)` and named its poses wrong.)
+  Three changes. The light is SAMPLED PER DOT: each of a cell's eight
+  dots is lit where the heat at the dot's own position - the cell's
+  heat plus its gradient from the lit neighbours - clears that dot's
+  rung, the rungs being the order the ladder adds dots in
+  (`LADDER`, read off `raster.SHADE` so the flat glyphs and the
+  sampled ones are one alphabet). A flat cell draws exactly the rung's
+  glyph as before; where the light changes inside a cell the glyphs
+  between the ladder's eight appear, in order - which is what "use the
+  whole braille block where it fits" means, and the bench asked for.
+  The window is EXPOSED PER FRAME on the frame's 5th-95th percentiles,
+  never narrower than the fitted window's share of the ladder so a
+  flat frame does not stretch its grain, followed at a third a frame.
+  And the floor is a roll-off (`KNEE`), not a clamp, so a face the
+  lamp barely reaches keeps its order and the dots can grade it. At
+  the page's pose the face's 561 lit cells went from
+  299/67/63/44/33/17/26/12 on rungs 1-8 to 158/83/73/76/73/36/29/33 -
+  the top three rungs from 9.8 % of the face to 17.5 %, and 17 distinct
+  glyphs on the face against the ladder's 8; the board turned 45
+  degrees about Y, the top three from 14.5 % to 28.9 %. WHERE THE
+  GLYPHS BETWEEN APPEAR, measured on synthetic fields: a linear
+  gradient under about 1.3 rungs a cell reproduces the ladder exactly
+  whatever its direction - the eight dots' thresholds are a rung apart
+  and a gentle slope never straddles one inside a cell - so they come
+  only where the light changes steeply inside a cell, an edge or a
+  part's relief, which is where they belong; the histogram's gain is
+  the exposure's and the knee's. The mono path is untouched: no light
+  to sample.
 * **The can is seated at the top of its band, not centred.** Centred,
   whatever the band had over the can's height was split above and
   below - and on a terminal whose cell the view could not measure,
@@ -985,6 +1041,24 @@ record's own constants, no measurement.
   while the leg is hot and lags only while the leg cools. Not clamped:
   a display that forbids the sensor to read above the source would be
   lying about the sensor.
+* **Wrong, and bounded now, 2026-09-05.** The bullet above argued from
+  a rod with its ends held, and the leg is not held: `thermal_step`
+  sheds it through ONE path, `(t - board) / to_board`, the copper the
+  thermistor sits on. A node that drains only into its neighbour cannot
+  fall below that neighbour, and a passive link in a chain fed from one
+  end cannot read above that end - the series network of the thesis in
+  `docs/papers` (Ziegenfelder 2022, 2.3, fig. 2.3), which the bench
+  pointed at when the page showed an NTC warmer than the switches that
+  heat it. The lagged state hung off the side of both nodes with its
+  own 47 s and could: measured on the core, 25 A on the V leg for two
+  minutes then off, the reading was 5.96 K over the leg 13.8 s after
+  the stop; 28.8 K at 60 A; 80 K at 100 A. Under load it never was
+  (0.65 K under, 2.9, 7.9) - the defect was the way down alone. The
+  reading is bounded by the pair it sits between now, in the core and
+  in the stand-in's own copy of the lag; after the stop it is +0.00 K
+  at every current and it still lags on the way up. The lag is the
+  patch's; the bound is the chain's.
+  `test_the_thermistor_never_reads_above_its_source` holds both.
 
 * **The thermometers went dead because the demo lost its load, not
   because the model changed.** Reported three times as "nearly static"

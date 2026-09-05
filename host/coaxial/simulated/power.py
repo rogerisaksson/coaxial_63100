@@ -79,8 +79,8 @@ class SimulatedThermal:
     #: - a driver is 0.35/3 J/K across 45.6 K/W, about five seconds - and
     #: that is the right rule for INTEGRATING and the wrong one for
     #: ACTING. The ramp is the last `lookahead_s * (1 - throttle_at)` of a
-    #: node's hold, 300 ms at the record's numbers, so a one second step
-    #: cannot land inside it. Measured 2026-09-03 on the stand-in at 90 A:
+    #: node's hold, 200 ms at the record's numbers (300 at the eighty-five
+    #: it throttled at first), so a one second step cannot land inside it. Measured 2026-09-03 on the stand-in at 90 A:
     #: 20.0 C on one poll and 158.6 C on the next, 33 K past a 125 C
     #: ceiling, derate 1.00 then 0.00, and the trip - the drive killed
     #: rather than throttled, which is the one thing the envelope is
@@ -252,6 +252,15 @@ class SimulatedThermal:
         want = thermal.expected_ntc(
             board, self._node[thermal.NTC_NEIGHBOUR] - board)
         self._ntc += (want - self._ntc) * min(1.0, dt / thermal.NTC_TAU_S)
+        # AND NEVER PAST EITHER OF THEM. The element sits on the copper
+        # the leg sheds through, between the leg and the bulk - a chain
+        # with its only source at the leg end, and a passive link in a
+        # chain cannot read above the end it is fed from (thermal.c has
+        # the argument, and the bench had the picture: an NTC warmer
+        # than the switches that heat it). The lag is the patch's; the
+        # bound is the chain's.
+        leg = self._node[thermal.NTC_NEIGHBOUR]
+        self._ntc = min(max(self._ntc, min(board, leg)), max(board, leg))
 
     def _power(self, dt, seen):
         """Watts per node, worked out from the sample. The observer's job.

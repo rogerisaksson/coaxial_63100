@@ -860,5 +860,30 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
     th->ntc = ntc_target(th);
   }
 
+  /* AND NEVER PAST EITHER OF THEM. The leg sheds only through the copper
+     this element sits on - `shed` above is its one path - so the leg
+     cannot fall below the copper it drains into, and a passive link in a
+     chain fed from one end cannot read above that end, whatever its own
+     lag (the series network of docs/papers, 2.3). The lagged state could:
+     25 A for two minutes then off, and it read 6 K over a leg that had
+     cooled past it, 29 K at 60 A - measured in test_thermal_core, and
+     seen on the bench as an NTC warmer than the switches that heat it.
+     The lag is the patch's; the bound is the chain's. */
+  {
+    const float bulk = th->t[THERMAL_BOARD];
+    const float leg_now = th->t[THERMAL_NTC_NEIGHBOUR];
+    const float low = (bulk < leg_now) ? bulk : leg_now;
+    const float high = (bulk < leg_now) ? leg_now : bulk;
+
+    if (th->ntc < low)
+    {
+      th->ntc = low;
+    }
+    if (th->ntc > high)
+    {
+      th->ntc = high;
+    }
+  }
+
   th->steps++;
 }

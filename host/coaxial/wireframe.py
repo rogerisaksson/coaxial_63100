@@ -513,6 +513,65 @@ HEAT_LO, HEAT_HI = 0.20, 0.55
 #: was ':' to '.' - one step of two. Two rungs of eight is the same
 #: fraction of the ladder.
 THIN_RUNGS = 2
+
+
+def _ladder():
+    """The order the ladder lights a cell's dots in, read off `LIT` so
+    the sampled glyphs and the flat ones are ONE alphabet: rung r is the
+    first r dots of this order, and a cell sampled flat draws exactly
+    the glyph `_pattern` gives that rung. Loud if `raster.SHADE` ever
+    sorts a rung whose smoothest pattern is not the one below plus a
+    dot - the sampling below rests on it."""
+    order, seen = [], 0
+    for rung in range(1, RUNGS + 1):
+        new = (ord(LIT[rung][0]) - BRAILLE) & ~seen
+        if not new or new & (new - 1):
+            raise ValueError('the ladder is not nested at rung %d' % rung)
+        order.append(new)
+        seen |= new
+    return tuple(order)
+
+
+LADDER = _ladder()
+RANK = {bit: rank for rank, bit in enumerate(LADDER)}
+
+#: Where each of a cell's eight dots sits, in cells from the cell's
+#: centre: two lanes a quarter cell either side, four rows at eighths
+#: down. THE LIGHT IS SAMPLED HERE, not once per cell. One rung per
+#: cell, a desk-lamp gradient of a fraction of a rung a cell rounded to
+#: the same rung across the whole face, and the face was a carpet of
+#: one glyph with the parts drawn on it - `⢕` over 90 % of a resting
+#: board at the attitude page's size, which the bench called blocky
+#: twice. Sampled at the dots off the cell's own heat gradient, the
+#: rung changes dot by dot across a cell, and the glyphs between the
+#: ladder's eight appear exactly where the light changes inside a
+#: cell: a flat cell is still one flat pattern, a gradient is every
+#: pattern the block has, in order.
+DOT_AT = tuple((lane * 0.5 - 0.25, (y - 1.5) / 4.0, BRAILLE_BITS[lane][y])
+               for lane in range(2) for y in range(4))
+
+#: The exposure: which percentiles of the frame's lit heat land at the
+#: ladder's ends, and how fast the window follows from frame to frame.
+#: PER FRAME, because a fixed window was fitted on one frame - 368 cells
+#: at zoom 1 in one pose - and at the page's own size and a tilt of 30
+#: degrees 316 of 453 lit cells sat on rung 1 with rungs 6 to 8 empty,
+#: measured. The window is never narrower than the fitted one's share
+#: of the ladder (`HEAT_HI - HEAT_LO`): a frame with little range keeps
+#: the calibrated spread rather than stretching its grain over the
+#: ladder, and a frame with more spends all of it. Followed at a third
+#: a frame so a turning board's exposure glides rather than snaps.
+EXPOSE = (0.05, 0.95)
+EXPOSE_FOLLOW = 0.3
+EXPOSE_LEAST = 16
+
+#: Below this much heat over the floor the tone rolls off toward
+#: DIMMEST instead of stopping on it. The hard floor pinned half of a
+#: board turned 45 degrees from the beam at exactly DIMMEST (p50 0.40,
+#: measured): one tone and, exposed, one rung - the dark face was a
+#: slab. Rolled off, every cell under the knee keeps its order, so the
+#: dots can still grade a face the lamp barely reaches. Nothing at or
+#: above the knee moves: the calibrated middle stands.
+KNEE = 1.0
 #: ONE hue, the console theme's cyan, as a pure luminance ladder:
 #: black through the teals to white-cyan for the sharpest highlight.
 #: The object never changes colour - only how much light its
@@ -918,17 +977,93 @@ def _pattern(rung, phase):
     return LIT[rung][0]
 
 
-def _rung(level, phase=0.0, drop=0):
-    """One cell of the tone ladder: `level` on the class scale, `phase`
-    the grain hash that picks among the patterns of that density.
+def _floor(heat):
+    """The tone's floor as a roll-off: at or above `DIMMEST + KNEE`
+    the heat is its own, below it decays toward DIMMEST and never
+    reaches it, continuous in value and slope at the knee."""
+    if heat >= DIMMEST + KNEE:
+        return heat
+    return DIMMEST + KNEE * math.exp((heat - DIMMEST - KNEE) / KNEE)
 
-    A DRAWN CELL IS NEVER BLANK. The class already decided there is
-    something here, so the darkest a lit cell goes is one dot - falling
-    to rung 0 would punch holes in a face the geometry says is solid.
-    """
-    span = LEVEL_HI - LEVEL_LO
-    step = (level - LEVEL_LO) / span if span else 0.0
-    return _pattern(int(step * RUNGS + 0.5) - drop, phase)
+
+def _expose(heat, classes, persist=None):
+    """The heat window the ladder spans this frame: `(lo, hi)`, lo at
+    rung 0 and hi at the top rung. The frame's own percentiles, widened
+    to at least the fitted window's share of the ladder, and followed
+    from the previous frame through `persist` when there is one."""
+    lit = sorted(heat[i] for i in range(len(classes)) if classes[i])
+    top = len(GLOW) - 1 + HOTTEST
+    least = (HEAT_HI - HEAT_LO) * (top - DIMMEST)
+    if len(lit) < EXPOSE_LEAST:
+        lo = DIMMEST + HEAT_LO * (top - DIMMEST)
+        hi = lo + least
+    else:
+        lo = lit[int(EXPOSE[0] * (len(lit) - 1))]
+        hi = lit[int(EXPOSE[1] * (len(lit) - 1))]
+        if hi - lo < least:
+            mid = 0.5 * (lo + hi)
+            lo, hi = mid - 0.5 * least, mid + 0.5 * least
+    if persist is not None:
+        was = persist.get('exposure')
+        if was is not None:
+            lo = was[0] + EXPOSE_FOLLOW * (lo - was[0])
+            hi = was[1] + EXPOSE_FOLLOW * (hi - was[1])
+        persist['exposure'] = (lo, hi)
+    return lo, hi
+
+
+def _slope(before, here, after):
+    """The heat's slope across a cell from its two neighbours along one
+    axis: central where both are lit, one-sided where one is, flat
+    where neither - a silhouette cell takes no gradient from the air."""
+    if before is not None and after is not None:
+        return 0.5 * (after - before)
+    if after is not None:
+        return after - here
+    if before is not None:
+        return here - before
+    return 0.0
+
+
+def _dots(grid, heat, classes, coverage, width, height, window):
+    """The glyphs, off the heat field: each of a cell's eight dots is lit
+    where the heat sampled AT THE DOT clears that dot's rung.
+
+    The heat at a dot is the cell's own plus its gradient - `_slope`
+    from the lit neighbours - times the dot's offset; the rung a dot
+    needs is its place in `LADDER`, so a cell with no gradient draws
+    exactly `_pattern`'s glyph for its rung and a cell with one draws
+    the glyph between. A DRAWN CELL IS NEVER BLANK: the class already
+    decided there is something here, and a cell whose heat clears no
+    dot keeps the ladder's first. A stair corner on the silhouette
+    still thins by THIN_RUNGS - that is the anti-aliasing, and a rim
+    cell missing half its coverage drops two rungs."""
+    lo, hi = window
+    gain = RUNGS / (hi - lo) if hi > lo else 0.0
+    for py in range(height):
+        row = py * width
+        for px in range(width):
+            at = row + px
+            if not classes[at]:
+                continue
+            here = heat[at]
+            gx = _slope(heat[at - 1] if px and classes[at - 1] else None,
+                        here,
+                        heat[at + 1] if px < width - 1 and classes[at + 1]
+                        else None)
+            gy = _slope(heat[at - width] if py and classes[at - width]
+                        else None,
+                        here,
+                        heat[at + width] if py < height - 1
+                        and classes[at + width] else None)
+            base = (here - lo) * gain
+            if 1.0 - coverage[at] >= 0.5:
+                base -= THIN_RUNGS
+            mask = 0
+            for ox, oy, bit in DOT_AT:
+                if base + (gx * ox + gy * oy) * gain > RANK[bit] + 0.5:
+                    mask |= bit
+            grid[py][px] = chr(BRAILLE + (mask or LADDER[0]))
 
 
 def _keylight(cam, width, height):
@@ -1071,23 +1206,15 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             missed = 1.0 - coverage[at]
             if missed:
                 heat -= FEATHER * missed
-            heat = (DIMMEST if heat < DIMMEST else
-                    (top_heat if heat > top_heat else heat))
+            heat = top_heat if heat > top_heat else _floor(heat)
             if heat_out is not None:
                 heat_out[at] = heat
             tone[py][px] = _blend(heat)
-            # AND THE GLYPH OFF THE SAME NUMBER. An ASCII render carries
-            # its 3D in the characters and the colour was carrying all of
-            # it here - a constant carpet of one glyph, which is what the
-            # three-character ramp could not avoid and eight dots can.
-            # The stair corner still thins: it is the anti-aliasing, and
-            # a rim cell missing half its coverage drops two rungs.
-            lift = (heat - DIMMEST) / (top_heat - DIMMEST)
-            lift = (lift - HEAT_LO) / (HEAT_HI - HEAT_LO)
-            grid[py][px] = _rung(
-                (0.0 if lift < 0.0 else (1.0 if lift > 1.0 else lift))
-                * (LEVEL_HI - LEVEL_LO) + LEVEL_LO, grain,
-                drop=(THIN_RUNGS if missed >= 0.5 else 0))
+            # AND THE GLYPH OFF THE SAME NUMBER, in `_dots` once every
+            # cell's heat is known: an ASCII render carries its 3D in the
+            # characters, and the dots are sampled from the heat FIELD -
+            # the neighbours' heat as well as this cell's - which this
+            # loop, one cell at a time, has not got yet.
 
 
 def _slab_top(pos):
@@ -1740,6 +1867,9 @@ def render(q, width, height, zoom=1.0, colour=True,
         heat = [0.0] * (width * height) if colour else None
         _glow(grid, tone, classes, levels, bare, seed, coverage, width,
               height, colour, cam=cam, buf=buf, heat_out=heat)
+        if colour:
+            _dots(grid, heat, classes, coverage, width, height,
+                  _expose(heat, classes, persist))
         # The outline, last, over the shading: the parts' edges as a
         # wireframe overlay from the mesh's own creases - see
         # OUTLINE_DEG. Measured before any of this: the parts were tone

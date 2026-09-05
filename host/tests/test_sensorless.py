@@ -637,9 +637,44 @@ def test_the_datasheet_against_the_thermal_model(r):
             '%.1f mOhm typ against 2.1 max' % (inverter.RDS_ON * 1e3))
 
 
+def test_the_stand_in_thermistor_stays_between_its_nodes(r):
+    """The stand-in's own copy of the thermistor lag carries the chain's bound.
+
+    `SimulatedThermal` integrates `coaxial.thermal`'s network itself and
+    lags its NTC at `NTC_TAU_S` toward the algebra - the same shape as
+    `thermal.c`, and it had the same defect: measured on the core, 25 A
+    for two minutes then off read the thermistor 6 K over the leg it
+    sits beside, 29 K at 60 A. The leg sheds only into the board, through
+    the copper the thermistor is on, so the reading cannot leave the pair
+    (FINDINGS, the thermistor). Held here on the stand-in, in model time,
+    so the page's demo cannot show an NTC warmer than its switches.
+    """
+    from coaxial import thermal
+    from coaxial.simulated.power import SimulatedThermal
+
+    model = SimulatedThermal()
+    worst, lagged = -1e9, False
+    for on in (True, False):
+        seen = {'amps': (0.0, 25.0, 0.0) if on else (0.0, 0.0, 0.0),
+                'switching': on}
+        for _ in range(int(120.0 / 0.05)):
+            model._integrate(0.05, seen)
+            leg = model._node[thermal.NTC_NEIGHBOUR]
+            board, ntc = model._node['board'], model._ntc
+            worst = max(worst, ntc - max(leg, board), min(leg, board) - ntc)
+            if on:
+                lagged = (lagged or
+                          ntc < thermal.expected_ntc(board, leg - board) - 1.0)
+    r.check('25 A for two minutes then off: the stand-in\'s reading never '
+            'leaves the pair it sits between', worst <= 1e-6,
+            '%+.3f K outside' % worst)
+    r.check('and it still lags on the way up', lagged)
+
+
 ROSTER = (test_inverter, test_the_placements_behind_the_thermal_model,
           test_the_board_stays_in_the_laminar_regime,
           test_the_datasheet_against_the_thermal_model,
+          test_the_stand_in_thermistor_stays_between_its_nodes,
           test_loop, test_motion,
           test_autodetect_recovers_each_machine,
           test_arithmetic, test_budget, test_kalman,

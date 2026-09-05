@@ -39,8 +39,9 @@ import math
 
 from . import inverter
 
-#: The room, measured. The board cannot read it itself.
-AMBIENT = 20.0
+#: The room, assumed: 25 C on the bench's word, 2026-09-05 (it was 20).
+#: The board cannot read it itself; the stand-in starts every node here.
+AMBIENT = 25.0
 
 #: The two camera states the NTC compensation is derived from.
 MEASURED = {

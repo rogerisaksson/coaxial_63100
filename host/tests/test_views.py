@@ -206,8 +206,15 @@ def test_both_gutters_run_on_one_scale(report):
                  left[1] == machine.SOA_OK and right[1] == machine.SOA_WARN,
                  'phase %s, board %s' % (left[1], right[1]))
     report.check('the scale is stated, not taken from a limit the board '
-                 'acts on',
-                 view.TEMP_SCALE_C == 125.0, '%.0f C' % view.TEMP_SCALE_C)
+                 'acts on: -35 to 130 on the bench\'s word, one ruler for '
+                 'every tube',
+                 (view.TEMP_FLOOR_C, view.TEMP_SCALE_C) == (-35.0, 130.0)
+                 and view.NTC_COLD_C == view.TEMP_FLOOR_C
+                 and view.NTC_HOT_C == view.TEMP_SCALE_C,
+                 '%.0f to %.0f C' % (view.TEMP_FLOOR_C, view.TEMP_SCALE_C))
+    report.check('and the room sits on the tube, not under it',
+                 abs(view.temp_share(25.0) - 60.0 / 165.0) < 1e-9,
+                 '%.3f' % view.temp_share(25.0))
 
 
 def test_a_power_node_never_reads_below_the_copper(report):
@@ -323,17 +330,18 @@ def test_two_headrooms_named_apart(report):
                  and len(set(view.HEADROOM_TITLES)) == 2,
                  str(view.HEADROOM_TITLES))
 
-    # A COLD MOTOR HAS ALL OF ITS MARGIN, a cooking one has none, and
-    # neither ever leaves the scale - a headroom below zero would draw a
-    # bar longer than its own track.
-    for celsius, want in ((20.0, 1.0), (view.WINDING_SCALE_C, 0.0),
-                          (view.WINDING_SCALE_C + 80.0, 0.0)):
+    # A MOTOR AT THE SCALE'S FLOOR HAS ALL OF ITS MARGIN, a cooking one
+    # has none, and neither ever leaves the scale - a headroom below zero
+    # would draw a bar longer than its own track. The floor is -35 and
+    # the top 130 on the bench's word: one scale for every thermometer.
+    for celsius, want in ((view.TEMP_FLOOR_C, 1.0), (view.TEMP_SCALE_C, 0.0),
+                          (view.TEMP_SCALE_C + 80.0, 0.0)):
         got = view.motor_headroom_of(celsius)
         report.check('a winding at %.0f C leaves %.0f %% of the scale'
                      % (celsius, 100.0 * want),
                      abs(got - want) < 0.02, '%.3f' % got)
 
-    half = (20.0 + view.WINDING_SCALE_C) / 2.0
+    half = (view.TEMP_FLOOR_C + view.TEMP_SCALE_C) / 2.0
     report.check('and half way up the scale is half the margin',
                  abs(view.motor_headroom_of(half) - 0.5) < 0.02,
                  '%.3f at %.0f C' % (view.motor_headroom_of(half), half))

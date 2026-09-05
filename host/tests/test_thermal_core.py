@@ -781,6 +781,48 @@ def test_the_reading_lags_between_the_two_nodes(report, lib):
                  '%.1f s against %.1f' % (tau, math.sqrt(leg * board)))
 
 
+def test_the_thermistor_never_reads_above_its_source(report, lib):
+    """The reading stays between the leg and the board - on the way down too.
+
+    IT READ ABOVE THE SWITCHES THAT HEAT IT. The element lags at 47 s
+    between a leg that falls in 5.3 s and a board that takes minutes,
+    and it hung off the side of both: measured before this check, 25 A
+    on the V leg for two minutes then off, the thermistor read 5.96 K
+    above the leg 13.8 s after the stop; at 60 A, 28.8 K. Under load it
+    never did (0.65 K under, 2.9 K at 60 A) - the defect was the lagged
+    state alone. The leg sheds ONLY through the copper the thermistor
+    sits on (`thermal_step`: `shed = (t - board) / to_board`, nothing
+    else), so the leg cannot fall below that copper, and a link in a
+    source-free chain fed from one end cannot read above that end - the
+    series network of docs/papers (2.3, fig. 2.3). The lag is the
+    patch's; the bound is the chain's.
+    """
+    dt = 0.05
+    for amps, read_over in ((25.0, 5.96), (60.0, 28.8)):
+        watt = power(lib, phase_amps=(0.0, amps, 0.0), duty=(0.0, 0.5, 0.0),
+                     link_volts=48.0, switching=True)
+        model = Model(lib)
+        lagged = False
+        worst = -1e9
+        for _ in range(int(120.0 / dt)):
+            model.step(watt, dt)
+            leg, board = model.at('driver_v'), model.at('board')
+            ntc = model.ntc()
+            lagged = lagged or ntc < board + NTC_SEES_LEG * (leg - board) - 1.0
+            worst = max(worst, ntc - max(leg, board))
+        for _ in range(int(120.0 / dt)):
+            model.step({}, dt)
+            leg, board = model.at('driver_v'), model.at('board')
+            ntc = model.ntc()
+            worst = max(worst, ntc - max(leg, board), min(leg, board) - ntc)
+        report.check('%.0f A for two minutes then off: the reading never '
+                     'leaves the pair it sits between (it read %.1f K over '
+                     'the leg)' % (amps, read_over),
+                     worst <= 1e-3, '%+.3f K outside' % worst)
+        report.check('and it still lags on the way up at %.0f A' % amps,
+                     lagged)
+
+
 def test_the_burst_budget_rests_on_an_unmeasured_capacity(report, lib):
     """What the leg capacity is worth, since nobody measured it.
 
@@ -915,6 +957,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_conduction_is_a_mean_square_not_a_sample,
           test_the_thermistor_has_mass,
           test_the_reading_lags_between_the_two_nodes,
+          test_the_thermistor_never_reads_above_its_source,
           test_the_burst_budget_rests_on_an_unmeasured_capacity,
           test_it_refuses_nothing_and_returns_no_codes,
           test_the_time_left_is_reported_or_not_claimed)
