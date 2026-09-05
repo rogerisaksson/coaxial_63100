@@ -23,7 +23,10 @@ modbus/      modbus_crc, modbus_slave, modbus_rtu, modbus_map - C11, no HAL
 drive/       drive.c, drive_math.c, drive_model.c - the control law and a
              motor model, C11, no HAL
 thermal/     the twenty-node graph observer - seven laminate patches, the
-             parts, the hot swap, the motor - and its envelope, C11
+             parts, the hot swap, the motor - and its envelope, C11;
+             thermal_ident.c identifies the network's air path and
+             capacity online from the board's three thermometers, a
+             shadow model and a Kalman step on its prediction error
 filter/      the anti-alias biquad chain, C11
 shtp/        the BNO08X transport parser, C11
 ```
@@ -291,15 +294,15 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2833 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2852 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 |---|---|---|
-| test_structure.py | 604 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
+| test_structure.py | 607 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 218 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
-| test_simulated.py | 214 | the stand-in and the renderers, the desk's braille bars |
+| test_simulated.py | 220 | the stand-in and the renderers, the desk's braille bars, the identification in the wire's shape |
 | test_live_model.py | 212 | the model, `--live` |
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
 | test_conformance.py | 110 | the live board against PROTOCOL.md, `--conformance` |
@@ -311,7 +314,7 @@ by `counts.py`:
 | test_mcp.py | 46 | the MCP server |
 | test_render.py | 79 | the 3D engine stage by stage against an analytic oracle, the scanline halftone and the drawn rim |
 | test_filter_core.py | 42 | the anti-alias chain against its transfer function |
-| test_thermal_core.py | 117 | the twenty-node graph through the host gcc - the patches summing to the bulk, a leg warming its neighbour, the C_oss law and the switching terms, the junction, the motor as boundary, the envelope - derate, lookahead, soak - and the thermistor bounded by its pair |
+| test_thermal_core.py | 127 | the twenty-node graph through the host gcc - the patches summing to the bulk, a leg warming its neighbour, the C_oss law and the switching terms, the junction, the motor as boundary, the envelope - derate, lookahead, soak - the thermistor bounded by its pair, and the identification against a ground truth whose situation changes: a box found as air 2, then a fan as 0.5, UNCERTAIN to CONVERGING to STABLE and back |
 | test_shtp_core.py | 38 | the SHTP parser |
 | test_broker.py | 33 | the shared session on a scripted port |
 | test_ollama_render.py | 32 | what the runner draws |

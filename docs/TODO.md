@@ -74,9 +74,20 @@ is still arithmetic. Every item names the file or record it lives in.
   the motor's three capacities and four paths, the forced-convection
   gains, the switching overlap's 14 ns, the body diode's 0.85 V, the
   buck's 85 %. Each has a name in `thermal_defaults` and a place in the
-  record so the online identification can move it; a camera under
-  load, a switch node on a scope and a thermocouple on a winding are
-  the measurements that would settle them.
+  record; a camera under load, a switch node on a scope and a
+  thermocouple on a winding are the measurements that would settle
+  them. **The online identification moves two of them** (2026-09-05,
+  `thermal_ident.c`): the face's air path and the laminate's capacity,
+  from the cooldowns' prediction error against the three thermometers,
+  saved to the record by the board itself. The sources' spread and the
+  thermistor's share are carried but held - a cooldown puts no power
+  through the legs' edges, so nothing on the board sees them - and a
+  static regressor at idle (the MCU die against the thermistor at
+  rest IS the MCU's edge) is what would free the spread. Still to
+  build of the bench's list: the stand-in running the same identifier
+  against a ground truth whose situation switches, the stand-in's
+  record as a file between runs, and the state as a field on the
+  observer pages with the margin it carries.
 * The phase gain (3.5 mΩ x 4.5455) is traced off the schematic and has
   never been spanned; the DC link is the only spanned channel.
 * `Q_RING` = 1.0 in `inverter.py` is assumed; the scope is the answer.

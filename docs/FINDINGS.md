@@ -900,6 +900,123 @@ record's own constants, no measurement.
   `thermal_model`) still quotes 85 until they are re-executed; the
   builder says 90.
 
+## The thermal identification, 2026-09-05
+
+Built and measured on the host against a ground truth the identifier
+does not know: the same twenty-node graph with its air path scaled -
+2.0 for a board in a box, 0.5 for a fan - read through the NTC and the
+two dies with ±0.05 K of noise every thirty seconds of every cooldown
+and never during a run (AFE_ON is low while anything switches). Three
+cycles of a ten-minute 20 W run at the legs and twenty minutes of
+cooling. `test_thermal_core.py` holds the result; `python
+tools/thermal_ident_trace.py [cycles] [air]` prints every innovation
+with its regressor and the scales after it. Nothing below was found by
+looking at the estimate alone.
+
+* **The observer ran open loop on the board, and had since the sampling
+  went to thirty seconds.** The anchor's pull was `THERMAL_ANCHOR_HZ *
+  dt_s` - 0.05/s sized as if a reading came with every step - and the
+  board reads its three thermometers every 30 s into a 100 ms step:
+  0.5 % of the residual per sample, "a wrong initial guess gone in a
+  minute or two" was a hundred minutes. Found because the identifier
+  inherited the observer's state and charged its error to the scales.
+  Now `1 - exp(-HZ * seconds since the last sample)`, 78 % at thirty
+  seconds, 5 % per step when a reading comes every step - the old
+  figure in the old case; `since_seen_s` in `thermal_t`.
+* **The thermistor's anchor inverted a lagged element as if it were
+  instantaneous.** `over = reading - board`, divided by `ntc_sees` to
+  place the V patch: the element lags the laminate by 215 s, reads
+  4 K above the average during a cooldown at these rates, and the
+  patch was placed 14 K hot at every sample. Now the miss is against
+  the MODELLED element, the element is anchored to what it reads (it
+  is its own temperature), and the patch takes the miss through the
+  share AND the lag - `0.5 tau / interval`, one to eight - so 39 % of
+  the patch's error a sample at thirty seconds where the share alone
+  took a ninth (leg patches 20 K cold at the third sample). Held at
+  the leg - the element within 2 K of the V patch, read or modelled -
+  the miss is the patch's one for one; the share's inverse there was a
+  gain of 2.6 a sample on a reading that IS the patch and the patch
+  swung ±25 K sample to sample. Only a miss that grew over one
+  interval (≤ 90 s since the previous sample) is read as the patch's:
+  after a blind run it is the element's own state, 33 K of it, and
+  inverting that put the V patch at 293 C on a 220 C truth.
+* **The laminate the thermometers do not reach moves with the ones they
+  do.** The mean of the dies' patch corrections goes to every board
+  node no thermometer anchors, and the V patch's correction to U's and
+  W's - one layout mirrored. Without it the legs' patches kept a run's
+  whole error through the cooldown (obs 178 C against 242 true at the
+  end of a run on the wrong air scale) and the identification read
+  their flow into the centre as a parameter: 3 to 5 K of innovation at
+  the first samples, absorbed to the clamps.
+* **A die's node lags its patch, and the patch was anchored hot by the
+  lag.** `patch = node - P R` is the steady algebra; the package's is
+  `C dT/dt = (patch - node) / R + P`, so `patch = node - P R + C R
+  dT/dt`, and at 0.08 K/s the MCU package (τ 20 s) rides 1.6 K above
+  the steady figure. Anchor and seat both placed the patch there; the
+  identification saw −0.8 K of MCU die innovation an interval that no
+  scale could fit while the NTC read +0.2 - the compromise was air
+  1.75, capacity 0.79 for a truth of 2.0, 1.0. With the rate term:
+  1.98, 1.05.
+* **The shadow must read the element by the observer's rule, bound
+  included.** The truth's element hits `never past either patch` 250 s
+  into a cooldown from 250 C patches and then tracks the V patch down
+  - a 7.6 K drop in one interval; the shadow integrated the lag
+  without the bound and predicted a slow fall: −5 K once, then −0.9 K
+  every sample charged to the laminate's capacity (0.34). Now
+  `thermal_ntc_follow` is one function both call, and the shadow's NTC
+  sensitivity is the held patch's while it is held.
+* **The identifier's own rules, all measured in:** the seat is
+  measurement-consistent (the element set to its reading, each die's
+  node to what it implies, the patch under it by the lag algebra) so
+  an innovation is the reading's change over the interval against the
+  model's and a slow state error cannot enter - subtracting the seat's
+  residual was tried first and a fraction of tens of kelvin is still
+  kelvin; the seat's own dependence on the spread goes into the
+  regressor (`s[SPREAD][patch] = per_r * R_base`) or each seat moves
+  the patch and nothing is charged for it; the sample that ends a
+  blind gap (> 90 s since a reading, measured from the last READING -
+  the shadow's horizon is reset at 600 s and a ten-minute run ends
+  exactly there) seats and is not judged, and two more pass while the
+  anchors work; an innovation beyond 3 σ of `hᵀPh + R` has R inflated
+  to sit at 3 σ; while UNCERTAIN the online variances are floored at
+  half the prior, or a handful of state-error samples collapsed the
+  covariance around 0.32 for a truth of 0.5 and the filter was certain
+  of it.
+* **SPREAD and NTC are not observable from a cooldown and are held.**
+  With only the air path changed in the truth, the spread ran to a
+  clamp - 0.25 or 4.0 - in every arrangement tried, and the NTC's
+  share followed: a cooldown puts no power through the legs' edges,
+  the dies' own edges are seen only through the seat's relation to
+  neighbours no thermometer reads, and a scale the data cannot see
+  absorbs what the others leave over. `thermal_ident_online` says which
+  move (air, capacity); the other two stay on the wire and in the
+  record for a bench to set. What would free the spread: a static
+  regressor at idle - the MCU die against the thermistor at rest IS the
+  MCU's edge (0.666 W × 22.5 K/W = 15 K per unit).
+* **What it does now, from the defaults, three cycles:** box - air
+  2.01 → 1.92 → 1.93, capacity 1.03 → 1.07 → 1.06, CONVERGING after
+  the first, STABLE after the second, innovation 0.05-0.06 K; fan -
+  0.79 → 0.53 → 0.50, capacity 0.65 → 0.97 → 1.02, STABLE after the
+  second. Box then fan (the suite's check): 1.93 ± 0.07 after three
+  box cycles, UNCERTAIN within the first cooldown after the fan, 0.49
+  ± 0.06 four cycles later, CONVERGING. 111 updates over the three
+  cycles; the first judged sample of a cooldown is the fourth.
+* **On the board:** the identifier steps beside the observer in
+  `Board_ThermalPoll` on the same power and slice; a sample that moves
+  the scales re-applies them to the observer's network at once. The
+  record is the base - `network_from_cal` - and what runs is base times
+  scales, so a setter changes the base and never the scale. Saved to
+  the record by the board itself: at most every thirty minutes, on a
+  disarm if an online scale moved 2 %, never while armed (flash is not
+  programmed under a closed loop) and never while UNCERTAIN. The margin
+  policy trims every ceiling's span over 25 C by 0.85 / 0.93 / 1.0 for
+  UNCERTAIN / CONVERGING / STABLE - a 105 C laminate ceiling is 93 C
+  while the model is not trusted. CAL_VERSION 14 appends the four
+  scales; a stored 13 is taken up as a prefix with them zero rather
+  than refused, because that record holds the DC link span. Firmware
+  builds at 0 warnings, 194 364 B flash, 38 348 B DTCM (the shadow
+  and its 4 × 20 sensitivities). Not yet run on the board.
+
 ## The views
 
 * **A view that reports the mouse cannot be selected from, and the

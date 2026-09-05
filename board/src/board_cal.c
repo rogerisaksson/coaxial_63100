@@ -57,13 +57,23 @@
 /* 12: the winding's envelope - K/W, J/K and a ceiling for the one node
       that is not on the board, so the stage throttles on the motor's SOA
       as well as the switches'. */
-#define CAL_VERSION 13U  /* 13: twenty nodes from ten - the laminate as
-                            seven patches, the hot swap, the motor as
-                            three - and THE NETWORK ITSELF in the record:
-                            a capacity, an air path and an edge each, zero
-                            for the core's derived default, so an
-                            identification on the board has somewhere to
-                            keep what it learns. */
+/* 13: twenty nodes from ten - the laminate as seven patches, the hot swap,
+      the motor as three - and THE NETWORK ITSELF in the record: a
+      capacity, an air path and an edge each, zero for the core's derived
+      default, so an identification on the board has somewhere to keep
+      what it learns. */
+#define CAL_VERSION 14U  /* 14: what it learned - the identification's four
+                            scales, appended. A STORED 13 IS TAKEN UP, not
+                            refused: its fields are this layout's prefix,
+                            and it holds the one span ever measured. */
+
+/** The version before this one, whose layout is this one's prefix up to
+  * `thermal_ident_scale_milli`. A stored record of it is read with the
+  * appended fields zero - the defaults - and the CRC checked over what it
+  * covered. Only one step back: a record two versions old is refused as
+  * before. */
+#define CAL_PREVIOUS_VERSION 13U
+#define CAL_PREVIOUS_CRC_OFFSET offsetof(board_cal_t, thermal_ident_scale_milli)
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes; the record is a few hundred bytes against a
@@ -225,13 +235,47 @@ static bool cal_valid(const board_cal_t *cal)
          (cal->crc == cal_crc(cal));
 }
 
-void Board_CalInit(void)
+/** A record of the previous version: the same prefix, its CRC where its
+  * own layout ended. */
+static bool cal_previous_valid(const board_cal_t *stored)
 {
-  const board_cal_t *stored = (const board_cal_t *)CAL_FLASH_ADDR;
+  const uint8_t *bytes = (const uint8_t *)stored;
+  uint16_t crc;
 
+  memcpy(&crc, bytes + CAL_PREVIOUS_CRC_OFFSET, sizeof(crc));
+  return (stored->magic == CAL_MAGIC) &&
+         (stored->version == CAL_PREVIOUS_VERSION) &&
+         (stored->channels == BOARD_CAL_CHANNELS) &&
+         (crc == modbus_crc16(bytes, CAL_PREVIOUS_CRC_OFFSET));
+}
+
+/** Take a stored record into RAM: this version whole, the previous one
+  * as a prefix with the appended fields at their defaults. False when
+  * flash holds neither. */
+static bool cal_take(const board_cal_t *stored)
+{
   if (cal_valid(stored))
   {
     s_cal = *stored;
+    return true;
+  }
+  if (cal_previous_valid(stored))
+  {
+    s_cal = CAL_DEFAULTS;
+    memcpy(&s_cal, stored, CAL_PREVIOUS_CRC_OFFSET);
+    s_cal.version = CAL_VERSION;
+    memset(s_cal.thermal_ident_scale_milli, 0,
+           sizeof(s_cal.thermal_ident_scale_milli));
+    s_cal.crc = cal_crc(&s_cal);
+    return true;
+  }
+  return false;
+}
+
+void Board_CalInit(void)
+{
+  if (cal_take((const board_cal_t *)CAL_FLASH_ADDR))
+  {
     return;
   }
 
@@ -249,7 +293,9 @@ const board_cal_t *Board_Cal(void)
 
 bool Board_CalStored(void)
 {
-  return cal_valid((const board_cal_t *)CAL_FLASH_ADDR);
+  const board_cal_t *stored = (const board_cal_t *)CAL_FLASH_ADDR;
+
+  return cal_valid(stored) || cal_previous_valid(stored);
 }
 
 void Board_CalDefaults(void)
@@ -260,15 +306,7 @@ void Board_CalDefaults(void)
 
 bool Board_CalLoad(void)
 {
-  const board_cal_t *stored = (const board_cal_t *)CAL_FLASH_ADDR;
-
-  if (!cal_valid(stored))
-  {
-    return false;
-  }
-
-  s_cal = *stored;
-  return true;
+  return cal_take((const board_cal_t *)CAL_FLASH_ADDR);
 }
 
 bool Board_CalSave(void)
@@ -502,6 +540,19 @@ bool Board_CalSetThermalBulk(uint32_t to_ambient_milli,
 {
   s_cal.thermal_to_ambient_milli = to_ambient_milli;
   s_cal.thermal_capacity_milli = capacity_milli;
+  s_cal.crc = cal_crc(&s_cal);
+  return true;
+}
+
+
+bool Board_CalSetThermalIdent(const uint32_t *scale_milli)
+{
+  if (scale_milli == NULL)
+  {
+    return false;
+  }
+  memcpy(s_cal.thermal_ident_scale_milli, scale_milli,
+         sizeof(s_cal.thermal_ident_scale_milli));
   s_cal.crc = cal_crc(&s_cal);
   return true;
 }

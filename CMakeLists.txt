@@ -59,6 +59,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # host-testable the same way - thermal/test/check.c runs it against the
     # four camera-calibrated states with the host gcc.
     thermal/src/thermal.c
+    thermal/src/thermal_ident.c
 
     # Drive: the control law. Portable C11 like thermal/, host-tested by
     # test_drive_core.py against a motor model through drive/test/harness.c.
@@ -126,6 +127,7 @@ set(COAXIAL_SOURCES
     # host-testable the same way - thermal/test/check.c runs it against the
     # four camera-calibrated states with the host gcc.
     thermal/src/thermal.c
+    thermal/src/thermal_ident.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
     filter/src/filter.c
@@ -169,6 +171,7 @@ set_source_files_properties(
     # host-testable the same way - thermal/test/check.c runs it against the
     # four camera-calibrated states with the host gcc.
     thermal/src/thermal.c
+    thermal/src/thermal_ident.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
     filter/src/filter.c

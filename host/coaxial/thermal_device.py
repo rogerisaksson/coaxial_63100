@@ -14,7 +14,7 @@ an estimate under a few minutes has not settled against the network's
 """
 from . import protocol
 from .subsystem import Subsystem
-from .thermal import ALL_NODES
+from .thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES
 
 #: Where the board starts backing off, as a fraction of a node's ceiling.
 #: `set_limit`'s default and therefore what is in the record unless a
@@ -44,6 +44,11 @@ THERMAL_OP_SET_WINDING = 6
 THERMAL_OP_NODES = 7
 THERMAL_OP_EDGES = 8
 THERMAL_OP_SET_EDGE = 9
+THERMAL_OP_IDENT = 10
+THERMAL_OP_IDENT_RESET = 11
+
+#: `since_save_s` on the wire when the record was never written this boot.
+_NEVER_SAVED = 0xFFFFFFFF
 
 
 class Thermal(Subsystem):
@@ -206,6 +211,46 @@ class Thermal(Subsystem):
             got['winding_used'] = r.u8() / 255.0
             got['winding_derate'] = r.i32() / 1e6
         return got
+
+    def identification(self, **kwargs):
+        """The online identification beside the observer (MINOR 14).
+
+        `scales` are multipliers on the record's network - one is the
+        derived default; `online` names the ones the samples move (air and
+        capacity), the rest ride at the record's values. `state` is
+        UNCERTAIN, CONVERGING or STABLE: the model not trusted, tightening,
+        or predicting at the thermometers' floor with every online scale
+        known to a tenth. `margin` is what the envelope keeps in hand for
+        that state - the ceilings' spans are multiplied by it on the
+        board, so a page drawing the margin draws the number the board
+        acts on. `since_save_s` is None until the record has been written
+        this boot.
+        """
+        r = Reader(self._op(THERMAL_OP_IDENT, **kwargs))
+        index = r.u8()
+        state = IDENT_STATES[index] if index < len(IDENT_STATES) \
+            else 'state%d' % index
+        mask = r.u8()
+        scales, sigma, names = {}, {}, []
+        for k in range(r.u8()):
+            name = IDENT_SCALES[k] if k < len(IDENT_SCALES) else 'scale%d' % k
+            names.append(name)
+            scales[name] = r.i32() / 1000.0
+            sigma[name] = r.i32() / 1000.0
+        got = {'state': state, 'scales': scales, 'sigma': sigma,
+               'online': [n for k, n in enumerate(names) if (mask >> k) & 1],
+               'innovation_k': r.i32() / 1000.0,
+               'margin': r.i32() / 1e6,
+               'updates': r.u32(), 'saves': r.u32()}
+        since = r.u32()
+        got['since_save_s'] = None if since == _NEVER_SAVED else since
+        return got
+
+    def reset_identification(self):
+        """Forget what was identified: scales to one, UNCERTAIN, the record
+        rewritten without them. The board refuses while the stage is
+        armed - flash is not programmed under a closed loop."""
+        return self._ack(THERMAL_OP_IDENT_RESET)
 
     def set_winding(self, limit_c, k_per_w, j_per_k):
         """The winding's envelope: its ceiling in degrees C - zero

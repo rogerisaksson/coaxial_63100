@@ -23,6 +23,7 @@
   ******************************************************************************
   */
 #include "thermal.h"
+#include "thermal_ident.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -91,8 +92,7 @@ API int thm_edge_end(int edge, int which)
   {
     return -1;
   }
-  return which ? (int)THERMAL_EDGE_ENDS[edge].b
-               : (int)THERMAL_EDGE_ENDS[edge].a;
+  return which ? (int)thermal_edge(edge).b : (int)thermal_edge(edge).a;
 }
 
 
@@ -456,6 +456,139 @@ API float thm_coss_energy(float volts)
 
   thermal_losses(&loss);
   return thermal_coss_energy(&loss, volts);
+}
+
+
+/* THE IDENTIFICATION beside an observer. The box holds the identifier and
+   the base configuration its scales multiply - the observer's own at the
+   time it was made - so a test can run observer and identifier together
+   against a ground truth it drives itself. */
+typedef struct
+{
+  thermal_ident_t id;
+  thermal_cfg_t base;
+} ident_box_t;
+
+
+API void *thm_ident_new(const thermal_t *th, float noise_k)
+{
+  ident_box_t *box = calloc(1U, sizeof(*box));
+
+  if ((box != NULL) && (th != NULL))
+  {
+    box->base = th->cfg;
+    thermal_ident_init(&box->id, noise_k);
+  }
+  return box;
+}
+
+
+API void thm_ident_free(void *box)
+{
+  free(box);
+}
+
+
+API void thm_ident_resume(void *box, const float *scale, float noise_k)
+{
+  if (box != NULL)
+  {
+    thermal_ident_resume(&((ident_box_t *)box)->id, scale, noise_k);
+  }
+}
+
+
+/** One step of observer AND identifier: the scales applied to the
+  * observer, the observer stepped on the sensors, the identifier stepped
+  * beside it, the scales applied again if they moved. Returns whether
+  * they moved. */
+API int thm_ident_run(void *box, thermal_t *th, const float *watt,
+                      float ntc_c, float afe_c, float mcu_c, float speed_rpm,
+                      float dt_s)
+{
+  ident_box_t *b = (ident_box_t *)box;
+  thermal_power_t p;
+  thermal_sense_t seen;
+  thermal_load_t load;
+  const float ambient = (th != NULL) ? th->ambient : 0.0f;
+
+  if ((b == NULL) || (th == NULL) || (watt == NULL))
+  {
+    return 0;
+  }
+  memset(&p, 0, sizeof(p));
+  memset(&load, 0, sizeof(load));
+  for (int i = 0; i < (int)THERMAL_NODES; i++)
+  {
+    p.watt[i] = watt[i];
+  }
+  seen.ntc_c = ntc_c;
+  seen.afe_c = afe_c;
+  seen.mcu_c = mcu_c;
+  load.speed_rpm = speed_rpm;
+
+  thermal_ident_apply(&b->id, &b->base, &th->cfg);
+  thermal_step(th, &p, &seen, &load, dt_s);
+  th->ambient = ambient;               /* the room does not drift here */
+  const bool moved = thermal_ident_step(&b->id, th, &b->base, &p, &load,
+                                        &seen, dt_s);
+
+  if (moved)
+  {
+    thermal_ident_apply(&b->id, &b->base, &th->cfg);
+  }
+  return moved ? 1 : 0;
+}
+
+
+API float thm_ident_scale(const void *box, int which)
+{
+  if ((box == NULL) || (which < 0) || (which >= THERMAL_IDENT_PARAMS))
+  {
+    return NAN;
+  }
+  return ((const ident_box_t *)box)->id.scale[which];
+}
+
+
+API float thm_ident_sigma(const void *box, int which)
+{
+  if (box == NULL)
+  {
+    return NAN;
+  }
+  return thermal_ident_sigma(&((const ident_box_t *)box)->id,
+                             (thermal_ident_param_t)which);
+}
+
+
+API int thm_ident_state(const void *box)
+{
+  return (box == NULL) ? -1 : (int)((const ident_box_t *)box)->id.state;
+}
+
+
+API float thm_ident_innovation(const void *box)
+{
+  return (box == NULL) ? NAN : ((const ident_box_t *)box)->id.innovation_k;
+}
+
+
+API int thm_ident_updates(const void *box)
+{
+  return (box == NULL) ? -1 : (int)((const ident_box_t *)box)->id.updates;
+}
+
+
+API float thm_ident_margin(int state)
+{
+  return thermal_ident_margin((thermal_ident_state_t)state);
+}
+
+
+API int thm_ident_online(int which)
+{
+  return thermal_ident_online((thermal_ident_param_t)which) ? 1 : 0;
 }
 
 

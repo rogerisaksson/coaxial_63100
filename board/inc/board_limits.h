@@ -280,6 +280,29 @@
 
 #define THERMAL_SAMPLE_SETTLE_MS 500U
 
+/** The thermometers' floor for the online identification, kelvin: the NTC
+  * quantises at about 30 mK and TSEN at 125 mK, and a sample is one
+  * reading of each. */
+#define THERMAL_IDENT_NOISE_K 0.1f
+
+/** How often at most the record is rewritten with the identified scales
+  * while the board runs, and how far a scale must have moved since the
+  * last save for a sector erase to be worth it. A disarm also saves, if
+  * they moved: the cooldown that follows is where they move most and a
+  * power cycle in it should not lose the run's lesson. Never while the
+  * stage is armed - flash is not programmed under a closed loop - and
+  * never while UNCERTAIN: a model that is not predicting is not kept. */
+#define THERMAL_IDENT_SAVE_EVERY_MS (30UL * 60UL * 1000UL)
+#define THERMAL_IDENT_SAVE_MOVED    0.02f
+
+/** THE MARGIN POLICY'S REFERENCE, degrees C: what a ceiling's span is
+  * measured up from when the identification's state trims it (0.85
+  * UNCERTAIN, 0.93 CONVERGING, 1.0 STABLE - `thermal_ident_margin`). The
+  * room the record's ceilings were written against; the estimate of
+  * ambient is not used because a margin that moved with an estimate would
+  * be an envelope moving with the thing it bounds. */
+#define THERMAL_MARGIN_REF_C 25.0f
+
 /** How long the link may be silent before the HOST's holds are dropped.
   *
   * The host's reference is the one with no lease, so that a session can keep

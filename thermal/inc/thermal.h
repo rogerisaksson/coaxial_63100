@@ -140,7 +140,11 @@ typedef struct
   uint8_t b;
 } thermal_edge_t;
 
-extern const thermal_edge_t THERMAL_EDGE_ENDS[THERMAL_EDGES];
+/** Which two nodes edge `e` joins. A function and not an exported table:
+  * a const array reached from a shared object needs position-independent
+  * code the host gcc on CI was not asked for, and a portable core exports
+  * no data anyway. Both ends THERMAL_NODES for an edge past the table. */
+thermal_edge_t thermal_edge(int e);
 
 /** The edge each node sheds through first - a source into its patch, the
   * winding into the stator, the stator into the rotor - so a caller with
@@ -232,6 +236,10 @@ typedef struct
   /** The rotor's speed at the last step, rpm: the budget's air paths are
     * evaluated at the same speed the integrator just used. */
   float speed_rpm;
+  /** Seconds since a thermometer last anchored the state. The anchor's
+    * pull is sized to it, so a sample every thirty seconds corrects
+    * what thirty seconds of drift deserve - see THERMAL_ANCHOR_HZ. */
+  float since_seen_s;
 } thermal_t;
 
 /** Dissipation per node, watts. Whoever knows the board's state fills it. */
@@ -393,6 +401,18 @@ float thermal_board_to_ambient_at(const thermal_cfg_t *cfg, float rise_k);
 void thermal_budget(const thermal_t *th, const thermal_power_t *p,
                     const thermal_soa_t *soa, thermal_budget_t *out);
 
+/** Net watts into every node at the present temperatures: what it makes,
+  * plus what flows in over the edges, less what it sheds to the air. The
+  * one definition the integrator steps on, the budget's hold divides by
+  * and the identification differentiates. `net` is THERMAL_NODES long. */
+void thermal_net_flows(const thermal_t *th, const thermal_power_t *p,
+                       float speed_rpm, float *net);
+
+/** One Euler slice over the whole graph, no anchors: the identification's
+  * shadow steps with this, the observer with `thermal_step`. */
+void thermal_integrate(thermal_t *th, const thermal_power_t *p,
+                       float speed_rpm, float dt_s);
+
 /** Start the thermal observer with every node at one temperature. `cfg`
   * NULL takes the defaults. */
 void thermal_init(thermal_t *th, const thermal_cfg_t *cfg, float celsius);
@@ -424,6 +444,17 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
 
 /** What the NTC should read, given the model - the lagged element. */
 float thermal_expected_ntc(const thermal_t *th);
+
+/** One step of the thermistor's element: first order toward the weighted
+  * average of the two patches it sits between at `ntc_tau_s`, and never
+  * past either of them. Returns the node it is held AT when the bound
+  * bit - THERMAL_NTC_PATCH or THERMAL_BOARD - or -1 while it follows
+  * freely. `thermal_step` calls it; so does the identification's shadow,
+  * which must read the element by exactly the observer's rule or a
+  * cooldown fast enough to pin the element to the V patch reads as a
+  * parameter error at every sample (measured 2026-09-05 on the host
+  * ground truth: -0.9 K a sample, charged to the laminate's capacity). */
+int thermal_ntc_follow(thermal_t *th, float dt_s);
 
 /** The centre patch from the NTC with the V leg's share taken out. */
 float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,

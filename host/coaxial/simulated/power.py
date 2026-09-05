@@ -447,6 +447,25 @@ class SimulatedThermal:
             self._cfg['capacity'][name] = float(capacity) * share
         return True
 
+    def identification(self):
+        """The identification as the stand-in reports it: the wire's shape
+        (`Thermal.identification`) with nothing identified yet - the
+        scales at one, UNCERTAIN, the two online scales named, the margin
+        that state carries. The stand-in's own identification against a
+        situation it changes is the next item; until then a page drawing
+        the field has the field to draw."""
+        return {'state': 'UNCERTAIN',
+                'scales': dict((s, 1.0) for s in thermal.IDENT_SCALES),
+                'sigma': {'air': 0.5, 'capacity': 0.2, 'spread': 0.5,
+                          'ntc': 0.3},
+                'online': list(thermal.IDENT_ONLINE),
+                'innovation_k': 0.1,
+                'margin': thermal.IDENT_MARGIN['UNCERTAIN'],
+                'updates': 0, 'saves': 0, 'since_save_s': None}
+
+    def reset_identification(self):
+        return True
+
 
 class SimulatedPower:
     """Rail reference counts without a board.

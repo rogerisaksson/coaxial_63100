@@ -31,6 +31,11 @@
   *                    page: capacity, air path, area share, R_th, forced
   *   8  edges       - the whole edge table: a, b, K/W each
   *   9  set edge    - u8 edge, i32 k_per_w_milli; negative opens it
+  *  10  ident       - MINOR 14: the online identification - state, which
+  *                    scales move, each scale and its sigma, the filtered
+  *                    innovation, the envelope's margin, updates, saves
+  *  11  ident reset - scales to one, UNCERTAIN, the record rewritten;
+  *                    refused while the stage is armed
   ******************************************************************************
   */
 #include "board.h"
@@ -47,6 +52,8 @@
 #define OP_NODES      7U
 #define OP_EDGES      8U
 #define OP_SET_EDGE   9U
+#define OP_IDENT      10U
+#define OP_IDENT_RESET 11U
 
 /** Nodes a page of op 7 carries: five i32 each, so ten fit a frame. */
 #define NODES_A_PAGE 10U
@@ -384,6 +391,56 @@ static cmd_status_t op_set_edge(rd_t *in, wr_t *out)
 }
 
 
+/** op 10 - the identification beside the observer. State and the mask of
+  * scales the samples move, then each scale with its sigma in milli, the
+  * filtered innovation in milli-kelvin, the margin the envelope keeps in
+  * micro, the counts, and seconds since the record was last written -
+  * all ones when it never was this boot. */
+static cmd_status_t op_ident(wr_t *out)
+{
+  board_thermal_ident_t id;
+
+  if (!Board_ThermalIdent(&id))
+  {
+    return CMD_ERR_DEVICE;
+  }
+  wr_u8(out, id.state);
+  wr_u8(out, id.online_mask);
+  wr_u8(out, (uint8_t)BOARD_THERMAL_IDENT_SCALES);
+  for (uint8_t k = 0U; k < (uint8_t)BOARD_THERMAL_IDENT_SCALES; k++)
+  {
+    wr_i32(out, (int32_t)(id.scale[k] * 1000.0f));
+    wr_i32(out, (int32_t)(id.sigma[k] * 1000.0f));
+  }
+  wr_i32(out, (int32_t)(id.innovation_k * 1000.0f));
+  wr_i32(out, (int32_t)(id.margin * 1000000.0f));
+  wr_u32(out, id.updates);
+  wr_u32(out, id.saves);
+  wr_u32(out, id.ever_saved ? id.since_save_s : 0xFFFFFFFFUL);
+  return CMD_OK;
+}
+
+
+/** op 11 - forget what was identified, in RAM and in the record. */
+static cmd_status_t op_ident_reset(wr_t *out)
+{
+  if (Board_PwmIsEnabled())
+  {
+    cmd_took(out, "the record is not rewritten while the stage is armed - "
+                  "disarm first");
+    return CMD_OK;
+  }
+  if (!Board_ThermalIdentReset())
+  {
+    cmd_took(out, "the thermal observer is not running, or the record did "
+                  "not save - it starts with the board");
+    return CMD_OK;
+  }
+  cmd_took(out, NULL);
+  return CMD_OK;
+}
+
+
 cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
@@ -398,6 +455,8 @@ cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
     case OP_NODES:       return op_nodes(in, out);
     case OP_EDGES:       return op_edges(out);
     case OP_SET_EDGE:    return op_set_edge(in, out);
+    case OP_IDENT:       return op_ident(out);
+    case OP_IDENT_RESET: return op_ident_reset(out);
     default:             return CMD_ERR_VALUE;
   }
 }

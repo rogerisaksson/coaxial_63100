@@ -351,8 +351,13 @@ CRC field. Ops:
 
 `stored` separates a calibrated board from one running the schematic's
 numbers; the two are otherwise identical on the wire. A stored record
-of another version is refused and the defaults used. The 46 parameter
-ids and their defaults are in HARDWARE.md, "Calibration record".
+of another version is refused and the defaults used - except the
+version immediately before the firmware's, whose layout is a prefix of
+the current one: it is taken up with the appended fields at their
+defaults and its CRC checked over what it covered (CAL_VERSION 14,
+2026-09-05; the DC link's span, the one measured number, lives in a 13
+record on the bench board). The 46 parameter ids and their defaults
+are in HARDWARE.md, "Calibration record".
 
 ### 4 GATE_DRIVERS, `cmd_gate_drivers.c`
 
@@ -476,6 +481,25 @@ i32 forced_milli`, ten a page), op 8 edges (`u8 count`, then per edge
 (`u8 edge, i32 r_milli` → `u8 took`; negative opens it). Op 1's first
 value is the node's FIRST PATH OUT - its edge into the laminate under it
 for a source, its air path for a patch.
+
+MINOR 14 adds op 10 ident, THE ONLINE IDENTIFICATION beside the
+observer (`thermal/inc/thermal_ident.h`): `u8 state` (0 UNCERTAIN,
+1 CONVERGING, 2 STABLE), `u8 online_mask` (bit k: the samples move
+scale k), `u8 count` (4), then per scale `i32 scale_milli,
+i32 sigma_milli` in the order air, capacity, spread, ntc - each a
+multiplier on the record's network, 1000 the derived default - then
+`i32 innovation_milli_k` (the filtered prediction error), `i32
+margin_micro` (what the envelope keeps in hand for the state: every
+ceiling's span over 25 C is multiplied by it on the board - 850 000
+UNCERTAIN, 930 000 CONVERGING, 1 000 000 STABLE), `u32 updates,
+u32 saves, u32 since_save_s` (all ones until the record has been
+written this boot). Only air and capacity are online; spread and ntc
+ride at the record's values (FINDINGS, 2026-09-05: unobservable from a
+cooldown). Op 11 ident reset → `u8 took`: scales to one, UNCERTAIN, the
+record rewritten without them; refused while the stage is armed. The
+board writes the identified scales to the record itself - at most every
+thirty minutes, on a disarm if they moved two percent, never while
+armed or UNCERTAIN (CAL_VERSION 14, `board_thermal.c`).
 
 TWENTY NODES SINCE MINOR 13, from ten. 0 .. 9 keep their indices and
 their meaning - driver U/V/W, phase U/V/W, mcu, regulators, afe, and
@@ -637,6 +661,7 @@ MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 | 11 | thermal budget appends the derate, the soak joules and the effective duty |
 | 12 | thermal budget appends the winding - estimate, spend, own factor; thermal op 6 sets its envelope |
 | 13 | twenty thermal nodes, the count says so; op 0 appends the FET junction rises and the speed; ops 7, 8, 9 read the node table, the edge table, set an edge |
+| 14 | thermal op 10 reads the online identification - state, which scales move, each scale and sigma, innovation, the envelope's margin, saves; op 11 resets it |
 
 MAJOR 2, 2026-08-29: the thermal nodes went per leg and the node
 indices were repurposed - a host could follow the length and not the

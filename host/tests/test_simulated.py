@@ -1467,11 +1467,57 @@ def main():
                  test_clock_reference, test_link_bench,
                  test_gate_driver_arming, test_gate_snapshot,
                  test_closing_leaves_another_session_armed,
-                 test_dead_time, test_views, test_virtual_rotor):
+                 test_dead_time, test_views, test_virtual_rotor,
+                 test_thermal_identification):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
+
+
+def test_thermal_identification(report):
+    """The stand-in answers the identification in the wire's shape.
+
+    MINOR 14's op 10 as `Thermal.identification()` decodes it: a state
+    from the three, the four scales in wire order with a sigma each, the
+    online ones named, the innovation, the margin the envelope keeps in
+    hand for the state, and `since_save_s` None until the record has been
+    written. Nothing is identified on the stand-in yet - the scales are
+    one and the state UNCERTAIN - so a page drawing the field draws the
+    honest one; the stand-in's own identification against a situation is
+    the next item.
+    """
+    from coaxial import Coaxial63100, thermal
+
+    rig = Coaxial63100(simulated_device=True, power_afe=False).open()
+    try:
+        got = rig.thermal.identification()
+        report.check('the identification has the wire\'s fields',
+                     set(got) == {'state', 'scales', 'sigma', 'online',
+                                  'innovation_k', 'margin', 'updates',
+                                  'saves', 'since_save_s'},
+                     sorted(got))
+        report.check('its state is one of the three and the scales are the '
+                     'four, in wire order',
+                     got['state'] in thermal.IDENT_STATES
+                     and tuple(got['scales']) == thermal.IDENT_SCALES
+                     and tuple(got['sigma']) == thermal.IDENT_SCALES,
+                     '%s %s' % (got['state'], list(got['scales'])))
+        report.check('air and capacity are the online scales - the two a '
+                     'cooldown shows the thermometers',
+                     tuple(got['online']) == thermal.IDENT_ONLINE, got['online'])
+        report.check('the margin is the state\'s own - what the envelope '
+                     'multiplies its spans by on the board',
+                     abs(got['margin'] - thermal.IDENT_MARGIN[got['state']])
+                     < 1e-9, '%.2f for %s' % (got['margin'], got['state']))
+        report.check('nothing identified: the scales are one, the record '
+                     'unwritten',
+                     all(abs(v - 1.0) < 1e-9 for v in got['scales'].values())
+                     and got['since_save_s'] is None and got['saves'] == 0)
+        report.check('and it can be told to forget, which is a `took`',
+                     rig.thermal.reset_identification() is True)
+    finally:
+        rig.close()
 
 
 def test_closing_leaves_another_session_armed(report):

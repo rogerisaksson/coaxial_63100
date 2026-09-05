@@ -678,3 +678,16 @@ def calibrate(camera, board_c, power=None):
             continue
         out[name] = (celsius - board_c) / power[name]
     return out
+
+
+#: The online identification (`thermal/inc/thermal_ident.h`): its four
+#: scales in wire order, its states, and what the envelope keeps in hand
+#: for each state - `thermal_ident_margin`, the same three numbers.
+#: AIR and CAPACITY are the scales a cooldown shows the board's three
+#: thermometers and the only two the samples move; SPREAD and NTC ride
+#: along at the record's values until a bench sets them (measured
+#: 2026-09-05: unobservable from a cooldown, they ran to a clamp).
+IDENT_SCALES = ('air', 'capacity', 'spread', 'ntc')
+IDENT_ONLINE = ('air', 'capacity')
+IDENT_STATES = ('UNCERTAIN', 'CONVERGING', 'STABLE')
+IDENT_MARGIN = {'UNCERTAIN': 0.85, 'CONVERGING': 0.93, 'STABLE': 1.0}

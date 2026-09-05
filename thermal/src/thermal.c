@@ -33,8 +33,27 @@
   * Low enough that sensor noise does not shake the estimate, high enough that
   * a wrong initial guess is gone in a minute or two. The NTC quantises at
   * about 30 mK and TSEN at 125 mK, so there is nothing to gain from chasing
-  * them faster. */
+  * them faster.
+  *
+  * PER SECOND OF WALL TIME, NOT PER STEP. The pull at a sample is
+  * 1 - exp(-HZ * seconds since the last sample): a thermometer read every
+  * thirty seconds pulls 78 % of the way, one read every step 5 %. It was
+  * HZ * dt_s, sized as if a reading came with every step - and the board
+  * reads its three every thirty seconds into a 100 ms step, so the pull
+  * was half a percent per sample and "gone in a minute or two" was a
+  * hundred minutes: the observer ran open loop on the board. Found
+  * 2026-09-05 from the identification, which inherited that state. */
 #define THERMAL_ANCHOR_HZ 0.05f
+
+/** The longest gap since the previous sample over which a thermistor
+  * miss is still read as the V patch's: three of the board's thirty
+  * second intervals. Longer, and the miss is the element's own state
+  * after a blind run. */
+#define THERMAL_NTC_INVERT_MAX_S 90.0f
+
+/** How close to the V patch the element, read or modelled, counts as
+  * held at it, kelvin. */
+#define THERMAL_NTC_AT_LEG_K 2.0f
 
 /** Named edges the glue and the defaults reach for. */
 #define EDGE_WINDING_STATOR 22
@@ -47,7 +66,7 @@
 #define BULK_TO_AMBIENT 8.33f
 #define BULK_CAPACITY   49.0f
 
-const thermal_edge_t THERMAL_EDGE_ENDS[THERMAL_EDGES] =
+static const thermal_edge_t THERMAL_EDGE_ENDS[THERMAL_EDGES] =
 {
   /* 0..9  each source into the laminate under it */
   { THERMAL_DRIVER_U,   THERMAL_PATCH_U },
@@ -86,6 +105,19 @@ const thermal_edge_t THERMAL_EDGE_ENDS[THERMAL_EDGES] =
   { THERMAL_STATOR,      THERMAL_PATCH_BOTTOM },
   { THERMAL_STATOR,      THERMAL_PATCH_RIGHT },
 };
+
+
+thermal_edge_t thermal_edge(int e)
+{
+  if ((e < 0) || (e >= THERMAL_EDGES))
+  {
+    const thermal_edge_t none = { (uint8_t)THERMAL_NODES,
+                                  (uint8_t)THERMAL_NODES };
+
+    return none;
+  }
+  return THERMAL_EDGE_ENDS[e];
+}
 
 
 int thermal_sink_edge(thermal_node_t node)
@@ -406,6 +438,19 @@ static float rad_bracket(float a_c, float b_c)
   *
   * ONE DEFINITION: the integrator steps on this and the budget's hold
   * divides by it, so the throttle and the model cannot drift apart. */
+static void net_flows(const thermal_t *th, const thermal_power_t *p,
+                      float speed_rpm, float *net);
+
+void thermal_net_flows(const thermal_t *th, const thermal_power_t *p,
+                       float speed_rpm, float *net)
+{
+  if ((th != NULL) && (p != NULL) && (net != NULL))
+  {
+    net_flows(th, p, speed_rpm, net);
+  }
+}
+
+
 static void net_flows(const thermal_t *th, const thermal_power_t *p,
                       float speed_rpm, float *net)
 {
@@ -1021,9 +1066,10 @@ float thermal_board_from_ntc(const thermal_cfg_t *cfg, float ntc_c,
 
 /** Pull one node to its die, and return the patch under it that implies:
   * the node is patch + P * R into it, so subtracting reaches the patch
-  * without passing through anything else. */
+  * without passing through anything else. `rate` is the node's own K/s
+  * at this state. */
 static float anchor_die(thermal_t *th, thermal_node_t node, float seen,
-                        const thermal_power_t *p, float k)
+                        const thermal_power_t *p, float k, float rate)
 {
   const thermal_node_cfg_t *n = &th->cfg.node[node];
   const int edge = thermal_sink_edge(node);
@@ -1032,7 +1078,20 @@ static float anchor_die(thermal_t *th, thermal_node_t node, float seen,
   const float at = seen - p->watt[node] * n->rth_die;
 
   th->t[node] += k * (at - th->t[node]);
-  return at - ((edge >= 0) ? (p->watt[node] * th->cfg.r_edge[edge]) : 0.0f);
+  if (edge < 0)
+  {
+    return at;
+  }
+  /* AND THE NODE LAGS ITS PATCH. C dT/dt = (patch - node) / R + P, so
+     the patch is node - P R + C R dT/dt: while the laminate falls at
+     0.08 K/s the MCU package, at twenty seconds, rides 1.6 K above where
+     the steady algebra puts it, and the patch was anchored that much
+     hot at every sample of every cooldown. The identification saw it as
+     0.8 K of die innovation an interval that no scale could fit (host
+     ground truth, 2026-09-05). */
+  const float r = th->cfg.r_edge[edge];
+
+  return at - p->watt[node] * r + n->capacity * r * rate;
 }
 
 
@@ -1064,44 +1123,156 @@ static void integrate(thermal_t *th, const thermal_power_t *p,
 }
 
 
+void thermal_integrate(thermal_t *th, const thermal_power_t *p,
+                       float speed_rpm, float dt_s)
+{
+  if ((th != NULL) && (p != NULL) && (dt_s > 0.0f))
+  {
+    integrate(th, p, speed_rpm, dt_s);
+  }
+}
+
+
 /** What the sensors say, folded in: each die corrects its node and the
   * patch under it, the thermistor the V leg's patch; then ambient. */
 static void anchor(thermal_t *th, const thermal_power_t *p,
-                   const thermal_sense_t *seen, float speed_rpm, float k)
+                   const thermal_sense_t *seen, float speed_rpm,
+                   float since_s)
 {
+  const float k = 1.0f - expf(-THERMAL_ANCHOR_HZ * since_s);
   int dies = 0;
+  float common = 0.0f;
+  bool held[THERMAL_NODES];
+  float net[THERMAL_NODES];
 
+  memset(held, 0, sizeof(held));
+  net_flows(th, p, speed_rpm, net);      /* the dies' nodes' own rates */
   if (!isnan(seen->afe_c))
   {
-    const float implied = anchor_die(th, THERMAL_AFE, seen->afe_c, p, k);
+    const float implied = anchor_die(th, THERMAL_AFE, seen->afe_c, p, k,
+                                     net[THERMAL_AFE]
+                                     / th->cfg.node[THERMAL_AFE].capacity);
     const thermal_node_t patch = patch_under(THERMAL_AFE);
 
+    common += implied - th->t[patch];
     th->t[patch] += k * (implied - th->t[patch]);
+    held[THERMAL_AFE] = true;
+    held[patch] = true;
     dies++;
   }
   if (!isnan(seen->mcu_c))
   {
-    const float implied = anchor_die(th, THERMAL_MCU, seen->mcu_c, p, k);
+    const float implied = anchor_die(th, THERMAL_MCU, seen->mcu_c, p, k,
+                                     net[THERMAL_MCU]
+                                     / th->cfg.node[THERMAL_MCU].capacity);
     const thermal_node_t patch = patch_under(THERMAL_MCU);
 
+    common += implied - th->t[patch];
     th->t[patch] += k * (implied - th->t[patch]);
+    held[THERMAL_MCU] = true;
+    held[patch] = true;
     dies++;
   }
 
   if (dies > 0)
   {
+    /* THE REST OF THE LAMINATE MOVES WITH THE DIES. What a die finds its
+       patch off by is mostly what the whole face is off by - a run on
+       the wrong air path leaves every patch cold by the same factor -
+       so the mean of the dies' corrections goes to every board node no
+       thermometer reaches, at the same pull. Without it the legs'
+       patches kept a run's whole error through the cooldown, unobserved,
+       and the identification read their flow into the centre as a
+       parameter: measured 2026-09-05 on the host ground truth, 3 to 5 K
+       of innovation at the first samples that the scales then absorbed
+       to their clamps. The motor is not the laminate and stays. */
+    common /= (float)dies;
+    for (int i = 0; i < (int)THERMAL_WINDING; i++)
+    {
+      if (!held[i] && (th->cfg.node[i].capacity > 0.0f))
+      {
+        th->t[i] += k * common;
+      }
+    }
+
     /* Settled is about the LAMINATE: a die anchors a patch without
        guessing how much of the NTC is hot spot. */
     th->settled = true;
 
     if (!isnan(seen->ntc_c) && (th->cfg.ntc_sees > 0.01f))
     {
-      /* What the NTC sees beyond the centre is the V patch's share of
-         its rise over it. Invert the element to correct that patch. */
-      const float over = seen->ntc_c - th->t[THERMAL_BOARD];
-      const float at = th->t[THERMAL_BOARD] + over / th->cfg.ntc_sees;
+      /* THE THERMISTOR IS COMPARED WITH THE ELEMENT AS MODELLED, not
+         with the average it is heading for. The element lags the
+         laminate by `ntc_tau_s`; during a cooldown it reads above the
+         average by tau times the cooling rate - four kelvin at the
+         numbers here - and inverting that as if it were the V patch's
+         rise put the patch 14 K hot at every sample. What the element
+         reads IS its own temperature, so it is anchored to the reading;
+         what it reads beyond the modelled element is the V patch's
+         share, corrected through `ntc_sees`. */
+      const float miss = seen->ntc_c - th->ntc;
+      const float leg = th->t[THERMAL_NTC_PATCH];
+      const float centre = th->t[THERMAL_BOARD];
+      /* HELD AT THE LEG, the element IS the leg's patch and the miss is
+         that patch's, one for one; between the patches, it is the
+         share the V patch shows through. The share's inverse at the
+         leg was a gain of 2.6 a sample on a reading that is the patch
+         itself, and the patch swung 25 K either way sample to sample -
+         measured 2026-09-05 on the host ground truth. */
+      /* Within a band of the leg counts as at it: the element set to a
+         reading a hair under the patch, then integrated below it, made
+         the free gain act on a miss that was the patch's one for one -
+         a twelvefold overshoot every third sample. */
+      const bool at_leg = (leg >= centre)
+                          && ((seen->ntc_c >= leg - THERMAL_NTC_AT_LEG_K)
+                              || (th->ntc >= leg - THERMAL_NTC_AT_LEG_K));
+      /* AND ONLY A MISS THAT GREW OVER ONE INTERVAL is the patch's.
+         After a blind run the element's own state is what is off - by
+         tens of kelvin - and inverting that through the share put the V
+         patch at 293 C on a 220 C truth (host ground truth, 2026-09-05).
+         Then the dies' common mode has already moved the laminate, and
+         the element is only set to what it reads. */
+      const bool fresh = since_s <= THERMAL_NTC_INVERT_MAX_S;
+      /* THROUGH THE LAG AS WELL AS THE SHARE. Set to its reading at the
+         last sample, the element has moved toward the average by
+         (interval / tau) of the way since, so a miss is that fraction
+         of the average's error and the average is the share of the
+         patch's: the patch's error is miss * tau / (interval * share).
+         Half of that inversion, and no more than eight times the share's
+         alone: a 24-fold gain on a 50 mK reading is a kelvin of jitter
+         on the patch, and at one sample a second it would never settle.
+         At thirty seconds this takes 39 % of the patch's error a sample
+         and settles in five; at 1/f alone it took a ninth, and the leg
+         patches were still 20 K cold when the identification began
+         judging (host ground truth, 2026-09-05). */
+      float lag_gain = 1.0f;
 
-      th->t[THERMAL_NTC_PATCH] += k * (at - th->t[THERMAL_NTC_PATCH]);
+      if ((th->cfg.ntc_tau_s > 0.0f) && (since_s > 0.0f))
+      {
+        lag_gain = 0.5f * th->cfg.ntc_tau_s / since_s;
+        lag_gain = (lag_gain < 1.0f) ? 1.0f : (lag_gain > 8.0f) ? 8.0f : lag_gain;
+      }
+      const float through = at_leg ? 1.0f
+                            : (fresh ? (lag_gain / th->cfg.ntc_sees) : 0.0f);
+      const float move = k * miss * through;
+
+      th->ntc += k * miss;
+      /* THE THREE LEGS ARE ONE LAYOUT, MIRRORED. What the thermistor
+         finds V's patch off by, U's and W's are off by too: the same
+         copper, the same switches, and no thermometer of their own.
+         Left to the observer's integration they kept a run's error
+         through the whole cooldown - 22 K cold at the third sample -
+         and it flowed into the centre as a parameter. */
+      th->t[THERMAL_NTC_PATCH] += move;
+      for (int leg_i = 0; leg_i < 3; leg_i++)
+      {
+        const thermal_node_t other = THERMAL_PATCH(leg_i);
+
+        if ((other != THERMAL_NTC_PATCH) && !held[other])
+        {
+          th->t[other] += move;
+        }
+      }
     }
 
     /* Ambient is what the laminate's own losses imply, once it is
@@ -1137,12 +1308,19 @@ static void anchor(thermal_t *th, const thermal_power_t *p,
   else if (!isnan(seen->ntc_c))
   {
     /* Degraded: no die answered, so the V patch's rise cannot be
-       separated from the centre's. Anchor the centre on the NTC with the
-       modelled share removed and say the estimate is not settled. */
-    const float rise = th->t[THERMAL_NTC_PATCH] - th->t[THERMAL_BOARD];
-    const float bulk = thermal_board_from_ntc(&th->cfg, seen->ntc_c, rise);
+       separated from the centre's. What the element reads beyond the
+       modelled element moves the whole laminate, common mode, and the
+       estimate is said not to be settled. */
+    const float miss = seen->ntc_c - th->ntc;
 
-    th->t[THERMAL_BOARD] += k * (bulk - th->t[THERMAL_BOARD]);
+    th->ntc += k * miss;
+    for (int i = 0; i < (int)THERMAL_WINDING; i++)
+    {
+      if (th->cfg.node[i].capacity > 0.0f)
+      {
+        th->t[i] += k * miss;
+      }
+    }
     th->settled = false;
   }
 }
@@ -1178,12 +1356,30 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
     left -= slice;
   }
 
-  anchor(th, p, seen, speed, THERMAL_ANCHOR_HZ * dt_s);
+  th->since_seen_s += dt_s;
+  if (!isnan(seen->ntc_c) || !isnan(seen->afe_c) || !isnan(seen->mcu_c))
+  {
+    anchor(th, p, seen, speed, th->since_seen_s);
+    th->since_seen_s = 0.0f;
+  }
+
+  (void)thermal_ntc_follow(th, dt_s);
+
+  th->steps++;
+}
+
+
+int thermal_ntc_follow(thermal_t *th, float dt_s)
+{
+  if (th == NULL)
+  {
+    return -1;
+  }
 
   /* THE THERMISTOR FOLLOWS, it does not jump. First order toward the
      algebra at `ntc_tau_s`, clamped so a dt bigger than the constant lands
      ON the target rather than past it. */
-  if (th->cfg.ntc_tau_s > 0.0f)
+  if ((th->cfg.ntc_tau_s > 0.0f) && (dt_s > 0.0f))
   {
     float share = dt_s / th->cfg.ntc_tau_s;
 
@@ -1193,7 +1389,7 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
     }
     th->ntc += (ntc_target(th) - th->ntc) * share;
   }
-  else
+  else if (!(th->cfg.ntc_tau_s > 0.0f))
   {
     th->ntc = ntc_target(th);
   }
@@ -1202,21 +1398,22 @@ void thermal_step(thermal_t *th, const thermal_power_t *p,
      cannot read outside the pair, whatever its own lag - the series
      network of docs/papers, 2.3. Seen on the bench as an NTC warmer than
      the switches that heat it, and bounded since. */
+  const float centre = th->t[THERMAL_BOARD];
+  const float leg = th->t[THERMAL_NTC_PATCH];
+  const thermal_node_t low_at = (centre < leg) ? THERMAL_BOARD
+                                               : THERMAL_NTC_PATCH;
+  const thermal_node_t high_at = (centre < leg) ? THERMAL_NTC_PATCH
+                                                : THERMAL_BOARD;
+
+  if (th->ntc < th->t[low_at])
   {
-    const float centre = th->t[THERMAL_BOARD];
-    const float leg = th->t[THERMAL_NTC_PATCH];
-    const float low = (centre < leg) ? centre : leg;
-    const float high = (centre < leg) ? leg : centre;
-
-    if (th->ntc < low)
-    {
-      th->ntc = low;
-    }
-    if (th->ntc > high)
-    {
-      th->ntc = high;
-    }
+    th->ntc = th->t[low_at];
+    return (int)low_at;
   }
-
-  th->steps++;
+  if (th->ntc > th->t[high_at])
+  {
+    th->ntc = th->t[high_at];
+    return (int)high_at;
+  }
+  return -1;
 }

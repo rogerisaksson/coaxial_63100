@@ -752,6 +752,10 @@ void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code);
   * can overlay and the wire can name. */
 #define BOARD_THERMAL_EDGES 30
 
+/** The identification's scales - `thermal_ident.h`'s THERMAL_IDENT_PARAMS,
+  * held to it by a static assert in board_thermal.c. */
+#define BOARD_THERMAL_IDENT_SCALES 4
+
 /** The indices, for a record or a host that has to name one. `thermal.h`
   * has the enum and this mirrors it, because the calibration record is on
   * the wire and the portable core is not - a file that includes one does
@@ -1001,8 +1005,23 @@ typedef struct
   uint32_t thermal_rad_board_stator_micro; /**< W/K at 300 K; 0 = bench    */
   uint32_t thermal_k_iron_milli;         /**< W per (krpm)^2              */
 
+  /* CAL_VERSION 14: WHAT THE IDENTIFICATION LEARNED - the four scales
+     of `thermal_ident.h` in wire order (air, capacity, spread, ntc),
+     milli, zero for "never identified" so a fresh record starts the
+     identification UNCERTAIN at one and a saved one resumes it
+     CONVERGING where it was. The observer writes them itself, at most
+     every half hour and on a disarm, never while the stage is armed
+     (`board_thermal.c`, the save policy). A stored 13 is taken up with
+     these zero rather than refused: the fields are appended and the
+     DC link's span is in that record. */
+  uint32_t thermal_ident_scale_milli[BOARD_THERMAL_IDENT_SCALES];
+
   uint16_t crc;
 } board_cal_t;
+
+/** The identified scales into the record's RAM copy, milli, wire order;
+  * `Board_CalSave` is what commits them. */
+bool Board_CalSetThermalIdent(const uint32_t *scale_milli);
 
 /** Overlay one node's, one edge's or the bulk's network entry in the
   * record's RAM copy; `Board_CalSave` is what commits it. Milli-units,
@@ -1341,6 +1360,30 @@ typedef struct
   int32_t junction_over_centi[3];
   int32_t speed_rpm;
 } board_thermal_t;
+
+/** The online identification beside the observer (`thermal_ident.h`):
+  * what it believes the network's scales are, how sure, and what the
+  * envelope keeps in hand for that. MINOR 14, thermal op 10. */
+typedef struct
+{
+  uint8_t  state;                   /**< thermal_ident_state_t              */
+  uint8_t  online_mask;             /**< bit k: scale k is moved by samples */
+  float    scale[BOARD_THERMAL_IDENT_SCALES];
+  float    sigma[BOARD_THERMAL_IDENT_SCALES];
+  float    innovation_k;            /**< filtered prediction error, kelvin  */
+  float    margin;                  /**< the envelope's factor for the state*/
+  uint32_t updates;                 /**< samples that moved the scales      */
+  uint32_t saves;                   /**< records written since boot         */
+  bool     ever_saved;              /**< since boot                         */
+  uint32_t since_save_s;            /**< valid only when ever_saved         */
+} board_thermal_ident_t;
+
+bool Board_ThermalIdent(board_thermal_ident_t *out);
+
+/** Forget what was identified: scales to one, UNCERTAIN, and the record
+  * rewritten without them. Refused while the stage is armed - flash is
+  * not programmed under a closed loop - or when the save fails. */
+bool Board_ThermalIdentReset(void);
 
 /** One edge of the network: which two nodes, and the K/W across it now. */
 bool Board_ThermalEdge(uint8_t edge, uint8_t *a, uint8_t *b, float *k_per_w);

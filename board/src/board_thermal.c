@@ -20,6 +20,13 @@
   * non-zero entry in `board_cal_t`'s thermal tables overlays the default
   * for that one field at init and whenever a setter writes one, so what the
   * observer runs and what a save would keep cannot differ.
+  *
+  * AND IT IS IDENTIFIED WHILE THE BOARD RUNS (`thermal_ident.h`): the air
+  * path and the laminate's capacity as scales on the record's network, from
+  * the cooldowns' prediction error against the three thermometers; the
+  * scales go back into the record on the board's own policy, and the
+  * envelope keeps a margin in hand while the model is not trusted. Thermal
+  * op 10 reports it, op 11 forgets it.
   ******************************************************************************
   */
 #include "board_limits.h"
@@ -29,6 +36,7 @@
 #include "board_power.h"
 #include "drive.h"
 #include "thermal.h"
+#include "thermal_ident.h"
 
 #include <math.h>
 #include <string.h>
@@ -41,6 +49,8 @@ _Static_assert(BOARD_THERMAL_NODES == (int)THERMAL_NODES,
                "reply array would be written past its end");
 _Static_assert(BOARD_THERMAL_EDGES == THERMAL_EDGES,
                "board.h's edge count and thermal.h's table disagree");
+_Static_assert(BOARD_THERMAL_IDENT_SCALES == (int)THERMAL_IDENT_PARAMS,
+               "board.h's scale count and thermal_ident.h's enum disagree");
 
 static thermal_t      s_th;
 static thermal_loss_t s_loss;
@@ -80,6 +90,24 @@ static uint32_t       s_millis;
 static uint32_t       s_steps;        /**< model integrations, for a rate  */
 static float          s_speed_rpm;    /**< the rotor at the last step      */
 
+/* THE IDENTIFICATION BESIDE THE OBSERVER. `s_base` is the record's network
+   unscaled - the core's defaults with the record laid over - and what the
+   observer runs is that with the identified scales applied, so a scale is
+   always a multiplier on the same thing and a setter that changes the
+   record changes the base, never the scale. */
+static thermal_ident_t s_ident;
+static thermal_cfg_t   s_base;
+static uint32_t        s_ident_saves;
+static uint32_t        s_saved_ms;
+static bool            s_ever_saved;
+static float           s_saved_scale[THERMAL_IDENT_PARAMS];
+static bool            s_was_armed;
+static thermal_ident_state_t s_margin_state;
+/* THERMAL_IDENT_NOISE_K, THERMAL_IDENT_SAVE_EVERY_MS, THERMAL_IDENT_SAVE_MOVED
+   and THERMAL_MARGIN_REF_C - the identification's floor, its save policy
+   and the margin's reference - are in board_limits.h with the rest of the
+   fixed numbers. */
+
 
 /** Copy the envelope out of the calibration record into the thermal observer. */
 static void soa_from_cal(void)
@@ -99,6 +127,26 @@ static void soa_from_cal(void)
   s_soa.limit_c[THERMAL_WINDING] = (float)cal->winding_limit_centi / 100.0f;
   s_soa.throttle_at = (float)cal->soa_throttle_ppm / 1000000.0f;
   s_soa.lookahead_s = (float)cal->soa_lookahead_ms / 1000.0f;
+
+  /* THE POLICY. While the model is not trusted the ceilings are pulled in:
+     each span over the reference is multiplied by the state's margin -
+     0.85 UNCERTAIN, 0.93 CONVERGING, one STABLE (`thermal_ident_margin`).
+     The bench's words: so the silicon and the laminate are not run to
+     ceilings computed on a network that has just been proved wrong. A
+     105 C laminate ceiling is 93 C while UNCERTAIN. Still a limit it
+     was given, trimmed by a rule it was given - the board judges nothing
+     (invariant 10); the margin is on the wire beside the state. */
+  const float margin = thermal_ident_margin(s_ident.state);
+
+  for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
+  {
+    if (s_soa.limit_c[i] > THERMAL_MARGIN_REF_C)
+    {
+      s_soa.limit_c[i] = THERMAL_MARGIN_REF_C
+                         + margin * (s_soa.limit_c[i] - THERMAL_MARGIN_REF_C);
+    }
+  }
+  s_margin_state = s_ident.state;
 }
 
 
@@ -211,15 +259,59 @@ static void losses_from_cal(void)
 }
 
 
+/** The network the observer runs: the record's base with the identified
+  * scales on it. Every setter that touches the record ends here. */
+static void network_refresh(void)
+{
+  network_from_cal(&s_base);
+  thermal_ident_apply(&s_ident, &s_base, &s_th.cfg);
+}
+
+
+/** The identification from the record: resumed CONVERGING at the saved
+  * scales where a record holds them, fresh and UNCERTAIN at one where it
+  * does not. */
+static void ident_from_cal(void)
+{
+  const board_cal_t *cal = Board_Cal();
+  float scale[THERMAL_IDENT_PARAMS];
+  bool any = false;
+
+  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  {
+    const uint32_t milli = cal->thermal_ident_scale_milli[k];
+
+    scale[k] = (milli != 0U) ? ((float)milli / 1000.0f) : 1.0f;
+    any = any || (milli != 0U);
+  }
+  if (any)
+  {
+    thermal_ident_resume(&s_ident, scale, THERMAL_IDENT_NOISE_K);
+  }
+  else
+  {
+    thermal_ident_init(&s_ident, THERMAL_IDENT_NOISE_K);
+  }
+  memcpy(s_saved_scale, s_ident.scale, sizeof(s_saved_scale));
+  s_saved_ms = HAL_GetTick();
+  s_ever_saved = false;
+  s_ident_saves = 0U;
+  s_was_armed = false;
+}
+
+
 void Board_ThermalInit(void)
 {
   thermal_cfg_t cfg;
 
-  network_from_cal(&cfg);
+  network_from_cal(&s_base);
   losses_from_cal();
+  ident_from_cal();
+  thermal_ident_apply(&s_ident, &s_base, &cfg);
   /* The envelope comes from the calibration record, not from this file. A
      ceiling the firmware invented would be the judgement invariant 10
-     forbids; one it was given is a parameter like any other. */
+     forbids; one it was given is a parameter like any other. After the
+     identification, whose state trims it. */
   soa_from_cal();
 
   /* Start on the NTC if there is one, otherwise somewhere plausible. A wrong
@@ -428,6 +520,65 @@ static void load_now(thermal_load_t *load)
 }
 
 
+/** Write the identified scales to the record and commit it. `s_saved_ms`
+  * moves whether or not the save landed, so a failing flash is not hammered
+  * every poll. */
+static void ident_save(uint32_t now)
+{
+  uint32_t milli[THERMAL_IDENT_PARAMS];
+
+  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  {
+    milli[k] = (uint32_t)(s_ident.scale[k] * 1000.0f + 0.5f);
+  }
+  if (Board_CalSetThermalIdent(milli) && Board_CalSave())
+  {
+    memcpy(s_saved_scale, s_ident.scale, sizeof(s_saved_scale));
+    s_ident_saves++;
+    s_ever_saved = true;
+  }
+  s_saved_ms = now;
+}
+
+
+/** After every poll: the margin follows the state, and the record is
+  * rewritten when the policy says so - see THERMAL_IDENT_SAVE_EVERY_MS. */
+static void ident_policy(uint32_t now)
+{
+  if (s_ident.state != s_margin_state)
+  {
+    soa_from_cal();
+  }
+
+  const bool armed = Board_PwmIsEnabled();
+  const bool disarmed_now = s_was_armed && !armed;
+
+  s_was_armed = armed;
+  if (armed || (s_ident.state == THERMAL_IDENT_UNCERTAIN))
+  {
+    return;
+  }
+
+  float moved = 0.0f;
+
+  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  {
+    if (thermal_ident_online((thermal_ident_param_t)k))
+    {
+      moved = fmaxf(moved, fabsf(s_ident.scale[k] - s_saved_scale[k]));
+    }
+  }
+  if (moved < THERMAL_IDENT_SAVE_MOVED)
+  {
+    return;
+  }
+  if (disarmed_now || ((now - s_saved_ms) >= THERMAL_IDENT_SAVE_EVERY_MS))
+  {
+    ident_save(now);
+  }
+}
+
+
 void Board_ThermalPoll(void)
 {
   if (!s_ready)
@@ -488,6 +639,14 @@ void Board_ThermalPoll(void)
 
     thermal_power_estimate(&s_power, &load, &s_loss, phase_c);
     thermal_step(&s_th, &s_power, &seen, &load, (float)slice / 1000.0f);
+    /* THE IDENTIFICATION, beside it: the shadow and its sensitivities
+       step with the same power and the same slice; when a sample moves
+       the scales the observer's network takes them at once. */
+    if (thermal_ident_step(&s_ident, &s_th, &s_base, &s_power, &load, &seen,
+                           (float)slice / 1000.0f))
+    {
+      thermal_ident_apply(&s_ident, &s_base, &s_th.cfg);
+    }
     thermal_budget(&s_th, &s_power, &s_soa, &s_budget);
     /* The winding's own factor, so a host can say which envelope holds
        the stage back; the whole's already includes it. */
@@ -518,6 +677,8 @@ void Board_ThermalPoll(void)
      slices: this is wall time, and a stall happened whether or not the
      observer chose to integrate all of it. */
   s_millis += since;
+
+  ident_policy(now);
 }
 
 
@@ -622,10 +783,7 @@ bool Board_ThermalSetWinding(float limit_c, float k_per_w, float j_per_k)
   }
   /* The estimate carries on from where it is: a new ceiling or a new
      constant changes what the winding is judged by, not what it is at. */
-  thermal_cfg_t cfg;
-
-  network_from_cal(&cfg);
-  s_th.cfg = cfg;
+  network_refresh();
   soa_from_cal();
   return true;
 }
@@ -688,6 +846,7 @@ bool Board_ThermalSetNode(uint8_t node, float k_per_w, float capacity)
     (void)Board_CalSetThermalNode(node, (uint32_t)(capacity * 1000.0f),
                                   (uint32_t)(k_per_w * 1000.0f));
   }
+  network_refresh();                   /* the record is the base; the scales stay */
   return true;
 }
 
@@ -704,9 +863,12 @@ bool Board_ThermalSetEdge(uint8_t edge, float k_per_w)
   {
     return false;
   }
-  return Board_CalSetThermalEdge(edge, (k_per_w < 0.0f)
-                                 ? BOARD_CAL_EDGE_OPEN
-                                 : (uint32_t)(k_per_w * 1000.0f));
+  const bool ok = Board_CalSetThermalEdge(edge, (k_per_w < 0.0f)
+                                         ? BOARD_CAL_EDGE_OPEN
+                                         : (uint32_t)(k_per_w * 1000.0f));
+
+  network_refresh();
+  return ok;
 }
 
 
@@ -717,8 +879,8 @@ bool Board_ThermalEdge(uint8_t edge, uint8_t *a, uint8_t *b, float *k_per_w)
   {
     return false;
   }
-  *a = THERMAL_EDGE_ENDS[edge].a;
-  *b = THERMAL_EDGE_ENDS[edge].b;
+  *a = thermal_edge((int)edge).a;
+  *b = thermal_edge((int)edge).b;
   *k_per_w = s_th.cfg.r_edge[edge];
   return true;
 }
@@ -767,6 +929,54 @@ bool Board_ThermalSetBoard(float to_ambient, float capacity)
   {
     return false;
   }
-  return Board_CalSetThermalBulk((uint32_t)(to_ambient * 1000.0f),
-                                 (uint32_t)(capacity * 1000.0f));
+  const bool ok = Board_CalSetThermalBulk((uint32_t)(to_ambient * 1000.0f),
+                                         (uint32_t)(capacity * 1000.0f));
+
+  network_refresh();
+  return ok;
+}
+
+
+bool Board_ThermalIdent(board_thermal_ident_t *out)
+{
+  if ((out == NULL) || !s_ready)
+  {
+    return false;
+  }
+  out->state = (uint8_t)s_ident.state;
+  out->online_mask = 0U;
+  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  {
+    if (thermal_ident_online((thermal_ident_param_t)k))
+    {
+      out->online_mask |= (uint8_t)(1U << k);
+    }
+    out->scale[k] = s_ident.scale[k];
+    out->sigma[k] = thermal_ident_sigma(&s_ident, (thermal_ident_param_t)k);
+  }
+  out->innovation_k = s_ident.innovation_k;
+  out->margin = thermal_ident_margin(s_ident.state);
+  out->updates = s_ident.updates;
+  out->saves = s_ident_saves;
+  out->ever_saved = s_ever_saved;
+  out->since_save_s = s_ever_saved ? ((HAL_GetTick() - s_saved_ms) / 1000U) : 0U;
+  return true;
+}
+
+
+bool Board_ThermalIdentReset(void)
+{
+  if (!s_ready || Board_PwmIsEnabled())
+  {
+    return false;
+  }
+  uint32_t zero[THERMAL_IDENT_PARAMS];
+
+  memset(zero, 0, sizeof(zero));
+  thermal_ident_init(&s_ident, THERMAL_IDENT_NOISE_K);
+  thermal_ident_apply(&s_ident, &s_base, &s_th.cfg);
+  memcpy(s_saved_scale, s_ident.scale, sizeof(s_saved_scale));
+  soa_from_cal();
+  s_saved_ms = HAL_GetTick();
+  return Board_CalSetThermalIdent(zero) && Board_CalSave();
 }

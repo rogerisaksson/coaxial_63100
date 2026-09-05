@@ -34,7 +34,8 @@ from test_modbus_core import Report, build, find_cc          # noqa: E402
 REPO = os.path.dirname(os.path.dirname(HERE))
 THERMAL = os.path.join(REPO, 'thermal')
 SOURCES = [os.path.join(THERMAL, 'test', 'harness.c'),
-           os.path.join(THERMAL, 'src', 'thermal.c')]
+           os.path.join(THERMAL, 'src', 'thermal.c'),
+           os.path.join(THERMAL, 'src', 'thermal_ident.c')]
 
 #: The nodes, in the order `thermal.h` declares them. Named here so a
 #: failure says `phase_u` and not `3`; the count is asked of the C.
@@ -247,6 +248,204 @@ def edges(lib):
     """Every edge as `(a, b)` node names, in the C's order."""
     return [(NODES[lib.thm_edge_end(e, 0)], NODES[lib.thm_edge_end(e, 1)])
             for e in range(lib.thm_edges())]
+
+
+#: The identification's scales and states, in wire order.
+SCALES = ('air', 'capacity', 'spread', 'ntc')
+STATES = ('UNCERTAIN', 'CONVERGING', 'STABLE')
+
+
+class Ident:
+
+    """An observer with the identification beside it, behind the harness:
+    the scales multiply the observer's defaults, and `run` steps both."""
+
+    def __init__(self, lib, observer, noise_k=0.1):
+        f, p, i = ctypes.c_float, ctypes.c_void_p, ctypes.c_int
+        fp = ctypes.POINTER(f)
+        lib.thm_ident_new.restype = p
+        lib.thm_ident_new.argtypes = [p, f]
+        lib.thm_ident_run.restype = i
+        lib.thm_ident_run.argtypes = [p, p, fp, f, f, f, f, f]
+        lib.thm_ident_scale.restype = f
+        lib.thm_ident_scale.argtypes = [p, i]
+        lib.thm_ident_sigma.restype = f
+        lib.thm_ident_sigma.argtypes = [p, i]
+        lib.thm_ident_state.restype = i
+        lib.thm_ident_state.argtypes = [p]
+        lib.thm_ident_innovation.restype = f
+        lib.thm_ident_innovation.argtypes = [p]
+        lib.thm_ident_updates.restype = i
+        lib.thm_ident_updates.argtypes = [p]
+        lib.thm_ident_margin.restype = f
+        lib.thm_ident_margin.argtypes = [i]
+        lib.thm_ident_resume.argtypes = [p, fp, f]
+        self.lib = lib
+        self.observer = observer
+        self.h = ctypes.c_void_p(lib.thm_ident_new(observer.h, noise_k))
+
+    def run(self, watt, dt_s, seen=(math.nan, math.nan, math.nan),
+            speed_rpm=0.0):
+        return bool(self.lib.thm_ident_run(
+            self.h, self.observer.h,
+            self.observer._floats(self.observer._watt(watt)),
+            seen[0], seen[1], seen[2], speed_rpm, dt_s))
+
+    def scale(self, which):
+        return self.lib.thm_ident_scale(self.h, SCALES.index(which))
+
+    def sigma(self, which):
+        return self.lib.thm_ident_sigma(self.h, SCALES.index(which))
+
+    def state(self):
+        return STATES[self.lib.thm_ident_state(self.h)]
+
+    def innovation(self):
+        return self.lib.thm_ident_innovation(self.h)
+
+    def updates(self):
+        return self.lib.thm_ident_updates(self.h)
+
+    def resume(self, scales, noise_k=0.1):
+        self.lib.thm_ident_resume(self.h, self.observer._floats(
+            [scales.get(s, 1.0) for s in SCALES]), noise_k)
+
+
+class GroundTruth:
+
+    """A board the identification does not know: the same graph with a
+    situation laid over it, read through the three thermometers with
+    their own noise, at the board's own sampling.
+
+    THE SITUATION is what a box, a fan or a heat sink does: a scale on
+    the air path. `situation(air)` changes it between cycles, which is
+    how the state machine is watched moving.
+    """
+
+    def __init__(self, lib, air=1.0, capacity=49.0, seed=7):
+        self.lib = lib
+        self.model = Model(lib)
+        self.capacity = capacity
+        self.situation(air)
+        self.seed = seed
+
+    def situation(self, air):
+        self.model.set_board(8.33 * air, self.capacity)
+
+    def noise(self):
+        """Deterministic, +-0.05 K: a thermometer's own quantisation."""
+        self.seed = (self.seed * 1103515245 + 12345) & 0x7fffffff
+        return (self.seed / float(0x7fffffff) - 0.5) * 0.1
+
+    def cycle(self, ident, watt, run_s, cool_s, sample_s=30.0, dt_s=1.0,
+              trace=None):
+        """One run then one cooldown, the thermometers ABSENT during the
+        run - AFE_ON is low while anything switches - and read every
+        `sample_s` of the cooldown, as the board reads them."""
+        blind = (math.nan, math.nan, math.nan)
+        for _ in range(int(run_s / dt_s)):
+            self.model.step(watt, dt_s)
+            ident.run(watt, dt_s, blind)
+        for step in range(int(cool_s / dt_s)):
+            self.model.step({}, dt_s)
+            seen = blind
+            if (step + 1) % int(sample_s / dt_s) == 0:
+                seen = (self.model.ntc() + self.noise(),
+                        self.model.junction({}, 'afe') + self.noise(),
+                        self.model.junction({}, 'mcu') + self.noise())
+            if ident.run({}, dt_s, seen) and trace is not None:
+                trace.append((ident.state(), ident.scale('air'),
+                              ident.sigma('air'), ident.innovation()))
+
+
+def test_the_scales_are_identified_against_a_ground_truth(report, lib):
+    """The identification finds a board's air path from its own
+    thermometers, says how sure it is, and notices when the situation
+    changes.
+
+    A GROUND TRUTH THE IDENTIFIER DOES NOT KNOW: the same graph with the
+    air path doubled - a board in a box - read through the NTC and the
+    two dies with +-0.05 K of noise, every thirty seconds of every
+    cooldown and never during a run. Three cycles of a ten-minute run at
+    the legs and twenty minutes of cooling; then the box comes off and a
+    fan goes on - the air path halved - and the same again. What is
+    checked: the air scale lands near two, the state climbs UNCERTAIN to
+    CONVERGING to STABLE, the change is caught within a few samples as
+    UNCERTAIN, and the scale re-lands near a half. The bench's word for
+    all of it: see the logic in action before it is serious on the board.
+    """
+    truth = GroundTruth(lib, air=2.0)
+    observer = Model(lib)
+    ident = Ident(lib, observer)
+    watt = power(lib, phase_sq=(900.0, 900.0, 900.0), duty=(0.5, 0.5, 0.5),
+                 link_volts=48.0, switching=True)
+    report.check('it starts uncertain, at the derived defaults',
+                 ident.state() == 'UNCERTAIN'
+                 and all(abs(ident.scale(s) - 1.0) < 1e-6 for s in SCALES),
+                 '%s, %s' % (ident.state(),
+                             ['%.2f' % ident.scale(s) for s in SCALES]))
+    trace = []
+    for _ in range(3):
+        truth.cycle(ident, watt, 600.0, 1200.0, trace=trace)
+    air = ident.scale('air')
+    report.check('three cycles in a box: the air scale lands near two',
+                 abs(air - 2.0) < 0.4,
+                 '%.2f +- %.2f after %d updates'
+                 % (air, ident.sigma('air'), ident.updates()))
+    report.check('and it says so: CONVERGING or STABLE, the innovation '
+                 'near the thermometers\' floor',
+                 ident.state() in ('CONVERGING', 'STABLE')
+                 and ident.innovation() < 0.5,
+                 '%s, innovation %.2f K' % (ident.state(), ident.innovation()))
+    states = [t[0] for t in trace]
+    report.check('the state went UNCERTAIN, then CONVERGING',
+                 states[0] == 'UNCERTAIN' and 'CONVERGING' in states,
+                 ' > '.join(s for i, s in enumerate(states)
+                            if i == 0 or s != states[i - 1]))
+    report.check('the other scales stayed near one - nothing about them '
+                 'in the data was allowed to move them far',
+                 all(abs(ident.scale(s) - 1.0) < 0.5
+                     for s in ('capacity', 'spread', 'ntc')),
+                 ['%.2f' % ident.scale(s) for s in SCALES])
+    report.check('the margin policy keeps something in hand while it is '
+                 'not STABLE',
+                 lib.thm_ident_margin(0) < lib.thm_ident_margin(1)
+                 < lib.thm_ident_margin(2) == 1.0,
+                 '%.2f %.2f %.2f' % tuple(lib.thm_ident_margin(i)
+                                          for i in range(3)))
+
+    # THE BOX COMES OFF AND A FAN GOES ON. Within the next cooldown's
+    # samples the model that was trusted stops predicting; the identifier
+    # says UNCERTAIN, inflates, and re-lands.
+    settled = ident.state()
+    truth.situation(0.5)
+    trace = []
+    truth.cycle(ident, watt, 600.0, 1200.0, trace=trace)
+    states = [t[0] for t in trace]
+    report.check('a halved air path is caught: UNCERTAIN within the first '
+                 'cooldown after it (from %s)' % settled,
+                 'UNCERTAIN' in states,
+                 ' > '.join(s for i, s in enumerate(states)
+                            if i == 0 or s != states[i - 1]))
+    for _ in range(3):
+        truth.cycle(ident, watt, 600.0, 1200.0, trace=trace)
+    air = ident.scale('air')
+    report.check('and four cycles later the air scale has re-landed near '
+                 'a half', abs(air - 0.5) < 0.15,
+                 '%.2f +- %.2f, %s' % (air, ident.sigma('air'), ident.state()))
+    report.check('with the state back to CONVERGING or STABLE',
+                 ident.state() in ('CONVERGING', 'STABLE'), ident.state())
+
+    # RESUMED FROM A RECORD: a saved model starts trusted enough to run
+    # on, CONVERGING, with its scales where they were left.
+    fresh = Ident(lib, Model(lib))
+    fresh.resume({'air': 0.5})
+    report.check('resumed from a record it starts CONVERGING at the saved '
+                 'scales', fresh.state() == 'CONVERGING'
+                 and abs(fresh.scale('air') - 0.5) < 1e-6
+                 and fresh.sigma('air') < 0.2,
+                 '%s %.2f +- %.2f' % (fresh.state(), fresh.scale('air'),
+                                      fresh.sigma('air')))
 
 
 def wanted(spent, throttle_at=THROTTLE_AT):
@@ -1393,6 +1592,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_junction_rides_the_node,
           test_the_motor_is_the_boards_boundary,
           test_a_long_step_is_sub_stepped,
+          test_the_scales_are_identified_against_a_ground_truth,
           test_the_lookahead_catches_a_ramp,
           test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,
