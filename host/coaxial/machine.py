@@ -37,7 +37,7 @@ from . import ansi
 from .ascii3d import CELL_ASPECT
 from . import braille
 from .raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT,
-                     dithered)
+                     covered)
 
 #: HOW TALL A CELL ACTUALLY IS, in units of its width - `ascii3d`'s, not
 #: a second copy: it is a property of the terminal's font and every
@@ -141,28 +141,22 @@ def _drive(amps, full=None):
     return tuple(max(-1.0, min(1.0, a / scale)) for a in amps)
 
 
-#: THE BEAD IS THREE DOTS BY THREE. A square block, not a disc: at this
-#: size a disc is a plus sign or a blob depending on where its centre
-#: falls between the dots, and a mark whose shape changes as it travels
-#: reads as flicker. Nine dots is the smallest thing that is
-#: unambiguously a mark and not a stray dot of the rim.
-#:
-#: It is centred ON the can's outer edge, not outside it: held clear it
-#: read as something floating beside the drawing rather than a mark on
-#: the rotor, and a position indicator that is not attached to the thing
-#: whose position it indicates indicates nothing.
-POINTER_SIDE = 3
-#: How far its centre sits proud of the can's outer edge, and how far
-#: past that edge it is allowed to reach. Seated ON the rim and CLIPPED
-#: to it: standing proud it read as a blob orbiting the drawing rather
-#: than a mark on the rotor, and a position indicator outside the thing
-#: whose position it indicates is a smudge.
+#: How far the bead stands proud of the can's outer edge, in dots. It
+#: rides ON the rim rather than clear of it: a position indicator not
+#: attached to the thing whose position it indicates indicates nothing.
 POINTER_SEAT = 0.6
-#: How far past the can's outer edge the bead may reach. ONE DOT. Fully
-#: inside, the bead only added dots to a rim that was already solid and
-#: nothing but colour said it was there; four dots proud, it was a blob
-#: orbiting the drawing. One dot is a nub on the silhouette.
-POINTER_PROUD = 1.0
+
+#: The bead. A CIRCLED BULLET - `_bead` has why, what it costs, and the
+#: four dot answers that were built and not kept. THE CHOICE IS MADE.
+#:
+#: AND IT CANNOT BE SHEARED: U+29BF is unambiguously NARROW, so no
+#: terminal setting draws it two columns wide. A fallback was built for
+#: that and taken out - the character chosen for it, U+25CF, is EAST
+#: ASIAN AMBIGUOUS, so the safe substitute was the only unsafe one in the
+#: pair. What actually shears these pages is the arrowheads and the
+#: degree sign; the view has the note.
+POINTER_GLYPH = chr(0x29BF)
+
 #: WHICH CELLS THE BEAD MAY COLOUR: the ones whose CENTRE it covers, plus
 #: the one it sits in. A braille cell is eight dots and one colour, two
 #: dots wide by four tall, against a rim two dots thick - so a cell merely
@@ -199,6 +193,20 @@ TOOTH_FILL = 0.5
 #: about it that can be said.
 NTC_RAMP = tuple(range(SOA_FLASH + 1, SOA_FLASH + 6))
 PHASE_CLASS = (TOOTH_U, TOOTH_V, TOOTH_W)
+
+#: The classes drawn as LINES - the rings - as against the bands and
+#: teeth, which are areas. `Frame.put` has why a line takes a cell it
+#: shares with an area: a line that loses its cell is a broken line, and
+#: an area that loses one is a dot short at its edge.
+#:
+#: NOT THE SOUTH ARC. It is drawn thin, but it is a magnet: counted as a
+#: line its fringe took 46 of 240 cells it shared with tooth tips over 48
+#: poses, which is the rotor's colour on the stator again by another
+#: door. A south pole a dot short at its edge is the fault nobody sees.
+LINES = frozenset((BORE, YOKE, CAN))
+
+#: The teeth, which the truth stroke yields to. `Frame.put` has why.
+TEETH = frozenset(PHASE_CLASS)
 #: What they are called, in the order the teeth take them. Here
 #: rather than in the view because the drawing and the legend beside
 #: it have to name the same phase the same colour.
@@ -298,10 +306,27 @@ class _Radii:
 
     """The radii for one drawing, in dots, from the box it fits in."""
 
-    def __init__(self, width, height):
-        self.can = (min(width * DOTS_X, height * DOTS_Y) / 2.0 - 1.0) * F_FIT
+    def __init__(self, width, height, stretch=1.0):
+        # THE HEIGHT IS MEASURED IN THE SAME UNITS AS THE WIDTH. Radii
+        # are x-dots and the drawing scales y by `stretch`, so a box
+        # `height` rows tall holds `height * DOTS_Y * stretch` x-dots of
+        # can - not `height * DOTS_Y`. Without it a cell taller than two
+        # by one left the can sized as if its rows were shorter than
+        # they are, and a band fitted to the can then shrank it.
+        self.can = (min(width * DOTS_X, height * DOTS_Y * stretch) / 2.0
+                    - 1.0) * F_FIT
         self.magnet_out = self.can * F_MAGNET_OUT
         self.magnet_in = self.can * F_MAGNET_IN
+        # THE TEETH REACH THEIR FULL FRACTION. They were clamped two dots
+        # short so that no cell could hold both a magnet and a tooth tip
+        # - the gap is 0.08 of the radius, 2.6 dots against a cell four
+        # tall, and at twelve and six o'clock the shared cell took the
+        # magnet's amber. Clean, and the bench read it as the slots
+        # drawn too small, which they were. At this resolution it is one
+        # or the other; the picture is of the stator's current, so the
+        # teeth keep their length and the shared cell goes to the tooth
+        # (`Frame.put`). A magnet a dot short at its inner edge at two
+        # angles is the cheaper fault.
         self.tooth_out = self.can * F_TOOTH_OUT
         self.tooth_in = self.can * F_TOOTH_IN
         self.bore = self.can * F_BORE
@@ -309,7 +334,23 @@ class _Radii:
         self.line = max(0.8, self.can * F_LINE)
 
     def ring(self, radius, at, weight=1.0):
-        return abs(radius - at) <= self.line * weight
+        """How much of a dot at `radius` the ring at `at` covers, 0 to 1.
+
+        A COVERAGE AND NOT A YES. The band was a hard test - inside the
+        half-width or out - and four corner samples then quantised a
+        stroke to fifths, which on a thin ring is solid or nothing per
+        dot. That is the staircase: an arc crossing a cell had no way to
+        say it was only a third of the way into it.
+
+        A dot is one unit across, so the stroke covers all of one whose
+        centre is at least half a dot inside the edge, none of one half a
+        dot outside, and a straight ramp between. That ramp is what draws
+        `⣀` where an arc grazes the bottom of a cell, `⣤` where it is
+        halfway in and `⣶` where it nearly fills it - the grading a
+        braille cell can show, which a boolean cannot reach.
+        """
+        edge = self.line * weight + 0.5 - abs(radius - at)
+        return 0.0 if edge <= 0.0 else (1.0 if edge >= 1.0 else edge)
 
 
 def _magnet_class(radius, phi, rotor, poles, r):
@@ -322,10 +363,11 @@ def _magnet_class(radius, phi, rotor, poles, r):
     place = ((phi - rotor) % math.tau) / (math.tau / poles)
     index, into = int(place), place - int(place)
     if into < 0.1 or into > 0.9:            # the break between magnets
-        return None
+        return None, 0.0
     if index % 2 == 0:
-        return NORTH
-    return SOUTH if r.ring(radius, (r.magnet_in + r.magnet_out) / 2.0) else None
+        return NORTH, 1.0
+    cover = r.ring(radius, (r.magnet_in + r.magnet_out) / 2.0)
+    return (SOUTH, cover) if cover else (None, 0.0)
 
 
 def _tooth_class(radius, phi, slots, r, drive):
@@ -347,10 +389,10 @@ def _tooth_class(radius, phi, slots, r, drive):
     nobody is asking anything of.
     """
     if not r.tooth_in <= radius <= r.tooth_out:
-        return None
+        return None, 0.0
     place = (phi % math.tau) / (math.tau / slots)
     if place - int(place) > TOOTH_FILL:
-        return None
+        return None, 0.0
     phase = int(place) % 3
     if drive is not None:
         share = drive[phase]
@@ -358,28 +400,44 @@ def _tooth_class(radius, phi, slots, r, drive):
                                              * abs(share))
         if share >= 0.0:
             if radius > r.tooth_in + span:
-                return None
+                return None, 0.0
         elif radius < r.tooth_out - span:
-            return None
-    return PHASE_CLASS[phase]
+            return None, 0.0
+    # A TOOTH IS A FILLED AREA, so what bounds it is its angle and its
+    # length, not a stroke - a sample is inside it or it is not, and the
+    # supersampling in `_body` is what softens those edges.
+    return PHASE_CLASS[phase], 1.0
 
 
 def _classify(radius, phi, rotor, slots, poles, r, drive):
-    """Which element, if any, owns the dot at (radius, phi)."""
-    if r.ring(radius, r.bore):
-        return BORE
-    if r.ring(radius, r.tooth_in):
-        return YOKE
+    """What owns the point at (radius, phi), and how much of a dot there
+    it covers - `(class, 0..1)`, or `(None, 0.0)` for air.
+
+    THE COVERAGE TRAVELS WITH THE CLASS because only the shape knows it.
+    A ring answers a ramp across its own edge; a tooth or a magnet is a
+    filled area and answers one, its edges being angles that `_body`
+    supersamples. Returned as a pair rather than worked out afterwards:
+    the caller would have to ask which of six shapes it had hit to know
+    which rule applied.
+    """
+    cover = r.ring(radius, r.bore)
+    if cover:
+        return BORE, cover
+    cover = r.ring(radius, r.tooth_in)
+    if cover:
+        return YOKE, cover
     if radius <= r.tooth_out:
         return _tooth_class(radius, phi, slots, r, drive)
     if r.magnet_in <= radius <= r.magnet_out:
         return _magnet_class(radius, phi, rotor, poles, r)
-    if r.ring(radius, r.can, CAN_WEIGHT) or r.ring(radius, r.can_inner):
-        return CAN
-    return None
+    cover = max(r.ring(radius, r.can, CAN_WEIGHT),
+                r.ring(radius, r.can_inner))
+    if cover:
+        return CAN, cover
+    return None, 0.0
 
 
-def layout(width, height, n_left=0, n_right=0, rows=None):
+def layout(width, height, n_left=0, n_right=0, rows=None, stretch=1.0):
     """Where everything goes: `(centre_x, radii, left_cols, right_cols)`.
 
     ONE SOURCE FOR ALL OF IT. The span, the gutters, the raster and the
@@ -404,7 +462,7 @@ def layout(width, height, n_left=0, n_right=0, rows=None):
     # the thing feeding it. `rows` is what is left after the gauges and
     # anything written above them, so the can's size follows the WIDTH
     # and the rows only change how much air is around it.
-    r = _Radii(room, rows if rows else height)
+    r = _Radii(room, rows if rows else height, stretch)
     cx = (lead + room / 2.0) * DOTS_X - 0.5
     left = [c for c in (lead - BAR_GAP - 1 - i for i in range(n_left))
             if 0 <= c < width]
@@ -463,6 +521,12 @@ def _gauge(dots, owner, width, height, row, share, cls,
     lo, hi = max(0, first) * DOTS_X, min(width - 1, last) * DOTS_X + DOTS_X
     wide = hi - lo
     filled = int(max(0.0, min(1.0, share)) * wide + 0.5)
+    # THE CELL THE LEVEL ENDS IN HOLDS LEVEL AND NOTHING ELSE, for the
+    # reason `_bars` gives: a track dot inside it took the level's
+    # colour and the bar read a whole cell long whatever the level was.
+    # Kept clear, the end of the bar is drawn at the dot - one lane or
+    # two - and a level that moves one dot is seen to move.
+    edge = (lo + filled - 1) // DOTS_X if filled else -1
     for step in range(wide):
         x = lo + step
         col = x // DOTS_X
@@ -471,7 +535,7 @@ def _gauge(dots, owner, width, height, row, share, cls,
                 dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y]
             if cls > owner[row][col]:
                 owner[row][col] = cls
-        elif step % 2 == 0:
+        elif x % DOTS_X == 0 and col != edge:
             # ONE DOT A CELL, the same rate the tubes' track runs at.
             # Every FOURTH dot put one in every other cell, so the empty
             # half of a gauge came out as a dashed line with gaps a cell
@@ -538,6 +602,17 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
             share, cls = entry
             col = columns[index]
             filled = int(max(0.0, min(1.0, share)) * tall + 0.5)
+            # THE CELL THE MERCURY ENDS IN HOLDS MERCURY AND NOTHING
+            # ELSE. A cell is one colour, and the mercury's class wins
+            # it - so a track dot drawn above the level inside that cell
+            # took the mercury's colour and the level read a row higher
+            # than it was. Worse, it read a WHOLE row: the top of every
+            # bar came out `⣿` whatever the level, and a tube that fills
+            # in cell steps barely moves. Kept clear, the top of the
+            # mercury is drawn at the dot - `⣀`, `⣤`, `⣶`, `⣿` - and a
+            # level that moves one dot is seen to move.
+            edge = ((top_row * DOTS_Y + tall - filled) // DOTS_Y
+                    if filled else -1)
             for step in range(tall):
                 y = top_row * DOTS_Y + tall - 1 - step
                 row = y // DOTS_Y
@@ -549,8 +624,9 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
                             BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
                     if cls > owner[row][col]:
                         owner[row][col] = cls
-                elif step % 2 == 0:
-                    # THE TUBE ABOVE IT. A bar with nothing over it says
+                elif y % DOTS_Y in (1, 3) and row != edge:
+                    # THE TUBE ABOVE IT, on the cell's own second and
+                    # fourth rows so every track cell is the same `⣒`. A bar with nothing over it says
                     # how hot a node is; a bar in a tube says how hot it
                     # is OF WHAT IT MAY BE, which is the only version of
                     # the question a ceiling makes sense of.
@@ -661,161 +737,358 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
     return lit
 
 
-def _body(put, cx, cy, rotor, slots, poles, r, drive, width, height,
-          stretch):
-    """The machine itself, dot by dot, through `put`.
+class Frame:
 
-    OUT OF `_raster` BECAUSE THAT ONE IS ASSEMBLY and this is the
-    drawing: the caller works out where everything goes and how much
-    room it has, and this is the only part that asks what is at a point.
+    """The grid a drawing is built in: dots, who owns each cell, and the
+    text laid over them.
+
+    ONE OBJECT BECAUSE THREE PASSES WRITE THE SAME THREE ARRAYS. They
+    were three locals in `_raster` with a closure over them, so every
+    pass took six arguments or none depending on when it was written and
+    the function grew past what a reader can hold. A pass now takes the
+    frame and says what it draws.
+    """
+
+    def __init__(self, width, height):
+        self.width, self.height = width, height
+        self.dots = [[0] * width for _ in range(height)]
+        self.owner = [[-1] * width for _ in range(height)]
+        self.text = [[None] * width for _ in range(height)]
+        #: How many dots each class has lit in each cell, so a cell can
+        #: belong to what is mostly in it.
+        self.tally = [[None] * width for _ in range(height)]
+
+    def put(self, x, y, cls):
+        """Light one dot, in DOT coordinates. `cls` None lights it and
+        claims nothing.
+
+        A LINE BEATS A FILL IN A SHARED CELL, then the most dots win. A
+        cell is eight dots and one colour, and two rules were tried
+        before this one, each wrong in one place:
+
+        * the highest RANK that had lit any dot - so at the yoke a tooth
+          outranked the ring and the yoke came out chopped into
+          phase-coloured segments that changed with the drive;
+        * the MOST DOTS - which mended the yoke and broke the can: the
+          magnet band's outer edge and the can's inner ring are 0.10 of
+          the radius apart, 3.3 dots against a cell four tall, and at
+          twelve o'clock the cell they share is mostly magnet. The ring
+          went amber in three places, ringed in red on the bench.
+
+        A ring is a LINE the drawing means and a band is an area; a line
+        that loses its cell is a broken line, an area that loses one is
+        a dot short at its edge, which nobody sees. So a line class
+        present in the cell takes it - the one with most dots if several
+        - and only cells with no line in them go to the fill with most.
+        """
+        col, row = int(x) // DOTS_X, int(y) // DOTS_Y
+        if 0 <= row < self.height and 0 <= col < self.width:
+            self.dots[row][col] |= BRAILLE_BITS[int(x) % DOTS_X][
+                int(y) % DOTS_Y]
+            if cls is not None:
+                tally = self.tally[row][col]
+                if tally is None:
+                    tally = self.tally[row][col] = {}
+                tally[cls] = tally.get(cls, 0) + 1
+                # THE TRUTH STROKE FIRST, the one thing drawn to be
+                # FOUND: yielding to the rings it owned no cell at all in
+                # some poses, so at its own angle a ring cell goes white
+                # and it reads as reaching the rim. It never meets a
+                # tooth - `_truth` keeps it a dot and a half inside the
+                # band. THEN A RING over anything: a broken ring is seen.
+                # THEN THE MOST DOTS, with no favour between a magnet and
+                # a tooth. The air gap is less than a cell tall, so at
+                # twelve and six o'clock a cell holds both; given to the
+                # magnet it put amber on the teeth, given to the tooth it
+                # put green on the band, and the bench saw each in turn.
+                # Whichever has more of the cell is the colour least
+                # wrong, and rank only breaks a tie. Teeth over rings was
+                # tried too and put the yoke back in pieces.
+                #
+                # EXCEPT THAT THE STROKE YIELDS TO A TOOTH. The band is a
+                # dot and a half from its inner end and a cell's diagonal
+                # still bridges that at some angles - two cells in 48
+                # poses held a tooth's tip and the stroke both. A white
+                # cell on a tooth is a mark on the stator, which is where
+                # this mark has been chased out of three times; in that
+                # cell the stroke is simply not a candidate.
+                running = ([c for c in tally if c != TRUTH]
+                           if set(tally) & TEETH else tally)
+                self.owner[row][col] = max(
+                    running, key=lambda c: (c == TRUTH, c in LINES, tally[c], c))
+
+    def claim(self, row, col, cls, said=None):
+        """Give a CELL to `cls`, and a character with it where the mark
+        cannot be made of dots."""
+        if 0 <= row < self.height and 0 <= col < self.width:
+            self.owner[row][col] = cls
+            if said is not None:
+                self.text[row][col] = said
+
+    def lines(self, ink, colour=False, tint=None):
+        """THE ONE PLACE THIS BECOMES TERMINAL OUTPUT.
+
+        Everything above writes into the buffer and nothing above knows
+        what an escape sequence is; here the cells become characters and,
+        if asked, colour. `ink` maps an owner class to its colour and
+        `tint` overrides particular cells - a legend's words and the
+        leader that belongs to them keep their own ink without owning the
+        cells they cross.
+        """
+        at = dict(tint or {})
+        out = []
+        for row in range(self.height):
+            cells = [(self.text[row][col]
+                      or chr(BRAILLE + self.dots[row][col]),
+                      at[(row, col)] if (row, col) in at
+                      else ink.get(self.owner[row][col]))
+                     for col in range(self.width)]
+            out.append(ansi.run(cells) if colour
+                       else ''.join(char for char, _ in cells))
+        return out
+
+
+class Seat:
+
+    """Where the machine sits in its box, and what is left around it.
+
+    OUT OF `_raster` BECAUSE IT IS THE ANSWER EVERY PASS NEEDS AND NONE
+    OF THEM SHOULD WORK OUT. The centre, the radii, how many rows the
+    gauges and the legend took, and the dot aspect - six numbers that
+    were computed inline and then passed around one at a time.
+    """
+
+    def __init__(self, width, height, left, right, top, bottom,
+                 labels, leaders, aspect):
+        self.floors = max(1, len(list(bottom or ())))
+        # A LABEL'S ROW IS WRITTEN ON, A LEADER'S `to_row` IS PAST ITS
+        # LAST: the two are one column of arithmetic with different ends,
+        # and the can has to start under both. A LEADER THAT STARTS AT
+        # THE TOP pushes the can down; one starting lower is drawn in
+        # rows the floor gauges already own, and counting it here would
+        # reserve the whole box.
+        written = [row + 1 for row, _col, _said, _ink in list(labels or ())]
+        written += [entry[2] for entry in list(leaders or ())
+                    if entry[0] == 0]
+        self.reserve = max(written) if written else 0
+        self.band = max(1, height - self.floors - self.reserve)
+        # A DOT IS SQUARE ONLY WHEN A CELL IS TWO BY ONE. Everything here
+        # measures in x-dots and scales y by this, so a drawing stays
+        # round on a terminal whose font says otherwise - and the band is
+        # measured in the same units, or a band fitted to the can would
+        # shrink it.
+        self.stretch = aspect / DOTS_Y * DOTS_X
+        self.cx, self.radii, _, _ = layout(
+            width, height, len(left or ()), len(right or ()), rows=self.band,
+            stretch=self.stretch)
+        # AND CENTRED IN THAT BAND, so the air it does not use is shared
+        # above and below it rather than pushing it into the gauges.
+        self.cy = (self.reserve + self.band / 2.0) * DOTS_Y - 0.5
+
+
+def _body(frame, seat, rotor_deg, slots, poles, drive):
+    """The machine itself, dot by dot.
 
     THE CORNERS ARE COVERAGE, not a vote on whether anything is there.
     One corner of four lit the dot whole, so every arc came out a dot
     fatter than it is and the can's rim stepped against the magnets
     inside it. Half a dot or more still lights outright - a one-dot rim
     is a line the drawing means - and the fringe beyond that is
-    dithered, which is what puts the patterns between solid and blank
-    on the page.
+    dithered, which is what puts the patterns between solid and blank on
+    the page.
     """
-    for y in range(height * DOTS_Y):
-        for x in range(width * DOTS_X):
-            cls, hits = None, 0
+    rotor = math.radians(rotor_deg)
+    for y in range(frame.height * DOTS_Y):
+        for x in range(frame.width * DOTS_X):
+            # EACH SAMPLE VOTES WITH ITS COVERAGE, and the dot goes to the
+            # class that covers most of it. It went to the highest RANK
+            # among the samples, which is a rule about which shape is
+            # more important and not about what is there: at the yoke a
+            # tooth outranks the ring, so every cell the ring passed
+            # through where a tooth roots took the tooth's colour and
+            # the yoke came out chopped into phase-coloured segments that
+            # changed with the drive. That is the colour fault a bench
+            # sees in the stator. Rank only breaks a tie now.
+            votes = {}
             for ox, oy in SUBDOT:
-                dx, dy = x + ox - cx, (cy - y - oy) * stretch
-                at = _classify(math.hypot(dx, dy), math.atan2(dy, dx),
-                               rotor, slots, poles, r, drive)
+                dx = x + ox - seat.cx
+                dy = (seat.cy - y - oy) * seat.stretch
+                at, share = _classify(math.hypot(dx, dy), math.atan2(dy, dx),
+                                      rotor, slots, poles, seat.radii, drive)
                 if at is not None:
-                    hits += 1
-                    if cls is None or at > cls:
-                        cls = at
-            if cls is not None and dithered(hits, len(SUBDOT), x, y):
-                put(x, y, cls)
+                    votes[at] = votes.get(at, 0.0) + share
+            if votes and covered(sum(votes.values()), len(SUBDOT)):
+                frame.put(x, y, max(votes, key=lambda c: (votes[c], c)))
 
 
-def _bead(dots, owner, width, height, cx, cy, r, pointer_deg):
+def _bead(frame, seat, pointer_deg, glyph=None):
     """The bench's own zero, riding the can's rim.
 
-    OUT OF `_raster` BECAUSE IT IS A MARK, not the machine: that one
-    draws a rotor and this puts a bead on it, and together they ran past
-    what a reader can hold.
+    `POINTER_GLYPH` IS THE BEAD AND THAT IS SETTLED. It is the bench's
+    choice, made twice, and this docstring exists so it is not made a
+    third time. What is left to get right is WHERE it goes.
 
-    ROUND AT EVERY ANGLE, WHICH IS THE WHOLE JOB. It has been three
-    things. A radial spur first - a line of dots along the radius, which
-    at the top of the can lay across four rows of one cell and read as a
-    tick, and at the sides across two columns and read as a dash. Then a
-    square of dots centred ON the rim, clipped to the rotor's
-    silhouette: what survived was a crescent, and a crescent cut by a
-    circle is a different shape at every angle too. Then a sampled disc
-    seated inside the rim, which was round but spread over three cells
-    and read as a smear on the band rather than a mark on it.
+    WHAT A GLYPH BUYS: it is the same mark at every angle by
+    construction - no shape for a dot grid to approximate, nothing to
+    straddle, no weight that changes on the way round. A braille cell
+    cannot carry a letter, so it replaces the cell it lands in: the rim
+    opens for the bead and closes behind it.
 
-    A 2x2 BLOCK OF DOTS is the answer, because a dot is square: four
-    dots in a square are a round mark at any position on the grid, they
-    are always the same four, and they take one cell or two depending
-    only on where they land - `⠛`, `⠶`, `⣤` and the pairs that straddle
-    a column. Compact enough to sit ON the band without covering it.
+    WHAT IT COSTS, honestly: a character cell is about one wide by two
+    tall, so the glyph's own proportions are the FONT'S and not this
+    drawing's - against a picture made of square dots it reads a little
+    narrow. Nothing here can change that; only dots are square.
+
+    THE FOUR DOT ANSWERS, all built, none kept: a radial spur, which at
+    the top of the can lay across four rows of one cell and read as a
+    tick and at its sides across two columns and read as a dash; a
+    square of dots centred ON the rim and clipped to the rotor's
+    silhouette, which left a crescent cut differently at every angle; a
+    sampled disc seated inside the rim, round and spread over three
+    cells, which is a smear on the band; and a 2x2 block, or that disc
+    at a dot's radius thresholded at half coverage so the weight graded
+    with the sub-position - `⣀`, `⣤`, `⣶` climbing a cell. The best of
+    them, and still a mark whose size changes as it travels.
     """
-    import math
-
     phi = math.radians(pointer_deg)
-    # ON THE RIM, half in and half out. Seated inside it the four dots
-    # landed on the can's own and the mark was colour alone - which is
-    # nothing at all in a mono terminal. Straddling, it breaks the
-    # silhouette where it is and closes behind it, which is what a bead
-    # on a rim does.
-    seat = r.can + POINTER_SEAT
-    at_x = cx + seat * math.cos(phi)
-    at_y = cy - seat * math.sin(phi)
-    # The nearest gap between dots, so the four round it are the four
-    # nearest the exact point however the fraction fell.
-    x0, y0 = int(math.floor(at_x)), int(math.floor(at_y))
-    for y in (y0, y0 + 1):
-        for x in (x0, x0 + 1):
-            col, row = x // DOTS_X, y // DOTS_Y
-            if 0 <= row < height and 0 <= col < width:
-                dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
-                owner[row][col] = POINTER
+    # ON THE RIM, half in and half out, so it breaks the silhouette
+    # where it is and closes behind it.
+    #
+    # `stretch` IS NOT OPTIONAL, and leaving it out was a real bug. The
+    # radii are in x-dots and `_body` scales y by it, so a bead placed
+    # with plain trigonometry rode the rim only where a dot happened to
+    # be square. On a terminal whose cell is not two-by-one it sat
+    # outside the periphery, which is where the bench found it.
+    seat_r = seat.radii.can + POINTER_SEAT
+    at_x = seat.cx + seat_r * math.cos(phi)
+    at_y = seat.cy - seat_r * math.sin(phi) / seat.stretch
+    # THE NEAREST CELL, MEASURED FROM ITS CENTRE. Truncating puts the
+    # mark in whichever cell the exact point falls inside, and a cell is
+    # two dots across by four down - so the path comes out quantised
+    # twice as coarsely down as across, an egg rather than a circle.
+    # Measured over 360 degrees, the worst departure from the true
+    # circle falls from 2.76 dots to 2.15.
+    col = int(math.floor((at_x - (DOTS_X - 1) / 2.0) / DOTS_X + 0.5))
+    row = int(math.floor((at_y - (DOTS_Y - 1) / 2.0) / DOTS_Y + 0.5))
+    frame.claim(row, col, POINTER, glyph or POINTER_GLYPH)
 
+
+def _truth(frame, seat, truth_deg):
+    """The angle a shaft sensor says, as a tick in the AIR GAP.
+
+    It was a notch cut outward through the can: the can is one dot thick
+    and the mark four, so it took whole cells of the outer ring with it
+    and read as a white gash in the stator - a drawing artefact rather
+    than a rotor angle. In the gap it touches nothing, and the magnet
+    band it should line up with is immediately outside it.
+    """
+    phi = math.radians(truth_deg)
+    r = seat.radii
+    # THROUGH THE MAGNET BAND, which is the thing it is read against. It
+    # was a tick in the air gap between the tooth tips and the band - and
+    # the air gap is the stator's side of the picture: whatever it did
+    # not touch it stood over, a white mark at the slot mouths where the
+    # teeth show their current, and it read as a second indicator drawn
+    # across the magnetisation. Twice trimmed, twice still there. Then
+    # outside the rim, where the bench's own mark rides: one column of
+    # air at three and nine o'clock, so it reached into the gutter, and
+    # the rim's own fringe left it no empty cell at some angles.
+    #
+    # The band has room, is the rotor, and is what the sensor's angle is
+    # compared with: the estimate turns the band, the sensor draws the
+    # stroke, and a slipped pole is the stroke standing off a magnet's
+    # edge. A dot clear of the band's own edges, so it never shares a
+    # cell with the can's rings - and the air gap keeps every tooth a
+    # cell's diagonal away.
+    # A DOT AND A HALF INSIDE THE BAND'S INNER EDGE, not half: at half it
+    # shared five cells in 48 poses with a tooth's tip across the air
+    # gap, and a stroke that wins those is a white mark on the stator.
+    # The ordering in `Frame.put` cannot settle that - rings must beat
+    # teeth, teeth must beat magnets, the stroke must beat rings to be
+    # seen - so the stroke simply never meets a tooth.
+    inner, outer = r.magnet_in + 1.5, r.magnet_out - 0.5
+    for step in range(int((outer - inner) * 4) + 1):
+        radius = inner + step * 0.25
+        frame.put(seat.cx + radius * math.cos(phi),
+                  seat.cy - radius * math.sin(phi) / seat.stretch, TRUTH)
+
+
+def _machine(frame, seat, rotor_deg, slots, poles, drive,
+             truth_deg=None, pointer_deg=None, bead=None):
+    """THE MACHINE AND NOTHING ELSE: the cross-section, the bench's mark
+    on the rim, and the tick a shaft sensor claims.
+
+    One pass, so a caller that wants the motor without the instruments
+    hanging off it - `motor()` - asks for exactly this.
+    """
+    _body(frame, seat, rotor_deg, slots, poles, drive)
+    if truth_deg is not None:
+        _truth(frame, seat, truth_deg)
+    if pointer_deg is not None:
+        _bead(frame, seat, pointer_deg, bead)
+
+
+def _instruments(frame, seat, left, right, top, bottom):
+    """The gutters and the gauges: everything measured AGAINST the
+    machine rather than part of it.
+
+    The gauges run in a ROW across the machine's width. It was one; a
+    page that has to say how much is left of the board and of the
+    windings at once cannot say it in one bar, and stacking them would
+    need two rows and leave a reader matching bars to names by order.
+    """
+    floor = list(bottom or ())
+    _bars(frame.dots, frame.owner, frame.width, frame.height, left, right,
+          seat.radii, len(floor), reserve=seat.reserve, has_top=bool(top))
+    for index, gauge in enumerate(list(top or ())):
+        _gauge(frame.dots, frame.owner, frame.width, frame.height,
+               GAUGE_INSET, gauge[0], gauge[1],
+               len(left or ()), len(right or ()), part=(index, len(top)))
+    for index, gauge in enumerate(floor):
+        _gauge(frame.dots, frame.owner, frame.width, frame.height,
+               frame.height - FLOOR_INSET - len(floor) + index,
+               gauge[0], gauge[1], len(left or ()), len(right or ()))
+
+
+def motor(rotor_deg, slots=24, poles=28, width=40, height=22, drive=None,
+          truth_deg=None, pointer_deg=None, aspect=CELL_ASPECT,
+          colour=False, bead=None):
+    """The machine alone, as text rows - no gutters, no gauges, no
+    legend.
+
+    What `render` draws before it hangs instruments off it, and the only
+    thing a caller who wants a picture of a motor actually wants.
+    """
+    frame = Frame(width, height)
+    seat = Seat(width, height, None, None, None, None, None, None, aspect)
+    _machine(frame, seat, rotor_deg, slots, poles, drive,
+             truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead)
+    return frame.lines(phase_ink(drive), colour=colour)
 
 
 def _raster(rotor_deg, slots, poles, width, height, truth_deg, drive,
             pointer_deg, left, right, top, bottom, aspect, labels=None,
-            leaders=None, rules=None):
-    """Dots, their owners and a text overlay, one entry per cell."""
-    dots = [[0] * width for _ in range(height)]
-    owner = [[-1] * width for _ in range(height)]
-    text = [[None] * width for _ in range(height)]
-    floors = max(1, len(list(bottom or ())))
-    # A LABEL'S ROW IS WRITTEN ON, A LEADER'S `to_row` IS PAST ITS LAST:
-    # the two are one column of arithmetic with different ends, and the
-    # can has to start under both.
-    # A LEADER THAT STARTS AT THE TOP pushes the can down; one starting
-    # lower is drawn in rows the floor gauges already own, and counting
-    # it here would reserve the whole box.
-    written = [row + 1 for row, _col, _said, _ink in list(labels or ())]
-    written += [entry[2] for entry in list(leaders or ())
-                if entry[0] == 0]
-    reserve = max(written) if written else 0
-    band = max(1, height - floors - reserve)
-    cx, r, _, _ = layout(width, height, len(left or ()), len(right or ()),
-                         rows=band)
-    # AND CENTRED IN THAT BAND, so the air it does not use is shared
-    # above and below it rather than pushing it into the gauges.
-    cy = (reserve + band / 2.0) * DOTS_Y - 0.5
-    rotor = math.radians(rotor_deg)
+            leaders=None, rules=None, bead=None):
+    """The whole page: the machine, its instruments, and the legend over
+    both. Three passes and the seat they share - each has its own
+    function, and this one only says the order."""
+    frame = Frame(width, height)
+    seat = Seat(width, height, left, right, top, bottom, labels, leaders,
+                aspect)
+    _machine(frame, seat, rotor_deg, slots, poles, drive,
+             truth_deg=truth_deg, pointer_deg=pointer_deg, bead=bead)
+    _instruments(frame, seat, left, right, top, bottom)
+    lit = _overlay(frame.dots, frame.text, width, height, labels, leaders,
+                   rules)
+    return frame, lit
 
-    def put(x, y, cls):
-        """Light one dot. `cls` None lights it and claims nothing."""
-        col, row = int(x) // DOTS_X, int(y) // DOTS_Y
-        if 0 <= row < height and 0 <= col < width:
-            dots[row][col] |= BRAILLE_BITS[int(x) % DOTS_X][int(y) % DOTS_Y]
-            if cls is not None and cls > owner[row][col]:
-                owner[row][col] = cls
-
-    _body(put, cx, cy, rotor, slots, poles, r, drive, width, height,
-          aspect / DOTS_Y * DOTS_X)
-    if pointer_deg is not None:
-        _bead(dots, owner, width, height, cx, cy, r, pointer_deg)
-    if truth_deg is not None:
-        # A TICK IN THE AIR GAP, inside the magnet band it is read
-        # against. It was a notch cut outward through the can first: the
-        # can is one dot thick and the mark four, so it took whole cells
-        # of the outer ring with it and read as a white gash in the
-        # stator - a drawing artefact rather than a rotor angle. In the
-        # gap it touches nothing, and the magnet band it should line up
-        # with is immediately outside it.
-        phi = math.radians(truth_deg)
-        span = r.magnet_in - r.tooth_out
-        for step in range(int(span * 4)):
-            radius = r.tooth_out + 0.5 + step * 0.25
-            put(cx + radius * math.cos(phi), cy - radius * math.sin(phi),
-                TRUTH)
-    floor = list(bottom or ())
-    _bars(dots, owner, width, height, left, right, r, len(floor),
-          reserve=reserve, has_top=bool(top))
-    # A ROW OF THEM, side by side across the machine's width. It was one
-    # gauge; a page that has to say how much is left of the BOARD and of
-    # the WINDINGS at once cannot say it in one bar, and stacking them
-    # would need two rows and leave a reader matching bars to names by
-    # their order.
-    for index, gauge in enumerate(list(top or ())):
-        _gauge(dots, owner, width, height, GAUGE_INSET, gauge[0], gauge[1],
-               len(left or ()), len(right or ()),
-               part=(index, len(top)))
-    for index, gauge in enumerate(floor):
-        _gauge(dots, owner, width, height,
-               height - FLOOR_INSET - len(floor) + index, gauge[0], gauge[1],
-               len(left or ()), len(right or ()))
-
-    lit = _overlay(dots, text, width, height, labels, leaders, rules)
-    return dots, owner, text, lit
 
 
 def render(rotor_deg, slots=24, poles=28, width=40, height=22,
            truth_deg=None, amps=None, full=None, pointer_deg=None,
            left=None, right=None, top=None, bottom=None,
            aspect=CELL_ASPECT, colour=False, labels=None, leaders=None,
-           rules=None):
+           rules=None, bead=None):
     """The cross-section, `rotor_deg` being how far the can has turned.
 
     `rotor_deg` is mechanical: the electrical angle over the pole pairs.
@@ -859,29 +1132,21 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     poles = max(2, int(poles) - int(poles) % 2)
     slots = max(3, int(slots))
     drive = _drive(amps, full)
-    dots, owner, text, lit = _raster(rotor_deg, slots, poles, width, height,
-                                     truth_deg, drive, pointer_deg, left,
-                                     right, top, bottom, aspect, labels,
-                                     leaders, rules)
-    ink = phase_ink(drive)
+    frame, lit = _raster(rotor_deg, slots, poles, width, height,
+                         truth_deg, drive, pointer_deg, left, right,
+                         top, bottom, aspect, labels, leaders, rules,
+                         bead)
+    # THE ONLY THING LEFT HERE IS WHO GETS WHICH COLOUR. The buffer holds
+    # the picture; a legend's words and the leader that belongs to them
+    # keep their own ink without owning the cells they cross, which is
+    # why this is a map and not another owner class.
     at = {}
     for row, col, said, said_ink in list(labels or ()):
         for step in range(len(said)):
             at[(row, col + step)] = said_ink
-    # A LEADER TAKES ITS LABEL'S COLOUR, so the rule and the words that
-    # own it read as one thing. The cells keep their braille glyph - only
-    # the ink is overridden - which is why this is a map and not a class.
     for row, col, shade in lit:
         at.setdefault((row, col), shade)
-    lines = []
-    for row in range(height):
-        cells = [(text[row][col] or chr(BRAILLE + dots[row][col]),
-                  at[(row, col)] if (row, col) in at
-                  else ink.get(owner[row][col]))
-                 for col in range(width)]
-        lines.append(ansi.run(cells) if colour
-                     else ''.join(char for char, _ in cells))
-    return '\n'.join(lines)
+    return '\n'.join(frame.lines(phase_ink(drive), colour=colour, tint=at))
 
 
 def caption(slots, poles, rotor_deg, slipped=None):

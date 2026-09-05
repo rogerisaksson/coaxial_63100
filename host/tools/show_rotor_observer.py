@@ -125,6 +125,42 @@ CAPTION_ROWS, FOOT_ROWS = 5, 1
 #: winding 17, watts 18, labels on the row below the box.
 ART_ROWS = ART_HEIGHT - CAPTION_ROWS - FOOT_ROWS
 
+#: What the drawing keeps above the machine - the one row the leaders
+#: hop into - and below it, the two floor gauges. `fit_rows` adds these
+#: to the can's own rows.
+HOP_ROWS, FLOOR_GAUGES = 1, 2
+
+
+def fit_rows(aspect):
+    """Size the box to the can on THIS terminal.
+
+    THE BAND WAS A CONSTANT AND THE CAN IS NOT. The can is sized by the
+    WIDTH the gutters leave it, and how many rows that is depends on how
+    tall a cell is: at two-by-one it is 13.5 rows, at 2.3 it is 11.7.
+    The band was fifteen either way, and the spare rows were split above
+    and below the machine - so on the bench's terminal the legend floated
+    a row and a half over the motor and the foot gauges a row and a half
+    under it. Measured, before this: 1.5 rows of air above at 2.3, 0.6 at
+    two.
+
+    Fitted, the box is as tall as the can plus the hop and the floor.
+    `+ 2` in the diameter because `_Radii` keeps a dot off each edge, and
+    a band that forgot that shrank the can by half a dot to fit.
+
+    Module globals, set once at start-up from a measured aspect - the
+    same standing as `CELL_ASPECT` itself, and every place that needs the
+    height reads it when it draws.
+    """
+    global ART_ROWS, ART_HEIGHT
+    stretch = aspect / machine.DOTS_Y * machine.DOTS_X
+    # A box tall enough that the width limits, which is the can the
+    # drawing will get.
+    can = machine.layout(ART_WIDTH, 10 ** 6, LEFT_COLUMNS, RIGHT_COLUMNS)[1].can
+    rows = int(math.ceil((2.0 * can + 2.0) / (machine.DOTS_Y * stretch)))
+    ART_ROWS = HOP_ROWS + rows + FLOOR_GAUGES
+    ART_HEIGHT = ART_ROWS + CAPTION_ROWS + FOOT_ROWS
+    return ART_ROWS
+
 #: HOW CLOSE TO THE FLOOR IS TOO CLOSE. The chain reports `wc`, the leak's
 #: corner, and calls itself invalid below it - both observers live on
 #: `v - R i` and a rotor that slow makes no back-EMF worth the name. That
@@ -297,9 +333,19 @@ BAR_GLYPH = chr(0x28FF)
 TRACK_GLYPH = chr(0x2812)
 #: The scroll affordances. Triangles rather than dots: they are
 #: not part of the picture, they are something to click.
-UP, DOWN = chr(0x25B2), chr(0x25BC)
+UP, DOWN = chr(0x25B4), chr(0x25BE)
 #: The degree sign. A bare C beside a number is a coulomb.
-DEGREE = chr(0xB0)
+#: The degree sign - the MODIFIER LETTER SMALL O, not U+00B0.
+#:
+#: EAST ASIAN AMBIGUOUS WIDTH IS WHAT SHEARS THESE PAGES. U+00B0 is
+#: ambiguous: a terminal set for East Asian text draws it two columns
+#: wide and every other one draws it narrow, and it is a setting rather
+#: than a font. Wide, the three caption rows carrying a temperature shear
+#: - everything after the sign slides a column, and the colour runs slide
+#: with it, which is the bleeding a bench sees inside the box. U+1D52 is
+#: the same ring at the same place in the line and is unambiguously
+#: NARROW, so no setting can move it.
+DEGREE = chr(0x1D52)
 
 #: The thermal nodes a duty cycle can drive into the SOA: the shunt a
 #: phase current crosses and the half-bridge above it, per leg. Named in
@@ -655,7 +701,17 @@ def _legend_targets(view, left, right):
             share, cls = bars[index]
             said.append(_legend(
                 len(said),
-                '%s %.0f %%' % (HEADROOM_NAMES[index], 100.0 * share),
+                # A DECIMAL, BECAUSE THE TUBE CANNOT SHOW THIS. A cold
+                # board spends a tenth of its budget, so both margins
+                # live in the bottom row or two of a fifteen-row tube and
+                # a bench watching one warm up sees nothing move. The
+                # SCALE is right - a board at a tenth of its ceiling
+                # should read a tenth, and stretching it would be the
+                # drawing having an opinion about a margin (invariant
+                # 10). What can carry the movement without lying is the
+                # figure beside the name, and whole percent was too
+                # coarse: 8 % stood while the node climbed four degrees.
+                '%s %.1f %%' % (HEADROOM_NAMES[index], 100.0 * share),
                 machine.INK[cls], right[HEADROOM_AT + index], True))
     peak, cls = hottest(view, BOARD_NODES)
     if peak is not None and right:
@@ -1472,7 +1528,16 @@ LEADER_DROP = len(HEADROOM_ROWS)
 #: The head sits against the words and says which way to look; the run
 #: that reaches out to the column is braille, like everything else the
 #: page draws. `DROP` is the same line continuing down a later row.
-AIM_LEFT, AIM_RIGHT = chr(0x25C0), chr(0x25B6)
+#: The arrowheads a legend points with. THE SMALL TRIANGLES, and the
+#: size is not why. `\u25c0` and `\u25b6` are EAST ASIAN AMBIGUOUS WIDTH:
+#: Unicode does not decide, a terminal set for East Asian text draws them
+#: two columns wide and every other one draws them narrow, and it is a
+#: setting rather than a font. Wide, every caption row shears - the mark
+#: doubles, everything after it slides a column, and the colour runs slide
+#: with it, which is the bleeding a bench sees inside the box. The small
+#: triangles at U+25C2 and U+25B8 are the same shape and unambiguously
+#: NARROW, so the drawing cannot be sheared by a setting.
+AIM_LEFT, AIM_RIGHT = chr(0x25C2), chr(0x25B8)
 #: The run, the corner it turns at, and the column it falls down - all
 #: off `coaxial.braille`, which holds the whole block and the vocabulary
 #: for asking. Typed as `chr(0x28A4)` these were guesses that had to be
@@ -1898,7 +1963,6 @@ def compose(rig, origin, console, view):
     # The true rotor is a notch on the can: the gap between it and the
     # magnet band under it IS the observer's error, in the units a magnet
     # works in rather than in electrical degrees.
-    truth = view.get('model')
     amps, full = phase_amps(view)
     # THE THERMOMETERS ARE NAMED, on a row of their own above them. A
     # column of braille cannot carry a letter, and a stack of unlabelled
@@ -1925,8 +1989,16 @@ def compose(rig, origin, console, view):
     # integrated, which is mechanical revolutions and what a tare is for.
     art = machine.render(turned, view['slots'], 2 * pole_pairs,
                          ART_WIDTH, ART_ROWS,
-                         truth_deg=(math.degrees(truth['theta']) / pole_pairs
-                                    if truth else None),
+                         # THE SENSOR'S OWN STROKE IS NOT DRAWN. It was
+                         # the model's true angle as a radial mark, and
+                         # in four sittings the bench read it as a
+                         # second indicator, a stray line, a smear of
+                         # grey in a north magnet - never as a mark. The
+                         # bead carries the bench's zero and a slipped
+                         # pole shows against the teeth; a third thing
+                         # on the rotor was noise. `machine` still draws
+                         # it when asked.
+                         truth_deg=None,
                          amps=amps, full=full, aspect=view['aspect'],
                          pointer_deg=view['travel'] - view['tare'],
                          left=(soa_bars(view, SOA_NODES)
@@ -2095,6 +2167,25 @@ def act(rig, key, view):
     return ''
 
 
+def aspect_of(args):
+    """What makes the can round on THIS terminal.
+
+    ASKED, NOT ASSUMED. The renderers work in square pixels and fold the
+    cell's shape in at the end, so getting this wrong does not blur the
+    picture - it stretches it, and a can drawn wide of round reads as a
+    rotor that is turned when it is not. 2.0 was the default because most
+    monospace fonts are near it; a terminal with its line height turned
+    up is not, and the bench saw every circle come out an oval.
+
+    `--cell-aspect` still wins, because a bench that has measured its own
+    font beats a query, and the query answers None on every terminal that
+    does not do XTWINOPS.
+    """
+    if args.cell_aspect is not None:
+        return args.cell_aspect
+    return _screen.probe_aspect() or machine.CELL_ASPECT
+
+
 def parse_args(argv):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument('--port', default='COM4')
@@ -2103,7 +2194,7 @@ def parse_args(argv):
     p.add_argument('--hz', type=float, default=8.0)
     p.add_argument('--source', choices=('model', 'adc'), default='model')
     p.add_argument('--motor', help='a profile under motors/, written first')
-    p.add_argument('--cell-aspect', type=float, default=machine.CELL_ASPECT,
+    p.add_argument('--cell-aspect', type=float, default=None,
                    help='what makes the can round on THIS terminal. The '
                         'geometry is exactly round at 2.0 - measured, 25.16 '
                         'cell-widths each way - so an ellipse is the font '
@@ -2244,16 +2335,24 @@ def demo_defaults(args, origin):
     return 0.1
 
 
-def main(argv=None):
-    args = parse_args(argv)
-    sane(args)
+def _link(args):
+    """Open the board and put the front end where the source needs it.
 
-    from screen import open_rig, run_view, stage
+    OUT OF `main` BECAUSE THAT ONE GREW PAST WHAT A READER CAN HOLD.
+    Linking, arming the front end and reading the calibration record are
+    one errand; the view's state and its loop are another.
+
+    Answers `(rig, params, was_on)` - the last being how AFE_ON was
+    FOUND, which is what the teardown puts back. It has to travel with
+    the link because it is read before the front end is touched, and a
+    caller that worked it out afterwards would be reading its own change.
+    """
+    from screen import open_rig
     rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
                    power_afe=False,
                    simulated_device=bool(args.simulated))
     if rig is None:
-        return 1
+        return None, None, None, None
     origin, board = rig.origin, rig.board
     was_on = board.afe.is_on()
     want_afe = args.afe or args.source == 'adc'
@@ -2262,16 +2361,38 @@ def main(argv=None):
         time.sleep(0.3)
     say('ok' if origin.real else 'warn', 'link',
         '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
+    # THE DEMO'S DEFAULTS BEFORE THE PREFLIGHT, because the preflight
+    # reads them: `demo_defaults` puts the stand-in's load - `args.b`,
+    # the friction the model turns against - onto `args`, and
+    # `preflight` is what hands the model its parameters. Called after,
+    # the model ran with no load, drew no current and warmed nothing:
+    # measured at 600 frames, the winding at 22.9 C where HEAD had it at
+    # 98.8, every thermometer near its floor. The order is the one
+    # `main` had before this function was cut out of it.
     view_step = demo_defaults(args, origin)
     demo_stage(rig, origin)
-
     try:
-        params = preflight(rig, args)
+        return rig, preflight(rig, args), was_on, view_step
     except RigError as exc:
         say('fail', 'drive', str(exc))
         rig.close()
-        return 1
+        return None, None, None, None
 
+
+def main(argv=None):
+    args = parse_args(argv)
+    sane(args)
+
+    from screen import run_view, stage
+    rig, params, was_on, view_step = _link(args)
+    if rig is None:
+        return 1
+    origin, board = rig.origin, rig.board
+
+    # MEASURED ONCE, at start-up: the cell's shape is the terminal's and
+    # cannot change under a running view, and the box is sized to it.
+    aspect = aspect_of(args)
+    fit_rows(aspect)
     view = {'scroll': 0, 'pages': None, 'haul': 0.0, 'grip': False,
             'screen': None, 'terminal': False,
             'source': args.source, 'mode': args.mode, 'iq': args.iq,
@@ -2279,7 +2400,7 @@ def main(argv=None):
             'vd': args.vd, 'v_inj': args.v_inj, 'inject': True,
             'inj_periods': int(params.get('drv_inj_periods') or 1),
             'step': view_step, 'slots': args.slots, 'switch': args.switch,
-            'aspect': args.cell_aspect,
+            'aspect': aspect,
             'spin': not origin.real, 'spin_at': time.time(),
             'simulated': not origin.real,
             'tare': 0.0, 'sweep_at': time.time(),

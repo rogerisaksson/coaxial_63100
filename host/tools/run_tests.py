@@ -859,6 +859,17 @@ STOPPED = 130
 
 
 def main(argv=None):
+    # THE RUNNER MUST SURVIVE WHAT IT REPORTS. A failing check's detail
+    # is whatever the suite put there - braille from the renderers, a
+    # degree sign, a glyph a bench typed into a test - and on a Windows
+    # console left at its codepage, printing it raised UnicodeEncodeError
+    # INSIDE the summary and took the whole run down with it. Measured
+    # 2026-09-05: two failed checks in test_views.py, and the tally never
+    # printed. The suites already run under PYTHONIOENCODING=utf-8; this
+    # is the runner's own stdout, replaced rather than refused.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(errors='replace')
     args = _options(argv)
     try:
         chosen = _plan(args)

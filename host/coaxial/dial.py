@@ -35,7 +35,7 @@ from . import angle
 from . import ansi
 from .ascii3d import CELL_ASPECT
 from .raster import (BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y,
-                     SUBDOT, dithered)
+                     SUBDOT, covered)
 
 #: Dots between the rim and the ring the numbers stand on, and the room
 #: their own row needs beyond that. The face is sized to whatever is left
@@ -244,7 +244,7 @@ def _raster(degrees, width, height, weak, aspect):
             # - a one-dot tick is a mark the face means - and the fringe
             # beyond it is dithered. `machine._raster` reads them the
             # same way, and they are the same drawing problem.
-            if cls is None or not dithered(hits, len(SUBDOT), x, y):
+            if cls is None or not covered(hits, len(SUBDOT)):
                 continue
             col, row = int(x) // DOTS_X, int(y) // DOTS_Y
             if 0 <= row < height and 0 <= col < width:

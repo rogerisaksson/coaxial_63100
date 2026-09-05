@@ -901,6 +901,134 @@ record's own constants, no measurement.
 
 ## The renderers
 
+* **The thermometers went dead because the demo lost its load, not
+  because the model changed.** Reported three times as "nearly static"
+  and blamed on the thermal recalibration. Measured: the stand-in warmed
+  identically at `60ae1f3`, at HEAD and in the working tree under the
+  same drive (`driven.py`, 12 A: driver_u 0.12 to 0.15 of its ceiling in
+  3 s). The VIEW differed - at 600 frames HEAD had the winding at 98.8 C
+  and SWITCH SOA 50 %, the working tree 22.9 C and 20 %. `main` had been
+  split into `_link`, and `demo_defaults` - which puts the model's load,
+  `args.b`, onto `args` - landed after the `preflight` that hands the
+  model its parameters. Unloaded, the model drew no current. Order
+  restored, 99.2 C and 50.8 %; `test_views.py` runs 200 frames and holds
+  the winding above 45 C. The recalibration IS a smaller change: at
+  12 A the leg node reaches 0.146 of its ceiling in 3 s where the old
+  `LEG_TO_BOARD` of 45.6 gave 0.220 - deliberate, and documented under
+  the thermal findings.
+* **A cell is eight dots and one colour, and three rules for which
+  colour were tried.** Highest RANK among lit dots: a tooth outranks
+  the yoke, so the yoke ring came out chopped into phase-coloured
+  segments that changed with the drive. MOST DOTS: mended the yoke and
+  broke the can - the magnet band's outer edge and the can's inner ring
+  are 0.10 of the radius apart, 3.3 dots against a cell four tall, and
+  at twelve o'clock the shared cell is mostly magnet; the ring went
+  amber in three places, ringed in red on the bench. LINES BEAT AREAS,
+  then most dots: a line that loses its cell is a broken line, an area
+  that loses one is a dot short at its edge. Yoke ring wholly its own
+  colour (0.80 under the vote), no can-ring cell lost to a magnet
+  (three under the vote).
+* **The air gap is under a cell tall, and no colour rule makes that
+  right.** 0.08 of the radius is 2.6 dots against a cell four tall, so
+  at twelve and six o'clock one cell holds a magnet's inner edge and a
+  tooth's tip - 240 such cells over 48 poses - and a cell is one colour.
+  Three answers, each measured and each seen on the bench: the gap held
+  open to a cell's diagonal - no shared cell, and the teeth 1.9 dots
+  short, "the slots are too small"; the tooth given the cell - green on
+  the band, "colour faults in the rotor"; the magnet given the cell -
+  amber on a tooth tip, "the rotor bleeds into the stator". The drawing
+  keeps the teeth at their full fraction and gives a shared cell to
+  whichever has more of it, which is the magnet in all 240. The south
+  arc is a magnet, not a line: counted as a line its fringe took 46 of
+  those cells. **Which fault to carry is the bench's choice, not the
+  drawing's**, and the other two are one constant away.
+* **The shaft sensor's stroke is drawn through the magnet band, and it
+  wins its cells outright.** Three placements before that. In the AIR
+  GAP it stood over the slot mouths where the teeth show their current
+  and read as a second indicator drawn across the magnetisation -
+  trimmed to a dot clear of both sides and made to yield in shared
+  cells, it was reported there still, because its dots were still
+  there. OUTSIDE THE RIM, beside the bench's own mark, it reached the
+  gutter at three and nine o'clock (one column of air) and found no
+  empty cell at some angles (the rim's fringe). THE BAND has room, is
+  the rotor, and is what the sensor's angle is compared with: a slipped
+  pole is the stroke standing off a magnet's edge. Yielding to the
+  rings it owned no cell in some poses - the can's inner ring's fringe
+  reaches the band's outer cells - so it takes everything: at that one
+  angle a ring cell goes white and the stroke reads as reaching the rim.
+  Measured over 48 poses: no cell shared with a tooth, none in a
+  gutter, at least one cell its own in every pose, at most one rim cell
+  taken.
+* **The mercury's top is drawn at the dot.** A track dot inside the
+  cell the level ended in took the level's colour, so every bar's top
+  read `⣿` and a tube that fills in cell steps barely moves. The end
+  cell holds level and nothing else: `⣀`, `⣤`, `⣶`, `⣿`, one dot a step
+  (the foot gauges `⠇`, `⠿`, one lane a step).
+* **The box is sized to the can on this terminal.** The band was a
+  constant fifteen rows; the can is 13.5 rows at a two-by-one cell and
+  11.7 at 2.3, and the spare was split above and below - 1.5 rows of
+  air over the motor on the bench's terminal. `fit_rows` measures the
+  aspect once and sets the height; `_Radii` measures its height in the
+  same units as its width (it assumed a square dot, the gap flagged
+  earlier), with `+ 2` in the diameter for the dot it keeps off each
+  edge. 14 rows at two, 13 at 2.3, 12 at 2.5.
+* **Consolas has neither U+29BF nor braille.** On a terminal at VS
+  Code's default font the whole drawing is rendered by the fallback,
+  Segoe UI Symbol, which is why the bead reads oval: the glyph is drawn
+  by a font whose cell is not the terminal's. It is not a width flag -
+  U+29BF is unambiguously narrow. Round marks Consolas draws itself and
+  that are narrow: `◦` `◌` `∙` `ʘ`; `●` and
+  `○` are in the font but ambiguous. A choice for the bench, not
+  made here.
+* **The runner must survive what it reports.** A failing check whose
+  detail held eight braille cells raised UnicodeEncodeError inside the
+  summary on a console at its codepage, and the tally never printed.
+  `run_tests.py` reconfigures its own stdout to replace.
+
+* **EAST ASIAN AMBIGUOUS WIDTH is what shears a terminal drawing.**
+  Reported from the bench as the composite bleeding colour inside its
+  own box and the indicator reading oval. Unicode does not decide the
+  width of `◀ ▶ ▲ ▼ °`: a terminal set for East
+  Asian text draws them two columns wide and every other one narrow, and
+  it is a SETTING, not a font. Wide, the mark doubles, everything after
+  it on the row slides a column, and the colour runs slide with it. The
+  small triangles `◂ ▸ ▴ ▾` and `ᵒ` are the same
+  marks and unambiguously narrow. **The bead was not the culprit** -
+  U+29BF is narrow - and the fallback built for it chose U+25CF, which
+  IS ambiguous: the safe substitute was the only unsafe character in the
+  pair. Braille is narrow by definition, so only the furniture was ever
+  at risk. `test_views.py` holds the rule.
+* **An ordered dither on a fringe crawls and does not help.** A
+  quarter-covered dot lit at a quarter of the positions sounds like more
+  resolution; the threshold is fixed in SCREEN space, so a shape moving
+  across it has its fringe pop on and off in a standing pattern. On a
+  still picture it only fattened lines here and there - measured on a
+  ring, `⣄⣄⣀` against `⣄⣀⣀`. Coverage
+  alone, thresholded at half a dot, is smoother and cheaper.
+* **A ring wants an analytic coverage, not a band test.** `abs(radius -
+  at) <= line` is a yes, and four corner samples then quantise a stroke
+  to fifths - on a thin ring that is solid or nothing per dot, which is
+  the staircase. A ramp across the stroke's own edge grades it, and the
+  grading is what draws `⣀` where an arc grazes the bottom of a
+  cell, `⣤` halfway in and `⣶` nearly through. 17.7 ms a frame
+  became 22.1.
+* **A rotated sampling grid beats the four corners at no cost.** Four
+  samples on a square give a near-horizontal or near-vertical edge only
+  two distinct coverages - both samples of a row cross it at once -
+  which is exactly where a circle looks worst. The four-rooks pattern
+  gives those edges five.
+* **The instruments are not dead, they are honest.** Five thermometers
+  reading the bottom tenth of their tubes looks broken; measured on the
+  stand-in at 12 A the spends are 0.03 to 0.17, which on a fifteen-row
+  tube is one or two rows. A board at a tenth of its ceiling should read
+  a tenth (invariant 10), so the scale stayed and the margins gained a
+  decimal instead - whole percent stood still while a node climbed four
+  degrees.
+* **Not fixed:** `_Radii` sizes the can with `min(width * 2, height * 4)`,
+  which assumes a square dot. Only bites where a cell is LOWER than two
+  by one, and then the can can overflow its box vertically.
+
+
 * **`coaxial/braille.py` holds the block and the vocabulary.** Glyphs
   picked by hand at call sites (`chr(0x2824)` for a run, `chr(0x2847)`
   for a drop) stay a handful and the corners come out wrong: a run

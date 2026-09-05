@@ -6,6 +6,7 @@ them is the thing that drifts - the structure suite fails a definition that
 lives in two files.
 """
 import re
+import time
 import sys
 import threading
 
@@ -72,6 +73,114 @@ EXTENDED_FLAGS = 0x0080
 QUICK_EDIT = 0x0040
 LINE_INPUT = 0x0002
 ECHO_INPUT = 0x0004
+
+
+#: The two control characters the probes send. BUILT, NOT TYPED: a
+#: backslash escape written into this file through a shell heredoc
+#: arrives as the real control character and breaks the string it
+#: was meant to be inside - a trap this tree has fallen into more
+#: than once, and one `chr()` closes for good.
+ESC = chr(27)
+CR = chr(13)
+
+#: What a terminal is asked for its size in pixels and in cells. XTWINOPS
+#: - `CSI 14 t` answers `CSI 4 ; height ; width t` and `CSI 18 t` answers
+#: `CSI 8 ; rows ; columns t`. Between them they give the CELL, which is
+#: the one number every round drawing in this tree depends on and the one
+#: nobody can look up.
+ASPECT_QUERY = '\033[14t\033[18t'
+
+#: How long to wait for the answer. A terminal that supports it replies
+#: at once; one that does not never will, and a view must not hang on a
+#: cosmetic question.
+ASPECT_WAIT = 0.15
+
+#: What a cell's height-over-width may plausibly be. Outside this the
+#: reply is not a cell - a terminal reporting its size in some other unit
+#: would otherwise stretch the drawing into a smear.
+ASPECT_RANGE = (1.2, 3.2)
+
+
+def cell_aspect_of(pixels, cells):
+    """Height over width for one cell, from `(h, w)` pixels and `(rows,
+    cols)` cells. None where the numbers cannot be a cell.
+
+    Pure, so it can be checked without a terminal - the thing it is for
+    cannot be run by a test at all.
+    """
+    try:
+        ph, pw = float(pixels[0]), float(pixels[1])
+        rows, cols = float(cells[0]), float(cells[1])
+    except (TypeError, ValueError, IndexError):
+        return None
+    if min(ph, pw, rows, cols) <= 0:
+        return None
+    aspect = (ph / rows) / (pw / cols)
+    lo, hi = ASPECT_RANGE
+    return aspect if lo <= aspect <= hi else None
+
+
+def probe_aspect(console=True, wait=ASPECT_WAIT):
+    """Ask the terminal how tall its cell is against its width.
+
+    THE ONE NUMBER A ROUND DRAWING NEEDS AND NOBODY CAN LOOK UP. The
+    renderers work in square pixels and fold the cell's shape in at the
+    end, so getting it wrong does not blur the picture - it stretches it,
+    and a can drawn 25 % wide of round reads as a rotor that is turned
+    when it is not. 2.0 was assumed because most monospace fonts are near
+    it; a terminal with its line height turned up is not, and the bench
+    saw circles come out as ovals.
+
+    Answers None when nothing replies, which is every terminal that does
+    not do XTWINOPS and every pipe - the caller keeps its default.
+    """
+    # BOTH ENDS, or the query itself is the damage: written to a pipe
+    # the escape lands in whatever is reading the render.
+    if not console or not sys.stdin.isatty() or not sys.stdout.isatty():
+        return None
+    saved = posix = None
+    try:
+        try:
+            import termios
+            import tty
+            posix, saved = termios, termios.tcgetattr(sys.stdin)
+            tty.setcbreak(sys.stdin.fileno())
+        except Exception:               # noqa: BLE001 - Windows, or no tty
+            saved = None
+        out = sys.__stdout__ or sys.stdout
+        out.write(ASPECT_QUERY)
+        out.flush()
+        got, until = '', time.monotonic() + wait
+        while time.monotonic() < until and got.count('t') < 2:
+            got += _read_now()
+        found = re.findall(r'\033\[(4|8);(\d+);(\d+)t', got)
+        seen = {kind: (int(a), int(b)) for kind, a, b in found}
+        if '4' not in seen or '8' not in seen:
+            return None
+        return cell_aspect_of(seen['4'], seen['8'])
+    except Exception:                   # noqa: BLE001 - never fatal
+        return None
+    finally:
+        if saved is not None:
+            posix.tcsetattr(sys.stdin, posix.TCSADRAIN, saved)
+
+
+def _read_now():
+    """Whatever is waiting on stdin this instant, or ''."""
+    try:
+        import msvcrt
+    except ImportError:
+        import select
+
+        if select.select([sys.stdin], [], [], 0.01)[0]:
+            return sys.stdin.read(1)
+        return ''
+    got = ''
+    while msvcrt.kbhit():
+        got += msvcrt.getwch()
+    if not got:
+        time.sleep(0.01)
+    return got
 
 
 def console_mode(was):
