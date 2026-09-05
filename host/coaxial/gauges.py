@@ -6,10 +6,11 @@ a grey track, the colour a margin against a ceiling - and every other
 page drew its levels as `====----` in ASCII. The bench asked for the
 same instrument on the meter bridge, on the thermal observer and in
 every box that shows a level. This is that instrument on its own: a
-horizontal gauge one row tall, and a row of vertical tubes, drawn by
-THE SAME CODE as the machine's gutters and floor - `machine._level` and
-`machine._tube` on a `machine.Frame` - so a level means the same thing
-and looks the same wherever it is.
+horizontal gauge one row tall, a bar three rows tall for a spend, and
+a row of vertical tubes, drawn by THE SAME CODE as the machine's
+gutters and floor - `machine._level` and `machine._tube` on a
+`machine.Frame` - so a level means the same thing and looks the same
+wherever it is.
 
 Pure: fractions in, text out. What a fraction is OF, and which class
 colours it, is the caller's - this draws levels (invariant 10).
@@ -63,6 +64,44 @@ def gauge(share, cells, cls=SOA_OK, centre=None, marks=(), colour=True):
 #: The dot rows a held peak takes on a gauge: the top one alone, so it
 #: reads apart from a burst extreme's full-height tick beside it.
 PEAK = (0,)
+
+#: A bar's margin, dots, above and below its block: one, so the block
+#: fills three rows to within a dot of their edges - `⣶` over `⣿` over
+#: `⠿` - and reads as one thick bar with air round it rather than three
+#: rows of gauge stacked with seams between.
+BAR_INSET = 1
+
+
+def bar(share, cells, rows=3, cls=SOA_OK, marks=(), colour=True):
+    """A level `rows` tall, `cells` wide, as text lines: a solid block
+    `share` of the way along the scale in `cls`, the rest of the scale a
+    dotted track on the middle row, `marks` as `gauge` takes them but
+    the bar's whole height.
+
+    THE BENCH ASKED FOR IT: the thermal observer's spend was a one-row
+    gauge in square brackets, `[⣿⣿⣿⠒⠒⠒] 42 %`, and the word was
+    "something nicer, three braille rows tall". A block that thick is
+    the one level on the page that is not a thermometer, which is right
+    for the one that is a spend rather than a temperature.
+    """
+    frame = Frame(cells, rows)
+    wide = cells * DOTS_X
+    tall = rows * DOTS_Y
+    end = int(max(0.0, min(1.0, share)) * wide + 0.5)
+    for x in range(end):
+        col = x // DOTS_X
+        for y in range(BAR_INSET, tall - BAR_INSET):
+            frame.dots[y // DOTS_Y][col] |= machine.BRAILLE_BITS[x % DOTS_X][
+                y % DOTS_Y]
+            if cls > frame.owner[y // DOTS_Y][col]:
+                frame.owner[y // DOTS_Y][col] = cls
+    machine._level(frame.dots, frame.owner, rows // 2, end, wide, 0, 0, cls)
+    for mark in marks:
+        at = int(round(max(0.0, min(1.0, mark[0])) * (wide - 1)))
+        for row in range(rows):
+            machine._mark(frame.dots, frame.owner, row, at, mark[1],
+                          range(DOTS_Y))
+    return frame.lines(INK, colour=colour)
 
 
 #: ONE SCALE FOR EVERY THERMOMETER ON EVERY PAGE, degrees C: the motor

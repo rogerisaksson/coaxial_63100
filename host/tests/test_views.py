@@ -396,6 +396,54 @@ def test_every_gauge_shows_its_own_scale(report):
                     len(drawn)))
 
 
+def test_the_headroom_box_carries_a_bar_three_rows_tall(report):
+    """The thermal observer's spend is HEADROOM, its level a bar three
+    braille rows tall labelled `soak` - the bench's word: the box was
+    BUDGET, the level `[⣿⣿⠒⠒] 42 %` on one row, and the ask was the
+    brackets gone and "something nicer, three rows of braille"."""
+    import re
+    from rich.console import Console
+
+    sys.path.insert(0, HOST)
+    from coaxial import gauges
+    from tools import show_thermal_observer as page
+    from tools import stage
+
+    lines = [re.sub('\x1b\\[[0-9;]*m', '', l)
+             for l in gauges.bar(0.5, 16, marks=[(0.9, gauges.MARK)])]
+    report.check('a bar is three rows of sixteen cells',
+                 len(lines) == 3 and all(len(l) == 16 for l in lines),
+                 str([len(l) for l in lines]))
+    report.check('its block is one thick bar with a dot of air round it - '
+                 '⣶ over ⣿ over ⠿ - to half way',
+                 lines[0][:8] == '⣶' * 8 and lines[1][:8] == '⣿' * 8
+                 and lines[2][:8] == '⠿' * 8, '|'.join(lines))
+    report.check('the empty scale is a dotted track on the middle row only',
+                 lines[0][8:14].strip('⠀ ') == '' and lines[2][8:14].strip('⠀ ') == ''
+                 and '⠇' in lines[1][8:14], '|'.join(lines))
+    report.check('and the throttle mark runs the bar\'s whole height',
+                 all(l[14] == '⡇' for l in lines), '|'.join(lines))
+
+    state = {'nodes': {}, 'ntc': None, 'seconds': 3, 'settled': False,
+             'seen_s_ago': None, 'sample_every_s': 5.0, 'mcu': 40.0,
+             'afe': None, 'ambient': 25.0}
+    budget = {'worst': 0.42, 'worst_node': 'phase_v',
+              'seconds_to_limit': 12.0, 'throttling': False,
+              'tripped': False, 'used': {}}
+    console = Console(record=True, width=44, force_terminal=True,
+                      color_system='truecolor', theme=stage.THEME)
+    console.print(page.status_boxes(state, budget)[1])
+    said = re.sub('\x1b\\[[0-9;]*m', '', console.export_text(styles=True))
+    report.check('the box is HEADROOM, and the level is labelled soak',
+                 'HEADROOM' in said and 'soak' in said and 'BUDGET' not in said,
+                 said)
+    braille_rows = [l for l in said.splitlines()
+                    if any(0x2800 <= ord(ch) < 0x2900 for ch in l)]
+    report.check('three braille rows, no brackets, the figure beside it',
+                 len(braille_rows) == 3 and '[' not in said
+                 and '42 %' in said, said)
+
+
 def test_the_attitude_caps_its_frame_rate(report):
     """BOARD ATTITUDE draws at most HZ_CAP frames a second whatever
     `--hz` asks - the bench's word, so the laptop's fans stay down -
@@ -1450,6 +1498,8 @@ def main():
     test_the_thermal_map_is_a_halftone_with_its_parts_marked(report)
     print('\n-- the attitude\'s frame rate --')
     test_the_attitude_caps_its_frame_rate(report)
+    print('\n-- the thermal observer\'s headroom --')
+    test_the_headroom_box_carries_a_bar_three_rows_tall(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

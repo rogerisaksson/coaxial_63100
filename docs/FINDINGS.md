@@ -1314,6 +1314,18 @@ record's own constants, no measurement.
   inside it shows. The first draft caught only a frame landing right
   of the other's edge, and the bigger MCU landed a cell inside REG's:
   two lines a cell apart, seen in the render before the raster.
+* **The thermal observer's BUDGET is HEADROOM, and its spend is a bar
+  three rows tall, 2026-09-05.** The bench's word: rename the box, label
+  the level `soak`, lose the square brackets, "something nicer, three
+  braille rows tall". `gauges.bar` is the third instrument in the
+  module beside the gauge and the tubes: a solid block to the level,
+  `⣶` over `⣿` over `⠿` with a dot of air above and below so it reads
+  as one thick bar and not three seamed rows, the empty scale a dotted
+  track on the middle row alone, the throttle point a mark the bar's
+  whole height, the figure beside the middle row. The old one-line
+  `budget_line` and the `summary` line went with it - both dead since
+  the boxes replaced them. Rendered through the stage's theme and
+  rastered: `HEADROOM`, `soak`, three rows, no brackets.
 * **The clock sync guarded its first NTP query and not its second,
   2026-09-05.** CI on Python 3.10 crashed the whole DAQ suite with
   `TimeoutError: timed out` out of `ntp_offset` - a runner that reached

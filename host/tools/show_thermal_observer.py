@@ -19,8 +19,8 @@ import sys
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
-from screen import (ASH, closing, gauge, NEON, say, SODIUM,  # noqa: E402
-                    stamp_crosses, tint, TO_MENU, visible)
+from screen import (closing, say, stamp_crosses, TO_MENU,  # noqa: E402
+                    visible)
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -59,62 +59,38 @@ TRAILING = 0
 #: What ESC and Q do. ESC returns TO_MENU so coaxial_tty.ps1 draws its menu again.
 
 
-def summary(state):
-    """What the colours cannot say: whether a measurement is behind them.
-
-    Not a table of the nodes - the picture already carries those, and a list
-    beside it says the same numbers twice. With AFE_ON low there is no NTC at
-    all and the nodes run open on power and time, which is the one thing that
-    changes how the picture should be read.
-    """
-    # A STALE SAMPLE IS NOT A MEASUREMENT. The board reports the last one it
-    # took together with its age, and judging the age is the host's job
-    # (invariant 10). Measured 2026-08-28: during a switching run this line
-    # printed `NTC 36.0 C` with a model error that grew 7.75 -> 12.46 K,
-    # because the reading was frozen from before the rail went down and only
-    # the model was moving. Two samples' grace, so a late one does not blink.
-    age = state.get('seen_s_ago')
-    every = state.get('sample_every_s') or 0.0
-    fresh = state['ntc'] is not None and (
-        age is None or every <= 0.0 or age <= 2.0 * every)
-
-    if state['ntc'] is None:
-        anchor = 'AFE off, open loop'
-    elif not fresh:
-        anchor = 'NTC %.1f C, %.0f s old - open loop since' % (state['ntc'],
-                                                              age)
-    else:
-        anchor = 'NTC %.1f C, error %+.2f K' % (state['ntc'], state['error'])
-    return '%s     open %d s     %s' % (
-        anchor, state['seconds'],
-        'settled' if state['settled'] else 'settling')
-
-
-def budget_line(got):
-    """The thermal budget as one line: how close, to what, and how long.
-
-    A bar rather than degrees. The question a burst asks is how much of the
-    ceiling is spent, and a temperature does not answer that without the
-    ceiling beside it - so the board sends the fraction and this draws it.
-    """
-    used, worst = got['worst'], pretty(got['worst_node'])
-    left = got['seconds_to_limit']
-
-    # The gauge turns sodium at the throttle point - `gauge`'s default is
-    # `THROTTLE_AT`, where the board itself starts throttling - and the
-    # verdict words wear the state they carry.
-    where = (tint('tripped', SODIUM) if got['tripped']
-             else tint('THROTTLING', SODIUM) if got['throttling']
-             else tint('ok', ASH))
-    return '  [%s] %3.0f %% %s %s %s' % (
-        gauge(used, 24), 100.0 * used, tint('%-11s' % worst, NEON), where,
-        tint(('%.1f s to limit' % left) if left is not None
-             else 'not heating', ASH))
-
-
 #: The status panel's field width, map margin included. Fixed, so the map
 #: never breathes when a number changes length.
 PANEL_W = 42
+
+#: The soak bar: cells wide, and three braille rows tall on the bench's
+#: word - the spend against the worst node's ceiling, the one level on
+#: the page that is not a temperature.
+SOAK_CELLS = 16
+SOAK_ROWS = 3
+
+
+def soak(budget):
+    """The HEADROOM box's rows: the spend as a bar SOAK_ROWS tall in the
+    margin's colour, the throttle point marked through it, the figure on
+    its middle row beside the label. It was `[⣿⣿⠒⠒] 42 %` on one row;
+    the bench asked for the brackets gone and three rows of braille."""
+    from rich.text import Text
+
+    from coaxial.thermal_device import THROTTLE_AT
+
+    used = budget['worst']
+    lines = gauges.bar(used, SOAK_CELLS, SOAK_ROWS,
+                       cls=gauges.margin_class(used, budget['tripped']),
+                       marks=[(THROTTLE_AT, gauges.MARK)])
+    rows = []
+    for index, line in enumerate(lines):
+        if index == SOAK_ROWS // 2:
+            rows.append(('soak', Text.from_ansi('%s  %3.0f %%'
+                                                % (line, 100.0 * used))))
+        else:
+            rows.append(('', Text.from_ansi(line)))
+    return rows
 
 
 def status_boxes(state, budget, aspect=None):
@@ -151,9 +127,7 @@ def status_boxes(state, budget, aspect=None):
         left = budget['seconds_to_limit']
         state_text = ('TRIPPED' if budget['tripped']
                       else 'THROTTLING' if budget['throttling'] else 'ok')
-        boxes.append(hud('BUDGET', [
-            Text.from_ansi('[%s] %3.0f %%' % (gauge(budget['worst'], 16),
-                                              100.0 * budget['worst'])),
+        boxes.append(hud('HEADROOM', soak(budget) + [
             ('worst', Text.assemble(
                 (pretty(budget['worst_node']), 'name'), '   ',
                 (state_text, 'value' if state_text != 'ok' else 'label'))),
