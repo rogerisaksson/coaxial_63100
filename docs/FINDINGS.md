@@ -1270,6 +1270,31 @@ record's own constants, no measurement.
   pages (`--cell-aspect`, the SENSE box says measured or assumed).
   Measured: 88 cells draws in 44 ms once the geometry mask is cached
   (73 the first time), against 40 for the half blocks.
+* **BOARD ATTITUDE holds its face at rest and caps itself at 30 Hz,
+  2026-09-05.** The bench's word: "the laptop's fans run away". Profiled
+  at 108x40, zoom 1.27: a frame cost 104 ms in one process - 75 of
+  them `engine.raster` - and 52 with the eight-worker crew, the parent
+  waiting 24 ms on the bands and then spending 28 of its own on the
+  glow, the dots, the outline and the rows. At the 20 Hz default a
+  52 ms frame never sleeps, so the view held a core and half of eight
+  others for as long as it was open, and the board was NOT MOVING: the
+  deadband had already made its pose bit-identical frame to frame, and
+  every one of those frames rastered and shaded it again. Every pass in
+  `_paint` writes cells and reads none, and the ground under it is the
+  one thing that moves at rest, so `_face_layer` paints the face once
+  onto a blank grid, holds it in `persist` under everything it depends
+  on - size, zoom, colour, the pose to six places, the solid - and lays
+  it over each frame's ground; a new pose is drawn in full eight times
+  first (`FACE_SETTLE`) so the exposure has glided. Measured: a resting
+  frame is 3.3 ms with the crew and 4.2 without at 108x40, 4.4 and 5.8
+  at 150x44, from 50 and 103 - and the rest of the sleep is the loop's.
+  Moving, 50 ms with eight workers and 59 with four, so the crew stays
+  eight; `_dots` lost a third of its pass to a precomputed SCAN_DOTS
+  and the mask's rows hoisted per row. `HZ_CAP` clamps `--hz` at 30
+  (`period_of`); the default stays 20. Held on the render suite: the
+  drawings counted through `_cells`, the held frame equal to the drawn
+  one cell for cell, the ground still moving under it, a turn drawing
+  again.
 * **The can is seated at the top of its band, not centred.** Centred,
   whatever the band had over the can's height was split above and
   below - and on a terminal whose cell the view could not measure,

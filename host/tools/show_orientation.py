@@ -378,11 +378,29 @@ def compose(origin, args, view, colour, console):
             ('Q', 'EXIT'), ('ESC', 'MENU'), ('', note))))
 
 
+#: The most frames a second this view will draw, whatever `--hz` asks.
+#: THE FANS, on the bench's word: a frame that costs more than its
+#: period never sleeps, and at 20 Hz a 52 ms frame - eight workers
+#: rastering, the parent shading - held a core and most of the others
+#: for as long as the view was open. Thirty is past what a hand's turn
+#: needs and past what the terminal repaints; the cap is the ceiling,
+#: the default stays 20, and a resting board costs almost nothing now
+#: that its face is held (`wireframe.FACE_SETTLE`).
+HZ_CAP = 30.0
+
+
+def period_of(hz):
+    """Seconds a frame, from the refresh asked for: clamped to HZ_CAP
+    above and to one every two seconds below."""
+    return 1.0 / max(0.5, min(float(hz), HZ_CAP))
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--hz', type=float, default=20.0,
-                        help='screen refreshes per second')
+                        help='screen refreshes per second, at most %.0f'
+                             % HZ_CAP)
     parser.add_argument('--interval-us', type=int, default=10000,
                         help='what to ask the IMU for, in microseconds')
     parser.add_argument('--width', type=int, default=0,
@@ -465,7 +483,7 @@ def main(argv=None):
         return 1
     rig, origin, board, part, pid, pool, shop = started
 
-    period = 1.0 / max(args.hz, 0.5)
+    period = period_of(args.hz)
     from screen import Freshness, run_view, stage
 
     board_view = stage()

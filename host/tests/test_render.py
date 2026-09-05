@@ -606,6 +606,58 @@ def test_steady(report):
                  draw(b, state) == fresh_b, 'not shown')
 
 
+def test_the_face_is_held_while_the_pose_holds(report):
+    """At rest the face is replayed from `persist` and only the ground
+    is drawn: no raster, no shading, no outline. A new pose is drawn in
+    full FACE_SETTLE times first so the exposure has glided, and a
+    changed pose is a new drawing. THE FANS: a frame that costs more
+    than its period never sleeps, and a board on a bench is at rest
+    nearly always - measured, 50 ms a frame to 3 with the face held."""
+    calls = []
+    real = wireframe._cells
+
+    def counted(*args, **kwargs):
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    q = (0.05, 0.02, 0.0, 0.998)
+    state = {}
+    wireframe._cells = counted
+    try:
+        shown = [wireframe.render(q, 60, 20, zoom=1.0, colour=True,
+                                  persist=state, scroll=0.0)
+                 for _ in range(wireframe.FACE_SETTLE + 1)]
+        drawn = len(calls)
+        held = wireframe.render(q, 60, 20, zoom=1.0, colour=True,
+                                persist=state, scroll=0.0)
+        moved = wireframe.render(q, 60, 20, zoom=1.0, colour=True,
+                                 persist=state, scroll=0.7)
+        after_hold = len(calls)
+        turned = wireframe.render((0.3, 0.02, 0.0, 0.95), 60, 20, zoom=1.0,
+                                  colour=True, persist=state, scroll=0.7)
+        after_turn = len(calls)
+    finally:
+        wireframe._cells = real
+
+    report.check('a new pose is drawn in full FACE_SETTLE + 1 times',
+                 drawn == wireframe.FACE_SETTLE + 1, '%d drawings' % drawn)
+    report.check('then held: two more frames at the same pose cost no '
+                 'raster', after_hold == drawn,
+                 '%d drawings' % (after_hold - drawn))
+    report.check('and the held frame is the drawn one, cell for cell',
+                 held == shown[-1], 'differs')
+    report.check('the ground still moves under the held face',
+                 moved != held, 'the same picture')
+    report.check('a turned board is drawn again',
+                 after_turn == drawn + 1 and turned != moved,
+                 '%d drawings' % (after_turn - drawn))
+    report.check('and the cache is one entry, keyed by everything the '
+                 'face depends on',
+                 state['face']['settles'] == 0
+                 and state['face']['key'][:2] == (60, 20),
+                 str(state['face']['key']))
+
+
 def test_scroll(report):
     """The ground moves: a quarter spacing on, every rung sits nearer
     the camera - lower on the screen - and the backdrop differs."""
@@ -749,6 +801,7 @@ def main():
     test_the_face_is_a_halftone(report)
     test_triad(report)
     test_steady(report)
+    test_the_face_is_held_while_the_pose_holds(report)
     test_scroll(report)
     test_ladder(report)
     test_the_alphabet(report)

@@ -396,6 +396,25 @@ def test_every_gauge_shows_its_own_scale(report):
                     len(drawn)))
 
 
+def test_the_attitude_caps_its_frame_rate(report):
+    """BOARD ATTITUDE draws at most HZ_CAP frames a second whatever
+    `--hz` asks - the bench's word, so the laptop's fans stay down -
+    and never slower than one every two seconds."""
+    sys.path.insert(0, HOST)
+    from tools import show_orientation as view
+
+    report.check('the cap is thirty', view.HZ_CAP == 30.0, str(view.HZ_CAP))
+    report.check('--hz 60 draws at thirty',
+                 abs(view.period_of(60.0) - 1.0 / 30.0) < 1e-9,
+                 '%.4f s' % view.period_of(60.0))
+    report.check('--hz 20, the default, is honoured',
+                 abs(view.period_of(20.0) - 0.05) < 1e-9
+                 and view.parse_args(['--simulated']).hz == 20.0,
+                 '%.4f s' % view.period_of(20.0))
+    report.check('and nothing slower than one frame every two seconds',
+                 view.period_of(0.0) == 2.0, '%.4f s' % view.period_of(0.0))
+
+
 def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     """The thermal observer's board is braille: a blue-noise stipple denser
     where it is hotter, in the ramp blended to 24 bits, the rim a dot wide,
@@ -1399,6 +1418,8 @@ def main():
     test_the_terminal_is_asked_how_tall_a_cell_is(report)
     print('\n-- the thermal observer\'s board --')
     test_the_thermal_map_is_a_halftone_with_its_parts_marked(report)
+    print('\n-- the attitude\'s frame rate --')
+    test_the_attitude_caps_its_frame_rate(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

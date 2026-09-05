@@ -605,6 +605,28 @@ DENSITY_CEIL = 0.5
 #: cap at the bench's framing; the lines were the smooth one.
 SCAN_ROWS = (0, 2)
 
+#: The dots `_dots` samples, worked out once: offset, bit, the quadrant
+#: bit the clipping tests, the lane and the row in the cell - only the
+#: SCAN_ROWS, so the loop over a cell is four dots and no arithmetic
+#: about which four. Measured: the per-dot `int()` and membership test
+#: on all eight were a third of the pass.
+SCAN_DOTS = tuple(
+    (ox, oy, bit,
+     1 << ((0 if ox < 0.0 else 1) + (0 if oy < 0.0 else 2)),
+     0 if ox < 0.0 else 1, int((oy + 0.5) * 4.0))
+    for ox, oy, bit in DOT_AT if int((oy + 0.5) * 4.0) in SCAN_ROWS)
+
+#: How many frames a NEW pose is drawn in full before the face is held
+#: from `persist` - the exposure glides toward a frame's percentiles
+#: at EXPOSE_FOLLOW a frame, and eight frames put it within six
+#: percent of where it is going. After that, while the pose holds,
+#: the face is replayed and only the ground is drawn: at rest under
+#: the view's deadband the pose IS held, and that is most of the time
+#: a board spends on a bench. Measured at 108x40: a frame goes from
+#: 52 ms (eight workers rastering, the parent shading) to the ground
+#: and the rows alone.
+FACE_SETTLE = 8
+
 #: The exposure: which percentiles of the frame's lit heat land at the
 #: ladder's ends, and how fast the window follows from frame to frame.
 #: PER FRAME, because a fixed window was fitted on one frame - 368 cells
@@ -1096,8 +1118,14 @@ def _dots(grid, heat, classes, coverage, width, height, window,
     levels = float(NOISE_N * NOISE_N)
     span = DENSITY_CEIL - DENSITY_FLOOR
     along = 4.0 / len(SCAN_ROWS)
+    floor = DENSITY_FLOOR
+    n = NOISE_N
+    lone = DOT_AT[0][2]
     for py in range(height):
         row = py * width
+        # The mask's rows for this cell row, looked up once per row
+        # rather than once per dot.
+        nrow = [NOISE[(py * 4 + y) % n] for y in range(4)]
         for px in range(width):
             at = row + px
             if not classes[at]:
@@ -1115,22 +1143,18 @@ def _dots(grid, heat, classes, coverage, width, height, window,
                         and classes[at + width] else None)
             base = (here - lo) * gain
             mask = 0
-            for ox, oy, bit in DOT_AT:
-                y = int((oy + 0.5) * 4.0)
-                if y not in SCAN_ROWS:
-                    continue
-                if not reach & (1 << ((0 if ox < 0.0 else 1)
-                                      + (0 if oy < 0.0 else 2))):
+            for ox, oy, bit, quadrant, lane, y in SCAN_DOTS:
+                if not reach & quadrant:
                     continue
                 share = base + (gx * ox + gy * oy) * gain
                 share = 0.0 if share < 0.0 else (1.0 if share > 1.0
                                                  else share)
-                share = min(1.0, (DENSITY_FLOOR + span * share) * along)
-                dx = (px * 2 + (0 if ox < 0.0 else 1)) % NOISE_N
-                dy = (py * 4 + y) % NOISE_N
-                if share * levels > NOISE[dy][dx] + 0.5:
+                share = (floor + span * share) * along
+                if share > 1.0:
+                    share = 1.0
+                if share * levels > nrow[y][(px * 2 + lane) % n] + 0.5:
                     mask |= bit
-            grid[py][px] = chr(BRAILLE + (mask or DOT_AT[0][2]))
+            grid[py][px] = chr(BRAILLE + (mask or lone))
 
 
 def _edge_tone(base):
@@ -1958,6 +1982,39 @@ def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
         _outline(grid, tone, buf, cam, m, colour, heat=heat)
 
 
+def _face_layer(solid, m, cam, crew, colour, persist, foreign, key):
+    """`(buf, cells)`: the depth buffer and the face - `(row, col, glyph,
+    tone)` for every cell it paints - HELD in `persist` under `key` and
+    replayed while the pose is the one held, else drawn and held.
+
+    THE FACE IS THE POSE'S AND NOTHING ELSE'S. Every pass in `_paint`
+    writes cells and reads none, and the ground under it is the one
+    thing that moves at rest, so the face can be painted once onto a
+    blank grid and laid over each frame's ground - the same picture the
+    passes drew over the ground themselves, cell for cell. A new pose is
+    drawn in full FACE_SETTLE times first, so the exposure has glided.
+    No `persist`, no cache: a test's single frame stands alone."""
+    held = persist.get('face') if persist is not None else None
+    if held is not None and held['key'] == key:
+        if held['settles'] >= FACE_SETTLE:
+            return held['buf'], held['cells']
+        settles = held['settles'] + 1
+    else:
+        settles = 0
+    cells = _cells(solid, m, cam, crew, True, foreign)
+    width, height = cam['width'], cam['height']
+    grid = [[' '] * width for _ in range(height)]
+    tone = [[None] * width for _ in range(height)]
+    _paint(grid, tone, cells, cam, m, colour, persist, foreign)
+    layer = [(r, c, grid[r][c], tone[r][c])
+             for r in range(height) for c in range(width)
+             if grid[r][c] != ' ']
+    if persist is not None:
+        persist['face'] = {'key': key, 'buf': cells[0], 'cells': layer,
+                           'settles': settles}
+    return cells[0], layer
+
+
 def render(q, width, height, zoom=1.0, colour=True,
            horizon=True, face=True, tip=None, solid=None,
            distance=None, lift=0.44, crew=None, least=0, triad=False,
@@ -1972,9 +2029,11 @@ def render(q, width, height, zoom=1.0, colour=True,
     (0.5 dead centre, smaller is higher). `crew` is a coaxial.crew.Crew
     holding THIS solid: the raster runs as row bands in its processes.
     `persist` is a dict the caller keeps between frames so three of
-    them can vote per cell (_steady); without it every frame stands
-    alone. `scroll` is seconds of travel over the ground: the grid's
-    rungs slide toward the camera at GROUND_SPEED; None holds still."""
+    them can vote per cell (_steady), the exposure can glide, and the
+    face can be HELD while the pose holds (_face_layer) - at rest only
+    the ground is drawn; without it every frame stands alone. `scroll`
+    is seconds of travel over the ground: the grid's rungs slide toward
+    the camera at GROUND_SPEED; None holds still."""
     from . import ansi, engine, orientation
 
     # `solid` overrides the board with another mesh - facecheck proves
@@ -2017,11 +2076,16 @@ def render(q, width, height, zoom=1.0, colour=True,
     m = engine.multiply(view, orientation.matrix(q))
     scale, cx, cy = cam['scale'], cam['cx'], cam['cy']
 
-    buf, coverage, quads, classes, levels, bare, seed = _cells(
-        solid, m, cam, crew, face, foreign)
-    z_lo = min((v for v in buf if v), default=0.0)
-    z_hi = max(buf, default=1.0) or 1.0
-    span = (z_hi - z_lo) or 1.0
+    if face:
+        # Everything the face depends on: a change in any of it is a
+        # new drawing, and a pose the deadband holds is not.
+        key = (width, height, zoom, colour, foreign, lift, distance, tip,
+               least, crew is not None, tuple(round(v, 6) for v in q),
+               id(solid) if foreign else None)
+        buf, layer = _face_layer(solid, m, cam, crew, colour, persist,
+                                 foreign, key)
+    else:
+        buf, layer = _cells(solid, m, cam, crew, False, foreign)[0], ()
 
     grid = [[' '] * width for _ in range(height)]
     tone = [[None] * width for _ in range(height)]
@@ -2030,15 +2094,17 @@ def render(q, width, height, zoom=1.0, colour=True,
         phase = (scroll * GROUND_SPEED) % 1.0 if scroll is not None else 0.0
         _ground(grid, tone, buf, distance, width, height, colour, view,
                 phase)
-
-    if face:
-        _paint(grid, tone, (buf, coverage, quads, classes, levels, bare,
-                            seed), cam, m, colour, persist, foreign)
+    for r, c, glyph, ink in layer:
+        grid[r][c] = glyph
+        tone[r][c] = ink
     if triad:
         _triad(grid, tone, cam, m, colour)
     if persist is not None:
         _steady(grid, tone, width, height, persist)
 
+    z_lo = min((v for v in buf if v), default=0.0)
+    z_hi = max(buf, default=1.0) or 1.0
+    span = (z_hi - z_lo) or 1.0
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     # The lit raster IS the picture; the chosen edges only draw in wire
     # mode. The edge-on fallback the flat texture needed is gone too -
