@@ -252,6 +252,18 @@ class Thermal(Subsystem):
         armed - flash is not programmed under a closed loop."""
         return self._ack(THERMAL_OP_IDENT_RESET)
 
+    def situation(self, name=None, switching=None):
+        """A board has no ground truth to put in a situation: that is
+        the stand-in's (`SimulatedThermal.situation`), where a box, a
+        fan or a heat sink is laid over a hypothetical board for the
+        identification to find. Here it is refused in words, so a page
+        that asks on the wrong rig hears why rather than AttributeError.
+        """
+        from .errors import RigError
+        raise RigError('a board has no ground truth to put in a situation - '
+                       'the stand-in has (simulated_device=True): box, fan, '
+                       'heatsink, stuffy, bench, or random')
+
     def set_winding(self, limit_c, k_per_w, j_per_k):
         """The winding's envelope: its ceiling in degrees C - zero
         disables it - and its K/W to the air and J/K.

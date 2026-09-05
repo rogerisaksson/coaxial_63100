@@ -2316,12 +2316,22 @@ def _link(args):
     caller that worked it out afterwards would be reading its own change.
     """
     from screen import open_rig
+    if args.simulated:
+        # THE STAND-IN'S RECORD, a file in the temporary directory: what
+        # one run identified the next resumes, as a board does from flash.
+        from coaxial.simulated.power import SimulatedThermal
+        os.environ.setdefault('COAXIAL_SIM_NVM', SimulatedThermal.default_nvm())
     rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
                    power_afe=False,
                    simulated_device=bool(args.simulated))
     if rig is None:
         return None, None, None, None
     origin, board = rig.origin, rig.board
+    if args.simulated:
+        # THE GROUND TRUTH IN A SITUATION, switched at random every few
+        # minutes, so TH OBS walks UNCR, CONV, STABLE and back on the
+        # foot - the bench's way of seeing the policy before a board.
+        rig.thermal.situation('random', switching=True)
     was_on = board.afe.is_on()
     want_afe = args.afe or args.source == 'adc'
     if want_afe != was_on:

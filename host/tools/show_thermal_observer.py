@@ -15,6 +15,7 @@ otherwise no way to watch the zones move while anything switched. The gates go
 down through the same `finally` that puts the screen back.
 """
 import argparse
+import os
 import sys
 import time
 
@@ -108,6 +109,14 @@ def ident_rows(ident):
         '%s %.2f±%.2f' % ('cap' if name == 'capacity' else name,
                                scales[name], sigma[name])
         for name in ident['online'] if name in scales)))
+    # THE TRUTH, on the stand-in only: the situation its hypothetical
+    # board is in and the scales that make it, beside what the observer
+    # has found - a board has no truth to tell, and the row is absent.
+    truth = ident.get('truth')
+    if truth:
+        rows.append(('truth', '%s  air %.2f  cap %.2f  %s'
+                     % (truth['situation'], truth['air'], truth['capacity'],
+                        '%.0f min' % (truth['since_s'] / 60.0))))
     return rows
 
 
@@ -290,10 +299,21 @@ def main():
     # gate drivers, so opening the rig the usual way would stop the switching
     # this view exists to watch.
     from screen import boot
+    if a.simulated:
+        # THE STAND-IN'S RECORD, a file in the temporary directory, so
+        # what one run identified the next resumes - what the flash
+        # sector is to the board.
+        from coaxial.simulated.power import SimulatedThermal
+        os.environ.setdefault('COAXIAL_SIM_NVM', SimulatedThermal.default_nvm())
     with boot('LINKING OBSERVER') as ready,          Coaxial63100(port=a.port, simulated_device=a.simulated,
                       power_afe=False) as rig:
         ready()
         origin = rig.origin
+        if a.simulated:
+            # THE GROUND TRUTH IN A SITUATION, switched at random every
+            # few minutes: the bench's way of seeing the policy walk
+            # UNCR, CONV, STABLE and back before it is serious on a board.
+            rig.thermal.situation('random', switching=True)
         say('ok' if origin.real else 'warn', 'link',
             '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
         say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')

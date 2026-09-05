@@ -1009,8 +1009,8 @@ looking at the estimate alone.
   the record by the board itself: at most every thirty minutes, on a
   disarm if an online scale moved 2 %, never while armed (flash is not
   programmed under a closed loop) and never while UNCERTAIN. The margin
-  policy trims every ceiling's span over 25 C by 0.85 / 0.93 / 1.0 for
-  UNCERTAIN / CONVERGING / STABLE - a 105 C laminate ceiling is 93 C
+  policy trims every ceiling's span over 25 C by 0.80 / 0.90 / 1.0 for
+  UNCERTAIN / CONVERGING / STABLE - a 105 C laminate ceiling is 89 C
   while the model is not trusted. CAL_VERSION 14 appends the four
   scales; a stored 13 is taken up as a prefix with them zero rather
   than refused, because that record holds the DC link span. Firmware
@@ -1130,7 +1130,7 @@ looking at the estimate alone.
   the comment, the call was not changed. `compose` takes the console
   now. The thermal page passed `board_view` all along.
 * **The policy on both pages.** THERMAL OBSERVER's SENSE carries
-  `model  UNCERTAIN  margin 0.85` as a chip in the margin's colour and
+  `model  UNCERTAIN  margin 0.80` as a chip in the margin's colour and
   `scales air 1.00±0.50  cap 1.00±0.20` - the two the samples move,
   with their sigma; read every 5 s, since it moves once a sample.
   ROTOR OBSERVER's foot, at the bench's placement "between WINDING and
@@ -1145,8 +1145,33 @@ looking at the estimate alone.
   whether three digits push on TH OBS: measured at 100.0 and 123.4 C
   the head grew a cell and took it from its own gap, TH OBS and POWER
   keeping their columns - by the parity of the centring, which the
-  fixed width no longer relies on. On the stand-in the state reads
-  UNCERTAIN until it identifies.
+  fixed width no longer relies on.
+* **The stand-in identifies its own ground truth**, 2026-09-05, after
+  the bench's "how else would you even simulate that it works": a
+  HYPOTHETICAL BOARD - the same graph with a situation laid over it,
+  box 2.0 / fan 0.5 / heat sink 0.35 and 1.6 / stuffy 1.5 on the air
+  path and capacity - heats on the losses the observer estimates and
+  is read through its NTC, MCU die and A1335 die with ±0.05 K every 5
+  model seconds; the observer anchors on those readings by
+  `thermal.c`'s rules and the same identifier, mirrored in
+  `thermal_ident.py`, runs beside it. Measured (`test_simulated`, 52
+  model minutes in 6.5 s): six minutes at 30 A in a box then a
+  cooldown - UNCERTAIN, CONVERGING at six minutes, STABLE ten minutes
+  into the cooldown, air 1.92 ± 0.05 for 2.0, capacity 1.02; the fan
+  on under that trusted model - UNCERTAIN at once (innovation 2.1 K),
+  CONVERGING at twelve minutes of cooldown, STABLE at sixteen, air
+  0.50 ± 0.05. The record is a file (`COAXIAL_SIM_NVM`, the temporary
+  directory for the pages): written on the disarm after the run, and a
+  new stand-in on it resumes CONVERGING at the saved scales.
+  **One number moved in the C by this:** the covariance floor while
+  UNCERTAIN was a quarter of the prior for every scale, which put the
+  capacity's floor (0.05) exactly on the STABLE threshold (0.10 -
+  sigma, so 0.1) and a board could never be STABLE again after a
+  switch; and floored alike, the capacity took a third of the fan's
+  correction and was left at 0.65. Half the prior for the air path,
+  which is what a situation changes, a quarter for the rest
+  (`FLOOR_SHARE`): capacity 0.67 to 0.72 after a fan, STABLE reached.
+  The margins are the bench's numbers since: 80 / 90 / 100 %.
 
 ## The renderers
 

@@ -84,11 +84,15 @@ is still arithmetic. Every item names the file or record it lives in.
   through the legs' edges, so nothing on the board sees them - and a
   static regressor at idle (the MCU die against the thermistor at
   rest IS the MCU's edge) is what would free the spread. Still to
-  build of the bench's list: the stand-in running the same identifier
-  against a ground truth whose situation switches, and the stand-in's
-  record as a file between runs. The state is on both observer pages
-  with its margin (THERMAL OBSERVER's SENSE, ROTOR OBSERVER's foot);
-  on the stand-in it reads UNCERTAIN until the stand-in identifies.
+  build of the bench's list: nothing. The stand-in is a hypothetical
+  board with a ground truth in a situation - box, fan, heat sink,
+  stuffy, bench - read through three noisy thermometers and identified
+  by the same identifier (`thermal_ident.py`), its record a file
+  between runs (`COAXIAL_SIM_NVM`); the pages switch the situation at
+  random every three to six minutes in simulated mode and show the
+  state on both (THERMAL OBSERVER's SENSE with the truth beside it,
+  ROTOR OBSERVER's foot). What remains is the board: nothing here has
+  run on it yet.
 * The phase gain (3.5 mΩ x 4.5455) is traced off the schematic and has
   never been spanned; the DC link is the only spanned channel.
 * `Q_RING` = 1.0 in `inverter.py` is assumed; the scope is the answer.

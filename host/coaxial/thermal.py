@@ -690,4 +690,4 @@ def calibrate(camera, board_c, power=None):
 IDENT_SCALES = ('air', 'capacity', 'spread', 'ntc')
 IDENT_ONLINE = ('air', 'capacity')
 IDENT_STATES = ('UNCERTAIN', 'CONVERGING', 'STABLE')
-IDENT_MARGIN = {'UNCERTAIN': 0.85, 'CONVERGING': 0.93, 'STABLE': 1.0}
+IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}

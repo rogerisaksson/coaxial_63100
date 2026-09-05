@@ -32,6 +32,17 @@
 static const float PRIOR_SIGMA[THERMAL_IDENT_PARAMS] = { 0.5f, 0.2f, 0.5f,
                                                         0.3f };
 
+/** How much of its prior each scale's sigma is floored at while the
+  * model is UNCERTAIN - kept free to move, since it is not predicting.
+  * HALF for the air path, which is what a box or a fan changes, a
+  * QUARTER for the rest: at a quarter of 0.2 the capacity's floor sat
+  * exactly on IDENT_SIGMA_STABLE and a board could never be STABLE
+  * again after a switch; and with the two floored alike the capacity
+  * took a third of a fan's correction and was left 35 % low - measured
+  * on the stand-in's ground truth, 2026-09-05. */
+static const float FLOOR_SHARE[THERMAL_IDENT_PARAMS] = { 0.5f, 0.25f, 0.25f,
+                                                        0.25f };
+
 /** Which scales the samples are allowed to move. AIR and CAPACITY: a
   * cooldown's level and time constant, which the three thermometers see
   * directly. SPREAD and NTC are HELD at the record's values: measured
@@ -542,7 +553,8 @@ static void judge(thermal_ident_t *id)
            2026-09-05). */
         for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
         {
-          const float floor_var = 0.25f * PRIOR_SIGMA[k] * PRIOR_SIGMA[k];
+          const float floor_sigma = FLOOR_SHARE[k] * PRIOR_SIGMA[k];
+          const float floor_var = floor_sigma * floor_sigma;
 
           if (ONLINE[k] && (id->p[k][k] < floor_var))
           {
@@ -732,8 +744,8 @@ float thermal_ident_margin(thermal_ident_state_t state)
   switch (state)
   {
     case THERMAL_IDENT_STABLE:     return 1.0f;
-    case THERMAL_IDENT_CONVERGING: return 0.93f;
+    case THERMAL_IDENT_CONVERGING: return 0.90f;
     case THERMAL_IDENT_UNCERTAIN:
-    default:                       return 0.85f;
+    default:                       return 0.80f;
   }
 }

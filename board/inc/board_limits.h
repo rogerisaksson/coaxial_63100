@@ -296,8 +296,8 @@
 #define THERMAL_IDENT_SAVE_MOVED    0.02f
 
 /** THE MARGIN POLICY'S REFERENCE, degrees C: what a ceiling's span is
-  * measured up from when the identification's state trims it (0.85
-  * UNCERTAIN, 0.93 CONVERGING, 1.0 STABLE - `thermal_ident_margin`). The
+  * measured up from when the identification's state trims it (0.80
+  * UNCERTAIN, 0.90 CONVERGING, 1.0 STABLE - `thermal_ident_margin`). The
   * room the record's ceilings were written against; the estimate of
   * ambient is not used because a margin that moved with an estimate would
   * be an envelope moving with the thing it bounds. */

@@ -1,11 +1,16 @@
 """The power stage stood down: thermal observer, power rails and the
 gate drivers with the real arming policy."""
 import copy
+import json
 import math
+import os
+import random
+import tempfile
 import time
 
 from .. import motor
 from .. import thermal
+from .. import thermal_ident
 from ..thermal_device import THROTTLE_AT
 from ..errors import RigError
 from ..gates import GateControl
@@ -92,7 +97,30 @@ class SimulatedThermal:
     #: stand-in's sampler has no duty to weigh by.
     HOTSWAP_R = 3.6e-3
 
-    def __init__(self, sample=None):
+    #: THE GROUND TRUTH'S SITUATIONS: what a box, a fan or a heat sink
+    #: does to the board the stand-in pretends to be, as scales on its
+    #: air path and its laminate. The bench: "a simulated ground truth,
+    #: to see how well the estimator identifies online, and a way to lay
+    #: another thermal situation over it" - and, in simulated mode, "a
+    #: switch at random, moderate intervals so ROTOR OBSERVER and THERMAL
+    #: OBSERVER show the logic in action".
+    SITUATIONS = {'bench': (1.0, 1.0), 'box': (2.0, 1.0), 'fan': (0.5, 1.0),
+                  'heatsink': (0.35, 1.6), 'stuffy': (1.5, 1.0)}
+    #: Wall seconds between switches when they are on: long enough for
+    #: STABLE to be reached between them at HASTE, short enough to watch.
+    SWITCH_EVERY_S = (180.0, 360.0)
+
+    #: The thermometers' own noise, ±kelvin, and their floor as the
+    #: identifier is told it - the board's 30 mK NTC and 125 mK dies.
+    NOISE_K = 0.05
+    IDENT_NOISE_K = 0.1
+
+    #: The record's save policy, in model seconds: `board_thermal.c`'s
+    #: half hour and two percent, on a disarm as well.
+    SAVE_EVERY_S = 1800.0
+    SAVE_MOVED = 0.02
+
+    def __init__(self, sample=None, situation='bench', seed=7, nvm=None):
         self._seconds = 0
         self._every_s = 5.0
         self._settle_s = 0.3
@@ -127,11 +155,45 @@ class SimulatedThermal:
         #: THE GRAPH'S PARAMETERS, a copy this stand-in can move - the
         #: mirror's tables with the winding's record fields laid over, as
         #: `board_thermal.c` lays them.
-        self._cfg = copy.deepcopy(thermal.CFG)
-        self._cfg['capacity']['winding'] = self.WINDING_J_PER_K
-        self._cfg['edges'][thermal.EDGE_WINDING_STATOR] = \
+        self._base = copy.deepcopy(thermal.CFG)
+        self._base['capacity']['winding'] = self.WINDING_J_PER_K
+        self._base['edges'][thermal.EDGE_WINDING_STATOR] = \
             0.25 * self.WINDING_K_PER_W
-        self._cfg['to_ambient']['stator'] = 0.75 * self.WINDING_K_PER_W
+        self._base['to_ambient']['stator'] = 0.75 * self.WINDING_K_PER_W
+        self._base['ntc_sees'] = thermal.NTC_SEES_DRIVERS
+        self._base['ntc_tau_s'] = thermal.NTC_TAU_S
+        # THE GROUND TRUTH: a second board, the base with a situation laid
+        # over it, integrated on the same power and read through three
+        # noisy thermometers every sample. `_node` above is the OBSERVER
+        # - what the page shows, what the envelope acts on - anchored on
+        # those readings exactly as `thermal.c` anchors, and identified
+        # beside by the same identifier (`thermal_ident.py`). The
+        # observer starts on the base; the identification finds the
+        # situation, and the state says how far it has got.
+        self._random = random.Random(seed)
+        self._truth = {n: thermal.AMBIENT for n in self.NODES}
+        self._truth_ntc = thermal.AMBIENT
+        self._situation = None
+        self._truth_cfg = None
+        self._switching = False
+        self._switch_at = None
+        self._switches = 0
+        self._model_s = 0.0
+        self._switched_s = 0.0
+        self._sampled_s = 0.0
+        self._since_seen_s = 0.0
+        self._seen = {}
+        self._settled = False
+        self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K)
+        self._saves = 0
+        self._saved_s = 0.0
+        self._ever_saved = False
+        self._saved_scale = list(self._ident.scale)
+        self._was_switching = False
+        self._nvm = nvm if nvm is not None else os.environ.get('COAXIAL_SIM_NVM', '')
+        self._nvm_load()
+        self._cfg = self._ident.apply(self._base)
+        self.situation(situation)
 
     def _advance(self):
         """The network integrated forward to now, in steps it can take.
@@ -149,17 +211,29 @@ class SimulatedThermal:
         elapsed = min(now - was, 5.0)
         if elapsed <= 0.0:
             return
-        left = elapsed * self.HASTE
+        # THE SITUATION SWITCHES ON THE WALL CLOCK, when switching is on:
+        # the page's viewer is what the interval is measured against.
+        if self._switching and self._switch_at is not None \
+                and now >= self._switch_at:
+            self.situation('random')
+        self.fast_forward(elapsed * self.HASTE, live=True)
+
+    def fast_forward(self, model_seconds, seen=None, live=False):
+        """Run the truth, the observer and the identification `model_seconds`
+        on: the live path's own loop, and a test's way of taking the
+        stand-in through a cooldown without waiting for one."""
+        left = float(model_seconds)
         while left > 0.0:
             step = min(self.STEP_S, left)
             left -= step
             # SAMPLED EVERY SLICE, not once for the gap: the envelope
             # below writes the clamp into the drive, and the next slice
             # has to see what that did to the current.
-            self._integrate(step, self._sample())
+            self._integrate(step, seen if seen is not None else self._sample())
             # THE ENVELOPE INSIDE THE LOOP, not after it. `board_thermal.c`
             # runs the budget every THERMAL_STEP_MS - one step, one look.
-            self._envelope()
+            if live:
+                self._envelope()
 
     def _envelope(self):
         """THE ONE PLACE THIS CLASS ACTS RATHER THAN REPORTS.
@@ -191,6 +265,17 @@ class SimulatedThermal:
         power = self._power(dt, seen)
         self._last_power = power
         self._speed_rpm = float(self._speed_of() or 0.0)
+        # THE TRUTH FIRST, on its own network, its thermistor by the same
+        # rule as the observer's below.
+        net = thermal.net_flows(self._truth, power, self._truth_cfg,
+                                thermal.AMBIENT, self._speed_rpm)
+        for name in self.NODES:
+            capacity = self._truth_cfg['capacity'].get(name, 0.0)
+            if capacity > 0.0:
+                self._truth[name] += net[name] * dt / capacity
+        self._truth_ntc = thermal_ident.ntc_follow(
+            self._truth, self._truth_ntc, self._truth_cfg, dt)[0]
+        # THEN THE OBSERVER, on the base with the identified scales.
         net = thermal.net_flows(self._node, power, self._cfg,
                                 thermal.AMBIENT, self._speed_rpm)
         self._last_net = net
@@ -198,14 +283,138 @@ class SimulatedThermal:
             capacity = self._cfg['capacity'].get(name, 0.0)
             if capacity > 0.0:
                 self._node[name] += net[name] * dt / capacity
+        # A SAMPLE every `_every_s` of model time: the truth's three
+        # thermometers with their own noise, and the observer anchored on
+        # them with a pull sized to the interval, as the board does.
+        self._model_s += dt
+        self._since_seen_s += dt
+        sample = None
+        if self._every_s > 0.0 \
+                and self._model_s - self._sampled_s >= self._every_s:
+            self._sampled_s = self._model_s
+            sample = self._read_truth(power)
+            self._seen = dict(sample)
+            self._ntc, self._settled = thermal_ident.anchor(
+                self._node, self._ntc, self._cfg, power, sample,
+                self._speed_rpm, self._since_seen_s)
+            self._since_seen_s = 0.0
         # THE READING FOLLOWS THE PATCHES, it does not jump with them:
         # toward the weighted average of the two it sits between, at the
         # laminate's own lag, and never past either of them - a passive
         # link in a chain cannot read outside the pair (docs/papers, 2.3).
-        centre, leg = self._node['board'], self._node[thermal.NTC_PATCH]
-        want = thermal.expected_ntc(centre, leg - centre)
-        self._ntc += (want - self._ntc) * min(1.0, dt / thermal.NTC_TAU_S)
-        self._ntc = min(max(self._ntc, min(centre, leg)), max(centre, leg))
+        self._ntc = thermal_ident.ntc_follow(self._node, self._ntc,
+                                             self._cfg, dt)[0]
+        # THE IDENTIFICATION BESIDE IT, on the same power and slice; a
+        # sample that moves the scales re-applies them at once.
+        if self._ident.step(self._node, self._ntc, self._base, power,
+                            self._speed_rpm, sample, dt):
+            self._cfg = self._ident.apply(self._base)
+        self._policy(bool(seen.get('switching')))
+
+    def _read_truth(self, power):
+        """What the three thermometers read off the truth this sample:
+        the element, and each die its node plus its watts through R_th -
+        with ±NOISE_K of quantisation, deterministic from the seed."""
+        def noisy(value):
+            return value + (self._random.random() - 0.5) * 2.0 * self.NOISE_K
+
+        out = {'ntc': noisy(self._truth_ntc)}
+        for die in thermal_ident.DIES:
+            out[die] = noisy(self._truth[die] + power.get(die, 0.0)
+                             * self._truth_cfg['rth_die'].get(die, 0.0))
+        return out
+
+    def _policy(self, switching):
+        """The record's save policy, as `board_thermal.c` keeps it: not
+        while switching, not UNCERTAIN, only a scale that moved, at most
+        every SAVE_EVERY_S of model time and on a disarm."""
+        disarmed_now = self._was_switching and not switching
+        self._was_switching = switching
+        if switching or self._ident.state == thermal_ident.UNCERTAIN:
+            return
+        moved = max(abs(self._ident.scale[k] - self._saved_scale[k])
+                    for k in range(4) if thermal_ident.ONLINE[k])
+        if moved < self.SAVE_MOVED:
+            return
+        if disarmed_now or self._model_s - self._saved_s >= self.SAVE_EVERY_S:
+            self._nvm_save()
+
+    # -- the record: a file standing in for the flash sector ------------
+
+    @staticmethod
+    def default_nvm():
+        """Where the stand-in's record lives when a page asks for one:
+        the machine's temporary directory, one file for every simulated
+        board on it - what `COAXIAL_SIM_NVM` sets."""
+        return os.path.join(tempfile.gettempdir(), 'coaxial_63100_simulated_nvm.json')
+
+    def _nvm_load(self):
+        if not self._nvm:
+            return
+        try:
+            with open(self._nvm, encoding='utf-8') as f:
+                record = json.load(f)
+            scales = record.get('thermal_ident_scale')
+        except (OSError, ValueError):
+            return
+        if scales and any(abs(float(s) - 1.0) > 1e-9 for s in scales):
+            self._ident.resume([float(s) for s in scales], self.IDENT_NOISE_K)
+            self._saved_scale = list(self._ident.scale)
+
+    def _nvm_save(self):
+        self._saved_s = self._model_s
+        if not self._nvm:
+            return
+        try:
+            with open(self._nvm, 'w', encoding='utf-8') as f:
+                json.dump({'thermal_ident_scale': list(self._ident.scale),
+                           'saved_at': time.time()}, f)
+        except OSError:
+            return
+        self._saved_scale = list(self._ident.scale)
+        self._saves += 1
+        self._ever_saved = True
+
+    # -- the truth's situation ------------------------------------------
+
+    def situation(self, name=None, switching=None):
+        """Lay a situation over the ground truth - `SITUATIONS` by name,
+        or 'random' for one that is not the present one - and, with
+        `switching`, turn the random switches on or off. Returns what
+        the truth is now. The observer is not told: finding out is its
+        job."""
+        if switching is not None:
+            self._switching = bool(switching)
+            self._switch_at = (time.time() + self._random.uniform(*self.SWITCH_EVERY_S)
+                               if self._switching else None)
+        if name is not None:
+            if name == 'random':
+                choices = [n for n in self.SITUATIONS if n != self._situation]
+                name = self._random.choice(choices)
+            if name not in self.SITUATIONS:
+                raise RigError('a situation is one of %s, or random'
+                               % ', '.join(self.SITUATIONS))
+            air, capacity = self.SITUATIONS[name]
+            if self._situation is not None:
+                self._switches += 1
+            self._situation = name
+            self._switched_s = self._model_s
+            self._truth_cfg = thermal_ident.apply((air, capacity, 1.0, 1.0),
+                                                  self._base)
+            if self._switching:
+                self._switch_at = time.time() + self._random.uniform(
+                    *self.SWITCH_EVERY_S)
+        return self.truth()
+
+    def truth(self):
+        """The ground truth as a page may show it beside the estimate:
+        its situation, the scales that make it, and how long it has
+        stood - absent on a board, which has no truth to tell."""
+        air, capacity = self.SITUATIONS[self._situation]
+        return {'situation': self._situation, 'air': air,
+                'capacity': capacity, 'switches': self._switches,
+                'since_s': self._model_s - self._switched_s,
+                'switching': self._switching}
 
     def _power(self, dt, seen):
         """Watts per node, worked out from the sample. The observer's job.
@@ -238,24 +447,25 @@ class SimulatedThermal:
         self._advance()
         centre = self._node['board']
         power = self._last_power or {}
+        seen = self._seen
+        # MEASURED where a sample has been taken - the truth's thermometers
+        # - and the observer's own element where none has; the board
+        # reports both what the thermistor says and what the model expects.
+        ntc = seen.get('ntc', self._ntc)
         return {
-            # LAGGED, where `expected_ntc` below is the algebra it heads
-            # for. The board reports both: what the thermistor says and
-            # what the model expects it to say are two facts.
-            'ntc': self._ntc,
+            'ntc': ntc,
             'nodes': dict(self._node),
             'ambient': thermal.AMBIENT,
-            'expected_ntc': thermal.expected_ntc(
-                centre, self._node[thermal.NTC_PATCH] - centre),
+            'expected_ntc': self._ntc,
             'seconds': self._seconds,
-            'settled': True,
+            'settled': self._settled or not seen,
             'sample_every_s': self._every_s,
             'sample_settle_s': self._settle_s,
-            'afe': self._node['afe'],
-            'mcu': self._node['mcu'],
-            'seen_s_ago': 0.4,
+            'afe': seen.get('afe', self._node['afe']),
+            'mcu': seen.get('mcu', self._node['mcu']),
+            'seen_s_ago': (self._model_s - self._sampled_s) if seen else 0.4,
             'steps': 1200,
-            'error': 0.0,
+            'error': self._ntc - ntc,
             # MINOR 13: each leg's FET junction over its node - half the
             # node's watts through R_th,JC - and the speed the air saw.
             'junction_over': [0.5 * power.get(n, 0.0)
@@ -268,12 +478,21 @@ class SimulatedThermal:
         self._every_s, self._settle_s = every_s, settle_s
         return True
 
+    def _limit(self, name):
+        """One node's ceiling as the envelope acts on it: the record's,
+        its span over the room trimmed by the identification's margin -
+        0.85 UNCERTAIN, 0.93 CONVERGING, one STABLE - as
+        `board_thermal.c` trims it, so the silicon and the laminate are
+        not run to ceilings computed on a network just proved wrong."""
+        top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
+        return thermal.AMBIENT + self._ident.margin() * (top - thermal.AMBIENT)
+
     def _used(self):
         """Each node as a fraction of its own ceiling. One definition:
         `budget()` answers it and `_envelope()` acts on it."""
         used = {}
         for name in self.NODES:
-            top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
+            top = self._limit(name)
             used[name] = max(0.0, (self._node[name] - thermal.AMBIENT)
                              / (top - thermal.AMBIENT))
         return used
@@ -333,7 +552,7 @@ class SimulatedThermal:
         heading there. The same net flows the step integrated."""
         net = (self._last_net or {}).get(name, 0.0)
         capacity = self._cfg['capacity'].get(name, 0.0)
-        top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
+        top = self._limit(name)
         if net <= 0.0 or capacity <= 0.0 or top <= thermal.AMBIENT:
             return None
         togo = top - self._node[name]
@@ -367,7 +586,7 @@ class SimulatedThermal:
         `capacity x (limit - t)`, never negative."""
         out = {}
         for name in self.NODES:
-            top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
+            top = self._limit(name)
             out[name] = max(0.0, self._cfg['capacity'].get(name, 0.0)
                             * (top - self._node[name]))
         return out
@@ -448,22 +667,35 @@ class SimulatedThermal:
         return True
 
     def identification(self):
-        """The identification as the stand-in reports it: the wire's shape
-        (`Thermal.identification`) with nothing identified yet - the
-        scales at one, UNCERTAIN, the two online scales named, the margin
-        that state carries. The stand-in's own identification against a
-        situation it changes is the next item; until then a page drawing
-        the field has the field to draw."""
-        return {'state': 'UNCERTAIN',
-                'scales': dict((s, 1.0) for s in thermal.IDENT_SCALES),
-                'sigma': {'air': 0.5, 'capacity': 0.2, 'spread': 0.5,
-                          'ntc': 0.3},
-                'online': list(thermal.IDENT_ONLINE),
-                'innovation_k': 0.1,
-                'margin': thermal.IDENT_MARGIN['UNCERTAIN'],
-                'updates': 0, 'saves': 0, 'since_save_s': None}
+        """The identification as the stand-in runs it - the wire's shape
+        (`Thermal.identification`) off the same identifier the board
+        runs, plus `truth`: the situation the ground truth is in, which
+        no board can report and a page in simulated mode shows beside
+        the estimate so the logic can be seen working."""
+        self._advance()
+        ident = self._ident
+        got = {'state': ident.state,
+               'scales': dict((s, ident.scale[k])
+                              for k, s in enumerate(thermal.IDENT_SCALES)),
+               'sigma': dict((s, ident.sigma(k))
+                             for k, s in enumerate(thermal.IDENT_SCALES)),
+               'online': [s for k, s in enumerate(thermal.IDENT_SCALES)
+                          if thermal_ident.ONLINE[k]],
+               'innovation_k': ident.innovation_k,
+               'margin': ident.margin(),
+               'updates': ident.updates, 'saves': self._saves,
+               'since_save_s': ((self._model_s - self._saved_s)
+                                if self._ever_saved else None),
+               'truth': self.truth()}
+        return got
 
     def reset_identification(self):
+        """Forget what was identified: scales to one, UNCERTAIN, the
+        record written without them."""
+        self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K)
+        self._cfg = self._ident.apply(self._base)
+        self._saved_scale = list(self._ident.scale)
+        self._nvm_save()
         return True
 
 

@@ -96,7 +96,11 @@ commits the compares at underflow.
 ```
 host/coaxial/           the library
 host/coaxial/simulated/ the stand-in: board, drive, daq, system, values,
-                        sensors, power, link, analog
+                        sensors, power (the thermal stand-in: a
+                        hypothetical board with a ground truth in a
+                        situation, read through noisy thermometers and
+                        identified by thermal_ident.py, its record a
+                        file - COAXIAL_SIM_NVM), link, analog
 host/coaxial_mcp/       the MCP server: server, tools, session, docs,
                         detail, render
 host/coaxial_ollama/    the local-model runner: capability, client, intent,
@@ -158,8 +162,9 @@ between readers.
 scales. `loop.py` is the host control chain (`Chain`, `Ramp`, `Probe`,
 `SpeedLoop`, `CurrentLoop`, `Machine`, `identify`); `sysid.py`,
 `sensorless.py`, `commission.py`, `motor.py`, `inverter.py`,
-`thermal.py`, `thermalmap.py`, `bessel.py`, `scaling.py` are the
-design arithmetic. `calibration.py` talks to device 3. `clock.py` is
+`thermal.py`, `thermalmap.py`, `thermal_ident.py` (the identifier
+mirrored, and the observer's anchor), `bessel.py`, `scaling.py`
+are the design arithmetic. `calibration.py` talks to device 3. `clock.py` is
 `Sync` and `set_time_from_pc`. `capture.py` is the log ring.
 `bench.py` is `link_bench`. `broker.py` serves one port to many
 sessions on loopback port 8763 and answers the board's deadman for an
@@ -294,15 +299,15 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2857 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2869 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 |---|---|---|
-| test_structure.py | 607 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
+| test_structure.py | 611 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 218 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
-| test_simulated.py | 220 | the stand-in and the renderers, the desk's braille bars, the identification in the wire's shape |
+| test_simulated.py | 228 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the record a file between runs |
 | test_live_model.py | 212 | the model, `--live` |
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
 | test_conformance.py | 110 | the live board against PROTOCOL.md, `--conformance` |

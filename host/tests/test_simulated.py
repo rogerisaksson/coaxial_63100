@@ -1476,26 +1476,34 @@ def main():
 
 
 def test_thermal_identification(report):
-    """The stand-in answers the identification in the wire's shape.
+    """The stand-in identifies its own ground truth, and says so.
 
-    MINOR 14's op 10 as `Thermal.identification()` decodes it: a state
-    from the three, the four scales in wire order with a sigma each, the
-    online ones named, the innovation, the margin the envelope keeps in
-    hand for the state, and `since_save_s` None until the record has been
-    written. Nothing is identified on the stand-in yet - the scales are
-    one and the state UNCERTAIN - so a page drawing the field draws the
-    honest one; the stand-in's own identification against a situation is
-    the next item.
+    A HYPOTHETICAL BOARD heats on the same losses the observer estimates
+    and is read through three noisy thermometers - the bench's words:
+    "a ground truth the observer has to identify, and when it does it
+    goes UNCR, CONV, STABLE; how else would you even simulate that it
+    works?" The truth is put in a box (air path doubled): six minutes
+    at 30 A, then a cooldown, and the same identifier the board runs
+    (`thermal_ident.py`) walks the states and lands near two. Then the
+    box comes off and a fan goes on: UNCERTAIN within minutes, and a
+    half found by the end of the next cooldown. The wire's shape first,
+    `Thermal.identification()`'s; the record as a file between runs
+    last.
     """
+    import os
+    import tempfile
+
     from coaxial import Coaxial63100, thermal
+    from coaxial.simulated.power import SimulatedThermal
 
     rig = Coaxial63100(simulated_device=True, power_afe=False).open()
     try:
         got = rig.thermal.identification()
-        report.check('the identification has the wire\'s fields',
+        report.check('the identification has the wire\'s fields, and the '
+                     'truth beside them',
                      set(got) == {'state', 'scales', 'sigma', 'online',
                                   'innovation_k', 'margin', 'updates',
-                                  'saves', 'since_save_s'},
+                                  'saves', 'since_save_s', 'truth'},
                      sorted(got))
         report.check('its state is one of the three and the scales are the '
                      'four, in wire order',
@@ -1507,17 +1515,97 @@ def test_thermal_identification(report):
                      'cooldown shows the thermometers',
                      tuple(got['online']) == thermal.IDENT_ONLINE, got['online'])
         report.check('the margin is the state\'s own - what the envelope '
-                     'multiplies its spans by on the board',
+                     'multiplies its spans by',
                      abs(got['margin'] - thermal.IDENT_MARGIN[got['state']])
                      < 1e-9, '%.2f for %s' % (got['margin'], got['state']))
-        report.check('nothing identified: the scales are one, the record '
-                     'unwritten',
-                     all(abs(v - 1.0) < 1e-9 for v in got['scales'].values())
-                     and got['since_save_s'] is None and got['saves'] == 0)
-        report.check('and it can be told to forget, which is a `took`',
-                     rig.thermal.reset_identification() is True)
+        report.check('a fresh stand-in starts UNCERTAIN at one, on the '
+                     'bench, the record unwritten',
+                     got['state'] == 'UNCERTAIN'
+                     and all(abs(v - 1.0) < 1e-9 for v in got['scales'].values())
+                     and got['truth']['situation'] == 'bench'
+                     and got['since_save_s'] is None and got['saves'] == 0,
+                     '%s %s' % (got['state'], got['truth']))
     finally:
         rig.close()
+
+    # THE WALK. A truth in a box, driven from the model's own clock.
+    path = os.path.join(tempfile.mkdtemp(prefix='coaxial_nvm_'), 'nvm.json')
+    model = SimulatedThermal(situation='box', nvm=path)
+    load = {'amps': (30.0, 30.0, 30.0), 'switching': True}
+    idle = {'amps': (0.0, 0.0, 0.0), 'switching': False}
+    states = []
+
+    def run(minutes, seen):
+        for _ in range(int(minutes)):
+            model.fast_forward(60.0, seen=seen)
+            state = model.identification()['state']
+            if not states or states[-1] != state:
+                states.append(state)
+
+    run(6, load)
+    run(14, idle)
+    got = model.identification()
+    report.check('six minutes at 30 A and fourteen cooling in a box: the '
+                 'air scale lands near two',
+                 abs(got['scales']['air'] - 2.0) < 0.4,
+                 'air %.2f±%.2f, capacity %.2f, %d updates'
+                 % (got['scales']['air'], got['sigma']['air'],
+                    got['scales']['capacity'], got['updates']))
+    report.check('and the state walked UNCERTAIN, CONVERGING, STABLE',
+                 states[:3] == ['UNCERTAIN', 'CONVERGING', 'STABLE'],
+                 ' > '.join(states))
+    report.check('the truth is told beside it - the page in simulated '
+                 'mode shows both',
+                 got['truth']['situation'] == 'box'
+                 and abs(got['truth']['air'] - 2.0) < 1e-9, got['truth'])
+    report.check('and the disarm after the run wrote the record',
+                 got['saves'] >= 1 and os.path.exists(path),
+                 '%d saves, %s' % (got['saves'], path))
+
+    # THE BOX COMES OFF AND A FAN GOES ON: the model that was trusted
+    # stops predicting, and the walk starts again.
+    model.situation('fan')
+    states = []
+    run(6, load)
+    run(20, idle)
+    got = model.identification()
+    report.check('a fan under a trusted model: UNCERTAIN within the first '
+                 'minutes, then CONVERGING',
+                 states[0] == 'UNCERTAIN' and 'CONVERGING' in states,
+                 ' > '.join(states))
+    report.check('and the air scale re-lands near a half',
+                 abs(got['scales']['air'] - 0.5) < 0.15,
+                 'air %.2f±%.2f, capacity %.2f, %s'
+                 % (got['scales']['air'], got['sigma']['air'],
+                    got['scales']['capacity'], got['state']))
+
+    # THE RECORD BETWEEN RUNS: a new stand-in on the same file resumes
+    # CONVERGING at what was saved, as a board does from its flash.
+    again = SimulatedThermal(situation='fan', nvm=path)
+    resumed = again.identification()
+    report.check('a new stand-in on the same record file resumes '
+                 'CONVERGING at the saved scales',
+                 resumed['state'] == 'CONVERGING'
+                 and abs(resumed['scales']['air'] - 1.0) > 0.05,
+                 '%s air %.2f' % (resumed['state'], resumed['scales']['air']))
+    report.check('and can be told to forget, which empties the record',
+                 again.reset_identification() is True
+                 and again.identification()['state'] == 'UNCERTAIN'
+                 and SimulatedThermal(nvm=path).identification()['scales']['air']
+                 == 1.0)
+    report.check('a situation is one of the named ones, or random - '
+                 'anything else is refused in words',
+                 model.situation('random')['situation'] in model.SITUATIONS
+                 and _refused(lambda: model.situation('attic')))
+
+
+def _refused(call):
+    from coaxial.errors import RigError
+    try:
+        call()
+    except RigError:
+        return True
+    return False
 
 
 def test_closing_leaves_another_session_armed(report):

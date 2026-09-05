@@ -490,8 +490,8 @@ i32 sigma_milli` in the order air, capacity, spread, ntc - each a
 multiplier on the record's network, 1000 the derived default - then
 `i32 innovation_milli_k` (the filtered prediction error), `i32
 margin_micro` (what the envelope keeps in hand for the state: every
-ceiling's span over 25 C is multiplied by it on the board - 850 000
-UNCERTAIN, 930 000 CONVERGING, 1 000 000 STABLE), `u32 updates,
+ceiling's span over 25 C is multiplied by it on the board - 800 000
+UNCERTAIN, 900 000 CONVERGING, 1 000 000 STABLE), `u32 updates,
 u32 saves, u32 since_save_s` (all ones until the record has been
 written this boot). Only air and capacity are online; spread and ntc
 ride at the record's values (FINDINGS, 2026-09-05: unobservable from a

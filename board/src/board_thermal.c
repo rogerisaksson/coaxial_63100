@@ -130,10 +130,10 @@ static void soa_from_cal(void)
 
   /* THE POLICY. While the model is not trusted the ceilings are pulled in:
      each span over the reference is multiplied by the state's margin -
-     0.85 UNCERTAIN, 0.93 CONVERGING, one STABLE (`thermal_ident_margin`).
+     0.80 UNCERTAIN, 0.90 CONVERGING, one STABLE (`thermal_ident_margin`).
      The bench's words: so the silicon and the laminate are not run to
      ceilings computed on a network that has just been proved wrong. A
-     105 C laminate ceiling is 93 C while UNCERTAIN. Still a limit it
+     105 C laminate ceiling is 89 C while UNCERTAIN, 97 CONVERGING. Still a limit it
      was given, trimmed by a rule it was given - the board judges nothing
      (invariant 10); the margin is on the wire beside the state. */
   const float margin = thermal_ident_margin(s_ident.state);
