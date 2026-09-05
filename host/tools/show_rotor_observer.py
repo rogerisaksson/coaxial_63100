@@ -67,6 +67,7 @@ from screen import (ASH, SODIUM, TO_MENU,  # noqa: E402
                     closing, say, tint)
 
 import screen as _screen                                   # noqa: E402
+from stage import UP                                       # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 #: The stage's own rating, which is the name: no trip past it.
@@ -264,9 +265,6 @@ LOAD_GRAIN = 0.2
 #: with - the full braille cell, so the legend is made of the same
 #: ink as the picture it is a key to.
 BAR_CELLS = 12
-#: Cells of drag per box scrolled. About a box's own height, so the
-#: column moves at the hand's speed rather than flying.
-DRAG_ROWS = 6.0
 #: ONE SCALE FOR EVERY THERMOMETER ON EVERY PAGE - `coaxial.gauges` owns
 #: it, and the margin and thermometer bands with it, since the thermal
 #: observer and the session draw the same tubes. This page keeps the
@@ -357,9 +355,6 @@ HEADROOM_GAP = 2
 
 BAR_GLYPH = chr(0x28FF)
 TRACK_GLYPH = chr(0x2812)
-#: The scroll affordances. Triangles rather than dots: they are
-#: not part of the picture, they are something to click.
-UP, DOWN = chr(0x25B4), chr(0x25BE)
 #: The degree sign. A bare C beside a number is a coulomb.
 #: The degree sign - the MODIFIER LETTER SMALL O, not U+00B0.
 #:
@@ -1869,131 +1864,6 @@ def thermal_rows(view):
     return rows
 
 
-#: The instrument column's width, `stage.frame_of`'s own. A click is in
-#: that column when it lands within this many cells of the right edge -
-#: which is how a view with no layout of its own knows where its boxes
-#: went.
-HUD_WIDTH = 40
-#: The rows a box costs beyond its content: its two borders.
-BOX_BORDER = 2
-
-
-def screen_size(view):
-    """The terminal's (width, height), or zeros when there is no terminal.
-
-    Off `view['screen']`, the rich Console - NOT off the `console` every
-    function here is handed, which is `is_terminal` and has no size.
-    """
-    screen = view.get('screen')
-    try:
-        return (screen.size.width, screen.size.height) if screen else (0, 0)
-    except (AttributeError, OSError):
-        return (0, 0)
-
-
-def paged(view, panels, hud):
-    """The instrument column, windowed, with an arrow where it continues.
-
-    SEVEN BOXES DO NOT FIT. The column is the page's right-hand forty
-    cells and the boxes fill it from the top; past the bottom of the
-    terminal they are simply not drawn, and a reader has no way to know
-    a THERMAL box exists at all. This shows as many as the terminal has
-    room for and says which way the rest are, on a row that can be
-    clicked to get there.
-
-    Piped, nothing is windowed: a captured page is read in order and has
-    no bottom to fall off.
-    """
-    from rich.text import Text as _Text
-
-    # ONLY ON A TERMINAL. A pipe has a nominal size too - 79 by 25 - so
-    # sizing alone would page a captured page, and a capture is read in
-    # order and has no bottom to fall off.
-    room = screen_size(view)[1] - 2 if view.get('terminal') else 0
-    if room <= 0:
-        view['pages'] = 1
-        return [hud(title, rows) for title, rows in panels]
-
-    heights = [len(rows) + BOX_BORDER for _, rows in panels]
-    # The last page is packed from the END, so scrolling to the bottom
-    # shows a full column rather than one box and a lot of air.
-    last, used = len(panels), 0
-    while last > 0 and used + heights[last - 1] + 1 <= room:
-        used += heights[last - 1]
-        last -= 1
-    view['scroll'] = max(0, min(view['scroll'], last))
-
-    at = view['scroll']
-    out, taken = [], 1 if at else 0              # a row for the up arrow
-    while at < len(panels) and taken + heights[at] <= room - 1:
-        out.append(hud(*panels[at]))
-        taken += heights[at]
-        at += 1
-    view['pages'] = (view['scroll'], at, len(panels))
-    if view['scroll']:
-        out.insert(0, _Text(' %s  %s above' % (UP, view['scroll']),
-                            style='keys'))
-    if at < len(panels):
-        out.append(_Text(' %s  %d more' % (DOWN, len(panels) - at),
-                         style='keys'))
-    return out
-
-
-def hauled(view, dx, dy):
-    """A left-drag on the instrument column, dragged like a page.
-
-    ONLY A DRAG THAT STARTED THERE. The press sets `grip`, so a drag
-    beginning over the machine does not scroll the boxes beside it -
-    the same rule a scrollbar has, and the reason the press is recorded
-    at all.
-
-    A whole box per `DRAG_ROWS` of travel, and the remainder is kept:
-    rounding each frame's few cells to zero made a slow drag do nothing
-    at all. Dragging DOWN brings the boxes above into view, which is
-    which way paper moves under a hand.
-    """
-    del dx
-    if not view.get('grip'):
-        return
-    view['haul'] += dy
-    while abs(view['haul']) >= DRAG_ROWS:
-        step = 1 if view['haul'] < 0 else -1
-        view['haul'] -= step * -DRAG_ROWS
-        at, seen, total = view.get('pages') or (0, 0, 0)
-        if step > 0 and seen < total:
-            view['scroll'] = at + 1
-        elif step < 0 and at:
-            view['scroll'] = at - 1
-        else:
-            view['haul'] = 0.0
-            break
-
-
-def scrolled(view, column, row):
-    """One click: the arrows at the top and bottom of the box column.
-
-    The hit test is the page template's own geometry rather than
-    anything measured off the frame - `frame_of` puts the header on row
-    one, the key bar on the last row, and the boxes in the right-hand
-    `HUD_WIDTH` cells of everything between. The arrows are the first
-    and last rows of that, which is where they are drawn.
-    """
-    width, height = screen_size(view)
-    if not view.get('terminal') or not width or not height:
-        return
-    if column <= width - HUD_WIDTH:
-        view['grip'] = False
-        return
-    # The press is also where a drag begins: remembered so `hauled` can
-    # tell a page-drag from a drag across the drawing.
-    view['grip'] = column > width - HUD_WIDTH
-    at, seen, total = view.get('pages') or (0, 0, 0)
-    if row == 2 and at:
-        view['scroll'] = at - 1
-    elif row == height - 1 and seen < total:
-        view['scroll'] = at + 1
-
-
 def compose(rig, origin, console, view):
     from screen import frame_of, hud
 
@@ -2070,7 +1940,9 @@ def compose(rig, origin, console, view):
               ('CHAIN', chain_rows(view)),
               ('LOOP', loop_rows(view)),
               ('THERMAL', thermal_rows(view))]
-    boxes = paged(view, panels, hud)
+    # Paged by `frame_of`, which is every view's; this only says what
+    # the boxes are.
+    boxes = [hud(*panel) for panel in panels]
     # FIXED-WIDTH LABELS. The bar wraps to whatever fits, so a label
     # that changed length reflowed the whole of it and the bottom of the
     # page jumped a line every time the mode changed - SENSORLESS is ten
@@ -2089,7 +1961,7 @@ def compose(rig, origin, console, view):
             ('E', Text('SPEED', style='chip.live') if view['spin']
              else 'SPEED'),
             ('W', Text('LOAD', style='chip.live') if view['load']
-             else 'LOAD'), (UP + ' ' + DOWN, 'SCROLL'),
+             else 'LOAD'),
             # WHO HAS THE MOUSE. Lit while the terminal does, because
             # that is the state a reader cannot see any other way - the
             # page looks identical and the wheel has stopped working.
@@ -2124,18 +1996,8 @@ def start(rig, view):
 def act(rig, key, view):
     """One keystroke against the board; returns what to say."""
     d = rig.board.drive
-    # THE BOX COLUMN ON KEYS, not only on its own arrows. Those are
-    # clicked, and a click needs the view to hold the mouse - which it
-    # does not unless asked, so the terminal can mark text. Everything
-    # else in the panels was reachable from the keyboard and the one
-    # thing that scrolled them was not.
-    if key in ('up', 'down'):
-        at, seen, total = view.get('pages') or (0, 0, 0)
-        if key == 'up' and at:
-            view['scroll'] = at - 1
-        elif key == 'down' and seen < total:
-            view['scroll'] = at + 1
-        return None
+    # The box column scrolls on the arrows, a click on its arrows and a
+    # drag over it - `run_view`'s, on every page, so nothing of it here.
     try:
         if key == 's':
             if view['state']['mode'] != 'off':
@@ -2441,9 +2303,7 @@ def main(argv=None):
     # cannot change under a running view, and the box is sized to it.
     aspect, aspect_how = aspect_of(args)
     fit_rows(aspect)
-    view = {'scroll': 0, 'pages': None, 'haul': 0.0, 'grip': False,
-            'screen': None, 'terminal': False,
-            'source': args.source, 'mode': args.mode, 'iq': args.iq,
+    view = {'source': args.source, 'mode': args.mode, 'iq': args.iq,
             'id': args.id, 'omega': args.omega, 'accel': args.accel,
             'vd': args.vd, 'v_inj': args.v_inj, 'inject': True,
             'inj_periods': int(params.get('drv_inj_periods') or 1),
@@ -2475,8 +2335,6 @@ def main(argv=None):
     # to ASK THE TERMINAL HOW BIG IT IS. Reading `.size` off the boolean
     # raised, the guard swallowed it, `rows_of` answered zero, and the
     # column silently never paged: no arrows, and nothing to drag.
-    view['screen'] = board_view
-    view['terminal'] = console
     leaving = None
     thermal_at = [0.0]
     # HOW OFTEN THE THERMAL OBSERVER IS READ. Two seconds against a board
@@ -2520,9 +2378,7 @@ def main(argv=None):
 
     try:
         leaving = run_view(board_view, console, 1.0 / max(args.hz, 0.5),
-                           args.frames, draw, on_input, mouse=True,
-                           on_click=lambda c, r: scrolled(view, c, r),
-                           on_drag=lambda dx, dy: hauled(view, dx, dy))
+                           args.frames, draw, on_input, mouse=True)
     finally:
         done = []
         try:

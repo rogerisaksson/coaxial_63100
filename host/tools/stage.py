@@ -352,6 +352,166 @@ def _fills(console):
     return bool(getattr(console, 'is_terminal', console))
 
 
+#: The instrument column's width. 40 since 2026-08-30: the thermal LEVELS
+#: rows wanted air, and the column is the template's, so every view moves
+#: together.
+HUD_WIDTH = 40
+
+#: Rows a hud's frame adds round its content.
+BOX_BORDER = 2
+
+#: The scroll affordances. Triangles rather than dots: they are not part
+#: of the picture, they are something to click.
+UP, DOWN = chr(0x25B4), chr(0x25BE)
+
+#: Cells of drag per box scrolled. About a box's own height, so the
+#: column moves at the hand's speed rather than flying.
+DRAG_ROWS = 6.0
+
+
+def scroll_state(console):
+    """The instrument column's scroll, kept ON THE CONSOLE so every view
+    that draws through `frame_of` has one without holding it: `at` is
+    the first box shown, `pages` is `(at, seen, total)` after the last
+    frame, `haul` the drag's remainder and `grip` whether a drag began
+    over the column."""
+    state = getattr(console, 'coaxial_scroll', None)
+    if state is None:
+        state = {'at': 0, 'pages': (0, 0, 0), 'haul': 0.0, 'grip': False}
+        try:
+            setattr(console, 'coaxial_scroll', state)
+        except AttributeError:
+            pass
+    return state
+
+
+def _height_of(box):
+    """Rows a box takes in the column: a hud's grid plus its frame, a
+    bare line one."""
+    if isinstance(box, Panel):
+        return _rows_of(box) + BOX_BORDER
+    return 1
+
+
+def paged(console, boxes):
+    """The instrument column, windowed, with an arrow where it continues.
+
+    SEVEN BOXES DO NOT FIT. The column is the page's right-hand forty
+    cells and the boxes fill it from the top; past the bottom of the
+    terminal they are simply not drawn, and a reader has no way to know
+    a THERMAL box exists at all. This shows as many as the terminal has
+    room for and says which way the rest are, on a row that can be
+    clicked to get there - and it was the rotor observer's alone until
+    the bench asked for the arrows on every page, which is why it lives
+    in the template now.
+
+    Piped, nothing is windowed: a captured page is read in order and has
+    no bottom to fall off.
+    """
+    state = scroll_state(console)
+    boxes = list(boxes or ())
+    try:
+        room = console.size.height - 2 if _fills(console) else 0
+    except (AttributeError, OSError):
+        room = 0
+    if room <= 0 or not boxes:
+        state['pages'] = (0, len(boxes), len(boxes))
+        return boxes
+
+    heights = [_height_of(box) for box in boxes]
+    # The last page is packed from the END, so scrolling to the bottom
+    # shows a full column rather than one box and a lot of air.
+    last, used = len(boxes), 0
+    while last > 0 and used + heights[last - 1] + 1 <= room:
+        used += heights[last - 1]
+        last -= 1
+    state['at'] = max(0, min(state['at'], last))
+
+    at = state['at']
+    out, taken = [], 1 if at else 0              # a row for the up arrow
+    while at < len(boxes) and taken + heights[at] <= room - 1:
+        out.append(boxes[at])
+        taken += heights[at]
+        at += 1
+    state['pages'] = (state['at'], at, len(boxes))
+    if state['at']:
+        out.insert(0, Text(' %s  %s above' % (UP, state['at']),
+                           style='keys'))
+    if at < len(boxes):
+        out.append(Text(' %s  %d more' % (DOWN, len(boxes) - at),
+                        style='keys'))
+    return out
+
+
+def scroll_by(console, step):
+    """One box up (negative) or down, within what the last frame said
+    there was."""
+    state = scroll_state(console)
+    # FROM WHERE IT IS, not from where the last frame drew: two arrows
+    # between frames used to land one box down, the second reading the
+    # first frame's position again. The bounds are the last frame's -
+    # `paged` clamps whatever this asks for.
+    at, seen, total = state['at'], state['pages'][1], state['pages'][2]
+    if step > 0 and seen < total:
+        state['at'] = at + 1
+    elif step < 0 and at:
+        state['at'] = at - 1
+
+
+def scroll_click(console, column, row):
+    """One click: the arrows at the top and bottom of the box column.
+
+    The hit test is the template's own geometry rather than anything
+    measured off the frame - the header is row one, the key bar the last
+    row, and the boxes are the right-hand HUD_WIDTH cells of everything
+    between. The arrows are the first and last rows of that, which is
+    where `paged` draws them. The press is also where a drag begins:
+    `grip` is remembered so `scroll_drag` can tell a page-drag from a
+    drag across the drawing.
+    """
+    state = scroll_state(console)
+    try:
+        width, height = console.size.width, console.size.height
+    except (AttributeError, OSError):
+        return
+    if not _fills(console) or not width or not height:
+        return
+    state['grip'] = column > width - HUD_WIDTH
+    if not state['grip']:
+        return
+    at, seen, total = state['at'], state['pages'][1], state['pages'][2]
+    if row == 2 and at:
+        state['at'] = at - 1
+    elif row == height - 1 and seen < total:
+        state['at'] = at + 1
+
+
+def scroll_drag(console, dy):
+    """A left-drag on the instrument column, dragged like a page.
+
+    ONLY A DRAG THAT STARTED THERE - the same rule a scrollbar has. A
+    whole box per DRAG_ROWS of travel, and the remainder is kept:
+    rounding each frame's few cells to zero made a slow drag do nothing
+    at all. Dragging DOWN brings the boxes above into view, which is
+    which way paper moves under a hand.
+    """
+    state = scroll_state(console)
+    if not state['grip']:
+        return
+    state['haul'] += dy
+    while abs(state['haul']) >= DRAG_ROWS:
+        step = 1 if state['haul'] < 0 else -1
+        state['haul'] -= step * -DRAG_ROWS
+        at, seen, total = state['at'], state['pages'][1], state['pages'][2]
+        if step > 0 and seen < total:
+            state['at'] = at + 1
+        elif step < 0 and at:
+            state['at'] = at - 1
+        else:
+            state['haul'] = 0.0
+            break
+
+
 def frame_of(console, origin, title, art, boxes, keys, art_title=None,
              under=None):
     """THE template: title band, viewport left, instruments right, key bar.
@@ -366,9 +526,12 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
                      *([under] if under is not None else []),
                      *boxes, footer(keys))
 
-    # 40 since 2026-08-30: the thermal LEVELS rows wanted air, and the
-    # column is the template's, so every view moves together.
-    hud_width = 40
+    # THE COLUMN IS PAGED HERE, for every view at once, and the key bar
+    # says so only while there is something to scroll to.
+    boxes = paged(console, boxes)
+    at, seen, total = scroll_state(console)['pages']
+    if at or seen < total:
+        keys = list(keys) + [(UP + ' ' + DOWN, 'SCROLL')]
     body = Layout()
     art_region = Layout(name='art')
     if under is None:
@@ -382,7 +545,7 @@ def frame_of(console, origin, title, art, boxes, keys, art_title=None,
             Layout(under, name='under', size=_rows_of(under) + 2))
     body.split_row(art_region,
                    Layout(Group(*boxes) if boxes else Text(''),
-                          name='hud', size=hud_width))
+                          name='hud', size=HUD_WIDTH))
 
     whole = Layout()
     whole.split_column(Layout(header(title, origin), size=1),

@@ -306,7 +306,8 @@ def stamp_crosses(lines, width, inset=2):
 # THEME band band_of boot chip curtain footer frame_of header hud live
 # panels_of stage viewport
 from stage import (THEME, band, band_of, boot, chip, curtain, footer,  # noqa: E402,F401
-                   frame_of, header, live, hud, panels_of, stage, viewport)
+                   frame_of, header, live, hud, panels_of, scroll_by,
+                   scroll_click, scroll_drag, stage, viewport)
 
 
 def paced(keys, period, step=0.02):
@@ -470,7 +471,8 @@ def open_rig(banner, **kwargs):
 
 
 def run_view(board_view, console, period, frames, draw, on_input=None,
-             tick=None, mouse=False, on_click=None, on_drag=None):
+             tick=None, mouse=False, on_click=None, on_drag=None,
+             scroll_keys=True):
     """The loop every view runs: draw, pace, take keys - until Q, ESC,
     Ctrl+C or `frames` frames.
 
@@ -483,6 +485,12 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     `keys.dragged()` itself still gets it. Returns
     'quit', 'menu', or None for frames and Ctrl+C - the caller's
     `finally` puts the board back either way.
+
+    THE INSTRUMENT COLUMN SCROLLS ON EVERY PAGE: the up and down arrows
+    move it a box (`scroll_keys`, off for a view that spends the arrows
+    on something else), and with the mouse held a click on its arrows
+    or a drag over it does the same. The state lives on `board_view`,
+    where `frame_of` pages the boxes from it.
     """
     import time as _time
 
@@ -513,15 +521,25 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                     keys, max(0.0, period - (_time.monotonic() - started)))
                 if leaving:
                     return leaving
+                if scroll_keys:
+                    for key in typed:
+                        if key in ('up', 'down'):
+                            scroll_by(board_view, 1 if key == 'down' else -1)
+                    typed = [key for key in typed
+                             if key not in ('up', 'down')]
                 if on_input is not None:
                     on_input(typed, moved)
-                if on_click is not None:
+                if mouse or on_click is not None:
                     for col, row in keys.clicked():
-                        on_click(col, row)
-                if on_drag is not None:
+                        scroll_click(board_view, col, row)
+                        if on_click is not None:
+                            on_click(col, row)
+                if mouse or on_drag is not None:
                     dx, dy = keys.dragged()
                     if dx or dy:
-                        on_drag(dx, dy)
+                        scroll_drag(board_view, dy)
+                        if on_drag is not None:
+                            on_drag(dx, dy)
     except KeyboardInterrupt:
         return None
 

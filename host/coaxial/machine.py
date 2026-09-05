@@ -1044,13 +1044,16 @@ def _bead(frame, seat, pointer_deg, glyph=None, rate=None):
         _wake(frame, seat, phi, seat_r, rate, (row, col))
 
 
-#: The wake's shutter, seconds of travel the trail shows. At 60 rpm a
-#: tenth of a second is 36 degrees of rim - a tenth of the way round,
-#: seen from across a bench; at a crawl it is a few dots; and the cap
-#: keeps a fast can from wearing a ring, which would say nothing about
-#: which way it turns.
-TRAIL_S = 0.1
-TRAIL_MAX_DEG = 120.0
+#: The wake's shutter, seconds of travel the trail shows. At 60 rpm
+#: seven hundredths of a second is 25 degrees of rim, seen from across
+#: a bench; at a crawl it is a few dots; and the cap keeps a fast can
+#: from wearing a ring, which would say nothing about which way it
+#: turns. A TENTH AND 120 FIRST, then "a shade narrower and shorter"
+#: from the bench: shorter is the shutter and the cap, narrower is the
+#: dots a dot apart rather than half a dot, a lighter line.
+TRAIL_S = 0.07
+TRAIL_MAX_DEG = 90.0
+TRAIL_PITCH = 1.0
 
 
 def _wake(frame, seat, phi, seat_r, rate, bead_cell):
@@ -1064,7 +1067,7 @@ def _wake(frame, seat, phi, seat_r, rate, bead_cell):
     if length <= 0.0:
         return
     back = -1.0 if rate > 0.0 else 1.0
-    steps = max(2, int(seat_r * math.radians(length) / 0.5) + 1)
+    steps = max(2, int(seat_r * math.radians(length) / TRAIL_PITCH) + 1)
     for i in range(1, steps + 1):
         t = i / float(steps)
         a = phi + back * math.radians(length) * t

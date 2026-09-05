@@ -916,8 +916,11 @@ def main():
 
         leaving = None
         try:
+            # The arrows are the duty's here, and the dashboard is a grid
+            # of instruments with no column to scroll.
             leaving = run_view(dashboard, console, 1.0 / max(a.hz, 0.2),
-                               a.frames, draw, on_input, tick)
+                               a.frames, draw, on_input, tick,
+                               scroll_keys=False)
         finally:
             print()
             teardown(session, console, 0, hold=leaving != 'menu')

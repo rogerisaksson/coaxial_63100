@@ -1190,6 +1190,23 @@ record's own constants, no measurement.
   foot's rules through `machine.gutters`, and the instrument column
   keeps its forty. Nothing else on the page is placed by a number of
   its own, which is what made it one line.
+* **The instrument column scrolls on every page, 2026-09-05.** It was
+  the rotor observer's alone: seven boxes did not fit its column, so it
+  grew a window, an arrow row to click, a drag and the up and down
+  keys, all in the view. The bench asked for the arrows on every
+  submenu. The paging is the template's now - `stage.paged` windows
+  the boxes to the terminal's height and packs the last page from the
+  end, `frame_of` calls it for whatever view draws through it and adds
+  the SCROLL chip to the key bar only while there is somewhere to go,
+  and `run_view` takes the arrows, the clicks on the markers and a drag
+  over the column for every view at once, with the state kept on the
+  console the view draws through. The session keeps its arrows for the
+  duty (`scroll_keys=False`) and has no column anyway. The rotor
+  observer lost 125 lines and nothing it had.
+* **The wake, a shade narrower and shorter, 2026-09-05.** Shorter is
+  the shutter and the cap - 0.07 s and 90 degrees from 0.1 and 120 -
+  and narrower is the dots a dot apart along the arc rather than half
+  a dot: a lighter line, the same fade.
 * **The can is seated at the top of its band, not centred.** Centred,
   whatever the band had over the can's height was split above and
   below - and on a terminal whose cell the view could not measure,

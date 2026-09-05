@@ -720,10 +720,12 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
 
     from coaxial import machine
     import show_rotor_observer as view
+    import stage
 
     drawn = machine.render(6.0, 24, 28, 46, 18, pointer_deg=41.0)
+    # The scroll arrows are the stage's now, every page's furniture.
     said = ''.join(str(x) for x in
-                   (view.AIM_LEFT, view.AIM_RIGHT, view.UP, view.DOWN,
+                   (view.AIM_LEFT, view.AIM_RIGHT, stage.UP, stage.DOWN,
                     view.DEGREE, view.LEADER, machine.POINTER_GLYPH)
                    ) + ''.join(view.TURN) + ''.join(view.DROP)
     for name, text in (('the drawing', drawn), ("the view's furniture", said)):
@@ -738,9 +740,11 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
     report.check('the arrowheads are the small triangles',
                  (view.AIM_LEFT, view.AIM_RIGHT) == (chr(0x25C2), chr(0x25B8)),
                  view.AIM_LEFT + view.AIM_RIGHT)
-    report.check('and the foot uses their up and down',
-                 (view.UP, view.DOWN) == (chr(0x25B4), chr(0x25BE)),
-                 view.UP + view.DOWN)
+    import stage
+    report.check('and the foot uses their up and down - the stage\'s, which '
+                 'every page\'s scroll markers wear too',
+                 (stage.UP, stage.DOWN) == (chr(0x25B4), chr(0x25BE)),
+                 stage.UP + stage.DOWN)
 
 
 def test_the_bead_is_round_at_every_angle(report):
@@ -1071,6 +1075,66 @@ def test_the_soa_gauge_pulses_only_when_the_board_acts(report):
                      seen == {True, False}, str(sorted(seen)))
 
 
+def test_every_page_scrolls_its_boxes(report):
+    """The instrument column pages on every view: the arrows move it a
+    box, a click on its markers and a drag over it too, and the key bar
+    says SCROLL only while there is somewhere to go.
+
+    IT WAS THE ROTOR OBSERVER'S ALONE - seven boxes did not fit and it
+    grew a window, a click and a drag of its own - and the bench asked
+    for the arrows on every page. The paging lives in the template now,
+    on the console every view draws through, so a view gets it by
+    drawing.
+    """
+    sys.path.insert(0, HOST)
+    import stage
+
+    class Size:
+        width, height = 100, 14
+
+    class Console:
+        is_terminal = True
+        size = Size()
+
+    console = Console()
+    boxes = [stage.hud('BOX %d' % i, [('a', 1), ('b', 2), ('c', 3)])
+             for i in range(6)]
+    shown = stage.paged(console, boxes)
+    at, seen, total = stage.scroll_state(console)['pages']
+    report.check('a short terminal shows what fits and says the rest are '
+                 'below', at == 0 and 0 < seen < total == 6
+                 and stage.DOWN in shown[-1].plain,
+                 '%d of %d shown' % (seen, total))
+    stage.scroll_by(console, 1)
+    stage.scroll_by(console, 1)
+    shown = stage.paged(console, boxes)
+    at, seen, total = stage.scroll_state(console)['pages']
+    report.check('two arrows down start two boxes in, with a row saying so',
+                 at == 2 and stage.UP in shown[0].plain, '%d above' % at)
+    for _ in range(10):
+        stage.scroll_by(console, 1)
+    stage.paged(console, boxes)
+    at, seen, total = stage.scroll_state(console)['pages']
+    report.check('and the bottom is a full column, not one box and air',
+                 seen == total and at < total, '%d..%d of %d' % (at, seen, total))
+    stage.scroll_click(console, Size.width - 2, 2)
+    stage.paged(console, boxes)
+    report.check('a click on the top marker goes up one',
+                 stage.scroll_state(console)['pages'][0] == at - 1)
+    stage.scroll_click(console, 10, 2)
+    report.check('a click over the drawing takes no grip, so a drag there '
+                 'does not scroll', not stage.scroll_state(console)['grip'])
+    before = stage.scroll_state(console)['pages'][0]
+    stage.scroll_drag(console, 20.0)
+    report.check('...and moves nothing', stage.scroll_state(console)['at'] == before)
+
+    class Pipe:
+        is_terminal = False
+
+    report.check('piped, nothing is windowed',
+                 len(stage.paged(Pipe(), boxes)) == 6)
+
+
 def test_the_dial_is_round_on_this_terminal(report):
     """The shaft angle's face takes the measured cell aspect, and is a
     notch smaller than it was.
@@ -1240,6 +1304,7 @@ def main():
     test_the_bead_is_round_at_every_angle(report)
     test_the_bead_trails_its_speed(report)
     test_the_dial_is_round_on_this_terminal(report)
+    test_every_page_scrolls_its_boxes(report)
     test_the_terminal_is_asked_how_tall_a_cell_is(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
