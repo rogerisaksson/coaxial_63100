@@ -212,8 +212,8 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2722 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (598),
+Twenty-six suites, 2725 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (601),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (223),
 `test_simulated.py` (213), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
@@ -262,7 +262,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2722 checks are in those nine files.
+  773 of this tree's 2725 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

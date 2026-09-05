@@ -360,18 +360,18 @@ def test_key_light(report):
 
 
 def test_the_face_is_a_halftone(report):
-    """The glyph is an ordered dither at dot resolution: an 8 x 8 Bayer
-    matrix laid over the dots, four cells wide and two tall, against
-    the light sampled at each dot.
+    """The glyph is a dither at dot resolution: a 64 x 64 blue-noise
+    mask laid over the dots, against the light sampled at each dot,
+    between a density floor and a ceiling.
 
-    ONE RUNG PER CELL WAS THE BLOCK, and sampling the light per dot on
-    the ladder's own order was the speckle after it: eight positions in
-    one fixed order put every cell's dots in the same places, and the
-    dark half of the board was rows of dots a cell apart - seen in a
-    raster of the frame, which the glyph counts never showed. A halftone
-    spreads the dots evenly at every density and has no cell period, and
-    a density floor keeps the dark side a surface. Held here on synthetic
-    fields, and on the shipped board at the page's own size.
+    ONE RUNG PER CELL WAS THE BLOCK; sampling the light per dot on the
+    ladder's own order was the speckle after it; and an 8 x 8 Bayer
+    matrix was the blocks after that - its two-by-two clusters read as
+    small squares across a real window. Each was seen in a raster of
+    the frame, which the glyph counts never showed. Blue noise has no
+    structure at any density; the floor keeps the dark side a surface
+    and the ceiling keeps the bright parts a texture. Held here on
+    synthetic fields, and on the shipped board at the page's own size.
     """
     import collections
     import math
@@ -379,10 +379,10 @@ def test_the_face_is_a_halftone(report):
     from coaxial import orientation, raster
     w = wireframe
 
-    flat = sorted(v for row in w.BAYER for v in row)
-    report.check('the matrix holds every threshold once, 0 to 63, off the '
-                 'classic seed',
-                 flat == list(range(64)) and w._bayer(2) == [[0, 2], [3, 1]])
+    n = w.NOISE_N
+    flat = sorted(v for row in w.NOISE for v in row)
+    report.check('the mask holds every rank once, 0 to %d' % (n * n - 1),
+                 n == 64 and flat == list(range(n * n)))
 
     def field(width, height, heat_of):
         classes = bytearray([1] * (width * height))
@@ -397,29 +397,40 @@ def test_the_face_is_a_halftone(report):
                    for y in range(y0, y0 + tall)
                    for x in range(x0, x0 + wide))
 
-    floor = w.DENSITY_FLOOR
+    floor, ceil = w.DENSITY_FLOOR, w.DENSITY_CEIL
     ok, said = True, []
     for s in (0.0, 0.25, 0.5, 0.75, 1.0):
-        want = int((floor + (1.0 - floor) * s) * 64.0 + 0.5)
-        got = dots_in(field(8, 4, lambda x, y, s=s: s), 0, 0, 4, 2)
+        want = int((floor + (ceil - floor) * s) * n * n + 0.5)
+        got = dots_in(field(n // 2, n // 4, lambda x, y, s=s: s),
+                      0, 0, n // 2, n // 4)
         said.append('%.2f: %d of %d' % (s, got, want))
-        ok = ok and got == want
-    report.check('a flat field lights the matrix\'s share of a tile: the '
-                 'density floor, then the light', ok, ', '.join(said))
+        # A cell the mask leaves blank keeps one dot - a drawn cell is
+        # never blank - so at the floor, one dot a cell on average, the
+        # count runs over by up to a dot for every cell left blank.
+        ok = ok and want <= got <= want + (n // 2) * (n // 4)
+    report.check('a flat field lights the mask\'s share of a tile: the '
+                 'floor, then the light, up to the ceiling',
+                 ok, ', '.join(said))
 
-    half = (0.5 - floor) / (1.0 - floor)
-    grid = field(8, 4, lambda x, y: half)
-    report.check('at half density every cell holds four dots - the '
-                 'checkerboard, no cell period',
-                 all(bin(ord(g) - raster.BRAILLE).count('1') == 4
-                     for row in grid for g in row))
+    # BLUE: at the window's middle every 8 x 8 window of dots holds near
+    # the middle's share - no clusters, no voids - which a Bayer tile
+    # holds exactly and a random field does not hold at all.
+    grid = field(n // 2, n // 4, lambda x, y: 0.5)
+    middle = 0.5 * (floor + ceil) * 64.0
+    windows = [dots_in(grid, x, y, 4, 2)
+               for y in range(0, n // 4, 2) for x in range(0, n // 2, 4)]
+    report.check('at the middle density every 8 x 8 window of dots holds '
+                 'within six of %.0f - even, and no structure to it'
+                 % middle,
+                 all(abs(got - middle) <= 6 for got in windows),
+                 '%d..%d' % (min(windows), max(windows)))
     report.check('and a cell whose density clears no dot keeps one',
                  all(ord(g) > raster.BRAILLE
                      for row in field(8, 4, lambda x, y: -5.0) for g in row))
 
-    ramp = field(64, 2, lambda x, y: x / 63.0)
-    columns = [dots_in(ramp, x, 0, 4, 2) for x in range(0, 64, 4)]
-    report.check('a ramp never loses a dot from one tile to the next',
+    ramp = field(n, 4, lambda x, y: x / float(n - 1))
+    columns = [dots_in(ramp, x, 0, 8, 4) for x in range(0, n, 8)]
+    report.check('a ramp gains dots from one band to the next',
                  columns == sorted(columns), ' '.join(map(str, columns)))
 
     report.check('the floor rolls off: continuous at the knee, ordered '
@@ -472,19 +483,19 @@ def test_the_face_is_a_halftone(report):
     counts = [bin(ord(g) - raster.BRAILLE).count('1') for g in face]
     hist = collections.Counter(counts)
     mean = sum(counts) / float(8 * len(face))
-    # Measured after: 0.59 lit, no cell under two dots (the floor), and
-    # thirteen distinct glyphs - a Bayer tile over two-by-four cells
-    # repeats its cell patterns, which is what an even lattice IS; the
-    # block's other glyphs come where the light changes, not as texture.
-    report.check('the shipped board at the page\'s size is a surface: every '
-                 'dot count from the floor up occurs and the face is a '
-                 'third to three quarters lit',
-                 all(hist[r] for r in range(2, 9)) and 0.33 <= mean <= 0.75,
+    # THE DENSITY WINDOW IS THE POINT, on the bench's screenshot: in the
+    # terminal the glyph box is narrower than the cell, and past about
+    # three dots in ten every cell reads as a brick. The face sits
+    # between the floor and the ceiling, the rim cells solid above it.
+    report.check('the shipped board at the page\'s size is a stipple, not '
+                 'a wall: the face sits inside the density window and no '
+                 'cell is blank',
+                 floor - 0.03 <= mean <= ceil + 0.05 and hist[0] == 0
+                 and all(hist[r] for r in range(1, 5)),
                  '%.2f lit, %s' % (mean, ' '.join(
-                     '%d:%d' % (r, hist[r]) for r in range(1, 9))))
-    report.check('and no cell of it is a lone dot: the floor holds',
-                 hist[1] == 0 and len(set(face)) >= 10,
-                 '%d at one dot, %d distinct' % (hist[1], len(set(face))))
+                     '%d:%d' % (r, hist[r]) for r in range(0, 9))))
+    report.check('and it wears the block - dozens of glyphs, not eight',
+                 len(set(face)) >= 40, '%d distinct' % len(set(face)))
 
     # THE RIM, CLIPPED AND LIT. A part-covered cell's dots all lie in
     # quadrants the 2x2 raster reached - nothing spills past the board -

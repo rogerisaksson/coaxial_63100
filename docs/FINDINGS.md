@@ -1082,6 +1082,54 @@ record's own constants, no measurement.
   Bayer tile over 2x4 cells repeats its cell patterns - that is what an
   even lattice is), no dot past the rim over its cells, the rim's
   median luma above the face's; 17 ms a frame against 12.
+* **"Blocky as hell" - the Bayer's own hierarchy, at a real window,
+  2026-09-05.** The 78x30 test frame hid it; a raster at 150x44, the
+  attitude page's size on the bench, showed the 8x8 matrix's two-by-two
+  clusters as small square blocks across the whole face, and the raised
+  parts saturated to solid `⣿` rectangles. Four threshold fields
+  rastered side by side at that size: Bayer (the blocks), interleaved
+  gradient noise (a regular diagonal screen), the R2 sequence (half
+  structured), and a 64x64 void-and-cluster BLUE-NOISE mask (no
+  structure at any density, and fixed in screen space so it does not
+  crawl as error diffusion would when the board turns). Blue noise
+  ships as `coaxial/bluenoise64.bin`, 4096 ranks, with
+  `tools/bluenoise.py` as its reproducible, seeded generator - numpy
+  and a second for the tool, a file read for the renderer. With it a
+  density CEILING of 0.85: the brightest face keeps a dot or two dark
+  a cell and stays a texture, the rim and the outline still draw solid.
+  And the mesh is earned BY SIZE ON SCREEN as well as by zoom
+  (`_earned`): at zoom 0.88 a 150-column window drew from the
+  12-division decimate whenever no crew was about - the menu's front
+  page, a short run - and the parts came out as chunky boxes; now a
+  board 62 cells across earns the 32 grid on its own. Measured single-
+  process: 67 ms a frame at 150x44, 20 ms at 78x30 (the 16 grid its 42
+  cells earn, 12 before).
+* **"Extremely blocky", with a screenshot - the DENSITY was the block,
+  2026-09-05.** The bench's picture showed what no raster here had: in
+  the terminal the braille glyph box is narrower than the character
+  cell (the fallback font's metrics, since Consolas has no braille),
+  so from about three dots in ten upward every cell is a brick with
+  dark mortar round it, and the cell grid itself is what reads as
+  blocks - whatever pattern the dots are in. Rastered at 120x40 at
+  zoom 1.5, the bench's framing: 0.30 to 0.85 a brick wall, 0.15 to
+  0.50 a stippled surface, 0.08 to 0.35 a light dusting with the shape
+  carried by the rim and the outlines. The window is 0.12 to 0.45 now:
+  the tone carries the light, a few dots carry the shape. And the rim
+  pass counted a whole cell beside an uncovered one as an edge, which
+  where the parts crowd the board's far edge made every cell an edge
+  and the region a solid bright blob - blocks by another route, also
+  in the screenshot; it draws part-covered cells only now, the
+  silhouette at quadrant resolution, thin enough to be a line. And
+  "the highlight and the edges in another braille character": a rim
+  cell was solid in its reached quadrants, and a solid cell beside a
+  stipple is a block whatever it means. It is a braille LINE now -
+  `EDGE_GLYPH`, one of `⠃ ⠘ ⠒ ⡄ ⡇ ⡜ ⡔ ⢠ ⢣ ⢸ ⢢ ⠤ ⠣ ⠜` by which
+  quadrants the model reaches: of the reached quadrants, the dots that
+  border a missed one - the whole column across from it, the one row
+  above or below it. Along a rim the cells join into a drawn line that
+  follows the silhouette, in the bright edge tone, and the face inside
+  it stays a stipple in the light's tone: two vocabularies on one
+  board.
 * **The can is seated at the top of its band, not centred.** Centred,
   whatever the band had over the can's height was split above and
   below - and on a terminal whose cell the view could not measure,
