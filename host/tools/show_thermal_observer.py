@@ -209,11 +209,11 @@ def tubes(state, budget):
 
     HEIGHT IS DEGREES ON THE ONE SCALE every page shares, colour is the
     node's margin against its own ceiling (the board's bands, from the
-    record), and the NTC wears the thermometer ramp because it has no
-    ceiling to be a margin against. The map beside them says WHERE the
-    heat sits; these say how much, against the same rulers the motor
-    page uses, so a reader moving between the two pages reads one
-    instrument.
+    record, trimmed by the identification's policy), and the NTC wears
+    the thermometer ramp because it has no ceiling to be a margin
+    against. The map beside them says WHERE the heat sits; these say how
+    much, against the same rulers the motor page uses, so a reader
+    moving between the two pages reads one instrument.
     """
     nodes = state.get('nodes') or {}
     used = (budget or {}).get('used') or {}

@@ -970,12 +970,20 @@ POLICY_INK = {'STABLE': machine.SOA_OK, 'CONVERGING': machine.SOA_WARN,
 
 
 def _policy(view):
-    """`(label, word, ink)` for the foot: TH OBS and the state, or a dash
-    in the leaders' grey before the board has answered op 10."""
+    """`(label, word, ink)` for the foot: TH OBS and the state with the
+    ceiling it leaves - `UNCR 80%`, `CONV 90%`, and `STABLE` alone once
+    the spans are whole, the bench's "make it visible that it throttles
+    at 80 % of the SOA already, then 90, then 100 as the model's
+    uncertainty goes to zero" - or a dash in the leaders' grey before the
+    board has answered op 10."""
     ident = view.get('ident')
     state = ident['state'] if ident else None
     if state in POLICY_INK:
-        return 'TH OBS', POLICY_WORD[state], machine.INK[POLICY_INK[state]]
+        word = POLICY_WORD[state]
+        percent = int(round(100.0 * ident.get('margin', 1.0)))
+        if percent < 100:
+            word = '%s %d%%' % (word, percent)
+        return 'TH OBS', word, machine.INK[POLICY_INK[state]]
     return 'TH OBS', '-', machine.LEADER_GREY
 
 
@@ -1729,14 +1737,51 @@ def headrooms(view):
     """
     board = headroom(view)
     motor = motor_headroom(view)
+    budget = view.get('budget') or {}
     # THE LEVEL IS WHAT IS SPENT, not what is left. Drawn as the margin
     # the tube emptied as things got hot, which is backwards for a
     # thermometer standing beside five that fill: everything else on this
     # page rises toward its limit and these fell away from theirs. The
     # COLOUR still comes from the margin, so a full tube is a red one.
-    return [(1.0 - board, machine.SOA_FLASH if flashing(view)
+    #
+    # SPENT OF THE WHOLE SOA, not of the ceiling in force. The board's
+    # `used` is against the ceiling the identification's policy leaves it
+    # - 80 % of the span UNCERTAIN, 90 CONVERGING, 100 STABLE - so read
+    # raw it said 100 % at three different temperatures. Times the
+    # margin it is the record's SOA again, and the legend reads 80 % and
+    # flashes red where the board acts while the model is UNCERTAIN, 90
+    # while it converges, 100 once the uncertainty has gone: the bench's
+    # "start flashing SWITCH SOA red at 80 % already, and throttle down;
+    # then 90; and do not throttle until 100 %". The colour stays the
+    # board's own verdict on the ceiling in force.
+    margin = policy_margin(view)
+    motor_spent = 1.0 - motor
+    if 'winding_used' in budget:
+        motor_spent *= margin       # the board's winding, under its policy
+    return [((1.0 - board) * margin, machine.SOA_FLASH if flashing(view)
              else headroom_class(board)),
-            (1.0 - motor, headroom_class(motor))]
+            (motor_spent, machine.SOA_FLASH if motor_flashing(view)
+             else headroom_class(motor))]
+
+
+def policy_margin(view):
+    """What the identification's state leaves of every ceiling's span -
+    the board's number off op 10, one when it has not answered."""
+    return float((view.get('ident') or {}).get('margin', 1.0))
+
+
+def motor_flashing(view):
+    """The motor's pulse: the board holding the stage back FOR THE
+    WINDING - its own factor under one, or its ceiling reached - since
+    MINOR 12 made it a node the envelope acts on. Before that nothing
+    acted on the motor's margin and a flashing bar nobody could obey was
+    noise; now the board obeys it."""
+    budget = view.get('budget') or {}
+    acting = (budget.get('winding_derate', 1.0) < 1.0
+              or budget.get('winding_used', 0.0) >= 1.0)
+    if not acting:
+        return False
+    return (time.monotonic() * FLASH_HZ * 2.0) % 2.0 < 1.0
 
 
 def motor_headroom(view):

@@ -136,6 +136,15 @@ typedef struct
     * interval against the model's - a difference a slow error cannot
     * enter. */
   bool seated[3];
+  /** What each seated thermometer read at the seat, so the next sample
+    * can say whether the board MOVED since: a board that is not
+    * switching burns nothing that moves its temperature, and its
+    * readings agree with the shadow whatever the air scale - the
+    * observer's ambient estimate absorbs the difference. Such a sample
+    * says nothing and is neither judged nor learned from, so an idling
+    * board stays UNCERTAIN and the envelope keeps its margin until
+    * something burns (the bench's rule, 2026-09-05). */
+  float seat_reading[3];
   /** Samples still to pass unjudged after a blind gap, while the
     * observer's anchors bring the laminate the thermometers do not
     * reach back to them. */

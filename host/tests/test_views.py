@@ -339,6 +339,7 @@ def test_the_foot_carries_the_policy(report):
                           'vq': 1.0, 'vdc': 24.0},
                 'params': {}, 'winding_at': None, 'ident': ident}
 
+    from coaxial.thermal import IDENT_MARGIN
     stable = {'state': 'STABLE', 'margin': 1.0}
     foot = view.gutter_caption(a_view(20.0, stable))[-1]
     plain = visible(foot)
@@ -348,12 +349,23 @@ def test_the_foot_carries_the_policy(report):
                  < plain.find('POWER') and len(plain) == view.ART_WIDTH,
                  '%d: %s' % (len(plain), plain))
     at = plain.find('TH OBS')
-    inks = {}
+    inks, trims = {}, {}
     for state in ('STABLE', 'CONVERGING', 'UNCERTAIN'):
-        row = view.gutter_caption(a_view(20.0, {'state': state,
-                                                'margin': 1.0}))[-1]
+        row = view.gutter_caption(a_view(20.0, {
+            'state': state, 'margin': IDENT_MARGIN[state]}))[-1]
         inks[state] = ('38;5;%dm%s' % (machine.INK[view.POLICY_INK[state]],
                                        view.POLICY_WORD[state])) in row
+        trims[state] = visible(row)
+    # THE TRIM IS SAID WHILE THERE IS ONE - the bench: "make it visible
+    # that it throttles at 80 % of the SOA already, then 90, then 100 as
+    # the model's uncertainty goes to zero" - and the row stays its width.
+    report.check('the ceiling it leaves is on the row: UNCR 80%, CONV 90%, '
+                 'and STABLE alone at the whole span',
+                 'TH OBS UNCR 80%' in trims['UNCERTAIN']
+                 and 'TH OBS CONV 90%' in trims['CONVERGING']
+                 and 'TH OBS STABLE ' in trims['STABLE']
+                 and all(len(t) == view.ART_WIDTH for t in trims.values()),
+                 ' | '.join(trims.values()))
     report.check('the word wears the margin\'s ink: STABLE green, CONV '
                  'yellow, UNCR red - and TH OBS the leaders\' grey',
                  all(inks.values())
@@ -383,6 +395,71 @@ def test_the_foot_carries_the_policy(report):
                  'WINDING 123.4' in three and three.find('TH OBS') == at
                  and three.find('POWER') == plain.find('POWER')
                  and len(three) == view.ART_WIDTH, three)
+
+
+def test_the_soa_legend_reads_the_whole_soa(report):
+    """SWITCH SOA and MOTOR SOA say how much of the RECORD's SOA is spent,
+    and flash red where the ceiling in force is.
+
+    The bench: "start flashing SWITCH SOA red at 80 % already, and
+    throttle down; then 90; and do not throttle until 100 %" - and not
+    as red tops on the tubes, which was tried first. The board's `used`
+    is against the ceiling its policy leaves it, so read raw the legend
+    said 100 % at three different temperatures; times the margin it is
+    the whole SOA again, and a board at its UNCERTAIN ceiling reads 80 %
+    in a pulsing red. The colour stays the board's verdict.
+    """
+    sys.path.insert(0, HOST)
+    sys.path.insert(0, os.path.join(HOST, 'tools'))
+    from coaxial import machine, thermal
+    from coaxial.thermal import IDENT_MARGIN
+    from tools import show_rotor_observer as rotor
+
+    def a_view(state, worst, tripped=False, winding_used=None):
+        budget = {'worst': worst, 'tripped': tripped,
+                  'throttling': worst >= 0.9}
+        if winding_used is not None:
+            budget['winding_used'] = winding_used
+            budget['winding_derate'] = 1.0 if winding_used < 0.9 else 0.5
+        return {'thermal': {'nodes': {'driver_u': 60.0}}, 'budget': budget,
+                'ident': {'state': state, 'margin': IDENT_MARGIN[state]},
+                'params': {}, 'winding_at': None,
+                'state': {'id': 0.0, 'iq': 0.0, 'vd': 0.0, 'vq': 0.0}}
+
+    reads = {}
+    for state in ('UNCERTAIN', 'CONVERGING', 'STABLE'):
+        spent, cls = rotor.headrooms(a_view(state, 1.0, tripped=True))[0]
+        reads[state] = (spent, cls)
+    report.check('a board at the ceiling its policy leaves reads 80 % of '
+                 'the SOA UNCERTAIN, 90 CONVERGING, 100 STABLE',
+                 abs(reads['UNCERTAIN'][0] - 0.80) < 1e-9
+                 and abs(reads['CONVERGING'][0] - 0.90) < 1e-9
+                 and abs(reads['STABLE'][0] - 1.00) < 1e-9,
+                 ' '.join('%s %.2f' % (s, v[0]) for s, v in reads.items()))
+    report.check('and in the trip\'s red, pulsing, since the board is '
+                 'acting there',
+                 all(cls in (machine.SOA_TRIP, machine.SOA_FLASH)
+                     for _spent, cls in reads.values()),
+                 [cls for _s, cls in reads.values()])
+    spent, cls = rotor.headrooms(a_view('UNCERTAIN', 0.5))[0]
+    report.check('half way to that ceiling reads 40 % of the SOA and is '
+                 'neither red nor pulsing - the amber there is the '
+                 'gauge\'s own band, not the policy\'s',
+                 abs(spent - 0.40) < 1e-9
+                 and cls not in (machine.SOA_TRIP, machine.SOA_FLASH),
+                 '%.2f cls %d' % (spent, cls))
+    motor = rotor.headrooms(a_view('UNCERTAIN', 0.2, winding_used=1.0))[1]
+    report.check('the winding\'s own legend the same way, off the board\'s '
+                 'winding under the same policy, and pulsing when the '
+                 'board holds the stage back for it',
+                 abs(motor[0] - 0.80) < 1e-9
+                 and motor[1] in (machine.SOA_TRIP, machine.SOA_FLASH),
+                 '%.2f cls %d' % motor)
+    report.check('the ceiling in force is the record\'s span trimmed: the '
+                 'laminate\'s 105 is 89 C UNCERTAIN',
+                 abs(thermal.ceiling_of('board', 0.8) - 89.0) < 1e-9
+                 and abs(thermal.ceiling_of('board', 1.0) - 105.0) < 1e-9,
+                 '%.1f' % thermal.ceiling_of('board', 0.8))
 
 
 def test_two_headrooms_named_apart(report):
@@ -1565,6 +1642,7 @@ def main():
     test_the_ntc_is_shown_as_the_one_measurement(report)
     test_two_headrooms_named_apart(report)
     test_the_foot_carries_the_policy(report)
+    test_the_soa_legend_reads_the_whole_soa(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
     test_the_mode_says_whether_the_board_holds_it_back(report)
     test_the_flat_drawings_spend_the_block(report)

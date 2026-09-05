@@ -358,6 +358,53 @@ class GroundTruth:
                               ident.sigma('air'), ident.innovation()))
 
 
+def test_an_idle_board_stays_uncertain(report, lib):
+    """A board that is not switching gives the identification nothing.
+
+    The bench's rule, 2026-09-05: "an idling board that is not switching
+    stays UNCERTAIN - there are no hot switches burning energy and moving
+    the board's temperature - and that is why one keeps to 80 % of the
+    SOA when switching starts, with the thermal situation unknown." At
+    idle the readings agree with the shadow whatever the air scale, the
+    observer's ambient estimate absorbing the difference, so a covariance
+    narrowed there would be confidence from silence. A sample whose
+    thermometers moved less than three floors since the seat is a still
+    board and is neither judged nor learned from.
+
+    The truth in a box, the board settled at its idle equilibrium, then
+    forty minutes of samples every thirty seconds with nothing switching:
+    no sample moves the scales, and the state is UNCERTAIN.
+    """
+    truth = GroundTruth(lib, air=2.0)
+    observer = Model(lib)
+    ident = Ident(lib, observer)
+    quiet = power(lib)                 # the housekeeping alone
+    # Settle both at their idle equilibria first, blind: the warm-up
+    # from a cold start is a transient of its own and not what is asked.
+    blind = (math.nan, math.nan, math.nan)
+    for _ in range(3600):
+        truth.model.step(quiet, 1.0)
+        ident.run(quiet, 1.0, blind)
+    # Then forty minutes idling ON the housekeeping - `cycle` cools on no
+    # power at all, which is a cooldown and not an idle - read every
+    # thirty seconds as the board reads.
+    for step in range(2400):
+        truth.model.step(quiet, 1.0)
+        seen = blind
+        if (step + 1) % 30 == 0:
+            seen = (truth.model.ntc() + truth.noise(),
+                    truth.model.junction(quiet, 'afe') + truth.noise(),
+                    truth.model.junction(quiet, 'mcu') + truth.noise())
+        ident.run(quiet, 1.0, seen)
+    report.check('forty idle minutes in a box, sampled every thirty '
+                 'seconds: no sample moved the scales',
+                 ident.updates() == 0,
+                 '%d updates, air %.2f' % (ident.updates(), ident.scale('air')))
+    report.check('and the board stays UNCERTAIN - its margin in hand until '
+                 'something switches',
+                 ident.state() == 'UNCERTAIN', ident.state())
+
+
 def test_the_scales_are_identified_against_a_ground_truth(report, lib):
     """The identification finds a board's air path from its own
     thermometers, says how sure it is, and notices when the situation
@@ -1593,6 +1640,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_motor_is_the_boards_boundary,
           test_a_long_step_is_sub_stepped,
           test_the_scales_are_identified_against_a_ground_truth,
+          test_an_idle_board_stays_uncertain,
           test_the_lookahead_catches_a_ramp,
           test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,

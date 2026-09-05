@@ -98,6 +98,14 @@ bool thermal_ident_online(thermal_ident_param_t which)
   * step instead of to a clamp. */
 #define IDENT_GATE_SIGMAS 3.0f
 
+/** How far a thermometer must have moved since the seat, as a multiple
+  * of the noise floor, for the sample to say anything about the scales.
+  * Under it the board is STILL - not switching, nothing burning - and
+  * the readings agree with the shadow whatever the air scale, since the
+  * observer's ambient estimate absorbs the error; a covariance narrowed
+  * on that would be confidence from silence. */
+#define IDENT_STILL_GAIN 3.0f
+
 /** What the states are: sigma below which a scale is known, and the
   * innovation against the noise floor that says the model predicts. */
 #define IDENT_SIGMA_CONVERGING 0.30f
@@ -372,6 +380,7 @@ static void reseat(thermal_ident_t *id, const thermal_t *th,
   {
     sh->ntc = seen->ntc_c;
     id->seated[0] = true;
+    id->seat_reading[0] = seen->ntc_c;
   }
   static const thermal_node_t DIES[2] = { THERMAL_MCU, THERMAL_AFE };
   const float readings[2] = { seen->mcu_c, seen->afe_c };
@@ -403,6 +412,7 @@ static void reseat(thermal_ident_t *id, const thermal_t *th,
       id->s[THERMAL_IDENT_SPREAD][patch] = per_r * base->r_edge[edge];
     }
     id->seated[1 + d] = true;
+    id->seat_reading[1 + d] = readings[d];
   }
 }
 
@@ -656,6 +666,25 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
     float predicted[3];
     float h[3][THERMAL_IDENT_PARAMS];
 
+    /* A STILL BOARD TEACHES NOTHING. Every seated thermometer within
+       IDENT_STILL_GAIN floors of what it read at the seat: nothing is
+       burning, nothing is moving, and the sample moves neither the
+       scales nor their covariance - the bench's rule, so an idling board
+       stays UNCERTAIN and the envelope keeps its margin until something
+       switches. Its prediction error still counts toward whether the
+       model PREDICTS: a model that has learned a cooldown and then sits
+       quietly on the readings is not held UNCERTAIN by the quiet. */
+    float stirred = 0.0f;
+
+    for (int j = 0; j < 3; j++)
+    {
+      if (!isnan(readings[j]) && id->seated[j])
+      {
+        stirred = fmaxf(stirred, fabsf(readings[j] - id->seat_reading[j]));
+      }
+    }
+    const bool still = stirred < IDENT_STILL_GAIN * id->noise_k;
+
     predicted[0] = id->shadow.ntc;
     memcpy(h[0], id->s_ntc, sizeof(h[0]));
     for (int d = 0; d < 2; d++)
@@ -677,7 +706,10 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
       }
       const float e = readings[j] - predicted[j];
 
-      moved |= update(id, h[j], e);
+      if (!still)
+      {
+        moved |= update(id, h[j], e);
+      }
 #ifdef THERMAL_IDENT_TRACE
       /* Host diagnostics only: never in the firmware build. */
       printf("TRACE %d e=%+.3f h=%+.3f %+.3f %+.3f %+.3f  s=%.2f %.2f %.2f %.2f\n",
@@ -694,8 +726,9 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
     {
       id->innovation_k += IDENT_INNOVATION_FOLLOW
                           * (worst - id->innovation_k);
-      /* The scales may drift between samples: the process noise. */
-      for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+      /* The scales may drift between samples: the process noise. Not
+         on a still sample - nothing has happened to drift under. */
+      for (int k = 0; (k < THERMAL_IDENT_PARAMS) && !still; k++)
       {
         if (ONLINE[k])
         {

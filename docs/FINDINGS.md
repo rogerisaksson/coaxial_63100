@@ -1172,6 +1172,51 @@ looking at the estimate alone.
   which is what a situation changes, a quarter for the rest
   (`FLOOR_SHARE`): capacity 0.67 to 0.72 after a fan, STABLE reached.
   The margins are the bench's numbers since: 80 / 90 / 100 %.
+* **An idling board stays UNCERTAIN**, the bench's rule the same day:
+  "there are no hot switches burning energy and moving the board's
+  temperature - that is why one keeps to 80 % of the SOA when switching
+  starts, or lower, with the thermal situation unknown." Before it, an
+  idle board GAINED confidence: at equilibrium the readings agree with
+  the shadow whatever the air scale, because the observer's ambient
+  estimate absorbs the difference (the board has no ambient sensor), so
+  the innovation was zero, the regressor was not (the shadow's
+  equilibrium moves with the scale - about 1 K per unit at the idle
+  rise) and the covariance narrowed on nothing. Now a sample whose
+  seated thermometers all moved less than three floors (0.3 K) since
+  the seat is a STILL board: it moves neither the scales nor their
+  covariance (`IDENT_STILL_GAIN`). Its prediction error still feeds the
+  innovation filter - the first cut skipped the sample whole, and then
+  the filter froze on the last big innovation of a fan's cooldown and
+  the stand-in never left UNCERTAIN (26 minutes, sigma pinned at the
+  floor); a model that has learned a cooldown and then sits quietly on
+  the readings is not held UNCERTAIN by the quiet, and one that has
+  learned nothing keeps its prior sigma and stays. Measured: forty idle
+  minutes in a box at equilibrium, sampled every thirty seconds - zero
+  updates, UNCERTAIN, on the C and on the stand-in alike; the cooldowns
+  that identify move 1 to 7 K an interval and are untouched. A warm-up
+  from a cold start is a transient of its own and does count: the
+  housekeeping's 1.5 W is a step whose answer the thermometers see.
+  And the trim is where the bench put it after two tries. First on the
+  foot; then as red caps on the SOA tubes, the span from the ceiling in
+  force to the record's drawn in the trip's red - twelve percent of a
+  tube that runs -35 to 130 C, a row or two, and rejected: "instead of
+  making the tops red, start flashing SWITCH SOA red at 80 % already,
+  and throttle down; then 90; and do not throttle until 100 %." So the
+  SWITCH SOA and MOTOR SOA legends (and their gutter tubes) read the
+  spend of the WHOLE SOA - the board's `used`, which is against the
+  ceiling in force, times the margin - and flash red where the board
+  acts: at 80 % UNCERTAIN, 90 CONVERGING, 100 STABLE. Read raw, `used`
+  had said 100 % at three different temperatures. The ramp is the
+  board's own: the derate begins at THROTTLE_AT of the span in force
+  (72 % of the SOA UNCERTAIN, 81 CONVERGING, 90 STABLE) and the ceiling
+  is the trip. The motor's legend pulses too since the winding is a node
+  the envelope acts on. Also on the foot - "make it
+  visible that it throttles at 80 % of the SOA already, then 90, then
+  100 as the model's uncertainty goes to zero": `TH OBS UNCR 80%`,
+  `TH OBS CONV 90%`, `TH OBS STABLE` alone at the whole span, since
+  `STABLE 100%` is 52 cells with the two gauges' names and nothing
+  between them. The spend bars and the throttle already ran against the
+  trimmed ceiling on the board and the stand-in alike; the foot says so.
 
 ## The renderers
 

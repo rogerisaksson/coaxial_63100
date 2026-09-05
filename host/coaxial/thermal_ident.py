@@ -60,6 +60,12 @@ EXCITATION_MIN = 1.0e-4     # below this the sample says nothing
 VAR_MAX = 1.0
 INNOVATION_FOLLOW = 0.2
 GATE_SIGMAS = 3.0
+#: A thermometer that moved less than this many floors since the seat is
+#: a STILL board - nothing burning, nothing moving - and its sample is
+#: neither judged nor learned from: at idle the readings agree with the
+#: shadow whatever the air scale, the ambient estimate absorbing the
+#: error, and confidence from that would be confidence from silence.
+STILL_GAIN = 3.0
 SIGMA_CONVERGING, SIGMA_STABLE = 0.30, 0.10
 RATIO_STABLE, RATIO_UNCERTAIN = 2.0, 3.0
 STABLE_RUNS = 5
@@ -222,6 +228,7 @@ class Identifier:
         self.horizon_s = 0.0
         self.since_sample_s = 0.0
         self.seated = set()
+        self.seat_reading = {}
         self.settle_left = 0
         self._pending = 0.0
 
@@ -269,11 +276,13 @@ class Identifier:
         self.s_ntc = [0.0] * 4
         self.horizon_s = 0.0
         self.seated = set()
+        self.seat_reading = {}
         if not seen:
             return
         if seen.get('ntc') is not None:
             self.shadow_ntc = seen['ntc']
             self.seated.add('ntc')
+            self.seat_reading['ntc'] = seen['ntc']
         for node in DIES:
             reading = seen.get(node)
             if reading is None:
@@ -290,6 +299,7 @@ class Identifier:
                 # The seat's own dependence on the spread, in the regressor.
                 self.s[SPREAD][patch] = per_r * base['edges'][edge]
             self.seated.add(node)
+            self.seat_reading[node] = reading
 
     def _propagate(self, base, power, speed_rpm, dt):
         t, cfg = self.shadow_t, self.shadow_cfg
@@ -407,6 +417,15 @@ class Identifier:
             self._reseat(temps, ntc, base, power, speed_rpm, seen)
             return False
         if any_seen and self.horizon_s >= MIN_HORIZON_S:
+            # A STILL BOARD TEACHES NOTHING: every seated thermometer
+            # within STILL_GAIN floors of what it read at the seat is a
+            # board with nothing burning, and the sample moves neither
+            # the scales nor their covariance - though its prediction
+            # error still says whether the model predicts.
+            stirred = max([abs(seen[name] - self.seat_reading[name])
+                           for name in self.seated
+                           if seen.get(name) is not None] or [0.0])
+            still = stirred < STILL_GAIN * self.noise_k
             moved, judged, worst = False, False, 0.0
             channels = [('ntc', self.shadow_ntc, list(self.s_ntc))]
             for node in DIES:
@@ -418,14 +437,16 @@ class Identifier:
                 if reading is None or name not in self.seated:
                     continue
                 e = reading - predicted
-                moved = self._update(h, e) or moved
+                if not still:
+                    moved = self._update(h, e) or moved
                 worst = max(worst, abs(e))
                 judged = True
             if judged:
                 self.innovation_k += INNOVATION_FOLLOW * (worst - self.innovation_k)
-                for k in range(4):
-                    if ONLINE[k]:
-                        self.p[k][k] += DRIFT_VAR
+                if not still:
+                    for k in range(4):
+                        if ONLINE[k]:
+                            self.p[k][k] += DRIFT_VAR
                 self._judge()
             if moved:
                 self.updates += 1

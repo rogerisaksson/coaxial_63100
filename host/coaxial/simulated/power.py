@@ -33,9 +33,8 @@ class SimulatedThermal:
     #: The ceiling each node is judged against - the record's defaults:
     #: laminate lower than the rest because it is what everything else sits
     #: on, the motor's three at the winding's.
-    LIMIT = dict([(n, 105.0) for n in thermal.LAMINATE]
-                 + [(n, 120.0) for n in thermal.MOTOR])
-    DEFAULT_LIMIT = 125.0
+    LIMIT = dict(thermal.CEILING_C)
+    DEFAULT_LIMIT = thermal.CEILING_DEFAULT_C
 
     #: Which nodes the current clamp cannot cool - `soa_undriven_mask` in
     #: the calibration record, and the same three for the same reason.
@@ -405,6 +404,22 @@ class SimulatedThermal:
                 self._switch_at = time.time() + self._random.uniform(
                     *self.SWITCH_EVERY_S)
         return self.truth()
+
+    def settle(self, seen=None):
+        """Both boards at their equilibria for `seen`'s power - the truth on
+        its network, the observer on its own - as a board is after an hour
+        of idling: where a test starts that asks what idling teaches."""
+        power = self._power(1.0, seen or self._sample())
+        self._truth = thermal.steady(power, self._truth_cfg)
+        self._node = thermal.steady(power, self._cfg)
+        for temps in (self._truth, self._node):
+            for name in self.NODES:
+                temps.setdefault(name, thermal.AMBIENT)
+        centre, leg = self._truth['board'], self._truth[thermal.NTC_PATCH]
+        self._truth_ntc = thermal.expected_ntc(centre, leg - centre)
+        centre, leg = self._node['board'], self._node[thermal.NTC_PATCH]
+        self._ntc = thermal.expected_ntc(centre, leg - centre)
+        self._last_net = None
 
     def truth(self):
         """The ground truth as a page may show it beside the estimate:

@@ -691,3 +691,22 @@ IDENT_SCALES = ('air', 'capacity', 'spread', 'ntc')
 IDENT_ONLINE = ('air', 'capacity')
 IDENT_STATES = ('UNCERTAIN', 'CONVERGING', 'STABLE')
 IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}
+
+
+#: THE RECORD'S DEFAULT CEILINGS, degrees C: the laminate's 105, the
+#: motor's 120, the silicon's 125 - `board_cal.c`'s defaults, and what
+#: `SimulatedThermal.LIMIT` starts as. The ceiling in force under the
+#: identification's policy is the reference plus the margin times the
+#: span over it, `ceiling_of` - `board_thermal.c` and the stand-in's
+#: `_limit` do that arithmetic. A board's own ceilings live in its record
+#: (cal op 0); these are what they are unless a bench wrote otherwise.
+CEILING_REF_C = 25.0
+CEILING_DEFAULT_C = 125.0
+CEILING_C = dict([(n, 105.0) for n in LAMINATE] + [(n, 120.0) for n in MOTOR])
+
+
+def ceiling_of(node, margin=1.0, ceilings=None):
+    """One node's ceiling in force: the record's, its span over the
+    reference trimmed by the identification's margin."""
+    top = (ceilings or CEILING_C).get(node, CEILING_DEFAULT_C)
+    return CEILING_REF_C + margin * (top - CEILING_REF_C)

@@ -1598,6 +1598,20 @@ def test_thermal_identification(report):
                  model.situation('random')['situation'] in model.SITUATIONS
                  and _refused(lambda: model.situation('attic')))
 
+    # AN IDLING BOARD STAYS UNCERTAIN - the bench's rule: nothing burning,
+    # nothing moving, nothing to learn from, so the margin stays in hand
+    # until something switches. Settled at its idle equilibrium in a box,
+    # ten minutes of samples move no scale.
+    still = SimulatedThermal(situation='box', nvm='')
+    still.settle(idle)
+    still.fast_forward(600.0, seen=idle)
+    got = still.identification()
+    report.check('ten idle minutes at equilibrium in a box: no sample '
+                 'moves a scale and the board stays UNCERTAIN',
+                 got['updates'] == 0 and got['state'] == 'UNCERTAIN',
+                 '%d updates, %s, air %.2f'
+                 % (got['updates'], got['state'], got['scales']['air']))
+
 
 def _refused(call):
     from coaxial.errors import RigError
