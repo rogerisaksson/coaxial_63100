@@ -36,11 +36,24 @@ BAR = 38
 #: the thermistor's, which is asymmetric and needs both ends written out.
 SCALE = 13
 
-#: How far a held peak creeps back per update, as a fraction of full scale.
-#: At the ~8 updates a second these views run, 1.5 % falls the whole bar in
-#: about eight seconds. 4 % was tried and is too quick to read as a hold: the
-#: mark chases the bar closely enough to look like part of it, and the point
-#: of a peak hold is that it lags.
+#: THE RELEASE: how far a held peak falls back toward the bar's level an
+#: update, as a fraction of the distance between them. A quarter at the
+#: ~8 updates a second these views run is a time constant of half a
+#: second - pushed out by the burst's extreme at once, back on the level
+#: within a couple of seconds - and it can never fall below the window's
+#: own extreme, which is the tick beside it. The bench, 2026-09-06: "the
+#: decay meter lags behind the value in the bar; it should be a typical
+#: peak hold that decays toward the current value - the value pushes the
+#: hold, which then falls back". Before, it fell a FIXED 1.5 % of full
+#: scale an update whatever the distance: eight seconds for the whole
+#: bar, and on a phase swinging over a couple of seconds the caret was
+#: never where the bar had been but where it was seconds ago.
+RELEASE = 0.25
+
+#: The least a held peak moves an update, as a fraction of full scale, so
+#: the release lands on the level rather than approaching it for ever.
+#: 1.5 % was the whole decay once; 4 % was tried then and was too quick
+#: to read as a hold at all.
 DECAY = 0.015
 
 #: Where the ink changes, as a fraction of full scale. A converter near its
@@ -106,7 +119,7 @@ class Desk:
         self.bar = bar
         self._held = {}
 
-    def _hold(self, key, low, high):
+    def _hold(self, key, low, high, here):
         """Advance one channel's held extremes and return them.
 
         The two ends are held separately and signed. Holding one magnitude
@@ -114,18 +127,20 @@ class Desk:
         bar: a phase sitting at +62 A showed its caret at -62, where the
         current had never been.
 
-        Each end is pulled out at once by a reading beyond it and creeps back
-        by `decay` an update, so the mark trails the bar instead of tracking
-        it. That lag is the whole point of a peak hold - it is there to show
-        where the signal went while you were reading the row above.
+        Each end is PUSHED out at once by a window's extreme beyond it and
+        RELEASED toward the bar's level `here` by RELEASE of the distance
+        an update, `decay` at the least - a peak hold's ballistics: it
+        stands where the signal went for a moment, then falls back onto
+        where it is. It never falls below this window's own extreme.
         """
         was = self._held.get(key)
 
         if was is None:
             now = (low, high)
         else:
-            now = (min(low, was[0] + self.decay),
-                   max(high, was[1] - self.decay))
+            fall = max(self.decay, RELEASE * (was[1] - here))
+            rise = max(self.decay, RELEASE * (here - was[0]))
+            now = (min(low, was[0] + rise), max(high, was[1] - fall))
 
         self._held[key] = now
         return now
@@ -148,7 +163,7 @@ class Desk:
         here = fraction(row)
         least = _at(row, row.get('min_raw', row['mean_raw']))
         most = _at(row, row.get('max_raw', row['mean_raw']))
-        held_low, held_high = self._hold(row['index'], least, most)
+        held_low, held_high = self._hold(row['index'], least, most, here)
 
         def share(value):
             # A bipolar channel's -1..+1 laid on the gauge's 0..1.

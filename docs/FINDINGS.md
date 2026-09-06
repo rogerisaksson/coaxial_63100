@@ -1373,6 +1373,26 @@ looking at the estimate alone.
   in thirty minutes - the air path's sigma wants the walk's long
   cooldowns to get under 0.15 - and the margin says what has been
   earned either way, which is the point of it being continuous.
+* **The meter bridge's peak hold is released toward the bar** (bench,
+  2026-09-06: "make the decay meter not lag behind the value in the
+  bar; it should be a typical peak hold that decays toward the current
+  value - the value simply pushes the peak hold, which then falls back
+  toward the current value"). `Desk._hold` fell a FIXED 1.5 % of full
+  scale an update whatever the distance - eight seconds for the whole
+  bar - so on the stand-in's phases, which swing 0.27 of full scale at
+  0.14 Hz, the caret was at most 0.20 of full scale above the bar: 7.6
+  of the 38 cells, where the bar had been seconds ago. Now each end is
+  pushed out at once by the window's extreme and RELEASED toward the
+  bar's level by `RELEASE` of the distance an update, the old 1.5 % the
+  least it moves so it lands; it never falls below the window's own
+  extreme, which is the tick beside it. Measured on the same sweep at
+  eight updates a second, the caret's worst height above the bar: 0.15
+  a fifth, 5.1 cells; 0.25, 3.2; 0.35, 2.1; 0.5, 1.1. A quarter is what
+  runs - a time constant of half a second, back on the level within a
+  couple of seconds, still a hold rather than a flick; the bench can ask
+  for more with one number. The legend's held lo / hi keep their own
+  slow memory (`PEAK_DECAY`), a figure to read rather than a mark to
+  watch.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were

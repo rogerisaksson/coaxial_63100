@@ -796,10 +796,24 @@ def test_desk(report):
     for row in quiet:
         row['span'] = (-207.4, 207.4) if row['differential'] else (0.0, 3.3)
     gate_drivers.update(quiet)
-    report.check('a peak falls by the decay and no further - that is the '
-                 'ballistics, not a reading',
-                 abs(gate_drivers._held[0][1] - (held - 0.04)) < 1e-9,
-                 '%.3f -> %.3f' % (held, gate_drivers._held[0][1]))
+    # THE RELEASE (bench, 2026-09-06): a quarter of the distance to the
+    # bar's level an update, the fixed decay at the least - not the
+    # fixed decay alone, which took eight seconds for the whole bar and
+    # was always seconds behind a swinging phase.
+    level = desk.fraction([r for r in quiet if r['index'] == 0][0])
+    expect = held - max(0.04, desk.RELEASE * (held - level))
+    report.check('a peak falls toward the level by the release and no '
+                 'further - that is the ballistics, not a reading',
+                 abs(gate_drivers._held[0][1] - expect) < 1e-9,
+                 '%.3f -> %.3f for %.3f' % (held, gate_drivers._held[0][1],
+                                            expect))
+    for _ in range(40):
+        gate_drivers.update(quiet)
+    report.check('and it lands on the window\'s extreme within a few seconds '
+                 'of updates rather than approaching it for ever',
+                 abs(gate_drivers._held[0][1]
+                     - desk._at(quiet[0], quiet[0]['max_raw'])) < 1e-9,
+                 '%.4f' % gate_drivers._held[0][1])
     gate_drivers.update(loud)
     report.check('and it jumps back the instant the level does',
                  abs(gate_drivers._held[0][1] - held) < 1e-9,
@@ -862,8 +876,12 @@ def test_peak_hold(report):
 
     # One magnitude, mirrored, put the mark where the current had never been:
     # a phase sitting at +62 A drew its caret at -62.
+    # 0.2, from 0.5: the release (2026-09-06) brings a spike's caret down
+    # to a quarter of full scale in four updates where the fixed decay
+    # left it at three quarters - still ten times the reading, and the
+    # low end still near zero rather than mirrored.
     report.check('and the two ends are held apart, not mirrored',
-                 low > -0.05 and high > 0.5, '%+.3f..%+.3f' % (low, high))
+                 low > -0.05 and high > 0.2, '%+.3f..%+.3f' % (low, high))
 
 
 def test_ascii3d(report):
