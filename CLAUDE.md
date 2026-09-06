@@ -165,8 +165,12 @@ losses the observer estimates, read through three noisy thermometers
 every sample, and identified by the same identifier the board runs
 (`coaxial/thermal_ident.py` mirrors `thermal/src/thermal_ident.c`), so
 the state walks UNCERTAIN, CONVERGING, STABLE for the same reasons. The
-pages switch the situation at random every three to six minutes.
-`rig.thermal.situation('box')` lays one on. **Nothing is kept between
+pages switch the situation at random every three to six minutes, and
+THERMAL OBSERVER lays a load cycle on it - six model minutes at 30 A and
+fourteen idle, under the envelope - so the map's regions warm and cool
+and the bar under the board rises on the cooldowns.
+`rig.thermal.situation('box')` lays one on, `rig.thermal.load_cycle()` the
+cycle; a board refuses both in words. **Nothing is kept between
 runs** - not in the board's flash, not in a file for the stand-in: every
 start is at the record's margin floor and earns its span. **The margin is
 continuous and the states are words** (2026-09-06): `thermal_ident_margin`
@@ -238,10 +242,10 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2892 checks, sized from `host/tests/.counts.json` and so
+Twenty-six suites, 2901 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (611),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (223),
-`test_simulated.py` (236), `test_live_model.py` (212, needs ollama, `--live`),
+`test_simulated.py` (240), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
 `test_ollama_link.py` (96), `test_drive_core.py`
 (81, the control law against a motor model through the host gcc, the Monte
@@ -259,7 +263,7 @@ situation changes, through the host gcc), `test_ollama_render.py` (32), `test_pa
 (79, the 3D engine stage by stage against an analytic oracle -
 `render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23), `test_broker.py`
 (33, the shared session and the reply shapes on a scripted port, no board), `test_views.py`
-(173, every view and the front page drawn twice, plus the rotor
+(178, every view and the front page drawn twice, plus the rotor
 observer's own geometry - no board), `test_ollama_language.py` (12),
 `test_daq_api.py` (75, the acquisition front door against the
 stand-in - naming, reading, the record shape, the buffers),
@@ -289,7 +293,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2892 checks are in those nine files.
+  773 of this tree's 2901 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

@@ -29,8 +29,8 @@ _screen.CHATTER = False     # the boot bar replaced the scroll
 
 from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
-from coaxial import gauges                                 # noqa: E402
-from coaxial.thermal import ALL_NODES, pretty              # noqa: E402
+from coaxial import gauges, machine                        # noqa: E402
+from coaxial.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty  # noqa: E402
 from coaxial.thermalmap import (CELL_ASPECT, SCALE_LINES,  # noqa: E402
                                 render)
 
@@ -57,6 +57,12 @@ FOOT_LINES = 1
 #: Blank lines between the scale and the keys. Zero since 2026-08-30:
 #: the row went to the board, which was asked a size up.
 TRAILING = 0
+
+#: Under the board: a blank and the evidence bar - `evidence_rows`.
+#: Counted in the reserve, or the board is drawn two rows too tall and
+#: its bottom edge goes under them.
+GAUGE_LINES = 2
+GAUGE_CELLS = 20
 
 #: What ESC and Q do. ESC returns TO_MENU so coaxial_tty.ps1 draws its menu again.
 
@@ -94,40 +100,91 @@ IDENT_EVERY_S = 5.0
 
 
 def ident_rows(ident):
-    """The identification's state and what it holds, for SENSE: the
-    state as a chip with the envelope's margin, then the two scales the
-    samples move with their sigma - the bench's field, "the observer's
-    status/policy in SENSE"."""
+    """The identification in SENSE, ONE FACT A ROW: the state as a chip,
+    the margin the envelope acts on and the floor it rose from, each
+    online scale with its sigma, the room, and on the stand-in the truth
+    and the load on it. The bench's field, "the observer's status/policy
+    in SENSE" - and then, 2026-09-06, "the boxes on the right are messy,
+    lots of text run together": the rows had carried three facts each at
+    fifty cells into a forty-two-cell panel, and were cropped."""
     from rich.text import Text
 
-    # THE MARGIN IS THE NUMBER, the state a word beside it (2026-09-06):
-    # what the envelope keeps of every span now, and the floor it rose
-    # from - the record's, a bench's to set.
     state = ident['state']
-    rows = [('model', Text.assemble(
-        (' %s ' % state, IDENT_STYLE.get(state, 'value')),
-        '  margin %.2f' % ident['margin'],
-        ('  floor %.2f' % ident['margin_floor']
-         if ident.get('margin_floor') is not None else '')))]
+    rows = [('model', Text(' %s ' % state, IDENT_STYLE.get(state, 'value')))]
+    # THE MARGIN, the floor and the innovation are HEADROOM's rows
+    # (`envelope_rows`): what the envelope keeps is the envelope's box.
     scales, sigma = ident['scales'], ident['sigma']
-    rows.append(('scales', '  '.join(
-        '%s %.2f±%.2f' % ('cap' if name == 'capacity' else name,
-                               scales[name], sigma[name])
-        for name in ident['online'] if name in scales)))
+    for name in ident['online']:
+        if name in scales:
+            rows.append(('cap' if name == 'capacity' else name,
+                         '%.2f ±%.2f' % (scales[name], sigma[name])))
     # THE ROOM, identified beside the scales (MINOR 15): the board has no
     # ambient sensor, so this is what its rise is measured against.
     if ident.get('ambient') is not None:
-        rows.append(('room', '%.1f±%.1f C  identified' % (
+        rows.append(('room', '%.1f ±%.1f C' % (
             ident['ambient'], ident.get('ambient_sigma', 0.0))))
     # THE TRUTH, on the stand-in only: the situation its hypothetical
     # board is in and the scales that make it, beside what the observer
-    # has found - a board has no truth to tell, and the row is absent.
+    # has found - a board has no truth to tell, and the rows are absent.
     truth = ident.get('truth')
     if truth:
-        rows.append(('truth', '%s  air %.2f  cap %.2f  room %.0f C  %s'
-                     % (truth['situation'], truth['air'], truth['capacity'],
-                        truth.get('ambient', 25.0),
-                        '%.0f min' % (truth['since_s'] / 60.0))))
+        rows.append(('truth', '%s  %.0f min' % (truth['situation'],
+                                                 truth['since_s'] / 60.0)))
+        rows.append(('', 'air %.2f  cap %.2f  room %.0f C'
+                     % (truth['air'], truth['capacity'],
+                        truth.get('ambient', 25.0))))
+        if truth.get('load_a') is not None:
+            rows.append(('load', '%.0f A on' % truth['load_a']
+                         if truth['load_a'] > 0.0 else 'idle'))
+    return rows
+
+
+def evidence_class(level):
+    """The bar's colour by how much of its span the model has earned:
+    red below a third, yellow to two thirds, green above - red to
+    yellow to green as it fills, the bench's ramp for it."""
+    if level < 1.0 / 3.0:
+        return machine.SOA_TRIP
+    return machine.SOA_WARN if level < 2.0 / 3.0 else machine.SOA_OK
+
+
+def evidence_rows(ident, colour=True):
+    """The two rows under the board: a blank, then TH OBS and a bar of
+    the span the model has EARNED - empty at the floor, full at the
+    whole span, one minus the doubt - red to yellow to green as it
+    fills. The bench's "a scale under the object, like the rotor
+    observer's, where one sees the innovation vary over the run cycle;
+    red to yellow to green" (2026-09-06), and then "remove the text to
+    the right of the scale, move it to HEADROOM": the bar alone, its
+    figures in `envelope_rows`. A dash before the board has answered
+    op 10."""
+    if not ident:
+        return ['', '   TH OBS -']
+    floor = ident.get('margin_floor')
+    floor = IDENT_MARGIN_FLOOR if floor is None else floor
+    span = 1.0 - floor
+    level = (ident['margin'] - floor) / span if span > 0.0 else 1.0
+    level = max(0.0, min(1.0, level))
+    cls = evidence_class(level)
+    bar = gauges.bar(level, GAUGE_CELLS, cls=cls, colour=colour)
+    # THE LABEL IN THE BAR'S INK: at the floor nothing is filled, and a
+    # grey track alone would not say red.
+    label = ('\x1b[38;5;%dmTH OBS\x1b[0m' % machine.INK[cls]) if colour \
+        else 'TH OBS'
+    return ['', '   %s %s' % (label, bar)]
+
+
+def envelope_rows(ident):
+    """HEADROOM's rows for the identification: the margin the envelope
+    keeps of every span now, the floor it rose from, and the innovation
+    that moves it - the figures the bar under the board stands for,
+    beside the soak they trim."""
+    if not ident:
+        return []
+    rows = [('margin', '%.2f' % ident['margin'])]
+    if ident.get('margin_floor') is not None:
+        rows.append(('floor', '%.2f' % ident['margin_floor']))
+    rows.append(('innovation', '%.2f K' % ident.get('innovation_k', 0.0)))
     return rows
 
 
@@ -151,13 +208,15 @@ def status_boxes(state, budget, aspect=None, ident=None):
         sense = [('NTC', '%.1f C' % state['ntc']),
                  Text('%.0f s old - open loop' % age, style='value')]
     else:
-        sense = [('NTC', '%.1f C   err %+.2f K'
-                  % (state['ntc'], state['error']))]
-    sense += [('open', '%d s   %s' % (state['seconds'],
-                                      'settled' if state['settled']
-                                      else 'settling')),
-              ('sample', 'every %.0f s - last %s'
-               % (every, '%.0f s ago' % age if age is not None else '-'))]
+        sense = [('NTC', '%.1f C' % state['ntc']),
+                 ('err', '%+.2f K' % state['error'])]
+    # ONE FACT A ROW (bench, 2026-09-06): `sample every 30 s - last 0 s
+    # ago` was one row, cropped at the panel's edge.
+    sense += [('open', '%d s  %s' % (state['seconds'],
+                                     'settled' if state['settled']
+                                     else 'settling')),
+              ('sample', '%.0f s' % every),
+              ('last', '%.0f s ago' % age if age is not None else '-')]
     if ident is not None:
         sense += ident_rows(ident)
     if aspect is not None:
@@ -173,7 +232,7 @@ def status_boxes(state, budget, aspect=None, ident=None):
                 (pretty(budget['worst_node']), 'name'), '   ',
                 (state_text, 'value' if state_text != 'ok' else 'label'))),
             ('to limit', ('%.0f s' % left) if left is not None
-             else 'not heating')]))
+             else 'not heating')] + envelope_rows(ident)))
     # Every node the thermal observer estimates, by name, plus what is MEASURED
     # (the dies, the ambient it infers). The map shows where; this shows
     # how much, to the decimal.
@@ -314,11 +373,19 @@ def main():
                       power_afe=False) as rig:
         ready()
         origin = rig.origin
-        if a.simulated:
+        # ON THE STAND-IN, however it was reached: `--simulated` or a
+        # bench with no cable, where the rig falls back to it - keyed on
+        # the flag the page ran without its load for the bench
+        # (2026-09-06: "the page does not seem to run a load sequence").
+        if not origin.real:
             # THE GROUND TRUTH IN A SITUATION, switched at random every
             # few minutes: the bench's way of seeing the policy walk
             # UNCR, CONV, STABLE and back before it is serious on a board.
             rig.thermal.situation('random', switching=True)
+            # AND A LOAD ON IT, six model minutes at 30 A and fourteen
+            # cooling, so the regions warm and cool on the map and the
+            # bar under the board has cooldowns to rise on.
+            rig.thermal.load_cycle()
         say('ok' if origin.real else 'warn', 'link',
             '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
         say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')
@@ -348,7 +415,8 @@ def main():
         # Everything in the frame that is not picture, so `render` can size
         # the board to what is left. Counted, not guessed - a guess is what
         # clipped the bottom edge off.
-        reserve = HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
+        reserve = (HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
+                   + GAUGE_LINES)
         last = {'body': ['  waiting for device 8'], 'boxes': [],
                 'ident': None, 'ident_at': 0.0}
         leaving = None
@@ -376,6 +444,9 @@ def main():
             body = last['body']
             field = max((visible(l) for l in body), default=0) + 8
             art = stamp_crosses(['   ' + l for l in body], field)
+            # THE EVIDENCE BAR under the board, after the crosses are
+            # stamped so nothing lands on it.
+            art += evidence_rows(last['ident'], colour=console)
             return frame_of(board_view, origin, 'THERMAL OBSERVER',
                             '\n'.join(art), last['boxes'],
                             (('Q', 'EXIT'), ('ESC', 'MENU')))

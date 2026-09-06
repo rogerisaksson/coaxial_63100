@@ -1324,6 +1324,47 @@ looking at the estimate alone.
   wider than the row has between the gauges' names. Firmware 0
   warnings, 194 912 B flash, 38 456 B DTCM. thermal_core 134, simulated
   236, views 173.
+* **The THERMAL OBSERVER page runs a load cycle on the stand-in and
+  wears the evidence under the board** (bench, 2026-09-06: "make the
+  page show the board's temperatures from a simulated load cycle, so
+  one sees how the regions warm and cool; a scale under the object like
+  the rotor observer's, where one sees the innovation vary over the
+  cycle; red to yellow to green"). `SimulatedThermal.load_cycle`: six
+  model minutes at 30 A and fourteen idle from the model's own clock -
+  the suites' walk, two minutes of wall time at HASTE - laid on in
+  simulated mode beside the random situations; `Thermal.load_cycle`
+  refuses on a board in words, the drive and `tools/switch.py` being
+  what put current through one. UNDER THE ENVELOPE, found on the first
+  walk: the cycle's 30 A ignored the clamp and the trip, and driver U
+  reached 212 C with the stage nominally tripped - a load the envelope
+  cannot clamp would cook the hypothetical board past the ceilings it
+  is there to act on. Now the amps are the cycle's times the applied
+  derate, worked out whether or not a drive is wired to take it, and a
+  trip ends the run until the next on-phase (the re-arm a bench would
+  do). Measured live in a box: driver U 89 C after one minute, the
+  throttle point inside two, then 95 to 105 C on 12 to 19 A of the 30
+  asked for; idle, 62 C by the twelfth minute. THE BAR: `TH OBS` and
+  twenty cells of the span the model has EARNED - empty at the floor,
+  full at the whole span, one minus the doubt - red below a third,
+  yellow to two thirds, green above, and the label in the bar's ink so
+  the floor reads red with nothing filled. The innovation in kelvin and
+  the margin rode to its right first; the bench: "remove the text to
+  the right of the scale, move it to HEADROOM" - so the bar stands
+  alone and HEADROOM carries margin, floor and innovation under the
+  soak, the envelope's figures in the envelope's box. Rastered at the
+  fourth, tenth and twenty-fourth minute: the legs' patches red under
+  load and orange in the cooldown, the bar yellow at 91 % and green at
+  100 %. And "the page does not seem to run a load sequence": both
+  pages' stand-in hooks - the random situations, the cycle - were keyed
+  on `--simulated`, and a bench with no cable reaches the stand-in
+  without it, through the rig's fallback; keyed on `origin.real` now.
+  AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
+  messy, lots of text run together": `sample every 30 s - last 0 s ago`
+  and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were
+  single rows of up to fifty-two cells into a forty-two-cell panel,
+  cropped at its edge; now NTC, err, open, sample, last, model, air,
+  cap, room, truth (two rows) and load, each a row. views 178,
+  simulated 240.
 
 ## The renderers
 

@@ -2372,10 +2372,12 @@ def _link(args):
     if rig is None:
         return None, None, None, None
     origin, board = rig.origin, rig.board
-    if args.simulated:
+    if not origin.real:
         # THE GROUND TRUTH IN A SITUATION, switched at random every few
         # minutes, so TH OBS walks UNCR, CONV, STABLE and back on the
         # foot - the bench's way of seeing the policy before a board.
+        # On the stand-in however it was reached: `--simulated`, or a
+        # bench with no cable that fell back to it.
         rig.thermal.situation('random', switching=True)
     was_on = board.afe.is_on()
     want_afe = args.afe or args.source == 'adc'

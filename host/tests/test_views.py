@@ -635,6 +635,115 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
                  and '42 %' in said and '⣿' in said, said)
 
 
+def test_the_thermal_page_shows_its_evidence(report):
+    """Under the board a bar of the span the model has earned - red to
+    yellow to green as it fills - with the innovation and the margin;
+    and SENSE one fact a row.
+
+    The bench, 2026-09-06: "a scale under the object, like the rotor
+    observer's, where one sees the innovation vary over the run cycle;
+    red to yellow to green", and "the boxes on the right are messy,
+    lots of text run together" - the SENSE rows had carried three facts
+    each at up to fifty-two cells into a forty-two-cell panel.
+    """
+    import re
+    from rich.console import Console
+
+    sys.path.insert(0, HOST)
+    sys.path.insert(0, os.path.join(HOST, 'tools'))
+    from coaxial import machine
+    from screen import plain as visible
+    from tools import show_thermal_observer as page
+    from tools import stage
+
+    def ident(margin, state='CONVERGING'):
+        return {'state': state, 'margin': margin, 'margin_floor': 0.8,
+                'innovation_k': 0.17,
+                'scales': {'air': 1.64, 'capacity': 0.95, 'spread': 1.0,
+                           'ntc': 1.0},
+                'sigma': {'air': 0.28, 'capacity': 0.10, 'spread': 0.5,
+                          'ntc': 0.3},
+                'online': ['air', 'capacity'], 'ambient': 24.5,
+                'ambient_sigma': 4.2, 'updates': 3, 'saves': 0,
+                'since_save_s': None,
+                'truth': {'situation': 'box', 'air': 2.0, 'capacity': 1.0,
+                          'ambient': 25.0, 'since_s': 240.0, 'load_a': 30.0}}
+
+    rows = page.evidence_rows(ident(0.8))
+    said = visible(rows[1])
+    # THE BAR ALONE - the bench: "remove the text to the right of the
+    # scale, move it to HEADROOM"; its figures are `envelope_rows`.
+    report.check('two rows under the board: a blank, then TH OBS and the '
+                 'bar alone - its figures are HEADROOM\'s',
+                 len(rows) == 2 and rows[0] == ''
+                 and said.startswith('   TH OBS ') and len(said.split()) == 3
+                 and page.envelope_rows(ident(0.8)) == [
+                     ('margin', '0.80'), ('floor', '0.80'),
+                     ('innovation', '0.17 K')],
+                 '%s | %s' % (said, page.envelope_rows(ident(0.8))))
+
+    def bar_of(margin):
+        return visible(page.evidence_rows(ident(margin))[1]).split()[2]
+
+    inks = {}
+    for margin, cls in ((0.8, machine.SOA_TRIP), (0.9, machine.SOA_WARN),
+                        (1.0, machine.SOA_OK)):
+        row = page.evidence_rows(ident(margin))[1]
+        inks[margin] = ('38;5;%dm' % machine.INK[cls]) in row
+    report.check('empty at the floor in red, half full at 0.90 in yellow, '
+                 'full at the whole span in green - red to yellow to green '
+                 'as it fills, the label in the same ink',
+                 all(inks.values()) and bar_of(0.8).count('⣿') == 0
+                 and 9 <= bar_of(0.9).count('⣿') <= 10
+                 and bar_of(1.0).count('⣿') == page.GAUGE_CELLS - 1,
+                 '%s | %s %s %s' % (inks, bar_of(0.8), bar_of(0.9),
+                                    bar_of(1.0)))
+    report.check('and a dash before the board has answered op 10',
+                 'TH OBS -' in visible(page.evidence_rows(None)[1]),
+                 visible(page.evidence_rows(None)[1]))
+
+    # SENSE, ONE FACT A ROW, none wider than the panel.
+    rows = page.ident_rows(ident(0.91))
+    texts = [(str(label), value if isinstance(value, str) else value.plain)
+             for label, value in rows]
+    report.check('SENSE carries the identification one fact a row - model, '
+                 'air, cap, room, the truth in two and the load - none '
+                 'wider than the panel',
+                 [l for l, _v in texts] == ['model', 'air', 'cap', 'room',
+                                            'truth', '', 'load']
+                 and all(len(l) + 1 + len(v) <= page.PANEL_W - 4
+                         for l, v in texts),
+                 texts)
+    state = {'nodes': {}, 'ntc': 59.8, 'error': 0.54, 'seconds': 240,
+             'settled': True, 'seen_s_ago': 4.0, 'sample_every_s': 30.0,
+             'mcu': 72.0, 'afe': 40.0, 'ambient': 25.0}
+    budget = {'worst': 0.42, 'worst_node': 'phase_v',
+              'seconds_to_limit': 12.0, 'throttling': False,
+              'tripped': False, 'used': {}}
+    console = Console(record=True, width=page.PANEL_W + 2,
+                      force_terminal=True, color_system='truecolor',
+                      theme=stage.THEME)
+    sense, headroom = page.status_boxes(state, budget, ident=ident(0.91))[:2]
+    console.print(sense)
+    console.print(headroom)
+    said = re.sub('\x1b\\[[0-9;]*m', '', console.export_text(styles=True))
+    lines = [l for l in said.splitlines()]
+    report.check('drawn at the panel\'s width nothing is cropped: the NTC '
+                 'and its error, the sample interval and the last sample '
+                 'are rows of their own, and HEADROOM carries the margin, '
+                 'the floor and the innovation under the soak',
+                 '…' not in said
+                 and any('NTC 59.8 C' in l for l in lines)
+                 and any('err +0.54 K' in l for l in lines)
+                 and any('sample 30 s' in l for l in lines)
+                 and any('last 4 s ago' in l for l in lines)
+                 and any('margin 0.91' in l for l in lines)
+                 and any('floor 0.80' in l for l in lines)
+                 and any('innovation 0.17 K' in l for l in lines)
+                 and said.find('soak') < said.find('margin 0.91'),
+                 said)
+
+
 def test_the_attitude_caps_its_frame_rate(report):
     """BOARD ATTITUDE draws at most HZ_CAP frames a second whatever
     `--hz` asks - the bench's word, so the laptop's fans stay down -
@@ -1693,6 +1802,7 @@ def main():
     test_the_attitude_caps_its_frame_rate(report)
     print('\n-- the thermal observer\'s headroom --')
     test_the_headroom_box_carries_a_solid_bar_with_a_tip(report)
+    test_the_thermal_page_shows_its_evidence(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

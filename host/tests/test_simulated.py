@@ -1727,6 +1727,48 @@ def test_thermal_identification(report):
                  % (got['updates'], got['state'], got['scales']['air'],
                     got['margin']))
 
+    # THE LOAD CYCLE a page in simulated mode lays on (bench, 2026-09-06:
+    # "show the board's temperatures from a simulated load cycle, so one
+    # sees the regions warm and cool"): six model minutes at 30 A and
+    # fourteen idle, from the model's own clock, UNDER THE ENVELOPE -
+    # measured live in a box: the legs reach the throttle point inside
+    # two minutes and the clamp holds driver U near 95-105 C on 12 to
+    # 19 A of the 30 asked for. The first cut ignored the clamp and the
+    # trip, and the legs passed 200 C with the stage nominally tripped.
+    from coaxial.thermal_device import Thermal
+    cyc = SimulatedThermal(situation='box')
+    laid = cyc.load_cycle()
+    report.check('a load cycle is laid on - 30 A, 360 s on, 840 s off - '
+                 'and the truth says what the load is now',
+                 laid == {'amps': 30.0, 'on_s': 360.0, 'off_s': 840.0}
+                 and cyc.truth()['load_a'] == 30.0,
+                 '%s, load %s' % (laid, cyc.truth()['load_a']))
+    loads = []
+    for _ in range(8):
+        cyc.fast_forward(30.0, live=True)
+        loads.append(cyc.truth()['load_a'])
+    hot = cyc.state()['nodes']['driver_u']
+    report.check('four minutes in: driver U has warmed past 80 C and the '
+                 'envelope has clamped the run under the 30 A asked for - '
+                 'the cycle is under the envelope',
+                 hot > 80.0 and 0.0 < min(loads) < 30.0,
+                 'driver U %.1f C, load %s A' % (
+                     hot, ' '.join('%.0f' % a for a in loads)))
+    cyc.fast_forward(600.0, live=True)
+    cooled = cyc.state()['nodes']['driver_u']
+    report.check('and fourteen of the twenty minutes are idle: the load is '
+                 'off and driver U has cooled',
+                 cyc.truth()['load_a'] == 0.0 and cooled < hot,
+                 'driver U %.1f C after %.1f' % (cooled, hot))
+    report.check('a cycle with no off time is refused in words, zero amps '
+                 'stops it, and a board has no load to lay on from the '
+                 'observer',
+                 _refused(lambda: cyc.load_cycle(30.0, 360.0, 0.0))
+                 and cyc.load_cycle(0) == {'amps': 0.0, 'on_s': 0.0,
+                                           'off_s': 0.0}
+                 and cyc.truth()['load_a'] is None
+                 and _refused(lambda: Thermal.load_cycle(None)))
+
 
 def _refused(call):
     from coaxial.errors import RigError

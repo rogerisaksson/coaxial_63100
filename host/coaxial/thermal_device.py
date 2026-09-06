@@ -290,6 +290,18 @@ class Thermal(Subsystem):
                        'the stand-in has (simulated_device=True): box, fan, '
                        'heatsink, stuffy, bench, or random')
 
+    def load_cycle(self, amps=None, on_s=None, off_s=None):
+        """A board's load is the drive's and the bench's to put through
+        it - `tools/switch.py`, `tools/pulse.py`, the drive - not the
+        observer's to lay on from here: that is the stand-in's
+        (`SimulatedThermal.load_cycle`), where a page in simulated mode
+        cycles 30 A on and off so the map's regions warm and cool.
+        Refused in words on a board, so the page hears why."""
+        from .errors import RigError
+        raise RigError('a board has no load to lay on from the observer - '
+                       'the drive and tools/switch.py put current through '
+                       'it; the stand-in (simulated_device=True) cycles one')
+
     def set_winding(self, limit_c, k_per_w, j_per_k):
         """The winding's envelope: its ceiling in degrees C - zero
         disables it - and its K/W to the air and J/K.

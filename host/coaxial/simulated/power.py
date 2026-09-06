@@ -131,6 +131,15 @@ class SimulatedThermal:
     #: thermal op 12 does on the board.
     MARGIN_FLOOR = thermal.IDENT_MARGIN_FLOOR
 
+    #: THE LOAD CYCLE a page in simulated mode lays on, model seconds:
+    #: six minutes at 30 A and fourteen cooling - the walk the suites
+    #: take the identification through - so the board's regions warm and
+    #: cool on the map while the state earns its span. Two minutes of
+    #: wall time a cycle at HASTE. The bench, 2026-09-06: "make the
+    #: THERMAL OBSERVER page show the board's temperatures from a
+    #: simulated load cycle".
+    CYCLE_AMPS, CYCLE_ON_S, CYCLE_OFF_S = 30.0, 360.0, 840.0
+
     def __init__(self, sample=None, situation='bench', seed=7):
         self._seconds = 0
         #: THE BOARD'S CADENCE, thirty seconds (THERMAL_SAMPLE_EVERY_MS),
@@ -212,6 +221,10 @@ class SimulatedThermal:
         # bench's rule took both out - every start is at the floor and
         # earns its span.
         self._margin_floor = self.MARGIN_FLOOR
+        #: The load cycle, `(amps, on_s, off_s, began_model_s)` or None:
+        #: what the live path samples instead of the drive while one runs.
+        self._cycle = None
+        self._cycle_trip = None     # the cycle index a trip ended early
         self._cfg = self._ident.apply(self._base)
         self.situation(situation)
 
@@ -249,7 +262,8 @@ class SimulatedThermal:
             # SAMPLED EVERY SLICE, not once for the gap: the envelope
             # below writes the clamp into the drive, and the next slice
             # has to see what that did to the current.
-            self._integrate(step, seen if seen is not None else self._sample())
+            self._integrate(step, seen if seen is not None
+                            else self._cycle_sample())
             # THE ENVELOPE INSIDE THE LOOP, not after it. `board_thermal.c`
             # runs the budget every THERMAL_STEP_MS - one step, one look.
             if live:
@@ -268,8 +282,13 @@ class SimulatedThermal:
         # scaled toward zero, so the stage keeps driving on less. One
         # clamp over every node the clamp reaches - the winding is one of
         # them since it is a node of the graph.
+        # The factor is worked out whether or not a drive is wired to
+        # take it: the load cycle reads it too, since a load the envelope
+        # cannot clamp would cook the hypothetical board past the
+        # ceilings it is there to act on.
+        applied = self._derate_applied(self.derate())
         if self._derate_to is not None:
-            self._derate_to(self._derate_applied(self.derate()))
+            self._derate_to(applied)
         # THEN, only if that was not enough - AND ON EVERY NODE, not just
         # the ones the clamp reaches.
         if self._gate is None or not self._tripped():
@@ -401,14 +420,58 @@ class SimulatedThermal:
 
     def truth(self):
         """The ground truth as a page may show it beside the estimate:
-        its situation, the scales that make it, and how long it has
-        stood - absent on a board, which has no truth to tell."""
+        its situation, the scales that make it, how long it has stood,
+        and the load the cycle has on it now - absent on a board, which
+        has no truth to tell."""
         laid = self.SITUATIONS[self._situation]
         return {'situation': self._situation, 'air': laid['air'],
                 'capacity': laid['capacity'], 'ambient': self._truth_ambient,
                 'switches': self._switches,
                 'since_s': self._model_s - self._switched_s,
-                'switching': self._switching}
+                'switching': self._switching,
+                'load_a': self._cycle_sample()['amps'][0] if self._cycle
+                else None}
+
+    # -- the load cycle ----------------------------------------------
+
+    def load_cycle(self, amps=CYCLE_AMPS, on_s=CYCLE_ON_S, off_s=CYCLE_OFF_S):
+        """Drive a load on and off from the model's own clock: `on_s` at
+        `amps` on all three phases, switching, then `off_s` idle, over
+        and over - what a page in simulated mode lays on so the map's
+        regions warm and cool and the identification has cooldowns to
+        learn from. `amps` zero or None stops it and the drive's own
+        sample is read again. Returns what runs."""
+        if not amps or float(amps) <= 0.0:
+            self._cycle = None
+            return {'amps': 0.0, 'on_s': 0.0, 'off_s': 0.0}
+        if not (float(on_s) > 0.0 and float(off_s) > 0.0):
+            raise RigError('a cycle is seconds on and seconds off, both '
+                           'above zero - the walk is 360 and 840')
+        self._cycle = (float(amps), float(on_s), float(off_s), self._model_s)
+        self._cycle_trip = None
+        return {'amps': float(amps), 'on_s': float(on_s),
+                'off_s': float(off_s)}
+
+    def _cycle_sample(self):
+        """What the sampler sees this slice: the cycle's phase while one
+        runs, the drive's sample otherwise. UNDER THE ENVELOPE: the amps
+        are the cycle's times the clamp the envelope applies, so past the
+        throttle point the run carries less, and a trip ends the run -
+        the stage is down until the next on-phase, which stands for the
+        re-arm a bench would do."""
+        if self._cycle is None:
+            return self._sample()
+        amps, on_s, off_s, began = self._cycle
+        since = self._model_s - began
+        index = int(since // (on_s + off_s))
+        phase = since - index * (on_s + off_s)
+        if phase < on_s and index != self._cycle_trip:
+            if self._tripped():
+                self._cycle_trip = index
+            else:
+                amps *= self._derate_held
+                return {'amps': (amps, amps, amps), 'switching': True}
+        return {'amps': (0.0, 0.0, 0.0), 'switching': False}
 
     def _power(self, dt, seen):
         """Watts per node, worked out from the sample. The observer's job.
