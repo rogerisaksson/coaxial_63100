@@ -711,46 +711,33 @@ def test_the_thermal_page_shows_its_evidence(report):
     report.check('and a dash before the board has answered op 10',
                  'TH OBS -' in visible(page.evidence_rows(None)[1]),
                  visible(page.evidence_rows(None)[1]))
-    # THE ROOM'S PICTOGRAM, on the estimated room: a snowflake, the sun
-    # behind a cloud, the sun - in braille and the thermometer ramp's
-    # inks, the bench's word over emoji ("something symbolic in
-    # braille, so it does not break with the retrofuturism").
+    # THE ROOM'S HINT, on the estimated room: the bench's emoji pairs,
+    # and the thermometer thinking while the innovation is large.
+    def at(room, innovation=0.1):
+        return page.room_hint({'ambient': room, 'innovation_k': innovation})
+
     report.check('the hint above the board shivers under 5 C, is mild to '
-                 '35 and sweats from there - on the ESTIMATED room - and '
-                 'is nothing before the board has said one',
-                 page.room_hint({'ambient': -25.0}) == 'cold'
-                 and page.room_hint({'ambient': 20.0}) == 'mild'
-                 and page.room_hint({'ambient': 34.9}) == 'mild'
-                 and page.room_hint({'ambient': 45.0}) == 'hot'
-                 and page.room_hint(None) == '' and page.room_hint({}) == '',
-                 ' '.join(page.room_hint({'ambient': c})
-                          for c in (-25.0, 20.0, 45.0)))
+                 '35 and sweats from there - on the ESTIMATED room - thinks '
+                 'while the innovation is three floors or more, and is '
+                 'nothing before the board has said a room',
+                 at(-25.0) == 'cold' and at(20.0) == 'mild'
+                 and at(34.9) == 'mild' and at(45.0) == 'hot'
+                 and at(20.0, 0.3) == 'unsure' and at(-25.0, 2.0) == 'unsure'
+                 and page.room_hint(None) == '' and page.room_hint({}) == ''
+                 and page.ROOM_HINTS['unsure'] == '🌡️🤔',
+                 ' '.join(page.ROOM_HINTS[at(c)] for c in (-25.0, 20.0, 45.0)))
     # CENTRED over the board's field - the bench - which is the map's
     # narrowest row less the rail's two cells and its two spaces: a
-    # twenty-cell field puts a five-cell pictogram at column 3 + 10 - 2.
-    # And SYMMETRIC, the bench's second word: the snowflake and the sun
-    # mirror dot for dot about the middle cell.
+    # twenty-cell field puts a four-cell hint at column 3 + 10 - 2.
     body = ['', '\u28ff' * 20 + '  \u2847\u2847 100 C',
             '\u28ff' * 20 + '  \u2847\u2847']
-    rows = {kind: page.hint_rows({'ambient': c}, body)
-            for kind, c in (('cold', -25.0), ('mild', 20.0), ('hot', 45.0))}
-    plain = {kind: [visible(r) for r in got] for kind, got in rows.items()}
-    mirrored = all(row == row[::-1] for kind in ('cold', 'hot')
-                   for row in page.ROOM_DOTS[kind])
-    report.check('three rows of five braille cells each, eleven cells in '
-                 'over a twenty-cell field, the snowflake in the ramp\'s '
-                 'blue, the cloud in its green, the sun in its red - the '
-                 'snowflake and the sun mirrored dot for dot - and three '
-                 'blanks with no room',
-                 all(len(got) == page.HINT_LINES for got in rows.values())
-                 and all(r.startswith(' ' * 11) and len(r) == 16
-                         and all(0x2800 <= ord(ch) < 0x2900 for ch in r[11:])
-                         for got in plain.values() for r in got)
-                 and all(('38;5;%dm' % page.ROOM_INK[kind]) in rows[kind][0]
-                         for kind in rows)
-                 and mirrored
-                 and page.hint_rows(None, body) == [''] * page.HINT_LINES,
-                 '\n'.join(plain['cold']))
+    row = page.hint_row({'ambient': 20.0, 'innovation_k': 0.1}, body)
+    report.check('and the hint is centred over the board\'s field, eleven '
+                 'cells in over a twenty-cell field, and absent with no '
+                 'room',
+                 row == ' ' * 11 + page.ROOM_HINTS['mild']
+                 and page.hint_row(None, body) == '',
+                 repr(row))
 
     # SENSE, ONE FACT A ROW, none wider than the panel.
     rows = page.ident_rows(ident(0.91))

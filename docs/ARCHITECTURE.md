@@ -235,10 +235,10 @@ stand-in, reached by `--simulated` or a bench with no cable, a load
 cycle runs under it so there are cooldowns to rise on, and the truth
 tours temperate, cold and toasty, moving on once STABLE has
 stood ten seconds. SENSE's `sim` rows say where the truth is: only in
-simulated mode is the thermal situation known. Above the board a
-pictogram for the estimated room, `hint_rows` - a snowflake under 5 C,
-the sun from 35, the sun behind a cloud between, in braille and the
-thermometer ramp's inks - the board's own opinion, not the stand-in's.
+simulated mode is the thermal situation known. Above the board an
+emoji hint for the estimated room, `hint_row` - shivering under 5 C,
+sweating from 35, mild between, and a thermometer thinking while the
+innovation is large - the board's own opinion, not the stand-in's.
 
 The rotor observer draws the machine itself - `coaxial/machine.py`, a
 braille cross-section of rotor and stator whose slot and pole counts

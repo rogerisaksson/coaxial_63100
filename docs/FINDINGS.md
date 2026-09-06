@@ -1457,8 +1457,18 @@ looking at the estimate alone.
   by three since, the axis through the middle cell's two lanes, every
   dot of the snowflake and the sun mirrored into the other lane of the
   mirror cell, so the terminal's own spacing of the lanes within a cell
-  cannot skew them; rastered again over the three rooms. views 180,
-  simulated 244.
+  cannot skew them; rastered again over the three rooms. And then the
+  bench: "switch back to the emoji for cold, mild, hot - ❄️🥶, 🍃😌,
+  🔥🥵 - and 🌡️🤔 when the innovation is large; see if you can scale
+  the emoji up beyond the standard size". Back to one row, the four
+  pairs, the thermometer thinking while the filtered innovation is
+  three floors or more (0.3 K, the ratio the state calls UNCERTAIN),
+  and the board has its two rows back. They cannot be scaled: a
+  terminal draws an emoji two cells wide at its font size, Windows
+  Terminal and VS Code's xterm.js both leave DECDHL double height
+  undone, and a sixel image would need an emoji font rasterised on the
+  host and a terminal that shows sixels - none of which the chooser's
+  terminal has. views 180, simulated 244.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were

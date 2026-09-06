@@ -64,10 +64,9 @@ TRAILING = 0
 GAUGE_LINES = 2
 GAUGE_CELLS = 20
 
-#: Above it: the room's pictogram, three rows of braille - `hint_rows`.
-#: The first is the blank `picture` already leads with; the other two are
-#: counted in the reserve.
-HINT_LINES = 3
+#: Above it: the room's hint, one row - `hint_row` - the blank `picture`
+#: already leads with, so nothing more in the reserve.
+HINT_LINES = 1
 
 #: THE PAGE'S LOAD CYCLE, model seconds: two minutes at 30 A and four
 #: idle - a cycle every thirty-six seconds of wall time at HASTE - so
@@ -81,117 +80,57 @@ PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
 
 #: THE ROOM AS A HINT above the board, on the ESTIMATED ambient - the
 #: identification's room off op 10, not the stand-in's truth, so it is
-#: the board's own opinion on a board too. The bench, 2026-09-06: "show
-#: 😓🔆, 🥶❄️ and 😌🌤️ on top of the board as a little emoji hint,
-#: depending on the estimated ambient temperature" - then "centre them",
-#: then "see if you can scale the emojis up, or think of something
-#: symbolic in braille, so it does not break with the rest, the
-#: retrofuturism / cyber / Blade Runner". A terminal cannot scale an
-#: emoji, and the pages draw in braille: so three PICTOGRAMS, seven
-#: cells by three rows of dots, in the thermometer ramp's own inks - a
-#: snowflake in its blue, the sun behind a cloud in its green, the sun
-#: in its red. Cold under 5 C, hot from 35: the cold room's -25 and
-#: outdoors' -20 shiver, the temperate room's 20 and the bench's 25 are
-#: mild, the toasty room's 45 sweats.
+#: the board's own opinion on a board too. The bench, 2026-09-06, after
+#: a day of trying: emoji, then centred, then braille pictograms so as
+#: not to break with the retrofuturism, then "switch back to the emoji:
+#: ❄️🥶, 🍃😌, 🔥🥵, and 🌡️🤔 when the innovation is large; see if you can
+#: scale them up beyond the standard size". Cold under 5 C, hot from 35:
+#: the cold room's -25 and outdoors' -20 shiver, the temperate room's 20
+#: and the bench's 25 are mild, the toasty room's 45 sweat; and while the
+#: filtered innovation is three floors or more - the ratio the state
+#: calls UNCERTAIN, 0.3 K on this board's 0.1 - the model is being
+#: doubted whatever the room says, and the thermometer thinks. THEY ARE
+#: THE CELL'S SIZE: a terminal draws an emoji two cells wide at its font
+#: size and no escape scales a glyph - Windows Terminal and VS Code's
+#: xterm.js both leave DECDHL double height undone, and a sixel image
+#: would need an emoji font rasterised on the host - so they stay the
+#: size the terminal gives them.
 ROOM_COLD_C, ROOM_HOT_C = 5.0, 35.0
-ROOM_INK = {'cold': machine.INK[machine.NTC_RAMP[0]],
-            'mild': machine.INK[machine.NTC_RAMP[2]],
-            'hot': machine.INK[machine.NTC_RAMP[-1]]}
+ROOM_UNSURE_K = 0.3
+ROOM_HINTS = {'cold': '❄️🥶', 'mild': '🍃😌', 'hot': '🔥🥵',
+              'unsure': '🌡️🤔'}
 
-#: The pictograms as dots, twelve rows of ten: `#` a dot. Four rows of
-#: dots to a braille row, two columns to a cell - five cells by three
-#: rows, the axis through the middle cell's two lanes and the middle
-#: row's inner dots, so a dot's mirror is the other lane of the mirror
-#: cell and the terminal's lane spacing cannot skew it. Seven cells by
-#: three ran first; the bench: "tidy up the symbol - hot and cold are a
-#: bit ugly and asymmetric - and make the symbols a bit smaller too".
-ROOM_DOTS = {
-    'cold': ('....##....',
-             '....##....',
-             '.#..##..#.',
-             '..#.##.#..',
-             '...####...',
-             '##########',
-             '##########',
-             '...####...',
-             '..#.##.#..',
-             '.#..##..#.',
-             '....##....',
-             '....##....'),
-    'mild': ('......#...',
-             '....#.#.#.',
-             '.....###..',
-             '....#...#.',
-             '..###...#.',
-             '.#...#..#.',
-             '#.....##..',
-             '#.......#.',
-             '#........#',
-             '.#########',
-             '..........',
-             '..........'),
-    'hot':  ('....##....',
-             '..........',
-             '...####...',
-             '..#....#..',
-             '..#....#..',
-             '#.#....#.#',
-             '#.#....#.#',
-             '..#....#..',
-             '..#....#..',
-             '...####...',
-             '..........',
-             '....##....'),
-}
-ICON_CELLS = 5
+#: The hint's width in cells: two emoji, two cells each - the variation
+#: selectors are zero wide.
+HINT_CELLS = 4
 
 
 def room_hint(ident):
-    """Which pictogram the estimated room gets - 'cold', 'mild', 'hot' -
-    or nothing before the board has answered op 10 with one (MINOR 15)."""
+    """Which hint the estimate gets - 'unsure' while the innovation is
+    large, else 'cold', 'mild', 'hot' on the room - or nothing before the
+    board has answered op 10 with a room (MINOR 15)."""
     room = (ident or {}).get('ambient')
     if room is None:
         return ''
+    if ident.get('innovation_k', 0.0) >= ROOM_UNSURE_K:
+        return 'unsure'
     if room < ROOM_COLD_C:
         return 'cold'
     return 'mild' if room < ROOM_HOT_C else 'hot'
 
 
-def braille_icon(dots):
-    """Twelve rows of ten dots as three rows of five braille cells: the
-    eight-dot cell's bits, column by column, top to bottom."""
-    bits_of = ((0x01, 0x02, 0x04, 0x40), (0x08, 0x10, 0x20, 0x80))
-    lines = []
-    for r in range(HINT_LINES):
-        cells = []
-        for c in range(ICON_CELLS):
-            bits = 0
-            for y in range(4):
-                for lane in (0, 1):
-                    if dots[4 * r + y][2 * c + lane] == '#':
-                        bits |= bits_of[lane][y]
-            cells.append(chr(0x2800 + bits))
-        lines.append(''.join(cells))
-    return lines
-
-
-def hint_rows(ident, body, colour=True, indent=3):
-    """The pictogram centred over the board's field, HINT_LINES rows, or
-    as many blanks before the board has said a room. `body` is
-    `picture`'s: a blank then the map rows, each the field, two spaces
-    and the rail (two cells of block and, on some rows, a label), so
-    the narrowest row less four is the field, and the board sits
-    centred in it - the bench: "centre the emojis above the board"."""
-    from screen import tint
-
+def hint_row(ident, body, indent=3):
+    """The hint centred over the board's field - the bench: "centre the
+    emojis above the board". `body` is `picture`'s: a blank then the map
+    rows, each the field, two spaces and the rail (two cells of block
+    and, on some rows, a label), so the narrowest row less four is the
+    field, and the board sits centred in it."""
     kind = room_hint(ident)
     if not kind:
-        return [''] * HINT_LINES
+        return ''
     widths = [visible(row) for row in body[1:] if row.strip()]
     field = (min(widths) - 4) if widths else 0
-    pad = ' ' * max(0, indent + field // 2 - ICON_CELLS // 2)
-    return [pad + (tint(line, ROOM_INK[kind]) if colour else line)
-            for line in braille_icon(ROOM_DOTS[kind])]
+    return ' ' * max(0, indent + field // 2 - HINT_CELLS // 2) + ROOM_HINTS[kind]
 
 #: What ESC and Q do. ESC returns TO_MENU so coaxial_tty.ps1 draws its menu again.
 
@@ -581,10 +520,10 @@ def main():
             body = last['body']
             field = max((visible(l) for l in body), default=0) + 8
             art = stamp_crosses(['   ' + l for l in body], field)
-            # THE ROOM'S PICTOGRAM above the board, its first row the
-            # blank `picture` leads with, centred over the board's field.
+            # THE ROOM'S HINT in the blank row above the board, the row
+            # `picture` leads with, centred over the board's field.
             if art and not art[0].strip():
-                art = hint_rows(last['ident'], body, colour=console) + art[1:]
+                art[0] = hint_row(last['ident'], body)
             # THE EVIDENCE BAR under the board, after the crosses are
             # stamped so nothing lands on it.
             art += evidence_rows(last['ident'], colour=console)
