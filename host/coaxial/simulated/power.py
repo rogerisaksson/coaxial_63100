@@ -140,12 +140,15 @@ class SimulatedThermal:
     #: short of the word. Measured under the page's two-on four-off cycle
     #: with no cap: STABLE at the tenth minute from a fresh temperate
     #: room, twenty-three to twenty-five into a cold leg, thirty-eight
-    #: into a toasty one - its 45 C pulls the air scale to 1.5 on the way -
-    #: so the cap is forty-five minutes and every leg earns its move.
+    #: into a toasty one - its 45 C pulls the air scale to 1.5 on the way,
+    #: and with the judge on the movement 38 to 48 - so the cap is fifty
+    #: minutes and every leg earns its move; at forty-five the toasty leg
+    #: ran to the cap now and then, and on a slow machine a minute short
+    #: of the suite's allowance (CI, 2026-09-06).
     TOUR = ('temperate', 'cold', 'toasty')
     TOUR_STABLE_S = 100.0
     TOUR_MIN_S = 300.0
-    TOUR_MAX_S = 2700.0
+    TOUR_MAX_S = 3000.0
 
     #: The thermometers' own noise, ±kelvin, and their floor as the
     #: identifier is told it - the board's 30 mK NTC and 125 mK dies.

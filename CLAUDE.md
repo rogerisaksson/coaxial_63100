@@ -165,13 +165,13 @@ losses the observer estimates, read through three noisy thermometers
 every sample, and identified by the same identifier the board runs
 (`coaxial/thermal_ident.py` mirrors `thermal/src/thermal_ident.c`), so
 the state walks UNCERTAIN, CONVERGING, STABLE for the same reasons.
-ROTOR OBSERVER switches the situation at random every three to six
-minutes; THERMAL OBSERVER tours the rooms - temperate 20 C, cold -25,
-toasty 45, round again - moving on when the identification
-has earned the room (STABLE held ten seconds of wall time, a hundred of
-model, or forty-five minutes regardless), and lays a load cycle on it, two model minutes
-at 30 A and four idle under the envelope, so the map's regions pulse
-and the bar under the board rises on the cooldowns.
+Both pages tour the rooms - temperate 20 C, cold -25, toasty 45, round
+again - moving on when the identification has earned the room (STABLE
+held ten seconds of wall time, a hundred of model, or fifty minutes
+regardless); THERMAL OBSERVER lays a load cycle on it too, two model
+minutes at 30 A and four idle under the envelope, so the map's regions
+pulse and the bar under the board rises on the cooldowns, and ROTOR
+OBSERVER's own demo is the load.
 `rig.thermal.situation('box')` lays one on, `'tour'` the tour,
 `rig.thermal.load_cycle()` the cycle; a board refuses all in words.
 **Nothing is kept between

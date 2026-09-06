@@ -234,7 +234,7 @@ alone - its margin, floor and innovation are HEADROOM's rows; on the
 stand-in, reached by `--simulated` or a bench with no cable, a load
 cycle runs under it so there are cooldowns to rise on, and the truth
 tours temperate, cold and toasty, moving on once STABLE has
-stood ten seconds. SENSE's `sim` rows say where the truth is: only in
+stood ten seconds - on the rotor page too, under its own demo. SENSE's `sim` rows say where the truth is: only in
 simulated mode is the thermal situation known. Above the board an
 emoji hint for the estimated room, `hint_row` - shivering under 5 C,
 sweating from 35, mild between, and a thermometer thinking while the

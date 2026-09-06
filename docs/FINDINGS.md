@@ -1420,9 +1420,15 @@ looking at the estimate alone.
   temperature until it has run in STABLE for ten seconds or so". So
   the trigger is the state: STABLE held a hundred model seconds - ten
   of wall time at HASTE - no sooner than five minutes after the last
-  move, or forty-five regardless (`TOUR_*`); a named situation ends
-  the tour, and the rotor page keeps its random switch on the wall
-  clock. Measured, the cycles a leg could run: 120/240 reaches STABLE
+  move, or fifty regardless (`TOUR_*`; forty-five first, and on CI's
+  slower 3.12 the toasty leg ran to it a minute short of the suite's
+  literal allowance, so the check reads the cap off the constant and
+  the cap gives the leg's 38 to 48 minutes room); a named situation ends
+  the tour. ROTOR OBSERVER tours too since the same evening - "now
+  ROTOR OBSERVER never switches to cold, hot, back to temperate", the
+  bench, once its demo could reach STABLE under the judge on the
+  movement - where a random situation every three to six minutes had
+  stood. Measured, the cycles a leg could run: 120/240 reaches STABLE
   at the tenth minute from a fresh warehouse and holds it 51 of 60,
   and again 22 minutes after the cold room; 120/360, 12 and 22; 120/480,
   14 and 19; 180/420, 14 and 19; 240/600, 10 and 17 - the longer

@@ -1790,10 +1790,13 @@ def test_thermal_identification(report):
     # THE TOUR (bench, 2026-09-06): temperate, cold, toasty and
     # round again, moved on when the identification has EARNED the room
     # - STABLE held a hundred model seconds, ten of wall time, five
-    # minutes after the move at the least - or after forty-five minutes
+    # minutes after the move at the least - or after fifty minutes
     # regardless. Under the page's cycle, measured: STABLE at the tenth
     # minute from a fresh temperate room, twenty-three to twenty-five
-    # into a cold leg and thirty-eight into a toasty one.
+    # into a cold leg and thirty-eight to forty-eight into a toasty one.
+    # A leg that ran to the cap is allowed a move without STABLE, and
+    # the cap is read off the constant less two minutes of rounding: on
+    # CI's slower 3.12 the toasty leg came in a minute under a literal.
     tour = SimulatedThermal(situation='tour')
     tour.load_cycle(on_s=120.0, off_s=240.0)
     report.check('a tour starts in the temperate room and says it is one',
@@ -1812,13 +1815,15 @@ def test_thermal_identification(report):
         if len(rooms) == 4:
             break
     legs = [b - a for a, b in zip([0] + moved_at, moved_at)]
+    cap = SimulatedThermal.TOUR_MAX_S / 60.0
     report.check('and goes cold, toasty, temperate in order, each leg '
                  'standing at least five model minutes and no more than '
-                 'forty-five, and STABLE the minute before every move that '
+                 'the cap, and STABLE the minute before every move that '
                  'the cap did not force',
                  rooms == ['temperate', 'cold', 'toasty', 'temperate']
-                 and all(5 <= leg <= 45 for leg in legs)
-                 and all(s or leg >= 44 for s, leg in zip(stable_before, legs)),
+                 and all(5 <= leg <= cap + 1 for leg in legs)
+                 and all(s or leg >= cap - 2
+                         for s, leg in zip(stable_before, legs)),
                  '%s at minutes %s, STABLE before %s'
                  % (' > '.join(rooms), moved_at, stable_before))
     report.check('a named situation ends the tour',

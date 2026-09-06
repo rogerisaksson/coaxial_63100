@@ -2379,12 +2379,16 @@ def _link(args):
         return None, None, None, None
     origin, board = rig.origin, rig.board
     if not origin.real:
-        # THE GROUND TRUTH IN A SITUATION, switched at random every few
-        # minutes, so TH OBS walks UNCR, CONV, STABLE and back on the
-        # foot - the bench's way of seeing the policy before a board.
-        # On the stand-in however it was reached: `--simulated`, or a
-        # bench with no cable that fell back to it.
-        rig.thermal.situation('random', switching=True)
+        # THE GROUND TRUTH ON THE TOUR - temperate, cold, toasty, round
+        # and round, moved on when the identification has earned the
+        # room - so TH OBS walks UNCR, CONV, STABLE and back on the foot:
+        # the bench's way of seeing the policy before a board, and its
+        # word (2026-09-06: "now ROTOR OBSERVER never switches to cold,
+        # hot, back to temperate") after a random situation every few
+        # minutes had stood here. On the stand-in however it was
+        # reached: `--simulated`, or a bench with no cable that fell
+        # back to it.
+        rig.thermal.situation('tour')
     was_on = board.afe.is_on()
     want_afe = args.afe or args.source == 'adc'
     if want_afe != was_on:
