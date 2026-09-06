@@ -496,7 +496,9 @@ margin_micro` (what the envelope keeps in hand NOW: every ceiling's
 span over 25 C is multiplied by it on the board - continuous since
 MINOR 16 between the record's floor and 1 000 000 on how far the model
 is doubted, the innovation and the covariance normalised; it was
-800 000 / 900 000 / 1 000 000 on the state), `u32 updates, u32 saves,
+800 000 / 900 000 / 1 000 000 on the state; and after a thermal trip
+the trip cap instead while that keeps more in hand, 700 000 recovering
+a percent a minute), `u32 updates, u32 saves,
 u32 since_save_s` (since MINOR 16 always 0 and all ones, "never": the
 board keeps nothing it identified, and a wire field is never removed);
 MINOR 15 appends `i32 ambient_centi, i32 ambient_sigma_centi` - THE

@@ -1839,6 +1839,53 @@ def test_thermal_identification(report):
                  tour.situation('box')['tour'] is False
                  and tour.truth()['situation'] == 'box')
 
+    # THE TRIP CAP (bench, 2026-09-06: "it should trip the limits and
+    # push the SOA limit down to maybe 70 %, or some other graceful
+    # degradation"): after the envelope has dropped the stage the margin
+    # is held at 0.70, recovering a percent a minute of model time, and
+    # the spend is measured from the room the observer believes in and
+    # clamped to one - in the cold room it had gone negative and a
+    # tripped node had read 103 %.
+    hot = SimulatedThermal(situation='cold')
+    hot._advance = lambda: None
+    dropped, armed = [], [True]
+
+    def drop_stage():
+        # The board's own guard: a stage already down is not dropped
+        # again, so the count is trips and not slices at the ceiling.
+        if not armed[0]:
+            return False
+        armed[0] = False
+        dropped.append(True)
+        return True
+    hot._gate = drop_stage
+    cooked = {'amps': (200.0, 200.0, 200.0), 'switching': True}
+    hot.fast_forward(120.0, seen=cooked, live=True)
+    got = hot.identification()
+    used = hot.budget()['used']
+    report.check('200 A in the cold room trips the envelope once, and the '
+                 'margin is held at 0.70 from the trip - with no node\'s '
+                 'spend outside 0..1 whatever the room',
+                 len(dropped) == 1 and abs(got['margin'] - 0.70) < 0.02
+                 and all(0.0 <= u <= 1.0 for u in used.values())
+                 and hot.budget()['trips'] == 1,
+                 'trips %d, margin %.3f, spend %.2f..%.2f'
+                 % (len(dropped), got['margin'], min(used.values()),
+                    max(used.values())))
+    hot.fast_forward(900.0, seen=idle, live=True)
+    fifteen = hot.identification()['margin']
+    earned = hot._ident.margin(hot._margin_floor)
+    hot.fast_forward(1200.0, seen=idle, live=True)
+    later = hot.identification()['margin']
+    report.check('and it comes back a percent a minute: the cap about 0.85 '
+                 'fifteen minutes on, or the identification' + chr(39) + 's own margin '
+                 'where that is less, and only the identification' + chr(39) + 's '
+                 'thirty-five on',
+                 abs(fifteen - min(earned, 0.85)) < 0.03
+                 and abs(later - hot._ident.margin(hot._margin_floor)) < 1e-9,
+                 'margin %.3f at 15 min (earned %.3f), %.3f at 35'
+                 % (fifteen, earned, later))
+
 
 def _refused(call):
     from coaxial.errors import RigError

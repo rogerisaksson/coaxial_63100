@@ -1590,6 +1590,42 @@ looking at the estimate alone.
   slices, float64 in one-second steps here - and nothing else. Held at
   a hundredth, a fifth of a kelvin on the room and a tenth on the
   nodes. thermal_core 140, 2913 in all.
+* **A trip shrinks the envelope, and the spend is measured from the
+  room** (bench, 2026-09-06: "now the SOA values died again in ROTOR
+  OBSERVER"; "still bugs that send the values negative or divide by
+  something small"; "it should trip the limits and push the SOA limit
+  down to maybe 70 %, or some other graceful degradation"). Two things.
+  THE DEATH was the envelope working: on the tour the margin is at the
+  floor after every room change, and the demo's burst, 0.82 of the
+  whole span warm, is over a ceiling in force at 0.8 - the stage was
+  dropped and latched, the drive stopped making current and the legends
+  froze at the housekeeping's level, the same as the morning's "stone
+  dead" now that the tour puts the floor under the demo. THE NEGATIVE
+  was the stand-in's spend: `_used` measured every node from a fixed
+  25 C and did not clamp above one, so in the cold room a node at -20 C
+  spent a negative fraction and a tripped node read 103 % - "headroom
+  -3 % left". `thermal_budget` in the C measures from `th->ambient`,
+  the identified room, and clamps to 0..1; the stand-in does the same
+  since, line for line. And THE DEGRADATION: a trip is the ceiling
+  reached with the throttle already acting, the model or the load
+  wrong by more than the derate could take back, so after one the
+  margin is held at 0.70 of every span, recovering a percent a minute -
+  half an hour to the identification's own - and every trip starts it
+  over (`THERMAL_TRIP_MARGIN`, `THERMAL_TRIP_RECOVER_PER_S`, the
+  stand-in's `TRIP_*`; op 10's `margin_micro` carries it, being what
+  the board acts on). Re-arming stays the host's: on a board a person;
+  on the stand-in the rotor page itself, once no node is at its ceiling,
+  saying so on the page - the demo has no other operator. Measured on
+  the stand-in: 200 A into the cold room trips once, the margin reads
+  0.72 two minutes on, 0.80 at fifteen where the identification's own
+  is the lesser, the identification's alone at thirty-five; and the
+  demo replayed fresh in the toasty room reaches STABLE at 1.00 inside
+  a minute of wall time, the worst node 0.88 of the span in force at
+  the bursts, no trip - the room read 55 C on the warm-up under load
+  and settled to 46 in three minutes, so a fresh start in a hot room
+  spends from a room ten kelvin too warm for a while, which is what
+  the covariance term's margin is for. Firmware 0 warnings, 195 412 B
+  flash. simulated 246, 2915 in all.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were

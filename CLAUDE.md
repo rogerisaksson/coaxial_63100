@@ -252,10 +252,10 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2913 checks, sized from `host/tests/.counts.json` and so
+Twenty-six suites, 2915 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (611),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (223),
-`test_simulated.py` (244), `test_live_model.py` (212, needs ollama, `--live`),
+`test_simulated.py` (246), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
 `test_ollama_link.py` (96), `test_drive_core.py`
 (81, the control law against a motor model through the host gcc, the Monte
@@ -303,7 +303,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2913 checks are in those nine files.
+  773 of this tree's 2915 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
@@ -599,7 +599,8 @@ Break one and something works until it doesn't.
     (judges only its own registers and flash), and **the thermal envelope**
     (a board that cooks itself is not a measurement problem) - the board
     never calls a reading good, it *acts*: at a ceiling it drops MOE, the
-    same path the break uses, and the ceilings live in the calibration
+    same path the break uses, and holds the envelope at 70 % of every
+    span for the next half hour, and the ceilings live in the calibration
     record, a limit it was given, not invented. The margin is reported; the
     verdict is not.
 11. **The DC link divider's headroom is deliberate.** 49.9k/2.2k gives

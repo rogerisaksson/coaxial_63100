@@ -302,6 +302,19 @@
   * change to the precision the wire carries. */
 #define THERMAL_MARGIN_STEP 0.001f
 
+/** THE TRIP CAP: what the margin is held to after the envelope has
+  * dropped the stage, and how fast that hold lets go. A trip is the
+  * ceiling reached with the throttle already acting, which is the model
+  * or the load having been wrong by more than the derate could take
+  * back; for the next while the stage runs on less. Seventy percent of
+  * every span, recovering a percent a minute - half an hour to the
+  * identification's own margin - and every trip starts it over. The
+  * bench, 2026-09-06: "it should trip the limits and push the SOA limit
+  * down to maybe 70 %, or some other graceful degradation". Re-arming
+  * is the host's, as it always was; what it re-arms into is smaller. */
+#define THERMAL_TRIP_MARGIN        0.70f
+#define THERMAL_TRIP_RECOVER_PER_S (0.30f / 1800.0f)
+
 /** How long the link may be silent before the HOST's holds are dropped.
   *
   * The host's reference is the one with no lease, so that a session can keep

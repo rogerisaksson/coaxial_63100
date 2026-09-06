@@ -160,6 +160,15 @@ class SimulatedThermal:
     #: thermal op 12 does on the board.
     MARGIN_FLOOR = thermal.IDENT_MARGIN_FLOOR
 
+    #: THE TRIP CAP, as `board_thermal.c` keeps it: after the envelope
+    #: has dropped the stage the margin is held at this, recovering at
+    #: this rate of model time - a percent a minute, half an hour to the
+    #: identification's own - and every trip starts it over. The bench,
+    #: 2026-09-06: "it should trip the limits and push the SOA limit down
+    #: to maybe 70 %, or some other graceful degradation".
+    TRIP_MARGIN = 0.70
+    TRIP_RECOVER_PER_S = 0.30 / 1800.0
+
     #: THE LOAD CYCLE a page in simulated mode lays on, model seconds:
     #: six minutes at 30 A and fourteen cooling - the walk the suites
     #: take the identification through - so the board's regions warm and
@@ -252,6 +261,10 @@ class SimulatedThermal:
         # bench's rule took both out - every start is at the floor and
         # earns its span.
         self._margin_floor = self.MARGIN_FLOOR
+        #: The trip cap and when it was set, model seconds; one when no
+        #: trip is in force.
+        self._trip_cap = 1.0
+        self._trip_at = 0.0
         #: The load cycle, `(amps, on_s, off_s, began_model_s)` or None:
         #: what the live path samples instead of the drive while one runs.
         self._cycle = None
@@ -326,6 +339,10 @@ class SimulatedThermal:
             return
         if self._gate():
             self._trips += 1
+            # AND THE ENVELOPE SHRINKS, as on the board: the trip cap
+            # from now, recovering a percent a minute of model time.
+            self._trip_cap = self.TRIP_MARGIN
+            self._trip_at = self._model_s
 
     def _integrate(self, dt, seen):
         """One explicit step over the whole graph: `thermal.net_flows` is
@@ -596,24 +613,45 @@ class SimulatedThermal:
         self._every_s, self._settle_s = every_s, settle_s
         return True
 
+    def _margin(self):
+        """The margin the envelope acts on now: the identification's for
+        its doubt, or the trip cap as it stands - set at a trip, given
+        back at TRIP_RECOVER_PER_S - whichever keeps more in hand. The
+        board's `margin_now`."""
+        earned = self._ident.margin(self._margin_floor)
+        if self._trip_cap >= 1.0:
+            return earned
+        cap = min(1.0, self._trip_cap
+                  + (self._model_s - self._trip_at) * self.TRIP_RECOVER_PER_S)
+        return min(earned, cap)
+
     def _limit(self, name):
         """One node's ceiling as the envelope acts on it: the record's,
-        its span over the room trimmed by the identification's margin -
-        the floor while the model is doubted whole, one when not at all
-        - as `board_thermal.c` trims it, so the silicon and the laminate
-        are not run to ceilings computed on a network just proved wrong."""
+        its span over the reference trimmed by the margin - the floor
+        while the model is doubted whole, one when not at all, the trip
+        cap after a trip - as `board_thermal.c` trims it, so the silicon
+        and the laminate are not run to ceilings computed on a network
+        just proved wrong."""
         top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
-        margin = self._ident.margin(self._margin_floor)
-        return thermal.AMBIENT + margin * (top - thermal.AMBIENT)
+        return thermal.AMBIENT + self._margin() * (top - thermal.AMBIENT)
 
     def _used(self):
-        """Each node as a fraction of its own ceiling. One definition:
-        `budget()` answers it and `_envelope()` acts on it."""
+        """Each node as a fraction of its own ceiling, FROM THE ROOM the
+        observer believes it stands in, clamped to 0..1 - `thermal_budget`
+        in the C, line for line. One definition: `budget()` answers it and
+        `_envelope()` acts on it. It was measured from a fixed 25 C and
+        not clamped above one: in the cold room every node spent a
+        negative fraction, and a tripped node read 103 % - "headroom -3 %
+        left" on the rotor page, the bench's "values going negative"
+        (2026-09-06)."""
         used = {}
         for name in self.NODES:
-            top = self._limit(name)
-            used[name] = max(0.0, (self._node[name] - thermal.AMBIENT)
-                             / (top - thermal.AMBIENT))
+            span = self._limit(name) - self._ambient
+            if not span > 0.0:
+                used[name] = 0.0
+                continue
+            part = (self._node[name] - self._ambient) / span
+            used[name] = max(0.0, min(1.0, part))
         return used
 
     def _worst(self):
@@ -672,7 +710,7 @@ class SimulatedThermal:
         net = (self._last_net or {}).get(name, 0.0)
         capacity = self._cfg['capacity'].get(name, 0.0)
         top = self._limit(name)
-        if net <= 0.0 or capacity <= 0.0 or top <= thermal.AMBIENT:
+        if net <= 0.0 or capacity <= 0.0 or top <= self._ambient:
             return None
         togo = top - self._node[name]
         return (togo * capacity / net) if togo > 0.0 else 0.0
@@ -801,7 +839,7 @@ class SimulatedThermal:
                'online': [s for k, s in enumerate(thermal.IDENT_SCALES)
                           if thermal_ident.ONLINE[k]],
                'innovation_k': ident.innovation_k,
-               'margin': ident.margin(self._margin_floor),
+               'margin': self._margin(),
                'ambient': ident.ambient,
                'ambient_sigma': ident.sigma(thermal_ident.AMBIENT),
                'updates': ident.updates,

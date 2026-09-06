@@ -100,8 +100,14 @@ static float          s_speed_rpm;    /**< the rotor at the last step      */
 static thermal_ident_t s_ident;
 static thermal_cfg_t   s_base;
 /** The margin the ceilings are trimmed by now - what the board acts on
-  * and what op 10 reports. */
+  * and what op 10 reports: the identification's, or the trip cap while
+  * one is in force, whichever is less. */
 static float           s_margin = 1.0f;
+/** The trip cap and when it was set - THERMAL_TRIP_MARGIN at a trip,
+  * recovering at THERMAL_TRIP_RECOVER_PER_S; one and nothing to recover
+  * when no trip is in force. */
+static float           s_trip_cap = 1.0f;
+static uint32_t        s_trip_ms;
 /* THERMAL_IDENT_NOISE_K, THERMAL_MARGIN_REF_C and THERMAL_MARGIN_STEP -
    the identification's noise floor, the margin's reference and how far it
    must move to re-trim - are in board_limits.h with the rest of the fixed
@@ -114,6 +120,33 @@ static float margin_floor(void)
   const uint32_t ppm = Board_Cal()->soa_margin_floor_ppm;
 
   return (float)((ppm != 0U) ? ppm : BOARD_SOA_MARGIN_FLOOR_PPM) / 1000000.0f;
+}
+
+
+/** The trip cap as it stands now: what it was set to plus what the
+  * minutes since have given back, never above one. */
+static float trip_cap_now(void)
+{
+  if (s_trip_cap >= 1.0f)
+  {
+    return 1.0f;
+  }
+  const float back = (float)(HAL_GetTick() - s_trip_ms) / 1000.0f
+                     * THERMAL_TRIP_RECOVER_PER_S;
+  const float cap = s_trip_cap + back;
+
+  return (cap < 1.0f) ? cap : 1.0f;
+}
+
+
+/** The margin now: the identification's for its doubt, or the trip cap,
+  * whichever keeps more in hand. */
+static float margin_now(void)
+{
+  const float earned = thermal_ident_margin(&s_ident, margin_floor());
+  const float cap = trip_cap_now();
+
+  return (cap < earned) ? cap : earned;
 }
 
 
@@ -145,8 +178,10 @@ static void soa_from_cal(void)
      laminate ceiling is 89 C at the 80 % floor. Still a limit it was
      given, trimmed by a floor it was given - the board judges nothing
      (invariant 10); the margin is on the wire beside the state, which
-     since 2026-09-06 is a word and not what the envelope acts on. */
-  const float margin = thermal_ident_margin(&s_ident, margin_floor());
+     since 2026-09-06 is a word and not what the envelope acts on. After
+     a trip it is the trip cap instead, for as long as that keeps more
+     in hand (`margin_now`). */
+  const float margin = margin_now();
 
   for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
   {
@@ -507,7 +542,7 @@ static void load_now(thermal_load_t *load)
   * a slice that changed nothing. */
 static void margin_follow(void)
 {
-  const float now = thermal_ident_margin(&s_ident, margin_floor());
+  const float now = margin_now();
 
   if (fabsf(now - s_margin) >= THERMAL_MARGIN_STEP)
   {
@@ -610,6 +645,12 @@ void Board_ThermalPoll(void)
     {
       Board_PwmDisable();
       s_trips++;
+      /* AND THE ENVELOPE SHRINKS: the trip cap, from now, recovering a
+         percent a minute (board_limits.h). What the host re-arms into
+         is a stage that runs on less until the model has earned it. */
+      s_trip_cap = THERMAL_TRIP_MARGIN;
+      s_trip_ms = now;
+      soa_from_cal();
     }
     s_steps++;
   }

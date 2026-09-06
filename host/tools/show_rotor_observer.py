@@ -1342,6 +1342,29 @@ BRAKE_FULL_RAD_S = 700.0
 
 
 
+def rearm_after_trip(rig, origin, view):
+    """THE STAND-IN'S OPERATOR. On a board a thermal trip drops MOE and
+    the host re-arms, or does not; the demo has no host but this page,
+    so on the stand-in it re-arms once no node is at its ceiling any
+    more - into the envelope the trip cap has shrunk, 70 % of every span
+    recovering a percent a minute, so the next burst runs on less. Said
+    on the page each time. Never on a board: there the operator is a
+    person, and the trip is theirs to think about."""
+    if origin.real or not view.get('spin'):
+        return
+    budget = view.get('budget') or {}
+    if not budget.get('trips') or budget.get('tripped'):
+        return
+    if view['state'].get('stage_enabled') or rig.gates.armed():
+        return
+    rig.gates.arm(bypass_sto=True, ignore_interlock=True)
+    view['rearms'] = view.get('rearms', 0) + 1
+    view['said'] = ('re-armed after thermal trip %d - the stand-in\'s '
+                    'operator; the envelope is %d %% of the span'
+                    % (budget['trips'],
+                       int(round(100.0 * policy_margin(view)))))
+
+
 def cycle_phase(view):
     """Where in the demo cycle we are, and how far into that phase."""
     turn = ((time.time() - view['spin_at']) % SWEEP_S) / SWEEP_S
@@ -2494,6 +2517,7 @@ def main(argv=None):
                 view['budget'] = board.thermal.budget()
                 view['ident'] = board.thermal.identification()
                 thermal_at[0] = time.time()
+                rearm_after_trip(rig, origin, view)
         except RigError:
             pass                    # a missed reply is a missed frame
         # THE CONSOLE, not `console`: `frame_of` pages the instrument
