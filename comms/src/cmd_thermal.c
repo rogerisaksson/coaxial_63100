@@ -34,9 +34,12 @@
   *  10  ident       - MINOR 14: the online identification - state, which
   *                    scales move, each scale and its sigma, the filtered
   *                    innovation, the envelope's margin, updates, saves;
-  *                    MINOR 15 appends the room as identified and its sigma
-  *  11  ident reset - scales to one, UNCERTAIN, the record rewritten;
-  *                    refused while the stage is armed
+  *                    MINOR 15 appends the room as identified and its sigma;
+  *                    MINOR 16 appends the margin's floor, and writes the
+  *                    saves as none - the board keeps nothing
+  *  11  ident reset - scales to one, UNCERTAIN, the margin at the floor
+  *  12  set margin  - i32 floor_ppm: the least of every ceiling's span the
+  *                    envelope keeps, through the record
   ******************************************************************************
   */
 #include "board.h"
@@ -55,6 +58,7 @@
 #define OP_SET_EDGE   9U
 #define OP_IDENT      10U
 #define OP_IDENT_RESET 11U
+#define OP_SET_MARGIN 12U
 
 /** Nodes a page of op 7 carries: five i32 each, so ten fit a frame. */
 #define NODES_A_PAGE 10U
@@ -395,8 +399,9 @@ static cmd_status_t op_set_edge(rd_t *in, wr_t *out)
 /** op 10 - the identification beside the observer. State and the mask of
   * scales the samples move, then each scale with its sigma in milli, the
   * filtered innovation in milli-kelvin, the margin the envelope keeps in
-  * micro, the counts, and seconds since the record was last written -
-  * all ones when it never was this boot. */
+  * micro, the counts - the saves zero and the seconds since one all ones,
+  * "never", since MINOR 16: the fields stay (invariant 3) and the board
+  * keeps nothing - then the room and, since 16, the margin's floor. */
 static cmd_status_t op_ident(wr_t *out)
 {
   board_thermal_ident_t id;
@@ -416,29 +421,50 @@ static cmd_status_t op_ident(wr_t *out)
   wr_i32(out, (int32_t)(id.innovation_k * 1000.0f));
   wr_i32(out, (int32_t)(id.margin * 1000000.0f));
   wr_u32(out, id.updates);
-  wr_u32(out, id.saves);
-  wr_u32(out, id.ever_saved ? id.since_save_s : 0xFFFFFFFFUL);
+  wr_u32(out, 0UL);                /* saves: none, the board keeps nothing */
+  wr_u32(out, 0xFFFFFFFFUL);       /* since a save: never                  */
   /* MINOR 15, appended (invariant 3): the room as identified, centi-C,
      and its sigma in centi-kelvin. */
   wr_i32(out, (int32_t)(id.ambient_c * 100.0f));
   wr_i32(out, (int32_t)(id.ambient_sigma_k * 100.0f));
+  /* MINOR 16, appended: the floor the margin rises from, micro. */
+  wr_i32(out, (int32_t)(id.margin_floor * 1000000.0f));
   return CMD_OK;
 }
 
 
-/** op 11 - forget what was identified, in RAM and in the record. */
+/** op 11 - forget what was identified: the margin back at the floor. */
 static cmd_status_t op_ident_reset(wr_t *out)
 {
-  if (Board_PwmIsEnabled())
-  {
-    cmd_took(out, "the record is not rewritten while the stage is armed - "
-                  "disarm first");
-    return CMD_OK;
-  }
   if (!Board_ThermalIdentReset())
   {
-    cmd_took(out, "the thermal observer is not running, or the record did "
-                  "not save - it starts with the board");
+    cmd_took(out, "the thermal observer is not running - it starts with the board");
+    return CMD_OK;
+  }
+  cmd_took(out, NULL);
+  return CMD_OK;
+}
+
+
+/** op 12 - the margin floor, ppm of every ceiling's span, into the
+  * record; cal op 2 is what persists it. */
+static cmd_status_t op_set_margin(rd_t *in, wr_t *out)
+{
+  const int32_t floor_ppm = rd_i32(in);
+
+  if (!rd_ok(in))
+  {
+    return CMD_ERR_LENGTH;
+  }
+  if ((floor_ppm <= 0) || (floor_ppm > 1000000L))
+  {
+    cmd_took(out, "the floor is a fraction of the span, 1 .. 1 000 000 ppm - "
+                  "800 000 is the bench's; zero would trip the stage at boot");
+    return CMD_OK;
+  }
+  if (!Board_ThermalSetMarginFloor((float)floor_ppm / 1000000.0f))
+  {
+    cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
   }
   cmd_took(out, NULL);
@@ -462,6 +488,7 @@ cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
     case OP_SET_EDGE:    return op_set_edge(in, out);
     case OP_IDENT:       return op_ident(out);
     case OP_IDENT_RESET: return op_ident_reset(out);
+    case OP_SET_MARGIN:  return op_set_margin(in, out);
     default:             return CMD_ERR_VALUE;
   }
 }

@@ -100,6 +100,10 @@ GATE_SIGMAS = 3.0
 #: confidence from that would be confidence from silence.
 STILL_GAIN = 3.0
 RATIO_STABLE, RATIO_UNCERTAIN = 2.0, 3.0
+
+#: The floor the margin rises from when the caller gives none: the
+#: record's default, `thermal.IDENT_MARGIN_FLOOR`.
+MARGIN_FLOOR = thermal.IDENT_MARGIN_FLOOR
 STABLE_RUNS = 5
 MIN_HORIZON_S, MAX_HORIZON_S = 20.0, 600.0
 BLIND_S, SETTLE_SAMPLES = 90.0, 2
@@ -242,6 +246,10 @@ def anchor(temps, ntc, cfg, power, seen, speed_rpm, since_s,
     return ntc, False
 
 
+def _unit(x):
+    return 0.0 if x < 0.0 else (1.0 if x > 1.0 else x)
+
+
 def _clamped(scale):
     out = [min(SCALE_MAX, max(SCALE_MIN, s)) for s in scale[:RECORD]]
     out.append(min(AMBIENT_MAX_C, max(AMBIENT_MIN_C, scale[AMBIENT])))
@@ -275,19 +283,6 @@ class Identifier:
         self.settle_left = 0
         self._pending = 0.0
 
-    # -- the record ---------------------------------------------------
-
-    def resume(self, scales, ambient=thermal.AMBIENT, noise_k=0.1):
-        """Start from a record's scales: CONVERGING, the covariance
-        narrowed to what a saved model deserves. The room starts at
-        `ambient` as wide as ever: a record does not know where the board
-        woke up."""
-        self.__init__(noise_k, ambient)
-        self.scale = _clamped([float(s) for s in scales[:RECORD]]
-                              + [self.scale[AMBIENT]])
-        self._set_covariance(0.15)
-        self.state = CONVERGING
-
     def _set_covariance(self, sigma):
         self.p = [[0.0] * PARAMS for _ in range(PARAMS)]
         for k in range(PARAMS):
@@ -306,8 +301,28 @@ class Identifier:
         var = self.p[k][k]
         return math.sqrt(var) if var > 0.0 else 0.0
 
-    def margin(self):
-        return thermal.IDENT_MARGIN[self.state]
+    def doubt(self):
+        """How far the model is doubted, 0..1 - `thermal_ident_doubt`:
+        the worse of the innovation normalised from the thermometers'
+        floor to the ratio that says UNCERTAIN, and each online quantity's
+        sigma from where STABLE calls it known to its prior. A fresh
+        board is doubted whole and an idle one stays so; a cooldown is
+        what lowers it."""
+        ratio = self.innovation_k / self.noise_k
+        doubt = _unit((ratio - 1.0) / (RATIO_UNCERTAIN - 1.0))
+        for k in range(PARAMS):
+            if ONLINE[k]:
+                span = PRIOR_SIGMA[k] - SIGMA_STABLE[k]
+                doubt = max(doubt, _unit((self.sigma(k) - SIGMA_STABLE[k])
+                                         / span))
+        return doubt
+
+    def margin(self, floor=MARGIN_FLOOR):
+        """`thermal_ident_margin`: the floor while the model is doubted
+        whole, one when not at all, the doubt between - continuous since
+        2026-09-06; it was three steps on the state."""
+        f = _unit(floor)
+        return f + (1.0 - f) * (1.0 - self.doubt())
 
     def apply(self, base):
         return apply(self.scale, base)

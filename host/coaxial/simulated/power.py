@@ -1,11 +1,8 @@
 """The power stage stood down: thermal observer, power rails and the
 gate drivers with the real arming policy."""
 import copy
-import json
 import math
-import os
 import random
-import tempfile
 import time
 
 from .. import motor
@@ -129,12 +126,12 @@ class SimulatedThermal:
     NOISE_K = 0.05
     IDENT_NOISE_K = 0.1
 
-    #: The record's save policy, in model seconds: `board_thermal.c`'s
-    #: half hour and two percent, on a disarm as well.
-    SAVE_EVERY_S = 1800.0
-    SAVE_MOVED = 0.02
+    #: The floor the envelope's margin rises from, the record's default
+    #: (`thermal.IDENT_MARGIN_FLOOR`); `set_margin_floor` moves it as
+    #: thermal op 12 does on the board.
+    MARGIN_FLOOR = thermal.IDENT_MARGIN_FLOOR
 
-    def __init__(self, sample=None, situation='bench', seed=7, nvm=None):
+    def __init__(self, sample=None, situation='bench', seed=7):
         self._seconds = 0
         #: THE BOARD'S CADENCE, thirty seconds (THERMAL_SAMPLE_EVERY_MS),
         #: three of wall time at HASTE. It was five: judged every twenty
@@ -210,13 +207,11 @@ class SimulatedThermal:
         self._settled = False
         self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K,
                                                thermal.AMBIENT)
-        self._saves = 0
-        self._saved_s = 0.0
-        self._ever_saved = False
-        self._saved_scale = list(self._ident.scale)
-        self._was_switching = False
-        self._nvm = nvm if nvm is not None else os.environ.get('COAXIAL_SIM_NVM', '')
-        self._nvm_load()
+        # NOTHING BETWEEN RUNS. The record was a file (`COAXIAL_SIM_NVM`)
+        # until 2026-09-06, as the flash sector was to the board; the
+        # bench's rule took both out - every start is at the floor and
+        # earns its span.
+        self._margin_floor = self.MARGIN_FLOOR
         self._cfg = self._ident.apply(self._base)
         self.situation(situation)
 
@@ -338,7 +333,6 @@ class SimulatedThermal:
         # THE ROOM IS THE IDENTIFICATION'S, as on the board: no sensor
         # reads it, and the observer's rise is against what it believes.
         self._ambient = self._ident.ambient
-        self._policy(bool(seen.get('switching')))
 
     def _read_truth(self, power):
         """What the three thermometers read off the truth this sample:
@@ -352,60 +346,6 @@ class SimulatedThermal:
             out[die] = noisy(self._truth[die] + power.get(die, 0.0)
                              * self._truth_cfg['rth_die'].get(die, 0.0))
         return out
-
-    def _policy(self, switching):
-        """The record's save policy, as `board_thermal.c` keeps it: not
-        while switching, not UNCERTAIN, only a scale that moved, at most
-        every SAVE_EVERY_S of model time and on a disarm."""
-        disarmed_now = self._was_switching and not switching
-        self._was_switching = switching
-        if switching or self._ident.state == thermal_ident.UNCERTAIN:
-            return
-        moved = max(abs(self._ident.scale[k] - self._saved_scale[k])
-                    for k in range(thermal_ident.RECORD)
-                    if thermal_ident.ONLINE[k])
-        if moved < self.SAVE_MOVED:
-            return
-        if disarmed_now or self._model_s - self._saved_s >= self.SAVE_EVERY_S:
-            self._nvm_save()
-
-    # -- the record: a file standing in for the flash sector ------------
-
-    @staticmethod
-    def default_nvm():
-        """Where the stand-in's record lives when a page asks for one:
-        the machine's temporary directory, one file for every simulated
-        board on it - what `COAXIAL_SIM_NVM` sets."""
-        return os.path.join(tempfile.gettempdir(), 'coaxial_63100_simulated_nvm.json')
-
-    def _nvm_load(self):
-        if not self._nvm:
-            return
-        try:
-            with open(self._nvm, encoding='utf-8') as f:
-                record = json.load(f)
-            scales = record.get('thermal_ident_scale')
-        except (OSError, ValueError):
-            return
-        if scales and any(abs(float(s) - 1.0) > 1e-9 for s in scales):
-            self._ident.resume([float(s) for s in scales], self._ident.ambient,
-                               self.IDENT_NOISE_K)
-            self._saved_scale = list(self._ident.scale)
-
-    def _nvm_save(self):
-        self._saved_s = self._model_s
-        if not self._nvm:
-            return
-        try:
-            with open(self._nvm, 'w', encoding='utf-8') as f:
-                json.dump({'thermal_ident_scale':
-                           list(self._ident.scale[:thermal_ident.RECORD]),
-                           'saved_at': time.time()}, f)
-        except OSError:
-            return
-        self._saved_scale = list(self._ident.scale)
-        self._saves += 1
-        self._ever_saved = True
 
     # -- the truth's situation ------------------------------------------
 
@@ -535,11 +475,12 @@ class SimulatedThermal:
     def _limit(self, name):
         """One node's ceiling as the envelope acts on it: the record's,
         its span over the room trimmed by the identification's margin -
-        0.85 UNCERTAIN, 0.93 CONVERGING, one STABLE - as
-        `board_thermal.c` trims it, so the silicon and the laminate are
-        not run to ceilings computed on a network just proved wrong."""
+        the floor while the model is doubted whole, one when not at all
+        - as `board_thermal.c` trims it, so the silicon and the laminate
+        are not run to ceilings computed on a network just proved wrong."""
         top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
-        return thermal.AMBIENT + self._ident.margin() * (top - thermal.AMBIENT)
+        margin = self._ident.margin(self._margin_floor)
+        return thermal.AMBIENT + margin * (top - thermal.AMBIENT)
 
     def _used(self):
         """Each node as a fraction of its own ceiling. One definition:
@@ -736,23 +677,33 @@ class SimulatedThermal:
                'online': [s for k, s in enumerate(thermal.IDENT_SCALES)
                           if thermal_ident.ONLINE[k]],
                'innovation_k': ident.innovation_k,
-               'margin': ident.margin(),
+               'margin': ident.margin(self._margin_floor),
                'ambient': ident.ambient,
                'ambient_sigma': ident.sigma(thermal_ident.AMBIENT),
-               'updates': ident.updates, 'saves': self._saves,
-               'since_save_s': ((self._model_s - self._saved_s)
-                                if self._ever_saved else None),
+               'updates': ident.updates,
+               # The wire's two since MINOR 14, and since 16 always
+               # none: the board keeps nothing it identified.
+               'saves': 0, 'since_save_s': None,
+               'margin_floor': self._margin_floor,
                'truth': self.truth()}
         return got
 
     def reset_identification(self):
         """Forget what was identified: scales to one, UNCERTAIN, the
-        record written without them."""
+        margin back at the floor. Nothing is written anywhere."""
         self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K,
                                                self._ambient)
         self._cfg = self._ident.apply(self._base)
-        self._saved_scale = list(self._ident.scale)
-        self._nvm_save()
+        return True
+
+    def set_margin_floor(self, floor):
+        """The floor the margin rises from, a fraction (0, 1] of every
+        ceiling's span - thermal op 12, refused in the board's words."""
+        if not 0.0 < float(floor) <= 1.0:
+            raise RigError('the floor is a fraction of the span, 1 .. '
+                           '1 000 000 ppm - 800 000 is the bench\'s; zero '
+                           'would trip the stage at boot')
+        self._margin_floor = float(floor)
         return True
 
 

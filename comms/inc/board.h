@@ -752,9 +752,14 @@ void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code);
   * can overlay and the wire can name. */
 #define BOARD_THERMAL_EDGES 30
 
-/** The identification's scales - `thermal_ident.h`'s THERMAL_IDENT_PARAMS,
-  * held to it by a static assert in board_thermal.c. */
+/** The identification's scales on the wire - `thermal_ident.h`'s
+  * THERMAL_IDENT_RECORD, held to it by a static assert in board_thermal.c. */
 #define BOARD_THERMAL_IDENT_SCALES 4
+
+/** The margin floor's default, parts per million of every ceiling's span:
+  * the bench's 80 % - "keep to 80 % of the SOA when switching starts,
+  * with the thermal situation unknown". */
+#define BOARD_SOA_MARGIN_FLOOR_PPM 800000UL
 
 /** The indices, for a record or a host that has to name one. `thermal.h`
   * has the enum and this mirrors it, because the calibration record is on
@@ -1005,23 +1010,25 @@ typedef struct
   uint32_t thermal_rad_board_stator_micro; /**< W/K at 300 K; 0 = bench    */
   uint32_t thermal_k_iron_milli;         /**< W per (krpm)^2              */
 
-  /* CAL_VERSION 14: WHAT THE IDENTIFICATION LEARNED - the four scales
-     of `thermal_ident.h` in wire order (air, capacity, spread, ntc),
-     milli, zero for "never identified" so a fresh record starts the
-     identification UNCERTAIN at one and a saved one resumes it
-     CONVERGING where it was. The observer writes them itself, at most
-     every half hour and on a disarm, never while the stage is armed
-     (`board_thermal.c`, the save policy). A stored 13 is taken up with
-     these zero rather than refused: the fields are appended and the
-     DC link's span is in that record. */
-  uint32_t thermal_ident_scale_milli[BOARD_THERMAL_IDENT_SCALES];
+  /* CAL_VERSION 15: THE MARGIN FLOOR, parts per million of every
+     ceiling's span over 25 C - what the envelope keeps while the
+     identification has no evidence for its model, rising to the whole
+     span as the evidence comes in (`thermal_ident_margin`). A limit the
+     board is given, like the ceilings beside it; BOARD_SOA_MARGIN_FLOOR_PPM
+     by default. It stands where CAL_VERSION 14 kept the
+     identification's four scales, which the board wrote to flash itself
+     and resumed at boot until 2026-09-06 - the bench's rule: nothing
+     learned is kept, every boot starts at the floor and earns its span.
+     A stored 14 is taken up as a prefix with this at its default, its
+     CRC checked over its own layout. */
+  uint32_t soa_margin_floor_ppm;
 
   uint16_t crc;
 } board_cal_t;
 
-/** The identified scales into the record's RAM copy, milli, wire order;
-  * `Board_CalSave` is what commits them. */
-bool Board_CalSetThermalIdent(const uint32_t *scale_milli);
+/** The margin floor into the record's RAM copy, ppm of the span;
+  * `Board_CalSave` is what commits it. Refused outside 1 .. 1 000 000. */
+bool Board_CalSetMarginFloor(uint32_t ppm);
 
 /** Overlay one node's, one edge's or the bulk's network entry in the
   * record's RAM copy; `Board_CalSave` is what commits it. Milli-units,
@@ -1366,29 +1373,35 @@ typedef struct
   * envelope keeps in hand for that. MINOR 14, thermal op 10. */
 typedef struct
 {
-  uint8_t  state;                   /**< thermal_ident_state_t              */
+  uint8_t  state;                   /**< thermal_ident_state_t - a word    */
   uint8_t  online_mask;             /**< bit k: scale k is moved by samples */
   float    scale[BOARD_THERMAL_IDENT_SCALES];
   float    sigma[BOARD_THERMAL_IDENT_SCALES];
   float    innovation_k;            /**< filtered prediction error, kelvin  */
-  float    margin;                  /**< the envelope's factor for the state*/
+  float    margin;                  /**< the envelope's factor now, floor..1*/
   uint32_t updates;                 /**< samples that moved the scales      */
-  uint32_t saves;                   /**< records written since boot         */
-  bool     ever_saved;              /**< since boot                         */
-  uint32_t since_save_s;            /**< valid only when ever_saved         */
   /** MINOR 15: the room as identified beside the scales, degrees C, and
     * how sure - the board has no ambient sensor; this is what the
     * observer's `ambient` is set from. */
   float    ambient_c;
   float    ambient_sigma_k;
+  /** MINOR 16: the floor the margin rises from, the record's. The wire's
+    * `saves` and `since_save_s` between the counts and the room are
+    * written as zero and never since the same MINOR: the board keeps
+    * nothing (`thermal_ident.h`). */
+  float    margin_floor;
 } board_thermal_ident_t;
 
 bool Board_ThermalIdent(board_thermal_ident_t *out);
 
-/** Forget what was identified: scales to one, UNCERTAIN, and the record
-  * rewritten without them. Refused while the stage is armed - flash is
-  * not programmed under a closed loop - or when the save fails. */
+/** Forget what was identified: scales to one, the room where the
+  * observer has it, UNCERTAIN, the margin at the floor. Nothing to
+  * write, so nothing to refuse for. */
 bool Board_ThermalIdentReset(void);
+
+/** The margin floor, a fraction of every ceiling's span, through the
+  * record - `Board_CalSave` persists it. Refused outside (0, 1]. */
+bool Board_ThermalSetMarginFloor(float floor);
 
 /** One edge of the network: which two nodes, and the K/W across it now. */
 bool Board_ThermalEdge(uint8_t edge, uint8_t *a, uint8_t *b, float *k_per_w);

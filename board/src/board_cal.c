@@ -62,18 +62,28 @@
       capacity, an air path and an edge each, zero for the core's derived
       default, so an identification on the board has somewhere to keep
       what it learns. */
-#define CAL_VERSION 14U  /* 14: what it learned - the identification's four
-                            scales, appended. A STORED 13 IS TAKEN UP, not
-                            refused: its fields are this layout's prefix,
-                            and it holds the one span ever measured. */
+/* 14: what the identification learned - its four scales, appended, and
+      written by the board itself. Gone in 15. */
+#define CAL_VERSION 15U  /* 15: the SOA margin floor where 14 kept the
+                            scales - nothing learned is kept any more
+                            (bench, 2026-09-06). A STORED 14 IS TAKEN UP,
+                            not refused: its prefix is this layout's up to
+                            the floor, and it holds the one span ever
+                            measured. */
 
-/** The version before this one, whose layout is this one's prefix up to
-  * `thermal_ident_scale_milli`. A stored record of it is read with the
-  * appended fields zero - the defaults - and the CRC checked over what it
-  * covered. Only one step back: a record two versions old is refused as
-  * before. */
-#define CAL_PREVIOUS_VERSION 13U
-#define CAL_PREVIOUS_CRC_OFFSET offsetof(board_cal_t, thermal_ident_scale_milli)
+/** The two versions before this one. Both layouts are this one's prefix
+  * up to `soa_margin_floor_ppm`: 14 carried the four scales (16 bytes)
+  * after it and then its CRC, 13 ended there with its CRC. A stored
+  * record of either is read as the prefix with the floor at its default,
+  * and the CRC checked over what its own layout covered. Two steps back
+  * and not one, this once: the 13 record on the bench board holds the
+  * DC link's span, the one number ever measured against an instrument,
+  * and 14 lived a day. Anything older is refused as before. */
+#define CAL_PREVIOUS_VERSION    14U
+#define CAL_OLDER_VERSION       13U
+#define CAL_PREVIOUS_PREFIX     offsetof(board_cal_t, soa_margin_floor_ppm)
+#define CAL_PREVIOUS_CRC_OFFSET (CAL_PREVIOUS_PREFIX + 4U * sizeof(uint32_t))
+#define CAL_OLDER_CRC_OFFSET    CAL_PREVIOUS_PREFIX
 
 /* H7 programs a 256-bit flash word at a time, so the image written is padded
    to a multiple of 32 bytes; the record is a few hundred bytes against a
@@ -216,6 +226,7 @@ static const board_cal_t CAL_DEFAULTS =
   .drv_trigger_ticks        = 0UL,
   .link_baud                = 115200UL,     /* the number the docs promised */
   .chan             = { { 0, 0 } },   /* no offset, no gain trim           */
+  .soa_margin_floor_ppm     = BOARD_SOA_MARGIN_FLOOR_PPM,  /* the bench's 80 % */
 };
 
 /* CRC-16 over everything ahead of the crc field itself. Reused from the
@@ -235,23 +246,35 @@ static bool cal_valid(const board_cal_t *cal)
          (cal->crc == cal_crc(cal));
 }
 
-/** A record of the previous version: the same prefix, its CRC where its
-  * own layout ended. */
+/** A record of one of the two previous versions: the same prefix, its
+  * CRC where its own layout ended. */
 static bool cal_previous_valid(const board_cal_t *stored)
 {
   const uint8_t *bytes = (const uint8_t *)stored;
   uint16_t crc;
+  size_t at;
 
-  memcpy(&crc, bytes + CAL_PREVIOUS_CRC_OFFSET, sizeof(crc));
+  if (stored->version == CAL_PREVIOUS_VERSION)
+  {
+    at = CAL_PREVIOUS_CRC_OFFSET;
+  }
+  else if (stored->version == CAL_OLDER_VERSION)
+  {
+    at = CAL_OLDER_CRC_OFFSET;
+  }
+  else
+  {
+    return false;
+  }
+  memcpy(&crc, bytes + at, sizeof(crc));
   return (stored->magic == CAL_MAGIC) &&
-         (stored->version == CAL_PREVIOUS_VERSION) &&
          (stored->channels == BOARD_CAL_CHANNELS) &&
-         (crc == modbus_crc16(bytes, CAL_PREVIOUS_CRC_OFFSET));
+         (crc == modbus_crc16(bytes, at));
 }
 
-/** Take a stored record into RAM: this version whole, the previous one
-  * as a prefix with the appended fields at their defaults. False when
-  * flash holds neither. */
+/** Take a stored record into RAM: this version whole, either previous
+  * one as a prefix with the floor at its default. False when flash holds
+  * none of the three. */
 static bool cal_take(const board_cal_t *stored)
 {
   if (cal_valid(stored))
@@ -262,10 +285,9 @@ static bool cal_take(const board_cal_t *stored)
   if (cal_previous_valid(stored))
   {
     s_cal = CAL_DEFAULTS;
-    memcpy(&s_cal, stored, CAL_PREVIOUS_CRC_OFFSET);
+    memcpy(&s_cal, stored, CAL_PREVIOUS_PREFIX);
     s_cal.version = CAL_VERSION;
-    memset(s_cal.thermal_ident_scale_milli, 0,
-           sizeof(s_cal.thermal_ident_scale_milli));
+    s_cal.soa_margin_floor_ppm = CAL_DEFAULTS.soa_margin_floor_ppm;
     s_cal.crc = cal_crc(&s_cal);
     return true;
   }
@@ -545,14 +567,16 @@ bool Board_CalSetThermalBulk(uint32_t to_ambient_milli,
 }
 
 
-bool Board_CalSetThermalIdent(const uint32_t *scale_milli)
+bool Board_CalSetMarginFloor(uint32_t ppm)
 {
-  if (scale_milli == NULL)
+  /* Zero would put every ceiling at the reference the moment the board
+     booted and trip the stage on its first sample; above the span is a
+     margin the record's own ceilings do not have. */
+  if ((ppm == 0U) || (ppm > 1000000UL))
   {
     return false;
   }
-  memcpy(s_cal.thermal_ident_scale_milli, scale_milli,
-         sizeof(s_cal.thermal_ident_scale_milli));
+  s_cal.soa_margin_floor_ppm = ppm;
   s_cal.crc = cal_crc(&s_cal);
   return true;
 }

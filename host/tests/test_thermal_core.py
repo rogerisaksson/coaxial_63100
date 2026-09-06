@@ -278,8 +278,9 @@ class Ident:
         lib.thm_ident_updates.restype = i
         lib.thm_ident_updates.argtypes = [p]
         lib.thm_ident_margin.restype = f
-        lib.thm_ident_margin.argtypes = [i]
-        lib.thm_ident_resume.argtypes = [p, fp, f]
+        lib.thm_ident_margin.argtypes = [p, f]
+        lib.thm_ident_doubt.restype = f
+        lib.thm_ident_doubt.argtypes = [p]
         self.lib = lib
         self.observer = observer
         self.h = ctypes.c_void_p(lib.thm_ident_new(observer.h, noise_k))
@@ -306,9 +307,15 @@ class Ident:
     def updates(self):
         return self.lib.thm_ident_updates(self.h)
 
-    def resume(self, scales, noise_k=0.1):
-        self.lib.thm_ident_resume(self.h, self.observer._floats(
-            [scales.get(s, 1.0) for s in SCALES]), noise_k)
+    def margin(self, floor=0.8):
+        """What the envelope keeps of every span for this much evidence,
+        `floor`..1 - the number the board acts on."""
+        return self.lib.thm_ident_margin(self.h, floor)
+
+    def doubt(self):
+        """How far the model is doubted, 0..1: the worse of the
+        innovation and the covariance, normalised."""
+        return self.lib.thm_ident_doubt(self.h)
 
     def ambient(self):
         """The room as identified - the fifth quantity, degrees C."""
@@ -361,7 +368,8 @@ class GroundTruth:
                         self.model.junction({}, 'mcu') + self.noise())
             if ident.run({}, dt_s, seen) and trace is not None:
                 trace.append((ident.state(), ident.scale('air'),
-                              ident.sigma('air'), ident.innovation()))
+                              ident.sigma('air'), ident.innovation(),
+                              ident.margin()))
 
 
 def test_the_room_is_identified(report, lib):
@@ -462,6 +470,17 @@ def test_an_idle_board_stays_uncertain(report, lib):
     report.check('and the board stays UNCERTAIN - its margin in hand until '
                  'something switches',
                  ident.state() == 'UNCERTAIN', ident.state())
+    # THE MARGIN IS THE FLOOR, whatever the floor is set to: idle is no
+    # evidence, and the innovation alone would have said full span here
+    # - it sits at the thermometers' floor at rest. The covariance term
+    # is what holds the bench's cold-start rule.
+    report.check('and the margin is the floor it was given - 0.80, 0.70 - '
+                 'the model doubted whole, since idle taught it nothing',
+                 abs(ident.margin(0.8) - 0.8) < 1e-6
+                 and abs(ident.margin(0.7) - 0.7) < 1e-6
+                 and abs(ident.doubt() - 1.0) < 1e-6,
+                 'margin %.3f / %.3f, doubt %.2f'
+                 % (ident.margin(0.8), ident.margin(0.7), ident.doubt()))
 
 
 def test_the_scales_are_identified_against_a_ground_truth(report, lib):
@@ -513,12 +532,17 @@ def test_the_scales_are_identified_against_a_ground_truth(report, lib):
                  all(abs(ident.scale(s) - 1.0) < 0.5
                      for s in ('capacity', 'spread', 'ntc')),
                  ['%.2f' % ident.scale(s) for s in SCALES])
-    report.check('the margin policy keeps something in hand while it is '
-                 'not STABLE',
-                 lib.thm_ident_margin(0) < lib.thm_ident_margin(1)
-                 < lib.thm_ident_margin(2) == 1.0,
-                 '%.2f %.2f %.2f' % tuple(lib.thm_ident_margin(i)
-                                          for i in range(3)))
+    # THE MARGIN IS CONTINUOUS (2026-09-06): the floor with the model
+    # doubted whole, one when not at all, the evidence between - and the
+    # floor is the caller's. It was three steps on the state.
+    boxed = ident.margin(0.8)
+    report.check('the margin has risen off its 0.80 floor to the whole span '
+                 'on the evidence of the cooldowns - the doubt gone, the '
+                 'floor no longer shows',
+                 0.95 < boxed <= 1.0 and abs(ident.margin(0.7) - boxed) < 1e-6
+                 and abs(ident.margin(1.0) - 1.0) < 1e-6,
+                 'margin %.3f at 0.8, %.3f at 0.7, doubt %.2f'
+                 % (boxed, ident.margin(0.7), ident.doubt()))
 
     # THE BOX COMES OFF AND A FAN GOES ON. Within the next cooldown's
     # samples the model that was trusted stops predicting; the identifier
@@ -528,6 +552,14 @@ def test_the_scales_are_identified_against_a_ground_truth(report, lib):
     trace = []
     truth.cycle(ident, watt, 600.0, 1200.0, trace=trace)
     states = [t[0] for t in trace]
+    # THE MARGIN FELL WITH THE STATE: within the fan's first cooldown the
+    # innovation says the model is wrong and the envelope is back near
+    # its floor - continuous, so it fell as far as the evidence said.
+    least = min(t[4] for t in trace)
+    report.check('and within the fan\'s first cooldown the margin fell back '
+                 'toward the floor',
+                 least < boxed - 0.05 and least >= 0.8 - 1e-6,
+                 'least %.3f after %.3f' % (least, boxed))
     report.check('a halved air path is caught: UNCERTAIN within the first '
                  'cooldown after it (from %s)' % settled,
                  'UNCERTAIN' in states,
@@ -542,16 +574,21 @@ def test_the_scales_are_identified_against_a_ground_truth(report, lib):
     report.check('with the state back to CONVERGING or STABLE',
                  ident.state() in ('CONVERGING', 'STABLE'), ident.state())
 
-    # RESUMED FROM A RECORD: a saved model starts trusted enough to run
-    # on, CONVERGING, with its scales where they were left.
+    # NOTHING IS RESUMED (2026-09-06): a fresh identifier is at the floor
+    # and doubted whole, whatever any earlier run found - the bench's
+    # rule, since a good observer earns its span within a few samples
+    # and a resumed one runs on last week's box.
     fresh = Ident(lib, Model(lib))
-    fresh.resume({'air': 0.5})
-    report.check('resumed from a record it starts CONVERGING at the saved '
-                 'scales', fresh.state() == 'CONVERGING'
-                 and abs(fresh.scale('air') - 0.5) < 1e-6
-                 and fresh.sigma('air') < 0.2,
-                 '%s %.2f +- %.2f' % (fresh.state(), fresh.scale('air'),
-                                      fresh.sigma('air')))
+    report.check('a fresh identifier is UNCERTAIN at one, its margin at the '
+                 'floor - 0.8, or 0.7 if that is the floor - and its doubt '
+                 'whole; nothing is resumed',
+                 fresh.state() == 'UNCERTAIN'
+                 and abs(fresh.scale('air') - 1.0) < 1e-6
+                 and abs(fresh.margin(0.8) - 0.8) < 1e-6
+                 and abs(fresh.margin(0.7) - 0.7) < 1e-6
+                 and abs(fresh.doubt() - 1.0) < 1e-6,
+                 '%s %.2f margin %.3f' % (fresh.state(), fresh.scale('air'),
+                                          fresh.margin(0.8)))
 
 
 def wanted(spent, throttle_at=THROTTLE_AT):

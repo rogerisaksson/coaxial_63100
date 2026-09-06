@@ -965,24 +965,29 @@ def _foot_line(view):
 #: hand. The bench's abbreviations.
 POLICY_WORD = {'STABLE': 'STABLE', 'CONVERGING': 'CONV',
                'UNCERTAIN': 'UNCR'}
+POLICY_SHORT = {'STABLE': 'STBL'}
 POLICY_INK = {'STABLE': machine.SOA_OK, 'CONVERGING': machine.SOA_WARN,
               'UNCERTAIN': machine.SOA_TRIP}
 
 
 def _policy(view):
     """`(label, word, ink)` for the foot: TH OBS and the state with the
-    ceiling it leaves - `UNCR 80%`, `CONV 90%`, and `STABLE` alone once
-    the spans are whole, the bench's "make it visible that it throttles
+    ceiling it leaves - `UNCR 80%`, `CONV 93%`, `STBL 97%`, the margin
+    the board acts on NOW rounded to the percent, and `STABLE` alone once
+    the spans are whole - the bench's "make it visible that it throttles
     at 80 % of the SOA already, then 90, then 100 as the model's
-    uncertainty goes to zero" - or a dash in the leaders' grey before the
-    board has answered op 10."""
+    uncertainty goes to zero", continuous since 2026-09-06 - or a dash in
+    the leaders' grey before the board has answered op 10. STBL because
+    `STABLE 97%` is a cell wider than the row has between the gauges'
+    names: the bench's own abbreviation style, four letters and the
+    percent, and the whole word only where there is no percent to say."""
     ident = view.get('ident')
     state = ident['state'] if ident else None
     if state in POLICY_INK:
         word = POLICY_WORD[state]
         percent = int(round(100.0 * ident.get('margin', 1.0)))
         if percent < 100:
-            word = '%s %d%%' % (word, percent)
+            word = '%s %d%%' % (POLICY_SHORT.get(state, word), percent)
         return 'TH OBS', word, machine.INK[POLICY_INK[state]]
     return 'TH OBS', '-', machine.LEADER_GREY
 
@@ -2361,11 +2366,6 @@ def _link(args):
     caller that worked it out afterwards would be reading its own change.
     """
     from screen import open_rig
-    if args.simulated:
-        # THE STAND-IN'S RECORD, a file in the temporary directory: what
-        # one run identified the next resumes, as a board does from flash.
-        from coaxial.simulated.power import SimulatedThermal
-        os.environ.setdefault('COAXIAL_SIM_NVM', SimulatedThermal.default_nvm())
     rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
                    power_afe=False,
                    simulated_device=bool(args.simulated))

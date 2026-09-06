@@ -339,7 +339,9 @@ def test_the_foot_carries_the_policy(report):
                           'vq': 1.0, 'vdc': 24.0},
                 'params': {}, 'winding_at': None, 'ident': ident}
 
-    from coaxial.thermal import IDENT_MARGIN
+    # THE MARGIN IS A NUMBER THE BOARD SENDS, continuous since 2026-09-06;
+    # these three are what the states meant while it was three steps.
+    IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}
     stable = {'state': 'STABLE', 'margin': 1.0}
     foot = view.gutter_caption(a_view(20.0, stable))[-1]
     plain = visible(foot)
@@ -371,6 +373,24 @@ def test_the_foot_carries_the_policy(report):
                  all(inks.values())
                  and ('38;5;%dmTH OBS' % machine.LEADER_GREY) in foot,
                  '%s %s' % (inks, foot.replace(chr(27), '^')))
+    # CONTINUOUS: the percent is the margin rounded, whatever the word -
+    # a CONVERGING board at 0.93 says so, a STABLE one at 0.97 as STBL,
+    # since `STABLE 97%` is a cell wider than the row has between the
+    # gauges' names - and the row keeps its width and its columns.
+    between = {}
+    for state, margin in (('CONVERGING', 0.93), ('STABLE', 0.97),
+                          ('UNCERTAIN', 0.812)):
+        between[state] = visible(view.gutter_caption(a_view(20.0, {
+            'state': state, 'margin': margin}))[-1])
+    report.check('a margin between the steps is said to the percent: CONV '
+                 '93%, STBL 97%, UNCR 81% - and the row keeps its width',
+                 'TH OBS CONV 93%' in between['CONVERGING']
+                 and 'TH OBS STBL 97%' in between['STABLE']
+                 and 'TH OBS UNCR 81%' in between['UNCERTAIN']
+                 and all(len(t) == view.ART_WIDTH
+                         and t.find('POWER') == plain.find('POWER')
+                         for t in between.values()),
+                 ' | '.join(between.values()))
     negative = visible(view.gutter_caption(a_view(-20.0, stable))[-1])
     report.check('and a negative kilowatt shifts nothing: POWER, TH OBS '
                  'and the arrows stay where they are',
@@ -412,8 +432,8 @@ def test_the_soa_legend_reads_the_whole_soa(report):
     sys.path.insert(0, HOST)
     sys.path.insert(0, os.path.join(HOST, 'tools'))
     from coaxial import machine, thermal
-    from coaxial.thermal import IDENT_MARGIN
     from tools import show_rotor_observer as rotor
+    IDENT_MARGIN = {'UNCERTAIN': 0.80, 'CONVERGING': 0.90, 'STABLE': 1.0}
 
     def a_view(state, worst, tripped=False, winding_used=None):
         budget = {'worst': worst, 'tripped': tripped,
@@ -456,10 +476,18 @@ def test_the_soa_legend_reads_the_whole_soa(report):
                  and motor[1] in (machine.SOA_TRIP, machine.SOA_FLASH),
                  '%.2f cls %d' % motor)
     report.check('the ceiling in force is the record\'s span trimmed: the '
-                 'laminate\'s 105 is 89 C UNCERTAIN',
+                 'laminate\'s 105 is 89 C at the 0.8 floor',
                  abs(thermal.ceiling_of('board', 0.8) - 89.0) < 1e-9
                  and abs(thermal.ceiling_of('board', 1.0) - 105.0) < 1e-9,
                  '%.1f' % thermal.ceiling_of('board', 0.8))
+    # CONTINUOUS: a board at the ceiling a margin of 0.86 leaves reads
+    # 86 % of the SOA - the legend follows the number, not the word.
+    view = a_view('CONVERGING', 1.0, tripped=True)
+    view['ident']['margin'] = 0.86
+    spent, _cls = rotor.headrooms(view)[0]
+    report.check('and a margin between the steps reads to the percent: 0.86 '
+                 'at the ceiling in force is 86 % of the SOA',
+                 abs(spent - 0.86) < 1e-9, '%.2f' % spent)
 
 
 def test_two_headrooms_named_apart(report):

@@ -100,10 +100,15 @@ def ident_rows(ident):
     status/policy in SENSE"."""
     from rich.text import Text
 
+    # THE MARGIN IS THE NUMBER, the state a word beside it (2026-09-06):
+    # what the envelope keeps of every span now, and the floor it rose
+    # from - the record's, a bench's to set.
     state = ident['state']
     rows = [('model', Text.assemble(
         (' %s ' % state, IDENT_STYLE.get(state, 'value')),
-        '  margin %.2f' % ident['margin']))]
+        '  margin %.2f' % ident['margin'],
+        ('  floor %.2f' % ident['margin_floor']
+         if ident.get('margin_floor') is not None else '')))]
     scales, sigma = ident['scales'], ident['sigma']
     rows.append(('scales', '  '.join(
         '%s %.2f±%.2f' % ('cap' if name == 'capacity' else name,
@@ -305,12 +310,6 @@ def main():
     # gate drivers, so opening the rig the usual way would stop the switching
     # this view exists to watch.
     from screen import boot
-    if a.simulated:
-        # THE STAND-IN'S RECORD, a file in the temporary directory, so
-        # what one run identified the next resumes - what the flash
-        # sector is to the board.
-        from coaxial.simulated.power import SimulatedThermal
-        os.environ.setdefault('COAXIAL_SIM_NVM', SimulatedThermal.default_nvm())
     with boot('LINKING OBSERVER') as ready,          Coaxial63100(port=a.port, simulated_device=a.simulated,
                       power_afe=False) as rig:
         ready()

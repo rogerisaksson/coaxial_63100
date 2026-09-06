@@ -51,18 +51,25 @@
   * and a cooldown is exactly where the air path, the laminate's mass and
   * the spread of the last run's heat show.
   *
-  * CONFIDENCE, said as a state. The covariance's diagonal is how sure the
-  * estimate is of each scale, the filtered innovation how well the model
-  * predicts against the sensors' own noise. UNCERTAIN is the model not
-  * trusted - fresh, or one that just stopped predicting: a board put in a
-  * box reads that way within a few intervals, and the covariance is
-  * inflated so the scales can move fast. CONVERGING is the estimate
-  * tightening. STABLE is every scale known to a tenth and the model
-  * predicting at the noise floor. What the states are worth to the
-  * envelope is the caller's policy (board_thermal.c): a margin trimmed
-  * while the model is not trusted, so the silicon and the laminate are
-  * not run to ceilings computed on a network that has just been proved
-  * wrong.
+  * CONFIDENCE, said as a state and as a number. The covariance's diagonal
+  * is how sure the estimate is of each scale, the filtered innovation how
+  * well the model predicts against the sensors' own noise. UNCERTAIN is
+  * the model not trusted - fresh, or one that just stopped predicting: a
+  * board put in a box reads that way within a few intervals, and the
+  * covariance is inflated so the scales can move fast. CONVERGING is the
+  * estimate tightening. STABLE is every scale known to a tenth and the
+  * model predicting at the noise floor. THE STATES ARE WORDS: what the
+  * envelope acts on is `thermal_ident_margin`, continuous between a
+  * floor the caller was given and one - the same two measures, the
+  * innovation and the covariance, normalised - so the silicon and the
+  * laminate are not run to ceilings computed on a network that has just
+  * been proved wrong, and a model one sample short of a threshold is not
+  * worth exactly what one that never predicted was.
+  *
+  * NOTHING IS KEPT. The scales were saved to the record and resumed at
+  * boot until 2026-09-06; the bench's rule took it out: a good observer
+  * earns its span within a few cooldown samples, and a board that starts
+  * every boot at the floor is a board that never runs on last week's box.
   *
   * Portable C11, host-tested: `test_thermal_core` runs it against a
   * ground truth whose situation it can change.
@@ -78,10 +85,9 @@ extern "C" {
 #endif
 
 /** The identified quantities, in wire order. Append only. The first
-  * THERMAL_IDENT_RECORD are SCALES on the record's network and are what
-  * the record keeps; AMBIENT is the ROOM in degrees C - a state the
-  * identification tracks, never saved, since a room is not a property of
-  * the board.
+  * THERMAL_IDENT_RECORD are SCALES on the record's network, multipliers
+  * on it; AMBIENT is the ROOM in degrees C, which is where the board is
+  * and not what it is.
   *
   * THE ROOM IS IDENTIFIED, NOT INFERRED. The board carries no ambient
   * sensor. It was inferred in `thermal.c`'s anchor as the mean patch less
@@ -108,7 +114,9 @@ typedef enum
   THERMAL_IDENT_PARAMS
 } thermal_ident_param_t;
 
-/** How many of them are scales the record keeps: the first four. */
+/** How many of them are scales on the record's network: the first four
+  * - what the wire carries as scales, and what `thermal_ident_apply`
+  * multiplies. */
 #define THERMAL_IDENT_RECORD 4
 
 /** Where the room may be identified to, degrees C. */
@@ -201,14 +209,6 @@ typedef struct
   * for this board's NTC and dies. */
 void thermal_ident_init(thermal_ident_t *id, float ambient_c, float noise_k);
 
-/** Start from the THERMAL_IDENT_RECORD scales a record kept: the
-  * covariance narrowed to what a saved model deserves, the state
-  * CONVERGING - trusted enough to run on, not yet proved against this
-  * boot's sensors. The room starts at `ambient_c` as wide as ever: a
-  * record does not know where the board woke up. */
-void thermal_ident_resume(thermal_ident_t *id, const float *scale,
-                          float ambient_c, float noise_k);
-
 /** The room as identified, degrees C: what the observer's `ambient`
   * should be set to after every step. */
 float thermal_ident_ambient(const thermal_ident_t *id);
@@ -228,7 +228,7 @@ void thermal_ident_apply(const thermal_ident_t *id, const thermal_cfg_t *base,
   * @param  seen   The thermometers, NAN where none answered.
   * @param  dt_s   The slice.
   * @return True when a sample moved the scales, so the caller can apply
-  *         them to the observer and think about saving them.
+  *         them to the observer.
   *
   * Runs the shadow and its sensitivities forward; when a thermometer
   * answers and the shadow has run at least THERMAL_IDENT_MIN_HORIZON_S,
@@ -253,11 +253,23 @@ float thermal_ident_sigma(const thermal_ident_t *id,
   * judged on. */
 bool thermal_ident_online(thermal_ident_param_t which);
 
-/** The margin the caller's envelope should keep for this state, 0..1:
-  * one when STABLE, less while the model is not trusted. The policy the
-  * bench asked for - "so the silicon and the laminate are not stressed
-  * for nothing" - as one number the envelope multiplies its spans by. */
-float thermal_ident_margin(thermal_ident_state_t state);
+/** How far the model is doubted, 0..1: none with the innovation at the
+  * thermometers' floor and every online quantity known to its STABLE
+  * sigma, all of it at the innovation that says UNCERTAIN or a sigma at
+  * its prior - the worse of the two, each normalised. A fresh board is
+  * doubted whole; an idle one stays so, since the still rule lets idle
+  * teach nothing; a cooldown is what lowers it. */
+float thermal_ident_doubt(const thermal_ident_t *id);
+
+/** The margin the caller's envelope should keep, `floor`..1: the floor
+  * while the model is doubted whole, one when not at all, the doubt
+  * between - the number the envelope multiplies its ceilings' spans by.
+  * The floor is the caller's, a limit it was given (the record's
+  * `soa_margin_floor_ppm`), and the bench's 0.8 by default: "keep to
+  * 80 % of the SOA when switching starts, with the thermal situation
+  * unknown". Continuous since 2026-09-06; it was three steps on the
+  * state. */
+float thermal_ident_margin(const thermal_ident_t *id, float floor);
 
 /** The shortest interval a prediction is judged over, seconds: shorter
   * than this the sensitivities have not grown out of the noise. */

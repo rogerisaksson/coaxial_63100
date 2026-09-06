@@ -79,7 +79,8 @@ is still arithmetic. Every item names the file or record it lives in.
   them. **The online identification moves two of them** (2026-09-05,
   `thermal_ident.c`): the face's air path and the laminate's capacity,
   from the cooldowns' prediction error against the three thermometers,
-  saved to the record by the board itself. The sources' spread and the
+  and the room beside them; nothing is saved - every boot starts at the
+  record's margin floor and earns its span (2026-09-06). The sources' spread and the
   thermistor's share are carried but held - a cooldown puts no power
   through the legs' edges, so nothing on the board sees them - and a
   static regressor at idle (the MCU die against the thermistor at
@@ -87,8 +88,8 @@ is still arithmetic. Every item names the file or record it lives in.
   build of the bench's list: nothing. The stand-in is a hypothetical
   board with a ground truth in a situation - box, fan, heat sink,
   stuffy, bench - read through three noisy thermometers and identified
-  by the same identifier (`thermal_ident.py`), its record a file
-  between runs (`COAXIAL_SIM_NVM`); the pages switch the situation at
+  by the same identifier (`thermal_ident.py`), nothing kept between
+  runs; the pages switch the situation at
   random every three to six minutes in simulated mode and show the
   state on both (THERMAL OBSERVER's SENSE with the truth beside it,
   ROTOR OBSERVER's foot); the room is the fifth identified quantity

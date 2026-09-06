@@ -489,16 +489,6 @@ API void thm_ident_free(void *box)
 }
 
 
-API void thm_ident_resume(void *box, const float *scale, float noise_k)
-{
-  if (box != NULL)
-  {
-    thermal_ident_t *id = &((ident_box_t *)box)->id;
-
-    thermal_ident_resume(id, scale, thermal_ident_ambient(id), noise_k);
-  }
-}
-
 
 /** One step of observer AND identifier: the scales applied to the
   * observer, the observer stepped on the sensors, the identifier stepped
@@ -584,9 +574,18 @@ API int thm_ident_updates(const void *box)
 }
 
 
-API float thm_ident_margin(int state)
+API float thm_ident_margin(const void *box, float floor)
 {
-  return thermal_ident_margin((thermal_ident_state_t)state);
+  return (box != NULL) ? thermal_ident_margin(&((const ident_box_t *)box)->id,
+                                              floor)
+                       : NAN;
+}
+
+
+API float thm_ident_doubt(const void *box)
+{
+  return (box != NULL) ? thermal_ident_doubt(&((const ident_box_t *)box)->id)
+                       : NAN;
 }
 
 

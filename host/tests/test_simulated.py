@@ -1491,7 +1491,6 @@ def test_thermal_identification(report):
     last.
     """
     import os
-    import tempfile
 
     from coaxial import Coaxial63100, thermal
     from coaxial.simulated.power import SimulatedThermal
@@ -1504,7 +1503,7 @@ def test_thermal_identification(report):
                      set(got) == {'state', 'scales', 'sigma', 'online',
                                   'innovation_k', 'margin', 'updates',
                                   'saves', 'since_save_s', 'truth',
-                                  'ambient', 'ambient_sigma'},
+                                  'ambient', 'ambient_sigma', 'margin_floor'},
                      sorted(got))
         report.check('its state is one of the three and the scales are the '
                      'four, in wire order',
@@ -1515,12 +1514,20 @@ def test_thermal_identification(report):
         report.check('air and capacity are the online scales - the two a '
                      'cooldown shows the thermometers',
                      tuple(got['online']) == thermal.IDENT_ONLINE, got['online'])
-        report.check('the margin is the state\'s own - what the envelope '
-                     'multiplies its spans by',
-                     abs(got['margin'] - thermal.IDENT_MARGIN[got['state']])
-                     < 1e-9, '%.2f for %s' % (got['margin'], got['state']))
+        # THE MARGIN IS A NUMBER, continuous from the floor to one on the
+        # evidence (2026-09-06); the state is a word beside it. Fresh,
+        # there is no evidence and the margin is the floor - the
+        # record's 0.8.
+        report.check('the margin is at the floor on a fresh stand-in - the '
+                     'record\'s 0.80, what the envelope multiplies its '
+                     'spans by until the evidence comes in',
+                     abs(got['margin'] - got['margin_floor']) < 1e-9
+                     and abs(got['margin_floor']
+                             - thermal.IDENT_MARGIN_FLOOR) < 1e-9,
+                     '%.2f of %.2f, %s' % (got['margin'], got['margin_floor'],
+                                           got['state']))
         report.check('a fresh stand-in starts UNCERTAIN at one, on the '
-                     'bench, the record unwritten',
+                     'bench, nothing ever saved - the board keeps nothing',
                      got['state'] == 'UNCERTAIN'
                      and all(abs(v - 1.0) < 1e-9 for v in got['scales'].values())
                      and got['truth']['situation'] == 'bench'
@@ -1530,16 +1537,17 @@ def test_thermal_identification(report):
         rig.close()
 
     # THE WALK. A truth in a box, driven from the model's own clock.
-    path = os.path.join(tempfile.mkdtemp(prefix='coaxial_nvm_'), 'nvm.json')
-    model = SimulatedThermal(situation='box', nvm=path)
+    model = SimulatedThermal(situation='box')
     load = {'amps': (30.0, 30.0, 30.0), 'switching': True}
     idle = {'amps': (0.0, 0.0, 0.0), 'switching': False}
-    states = []
+    states, margins = [], []
 
     def run(minutes, seen):
         for _ in range(int(minutes)):
             model.fast_forward(60.0, seen=seen)
-            state = model.identification()['state']
+            got = model.identification()
+            margins.append(got['margin'])
+            state = got['state']
             if not states or states[-1] != state:
                 states.append(state)
 
@@ -1565,16 +1573,23 @@ def test_thermal_identification(report):
                  'mode shows both',
                  got['truth']['situation'] == 'box'
                  and abs(got['truth']['air'] - 2.0) < 1e-9, got['truth'])
-    report.check('and the disarm after the run wrote the record',
-                 got['saves'] >= 1 and os.path.exists(path),
-                 '%d saves, %s' % (got['saves'], path))
+    # THE MARGIN ROSE WITH THE EVIDENCE, off the floor from the first
+    # judged samples (0.88 three minutes in, UNCERTAIN still) to the
+    # whole span by the first cooldown's fourth minute, ahead of the
+    # word STABLE by two - measured 2026-09-06.
+    report.check('and the margin rose off its 0.80 floor to the whole span, '
+                 'and nothing was saved',
+                 got['margin'] > 0.95 and got['saves'] == 0
+                 and got['since_save_s'] is None,
+                 'margin %.3f' % got['margin'])
 
     # THE BOX COMES OFF AND A FAN GOES ON: the model that was trusted
     # stops predicting, and the walk starts again.
     model.situation('fan')
-    states = []
+    states, margins[:] = [], []
     run(6, load)
     run(14, idle)
+    fell = min(margins)
     run(6, load)
     run(14, idle)
     got = model.identification()
@@ -1588,20 +1603,42 @@ def test_thermal_identification(report):
                  % (got['scales']['air'], got['sigma']['air'],
                     got['scales']['capacity'], got['state']))
 
-    # THE RECORD BETWEEN RUNS: a new stand-in on the same file resumes
-    # CONVERGING at what was saved, as a board does from its flash.
-    again = SimulatedThermal(situation='fan', nvm=path)
-    resumed = again.identification()
-    report.check('a new stand-in on the same record file resumes '
-                 'CONVERGING at the saved scales',
-                 resumed['state'] == 'CONVERGING'
-                 and abs(resumed['scales']['air'] - 1.0) > 0.05,
-                 '%s air %.2f' % (resumed['state'], resumed['scales']['air']))
-    report.check('and can be told to forget, which empties the record',
-                 again.reset_identification() is True
-                 and again.identification()['state'] == 'UNCERTAIN'
-                 and SimulatedThermal(nvm=path).identification()['scales']['air']
-                 == 1.0)
+    # THE MARGIN FELL WITH THE FAN - to the floor in the first minute
+    # (innovation 0.97 K against a 0.1 floor), held there thirteen
+    # minutes, and rose again through the cooldown's eighth to
+    # fourteenth minute, 0.87 to 0.99 - measured 2026-09-06.
+    report.check('the margin fell back to the floor within the fan\'s first '
+                 'minutes and is whole again two cycles later',
+                 abs(fell - 0.8) < 0.01 and got['margin'] > 0.95,
+                 'least %.3f, now %.3f' % (fell, got['margin']))
+
+    # NOTHING BETWEEN RUNS, and the floor is the record's (2026-09-06):
+    # a new stand-in starts at the floor whatever the last one found,
+    # and the floor is a bench's to set - refused outside (0, 1].
+    fresh = SimulatedThermal(situation='fan')
+    got = fresh.identification()
+    report.check('a new stand-in starts UNCERTAIN at one and at the floor - '
+                 'nothing of the last run is kept',
+                 got['state'] == 'UNCERTAIN' and got['scales']['air'] == 1.0
+                 and abs(got['margin'] - 0.8) < 1e-9,
+                 '%s air %.2f margin %.2f' % (got['state'], got['scales']['air'],
+                                              got['margin']))
+    report.check('the floor is adjustable - 0.7 puts a fresh margin at 0.7 - '
+                 'and refused at zero and above one in the board\'s words',
+                 fresh.set_margin_floor(0.7) is True
+                 and abs(fresh.identification()['margin'] - 0.7) < 1e-9
+                 and abs(fresh.identification()['margin_floor'] - 0.7) < 1e-9
+                 and _refused(lambda: fresh.set_margin_floor(0.0))
+                 and _refused(lambda: fresh.set_margin_floor(1.5)),
+                 '%.2f of %.2f' % (fresh.identification()['margin'],
+                                   fresh.identification()['margin_floor']))
+    report.check('and told to forget, the walked one is UNCERTAIN at one with '
+                 'its margin back at the floor',
+                 model.reset_identification() is True
+                 and model.identification()['state'] == 'UNCERTAIN'
+                 and abs(model.identification()['margin'] - 0.8) < 1e-9,
+                 '%s %.2f' % (model.identification()['state'],
+                              model.identification()['margin']))
     report.check('a situation is one of the named ones, or random - '
                  'anything else is refused in words',
                  model.situation('random')['situation'] in model.SITUATIONS
@@ -1613,7 +1650,7 @@ def test_thermal_identification(report):
     # cooldown tells a cold room from a good air path - the first two
     # estimators could not (FINDINGS). The truth's outdoors has a light
     # wind, air 0.8.
-    cold = SimulatedThermal(situation='bench', nvm='')
+    cold = SimulatedThermal(situation='bench')
     run_on = lambda m, seen, model=cold: model.fast_forward(60.0 * m, seen=seen)
     run_on(6, load)
     run_on(8, idle)
@@ -1637,17 +1674,26 @@ def test_thermal_identification(report):
                  'room %.1f±%.1f C, air %.2f, %s' % (
                      got['ambient'], got['ambient_sigma'], got['scales']['air'],
                      ' > '.join(states)))
+    # AND THE MARGIN SAYS SO: the innovation is back at the floor after
+    # ten idle minutes, which alone would have given the whole span to a
+    # model whose air path is 1.27 for a truth of 0.8; the covariance
+    # term holds it at 0.945 until a cooldown tightens the air path
+    # (measured 2026-09-06).
+    report.check('and the margin stays short of the whole span on idle '
+                 'evidence alone',
+                 0.8 <= got['margin'] < 0.99, 'margin %.3f' % got['margin'])
     run_on(6, load)
     run_on(8, idle)
     got = cold.identification()
     report.check('and a run in the cold settles both: the room within three '
-                 'kelvin, the air path near its 0.8, STABLE',
+                 'kelvin, the air path near its 0.8, STABLE, the margin '
+                 'whole',
                  abs(got['ambient'] + 20.0) < 3.0
                  and abs(got['scales']['air'] - 0.8) < 0.3
-                 and got['state'] == 'STABLE',
-                 'room %.1f±%.1f C, air %.2f, %s' % (
+                 and got['state'] == 'STABLE' and got['margin'] > 0.95,
+                 'room %.1f±%.1f C, air %.2f, %s, margin %.3f' % (
                      got['ambient'], got['ambient_sigma'], got['scales']['air'],
-                     got['state']))
+                     got['state'], got['margin']))
     cold.situation('bench')
     run_on(20, idle)
     got = cold.identification()
@@ -1668,15 +1714,18 @@ def test_thermal_identification(report):
     # nothing moving, nothing to learn from, so the margin stays in hand
     # until something switches. Settled at its idle equilibrium in a box,
     # ten minutes of samples move no scale.
-    still = SimulatedThermal(situation='box', nvm='')
+    still = SimulatedThermal(situation='box')
     still.settle(idle)
     still.fast_forward(600.0, seen=idle)
     got = still.identification()
     report.check('ten idle minutes at equilibrium in a box: no sample '
-                 'moves a scale and the board stays UNCERTAIN',
-                 got['updates'] == 0 and got['state'] == 'UNCERTAIN',
-                 '%d updates, %s, air %.2f'
-                 % (got['updates'], got['state'], got['scales']['air']))
+                 'moves a scale, the board stays UNCERTAIN and the margin '
+                 'at the floor',
+                 got['updates'] == 0 and got['state'] == 'UNCERTAIN'
+                 and abs(got['margin'] - 0.8) < 1e-9,
+                 '%d updates, %s, air %.2f, margin %.2f'
+                 % (got['updates'], got['state'], got['scales']['air'],
+                    got['margin']))
 
 
 def _refused(call):

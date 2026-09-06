@@ -46,8 +46,10 @@ THERMAL_OP_EDGES = 8
 THERMAL_OP_SET_EDGE = 9
 THERMAL_OP_IDENT = 10
 THERMAL_OP_IDENT_RESET = 11
+THERMAL_OP_SET_MARGIN = 12
 
-#: `since_save_s` on the wire when the record was never written this boot.
+#: `since_save_s` on the wire when the record was never written this boot
+#: - always, since MINOR 16: the board keeps nothing it identified.
 _NEVER_SAVED = 0xFFFFFFFF
 
 
@@ -220,11 +222,14 @@ class Thermal(Subsystem):
         capacity), the rest ride at the record's values. `state` is
         UNCERTAIN, CONVERGING or STABLE: the model not trusted, tightening,
         or predicting at the thermometers' floor with every online scale
-        known to a tenth. `margin` is what the envelope keeps in hand for
-        that state - the ceilings' spans are multiplied by it on the
+        known to a tenth - a word, since MINOR 16. `margin` is what the
+        envelope keeps in hand NOW: continuous between `margin_floor`
+        (the record's, 0.8 unless a bench set it) and one, on how far the
+        model is doubted; the ceilings' spans are multiplied by it on the
         board, so a page drawing the margin draws the number the board
-        acts on. `since_save_s` is None until the record has been written
-        this boot.
+        acts on. `saves` is 0 and `since_save_s` None on MINOR 16 and
+        later - the board keeps nothing it identified; older firmware
+        reports what it wrote.
         """
         r = Reader(self._op(THERMAL_OP_IDENT, **kwargs))
         index = r.u8()
@@ -250,13 +255,28 @@ class Thermal(Subsystem):
         if r.remaining >= 8:
             got['ambient'] = r.i32() / 100.0
             got['ambient_sigma'] = r.i32() / 100.0
+        # MINOR 16: the floor the margin rises from.
+        if r.remaining >= 4:
+            got['margin_floor'] = r.i32() / 1e6
         return got
 
     def reset_identification(self):
-        """Forget what was identified: scales to one, UNCERTAIN, the record
-        rewritten without them. The board refuses while the stage is
-        armed - flash is not programmed under a closed loop."""
+        """Forget what was identified: scales to one, UNCERTAIN, the
+        margin back at the floor. Nothing is written anywhere."""
         return self._ack(THERMAL_OP_IDENT_RESET)
+
+    def set_margin_floor(self, floor):
+        """The least of every ceiling's span the envelope keeps while the
+        identification has no evidence for its model, a fraction (0, 1];
+        the margin rises from here to one as the evidence comes in.
+
+        Through the record, so `cal.save()` persists it beside the
+        ceilings - a limit the board is given, not one it invents. The
+        bench's default is 0.8; the board refuses zero in its own words,
+        since every ceiling would be at 25 C the moment it booted.
+        """
+        return self._ack(THERMAL_OP_SET_MARGIN, pack(
+            ('i32', int(round(floor * 1000000)))))
 
     def situation(self, name=None, switching=None):
         """A board has no ground truth to put in a situation: that is

@@ -22,11 +22,13 @@
   * observer runs and what a save would keep cannot differ.
   *
   * AND IT IS IDENTIFIED WHILE THE BOARD RUNS (`thermal_ident.h`): the air
-  * path and the laminate's capacity as scales on the record's network, from
-  * the cooldowns' prediction error against the three thermometers; the
-  * scales go back into the record on the board's own policy, and the
-  * envelope keeps a margin in hand while the model is not trusted. Thermal
-  * op 10 reports it, op 11 forgets it.
+  * path, the laminate's capacity and the room, from the cooldowns'
+  * prediction error against the three thermometers. The envelope keeps a
+  * margin in hand for as long as the model is doubted - continuous, from
+  * the record's floor up to the whole span - and nothing learned is written
+  * to flash or read back: every boot starts at the floor (bench,
+  * 2026-09-06). Thermal op 10 reports it, op 11 forgets it, op 12 sets the
+  * floor.
   ******************************************************************************
   */
 #include "board_limits.h"
@@ -97,16 +99,22 @@ static float          s_speed_rpm;    /**< the rotor at the last step      */
    record changes the base, never the scale. */
 static thermal_ident_t s_ident;
 static thermal_cfg_t   s_base;
-static uint32_t        s_ident_saves;
-static uint32_t        s_saved_ms;
-static bool            s_ever_saved;
-static float           s_saved_scale[THERMAL_IDENT_PARAMS];
-static bool            s_was_armed;
-static thermal_ident_state_t s_margin_state;
-/* THERMAL_IDENT_NOISE_K, THERMAL_IDENT_SAVE_EVERY_MS, THERMAL_IDENT_SAVE_MOVED
-   and THERMAL_MARGIN_REF_C - the identification's floor, its save policy
-   and the margin's reference - are in board_limits.h with the rest of the
-   fixed numbers. */
+/** The margin the ceilings are trimmed by now - what the board acts on
+  * and what op 10 reports. */
+static float           s_margin = 1.0f;
+/* THERMAL_IDENT_NOISE_K, THERMAL_MARGIN_REF_C and THERMAL_MARGIN_STEP -
+   the identification's noise floor, the margin's reference and how far it
+   must move to re-trim - are in board_limits.h with the rest of the fixed
+   numbers. */
+
+
+/** The floor the margin rises from: the record's, ppm of the span. */
+static float margin_floor(void)
+{
+  const uint32_t ppm = Board_Cal()->soa_margin_floor_ppm;
+
+  return (float)((ppm != 0U) ? ppm : BOARD_SOA_MARGIN_FLOOR_PPM) / 1000000.0f;
+}
 
 
 /** Copy the envelope out of the calibration record into the thermal observer. */
@@ -128,15 +136,17 @@ static void soa_from_cal(void)
   s_soa.throttle_at = (float)cal->soa_throttle_ppm / 1000000.0f;
   s_soa.lookahead_s = (float)cal->soa_lookahead_ms / 1000.0f;
 
-  /* THE POLICY. While the model is not trusted the ceilings are pulled in:
-     each span over the reference is multiplied by the state's margin -
-     0.80 UNCERTAIN, 0.90 CONVERGING, one STABLE (`thermal_ident_margin`).
-     The bench's words: so the silicon and the laminate are not run to
-     ceilings computed on a network that has just been proved wrong. A
-     105 C laminate ceiling is 89 C while UNCERTAIN, 97 CONVERGING. Still a limit it
-     was given, trimmed by a rule it was given - the board judges nothing
-     (invariant 10); the margin is on the wire beside the state. */
-  const float margin = thermal_ident_margin(s_ident.state);
+  /* THE POLICY. While the model is doubted the ceilings are pulled in:
+     each span over the reference is multiplied by the margin - the
+     record's floor with the model doubted whole, one with it doubted not
+     at all, the evidence between (`thermal_ident_margin`). The bench's
+     words: so the silicon and the laminate are not run to ceilings
+     computed on a network that has just been proved wrong. A 105 C
+     laminate ceiling is 89 C at the 80 % floor. Still a limit it was
+     given, trimmed by a floor it was given - the board judges nothing
+     (invariant 10); the margin is on the wire beside the state, which
+     since 2026-09-06 is a word and not what the envelope acts on. */
+  const float margin = thermal_ident_margin(&s_ident, margin_floor());
 
   for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
   {
@@ -146,7 +156,7 @@ static void soa_from_cal(void)
                          + margin * (s_soa.limit_c[i] - THERMAL_MARGIN_REF_C);
     }
   }
-  s_margin_state = s_ident.state;
+  s_margin = margin;
 }
 
 
@@ -268,38 +278,6 @@ static void network_refresh(void)
 }
 
 
-/** The identification from the record: resumed CONVERGING at the saved
-  * scales where a record holds them, fresh and UNCERTAIN at one where it
-  * does not. */
-static void ident_from_cal(float start_c)
-{
-  const board_cal_t *cal = Board_Cal();
-  float scale[THERMAL_IDENT_RECORD];
-  bool any = false;
-
-  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
-  {
-    const uint32_t milli = cal->thermal_ident_scale_milli[k];
-
-    scale[k] = (milli != 0U) ? ((float)milli / 1000.0f) : 1.0f;
-    any = any || (milli != 0U);
-  }
-  if (any)
-  {
-    thermal_ident_resume(&s_ident, scale, start_c, THERMAL_IDENT_NOISE_K);
-  }
-  else
-  {
-    thermal_ident_init(&s_ident, start_c, THERMAL_IDENT_NOISE_K);
-  }
-  memcpy(s_saved_scale, s_ident.scale, sizeof(s_saved_scale));
-  s_saved_ms = HAL_GetTick();
-  s_ever_saved = false;
-  s_ident_saves = 0U;
-  s_was_armed = false;
-}
-
-
 void Board_ThermalInit(void)
 {
   thermal_cfg_t cfg;
@@ -315,12 +293,14 @@ void Board_ThermalInit(void)
 
   network_from_cal(&s_base);
   losses_from_cal();
-  ident_from_cal(start_c);
+  /* Fresh every boot: scales at one, the room at the thermistor, doubted
+     whole. Nothing is read back from the record - the bench's rule. */
+  thermal_ident_init(&s_ident, start_c, THERMAL_IDENT_NOISE_K);
   thermal_ident_apply(&s_ident, &s_base, &cfg);
   /* The envelope comes from the calibration record, not from this file. A
      ceiling the firmware invented would be the judgement invariant 10
      forbids; one it was given is a parameter like any other. After the
-     identification, whose state trims it. */
+     identification, whose doubt trims it. */
   soa_from_cal();
 
   thermal_init(&s_th, &cfg, start_c);
@@ -522,62 +502,16 @@ static void load_now(thermal_load_t *load)
 }
 
 
-/** Write the identified scales to the record and commit it. `s_saved_ms`
-  * moves whether or not the save landed, so a failing flash is not hammered
-  * every poll. */
-static void ident_save(uint32_t now)
+/** After every poll: the ceilings follow the margin, re-trimmed when it
+  * has moved a step - every sample while the evidence comes in, never on
+  * a slice that changed nothing. */
+static void margin_follow(void)
 {
-  uint32_t milli[THERMAL_IDENT_RECORD];
+  const float now = thermal_ident_margin(&s_ident, margin_floor());
 
-  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
-  {
-    milli[k] = (uint32_t)(s_ident.scale[k] * 1000.0f + 0.5f);
-  }
-  if (Board_CalSetThermalIdent(milli) && Board_CalSave())
-  {
-    memcpy(s_saved_scale, s_ident.scale, sizeof(s_saved_scale));
-    s_ident_saves++;
-    s_ever_saved = true;
-  }
-  s_saved_ms = now;
-}
-
-
-/** After every poll: the margin follows the state, and the record is
-  * rewritten when the policy says so - see THERMAL_IDENT_SAVE_EVERY_MS. */
-static void ident_policy(uint32_t now)
-{
-  if (s_ident.state != s_margin_state)
+  if (fabsf(now - s_margin) >= THERMAL_MARGIN_STEP)
   {
     soa_from_cal();
-  }
-
-  const bool armed = Board_PwmIsEnabled();
-  const bool disarmed_now = s_was_armed && !armed;
-
-  s_was_armed = armed;
-  if (armed || (s_ident.state == THERMAL_IDENT_UNCERTAIN))
-  {
-    return;
-  }
-
-  float moved = 0.0f;
-
-  /* The record's scales only: the room is identified but never saved. */
-  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
-  {
-    if (thermal_ident_online((thermal_ident_param_t)k))
-    {
-      moved = fmaxf(moved, fabsf(s_ident.scale[k] - s_saved_scale[k]));
-    }
-  }
-  if (moved < THERMAL_IDENT_SAVE_MOVED)
-  {
-    return;
-  }
-  if (disarmed_now || ((now - s_saved_ms) >= THERMAL_IDENT_SAVE_EVERY_MS))
-  {
-    ident_save(now);
   }
 }
 
@@ -685,7 +619,7 @@ void Board_ThermalPoll(void)
      observer chose to integrate all of it. */
   s_millis += since;
 
-  ident_policy(now);
+  margin_follow();
 }
 
 
@@ -962,30 +896,40 @@ bool Board_ThermalIdent(board_thermal_ident_t *out)
     out->sigma[k] = thermal_ident_sigma(&s_ident, (thermal_ident_param_t)k);
   }
   out->innovation_k = s_ident.innovation_k;
-  out->margin = thermal_ident_margin(s_ident.state);
+  out->margin = s_margin;
   out->updates = s_ident.updates;
-  out->saves = s_ident_saves;
-  out->ever_saved = s_ever_saved;
-  out->since_save_s = s_ever_saved ? ((HAL_GetTick() - s_saved_ms) / 1000U) : 0U;
   out->ambient_c = thermal_ident_ambient(&s_ident);
   out->ambient_sigma_k = thermal_ident_sigma(&s_ident, THERMAL_IDENT_AMBIENT);
+  out->margin_floor = margin_floor();
   return true;
 }
 
 
 bool Board_ThermalIdentReset(void)
 {
-  if (!s_ready || Board_PwmIsEnabled())
+  if (!s_ready)
   {
     return false;
   }
-  uint32_t zero[THERMAL_IDENT_RECORD];
-
-  memset(zero, 0, sizeof(zero));
   thermal_ident_init(&s_ident, s_th.ambient, THERMAL_IDENT_NOISE_K);
   thermal_ident_apply(&s_ident, &s_base, &s_th.cfg);
-  memcpy(s_saved_scale, s_ident.scale, sizeof(s_saved_scale));
   soa_from_cal();
-  s_saved_ms = HAL_GetTick();
-  return Board_CalSetThermalIdent(zero) && Board_CalSave();
+  return true;
+}
+
+
+bool Board_ThermalSetMarginFloor(float floor)
+{
+  if (!s_ready || !(floor > 0.0f) || (floor > 1.0f))
+  {
+    return false;
+  }
+  /* Through the record, so a save persists it and one place holds the
+     envelope - the floor is a limit beside the ceilings. */
+  if (!Board_CalSetMarginFloor((uint32_t)(floor * 1000000.0f + 0.5f)))
+  {
+    return false;
+  }
+  soa_from_cal();
+  return true;
 }

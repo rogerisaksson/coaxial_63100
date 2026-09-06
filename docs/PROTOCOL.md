@@ -352,11 +352,13 @@ CRC field. Ops:
 `stored` separates a calibrated board from one running the schematic's
 numbers; the two are otherwise identical on the wire. A stored record
 of another version is refused and the defaults used - except the
-version immediately before the firmware's, whose layout is a prefix of
-the current one: it is taken up with the appended fields at their
-defaults and its CRC checked over what it covered (CAL_VERSION 14,
-2026-09-05; the DC link's span, the one measured number, lives in a 13
-record on the bench board). The 46 parameter ids and their defaults
+two versions immediately before the firmware's, whose layouts are a
+prefix of the current one: either is taken up with the fields after the
+prefix at their defaults and its CRC checked over what it covered
+(CAL_VERSION 15, 2026-09-06 - a 14 carried the identification's four
+scales after the prefix, a 13 ended at it; the DC link's span, the one
+measured number, lives in a 13 record on the bench board, which is why
+the take-up reaches two back). The 46 parameter ids and their defaults
 are in HARDWARE.md, "Calibration record".
 
 ### 4 GATE_DRIVERS, `cmd_gate_drivers.c`
@@ -484,26 +486,36 @@ for a source, its air path for a patch.
 
 MINOR 14 adds op 10 ident, THE ONLINE IDENTIFICATION beside the
 observer (`thermal/inc/thermal_ident.h`): `u8 state` (0 UNCERTAIN,
-1 CONVERGING, 2 STABLE), `u8 online_mask` (bit k: the samples move
-scale k), `u8 count` (4), then per scale `i32 scale_milli,
+1 CONVERGING, 2 STABLE - A WORD since MINOR 16, what a page says and
+not what the envelope acts on), `u8 online_mask` (bit k: the samples
+move scale k), `u8 count` (4), then per scale `i32 scale_milli,
 i32 sigma_milli` in the order air, capacity, spread, ntc - each a
 multiplier on the record's network, 1000 the derived default - then
 `i32 innovation_milli_k` (the filtered prediction error), `i32
-margin_micro` (what the envelope keeps in hand for the state: every
-ceiling's span over 25 C is multiplied by it on the board - 800 000
-UNCERTAIN, 900 000 CONVERGING, 1 000 000 STABLE), `u32 updates,
-u32 saves, u32 since_save_s` (all ones until the record has been
-written this boot); MINOR 15 appends `i32 ambient_centi, i32
-ambient_sigma_centi` - THE ROOM AS IDENTIFIED beside the scales, in the
-same Kalman step, since the board has no ambient sensor and the room is
-what the observer's `ambient` is set from. Only air, capacity and the
-room are online; spread and ntc
-ride at the record's values (FINDINGS, 2026-09-05: unobservable from a
-cooldown). Op 11 ident reset → `u8 took`: scales to one, UNCERTAIN, the
-record rewritten without them; refused while the stage is armed. The
-board writes the identified scales to the record itself - at most every
-thirty minutes, on a disarm if they moved two percent, never while
-armed or UNCERTAIN (CAL_VERSION 14, `board_thermal.c`).
+margin_micro` (what the envelope keeps in hand NOW: every ceiling's
+span over 25 C is multiplied by it on the board - continuous since
+MINOR 16 between the record's floor and 1 000 000 on how far the model
+is doubted, the innovation and the covariance normalised; it was
+800 000 / 900 000 / 1 000 000 on the state), `u32 updates, u32 saves,
+u32 since_save_s` (since MINOR 16 always 0 and all ones, "never": the
+board keeps nothing it identified, and a wire field is never removed);
+MINOR 15 appends `i32 ambient_centi, i32 ambient_sigma_centi` - THE
+ROOM AS IDENTIFIED beside the scales, in the same Kalman step, since
+the board has no ambient sensor and the room is what the observer's
+`ambient` is set from; MINOR 16 appends `i32 margin_floor_micro`, the
+floor the margin rises from - the record's `soa_margin_floor_ppm`,
+800 000 unless a bench set it. Only air, capacity and the room are
+online; spread and ntc ride at the record's values (FINDINGS,
+2026-09-05: unobservable from a cooldown). Op 11 ident reset →
+`u8 took`: scales to one, UNCERTAIN, the margin at the floor; nothing
+is written, so nothing is refused for. Op 12 set margin (`i32
+floor_ppm` → `u8 took`, MINOR 16): the floor into the record's RAM
+copy, cal op 2 persists it; refused outside 1 .. 1 000 000 in the
+board's words - zero would put every ceiling at 25 C the moment it
+booted. Until MINOR 16 the board wrote the identified scales to the
+record itself and resumed from them at boot (CAL_VERSION 14, one day);
+the bench's rule took that out: a good observer earns its span within
+a few cooldown samples, and a resumed one runs on last week's box.
 
 TWENTY NODES SINCE MINOR 13, from ten. 0 .. 9 keep their indices and
 their meaning - driver U/V/W, phase U/V/W, mcu, regulators, afe, and
@@ -667,6 +679,7 @@ MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 | 13 | twenty thermal nodes, the count says so; op 0 appends the FET junction rises and the speed; ops 7, 8, 9 read the node table, the edge table, set an edge |
 | 14 | thermal op 10 reads the online identification - state, which scales move, each scale and sigma, innovation, the envelope's margin, saves; op 11 resets it |
 | 15 | thermal op 10 appends the room as identified, `i32 ambient_centi, i32 ambient_sigma_centi` - the board has no ambient sensor |
+| 16 | thermal op 10 appends `i32 margin_floor_micro` and writes `saves` 0, `since_save_s` never - the margin is continuous on the doubt, the state a word, nothing kept; op 12 sets the floor; op 11 no longer refuses while armed |
 
 MAJOR 2, 2026-08-29: the thermal nodes went per leg and the node
 indices were repurposed - a host could follow the length and not the

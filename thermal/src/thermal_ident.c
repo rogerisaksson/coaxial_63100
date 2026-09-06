@@ -187,10 +187,8 @@ static void set_covariance(thermal_ident_t *id, float sigma)
   memset(id->p, 0, sizeof(id->p));
   for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
   {
-    /* The prior's own where a blanket sigma is wider than it: a saved
-       model narrows every scale, a fresh one only to what is known. */
-    /* The room is never a saved model's: it is as wide as its prior
-       however the scales came. */
+    /* The prior's own where a blanket sigma is wider than it; the room
+       is as wide as its prior however the scales start. */
     const float s = ((sigma < PRIOR_SIGMA[k]) && (k != THERMAL_IDENT_AMBIENT))
                     ? sigma : PRIOR_SIGMA[k];
 
@@ -216,24 +214,6 @@ void thermal_ident_init(thermal_ident_t *id, float ambient_c, float noise_k)
   id->noise_k = (noise_k > 0.0f) ? noise_k : 0.1f;
   id->innovation_k = id->noise_k;
   id->state = THERMAL_IDENT_UNCERTAIN;
-}
-
-
-void thermal_ident_resume(thermal_ident_t *id, const float *scale,
-                          float ambient_c, float noise_k)
-{
-  thermal_ident_init(id, ambient_c, noise_k);
-  if ((id == NULL) || (scale == NULL))
-  {
-    return;
-  }
-  for (int k = 0; k < THERMAL_IDENT_RECORD; k++)
-  {
-    id->scale[k] = scale[k];
-  }
-  clamp_scales(id);
-  set_covariance(id, 0.15f);
-  id->state = THERMAL_IDENT_CONVERGING;
 }
 
 
@@ -835,19 +815,63 @@ float thermal_ident_sigma(const thermal_ident_t *id,
 }
 
 
-float thermal_ident_margin(thermal_ident_state_t state)
+static float unit(float x)
 {
-  /* THE POLICY: the spans to the ceilings, multiplied. A model that has
-     just been proved wrong by its own sensors keeps fifteen percent in
-     hand; one that is tightening keeps seven; one that predicts at the
-     noise floor keeps none it was not given. The bench's word: so the
-     silicon and the laminate are not run to a ceiling computed on a
-     network nobody trusts. */
-  switch (state)
+  return (x < 0.0f) ? 0.0f : ((x > 1.0f) ? 1.0f : x);
+}
+
+
+float thermal_ident_doubt(const thermal_ident_t *id)
+{
+  if (id == NULL)
   {
-    case THERMAL_IDENT_STABLE:     return 1.0f;
-    case THERMAL_IDENT_CONVERGING: return 0.90f;
-    case THERMAL_IDENT_UNCERTAIN:
-    default:                       return 0.80f;
+    return 1.0f;
   }
+  /* THE INNOVATION, NORMALISED: none at the thermometers' floor, all of
+     it at the ratio that says UNCERTAIN - the same three floors the
+     state is judged on, so the two agree about what "not predicting"
+     means. */
+  const float ratio = id->innovation_k / id->noise_k;
+  float doubt = unit((ratio - 1.0f) / (IDENT_RATIO_UNCERTAIN - 1.0f));
+
+  /* AND THE COVARIANCE, the same way: each online quantity's sigma from
+     where STABLE calls it known (none) up to its prior (all). Without
+     this term a fresh board is at full span from its first sample: its
+     innovation starts at the floor and idle - which the still rule
+     rightly leaves alone - never raises it, so nothing would ever have
+     held the bench's cold-start rule ("keep to 80 % of the SOA when
+     switching starts, with the thermal situation unknown"). The worse
+     of the two is the doubt: a model that is not predicting is doubted
+     however sure its covariance is, and one that has never been shown a
+     cooldown is doubted however small its error at rest. */
+  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  {
+    if (!ONLINE[k])
+    {
+      continue;
+    }
+    const float sigma = thermal_ident_sigma(id, (thermal_ident_param_t)k);
+    const float span = PRIOR_SIGMA[k] - SIGMA_STABLE[k];
+    const float u = unit((sigma - SIGMA_STABLE[k]) / span);
+
+    doubt = (u > doubt) ? u : doubt;
+  }
+  return doubt;
+}
+
+
+float thermal_ident_margin(const thermal_ident_t *id, float floor)
+{
+  /* THE POLICY, CONTINUOUS: the spans to the ceilings multiplied by a
+     number that is the floor while the model is doubted whole and one
+     when it is doubted not at all, and the evidence between. The bench's
+     word, 2026-09-06: scaled with the innovation normalised between 0.8
+     and 1, the floor adjustable; the states stay as words. Before it the
+     margin was three steps on the state - 0.80, 0.90, 1.0 - and a model
+     one sample short of a threshold was worth exactly what one that had
+     never predicted was. The floor is the caller's: a limit the board
+     was given, in its record beside the ceilings, never invented here. */
+  const float f = unit(floor);
+
+  return f + (1.0f - f) * (1.0f - thermal_ident_doubt(id));
 }

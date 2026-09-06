@@ -21,7 +21,7 @@ The instruction cache is on, the data cache off.
 |---|---|
 | DTCM 128 KB | `.data`, `.bss`, the 1 KB stack, the 1024 x 16 B log ring |
 | AXI SRAM 512 KB | the `.buffers` NOLOAD section - the 448 KB DAQ ring |
-| Flash bank 2 sector 7, 0x081E0000 | the calibration record, magic 'CX63', CAL_VERSION 14, padded to a 32-byte flash word |
+| Flash bank 2 sector 7, 0x081E0000 | the calibration record, magic 'CX63', CAL_VERSION 15, padded to a 32-byte flash word |
 
 ## ADC channels
 
@@ -286,18 +286,22 @@ Per channel, ten of them: `offset_raw` subtracted first, then
 `gain_ppm`. The thermal envelope: ten SOA ceilings in centi-degrees
 (driver U/V/W, phase U/V/W, mcu, regulators, afe at 125.00 - the FETs'
 and the MCU's Tj max, the rest an estimate; board 105.00, an estimate
-for the laminate) and a throttle at 90 %. The drive block (15 .. 44) is
-placeholders in the same sense: the injection is off and the trip sits
-at the rating until `tools/commission.py` measures and writes them.
-CAL_VERSION history: 2 the supply senses, 4 the envelope, 5 the dead
-time, 6 its skew, 7 per-leg nodes, 8 the drive, 9 the baud, 10 the
-throttle's lookahead, 11 the undriven mask, 12 the winding's envelope,
-13 the twenty-node network itself, 14 the identification's four scales
-(2026-09-05). A stored record of another version is refused, not
-misread - except the version immediately before the firmware's, whose
-layout is a prefix of the current one: it is taken up with the appended
-fields at their defaults, so a bump that only appends does not cost the
-bench its measured span.
+for the laminate), a throttle at 90 % and a margin floor at 80 % of
+every span (`soa_margin_floor_ppm`, thermal op 12): what the envelope
+keeps while the identification is doubted whole. The drive block
+(15 .. 44) is placeholders in the same sense: the injection is off and
+the trip sits at the rating until `tools/commission.py` measures and
+writes them. CAL_VERSION history: 2 the supply senses, 4 the envelope,
+5 the dead time, 6 its skew, 7 per-leg nodes, 8 the drive, 9 the baud,
+10 the throttle's lookahead, 11 the undriven mask, 12 the winding's
+envelope, 13 the twenty-node network itself, 14 the identification's
+four scales (2026-09-05), 15 the margin floor in their place - the
+board keeps nothing it identifies (2026-09-06). A stored record of
+another version is refused, not misread - except the two versions
+immediately before the firmware's, whose layouts are a prefix of the
+current one: either is taken up with the fields after the prefix at
+their defaults, so the bump does not cost the bench board its measured
+span, which sits in a 13 record.
 
 ## Thermal network
 

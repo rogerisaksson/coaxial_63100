@@ -1211,6 +1211,12 @@ looking at the estimate alone.
   (72 % of the SOA UNCERTAIN, 81 CONVERGING, 90 STABLE) and the ceiling
   is the trip. The motor's legend pulses too since the winding is a node
   the envelope acts on. Also on the foot - "make it
+  visible that it throttles at 80 % of the SOA already, then 90, then
+  100 as the model's uncertainty goes to zero": `TH OBS UNCR 80%`,
+  `TH OBS CONV 90%`, `TH OBS STABLE` alone at the whole span, since
+  `STABLE 100%` is 52 cells with the two gauges' names and nothing
+  between them. The spend bars and the throttle already ran against the
+  trimmed ceiling on the board and the stand-in alike; the foot says so.
 * **The room is the fifth identified quantity**, 2026-09-05, after the
   bench's "take the motor and the electronics from 25 C indoors to
   -20 C outdoors and back in" and "a robot from a 20 C warehouse into a
@@ -1279,12 +1285,45 @@ looking at the estimate alone.
   0.15 on the air path and 3 K on the room - what one transient gives,
   and as much as an envelope acting on anchored nodes can use. A tenth
   stays on the capacity, which converges to 0.03.
-  visible that it throttles at 80 % of the SOA already, then 90, then
-  100 as the model's uncertainty goes to zero": `TH OBS UNCR 80%`,
-  `TH OBS CONV 90%`, `TH OBS STABLE` alone at the whole span, since
-  `STABLE 100%` is 52 cells with the two gauges' names and nothing
-  between them. The spend bars and the throttle already ran against the
-  trimmed ceiling on the board and the stand-in alike; the foot says so.
+* **The margin is continuous and the states are words** (bench,
+  2026-09-06: "take out the three discrete steps 80/90/100 and scale it
+  with the innovation normalised between 0.8 and 1, adjustable; keep
+  the states as pure display; remove the writing and reading to
+  disk"). `thermal_ident_margin` is `floor + (1 - floor) * (1 - doubt)`,
+  the doubt the worse of two normalised measures: the filtered
+  innovation from the thermometers' floor (none) to three floors (all -
+  the ratio that says UNCERTAIN), and each online quantity's sigma from
+  its STABLE threshold (none) to its prior (all). The innovation alone,
+  which is what was asked for, fails by arithmetic before it is run: a
+  fresh board's innovation starts AT the floor and idle - which the
+  still rule rightly leaves alone - never raises it, so a board would
+  have had its whole span at boot, against the bench's own cold-start
+  rule. Measured on the stand-in's walk with both beside each other:
+  they agree wherever the board has cooled down and part where it has
+  not - twenty idle minutes outdoors with the air scale at 1.27 for a
+  truth of 0.8 and the innovation back at the floor, innovation alone
+  1.000, with the covariance 0.945. Along the box walk: 0.80 fresh,
+  0.88 three minutes into the first run (UNCERTAIN still), 0.94 at six,
+  1.00 by the first cooldown's fourth minute - two minutes ahead of the
+  word STABLE, which needs five runs; the fan on, 0.80 within a minute
+  (innovation 0.97 K), held thirteen minutes, 0.87 to 0.99 over the
+  cooldown's eighth to fourteenth minute; STABLE dips to 0.97 on an
+  innovation blip (0.13 K) and comes back. The floor is the record's
+  (`soa_margin_floor_ppm`, CAL_VERSION 15, thermal op 12, MINOR 16) and
+  the bench's 80 % by default; refused at zero, which would trip the
+  stage at boot. Gone with it, all of it: the board's flash save and
+  resume (`Board_CalSetThermalIdent`, the save policy,
+  `thermal_ident_resume`), the record's four scales - the floor stands
+  in their place and a stored 14 or 13 is taken up as a prefix, two
+  back this once because the bench board's 13 holds the DC link's span
+  - the stand-in's file (`COAXIAL_SIM_NVM`) and the pages' hooks for
+  it. Op 10 writes `saves` 0 and `since_save_s` never, since a wire
+  field is never removed, and op 11 no longer refuses while armed -
+  there is nothing to write. On the rotor foot the percent rides every
+  word now, `STBL 97%` under a percent since `STABLE 97%` is a cell
+  wider than the row has between the gauges' names. Firmware 0
+  warnings, 194 912 B flash, 38 456 B DTCM. thermal_core 134, simulated
+  236, views 173.
 
 ## The renderers
 
