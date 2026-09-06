@@ -134,7 +134,10 @@ def hint_row(ident, body, indent=3):
         return ''
     widths = [visible(row) for row in body[1:] if row.strip()]
     field = (min(widths) - 4) if widths else 0
-    return ' ' * max(0, indent + field // 2 - HINT_CELLS // 2) + ROOM_HINTS[kind]
+    # Half the hint rounded UP - the bench, on the five-cell pair: "shift
+    # it one space left so it is centred again".
+    half = (HINT_CELLS + 1) // 2
+    return ' ' * max(0, indent + field // 2 - half) + ROOM_HINTS[kind]
 
 #: What ESC and Q do. ESC returns TO_MENU so coaxial_tty.ps1 draws its menu again.
 
