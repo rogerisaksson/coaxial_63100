@@ -231,7 +231,8 @@ ceiling, and the thermistor's cold-to-hot ramp - live there too. Under
 the thermal observer's board one more bar, `evidence_rows`: the span
 the identification has earned, red to yellow to green as it fills,
 alone - its margin, floor, innovation and the doubt's largest term
-are HEADROOM's rows; on the
+are HEADROOM's rows, and MAP under SENSE says what each mark on the
+picture is, off the pick and place's references; on the
 stand-in, reached by `--simulated` or a bench with no cable, a load
 cycle runs under it so there are cooldowns to rise on, and the truth
 tours temperate, cold and toasty, moving on once STABLE has
@@ -312,7 +313,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2922 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2923 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -339,7 +340,7 @@ by `counts.py`:
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 181 | every view and the front page drawn twice, the rotor observer's geometry, its gauges on one scale, the bead's wake, its DRIVE box, the shaft angle's round face, the box column every page scrolls, and the thermal observer's board as a halftone with its parts marked |
+| test_views.py | 182 | every view and the front page drawn twice, the rotor observer's geometry, its gauges on one scale, the bead's wake, its DRIVE box, the shaft angle's round face, the box column every page scrolls, and the thermal observer's board as a halftone with its parts marked |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |

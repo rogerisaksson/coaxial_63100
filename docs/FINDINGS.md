@@ -1429,7 +1429,10 @@ looking at the estimate alone.
   and `state()`, the live path, so a walk driven by `fast_forward` drifts
   by however slow the machine is, and the state was read after a wall
   advance had already moved the tour; the suite's walks run the live
-  path off since, model time only, and five suites racing here pass);
+  path off since, model time only, and five suites racing here pass -
+  and the box and fan walk the same the next day, red on 3.12 with the
+  fan's air scale at 1.34 for the same reason, every walk in the
+  identification test on model time only since);
   a named situation ends
   the tour. ROTOR OBSERVER tours too since the same evening - "now
   ROTOR OBSERVER never switches to cold, hot, back to temperate", the
@@ -1669,6 +1672,12 @@ looking at the estimate alone.
   `read` and `code` sets, not `pins`. Measured on the stand-in: 127, 71
   and 81 tokens a call; the description held to the suite's 140
   characters. mcp 50, ollama_tools 219, 2922 in all.
+* **MAP, under SENSE** (bench, 2026-09-06: "an explanation for U, V, W,
+  REG, MCU, HS and AFE, in SENSE maybe, you decide"): a box of its own
+  between SENSE and HEADROOM, one row a mark - the label, the
+  references its frame is drawn round off the pick and place
+  (`thermalmap.MARKS`), and what they are in words - so the letters on
+  the picture are read off the same column as the numbers. views 182.
 * **The stand-in starts in its room** (2026-09-06, off the toasty
   replay's room at 55 C for 45 on the warm-up). Both boards started at
   25 C whatever the situation's room, so a fresh start in the toasty

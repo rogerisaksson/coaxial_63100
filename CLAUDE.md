@@ -17,10 +17,11 @@ coaxial cable, no coaxial connector. **Known failure mode:** a local model
 fills the gap and reports one anyway - seen twice. **Guard:** the fitted
 parts come from `0x6D` kind 4, never inferred from the name.
 
-## Scope: instrumentation, not yet a motor controller
+## Scope
 
-**TIM1 is armed on request; the control law exists and no motor has
-turned.** The `.ioc`
+**TIM1 is armed on request, and the control law is written.** What
+waits for the bench - a motor, a load, a scope on a hold - is listed
+once, in [docs/TODO.md](docs/TODO.md). The `.ioc`
 enables sixteen IPs - ADC1/2/3, SPI2, SPI4, USART2, USART3, UART5, **TIM1**,
 CORTEX_M7, RCC, SYS, DEBUG, MEMORYMAP, NVIC, VREFBUF. TIM1 is centre-aligned
 at **50 kHz** (ARR 2375 off 237.5 MHz), break on PE15 active low, AOE off.
@@ -44,19 +45,17 @@ clear under the bypass, 0 overruns, no gate shorts, clean disarms;
 3.1-3.75 A on-time, up to 39 W mean in the resistor. `tools/pulse.py` is that
 test; P in the gate drivers view is one pulse after A. The board cannot
 measure current while switching on this bench (AFE_ON high unpowers the
-drivers), so the amps are V/R. **The drive is written and dry-run only:**
-`drive/` behind `0x6E` device 10 is a dq current loop, HF injection, a
-Kalman-form PLL, I/f and a polarity pulse, host-tested against a motor
-model (`test_drive_core.py`) and stepped on the board at 2 922 cycles a
-period with the drivers unpowered. No current has closed a loop through a
-winding; `tools/commission.py` is the procedure for when one can.
+drivers), so the amps are V/R. **The drive:** `drive/` behind `0x6E`
+device 10 is a dq current loop, HF injection, a Kalman-form PLL, I/f and a
+polarity pulse, host-tested against a motor model (`test_drive_core.py`)
+and stepped on the board at 2 922 cycles a period with the drivers
+unpowered; `tools/commission.py` is the procedure for a motor on the bench.
 
 **A hold's length was the link's; since MINOR 8 it can be the board's.** A
 compare write lands in 15 ms (~800 cycles minimum); a 100 ms hold is 93-108 ms
 at the FETs - FINDINGS has the numbers. Op 2 now takes an optional period
 count and the update ISR zeroes the compares at zero: 500 periods is
-10.000 ms exactly. Built 2026-09-02, dry only - no counted hold has been
-scoped yet. Since proto 2.1 the board CAN alternate per period: op 10 takes two
+10.000 ms exactly, built 2026-09-02. Since proto 2.1 the board CAN alternate per period: op 10 takes two
 compare triples and the update ISR swaps them every overflow - current back
 and forth through the phase pair at 25 kHz; proven 2026-08-30 with twelve
 mid-run state reads showing both triples and nothing else, and both
@@ -252,7 +251,7 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2922 checks, sized from `host/tests/.counts.json` and so
+Twenty-six suites, 2923 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (611),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (247), `test_live_model.py` (212, needs ollama, `--live`),
@@ -273,7 +272,7 @@ situation changes, through the host gcc), `test_ollama_render.py` (32), `test_pa
 (79, the 3D engine stage by stage against an analytic oracle -
 `render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23), `test_broker.py`
 (33, the shared session and the reply shapes on a scripted port, no board), `test_views.py`
-(181, every view and the front page drawn twice, plus the rotor
+(182, every view and the front page drawn twice, plus the rotor
 observer's own geometry - no board), `test_ollama_language.py` (12),
 `test_daq_api.py` (75, the acquisition front door against the
 stand-in - naming, reading, the record shape, the buffers),
@@ -303,7 +302,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2922 checks are in those nine files.
+  773 of this tree's 2923 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

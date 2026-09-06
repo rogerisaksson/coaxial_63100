@@ -4,7 +4,8 @@ A three-phase BLDC inverter whose PCB sits coaxially behind the stator.
 **63 V, 100 A** - the rating is the name. STM32H753VIT6 at 475 MHz.
 
 Instrumentation first: the bridge switches on request, and the control law
-(`drive/`, device 10) has run only dry - **no motor has turned**. `gates.arm()` is the
+(`drive/`, device 10) is host-tested against a motor model; what waits for a
+motor on the bench is in [docs/TODO.md](docs/TODO.md). `gates.arm()` is the
 only thing that sets MOE, and it re-reads the dead time first because the
 2EDL8034 has no interlock of its own.
 

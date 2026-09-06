@@ -623,7 +623,7 @@ def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
               'tripped': False, 'used': {}}
     console = Console(record=True, width=44, force_terminal=True,
                       color_system='truecolor', theme=stage.THEME)
-    console.print(page.status_boxes(state, budget)[1])
+    console.print(page.status_boxes(state, budget)[2])   # SENSE, MAP, then HEADROOM
     said = re.sub('\x1b\\[[0-9;]*m', '', console.export_text(styles=True))
     report.check('the box is HEADROOM, and the level is labelled soak',
                  'HEADROOM' in said and 'soak' in said and 'BUDGET' not in said,
@@ -789,7 +789,25 @@ def test_the_thermal_page_shows_its_evidence(report):
     console = Console(record=True, width=page.PANEL_W + 2,
                       force_terminal=True, color_system='truecolor',
                       theme=stage.THEME)
-    sense, headroom = page.status_boxes(state, budget, ident=ident(0.91))[:2]
+    # THE MAP'S LETTERS EXPLAINED, a box of its own under SENSE, each row
+    # the mark's references off the pick and place and what they are.
+    from coaxial.thermalmap import MARKS
+    rows = dict(page.map_rows())
+    report.check('MAP says what every mark is - U, V, W, REG, MCU, HS, AFE '
+                 'and NTC - with the references its frame is drawn round',
+                 [label for label, _r, _w, _m in MARKS]
+                 == ['MCU', 'REG', 'U', 'V', 'W', 'AFE', 'HS', 'NTC']
+                 and all(label in rows for label in ('U', 'V', 'W', 'REG',
+                                                     'MCU', 'HS', 'AFE'))
+                 and rows['U'].startswith('Q1U Q2U RU1 RU2 - FETs')
+                 and 'hot swap' in rows['HS'] and 'STM32' in rows['MCU']
+                 and rows['AFE'].startswith('OP1U..OP2W (6)')
+                 # three cells of label, a space, the value, inside the
+                 # panel's frame and padding
+                 and all(len(value) <= page.PANEL_W - 8
+                         for value in rows.values()),
+                 rows)
+    sense, headroom = page.status_boxes(state, budget, ident=ident(0.91))[:3:2]
     console.print(sense)
     console.print(headroom)
     said = re.sub('\x1b\\[[0-9;]*m', '', console.export_text(styles=True))

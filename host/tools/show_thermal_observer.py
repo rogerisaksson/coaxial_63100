@@ -31,7 +31,7 @@ from coaxial import Coaxial63100                          # noqa: E402
 from coaxial.errors import NoReplyError, RigError         # noqa: E402
 from coaxial import gauges, machine                        # noqa: E402
 from coaxial.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty  # noqa: E402
-from coaxial.thermalmap import (CELL_ASPECT, SCALE_LINES,  # noqa: E402
+from coaxial.thermalmap import (CELL_ASPECT, MARKS, SCALE_LINES,  # noqa: E402
                                 render)
 
 #: Above the picture: a blank, the banner, a blank, the state line,
@@ -289,6 +289,28 @@ def envelope_rows(ident):
     return rows
 
 
+#: What each mark on the map is, in words, beside the references the
+#: frame is drawn round - the bench, 2026-09-06: "an explanation for U,
+#: V, W, REG, MCU, HS and AFE, in SENSE maybe, you decide". A box of
+#: its own under SENSE, so the letters on the picture are read off the
+#: same column as the numbers.
+MAP_WORDS = {'U': 'FETs, shunts', 'V': 'FETs, shunts', 'W': 'FETs, shunts',
+             'REG': 'regulators', 'MCU': 'the STM32', 'HS': 'hot swap',
+             'AFE': 'front end', 'NTC': 'thermistor, by the bore'}
+
+
+def map_rows():
+    """One row a mark: the label, its references off the pick and place,
+    and what they are - the panel's width, so a family of six is its
+    first and last and the count."""
+    rows = []
+    for label, refs, _where, _margin in MARKS:
+        named = (' '.join(refs) if len(refs) <= 5
+                 else '%s..%s (%d)' % (refs[0], refs[-1], len(refs)))
+        rows.append((label, '%s - %s' % (named, MAP_WORDS.get(label, ''))))
+    return rows
+
+
 def status_boxes(state, budget, aspect=None, ident=None, hint=None):
     """The thermal observer's numbers as instrument boxes, every one the
     board's - and, given `(aspect, how)`, the one number that is the
@@ -323,7 +345,7 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None):
     if aspect is not None:
         sense.append(('cell', '%.2f tall %s' % aspect))
 
-    boxes = [hud('SENSE', sense)]
+    boxes = [hud('SENSE', sense), hud('MAP', map_rows())]
     if budget is not None:
         left = budget['seconds_to_limit']
         state_text = ('TRIPPED' if budget['tripped']

@@ -1556,6 +1556,10 @@ def test_thermal_identification(report):
 
     # THE WALK. A truth in a box, driven from the model's own clock.
     model = SimulatedThermal(situation='box')
+    # MODEL TIME ONLY, as the tour below: `identification()` also advances
+    # the stand-in by the wall clock, and on CI's 3.12 the fan walk came
+    # out UNCERTAIN at air 1.34 where every run here lands 0.5 (2026-09-06).
+    model._advance = lambda: None
     load = {'amps': (30.0, 30.0, 30.0), 'switching': True}
     idle = {'amps': (0.0, 0.0, 0.0), 'switching': False}
     states, margins = [], []
@@ -1669,6 +1673,7 @@ def test_thermal_identification(report):
     # estimators could not (FINDINGS). The truth's outdoors has a light
     # wind, air 0.8.
     cold = SimulatedThermal(situation='bench')
+    cold._advance = lambda: None
     run_on = lambda m, seen, model=cold: model.fast_forward(60.0 * m, seen=seen)
     run_on(6, load)
     run_on(8, idle)
@@ -1733,6 +1738,7 @@ def test_thermal_identification(report):
     # until something switches. Settled at its idle equilibrium in a box,
     # ten minutes of samples move no scale.
     still = SimulatedThermal(situation='box')
+    still._advance = lambda: None
     still.settle(idle)
     still.fast_forward(600.0, seen=idle)
     got = still.identification()
