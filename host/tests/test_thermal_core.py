@@ -481,6 +481,106 @@ def test_the_mirror_carries_the_cs_numbers(report, lib):
                  not off, off)
 
 
+def test_the_mirror_walks_with_the_c(report, lib):
+    """The C chain and the mirror chain on the same watts and the same
+    readings, sample by sample: one-to-one measured on a walk, not only
+    on the constants.
+
+    The C is `thermal.c` stepped and anchored plus `thermal_ident.c`; the
+    mirror is `thermal.net_flows`, `thermal_ident.anchor` and
+    `thermal_ident.Identifier`, as the stand-in runs them. A box, two
+    cycles of a ten-minute run and a twenty-minute cooldown, the truth's
+    three thermometers read every thirty seconds of the cooldowns with
+    the C truth's own noise, recorded on a tape and played to both. What
+    cannot agree to the bit: the C integrates float32 in its own slices,
+    the mirror float64 in one-second steps. Measured 2026-09-06: the air
+    scale within 0.003, the capacity 0.002, the room 0.05 K, the judged
+    innovation 0.003 K, the margin exact, the observers' nodes within
+    0.05 K, and the state the same at all eighty samples.
+    """
+    import copy
+    from coaxial import thermal
+    from coaxial import thermal_ident as mirror
+
+    truth = GroundTruth(lib, air=2.0)
+    observer = Model(lib)
+    ident = Ident(lib, observer)
+    watt = power(lib, phase_sq=(900.0, 900.0, 900.0), duty=(0.5, 0.5, 0.5),
+                 link_volts=48.0, switching=True)
+    quiet = power(lib)
+    blind = (math.nan, math.nan, math.nan)
+
+    # THE TAPE, off the C chain: every second's watts and readings, and
+    # the C's answer at every reading.
+    tape, c_trace = [], []
+    for _cycle in range(2):
+        for phase, watts, seconds in (('run', watt, 600), ('cool', quiet, 1200)):
+            for step in range(seconds):
+                truth.model.step(watts, 1.0)
+                seen = blind
+                if phase == 'cool' and (step + 1) % 30 == 0:
+                    seen = (truth.model.ntc() + truth.noise(),
+                            truth.model.junction({}, 'afe') + truth.noise(),
+                            truth.model.junction({}, 'mcu') + truth.noise())
+                tape.append((watts, seen))
+                ident.run(watts, 1.0, seen)
+                if seen is not blind:
+                    c_trace.append((ident.state(), ident.scale('air'),
+                                    ident.scale('capacity'), ident.ambient(),
+                                    ident.innovation(), ident.margin(),
+                                    observer.ntc(), observer.at('mcu'),
+                                    observer.at('board')))
+
+    # THE MIRROR on the tape, as `SimulatedThermal._integrate` runs it.
+    base = copy.deepcopy(thermal.CFG)
+    node = {n: AMBIENT for n in thermal.ALL_NODES}
+    ntc, ambient, since = AMBIENT, AMBIENT, 0.0
+    py = mirror.Identifier(0.1, AMBIENT)
+    cfg = py.apply(base)
+    p_trace = []
+    for watts, seen in tape:
+        net = thermal.net_flows(node, watts, cfg, ambient, 0.0)
+        for name in thermal.ALL_NODES:
+            cap = cfg['capacity'].get(name, 0.0)
+            if cap > 0.0:
+                node[name] += net[name] / cap
+        since += 1.0
+        sample = None
+        if not math.isnan(seen[0]):
+            sample = {'ntc': seen[0], 'afe': seen[1], 'mcu': seen[2]}
+            ntc, _settled = mirror.anchor(node, ntc, cfg, watts, sample, 0.0,
+                                          since, ambient)
+            since = 0.0
+        ntc = mirror.ntc_follow(node, ntc, cfg, 1.0)[0]
+        if py.step(node, ntc, base, watts, 0.0, sample, 1.0):
+            cfg = py.apply(base)
+        ambient = py.ambient
+        if sample:
+            p_trace.append((py.state, py.scale[0], py.scale[1], py.ambient,
+                            py.innovation_k, py.margin(0.8), ntc, node['mcu'],
+                            node['board']))
+
+    worst = [max(abs(c[k] - p[k]) for c, p in zip(c_trace, p_trace))
+             for k in range(1, 9)]
+    apart = sum(1 for c, p in zip(c_trace, p_trace) if c[0] != p[0])
+    report.check('eighty readings on the tape, and the C and the mirror say '
+                 'the same state at every one of them',
+                 len(c_trace) == 80 and len(p_trace) == 80 and apart == 0,
+                 '%d and %d samples, states apart at %d'
+                 % (len(c_trace), len(p_trace), apart))
+    report.check('the identification agrees to the hundredth - air and '
+                 'capacity within 0.01, the room within 0.2 K, the judged '
+                 'innovation within 0.01 K, the margin within 0.01',
+                 worst[0] < 0.01 and worst[1] < 0.01 and worst[2] < 0.2
+                 and worst[3] < 0.01 and worst[4] < 0.01,
+                 'air %.4f cap %.4f room %.3f inn %.4f margin %.4f'
+                 % tuple(worst[:5]))
+    report.check('and the two observers under them within a tenth of a '
+                 'kelvin on the thermistor, the MCU and the centre',
+                 all(w < 0.1 for w in worst[5:]),
+                 'ntc %.3f mcu %.3f board %.3f' % tuple(worst[5:]))
+
+
 def test_the_room_is_identified(report, lib):
     """The board has no ambient sensor: the room is the fifth quantity.
 
@@ -1856,6 +1956,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_an_idle_board_stays_uncertain,
           test_the_room_is_identified,
           test_the_mirror_carries_the_cs_numbers,
+          test_the_mirror_walks_with_the_c,
           test_the_lookahead_catches_a_ramp,
           test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,

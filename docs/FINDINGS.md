@@ -1570,6 +1570,26 @@ looking at the estimate alone.
   walks are held separately: the core suite drives the C, the stand-in
   suite the mirror, through the same box, fan, cold and idle cases.
   thermal_core 137, 2910 in all.
+* **And on a walk** (the same evening; the bench: "fix what you want,
+  the electronics and the motor are not available"): the spread's idle
+  regressor was the pick and waits for the board - at rest the MCU die
+  sits about three kelvin over the thermistor on the stand-in, and the
+  STM32's die sensor is good to a kelvin or two absolute, so without
+  that offset measured the regressor would identify the sensor and not
+  the edge. Instead `test_the_mirror_walks_with_the_c`: one tape of
+  watts and readings - a box, two cycles of a ten-minute run and a
+  twenty-minute cooldown, the C truth's three thermometers every thirty
+  seconds of the cooldowns with its own noise - played to the C chain
+  (`thermal.c` stepped and anchored, `thermal_ident.c`) and to the
+  mirror chain (`net_flows`, `anchor`, `Identifier`, as the stand-in
+  runs them). Measured, the worst difference over eighty readings: air
+  scale 0.003, capacity 0.002, room 0.05 K, judged innovation 0.003 K,
+  margin 0.000, the observers' thermistor, MCU and centre within
+  0.05 K, and the state the same at every one of the eighty. What
+  keeps it from the bit is the integration - float32 in the C's own
+  slices, float64 in one-second steps here - and nothing else. Held at
+  a hundredth, a fifth of a kelvin on the room and a tenth on the
+  nodes. thermal_core 140, 2913 in all.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were
