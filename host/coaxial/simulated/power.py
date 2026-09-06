@@ -725,12 +725,16 @@ class SimulatedThermal:
         between 1.00 and 0.00 every hundred milliseconds. Recovering over
         seconds gives the node time to cool first.
         """
-        now = time.time()
+        # ON MODEL TIME, not the wall's: the slew ran on wall seconds
+        # times HASTE, which is model seconds on the live path and noise
+        # under `fast_forward` - two executions of the same notebook walk
+        # moved the tour at different minutes (2026-09-06).
+        now = self._model_s
         was, self._derate_at = self._derate_at, now
         if want <= self._derate_held or was is None:
             self._derate_held = want
         else:
-            step = self.DERATE_RECOVER_PER_S * min(5.0, now - was) * self.HASTE
+            step = self.DERATE_RECOVER_PER_S * min(5.0 * self.HASTE, now - was)
             self._derate_held = min(want, self._derate_held + step)
         self._derate_held = max(0.0, min(1.0, self._derate_held))
         return self._derate_held

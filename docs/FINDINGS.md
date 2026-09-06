@@ -1690,6 +1690,20 @@ looking at the estimate alone.
   call it, keep the live path. The seven hacks are gone, the walks read
   the same on every machine, and the tour lands at 12, 40 and 75
   minutes here on model time alone. simulated 247.
+* **`thermal_identification.ipynb`**, the same evening: the stand-in's
+  tour walked 150 model minutes under the page's cycle and plotted -
+  the margin earned and lost a leg at a time against the state as a
+  word, the room tracking every step within its band, the air scale
+  kicked by the reset and settling, driver U pulsing with the load -
+  then a trip in the cold room and its cap climbing back. Executed
+  and checked in like the others, from `make_notebooks.py`. Measured:
+  the room within 3.3 K at every leg's end, the moves at 12, 40, 70,
+  95, 117 and 143 minutes, the trip's margin 0.73 the minute after,
+  0.90 at twenty, 1.00 at forty. Executing it twice moved the tour at
+  different minutes the first time: the stand-in's derate recovery
+  slewed on wall seconds times HASTE, model time on the live path and
+  noise under `fast_forward`; it slews on model time since, and two
+  executions agree to the minute. structure 614, 2926 in all.
 * **The stand-in starts in its room** (2026-09-06, off the toasty
   replay's room at 55 C for 45 on the warm-up). Both boards started at
   25 C whatever the situation's room, so a fresh start in the toasty

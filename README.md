@@ -76,6 +76,7 @@ python tools/make_notebooks.py --execute daq_session
 | `angle_session.ipynb` | the A1335's registers, and whether there is a magnet |
 | `thermal_budget.ipynb` | the SOA budget, and a burst planned against it |
 | `thermal_model.ipynb` | the node network in Python, and how it was fitted |
+| `thermal_identification.ipynb` | the room, the air path and the capacity identified off the thermometers on the stand-in's tour, the margin, and a trip |
 | `loss_calculation.ipynb` | switching loss from the SPICE models, no board |
 | `rotor_observer_session.ipynb` | the rotor observer on the board's own PMSM model |
 | `propeller_sweep.ipynb` | the 5230SL and its propeller against Hobbywing's stand |

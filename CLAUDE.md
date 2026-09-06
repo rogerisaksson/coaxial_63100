@@ -204,6 +204,8 @@ load-angle ring aliased and pumps it), `velocity` (sensorless under
 and the four `app_*` missions. `notebook_examples/daq_session.ipynb` is the flow, executed;
 `notebook_examples/propeller_sweep.ipynb` is the 5230SL and its propeller from
 rest to 6717 rpm and back, checked against Hobbywing's own thrust stand;
+`thermal_identification.ipynb` walks the stand-in's tour on model time
+and plots the margin, the room and the air path against the truth;
 `speed_loop.ipynb` closes `coaxial.loop`'s chain over the model and
 identifies it back out; `foc_montecarlo.ipynb` Monte Carlos the firmware's
 own control law over the 23-63 V link sweep (`tools/montecarlo.py`, one
@@ -251,8 +253,8 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2923 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (611),
+Twenty-six suites, 2926 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (614),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (247), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
@@ -302,7 +304,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2923 checks are in those nine files.
+  773 of this tree's 2926 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
