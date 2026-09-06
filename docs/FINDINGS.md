@@ -1388,10 +1388,11 @@ looking at the estimate alone.
   least it moves so it lands; it never falls below the window's own
   extreme, which is the tick beside it. Measured on the same sweep at
   eight updates a second, the caret's worst height above the bar: 0.15
-  a fifth, 5.1 cells; 0.25, 3.2; 0.35, 2.1; 0.5, 1.1. A quarter is what
-  runs - a time constant of half a second, back on the level within a
-  couple of seconds, still a hold rather than a flick; the bench can ask
-  for more with one number. The legend's held lo / hi keep their own
+  a fifth, 5.1 cells; 0.25, 3.2; 0.35, 2.1; 0.5, 1.1. A quarter ran
+  first - a time constant of half a second - and the bench, on the
+  pushed page: "make the decay in METER BRIDGE a bit slower"; 0.15
+  since, eight tenths of a second, 5.1 cells at the sweep's worst,
+  more of a hold. The legend's held lo / hi keep their own
   slow memory (`PEAK_DECAY`), a figure to read rather than a mark to
   watch.
 * **THERMAL OBSERVER tours the rooms on earned margin, and SENSE says

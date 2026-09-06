@@ -37,18 +37,20 @@ BAR = 38
 SCALE = 13
 
 #: THE RELEASE: how far a held peak falls back toward the bar's level an
-#: update, as a fraction of the distance between them. A quarter at the
-#: ~8 updates a second these views run is a time constant of half a
-#: second - pushed out by the burst's extreme at once, back on the level
-#: within a couple of seconds - and it can never fall below the window's
-#: own extreme, which is the tick beside it. The bench, 2026-09-06: "the
-#: decay meter lags behind the value in the bar; it should be a typical
-#: peak hold that decays toward the current value - the value pushes the
-#: hold, which then falls back". Before, it fell a FIXED 1.5 % of full
-#: scale an update whatever the distance: eight seconds for the whole
-#: bar, and on a phase swinging over a couple of seconds the caret was
-#: never where the bar had been but where it was seconds ago.
-RELEASE = 0.25
+#: update, as a fraction of the distance between them. Fifteen percent
+#: at the ~8 updates a second these views run is a time constant of
+#: eight tenths of a second - pushed out by the burst's extreme at once,
+#: back on the level within a few seconds - and it can never fall below
+#: the window's own extreme, which is the tick beside it. The bench,
+#: 2026-09-06: "the decay meter lags behind the value in the bar; it
+#: should be a typical peak hold that decays toward the current value -
+#: the value pushes the hold, which then falls back". Before, it fell a
+#: FIXED 1.5 % of full scale an update whatever the distance: eight
+#: seconds for the whole bar, and on a phase swinging over a couple of
+#: seconds the caret was never where the bar had been but where it was
+#: seconds ago. A quarter ran first - 3.2 cells behind at the sweep's
+#: worst - and the bench asked for "a bit slower": 0.15 is 5.1 cells.
+RELEASE = 0.15
 
 #: The least a held peak moves an update, as a fraction of full scale, so
 #: the release lands on the level rather than approaching it for ever.
