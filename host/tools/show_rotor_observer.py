@@ -233,11 +233,17 @@ SWEEP_LOAD_FRACTION, SWEEP_LOAD_A, SWEEP_LOAD_NM = 0.34, 20.0, 0.015
 #: under what any thermometer here can show.
 #: The heavy start: how hard, how long, and how fast it is asked to get
 #: there. Forty-three amps is under the clamp this page writes and under
-#: half the stage's rating; a second of it takes the phase nodes to
-#: about nine tenths of their thermal budget - measured, not aimed at -
-#: which is where a start belongs: bounded by HEAT rather than by the
-#: current limit, close enough to the ceiling to see the bar go amber
-#: and short enough that the envelope does not have to act.
+#: half the stage's rating, and a second of it is bounded by HEAT rather
+#: than by the current limit and short enough that the envelope does not
+#: have to act. On the ten-node graph it took the phase nodes to about
+#: nine tenths of their budget; on the twenty-node one, measured
+#: 2026-09-06 on the stand-in, 0.57 of the span in force on a cold board
+#: at the 80 % floor and 0.82 of the whole over four minutes, warm and
+#: STABLE - and 1.4 or 1.8 s of it no higher over two, 0.68 and 0.71,
+#: the leg node saturating against its patch in seconds. Harder or
+#: longer would reach the throttle only by
+#: latching a trip while the model is still doubted, which in a demo is
+#: a dead stage, so it stays.
 #:
 #: At 38 A into a 40 A clamp it only reached 0.70 of the budget, which
 #: is not near anything; the clamp went to 50 to make room for this.

@@ -1474,6 +1474,44 @@ looking at the estimate alone.
   the left of that, half the five rounded up, on the bench's eye:
   "shift it one space left so it is centred again". views 180,
   simulated 244.
+* **The innovation is judged against the reading's own movement**
+  (bench, 2026-09-06: "it never seems to converge during the run cycle
+  in ROTOR OBSERVER, and SWITCH and MOTOR SOA seem stone dead - something
+  breaks"). Nothing broke: with no board attached the page is on the
+  stand-in, and headless five minutes of the demo end with both legends
+  at 85.9 %, TH OBS at CONV 97%, the winding at 106.6 C with 12 %
+  headroom, no trip; a three-minute replay of the burst and the load
+  holds CONVERGING at 0.95 throughout, the derate never below 1.00.
+  What was true: it never reached STABLE, because the prediction error
+  was judged against a fixed 0.1 K floor while the demo moved the
+  readings several kelvin a sample - a two-percent model error on a
+  four-kelvin swing is 80 mK, and the filtered error sat at 1.5 to 2
+  floors for ever, where STABLE wants under two for five runs. The
+  thermal page's cycle gave it quiet cooldowns and got there; the rotor
+  page never stops loading. Now the error fed to the judgement is the
+  raw error times the floor over the floor plus five percent of the
+  reading's movement since the seat (`IDENT_MOVE_SHARE`, the mirror's
+  `MOVE_SHARE`): at rest unchanged, a 0.3 K miss on a still board is
+  still three floors; under a live load a model that predicts the swing
+  to a few percent is predicting. The Kalman step still takes the raw
+  error. Measured: the replay of the demo reaches STABLE at 1.00 within
+  eighty seconds of wall time (thirteen model minutes), judged
+  innovation 0.04 to 0.06; the box walk goes STABLE at the first
+  cooldown's sixth minute as before; the tour's legs to STABLE are 10
+  fresh, 23 cold, 38 to 48 toasty, 21 temperate - the toasty leg still
+  at the forty-five minute cap now and then. The core suite's box, fan,
+  room and idle cases pass unchanged: a fan's first cooldown still says
+  UNCERTAIN (its 1 to 2 K errors on 5 K moves are four floors judged),
+  idle still teaches nothing. Firmware 0 warnings, 195 016 B flash.
+  And the envelope not acting is the demo, not the observer: the burst
+  was sized to nine tenths of the budget on the ten-node graph and
+  reaches 0.57 of the span in force on a cold board at the floor and
+  0.82 of the whole span over four minutes, warm and STABLE, no trip;
+  1.4 and 1.8 s of it were tried over two minutes and reached 0.68 and
+  0.71, the leg node saturating against its patch in seconds. Harder or
+  longer would meet the throttle only by
+  latching a trip while the model is doubted, which in a demo is a dead
+  stage, so the burst stays and its comment says what it measures.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were

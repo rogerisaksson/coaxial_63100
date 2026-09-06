@@ -142,6 +142,21 @@ static const float VAR_MAX[THERMAL_IDENT_PARAMS] = { 1.0f, 1.0f, 1.0f, 1.0f,
   * on that would be confidence from silence. */
 #define IDENT_STILL_GAIN 3.0f
 
+/** THE ERROR IS JUDGED AGAINST WHAT THE THERMOMETER DID. A model's error
+  * over an interval scales with how far the reading moved in it - a
+  * two-percent error on a four-kelvin swing is 80 mK, eight floors of
+  * nothing - so the prediction error fed to the state's judgement is
+  * shrunk by the floor over the floor plus this share of the movement
+  * since the seat. At rest nothing changes: a 0.3 K miss on a still
+  * board is still three floors. Under a live load the model that
+  * predicts the swing to a few percent is PREDICTING, and can be
+  * STABLE. Measured 2026-09-06 on the rotor page's demo, which never
+  * stops loading: judged against the bare floor the error sat at 1.5 to
+  * 2 floors for ever and the state at CONVERGING - "it never converges
+  * during the run cycle", the bench. The Kalman step still takes the raw
+  * error: only the judgement and the margin's innovation term see this. */
+#define IDENT_MOVE_SHARE 0.05f
+
 /** What the states are: the innovation against the noise floor that says
   * the model predicts (the sigmas are SIGMA_CONVERGING and SIGMA_STABLE
   * above, one each). */
@@ -767,7 +782,12 @@ bool thermal_ident_step(thermal_ident_t *id, const thermal_t *th,
              (double)id->scale[2], (double)id->scale[3]);
       fflush(stdout);           /* the C and Python streams interleave */
 #endif
-      worst = fmaxf(worst, fabsf(e));
+      /* The judged error, in the floor's own units: the raw error over
+         one plus the share of the movement, floors. */
+      const float moved_j = fabsf(readings[j] - id->seat_reading[j]);
+      const float allowed = id->noise_k + IDENT_MOVE_SHARE * moved_j;
+
+      worst = fmaxf(worst, fabsf(e) * id->noise_k / allowed);
       judged = true;
     }
 

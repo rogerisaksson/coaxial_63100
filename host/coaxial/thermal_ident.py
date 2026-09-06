@@ -99,6 +99,11 @@ GATE_SIGMAS = 3.0
 #: agree with the shadow whatever the air scale or the room, and
 #: confidence from that would be confidence from silence.
 STILL_GAIN = 3.0
+#: The error is judged against what the thermometer did: shrunk by the
+#: floor over the floor plus this share of the reading's movement since
+#: the seat, so a model predicting a four-kelvin swing to a few percent
+#: is predicting, and a 0.3 K miss at rest is still three floors.
+MOVE_SHARE = 0.05
 RATIO_STABLE, RATIO_UNCERTAIN = 2.0, 3.0
 
 #: The floor the margin rises from when the caller gives none: the
@@ -517,7 +522,9 @@ class Identifier:
                 e = reading - predicted
                 if not still:
                     moved = self._update(h, e) or moved
-                worst = max(worst, abs(e))
+                allowed = self.noise_k + MOVE_SHARE * abs(
+                    reading - self.seat_reading[name])
+                worst = max(worst, abs(e) * self.noise_k / allowed)
                 judged = True
             if judged:
                 self.innovation_k += INNOVATION_FOLLOW * (worst - self.innovation_k)

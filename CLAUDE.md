@@ -180,7 +180,10 @@ start is at the record's margin floor and earns its span. **The margin is
 continuous and the states are words** (2026-09-06): `thermal_ident_margin`
 is the floor (80 % of every span, the record's, thermal op 12) while the
 model is doubted whole and one when not at all, the doubt the worse of
-the innovation and the covariance normalised. **An idling board stays at
+the innovation and the covariance normalised; the innovation is judged
+against the floor plus five percent of the reading's own movement, so a
+live load can be STABLE and a still board's miss still counts whole.
+**An idling board stays at
 the floor**: nothing burning, nothing moving, nothing to learn from - a
 sample whose thermometers moved less than three floors since the seat
 moves neither the quantities nor their covariance, and the covariance is
