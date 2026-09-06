@@ -67,10 +67,15 @@ PRIOR_SIGMA = (0.5, 0.2, 0.5, 0.3, 10.0)
 #: correction (measured on the stand-in, 2026-09-05: 0.65 for a truth
 #: of 1.0) and its floor sat on the STABLE threshold.
 FLOOR_SHARE = (0.5, 0.25, 0.25, 0.25, 0.5)
-#: Below what sigma each is CONVERGING, and STABLE: a tenth and three
-#: tenths of a scale, two and six kelvin of room.
+#: Below what sigma each is CONVERGING, and STABLE: three tenths of a
+#: scale, and a tenth - 0.15 for the air path, since with the room
+#: identified beside it one transient leaves it known to about 0.12 and a
+#: machine holding a steady current after a change has one transient to
+#: learn from (the rotor page never showed STABLE at a tenth, 2026-09-06);
+#: three and six kelvin of room - one cycle leaves it at 2.3 from the
+#: ten-kelvin prior, and three is as much as the envelope can use.
 SIGMA_CONVERGING = (0.30, 0.30, 0.30, 0.30, 6.0)
-SIGMA_STABLE = (0.10, 0.10, 0.10, 0.10, 2.0)
+SIGMA_STABLE = (0.15, 0.10, 0.10, 0.10, 3.0)
 #: The process noise a sample: half a percent on a scale, 22 mK on the
 #: room - a couple of kelvin an hour at thirty-second samples, which is
 #: what a room does; at 0.14 K a sample the room's variance never closed

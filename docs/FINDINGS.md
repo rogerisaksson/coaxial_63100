@@ -1261,6 +1261,24 @@ looking at the estimate alone.
   record: a good observer earns STABLE within a few cooldown samples,
   so the flash save is not needed for safety; it stays because a
   resumed record starts at 90 % instead of 80 and costs nothing.
+* **"Now it never goes STABLE on the rotor page"** (bench, 2026-09-06),
+  after the room joined the step. Measured: with the room beside the
+  scales ONE transient leaves the air path known to 0.12 and the room
+  to 2.3 K from its ten-kelvin prior - the two share a cooldown's
+  evidence - and the STABLE thresholds were a tenth and 2 K; the
+  second transient took both under (0.10 and 2.0 at the second
+  cooldown's eighth minute). The rotor page holds a steady current, so
+  after a situation switch there is one warm-up and then equilibrium,
+  which the still rule rightly ignores: one transient, never STABLE.
+  Two things were tried and rejected on measurement: the room's
+  UNCERTAIN floor at a quarter of its prior helped nothing on a fresh
+  start (the prior is what is wide there) and broke the return indoors
+  (room 10.9 for 25, air 2.85); the still threshold at 1.5 floors
+  admitted the cooldown's tail and the noise in it, and the C fan case
+  went from 0.46 ± 0.04 STABLE to 0.43 ± 0.20. What holds: STABLE at
+  0.15 on the air path and 3 K on the room - what one transient gives,
+  and as much as an envelope acting on anchored nodes can use. A tenth
+  stays on the capacity, which converges to 0.03.
   visible that it throttles at 80 % of the SOA already, then 90, then
   100 as the model's uncertainty goes to zero": `TH OBS UNCR 80%`,
   `TH OBS CONV 90%`, `TH OBS STABLE` alone at the whole span, since

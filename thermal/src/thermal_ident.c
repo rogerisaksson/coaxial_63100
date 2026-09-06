@@ -43,13 +43,21 @@ static const float PRIOR_SIGMA[THERMAL_IDENT_PARAMS] = { 0.5f, 0.2f, 0.5f,
    19.6 C for a bench at 25 after the first cycle - which the anchored
    nodes do not feel and later cycles correct. */
 
-/** Below what sigma each is CONVERGING, and STABLE: a tenth and three
-  * tenths of a scale, two and six kelvin of room. */
+/** Below what sigma each is CONVERGING, and STABLE: three tenths of a
+  * scale, and a tenth - but 0.15 for the air path, since with the room
+  * identified beside it one transient leaves the air path known to about
+  * 0.12 (the two share a cooldown's evidence) and a machine that holds a
+  * steady current after a change has exactly one transient to learn
+  * from; at a tenth the rotor page never showed STABLE (bench,
+  * 2026-09-06). The ceiling's 100 % is on nodes anchored to readings,
+  * which a 15 % air path does not move. Three and six kelvin of room -
+  * one cycle from the ten-kelvin prior leaves it at 2.3, and three is
+  * as much room as the envelope can use for the same reason. */
 static const float SIGMA_CONVERGING[THERMAL_IDENT_PARAMS] = { 0.30f, 0.30f,
                                                              0.30f, 0.30f,
                                                              6.0f };
-static const float SIGMA_STABLE[THERMAL_IDENT_PARAMS] = { 0.10f, 0.10f, 0.10f,
-                                                         0.10f, 2.0f };
+static const float SIGMA_STABLE[THERMAL_IDENT_PARAMS] = { 0.15f, 0.10f, 0.10f,
+                                                         0.10f, 3.0f };
 
 /** The process noise a sample: a random walk of half a percent on a
   * scale - a hundred samples without excitation grow a sigma by five

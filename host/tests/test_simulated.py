@@ -1625,13 +1625,29 @@ def test_thermal_identification(report):
         if not states or states[-1] != state:
             states.append(state)
     got = cold.identification()
+    # IDLING IN THE COLD IS WEAK EVIDENCE: the board only cools toward a
+    # room it is not told, on housekeeping alone, and the room comes out
+    # within eight kelvin (measured -23 to -27 for -20 across the
+    # configurations tried). A run in the cold is what settles it.
     report.check('carried to -20 C outdoors: UNCERTAIN, then the room found '
-                 'within twenty idle minutes and the air path not blamed',
-                 'UNCERTAIN' in states and abs(got['ambient'] + 20.0) < 6.0
+                 'within eight kelvin on twenty idle minutes alone, the '
+                 'air path not blamed',
+                 'UNCERTAIN' in states and abs(got['ambient'] + 20.0) < 8.0
                  and 0.5 <= got['scales']['air'] <= 1.4,
                  'room %.1f±%.1f C, air %.2f, %s' % (
                      got['ambient'], got['ambient_sigma'], got['scales']['air'],
                      ' > '.join(states)))
+    run_on(6, load)
+    run_on(8, idle)
+    got = cold.identification()
+    report.check('and a run in the cold settles both: the room within three '
+                 'kelvin, the air path near its 0.8, STABLE',
+                 abs(got['ambient'] + 20.0) < 3.0
+                 and abs(got['scales']['air'] - 0.8) < 0.3
+                 and got['state'] == 'STABLE',
+                 'room %.1f±%.1f C, air %.2f, %s' % (
+                     got['ambient'], got['ambient_sigma'], got['scales']['air'],
+                     got['state']))
     cold.situation('bench')
     run_on(20, idle)
     got = cold.identification()
