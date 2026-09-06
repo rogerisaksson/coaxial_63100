@@ -136,7 +136,12 @@ class SimulatedThermal:
 
     def __init__(self, sample=None, situation='bench', seed=7, nvm=None):
         self._seconds = 0
-        self._every_s = 5.0
+        #: THE BOARD'S CADENCE, thirty seconds (THERMAL_SAMPLE_EVERY_MS),
+        #: three of wall time at HASTE. It was five: judged every twenty
+        #: seconds a late cooldown's samples moved under the still rule's
+        #: 0.3 K and the room never separated from the air path, so the
+        #: stand-in stayed CONVERGING where the board goes STABLE.
+        self._every_s = 30.0
         self._settle_s = 0.3
         #: WHERE IT LOOKS, not what it is told. A sampler that answers
         #: the phase currents and whether the bridge is switching - the

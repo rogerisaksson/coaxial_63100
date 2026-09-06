@@ -1238,18 +1238,29 @@ looking at the estimate alone.
   found within 5 K both ways with the air scale near the truth, at the
   price of some of a cooldown's early state error landing in the room -
   19.6 C for a bench at 25 after the first cycle, which the anchored
-  nodes do not feel and the next cycles correct. Measured: C ground
-  truth, a run and a cooldown at 25 then idle at -20 - room -18.7 C,
-  air 0.75 for 0.8-ish (the truth kept 1.0 there: 0.75), back to 23.0;
-  stand-in, six minutes at 30 A and eight cooling on the bench then
-  twenty idle minutes outdoors - UNCERTAIN, CONVERGING, room -23.4 ± 4.3
-  for -20, air 1.12 for 0.8; back in, 26.7 ± 2.3 for 25. The room is
-  never saved: it is where the board is, not what it is. The rooms a
-  situation can lay on the stand-in: bench 25, outdoors -20, warehouse
-  20, freezer -25, thai 45. And the bench's word on the record: a good
-  observer earns STABLE within a few cooldown samples, so the flash save
-  is not needed for safety; it stays because a resumed record starts at
-  90 % instead of 80 and costs nothing.
+  nodes do not feel and the next cycles correct. The room's process
+  noise is 22 mK a sample, a couple of kelvin an hour at the board's
+  cadence; at 0.14 K the room's variance never closed and the air
+  scale's sigma floored at 0.14 through their correlation. Measured: C
+  ground truth, a run and a cooldown at 25 then forty idle minutes at
+  -20 - room -18.8 C, air 0.74 for a truth of 1.0 there, CONVERGING;
+  back in, 23.0. Stand-in, at the board's thirty-second cadence (it
+  was five, and judged every twenty seconds a late cooldown's samples
+  moved under the still rule's 0.3 K, so the room never separated from
+  the air path and a box stayed CONVERGING where the board goes
+  STABLE): six minutes at 30 A and eight cooling on the bench, then
+  outdoors idle - UNCERTAIN, CONVERGING at fourteen minutes, room -27
+  for -20 and air 1.3 for 0.8 on idling alone; a run in the cold
+  settles both - room -19.2, air 0.73, STABLE; back in, 25.3, air 1.0.
+  With the room beside the scales one cycle leaves the air scale known
+  to 0.12 and CONVERGING and the second takes it under a tenth: a box
+  is 1.89 ± 0.12 after one, 1.98 ± 0.09 and STABLE after two. The
+  room is never saved: it is where the board is, not what it is. The
+  rooms a situation can lay on the stand-in: bench 25, outdoors -20,
+  warehouse 20, freezer -25, thai 45. And the bench's word on the
+  record: a good observer earns STABLE within a few cooldown samples,
+  so the flash save is not needed for safety; it stays because a
+  resumed record starts at 90 % instead of 80 and costs nothing.
   visible that it throttles at 80 % of the SOA already, then 90, then
   100 as the model's uncertainty goes to zero": `TH OBS UNCR 80%`,
   `TH OBS CONV 90%`, `TH OBS STABLE` alone at the whole span, since

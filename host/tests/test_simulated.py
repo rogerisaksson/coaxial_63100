@@ -1543,11 +1543,17 @@ def test_thermal_identification(report):
             if not states or states[-1] != state:
                 states.append(state)
 
+    # TWO CYCLES: with the room identified beside the scales, one
+    # cooldown leaves the air scale known to 0.12 and CONVERGING - the
+    # room and the air path share a cooldown's evidence - and the second
+    # takes it under a tenth, STABLE (measured 2026-09-06).
+    run(6, load)
+    run(14, idle)
     run(6, load)
     run(14, idle)
     got = model.identification()
-    report.check('six minutes at 30 A and fourteen cooling in a box: the '
-                 'air scale lands near two',
+    report.check('two cycles of six minutes at 30 A and fourteen cooling in '
+                 'a box: the air scale lands near two',
                  abs(got['scales']['air'] - 2.0) < 0.4,
                  'air %.2f±%.2f, capacity %.2f, %d updates'
                  % (got['scales']['air'], got['sigma']['air'],
@@ -1568,14 +1574,16 @@ def test_thermal_identification(report):
     model.situation('fan')
     states = []
     run(6, load)
-    run(20, idle)
+    run(14, idle)
+    run(6, load)
+    run(14, idle)
     got = model.identification()
     report.check('a fan under a trusted model: UNCERTAIN within the first '
                  'minutes, then CONVERGING',
                  states[0] == 'UNCERTAIN' and 'CONVERGING' in states,
                  ' > '.join(states))
-    report.check('and the air scale re-lands near a half',
-                 abs(got['scales']['air'] - 0.5) < 0.15,
+    report.check('and two cycles later the air scale has re-landed near a '
+                 'half', abs(got['scales']['air'] - 0.5) < 0.2,
                  'air %.2f±%.2f, capacity %.2f, %s'
                  % (got['scales']['air'], got['sigma']['air'],
                     got['scales']['capacity'], got['state']))

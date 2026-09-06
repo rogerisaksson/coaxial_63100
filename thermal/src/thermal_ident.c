@@ -53,13 +53,18 @@ static const float SIGMA_STABLE[THERMAL_IDENT_PARAMS] = { 0.10f, 0.10f, 0.10f,
 
 /** The process noise a sample: a random walk of half a percent on a
   * scale - a hundred samples without excitation grow a sigma by five
-  * percent, no more - and 0.14 K on the room, which drifts. The
-  * alternative, dividing the covariance by a forgetting factor, inflated
-  * every direction whenever any was updated and no scale could ever be
-  * known to a tenth. */
+  * percent, no more - and 22 mK on the room, a couple of kelvin an hour
+  * at thirty-second samples, which is what a room does. At 0.14 K a
+  * sample it was a hundred kelvin an hour, the room's variance never
+  * closed, and through the room-air correlation the air scale's sigma
+  * floored at 0.14 and a box was never STABLE (stand-in, 2026-09-06).
+  * A room that STEPS is the UNCERTAIN floor's business, not the drift's.
+  * The alternative, dividing the covariance by a forgetting factor,
+  * inflated every direction whenever any was updated and no scale could
+  * ever be known to a tenth. */
 static const float DRIFT_VAR[THERMAL_IDENT_PARAMS] = { 2.5e-5f, 2.5e-5f,
                                                       2.5e-5f, 2.5e-5f,
-                                                      0.02f };
+                                                      5.0e-4f };
 
 /** How much of its prior each scale's sigma is floored at while the
   * model is UNCERTAIN - kept free to move, since it is not predicting.

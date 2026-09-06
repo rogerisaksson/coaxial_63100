@@ -71,10 +71,14 @@ FLOOR_SHARE = (0.5, 0.25, 0.25, 0.25, 0.5)
 #: tenths of a scale, two and six kelvin of room.
 SIGMA_CONVERGING = (0.30, 0.30, 0.30, 0.30, 6.0)
 SIGMA_STABLE = (0.10, 0.10, 0.10, 0.10, 2.0)
-#: The process noise a sample: half a percent on a scale, 0.14 K on the
-#: room, which drifts; and the covariance's ceiling - a scale never less
-#: known than its own size, the room than its prior.
-DRIFT_VAR = (2.5e-5, 2.5e-5, 2.5e-5, 2.5e-5, 0.02)
+#: The process noise a sample: half a percent on a scale, 22 mK on the
+#: room - a couple of kelvin an hour at thirty-second samples, which is
+#: what a room does; at 0.14 K a sample the room's variance never closed
+#: and the air scale's sigma floored at 0.14 through their correlation,
+#: so a box was never STABLE. A room that steps is the UNCERTAIN floor's
+#: business. And the covariance's ceiling - a scale never less known than
+#: its own size, the room than its prior.
+DRIFT_VAR = (2.5e-5, 2.5e-5, 2.5e-5, 2.5e-5, 5.0e-4)
 VAR_MAX = (1.0, 1.0, 1.0, 1.0, 100.0)
 SCALE_MIN, SCALE_MAX = 0.25, 4.0
 AMBIENT_MIN_C, AMBIENT_MAX_C = -40.0, 85.0
