@@ -1838,6 +1838,25 @@ def test_thermal_identification(report):
     report.check('a named situation ends the tour',
                  tour.situation('box')['tour'] is False
                  and tour.truth()['situation'] == 'box')
+    # A BOARD STARTS IN ITS ROOM: switched on in the toasty room it reads
+    # 45 C, the observer starts there and the identification's room too,
+    # as `Board_ThermalInit` starts on the NTC; a situation laid on later
+    # is a carry-in and moves nothing.
+    warm = SimulatedThermal(situation='toasty')
+    warm._advance = lambda: None
+    born = warm.state()
+    report.check('switched on in the toasty room the stand-in reads 45 C '
+                 'on every node and the identification\'s room starts '
+                 'there, UNCERTAIN; carried into the cold room after, '
+                 'nothing jumps',
+                 abs(born['ntc'] - 45.0) < 1e-9
+                 and abs(born['nodes']['driver_u'] - 45.0) < 1e-9
+                 and abs(warm.identification()['ambient'] - 45.0) < 1e-9
+                 and warm.identification()['state'] == 'UNCERTAIN'
+                 and warm.situation('cold')['ambient'] == -25.0
+                 and abs(warm.state()['ntc'] - 45.0) < 1e-9,
+                 'ntc %.1f, room %.1f' % (born['ntc'],
+                                          warm.identification()['ambient']))
 
     # THE TRIP CAP (bench, 2026-09-06: "it should trip the limits and
     # push the SOA limit down to maybe 70 %, or some other graceful

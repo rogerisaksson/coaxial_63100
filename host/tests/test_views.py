@@ -736,19 +736,16 @@ def test_the_thermal_page_shows_its_evidence(report):
                      for ch in pair.replace(' ', ''))
                      for pair in page.ROOM_HINTS.values()),
                  ' '.join(page.ROOM_HINTS[at(c)] for c in (-25.0, 20.0, 45.0)))
-    # CENTRED over the board's field - the bench - which is the map's
-    # narrowest row less the rail's two cells and its two spaces: a
-    # twenty-cell field puts a five-cell hint at column 3 + 10 - 3, half
-    # the hint rounded up - the bench's "one space left".
-    body = ['', '\u28ff' * 20 + '  \u2847\u2847 100 C',
-            '\u28ff' * 20 + '  \u2847\u2847']
-    row = page.hint_row({'ambient': 20.0, 'innovation_k': 0.1}, body)
-    report.check('and the hint is centred over the board\'s field, ten '
-                 'cells in over a twenty-cell field, and absent with no '
-                 'room',
-                 row == ' ' * 10 + page.ROOM_HINTS['mild']
-                 and page.hint_row(None, body) == '',
-                 repr(row))
+    # IN SENSE, beside the room - the bench: "maybe move the emojis to
+    # the SENSE block on the right, a bit more uniform" - after a row
+    # above the board, centred, in braille, and back again.
+    rows = page.ident_rows(ident(0.91))
+    room = [value for label, value in rows if label == 'room'][0]
+    report.check('and the hint sits in SENSE beside the room, the pair '
+                 'after the figure',
+                 room.plain.startswith('24.5 ±4.2 C')
+                 and room.plain.endswith(page.ROOM_HINTS['mild']),
+                 room.plain)
 
     # SENSE, ONE FACT A ROW, none wider than the panel.
     rows = page.ident_rows(ident(0.91))

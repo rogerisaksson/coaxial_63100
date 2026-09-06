@@ -465,15 +465,41 @@ FRAME_TOP, FRAME_BOTTOM = 1, 2
 
 def _cell_rect(box, cells, down, dx, dy):
     """`[c0, c1, r0, r1]`: the cells a frame's edges land in. Never less
-    than two cells each way, so a small part still gets a box."""
+    than two cells each way, so a small part still gets a box.
+
+    THE SIDES ON THE NEAREST DOT, mirrored about the board's centre: an
+    edge's dot column rounded half away from the centre, the cell that
+    dot is in and the lane it is in, so a box at +x is drawn exactly as
+    its twin at -x and neither is a dot wider than its millimetres.
+    Floored to cells on both sides, a right edge whose dot fell in a
+    cell's right lane lost a cell where the mirrored left edge kept it:
+    the bench, 2026-09-06, "the W area is a bit larger than the U area,
+    looks a bit odd" - in millimetres U's frame is the wider by a
+    millimetre, the drawing said otherwise at some widths. Top and
+    bottom take the cell row their dot falls in, mirrored about the
+    centre row the same way. Returns `(rect, lanes)`.
+    """
     cx, cy, hw, hh = box
     wide, high = 2 * cells, 2 * down
-    c0 = int(((cx - hw) / dx + (wide - 1) / 2.0) // 2)
-    c1 = int(((cx + hw) / dx + (wide - 1) / 2.0) // 2)
-    r0 = int(((high - 1) / 2.0 - (cy + hh) / dy) // 4)
-    r1 = int(((high - 1) / 2.0 - (cy - hh) / dy) // 4)
-    return [max(0, c0), min(cells - 1, max(c1, c0 + 1)),
+    half = (wide - 1) / 2.0
+
+    def dot(offset_dots):
+        # Half away from the centre, so a mirrored offset lands on the
+        # mirrored dot: the edge's column, 0 .. wide - 1.
+        rounded = math.floor(abs(offset_dots) + 0.5)
+        at = half + (rounded if offset_dots >= 0.0 else -rounded)
+        return int(max(0, min(wide - 1, at)))
+
+    left, right = dot((cx - hw) / dx), dot((cx + hw) / dx)
+    top = (high - 1) / 2.0 - (cy + hh) / dy
+    bottom = (high - 1) / 2.0 - (cy - hh) / dy
+    c0, c1 = left // 2, right // 2
+    r0 = int(top // 4)
+    r1 = (down // 2 - 1) - int(((high - 1) - bottom) // 4)
+    rect = [max(0, c0), min(cells - 1, max(c1, c0 + 1)),
             max(0, r0), min(down // 2 - 1, max(r1, r0 + 1))]
+    lanes = [left % 2, right % 2 if c1 > c0 else 1]
+    return rect, lanes
 
 
 def _share_edges(rects, lanes):
@@ -558,8 +584,9 @@ def _mask(cells, down, marks):
             line.append(MARK if (r > OUTER_MM - 2.0 * edge
                                  or r < bore + 2.0 * edge) else FIELD)
         rows.append(line)
-    rects = [_cell_rect(box, cells, down, dx, dy) for box in boxes]
-    lanes = [[0, 1] for _box in boxes]
+    placed = [_cell_rect(box, cells, down, dx, dy) for box in boxes]
+    rects = [rect for rect, _lanes in placed]
+    lanes = [lanes for _rect, lanes in placed]
     _share_edges(rects, lanes)
     for rect, lane in zip(rects, lanes):
         _draw_frame(rows, rect, lane, cells, down)

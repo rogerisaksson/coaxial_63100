@@ -1992,6 +1992,16 @@ def thermal_rows(view):
                         'rising' if view['load_rising'] else 'falling')))
     rows.append(('NTC', '%7.1f C' % th['ntc'] if th.get('ntc') is not None
                  else '%7s' % 'unread'))
+    # THE ROOM, as identified - the board has no sensor for it - and on
+    # the stand-in the one the truth stands in, so the tour can be read
+    # off this page too.
+    ident = view.get('ident') or {}
+    if ident.get('ambient') is not None:
+        truth = ident.get('truth') or {}
+        rows.append(('room', '%7.1f C identified%s'
+                     % (ident['ambient'],
+                        '  sim %s %.0f' % (truth['situation'], truth['ambient'])
+                        if truth else '')))
     if budget:
         left = budget.get('seconds_to_limit')
         rows.append(('worst', '%-11s %3.0f%%%s'

@@ -64,9 +64,6 @@ TRAILING = 0
 GAUGE_LINES = 2
 GAUGE_CELLS = 20
 
-#: Above it: the room's hint, one row - `hint_row` - the blank `picture`
-#: already leads with, so nothing more in the reserve.
-HINT_LINES = 1
 
 #: THE PAGE'S LOAD CYCLE, model seconds: two minutes at 30 A and four
 #: idle - a cycle every thirty-six seconds of wall time at HASTE - so
@@ -108,10 +105,6 @@ ROOM_UNSURE_K = 0.3
 ROOM_HINTS = {'cold': '🧊 🥶', 'mild': '🍃 😌', 'hot': '🔥 🥵',
               'unsure': '🤒 🤔'}
 
-#: The hint's width in cells: two emoji, two cells each, and the space.
-HINT_CELLS = 5
-
-
 def room_hint(ident):
     """Which hint the estimate gets - 'unsure' while the innovation is
     large, else 'cold', 'mild', 'hot' on the room - or nothing before the
@@ -126,21 +119,6 @@ def room_hint(ident):
     return 'mild' if room < ROOM_HOT_C else 'hot'
 
 
-def hint_row(ident, body, indent=3):
-    """The hint centred over the board's field - the bench: "centre the
-    emojis above the board". `body` is `picture`'s: a blank then the map
-    rows, each the field, two spaces and the rail (two cells of block
-    and, on some rows, a label), so the narrowest row less four is the
-    field, and the board sits centred in it."""
-    kind = room_hint(ident)
-    if not kind:
-        return ''
-    widths = [visible(row) for row in body[1:] if row.strip()]
-    field = (min(widths) - 4) if widths else 0
-    # Half the hint rounded UP - the bench, on the five-cell pair: "shift
-    # it one space left so it is centred again".
-    half = (HINT_CELLS + 1) // 2
-    return ' ' * max(0, indent + field // 2 - half) + ROOM_HINTS[kind]
 
 #: What ESC and Q do. ESC returns TO_MENU so coaxial_tty.ps1 draws its menu again.
 
@@ -197,10 +175,13 @@ def ident_rows(ident):
             rows.append(('cap' if name == 'capacity' else name,
                          '%.2f ±%.2f' % (scales[name], sigma[name])))
     # THE ROOM, identified beside the scales (MINOR 15): the board has no
-    # ambient sensor, so this is what its rise is measured against.
+    # ambient sensor, so this is what its rise is measured against - and
+    # its hint beside it, the bench's emoji pair, here rather than over
+    # the board since "a bit more uniform" (2026-09-06).
     if ident.get('ambient') is not None:
-        rows.append(('room', '%.1f ±%.1f C' % (
-            ident['ambient'], ident.get('ambient_sigma', 0.0))))
+        rows.append(('room', Text('%.1f ±%.1f C   %s' % (
+            ident['ambient'], ident.get('ambient_sigma', 0.0),
+            ROOM_HINTS.get(room_hint(ident), '')))))
     # THE SIMULATION'S OWN ROWS, on the stand-in only: the situation its
     # hypothetical board is in and the scales that make it, beside what
     # the observer has found - a board has no truth to tell, and the rows
@@ -521,7 +502,7 @@ def main():
         # the board to what is left. Counted, not guessed - a guess is what
         # clipped the bottom edge off.
         reserve = (HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
-                   + GAUGE_LINES + HINT_LINES - 1)
+                   + GAUGE_LINES)
         last = {'body': ['  waiting for device 8'], 'boxes': [],
                 'ident': None, 'ident_at': 0.0}
         leaving = None
@@ -549,10 +530,6 @@ def main():
             body = last['body']
             field = max((visible(l) for l in body), default=0) + 8
             art = stamp_crosses(['   ' + l for l in body], field)
-            # THE ROOM'S HINT in the blank row above the board, the row
-            # `picture` leads with, centred over the board's field.
-            if art and not art[0].strip():
-                art[0] = hint_row(last['ident'], body)
             # THE EVIDENCE BAR under the board, after the crosses are
             # stamped so nothing lands on it.
             art += evidence_rows(last['ident'], colour=console)

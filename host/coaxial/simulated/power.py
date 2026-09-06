@@ -271,6 +271,23 @@ class SimulatedThermal:
         self._cycle_trip = None     # the cycle index a trip ended early
         self._cfg = self._ident.apply(self._base)
         self.situation(situation)
+        # THE BOARD STARTS IN ITS ROOM, as a board does: the truth at the
+        # room it was switched on in, the observer at its thermistor's
+        # reading and the identification's room at the same -
+        # `Board_ThermalInit` starts on the NTC. Both started at 25 C
+        # whatever the room, so a fresh start in the toasty room was a
+        # cold board carried in, and the warm-up under load read the room
+        # ten kelvin warm for three minutes (2026-09-06). A situation laid
+        # on LATER is a carry-in and moves nothing: the board is where it
+        # is.
+        start = self._truth_ambient
+        for temps in (self._truth, self._node):
+            for name in self.NODES:
+                temps[name] = start
+        self._truth_ntc = self._ntc = start
+        self._ambient = start
+        self._ident = thermal_ident.Identifier(self.IDENT_NOISE_K, start)
+        self._cfg = self._ident.apply(self._base)
 
     def _advance(self):
         """The network integrated forward to now, in steps it can take.

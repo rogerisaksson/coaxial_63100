@@ -236,10 +236,10 @@ stand-in, reached by `--simulated` or a bench with no cable, a load
 cycle runs under it so there are cooldowns to rise on, and the truth
 tours temperate, cold and toasty, moving on once STABLE has
 stood ten seconds - on the rotor page too, under its own demo. SENSE's `sim` rows say where the truth is: only in
-simulated mode is the thermal situation known. Above the board an
-emoji hint for the estimated room, `hint_row` - shivering under 5 C,
-sweating from 35, mild between, and a thermometer thinking while the
-innovation is large - the board's own opinion, not the stand-in's.
+simulated mode is the thermal situation known. On SENSE's `room` row
+an emoji hint for the estimated room, `room_hint` - shivering under
+5 C, sweating from 35, mild between, and a thermometer thinking while
+the innovation is large - the board's own opinion, not the stand-in's.
 
 The rotor observer draws the machine itself - `coaxial/machine.py`, a
 braille cross-section of rotor and stator whose slot and pole counts
@@ -312,7 +312,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2915 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2916 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -320,7 +320,7 @@ by `counts.py`:
 | test_structure.py | 611 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 218 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
-| test_simulated.py | 246 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |
+| test_simulated.py | 247 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |
 | test_live_model.py | 212 | the model, `--live` |
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
 | test_conformance.py | 110 | the live board against PROTOCOL.md, `--conformance` |

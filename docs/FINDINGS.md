@@ -1647,7 +1647,38 @@ looking at the estimate alone.
   other six are single code points with emoji presentation, two cells
   to both. So 🧊 for the cold and 🤒 for the thinking thermometer, and
   the suite holds every glyph in the hint to `east_asian_width` W with
-  no selector.
+  no selector. And then, the bench: "maybe move the emojis to the SENSE
+  block on the right, a bit more uniform" - so the pair sits on SENSE's
+  `room` row after the figure, and the row above the board is the
+  blank it always was.
+* **The stand-in starts in its room** (2026-09-06, off the toasty
+  replay's room at 55 C for 45 on the warm-up). Both boards started at
+  25 C whatever the situation's room, so a fresh start in the toasty
+  room was a cold board carried in, and the identification, starting
+  its room at 25 as well, charged the warm-up under load to a room
+  hotter than the truth for three minutes. `Board_ThermalInit` starts
+  the observer and the room on the thermistor's reading, and the
+  stand-in does the same now: switched on in a room it reads that room
+  on every node, and a situation laid on later is a carry-in that moves
+  nothing. The rotor page's THERMAL box says the room since, identified
+  and, on the stand-in, the truth's beside it, so the tour reads off
+  that page too. simulated 247, 2916 in all.
+* **The W frame drew wider than U's** (bench, 2026-09-06: "the W area is
+  a bit larger than the U area, looks a bit odd, but maybe you have
+  other information from the pick and place?"). The file says the
+  opposite: U's frame is 15.6 mm wide and W's 14.5, since RU2 and Q2U
+  sit 0.4 and 0.8 mm further out than their W twins, RW1 and Q1W - the
+  legs are not exact mirrors on the board. The drawing was the odd
+  one: `_cell_rect` floored both edges of a frame to cells, which
+  rounds a left edge outward and a right edge inward whenever its dot
+  falls in a cell's right lane, so a box on the right of the board
+  could lose a cell its twin on the left kept, and at some widths did.
+  Now each side is the nearest dot, rounded half away from the board's
+  centre, the cell that dot is in and the lane it is in, top and bottom
+  mirrored about the centre row the same way: a box at +x is drawn as
+  its twin at -x would be, and neither is a dot wider than its
+  millimetres. Measured over 30 to 88 cells: U 10 to 29 dots wide, W 10
+  to 27, never W the wider.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were
