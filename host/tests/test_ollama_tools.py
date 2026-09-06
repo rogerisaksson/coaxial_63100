@@ -68,6 +68,14 @@ def test_board_tools(report):
     shapes = all(s['type'] == 'function' and s['function']['parameters']['type']
                  == 'object' for s in schemas)
     report.check('every schema is an ollama function schema', shapes)
+    from coaxial_ollama import debug
+    report.check('the thermal observer is a tool, and in the read and code '
+                 'sets - the rule sends "how hot is the board" to the local '
+                 'model, which had no way to device 8',
+                 any(s['name'] == 'thermal' for s in MCP_TOOLS)
+                 and 'thermal' in debug.SETS['read']
+                 and 'thermal' in debug.SETS['code']
+                 and 'thermal' not in debug.SETS['pins'])
 
 def test_corrections_are_reported(report):
     """A mistake in the question is answered, and said out loud.

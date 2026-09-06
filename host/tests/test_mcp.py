@@ -195,6 +195,15 @@ def exercise(server, report):
                   ['echo ok'])
     report.result('link stats', server.tool('link', {'op': 'stats'}),
                   ['bus_message='])
+    # THE THERMAL OBSERVER, three questions, every one headed and the
+    # one measurement named - the bench's rule sends "how hot is the
+    # board" to the local model, which had no way to device 8.
+    report.result('thermal state', server.tool('thermal', {'op': 'state'}),
+                  ['thermal:', 'legs', 'room', 'ESTIMATE'])
+    report.result('thermal budget', server.tool('thermal', {'op': 'budget'}),
+                  ['budget: worst', 'clamp', 'ceiling'])
+    report.result('thermal ident', server.tool('thermal', {'op': 'ident'}),
+                  ['ident:', 'margin', 'room', 'innovation'])
     report.result('test_gate close', server.tool('test_gate', {'enable': False}),
                   ['gate=0'])
 

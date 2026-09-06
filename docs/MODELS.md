@@ -109,8 +109,9 @@ offered, and a flash hint when `build_firmware` is. `ROLE` is what
 ### Tool sets
 
 `SETS`: `read` (board_info, devices, analog_read, digital_read, imu,
-angle, orientation, self_test, afe_power, link, link_diagnose), `code`
-(read plus run_python, build_firmware, run_tests), `pins`
+angle, thermal, orientation, self_test, afe_power, link,
+link_diagnose), `code` (read plus run_python, build_firmware,
+run_tests), `pins`
 (board_info, devices, digital_read, gpio_pin, gpio_port, test_gate,
 afe_power, link_diagnose), `build` (board_info, run_command, run_tests,
 link_diagnose), `docs` (board_info, analog_read, docs, link_diagnose),
@@ -205,10 +206,16 @@ transcript is written under `data/`.
 
 ## The MCP server
 
-`python -m coaxial_mcp --port COM4` over stdio, fourteen tools:
+`python -m coaxial_mcp --port COM4` over stdio, fifteen tools:
 board_info, analog_read, docs, self_test, imu, angle, orientation,
 afe_power, devices, digital_read, gpio_pin, gpio_port, test_gate,
-link. `coaxial_ollama.tools` adds run_python, run_command,
+thermal, link. `thermal` is the observer behind device 8 as three
+questions - op=state the measured NTC and every node's estimate with
+the identified room, op=budget the SOA spend, the clamp and the joules
+left, op=ident the identification, its scales, the room and the margin
+the envelope acts on - rendered as estimates with the one measurement
+named, since 2026-09-06; until then nothing on this side could reach
+the observer. `coaxial_ollama.tools` adds run_python, run_command,
 build_firmware, run_tests, link_diagnose and report. `analog_read`
 returns codes with the AFE either way under an unmistakable line
 (invariant 9); the cooked readings refuse. `docs` reads the seven

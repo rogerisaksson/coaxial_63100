@@ -1,6 +1,6 @@
 """Tool schemas and handlers.
 
-Fourteen tools, not one per firmware command. Every one costs its name,
+Fifteen tools, not one per firmware command. Every one costs its name,
 description and schema on every turn, so the set is coarse: one per thing a
 fixture does, with a small enum where a family of operations would otherwise
 be a family of tools.
@@ -198,6 +198,17 @@ TOOLS = [
             'type': 'object',
             'properties': {'enable': {'type': 'boolean'}},
             'required': ['enable'],
+        },
+    },
+    {
+        'name': 'thermal',
+        'description': "Thermal observer: op=state NTC and each node's estimated degC, op=budget SOA spend and clamp, op=ident identification and margin.",
+        'description_terse': "Thermal observer: op=state NTC and every node's estimate, op=budget SOA spend and clamp, op=ident the identification and the margin.",
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'op': {'enum': ['state', 'budget', 'ident']},
+            },
         },
     },
     {
@@ -474,6 +485,27 @@ def angle(session, op='read', **_):
         return render.angle_registers(rows)
 
     return render.angle(part.state())
+
+
+def thermal(session, op='state', **_):
+    """The thermal observer behind device 8, as three questions.
+
+    `state` is the one measurement and twenty estimates - the NTC is
+    read, every node is the model's - and the room the model runs
+    against, which it identifies since the board has no ambient sensor.
+    `budget` is the envelope: the worst node against the ceiling in
+    force, what the clamp is doing, the joules left. `ident` is what the
+    identification believes and how sure, and the margin the envelope
+    keeps of every span - the number the board acts on. The bench's
+    rule sends "how hot is the board" to the local model, and until
+    2026-09-06 nothing here could reach device 8.
+    """
+    part = session.board.thermal
+    if op == 'budget':
+        return render.thermal_budget(part.budget())
+    if op == 'ident':
+        return render.thermal_ident(part.identification())
+    return render.thermal_state(part.state())
 
 
 def board_info(session, refresh=False, kind='all', **_):
@@ -915,5 +947,6 @@ HANDLERS = {
     'gpio_pin': gpio_pin,
     'gpio_port': gpio_port,
     'test_gate': test_gate,
+    'thermal': thermal,
     'link': link,
 }

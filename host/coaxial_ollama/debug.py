@@ -127,11 +127,12 @@ LINK_DIAGNOSE_HINT = ("A question about why the board is not answering, or "
 # none of them but its own and `all` - see DOCS_HINT.
 SETS = {
     'read': ('board_info', 'devices', 'analog_read', 'digital_read',
-             'imu', 'angle', 'orientation', 'self_test', 'afe_power', 'link',
-             'link_diagnose'),
+             'imu', 'angle', 'thermal', 'orientation', 'self_test',
+             'afe_power', 'link', 'link_diagnose'),
     'code': ('board_info', 'devices', 'analog_read', 'digital_read',
-             'imu', 'angle', 'orientation', 'self_test', 'afe_power', 'link',
-             'run_python', 'build_firmware', 'run_tests', 'link_diagnose'),
+             'imu', 'angle', 'thermal', 'orientation', 'self_test',
+             'afe_power', 'link', 'run_python', 'build_firmware', 'run_tests',
+             'link_diagnose'),
     'pins': ('board_info', 'devices', 'digital_read', 'gpio_pin', 'gpio_port',
              'test_gate', 'afe_power', 'link_diagnose'),
     # run_command, not build_firmware: the wider, allowlisted surface for a

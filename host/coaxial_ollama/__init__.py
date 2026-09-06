@@ -11,7 +11,7 @@ in the plan file and `plan.Limit` applies them.
 
     plan.py       the steps and the limits - the only limits in this repository
     client.py     Ollama over stdlib urllib
-    tools.py      coaxial_mcp's fourteen board tools, plus code, shell, report
+    tools.py      coaxial_mcp's fifteen board tools, plus code, shell, report
     sandbox.py    where model-authored code and commands actually run
     runner.py     the turn loop, the transcript, the verdict
 

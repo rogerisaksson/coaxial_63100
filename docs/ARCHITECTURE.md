@@ -188,7 +188,7 @@ refuses a span and reports `stored` false.
 
 ### The MCP server and the runner
 
-`coaxial_mcp` exposes fourteen tools over stdio (`python -m
+`coaxial_mcp` exposes fifteen tools over stdio (`python -m
 coaxial_mcp --port COM4`, `.mcp.json`): board_info, analog_read, docs,
 self_test, imu, angle, orientation, afe_power, devices, digital_read,
 gpio_pin, gpio_port, test_gate, link; `detail.py` sizes replies terse
@@ -312,13 +312,13 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2917 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2922 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 |---|---|---|
 | test_structure.py | 611 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
-| test_ollama_tools.py | 218 | the runner's tools, the docs tool |
+| test_ollama_tools.py | 219 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
 | test_simulated.py | 247 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |
 | test_live_model.py | 212 | the model, `--live` |
@@ -329,7 +329,7 @@ by `counts.py`:
 | test_modbus_core.py | 77 | the Modbus core through ctypes, clock injected, the oracle's prefix sweep |
 | test_daq_api.py | 75 | the acquisition front door against the stand-in |
 | test_drive_core.py | 81 | the control law against the motor model through the host gcc, the Monte Carlo included |
-| test_mcp.py | 46 | the MCP server |
+| test_mcp.py | 50 | the MCP server |
 | test_render.py | 79 | the 3D engine stage by stage against an analytic oracle, the scanline halftone and the drawn rim |
 | test_filter_core.py | 42 | the anti-alias chain against its transfer function |
 | test_thermal_core.py | 140 | the twenty-node graph through the host gcc - the patches summing to the bulk, a leg warming its neighbour, the C_oss law and the switching terms, the junction, the motor as boundary, the envelope - derate, lookahead, soak - the thermistor bounded by its pair, and the identification against a ground truth whose situation changes: a box found as air 2, then a fan as 0.5, UNCERTAIN to CONVERGING to STABLE and back, the margin continuous on the doubt, and the mirror held to the C by name and value and on a walk - the same tape of watts and readings through both chains, the same state at every sample |

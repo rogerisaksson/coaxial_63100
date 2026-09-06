@@ -1,6 +1,6 @@
 """The tool surface handed to the model: the MCP set, plus code, shell, report.
 
-The fourteen board tools are imported from `coaxial_mcp.tools`, never re-declared:
+The fifteen board tools are imported from `coaxial_mcp.tools`, never re-declared:
 one description, one set of renderers, one place a capability is added. A second
 copy for Ollama would stay plausible while going out of date.
 
@@ -16,7 +16,7 @@ Six more make this a runner rather than a chat window:
                  call the dead link would fail too. Ungated for the same reason.
   report         how a step ends: a value and a unit, never a verdict.
 
-Twenty against coaxial_mcp's fourteen, and the extra buys one thing: a plan
+Twenty-one against coaxial_mcp's fifteen, and the extra buys one thing: a plan
 step can say "work out which channel this is" instead of naming a function
 code.
 

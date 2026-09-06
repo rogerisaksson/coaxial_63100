@@ -300,6 +300,102 @@ def angle(state):
     return '\n'.join(lines)
 
 
+#: The observer's nodes in the order a reader wants them: the legs, the
+#: housekeeping, the laminate, the motor.
+THERMAL_GROUPS = (
+    ('legs', ('driver_u', 'driver_v', 'driver_w', 'phase_u', 'phase_v',
+              'phase_w')),
+    ('parts', ('mcu', 'regulators', 'afe', 'hotswap')),
+    ('laminate', ('board', 'patch_u', 'patch_v', 'patch_w', 'patch_left',
+                  'patch_bottom', 'patch_right')),
+    ('motor', ('winding', 'stator', 'rotor')),
+)
+
+
+def thermal_state(state):
+    """The observer's picture: the one measurement, then every estimate
+    by group, then the room it runs against - device 8 op 0."""
+    from coaxial.thermal import pretty
+
+    ntc = state.get('ntc')
+    head = ('thermal: NTC %.1f C measured' % ntc if ntc is not None
+            else 'thermal: NTC unread - AFE off, the observer runs open')
+    lines = [head + '   open %d s, %s, a sample every %.0f s'
+             % (state.get('seconds') or 0,
+                'settled' if state.get('settled') else 'settling',
+                state.get('sample_every_s') or 0.0)]
+    nodes = state.get('nodes') or {}
+    for group, names in THERMAL_GROUPS:
+        have = [(name, nodes[name]) for name in names if name in nodes]
+        if have:
+            lines.append('  %-8s %s' % (group, '  '.join(
+                '%s %.1f' % (pretty(name), celsius) for name, celsius in have)))
+    if state.get('ambient') is not None:
+        lines.append('  room     %.1f C, identified - the board has no '
+                     'ambient sensor' % state['ambient'])
+    lines.append('  every figure an ESTIMATE but the NTC, degrees C')
+    return '\n'.join(lines)
+
+
+def thermal_budget(budget):
+    """The envelope's spend - device 8 op 4: the worst node against the
+    ceiling in force, what the clamp is doing, the joules left."""
+    from coaxial.thermal import pretty
+
+    worst_node = budget.get('worst_node') or '?'
+    verdict = ('TRIPPED' if budget.get('tripped')
+               else 'throttling' if budget.get('throttling') else 'ok')
+    trips = budget.get('trips') or 0
+    lines = ['budget: worst %s at %.0f %% of its span in force, %s%s'
+             % (pretty(worst_node), 100.0 * (budget.get('worst') or 0.0),
+                verdict, ', %d trips' % trips if trips else '')]
+    if budget.get('derate') is not None:
+        lines.append('  clamp %.0f %% of the record\'s current limit'
+                     % (100.0 * budget['derate']))
+    soak = budget.get('soak_j') or {}
+    left = budget.get('seconds_to_limit')
+    if worst_node in soak:
+        lines.append('  %.1f J left in %s before its ceiling%s'
+                     % (soak[worst_node], pretty(worst_node),
+                        ', %.0f s at this power' % left
+                        if left is not None else ''))
+    if 'winding_c' in budget:
+        lines.append('  winding %.1f C, %.0f %% of its span, own factor %.2f'
+                     % (budget['winding_c'], 100.0 * budget['winding_used'],
+                        budget['winding_derate']))
+    lines.append('  the ceilings are the record\'s, trimmed by the margin - '
+                 'thermal op=ident says how much')
+    return '\n'.join(lines)
+
+
+def thermal_ident(ident):
+    """The online identification - device 8 op 10: the state as a word,
+    the margin the envelope acts on, the scales, the room."""
+    floor = ident.get('margin_floor')
+    lines = ['ident: %s   margin %.2f of every span%s'
+             % (ident.get('state', '?'), ident.get('margin', 1.0),
+                ', floor %.2f' % floor if floor is not None else '')]
+    scales, sigma = ident.get('scales') or {}, ident.get('sigma') or {}
+    online = [name for name in (ident.get('online') or []) if name in scales]
+    if online:
+        lines.append('  ' + '  '.join('%s %.2f +-%.2f' % (name, scales[name],
+                                                          sigma.get(name, 0.0))
+                                      for name in online)
+                     + '   scales on the record\'s network, one the default')
+    if ident.get('ambient') is not None:
+        lines.append('  room %.1f +-%.1f C identified'
+                     % (ident['ambient'], ident.get('ambient_sigma') or 0.0))
+    lines.append('  innovation %.2f K, %d updates'
+                 % (ident.get('innovation_k') or 0.0, ident.get('updates') or 0))
+    truth = ident.get('truth')
+    if truth:
+        lines.append('  stand-in: %s, air %.2f, capacity %.2f, room %.0f C'
+                     % (truth.get('situation'), truth.get('air', 1.0),
+                        truth.get('capacity', 1.0), truth.get('ambient', 25.0)))
+    lines.append('  the state is a word; the margin is what the envelope acts on')
+    return '\n'.join(lines)
+
+
 def angle_registers(rows):
     """The registers a bring-up asks for, raw beside what they decode to."""
     out = ['angle registers: %d' % len(rows)]

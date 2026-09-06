@@ -1656,6 +1656,19 @@ looking at the estimate alone.
   on at 0.3 K of innovation, stands until 0.2 (`ROOM_HYSTERESIS_K`,
   `ROOM_SURE_K`); the page keeps the word shown last and hands it back
   in. views 181, 2917 in all.
+* **The thermal observer is a tool for the local model** (2026-09-06,
+  my own list: the rule sends "how hot is the board, what does the
+  envelope keep in hand" to `board_chat`, and neither the MCP server
+  nor the local model's tools could reach device 8). `thermal` in
+  `coaxial_mcp.tools`, the fifteenth: op=state the measured NTC and
+  every node's estimate by group with the identified room, op=budget
+  the worst node against the ceiling in force, the clamp and the joules
+  left, op=ident the state as a word, the margin the envelope acts on,
+  the scales, the room and the innovation - rendered with the one
+  measurement named, and on the stand-in the truth beside it. In the
+  `read` and `code` sets, not `pins`. Measured on the stand-in: 127, 71
+  and 81 tokens a call; the description held to the suite's 140
+  characters. mcp 50, ollama_tools 219, 2922 in all.
 * **The stand-in starts in its room** (2026-09-06, off the toasty
   replay's room at 55 C for 45 on the warm-up). Both boards started at
   25 C whatever the situation's room, so a fresh start in the toasty
