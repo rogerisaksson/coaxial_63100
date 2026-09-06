@@ -1470,7 +1470,9 @@ looking at the estimate alone.
   host and a terminal that shows sixels - none of which the chooser's
   terminal has. A space between the two since, the bench's "so it does
   not go wrong in the terminal": back to back, one with a variation
-  selector, the pair can be shaped or mis-measured. views 180,
+  selector, the pair can be shaped or mis-measured - and one cell to
+  the left of that, half the five rounded up, on the bench's eye:
+  "shift it one space left so it is centred again". views 180,
   simulated 244.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
