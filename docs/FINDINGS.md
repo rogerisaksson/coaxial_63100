@@ -1626,6 +1626,28 @@ looking at the estimate alone.
   spends from a room ten kelvin too warm for a while, which is what
   the covariance term's margin is for. Firmware 0 warnings, 195 412 B
   flash. simulated 246, 2915 in all.
+* **Two small ones, the same evening.** The meter bridge's legend held
+  its lo and hi on a slow memory of its own, two percent of the
+  distance a frame, and said a peak the caret had let go of seconds
+  before; it releases at the caret's `desk.RELEASE` since, one memory
+  for one idea. And HEADROOM says what holds the margin down: a `doubt`
+  row naming the largest of the doubt's terms - `innovation 0.35`,
+  `air 0.37`, `room 0.17`, `none` when the span is earned - off
+  `thermal_ident.doubt_terms`, the C's `thermal_ident_doubt` taken
+  apart, which the mirror's own `doubt` now reads too; at rest the bar
+  sat at the floor on the covariance with the innovation quiet, and
+  nothing on the page said which. The board's noise floor is not on the
+  wire, so the page uses the 0.1 K the board is built with.
+* **The emoji broke the frame** (the bench's screenshot, 2026-09-06:
+  "some graphics error from those emoji, see if you can fix it"): on
+  the hint's row the SENSE box's edge sat a cell off. ❄️ and 🌡️ are
+  U+2744 and U+1F321, narrow characters made emoji by U+FE0F, which the
+  layout counts as one cell and Windows Terminal draws as two, so that
+  row ran a cell long and everything after it on the row moved. The
+  other six are single code points with emoji presentation, two cells
+  to both. So 🧊 for the cold and 🤒 for the thinking thermometer, and
+  the suite holds every glyph in the hint to `east_asian_width` W with
+  no selector.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were

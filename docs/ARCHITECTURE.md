@@ -230,7 +230,8 @@ shares (-35 to 130 C) and the two colour bands - margin against a
 ceiling, and the thermistor's cold-to-hot ramp - live there too. Under
 the thermal observer's board one more bar, `evidence_rows`: the span
 the identification has earned, red to yellow to green as it fills,
-alone - its margin, floor and innovation are HEADROOM's rows; on the
+alone - its margin, floor, innovation and the doubt's largest term
+are HEADROOM's rows; on the
 stand-in, reached by `--simulated` or a bench with no cable, a load
 cycle runs under it so there are cooldowns to rise on, and the truth
 tours temperate, cold and toasty, moving on once STABLE has

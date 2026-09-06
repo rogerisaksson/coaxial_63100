@@ -680,7 +680,7 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and said.startswith('   TH OBS ') and len(said.split()) == 3
                  and page.envelope_rows(ident(0.8)) == [
                      ('margin', '0.80'), ('floor', '0.80'),
-                     ('innovation', '0.17 K')],
+                     ('innovation', '0.17 K'), ('doubt', 'air 0.37')],
                  '%s | %s' % (said, page.envelope_rows(ident(0.8))))
 
     def bar_of(margin):
@@ -713,6 +713,8 @@ def test_the_thermal_page_shows_its_evidence(report):
                  visible(page.evidence_rows(None)[1]))
     # THE ROOM'S HINT, on the estimated room: the bench's emoji pairs,
     # and the thermometer thinking while the innovation is large.
+    import unicodedata
+
     def at(room, innovation=0.1):
         return page.room_hint({'ambient': room, 'innovation_k': innovation})
 
@@ -724,8 +726,15 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and at(34.9) == 'mild' and at(45.0) == 'hot'
                  and at(20.0, 0.3) == 'unsure' and at(-25.0, 2.0) == 'unsure'
                  and page.room_hint(None) == '' and page.room_hint({}) == ''
-                 and page.ROOM_HINTS['unsure'] == '🌡️ 🤔'
-                 and all(' ' in pair for pair in page.ROOM_HINTS.values()),
+                 and page.ROOM_HINTS['unsure'] == '🤒 🤔'
+                 and all(' ' in pair for pair in page.ROOM_HINTS.values())
+                 # EVERY GLYPH WIDE ON ITS OWN, no variation selector: a
+                 # narrow character made emoji by one ran the row a cell
+                 # long and broke the frame beside it.
+                 and all(len(pair) == 3 and all(
+                     unicodedata.east_asian_width(ch) == 'W'
+                     for ch in pair.replace(' ', ''))
+                     for pair in page.ROOM_HINTS.values()),
                  ' '.join(page.ROOM_HINTS[at(c)] for c in (-25.0, 20.0, 45.0)))
     # CENTRED over the board's field - the bench - which is the map's
     # narrowest row less the rail's two cells and its two spaces: a

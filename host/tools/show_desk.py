@@ -536,19 +536,17 @@ def scale(rows, params=None):
     return rows
 
 
-#: How fast the held peaks fall back, per frame, as a fraction of the
-#: hold's distance to the current reading. 0.02 at 8 Hz is a few seconds
-#: of decay - the mixing-desk feel: instant attack, slow release.
-PEAK_DECAY = 0.02
-
-
 def legend(rows, held):
     """The channel legend: full name, live value, held min and max.
 
-    `held` is the view's memory across frames - attack is instant, decay
-    creeps, the way a desk's peak lamps behave. Values arrive converted,
-    so the legend speaks each channel's own unit.
+    `held` is the view's memory across frames - attack is instant, the
+    release the CARET'S: `desk.RELEASE` of the distance to the reading
+    a frame, so the figure and the mark under it are one memory. It had
+    a slow memory of its own, two percent a frame, and the legend said
+    a peak the bar had let go of seconds before (2026-09-06). Values
+    arrive converted, so the legend speaks each channel's own unit.
     """
+    from coaxial import desk
     from screen import hud
 
     lines = []
@@ -566,8 +564,8 @@ def legend(rows, held):
         except (KeyError, ValueError):
             lo = hi = now
         keep = held.setdefault(name, [now, now])
-        keep[0] = min(lo, keep[0] + PEAK_DECAY * (now - keep[0]))
-        keep[1] = max(hi, keep[1] + PEAK_DECAY * (now - keep[1]))
+        keep[0] = min(lo, keep[0] + desk.RELEASE * (now - keep[0]))
+        keep[1] = max(hi, keep[1] + desk.RELEASE * (now - keep[1]))
         lines.append((name, '%+9.3f %-2s  %+8.2f/%+8.2f'
                       % (now, unit, keep[0], keep[1])))
     return hud('LEGEND  now / held lo / hi', lines)

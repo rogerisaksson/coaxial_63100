@@ -98,14 +98,17 @@ PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
 ROOM_COLD_C, ROOM_HOT_C = 5.0, 35.0
 ROOM_UNSURE_K = 0.3
 #: A SPACE BETWEEN THE TWO - the bench: "so it does not go wrong in the
-#: terminal": two emoji back to back, one carrying a variation
-#: selector, can be shaped as a pair or mis-measured by the terminal's
-#: cell count; a space keeps them two glyphs.
-ROOM_HINTS = {'cold': '❄️ 🥶', 'mild': '🍃 😌', 'hot': '🔥 🥵',
-              'unsure': '🌡️ 🤔'}
+#: terminal" - and EVERY ONE OF THEM WIDE ON ITS OWN: the snowflake and
+#: the thermometer the bench first named are narrow characters made
+#: emoji by a variation selector, which the layout counts as one cell
+#: and the terminal draws as two, so that row ran a cell long and the
+#: SENSE frame's edge landed beside it (the bench's screenshot,
+#: 2026-09-06). An ice cube and a face with a thermometer instead, each
+#: a single code point with emoji presentation, two cells to both.
+ROOM_HINTS = {'cold': '🧊 🥶', 'mild': '🍃 😌', 'hot': '🔥 🥵',
+              'unsure': '🤒 🤔'}
 
-#: The hint's width in cells: two emoji, two cells each, and the space -
-#: the variation selectors are zero wide.
+#: The hint's width in cells: two emoji, two cells each, and the space.
 HINT_CELLS = 5
 
 
@@ -254,17 +257,36 @@ def evidence_rows(ident, colour=True):
     return ['', '   %s %s' % (label, bar)]
 
 
+#: The thermometers' floor the board judges its innovation against -
+#: `THERMAL_IDENT_NOISE_K`, not on the wire; the same 0.1 K the stand-in
+#: is told.
+IDENT_NOISE_K = 0.1
+
+
 def envelope_rows(ident):
     """HEADROOM's rows for the identification: the margin the envelope
-    keeps of every span now, the floor it rose from, and the innovation
-    that moves it - the figures the bar under the board stands for,
-    beside the soak they trim."""
+    keeps of every span now, the floor it rose from, the innovation that
+    moves it, and WHICH TERM HOLDS THE MARGIN DOWN - the innovation, or
+    the air path's, the capacity's or the room's sigma - `none` when the
+    span is earned. At rest the bar sits at the floor on the covariance
+    while the innovation is quiet, and nothing said which (2026-09-06)."""
+    from coaxial import thermal_ident
+
     if not ident:
         return []
     rows = [('margin', '%.2f' % ident['margin'])]
     if ident.get('margin_floor') is not None:
         rows.append(('floor', '%.2f' % ident['margin_floor']))
     rows.append(('innovation', '%.2f K' % ident.get('innovation_k', 0.0)))
+    sigma = ident.get('sigma') or {}
+    if sigma and ident.get('ambient_sigma') is not None:
+        terms = thermal_ident.doubt_terms(
+            ident.get('innovation_k', 0.0),
+            [sigma.get(name, 0.0) for name in thermal_ident.SCALES]
+            + [ident['ambient_sigma']], IDENT_NOISE_K)
+        name, worst = max(terms.items(), key=lambda kv: kv[1])
+        rows.append(('doubt', 'none' if worst < 0.005
+                     else '%s %.2f' % (name, worst)))
     return rows
 
 

@@ -255,6 +255,22 @@ def _unit(x):
     return 0.0 if x < 0.0 else (1.0 if x > 1.0 else x)
 
 
+def doubt_terms(innovation_k, sigma, noise_k=0.1):
+    """Each normalised term of the doubt by name - `thermal_ident_doubt`
+    taken apart, so a page can say which one holds the margin down:
+    'innovation' from the floor to the UNCERTAIN ratio, and each online
+    quantity's sigma from its STABLE threshold to its prior, 'air',
+    'capacity' and 'room'. `sigma` is the five sigmas in wire order."""
+    terms = {'innovation': _unit((innovation_k / noise_k - 1.0)
+                                 / (RATIO_UNCERTAIN - 1.0))}
+    for k in range(PARAMS):
+        if ONLINE[k]:
+            span = PRIOR_SIGMA[k] - SIGMA_STABLE[k]
+            name = SCALES[k] if k < RECORD else 'room'
+            terms[name] = _unit((sigma[k] - SIGMA_STABLE[k]) / span)
+    return terms
+
+
 def _clamped(scale):
     out = [min(SCALE_MAX, max(SCALE_MIN, s)) for s in scale[:RECORD]]
     out.append(min(AMBIENT_MAX_C, max(AMBIENT_MIN_C, scale[AMBIENT])))
@@ -313,14 +329,9 @@ class Identifier:
         sigma from where STABLE calls it known to its prior. A fresh
         board is doubted whole and an idle one stays so; a cooldown is
         what lowers it."""
-        ratio = self.innovation_k / self.noise_k
-        doubt = _unit((ratio - 1.0) / (RATIO_UNCERTAIN - 1.0))
-        for k in range(PARAMS):
-            if ONLINE[k]:
-                span = PRIOR_SIGMA[k] - SIGMA_STABLE[k]
-                doubt = max(doubt, _unit((self.sigma(k) - SIGMA_STABLE[k])
-                                         / span))
-        return doubt
+        return max(doubt_terms(self.innovation_k,
+                               [self.sigma(k) for k in range(PARAMS)],
+                               self.noise_k).values())
 
     def margin(self, floor=MARGIN_FLOOR):
         """`thermal_ident_margin`: the floor while the model is doubted
