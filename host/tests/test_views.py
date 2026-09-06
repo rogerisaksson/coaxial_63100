@@ -711,16 +711,52 @@ def test_the_thermal_page_shows_its_evidence(report):
     report.check('and a dash before the board has answered op 10',
                  'TH OBS -' in visible(page.evidence_rows(None)[1]),
                  visible(page.evidence_rows(None)[1]))
+    # THE ROOM'S PICTOGRAM, on the estimated room: a snowflake, the sun
+    # behind a cloud, the sun - in braille and the thermometer ramp's
+    # inks, the bench's word over emoji ("something symbolic in
+    # braille, so it does not break with the retrofuturism").
+    report.check('the hint above the board shivers under 5 C, is mild to '
+                 '35 and sweats from there - on the ESTIMATED room - and '
+                 'is nothing before the board has said one',
+                 page.room_hint({'ambient': -25.0}) == 'cold'
+                 and page.room_hint({'ambient': 20.0}) == 'mild'
+                 and page.room_hint({'ambient': 34.9}) == 'mild'
+                 and page.room_hint({'ambient': 45.0}) == 'hot'
+                 and page.room_hint(None) == '' and page.room_hint({}) == '',
+                 ' '.join(page.room_hint({'ambient': c})
+                          for c in (-25.0, 20.0, 45.0)))
+    # CENTRED over the board's field - the bench - which is the map's
+    # narrowest row less the rail's two cells and its two spaces: a
+    # twenty-cell field puts a seven-cell pictogram at column 3 + 10 - 3.
+    body = ['', '\u28ff' * 20 + '  \u2847\u2847 100 C',
+            '\u28ff' * 20 + '  \u2847\u2847']
+    rows = {kind: page.hint_rows({'ambient': c}, body)
+            for kind, c in (('cold', -25.0), ('mild', 20.0), ('hot', 45.0))}
+    plain = {kind: [visible(r) for r in got] for kind, got in rows.items()}
+    report.check('three rows of seven braille cells each, ten cells in over '
+                 'a twenty-cell field, the snowflake in the ramp\'s blue, '
+                 'the cloud in its green, the sun in its red, and three '
+                 'blanks with no room',
+                 all(len(got) == page.HINT_LINES for got in rows.values())
+                 and all(r.startswith(' ' * 10) and len(r) == 17
+                         and all(0x2800 <= ord(ch) < 0x2900 for ch in r[10:])
+                         for got in plain.values() for r in got)
+                 and all(('38;5;%dm' % page.ROOM_INK[kind]) in rows[kind][0]
+                         for kind in rows)
+                 and page.hint_rows(None, body) == [''] * page.HINT_LINES,
+                 '\n'.join(plain['cold']))
 
     # SENSE, ONE FACT A ROW, none wider than the panel.
     rows = page.ident_rows(ident(0.91))
     texts = [(str(label), value if isinstance(value, str) else value.plain)
              for label, value in rows]
+    # `sim`, not `truth` - the bench: only in simulated mode is the
+    # thermal situation known.
     report.check('SENSE carries the identification one fact a row - model, '
-                 'air, cap, room, the truth in two and the load - none '
+                 'air, cap, room, the simulation in two and the load - none '
                  'wider than the panel',
                  [l for l, _v in texts] == ['model', 'air', 'cap', 'room',
-                                            'truth', '', 'load']
+                                            'sim', '', 'load']
                  and all(len(l) + 1 + len(v) <= page.PANEL_W - 4
                          for l, v in texts),
                  texts)

@@ -64,6 +64,11 @@ TRAILING = 0
 GAUGE_LINES = 2
 GAUGE_CELLS = 20
 
+#: Above it: the room's pictogram, three rows of braille - `hint_rows`.
+#: The first is the blank `picture` already leads with; the other two are
+#: counted in the reserve.
+HINT_LINES = 3
+
 #: THE PAGE'S LOAD CYCLE, model seconds: two minutes at 30 A and four
 #: idle - a cycle every thirty-six seconds of wall time at HASTE - so
 #: the board's temperatures pulse on the map. The stand-in's own default
@@ -73,6 +78,115 @@ GAUGE_CELLS = 20
 #: 109 C, CONVERGING by the fourth minute and the margin 0.98 by the
 #: eighteenth; STABLE wants the longer cooldowns of the walk.
 PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
+
+#: THE ROOM AS A HINT above the board, on the ESTIMATED ambient - the
+#: identification's room off op 10, not the stand-in's truth, so it is
+#: the board's own opinion on a board too. The bench, 2026-09-06: "show
+#: 😓🔆, 🥶❄️ and 😌🌤️ on top of the board as a little emoji hint,
+#: depending on the estimated ambient temperature" - then "centre them",
+#: then "see if you can scale the emojis up, or think of something
+#: symbolic in braille, so it does not break with the rest, the
+#: retrofuturism / cyber / Blade Runner". A terminal cannot scale an
+#: emoji, and the pages draw in braille: so three PICTOGRAMS, seven
+#: cells by three rows of dots, in the thermometer ramp's own inks - a
+#: snowflake in its blue, the sun behind a cloud in its green, the sun
+#: in its red. Cold under 5 C, hot from 35: the cold room's -25 and
+#: outdoors' -20 shiver, the temperate room's 20 and the bench's 25 are
+#: mild, the toasty room's 45 sweats.
+ROOM_COLD_C, ROOM_HOT_C = 5.0, 35.0
+ROOM_INK = {'cold': machine.INK[machine.NTC_RAMP[0]],
+            'mild': machine.INK[machine.NTC_RAMP[2]],
+            'hot': machine.INK[machine.NTC_RAMP[-1]]}
+
+#: The pictograms as dots, twelve rows of fourteen: `#` a dot. Four rows
+#: of dots to a braille row, two columns to a cell.
+ROOM_DOTS = {
+    'cold': ('......##......',
+             '..#...##...#..',
+             '...#..##..#...',
+             '....#.##.#....',
+             '.....####.....',
+             '##############',
+             '##############',
+             '.....####.....',
+             '....#.##.#....',
+             '...#..##..#...',
+             '..#...##...#..',
+             '......##......'),
+    'mild': ('.........#....',
+             '......#..#..#.',
+             '.......####...',
+             '......#....#..',
+             '....###....#..',
+             '...#...#...#..',
+             '..#.....##....',
+             '.#........#...',
+             '.#.........#..',
+             '.#.........#..',
+             '..###########.',
+             '..............'),
+    'hot':  ('......##......',
+             '.#....##....#.',
+             '..#..####..#..',
+             '....#....#....',
+             '...#......#...',
+             '##.#......#.##',
+             '##.#......#.##',
+             '...#......#...',
+             '....#....#....',
+             '..#..####..#..',
+             '.#....##....#.',
+             '......##......'),
+}
+ICON_CELLS = 7
+
+
+def room_hint(ident):
+    """Which pictogram the estimated room gets - 'cold', 'mild', 'hot' -
+    or nothing before the board has answered op 10 with one (MINOR 15)."""
+    room = (ident or {}).get('ambient')
+    if room is None:
+        return ''
+    if room < ROOM_COLD_C:
+        return 'cold'
+    return 'mild' if room < ROOM_HOT_C else 'hot'
+
+
+def braille_icon(dots):
+    """Twelve rows of fourteen dots as three rows of seven braille cells:
+    the eight-dot cell's bits, column by column, top to bottom."""
+    bits_of = ((0x01, 0x02, 0x04, 0x40), (0x08, 0x10, 0x20, 0x80))
+    lines = []
+    for r in range(HINT_LINES):
+        cells = []
+        for c in range(ICON_CELLS):
+            bits = 0
+            for y in range(4):
+                for lane in (0, 1):
+                    if dots[4 * r + y][2 * c + lane] == '#':
+                        bits |= bits_of[lane][y]
+            cells.append(chr(0x2800 + bits))
+        lines.append(''.join(cells))
+    return lines
+
+
+def hint_rows(ident, body, colour=True, indent=3):
+    """The pictogram centred over the board's field, HINT_LINES rows, or
+    as many blanks before the board has said a room. `body` is
+    `picture`'s: a blank then the map rows, each the field, two spaces
+    and the rail (two cells of block and, on some rows, a label), so
+    the narrowest row less four is the field, and the board sits
+    centred in it - the bench: "centre the emojis above the board"."""
+    from screen import tint
+
+    kind = room_hint(ident)
+    if not kind:
+        return [''] * HINT_LINES
+    widths = [visible(row) for row in body[1:] if row.strip()]
+    field = (min(widths) - 4) if widths else 0
+    pad = ' ' * max(0, indent + field // 2 - ICON_CELLS // 2)
+    return [pad + (tint(line, ROOM_INK[kind]) if colour else line)
+            for line in braille_icon(ROOM_DOTS[kind])]
 
 #: What ESC and Q do. ESC returns TO_MENU so coaxial_tty.ps1 draws its menu again.
 
@@ -133,13 +247,15 @@ def ident_rows(ident):
     if ident.get('ambient') is not None:
         rows.append(('room', '%.1f ±%.1f C' % (
             ident['ambient'], ident.get('ambient_sigma', 0.0))))
-    # THE TRUTH, on the stand-in only: the situation its hypothetical
-    # board is in and the scales that make it, beside what the observer
-    # has found - a board has no truth to tell, and the rows are absent.
+    # THE SIMULATION'S OWN ROWS, on the stand-in only: the situation its
+    # hypothetical board is in and the scales that make it, beside what
+    # the observer has found - a board has no truth to tell, and the rows
+    # are absent. Labelled `sim`, not `truth` (the bench, 2026-09-06):
+    # it is only in simulated mode that the thermal situation is known.
     truth = ident.get('truth')
     if truth:
-        rows.append(('truth', '%s  %.0f min' % (truth['situation'],
-                                                 truth['since_s'] / 60.0)))
+        rows.append(('sim', '%s  %.0f min' % (truth['situation'],
+                                               truth['since_s'] / 60.0)))
         rows.append(('', 'air %.2f  cap %.2f  room %.0f C'
                      % (truth['air'], truth['capacity'],
                         truth.get('ambient', 25.0))))
@@ -391,10 +507,12 @@ def main():
         # the flag the page ran without its load for the bench
         # (2026-09-06: "the page does not seem to run a load sequence").
         if not origin.real:
-            # THE GROUND TRUTH IN A SITUATION, switched at random every
-            # few minutes: the bench's way of seeing the policy walk
-            # UNCR, CONV, STABLE and back before it is serious on a board.
-            rig.thermal.situation('random', switching=True)
+            # THE GROUND TRUTH ON THE TOUR - temperate, cold, toasty,
+            # round and round - moved on when the identification
+            # has earned the room: the bench's way of seeing the
+            # innovation swing and settle before it is serious on a
+            # board. It was a random situation every few minutes.
+            rig.thermal.situation('tour')
             # AND A LOAD ON IT, two model minutes at 30 A and four
             # cooling, so the regions pulse on the map and the bar under
             # the board has cooldowns to rise on.
@@ -430,7 +548,7 @@ def main():
         # the board to what is left. Counted, not guessed - a guess is what
         # clipped the bottom edge off.
         reserve = (HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
-                   + GAUGE_LINES)
+                   + GAUGE_LINES + HINT_LINES - 1)
         last = {'body': ['  waiting for device 8'], 'boxes': [],
                 'ident': None, 'ident_at': 0.0}
         leaving = None
@@ -458,6 +576,10 @@ def main():
             body = last['body']
             field = max((visible(l) for l in body), default=0) + 8
             art = stamp_crosses(['   ' + l for l in body], field)
+            # THE ROOM'S PICTOGRAM above the board, its first row the
+            # blank `picture` leads with, centred over the board's field.
+            if art and not art[0].strip():
+                art = hint_rows(last['ident'], body, colour=console) + art[1:]
             # THE EVIDENCE BAR under the board, after the crosses are
             # stamped so nothing lands on it.
             art += evidence_rows(last['ident'], colour=console)

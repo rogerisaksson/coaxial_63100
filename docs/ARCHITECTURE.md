@@ -232,7 +232,13 @@ the thermal observer's board one more bar, `evidence_rows`: the span
 the identification has earned, red to yellow to green as it fills,
 alone - its margin, floor and innovation are HEADROOM's rows; on the
 stand-in, reached by `--simulated` or a bench with no cable, a load
-cycle runs under it so there are cooldowns to rise on.
+cycle runs under it so there are cooldowns to rise on, and the truth
+tours temperate, cold and toasty, moving on once STABLE has
+stood ten seconds. SENSE's `sim` rows say where the truth is: only in
+simulated mode is the thermal situation known. Above the board a
+pictogram for the estimated room, `hint_rows` - a snowflake under 5 C,
+the sun from 35, the sun behind a cloud between, in braille and the
+thermometer ramp's inks - the board's own opinion, not the stand-in's.
 
 The rotor observer draws the machine itself - `coaxial/machine.py`, a
 braille cross-section of rotor and stator whose slot and pole counts
@@ -305,7 +311,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2902 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2907 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -313,7 +319,7 @@ by `counts.py`:
 | test_structure.py | 611 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 218 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
-| test_simulated.py | 241 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |
+| test_simulated.py | 244 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |
 | test_live_model.py | 212 | the model, `--live` |
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
 | test_conformance.py | 110 | the live board against PROTOCOL.md, `--conformance` |
@@ -332,7 +338,7 @@ by `counts.py`:
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 178 | every view and the front page drawn twice, the rotor observer's geometry, its gauges on one scale, the bead's wake, its DRIVE box, the shaft angle's round face, the box column every page scrolls, and the thermal observer's board as a halftone with its parts marked |
+| test_views.py | 180 | every view and the front page drawn twice, the rotor observer's geometry, its gauges on one scale, the bead's wake, its DRIVE box, the shaft angle's round face, the box column every page scrolls, and the thermal observer's board as a halftone with its parts marked |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |

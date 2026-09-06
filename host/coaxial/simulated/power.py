@@ -112,14 +112,40 @@ class SimulatedThermal:
                   'heatsink': {'air': 0.35, 'capacity': 1.6, 'ambient': 25.0},
                   'stuffy': {'air': 1.5, 'capacity': 1.0, 'ambient': 25.0},
                   'outdoors': {'air': 0.8, 'capacity': 1.0, 'ambient': -20.0},
-                  # The bench's robot: a warehouse, a freezer room, and
-                  # out into the Thai midsummer.
-                  'warehouse': {'air': 1.0, 'capacity': 1.0, 'ambient': 20.0},
-                  'freezer': {'air': 0.9, 'capacity': 1.0, 'ambient': -25.0},
-                  'thai': {'air': 1.2, 'capacity': 1.0, 'ambient': 45.0}}
+                  # The bench's robot: a temperate hall, a cold room, and
+                  # out into a toasty summer - named for the temperature
+                  # and nothing else, on the bench's word (2026-09-06:
+                  # "call it toasty, cold and temperate, or something
+                  # more neutral"); they were warehouse, freezer, thai.
+                  'temperate': {'air': 1.0, 'capacity': 1.0, 'ambient': 20.0},
+                  'cold': {'air': 0.9, 'capacity': 1.0, 'ambient': -25.0},
+                  'toasty': {'air': 1.2, 'capacity': 1.0, 'ambient': 45.0}}
     #: Wall seconds between switches when they are on: long enough for
     #: STABLE to be reached between them at HASTE, short enough to watch.
     SWITCH_EVERY_S = (180.0, 360.0)
+
+    #: THE TOUR the THERMAL OBSERVER page takes the truth on: the bench's
+    #: robot, 20 C temperate into -25 C cold and out into 45 C toasty,
+    #: round and round - and it moves on when the
+    #: identification has EARNED the room, not on the clock: the state
+    #: STABLE for TOUR_STABLE_S of model time - a hundred seconds, ten of
+    #: wall time at HASTE - no sooner than TOUR_MIN_S after the last move,
+    #: and after TOUR_MAX_S regardless so a leg that never gets there does
+    #: not stand for ever. The bench, 2026-09-06: "run the predefined
+    #: temperature cycle, +20 to -25 to +45 and back to +20, in a loop, so
+    #: one sees the innovation vary; switch the outdoor temperature after
+    #: it has run with a stable innovation for a while" - and then "do not
+    #: switch until it has run in STABLE for ten seconds or so". It was
+    #: the margin at 0.95 for three minutes, which moved on a leg just
+    #: short of the word. Measured under the page's two-on four-off cycle
+    #: with no cap: STABLE at the tenth minute from a fresh temperate
+    #: room, twenty-three to twenty-five into a cold leg, thirty-eight
+    #: into a toasty one - its 45 C pulls the air scale to 1.5 on the way -
+    #: so the cap is forty-five minutes and every leg earns its move.
+    TOUR = ('temperate', 'cold', 'toasty')
+    TOUR_STABLE_S = 100.0
+    TOUR_MIN_S = 300.0
+    TOUR_MAX_S = 2700.0
 
     #: The thermometers' own noise, ±kelvin, and their floor as the
     #: identifier is told it - the board's 30 mK NTC and 125 mK dies.
@@ -207,6 +233,8 @@ class SimulatedThermal:
         self._truth_cfg = None
         self._switching = False
         self._switch_at = None
+        self._tour = False
+        self._earned_s = 0.0
         self._switches = 0
         self._model_s = 0.0
         self._switched_s = 0.0
@@ -246,7 +274,7 @@ class SimulatedThermal:
             return
         # THE SITUATION SWITCHES ON THE WALL CLOCK, when switching is on:
         # the page's viewer is what the interval is measured against.
-        if self._switching and self._switch_at is not None \
+        if self._switching and not self._tour and self._switch_at is not None \
                 and now >= self._switch_at:
             self.situation('random')
         self.fast_forward(elapsed * self.HASTE, live=True)
@@ -352,6 +380,8 @@ class SimulatedThermal:
         # THE ROOM IS THE IDENTIFICATION'S, as on the board: no sensor
         # reads it, and the observer's rise is against what it believes.
         self._ambient = self._ident.ambient
+        if self._tour:
+            self._tour_step(dt)
 
     def _read_truth(self, power):
         """What the three thermometers read off the truth this sample:
@@ -370,33 +400,61 @@ class SimulatedThermal:
 
     def situation(self, name=None, switching=None):
         """Lay a situation over the ground truth - `SITUATIONS` by name,
-        or 'random' for one that is not the present one - and, with
-        `switching`, turn the random switches on or off. Returns what
-        the truth is now. The observer is not told: finding out is its
-        job."""
+        'random' for one that is not the present one, or 'tour' for the
+        rooms in turn (`TOUR`), moved on by the identification's own
+        earned margin - and, with `switching`, turn the random switches
+        on or off. A named situation ends a tour. Returns what the truth
+        is now. The observer is not told: finding out is its job."""
         if switching is not None:
             self._switching = bool(switching)
             self._switch_at = (time.time() + self._random.uniform(*self.SWITCH_EVERY_S)
                                if self._switching else None)
         if name is not None:
-            if name == 'random':
+            self._tour = name == 'tour'
+            self._earned_s = 0.0
+            if name == 'tour':
+                name = self._next_stop()
+            elif name == 'random':
                 choices = [n for n in self.SITUATIONS if n != self._situation]
                 name = self._random.choice(choices)
             if name not in self.SITUATIONS:
-                raise RigError('a situation is one of %s, or random'
+                raise RigError('a situation is one of %s, random, or tour'
                                % ', '.join(self.SITUATIONS))
-            laid = self.SITUATIONS[name]
-            if self._situation is not None:
-                self._switches += 1
-            self._situation = name
-            self._switched_s = self._model_s
-            self._truth_ambient = float(laid['ambient'])
-            self._truth_cfg = thermal_ident.apply(
-                (laid['air'], laid['capacity'], 1.0, 1.0), self._base)
-            if self._switching:
-                self._switch_at = time.time() + self._random.uniform(
-                    *self.SWITCH_EVERY_S)
+            self._lay(name)
         return self.truth()
+
+    def _lay(self, name):
+        """The situation onto the truth: its air path, capacity and room."""
+        laid = self.SITUATIONS[name]
+        if self._situation is not None:
+            self._switches += 1
+        self._situation = name
+        self._switched_s = self._model_s
+        self._truth_ambient = float(laid['ambient'])
+        self._truth_cfg = thermal_ident.apply(
+            (laid['air'], laid['capacity'], 1.0, 1.0), self._base)
+        if self._switching:
+            self._switch_at = time.time() + self._random.uniform(
+                *self.SWITCH_EVERY_S)
+
+    def _next_stop(self):
+        """The tour's next room: the one after the present, the first
+        from anywhere off the tour."""
+        at = self.TOUR.index(self._situation) if self._situation in self.TOUR \
+            else -1
+        return self.TOUR[(at + 1) % len(self.TOUR)]
+
+    def _tour_step(self, dt):
+        """Move the tour on once the room is EARNED - STABLE held for
+        TOUR_STABLE_S, no sooner than TOUR_MIN_S after the last move - or
+        after TOUR_MAX_S whatever the state did."""
+        stable = self._ident.state == thermal_ident.STABLE
+        self._earned_s = (self._earned_s + dt) if stable else 0.0
+        stood = self._model_s - self._switched_s
+        if ((self._earned_s >= self.TOUR_STABLE_S and stood >= self.TOUR_MIN_S)
+                or stood >= self.TOUR_MAX_S):
+            self._lay(self._next_stop())
+            self._earned_s = 0.0
 
     def settle(self, seen=None):
         """Both boards at their equilibria for `seen`'s power - the truth on
@@ -428,7 +486,7 @@ class SimulatedThermal:
                 'capacity': laid['capacity'], 'ambient': self._truth_ambient,
                 'switches': self._switches,
                 'since_s': self._model_s - self._switched_s,
-                'switching': self._switching,
+                'switching': self._switching, 'tour': self._tour,
                 'load_a': self._cycle_sample()['amps'][0] if self._cycle
                 else None}
 

@@ -1723,9 +1723,9 @@ def test_thermal_identification(report):
     report.check('the truth tells its room beside the estimate, and a '
                  'situation is one of the bench\'s rooms too',
                  got['truth']['ambient'] == 25.0
-                 and cold.situation('freezer')['ambient'] == -25.0
-                 and cold.situation('thai')['ambient'] == 45.0
-                 and cold.situation('warehouse')['ambient'] == 20.0,
+                 and cold.situation('cold')['ambient'] == -25.0
+                 and cold.situation('toasty')['ambient'] == 45.0
+                 and cold.situation('temperate')['ambient'] == 20.0,
                  got['truth'])
 
     # AN IDLING BOARD STAYS UNCERTAIN - the bench's rule: nothing burning,
@@ -1786,6 +1786,44 @@ def test_thermal_identification(report):
                                            'off_s': 0.0}
                  and cyc.truth()['load_a'] is None
                  and _refused(lambda: Thermal.load_cycle(None)))
+
+    # THE TOUR (bench, 2026-09-06): temperate, cold, toasty and
+    # round again, moved on when the identification has EARNED the room
+    # - STABLE held a hundred model seconds, ten of wall time, five
+    # minutes after the move at the least - or after forty-five minutes
+    # regardless. Under the page's cycle, measured: STABLE at the tenth
+    # minute from a fresh temperate room, twenty-three to twenty-five
+    # into a cold leg and thirty-eight into a toasty one.
+    tour = SimulatedThermal(situation='tour')
+    tour.load_cycle(on_s=120.0, off_s=240.0)
+    report.check('a tour starts in the temperate room and says it is one',
+                 tour.truth()['situation'] == 'temperate'
+                 and tour.truth()['tour'] is True, tour.truth())
+    rooms, moved_at, stable_before = ['temperate'], [], []
+    was_stable = False
+    for minute in range(1, 151):
+        tour.fast_forward(60.0, live=True)
+        now = tour.truth()['situation']
+        if now != rooms[-1]:
+            rooms.append(now)
+            moved_at.append(minute)
+            stable_before.append(was_stable)
+        was_stable = tour.identification()['state'] == 'STABLE'
+        if len(rooms) == 4:
+            break
+    legs = [b - a for a, b in zip([0] + moved_at, moved_at)]
+    report.check('and goes cold, toasty, temperate in order, each leg '
+                 'standing at least five model minutes and no more than '
+                 'forty-five, and STABLE the minute before every move that '
+                 'the cap did not force',
+                 rooms == ['temperate', 'cold', 'toasty', 'temperate']
+                 and all(5 <= leg <= 45 for leg in legs)
+                 and all(s or leg >= 44 for s, leg in zip(stable_before, legs)),
+                 '%s at minutes %s, STABLE before %s'
+                 % (' > '.join(rooms), moved_at, stable_before))
+    report.check('a named situation ends the tour',
+                 tour.situation('box')['tour'] is False
+                 and tour.truth()['situation'] == 'box')
 
 
 def _refused(call):

@@ -94,7 +94,7 @@ is still arithmetic. Every item names the file or record it lives in.
   state on both (THERMAL OBSERVER's SENSE with the truth beside it,
   ROTOR OBSERVER's foot); the room is the fifth identified quantity
   and the situations include the bench's rooms (outdoors -20 C,
-  warehouse 20, freezer -25, thai 45). What remains is the board:
+  temperate 20, cold -25, toasty 45). What remains is the board:
   nothing here has run on it yet.
 * The phase gain (3.5 mΩ x 4.5455) is traced off the schematic and has
   never been spanned; the DC link is the only spanned channel.

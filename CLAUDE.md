@@ -160,17 +160,21 @@ device.close()                           # the port, and the supply as found
 
 In simulated mode the thermal stand-in is a HYPOTHETICAL BOARD: a ground
 truth in a situation (bench, box, fan, heat sink, stuffy, and the rooms -
-outdoors -20 C, warehouse 20, freezer -25, thai 45) heating on the same
+outdoors -20 C, temperate 20, cold -25, toasty 45) heating on the same
 losses the observer estimates, read through three noisy thermometers
 every sample, and identified by the same identifier the board runs
 (`coaxial/thermal_ident.py` mirrors `thermal/src/thermal_ident.c`), so
-the state walks UNCERTAIN, CONVERGING, STABLE for the same reasons. The
-pages switch the situation at random every three to six minutes, and
-THERMAL OBSERVER lays a load cycle on it - six model minutes at 30 A and
-fourteen idle, under the envelope - so the map's regions warm and cool
+the state walks UNCERTAIN, CONVERGING, STABLE for the same reasons.
+ROTOR OBSERVER switches the situation at random every three to six
+minutes; THERMAL OBSERVER tours the rooms - temperate 20 C, cold -25,
+toasty 45, round again - moving on when the identification
+has earned the room (STABLE held ten seconds of wall time, a hundred of
+model, or forty-five minutes regardless), and lays a load cycle on it, two model minutes
+at 30 A and four idle under the envelope, so the map's regions pulse
 and the bar under the board rises on the cooldowns.
-`rig.thermal.situation('box')` lays one on, `rig.thermal.load_cycle()` the
-cycle; a board refuses both in words. **Nothing is kept between
+`rig.thermal.situation('box')` lays one on, `'tour'` the tour,
+`rig.thermal.load_cycle()` the cycle; a board refuses all in words.
+**Nothing is kept between
 runs** - not in the board's flash, not in a file for the stand-in: every
 start is at the record's margin floor and earns its span. **The margin is
 continuous and the states are words** (2026-09-06): `thermal_ident_margin`
@@ -242,10 +246,10 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2902 checks, sized from `host/tests/.counts.json` and so
+Twenty-six suites, 2907 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (611),
 `test_ollama_tools.py` (218), `test_ollama_runner.py` (223),
-`test_simulated.py` (241), `test_live_model.py` (212, needs ollama, `--live`),
+`test_simulated.py` (244), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
 `test_ollama_link.py` (96), `test_drive_core.py`
 (81, the control law against a motor model through the host gcc, the Monte
@@ -263,7 +267,7 @@ situation changes, through the host gcc), `test_ollama_render.py` (32), `test_pa
 (79, the 3D engine stage by stage against an analytic oracle -
 `render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23), `test_broker.py`
 (33, the shared session and the reply shapes on a scripted port, no board), `test_views.py`
-(178, every view and the front page drawn twice, plus the rotor
+(180, every view and the front page drawn twice, plus the rotor
 observer's own geometry - no board), `test_ollama_language.py` (12),
 `test_daq_api.py` (75, the acquisition front door against the
 stand-in - naming, reading, the record shape, the buffers),
@@ -293,7 +297,7 @@ rules that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2902 checks are in those nine files.
+  773 of this tree's 2907 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

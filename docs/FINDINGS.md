@@ -1263,7 +1263,8 @@ looking at the estimate alone.
   is 1.89 ± 0.12 after one, 1.98 ± 0.09 and STABLE after two. The
   room is never saved: it is where the board is, not what it is. The
   rooms a situation can lay on the stand-in: bench 25, outdoors -20,
-  warehouse 20, freezer -25, thai 45. And the bench's word on the
+  temperate 20, cold -25, toasty 45 (warehouse, freezer and thai until
+  the bench renamed them neutrally, 2026-09-06). And the bench's word on the
   record: a good observer earns STABLE within a few cooldown samples,
   so the flash save is not needed for safety; it stays because a
   resumed record starts at 90 % instead of 80 and costs nothing.
@@ -1393,6 +1394,63 @@ looking at the estimate alone.
   for more with one number. The legend's held lo / hi keep their own
   slow memory (`PEAK_DECAY`), a figure to read rather than a mark to
   watch.
+* **THERMAL OBSERVER tours the rooms on earned margin, and SENSE says
+  `sim`** (bench, 2026-09-06: "make truth in SENSE another name, since
+  it is only in simulated mode that the thermal situation is known";
+  "run the predefined temperature cycle, +20 to -25 to +45 and back to
+  +20, in a loop, so one sees the innovation vary; make it more
+  dynamic - switch the outdoor temperature after it has run with a
+  stable innovation for a while"). `SimulatedThermal.situation('tour')`:
+  temperate 20 C, cold -25, toasty 45, round again - "it is not
+  called thai; call it toasty, cold and temperate, or something more
+  neutral", the bench, on the first names - and the
+  move is the identification's to earn, not the clock's. First cut: the
+  margin held at 0.95 for three model minutes, measured under the
+  page's two-on four-off cycle over 150 model minutes - moves at 8, 30,
+  54, 72, 89, 113 and 137 minutes, every leg earned; after each the
+  innovation swung to 2.1 to 3.0 K within two minutes, the state
+  UNCERTAIN for fourteen to sixteen, the room re-found within 5 K in
+  ten to twelve, the margin back at 0.95 in eighteen to twenty-four;
+  the cold room found faster than the toasty one (17 to 22 against 22
+  to 24), whose 45 C pulls the air scale to 2.2 on the way before it
+  settles at 1.6 - and never the word STABLE before a move, since 0.95
+  is a leg short of it (air sigma 0.157 against the 0.15 threshold,
+  room 3.4 K against 3). The bench: "do not switch the outdoor
+  temperature until it has run in STABLE for ten seconds or so". So
+  the trigger is the state: STABLE held a hundred model seconds - ten
+  of wall time at HASTE - no sooner than five minutes after the last
+  move, or forty-five regardless (`TOUR_*`); a named situation ends
+  the tour, and the rotor page keeps its random switch on the wall
+  clock. Measured, the cycles a leg could run: 120/240 reaches STABLE
+  at the tenth minute from a fresh warehouse and holds it 51 of 60,
+  and again 22 minutes after the cold room; 120/360, 12 and 22; 120/480,
+  14 and 19; 180/420, 14 and 19; 240/600, 10 and 17 - the longer
+  cooldowns buy little, so the page keeps its pulse. And the tour with
+  no cap, 240 model minutes: STABLE 25 into a cold leg, 38 into a
+  toasty one (its 45 C pulls the air scale to 1.5 on the way in and
+  the room to 47 before both settle), 25 into a temperate leg from the
+  toasty room; a thirty-minute cap forced the toasty move short of the
+  word, so it is forty-five. The SENSE row is `sim
+  cold  4 min`, its second row the laid scales and room. And above
+  the board a hint, the bench's: "show 😓🔆, 🥶❄️ and 😌🌤️ on top of the
+  board as a little emoji hint, depending on the estimated ambient
+  temperature" - on the identification's room, not the truth's, so a
+  board wears it too: under 5 C the shiver, from 35 the sweat, mild
+  between, in the blank row `picture` leads with, centred over the
+  board's field on the bench's next word ("centre the emojis above the
+  board") - the map's narrowest row less the rail is the field, and the
+  board sits centred in it. Rastered over the
+  cold, temperate and toasty rooms at -24.5, 20.0 and 44.0 C
+  estimated: each row wore its hint, though `ansi2png`'s font has no
+  colour emoji and drew the shiver as boxes. Then the bench: "see if
+  you can scale the emojis up, or think of something symbolic in
+  braille, so it does not break with the rest - the retrofuturism /
+  cyber / Blade Runner". A terminal cannot scale an emoji, and the
+  pages draw in braille: so the hint is three PICTOGRAMS, seven cells
+  by three rows of dots, in the thermometer ramp's own inks - a
+  snowflake in its blue, the sun behind a cloud in its green, the sun
+  in its red (`ROOM_DOTS`, `braille_icon`) - two rows more in the
+  reserve, and the raster can judge them. views 180, simulated 244.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were
