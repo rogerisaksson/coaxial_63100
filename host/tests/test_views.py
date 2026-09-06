@@ -727,22 +727,28 @@ def test_the_thermal_page_shows_its_evidence(report):
                           for c in (-25.0, 20.0, 45.0)))
     # CENTRED over the board's field - the bench - which is the map's
     # narrowest row less the rail's two cells and its two spaces: a
-    # twenty-cell field puts a seven-cell pictogram at column 3 + 10 - 3.
+    # twenty-cell field puts a five-cell pictogram at column 3 + 10 - 2.
+    # And SYMMETRIC, the bench's second word: the snowflake and the sun
+    # mirror dot for dot about the middle cell.
     body = ['', '\u28ff' * 20 + '  \u2847\u2847 100 C',
             '\u28ff' * 20 + '  \u2847\u2847']
     rows = {kind: page.hint_rows({'ambient': c}, body)
             for kind, c in (('cold', -25.0), ('mild', 20.0), ('hot', 45.0))}
     plain = {kind: [visible(r) for r in got] for kind, got in rows.items()}
-    report.check('three rows of seven braille cells each, ten cells in over '
-                 'a twenty-cell field, the snowflake in the ramp\'s blue, '
-                 'the cloud in its green, the sun in its red, and three '
+    mirrored = all(row == row[::-1] for kind in ('cold', 'hot')
+                   for row in page.ROOM_DOTS[kind])
+    report.check('three rows of five braille cells each, eleven cells in '
+                 'over a twenty-cell field, the snowflake in the ramp\'s '
+                 'blue, the cloud in its green, the sun in its red - the '
+                 'snowflake and the sun mirrored dot for dot - and three '
                  'blanks with no room',
                  all(len(got) == page.HINT_LINES for got in rows.values())
-                 and all(r.startswith(' ' * 10) and len(r) == 17
-                         and all(0x2800 <= ord(ch) < 0x2900 for ch in r[10:])
+                 and all(r.startswith(' ' * 11) and len(r) == 16
+                         and all(0x2800 <= ord(ch) < 0x2900 for ch in r[11:])
                          for got in plain.values() for r in got)
                  and all(('38;5;%dm' % page.ROOM_INK[kind]) in rows[kind][0]
                          for kind in rows)
+                 and mirrored
                  and page.hint_rows(None, body) == [''] * page.HINT_LINES,
                  '\n'.join(plain['cold']))
 

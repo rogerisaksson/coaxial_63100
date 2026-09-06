@@ -1451,7 +1451,14 @@ looking at the estimate alone.
   by three rows of dots, in the thermometer ramp's own inks - a
   snowflake in its blue, the sun behind a cloud in its green, the sun
   in its red (`ROOM_DOTS`, `braille_icon`) - two rows more in the
-  reserve, and the raster can judge them. views 180, simulated 244.
+  reserve, and the raster can judge them. Seven cells by three rows
+  first; the bench: "tidy up the symbol - hot and cold are a bit ugly
+  and asymmetric - and make the symbols a bit smaller too". Five cells
+  by three since, the axis through the middle cell's two lanes, every
+  dot of the snowflake and the sun mirrored into the other lane of the
+  mirror cell, so the terminal's own spacing of the lanes within a cell
+  cannot skew them; rastered again over the three rooms. views 180,
+  simulated 244.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were

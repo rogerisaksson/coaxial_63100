@@ -98,47 +98,52 @@ ROOM_INK = {'cold': machine.INK[machine.NTC_RAMP[0]],
             'mild': machine.INK[machine.NTC_RAMP[2]],
             'hot': machine.INK[machine.NTC_RAMP[-1]]}
 
-#: The pictograms as dots, twelve rows of fourteen: `#` a dot. Four rows
-#: of dots to a braille row, two columns to a cell.
+#: The pictograms as dots, twelve rows of ten: `#` a dot. Four rows of
+#: dots to a braille row, two columns to a cell - five cells by three
+#: rows, the axis through the middle cell's two lanes and the middle
+#: row's inner dots, so a dot's mirror is the other lane of the mirror
+#: cell and the terminal's lane spacing cannot skew it. Seven cells by
+#: three ran first; the bench: "tidy up the symbol - hot and cold are a
+#: bit ugly and asymmetric - and make the symbols a bit smaller too".
 ROOM_DOTS = {
-    'cold': ('......##......',
-             '..#...##...#..',
-             '...#..##..#...',
-             '....#.##.#....',
-             '.....####.....',
-             '##############',
-             '##############',
-             '.....####.....',
-             '....#.##.#....',
-             '...#..##..#...',
-             '..#...##...#..',
-             '......##......'),
-    'mild': ('.........#....',
-             '......#..#..#.',
-             '.......####...',
-             '......#....#..',
-             '....###....#..',
-             '...#...#...#..',
-             '..#.....##....',
-             '.#........#...',
-             '.#.........#..',
-             '.#.........#..',
-             '..###########.',
-             '..............'),
-    'hot':  ('......##......',
-             '.#....##....#.',
-             '..#..####..#..',
-             '....#....#....',
-             '...#......#...',
-             '##.#......#.##',
-             '##.#......#.##',
-             '...#......#...',
-             '....#....#....',
-             '..#..####..#..',
-             '.#....##....#.',
-             '......##......'),
+    'cold': ('....##....',
+             '....##....',
+             '.#..##..#.',
+             '..#.##.#..',
+             '...####...',
+             '##########',
+             '##########',
+             '...####...',
+             '..#.##.#..',
+             '.#..##..#.',
+             '....##....',
+             '....##....'),
+    'mild': ('......#...',
+             '....#.#.#.',
+             '.....###..',
+             '....#...#.',
+             '..###...#.',
+             '.#...#..#.',
+             '#.....##..',
+             '#.......#.',
+             '#........#',
+             '.#########',
+             '..........',
+             '..........'),
+    'hot':  ('....##....',
+             '..........',
+             '...####...',
+             '..#....#..',
+             '..#....#..',
+             '#.#....#.#',
+             '#.#....#.#',
+             '..#....#..',
+             '..#....#..',
+             '...####...',
+             '..........',
+             '....##....'),
 }
-ICON_CELLS = 7
+ICON_CELLS = 5
 
 
 def room_hint(ident):
@@ -153,8 +158,8 @@ def room_hint(ident):
 
 
 def braille_icon(dots):
-    """Twelve rows of fourteen dots as three rows of seven braille cells:
-    the eight-dot cell's bits, column by column, top to bottom."""
+    """Twelve rows of ten dots as three rows of five braille cells: the
+    eight-dot cell's bits, column by column, top to bottom."""
     bits_of = ((0x01, 0x02, 0x04, 0x40), (0x08, 0x10, 0x20, 0x80))
     lines = []
     for r in range(HINT_LINES):
