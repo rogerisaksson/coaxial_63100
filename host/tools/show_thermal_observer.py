@@ -94,6 +94,14 @@ PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
 #: size the terminal gives them.
 ROOM_COLD_C, ROOM_HOT_C = 5.0, 35.0
 ROOM_UNSURE_K = 0.3
+#: HYSTERESIS, so a room sitting on a boundary keeps its word - the
+#: bench, 2026-09-06: "put in some hysteresis so the emoji do not
+#: flutter near the limits". A held word stands until the room is this
+#: far past the threshold it crossed, and the thinking thermometer
+#: stands until the innovation is under ROOM_SURE_K, a floor under where
+#: it came on.
+ROOM_HYSTERESIS_K = 2.0
+ROOM_SURE_K = 0.2
 #: A SPACE BETWEEN THE TWO - the bench: "so it does not go wrong in the
 #: terminal" - and EVERY ONE OF THEM WIDE ON ITS OWN: the snowflake and
 #: the thermometer the bench first named are narrow characters made
@@ -105,15 +113,24 @@ ROOM_UNSURE_K = 0.3
 ROOM_HINTS = {'cold': '🧊 🥶', 'mild': '🍃 😌', 'hot': '🔥 🥵',
               'unsure': '🤒 🤔'}
 
-def room_hint(ident):
+def room_hint(ident, held=None):
     """Which hint the estimate gets - 'unsure' while the innovation is
     large, else 'cold', 'mild', 'hot' on the room - or nothing before the
-    board has answered op 10 with a room (MINOR 15)."""
+    board has answered op 10 with a room (MINOR 15). `held` is the word
+    shown last, which stands inside the hysteresis band."""
     room = (ident or {}).get('ambient')
     if room is None:
         return ''
-    if ident.get('innovation_k', 0.0) >= ROOM_UNSURE_K:
+    innovation = ident.get('innovation_k', 0.0)
+    if innovation >= (ROOM_SURE_K if held == 'unsure' else ROOM_UNSURE_K):
         return 'unsure'
+    band = ROOM_HYSTERESIS_K
+    if held == 'cold' and room < ROOM_COLD_C + band:
+        return 'cold'
+    if held == 'hot' and room >= ROOM_HOT_C - band:
+        return 'hot'
+    if held == 'mild' and ROOM_COLD_C - band <= room < ROOM_HOT_C + band:
+        return 'mild'
     if room < ROOM_COLD_C:
         return 'cold'
     return 'mild' if room < ROOM_HOT_C else 'hot'
@@ -155,7 +172,7 @@ IDENT_STYLE = {'STABLE': 'chip.live', 'CONVERGING': 'chip.sim',
 IDENT_EVERY_S = 5.0
 
 
-def ident_rows(ident):
+def ident_rows(ident, hint=None):
     """The identification in SENSE, ONE FACT A ROW: the state as a chip,
     the margin the envelope acts on and the floor it rose from, each
     online scale with its sigma, the room, and on the stand-in the truth
@@ -179,9 +196,10 @@ def ident_rows(ident):
     # its hint beside it, the bench's emoji pair, here rather than over
     # the board since "a bit more uniform" (2026-09-06).
     if ident.get('ambient') is not None:
+        kind = hint if hint is not None else room_hint(ident)
         rows.append(('room', Text('%.1f ±%.1f C   %s' % (
             ident['ambient'], ident.get('ambient_sigma', 0.0),
-            ROOM_HINTS.get(room_hint(ident), '')))))
+            ROOM_HINTS.get(kind, '')))))
     # THE SIMULATION'S OWN ROWS, on the stand-in only: the situation its
     # hypothetical board is in and the scales that make it, beside what
     # the observer has found - a board has no truth to tell, and the rows
@@ -271,7 +289,7 @@ def envelope_rows(ident):
     return rows
 
 
-def status_boxes(state, budget, aspect=None, ident=None):
+def status_boxes(state, budget, aspect=None, ident=None, hint=None):
     """The thermal observer's numbers as instrument boxes, every one the
     board's - and, given `(aspect, how)`, the one number that is the
     terminal's: how tall its cell was measured, or assumed, to be.
@@ -301,7 +319,7 @@ def status_boxes(state, budget, aspect=None, ident=None):
               ('sample', '%.0f s' % every),
               ('last', '%.0f s ago' % age if age is not None else '-')]
     if ident is not None:
-        sense += ident_rows(ident)
+        sense += ident_rows(ident, hint)
     if aspect is not None:
         sense.append(('cell', '%.2f tall %s' % aspect))
 
@@ -504,7 +522,7 @@ def main():
         reserve = (HEAD_LINES + 1 + SCALE_LINES + TRAILING + FOOT_LINES
                    + GAUGE_LINES)
         last = {'body': ['  waiting for device 8'], 'boxes': [],
-                'ident': None, 'ident_at': 0.0}
+                'ident': None, 'ident_at': 0.0, 'hint': None}
         leaving = None
 
         def draw():
@@ -516,8 +534,12 @@ def main():
                 if time.time() - last['ident_at'] > IDENT_EVERY_S:
                     last['ident'] = rig.board.thermal.identification()
                     last['ident_at'] = time.time()
+                    # The hint with its hysteresis: what was shown stands
+                    # until the room is well past a threshold.
+                    last['hint'] = room_hint(last['ident'], last['hint'])
                 last['boxes'] = status_boxes(got, rig.board.thermal.budget(),
-                                             aspect, ident=last['ident'])
+                                             aspect, ident=last['ident'],
+                                             hint=last['hint'])
                 last['body'] = picture(got, console, reserve,
                                        aspect[0] / 2.0)
             except (NoReplyError, RigError):

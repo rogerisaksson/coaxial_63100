@@ -736,6 +736,25 @@ def test_the_thermal_page_shows_its_evidence(report):
                      for ch in pair.replace(' ', ''))
                      for pair in page.ROOM_HINTS.values()),
                  ' '.join(page.ROOM_HINTS[at(c)] for c in (-25.0, 20.0, 45.0)))
+    # HYSTERESIS - the bench: "so the emoji do not flutter near the
+    # limits": a held word stands two kelvin past its threshold, and
+    # the thermometer stands until the innovation is under 0.2 K.
+    def held(room, word, innovation=0.1):
+        return page.room_hint({'ambient': room, 'innovation_k': innovation},
+                              held=word)
+
+    report.check('a held word stands two kelvin past its threshold - cold '
+                 'at 6.5, hot at 33.5, mild at 3.5 and 36.5 - and lets go '
+                 'beyond that, and the thermometer stands until the '
+                 'innovation is under 0.2 K',
+                 held(6.5, 'cold') == 'cold' and held(7.5, 'cold') == 'mild'
+                 and held(33.5, 'hot') == 'hot' and held(32.5, 'hot') == 'mild'
+                 and held(3.5, 'mild') == 'mild' and held(36.5, 'mild') == 'mild'
+                 and held(2.5, 'mild') == 'cold' and held(37.5, 'mild') == 'hot'
+                 and held(20.0, 'unsure', 0.25) == 'unsure'
+                 and held(20.0, 'unsure', 0.15) == 'mild'
+                 and held(20.0, 'mild', 0.25) == 'mild',
+                 ' '.join(held(c, 'cold') for c in (6.5, 7.5)))
     # IN SENSE, beside the room - the bench: "maybe move the emojis to
     # the SENSE block on the right, a bit more uniform" - after a row
     # above the board, centred, in braille, and back again.

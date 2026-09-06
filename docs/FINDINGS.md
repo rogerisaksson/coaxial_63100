@@ -1650,7 +1650,12 @@ looking at the estimate alone.
   no selector. And then, the bench: "maybe move the emojis to the SENSE
   block on the right, a bit more uniform" - so the pair sits on SENSE's
   `room` row after the figure, and the row above the board is the
-  blank it always was.
+  blank it always was. And "put in some hysteresis so the emoji do not
+  flutter near the limits": a held word stands until the room is two
+  kelvin past the threshold it crossed, and the thinking thermometer,
+  on at 0.3 K of innovation, stands until 0.2 (`ROOM_HYSTERESIS_K`,
+  `ROOM_SURE_K`); the page keeps the word shown last and hands it back
+  in. views 181, 2917 in all.
 * **The stand-in starts in its room** (2026-09-06, off the toasty
   replay's room at 55 C for 45 on the warm-up). Both boards started at
   25 C whatever the situation's room, so a fresh start in the toasty
