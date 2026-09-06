@@ -1358,6 +1358,21 @@ looking at the estimate alone.
   pages' stand-in hooks - the random situations, the cycle - were keyed
   on `--simulated`, and a bench with no cable reaches the stand-in
   without it, through the rig's fallback; keyed on `origin.real` now.
+  Then the bench, on the pushed page: "make the colour of TH OBS
+  constant, only the thermometer changes colour; loop the load cases a
+  bit faster so the temperatures on the board pulse a bit faster -
+  otherwise damn good". The label is the leaders' grey since, and at
+  the floor the bar is its tip and the track alone. The page's cycle
+  is two model minutes at 30 A and four idle (`PAGE_CYCLE_ON_S`,
+  `PAGE_CYCLE_OFF_S`), thirty-six seconds of wall time, the stand-in's
+  default still the suites' six and fourteen. Measured live in a box
+  over thirty minutes, three cycles tried: 120/240 swings driver U 71
+  to 109 C, CONVERGING by the fourth minute, margin 0.98 by the
+  eighteenth; 90/210 swings 72 to 112, CONVERGING at the fifth; 180/300
+  swings 63 to 112, CONVERGING at the fourth, 0.99. None reaches STABLE
+  in thirty minutes - the air path's sigma wants the walk's long
+  cooldowns to get under 0.15 - and the margin says what has been
+  earned either way, which is the point of it being continuous.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were

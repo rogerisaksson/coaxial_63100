@@ -652,6 +652,7 @@ def test_the_thermal_page_shows_its_evidence(report):
     sys.path.insert(0, HOST)
     sys.path.insert(0, os.path.join(HOST, 'tools'))
     from coaxial import machine
+    from coaxial.simulated.power import SimulatedThermal
     from screen import plain as visible
     from tools import show_thermal_observer as page
     from tools import stage
@@ -685,19 +686,28 @@ def test_the_thermal_page_shows_its_evidence(report):
     def bar_of(margin):
         return visible(page.evidence_rows(ident(margin))[1]).split()[2]
 
-    inks = {}
-    for margin, cls in ((0.8, machine.SOA_TRIP), (0.9, machine.SOA_WARN),
+    inks, greys = {}, {}
+    for margin, cls in ((0.8, None), (0.9, machine.SOA_WARN),
                         (1.0, machine.SOA_OK)):
         row = page.evidence_rows(ident(margin))[1]
-        inks[margin] = ('38;5;%dm' % machine.INK[cls]) in row
-    report.check('empty at the floor in red, half full at 0.90 in yellow, '
-                 'full at the whole span in green - red to yellow to green '
-                 'as it fills, the label in the same ink',
-                 all(inks.values()) and bar_of(0.8).count('⣿') == 0
+        head, _bar = row.split('TH OBS')[0], row.split('TH OBS')[1]
+        # THE LABEL CONSTANT, the leaders' grey - the bench: "only the
+        # thermometer changes colour" - and the bar's ink after it.
+        greys[margin] = ('38;5;%dm' % machine.LEADER_GREY) in head
+        inks[margin] = (cls is None or ('38;5;%dm' % machine.INK[cls])
+                        in row.split('TH OBS')[1])
+    report.check('empty at the floor - the tip and the track alone - half '
+                 'full at 0.90 in yellow, full at the whole span in green: '
+                 'red to yellow to green as it fills, and TH OBS in the '
+                 'leaders\' grey whatever the bar wears',
+                 all(inks.values()) and all(greys.values())
+                 and bar_of(0.8).count('⣿') == 0
                  and 9 <= bar_of(0.9).count('⣿') <= 10
-                 and bar_of(1.0).count('⣿') == page.GAUGE_CELLS - 1,
-                 '%s | %s %s %s' % (inks, bar_of(0.8), bar_of(0.9),
-                                    bar_of(1.0)))
+                 and bar_of(1.0).count('⣿') == page.GAUGE_CELLS - 1
+                 and page.PAGE_CYCLE_ON_S < SimulatedThermal.CYCLE_ON_S
+                 and page.PAGE_CYCLE_OFF_S < SimulatedThermal.CYCLE_OFF_S,
+                 '%s %s | %s %s %s' % (inks, greys, bar_of(0.8),
+                                       bar_of(0.9), bar_of(1.0)))
     report.check('and a dash before the board has answered op 10',
                  'TH OBS -' in visible(page.evidence_rows(None)[1]),
                  visible(page.evidence_rows(None)[1]))

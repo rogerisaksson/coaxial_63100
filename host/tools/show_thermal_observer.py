@@ -64,6 +64,16 @@ TRAILING = 0
 GAUGE_LINES = 2
 GAUGE_CELLS = 20
 
+#: THE PAGE'S LOAD CYCLE, model seconds: two minutes at 30 A and four
+#: idle - a cycle every thirty-six seconds of wall time at HASTE - so
+#: the board's temperatures pulse on the map. The stand-in's own default
+#: is the suites' walk, six and fourteen; the bench, 2026-09-06: "loop
+#: the load cases a bit faster so one sees the temperatures on the board
+#: pulse a bit faster". Measured live in a box: driver U swings 71 to
+#: 109 C, CONVERGING by the fourth minute and the margin 0.98 by the
+#: eighteenth; STABLE wants the longer cooldowns of the walk.
+PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
+
 #: What ESC and Q do. ESC returns TO_MENU so coaxial_tty.ps1 draws its menu again.
 
 
@@ -167,9 +177,12 @@ def evidence_rows(ident, colour=True):
     level = max(0.0, min(1.0, level))
     cls = evidence_class(level)
     bar = gauges.bar(level, GAUGE_CELLS, cls=cls, colour=colour)
-    # THE LABEL IN THE BAR'S INK: at the floor nothing is filled, and a
-    # grey track alone would not say red.
-    label = ('\x1b[38;5;%dmTH OBS\x1b[0m' % machine.INK[cls]) if colour \
+    # THE LABEL IN THE LEADERS' GREY, constant - the bench: "make the
+    # colour of TH OBS constant, only the thermometer changes colour"
+    # (2026-09-06). It wore the bar's ink for a frame so the floor read
+    # red with nothing filled; at the floor the bar is now its tip and
+    # the track alone, and the state's chip in SENSE says the rest.
+    label = ('\x1b[38;5;%dmTH OBS\x1b[0m' % machine.LEADER_GREY) if colour \
         else 'TH OBS'
     return ['', '   %s %s' % (label, bar)]
 
@@ -382,10 +395,11 @@ def main():
             # few minutes: the bench's way of seeing the policy walk
             # UNCR, CONV, STABLE and back before it is serious on a board.
             rig.thermal.situation('random', switching=True)
-            # AND A LOAD ON IT, six model minutes at 30 A and fourteen
-            # cooling, so the regions warm and cool on the map and the
-            # bar under the board has cooldowns to rise on.
-            rig.thermal.load_cycle()
+            # AND A LOAD ON IT, two model minutes at 30 A and four
+            # cooling, so the regions pulse on the map and the bar under
+            # the board has cooldowns to rise on.
+            rig.thermal.load_cycle(on_s=PAGE_CYCLE_ON_S,
+                                   off_s=PAGE_CYCLE_OFF_S)
         say('ok' if origin.real else 'warn', 'link',
             '%s - %s' % (origin.label, 'live' if origin.real else 'simulated'))
         say('ok', 'AFE_ON', 'left exactly as found - it gates the drivers')
