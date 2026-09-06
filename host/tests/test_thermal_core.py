@@ -317,6 +317,10 @@ class Ident:
         innovation and the covariance, normalised."""
         return self.lib.thm_ident_doubt(self.h)
 
+    def room_sigma(self):
+        """How sure of the room, kelvin - the fifth quantity's sigma."""
+        return self.lib.thm_ident_sigma(self.h, 4)
+
     def ambient(self):
         """The room as identified - the fifth quantity, degrees C."""
         self.lib.thm_ident_ambient.restype = ctypes.c_float
@@ -369,7 +373,112 @@ class GroundTruth:
             if ident.run({}, dt_s, seen) and trace is not None:
                 trace.append((ident.state(), ident.scale('air'),
                               ident.sigma('air'), ident.innovation(),
-                              ident.margin()))
+                              ident.margin(), ident.room_sigma()))
+
+
+#: THE MIRROR'S NUMBERS ARE THE C'S. `coaxial/thermal_ident.py` says
+#: every number in it has the same name and value as in the C; this
+#: reads both and holds them to it, so the stand-in identifies the way
+#: the board will and a constant tuned on one cannot drift from the
+#: other. The bench, 2026-09-06: "check that the C on the target is a
+#: one-to-one mapping of what is in Python - without the ground truth,
+#: of course, which comes from real sensor values".
+C_TO_MIRROR = (
+    ('IDENT_DT_SLICE', 'SLICE_S'), ('IDENT_EPS_T', 'EPS_T'),
+    ('IDENT_EPS_S', 'EPS_S'), ('IDENT_EPS_AMB', 'EPS_AMB'),
+    ('IDENT_NOISE_GAIN', 'NOISE_GAIN'),
+    ('IDENT_EXCITATION_MIN', 'EXCITATION_MIN'),
+    ('IDENT_INNOVATION_FOLLOW', 'INNOVATION_FOLLOW'),
+    ('IDENT_SETTLE_SAMPLES', 'SETTLE_SAMPLES'),
+    ('IDENT_GATE_SIGMAS', 'GATE_SIGMAS'), ('IDENT_STILL_GAIN', 'STILL_GAIN'),
+    ('IDENT_MOVE_SHARE', 'MOVE_SHARE'), ('IDENT_RATIO_STABLE', 'RATIO_STABLE'),
+    ('IDENT_RATIO_UNCERTAIN', 'RATIO_UNCERTAIN'),
+    ('IDENT_STABLE_RUNS', 'STABLE_RUNS'),
+    ('THERMAL_IDENT_MIN_HORIZON_S', 'MIN_HORIZON_S'),
+    ('THERMAL_IDENT_MAX_HORIZON_S', 'MAX_HORIZON_S'),
+    ('THERMAL_IDENT_BLIND_S', 'BLIND_S'),
+    ('THERMAL_IDENT_SCALE_MIN', 'SCALE_MIN'),
+    ('THERMAL_IDENT_SCALE_MAX', 'SCALE_MAX'),
+    ('THERMAL_IDENT_AMBIENT_MIN_C', 'AMBIENT_MIN_C'),
+    ('THERMAL_IDENT_AMBIENT_MAX_C', 'AMBIENT_MAX_C'),
+    ('THERMAL_IDENT_RECORD', 'RECORD'),
+    ('THERMAL_ANCHOR_HZ', 'ANCHOR_HZ'),
+    ('THERMAL_NTC_INVERT_MAX_S', 'NTC_INVERT_MAX_S'),
+    ('THERMAL_NTC_AT_LEG_K', 'NTC_AT_LEG_K'),
+)
+C_TABLES = ('PRIOR_SIGMA', 'SIGMA_CONVERGING', 'SIGMA_STABLE', 'DRIFT_VAR',
+            'FLOOR_SHARE', 'VAR_MAX', 'ONLINE')
+
+
+def c_numbers():
+    """Every `#define NAME number` and every `static const float|bool
+    NAME[...] = { ... }` in the identifier's and the observer's sources,
+    as Python numbers."""
+    import re
+
+    text = ''
+    for name in ('src/thermal_ident.c', 'inc/thermal_ident.h', 'src/thermal.c',
+                 'inc/thermal.h'):
+        with open(os.path.join(THERMAL, name), encoding='utf-8') as f:
+            text += f.read() + '\n'
+
+    def number(token):
+        token = token.strip().rstrip('fFuUlL')
+        if token in ('true', 'false'):
+            return token == 'true'
+        return float(token)
+
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)     # comments carry numbers too
+    scalars = {m.group(1): number(m.group(2)) for m in re.finditer(
+        r'^#define\s+([A-Z_0-9]+)\s+(-?[0-9][0-9.eE+-]*[fFuUlL]?)\s*$',
+        text, re.M)}
+    tables = {}
+    for m in re.finditer(r'static const (?:float|bool)\s+([A-Z_]+)\[[^\]]*\]'
+                         r'\s*=\s*\{([^}]*)\}', text):
+        try:
+            tables[m.group(1)] = tuple(number(v) for v in m.group(2).split(',')
+                                       if v.strip())
+        except ValueError:
+            continue                        # a table of names, not numbers
+    return scalars, tables
+
+
+def test_the_mirror_carries_the_cs_numbers(report, lib):
+    """Every constant the mirror names is the C's, by name and value.
+
+    The stand-in runs `thermal_ident.py`; the board runs `thermal_ident.c`.
+    A number tuned on the page and not carried to the C - or the other
+    way - would make the two identify differently for the same readings,
+    and the page's states would say nothing about the board's.
+    """
+    from coaxial import thermal_ident as mirror
+
+    scalars, tables = c_numbers()
+    missing = [c for c, _p in C_TO_MIRROR if c not in scalars]
+    missing += [t for t in C_TABLES if t not in tables]
+    report.check('every constant this check names is found in the C',
+                 not missing, 'missing %s' % missing)
+    off = []
+    for c_name, py_name in C_TO_MIRROR:
+        if c_name in scalars:
+            c, p = scalars[c_name], getattr(mirror, py_name)
+            if abs(float(c) - float(p)) > 1e-9 * max(1.0, abs(float(c))):
+                off.append('%s %s != %s %s' % (c_name, c, py_name, p))
+    report.check('and every scalar - slices, gains, gates, ratios, horizons, '
+                 'clamps, the anchor\'s three - is the mirror\'s to the number',
+                 not off, off)
+    off = []
+    for name in C_TABLES:
+        if name in tables:
+            c, p = tables[name], tuple(getattr(mirror, name))
+            if len(c) != len(p) or any(
+                    abs(float(a) - float(b)) > 1e-9 * max(1.0, abs(float(a)))
+                    for a, b in zip(c, p)):
+                off.append('%s C %s mirror %s' % (name, c, p))
+    report.check('and every table over the five quantities - priors, the '
+                 'two thresholds, drift, floor shares, ceilings, which are '
+                 'online - is the same five numbers',
+                 not off, off)
 
 
 def test_the_room_is_identified(report, lib):
@@ -407,9 +516,17 @@ def test_the_room_is_identified(report, lib):
     trace = []
     truth.cycle(ident, quiet, 0.0, 2400.0, trace=trace)
     states = [t[0] for t in trace]
-    report.check('carried to -20 C: UNCERTAIN, then the room found within '
-                 'forty minutes and the air scale not blamed for it',
-                 'UNCERTAIN' in states and abs(ident.ambient() + 20.0) < 6.0
+    # THE ROOM IS RESET when the model stops predicting (2026-09-06): its
+    # sigma back to the ten-kelvin prior at the first UNCERTAIN sample,
+    # the air scale's untouched, so the step is charged to the room. The
+    # trace carries the room's sigma from that sample on.
+    at_reset = [t[5] for t in trace if t[0] == 'UNCERTAIN']
+    report.check('carried to -20 C: UNCERTAIN, with the room\'s sigma back '
+                 'at its prior on the first such sample, then the room found '
+                 'within forty minutes and the air scale not blamed for it',
+                 'UNCERTAIN' in states and at_reset
+                 and abs(at_reset[0] - 10.0) < 1.0
+                 and abs(ident.ambient() + 20.0) < 6.0
                  and abs(ident.scale('air') - 1.0) < 0.5,
                  'room %.1f C, air %.2f, %s' % (ident.ambient(),
                                                ident.scale('air'),
@@ -1738,6 +1855,7 @@ ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
           test_the_scales_are_identified_against_a_ground_truth,
           test_an_idle_board_stays_uncertain,
           test_the_room_is_identified,
+          test_the_mirror_carries_the_cs_numbers,
           test_the_lookahead_catches_a_ramp,
           test_the_step_must_land_inside_the_ramp, test_the_soak_is_joules,
           test_the_worst_node_is_the_one_acted_on,

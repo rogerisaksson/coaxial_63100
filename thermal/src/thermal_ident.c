@@ -565,6 +565,32 @@ static bool known(const thermal_ident_t *id, const float *threshold)
 }
 
 
+/** THE ROOM IS RESET WHEN THE MODEL STOPS PREDICTING. A room step is
+  * the one change that arrives whole - a machine carried from the
+  * warehouse into the cold - and the Kalman step shares an innovation
+  * out by covariance: with the room narrowed by the last leg and
+  * correlated with the air path, the step was charged to both, the air
+  * scale ran to 1.8 for a truth of 1.2 and took half an hour to come
+  * back while the room crept (stand-in tour, 2026-09-06: 41 to 56
+  * minutes to STABLE in the 45 C room). On the transition to UNCERTAIN
+  * the room's variance goes back to its whole prior and its correlation
+  * with every scale is cut, so the next samples are charged to the room
+  * first and the scales keep what a cooldown taught them. The bench:
+  * "see if you can speed up or reset when the innovation runs away from
+  * hot to cold or the other way". */
+static void room_reset(thermal_ident_t *id)
+{
+  const int a = THERMAL_IDENT_AMBIENT;
+
+  for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
+  {
+    id->p[a][k] = 0.0f;
+    id->p[k][a] = 0.0f;
+  }
+  id->p[a][a] = PRIOR_SIGMA[a] * PRIOR_SIGMA[a];
+}
+
+
 /** The state after a sample: what the covariance and the innovation
   * say the model is worth, and the inflation that lets a model that has
   * just stopped predicting move fast again. */
@@ -578,7 +604,7 @@ static void judge(thermal_ident_t *id)
       if (ratio > IDENT_RATIO_UNCERTAIN)
       {
         /* The situation changed under a model that was trusted: a box,
-           a fan, a heat sink. Say so, and let the scales run. */
+           a fan, a heat sink, a room. Say so, and let the scales run. */
         id->state = THERMAL_IDENT_UNCERTAIN;
         id->stable_runs = 0U;
         for (int k = 0; k < THERMAL_IDENT_PARAMS; k++)
@@ -587,6 +613,7 @@ static void judge(thermal_ident_t *id)
 
           id->p[k][k] += floor_sigma * floor_sigma;
         }
+        room_reset(id);
       }
       break;
 
@@ -595,6 +622,7 @@ static void judge(thermal_ident_t *id)
       {
         id->state = THERMAL_IDENT_UNCERTAIN;
         id->stable_runs = 0U;
+        room_reset(id);
       }
       else if (known(id, SIGMA_STABLE) && (ratio < IDENT_RATIO_STABLE))
       {

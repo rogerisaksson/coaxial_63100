@@ -438,6 +438,15 @@ class Identifier:
         self.scale = _clamped(self.scale)
         return True
 
+    def _room_reset(self):
+        """`room_reset`: on the way to UNCERTAIN the room's variance goes
+        back to its whole prior and its correlation with every scale is
+        cut, so a room step is charged to the room first."""
+        for k in range(PARAMS):
+            self.p[AMBIENT][k] = 0.0
+            self.p[k][AMBIENT] = 0.0
+        self.p[AMBIENT][AMBIENT] = PRIOR_SIGMA[AMBIENT] ** 2
+
     def _judge(self):
         ratio = self.innovation_k / self.noise_k
         if self.state == STABLE:
@@ -445,9 +454,11 @@ class Identifier:
                 self.state, self.stable_runs = UNCERTAIN, 0
                 for k in range(PARAMS):
                     self.p[k][k] += (FLOOR_SHARE[k] * PRIOR_SIGMA[k]) ** 2
+                self._room_reset()
         elif self.state == CONVERGING:
             if ratio > RATIO_UNCERTAIN:
                 self.state, self.stable_runs = UNCERTAIN, 0
+                self._room_reset()
             elif self._known(SIGMA_STABLE) and ratio < RATIO_STABLE:
                 self.stable_runs += 1
                 if self.stable_runs >= STABLE_RUNS:

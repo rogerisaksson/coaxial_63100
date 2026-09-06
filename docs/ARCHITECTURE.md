@@ -311,7 +311,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2907 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2910 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -331,7 +331,7 @@ by `counts.py`:
 | test_mcp.py | 46 | the MCP server |
 | test_render.py | 79 | the 3D engine stage by stage against an analytic oracle, the scanline halftone and the drawn rim |
 | test_filter_core.py | 42 | the anti-alias chain against its transfer function |
-| test_thermal_core.py | 134 | the twenty-node graph through the host gcc - the patches summing to the bulk, a leg warming its neighbour, the C_oss law and the switching terms, the junction, the motor as boundary, the envelope - derate, lookahead, soak - the thermistor bounded by its pair, and the identification against a ground truth whose situation changes: a box found as air 2, then a fan as 0.5, UNCERTAIN to CONVERGING to STABLE and back, the margin continuous on the doubt |
+| test_thermal_core.py | 137 | the twenty-node graph through the host gcc - the patches summing to the bulk, a leg warming its neighbour, the C_oss law and the switching terms, the junction, the motor as boundary, the envelope - derate, lookahead, soak - the thermistor bounded by its pair, and the identification against a ground truth whose situation changes: a box found as air 2, then a fan as 0.5, UNCERTAIN to CONVERGING to STABLE and back, the margin continuous on the doubt, and every constant of the mirror held to the C by name and value |
 | test_shtp_core.py | 38 | the SHTP parser |
 | test_broker.py | 33 | the shared session on a scripted port |
 | test_ollama_render.py | 32 | what the runner draws |

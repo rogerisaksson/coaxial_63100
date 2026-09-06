@@ -1423,7 +1423,14 @@ looking at the estimate alone.
   move, or fifty regardless (`TOUR_*`; forty-five first, and on CI's
   slower 3.12 the toasty leg ran to it a minute short of the suite's
   literal allowance, so the check reads the cap off the constant and
-  the cap gives the leg's 38 to 48 minutes room); a named situation ends
+  the cap gives the leg's 38 to 48 minutes room - and then red once more
+  on 3.10, the toasty leg at 47 by the loop's count without STABLE: the
+  stand-in also advances on the WALL clock inside `identification()`
+  and `state()`, the live path, so a walk driven by `fast_forward` drifts
+  by however slow the machine is, and the state was read after a wall
+  advance had already moved the tour; the suite's walks run the live
+  path off since, model time only, and five suites racing here pass);
+  a named situation ends
   the tour. ROTOR OBSERVER tours too since the same evening - "now
   ROTOR OBSERVER never switches to cold, hot, back to temperate", the
   bench, once its demo could reach STABLE under the judge on the
@@ -1518,6 +1525,51 @@ looking at the estimate alone.
   longer would meet the throttle only by
   latching a trip while the model is doubted, which in a demo is a dead
   stage, so the burst stays and its comment says what it measures.
+* **The room is reset when the model stops predicting** (bench,
+  2026-09-06: "maybe just give it a bit more time, the dynamic model
+  takes a while to settle and you have surely put Gaussian noise on the
+  NTC"; then "see if you can speed up or reset when the innovation runs
+  away from hot to cold or the other way"; and "the important thing is
+  that the SOA level goes down when the ambient temperature or heat
+  capacity becomes unknown"). Measured first on model time alone - the
+  suite's walk had been drifting on the wall clock, FINDINGS above -
+  the toasty leg took 41 to 56 minutes to STABLE: a room step arrives
+  whole, and the Kalman step shares an innovation out by covariance,
+  so with the room narrowed by the last leg and correlated with the
+  air path the 70 K step was charged to both, the air scale ran to 1.8
+  for a truth of 1.2 and crept back while the room crept up. Now the
+  transition to UNCERTAIN, from STABLE or CONVERGING, puts the room's
+  variance back to its whole prior and cuts its correlation with every
+  scale (`room_reset`, the mirror's `_room_reset`): the next samples
+  are charged to the room first and the scales keep what the cooldowns
+  taught them. Measured on the tour, model time only, no cap: toasty
+  22 to 27 minutes to STABLE, cold 13 to 20, temperate 11 to 32, and
+  the margin at the 0.80 floor within a minute of every move - the SOA
+  down while the room is unknown, which is the point. The cap stays at
+  fifty. Firmware 0 warnings, 195 184 B flash.
+* **The mirror is held to the C, number by number** (bench, 2026-09-06:
+  "check that the C on the target is a one-to-one mapping of what is in
+  Python - without the ground truth, of course, which comes from real
+  sensor values"). `test_the_mirror_carries_the_cs_numbers` reads
+  `thermal_ident.c`, its header and `thermal.c` and compares every
+  `#define` and every `static const` table the identifier and the
+  anchor run on with `coaxial/thermal_ident.py`'s attribute of the same
+  meaning: twenty-five scalars - the slice, the three finite-difference
+  steps, the noise gain, the excitation floor, the innovation filter,
+  the settle count, the gate, the still gain, the movement share, the
+  two ratios, the stable runs, the two horizons, the blind gap, the
+  scale and room clamps, the record's four, the anchor's rate and the
+  thermistor's two rules - and seven tables over the five quantities.
+  All equal today, and a number tuned on the page and not carried to
+  the C now fails a suite instead of drifting. What is NOT one to one,
+  and cannot be: the stand-in's ground truth (its thermometers are the
+  board's real ones), the integration (the C steps float32 in
+  `thermal_step`'s slices, the mirror float64 through `net_flows`), and
+  the still rule's readings on the C come off `thermal_sense_t` where
+  the mirror reads a dict - the same rules, not the same bits. The
+  walks are held separately: the core suite drives the C, the stand-in
+  suite the mirror, through the same box, fan, cold and idle cases.
+  thermal_core 137, 2910 in all.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were
