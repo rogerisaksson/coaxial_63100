@@ -1556,10 +1556,6 @@ def test_thermal_identification(report):
 
     # THE WALK. A truth in a box, driven from the model's own clock.
     model = SimulatedThermal(situation='box')
-    # MODEL TIME ONLY, as the tour below: `identification()` also advances
-    # the stand-in by the wall clock, and on CI's 3.12 the fan walk came
-    # out UNCERTAIN at air 1.34 where every run here lands 0.5 (2026-09-06).
-    model._advance = lambda: None
     load = {'amps': (30.0, 30.0, 30.0), 'switching': True}
     idle = {'amps': (0.0, 0.0, 0.0), 'switching': False}
     states, margins = [], []
@@ -1673,7 +1669,6 @@ def test_thermal_identification(report):
     # estimators could not (FINDINGS). The truth's outdoors has a light
     # wind, air 0.8.
     cold = SimulatedThermal(situation='bench')
-    cold._advance = lambda: None
     run_on = lambda m, seen, model=cold: model.fast_forward(60.0 * m, seen=seen)
     run_on(6, load)
     run_on(8, idle)
@@ -1738,7 +1733,6 @@ def test_thermal_identification(report):
     # until something switches. Settled at its idle equilibrium in a box,
     # ten minutes of samples move no scale.
     still = SimulatedThermal(situation='box')
-    still._advance = lambda: None
     still.settle(idle)
     still.fast_forward(600.0, seen=idle)
     got = still.identification()
@@ -1759,16 +1753,8 @@ def test_thermal_identification(report):
     # two minutes and the clamp holds driver U near 95-105 C on 12 to
     # 19 A of the 30 asked for. The first cut ignored the clamp and the
     # trip, and the legs passed 200 C with the stage nominally tripped.
-    # MODEL TIME ONLY. `identification()` and `state()` also advance the
-    # stand-in by the wall clock (`_advance`, the live path), so a walk
-    # driven by `fast_forward` drifted by however slow the machine was:
-    # on CI the toasty leg came in at 47 minutes by this loop's count
-    # with STABLE read after a wall advance had already moved the tour
-    # (2026-09-06, twice, on 3.12 and then 3.10). The live path is off
-    # for these walks.
     from coaxial.thermal_device import Thermal
     cyc = SimulatedThermal(situation='box')
-    cyc._advance = lambda: None
     laid = cyc.load_cycle()
     report.check('a load cycle is laid on - 30 A, 360 s on, 840 s off - '
                  'and the truth says what the load is now',
@@ -1812,7 +1798,6 @@ def test_thermal_identification(report):
     # the cap is read off the constant less two minutes of rounding: on
     # CI's slower 3.12 the toasty leg came in a minute under a literal.
     tour = SimulatedThermal(situation='tour')
-    tour._advance = lambda: None
     tour.load_cycle(on_s=120.0, off_s=240.0)
     report.check('a tour starts in the temperate room and says it is one',
                  tour.truth()['situation'] == 'temperate'
@@ -1849,7 +1834,6 @@ def test_thermal_identification(report):
     # as `Board_ThermalInit` starts on the NTC; a situation laid on later
     # is a carry-in and moves nothing.
     warm = SimulatedThermal(situation='toasty')
-    warm._advance = lambda: None
     born = warm.state()
     report.check('switched on in the toasty room the stand-in reads 45 C '
                  'on every node and the identification\'s room starts '
@@ -1872,7 +1856,6 @@ def test_thermal_identification(report):
     # clamped to one - in the cold room it had gone negative and a
     # tripped node had read 103 %.
     hot = SimulatedThermal(situation='cold')
-    hot._advance = lambda: None
     dropped, armed = [], [True]
 
     def drop_stage():

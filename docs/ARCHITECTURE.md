@@ -101,7 +101,8 @@ host/coaxial/simulated/ the stand-in: board, drive, daq, system, values,
                         hypothetical board with a ground truth in a
                         situation, read through noisy thermometers and
                         identified by thermal_ident.py, nothing kept
-                        between runs), link, analog
+                        between runs, its clock the wall's until a
+                        caller drives it), link, analog
 host/coaxial_mcp/       the MCP server: server, tools, session, docs,
                         detail, render
 host/coaxial_ollama/    the local-model runner: capability, client, intent,

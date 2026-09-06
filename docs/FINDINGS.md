@@ -1678,6 +1678,18 @@ looking at the estimate alone.
   references its frame is drawn round off the pick and place
   (`thermalmap.MARKS`), and what they are in words - so the letters on
   the picture are read off the same column as the numbers. views 182.
+* **The stand-in's clock is the wall's or the caller's, never both**
+  (2026-09-06, after CI's second red on the same cause). `state()`,
+  `budget()` and `identification()` advanced the model by the wall
+  clock inside the reader, which is what a page wants and what a walk
+  driven by `fast_forward` did not: on a slow machine the walk got
+  wall time it never asked for between its steps, and the suite had
+  grown seven `_advance = lambda: None` hacks to hold it still. From
+  the first `fast_forward` a caller makes the stand-in is DRIVEN and
+  its readers stop advancing on the wall clock; the pages, which never
+  call it, keep the live path. The seven hacks are gone, the walks read
+  the same on every machine, and the tour lands at 12, 40 and 75
+  minutes here on model time alone. simulated 247.
 * **The stand-in starts in its room** (2026-09-06, off the toasty
   replay's room at 55 C for 45 on the warm-up). Both boards started at
   25 C whatever the situation's room, so a fresh start in the toasty

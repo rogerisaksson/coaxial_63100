@@ -265,6 +265,12 @@ class SimulatedThermal:
         #: trip is in force.
         self._trip_cap = 1.0
         self._trip_at = 0.0
+        #: WHOSE CLOCK. The wall's until a caller drives the model's own
+        #: through `fast_forward`, and the caller's from then on: a walk
+        #: in a suite or a notebook that read `state()` between steps was
+        #: advanced by the wall clock inside the reader as well, and came
+        #: out different on a slow machine - CI, twice, 2026-09-06.
+        self._driven = False
         #: The load cycle, `(amps, on_s, off_s, began_model_s)` or None:
         #: what the live path samples instead of the drive while one runs.
         self._cycle = None
@@ -298,6 +304,8 @@ class SimulatedThermal:
         the constant it is stepping. Reading it twice in a row is
         harmless: the second read finds no elapsed time and does nothing.
         """
+        if self._driven:
+            return                  # the caller has the clock
         now = time.time()
         was, self._at = self._at, now
         if was is None:
@@ -310,12 +318,19 @@ class SimulatedThermal:
         if self._switching and not self._tour and self._switch_at is not None \
                 and now >= self._switch_at:
             self.situation('random')
-        self.fast_forward(elapsed * self.HASTE, live=True)
+        self._run(elapsed * self.HASTE, None, True)
 
     def fast_forward(self, model_seconds, seen=None, live=False):
         """Run the truth, the observer and the identification `model_seconds`
-        on: the live path's own loop, and a test's way of taking the
-        stand-in through a cooldown without waiting for one."""
+        on - a test's or a notebook's way of taking the stand-in through a
+        cooldown without waiting for one. THE CALLER OWNS THE CLOCK from
+        the first call: the readers stop advancing on the wall clock, so
+        the walk is model time only, the same on any machine."""
+        self._driven = True
+        self._run(model_seconds, seen, live)
+
+    def _run(self, model_seconds, seen, live):
+        """The loop itself, the live path's and `fast_forward`'s."""
         left = float(model_seconds)
         while left > 0.0:
             step = min(self.STEP_S, left)
