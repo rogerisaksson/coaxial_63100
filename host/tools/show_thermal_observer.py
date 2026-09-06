@@ -97,12 +97,16 @@ PAGE_CYCLE_ON_S, PAGE_CYCLE_OFF_S = 120.0, 240.0
 #: size the terminal gives them.
 ROOM_COLD_C, ROOM_HOT_C = 5.0, 35.0
 ROOM_UNSURE_K = 0.3
-ROOM_HINTS = {'cold': '❄️🥶', 'mild': '🍃😌', 'hot': '🔥🥵',
-              'unsure': '🌡️🤔'}
+#: A SPACE BETWEEN THE TWO - the bench: "so it does not go wrong in the
+#: terminal": two emoji back to back, one carrying a variation
+#: selector, can be shaped as a pair or mis-measured by the terminal's
+#: cell count; a space keeps them two glyphs.
+ROOM_HINTS = {'cold': '❄️ 🥶', 'mild': '🍃 😌', 'hot': '🔥 🥵',
+              'unsure': '🌡️ 🤔'}
 
-#: The hint's width in cells: two emoji, two cells each - the variation
-#: selectors are zero wide.
-HINT_CELLS = 4
+#: The hint's width in cells: two emoji, two cells each, and the space -
+#: the variation selectors are zero wide.
+HINT_CELLS = 5
 
 
 def room_hint(ident):

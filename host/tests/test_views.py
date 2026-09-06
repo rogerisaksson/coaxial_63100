@@ -724,11 +724,12 @@ def test_the_thermal_page_shows_its_evidence(report):
                  and at(34.9) == 'mild' and at(45.0) == 'hot'
                  and at(20.0, 0.3) == 'unsure' and at(-25.0, 2.0) == 'unsure'
                  and page.room_hint(None) == '' and page.room_hint({}) == ''
-                 and page.ROOM_HINTS['unsure'] == '🌡️🤔',
+                 and page.ROOM_HINTS['unsure'] == '🌡️ 🤔'
+                 and all(' ' in pair for pair in page.ROOM_HINTS.values()),
                  ' '.join(page.ROOM_HINTS[at(c)] for c in (-25.0, 20.0, 45.0)))
     # CENTRED over the board's field - the bench - which is the map's
     # narrowest row less the rail's two cells and its two spaces: a
-    # twenty-cell field puts a four-cell hint at column 3 + 10 - 2.
+    # twenty-cell field puts a five-cell hint at column 3 + 10 - 2.
     body = ['', '\u28ff' * 20 + '  \u2847\u2847 100 C',
             '\u28ff' * 20 + '  \u2847\u2847']
     row = page.hint_row({'ambient': 20.0, 'innovation_k': 0.1}, body)

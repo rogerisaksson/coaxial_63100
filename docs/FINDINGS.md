@@ -1468,7 +1468,10 @@ looking at the estimate alone.
   Terminal and VS Code's xterm.js both leave DECDHL double height
   undone, and a sixel image would need an emoji font rasterised on the
   host and a terminal that shows sixels - none of which the chooser's
-  terminal has. views 180, simulated 244.
+  terminal has. A space between the two since, the bench's "so it does
+  not go wrong in the terminal": back to back, one with a variation
+  selector, the pair can be shaped or mis-measured. views 180,
+  simulated 244.
   AND SENSE ONE FACT A ROW - the bench: "the boxes on the right are
   messy, lots of text run together": `sample every 30 s - last 0 s ago`
   and `truth heatsink  air 0.35  cap 1.60  room 25 C  0 min` were
