@@ -3077,7 +3077,7 @@ drive.source('model')
 drive.model_param(j=2e-5, b=1e-5, load=0.0)
 device.gates.arm(bypass_sto=True, ignore_interlock=True)
 
-def watch_shaft(seconds, every=0.02):
+def watch_shaft(seconds, every=0.002):
     rows = []
     t0 = time.monotonic()
     while time.monotonic() - t0 < seconds:
@@ -3085,7 +3085,11 @@ def watch_shaft(seconds, every=0.02):
         time.sleep(every)
     return rows"""),
     md("Hold at 30 degrees. A load step on the model pulls the shaft off the "
-       "command by the spring's sag; the next correction takes it back."),
+       "command by the spring's sag; the next correction takes it back. The "
+       "shaft is read every 2 ms: the held rotor rings at some 30 Hz, and a "
+       "read every 20 ms drew that ring aliased, a slow sawtooth that looked "
+       "filtered and subsampled. On a link the A1335 answers every 15 ms or "
+       "so, and a trace this fine is the model's."),
     code("""with device.motion.servo(amps=3.0, settle=0.3) as hold:
     zero = hold.to(30.0, tol=0.25)
     print('held at %.2f deg, error %.2f' % (zero, hold.error))
@@ -3103,7 +3107,7 @@ drive.source('adc')"""),
 fig, ax = plt.subplots(figsize=(9, 3.5))
 t = 0.0
 for rows, label in ((before, 'held'), (during, 'load step'), (after, 'corrected')):
-    ax.plot([t + r[0] for r in rows], [r[1] for r in rows], '.-', label=label)
+    ax.plot([t + r[0] for r in rows], [r[1] for r in rows], '-', linewidth=0.8, label=label)
     t += rows[-1][0]
 ax.set_xlabel('s'); ax.set_ylabel('shaft deg'); ax.legend(); ax.grid(True)
 plt.show()
@@ -3116,6 +3120,8 @@ print('held at          %.2f deg (asked 30.00)' % held)
 print('under 0.03 N.m   %.2f deg, sag %.2f deg' % (pulled, pulled - held))
 print('after correcting %.2f deg, residual %.2f deg' % (back, back - 30.0))
 print('sampled at       %.0f Hz through each phase' % (len(before) / before[-1][0]))
+print('ring, peak to peak %.2f deg held, %.2f deg under the load, %.2f deg corrected'
+      % tuple(max(r[1] for r in rows) - min(r[1] for r in rows) for rows in (before, during, after)))
 print('holding current  3.0 A, tolerance 0.25 deg')"""),
     md("The sag is the load-angle spring at work: HOLD commutates on the "
        "**commanded** angle, and the rotor sits wherever `amps kt sin(delta)` "
@@ -3124,7 +3130,9 @@ print('holding current  3.0 A, tolerance 0.25 deg')"""),
        "The correction moves the command by the measured error, so the spring "
        "is re-centred rather than fought. Nothing here runs a position loop "
        "per pass: the ring is at the same frequency the link corrects at, and "
-       "closing per pass pumps it.\n\n"
+       "closing per pass pumps it. The servo measures the ring's MEAN - a "
+       "shaft seen moving is read for a whole second - and `hold.swing` is "
+       "how far it moved while the measurement watched.\n\n"
        "A shaft that stays outside `tol` after `tries` corrections raises "
        "with what it saw - the load is past the holding torque, or there is "
        "no magnet in front of the sensor."),

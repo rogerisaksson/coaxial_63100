@@ -1094,6 +1094,17 @@ looking at the estimate alone.
   rotor re-executed clean; test_sensorless 138/138, test_simulated
   247/247. The bench's report was "app_robot_arm verkar ha fel i koden".
 
+* **`app_precision_servo`'s trace looked "hårt filtrerat och subsamplat"**
+  (2026-09-07): the shaft was read every 20 ms, and a held rotor rings at
+  some 30 Hz - the plot was the ring aliased into a slow sawtooth drawn
+  with markers. Read every 2 ms on the stand-in (427 Hz through each
+  phase) and drawn as a thin line, the trace is the physics: 0.18 deg
+  peak to peak held, 3.34 deg the moment the 0.03 N.m load steps on -
+  the pendulum released, the sag 1.58 deg - and 0.62 deg after the
+  correction, which re-centres the spring and leaves the ring to the
+  damping. On a link the A1335 answers every 15 ms or so; a trace this
+  fine is the model's, and the cell says so.
+
 ## The views
 
 * **A view that reports the mouse cannot be selected from, and the
