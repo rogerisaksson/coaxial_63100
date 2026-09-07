@@ -329,31 +329,43 @@ SCALE_W = 8
 #: "vet inte varför du alltid bara sätter en linje gråad" (2026-09-07).
 TUBE_W = 2
 #: The die's range on the scale: the A1335's operating range, -40 to
-#: 150 C (datasheet). The field's: zero to 1200 gauss, with 300 to 1000
-#: the recommended operating range (datasheet, Field Strength) - inside
-#: it the tube is green, outside amber, and below WEAK_GAUSS red, no
-#: magnet.
+#: 150 C (datasheet). The field's: zero to 1200 gauss. EACH TUBE IS
+#: THREE BANDS - blue under normal, green through it, red past it -
+#: "representativa för normal temp och magnetfält, blått, grönt, rött"
+#: (2026-09-07). The die's normal is where this board works, 15 to
+#: 65 C: it idles near 30 and works between 30 and 60, which is where
+#: the thermal ramp spends its resolution too, and the ramp itself was
+#: tried here first - a room-temperature die came out in the ramp's
+#: blue and read as cold. The field's normal is the datasheet's
+#: recommended 300 to 1000 gauss (Field Strength); under it the magnet
+#: is weak or absent, past it too close.
 DIE_RANGE = (-40.0, 150.0)
 DIE_TICKS = (-40, 0, 50, 100, 150)
+DIE_BAND = (15.0, 65.0)
 FIELD_RANGE = (0.0, 1200.0)
 FIELD_TICKS = (0, 300, 600, 900, 1200)
 FIELD_BAND = (300.0, 1000.0)
 
 
-def field_ink(gauss):
-    """The field tube's ink: green inside the recommended band, amber
-    outside it, red where there is no magnet to speak of."""
-    if gauss < WEAK_GAUSS:
-        return ansi.RED
-    if FIELD_BAND[0] <= gauss <= FIELD_BAND[1]:
+def _band_ink(value, band):
+    """Blue under `band`, green inside it, red past it."""
+    if value < band[0]:
+        return ansi.BLUE
+    if value <= band[1]:
         return ansi.GREEN
-    return ansi.AMBER
+    return ansi.RED
+
+
+def field_ink(gauss):
+    """The field tube's ink: blue under the recommended band - a weak
+    magnet, or none - green inside it, red past it."""
+    return _band_ink(gauss, FIELD_BAND)
 
 
 def die_ink(celsius):
-    """The die tube's ink: the thermal map's ramp, so a temperature is
-    the same colour on every page."""
-    return ansi.thermal(celsius)
+    """The die tube's ink: blue under the board's working range, green
+    through it, red past it."""
+    return _band_ink(celsius, DIE_BAND)
 
 
 def scale(value, span, height, ticks, title, reading, ink_of, side='left',

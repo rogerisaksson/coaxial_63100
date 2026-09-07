@@ -48,6 +48,10 @@ GREY_STEPS = 24
 GREEN = 46
 AMBER = 214
 RED = 196
+#: The cold end of a three-band scale - under normal, where green is
+#: normal and red is past it. Brighter than the thermal ramp's blues,
+#: which are a field's floor and not a band to read at a glance.
+BLUE = 33
 DIM = 236
 WHITE = 231
 

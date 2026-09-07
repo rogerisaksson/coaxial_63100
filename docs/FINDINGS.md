@@ -1856,9 +1856,15 @@ looking at the estimate alone.
 * **SHAFT ANGLE wears two scales** (2026-09-07, "nu ser den lite väl
   plain ut ... skalor på sidan som visar dietempen och fältstyrkan i
   gauss"): the die's temperature to the left of the face on the A1335's
-  operating range, -40 to 150 C, in the thermal map's ramp; the field to
-  the right on 0 to 1200 gauss, green inside the datasheet's recommended
-  300 to 1000, amber past it, red under WEAK_GAUSS - each a tube of dots
+  operating range, -40 to 150 C; the field to the right on 0 to 1200
+  gauss. **Each tube is three bands** - blue under normal, green through
+  it, red past it, "representativa för normal temp och magnetfält,
+  blått, grönt, rött": the die's normal 15 to 65 C, where this board
+  works, and the field's the datasheet's recommended 300 to 1000 gauss.
+  The thermal map's ramp was tried on the die first and a
+  room-temperature die came out in the ramp's blue, which read as cold;
+  the first field rule had red for no magnet and amber past the band,
+  and the bench asked for the one scheme on both - each a tube of dots
   filled to the reading, its empty glass the same four dots in ash - it
   was one dotted column, "vet inte varför du alltid bara sätter en linje
   gråad", and read as a stray line beside the bar - the graduations

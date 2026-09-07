@@ -1794,20 +1794,28 @@ def test_the_face_wears_its_two_scales(report):
     inks = [dial.scale(g, dial.FIELD_RANGE, 21, dial.FIELD_TICKS, 'FIELD',
                        '%d G' % g, dial.field_ink, 'right', colour=True)
             for g in (12, 380, 1100)]
-    report.check('the field tube is red with no magnet, green in the '
-                 'recommended band, amber past it',
-                 ansi.code(ansi.RED) in ''.join(inks[0])
+    report.check('the field tube is blue under the recommended band - a '
+                 'weak magnet or none - green in it, red past it',
+                 ansi.code(ansi.BLUE) in ''.join(inks[0])
                  and ansi.code(ansi.GREEN) in ''.join(inks[1])
-                 and ansi.code(ansi.AMBER) in ''.join(inks[2])
-                 and ansi.code(ansi.GREEN) not in ''.join(inks[0]),
-                 [dial.field_ink(g) for g in (12, 380, 1100)])
+                 and ansi.code(ansi.RED) in ''.join(inks[2])
+                 and ansi.code(ansi.GREEN) not in ''.join(inks[0])
+                 and dial.field_ink(200) == ansi.BLUE,
+                 [dial.field_ink(g) for g in (12, 200, 380, 1100)])
+    report.check('and the die tube is blue under the board\'s working '
+                 'range, green through it, red past it',
+                 dial.die_ink(5.0) == ansi.BLUE
+                 and dial.die_ink(25.0) == ansi.GREEN
+                 and dial.die_ink(61.0) == ansi.GREEN
+                 and dial.die_ink(90.0) == ansi.RED,
+                 [dial.die_ink(c) for c in (5.0, 25.0, 61.0, 90.0)])
     art = dial.instrument(137.0, 380, 273.15 + 61.0, colour=True).split('\n')
     report.check('the instrument is the face and two scales with their air, '
-                 'line for line, and the die\'s ink is the thermal map\'s',
+                 'line for line, and the die\'s reading wears its band',
                  len(art) == 22 and all(
                      len(ansi_plain(l)) == 58 + 2 * (dial.SCALE_W + 1)
                      for l in art)
-                 and ansi.code(ansi.thermal(61.0)) in art[-1]
+                 and ansi.code(dial.die_ink(61.0)) in art[-1]
                  and '61.0 C' in ansi_plain(art[-1]),
                  (len(art), sorted({len(ansi_plain(l)) for l in art})))
     from tools import show_angle as page
