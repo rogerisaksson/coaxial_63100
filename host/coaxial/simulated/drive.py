@@ -158,6 +158,7 @@ class SimulatedDrive:
         #: would be work nobody asked for.
         self._motor = None
         self._motor_at = 0.0
+        self._motor_acc = 0.0
         #: The back-EMF chain, built on the first ask: a stand-in
         #: nobody asks for observers should not be integrating
         #: two of them in the background.
@@ -593,22 +594,41 @@ class SimulatedDrive:
             if not hold:
                 torque = 1.5 * motor.p * (motor.lam * iq
                                           + (ld - motor.lq) * iid * iq)
+            acc = self._motor_acc + dt
             cmd = (self._sp['theta']
-                   + self._omega() * (now - dt - self._mode_at))
+                   + self._omega() * (now - acc - self._mode_at))
             w_cmd = self._omega()
             wm = motor.omega / motor.p
             # SUBSTEPPED, SYMPLECTIC. One Euler step over a poll gap
             # diverges: (1 - dt b/j) at the placeholder profile is -4 at a
             # 0.2 s poll and the rotor read +1896, -5770, +24964 rad/s on
             # three of them. Each slice stays a tenth of the mechanical
-            # constant AND a twentieth of the spring's period; speed then
-            # angle keeps the spring bounded rather than spiralling.
+            # constant AND a hundred-and-twentieth of the spring's period;
+            # speed then angle keeps the spring bounded rather than
+            # spiralling. A twentieth was tried and kept for a week: the
+            # held rotor is a PENDULUM, sin(cmd - theta), and an elbow
+            # energised under 0.01 N.m swings +-49 electrical degrees,
+            # where that step pumped the ring until a pole slipped.
             step = min(0.002, 0.1 * motor.j / max(motor.b, 1e-12))
             if hold and i_mag > 0.0:
                 spring = 1.5 * motor.p * motor.p * motor.lam * i_mag
-                step = min(step, 0.3 * math.sqrt(motor.j / spring))
-            n = max(1, int(math.ceil(dt / step)))
-            h = dt / n
+                step = min(step, 0.05 * math.sqrt(motor.j / spring))
+            # THE SUB-STEP IS FIXED and the remainder carried to the next
+            # call. The symplectic step conserves a MODIFIED energy that
+            # depends on h, so a step re-sized every poll (dt / n, and dt
+            # is whatever the caller's cadence made it) moved the rotor
+            # between energies each call - a random walk that fed the
+            # ring. Measured 2026-09-07 on the arm's elbow, 0.01 N.m at
+            # 2 A, at the twentieth-of-a-period step: the ring after the
+            # energise decayed with a 16 s constant where 2j/b is 4 s;
+            # re-sized at a sixth of that step, 4.4 s; FIXED at the
+            # coarse step it grew 6 % a second and the servo's poses ran
+            # away by thousands of degrees. Fixed at this one, 4.6 s. The
+            # rotor's own time runs up to one step behind `now`; `cmd`
+            # starts from where it is.
+            h = step
+            n = int(acc // h)
+            self._motor_acc = acc - n * h
             theta = motor.theta
             # THE LINK RUNS OUT, and until now it never did. The back-EMF
             # is `sqrt(3) lambda omega_el` and the inverter cannot push
@@ -662,6 +682,7 @@ class SimulatedDrive:
                                 v_dt=m['v_dt'], i_knee=m['i_knee'],
                                 theta=m['theta0'])
             self._motor_at = time.time()
+            self._motor_acc = 0.0
         return self._motor
 
     @_rotor_locked
@@ -838,6 +859,7 @@ class SimulatedDrive:
     def model_reset(self):
         """The rotor back to theta0, at rest - the contract `drive.py` states."""
         self._motor = None
+        self._motor_acc = 0.0
         self._omega_hat = 0.0
         self._obs = None
         self._theta_hat = self._model['theta0']

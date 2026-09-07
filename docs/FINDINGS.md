@@ -1017,6 +1017,42 @@ looking at the estimate alone.
   builds at 0 warnings, 194 364 B flash, 38 348 B DTCM (the shadow
   and its 4 × 20 sensitivities). Not yet run on the board.
 
+## The motion verbs, 2026-09-07
+
+* **`app_robot_arm` had failed two runs in three since 2026-09-04, and it
+  was two defects stacked - neither in the notebook.** Measured with the
+  notebook's own three poses on the stand-in at three commits: at 8241489
+  (the notebook's last pass) the elbow's error after a move stayed under
+  0.32 deg and no correction was needed; at 3463277 (the stand-in's rotor
+  of 2026-09-03) single corrections of +1.65 and -0.71 appeared; at cbbfaa5
+  (the servo's two-reading arrival) the corrections alternated and grew -
+  +0.62, -1.03, +0.70, -0.57 - until `tries` ran out, "the shaft stayed
+  -0.7 deg short of 20.0 after 4 corrections". A 2 ms trace of the shaft
+  found the ring: +-6.6 deg at 28 Hz right after the energise, before any
+  slew - a rotor released into the weakest current step under 0.01 N.m
+  swings to twice its static deflection, 5.6 deg at 0.33 A - and it had
+  not decayed two seconds later. (1) `Servo._measure` took nine reads over
+  0.2 s, 22 ms apart: against a 28 Hz ring that aliases to 17 Hz and
+  leaves up to a degree of the ring in the "mean"; `to()` corrected that
+  degree, the correction re-kicked the spring, and the corrections
+  pumped. A shaft seen moving more than the slew's pitch across the first
+  0.2 s is now read for a full second, 10 ms apart - some thirty periods,
+  under a tenth of a degree of ring left in the mean - `Servo.swing` says
+  how far it moved, and the refusal names it. (2) The stand-in's rotor was
+  integrated with a sub-step re-sized every poll (dt / n) at a twentieth
+  of the spring's period. The symplectic step conserves an energy that
+  depends on h, so every re-size moved the rotor between energies: the
+  ring after the energise decayed with a 16 s constant where 2j/b is 4 s.
+  Fixed at that coarse step it GREW 6 % a second and the elbow ran away
+  by thousands of degrees - a held rotor is a pendulum, sin(cmd - theta),
+  and +-7 mechanical degrees is +-49 electrical; at a hundred-and-twentieth
+  of the period, fixed and the remainder carried to the next call, 4.6 s.
+  After both: the elbow within 0.09 deg on every pose, no correction
+  beyond the move itself, three runs of three - and a run takes 30 s where
+  it took 15, the measurement's price. The nine notebooks that ride the
+  rotor re-executed clean; test_sensorless 138/138, test_simulated
+  247/247. The bench's report was "app_robot_arm verkar ha fel i koden".
+
 ## The views
 
 * **A view that reports the mouse cannot be selected from, and the

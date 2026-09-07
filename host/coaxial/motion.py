@@ -147,6 +147,17 @@ class Servo(_Mode):
     rotor the drive torques.
     """
 
+    #: A measurement reads the shaft for SPAN seconds, READ_GAP apart -
+    #: on the wire a read is its own round trip and sets the pace; the
+    #: stand-in answers at once, and the gap keeps a mean from being a
+    #: burst. A shaft seen moving more than RING across it is RINGING
+    #: and is read for RING_SPAN instead: the slew's own pitch, the least
+    #: a held shaft is ever commanded to move.
+    SPAN = 0.2
+    RING_SPAN = 1.0
+    RING = 0.25
+    READ_GAP = 0.01
+
     def __init__(self, device, amps, deg_s=90.0, settle=0.35):
         super().__init__(device)
         self.amps, self.deg_s = float(amps), float(deg_s)
@@ -156,6 +167,7 @@ class Servo(_Mode):
         self._last = None
         self._turns = 0.0
         self._error = float('nan')
+        self._swing = float('nan')
 
     def _start(self):
         # Soft energize like the stepper, then the shaft AFTER the
@@ -183,19 +195,51 @@ class Servo(_Mode):
         """Target minus shaft, mech degrees, from the last correction."""
         return self._error
 
+    @property
+    def swing(self):
+        """How far the shaft moved, peak to peak in mech degrees, while
+        the last measurement watched it: the ring a held rotor carries.
+        Under RING it sat still."""
+        return self._swing
+
     def _slew(self, by_degrees):
         self._slew_to(self._theta_e + math.radians(by_degrees) * self.poles,
                       self.deg_s)
 
-    def _measure(self, reads=9, span=0.2):
-        """The shaft as a short MEAN: the ring is symmetric about the
-        equilibrium the load set, so its average is the position while a
-        single read is wherever the oscillation happened to be."""
-        got = 0.0
-        for _ in range(reads):
-            got += self._shaft()
-            time.sleep(span / reads)
-        return got / reads
+    def _measure(self):
+        """The shaft as a MEAN over its ring, never a read of it.
+
+        A held shaft rings about the equilibrium the load set - a
+        stepper's resonance, and seconds long on a rotor with nothing but
+        its bearings to damp it. The ring is symmetric, so its average is
+        the position while a single read is wherever the oscillation
+        happened to be. NINE READS OVER 0.2 s WERE NOT THAT MEAN: 22 ms
+        apart against a 28 Hz ring they aliased to 17 Hz and left up to a
+        degree of the ring in the answer; `to()` corrected it, the
+        correction re-kicked the spring, and the corrections pumped
+        (+0.6, -1.0, +0.7 ...) until `tries` ran out - the elbow of
+        `app_robot_arm` under 0.01 N.m, two runs in three, 2026-09-07.
+        A shaft seen moving more than RING across the first SPAN is read
+        for RING_SPAN, some thirty periods of that ring, and what is left
+        of it in the mean is under a tenth of a degree.
+        """
+        began = time.monotonic()
+        deadline = began + self.SPAN
+        total, count = 0.0, 0
+        low = high = None
+        while True:
+            got = self._shaft()
+            total += got
+            count += 1
+            low = got if low is None else min(low, got)
+            high = got if high is None else max(high, got)
+            if high - low > self.RING:
+                deadline = began + self.RING_SPAN
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(self.READ_GAP)
+        self._swing = high - low
+        return total / count
 
     def _arrived(self, degrees, tol):
         """Within `tol` of `degrees` AND STILL THERE a settle later.
@@ -243,9 +287,11 @@ class Servo(_Mode):
         if self._arrived(degrees, tol):
             return degrees - self._error
         raise RigError('the shaft stayed %.1f deg short of %.1f after %d '
-                       'corrections - load past %.1f A of holding torque, '
-                       'or no magnet in front of the sensor'
-                       % (self._error, degrees, tries, self.amps))
+                       'corrections, ringing %.1f deg peak to peak - load '
+                       'past %.1f A of holding torque, or no magnet in '
+                       'front of the sensor'
+                       % (self._error, degrees, tries, self._swing,
+                          self.amps))
 
 
 class Velocity(_Mode):
