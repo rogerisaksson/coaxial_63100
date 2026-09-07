@@ -45,6 +45,9 @@
     // see - so `import coaxial` was flagged unresolved in every notebook
     // on an interpreter without `pip install -e host/`. This tells the
     // analyzer what the runtime does.
+    // The tree reads clean under Pylance in basic mode (FINDINGS, 2026-09-08):
+    // the editor is asked for that mode, so a regression shows where it lands.
+    "python.analysis.typeCheckingMode": "basic",
     "python.analysis.extraPaths": [
         "host",
         "host/tools",
