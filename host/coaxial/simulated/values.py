@@ -59,18 +59,23 @@ DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0,
 #: a meter follow it, fast enough that a still frame is rarely the same twice.
 SWEEP_HZ = 0.14
 
-#: How far each channel swings, in codes. The three phases get most of the
-#: converter, because a stand-in whose meters never leave the bottom segment
-#: teaches nobody what the view looks like with a machine running.
-SWING = {0: 9000.0, 1: 9000.0, 2: 9000.0, 3: 300.0, 4: 6000.0, 5: 4000.0,
-         6: 3000.0, 7: 200.0, 8: 100.0, 9: 300.0}
+#: How far each channel wanders, in codes. NOT THE PHASES: they carry the
+#: machine's current, `phase_codes`, and nothing else - they swept +-9000
+#: codes at 0.14 Hz so the meters had something to show, and a tare
+#: through the analog path then stored the sweep's value of that moment
+#: as the zero, which a record through the DAQ's path could never agree
+#: with (+-57 A of "current" on a stage that was down, 2026-09-07). The
+#: meters have a machine to show instead: the bridge page turns the
+#: stand-in's drive.
+SWING = {3: 300.0, 4: 6000.0, 5: 4000.0, 6: 3000.0, 7: 200.0, 8: 100.0,
+         9: 300.0}
 
 #: How far a channel moves WITHIN one burst - a different quantity from how
 #: far it wanders between them. A flat +/-5 codes for everything is 0.015 %
 #: of a differential range, so the burst extremes drew under the bar and two
 #: of the views' three marks were invisible. Sized by where each channel
 #: sits, not to look busy.
-RIPPLE = {0: 2600.0, 1: 2600.0, 2: 2600.0, 3: 40.0, 4: 150.0, 5: 700.0,
+RIPPLE = {0: 60.0, 1: 60.0, 2: 60.0, 3: 40.0, 4: 150.0, 5: 700.0,
           6: 300.0, 7: 60.0, 8: 40.0, 9: 80.0}
 
 #: Now and then a burst catches something bigger. Without it every burst is
@@ -89,14 +94,37 @@ def _sweep(index):
     is no more a measurement than a still one. It is here so the views can be
     demonstrated and developed without a cable.
     """
+    if index not in SWING:
+        return 0.0
     turn = time.time() * SWEEP_HZ * 2.0 * math.pi
-
-    if index in (0, 1, 2):
-        return SWING[index] * math.sin(turn - index * 2.0 * math.pi / 3.0)
     return SWING[index] * math.sin(turn * 0.31 + index)
 
 
-def _spread(meta, mean, powered):
+#: Radians a phase lags the one before it.
+PHASE_STEP = 2.0 * math.pi / 3.0
+
+#: Which leg each phase channel is, by the board's own name.
+PHASE_LEG = {'Phase U': 0, 'Phase V': 1, 'Phase W': 2}
+
+#: Amps per code on a phase shunt - `SimulatedDrive.APC`, the same
+#: number `scaling.PHASE_ONBOARD` gives: 3.3 V over 32768 codes
+#: through 3.5 mohm times 4.5455.
+AMPS_PER_CODE = 3.3 / 32768.0 / (0.0035 * 1500.0 / 330.0)
+
+
+def phase_codes(signal, amps, theta):
+    """The machine's current on one phase, in codes a sample: `amps` of
+    stator current at electrical angle `theta`, put into the leg's own
+    phase. Zero on anything that is not a phase, and zero with the stage
+    down. ONE PLACE: the DAQ's records and the analog reads draw the
+    same current from it, so a tare through the one zeroes the other."""
+    leg = PHASE_LEG.get(signal)
+    if leg is None or not amps:
+        return 0.0
+    return amps * math.cos(theta - leg * PHASE_STEP) / AMPS_PER_CODE
+
+
+def _spread(meta, mean, powered, extra=0.0):
     """One burst's mean and its two extremes, as the board reports them.
 
     With the front end off there is nothing to ripple: invariant 9 says the
@@ -110,6 +138,8 @@ def _spread(meta, mean, powered):
     reach = RIPPLE[index] * random.uniform(0.55, 1.0)
     if random.random() < GUST_CHANCE:
         reach *= GUST
+    # What the machine moved within the burst, on top of the noise.
+    reach += extra
 
     floor, ceiling = ((-32768, 32767) if meta['differential']
                       else (0, 65535))

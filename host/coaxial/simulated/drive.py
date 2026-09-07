@@ -234,6 +234,21 @@ class SimulatedDrive:
     def _omega(self):
         return self._sp['omega_target'] if self._mode == 'hold' else 0.0
 
+    def _carrying(self):
+        """(amps, electrical angle) the stator carries right now: the dq
+        solution's magnitude, at the command's angle in HOLD and the
+        tracked rotor's otherwise. The analog stand-in reads the phases
+        off this - the same current a record carries, so a tare through
+        the one path zeroes the other."""
+        iid, iq, _vd, _vq = self._dq()
+        amps = math.hypot(iid, iq)
+        if self._mode == 'hold':
+            theta = (self._sp['theta']
+                     + self._omega() * (time.time() - self._mode_at))
+        else:
+            theta = self._theta_hat
+        return amps, theta % (2.0 * math.pi)
+
     def _dq(self):
         """The loop's dq means for the mode it is in."""
         if self._mode == 'volt':

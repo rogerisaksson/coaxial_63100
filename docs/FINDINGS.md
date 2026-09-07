@@ -793,6 +793,47 @@ record's own constants, no measurement.
   charge. It is not ruled out for Cinj and Clevel, whose apparent duty
   tracks the sample rate.
 
+* **A block read entirely after a wrap came back 9.02 s in the past**
+  (2026-09-07, "fasplottarna i daq_live_plot såg för bedrövliga ut"):
+  `_timed` unwrapped each block's stamps on their own, which orders a
+  wrap INSIDE a block and does nothing for a block whose every stamp lies
+  past one - `to_host` then placed it a whole wrap early. Measured on the
+  stand-in at 50 records/s: every record's `since` climbed for nine
+  seconds and fell 9.02 s at the wrap, and the plot drew its window back
+  over itself, the traces crossing the axis both ways. The acquisition
+  carries the wrap count from block to block now (`_unwrapped`), the
+  first stamp of a run picking its epoch from the host clock through the
+  sync - twelve seconds through a wrap, 600 records, none backwards, the
+  worst stamp 82 ms from the wall.
+* **The stand-in invented records at the read's pace, not the clock's.**
+  A clock-closed task answered fifteen a read whatever the interval: 245
+  records a second from a 50 Hz task, their stamps running 3.4 s ahead of
+  the wall per second, which is how the index reached +6 s "before now".
+  A read answers what the interval produced since the last one, the
+  fraction carried: 49.7 a second from 50, four a read at the reader's
+  pace. `read(-1)` of a 5-record run at 500 Hz therefore arrives over
+  more than one read, as it does from a board; the finite-run check reads
+  until it has them.
+* **The stand-in's phases swept +-57 A on a stage that was down, and a
+  tare could not zero them.** `values._sweep` turned the three phases
+  +-9000 codes at 0.14 Hz "so the meters had something to show"; a record
+  used it whenever the drive carried no current, and a tare through the
+  analog path stored that moment's value as the zero - the two paths could
+  never agree, and a live plot of a machine at 4 A sat under 50 A of
+  fiction. The phases carry the machine's current and nothing else now,
+  on both paths from one `phase_codes` - the DAQ's own angle per record,
+  the drive's command angle for a read - over the rest offsets NOMINAL
+  keeps ("roughly what a live board reads"). A tare then zeroes the
+  records: 1431, -7989, 396 codes stored; the currents +-4 A about -0.1
+  to -0.3 A after, seven rising zero crossings in 2.16 s at 3.5 Hz, the
+  gates 0.46 to 0.54. The meters lost their invented motion and were
+  given a machine instead: the bridge page on the stand-in holds a
+  current vector turning at 0.14 Hz electrical and runs it 0 to 30 A and
+  back over 45 s (`show_desk.demo_machine`, the stand-in's own record
+  clamp lifted to 30 A for it); on a board the page opens onto whatever
+  the drive is doing. The phases' burst ripple went from 2600 codes -
+  +-16 A of invented noise at rest - to 60, the quiet channels' order.
+
 ## Clocks
 
 * A host clock is not a reference, and a Windows one reporting a good

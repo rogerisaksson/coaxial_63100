@@ -27,7 +27,7 @@ import time
 
 from . import angle as angle_scaling
 from .acquisition import Acquisition
-from .clock import NTP_SERVER, unwrap
+from .clock import NTP_SERVER, WRAP
 from .errors import CrcError, NoReplyError, RigError
 from .gates import GateStage
 from .reader import BufferedReader
@@ -249,6 +249,11 @@ class Coaxial63100(Acquisition):
         self.simulated = simulated_device
         self.layout = None
         self.sync = None
+        # The stamps' wrap count, carried from block to block - `_epoch` -
+        # and the last stamp itself, for a block of one record's dt.
+        self._last_raw = None
+        self._epoch = 0
+        self._last_stamp = None
         self._afe_was_on = None
         #: Whether this session holds a reference on the AFE rail, so
         #: close() releases exactly what it took and no more.
@@ -1081,6 +1086,8 @@ class Coaxial63100(Acquisition):
         never sits between two round trips.
         """
         self.board.daq.start()
+        self._last_raw = None
+        self._last_stamp = None
         # A reply carries as many records as fit in the board's own reply
         # room, and that is what the reader waits for rather than reading
         # the instant one record lands.
@@ -1437,8 +1444,7 @@ class Coaxial63100(Acquisition):
         """Wall-clock time on each record, and each as a `Record`.
 
         The counter is 32 bits and wraps every nine seconds at 475 MHz, so
-        the raw stamps are unwrapped first. Per block is enough as long as
-        blocks are read more often than the counter wraps.
+        the raw stamps are unwrapped first - ACROSS BLOCKS, `_unwrapped`.
 
         A `Record` is a dict underneath, so `r['NTC']` and `r['samples']`
         mean exactly what they meant before; `r.start_time`, `r.dt` and
@@ -1450,10 +1456,38 @@ class Coaxial63100(Acquisition):
 
         stamps = None
         if self.sync is not None:
-            stamps = [self.sync.to_host(c)
-                      for c in unwrap([r['at'] for r in records])]
+            stamps = [self.sync.to_host(c) for c in self._unwrapped(records)]
             for record, when in zip(records, stamps):
                 record['time'] = when
 
         fields = (self.layout or {}).get('fields') or []
-        return build(records, fields, stamps)
+        before, self._last_stamp = self._last_stamp, (stamps[-1] if stamps
+                                                      else None)
+        return build(records, fields, stamps, before)
+
+    def _unwrapped(self, records):
+        """The records' stamps as monotonic cycle counts, across blocks.
+
+        `clock.unwrap` put ONE block's stamps in order, and a block read
+        entirely after a wrap came back folded 9.04 s into the past:
+        measured on the stand-in 2026-09-07, every record's `since`
+        climbed for nine seconds and fell 9.02 s at the wrap, and the
+        live plot drew its window back over itself. The first stamp of
+        a run picks its epoch from the host clock - the sync says which
+        cycle it was at what o'clock, so the nearest wrap is the one it
+        is in - and every stamp after follows the last, a wrap added
+        where the count falls. Blocks still have to arrive more often
+        than every nine seconds, which a reader thread does.
+        """
+        sync = self.sync
+        out = []
+        for raw in (r['at'] for r in records):
+            if self._last_raw is None:
+                expected = (sync.at_cycles
+                            + (time.time() - sync.at_host) * sync.hz)
+                self._epoch = int(round((expected - raw) / WRAP)) * WRAP
+            elif raw < self._last_raw:
+                self._epoch += WRAP
+            self._last_raw = raw
+            out.append(raw + self._epoch)
+        return out

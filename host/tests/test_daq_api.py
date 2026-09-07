@@ -153,6 +153,14 @@ def test_read_of_a_finite_run(report):
             daq.configure('phaseU', records=5, sample_rate=500)
             daq.start()
             got, spent = _read_within(daq, ask)
+            if ask < 0:
+                # WHAT THERE IS. The stand-in closes a record every 2 ms
+                # on its own clock now, as the board does, so a run still
+                # being made comes in more than one read of -1 - and none
+                # of it is lost.
+                while got is not None and len(got) < expect and spent < 3.0:
+                    more, took = _read_within(daq, ask)
+                    got, spent = got + (more or []), spent + took
         report.check('read(%d) of a 5-record run returns %d' % (ask, expect),
                      got is not None and len(got) == expect,
                      'hung' if got is None else '%d in %.2f s'

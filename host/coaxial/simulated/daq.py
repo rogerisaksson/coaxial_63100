@@ -6,7 +6,8 @@ import time
 
 from ..acquisition import Acquisition
 from ..errors import RigError
-from .values import CHANNELS, DCBUS_V, NOMINAL, _sweep
+from .values import (AMPS_PER_CODE, CHANNELS, DCBUS_V, NOMINAL, PHASE_LEG,
+                     PHASE_STEP, _sweep, phase_codes)
 from .system import UNITS
 
 
@@ -239,16 +240,11 @@ class SimulatedDaq(Acquisition):
         return self._theta, amps, index, math.atan2(vq, vd)
 
 
-    #: Radians a phase lags the one before it.
-    PHASE_STEP = 2.0 * math.pi / 3.0
-
-    #: Which leg each phase channel is, by the board's own name.
-    PHASE_LEG = {'Phase U': 0, 'Phase V': 1, 'Phase W': 2}
-
-    #: Amps per code on a phase shunt - `SimulatedDrive.APC`, the same
-    #: number `scaling.PHASE_ONBOARD` gives: 3.3 V over 32768 codes
-    #: through 3.5 mohm times 4.5455.
-    AMPS_PER_CODE = 3.3 / 32768.0 / (0.0035 * 1500.0 / 330.0)
+    #: The phases' geometry and scale, `values` - one table for one board,
+    #: shared with the analog reads.
+    PHASE_STEP = PHASE_STEP
+    PHASE_LEG = PHASE_LEG
+    AMPS_PER_CODE = AMPS_PER_CODE
 
     #: The last (theta, amps, index, delta), so the pins in a record
     #: use the angle its currents were taken at.
@@ -500,6 +496,10 @@ class SimulatedDaq(Acquisition):
         if getattr(self, 'clock', None) is not None:
             self._at = self.clock.read_latch()['now']
         self._produced = 0
+        # The clock's own cadence: what a read may answer is what the
+        # interval has produced since the last, `acquire`.
+        self._wall = time.time()
+        self._owed_records = 0.0
         return True
 
     def _buffered(self):
@@ -549,12 +549,28 @@ class SimulatedDaq(Acquisition):
         # board does.
         step_us = self._period_us()
         cfg = self._cfg or {}
+        now = time.time()
+        since = getattr(self, '_wall', None)
         if n and not cfg.get('interval_us'):
-            now = time.time()
-            since = getattr(self, '_wall', None)
             if since is not None:
                 step_us = max(step_us, (now - since) * 1e6 / n)
             self._wall = now
+        elif n and self._running:
+            # THE CLOCK MAKES THE RECORDS, NOT THE READ. A clock-closed
+            # task closes one record an interval, and a read answers what
+            # the interval produced since the last one - the fraction
+            # carried, so a 50 Hz task makes fifty a second however often
+            # it is read. Fifteen a read regardless was 245 records a
+            # second from that task, their stamps 3.4 s ahead of the wall
+            # per second, and the live plot's window ran into the future
+            # (2026-09-07). A stopped run's remainder is served at once,
+            # as the board's buffer is.
+            owed = self._owed_records
+            if since is not None:
+                owed += (now - since) * 1e6 / step_us
+            self._wall = now
+            n = min(n, int(owed))
+            self._owed_records = owed - n
         out = []
         for _ in range(n):
             self._at = (self._at + int(step_us * 475)) & 0xFFFFFFFF
@@ -588,8 +604,7 @@ class SimulatedDaq(Acquisition):
                     # Balanced three-phase, in codes: the dq solution the
                     # drive settled at, put back into the stator frame
                     # through the stand-in's own amps-per-code.
-                    offset = took * amps * math.cos(
-                        theta - leg * self.PHASE_STEP) / self.AMPS_PER_CODE
+                    offset = took * phase_codes(f['signal'], amps, theta)
                 else:
                     # ONE SOURCE FOR A QUIET CHANNEL. `_sweep` is what a
                     # read of this channel returns, and a record that made

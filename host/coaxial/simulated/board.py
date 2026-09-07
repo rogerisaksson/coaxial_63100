@@ -111,6 +111,9 @@ class SimulatedBoard:
             # one electrical angle, or they are two inventions that
             # happen to be printed together.
             self.daq.drive = self.drive
+            # And the analog reads see the same current on the phases,
+            # so a tare through them zeroes the records (values.py).
+            self.analog.drive = self.drive
             # The shaft sensor reads the SAME rotor: a servo closed over
             # the A1335 moves what the drive torques, or the loop it
             # closes is between two inventions. The DAQ's sensor fields

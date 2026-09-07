@@ -126,15 +126,19 @@ class Record(dict):
             '%.6gs' % self.dt if self.dt else '?', len(self.samples))
 
 
-def build(records, fields, times=None):
+def build(records, fields, times=None, before=None):
     """Wrap decoded records as `Record`s, giving each its own `dt`.
 
     `dt` IS MEASURED, NOT CONFIGURED. It comes from the gap to the next
     record's timestamp, because what a task was asked for and what the
     loop managed are different numbers - the whole reason the board sends
     a count with every sum. The last record in a block has no next one and
-    inherits the gap before it; a block of one has none to inherit and
-    says so with None.
+    inherits the gap before it; a block of one takes the gap from
+    `before`, the stamp of the last record of the block before it, which
+    the acquisition carries across blocks - and with no such stamp says
+    so with None. A task read faster than it samples arrives one record
+    a block (the stand-in at the clock's cadence, 2026-09-07), and every
+    one of those had a dt of None.
     """
     if not records:
         return []
@@ -145,5 +149,7 @@ def build(records, fields, times=None):
             gaps[i] = stamps[i + 1] - stamps[i]
     if len(records) > 1:
         gaps[-1] = gaps[-2]
+    elif before is not None and stamps[0] is not None:
+        gaps[0] = stamps[0] - before
     return [Record(r, fields, stamps[i], gaps[i])
             for i, r in enumerate(records)]

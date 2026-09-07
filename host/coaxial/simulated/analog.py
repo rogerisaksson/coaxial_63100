@@ -7,7 +7,8 @@ import time
 from .. import protocol
 from ..calibration import CalibrationOps
 from ..errors import DeviceStateError
-from .values import CHANNELS, DRIFT, NOMINAL, _spread, _sweep
+from .values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _spread,
+                     _sweep, phase_codes)
 from .system import UNITS
 
 
@@ -52,6 +53,8 @@ class SimulatedAnalog:
     here is made up; only the columns and the channel names are real."""
     def __init__(self, afe):
         self._afe = afe
+        #: The drive whose current the phases carry - the board wires it.
+        self.drive = None
 
     def scaling(self, refresh=False):
         """The same shape the board's own record produces.
@@ -84,20 +87,32 @@ class SimulatedAnalog:
 
     def burst(self, mask, samples, rate=None):
         chosen = {}
+        # THE MACHINE'S CURRENT ON THE PHASES, the same one a record
+        # carries: what the drive holds, at the angle it holds it. A
+        # burst sees it move as far as the angle turns across the burst.
+        drive = self.drive
+        amps, theta = drive._carrying() if drive is not None else (0.0, 0.0)
+        omega = drive._omega() if drive is not None else 0.0
+        window = samples / float(rate or 2000.0)
+        swing = amps * min(2.0, abs(omega) * window) / AMPS_PER_CODE / 2.0
         for meta in CHANNELS:
             index = meta['index']
             if not (mask >> index & 1):
                 continue
             if self._afe.on:
-                mean = NOMINAL[index] + _sweep(index) + random.uniform(
-                    -DRIFT[index], DRIFT[index])
+                mean = (NOMINAL[index] + _sweep(index)
+                        + phase_codes(meta['signal'], amps, theta)
+                        + random.uniform(-DRIFT[index], DRIFT[index]))
             else:
                 # Invariant 9, reproduced exactly: with the reference
                 # unpowered, a differential input sits at 0 and a
                 # single-ended one at mid-scale - measured on real hardware,
                 # not a rounder number picked to look plausible.
                 mean = 0.0 if meta['differential'] else 32768.0
-            chosen[index] = _spread(meta, mean, self._afe.on)
+            chosen[index] = _spread(
+                meta, mean, self._afe.on,
+                swing if meta['signal'] in ('Phase U', 'Phase V', 'Phase W')
+                else 0.0)
         return {'samples': samples, 'rate_hz': rate or 2000.0,
                 'channels': chosen}
 

@@ -631,6 +631,45 @@ def main(argv=None):
     return watch(rig, args, layout, chain, params)
 
 
+#: The stand-in's machine, for the meters to show. Simulated only: a
+#: bench with the stage down reads three offsets and their noise, and so
+#: does the stand-in now that its phases carry the machine's current and
+#: nothing invented (values.py) - so the drive holds a current vector
+#: turning at DEMO_HZ electrical, "one electrical revolution every seven
+#: seconds or so, slow enough to watch", and the current runs up and down
+#: DEMO_AMPS over DEMO_S: a machine at crawl. On a board nothing here
+#: touches the stage; the view opens onto whatever the drive is doing.
+DEMO_HZ = 0.14
+DEMO_AMPS = 30.0
+DEMO_S = 45.0
+
+
+def demo_machine(rig, origin):
+    """Turn the stand-in's machine; the per-frame step that runs it up
+    and down, or None on a board."""
+    import math
+
+    if origin.real:
+        return None
+    rig.board.gate_drivers.bypass_break(True)
+    rig.board.gate_drivers.enable()
+    drive = rig.drive
+    drive.source('model')
+    # The stand-in's record clamps the current at 5 A; the meters are
+    # 100 A wide. This is the stand-in's record and the demo's current.
+    drive.set_params(drv_i_max_ma=DEMO_AMPS)
+    drive.setpoint(id_ref=0.0, iq_ref=0.0, theta=0.0,
+                   omega_target=2.0 * math.pi * DEMO_HZ)
+    drive.mode('hold')
+    began = time.time()
+
+    def step(now):
+        phase = (now - began) / DEMO_S
+        drive.setpoint(id_ref=DEMO_AMPS * 0.5
+                       * (1.0 - math.cos(2.0 * math.pi * phase)))
+    return step
+
+
 def watch(rig, args, layout, chain, params):
     """Draw it until Q, ESC or the frame count runs out.
 
@@ -638,6 +677,7 @@ def watch(rig, args, layout, chain, params):
     and because the two together were 159 lines, which is past what
     the structure suite lets a reader hold in one piece."""
     origin = rig.origin
+    demo = demo_machine(rig, origin)
     # THE BAR FILLS THE WINDOW: at 38 columns the face floated in a sea
     # of frame. Legend and labels take ~44; the bar gets the rest.
     try:
@@ -675,6 +715,8 @@ def watch(rig, args, layout, chain, params):
 
     def read():
         now = time.time()
+        if demo is not None:
+            demo(now)
         if clock['state'] is None or now - clock['at'] > 0.5:
             # The buffer gauge moves slowly by construction, and this is
             # a whole round trip spent on it.

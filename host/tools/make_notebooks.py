@@ -473,6 +473,20 @@ daq.enable()
 device.set_time_from_pc(reference='pc')
 daq.configure('phaseU', 'phaseV', 'phaseW', digital=True, sample_rate=50)
 print(daq.channel_names())"""),
+    md("The phase sense is zeroed with the stage down - a tare stores what "
+       "the channels read now as their zero - and then the drive holds a "
+       "current vector turning at 3.5 Hz electrical on the model: three "
+       "currents 120 degrees apart, and the six gates modulating about "
+       "half. Fifty records a second is fourteen points per electrical "
+       "turn."),
+    code("""import math
+
+print(device.calibration.tare('phaseU', 'phaseV', 'phaseW'))
+drive = device.drive
+drive.source('model')
+device.gates.arm(bypass_sto=True, ignore_interlock=True)
+drive.setpoint(id_ref=4.0, iq_ref=0.0, theta=0.0, omega_target=2 * math.pi * 3.5)
+drive.mode('hold')"""),
     code("""import matplotlib.pyplot as plt
 from IPython.display import clear_output
 
@@ -486,17 +500,21 @@ for df in daq.frames(window=2.0, buffer=6.0, seconds=6.0, scaled=True):
     top.set_ylabel('A')
     df[[c for c in df.columns if c.startswith('TIM1_CH')]].plot(ax=bottom, legend=False)
     bottom.set_ylabel('gate duty')
+    bottom.set_ylim(-0.05, 1.05)
     bottom.set_xlabel('s before now')
     plt.show()
+held = daq.buffered
 daq.stop()
-print(frames, 'frames drawn;', daq.buffered)"""),
+drive.off()
+device.gates.disarm()
+drive.source('adc')
+print(frames, 'frames drawn;', held)"""),
     md("`history()` is the buffer behind the window, already a frame."),
     code("""whole = daq.history(scaled=True)
 print(len(whole), 'records held,', round(-whole.index.min(), 2), 's back')
 device.close()"""),
     md("## Conclusions"),
-    code("""held = daq.buffered
-print('frames drawn     %d in 6 s = %.1f /s' % (frames, frames / 6.0))
+    code("""print('frames drawn     %d in 6 s = %.1f /s' % (frames, frames / 6.0))
 print('records          %d in the buffer, %.2f s deep' % (len(whole), -whole.index.min()))
 print('reader           %d reads, %d records, %.1f records/s'
       % (held['reads'], held['records'], held['rate']))
@@ -508,7 +526,12 @@ print('columns          %s' % ', '.join(c for c in whole.columns if c.endswith('
        "that touches the transport while it lives, so a `print` or a redraw "
        "in this loop never sits between two round trips. Every read answers "
        "its own backlog in the same transaction, so pacing costs no extra "
-       "round trip.\n\n"
+       "round trip. `buffered` is read before `stop()`, which hands the "
+       "reader back.\n\n"
+       "The stamps are the board's cycle counter, 32 bits at 475 MHz, which "
+       "wraps every 9.04 s; the acquisition carries the wrap count from "
+       "block to block, so an index that runs longer than that stays "
+       "monotonic.\n\n"
        "What `frames()` yields is what is on screen, and `buffer` seconds are "
        "kept behind it - the buffer is records, so nothing is concatenated "
        "and nothing grows, and a plot that forgets to trim cannot become the "
