@@ -612,6 +612,14 @@ def _fit(cols, rows, zoom=1.0, model=None):
 
 
 
+#: Where the board's centre sits down the attitude page, as a share of
+#: its height (cy = height * LIFT): above the frame's middle, so the
+#: model clears the horizon line instead of sitting on it. One row at
+#: the view's 36 rows is 0.028: 0.36 was the fit, 0.39 one row lower
+#: (asked 2026-08-30), 0.42 one more - "a bit high up" (2026-09-07).
+LIFT = 0.42
+
+
 def render(q, width=44, height=19, zoom=1.0, shop=None,
            ramp=ascii3d.CHARACTERS, toon=False, colour=False, wire=False,
            frame_on=True, crew=None, persist=None, scroll=None):
@@ -631,11 +639,8 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
         # The vector drawing: chosen edges, hidden lines removed, depth-
         # cued strokes - coaxial.wireframe, not a wireframed mesh.
         from . import wireframe
-        # Above the frame's centre: the model clears the horizon line
-        # instead of sitting on it. 0.39 is one row below 0.36 at the
-        # view's 36 rows (cy = height * lift), asked 2026-08-30.
         return wireframe.render(q, width, height, zoom=zoom, colour=colour,
-                                horizon=frame_on, triad=frame_on, lift=0.39,
+                                horizon=frame_on, triad=frame_on, lift=LIFT,
                                 crew=crew, persist=persist, scroll=scroll)
 
     cols, rows, _cell = ascii3d.grid(width, height)

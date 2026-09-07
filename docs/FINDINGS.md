@@ -1776,6 +1776,14 @@ looking at the estimate alone.
   cap, room, truth (two rows) and load, each a row. views 178,
   simulated 240.
 
+* **BOARD ATTITUDE's board sits one row lower** (2026-09-07, "den är
+  lite högt uppe"): `orientation.LIFT` 0.39 to 0.42 - a row is 0.028 of
+  the view's 36, and 0.36 was the fit, 0.39 the row asked for on
+  2026-08-30. Rasterised before and after at 110 by 36: the board's top
+  moved from the Z label's row to one below it, and its feet still clear
+  the frame's bottom. `test_render`'s shipped-board check reads the lift
+  off the constant instead of carrying its own 0.39.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder

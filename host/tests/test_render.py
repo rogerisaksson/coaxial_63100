@@ -474,7 +474,7 @@ def test_the_face_is_a_halftone(report):
                           + pts[3 * i + 2] ** 2)
                 for i in range(len(pts) // 3))
     cam = engine.camera(width, height, reach, distance=3.2, zoom=zoom,
-                        tip=w.CAMERA_TIP, lift=0.39)
+                        tip=w.CAMERA_TIP, lift=orientation.LIFT)
     m = engine.multiply(cam['view'], orientation.matrix(q))
     buf, coverage, quads, classes, levels, bare, seed = w._cells(
         solid, m, cam, None, True, False)
