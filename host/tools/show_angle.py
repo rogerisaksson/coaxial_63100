@@ -43,10 +43,20 @@ REG_FIELD = 0x2A
 ART_WIDTH, ART_HEIGHT = 58, 21
 
 #: The scales either side of the face - the die's temperature left, the
-#: field right - want the width for them: the face, two scales and their
-#: air, the instrument column, the frames. Narrower, the face stands
-#: alone as it did; `--scales` forces either way.
-WIDE = ART_WIDTH + 2 * (dial.SCALE_W + 1) + 40 + 8
+#: field right - and THE FACE GIVES WAY TO THEM: the viewport is what
+#: the terminal leaves after the instrument column and the frames, and
+#: the face is drawn as wide as the room left after two scales and their
+#: air, down to FACE_MIN. It was gated instead - scales on a terminal
+#: 124 columns or wider, the full face or nothing - and the bench's
+#: terminal is narrower: "fortfarande inte uppdaterad SHAFT ANGLE-
+#: grafik" (2026-09-07). The face is bounded by its height anyway: at
+#: 21 rows the rim is 33 dots however wide the box, and at FACE_MIN it
+#: is 29 - an eighth smaller, with the scales beside it. Under that the
+#: face stands alone; `--scales` and `--no-scales` force either way.
+FACE_MIN = 36
+#: What the stage takes off a terminal's columns before the art: the
+#: instrument column and the viewport's frame and padding.
+STAGE_COLS = 40 + 4
 #: How often TSEN and FIELD are read again while the page runs. Each read
 #: is one register through `configuring()`, which stops the poll loop on
 #: ANG and starts it again, so the angle loses a reading or two every
@@ -100,6 +110,20 @@ def preflight(board, part):
     return field, kelvin
 
 
+def fit(columns, forced=None):
+    """(scales, face width) for a terminal `columns` wide - 0 for one
+    that would not say - and `forced` True or False from the command
+    line, None to decide from the width."""
+    room = columns - STAGE_COLS if columns else 0
+    with_scales = room - 2 * (dial.SCALE_W + 1)
+    scales = (with_scales >= FACE_MIN) if forced is None else forced
+    if scales and room:
+        return True, max(FACE_MIN, min(ART_WIDTH, with_scales))
+    if room:
+        return scales, max(FACE_MIN, min(ART_WIDTH, room))
+    return scales, ART_WIDTH
+
+
 def reread(board, field, kelvin):
     """TSEN and FIELD again, the poll loop put back on ANG after; what
     was known before, if the board refuses."""
@@ -113,7 +137,7 @@ def reread(board, field, kelvin):
     return field, kelvin
 
 
-def _foot(console, degrees, field):
+def _foot(console, degrees, field, width=ART_WIDTH):
     """The reading under the face, in the needle's own colour.
 
     THE SAME RULE THE ROTOR OBSERVER'S FOOT FOLLOWS: a scale says how far
@@ -124,17 +148,18 @@ def _foot(console, degrees, field):
     from coaxial import ansi
 
     text = dial.caption(degrees, field)
-    line = ' ' * max(0, (ART_WIDTH - len(text)) // 2) + text
+    line = ' ' * max(0, (width - len(text)) // 2) + text
     return ansi.paint(line, dial.INK[dial.NEEDLE]) if console else line
 
 
 def compose(origin, console, part, state, field, kelvin, rate, note,
-            aspect=(dial.CELL_ASPECT, 'assumed'), scales=False):
+            aspect=(dial.CELL_ASPECT, 'assumed'), scales=False,
+            width=ART_WIDTH):
     """One frame on the stage: the dial left, the target's numbers right.
     `aspect` is `(cell aspect, how it was known)` - the face is drawn
     round for THIS terminal, and the box says whether that was measured.
     With `scales` the face stands between the die's temperature and the
-    field, each a tube on its own range."""
+    field, each a tube on its own range, `width` wide - `fit` says."""
     from screen import frame_of, hud
 
     if state is None:
@@ -154,13 +179,13 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
         # U+2800 instead - the mark could never land, and a call that
         # cannot do anything is worse than no call.
         if scales:
-            art = dial.instrument(degrees, field, kelvin, ART_WIDTH,
+            art = dial.instrument(degrees, field, kelvin, width,
                                   ART_HEIGHT, aspect[0], colour=console)
         else:
             art = '\n'.join(
-                [dial.render(degrees, ART_WIDTH, ART_HEIGHT, field,
+                [dial.render(degrees, width, ART_HEIGHT, field,
                              aspect=aspect[0], colour=console),
-                 _foot(console, degrees, field)])
+                 _foot(console, degrees, field, width)])
 
         side = [hud(part['name'], [
                     ('angle', '--   (no magnet)' if weak
@@ -197,8 +222,10 @@ def main(argv=None):
     parser.add_argument('--scales', dest='scales', action='store_true',
                         default=None,
                         help='the die temperature and the field as scales '
-                             'either side of the face; the default is yes '
-                             'on a terminal %d columns or wider' % WIDE)
+                             'either side of the face, the face giving way '
+                             'to them; the default is yes wherever the '
+                             'terminal leaves the face %d columns or more'
+                             % FACE_MIN)
     parser.add_argument('--no-scales', dest='scales', action='store_false')
     args = parser.parse_args(argv)
 
@@ -245,14 +272,15 @@ def main(argv=None):
     # whether the measurement happened.
     aspect = _screen.aspect_of(args.cell_aspect)
     say('ok', 'cell', '%.2f tall, %s' % aspect)
-    if args.scales is None:
-        try:
-            args.scales = os.get_terminal_size().columns >= WIDE
-        except OSError:
-            args.scales = False
-    say('ok', 'scales', 'die and field beside the face, read again every '
-        '%.0f s' % SIDE_EVERY if args.scales
-        else 'off - the face alone, %d columns wanted' % WIDE)
+    try:
+        columns = os.get_terminal_size().columns
+    except OSError:
+        columns = 0
+    args.scales, width = fit(columns, args.scales)
+    say('ok', 'scales', 'die and field beside a face %d wide, read again '
+        'every %.0f s' % (width, SIDE_EVERY) if args.scales
+        else 'off - the face alone at %d, %d columns leave no room'
+        % (width, columns))
     side = {'at': time.time(), 'field': field, 'kelvin': kelvin}
 
     def draw():
@@ -264,7 +292,7 @@ def main(argv=None):
             side['at'] = time.time()
         return compose(origin, console, part, state, side['field'],
                        side['kelvin'], tally.rate, tally.note, aspect,
-                       scales=args.scales)
+                       scales=args.scales, width=width)
 
     try:
         leaving = run_view(board_view, console, period, args.frames, draw)

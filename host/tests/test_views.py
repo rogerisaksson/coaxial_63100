@@ -1793,6 +1793,17 @@ def test_the_face_wears_its_two_scales(report):
                  and ansi.code(ansi.thermal(61.0)) in art[-1]
                  and '61.0 C' in ansi_plain(art[-1]),
                  (len(art), sorted({len(ansi_plain(l)) for l in art})))
+    from tools import show_angle as page
+    report.check('and the face gives way to the scales: full at 130 columns, '
+                 'FACE_MIN at 98, alone under that, whole where the '
+                 'terminal would not say',
+                 page.fit(130) == (True, page.ART_WIDTH)
+                 and page.fit(100) == (True, 38)
+                 and page.fit(98) == (True, page.FACE_MIN)
+                 and page.fit(90) == (False, 46)
+                 and page.fit(0) == (False, page.ART_WIDTH)
+                 and page.fit(0, True) == (True, page.ART_WIDTH),
+                 [page.fit(c) for c in (130, 100, 98, 90, 0)])
     report.check('and the caption leaves the gauss to the scale that shows it',
                  'gauss' not in dial.caption(137.0, 380, gauss=False)
                  and 'gauss' in dial.caption(137.0, 380)

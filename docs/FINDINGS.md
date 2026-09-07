@@ -1866,8 +1866,15 @@ looking at the estimate alone.
   which `angle_session` shows as a picture - are pure; the page reads
   TSEN and FIELD again every 5 s
   through `configuring()`, which costs the angle a reading or two each
-  time, and shows the scales on a terminal 124 columns or wider
-  (`--scales` / `--no-scales` force it). The stand-in's die is as warm as
+  time. **The face gives way to the scales**: they were gated on a
+  terminal 124 columns or wider - the full face or nothing - and the
+  bench's is narrower, "fortfarande inte uppdaterad SHAFT ANGLE-grafik";
+  now the face is drawn as wide as the viewport leaves after the two
+  scales, 58 down to 36 (`show_angle.fit`), and the rim it loses is an
+  eighth - at 21 rows the face is bounded by its height, 33 dots of rim
+  at any width from 42 up, 29 at 36. At 100 columns the face is 38 wide
+  with both scales; under 98 it stands alone; `--scales` / `--no-scales`
+  force it. The stand-in's die is as warm as
   the thermal stand-in's board node. Rasterised before landing: plain,
   colour at 61 C and 380 G, and the weak case at 12 G with the tube red
   and the face's needle gone.
