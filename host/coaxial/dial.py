@@ -322,9 +322,11 @@ def caption(degrees, field=None, gauss=True):
 #: A side scale's width in cells: four for a graduation's number, one for
 #: its mark, two for the tube, one of air against the face.
 SCALE_W = 8
-#: The tube: two cells of dots, four wide. Filled solid to the reading in
-#: the reading's own ink, and above it one dotted column in the label's
-#: ash - a thermometer shows its empty glass.
+#: The tube: two cells of dots, four wide, solid the whole way - the
+#: reading's own ink up to the reading and the label's ash above it, a
+#: thermometer's empty glass. The glass was one dotted column, and read
+#: as a stray line beside the bar rather than the tube it stood in:
+#: "vet inte varför du alltid bara sätter en linje gråad" (2026-09-07).
 TUBE_W = 2
 #: The die's range on the scale: the A1335's operating range, -40 to
 #: 150 C (datasheet). The field's: zero to 1200 gauss, with 300 to 1000
@@ -401,22 +403,19 @@ def scale(value, span, height, ticks, title, reading, ink_of, side='left',
             if from_bottom in marks:
                 label = marks[from_bottom]
                 mark_bits |= BRAILLE_BITS[0][dy] | BRAILLE_BITS[1][dy]
-        # The fill is four dots wide, both cells; the empty glass above it
-        # is one dotted column on the tube's inboard edge - the right
-        # column of the right cell on the left scale, and the mirror.
+        # Four dots wide the whole way: the fill in the reading's ink, the
+        # glass above it in ash. A cell holding the fill's top takes the
+        # ink - one colour a cell.
         full, glass = 0, 0
         for dy in range(DOTS_Y):
             from_bottom = dots_tall - 1 - (r * DOTS_Y + dy)
+            both = BRAILLE_BITS[0][dy] | BRAILLE_BITS[1][dy]
             if from_bottom < lit:
-                full |= BRAILLE_BITS[0][dy] | BRAILLE_BITS[1][dy]
+                full |= both
             else:
-                glass |= BRAILLE_BITS[1 if side == 'left' else 0][dy]
-        cells = []
-        for k in range(TUBE_W):
-            inboard = (k == TUBE_W - 1) if side == 'left' else (k == 0)
-            bits = full | (glass if inboard else 0)
-            paint = ink if full else (LABEL_INK if bits else None)
-            cells.append((chr(BRAILLE + bits), paint))
+                glass |= both
+        cells = [(chr(BRAILLE + (full | glass)), ink if full else LABEL_INK)
+                 for _ in range(TUBE_W)]
         mark = chr(BRAILLE + mark_bits) if mark_bits else ' '
         number = label.rjust(4) if side == 'left' else label.ljust(4)
         if side == 'left':

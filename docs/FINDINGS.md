@@ -1859,7 +1859,9 @@ looking at the estimate alone.
   operating range, -40 to 150 C, in the thermal map's ramp; the field to
   the right on 0 to 1200 gauss, green inside the datasheet's recommended
   300 to 1000, amber past it, red under WEAK_GAUSS - each a tube of dots
-  filled to the reading, its empty glass a dotted column, the graduations
+  filled to the reading, its empty glass the same
+  four dots in ash - it was one dotted column, "vet inte varför du alltid
+  bara sätter en linje gråad", and read as a stray line beside the bar - the graduations
   numbered outboard and the reading under it level with the face's
   caption, which leaves the gauss to the scale. `dial.scale`,
   `dial.beside` and `dial.instrument` - the face between its scales,

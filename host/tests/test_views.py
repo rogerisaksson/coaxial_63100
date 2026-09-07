@@ -1771,9 +1771,26 @@ def test_the_face_wears_its_two_scales(report):
                  '-40' in warm[-3] and '150' in warm[1]
                  and all(str(t) in ''.join(warm) for t in dial.DIE_TICKS),
                  [l[:5] for l in warm])
-    report.check('and the tube fills with the reading',
-                 dots(cold) < dots(warm) < dots(hot),
-                 '%d < %d < %d dots' % (dots(cold), dots(warm), dots(hot)))
+    report.check('the tube is four dots wide the whole way, glass and fill',
+                 all(bin(ord(c) - 0x2800).count('1') == 8
+                     for line in warm[1:-2] for c in line[5:7]),
+                 [line[5:7] for line in warm[1:-2]])
+
+    def inked(celsius):
+        lines = dial.scale(celsius, dial.DIE_RANGE, 21, dial.DIE_TICKS,
+                           'DIE', '', dial.die_ink, 'left', colour=True)
+        return sum(ansi.code(dial.die_ink(celsius)) in line
+                   for line in lines[1:-2])
+
+    report.check('and the fill rises with the reading, the glass above it '
+                 'in ash',
+                 0 == inked(-40.0) < inked(61.0) < inked(150.0) == 19
+                 and ansi.code(dial.LABEL_INK) in ''.join(
+                     dial.scale(61.0, dial.DIE_RANGE, 21, dial.DIE_TICKS,
+                                'DIE', '', dial.die_ink, 'left',
+                                colour=True)[1:5]),
+                 '%d < %d < %d rows inked' % (inked(-40.0), inked(61.0),
+                                              inked(150.0)))
     inks = [dial.scale(g, dial.FIELD_RANGE, 21, dial.FIELD_TICKS, 'FIELD',
                        '%d G' % g, dial.field_ink, 'right', colour=True)
             for g in (12, 380, 1100)]
