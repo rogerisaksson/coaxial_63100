@@ -1573,7 +1573,7 @@ print(floor.round(0))
 print('trips with injection: %d of %d' % (int(checked[~checked.bemf_only].trip.sum()),
                                           int((~checked.bemf_only).sum())))
 print('sigma_theta rms, injection on, per link:')
-print(checked[~checked.bemf_only].groupby('vdc')['sigma_theta'].mean().round(4))"""),
+print(checked[~checked.bemf_only].groupby('vdc').agg({'sigma_theta': 'mean'}).round(4))"""),
     md("## What the search found"),
     code("""import math
 
@@ -1783,9 +1783,10 @@ for w_e in SPEEDS:
 COLUMN = {'smo': 1, 'flux': 2, 'blend': 4}
 
 def band_of(which):
-    \"\"\"(lowest, highest) swept speed whose worst plant is inside it.\"\"\"
+    \"\"\"(lowest, highest) swept speed whose worst plant is inside the
+    criterion; nan and nan when none is.\"\"\"
     inside = [row[0] for row in table if row[COLUMN[which]][-1] <= CRITERION_DEG]
-    return (min(inside), max(inside)) if inside else (None, None)
+    return (min(inside), max(inside)) if inside else (math.nan, math.nan)
 
 def rpm(w_e):
     return w_e / motor.poles * 60.0 / TWO_PI
@@ -2218,17 +2219,17 @@ for iq in (20.0, 40.0, 60.0, 100.0):
        "camera, into `thermal.set_node`. Everything in this section moves "
        "with it."),
     md("## The envelope"),
-    code("""def band(f):
+    code("""def spread(f):
     \"\"\"(min, max) of f over the lambda tolerance.\"\"\"
     got = [f(motor.lam * s) for s in LAMBDA_SPREAD]
     return min(got), max(got)
 
-top = band(lambda lam: inverter.V_FRAC * 63.0 / math.sqrt(3.0) / lam
-           / motor.poles * 60.0 / TWO_PI)
-low = band(lambda lam: inverter.V_FRAC * 23.0 / math.sqrt(3.0) / lam
-           / motor.poles * 60.0 / TWO_PI)
-peak = band(lambda lam: 1.5 * motor.poles * lam * I_RATING)
-cont = band(lambda lam: 1.5 * motor.poles * lam * iq_cont)
+top = spread(lambda lam: inverter.V_FRAC * 63.0 / math.sqrt(3.0) / lam
+             / motor.poles * 60.0 / TWO_PI)
+low = spread(lambda lam: inverter.V_FRAC * 23.0 / math.sqrt(3.0) / lam
+             / motor.poles * 60.0 / TWO_PI)
+peak = spread(lambda lam: 1.5 * motor.poles * lam * I_RATING)
+cont = spread(lambda lam: 1.5 * motor.poles * lam * iq_cont)
 smo_rpm = band_of('smo')[0]
 flux_rpm = band_of('flux')[0]
 bemf = floor.loc[43.0, 'mean'] if 43.0 in floor.index else float('nan')
@@ -2278,13 +2279,12 @@ print('             ---- 5 A of HF headroom ----   ---- 1 A ----')
 print('saliency   SNR dB   method    i_h peak A   SNR dB   method')
 for ratio in (1.02, 1.05, 1.15, 1.32, 1.5):
     lq = motor.ld * ratio
-    row = [ratio]
-    for cap in (5.0, 1.0):
-        choice = sensorless.choose_injection(
-            motor.ld, lq, k['sigma_i'], 1.0 / inverter.TS, 50.0, k['vdc'],
-            i_h_max=cap, bw_i_hz=loop_hz)
-        row.append(choice)
-    wide, tight = row[1], row[2]
+    wide, tight = (sensorless.choose_injection(
+        motor.ld, lq, k['sigma_i'], 1.0 / inverter.TS, 50.0, k['vdc'],
+        i_h_max=cap, bw_i_hz=loop_hz) for cap in (5.0, 1.0))
+    if wide is None or tight is None:
+        print('%8.2f   nothing fits' % ratio)
+        continue
     print('%8.2f %8.1f   %-9s %10.2f %8.1f   %-9s'
           % (ratio, wide['snr_db'], sensorless.decide(wide['snr_db']),
              wide['i_h_peak'],
@@ -2620,7 +2620,8 @@ with mc.pool() as pool:
     runs = mc.sweep(pool, jobs)
 score = mc.score(runs)
 best = score.loc[score.robust.idxmin()]
-print(score[['robust', 'mean', 'p90'] + list(mc.KNOBS)].round(4).sort_values('robust').head())"""),
+print(score.sort_values('robust').head().to_string(
+    columns=['robust', 'mean', 'p90'] + list(mc.KNOBS), float_format='%.4f'))"""),
     md("`design` turns the winning knobs into the firmware's parameters - kp "
        "and ki from the loop bandwidth, l1 and l2 from the PLL's, the "
        "injection volts and demodulator gain, the blend band. `set_params` "

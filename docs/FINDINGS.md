@@ -1900,6 +1900,24 @@ looking at the estimate alone.
   fenced like the rest of the tree's. The Python linter tried first
   lacks the table rules, which is why the first pass missed them.
 
+* **The notebooks read clean under Pylance** (2026-09-07,
+  "foc_montecarlo.ipynb verkar ha något fel från pylance"): pyright over
+  every notebook's code cells, 27 complaints in four of them, none a
+  runtime fault and all worth hearing. `foc_montecarlo`: a speed band
+  answered None where every `%f` and `rpm()` after it wanted a number -
+  nan now, which says "nowhere inside" and prints; a second `band` over
+  the first; the injection chooser's None indexed; and pandas typed as
+  any scalar or a Series wherever a column list indexed a frame, so the
+  grouped mean goes through `agg` and auto_tune's table through
+  `to_string`. `shared_session`: the rig's `board` and `origin` were
+  attributes born None and set by `open()`, so every `.origin.x` read as
+  a possible None - they are properties now, and a rig that is not open
+  raises instead of answering None (invariant 8); the attribute fallback
+  looks where the board moved to, which a recursion found first.
+  `thermal_identification`: the thermal stand-in's `_gate` and
+  `_derate_to` hooks born None, typed as the callables the board wires.
+  Twenty-two notebooks, zero errors; the four re-executed clean.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder

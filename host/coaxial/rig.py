@@ -235,7 +235,7 @@ class Coaxial63100(Acquisition):
         self.power_afe = power_afe
 
         self.session = None
-        self.board = None
+        self._board = None
         # No `self.gates = None` here: before open() the name goes through
         # __getattr__ like every subsystem, so `stage = device.gates` binds
         # a Later whose open() opens the device. open() below sets the real
@@ -245,7 +245,7 @@ class Coaxial63100(Acquisition):
         # reads like `device.daq`, opened lazily by its factories.
         from .motion import Motion
         self.motion = Motion(self)
-        self.origin = None
+        self._origin = None
         self.simulated = simulated_device
         self.layout = None
         self.sync = None
@@ -285,9 +285,9 @@ class Coaxial63100(Acquisition):
         simulated = True if self.simulated_device else (
             None if self.link == 'auto' else False)
 
-        self.session, self.origin = open_session(
+        self.session, self._origin = open_session(
             self.port, baud=self.baud, unit=self.unit, simulated=simulated)
-        self.board = self.session.board
+        self._board = self.session.board
         self.gates = GateStage(self.board)
         # THE WAY BACK. `observer.autodetect` drives the commissioning
         # steps, which arm the stage and read the shunt scaling - rig
@@ -335,7 +335,7 @@ class Coaxial63100(Acquisition):
         if name.startswith('_') or name in ('board', 'session'):
             raise AttributeError(name)
 
-        board = self.__dict__.get('board')
+        board = self.__dict__.get('_board')
         if board is None:
             if name in _subsystem_names():
                 return Later(self, name)
@@ -372,7 +372,7 @@ class Coaxial63100(Acquisition):
         script that asked for them has gone. Then the supply, but only if
         this session was what switched it on.
         """
-        if self.board is not None:
+        if self._board is not None:
             # One try per step. They were in one block, and a RigError from
             # daq.stop() or gate_drivers.disable() then skipped the supply
             # restore - leaving AFE_ON high, which on this board takes the
@@ -413,7 +413,7 @@ class Coaxial63100(Acquisition):
                 pass                    # closing is not the place to raise
         if self.session is not None:
             self.session.close()
-        self.session = self.board = None
+        self.session = self._board = None
         self.__dict__.pop('gates', None)   # back to a Later, reopenable
 
     def __enter__(self):
@@ -422,8 +422,30 @@ class Coaxial63100(Acquisition):
     def __exit__(self, *_):
         self.close()
 
+    @property
+    def board(self):
+        """The board behind the session: what every subsystem holds and
+        every page reads. An opened rig's; before that it raises rather
+        than answering None (invariant 8)."""
+        if self._board is None:
+            raise RigError('the rig is not open - open() first, or use it '
+                           'as a context manager')
+        return self._board
+
+    @property
+    def origin(self):
+        """Where the board was reached: `open_session`'s Origin, with its
+        `interface`, `label` and `real`. Only an opened rig has one, and
+        a rig that has not been opened raises rather than answering
+        None (invariant 8) - which is also what let every `.origin.x`
+        in a notebook read as a possible None to Pylance."""
+        if self._origin is None:
+            raise RigError('the rig is not open - open() first, or use it '
+                           'as a context manager')
+        return self._origin
+
     def __repr__(self):
-        where = self.origin.label if self.origin else 'not open'
+        where = self._origin.label if self._origin else 'not open'
         return '<Coaxial63100 %s%s>' % (
             where, ' SIMULATED' if self.simulated else '')
 

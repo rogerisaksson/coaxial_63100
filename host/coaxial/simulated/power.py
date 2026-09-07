@@ -10,6 +10,7 @@ from .. import thermal
 from .. import thermal_ident
 from ..thermal_device import THROTTLE_AT
 from ..errors import RigError
+from typing import Callable, Optional
 from ..gates import GateControl
 
 
@@ -196,13 +197,14 @@ class SimulatedThermal:
         #: An rms per phase, tracked across samples.
         self._rms = 0.0
         #: WHAT IT DROPS WHEN A NODE REACHES ITS CEILING. The board wires
-        #: the gate drivers' own disable here.
-        self._gate = None
+        #: the gate drivers' own disable here; a notebook wires its own.
+        #: Typed, so what is wired reads as a callable and not as None.
+        self._gate: Optional[Callable[[], bool]] = None
         self._trips = 0
         #: What the effective duty is, asked of whatever owns the compares.
         self._duty = lambda: (0.0, 0.0, 0.0)
         #: Where the derate goes. The board wires the drive's clamp.
-        self._derate_to = None
+        self._derate_to: Optional[Callable[[float], None]] = None
         self._last_power = None
         self._last_net = None
         self._derate_held = 1.0
