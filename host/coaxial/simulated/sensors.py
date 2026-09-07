@@ -211,7 +211,13 @@ class SimulatedAngle(PolledSensor):
         if register == 0x20:
             return 0x5000 | self._turn()
         if register == 0x28:
-            return 0xF000 | (296 * 8)          # 296 K, eighths of a kelvin
+            # The die sits on the board: its temperature is the thermal
+            # stand-in's board node when the board wired one, else a
+            # room's 296 K. Eighths of a kelvin, as the part counts.
+            thermal = getattr(self, 'thermal', None)
+            kelvin = (273.15 + thermal.state()['nodes']['board']
+                      if thermal is not None else 296.0)
+            return 0xF000 | (int(kelvin * 8.0) & 0x0FFF)
         if register == 0x2A:
             return 0xE000 | 380                # gauss, a magnet in place
         return 0x8000

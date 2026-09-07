@@ -29,7 +29,7 @@ EXTRA = {
     'show_desk.py': [],
     'show_gate_drivers.py': [],
     'show_orientation.py': ['--width', '72', '--height', '14'],
-    'show_angle.py': [],
+    'show_angle.py': ['--scales'],
     'show_thermal_observer.py': [],
     'show_rotor_observer.py': [],
 }
@@ -1742,6 +1742,70 @@ def test_the_dial_is_round_on_this_terminal(report):
                  % (rows_of(2.3), rows_of(2.0)))
 
 
+def test_the_face_wears_its_two_scales(report):
+    """SHAFT ANGLE's die temperature and field stand either side of the
+    face as tubes on their own ranges - "skalor på sidan som visar
+    dietempen och fältstyrkan i gauss", 2026-09-07. Pure `dial.scale`,
+    so a number in and lines out; the page composes them with `beside`.
+    """
+    sys.path.insert(0, HOST)
+    from coaxial import ansi, dial
+
+    def dots(lines):
+        return sum(bin(ord(c) - 0x2800).count('1')
+                   for line in lines for c in line
+                   if 0x2800 <= ord(c) <= 0x28FF)
+
+    cold = dial.scale(-40.0, dial.DIE_RANGE, 21, dial.DIE_TICKS, 'DIE',
+                      '-40.0 C', dial.die_ink, 'left')
+    warm = dial.scale(61.0, dial.DIE_RANGE, 21, dial.DIE_TICKS, 'DIE',
+                      '61.0 C', dial.die_ink, 'left')
+    hot = dial.scale(150.0, dial.DIE_RANGE, 21, dial.DIE_TICKS, 'DIE',
+                     '150.0 C', dial.die_ink, 'left')
+    report.check('a scale is the face\'s rows and a caption, SCALE_W wide',
+                 len(warm) == 22 and all(len(l) == dial.SCALE_W for l in warm)
+                 and warm[0].strip() == 'DIE' and warm[-1].strip() == '61.0 C',
+                 (len(warm), sorted({len(l) for l in warm}), warm[0], warm[-1]))
+    report.check('its graduations are numbered, -40 at the foot and 150 at '
+                 'the top',
+                 '-40' in warm[-3] and '150' in warm[1]
+                 and all(str(t) in ''.join(warm) for t in dial.DIE_TICKS),
+                 [l[:5] for l in warm])
+    report.check('and the tube fills with the reading',
+                 dots(cold) < dots(warm) < dots(hot),
+                 '%d < %d < %d dots' % (dots(cold), dots(warm), dots(hot)))
+    inks = [dial.scale(g, dial.FIELD_RANGE, 21, dial.FIELD_TICKS, 'FIELD',
+                       '%d G' % g, dial.field_ink, 'right', colour=True)
+            for g in (12, 380, 1100)]
+    report.check('the field tube is red with no magnet, green in the '
+                 'recommended band, amber past it',
+                 ansi.code(ansi.RED) in ''.join(inks[0])
+                 and ansi.code(ansi.GREEN) in ''.join(inks[1])
+                 and ansi.code(ansi.AMBER) in ''.join(inks[2])
+                 and ansi.code(ansi.GREEN) not in ''.join(inks[0]),
+                 [dial.field_ink(g) for g in (12, 380, 1100)])
+    art = dial.instrument(137.0, 380, 273.15 + 61.0, colour=True).split('\n')
+    report.check('the instrument is the face and two scales with their air, '
+                 'line for line, and the die\'s ink is the thermal map\'s',
+                 len(art) == 22 and all(
+                     len(ansi_plain(l)) == 58 + 2 * (dial.SCALE_W + 1)
+                     for l in art)
+                 and ansi.code(ansi.thermal(61.0)) in art[-1]
+                 and '61.0 C' in ansi_plain(art[-1]),
+                 (len(art), sorted({len(ansi_plain(l)) for l in art})))
+    report.check('and the caption leaves the gauss to the scale that shows it',
+                 'gauss' not in dial.caption(137.0, 380, gauss=False)
+                 and 'gauss' in dial.caption(137.0, 380)
+                 and 'no magnet' in dial.caption(0.0, 12, gauss=False),
+                 dial.caption(137.0, 380, gauss=False))
+
+
+def ansi_plain(text):
+    """`text` without its colour escapes."""
+    import re
+    return re.sub(r'\x1b\[[0-9;]*m', '', text)
+
+
 def test_the_bead_trails_its_speed(report):
     """The wake behind the bead: its length is the speed, its side the
     direction, and it fades from the bead's orange into the south
@@ -1916,6 +1980,7 @@ def main():
     test_the_bead_is_round_at_every_angle(report)
     test_the_bead_trails_its_speed(report)
     test_the_dial_is_round_on_this_terminal(report)
+    test_the_face_wears_its_two_scales(report)
     test_every_page_scrolls_its_boxes(report)
     test_the_terminal_is_asked_how_tall_a_cell_is(report)
     print('\n-- the thermal observer\'s board --')

@@ -300,8 +300,9 @@ def render(degrees, width=64, height=23, field=None, aspect=CELL_ASPECT,
     return '\n'.join(lines)
 
 
-def caption(degrees, field=None):
+def caption(degrees, field=None, gauss=True):
     """One line naming the reading, for the row under the face.
+    `gauss` False leaves the field's figure to the scale that shows it.
 
     `machine.caption` is the same idea for the other round picture: the
     drawing says where, and one line says what - a needle standing at a
@@ -314,7 +315,150 @@ def caption(degrees, field=None):
     if field is not None and field < WEAK_GAUSS:
         return '--.-- deg   no magnet, %d gauss' % field
     text = '%.2f deg' % (degrees % 360.0)
-    return text if field is None else '%s   %d gauss' % (text, field)
+    return (text if field is None or not gauss
+            else '%s   %d gauss' % (text, field))
+
+
+#: A side scale's width in cells: four for a graduation's number, one for
+#: its mark, two for the tube, one of air against the face.
+SCALE_W = 8
+#: The tube: two cells of dots, four wide. Filled solid to the reading in
+#: the reading's own ink, and above it one dotted column in the label's
+#: ash - a thermometer shows its empty glass.
+TUBE_W = 2
+#: The die's range on the scale: the A1335's operating range, -40 to
+#: 150 C (datasheet). The field's: zero to 1200 gauss, with 300 to 1000
+#: the recommended operating range (datasheet, Field Strength) - inside
+#: it the tube is green, outside amber, and below WEAK_GAUSS red, no
+#: magnet.
+DIE_RANGE = (-40.0, 150.0)
+DIE_TICKS = (-40, 0, 50, 100, 150)
+FIELD_RANGE = (0.0, 1200.0)
+FIELD_TICKS = (0, 300, 600, 900, 1200)
+FIELD_BAND = (300.0, 1000.0)
+
+
+def field_ink(gauss):
+    """The field tube's ink: green inside the recommended band, amber
+    outside it, red where there is no magnet to speak of."""
+    if gauss < WEAK_GAUSS:
+        return ansi.RED
+    if FIELD_BAND[0] <= gauss <= FIELD_BAND[1]:
+        return ansi.GREEN
+    return ansi.AMBER
+
+
+def die_ink(celsius):
+    """The die tube's ink: the thermal map's ramp, so a temperature is
+    the same colour on every page."""
+    return ansi.thermal(celsius)
+
+
+def scale(value, span, height, ticks, title, reading, ink_of, side='left',
+          colour=False):
+    """A vertical scale beside the face, `height + 1` lines of SCALE_W.
+
+    `span` is (low, high) at the tube's bottom and top; `ticks` the
+    graduations, each with its number beside the tube; `title` sits on
+    the first row and `reading` - the caption's text for this value - on
+    the line after the last, level with the face's own caption.
+    `ink_of(value)` is the tube's colour. `side` is which side of the
+    face this stands on: the numbers go outboard, the tube inboard.
+
+    A number in, lines out - no board, like the face. A reading past the
+    span fills the tube, a reading under it empties it: the scale says
+    where along its range, never what it is worth.
+    """
+    low, high = span
+    rows = height - 2                        # the tube, rows 1..height-2
+    dots_tall = rows * DOTS_Y
+    frac = 0.0 if high == low else (float(value) - low) / (high - low)
+    lit = int(round(max(0.0, min(1.0, frac)) * dots_tall))
+    ink = ink_of(value)
+
+    def at(v):
+        """The dot row (from the tube's bottom) of `v`, clamped."""
+        f = 0.0 if high == low else (float(v) - low) / (high - low)
+        return int(round(max(0.0, min(1.0, f)) * (dots_tall - 1)))
+
+    marks = {}
+    for t in ticks:
+        marks.setdefault(at(t), str(t))
+    lines = []
+    for row in range(height):
+        if row == 0:
+            text = title.center(SCALE_W)
+            lines.append(ansi.paint(text, LABEL_INK) if colour else text)
+            continue
+        if row == height - 1:
+            lines.append(' ' * SCALE_W)
+            continue
+        r = row - 1                          # the tube's own row, from the top
+        tube = []
+        label, mark_bits = '', 0
+        for dy in range(DOTS_Y):
+            from_bottom = dots_tall - 1 - (r * DOTS_Y + dy)
+            if from_bottom in marks:
+                label = marks[from_bottom]
+                mark_bits |= BRAILLE_BITS[0][dy] | BRAILLE_BITS[1][dy]
+        # The fill is four dots wide, both cells; the empty glass above it
+        # is one dotted column on the tube's inboard edge - the right
+        # column of the right cell on the left scale, and the mirror.
+        full, glass = 0, 0
+        for dy in range(DOTS_Y):
+            from_bottom = dots_tall - 1 - (r * DOTS_Y + dy)
+            if from_bottom < lit:
+                full |= BRAILLE_BITS[0][dy] | BRAILLE_BITS[1][dy]
+            else:
+                glass |= BRAILLE_BITS[1 if side == 'left' else 0][dy]
+        cells = []
+        for k in range(TUBE_W):
+            inboard = (k == TUBE_W - 1) if side == 'left' else (k == 0)
+            bits = full | (glass if inboard else 0)
+            paint = ink if full else (LABEL_INK if bits else None)
+            cells.append((chr(BRAILLE + bits), paint))
+        mark = chr(BRAILLE + mark_bits) if mark_bits else ' '
+        number = label.rjust(4) if side == 'left' else label.ljust(4)
+        if side == 'left':
+            parts = [(number, LABEL_INK), (mark, LABEL_INK)] + cells + [(' ', None)]
+        else:
+            parts = [(' ', None)] + cells + [(mark, LABEL_INK), (number, LABEL_INK)]
+        lines.append(ansi.run(parts) if colour
+                     else ''.join(t for t, _ in parts))
+    foot = reading.center(SCALE_W)
+    lines.append(ansi.paint(foot, ink) if colour else foot)
+    return lines
+
+
+def beside(face, left, right):
+    """The face between its two scales, line for line, one space of air
+    each side; `face` is the dial's text with its caption already under
+    it, the scales what `scale` returned."""
+    rows = face.split('\n')
+    assert len(rows) == len(left) == len(right), (len(rows), len(left),
+                                                  len(right))
+    return '\n'.join(l + ' ' + f + ' ' + r for l, f, r in zip(left, rows, right))
+
+
+def instrument(degrees, field, kelvin, width=58, height=21,
+               aspect=CELL_ASPECT, colour=False):
+    """The face with its caption, between the die's temperature and the
+    field: what SHAFT ANGLE draws with its scales, and what a notebook
+    shows. `kelvin` is TSEN's reading, `field` FIELD's in gauss; the
+    caption leaves the gauss to the scale that carries it. The caption
+    is in the needle's ink, so the line and the thing it names read as
+    one - the rule the rotor observer's foot follows too."""
+    text = caption(degrees, field, gauss=False)
+    foot = (' ' * max(0, (width - len(text)) // 2) + text).ljust(width)
+    face = '\n'.join([render(degrees, width, height, field, aspect=aspect,
+                             colour=colour),
+                      ansi.paint(foot, INK[NEEDLE]) if colour else foot])
+    celsius = (kelvin or 273.15) - 273.15
+    left = scale(celsius, DIE_RANGE, height, DIE_TICKS, 'DIE',
+                 '%.1f C' % celsius, die_ink, 'left', colour=colour)
+    right = scale(field or 0, FIELD_RANGE, height, FIELD_TICKS, 'FIELD',
+                  '%d G' % (field or 0), field_ink, 'right', colour=colour)
+    return beside(face, left, right)
 
 
 def picture(state, width=64, height=23):

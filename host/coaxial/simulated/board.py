@@ -119,6 +119,8 @@ class SimulatedBoard:
             # closes is between two inventions. The DAQ's sensor fields
             # read the same parts the subsystems answer for.
             self.angle.drive = self.drive
+            # And the A1335's die is as warm as the board it sits on.
+            self.angle.thermal = self.thermal
             self.daq.angle = self.angle
             self.daq.imu = self.imu
             # `zero()` reads a channel, so it needs the board that

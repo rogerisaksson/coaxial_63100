@@ -1853,6 +1853,25 @@ looking at the estimate alone.
   attitude page's wireframe. Rasterised and read before landing: the
   fixed scale beside each map, the wireframe on its ground.
 
+* **SHAFT ANGLE wears two scales** (2026-09-07, "nu ser den lite väl
+  plain ut ... skalor på sidan som visar dietempen och fältstyrkan i
+  gauss"): the die's temperature to the left of the face on the A1335's
+  operating range, -40 to 150 C, in the thermal map's ramp; the field to
+  the right on 0 to 1200 gauss, green inside the datasheet's recommended
+  300 to 1000, amber past it, red under WEAK_GAUSS - each a tube of dots
+  filled to the reading, its empty glass a dotted column, the graduations
+  numbered outboard and the reading under it level with the face's
+  caption, which leaves the gauss to the scale. `dial.scale`,
+  `dial.beside` and `dial.instrument` - the face between its scales,
+  which `angle_session` shows as a picture - are pure; the page reads
+  TSEN and FIELD again every 5 s
+  through `configuring()`, which costs the angle a reading or two each
+  time, and shows the scales on a terminal 124 columns or wider
+  (`--scales` / `--no-scales` force it). The stand-in's die is as warm as
+  the thermal stand-in's board node. Rasterised before landing: plain,
+  colour at 61 C and 380 G, and the weak case at 12 G with the tube red
+  and the face's needle gone.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder

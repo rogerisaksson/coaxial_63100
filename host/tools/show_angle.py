@@ -15,6 +15,7 @@ as it applies to a voltage.
 import argparse
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -40,6 +41,18 @@ REG_FIELD = 0x2A
 #: its terminal (`screen.aspect_of`, the rotor observer's probe): the
 #: same theme as the motor page, an instrument that fills its box.
 ART_WIDTH, ART_HEIGHT = 58, 21
+
+#: The scales either side of the face - the die's temperature left, the
+#: field right - want the width for them: the face, two scales and their
+#: air, the instrument column, the frames. Narrower, the face stands
+#: alone as it did; `--scales` forces either way.
+WIDE = ART_WIDTH + 2 * (dial.SCALE_W + 1) + 40 + 8
+#: How often TSEN and FIELD are read again while the page runs. Each read
+#: is one register through `configuring()`, which stops the poll loop on
+#: ANG and starts it again, so the angle loses a reading or two every
+#: SIDE_EVERY - the price of a die temperature and a field that are live
+#: rather than the ones the page opened with. Neither moves fast.
+SIDE_EVERY = 5.0
 
 
 def capability(board):
@@ -87,6 +100,19 @@ def preflight(board, part):
     return field, kelvin
 
 
+def reread(board, field, kelvin):
+    """TSEN and FIELD again, the poll loop put back on ANG after; what
+    was known before, if the board refuses."""
+    try:
+        with board.angle.configuring():
+            field = angle.gauss(board.angle.read(REG_FIELD)['value'])
+            kelvin = angle.kelvin(board.angle.read(REG_TSEN)['value'])
+            board.angle.poll_register(REG_ANG)
+    except RigError:
+        pass
+    return field, kelvin
+
+
 def _foot(console, degrees, field):
     """The reading under the face, in the needle's own colour.
 
@@ -103,10 +129,12 @@ def _foot(console, degrees, field):
 
 
 def compose(origin, console, part, state, field, kelvin, rate, note,
-            aspect=(dial.CELL_ASPECT, 'assumed')):
+            aspect=(dial.CELL_ASPECT, 'assumed'), scales=False):
     """One frame on the stage: the dial left, the target's numbers right.
     `aspect` is `(cell aspect, how it was known)` - the face is drawn
-    round for THIS terminal, and the box says whether that was measured."""
+    round for THIS terminal, and the box says whether that was measured.
+    With `scales` the face stands between the die's temperature and the
+    field, each a tube on its own range."""
     from screen import frame_of, hud
 
     if state is None:
@@ -125,10 +153,14 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
         # holding a plain space, and every cell of a dot drawing holds
         # U+2800 instead - the mark could never land, and a call that
         # cannot do anything is worse than no call.
-        art = '\n'.join(
-            [dial.render(degrees, ART_WIDTH, ART_HEIGHT, field,
-                         aspect=aspect[0], colour=console),
-             _foot(console, degrees, field)])
+        if scales:
+            art = dial.instrument(degrees, field, kelvin, ART_WIDTH,
+                                  ART_HEIGHT, aspect[0], colour=console)
+        else:
+            art = '\n'.join(
+                [dial.render(degrees, ART_WIDTH, ART_HEIGHT, field,
+                             aspect=aspect[0], colour=console),
+                 _foot(console, degrees, field)])
 
         side = [hud(part['name'], [
                     ('angle', '--   (no magnet)' if weak
@@ -162,6 +194,12 @@ def main(argv=None):
     parser.add_argument('--cell-aspect', type=float, default=None,
                         help='how tall this terminal\'s cell is against its '
                              'width; asked of the terminal when not given')
+    parser.add_argument('--scales', dest='scales', action='store_true',
+                        default=None,
+                        help='the die temperature and the field as scales '
+                             'either side of the face; the default is yes '
+                             'on a terminal %d columns or wider' % WIDE)
+    parser.add_argument('--no-scales', dest='scales', action='store_false')
     args = parser.parse_args(argv)
 
     # power_afe SAID: the default went quiet-False when every connect
@@ -207,12 +245,26 @@ def main(argv=None):
     # whether the measurement happened.
     aspect = _screen.aspect_of(args.cell_aspect)
     say('ok', 'cell', '%.2f tall, %s' % aspect)
+    if args.scales is None:
+        try:
+            args.scales = os.get_terminal_size().columns >= WIDE
+        except OSError:
+            args.scales = False
+    say('ok', 'scales', 'die and field beside the face, read again every '
+        '%.0f s' % SIDE_EVERY if args.scales
+        else 'off - the face alone, %d columns wanted' % WIDE)
+    side = {'at': time.time(), 'field': field, 'kelvin': kelvin}
 
     def draw():
         state = steady(board.angle.state)
         tally.take(state['updates'] if state is not None else None)
-        return compose(origin, console, part, state, field, kelvin,
-                       tally.rate, tally.note, aspect)
+        if args.scales and time.time() - side['at'] >= SIDE_EVERY:
+            side['field'], side['kelvin'] = reread(board, side['field'],
+                                                   side['kelvin'])
+            side['at'] = time.time()
+        return compose(origin, console, part, state, side['field'],
+                       side['kelvin'], tally.rate, tally.note, aspect,
+                       scales=args.scales)
 
     try:
         leaving = run_view(board_view, console, period, args.frames, draw)

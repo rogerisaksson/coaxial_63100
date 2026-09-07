@@ -575,6 +575,14 @@ print('die    %.1f K' % kelvin(tsen))
 print('field  %.0f G' % gauss(field))"""),
     md("FIELD reads about 2 G with no magnet on the real board; 300 to 1000 G "
        "is the recommended range. The stand-in reports a magnet in place."),
+    md("The three registers as the SHAFT ANGLE page draws them: the face at "
+       "ANG with the reading swept from zero, the die's temperature on the "
+       "part's -40 to 150 C to the left, the field on 0 to 1200 gauss to the "
+       "right - green inside the recommended band, red with no magnet. "
+       "`coaxial.dial` is pure; `coaxial.ansi.image` rasterises it."),
+    code("""from coaxial import ansi, dial
+
+ansi.image(dial.instrument(degrees(ang), gauss(field), kelvin(tsen), colour=True))"""),
     code("""import time
 
 turning = []
