@@ -195,7 +195,8 @@ def test_two_sessions(report):
         report.check('never two inside the transport at once',
                      not fake.overlapped)
         for client in clients:
-            client.close()
+            if client is not None:
+                client.close()
     finally:
         stop()
 

@@ -22,6 +22,7 @@ from coaxial import ansi, ascii3d, desk, raster          # noqa: E402
 from coaxial import orientation, scaling               # noqa: E402
 from coaxial.errors import DeviceStateError            # noqa: E402
 from coaxial import simulated
+from typing import Any, cast
 from coaxial.simulated import CHANNELS                  # noqa: E402
 from coaxial.simulated import SimulatedSession          # noqa: E402
 from coaxial_mcp import tools as toolmod                # noqa: E402
@@ -1010,15 +1011,15 @@ def test_ascii3d(report):
                                          cols, rows)
     picture = ascii3d.render(orientation.MODEL_MESH, flat_on, 80, 24,
                              distance=distance, centre=(off_x, off_y))
-    drawn = [line for line in picture.split(chr(10)) if line.strip()]
+    rows = [line for line in picture.split(chr(10)) if line.strip()]
 
     # The true span, not the right edge: the renderer strips trailing spaces
     # and not leading ones, so len(line) counts the left margin too. That
-    # read 33% wide of round on a board that was drawn correctly.
-    left = min(len(line) - len(line.lstrip()) for line in drawn)
-    wide = max(len(line) for line in drawn) - left
-    tall = len(drawn) * (cell_rows / float(ascii3d.SUPERSAMPLE))
-    report.check('a round board drawn face-on comes out round',
+    # read 33% wide of round on a board that was rows correctly.
+    left = min(len(line) - len(line.lstrip()) for line in rows)
+    wide = max(len(line) for line in rows) - left
+    tall = len(rows) * (cell_rows / float(ascii3d.SUPERSAMPLE))
+    report.check('a round board rows face-on comes out round',
                  0.85 <= wide / tall <= 1.18,
                  '%.2f wide to tall' % (wide / tall))
 
@@ -1075,11 +1076,11 @@ def test_clock_reference(report):
         clockmod.ntp_offset = real
 
     report.check('a host that agrees with UTC changes nothing',
-                 flat.reference == 'utc' and abs(flat.pc_ppm) < 1e-9,
+                 flat.reference == 'utc' and abs(flat.pc_ppm or 0.0) < 1e-9,
                  flat.pc_ppm)
     report.check('a sync knows what its own noise floor is, so a rate under '
                  'it can be called bounded rather than measured',
-                 flat.floor_ppm > 0, flat.floor_ppm)
+                 (flat.floor_ppm or 0.0) > 0, flat.floor_ppm)
 
     # THE SECOND QUERY CAN FAIL WHERE THE FIRST DID NOT. Measured on CI
     # 2026-09-05: a runner reached time.google.com once and timed out on
@@ -1240,7 +1241,7 @@ def test_gate_driver_arming(report):
         # a .ioc regeneration and a CubeMX mode name bound to the wrong
         # channel have both moved TIM1 in this repository without saying so.
         state = dict(rig.board.gate_drivers.state(), deadtime=0)
-        rig.board.gate_drivers.state = lambda: state
+        setattr(rig.board.gate_drivers, 'state', lambda: state)
         try:
             rig.gates.arm(ignore_interlock=True)
             stopped = None
@@ -1785,7 +1786,7 @@ def test_thermal_identification(report):
                  and cyc.load_cycle(0) == {'amps': 0.0, 'on_s': 0.0,
                                            'off_s': 0.0}
                  and cyc.truth()['load_a'] is None
-                 and _refused(lambda: Thermal.load_cycle(None)))
+                 and _refused(lambda: cast(Any, Thermal).load_cycle(None)))
 
     # THE TOUR (bench, 2026-09-06): temperate, cold, toasty and
     # round again, moved on when the identification has EARNED the room

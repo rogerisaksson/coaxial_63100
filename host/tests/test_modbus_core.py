@@ -57,6 +57,12 @@ EX = {0: 'NONE', 1: 'ILLEGAL FUNCTION', 2: 'ILLEGAL DATA ADDRESS',
       3: 'ILLEGAL DATA VALUE', 4: 'SERVER DEVICE FAILURE'}
 
 
+def named(code):
+    """The exception's name for a code, the code itself for one without
+    a name, and nothing for no exception at all."""
+    return '' if code is None else EX.get(code, str(code))
+
+
 def find_cc():
     """A host C compiler, or None. PATH first, then where winget puts one."""
     from shutil import which
@@ -249,7 +255,7 @@ def test_quantities(report, lib):
                       ('read discrete, qty 2001', b'\x02\x00\x00\x07\xD1')):
         _fc, code = core.exception(pdu)
         report.check('%s -> ILLEGAL DATA VALUE' % name, code == 3,
-                     EX.get(code, code))
+                     named(code))
     core.close()
 
 
@@ -269,7 +275,7 @@ def test_span(report, lib):
     _fc, code = wide.exception(b'\x03\xFF\xFF\x00\x02')
     report.check('addr 0xFFFF qty 2, with every address acceptable to '
                  'the model -> ILLEGAL DATA ADDRESS', code == 2,
-                 EX.get(code, code))
+                 named(code))
     rsp = wide.execute(b'\x03\x00\x00\x00\x02')
     report.check('and a span that does not straddle is still answered',
                  len(rsp) == 6, rsp.hex(' '))
@@ -278,17 +284,17 @@ def test_span(report, lib):
     core = Core(lib)
     _fc, code = core.exception(b'\x03\xFF\xFF\x00\x02')
     report.check('addr 0xFFFF qty 2 -> ILLEGAL DATA ADDRESS', code == 2,
-                 EX.get(code, code))
+                 named(code))
     _fc, code = core.exception(b'\x03\x00\x3C\x00\x08')
     report.check('addr 60 qty 8 runs off a 64-entry bank -> DATA ADDRESS',
-                 code == 2, EX.get(code, code))
+                 code == 2, named(code))
     _fc, code = core.exception(b'\x03\x00\x3C\x00\x04')
     report.check('addr 60 qty 4 fits it exactly -> answered', code is None,
-                 EX.get(code, ''))
+                 named(code))
     core.drop(7)
     _fc, code = core.exception(b'\x03\x00\x00\x00\x02')
     report.check('a model with no validate_range refuses every address',
-                 code == 2, EX.get(code, code))
+                 code == 2, named(code))
     core.close()
 
 
@@ -323,10 +329,10 @@ def test_capacity(report, lib):
     report.check('a read that fits is answered', len(rsp) == 8, rsp.hex(' '))
     _fc, code = core.exception(b'\x03\x00\x00\x00\x03', cap=6)
     report.check('the same read into six bytes -> SERVER DEVICE FAILURE',
-                 code == 4, EX.get(code, code))
+                 code == 4, named(code))
     _fc, code = core.exception(b'\x01\x00\x00\x00\x28', cap=6)
     report.check('forty coils into six bytes -> SERVER DEVICE FAILURE',
-                 code == 4, EX.get(code, code))
+                 code == 4, named(code))
     report.check('a capacity below the smallest exception is met with silence',
                  core.execute(b'\x03\x00\x00\x00\x03', cap=4) == b'')
     core.close()
@@ -341,7 +347,7 @@ def test_writes(report, lib):
                  rsp.hex(' '))
     _fc, code = core.exception(b'\x05\x00\x00\x12\x34')
     report.check('a coil value neither 0x0000 nor 0xFF00 -> DATA VALUE',
-                 code == 3, EX.get(code, code))
+                 code == 3, named(code))
 
     rsp = core.execute(b'\x06\x00\x05\xBE\xEF')
     report.check('write single register echoes and stores',
@@ -350,14 +356,14 @@ def test_writes(report, lib):
 
     _fc, code = core.exception(b'\x10\x00\x00\x00\x02\x03\x00\x01\x00\x02')
     report.check('a byte count contradicting the quantity -> DATA VALUE',
-                 code == 3, EX.get(code, code))
+                 code == 3, named(code))
     _fc, code = core.exception(b'\x10\x00\x00\x00\x02\x04\x00\x01')
     report.check('a byte count contradicting the frame length -> DATA VALUE',
-                 code == 3, EX.get(code, code))
+                 code == 3, named(code))
     _fc, code = core.exception(b'\x0F\x00\x00\x00\x00\x00')
     report.check('zero coils is a well-formed 6-byte PDU and must reach its '
                  'handler, not be met with silence', code == 3,
-                 EX.get(code, code))
+                 named(code))
     core.close()
 
 
@@ -375,7 +381,7 @@ def test_half_write(report, lib):
     guarded.bad_value(0xDEAD)
     _fc, code = guarded.exception(req)
     report.check('a bad value anywhere in the span refuses the whole write',
-                 code == 3, EX.get(code, code))
+                 code == 3, named(code))
     report.check('and nothing before it was applied',
                  guarded.hold(0) == 0x1000 and guarded.hold(1) == 0x1001,
                  '%04X %04X' % (guarded.hold(0), guarded.hold(1)))
@@ -388,7 +394,7 @@ def test_half_write(report, lib):
     report.check('without the guard the same shape leaves the device half '
                  'written - which is why the guard exists',
                  code == 4 and unguarded.hold(0) == 0xAAAA,
-                 '%s, reg0=%04X' % (EX.get(code, code), unguarded.hold(0)))
+                 '%s, reg0=%04X' % (named(code), unguarded.hold(0)))
     unguarded.close()
 
     ok = Core(lib)
@@ -405,7 +411,7 @@ def test_dispatch(report, lib):
     core = Core(lib)
     _fc, code = core.exception(b'\x63\x00\x00\x00\x01')
     report.check('an unimplemented function code -> ILLEGAL FUNCTION',
-                 code == 1, EX.get(code, code))
+                 code == 1, named(code))
 
     rsp = core.execute(b'\x41\x01\x02\x03')
     report.check('a user-defined code (65) reaches the application',
@@ -422,15 +428,15 @@ def test_dispatch(report, lib):
     core.drop(6)
     _fc, code = core.exception(b'\x41\x01')
     report.check('with no user_function the same code -> ILLEGAL FUNCTION',
-                 code == 1, EX.get(code, code))
+                 code == 1, named(code))
     core.drop(0)
     _fc, code = core.exception(b'\x03\x00\x00\x00\x01')
     report.check('a model that cannot read registers -> ILLEGAL FUNCTION',
-                 code == 1, EX.get(code, code))
+                 code == 1, named(code))
     core.drop(3)
     _fc, code = core.exception(b'\x05\x00\x00\xFF\x00')
     report.check('a model that cannot write bits -> ILLEGAL FUNCTION',
-                 code == 1, EX.get(code, code))
+                 code == 1, named(code))
     core.close()
 
 
@@ -450,7 +456,7 @@ def test_server_id(report, lib):
     core.drop(5)
     _fc, code = core.exception(b'\x11')
     report.check('with no server_id callback -> ILLEGAL FUNCTION', code == 1,
-                 EX.get(code, code))
+                 named(code))
     core.close()
 
 

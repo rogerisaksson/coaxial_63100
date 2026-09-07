@@ -29,6 +29,7 @@ import re
 import subprocess
 import sys
 import time
+from typing import Any
 
 # host/ and host/tools on the path: this file's own directory's parent, so
 # it does not matter what the working directory is - dbg.py and the runner
@@ -253,7 +254,7 @@ class Toolbox:
 
     def __init__(self, session, shell=None, scope=None, allow_writes=False,
                  allow_code=True, confirm=None):
-        self.session = session
+        self.session: Any = session
         self.shell = shell
         self.scope = scope
         self.allow_writes = allow_writes

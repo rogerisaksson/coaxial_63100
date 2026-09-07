@@ -121,7 +121,7 @@ def test_port_state(report):
         find_board.check_power = lambda *a, **kw: (3.27, 'stubbed')
         find_board.list_ports = lambda: ['COM_TEST']
         box.session = _Held()
-        checklist = box.call('link_diagnose', {})
+        checklist = str(box.call('link_diagnose', {}))
     finally:
         find_board.port_state = real_state
         find_board.check_power = real_power
@@ -271,34 +271,34 @@ def test_link_diagnose(report):
         find_board.check_power = lambda timeout=15: (3.30, 'fake: powered')
 
         missing = toolmod.Toolbox(SimpleNamespace(port='COM9', baud=115200, unit=1))
-        result = missing.call('link_diagnose', {})
+        result = str(missing.call('link_diagnose', {}))
         report.check('powered, but a configured port absent from the OS '
                      'list is named as such, not folded into a generic '
                      'error',
                      'COM9' in result and 'not among' in result, result)
 
         present = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
-        result2 = present.call('link_diagnose', {})
+        result2 = str(present.call('link_diagnose', {}))
         report.check('powered and present, but silent, points at nothing '
                      'else having the port open, not the cable',
                      'COM4' in result2
                      and 'answers on COM4 right now: no' in result2, result2)
 
         coaxial.connect = lambda *a, **kw: []                # "answers"
-        result2b = present.call('link_diagnose', {})
+        result2b = str(present.call('link_diagnose', {}))
         report.check('and a port that actually answers says the link is '
                      'up, not "silent" just because it exists',
                      'link is up' in result2b, result2b)
 
         list_ports.comports = lambda: []
         empty = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
-        result3 = empty.call('link_diagnose', {})
+        result3 = str(empty.call('link_diagnose', {}))
         report.check('no COM ports at all is named plainly',
                      'Nothing is enumerating' in result3, result3)
 
         find_board.check_power = lambda timeout=15: (0.0, 'fake: no power')
         unpowered = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
-        result4 = unpowered.call('link_diagnose', {})
+        result4 = str(unpowered.call('link_diagnose', {}))
         report.check('no target power stops the checklist at step 1, before '
                      'even listing COM ports - later steps cannot explain '
                      'more than the first one already does',
@@ -311,7 +311,7 @@ def test_link_diagnose(report):
         # session that had been given neither - it fell back on its own -
         # and that was the whole answer on screen to "byter du till
         # debugproben".
-        stood_in = toolmod.Toolbox(SimulatedSession()).call('link_diagnose', {})
+        stood_in = str(toolmod.Toolbox(SimulatedSession()).call('link_diagnose', {}))
         report.check('a session with no port names the stand-in it is on, '
                      'and the way off it',
                      'simulated board' in stood_in and '/board auto' in stood_in,
@@ -319,7 +319,7 @@ def test_link_diagnose(report):
         report.check('and never claims a flag the operator did not type',
                      '--simulated' not in stood_in, stood_in[:52])
         from coaxial_ollama.debug import NoBoard
-        refused = toolmod.Toolbox(NoBoard()).call('link_diagnose', {})
+        refused = str(toolmod.Toolbox(NoBoard()).call('link_diagnose', {}))
         report.check('--no-board is the one case that did get the flag',
                      refused.startswith('--no-board this run')
                      and '/board auto' in refused, refused[:52])
@@ -342,7 +342,7 @@ def test_link_diagnose(report):
         probed = []
         find_board.check_power = lambda timeout=15: (probed.append(1),
                                                      (3.30, 'fake'))[1]
-        fell_back = toolmod.Toolbox(FellBack()).call('link_diagnose', {})
+        fell_back = str(toolmod.Toolbox(FellBack()).call('link_diagnose', {}))
         report.check('the stand-in open_session returns is known by its own '
                      'marker, not by a port that happens to be None',
                      'simulated board' in fell_back, fell_back[:52])
@@ -358,7 +358,7 @@ def test_link_diagnose(report):
         find_board.check_power = lambda timeout=15: (None, 'fake: unknown')
         unsure = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200,
                                                  unit=1))
-        result5 = unsure.call('link_diagnose', {})
+        result5 = str(unsure.call('link_diagnose', {}))
         report.check('a step 1 that could not check never closes by '
                      'asserting the board is powered',
                      'Power unconfirmed' in result5
@@ -368,7 +368,7 @@ def test_link_diagnose(report):
         find_board.port_state = lambda *a, **kw: find_board.BUSY
         held = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200,
                                                unit=1))
-        result6 = held.call('link_diagnose', {})
+        result6 = str(held.call('link_diagnose', {}))
         report.check('a port another process holds says so, rather than '
                      'guessing at a halted core',
                      'open in another process' in result6,
@@ -446,8 +446,8 @@ def test_fallback(report):
                      sessionmod._label(real, port, kind) == want,
                      sessionmod._label(real, port, kind))
     report.check('and says "simulated" where a firmware version goes',
-                 session.board.version_info['firmware'] == 'simulated',
-                 session.board.version_info['firmware'])
+                 (session.board.version_info or {})['firmware'] == 'simulated',
+                 (session.board.version_info or {})['firmware'])
 
     # PB2 is the AFE switch, not a spare pin. Measured: writing 0 across
     # GPIOB left the stand-in answering `on=1` to afe_power one call later,
@@ -506,7 +506,7 @@ def test_fallback(report):
     toolmod.find_board.check_power = lambda *a, **k: (3.27, 'stubbed')
     toolmod.find_board.list_ports = lambda: ['COM_TEST']
     try:
-        checklist = live.call('link_diagnose', {})
+        checklist = str(live.call('link_diagnose', {}))
     finally:
         toolmod.find_board.check_power = power
         toolmod.find_board.list_ports = ports

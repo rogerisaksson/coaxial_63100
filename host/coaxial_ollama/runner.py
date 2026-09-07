@@ -29,6 +29,7 @@ import time
 
 from. import context
 from . import tools as toolmod
+from typing import Any
 
 SYSTEM = """You are driving a hardware test bench from a written test plan.
 
@@ -139,7 +140,7 @@ class Runner:
     that comes from plan.Limit - never from the model."""
     def __init__(self, plan, client, toolbox, transcript=None, echo=True):
         self.plan = plan
-        self.client = client
+        self.client: Any = client
         self.toolbox = toolbox
         self.transcript = transcript or Transcript()
         self.echo = echo

@@ -945,7 +945,7 @@ def test_capability(report):
     try:
         _test_capability(report, cap)
     finally:
-        if had_override:
+        if had_override and saved_override is not None:
             os.environ[cap.RESERVE_ENV] = saved_override
 
 def test_picker(r):
@@ -1030,7 +1030,7 @@ def test_picker(r):
 
     def explode(*a, **k):
         raise OSError('connection refused')
-    broken.Ollama = explode
+    setattr(broken, 'Ollama', explode)
     sys.modules['coaxial_ollama.client'] = broken
     real_diff = pick_tests.diff_text
     pick_tests.diff_text = lambda against='HEAD': (

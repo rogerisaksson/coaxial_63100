@@ -34,6 +34,7 @@ from coaxial_mcp import detail                       # noqa: E402
 
 from . import context                                # noqa: E402
 from . import intent
+from typing import Any
 from . import language                               # noqa: E402
 from . import replies                                # noqa: E402
 from . import tools as toolmod                       # noqa: E402
@@ -438,7 +439,7 @@ class Chat:
     def __init__(self, client, toolbox, tools='read', keep=6, budget=0,
                  quiet=False, out=None, link_ok=True, detail_level=detail.AUTO,
                  session_language=None):
-        self.client = client
+        self.client: Any = client
         self.toolbox = toolbox
         # Before set_tools below, which builds the schemas this decides the
         # length of. `auto` reads the model's tag: the tags this loop runs are
@@ -452,7 +453,7 @@ class Chat:
         self.keep = keep
         self.budget = budget
         self.quiet = quiet
-        self.out = out or _printable(sys.stdout)
+        self.out: Any = out or _printable(sys.stdout)
         # Shared with the REPL's spinner: it repaints on its own thread, and
         # unsynchronised writes to one stream interleave into garbage. RLock,
         # not Lock: _trace() holds it across its print()s and
@@ -487,7 +488,7 @@ class Chat:
         self.prompt_history = []
         # Off by default: dozens of tests build a Chat and none should touch
         # the filesystem. repl() and main() turn it on for the real one.
-        self.io_log = IOLog(enabled=False)
+        self.io_log: Any = IOLog(enabled=False)
         # Compile the question into an intent before answering it. Off here
         # for the same reason as io_log, and off for a scripted plan: a step
         # written as `analog_read ch=4` has no ambiguity to resolve, and the

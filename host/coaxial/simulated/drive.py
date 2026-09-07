@@ -140,7 +140,7 @@ class SimulatedDrive:
         # same shape as `Transport.request`'s lock on the real wire.
         self._lock = threading.RLock()
         self._mode = 'off'
-        self._fault = None
+        self._fault: Optional[str] = None
         self._sp = {'id_ref': 0.0, 'iq_ref': 0.0, 'theta': 0.0,
                     'omega_target': 0.0, 'accel': 0.0, 'vd': 0.0, 'vq': 0.0,
                     'pol_volts': 0.0, 'pol_periods': 0, 'pol_gap': 0}

@@ -98,7 +98,7 @@ def test_corrections_are_reported(report):
             ('temp', 'NTC', True),
             ('BUS_VOLT', 'DCbus', True),
             ('phase_a', 'PhaseU', True)):
-        text = mcp.HANDLERS['analog_read'](session, ch=[asked], samples=8)
+        text = str(mcp.HANDLERS['analog_read'](session, ch=[asked], samples=8))
         head = text.splitlines()[0]
         report.check('ch=[%r] reads %s' % (asked, meant),
                      meant in text, head[:46])
@@ -291,7 +291,7 @@ def test_debug(report):
 
     # ---- no board ----
     offline = toolmod.Toolbox(debug.NoBoard(), scope=Scope())
-    text = offline.call('analog_read', {})
+    text = str(offline.call('analog_read', {}))
     report.check('--no-board answers instead of hanging on a serial port',
                  'no-board' in text, text[:60])
 
@@ -1168,9 +1168,9 @@ def test_docs(report):
     # now, editing MODELS.md failed this test for renaming a section - which
     # says nothing about the tool, and is exactly what it is not for.
     import re as _re
-    text = io.open(os.path.join(os.path.dirname(os.path.dirname(
+    text = str(io.open(os.path.join(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.abspath(__file__)))), 'docs', 'MODELS.md'),
-        encoding='utf-8').read()
+        encoding='utf-8').read())
     heads = [(len(m.group(1)), m.group(2).strip())
              for m in _re.finditer(r'^(#{2,3}) (.+)$', text, _re.M)]
     # The first chapter that actually has a subsection - the first chapter

@@ -115,7 +115,7 @@ class Drive:
         return got
 
     def setpoints(self, **kw):
-        got = dict.fromkeys(SETPOINTS, 0.0)
+        got: dict = dict.fromkeys(SETPOINTS, 0.0)
         got.update(getattr(self, '_sp', {}))
         got.update(kw)
         self._sp = got
@@ -151,9 +151,10 @@ class Drive:
             n, s, sq = v[at:at + 3]
             at += 3
             mean = s / n if n else None
-            var = (sq / n - mean * mean) if n else None
+            var = (sq / n - mean * mean) if mean is not None else None
             out['fields'][name] = {'n': int(n), 'mean': mean,
-                                   'sd': math.sqrt(max(0.0, var)) if n else None}
+                                   'sd': (math.sqrt(max(0.0, var))
+                                          if var is not None else None)}
         out['lag'] = v[at:at + 8]
         return out
 
@@ -282,7 +283,8 @@ def test_math(r, lib):
         a, b = d.clarke((1.0 + 0.3, -0.5 + 0.3, -0.5 + 0.3))
         r.check('clarke: a common mode on all three cancels',
                 abs(a - 1.0) < 1e-5 and abs(b) < 1e-5, (a, b))
-        dq = d.park(*d.inv_park(0.7, -0.2, 1.1), 1.1)
+        alpha, beta = d.inv_park(0.7, -0.2, 1.1)
+        dq = d.park(alpha, beta, 1.1)
         r.check('park undoes inverse park',
                 abs(dq[0] - 0.7) < 1e-5 and abs(dq[1] + 0.2) < 1e-5, dq)
         scale, duty = d.svm(0.0, 0.0, 24.0)

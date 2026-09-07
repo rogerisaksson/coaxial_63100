@@ -19,6 +19,7 @@ import serial
 from .crc import crc16
 from .errors import ConnectError, CrcError, FrameError, ModbusException, NoReplyError
 from .protocol import BROADCAST, MAX_PAYLOAD
+from typing import Any
 
 
 class Transport:
@@ -73,7 +74,7 @@ class Transport:
         self.port = port
         self.baud = baud
         try:
-            self.serial = serial.Serial(port, baud, bytesize=8, parity='N',
+            self.serial: Any = serial.Serial(port, baud, bytesize=8, parity='N',
                                         stopbits=1, timeout=self.QUIET_TIME)
         except (serial.SerialException, ValueError, OSError) as exc:
             raise ConnectError('cannot open %s at %d baud: %s'

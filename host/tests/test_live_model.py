@@ -338,7 +338,7 @@ def build(model, port, simulated, compile_intent=True):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('-m', '--model', default='gemma4:12b')
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--no-compile', action='store_true',

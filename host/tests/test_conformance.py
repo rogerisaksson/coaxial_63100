@@ -67,23 +67,28 @@ class Bus:
                 time.sleep(0.25)
         self.log = []
 
+    def _port(self):
+        if self.s is None:
+            raise RuntimeError('the port never opened')
+        return self.s
+
     def close(self):
-        self.s.close()
+        self._port().close()
 
     def raw(self, frame: bytes, expect_reply=True):
         """Send an exact frame. Returns the reply bytes, or b'' on silence."""
         time.sleep(T35)
-        self.s.reset_input_buffer()
-        self.s.write(frame)
-        self.s.flush()
+        self._port().reset_input_buffer()
+        self._port().write(frame)
+        self._port().flush()
         if not expect_reply:
             time.sleep(0.05)
-            return self.s.read(256)
+            return self._port().read(256)
         # read until the line goes quiet
         deadline = time.time() + REPLY_TIMEOUT
         buf = b''
         while time.time() < deadline:
-            chunk = self.s.read(1)
+            chunk = self._port().read(1)
             if not chunk:
                 if buf:
                     break

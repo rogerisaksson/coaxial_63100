@@ -180,7 +180,7 @@ class Prompt:
     of what prints while the bar is busy."""
 
     def __init__(self, text, out, lock=None, ok=True, tick=TICK,
-                 tag=None, tag_ok=True):
+                 tag=None, tag_ok: 'bool | str' = True):
         # RLock, not Lock: _trace() in debug.py already holds this lock for
         # its whole loop of print()s, each of which re-enters it again
         # inside _Tracked.write() - a plain Lock would deadlock the second

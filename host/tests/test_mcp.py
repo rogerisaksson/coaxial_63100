@@ -25,6 +25,12 @@ def approx_tokens(text):
     return max(1, len(text) // 4)
 
 
+def _pipes(proc):
+    """The three pipes Popen opened, which it types as optional."""
+    if proc.stdin is None or proc.stdout is None or proc.stderr is None:
+        raise RuntimeError('the server was started without its pipes')
+    return proc.stdin, proc.stdout, proc.stderr
+
 class ServerProcess:
     """A running MCP server, spoken to in newline-delimited JSON-RPC."""
 
@@ -33,6 +39,7 @@ class ServerProcess:
             [sys.executable, '-u', '-m', 'coaxial_mcp'] + args,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, text=True, bufsize=1)
+        self.stdin, self.stdout, self.stderr = _pipes(self.proc)
         self.next_id = 0
 
     def send(self, method, params=None, notify=False):
@@ -42,17 +49,17 @@ class ServerProcess:
         if not notify:
             self.next_id += 1
             message['id'] = self.next_id
-        self.proc.stdin.write(json.dumps(message) + '\n')
-        self.proc.stdin.flush()
+        self.stdin.write(json.dumps(message) + '\n')
+        self.stdin.flush()
         return None if notify else self.next_id
 
     def read(self, want_id, timeout=30.0):
         deadline = time.time() + timeout
         while time.time() < deadline:
-            line = self.proc.stdout.readline()
+            line = self.stdout.readline()
             if not line:
                 raise RuntimeError('server closed stdout; stderr:\n%s'
-                                   % self.proc.stderr.read())
+                                   % self.stderr.read())
             message = json.loads(line)
             if message.get('id') == want_id:
                 return message
@@ -71,7 +78,7 @@ class ServerProcess:
 
     def close(self):
         try:
-            self.proc.stdin.close()
+            self.stdin.close()
         except OSError:
             pass
         try:

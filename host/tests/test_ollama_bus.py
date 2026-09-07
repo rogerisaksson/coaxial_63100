@@ -140,7 +140,7 @@ def test_bus(report):
                                   ('AX', 0, 'AX ALL NODES', 'all')):
         session.use(unit, bus=bus)
         tag, got_ok = talk.prompt_tag()
-        report.check('the prompt says %r' % expect, expect in tag, tag)
+        report.check('the prompt says %r' % expect, expect in (tag or ''), tag)
         report.check('   ...and the spinner paints it %s'
                      % ('red' if ok == 'all' else 'yellow'),
                      got_ok == ok, repr(got_ok))

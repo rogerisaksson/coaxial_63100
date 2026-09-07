@@ -37,6 +37,20 @@ class Report:
                                   '' if ok else detail))
 
 
+def must(got):
+    """A chooser's answer, which is None when nothing fits: here it must."""
+    if got is None:
+        raise AssertionError('nothing fits - the chooser answered None')
+    return got
+
+
+def stand_in_drive(rig):
+    """The stand-in's own drive, which these checks reach inside."""
+    drive = rig.board.drive
+    if not isinstance(drive, SimulatedDrive):
+        raise AssertionError('not the stand-in: %r' % (drive,))
+    return drive
+
 def test_inverter(r):
     from coaxial import inverter
     r.check('Coss at zero volts is the model CJO',
@@ -71,7 +85,7 @@ def test_loop(r):
     from coaxial.motor import BENCH_MOTOR
     s = Signals()
     try:
-        s.wref = 1.0
+        setattr(s, 'wref', 1.0)         # the typo a slot refuses
         ok = False
     except AttributeError:
         ok = True
@@ -129,6 +143,7 @@ def test_budget(r):
                                          24.0, 1.0)
     noisy = sensorless.choose_injection(20e-6, 30e-6, 0.3, 50000.0, 50.0,
                                         24.0, 10.0)
+    quiet, capped, noisy = must(quiet), must(capped), must(noisy)
     r.check('a quiet AFE gets fs/2 and a small amplitude at the target SNR',
             quiet['periods'] == 1 and quiet['limited_by'] == 'target'
             and abs(quiet['snr_db'] - 20.0) < 0.01 and quiet['v_inj'] < 0.5,
@@ -146,6 +161,7 @@ def test_budget(r):
             capped['i_h_peak'] <= 1.0 + 1e-9 and noisy['i_h_peak'] <= 10.0 + 1e-9)
     audible = sensorless.choose_injection(20e-6, 30e-6, 0.3, 50000.0, 50.0,
                                           24.0, 1.0, f_min_hz=20000.0)
+    audible = must(audible)
     r.check('an audibility floor keeps it at fs/2', audible['periods'] == 1,
             audible)
     r.check('eight times the current loop is the other floor',
@@ -431,7 +447,7 @@ def test_motion(r):
                 r.check('an overpowered servo raises, not returns',
                         'holding torque' in str(exc), exc)
             rig.drive.model_param(load=0.0)
-        sim = rig.board.drive
+        sim = stand_in_drive(rig)
         try:
             with rig.motion.velocity(amps=4.0, hz=2.0) as v:
                 def trip(_):
@@ -805,7 +821,8 @@ def test_the_stand_in_throttles_on_the_winding_too(r):
                       if n not in thermal_mirror.MOTOR)
                   if throttled_at else None)
     r.check('60 A warms the winding and the board\'s nodes stay clear',
-            throttled_at is not None and board_only < THROTTLE_AT,
+            throttled_at is not None and board_only is not None
+            and board_only < THROTTLE_AT,
             str(throttled_at and (throttled_at['winding_c'], board_only)))
     r.check('the winding throttles first, and what the stage got is the '
             'winding\'s own factor - the smaller of the two',

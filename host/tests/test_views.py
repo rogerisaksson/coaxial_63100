@@ -251,7 +251,8 @@ def test_a_power_node_never_reads_below_the_copper(report):
             worst = gap if worst is None else min(worst, gap)
         report.check('no power node ever reads below the copper it sheds '
                      'into - the thing the gutters looked like they denied',
-                     worst >= -1e-6, 'closest %.4f K' % worst)
+                     worst is not None and worst >= -1e-6,
+                     'closest %.4f K' % (worst if worst is not None else float('nan')))
     finally:
         rig.close()
 
@@ -525,55 +526,6 @@ def test_two_headrooms_named_apart(report):
     report.check('and half way up the scale is half the margin',
                  abs(view.motor_headroom_of(half) - 0.5) < 0.02,
                  '%.3f at %.0f C' % (view.motor_headroom_of(half), half))
-
-
-def test_every_gauge_shows_its_own_scale(report):
-    """The dimmed track runs the whole of every bar, at its own width.
-
-    A BAR WITH NOTHING OVER IT SAYS HOW HOT A NODE IS; a bar in a tube
-    says how hot it is OF WHAT IT MAY BE, which is the only version of
-    the question a ceiling makes sense of. Two ways it was not saying it:
-    the tubes drew their track in ONE lane, so the empty half of a
-    thermometer was narrower than the mercury under it, and the flat
-    gauges put a dot every FOURTH one, which is a dash in every other
-    cell. Both read as some bars having a scale and some not.
-    """
-    from coaxial import machine
-
-    n = 4
-    art = machine.render(0.0, 24, 28, 46, 18,
-                         left=[(0.0, machine.SOA_OK)] * n,
-                         right=[(0.0, machine.SOA_OK)] * n,
-                         bottom=[(0.0, machine.SOA_WARN), (0.0, machine.WATTS)])
-    rows = art.split(chr(10))
-    left, right = machine.gutters(46, 18, n, n)
-
-    # EVERY TUBE, EVERY ROW OF IT. Empty bars, so what is drawn is track
-    # and nothing else.
-    seen = set()
-    for row in rows[1:-2]:
-        for col in list(left) + list(right):
-            seen.add(row[col])
-    report.check('an empty tube is drawn in every one of its rows',
-                 ' ' not in seen and chr(0x2800) not in seen,
-                 ''.join(sorted(seen)))
-    report.check('and every tube is drawn the same way',
-                 len(seen) == 1, ''.join(sorted(seen)))
-    report.check('at the tube\'s own width, both lanes',
-                 all(ord(c) - 0x2800 & 0x08 or ord(c) - 0x2800 & 0x10
-                     or ord(c) - 0x2800 & 0x20 or ord(c) - 0x2800 & 0x80
-                     for c in seen), ''.join(sorted(seen)))
-
-    # AND THE FLAT GAUGES ALONG THE FOOT, one dot a cell rather than one
-    # every other cell.
-    first, last = machine.span(46, 18, n, n)
-    floor = rows[-1]
-    drawn = [floor[col] for col in range(first, last + 1)]
-    report.check('the foot gauge draws a scale in every cell it spans',
-                 all(c != ' ' and c != chr(0x2800) for c in drawn),
-                 '%d of %d blank'
-                 % (sum(1 for c in drawn if c in (' ', chr(0x2800))),
-                    len(drawn)))
 
 
 def test_the_headroom_box_carries_a_solid_bar_with_a_tip(report):
@@ -1318,109 +1270,6 @@ def test_nothing_in_the_drawing_can_be_sheared(report):
                  stage.UP + stage.DOWN)
 
 
-def test_the_bead_is_round_at_every_angle(report):
-    """The pointer is `POINTER_GLYPH`, and it rides the rim.
-
-    THE MARK IS SETTLED - `machine._bead` has why, what a glyph costs,
-    and the four dot answers that were built and not kept. What this
-    holds is the two things that were actually broken: it must be ONE
-    mark drawn at every angle, and it must be PLACED in the same space
-    the machine is drawn in.
-    """
-    from coaxial import machine
-
-    for aspect in (2.0, 2.4):
-        was, seats = None, set()
-        for deg in range(0, 360, 5):
-            art = machine.render(0.0, 24, 28, 46, 18, aspect=aspect,
-                                 pointer_deg=float(deg)).split(chr(10))
-            at = [(r, line.index(machine.POINTER_GLYPH))
-                  for r, line in enumerate(art)
-                  if machine.POINTER_GLYPH in line]
-            if len(at) != 1:
-                was = '%d degrees: %d marks' % (deg, len(at))
-                break
-            if len(art[at[0][0]]) != len(art[0]):
-                was = '%d degrees: its row came out a different length' % deg
-                break
-            seats.add(at[0])
-        report.check('at aspect %.1f, one mark at every angle round the can'
-                     % aspect, was is None, was or '72 angles')
-        report.check('and it travels rather than sitting in a few seats',
-                     len(seats) > 60, '%d distinct cells' % len(seats))
-
-    # IT RIDES THE RIM IN THE DRAWING'S OWN SPACE. The radii are in
-    # x-dots and `_body` scales y by `stretch`, so a bead placed with
-    # plain trigonometry rode the rim only where a dot happened to be
-    # square - on a terminal whose cell is not two-by-one it sat outside
-    # the periphery, which is where the bench found it.
-    for aspect in (2.0, 2.4):
-        stretch = aspect / 4.0 * 2.0
-        cx, r, _, _ = machine.layout(46, 18, 0, 0, rows=18)
-        cy = 18 * 4 / 2.0 - 0.5
-        seat = r.can + machine.POINTER_SEAT
-        out = []
-        for deg in range(0, 360, 5):
-            phi = math.radians(deg)
-            ax = cx + seat * math.cos(phi)
-            ay = cy - seat * math.sin(phi) / stretch
-            out.append(math.hypot(ax - cx, (cy - ay) * stretch))
-        report.check('at aspect %.1f it sits one radius out at every angle'
-                     % aspect, max(out) - min(out) < 1e-9,
-                     '%.3f to %.3f against a rim at %.3f'
-                     % (min(out), max(out), r.can))
-
-    # THE NEAREST CELL CENTRE, not the one the point fell inside. A cell
-    # is two dots across by four down, so truncating quantises the path
-    # twice as coarsely down as across - an egg, not a circle.
-    cx, r, _, _ = machine.layout(46, 18, 0, 0, rows=18)
-    cy = 18 * 4 / 2.0 - 0.5
-    seat = r.can + machine.POINTER_SEAT
-
-    def worst(pick):
-        out = 0.0
-        for deg in range(360):
-            phi = math.radians(deg)
-            ax, ay = cx + seat * math.cos(phi), cy - seat * math.sin(phi)
-            col, row = pick(ax, ay)
-            out = max(out, math.hypot(col * 2 + 0.5 - ax, row * 4 + 1.5 - ay))
-        return out
-
-    near = worst(lambda x, y: (int(math.floor((x - 0.5) / 2 + 0.5)),
-                               int(math.floor((y - 1.5) / 4 + 0.5))))
-    cut = worst(lambda x, y: (int(x) // 2, int(y) // 4))
-    report.check('the nearest cell centre beats the one it fell inside',
-                 near < cut - 0.5, '%.2f dots against %.2f' % (near, cut))
-
-
-def test_the_terminal_is_asked_how_tall_a_cell_is(report):
-    """The cell's shape is measured, not assumed.
-
-    THE ONE NUMBER A ROUND DRAWING NEEDS AND NOBODY CAN LOOK UP. The
-    renderers work in square pixels and fold the cell in at the end, so
-    getting it wrong does not blur the picture - it stretches it, and a
-    can drawn wide of round reads as a rotor that is turned when it is
-    not. Measured here: at 2.0 the can comes out 47.0 cell-widths across
-    and 46.5 down, so the GEOMETRY is right and an oval on screen is the
-    font, which is why it is worth asking.
-    """
-    import screen
-
-    report.check('a terminal 1200 by 800 pixels over 100 by 40 cells has a '
-                 'cell 1.67 times as tall as it is wide',
-                 abs((screen.cell_aspect_of((800, 1200), (40, 100)) or 0)
-                     - 5.0 / 3.0) < 1e-9)
-    report.check('nothing divisible by zero comes back as a number',
-                 screen.cell_aspect_of((0, 0), (1, 1)) is None
-                 and screen.cell_aspect_of((800, 1200), (0, 100)) is None)
-    report.check('and a reply that cannot be a cell is refused',
-                 screen.cell_aspect_of((8000, 100), (40, 100)) is None
-                 and screen.cell_aspect_of((10, 1200), (40, 100)) is None,
-                 str(screen.ASPECT_RANGE))
-    report.check('a pipe is never asked, so the query cannot land in a '
-                 'render', screen.probe_aspect(console=False) is None)
-
-
 def test_the_flat_drawings_spend_the_block(report):
     """The 2D drawings place their edges by coverage, not by "any corner".
 
@@ -1725,7 +1574,7 @@ def test_the_dial_is_round_on_this_terminal(report):
     report.check('a given aspect wins, said as given',
                  screen.aspect_of(2.3) == (2.3, 'given'))
     report.check('and the face is a notch smaller than 64 by 23',
-                 (view.ART_WIDTH, view.ART_HEIGHT) < (64, 23)
+                 view.ART_WIDTH < 64 and view.ART_HEIGHT < 23
                  and view.ART_HEIGHT >= 19,
                  '%d by %d' % (view.ART_WIDTH, view.ART_HEIGHT))
 
@@ -1975,6 +1824,8 @@ def test_a_frame_rasterises_as_the_terminal_draws_it(report):
     report.check('and the image is one cell per character',
                  img.size == (3 * cell[0], 2 * cell[1]), img.size)
     px = img.load()
+    if px is None:
+        raise AssertionError('no pixels')
 
     def ink(x0, y0, wants):
         seen = [px[x, y] for x in range(x0, x0 + cell[0])

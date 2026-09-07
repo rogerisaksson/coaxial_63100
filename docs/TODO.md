@@ -172,17 +172,5 @@ is still arithmetic. Every item names the file or record it lives in.
   lands, twelve questions and more, and on this laptop Ollama 0.33.3
   answers every chat with 500 "llama-server binary not found" - an
   install to repair first.
-* **The test suites under Pylance** (2026-09-07): the package, the
-  tools, the MCP server, the model runner and every notebook read clean
-  in basic mode; 193 complaints remain in `tests/`, all scaffolding -
-  fakes assigned onto typed objects (`box.session = _Held()`,
-  `port.serial.reply = ...`, `client.turns = [...]`), a tool's `Reported`
-  result used as a string, `EX.get(code, code)` with a code that may be
-  None, the thermal harness's struct read as a dict. The fix is declared
-  attributes on the fakes and `str()` on the results, one suite at a
-  time, the noisiest first: test_modbus_core 38, test_ollama_link 33,
-  test_ollama_tools 21, test_sensorless 19, test_thermal_core 17. Run
-  pyright the way the editor does, or open the file in
-  the editor.
 * Nothing has run near 63 V or 100 A. No measured value at either is
   recorded anywhere in this tree.

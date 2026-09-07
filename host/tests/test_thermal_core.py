@@ -195,7 +195,7 @@ class Model:
                             ctypes.c_float(throttle_at),
                             ctypes.c_float(lookahead_s),
                             self._floats(mask), out)
-        got = dict(zip(BUDGET, list(out)[:len(BUDGET)]))
+        got: dict = dict(zip(BUDGET, list(out)[:len(BUDGET)]))
         got['worst_node'] = NODES[int(got['worst_node'])]
         got['throttling'] = bool(got['throttling'])
         got['tripped'] = bool(got['tripped'])
@@ -1407,6 +1407,8 @@ def test_the_reading_lags_between_the_two_nodes(report, lib):
         model.step(zero, 0.05)
         if (step + 1) * 0.05 >= 1.0:
             break
+    if start is None:
+        raise AssertionError('the model never stepped')
     share = (model.ntc() - start) / max(1e-9, target - start)
     tau = -1.0 / math.log(max(1e-9, 1.0 - min(0.999999, share)))
 

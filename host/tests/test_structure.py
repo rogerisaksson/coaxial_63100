@@ -318,7 +318,7 @@ def test_shape(r):
             # from both ceilings without anyone deciding they should be.
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
-            lines = node.end_lineno - node.lineno + 1
+            lines = (node.end_lineno or node.lineno) - node.lineno + 1
             if lines > MAX_LINES:
                 long_ones.append('%s:%s %d lines' % (path, node.name, lines))
             if depth(node) > MAX_DEPTH and node.name not in DEEP_BY_NATURE:

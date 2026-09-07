@@ -1954,6 +1954,25 @@ looking at the estimate alone.
   set the wrong type. `.vscode/settings.json` adds `host/tests` to the
   analysis paths, since three tools import test modules.
 
+* **The whole host tree reads clean under Pylance** (2026-09-08): the
+  193 complaints left in the suites were scaffolding, and three of them
+  were something else - `test_views` defined
+  `test_every_gauge_shows_its_own_scale`,
+  `test_the_bead_is_round_at_every_angle` and
+  `test_the_terminal_is_asked_how_tall_a_cell_is` twice each, a paste
+  that landed twice; the copies were identical and the runner called
+  each name once, so no check was lost, and the first copies are gone.
+  The scaffolding: the runner's `client`, `session`, `out` and `io_log`
+  are declared `Any` where a scripted fake stands in for them, as is
+  the transport's `serial`; `keep_alive` and `tag_ok` take what the
+  tests and the bench pass them; a tool's `Reported` result is read as
+  text where a test reads it as text; the Modbus suite names an
+  exception code through one helper instead of `EX.get(code, code)` with
+  a code that may be None; a slot's deliberate typo goes through
+  `setattr`; the injection chooser's None, the harness's struct, Popen's
+  pipes and the conformance port are narrowed once. pyright: 0 errors in
+  the tree; the offline gate 2582 passed, 0 failed.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder

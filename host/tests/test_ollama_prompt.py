@@ -402,7 +402,7 @@ def test_policy(report):
     runner, _, _ = build(task, [])
     toolbox = runner.toolbox
     toolbox.afe_mentioned = False
-    refused = toolbox.call('afe_power', {'action': 'on'})
+    refused = str(toolbox.call('afe_power', {'action': 'on'}))
     report.check('afe_power is refused when nothing this turn mentioned the '
                  'AFE', 'ERR' in refused and 'analog_read instead' in refused,
                  refused)
@@ -696,7 +696,7 @@ def test_intent(r):
 
     def explode(*a, **k):
         raise OSError('connection refused')
-    broken.Ollama = explode
+    setattr(broken, 'Ollama', explode)
     sys.modules['coaxial_ollama.client'] = broken
     try:
         got, kind, why = intent.compile_intent(Dead(), 'read the NTC')

@@ -259,7 +259,8 @@ def test_outline(report):
                                  pos[3 * tri[1]:3 * tri[1] + 3],
                                  pos[3 * tri[2]:3 * tri[2] + 3],
                                  (0.0, 0.0, 1.0))
-            nrm.extend(n)
+            if n is not None:
+                nrm.extend(n)
 
     s = [vertex(p) for p in ((-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0))]
     quad(*s)                                             # the slab
@@ -339,10 +340,13 @@ def test_key_light(report):
     def luma_at_centre(slope):
         bare = [2.0 + slope * (c - 1) for _r in range(h) for c in range(w)]
         grid = [[' '] * w for _ in range(h)]
-        tone = [[None] * w for _ in range(h)]
+        tone: list = [[None] * w for _ in range(h)]
         wireframe._glow(grid, tone, classes, levels, bare, seed, coverage,
                         w, h, True, cam=cam)
-        r, g, b = tone[1][1]
+        cell = tone[1][1]
+        if cell is None:
+            raise AssertionError('no tone in the cell')
+        r, g, b = cell
         return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
     # A gentle slope: this camera scales a bare step of 0.04 a cell to a
@@ -478,8 +482,10 @@ def test_the_face_is_a_halftone(report):
     m = engine.multiply(cam['view'], orientation.matrix(q))
     buf, coverage, quads, classes, levels, bare, seed = w._cells(
         solid, m, cam, None, True, False)
+    if classes is None:
+        raise AssertionError('no classes came back')
     grid = [[' '] * width for _ in range(height)]
-    tone = [[None] * width for _ in range(height)]
+    tone: list = [[None] * width for _ in range(height)]
     heat = [0.0] * (width * height)
     w._glow(grid, tone, classes, levels, bare, seed, coverage, width,
             height, True, cam=cam, buf=buf, heat_out=heat)
