@@ -10,6 +10,8 @@ tests see the same characters either way.
 surface read as shaded - eight levels of grey against a ramp of ten
 characters is most of the picture's information, and the basic set has one.
 """
+import re
+
 
 def utf8_stdout():
     """Make stdout carry the glyphs in this module. Call it at the edge.
@@ -208,3 +210,161 @@ def run(cells):
     if current is not None:
         out.append(RESET)
     return ''.join(out)
+
+
+# ------------------------------------------------------------- pictures
+#
+# A frame drawn for the terminal, as the terminal would show it: the
+# colour braille the pages draw, in a notebook or a file. `image` is a
+# Pillow image, which Jupyter displays inline on its own; `png` writes
+# one. `tools/ansi2png.py` is the command line over the same drawing.
+#
+# A PICTURE IS JUDGED IN A RASTER, NOT IN GLYPH COUNTS (CLAUDE.md): the
+# faces are the bench's terminal's, Consolas for text and Segoe UI
+# Symbol for braille - Consolas has none - and the seam between them,
+# which makes dense braille read as bricks, is reproduced on purpose.
+# Where those faces are not installed Pillow's own stands in and the
+# image says so once, since the seam it shows is not the bench's.
+
+#: The sixteen system colours as most terminals draw them; the cube and
+#: the grey ramp are `rgb`.
+SYSTEM = ((0, 0, 0), (205, 0, 0), (0, 205, 0), (205, 205, 0),
+          (0, 0, 238), (205, 0, 205), (0, 205, 205), (229, 229, 229),
+          (127, 127, 127), (255, 0, 0), (0, 255, 0), (255, 255, 0),
+          (92, 92, 255), (255, 0, 255), (0, 255, 255), (255, 255, 255))
+#: The default foreground: a terminal's light grey.
+PLAIN = (204, 204, 204)
+#: One cell in pixels, near the bench's terminal.
+CELL = (10, 20)
+#: The faces, where the bench's Windows keeps them.
+TEXT_FONT = 'C:/Windows/Fonts/consola.ttf'
+BRAILLE_FONT = 'C:/Windows/Fonts/seguisym.ttf'
+#: Characters from here up are drawn with the braille face: the box
+#: drawing, blocks and braille ranges, none of which Consolas carries
+#: in the widths the pages assume.
+SYMBOL_FROM = 0x2500
+
+_SGR = re.compile(r'\x1b\[([0-9;]*)m')
+_OTHER = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07'
+                    r'|\x1b[()][A-Za-z0-9]')
+
+
+def _colour(n):
+    """An xterm-256 index as (r, g, b)."""
+    return SYSTEM[n] if n < 16 else rgb(n)
+
+
+def _step(codes, j, fg, bg):
+    """One SGR parameter at `codes[j]` applied: the pair after it, and
+    how many parameters it took - three for `38;5;n`, five for
+    `38;2;r;g;b`, one for the rest."""
+    c = codes[j]
+    if c == 0:
+        return PLAIN, None, 1
+    if c in (38, 48) and j + 2 < len(codes) and codes[j + 1] == 5:
+        colour = _colour(codes[j + 2])
+        return (colour, bg, 3) if c == 38 else (fg, colour, 3)
+    if c in (38, 48) and j + 4 < len(codes) and codes[j + 1] == 2:
+        colour = tuple(codes[j + 2:j + 5])
+        return (colour, bg, 5) if c == 38 else (fg, colour, 5)
+    if 30 <= c <= 37 or 90 <= c <= 97:
+        return _colour(c - 30 if c < 90 else c - 82), bg, 1
+    if 40 <= c <= 47:
+        return fg, _colour(c - 40), 1
+    if c == 39:
+        return PLAIN, bg, 1
+    if c == 49:
+        return fg, None, 1
+    return fg, bg, 1
+
+
+def parse(text):
+    """Rows of (char, fg, bg) from ANSI text: what each cell shows and in
+    which colours. Cursor movement, OSC titles and charset selections
+    are dropped; only colour survives."""
+    text = _OTHER.sub(lambda m: m.group(0) if _SGR.fullmatch(m.group(0))
+                      else '', text)
+    rows, row = [], []
+    fg, bg = PLAIN, None
+    i = 0
+    while i < len(text):
+        m = _SGR.match(text, i)
+        if m:
+            codes = [int(c) for c in m.group(1).split(';') if c != ''] or [0]
+            j = 0
+            while j < len(codes):
+                fg, bg, took = _step(codes, j, fg, bg)
+                j += took
+            i = m.end()
+            continue
+        ch = text[i]
+        if ch == '\n':
+            rows.append(row)
+            row = []
+        elif ch != '\r':
+            row.append((ch, fg, bg))
+        i += 1
+    if row:
+        rows.append(row)
+    return rows
+
+
+_SAID = set()
+
+
+def _font(path, size):
+    from PIL import ImageFont
+    try:
+        return ImageFont.truetype(path, size)
+    except OSError:
+        if path not in _SAID:
+            _SAID.add(path)
+            import warnings
+            warnings.warn('no %s - Pillow\'s own face stands in, and the '
+                          'braille seam it shows is not the bench\'s' % path)
+        return ImageFont.load_default()
+
+
+def image(text, cell=CELL, fonts=(TEXT_FONT, BRAILLE_FONT)):
+    """`text` drawn cell by cell in its colours on black, as a Pillow
+    image - a notebook shows it inline as the value of a cell, or under
+    `IPython.display.display`.
+
+        from coaxial import ansi, thermalmap
+        ansi.image(thermalmap.render(nodes, board_c, cells=60, colour=True))
+
+    Pillow arrives with matplotlib (requirements.txt); nothing else in
+    the library needs it, so it is imported here and not above.
+    """
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        raise ImportError('coaxial.ansi.image needs Pillow, which '
+                          'matplotlib brings: pip install matplotlib')
+    rows = parse(text)
+    cell_w, cell_h = cell
+    width = max((len(r) for r in rows), default=1)
+    img = Image.new('RGB', (width * cell_w, max(1, len(rows)) * cell_h),
+                    (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    text_font = _font(fonts[0], int(cell_h * 0.8))
+    symbol_font = _font(fonts[1], int(cell_h * 0.8))
+    for y, row in enumerate(rows):
+        for x, (c, fg, bg) in enumerate(row):
+            if bg:
+                draw.rectangle([x * cell_w, y * cell_h,
+                                (x + 1) * cell_w - 1, (y + 1) * cell_h - 1],
+                               fill=bg)
+            if c == ' ':
+                continue
+            font = symbol_font if ord(c) >= SYMBOL_FROM else text_font
+            draw.text((x * cell_w, y * cell_h), c, fill=fg, font=font)
+    return img
+
+
+def png(text, path, cell=CELL):
+    """`text` drawn as `image` draws it, saved as the PNG at `path`; the
+    image size in pixels."""
+    img = image(text, cell)
+    img.save(path)
+    return img.size

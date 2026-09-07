@@ -352,6 +352,15 @@ for _ in range(5):
     code("""st = imu.state()
 for name in ('accelerometer', 'gyroscope', 'magnetometer'):
     print('%-14s %s' % (name, st.get(name)))"""),
+    md("The board at that quaternion, as the BOARD ATTITUDE page draws it: "
+       "`coaxial.orientation.render` in its wireframe, colour on, and "
+       "`coaxial.ansi.image` rasterising the braille the way the terminal "
+       "shows it. The stand-in lies on the bench; a board in the hand tilts "
+       "the picture."),
+    code("""from coaxial import ansi, orientation
+
+q = st['quaternion']
+ansi.image(orientation.render((q['i'], q['j'], q['k'], q['real']), 100, 30, wire=True, colour=True))"""),
     code("""with imu.configuring():
     imu.feature(ROTATION_VECTOR, 0)
 device.close()"""),
@@ -613,6 +622,15 @@ for node in ALL_NODES:
 print('worst', budget['worst_node'], ' seconds_to_limit', budget['seconds_to_limit'],
       ' throttling', budget['throttling'], ' tripped', budget['tripped'],
       ' trips', budget['trips'])"""),
+    md("The board as the observer sees it, drawn the way the THERMAL "
+       "OBSERVER page draws it - `coaxial.thermalmap` in colour, rasterised "
+       "by `coaxial.ansi.image`. A colour is a temperature on a fixed scale."),
+    code("""from coaxial import ansi, thermalmap
+from coaxial.thermal import NODES
+
+ansi.image(thermalmap.render({n: st['nodes'][n] for n in NODES}, st['nodes']['board'],
+                             cells=60, colour=True,
+                             title='%s at %.0f %% of its ceiling' % (budget['worst_node'], 100.0 * budget['worst'])))"""),
     md("A burst planned against the network in `coaxial.thermal`: a node's "
        "rise over the board is `P * to_board`, reached on its own time "
        "constant `capacity * to_board`, while the board itself rises on 6.8 "
@@ -720,10 +738,15 @@ for minutes in (5, 10, 25):
 for node, k_per_w in sorted(thermal.calibrate(camera, board_c=40.0).items()):
     print('%-12s %6.1f K/W from the camera, %5.1f in the model'
           % (node, k_per_w, thermal.CFG['to_board'][node]))"""),
-    code("""from coaxial import thermalmap
+    md("The same picture the THERMAL OBSERVER page draws, as the terminal "
+       "draws it: `coaxial.ansi.image` rasterises the colour braille - "
+       "Consolas and Segoe UI Symbol, the bench's own faces - and a "
+       "notebook shows the image inline. The scale is fixed, so a colour "
+       "is a temperature in every picture."),
+    code("""from coaxial import ansi, thermalmap
 
-print(thermalmap.render({n: steady[n] for n in thermal.NODES}, steady['board'],
-                        cells=60, colour=False, title='steady state, switching'))"""),
+ansi.image(thermalmap.render({n: steady[n] for n in thermal.NODES}, steady['board'],
+                             cells=60, colour=True, title='steady state, switching'))"""),
     md("## Conclusions"),
     code("""print('measured, against the supply and the camera:')
 for name in ('board_to_ambient', 'board_capacity'):
@@ -898,10 +921,13 @@ print('rooms on the tour:', ', '.join('%s %.0f C' % (name, SimulatedThermal.SITU
        "the model's own clock, so the readers stop advancing on the wall "
        "clock and the walk reads the same wherever it runs."),
     code("""rows = []
+faces = {}
 last = board.truth()['situation']
 for minute in range(1, 151):
     board.fast_forward(60.0, live=True)
     st, got, truth = board.state(), board.identification(), board.truth()
+    if truth['load_a']:
+        faces[truth['situation']] = (minute, got['ambient'], dict(st['nodes']))   # the last loaded minute of each leg
     rows.append({'minute': minute, 'situation': truth['situation'],
                  'state': got['state'], 'margin': got['margin'],
                  'room': got['ambient'], 'room_sigma': got['ambient_sigma'],
@@ -921,6 +947,22 @@ print('%d minutes STABLE of %d; final margin %.2f, room %.1f C for %.0f, air %.2
        "innovation and the covariance normalised. A room step throws it to "
        "the floor within a minute; the room is reset to its prior on the "
        "way, so the step is charged to the room and not to the air path."),
+    md("The board in each room under the same load, as the THERMAL OBSERVER "
+       "page draws it - the last loaded minute of each leg. One fixed "
+       "colour scale, so the rooms are compared by eye: the switches sit "
+       "where the room puts them, and the room in the title is what the "
+       "identification had found by then."),
+    code("""from coaxial import ansi, thermalmap
+from coaxial.thermal import NODES
+from IPython.display import display
+
+for room in SimulatedThermal.TOUR:
+    if room not in faces:
+        continue
+    minute, found, nodes = faces[room]
+    display(ansi.image(thermalmap.render({n: nodes[n] for n in NODES}, nodes['board'], cells=48, colour=True,
+                                         title='%s, minute %d: room %.0f C, identified %.0f C, driver U %.0f C'
+                                               % (room, minute, SimulatedThermal.SITUATIONS[room]['ambient'], found, nodes['driver_u']))))"""),
     code("""import matplotlib.pyplot as plt
 
 t = [r['minute'] for r in rows]

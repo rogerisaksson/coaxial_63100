@@ -921,9 +921,8 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
     # FRAMES, NOT AREAS: a marked cell draws the line's dots alone, so
     # no marked cell is solid and the marks are a thin share of the
     # board - the bench's word against the blocks that came before.
-    from tools import ansi2png
     white = ansi.rgb(ansi.WHITE)
-    lit = [(ch, fg) for row in ansi2png.parse(said) for ch, fg, _bg in row
+    lit = [(ch, fg) for row in ansi.parse(said) for ch, fg, _bg in row
            if 0x2800 <= ord(ch) < 0x2900]
     marked = [ch for ch, fg in lit if fg == white]
     # A solid marked cell is two frames' sides sharing a cell column -
@@ -1851,6 +1850,45 @@ def test_the_mode_says_whether_the_board_holds_it_back(report):
                  and not view.flashing({'budget': None}))
 
 
+def test_a_frame_rasterises_as_the_terminal_draws_it(report):
+    """`ansi.image` draws a coloured frame cell by cell, the way the bench's
+    terminal shows it: the notebooks' pictures, and `tools/ansi2png.py`.
+
+    The parse and the drawing are one code. The tool carried its own copy
+    of both, so a picture a notebook showed and one the tool rasterised
+    could have been two drawings of the same frame.
+    """
+    sys.path.insert(0, HOST)
+    from coaxial import ansi
+
+    frame = (ansi.paint('ab', ansi.RED) + 'c\n'
+             + ansi.paint('\u28ff', ansi.GREEN) + ' \u2801')
+    rows = ansi.parse(frame)
+    report.check('parse keeps every cell and its colour',
+                 [len(r) for r in rows] == [3, 3]
+                 and rows[0][0][1] == ansi.rgb(ansi.RED)
+                 and rows[0][2][1] == ansi.PLAIN
+                 and rows[1][0][1] == ansi.rgb(ansi.GREEN),
+                 [[(c, fg) for c, fg, _bg in r] for r in rows])
+    cell = (8, 16)
+    img = ansi.image(frame, cell=cell)
+    report.check('and the image is one cell per character',
+                 img.size == (3 * cell[0], 2 * cell[1]), img.size)
+    px = img.load()
+
+    def ink(x0, y0, wants):
+        seen = [px[x, y] for x in range(x0, x0 + cell[0])
+                for y in range(y0, y0 + cell[1])]
+        return any(wants(p) for p in seen), seen
+
+    red, _ = ink(0, 0, lambda p: p[0] > 150 and p[1] < 60 and p[2] < 60)
+    green, _ = ink(0, cell[1], lambda p: p[1] > 150 and p[0] < 60 and p[2] < 60)
+    lit, blank = ink(cell[0], cell[1], lambda p: p != (0, 0, 0))
+    report.check('the red letters, the green braille and the blank cell '
+                 'are drawn in their own inks',
+                 red and green and not lit, (red, green, not lit))
+
+
 def main():
     report = Report()
     print('\n-- every view, two frames, no board --')
@@ -1887,6 +1925,7 @@ def main():
     print('\n-- the thermal observer\'s headroom --')
     test_the_headroom_box_carries_a_solid_bar_with_a_tip(report)
     test_the_thermal_page_shows_its_evidence(report)
+    test_a_frame_rasterises_as_the_terminal_draws_it(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
 

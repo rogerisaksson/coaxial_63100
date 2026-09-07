@@ -172,7 +172,10 @@ are the design arithmetic. `calibration.py` talks to device 3. `clock.py` is
 sessions on loopback port 8763 and answers the board's deadman for an
 attached client every 3 s. The renderers - `engine`, `wireframe`,
 `mesh`, `raster`, `ascii3d`, `orientation`, `dial`, `desk`, `farm`,
-`crew`, `ansi` - take a reading in and give text out.
+`crew`, `ansi` - take a reading in and give text out. `ansi.image`
+draws that text back the way the terminal shows it, colour braille
+included, as a Pillow image a notebook displays inline; `ansi.png`
+writes one, and `tools/ansi2png.py` is the command line over them.
 
 ### The stand-in
 
@@ -314,7 +317,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2926 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2929 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -341,7 +344,7 @@ by `counts.py`:
 | test_parity.py | 30 | stand-in against live board |
 | test_ollama_board.py | 28 | board questions |
 | test_ollama_bus.py | 28 | the bus and node selection |
-| test_views.py | 182 | every view and the front page drawn twice, the rotor observer's geometry, its gauges on one scale, the bead's wake, its DRIVE box, the shaft angle's round face, the box column every page scrolls, and the thermal observer's board as a halftone with its parts marked |
+| test_views.py | 185 | every view and the front page drawn twice, the rotor observer's geometry, its gauges on one scale, the bead's wake, its DRIVE box, the shaft angle's round face, the box column every page scrolls, and the thermal observer's board as a halftone with its parts marked |
 | test_ollama_reply.py | 23 | the reply backstops |
 | test_ollama_language.py | 12 | the language lock |
 | test_bench.py | 4 | the board's loop rates against `.bench.json` |

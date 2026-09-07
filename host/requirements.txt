@@ -20,7 +20,9 @@
 #              it. BOTH ARE IMPORTED WHERE THEY ARE CALLED and refuse with the
 #              install line when absent, so the library itself still runs on a
 #              bench that has neither - `columns()` is a dict of plain lists,
-#              which is what DataFrame takes anyway.
+#              which is what DataFrame takes anyway. Pillow arrives with
+#              matplotlib, and `ansi.image` - a frame drawn as the terminal
+#              shows it, for a notebook or a PNG - imports it the same way.
 #
 # Deliberately absent: reportlab, requests, the ollama client. The PDF writer
 # is 172 lines of PDF 1.4 and the Ollama client is urllib. A bench PC at a

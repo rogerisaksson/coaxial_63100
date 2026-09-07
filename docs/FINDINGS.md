@@ -1784,6 +1784,23 @@ looking at the estimate alone.
   the frame's bottom. `test_render`'s shipped-board check reads the lift
   off the constant instead of carrying its own 0.39.
 
+* **The notebooks show the pages' pictures** (2026-09-07, "konvertera
+  den färgsatta braille-grafiken till PNG ... en smidig hjälpare i
+  pythonbiblioteket"): `coaxial.ansi.image` parses a frame's escapes and
+  draws it cell by cell in the bench's faces - Consolas, Segoe UI Symbol
+  for the braille - as a Pillow image, which Jupyter shows inline as the
+  value of a cell; `ansi.png` writes one. `tools/ansi2png.py`, the
+  routine's judging tool, is now the command line over the same code -
+  it carried its own parser and drawing, and the view suite's frame
+  check imported the tool for the parser. Pillow arrives with matplotlib,
+  so a notebook already has it. Four notebooks carry pictures:
+  `thermal_model` its steady state in colour, `thermal_budget` the board
+  as the observer sees it, `thermal_identification` the board in each of
+  the tour's three rooms at the last loaded minute of the leg, and
+  `imu_session` the board at the quaternion the IMU reported, in the
+  attitude page's wireframe. Rasterised and read before landing: the
+  fixed scale beside each map, the wireframe on its ground.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder
