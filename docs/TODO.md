@@ -165,5 +165,15 @@ is still arithmetic. Every item names the file or record it lives in.
 * `electronic_simulations` is a submodule with an SSH key on the bench
   machine and is not checked out here; `inverter.py` carries its
   traced constants.
+* **The classifier has no thermal kind** (2026-09-07). `intent.py`
+  answers "hur varmt är kortet" as an analog read of the thermistor,
+  one measurement where the board holds an estimate for every node and
+  a margin it acts on. A `thermal` kind - the `thermal` tool's `state`
+  and `ident` for one question, like `both` - is a twenty-line change
+  in KINDS, READ, the prompt's sentence about the angle kind and the
+  plan; MODELS.md says it is measured against the live model before it
+  lands, twelve questions and more, and on this laptop Ollama 0.33.3
+  answers every chat with 500 "llama-server binary not found" - an
+  install to repair first.
 * Nothing has run near 63 V or 100 A. No measured value at either is
   recorded anywhere in this tree.
