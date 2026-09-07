@@ -18,10 +18,10 @@ from . import protocol
 from .errors import DeviceStateError
 from .subsystem import Subsystem
 from .wire import Reader
+from typing import Any
 
 
 class CalibrationOps:
-
     """Zero and span by name, over whatever answers `set_channel`.
 
     A MIXIN AND NOT A SECOND COPY. The real record and the stand-in
@@ -30,6 +30,23 @@ class CalibrationOps:
     both inherit it. What differs between them is `set_channel`,
     `read` and `zero`, which is exactly the wire.
     """
+
+    #: What the concrete class brings: the board the channels are read
+    #: through, and the record's own read, write and save. Declared so
+    #: the mixin's methods read as calls on something that exists.
+    board: Any
+
+    def read(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def set_channel(self, index, offset_raw, gain_ppm):
+        raise NotImplementedError
+
+    def zero(self, index):
+        raise NotImplementedError
+
+    def save(self):
+        raise NotImplementedError
 
     def compensate(self, name, gain=None, offset=None, save=True):
         """Write one channel's gain and offset, by name.

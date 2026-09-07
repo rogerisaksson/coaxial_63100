@@ -256,6 +256,8 @@ def frame(refs, margin=FRAME_MM):
         right = cx + w / 2.0 if right is None else max(right, cx + w / 2.0)
         bottom = cy - h / 2.0 if bottom is None else min(bottom, cy - h / 2.0)
         top = cy + h / 2.0 if top is None else max(top, cy + h / 2.0)
+    if left is None or right is None or top is None or bottom is None:
+        raise ValueError('a frame round no parts')
     left, right = left - margin, right + margin
     bottom, top = bottom - margin, top + margin
     return ((left + right) / 2.0, (bottom + top) / 2.0,
@@ -644,11 +646,13 @@ def _braille_rows(grid, marks=MARKS):
                 t0 = t1
             if t1 is None:
                 t1 = t0
-            if t0 is None:
+            if t0 is None or t1 is None:
                 share0 = share1 = -1.0      # off the field: marks only
+                mid = 0
             else:
                 share0 = _density(t0) * levels
                 share1 = _density(t1) * levels
+                mid = int((t0 + t1) / 2.0 + 0.5)
             marks, dots = 0, 0
             for lane in (0, 1):
                 i = 2 * c + lane
@@ -664,8 +668,7 @@ def _braille_rows(grid, marks=MARKS):
             if marks:
                 line.append((chr(BRAILLE + marks), MARK_INK))
             elif dots:
-                line.append((chr(BRAILLE + dots),
-                             ansi.thermal_rgb(int((t0 + t1) / 2.0 + 0.5))))
+                line.append((chr(BRAILLE + dots), ansi.thermal_rgb(mid)))
             else:
                 line.append((' ', None))
         out.append(ansi.run(line))

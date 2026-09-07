@@ -1918,6 +1918,24 @@ looking at the estimate alone.
   `_derate_to` hooks born None, typed as the callables the board wires.
   Twenty-two notebooks, zero errors; the four re-executed clean.
 
+* **The coaxial package reads clean under Pylance** (2026-09-07): pyright
+  in basic mode over the host tree found 464 complaints, 150 of them in
+  the package. Two were dead code - `Daq.drain` and `Daq.once`, on the
+  board and the stand-in alike, called a `read()` no acquisition has had
+  since it became `acquire`, and nothing called them. The rest were the
+  editor being right about what the code could not show: mixins calling
+  what the concrete class brings (`CalibrationOps`, `Subsystem._op`,
+  `_Mode._start` - declared now), attributes the board wires onto other
+  objects after construction (declared where they live), values born
+  None and set later (accessors that raise instead - the clock's best
+  bracket, the thermal shadow, the stand-in's task and situation, the
+  crews' pools), a `tuple[()]` that typed every loop over it as Never
+  (`or []` now), and the socket server's attributes. One guard did bite
+  while it was being written: the gate stand-in's drive hook was read
+  through `getattr` under a name a grep missed, and removing its wiring
+  flattened the sample-point scan to one variance at every trigger -
+  the sensorless suite said so, and the hook is declared now.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder

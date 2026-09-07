@@ -648,7 +648,7 @@ def _bars(dots, owner, width, height, left, right, r, floors=1, reserve=0,
     _, _, at_left, at_right = layout(width, height,
                                      len(left or ()), len(right or ()))
     for bars, columns in ((left, at_left), (right, at_right)):
-        for index, entry in enumerate(bars or ()):
+        for index, entry in enumerate(bars or []):
             if index >= len(columns) or entry is None:
                 # A None is a SPACER: it takes a column and draws
                 # nothing, which is how a caller puts air between two
@@ -733,10 +733,10 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
     # crossing it.
     lit = []
     met = {}
-    for row, from_col, to_col, _shade in list(rules or ()):
+    for row, from_col, to_col, _shade in list(rules or []):
         lo, hi = min(from_col, to_col), max(from_col, to_col)
         met.setdefault(row, []).append((lo, hi))
-    for entry in list(leaders or ()):
+    for entry in list(leaders or []):
         from_row, col, to_row, shade = entry[:4]
         # WHICH HALF OF THE CELL IT FALLS DOWN. Left by default, which is
         # where a line falling from a caption belongs; a fifth element
@@ -777,7 +777,7 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
     # thing it names. A leader alone can only point at something above
     # it, and the two levels along the foot lie inboard of the arrows
     # that name them, not over them.
-    for row, from_col, to_col, shade in list(rules or ()):
+    for row, from_col, to_col, shade in list(rules or []):
         for col in range(min(from_col, to_col), max(from_col, to_col) + 1):
             if 0 <= row < height and 0 <= col < width:
                 for x in range(DOTS_X):
@@ -789,7 +789,7 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
     # outright - which is fine over air and never over the machine. Each
     # entry is `(row, col, text, ink)` and the CALLER owns the placement:
     # this module draws a rotor, not a legend.
-    for row, col, said, _ink in list(labels or ()):
+    for row, col, said, _ink in list(labels or []):
         for step, ch in enumerate(said):
             here = col + step
             if 0 <= row < height and 0 <= here < width and not dots[row][here]:
@@ -816,7 +816,7 @@ class Frame:
         self.text = [[None] * width for _ in range(height)]
         #: How many dots each class has lit in each cell, so a cell can
         #: belong to what is mostly in it.
-        self.tally = [[None] * width for _ in range(height)]
+        self.tally: list = [[None] * width for _ in range(height)]
 
     def put(self, x, y, cls):
         """Light one dot, in DOT coordinates. `cls` None lights it and
@@ -928,8 +928,8 @@ class Seat:
         # THE TOP pushes the can down; one starting lower is drawn in
         # rows the floor gauges already own, and counting it here would
         # reserve the whole box.
-        written = [row + 1 for row, _col, _said, _ink in list(labels or ())]
-        written += [entry[2] for entry in list(leaders or ())
+        written = [row + 1 for row, _col, _said, _ink in list(labels or [])]
+        written += [entry[2] for entry in list(leaders or [])
                     if entry[0] == 0]
         self.reserve = max(written) if written else 0
         self.band = max(1, height - self.floors - self.reserve)
@@ -1248,7 +1248,7 @@ def render(rotor_deg, slots=24, poles=28, width=40, height=22,
     # keep their own ink without owning the cells they cross, which is
     # why this is a map and not another owner class.
     at = {}
-    for row, col, said, said_ink in list(labels or ()):
+    for row, col, said, said_ink in list(labels or []):
         for step in range(len(said)):
             at[(row, col + step)] = said_ink
     for row, col, shade in lit:

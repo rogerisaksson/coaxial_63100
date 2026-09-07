@@ -389,7 +389,7 @@ def _box(out, phi_deg, radius, half_r, half_phi_deg, height):
               at(rj, pj, top), at(ri, pi, top))
 
 
-def facets(steps=PHI_STEPS, tinted=False, relief=1.0):
+def facets(steps=PHI_STEPS, tinted=False, relief=1.0) -> tuple:
     """The parametric board, with no STL: the DRAWING of this hardware.
 
     Four surfaces, because a board has four - the component face, the solder
@@ -490,8 +490,9 @@ def toon_mesh():
             got = mesh.facets(MODEL, divisions=TOON_DIVISIONS)
             _TOON = (got, _height_tints(got))
         except (OSError, ValueError):
-            built = facets(steps=TOON_STEPS, tinted=True, relief=3.0)
-            _TOON = (built[:3], built[3])
+            pos, idx, nrm, tints = facets(steps=TOON_STEPS, tinted=True,
+                                          relief=3.0)
+            _TOON = ((pos, idx, nrm), tints)
     return _TOON
 
 
@@ -659,13 +660,13 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
                               shades=ZONE_SHADES if colour else None,
                               wire=wire)
     distance, off_x, off_y = _fit(cols, rows, zoom)
-    draw = shop.render if shop else ascii3d.render
-    model = () if shop else (_model(),)
-    return draw(*model, _multiply(VIEWPOINT, matrix(q)), width, height,
-                distance=distance, centre=(off_x, off_y), light=LAMP,
-                ramp=ramp)
-
-
+    if shop:
+        return shop.render(_multiply(VIEWPOINT, matrix(q)), width, height,
+                           distance=distance, centre=(off_x, off_y),
+                           light=LAMP, ramp=ramp)
+    return ascii3d.render(_model(), _multiply(VIEWPOINT, matrix(q)), width,
+                          height, distance=distance, centre=(off_x, off_y),
+                          light=LAMP, ramp=ramp)
 def picture(q, width=44, height=19, frame=None, age=None, zoom=1.0,
             shop=None, toon=False, colour=False):
     """The drawing with the numbers it is a reading of, above it.

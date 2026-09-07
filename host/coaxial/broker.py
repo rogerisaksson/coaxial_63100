@@ -23,6 +23,7 @@ import time
 
 from . import errors
 from .transport import Transport
+from typing import Any
 
 #: Loopback only. The board is a bench instrument on somebody's desk, and a
 #: broker on 0.0.0.0 is that desk's power stage on the network.
@@ -170,9 +171,9 @@ class BrokerTransport:
 
 
 class _Handler(socketserver.StreamRequestHandler):
-
     """One client, one line at a time. The lock is the whole design."""
 
+    server: '_Server'
     def setup(self):
         socketserver.StreamRequestHandler.setup(self)
         # A LOOK IS NOT A USE. `--status` and the staleness check attach to
@@ -340,13 +341,16 @@ class _Handler(socketserver.StreamRequestHandler):
 
 
 class _Server(socketserver.ThreadingTCPServer):
-
     """The broker's own state: the transport, the lock, and who is using it."""
-
     daemon_threads = True
     allow_reuse_address = True
     clients = 0
     until_idle = True
+    #: Set by `serve()` once the port is open: the wire, its name, and
+    #: the one lock every request takes.
+    transport: Any
+    serial_port: Any
+    lock: threading.Lock
     #: How long an idle broker waits for the next client, seconds. Long
     #: enough to hop between menu views; short enough that the port frees
     #: itself within a minute of real abandonment. Zero in the tests, so

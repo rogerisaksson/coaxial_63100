@@ -51,7 +51,7 @@ def _fit_deadtime(points):
 
     i_top = max(i for i, _ in points)
     v_top = max(abs(v) for _, v in points)
-    best = None
+    best = (float('inf'), 0.0, 0.0, 0.0)
     for pass_ in range(2):
         span_v = (0.0, 2.0 * v_top + 0.1) if pass_ == 0 else (
             max(0.0, best[1] * 0.7), best[1] * 1.3 + 1e-3)
@@ -62,7 +62,7 @@ def _fit_deadtime(points):
             for b in range(41):
                 i_knee = span_k[0] + (span_k[1] - span_k[0]) * b / 40.0
                 err, r = cost(v_dt, i_knee)
-                if best is None or err < best[0]:
+                if err < best[0]:
                     best = (err, v_dt, i_knee, r)
     err, v_dt, i_knee, r = best
     return r, v_dt, i_knee, math.sqrt(err / len(points))

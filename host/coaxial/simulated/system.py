@@ -204,8 +204,7 @@ class SimulatedGpio:
         self.afe.enable() if level else self.afe.disable()
 
     def _afe_on(self):
-        return bool(self.afe.state()['on'])
-
+        return self.afe is not None and bool(self.afe.state()['on'])
     def pin_read(self, port, pin):
         self._guard(port, pin)
         letter = str(port).upper()[:1]

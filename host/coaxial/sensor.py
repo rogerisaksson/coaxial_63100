@@ -46,7 +46,7 @@ class PolledSensor(ABC):
             time.sleep(poll)
 
     @abstractmethod
-    def state(self):
+    def state(self) -> dict:
         """The poll loop's shared record: the reading, and what went wrong.
 
         `updates` is monotonic, so a new reading is told from the same one

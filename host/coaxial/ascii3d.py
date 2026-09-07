@@ -380,12 +380,11 @@ def rasterise(model, matrix, distance, scale, cx, cy, cols, top, bottom,
             if near > depth[at]:
                 depth[at] = near
                 value[at] = lit
-                if who is not None:
+                if who is not None and tints is not None:
                     who[at] = tints[tri] + 1
             continue
-
         _fill(depth, value, who,
-              None if who is None else tints[tri] + 1, lit,
+              None if who is None or tints is None else tints[tri] + 1, lit,
               (x0, y0, x1, y1, x2, y2, oa, ob, og), area,
               first, last, left, right, top, cols)
 
@@ -609,7 +608,8 @@ def _edge_sides(near, band, at, c, r, width, height, step=INK_STEP):
         if other < 0:
             continue
         there = near[other]
-        jump = (mine - band[other]) if mine is not None else 0
+        jump = ((mine - band[other])
+                if mine is not None and band is not None else 0)
         hit = (not there or here - there > step * here
                or jump >= 2 or jump <= -2)
         if hit and sideways:

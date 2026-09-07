@@ -9,12 +9,16 @@ from .power import SimulatedGateDrivers, SimulatedPower, SimulatedThermal
 from .daq import SimulatedCapture, SimulatedClock, SimulatedDaq
 from ..observer import Observer
 from .drive import SimulatedDrive
+from typing import Any
 
 
 class SimulatedBoard:
     """A whole board without a board. Duck-typed against the real one, so
     the tools above cannot tell which they are holding - except that
     every touchpoint labels itself."""
+
+    #: The rig that opened this board - `Board.rig`'s twin.
+    rig: Any = None
     #: What it answers when asked its bitrate. There is no wire, so this is
     #: the rate it pretends to run at - enough for arithmetic about a link,
     #: and it is `origin.interface` that says the link is not real.
@@ -103,13 +107,13 @@ class SimulatedBoard:
             # a scaling on the drive's own clamp here.
             self.thermal._derate_to = self._derate_drive
             self.thermal._duty = self._effective_duty
-            # The sample point is one register: moving it through the
-            # gate drivers moves the drive's moments too.
-            self.gate_drivers._drive = self.drive
             # The drive is what the phases and the gates FOLLOW: a
             # record and the modulation that produced it come from
             # one electrical angle, or they are two inventions that
             # happen to be printed together.
+            # The sample point is one register: moving it through the
+            # gate drivers moves the drive's moments too.
+            self.gate_drivers._drive = self.drive
             self.daq.drive = self.drive
             # And the analog reads see the same current on the phases,
             # so a tare through them zeroes the records (values.py).
@@ -132,8 +136,9 @@ class SimulatedBoard:
 
     def _derate_drive(self, factor):
         """Scale the drive's current clamp. `Board_DriveDerate`'s twin."""
-        self.drive._derate = max(0.0, min(1.0, factor))
-
+        drive = self.drive
+        if isinstance(drive, SimulatedDrive):
+            drive._derate = max(0.0, min(1.0, factor))
     def _effective_duty(self):
         """What the compares hold, as a fraction of the period.
 
@@ -141,11 +146,11 @@ class SimulatedBoard:
         anything asked for. Zero with the stage down, because that is
         what the compares are worth then.
         """
-        if not self.gate_drivers._enabled:
+        gates = self.gate_drivers
+        if not isinstance(gates, SimulatedGateDrivers) or not gates._enabled:
             return (0.0, 0.0, 0.0)
-        period = float(self.gate_drivers.PERIOD or 1)
-        return tuple(t / period for t in self.gate_drivers._duty)
-
+        period = float(gates.PERIOD or 1)
+        return tuple(t / period for t in gates._duty)
     def _drop_stage(self):
         """Drop the gates for the thermal envelope. True if it did.
 
@@ -214,7 +219,8 @@ class SimulatedSession:
         # for every reply, and every throughput number off it was the
         # debug probe's whatever the caller asked for.
         self._board.baud = self.baud
-        self._board.daq.baud = self.baud
+        if isinstance(self._board.daq, SimulatedDaq):
+            self._board.daq.baud = self.baud
         self._info = None
 
     def buses(self):

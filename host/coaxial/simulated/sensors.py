@@ -7,6 +7,7 @@ import time
 from .. import angle
 from ..sensor import PolledSensor
 from .values import _tumble
+from typing import Any
 
 
 class SimulatedImu(PolledSensor):
@@ -193,7 +194,10 @@ class SimulatedAngle(PolledSensor):
         self._updates = 0
         self._reg = 0x20
         self._held = False
-
+        #: The board wires these: the rotor the shaft follows, and the
+        #: thermal stand-in the die is as warm as.
+        self.drive: Any = None
+        self.thermal: Any = None
     def _turn(self):
         """The shaft in counts: the virtual rotor's when one is turning,
         else one invented turn every twelve seconds - a stand-in that

@@ -10,6 +10,7 @@ from ..errors import DeviceStateError
 from .values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _spread,
                      _sweep, phase_codes)
 from .system import UNITS
+from typing import Any
 
 
 class SimulatedAfe:
@@ -54,7 +55,7 @@ class SimulatedAnalog:
     def __init__(self, afe):
         self._afe = afe
         #: The drive whose current the phases carry - the board wires it.
-        self.drive = None
+        self.drive: Any = None
 
     def scaling(self, refresh=False):
         """The same shape the board's own record produces.
@@ -222,8 +223,7 @@ class SimulatedCalibration(CalibrationOps):
 
     #: The board this belongs to, so `zero()` can read a channel the
     #: way the real one does. Set by SimulatedBoard.
-    board = None
-
+    board: Any = None
     def __init__(self):
         self._params = {}
         self._channels = [{'index': i, 'offset_raw': 0, 'gain_ppm': 0}

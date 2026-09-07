@@ -10,7 +10,7 @@ from .. import thermal
 from .. import thermal_ident
 from ..thermal_device import THROTTLE_AT
 from ..errors import RigError
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 from ..gates import GateControl
 
 
@@ -202,7 +202,7 @@ class SimulatedThermal:
         self._gate: Optional[Callable[[], bool]] = None
         self._trips = 0
         #: What the effective duty is, asked of whatever owns the compares.
-        self._duty = lambda: (0.0, 0.0, 0.0)
+        self._duty: Callable[[], tuple] = lambda: (0.0, 0.0, 0.0)
         #: Where the derate goes. The board wires the drive's clamp.
         self._derate_to: Optional[Callable[[float], None]] = None
         self._last_power = None
@@ -243,8 +243,8 @@ class SimulatedThermal:
         #: there being no sensor for it, and so does the mirror's anchor.
         self._truth_ambient = thermal.AMBIENT
         self._ambient = thermal.AMBIENT
-        self._situation = None
-        self._truth_cfg = None
+        self._situation: Optional[str] = None
+        self._truth_cfg: Optional[dict] = None
         self._switching = False
         self._switch_at = None
         self._tour = False
@@ -390,8 +390,9 @@ class SimulatedThermal:
         # rule as the observer's below.
         net = thermal.net_flows(self._truth, power, self._truth_cfg,
                                 self._truth_ambient, self._speed_rpm)
+        truth_cfg = self._laid()
         for name in self.NODES:
-            capacity = self._truth_cfg['capacity'].get(name, 0.0)
+            capacity = truth_cfg['capacity'].get(name, 0.0)
             if capacity > 0.0:
                 self._truth[name] += net[name] * dt / capacity
         self._truth_ntc = thermal_ident.ntc_follow(
@@ -447,10 +448,17 @@ class SimulatedThermal:
         out = {'ntc': noisy(self._truth_ntc)}
         for die in thermal_ident.DIES:
             out[die] = noisy(self._truth[die] + power.get(die, 0.0)
-                             * self._truth_cfg['rth_die'].get(die, 0.0))
+                             * self._laid()['rth_die'].get(die, 0.0))
         return out
 
     # -- the truth's situation ------------------------------------------
+
+    def _laid(self):
+        """The truth's configuration for the situation laid on, which
+        every stand-in has from construction."""
+        if self._truth_cfg is None:
+            raise RigError('no situation laid on the stand-in')
+        return self._truth_cfg
 
     def situation(self, name=None, switching=None):
         """Lay a situation over the ground truth - `SITUATIONS` by name,
@@ -535,8 +543,9 @@ class SimulatedThermal:
         its situation, the scales that make it, how long it has stood,
         and the load the cycle has on it now - absent on a board, which
         has no truth to tell."""
-        laid = self.SITUATIONS[self._situation]
-        return {'situation': self._situation, 'air': laid['air'],
+        name = self._situation or 'bench'
+        laid = self.SITUATIONS[name]
+        return {'situation': name, 'air': laid['air'],
                 'capacity': laid['capacity'], 'ambient': self._truth_ambient,
                 'switches': self._switches,
                 'since_s': self._model_s - self._switched_s,
@@ -946,6 +955,9 @@ class SimulatedGateDrivers(GateControl):
         self._deadtime = self.DEADTIME
         self._deadtime_ns = self.DEADTIME * 4210 // 1000
         self._skew = 0
+        #: The drive whose sample point this register moves; the board
+        #: wires it.
+        self._drive: Any = None
         self._armed = False
         self._enabled = False
         self._duty = (0, 0, 0)
@@ -1123,7 +1135,7 @@ class SimulatedGateDrivers(GateControl):
     def trigger(self, ticks=None):
         if ticks is not None:
             self._trigger = min(int(ticks), self.PERIOD - 1)
-            drive = getattr(self, '_drive', None)
+            drive = self._drive
             if drive is not None:
                 drive.trigger(self._trigger)
         return self._trigger

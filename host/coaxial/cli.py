@@ -111,7 +111,7 @@ COMMANDS = {
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='python -m coaxial',
-                                     description=__doc__.splitlines()[0])
+                                     description=(__doc__ or '').splitlines()[0])
     parser.add_argument('command', choices=sorted(COMMANDS) + ['all'])
     parser.add_argument('args', nargs='*')
     parser.add_argument('--port', default='COM4')

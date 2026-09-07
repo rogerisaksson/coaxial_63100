@@ -258,7 +258,7 @@ def converter(unit, differential=False, vref=3.3, signal=None, params=None):
     if unit == 'mV':
         by_signal = {'+5V': p.get('rail5', RAIL5_ONBOARD),
                      'Vgate': p.get('vgate', VGATE_ONBOARD)}
-        return by_signal.get(signal, p.get('dcbus', DCBUS_ONBOARD)).volts
+        return by_signal.get(signal or '', p.get('dcbus', DCBUS_ONBOARD)).volts
     if unit == 'centi-degC' and signal in (None, THERMISTOR_SIGNAL):
         return p.get('ntc', NTC_ONBOARD).celsius
 

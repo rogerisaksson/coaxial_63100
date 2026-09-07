@@ -9,6 +9,8 @@ from ..errors import RigError
 from .values import (AMPS_PER_CODE, CHANNELS, DCBUS_V, NOMINAL, PHASE_LEG,
                      PHASE_STEP, _sweep, phase_codes)
 from .system import UNITS
+from typing import cast
+from typing import Any
 
 
 class SimulatedCapture:
@@ -154,6 +156,13 @@ class SimulatedDaq(Acquisition):
 
     def __init__(self):
         self._cfg = None
+        #: What the board wires after construction: its clock, so the
+        #: stamps share the sync's timebase; the drive the phases and
+        #: the gates follow; the sensors the snapshot fields read.
+        self.clock: Any = None
+        self.drive: Any = None
+        self.angle: Any = None
+        self.imu: Any = None
         self._order = []
         self._running = False
         self._done = False
@@ -440,7 +449,8 @@ class SimulatedDaq(Acquisition):
             raise RigError('the board refused that task - it is running '
                            '(simulated)')
         order = self._resolve(channels)
-        clock = {0: 'software', 1: 'tim1'}.get(clock, clock)
+        if isinstance(clock, int):
+            clock = {0: 'software', 1: 'tim1'}.get(clock, str(clock))
         if clock == 'tim1' and any(i not in self.PHASES for i in order):
             raise RigError('the board refused that task - a TIM1 clock '
                            'carries only the phases (simulated)')
@@ -493,7 +503,7 @@ class SimulatedDaq(Acquisition):
         # Anchored where the clock is now, then advanced by the period: a
         # record's stamp has to be on the same timebase the sync was made
         # against, and monotone within a burst.
-        if getattr(self, 'clock', None) is not None:
+        if self.clock is not None:
             self._at = self.clock.read_latch()['now']
         self._produced = 0
         # The clock's own cadence: what a read may answer is what the
@@ -520,12 +530,19 @@ class SimulatedDaq(Acquisition):
     #: that divided by the fields in a sweep.
     LOOP_HZ = 13200
 
+    def _configured(self):
+        """The task as configured; a task nobody configured refuses."""
+        if self._cfg is None:
+            raise RigError('configure the task first (simulated)')
+        return self._cfg
+
     def _samples_per_record(self, fields):
         """How many sweeps a record holds: `accumulate`, or what the loop
         would fit in the window when the clock closes it."""
-        if self._cfg['accumulate']:
-            return self._cfg['accumulate']
-        window_s = (self._cfg['interval_us'] or 0) / 1e6
+        cfg = self._configured()
+        if cfg['accumulate']:
+            return cfg['accumulate']
+        window_s = (cfg['interval_us'] or 0) / 1e6
         sweeps = self.LOOP_HZ / max(1, fields) * window_s
         return max(1, min(32767, int(sweeps)))
 
@@ -537,7 +554,8 @@ class SimulatedDaq(Acquisition):
         stride = 4 + 4 * len(fields)
         room = max(1, 240 // stride)
         n = min(int(want) or room, room)
-        left = self._cfg['records'] - self._produced if self._cfg['records'] else n
+        cfg = self._configured()
+        left = cfg['records'] - self._produced if cfg['records'] else n
         n = max(0, min(n, left))
         # THE STAMPS TRACK THE WALL. A free-running software clock (no
         # accumulate, no interval) stamped every record `base` apart while
@@ -626,7 +644,7 @@ class SimulatedDaq(Acquisition):
                                   if mask & (1 << b)}
             out.append(rec)
         self._produced += n
-        if self._cfg['records'] and self._produced >= self._cfg['records']:
+        if cfg['records'] and self._produced >= cfg['records']:
             self._running = False
             self._done = True
         self.backlog = self._buffered()
@@ -647,15 +665,6 @@ class SimulatedDaq(Acquisition):
         layout = layout or self.layout()
         stride = layout['stride'] or 1
         return self.acquire(want=len(blob) // stride, layout=layout)
-
-    def drain(self, limit=None, layout=None):
-        out = []
-        while limit is None or len(out) < limit:
-            batch = self.read(layout=layout)
-            if not batch:
-                break
-            out.extend(batch)
-        return out[:limit] if limit is not None else out
 
     def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
         import random
@@ -687,24 +696,6 @@ class SimulatedDaq(Acquisition):
             out['digital'] = {p['signal']: bool(random.getrandbits(1))
                               for p in self.PINS}
         return out
-
-    def once(self, channels, records, clock='software', sample_time=0,
-                decimate=1, accumulate=1, timeout=10.0, digital=False,
-                sample_rate=None):
-        layout = self.configure(channels, clock=clock, sample_time=sample_time,
-                                decimate=decimate, accumulate=accumulate,
-                                records=records, digital=digital,
-                                sample_rate=sample_rate)
-        self.start()
-        out = []
-        while len(out) < records:
-            batch = self.read(layout=layout)
-            if not batch:
-                break
-            out.extend(batch)
-        self.stop()
-        return out[:records], layout
-
 
 class SimulatedClock:
     """The cycle counter tied to nothing, but tied consistently.
@@ -740,14 +731,13 @@ class SimulatedClock:
 
     def probe(self, rounds=16):
         from ..clock import Clock
-        return Clock.probe(self, rounds=rounds)
-
+        return Clock.probe(cast(Clock, self), rounds=rounds)
     def sync(self, seconds=2.0, rounds=8, reference='utc', ntp_server=None):
         from ..clock import Clock, NTP_SERVER
         # Its cycles come off this machine's clock, so against UTC it is
         # this machine's error plus its own 12 ppm - which is the honest
         # answer, not a bug.
-        return Clock.sync(self, seconds=seconds, rounds=rounds,
+        return Clock.sync(cast(Clock, self), seconds=seconds, rounds=rounds,
                           reference=reference,
                           ntp_server=ntp_server or NTP_SERVER)
 

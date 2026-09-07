@@ -9,6 +9,8 @@ import time
 from ..errors import RigError
 from ..motor import BENCH_MOTOR, Motor
 from .values import DCBUS_V, NOMINAL
+from typing import Callable, Optional
+from typing import Any
 
 
 def _rotor_locked(method):
@@ -170,7 +172,7 @@ class SimulatedDrive:
         #: Whether the bridge is actually switching, asked of whatever
         #: owns the gates. None until the board wires it, and then the
         #: drive's own mode stands in - a drive with no stage behind it.
-        self._switching = None
+        self._switching: Optional[Callable[[], Any]] = None
         #: What the thermal envelope is scaling the clamp by, 1 to 0.
         self._derate = 1.0
         self._omega_hat = 0.0

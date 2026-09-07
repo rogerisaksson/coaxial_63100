@@ -352,6 +352,11 @@ class Identifier:
                    if ONLINE[k])
 
     # -- the shadow ---------------------------------------------------
+    def _shadow(self):
+        """The shadow's temperatures and configuration, once seated."""
+        if self.shadow_t is None or self.shadow_cfg is None:
+            raise ValueError('the shadow is not seated - no sample yet')
+        return self.shadow_t, self.shadow_cfg
 
     def _reseat(self, temps, ntc, base, power, speed_rpm, seen):
         self.shadow_t = dict(temps)
@@ -390,7 +395,8 @@ class Identifier:
             self.seat_reading[node] = reading
 
     def _propagate(self, base, power, speed_rpm, dt):
-        t, cfg, ambient = self.shadow_t, self.shadow_cfg, self.shadow_ambient
+        t, cfg = self._shadow()
+        ambient = self.shadow_ambient
         f0 = rates(t, cfg, power, speed_rpm, ambient)
         for k in range(PARAMS):
             sk = self.s[k]
@@ -533,9 +539,10 @@ class Identifier:
             still = stirred < STILL_GAIN * self.noise_k
             moved, judged, worst = False, False, 0.0
             channels = [('ntc', self.shadow_ntc, list(self.s_ntc))]
+            shadow_t, shadow_cfg = self._shadow()
             for node in DIES:
-                over = power.get(node, 0.0) * self.shadow_cfg['rth_die'].get(node, 0.0)
-                channels.append((node, self.shadow_t[node] + over,
+                over = power.get(node, 0.0) * shadow_cfg['rth_die'].get(node, 0.0)
+                channels.append((node, shadow_t[node] + over,
                                  [self.s[k][node] for k in range(PARAMS)]))
             for name, predicted, h in channels:
                 reading = seen.get(name)

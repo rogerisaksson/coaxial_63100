@@ -33,10 +33,16 @@ from .protocol import BROADCAST
 from .system import System
 from . import broker
 from .transport import Transport
+from typing import Any
 
 
 class Board:
     """One unit on one transport. Every method raises rather than reporting."""
+
+    #: The rig that opened this board, set by `Coaxial63100.open()` -
+    #: `observer.autodetect` drives commissioning steps that are the
+    #: rig's, and a subsystem only ever holds the board.
+    rig: Any = None
 
     def __init__(self, transport, unit=1):
         self.transport = transport
@@ -134,9 +140,9 @@ class Board:
                 return self.version_info
             except (NoReplyError, CrcError, FrameError) as exc:
                 last = exc
+        if last is None:                   # tries is at least one
+            raise NoReplyError('the board never answered')
         raise last
-
-
 # Protocol major -> the client class that speaks it. THIS is the lookup: a
 # firmware that bumps to major 2 gets a Board subclass on a new line here, and
 # every call site stays as it is. Nothing keys off the firmware version, because

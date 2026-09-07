@@ -17,6 +17,10 @@ class Subsystem:
     def board(self):
         return self._board
 
+    def _op(self, op, payload=b'', **kwargs):
+        """One of this subsystem's ops on the wire - each subsystem's own
+        function code and framing."""
+        raise NotImplementedError
     def __repr__(self):
         """Names itself and its unit. NO I/O - a repr that talks to the
         board raises from inside a debugger, which is where it is read."""

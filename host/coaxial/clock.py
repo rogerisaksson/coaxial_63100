@@ -217,8 +217,9 @@ class Clock(Subsystem):
             trip = t4 - t1
             if best is None or trip < best[2]:
                 best = (got['now'], (t1 + t4) / 2.0, trip)
+        if best is None:
+            raise RigError('probe() needs at least one round')
         return {'cycles': best[0], 'host': best[1], 'round_trip': best[2]}
-
     def sync(self, seconds=2.0, rounds=8, reference='utc',
              ntp_server=NTP_SERVER):
         """Measure where the counter is and how fast it actually runs.
@@ -248,8 +249,9 @@ class Clock(Subsystem):
                 got = self.read_latch()
                 if best is None or width < best[2]:
                     best = (got['latched'], host, width)
+            if best is None:
+                raise RigError('sync() needs at least one round')
             return best
-
         nominal = self.read_latch()['sysclk_hz']
         step = WRAP / nominal / 2.0                  # 4.52 s at 475 MHz
         note = ''

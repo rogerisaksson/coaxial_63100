@@ -17,6 +17,7 @@ import multiprocessing
 import os
 
 from . import ascii3d
+from .errors import RigError
 
 #: The model, set once per worker. Sending 200,000 floats down a pipe every
 #: frame would cost more than the drawing.
@@ -67,6 +68,11 @@ class Farm:
             self.pool.join()
             self.pool = None
 
+    def _live(self):
+        """The pool, while there is one: a closed farm renders nothing."""
+        if self.pool is None:
+            raise RigError('the farm is closed')
+        return self.pool
     def __enter__(self):
         return self
 
@@ -90,7 +96,7 @@ class Farm:
                          lamp, cull, width, cell_rows, supersample, ramp,
                          invert))
 
-        return '\n'.join(self.pool.map(_band, jobs))
+        return '\n'.join(self._live().map(_band, jobs))
 
 
 def _split(height, cell_rows, workers):

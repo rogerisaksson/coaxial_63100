@@ -36,10 +36,13 @@ class _Mode:
         self.poles = int(p['motor_pole_pairs'] or 1)
         self._params = p
 
+    def _start(self):
+        """What the mode does on the way in; each verb's own."""
+        raise NotImplementedError
+
     def __enter__(self):
         self._start()
         return self
-
     def __exit__(self, *exc):
         self.drive.off()
 

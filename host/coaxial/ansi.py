@@ -28,13 +28,13 @@ def utf8_stdout():
     says colour is added at the edge.
     """
     import sys
-
+    reconfigure = getattr(sys.stdout, 'reconfigure', None)
+    if reconfigure is None:                # not a reconfigurable stream
+        return
     try:
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-    except (AttributeError, ValueError):   # not a reconfigurable stream
+        reconfigure(encoding='utf-8', errors='replace')
+    except ValueError:
         pass
-
-
 RESET = '\033[0m'
 
 #: xterm-256 greyscale, black to white. 24 steps, and the ramp characters ride

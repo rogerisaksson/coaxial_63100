@@ -19,6 +19,7 @@ import multiprocessing
 import os
 
 from . import engine
+from .errors import RigError
 
 #: The solids and the art, set once per worker: 50,000 floats down a
 #: pipe every frame would cost more than the drawing.
@@ -36,7 +37,7 @@ def _load(solids, art):
     _ART = art
 
 
-def _band(job):
+def _band(job) -> tuple:
     """One strip: 2x2 raster, fold to cells, shade - all of a cell's
     work that needs no neighbour."""
     which, m, cam, beam, sun_min, band, shading = job
@@ -128,6 +129,11 @@ class Crew:
             self.pool.join()
             self.pool = None
 
+    def _live(self):
+        """The pool, while there is one: a closed crew renders nothing."""
+        if self.pool is None:
+            raise RigError('the crew is closed')
+        return self.pool
     def __enter__(self):
         return self
 
@@ -146,7 +152,7 @@ class Crew:
                 for band in split(cam['height'], self.workers)]
         depth, top, sun, coverage = [], bytearray(), bytearray(), []
         quads = bytearray()
-        for d, t, s, c, q in self.pool.map(_band, jobs):
+        for d, t, s, c, q in self._live().map(_band, jobs):
             depth += d
             top += t
             sun += s
@@ -163,7 +169,7 @@ class Crew:
                 for band in split(cam['height'], self.workers)]
         depth, coverage, quads, classes = [], [], bytearray(), bytearray()
         levels, bare, seed = [], [], []
-        for d, c, q, k, lv, b, s in self.pool.map(_band, jobs):
+        for d, c, q, k, lv, b, s in self._live().map(_band, jobs):
             depth += d
             coverage += c
             quads += q

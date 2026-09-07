@@ -145,8 +145,9 @@ def build(records, fields, times=None, before=None):
     stamps = list(times) if times is not None else [None] * len(records)
     gaps = [None] * len(records)
     for i in range(len(records) - 1):
-        if stamps[i] is not None and stamps[i + 1] is not None:
-            gaps[i] = stamps[i + 1] - stamps[i]
+        here, following = stamps[i], stamps[i + 1]
+        if here is not None and following is not None:
+            gaps[i] = following - here
     if len(records) > 1:
         gaps[-1] = gaps[-2]
     elif before is not None and stamps[0] is not None:

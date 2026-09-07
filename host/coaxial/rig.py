@@ -414,7 +414,7 @@ class Coaxial63100(Acquisition):
         if self.session is not None:
             self.session.close()
         self.session = self._board = None
-        self.__dict__.pop('gates', None)   # back to a Later, reopenable
+        vars(self).pop('gates', None)      # back to a Later, reopenable
 
     def __enter__(self):
         return self.open()
@@ -1131,7 +1131,7 @@ class Coaxial63100(Acquisition):
         from its own place in it.
         """
         wire = getattr(self.board, 'transport', None)
-        if not stride or not hasattr(wire, 'stream'):
+        if not stride or wire is None or not hasattr(wire, 'stream'):
             return None
         # This session's unit, so a segment with several nodes fills
         # the ring from the one this rig configured.
@@ -1338,8 +1338,10 @@ class Coaxial63100(Acquisition):
                 # record capture - while the docstring said it drained what
                 # the board had. `drain()` takes what is queued and does not
                 # wait, so this still returns the moment the queue is dry.
-                for more in self._reader.drain():
-                    out.extend(more)
+                reader = self._reader
+                if reader is not None:
+                    for more in reader.drain():
+                        out.extend(more)
                 break
             if len(out) >= count:
                 break
@@ -1477,8 +1479,9 @@ class Coaxial63100(Acquisition):
             return records
 
         stamps = None
-        if self.sync is not None:
-            stamps = [self.sync.to_host(c) for c in self._unwrapped(records)]
+        sync = self.sync
+        if sync is not None:
+            stamps = [sync.to_host(c) for c in self._unwrapped(records, sync)]
             for record, when in zip(records, stamps):
                 record['time'] = when
 
@@ -1487,7 +1490,7 @@ class Coaxial63100(Acquisition):
                                                       else None)
         return build(records, fields, stamps, before)
 
-    def _unwrapped(self, records):
+    def _unwrapped(self, records, sync):
         """The records' stamps as monotonic cycle counts, across blocks.
 
         `clock.unwrap` put ONE block's stamps in order, and a block read
@@ -1501,7 +1504,6 @@ class Coaxial63100(Acquisition):
         where the count falls. Blocks still have to arrive more often
         than every nine seconds, which a reader thread does.
         """
-        sync = self.sync
         out = []
         for raw in (r['at'] for r in records):
             if self._last_raw is None:

@@ -14,6 +14,7 @@ from . import protocol
 from .gates import GateControl
 from .subsystem import Subsystem
 from .wire import Reader
+from typing import Any
 
 #: Bit positions in the state reply's first byte, in order.
 FLAGS = ('pwm_ready', 'pwm_enabled', 'fault', 'sync_ready', 'sync_armed',
@@ -93,7 +94,8 @@ class GateDrivers(Subsystem, GateControl):
         """
         r = Reader(self._op(OP_STATE))
         flags = r.u8()
-        out = {name: bool(flags >> i & 1) for i, name in enumerate(FLAGS)}
+        out: dict[str, Any] = {name: bool(flags >> i & 1)
+                               for i, name in enumerate(FLAGS)}
         out['period'] = r.u16()
         out['deadtime'] = r.u8()
         out['duty'] = tuple(r.u16() for _ in range(PHASES))

@@ -878,19 +878,19 @@ def _shadowmap(m, size=56, extent=1.3):
 _CASTERS = None
 
 
-def _casters(orientation):
+def _casters(orientation) -> tuple:
     """The shadow pass's own solid: the same STL, coarser still. The
     mesh cache keys on the file's mtime, so a fresh export replaces
     both solids by itself."""
     global _CASTERS
-    if _CASTERS is None:
+    casters = _CASTERS
+    if casters is None:
         try:
-            _CASTERS = _decimated(orientation.MODEL, 10)
+            casters = _decimated(orientation.MODEL, 10)
         except (OSError, ValueError):
-            _CASTERS = orientation.facets(steps=20, relief=1.5)
-    return _CASTERS
-
-
+            casters = orientation.facets(steps=20, relief=1.5)
+        _CASTERS = casters
+    return casters
 #: The depth ramp: class = PIVOT + SLOPE * view-z / reach. Anchored on
 #: the exporter's cube - deepest visible face '.', near faces ':' -
 #: and fitted from there by tools/lightfit.py.
@@ -1300,9 +1300,9 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             # the tone is blended from - so the lamp, the key and the
             # feather show in the dots as well as the hue. Here it is the
             # depth alone, which is all a mono render has.
-            grain = seed[at] if seed is not None else 0.0
-            grid[py][px] = _mono(
-                levels[at] if levels is not None else float(cls), grain)
+            hashed = seed[at] if seed is not None else 0.0
+            level = levels[at] if levels is not None else float(cls)
+            grid[py][px] = _mono(level, hashed)
             if not colour:
                 continue
             nx = (px + 0.5) / width - spot_x
@@ -1310,7 +1310,7 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             # on the rim. Linear-in-d2 ended at its steepest - a
             # terminator ring drawn across the board.
             pool = 1.0 - (nx * nx + ny * ny) / rr
-            t = (levels[at] - lo) / span - DUSK
+            t = (level - lo) / span - DUSK
             if pool > 0.0:
                 t += SPOT * pool * pool
             # Relief is the SECOND difference of bare geometry, joined
@@ -1333,11 +1333,12 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             hot = hot / (hot + (1.0 - t) ** EDGE)
             grain = GRAIN_DOT if cls == 1 else GRAIN_COLON
             heat = (hot * steps + RELIEF_CAP * steps * rel
-                    + grain * (seed[at] - 0.5))
+                    + grain * (hashed - 0.5))
             # The key light: central differences of bare geometry where
             # both neighbours are covered, else the face-on rest, so a
             # silhouette cell neither flares nor drops.
-            if key is not None:
+            if (key is not None and lamp is not None and colf is not None
+                    and rowf is not None and distance is not None):
                 lit = KEY_REST
                 if (0 < px < width - 1 and 0 < py < height - 1
                         and classes[at - 1] and classes[at + 1]
@@ -1399,7 +1400,7 @@ def _slab_top(pos):
         counts[key] = counts.get(key, 0) + 1
     if not counts:
         return 0.0
-    mode = max(counts, key=counts.get)
+    mode = max(counts, key=lambda k: counts[k])
     floor = 0.6 * counts[mode]
     higher = [z for z, n in counts.items()
               if n >= floor and z - mode >= 0.02]
