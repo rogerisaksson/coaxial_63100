@@ -156,7 +156,7 @@ Six firmware defects and four hardware hypotheses; none of the latter
 survived a measurement.
 
 | Symptom | Cause |
-|---|---|
+| --- | --- |
 | chip select never moved | configured before `HAL_SPI_DeInit`, which runs the MSP and hands the pin back |
 | every read `FF FF FF FF` | CS released between header and cargo, the part restarted the message; also CubeMX's prescaler 32 = 5.94 MBit/s against the part's 3 MHz |
 | every read after a reset refused | the advertisement is 276 bytes, the buffer was 64 |
@@ -258,7 +258,7 @@ record's and the currents are the rating.
   1.00. Kept because it is what condemned the shape:
 
   | lookahead | from cold | first backs off |
-  |---|---|---|
+  | --- | --- | --- |
   | 0 ms | 1.00 | 1.04 s at 110.2 C |
   | 100 ms | 1.00 | 0.94 s at 101.9 C |
   | 250 ms | 1.00 | 0.78 s at 88.5 C |
@@ -312,7 +312,7 @@ happened between two polls.
 * Three things were wrong with it, and all three had to go:
   - the envelope ran once per gap, not once per step;
   - `STEP_S` was 1.0 s, chosen as a fifth of the fastest node's constant
-    - the right rule for integrating and the wrong one for acting, since
+    + the right rule for integrating and the wrong one for acting, since
     the ramp is 300 ms wide;
   - the drive was sampled ONCE for the gap, so the model went on
     integrating the pre-throttle current after the clamp had closed.
@@ -327,7 +327,7 @@ happened between two polls.
   looked:
 
   | step | first sees the band at |
-  |---|---|
+  | --- | --- |
   | 100 ms | driver 81 C, clamp still 1.00 |
   | 250 ms | driver 97 C, clamp 0.65 |
   | 500 ms | driver 99 C, clamp 0.61 |
@@ -368,7 +368,7 @@ change what we thought.
 evidence about `to_board`, pulling two ways:
 
 | evidence | says about the leg's spreading resistance |
-|---|---|
+| --- | --- |
 | camera, one bridge zone at 15.2 K/W lumped, tripled per leg | 45.6 K/W |
 | the NTC's own rise, if it is to sit below its source | **above 48 K/W** |
 | the datasheet, whole junction-to-air on a lesser board | **well under 25.9 K/W** |
@@ -394,7 +394,7 @@ authority on where things are the way the parts list is on what is
 fitted. NTC1 sits at (99.62, 79.83) mm; every distance below is to it.
 
 | part | mm | what the thermistor sees of it |
-|---|---|---|
+| --- | --- | --- |
 | U1V, the V gate driver | **8.2** | 0.50 |
 | Q2V, a V half-bridge FET | 15.1 | 0.33 |
 | Q1V, the other | 17.7 | 0.28 |
@@ -456,7 +456,7 @@ kelvin on the board.
 * What it does:
 
   | rise | K/W off the board | board temperature | needs, flat | needs, now |
-  |---|---|---|---|---|
+  | --- | --- | --- | --- | --- |
   | 10 K | 8.33 *(the calibration point)* | 30 C | 1.20 W | 1.20 W |
   | 20 K | 7.30 | 40 C | 2.40 W | 2.74 W |
   | 40 K | 6.28 | 60 C | 4.80 W | 6.37 W |
@@ -552,7 +552,7 @@ response of thermal circuits. `thermal.c` has said it since the campaign:
   `test_thermal_core.py`:
 
   | driver node capacity | soak at 100 A | burst to the ceiling | throttle first acts |
-  |---|---|---|---|
+  | --- | --- | --- | --- |
   | 0.1167 J/K *(on record)* | 12.25 J | **0.67 s** | 0.40 s |
   | 0.0389 J/K *(x gamma)* | 4.08 J | **0.22 s** | **0.00 s** |
 
@@ -617,7 +617,7 @@ the NTC spike ABOVE the switch temperatures.
   0.20 W. Every pair on that curve fits the camera exactly:
 
   | to_board | coupling | driver rise at fit | NTC - driver at fit | NTC when a driver is at 100 C over a 45 C board |
-  |---|---|---|---|---|
+  | --- | --- | --- | --- | --- |
   | 45.6 K/W *(current)* | 1.053 | 9.1 K | **+6.5 K** | 108.9 C (+9 K) |
   | 60 | 0.800 | 12.0 K | +3.6 K | 95.0 C (-5 K) |
   | 78 | 0.615 | 15.6 K | 0.0 K | 84.8 C (-15 K) |
@@ -1887,6 +1887,18 @@ looking at the estimate alone.
   the thermal stand-in's board node. Rasterised before landing: plain,
   colour at 61 C and 380 G, and the weak case at 12 G with the tube red
   and the face's needle gone.
+
+* **Every markdown file reads clean under the editor's own linter**
+  (2026-09-07, "en massa markdown-lintfel"): markdownlint 0.41 over the
+  ten files, with the tree's conventions in `.markdownlint.json` - 80
+  columns of prose, tables and code exempt, one marker per list level.
+  279 findings, 232 of them the new MD060: every table's delimiter row
+  was `|---|---|` under rows spaced `| a | b |`, and the rule reads that
+  as two styles in one table. Fixed by the linter's own fixer, with the
+  blank lines around headings and lists; by hand, the PR-description
+  skill's prose rewrapped and the host README's indented code blocks
+  fenced like the rest of the tree's. The Python linter tried first
+  lacks the table rules, which is why the first pass missed them.
 
 ## The renderers
 

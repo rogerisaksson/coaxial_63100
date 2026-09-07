@@ -99,7 +99,7 @@ board_chat -Ask "vad sitter på kortet?"    # the model, off the same wire
 ```
 
 | Read | Before |
-|---|---|
+| --- | --- |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | touching the source layout |
 | [docs/PROTOCOL.md](docs/PROTOCOL.md) | changing anything on the wire |
 | [docs/HARDWARE.md](docs/HARDWARE.md) | interpreting any measurement |
@@ -413,7 +413,7 @@ the ollama daemon (docs/MODELS.md). **Reuse a loaded model** - check
 `ollama ps` first: two models is two copies of weights on a 16 GB card.
 
 | Question | Who answers |
-|---|---|
+| --- | --- |
 | What does the board read now? Is the AFE on? Temperature, DC link, frame counters? | **the local model** — offer the command, then stop |
 | Is this channel odd? What does `self_test` say? | **the local model**, then read FINDINGS before investigating |
 | Does it still build/flash/pass? | **the local model** — `dbg -q "run the test suites, then build and flash, tell me if anything failed"`; the tools report parsed tallies, not summaries |
@@ -426,7 +426,7 @@ skip the model: `run_tests.py` and `build_and_flash.py` print a parsed tally
 and a real exit code in four lines.
 
 | The answer is for | Do |
-|---|---|
+| --- | --- |
 | the user, who asked | the local model — free, at the bench |
 | you, mid-change | run the script yourself |
 | nobody yet (exploring) | neither — read FINDINGS first |
@@ -479,7 +479,7 @@ been read for the fault.** The BNO08X bring-up produced six firmware defects
 and four hardware hypotheses; none of the latter survived a measurement.
 
 | Symptom | Actual cause |
-|---|---|
+| --- | --- |
 | chip select never moved | configured before `HAL_SPI_DeInit`, which runs the MSP and hands the pin back |
 | every read came back `FF FF FF FF` | CS released between header and cargo; the part restarted the message |
 | every read after a reset refused | the advertisement is 276 bytes, the buffer was 64 |

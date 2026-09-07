@@ -52,7 +52,7 @@ Three serial ports, one link at a time (`comms/src/dev_uart.c`,
 `link.c`):
 
 | dev | UART | Where | Baud |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 0 | USART3, PB10/PB11 | the debug probe's virtual COM port | 115 200, fixed |
 | 1 | USART2 | RS485 through a THVD1450 | `link_baud` from the calibration record |
 | 2 | UART5 | RS485 through a THVD1450, termination on PE14 | `link_baud` from the calibration record |
@@ -97,7 +97,7 @@ A malformed request is a Modbus exception, `function | 0x80` and one
 code byte:
 
 | Firmware status | Exception |
-|---|---|
+| --- | --- |
 | `CMD_ERR_UNKNOWN`, no such command | 01 ILLEGAL FUNCTION |
 | `CMD_ERR_LENGTH`, wrong payload length | 03 ILLEGAL DATA VALUE |
 | `CMD_ERR_VALUE`, a field out of range | 03 ILLEGAL DATA VALUE |
@@ -119,7 +119,7 @@ refused. Op 0 of device 7 (TIME) is meant for it.
 Input registers (04):
 
 | Address | Contents |
-|---|---|
+| --- | --- |
 | 0x0000 .. | raw ADC code per table row, in table order |
 | 0x0010 | DC bus, mV |
 | 0x0011 | NTC, centi-degrees C |
@@ -220,7 +220,7 @@ Request: up to 250 bytes. Reply: the same bytes.
 Addressing is `u8 port` as the ASCII letter and `u8 pin`.
 
 | Code | Request | Reply |
-|---|---|---|
+| --- | --- | --- |
 | 0x66 PIN_MODE | `port, pin, u8 mode, u8 pull` | empty |
 | 0x67 PIN_READ | `port, pin` | `u8 level` |
 | 0x68 PIN_WRITE | `port, pin, u8 level` | `u8 level` read back |
@@ -256,7 +256,7 @@ sysclk_hz, hclk_hz, afe_on`.
 Request: `u8 kind [, u8 first]`. The board's own map of itself.
 
 | kind | Reply |
-|---|---|
+| --- | --- |
 | 0 analog | `u8 n`, rows `u8 index, u8 adc_index, u8 channel, str pin, u8 dir, u8 differential, str signal, u8 unit` |
 | 1 digital, drivable | `u8 matching, u8 first, u8 sent`, rows `str pin, u8 dir, str signal` |
 | 2 reserved | the same shape as kind 1, for the pins a fixture may not drive |
@@ -282,7 +282,7 @@ below; this is what they carry.
 BNO085 on SPI2. Ops:
 
 | op | Request | Reply |
-|---|---|---|
+| --- | --- | --- |
 | 0 id | - | `u8 reset_cause, u8 sw_major, u8 sw_minor, u32 sw_part, u32 sw_build, u16 sw_patch` |
 | 1 read | - | `u8 channel, u8 len`, the SHTP cargo as it arrived; len 0 is nothing waiting |
 | 2 feature | `u8 report_id, u32 interval_us` | `u8 took`; 0 disables the report |
@@ -338,7 +338,7 @@ The calibration record, CAL_VERSION 9, in flash bank 2 sector 7 at
 CRC field. Ops:
 
 | op | Request | Reply |
-|---|---|---|
+| --- | --- | --- |
 | 0 get | - | `u8 stored, u16 version, u8 15`, params 0 .. 14 as u32, `u8 10`, per channel `i32 offset, i32 gain_ppm`, `u8 10`, per node `i32 soa_limit_centi`, `u32 soa_throttle_ppm` |
 | 1 set_param | `u8 id, u32 value` | empty; 03 on a bad id |
 | 2 set_channel | `u8 index, i32 offset, i32 gain_ppm` | empty |
@@ -364,7 +364,7 @@ are in HARDWARE.md, "Calibration record".
 ### 4 GATE_DRIVERS, `cmd_gate_drivers.c`
 
 | op | Request | Reply |
-|---|---|---|
+| --- | --- | --- |
 | 0 state | - | below |
 | 1 pwm | `u8 on` | `u8 took`; the only thing that sets MOE, always at zero duty |
 | 2 duty | `u16 x3 ticks [, u32 periods]` | `u8 took`; the count since MINOR 8 |
@@ -406,7 +406,7 @@ Sources: 0 phases, 1 angle, 2 imu, 3 drive.
 ### 6 DAQ, `cmd_daq.c`
 
 | op | Request | Reply |
-|---|---|---|
+| --- | --- | --- |
 | 0 state | - | below |
 | 1 configure | below | `u8 took`; refused while running |
 | 2 start | - | `u8 took` |
@@ -544,7 +544,7 @@ Angles in urad, speeds in mrad/s, currents mA, volts mV; the window's
 means and deviations in micro-units.
 
 | op | Request | Reply |
-|---|---|---|
+| --- | --- | --- |
 | 0 state | - | below |
 | 1 mode | `u8` 0 off, 1 volt, 2 hold, 3 sensorless, 4 polarity | `u8 took` |
 | 2 setpoint | `u8 id, i32 value` | `u8 took` |
@@ -665,7 +665,7 @@ applied. `throttling` and `tripped` cover both.
 MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 
 | MINOR | Change |
-|---|---|
+| --- | --- |
 | 1 | gate op 10 alternate |
 | 2 | device 10 DRIVE; the DC link appended to gate op 0 |
 | 3 | a DAQ record ends with `u16 count`; accumulate 0 closes on the clock - resizes the record, op 5 says the stride |

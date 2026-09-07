@@ -25,7 +25,7 @@ in `terminal/`, for looking at the board rather than remembering a
 filename.
 
 | | |
-|---|---|
+| --- | --- |
 | front page | `host/tools/menu.py` - the turning board and the list. The pick comes back in the exit code (101 + position), because capturing stdout would turn the page's console into a pipe |
 | a view | its own process: `terminal/<name>.ps1` wrapping `host/tools/show_<name>.py`, given `-Port`, `-Simulated`, `-Frames`. SESSION is `host/tools/show_session.py` itself; BOARD CHAT is `show_chat.py`, with `--claude` for ANTHROPIC |
 | leaving a view | 0 (Q) quits the chooser; 64 (ESC, `TO_MENU`) returns to the front page - on the second question the view came from, with it lit; anything else is a failed view, its last lines kept on screen and any key back to the menu |
@@ -35,7 +35,7 @@ filename.
 | `-Frames N` | a view ends after N frames - how the view suite runs each one |
 
 | view | on the menu |
-|---|---|
+| --- | --- |
 | `session` | SESSION - board dashpanel |
 | `imu` | BOARD ATTITUDE - board orientation visualizer |
 | `angle` | SHAFT ANGLE - motor axle rotation position |
@@ -66,7 +66,7 @@ python tools/make_notebooks.py --execute daq_session
 ```
 
 | file | what it walks through |
-|---|---|
+| --- | --- |
 | `daq_session.ipynb` | connect, configure, set the clock, acquire in a loop |
 | `gate_drivers_session.ipynb` | dead time, arm, duty, the gate snapshot, a burst |
 | `shared_session.ipynb` | two sessions on one port, and who else is attached |
@@ -160,7 +160,7 @@ bench's.
 ## Where things are
 
 | | |
-|---|---|
+| --- | --- |
 | `board/` | this hardware, behind `comms/inc/board.h` |
 | `comms/` | the command stack over Modbus RTU |
 | `modbus/` | the protocol. Portable C11, host-tested, no HAL |

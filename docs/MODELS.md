@@ -17,7 +17,7 @@ and `dbg.py -m auto` both use it and pull the tag if it is absent.
 `CATALOGUE` in `capability.py`, resident size at Q4_K_M:
 
 | Tag | GB | Layers | RAM | Note |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | llama3.1:8b | 4.9 | 32 | 8 | small and quick; measured inventing tool arguments |
 | qwen2.5:7b | 4.7 | 28 | 8 | the small one to try when llama3.1 disappoints |
 | gemma4:12b | 7.8 | 48 | 16 | the default on this bench |
@@ -63,7 +63,7 @@ half the weights for about a fifth of the speed.
 a failure it removes:
 
 | Variable | Value | Why |
-|---|---|---|
+| --- | --- | --- |
 | LLAMA_ARG_CACHE_RAM | 0 | llama-server keeps a prompt cache of up to 8 GiB in host memory; every question here starts a fresh conversation. Measured: `prompt_save: saving prompt with length 1446, total state size = 342.623 MiB` |
 | LLAMA_ARG_CTX_CHECKPOINTS | 0 | restoring a 311.575 MiB checkpoint threw `std::bad_alloc` and took the runner with it; capping at 2 was not enough |
 | OLLAMA_MAX_LOADED_MODELS | 1 | two copies of the weights on a 16 GB card: a 500 from the daemon, `cudaMalloc failed` |

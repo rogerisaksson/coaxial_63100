@@ -131,7 +131,7 @@ Three abstract interfaces, each with a real and a simulated
 implementation so a name drifting between them fails at construction:
 
 | Interface | Methods | Real | Simulated |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `Acquisition` (`acquisition.py`) | configure, start, stop, acquire, latest, state | `Coaxial63100` over `board.daq` | `SimulatedDaq` |
 | `PolledSensor` (`sensor.py`) | settled, state, read, write, hold, resume, configuring | `imu.py`, `angle.py`, `thermal_device.py` | `SimulatedImu`, `SimulatedAngle`, `SimulatedThermal` |
 | `GateControl` (`gates.py`) | state, enable, disable, duty, duty_fine, alternate, dead_time, arm, disarm, trigger, bypass_break, clear_fault, reset_worst_gap | `gate_drivers.py` | `SimulatedGateDrivers` |
@@ -319,7 +319,7 @@ Twenty-six suites, 2938 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
-|---|---|---|
+| --- | --- | --- |
 | test_structure.py | 614 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 219 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
@@ -361,7 +361,7 @@ core 0.03, parity 0.13, mcp 0.14, conformance 0.29, bench 5.0, live
 4.6):
 
 | Joins at | Suite |
-|---|---|
+| --- | --- |
 | 10 | test_simulated.py |
 | 12 | test_daq_api.py |
 | 15 | test_modbus_core.py |

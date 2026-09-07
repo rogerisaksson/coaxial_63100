@@ -18,7 +18,7 @@ SPI4's 100 MHz. `DWT->CYCCNT` runs at SYSCLK and wraps every 9.04 s.
 The instruction cache is on, the data cache off.
 
 | Memory | Use |
-|---|---|
+| --- | --- |
 | DTCM 128 KB | `.data`, `.bss`, the 1 KB stack, the 1024 x 16 B log ring |
 | AXI SRAM 512 KB | the `.buffers` NOLOAD section - the 448 KB DAQ ring |
 | Flash bank 2 sector 7, 0x081E0000 | the calibration record, magic 'CX63', CAL_VERSION 15, padded to a 32-byte flash word |
@@ -30,7 +30,7 @@ and clears `PCSEL` first (invariant 6). Differential channels come back
 as offset binary, 32768 = 0 V. The table, `board_adc.c`:
 
 | # | Signal | ADC | Channel | Pin | Mode | Unit |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | 0 | Phase U | ADC3 | IN1 | PC3_C / PC2_C | differential | A |
 | 1 | Phase V | ADC1 | IN3 | PA6 / PA7 | differential | A |
 | 2 | Phase W | ADC2 | IN4 | PC4 / PC5 | differential | A |
@@ -107,7 +107,7 @@ measured 2026-08-28 it fell 1.88 K during a run that warmed the board.
 `s_digital` in `board_io.c`, what `0x6D` kinds 1 and 2 answer from:
 
 | Pin | Signal | Direction |
-|---|---|---|
+| --- | --- | --- |
 | PB2 | AFE_ON | out |
 | PE15 | nFAULT / TIM1_BKIN | in, reserved |
 | PE14 | UART5_TERM, the 120 Ω termination | out |
@@ -136,7 +136,7 @@ reset.
 probed on request, not stored.
 
 | Name | What | Where | Power |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | STM32H753VIT6 | the MCU, 475 MHz | U3 | - |
 | BNO085 | 9-axis IMU, SHTP | SPI2, U13 | AFE_ON |
 | A1335 | magnetic angle sensor | SPI4, U14 | AFE_ON |
@@ -246,7 +246,7 @@ traced 2026-08-26; a rig overwrites them through `0x6E` device 3.
 Parameter ids, units and defaults:
 
 | id | Parameter | Default |
-|---|---|---|
+| --- | --- | --- |
 | 0 | vref_uv | 3 300 000 (U2 REF2033) |
 | 1 | shunt_uohm | 3 500 (RU1 ǁ RU2) |
 | 2 | amp_gain_ppm | 4 545 455 (THS4551, 1.5 k / 330) |
@@ -342,7 +342,7 @@ The camera states the fit came from (NTC, then the rises of the
 bridge, the MCU, the regulators, the AFE):
 
 | State | NTC C | bridge | MCU | regulators | AFE |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | passive | 30.0 | +15.0 | +8.0 | +1.0 | +1.0 |
 | AFE on | 31.1 | +14.2 | +8.1 | - | +5.9 |
 | traffic | 31.4 | +13.6 | +7.6 | - | +5.9 |
