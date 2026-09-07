@@ -310,11 +310,11 @@ happened between two polls.
   trip. Measured: 20.0 C on one poll, 158.6 C on the next, derate 1.00
   then 0.00.
 * Three things were wrong with it, and all three had to go:
-  * the envelope ran once per gap, not once per step;
-  * `STEP_S` was 1.0 s, chosen as a fifth of the fastest node's constant
+  - the envelope ran once per gap, not once per step;
+  - `STEP_S` was 1.0 s, chosen as a fifth of the fastest node's constant
     - the right rule for integrating and the wrong one for acting, since
     the ramp is 300 ms wide;
-  * the drive was sampled ONCE for the gap, so the model went on
+  - the drive was sampled ONCE for the gap, so the model went on
     integrating the pre-throttle current after the clamp had closed.
   Fixed, the same 90 A hold gives: clamp 1.00, then 0.52 at 47 A with the
   driver node at 116.7 C, settling at **about 30 A with the phase node at
@@ -338,6 +338,7 @@ happened between two polls.
   slices, stepping and evaluating on each, capped at `THERMAL_CATCHUP_MS`
   = 2000. Past that the power sample is too stale to integrate: a model
   fed one reading for two seconds is inventing the heat it did not see.
+
 ### The datasheet was in the tree the whole time, 2026-09-04
 
 Three numbers said to need a bench day are in
@@ -712,7 +713,7 @@ record's own constants, no measurement.
   48 V with no phase current is 3.67 W and settles the board at 50.6 C.
 * **The linear extrapolation is pessimistic and this is where the 70-80
   came from.** Natural convection has h proportional to dT^0.25, so the
-  resistance falls as it heats: solving dT = P * 8.33 * (10/dT)^0.25
+  resistance falls as it heats: solving `dT = P * 8.33 * (10/dT)^0.25`
   gives dT = (14.8 P)^0.8, which is **56 C at 6 W and 62 C at 7.2 W**,
   not 70 and 80. Radiation is not small at those temperatures either -
   about 0.012 m^2 of board at 60 C into a 20 C room is roughly 3 W at
@@ -2480,7 +2481,6 @@ looking at the estimate alone.
 * **Not fixed:** `_Radii` sizes the can with `min(width * 2, height * 4)`,
   which assumes a square dot. Only bites where a cell is LOWER than two
   by one, and then the can can overflow its box vertically.
-
 
 * **`coaxial/braille.py` holds the block and the vocabulary.** Glyphs
   picked by hand at call sites (`chr(0x2824)` for a run, `chr(0x2847)`

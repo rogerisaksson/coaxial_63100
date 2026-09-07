@@ -53,12 +53,12 @@ unpowered; `tools/commission.py` is the procedure for a motor on the bench.
 
 **A hold's length was the link's; since MINOR 8 it can be the board's.** A
 compare write lands in 15 ms (~800 cycles minimum); a 100 ms hold is 93-108 ms
-at the FETs - FINDINGS has the numbers. Op 2 now takes an optional period
-count and the update ISR zeroes the compares at zero: 500 periods is
-10.000 ms exactly, built 2026-09-02. Since proto 2.1 the board CAN alternate per period: op 10 takes two
-compare triples and the update ISR swaps them every overflow - current back
-and forth through the phase pair at 25 kHz; proven 2026-08-30 with twelve
-mid-run state reads showing both triples and nothing else, and both
+at the FETs - FINDINGS has the numbers. Op 2 now takes an optional period count
+and the update ISR zeroes the compares at zero: 500 periods is 10.000 ms
+exactly, built 2026-09-02. Since proto 2.1 the board CAN alternate per period:
+op 10 takes two compare triples and the update ISR swaps them every overflow -
+current back and forth through the phase pair at 25 kHz; proven 2026-08-30 with
+twelve mid-run state reads showing both triples and nothing else, and both
 half-bridges on the scope.
 
 The gate drivers and FETs are fitted (2EDL8034 x3, IAUCN10S7N021 -
@@ -83,16 +83,15 @@ on both legs. `/node` lists, `/node RL 2` or `/node right knee` selects.
 refused, the prompt goes red.
 
 `0x6D channels` reports every analog channel and digital pin with direction;
-kind 4 is the parts list - name, role, place, **what powers it**, answered.
-A pin table in a document or prompt is a second answer to "what is PB10":
-add a pin to `board/src/board_io.c` and everything above it follows.
-**Problem:** AFE_ON powers the BNO08X too; off, the part answers reads,
-resets and advertises normally while acting on no write - every symptom
-pointed at SPI and a day was spent there before the supply was checked.
-**Fix:** `power` is a parts-list column, and `Board_ImuInit` refuses while
-PB2 is low. Adding hardware is one row in `s_parts` (+ pins in `s_digital`,
-+ a probe case so `state` is measured); nothing else, or it goes stale.
-Check it landed:
+kind 4 is the parts list - name, role, place, **what powers it**, answered. A
+pin table in a document or prompt is a second answer to "what is PB10": add a
+pin to `board/src/board_io.c` and everything above it follows. **Problem:**
+AFE_ON powers the BNO08X too; off, the part answers reads, resets and
+advertises normally while acting on no write - every symptom pointed at SPI and
+a day was spent there before the supply was checked. **Fix:** `power` is a
+parts-list column, and `Board_ImuInit` refuses while PB2 is low. Adding
+hardware is one row in `s_parts` (+ pins in `s_digital`, + a probe case so
+`state` is measured); nothing else, or it goes stale. Check it landed:
 
 ```powershell
 python -c "import coaxial; [print(p) for p in coaxial.connect([1])[0].system.channel_map()['parts']]"
@@ -196,34 +195,33 @@ FINDINGS has both; a cooldown tells a cold room from a good air path and
 nothing else does.
 
 Subsystems hang off it by name - `device.daq`, `.imu`, `.angle`, `.thermal`,
-`.gates`, `.drive` - and `device.motion` is the drive as three verbs:
-`stepper` (HOLD as a microstepper), `servo` (position over the A1335,
-corrected between moves - a per-pass loop at link rate samples the
-load-angle ring aliased and pumps it), `velocity` (sensorless under
-`coaxial.loop`). Notebooks: `position_servo`, `position_and_sensorless`,
-and the four `app_*` missions. `notebook_examples/daq_session.ipynb` is the flow, executed;
+`.gates`, `.drive` - and `device.motion` is the drive as three verbs: `stepper`
+(HOLD as a microstepper), `servo` (position over the A1335, corrected between
+moves - a per-pass loop at link rate samples the load-angle ring aliased and
+pumps it), `velocity` (sensorless under `coaxial.loop`). Notebooks:
+`position_servo`, `position_and_sensorless`, and the four `app_*` missions.
+`notebook_examples/daq_session.ipynb` is the flow, executed;
 `notebook_examples/propeller_sweep.ipynb` is the 5230SL and its propeller from
 rest to 6717 rpm and back, checked against Hobbywing's own thrust stand;
-`thermal_identification.ipynb` walks the stand-in's tour on model time
-and plots the margin, the room and the air path against the truth;
-`speed_loop.ipynb` closes `coaxial.loop`'s chain over the model and
-identifies it back out; `foc_montecarlo.ipynb` Monte Carlos the firmware's
-own control law over the 23-63 V link sweep (`tools/montecarlo.py`, one
-process per core) and puts a number on the sensorless floor;
-`auto_tune.ipynb` is the bench-day procedure - commission, identify,
-search a robust tune for exactly that machine, write the record, and the
-drive verifies itself.
+`thermal_identification.ipynb` walks the stand-in's tour on model time and
+plots the margin, the room and the air path against the truth;
+`speed_loop.ipynb` closes `coaxial.loop`'s chain over the model and identifies
+it back out; `foc_montecarlo.ipynb` Monte Carlos the firmware's own control law
+over the 23-63 V link sweep (`tools/montecarlo.py`, one process per core) and
+puts a number on the sensorless floor; `auto_tune.ipynb` is the bench-day
+procedure - commission, identify, search a robust tune for exactly that
+machine, write the record, and the drive verifies itself.
 
-**`daq.catalogue()` is what the board can record**, each row saying its
-kind and whether `configure()` may ask for it - since MINOR 7 the sensor
-fields (orientation, acceleration, rotation rate, magnetic field, shaft
-angle) ride any software-clocked record as four-word SNAPSHOTS beside the
-sums: `configure('phaseU', 'shaft angle')`, and the frame scales them.
-On older firmware the rows are listed and refused with the reason. A `Record` is a `dict` underneath, so `r['NTC']` is
-still the SUM and `r['samples']` still the count; `r.value('NTC')` is one channel's mean and
-`r.sample('NTC')` the struct behind it; `r.samples` is the ARRAY
-and `r.count` the count. `daq.channel_names()` and `daq.columns(values)`
-are the two helpers around it.
+**`daq.catalogue()` is what the board can record**, each row saying its kind
+and whether `configure()` may ask for it - since MINOR 7 the sensor fields
+(orientation, acceleration, rotation rate, magnetic field, shaft angle) ride
+any software-clocked record as four-word SNAPSHOTS beside the sums:
+`configure('phaseU', 'shaft angle')`, and the frame scales them. On older
+firmware the rows are listed and refused with the reason. A `Record` is a
+`dict` underneath, so `r['NTC']` is still the SUM and `r['samples']` still the
+count; `r.value('NTC')` is one channel's mean and `r.sample('NTC')` the struct
+behind it; `r.samples` is the ARRAY and `r.count` the count.
+`daq.channel_names()` and `daq.columns(values)` are the two helpers around it.
 
 **`start()` puts a reader thread on the link** and it is the only thing
 that touches the transport while it lives - a `print` in a loop never sits
@@ -258,29 +256,28 @@ measured rather than remembered: `test_structure.py` (614),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (247), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
-`test_ollama_link.py` (96), `test_drive_core.py`
-(81, the control law against a motor model through the host gcc, the Monte
-Carlo's job included), `test_modbus_core.py` (77), `test_sensorless.py`
-(138, the design arithmetic - the power stage's too, and the datasheet
-against the thermal model - the commissioning and the motion verbs,
-dangerous paths included, against the stand-in), `test_mcp.py` (50),
-`test_shtp_core.py` (38), `test_filter_core.py` (42, the anti-alias
-chain against the transfer function it was designed from),
-`test_thermal_core.py` (140, the SOA envelope as the C that will run -
-the derate ramp, the lookahead, the soak joules and the conduction
-split - and the online identification against a ground truth whose
-situation changes, through the host gcc), `test_ollama_render.py` (32), `test_parity.py` (30),
-`test_ollama_board.py` (28), `test_ollama_bus.py` (28), `test_render.py`
-(79, the 3D engine stage by stage against an analytic oracle -
-`render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23), `test_broker.py`
-(33, the shared session and the reply shapes on a scripted port, no board), `test_views.py`
-(194, every view and the front page drawn twice, plus the rotor
-observer's own geometry - no board), `test_ollama_language.py` (12),
-`test_daq_api.py` (75, the acquisition front door against the
-stand-in - naming, reading, the record shape, the buffers),
+`test_ollama_link.py` (96), `test_drive_core.py` (81, the control law against a
+motor model through the host gcc, the Monte Carlo's job included),
+`test_modbus_core.py` (77), `test_sensorless.py` (138, the design arithmetic -
+the power stage's too, and the datasheet against the thermal model - the
+commissioning and the motion verbs, dangerous paths included, against the
+stand-in), `test_mcp.py` (50), `test_shtp_core.py` (38), `test_filter_core.py`
+(42, the anti-alias chain against the transfer function it was designed from),
+`test_thermal_core.py` (140, the SOA envelope as the C that will run - the
+derate ramp, the lookahead, the soak joules and the conduction split - and the
+online identification against a ground truth whose situation changes, through
+the host gcc), `test_ollama_render.py` (32), `test_parity.py` (30),
+`test_ollama_board.py` (28), `test_ollama_bus.py` (28), `test_render.py` (79,
+the 3D engine stage by stage against an analytic oracle -
+`render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23),
+`test_broker.py` (33, the shared session and the reply shapes on a scripted
+port, no board), `test_views.py` (194, every view and the front page drawn
+twice, plus the rotor observer's own geometry - no board),
+`test_ollama_language.py` (12), `test_daq_api.py` (75, the acquisition front
+door against the stand-in - naming, reading, the record shape, the buffers),
 `test_bench.py` (4, the board's loop rates against a recorded baseline).
-Wiring: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system). The
-rules that bind you:
+Wiring: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#the-test-system). The rules
+that bind you:
 
 * **A missing cable is not a failing suite** - every suite opens through
   `open_session()`, which probes and falls back to the stand-in.
@@ -295,8 +292,10 @@ rules that bind you:
   one test from every subject the pick left out, plus the pick's smallest
   group. Sizes from `host/tests/counts.py` - groups run 2 to 77 checks.
 
-      ran 19 of 43 groups: prompt,runner, seed 3440, 51% of checks
-      Total: 984  Passed: 449, Skipped: 535, Failed: 0, (4 of 6 suites ran)
+  ```text
+  ran 19 of 43 groups: prompt,runner, seed 3440, 51% of checks
+  Total: 984  Passed: 449, Skipped: 535, Failed: 0, (4 of 6 suites ran)
+  ```
 
   Why the clamp exists, measured: on the 25 % tier the model's pick put
   `live:all` back and the cheapest run took 398 s, 352 of them that suite.
@@ -446,7 +445,9 @@ command). Ask minimally:
 On *Local model*, hand over the shortest way and **stop** - a click, not a
 retyped command:
 
-    Terminal panel > the v beside + > Board chat
+```text
+Terminal panel > the v beside + > Board chat
+```
 
 (**Ctrl+Shift+B** runs "Ask the board" for one question; only outside VS
 Code is `board_chat -Ask "..."` the answer.) Do not run it, paraphrase it,
@@ -514,7 +515,7 @@ documentation, and is not shortened.
 
 ## Layout
 
-```
+```text
 core/        CubeMX-generated. main.c holds ONLY CubeMX functions, main(),
              the two poll calls the sensors need, and the STO keepalive
              toggle. Keep it that way.
@@ -623,17 +624,17 @@ it before believing anything analog or an IMU that looks present.
 
 ## Tooling traps
 
-- C escape sequences through a Python string inside a bash heredoc get
+* C escape sequences through a Python string inside a bash heredoc get
   mangled: `\r\n` arrives as a real CR+LF. Build the backslash with
   `chr(92)`, or write the code to a file and splice it.
-- `core/src/main.c` is LF-terminated; Python `open(...)` without
+* `core/src/main.c` is LF-terminated; Python `open(...)` without
   `newline=''` converts it to CRLF on write.
-- Long `cat > file <<'EOF'` heredocs get truncated. Split them.
-- Most files here are CRLF. A multi-line `str.replace` pattern written in a
+* Long `cat > file <<'EOF'` heredocs get truncated. Split them.
+* Most files here are CRLF. A multi-line `str.replace` pattern written in a
   heredoc has LF newlines and silently matches nothing - five no-op edits in
   one afternoon, each discovered a test later. Single-line replaces are
   safe; multi-line edits go through the edit tool, and a replace script must
   assert its patterns matched before writing.
-- PowerShell variable names are case-insensitive: `$Asked` and `$asked` are
+* PowerShell variable names are case-insensitive: `$Asked` and `$asked` are
   one variable. A list named `$Asked` beside the `$asked` view overwrote it
   and the chooser opened BOARD CHAT on every start (2026-08-31).

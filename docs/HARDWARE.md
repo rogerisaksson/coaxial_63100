@@ -148,16 +148,15 @@ probed on request, not stored.
 | DC link divider | 49.9k/2.2k, 78.15 V FS | ADC | AFE_ON |
 | USART3 | console or Modbus RTU | PB10/PB11 | - |
 
-From the BOM, the parts behind them: U2 REF2033AIDDCR (reference),
-U5 / U6 THVD1450DGKR (RS485), U7 LDI92-05EN, U8 / U9 MP4541GN-Z
-(bucks), U10 LM66100, U11 NL7SZ97, U12 LM5069MMX-1 (hot swap),
-U16 TLV3492, U1 LDI8119-3.3, U4 TPS3840PL30 (supervisor), OP1
-THS4551IDGKR, OP2 ADA4891-4, Q1 / Q2 IAUCN10S7N021ATMA1 per leg,
-2EDL8034F5BXUMA1 per leg, R113 / R101 / R102 EXB-18V103JX 10 k
-arrays, R119 ERA-3AEB473V 47 k, K1 TLP175A, D22 ECMF02, U / V / W /
-+ / - on AMT0440005TH0000G, RS485 in and out on JST BM02B, USB4115.
-No coaxial cable and no coaxial connector: *coaxial* is where the
-board sits behind the stator, not what it is wired with.
+From the BOM, the parts behind them: U2 REF2033AIDDCR (reference), U5 / U6
+THVD1450DGKR (RS485), U7 LDI92-05EN, U8 / U9 MP4541GN-Z (bucks), U10 LM66100,
+U11 NL7SZ97, U12 LM5069MMX-1 (hot swap), U16 TLV3492, U1 LDI8119-3.3, U4
+TPS3840PL30 (supervisor), OP1 THS4551IDGKR, OP2 ADA4891-4, Q1 / Q2
+IAUCN10S7N021ATMA1 per leg, 2EDL8034F5BXUMA1 per leg, R113 / R101 / R102
+EXB-18V103JX 10 k arrays, R119 ERA-3AEB473V 47 k, K1 TLP175A, D22 ECMF02, U / V
+/ W / + / - on AMT0440005TH0000G, RS485 in and out on JST BM02B, USB4115. No
+coaxial cable and no coaxial connector: *coaxial* is where the board sits
+behind the stator, not what it is wired with.
 
 ## The gate stage
 

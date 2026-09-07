@@ -67,35 +67,32 @@ is still arithmetic. Every item names the file or record it lives in.
 
 ## Still arithmetic
 
-* **The thermal graph's new numbers are derived, none measured**
-  (2026-09-05): the seven patches' areas off the outline, the sheet
-  conductance chosen to reproduce the camera's lumped 15.2 K/W, the
-  sources' edges into their patches, the hot swap's 12 K/W and 0.5 J/K,
-  the motor's three capacities and four paths, the forced-convection
-  gains, the switching overlap's 14 ns, the body diode's 0.85 V, the
-  buck's 85 %. Each has a name in `thermal_defaults` and a place in the
-  record; a camera under load, a switch node on a scope and a
-  thermocouple on a winding are the measurements that would settle
-  them. **The online identification moves two of them** (2026-09-05,
-  `thermal_ident.c`): the face's air path and the laminate's capacity,
-  from the cooldowns' prediction error against the three thermometers,
-  and the room beside them; nothing is saved - every boot starts at the
-  record's margin floor and earns its span (2026-09-06). The sources' spread and the
-  thermistor's share are carried but held - a cooldown puts no power
-  through the legs' edges, so nothing on the board sees them - and a
-  static regressor at idle (the MCU die against the thermistor at
-  rest IS the MCU's edge) is what would free the spread. Still to
-  build of the bench's list: nothing. The stand-in is a hypothetical
-  board with a ground truth in a situation - box, fan, heat sink,
-  stuffy, bench - read through three noisy thermometers and identified
-  by the same identifier (`thermal_ident.py`), nothing kept between
-  runs; the pages switch the situation at
-  random every three to six minutes in simulated mode and show the
-  state on both (THERMAL OBSERVER's SENSE with the truth beside it,
-  ROTOR OBSERVER's foot); the room is the fifth identified quantity
-  and the situations include the bench's rooms (outdoors -20 C,
-  temperate 20, cold -25, toasty 45). What remains is the board:
-  nothing here has run on it yet.
+* **The thermal graph's new numbers are derived, none measured** (2026-09-05):
+  the seven patches' areas off the outline, the sheet conductance chosen to
+  reproduce the camera's lumped 15.2 K/W, the sources' edges into their
+  patches, the hot swap's 12 K/W and 0.5 J/K, the motor's three capacities and
+  four paths, the forced-convection gains, the switching overlap's 14 ns, the
+  body diode's 0.85 V, the buck's 85 %. Each has a name in `thermal_defaults`
+  and a place in the record; a camera under load, a switch node on a scope and
+  a thermocouple on a winding are the measurements that would settle them.
+  **The online identification moves two of them** (2026-09-05,
+  `thermal_ident.c`): the face's air path and the laminate's capacity, from the
+  cooldowns' prediction error against the three thermometers, and the room
+  beside them; nothing is saved - every boot starts at the record's margin
+  floor and earns its span (2026-09-06). The sources' spread and the
+  thermistor's share are carried but held - a cooldown puts no power through
+  the legs' edges, so nothing on the board sees them - and a static regressor
+  at idle (the MCU die against the thermistor at rest IS the MCU's edge) is
+  what would free the spread. Still to build of the bench's list: nothing. The
+  stand-in is a hypothetical board with a ground truth in a situation - box,
+  fan, heat sink, stuffy, bench - read through three noisy thermometers and
+  identified by the same identifier (`thermal_ident.py`), nothing kept between
+  runs; the pages switch the situation at random every three to six minutes in
+  simulated mode and show the state on both (THERMAL OBSERVER's SENSE with the
+  truth beside it, ROTOR OBSERVER's foot); the room is the fifth identified
+  quantity and the situations include the bench's rooms (outdoors -20 C,
+  temperate 20, cold -25, toasty 45). What remains is the board: nothing here
+  has run on it yet.
 * The phase gain (3.5 mΩ x 4.5455) is traced off the schematic and has
   never been spanned; the DC link is the only spanned channel.
 * `Q_RING` = 1.0 in `inverter.py` is assumed; the scope is the answer.

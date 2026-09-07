@@ -9,7 +9,7 @@ is `host/`: the `coaxial` library, the `coaxial_mcp` server, the
 
 ## Firmware layout
 
-```
+```text
 core/        CubeMX. main.c holds the CubeMX functions, main(), the poll
              calls the sensors need and the STO keepalive - nothing else
 board/       this hardware behind comms/inc/board.h: board_adc, board_cal,
@@ -94,7 +94,7 @@ commits the compares at underflow.
 
 ## Host layout
 
-```
+```text
 host/coaxial/           the library
 host/coaxial/simulated/ the stand-in: board, drive, daq, system, values,
                         sensors, power (the thermal stand-in: a
@@ -221,30 +221,28 @@ the reading it belongs to. Below `WEAK_GAUSS` the instrument is drawn
 and the reading is not - a face with no needle on it, which is what
 there is when no magnet is in front of the sensor.
 
-Every level on every page is one instrument - `coaxial/gauges.py`: a
-horizontal gauge one row tall (bipolar with a centre and ticks for the
-meter bridge) and a rank of vertical tubes with labels, drawn by the
-same code as the machine's gutters and floor (`machine._level`,
-`machine._tube`) on a `machine.Frame`. `screen.gauge` delegates to it,
-so the session's boxes, the desk's buffer gauge, the meter bridge's
-bars and the thermal observer's TUBES box all draw the level the motor
-page draws: mercury at dot resolution, the empty scale in the track's
-grey, the colour a margin. The temperature scale every thermometer
-shares (-35 to 130 C) and the two colour bands - margin against a
-ceiling, and the thermistor's cold-to-hot ramp - live there too. Under
-the thermal observer's board one more bar, `evidence_rows`: the span
-the identification has earned, red to yellow to green as it fills,
-alone - its margin, floor, innovation and the doubt's largest term
-are HEADROOM's rows, and MAP under SENSE says what each mark on the
-picture is, off the pick and place's references; on the
-stand-in, reached by `--simulated` or a bench with no cable, a load
-cycle runs under it so there are cooldowns to rise on, and the truth
-tours temperate, cold and toasty, moving on once STABLE has
-stood ten seconds - on the rotor page too, under its own demo. SENSE's `sim` rows say where the truth is: only in
-simulated mode is the thermal situation known. On SENSE's `room` row
-an emoji hint for the estimated room, `room_hint` - shivering under
-5 C, sweating from 35, mild between, and a thermometer thinking while
-the innovation is large - the board's own opinion, not the stand-in's.
+Every level on every page is one instrument - `coaxial/gauges.py`: a horizontal
+gauge one row tall (bipolar with a centre and ticks for the meter bridge) and a
+rank of vertical tubes with labels, drawn by the same code as the machine's
+gutters and floor (`machine._level`, `machine._tube`) on a `machine.Frame`.
+`screen.gauge` delegates to it, so the session's boxes, the desk's buffer
+gauge, the meter bridge's bars and the thermal observer's TUBES box all draw
+the level the motor page draws: mercury at dot resolution, the empty scale in
+the track's grey, the colour a margin. The temperature scale every thermometer
+shares (-35 to 130 C) and the two colour bands - margin against a ceiling, and
+the thermistor's cold-to-hot ramp - live there too. Under the thermal
+observer's board one more bar, `evidence_rows`: the span the identification has
+earned, red to yellow to green as it fills, alone - its margin, floor,
+innovation and the doubt's largest term are HEADROOM's rows, and MAP under
+SENSE says what each mark on the picture is, off the pick and place's
+references; on the stand-in, reached by `--simulated` or a bench with no cable,
+a load cycle runs under it so there are cooldowns to rise on, and the truth
+tours temperate, cold and toasty, moving on once STABLE has stood ten seconds -
+on the rotor page too, under its own demo. SENSE's `sim` rows say where the
+truth is: only in simulated mode is the thermal situation known. On SENSE's
+`room` row an emoji hint for the estimated room, `room_hint` - shivering under
+5 C, sweating from 35, mild between, and a thermometer thinking while the
+innovation is large - the board's own opinion, not the stand-in's.
 
 The rotor observer draws the machine itself - `coaxial/machine.py`, a
 braille cross-section of rotor and stator whose slot and pole counts
@@ -404,7 +402,7 @@ Python 3.10 and 3.12.
 
 ## Build and flash
 
-```
+```text
 cube-cmake --build --preset Debug                        # zero warnings
 STM32_Programmer_CLI -c port=SWD mode=UR -d build/Debug/coaxial_63100.elf -v --start
 python tools/build_and_flash.py                          # --build-only, --flash-only

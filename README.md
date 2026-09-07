@@ -111,17 +111,16 @@ device.close()                           # the port, and the supply as found
 leaves the drive OFF; and `configure('phaseU', 'shaft angle')` rides the
 sensor fields in every record as snapshots beside the sums (MINOR 7).
 
-A record is an object AND the mapping it came from: `r.start_time`,
-`r.dt` and `r.samples` are the shape a script reads, while `r['NTC']` is
-still the SUM the board sent and `r['samples']` still the count that made
-it. `r.samples[n]` is one channel - `.name`, `.unit`, `.raw`, `.count` and
-`.value`, the sum over the count. `r.value('NTC')` asks for one
-channel; `r.channel_name` is the same
-order as a header row. `daq.channel_names()` answers that before the
-first record arrives, and `daq.columns(values)` turns a run of
-records into one array per channel plus `time` and `dt`. `daq.catalogue()` is everything this
-board can put in a record, and `daq.configure()` takes those names in any
-spelling: `configure('phaseU', 'NTC')` or `configure(daq.channels()[:5])`.
+A record is an object AND the mapping it came from: `r.start_time`, `r.dt` and
+`r.samples` are the shape a script reads, while `r['NTC']` is still the SUM the
+board sent and `r['samples']` still the count that made it. `r.samples[n]` is
+one channel - `.name`, `.unit`, `.raw`, `.count` and `.value`, the sum over the
+count. `r.value('NTC')` asks for one channel; `r.channel_name` is the same
+order as a header row. `daq.channel_names()` answers that before the first
+record arrives, and `daq.columns(values)` turns a run of records into one array
+per channel plus `time` and `dt`. `daq.catalogue()` is everything this board
+can put in a record, and `daq.configure()` takes those names in any spelling:
+`configure('phaseU', 'NTC')` or `configure(daq.channels()[:5])`.
 
 **Two buffers, the way a DAQ card has two.** The board's ring fills at the
 sample rate; `start()` also puts a reader thread on the link here, and it
