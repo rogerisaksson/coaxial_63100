@@ -90,7 +90,7 @@ for _ in range(5):
     time.sleep(0.2)
 daq.stop()
 for r in records[:8]:
-    print('%.3f  dt %.4f  %s' % (r.start_time, r.dt,
+    print('%.3f  dt %-7s %s' % (r.start_time, '%.4f' % r.dt if r.dt is not None else 'none',
                                  [(s.name, round(s.value, 1)) for s in r.samples]))
 print('records:', len(records))
 print(daq.state())
