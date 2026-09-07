@@ -113,7 +113,7 @@ def step(rig, params, nanoseconds, skew, seconds, every, legs):
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     p.add_argument('--port', default='COM4')
     p.add_argument('--from', dest='high', type=float, default=46.0)
     p.add_argument('--to', dest='low', type=float, default=26.0)

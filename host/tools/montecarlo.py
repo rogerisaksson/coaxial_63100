@@ -233,7 +233,7 @@ def pool(workers=None, lib=None):
     the third spawn died of commit charge on a machine with no page-file
     headroom. Windows caps a pool at 61."""
     return concurrent.futures.ProcessPoolExecutor(
-        max_workers=workers or min(os.cpu_count(), 61), initializer=_load,
+        max_workers=workers or min(os.cpu_count() or 1, 61), initializer=_load,
         initargs=(lib or library(),))
 
 
@@ -306,7 +306,7 @@ def search(pool, vdcs=VDC_SWEEP, candidates_n=48, draws=16, refine=24, seed=1):
     sc = score(runs)
     jobs = []
     for v in vdcs:
-        top = sc[sc.vdc == v].nsmallest(3, 'robust')
+        top = pd.DataFrame(sc[sc.vdc == v]).nsmallest(3, 'robust')
         for j, (_, row) in enumerate(top.iterrows()):
             box = around({k: row[k] for k in KNOBS})
             for i, c in enumerate(candidates(refine // 3, seed + 7 * j + int(v), box)):
@@ -335,7 +335,7 @@ def verify(pool, best, draws=48, seed=5):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or '').split('\n')[0])
     ap.add_argument('--vdc', type=float, nargs='+', default=[43.0])
     ap.add_argument('--candidates', type=int, default=8)
     ap.add_argument('--draws', type=int, default=4)

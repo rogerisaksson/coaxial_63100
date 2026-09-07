@@ -70,7 +70,10 @@ def luma(rgb):
 
 def rotation(pose):
     got = re.match(r'x(-?\d+)y(-?\d+)z(-?\d+)$', pose)
-    return tuple(int(v) for v in got.groups())
+    if got is None:
+        raise ValueError('a pose is x<deg>y<deg>z<deg>, not %r' % pose)
+    x, y, z = (int(v) for v in got.groups())
+    return x, y, z
 
 
 def png(path):
@@ -407,7 +410,7 @@ def stage_report():
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--fit', action='store_true')
     parser.add_argument('--stage', action='store_true',
                         help='the render through rich at 256 colours and '

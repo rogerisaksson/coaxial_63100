@@ -8,6 +8,10 @@ thing being optimised.
 import sys
 
 import anyio
+import anyio.to_thread
+import anyio.to_thread
+import anyio.to_thread
+import anyio.to_thread
 import mcp.types as types
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server

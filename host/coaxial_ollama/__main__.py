@@ -43,7 +43,7 @@ DEFAULT_ALLOW = 'python'
 
 def parse(argv):
     parser = argparse.ArgumentParser(prog='python -m coaxial_ollama',
-                                     description=__doc__.splitlines()[0])
+                                     description=(__doc__ or '').splitlines()[0])
     source = parser.add_mutually_exclusive_group()
     source.add_argument('--plan', help='YAML test plan')
     source.add_argument('--ask', help='one ad-hoc question, recorded not judged')

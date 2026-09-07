@@ -396,7 +396,7 @@ def period_of(hz):
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--hz', type=float, default=20.0,
                         help='screen refreshes per second, at most %.0f'
@@ -508,7 +508,8 @@ def main(argv=None):
         wide, tall = canvas(args)
         record = latest(board)
         fresh = record['quaternion'] if record else None
-        if fresh is not None and record['updates'] != tally.seen:
+        if record is not None and fresh is not None \
+                and record['updates'] != tally.seen:
             new = (fresh['i'], fresh['j'], fresh['k'], fresh['real'])
             # THE DEADBAND. The part's rotation vector wanders a few tenths
             # of a degree at rest, and every wander redrew the board:

@@ -15,4 +15,3 @@ its context filling up with protocol noise:
 The board connection opens lazily on the first tool call and is not a tool of
 its own: a forgotten connect would cost a whole round trip.
 """
-__all__ = ['render', 'session', 'tools', 'server']

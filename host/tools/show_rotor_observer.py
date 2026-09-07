@@ -2244,7 +2244,7 @@ def aspect_of(args):
 
 
 def parse_args(argv):
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     p.add_argument('--port', default='COM4')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--frames', type=int, default=0)
@@ -2453,6 +2453,10 @@ def main(argv=None):
 
     from screen import run_view, stage
     rig, params, was_on, view_step = _link(args)
+    if params is None:
+        raise RigError('the drive answered no parameters')
+    if params is None:
+        raise RigError('the drive answered no parameters')
     if rig is None:
         return 1
     origin, board = rig.origin, rig.board

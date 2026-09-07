@@ -35,11 +35,12 @@ def parse_pose(text):
     got = re.match(r'x(-?\d+)y(-?\d+)z(-?\d+)$', text)
     if not got:
         raise SystemExit('pose skrivs som x45y45z45')
-    return tuple(int(v) for v in got.groups())
+    x, y, z = (int(v) for v in got.groups())
+    return x, y, z
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--model', choices=('cube', 'board'),
                         default='cube')
     parser.add_argument('--pose', default='x45y45z45')

@@ -29,7 +29,7 @@ from coaxial import ansi  # noqa: E402
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if len(argv) < 2:
-        print(__doc__.split('\n\n')[1].strip())
+        print((__doc__ or '').split('\n\n')[1].strip())
         return 2
     src, out = argv[0], argv[1]
     cell = (int(argv[2]) if len(argv) > 2 else ansi.CELL[0],

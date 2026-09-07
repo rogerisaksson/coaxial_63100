@@ -60,8 +60,8 @@ class Task:
 
     def __repr__(self):
         return '<Task %s %s>' % (self.id, 'record' if self.record_only
-                                 else self.limit.describe())
-
+                                 else (self.limit.describe() if self.limit
+                                       else 'no limit'))
     def brief(self):
         """What the model is told. Note what is absent: the limit."""
         lines = ['Step %s - %s' % (self.id, self.name), self.ask]

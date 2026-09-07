@@ -165,7 +165,8 @@ def run_one(path, timeout=300, extra=()):
                               capture_output=True, text=True,
                               encoding='utf-8', errors='replace')
     except subprocess.TimeoutExpired:
-        return None, None, [], time.monotonic() - started, 'TIMEOUT after %ss' % timeout
+        return (None, None, [], time.monotonic() - started,
+                'TIMEOUT after %ss' % timeout, None)
 
     elapsed = time.monotonic() - started
     lines = (done.stdout or '').splitlines()
@@ -586,7 +587,7 @@ def pick(paths):
 
 def _options(argv):
     """Everything the command line can say. Returns args."""
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--conformance', action='store_true',
                         help='also run test_conformance.py - needs a real '
                              'board on COM4, not just simulated')
@@ -868,8 +869,9 @@ def main(argv=None):
     # printed. The suites already run under PYTHONIOENCODING=utf-8; this
     # is the runner's own stdout, replaced rather than refused.
     for stream in (sys.stdout, sys.stderr):
-        if hasattr(stream, 'reconfigure'):
-            stream.reconfigure(errors='replace')
+        reconfigure = getattr(stream, 'reconfigure', None)
+        if reconfigure is not None:
+            reconfigure(errors='replace')
     args = _options(argv)
     try:
         chosen = _plan(args)

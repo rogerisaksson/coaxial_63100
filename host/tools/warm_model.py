@@ -153,7 +153,7 @@ def should_warm(tag):
                 'help much' % mb_s, paths, total_gb)
 
     total_ram, free_ram = _ram_gb()
-    if total_ram is None:
+    if total_ram is None or free_ram is None:
         return False, 'could not read free RAM on this platform', paths, total_gb
     needed = total_gb * RAM_MARGIN
     if free_ram < needed:
@@ -203,7 +203,7 @@ def measure_load(tag, timeout=180):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('tag')
     parser.add_argument('--measure-only', action='store_true',
                         help='skip the warming read, just time two loads')
@@ -227,7 +227,7 @@ def main(argv=None):
     total_gb = sum(size for _, size in paths) / 2 ** 30
     total_ram, free_ram = _ram_gb()
     print('%s: %.1f GB across %d file(s)' % (args.tag, total_gb, len(paths)))
-    if total_ram is not None:
+    if total_ram is not None and free_ram is not None:
         print('this machine: %.1f GB free of %.1f GB' % (free_ram, total_ram))
         if free_ram < total_gb * 1.2:
             print('WARNING: not much headroom above the model itself - '

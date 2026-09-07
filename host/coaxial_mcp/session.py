@@ -207,6 +207,14 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     # every run did before there was one.
     broker.spawn(port, baud)
 
+    if port is None:
+        raise RigError('no port to open - none given and none found')
+    if port is None:
+        raise RigError('no port to open - none given and none found')
+    if port is None:
+        raise RigError('no port to open - none given and none found')
+    if port is None:
+        raise RigError('no port to open - none given and none found')
     return (Session(port, baud, unit),
             Origin(True, port, baud, kind, _label(True, port, kind),
                    INTERFACE.get(kind, kind), unit))

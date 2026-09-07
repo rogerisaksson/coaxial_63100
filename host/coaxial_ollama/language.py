@@ -110,7 +110,7 @@ def _script(text):
                 break
     if not counts:
         return None
-    best = max(counts, key=counts.get)
+    best = max(counts, key=lambda k: counts[k])
     # A stray CJK quotation mark in an English sentence is not Chinese. Ask for
     # a real share of the letters before believing it.
     letters = sum(1 for c in text if unicodedata.category(c).startswith('L'))

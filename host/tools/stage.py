@@ -309,11 +309,11 @@ class Marquee:
             line.no_wrap, line.overflow = True, 'crop'
         self.wide = max((l.cell_len for l in self.lines), default=0)
 
-    def __rich_measure__(self, _console, options):
+    def __rich_measure__(self, console, options):
         from rich.measure import Measurement
         return Measurement(min(self.wide, options.max_width), self.wide)
 
-    def __rich_console__(self, _console, options):
+    def __rich_console__(self, console, options):
         width = options.max_width
         extra = self.wide - width
         at = _slide(extra) if extra > 0 else 0

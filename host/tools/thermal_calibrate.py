@@ -86,7 +86,7 @@ def sensors(rig):
     if not ok or not on:
         return None, None
     ok, n = insist(rig.board.analog.ntc_temperature)
-    return (n['celsius'], n['spread_millikelvin']) if ok else (None, None)
+    return (n['celsius'], n['spread_millikelvin']) if ok and n else (None, None)
 
 
 def peek(rig):

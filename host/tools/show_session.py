@@ -25,6 +25,7 @@ samples, and that is what it was built for.
 import argparse
 import sys
 import time
+from typing import Any
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
@@ -131,7 +132,7 @@ class Session:
         self.duty = DEFAULT_DUTY
         self.phases = DEFAULT_PHASES
         self.legs = DEFAULT_PHASES     # which of them are switching now
-        self.plan = None
+        self.plan: Any = None
         # Both fetched once. The record does not change while a session
         # is open, and reading FIELD costs a hold - which stops the angle
         # loop, so doing it every frame would halve its rate to answer a

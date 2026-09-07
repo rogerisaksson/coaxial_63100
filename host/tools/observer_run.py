@@ -170,7 +170,7 @@ def sweep_bandwidth(params, lib):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     ap.add_argument('--motor', choices=sorted(MOTORS), default='5230')
     ap.add_argument('--bandwidth', action='store_true',
                     help='sweep the PLL instead of the q current')

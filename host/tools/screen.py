@@ -12,6 +12,7 @@ import threading
 
 from coaxial import ansi
 from coaxial.thermal_device import THROTTLE_AT
+import importlib
 from coaxial.errors import (DeviceStateError, NoReplyError,  # noqa: E402
                             RigError)
 
@@ -142,8 +143,8 @@ def probe_aspect(console=True, wait=ASPECT_WAIT):
     saved = posix = None
     try:
         try:
-            import termios
-            import tty
+            termios = importlib.import_module('termios')      # POSIX only
+            tty = importlib.import_module('tty')
             posix, saved = termios, termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin.fileno())
         except Exception:               # noqa: BLE001 - Windows, or no tty
@@ -162,10 +163,8 @@ def probe_aspect(console=True, wait=ASPECT_WAIT):
     except Exception:                   # noqa: BLE001 - never fatal
         return None
     finally:
-        if saved is not None:
+        if saved is not None and posix is not None:
             posix.tcsetattr(sys.stdin, posix.TCSADRAIN, saved)
-
-
 def _read_now():
     """Whatever is waiting on stdin this instant, or ''."""
     try:
@@ -788,14 +787,13 @@ class Keys:
             return self
 
         try:
-            import termios
-            import tty
+            termios = importlib.import_module('termios')      # POSIX only
+            tty = importlib.import_module('tty')
             self._posix = termios
             self._saved = termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin.fileno())
         except Exception:               # noqa: BLE001 - Windows, or no tty
             self._saved = None
-
         # THE TERMINAL KEEPS THE MOUSE until a view is asked to take
         # it. `SELECT_KEYS` has why.
         global _HOLDER
@@ -808,7 +806,7 @@ class Keys:
         self.grab(False)
         if _HOLDER is self:
             _HOLDER = None
-        if self._saved is not None:
+        if self._saved is not None and self._posix is not None:
             self._posix.tcsetattr(sys.stdin, self._posix.TCSADRAIN,
                                   self._saved)
         return False
@@ -1052,7 +1050,7 @@ class Keys:
         if not kernel.GetNumberOfConsoleInputEvents(
                 handle, ctypes.byref(count)):
             return None                  # a pipe, not a console
-        if not count.value:
+        if not count.value or _RECORD is None:
             return []
         buf = (_RECORD * count.value)()
         read = ctypes.c_uint()

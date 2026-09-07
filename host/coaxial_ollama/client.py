@@ -399,6 +399,8 @@ class Ollama:
             self.think = None
             payload.pop('think')
             reply = self._chat_once(payload)
+        if reply is None:
+            raise RuntimeError('ollama answered nothing')
         self.calls += 1
         self.prompt_tokens += reply.get('prompt_eval_count', 0)
         self.eval_tokens += reply.get('eval_count', 0)

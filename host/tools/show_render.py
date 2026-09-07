@@ -35,6 +35,7 @@ from screen import (Keys, WHEEL_STEP, curtain, footer,  # noqa: E402
                     TO_MENU)
 
 import screen as _screen                                   # noqa: E402
+from coaxial.errors import RigError                        # noqa: E402
 _screen.CHATTER = False
 
 #: Degrees per keypress, and per second under SPACE.
@@ -96,6 +97,8 @@ def compose(view, size):
     q = view['pose']
     if view['model'] == 'cube':
         override = solid_of('cube')
+        if override is None:
+            raise RigError('no cube to draw')
         solid = override
     else:
         override = None                  # render's own board, art and all
@@ -165,7 +168,7 @@ def act_on(typed, view):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--model', choices=('cube', 'board'),
                         default='cube')
     parser.add_argument('--frames', type=int, default=0,

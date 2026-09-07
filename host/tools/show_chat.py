@@ -215,6 +215,8 @@ class _Claude:
                                 encoding='utf-8', errors='replace')
         self.proc = proc
         answer = []
+        if proc.stdout is None or proc.stderr is None:
+            return 'claude gave no pipes to read'
         for raw in proc.stdout:
             try:
                 self._tell(json.loads(raw), answer)
@@ -360,7 +362,7 @@ def canned(script):
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     p.add_argument('--port', default='COM4')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--claude', action='store_true',

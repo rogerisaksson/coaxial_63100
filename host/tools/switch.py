@@ -76,7 +76,8 @@ def main():
         rig.gates.arm(bypass_sto=not a.keep_break,
                              ignore_interlock=not a.interlock)
         what = ('sweep %.0f-%.0f %% every %.0fs' % (lo * 100, hi * 100, a.period)
-                if a.sweep else '%.0f %%' % (a.duty * 100))
+                if lo is not None and hi is not None
+                else '%.0f %%' % (a.duty * 100))
         print('LIVE: %s at %s for %.0f s   (stop: python tools/switch.py --stop)'
               % ('+'.join(legs), what, a.seconds), flush=True)
 
@@ -92,6 +93,8 @@ def main():
                 break
             if a.sweep:
                 x = (elapsed / a.period) % 1.0
+                if lo is None or hi is None:
+                    break
                 duty = lo + (hi - lo) * (2 * x if x < 0.5 else 2 * (1 - x))
                 try:
                     write(rig, duty)

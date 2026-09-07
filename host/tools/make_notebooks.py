@@ -3213,7 +3213,7 @@ def execute(path, out_dir, timeout=1800):
 
 def main(argv=None):
     """Write the notebooks named on the command line, or all of them."""
-    parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n')[0])
     parser.add_argument('names', nargs='*', help='notebooks; default all')
     parser.add_argument('--execute', action='store_true',
                         help='run each one and keep its outputs')

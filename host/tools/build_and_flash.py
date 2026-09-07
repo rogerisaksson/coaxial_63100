@@ -30,6 +30,8 @@ import sys
 import time
 from pathlib import Path
 
+from find_board import _text          # noqa: E402 - tools/ is the script dir
+
 ROOT = Path(__file__).resolve().parents[2]
 
 BUNDLE_ROOT = Path(os.environ.get('LOCALAPPDATA', '')) / 'stm32cube' / 'bundles'
@@ -160,7 +162,7 @@ def run(argv, cwd, path):
                               errors='replace', timeout=600)
     except subprocess.TimeoutExpired as exc:
         reap(before)
-        return 1, (exc.stdout or '') + (exc.stderr or ''), time.monotonic() - started
+        return 1, _text(exc.stdout) + _text(exc.stderr), time.monotonic() - started
     reap(before)
     return done.returncode, (done.stdout or '') + (done.stderr or ''), time.monotonic() - started
 
@@ -249,7 +251,7 @@ def flash(elf, path):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--preset', default='Debug', choices=['Debug', 'Release'])
     parser.add_argument('--elf', default=None,
                         help='defaults to build/<preset>/coaxial_63100.elf')

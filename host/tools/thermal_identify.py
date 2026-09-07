@@ -243,7 +243,7 @@ def report(runs):
     print('  less the compensation - %.2f K offset, and the driver coupling.'
           % NTC_OFFSET)
     for state, series in runs.items():
-        seen = CAMERA.get(STATE_TO_CAMERA.get(state, state), {})
+        seen = CAMERA.get(STATE_TO_CAMERA.get(state) or state, {})
         if 'ntc' in seen:
             print('  %-9s NTC model %6.2f   camera %6.2f   %+.2f K'
                   % (state, series[-1][1], seen['ntc'],
@@ -336,7 +336,7 @@ def against_camera(node_runs):
                                         'camera', 'error'))
     errors = []
     for state, nodes in node_runs.items():
-        seen = CAMERA.get(STATE_TO_CAMERA.get(state, state), {})
+        seen = CAMERA.get(STATE_TO_CAMERA.get(state) or state, {})
         for where, node in CAMERA_AS_NODES.items():
             if where not in seen or node not in nodes:
                 continue

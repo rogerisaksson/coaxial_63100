@@ -1936,6 +1936,24 @@ looking at the estimate alone.
   flattened the sample-point scan to one variance at every trigger -
   the sensorless suite said so, and the hook is declared now.
 
+* **The tools, the MCP server and the model runner read clean under
+  Pylance too** (2026-09-07): 107 complaints, a quarter of them the
+  module docstring being Optional to a type checker at every
+  `description=__doc__.splitlines()[0]`. One real fault among them: the
+  test runner's timeout path returned five values where its callers
+  unpack six, so a suite that timed out would have crashed the runner
+  instead of being reported - it returns six now. The rest: subprocess
+  output that may be bytes or text made text in one helper (`find_board`,
+  which `build_and_flash` imports); POSIX-only `os.sysconf`, `getloadavg`,
+  `termios` and `tty` reached through `getattr` and `importlib` so the
+  Windows editor stops reading them as missing; `winreg` through a
+  checked local; the socket pipes, the sweep's ends, the pose parsers
+  and the memory probe guarded where they were Optional; rich's
+  renderable protocol met under its own parameter names; the
+  attribute-typed dicts and lists declared where their first element
+  set the wrong type. `.vscode/settings.json` adds `host/tests` to the
+  analysis paths, since three tools import test modules.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder

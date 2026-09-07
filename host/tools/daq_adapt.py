@@ -57,7 +57,7 @@ def sweep_rate(daq, names, records=300, timeout=6.0):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     p.add_argument('--port', default='COM4')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--channels', default='Phase U,NTC,DC bus')

@@ -85,7 +85,7 @@ def force():
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     p.add_argument('--port', default='COM4')
     p.add_argument('--baud', type=int, default=115200)
     p.add_argument('--hold', action='store_true',

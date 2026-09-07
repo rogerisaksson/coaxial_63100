@@ -252,7 +252,7 @@ def release(tag):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--model', default='gemma4:12b')
     parser.add_argument('--against', default='HEAD')
     parser.add_argument('--explain', action='store_true',

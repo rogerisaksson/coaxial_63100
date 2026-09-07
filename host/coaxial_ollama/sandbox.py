@@ -227,9 +227,10 @@ class Scope:
             source = repaired
 
         tail = None
-        if tree.body and isinstance(tree.body[-1], ast.Expr):
-            tail = ast.Expression(tree.body.pop().value)
-
+        last = tree.body[-1] if tree.body else None
+        if isinstance(last, ast.Expr):
+            tree.body.pop()
+            tail = ast.Expression(last.value)
         try:
             with contextlib.redirect_stdout(buffer), \
                     contextlib.redirect_stderr(buffer):

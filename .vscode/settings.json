@@ -47,6 +47,7 @@
     // analyzer what the runtime does.
     "python.analysis.extraPaths": [
         "host",
-        "host/tools"
+        "host/tools",
+        "host/tests"
     ]
 }

@@ -28,6 +28,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+def _text(out):
+    """Subprocess output as text, whichever way it came."""
+    if isinstance(out, bytes):
+        return out.decode('utf-8', errors='replace')
+    return out or ''
+
+
 def check_power(timeout=15):
     """(voltage_or_None, detail). Whether the ST-Link senses power on the
     target at all - the most fundamental check there is, and one the serial
@@ -80,8 +87,7 @@ def check_power(timeout=15):
         # between answering the question this check exists for and
         # reporting "unknown" for the one case it was written to catch.
         timed_out = True
-        output = (exc.stdout or '') + (exc.stderr or '')
-
+        output = _text(exc.stdout) + _text(exc.stderr)
     match = re.search(r'Voltage\s*:\s*([\d.]+)\s*V', output)
     if match:
         return float(match.group(1)), output.strip()
@@ -222,7 +228,7 @@ def find(preferred=None, baud=115200, unit=1, ports=None):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--list', action='store_true',
                         help='every COM port Windows currently sees')
     parser.add_argument('--kinds', action='store_true',

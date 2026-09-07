@@ -183,7 +183,7 @@ def ident_rows(ident, hint=None):
     from rich.text import Text
 
     state = ident['state']
-    rows = [('model', Text(' %s ' % state, IDENT_STYLE.get(state, 'value')))]
+    rows: list = [('model', Text(' %s ' % state, IDENT_STYLE.get(state, 'value')))]
     # THE MARGIN, the floor and the innovation are HEADROOM's rows
     # (`envelope_rows`): what the envelope keeps is the envelope's box.
     scales, sigma = ident['scales'], ident['sigma']
@@ -326,7 +326,7 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None):
         age is None or every <= 0.0 or age <= 2.0 * every)
 
     if state['ntc'] is None:
-        sense = [Text('AFE off - open loop', style='value')]
+        sense: list = [Text('AFE off - open loop', style='value')]
     elif not fresh:
         sense = [('NTC', '%.1f C' % state['ntc']),
                  Text('%.0f s old - open loop' % age, style='value')]

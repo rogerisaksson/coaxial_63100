@@ -62,7 +62,7 @@ class Machine(object):
         self.ram_gb = ram_gb
         self.ram_free_gb = ram_gb if ram_free_gb is None else ram_free_gb
         self.cpu_busy = cpu_busy    # percent, or None when not measured
-        self.gpus = gpus            # [{'name':..., 'vram_gb':..., 'via':...}]
+        self.gpus: list = gpus      # [{'name':..., 'vram_gb':..., 'via':...}]
         self.system = system
         self.notes = notes          # how each number was arrived at
 
@@ -165,11 +165,14 @@ def _ram_gb():
             return (status.ullTotalPhys / float(2 ** 30),
                     status.ullAvailPhys / float(2 ** 30), 'GlobalMemoryStatusEx')
         return 0.0, 0.0, 'GlobalMemoryStatusEx failed'
+    sysconf = getattr(os, 'sysconf', None)         # POSIX only
     try:
-        size = os.sysconf('SC_PAGE_SIZE')
-        total = os.sysconf('SC_PHYS_PAGES') * size / float(2 ** 30)
+        if sysconf is None:
+            raise AttributeError('no sysconf')
+        size = sysconf('SC_PAGE_SIZE')
+        total = sysconf('SC_PHYS_PAGES') * size / float(2 ** 30)
         try:
-            free = os.sysconf('SC_AVPHYS_PAGES') * size / float(2 ** 30)
+            free = sysconf('SC_AVPHYS_PAGES') * size / float(2 ** 30)
         except (ValueError, OSError, AttributeError):
             free = total
         return total, free, 'sysconf'
@@ -188,7 +191,10 @@ def _cpu_busy():
     """
     if platform.system() != 'Windows':
         try:
-            return min(100.0, 100.0 * os.getloadavg()[0] / (os.cpu_count() or 1))
+            loadavg = getattr(os, 'getloadavg', None)     # POSIX only
+            if loadavg is None:
+                raise AttributeError('no getloadavg')
+            return min(100.0, 100.0 * loadavg()[0] / (os.cpu_count() or 1))
         except (OSError, AttributeError):
             return None
     try:
@@ -274,11 +280,19 @@ def _gpus_registry():
     return [card for card in found if card]
 
 
+def _registry():
+    """winreg, where there is one; `gpus_from_registry` has checked."""
+    if winreg is None:
+        raise OSError('no registry on this platform')
+    return winreg
+
+
 def _adapters(parent):
     """The four-digit adapter subkeys, in order, until they run out."""
+    reg = _registry()
     for index in range(16):
         try:
-            name = winreg.EnumKey(parent, index)
+            name = reg.EnumKey(parent, index)
         except OSError:
             return
         if re.match(r'^\d{4}$', name):
@@ -287,14 +301,15 @@ def _adapters(parent):
 
 def _gpu_at(parent, name):
     """One adapter's card, or None for anything without usable VRAM."""
+    reg = _registry()
     try:
-        with winreg.OpenKey(parent, name) as key:
-            raw, _ = winreg.QueryValueEx(
+        with reg.OpenKey(parent, name) as key:
+            raw, _ = reg.QueryValueEx(
                 key, 'HardwareInformation.qwMemorySize')
             if isinstance(raw, bytes):
                 raw = int.from_bytes(raw, 'little')
             try:
-                label, _ = winreg.QueryValueEx(key, 'DriverDesc')
+                label, _ = reg.QueryValueEx(key, 'DriverDesc')
             except OSError:
                 label = 'GPU ' + name
     except OSError:

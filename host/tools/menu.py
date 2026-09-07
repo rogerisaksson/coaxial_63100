@@ -78,7 +78,7 @@ TURN_DPS = 30.0
 
 #: What the masthead knows. `held` is how many sessions have the port,
 #: `board` whether one answers anywhere at all - None until asked.
-_BROKER = {'held': None, 'board': None}
+_BROKER: dict = {'held': None, 'board': None}
 
 #: How often the front page re-asks whether a board answers. The broker
 #: question is a socket connect; this one probes every port and was
@@ -374,7 +374,7 @@ def _sub_act(typed, sub):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--port', default='COM4')
     parser.add_argument('--frames', type=int, default=0,
                         help='draw this many and exit 0 - the smoke test')
