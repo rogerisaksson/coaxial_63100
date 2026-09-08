@@ -708,8 +708,21 @@ class SimulatedThermal:
         return used[name], name, used
 
     def _tripped(self):
-        """Whether ANY node is at its ceiling, driven or not."""
-        return max(self._used().values(), default=0.0) >= 1.0
+        """Whether ANY node is at the RECORD'S ceiling, driven or not -
+        `thermal_budget`'s `trip_c`, untrimmed. Not the ceiling the
+        throttle acts on: the margin pulls that in while the model is
+        doubted, and a node the re-trim leaves above it reads 100 % with
+        the clamp closed, and cools. Measured on the rotor page's demo,
+        2026-09-08: the tour stepped the room 45 K, the margin fell from
+        1.00 to 0.82 on that one sample, a driver at 92 % of the old span
+        stood at 112 % of the new and the stage was dropped for the
+        re-trim - then the cap at 0.70 put three more trips under the
+        re-arm in six seconds, and the foot read TRIP for good."""
+        for name in self.NODES:
+            top = self.LIMIT.get(name, self.DEFAULT_LIMIT)
+            if top > self._ambient and self._node[name] >= top:
+                return True
+        return False
 
     def derate(self, worst=None):
         """What the current clamp should be multiplied by, 1 down to 0:

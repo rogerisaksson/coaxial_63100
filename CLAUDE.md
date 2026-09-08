@@ -252,10 +252,10 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2952 checks, sized from `host/tests/.counts.json` and so
+Twenty-six suites, 2961 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (617),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
-`test_simulated.py` (251), `test_live_model.py` (212, needs ollama, `--live`),
+`test_simulated.py` (254), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
 `test_ollama_link.py` (96), `test_drive_core.py` (81, the control law against a
 motor model through the host gcc, the Monte Carlo's job included),
@@ -264,7 +264,7 @@ the power stage's too, and the datasheet against the thermal model - the
 commissioning and the motion verbs, dangerous paths included, against the
 stand-in), `test_mcp.py` (50), `test_shtp_core.py` (38), `test_filter_core.py`
 (42, the anti-alias chain against the transfer function it was designed from),
-`test_thermal_core.py` (140, the SOA envelope as the C that will run - the
+`test_thermal_core.py` (144, the SOA envelope as the C that will run - the
 derate ramp, the lookahead, the soak joules and the conduction split - and the
 online identification against a ground truth whose situation changes, through
 the host gcc), `test_ollama_render.py` (32), `test_parity.py` (30),
@@ -272,7 +272,7 @@ the host gcc), `test_ollama_render.py` (32), `test_parity.py` (30),
 the 3D engine stage by stage against an analytic oracle -
 `render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23),
 `test_broker.py` (33, the shared session and the reply shapes on a scripted
-port, no board), `test_views.py` (201, every view and the front page drawn
+port, no board), `test_views.py` (203, every view and the front page drawn
 twice, plus the rotor observer's own geometry - no board),
 `test_ollama_language.py` (12), `test_daq_api.py` (75, the acquisition front
 door against the stand-in - naming, reading, the record shape, the buffers),
@@ -304,7 +304,7 @@ that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2952 checks are in those nine files.
+  773 of this tree's 2961 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
@@ -601,11 +601,12 @@ Break one and something works until it doesn't.
     beside calibrated instruments. Two narrow exceptions: `self_test`
     (judges only its own registers and flash), and **the thermal envelope**
     (a board that cooks itself is not a measurement problem) - the board
-    never calls a reading good, it *acts*: at a ceiling it drops MOE, the
-    same path the break uses, and holds the envelope at 70 % of every
-    span for the next half hour, and the ceilings live in the calibration
-    record, a limit it was given, not invented. The margin is reported; the
-    verdict is not.
+    never calls a reading good, it *acts*: at the record's ceiling it
+    drops MOE, the same path the break uses, and holds the envelope at
+    70 % of every span for the next half hour; a ceiling the policy pulls
+    in under a node closes the clamp instead, and the ceilings live in the
+    calibration record, a limit it was given, not invented. The margin is
+    reported; the verdict is not.
 11. **The DC link divider's headroom is deliberate.** 49.9k/2.2k gives
     78.15 V full scale on a 63 V rating, 24 % margin - the over-rating
     transient is what you want recorded, not clipped.

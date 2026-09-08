@@ -321,13 +321,16 @@ API void thm_step(thermal_t *th, const float *watt,
 
 
 static void soa_from(thermal_soa_t *soa, const float *limit_c,
-                     float throttle_at, float lookahead_s,
-                     const float *undriven)
+                     const float *trip_c, float throttle_at,
+                     float lookahead_s, const float *undriven)
 {
   memset(soa, 0, sizeof(*soa));
   for (int i = 0; i < (int)THERMAL_NODES; i++)
   {
     soa->limit_c[i] = limit_c[i];
+    /* The record's ceiling the trip is judged on; NULL leaves it on
+       `limit_c`, the struct's own default. */
+    soa->trip_c[i] = (trip_c != NULL) ? trip_c[i] : 0.0f;
     /* Floats because nothing crosses this boundary as anything else -
        NULL is every node driven, which is the struct's own default. */
     soa->undriven[i] = (undriven != NULL) && (undriven[i] != 0.0f);
@@ -339,10 +342,14 @@ static void soa_from(thermal_soa_t *soa, const float *limit_c,
 
 /** The envelope, flattened. `limit_c` is THERMAL_NODES long - the ceilings
   * come from the caller because they come from the calibration record, and
-  * there is no compiled-in copy to ask for (invariant 10). */
-API void thm_budget(const thermal_t *th, const float *watt,
-                    const float *limit_c, float throttle_at,
-                    float lookahead_s, const float *undriven, float *out)
+  * there is no compiled-in copy to ask for (invariant 10). `trip_c`, the
+  * same length, is the record's untrimmed ceiling the trip is judged on
+  * where `limit_c` has been pulled in by the margin; NULL judges it on
+  * `limit_c`. */
+API void thm_budget_capped(const thermal_t *th, const float *watt,
+                           const float *limit_c, const float *trip_c,
+                           float throttle_at, float lookahead_s,
+                           const float *undriven, float *out)
 {
   thermal_power_t p;
   thermal_soa_t soa;
@@ -357,7 +364,7 @@ API void thm_budget(const thermal_t *th, const float *watt,
   {
     p.watt[i] = watt[i];
   }
-  soa_from(&soa, limit_c, throttle_at, lookahead_s, undriven);
+  soa_from(&soa, limit_c, trip_c, throttle_at, lookahead_s, undriven);
   thermal_budget(th, &p, &soa, &b);
 
   out[0] = (float)b.worst / 255.0f;
@@ -371,6 +378,17 @@ API void thm_budget(const thermal_t *th, const float *watt,
     out[6 + i] = (float)b.used[i] / 255.0f;
     out[6 + (int)THERMAL_NODES + i] = b.soak_j[i];
   }
+}
+
+
+/** The envelope with the trip on `limit_c` itself: every caller before
+  * 2026-09-08, and the shape the suites' Model calls by default. */
+API void thm_budget(const thermal_t *th, const float *watt,
+                    const float *limit_c, float throttle_at,
+                    float lookahead_s, const float *undriven, float *out)
+{
+  thm_budget_capped(th, watt, limit_c, NULL, throttle_at, lookahead_s,
+                    undriven, out);
 }
 
 
@@ -391,7 +409,7 @@ API float thm_node_derate(const thermal_t *th, const float *watt,
   {
     p.watt[i] = watt[i];
   }
-  soa_from(&soa, limit_c, throttle_at, lookahead_s, undriven);
+  soa_from(&soa, limit_c, NULL, throttle_at, lookahead_s, undriven);
   return thermal_node_derate(th, &p, &soa, (thermal_node_t)node);
 }
 

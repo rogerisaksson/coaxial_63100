@@ -629,9 +629,16 @@ void thermal_budget(const thermal_t *th, const thermal_power_t *p,
     }
     out->used[i] = (uint8_t)(part * 255.0f);
 
-    if (out->used[i] >= 255U)
+    /* THE TRIP, on the record's own ceiling - any node at it, driven or
+       not. Not on `limit_c`: that is the throttle's, pulled in by the
+       margin, and a node a re-trim leaves above it is clamped to nothing
+       (used 255, derate 0) and cools. Dropping MOE for a policy step cost
+       a trip cap and a half hour at 70 % (2026-09-08). */
+    const float top = (soa->trip_c[i] > 0.0f) ? soa->trip_c[i] : limit;
+
+    if (th->t[i] >= top)
     {
-      out->tripped = true;   /* any node at its ceiling, driven or not */
+      out->tripped = true;
     }
 
     /* What is left in it, in joules. Never negative: a node past its

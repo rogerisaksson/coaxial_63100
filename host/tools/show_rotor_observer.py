@@ -994,13 +994,18 @@ def _policy(view):
         percent = int(round(100.0 * margin))
         # THE TRIP HOLDS IT, not the model's doubt. `margin` is the least
         # of the identification's own and the trip cap (MINOR 17), and
-        # while the cap is the one in hand the word says so in the trip's
-        # red: `STBL 72%` had the model sure of a number the trip was
-        # holding down - "STBL visas även när det är 70 % av SOA"
-        # (bench, 2026-09-08). The state itself is still on the THERMAL
-        # box's row; this is the ceiling in force and what set it.
+        # while the cap is the one in hand AND UNDER THE FLOOR the word
+        # says so in the trip's red: `STBL 72%` had the model sure of a
+        # number no state can give - "STBL visas även när det är 70 % av
+        # SOA" (bench, 2026-09-08). Above the floor the number is one the
+        # model could own, and the word goes back to the state's, the
+        # cap's percent still the one in force: `TRIP 89%` sat on the
+        # foot with the model STABLE underneath - "den får ju släppa TRIP
+        # när den når över 80 %" (bench, the same day). The floor is the
+        # wire's (MINOR 16), the record's 80 % unless a bench set it.
         cap = ident.get('trip_cap', 1.0)
-        if cap < 1.0 and abs(margin - cap) < 1e-6:
+        floor = ident.get('margin_floor', _thermal.IDENT_MARGIN_FLOOR)
+        if cap < 1.0 and abs(margin - cap) < 1e-6 and margin < floor - 1e-6:
             return 'TH OBS', 'TRIP %d%%' % percent, machine.INK[machine.SOA_TRIP]
         word = POLICY_WORD[state]
         if percent < 100:

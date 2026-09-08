@@ -355,6 +355,15 @@ typedef struct
     * actuator for them, and weighed in they floor the margin. The
     * record's to say (invariant 7). */
   bool undriven[THERMAL_NODES];
+  /** THE CEILING A TRIP IS JUDGED ON: the record's, untrimmed. `limit_c`
+    * is the throttle's, and the policy pulls it in while the model is
+    * doubted - and a ceiling pulled in UNDER a node closes the clamp; it
+    * must not drop MOE. Measured 2026-09-08 on the stand-in: a room step
+    * cut the margin from 1.00 to 0.82 on one sample, a driver at 92 % of
+    * the old span stood at 112 % of the new, and the stage was dropped
+    * for a re-trim, not for heat - then the trip cap put three more
+    * trips under the re-arm in six seconds. Zero: judged on `limit_c`. */
+  float trip_c[THERMAL_NODES];
 } thermal_soa_t;
 
 /** What is spent of the thermal budget, and how long is left. */
@@ -365,7 +374,8 @@ typedef struct
   uint8_t worst_node;
   int32_t millis_to_limit;       /**< for `worst_node`; -1 = not heading there */
   bool    throttling;
-  bool    tripped;               /**< ANY node at or past a limit: stop   */
+  bool    tripped;               /**< ANY node at the record's ceiling
+                                    * (`trip_c`): stop                     */
   /** What a current clamp should be multiplied by, 1.0 down to 0.0: one
     * at the throttle point and zero at the ceiling, linear between, on
     * the worse of where a node is and how long it has. */

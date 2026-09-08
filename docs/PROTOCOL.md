@@ -662,7 +662,11 @@ ONE CLAMP, TWO ENVELOPES: the stage gets the smaller of the board's
 factor and the winding's, and either at its ceiling trips. Op 4 appends
 the winding's estimate, its spend and its OWN factor so a host can say
 which envelope is holding the stage back; `derate` stays what was
-applied. `throttling` and `tripped` cover both.
+applied. `throttling` and `tripped` cover both. `tripped` is judged on
+the record's ceiling, untrimmed, since 2026-09-08; `used`, `derate` and
+`throttling` on the ceiling in force - a node the margin's re-trim leaves
+above that reads 255 with the clamp closed, and is not a trip. No field
+changed.
 
 ## Versioning
 

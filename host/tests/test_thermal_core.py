@@ -187,14 +187,25 @@ class Model:
             self._floats(mask), NODES.index(node))
 
     def budget(self, watt=None, throttle_at=THROTTLE_AT, lookahead_s=0.0,
-               limits=None, undriven=UNDRIVEN):
+               limits=None, undriven=UNDRIVEN, trip=None):
+        """The envelope's verdict. `limits` is what the throttle acts on;
+        `trip`, when given, the record's untrimmed ceilings the trip is
+        judged on (`thermal_soa_t.trip_c`) - without it the trip is on
+        `limits`, as every caller before 2026-09-08."""
         out = (ctypes.c_float * self.slots)()
         mask = [1.0 if name in (undriven or ()) else 0.0 for name in NODES]
-        self.lib.thm_budget(self.h, self._floats(self._watt(watt or {})),
-                            self._floats(limits or self.limits()),
-                            ctypes.c_float(throttle_at),
-                            ctypes.c_float(lookahead_s),
-                            self._floats(mask), out)
+        if trip is None:
+            self.lib.thm_budget(self.h, self._floats(self._watt(watt or {})),
+                                self._floats(limits or self.limits()),
+                                ctypes.c_float(throttle_at),
+                                ctypes.c_float(lookahead_s),
+                                self._floats(mask), out)
+        else:
+            self.lib.thm_budget_capped(
+                self.h, self._floats(self._watt(watt or {})),
+                self._floats(limits or self.limits()), self._floats(trip),
+                ctypes.c_float(throttle_at), ctypes.c_float(lookahead_s),
+                self._floats(mask), out)
         got: dict = dict(zip(BUDGET, list(out)[:len(BUDGET)]))
         got['worst_node'] = NODES[int(got['worst_node'])]
         got['throttling'] = bool(got['throttling'])
@@ -1596,6 +1607,44 @@ def test_the_time_left_is_reported_or_not_claimed(report, lib):
                  '%.2f s' % (hot['millis'] / 1000.0))
 
 
+def test_a_ceiling_pulled_in_under_a_node_does_not_trip(report, lib):
+    """The trip is judged on the record's ceiling; the throttle on the
+    trimmed one. The margin pulls every ceiling in while the model is
+    doubted, and a re-trim can put one UNDER a node that was inside the
+    old span: measured on the stand-in 2026-09-08, a room step cut the
+    margin from 1.00 to 0.82 on one sample and driver U at 92 % of the
+    old span stood at 112 % of the new - `tripped`, MOE dropped, a trip
+    cap and a half hour at 70 % for a policy step, not for heat. The
+    clamp closing is the whole of what a pulled-in ceiling should do.
+    """
+    model = Model(lib)
+    model.place('driver_u', AMBIENT + 0.92 * (LIMIT_C - AMBIENT))
+    whole = model.budget()
+    report.check('at 92 % of the record\'s span a driver throttles and does '
+                 'not trip',
+                 whole['throttling'] and 0.0 < whole['derate'] < 1.0
+                 and not whole['tripped'],
+                 'clamp %.3f, tripped %s' % (whole['derate'], whole['tripped']))
+    trimmed = [AMBIENT + 0.82 * (top - AMBIENT) for top in model.limits()]
+    pulled = model.budget(limits=trimmed, trip=model.limits())
+    report.check('every ceiling pulled in to 82 % of its span: the node '
+                 'reads 100 %, the clamp is closed, and it is NOT tripped',
+                 pulled['used']['driver_u'] >= 0.999 and pulled['derate'] == 0.0
+                 and not pulled['tripped'],
+                 'used %.3f, clamp %.3f, tripped %s'
+                 % (pulled['used']['driver_u'], pulled['derate'],
+                    pulled['tripped']))
+    before = model.budget(limits=trimmed)
+    report.check('a caller giving no trip ceilings is judged on the trimmed '
+                 'ones, as every caller before', before['tripped'],
+                 before['tripped'])
+    model.place('driver_u', LIMIT_C + 0.5)
+    at = model.budget(limits=trimmed, trip=model.limits())
+    report.check('and at the record\'s ceiling it trips, the clamp closed',
+                 at['tripped'] and at['derate'] == 0.0,
+                 'tripped %s, clamp %.3f' % (at['tripped'], at['derate']))
+
+
 def test_the_winding_is_an_envelope_of_its_own(report, lib):
     """The motor's copper, a node of the graph: judged like a node, by the
     same ramp, shedding through the iron and the bell to the air and not
@@ -1948,6 +1997,7 @@ def test_a_long_step_is_sub_stepped(report, lib):
 
 
 ROSTER = (test_the_derate_is_a_ramp, test_derating_is_not_tripping,
+          test_a_ceiling_pulled_in_under_a_node_does_not_trip,
           test_the_winding_is_an_envelope_of_its_own,
           test_the_laminate_is_a_graph_that_reproduces_the_bulk,
           test_the_switching_loss_follows_the_coss_law,

@@ -1517,11 +1517,43 @@ def main():
                  test_gate_driver_arming, test_gate_snapshot,
                  test_closing_leaves_another_session_armed,
                  test_dead_time, test_views, test_virtual_rotor,
-                 test_thermal_identification, test_sto_probe):
+                 test_thermal_identification,
+                 test_a_ceiling_pulled_in_under_a_node_closes_the_clamp,
+                 test_sto_probe):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))
     return 1 if report.failed else 0
+
+
+def test_a_ceiling_pulled_in_under_a_node_closes_the_clamp(report):
+    """The stand-in's trip is the record's ceiling, as the C's `trip_c`;
+    the trimmed ceiling is the throttle's. A fresh stand-in is UNCERTAIN
+    at the floor, every ceiling at 80 % of its span, and a driver placed
+    at 92 % of the record's span is over that: it reads 100 %, the clamp
+    is closed, and nothing trips until the record's own ceiling - the
+    rotor page's demo had tripped on a re-trim (2026-09-08).
+    """
+    from coaxial.simulated.power import SimulatedThermal
+
+    th = SimulatedThermal(situation='bench')
+    th.fast_forward(0.0)                    # the caller owns the clock
+    top = th.LIMIT.get('driver_u', th.DEFAULT_LIMIT)
+    th._node['driver_u'] = th._ambient + 0.92 * (top - th._ambient)
+    got = th.budget()
+    report.check('a fresh stand-in trims every ceiling to the floor, and a '
+                 'driver at 92 %% of the record\'s span reads 100 %% of the '
+                 'trimmed one with the clamp closed (margin %.2f)'
+                 % th._margin(),
+                 abs(th._margin() - th._margin_floor) < 1e-9
+                 and got['used']['driver_u'] >= 0.999 and th.derate() == 0.0,
+                 'used %.3f, clamp %.3f' % (got['used']['driver_u'],
+                                            th.derate()))
+    report.check('and it is NOT tripped: the trip is judged on the '
+                 'record\'s ceiling', not got['tripped'], got['tripped'])
+    th._node['driver_u'] = top + 0.1
+    report.check('at the record\'s ceiling it trips',
+                 th.budget()['tripped'], th.budget()['tripped'])
 
 
 def test_thermal_identification(report):

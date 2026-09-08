@@ -2007,6 +2007,42 @@ looking at the estimate alone.
   `recovering`. A board before MINOR 17 answers no cap and reads as
   before. Built with zero warnings; not run on the board.
 
+* **A re-trim tripped the stage, and the foot read TRIP for good**
+  (2026-09-08, "nu verkar den ha fastnat med TRIP XY%", then "kolla
+  igenom hur TRIP hanteras med de andra UNCR, CONV och STABLE med
+  innovationen i observeraren, nåt konstigt där"). Traced on the rotor
+  page's own demo loop, headless, four reads a second: the page lays
+  the room tour on the stand-in, and the tour moves the room from 20 C
+  to -25 C a hundred model seconds after STABLE - at model second 555,
+  with the fourth send at the clamp under way. The innovation rose from
+  0.05 to 0.28 on the one sample that straddled the step (the two die
+  thermometers 1.6 and 2.1 K under the shadow, the NTC 0.2), the margin
+  fell from 1.00 to 0.82 on it while the state was still STABLE, the
+  ceilings were re-trimmed by it, and driver U at 92 % of the old span
+  stood at 112 % of the new: `tripped`, MOE dropped, trip 1 at model
+  second 573 - for a policy step, not for heat. The trip cap then held
+  the margin at 0.70, the demo's operator re-armed as soon as no node
+  was over the trimmed ceiling, and trips 2, 3 and 4 came inside six
+  wall seconds at wall 285-291 with the cap back at 0.70 each time; the
+  next sample threw the state to UNCERTAIN (the room reset, right for a
+  room step) and the observer's NTC ran 6 K under the truth while the
+  room was re-identified from 19 C toward -3. The foot read `TRIP 70%`
+  rising a percent every six wall seconds and never anything else.
+  Three things, one commit. THE TRIP IS JUDGED ON THE RECORD'S CEILING:
+  `thermal_soa_t` carries `trip_c`, the untrimmed ceilings, `soa_from_cal`
+  fills it and `thermal_budget` trips on it; `limit_c` stays the
+  throttle's, so a ceiling pulled in under a node reads 255 with the
+  clamp closed and cools, and MOE is dropped only at the limit the
+  record gave (invariant 10's words made exact). The stand-in's
+  `_tripped` mirrors it. THE FOOT'S WORD: TRIP only while the cap holds
+  the margin UNDER THE FLOOR - "den får ju släppa TRIP när den når över
+  80 %", the bench's line being `WINDING 97.7 C TH OBS TRIP 89%`; above
+  it the number is one a state could give and the word is the state's,
+  the cap's percent still the one in force. Measured after: the same
+  loop, five wall minutes, no trip on the room step, the clamp at 0 %
+  through the re-trim and back, the foot `STBL` and `CONV` with the
+  margin, TRIP only under a real ceiling. Firmware 0 warnings.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder

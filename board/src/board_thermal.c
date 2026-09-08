@@ -185,6 +185,10 @@ static void soa_from_cal(void)
 
   for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
   {
+    /* THE TRIP KEEPS THE RECORD'S CEILING; the trim below is the
+       throttle's. A ceiling pulled in under a node closes the clamp and
+       does not drop MOE (thermal.h, `trip_c`). */
+    s_soa.trip_c[i] = s_soa.limit_c[i];
     if (s_soa.limit_c[i] > THERMAL_MARGIN_REF_C)
     {
       s_soa.limit_c[i] = THERMAL_MARGIN_REF_C
