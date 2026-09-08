@@ -1851,8 +1851,11 @@ looking at the estimate alone.
   as the observer sees it, `thermal_identification` the board in each of
   the tour's three rooms at the last loaded minute of the leg, and
   `imu_session` the board at the quaternion the IMU reported, in the
-  attitude page's wireframe. Rasterised and read before landing: the
-  fixed scale beside each map, the wireframe on its ground.
+  attitude page's wireframe, `rotor_observer_session` the machine's
+  cross-section at the model's last angle with the teeth driven to the
+  phase currents (2026-09-08), `angle_session` the face between its
+  scales. Rasterised and read before landing: the fixed scale beside
+  each map, the wireframe on its ground, the can and its magnets.
 
 * **SHAFT ANGLE wears two scales** (2026-09-07, "nu ser den lite väl
   plain ut ... skalor på sidan som visar dietempen och fältstyrkan i

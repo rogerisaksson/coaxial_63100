@@ -1183,6 +1183,20 @@ state = drive.state()
 drive.off()
 print({k: state[k] for k in ('mode', 'fault', 'omega_hat', 'iq', 'vq', 'periods',
                              'isr_cycles_max', 'exit_ticks_max', 'cycles')})"""),
+    md("The cross-section the ROTOR OBSERVER page draws, at the model's last "
+       "angle: the can turned to where the rotor is, the magnets in their "
+       "pole pairs, and the teeth driven to the three phase currents that "
+       "`iq_ref` makes in the stator frame at that angle - the picture of "
+       "THIS machine being driven THIS hard. `coaxial.machine` is pure; "
+       "`coaxial.ansi.image` rasterises it."),
+    code("""import math
+from coaxial import ansi, machine
+
+pole_pairs = int(drive.params()['motor_pole_pairs'])
+theta = rows[-1][1]
+amps = tuple(0.05 * math.cos(theta - k * 2.0 * math.pi / 3.0) for k in range(3))
+ansi.image(machine.render(math.degrees(theta) / pole_pairs, slots=24, poles=2 * pole_pairs,
+                          width=58, height=24, amps=amps, colour=True))"""),
     code("""import matplotlib.pyplot as plt
 
 t = [r[0] for r in rows]
