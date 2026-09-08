@@ -172,5 +172,21 @@ is still arithmetic. Every item names the file or record it lives in.
   lands, twelve questions and more, and on this laptop Ollama 0.33.3
   answers every chat with 500 "llama-server binary not found" - an
   install to repair first.
+* **The STO chain, modified and tested with its pilot tone** (the
+  bench, 2026-09-08: "STO-kretsen som behöver modifieras/testas med
+  pilotton"). The chain has never released the gate drivers' supply on
+  its own on this bench: PA10 KEEPALIVE feeds the charge pump through
+  R72 / C71 at 200 kHz, but the pilot tone on RS485 that the chain also
+  wants has had no sender here, and the two channels that watch it read
+  Cinj 0.77 V and Clevel 0.06 V against the 3.0 V `GateStage.interlock()`
+  asks for (2026-08-27, HARDWARE) - which is why every session so far
+  armed with `ignore_interlock=True` and `bypass_sto=True`. What waits
+  for the board and a scope: the circuit change itself, then the tone
+  sent on the bus, Cinj and Clevel measured with it present and absent,
+  the interlock's two thresholds set from those readings and not from
+  3.0 V assumed, gate op 0's `pilot_uv` and `level_uv` read against the
+  scope, and one arm with neither bypass. `keepalive` and `worst_gap` in
+  the same reply say whether the pump ever starves while the link is
+  busy (board_limits.h has the measured gap).
 * Nothing has run near 63 V or 100 A. No measured value at either is
   recorded anywhere in this tree.
