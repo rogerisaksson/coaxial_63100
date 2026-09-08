@@ -55,8 +55,11 @@ DCBUS_V = NOMINAL[5] * 78.15 / 65536.0
 DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0,
          7: 30.0, 8: 20.0, 9: 60.0}
 
-#: One electrical revolution every seven seconds or so. Slow enough to watch
-#: a meter follow it, fast enough that a still frame is rarely the same twice.
+#: The pace the wandering channels wander at: slow enough to watch a
+#: meter follow it, fast enough that a still frame is rarely the same
+#: twice. It was the phases' one electrical revolution every seven
+#: seconds; the bridge's demo machine turns at the same rate now
+#: (`show_desk.DEMO_HZ`), on the drive rather than on an invention.
 SWEEP_HZ = 0.14
 
 #: How far each channel wanders, in codes. NOT THE PHASES: they carry the
