@@ -315,12 +315,12 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2941 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2944 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 | --- | --- | --- |
-| test_structure.py | 614 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
+| test_structure.py | 617 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 219 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
 | test_simulated.py | 250 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |
