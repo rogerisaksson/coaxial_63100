@@ -1976,6 +1976,20 @@ looking at the estimate alone.
   pipes and the conformance port are narrowed once. pyright: 0 errors in
   the tree; the offline gate 2582 passed, 0 failed.
 
+* **SWITCH SOA read the board's worst node, not the switches** (2026-09-08,
+  "den termiska observeraren verkar ha exakt samma värden på MOTOR SOA
+  och SWITCH SOA"): the ROTOR OBSERVER's first gutter tube took
+  `headroom`, the worst of all ten nodes, under the switches' name. On
+  the stand-in's demo at frame 200 it read 67.7 % from the copper patch
+  under leg U at 78 % of its ceiling while the six switch nodes sat at
+  37; on a long run, once the winding is the worst node, it read the
+  winding - the same number MOTOR SOA reads, which is what the bench saw.
+  `switch_headroom` takes the worst of SOA_NODES, the six a duty cycle
+  drives, each against its own ceiling; the board's worst stays the SOA
+  HEADROOM gauge's, so the page now shows three figures that are each
+  what their name says. A board that reports no per-node spend falls
+  back to its worst.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder

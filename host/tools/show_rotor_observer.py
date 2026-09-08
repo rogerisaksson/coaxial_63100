@@ -1756,8 +1756,28 @@ def ntc_bar(view):
     return [(temp_share(seen), ntc_class(seen))]
 
 
+def switch_headroom(view):
+    """What is left of the SWITCHES' budget, 0 to 1: the worst of the six
+    nodes a duty cycle drives (SOA_NODES), each against its own ceiling.
+
+    NOT THE BOARD'S WORST. This tube read `headroom` - the worst of all
+    ten nodes - under the name SWITCH SOA, so it showed the copper patch
+    under leg U at 78 % while the switches sat at 37, and on a long run,
+    once the winding is the worst node, it showed the winding: the bench
+    saw MOTOR SOA and SWITCH SOA at exactly one number (2026-09-08). The
+    board's worst stays the SOA HEADROOM gauge's question; this is the
+    switches'. A board that reports no per-node `used` (older firmware)
+    falls back to the board's worst, the only figure it has.
+    """
+    used = (view.get('budget') or {}).get('used') or {}
+    shares = [used[n] for n in SOA_NODES if n in used]
+    if not shares:
+        return headroom(view)
+    return 1.0 - min(1.0, max(0.0, max(shares)))
+
+
 def headrooms(view):
-    """The two margins as gutter tubes: the board's, then the motor's.
+    """The two margins as gutter tubes: the switches', then the motor's.
 
     THEY STAND UP LIKE EVERYTHING ELSE. A margin is a level against a
     ceiling and every other level on this page is a tube in a gutter;
@@ -1769,7 +1789,7 @@ def headrooms(view):
     does not: nothing acts on it, and a flashing bar nobody can obey is
     noise.
     """
-    board = headroom(view)
+    switch = switch_headroom(view)
     motor = motor_headroom(view)
     budget = view.get('budget') or {}
     # THE LEVEL IS WHAT IS SPENT, not what is left. Drawn as the margin
@@ -1792,8 +1812,8 @@ def headrooms(view):
     motor_spent = 1.0 - motor
     if 'winding_used' in budget:
         motor_spent *= margin       # the board's winding, under its policy
-    return [((1.0 - board) * margin, machine.SOA_FLASH if flashing(view)
-             else headroom_class(board)),
+    return [((1.0 - switch) * margin, machine.SOA_FLASH if flashing(view)
+             else headroom_class(switch)),
             (motor_spent, machine.SOA_FLASH if motor_flashing(view)
              else headroom_class(motor))]
 

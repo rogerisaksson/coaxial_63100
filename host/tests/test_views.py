@@ -1744,6 +1744,39 @@ def test_the_bead_trails_its_speed(report):
                  == machine.INK[machine.NORTH])
 
 
+def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
+    """The two gutter tubes read two different things: the worst of the
+    six switch nodes, and the winding. SWITCH SOA read the board's worst
+    node - the copper patch under a leg, or the winding once that is the
+    hottest against its ceiling - and the bench saw the two tubes at one
+    number: "exakt samma värden på MOTOR SOA och SWITCH SOA" (2026-09-08).
+    """
+    sys.path.insert(0, HOST)
+    from tools import show_rotor_observer as view
+
+    used = {n: 0.3 for n in view.SOA_NODES}
+    used.update({'patch_u': 0.78, 'winding': 0.6, 'board': 0.2})
+    seen = {'budget': {'worst': 0.78, 'worst_node': 'patch_u', 'used': used,
+                       'winding_used': 0.6, 'throttling': False,
+                       'tripped': False},
+            'ident': {'margin': 1.0}, 'thermal': {'nodes': {}}}
+    (switch, _), (motor, _) = view.headrooms(seen)
+    report.check("SWITCH SOA is the worst of the six switch nodes, not the "
+                 "board's worst",
+                 abs(switch - 0.3) < 1e-9
+                 and abs((1.0 - view.headroom(seen)) - 0.78) < 1e-9,
+                 (switch, 1.0 - view.headroom(seen)))
+    report.check("and MOTOR SOA is the winding's, so the tubes differ when "
+                 "the winding is the worst node",
+                 abs(motor - 0.6) < 1e-9 and switch != motor, (switch, motor))
+    bare = {'budget': {'worst': 0.5, 'throttling': False, 'tripped': False},
+            'ident': {}}
+    report.check('a board that reports no per-node spend falls back to its '
+                 'worst',
+                 abs(view.switch_headroom(bare) - 0.5) < 1e-9,
+                 view.switch_headroom(bare))
+
+
 def test_the_mode_says_whether_the_board_holds_it_back(report):
     """`HOLD (NORM)`, `SENSORLESS (THR)`: the envelope's state beside the mode.
 
@@ -1855,6 +1888,7 @@ def main():
     test_the_soa_legend_reads_the_whole_soa(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
     test_the_mode_says_whether_the_board_holds_it_back(report)
+    test_switch_soa_is_the_switches_and_motor_soa_the_winding(report)
     test_the_flat_drawings_spend_the_block(report)
     test_every_gauge_shows_its_own_scale(report)
     test_the_demo_actually_loads_the_machine(report)
