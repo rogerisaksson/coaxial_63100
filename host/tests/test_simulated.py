@@ -1476,6 +1476,36 @@ def test_virtual_rotor(report):
                  turning.model()['omega'])
 
 
+def test_sto_probe(report):
+    """`tools/sto_probe.py` reads the STO chain the way the bench day will:
+    the interlock's two channels beside their want, the gate state's
+    chain fields, the keepalive pulses a second - and judges nothing."""
+    from tools import sto_probe
+    from coaxial import Coaxial63100
+    rig = Coaxial63100(simulated_device=True, power_afe=True).open()
+    try:
+        first = sto_probe.probe(rig)
+        second = sto_probe.probe(rig, first)
+    finally:
+        rig.close()
+    report.check("the probe reads Cinj and Clevel beside the interlock's want",
+                 all(name in first['channels'] for name in ('Cinj', 'Clevel'))
+                 and all(first['channels'][name][1] == 3.0
+                         for name in ('Cinj', 'Clevel')),
+                 first['channels'])
+    report.check("and the pump's pulses a second come off the keepalive "
+                 'count, absent on the first read and a number after',
+                 first['pulses_per_s'] is None
+                 and second['pulses_per_s'] is not None
+                 and second['pulses_per_s'] > 0
+                 and 'keepalive' in first['fields'],
+                 second['pulses_per_s'])
+    row = sto_probe.line(dict(second, t=1.0), first=True)
+    report.check('the table names every column it prints',
+                 'Cinj' in row and 'pulses/s' in row and 'pilot ok' in row
+                 and row.count(chr(10)) == 1, row[:80])
+
+
 def main():
     report = Report()
     for test in (test_session, test_board_info, test_analog_read,
@@ -1487,7 +1517,7 @@ def main():
                  test_gate_driver_arming, test_gate_snapshot,
                  test_closing_leaves_another_session_armed,
                  test_dead_time, test_views, test_virtual_rotor,
-                 test_thermal_identification):
+                 test_thermal_identification, test_sto_probe):
         print('\n-- %s --' % test.__name__[5:].replace('_', ' '))
         test(report)
     print('\n%d passed, %d failed' % (report.passed, report.failed))

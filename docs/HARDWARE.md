@@ -200,7 +200,10 @@ asks for Cinj ≥ 3.0 V and Clevel ≥ 3.0 V; the unmodified bench board
 reads 0.77 V and 0.06 V (2026-08-27), which is why bench sessions arm
 with `ignore_interlock=True` and `bypass_sto=True`. The keepalive
 latch holds a few hundred microseconds; gate op 0 reports the
-keepalive count and the worst gap.
+keepalive count and the worst gap. `tools/sto_probe.py` prints all of
+it a row a second - the two channels beside their want, the pulses a
+second off the keepalive count, the board's own flags - for the bench
+day the chain waits for (TODO).
 
 ## Sensors on SPI
 

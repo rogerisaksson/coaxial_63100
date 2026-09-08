@@ -243,6 +243,7 @@ python tools/build_and_flash.py          # build (+flash): --build-only, --flash
 python tools/session.py --status         # who is sharing the board's port
 python tools/switch.py --sweep 5,95 -p 10 -s 120  # background; --stop disarms
 python tools/pulse.py -d 0.05 -H U -L V -n 1 --on 30   # one leg against another
+python tools/sto_probe.py --simulated    # the STO chain's channels, a row a second
 python tools/commission.py --simulated   # the eight steps on the stand-in;
                                          # --arm --port COM4 at the bench
 python -m coaxial_mcp --port COM4        # MCP server, stdio
@@ -251,10 +252,10 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2938 checks, sized from `host/tests/.counts.json` and so
+Twenty-six suites, 2941 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (614),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
-`test_simulated.py` (247), `test_live_model.py` (212, needs ollama, `--live`),
+`test_simulated.py` (250), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
 `test_ollama_link.py` (96), `test_drive_core.py` (81, the control law against a
 motor model through the host gcc, the Monte Carlo's job included),
@@ -303,7 +304,7 @@ that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2938 checks are in those nine files.
+  773 of this tree's 2941 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

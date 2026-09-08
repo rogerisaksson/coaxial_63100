@@ -187,6 +187,7 @@ is still arithmetic. Every item names the file or record it lives in.
   3.0 V assumed, gate op 0's `pilot_uv` and `level_uv` read against the
   scope, and one arm with neither bypass. `keepalive` and `worst_gap` in
   the same reply say whether the pump ever starves while the link is
-  busy (board_limits.h has the measured gap).
+  busy (board_limits.h has the measured gap). `tools/sto_probe.py` is
+  that reading, a row a second, written against the stand-in.
 * Nothing has run near 63 V or 100 A. No measured value at either is
   recorded anywhere in this tree.
