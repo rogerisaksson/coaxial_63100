@@ -273,7 +273,10 @@ def envelope_rows(ident):
 
     if not ident:
         return []
-    rows = [('margin', '%.2f' % ident['margin'])]
+    cap = ident.get('trip_cap')
+    held = cap is not None and cap < 1.0 and abs(ident['margin'] - cap) < 1e-6
+    rows = [('margin', '%.2f%s' % (ident['margin'],
+                                   '  the trip cap' if held else ''))]
     if ident.get('margin_floor') is not None:
         rows.append(('floor', '%.2f' % ident['margin_floor']))
     rows.append(('innovation', '%.2f K' % ident.get('innovation_k', 0.0)))

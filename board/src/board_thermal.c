@@ -942,6 +942,7 @@ bool Board_ThermalIdent(board_thermal_ident_t *out)
   out->ambient_c = thermal_ident_ambient(&s_ident);
   out->ambient_sigma_k = thermal_ident_sigma(&s_ident, THERMAL_IDENT_AMBIENT);
   out->margin_floor = margin_floor();
+  out->trip_cap = trip_cap_now();
   return true;
 }
 

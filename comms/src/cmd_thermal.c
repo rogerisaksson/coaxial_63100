@@ -401,7 +401,8 @@ static cmd_status_t op_set_edge(rd_t *in, wr_t *out)
   * filtered innovation in milli-kelvin, the margin the envelope keeps in
   * micro, the counts - the saves zero and the seconds since one all ones,
   * "never", since MINOR 16: the fields stay (invariant 3) and the board
-  * keeps nothing - then the room and, since 16, the margin's floor. */
+  * keeps nothing - then the room, since 16 the margin's floor, and since
+  * 17 the trip cap, so a host can say which of the two holds the margin. */
 static cmd_status_t op_ident(wr_t *out)
 {
   board_thermal_ident_t id;
@@ -429,6 +430,8 @@ static cmd_status_t op_ident(wr_t *out)
   wr_i32(out, (int32_t)(id.ambient_sigma_k * 100.0f));
   /* MINOR 16, appended: the floor the margin rises from, micro. */
   wr_i32(out, (int32_t)(id.margin_floor * 1000000.0f));
+  /* MINOR 17, appended: the trip cap as it stands, micro; one with none. */
+  wr_i32(out, (int32_t)(id.trip_cap * 1000000.0f));
   return CMD_OK;
 }
 

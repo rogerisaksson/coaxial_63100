@@ -656,17 +656,20 @@ class SimulatedThermal:
         self._every_s, self._settle_s = every_s, settle_s
         return True
 
+    def _trip_cap_now(self):
+        """The trip cap as it stands: set at a trip, given back at
+        TRIP_RECOVER_PER_S, one with no trip in hand. The board's
+        `trip_cap_now`, and op 10's field since MINOR 17."""
+        if self._trip_cap >= 1.0:
+            return 1.0
+        return min(1.0, self._trip_cap
+                   + (self._model_s - self._trip_at) * self.TRIP_RECOVER_PER_S)
+
     def _margin(self):
         """The margin the envelope acts on now: the identification's for
-        its doubt, or the trip cap as it stands - set at a trip, given
-        back at TRIP_RECOVER_PER_S - whichever keeps more in hand. The
-        board's `margin_now`."""
-        earned = self._ident.margin(self._margin_floor)
-        if self._trip_cap >= 1.0:
-            return earned
-        cap = min(1.0, self._trip_cap
-                  + (self._model_s - self._trip_at) * self.TRIP_RECOVER_PER_S)
-        return min(earned, cap)
+        its doubt, or the trip cap as it stands - whichever keeps more in
+        hand. The board's `margin_now`."""
+        return min(self._ident.margin(self._margin_floor), self._trip_cap_now())
 
     def _limit(self, name):
         """One node's ceiling as the envelope acts on it: the record's,
@@ -894,6 +897,7 @@ class SimulatedThermal:
                # none: the board keeps nothing it identified.
                'saves': 0, 'since_save_s': None,
                'margin_floor': self._margin_floor,
+               'trip_cap': self._trip_cap_now(),
                'truth': self.truth()}
         return got
 

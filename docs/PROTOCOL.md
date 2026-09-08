@@ -506,7 +506,11 @@ ROOM AS IDENTIFIED beside the scales, in the same Kalman step, since
 the board has no ambient sensor and the room is what the observer's
 `ambient` is set from; MINOR 16 appends `i32 margin_floor_micro`, the
 floor the margin rises from - the record's `soa_margin_floor_ppm`,
-800 000 unless a bench set it. Only air, capacity and the room are
+800 000 unless a bench set it; MINOR 17 appends `i32 trip_cap_micro`,
+the trip cap as it stands - 700 000 at a trip, a percent a minute given
+back, 1 000 000 with no trip in hand - so a host can say which of the
+two holds `margin_micro`, which is the least of the identification's
+own and this. Only air, capacity and the room are
 online; spread and ntc ride at the record's values (FINDINGS,
 2026-09-05: unobservable from a cooldown). Op 11 ident reset →
 `u8 took`: scales to one, UNCERTAIN, the margin at the floor; nothing
@@ -681,6 +685,7 @@ MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 | 13 | twenty thermal nodes, the count says so; op 0 appends the FET junction rises and the speed; ops 7, 8, 9 read the node table, the edge table, set an edge |
 | 14 | thermal op 10 reads the online identification - state, which scales move, each scale and sigma, innovation, the envelope's margin, saves; op 11 resets it |
 | 15 | thermal op 10 appends the room as identified, `i32 ambient_centi, i32 ambient_sigma_centi` - the board has no ambient sensor |
+| 17 | thermal op 10 appends `i32 trip_cap_micro`, the trip cap as it stands, so a host can say whether the trip or the model holds the margin |
 | 16 | thermal op 10 appends `i32 margin_floor_micro` and writes `saves` 0, `since_save_s` never - the margin is continuous on the doubt, the state a word, nothing kept; op 12 sets the floor; op 11 no longer refuses while armed |
 
 MAJOR 2, 2026-08-29: the thermal nodes went per leg and the node

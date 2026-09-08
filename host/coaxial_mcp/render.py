@@ -372,9 +372,13 @@ def thermal_ident(ident):
     """The online identification - device 8 op 10: the state as a word,
     the margin the envelope acts on, the scales, the room."""
     floor = ident.get('margin_floor')
-    lines = ['ident: %s   margin %.2f of every span%s'
+    cap = ident.get('trip_cap')
+    held = (cap is not None and cap < 1.0
+            and abs(ident.get('margin', 1.0) - cap) < 1e-6)
+    lines = ['ident: %s   margin %.2f of every span%s%s'
              % (ident.get('state', '?'), ident.get('margin', 1.0),
-                ', floor %.2f' % floor if floor is not None else '')]
+                ', floor %.2f' % floor if floor is not None else '',
+                ' - the trip cap, recovering' if held else '')]
     scales, sigma = ident.get('scales') or {}, ident.get('sigma') or {}
     online = [name for name in (ident.get('online') or []) if name in scales]
     if online:

@@ -1390,6 +1390,12 @@ typedef struct
     * written as zero and never since the same MINOR: the board keeps
     * nothing (`thermal_ident.h`). */
   float    margin_floor;
+  /** MINOR 17: the trip cap as it stands - THERMAL_TRIP_MARGIN at a trip,
+      recovering at THERMAL_TRIP_RECOVER_PER_S - or one with no trip in
+      hand. `margin` is the least of this and the identification's own,
+      so a page can say which holds it: `STBL 72%` said the model was
+      sure of a number the trip was holding down (bench, 2026-09-08). */
+  float    trip_cap;
 } board_thermal_ident_t;
 
 bool Board_ThermalIdent(board_thermal_ident_t *out);

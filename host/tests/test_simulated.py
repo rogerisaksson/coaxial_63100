@@ -1552,7 +1552,8 @@ def test_thermal_identification(report):
                      set(got) == {'state', 'scales', 'sigma', 'online',
                                   'innovation_k', 'margin', 'updates',
                                   'saves', 'since_save_s', 'truth',
-                                  'ambient', 'ambient_sigma', 'margin_floor'},
+                                  'ambient', 'ambient_sigma', 'margin_floor',
+                                  'trip_cap'},
                      sorted(got))
         report.check('its state is one of the three and the scales are the '
                      'four, in wire order',
@@ -1902,6 +1903,11 @@ def test_thermal_identification(report):
     hot.fast_forward(120.0, seen=cooked, live=True)
     got = hot.identification()
     used = hot.budget()['used']
+    report.check('and the wire says the trip holds it: trip_cap under one '
+                 'and the margin at the cap (MINOR 17)',
+                 got.get('trip_cap', 1.0) < 1.0
+                 and abs(got['margin'] - got['trip_cap']) < 1e-9,
+                 (got.get('trip_cap'), got['margin']))
     report.check('200 A in the cold room trips the envelope once, and the '
                  'margin is held at 0.70 from the trip - with no node\'s '
                  'spend outside 0..1 whatever the room',

@@ -1777,6 +1777,40 @@ def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
                  view.switch_headroom(bare))
 
 
+def test_the_foot_says_trip_while_the_cap_holds(report):
+    """`TRIP 72%` in the trip's red while the trip cap is the margin in
+    hand, whatever the model's state; the state's own word once the cap
+    has recovered past it. The bench: "STBL visas även när det är 70 %
+    av SOA" (2026-09-08) - the model's word over the trip's number.
+    """
+    sys.path.insert(0, HOST)
+    from coaxial import machine
+    from tools import show_rotor_observer as view
+
+    def foot(state, margin, cap):
+        return view._policy({'ident': {'state': state, 'margin': margin,
+                                       'trip_cap': cap}})
+
+    label, word, ink = foot('STABLE', 0.72, 0.72)
+    report.check('the trip cap in hand says TRIP with the capped percent, '
+                 'in the trip\'s red',
+                 word == 'TRIP 72%' and ink == machine.INK[machine.SOA_TRIP],
+                 (word, ink))
+    label, word, ink = foot('STABLE', 0.90, 1.0)
+    report.check('no trip: the state\'s word and the margin',
+                 word == 'STBL 90%' and ink == machine.INK[machine.SOA_OK],
+                 (word, ink))
+    label, word, ink = foot('CONVERGING', 0.90, 0.95)
+    report.check('a cap that has recovered past the identification leaves '
+                 'the word to the model', word == 'CONV 90%', word)
+    label, word, ink = foot('UNCERTAIN', 0.80, 1.0)
+    report.check('and a board before MINOR 17 answers no cap and reads as '
+                 'before', foot('UNCERTAIN', 0.80, 1.0)[1] == 'UNCR 80%'
+                 and view._policy({'ident': {'state': 'UNCERTAIN',
+                                             'margin': 0.8}})[1] == 'UNCR 80%',
+                 word)
+
+
 def test_the_mode_says_whether_the_board_holds_it_back(report):
     """`HOLD (NORM)`, `SENSORLESS (THR)`: the envelope's state beside the mode.
 
@@ -1885,6 +1919,7 @@ def main():
     test_the_ntc_is_shown_as_the_one_measurement(report)
     test_two_headrooms_named_apart(report)
     test_the_foot_carries_the_policy(report)
+    test_the_foot_says_trip_while_the_cap_holds(report)
     test_the_soa_legend_reads_the_whole_soa(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
     test_the_mode_says_whether_the_board_holds_it_back(report)

@@ -258,6 +258,10 @@ class Thermal(Subsystem):
         # MINOR 16: the floor the margin rises from.
         if r.remaining >= 4:
             got['margin_floor'] = r.i32() / 1e6
+        # MINOR 17: the trip cap as it stands, one with no trip in hand.
+        # `margin` is the least of it and the identification's own.
+        if r.remaining >= 4:
+            got['trip_cap'] = r.i32() / 1e6
         return got
 
     def reset_identification(self):

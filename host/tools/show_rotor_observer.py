@@ -990,8 +990,19 @@ def _policy(view):
     ident = view.get('ident')
     state = ident['state'] if ident else None
     if state in POLICY_INK:
+        margin = ident.get('margin', 1.0)
+        percent = int(round(100.0 * margin))
+        # THE TRIP HOLDS IT, not the model's doubt. `margin` is the least
+        # of the identification's own and the trip cap (MINOR 17), and
+        # while the cap is the one in hand the word says so in the trip's
+        # red: `STBL 72%` had the model sure of a number the trip was
+        # holding down - "STBL visas även när det är 70 % av SOA"
+        # (bench, 2026-09-08). The state itself is still on the THERMAL
+        # box's row; this is the ceiling in force and what set it.
+        cap = ident.get('trip_cap', 1.0)
+        if cap < 1.0 and abs(margin - cap) < 1e-6:
+            return 'TH OBS', 'TRIP %d%%' % percent, machine.INK[machine.SOA_TRIP]
         word = POLICY_WORD[state]
-        percent = int(round(100.0 * ident.get('margin', 1.0)))
         if percent < 100:
             word = '%s %d%%' % (POLICY_SHORT.get(state, word), percent)
         return 'TH OBS', word, machine.INK[POLICY_INK[state]]

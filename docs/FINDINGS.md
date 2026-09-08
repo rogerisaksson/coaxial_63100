@@ -1990,6 +1990,23 @@ looking at the estimate alone.
   what their name says. A board that reports no per-node spend falls
   back to its worst.
 
+* **STBL over a number the trip was holding down** (2026-09-08, "STBL
+  visas även när det är 70 % av SOA, nåt med hystereses och limits som
+  visar STBL istället för UNCR"): the foot's word was the
+  identification's state and its percent the margin in force, which op
+  10 reports as the least of the identification's own and the trip cap -
+  and after a trip the cap is the one in hand, 0.70 back a percent a
+  minute, while the model can be STABLE at 1.00 underneath. On the
+  stand-in through a trip: minute 10 `STABLE 0.80`, minute 20 `STABLE
+  0.90`, the identification alone at 1.00 by then. The wire carried
+  nothing to tell the two apart, so MINOR 17 appends the trip cap to op
+  10 (firmware, the parser, the stand-in); the foot says `TRIP 72%` in
+  the trip's red while the cap holds the margin and the state's word
+  once the cap has recovered past the model, the THERMAL OBSERVER's
+  margin row says `the trip cap`, and the MCP tool's text says
+  `recovering`. A board before MINOR 17 answers no cap and reads as
+  before. Built with zero warnings; not run on the board.
+
 ## The renderers
 
 * **A per-cell grain is what made the board blocky.** The tone ladder
