@@ -538,6 +538,14 @@ def _draw_frame(rows, rect, lane, cells, down):
 
     for c in range(c0, c1 + 1):
         for which in (0, 1):
+            # THE LINE STARTS AT THE SIDE'S LANE, not at the corner cell's
+            # edge. A side that fell in the cell's inner lane had the top
+            # and bottom lines run one dot past it, and the corner read as
+            # a foot sticking out - `⠼` where `⠸` was meant - at 73 of 152
+            # corners over the five sizes measured (bench, 2026-09-12:
+            # "fixa hörnen i regionerna").
+            if (c == c0 and which < lane[0]) or (c == c1 and which > lane[1]):
+                continue
             mark(r0, c, which, FRAME_TOP)
             mark(r1, c, which, FRAME_BOTTOM)
     for r in range(r0, r1 + 1):

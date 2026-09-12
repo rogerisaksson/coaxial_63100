@@ -890,11 +890,18 @@ def test_the_thermal_map_is_a_halftone_with_its_parts_marked(report):
                  0 < len(marked) < 0.25 * len(lit),
                  '%d marked of %d lit' % (len(marked), len(lit)))
     # RIGHT ANGLES: the frames are box-drawing in braille, the bench's
-    # own glyphs - corners, and straight runs between them.
-    corners = {ch: marked.count(ch) for ch in '⡖⢲⠧⠼'}
+    # own glyphs - corners, and straight runs between them. A corner is
+    # one of two glyphs since 2026-09-12: the side runs in the lane its
+    # millimetres fell in, and the lines meet it there - `⡖` or `⢰` at
+    # the top left, and so round - where before the lines ran one dot
+    # past an inner-lane side (`test_every_frame_corner_on_the_map_is_a_
+    # right_angle` judges each one).
+    corners = {pair: sum(marked.count(ch) for ch in pair)
+               for pair in ('⡖⢰', '⢲⡆', '⠧⠸', '⠼⠇')}
     runs = {ch: marked.count(ch) for ch in '⠒⠤⡇⢸'}
     report.check('the frames have right-angled corners - '
-                 '⡖⠒⠒⢲ over ⠧⠤⠤⠼',
+                 '⡖⠒⠒⢲ over ⠧⠤⠤⠼, or ⢰ ⡆ ⠸ ⠇ where the side is in the '
+                 'inner lane',
                  all(n >= 5 for n in corners.values()), str(corners))
     report.check('and straight sides between them',
                  all(n >= 10 for n in runs.values()), str(runs))
@@ -1777,6 +1784,69 @@ def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
                  view.switch_headroom(bare))
 
 
+def test_every_frame_corner_on_the_map_is_a_right_angle(report):
+    """A frame's top and bottom lines start AT the side's lane. A side
+    that fell in the cell's inner lane had the lines run one dot past
+    it, and the corner read as a foot sticking out - `⠼` where `⠸` was
+    meant: 63 of 142 corners over five sizes before the fix (bench,
+    2026-09-12: "fixa hörnen i regionerna på termiska observeraren").
+    Judged against a literal table of the eight right-angle glyphs, one
+    per corner and lane, on every mark at every size the page draws;
+    corners the rim runs through or that lie off the board are not
+    judged, since the frame stops at the rim by design.
+    """
+    from coaxial import thermalmap as tm
+
+    # side, edge, the lane the side runs down -> the corner cell's glyph.
+    right_angle = {('left', 'top', 0): '\u2856', ('left', 'top', 1): '\u28b0',
+                   ('right', 'top', 1): '\u28b2', ('right', 'top', 0): '\u2846',
+                   ('left', 'bottom', 0): '\u2827', ('left', 'bottom', 1): '\u2838',
+                   ('right', 'bottom', 1): '\u283c', ('right', 'bottom', 0): '\u2807'}
+
+    def glyph(rows, r, c):
+        bits = 0
+        for lane in (0, 1):
+            for y in range(4):
+                if rows[4 * r + y][2 * c + lane] == tm.MARK:
+                    bits |= tm.BRAILLE_BITS[lane][y]
+        return chr(tm.BRAILLE + bits)
+
+    judged, wrong = 0, []
+    for cells in (40, 48, 60, 72, 88):
+        dx = dy = tm.OUTER_MM / cells
+        rim, _ = tm._mask(cells, cells, ())
+        for mark in tm.MARKS:
+            label, refs, _where, margin = mark
+            (c0, c1, r0, r1), lanes = tm._cell_rect(
+                tm.frame(refs, margin), cells, cells, dx, dy)
+            rows, _ = tm._mask(cells, cells, (mark,))
+            for side, c, lane in (('left', c0, lanes[0]),
+                                  ('right', c1, lanes[1])):
+                for edge, r in (('top', r0), ('bottom', r1)):
+                    if any(rim[4 * r + y][2 * c + lane_] != tm.FIELD
+                           for lane_ in (0, 1) for y in range(4)):
+                        continue
+                    judged += 1
+                    got = glyph(rows, r, c)
+                    if got != right_angle[(side, edge, lane)]:
+                        wrong.append('%d %s %s-%s %s' % (cells, label, edge,
+                                                         side, got))
+    report.check('every judged corner of every frame at every size is its '
+                 'right angle: %d judged' % judged,
+                 judged >= 120 and not wrong, '; '.join(wrong[:6]))
+
+    # And the eight glyphs themselves, off a blank field, both lane
+    # combinations: the lines meet the side and go no further.
+    def drawn(lanes):
+        rows = [[tm.FIELD] * 24 for _ in range(24)]
+        tm._draw_frame(rows, [2, 8, 1, 4], lanes, 12, 12)
+        return [glyph(rows, r, c) for r, c in ((1, 2), (1, 8), (4, 2), (4, 8))]
+    report.check('a side in the outer lanes: ' + ' '.join(drawn([0, 1])),
+                 drawn([0, 1]) == ['\u2856', '\u28b2', '\u2827', '\u283c'])
+    report.check('a side in the inner lanes: ' + ' '.join(drawn([1, 0])),
+                 drawn([1, 0]) == ['\u28b0', '\u2846', '\u2838', '\u2807'])
+
+
 def test_the_foot_says_trip_while_the_cap_holds(report):
     """`TRIP 72%` in the trip's red while the trip cap holds the margin
     UNDER THE FLOOR, whatever the model's state - the bench: "STBL visas
@@ -1936,6 +2006,7 @@ def main():
     test_two_headrooms_named_apart(report)
     test_the_foot_carries_the_policy(report)
     test_the_foot_says_trip_while_the_cap_holds(report)
+    test_every_frame_corner_on_the_map_is_a_right_angle(report)
     test_the_soa_legend_reads_the_whole_soa(report)
     test_the_soa_gauge_pulses_only_when_the_board_acts(report)
     test_the_mode_says_whether_the_board_holds_it_back(report)

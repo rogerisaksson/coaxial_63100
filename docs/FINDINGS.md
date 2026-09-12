@@ -2753,6 +2753,24 @@ looking at the estimate alone.
   fringe dithered - the rotor draws 97 distinct patterns and the
   protractor 72, where both were a handful.
 
+* **The frames' corners had a foot** (2026-09-12, "fixa hörnen i
+  regionerna på termiska observeraren ⠼"). A frame on the map is drawn
+  on the cell grid: the top and bottom lines across a dot row of the
+  corner cells, the sides down the lane the edge's millimetres fell in
+  - and the lines spanned BOTH lanes of the corner cell whatever lane
+  the side was in, so a left side in the cell's right lane had its
+  lines run one dot past it: `⠼` at a bottom-left corner where `⠸` was
+  meant, `⢲` at a top-left where `⢰`, and the mirror on the right.
+  Measured against a literal table of the eight right-angle glyphs, one
+  per corner and lane, every mark at 40, 48, 60, 72 and 88 cells with
+  the corners the rim runs through left out: 63 of 142 wrong - MCU, REG
+  and HS on the left at 48 and 60, REG and U on both sides at 72 and
+  88, between four and seven frames at every size. The lines now start
+  at the side's lane (`_draw_frame`): 0 of 142, rastered at 48 and 60
+  and read. The same table is the views suite's check, with the eight
+  glyphs also drawn off a blank field for both lane combinations.
+  views 206, 2981 in all.
+
 ## Ruled Out
 
 Hypotheses investigated and settled, so they are not investigated
