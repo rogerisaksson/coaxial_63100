@@ -301,12 +301,23 @@ if ($null -eq $resolved) {
     # Pull it rather than printing the command and quitting. This script exists
     # so a question can be asked without a detour, and "run this and come back"
     # is a detour. Several GB the first time on a given machine, once.
+    #
+    # Through coaxial_ollama.pull, the same pull dbg.py's start makes, and
+    # not `ollama pull`: the daemon's /api/pull stream drawn as a bar in
+    # these same columns, so the page shows the download the way it shows
+    # everything else - and a run whose output is captured (-Ask into a
+    # file) gets a row every five percent instead of a repaint that needs
+    # a TTY. The bench, 2026-09-12: "automatiskt laddar ner en modell om
+    # den inte finns och indikerar med en progressbar".
     Say 'wait' 'model' ("$Model is not here yet - pulling it")
-    Write-Host ''
-    & $ollama.Source pull $Model
-    Write-Host ''
+    Push-Location $Root
+    try {
+        & python -m coaxial_ollama.pull $Model
+    } finally {
+        Pop-Location
+    }
     if ($LASTEXITCODE -ne 0) {
-        Say 'fail' 'model' ("ollama pull $Model exited $LASTEXITCODE")
+        Say 'fail' 'model' ("could not pull $Model - the daemon's words are above")
         exit 1
     }
     $tags = Get-Tags -Tries 5
@@ -356,7 +367,26 @@ try {
         # No nvidia-smi is not a problem worth a line of its own.
     }
 } catch {
-    Say 'warn' 'model' ("could not preload: " + $_.Exception.Message)
+    # THE DAEMON'S WORDS, not PowerShell's. $_.Exception.Message is the
+    # status line in the console's language - "(500) Internt serverfel" -
+    # and the body that says WHY was never read: on this laptop the page
+    # said "could not preload: (500)" for months of an install with no
+    # runner in it (2026-09-12, "nåt fel vid laddning av modellerna").
+    $words = Get-DaemonWords $_
+    if ($words -match 'llama-server binary not found') {
+        # THE RUNNER, NOT THE MODEL. The tags are on the disk and the daemon
+        # answers /api/tags; what is missing is llama-server.exe under
+        # lib\ollama, which an upgrade's uninstaller deleted and the
+        # install that should have followed never wrote (upgrade.log,
+        # 2026-09-03 20:30). No pull fixes that and no question will work,
+        # so this is a stop with the fix, not a warning and a prompt.
+        Say 'fail' 'ollama' ('its runner is missing from the install: ' +
+                             ($words -split '\(checked')[0].Trim())
+        Say 'fail' 'ollama' ('reinstall it - .\setup.ps1, or  irm https://ollama.com/install.ps1 | iex' +
+                             '  - then run this again')
+        exit 1
+    }
+    Say 'warn' 'model' ('could not preload: ' + $words)
 }
 
 if ($NoBoard) {

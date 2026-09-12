@@ -12,6 +12,20 @@ The code is `host/coaxial_ollama/`, `host/board_chat.ps1` with
 tag follows: VRAM minus a reserve, free RAM, and cores. `board_chat`
 and `dbg.py -m auto` both use it and pull the tag if it is absent.
 
+### Pulling
+
+`python -m coaxial_ollama.pull TAG` is the one pull both entry points
+make: the daemon's `/api/pull` stream drawn in the page's own columns -
+a braille bar at half-cell resolution, the percent, the bytes, the
+layer's rate and what is left at it - rewritten in place on a TTY and a
+row every five percent off one, so a captured run still reads. An
+`error` line from the daemon is raised in its words, exit 2. The page
+runs it when the tag is not in `ollama list`; dbg.py's start does the
+same through `ensure_pulled`; `/model TAG` mid-session still refuses an
+absent tag, so a typo there costs a command and not a download. Since
+2026-09-12 - before it the page shelled out to `ollama pull` and dbg.py
+refused with the command to type (FINDINGS).
+
 ### The catalogue
 
 `CATALOGUE` in `capability.py`, resident size at Q4_K_M:
@@ -56,6 +70,18 @@ every question will be slow enough to notice. A hybrid split hands back
 half the weights for about a fifth of the speed.
 
 ## The daemon
+
+### What a failed preload says
+
+`board_chat.ps1` loads the model before the prompt opens, and a load
+that fails is reported in the daemon's words - the `error` field of the
+500's body, read by `Get-DaemonWords` - not PowerShell's status line. A
+body saying `llama-server binary not found` is the runner missing from
+the install, not a model missing from the list: the page stops with the
+fix (`.\setup.ps1`, or `irm https://ollama.com/install.ps1 | iex`)
+rather than opening a prompt where every question fails. Measured
+2026-09-12 on a laptop whose 0.33.3 upgrade had deleted the runner and
+never written the new one (FINDINGS).
 
 ### Tuning
 

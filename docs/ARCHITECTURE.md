@@ -105,9 +105,9 @@ host/coaxial/simulated/ the stand-in: board, drive, daq, system, values,
                         caller drives it), link, analog
 host/coaxial_mcp/       the MCP server: server, tools, session, docs,
                         detail, render
-host/coaxial_ollama/    the local-model runner: capability, client, intent,
-                        context, plan, language, replies, tools, runner,
-                        sandbox, debug, cli, iolog, spinner
+host/coaxial_ollama/    the local-model runner: capability, pull, client,
+                        intent, context, plan, language, replies, tools,
+                        runner, sandbox, debug, cli, iolog, spinner
 host/testline/          instruments and a plan for a test executive
 host/tools/             run_tests, pick_tests, build_and_flash, session,
                         switch, pulse, commission, montecarlo, link_bench,
@@ -316,19 +316,19 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2961 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2978 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 | --- | --- | --- |
-| test_structure.py | 617 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
+| test_structure.py | 621 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 219 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
 | test_simulated.py | 254 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |
 | test_live_model.py | 212 | the model, `--live` |
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
 | test_conformance.py | 110 | the live board against PROTOCOL.md, `--conformance` |
-| test_ollama_link.py | 96 | the link diagnosis |
+| test_ollama_link.py | 109 | the link diagnosis, and a pull drawn from the daemon's own numbers |
 | test_sensorless.py | 138 | the design arithmetic, the commissioning and the motion verbs against the stand-in, its thermistor bounded, its stage throttled on the winding |
 | test_modbus_core.py | 77 | the Modbus core through ctypes, clock injected, the oracle's prefix sweep |
 | test_daq_api.py | 75 | the acquisition front door against the stand-in |

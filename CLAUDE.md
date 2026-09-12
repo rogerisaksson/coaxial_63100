@@ -248,16 +248,17 @@ python tools/commission.py --simulated   # the eight steps on the stand-in;
                                          # --arm --port COM4 at the bench
 python -m coaxial_mcp --port COM4        # MCP server, stdio
 python -m coaxial_ollama.capability      # which local model this machine runs
+python -m coaxial_ollama.pull gemma4:12b # a tag through the daemon, drawn as a bar
 python dbg.py --repl                     # prompt loop; /py and /sh cost no tokens
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2961 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (617),
+Twenty-six suites, 2978 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (621),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (254), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
-`test_ollama_link.py` (96), `test_drive_core.py` (81, the control law against a
+`test_ollama_link.py` (109), `test_drive_core.py` (81, the control law against a
 motor model through the host gcc, the Monte Carlo's job included),
 `test_modbus_core.py` (77), `test_sensorless.py` (138, the design arithmetic -
 the power stage's too, and the datasheet against the thermal model - the
@@ -304,7 +305,7 @@ that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2961 checks are in those nine files.
+  773 of this tree's 2978 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
@@ -543,8 +544,9 @@ env.ps1          per-shell PATH and the board_chat/dbg/board/cbuild/cflash alias
 host/board_chat.ps1  preflight + prompt loop; orchestration only — also the
                  chooser's BOARD CHAT page, which asks who answers: this,
                  or claude with the coaxial MCP server. board_chat/ beside
-                 it holds Say, ComPort, Ollama, ModelChoice, Relaunch: one
-                 concern per file, dot-sourced, not meant to run alone
+                 it holds Say, Tuning, ComPort, Ollama, ModelChoice,
+                 Relaunch: one concern per file, dot-sourced, not meant to
+                 run alone
 docs/            this documentation
 ```
 

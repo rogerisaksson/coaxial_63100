@@ -898,6 +898,58 @@ record's own constants, no measurement.
   Both allocators off and one model, one context: ten questions,
   twenty-seven calls, no `std::bad_alloc`, one load.
 
+* **The daemon had no runner, and the page said "(500)"** (2026-09-12,
+  "nåt fel vid laddning av modellerna"). Every chat and generate on
+  this laptop had answered 500 since 2026-09-03, and the body says why:
+  `error starting llama-server: llama-server binary not found (checked:
+  ...\lib\ollama\llama-server.exe, ...)`. `lib\ollama` holds one CUDA
+  DLL (`cuda_v13\cublasLt64_13.dll`) and nothing else; `upgrade.log`
+  ends 2026-09-03 20:30:54 with the OLD install's uninstaller deleting
+  every `ggml-*.dll` and the runner - "Uninstallation process
+  succeeded", "Log closed" - and no install after it, while `ollama.exe`
+  and `ollama app.exe` are the 0.33.3 binaries dated 16:50 the same
+  day. The tags are there (gemma4:12b 7.6 GB, llama3.1:8b 4.9 GB) and
+  `/api/tags` answers, so the page's model choice, warm and
+  `Clear-Resident` all passed and the preload's catch printed
+  `$_.Exception.Message`: "Fjärrservern returnerade ett fel: (500)
+  Internt serverfel." - the status line in the console's language, the
+  body never read; the Python client one layer down had the words all
+  along (`/api/chat 500: {"error":"error starting llama-server: ...`).
+  `Get-DaemonWords` reads the body now - `$_.ErrorDetails.Message`
+  under PowerShell 5.1, else the response stream seeked back to 0
+  (Position 625 of 625 after Invoke-RestMethod has been through it,
+  measured; without the seek the body read empty and the first version
+  fell through to the status line) - and a body that says
+  `llama-server binary not found` is a stop with the fix (`.\setup.ps1`,
+  or the ollama.com installer) rather than a warn and a prompt where
+  every question fails; any other body is shown in the daemon's words.
+  No pull fixes a missing runner, and the reinstall is the operator's.
+  ollama.com answers from here (200), so nothing stops it.
+* **One pull, drawn from the daemon's numbers** (2026-09-12, "lägg in
+  så sidan med LLM automatiskt laddar ner en modell om den inte finns
+  och indikerar med en progressbar"). The page shelled out to `ollama
+  pull`, whose bar is a TTY repaint, and dbg.py refused an absent tag
+  with the command to type while MODELS.md said both pulled.
+  `coaxial_ollama/pull.py` streams `/api/pull` - `status`, and
+  `digest`, `total`, `completed` while a layer comes - and draws it in
+  Say's columns: 24 braille cells at half-cell resolution (⣿, ⡇ for
+  the half step, ⣀ for what is to come), the percent, bytes of bytes,
+  the layer's rate and what is left at it; rewritten in place on a TTY,
+  a row at every status and every five percent off one, ASCII when the
+  stream's codec cannot hold braille. An `error` line from the daemon
+  is raised as OllamaError in its words ("pull model manifest: file
+  does not exist" in the suite), a cloud tag refused before any
+  request. `board_chat.ps1` runs `python -m coaxial_ollama.pull $Model`
+  when the tag is not in the list; dbg.py's start goes through
+  `cli.ensure_pulled`; `/model TAG` mid-session still refuses, so a
+  typo costs a command and not gigabytes. Measured off a TTY,
+  all-minilm:22m through this laptop's daemon: 28 rows, the 46 MB
+  layer at 9 MB/s with "11 s left" at 9 % and "0 s left" from 91 %,
+  three small layers after it, `pulled all-minilm:22m, 46 MB in 10 s`,
+  exit 0, the tag removed again; the scripted 4.9 GB stream in the
+  suite is 26 rows off a TTY and one row rewritten 106 times on one,
+  closed once. link 109, structure 621, 2978 in all.
+
 ## The SOA envelope
 
 * **A throttle weighed nodes it could not cool.** `thermal_budget`'s

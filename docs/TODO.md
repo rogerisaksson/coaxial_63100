@@ -170,8 +170,9 @@ is still arithmetic. Every item names the file or record it lives in.
   in KINDS, READ, the prompt's sentence about the angle kind and the
   plan; MODELS.md says it is measured against the live model before it
   lands, twelve questions and more, and on this laptop Ollama 0.33.3
-  answers every chat with 500 "llama-server binary not found" - an
-  install to repair first.
+  has no runner - its 2026-09-03 upgrade deleted the old one and never
+  wrote the new (FINDINGS, *The daemon had no runner*) - a reinstall
+  first.
 * **The STO chain, modified and tested with its pilot tone** (the
   bench, 2026-09-08: "STO-kretsen som behöver modifieras/testas med
   pilotton"). The chain has never released the gate drivers' supply on

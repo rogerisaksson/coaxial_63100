@@ -101,6 +101,42 @@ function Initialize-Daemon {
     Say 'ok' 'daemon' 'prompt cache off, checkpoints capped, one model at a time'
 }
 
+function Get-DaemonWords {
+    <#  What the daemon said, out of an Invoke-RestMethod failure: the
+        `error` field of its JSON body, which is where ollama puts the
+        sentence that matters - "llama-server binary not found (checked:
+        ...)", "model requires more system memory". PowerShell's own
+        message is the status line, in the console's language ("(500)
+        Internt serverfel", measured here 2026-09-12), so the page read
+        that back for a runner that was not installed. Falls back to the
+        message when there is no body or no `error` in it.  #>
+    param($Failure)
+
+    $words = ''
+    # PowerShell 5.1 hands the body over twice: as ErrorDetails.Message,
+    # and in the response stream - which Invoke-RestMethod has already
+    # read to its end (Position 625 of 625, measured), so that one is
+    # seeked back before it is read. Without the seek the body came back
+    # empty and this fell through to the status line.
+    try {
+        if ($Failure.ErrorDetails -and $Failure.ErrorDetails.Message) {
+            $body = [string]$Failure.ErrorDetails.Message
+        } else {
+            $stream = $Failure.Exception.Response.GetResponseStream()
+            if ($stream.CanSeek) { $stream.Position = 0 }
+            $reader = New-Object System.IO.StreamReader($stream)
+            $body = $reader.ReadToEnd()
+            $reader.Close()
+        }
+        $parsed = $body | ConvertFrom-Json
+        if ($parsed.error) { $words = [string]$parsed.error }
+    } catch {
+        $words = ''
+    }
+    if (-not $words) { $words = [string]$Failure.Exception.Message }
+    return $words
+}
+
 function Get-Tags {
     param([int]$Tries = 1)
     for ($i = 0; $i -lt $Tries; $i++) {

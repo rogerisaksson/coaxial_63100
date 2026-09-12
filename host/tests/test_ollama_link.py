@@ -742,12 +742,170 @@ def test_fallback(report):
                  and '[33m' not in plain.getvalue())
 
 
+def test_pull_draws_the_daemons_numbers(report):
+    """A tag that is not here is pulled, and the download is the daemon's
+    own numbers drawn as a bar in Say's columns - one row rewritten in
+    place on a TTY, a row every five percent off one. The page shelled out
+    to `ollama pull` and dbg.py refused with the command to type; the
+    bench, 2026-09-12: "lägg in så sidan med LLM automatiskt laddar ner en
+    modell om den inte finns och indikerar med en progressbar". And the
+    page reads a failed preload in the daemon's words - "(500)" was all it
+    said for a runner missing from the install.
+    """
+    from coaxial_ollama import cli, pull
+    from coaxial_ollama.client import Ollama, OllamaError
+
+    full, half, empty = pull.BRAILLE
+    report.check('the bar is half-cell braille: 0, 52 and 100 % of 24 cells',
+                 pull.bar(0, 100) == empty * 24
+                 and pull.bar(52, 100) == full * 12 + half + empty * 11
+                 and pull.bar(100, 100) == full * 24
+                 and pull.bar(52, 100, glyphs=pull.ASCII) == '=' * 12 + '>' + '-' * 11,
+                 pull.bar(52, 100))
+
+    total = 4_900_000_000
+    script = [{'status': 'pulling manifest'}]
+    script += [{'status': 'pulling 667b0c1932bc', 'digest': 'sha256:667b',
+                'total': total, 'completed': total * f // 100}
+               for f in range(0, 101)]
+    script += [{'status': 'pulling 948af2743fc7', 'digest': 'sha256:948a',
+                'total': 1481, 'completed': 1481},
+               {'status': 'verifying sha256 digest'},
+               {'status': 'writing manifest'}, {'status': 'success'}]
+
+    def scripted():
+        # A second an EVENT, read as often as the code likes: the clock is
+        # how many events have been handed over, so a rate is bytes an
+        # event and the estimate follows from it.
+        tick = [0.0]
+
+        def stream():
+            for event in script:
+                tick[0] += 1.0
+                yield event
+        return stream(), (lambda: tick[0])
+
+    class VT(io.StringIO):
+        encoding = 'utf-8'
+
+        def isatty(self):
+            return True
+
+    plain = io.StringIO()                       # no isatty, no codec
+    source, now = scripted()
+    got = pull.pull('llama3.1:8b', out=plain, source=source,
+                    glyphs=pull.BRAILLE, now=now)
+    rows = plain.getvalue().splitlines()
+    waits = [r for r in rows if r.startswith('  wait')]
+    report.check('the stream ends in the daemon\'s own last word',
+                 got == 'success', got)
+    report.check('off a TTY a row at every five percent and every status, '
+                 'not every event: %d rows for %d events'
+                 % (len(waits), len(script)), 24 <= len(waits) <= 28)
+    halfway = [r for r in waits if ' 50 %' in r]
+    report.check('a row is Say\'s columns: the tag, the bar, the percent, '
+                 'the gigabytes, the rate and what is left',
+                 len(halfway) == 1 and 'llama3.1:8b' in halfway[0]
+                 and full * 12 in halfway[0] and 'of 4.9 GB' in halfway[0]
+                 and '49 MB/s' in halfway[0] and '50 s left' in halfway[0]
+                 and halfway[0].startswith('  wait   model '),
+                 halfway[0] if halfway else waits[:2])
+    report.check('and the last row says what was pulled and how long it took',
+                 rows[-1].startswith('  ok     model ')
+                 and 'pulled llama3.1:8b, 4.9 GB in 1 min 46 s' in rows[-1],
+                 rows[-1])
+
+    ascii_out = io.StringIO()
+    source, now = scripted()
+    pull.pull('llama3.1:8b', out=ascii_out, source=source, now=now)
+    report.check('a stream with no codec for braille gets the ASCII bar',
+                 '=' * 12 in ascii_out.getvalue()
+                 and full not in ascii_out.getvalue())
+
+    painted = VT()
+    source, now = scripted()
+    pull.pull('llama3.1:8b', out=painted, source=source, now=now)
+    text = painted.getvalue()
+    report.check('on a TTY the row is rewritten in place, in Say\'s colours, '
+                 'and ends once', text.count('\r') >= len(script)
+                 and text.count('\n') == 1 and '\x1b[36m' in text
+                 and text.rstrip().endswith('\x1b[0m'),
+                 '%d CR, %d LF' % (text.count('\r'), text.count('\n')))
+
+    refused = io.StringIO()
+    try:
+        pull.pull('no-such:9b', out=refused,
+                  source=iter([{'status': 'pulling manifest'},
+                               {'error': 'pull model manifest: file does '
+                                         'not exist'}]))
+        said = ''
+    except OllamaError as exc:
+        said = str(exc)
+    report.check('an error line is the daemon\'s words, raised and shown in '
+                 'red', 'file does not exist' in said
+                 and refused.getvalue().splitlines()[-1].startswith('  fail'),
+                 said)
+    try:
+        pull.pull('minimax-m3:cloud', source=iter([]), out=io.StringIO())
+        said = ''
+    except OllamaError as exc:
+        said = str(exc)
+    report.check('a cloud tag is refused before any request',
+                 'cloud' in said, said)
+
+    client = Ollama('gemma4:12b', keep_alive=0)
+    listed = [[], ['gemma4:12b']]
+    real_models = Ollama.models
+    Ollama.models = lambda self: listed.pop(0) if len(listed) > 1 else listed[0]
+    pulled = []
+
+    def fake_pull(tag, host, out):
+        pulled.append((tag, host))
+    try:
+        name = cli.ensure_pulled(client, io.StringIO(), pull_with=fake_pull)
+        report.check('dbg.py\'s start pulls an absent tag once, then takes the '
+                     'name the list gives',
+                     pulled == [('gemma4:12b', client.host)]
+                     and name == 'gemma4:12b', (pulled, name))
+
+        def unreachable(self):
+            raise OllamaError('cannot reach ollama at %s' % self.host)
+        Ollama.models = unreachable
+        pulled[:] = []
+        try:
+            cli.ensure_pulled(client, io.StringIO(), pull_with=fake_pull)
+            said = ''
+        except OllamaError as exc:
+            said = str(exc)
+        report.check('and a daemon that is not there is not a pull: the '
+                     'error as before', 'cannot reach' in said and not pulled,
+                     said)
+    finally:
+        Ollama.models = real_models
+
+    host = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    page = io.open(os.path.join(host, 'board_chat.ps1'),
+                   encoding='utf-8-sig').read()
+    helpers = io.open(os.path.join(host, 'board_chat', 'Ollama.ps1'),
+                      encoding='utf-8-sig').read()
+    report.check('the page pulls through the same module, not `ollama pull`',
+                 'python -m coaxial_ollama.pull $Model' in page
+                 and 'Source pull $Model' not in page)
+    report.check('and a failed preload is the daemon\'s words, a missing '
+                 'runner named with its fix',
+                 'function Get-DaemonWords' in helpers
+                 and 'Get-DaemonWords $_' in page
+                 and 'llama-server binary not found' in page
+                 and 'install.ps1' in page)
+
+
 ROSTER = (
     (test_power_check_cannot_halt, ('link',)),
     (test_port_state, ('link',)),
     (test_link_recovery, ('link', 'reply')),
     (test_link_diagnose, ('link',)),
     (test_fallback, ('link', 'bus')),
+    (test_pull_draws_the_daemons_numbers, ('link',)),
 )
 
 

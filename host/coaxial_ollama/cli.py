@@ -360,6 +360,26 @@ def repl(chat, hold=False):
             chat.close()               # unload AND the log - one definition
 
 
+def ensure_pulled(client, out, pull_with=None):
+    """The tag as `ollama list` spells it, pulled first when it is not
+    there. `require_model` names an absent tag in its own words and the
+    command to type; at the START of a session "not here yet" is a
+    download, not a refusal - docs/MODELS.md has said both entry points
+    pull since the picker landed, and until 2026-09-12 only the page did.
+    A cloud tag or a daemon that is not there raises as before: neither
+    is a pull. `/model TAG` mid-session still refuses, so a typo there
+    costs a command and not gigabytes.
+    """
+    from . import pull as pulling
+    try:
+        return client.require_model()
+    except OllamaError as exc:
+        if 'not pulled' not in str(exc):
+            raise
+    (pull_with or pulling.pull)(client.model, host=client.host, out=out)
+    return client.require_model()
+
+
 def main(argv=None):
     args = parse(argv)
     # Before anything prints: every path out of here, including the error
@@ -402,7 +422,7 @@ def main(argv=None):
               file=sys.stderr)
     interactive = args.repl or not question
     try:
-        client.model = client.require_model()
+        client.model = ensure_pulled(client, sys.stderr)
     except OllamaError as exc:
         # Fatal for one question - there is nothing else to do. Not fatal for the
         # prompt loop: /py and /sh never touch the model, and being unable to
