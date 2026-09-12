@@ -924,7 +924,12 @@ record's own constants, no measurement.
   or the ollama.com installer) rather than a warn and a prompt where
   every question fails; any other body is shown in the daemon's words.
   No pull fixes a missing runner, and the reinstall is the operator's.
-  ollama.com answers from here (200), so nothing stops it.
+  ollama.com answers from here (200), so nothing stops it. Reinstalled
+  the same evening (0.34.0, `lib\ollama` whole again): `/api/generate`
+  loads llama3.1:8b, and the page's one-shot against the stand-in -
+  "vad är detta för elektronik?" - loaded the model in 2.9 s and
+  answered off the parts list in 22 s end to end, 2 tool calls, 844
+  tokens, exit 0.
 * **One pull, drawn from the daemon's numbers** (2026-09-12, "lägg in
   så sidan med LLM automatiskt laddar ner en modell om den inte finns
   och indikerar med en progressbar"). The page shelled out to `ollama
