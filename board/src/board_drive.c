@@ -176,14 +176,12 @@ const char *Board_DriveSetMode(uint8_t mode)
     return "the drive has not been initialised - the board has not "
            "finished starting";
   }
-  if ((mode != (uint8_t)DRIVE_OFF) && !Board_SyncArmed())
-  {
-    const char *why = Board_SyncArm();
+  const char *sync = ((mode != (uint8_t)DRIVE_OFF) && !Board_SyncArmed())
+                     ? Board_SyncArm() : NULL;
 
-    if (why != NULL)
-    {
-      return why;             /* no triple, no loop: the sync's own words */
-    }
+  if (sync != NULL)
+  {
+    return sync;              /* no triple, no loop: the sync's own words */
   }
 
   /* The record may have been edited since the last mode change; a drive
@@ -413,6 +411,19 @@ bool Board_DriveOwnsCompares(void)
   * the stage is down, the next triple while a mode runs on an armed stage,
   * and one zero triple when a mode has just ended - polarity finishing, a
   * stage drop, the host asking for OFF - before the compares are let go. */
+/* The stage is the drive's from the first triple until it lets go -
+   taken once, not asked for every period. */
+static void own_pwm(void)
+{
+  if (s_owned)
+  {
+    return;
+  }
+  Board_PwmDriveOwn(true);
+  s_owned = true;
+}
+
+
 static void commit_duties(const drive_out_t *out, bool enabled, bool running)
 {
   if (enabled && (s_drive.mode != DRIVE_OFF))
@@ -424,11 +435,7 @@ static void commit_duties(const drive_out_t *out, bool enabled, bool running)
     {
       ticks[k] = (uint16_t)lrintf(out->duty[k] * arr);
     }
-    if (!s_owned)
-    {
-      Board_PwmDriveOwn(true);
-      s_owned = true;
-    }
+    own_pwm();
     Board_PwmSetNext(ticks);
     return;
   }

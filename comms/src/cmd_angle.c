@@ -138,12 +138,9 @@ static cmd_status_t h_angle_resume(rd_t *in, wr_t *out)
   */
 static cmd_status_t h_angle_pollreg(rd_t *in, wr_t *out)
 {
-  if (rd_left(in) > 0U)
+  if ((rd_left(in) > 0U) && !Board_AnglePollReg(rd_u8(in)))
   {
-    if (!Board_AnglePollReg(rd_u8(in)))
-    {
-      return CMD_ERR_VALUE;
-    }
+    return CMD_ERR_VALUE;
   }
 
   wr_u8(out, Board_AnglePollRegGet());
@@ -164,21 +161,25 @@ static cmd_status_t h_angle_clock(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
+/* Whether the host holds the part's loop - what a register read or
+   write needs. */
+static bool angle_held(void)
+{
+  board_angle_state_t st;
+
+  Board_AngleState(&st);
+  return st.loop == BOARD_ANGLE_LOOP_HELD;
+}
+
+
 cmd_status_t cmd_angle_op(uint8_t op, rd_t *in, wr_t *out)
 {
   /* Ops that drive SPI4 are refused while the poll loop runs, the same way
      the IMU's are: hold, configure, resume. Reading the shared record needs
      no hold, which is the whole point of there being one. */
-  if ((op == ANGLE_OP_READ) || (op == ANGLE_OP_WRITE))
+  if (((op == ANGLE_OP_READ) || (op == ANGLE_OP_WRITE)) && !angle_held())
   {
-    board_angle_state_t st;
-
-    Board_AngleState(&st);
-
-    if (st.loop != BOARD_ANGLE_LOOP_HELD)
-    {
-      return CMD_ERR_DEVICE;
-    }
+    return CMD_ERR_DEVICE;
   }
 
   switch (op)

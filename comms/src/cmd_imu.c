@@ -410,6 +410,17 @@ static cmd_status_t h_imu_resume(rd_t *in, wr_t *out)
   return CMD_OK;
 }
 
+/* Whether the host holds the part's loop - what everything but a
+   read of the shared record, a hold and a resume needs. */
+static bool imu_held(void)
+{
+  board_imu_state_t st;
+
+  Board_ImuState(&st);
+  return st.loop == BOARD_IMU_LOOP_HELD;
+}
+
+
 cmd_status_t cmd_imu_op(uint8_t op, rd_t *in, wr_t *out)
 {
   /* Everything below drives SPI2 itself, and the poll loop drives it from
@@ -417,16 +428,10 @@ cmd_status_t cmd_imu_op(uint8_t op, rd_t *in, wr_t *out)
      looks like is a cargo split between them and a stream that stops. Hold
      the loop, configure, resume. Reading the shared record needs no hold,
      which is the whole point of there being one. */
-  if ((op != IMU_OP_LATEST) && (op != IMU_OP_HOLD) && (op != IMU_OP_RESUME))
+  if ((op != IMU_OP_LATEST) && (op != IMU_OP_HOLD) && (op != IMU_OP_RESUME)
+      && !imu_held())
   {
-    board_imu_state_t st;
-
-    Board_ImuState(&st);
-
-    if (st.loop != BOARD_IMU_LOOP_HELD)
-    {
-      return CMD_ERR_DEVICE;
-    }
+    return CMD_ERR_DEVICE;
   }
 
   switch (op)

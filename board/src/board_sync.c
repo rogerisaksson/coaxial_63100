@@ -290,6 +290,20 @@ void Board_SyncOverrun(void)
 }
 
 
+/* Scan mode on, once, on an ADC CubeMX generated without it - the
+   two-rank injected sequence needs it. NULL, or `refusal` when the
+   re-initialisation failed. */
+static const char *scan_mode_on(ADC_HandleTypeDef *adc, const char *refusal)
+{
+  if (adc->Init.ScanConvMode == ADC_SCAN_ENABLE)
+  {
+    return NULL;
+  }
+  adc->Init.ScanConvMode = ADC_SCAN_ENABLE;
+  return (HAL_ADC_Init(adc) == HAL_OK) ? NULL : refusal;
+}
+
+
 const char *Board_SyncArm(void)
 {
   if (!Board_SyncReady())
@@ -319,23 +333,19 @@ const char *Board_SyncArm(void)
      with scan off because the meter converts one channel at a time, and
      it still does: the regular sequence keeps its length of one. Once,
      here, because this is the one path that needs it. */
-  if (hadc3.Init.ScanConvMode != ADC_SCAN_ENABLE)
+  const char *refused = scan_mode_on(
+      &hadc3, "ADC3 would not re-initialise with scan mode on, which the "
+              "two-rank injected sequence needs - reset the board");
+
+  if (refused == NULL)
   {
-    hadc3.Init.ScanConvMode = ADC_SCAN_ENABLE;
-    if (HAL_ADC_Init(&hadc3) != HAL_OK)
-    {
-      return "ADC3 would not re-initialise with scan mode on, which the "
-             "two-rank injected sequence needs - reset the board";
-    }
+    refused = scan_mode_on(
+        &hadc1, "ADC1 would not re-initialise with scan mode on, which the "
+                "two-rank injected sequence needs - reset the board");
   }
-  if (hadc1.Init.ScanConvMode != ADC_SCAN_ENABLE)
+  if (refused != NULL)
   {
-    hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
-    if (HAL_ADC_Init(&hadc1) != HAL_OK)
-    {
-      return "ADC1 would not re-initialise with scan mode on, which the "
-             "two-rank injected sequence needs - reset the board";
-    }
+    return refused;
   }
 
   if (!SYNC_ConfigPhase(&hadc3, SYNC_U_CHANNEL, ADC_INJECTED_RANK_1, 2U,

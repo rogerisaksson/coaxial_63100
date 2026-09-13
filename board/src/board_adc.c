@@ -9,6 +9,11 @@
 
 #include <math.h>
 
+/* What the cooked readings count in: milli-units of a volt or an amp,
+   centi-units of a degree. */
+#define MILLI_PER_UNIT 1000.0f
+#define CENTI_PER_UNIT 100.0f
+
 
 /* ADC+/- reference. VREFBUF is deliberately disabled and VREF+ left
    high-impedance, so the reference comes from the AFE - which is why every
@@ -187,7 +192,7 @@ static float NTC_VoltsToCelsius(float v_node)
   }
 
   const float t25 = (float)cal->ntc_t25_ck / 100.0f;
-  const float beta = (float)cal->ntc_beta_mk / 1000.0f;
+  const float beta = (float)cal->ntc_beta_mk / MILLI_PER_UNIT;
   float r_ntc = (float)cal->ntc_rfixed_ohm * (cal_vref() / v_node - 1.0f);
   float inv_T = (1.0f / t25) + (1.0f / beta) *
                 logf(r_ntc / (float)cal->ntc_r25_ohm);
@@ -504,18 +509,18 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
 
   if (d->unit == ADC_UNIT_DCBUS)
   {
-    *scaled = (int32_t)(DC_BUS_VoltsFromDivider(v) * 1000.0f);
+    *scaled = (int32_t)(DC_BUS_VoltsFromDivider(v) * MILLI_PER_UNIT);
   }
 
   if (d->unit == ADC_UNIT_NTC)
   {
     const float c = NTC_VoltsToCelsius(v);
-    *scaled = isnan(c) ? 0 : (int32_t)(c * 100.0f);
+    *scaled = isnan(c) ? 0 : (int32_t)(c * CENTI_PER_UNIT);
   }
 
   if (d->unit == ADC_UNIT_PHASE)
   {
-    *scaled = (int32_t)(PHASE_AmpsFromShunt(v) * 1000.0f);
+    *scaled = (int32_t)(PHASE_AmpsFromShunt(v) * MILLI_PER_UNIT);
   }
 
   if (d->unit == ADC_UNIT_DIE)
@@ -534,19 +539,19 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
                             (uint32_t)*raw, LL_ADC_RESOLUTION_16B) * 100);
   }
 
-  if ((d->unit == ADC_UNIT_RAIL5) || (d->unit == ADC_UNIT_VGATE))
-  {
-    const board_cal_t *cal = Board_Cal();
-    const uint32_t top = (d->unit == ADC_UNIT_RAIL5)
-                       ? cal->r5_r_top_ohm : cal->vg_r_top_ohm;
-    const uint32_t bottom = (d->unit == ADC_UNIT_RAIL5)
-                          ? cal->r5_r_bottom_ohm : cal->vg_r_bottom_ohm;
+  /* The two rails behind a divider: the record's resistors, and no
+     reading through a divider whose bottom leg is unknown. */
+  const bool divided = (d->unit == ADC_UNIT_RAIL5) || (d->unit == ADC_UNIT_VGATE);
+  const board_cal_t *cal = Board_Cal();
+  const uint32_t top = (d->unit == ADC_UNIT_RAIL5)
+                     ? cal->r5_r_top_ohm : cal->vg_r_top_ohm;
+  const uint32_t bottom = (d->unit == ADC_UNIT_RAIL5)
+                        ? cal->r5_r_bottom_ohm : cal->vg_r_bottom_ohm;
 
-    if (bottom > 0UL)
-    {
-      *scaled = (int32_t)(v * (float)(top + bottom) / (float)bottom
-                          * 1000.0f);
-    }
+  if (divided && (bottom > 0UL))
+  {
+    *scaled = (int32_t)(v * (float)(top + bottom) / (float)bottom
+                        * MILLI_PER_UNIT);
   }
 
   return true;
@@ -622,7 +627,7 @@ bool Board_DcBus(int32_t *raw, int32_t *millivolts)
     return false;
   }
 
-  *millivolts = (int32_t)(DC_BUS_VoltsFromDivider(v) * 1000.0f);
+  *millivolts = (int32_t)(DC_BUS_VoltsFromDivider(v) * MILLI_PER_UNIT);
 
   return true;
 }
@@ -668,7 +673,7 @@ bool Board_Ntc(int32_t *raw, int32_t *centidegc)
     return false;
   }
 
-  *centidegc = (int32_t)(c * 100.0f);
+  *centidegc = (int32_t)(c * CENTI_PER_UNIT);
   return true;
 }
 
@@ -740,8 +745,8 @@ bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured)
 
   const float volts = code_to_volts(after, d->singleDiff);
   const float now = (d->unit == ADC_UNIT_PHASE)
-                    ? (PHASE_AmpsFromShunt(volts) * 1000.0f)
-                    : (DC_BUS_VoltsFromDivider(volts) * 1000.0f);
+                    ? (PHASE_AmpsFromShunt(volts) * MILLI_PER_UNIT)
+                    : (DC_BUS_VoltsFromDivider(volts) * MILLI_PER_UNIT);
 
   /* No finite factor turns nothing into something. One milli-unit is the
      resolution the reference is given in, so below it there is no ratio to

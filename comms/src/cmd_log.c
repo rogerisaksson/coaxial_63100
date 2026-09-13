@@ -76,19 +76,16 @@ static cmd_status_t h_log_arm(rd_t *in, wr_t *out)
 static cmd_status_t h_log_take(rd_t *in, wr_t *out)
 {
   board_sample_t batch[LOG_MAX_BURST];
-  uint8_t want = LOG_MAX_BURST;
+  const bool given = rd_left(in) > 0U;
+  uint8_t want = given ? rd_u8(in) : LOG_MAX_BURST;
 
-  if (rd_left(in) > 0U)
+  if (given && !rd_ok(in))
   {
-    want = rd_u8(in);
-    if (!rd_ok(in))
-    {
-      return CMD_ERR_LENGTH;
-    }
-    if ((want == 0U) || (want > LOG_MAX_BURST))
-    {
-      want = LOG_MAX_BURST;
-    }
+    return CMD_ERR_LENGTH;
+  }
+  if ((want == 0U) || (want > LOG_MAX_BURST))
+  {
+    want = LOG_MAX_BURST;
   }
 
   const uint16_t got = Board_LogTake(batch, want);

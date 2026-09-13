@@ -315,6 +315,21 @@ static void note(uint8_t err)
   }
 }
 
+/* The part's supply went: the loop is off, nothing is held, and the
+   error says why - once, not every poll. */
+static void power_lost(void)
+{
+  if (s_state.loop == BOARD_ANGLE_LOOP_OFF)
+  {
+    return;
+  }
+  s_state.loop = BOARD_ANGLE_LOOP_OFF;
+  s_state.have = false;
+  s_ready = false;
+  note(BOARD_ANGLE_ERR_POWER);
+}
+
+
 void Board_AnglePoll(void)
 {
   uint16_t value = 0U;
@@ -324,13 +339,7 @@ void Board_AnglePoll(void)
      without its supply is not a part that reads zero. */
   if (!Board_AfeOn())
   {
-    if (s_state.loop != BOARD_ANGLE_LOOP_OFF)
-    {
-      s_state.loop = BOARD_ANGLE_LOOP_OFF;
-      s_state.have = false;
-      s_ready = false;
-      note(BOARD_ANGLE_ERR_POWER);
-    }
+    power_lost();
     return;
   }
 
@@ -353,13 +362,13 @@ void Board_AnglePoll(void)
   }
 
 
+  if ((s_state.loop == BOARD_ANGLE_LOOP_OFF) && !Board_AngleInit())
+  {
+    note(BOARD_ANGLE_ERR_INIT);
+    return;                        /* try again next time round */
+  }
   if (s_state.loop == BOARD_ANGLE_LOOP_OFF)
   {
-    if (!Board_AngleInit())
-    {
-      note(BOARD_ANGLE_ERR_INIT);
-      return;                      /* try again next time round */
-    }
     s_state.loop = BOARD_ANGLE_LOOP_RUN;
     note(BOARD_ANGLE_ERR_NONE);
     return;
@@ -407,12 +416,9 @@ void Board_AngleHold(void)
   /* A hold hands the host a part that is up, the way the IMU's does: one
      that landed before the bus was configured left every command after it
      refused for a reason that had nothing to do with the part. */
-  if (!s_ready)
+  if (!s_ready && !Board_AngleInit())
   {
-    if (!Board_AngleInit())
-    {
-      note(BOARD_ANGLE_ERR_INIT);
-    }
+    note(BOARD_ANGLE_ERR_INIT);
   }
 }
 

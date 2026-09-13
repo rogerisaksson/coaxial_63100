@@ -1371,6 +1371,43 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   check, and 927 numeric literals inside functions - the next host
   pass, one file at a time, by what each number means. structure 621,
   pyright 0; the offline gate 2947 checks, 0 failed.
+* THE FIRMWARE, SAME STANDARD (2026-09-13, the bench: the target code
+  too). A scanner for C - comments and strings stripped, braces
+  counted, Allman style understood - over board/, comms/, modbus/,
+  drive/, shtp/, thermal/ and filter/: 58 nested ifs (modbus_map 11,
+  board_daq 8, board_thermal 6, board_pwm 4, board_imu 4, dev_uart 4),
+  13 functions past eighty lines, 645 numeric literals inside
+  functions (the thermal network's table and the test harnesses hold
+  most), 167 file-scope statics - the `s_` state every module keeps,
+  which is the embedded norm and not a finding. Baseline build: 0
+  warnings, flash 195 532 B, DTCM 38 540 B. THE REGISTER MAP FIRST:
+  `modbus_map.c` said the input-register layout twice - once in
+  `input_reg_mapped`, once as an if-chain over address ranges in
+  `read_reg`, 121 lines, eleven nested ifs - and a span added to one
+  was a hole in the other. It is one table of spans now, base, width
+  and reader per row; mapping, the extent and reading walk it; the ADC
+  span's width is the board's count, asked at run time; the two clamps
+  use stdint's limits; the high-first word split is one helper;
+  `read_bit` is two conditions. Same wire behaviour by construction -
+  the same addresses answer the same words and the same exceptions -
+  but the map is not in the host-built core, so THE CONFORMANCE SUITE
+  AT THE BENCH IS WHAT PROVES IT (`run_tests.ps1 -AutomaticHigh` with
+  the board on). Build: 0 warnings, flash +344 B for the table and its
+  readers; the map's nested ifs 11 -> 0, its longest function 121 ->
+  22 lines. THEN THE SMALL SITES, thirteen across the command handlers
+  and the smaller board modules: a guard inside a condition is one
+  condition (`rd_left(in) > 0U && !rd_ok(in)`, `loop == OFF &&
+  !Board_AngleInit()`), a repeated shape is a helper (`angle_held`,
+  `imu_held`, `scan_mode_on` for the two ADCs CubeMX generated without
+  scan mode, `power_lost`, `own_pwm`), the thermistor's clamp is
+  `fminf`, and board_adc names its unit factors (`MILLI_PER_UNIT`,
+  `CENTI_PER_UNIT`) where five literals said 1000.0f. Left alone, and
+  why: `thermal_ident`'s two - a counter in an else-if ladder, and a
+  floor inside a loop over the identified parameters - and the
+  thermal network's calibration values, set once in a builder with a
+  comment each, which are the model's definitions, not magic. Build:
+  0 warnings; thermal core 144 (the thermistor path is host-tested);
+  the rest is the bench's parity and conformance suites.
 
 ## The local model
 

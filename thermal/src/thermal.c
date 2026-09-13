@@ -1370,12 +1370,8 @@ int thermal_ntc_follow(thermal_t *th, float dt_s)
      ON the target rather than past it. */
   if ((th->cfg.ntc_tau_s > 0.0f) && (dt_s > 0.0f))
   {
-    float share = dt_s / th->cfg.ntc_tau_s;
+    const float share = fminf(dt_s / th->cfg.ntc_tau_s, 1.0f);
 
-    if (share > 1.0f)
-    {
-      share = 1.0f;
-    }
     th->ntc += (ntc_target(th) - th->ntc) * share;
   }
   else if (!(th->cfg.ntc_tau_s > 0.0f))

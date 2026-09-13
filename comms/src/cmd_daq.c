@@ -296,19 +296,16 @@ static cmd_status_t h_daq_read(rd_t *in, wr_t *out)
   }
 
   uint16_t fits = (uint16_t)(DAQ_REPLY_ROOM / st.stride);
+  const bool given = rd_left(in) > 0U;
+  const uint8_t want = given ? rd_u8(in) : 0U;
 
-  if (rd_left(in) > 0U)
+  if (given && !rd_ok(in))
   {
-    const uint8_t want = rd_u8(in);
-
-    if (!rd_ok(in))
-    {
-      return CMD_ERR_LENGTH;
-    }
-    if ((want != 0U) && (want < fits))
-    {
-      fits = want;
-    }
+    return CMD_ERR_LENGTH;
+  }
+  if ((want != 0U) && (want < fits))
+  {
+    fits = want;
   }
 
   uint8_t batch[DAQ_REPLY_ROOM];

@@ -91,22 +91,19 @@ void Board_StoKeepalive(void)
      rate hides it completely: measured, a 320-byte cargo read stalled the
      loop 1.73 ms while the mean barely moved. */
   const uint32_t now = Board_Cycles();
+  const uint32_t gap = now - s_last_edge;
+  const bool pumping = s_keepalive != 0U;
 
-  if (s_keepalive != 0U)
+  /* Rate limited, not free-running. Every busy-wait on the board calls
+     this, and a spin loop would otherwise pump at its own megahertz -
+     far off the pump's design point and delivering little per edge. */
+  if (pumping && (gap < sto_edge_cycles()))
   {
-    const uint32_t gap = now - s_last_edge;
-
-    /* Rate limited, not free-running. Every busy-wait on the board calls
-       this, and a spin loop would otherwise pump at its own megahertz -
-       far off the pump's design point and delivering little per edge. */
-    if (gap < sto_edge_cycles())
-    {
-      return;
-    }
-    if (gap > s_worst_gap)
-    {
-      s_worst_gap = gap;
-    }
+    return;
+  }
+  if (pumping && (gap > s_worst_gap))
+  {
+    s_worst_gap = gap;
   }
   s_last_edge = now;
 
