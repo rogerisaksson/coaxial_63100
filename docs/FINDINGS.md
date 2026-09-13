@@ -958,6 +958,23 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   `_label_row`. Fourteen nested ifs -> 0 across the seven files;
   structure, broker, daq_api, simulated, sensorless, views and the
   Modbus core: 0 failed.
+* THE STAND-IN (2026-09-13): twenty-two nested ifs across six of its
+  files -> 0. The DAQ's sensor words split by part (`_shaft_words`,
+  `_imu_words`) with the Q points taken from `imu.SCALE` where 16384,
+  256, 512 and 16 were spelt out; the gates' duty is `_gate_duty`;
+  the read's pacing against the wall is `_pace`, its measured comment
+  now its docstring; the capture's source mask is `_source_mask`
+  over a named `SOURCES`. The thermal stand-in resolves 'tour' and
+  'random' in `_resolve`, its load cycle answers idle by two early
+  returns, and the gate drivers' counted hold is `_periods_left`
+  against a named `PWM_HZ` where 50000 stood three times. The drive's
+  eighty-line mechanics block is `_spin`, lifted whole with every
+  measured comment, and the polarity pulse settles in
+  `_settle_polarity` with its two invented readings named; the live
+  motor parameters are a class table, `LIVE`. The GPIO stand-in's two
+  witness pins are a table too, and the calibration's zero is one
+  `next()`. Structure, simulated, daq_api, sensorless, views, mcp and
+  the thermal core: 0 failed; pyright 0 errors.
 
 ## The local model
 

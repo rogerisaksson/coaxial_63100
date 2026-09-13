@@ -9,8 +9,24 @@ from ..errors import RigError
 from .values import (AMPS_PER_CODE, CHANNELS, DCBUS_V, NOMINAL, PHASE_LEG,
                      PHASE_STEP, _sweep, phase_codes)
 from .system import UNITS
+from .. import angle, imu
 from typing import cast
 from typing import Any
+
+
+#: The capture ring's sources the stand-in fills, by bit.
+SOURCES = {'phases': 0, 'angle': 1, 'imu': 2}
+
+
+def _source_mask(sources):
+    """A source mask from names, or the mask itself when given one."""
+    if isinstance(sources, int):
+        return sources
+    unknown = [s for s in sources if s not in SOURCES]
+    if unknown:
+        raise ValueError('no such source: %s - have %s'
+                         % (', '.join(unknown), ', '.join(SOURCES)))
+    return sum(1 << SOURCES[s] for s in set(sources))
 
 
 class SimulatedCapture:
@@ -61,17 +77,7 @@ class SimulatedCapture:
                 'thinned': 0}
 
     def arm(self, sources):
-        if isinstance(sources, int):
-            self._mask = sources
-        else:
-            names = {'phases': 0, 'angle': 1, 'imu': 2}
-            unknown = [s for s in sources if s not in names]
-            if unknown:
-                raise ValueError('no such source: %s - have %s'
-                                 % (', '.join(unknown), ', '.join(names)))
-            self._mask = 0
-            for s in sources:
-                self._mask |= 1 << names[s]
+        self._mask = _source_mask(sources)
         self._pending = []
         self._seq = [0, 0, 0]
         self._dropped = 0
@@ -266,51 +272,72 @@ class SimulatedDaq(Acquisition):
              'TIM1_CH2/PWMVH': (1, True), 'TIM1_CH2N/PWMVL': (1, False),
              'TIM1_CH3/PWMWH': (2, True), 'TIM1_CH3N/PWMWL': (2, False)}
 
+    #: The sensor fields' bits in the record's second mask (MINOR 7), in
+    #: `coaxial.rig.SENSOR_FIELDS` order: the quaternion, three vectors
+    #: with their IMU report ids, and the shaft.
+    QUATERNION_BIT = 0
+    VECTOR_BITS = {1: ('acceleration', imu.ACCELEROMETER),
+                   2: ('rotation rate', imu.GYROSCOPE),
+                   3: ('magnetic field', imu.MAGNETIC_FIELD)}
+    SHAFT_BIT = 4
+    #: What an absent part answers: zeros, with have 0.
+    NO_WORDS = (0, 0, 0, 0)
+
     def _sensor_words(self, bit):
         """Four raw words, the board's own encodings - the shaft off the
         SAME rotor the drive torques, the IMU off the poll record. Wired
         by `SimulatedBoard` like `drive` is; unwired, zeros with have 0,
         which is what an absent part answers."""
-        if bit == 4:
-            part = getattr(self, 'angle', None)
-            if part is None:
-                return (0, 0, 0, 0)
-            got = part.read(0x20)
-            return (got['value'] - 0x10000 if got['value'] >= 0x8000
-                    else got['value'], got['crc'], 0x20, 1)
+        if bit == self.SHAFT_BIT:
+            return self._shaft_words()
+        return self._imu_words(bit)
+
+    def _shaft_words(self):
+        part = getattr(self, 'angle', None)
+        if part is None:
+            return self.NO_WORDS
+        got = part.read(angle.ANG)
+        value = got['value'] - 0x10000 if got['value'] >= 0x8000 else got['value']
+        return (value, got['crc'], angle.ANG, 1)
+
+    def _imu_words(self, bit):
         part = getattr(self, 'imu', None)
         state = part.state() if part is not None else {}
-        if bit == 0:
+        if bit == self.QUATERNION_BIT:
             q = state.get('quaternion') or {}
-            return tuple(int(q.get(k, 0.0) * 16384) for k in
-                         ('i', 'j', 'k', 'real'))
-        name = ('acceleration', 'rotation rate', 'magnetic field')[bit - 1]
+            scale = 1 << imu.SCALE[imu.ROTATION_VECTOR][0]
+            return tuple(int(q.get(k, 0.0) * scale) for k in imu.QUATERNION_AXES)
+        name, report = self.VECTOR_BITS[bit]
         v = state.get(name) or {}
-        scale = (256.0, 512.0, 16.0)[bit - 1]      # Q8, Q9, Q4
+        scale = float(1 << imu.SCALE[report][0])
         return (int(v.get('x', 0.0) * scale), int(v.get('y', 0.0) * scale),
                 int(v.get('z', 0.0) * scale), 3)
 
     def _pin_duty(self, signal):
         """One pin's duty for one record."""
-        got = self.GATES.get(signal)
-        if got is not None:
-            leg, high = got
-            theta, _amps, index, delta = self._last_spin
-            if index <= 0.0:
-                return 0.0            # the stage is down; both gates idle
-            # Sine modulation about half: the voltage vector's angle, one
-            # third of a turn per leg. The low side is the complement,
-            # which is what a half bridge is.
-            duty = 0.5 + (index / 2.0) * math.cos(
-                theta + delta - leg * self.PHASE_STEP)
-            duty = min(1.0, max(0.0, duty))
-            return duty if high else 1.0 - duty
-
+        gate = self.GATES.get(signal)
+        if gate is not None:
+            return self._gate_duty(*gate)
         level = self.STEADY.get(signal, 0.0)
         if level in (0.0, 1.0):
             return level
         # Only what actually toggles gets jitter, and only a little.
         return min(1.0, max(0.0, level + self._noise() * 0.02))
+
+    def _gate_duty(self, leg, high):
+        """One gate's duty at the angle the record's currents were taken.
+
+        Sine modulation about half: the voltage vector's angle, one third
+        of a turn per leg. The low side is the complement, which is what a
+        half bridge is.
+        """
+        theta, _amps, index, delta = self._last_spin
+        if index <= 0.0:
+            return 0.0                # the stage is down; both gates idle
+        duty = 0.5 + (index / 2.0) * math.cos(
+            theta + delta - leg * self.PHASE_STEP)
+        duty = min(1.0, max(0.0, duty))
+        return duty if high else 1.0 - duty
 
     def _wire_time(self, records):
         """What a reply of `records` costs on the emulated line."""
@@ -322,14 +349,15 @@ class SimulatedDaq(Acquisition):
     def _charge_line(self, records):
         """Bank this reply's line time, and pay when it is worth it."""
         self._owed += self._wire_time(records)
-        if self._owed >= self.SLEEP_FLOOR:
-            began = time.time()
-            time.sleep(self._owed)
-            # Whatever the sleep overshot comes off the next bill,
-            # so a coarse clock does not compound into a slow line.
-            self._owed -= (time.time() - began)
-            if self._owed < 0.0:
-                self._owed = max(self._owed, -self.SLEEP_FLOOR)
+        if self._owed < self.SLEEP_FLOOR:
+            return
+        began = time.time()
+        time.sleep(self._owed)
+        # Whatever the sleep overshot comes off the next bill, so a coarse
+        # clock does not compound into a slow line - and no more than one
+        # floor's worth is carried, or a long stall would be paid back
+        # with a burst.
+        self._owed = max(self._owed - (time.time() - began), -self.SLEEP_FLOOR)
 
     def _period_us(self):
         base = 20.0 if (self._cfg or {}).get('clock') == 'tim1' else 47.0
@@ -546,6 +574,39 @@ class SimulatedDaq(Acquisition):
         sweeps = self.LOOP_HZ / max(1, fields) * window_s
         return max(1, min(32767, int(sweeps)))
 
+    def _pace(self, n, step_us):
+        """How many of the `n` records a read may answer, and how far apart
+        their stamps fall, against the wall since the last read.
+
+        A free-running task spreads the batch over the wall time since the
+        last one, floored at the sweep cost. THE CLOCK MAKES THE RECORDS,
+        NOT THE READ, for a clock-closed task: it closes one record an
+        interval, and a read answers what the interval produced since the
+        last one - the fraction carried, so a 50 Hz task makes fifty a
+        second however often it is read. Fifteen a read regardless was 245
+        records a second from that task, their stamps 3.4 s ahead of the
+        wall per second, and the live plot's window ran into the future
+        (2026-09-07). A stopped run's remainder is served at once, as the
+        board's buffer is.
+        """
+        cfg = self._cfg or {}
+        now = time.time()
+        since = getattr(self, '_wall', None)
+        if not n:
+            return n, step_us
+        if not cfg.get('interval_us'):
+            self._wall = now
+            spread = step_us if since is None else (now - since) * 1e6 / n
+            return n, max(step_us, spread)
+        if not self._running:
+            return n, step_us
+        owed = self._owed_records
+        owed += 0.0 if since is None else (now - since) * 1e6 / step_us
+        self._wall = now
+        n = min(n, int(owed))
+        self._owed_records = owed - n
+        return n, step_us
+
     def acquire(self, want=0, layout=None):
         import random
         if not self._running and not self._buffered():
@@ -565,30 +626,7 @@ class SimulatedDaq(Acquisition):
         # invents span the wall time since the last batch, floored at the
         # sweep cost; a clock-closed config keeps its own interval, as the
         # board does.
-        step_us = self._period_us()
-        cfg = self._cfg or {}
-        now = time.time()
-        since = getattr(self, '_wall', None)
-        if n and not cfg.get('interval_us'):
-            if since is not None:
-                step_us = max(step_us, (now - since) * 1e6 / n)
-            self._wall = now
-        elif n and self._running:
-            # THE CLOCK MAKES THE RECORDS, NOT THE READ. A clock-closed
-            # task closes one record an interval, and a read answers what
-            # the interval produced since the last one - the fraction
-            # carried, so a 50 Hz task makes fifty a second however often
-            # it is read. Fifteen a read regardless was 245 records a
-            # second from that task, their stamps 3.4 s ahead of the wall
-            # per second, and the live plot's window ran into the future
-            # (2026-09-07). A stopped run's remainder is served at once,
-            # as the board's buffer is.
-            owed = self._owed_records
-            if since is not None:
-                owed += (now - since) * 1e6 / step_us
-            self._wall = now
-            n = min(n, int(owed))
-            self._owed_records = owed - n
+        n, step_us = self._pace(n, self._period_us())
         out = []
         for _ in range(n):
             self._at = (self._at + int(step_us * 475)) & 0xFFFFFFFF
@@ -669,9 +707,9 @@ class SimulatedDaq(Acquisition):
     def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
         import random
         from ..errors import RigError
+        if not self._running and not block:
+            return None
         if not self._running:
-            if not block:
-                return None
             raise RigError('no sample in %.1f s - is the task running? '
                            '(simulated)' % timeout)
         layout = layout or self.layout()

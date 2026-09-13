@@ -48,6 +48,11 @@ class SimulatedDrive:
     V_DT = 0.5          #: the inverter's dead-time voltage error, V
     I_KNEE = 0.3
     SIGMA_I = 0.02      #: current noise on the shunts, A rms
+    #: What the polarity pulse reads for the aligned and the opposed half
+    #: - invented, like everything here, and told apart by size.
+    POL_READINGS = (34.0, 18.0)
+    #: Periods past the two pulses and two gaps before the sign is read.
+    POL_SETTLE = 4
     #: DRIVE_OBS_WC, the leak the firmware's chain is scaled off.
     OBS_WC = 20.0
     OBS_CROSS = 20.0
@@ -336,6 +341,18 @@ class SimulatedDrive:
         err = (self._theta_hat - target + math.pi) % (2 * math.pi) - math.pi
         self._theta_hat = (target + err * math.exp(-dt * 60.0)) % (2 * math.pi)
 
+    def _settle_polarity(self, periods):
+        """The polarity pulse ends itself once its two pulses and two gaps
+        have run, leaving the two readings the sign is told from."""
+        need = (2 * self._sp['pol_periods'] + 2 * self._sp['pol_gap']
+                + self.POL_SETTLE)
+        if periods < need:
+            return
+        big, small = self.POL_READINGS
+        aligned = math.cos(self._theta_hat) >= 0.0
+        self._pol = (big, small) if aligned else (small, big)
+        self._mode = 'off'
+
     @_rotor_locked
     def state(self):
         if self._source == 'model':
@@ -345,12 +362,7 @@ class SimulatedDrive:
         ih, eps_amps = self._ih()
         periods = self._periods_since(self._mode_at)
         if self._mode == 'polarity':
-            need = 2 * self._sp['pol_periods'] + 2 * self._sp['pol_gap'] + 4
-            if periods >= need:
-                aligned = math.cos(self._theta_hat) >= 0.0
-                big, small = 34.0, 18.0
-                self._pol = (big, small) if aligned else (small, big)
-                self._mode = 'off'
+            self._settle_polarity(periods)
         gain = self._p('drv_eps_gain_ua_per_rad', 0.0)
         return {
             'mode': self._mode, 'fault': self._fault,
@@ -528,6 +540,12 @@ class SimulatedDrive:
         self._source = name
         return True
 
+    #: The model parameters a running Motor takes live, by the attribute
+    #: each is on it - `ld` is a METHOD on Motor and `ld0` holds the number.
+    LIVE = {'r': 'r', 'ld': 'ld0', 'lq': 'lq', 'lambda': 'lam',
+            'sat': 'sat', 'i_sat': 'i_sat', 'j': 'j', 'b': 'b',
+            'load': 'load', 'v_dt': 'v_dt', 'i_knee': 'i_knee'}
+
     @_rotor_locked
     def model_param(self, **values):
         from ..drive import MODEL_IDS
@@ -543,13 +561,10 @@ class SimulatedDrive:
         # sag demo measured nothing because nothing sagged. The map is
         # explicit - `ld` is a METHOD on Motor (`ld0` holds the number)
         # and a guessed setattr would shadow it.
-        if self._motor is not None:
-            live = {'r': 'r', 'ld': 'ld0', 'lq': 'lq', 'lambda': 'lam',
-                    'sat': 'sat', 'i_sat': 'i_sat', 'j': 'j', 'b': 'b',
-                    'load': 'load', 'v_dt': 'v_dt', 'i_knee': 'i_knee'}
-            for k, v in values.items():
-                if k in live:
-                    setattr(self._motor, live[k], float(v))
+        motor = self._motor
+        if motor is not None:
+            for k in self.LIVE.keys() & values.keys():
+                setattr(motor, self.LIVE[k], float(values[k]))
         # POLE PAIRS ARE NOT IN `live`: a Motor's `p` divides its own
         # angle, so changing it under a turning rotor is a different
         # machine rather than a different parameter. The rotor is rebuilt
@@ -597,85 +612,7 @@ class SimulatedDrive:
         if dt <= 0.0:
             return motor
         if self._mode != 'off':
-            iid, iq, _, _ = self._dq()
-            ld = self._ld(iid)
-            # TORQUE BY MODE. SENSORLESS commutates on the rotor, so iq is
-            # torque current. HOLD commutates on the COMMANDED angle - a
-            # stepper - and the rotor is dragged by the load-angle spring
-            # `kt i sin(cmd - theta)`: it follows a slewed command, rings
-            # after a step as a stepper does, and slips a pole if the
-            # spring is overpowered, which is what a stepper is.
-            hold = self._mode == 'hold'
-            k_t = 1.5 * motor.p * motor.lam
-            i_mag = math.hypot(iid, iq)
-            if not hold:
-                torque = 1.5 * motor.p * (motor.lam * iq
-                                          + (ld - motor.lq) * iid * iq)
-            acc = self._motor_acc + dt
-            cmd = (self._sp['theta']
-                   + self._omega() * (now - acc - self._mode_at))
-            w_cmd = self._omega()
-            wm = motor.omega / motor.p
-            # SUBSTEPPED, SYMPLECTIC. One Euler step over a poll gap
-            # diverges: (1 - dt b/j) at the placeholder profile is -4 at a
-            # 0.2 s poll and the rotor read +1896, -5770, +24964 rad/s on
-            # three of them. Each slice stays a tenth of the mechanical
-            # constant AND a hundred-and-twentieth of the spring's period;
-            # speed then angle keeps the spring bounded rather than
-            # spiralling. A twentieth was tried and kept for a week: the
-            # held rotor is a PENDULUM, sin(cmd - theta), and an elbow
-            # energised under 0.01 N.m swings +-49 electrical degrees,
-            # where that step pumped the ring until a pole slipped.
-            step = min(0.002, 0.1 * motor.j / max(motor.b, 1e-12))
-            if hold and i_mag > 0.0:
-                spring = 1.5 * motor.p * motor.p * motor.lam * i_mag
-                step = min(step, 0.05 * math.sqrt(motor.j / spring))
-            # THE SUB-STEP IS FIXED and the remainder carried to the next
-            # call. The symplectic step conserves a MODIFIED energy that
-            # depends on h, so a step re-sized every poll (dt / n, and dt
-            # is whatever the caller's cadence made it) moved the rotor
-            # between energies each call - a random walk that fed the
-            # ring. Measured 2026-09-07 on the arm's elbow, 0.01 N.m at
-            # 2 A, at the twentieth-of-a-period step: the ring after the
-            # energise decayed with a 16 s constant where 2j/b is 4 s;
-            # re-sized at a sixth of that step, 4.4 s; FIXED at the
-            # coarse step it grew 6 % a second and the servo's poses ran
-            # away by thousands of degrees. Fixed at this one, 4.6 s. The
-            # rotor's own time runs up to one step behind `now`; `cmd`
-            # starts from where it is.
-            h = step
-            n = int(acc // h)
-            self._motor_acc = acc - n * h
-            theta = motor.theta
-            # THE LINK RUNS OUT, and until now it never did. The back-EMF
-            # is `sqrt(3) lambda omega_el` and the inverter cannot push
-            # current against more than it has: at that speed there is no
-            # torque left, which is what a no-load speed IS.
-            #
-            # INSIDE THE SUB-STEP, because the rotor crosses it inside
-            # one. Evaluated once per call it clamped a speed the rotor
-            # had already left: at 43 A into this inertia the acceleration
-            # is 113 000 rad/s^2, so a single 60 ms poll gap overshot the
-            # ceiling twenty-fold. The model reported 43 115 rpm on a
-            # machine whose no-load speed is 3 902, and 10.3 kW out of a
-            # stage rated 6.3 - which made every thermal and power reading
-            # downstream a fiction.
-            ceiling = (self._model['vdc'] / (math.sqrt(3.0) * motor.lam)
-                       if motor.lam > 0.0 else float('inf'))
-            for _ in range(n):
-                if hold:
-                    cmd += w_cmd * h
-                    torque = k_t * i_mag * math.sin(cmd - theta)
-                fade = max(0.0, 1.0 - abs(wm * motor.p) / ceiling)
-                wm += (torque * fade - motor.b * wm - motor.load)                     / motor.j * h
-                theta += wm * motor.p * h
-            # The SHAFT, accumulated: electrical theta wraps at 2 pi and a
-            # shaft sensor reads the mechanical angle, which is 1/p of the
-            # whole unwrapped travel - `SimulatedAngle` reads this.
-            self._mech = (getattr(self, '_mech', 0.0)
-                          + (theta - motor.theta) / motor.p)
-            motor.omega = wm * motor.p
-            motor.theta = theta % (2.0 * math.pi)
+            self._spin(motor, dt, now)
         # THE LAG IS CLOSED FORM, NOT INTEGRATED. A one-pole decay over dt
         # was tried first and read exactly 0.0000 rad: a caller polling
         # 50 ms apart is twelve PLL time constants apart, so the lag had
@@ -688,6 +625,90 @@ class SimulatedDrive:
         self._omega_hat = motor.omega
         self._theta_hat = (motor.theta + alpha / (wn * wn)) % (2.0 * math.pi)
         return motor
+
+    def _spin(self, motor, dt, now):
+        """The rotor turned by the torque the dq solution makes, over
+        `dt`, in fixed symplectic sub-steps. The mechanics of
+        `_advance_model`, which frames it."""
+        iid, iq, _, _ = self._dq()
+        ld = self._ld(iid)
+        # TORQUE BY MODE. SENSORLESS commutates on the rotor, so iq is
+        # torque current. HOLD commutates on the COMMANDED angle - a
+        # stepper - and the rotor is dragged by the load-angle spring
+        # `kt i sin(cmd - theta)`: it follows a slewed command, rings
+        # after a step as a stepper does, and slips a pole if the
+        # spring is overpowered, which is what a stepper is.
+        hold = self._mode == 'hold'
+        k_t = 1.5 * motor.p * motor.lam
+        i_mag = math.hypot(iid, iq)
+        if not hold:
+            torque = 1.5 * motor.p * (motor.lam * iq
+                                      + (ld - motor.lq) * iid * iq)
+        acc = self._motor_acc + dt
+        cmd = (self._sp['theta']
+               + self._omega() * (now - acc - self._mode_at))
+        w_cmd = self._omega()
+        wm = motor.omega / motor.p
+        # SUBSTEPPED, SYMPLECTIC. One Euler step over a poll gap
+        # diverges: (1 - dt b/j) at the placeholder profile is -4 at a
+        # 0.2 s poll and the rotor read +1896, -5770, +24964 rad/s on
+        # three of them. Each slice stays a tenth of the mechanical
+        # constant AND a hundred-and-twentieth of the spring's period;
+        # speed then angle keeps the spring bounded rather than
+        # spiralling. A twentieth was tried and kept for a week: the
+        # held rotor is a PENDULUM, sin(cmd - theta), and an elbow
+        # energised under 0.01 N.m swings +-49 electrical degrees,
+        # where that step pumped the ring until a pole slipped.
+        step = min(0.002, 0.1 * motor.j / max(motor.b, 1e-12))
+        if hold and i_mag > 0.0:
+            spring = 1.5 * motor.p * motor.p * motor.lam * i_mag
+            step = min(step, 0.05 * math.sqrt(motor.j / spring))
+        # THE SUB-STEP IS FIXED and the remainder carried to the next
+        # call. The symplectic step conserves a MODIFIED energy that
+        # depends on h, so a step re-sized every poll (dt / n, and dt
+        # is whatever the caller's cadence made it) moved the rotor
+        # between energies each call - a random walk that fed the
+        # ring. Measured 2026-09-07 on the arm's elbow, 0.01 N.m at
+        # 2 A, at the twentieth-of-a-period step: the ring after the
+        # energise decayed with a 16 s constant where 2j/b is 4 s;
+        # re-sized at a sixth of that step, 4.4 s; FIXED at the
+        # coarse step it grew 6 % a second and the servo's poses ran
+        # away by thousands of degrees. Fixed at this one, 4.6 s. The
+        # rotor's own time runs up to one step behind `now`; `cmd`
+        # starts from where it is.
+        h = step
+        n = int(acc // h)
+        self._motor_acc = acc - n * h
+        theta = motor.theta
+        # THE LINK RUNS OUT, and until now it never did. The back-EMF
+        # is `sqrt(3) lambda omega_el` and the inverter cannot push
+        # current against more than it has: at that speed there is no
+        # torque left, which is what a no-load speed IS.
+        #
+        # INSIDE THE SUB-STEP, because the rotor crosses it inside
+        # one. Evaluated once per call it clamped a speed the rotor
+        # had already left: at 43 A into this inertia the acceleration
+        # is 113 000 rad/s^2, so a single 60 ms poll gap overshot the
+        # ceiling twenty-fold. The model reported 43 115 rpm on a
+        # machine whose no-load speed is 3 902, and 10.3 kW out of a
+        # stage rated 6.3 - which made every thermal and power reading
+        # downstream a fiction.
+        ceiling = (self._model['vdc'] / (math.sqrt(3.0) * motor.lam)
+                   if motor.lam > 0.0 else float('inf'))
+        for _ in range(n):
+            if hold:
+                cmd += w_cmd * h
+                torque = k_t * i_mag * math.sin(cmd - theta)
+            fade = max(0.0, 1.0 - abs(wm * motor.p) / ceiling)
+            wm += (torque * fade - motor.b * wm - motor.load)                     / motor.j * h
+            theta += wm * motor.p * h
+        # The SHAFT, accumulated: electrical theta wraps at 2 pi and a
+        # shaft sensor reads the mechanical angle, which is 1/p of the
+        # whole unwrapped travel - `SimulatedAngle` reads this.
+        self._mech = (getattr(self, '_mech', 0.0)
+                      + (theta - motor.theta) / motor.p)
+        motor.omega = wm * motor.p
+        motor.theta = theta % (2.0 * math.pi)
 
     def _machine(self):
         if self._motor is None:

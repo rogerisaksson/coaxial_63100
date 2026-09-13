@@ -256,12 +256,10 @@ class SimulatedCalibration(CalibrationOps):
         said the call had done nothing. The board reads the channel;
         so does this.
         """
-        code = 0
-        if self.board is not None:
-            for row in self.board.analog.read_all()['channels']:
-                if row['index'] == index:
-                    code = int(row['mean_raw'])
-                    break
+        rows = (self.board.analog.read_all()['channels']
+                if self.board is not None else ())
+        code = next((int(row['mean_raw']) for row in rows
+                     if row['index'] == index), 0)
         self.set_channel(index, code, self._channels[index]['gain_ppm'])
         return code
 

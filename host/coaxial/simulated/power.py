@@ -474,16 +474,21 @@ class SimulatedThermal:
         if name is not None:
             self._tour = name == 'tour'
             self._earned_s = 0.0
-            if name == 'tour':
-                name = self._next_stop()
-            elif name == 'random':
-                choices = [n for n in self.SITUATIONS if n != self._situation]
-                name = self._random.choice(choices)
-            if name not in self.SITUATIONS:
-                raise RigError('a situation is one of %s, random, or tour'
-                               % ', '.join(self.SITUATIONS))
-            self._lay(name)
+            self._lay(self._resolve(name))
         return self.truth()
+
+    def _resolve(self, name):
+        """A situation by name: the tour's next stop for 'tour', one that
+        is not the present one for 'random', or a raise naming them all."""
+        if name == 'tour':
+            return self._next_stop()
+        if name == 'random':
+            return self._random.choice(
+                [n for n in self.SITUATIONS if n != self._situation])
+        if name not in self.SITUATIONS:
+            raise RigError('a situation is one of %s, random, or tour'
+                           % ', '.join(self.SITUATIONS))
+        return name
 
     def _lay(self, name):
         """The situation onto the truth: its air path, capacity and room."""
@@ -586,13 +591,14 @@ class SimulatedThermal:
         since = self._model_s - began
         index = int(since // (on_s + off_s))
         phase = since - index * (on_s + off_s)
-        if phase < on_s and index != self._cycle_trip:
-            if self._tripped():
-                self._cycle_trip = index
-            else:
-                amps *= self._derate_held
-                return {'amps': (amps, amps, amps), 'switching': True}
-        return {'amps': (0.0, 0.0, 0.0), 'switching': False}
+        idle = {'amps': (0.0, 0.0, 0.0), 'switching': False}
+        if phase >= on_s or index == self._cycle_trip:
+            return idle
+        if self._tripped():
+            self._cycle_trip = index
+            return idle
+        amps *= self._derate_held
+        return {'amps': (amps, amps, amps), 'switching': True}
 
     def _power(self, dt, seen):
         """Watts per node, worked out from the sample. The observer's job.
@@ -967,6 +973,8 @@ class SimulatedGateDrivers(GateControl):
     PERIOD = 2376
     DEADTIME = 19
     TRIGGER = 2360
+    #: The update rate the counted hold and the update counter run at.
+    PWM_HZ = 50000
 
     def __init__(self):
         self._deadtime = self.DEADTIME
@@ -987,15 +995,8 @@ class SimulatedGateDrivers(GateControl):
     def state(self):
         self._keepalive += 214000        # the measured idle toggle rate
         if self._armed:
-            self._updates += 50000
-        left = 0
-        if self._hold_until is not None:
-            remaining = self._hold_until - time.monotonic()
-            if remaining <= 0.0:
-                self._duty = (0, 0, 0)
-                self._hold_until = None
-            else:
-                left = max(1, int(remaining * 50000.0))
+            self._updates += self.PWM_HZ
+        left = self._periods_left()
         at = self._cnt()
         return {
             'pwm_ready': True, 'pwm_enabled': self._enabled,
@@ -1080,6 +1081,19 @@ class SimulatedGateDrivers(GateControl):
         self._bypassed = bool(on)
         return True
 
+    def _periods_left(self):
+        """A counted hold's periods still to run - and the compares zeroed
+        when it has run out, which is the update interrupt's job on the
+        board."""
+        if self._hold_until is None:
+            return 0
+        remaining = self._hold_until - time.monotonic()
+        if remaining > 0.0:
+            return max(1, int(remaining * self.PWM_HZ))
+        self._duty = (0, 0, 0)
+        self._hold_until = None
+        return 0
+
     def enable(self):
         # Refuses for the reason the real board refuses: the break is
         # latched because nFAULT is low, and clearing the latch does not
@@ -1111,7 +1125,7 @@ class SimulatedGateDrivers(GateControl):
         # virtual interrupt zeroes the compares when the count runs out,
         # and state() is where the expiry is noticed - the board's own
         # shape, seen from the link.
-        self._hold_until = (time.monotonic() + periods / 50000.0
+        self._hold_until = (time.monotonic() + periods / self.PWM_HZ
                             if periods else None)
         return True
 
@@ -1150,11 +1164,11 @@ class SimulatedGateDrivers(GateControl):
         return True
 
     def trigger(self, ticks=None):
-        if ticks is not None:
-            self._trigger = min(int(ticks), self.PERIOD - 1)
-            drive = self._drive
-            if drive is not None:
-                drive.trigger(self._trigger)
+        if ticks is None:
+            return self._trigger
+        self._trigger = min(int(ticks), self.PERIOD - 1)
+        if self._drive is not None:
+            self._drive.trigger(self._trigger)
         return self._trigger
 
     def clear_fault(self):

@@ -205,14 +205,18 @@ class SimulatedGpio:
 
     def _afe_on(self):
         return self.afe is not None and bool(self.afe.state()['on'])
+    def _witnesses(self):
+        """The two pins the front end's switch decides: PB2 is the switch,
+        PE15 follows it inversely on the assembled board."""
+        return {(self.AFE_PORT, self.AFE_PIN): self._afe_on,
+                (self.PE15_PORT, self.PE15_PIN): lambda: not self._afe_on()}
+
     def pin_read(self, port, pin):
         self._guard(port, pin)
         letter = str(port).upper()[:1]
-        if self.afe is not None:
-            if (letter, pin) == (self.AFE_PORT, self.AFE_PIN):
-                return self._afe_on()
-            if (letter, pin) == (self.PE15_PORT, self.PE15_PIN):
-                return not self._afe_on()
+        witness = self._witnesses().get((letter, pin))
+        if witness is not None and self.afe is not None:
+            return witness()
         return self._pins.get((letter, pin), False)
 
     def pin_write(self, port, pin, level):
