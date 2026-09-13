@@ -214,6 +214,14 @@ static uint16_t put_be32(uint8_t *dst, uint16_t at, uint32_t v)
 }
 
 
+/** The accumulators back to empty: the next window starts here. */
+static void clear_window(void)
+{
+  memset(s_acc, 0, sizeof(s_acc));
+  memset(s_dacc, 0, sizeof(s_dacc));
+  s_acc_n = 0U;
+}
+
 /** Take rung `n`: its whole design, and the accumulate that goes with
   * it. The filter state goes with them - coefficients changing under a
   * running biquad is a transient nothing in the record would explain,
@@ -241,9 +249,7 @@ static void take_rung(uint8_t n)
   {
     filter_prime(&s_chain, &s_filter[f], (float)s_pending[f]);
   }
-  memset(s_acc, 0, sizeof(s_acc));
-  memset(s_dacc, 0, sizeof(s_dacc));
-  s_acc_n = 0U;
+  clear_window();
 }
 
 
@@ -447,9 +453,7 @@ static void push_record(void)
   put_record(rec);
   Board_IrqRelease(masked);
 
-  memset(s_acc, 0, sizeof(s_acc));
-  memset(s_dacc, 0, sizeof(s_dacc));
-  s_acc_n = 0U;
+  clear_window();
 
   if ((s_cfg.records != 0U) && (s_produced >= s_cfg.records))
   {
@@ -508,6 +512,28 @@ static void accumulate(const int32_t *values, uint32_t digital)
 }
 
 
+/** The boxcar has dumped; the shaping and the decimation happen here, and
+  * only what comes out of them becomes a record. Every field is pushed so
+  * their states stay in step - they share a decimation counter's worth of
+  * history, and one field skipped would put the record's channels a
+  * sample apart. True when the chain let this window through. */
+static bool shaped_ready(void)
+{
+  bool ready = false;
+
+  for (uint8_t f = 0U; f < s_fields; f++)
+  {
+    int32_t shaped = 0;
+
+    if (filtered(f, s_acc[f], s_cfg.accumulate, &shaped))
+    {
+      s_acc[f] = shaped;
+      ready = true;
+    }
+  }
+  return ready;
+}
+
 /** One trigger's worth of samples, already read. Accumulates and may push. */
 static void feed(const int32_t *values, uint32_t at, uint32_t digital)
 {
@@ -564,31 +590,7 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
     return;
   }
 
-  if (!s_filtering)
-  {
-    push_record();
-    return;
-  }
-
-  /* The boxcar has dumped; the shaping and the decimation happen here,
-     and only what comes out of them becomes a record. Every field is
-     pushed so their states stay in step - they share a decimation
-     counter's worth of history, and one field skipped would put the
-     record's channels a sample apart. */
-  bool ready = false;
-
-  for (uint8_t f = 0U; f < s_fields; f++)
-  {
-    int32_t shaped = 0;
-
-    if (filtered(f, s_acc[f], s_cfg.accumulate, &shaped))
-    {
-      s_acc[f] = shaped;
-      ready = true;
-    }
-  }
-
-  if (ready)
+  if (!s_filtering || shaped_ready())
   {
     push_record();
     return;
@@ -596,9 +598,7 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
 
   /* Swallowed by the decimation: the window is over, so the accumulator
      starts the next one. */
-  memset(s_acc, 0, sizeof(s_acc));
-  memset(s_dacc, 0, sizeof(s_dacc));
-  s_acc_n = 0U;
+  clear_window();
 }
 
 
@@ -616,13 +616,14 @@ static bool only_injected(void)
   return true;
 }
 
-const char *Board_DaqConfigure(const board_daq_config_t *cfg)
+/** The checks that need no field list. Every refusal says which check
+  * failed, in the board's own words: the board is the only thing that
+  * knows which one it was, and a host listing possible causes is the
+  * second answer this codebase keeps deleting. Each one says what is
+  * wrong AND what to do about it - a refusal that leaves the caller
+  * guessing has done half a job. NULL when they all pass. */
+static const char *refused_before_fields(const board_daq_config_t *cfg)
 {
-  /* Every refusal says which check failed, in the board's own words. The
-     board is the only thing that knows which one it was; a host listing
-     possible causes is the second answer this codebase keeps deleting.
-     Each one says what is wrong AND what to do about it - a refusal that
-     leaves the caller guessing has done half a job. */
   if (cfg == NULL)
   {
     return "no configuration given - pass one";
@@ -661,18 +662,30 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
   {
     return "sample_time is 0 to 7, shortest window first";
   }
+  return NULL;
+}
 
-  /* Field order is the channel table's order, so a host reading the layout
-     and a host reading `0x6D` get the same answer in the same sequence. */
+/** Field order is the channel table's order, so a host reading the layout
+  * and a host reading `0x6D` get the same answer in the same sequence.
+  * Returns how many rows the mask selected. */
+static uint8_t select_fields(uint16_t mask)
+{
   const uint8_t rows = Board_AdcCount();
-  s_fields = 0U;
+  uint8_t count = 0U;
+
   for (uint8_t i = 0U; (i < rows) && (i < BOARD_DAQ_MAX_CHANNELS); i++)
   {
-    if ((cfg->channels & (1U << i)) != 0U)
+    if ((mask & (1U << i)) != 0U)
     {
-      s_order[s_fields++] = i;
+      s_order[count++] = i;
     }
   }
+  return count;
+}
+
+/** The checks over the fields just selected. NULL when they all pass. */
+static const char *refused_with_fields(const board_daq_config_t *cfg)
+{
   if (s_fields == 0U)
   {
     return "no channels selected - the mask is over the rows of 0x6D kind 0";
@@ -709,7 +722,13 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
            "records belong to the main loop, and a TIM1-clocked record "
            "closes inside ADC3's interrupt, which would read them torn";
   }
+  return NULL;
+}
 
+/** A configuration that passed becomes the task: the stride, the buffers
+  * empty, the ladder at the bottom. */
+static void begin_task(const board_daq_config_t *cfg)
+{
   s_cfg = *cfg;
   /* Remembered here, where the ASK is still visible. */
   s_rate_auto = (cfg->interval_us == 0U) && (cfg->records == 0U);
@@ -739,6 +758,23 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
   s_rung = 0U;
   s_low_for = 0U;
   s_rung_changes = 0U;
+}
+
+const char *Board_DaqConfigure(const board_daq_config_t *cfg)
+{
+  const char *refusal = refused_before_fields(cfg);
+
+  if (refusal != NULL)
+  {
+    return refusal;
+  }
+  s_fields = select_fields(cfg->channels);
+  refusal = refused_with_fields(cfg);
+  if (refusal != NULL)
+  {
+    return refusal;
+  }
+  begin_task(cfg);
   return NULL;
 }
 

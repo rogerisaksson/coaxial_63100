@@ -149,6 +149,90 @@ bool mb_rtu_busy(const mb_rtu_t *rtu)
   return rtu->receiving;
 }
 
+/* The closed frame taken out of the receiver, which goes back to idle:
+   its length, and whether a framing error or an overrun marked it. */
+static uint16_t take_frame(mb_rtu_t *rtu, bool *bad, bool *overrun)
+{
+  const uint16_t len = rtu->rx_len;
+
+  *bad     = rtu->frame_bad;
+  *overrun = rtu->saw_overrun;
+
+  rtu->receiving   = false;
+  rtu->frame_bad   = false;
+  rtu->saw_overrun = false;
+  rtu->rx_len      = 0U;
+  return len;
+}
+
+/* Counted, checked and addressed: true for a whole frame meant for this
+   server. A bad CRC is answered with silence, never with an exception -
+   replying would put a frame on the bus that the master cannot
+   correlate, and on a multidrop line it may not even have been addressed
+   to us. A frame for another server is not an error, not ours, not
+   counted. */
+static bool frame_ours(mb_rtu_t *rtu, uint16_t len, bool bad, bool overrun)
+{
+  if (len == 0U)
+  {
+    return false;
+  }
+  rtu->counters.bus_message++;
+
+  if (overrun)
+  {
+    rtu->counters.char_overrun++;
+  }
+  if (bad || (len < MB_RTU_ADU_MIN) || (modbus_crc_check(rtu->rx, len) == 0))
+  {
+    rtu->counters.bus_comm_error++;
+    return false;
+  }
+
+  const uint8_t addr = rtu->rx[0];
+
+  if ((addr != rtu->unit_id) && (addr != MB_RTU_BROADCAST))
+  {
+    return false;
+  }
+  rtu->counters.server_message++;
+  return true;
+}
+
+/* The PDU - the frame less the unit id and the two CRC bytes - executed,
+   and the reply built behind the unit id with the CRC appended. A
+   broadcast is executed and never answered. */
+static size_t answer(mb_rtu_t *rtu, uint16_t len, const uint8_t **out)
+{
+  const uint8_t  addr    = rtu->rx[0];
+  const uint8_t *pdu     = &rtu->rx[1];
+  const size_t   pdu_len = (size_t)(len - 3U);
+
+  const size_t rsp_len = mb_slave_execute(rtu->slave, pdu, pdu_len,
+                                          &rtu->tx[1], MB_RTU_ADU_MAX - 3U);
+
+  if (rsp_len == 0U)
+  {
+    rtu->counters.server_no_response++;
+    return 0U;
+  }
+  if ((rtu->tx[1] & 0x80U) != 0U)
+  {
+    rtu->counters.server_exception++;
+  }
+  if (addr == MB_RTU_BROADCAST)
+  {
+    rtu->counters.server_no_response++;
+    return 0U;
+  }
+
+  rtu->tx[0] = rtu->unit_id;
+  rtu->tx_len = (uint16_t)modbus_crc_append(rtu->tx, rsp_len + 1U);
+
+  *out = rtu->tx;
+  return rtu->tx_len;
+}
+
 size_t mb_rtu_service(mb_rtu_t *rtu, uint32_t now_ticks, const uint8_t **out)
 {
   *out = NULL;
@@ -168,80 +252,13 @@ size_t mb_rtu_service(mb_rtu_t *rtu, uint32_t now_ticks, const uint8_t **out)
     return 0U;
   }
 
-  const uint16_t len = rtu->rx_len;
-  const bool     bad = rtu->frame_bad;
-  const bool     ovr = rtu->saw_overrun;
+  bool bad;
+  bool overrun;
+  const uint16_t len = take_frame(rtu, &bad, &overrun);
 
-  rtu->receiving   = false;
-  rtu->frame_bad   = false;
-  rtu->saw_overrun = false;
-  rtu->rx_len      = 0U;
-
-  if (len == 0U)
+  if (!frame_ours(rtu, len, bad, overrun))
   {
     return 0U;
   }
-
-  rtu->counters.bus_message++;
-
-  if (ovr)
-  {
-    rtu->counters.char_overrun++;
-  }
-
-  if (bad || (len < MB_RTU_ADU_MIN))
-  {
-    rtu->counters.bus_comm_error++;
-    return 0U;
-  }
-
-  if (modbus_crc_check(rtu->rx, len) == 0)
-  {
-    /* A bad CRC is answered with silence, never with an exception. Replying
-       would put a frame on the bus that the master cannot correlate, and on a
-       multidrop line it may not even have been addressed to us. */
-    rtu->counters.bus_comm_error++;
-    return 0U;
-  }
-
-  const uint8_t addr = rtu->rx[0];
-
-  if ((addr != rtu->unit_id) && (addr != MB_RTU_BROADCAST))
-  {
-    /* Intended for another server. Not an error, not ours, not counted. */
-    return 0U;
-  }
-
-  rtu->counters.server_message++;
-
-  /* PDU is the frame less the unit id and the two CRC bytes. */
-  const uint8_t *pdu     = &rtu->rx[1];
-  const size_t   pdu_len = (size_t)(len - 3U);
-
-  const size_t rsp_len = mb_slave_execute(rtu->slave, pdu, pdu_len,
-                                          &rtu->tx[1], MB_RTU_ADU_MAX - 3U);
-
-  if (rsp_len == 0U)
-  {
-    rtu->counters.server_no_response++;
-    return 0U;
-  }
-
-  if ((rtu->tx[1] & 0x80U) != 0U)
-  {
-    rtu->counters.server_exception++;
-  }
-
-  if (addr == MB_RTU_BROADCAST)
-  {
-    /* The request was executed; a broadcast is never answered. */
-    rtu->counters.server_no_response++;
-    return 0U;
-  }
-
-  rtu->tx[0] = rtu->unit_id;
-  rtu->tx_len = (uint16_t)modbus_crc_append(rtu->tx, rsp_len + 1U);
-
-  *out = rtu->tx;
-  return rtu->tx_len;
+  return answer(rtu, len, out);
 }

@@ -60,6 +60,8 @@
 #define IMU_WAKE_RETRIES     3U
 #define IMU_WAKE_RELEASE_MS  2U
 #define IMU_RESET_DRAIN      16U
+#define IMU_WRITE_DRAIN      8U      /**< reads before a write speaks    */
+#define IMU_SPI_TIMEOUT_MS   100U
 #define IMU_WAKE_PORT GPIOD
 #define IMU_WAKE_PIN  GPIO_PIN_9
 
@@ -337,7 +339,7 @@ static bool imu_xfer(const uint8_t *tx, uint8_t *rx, uint16_t len)
                          ? IMU_CHUNK : (uint16_t)(len - done);
 
     if (HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)tx + done, rx + done,
-                                n, 100U) != HAL_OK)
+                                n, IMU_SPI_TIMEOUT_MS) != HAL_OK)
     {
       return false;
     }
@@ -367,7 +369,7 @@ static bool transfer(const uint8_t *tx, uint8_t *rx, uint16_t len)
 
   cs(true);
   settle();
-  st = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)tx, rx, len, 100U);
+  st = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)tx, rx, len, IMU_SPI_TIMEOUT_MS);
   settle();
   cs(false);
 
@@ -412,7 +414,7 @@ bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
   settle();
 
   bool ok = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)s_zeros, s_rx,
-                                    SHTP_HEADER_LEN, 100U) == HAL_OK;
+                                    SHTP_HEADER_LEN, IMU_SPI_TIMEOUT_MS) == HAL_OK;
 
   if (ok && shtp_parse_header(s_rx, &head) && (head.length > SHTP_HEADER_LEN))
   {
@@ -854,6 +856,41 @@ static void power_lost(void)
 }
 
 
+/** Nothing queued and a feature still missing: the quiet moment the
+  * re-apply was waiting for. The part has been drained by the reads before
+  * it, so the write's own drain finds nothing and costs 115 us.
+  *
+  * NOT BEFORE THE PART HAS SPOKEN. `!intn_asserted()` is also true in the
+  * gap between the reset wait ending and the part producing its
+  * advertisement, and a Set Feature written into that gap is accepted at
+  * the SHTP level and then discarded - the write returns true, `pending`
+  * clears, and the part streams nothing for ever.
+  *
+  * Measured 2026-08-29 across an AFE power cycle: the loop came back
+  * `running` in 0.71 s with feature 5 @ 2500 us and pending false, and no
+  * report arrived in 15 s. Setting the same feature by hand 0.5 s later
+  * worked every time, which is what ruled out the part needing longer. */
+static bool reapply_due(void)
+{
+  return s_feature_pending && (s_state.cargoes > s_cargoes_at_reset)
+         && ((HAL_GetTick() - s_last_cargo_ms) > IMU_QUIET_MS)
+         && !intn_asserted();
+}
+
+/** ONE PER TURN. Each Set Feature empties the part before it speaks, and
+  * four in a row held the main loop long enough that a Modbus reply came
+  * back late - the same measurement that put this on the quiet path in
+  * the first place. */
+static void reapply_one(void)
+{
+  if (Board_ImuSetFeature(s_feature_id_of[s_feature_next],
+                          s_feature_us_of[s_feature_next]))
+  {
+    s_feature_next++;
+    s_feature_pending = (s_feature_next < s_features);
+  }
+}
+
 void Board_ImuPoll(void)
 {
   static uint8_t cargo[IMU_BUF];
@@ -864,24 +901,20 @@ void Board_ImuPoll(void)
     return;
   }
 
-  if (s_state.loop == BOARD_IMU_LOOP_HELD)
-  {
-    return;                      /* the host is configuring it */
-  }
-
-  /* NOT DURING THE OBSERVER'S BORROW. It takes AFE_ON for about 500 ms every
-     few seconds to read the NTC, and this part needs longer than that to come
-     up - so it would start initialising, lose its supply mid-sequence, and do
-     it again on the next borrow. Reset after reset, an errors counter that
-     climbs and a part that never reports.
+  /* Not while the host is configuring it, and NOT DURING THE OBSERVER'S
+     BORROW. It takes AFE_ON for about 500 ms every few seconds to read the
+     NTC, and this part needs longer than that to come up - so it would
+     start initialising, lose its supply mid-sequence, and do it again on
+     the next borrow. Reset after reset, an errors counter that climbs and
+     a part that never reports.
 
      A borrow is a measurement window, not a power-up. Who holds the rail is
      the reference count's to say, which is what BOARD_USER_THERMAL is for. */
-  if (Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
+  if ((s_state.loop == BOARD_IMU_LOOP_HELD)
+      || Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
   {
     return;
   }
-
 
   if (s_state.loop == BOARD_IMU_LOOP_OFF)
   {
@@ -894,42 +927,18 @@ void Board_ImuPoll(void)
     return;
   }
 
+  if (reapply_due())
+  {
+    reapply_one();
+    return;
+  }
+
   /* Nothing waiting is the common case and must cost nothing: one GPIO read
      and out. Waiting here would put the main loop's latency on the part.
 
      `poll_due` is the second half, and here the only half - see the file
      comment. With only the line above, this returned every turn and the part
      streamed rotation vectors nobody collected. */
-  /* Nothing queued and the feature still missing: this is the quiet moment
-     the re-apply was waiting for. The part has been drained by the reads
-     above, so the write's own drain finds nothing and costs 115 us. */
-  /* NOT BEFORE THE PART HAS SPOKEN. `!intn_asserted()` is also true in the
-     gap between the reset wait ending and the part producing its
-     advertisement, and a Set Feature written into that gap is accepted at
-     the SHTP level and then discarded - the write returns true, `pending`
-     clears, and the part streams nothing for ever.
-
-     Measured 2026-08-29 across an AFE power cycle: the loop came back
-     `running` in 0.71 s with feature 5 @ 2500 us and pending false, and no
-     report arrived in 15 s. Setting the same feature by hand 0.5 s later
-     worked every time, which is what ruled out the part needing longer. */
-  if (s_feature_pending && (s_state.cargoes > s_cargoes_at_reset)
-      && ((HAL_GetTick() - s_last_cargo_ms) > IMU_QUIET_MS)
-      && !intn_asserted())
-  {
-    /* ONE PER TURN. Each Set Feature empties the part before it
-       speaks, and four in a row held the main loop long enough that
-       a Modbus reply came back late - the same measurement that put
-       this on the quiet path in the first place. */
-    if (Board_ImuSetFeature(s_feature_id_of[s_feature_next],
-                            s_feature_us_of[s_feature_next]))
-    {
-      s_feature_next++;
-      s_feature_pending = (s_feature_next < s_features);
-    }
-    return;
-  }
-
   if (!intn_asserted() && !poll_due())
   {
     return;
@@ -1056,76 +1065,66 @@ static bool woken_by_retry(void)
 }
 
 
-bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
+/** Empty the part before speaking, then WAKE and wait to be let in.
+  *
+  * The drain: H_INTN stays asserted until everything queued has been
+  * collected, so a write issued on top of it sees the line already low,
+  * clocks into a part that is mid-sentence, and loses both messages.
+  * Measured: with a reset's three announcements still queued, every write
+  * came back SERVER DEVICE FAILURE.
+  *
+  * WAKE is not optional: measured, a write with PS0 left alone fails
+  * outright - the part is asleep between transactions and does not hear
+  * it. What follows a wake on channel 0 is the part announcing itself
+  * again, which is what waking looks like from here, not a fault.
+  *
+  * The wait is a gate, not best effort. The part answers a wake by
+  * asserting H_INTN, "at which point the host can initiate SPI accesses"
+  * (1.2.4.3) - so clocking without it is clocking at a part that is not
+  * listening, and that is what a write that goes out and changes nothing
+  * looks like. This was best effort once, on the reading that two product
+  * id requests had succeeded through it; they had not - the part sends an
+  * unsolicited product id response after every reset, and that is what
+  * was being read. Measured on the same board: executable ON, SLEEP and
+  * RESET all produced the identical answer, which is only possible if
+  * none of the payloads arrived.
+  *
+  * When every acknowledge failed, reset included, the write goes anyway
+  * and is marked NOWAKE rather than refused: refusing made every feature
+  * request disappear and the part look dead for a day, and a missed edge
+  * is not proof the part is not listening. What proves the write landed
+  * is `updates` climbing; nothing here claims it did. */
+static void wake_for_write(void)
 {
-  if (!s_ready ||
-      (channel >= (uint8_t)(sizeof(s_seq) / sizeof(s_seq[0]))))
-  {
-    return false;
-  }
-
-  const size_t n = shtp_build(s_tx, sizeof(s_tx), channel, s_seq[channel],
-                              payload, len);
-  if ((n == 0U) || (n > IMU_BUF))
-  {
-    return false;
-  }
-
-  /* Empty the part before speaking. H_INTN stays asserted until everything
-     queued has been collected, so a write issued on top of it sees the line
-     already low, clocks into a part that is mid-sentence, and loses both
-     messages. Measured: with a reset's three announcements still queued,
-     every write came back SERVER DEVICE FAILURE. */
-  (void)Board_ImuDrain(8U);
-
-  /* WAKE, then wait to be let in, then take the bus - and only release WAKE
-     once chip select is down. That order is the reference driver's
-     (Hillcrest sh2_hal_spi.c, startOpShtp: assert CSN, then "If there is
-     stuff to transmit, deassert WAKE and do it now"). Releasing it before
-     the transfer let the part go back to sleep between the handshake and
-     the first clock. */
-  /* WAKE is not optional: measured, a write with PS0 left alone fails
-     outright - the part is asleep between transactions and does not hear it.
-     What follows a wake on channel 0 is the part announcing itself again,
-     which is what waking looks like from here, not a fault. */
+  (void)Board_ImuDrain(IMU_WRITE_DRAIN);
   wake(true);
-
-  /* A gate, not best effort. The part answers a wake by asserting H_INTN,
-     "at which point the host can initiate SPI accesses" (1.2.4.3) - so
-     clocking without it is clocking at a part that is not listening, and
-     that is what a write that goes out and changes nothing looks like.
-     This was best effort once, on the reading that two product id requests
-     had succeeded through it; they had not - the part sends an unsolicited
-     product id response after every reset, and that is what was being read.
-     Measured on the same board: executable ON, SLEEP and RESET all produced
-     the identical answer, which is only possible if none of the payloads
-     arrived. */
   if (!wait_intn(IMU_WAKE_WAIT_MS) && !woken_by_retry())
   {
-    {
-      /* Every acknowledge failed, reset included. Write anyway and mark it
-         NOWAKE rather than refuse: refusing made every feature request
-         disappear and the part look dead for a day, and a missed edge is not
-         proof the part is not listening. The gate still earns its place, so
-         it stays as a last resort. What proves the write landed is `updates`
-         climbing; nothing here claims it did. */
-      note(BOARD_IMU_ERR_NOWAKE);
-    }
+    note(BOARD_IMU_ERR_NOWAKE);
   }
+}
 
+/** The built frame out, full duplex: the part clocks its own cargo out
+  * while this one goes in. A transfer sized only to the frame being sent
+  * truncates whatever the part was saying, and both messages are lost -
+  * the write appears to go out and nothing acts on it. The reference reads
+  * the incoming header in the same transaction and clocks to whichever is
+  * longer (user guide, Interrupt Service: "any SPI operation performed
+  * should transfer enough bytes to accomodate the transmit buffer").
+  *
+  * Chip select first and WAKE released only once it is down - the
+  * reference driver's order (Hillcrest sh2_hal_spi.c, startOpShtp: assert
+  * CSN, then "If there is stuff to transmit, deassert WAKE and do it
+  * now"). Releasing it before the transfer let the part go back to sleep
+  * between the handshake and the first clock. */
+static bool transfer_frame(size_t n)
+{
   cs(true);
   settle();
   wake(false);
 
-  /* Full duplex: the part clocks its own cargo out while this one goes in.
-     A transfer sized only to the frame being sent truncates whatever the
-     part was saying, and both messages are lost - the write appears to go
-     out and nothing acts on it. The reference reads the incoming header in
-     the same transaction and clocks to whichever is longer (user guide,
-     Interrupt Service: "any SPI operation performed should transfer enough
-     bytes to accomodate the transmit buffer"). */
   bool ok = HAL_SPI_TransmitReceive(&hspi2, s_tx, s_rx, (uint16_t)n,
-                                    100U) == HAL_OK;
+                                    IMU_SPI_TIMEOUT_MS) == HAL_OK;
 
   shtp_header_t incoming;
 
@@ -1146,8 +1145,27 @@ bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
 
   settle();
   cs(false);
+  return ok;
+}
 
-  if (!ok)
+bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
+{
+  if (!s_ready ||
+      (channel >= (uint8_t)(sizeof(s_seq) / sizeof(s_seq[0]))))
+  {
+    return false;
+  }
+
+  const size_t n = shtp_build(s_tx, sizeof(s_tx), channel, s_seq[channel],
+                              payload, len);
+  if ((n == 0U) || (n > IMU_BUF))
+  {
+    return false;
+  }
+
+  wake_for_write();
+
+  if (!transfer_frame(n))
   {
     return false;
   }

@@ -55,6 +55,10 @@ _Static_assert(BOARD_THERMAL_EDGES == THERMAL_EDGES,
 _Static_assert(BOARD_THERMAL_IDENT_SCALES == THERMAL_IDENT_RECORD,
                "board.h's scale count and thermal_ident.h's record disagree");
 
+/** Of the winding's K/W, the share that is the edge into the iron; the
+  * rest is the iron's own air path. */
+#define WINDING_INTO_IRON            0.25f
+
 static thermal_t      s_th;
 static thermal_loss_t s_loss;
 static thermal_power_t s_power;
@@ -200,16 +204,10 @@ static void soa_from_cal(void)
 }
 
 
-/** The network: the core's defaults with every non-zero record entry laid
-  * over its own field. The winding's three record fields feed its node
-  * and its edge into the iron the way they did the separate element:
-  * a quarter of the K/W into the iron, the rest the iron's air path. */
-static void network_from_cal(thermal_cfg_t *cfg)
+/** The bulk: the laminate's air path, its radiated share, and what the
+  * thermistor sees of it. */
+static void lay_bulk(thermal_cfg_t *cfg, const board_cal_t *cal)
 {
-  const board_cal_t *cal = Board_Cal();
-
-  thermal_defaults(cfg);
-
   if (cal->thermal_to_ambient_milli != 0U)
   {
     cfg->board_to_ambient = (float)cal->thermal_to_ambient_milli / MILLI_PER_UNIT;
@@ -227,9 +225,12 @@ static void network_from_cal(thermal_cfg_t *cfg)
     cfg->ntc_tau_s = (float)cal->thermal_ntc_tau_ms / MILLI_PER_UNIT;
   }
   cfg->rad_board_stator = (float)cal->thermal_rad_board_stator_micro / 1.0e6f;
+}
 
-  /* The bulk laminate: shared out by area, as `thermal_set_board` does,
-     before any patch's own entry overrides its share. */
+/** The bulk laminate shared out by area, as `thermal_set_board` does,
+  * before any patch's own entry overrides its share. */
+static void share_bulk(thermal_cfg_t *cfg, const board_cal_t *cal)
+{
   for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
   {
     thermal_node_cfg_t *n = &cfg->node[i];
@@ -246,6 +247,11 @@ static void network_from_cal(thermal_cfg_t *cfg)
                     * n->area_share;
     }
   }
+}
+
+/** Every non-zero node entry over its own field. */
+static void lay_nodes(thermal_cfg_t *cfg, const board_cal_t *cal)
+{
   for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
   {
     const board_cal_node_t *rec = &cal->thermal_node[i];
@@ -268,6 +274,12 @@ static void network_from_cal(thermal_cfg_t *cfg)
       n->rth_die = (float)rec->rth_milli / MILLI_PER_UNIT;
     }
   }
+}
+
+/** Every edge the record names: OPEN cuts it, a value sets it, zero
+  * leaves the default. */
+static void lay_edges(thermal_cfg_t *cfg, const board_cal_t *cal)
+{
   for (uint8_t e = 0U; e < (uint8_t)THERMAL_EDGES; e++)
   {
     const uint32_t milli = cal->thermal_edge_milli[e];
@@ -281,20 +293,36 @@ static void network_from_cal(thermal_cfg_t *cfg)
       cfg->r_edge[e] = (float)milli / MILLI_PER_UNIT;
     }
   }
+}
 
-  /* The winding, from its own three fields (CAL_VERSION 12). */
+/** The winding, from its own three fields (CAL_VERSION 12): a quarter of
+  * the K/W into the iron, the rest the iron's air path. */
+static void lay_winding(thermal_cfg_t *cfg, const board_cal_t *cal)
+{
+  const float k = (float)cal->winding_k_per_w_milli / MILLI_PER_UNIT;
+  const int into_iron = thermal_sink_edge(THERMAL_WINDING);
+
+  cfg->node[THERMAL_WINDING].capacity =
+      (float)cal->winding_j_per_k_milli / MILLI_PER_UNIT;
+  if ((k > 0.0f) && (into_iron >= 0))
   {
-    const float k = (float)cal->winding_k_per_w_milli / MILLI_PER_UNIT;
-    const int into_iron = thermal_sink_edge(THERMAL_WINDING);
-
-    cfg->node[THERMAL_WINDING].capacity =
-        (float)cal->winding_j_per_k_milli / MILLI_PER_UNIT;
-    if ((k > 0.0f) && (into_iron >= 0))
-    {
-      cfg->r_edge[into_iron] = 0.25f * k;
-      cfg->node[THERMAL_STATOR].to_ambient = 0.75f * k;
-    }
+    cfg->r_edge[into_iron] = WINDING_INTO_IRON * k;
+    cfg->node[THERMAL_STATOR].to_ambient = (1.0f - WINDING_INTO_IRON) * k;
   }
+}
+
+/** The network: the core's defaults with every non-zero record entry laid
+  * over its own field, in the order the overrides stack. */
+static void network_from_cal(thermal_cfg_t *cfg)
+{
+  const board_cal_t *cal = Board_Cal();
+
+  thermal_defaults(cfg);
+  lay_bulk(cfg, cal);
+  share_bulk(cfg, cal);
+  lay_nodes(cfg, cal);
+  lay_edges(cfg, cal);
+  lay_winding(cfg, cal);
 }
 
 
@@ -552,6 +580,66 @@ static void margin_follow(void)
 }
 
 
+/** One slice of the observer: the losses on its own last estimate, the
+  * step, the identification beside it, the room, the budget. */
+static void step_slice(const thermal_load_t *load, const thermal_sense_t *seen,
+                       uint32_t slice)
+{
+  const float dt = (float)slice / MILLI_PER_UNIT;
+  /* The FET tempco feeds on the observer's own last estimate: the
+     driver node a leg heats is the junction its on-resistance follows. */
+  const float phase_c[3] = { s_th.t[THERMAL_DRIVER(0)],
+                             s_th.t[THERMAL_DRIVER(1)],
+                             s_th.t[THERMAL_DRIVER(2)] };
+
+  thermal_power_estimate(&s_power, load, &s_loss, phase_c);
+  thermal_step(&s_th, &s_power, seen, load, dt);
+  /* THE IDENTIFICATION, beside it: the shadow and its sensitivities
+     step with the same power and the same slice; when a sample moves
+     the scales the observer's network takes them at once. */
+  if (thermal_ident_step(&s_ident, &s_th, &s_base, &s_power, load, seen, dt))
+  {
+    thermal_ident_apply(&s_ident, &s_base, &s_th.cfg);
+  }
+  /* THE ROOM IS THE IDENTIFICATION'S: the board has no ambient sensor,
+     and the observer's rise is against what the identification says
+     the room is. */
+  s_th.ambient = thermal_ident_ambient(&s_ident);
+  thermal_budget(&s_th, &s_power, &s_soa, &s_budget);
+  /* The winding's own factor, so a host can say which envelope holds
+     the stage back; the whole's already includes it. */
+  s_winding_derate = thermal_node_derate(&s_th, &s_power, &s_soa,
+                                         THERMAL_WINDING);
+}
+
+/** THE ONE PLACE THIS FILE ACTS RATHER THAN REPORTS, and it acts twice.
+  *
+  * FIRST IT DERATES. Past the throttle point the drive's current clamp
+  * is scaled toward zero, so the stage keeps driving on less - which is
+  * what a thermal envelope is for. THEN, only if that was not enough,
+  * it drops MOE - every gate to its idle level in hardware, the same
+  * path the break uses. Protection, not a verdict on a reading: the
+  * estimate is reported either way and the limits came from the
+  * calibration record rather than from here. One clamp, every node the
+  * clamp reaches - the winding among them since it is a node. */
+static void hold_envelope(uint32_t slice, uint32_t now)
+{
+  Board_DriveDerate(derate_applied(s_budget.derate, slice));
+
+  if (!s_budget.tripped || !Board_PwmIsEnabled())
+  {
+    return;
+  }
+  Board_PwmDisable();
+  s_trips++;
+  /* AND THE ENVELOPE SHRINKS: the trip cap, from now, recovering a
+     percent a minute (board_limits.h). What the host re-arms into
+     is a stage that runs on less until the model has earned it. */
+  s_trip_cap = THERMAL_TRIP_MARGIN;
+  s_trip_ms = now;
+  soa_from_cal();
+}
+
 void Board_ThermalPoll(void)
 {
   if (!s_ready)
@@ -603,56 +691,8 @@ void Board_ThermalPoll(void)
     const uint32_t slice = (left > THERMAL_STEP_MS) ? THERMAL_STEP_MS : left;
 
     left -= slice;
-
-    /* The FET tempco feeds on the observer's own last estimate: the
-       driver node a leg heats is the junction its on-resistance follows. */
-    const float phase_c[3] = { s_th.t[THERMAL_DRIVER(0)],
-                               s_th.t[THERMAL_DRIVER(1)],
-                               s_th.t[THERMAL_DRIVER(2)] };
-
-    thermal_power_estimate(&s_power, &load, &s_loss, phase_c);
-    thermal_step(&s_th, &s_power, &seen, &load, (float)slice / MILLI_PER_UNIT);
-    /* THE IDENTIFICATION, beside it: the shadow and its sensitivities
-       step with the same power and the same slice; when a sample moves
-       the scales the observer's network takes them at once. */
-    if (thermal_ident_step(&s_ident, &s_th, &s_base, &s_power, &load, &seen,
-                           (float)slice / MILLI_PER_UNIT))
-    {
-      thermal_ident_apply(&s_ident, &s_base, &s_th.cfg);
-    }
-    /* THE ROOM IS THE IDENTIFICATION'S: the board has no ambient sensor,
-       and the observer's rise is against what the identification says
-       the room is. */
-    s_th.ambient = thermal_ident_ambient(&s_ident);
-    thermal_budget(&s_th, &s_power, &s_soa, &s_budget);
-    /* The winding's own factor, so a host can say which envelope holds
-       the stage back; the whole's already includes it. */
-    s_winding_derate = thermal_node_derate(&s_th, &s_power, &s_soa,
-                                           THERMAL_WINDING);
-
-    /* THE ONE PLACE THIS FILE ACTS RATHER THAN REPORTS, and it acts twice.
-
-       FIRST IT DERATES. Past the throttle point the drive's current clamp
-       is scaled toward zero, so the stage keeps driving on less - which is
-       what a thermal envelope is for. THEN, only if that was not enough,
-       it drops MOE - every gate to its idle level in hardware, the same
-       path the break uses. Protection, not a verdict on a reading: the
-       estimate is reported either way and the limits came from the
-       calibration record rather than from here. One clamp, every node the
-       clamp reaches - the winding among them since it is a node. */
-    Board_DriveDerate(derate_applied(s_budget.derate, slice));
-
-    if (s_budget.tripped && Board_PwmIsEnabled())
-    {
-      Board_PwmDisable();
-      s_trips++;
-      /* AND THE ENVELOPE SHRINKS: the trip cap, from now, recovering a
-         percent a minute (board_limits.h). What the host re-arms into
-         is a stage that runs on less until the model has earned it. */
-      s_trip_cap = THERMAL_TRIP_MARGIN;
-      s_trip_ms = now;
-      soa_from_cal();
-    }
+    step_slice(&load, &seen, slice);
+    hold_envelope(slice, now);
     s_steps++;
   }
 

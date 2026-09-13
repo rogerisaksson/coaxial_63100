@@ -1436,6 +1436,36 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   196 564 B; modbus core 77, thermal core 144; functions past eighty
   lines 13 -> 9. The rest of the proof is the bench's: parity,
   conformance and the live views over a flashed board.
+* THE FIRMWARE'S LONG FUNCTIONS (2026-09-13). Nine past eighty lines;
+  seven were several jobs in one body and are now the jobs, named. The
+  DAQ engine: `Board_DaqConfigure` is `refused_before_fields`,
+  `select_fields`, `refused_with_fields` and `begin_task` in that order,
+  and reads as the four lines it always was; `feed`'s filter tail is
+  `shaped_ready`, and the three-line window clear that stood in three
+  places is `clear_window`. The thermal glue: the network from the
+  record is `lay_bulk`, `share_bulk`, `lay_nodes`, `lay_edges` and
+  `lay_winding` in the order the overrides stack, the winding's quarter
+  into the iron named `WINDING_INTO_IRON`; the poll's slice is
+  `step_slice` (the losses, the step, the identification, the room, the
+  budget) and the one place the file acts is `hold_envelope`. The IMU:
+  the feature re-apply is `reapply_due` and `reapply_one`, the two
+  early returns at the top of the poll one condition; the write's drain,
+  wake and gate are `wake_for_write`, the full-duplex transfer with the
+  part's tail discarded is `transfer_frame`, and the earlier pass's
+  doubled braces around the NOWAKE note are gone; the SPI timeout and
+  the pre-write drain are `IMU_SPI_TIMEOUT_MS` and `IMU_WRITE_DRAIN`
+  where four sites wrote 100U and one 8U. The RTU: `mb_rtu_service` is
+  `take_frame`, `frame_ours` (counted, CRC-checked, addressed) and
+  `answer`, the service loop itself thirty lines - host-tested, 77.
+  LEFT AS THEY ARE, BY DESIGN: `thermal_defaults`, 195 lines, is the
+  network's table with its measurements beside each number and splitting
+  it would hide which measurement set which value; `h_gate_drivers_state`,
+  88 lines, is the wire layout of one reply and the offsets a decoder
+  depends on are only readable in one sequence. Build: 0 warnings, flash
+  197 068 B; modbus core 77, thermal core 144; functions past eighty
+  lines 9 -> 2, the scanner's literals 599 -> 593. The board modules'
+  proof is the bench's after a flash: parity, conformance and the live
+  views.
 
 ## The local model
 
