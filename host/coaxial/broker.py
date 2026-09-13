@@ -24,6 +24,8 @@ import threading
 import time
 
 from . import errors, protocol
+from .errors import NoReplyError, RigError
+from .fanout import Fanout
 from .transport import Transport
 from typing import Any
 
@@ -429,7 +431,6 @@ class _Server(socketserver.ThreadingTCPServer):
         Sizing a live ring in place would move records under readers that
         were counting on their sequence numbers meaning something.
         """
-        from .fanout import Fanout
 
         with self.lock:
             same = (self.fanout is not None
@@ -467,8 +468,6 @@ class _Server(socketserver.ThreadingTCPServer):
         it counts clients. With none attached nothing ticks, and the
         firmware's deadman does exactly its job."""
 
-        from .errors import RigError
-
         while not stop.wait(0.5):
             if self.clients <= 0:
                 continue
@@ -496,8 +495,6 @@ class _Server(socketserver.ThreadingTCPServer):
         retried, and a board that is simply gone should say so rather than
         double every timeout.
         """
-        from .errors import NoReplyError
-
         try:
             return self.transport.request(unit, function, payload,
                                           exact_payload, timeout, reply_shape)
@@ -620,7 +617,7 @@ def _kind(port):
     here = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, os.path.join(here, os.pardir, 'tools'))
     try:
-        import find_board
+        import find_board        # lazy: a tools script, the path above joins it
         return find_board.kind_of(port)
     except Exception:                       # noqa: BLE001 - not fatal
         return None

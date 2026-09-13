@@ -1323,6 +1323,38 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   first frame 1.91 -> 1.86 s (noise). structure 621, views 206, runner
   223, pyright 0 on the thirty-nine files; the offline gate 2947
   checks, 0 failed but the seam, then fixed and its suite rerun.
+* THE CYCLES, TAKEN APART - AND THE RED RUN THE LAST PUSH WENT UP WITH
+  (2026-09-13). CI failed e9e9669 twice over. One: `_switch_board` in
+  the chat kept a local `import find_board` in one branch after the
+  pass hoisted the other, so the whole function's `find_board` was a
+  local and the "nothing answered" path raised UnboundLocalError - the
+  gate here had passed it because the ollama suites narrow themselves
+  and that check was not in the draw. Two: the pass had hoisted the
+  rig's `from coaxial_mcp.session import open_session` to the top, and
+  with the session imported first - CI's order, not this machine's -
+  the library's own import walked back into a partially initialised
+  session. The tool's import check ran each module and the three
+  package roots in one order; the fix runs both orders. What changed:
+  the rig imports the MCP session at the call and says why, the chat
+  and the CLI read `sessionmod.open_session` off the module at the
+  call - the link suite swaps it, and a name bound at the top would
+  not see the swap, the same seam as the picker's client - and the
+  MCP session imports the broker and the stand-in at its top. The
+  wireframe and orientation import each other as modules and read
+  `orientation.OUTER`/`BORE` at call time, so neither touches the
+  other's attributes while importing; the broker's error classes come
+  from its top import; the port finder imports pyserial and the
+  library at its top, keeping `build_and_flash` lazy - it imports
+  `_text` back. Six more local imports whose name the module already
+  bound are gone. What is lazy by design says so beside the import:
+  `find_board` under a path insert in three places, `coaxial_mcp.session`
+  in the rig, `build_and_flash` in the finder. Function-level imports
+  247 -> 40; the ten shapes the scanner still counts are the chooser's
+  five, the boot strip's, the optional libraries and two aliases.
+  Import order checked both ways for the session, the library, the
+  rig, the wireframe and the orientation without the editable
+  install; structure 621, link 109, tools 219, prompt 113, runner 223,
+  bus 28, mcp 50, broker 33, render 79, views 206; pyright 0.
 
 ## The local model
 

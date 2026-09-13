@@ -28,14 +28,10 @@ import os
 #: and deliberately twice the real slab: a vector drawing honest about a
 #: 1.6 mm laminate reads as a single line, and the two rim rings are what
 #: sells the turn.
-from .orientation import BORE, OUTER                       # noqa: E402
+from . import ansi, crew, engine, mesh, orientation        # noqa: E402
 from .ansi import rgb as _rgb                              # noqa: E402
 from .raster import (BRAILLE, BRAILLE_BITS, NOISE, NOISE_N,  # noqa: E402
                      RUNGS, SHADE)
-from . import mesh
-from . import crew
-from . import engine
-from . import ansi, engine, orientation
 
 THICK = 0.05
 
@@ -92,17 +88,17 @@ def _cage(phi_deg, radius, half_r, half_phi_deg, height, relief=1.5):
 
 def _build():
     """[(a, b, zone)] - the whole board as chosen edges, built once."""
-    from . import orientation
 
     edges = []
     for z in (THICK, -THICK):
-        edges += [(a, b, 'board') for a, b in _ring(OUTER, z)]
+        edges += [(a, b, 'board') for a, b in _ring(orientation.OUTER, z)]
     for i in range(RIM_STRUTS):
         phi = 2 * math.pi * i / RIM_STRUTS
-        a = (OUTER * math.cos(phi), OUTER * math.sin(phi), THICK)
-        b = (OUTER * math.cos(phi), OUTER * math.sin(phi), -THICK)
+        outer = orientation.OUTER
+        a = (outer * math.cos(phi), outer * math.sin(phi), THICK)
+        b = (outer * math.cos(phi), outer * math.sin(phi), -THICK)
         edges.append((a, b, 'board'))
-    edges += [(a, b, 'board') for a, b in _ring(BORE, THICK, 18)]
+    edges += [(a, b, 'board') for a, b in _ring(orientation.BORE, THICK, 18)]
 
     for part in orientation.COMPONENTS:
         zone = part[0]
@@ -120,7 +116,6 @@ def _edges():
 def _parametric():
     """The parametric board, only for a tree without the STL - once,
     since `facets` at 48 steps is not free."""
-    from . import orientation
     return orientation.facets(steps=48, relief=1.5)
 
 #: In-memory decimates of the STL, keyed on (path, divisions, mtime):
@@ -166,7 +161,6 @@ def _lods(progress=None):
     since the zoom picks among them by identity. The ones not yet in
     memory decimate IN PARALLEL, one process each; `progress(done,
     total, divisions)` is called as each lands."""
-    from . import orientation
     path = orientation.MODEL
     stamp = os.path.getmtime(path)
     missing = [d for _z, d in LODS if (path, d, stamp) not in _MESHES]
@@ -215,7 +209,6 @@ def _model(zoom=1.0, least=0):
     Decimation fixed at 16 divisions, a zoomed-in board showed the same
     coarse facets bigger; the finer decimates cost real raster time, so
     they only load past the zoom that can see them."""
-    from . import orientation
     divisions = next(d for upto, d in LODS
                      if d >= least and (upto is None or zoom < upto))
     try:
@@ -823,7 +816,6 @@ def _shadowmap(m, size=56, extent=1.3):
         return got
     if len(_SHADOWS) > 64:
         _SHADOWS.clear()
-    from . import orientation
     solid = _casters()
     pos, idx, _nrm = solid
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
@@ -887,7 +879,6 @@ def _shadowmap(m, size=56, extent=1.3):
 @functools.cache
 def _parametric_casters():
     """The parametric board for the shadow pass, without an STL."""
-    from . import orientation
     return orientation.facets(steps=20, relief=1.5)
 
 
@@ -895,7 +886,6 @@ def _casters() -> tuple:
     """The shadow pass's own solid: the same STL, coarser still. The
     mesh cache keys on the file's mtime, so a fresh export replaces
     both solids by itself."""
-    from . import orientation
     try:
         return _decimated(orientation.MODEL, 10)
     except (OSError, ValueError):
@@ -1572,7 +1562,6 @@ def _outline_source():
     """(solid, loops) the outline draws from: the export indexed exact
     (see OUTLINE_EXACT), or the parametric board where there is none.
     Built once a process; a view warms it behind its boot strip."""
-    from . import orientation
     try:
         solid = _decimated(orientation.MODEL, OUTLINE_EXACT)
     except (OSError, ValueError):
@@ -1965,7 +1954,6 @@ def _cells(solid, m, cam, crew, face, foreign):
     and shade their own bands and the parent keeps only the glow, which
     needs neighbours. A foreign solid gets no cast shadows and no art;
     `face=False` leaves the class fields None for the wire drawing."""
-    from . import engine
     width, height = cam['width'], cam['height']
     if face and crew is not None and crew.holds(solid):
         shading = (PIVOT, SLOPE, FLOOR, None if foreign else _shadowmap(m),

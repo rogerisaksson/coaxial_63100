@@ -346,7 +346,6 @@ def thermal_state(state):
 def thermal_budget(budget):
     """The envelope's spend - device 8 op 4: the worst node against the
     ceiling in force, what the clamp is doing, the joules left."""
-    from coaxial.thermal import pretty
 
     worst_node = budget.get('worst_node') or '?'
     verdict = ('TRIPPED' if budget.get('tripped')

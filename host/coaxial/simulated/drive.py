@@ -938,7 +938,6 @@ class SimulatedDrive:
                 for name in PARAMS}
 
     def set_params(self, **values):
-        from ..drive import PARAMS
         for name in values:
             if name not in PARAMS:
                 raise ValueError('%r is not a drive parameter; they are %s' % (name, ', '.join(PARAMS)))

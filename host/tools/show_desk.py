@@ -373,7 +373,6 @@ def digital_box(pins, width=34):
     coin toss. So the box is lit when the pin was high for most of the
     window, and the percentage beside it is what it actually did.
     """
-    from screen import hud
 
     if not pins:
         return hud('DIGITAL', ['  this task carries no pins'])
@@ -552,7 +551,6 @@ def legend(rows, held):
     a peak the bar had let go of seconds before (2026-09-06). Values
     arrive converted, so the legend speaks each channel's own unit.
     """
-    from screen import hud
 
     lines = []
     for row in rows:

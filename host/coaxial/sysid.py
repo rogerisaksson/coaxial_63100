@@ -115,7 +115,6 @@ def identify(vd, vq, id_, iq, omega, t, min_condition=1e-6):
     singular = np.linalg.svd(matrix / scale, compute_uv=False)
     condition = float(singular[-1] / singular[0]) if singular[0] else 0.0
 
-    from .errors import RigError
 
     if condition < min_condition:
         raise RigError(

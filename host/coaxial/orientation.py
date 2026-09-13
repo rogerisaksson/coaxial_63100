@@ -21,7 +21,7 @@ import math
 import os
 import random
 
-from . import ansi, ascii3d, mesh
+from . import ansi, ascii3d, mesh, wireframe
 
 #: The board, in units of its own outer radius: 100 mm across, a 10 mm bore
 #: through the middle, 1.6 mm thick. Proportions, not a measurement - the
@@ -632,7 +632,6 @@ def render(q, width=44, height=19, zoom=1.0, shop=None,
     if wire and shop is None:
         # The vector drawing: chosen edges, hidden lines removed, depth-
         # cued strokes - coaxial.wireframe, not a wireframed mesh.
-        from . import wireframe
         return wireframe.render(q, width, height, zoom=zoom, colour=colour,
                                 horizon=frame_on, triad=frame_on, lift=LIFT,
                                 crew=crew, persist=persist, scroll=scroll)

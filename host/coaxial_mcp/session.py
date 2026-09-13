@@ -17,8 +17,9 @@ import sys
 # along the way is called.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import connect, disconnect, scan    # noqa: E402
+from coaxial import broker, connect, disconnect, scan  # noqa: E402
 from coaxial.errors import RigError              # noqa: E402
+from coaxial.simulated import SimulatedSession   # noqa: E402
 
 
 # `kind` is the *communication interface type*: how the host reaches the
@@ -92,8 +93,6 @@ def _answers(served, unit=1):
     a ConnectError instead of falling back to the stand-in. The round
     trip below is the one `find_board.probe` makes, through the socket.
     """
-    from coaxial import broker
-
     # Long enough for the broker's own answer: it gives the board a
     # second and retries once across a console handover before saying no.
     reached = broker.attach((served.get('host', broker.HOST),
@@ -120,15 +119,13 @@ def board_answers(port=None, baud=115200, unit=1):
     what is out there. Costly by construction: measured 8.4 s with the
     board unpowered, which is why the caller asks it off its draw loop.
     """
-    from coaxial import broker
-
     served = broker.serving()
     if served and _answers(served, unit):
         return True
 
     sys.path.insert(0, os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools'))
-    import find_board
+    import find_board        # lazy: a tools script, the path above joins it
 
     found, _kind = find_board.discover(port, baud, unit)
     return found is not None
@@ -153,9 +150,7 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     """
     sys.path.insert(0, os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools'))
-    import find_board
-
-    from coaxial import broker
+    import find_board        # lazy: a tools script, the path above joins it
 
     kind = None
     fell_back = False
@@ -189,7 +184,6 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
         kind = find_board.kind_of(port)
 
     if simulated:
-        from coaxial.simulated import SimulatedSession
         return (SimulatedSession(port, baud, unit),
                 Origin(False, port, baud, None,
                        _label(False, port, None, fell_back),

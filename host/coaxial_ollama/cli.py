@@ -11,7 +11,7 @@ import sys
 from .capability import choose, probe
 from .tools import Toolbox
 from coaxial.simulated import SimulatedSession
-from coaxial_mcp.session import open_session
+from coaxial_mcp import session as sessionmod
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -240,7 +240,7 @@ def build(args):
     elif args.simulated:
         session, origin = SimulatedSession(), ('Simulated', False)
     else:
-        session, found = open_session(args.port, args.baud, args.unit)
+        session, found = sessionmod.open_session(args.port, args.baud, args.unit)
         origin = (found.label, found.real)
 
     allow = [a for a in args.allow.split(',') if a.strip()]

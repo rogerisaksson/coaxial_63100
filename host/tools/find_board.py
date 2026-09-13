@@ -29,6 +29,9 @@ import sys
 # along the way is called.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import coaxial                                             # noqa: E402
+import serial.tools.list_ports                             # noqa: E402
+
 
 def _text(out):
     """Subprocess output as text, whichever way it came."""
@@ -64,7 +67,7 @@ def check_power(timeout=15):
     is a real reading that says the target has none.
     """
 
-    import build_and_flash
+    import build_and_flash   # lazy: build_and_flash imports _text from here
 
     path = build_and_flash.toolchain_path()
     programmer = build_and_flash.find_programmer(path)
@@ -108,7 +111,6 @@ SERIAL = 'serial'    # anything else that answers: RS485, on this board
 
 
 def list_ports():
-    import serial.tools.list_ports
     return [p.device for p in serial.tools.list_ports.comports()]
 
 
@@ -123,7 +125,6 @@ def kinds():
     drain for the better part of a minute. Measured on CI: three suites
     at ~257 s each, every second of it probing motherboard UARTs.
     """
-    import serial.tools.list_ports
     return [(p.device, PROBE if p.vid == ST_VID else SERIAL)
             for p in serial.tools.list_ports.comports() if p.vid]
 
@@ -172,8 +173,6 @@ def probe(candidate, baud=115200, unit=1):
     coaxial import connect` at import time would bind this module's own
     name once and never see a patch applied afterward.
     """
-    import coaxial
-
     try:
         boards = coaxial.connect([(unit, baud, candidate)])
     except Exception:                                    # noqa: BLE001
@@ -201,8 +200,6 @@ def port_state(candidate, baud=115200, unit=1):
     'busy' is decided on the exception's class name rather than its message:
     Windows localises the text, and the one Measured was Swedish.
     """
-    import serial
-
     try:
         handle = serial.Serial(candidate, baud, timeout=0.1)
     except serial.SerialException as exc:

@@ -28,7 +28,7 @@ from importlib import import_module
 from coaxial.simulated import bus_nodes
 from .client import Ollama, OllamaError
 from .capability import choose, probe
-from coaxial_mcp.session import open_session
+from coaxial_mcp import session as sessionmod
 
 # host/ on the path: this file's own directory's parent, so it does
 # not matter what the working directory is or what any directory
@@ -1402,7 +1402,6 @@ class Chat:
         bus = session.bus
         where = None
         try:
-            from coaxial.simulated import bus_nodes
             if bus:
                 where = (bus_nodes(bus).get(unit) or (None, None, None))[2]
         except Exception:                                     # noqa: BLE001
@@ -1437,20 +1436,18 @@ class Chat:
             return ('board: %s. /board simulated | auto | rs485 | COM4'
                     % label)
         if want in ('sim', 'simulated', 'fake'):
-            session, found = open_session(simulated=True)
+            session, found = sessionmod.open_session(simulated=True)
         elif want == 'auto':
-            session, found = open_session()
+            session, found = sessionmod.open_session()
         elif want in ('rs485', 'serial'):
             # The field bus, not the bench cable: probes are excluded, or
             # the probe-first order hands back the one board that was just
             # ruled out.
-            import find_board
-            session, found = open_session(only=find_board.SERIAL)
+            session, found = sessionmod.open_session(only=find_board.SERIAL)
         elif want in ('probe', 'jtag', 'swd', 'debugger'):
-            import find_board
-            session, found = open_session(only=find_board.PROBE)
+            session, found = sessionmod.open_session(only=find_board.PROBE)
         else:
-            session, found = open_session(rest.strip())
+            session, found = sessionmod.open_session(rest.strip())
 
         wanted_real = want not in ('sim', 'simulated', 'fake')
         if wanted_real and not found.real:
@@ -1520,7 +1517,6 @@ class Chat:
         again through the other door. Idempotent, and quiet about a
         daemon that is already gone: the card cannot be double-freed.
         """
-        from .client import OllamaError
         try:
             self.client.unload()
         except OllamaError:

@@ -835,7 +835,7 @@ def _interface(session):
     sys.path.insert(0, os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools'))
     try:
-        import find_board
+        import find_board        # lazy: a tools script, the path above joins it
         kind = find_board.kind_of(port)
     except Exception:                                         # noqa: BLE001
         return str(port)
