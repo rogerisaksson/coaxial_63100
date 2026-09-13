@@ -95,11 +95,8 @@ def text(spec, level, key='description'):
     spec with no terse form is not a mistake - most descriptions here are
     already one line, and a second copy would be two things to keep in step.
     """
-    if level == TERSE:
-        short = spec.get(key + '_terse')
-        if short:
-            return short
-    return spec.get(key, '')
+    short = spec.get(key + '_terse') if level == TERSE else None
+    return short or spec.get(key, '')
 
 
 def _properties(schema, level):

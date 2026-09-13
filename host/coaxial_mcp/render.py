@@ -124,6 +124,25 @@ def digital_levels(rows):
     return '\n'.join(lines)
 
 
+def _identity(version, clock):
+    """Who the board says it is, and what it runs at - and what it IS, from
+    the device, when the device says. A name picks a codec; a description
+    says what is on the other end of the bus, which is the difference
+    between five units and five devices."""
+    lines = [
+        '%s %s fw%s proto%d.%d build "%s"' % (
+            version.get('device', '?'), version.get('mcu', '?'),
+            version['firmware'], version['proto_major'],
+            version['proto_minor'], version.get('build', '?')),
+        'sysclk %s hclk %s src %s cmds %s' % (
+            si(clock['sysclk_hz']), si(clock['hclk_hz']), clock['source'],
+            version.get('commands', '?')),
+    ]
+    if version.get('description'):
+        lines.append(version['description'])
+    return lines
+
+
 def board_info(version, clock, channels, digital=None, kind='all'):
     """Identity, clock and the map - or one section of it.
 
@@ -132,20 +151,7 @@ def board_info(version, clock, channels, digital=None, kind='all'):
     """
     lines = []
     if kind in ('all', 'identity'):
-        lines += [
-            '%s %s fw%s proto%d.%d build "%s"' % (
-                version.get('device', '?'), version.get('mcu', '?'),
-                version['firmware'], version['proto_major'],
-                version['proto_minor'], version.get('build', '?')),
-            'sysclk %s hclk %s src %s cmds %s' % (
-                si(clock['sysclk_hz']), si(clock['hclk_hz']), clock['source'],
-                version.get('commands', '?')),
-        ]
-        # What it IS, from the device, when the device says. A name picks a
-        # codec; a description says what is on the other end of the bus,
-        # which is the difference between five units and five devices.
-        if version.get('description'):
-            lines.append(version['description'])
+        lines += _identity(version, clock)
     if kind in ('all', 'analog'):
         lines += analog_map(channels)
     if kind in ('all', 'digital') and digital is not None:
@@ -417,6 +423,25 @@ def angle_registers(rows):
     return '\n'.join(out)
 
 
+def _imu_state(payload):
+    """The poll loop's record: its counters, then the newest rotation
+    vector - counts and scaled on one line - or why there is none."""
+    head = ('imu: loop %s, %d vectors, %d cargoes, %d errors'
+            % (payload['loop'], payload['updates'], payload['cargoes'],
+               payload['errors']))
+    q = payload.get('quaternion')
+    if q is None:
+        return (head + '\n' + '  no rotation vector yet - %s'
+                % ('enable one with op=feature report_id=5'
+                   if payload['error'] == 'none' else payload['error']))
+    counts = payload['counts']
+    return (head + '\n' + '  %-12s %7d %7d %7d %7d  %+.4f %+.4f %+.4f '
+            '%+.4f  acc=%s'
+            % (payload['name'], counts['i'], counts['j'], counts['k'],
+               counts['real'], q['i'], q['j'], q['k'], q['real'],
+               payload['accuracy']))
+
+
 def imu(what, payload):
     """The IMU, as a headed block like every other reading.
 
@@ -430,20 +455,7 @@ def imu(what, payload):
                                        'reset_cause_name')))
 
     if what == 'state':
-        head = ('imu: loop %s, %d vectors, %d cargoes, %d errors'
-                % (payload['loop'], payload['updates'], payload['cargoes'],
-                   payload['errors']))
-        q = payload.get('quaternion')
-        if q is None:
-            return (head + '\n' + '  no rotation vector yet - %s'
-                    % ('enable one with op=feature report_id=5'
-                       if payload['error'] == 'none' else payload['error']))
-        counts = payload['counts']
-        return (head + '\n' + '  %-12s %7d %7d %7d %7d  %+.4f %+.4f %+.4f '
-                '%+.4f  acc=%s'
-                % (payload['name'], counts['i'], counts['j'], counts['k'],
-                   counts['real'], q['i'], q['j'], q['k'], q['real'],
-                   payload['accuracy']))
+        return _imu_state(payload)
 
     head = 'imu: channel %d (%s), %d cargo bytes' % (
         payload['channel'], payload['channel_name'], len(payload['cargo']))

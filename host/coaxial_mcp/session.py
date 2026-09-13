@@ -64,9 +64,9 @@ def _label(real, port, kind, fell_back=False):
     were read as the board's. `Simulated` alone cannot tell those apart, and
     the port that failed to answer is the whole diagnosis.
     """
+    if not real and fell_back:
+        return 'Simulated - nothing answered on %s' % port
     if not real:
-        if fell_back:
-            return 'Simulated - nothing answered on %s' % port
         return 'Simulated'
     if kind == 'probe':
         return 'JTAG and %s' % port
@@ -185,8 +185,7 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
         found, kind = find_board.discover(port, baud, unit, only=only)
         simulated = found is None
         fell_back = simulated
-        if found is not None:
-            port = found
+        port = port if found is None else found
     elif not simulated:
         kind = find_board.kind_of(port)
 
@@ -207,12 +206,6 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     # every run did before there was one.
     broker.spawn(port, baud)
 
-    if port is None:
-        raise RigError('no port to open - none given and none found')
-    if port is None:
-        raise RigError('no port to open - none given and none found')
-    if port is None:
-        raise RigError('no port to open - none given and none found')
     if port is None:
         raise RigError('no port to open - none given and none found')
     return (Session(port, baud, unit),

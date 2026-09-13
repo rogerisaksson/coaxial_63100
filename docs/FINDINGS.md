@@ -975,6 +975,20 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   witness pins are a table too, and the calibration's zero is one
   `next()`. Structure, simulated, daq_api, sensorless, views, mcp and
   the thermal core: 0 failed; pyright 0 errors.
+* THE MCP SERVER (2026-09-13): seventeen nested ifs across its four
+  files -> 0. The tools' argument coercion is a table looked up at
+  the call (`_coercer`); a spelling's note is `_note`; `self_test`
+  filters once; the IMU's feature write is `_imu_feature` and the
+  orientation's rotation vector `_rotation_vector`, with its interval
+  and its looks named where 20000 and 20 stood; `afe_power` splits
+  into the broadcast order and the switch; `devices op=use` is `_use`
+  with `_named` for the node a name picks. The renderer's identity
+  lines and the IMU's state block are their own functions; the
+  session's label and its discovery read flat. FOUND ON THE WAY:
+  `open_session` checked `port is None` four times in a row, the
+  same raise each time - a replace that matched more than once and
+  nothing said so; it is one check now. Structure, mcp, the four
+  ollama suites that run offline, simulated: 0 failed; pyright 0.
 
 ## The local model
 

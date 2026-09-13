@@ -263,23 +263,28 @@ def coerce(name, arguments):
     return coerced
 
 
+def _boolean(value):
+    """A flag, from a bool or from the words a model spells one with."""
+    if isinstance(value, str):
+        return value.strip().lower() in TRUE
+    return bool(value)
+
+
+def _coercer(kind):
+    """How a declared type takes a value; anything else passes as it came.
+    Looked up at the call, since `_names` is defined further down."""
+    return {'array': _names, 'boolean': _boolean,
+            'integer': lambda value: int(float(value)),
+            'number': float}.get(kind, lambda same: same)
+
+
 def _as(kind, value):
     """One value as one declared type. Raises for anything that will not go."""
-    if kind == 'array':
-        return _names(value)
-    if kind == 'boolean':
-        if isinstance(value, str):
-            return value.strip().lower() in TRUE
-        return bool(value)
-    if isinstance(value, bool):
+    if kind not in ('array', 'boolean') and isinstance(value, bool):
         # A bool is an int in python, and a model that sent one where a
         # number belongs has made a mistake worth reporting.
         raise ValueError('not a number')
-    if kind == 'integer':
-        return int(float(value))
-    if kind == 'number':
-        return float(value)
-    return value
+    return _coercer(kind)(value)
 
 
 def _names(wanted):
@@ -393,8 +398,7 @@ def _index_of(text, by_name, notes):
     if text.isdigit():
         return int(text)
     if key in by_name:
-        if notes is not None and key != _key(text):
-            notes.append('%s read as %s' % (text, key))
+        _note(notes, text, key)
         return by_name[key]
     found = _matches(key, by_name)
     if not found:
@@ -414,9 +418,14 @@ def _index_of(text, by_name, notes):
     if not found:
         raise ValueError('unknown channel %r; names are %s'
                          % (text, ','.join(sorted(by_name))))
-    if notes is not None:
-        notes.append('%s read as %s' % (text, found[0]))
+    _note(notes, text, found[0])
     return by_name[found[0]]
+
+
+def _note(notes, text, key):
+    """Say how a spelling was read, when it was read as something else."""
+    if notes is not None and key != _key(text):
+        notes.append('%s read as %s' % (text, key))
 
 
 def _resolve(session, wanted, notes=None):
@@ -622,11 +631,10 @@ def analog_read(session, ch=None, samples=64, rate_hz=2000.0,
 
 def self_test(session, failures_only=False, **_):
     checks = session.board.system.self_test()
-    if failures_only:
-        checks = [c for c in checks if c['status'] == 'fail']
-        if not checks:
-            return 'all pass'
-    return render.checks(checks)
+    failed = [c for c in checks if c['status'] == 'fail']
+    if failures_only and not failed:
+        return 'all pass'
+    return render.checks(failed if failures_only else checks)
 
 
 def imu(session, op='read', report_id=None, interval_us=None, **_):
@@ -644,20 +652,52 @@ def imu(session, op='read', report_id=None, interval_us=None, **_):
             return render.imu('id', part.product_id())
 
     if op == 'feature':
-        if report_id is None:
-            raise ValueError("op='feature' needs report_id - 1 accelerometer, "
-                             "2 gyroscope, 3 magnetic field, 5 rotation vector")
-        with part.configuring():
-            # The reset is not optional: measured, a Set Feature onto a part
-            # that was already running took no effect and the loop absorbed
-            # nothing afterwards.
-            part.reset()
-            part.feature(int(report_id), int(interval_us or 0))
-        return 'imu: report 0x%02X %s' % (
-            int(report_id),
-            'every %d us' % int(interval_us) if interval_us else 'disabled')
+        return _imu_feature(part, report_id, interval_us)
 
     return render.imu('state', part.state())
+
+
+def _imu_feature(part, report_id, interval_us):
+    """Enable one report at an interval, or disable it with none."""
+    if report_id is None:
+        raise ValueError("op='feature' needs report_id - 1 accelerometer, "
+                         "2 gyroscope, 3 magnetic field, 5 rotation vector")
+    with part.configuring():
+        # The reset is not optional: measured, a Set Feature onto a part
+        # that was already running took no effect and the loop absorbed
+        # nothing afterwards.
+        part.reset()
+        part.feature(int(report_id), int(interval_us or 0))
+    return 'imu: report 0x%02X %s' % (
+        int(report_id),
+        'every %d us' % int(interval_us) if interval_us else 'disabled')
+
+
+#: How often the rotation vector is asked for when `orientation` has to
+#: enable it, and how many looks at the record it gets to arrive in.
+ORIENTATION_INTERVAL_US = 20000
+ORIENTATION_LOOKS = 20
+
+
+def _rotation_vector(part):
+    """The loop's newest record, with a rotation vector in it when the part
+    is reporting one.
+
+    Enabled only if the loop is not already reporting one: a Set Feature
+    costs a hold and a reset, and doing that on every call would restart
+    the stream this is trying to read.
+    """
+    got = part.state()
+    if got['quaternion'] is not None:
+        return got
+    with part.configuring():
+        part.reset()
+        part.feature(ROTATION_VECTOR, ORIENTATION_INTERVAL_US)
+    for _ in range(ORIENTATION_LOOKS):
+        got = part.state()
+        if got['quaternion'] is not None:
+            return got
+    return got
 
 
 def orientation(session, op='once', **_):
@@ -671,21 +711,7 @@ def orientation(session, op='once', **_):
     if op == 'show':
         return _open_orientation_window(session)
 
-    part = session.board.imu
-
-    # Enable it only if the loop is not already reporting one: a Set Feature
-    # costs a hold and a reset, and doing that on every call would restart
-    # the stream this is trying to read.
-    got = part.state()
-    if got['quaternion'] is None:
-        with part.configuring():
-            part.reset()
-            part.feature(ROTATION_VECTOR, 20000)
-        for _ in range(20):
-            got = part.state()
-            if got['quaternion'] is not None:
-                break
-
+    got = _rotation_vector(session.board.imu)
     if got['quaternion'] is None:
         raise DeviceStateError(
             'the IMU sent no rotation vector. It is enabled now, so a second '
@@ -727,27 +753,38 @@ def _multicast(session):
 
 def afe_power(session, action='read', **_):
     if _multicast(session):
-        # An order, not a request. `read` and `toggle` both need the reply
-        # a broadcast does not have - toggle because "the other one" is
-        # only defined against a state somebody read.
-        if action not in ('on', 'off'):
-            return ('ERR %s needs a reply and a broadcast has none; '
-                    'select one node, or use on/off' % action)
-        session.board.broadcast(
-            protocol.AFE, pack(('u8', protocol.AFE_ACTIONS[action])))
-        return ('afe %s sent to every node - broadcast, so no read-back '
-                'and no confirmation' % action)
+        return _afe_order(session, action)
     afe = session.board.afe
     if action != 'read':
-        # `state()['on']` and not `is_on()`: three stand-ins answer for this
-        # subsystem - the library's, the ollama suites' and the board itself -
-        # and `state` is the one all three have. Reaching for the other
-        # crashed three suites at once.
-        was = afe.state()['on']
-        {'on': afe.enable, 'off': afe.disable, 'toggle': afe.toggle}[action]()
-        if afe.is_on() and not was:
-            _settle(session)
+        _afe_switch(session, afe, action)
     return render.kv(afe.state())
+
+
+def _afe_order(session, action):
+    """An order to every node, not a request. `read` and `toggle` both need
+    the reply a broadcast does not have - toggle because "the other one" is
+    only defined against a state somebody read."""
+    if action not in ('on', 'off'):
+        return ('ERR %s needs a reply and a broadcast has none; '
+                'select one node, or use on/off' % action)
+    session.board.broadcast(
+        protocol.AFE, pack(('u8', protocol.AFE_ACTIONS[action])))
+    return ('afe %s sent to every node - broadcast, so no read-back '
+            'and no confirmation' % action)
+
+
+def _afe_switch(session, afe, action):
+    """Switch the rail, and wait out the reference when this turned it on.
+
+    `state()['on']` and not `is_on()`: three stand-ins answer for this
+    subsystem - the library's, the ollama suites' and the board itself -
+    and `state` is the one all three have. Reaching for the other crashed
+    three suites at once.
+    """
+    was = afe.state()['on']
+    {'on': afe.enable, 'off': afe.disable, 'toggle': afe.toggle}[action]()
+    if afe.is_on() and not was:
+        _settle(session)
 
 
 def _settle(session):
@@ -844,48 +881,58 @@ def devices(session, op='list', unit=None, name=None, bus=None,
         return render.devices(_sweep(session, first, last, bus), here,
                               _interface(session))
     if op == 'use':
-        if unit is not None and int(unit) == protocol.BROADCAST:
-            # Never in the scan, and never will be: nothing answers at 0.
-            # Selectable all the same, because an order to every node on
-            # the bus is a real thing to want and Modbus spells it 0.
-            session.use(protocol.BROADCAST)
-            return ('multicast: every node on the bus acts, none answers. '
-                    'Reads are refused here; an order still goes out. '
-                    'devices op=use unit=N picks one node again.')
-        found = _sweep(session, first, last, bus)
-        if unit is None and not name:
-            return ('ERR use needs unit= or name=. On the bus: %s'
-                    % '; '.join('%s %d %s' % (b, u, v.get('where', ''))
-                                for b, u, v in found))
-        if unit is None:
-            # By what it calls itself, across every segment: "the right
-            # knee" is one node on one bus, and the operator should not
-            # have to know which. A name that is on two - "knee" - names
-            # both rather than picking.
-            key = _key(name)
-            hit = [(b, u) for b, u, v in found
-                   if key in _key(v.get('where', ''))
-                   or key in _key(v.get('description', ''))]
-            if len(hit) != 1:
-                return ('ERR %r matches %d nodes: %s'
-                        % (name, len(hit),
-                           ', '.join('%s %d' % pair for pair in hit) or 'none'))
-            bus, unit = hit[0]
-        if (bus or here[0], int(unit)) not in [(b, u) for b, u, _ in found]:
-            # Not a refusal for its own sake: pointing the session at a
-            # unit nobody is at makes every later call time out, and the
-            # operator reads that as the board having died.
-            return ('ERR no node at %s %s; answering: %s'
-                    % (bus or here[0], unit,
-                       ', '.join('%s %d' % (b, u) for b, u, _ in found)
-                       or 'none'))
-        session.use(int(unit), bus=bus)
-        return render.devices(found,
-                              (getattr(session, 'bus',
-                                       getattr(session, 'port', None)),
-                               session.unit),
-                              _interface(session))
+        return _use(session, here, unit, name, bus, first, last)
     return 'ERR unknown op %r; list or use' % (op,)
+
+
+def _named(found, name):
+    """The nodes `name` picks out by what they call themselves, across
+    every segment: "the right knee" is one node on one bus, and the
+    operator should not have to know which. A name that is on two -
+    "knee" - names both rather than picking."""
+    key = _key(name)
+    return [(b, u) for b, u, v in found
+            if key in _key(v.get('where', ''))
+            or key in _key(v.get('description', ''))]
+
+
+def _use(session, here, unit, name, bus, first, last):
+    """Point the session at one node, by unit or by name - or at every
+    node at once, which Modbus spells 0."""
+    if unit is not None and int(unit) == protocol.BROADCAST:
+        # Never in the scan, and never will be: nothing answers at 0.
+        # Selectable all the same, because an order to every node on
+        # the bus is a real thing to want and Modbus spells it 0.
+        session.use(protocol.BROADCAST)
+        return ('multicast: every node on the bus acts, none answers. '
+                'Reads are refused here; an order still goes out. '
+                'devices op=use unit=N picks one node again.')
+    found = _sweep(session, first, last, bus)
+    if unit is None and not name:
+        return ('ERR use needs unit= or name=. On the bus: %s'
+                % '; '.join('%s %d %s' % (b, u, v.get('where', ''))
+                            for b, u, v in found))
+    hit = _named(found, name) if unit is None else []
+    if unit is None and len(hit) != 1:
+        return ('ERR %r matches %d nodes: %s'
+                % (name, len(hit),
+                   ', '.join('%s %d' % pair for pair in hit) or 'none'))
+    if unit is None:
+        bus, unit = hit[0]
+    if (bus or here[0], int(unit)) not in [(b, u) for b, u, _ in found]:
+        # Not a refusal for its own sake: pointing the session at a
+        # unit nobody is at makes every later call time out, and the
+        # operator reads that as the board having died.
+        return ('ERR no node at %s %s; answering: %s'
+                % (bus or here[0], unit,
+                   ', '.join('%s %d' % (b, u) for b, u, _ in found)
+                   or 'none'))
+    session.use(int(unit), bus=bus)
+    return render.devices(found,
+                          (getattr(session, 'bus',
+                                   getattr(session, 'port', None)),
+                           session.unit),
+                          _interface(session))
 
 
 def digital_read(session, **_):
