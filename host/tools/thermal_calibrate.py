@@ -32,6 +32,7 @@ import os
 import subprocess
 import sys
 import time
+from contextlib import suppress
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
@@ -188,10 +189,8 @@ def hold(port, state, dwell_s, poll_s=30.0):
         while (time.time() - start) < dwell_s:
             time.sleep(poll_s)
             if state == 'traffic':
-                try:
+                with suppress(NoReplyError, RigError):
                     rig.acquire()       # the traffic is the point
-                except (NoReplyError, RigError):
-                    pass
             mins = (time.time() - start) / 60.0
 
             if not afe_off:
@@ -214,10 +213,8 @@ def hold(port, state, dwell_s, poll_s=30.0):
                   flush=True)
 
         if state == 'traffic':
-            try:
+            with suppress(RigError):
                 rig.stop()
-            except RigError:
-                pass
         return peek(rig) if afe_off else sensors(rig)
 
 

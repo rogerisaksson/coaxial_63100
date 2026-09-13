@@ -77,7 +77,8 @@ def ranks(n=SIZE, sigma=SIGMA, seed=SEED):
 def main():
     rank = ranks()
     flat = [int(v) for v in rank.flatten()]
-    assert sorted(flat) == list(range(SIZE * SIZE))
+    if sorted(flat) != list(range(SIZE * SIZE)):
+        raise SystemExit('the ranks are not one permutation of the tile')
     with open(OUT, 'wb') as f:
         f.write(struct.pack('<%dH' % len(flat), *flat))
     print('wrote %s: %d x %d ranks' % (OUT, SIZE, SIZE))

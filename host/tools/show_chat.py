@@ -17,6 +17,7 @@ import sys
 import tempfile
 import threading
 import time
+from contextlib import suppress
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -218,10 +219,8 @@ class _Claude:
         if proc.stdout is None or proc.stderr is None:
             return 'claude gave no pipes to read'
         for raw in proc.stdout:
-            try:
+            with suppress(ValueError):
                 self._tell(json.loads(raw), answer)
-            except ValueError:
-                pass
         proc.wait(timeout=60)
         self.proc = None
         if proc.returncode != 0 and not any(answer):

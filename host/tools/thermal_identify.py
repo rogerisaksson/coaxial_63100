@@ -34,6 +34,7 @@ was wrong, and the runs that were meant to start cold all started warm.
 import argparse
 import sys
 import time
+from contextlib import suppress
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
@@ -141,10 +142,8 @@ def enter(rig, state):
 
 def leave(rig, state, load):
     for undo in _undo_steps(rig, state, load):
-        try:
+        with suppress(NoReplyError, RigError):
             undo()
-        except (NoReplyError, RigError):
-            pass            # one failed step must not skip the next
 
 
 def _undo_steps(rig, state, load):

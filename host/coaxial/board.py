@@ -36,6 +36,7 @@ from . import broker
 from .transport import Transport
 from typing import Any
 from .simulated import BROADCAST_REFUSAL
+from contextlib import suppress
 
 
 class Board:
@@ -162,7 +163,7 @@ class Board:
         major, minor = PROVEN_DISPATCH_SINCE
         proven = (info.get('proto_major') == major
                   and info.get('proto_minor', 0) >= minor)
-        if proven and hasattr(self.transport, 'proven_dispatch'):
+        if proven:
             self.transport.proven_dispatch = True
 
 
@@ -325,10 +326,8 @@ def connect(units, port='COM4', baud=115200, verify=True):
         # No partial success: every transport opened here gets closed, even if
         # one of them refuses, and the original failure is what propagates.
         for transport in transports.values():
-            try:
+            with suppress(RigError):
                 transport.close()
-            except RigError:
-                pass
         raise
 
 
@@ -340,14 +339,12 @@ def _hand_back(board):
     Shutting down: a board that will not answer, or a port that will not
     close, must not strand the ports of every board after it.
     """
-    try:
+    with suppress(RigError):
         try:
             if board.transport.is_open:
                 board.close_binary()
         finally:
             board.transport.close()
-    except RigError:
-        pass
 
 
 def disconnect(boards):

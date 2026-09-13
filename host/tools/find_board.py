@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+from contextlib import suppress
 
 # host/ on the path: this file's own directory's parent, so it does
 # not matter what the working directory is or what any directory
@@ -177,10 +178,8 @@ def probe(candidate, baud=115200, unit=1):
         boards = coaxial.connect([(unit, baud, candidate)])
     except Exception:                                    # noqa: BLE001
         return False
-    try:
+    with suppress(Exception):
         coaxial.disconnect(boards)
-    except Exception:                                     # noqa: BLE001
-        pass
     return True
 
 

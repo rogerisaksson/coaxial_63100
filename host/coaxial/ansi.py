@@ -13,6 +13,7 @@ characters is most of the picture's information, and the basic set has one.
 import re
 import sys
 import warnings
+from contextlib import suppress
 
 
 def utf8_stdout():
@@ -32,10 +33,8 @@ def utf8_stdout():
     reconfigure = getattr(sys.stdout, 'reconfigure', None)
     if reconfigure is None:                # not a reconfigurable stream
         return
-    try:
+    with suppress(ValueError):
         reconfigure(encoding='utf-8', errors='replace')
-    except ValueError:
-        pass
 RESET = '\033[0m'
 
 #: xterm-256 greyscale, black to white. 24 steps, and the ramp characters ride

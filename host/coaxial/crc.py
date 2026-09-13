@@ -25,4 +25,7 @@ def crc16(data):
 
 CHECK_VALUE = 0x4B37     # crc16(b'123456789'), from the CRC catalogue
 
-assert crc16(b'123456789') == CHECK_VALUE, 'CRC-16/MODBUS implementation is broken'
+if crc16(b'123456789') != CHECK_VALUE:
+    raise RuntimeError('CRC-16/MODBUS implementation is broken: %#06x for the '
+                       'catalogue check, not %#06x'
+                       % (crc16(b'123456789'), CHECK_VALUE))

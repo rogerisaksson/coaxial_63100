@@ -30,6 +30,7 @@ import math
 import os
 import sys
 import time
+from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -467,11 +468,9 @@ def main(argv=None):
     except RigError as exc:
         report.check('the board answered throughout', False, str(exc))
     finally:
-        try:
+        with suppress(RigError):
             device.daq.tone(0)
             device.daq.shape()
-        except RigError:
-            pass
         device.close()
 
     print('\n%d passed, %d failed' % (report.passed, report.failed))

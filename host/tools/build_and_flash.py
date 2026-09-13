@@ -32,6 +32,7 @@ from pathlib import Path
 
 from find_board import _text          # noqa: E402 - tools/ is the script dir
 from shutil import which
+from contextlib import suppress
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -138,10 +139,8 @@ def cube_helpers():
     for line in listed.splitlines():
         parts = [f.strip('"') for f in line.split('","')]
         if len(parts) > 1 and parts[0].lower() in CUBE_HELPERS:
-            try:
+            with suppress(ValueError):
                 found.add(int(parts[1]))
-            except ValueError:
-                pass
     return found
 
 
@@ -152,11 +151,9 @@ def reap(before):
     is not this script's to end - so what was already running is left alone.
     """
     for pid in cube_helpers() - before:
-        try:
+        with suppress(OSError, subprocess.SubprocessError):
             subprocess.run(['taskkill', '/F', '/PID', str(pid)],
                            capture_output=True, timeout=20)
-        except (OSError, subprocess.SubprocessError):
-            pass
 
 
 def run(argv, cwd, path):

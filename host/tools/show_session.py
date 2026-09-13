@@ -27,6 +27,7 @@ import sys
 import time
 from typing import Any
 from rich.text import Text
+from contextlib import suppress
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
@@ -719,13 +720,11 @@ def teardown(session, console, drawn, hold=True):
         say('ok', 'nothing ran', 'no activity was started this session')
 
     if session.imu_started:
-        try:
+        with suppress(*QUIET):
             with session.rig.board.imu.configuring():
                 session.rig.board.imu.feature(0x05, 0)
             say('ok', 'rotation vector', 'disabled - the session asked '
                                          'for it')
-        except QUIET:
-            pass
 
     # PUT BACK, not just claimed: the session may have raised the rail on
     # the way in, or the user toggled it with A. Held by somebody else is

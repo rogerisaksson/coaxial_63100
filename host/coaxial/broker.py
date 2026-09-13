@@ -28,6 +28,7 @@ from .errors import NoReplyError, RigError
 from .fanout import Fanout
 from .transport import Transport
 from typing import Any
+from contextlib import suppress
 
 #: Loopback only. The board is a bench instrument on somebody's desk, and a
 #: broker on 0.0.0.0 is that desk's power stage on the network.
@@ -63,10 +64,8 @@ def _rebuild(answer):
     # whole trick and holds for any error class written the same way.
     fields = answer.get('fields') or {}
     if fields:
-        try:
+        with suppress(TypeError):
             return kind(**fields)
-        except TypeError:
-            pass
     try:
         return kind(answer['message'])
     except TypeError:
@@ -83,6 +82,10 @@ class BrokerTransport:
     Only what Board actually calls is here, for the reason the stand-ins give
     - a surface copied wholesale is a surface nobody checks.
     """
+
+    #: Set by `Board.probe` like the UART's; nothing here reads it - the
+    #: gap is the broker's, on the wire it holds.
+    proven_dispatch = False
 
     def __init__(self, address=(HOST, PORT), timeout=10.0):
         self.address = address
@@ -167,11 +170,9 @@ class BrokerTransport:
 
     def close(self):
         """Drop this client. The broker and the board carry on."""
-        try:
+        with suppress(OSError):
             self._file.close()
             self._sock.close()
-        except OSError:
-            pass
 
 
 class _Handler(socketserver.StreamRequestHandler):
@@ -194,10 +195,8 @@ class _Handler(socketserver.StreamRequestHandler):
         try:
             last = self._release()
         finally:
-            try:
+            with suppress(OSError):
                 socketserver.StreamRequestHandler.finish(self)
-            except OSError:
-                pass
         # THE LAST SESSION TAKES IT DOWN - after a linger. Refcounted like
         # the rails on the board: a broker nobody is using is a port nobody
         # else can open. The linger is what makes the MENU fast: spawning a
@@ -473,14 +472,10 @@ class _Server(socketserver.ThreadingTCPServer):
                 continue
             if time.monotonic() - self.heard < self.KEEPALIVE:
                 continue
-            try:
+            with suppress(RigError, OSError):
                 with self.lock:
                     self.transport.request(1, protocol.VERSION, b'')
                 self.spoke()
-            except (RigError, OSError):
-                # The next real request finds out properly; a keepalive
-                # never owns an error.
-                pass
 
     def retrying(self, unit, function, payload, exact_payload,
                  timeout, reply_shape=None):
@@ -495,11 +490,9 @@ class _Server(socketserver.ThreadingTCPServer):
         retried, and a board that is simply gone should say so rather than
         double every timeout.
         """
-        try:
+        with suppress(NoReplyError):
             return self.transport.request(unit, function, payload,
                                           exact_payload, timeout, reply_shape)
-        except NoReplyError:
-            pass
 
         from .board import Board
         Board(self.transport, unit).open_binary()
@@ -698,7 +691,5 @@ def serve(port, baud=115200, address=(HOST, PORT), transport=None,
         server.server_close()
         if not handed:
             transport.close()
-        try:
+        with suppress(OSError):
             os.remove(WHERE)
-        except OSError:
-            pass

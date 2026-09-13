@@ -19,6 +19,7 @@ import os
 import re
 import sys
 import time
+from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -531,12 +532,10 @@ def scale(rows, params=None):
         else:
             first, last = 0, 65535
 
-        try:
+        with suppress(ValueError):
             row['reading'] = convert(raw)
             ends = (convert(first), convert(last))
             row['span'] = (min(ends), max(ends))
-        except ValueError:
-            pass          # at a divider rail; the raw code still stands
 
     return rows
 

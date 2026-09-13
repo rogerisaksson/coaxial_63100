@@ -44,7 +44,8 @@ def _fit_deadtime(points):
     least squares at each (v_dt, i_knee) of a grid, refined once.
     """
     def cost(v_dt, i_knee):
-        f = lambda i: v_dt * math.tanh(i / i_knee)
+        def f(i):
+            return v_dt * math.tanh(i / i_knee)
         xs = [(i, v - (2.0 / 3.0) * (f(i) + f(i / 2.0))) for i, v in points]
         sxx = sum(i * i for i, _ in xs)
         r = sum(i * y for i, y in xs) / sxx if sxx > 0.0 else 0.0

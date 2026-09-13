@@ -1355,6 +1355,22 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   rig, the wireframe and the orientation without the editable
   install; structure 621, link 109, tools 219, prompt 113, runner 223,
   bus 28, mcp 50, broker 33, render 79, views 206; pyright 0.
+* SILENT SWALLOWS SAY SO (2026-09-13). Forty-seven `try: X / except E:
+  pass` in the host became `with suppress(E): X` - the same behaviour,
+  the intent on the line, the handler's reason kept beside it; the
+  converter's first cut passed a tuple of exceptions as one argument
+  and pyright said so eight times, and the one `except QUIET:` tuple
+  constant became `suppress(*QUIET)`. The library's two asserts - the
+  CRC catalogue check at import and the dial's face-to-scales row
+  count - are checks that survive `-O`, raising RuntimeError and
+  ValueError; the blue-noise tool's likewise. Two lambdas bound to
+  names are functions. The board's `hasattr(transport,
+  'proven_dispatch')` is an attribute both transports declare. What is
+  left of that scan: two swallows with a second handler or a finally,
+  one `hasattr` in `Device.__init_subclass__` that IS the declaration
+  check, and 927 numeric literals inside functions - the next host
+  pass, one file at a time, by what each number means. structure 621,
+  pyright 0; the offline gate 2947 checks, 0 failed.
 
 ## The local model
 

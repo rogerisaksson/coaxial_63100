@@ -27,6 +27,7 @@ import ctypes
 import locale
 import re
 import unicodedata
+from contextlib import suppress
 
 # Ranges that settle it without counting anything. Order matters only in that
 # Japanese kana are checked before Han: a Japanese sentence contains both.
@@ -239,16 +240,12 @@ def system_language(default='English'):
     greeting is not worth an exception.
     """
     candidates = []
-    try:
+    with suppress(ValueError, TypeError):
         candidates.append(locale.getlocale()[0] or '')
-    except (ValueError, TypeError):
-        pass
-    try:
+    with suppress(Exception):
         buffer = ctypes.create_unicode_buffer(85)
         if ctypes.windll.kernel32.GetUserDefaultLocaleName(buffer, 85):
             candidates.append(buffer.value)
-    except Exception:                                        # noqa: BLE001
-        pass
     for text in candidates:
         low = str(text).lower()
         code = re.split(r'[-_]', low)[0]

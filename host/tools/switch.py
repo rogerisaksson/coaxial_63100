@@ -19,6 +19,7 @@ import argparse
 import os
 import sys
 import time
+from contextlib import suppress
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
@@ -93,22 +94,16 @@ def main():
             if a.sweep:
                 x = (elapsed / a.period) % 1.0
                 duty = lo + (hi - lo) * (2 * x if x < 0.5 else 2 * (1 - x))
-                try:
+                with suppress(RigError):
                     write(rig, duty)
-                except RigError:
-                    pass          # a lost frame is not a reason to stop
                 time.sleep(0.05)
             else:
                 time.sleep(0.2)
     finally:
-        try:
+        with suppress(RigError):
             write(rig, 0.0)
-        except RigError:
-            pass
-        try:
+        with suppress(RigError):
             rig.gates.disarm()
-        except RigError:
-            pass
         rig.close()
         print('off', flush=True)
 

@@ -17,6 +17,7 @@ import argparse
 import os
 import signal
 import sys
+from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -76,10 +77,8 @@ def force():
         say('fail', 'session', 'could not stop pid %s: %s' % (pid, exc))
         return 1
 
-    try:
+    with suppress(OSError):
         os.remove(broker.WHERE)
-    except OSError:
-        pass
     say('ok', 'session', 'port given back - the next session opens its own')
     return 0
 
@@ -112,10 +111,8 @@ def main():
     say('wait', 'holding',
         'Ctrl+C to give the port back' if a.hold
         else 'until the last session goes, or Ctrl+C')
-    try:
+    with suppress(KeyboardInterrupt):
         broker.serve(a.port, a.baud, until_idle=not a.hold)
-    except KeyboardInterrupt:
-        pass
     say('ok', 'session', 'port given back')
     return 0
 

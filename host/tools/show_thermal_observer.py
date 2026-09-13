@@ -19,6 +19,7 @@ import os
 import sys
 import time
 from rich.text import Text
+from contextlib import suppress
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
@@ -550,7 +551,7 @@ def main():
         leaving = None
 
         def draw():
-            try:
+            with suppress(NoReplyError, RigError):
                 got = rig.board.thermal.state()
                 # The identification moves once a sample, every thirty
                 # seconds on the board: one round trip every few seconds
@@ -566,8 +567,6 @@ def main():
                                              hint=last['hint'])
                 last['body'] = picture(got, console, reserve,
                                        aspect[0] / 2.0)
-            except (NoReplyError, RigError):
-                pass    # keep the last good picture: the link goes quiet
                         # now and then (FINDINGS); a blank board each time
                         # made the view unreadable
             # Three cells of pad and eight of field: six and twelve read as

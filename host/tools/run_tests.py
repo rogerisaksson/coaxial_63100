@@ -25,6 +25,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from contextlib import suppress
 
 ROOT = Path(__file__).resolve().parents[1]           # host/
 sys.path.insert(0, str(ROOT))
@@ -165,10 +166,8 @@ def kill_tree(pid):
         subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)],
                        capture_output=True)
         return
-    try:
+    with suppress(OSError):
         os.killpg(os.getpgid(pid), signal.SIGKILL)
-    except OSError:
-        pass
 
 
 def run_captured(argv, timeout, cwd=None):

@@ -25,6 +25,7 @@ import argparse
 import os
 import sys
 import time
+from contextlib import suppress
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -174,10 +175,8 @@ def main():
                      int(on[len(on) // 2] * PWM_HZ)))
         print('after:', {k: after[k] for k in SHOWN})
     finally:
-        try:
+        with suppress(RigError):
             rig.board.gate_drivers.duty(zeros)
-        except RigError:
-            pass
         try:
             rig.gates.disarm()
         except RigError as exc:

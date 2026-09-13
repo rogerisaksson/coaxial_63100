@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import sys
+from contextlib import suppress
 
 # host/ on the path: this file's own directory's parent, so it does
 # not matter what the working directory is or what any directory
@@ -177,10 +178,8 @@ def main(argv=None):
     finally:
         # Hand the UART back to the text console, or the board looks dead to
         # anyone who opens a terminal on it next.
-        try:
+        with suppress(RigError):
             session.close()
-        except RigError:
-            pass
         transcript.close()
 
     print(runmod.report_text(summary))

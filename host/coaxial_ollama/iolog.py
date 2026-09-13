@@ -12,6 +12,7 @@ import sys
 import time
 
 from .sandbox import clip
+from contextlib import suppress
 
 
 # host/prompt_io.tmp - resolved from this file's own location, not the
@@ -29,10 +30,8 @@ def _set_attributes(path, value):
     files this project is actually about."""
     if sys.platform != 'win32':
         return
-    try:
+    with suppress(Exception):
         ctypes.windll.kernel32.SetFileAttributesW(str(path), value)
-    except Exception:                                        # noqa: BLE001
-        pass
 
 
 def _unhide(path):
@@ -94,8 +93,6 @@ class IOLog:
 
     def close(self):
         if self.handle is not None:
-            try:
+            with suppress(OSError):
                 self.handle.close()
-            except OSError:
-                pass
             self.handle = None

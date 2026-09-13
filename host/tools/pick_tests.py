@@ -25,6 +25,7 @@ import json
 import os
 import subprocess
 import sys
+from contextlib import suppress
 
 # What the model was asked for, once it has answered.
 Plan = collections.namedtuple('Plan', 'suites tags live why')
@@ -246,10 +247,8 @@ def release(tag):
     do that, and `pick()` asks for 30 minutes of keep_alive - so this script
     parked 8.4 GB on the card and exited, every single time it was called.
     """
-    try:
+    with suppress(Exception):
         clientmod.Ollama(tag).unload()
-    except Exception:                                         # noqa: BLE001
-        pass                    # no ollama, or nothing loaded: nothing to do
 
 
 def _explained(args, why):

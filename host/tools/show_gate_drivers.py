@@ -28,6 +28,7 @@ import os
 import sys
 import time
 from rich.text import Text
+from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -76,8 +77,8 @@ def gate_rows(state, width):
         both = pins[high] and pins[low]
         # A lamp each: lit is sodium, dark is ash - the row reads at a
         # glance which half conducts, without decoding ones and zeros.
-        lamp = lambda on: (tint('[#]', SODIUM) if on
-                           else tint('[ ]', ASH))          # noqa: E731
+        def lamp(on):
+            return tint('[#]', SODIUM) if on else tint('[ ]', ASH)
         out.append('    phase %s     H %s  L %s     %s'
                    % (name, lamp(pins[high]), lamp(pins[low]),
                       tint('BOTH ON - shoot through', SODIUM) if both
@@ -416,12 +417,10 @@ def main(argv=None):
     leaving = None
 
     def draw():
-        try:
+        with suppress(RigError):
             view['gate_drivers'] = board.gate_drivers.state()
             if not refused:
                 view['live'] = rig.latest(block=False)
-        except RigError:
-            pass                    # a missed reply is a missed frame
         return compose(rig, origin, console, view, layout, shutil_width())
 
     def on_input(typed, _moved):

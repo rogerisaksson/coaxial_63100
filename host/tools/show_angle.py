@@ -16,6 +16,7 @@ import argparse
 import os
 import sys
 import time
+from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -131,13 +132,11 @@ def fit(columns, forced=None):
 def reread(board, field, kelvin):
     """TSEN and FIELD again, the poll loop put back on ANG after; what
     was known before, if the board refuses."""
-    try:
+    with suppress(RigError):
         with board.angle.configuring():
             field = angle.gauss(board.angle.read(REG_FIELD)['value'])
             kelvin = angle.kelvin(board.angle.read(REG_TSEN)['value'])
             board.angle.poll_register(REG_ANG)
-    except RigError:
-        pass
     return field, kelvin
 
 

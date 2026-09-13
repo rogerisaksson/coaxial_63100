@@ -451,8 +451,9 @@ def beside(face, left, right):
     each side; `face` is the dial's text with its caption already under
     it, the scales what `scale` returned."""
     rows = face.split('\n')
-    assert len(rows) == len(left) == len(right), (len(rows), len(left),
-                                                  len(right))
+    if not len(rows) == len(left) == len(right):
+        raise ValueError('the face and its scales differ in rows: %d, %d, %d'
+                         % (len(rows), len(left), len(right)))
     return '\n'.join(l + ' ' + f + ' ' + r for l, f, r in zip(left, rows, right))
 
 

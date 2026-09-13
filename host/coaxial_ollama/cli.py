@@ -12,6 +12,7 @@ from .capability import choose, probe
 from .tools import Toolbox
 from coaxial.simulated import SimulatedSession
 from coaxial_mcp import session as sessionmod
+from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -473,10 +474,8 @@ def main(argv=None):
     except KeyboardInterrupt:
         return 130
     finally:
-        try:
+        with suppress(RigError):
             session.close()
-        except RigError:
-            pass
         # Unconditional, and close() is idempotent: repl() closes on its own
         # way out, but a one-shot question never enters repl() at all, and
         # `python dbg.py` with no question enters it despite args.repl being

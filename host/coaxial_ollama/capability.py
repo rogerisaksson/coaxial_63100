@@ -21,6 +21,7 @@ import platform
 import re
 import subprocess
 import urllib.request
+from contextlib import suppress
 try:
     import winreg              # _adapters and _gpu_at read it too: module level, not a local
 except ImportError:            # not Windows
@@ -394,10 +395,8 @@ def reserve_for(vram_gb, used_gb=0.0):
         return 0.0
     override = os.environ.get(RESERVE_ENV)
     if override:
-        try:
+        with suppress(ValueError):
             return max(0.0, min(float(override), vram_gb))
-        except ValueError:
-            pass
     # Clamped to the card. A reading where the card is already fuller than it
     # is large is not a reason to print a reserve larger than the hardware; it
     # is a reason for the budget to be zero, which sends the choice to the CPU

@@ -35,6 +35,7 @@ from .reader import BufferedReader
 from .record import Record, build
 from .motion import Motion
 from . import broker
+from contextlib import suppress
 
 #: Bytes the board leaves for records in one reply - `DAQ_REPLY_ROOM` in
 #: `cmd_daq.c`. Named here because it decides how many records a single
@@ -386,10 +387,8 @@ class Coaxial63100(Acquisition):
             # every counter reading normal. Measured 2026-08-28.
             for step in (self.board.daq.stop, self._release_stage,
                          self._release_afe):
-                try:
+                with suppress(RigError):
                     step()
-                except RigError:
-                    pass                # closing is not the place to raise
         if self.session is not None:
             self.session.close()
         self.session = self._board = None

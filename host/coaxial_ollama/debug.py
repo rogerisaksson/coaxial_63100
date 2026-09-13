@@ -29,6 +29,7 @@ from coaxial.simulated import bus_nodes
 from .client import Ollama, OllamaError
 from .capability import choose, probe
 from coaxial_mcp import session as sessionmod
+from contextlib import suppress
 
 # host/ on the path: this file's own directory's parent, so it does
 # not matter what the working directory is or what any directory
@@ -378,13 +379,11 @@ def _printable(stream):
     mismatch, and the locale default here turned every Swedish answer in
     `dbg.py > session.txt` into question marks.
     """
-    try:
+    with suppress(AttributeError, OSError, ValueError):
         if stream.isatty():
             stream.reconfigure(errors='replace')
         else:
             stream.reconfigure(encoding='utf-8', errors='replace')
-    except (AttributeError, OSError, ValueError):
-        pass
     return stream
 
 
@@ -841,11 +840,9 @@ class Chat:
         if unit == 0:
             return 'every node on %s' % (bus or 'the bus')
         where = None
-        try:
+        with suppress(Exception):
             where = ((bus_nodes(bus).get(unit) or (None, None, None))[2]
                      if bus else None)
-        except Exception:                                     # noqa: BLE001
-            pass
         return where or ('%s node %d' % (bus, unit) if bus
                          else 'node %d' % unit)
 
@@ -1401,11 +1398,9 @@ class Chat:
             return label, real
         bus = session.bus
         where = None
-        try:
+        with suppress(Exception):
             if bus:
                 where = (bus_nodes(bus).get(unit) or (None, None, None))[2]
-        except Exception:                                     # noqa: BLE001
-            pass
         # The bus first, because with five segments a node number alone
         # names nothing: node 2 is a knee on two of them.
         #
@@ -1458,10 +1453,8 @@ class Chat:
             # learns something instead of pressing it again - measured, the
             # same order twice in a row, both times "nothing answered", and
             # nothing on screen said the cable and driver were fine.
-            try:
+            with suppress(Exception):
                 session.close()
-            except Exception:                                 # noqa: BLE001
-                pass
             seen = ', '.join(find_board.list_ports())
             here = (self.origin or ('unknown',))[0]
             return ('board: nothing answered on %s - still on %s'
@@ -1469,10 +1462,8 @@ class Chat:
 
         previous = self.toolbox.session
         if previous is not session:
-            try:
+            with suppress(Exception):
                 previous.close()
-            except Exception:                                 # noqa: BLE001
-                pass
         self.toolbox.session = session
         self.origin = (found.label, found.real)
         self.link_ok = True
@@ -1517,10 +1508,8 @@ class Chat:
         again through the other door. Idempotent, and quiet about a
         daemon that is already gone: the card cannot be double-freed.
         """
-        try:
+        with suppress(OllamaError):
             self.client.unload()
-        except OllamaError:
-            pass
         if self.io_log is not None:
             self.io_log.close()
 

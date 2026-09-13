@@ -19,6 +19,7 @@ import argparse
 import os
 import sys
 import time
+from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -185,10 +186,8 @@ def main(argv=None):
         print('  the board refused: %s' % exc)
         return 1
     finally:
-        try:
+        with suppress(RigError):
             daq.shape()
-        except RigError:
-            pass
         device.close()
 
 

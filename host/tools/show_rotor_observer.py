@@ -51,6 +51,7 @@ import os
 import sys
 import time
 import types
+from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -2684,7 +2685,7 @@ def main(argv=None):
     thermal_every = 2.0 if origin.real else 0.25
 
     def draw():
-        try:
+        with suppress(RigError):
             view['state'] = board.drive.state()
             view['gate'] = board.gate_drivers.state()
             view['model'] = (board.drive.model()
@@ -2709,8 +2710,6 @@ def main(argv=None):
                 view['ident'] = board.thermal.identification()
                 thermal_at[0] = time.time()
                 rearm_after_trip(rig, origin, view)
-        except RigError:
-            pass                    # a missed reply is a missed frame
         # THE CONSOLE, not `console`: `frame_of` pages the instrument
         # column on the console's own scroll state and asks it how tall
         # it is, and this page handed it the boolean every view calls
