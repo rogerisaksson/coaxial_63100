@@ -151,20 +151,51 @@ FAIL_RE = re.compile(r'^\s{1,8}FAIL\s+(\S.*?)\s*$')
 GROUPS_RE = re.compile(r'^ran \d+ of \d+ groups: .*$')
 
 
+def kill_tree(pid):
+    """The process and every descendant, gone. `Popen.kill` reaches the
+    child alone: a suite killed at its timeout left the views it had
+    spawned - and their crew's workers - holding the captured pipe, and
+    `communicate` waited on it for 106 minutes (2026-09-13)."""
+    if os.name == 'nt':
+        subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)],
+                       capture_output=True)
+        return
+    import signal
+    try:
+        os.killpg(os.getpgid(pid), signal.SIGKILL)
+    except OSError:
+        pass
+
+
+def run_captured(argv, timeout, cwd=None):
+    """`argv` run with its output captured, or None once `timeout` has
+    passed - the whole tree killed, not the child alone.
+
+    utf-8/replace, not the locale codepage: text=True alone decodes
+    cp1252 here, and a suite printing one character outside it killed the
+    reader thread with UnicodeDecodeError - the run lost, not the
+    character. PYTHONIOENCODING makes the child write what we read.
+    """
+    env = dict(os.environ, PYTHONIOENCODING='utf-8')
+    group = {'start_new_session': True} if os.name != 'nt' else {}
+    proc = subprocess.Popen(argv, cwd=cwd, env=env, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True,
+                            encoding='utf-8', errors='replace', **group)
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        kill_tree(proc.pid)
+        proc.communicate()
+        return None
+    return subprocess.CompletedProcess(argv, proc.returncode, out, err)
+
+
 def run_one(path, timeout=300, extra=()):
     """(tally, code, failing, elapsed, crash-or-None, groups-line-or-None)."""
     started = time.monotonic()
-    try:
-        # utf-8/replace, not the locale codepage: text=True alone decodes
-        # cp1252 here, and a suite printing one character outside it killed
-        # the reader thread with UnicodeDecodeError - the run lost, not the
-        # character. PYTHONIOENCODING makes the child write what we read.
-        env = dict(os.environ, PYTHONIOENCODING='utf-8')
-        done = subprocess.run([sys.executable, str(path)] + list(extra),
-                              cwd=str(ROOT), env=env, timeout=timeout,
-                              capture_output=True, text=True,
-                              encoding='utf-8', errors='replace')
-    except subprocess.TimeoutExpired:
+    done = run_captured([sys.executable, str(path)] + list(extra), timeout,
+                        cwd=str(ROOT))
+    if done is None:
         return (None, None, [], time.monotonic() - started,
                 'TIMEOUT after %ss' % timeout, None)
 

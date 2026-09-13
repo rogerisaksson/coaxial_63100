@@ -399,6 +399,17 @@ def _magnet_class(radius, phi, rotor, poles, r):
     return (SOUTH, cover) if cover else (None, 0.0)
 
 
+def _stubbed(radius, r, share):
+    """Whether a sample lies past the length a tooth is drawn to under
+    `share` of the drive: from the inside out for a positive share, from
+    the outside in for a negative one."""
+    span = (r.tooth_out - r.tooth_in) * (TOOTH_STUB + (1.0 - TOOTH_STUB)
+                                         * abs(share))
+    if share >= 0.0:
+        return radius > r.tooth_in + span
+    return radius < r.tooth_out - span
+
+
 def _tooth_class(radius, phi, slots, r, drive):
     """The phase of the tooth at `phi`, or None for the slot beside it.
 
@@ -423,15 +434,8 @@ def _tooth_class(radius, phi, slots, r, drive):
     if place - int(place) > TOOTH_FILL:
         return None, 0.0
     phase = int(place) % 3
-    if drive is not None:
-        share = drive[phase]
-        span = (r.tooth_out - r.tooth_in) * (TOOTH_STUB + (1.0 - TOOTH_STUB)
-                                             * abs(share))
-        if share >= 0.0:
-            if radius > r.tooth_in + span:
-                return None, 0.0
-        elif radius < r.tooth_out - span:
-            return None, 0.0
+    if drive is not None and _stubbed(radius, r, drive[phase]):
+        return None, 0.0
     # A TOOTH IS A FILLED AREA, so what bounds it is its angle and its
     # length, not a stroke - a sample is inside it or it is not, and the
     # supersampling in `_body` is what softens those edges.
@@ -580,13 +584,11 @@ def _level(dots, owner, row, lo, hi, start, end, cls):
         if start <= x < end:
             for y in GAUGE_Y:
                 dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y]
-            if cls > owner[row][col]:
-                owner[row][col] = cls
+            owner[row][col] = max(owner[row][col], cls)
         elif x % DOTS_X == 0 and col not in ends:
             for y in GAUGE_Y:
                 dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y]
-            if TRACK > owner[row][col]:
-                owner[row][col] = TRACK
+            owner[row][col] = max(owner[row][col], TRACK)
 
 
 def _mark(dots, owner, row, x, cls, ys=GAUGE_Y):
@@ -695,13 +697,11 @@ def _tube(dots, owner, col, top, tall, share, cls):
         if step < filled:
             for lane in range(DOTS_X):
                 dots[row][col] |= BRAILLE_BITS[lane][y % DOTS_Y]
-            if cls > owner[row][col]:
-                owner[row][col] = cls
+            owner[row][col] = max(owner[row][col], cls)
         elif y % DOTS_Y in (1, 3) and row != edge:
             for lane in range(DOTS_X):
                 dots[row][col] |= BRAILLE_BITS[lane][y % DOTS_Y]
-            if TRACK > owner[row][col]:
-                owner[row][col] = TRACK
+            owner[row][col] = max(owner[row][col], TRACK)
 
 
 def _overlay(dots, text, width, height, labels, leaders, rules):
@@ -747,27 +747,28 @@ def _overlay(dots, text, width, height, labels, leaders, rules):
         # came.
         lane = entry[4] if len(entry) > 4 else 0
         for row in range(from_row, to_row):
-            if 0 <= row < height and 0 <= col < width:
-                # A HOOK WHERE IT MEETS A RULE, not a bar through it. The
-                # column ran the full cell height in the corner, so the
-                # junction came out as `\u28ba` - four dots of solid stroke
-                # standing off a two-dot rule, which reads as a post the
-                # line happens to end at. Turning at the rule and going
-                # two dots down makes `\u2832`: a line that arrives, turns,
-                # and carries on at the weight it came in at.
-                turn = any(lo <= col <= hi for lo, hi in met.get(row, ()))
-                # A CORNER WHERE IT MEETS A RULE, a stroke where it
-                # does not - and how far down the corner reaches
-                # depends on whether the line carries on.
-                # `braille.corner` has both, and why getting it
-                # wrong is visible.
-                if turn:
-                    dots[row][col] |= braille.mask(braille.lit(
-                        braille.corner(RULE_Y, lane,
-                                       through=row + 1 < to_row)))
-                else:
-                    dots[row][col] |= braille.mask(
-                        (lane, y) for y in range(DOTS_Y))
+            if not (0 <= row < height and 0 <= col < width):
+                continue
+            # A HOOK WHERE IT MEETS A RULE, not a bar through it. The
+            # column ran the full cell height in the corner, so the
+            # junction came out as `\u28ba` - four dots of solid stroke
+            # standing off a two-dot rule, which reads as a post the
+            # line happens to end at. Turning at the rule and going
+            # two dots down makes `\u2832`: a line that arrives, turns,
+            # and carries on at the weight it came in at.
+            turn = any(lo <= col <= hi for lo, hi in met.get(row, ()))
+            # A CORNER WHERE IT MEETS A RULE, a stroke where it
+            # does not - and how far down the corner reaches
+            # depends on whether the line carries on.
+            # `braille.corner` has both, and why getting it
+            # wrong is visible.
+            if turn:
+                dots[row][col] |= braille.mask(braille.lit(
+                    braille.corner(RULE_Y, lane,
+                                   through=row + 1 < to_row)))
+            else:
+                dots[row][col] |= braille.mask(
+                    (lane, y) for y in range(DOTS_Y))
                 lit.append((row, col, shade))
 
     # AND THE HORIZONTAL HALF OF THE SAME FURNITURE. `(row, from_col,
@@ -842,49 +843,51 @@ class Frame:
         - and only cells with no line in them go to the fill with most.
         """
         col, row = int(x) // DOTS_X, int(y) // DOTS_Y
-        if 0 <= row < self.height and 0 <= col < self.width:
-            self.dots[row][col] |= BRAILLE_BITS[int(x) % DOTS_X][
-                int(y) % DOTS_Y]
-            if cls is not None:
-                tally = self.tally[row][col]
-                if tally is None:
-                    tally = self.tally[row][col] = {}
-                tally[cls] = tally.get(cls, 0) + 1
-                # THE TRUTH STROKE FIRST, the one thing drawn to be
-                # FOUND: yielding to the rings it owned no cell at all in
-                # some poses, so at its own angle a ring cell goes white
-                # and it reads as reaching the rim. It never meets a
-                # tooth - `_truth` keeps it a dot and a half inside the
-                # band. THEN A RING over anything: a broken ring is seen.
-                # THEN THE MOST DOTS, with no favour between a magnet and
-                # a tooth. The air gap is less than a cell tall, so at
-                # twelve and six o'clock a cell holds both; given to the
-                # magnet it put amber on the teeth, given to the tooth it
-                # put green on the band, and the bench saw each in turn.
-                # Whichever has more of the cell is the colour least
-                # wrong, and rank only breaks a tie. Teeth over rings was
-                # tried too and put the yoke back in pieces.
-                #
-                # EXCEPT THAT THE STROKE YIELDS TO A TOOTH. The band is a
-                # dot and a half from its inner end and a cell's diagonal
-                # still bridges that at some angles - two cells in 48
-                # poses held a tooth's tip and the stroke both. A white
-                # cell on a tooth is a mark on the stator, which is where
-                # this mark has been chased out of three times; in that
-                # cell the stroke is simply not a candidate.
-                running = ([c for c in tally if c != TRUTH]
-                           if set(tally) & TEETH else tally)
-                self.owner[row][col] = max(
-                    running, key=lambda c: (c in MARKS, c in LINES,
-                                            tally[c], c))
+        if not (0 <= row < self.height and 0 <= col < self.width):
+            return
+        self.dots[row][col] |= BRAILLE_BITS[int(x) % DOTS_X][int(y) % DOTS_Y]
+        if cls is None:
+            return
+        tally = self.tally[row][col]
+        if tally is None:
+            tally = self.tally[row][col] = {}
+        tally[cls] = tally.get(cls, 0) + 1
+        # THE TRUTH STROKE FIRST, the one thing drawn to be
+        # FOUND: yielding to the rings it owned no cell at all in
+        # some poses, so at its own angle a ring cell goes white
+        # and it reads as reaching the rim. It never meets a
+        # tooth - `_truth` keeps it a dot and a half inside the
+        # band. THEN A RING over anything: a broken ring is seen.
+        # THEN THE MOST DOTS, with no favour between a magnet and
+        # a tooth. The air gap is less than a cell tall, so at
+        # twelve and six o'clock a cell holds both; given to the
+        # magnet it put amber on the teeth, given to the tooth it
+        # put green on the band, and the bench saw each in turn.
+        # Whichever has more of the cell is the colour least
+        # wrong, and rank only breaks a tie. Teeth over rings was
+        # tried too and put the yoke back in pieces.
+        #
+        # EXCEPT THAT THE STROKE YIELDS TO A TOOTH. The band is a
+        # dot and a half from its inner end and a cell's diagonal
+        # still bridges that at some angles - two cells in 48
+        # poses held a tooth's tip and the stroke both. A white
+        # cell on a tooth is a mark on the stator, which is where
+        # this mark has been chased out of three times; in that
+        # cell the stroke is simply not a candidate.
+        running = ([c for c in tally if c != TRUTH]
+                   if set(tally) & TEETH else tally)
+        self.owner[row][col] = max(
+            running, key=lambda c: (c in MARKS, c in LINES,
+                                    tally[c], c))
 
     def claim(self, row, col, cls, said=None):
         """Give a CELL to `cls`, and a character with it where the mark
         cannot be made of dots."""
-        if 0 <= row < self.height and 0 <= col < self.width:
-            self.owner[row][col] = cls
-            if said is not None:
-                self.text[row][col] = said
+        if not (0 <= row < self.height and 0 <= col < self.width):
+            return
+        self.owner[row][col] = cls
+        if said is not None:
+            self.text[row][col] = said
 
     def lines(self, ink, colour=False, tint=None):
         """THE ONE PLACE THIS BECOMES TERMINAL OUTPUT.

@@ -1029,6 +1029,39 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   tree, the four files stashed and restored; a copy of the package
   elsewhere on disk had measured 177, its caches cold, and would
   have read as a 45 ms gain). render 79, views 206: 0 failed.
+* THE RASTER ENGINES (2026-09-13): `wireframe`, `ascii3d` and
+  `machine`, thirty-eight nested ifs -> 0, the last in the library
+  outside `replies.json_objects`. The hot loops were folded, not
+  called: the rasteriser's one-pixel triangle is three flat tests on
+  `tiny`, the resolver's supersample takes its deepest hit with one
+  conditional expression and its band pass is a comprehension, the
+  gauges' owner is `max()`. What became a function sits outside the
+  pixel loop or once per cell: the key light `_key_lit`, the ground
+  `_segment`, the three-frame `_vote`, the wire cell and the
+  deepened colour, the tooth's stub, the missing decimates. The
+  caches' sizes are named (`MESHES_KEPT`, `OUTLINES_KEPT`). MEASURED
+  the same way as the engine: twelve attitude frames, six dial faces
+  and five machine sections digest 90b88ecc2153 before and after, at
+  132 ms an attitude frame and 57 ms a section both ways. render 79,
+  views 206, structure 621, simulated 254: 0 failed; pyright 0.
+  NOT A MEASUREMENT WHILE SOMETHING ELSE DRIVES THE BENCH, again:
+  the views suite run beside the offline gate and pyright's node had
+  `show_orientation.py --simulated` die with MemoryError - the crew
+  it forks for the decimates - and the structure suite count 624
+  where it counts 621; alone on the machine, exit 0 and 621.
+* A TIMED-OUT SUITE TOOK 106 MINUTES TO DIE (2026-09-13). The gate
+  on the raster engines ran every suite in its usual seconds and then
+  sat: `test_views.py CRASHED exit=None 6354.2s, TIMEOUT after 300s`.
+  `run_one` used `subprocess.run(timeout=300)`, which kills the child
+  alone and then waits for the captured pipe to close - and the view
+  the suite had spawned, and the crew workers the view had forked,
+  held that pipe until they died of their own accord. Standalone the
+  same suite passed 206 three times that hour, 77 s a run, so which
+  view hung in the gate the log cannot say. `run_captured` in the
+  runner kills the whole tree - `taskkill /T` here, the session's
+  process group elsewhere - and the views suite runs each view
+  through it with its own 120 s, so a hang costs two minutes and
+  names the view.
 
 ## The local model
 

@@ -119,16 +119,22 @@ def _decimated(path, divisions):
     from . import mesh
     stamp = (path, divisions, os.path.getmtime(path))
     got = _MESHES.get(stamp)
-    if got is None:
-        # Six LODs and the shadow casters of one file coexist; only a
-        # runaway set - a re-exported STL changing every stamp - clears
-        # the lot.
-        if len(_MESHES) > 8:
-            _MESHES.clear()
-        got = mesh._clustered(mesh.loaded(path), divisions)
-        _MESHES[stamp] = got
+    if got is not None:
+        return got
+    # Six LODs and the shadow casters of one file coexist; only a
+    # runaway set - a re-exported STL changing every stamp - clears
+    # the lot.
+    if len(_MESHES) > MESHES_KEPT:
+        _MESHES.clear()
+    got = _MESHES[stamp] = mesh._clustered(mesh.loaded(path), divisions)
     return got
 
+
+#: Decimates kept before the cache is emptied - six LODs and the shadow
+#: casters of one file coexist, so only a runaway set clears it.
+MESHES_KEPT = 8
+#: Outline sources kept the same way.
+OUTLINES_KEPT = 4
 
 #: The decimation each zoom band earns, (zoom below, grid divisions).
 #: Finer decimates cost real raster time - measured at 94x36, single
@@ -152,12 +158,17 @@ def _lods(progress=None):
     stamp = os.path.getmtime(path)
     missing = [d for _z, d in LODS if (path, d, stamp) not in _MESHES]
     if len(missing) > 1:
-        from . import crew
-        if len(_MESHES) + len(missing) > 8:
-            _MESHES.clear()
-        for divisions, solid in crew.decimate(path, missing, progress).items():
-            _MESHES[(path, divisions, stamp)] = solid
+        _decimate_missing(path, stamp, missing, progress)
     return [_decimated(path, divisions) for _z, divisions in LODS]
+
+
+def _decimate_missing(path, stamp, missing, progress):
+    """The absent decimates, built by the crew at once."""
+    from . import crew
+    if len(_MESHES) + len(missing) > MESHES_KEPT:
+        _MESHES.clear()
+    for divisions, solid in crew.decimate(path, missing, progress).items():
+        _MESHES[(path, divisions, stamp)] = solid
 
 
 #: The coarsest grid a view with a crew draws. Grid 16 is a polygon with
@@ -446,14 +457,9 @@ def _ground_static(width, height, distance, view):
                 continue
             depth = 1.0 / w
             if prev is not None:
-                dx, dy, dd = fx - prev[0], fy - prev[1], depth - prev[2]
-                steps = max(1, int(max(2.0 * abs(dx), 4.0 * abs(dy))))
-                for s in range(steps + 1):
-                    t = s / steps
-                    dot(prev[0] + dx * t, prev[1] + dy * t,
-                        prev[2] + dd * t, k)
-                if fy < height:
-                    near_depth = min(near_depth, depth)
+                _segment(dot, prev, fx, fy, depth, k)
+            if prev is not None and fy < height:
+                near_depth = min(near_depth, depth)
             prev = (fx, fy, depth)
 
     return {'cells': cells, 'cast': cast, 'hrow': hrow, 'south': south,
@@ -1067,16 +1073,51 @@ def _expose(heat, classes, persist=None):
     else:
         lo = lit[int(EXPOSE[0] * (len(lit) - 1))]
         hi = lit[int(EXPOSE[1] * (len(lit) - 1))]
-        if hi - lo < least:
-            mid = 0.5 * (lo + hi)
-            lo, hi = mid - 0.5 * least, mid + 0.5 * least
+    if len(lit) >= EXPOSE_LEAST and hi - lo < least:
+        mid = 0.5 * (lo + hi)
+        lo, hi = mid - 0.5 * least, mid + 0.5 * least
+    was = persist.get('exposure') if persist is not None else None
+    if was is not None:
+        lo = was[0] + EXPOSE_FOLLOW * (lo - was[0])
+        hi = was[1] + EXPOSE_FOLLOW * (hi - was[1])
     if persist is not None:
-        was = persist.get('exposure')
-        if was is not None:
-            lo = was[0] + EXPOSE_FOLLOW * (lo - was[0])
-            hi = was[1] + EXPOSE_FOLLOW * (hi - was[1])
         persist['exposure'] = (lo, hi)
     return lo, hi
+
+
+def _key_lit(px, py, at, width, height, classes, bare, key, lamp, colf,
+             rowf, distance, buf):
+    """The key light on one cell: central differences of bare geometry
+    where both neighbours are covered, else the face-on rest, so a
+    silhouette cell neither flares nor drops. The direction to the lamp
+    is from THIS cell's point, back out of the projection as engine.shade
+    does; without a depth buffer, the beam's direction."""
+    if not (0 < px < width - 1 and 0 < py < height - 1
+            and classes[at - 1] and classes[at + 1]
+            and classes[at - width] and classes[at + width]):
+        return KEY_REST
+    gx = (bare[at + 1] - bare[at - 1]) * key[0]
+    gy = (bare[at - width] - bare[at + width]) * key[1]
+    dx, dy, dz = LIGHT
+    if buf is not None and buf[at]:
+        inv = 1.0 / buf[at]
+        dx = lamp[0] - colf[px] * inv
+        dy = lamp[1] - rowf[py] * inv
+        dz = lamp[2] - distance + inv
+        dn = math.sqrt(dx * dx + dy * dy + dz * dz) or 1.0
+        dx, dy, dz = dx / dn, dy / dn, dz / dn
+    lit = (dz - gx * dx - gy * dy) / math.sqrt(gx * gx + gy * gy + 1.0)
+    return max(lit, 0.0)
+
+
+def _segment(dot, prev, fx, fy, depth, k):
+    """The ground line from `prev` to here, dotted two a column and four
+    a row, its depth interpolated for the buffer."""
+    dx, dy, dd = fx - prev[0], fy - prev[1], depth - prev[2]
+    steps = max(1, int(max(2.0 * abs(dx), 4.0 * abs(dy))))
+    for s in range(steps + 1):
+        t = s / steps
+        dot(prev[0] + dx * t, prev[1] + dy * t, prev[2] + dd * t, k)
 
 
 def _slope(before, here, after):
@@ -1339,28 +1380,9 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             # silhouette cell neither flares nor drops.
             if (key is not None and lamp is not None and colf is not None
                     and rowf is not None and distance is not None):
-                lit = KEY_REST
-                if (0 < px < width - 1 and 0 < py < height - 1
-                        and classes[at - 1] and classes[at + 1]
-                        and classes[at - width] and classes[at + width]):
-                    gx = (bare[at + 1] - bare[at - 1]) * key[0]
-                    gy = (bare[at - width] - bare[at + width]) * key[1]
-                    # The direction to the lamp from THIS cell's point,
-                    # back out of the projection as engine.shade does;
-                    # without a depth buffer, the beam's direction.
-                    dx, dy, dz = LIGHT
-                    if buf is not None and buf[at]:
-                        inv = 1.0 / buf[at]
-                        dx = lamp[0] - colf[px] * inv
-                        dy = lamp[1] - rowf[py] * inv
-                        dz = lamp[2] - distance + inv
-                        dn = math.sqrt(dx * dx + dy * dy + dz * dz) or 1.0
-                        dx, dy, dz = dx / dn, dy / dn, dz / dn
-                    lit = ((dz - gx * dx - gy * dy)
-                           / math.sqrt(gx * gx + gy * gy + 1.0))
-                    if lit < 0.0:
-                        lit = 0.0
-                heat += KEY * (lit - KEY_REST)
+                heat += KEY * (_key_lit(px, py, at, width, height, classes,
+                                        bare, key, lamp, colf, rowf,
+                                        distance, buf) - KEY_REST)
             # Anti-aliasing is the GLYPH only: a staircase corner (two
             # or more empty neighbours) thins ':' to '.'. The tone once
             # feathered too, and that drew the LOD line: every cell on
@@ -1495,11 +1517,11 @@ def _chains(members):
         return chain
 
     chains = []
-    for v, links in adj.items():
-        if len(links) != 2:
-            for nxt in links:
-                if ((v, nxt) if v < nxt else (nxt, v)) not in used:
-                    chains.append(walk(v, nxt))
+    ends = [(v, nxt) for v, links in adj.items() if len(links) != 2
+            for nxt in links]
+    for v, nxt in ends:
+        if ((v, nxt) if v < nxt else (nxt, v)) not in used:
+            chains.append(walk(v, nxt))
     for a, b in members:
         if ((a, b) if a < b else (b, a)) not in used:
             chains.append(walk(a, b))
@@ -1556,10 +1578,11 @@ def _outline_source():
             _SOLID = orientation.facets(steps=48, relief=1.5)
         solid = _SOLID
     got = _OUTLINES.get(id(solid))
-    if got is None:
-        if len(_OUTLINES) > 4:
-            _OUTLINES.clear()
-        got = _OUTLINES[id(solid)] = (solid, _outline_loops(solid))
+    if got is not None:
+        return got
+    if len(_OUTLINES) > OUTLINES_KEPT:
+        _OUTLINES.clear()
+    got = _OUTLINES[id(solid)] = (solid, _outline_loops(solid))
     return got
 
 
@@ -1626,9 +1649,9 @@ def _trace(x0, y0, w0, x1, y1, w1, dot):
     boundary blinked as the view turned - measured, 108 of 227 blink
     events in a tumble. `w` rides along for the depth test."""
     dx, dy, dw = x1 - x0, y1 - y0, w1 - w0
+    if abs(dx) >= 2.0 * abs(dy) and dx == 0.0:
+        return                                # a point, not a line
     if abs(dx) >= 2.0 * abs(dy):
-        if dx == 0.0:
-            return
         lo, hi = (x0, x1) if x0 < x1 else (x1, x0)
         for k in range(int(math.ceil(2.0 * lo - 0.5)),
                        int(math.floor(2.0 * hi - 0.5)) + 1):
@@ -1768,11 +1791,30 @@ def _triad(grid, tone, cam, m, colour):
             cue, code = inks[at]
             tone[r][c] = shade(code, cue)
     for lx, ly, letter, cue, code in letters:
-        if inside(lx, ly):
-            grid[ly][lx] = letter
-            if colour:
-                tone[ly][lx] = shade(code, cue, TRIAD_LABEL_LIFT)
+        if not inside(lx, ly):
+            continue
+        grid[ly][lx] = letter
+        if colour:
+            tone[ly][lx] = shade(code, cue, TRIAD_LABEL_LIFT)
     return ox, oy, reach
+
+
+def _vote(held, now, grid, tone, width, height):
+    """The three frames' vote, cell by cell, written into `grid` and
+    `tone`: the previous frame's glyph and tone, unless the frames before
+    and after it agree against it. A still row is left as it is."""
+    (g2, t2), (g1, t1) = held
+    g0, t0 = now
+    for py in range(height):
+        r2, r1, r0 = g2[py], g1[py], g0[py]
+        if r2 == r1 == r0:
+            continue                          # a still row: as it is
+        out_g, out_t = grid[py], tone[py]
+        c1, c0 = t1[py], t0[py]
+        for px in range(width):
+            agreed = r2[px] == r0[px] != r1[px]
+            out_g[px] = r0[px] if agreed else r1[px]
+            out_t[px] = c0[px] if agreed else c1[px]
 
 
 def _steady(grid, tone, width, height, persist):
@@ -1807,19 +1849,7 @@ def _steady(grid, tone, width, height, persist):
     held = frames['held']
     now = ([row[:] for row in grid], [row[:] for row in tone])
     if len(held) == 2:
-        (g2, t2), (g1, t1) = held
-        g0, t0 = now
-        for py in range(height):
-            r2, r1, r0 = g2[py], g1[py], g0[py]
-            if r2 == r1 == r0:
-                continue                      # a still row: as it is
-            out_g, out_t = grid[py], tone[py]
-            c1, c0 = t1[py], t0[py]
-            for px in range(width):
-                if r2[px] == r0[px] != r1[px]:
-                    out_g[px], out_t[px] = r0[px], c0[px]
-                else:
-                    out_g[px], out_t[px] = r1[px], c1[px]
+        _vote(held, now, grid, tone, width, height)
     held.append(now)
     del held[:-2]
     persist['steady'] = frames
@@ -1996,12 +2026,11 @@ def _face_layer(solid, m, cam, crew, colour, persist, foreign, key):
     drawn in full FACE_SETTLE times first, so the exposure has glided.
     No `persist`, no cache: a test's single frame stands alone."""
     held = persist.get('face') if persist is not None else None
-    if held is not None and held['key'] == key:
-        if held['settles'] >= FACE_SETTLE:
-            return held['buf'], held['cells']
-        settles = held['settles'] + 1
-    else:
-        settles = 0
+    if held is not None and held['key'] != key:
+        held = None                           # another pose: start over
+    if held is not None and held['settles'] >= FACE_SETTLE:
+        return held['buf'], held['cells']
+    settles = held['settles'] + 1 if held is not None else 0
     cells = _cells(solid, m, cam, crew, True, foreign)
     width, height = cam['width'], cam['height']
     grid = [[' '] * width for _ in range(height)]

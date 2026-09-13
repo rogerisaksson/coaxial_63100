@@ -52,13 +52,23 @@ def views():
     return ['show_session.py', 'menu.py'] + got
 
 
+#: A view gets this long to draw its two frames and exit.
+VIEW_TIMEOUT = 120
+
+
 def run_view(name):
-    env = dict(os.environ, PYTHONIOENCODING='utf-8')
-    return subprocess.run(
+    """One view run against the stand-in for two frames; its whole process
+    tree killed at the timeout - a view's crew workers held the captured
+    pipe otherwise, and the suite sat on it (2026-09-13)."""
+    sys.path.insert(0, os.path.join(HOST, 'tools'))
+    from run_tests import run_captured
+    done = run_captured(
         [sys.executable, '-X', 'utf8', os.path.join('tools', name),
          '--simulated', '--frames', '2'] + EXTRA.get(name, []),
-        cwd=HOST, env=env, capture_output=True, text=True,
-        encoding='utf-8', errors='replace', timeout=120)
+        VIEW_TIMEOUT, cwd=HOST)
+    if done is None:
+        raise subprocess.TimeoutExpired(name, VIEW_TIMEOUT)
+    return done
 
 
 def test_each_view_draws_two_frames(report):

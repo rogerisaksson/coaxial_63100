@@ -324,9 +324,9 @@ def rasterise(model, matrix, distance, scale, cx, cy, cols, top, bottom,
         x0, x1, x2 = sx[a], sx[b], sx[c]
         area = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0)
 
+        if area <= 0.0 and (cull or area == 0.0):
+            continue
         if area <= 0.0:
-            if cull or area == 0.0:
-                continue
             # DoubleSide: turn the winding rather than dropping the face, so
             # the barycentric signs below hold either way round.
             x1, y1, x2, y2 = x2, y2, x1, y1
@@ -375,16 +375,16 @@ def rasterise(model, matrix, distance, scale, cx, cy, cols, top, bottom,
 
         # A triangle inside one pixel needs no weights, and 74% of what this
         # mesh draws at a terminal's size is that small.
+        wear = None if who is None or tints is None else tints[tri] + 1
+        at = (first - top) * cols + left
+        if tiny and who is not None and wear is not None and near > depth[at]:
+            who[at] = wear
+        if tiny and near > depth[at]:
+            depth[at] = near
+            value[at] = lit
         if tiny:
-            at = (first - top) * cols + left
-            if near > depth[at]:
-                depth[at] = near
-                value[at] = lit
-                if who is not None and tints is not None:
-                    who[at] = tints[tri] + 1
             continue
-        _fill(depth, value, who,
-              None if who is None or tints is None else tints[tri] + 1, lit,
+        _fill(depth, value, who, wear, lit,
               (x0, y0, x1, y1, x2, y2, oa, ob, og), area,
               first, last, left, right, top, cols)
 
@@ -508,19 +508,16 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
                     if d:
                         total += value[base + dc]
                         seen += 1
-                        if d > deep:
-                            deep = d
-                            if who is not None:
-                                wore = who[base + dc]
+                    if d > deep:
+                        deep = d
+                        wore = who[base + dc] if who is not None else wore
             if seen:
                 shade[row + c] = total / seen
                 near[row + c] = deep
-                if deep < z_lo:
-                    z_lo = deep
-                if deep > z_hi:
-                    z_hi = deep
-                if paintbox is not None:
-                    paintbox[row + c] = wore
+                z_lo = min(z_lo, deep)
+                z_hi = max(z_hi, deep)
+            if seen and paintbox is not None:
+                paintbox[row + c] = wore
 
     # The posterised band per cell, for the crease test: a component's side
     # is 2+ bands from its lit top whatever the depth noise says, which is
@@ -528,10 +525,9 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
     steps = len(ramp) - 1
     band = [0] * cells
     if ink is not None:
-        for at in range(cells):
-            if near[at]:
-                b = 1.0 - shade[at] if invert else shade[at]
-                band[at] = int((1.0 - b) * steps)
+        lit = [(1.0 - shade[at]) if invert else shade[at] for at in range(cells)]
+        band = [int((1.0 - lit[at]) * steps) if near[at] else 0
+                for at in range(cells)]
 
     lines = []
     for r in range(height):
@@ -542,45 +538,17 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
             if not near[at]:
                 cells_out.append((background, None))
             elif wire:
-                # THE VECTOR LOOK: interiors dark, edges only, each with
-                # the stroke of its own direction. Edges come from the
-                # SILHOUETTE and depth steps alone - crease triggers on
-                # the clustered mesh drew a mat of marks with no depth in
-                # it. The 3D cue is DISTANCE: a near edge burns bright,
-                # a far one dims, the way every vector display did it.
-                sides = _edge_sides(near, None, at, c, r, width,
-                                    height, step=WIRE_STEP)
-                if sides is None:
-                    cells_out.append((' ', None))
-                else:
-                    horiz, vert = sides
-                    glyph = ('+' if horiz and vert else
-                             '|' if horiz else '-')
-                    wearing = (paintbox[at] - 1
-                               if paintbox is not None and paintbox[at]
-                               else ink_colour)
-                    if wearing is not None and shades is not None:
-                        span = (z_hi - z_lo) or 1.0
-                        third = min(2, int(3.0 * (near[at] - z_lo)
-                                           / span))
-                        wearing = shades.get(wearing,
-                                             (wearing,) * 3)[third]
-                    cells_out.append((glyph, wearing))
+                cells_out.append(_wire_cell(near, paintbox, shades,
+                                            ink_colour, at, c, r, width,
+                                            height, z_lo, z_hi))
             elif ink is not None and _inked(near, band, at, c, r,
                                             width, height):
                 cells_out.append((ink, ink_colour))
             else:
                 wear = (paintbox[at] - 1
                         if paintbox is not None and paintbox[at] else None)
-                if wear is not None and shades is not None:
-                    # The zone's colour, DEEPENED where the light falls
-                    # away: the same face reads as one part with a lit top
-                    # and a dark flank instead of one flat sticker.
-                    steps = len(ramp) - 1
-                    third = min(2, band[at] * 3 // max(1, steps))
-                    wear = shades.get(wear, (wear,) * 3)[third]
                 cells_out.append((brightness_char(shade[at], ramp, invert),
-                                  wear))
+                                  _deepened(wear, shades, band[at], steps)))
         while cells_out and cells_out[-1] == (background, None):
             cells_out.pop()
         if paintbox is None:
@@ -589,6 +557,37 @@ def resolve(depth, value, width, height, cols, cell_rows, supersample,
             lines.append(ansi.run(cells_out))
 
     return '\n'.join(lines)
+
+
+def _wire_cell(near, paintbox, shades, ink_colour, at, c, r, width, height,
+               z_lo, z_hi):
+    """THE VECTOR LOOK: interiors dark, edges only, each with the stroke of
+    its own direction. Edges come from the SILHOUETTE and depth steps
+    alone - crease triggers on the clustered mesh drew a mat of marks with
+    no depth in it. The 3D cue is DISTANCE: a near edge burns bright, a far
+    one dims, the way every vector display did it."""
+    sides = _edge_sides(near, None, at, c, r, width, height, step=WIRE_STEP)
+    if sides is None:
+        return (' ', None)
+    horiz, vert = sides
+    glyph = '+' if horiz and vert else '|' if horiz else '-'
+    wearing = (paintbox[at] - 1 if paintbox is not None and paintbox[at]
+               else ink_colour)
+    if wearing is not None and shades is not None:
+        span = (z_hi - z_lo) or 1.0
+        third = min(2, int(3.0 * (near[at] - z_lo) / span))
+        wearing = shades.get(wearing, (wearing,) * 3)[third]
+    return (glyph, wearing)
+
+
+def _deepened(wear, shades, band_at, steps):
+    """The zone's colour, DEEPENED where the light falls away: the same
+    face reads as one part with a lit top and a dark flank instead of one
+    flat sticker."""
+    if wear is None or shades is None:
+        return wear
+    third = min(2, band_at * 3 // max(1, steps))
+    return shades.get(wear, (wear,) * 3)[third]
 
 
 def _edge_sides(near, band, at, c, r, width, height, step=INK_STEP):
