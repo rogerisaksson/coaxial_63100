@@ -56,6 +56,10 @@ class NoBoard:
 
     board = property(lambda self: self._refuse())
     allow_writes = False
+    #: The session's surface with nothing behind it - what every tool
+    #: reads before it reaches for the board.
+    port = bus = unit = attached = None
+    simulated = False
 
     def _refuse(self):
         raise RigError('this run was started with --no-board')

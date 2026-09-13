@@ -489,9 +489,7 @@ class Chat:
         # Where the tools are pointed when the session opens, so the first
         # answer does not announce a node nothing moved to. The prompt tag
         # already says where you are; this line is for when that changes.
-        self._said_node = (getattr(toolbox.session, 'bus',
-                                   getattr(toolbox.session, 'port', None)),
-                           getattr(toolbox.session, 'unit', None))
+        self._said_node = (toolbox.session.bus, toolbox.session.unit)
         # The session's language. The machine's locale for a real run - the
         # operator is answered in their own language from the first word,
         # without a question having to prove it first - and None for a test,
@@ -797,8 +795,7 @@ class Chat:
         no reason is the noise the retype backstop exists to cut.
         """
         session = self.toolbox.session
-        here = (getattr(session, 'bus', getattr(session, 'port', None)),
-                getattr(session, 'unit', None))
+        here = (session.bus, session.unit)
         if here[1] is None or here == getattr(self, '_said_node', None):
             return answer
         self._said_node = here
@@ -1372,10 +1369,10 @@ class Chat:
         if label is None:
             return None, True
         session = self.toolbox.session
-        unit = getattr(session, 'unit', None)
+        unit = session.unit
         if unit is None:
             return label, real
-        bus = getattr(session, 'bus', None)
+        bus = session.bus
         where = None
         try:
             from coaxial.simulated import bus_nodes

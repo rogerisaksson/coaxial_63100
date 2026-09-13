@@ -261,6 +261,11 @@ class SimulatedSession:
     def board(self):
         return self._board
 
+    @property
+    def attached(self):
+        """The board, which is always there: a stand-in opens nothing."""
+        return self._board
+
     def info(self, refresh=False):
         if self._info is None or refresh:
             board = self._board

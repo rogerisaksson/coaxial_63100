@@ -216,7 +216,19 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
 class Session:
     """One transport and the board on it. Lazy: nothing is opened until a
     call actually needs the port, so a dead cable fails at the call
-    rather than at start-up."""
+    rather than at start-up.
+
+    ONE SURFACE FOR EVERY SESSION - this, `coaxial.simulated's stand-in
+    and dbg.py's NoBoard: `port`, `baud`, `unit`, `bus`, `simulated`,
+    `attached`, `board`, `info()`, `buses()`, `scan()`, `use()`,
+    `close()`, `reset()`. A tool reads them as attributes; a name
+    drifting between the three fails where it is read, not in a
+    getattr default that hid it.
+    """
+
+    #: Read by anything that must not mistake a stand-in for a board.
+    simulated = False
+
     def __init__(self, port='COM4', baud=115200, unit=1):
         self.port = port
         self.baud = baud
@@ -230,6 +242,18 @@ class Session:
         if self._board is None:
             self._board = connect([(self.unit, self.baud, self.port)])[0]
         return self._board
+
+    @property
+    def attached(self):
+        """The board when the link is already open, else None - never
+        opens anything, unlike `board`."""
+        return self._board
+
+    @property
+    def bus(self):
+        """The segment this session is on: a real bus is a serial
+        segment, and its label is its port."""
+        return self.port
 
     def info(self, refresh=False):
         """Version, clock and channel table, cached: none of it changes at run

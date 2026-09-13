@@ -239,7 +239,7 @@ def _open_link_answers(session):
     cached returns False, and the caller falls through to the ordinary
     probe that opens the port itself.
     """
-    board = getattr(session, '_board', None)
+    board = session.attached
     if board is None:
         return False
     try:
@@ -485,7 +485,7 @@ class Toolbox:
         reset() drops the stale handle; the three retries are for the reboot,
         not the handshake, and cost nothing against a flash that took a second.
         """
-        if self.session is None or not hasattr(self.session, 'port'):
+        if self.session is None or self.session.port is None:
             # NoBoard (or no session at all) - nothing was ever connected in
             # this run, so there is nothing a flash could have disconnected.
             return ''
@@ -576,19 +576,17 @@ class Toolbox:
         check at all: measured, an unplugged ST-Link read `Voltage: 0.00V`
         where serial alone only ever said "silence".
         """
-        configured = getattr(self.session, 'port', None)
-        baud = getattr(self.session, 'baud', 115200)
-        unit = getattr(self.session, 'unit', 1)
-
         # `simulated` first, then the port - the same order `_interface`
         # asks in, and for the same reason. A stand-in's `port` is a bus
-        # label ('AX'), never None, so `configured is None` on its own let
-        # a fallen-back session through to a 15s SWD probe and then
+        # label ('AX'), never None, so the port on its own let a
+        # fallen-back session through to a 15s SWD probe and then
         # "Configured port AX: not among the ports above - the cable may
         # be unplugged", about a session that never had a cable. Measured,
         # with the board's JTAG connector pulled.
-        if getattr(self.session, 'simulated', False) or configured is None:
+        if self.session.simulated or self.session.port is None:
             return self._no_board()
+        configured, baud, unit = (self.session.port, self.session.baud,
+                                  self.session.unit)
 
         steps = []
         voltage, detail = find_board.check_power()

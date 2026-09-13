@@ -739,7 +739,7 @@ def _open_orientation_window(session):
 
     subprocess.Popen(
         [sys.executable, script, '--port', str(port)],
-        creationflags=getattr(subprocess, 'CREATE_NEW_CONSOLE', 0),
+        creationflags=subprocess.CREATE_NEW_CONSOLE,
         cwd=os.path.dirname(tools_dir))
 
     return ('orientation: a window is drawing the board live from %s. '
@@ -748,7 +748,7 @@ def _open_orientation_window(session):
 
 
 def _multicast(session):
-    return getattr(session, 'unit', None) == protocol.BROADCAST
+    return session.unit == protocol.BROADCAST
 
 
 def afe_power(session, action='read', **_):
@@ -829,11 +829,9 @@ def _interface(session):
     the MCP server and from the ollama loop, and only one of those has an
     Origin to hand.
     """
-    if getattr(session, 'simulated', False):
+    if session.simulated or session.port is None:
         return 'Simulated'
-    port = getattr(session, 'port', None)
-    if port is None:
-        return 'Simulated'
+    port = session.port
     sys.path.insert(0, os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools'))
     try:
@@ -870,8 +868,7 @@ def devices(session, op='list', unit=None, name=None, bus=None,
     each one reports for itself. Selecting one is a session change, so
     every other tool follows it without an argument of its own.
     """
-    here = (getattr(session, 'bus', getattr(session, 'port', None)),
-            getattr(session, 'unit', None))
+    here = (session.bus, session.unit)
     if op == 'buses':
         counts = [(label, serves,
                    len(_sweep(session, first, last, label)))
@@ -928,10 +925,7 @@ def _use(session, here, unit, name, bus, first, last):
                    ', '.join('%s %d' % (b, u) for b, u, _ in found)
                    or 'none'))
     session.use(int(unit), bus=bus)
-    return render.devices(found,
-                          (getattr(session, 'bus',
-                                   getattr(session, 'port', None)),
-                           session.unit),
+    return render.devices(found, (session.bus, session.unit),
                           _interface(session))
 
 
