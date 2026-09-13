@@ -26,9 +26,26 @@ from rich import box                                       # noqa: E402
 
 from coaxial import engine, wireframe                      # noqa: E402
 import facecheck                                           # noqa: E402
+from screen import stage                                   # noqa: E402
 import test_render                                         # noqa: E402
 
 WIDTH, HEIGHT = 64, 32
+#: Columns past which the exporter's render is shown at half scale, so
+#: the three panels stay side by side.
+THUMBNAIL_AT = 70
+
+
+def _export_panel(path):
+    """The exporter's own render of this pose, when it left one."""
+    with open(path, encoding='ascii') as f:
+        rows = f.read().splitlines()
+    wide = max((len(r) for r in rows), default=0)
+    thumb = wide > THUMBNAIL_AT
+    rows = [r[::2] for r in rows[::2]] if thumb else rows
+    return Panel(Text('\n'.join(rows), style='label'),
+                 title=' EXPORTER 1:2 ' if thumb else ' EXPORTER ',
+                 title_align='left', box=box.ROUNDED,
+                 border_style='frame.hud')
 
 
 def parse_pose(text):
@@ -77,21 +94,8 @@ def main(argv=None):
     ]
     path = os.path.join(facecheck.RENDERS, fixture)
     if os.path.exists(path):
-        with open(path, encoding='ascii') as f:
-            rows = f.read().splitlines()
-        wide = max((len(r) for r in rows), default=0)
-        title = ' EXPORTERN '
-        if wide > 70:
-            # The raw exports run past a terminal; a half-scale
-            # thumbnail keeps the three panels side by side.
-            rows = [r[::2] for r in rows[::2]]
-            title = ' EXPORTERN 1:2 '
-        panels.append(Panel(Text('\n'.join(rows), style='label'),
-                            title=title, title_align='left',
-                            box=box.ROUNDED, border_style='frame.hud'))
+        panels.append(_export_panel(path))
 
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from screen import stage                               # noqa: E402
     stage().print(Columns(panels, equal=False, expand=False))
     return 0
 

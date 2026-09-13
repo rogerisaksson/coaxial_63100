@@ -282,12 +282,23 @@ def plan(rig, args):
     # honest costs ten seconds of startup, which a meter does not have. The
     # controller is the right shape and the measurement under it is not.
     live, made, drift, per_read = under_load(rig)
-    if live and abs(live - sweeps) > 0.2 * sweeps:
-        fresh = load(rig, args, live, rate)
-        if fresh[1] is not None:
-            layout, chain = fresh
-            chain['idle_sweeps'] = sweeps
+    off = live and abs(live - sweeps) > 0.2 * sweeps
+    fresh = load(rig, args, live, rate) if off else (None, None)
+    if fresh[1] is not None:
+        layout, chain = fresh
+        chain['idle_sweeps'] = sweeps
     return layout, chain
+
+
+def _line_share(link):
+    """How much of the line the stream is actually claiming, when the
+    link knows its baud and its bits. The question this answers was
+    asked out loud once - a 115200 link carries 11.5 kB/s and a task at
+    57 records a second is using a third of it, with the rest going to
+    the fixed cost of a transaction rather than to records."""
+    if not (link.get('baud') and link.get('bits')):
+        return ''
+    return '   %2.0f%% of line' % (100.0 * link['bits'] / float(link['baud']))
 
 
 def chain_box(chain, sweeps, channels=0):
@@ -471,16 +482,8 @@ def buffer_box(state, host, link=None):
                      state.get('worst') or 0, state.get('dropped') or 0,
                      capacity)
     if link is not None and link.get('rate'):
-        # How much of the line the stream is actually claiming. The
-        # question this answers was asked out loud once - a 115200 link
-        # carries 11.5 kB/s and a task at 57 records a second is using a
-        # third of it, with the rest going to the fixed cost of a
-        # transaction rather than to records.
-        share = ''
-        if link.get('baud') and link.get('bits'):
-            share = '   %2.0f%% of line' % (100.0 * link['bits']
-                                            / float(link['baud']))
-        lines.append('  link    %6.1f reads/s%s' % (link['rate'], share))
+        lines.append('  link    %6.1f reads/s%s'
+                     % (link['rate'], _line_share(link)))
 
     # THE RATE IN THE TITLE, the way LOW PASS carries its channel count -
     # and in a unit that has digits to show. Megabits was stone dead on
@@ -569,6 +572,19 @@ def legend(rows, held):
         lines.append((name, '%+9.3f %-2s  %+8.2f/%+8.2f'
                       % (now, unit, keep[0], keep[1])))
     return hud('LEGEND  now / held lo / hi', lines)
+
+
+def _clocked(clock, rig, now):
+    """The board's state, and the loop's own rate differentiated off
+    the board's trigger count - live, and not the figure the chain was
+    designed against: the two part company the moment the link is
+    busy."""
+    state = rig.state()
+    seen, since = state.get('triggers'), now - clock['at']
+    if seen is not None and clock['triggers'] is not None and since:
+        clock['sweeps'] = (seen - clock['triggers']) / since
+    clock['triggers'] = seen
+    clock['state'], clock['at'] = state, now
 
 
 def main(argv=None):
@@ -720,15 +736,7 @@ def watch(rig, args, layout, chain, params):
         if clock['state'] is None or now - clock['at'] > 0.5:
             # The buffer gauge moves slowly by construction, and this is
             # a whole round trip spent on it.
-            state = rig.state()
-            # The loop's own rate, differentiated off the board's trigger
-            # count - live, and not the figure the chain was designed
-            # against: the two part company the moment the link is busy.
-            seen, since = state.get('triggers'), now - clock['at']
-            if seen is not None and clock['triggers'] is not None and since:
-                clock['sweeps'] = (seen - clock['triggers']) / since
-            clock['triggers'] = seen
-            clock['state'], clock['at'] = state, now
+            _clocked(clock, rig, now)
         # The level BEFORE the drain: after it every queue is empty by
         # construction and the gauge would read nothing on a task that
         # is only just keeping up.

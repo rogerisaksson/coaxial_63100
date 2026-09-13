@@ -21,8 +21,8 @@ from rich.panel import Panel                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
 from rich import box                                       # noqa: E402
 
-from screen import (TO_MENU, Keys, curtain, footer,        # noqa: E402
-                    header, paced, stage)
+from screen import (ENTER_KEYS, TO_MENU, Keys, boot, curtain,  # noqa: E402
+                    footer, header, hud, paced, stage)
 
 #: Rows the page spends outside the transcript: band, input, key bar,
 #: and the frame's own two edges.
@@ -190,13 +190,9 @@ class _Claude:
         happen, the result kept for the caller."""
         if event.get('type') == 'assistant':
             content = (event.get('message') or {}).get('content') or ()
-            for block in content:
-                if isinstance(block, dict) and block.get('type') == 'tool_use':
-                    name = str(block.get('name'))
-                    self.script.say('label',
-                                    '  mcp: %s' % name[len('mcp__coaxial__'):]
-                                    if name.startswith('mcp__coaxial__')
-                                    else '  tool: %s' % name)
+            for block in (b for b in content if isinstance(b, dict)
+                          and b.get('type') == 'tool_use'):
+                self.script.say('label', _tool_line(str(block.get('name'))))
         elif event.get('type') == 'result':
             answer.append(event.get('result') or '')
 
@@ -271,18 +267,24 @@ def _turn(chat, line, script, state):
         state['busy'] = False
 
 
+def _sent(line, script, state, chat):
+    """ENTER: the line goes to the model on its own thread - unless it
+    is empty, a turn is still running, or there is no model. Says
+    whether it went."""
+    if not line or state['busy'] or chat is None:
+        return False
+    script.say('value', '> ' + line)
+    script.pin = None
+    state['busy'] = True
+    threading.Thread(target=_turn, args=(chat, line, script, state),
+                     daemon=True).start()
+    return True
+
+
 def took(entry, key, script, state, chat):
     """The input line after one key; ENTER hands the line to the model."""
-    if key in ('\r', '\n'):
-        line = entry.strip()
-        if line and not state['busy'] and chat is not None:
-            script.say('value', '> ' + line)
-            script.pin = None
-            state['busy'] = True
-            threading.Thread(target=_turn, args=(chat, line, script, state),
-                             daemon=True).start()
-            return ''
-        return entry
+    if key in ENTER_KEYS:
+        return '' if _sent(entry.strip(), script, state, chat) else entry
     if key in ('\x08', '\x7f'):
         return entry[:-1]
     if len(key) == 1 and key.isprintable():
@@ -299,9 +301,7 @@ def scrolled(script, zoom, room):
     if zoom > 0:
         script.pin = max(0, at - 3)
     elif zoom < 0 and script.pin is not None:
-        script.pin = at + 3
-        if script.pin >= total - room:
-            script.pin = None
+        script.pin = None if at + 3 >= total - room else at + 3
 
 
 def compose(script, entry, state, origin, size, lead, blink):
@@ -320,7 +320,6 @@ def compose(script, entry, state, origin, size, lead, blink):
                 title_align='left', padding=(0, 1))
     mid = Layout(name='mid')
     if state['tools']:
-        from screen import hud
         side = Layout(hud(state['served'], state['tools']),
                       name='tools', size=24)
         mid.split_row(Layout(log, name='log'), side)
@@ -361,6 +360,37 @@ def canned(script):
     script.say(None, 'NTC: 25.00 C - the AFE is off, that is the label.')
 
 
+MCP_PREFIX = 'mcp__coaxial__'
+
+
+def _tool_line(name):
+    """A tool call as the transcript shows it: the board's tools by their
+    own names, anything else as the tool it is."""
+    if name.startswith(MCP_PREFIX):
+        return '  mcp: %s' % name[len(MCP_PREFIX):]
+    return '  tool: %s' % name
+
+
+def _claude_chat(a, script, state):
+    """claude -p per turn with the coaxial MCP server in the room - or
+    exit 2, saying where claude comes from."""
+    exe = find_claude()
+    if exe is None:
+        print('claude was not found - claude.ai/code has the install')
+        raise SystemExit(2)
+    with boot('LINKING ANTHROPIC') as step:
+        chat = _Claude(a.port, script, exe)
+        step(0.3, 'MCP CONFIG')
+        mcp_ready(chat, a.port, script, step)
+    from coaxial_mcp.tools import TOOLS
+    state['tools'] = tuple(spec['name'] for spec in TOOLS)
+    state['served'] = 'MCP TOOLS'
+    script.say('name', 'ANTHROPIC - one claude -p per turn, continued '
+                       'in the repo root; the coaxial MCP tools ride '
+                       'along. ESC returns to the menu.')
+    return chat, _Origin('claude + coaxial MCP', True, a.port)
+
+
 def main():
     p = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     p.add_argument('--port', default='COM4')
@@ -383,24 +413,8 @@ def main():
         origin = _Origin('Simulated', False, a.port)
         state['tools'] = ('board_info', 'analog_read', 'docs')
     elif a.claude:
-        exe = find_claude()
-        if exe is None:
-            print('claude was not found - claude.ai/code has the install')
-            return 2
-        from screen import boot
-        with boot('LINKING ANTHROPIC') as step:
-            chat = _Claude(a.port, script, exe)
-            step(0.3, 'MCP CONFIG')
-            mcp_ready(chat, a.port, script, step)
-        origin = _Origin('claude + coaxial MCP', True, a.port)
-        from coaxial_mcp.tools import TOOLS
-        state['tools'] = tuple(spec['name'] for spec in TOOLS)
-        state['served'] = 'MCP TOOLS'
-        script.say('name', 'ANTHROPIC - one claude -p per turn, continued '
-                           'in the repo root; the coaxial MCP tools ride '
-                           'along. ESC returns to the menu.')
+        chat, origin = _claude_chat(a, script, state)
     else:
-        from screen import boot
         with boot('LINKING MODEL'):
             chat = open_chat(a, script)
         origin = _Origin(chat.origin[0], chat.origin[1], a.port)

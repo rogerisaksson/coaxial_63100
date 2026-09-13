@@ -139,16 +139,20 @@ def boot(label, console=None):
                 bar.update(task, advance=1.5)
             _time.sleep(0.03)
 
+    def finish():
+        """The bar to the end and gone - once."""
+        if closed:
+            return
+        closed.append(True)
+        stop.set()
+        walker.join(timeout=0.5)
+        bar.update(task, completed=100)
+        _time.sleep(0.06)
+        bar.stop()
+
     def step(share=None, text=None):
         if share is None:
-            if closed:
-                return
-            closed.append(True)
-            stop.set()
-            walker.join(timeout=0.5)
-            bar.update(task, completed=100)
-            _time.sleep(0.06)
-            bar.stop()
+            finish()
             return
         done = max(bar.tasks[0].completed, 100.0 * share)
         ceiling[0] = min(95.0, 100.0 * share + 8.0)

@@ -22,6 +22,20 @@ ansi.utf8_stdout()          # every view draws outside ASCII
 #: mistake. Ctrl+C lands in the same `finally`.
 QUIT_KEYS = frozenset({'q', 'Q'})
 MENU_KEYS = frozenset({chr(27)})
+ENTER_KEYS = ('\r', '\n')
+#: A scroll key's step: the arrows move the instrument column a box.
+SCROLL_STEP = {'down': 1, 'up': -1}
+#: The console's mouse record: the flag that says the pointer moved,
+#: the button bits, the SGR codes a held button reports a drag as -
+#: left before right, one report a record - and the press codes.
+MOUSE_MOVED = 0x1
+LEFT_BUTTON, RIGHT_BUTTON = 0x1, 0x2
+DRAG_REPORTS = ((LEFT_BUTTON, 32), (RIGHT_BUTTON, 34))
+BUTTON_REPORTS = ((LEFT_BUTTON, 0), (RIGHT_BUTTON, 2))
+
+
+def _ignore(*_):
+    """The callback a view did not pass."""
 
 #: What lends the mouse to the view, and gives it back.
 #:
@@ -493,6 +507,7 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     """
     import time as _time
 
+    click, drag = on_click or _ignore, on_drag or _ignore
     count = 0
     try:
         with curtain(board_view) as page, Keys(console, mouse=mouse) as keys:
@@ -521,24 +536,20 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 if leaving:
                     return leaving
                 if scroll_keys:
-                    for key in typed:
-                        if key in ('up', 'down'):
-                            scroll_by(board_view, 1 if key == 'down' else -1)
-                    typed = [key for key in typed
-                             if key not in ('up', 'down')]
+                    for step in (SCROLL_STEP[key] for key in typed
+                                 if key in SCROLL_STEP):
+                        scroll_by(board_view, step)
+                    typed = [key for key in typed if key not in SCROLL_STEP]
                 if on_input is not None:
                     on_input(typed, moved)
-                if mouse or on_click is not None:
-                    for col, row in keys.clicked():
-                        scroll_click(board_view, col, row)
-                        if on_click is not None:
-                            on_click(col, row)
-                if mouse or on_drag is not None:
-                    dx, dy = keys.dragged()
-                    if dx or dy:
-                        scroll_drag(board_view, dy)
-                        if on_drag is not None:
-                            on_drag(dx, dy)
+                clicks = keys.clicked() if mouse or on_click is not None else ()
+                for col, row in clicks:
+                    scroll_click(board_view, col, row)
+                    click(col, row)
+                dx, dy = keys.dragged() if mouse or on_drag is not None else (0, 0)
+                if dx or dy:
+                    scroll_drag(board_view, dy)
+                    drag(dx, dy)
     except KeyboardInterrupt:
         return None
 
@@ -849,11 +860,10 @@ class Keys:
         # the same partial twice in a row is a real lone keypress (ESC)
         # and goes through 20 ms late instead of never.
         held = ''
-        cut = self._buffer.rfind('\033')
-        if cut != -1:
-            tail = self._buffer[cut:]
-            if self.PARTIAL_RE.match(tail) and tail != self._pending:
-                held, self._buffer = tail, self._buffer[:cut]
+        head, esc, rest = self._buffer.rpartition('\033')
+        tail = esc + rest
+        if self.PARTIAL_RE.match(tail) and tail != self._pending:
+            held, self._buffer = tail, head
         self._pending = held
 
         leave, keys = None, self._buffer
@@ -1020,16 +1030,13 @@ class Keys:
         """A mouse record as SGR reports: presses, releases, and drags with
         a button held. Motion with nothing held is nothing."""
         x, y = mouse.pos.X + 1, mouse.pos.Y + 1
-        if mouse.flags & 0x1:                       # moved
-            if self._buttons & 0x1:
-                return ['\x1b[<32;%d;%dM' % (x, y)]
-            if self._buttons & 0x2:
-                return ['\x1b[<34;%d;%dM' % (x, y)]
-            return []
+        if mouse.flags & MOUSE_MOVED:
+            return ['\x1b[<%d;%d;%dM' % (code, x, y)
+                    for bit, code in DRAG_REPORTS if self._buttons & bit][:1]
         if mouse.flags != 0:                        # wheel, double click
             return []
         keys = []
-        for bit, name in ((0x1, 0), (0x2, 2)):
+        for bit, name in BUTTON_REPORTS:
             had, has = self._buttons & bit, mouse.buttons & bit
             if has and not had:
                 keys.append('\x1b[<%d;%d;%dM' % (name, x, y))

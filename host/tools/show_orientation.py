@@ -475,6 +475,29 @@ def launch(args):
     return rig, origin, board, part, pid, pool, shop
 
 
+def _taken(view, state, first, new):
+    """A fresh rotation vector into the view.
+
+    THE DEADBAND. The part's rotation vector wanders a few tenths of a
+    degree at rest, and every wander redrew the board: measured, 1.7 %
+    of the cells changed glyph and 80 % of the rows changed tone
+    between two frames that differed by noise alone - the shimmer.
+    Held under DEADBAND_DEG the picture is bit-identical frame to
+    frame, and a real turn passes the band inside one frame. Nothing
+    is lost: at this view's size one cell on the board's rim is about
+    a degree, so a change under the band could not have moved a glyph
+    anyway.
+
+    TARE ONCE, on the `first` real sample: the resting picture is the
+    board as it lies, not its yaw history. T re-tares whenever wanted.
+    """
+    moved = orientation.angle_between(new, view['quaternion']) >= DEADBAND_DEG
+    if first or moved:
+        view['quaternion'] = new
+    if first:
+        state['tare'] = view['quaternion']
+
+
 def main(argv=None):
     args = parse_args(argv)
 
@@ -510,24 +533,8 @@ def main(argv=None):
         fresh = record['quaternion'] if record else None
         if record is not None and fresh is not None \
                 and record['updates'] != tally.seen:
-            new = (fresh['i'], fresh['j'], fresh['k'], fresh['real'])
-            # THE DEADBAND. The part's rotation vector wanders a few tenths
-            # of a degree at rest, and every wander redrew the board:
-            # measured, 1.7 % of the cells changed glyph and 80 % of the
-            # rows changed tone between two frames that differed by noise
-            # alone - the shimmer. Held under DEADBAND_DEG the picture is
-            # bit-identical frame to frame, and a real turn passes the
-            # band inside one frame. Nothing is lost: at this view's size
-            # one cell on the board's rim is about a degree, so a change
-            # under the band could not have moved a glyph anyway.
-            if (tally.seen < 0 or orientation.angle_between(
-                    new, view['quaternion']) >= DEADBAND_DEG):
-                view['quaternion'] = new
-            if tally.seen < 0:
-                # TARE ONCE, on the first real sample: the resting picture
-                # is the board as it lies, not its yaw history. T re-tares
-                # whenever wanted.
-                state['tare'] = view['quaternion']
+            _taken(view, state, tally.seen < 0,
+                   (fresh['i'], fresh['j'], fresh['k'], fresh['real']))
         tally.take(record['updates'] if record else None)
         view['frame'] += 1
         shown = dict(state, part=part, pid=pid, record=record,

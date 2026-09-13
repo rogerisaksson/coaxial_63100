@@ -222,11 +222,11 @@ class Session:
     def toggle(self, activity):
         if activity.name in self.running:
             self.stop(activity.name)
-        else:
-            undo = activity.start(self)
-            if undo is not None:
-                self.running[activity.name] = undo
-                self.note = '%s started' % activity.name
+            return
+        undo = activity.start(self)
+        if undo is not None:
+            self.running[activity.name] = undo
+            self.note = '%s started' % activity.name
 
     def stop(self, name):
         # One try per step: a failed first undo must not skip the rest, which
@@ -357,14 +357,14 @@ def block(title, rows):
 def adc_block(got):
     """Every analog channel, cooked by the board's own record."""
     table = got.get('analog')
+    afe = got.get('afe')
+    if table is None and afe is not None and not afe['on']:
+        # Not a fault: the session leaves the rail down to save power
+        # and heat, and the thermal observer borrows it on its own schedule.
+        return block('ANALOG', [
+            tint('  AFE_ON down - no reference', LABEL),
+            tint('  thermal observer borrows it for samples', LABEL)])
     if table is None:
-        afe = got.get('afe')
-        if afe is not None and not afe['on']:
-            # Not a fault: the session leaves the rail down to save power
-            # and heat, and the thermal observer borrows it on its own schedule.
-            return block('ANALOG', [
-                tint('  AFE_ON down - no reference', LABEL),
-                tint('  thermal observer borrows it for samples', LABEL)])
         return block('ANALOG', ['  did not answer'])
 
     from coaxial import desk, gauges
@@ -655,17 +655,23 @@ class Plan:
     def done(self):
         return self.at >= len(self.steps)
 
+    def _begin(self, session, now):
+        """The step at hand starts now: its duty when it names one, its
+        legs."""
+        legs, duty, _seconds = self.steps[self.at]
+        self.started = now
+        if duty is not None:
+            session.duty = min(1.0, max(0.0, duty))
+        session.set_legs(legs)
+
     def advance(self, session, now):
         """Apply the step that should be running, and say if it changed."""
         if self.done():
             return False
-        legs, duty, seconds = self.steps[self.at]
         if self.started is None:
-            self.started = now
-            if duty is not None:
-                session.duty = min(1.0, max(0.0, duty))
-            session.set_legs(legs)
+            self._begin(session, now)
             return True
+        _legs, _duty, seconds = self.steps[self.at]
         if now - self.started >= seconds:
             self.at, self.started = self.at + 1, None
             return self.advance(session, now)
@@ -724,11 +730,11 @@ def teardown(session, console, drawn, hold=True):
     # the way in, or the user toggled it with A. Held by somebody else is
     # theirs to keep - the thermal observer mid-sample, another session measuring.
     rail = steady(session.rig.board.afe.state)
-    if session.afe_found is not None and rail is not None:
-        held = [u for u in rail.get('users', ()) if u != 'host']
-        if rail['on'] != session.afe_found and not held:
-            steady(session.rig.board.afe.enable if session.afe_found
-                   else session.rig.board.afe.disable)
+    others = [u for u in (rail or {}).get('users', ()) if u != 'host']
+    if (session.afe_found is not None and rail is not None
+            and rail['on'] != session.afe_found and not others):
+        steady(session.rig.board.afe.enable if session.afe_found
+               else session.rig.board.afe.disable)
     say('ok', 'AFE_ON', 'back the way the session found it')
     say('ok', 'board', 'nothing the session started is still running')
     if console and hold:

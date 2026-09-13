@@ -206,15 +206,16 @@ def ident_rows(ident, hint=None):
     # are absent. Labelled `sim`, not `truth` (the bench, 2026-09-06):
     # it is only in simulated mode that the thermal situation is known.
     truth = ident.get('truth')
-    if truth:
-        rows.append(('sim', '%s  %.0f min' % (truth['situation'],
-                                               truth['since_s'] / 60.0)))
-        rows.append(('', 'air %.2f  cap %.2f  room %.0f C'
-                     % (truth['air'], truth['capacity'],
-                        truth.get('ambient', 25.0))))
-        if truth.get('load_a') is not None:
-            rows.append(('load', '%.0f A on' % truth['load_a']
-                         if truth['load_a'] > 0.0 else 'idle'))
+    if not truth:
+        return rows
+    rows.append(('sim', '%s  %.0f min' % (truth['situation'],
+                                           truth['since_s'] / 60.0)))
+    rows.append(('', 'air %.2f  cap %.2f  room %.0f C'
+                 % (truth['air'], truth['capacity'],
+                    truth.get('ambient', 25.0))))
+    if truth.get('load_a') is not None:
+        rows.append(('load', '%.0f A on' % truth['load_a']
+                     if truth['load_a'] > 0.0 else 'idle'))
     return rows
 
 

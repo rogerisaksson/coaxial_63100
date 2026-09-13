@@ -152,6 +152,17 @@ def _foot(console, degrees, field, width=ART_WIDTH):
     return ansi.paint(line, dial.INK[dial.NEEDLE]) if console else line
 
 
+def _face(degrees, field, kelvin, width, aspect, console, scales):
+    """The dial between its two scales, or alone with its caption
+    under it."""
+    if scales:
+        return dial.instrument(degrees, field, kelvin, width, ART_HEIGHT,
+                               aspect, colour=console)
+    return '\n'.join([dial.render(degrees, width, ART_HEIGHT, field,
+                                  aspect=aspect, colour=console),
+                      _foot(console, degrees, field, width)])
+
+
 def compose(origin, console, part, state, field, kelvin, rate, note,
             aspect=(dial.CELL_ASPECT, 'assumed'), scales=False,
             width=ART_WIDTH):
@@ -178,14 +189,8 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
         # holding a plain space, and every cell of a dot drawing holds
         # U+2800 instead - the mark could never land, and a call that
         # cannot do anything is worse than no call.
-        if scales:
-            art = dial.instrument(degrees, field, kelvin, width,
-                                  ART_HEIGHT, aspect[0], colour=console)
-        else:
-            art = '\n'.join(
-                [dial.render(degrees, width, ART_HEIGHT, field,
-                             aspect=aspect[0], colour=console),
-                 _foot(console, degrees, field, width)])
+        art = _face(degrees, field, kelvin, width, aspect[0], console,
+                    scales)
 
         side = [hud(part['name'], [
                     ('angle', '--   (no magnet)' if weak

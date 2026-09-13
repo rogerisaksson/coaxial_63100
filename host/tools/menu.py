@@ -29,7 +29,8 @@ from rich.panel import Panel                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
 from rich import box                                       # noqa: E402
 
-from screen import band_of, Keys, curtain, footer, live, paced, stage  # noqa: E402
+from screen import (ENTER_KEYS, band_of, Keys, curtain, footer,  # noqa: E402
+                    live, paced, stage)
 
 import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
@@ -214,6 +215,27 @@ def seat(zoom):
     return math.asin(max(-1.0, min(1.0, (zoom - mid) / half)))
 
 
+def _swell(view, now):
+    """The fill, eased out: fast at first, settling at SWELL_LO."""
+    t = (now - view['opened']) / SWELL_IN
+    view['zoom'] = SWELL_FROM + (SWELL_LO - SWELL_FROM) * (
+        1.0 - (1.0 - t) ** 3)
+
+
+def _breathe(view, dt):
+    """The breath: the zoom rides a sine between SWELL_LO and SWELL_HI,
+    seated where the swell or the hand left it."""
+    if view['phase'] is None:
+        view['phase'] = seat(view['zoom'])
+    view['phase'] += dt * 2.0 * math.pi / SWELL_PERIOD
+    mid = (SWELL_LO + SWELL_HI) / 2.0
+    half = (SWELL_HI - SWELL_LO) / 2.0
+    want = mid + half * math.sin(view['phase'])
+    # Toward the envelope rather than onto it: a zoom the wheel left
+    # outside the band glides back instead of snapping.
+    view['zoom'] += (want - view['zoom']) * min(1.0, 4.0 * dt)
+
+
 def idle(view, now, dt):
     """One frame of the turntable on its own: tumble, and breathe."""
     from show_render import turn
@@ -221,20 +243,9 @@ def idle(view, now, dt):
     if now - view['touched'] < HOLD:
         return
     if view['phase'] is None and now - view['opened'] < SWELL_IN:
-        # The fill, eased out: fast at first, settling at SWELL_LO.
-        t = (now - view['opened']) / SWELL_IN
-        view['zoom'] = SWELL_FROM + (SWELL_LO - SWELL_FROM) * (
-            1.0 - (1.0 - t) ** 3)
+        _swell(view, now)
     else:
-        if view['phase'] is None:
-            view['phase'] = seat(view['zoom'])
-        view['phase'] += dt * 2.0 * math.pi / SWELL_PERIOD
-        mid = (SWELL_LO + SWELL_HI) / 2.0
-        half = (SWELL_HI - SWELL_LO) / 2.0
-        want = mid + half * math.sin(view['phase'])
-        # Toward the envelope rather than onto it: a zoom the wheel left
-        # outside the band glides back instead of snapping.
-        view['zoom'] += (want - view['zoom']) * min(1.0, 4.0 * dt)
+        _breathe(view, dt)
     wobble = view['spun'] = view['spun'] + dt
     turn(view, (0.35 * math.sin(wobble * 0.5),
                 0.25 * math.sin(wobble * 0.83 + 1.3), 1.0),
@@ -345,7 +356,7 @@ def _act(typed, picked, hotkeys):
             picked = (picked - 1) % len(ENTRIES)
         elif key == 'down':
             picked = (picked + 1) % len(ENTRIES)
-        elif key in ('\r', '\n'):
+        elif key in ENTER_KEYS:
             return picked, 101 + picked
         elif key.isdigit() and 1 <= int(key) <= len(ENTRIES):
             return picked, 101 + int(key) - 1
@@ -359,18 +370,39 @@ def _sub_act(typed, sub):
     question's list."""
     entry, who = sub
     options = SUB[entry][1]
+    by_key = {option[0].lower(): (i, option[3])
+              for i, option in enumerate(options)}
     for key in typed:
         if key == 'up':
             who = (who - 1) % len(options)
         elif key == 'down':
             who = (who + 1) % len(options)
-        elif key in ('\r', '\n'):
+        elif key in ENTER_KEYS:
             return (entry, who), options[who][3]
-        else:
-            for i, option in enumerate(options):
-                if key.lower() == option[0].lower():
-                    return (entry, i), option[3]
+        elif key.lower() in by_key:
+            picked, code = by_key[key.lower()]
+            return (entry, picked), code
     return (entry, who), None
+
+
+def _typed_choice(line):
+    """The chooser's answer to a line typed with no terminal to page on:
+    an entry's number or key, or a second question's option by name -
+    for a line that cannot be asked twice. 0 for anything else."""
+    numbered = {str(i + 1): 101 + i for i in range(len(ENTRIES))}
+    keyed = {key.lower(): 101 + i
+             for i, (key, _name, _what) in enumerate(ENTRIES)}
+    named = {name.lower(): code for _caption, options in SUB.values()
+             for _key, name, _what, code in options}
+    return numbered.get(line) or keyed.get(line) or named.get(line) or 0
+
+
+def _second_question(chosen):
+    """The second question an exit code opens - (entry, first option) -
+    or None when the code is an answer in itself."""
+    if chosen is None or (chosen - 101) not in SUB:
+        return None
+    return (chosen - 101, 0)
 
 
 def main(argv=None):
@@ -404,19 +436,7 @@ def main(argv=None):
         # No terminal to page on: read the choice as a line, the way the
         # old chooser fell back. `echo 3 | coaxial_tty.ps1` still picks a view,
         # and a closed stdin is a quit rather than a spin.
-        line = sys.stdin.readline().strip().lower()
-        if line.isdigit() and 1 <= int(line) <= len(ENTRIES):
-            return 101 + int(line) - 1
-        for i, (key, _name, _what) in enumerate(ENTRIES):
-            if line == key.lower():
-                return 101 + i
-        # The second questions' answers, by name, for a line that
-        # cannot be asked twice.
-        for _caption, options in SUB.values():
-            for _key, name, _what, code in options:
-                if line == name.lower():
-                    return code
-        return 0
+        return _typed_choice(sys.stdin.readline().strip().lower())
 
     threading.Thread(target=_watch_broker, daemon=True).start()
     if args.simulated:
@@ -457,8 +477,8 @@ def main(argv=None):
                 who, chosen = _sub_act(typed, who)
             else:
                 picked, chosen = _act(typed, picked, hotkeys)
-                if chosen is not None and (chosen - 101) in SUB:
-                    who, chosen = (chosen - 101, 0), None
+                who = _second_question(chosen)
+                chosen = None if who else chosen
             if chosen is not None:
                 return chosen
 

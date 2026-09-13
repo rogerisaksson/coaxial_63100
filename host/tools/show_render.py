@@ -95,14 +95,13 @@ def compose(view, size):
     wide = max(24, size.width - 26)
     tall = max(10, size.height - 4)
     q = view['pose']
-    if view['model'] == 'cube':
-        override = solid_of('cube')
-        if override is None:
-            raise RigError('no cube to draw')
-        solid = override
-    else:
-        override = None                  # render's own board, art and all
-        solid = wireframe._model()[1]
+    # The cube is drawn from its own solid; the board is render's own,
+    # art and all.
+    cube = view['model'] == 'cube'
+    override = solid_of('cube') if cube else None
+    if cube and override is None:
+        raise RigError('no cube to draw')
+    solid = override if override is not None else wireframe._model()[1]
     began = time.perf_counter()
     art = wireframe.render(q, wide, tall, zoom=view['zoom'], colour=True,
                            horizon=False, tip=0.0,

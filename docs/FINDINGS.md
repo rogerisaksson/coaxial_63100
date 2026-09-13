@@ -1141,6 +1141,22 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   twenty-four files; a scan over the tree for Swedish letters and the
   fifty commonest Swedish words finds nothing else outside those.
   structure 621, views 206, the six runner suites 524, render 79.
+* THE VIEWS AND THE STAGE READ FLAT (2026-09-13): thirty-two nested ifs
+  across screen, menu, the chat page, the session, the desk, the thermal
+  and rotor pages, the render bench, the angle page, the stage and
+  rendershow -> 0. The shapes: a table where a chain of ifs was one -
+  `SCROLL_STEP` for the arrows, `DRAG_REPORTS`/`BUTTON_REPORTS` for the
+  console's mouse record, `ENTER_KEYS` where three files spelt the pair
+  out, the chooser's typed choice as three lookups; a callback nobody
+  passed as `_ignore` rather than a None checked at every call; a
+  helper with one job where an if sat inside an if - the turntable's
+  swell and breath, the chat's `_sent`, the desk's `_line_share` and
+  `_clocked`, the orientation page's `_taken` with the deadband's
+  measurement on it, the angle page's `_face`, the stage's `finish`;
+  `rpartition` for the partial escape sequence; an early return in
+  place of an else. The render bench's panels are ENGINE, ORACLE and
+  EXPORTER now. structure 621, views 206, pyright 0; the menu answers a
+  piped `3` with 103 and draws its frames as before.
 
 ## The local model
 
