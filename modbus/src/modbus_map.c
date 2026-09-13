@@ -10,6 +10,7 @@
 #include "modbus_rtu.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
 /* Live unit address. Defaults to 1: this is the board on the end of the link
    the developer is already using, and 1 is the conventional first server. */
@@ -32,50 +33,203 @@ bool modbus_map_set_unit_id(uint8_t id)
   return true;
 }
 
-/* ---- address space extent --------------------------------------------- */
+/* ---- the input register space ------------------------------------------ */
 
-static uint16_t input_reg_end(void)
+/* One row per span of input registers: where it starts, how many words it
+   holds, and the reader that produces one of them from its offset. Mapping,
+   the extent and reading all walk this table, so a register added here is
+   mapped, readable and counted at once - the map used to say its layout in
+   two places and a span added to one was a hole in the other. The ADC codes
+   come first and their count is the board's, asked at run time, which is why
+   a span's width is a call rather than a number. */
+typedef mb_exception_t (*ireg_reader_t)(const mb_rtu_t *rtu, uint16_t offset,
+                                        uint16_t *out);
+
+typedef struct
 {
-  return (uint16_t)(MB_IREG_COUNTERS_BASE + MB_IREG_COUNTERS_WORDS);
+  uint16_t base;
+  uint16_t (*words)(void);
+  ireg_reader_t read;
+} ireg_span_t;
+
+/* The high word first, matching the big-endian convention every other
+   multi-register value on the wire follows. */
+static uint16_t word_of(uint32_t value, uint16_t which)
+{
+  return (which == 0U) ? (uint16_t)(value >> 16) : (uint16_t)(value & 0xFFFFU);
+}
+
+static uint16_t clamp_u16(int32_t value)
+{
+  const int32_t held = (value < 0) ? 0 : ((value > UINT16_MAX) ? UINT16_MAX : value);
+  return (uint16_t)held;
+}
+
+static int16_t clamp_i16(int32_t value)
+{
+  const int32_t held = (value < INT16_MIN) ? INT16_MIN
+                       : ((value > INT16_MAX) ? INT16_MAX : value);
+  return (int16_t)held;
+}
+
+static uint16_t adc_words(void)
+{
+  return (uint16_t)Board_AdcCount();
+}
+
+static uint16_t one_word(void)
+{
+  return 1U;
+}
+
+static uint16_t two_words(void)
+{
+  return 2U;
+}
+
+static uint16_t counter_word_count(void)
+{
+  return (uint16_t)MB_IREG_COUNTERS_WORDS;
+}
+
+static mb_exception_t read_adc(const mb_rtu_t *rtu, uint16_t offset, uint16_t *out)
+{
+  int32_t raw = 0;
+  int32_t uv = 0;
+  int32_t scaled = 0;
+
+  (void)rtu;
+  if (!Board_AdcRead((uint8_t)offset, &raw, &uv, &scaled))
+  {
+    return MB_EX_SERVER_DEVICE_FAILURE;
+  }
+  /* Truncating to 16 bits is lossless for both cases: single-ended codes are
+     0..65535 and differential codes are -32768..32767, and the master knows
+     from the map which reading to interpret as signed. */
+  *out = word_of((uint32_t)raw, 1U);
+  return MB_EX_NONE;
+}
+
+static mb_exception_t read_dcbus(const mb_rtu_t *rtu, uint16_t offset, uint16_t *out)
+{
+  int32_t dc_raw = 0;
+  int32_t mv = 0;
+
+  (void)rtu;
+  (void)offset;
+  if (!Board_DcBus(&dc_raw, &mv))
+  {
+    return MB_EX_SERVER_DEVICE_FAILURE;
+  }
+  *out = clamp_u16(mv);
+  return MB_EX_NONE;
+}
+
+static mb_exception_t read_ntc(const mb_rtu_t *rtu, uint16_t offset, uint16_t *out)
+{
+  int32_t ntc_raw = 0;
+  int32_t cc = 0;
+
+  (void)rtu;
+  (void)offset;
+  if (!Board_Ntc(&ntc_raw, &cc))
+  {
+    return MB_EX_SERVER_DEVICE_FAILURE;
+  }
+  *out = word_of((uint32_t)clamp_i16(cc), 1U);
+  return MB_EX_NONE;
+}
+
+static mb_exception_t read_sysclk(const mb_rtu_t *rtu, uint16_t offset, uint16_t *out)
+{
+  (void)rtu;
+  *out = word_of(Board_SysClkHz(), offset);
+  return MB_EX_NONE;
+}
+
+static mb_exception_t read_hclk(const mb_rtu_t *rtu, uint16_t offset, uint16_t *out)
+{
+  (void)rtu;
+  *out = word_of(Board_HclkHz(), offset);
+  return MB_EX_NONE;
+}
+
+/* The counters live in the transport, not here, so the model carries the
+   mb_rtu_t as its context. Two words a counter, high first. */
+static mb_exception_t read_counter(const mb_rtu_t *rtu, uint16_t offset, uint16_t *out)
+{
+  const uint16_t idx = (uint16_t)(offset / 2U);
+
+  if (rtu == NULL)
+  {
+    return MB_EX_SERVER_DEVICE_FAILURE;
+  }
+
+  const uint32_t counters[] = {
+    rtu->counters.bus_message,
+    rtu->counters.bus_comm_error,
+    rtu->counters.server_message,
+    rtu->counters.server_exception,
+    rtu->counters.server_no_response,
+    rtu->counters.char_overrun,
+  };
+  if (idx >= (uint16_t)(sizeof counters / sizeof counters[0]))
+  {
+    return MB_EX_ILLEGAL_DATA_ADDRESS;
+  }
+  *out = word_of(counters[idx], (uint16_t)(offset & 1U));
+  return MB_EX_NONE;
+}
+
+static const ireg_span_t s_input_spans[] = {
+  { 0U,                    adc_words,          read_adc     },
+  { MB_IREG_DCBUS_MV,      one_word,           read_dcbus   },
+  { MB_IREG_NTC_CENTI_C,   one_word,           read_ntc     },
+  { MB_IREG_SYSCLK_HI,     two_words,          read_sysclk  },
+  { MB_IREG_HCLK_HI,       two_words,          read_hclk    },
+  { MB_IREG_COUNTERS_BASE, counter_word_count, read_counter },
+};
+
+/* The span an address falls in, its offset within it written back; NULL for
+   a hole. The input register space has holes by design - the map is grouped
+   for legibility rather than packed - and a hole is ILLEGAL DATA ADDRESS. */
+static const ireg_span_t *span_of(uint16_t addr, uint16_t *offset)
+{
+  for (size_t i = 0U; i < (sizeof s_input_spans / sizeof s_input_spans[0]); i++)
+  {
+    const ireg_span_t *span = &s_input_spans[i];
+    const uint16_t words = span->words();
+    if ((addr >= span->base) && (addr < (uint16_t)(span->base + words)))
+    {
+      *offset = (uint16_t)(addr - span->base);
+      return span;
+    }
+  }
+  return NULL;
 }
 
 static bool input_reg_mapped(uint16_t addr)
 {
-  if (addr < (uint16_t)Board_AdcCount())
-  {
-    return true;
-  }
-  if ((addr == MB_IREG_DCBUS_MV) || (addr == MB_IREG_NTC_CENTI_C))
-  {
-    return true;
-  }
-  if ((addr >= MB_IREG_SYSCLK_HI) && (addr < (uint16_t)(MB_IREG_HCLK_HI + 2U)))
-  {
-    return true;
-  }
-  if ((addr >= MB_IREG_COUNTERS_BASE) && (addr < input_reg_end()))
-  {
-    return true;
-  }
-  return false;
+  uint16_t offset = 0U;
+  return span_of(addr, &offset) != NULL;
 }
 
 /* A read of several registers must either succeed wholly or fail wholly, so
-   every address in the span is checked before any value is produced. The input
-   register space has holes in it by design - the map is grouped for legibility
-   rather than packed - and a span crossing a hole is ILLEGAL DATA ADDRESS. */
+   every address in the span is checked before any value is produced. */
 static mb_exception_t validate_range(void *ctx, mb_table_t table, uint16_t addr,
                                      uint16_t qty, bool for_write)
 {
+  const uint32_t end = (uint32_t)addr + (uint32_t)qty;
+
   (void)ctx;
+  if (for_write && ((table == MB_TABLE_INPUT_REG) || (table == MB_TABLE_DISCRETE_INPUT)))
+  {
+    return MB_EX_ILLEGAL_FUNCTION;
+  }
 
   switch (table)
   {
     case MB_TABLE_INPUT_REG:
-      if (for_write)
-      {
-        return MB_EX_ILLEGAL_FUNCTION;
-      }
       for (uint16_t i = 0U; i < qty; i++)
       {
         if (!input_reg_mapped((uint16_t)(addr + i)))
@@ -86,29 +240,13 @@ static mb_exception_t validate_range(void *ctx, mb_table_t table, uint16_t addr,
       return MB_EX_NONE;
 
     case MB_TABLE_HOLDING_REG:
-      if ((uint32_t)addr + (uint32_t)qty > (uint32_t)MB_HREG_COUNT)
-      {
-        return MB_EX_ILLEGAL_DATA_ADDRESS;
-      }
-      return MB_EX_NONE;
+      return (end > (uint32_t)MB_HREG_COUNT) ? MB_EX_ILLEGAL_DATA_ADDRESS : MB_EX_NONE;
 
     case MB_TABLE_COIL:
-      if ((uint32_t)addr + (uint32_t)qty > (uint32_t)MB_COIL_COUNT)
-      {
-        return MB_EX_ILLEGAL_DATA_ADDRESS;
-      }
-      return MB_EX_NONE;
+      return (end > (uint32_t)MB_COIL_COUNT) ? MB_EX_ILLEGAL_DATA_ADDRESS : MB_EX_NONE;
 
     case MB_TABLE_DISCRETE_INPUT:
-      if (for_write)
-      {
-        return MB_EX_ILLEGAL_FUNCTION;
-      }
-      if ((uint32_t)addr + (uint32_t)qty > (uint32_t)MB_DIN_COUNT)
-      {
-        return MB_EX_ILLEGAL_DATA_ADDRESS;
-      }
-      return MB_EX_NONE;
+      return (end > (uint32_t)MB_DIN_COUNT) ? MB_EX_ILLEGAL_DATA_ADDRESS : MB_EX_NONE;
 
     default:
       return MB_EX_ILLEGAL_DATA_ADDRESS;
@@ -117,170 +255,57 @@ static mb_exception_t validate_range(void *ctx, mb_table_t table, uint16_t addr,
 
 /* ---- reads ------------------------------------------------------------- */
 
-/* The counters live in the transport, not here, so the model carries the
-   mb_rtu_t as its context. Exposed high word first, matching the big-endian
-   convention every other multi-register value on the wire follows. */
-static const uint32_t *counter_words(const mb_rtu_t *rtu, uint8_t *n)
+static mb_exception_t read_hreg(uint16_t addr, uint16_t *out)
 {
-  static uint32_t snapshot[6];
+  switch (addr)
+  {
+    case MB_HREG_UNIT_ID:
+      *out = (uint16_t)s_unit_id;
+      return MB_EX_NONE;
 
-  snapshot[0] = rtu->counters.bus_message;
-  snapshot[1] = rtu->counters.bus_comm_error;
-  snapshot[2] = rtu->counters.server_message;
-  snapshot[3] = rtu->counters.server_exception;
-  snapshot[4] = rtu->counters.server_no_response;
-  snapshot[5] = rtu->counters.char_overrun;
+    case MB_HREG_COMMAND:
+      /* Write-only in effect: reading it back as 0 makes it obvious that no
+         command is pending, rather than echoing a stale one. */
+      *out = 0U;
+      return MB_EX_NONE;
 
-  *n = 6U;
-  return snapshot;
+    default:
+      return MB_EX_ILLEGAL_DATA_ADDRESS;
+  }
 }
 
 static mb_exception_t read_reg(void *ctx, mb_table_t table, uint16_t addr, uint16_t *out)
 {
-  mb_rtu_t *rtu = (mb_rtu_t *)ctx;
+  uint16_t offset = 0U;
+  const ireg_span_t *span = NULL;
 
   if (table == MB_TABLE_HOLDING_REG)
   {
-    switch (addr)
-    {
-      case MB_HREG_UNIT_ID:
-        *out = (uint16_t)s_unit_id;
-        return MB_EX_NONE;
-
-      case MB_HREG_COMMAND:
-        /* Write-only in effect: reading it back as 0 makes it obvious that no
-           command is pending, rather than echoing a stale one. */
-        *out = 0U;
-        return MB_EX_NONE;
-
-      default:
-        return MB_EX_ILLEGAL_DATA_ADDRESS;
-    }
+    return read_hreg(addr, out);
   }
-
   if (table != MB_TABLE_INPUT_REG)
   {
     return MB_EX_ILLEGAL_DATA_ADDRESS;
   }
-
-  if (addr < (uint16_t)Board_AdcCount())
-  {
-    int32_t raw = 0;
-    int32_t uv = 0;
-    int32_t scaled = 0;
-    if (!Board_AdcRead((uint8_t)addr, &raw, &uv, &scaled))
-    {
-      return MB_EX_SERVER_DEVICE_FAILURE;
-    }
-    /* Truncating to 16 bits is lossless for both cases: single-ended codes are
-       0..65535 and differential codes are -32768..32767, and the master knows
-       from the map which reading to interpret as signed. */
-    *out = (uint16_t)((uint32_t)raw & 0xFFFFU);
-    return MB_EX_NONE;
-  }
-
-  if (addr == MB_IREG_DCBUS_MV)
-  {
-    int32_t dc_raw = 0;
-    int32_t mv = 0;
-    if (!Board_DcBus(&dc_raw, &mv))
-    {
-      return MB_EX_SERVER_DEVICE_FAILURE;
-    }
-    if (mv < 0)
-    {
-      mv = 0;
-    }
-    if (mv > 65535)
-    {
-      mv = 65535;
-    }
-    *out = (uint16_t)mv;
-    return MB_EX_NONE;
-  }
-
-  if (addr == MB_IREG_NTC_CENTI_C)
-  {
-    int32_t ntc_raw = 0;
-    int32_t cc = 0;
-    if (!Board_Ntc(&ntc_raw, &cc))
-    {
-      return MB_EX_SERVER_DEVICE_FAILURE;
-    }
-    if (cc < -32768)
-    {
-      cc = -32768;
-    }
-    if (cc > 32767)
-    {
-      cc = 32767;
-    }
-    *out = (uint16_t)((uint32_t)cc & 0xFFFFU);
-    return MB_EX_NONE;
-  }
-
-  if ((addr == MB_IREG_SYSCLK_HI) || (addr == (uint16_t)(MB_IREG_SYSCLK_HI + 1U)))
-  {
-    const uint32_t hz = Board_SysClkHz();
-    *out = (addr == MB_IREG_SYSCLK_HI) ? (uint16_t)(hz >> 16) : (uint16_t)(hz & 0xFFFFU);
-    return MB_EX_NONE;
-  }
-
-  if ((addr == MB_IREG_HCLK_HI) || (addr == (uint16_t)(MB_IREG_HCLK_HI + 1U)))
-  {
-    const uint32_t hz = Board_HclkHz();
-    *out = (addr == MB_IREG_HCLK_HI) ? (uint16_t)(hz >> 16) : (uint16_t)(hz & 0xFFFFU);
-    return MB_EX_NONE;
-  }
-
-  if ((addr >= MB_IREG_COUNTERS_BASE) && (addr < input_reg_end()))
-  {
-    if (rtu == NULL)
-    {
-      return MB_EX_SERVER_DEVICE_FAILURE;
-    }
-
-    uint8_t n = 0U;
-    const uint32_t *c = counter_words(rtu, &n);
-    const uint16_t off = (uint16_t)(addr - MB_IREG_COUNTERS_BASE);
-    const uint16_t idx = (uint16_t)(off / 2U);
-
-    if (idx >= (uint16_t)n)
-    {
-      return MB_EX_ILLEGAL_DATA_ADDRESS;
-    }
-
-    *out = ((off & 1U) == 0U) ? (uint16_t)(c[idx] >> 16) : (uint16_t)(c[idx] & 0xFFFFU);
-    return MB_EX_NONE;
-  }
-
-  return MB_EX_ILLEGAL_DATA_ADDRESS;
+  span = span_of(addr, &offset);
+  return (span != NULL) ? span->read((const mb_rtu_t *)ctx, offset, out)
+                        : MB_EX_ILLEGAL_DATA_ADDRESS;
 }
 
 static mb_exception_t read_bit(void *ctx, mb_table_t table, uint16_t addr, bool *out)
 {
   (void)ctx;
 
-  if (table == MB_TABLE_COIL)
+  if ((table == MB_TABLE_COIL) && (addr == MB_COIL_AFE_ON))
   {
-    if (addr != MB_COIL_AFE_ON)
-    {
-      return MB_EX_ILLEGAL_DATA_ADDRESS;
-    }
     *out = Board_AfeOn();
     return MB_EX_NONE;
   }
-
-  if (table == MB_TABLE_DISCRETE_INPUT)
+  if ((table == MB_TABLE_DISCRETE_INPUT) && (addr == MB_DIN_PE15))
   {
-    if (addr != MB_DIN_PE15)
-    {
-      return MB_EX_ILLEGAL_DATA_ADDRESS;
-    }
     *out = Board_Pe15();
     return MB_EX_NONE;
   }
-
   return MB_EX_ILLEGAL_DATA_ADDRESS;
 }
 
