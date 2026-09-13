@@ -12,6 +12,8 @@ from ..thermal_device import THROTTLE_AT
 from ..errors import RigError
 from typing import Any, Callable, Optional
 from ..gates import GateControl
+from .. import inverter
+from ..power import named
 
 
 class SimulatedThermal:
@@ -612,7 +614,6 @@ class SimulatedThermal:
         currents at an instant are a vector, and a vector says nothing
         about how long it has been that big.
         """
-        from .. import inverter
 
         amps = seen.get('amps') or (0.0, 0.0, 0.0)
         now = math.sqrt(sum(a * a for a in amps) / 3.0)
@@ -951,7 +952,6 @@ class SimulatedPower:
         self._mask = 0
 
     def state(self):
-        from ..power import named
         return {'afe': {'on': self._mask != 0, 'users': named(self._mask),
                         'mask': self._mask, 'count': bin(self._mask).count('1'),
                         'blocked': False, 'leased': []}}

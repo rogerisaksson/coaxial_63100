@@ -31,6 +31,7 @@ import time
 from .errors import RigError
 from .motor import Parameters
 from .subsystem import Subsystem
+from .commission import Commissioning
 
 #: How far the rotor is walked to count pole pairs, in electrical turns.
 #: Enough that one shaft reading's error is small against the travel: the
@@ -186,7 +187,6 @@ class Observer(Subsystem):
         came off an instrument in this call - a partly-identified machine
         is still returned, still usable, and still says what it is.
         """
-        from .commission import Commissioning
 
         say = log or (lambda line: None)
         steps = Commissioning(self._rig(), arm=arm, log=say)

@@ -28,6 +28,8 @@ from rich import box                                       # noqa: E402
 
 from screen import (ENTER_KEYS, TO_MENU, Keys, boot, curtain,  # noqa: E402
                     footer, header, hud, paced, stage)
+from coaxial_ollama import cli, language                   # noqa: E402
+from coaxial_mcp.tools import TOOLS                        # noqa: E402
 
 #: Rows the page spends outside the transcript: band, input, key bar,
 #: and the frame's own two edges.
@@ -90,7 +92,6 @@ class _Taps:
 
 def open_chat(a, script):
     """The same Chat the bench prompt builds, its prints tapped."""
-    from coaxial_ollama import cli, language
 
     # NOT --quiet: quiet suppresses _trace, and _trace is where a tool
     # result's value grid prints - without it the model's one-line summary
@@ -384,7 +385,6 @@ def _claude_chat(a, script, state):
         chat = _Claude(a.port, script, exe)
         step(0.3, 'MCP CONFIG')
         mcp_ready(chat, a.port, script, step)
-    from coaxial_mcp.tools import TOOLS
     state['tools'] = tuple(spec['name'] for spec in TOOLS)
     state['served'] = 'MCP TOOLS'
     script.say('name', 'ANTHROPIC - one claude -p per turn, continued '

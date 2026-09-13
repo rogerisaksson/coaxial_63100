@@ -12,6 +12,11 @@ from ..motor import BENCH_MOTOR, Motor
 from .values import DCBUS_V, NOMINAL
 from typing import Callable, Optional
 from typing import Any
+from ..drive import MODES
+from ..drive import SOURCES
+from ..drive import MODEL_IDS
+from .. import sensorless
+from ..drive import PARAMS
 
 
 def _rotor_locked(method):
@@ -409,7 +414,6 @@ class SimulatedDrive:
 
     @_rotor_locked
     def mode(self, name):
-        from ..drive import MODES
         if name not in MODES:
             raise ValueError('%r is not a mode; they are %s' % (name, ', '.join(MODES)))
         if name == 'polarity' and not self._sp['pol_periods']:
@@ -537,7 +541,6 @@ class SimulatedDrive:
 
     @_rotor_locked
     def source(self, name):
-        from ..drive import SOURCES
         if name not in SOURCES:
             raise ValueError('%r is not a source; they are %s' % (name, ', '.join(SOURCES)))
         if self._mode != 'off':
@@ -554,7 +557,6 @@ class SimulatedDrive:
 
     @_rotor_locked
     def model_param(self, **values):
-        from ..drive import MODEL_IDS
         for name in values:
             if name not in MODEL_IDS:
                 raise ValueError('%r is not a model parameter; they are %s'
@@ -738,7 +740,6 @@ class SimulatedDrive:
         put back, the same constants. What the stand-in supplies is the
         machine - its own rotor and its own dq solution - not the answer.
         """
-        from .. import sensorless
 
         if self._obs is None:
             self._obs = (
@@ -933,7 +934,6 @@ class SimulatedDrive:
     }
 
     def params(self):
-        from ..drive import PARAMS
         return {name: self._params.get(name, self.DEFAULTS.get(name, 0.0))
                 for name in PARAMS}
 

@@ -26,7 +26,6 @@ Nothing analog is involved: with a tone on, the meter is not read at all.
 The answer says whether the LINK and the RING are honest, not the front end.
 """
 import argparse
-import cmath
 import math
 import os
 import sys
@@ -36,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from coaxial import Coaxial63100, bessel                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
+import cmath                                               # noqa: E402
 
 
 class Report:

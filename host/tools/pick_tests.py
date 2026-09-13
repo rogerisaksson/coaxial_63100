@@ -35,6 +35,7 @@ sys.path.insert(0, ROOT)
 # The subject catalogue lives with the tests it names, so a tag cannot be
 # added in one place and mean nothing in the other.
 from tests.ollama_support import TAGS                          # noqa: E402
+from coaxial_ollama import client as clientmod                 # noqa: E402
 
 # How much of the diff the model sees. A whole refactor does not fit an 8k
 # window beside the catalogue and the answer, and the first lines of each
@@ -219,15 +220,16 @@ def pick(model='gemma4:12b', against='HEAD', keep_alive='30m'):
                  '\n'.join('  ' + name for name in changed(against)),
                  clip(patch))
     try:
-        from coaxial_ollama.client import Ollama
         # think=False, and not just for the tokens. Measured: with thinking
         # on, gemma4:12b spent the whole num_predict budget reasoning about
         # the diff and returned `content: ''` - an empty answer that reads
         # as "the model said nothing" when what happened is that it never
         # got to the part it was asked for. This is a classification with a
         # schema; there is nothing here to reason aloud about.
-        client = Ollama(model, keep_alive=keep_alive, fmt=SCHEMA,
-                        think=False, num_predict=400)
+        # Read off the module at the call, so a suite can stand a broken
+        # client in for a missing daemon.
+        client = clientmod.Ollama(model, keep_alive=keep_alive, fmt=SCHEMA,
+                                  think=False, num_predict=400)
         client.model = client.require_model()
         message = client.chat([{'role': 'user',
                                 'content': ASK % catalogue}])
@@ -245,8 +247,7 @@ def release(tag):
     parked 8.4 GB on the card and exited, every single time it was called.
     """
     try:
-        from coaxial_ollama.client import Ollama
-        Ollama(tag).unload()
+        clientmod.Ollama(tag).unload()
     except Exception:                                         # noqa: BLE001
         pass                    # no ollama, or nothing loaded: nothing to do
 

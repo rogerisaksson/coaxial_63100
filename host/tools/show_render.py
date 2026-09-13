@@ -36,6 +36,7 @@ from screen import (Keys, WHEEL_STEP, curtain, footer,  # noqa: E402
 
 import screen as _screen                                   # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
+from coaxial.crew import Crew                              # noqa: E402
 _screen.CHATTER = False
 
 #: Degrees per keypress, and per second under SPACE.
@@ -188,7 +189,6 @@ def main(argv=None):
             'spin': False, 'zoom': 1.0,
             'carry': (0.0, 0.0)}
     if args.workers > 0:
-        from coaxial.crew import Crew
         view['crew'] = Crew(wireframe._lods(), art=wireframe._face(),
                             workers=args.workers)
     frame, last = 0, time.monotonic()

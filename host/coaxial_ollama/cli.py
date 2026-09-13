@@ -8,6 +8,10 @@ import argparse
 import json
 import os
 import sys
+from .capability import choose, probe
+from .tools import Toolbox
+from coaxial.simulated import SimulatedSession
+from coaxial_mcp.session import open_session
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -206,7 +210,6 @@ def attach(paths, chars, limit=INPUT_LIMIT):
 
 def _auto_model(args, gpu_layers):
     """The tag this machine runs, and its layer split unless one was asked."""
-    from .capability import choose, probe
     picked = choose(probe())
     if gpu_layers is None:
         gpu_layers = picked.options.get('num_gpu')
@@ -216,7 +219,6 @@ def _auto_model(args, gpu_layers):
 
 
 def build(args):
-    from .tools import Toolbox
 
     tag, gpu_layers = args.model, args.num_gpu
     if args.model == 'auto':
@@ -236,10 +238,8 @@ def build(args):
     if args.no_board:
         session, origin = NoBoard(), ('no board', False)
     elif args.simulated:
-        from coaxial.simulated import SimulatedSession
         session, origin = SimulatedSession(), ('Simulated', False)
     else:
-        from coaxial_mcp.session import open_session
         session, found = open_session(args.port, args.baud, args.unit)
         origin = (found.label, found.real)
 

@@ -1285,6 +1285,44 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   heavy module on first use. Those are the next item, one at a time,
   each tried and reverted where the cycle bites. structure 621, pyright
   0 on the thirty-three files; the offline gate 2947 checks, 0 failed.
+* THE TREE'S OWN IMPORTS ARE AT THE TOP WHERE NO CYCLE BITES
+  (2026-09-13). The 128 relative and tree imports left inside functions
+  were tried one at a time: hoist it, import the module and the three
+  package roots in a fresh interpreter, keep it if that works and put
+  it back if not. Ninety-three moved - every view's `from screen
+  import ...`, the runner's `find_board`, `pick_tests` and client, the
+  chat's client and capability, the stand-in's `..drive`, `..clock` and
+  `..imu`, the library's `.motor`, `.mesh`, `.commission`, `.protocol`
+  and the rest. Thirteen bit and stayed: `coaxial_mcp.session` and
+  `find_board` each way, the wireframe and orientation pair, board and
+  the stand-in, broker and board. Also left: ten a comment beside them
+  calls lazy or instant, four aliased, the chooser's five (a page kept
+  instant by design), and the optional pandas, PIL and notebook
+  libraries - the first cut hoisted PIL and nbformat, and the tree's
+  own rule put them back. ONE REAL BUG ON THE WAY: the session page
+  had a local `stage = steady(rig.gates.state)` in the function that
+  later called `stage()` - the function import inside it had shadowed
+  the variable back; hoisted, pyright said `None cannot be called`, and
+  the local is `gates` now. TWO MORE THINGS THE GATE AND A BARE CLONE
+  FOUND: the test runner's and the picker's `from coaxial_ollama.client
+  import Ollama` inside a function was a seam - the runner suite swaps
+  `sys.modules['coaxial_ollama.client']` for a broken module to stand a
+  missing daemon in - and hoisted, the picker reached the real daemon
+  (which answered 500, out of CUDA host memory) instead; the seam is
+  the module attribute now, `clientmod.Ollama` read at the call and
+  patched by the suite. And the editable install masks a tool's
+  import order: twelve tools had their tree imports placed before
+  their `sys.path.insert` root-finder and imported fine here, and
+  would not on CI or a bare clone - measured with the editable finder
+  stripped off `sys.meta_path`, 12 of 42 tools failing, 2 after the
+  move (screen and stage, library modules the views import after their
+  own insert, as before). Every tool's tree imports sit after its
+  root-finder now, wearing the block's noqa - 42 more `E402` markers,
+  the root-finder decision's price. Function-level imports 247 -> 69
+  over the two passes, `import screen` 0.18 -> 0.32 s, the chooser's
+  first frame 1.91 -> 1.86 s (noise). structure 621, views 206, runner
+  223, pyright 0 on the thirty-nine files; the offline gate 2947
+  checks, 0 failed but the seam, then fixed and its suite rerun.
 
 ## The local model
 

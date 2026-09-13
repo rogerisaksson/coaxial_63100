@@ -17,6 +17,9 @@ from coaxial.thermal_device import THROTTLE_AT
 import importlib
 from coaxial.errors import (DeviceStateError, NoReplyError,  # noqa: E402
                             RigError)
+from coaxial.ascii3d import CELL_ASPECT
+from coaxial import gauges, machine
+from coaxial import Coaxial63100
 
 ansi.utf8_stdout()          # every view draws outside ASCII
 
@@ -368,7 +371,6 @@ def aspect_of(cell_aspect=None):
     seen = probe_aspect()
     if seen:
         return seen, 'measured'
-    from coaxial.ascii3d import CELL_ASPECT
     return CELL_ASPECT, 'assumed'
 
 
@@ -386,7 +388,6 @@ def gauge(fraction, width, hot=THROTTLE_AT):
     the session's levels a different instrument from the motor page's.
     The bench asked for one; `coaxial.gauges` is it.
     """
-    from coaxial import gauges, machine
     fraction = max(0.0, min(1.0, fraction))
     return gauges.gauge(fraction, width,
                         cls=machine.SOA_WARN if fraction >= hot
@@ -465,7 +466,6 @@ def open_rig(banner, **kwargs):
     where the board said `nothing answered on COM4`. Measured 2026-08-31 -
     the board unpowered on purpose, ROTOR OBSERVER traced back.
     """
-    from coaxial import Coaxial63100
 
     try:
         with boot(banner):

@@ -26,6 +26,10 @@ from coaxial.errors import RigError                        # noqa: E402
 from screen import closing, Freshness, say, steady, TO_MENU  # noqa: E402
 
 import screen as _screen                                   # noqa: E402
+from coaxial import ansi                                   # noqa: E402
+from screen import frame_of, hud                           # noqa: E402
+from screen import open_rig                                # noqa: E402
+from screen import run_view, stage                         # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 REG_ANG = 0x20
@@ -145,7 +149,6 @@ def _foot(console, degrees, field, width=ART_WIDTH):
     figures is the next one down the page. In the needle's ink so the
     line and the thing it names read as one.
     """
-    from coaxial import ansi
 
     text = dial.caption(degrees, field)
     line = ' ' * max(0, (width - len(text)) // 2) + text
@@ -171,7 +174,6 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
     round for THIS terminal, and the box says whether that was measured.
     With `scales` the face stands between the die's temperature and the
     field, each a tube on its own range, `width` wide - `fit` says."""
-    from screen import frame_of, hud
 
     if state is None:
         art, side = 'no reading', []
@@ -237,7 +239,6 @@ def main(argv=None):
     # power_afe SAID: the default went quiet-False when every connect
     # stopped flipping the rail, and this view inherited it - the part it
     # exists to show is AFE-powered, so it asks by name and puts it back.
-    from screen import open_rig
     rig = open_rig('LINKING A1335', port=args.port, power_afe=True,
                    simulated_device=bool(args.simulated))
     if rig is None:
@@ -267,7 +268,6 @@ def main(argv=None):
     period = 1.0 / max(args.hz, 0.5)
     tally = Freshness()
 
-    from screen import run_view, stage
 
     board_view = stage()
     console = board_view.is_terminal

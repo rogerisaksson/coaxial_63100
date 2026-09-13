@@ -23,6 +23,8 @@ import time
 
 from .errors import RigError
 from .sensorless import TWO_PI
+from .loop import Signals, SpeedLoop
+from .motor import Parameters, Propeller
 
 #: Mechanical degrees: a full turn, and the jump past which a reading
 #: has wrapped rather than the shaft having moved.
@@ -329,8 +331,6 @@ class Velocity(_Mode):
     def __init__(self, device, amps, hz=3.0, j=2e-5, b=1e-5, load_k=0.0,
                  rate_hz=25.0):
         super().__init__(device)
-        from .loop import Signals, SpeedLoop
-        from .motor import Parameters, Propeller
         p = self._params
         motor = Parameters(
             name='the record', r=p['motor_r_uohm'], ld=p['motor_ld_nh'],

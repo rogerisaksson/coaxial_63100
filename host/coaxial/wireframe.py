@@ -32,6 +32,10 @@ from .orientation import BORE, OUTER                       # noqa: E402
 from .ansi import rgb as _rgb                              # noqa: E402
 from .raster import (BRAILLE, BRAILLE_BITS, NOISE, NOISE_N,  # noqa: E402
                      RUNGS, SHADE)
+from . import mesh
+from . import crew
+from . import engine
+from . import ansi, engine, orientation
 
 THICK = 0.05
 
@@ -127,7 +131,6 @@ _MESHES = {}
 
 
 def _decimated(path, divisions):
-    from . import mesh
     stamp = (path, divisions, os.path.getmtime(path))
     got = _MESHES.get(stamp)
     if got is not None:
@@ -174,7 +177,6 @@ def _lods(progress=None):
 
 def _decimate_missing(path, stamp, missing, progress):
     """The absent decimates, built by the crew at once."""
-    from . import crew
     if len(_MESHES) + len(missing) > MESHES_KEPT:
         _MESHES.clear()
     for divisions, solid in crew.decimate(path, missing, progress).items():
@@ -1945,7 +1947,6 @@ def _raster(solid, m, cam, crew):
     every cell knows its coverage and which quadrants of it the model
     reaches, which the rim's clipping runs on. Four times the raster,
     which is what the crew is for."""
-    from . import engine
     fine = dict(cam, width=2 * cam['width'], height=2 * cam['height'],
                 scale=2.0 * cam['scale'], cx=2.0 * cam['cx'],
                 cy=2.0 * cam['cy'])
@@ -2062,7 +2063,6 @@ def render(q, width, height, zoom=1.0, colour=True,
     the ground is drawn; without it every frame stands alone. `scroll`
     is seconds of travel over the ground: the grid's rungs slide toward
     the camera at GROUND_SPEED; None holds still."""
-    from . import ansi, engine, orientation
 
     # `solid` overrides the board with another mesh - facecheck proves
     # the LIGHT MODEL on the exporter's cube, whose flat faces turn a

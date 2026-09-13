@@ -26,6 +26,7 @@ from . import sensorless
 from .errors import RigError
 
 from .sensorless import TWO_PI
+from .drive import to_wire
 
 PHASES = ('Phase U', 'Phase V', 'Phase W')
 
@@ -367,7 +368,6 @@ class Commissioning:
 
     def _set_table(self, params):
         """The dead-time table by id, since the record names its rows."""
-        from .drive import to_wire
         plain = {k: v for k, v in params.items() if not k.startswith('drv_dt_mv')}
         self.drive.set_params(**plain)
         for k in range(8):

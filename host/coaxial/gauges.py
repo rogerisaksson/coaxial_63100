@@ -18,6 +18,8 @@ colours it, is the caller's - this draws levels (invariant 10).
 from . import machine
 from .machine import Frame, INK, SOA_OK, TRACK
 from .raster import DOTS_X, DOTS_Y
+from .thermal_device import THROTTLE_AT
+from . import ansi
 
 #: The tick class a caller puts on a gauge - a burst's extreme, a held
 #: peak - here so a view need not reach into `machine` for it.
@@ -134,7 +136,6 @@ def margin_class(share, tripped=False):
     action is the board's, and it takes it by dropping MOE (invariant
     10).
     """
-    from .thermal_device import THROTTLE_AT
     if tripped or share >= 1.0:
         return machine.SOA_TRIP
     return machine.SOA_WARN if share >= THROTTLE_AT else machine.SOA_OK
@@ -186,5 +187,4 @@ def _label_row(labels, count, pitch, colour):
                   for label in labels + [''] * (count - len(labels)))
     if not colour:
         return row.rstrip()
-    from . import ansi
     return ansi.paint(row, INK[TRACK] + 6)

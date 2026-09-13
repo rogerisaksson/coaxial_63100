@@ -28,6 +28,8 @@ import functools
 from typing import Any, Callable
 
 from . import protocol
+from .errors import RigError
+from .wire import Reader
 
 
 class Subsystem:
@@ -75,8 +77,6 @@ class Subsystem:
         only thing that knows which check failed - a host listing possible
         causes is a second answer that goes stale the moment a check moves.
         """
-        from .errors import RigError
-        from .wire import Reader
 
         r = Reader(reply)
         if r.u8():

@@ -20,6 +20,7 @@ import os
 
 from . import engine
 from .errors import RigError
+from . import mesh
 
 class _Worker:
     """The solids and the art, set once per worker by `_load`: 50,000
@@ -69,7 +70,6 @@ def _band(job) -> tuple:
 
 def _decimate(job):
     path, divisions = job
-    from . import mesh
     with open(path, 'rb') as f:
         raw = f.read()
     return divisions, mesh._clustered(mesh._centred(list(mesh._faces(raw))),

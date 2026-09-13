@@ -29,6 +29,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]           # host/
 sys.path.insert(0, str(ROOT))
 from tests import counts                             # noqa: E402
+import find_board                                    # noqa: E402
+import pick_tests                                    # noqa: E402
+from coaxial_ollama import client as clientmod       # noqa: E402
+from coaxial_ollama.capability import choose, probe  # noqa: E402
 # Structure first: it answers "does host/ still hold together" in a fifth of
 # a second, and every behavioural suite below it assumes the answer is yes.
 STRUCTURE = 'test_structure.py'
@@ -239,9 +243,7 @@ def hold_model(tag):
     here.
     """
     try:
-        sys.path.insert(0, str(ROOT))
-        from coaxial_ollama.client import Ollama
-        client = Ollama(tag, keep_alive='30m')
+        client = clientmod.Ollama(tag, keep_alive='30m')
         client.model = client.require_model()
         _LOADED.append(client)
         print('holding %s for the run' % client.model)
@@ -255,9 +257,7 @@ def hold_model(tag):
 def _client_for(tag):
     """A handle on a tag, for unloading it. None if ollama is not there."""
     try:
-        sys.path.insert(0, str(ROOT))
-        from coaxial_ollama.client import Ollama
-        return Ollama(tag)
+        return clientmod.Ollama(tag)
     except Exception:                                         # noqa: BLE001
         return None
 
@@ -295,7 +295,6 @@ def board_note():
     """
     try:
         sys.path.insert(0, str(ROOT / 'tools'))
-        import find_board
         ports = find_board.list_ports()
     except Exception as exc:                                  # noqa: BLE001
         return '  (could not check whether the board is attached: %s)' % exc
@@ -505,7 +504,6 @@ def _ask_model(args, live_sections):
     until the next sweep.
     """
     sys.path.insert(0, str(ROOT / 'tools'))
-    import pick_tests
 
     # The picker loads the model too. Registered here so the release at the
     # end of the run covers it, whether or not a suite needs it.
@@ -516,7 +514,6 @@ def _ask_model(args, live_sections):
         # the roster's first tag; the pick degrades to the path map there
         # anyway, so the name only has to be a name.
         try:
-            from coaxial_ollama.capability import choose, probe
             args.model = choose(probe()).tag
         except Exception:                                     # noqa: BLE001
             args.model = 'gemma4:12b'

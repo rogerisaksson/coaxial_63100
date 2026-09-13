@@ -20,6 +20,7 @@ from .crc import crc16
 from .errors import ConnectError, CrcError, FrameError, ModbusException, NoReplyError
 from .protocol import BROADCAST, MAX_PAYLOAD
 from typing import Any
+from .protocol import request_length
 
 #: A frame's fixed bytes around the payload: the unit id and function
 #: code in front, the CRC behind.
@@ -196,7 +197,6 @@ class Transport:
         # it is what delimits it.
         if not (self.proven_dispatch and self._last_proven):
             self._pay_gap()
-        from .protocol import request_length
         pdu_len = len(frame) - 3
         self._last_proven = (request_length(frame[1:-2]) == pdu_len
                              and pdu_len > 0)

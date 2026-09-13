@@ -8,6 +8,7 @@ from .. import angle, imu
 from ..sensor import PolledSensor
 from .values import _tumble
 from typing import Any
+from ..imu import CHANNELS, decode
 
 
 class SimulatedImu(PolledSensor):
@@ -69,7 +70,6 @@ class SimulatedImu(PolledSensor):
             for value in _tumble(self._seq, self.UNIT) + (0,):
                 cargo += int(value).to_bytes(2, 'little', signed=True)
 
-        from ..imu import CHANNELS, decode
         return {'channel': 3, 'channel_name': CHANNELS[3],
                 'cargo': cargo, 'reports': decode(cargo)}
 

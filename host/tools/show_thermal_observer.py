@@ -34,6 +34,9 @@ from coaxial import gauges, machine                        # noqa: E402
 from coaxial.thermal import ALL_NODES, IDENT_MARGIN_FLOOR, pretty  # noqa: E402
 from coaxial.thermalmap import (CELL_ASPECT, MARKS, SCALE_LINES,  # noqa: E402
                                 render)
+from coaxial import thermal_ident                          # noqa: E402
+from screen import hud                                     # noqa: E402
+from screen import frame_of, run_view, stage               # noqa: E402
 
 #: Above the picture: a blank, the banner, a blank, the state line,
 #: the budget line, a blank.
@@ -269,7 +272,6 @@ def envelope_rows(ident):
     the air path's, the capacity's or the room's sigma - `none` when the
     span is earned. At rest the bar sits at the floor on the covariance
     while the innovation is quiet, and nothing said which (2026-09-06)."""
-    from coaxial import thermal_ident
 
     if not ident:
         return []
@@ -320,7 +322,6 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None):
     terminal's: how tall its cell was measured, or assumed, to be.
     `ident` is `Thermal.identification()`, shown in SENSE when given."""
 
-    from screen import hud
 
     age = state.get('seen_s_ago')
     every = state.get('sample_every_s') or 0.0
@@ -531,7 +532,6 @@ def main():
             say('warn', 'switching', '%s at %.0f %% - AFE off, STO bypassed'
                 % ('+'.join(legs), a.switch * 100))
 
-        from screen import frame_of, run_view, stage
 
         board_view = stage()
         console = board_view.is_terminal

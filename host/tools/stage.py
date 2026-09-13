@@ -34,6 +34,7 @@ from rich.text import Text
 from rich.theme import Theme
 from rich.progress import BarColumn, Progress, TextColumn
 from rich.measure import Measurement
+from coaxial import broker
 
 #: The palette, named. Blade Runner's teal and sodium over Alien's phosphor
 #: green chip. Meaning colours (LIVE green, SIMULATED yellow, alarm red)
@@ -181,7 +182,6 @@ def live(count):
 def chip(origin):
     """The meaning tag. Green LIVE / yellow SIMULATED, never restyled."""
     if origin.real:
-        from coaxial import broker
         return live(broker.clients() or 0)
     return Text(' SIMULATED ', style='chip.sim')
 

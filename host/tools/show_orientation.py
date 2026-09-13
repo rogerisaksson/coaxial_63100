@@ -25,6 +25,9 @@ from coaxial.errors import RigError                        # noqa: E402
 from screen import closing, say, TO_MENU, WHEEL_STEP      # noqa: E402
 
 import screen as _screen                                   # noqa: E402
+from screen import hud                                     # noqa: E402
+from screen import frame_of                                # noqa: E402
+from screen import Freshness, run_view, stage              # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 ROTATION_VECTOR = 0x05
@@ -240,7 +243,6 @@ def start_reporting(board, interval_us):
 
 def boxes(part, pid, record, q, rate):
     """The instrument boxes, every value off the target."""
-    from screen import hud
 
     roll, pitch, yaw = orientation.euler_degrees(q)
     ident = []
@@ -334,7 +336,6 @@ def bindings(typed, view, quaternion):
 
 def compose(origin, args, view, colour, console):
     """One frame on the stage: viewport left, instruments right, keys."""
-    from screen import frame_of
 
     # Mirrors on the raw quaternion (the empirical knob), then the whole
     # derivation in one call: orientation.attitude carries the tare and
@@ -506,7 +507,6 @@ def main(argv=None):
     rig, origin, board, part, pid, pool, shop = started
 
     period = period_of(args.hz)
-    from screen import Freshness, run_view, stage
 
     board_view = stage()
     console = board_view.is_terminal

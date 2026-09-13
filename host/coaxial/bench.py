@@ -19,6 +19,7 @@ bitrate allows (invariant 10).
 import time
 
 from . import protocol
+from .capture import MAX_BURST, RECORD_BYTES
 
 #: 8N1: one start bit, eight data, one stop.
 BITS_PER_BYTE = 10
@@ -112,7 +113,6 @@ def receive_block(board, rounds=20):
     The download direction on its own. Nothing symmetrical can separate the
     two, and this is the shape a capture actually runs in.
     """
-    from .capture import MAX_BURST, RECORD_BYTES
 
     board.capture.arm(['angle'])
     time.sleep(0.3)

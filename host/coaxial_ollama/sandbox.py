@@ -20,6 +20,7 @@ A failure in either is a *result*, not an exception: the model has to see its
 own traceback to correct itself.
 """
 import ast
+import coaxial
 import importlib.util
 import contextlib
 import io
@@ -31,6 +32,7 @@ import subprocess
 import sys
 import time
 import traceback
+from coaxial import scaling
 
 # Shell punctuation, checked as whole tokens. Nothing here is dangerous once the
 # command runs as an argv list - `|` would simply arrive as a literal argument -
@@ -160,8 +162,6 @@ class Scope:
 
     def __init__(self, board=None, extra=None):
 
-        import coaxial
-        from coaxial import scaling
 
         self.namespace = {
             '__name__': '__bench__',

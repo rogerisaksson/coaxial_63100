@@ -329,6 +329,10 @@ BAR_CELLS = 12
 from coaxial.gauges import (TEMP_FLOOR_C, TEMP_SCALE_C,  # noqa: E402
                             margin_class as soa_class,
                             temp_share, thermometer_class as ntc_class)
+from screen import frame_of, hud                           # noqa: E402
+from screen import open_rig                                # noqa: E402
+from screen import stage                                   # noqa: E402
+from screen import run_view, stage                         # noqa: E402
 #: The face of the power bar beside the board's thermometers: watts, on
 #: a POWER LAW pinned by where its middle sits.
 #:
@@ -2102,7 +2106,6 @@ def thermal_rows(view):
 
 
 def compose(rig, origin, console, view):
-    from screen import frame_of, hud
 
     s = view['state']
     # THE MACHINE, NOT A PROTRACTOR. A dial with a needle on it answers
@@ -2560,7 +2563,6 @@ def _link(args):
     the link because it is read before the front end is touched, and a
     caller that worked it out afterwards would be reading its own change.
     """
-    from screen import open_rig
     rig = open_rig('LINKING ROTOR OBSERVER', port=args.port,
                    power_afe=False,
                    simulated_device=bool(args.simulated))
@@ -2616,7 +2618,6 @@ def _console_for(args):
     for that terminal rather than for the eighty columns a pipe is
     assumed to be: the frame cropped the foot's WINDING to DING
     otherwise, measured."""
-    from screen import stage
     board_view = stage()
     if args.width and args.height and not board_view.is_terminal:
         board_view.width, board_view.height = args.width, args.height
@@ -2627,7 +2628,6 @@ def main(argv=None):
     args = parse_args(argv)
     sane(args)
 
-    from screen import run_view, stage
     rig, params, was_on, view_step = _link(args)
     if params is None:
         raise RigError('the drive answered no parameters')

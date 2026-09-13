@@ -14,6 +14,7 @@ for the same data as pretty-printed JSON with full key names. That difference is
 the reason a small model can drive this board through a long test sequence.
 """
 from coaxial import angle as a1335     # angle() below is the renderer; this is the sensor's arithmetic
+from coaxial.thermal import pretty
 
 
 def short(signal, index):
@@ -321,7 +322,6 @@ THERMAL_GROUPS = (
 def thermal_state(state):
     """The observer's picture: the one measurement, then every estimate
     by group, then the room it runs against - device 8 op 0."""
-    from coaxial.thermal import pretty
 
     ntc = state.get('ntc')
     head = ('thermal: NTC %.1f C measured' % ntc if ntc is not None

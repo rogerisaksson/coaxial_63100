@@ -37,6 +37,9 @@ from screen import (ASH, LABEL, SODIUM, TO_MENU,  # noqa: E402
                     closing, say, tint)
 
 import screen as _screen                                   # noqa: E402
+from screen import hud, panels_of                          # noqa: E402
+from screen import open_rig                                # noqa: E402
+from screen import run_view, stage                         # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 #: What R runs for, in seconds. Two floors, and the view reports both
@@ -304,7 +307,6 @@ def act(rig, key, view):
 def compose(rig, origin, console, view, layout, width):
     """One frame on the stage: stage state, gates and currents as boxes."""
 
-    from screen import hud, panels_of
 
     state = view['gate_drivers']
     stage_box = hud('STAGE', [
@@ -361,7 +363,6 @@ def main(argv=None):
     # sets it itself, because which way round it goes is the whole question
     # here and leaving it as found makes the run mean different things on
     # different days.
-    from screen import open_rig
     rig = open_rig('LINKING GATE DRIVERS', port=args.port, power_afe=False,
                    simulated_device=bool(args.simulated))
     if rig is None:
@@ -409,7 +410,6 @@ def main(argv=None):
                            / (2.0 * (state['period'] - 1) * 50000.0),
             'scaling': board.analog.scaling()}
 
-    from screen import run_view, stage
 
     board_view = stage()
     console = board_view.is_terminal

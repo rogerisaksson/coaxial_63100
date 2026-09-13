@@ -27,6 +27,8 @@ Pure but not stateless: a decay is memory by definition. It runs per update
 rather than per second, so a test drives it without a clock.
 """
 from . import ansi
+from . import machine
+from . import gauges
 
 #: Columns of bar. Wide, because the bar is the only part of a row that a
 #: reader scans rather than reads.
@@ -152,14 +154,12 @@ class Desk:
         """The level's class - the motor page's green, amber, red - read
         before any scale is: a converter near its rail has stopped
         moving, which is worth seeing before the number is read."""
-        from . import machine
         if magnitude >= RAIL_ABOVE:
             return machine.SOA_TRIP
         return machine.SOA_WARN if magnitude >= HOT_ABOVE else machine.SOA_OK
 
     def _bar(self, row, colour):
         """One channel's bar, as a string of BAR columns."""
-        from . import gauges
 
         bipolar = row['differential']
         here = fraction(row)

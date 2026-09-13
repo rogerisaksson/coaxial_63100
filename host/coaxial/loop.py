@@ -11,9 +11,13 @@ down. The firmware's own loop lives in `drive/`; this module exists so a
 notebook and a Monte Carlo can close a speed loop without a board.
 """
 import math
+import numpy
 import random
 
 from .sensorless import TWO_PI
+from . import sysid
+from .motor import Parameters
+from .motor import Motor
 
 SQRT3 = math.sqrt(3.0)
 
@@ -56,7 +60,6 @@ class Chain(Block):
     def run(self, seconds, dt, every=1):
         """The chain for `seconds` at `dt`, every `every`th bus recorded.
         Returns {slot: array}, time included."""
-        import numpy
         s = Signals()
         rows = {name: [] for name in Signals.__slots__}
         for k in range(int(round(seconds / dt))):
@@ -172,7 +175,6 @@ class Machine(Block):
     -4 % from that alone."""
 
     def __init__(self, params, vdc, load=None, noise=0.0, seed=2, **kw):
-        from .motor import Motor
         kw.setdefault('k_load', load.k if load else 0.0)
         self.motor = Motor.of(params, **kw)
         self.vdc, self.noise = vdc, noise
@@ -202,8 +204,6 @@ def identify(run, poles, **kw):
     `measured` stays False - the run was arithmetic. Trust per parameter
     is in the record: Ld's is only as good as the probe that excited it.
     """
-    from . import sysid
-    from .motor import Parameters
     got = sysid.identify(run['vd'], run['vq'], run['id'], run['iq'],
                          run['w'] * poles, run['t'], **kw)
     fit = Parameters(

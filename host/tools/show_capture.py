@@ -28,6 +28,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from coaxial import scaling                                # noqa: E402
 from coaxial.errors import RigError                        # noqa: E402
 from screen import TO_MENU, Keys, closing, say  # noqa: E402
+from screen import hud, panels_of               # noqa: E402
+from screen import open_rig                     # noqa: E402
+from screen import curtain, stage               # noqa: E402
 
 ROTATION_VECTOR = 0x05
 
@@ -165,7 +168,6 @@ def spi_rows(latest, rates, width):
 
 def compose(origin, console, layout, view, width):
     """One frame on the stage: the task, its records, and the ring."""
-    from screen import hud, panels_of
 
     daq, ring = view['daq'], view['ring']
     task = hud('TASK', [
@@ -315,7 +317,6 @@ def main(argv=None):
     # power_afe SAID: both parts in the ring and the converter's reference
     # live behind AFE_ON, and the quiet-False default left all three dead -
     # the daq refused, the view returned 1 and the menu read that as quit.
-    from screen import open_rig
     rig = open_rig('LINKING THE RING', port=args.port, power_afe=True,
                    simulated_device=bool(args.simulated))
     if rig is None:
@@ -339,7 +340,6 @@ def main(argv=None):
             'dropped_was': 0, 'quiet': 0, 'missed': 0,
             'scaling': board.analog.scaling()}
 
-    from screen import curtain, stage
 
     board_view = stage()
     console = board_view.is_terminal

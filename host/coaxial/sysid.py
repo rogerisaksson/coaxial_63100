@@ -27,6 +27,8 @@ import math
 # One definition each, where they already lived: the transform's turn is
 # the observer's, and the channel names are the commissioning's.
 from .commission import PHASES                              # noqa: F401
+from .errors import RigError
+from .motor import Parameters
 GATES = (('TIM1_CH1/PWMUH', 'TIM1_CH1N/PWMUL'),
          ('TIM1_CH2/PWMVH', 'TIM1_CH2N/PWMVL'),
          ('TIM1_CH3/PWMWH', 'TIM1_CH3N/PWMWL'))
@@ -36,7 +38,6 @@ def _numpy():
     try:
         import numpy
     except ImportError:
-        from .errors import RigError
         raise RigError('system identification needs numpy - '
                        '`pip install numpy`') from None
     return numpy
@@ -168,7 +169,6 @@ def from_frame(frame, theta, poles, vdc='DC bus (V)', name='identified'):
     came off records rather than a label.
     """
     np = _numpy()
-    from .motor import Parameters
 
     currents = [frame[c].to_numpy() for c in
                 ('%s (A)' % p for p in PHASES)]

@@ -27,6 +27,10 @@ from coaxial.errors import RigError                        # noqa: E402
 from screen import Feed, TO_MENU, closing, say            # noqa: E402
 
 import screen as _screen                                   # noqa: E402
+from screen import hud                                     # noqa: E402
+from screen import gauge, hud                              # noqa: E402
+from screen import open_rig                                # noqa: E402
+from screen import frame_of, run_view, stage               # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 
@@ -309,7 +313,6 @@ def chain_box(chain, sweeps, channels=0):
     figure the chain was designed against: the two differ the moment the
     link gets busy, and which one is which is worth seeing.
     """
-    from screen import hud
 
     title = ('LOW PASS (%d CHANNELS)' % channels if channels
              else 'LOW PASS')
@@ -456,7 +459,6 @@ def buffer_box(state, host, link=None):
     The peak is what says how close the next record came to being
     dropped, and it is the number to read.
     """
-    from screen import gauge, hud
 
     def row(name, held, peak, dropped, capacity=None):
         # the scale is the buffer's OWN PEAK, never its capacity: the ring
@@ -611,7 +613,6 @@ def main(argv=None):
     # power_afe SAID: invariant 9 - with the rail down the board refuses
     # to start the task at all, and that refusal used to escape as a
     # traceback rather than a said line.
-    from screen import open_rig
     rig = open_rig('LINKING CONVERTERS', port=args.port, power_afe=True,
                    simulated_device=bool(args.simulated))
     if rig is None:
@@ -702,7 +703,6 @@ def watch(rig, args, layout, chain, params):
     bridge = desk.Desk(bar=max(20, min(80, columns - 72)))
     period = 1.0 / max(args.hz, 0.5)
 
-    from screen import frame_of, run_view, stage
 
     held = {}
     last = {'rows': [], 'pins': {}}

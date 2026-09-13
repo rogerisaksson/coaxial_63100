@@ -33,6 +33,9 @@ from .errors import CrcError, NoReplyError, RigError
 from .gates import GateStage
 from .reader import BufferedReader
 from .record import Record, build
+from .motion import Motion
+from coaxial_mcp.session import open_session
+from . import broker
 
 #: Bytes the board leaves for records in one reply - `DAQ_REPLY_ROOM` in
 #: `cmd_daq.c`. Named here because it decides how many records a single
@@ -233,7 +236,6 @@ class Coaxial63100(Acquisition):
         self.daq = DaqView(self)
         # Motion, the same way: bound before open() so `device.motion`
         # reads like `device.daq`, opened lazily by its factories.
-        from .motion import Motion
         self.motion = Motion(self)
         self._origin = None
         self.simulated = simulated_device
@@ -270,7 +272,6 @@ class Coaxial63100(Acquisition):
         """
         if self.session is not None:
             return self
-        from coaxial_mcp.session import open_session
 
         simulated = True if self.simulated_device else (
             None if self.link == 'auto' else False)
@@ -360,7 +361,6 @@ class Coaxial63100(Acquisition):
         by construction, and an unknown answer must not be what stops a
         stage being disarmed.
         """
-        from . import broker
 
         try:
             count = broker.clients()          # None: nobody is serving

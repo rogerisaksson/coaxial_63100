@@ -35,6 +35,7 @@ from .system import System
 from . import broker
 from .transport import Transport
 from typing import Any
+from .simulated import BROADCAST_REFUSAL
 
 
 class Board:
@@ -103,7 +104,6 @@ class Board:
             # One place, because every read and every read-back write comes
             # through here. Silence from unit 0 is the protocol working, not
             # the board being dead, and a timeout would read as the second.
-            from .simulated import BROADCAST_REFUSAL
             raise DeviceStateError(BROADCAST_REFUSAL)
         return self.transport.request(self.unit, function, payload,
                                       exact_payload, timeout, reply_shape)

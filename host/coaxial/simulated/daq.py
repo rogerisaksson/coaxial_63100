@@ -12,6 +12,7 @@ from .system import UNITS
 from .. import angle, imu
 from typing import cast
 from typing import Any
+from ..clock import Clock
 
 
 #: The capture ring's sources the stand-in fills, by bit.
@@ -766,7 +767,6 @@ class SimulatedClock:
                 'now': self._cycles(), 'sysclk_hz': self.NOMINAL_HZ}
 
     def probe(self, rounds=16):
-        from ..clock import Clock
         return Clock.probe(cast(Clock, self), rounds=rounds)
     def sync(self, seconds=2.0, rounds=8, reference='utc', ntp_server=None):
         from ..clock import Clock, NTP_SERVER

@@ -20,6 +20,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rich.console import Console                           # noqa: E402
 
 from screen import THEME                                   # noqa: E402
+import menu                                                # noqa: E402
+from coaxial import orientation                            # noqa: E402
+from coaxial import dial                                   # noqa: E402
+from coaxial import thermalmap                             # noqa: E402
+from coaxial import wireframe                              # noqa: E402
 
 
 def timed(fn, seconds=1.0):
@@ -34,23 +39,19 @@ def timed(fn, seconds=1.0):
 
 
 def surface_menu():
-    import menu
     return lambda: menu.compose('COM4', 1, time.perf_counter())
 
 
 def surface_attitude():
-    from coaxial import orientation
     q = (0.1, 0.2, 0.05, 0.97)
     return lambda: orientation.render(q, 58, 18, toon=True, colour=True)
 
 
 def surface_protractor():
-    from coaxial import dial
     return lambda: dial.render(215.0, 64, 23, field=380, colour=True)
 
 
 def surface_thermalmap():
-    from coaxial import thermalmap
     hot = dict((n, 40.0) for n in
                ('driver_u', 'driver_v', 'driver_w', 'phase_u', 'phase_v',
                 'phase_w', 'mcu', 'regulators', 'afe'))
@@ -59,7 +60,6 @@ def surface_thermalmap():
 
 
 def surface_wireframe():
-    from coaxial import wireframe
     q = (0.1, 0.2, 0.05, 0.97)
     return lambda: wireframe.render(q, 62, 22)
 

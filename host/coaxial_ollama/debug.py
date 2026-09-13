@@ -17,6 +17,7 @@ tools for a question asked sixty times an afternoon. What makes it cheap:
 Turn cost is tracked, not printed - `/cost`, and `--budget` to stop. Printing
 it every turn was noise between the question and its answer.
 """
+import find_board
 import json
 import os
 import re
@@ -24,6 +25,10 @@ import sys
 import textwrap
 import threading
 from importlib import import_module
+from coaxial.simulated import bus_nodes
+from .client import Ollama, OllamaError
+from .capability import choose, probe
+from coaxial_mcp.session import open_session
 
 # host/ on the path: this file's own directory's parent, so it does
 # not matter what the working directory is or what any directory
@@ -837,7 +842,6 @@ class Chat:
             return 'every node on %s' % (bus or 'the bus')
         where = None
         try:
-            from coaxial.simulated import bus_nodes
             where = ((bus_nodes(bus).get(unit) or (None, None, None))[2]
                      if bus else None)
         except Exception:                                     # noqa: BLE001
@@ -1313,7 +1317,6 @@ class Chat:
         nothing to another, and `detail=auto` is resolved from the tag, so
         the tool schemas are rebuilt too.
         """
-        from .client import Ollama, OllamaError
 
         tag, extra = rest.strip(), {}
         if not tag:
@@ -1324,7 +1327,6 @@ class Chat:
             return 'model: %s (%d tok window). Available: %s' % (
                 self.client.model, self.client.options.get('num_ctx', 0), have)
         if tag == 'auto':
-            from .capability import choose, probe
             picked = choose(probe())
             tag, extra = picked.tag, dict(picked.options or {})
         if tag == self.client.model and not extra:
@@ -1428,7 +1430,6 @@ class Chat:
         tag is rebuilt from the same origin the factory returns, so what the
         screen says and what the tools talk to cannot drift apart.
         """
-        from coaxial_mcp.session import open_session
 
         want = rest.strip().lower()
         if not want:
@@ -1464,7 +1465,6 @@ class Chat:
                 session.close()
             except Exception:                                 # noqa: BLE001
                 pass
-            import find_board
             seen = ', '.join(find_board.list_ports())
             here = (self.origin or ('unknown',))[0]
             return ('board: nothing answered on %s - still on %s'

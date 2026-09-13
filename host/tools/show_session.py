@@ -37,6 +37,10 @@ import screen as _screen                                   # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 from coaxial import Coaxial63100, angle, scaling, thermal  # noqa: E402
+from screen import hud                                     # noqa: E402
+from coaxial import desk, gauges                           # noqa: E402
+from screen import panels_of                               # noqa: E402
+from screen import run_view, stage                         # noqa: E402
 
 #: Samples per channel in the dash's analog read. 64 costs 88 ms of round
 #: trip against a 500 ms frame; 16 costs 30 and the dash is a glance, not a
@@ -350,7 +354,6 @@ def block(title, rows):
     The name stays `block` so the six builders below read unchanged; what
     a block IS comes from the stage now, like every other view.
     """
-    from screen import hud
     return hud(title, [row.strip() if isinstance(row, str) else row
                        for row in rows])
 
@@ -368,7 +371,6 @@ def adc_block(got):
     if table is None:
         return block('ANALOG', ['  did not answer'])
 
-    from coaxial import desk, gauges
 
     params = got.get('scaling')
     rows = []
@@ -607,7 +609,6 @@ def act_on(session, typed, by_key):
 def frame(session, console, note):
     """The dashboard on the stage: dash strip, six instruments, key bar."""
 
-    from screen import panels_of
 
     got = snapshot(session)
     rows = [[Text.from_ansi(dash(session, got))],
@@ -855,17 +856,18 @@ def main():
     # armed stage's drivers before the first frame, which is the one load
     # this dashboard exists to watch.
     from screen import boot
-    with boot('LINKING SESSION') as ready,          Coaxial63100(port=a.port, simulated_device=a.simulated,
-                      power_afe=False) as rig:
+    with (boot('LINKING SESSION') as ready,
+          Coaxial63100(port=a.port, simulated_device=a.simulated,
+                       power_afe=False) as rig):
         ready()
         say('ok' if rig.origin.real else 'warn', 'link', rig.origin.label)
         session_afe_found = None
-        stage = steady(rig.gates.state)
+        gates = steady(rig.gates.state)
         rail = steady(rig.board.afe.state)
         if rail is not None:
             session_afe_found = rail['on']
         if (rail is not None and not rail['on']
-                and stage is not None and not stage['pwm_enabled']):
+                and gates is not None and not gates['pwm_enabled']):
             # The resting state is the rail UP - values on the dash from
             # the first frame - and A toggles it. Never over a run: a
             # stage armed by another session keeps the rail where the run
@@ -883,7 +885,6 @@ def main():
         # leaves the box at 'none asked for', not the session dead.
         imu_started = rail is not None and _start_imu(rig)
 
-        from screen import run_view, stage
 
         dashboard = stage()
         console = dashboard.is_terminal
