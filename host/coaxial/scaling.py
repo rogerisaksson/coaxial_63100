@@ -7,6 +7,12 @@ new firmware.
 """
 import math
 
+#: The converter's 16-bit result: the full scale of codes, and the half of
+#: it that is a differential reading's span.
+ADC_CODES = 65536.0
+ADC_HALF_CODES = 32768.0
+KELVIN_AT_ZERO_C = 273.15
+
 
 class NtcParams:
     """A thermistor and the divider it sits in.
@@ -21,7 +27,7 @@ class NtcParams:
     """
 
     def __init__(self, r25=10000.0, beta=3380.0, r_fixed=10000.0,
-                 t25_kelvin=298.15, high_side=True, name=None):
+                 t25_kelvin=KELVIN_AT_ZERO_C + 25.0, high_side=True, name=None):
         self.r25 = r25
         self.beta = beta
         self.r_fixed = r_fixed
@@ -34,7 +40,7 @@ class NtcParams:
 
     def resistance(self, raw):
         """Thermistor resistance in ohms, from a single-ended raw code."""
-        fraction = raw / 65536.0
+        fraction = raw / ADC_CODES
         if not 0.0 < fraction < 1.0:
             raise ValueError('raw %r sits at a divider rail; the resistance is '
                              'not recoverable there' % (raw,))
@@ -46,7 +52,7 @@ class NtcParams:
         """Temperature by the B-parameter form of the Steinhart-Hart equation."""
         ohms = self.resistance(raw)
         inverse = 1.0 / self.t25_kelvin + math.log(ohms / self.r25) / self.beta
-        return 1.0 / inverse - 273.15
+        return 1.0 / inverse - KELVIN_AT_ZERO_C
 
 
 class DividerParams:
@@ -74,7 +80,7 @@ class DividerParams:
         return (self.r_top + self.r_bottom) / self.r_bottom
 
     def volts_at_pin(self, raw):
-        return raw / 65536.0 * self.vref
+        return raw / ADC_CODES * self.vref
 
     def volts(self, raw):
         return self.volts_at_pin(raw) * self.scale + self.offset_v
@@ -127,11 +133,11 @@ class ShuntParams:
 
 def differential_volts(raw, vref=3.3):
     """A differential code is offset binary already centred by the firmware."""
-    return raw / 32768.0 * vref
+    return raw / ADC_HALF_CODES * vref
 
 
 def single_ended_volts(raw, vref=3.3):
-    return raw / 65536.0 * vref
+    return raw / ADC_CODES * vref
 
 
 # This board as built - the FALLBACK, for a caller with no board to ask.
@@ -264,5 +270,5 @@ def converter(unit, differential=False, vref=3.3, signal=None, params=None):
 
     if params:
         vref = p['dcbus'].vref
-    full = 32768.0 if differential else 65536.0
+    full = ADC_HALF_CODES if differential else ADC_CODES
     return lambda code: code / full * vref

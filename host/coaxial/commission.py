@@ -25,8 +25,13 @@ import time
 from . import sensorless
 from .errors import RigError
 
-from .sensorless import TWO_PI
+from .sensorless import RAD_S_PER_RPM, TWO_PI
 from .drive import to_wire
+
+#: The dead-time fit's search: a grid this many steps a side over each
+#: span, and a second pass this far either side of the first's best.
+GRID_STEPS = 40
+REFINE = 0.3
 
 PHASES = ('Phase U', 'Phase V', 'Phase W')
 
@@ -56,13 +61,13 @@ def _fit_deadtime(points):
     best = (float('inf'), 0.0, 0.0, 0.0)
     for pass_ in range(2):
         span_v = (0.0, 2.0 * v_top + 0.1) if pass_ == 0 else (
-            max(0.0, best[1] * 0.7), best[1] * 1.3 + 1e-3)
+            max(0.0, best[1] * (1.0 - REFINE)), best[1] * (1.0 + REFINE) + 1e-3)
         span_k = (0.02, i_top) if pass_ == 0 else (
-            max(0.01, best[2] * 0.7), best[2] * 1.3)
-        for a in range(41):
-            v_dt = span_v[0] + (span_v[1] - span_v[0]) * a / 40.0
-            for b in range(41):
-                i_knee = span_k[0] + (span_k[1] - span_k[0]) * b / 40.0
+            max(0.01, best[2] * (1.0 - REFINE)), best[2] * (1.0 + REFINE))
+        for a in range(GRID_STEPS + 1):
+            v_dt = span_v[0] + (span_v[1] - span_v[0]) * a / GRID_STEPS
+            for b in range(GRID_STEPS + 1):
+                i_knee = span_k[0] + (span_k[1] - span_k[0]) * b / GRID_STEPS
                 err, r = cost(v_dt, i_knee)
                 if err < best[0]:
                     best = (err, v_dt, i_knee, r)
@@ -122,7 +127,8 @@ class Commissioning:
         rows = {r['signal']: r for r in
                 self.rig.board.analog.read_all(nr_of_samples=16)['channels']}
         row = rows.get('Vgate')
-        volts = row['volts_at_pin'] * 6.7 if row else None
+        scale = self.rig.board.analog.scaling()['vgate'].scale
+        volts = row['volts_at_pin'] * scale if row else None
         return {'volts': volts, 'powered': volts is not None and volts > GATE_UVLO_V}
 
     def _stage(self):
@@ -578,7 +584,7 @@ class Commissioning:
             d.get('method') == 'injection', c.get('snr_db', -100.0), min_pct,
             (g.get('loop') or {}).get('bw_hz', 0.0),
             v.get('sigma_theta_deg', float('nan')),
-            100.0 * (v.get('omega_hat', 0.0) / (TWO_PI / 60.0)
+            100.0 * (v.get('omega_hat', 0.0) / RAD_S_PER_RPM
                      / (self._known()['pole_pairs'] or 1.0)) / self.rated_rpm
             if self.rated_rpm else float('nan'))
         return {'line': line, 'results': r}

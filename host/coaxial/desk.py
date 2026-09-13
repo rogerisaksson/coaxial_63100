@@ -29,6 +29,7 @@ rather than per second, so a test drives it without a clock.
 from . import ansi
 from . import machine
 from . import gauges
+from .scaling import ADC_CODES, ADC_HALF_CODES
 
 #: Columns of bar. Wide, because the bar is the only part of a row that a
 #: reader scans rather than reads.
@@ -89,7 +90,7 @@ def fraction(row):
 
 
 def _at(row, code):
-    divisor = 32768.0 if row['differential'] else 65536.0
+    divisor = ADC_HALF_CODES if row['differential'] else ADC_CODES
     return max(-1.0, min(1.0, code / divisor))
 
 

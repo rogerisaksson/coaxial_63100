@@ -225,8 +225,9 @@ class SimulatedThermal:
         self._base = copy.deepcopy(thermal.CFG)
         self._base['capacity']['winding'] = self.WINDING_J_PER_K
         self._base['edges'][thermal.EDGE_WINDING_STATOR] = \
-            0.25 * self.WINDING_K_PER_W
-        self._base['to_ambient']['stator'] = 0.75 * self.WINDING_K_PER_W
+            thermal.WINDING_INTO_IRON * self.WINDING_K_PER_W
+        self._base['to_ambient']['stator'] = \
+            (1.0 - thermal.WINDING_INTO_IRON) * self.WINDING_K_PER_W
         self._base['ntc_sees'] = thermal.NTC_SEES_DRIVERS
         self._base['ntc_tau_s'] = thermal.NTC_TAU_S
         # THE GROUND TRUTH: a second board, the base with a situation laid
@@ -858,8 +859,10 @@ class SimulatedThermal:
         self.WINDING_K_PER_W = float(k_per_w)
         self.WINDING_J_PER_K = float(j_per_k)
         self._cfg['capacity']['winding'] = float(j_per_k)
-        self._cfg['edges'][thermal.EDGE_WINDING_STATOR] = 0.25 * float(k_per_w)
-        self._cfg['to_ambient']['stator'] = 0.75 * float(k_per_w)
+        self._cfg['edges'][thermal.EDGE_WINDING_STATOR] = \
+            thermal.WINDING_INTO_IRON * float(k_per_w)
+        self._cfg['to_ambient']['stator'] = \
+            (1.0 - thermal.WINDING_INTO_IRON) * float(k_per_w)
         return True
 
     def set_node(self, node, to_board, capacity):

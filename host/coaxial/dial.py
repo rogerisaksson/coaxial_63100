@@ -34,6 +34,7 @@ import math
 from . import angle
 from . import ansi
 from .ascii3d import CELL_ASPECT
+from .scaling import KELVIN_AT_ZERO_C
 from .raster import (BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y,
                      SUBDOT, covered)
 
@@ -470,7 +471,7 @@ def instrument(degrees, field, kelvin, width=58, height=21,
     face = '\n'.join([render(degrees, width, height, field, aspect=aspect,
                              colour=colour),
                       ansi.paint(foot, INK[NEEDLE]) if colour else foot])
-    celsius = (kelvin or 273.15) - 273.15
+    celsius = (kelvin or KELVIN_AT_ZERO_C) - KELVIN_AT_ZERO_C
     left = scale(celsius, DIE_RANGE, height, DIE_TICKS, 'DIE',
                  '%.1f C' % celsius, die_ink, 'left', colour=colour)
     right = scale(field or 0, FIELD_RANGE, height, FIELD_TICKS, 'FIELD',

@@ -4,6 +4,19 @@ import math
 import random
 import time
 
+from ..scaling import ADC_CODES
+
+#: The stand-in's clock, as the board reports it: 475 MHz, the cycle
+#: counter at that rate, HCLK at half.
+SYSCLK_HZ = 475000000
+TICKS_PER_US = SYSCLK_HZ // 1000000
+#: The board's record ring (board_limits.h) and the most sweeps a record
+#: may accumulate before its sum overflows (LIVE_MAX_ADDITIONS).
+RING_BYTES = 448 * 1024
+ACCUMULATE_MAX = 32767
+#: A 32-bit counter's wrap.
+MASK32 = 0xFFFFFFFF
+
 
 CHANNELS = [
     {'index': 0, 'adc': 3, 'channel': 1, 'pin': 'PC3_C/PC2_C',
@@ -51,7 +64,7 @@ NOMINAL = {0: 1400.0, 1: -8030.0, 2: 360.0, 3: 1010.0, 4: 41000.0,
 #: drive reported 24.0, the DAQ's modulation index divided by 31.0 and
 #: the DC bus channel read 24.8, and an identification off a recorded
 #: frame folded the disagreement into every constant it recovered.
-DCBUS_V = NOMINAL[5] * 78.15 / 65536.0
+DCBUS_V = NOMINAL[5] * 78.15 / ADC_CODES
 DRIFT = {0: 40.0, 1: 60.0, 2: 40.0, 3: 5.0, 4: 800.0, 5: 500.0, 6: 400.0,
          7: 30.0, 8: 20.0, 9: 60.0}
 

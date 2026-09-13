@@ -6,13 +6,19 @@ import time
 
 from ..acquisition import Acquisition
 from ..errors import RigError
-from .values import (AMPS_PER_CODE, CHANNELS, DCBUS_V, NOMINAL, PHASE_LEG,
+from .values import (ACCUMULATE_MAX, AMPS_PER_CODE, CHANNELS, DCBUS_V, MASK32,
+                     NOMINAL, PHASE_LEG, RING_BYTES, SYSCLK_HZ, TICKS_PER_US,
                      PHASE_STEP, _sweep, phase_codes)
 from .system import UNITS
 from .. import angle, imu
 from typing import cast
 from typing import Any
 from ..clock import Clock
+
+#: What one read answers, in bytes of records, and the share of the line
+#: rate the stand-in quotes as its ceiling.
+REPLY_ROOM = 240
+LINE_SHARE_PERCENT = 75
 
 
 #: The capture ring's sources the stand-in fills, by bit.
@@ -59,7 +65,7 @@ class SimulatedCapture:
                          -650 + random.randint(-60, 60), 1385),
                      1: (24442, 8, 32, 0),
                      2: (random.randint(-16384, 16384),) * 4}[src]
-                self._pending.append({'at': self._at & 0xFFFFFFFF,
+                self._pending.append({'at': self._at & MASK32,
                                       'source': ('phases', 'angle', 'imu')[src],
                                       'seq': self._seq[src] & 0xFF,
                                       'v': tuple(v)})
@@ -383,7 +389,7 @@ class SimulatedDaq(Acquisition):
         # DAQ_BYTES, and the board's number: 16384 was the ring before it
         # moved into the AXI SRAM, and a stand-in quoting the old one
         # reports a capacity no host would ever see.
-        capacity = (448 * 1024) // max(1, self._stride())
+        capacity = RING_BYTES // max(1, self._stride())
         return {'running': self._running, 'done': self._done,
                 'lost_power': False,
                 'stride': self._stride(), 'fields': len(self._order),
@@ -396,7 +402,7 @@ class SimulatedDaq(Acquisition):
                 # against this stand-in's line. Missing here until now,
                 # so a view asking what the link carries got nothing and
                 # fell back to the frame rate.
-                'max_rate_hz': int(((self.baud // 10) * 75 // 100)
+                'max_rate_hz': int(((self.baud // 10) * LINE_SHARE_PERCENT // 100)
                                    // max(1, self._stride())),
                 'sensors_available': (1 << len(self.SENSORS)) - 1,
                 'sensors_supported': True,
@@ -575,7 +581,7 @@ class SimulatedDaq(Acquisition):
             return cfg['accumulate']
         window_s = (cfg['interval_us'] or 0) / 1e6
         sweeps = self.LOOP_HZ / max(1, fields) * window_s
-        return max(1, min(32767, int(sweeps)))
+        return max(1, min(ACCUMULATE_MAX, int(sweeps)))
 
     def _pace(self, n, step_us):
         """How many of the `n` records a read may answer, and how far apart
@@ -615,7 +621,7 @@ class SimulatedDaq(Acquisition):
             return []
         fields = (layout or self.layout())['fields']
         stride = 4 + 4 * len(fields)
-        room = max(1, 240 // stride)
+        room = max(1, REPLY_ROOM // stride)
         n = min(int(want) or room, room)
         cfg = self._configured()
         left = cfg['records'] - self._produced if cfg['records'] else n
@@ -631,7 +637,7 @@ class SimulatedDaq(Acquisition):
         n, step_us = self._pace(n, self._period_us())
         out = []
         for _ in range(n):
-            self._at = (self._at + int(step_us * 475)) & 0xFFFFFFFF
+            self._at = (self._at + int(step_us * TICKS_PER_US)) & MASK32
             took = self._samples_per_record(len(fields))
             rec = {'at': self._at, 'samples': took}
             # THE SUM, NOT THE SAMPLES. Drawing `took` uniform noise
@@ -714,7 +720,7 @@ class SimulatedDaq(Acquisition):
                            '(simulated)' % timeout)
         layout = layout or self.layout()
         base = random.randint(8, 40)
-        self._at = (self._at + base * 9500) & 0xFFFFFFFF
+        self._at = (self._at + base * 9500) & MASK32
         out = {'first': self._at, 'last': self._at, 'sum': {}, 'count': {},
                'lowest': {}, 'highest': {}}
         for f in layout['fields']:
@@ -744,7 +750,7 @@ class SimulatedClock:
     could only come from a stand-in.
     """
 
-    NOMINAL_HZ = 475000000
+    NOMINAL_HZ = SYSCLK_HZ
     SKEW = 1 - 12e-6
 
     def __init__(self):

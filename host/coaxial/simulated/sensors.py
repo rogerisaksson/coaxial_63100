@@ -6,6 +6,7 @@ import time
 
 from .. import angle, imu
 from ..sensor import PolledSensor
+from ..scaling import KELVIN_AT_ZERO_C
 from .values import _tumble
 from typing import Any
 from ..imu import CHANNELS, decode
@@ -202,17 +203,17 @@ class SimulatedAngle(PolledSensor):
         return int(((time.monotonic() - self._at) / 12.0) * 4096.0) % 4096
 
     def _value(self, register):
-        if register == 0x20:
+        if register == angle.ANG:
             return 0x5000 | self._turn()
-        if register == 0x28:
+        if register == angle.TSEN:
             # The die sits on the board: its temperature is the thermal
             # stand-in's board node when the board wired one, else a
             # room's 296 K. Eighths of a kelvin, as the part counts.
             thermal = self.thermal
-            kelvin = (273.15 + thermal.state()['nodes']['board']
+            kelvin = (KELVIN_AT_ZERO_C + thermal.state()['nodes']['board']
                       if thermal is not None else 296.0)
             return 0xF000 | (int(kelvin * 8.0) & 0x0FFF)
-        if register == 0x2A:
+        if register == angle.FIELD:
             return 0xE000 | 380                # gauss, a magnet in place
         return 0x8000
 
@@ -227,10 +228,10 @@ class SimulatedAngle(PolledSensor):
                                                  '0x%02X' % self._reg),
             'value': value, 'crc': 0,
         }
-        if self._reg == 0x20:
+        if self._reg == angle.ANG:
             got['degrees'] = angle.degrees(value)
             got['flags'] = value >> 12
-        elif self._reg == 0x28:
+        elif self._reg == angle.TSEN:
             got['kelvin'] = angle.kelvin(value)
         return got
 

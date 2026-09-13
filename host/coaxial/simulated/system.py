@@ -2,7 +2,7 @@
 pins, parts) behind 0x6D, and the digital pins."""
 from ..errors import DeviceStateError
 from ..gpio import reserved_reason
-from .values import CHANNELS
+from .values import CHANNELS, SYSCLK_HZ, TICKS_PER_US
 
 
 # The same shape the firmware reports over command 0x6D, so a host driven
@@ -147,8 +147,8 @@ class SimulatedSystem:
                 {'name': 'flash checksum', 'status': 'info', 'value': 0}]
 
     def clock(self):
-        return {'sysclk_hz': 475000000, 'hclk_hz': 237500000,
-                'cycle_counter': 0, 'ticks_per_us': 475, 'source': 'PLL1',
+        return {'sysclk_hz': SYSCLK_HZ, 'hclk_hz': SYSCLK_HZ // 2,
+                'cycle_counter': 0, 'ticks_per_us': TICKS_PER_US, 'source': 'PLL1',
                 # PLL2 at 75 MHz through the ADCs' DIV2 prescaler.
                 'adc_hz': 37500000}
 

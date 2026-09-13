@@ -9,6 +9,7 @@ import time
 
 from ..errors import RigError
 from ..motor import BENCH_MOTOR, Motor
+from ..sensorless import HALF_SQRT3, TORQUE_FACTOR
 from .values import DCBUS_V, NOMINAL
 from typing import Callable, Optional
 from typing import Any
@@ -486,7 +487,7 @@ class SimulatedDrive:
         th = self._sp['theta']
         ia = iid * math.cos(th) - iq * math.sin(th)
         ib = iid * math.sin(th) + iq * math.cos(th)
-        return (ia, -0.5 * ia + 0.8660254 * ib, -0.5 * ia - 0.8660254 * ib)
+        return (ia, -0.5 * ia + HALF_SQRT3 * ib, -0.5 * ia - HALF_SQRT3 * ib)
 
     def _pickup(self):
         """Switching pickup at the sample point: a bump mid-period, where a
@@ -647,10 +648,10 @@ class SimulatedDrive:
         # after a step as a stepper does, and slips a pole if the
         # spring is overpowered, which is what a stepper is.
         hold = self._mode == 'hold'
-        k_t = 1.5 * motor.p * motor.lam
+        k_t = TORQUE_FACTOR * motor.p * motor.lam
         i_mag = math.hypot(iid, iq)
         if not hold:
-            torque = 1.5 * motor.p * (motor.lam * iq
+            torque = TORQUE_FACTOR * motor.p * (motor.lam * iq
                                       + (ld - motor.lq) * iid * iq)
         acc = self._motor_acc + dt
         cmd = (self._sp['theta']
@@ -669,7 +670,7 @@ class SimulatedDrive:
         # where that step pumped the ring until a pole slipped.
         step = min(0.002, 0.1 * motor.j / max(motor.b, 1e-12))
         if hold and i_mag > 0.0:
-            spring = 1.5 * motor.p * motor.p * motor.lam * i_mag
+            spring = TORQUE_FACTOR * motor.p * motor.p * motor.lam * i_mag
             step = min(step, 0.05 * math.sqrt(motor.j / spring))
         # THE SUB-STEP IS FIXED and the remainder carried to the next
         # call. The symplectic step conserves a MODIFIED energy that

@@ -79,14 +79,28 @@ def back(number):
     return '\033[48;5;%dm' % number
 
 
+#: xterm-256: the sixteen named colours, then a 6 x 6 x 6 cube whose
+#: channel levels are 0 and 55 + 40 n, then a grey ramp from 8 in tens.
+CUBE_START = 16
+CUBE = 6
+CUBE_LEVEL_BASE, CUBE_LEVEL_STEP = 55, 40
+GREY_START = 232
+GREY_BASE, GREY_STEP = 8, 10
+#: SGR: the colour parameters this codec reads.
+SGR_FG, SGR_FG_BRIGHT, SGR_BG = range(30, 38), range(90, 98), range(40, 48)
+SGR_FG_EXTENDED, SGR_BG_EXTENDED = 38, 48
+SGR_FG_DEFAULT, SGR_BG_DEFAULT = 39, 49
+BRIGHT = 8       #: the bright eight follow the plain eight in the palette
+
+
 def rgb(number):
     """An xterm-256 cube or grey-ramp colour as (r, g, b)."""
-    if number >= 232:
-        grey = 8 + 10 * (number - 232)
+    if number >= GREY_START:
+        grey = GREY_BASE + GREY_STEP * (number - GREY_START)
         return (grey, grey, grey)
-    c = number - 16
-    return tuple(0 if v == 0 else 55 + 40 * v
-                 for v in (c // 36, (c // 6) % 6, c % 6))
+    c = number - CUBE_START
+    return tuple(0 if v == 0 else CUBE_LEVEL_BASE + CUBE_LEVEL_STEP * v
+                 for v in (c // (CUBE * CUBE), (c // CUBE) % CUBE, c % CUBE))
 
 
 #: Lower half block. A cell drawn with it carries two colours - foreground
@@ -265,19 +279,22 @@ def _step(codes, j, fg, bg):
     c = codes[j]
     if c == 0:
         return PLAIN, None, 1
-    if c in (38, 48) and j + 2 < len(codes) and codes[j + 1] == 5:
+    extended = (SGR_FG_EXTENDED, SGR_BG_EXTENDED)
+    if c in extended and j + 2 < len(codes) and codes[j + 1] == 5:
         colour = _colour(codes[j + 2])
-        return (colour, bg, 3) if c == 38 else (fg, colour, 3)
-    if c in (38, 48) and j + 4 < len(codes) and codes[j + 1] == 2:
+        return (colour, bg, 3) if c == SGR_FG_EXTENDED else (fg, colour, 3)
+    if c in extended and j + 4 < len(codes) and codes[j + 1] == 2:
         colour = tuple(codes[j + 2:j + 5])
-        return (colour, bg, 5) if c == 38 else (fg, colour, 5)
-    if 30 <= c <= 37 or 90 <= c <= 97:
-        return _colour(c - 30 if c < 90 else c - 82), bg, 1
-    if 40 <= c <= 47:
-        return fg, _colour(c - 40), 1
-    if c == 39:
+        return (colour, bg, 5) if c == SGR_FG_EXTENDED else (fg, colour, 5)
+    if c in SGR_FG:
+        return _colour(c - SGR_FG.start), bg, 1
+    if c in SGR_FG_BRIGHT:
+        return _colour(c - SGR_FG_BRIGHT.start + BRIGHT), bg, 1
+    if c in SGR_BG:
+        return fg, _colour(c - SGR_BG.start), 1
+    if c == SGR_FG_DEFAULT:
         return PLAIN, bg, 1
-    if c == 49:
+    if c == SGR_BG_DEFAULT:
         return fg, None, 1
     return fg, bg, 1
 

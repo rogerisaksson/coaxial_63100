@@ -19,6 +19,12 @@ noise at the estimator's bandwidth, 0 dB is a radian, useless.
 import math
 
 TWO_PI = 2.0 * math.pi
+#: One revolution a minute, in radians a second.
+RAD_S_PER_RPM = TWO_PI / 60.0
+#: The dq frame's torque factor - three halves, the power-invariant form.
+TORQUE_FACTOR = 1.5
+#: sin 60, as the firmware's drive_math.c rounds it.
+HALF_SQRT3 = 0.8660254
 
 #: chi-squared at p = 0.05 for 1..7 degrees of freedom, for Ljung-Box.
 CHI2_05 = (3.841, 5.991, 7.815, 9.488, 11.070, 12.592, 14.067)
@@ -185,7 +191,7 @@ def crossover(lam, r, i_max, v_dt_residual, r_uncertainty=0.1, margin=3.0,
     floor = v_dt_residual + r_uncertainty * r * i_max
     omega = margin * floor / lam if lam > 0.0 else float('inf')
     return {'floor_volts': floor, 'omega_e': omega,
-            'rpm': omega / TWO_PI / pole_pairs * 60.0}
+            'rpm': omega / pole_pairs / RAD_S_PER_RPM}
 
 
 def decide(snr_db, threshold_db=10.0):

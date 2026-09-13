@@ -22,7 +22,7 @@ import math
 import time
 
 from .errors import RigError
-from .sensorless import TWO_PI
+from .sensorless import RAD_S_PER_RPM, TWO_PI
 from .loop import Signals, SpeedLoop
 from .motor import Parameters, Propeller
 
@@ -350,7 +350,7 @@ class Velocity(_Mode):
     def rpm_now(self):
         """The observer's speed, mechanical rpm."""
         return (self.drive.state()['omega_hat'] / self.poles
-                * 60.0 / TWO_PI)
+                / RAD_S_PER_RPM)
 
     def rpm(self, target, seconds=1.5, accel_rpm_s=None, watch=None):
         """Ramp to `target` rpm and serve the loop for `seconds` after.
@@ -361,12 +361,12 @@ class Velocity(_Mode):
         logger, a mission's guard. Returns the rpm it settled at.
         """
         w_ref = self.bus.w_ref
-        w_target = float(target) * TWO_PI / 60.0
+        w_target = float(target) * RAD_S_PER_RPM
         if accel_rpm_s is None:
             # Reach the target in a third of the block, whole rpm terms.
-            accel_rpm_s = (abs(target - w_ref * 60.0 / TWO_PI) * 3.0
+            accel_rpm_s = (abs(target - w_ref / RAD_S_PER_RPM) * 3.0
                            / max(seconds, 0.1))
-        slew = accel_rpm_s * TWO_PI / 60.0
+        slew = accel_rpm_s * RAD_S_PER_RPM
         end = time.monotonic() + seconds
         last = time.monotonic()
         while time.monotonic() < end:

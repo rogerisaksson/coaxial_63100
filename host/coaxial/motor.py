@@ -16,7 +16,7 @@ came from.
 """
 import math
 
-from .sensorless import TWO_PI
+from .sensorless import HALF_SQRT3, TWO_PI
 
 
 def flux_from_kv(kv_rpm_per_volt, pole_pairs):
@@ -287,7 +287,7 @@ class Motor:
         c, s = math.cos(self.theta), math.sin(self.theta)
         ia = self.id * c - self.iq * s
         ib_ = self.id * s + self.iq * c
-        return (ia, -0.5 * ia + 0.8660254 * ib_, -0.5 * ia - 0.8660254 * ib_)
+        return (ia, -0.5 * ia + HALF_SQRT3 * ib_, -0.5 * ia - HALF_SQRT3 * ib_)
 
     def advance(self, duty, vdc, ts):
         """One PWM period at these duties - the average-voltage model."""

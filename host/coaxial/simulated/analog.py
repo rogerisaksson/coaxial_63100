@@ -7,6 +7,7 @@ import time
 from .. import protocol
 from ..calibration import CalibrationOps
 from ..errors import DeviceStateError
+from ..scaling import ADC_CODES, ADC_HALF_CODES
 from .values import (AMPS_PER_CODE, CHANNELS, DRIFT, NOMINAL, _spread,
                      _sweep, phase_codes)
 from .system import UNITS
@@ -109,7 +110,7 @@ class SimulatedAnalog:
                 # unpowered, a differential input sits at 0 and a
                 # single-ended one at mid-scale - measured on real hardware,
                 # not a rounder number picked to look plausible.
-                mean = 0.0 if meta['differential'] else 32768.0
+                mean = 0.0 if meta['differential'] else ADC_HALF_CODES
             chosen[index] = _spread(
                 meta, mean, self._afe.on,
                 swing if meta['signal'] in ('Phase U', 'Phase V', 'Phase W')
@@ -200,7 +201,7 @@ class SimulatedAnalog:
             row.update(stats)
             row['unit'] = UNITS.get(row['signal'])
             row['stddev_raw'] = 1.0
-            divisor = 32768.0 if row['differential'] else 65536.0
+            divisor = ADC_HALF_CODES if row['differential'] else ADC_CODES
             row['volts_at_pin'] = stats['mean_raw'] / divisor * vref
             rows.append(row)
 

@@ -1528,6 +1528,40 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   as numbers by design: the SHTP report field offsets, the report
   lengths, the log word counts, the RCC divider table. Build: 0
   warnings, flash 197 060 B; the scanner's literals 406 -> 370.
+* THE HOST LIBRARY'S SECOND ANSWERS, SAID ONCE (2026-09-13). The
+  scanner counts numeric literals inside functions - 927 across the
+  four packages, 500 in the library - and most are one of two kinds
+  that stay: a keyword default in a signature (an API's documented
+  default is a definition) and the stand-in's fixture values (a
+  hypothetical board's readings are a table). What went were the
+  conversions and the physics written out in more than one file. The
+  ADC's code scale - 65536 and 32768 - stood in scaling.py five times
+  and again in desk.py, the stand-in's analog front end twice and its
+  values: `ADC_CODES` and `ADC_HALF_CODES` in scaling.py, imported.
+  The kelvin offset stood in scaling, dial, thermal and the stand-in's
+  angle sensor: `KELVIN_AT_ZERO_C`. Rpm was `TWO_PI / 60.0` in motion
+  four times, in commission and in sensorless: `RAD_S_PER_RPM` beside
+  `TWO_PI`, with `TORQUE_FACTOR` (three halves) and `HALF_SQRT3` (as
+  drive_math.c rounds it) beside it, where the stand-in's drive and
+  the motor model each wrote them. The winding's quarter into the iron
+  was 0.25 and 0.75 in the stand-in twice over: `WINDING_INTO_IRON` in
+  thermal.py, the mirror of board_thermal.c's, and the stator's share
+  written as one minus it. THE ONE THAT WAS WRONG IN KIND: the
+  commissioning's gate-supply reading multiplied volts at the pin by
+  6.7 - the schematic's 57k/10k, a second copy of `VGATE_ONBOARD` and
+  deaf to the record's own divider (invariant 7) - it reads the
+  record's scale now. The stand-in's clock was 475 MHz in system.py
+  and 475 ticks a microsecond in daq.py twice: `SYSCLK_HZ` and
+  `TICKS_PER_US` in values.py, with `RING_BYTES`, `ACCUMULATE_MAX`
+  and `MASK32` for the ring, the sum's bound and the counter's wrap;
+  the angle stand-in's registers by angle.py's names. The commissioning
+  grid's 41 and 40.0 and the refine pass's 0.7 and 1.3 are
+  `GRID_STEPS` and `REFINE`; the ANSI codec's palette arithmetic and
+  SGR parameters are named ranges. Proof: structure 621, simulated
+  254, daq_api 75, sensorless 138, views 206, render 79, broker 33,
+  the offline gate, CI; the scanner 927 -> 849, the library 500 ->
+  422. LEFT, BY DESIGN: the rest are defaults and fixtures, and the
+  bench tools' 427 are a bench's parameters.
 
 ## The local model
 

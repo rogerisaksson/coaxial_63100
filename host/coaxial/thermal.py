@@ -51,6 +51,12 @@ state          dead     mcu  regulators  bridge   afe
 import math
 
 from . import inverter
+from .scaling import KELVIN_AT_ZERO_C
+
+SECONDS_PER_MINUTE = 60.0
+#: Of the winding's K/W, the share that is the edge into the iron; the rest
+#: is the iron's own air path - board_thermal.c's WINDING_INTO_IRON.
+WINDING_INTO_IRON = 0.25
 
 #: The room, assumed: 25 C on the bench's word, 2026-09-05 (it was 20).
 #: The board cannot read it itself; the stand-in starts every node here.
@@ -539,7 +545,7 @@ def net_flows(temps, power, cfg=None, ambient=AMBIENT, speed_rpm=0.0):
     rad = cfg.get('rad_board_stator', 0.0)
     if rad > 0.0:
         def bracket(a_c, b_c):
-            a, b = a_c + 273.15, b_c + 273.15
+            a, b = a_c + KELVIN_AT_ZERO_C, b_c + KELVIN_AT_ZERO_C
             return (a * a + b * b) * (a + b)
         room = bracket(26.85, 26.85)
         for n in LAMINATE:
@@ -591,7 +597,7 @@ def steady(power, cfg=CFG, ambient=AMBIENT, speed_rpm=0.0, rounds=4000):
 
 def tau_minutes(cfg=CFG):
     """The board's time constant. A run has to be several times it."""
-    return cfg['board_capacity'] * cfg['board_to_ambient'] / 60.0
+    return cfg['board_capacity'] * cfg['board_to_ambient'] / SECONDS_PER_MINUTE
 
 
 def settled_fraction(minutes, cfg=CFG):
