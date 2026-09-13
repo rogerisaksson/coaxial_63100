@@ -106,6 +106,30 @@ def is_cloud(model):
     return model.split(':')[-1] == 'cloud'
 
 
+def _stay_local(host, model):
+    """Refuse a host or a tag that would send the prompt off this machine."""
+    if not is_local(host):
+        raise OllamaError(
+            'host %r is not this machine. The bench runs against a local'
+            ' daemon; pass remote_ok=True (--allow-remote) to mean it.'
+            % (host,))
+    if is_cloud(model):
+        raise OllamaError(
+            'model %r is an ollama cloud tag: the prompt, and every'
+            ' register value in it, would be sent off this machine.'
+            ' Pull a local tag, or pass --allow-remote.' % (model,))
+
+
+def _freed_note(freed, reloaded):
+    """What the first retry after an out-of-memory managed to free."""
+    if freed:
+        return 'out of memory: freed %s, reloading' % ', '.join(freed)
+    if reloaded:
+        return ('out of memory: nothing else was resident, so this model '
+                'was unloaded and its caches with it - reloading')
+    return 'out of memory: nothing to free'
+
+
 class Ollama:
     """`/api/chat` over urllib. Refuses cloud tags and non-loopback hosts,
     retries a crashed runner, and climbs a ladder of its own when the
@@ -117,16 +141,7 @@ class Ollama:
                  fmt=None, num_gpu=None):
         self.remote_ok = remote_ok
         if not remote_ok:
-            if not is_local(host):
-                raise OllamaError(
-                    'host %r is not this machine. The bench runs against a local'
-                    ' daemon; pass remote_ok=True (--allow-remote) to mean it.'
-                    % (host,))
-            if is_cloud(model):
-                raise OllamaError(
-                    'model %r is an ollama cloud tag: the prompt, and every'
-                    ' register value in it, would be sent off this machine.'
-                    ' Pull a local tag, or pass --allow-remote.' % (model,))
+            _stay_local(host, model)
         self.model = model
         self.host = host.rstrip('/')
         self.options = {'temperature': temperature, 'num_ctx': num_ctx,
@@ -303,17 +318,7 @@ class Ollama:
         why the window is last and why it says so.
         """
         if attempt == 0:
-            freed = self.free_others()
-            reloaded = self.flush()
-            if freed:
-                self.notes.append(
-                    'out of memory: freed %s, reloading' % ', '.join(freed))
-            elif reloaded:
-                self.notes.append(
-                    'out of memory: nothing else was resident, so this model '
-                    'was unloaded and its caches with it - reloading')
-            else:
-                self.notes.append('out of memory: nothing to free')
+            self.notes.append(_freed_note(self.free_others(), self.flush()))
             return True
         shrunk = self._shrink_context()
         if not shrunk:

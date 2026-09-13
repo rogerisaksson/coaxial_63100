@@ -91,12 +91,7 @@ class Machine(object):
                 'system': self.system, 'notes': self.notes}
 
     def line(self):
-        gpu = 'no GPU'
-        if self.gpus:
-            first = self.gpus[0]
-            gpu = '%s %.0f GB' % (first['name'], first['vram_gb'])
-            if len(self.gpus) > 1:
-                gpu += ' (+%d more)' % (len(self.gpus) - 1)
+        gpu = _gpu_words(self.gpus)
         load = ''
         if self.cpu_busy is not None:
             load = ' (%.0f%% busy)' % self.cpu_busy
@@ -122,6 +117,29 @@ class Choice(object):
 
 # ---- measuring the machine -------------------------------------------------
 
+def _gpu_words(gpus):
+    """The first card and its memory, and how many more there are."""
+    if not gpus:
+        return 'no GPU'
+    first = gpus[0]
+    more = ' (+%d more)' % (len(gpus) - 1) if len(gpus) > 1 else ''
+    return '%s %.0f GB%s' % (first['name'], first['vram_gb'], more)
+
+
+def _windows_cores():
+    """Physical cores off WMI, or None when PowerShell will not say."""
+    try:
+        out = subprocess.check_output(
+            ['powershell', '-NoProfile', '-Command',
+             '(Get-CimInstance Win32_Processor | '
+             'Measure-Object -Property NumberOfCores -Sum).Sum'],
+            stderr=subprocess.DEVNULL, universal_newlines=True, timeout=30)
+        value = int(out.strip())
+        return value if value > 0 else None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
 def _cpu():
     """Physical cores if the OS will say, logical either way.
 
@@ -130,41 +148,35 @@ def _cpu():
     threading recommendation nonsense.
     """
     threads = os.cpu_count() or 1
-    cores = threads
-    note = 'os.cpu_count'
-    if platform.system() == 'Windows':
-        try:
-            out = subprocess.check_output(
-                ['powershell', '-NoProfile', '-Command',
-                 '(Get-CimInstance Win32_Processor | '
-                 'Measure-Object -Property NumberOfCores -Sum).Sum'],
-                stderr=subprocess.DEVNULL, universal_newlines=True, timeout=30)
-            value = int(out.strip())
-            if value > 0:
-                cores, note = value, 'Win32_Processor.NumberOfCores'
-        except (OSError, ValueError, subprocess.SubprocessError):
-            pass
-    return cores, threads, note
+    physical = _windows_cores() if platform.system() == 'Windows' else None
+    if physical is None:
+        return threads, threads, 'os.cpu_count'
+    return physical, threads, 'Win32_Processor.NumberOfCores'
+
+
+def _windows_ram():
+    """Installed and available memory in GB off GlobalMemoryStatusEx."""
+    class Status(ctypes.Structure):
+        _fields_ = [('dwLength', ctypes.c_ulong),
+                    ('dwMemoryLoad', ctypes.c_ulong),
+                    ('ullTotalPhys', ctypes.c_ulonglong),
+                    ('ullAvailPhys', ctypes.c_ulonglong),
+                    ('ullTotalPageFile', ctypes.c_ulonglong),
+                    ('ullAvailPageFile', ctypes.c_ulonglong),
+                    ('ullTotalVirtual', ctypes.c_ulonglong),
+                    ('ullAvailVirtual', ctypes.c_ulonglong),
+                    ('ullAvailExtendedVirtual', ctypes.c_ulonglong)]
+    status = Status()
+    status.dwLength = ctypes.sizeof(Status)
+    if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+        return (status.ullTotalPhys / float(2 ** 30),
+                status.ullAvailPhys / float(2 ** 30), 'GlobalMemoryStatusEx')
+    return 0.0, 0.0, 'GlobalMemoryStatusEx failed'
 
 
 def _ram_gb():
     if platform.system() == 'Windows':
-        class Status(ctypes.Structure):
-            _fields_ = [('dwLength', ctypes.c_ulong),
-                        ('dwMemoryLoad', ctypes.c_ulong),
-                        ('ullTotalPhys', ctypes.c_ulonglong),
-                        ('ullAvailPhys', ctypes.c_ulonglong),
-                        ('ullTotalPageFile', ctypes.c_ulonglong),
-                        ('ullAvailPageFile', ctypes.c_ulonglong),
-                        ('ullTotalVirtual', ctypes.c_ulonglong),
-                        ('ullAvailVirtual', ctypes.c_ulonglong),
-                        ('ullAvailExtendedVirtual', ctypes.c_ulonglong)]
-        status = Status()
-        status.dwLength = ctypes.sizeof(Status)
-        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
-            return (status.ullTotalPhys / float(2 ** 30),
-                    status.ullAvailPhys / float(2 ** 30), 'GlobalMemoryStatusEx')
-        return 0.0, 0.0, 'GlobalMemoryStatusEx failed'
+        return _windows_ram()
     sysconf = getattr(os, 'sysconf', None)         # POSIX only
     try:
         if sysconf is None:
@@ -180,6 +192,17 @@ def _ram_gb():
         return 0.0, 0.0, 'unknown'
 
 
+def _posix_busy():
+    """The one-minute load average as a share of the cores, or None."""
+    loadavg = getattr(os, 'getloadavg', None)     # POSIX only
+    if loadavg is None:
+        return None
+    try:
+        return min(100.0, 100.0 * loadavg()[0] / (os.cpu_count() or 1))
+    except OSError:
+        return None
+
+
 def _cpu_busy():
     """How much of the machine is already spoken for, as a percentage.
 
@@ -190,13 +213,7 @@ def _cpu_busy():
     this file was measured on an idle machine.
     """
     if platform.system() != 'Windows':
-        try:
-            loadavg = getattr(os, 'getloadavg', None)     # POSIX only
-            if loadavg is None:
-                raise AttributeError('no getloadavg')
-            return min(100.0, 100.0 * loadavg()[0] / (os.cpu_count() or 1))
-        except (OSError, AttributeError):
-            return None
+        return _posix_busy()
     try:
         out = subprocess.check_output(
             ['powershell', '-NoProfile', '-Command',
@@ -408,27 +425,8 @@ def choose(machine, prefer='speed', reserve_gb=None, catalogue=None):
     ram = machine.ram_free_gb or machine.ram_gb
     fits = [e for e in catalogue if e['gb'] <= budget and e['ram_gb'] <= ram]
     if fits:
-        best = max(fits, key=lambda e: e['gb'])
-        why = ('%.0f GB card with %.1f GB already on it, %.1f GB held back for '
-               'the desktop, so %.1f GB to spend: %s fits whole and runs '
-               'entirely on the GPU'
-               % (vram, machine.vram_used_gb, reserve_gb, budget, best['tag']))
-        choice = Choice(best['tag'], {}, why, entry=best)
-        if prefer != 'capability':
-            return choice
-
-        # Capability: is there a bigger one that RAM can hold, hybrid?
-        bigger = [e for e in catalogue
-                  if e['gb'] > best['gb'] and e['ram_gb'] <= machine.ram_gb]
-        if not bigger:
-            choice.warnings.append(
-                'nothing larger fits this machine either way; speed and '
-                'capability pick the same tag here')
-            return choice
-        step = min(bigger, key=lambda e: e['gb'])
-        return _hybrid(step, budget, machine, vram, reserve_gb, [
-            '%s would fit whole and run about five times faster per token; '
-            'this is the capability choice, not the quick one' % best['tag']])
+        return _fitting(fits, catalogue, machine, vram, reserve_gb, budget,
+                        prefer)
 
     # Nothing fits whole. Either hybrid, or the CPU.
     affordable = [e for e in catalogue if e['ram_gb'] <= ram]
@@ -453,6 +451,34 @@ def choose(machine, prefer='speed', reserve_gb=None, catalogue=None):
     return _hybrid(step, budget, machine, vram, reserve_gb, [])
 
 
+def _fitting(fits, catalogue, machine, vram, reserve_gb, budget, prefer):
+    """The largest model that fits the card whole - or, asked for
+    capability, the next size up that RAM can hold, hanging half out."""
+    best = max(fits, key=lambda e: e['gb'])
+    why = ('%.0f GB card with %.1f GB already on it, %.1f GB held back for '
+           'the desktop, so %.1f GB to spend: %s fits whole and runs '
+           'entirely on the GPU'
+           % (vram, machine.vram_used_gb, reserve_gb, budget, best['tag']))
+    choice = Choice(best['tag'], {}, why, entry=best)
+    if prefer != 'capability':
+        return choice
+    bigger = [e for e in catalogue
+              if e['gb'] > best['gb'] and e['ram_gb'] <= machine.ram_gb]
+    if not bigger:
+        choice.warnings.append(
+            'nothing larger fits this machine either way; speed and '
+            'capability pick the same tag here')
+        return choice
+    step = min(bigger, key=lambda e: e['gb'])
+    return _hybrid(step, budget, machine, vram, reserve_gb, [
+        '%s would fit whole and run about five times faster per token; '
+        'this is the capability choice, not the quick one' % best['tag']])
+
+
+#: Fewer cores than this and a CPU-only model is slow enough to notice.
+FEW_CORES = 8
+
+
 def _hybrid(entry, budget, machine, vram, reserve_gb, warnings):
     """As many layers on the card as the budget holds, the rest on the CPU."""
     per_layer = entry['gb'] / float(entry['layers'])
@@ -460,17 +486,17 @@ def _hybrid(entry, budget, machine, vram, reserve_gb, warnings):
     layers = max(0, min(entry['layers'], layers))
 
     warnings = list(warnings)
-    if layers == 0:
-        why = ('%.0f GB card leaves %.1f GB after the reserve, which holds no '
-               'part of %s worth having: it runs on the CPU'
-               % (vram, budget, entry['tag']))
-        if machine.cores < 8:
-            warnings.append('%d cores for a CPU-only model is going to be slow '
-                            'enough to notice on every question' % machine.cores)
-    else:
-        why = ('%s does not fit %.1f GB whole, so %d of its %d layers go on the '
-               'card and the rest on %d cores'
-               % (entry['tag'], budget, layers, entry['layers'], machine.cores))
+    cpu_only = layers == 0
+    why = (('%.0f GB card leaves %.1f GB after the reserve, which holds no '
+            'part of %s worth having: it runs on the CPU'
+            % (vram, budget, entry['tag'])) if cpu_only else
+           ('%s does not fit %.1f GB whole, so %d of its %d layers go on the '
+            'card and the rest on %d cores'
+            % (entry['tag'], budget, layers, entry['layers'], machine.cores)))
+    if cpu_only and machine.cores < FEW_CORES:
+        warnings.append('%d cores for a CPU-only model is going to be slow '
+                        'enough to notice on every question' % machine.cores)
+    if not cpu_only:
         warnings.append('a split model measured about five times slower per '
                         'token than one wholly on the GPU')
     # Every tok/s figure in this file was measured on an idle machine, and the

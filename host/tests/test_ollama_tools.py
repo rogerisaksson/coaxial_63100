@@ -217,7 +217,7 @@ def test_debug(report):
     report.check('and the question is what survives it',
                  stuffed.trim()[-1]['content'] == 'did it build?')
     report.check('/ctx shows the budget the turn is being fitted to',
-                 'of %d' % stuffed.prompt_budget() in stuffed.command('/ctx'),
+                 'of %d' % stuffed.prompt_budget() in (stuffed.command('/ctx') or ''),
                  stuffed.command('/ctx'))
 
     # The client evicts models and shrinks windows in silence, because a
@@ -244,10 +244,10 @@ def test_debug(report):
     # ---- the parts that cost nothing ----
     session = chat([])
     report.check('/py runs without asking the model',
-                 '6' in session.command('/py 2 * 3')
+                 '6' in (session.command('/py 2 * 3') or '')
                  and not session.client.prompts, 'no model call')
     report.check('/sh runs without asking the model',
-                 'exit=0' in session.command('/sh python -c "print(1)"'))
+                 'exit=0' in (session.command('/sh python -c "print(1)"') or ''))
     session.link_ok = False
     report.check('/reconnect reports success and flips the spinner back on',
                  session.command('/reconnect') == 'board: link is up'
@@ -262,17 +262,17 @@ def test_debug(report):
                  and broken.link_ok is False,
                  broken.command('/reconnect'))
     report.check('/tools reprices the turn',
-                 'tok/turn' in session.command('/tools read')
+                 'tok/turn' in (session.command('/tools read') or '')
                  and session.tool_names == debug.SETS['read'])
     report.check('/ctx explains where the tokens go',
-                 'of it tools' in session.command('/ctx'))
+                 'of it tools' in (session.command('/ctx') or ''))
     report.check('/clear is the cheapest command there is',
                  session.command('/clear') == 'context cleared'
                  and session.history == [])
     report.check('a plain line is not a command',
                  session.command('read the ntc') is None)
     report.check('an unknown command does not become a question',
-                 'no such command' in session.command('/nope'))
+                 'no such command' in (session.command('/nope') or ''))
     try:
         session.command('/q')
         report.check('/q leaves', False)
@@ -988,11 +988,11 @@ def test_detail(report):
                  small.toolbox.detail == detail.TERSE
                  and big.toolbox.detail == detail.FULL)
     report.check('/detail switches it live and reprices the turn',
-                 'terse' in small.command('/detail')
-                 and 'full' in small.command('/detail full')
+                 'terse' in (small.command('/detail') or '')
+                 and 'full' in (small.command('/detail full') or '')
                  and small.tool_cost() == big.tool_cost())
     report.check('/detail refuses a level that is not one',
-                 'auto' in small.command('/detail sideways')
+                 'auto' in (small.command('/detail sideways') or '')
                  and small.detail == detail.FULL)
 
     # The clipper, against text written for the purpose. Measured against a

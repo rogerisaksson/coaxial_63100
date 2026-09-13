@@ -192,6 +192,24 @@ class Scope:
                 'computed on the board; statistics covers the rest.'
                 % (have, ', '.join(names)))
 
+    def _board_hint(self):
+        """What `board` has, for a model that reached for a tool's name.
+
+        The tool names and the library names are not the same words:
+        `analog_read` is a tool, `board.analog.read_all` is the method
+        behind it, and a model that has been calling the first all session
+        reaches for it here too. Seen from the prompt.
+        """
+        board = self.namespace.get('board')
+        parts = sorted(n for n in dir(board or ())
+                       if not n.startswith('_')
+                       and not callable(getattr(board, n, None)))
+        if not parts:
+            return ''
+        return ('\nboard has: %s. The tool names are not the method names - '
+                'analog_read is a tool, board.analog.read_all() is the method.'
+                % ', '.join('board.' + p for p in parts))
+
     def run(self, code):
         """Execute `code`, return its output.
 
@@ -236,11 +254,10 @@ class Scope:
                     contextlib.redirect_stderr(buffer):
                 if tree.body:
                     exec(compile(tree, '<bench>', 'exec'), self.namespace)
-                if tail is not None:
-                    value = eval(compile(tail, '<bench>', 'eval'),
-                                 self.namespace)
-                    if value is not None:
-                        print(repr(value), file=buffer)
+                value = (None if tail is None else
+                         eval(compile(tail, '<bench>', 'eval'), self.namespace))
+                if value is not None:
+                    print(repr(value), file=buffer)
         except BaseException:                       # noqa: BLE001 - see docstring
             # Including KeyboardInterrupt and SystemExit: model code calling
             # sys.exit() must not take the runner down mid-plan.
@@ -254,19 +271,7 @@ class Scope:
                 etype, value, tb.tb_next if tb and tb.tb_next else tb,
                 limit=4)).strip())
             if isinstance(value, AttributeError) and 'board' in self.namespace:
-                # The tool names and the library names are not the same words:
-                # `analog_read` is a tool, `board.analog.read_all` is the
-                # method behind it, and a model that has been calling the first
-                # all session reaches for it here too. Seen from the prompt.
-                board = self.namespace.get('board')
-                parts = sorted(n for n in dir(board or ())
-                               if not n.startswith('_')
-                               and not callable(getattr(board, n, None)))
-                if parts:
-                    buffer.write('\nboard has: %s. The tool names are not the '
-                                 'method names - analog_read is a tool, '
-                                 'board.analog.read_all() is the method.'
-                                 % ', '.join('board.' + p for p in parts))
+                buffer.write(self._board_hint())
             if isinstance(value, ImportError):
                 # Say what is here, not only what is not. pandas and numpy
                 # are absent by decision - see host/requirements.txt - and a

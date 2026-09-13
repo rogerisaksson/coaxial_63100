@@ -989,6 +989,27 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   same raise each time - a replace that matched more than once and
   nothing said so; it is one check now. Structure, mcp, the four
   ollama suites that run offline, simulated: 0 failed; pyright 0.
+* THE MODEL RUNNER (2026-09-13): forty nested ifs across eight files
+  -> 0; `replies.json_objects` keeps its five, a character state
+  machine the structure suite exempts by name. The REPL's eighteen
+  slash commands were one ladder in `command`; they are one method
+  each and a table, `COMMANDS`, with the verb's aliases as keys. The
+  turn loop's stale-answer path is `_stale`, a fresh call `_fresh`,
+  the link's verdict `_note_link`; the prompt tag strips a side in
+  `_without_side`. The capability probe measures Windows cores and
+  RAM in their own functions, the POSIX load in its, the fitting
+  choice in `_fitting`; the CLI's auto model and one-shot question,
+  the client's local-only refusal and its out-of-memory note, the
+  pull's layer change, the runner's prose stop, the sandbox's board
+  hint and the tools' no-board answer and other-ports step are each
+  a named function. TRIED AND TAKEN OUT: the sandbox's evaluation as
+  a method of its own - the traceback then blamed sandbox.py, since
+  `tb_next` drops exactly one frame and the test that says so
+  failed; it is inlined flat instead. And `command()` had an
+  UNKNOWN return type to pyright before the table, which is why
+  seventeen test lines treating it as a string had never been
+  flagged; with the type known they were, and they hold the result
+  as a string now (`or ''`), the None contract unchanged.
 
 ## The local model
 

@@ -200,18 +200,23 @@ def attach(paths, chars, limit=INPUT_LIMIT):
     return clip_ends('\n'.join(blocks), limit)
 
 
+def _auto_model(args, gpu_layers):
+    """The tag this machine runs, and its layer split unless one was asked."""
+    from .capability import choose, probe
+    picked = choose(probe())
+    if gpu_layers is None:
+        gpu_layers = picked.options.get('num_gpu')
+    if not args.quiet:
+        print('model: %s  (%s)' % (picked.tag, picked.why))
+    return picked.tag, gpu_layers
+
+
 def build(args):
     from .tools import Toolbox
 
     tag, gpu_layers = args.model, args.num_gpu
     if args.model == 'auto':
-        from .capability import choose, probe
-        picked = choose(probe())
-        tag = picked.tag
-        if gpu_layers is None:
-            gpu_layers = picked.options.get('num_gpu')
-        if not args.quiet:
-            print('model: %s  (%s)' % (tag, picked.why))
+        tag, gpu_layers = _auto_model(args, gpu_layers)
 
     client = Ollama(tag, host=args.ollama_host,
                     num_ctx=args.num_ctx, num_predict=args.words,
@@ -380,6 +385,16 @@ def ensure_pulled(client, out, pull_with=None):
     return client.require_model()
 
 
+def _one_question(chat, question, extra, quiet):
+    """One question asked and answered on stdout, its cost on stderr."""
+    full_question = '\n'.join(filter(None, (question, extra)))
+    chat.toolbox.afe_mentioned = 'afe' in full_question.lower()
+    chat.toolbox.asked = full_question
+    print(chat.ask(full_question))
+    if not quiet:
+        print(chat.cost_line(), file=sys.stderr)
+
+
 def main(argv=None):
     args = parse(argv)
     # Before anything prints: every path out of here, including the error
@@ -445,13 +460,7 @@ def main(argv=None):
     extra = attach(args.file, args.chars) if args.file else ''
     try:
         if question and not args.repl:
-            full_question = '\n'.join(filter(None, (question, extra)))
-            chat.toolbox.afe_mentioned = 'afe' in full_question.lower()
-            chat.toolbox.asked = full_question
-            answer = chat.ask(full_question)
-            print(answer)
-            if not args.quiet:
-                print(chat.cost_line(), file=sys.stderr)
+            _one_question(chat, question, extra, args.quiet)
         else:
             repl(chat, hold=args.keep_alive is not None)
     except OllamaError as exc:

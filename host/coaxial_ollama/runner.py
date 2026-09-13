@@ -199,11 +199,11 @@ class Runner:
         if name in toolmod.LINK_TOOLS:
             st['board_touched'] = True
 
+        if isinstance(result, toolmod.Reported) and not st['board_touched']:
+            over = self._refuse_unmeasured(task, record, messages, name,
+                                           args, st)
+            return 'give_up' if over else None
         if isinstance(result, toolmod.Reported):
-            if not st['board_touched']:
-                over = self._refuse_unmeasured(task, record, messages, name,
-                                               args, st)
-                return 'give_up' if over else None
             self.transcript.write('report', id=task.id, value=result.value,
                                   unit=result.unit, note=result.note)
             return result
@@ -214,6 +214,22 @@ class Runner:
         messages.append({'role': 'tool', 'tool_name': name, 'name': name,
                          'content': '%s: %s' % (name, result)})
         return None
+
+    #: Prose answers a step is nudged out of before it is given up on.
+    PROSE_NUDGES = 2
+
+    def _prosed(self, record, st, message):
+        """The model wrote instead of calling: counted, and past the limit
+        the step ends unfinished - True when it does."""
+        text = (message.get('content') or '').strip()
+        self._say('   ...%s' % text[:100].replace('\n', ' '))
+        st['nudges'] += 1
+        if st['nudges'] <= self.PROSE_NUDGES:
+            return False
+        record.note = text
+        record.verdict = 'unfinished'
+        record.warnings.append('stopped in prose, never reported')
+        return True
 
     def run_task(self, task):
         record = Record(task)
@@ -258,15 +274,9 @@ class Runner:
             messages.append(message)
 
             calls = message.get('tool_calls') or []
+            if not calls and self._prosed(record, st, message):
+                break
             if not calls:
-                text = (message.get('content') or '').strip()
-                self._say('   ...%s' % text[:100].replace('\n', ' '))
-                st['nudges'] += 1
-                if st['nudges'] > 2:
-                    record.note = text
-                    record.verdict = 'unfinished'
-                    record.warnings.append('stopped in prose, never reported')
-                    break
                 messages.append({
                     'role': 'user',
                     'content': 'Do not answer in prose. Either call a tool, or '

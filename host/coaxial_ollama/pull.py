@@ -112,18 +112,22 @@ class Progress:
         self.layer_start = 0
         self.done_bytes = 0            # of the layers already finished
 
+    def _next_layer(self, event, digest):
+        """A new layer begins: the last one's bytes banked as done."""
+        if self.digest is not None:
+            self.done_bytes += self.total
+        self.digest = digest
+        self.total = int(event.get('total') or 0)
+        self.completed = int(event.get('completed') or 0)
+        self.layer_began, self.layer_start = self.now(), self.completed
+
     def feed(self, event):
         """One event. True when the status word changed."""
         status = str(event.get('status') or '')
         digest = event.get('digest')
         self.downloading = bool(digest)
         if digest and digest != self.digest:
-            if self.digest is not None:
-                self.done_bytes += self.total
-            self.digest = digest
-            self.total = int(event.get('total') or 0)
-            self.completed = int(event.get('completed') or 0)
-            self.layer_began, self.layer_start = self.now(), self.completed
+            self._next_layer(event, digest)
         elif digest:
             self.total = int(event.get('total') or self.total)
             self.completed = int(event.get('completed') or 0)

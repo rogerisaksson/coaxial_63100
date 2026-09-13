@@ -341,10 +341,10 @@ class Toolbox:
         args = dict(args or {})
         self.log.append((name, args))
 
-        if name == 'devices' and args.get('op') == 'use':
-            wrong = self._wrong_side(args)
-            if wrong:
-                return wrong
+        wrong = (self._wrong_side(args)
+                 if name == 'devices' and args.get('op') == 'use' else None)
+        if wrong:
+            return wrong
 
         if name == 'report':
             return Reported(args.get('value'), args.get('unit', ''),
@@ -408,11 +408,11 @@ class Toolbox:
             raise Refused('not asked for - call analog_read instead, it '
                           'works either way.')
 
-        if self.confirm is not None and self.is_write(name, args):
-            if not self.confirm(name, args):
-                raise Refused('the operator declined this call. Do not retry '
-                              'it; report what you have or explain what is '
-                              'missing.')
+        if (self.confirm is not None and self.is_write(name, args)
+                and not self.confirm(name, args)):
+            raise Refused('the operator declined this call. Do not retry '
+                          'it; report what you have or explain what is '
+                          'missing.')
 
     # ---- the three that are not the board ---------------------------------
 
@@ -461,10 +461,10 @@ class Toolbox:
             parts.append('stderr: ' + done.stderr.rstrip())
         text = '\n'.join(parts)
 
-        if done.returncode == 0 and action != 'build':
-            relink = self._relink()
-            if relink:
-                text += '\n' + relink
+        relink = (self._relink()
+                  if done.returncode == 0 and action != 'build' else None)
+        if relink:
+            text += '\n' + relink
 
         # Prefixed the same way every other failure in this file is, so the
         # code_error backstop in debug.py's Chat.ask() catches a failed build
@@ -524,6 +524,44 @@ class Toolbox:
             text = (done.stderr or '').strip()
         return text if done.returncode == 0 else 'ERR %s' % text
 
+    def _no_board(self):
+        """What a diagnosis says on a session that never had a board.
+
+        Not step 1 - this isn't a rung on the checklist, it's whether there
+        is a real board to run one against at all. A stand-in has no SWD to
+        check power over either, and checking it anyway would spend several
+        real seconds proving nothing about a session that was never going
+        to have a board.
+
+        It does not say "--no-board or --simulated this run" any more: a
+        session that found nothing at startup falls back on its own, and
+        naming two flags the operator never typed is a false statement
+        about how the session was started. Measured - asked "byter du till
+        debugproben" on an auto-fallen-back session, this line was the whole
+        answer on screen, and it named the wrong reason and no way out.
+        """
+        if _stand_in(self.session) == 'no board':
+            return ('--no-board this run: every board tool refuses. '
+                    '/board auto looks for a real one.')
+        return ('this session is on a simulated board - there is no '
+                'port to check. /board auto looks for a real one, '
+                'debug probe first; /board COM4 tries one by name.')
+
+    @staticmethod
+    def _other_ports(ports, configured, baud, unit):
+        """Step 5, when asked: whether the board answers on any other port."""
+        others = [p for p in ports if p != configured]
+        found = next((p for p in others
+                      if find_board.probe(p, baud, unit)), None)
+        if found:
+            return ('5. Tried every other port: %s answered as this board - '
+                    'it may have moved there. /reconnect after changing '
+                    '--port to it.' % found)
+        if others:
+            return ('5. Tried every other port (%s): none answered.'
+                    % ', '.join(others))
+        return None
+
     def _link_diagnose(self, args):
         """A checklist, most fundamental first, stopping at the step that
         explains the silence rather than running the rest regardless.
@@ -549,25 +587,7 @@ class Toolbox:
         # be unplugged", about a session that never had a cable. Measured,
         # with the board's JTAG connector pulled.
         if getattr(self.session, 'simulated', False) or configured is None:
-            # Not step 1 - this isn't a rung on the checklist, it's whether
-            # there is a real board to run one against at all. A stand-in
-            # has no SWD to check power over either, and checking it anyway
-            # would spend several real seconds proving nothing about a
-            # session that was never going to have a board.
-            #
-            # It does not say "--no-board or --simulated this run" any more:
-            # a session that found nothing at startup falls back on its own,
-            # and naming two flags the operator never typed is a false
-            # statement about how the session was started. Measured - asked
-            # "byter du till debugproben" on an auto-fallen-back session,
-            # this line was the whole answer on screen, and it named the
-            # wrong reason and no way out.
-            if _stand_in(self.session) == 'no board':
-                return ('--no-board this run: every board tool refuses. '
-                        '/board auto looks for a real one.')
-            return ('this session is on a simulated board - there is no '
-                    'port to check. /board auto looks for a real one, '
-                    'debug probe first; /board COM4 tries one by name.')
+            return self._no_board()
 
         steps = []
         voltage, detail = find_board.check_power()
@@ -636,17 +656,8 @@ class Toolbox:
                      % (power_says, configured))
 
         if args.get('probe_other_ports'):
-            others = [p for p in ports if p != configured]
-            found = next((p for p in others
-                         if find_board.probe(p, baud, unit)), None)
-            if found:
-                steps.append('5. Tried every other port: %s answered as '
-                             'this board - it may have moved there. '
-                             '/reconnect after changing --port to it.'
-                             % found)
-            elif others:
-                steps.append('5. Tried every other port (%s): none '
-                             'answered.' % ', '.join(others))
+            steps.extend(filter(None, [self._other_ports(ports, configured,
+                                                         baud, unit)]))
 
         return '\n'.join(steps)
 

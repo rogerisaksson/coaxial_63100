@@ -460,10 +460,10 @@ def test_identity(report):
                  language.system_language() in language.LANGUAGE_NAMES,
                  language.system_language())
     report.check('/help carries what the banner no longer does',
-                 all(part in talk.command('/help')
+                 all(part in (talk.command('/help') or '')
                      for part in ('gemma4:12b', 'terse', 'tok/turn',
                                   'analog_read', '/q')),
-                 talk.command('/help').splitlines()[2][:60])
+                 (talk.command('/help') or '').splitlines()[2][:60])
 
 
 

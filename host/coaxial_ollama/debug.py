@@ -429,6 +429,18 @@ class Turn:
             self.map_text = text
 
 
+def _without_side(where):
+    """The joint without its side, because the bus already carries it:
+    "RL 2 knee", not "RL node 2 right knee". Shorter than the abbreviations
+    that were asked for and needs no key - and `Ra` for ankle would have
+    collided with `RA` for the right arm, on a line whose whole job is to
+    be unambiguous at a glance."""
+    for side in ('left ', 'right '):
+        if where.startswith(side):
+            return where[len(side):]
+    return where
+
+
 class Chat:
     """One conversation, trimmed on the way out to the model.
 
@@ -572,15 +584,10 @@ class Chat:
         # Read from prompt_history, not from the last role=='user' message:
         # a nudge is appended with that role too, and measured live, its
         # English words flipped a Swedish session on the next trim().
-        asked = ''
         prompt_history = getattr(self, 'prompt_history', None)
-        if prompt_history:
-            asked = prompt_history[-1]
-        else:
-            for message in reversed(self.history):
-                if message['role'] == 'user':
-                    asked = message.get('content') or ''
-                    break
+        asked = (prompt_history[-1] if prompt_history else
+                 next((m.get('content') or '' for m in reversed(self.history)
+                       if m['role'] == 'user'), ''))
         self._lock_language(asked)
         names = getattr(self, 'tool_names', ())
         hint = ''
@@ -789,21 +796,26 @@ class Chat:
         if here[1] is None or here == getattr(self, '_said_node', None):
             return answer
         self._said_node = here
-        if here[1] == 0:
-            where = 'every node on %s' % (here[0] or 'the bus')
-        else:
-            where = None
-            try:
-                from coaxial.simulated import bus_nodes
-                if here[0]:
-                    where = (bus_nodes(here[0]).get(here[1])
-                             or (None, None, None))[2]
-            except Exception:                                 # noqa: BLE001
-                pass
-            where = where or ('%s node %d' % (here[0], here[1]) if here[0]
-                              else 'node %d' % here[1])
+        where = self._where(here)
         line = language.localise('From %s:' % where, self.screen_language())
         return line + '\n' + answer if answer.strip() else line
+
+    @staticmethod
+    def _where(here):
+        """The node's place on its bus as the stand-in names it - the knee,
+        the hip - or its number when nothing names it."""
+        bus, unit = here
+        if unit == 0:
+            return 'every node on %s' % (bus or 'the bus')
+        where = None
+        try:
+            from coaxial.simulated import bus_nodes
+            where = ((bus_nodes(bus).get(unit) or (None, None, None))[2]
+                     if bus else None)
+        except Exception:                                     # noqa: BLE001
+            pass
+        return where or ('%s node %d' % (bus, unit) if bus
+                         else 'node %d' % unit)
 
     def _compile(self, question):
         """The intent hint for this question, or '' when there is none.
@@ -940,9 +952,9 @@ class Chat:
         # wrong. Recovering it costs a JSON parse.
         if not calls:
             salvaged, turn.answer = replies.salvage_calls(turn.answer)
-            if salvaged:
-                calls = salvaged
-                message = dict(message, content='', tool_calls=calls)
+            calls = salvaged or calls
+            message = (dict(message, content='', tool_calls=calls)
+                       if salvaged else message)
 
         self.history.append(message)
         if not calls:
@@ -965,26 +977,7 @@ class Chat:
                 not self.link_ok
                 or replies.is_retype(turn.answer, self.last_channels))))
         if stale:
-            probe = self._probe_link()
-            if not self.link_ok:
-                # `shown` here too: the checklist the model just traced is
-                # directly above, and without this the answer printed the
-                # whole thing again - the failure the parameter exists for,
-                # on the one path that never passed it.
-                return self._link_down_message(
-                    probe, shown=turn.diagnosed and not self.quiet)
-            # Confirmed up. Told only that, the turn still ended on "ask
-            # again" and the operator retyped it twice, so the nudge has to
-            # be actionable - but not prescriptive. Measured: it named
-            # analog_read, and "beskriv hardvaran i detta projektet for en
-            # novis" answered blank, got nudged, and came back with a full
-            # analog table. The host cannot tell from here whether the
-            # question wants a reading; the model can.
-            return turn.nudge(
-                self, 'The link just answered. Answer the question now - '
-                'with a fresh call if it needs one, and in words if it does '
-                'not. Never reuse an old reading.',
-                'no reading taken this turn - ask again.')
+            return self._stale(turn)
         # A reading did succeed this turn and the model still wrote nothing.
         # Measured: "Beskriv hardvaran i detta projektet for en novis" -
         # gemma4:12b called analog_read, returned empty content, and the
@@ -1010,47 +1003,80 @@ class Chat:
             return None
         return True
 
+    def _stale(self, turn):
+        """An answer with no reading behind it: the link's own state, or a
+        nudge to take one.
+
+        `shown` on the link-down message too: the checklist the model just
+        traced is directly above, and without it the answer printed the
+        whole thing again - the failure the parameter exists for, on the
+        one path that never passed it. Confirmed up, the turn used to end on
+        "ask again" and the operator retyped it twice, so the nudge has to
+        be actionable - but not prescriptive. Measured: it named
+        analog_read, and "beskriv hardvaran i detta projektet for en novis"
+        answered blank, got nudged, and came back with a full analog table.
+        The host cannot tell from here whether the question wants a
+        reading; the model can.
+        """
+        probe = self._probe_link()
+        if not self.link_ok:
+            return self._link_down_message(
+                probe, shown=turn.diagnosed and not self.quiet)
+        return turn.nudge(
+            self, 'The link just answered. Answer the question now - '
+            'with a fresh call if it needs one, and in words if it does '
+            'not. Never reuse an old reading.',
+            'no reading taken this turn - ask again.')
+
+    def _fresh(self, turn, key, name, args):
+        """One call made, and remembered under its key for this turn."""
+        raw = self.toolbox.call(name, args)
+        if isinstance(raw, toolmod.Reported):
+            raw = 'noted: %s' % raw.note
+        turn.seen[key] = raw
+        return raw
+
+    def _note_link(self, turn, text):
+        """What a call that reached for the board says about the link.
+
+        Every such call is a live reading on the link itself, not just on
+        this run's question - the spinner is wrong the moment this call's
+        verdict disagrees with what it is currently showing. A call that
+        reached the board clears an earlier failure in the same turn; one
+        that did not reach it sets the error that gates the answer,
+        whatever the model goes on to write about it. A replugged cable
+        re-enumerates the VCP, so the cached handle stays dead: measured,
+        every retry then fails with "Attempting to use a port that is not
+        open" until session.reset() drops it.
+        """
+        lost = ERR_CLASS.match(text)
+        self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
+        turn.link_error = text if not self.link_ok else None
+        if not self.link_ok:
+            self.toolbox.session.reset()
+
     def _run_call(self, turn, call):
         """Make one call the model asked for, and record what it means."""
         name = (call.get('function') or {}).get('name', '?')
         args = toolmod.arguments(call)
         key = (name, json.dumps(args, sort_keys=True, default=str))
 
-        if name not in REPEATABLE and key in turn.seen:
-            # Do not spend a board round trip re-asking a question this turn
-            # already has the answer to - and say so plainly rather than
-            # repeating the same line, which is what asked for the repeat in
-            # the first place. `raw` stays the original result so a repeated
-            # failure is still read as one below, not laundered into a
-            # fresh-looking success by the sentence wrapped around it.
-            raw = turn.seen[key]
-            result = 'unchanged this turn, already asked: %s' % raw
-        else:
-            raw = self.toolbox.call(name, args)
-            if isinstance(raw, toolmod.Reported):
-                raw = 'noted: %s' % raw.note
-            turn.seen[key] = raw
-            result = raw
+        # Do not spend a board round trip re-asking a question this turn
+        # already has the answer to - and say so plainly rather than
+        # repeating the same line, which is what asked for the repeat in
+        # the first place. `raw` stays the original result so a repeated
+        # failure is still read as one below, not laundered into a
+        # fresh-looking success by the sentence wrapped around it.
+        repeated = name not in REPEATABLE and key in turn.seen
+        raw = (turn.seen[key] if repeated
+               else self._fresh(turn, key, name, args))
+        result = ('unchanged this turn, already asked: %s' % raw
+                  if repeated else raw)
 
         text = str(raw)
         failed = text.startswith('ERR')
         if name in LINK_TOOLS:
-            # Every call that actually reaches the board is a live reading on
-            # the link itself, not just on this run's question - the spinner
-            # is wrong the moment this call's verdict disagrees with what it
-            # is currently showing.
-            lost = ERR_CLASS.match(text)
-            self.link_ok = not (lost and lost.group(1) in CONTACT_LOST)
-            # A call that reached the board clears an earlier failure in the
-            # same turn; one that did not reach it sets the error that gates
-            # the answer below, whatever the model goes on to write about it.
-            turn.link_error = text if not self.link_ok else None
-            if not self.link_ok:
-                # A replugged cable re-enumerates the VCP, so the cached
-                # handle stays dead: measured, every retry then fails with
-                # "Attempting to use a port that is not open" until
-                # session.reset() drops it.
-                self.toolbox.session.reset()
+            self._note_link(turn, text)
         if name == 'link_diagnose' and not failed:
             # Its checklist is on screen from the trace below. What the
             # answer says about a dead link changes accordingly - see
@@ -1129,99 +1155,122 @@ class Chat:
         if not line.startswith('/'):
             return None
         verb, _, rest = line[1:].partition(' ')
-        rest = rest.strip()
+        handler = self.COMMANDS.get(verb)
+        if handler is None:
+            return 'no such command. /help'
+        return handler(self, rest.strip())
 
-        if verb in ('q', 'quit', 'exit'):
-            raise SystemExit(0)
-        if verb in ('help', '?'):
-            # Live, not a fixed string: what it can do depends on the tool set
-            # this session started with, what it costs on the detail level.
-            lines = [ROLE]
-            if {'build_firmware', 'run_command'} & set(self.tool_names):
-                lines.append(BUILDS)
-            lines.append('%s, %s, %d tok/turn: %s'
-                         % (getattr(self.client, 'model', '?'), self.detail,
-                            self.tool_cost(),
-                            ', '.join(self.tool_names) or 'no tools'))
-            return '\n'.join(lines + [HELP])
-        if verb == 'py':
-            return self.toolbox.call('run_python', {'code': rest})
-        if verb == 'sh':
-            return self.toolbox.call('run_command', {'cmd': rest})
-        if verb == 'reconnect':
-            return self._reconnect()
-        if verb == 'model':
-            return self._switch_model(rest)
-        if verb == 'board':
-            return self._switch_board(rest)
-        if verb == 'node':
-            return self._switch_node(rest)
-        if verb == 'clear':
-            self.history = []
-            return 'context cleared'
-        if verb == 'tools':
-            if rest:
-                self.set_tools(rest)
-            return '%s (%d tok/turn)' % (', '.join(self.tool_names) or 'none',
-                                         self.tool_cost())
-        if verb == 'detail':
-            # Priced, not just named: the whole point of the level is what
-            # the tool list costs per turn, and that number is the argument
-            # for changing it.
-            if rest:
-                if rest.lower() not in detail.LEVELS:
-                    return 'detail: %s, or auto' % ', '.join(
-                        (detail.TERSE, detail.FULL))
-                self.set_detail(rest.lower())
-            return 'detail: %s (%d tok/turn of tools)' % (self.detail,
-                                                          self.tool_cost())
-        if verb == 'confirm':
-            # /tools build alone hands the model run_command with nothing
-            # asking first, unless --confirm was already on the command line
-            # that started this session - this is the other half of that
-            # switch, reachable without a restart either.
-            from .cli import ask_operator     # cli imports Chat: not at top
-            self.toolbox.confirm = (None if self.toolbox.confirm
-                                    else ask_operator)
-            return 'confirm: %s' % ('on - asks before every write'
-                                    if self.toolbox.confirm else 'off')
-        if verb == 'lang':
-            if not rest:
-                return ('session language: %s' % self.language
-                       if self.language else
-                       'not locked yet - mirroring each question')
-            if rest.lower() in ('auto', 'off'):
-                self.language = None
-                return 'language: unlocked - back to mirroring each question'
-            named = (language._NAME_TO_LANGUAGE.get(rest.lower())
-                    or (rest.title() if rest.title() in language.LANGUAGE_NAMES
-                        else None))
-            if named is None:
-                return ("don't know %r - try an English language name, or "
-                        "/lang auto to unlock" % rest)
-            self.language = named
-            return 'language: %s (locked)' % named
-        if verb == 'ctx':
-            # The budget is the number that explains the other two once a
-            # conversation gets long: a turn that is not growing any more is
-            # a turn being trimmed to fit, not a turn that stopped costing.
-            budget = self.prompt_budget()
-            return '%d messages, next turn about %d tok in%s, %d of it tools' \
-                % (len(self.history), self.context_cost(),
-                   ' of %d' % budget if budget else '', self.tool_cost())
-        if verb == 'cost':
-            return self.cost_line()
-        if verb == 'history':
-            if not self.prompt_history:
-                return 'nothing asked yet this session'
-            return '\n'.join('%d. %s' % (i, clip(q, 100))
-                             for i, q in enumerate(self.prompt_history, 1))
-        if verb == 'clear_history':
-            n = len(self.prompt_history)
-            self.prompt_history = []
-            return 'prompt history cleared (%d question%s)' \
-                % (n, '' if n == 1 else 's')
-        return 'no such command. /help'
+    def _cmd_quit(self, rest):
+        raise SystemExit(0)
+
+    def _cmd_help(self, rest):
+        """Live, not a fixed string: what it can do depends on the tool set
+        this session started with, what it costs on the detail level."""
+        lines = [ROLE]
+        if {'build_firmware', 'run_command'} & set(self.tool_names):
+            lines.append(BUILDS)
+        lines.append('%s, %s, %d tok/turn: %s'
+                     % (getattr(self.client, 'model', '?'), self.detail,
+                        self.tool_cost(),
+                        ', '.join(self.tool_names) or 'no tools'))
+        return '\n'.join(lines + [HELP])
+
+    def _cmd_py(self, rest):
+        return self.toolbox.call('run_python', {'code': rest})
+
+    def _cmd_sh(self, rest):
+        return self.toolbox.call('run_command', {'cmd': rest})
+
+    def _cmd_reconnect(self, rest):
+        return self._reconnect()
+
+    def _cmd_clear(self, rest):
+        self.history = []
+        return 'context cleared'
+
+    def _cmd_tools(self, rest):
+        if rest:
+            self.set_tools(rest)
+        return '%s (%d tok/turn)' % (', '.join(self.tool_names) or 'none',
+                                     self.tool_cost())
+
+    def _cmd_detail(self, rest):
+        """Priced, not just named: the whole point of the level is what the
+        tool list costs per turn, and that number is the argument for
+        changing it."""
+        if rest and rest.lower() not in detail.LEVELS:
+            return 'detail: %s, or auto' % ', '.join((detail.TERSE, detail.FULL))
+        if rest:
+            self.set_detail(rest.lower())
+        return 'detail: %s (%d tok/turn of tools)' % (self.detail,
+                                                      self.tool_cost())
+
+    def _cmd_confirm(self, rest):
+        """/tools build alone hands the model run_command with nothing asking
+        first, unless --confirm was already on the command line that started
+        this session - this is the other half of that switch, reachable
+        without a restart either."""
+        from .cli import ask_operator     # cli imports Chat: not at top
+        self.toolbox.confirm = (None if self.toolbox.confirm
+                                else ask_operator)
+        return 'confirm: %s' % ('on - asks before every write'
+                                if self.toolbox.confirm else 'off')
+
+    def _cmd_lang(self, rest):
+        if not rest:
+            return ('session language: %s' % self.language
+                    if self.language else
+                    'not locked yet - mirroring each question')
+        if rest.lower() in ('auto', 'off'):
+            self.language = None
+            return 'language: unlocked - back to mirroring each question'
+        named = (language._NAME_TO_LANGUAGE.get(rest.lower())
+                 or (rest.title() if rest.title() in language.LANGUAGE_NAMES
+                     else None))
+        if named is None:
+            return ("don't know %r - try an English language name, or "
+                    "/lang auto to unlock" % rest)
+        self.language = named
+        return 'language: %s (locked)' % named
+
+    def _cmd_ctx(self, rest):
+        """The budget is the number that explains the other two once a
+        conversation gets long: a turn that is not growing any more is a
+        turn being trimmed to fit, not a turn that stopped costing."""
+        budget = self.prompt_budget()
+        return '%d messages, next turn about %d tok in%s, %d of it tools' \
+            % (len(self.history), self.context_cost(),
+               ' of %d' % budget if budget else '', self.tool_cost())
+
+    def _cmd_cost(self, rest):
+        return self.cost_line()
+
+    def _cmd_history(self, rest):
+        if not self.prompt_history:
+            return 'nothing asked yet this session'
+        return '\n'.join('%d. %s' % (i, clip(q, 100))
+                         for i, q in enumerate(self.prompt_history, 1))
+
+    def _cmd_clear_history(self, rest):
+        n = len(self.prompt_history)
+        self.prompt_history = []
+        return 'prompt history cleared (%d question%s)' \
+            % (n, '' if n == 1 else 's')
+
+    #: The slash commands, by the word after the slash. Each takes the rest
+    #: of the line; a word not here is answered '/help'.
+    COMMANDS = {
+        'q': _cmd_quit, 'quit': _cmd_quit, 'exit': _cmd_quit,
+        'help': _cmd_help, '?': _cmd_help,
+        'py': _cmd_py, 'sh': _cmd_sh, 'reconnect': _cmd_reconnect,
+        'model': lambda self, rest: self._switch_model(rest),
+        'board': lambda self, rest: self._switch_board(rest),
+        'node': lambda self, rest: self._switch_node(rest),
+        'clear': _cmd_clear, 'tools': _cmd_tools, 'detail': _cmd_detail,
+        'confirm': _cmd_confirm, 'lang': _cmd_lang, 'ctx': _cmd_ctx,
+        'cost': _cmd_cost, 'history': _cmd_history,
+        'clear_history': _cmd_clear_history,
+    }
 
     def _switch_model(self, rest):
         """Run this session on another tag, without restarting it.
@@ -1335,11 +1384,7 @@ class Chat:
         # abbreviations that were asked for and needs no key - and `Ra`
         # for ankle would have collided with `RA` for the right arm, on a
         # line whose whole job is to be unambiguous at a glance.
-        if where:
-            for side in ('left ', 'right '):
-                if where.startswith(side):
-                    where = where[len(side):]
-                    break
+        where = _without_side(where or '')
         node = 'ALL NODES' if unit == 0 else (
             '%d %s' % (unit, where) if where else 'node %d' % unit)
         if bus:

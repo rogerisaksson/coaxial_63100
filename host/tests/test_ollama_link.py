@@ -531,7 +531,7 @@ def test_fallback(report):
     report.check('and a table from the board just left is forgotten',
                  swap.last_channels is None, str(swap.last_channels))
     report.check('/board with no argument says what it is on',
-                 swap.command('/board').startswith('board: Simulated'),
+                 (swap.command('/board') or '').startswith('board: Simulated'),
                  swap.command('/board'))
 
     # An order to swap the board is the host's to carry out. Measured three
@@ -656,7 +656,7 @@ def test_fallback(report):
     original = sessionmod.open_session
     try:
         sessionmod.open_session = patched(fake)
-        said = keeper.command('/board rs485')
+        said = keeper.command('/board rs485') or ''
         report.check('a search that found nothing keeps the working board',
                      keeper.toolbox.session is held and not held.closed,
                      type(keeper.toolbox.session).__name__)
@@ -700,7 +700,7 @@ def test_fallback(report):
     Ollama.models = lambda self: ['gemma4:12b']
     try:
         before = swap.client.model
-        said = swap.command('/model no-such-tag:9b')
+        said = swap.command('/model no-such-tag:9b') or ''
         report.check('/model refuses a tag that is not pulled, and swaps '
                      'nothing', 'not pulled' in said
                      and swap.client.model == before, said[:52])
