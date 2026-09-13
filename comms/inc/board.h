@@ -1185,6 +1185,12 @@ void Board_ImuFeatureAsked(uint8_t *report_id, uint32_t *interval_us,
   */
 uint8_t Board_ImuDrain(uint8_t limit);
 
+/** SPI2's four pins on port B, chip select first: PB12 H_CSN, PB13 SCK,
+  * PB14 MISO, PB15 MOSI - the rows board_io.c lists, by number for the
+  * pin check. */
+#define BOARD_IMU_SPI_PIN_FIRST 12U
+#define BOARD_IMU_SPI_PIN_COUNT 4U
+
 /** Drive and release GPIOB pin `pin`, reporting what the pin then read.
   *
   * Bit 0 drove high and read high, bit 1 drove low and read low, bit 2 read

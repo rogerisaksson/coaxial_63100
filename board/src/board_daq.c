@@ -46,6 +46,11 @@
 #include <math.h>
 #include <string.h>
 
+/* A record on the wire: the start time, a 32-bit sum a field, a byte a
+   sampled pin, four 16-bit words a sensor, and the count last. */
+#define DAQ_RECORD_BYTES(fields, pins, sensors) \
+  (4U + (4U * (fields)) + (pins) + (8U * (sensors)) + 2U)
+
 /* `.buffers` is the AXI SRAM section in STM32H753xx_FLASH.ld. NOLOAD,
    so a quarter of a megabyte of zeroes is not carried in the image. */
 static uint8_t  s_buf[DAQ_BYTES] __attribute__((section(".buffers")));
@@ -280,16 +285,16 @@ static void ladder_step(void)
   /* The lower of the two: a fraction of a small ring, a fixed backlog of
      a large one. A rung answers how far BEHIND the link is, and that is
      a count of records rather than a share of whatever was allocated. */
-  uint32_t climb = (capacity * BOARD_DAQ_CLIMB_AT) / 8U;
-  uint32_t fall = (capacity * BOARD_DAQ_FALL_AT) / 8U;
+  uint32_t climb = (capacity * BOARD_DAQ_CLIMB_AT) / BOARD_DAQ_RUNG_EIGHTHS;
+  uint32_t fall = (capacity * BOARD_DAQ_FALL_AT) / BOARD_DAQ_RUNG_EIGHTHS;
 
   if (climb > BOARD_DAQ_CLIMB_MAX)
   {
     climb = BOARD_DAQ_CLIMB_MAX;
   }
-  if (fall > (BOARD_DAQ_CLIMB_MAX / 8U))
+  if (fall > (BOARD_DAQ_CLIMB_MAX / BOARD_DAQ_RUNG_EIGHTHS))
   {
-    fall = BOARD_DAQ_CLIMB_MAX / 8U;
+    fall = BOARD_DAQ_CLIMB_MAX / BOARD_DAQ_RUNG_EIGHTHS;
   }
 
   if (held >= climb)
@@ -393,8 +398,8 @@ static void put_record(const uint8_t *rec)
 
 static void push_record(void)
 {
-  uint8_t rec[4U + (4U * BOARD_DAQ_MAX_CHANNELS) + BOARD_DAQ_MAX_PINS
-              + (8U * BOARD_DAQ_MAX_SENSORS) + 2U];
+  uint8_t rec[DAQ_RECORD_BYTES(BOARD_DAQ_MAX_CHANNELS, BOARD_DAQ_MAX_PINS,
+                               BOARD_DAQ_MAX_SENSORS)];
   uint16_t at = put_be32(rec, 0U, s_first_at);
 
   for (uint8_t f = 0U; f < s_fields; f++)
@@ -737,10 +742,9 @@ static void begin_task(const board_daq_config_t *cfg)
   /* One byte of duty per pin where there used to be one snapshot word,
      eight bytes per sensor field, and + 2 for the sample count every
      record carries. */
-  s_stride = (uint16_t)(4U + (4U * s_fields)
-                        + ((cfg->digital != 0U)
-                           ? Board_DigitalSampledCount() : 0U)
-                        + (8U * sensor_count(cfg->sensors)) + 2U);
+  s_stride = (uint16_t)DAQ_RECORD_BYTES(
+      s_fields, (cfg->digital != 0U) ? Board_DigitalSampledCount() : 0U,
+      sensor_count(cfg->sensors));
   s_head = 0U;
   s_tail = 0U;
   s_dropped = 0U;

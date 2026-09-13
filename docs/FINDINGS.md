@@ -1501,6 +1501,33 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   wire lengths whose comment counts the bytes in prose (the duty op's
   9, 10 and 13). Build: 0 warnings, flash 197 068 B as before; modbus
   core 77, drive core 81.
+* THREE THINGS THE FIRMWARE SAID TWICE, AND THE LAST LITERALS
+  (2026-09-13). SPI2's four pins were a table in the IMU command and a
+  bare 12 in the driver's pin check, both beside board_io.c's rows -
+  `BOARD_IMU_SPI_PIN_FIRST` and `_COUNT` in board.h now, the command
+  walking from the first, the driver comparing against it. A record's
+  shape on the wire - the start time, a sum a field, a byte a pin, four
+  words a sensor, the count - was written out twice, for the ring's
+  buffer and for the stride: `DAQ_RECORD_BYTES` once. The ladder's
+  climb and fall thresholds are eighths of the ring, and the 8 stood at
+  four sites: `BOARD_DAQ_RUNG_EIGHTHS` beside them. THE REST: the
+  A1335's word width, word mask, register mask, CRC mask, temperature
+  mask and SPI timeout; the IMU wake test's two answers that are not a
+  time (`IMU_WAKE_NOT_READY`, `IMU_WAKE_BUSY`), its drain and the three
+  empties that mean quiet; the IMU command's tries, drain limit and
+  default wake; the drive's `UINT16_MAX` where 65535 stood twice,
+  `LOG_EPS_SCALE`, and `NANO_PER_UNIT` in the units header for the
+  inductances, the inertia and the friction. THE ONE VALUE-LEVEL CHANGE:
+  those six sites multiplied by 1e-9f and now divide by 1.0e9f - the
+  same conversion within an ulp, the divide the more exact of the two.
+  PROOF, two builds against the committed image: with the six divides
+  and the pin loop put back, four bytes differ, the build stamp's
+  seconds, so everything else is a rename; the final form is 8 bytes
+  shorter - the divides and the table gone - and the pin loop and the
+  conversions are read, not measured, until the bench flashes it. Left
+  as numbers by design: the SHTP report field offsets, the report
+  lengths, the log word counts, the RCC divider table. Build: 0
+  warnings, flash 197 060 B; the scanner's literals 406 -> 370.
 
 ## The local model
 

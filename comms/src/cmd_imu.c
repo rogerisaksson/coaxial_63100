@@ -16,6 +16,10 @@
 #include "board.h"
 #include "shtp.h"
 
+#define ANSWER_TRIES    8U     /* reads given a request before it is called unanswered */
+#define DRAIN_LIMIT     48U    /* op 4's drain: eight was not enough, see below */
+#define WAKE_DEFAULT_MS 200U
+
 /**
   * @brief op 0 - ask the part what it is.
   *
@@ -57,7 +61,7 @@ static cmd_status_t h_imu_id(rd_t *in, wr_t *out)
      was answering perfectly. Measured from the host: the same request sent
      by hand and read 15 ms later got f8 04 03 02, the product id response,
      every time. */
-  for (uint8_t tries = 0U; tries < 8U; tries++)
+  for (uint8_t tries = 0U; tries < ANSWER_TRIES; tries++)
   {
     (void)Board_ImuWaitReady(IMU_ANSWER_WAIT_MS);
 
@@ -164,7 +168,7 @@ static cmd_status_t h_imu_probe(rd_t *in, wr_t *out)
 
   if (len == 0U)
   {
-    len = 4U;                      /* the header, which is the usual question */
+    len = SHTP_HEADER_LEN;         /* the usual question */
   }
 
   if (len > (uint8_t)sizeof(raw))
@@ -217,7 +221,7 @@ static cmd_status_t h_imu_reset(rd_t *in, wr_t *out)
      the queue had actually emptied took first time. The part is still
      talking about itself while the write goes out, and a write nobody is
      listening to changes nothing. */
-  wr_u8(out, Board_ImuDrain(48U));
+  wr_u8(out, Board_ImuDrain(DRAIN_LIMIT));
 
   return CMD_OK;
 }
@@ -273,14 +277,14 @@ static cmd_status_t h_imu_write(rd_t *in, wr_t *out)
   */
 static cmd_status_t h_imu_pins(rd_t *in, wr_t *out)
 {
-  static const uint8_t PINS[4] = { 12U, 13U, 14U, 15U };
-
   (void)in;
 
-  for (uint8_t i = 0U; i < 4U; i++)
+  for (uint8_t i = 0U; i < BOARD_IMU_SPI_PIN_COUNT; i++)
   {
-    wr_u8(out, PINS[i]);
-    wr_u8(out, Board_ImuPinCheck(PINS[i]));
+    const uint8_t pin = (uint8_t)(BOARD_IMU_SPI_PIN_FIRST + i);
+
+    wr_u8(out, pin);
+    wr_u8(out, Board_ImuPinCheck(pin));
   }
 
   return CMD_OK;
@@ -295,7 +299,7 @@ static cmd_status_t h_imu_pins(rd_t *in, wr_t *out)
   */
 static cmd_status_t h_imu_wake(rd_t *in, wr_t *out)
 {
-  const uint16_t ms = (rd_left(in) >= 2U) ? rd_u16(in) : 200U;
+  const uint16_t ms = (rd_left(in) >= 2U) ? rd_u16(in) : WAKE_DEFAULT_MS;
 
   wr_u16(out, Board_ImuWakeTest(ms));
   return CMD_OK;

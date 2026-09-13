@@ -63,6 +63,10 @@
 #define IMU_RESET_DRAIN      16U
 #define IMU_WRITE_DRAIN      8U      /**< reads before a write speaks    */
 #define IMU_SPI_TIMEOUT_MS   100U
+#define IMU_WAKE_TEST_DRAIN  16U      /**< reads before the wake test asks    */
+#define IMU_QUIET_EMPTIES    3U       /**< empties in a row that mean quiet   */
+#define IMU_WAKE_NOT_READY   0xFFFFU  /**< the wake test's two answers that   */
+#define IMU_WAKE_BUSY        0xFFFEU  /**< are not a time                     */
 #define IMU_WAKE_PORT GPIOD
 #define IMU_WAKE_PIN  GPIO_PIN_9
 
@@ -491,16 +495,16 @@ uint16_t Board_ImuWakeTest(uint16_t ms)
 {
   if (!s_ready && !Board_ImuInit())
   {
-    return 0xFFFFU;
+    return IMU_WAKE_NOT_READY;
   }
 
   /* Empty first: H_INTN stays asserted while anything is queued, and a line
      that is already low answers nothing about the wake. */
-  (void)Board_ImuDrain(16U);
+  (void)Board_ImuDrain(IMU_WAKE_TEST_DRAIN);
 
   if (intn_asserted())
   {
-    return 0xFFFEU;               /* still busy - the answer would be a lie */
+    return IMU_WAKE_BUSY;         /* the answer would be a lie */
   }
 
   const uint32_t start = HAL_GetTick();
@@ -534,7 +538,7 @@ uint8_t Board_ImuPinCheck(uint8_t pin)
      The check reported MISO as held by something else and it was the test's
      own doing. Measured 2026-08-29: bits 11 with CS floating.
      Skipped when PB12 is the pin under test, which cannot deassert itself. */
-  if (pin != 12U)
+  if (pin != BOARD_IMU_SPI_PIN_FIRST)
   {
     GPIO_InitTypeDef cs = {0};
 
@@ -1013,7 +1017,7 @@ uint8_t Board_ImuDrain(uint8_t limit)
      Three empties in a row, a couple of milliseconds apart, is quiet. */
   uint8_t quiet = 0U;
 
-  for (uint8_t i = 0U; (i < limit) && (quiet < 3U); i++)
+  for (uint8_t i = 0U; (i < limit) && (quiet < IMU_QUIET_EMPTIES); i++)
   {
     if (!Board_ImuRead(&channel, scratch, (uint16_t)sizeof(scratch), &len))
     {

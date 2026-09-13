@@ -216,6 +216,7 @@
   * the filter its settling. */
 #define BOARD_DAQ_CLIMB_AT 6U
 #define BOARD_DAQ_FALL_AT  1U
+#define BOARD_DAQ_RUNG_EIGHTHS 8U   /* both above are eighths of the ring */
 
 /** And a ceiling on that in records, because THE LADDER ANSWERS LATENCY
   * AND THE RING ABSORBS BURSTS - two jobs for one buffer, and only the

@@ -15,6 +15,7 @@
 #define MILLI_PER_UNIT   1000.0f
 #define CENTI_PER_UNIT   100.0f
 #define MICRO_PER_UNIT   1.0e6f     /**< micro-volts, -amps, -ohms, -radians */
+#define NANO_PER_UNIT    1.0e9f     /**< nanohenries; nano kg m2 for the model */
 #define PPM_PER_UNIT     1.0e6f     /**< a ratio carried as parts per million */
 #define PPM_WHOLE        1000000U   /**< the same, as a record field's bound */
 #define MICRO_PER_MILLI  1000UL

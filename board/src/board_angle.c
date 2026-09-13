@@ -51,6 +51,10 @@
    this board rather than assumed - see FINDINGS. */
 #define ANGLE_RW_READ    0U
 #define ANGLE_RW_WRITE   1U
+#define ANGLE_REG_MASK   0x3FU    /* a 6-bit register address */
+#define ANGLE_CRC_MASK   0x0FU    /* the 4-bit CRC a reply ends with */
+#define ANGLE_TEMP_MASK  0x0FFFU  /* TSEN's 12-bit count */
+#define ANGLE_SPI_TIMEOUT_MS 100U
 
 static bool     s_ready;
 static uint32_t s_kernel_hz;
@@ -191,6 +195,8 @@ void Board_AngleClock(uint32_t *kernel_hz, uint32_t *bitrate_hz)
    answers the address it was given in the same frame - there is no second
    transaction to fetch the result. */
 #define ANGLE_WORDS 4U          /* 4 x 5 bits = the 20-bit packet */
+#define ANGLE_WORD_BITS 5U
+#define ANGLE_WORD_MASK 0x1FU
 
 static bool packet(uint32_t out, uint32_t *in)
 {
@@ -206,14 +212,14 @@ static bool packet(uint32_t out, uint32_t *in)
      eight bits the peripheral takes the low bits of the buffer element. */
   for (uint8_t i = 0U; i < ANGLE_WORDS; i++)
   {
-    tx[i] = (uint8_t)((out >> (5U * (ANGLE_WORDS - 1U - i))) & 0x1FU);
+    tx[i] = (uint8_t)((out >> (ANGLE_WORD_BITS * (ANGLE_WORDS - 1U - i))) & ANGLE_WORD_MASK);
   }
 
   cs(true);
   settle();
 
   const bool ok = HAL_SPI_TransmitReceive(&hspi4, tx, rx, ANGLE_WORDS,
-                                          100U) == HAL_OK;
+                                          ANGLE_SPI_TIMEOUT_MS) == HAL_OK;
 
   settle();
   cs(false);
@@ -224,7 +230,7 @@ static bool packet(uint32_t out, uint32_t *in)
 
     for (uint8_t i = 0U; i < ANGLE_WORDS; i++)
     {
-      got = (got << 5U) | (uint32_t)(rx[i] & 0x1FU);
+      got = (got << ANGLE_WORD_BITS) | (uint32_t)(rx[i] & ANGLE_WORD_MASK);
     }
     *in = got;
   }
@@ -242,7 +248,7 @@ bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc)
      programmed to check it, so this sends zeros rather than a polynomial
      the datasheet in this tree does not give. */
   const uint32_t frame = ((uint32_t)ANGLE_RW_READ << ANGLE_RW_SHIFT)
-                       | (((uint32_t)reg & 0x3FU) << ANGLE_ADDR_SHIFT);
+                       | (((uint32_t)reg & ANGLE_REG_MASK) << ANGLE_ADDR_SHIFT);
 
   /* Two frames, not one. Figure 31 draws MOSI and MISO side by side, but
      the address arrives on MOSI bits 17..12 while MISO has already shifted
@@ -264,7 +270,7 @@ bool Board_AngleRead(uint8_t reg, uint16_t *value, uint8_t *crc)
   }
   if (crc != NULL)
   {
-    *crc = (uint8_t)(got & 0x0FU);
+    *crc = (uint8_t)(got & ANGLE_CRC_MASK);
   }
 
   return true;
@@ -292,7 +298,7 @@ bool Board_AngleDie(int32_t *centidegc)
     return false;
   }
 
-  const float kelvin = (float)(counts & 0x0FFFU) / ANGLE_TEMP_LSB_PER_K;
+  const float kelvin = (float)(counts & ANGLE_TEMP_MASK) / ANGLE_TEMP_LSB_PER_K;
 
   *centidegc = (int32_t)((kelvin - KELVIN_AT_ZERO_C) * CENTI_PER_UNIT);
   return true;
@@ -302,7 +308,7 @@ bool Board_AngleDie(int32_t *centidegc)
 bool Board_AngleWrite(uint8_t reg, uint8_t value)
 {
   const uint32_t frame = ((uint32_t)ANGLE_RW_WRITE << ANGLE_RW_SHIFT)
-                       | (((uint32_t)reg & 0x3FU) << ANGLE_ADDR_SHIFT)
+                       | (((uint32_t)reg & ANGLE_REG_MASK) << ANGLE_ADDR_SHIFT)
                        | ((uint32_t)value << ANGLE_DATA_SHIFT);
 
   return packet(frame, NULL);
@@ -431,7 +437,7 @@ void Board_AngleResume(void)
 
 bool Board_AnglePollReg(uint8_t reg)
 {
-  if (reg > 0x3FU)
+  if (reg > ANGLE_REG_MASK)
   {
     return false;                  /* six address bits, Figure 31 */
   }

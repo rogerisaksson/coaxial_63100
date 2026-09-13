@@ -76,6 +76,7 @@ static float   s_v_k;
 
 #define TWO_PI_F 6.2831853f
 #define CODES_PER_TURN 65536.0f   /* the wire's angle: a turn in 65536 */
+#define LOG_EPS_SCALE  10000.0f   /* the log's eps: tenths of a milliradian */
 
 
 static float milli(uint32_t v)
@@ -102,8 +103,8 @@ void Board_DriveParamsFromCal(void)
   drive_params_t *p = &s_drive.p;
 
   p->r = micro(cal->motor_r_uohm);
-  p->ld = (float)cal->motor_ld_nh * 1e-9f;
-  p->lq = (float)cal->motor_lq_nh * 1e-9f;
+  p->ld = (float)cal->motor_ld_nh / NANO_PER_UNIT;
+  p->lq = (float)cal->motor_lq_nh / NANO_PER_UNIT;
   p->lambda = micro(cal->motor_lambda_uvs);
   p->pole_pairs = (float)cal->motor_pole_pairs;
   p->kp = milli(cal->drv_kp_mv_per_a);
@@ -216,14 +217,14 @@ const char *Board_DriveSetpoint(uint8_t id, int32_t value)
     case 6U: sp->vq = f / MILLI_PER_UNIT; break;
     case 7U: sp->pol_volts = f / MILLI_PER_UNIT; break;
     case 8U:
-      if ((value <= 0) || (value > 65535))
+      if ((value <= 0) || (value > UINT16_MAX))
       {
         return "pol_periods is 1..65535 PWM periods";
       }
       sp->pol_periods = (uint16_t)value;
       break;
     case 9U:
-      if ((value < 0) || (value > 65535))
+      if ((value < 0) || (value > UINT16_MAX))
       {
         return "pol_gap is 0..65535 PWM periods";
       }
@@ -284,24 +285,24 @@ const char *Board_DriveModelParam(uint8_t id, int32_t value)
   {
     case 0U:  p->r = f / MICRO_PER_UNIT; break;
     case 1U:  if (value <= 0) { return "ld is nanohenry, above zero"; }
-              p->ld = f * 1e-9f; break;
+              p->ld = f / NANO_PER_UNIT; break;
     case 2U:  if (value <= 0) { return "lq is nanohenry, above zero"; }
-              p->lq = f * 1e-9f; break;
+              p->lq = f / NANO_PER_UNIT; break;
     case 3U:  p->lambda = f / MICRO_PER_UNIT; break;
     case 4U:  if (value <= 0) { return "pole pairs is a count above zero"; }
               p->pole_pairs = f; break;
     case 5U:  p->sat = f / MICRO_PER_UNIT; break;
     case 6U:  if (value <= 0) { return "i_sat is milliamperes, above zero"; }
-              p->i_sat = f / 1e3f; break;
+              p->i_sat = f / MILLI_PER_UNIT; break;
     case 7U:  if (value <= 0) { return "J is nano kg m2, above zero"; }
-              p->j = f * 1e-9f; break;
-    case 8U:  p->b = f * 1e-9f; break;
+              p->j = f / NANO_PER_UNIT; break;
+    case 8U:  p->b = f / NANO_PER_UNIT; break;
     case 9U:  p->load = f / MICRO_PER_UNIT; break;
-    case 10U: p->v_dt = f / 1e3f; break;
+    case 10U: p->v_dt = f / MILLI_PER_UNIT; break;
     case 11U: if (value <= 0) { return "i_knee is milliamperes, above zero"; }
-              p->i_knee = f / 1e3f; break;
+              p->i_knee = f / MILLI_PER_UNIT; break;
     case 12U: if (value <= 0) { return "vdc is millivolts, above zero"; }
-              p->vdc = f / 1e3f; break;
+              p->vdc = f / MILLI_PER_UNIT; break;
     case 13U: p->noise = f / MICRO_PER_UNIT; break;
     case 14U: p->theta0 = f / MICRO_PER_UNIT; break;
     case 15U: if ((value < 1) || (value > 16)) { return "substeps is 1..16"; }
@@ -478,7 +479,7 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
       (int16_t)lrintf(s_drive.id * CENTI_PER_UNIT),
       (int16_t)lrintf(s_drive.iq * CENTI_PER_UNIT),
       (int16_t)(uint16_t)lrintf(s_drive.theta_hat / TWO_PI_F * CODES_PER_TURN),
-      (int16_t)lrintf(s_drive.eps * 10000.0f),
+      (int16_t)lrintf(s_drive.eps * LOG_EPS_SCALE),
     };
 
     Board_LogPush(BOARD_LOG_SOURCE_DRIVE, logged, 4U);
