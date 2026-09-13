@@ -18,6 +18,7 @@ Turn cost is tracked, not printed - `/cost`, and `--budget` to stop. Printing
 it every turn was noise between the question and its answer.
 """
 import find_board
+from coaxial import ports
 import json
 import os
 import re
@@ -1438,9 +1439,9 @@ class Chat:
             # The field bus, not the bench cable: probes are excluded, or
             # the probe-first order hands back the one board that was just
             # ruled out.
-            session, found = sessionmod.open_session(only=find_board.SERIAL)
+            session, found = sessionmod.open_session(only=ports.SERIAL)
         elif want in ('probe', 'jtag', 'swd', 'debugger'):
-            session, found = sessionmod.open_session(only=find_board.PROBE)
+            session, found = sessionmod.open_session(only=ports.PROBE)
         else:
             session, found = sessionmod.open_session(rest.strip())
 

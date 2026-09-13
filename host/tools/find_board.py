@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""Which COM port this board is on - one implementation, called from both sides,
-so "does this port answer" cannot drift between them:
+"""Which COM port this board is on, from the command line - and the
+target voltage over SWD, which only the ST-Link can say.
 
-  * host/coaxial_ollama/tools.py's link_diagnose tool - the model, mid-
-    session, when a call has already failed.
-  * board_chat/ComPort.ps1's Test-BoardPort/Find-BoardPort -
-    -AutodetectComport, before a Python session even exists.
-
-It goes through coaxial.connect(), the same round trip a real session makes, so
-a wrong port fails here for the reason it would fail inside dbg.py - not a
-weaker check that passes here and fails there.
+The probe itself is `coaxial.ports`: one implementation, so "does this
+port answer" cannot drift between the session opener, the broker, the
+model's link_diagnose tool and this script, which board_chat/ComPort.ps1's
+Test-BoardPort/Find-BoardPort call before a Python session even exists.
+The runner's tool reads `port_state`, `probe` and `list_ports`
+through this module, so a test can patch them here.
 
     python tools/find_board.py --list                 # ports Windows sees
     python tools/find_board.py --probe COM4           # does the board answer here?
@@ -23,15 +21,14 @@ import os
 import re
 import subprocess
 import sys
-from contextlib import suppress
 
 # host/ on the path: this file's own directory's parent, so it does
 # not matter what the working directory is or what any directory
 # along the way is called.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import coaxial                                             # noqa: E402
-import serial.tools.list_ports                             # noqa: E402
+from coaxial.ports import (ANSWERED, discover, find, kinds,  # noqa: E402
+                           list_ports, port_state, probe)
 
 
 def _text(out):
@@ -99,128 +96,6 @@ def check_power(timeout=15):
         return None, 'STM32_Programmer_CLI did not answer within %ss' % timeout
     tail = output.strip().splitlines()[-1] if output.strip() else 'no output'
     return None, 'no voltage reading - %s' % tail
-
-
-# STMicroelectronics. Every ST-Link VCP enumerates under this VID - measured
-# here, an STLINK-V3SET reports 0483:374F - and it is what lets "which port is
-# the debugger" be answered without opening a single one. Find-BoardPort's own
-# comment said there was no way to ask; there is, and this is it.
-ST_VID = 0x0483
-
-PROBE = 'probe'      # the debug probe's virtual COM port
-SERIAL = 'serial'    # anything else that answers: RS485, on this board
-
-
-def list_ports():
-    return [p.device for p in serial.tools.list_ports.comports()]
-
-
-def kinds():
-    """[(device, PROBE|SERIAL)], in the order the OS enumerates them.
-
-    USB ports only (`p.vid` set): the debug probe is a USB VCP and RS485
-    arrives on a USB dongle, so a port with no USB identity is never this
-    board. It is also what keeps discovery bounded on a machine with
-    legacy UARTs - a Linux host lists /dev/ttyS* with nothing behind
-    them, opening one succeeds, and the close can sit in the driver's
-    drain for the better part of a minute. Measured on CI: three suites
-    at ~257 s each, every second of it probing motherboard UARTs.
-    """
-    return [(p.device, PROBE if p.vid == ST_VID else SERIAL)
-            for p in serial.tools.list_ports.comports() if p.vid]
-
-
-def kind_of(device):
-    """PROBE or SERIAL for one port, SERIAL if Windows does not list it."""
-    for name, kind in kinds():
-        if name == device:
-            return kind
-    return SERIAL
-
-
-def discover(preferred=None, baud=115200, unit=1, only=None):
-    """`(device, kind)` of the first port this board answers on, or
-    `(None, None)`.
-
-    Order: `preferred` if Windows lists it, then every debug probe, then
-    everything else. `only=PROBE` or `only=SERIAL` narrows it to one path. The probe goes first because it is the one that is
-    there by definition when somebody is at a bench with a cable in - RS485
-    is the installed drive's path, and trying it first would spend a round
-    trip per port on the common case.
-    """
-    listed = kinds()
-    if only:
-        # "switch to RS485" names the path, not a port. Without this the
-        # probe-first order would answer it with the debug probe, which is
-        # the one board the operator just said they did not mean.
-        listed = [p for p in listed if p[1] == only]
-    ordered = ([p for p in listed if p[0] == preferred]
-              + [p for p in listed if p[1] == PROBE and p[0] != preferred]
-              + [p for p in listed if p[1] == SERIAL and p[0] != preferred])
-    for device, kind in ordered:
-        if probe(device, baud, unit):
-            return device, kind
-    return None, None
-
-
-def probe(candidate, baud=115200, unit=1):
-    """True if this board answers on `candidate`. Opens and closes the link
-    each time - the transport's own 0.5s read timeout (coaxial/transport.py)
-    is what keeps a silent port from hanging this, not anything here.
-
-    Imports coaxial fresh on every call rather than once at module load, on
-    purpose: a caller in the same process (tools.py's link_diagnose) can
-    patch `coaxial.connect` for a test and have it actually take - `from
-    coaxial import connect` at import time would bind this module's own
-    name once and never see a patch applied afterward.
-    """
-    try:
-        boards = coaxial.connect([(unit, baud, candidate)])
-    except Exception:                                    # noqa: BLE001
-        return False
-    with suppress(Exception):
-        coaxial.disconnect(boards)
-    return True
-
-
-ANSWERED, BUSY, SILENT, ABSENT = 'answered', 'busy', 'silent', 'absent'
-
-
-def port_state(candidate, baud=115200, unit=1):
-    """Why this port is not answering, not just that it is not.
-
-    `probe` returns False for a port another process holds open exactly as it
-    does for a board that has stopped talking, and those are different
-    problems with different fixes. Measured, and it cost most of a session:
-    two `dbg.py` sessions had COM4 open, every probe read "silent", and the
-    board was diagnosed as halted, started over SWD and reflashed - none of
-    which was the matter with it.
-
-    'busy' is decided on the exception's class name rather than its message:
-    Windows localises the text, and the one Measured was Swedish.
-    """
-    try:
-        handle = serial.Serial(candidate, baud, timeout=0.1)
-    except serial.SerialException as exc:
-        text = str(exc)
-        if 'PermissionError' in text or 'Access is denied' in text:
-            return BUSY
-        return ABSENT
-    handle.close()
-    return ANSWERED if probe(candidate, baud, unit) else SILENT
-
-
-def find(preferred=None, baud=115200, unit=1, ports=None):
-    """The first port that answers as this board, `preferred` tried first
-    if Windows even lists it - or None if nothing did."""
-    if ports is None:
-        ports = list_ports()
-    ordered = ([preferred] if preferred in ports else []) + \
-             [p for p in ports if p != preferred]
-    for candidate in ordered:
-        if probe(candidate, baud, unit):
-            return candidate
-    return None
 
 
 #: Target voltage over SWD above which the board counts as powered.

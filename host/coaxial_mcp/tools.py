@@ -19,7 +19,7 @@ import subprocess
 import sys
 import time
 
-from coaxial import DividerParams, NtcParams, protocol, scaling
+from coaxial import DividerParams, NtcParams, ports, protocol, scaling
 from coaxial import orientation as orient
 from coaxial.errors import DeviceStateError
 from coaxial.wire import pack
@@ -832,14 +832,11 @@ def _interface(session):
     if session.simulated or session.port is None:
         return 'Simulated'
     port = session.port
-    sys.path.insert(0, os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools'))
     try:
-        import find_board        # lazy: a tools script, the path above joins it
-        kind = find_board.kind_of(port)
+        kind = ports.kind_of(port)
     except Exception:                                         # noqa: BLE001
         return str(port)
-    return '%s at %s' % ('debug probe' if kind == find_board.PROBE
+    return '%s at %s' % ('debug probe' if kind == ports.PROBE
                          else 'RS485', port)
 
 

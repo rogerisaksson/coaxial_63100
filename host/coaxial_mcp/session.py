@@ -17,7 +17,7 @@ import sys
 # along the way is called.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial import broker, connect, disconnect, scan  # noqa: E402
+from coaxial import broker, connect, disconnect, ports, scan  # noqa: E402
 from coaxial.errors import RigError              # noqa: E402
 from coaxial.simulated import SimulatedSession   # noqa: E402
 
@@ -123,11 +123,7 @@ def board_answers(port=None, baud=115200, unit=1):
     if served and _answers(served, unit):
         return True
 
-    sys.path.insert(0, os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools'))
-    import find_board        # lazy: a tools script, the path above joins it
-
-    found, _kind = find_board.discover(port, baud, unit)
+    found, _kind = ports.discover(port, baud, unit)
     return found is not None
 
 
@@ -135,7 +131,7 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     """`(session, origin)` - the board, or a stand-in for it.
 
     `simulated=None` looks for the board rather than assuming a port:
-    `find_board.discover` tries `port` first if Windows lists it, then every
+    `ports.discover` tries `port` first if Windows lists it, then every
     debug probe, then everything else, and each try is the same Modbus round
     trip a tool call makes - so "a board answers here" cannot mean one thing
     to this factory and another to the caller a moment later. `True` skips
@@ -148,10 +144,6 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
     failure this codebase documents everywhere else. Every caller prints
     `origin.label`.
     """
-    sys.path.insert(0, os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools'))
-    import find_board        # lazy: a tools script, the path above joins it
-
     kind = None
     fell_back = False
 
@@ -176,12 +168,12 @@ def open_session(port=None, baud=115200, unit=1, simulated=None, only=None):
                        INTERFACE.get(held, held), unit))
 
     if simulated is None:
-        found, kind = find_board.discover(port, baud, unit, only=only)
+        found, kind = ports.discover(port, baud, unit, only=only)
         simulated = found is None
         fell_back = simulated
         port = port if found is None else found
     elif not simulated:
-        kind = find_board.kind_of(port)
+        kind = ports.kind_of(port)
 
     if simulated:
         return (SimulatedSession(port, baud, unit),

@@ -46,6 +46,7 @@ from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
 from coaxial_mcp.tools import TOOLS as BOARD_TOOLS         # noqa: E402
 from coaxial_mcp.tools import coerce as board_coerce       # noqa: E402
 import find_board                                          # noqa: E402
+from coaxial import ports                                  # noqa: E402
 
 from .sandbox import clip_ends                             # noqa: E402
 
@@ -549,9 +550,9 @@ class Toolbox:
                 'debug probe first; /board COM4 tries one by name.')
 
     @staticmethod
-    def _other_ports(ports, configured, baud, unit):
+    def _other_ports(listed, configured, baud, unit):
         """Step 5, when asked: whether the board answers on any other port."""
-        others = [p for p in ports if p != configured]
+        others = [p for p in listed if p != configured]
         found = next((p for p in others
                       if find_board.probe(p, baud, unit)), None)
         if found:
@@ -609,15 +610,15 @@ class Toolbox:
                          'cable seated.' % voltage)
             power_says = 'Powered and the port is right'
 
-        ports = find_board.list_ports()
-        steps.append('2. COM ports Windows sees: %s' % (', '.join(ports)
+        listed = find_board.list_ports()
+        steps.append('2. COM ports Windows sees: %s' % (', '.join(listed)
                                                          or 'none'))
-        if not ports:
+        if not listed:
             steps.append('   Nothing is enumerating as a serial device - '
                          "check the ST-Link or serial adapter's driver.")
             return '\n'.join(steps)
 
-        if configured not in ports:
+        if configured not in listed:
             steps.append("3. Configured port %s: not among the ports above "
                          "- the cable may be unplugged from this PC's side, "
                          "or the driver did not enumerate it." % configured)
@@ -646,7 +647,7 @@ class Toolbox:
         # measured, two dbg.py sessions had COM4 open, every probe read
         # silent, and the board was diagnosed as halted, started over SWD
         # and reflashed. None of that was the matter with it.
-        if find_board.port_state(configured, baud, unit) == find_board.BUSY:
+        if find_board.port_state(configured, baud, unit) == ports.BUSY:
             steps.append('   %s is open in another process - that is why nothing answers here. Close the other session, or point this one at another port.' % configured)
             return '\n'.join(steps)
         steps.append('   %s, so check nothing else has %s open, and that '
@@ -655,7 +656,7 @@ class Toolbox:
                      % (power_says, configured))
 
         if args.get('probe_other_ports'):
-            steps.extend(filter(None, [self._other_ports(ports, configured,
+            steps.extend(filter(None, [self._other_ports(listed, configured,
                                                          baud, unit)]))
 
         return '\n'.join(steps)

@@ -1562,6 +1562,38 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   the offline gate, CI; the scanner 927 -> 849, the library 500 ->
   422. LEFT, BY DESIGN: the rest are defaults and fixtures, and the
   bench tools' 427 are a bench's parameters.
+* THE LIBRARY REACHED INTO TOOLS/ FOR THE BOARD FINDER; NOW THE FINDER
+  IS THE LIBRARY'S (2026-09-13). `tools/find_board.py` held the one
+  implementation of "which port is this board" - the port listing, the
+  USB-VID kind, the probe through `connect`, the port state, discover -
+  and three library sites needed it: the broker naming a held port's
+  path, `open_session` looking for the board, the MCP tools' bus
+  header. Each one inserted `tools/` onto sys.path inside a function
+  and imported the script there, which is a library depending on a
+  script three directories up, a layering inversion, and the last of
+  the function-level imports that were not a cycle. The probe half is
+  `coaxial/ports.py` now - the same code, the same docstrings, reading
+  `board.connect` at the call so a test can still patch it - and the
+  three sites import it like anything else; `find_board.py` is the
+  command line over it and keeps the SWD power check, which only the
+  programmer can answer and is a tool's business. The test seam moved
+  with the code: the link suite patched `coaxial.connect`, the package's
+  re-export, and patches `coaxial.board.connect` now, the definition;
+  the class-name check that read `find_board`'s source reads
+  `ports`'s. TWO THINGS THE MOVE FOUND: the tool re-exported seven
+  names it never used and the structure suite said so, so the model
+  runner and the link suite take the constants from the library and
+  the tool re-exports only what its own command line calls; and the
+  link_diagnose tool had a local list named `ports`, which shadowed the
+  module the moment it was imported - `listed` now, and it was the link
+  suite's first run that found it. `ports.py` is in the runner's path
+  map (broker, mcp, link) and ARCHITECTURE's module list; the structure
+  suite grew four checks with the module, 621 -> 625, and the counts
+  are synced across CLAUDE.md, run_tests.ps1, ARCHITECTURE and
+  .counts.json. Proof: structure 625, broker 33, mcp 50, link 109,
+  ollama tools 219, ollama board 28, every moved module imported first
+  in a bare process with the editable finder stripped, the offline
+  gate, CI.
 
 ## The local model
 

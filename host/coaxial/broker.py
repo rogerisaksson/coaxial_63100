@@ -23,7 +23,7 @@ import sys
 import threading
 import time
 
-from . import errors, protocol
+from . import errors, ports, protocol
 from .errors import NoReplyError, RigError
 from .fanout import Fanout
 from .transport import Transport
@@ -606,14 +606,9 @@ def attach(address=(HOST, PORT), timeout=10.0):
 
 def _kind(port):
     """`debug probe` or `RS485`, off the port listing. None if it cannot say."""
-
-    here = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, os.path.join(here, os.pardir, 'tools'))
-    try:
-        import find_board        # lazy: a tools script, the path above joins it
-        return find_board.kind_of(port)
-    except Exception:                       # noqa: BLE001 - not fatal
-        return None
+    with suppress(Exception):               # noqa: BLE001 - not fatal
+        return ports.kind_of(port)
+    return None
 
 
 def spawn(port, baud=115200, wait=8.0):

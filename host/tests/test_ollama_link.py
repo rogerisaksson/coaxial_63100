@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tests.ollama_support import (ConnectError, Scope, ScriptedModel,   # noqa: E402
     SimulatedSession, _Held, _NotATty, call, detail, io, sessionmod, toolmod)
+from coaxial import ports                                              # noqa: E402
 
 def test_power_check_cannot_halt(report):
     """Diagnosing the link must not be able to break it.
@@ -90,7 +91,7 @@ def test_port_state(report):
 
         serial.Serial = denied
         report.check('a port another process holds is busy, not silent',
-                     find_board.port_state('COM4') == find_board.BUSY,
+                     find_board.port_state('COM4') == ports.BUSY,
                      find_board.port_state('COM4'))
 
         def missing(*a, **kw):
@@ -99,7 +100,7 @@ def test_port_state(report):
 
         serial.Serial = missing
         report.check('a port that is not there is absent, not busy',
-                     find_board.port_state('COM99') == find_board.ABSENT,
+                     find_board.port_state('COM99') == ports.ABSENT,
                      find_board.port_state('COM99'))
     finally:
         serial.Serial = real_serial
@@ -107,7 +108,7 @@ def test_port_state(report):
     # The class name is what decides it: the OS message is localised, and
     # matching "Access is denied" would have read this one as absent.
     report.check('and it is decided on the class name, not the OS wording',
-                 'PermissionError' in open(find_board.__file__,
+                 'PermissionError' in open(ports.__file__,
                                            encoding='utf-8').read())
 
     # The checklist stops guessing at it. Step 4 used to end on "check
@@ -117,7 +118,7 @@ def test_port_state(report):
     real_power = find_board.check_power
     real_ports = find_board.list_ports
     try:
-        find_board.port_state = lambda *a, **kw: find_board.BUSY
+        find_board.port_state = lambda *a, **kw: ports.BUSY
         find_board.check_power = lambda *a, **kw: (3.27, 'stubbed')
         find_board.list_ports = lambda: ['COM_TEST']
         box.session = _Held()
@@ -244,7 +245,7 @@ def test_link_recovery(report):
 def test_link_diagnose(report):
     """OS-level, not another board round trip - see tools.py's own docstring
     for why. Ports come from a fake serial.tools.list_ports.comports() here,
-    never from real hardware; coaxial.connect and find_board.check_power are
+    never from real hardware; coaxial.board.connect and find_board.check_power are
     faked too, for the same reason - both would otherwise probe whatever is
     really plugged into this bench and pass (or fail) for the wrong reason
     on a machine where it happens to answer."""
@@ -257,7 +258,7 @@ def test_link_diagnose(report):
             self.device = device
 
     real_comports = list_ports.comports
-    real_connect = coaxial.connect
+    real_connect = coaxial.board.connect
     real_check_power = find_board.check_power
     real_port_state = find_board.port_state
     try:
@@ -267,9 +268,9 @@ def test_link_diagnose(report):
         # about step 4's closing advice failed because the checklist stopped
         # one step earlier. A suite that passes with a cable in and fails with
         # it out is testing the bench.
-        find_board.port_state = lambda *a, **kw: find_board.SILENT
+        find_board.port_state = lambda *a, **kw: ports.SILENT
         list_ports.comports = lambda: [FakePort('COM4'), FakePort('COM7')]
-        coaxial.connect = lambda *a, **kw: (_ for _ in ()).throw(
+        coaxial.board.connect = lambda *a, **kw: (_ for _ in ()).throw(
             ConnectError('nothing answered'))
         find_board.check_power = lambda timeout=15: (3.30, 'fake: powered')
 
@@ -287,7 +288,7 @@ def test_link_diagnose(report):
                      'COM4' in result2
                      and 'answers on COM4 right now: no' in result2, result2)
 
-        coaxial.connect = lambda *a, **kw: []                # "answers"
+        coaxial.board.connect = lambda *a, **kw: []                # "answers"
         result2b = str(present.call('link_diagnose', {}))
         report.check('and a port that actually answers says the link is '
                      'up, not "silent" just because it exists',
@@ -356,7 +357,7 @@ def test_link_diagnose(report):
         # 1 concluded - on a pulled cable, asserting the one thing that was
         # false and pointing at a busy port and a halted core instead.
         list_ports.comports = lambda: [FakePort('COM4')]
-        coaxial.connect = lambda *a, **kw: (_ for _ in ()).throw(
+        coaxial.board.connect = lambda *a, **kw: (_ for _ in ()).throw(
             ConnectError('nothing answered'))
         find_board.check_power = lambda timeout=15: (None, 'fake: unknown')
         unsure = toolmod.Toolbox(sessionmod.Session(port='COM4', baud=115200, unit=1))
@@ -367,14 +368,14 @@ def test_link_diagnose(report):
                      and 'Powered and the port is right' not in result5,
                      result5.splitlines()[-1][:60])
 
-        find_board.port_state = lambda *a, **kw: find_board.BUSY
+        find_board.port_state = lambda *a, **kw: ports.BUSY
         held = toolmod.Toolbox(sessionmod.Session(port='COM4', baud=115200, unit=1))
         result6 = str(held.call('link_diagnose', {}))
         report.check('a port another process holds says so, rather than '
                      'guessing at a halted core',
                      'open in another process' in result6,
                      result6.splitlines()[-1][:58])
-        find_board.port_state = lambda *a, **kw: find_board.SILENT
+        find_board.port_state = lambda *a, **kw: ports.SILENT
 
         # check_power's own timeout path. The programmer prints the voltage
         # in its first second, then spends the rest on a second connect at
@@ -406,7 +407,7 @@ def test_link_diagnose(report):
              build_and_flash.toolchain_path) = was
     finally:
         list_ports.comports = real_comports
-        coaxial.connect = real_connect
+        coaxial.board.connect = real_connect
         find_board.check_power = real_check_power
         find_board.port_state = real_port_state
 

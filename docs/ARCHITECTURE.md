@@ -188,6 +188,8 @@ attached client every 3 s. The renderers - `engine`, `wireframe`,
 draws that text back the way the terminal shows it, colour braille
 included, as a Pillow image a notebook displays inline; `ansi.png`
 writes one, and `tools/ansi2png.py` is the command line over them.
+`ports.py` lists the COM ports and probes them - which is this board,
+the debug probe or RS485 - and `tools/find_board.py` is its command line.
 
 ### The stand-in
 
@@ -328,12 +330,12 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-six suites, 2981 checks, counted in `host/tests/.counts.json`
+Twenty-six suites, 2985 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 | --- | --- | --- |
-| test_structure.py | 621 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
+| test_structure.py | 625 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
 | test_ollama_tools.py | 219 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
 | test_simulated.py | 254 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |

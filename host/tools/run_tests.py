@@ -330,6 +330,8 @@ TOUCHES = (
     # for it change.
     ('host/coaxial/broker.py',        (BROKER, DAQ_API,
                                       'test_parity.py')),
+    ('host/coaxial/ports.py',         (BROKER, 'test_mcp.py',
+                                       'test_ollama_link.py')),
     ('host/coaxial/rig.py',           (DAQ_API, 'test_simulated.py',
                                       VIEWS)),
     ('host/coaxial/record.py',        (DAQ_API,)),
