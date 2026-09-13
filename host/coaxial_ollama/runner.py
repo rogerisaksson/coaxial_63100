@@ -154,7 +154,7 @@ class Runner:
         the client halves its window when the machine runs out of memory
         (see client._make_room), and a runner still trimming to the old
         number would hand the daemon exactly the prompt that just failed."""
-        return context.budget_for(getattr(self.client, 'options', None))
+        return context.budget_for(self.client.options)
 
     def system_prompt(self):
         text = SYSTEM

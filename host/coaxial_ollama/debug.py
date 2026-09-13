@@ -453,6 +453,25 @@ class Chat:
     stubbed line is impossible to un-stub. What goes over the wire is the trim.
     """
 
+    #: WHAT A CHAT HOLDS, declared. A suite builds one bare with __new__
+    #: and sets what the method under test reads; the rest are these,
+    #: and a method reads an attribute rather than asking getattr whether
+    #: it exists. `client` and `out` are Any: a scripted model and a
+    #: StringIO stand in for both.
+    client: Any = None
+    toolbox: Any = None
+    out: Any = None
+    io_log: Any = None         # the CLI's IOLog once it opened one
+    origin: 'tuple[str, bool] | None' = None   # once a board was opened
+    language = None
+    tool_names: tuple = ()     # set_tools() fills it
+    schemas: 'list | None' = None   # the specs, None with no tools
+    prompt_history: tuple = ()
+    intent = ''
+    compile_intent = False
+    _said_node = None
+    _traced = False
+
     def __init__(self, client, toolbox, tools='read', keep=6, budget=0,
                  quiet=False, out=None, link_ok=True, detail_level=detail.AUTO,
                  session_language=None):
@@ -464,7 +483,7 @@ class Chat:
         # the readings come out of, so auto lands on terse here and on full
         # for anything big enough not to care.
         self.detail = detail.resolve(detail_level,
-                                     model=getattr(client, 'model', None),
+                                     model=client.model,
                                      default=detail.TERSE)
         toolbox.detail = self.detail
         self.keep = keep
@@ -500,7 +519,7 @@ class Chat:
         # Every question typed this session, in order - independent of
         # self.history, which the REPL clears after each answered turn.
         # /history reads it back, /clear_history empties it.
-        self.prompt_history = []
+        self.prompt_history = ()
         # Off by default: dozens of tests build a Chat and none should touch
         # the filesystem. repl() and main() turn it on for the real one.
         self.io_log: Any = IOLog(enabled=False)
@@ -538,16 +557,21 @@ class Chat:
         coaxial_mcp/detail.py. Re-reads the tool list afterwards, because the
         level only exists in what goes over the wire.
         """
-        model = getattr(self.client, 'model', None)
-        self.detail = detail.resolve(wanted, model=model, default=detail.TERSE)
+        self.detail = detail.resolve(wanted, model=self.client.model,
+                                     default=detail.TERSE)
         self.toolbox.detail = self.detail
-        if getattr(self, 'tool_names', None) is not None:
+        if self.tool_names:
             self.set_tools(','.join(self.tool_names) or 'none')
         return self.detail
 
+    def _model_tag(self):
+        """The tag exactly as ollama runs it - `unknown` on a chat built
+        without a client."""
+        return self.client.model if self.client is not None else 'unknown'
+
     def tool_cost(self):
         """What the tool list alone costs, every turn, before any question."""
-        return approx_tokens(json.dumps(getattr(self, 'schemas', None) or []))
+        return approx_tokens(json.dumps(self.schemas or []))
 
     def _lock_language(self, asked):
         """Move the session language, if this question moves it.
@@ -558,7 +582,7 @@ class Chat:
         question set - the language suite failed only when it ran after
         the others, in one session, which is the only place it shows.
         """
-        current = getattr(self, 'language', None)
+        current = self.language
         requested = language.requested_language(asked)
         detected = language.detect(asked)
         if requested and requested != current:
@@ -587,12 +611,12 @@ class Chat:
         # Read from prompt_history, not from the last role=='user' message:
         # a nudge is appended with that role too, and measured live, its
         # English words flipped a Swedish session on the next trim().
-        prompt_history = getattr(self, 'prompt_history', None)
+        prompt_history = self.prompt_history
         asked = (prompt_history[-1] if prompt_history else
                  next((m.get('content') or '' for m in reversed(self.history)
                        if m['role'] == 'user'), ''))
         self._lock_language(asked)
-        names = getattr(self, 'tool_names', ())
+        names = self.tool_names
         hint = ''
         if 'build_firmware' in names:
             hint += '\n' + BUILD_FIRMWARE_HINT
@@ -605,8 +629,8 @@ class Chat:
         # The earlier questions, not the wiped history: "tabulate", then
         # "why can you not reach the board", then "tried that, still
         # nothing" only reads as a sequence with them in view. Five at most.
-        hint += getattr(self, 'intent', '') or ''
-        prior = getattr(self, 'prompt_history', [])[-6:-1]
+        hint += self.intent
+        prior = self.prompt_history[-6:-1]
         if prior:
             hint += ('\nEarlier this session, in order: %s. Treat these as '
                      'troubleshooting steps already tried in this '
@@ -624,7 +648,7 @@ class Chat:
         # matches `ollama ps` or a bug report.
         who = ('Your model tag is exactly "%s", run locally by ollama on this '
                'bench; give that tag verbatim if asked which model you are.'
-               % getattr(getattr(self, 'client', None), 'model', 'unknown'))
+               % self._model_tag())
         if 'build_firmware' in names:
             # Said as identity, not only as the instruction BUILD_FIRMWARE_HINT
             # carries: "what am I" and "what do I do when asked to flash" are
@@ -662,8 +686,8 @@ class Chat:
         to exercise one method has whatever that method needs on it and
         nothing else, and a budget is not what such a test is about.
         """
-        client = getattr(self, 'client', None)
-        return context.budget_for(getattr(client, 'options', None))
+        return context.budget_for(None if self.client is None
+                                  else self.client.options)
 
     def _fit(self, sent):
         """Whatever trim() decided to send, cut down to what the model can
@@ -796,7 +820,7 @@ class Chat:
         """
         session = self.toolbox.session
         here = (session.bus, session.unit)
-        if here[1] is None or here == getattr(self, '_said_node', None):
+        if here[1] is None or here == self._said_node:
             return answer
         self._said_node = here
         where = self._where(here)
@@ -828,7 +852,7 @@ class Chat:
         scripted step already knows what it is asking for.
         """
         self._intent_did = self._intent_kind = self._intent_tool = None
-        if not getattr(self, 'compile_intent', False):
+        if not self.compile_intent:
             return ''
         got, kind, why = intent.compile_intent(self.client, question)
         self._intent_why = why
@@ -853,7 +877,7 @@ class Chat:
         that leaked its own text onto the operator's screen.
         """
         self.history.append({'role': 'user', 'content': question})
-        self.prompt_history.append(question)
+        self.prompt_history += (question,)
         self.io_log.turn(question)
         # A planned turn never calls trim(), which is where the lock moves.
         # Without this a Swedish question answered from a plan left the
@@ -915,7 +939,7 @@ class Chat:
             return self._run_plan(question, planned)
 
         self.history.append({'role': 'user', 'content': question})
-        self.prompt_history.append(question)
+        self.prompt_history += (question,)
         self.io_log.turn(question)
         self._traced = False   # nothing on screen yet, so no leading gap
 
@@ -1142,7 +1166,7 @@ class Chat:
         # An answer that hit the token cap stops mid-sentence, and a table
         # that stops mid-row reads as complete to everyone except a reader
         # counting rows. Say so rather than letting the cap look like the end.
-        if getattr(self.client, 'truncated', False) and answer:
+        if self.client.truncated and answer:
             answer += ('\n[cut off at --words %s. Ask again with more, or ask '
                        'for fewer channels.]'
                        % self.client.options.get('num_predict', '?'))
@@ -1174,7 +1198,7 @@ class Chat:
         if {'build_firmware', 'run_command'} & set(self.tool_names):
             lines.append(BUILDS)
         lines.append('%s, %s, %d tok/turn: %s'
-                     % (getattr(self.client, 'model', '?'), self.detail,
+                     % (self._model_tag(), self.detail,
                         self.tool_cost(),
                         ', '.join(self.tool_names) or 'no tools'))
         return '\n'.join(lines + [HELP])
@@ -1257,7 +1281,7 @@ class Chat:
 
     def _cmd_clear_history(self, rest):
         n = len(self.prompt_history)
-        self.prompt_history = []
+        self.prompt_history = ()
         return 'prompt history cleared (%d question%s)' \
             % (n, '' if n == 1 else 's')
 
@@ -1365,7 +1389,7 @@ class Chat:
         red, because that is the one mode where a command reaches every
         node and nothing answers.
         """
-        label, real = getattr(self, 'origin', None) or (None, True)
+        label, real = self.origin or (None, True)
         if label is None:
             return None, True
         session = self.toolbox.session
@@ -1407,7 +1431,7 @@ class Chat:
 
         want = rest.strip().lower()
         if not want:
-            label = (getattr(self, 'origin', None) or ('unknown',))[0]
+            label = (self.origin or ('unknown',))[0]
             return ('board: %s. /board simulated | auto | rs485 | COM4'
                     % label)
         if want in ('sim', 'simulated', 'fake'):
@@ -1441,7 +1465,7 @@ class Chat:
                 pass
             import find_board
             seen = ', '.join(find_board.list_ports())
-            here = (getattr(self, 'origin', None) or ('unknown',))[0]
+            here = (self.origin or ('unknown',))[0]
             return ('board: nothing answered on %s - still on %s'
                     % (seen or 'no COM port at all', here))
 
@@ -1500,9 +1524,8 @@ class Chat:
             self.client.unload()
         except OllamaError:
             pass
-        log = getattr(self, 'io_log', None)
-        if log is not None:
-            log.close()
+        if self.io_log is not None:
+            self.io_log.close()
 
     def cost_line(self):
         usage = self.client.usage()
@@ -1531,7 +1554,7 @@ class Chat:
         like a tool result, so --quiet stays quiet, and logged unconditionally
         because the log is what a later look at the session reads.
         """
-        notes = getattr(self.client, 'notes', None)
+        notes = self.client.notes
         if not notes:
             return
         drained, notes[:] = list(notes), []
@@ -1567,7 +1590,7 @@ class Chat:
         # Only before a multi-line result: a one-line answer needs no room
         # around it.
         lead = ''
-        if getattr(self, '_traced', False) and '\n' in str(result).strip():
+        if self._traced and '\n' in str(result).strip():
             lead = '\n'
         self._traced = True
         # English stays in the result the model reads, the log keeps and the

@@ -13,9 +13,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession, 
-    build, call, io, json, safe_head, simulated, sys, threading, toolmod, 
-    types)   # noqa: E402
+from tests.ollama_support import (Scope, ScriptedModel, SimulatedSession,  # noqa: E402
+    build, call, clientmod, io, json, safe_head, simulated, sys, threading,
+    toolmod, types)
 
 def test_prompt(report):
     """|robot icon| Coaxial_63<bar>00> - the bar spins in place of the
@@ -646,7 +646,7 @@ def test_intent(r):
     # unloads and reloads the weights - measured at once per question when
     # this module built its own Ollama. The compile must go through the
     # turn's own client, with only per-request fields overridden.
-    class Recorder(object):
+    class Recorder(clientmod.Model):
         model = 'gemma4:12b'
         options = {'num_ctx': 8192, 'temperature': 0.0}
 
@@ -660,7 +660,6 @@ def test_intent(r):
 
     rec = Recorder()
     built = []
-    from coaxial_ollama import client as clientmod
     was = clientmod.Ollama
 
     class Loud(object):
@@ -685,7 +684,7 @@ def test_intent(r):
             rec.options == {'num_ctx': 8192, 'temperature': 0.0})
 
     # An unreachable daemon must leave the turn untouched, not raise into it.
-    class Dead(object):
+    class Dead(clientmod.Model):
         model = 'gemma4:12b'
 
         def chat(self, *a, **k):
@@ -713,7 +712,7 @@ def test_intent(r):
     # The executor. What must hold is that the model is asked *after* the
     # calls have run and is offered no tools at all - the turn has no choice
     # left in it to get wrong.
-    class Narrator(object):
+    class Narrator(clientmod.Model):
         model = 'gemma4:12b'
         options = {'num_ctx': 8192}
 

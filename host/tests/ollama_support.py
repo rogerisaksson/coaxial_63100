@@ -48,6 +48,7 @@ from coaxial_ollama import tools as toolmod                # noqa: E402
 from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
 from coaxial_mcp import detail                             # noqa: E402,F401
 from coaxial_mcp import session as sessionmod              # noqa: E402
+from coaxial_ollama import client as clientmod             # noqa: E402
 BSLASH = chr(92)
 
 
@@ -197,7 +198,7 @@ class SimulatedSession:
 
     def close(self):
         pass
-class ScriptedModel:
+class ScriptedModel(clientmod.Model):
     """An Ollama stand-in that replays a list of assistant messages."""
 
     def __init__(self, turns, model='scripted', num_ctx=8192):

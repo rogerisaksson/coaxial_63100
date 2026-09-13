@@ -1197,6 +1197,25 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   checks now. structure 621, tools 219, link 109, bus 28, runner 223,
   prompt 113, board 28, reply 23, render 32, language 12, mcp 50,
   broker 33, simulated 254; pyright 0.
+* THE CHAT'S STATE IS DECLARED, AND THE MODEL CLIENT HAS A BASE
+  (2026-09-13). `Chat` carried fifteen `getattr(self, name, default)`
+  reads - `origin`, `io_log`, `tool_names`, `schemas`,
+  `prompt_history`, `intent`, `compile_intent`, `_said_node`,
+  `_traced`, `client` - because the suites build one bare with
+  `__new__` and set what the method under test reads. Those are class
+  attributes now, typed the way they are used: `tool_names` a tuple,
+  `schemas` the specs or None (what set_tools leaves with no tools),
+  `prompt_history` a tuple grown by rebinding, `origin` a pair or
+  None; a method reads them. Six more reads asked the client whether it
+  had `model`, `options`, `truncated` or `notes`: `client.Model` names
+  that surface once, `Ollama` derives from it and so does every double
+  in the tests - ScriptedModel, Dead, Recorder, Narrator, Flaky - two of
+  which lacked `options` and would have crashed the runner's budget if
+  a test had walked that path. The chat page reads `chat.toolbox` and
+  `chat.close()` as the attributes they are, `_Claude` declaring it has
+  no toolbox. structure 621, tools 219, link 109, bus 28, runner 223,
+  prompt 113, board 28, reply 23, render 32, language 12, mcp 50;
+  pyright 0; the chat page draws its frames.
 
 ## The local model
 

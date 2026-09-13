@@ -13,9 +13,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tests.ollama_support import (CHANNELS, Scope, ScriptedModel, Shell, 
-    SimulatedSession, build, call, detail, io, json, os, replies, runmod, 
-    sys, toolmod)   # noqa: E402
+from tests.ollama_support import (CHANNELS, Scope, ScriptedModel, Shell,  # noqa: E402
+    SimulatedSession, build, call, clientmod, detail, io, json, os, replies,
+    runmod, sys, toolmod)
 
 
 
@@ -843,7 +843,7 @@ def test_debug(report):
     # the next request same as the board answers again once plugged back in.
     from coaxial_ollama.client import OllamaError
 
-    class Flaky:
+    class Flaky(clientmod.Model):
         model = 'flaky'
 
         def __init__(self):

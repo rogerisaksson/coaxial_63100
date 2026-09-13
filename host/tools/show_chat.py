@@ -153,6 +153,10 @@ class _Claude:
     interactive run approves it, and -p cannot ask - measured as a page
     that answered nothing at all."""
 
+    #: No toolbox of its own: the tools are the MCP server's, in claude's
+    #: process.
+    toolbox = None
+
     def __init__(self, port, script, exe='claude'):
         import json
         import tempfile
@@ -252,7 +256,7 @@ def mcp_ready(chat, port, script, step):
 def _turn(chat, line, script, state):
     """One question on a worker thread; the frame loop keeps drawing."""
     try:
-        box = getattr(chat, 'toolbox', None)
+        box = chat.toolbox
         if box is not None:
             box.afe_mentioned = 'afe' in line.lower()
             box.asked = line
@@ -417,15 +421,15 @@ def main():
     else:
         with boot('LINKING MODEL'):
             chat = open_chat(a, script)
-        origin = _Origin(chat.origin[0], chat.origin[1], a.port)
+        label, real = chat.origin or ('unknown', False)
+        origin = _Origin(label, real, a.port)
         state['tools'] = tuple(sorted(chat.tool_names))
 
     try:
         return _run(a, page, console, script, state, chat, origin)
     finally:
-        closer = getattr(chat, 'close', None)
-        if closer:
-            closer()
+        if chat is not None:
+            chat.close()
 
 
 def _run(a, page, console, script, state, chat, origin):

@@ -217,7 +217,7 @@ def compile_intent(client, text):
     if not text:
         return None, None, 'nothing was asked'
     try:
-        if not getattr(client, 'model', None):
+        if not client.model:
             return None, None, 'no model tag to ask'
         catalogue = '\n'.join('  %-8s %s' % (name, INTENTS[name])
                               for name in sorted(INTENTS))

@@ -130,7 +130,19 @@ def _freed_note(freed, reloaded):
     return 'out of memory: nothing to free'
 
 
-class Ollama:
+class Model:
+    """What the runner reads off a model client, whichever it is:
+    the tag exactly as the daemon runs it, the options a request
+    carries, whether the last answer hit the token cap, and the
+    daemon's notes about the last call. `Ollama` is one; a scripted
+    stand-in in the tests is another."""
+    model = ''
+    options = None
+    truncated = False
+    notes = ()
+
+
+class Ollama(Model):
     """`/api/chat` over urllib. Refuses cloud tags and non-loopback hosts,
     retries a crashed runner, and climbs a ladder of its own when the
     card is genuinely full."""
