@@ -2605,6 +2605,18 @@ def _sized(args, board_view):
     return board_view.size if board_view.is_terminal else None
 
 
+def _console_for(args):
+    """The console the page draws on - and, piped at a size, laid out
+    for that terminal rather than for the eighty columns a pipe is
+    assumed to be: the frame cropped the foot's WINDING to DING
+    otherwise, measured."""
+    from screen import stage
+    board_view = stage()
+    if args.width and args.height and not board_view.is_terminal:
+        board_view.width, board_view.height = args.width, args.height
+    return board_view
+
+
 def main(argv=None):
     args = parse_args(argv)
     sane(args)
@@ -2648,12 +2660,7 @@ def main(argv=None):
     if args.start:
         view['said'] = act(rig, 's', view)
 
-    board_view = stage()
-    if args.width and args.height and not board_view.is_terminal:
-        # Piped at a size: the page is laid out for that terminal, not
-        # for the eighty columns a pipe is assumed to be - the frame
-        # cropped the foot's WINDING to DING otherwise, measured.
-        board_view.width, board_view.height = args.width, args.height
+    board_view = _console_for(args)
     console = board_view.is_terminal
     # THE CONSOLE ITSELF, not the boolean. `console` here is
     # `is_terminal` - every view in this tree passes that around under
