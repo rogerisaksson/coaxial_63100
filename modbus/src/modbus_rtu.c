@@ -107,16 +107,14 @@ static bool frame_proven(const mb_rtu_t *rtu)
 
 void mb_rtu_on_byte(mb_rtu_t *rtu, uint8_t byte, uint32_t now_ticks)
 {
-  if (rtu->receiving)
+  /* A gap longer than t1.5 inside a frame means the frame is not a frame.
+     It must still be drained and discarded, not truncated and parsed. */
+  if (rtu->receiving
+      && (elapsed(now_ticks, rtu->last_event_ticks) > rtu->t15_ticks))
   {
-    /* A gap longer than t1.5 inside a frame means the frame is not a frame.
-       It must still be drained and discarded, not truncated and parsed. */
-    if (elapsed(now_ticks, rtu->last_event_ticks) > rtu->t15_ticks)
-    {
-      rtu->frame_bad = true;
-    }
+    rtu->frame_bad = true;
   }
-  else
+  if (!rtu->receiving)
   {
     rtu->receiving = true;
     rtu->rx_len    = 0U;

@@ -5,14 +5,10 @@
   ******************************************************************************
   */
 #include "board.h"
+#include "board_units.h"
 #include "board_hw.h"
 
 #include <math.h>
-
-/* What the cooked readings count in: milli-units of a volt or an amp,
-   centi-units of a degree. */
-#define MILLI_PER_UNIT 1000.0f
-#define CENTI_PER_UNIT 100.0f
 
 
 /* ADC+/- reference. VREFBUF is deliberately disabled and VREF+ left

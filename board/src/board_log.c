@@ -17,6 +17,7 @@
   ******************************************************************************
   */
 #include "board.h"
+#include "board_irq.h"
 #include "board_hw.h"
 
 #include <string.h>
@@ -43,8 +44,7 @@ void Board_LogEnable(uint8_t sources, uint32_t min_gap_cycles)
   /* Reset alongside the mask rather than leaving old samples in front of new
      ones: a burst whose first records predate the run is worse than an empty
      one, and there is no field that would say so. */
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   s_sources = sources;
   s_min_gap = min_gap_cycles;
   s_head = 0U;
@@ -60,10 +60,7 @@ void Board_LogEnable(uint8_t sources, uint32_t min_gap_cycles)
   {
     s_last_at[i] = now - min_gap_cycles;
   }
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 }
 
 
@@ -114,8 +111,7 @@ void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n)
 
   /* Short on purpose. This runs inside ADC3's interrupt at 50 kHz, and the
      window where interrupts are off is one struct copy and one index. */
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   const uint16_t next = next_of(s_head);
 
   if (next == s_tail)
@@ -127,10 +123,7 @@ void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n)
     s_ring[s_head] = rec;
     s_head = next;
   }
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 }
 
 

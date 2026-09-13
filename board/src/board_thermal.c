@@ -33,6 +33,7 @@
   */
 #include "board_limits.h"
 #include "board.h"
+#include "board_units.h"
 #include "board_drive.h"
 #include "board_hw.h"
 #include "board_power.h"
@@ -131,7 +132,7 @@ static float trip_cap_now(void)
   {
     return 1.0f;
   }
-  const float back = (float)(HAL_GetTick() - s_trip_ms) / 1000.0f
+  const float back = (float)(HAL_GetTick() - s_trip_ms) / MILLI_PER_UNIT
                      * THERMAL_TRIP_RECOVER_PER_S;
   const float cap = s_trip_cap + back;
 
@@ -158,16 +159,16 @@ static void soa_from_cal(void)
   memset(&s_soa, 0, sizeof(s_soa));
   for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
   {
-    s_soa.limit_c[i] = (float)cal->soa_limit_centi[i] / 100.0f;
+    s_soa.limit_c[i] = (float)cal->soa_limit_centi[i] / CENTI_PER_UNIT;
     /* Which of them the clamp can actually cool - `board.h` has why the
        housekeeping nodes are judged but not throttled on. */
     s_soa.undriven[i] = ((cal->soa_undriven_mask >> i) & 1UL) != 0UL;
   }
   /* The winding's ceiling is the record's own field, kept since 12 so
      op 6 and id 48 keep their meaning; zero disables it as before. */
-  s_soa.limit_c[THERMAL_WINDING] = (float)cal->winding_limit_centi / 100.0f;
+  s_soa.limit_c[THERMAL_WINDING] = (float)cal->winding_limit_centi / CENTI_PER_UNIT;
   s_soa.throttle_at = (float)cal->soa_throttle_ppm / 1000000.0f;
-  s_soa.lookahead_s = (float)cal->soa_lookahead_ms / 1000.0f;
+  s_soa.lookahead_s = (float)cal->soa_lookahead_ms / MILLI_PER_UNIT;
 
   /* THE POLICY. While the model is doubted the ceilings are pulled in:
      each span over the reference is multiplied by the margin - the
@@ -211,7 +212,7 @@ static void network_from_cal(thermal_cfg_t *cfg)
 
   if (cal->thermal_to_ambient_milli != 0U)
   {
-    cfg->board_to_ambient = (float)cal->thermal_to_ambient_milli / 1000.0f;
+    cfg->board_to_ambient = (float)cal->thermal_to_ambient_milli / MILLI_PER_UNIT;
   }
   if (cal->thermal_rad_share_ppm != 0U)
   {
@@ -223,7 +224,7 @@ static void network_from_cal(thermal_cfg_t *cfg)
   }
   if (cal->thermal_ntc_tau_ms != 0U)
   {
-    cfg->ntc_tau_s = (float)cal->thermal_ntc_tau_ms / 1000.0f;
+    cfg->ntc_tau_s = (float)cal->thermal_ntc_tau_ms / MILLI_PER_UNIT;
   }
   cfg->rad_board_stator = (float)cal->thermal_rad_board_stator_micro / 1.0e6f;
 
@@ -233,17 +234,16 @@ static void network_from_cal(thermal_cfg_t *cfg)
   {
     thermal_node_cfg_t *n = &cfg->node[i];
 
-    if (n->area_share > 0.0f)
+    const bool shared = n->area_share > 0.0f;
+
+    if (shared && (cal->thermal_to_ambient_milli != 0U))
     {
-      if (cal->thermal_to_ambient_milli != 0U)
-      {
-        n->to_ambient = cfg->board_to_ambient / n->area_share;
-      }
-      if (cal->thermal_capacity_milli != 0U)
-      {
-        n->capacity = ((float)cal->thermal_capacity_milli / 1000.0f)
-                      * n->area_share;
-      }
+      n->to_ambient = cfg->board_to_ambient / n->area_share;
+    }
+    if (shared && (cal->thermal_capacity_milli != 0U))
+    {
+      n->capacity = ((float)cal->thermal_capacity_milli / MILLI_PER_UNIT)
+                    * n->area_share;
     }
   }
   for (uint8_t i = 0U; i < (uint8_t)THERMAL_NODES; i++)
@@ -253,19 +253,19 @@ static void network_from_cal(thermal_cfg_t *cfg)
 
     if (rec->capacity_milli != 0U)
     {
-      n->capacity = (float)rec->capacity_milli / 1000.0f;
+      n->capacity = (float)rec->capacity_milli / MILLI_PER_UNIT;
     }
     if (rec->to_ambient_milli != 0U)
     {
-      n->to_ambient = (float)rec->to_ambient_milli / 1000.0f;
+      n->to_ambient = (float)rec->to_ambient_milli / MILLI_PER_UNIT;
     }
     if (rec->forced_milli != 0U)
     {
-      n->forced = (float)rec->forced_milli / 1000.0f;
+      n->forced = (float)rec->forced_milli / MILLI_PER_UNIT;
     }
     if (rec->rth_milli != 0U)
     {
-      n->rth_die = (float)rec->rth_milli / 1000.0f;
+      n->rth_die = (float)rec->rth_milli / MILLI_PER_UNIT;
     }
   }
   for (uint8_t e = 0U; e < (uint8_t)THERMAL_EDGES; e++)
@@ -278,17 +278,17 @@ static void network_from_cal(thermal_cfg_t *cfg)
     }
     else if (milli != 0U)
     {
-      cfg->r_edge[e] = (float)milli / 1000.0f;
+      cfg->r_edge[e] = (float)milli / MILLI_PER_UNIT;
     }
   }
 
   /* The winding, from its own three fields (CAL_VERSION 12). */
   {
-    const float k = (float)cal->winding_k_per_w_milli / 1000.0f;
+    const float k = (float)cal->winding_k_per_w_milli / MILLI_PER_UNIT;
     const int into_iron = thermal_sink_edge(THERMAL_WINDING);
 
     cfg->node[THERMAL_WINDING].capacity =
-        (float)cal->winding_j_per_k_milli / 1000.0f;
+        (float)cal->winding_j_per_k_milli / MILLI_PER_UNIT;
     if ((k > 0.0f) && (into_iron >= 0))
     {
       cfg->r_edge[into_iron] = 0.25f * k;
@@ -304,7 +304,7 @@ static void losses_from_cal(void)
 {
   thermal_losses(&s_loss);
   s_loss.r_phase = (float)Board_Cal()->motor_r_uohm / 1.0e6f;
-  s_loss.k_iron = (float)Board_Cal()->thermal_k_iron_milli / 1000.0f;
+  s_loss.k_iron = (float)Board_Cal()->thermal_k_iron_milli / MILLI_PER_UNIT;
 }
 
 
@@ -328,7 +328,7 @@ void Board_ThermalInit(void)
      to carry from. */
   int32_t raw = 0, centi = 0;
   const bool have = Board_Ntc(&raw, &centi);
-  const float start_c = have ? ((float)centi / 100.0f) : 25.0f;
+  const float start_c = have ? ((float)centi / CENTI_PER_UNIT) : 25.0f;
 
   network_from_cal(&s_base);
   losses_from_cal();
@@ -385,7 +385,7 @@ static float derate_applied(float want, uint32_t since_ms)
   }
   else
   {
-    held += THERMAL_DERATE_RECOVER_PER_S * ((float)since_ms / 1000.0f);
+    held += THERMAL_DERATE_RECOVER_PER_S * ((float)since_ms / MILLI_PER_UNIT);
     if (held > want)
     {
       held = want;
@@ -410,14 +410,14 @@ static void sense_read(thermal_sense_t *out)
 {
   int32_t raw = 0, centi = 0;
 
-  out->ntc_c = Board_Ntc(&raw, &centi) ? ((float)centi / 100.0f) : NAN;
-  out->mcu_c = Board_McuDie(&raw, &centi) ? ((float)centi / 100.0f) : NAN;
+  out->ntc_c = Board_Ntc(&raw, &centi) ? ((float)centi / CENTI_PER_UNIT) : NAN;
+  out->mcu_c = Board_McuDie(&raw, &centi) ? ((float)centi / CENTI_PER_UNIT) : NAN;
 
   /* The A1335 sits in the AFE corner, so its die anchors THAT node - not
      the board. Getting that backwards is what made this sensor look
      useless. Two SPI frames, and only inside the borrow: the part loses its
      supply with AFE_ON low like everything else here. */
-  out->afe_c = Board_AngleDie(&centi) ? ((float)centi / 100.0f) : NAN;
+  out->afe_c = Board_AngleDie(&centi) ? ((float)centi / CENTI_PER_UNIT) : NAN;
 }
 
 
@@ -427,35 +427,32 @@ static void sense_sample(uint32_t now, thermal_sense_t *out)
   out->afe_c = NAN;
   out->mcu_c = NAN;
 
+  /* Zero is OFF, and it has to be said out loud: the period test is
+     unsigned, so a zero period made the observer borrow the rail on
+     EVERY poll instead of never, and pinned PE15 low. */
+  const bool due = (s_every_ms != 0U) && ((now - s_sampled_ms) >= s_every_ms);
+
+  if (!s_holding && !due)
+  {
+    return;
+  }
   /* Somebody else already has the rail up - read it and borrow nothing.
      STILL ON THE INTERVAL: free of the rail is not free of the bus, and
      the A1335's register rotation is shared with the angle poll. */
   if (!s_holding && Board_AfeOn())
   {
-    if ((s_every_ms == 0U) || ((now - s_sampled_ms) < s_every_ms))
-    {
-      return;
-    }
     sense_read(out);
     s_sampled_ms = now;
     return;
   }
-
+  if (!s_holding && !Board_PowerAcquire(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
+  {
+    /* Armed. Back off a whole interval rather than retrying at 10 Hz. */
+    s_sampled_ms = now;
+    return;
+  }
   if (!s_holding)
   {
-    /* Zero is OFF, and it has to be said out loud: the period test is
-       unsigned, so a zero period made the observer borrow the rail on
-       EVERY poll instead of never, and pinned PE15 low. */
-    if ((s_every_ms == 0U) || ((now - s_sampled_ms) < s_every_ms))
-    {
-      return;
-    }
-    if (!Board_PowerAcquire(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
-    {
-      /* Armed. Back off a whole interval rather than retrying at 10 Hz. */
-      s_sampled_ms = now;
-      return;
-    }
     s_holding = true;
     s_held_ms = now;
     return;                         /* the reference has not come up yet */
@@ -531,7 +528,7 @@ static void load_now(thermal_load_t *load)
   int32_t dc_raw = 0, millivolt = 0;
   if (load->afe_on && Board_DcBus(&dc_raw, &millivolt))
   {
-    s_link_volts = (float)millivolt / 1000.0f;
+    s_link_volts = (float)millivolt / MILLI_PER_UNIT;
   }
   /* Zero says "never measured", and the model falls back to the voltage its
      switching figure was calibrated at rather than inventing a scale. */
@@ -614,12 +611,12 @@ void Board_ThermalPoll(void)
                                s_th.t[THERMAL_DRIVER(2)] };
 
     thermal_power_estimate(&s_power, &load, &s_loss, phase_c);
-    thermal_step(&s_th, &s_power, &seen, &load, (float)slice / 1000.0f);
+    thermal_step(&s_th, &s_power, &seen, &load, (float)slice / MILLI_PER_UNIT);
     /* THE IDENTIFICATION, beside it: the shadow and its sensitivities
        step with the same power and the same slice; when a sample moves
        the scales the observer's network takes them at once. */
     if (thermal_ident_step(&s_ident, &s_th, &s_base, &s_power, &load, &seen,
-                           (float)slice / 1000.0f))
+                           (float)slice / MILLI_PER_UNIT))
     {
       thermal_ident_apply(&s_ident, &s_base, &s_th.cfg);
     }
@@ -783,18 +780,14 @@ bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at)
   }
   /* Through the record, so a save persists it and one place holds the
      envelope. The winding's ceiling is its own field. */
-  if (node == (uint8_t)THERMAL_WINDING)
-  {
-    const board_cal_t *cal = Board_Cal();
+  const board_cal_t *cal = Board_Cal();
+  const int32_t centi = (int32_t)(limit_c * CENTI_PER_UNIT);
+  const bool kept = (node == (uint8_t)THERMAL_WINDING)
+                    ? Board_CalSetWinding(centi, cal->winding_k_per_w_milli,
+                                          cal->winding_j_per_k_milli)
+                    : Board_CalSetLimit(node, centi);
 
-    if (!Board_CalSetWinding((int32_t)(limit_c * 100.0f),
-                             cal->winding_k_per_w_milli,
-                             cal->winding_j_per_k_milli))
-    {
-      return false;
-    }
-  }
-  else if (!Board_CalSetLimit(node, (int32_t)(limit_c * 100.0f)))
+  if (!kept)
   {
     return false;
   }

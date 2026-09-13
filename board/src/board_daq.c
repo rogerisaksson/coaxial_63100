@@ -38,6 +38,7 @@
   */
 #include "board_limits.h"
 #include "board.h"
+#include "board_irq.h"
 #include "board_hw.h"
 #include "filter.h"
 
@@ -295,13 +296,14 @@ static void ladder_step(void)
     s_low_for = 0U;
     return;
   }
-  if (++s_low_for >= BOARD_DAQ_FALL_AFTER)
+  if (++s_low_for < BOARD_DAQ_FALL_AFTER)
   {
-    s_low_for = 0U;
-    if (s_rung > 0U)
-    {
-      take_rung((uint8_t)(s_rung - 1U));
-    }
+    return;
+  }
+  s_low_for = 0U;
+  if (s_rung > 0U)
+  {
+    take_rung((uint8_t)(s_rung - 1U));
   }
 }
 
@@ -357,6 +359,27 @@ static void sensor_words(uint8_t bit, const board_imu_state_t *imu,
       v[0] = imu->mag[0];   v[1] = imu->mag[1];   v[2] = imu->mag[2];
       v[3] = (int16_t)imu->mag_status;
       break;
+  }
+}
+
+
+/* The record into the ring, or counted as dropped when it does not
+   fit - and the high-water mark of what the host has yet to take. */
+static void put_record(const uint8_t *rec)
+{
+  if (room() <= s_stride)
+  {
+    s_dropped++;
+    return;
+  }
+  put(rec, s_stride);
+  s_produced++;
+
+  const uint32_t held = Board_DaqAvailable();
+
+  if (held > s_worst)
+  {
+    s_worst = held;
   }
 }
 
@@ -419,30 +442,10 @@ static void push_record(void)
   rec[at++] = (uint8_t)((s_acc_n >> 8) & 0xFFU);
   rec[at++] = (uint8_t)(s_acc_n & 0xFFU);
 
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
 
-  if (room() > s_stride)
-  {
-    put(rec, s_stride);
-    s_produced++;
-
-    const uint32_t held = Board_DaqAvailable();
-
-    if (held > s_worst)
-    {
-      s_worst = held;
-    }
-  }
-  else
-  {
-    s_dropped++;
-  }
-
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  put_record(rec);
+  Board_IrqRelease(masked);
 
   memset(s_acc, 0, sizeof(s_acc));
   memset(s_dacc, 0, sizeof(s_dacc));
@@ -487,6 +490,24 @@ static bool filtered(uint8_t field, int32_t sum, uint16_t count,
 }
 
 
+/* One sweep into the sums - the digital word's bits too, when the task
+   carries pins. */
+static void accumulate(const int32_t *values, uint32_t digital)
+{
+  const uint8_t pins = (s_cfg.digital != 0U) ? Board_DigitalSampledCount() : 0U;
+
+  for (uint8_t f = 0U; f < s_fields; f++)
+  {
+    s_acc[f] += values[f];
+  }
+  for (uint8_t p = 0U; (p < pins) && (p < BOARD_DAQ_MAX_PINS); p++)
+  {
+    s_dacc[p] = (uint16_t)(s_dacc[p] + (uint16_t)((digital >> p) & 1U));
+  }
+  s_acc_n++;
+}
+
+
 /** One trigger's worth of samples, already read. Accumulates and may push. */
 static void feed(const int32_t *values, uint32_t at, uint32_t digital)
 {
@@ -521,34 +542,20 @@ static void feed(const int32_t *values, uint32_t at, uint32_t digital)
      end whatever the channel read. */
   if (s_acc_n < LIVE_MAX_ADDITIONS)
   {
-    for (uint8_t f = 0U; f < s_fields; f++)
-    {
-      s_acc[f] += values[f];
-    }
-    if (s_cfg.digital != 0U)
-    {
-      const uint8_t pins = Board_DigitalSampledCount();
-
-      for (uint8_t p = 0U; (p < pins) && (p < BOARD_DAQ_MAX_PINS); p++)
-      {
-        s_dacc[p] = (uint16_t)(s_dacc[p] +
-                               (uint16_t)((digital >> p) & 1U));
-      }
-    }
-    s_acc_n++;
+    accumulate(values, digital);
   }
 
+  /* Closed by the clock. Unsigned elapsed arithmetic, so the CYCCNT
+     wrap costs nothing (invariant 2). A clock-closed window and a
+     filter are alternatives: a fixed-rate filter needs a fixed
+     decimation, and this window's length is whatever the loop
+     managed. Board_DaqConfigure refuses the pair. */
+  if ((s_cfg.accumulate == 0U) && ((uint32_t)(at - s_first_at) >= s_interval_cycles))
+  {
+    push_record();
+  }
   if (s_cfg.accumulate == 0U)
   {
-    /* Closed by the clock. Unsigned elapsed arithmetic, so the CYCCNT
-       wrap costs nothing (invariant 2). A clock-closed window and a
-       filter are alternatives: a fixed-rate filter needs a fixed
-       decimation, and this window's length is whatever the loop
-       managed. Board_DaqConfigure refuses the pair. */
-    if ((uint32_t)(at - s_first_at) >= s_interval_cycles)
-    {
-      push_record();
-    }
     return;
   }
 
@@ -886,6 +893,23 @@ const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
 
 /** One tone sample: the unit vector turned by one step, renormalised
   * every 1024 so the rotation's magnitude cannot creep. */
+/* The rotating unit vector drifts off length by rounding: every
+   TONE_RENORM_MASK + 1 samples it is put back, unless it has collapsed. */
+#define TONE_RENORM_MASK 1023U
+#define TONE_TINY        1e-6f
+
+static void tone_renormalise(float x, float y)
+{
+  const float size = sqrtf((x * x) + (y * y));
+
+  if (size > TONE_TINY)
+  {
+    s_tone_x = x / size;
+    s_tone_y = y / size;
+  }
+}
+
+
 static int32_t tone_next(void)
 {
   if (s_tone_kind == BOARD_DAQ_TONE_RAMP)
@@ -903,15 +927,9 @@ static int32_t tone_next(void)
 
   s_tone_x = x;
   s_tone_y = y;
-  if ((++s_tone_n & 1023U) == 0U)
+  if ((++s_tone_n & TONE_RENORM_MASK) == 0U)
   {
-    const float size = sqrtf((x * x) + (y * y));
-
-    if (size > 1e-6f)
-    {
-      s_tone_x = x / size;
-      s_tone_y = y / size;
-    }
+    tone_renormalise(x, y);
   }
   return (int32_t)lrintf(s_tone_offset + (s_tone_amp * s_tone_y));
 }
@@ -1041,8 +1059,7 @@ void Board_DaqStop(void)
 static void live_insert(uint8_t field, int32_t value, uint32_t at,
                         uint32_t digital)
 {
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
 
   if (s_live_any == 0U)
   {
@@ -1079,10 +1096,7 @@ static void live_insert(uint8_t field, int32_t value, uint32_t at,
   s_live_last = at;
   s_live_digital = digital;
 
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 }
 
 
@@ -1096,8 +1110,7 @@ void Board_DaqTakeLive(board_daq_live_t *out)
   /* Under PRIMASK because feed() runs in ADC3's interrupt on the TIM1
      clock: a reader that caught the count from one trigger and a sum from
      the next would report a mean that was never taken. */
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
 
   out->fresh = (s_live_any != 0U);
   out->first = s_live_first;
@@ -1113,10 +1126,7 @@ void Board_DaqTakeLive(board_daq_live_t *out)
   }
   s_live_any = 0U;
 
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 }
 
 
@@ -1186,6 +1196,28 @@ static bool powered(void)
 }
 
 
+/* Closed by a count: `interval_us` gates RECORDS by gating the
+   triggers that make one. The ring is a capture and its rate is the
+   link's business; the accumulator's is not. A zero interval is every
+   sweep. */
+static bool trigger_due(void)
+{
+  if (s_interval_cycles == 0U)
+  {
+    return true;
+  }
+
+  const uint32_t now = Board_Cycles();
+
+  if ((uint32_t)(now - s_last_trigger) < s_interval_cycles)
+  {
+    return false;
+  }
+  s_last_trigger = now;
+  return true;
+}
+
+
 void Board_DaqPoll(void)
 {
   int32_t raw;
@@ -1227,35 +1259,22 @@ void Board_DaqPoll(void)
   s_pending[s_next_field] = raw;
   live_insert(s_next_field, raw, s_pending_at, s_pending_digital);
 
-  if (++s_next_field >= s_fields)
+  if (++s_next_field < s_fields)
   {
-    s_next_field = 0U;
-
-    /* CLOSED BY THE CLOCK: nothing gates the triggers. Every sweep the
-       loop manages goes into the sum, and `interval_us` decides when the
-       record is finished rather than when the next sample may be taken -
-       which is the whole point of summing on the target. */
-    if (s_cfg.accumulate == 0U)
-    {
-      feed(s_pending, s_pending_at, s_pending_digital);
-      return;
-    }
-
-    /* Closed by a count: `interval_us` gates RECORDS by gating the
-       triggers that make one. The ring is a capture and its rate is the
-       link's business; the accumulator's is not. */
-    if (s_interval_cycles != 0U)
-    {
-      const uint32_t now = Board_Cycles();
-
-      if ((uint32_t)(now - s_last_trigger) < s_interval_cycles)
-      {
-        return;
-      }
-      s_last_trigger = now;
-    }
-    feed(s_pending, s_pending_at, s_pending_digital);
+    return;
   }
+  s_next_field = 0U;
+
+  /* CLOSED BY THE CLOCK: nothing gates the triggers. Every sweep the
+     loop manages goes into the sum, and `interval_us` decides when the
+     record is finished rather than when the next sample may be taken -
+     which is the whole point of summing on the target. Closed by a
+     count, `trigger_due` gates them. */
+  if ((s_cfg.accumulate != 0U) && !trigger_due())
+  {
+    return;
+  }
+  feed(s_pending, s_pending_at, s_pending_digital);
 }
 
 

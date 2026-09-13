@@ -1408,6 +1408,34 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   comment each, which are the model's definitions, not magic. Build:
   0 warnings; thermal core 144 (the thermistor path is host-tested);
   the rest is the bench's parity and conformance suites.
+* THE FIRMWARE'S BIG MODULES, AND TWO THINGS SAID ONCE (2026-09-13).
+  Nested ifs 29 -> 2 - the two in `thermal_ident` left by design. The
+  DAQ engine: the rung's fall is an early return, the record into the
+  ring is `put_record`, a sweep into the sums is `accumulate`, the
+  clock-closed window is one condition, the tone's renormalisation is
+  `tone_renormalise` behind `TONE_RENORM_MASK` and `TONE_TINY`, and the
+  count-closed trigger is `trigger_due`. The thermal glue: the laminate
+  share is one condition per field, the observer's borrow is a ladder
+  of early returns over one `due`, the winding's ceiling is one call
+  chosen by the node. The IMU: `power_lost` once, the init-or-note one
+  condition, the wake ladder `woken_by_retry` with `IMU_WAKE_RETRIES`,
+  `IMU_WAKE_RELEASE_MS` and `IMU_RESET_DRAIN` named. The PWM update
+  interrupt: `hold_counted_down`, `hold_expired` and `land_next_triple`
+  - no side effect in a condition, the else-if chain's fall-through
+  kept. The UART driver: `ring_push` and `ring_pop`, the fault flag two
+  conditions. The RTU byte handler: two conditions, host-tested. SAID
+  ONCE: PRIMASK held and given back was the same four lines eighteen
+  times in five modules - `board_irq.h`'s `Board_IrqHold` and
+  `Board_IrqRelease` now, every site through them; and the unit
+  factors - `board_units.h`'s `MILLI_PER_UNIT` and `CENTI_PER_UNIT`
+  where board_adc and board_thermal wrote 1000.0f and 100.0f
+  twenty-nine times between them. The first cut put the PWM helpers
+  inside the interrupt's doc comment - the insertion walked back over
+  ` *` lines and this comment uses `  *` - and the compiler said so;
+  the tool walks back to the `/*` now. Build: 0 warnings, flash
+  196 564 B; modbus core 77, thermal core 144; functions past eighty
+  lines 13 -> 9. The rest of the proof is the bench's: parity,
+  conformance and the live views over a flashed board.
 
 ## The local model
 

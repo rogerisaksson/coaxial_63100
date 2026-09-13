@@ -18,6 +18,7 @@
   */
 #include "board_limits.h"
 #include "board.h"
+#include "board_irq.h"
 #include "stm32h7xx.h"
 
 /** Compare value per phase, mirrored so a read does not race the timer. */
@@ -369,8 +370,7 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
     }
   }
 
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
   {
     s_want_q16[phase] = ticks_q16[phase];
@@ -379,10 +379,7 @@ const char *Board_PwmSetAllFine(const uint32_t *ticks_q16)
   s_dither = true;
   s_alternate = false;
   s_countdown = 0U;
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 
   /* Turned on with the first fractional duty and off again with the next
      whole one. The cost is small - 4 us of the keepalive's worst gap,
@@ -516,8 +513,7 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
   /* The interrupt owns the compares from here: the dither is off, A is
      in the registers now and B is what the next overflow writes. Both
      stay whole ticks, so nothing carries. */
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   s_dither = false;
   s_countdown = 0U;
   for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
@@ -533,10 +529,7 @@ const char *Board_PwmSetAlternate(const uint16_t *a, const uint16_t *b)
   TIM1->CCR3 = a[2];
   s_alt_next = 1U;
   s_alternate = true;
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 
   TIM1->SR = ~TIM_SR_UIF;
   update_irq(true);
@@ -775,14 +768,10 @@ const char *Board_PwmSetDeadTime(uint32_t ns)
            "bridge needs";
   }
 
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   s_deadtime = (uint8_t)counts;
   TIM1->BDTR = (TIM1->BDTR & ~TIM_BDTR_DTG) | counts;
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 
   return NULL;
 }
@@ -818,13 +807,9 @@ const char *Board_PwmSetDeadTimeSkew(int8_t counts)
   if (s_skew == 0U)
   {
     /* Back to the one number, or the last half-period's value would stay. */
-    const uint32_t masked = __get_PRIMASK();
-    __disable_irq();
+    const uint32_t masked = Board_IrqHold();
     TIM1->BDTR = (TIM1->BDTR & ~TIM_BDTR_DTG) | s_deadtime;
-    if (!masked)
-    {
-      __enable_irq();
-    }
+    Board_IrqRelease(masked);
   }
   return NULL;
 }
@@ -835,12 +820,70 @@ int8_t Board_PwmDeadTimeSkew(void)
 }
 
 
+/* The counted hold, one period a tick: whether this update is the one
+   that runs it out. */
+static bool hold_counted_down(void)
+{
+  if ((s_countdown == 0U) || (s_half != 0U))
+  {
+    return false;
+  }
+  s_countdown--;
+  return s_countdown == 0U;
+}
+
+/* The hold ran out: every compare to zero, every duty forgotten, the
+   alternate and the dither off - stood down BEFORE the mode branches
+   so that on the expiring event neither writes a compare after the
+   zero lands. */
+static void hold_expired(void)
+{
+  s_alternate = false;
+  s_dither = false;
+  TIM1->CCR1 = 0U;
+  TIM1->CCR2 = 0U;
+  TIM1->CCR3 = 0U;
+  for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
+  {
+    s_duty[phase] = 0U;
+    s_want_q16[phase] = 0U;
+    s_residue[phase] = 0U;
+  }
+  if (s_skew == 0U)
+  {
+    update_irq(false);
+  }
+}
+
+/* The drive's next triple, just past the UNDERFLOW - DIR reads up - so
+   a triple written here lands, preloaded, at the next overflow and
+   shapes one symmetric pulse centred on the underflow after it.
+   drive.c's PIPELINE counts on exactly that. Under PRIMASK because
+   ADC3's interrupt, which leaves the triple, outranks this one. */
+static void land_next_triple(void)
+{
+  if (!s_next_pending || ((TIM1->CR1 & TIM_CR1_DIR) != 0U))
+  {
+    return;
+  }
+  __disable_irq();
+  TIM1->CCR1 = s_next[0];
+  TIM1->CCR2 = s_next[1];
+  TIM1->CCR3 = s_next[2];
+  s_duty[0] = s_next[0];
+  s_duty[1] = s_next[1];
+  s_duty[2] = s_next[2];
+  s_next_pending = false;
+  __enable_irq();
+}
+
 /** TIM1's update, once per PWM period with RepetitionCounter at 1.
   *
   * Overridden here rather than in core/: main.c holds CubeMX functions and
   * the poll calls, and a compare register belongs beside the code that owns
   * it. Priority 2 - below ADC3's 1, which is the current loop's, and above
   * everything else.
+
   */
 void TIM1_UP_IRQHandler(void)
 {
@@ -861,27 +904,9 @@ void TIM1_UP_IRQHandler(void)
   /* The counted hold. Stood down BEFORE the mode branches so that on the
      expiring event neither the alternate nor the dither writes a compare
      after the zero lands. */
-  if ((s_countdown != 0U) && (s_half == 0U))
+  if (hold_counted_down())
   {
-    s_countdown--;
-    if (s_countdown == 0U)
-    {
-      s_alternate = false;
-      s_dither = false;
-      TIM1->CCR1 = 0U;
-      TIM1->CCR2 = 0U;
-      TIM1->CCR3 = 0U;
-      for (uint8_t phase = 0U; phase < BOARD_PWM_PHASES; phase++)
-      {
-        s_duty[phase] = 0U;
-        s_want_q16[phase] = 0U;
-        s_residue[phase] = 0U;
-      }
-      if (s_skew == 0U)
-      {
-        update_irq(false);
-      }
-    }
+    hold_expired();
   }
 
   if (s_alternate && ((TIM1->CR1 & TIM_CR1_DIR) != 0U))
@@ -902,23 +927,7 @@ void TIM1_UP_IRQHandler(void)
   }
   else if (s_drive_owns)
   {
-    /* Just past the UNDERFLOW - DIR reads up - so a triple written here
-       lands, preloaded, at the next overflow and shapes one symmetric
-       pulse centred on the underflow after it. drive.c's PIPELINE counts
-       on exactly that. Under PRIMASK because ADC3's interrupt, which
-       leaves the triple, outranks this one. */
-    if (s_next_pending && ((TIM1->CR1 & TIM_CR1_DIR) == 0U))
-    {
-      __disable_irq();
-      TIM1->CCR1 = s_next[0];
-      TIM1->CCR2 = s_next[1];
-      TIM1->CCR3 = s_next[2];
-      s_duty[0] = s_next[0];
-      s_duty[1] = s_next[1];
-      s_duty[2] = s_next[2];
-      s_next_pending = false;
-      __enable_irq();
-    }
+    land_next_triple();
   }
   else if (s_half == 0U)
   {

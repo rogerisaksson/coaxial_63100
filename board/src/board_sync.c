@@ -17,6 +17,7 @@
   ******************************************************************************
   */
 #include "board.h"
+#include "board_irq.h"
 #include "board_drive.h"
 #include "stm32h7xx_hal.h"
 
@@ -171,8 +172,7 @@ bool Board_SyncMeanSquare(float *out)
   /* Taken and reset under one disabled interrupt, as `Board_SyncLatest`
      copies the triple: a reader that caught the sum from one period and
      the count from the next would divide by the wrong number. */
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   for (uint8_t leg = 0U; leg < 3U; leg++)
   {
     sq[leg] = s_sq[leg];
@@ -182,10 +182,7 @@ bool Board_SyncMeanSquare(float *out)
   }
   n = s_squares;
   s_squares = 0U;
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 
   if (n == 0U)
   {
@@ -230,13 +227,9 @@ void Board_SyncLatest(board_sync_sample_t *out)
      all three phases from one conversion and a reader that caught two of
      them from this triple and one from the last would see a current sum that
      never existed. */
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   *out = s_latest;
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 }
 
 

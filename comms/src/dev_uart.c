@@ -75,6 +75,36 @@ static UART_HandleTypeDef *uart_of(void *ctx)
   return ((dev_port_t *)ctx)->uart;
 }
 
+/* A byte and its tick into the ring, or counted as dropped when the
+   main loop is not draining - said so rather than overwritten. */
+static void ring_push(dev_port_t *p, uint8_t byte, uint32_t tick)
+{
+  const uint16_t next = (uint16_t)((p->head + 1U) % DEV_RING);
+
+  if (next == p->tail)
+  {
+    p->dropped++;
+    return;
+  }
+  p->ring[p->head].byte = byte;
+  p->ring[p->head].tick = tick;
+  p->head = next;
+}
+
+/* The oldest byte and its tick out of the ring; false on an empty
+   one. */
+static bool ring_pop(dev_port_t *p, uint8_t *byte, uint32_t *tick)
+{
+  if (p->tail == p->head)
+  {
+    return false;
+  }
+  *byte = p->ring[p->tail].byte;
+  *tick = p->ring[p->tail].tick;
+  p->tail = (uint16_t)((p->tail + 1U) % DEV_RING);
+  return true;
+}
+
 /* The whole interrupt. One byte, one timestamp, no HAL: HAL_UART_IRQHandler
    runs a transfer state machine this layer does not use and would fight. */
 static void on_irq(dev_port_t *p)
@@ -92,18 +122,8 @@ static void on_irq(dev_port_t *p)
   {
     const uint32_t tick = DWT->CYCCNT;
     const uint8_t  byte = (uint8_t)(u->RDR & 0xFFU);
-    const uint16_t next = (uint16_t)((p->head + 1U) % DEV_RING);
 
-    if (next == p->tail)
-    {
-      p->dropped++;          /* the main loop is not draining; say so */
-    }
-    else
-    {
-      p->ring[p->head].byte = byte;
-      p->ring[p->head].tick = tick;
-      p->head = next;
-    }
+    ring_push(p, byte, tick);
   }
 }
 
@@ -132,15 +152,7 @@ static bool u_get(void *ctx, uint8_t *byte, uint32_t *tick)
 
   if (p->interrupt)
   {
-    if (p->tail == p->head)
-    {
-      return false;
-    }
-
-    *byte = p->ring[p->tail].byte;
-    *tick = p->ring[p->tail].tick;
-    p->tail = (uint16_t)((p->tail + 1U) % DEV_RING);
-    return true;
+    return ring_pop(p, byte, tick);
   }
 
   USART_TypeDef *u = p->uart->Instance;
@@ -170,12 +182,12 @@ static bool u_fault(void *ctx)
 {
   dev_port_t *p = (dev_port_t *)ctx;
 
+  if (p->interrupt && !p->faulted)
+  {
+    return false;
+  }
   if (p->interrupt)
   {
-    if (!p->faulted)
-    {
-      return false;
-    }
     p->faulted = false;      /* the ISR already cleared the hardware flags */
     return true;
   }
@@ -461,14 +473,11 @@ bool dev_uart_set_rs485_baud(uint32_t baud)
   }
   s_rs485_baud = baud;
 
-  if (s_built)
+  for (uint8_t i = 1U; s_built && (i < DEV_UART_COUNT); i++)
   {
-    for (uint8_t i = 1U; i < DEV_UART_COUNT; i++)
+    if (s_ports[i].interrupt)
     {
-      if (s_ports[i].interrupt)
-      {
-        arm_rx_irq(&s_ports[i]);
-      }
+      arm_rx_irq(&s_ports[i]);
     }
   }
   return true;

@@ -17,6 +17,7 @@
   ******************************************************************************
   */
 #include "board.h"
+#include "board_irq.h"
 #include "board_drive.h"
 #include "board_hw.h"
 
@@ -189,14 +190,10 @@ const char *Board_DriveSetMode(uint8_t mode)
      invariant 7 exists to prevent. */
   Board_DriveParamsFromCal();
 
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   const char *why = drive_set_mode(&s_drive, (drive_mode_t)mode,
                                    Board_PwmIsEnabled(), Board_AfeOn());
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
   return why;
 }
 
@@ -268,14 +265,10 @@ const char *Board_DriveSetSource(uint8_t source)
            "samples come from";
   }
 
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   s_drive.source = (source != 0U) ? DRIVE_SOURCE_MODEL : DRIVE_SOURCE_ADC;
   drive_model_init(&s_drive.model);
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
   return NULL;
 }
 
@@ -323,61 +316,41 @@ const char *Board_DriveModelParam(uint8_t id, int32_t value)
 
 void Board_DriveModelReset(void)
 {
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   drive_model_init(&s_drive.model);
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 }
 
 
 void Board_DriveSetTheta(int32_t microradians)
 {
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   drive_set_theta(&s_drive, (float)microradians / 1000000.0f);
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 }
 
 
 void Board_DriveWindowTake(drive_window_t *out)
 {
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   drive_window_take(&s_drive, out);
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 }
 
 
 void Board_DriveMomentsArm(uint32_t periods)
 {
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   drive_moments_arm(&s_drive, periods);
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 }
 
 
 void Board_DriveMoments(drive_moments_t *out)
 {
-  const uint32_t masked = __get_PRIMASK();
-  __disable_irq();
+  const uint32_t masked = Board_IrqHold();
   *out = s_drive.mom;
-  if (!masked)
-  {
-    __enable_irq();
-  }
+  Board_IrqRelease(masked);
 }
 
 
@@ -406,11 +379,6 @@ bool Board_DriveOwnsCompares(void)
   return s_owned;
 }
 
-
-/** What the law's duties do to the compares this period: nothing while
-  * the stage is down, the next triple while a mode runs on an armed stage,
-  * and one zero triple when a mode has just ended - polarity finishing, a
-  * stage drop, the host asking for OFF - before the compares are let go. */
 /* The stage is the drive's from the first triple until it lets go -
    taken once, not asked for every period. */
 static void own_pwm(void)
@@ -423,7 +391,10 @@ static void own_pwm(void)
   s_owned = true;
 }
 
-
+/** What the law's duties do to the compares this period: nothing while
+  * the stage is down, the next triple while a mode runs on an armed stage,
+  * and one zero triple when a mode has just ended - polarity finishing, a
+  * stage drop, the host asking for OFF - before the compares are let go. */
 static void commit_duties(const drive_out_t *out, bool enabled, bool running)
 {
   if (enabled && (s_drive.mode != DRIVE_OFF))

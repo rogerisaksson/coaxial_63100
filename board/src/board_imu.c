@@ -54,6 +54,12 @@
    "this function should initiate a write transaction by asserting WAKEN. The
    write transaction should continue, then, when the system responds to INTN
    being asserted" - SH-2 user guide, sh2_hal_tx. */
+/* How the part is woken again when it does not answer a wake: WAKE
+   released for IMU_WAKE_RELEASE_MS and asserted again, IMU_WAKE_RETRIES
+   times, then a reset with its advertisement drained. */
+#define IMU_WAKE_RETRIES     3U
+#define IMU_WAKE_RELEASE_MS  2U
+#define IMU_RESET_DRAIN      16U
 #define IMU_WAKE_PORT GPIOD
 #define IMU_WAKE_PIN  GPIO_PIN_9
 
@@ -831,22 +837,30 @@ static void poll_init(void)
   }
 }
 
+/* The part lost its supply. Everything it was told is gone with it,
+   so the loop goes back to the beginning rather than carrying on -
+   said once, not every poll. */
+static void power_lost(void)
+{
+  if (s_state.loop == BOARD_IMU_LOOP_OFF)
+  {
+    return;
+  }
+  s_state.loop = BOARD_IMU_LOOP_OFF;
+  s_state.have = false;
+  s_ready = false;
+  s_stage = IMU_STAGE_BUS;
+  note(BOARD_IMU_ERR_POWER);
+}
+
+
 void Board_ImuPoll(void)
 {
   static uint8_t cargo[IMU_BUF];
 
   if (!Board_AfeOn())
   {
-    /* The part lost its supply. Everything it was told is gone with it, so
-       the loop goes back to the beginning rather than carrying on. */
-    if (s_state.loop != BOARD_IMU_LOOP_OFF)
-    {
-      s_state.loop = BOARD_IMU_LOOP_OFF;
-      s_state.have = false;
-      s_ready = false;
-      s_stage = IMU_STAGE_BUS;
-      note(BOARD_IMU_ERR_POWER);
-    }
+    power_lost();
     return;
   }
 
@@ -955,12 +969,9 @@ void Board_ImuHold(void)
      measured: hold, reset, Set Feature, resume, and the loop absorbed
      nothing. Finish it here instead. Blocking is what a command handler is
      allowed to do; the staging exists for the main loop, not for this. */
-  if (Board_AfeOn() && !s_ready)
+  if (Board_AfeOn() && !s_ready && !Board_ImuInit())
   {
-    if (!Board_ImuInit())
-    {
-      note(BOARD_IMU_ERR_INIT);
-    }
+    note(BOARD_IMU_ERR_INIT);
   }
 }
 
@@ -1018,6 +1029,33 @@ bool Board_ImuWaitReady(uint32_t ms)
 }
 
 
+/* Measured on this board: the part answers a wake in under a
+   millisecond, and then now and again does not answer one at all -
+   twice in ten over eight seconds, and permanently after it had been
+   left alone for a few minutes. Releasing WAKE and asserting it again
+   recovers the first kind, IMU_WAKE_RETRIES times; a reset recovers
+   the second, and costs the configuration, which is why it is last
+   and not first. */
+static bool woken_by_retry(void)
+{
+  for (uint8_t again = 0U; again < IMU_WAKE_RETRIES; again++)
+  {
+    wake(false);
+    HAL_Delay(IMU_WAKE_RELEASE_MS);
+    wake(true);
+    if (wait_intn(IMU_WAKE_WAIT_MS))
+    {
+      return true;
+    }
+  }
+  wake(false);
+  Board_ImuReset();
+  (void)Board_ImuDrain(IMU_RESET_DRAIN);
+  wake(true);
+  return wait_intn(IMU_WAKE_WAIT_MS);
+}
+
+
 bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
 {
   if (!s_ready ||
@@ -1062,34 +1100,8 @@ bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
      Measured on the same board: executable ON, SLEEP and RESET all produced
      the identical answer, which is only possible if none of the payloads
      arrived. */
-  if (!wait_intn(IMU_WAKE_WAIT_MS))
+  if (!wait_intn(IMU_WAKE_WAIT_MS) && !woken_by_retry())
   {
-    /* Measured on this board: the part answers a wake in under a
-       millisecond, and then now and again does not answer one at all -
-       twice in ten over eight seconds, and permanently after it had been
-       left alone for a few minutes. Releasing WAKE and asserting it again
-       recovers the first kind; a reset recovers the second, and costs the
-       configuration, which is why it is last and not first. */
-    bool woken = false;
-
-    for (uint8_t again = 0U; (again < 3U) && !woken; again++)
-    {
-      wake(false);
-      HAL_Delay(2U);
-      wake(true);
-      woken = wait_intn(IMU_WAKE_WAIT_MS);
-    }
-
-    if (!woken)
-    {
-      wake(false);
-      Board_ImuReset();
-      (void)Board_ImuDrain(16U);
-      wake(true);
-      woken = wait_intn(IMU_WAKE_WAIT_MS);
-    }
-
-    if (!woken)
     {
       /* Every acknowledge failed, reset included. Write anyway and mark it
          NOWAKE rather than refuse: refusing made every feature request
