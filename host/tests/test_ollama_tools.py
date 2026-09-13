@@ -409,8 +409,8 @@ def test_debug(report):
 
     # ----...but an unrelated question with no call is never touched ----
     # Measured on this bench: link_ok can start False from the startup probe
-    # alone, before any question at all - and without this gate, a plain "vad
-    # ar 2+2" with no call and a perfectly good answer got discarded and
+    # alone, before any question at all - and without this gate, a plain
+    # "what is 2+2" with no call and a perfectly good answer got discarded and
     # replaced with "link is down", because nothing had ever been read
     # successfully to make that check meaningful.
     untouched_session = SimulatedSession()
@@ -1338,7 +1338,7 @@ def test_docs(report):
                      % question[:34], got is None, str(got))
 
     # A lock with no way out is a trap. Measured: locked to Korean by the
-    # question before it, "byt sprak till svenska" matched no verb and
+    # question before it, the bare request for Swedish matched no verb and
     # detected as no language either - every word in it is outside every
     # stop-word list - so the lock held and the model obeyed it, refusing
     # to switch, in Korean. A name in a message that places in no language
@@ -1365,9 +1365,9 @@ def test_docs(report):
                  in language.instruction_for('Korean'))
 
     # A message that is nothing but a language request is host business.
-    # It used to cost a model turn that answered "Jag har andrat spraket
-    # till svenska. Hur kan jag hjalpa dig med din BLDC-inverter?" - and a
-    # host note above it saying the same thing again, in a mix of two
+    # It used to cost a model turn that answered, in two sentences, that
+    # the language was now Swedish and how could it help - and a host
+    # note above it saying the same thing again, in a mix of two
     # languages. One word, no round trip, history untouched.
     switch_box = toolmod.Toolbox(SimulatedSession(), scope=Scope())
     switcher = debug.Chat(ScriptedModel([]), switch_box, out=io.StringIO())

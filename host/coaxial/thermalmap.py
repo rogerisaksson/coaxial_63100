@@ -543,7 +543,7 @@ def _draw_frame(rows, rect, lane, cells, down):
             # and bottom lines run one dot past it, and the corner read as
             # a foot sticking out - `⠼` where `⠸` was meant - at 73 of 152
             # corners over the five sizes measured (bench, 2026-09-12:
-            # "fixa hörnen i regionerna").
+            # the regions' corners).
             if (c == c0 and which < lane[0]) or (c == c1 and which > lane[1]):
                 continue
             mark(r0, c, which, FRAME_TOP)

@@ -449,8 +449,8 @@ kelvin on the board.
   inside the calibration value, so the measurement is reproduced exactly
   at its own point and only the shape away from it is the correlations'.
 * The split at the calibration point is **35 % radiation**, from the
-  compendium's "stralning star for 30-40 % av den totala
-  varmeavledningen vid passiv kylning och kan inte forsummas". It is
+  compendium's finding that radiation carries 30 to 40 % of the total
+  heat dissipation under passive cooling and cannot be neglected. It is
   needed because the two shapes differ, so only their proportion lets
   them be scaled apart.
 * What it does:
@@ -795,7 +795,7 @@ record's own constants, no measurement.
   tracks the sample rate.
 
 * **A block read entirely after a wrap came back 9.02 s in the past**
-  (2026-09-07, "fasplottarna i daq_live_plot såg för bedrövliga ut"):
+  (2026-09-07, the bench finding daq_live_plot's phase plots wretched):
   `_timed` unwrapped each block's stamps on their own, which orders a
   wrap INSIDE a block and does nothing for a block whose every stamp lies
   past one - `to_host` then placed it a whole wrap early. Measured on the
@@ -865,8 +865,9 @@ record's own constants, no measurement.
 
 ## The device layer as a declared model, 2026-09-12
 
-The bench's words: "en extremt slick systems engineering modell på
-koden ... utan nästade if-satser och konstanter i koden". Measured over
+The bench asked for a systems-engineering model of the code, as clean
+as it can be made: no nested ifs, no constants in the code, decorators
+and multiple inheritance where they serve. Measured over
 the device layer - `subsystem.py`, `board.py`, `protocol.py`, `wire.py`
 and the sixteen subsystems, twenty modules - with an AST walk that
 counts an `if` inside an `if` (an `elif` ladder is not a nest) and a
@@ -1090,8 +1091,8 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   interpreter as the notebooks' kernel. The notebooks themselves were
   executed on the right one - none holds an error output.
 * THE ROTOR OBSERVER'S MACHINE SCALES WITH THE TERMINAL (2026-09-13,
-  the bench: "gör grafiken/motorn i rotor observer så den skalar med
-  storleken på terminalen"). `fit(aspect, size)` sizes the box every
+  the bench asking for the machine to scale with the terminal's size).
+  `fit(aspect, size)` sizes the box every
   frame from the console's size: the width the page leaves beside the
   forty-column instrument column and the viewport's four columns of
   frame, the band it leaves under the five caption rows, the foot row
@@ -1110,14 +1111,31 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   140x45 84 over 35, 220x60 114 over 50 - the can filling the height
   at every size, the legends' leaders landing on their gutters, the
   foot's three words on one row. views 206, pyright 0.
+* ONE LANGUAGE IN THE FILES (2026-09-13, the bench asking for the whole
+  tree in English rather than a mix, and for its own remarks not to be
+  echoed back like a teleprompter). Every quoted request of the
+  bench's, in Swedish - in FINDINGS, MODELS, TODO, CLAUDE.md, the chat
+  page, the runner, the dial and the views' docstrings - is now what
+  was asked, in English; the measured model answers and the questions
+  that provoked them are described the same way; so are the render
+  bench's two panel titles and its two messages, the Build-and-flash
+  task's question to the local model and the thermal compendium's
+  sentence on radiation. WHAT STAYS IN SWEDISH IS DATA: `BOARD_WORDS`,
+  `_BOARD_VERBS`, `_QUESTION_WORDS`, `_OTHER_ACTIONS` and `SIDES`, the
+  language module's lists and phrases, the classifier's measured
+  questions in the tests and their expected lines, and the cp1252
+  mangling of `läge` that is itself the measurement. Two passes over
+  twenty-four files; a scan over the tree for Swedish letters and the
+  fifty commonest Swedish words finds nothing else outside those.
+  structure 621, views 206, the six runner suites 524, render 79.
 
 ## The local model
 
 * Asked for raw codes with the AFE deliberately off, a model wrote
   "Mid-scale ... 25.00 C" out of the warning text itself.
 * A local model reported a coaxial cable or connector, twice.
-* `ch=['phA']` was guessed; BUS_VOLT and A0 were invented; "vänster
-  knä" was sent as `right knee`.
+* `ch=['phA']` was guessed; BUS_VOLT and A0 were invented; the left
+  knee, asked for in Swedish, was sent as `right knee`.
 * Asked to measure, gemma4:12b read HARDWARE.md and answered with its
   channel table.
 * gemma4:12b denied being able to flash with `build_firmware` in its
@@ -1147,7 +1165,8 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   twenty-seven calls, no `std::bad_alloc`, one load.
 
 * **The daemon had no runner, and the page said "(500)"** (2026-09-12,
-  "nåt fel vid laddning av modellerna"). Every chat and generate on
+  the bench seeing an error loading the models). Every chat and
+  generate on
   this laptop had answered 500 since 2026-09-03, and the body says why:
   `error starting llama-server: llama-server binary not found (checked:
   ...\lib\ollama\llama-server.exe, ...)`. `lib\ollama` holds one CUDA
@@ -1159,9 +1178,10 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   day. The tags are there (gemma4:12b 7.6 GB, llama3.1:8b 4.9 GB) and
   `/api/tags` answers, so the page's model choice, warm and
   `Clear-Resident` all passed and the preload's catch printed
-  `$_.Exception.Message`: "Fjärrservern returnerade ett fel: (500)
-  Internt serverfel." - the status line in the console's language, the
-  body never read; the Python client one layer down had the words all
+  `$_.Exception.Message`: the remote server returned an error, (500)
+  internal server error - the status line in the console's own
+  language, the body never read; the Python client one layer down had
+  the words all
   along (`/api/chat 500: {"error":"error starting llama-server: ...`).
   `Get-DaemonWords` reads the body now - `$_.ErrorDetails.Message`
   under PowerShell 5.1, else the response stream seeked back to 0
@@ -1175,12 +1195,13 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   ollama.com answers from here (200), so nothing stops it. Reinstalled
   the same evening (0.34.0, `lib\ollama` whole again): `/api/generate`
   loads llama3.1:8b, and the page's one-shot against the stand-in -
-  "vad är detta för elektronik?" - loaded the model in 2.9 s and
+  what electronics is this, asked in Swedish - loaded the model in
+  2.9 s and
   answered off the parts list in 22 s end to end, 2 tool calls, 844
   tokens, exit 0.
-* **One pull, drawn from the daemon's numbers** (2026-09-12, "lägg in
-  så sidan med LLM automatiskt laddar ner en modell om den inte finns
-  och indikerar med en progressbar"). The page shelled out to `ollama
+* **One pull, drawn from the daemon's numbers** (2026-09-12, the bench
+  asking that the LLM page pull a missing model itself and show a
+  progress bar). The page shelled out to `ollama
   pull`, whose bar is a TTY repaint, and dbg.py refused an absent tag
   with the command to type while MODELS.md said both pulled.
   `coaxial_ollama/pull.py` streams `/api/pull` - `status`, and
@@ -1398,9 +1419,10 @@ looking at the estimate alone.
   beyond the move itself, three runs of three - and a run takes 30 s where
   it took 15, the measurement's price. The nine notebooks that ride the
   rotor re-executed clean; test_sensorless 138/138, test_simulated
-  247/247. The bench's report was "app_robot_arm verkar ha fel i koden".
+  247/247. The bench's report was that app_robot_arm seemed to have an
+  error in its code.
 
-* **`app_precision_servo`'s trace looked "hårt filtrerat och subsamplat"**
+* **`app_precision_servo`'s trace looked hard-filtered and subsampled**
   (2026-09-07): the shaft was read every 20 ms, and a held rotor rings at
   some 30 Hz - the plot was the ring aliased into a slow sawtooth drawn
   with markers. Read every 2 ms on the stand-in (427 Hz through each
@@ -2134,17 +2156,19 @@ looking at the estimate alone.
   cap, room, truth (two rows) and load, each a row. views 178,
   simulated 240.
 
-* **BOARD ATTITUDE's board sits one row lower** (2026-09-07, "den är
-  lite högt uppe"): `orientation.LIFT` 0.39 to 0.42 - a row is 0.028 of
+* **BOARD ATTITUDE's board sits one row lower** (2026-09-07, the bench:
+  it sits a little high): `orientation.LIFT` 0.39 to 0.42 - a row is
+  0.028 of
   the view's 36, and 0.36 was the fit, 0.39 the row asked for on
   2026-08-30. Rasterised before and after at 110 by 36: the board's top
   moved from the Z label's row to one below it, and its feet still clear
   the frame's bottom. `test_render`'s shipped-board check reads the lift
   off the constant instead of carrying its own 0.39.
 
-* **The notebooks show the pages' pictures** (2026-09-07, "konvertera
-  den färgsatta braille-grafiken till PNG ... en smidig hjälpare i
-  pythonbiblioteket"): `coaxial.ansi.image` parses a frame's escapes and
+* **The notebooks show the pages' pictures** (2026-09-07, the bench
+  asking for the coloured braille frames as PNG, through a handy helper
+  in the Python library): `coaxial.ansi.image` parses a frame's escapes
+  and
   draws it cell by cell in the bench's faces - Consolas, Segoe UI Symbol
   for the braille - as a Pillow image, which Jupyter shows inline as the
   value of a cell; `ansi.png` writes one. `tools/ansi2png.py`, the
@@ -2162,21 +2186,24 @@ looking at the estimate alone.
   scales. Rasterised and read before landing: the fixed scale beside
   each map, the wireframe on its ground, the can and its magnets.
 
-* **SHAFT ANGLE wears two scales** (2026-09-07, "nu ser den lite väl
-  plain ut ... skalor på sidan som visar dietempen och fältstyrkan i
-  gauss"): the die's temperature to the left of the face on the A1335's
+* **SHAFT ANGLE wears two scales** (2026-09-07, the bench finding it a
+  little plain and asking for scales beside it: the die temperature and
+  the field strength in gauss): the die's temperature to the left of
+  the face on the A1335's
   operating range, -40 to 150 C; the field to the right on 0 to 1200
   gauss. **Each tube is three bands** - blue under normal, green through
-  it, red past it, "representativa för normal temp och magnetfält,
-  blått, grönt, rött": the die's normal 15 to 65 C, where this board
+  it, red past it, the bench's three bands for normal temperature and
+  field - blue, green, red: the die's normal 15 to 65 C, where this
+  board
   works, and the field's the datasheet's recommended 300 to 1000 gauss.
   The thermal map's ramp was tried on the die first and a
   room-temperature die came out in the ramp's blue, which read as cold;
   the first field rule had red for no magnet and amber past the band,
   and the bench asked for the one scheme on both - each a tube of dots
   filled to the reading, its empty glass the same four dots in ash - it
-  was one dotted column, "vet inte varför du alltid bara sätter en linje
-  gråad", and read as a stray line beside the bar - the graduations
+  was one dotted column, which the bench asked why it always got as a
+  single greyed line, and read as a stray line beside the bar - the
+  graduations
   numbered outboard and the reading under it level with the face's
   caption, which leaves the gauss to the scale. `dial.scale`,
   `dial.beside` and `dial.instrument` - the face between its scales,
@@ -2185,7 +2212,7 @@ looking at the estimate alone.
   through `configuring()`, which costs the angle a reading or two each
   time. **The face gives way to the scales**: they were gated on a
   terminal 124 columns or wider - the full face or nothing - and the
-  bench's is narrower, "fortfarande inte uppdaterad SHAFT ANGLE-grafik";
+  bench's is narrower, and it saw SHAFT ANGLE still not updated;
   now the face is drawn as wide as the viewport leaves after the two
   scales, 58 down to 36 (`show_angle.fit`), and the rim it loses is an
   eighth - at 21 rows the face is bounded by its height, 33 dots of rim
@@ -2209,7 +2236,8 @@ looking at the estimate alone.
   lacks the table rules, which is why the first pass missed them.
 
 * **The notebooks read clean under Pylance** (2026-09-07,
-  "foc_montecarlo.ipynb verkar ha något fel från pylance"): pyright over
+  the bench seeing a Pylance complaint in foc_montecarlo.ipynb): pyright
+  over
   every notebook's code cells, 27 complaints in four of them, none a
   runtime fault and all worth hearing. `foc_montecarlo`: a speed band
   answered None where every `%f` and `rpm()` after it wanted a number -
@@ -2282,8 +2310,8 @@ looking at the estimate alone.
   the tree; the offline gate 2582 passed, 0 failed.
 
 * **SWITCH SOA read the board's worst node, not the switches** (2026-09-08,
-  "den termiska observeraren verkar ha exakt samma värden på MOTOR SOA
-  och SWITCH SOA"): the ROTOR OBSERVER's first gutter tube took
+  the bench seeing MOTOR SOA and SWITCH SOA at exactly the same value):
+  the ROTOR OBSERVER's first gutter tube took
   `headroom`, the worst of all ten nodes, under the switches' name. On
   the stand-in's demo at frame 200 it read 67.7 % from the copper patch
   under leg U at 78 % of its ceiling while the six switch nodes sat at
@@ -2295,9 +2323,9 @@ looking at the estimate alone.
   what their name says. A board that reports no per-node spend falls
   back to its worst.
 
-* **STBL over a number the trip was holding down** (2026-09-08, "STBL
-  visas även när det är 70 % av SOA, nåt med hystereses och limits som
-  visar STBL istället för UNCR"): the foot's word was the
+* **STBL over a number the trip was holding down** (2026-09-08, the
+  bench seeing STBL at 70 % of SOA, where the hysteresis and the limits
+  should have shown UNCR): the foot's word was the
   identification's state and its percent the margin in force, which op
   10 reports as the least of the identification's own and the trip cap -
   and after a trip the cap is the one in hand, 0.70 back a percent a
@@ -2313,9 +2341,10 @@ looking at the estimate alone.
   before. Built with zero warnings; not run on the board.
 
 * **A re-trim tripped the stage, and the foot read TRIP for good**
-  (2026-09-08, "nu verkar den ha fastnat med TRIP XY%", then "kolla
-  igenom hur TRIP hanteras med de andra UNCR, CONV och STABLE med
-  innovationen i observeraren, nåt konstigt där"). Traced on the rotor
+  (2026-09-08, the bench seeing it stuck at TRIP with a percent, then
+  asking for a look at how TRIP is handled against UNCR, CONV and
+  STABLE with the observer's innovation - something odd there). Traced
+  on the rotor
   page's own demo loop, headless, four reads a second: the page lays
   the room tour on the stand-in, and the tour moves the room from 20 C
   to -25 C a hundred model seconds after STABLE - at model second 555,
@@ -2340,8 +2369,9 @@ looking at the estimate alone.
   clamp closed and cools, and MOE is dropped only at the limit the
   record gave (invariant 10's words made exact). The stand-in's
   `_tripped` mirrors it. THE FOOT'S WORD: TRIP only while the cap holds
-  the margin UNDER THE FLOOR - "den får ju släppa TRIP när den når över
-  80 %", the bench's line being `WINDING 97.7 C TH OBS TRIP 89%`; above
+  the margin UNDER THE FLOOR - the bench's point that it must let go of
+  TRIP once over 80 %, its line being `WINDING 97.7 C TH OBS TRIP 89%`;
+  above
   it the number is one a state could give and the word is the state's,
   the cap's percent still the one in force. Measured after: the same
   loop, five wall minutes, no trip on the room step, the clamp at 0 %
@@ -3001,8 +3031,9 @@ looking at the estimate alone.
   fringe dithered - the rotor draws 97 distinct patterns and the
   protractor 72, where both were a handful.
 
-* **The frames' corners had a foot** (2026-09-12, "fixa hörnen i
-  regionerna på termiska observeraren ⠼"). A frame on the map is drawn
+* **The frames' corners had a foot** (2026-09-12, the bench asking for
+  the regions' corners on the thermal observer fixed, showing ⠼). A
+  frame on the map is drawn
   on the cell grid: the top and bottom lines across a dot row of the
   corner cells, the sides down the lane the edge's millimetres fell in
   - and the lines spanned BOTH lanes of the corner cell whatever lane

@@ -7,8 +7,8 @@ ONE PULL FOR BOTH ENTRY POINTS. board_chat.ps1's preflight and dbg.py's
 start both land here when the tag they were handed is not in `ollama
 list`. Until 2026-09-12 the page shelled out to `ollama pull` and dbg.py
 refused with the command to type, while docs/MODELS.md said both pulled;
-the bench that day: "lägg in så sidan med LLM automatiskt laddar ner en
-modell om den inte finns och indikerar med en progressbar". `/model TAG`
+the bench that day asked that the LLM page pull a missing model itself
+and show a progress bar. `/model TAG`
 inside a session still refuses an absent tag: a typo there costs a
 command, not a download.
 

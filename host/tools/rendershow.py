@@ -34,7 +34,7 @@ WIDTH, HEIGHT = 64, 32
 def parse_pose(text):
     got = re.match(r'x(-?\d+)y(-?\d+)z(-?\d+)$', text)
     if not got:
-        raise SystemExit('pose skrivs som x45y45z45')
+        raise SystemExit('a pose is written x45y45z45')
     x, y, z = (int(v) for v in got.groups())
     return x, y, z
 
@@ -66,12 +66,12 @@ def main(argv=None):
         want = '\n'.join(''.join(' .:'[c] for c in line).rstrip()
                          for line in rows)
     else:
-        want = '(oraklet kan bara kuben)'
+        want = '(the oracle only knows the cube)'
 
     panels = [
-        Panel(Text.from_ansi(mine), title=' MOTORN ', title_align='left',
+        Panel(Text.from_ansi(mine), title=' ENGINE ', title_align='left',
               box=box.HEAVY, border_style='frame'),
-        Panel(Text(want, style='label'), title=' ORAKLET ',
+        Panel(Text(want, style='label'), title=' ORACLE ',
               title_align='left', box=box.ROUNDED,
               border_style='frame.hud'),
     ]

@@ -148,7 +148,7 @@ def discover(preferred=None, baud=115200, unit=1, only=None):
     """
     listed = kinds()
     if only:
-        # "byt till RS485" names the path, not a port. Without this the
+        # "switch to RS485" names the path, not a port. Without this the
         # probe-first order would answer it with the debug probe, which is
         # the one board the operator just said they did not mean.
         listed = [p for p in listed if p[1] == only]

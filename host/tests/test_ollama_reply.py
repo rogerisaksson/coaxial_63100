@@ -98,7 +98,7 @@ def test_map_retype(report):
                  turn(finding) == finding, repr(turn(finding))[:52])
 
     # Length is what tells a list from an explanation. Measured: a 43-word
-    # answer to "beskriv hardvaran i detta projektet for en novis", naming
+    # answer to the request to describe the hardware for a novice, naming
     # all seven channels because describing them IS the question, was
     # deleted to an empty screen - and reported as the model failing to
     # answer at all. A description is not a restatement however many names
@@ -115,7 +115,7 @@ def test_map_retype(report):
                                      'kept' if turn(described) else 'DELETED'))
 
     # Length alone could not tell the two apart, and a bar set on it let a
-    # real one through: "Har ar de analoga kanalerna: - PhaseU (kanal 0)"
+    # real one through: "here are the analog channels: - PhaseU (channel 0)"
     # seven times over is 26 words and every one of them is a name, a
     # number or glue. What is counted is the words the table did NOT
     # already contain - 3, 6, 8 and 12 for the restatements measured here,

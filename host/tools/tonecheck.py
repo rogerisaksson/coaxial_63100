@@ -312,8 +312,8 @@ def fit(rounds=16):
 
 
 def show():
-    print('%-10s     %-38s %-38s' % ('pose', 'exportören medel sd spann granne',
-                                    'vår medel sd spann granne'))
+    print('%-10s     %-38s %-38s' % ('pose', 'exporter mean sd span neighbour',
+                                    'ours mean sd span neighbour'))
     for pose in PHOTOS:
         his, mine = exporter_cells(pose), our_cells(pose)
         theirs, ours = stats(his), stats(mine)
@@ -396,8 +396,8 @@ def stage_report():
     """Every pose through both colour depths: the LOD line, measured.
     With the surface texture off - its random steps chain by chance -
     so what remains is structure: a rim, a terminator, a band."""
-    print('%-10s %-11s %-12s %s' % ('pose', 'färgdjup', 'hårda steg',
-                                   'längsta linje'))
+    print('%-10s %-11s %-12s %s' % ('pose', 'colour depth', 'hard steps',
+                                   'longest line'))
     grain = wireframe.GRAIN_DOT, wireframe.GRAIN_COLON
     wireframe.GRAIN_DOT = wireframe.GRAIN_COLON = 0.0
     try:

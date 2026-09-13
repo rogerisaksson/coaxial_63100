@@ -40,15 +40,17 @@ INTENTS = {
     'orient':  'how the board is turned or oriented - a picture, not numbers',
 }
 
-# Measured against gemma4:12b, 12 questions, ~2.75 s each. "kommunicera med
-# hoger kna" and "byt till debugproben" both came back 'link' at first,
+# Measured against gemma4:12b, 12 questions, ~2.75 s each. "talk to the
+# right knee" and "switch to the debug probe" both came back 'link' at
+# first,
 # because the catalogue called link "the serial link itself: is it up" and
 # both questions are about a connection in some sense. Narrowing link to a
 # failure, and saying "start talking to one by name" under devices, moved the
 # first: 11 of 12.
 #
 # The twelfth is still wrong and still does not matter: board_switch() in
-# debug.py carries "byt till debugproben" out itself, for no model tokens,
+# debug.py carries "switch to the debug probe" out itself, for no model
+# tokens,
 # before anything reaches here. A control sentence the host recognises is
 # never compiled.
 

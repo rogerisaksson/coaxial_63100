@@ -227,7 +227,7 @@ def test_link_recovery(report):
         {'role': 'assistant', 'content': ''},
     ]), box, out=screen)
     talk.toolbox = box                      # the fake stands in for both
-    # Not "byt till..." any more: board_switch intercepts that before the
+    # Not a board order any more: board_switch intercepts that before the
     # model is reached, and this needs a question that actually runs a turn.
     answer = talk.ask('vad läser NTC:n?')
     whole = screen.getvalue() + chr(10) + answer
@@ -309,8 +309,8 @@ def test_link_diagnose(report):
         # It names the stand-in it is actually on and the way off it. The
         # line it replaced said "--no-board or --simulated this run" for a
         # session that had been given neither - it fell back on its own -
-        # and that was the whole answer on screen to "byter du till
-        # debugproben".
+        # and that was the whole answer on screen to an order to switch to
+        # the debug probe.
         stood_in = str(toolmod.Toolbox(SimulatedSession()).call('link_diagnose', {}))
         report.check('a session with no port names the stand-in it is on, '
                      'and the way off it',
@@ -515,7 +515,7 @@ def test_fallback(report):
                  checklist.splitlines()[-1][:52])
 
     # /board: what the tools talk to, swapped without a restart. Measured at
-    # the prompt: asked "byt till en simulerad hardvara", gemma4:12b answered
+    # the prompt: asked to switch to simulated hardware, gemma4:12b answered
     # that it could not and was configured for the physical board - true
     # about itself, a dead end for the operator. The swap is the host's.
     swap = debug.Chat.__new__(debug.Chat)
@@ -536,7 +536,7 @@ def test_fallback(report):
 
     # An order to swap the board is the host's to carry out. Measured three
     # times on the same session, and it never once changed board: it refused
-    # ("Jag kan inte byta till simulerad hardvara"), then diagnosed the link,
+    # (it could not switch to simulated hardware), then diagnosed the link,
     # then read seven channels and wrote nothing. The operator was giving an
     # order, not asking a question, and the state is the host's either way -
     # the same argument as language.bare_switch.
@@ -620,8 +620,9 @@ def test_fallback(report):
                  'ended up', 'nothing answered' in said, said)
 
     # An order that cannot be carried out must not cost the board that was
-    # working. Measured: "byt till debugproben" twice in a row on a bench
-    # whose board had gone silent, both times "inget svarade" - and had the
+    # working. Measured: the order to switch to the debug probe twice in a
+    # row on a bench whose board had gone silent, both times "nothing
+    # answered" - and had the
     # session been on a live probe, the first of those would have dropped it
     # for a stand-in.
     import coaxial_mcp.session as sessionmod
@@ -747,8 +748,8 @@ def test_pull_draws_the_daemons_numbers(report):
     own numbers drawn as a bar in Say's columns - one row rewritten in
     place on a TTY, a row every five percent off one. The page shelled out
     to `ollama pull` and dbg.py refused with the command to type; the
-    bench, 2026-09-12: "lägg in så sidan med LLM automatiskt laddar ner en
-    modell om den inte finns och indikerar med en progressbar". And the
+    bench, 2026-09-12, asking that the LLM page pull a missing model
+    itself and show a progress bar. And the
     page reads a failed preload in the daemon's words - "(500)" was all it
     said for a runner missing from the install.
     """

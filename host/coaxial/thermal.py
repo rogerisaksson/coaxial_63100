@@ -305,11 +305,11 @@ BOARD_CAL_RISE_K = 10.0
 #: How much of the board's loss at that rise is radiation.
 #:
 #: NOT MEASURED HERE. It is the 30 to 40 % a compendium of PCBA thermal
-#: work gives for passive cooling - "stralning star for 30-40 % av den
-#: totala varmeavledningen vid passiv kylning och kan inte forsummas"
-#: (docs/papers) - and the split matters because the two mechanisms have
-#: DIFFERENT SHAPES against the rise, so only their proportion at the
-#: calibration point lets them be scaled apart.
+#: work gives for passive cooling - radiation carries 30 to 40 % of the
+#: total heat dissipation under passive cooling and cannot be neglected
+#: (docs/papers, translated) - and the split matters because the two
+#: mechanisms have DIFFERENT SHAPES against the rise, so only their
+#: proportion at the calibration point lets them be scaled apart.
 BOARD_RAD_SHARE = 0.35
 
 #: The power of the rise that free convection carries with, from

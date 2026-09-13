@@ -95,7 +95,7 @@ hardware is one row in `s_parts` (+ pins in `s_digital`, + a probe case so
 
 ```powershell
 python -c "import coaxial; [print(p) for p in coaxial.connect([1])[0].system.channel_map()['parts']]"
-board_chat -Ask "vad sitter på kortet?"    # the model, off the same wire
+board_chat -Ask "what is fitted on the board?"    # the model, off the same wire
 ```
 
 | Read | Before |
@@ -319,8 +319,9 @@ that bind you:
   `num_ctx` reloads 7.6 GB per question. [docs/MODELS.md](docs/MODELS.md).
 
 At the prompt, `/board simulated | auto | rs485 | COM4` and `/model TAG |
-auto` swap either mid-session for no tokens - so does prose: "byt till
-debugproben" is an order the host carries out. `/model` hands VRAM back
+auto` swap either mid-session for no tokens - so does prose: a sentence
+asking to switch to the debug probe is an order the host carries out.
+`/model` hands VRAM back
 first.
 
 The ST toolchain is not on PATH - arm-gcc, cmake, ninja,
@@ -352,7 +353,7 @@ fix, not a substitute.
 
 ## The routine, one item at a time
 
-"Testa, dokumentera, committa, pusha." A list is that routine run per
+"Test, document, commit, push." A list is that routine run per
 item, in the order given, one commit each; *Continue* means the next
 item. Measured over a day of it (2026-09-05, seven items): what held
 was the order, and every step skipped was paid for later.
@@ -373,7 +374,8 @@ was the order, and every step skipped was paid for later.
    reversed on the raster before the bench saw them. The bench's verdict
    still decides - the raster is what stops it seeing the obvious.
 3. **Document.** A FINDINGS bullet, dated: the measurement, what was
-   tried and taken out, and the bench's own words that asked for it.
+   tried and taken out, and what the bench asked for - in English, not
+   its words echoed. Everything in the tree is written in English.
    PROTOCOL for anything on the wire - a MINOR per appended field, the
    version table. ARCHITECTURE and TODO wherever they describe the
    thing; a stale sentence there is a second answer.

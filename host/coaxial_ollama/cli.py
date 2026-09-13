@@ -308,12 +308,12 @@ def repl(chat, hold=False):
                     # in every unrelated fixture question.
                     chat.toolbox.afe_mentioned = 'afe' in line.lower()
                     chat.toolbox.asked = line
-                    # No note when the lock moves. It used to print
-                    # "sprak: bytt till Swedish (last)" above the
-                    # answer - a host line, in a mix of two languages,
-                    # saying what the answer itself already shows by
-                    # being in the new one. A bare switch answers
-                    # "Okej" and nothing else, without a model turn.
+                    # No note when the lock moves. It used to print a
+                    # language note above the answer - a host line, in
+                    # a mix of two languages, saying what the answer
+                    # itself already shows by being in the new one. A
+                    # bare switch answers one word in the new language
+                    # and nothing else, without a model turn.
                     done = chat.ask(line)
                 # Stop ticking before the answer prints, not after. stop()'s
                 # own repaint climbs back to the prompt row by the same

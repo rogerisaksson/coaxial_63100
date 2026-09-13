@@ -289,7 +289,8 @@ class Toolbox:
     def _wrong_side(self, args):
         """A node on the other side of the machine from the one asked for.
 
-        Measured: "kommunicera med vänster knä" was sent as
+        Measured: a request, in Swedish, to talk to the left knee was sent
+        as
         `name='right knee'` - the model mistranslated it in the call and
         got it right in the prose that followed. On a humanoid the wrong
         limb moving is the failure that costs something, so the operator's
@@ -536,8 +537,8 @@ class Toolbox:
         It does not say "--no-board or --simulated this run" any more: a
         session that found nothing at startup falls back on its own, and
         naming two flags the operator never typed is a false statement
-        about how the session was started. Measured - asked "byter du till
-        debugproben" on an auto-fallen-back session, this line was the whole
+        about how the session was started. Measured - asked to switch to the
+        debug probe on an auto-fallen-back session, this line was the whole
         answer on screen, and it named the wrong reason and no way out.
         """
         if _stand_in(self.session) == 'no board':

@@ -307,8 +307,8 @@ if ($null -eq $resolved) {
     # these same columns, so the page shows the download the way it shows
     # everything else - and a run whose output is captured (-Ask into a
     # file) gets a row every five percent instead of a repaint that needs
-    # a TTY. The bench, 2026-09-12: "automatiskt laddar ner en modell om
-    # den inte finns och indikerar med en progressbar".
+    # a TTY. The bench, 2026-09-12: pull a missing model automatically
+    # and show a progress bar.
     Say 'wait' 'model' ("$Model is not here yet - pulling it")
     Push-Location $Root
     try {
@@ -371,7 +371,8 @@ try {
     # status line in the console's language - "(500) Internt serverfel" -
     # and the body that says WHY was never read: on this laptop the page
     # said "could not preload: (500)" for months of an install with no
-    # runner in it (2026-09-12, "nåt fel vid laddning av modellerna").
+    # runner in it (2026-09-12, the bench seeing an error loading the
+    # models).
     $words = Get-DaemonWords $_
     if ($words -match 'llama-server binary not found') {
         # THE RUNNER, NOT THE MODEL. The tags are on the disk and the daemon

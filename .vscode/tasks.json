@@ -60,7 +60,7 @@
                 "-File", "${workspaceFolder}/host/board_chat.ps1",
                 "-Tools", "build",
                 "-Confirm",
-                "-Ask", "Bygg och flasha kortet."
+                "-Ask", "Build and flash the board."
             ],
             "presentation": {
                 "reveal": "always",

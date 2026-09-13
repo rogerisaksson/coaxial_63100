@@ -199,8 +199,8 @@ def fit(aspect, size=None):
     Module globals, set from a measured aspect - the same standing as
     `CELL_ASPECT` itself - and every place that needs the size reads them
     when it draws; on a terminal `draw` sets them every frame, so a resize
-    is the next frame's size (bench 2026-09-13: "så den skalar med
-    storleken på terminalen").
+    is the next frame's size (bench 2026-09-13: it scales with the
+    terminal's size).
     """
     global ART_WIDTH, ART_ROWS, ART_HEIGHT
     stretch = aspect / machine.DOTS_Y * machine.DOTS_X
@@ -1042,11 +1042,11 @@ def _policy_word(ident, state):
     the identification's own and the trip cap (MINOR 17), and while the
     cap is the one in hand AND UNDER THE FLOOR the word says so in the
     trip's red: `STBL 72%` had the model sure of a number no state can
-    give - "STBL visas även när det är 70 % av SOA" (bench, 2026-09-08).
+    give - the bench seeing STBL at 70 % of SOA (2026-09-08).
     Above the floor the number is one the model could own, and the word
     goes back to the state's, the cap's percent still the one in force:
-    `TRIP 89%` sat on the foot with the model STABLE underneath - "den
-    får ju släppa TRIP när den når över 80 %" (bench, the same day). The
+    `TRIP 89%` sat on the foot with the model STABLE underneath - the
+    bench: it must let go of TRIP once over 80 % (the same day). The
     floor is the wire's (MINOR 16), the record's 80 % unless a bench set
     it.
     """

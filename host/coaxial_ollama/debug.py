@@ -69,9 +69,9 @@ is the order to do it, not to discuss. Phase channels: unknown gain, pin
 volts only."""
 
 # The /board and /model line is there because a refusal was measured: asked
-# "byt till en simulerad hardvara", gemma4:12b answered "Jag kan inte byta
-# till simulerad hardvara. Jag ar konfigurerad for att interagera med den
-# fysiska kretskortet" - accurate about itself, a dead end for the operator,
+# to switch to a simulated board, gemma4:12b answered that it cannot switch
+# hardware, being configured to talk to the physical board - accurate
+# about itself, a dead end for the operator,
 # and the same shape as BUILD_FIRMWARE_HINT below. It cannot do the swap; it
 # can say which command does.
 
@@ -84,7 +84,7 @@ DOCS_HINT = ("Values come from analog_read, never docs - HARDWARE and "
 
 # Sent only when build_firmware is offered. The model's training says a chat
 # assistant cannot flash hardware, and that belief beat the schema: measured,
-# gemma4:12b answered "Nej, jag programmerar inte firmwaren sjalv" with
+# gemma4:12b answered that it does not program the firmware itself, with
 # build_firmware sitting in its own tool list, never called.
 BUILD_FIRMWARE_HINT = ("A question about building, compiling or flashing "
                        "this board's firmware - including 'can you' or "
@@ -111,8 +111,9 @@ BUILD_HINT = ("To build or flash: run_command with cmd exactly "
 # the sentence before it - "if it has not already been called this turn, call
 # it before answering" - reads as a standing order, and that is how the model
 # read it: measured across three transcripts, link_diagnose ran first on
-# "byt till en simulerad enhet", on "byter du till debugproben" and on "vilka
-# analoga och digitala kanaler finns", none of which is about the link.
+# an order to switch to a simulated device, on one to switch to the debug
+# probe and on a question listing the analog and digital channels - none
+# of which is about the link.
 LINK_DIAGNOSE_HINT = ("A question about why the board is not answering, or "
                       "whether the link is down, is answered by calling "
                       "link_diagnose - not by guessing, not by trying "
@@ -189,10 +190,11 @@ BOARD_WORDS = {
 }
 
 # Verbs that order a swap rather than ask about one. Without the verb,
-# "vad ar debugproben" reads as an order because it names one.
+# "what is the debug probe" reads as an order because it names one.
 #
-# 'kor' is deliberately absent: "kor mot simulerat" and "kor testerna" are
-# the same word doing opposite jobs, and only one of them is this.
+# 'kör' is deliberately absent: "run against simulated" and "run the
+# tests" are the same word doing opposite jobs, and only one of them is
+# this.
 _BOARD_VERBS = ('byt', 'byta', 'byter', 'växla', 'växlar', 'koppla',
                 'använd', 'ta',
                 'switch', 'switches', 'change', 'use', 'connect', 'go')
@@ -200,8 +202,9 @@ _BOARD_VERBS = ('byt', 'byta', 'byter', 'växla', 'växlar', 'koppla',
 # What stops an order from being one. This was a list of allowed filler
 # words and every word outside it abstained - which meant a noun nobody had
 # thought of was enough to lose the order. Measured four times, one word
-# each: 'enhet', then 'hardvara', then 'lage'. Naming what disqualifies an
-# order is a closed set; naming every noun that does not is not.
+# each: 'enhet', then 'hardvara', then 'lage' - device, hardware, mode.
+# Naming what disqualifies an order is a closed set; naming every noun
+# that does not is not.
 # Interrogatives only. 'om' and 'ifall' are subordinating conjunctions, not
 # questions, and 'om' is also the particle in "koppla om" - listing it lost
 # that order to its own verb.
@@ -209,8 +212,8 @@ _QUESTION_WORDS = ('vad', 'vilken', 'vilket', 'vilka', 'varför', 'hur',
                    'när', 'vem',
                    'what', 'which', 'why', 'how', 'when', 'whether')
 
-# Another thing to do in the same sentence. "byt till simulerat lage och
-# las NTC:n" is two requests, and the model is the one that can carry out
+# Another thing to do in the same sentence. "switch to simulated and read
+# the NTC" is two requests, and the model is the one that can carry out
 # both; the host taking the first half silently would drop the second.
 _OTHER_ACTIONS = ('läs', 'läser', 'mät', 'mäter', 'visa', 'visar', 'lista',
                   'ge', 'beskriv', 'förklara', 'bygg', 'flasha', 'testa',
@@ -225,19 +228,21 @@ _COM_PORT = re.compile(r'^com\d+$', re.I)
 def board_switch(text):
     """The board `text` orders a swap to, when it orders nothing else.
 
-    "byt till debugproben" is the host's to carry out - the same shape as
+    "switch to the debug probe" is the host's to carry out - the same shape
+    as
     a bare language switch, and for the same reason: the session's board
     is host state, and a model asked to change it can only describe or
     refuse. Measured three times, it did both and then read a channel.
 
-    None when the sentence asks rather than orders ("vad ar debugproben"),
-    or carries a second request the host cannot do ("byt till simulerat
-    lage och las NTC:n"). Anything else with a switch verb and a target is
-    an order.
+    None when the sentence asks rather than orders ("what is the debug
+    probe"), or carries a second request the host cannot do ("switch to
+    simulated and read the NTC"). Anything else with a switch verb and a
+    target is an order.
 
     This used to require every word to be in a list of allowed filler, and
     abstained on anything else. That lost the order to one unlisted noun,
-    four times running - 'enhet', 'hardvara', 'lage'. What disqualifies an
+    four times running - 'enhet', 'hardvara', 'lage': device, hardware,
+    mode. What disqualifies an
     order is a closed set; what may appear in one is not.
     """
     words = [w.lower() for w in re.findall(r'[^\W_]+', text or '')]
@@ -249,7 +254,7 @@ def board_switch(text):
         return None
     if any(w in _QUESTION_WORDS or w in _OTHER_ACTIONS for w in words):
         return None
-    # A named port beats a kind: "byt till COM7" said which one.
+    # A named port beats a kind: "switch to COM7" said which one.
     if ports:
         return ports[0]
     if 'simulated' in targets:
@@ -599,9 +604,9 @@ class Chat:
             hint += '\n' + LINK_DIAGNOSE_HINT
         if 'docs' in names:
             hint += '\n' + DOCS_HINT
-        # The earlier questions, not the wiped history: "tabellera", then
-        # "varfor kan du inte na kortet", then "provade det, fortfarande
-        # inget" only reads as a sequence with them in view. Five at most.
+        # The earlier questions, not the wiped history: "tabulate", then
+        # "why can you not reach the board", then "tried that, still
+        # nothing" only reads as a sequence with them in view. Five at most.
         hint += getattr(self, 'intent', '') or ''
         prior = getattr(self, 'prompt_history', [])[-6:-1]
         if prior:
@@ -616,7 +621,7 @@ class Chat:
         # wrong for a local tag someone quantised last week. Six tokens buys
         # an answer that matches `ollama ps`.
         # The tag verbatim, and asked for verbatim: told only "you are the
-        # local model gemma4:12b", it answered "Jag ar Gemma 4" - aware of
+        # local model gemma4:12b", it answered "I am Gemma 4" - aware of
         # what it is, and one paraphrase away from a name that no longer
         # matches `ollama ps` or a bug report.
         who = ('Your model tag is exactly "%s", run locally by ollama on this '
@@ -766,7 +771,8 @@ class Chat:
             return answer
         # Same rule one layer out: an order to change the board is the
         # host's to carry out, not a model's to describe. Measured three
-        # times on "byt till debugproben" - it refused, then diagnosed the
+        # times on "switch to the debug probe" - it refused, then diagnosed
+        # the
         # link, then read seven channels, and the board never changed.
         board = board_switch(question)
         if board:
@@ -941,8 +947,8 @@ class Chat:
         turn.answer = (message.get('content') or '').strip()
 
         # A tool call written as prose is still a tool call. qwen2.5 emits
-        # one as text often enough to matter - Measured: "vad ar
-        # temperaturen" came back as the literal string
+        # one as text often enough to matter - Measured: "what is the
+        # temperature" came back as the literal string
         #
         #     {"name": "docs", "arguments": {"find": "temperature"}}
         #     </tool_call>
@@ -979,7 +985,8 @@ class Chat:
         if stale:
             return self._stale(turn)
         # A reading did succeed this turn and the model still wrote nothing.
-        # Measured: "Beskriv hardvaran i detta projektet for en novis" -
+        # Measured: asked, in Swedish, to describe the project's hardware
+        # for a novice -
         # gemma4:12b called analog_read, returned empty content, and the
         # operator got the table and a blank line where the answer goes. The
         # gate above cannot catch it: it is closed by turn.channels, which
@@ -1013,7 +1020,7 @@ class Chat:
         one path that never passed it. Confirmed up, the turn used to end on
         "ask again" and the operator retyped it twice, so the nudge has to
         be actionable - but not prescriptive. Measured: it named
-        analog_read, and "beskriv hardvaran i detta projektet for en novis"
+        analog_read, and the request to describe the hardware for a novice
         answered blank, got nudged, and came back with a full analog table.
         The host cannot tell from here whether the question wants a
         reading; the model can.
@@ -1085,7 +1092,7 @@ class Chat:
         if name in toolmod.CODE_CALLS:
             # A failed build, or a --confirm the operator declined, is a fact
             # this loop holds. Measured: refused at the prompt, gemma4:12b
-            # still answered "kortet har byggts och flashats" - on the one
+            # still claimed the board had been built and flashed - on the one
             # call that writes to a 63 V board. Cleared by a later success in
             # the same turn.
             turn.code_error = text if failed else None
@@ -1426,10 +1433,10 @@ class Chat:
         if wanted_real and not found.real:
             # The search found nothing. Do NOT swap: an order that cannot
             # be carried out must not also cost the board that was working,
-            # and "byt till rs485" on a live probe session would otherwise
+            # and "switch to rs485" on a live probe session would otherwise
             # drop it for a stand-in. Say what was tried, so the operator
             # learns something instead of pressing it again - measured, the
-            # same order twice in a row, both times "inget svarade", and
+            # same order twice in a row, both times "nothing answered", and
             # nothing on screen said the cable and driver were fine.
             try:
                 session.close()

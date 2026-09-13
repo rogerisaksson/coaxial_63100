@@ -1610,8 +1610,9 @@ def test_the_dial_is_round_on_this_terminal(report):
 
 def test_the_face_wears_its_two_scales(report):
     """SHAFT ANGLE's die temperature and field stand either side of the
-    face as tubes on their own ranges - "skalor på sidan som visar
-    dietempen och fältstyrkan i gauss", 2026-09-07. Pure `dial.scale`,
+    face as tubes on their own ranges - the scales beside it the bench
+    asked for, die temperature and field strength in gauss, 2026-09-07.
+    Pure `dial.scale`,
     so a number in and lines out; the page composes them with `beside`.
     """
     sys.path.insert(0, HOST)
@@ -1766,7 +1767,7 @@ def test_switch_soa_is_the_switches_and_motor_soa_the_winding(report):
     six switch nodes, and the winding. SWITCH SOA read the board's worst
     node - the copper patch under a leg, or the winding once that is the
     hottest against its ceiling - and the bench saw the two tubes at one
-    number: "exakt samma värden på MOTOR SOA och SWITCH SOA" (2026-09-08).
+    number: the same value on MOTOR SOA and SWITCH SOA (2026-09-08).
     """
     sys.path.insert(0, HOST)
     from tools import show_rotor_observer as view
@@ -1799,7 +1800,7 @@ def test_every_frame_corner_on_the_map_is_a_right_angle(report):
     that fell in the cell's inner lane had the lines run one dot past
     it, and the corner read as a foot sticking out - `⠼` where `⠸` was
     meant: 63 of 142 corners over five sizes before the fix (bench,
-    2026-09-12: "fixa hörnen i regionerna på termiska observeraren").
+    2026-09-12: the regions' corners on the thermal observer).
     Judged against a literal table of the eight right-angle glyphs, one
     per corner and lane, on every mark at every size the page draws;
     corners the rim runs through or that lie off the board are not
@@ -1859,11 +1860,12 @@ def test_every_frame_corner_on_the_map_is_a_right_angle(report):
 
 def test_the_foot_says_trip_while_the_cap_holds(report):
     """`TRIP 72%` in the trip's red while the trip cap holds the margin
-    UNDER THE FLOOR, whatever the model's state - the bench: "STBL visas
-    även när det är 70 % av SOA" (2026-09-08), a number no state can
+    UNDER THE FLOOR, whatever the model's state - the bench seeing STBL
+    at 70 % of SOA (2026-09-08), a number no state can
     give; the state's own word with the percent in force once the cap is
-    over the floor - "den får ju släppa TRIP när den når över 80 %", the
-    bench's line being `WINDING 97.7 C TH OBS TRIP 89%` (the same day);
+    over the floor - the bench's point that it must let go of TRIP once
+    over 80 %, its line being `WINDING 97.7 C TH OBS TRIP 89%` (the same
+    day);
     and the state's word and the model's number once the cap has
     recovered past the model.
     """

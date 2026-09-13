@@ -164,12 +164,14 @@ the link. `/model TAG|auto` swaps the model and hands VRAM back first.
 `/ctx` (what the next turn costs), `/clear`, `/history`,
 `/clear_history`, `/cost`, `/help`, `/q`.
 
-Prose does the same: "byt till debugproben" is carried out by
+Prose does the same: a sentence asking to switch to the debug probe
+(the classifier's phrases are Swedish) is carried out by
 `board_switch()` for no tokens. `BOARD_WORDS` maps what an operator
 calls a board to `simulated`, `auto` or `rs485`; an order needs one of
 `_BOARD_VERBS` and is disqualified by a closed set of words - a list of
 allowed filler words abstained on every noun nobody had thought of,
-measured four times ('enhet', 'hardvara', 'lage').
+measured four times ('enhet', 'hardvara', 'lage' - device, hardware,
+mode).
 
 ### Intent
 
@@ -198,8 +200,8 @@ Dutch before that. An English answer scored Portuguese on two 'a's
 before the margin. A lock is released only by the host: locked to
 Korean and asked to switch back, the model obeyed the lock line and
 refused, in Korean. `PHRASES` carries the host's own lines in Swedish;
-"Jag har andrat spraket till svenska. Hur kan jag hjalpa dig..." was
-two sentences where one word does. Stdin and both outputs are re-coded:
+A model confirming a language switch in two sentences, in Swedish,
+where one word does. Stdin and both outputs are re-coded:
 `byter du till simulerat lage` arrived as `simulerat lÃ¤ge` under
 cp1252 and split into `lã` and `ge`, and `ge` disqualifies an order.
 
@@ -267,18 +269,20 @@ transcript:
   board carries; the tool answers with the names it has.
 * Asked to *measure* the channels, gemma4:12b read HARDWARE.md and
   answered with that document's channel table - no measurement in it.
-* gemma4:12b answered "Nej, jag programmerar inte firmwaren sjalv" with
+* gemma4:12b answered that it does not program the firmware itself, with
   `build_firmware` in its own tool list, never called.
 * The first two tries at a build were `python3` (not allowlisted) and
   `python build_and_flash.py`, one directory short of `tools/`.
 * "If it has not already been called this turn, call it before
   answering" read as a standing order: `link_diagnose` ran first on
   three questions that were not about the link.
-* Asked "byt till en simulerad hardvara", gemma4:12b answered that it
+* Asked, in Swedish, to switch to a simulated board, gemma4:12b
+  answered that it
   could not switch hardware; the host now carries the order out.
 * Asked to change the board, a model described, refused, and then read
   a channel - three times.
-* "kommunicera med vänster knä" was sent as `name='right knee'` in the
+* A request, in Swedish, to talk to the left knee was sent as
+  `name='right knee'` in the
   call and translated right in the prose after it.
 * BUS_VOLT and A0, both invented channel names, both refused where one
   of them meant the DC link.

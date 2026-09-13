@@ -163,7 +163,8 @@ is still arithmetic. Every item names the file or record it lives in.
   machine and is not checked out here; `inverter.py` carries its
   traced constants.
 * **The classifier has no thermal kind** (2026-09-07). `intent.py`
-  answers "hur varmt är kortet" as an analog read of the thermistor,
+  answers a question about how warm the board is as an analog read of
+  the thermistor,
   one measurement where the board holds an estimate for every node and
   a margin it acts on. A `thermal` kind - the `thermal` tool's `state`
   and `ident` for one question, like `both` - is a twenty-line change
@@ -173,8 +174,9 @@ is still arithmetic. Every item names the file or record it lives in.
   from its 2026-09-03 upgrade until the reinstall of 2026-09-12
   (FINDINGS, *The daemon had no runner*), and answers again since.
 * **The STO chain, modified and tested with its pilot tone** (the
-  bench, 2026-09-08: "STO-kretsen som behöver modifieras/testas med
-  pilotton"). The chain has never released the gate drivers' supply on
+  bench, 2026-09-08: the STO circuit that needs modifying and testing
+  with the pilot tone). The chain has never released the gate drivers'
+  supply on
   its own on this bench: PA10 KEEPALIVE feeds the charge pump through
   R72 / C71 at 200 kHz, but the pilot tone on RS485 that the chain also
   wants has had no sender here, and the two channels that watch it read

@@ -44,7 +44,7 @@ DIGITAL_ROW = re.compile(r'^(P[A-K]\d+)\s+(?:in|out|inout)\b', re.M)
 
 #...and the signal off the same row, because a retyped list quotes
 # whichever half it read. Measured: the trace said "PB2 out 1 AFE_ON /
-# PE15 in 0 nFAULT" and the answer said "AFE_ON ar 1 och nFAULT ar 0" -
+# PE15 in 0 nFAULT" and the answer said "AFE_ON is 1 and nFAULT is 0" -
 # every channel named, and not one of them by the pin the pattern above
 # captures. The optional digits eat the level column, which the map has
 # and a reading does not.
@@ -156,7 +156,7 @@ def is_retype(answer, channels, minimum=RESTATE_MIN_CHANNELS):
 
 
 # Words a chat template leaks around a call the model wrote as text instead of
-# in the tool_calls field. Measured: asked "vad ar temperaturen",
+# in the tool_calls field. Measured: asked "what is the temperature",
 # the model answered 'CallCheckFunction' and a JSON object, twice over, and the
 # prompt printed all four lines as the answer - which reads as the board having
 # stopped giving values. A residue of nothing but these words is still a tool

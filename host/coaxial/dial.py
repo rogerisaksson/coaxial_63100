@@ -330,12 +330,13 @@ SCALE_W = 8
 #: reading's own ink up to the reading and the label's ash above it, a
 #: thermometer's empty glass. The glass was one dotted column, and read
 #: as a stray line beside the bar rather than the tube it stood in:
-#: "vet inte varför du alltid bara sätter en linje gråad" (2026-09-07).
+#: the bench asking why it always got a single greyed line (2026-09-07).
 TUBE_W = 2
 #: The die's range on the scale: the A1335's operating range, -40 to
 #: 150 C (datasheet). The field's: zero to 1200 gauss. EACH TUBE IS
 #: THREE BANDS - blue under normal, green through it, red past it -
-#: "representativa för normal temp och magnetfält, blått, grönt, rött"
+#: the bench's three bands for normal temperature and field - blue,
+#: green, red
 #: (2026-09-07). The die's normal is where this board works, 15 to
 #: 65 C: it idles near 30 and works between 30 and 60, which is where
 #: the thermal ramp spends its resolution too, and the ramp itself was

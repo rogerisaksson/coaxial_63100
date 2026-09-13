@@ -48,8 +48,8 @@ ART_WIDTH, ART_HEIGHT = 58, 21
 #: the face is drawn as wide as the room left after two scales and their
 #: air, down to FACE_MIN. It was gated instead - scales on a terminal
 #: 124 columns or wider, the full face or nothing - and the bench's
-#: terminal is narrower: "fortfarande inte uppdaterad SHAFT ANGLE-
-#: grafik" (2026-09-07). The face is bounded by its height anyway: at
+#: terminal is narrower - the bench saw SHAFT ANGLE still not updated
+#: (2026-09-07). The face is bounded by its height anyway: at
 #: 21 rows the rim is 33 dots however wide the box, and at FACE_MIN it
 #: is 29 - an eighth smaller, with the scales beside it. Under that the
 #: face stands alone; `--scales` and `--no-scales` force either way.
