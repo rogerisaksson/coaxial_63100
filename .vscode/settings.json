@@ -48,6 +48,15 @@
     // The tree reads clean under Pylance in basic mode (FINDINGS, 2026-09-08):
     // the editor is asked for that mode, so a regression shows where it lands.
     "python.analysis.typeCheckingMode": "basic",
+    // THE INTERPRETER IS THE ONE setup.ps1 INSTALLS INTO: python.org's,
+    // through its per-user launcher. This machine also carries a uv-managed
+    // CPython of the same version with none of the host's packages in it,
+    // and the Python extension picked that one - so every notebook showed
+    // `Import "matplotlib.pyplot" could not be resolved from source` while
+    // matplotlib 3.11.1 sat in the other (2026-09-13). The setting is the
+    // default for a fresh workspace; an interpreter already chosen by hand
+    // wins over it, so "Python: Select Interpreter" is the fix for that.
+    "python.defaultInterpreterPath": "${env:LOCALAPPDATA}\\Python\\bin\\python.exe",
     "python.analysis.extraPaths": [
         "host",
         "host/tools",

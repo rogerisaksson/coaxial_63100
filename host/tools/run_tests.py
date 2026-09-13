@@ -591,29 +591,32 @@ def pick(paths):
     """(suites, live_sections, why) for these changed paths."""
     suites, live, why = set(), set(), []
     for path in paths:
-        for prefix, wanted in TOUCHES:
-            if path.startswith(prefix):
-                if not wanted and path.startswith('host/tests/'):
-                    name = path.rsplit('/', 1)[-1]
-                    if name.startswith('test_'):
-                        suites.add(name)
-                        why.append('%s -> itself' % path)
-                    break
-                for item in wanted:
-                    if item.startswith('live:'):
-                        live.add(item.split(':', 1)[1])
-                    else:
-                        suites.add(item)
-                # An empty entry is a deliberate "nothing under test reads
-                # this", not a hole in the map. Saying so is the difference
-                # between a rule and an oversight for whoever reads the plan.
-                why.append('%s -> %s'
-                           % (path, ', '.join(wanted) or 'nothing reads it'))
-                break
-        else:
+        rule = next((wanted for prefix, wanted in TOUCHES
+                     if path.startswith(prefix)), None)
+        if rule is None:
             why.append('%s -> unmapped, running everything' % path)
             return set(DEFAULT_SUITES) | {CONFORMANCE}, {'all'}, why
+        _touched(path, rule, suites, live, why)
     return suites, live, why
+
+
+def _touched(path, wanted, suites, live, why):
+    """One changed path against its rule. A test file names itself; an
+    empty entry is a deliberate "nothing under test reads this", not a
+    hole in the map - saying so is the difference between a rule and an
+    oversight for whoever reads the plan; a rule's items are suites, or
+    the live suite's sections as `live:NAME`."""
+    name = path.rsplit('/', 1)[-1]
+    own = not wanted and path.startswith('host/tests/')
+    if own and name.startswith('test_'):
+        suites.add(name)
+        why.append('%s -> itself' % path)
+    if own:
+        return
+    live.update(item.split(':', 1)[1] for item in wanted
+                if item.startswith('live:'))
+    suites.update(item for item in wanted if not item.startswith('live:'))
+    why.append('%s -> %s' % (path, ', '.join(wanted) or 'nothing reads it'))
 
 
 def _options(argv):
@@ -695,76 +698,11 @@ def _plan(args):
         # runs them and the rest report nothing. Cheaper than asking which
         # file a test lives in, and it cannot go stale.
         args.file, args.smart, args.live = list(OLLAMA), False, False
-    if args.smart and not args.file:
-        import subprocess
-        try:
-            count = int(subprocess.run(
-                ['git', 'rev-list', '--count', 'HEAD'], cwd=str(ROOT.parent),
-                capture_output=True, text=True, encoding='utf-8',
-                errors='replace', timeout=30).stdout.strip())
-        except Exception:                                     # noqa: BLE001
-            count = 0
-        paths = changed_files()
-        # --minimal skips the sweep on purpose: it is the fix-test cycle's
-        # run, and the sweep is the gate's. Anything --minimal misses is
-        # what the next unqualified --smart is for.
-        # Not on a coverage tier: the sweep exists to catch what narrowing
-        # missed, and a tier is narrowing by definition.
-        full = bool(count) and count % FULL_EVERY == 0 and not args.coverage
-        if full:
-            chosen = set(DEFAULT_SUITES) | {CONFORMANCE}
-            picked_live, why = {'all'}, ['commit %d is a multiple of %d - '
-                                         'everything' % (count, FULL_EVERY)]
-        else:
-            chosen, picked_live, why = pick(paths)
-            if not chosen and not picked_live:
-                why.append('nothing changed that any suite covers')
-        print('-- smart: %d file%s changed --'
-              % (len(paths), '' if len(paths) == 1 else 's'))
-        for line in why[:12]:
-            print('   ' + line)
-        order = list(DEFAULT_SUITES) + [CONFORMANCE]
-        # The live suite is not run by name from --file: it is the one with
-        # sections, and it is added below. Editing it is a reason to run it.
-        if LIVE in chosen:
-            picked_live = picked_live or {'all'}
-        args.file = [name for name in order if name in chosen]
-        live_sections = ','.join(sorted(picked_live)) if picked_live else ''
-        if live_sections and 'all' in picked_live:
-            live_sections = 'all'
-        if live_sections:
-            args.live = True
-        print('   suites: %s%s' % (', '.join(args.file) or 'none',
-                                   '  live: ' + live_sections
-                                   if live_sections else ''))
-        # The path map above decides which files. Which subjects inside the
-        # big one is the judgement call, and it goes to the model - which
-        # can only ever cost seconds by over-picking, because every way it
-        # fails returns None and this runs the file whole.
-        # Not on the full sweep. Narrowing the one run that exists to catch
-        # what the narrowing missed is the whole guarantee, spent.
-        if args.coverage:
-            allowed, sections = plan_for(args.coverage)
-            args.file = [f for f in args.file
-                         if f in OLLAMA or f in allowed]
-            live_sections = sections or ''
-            args.live = bool(sections)
-            if sections:
-                args.file.append(LIVE)
-            print('   %d%% tier: %s%s'
-                  % (args.coverage, ', '.join(args.file),
-                     ' live:' + sections if sections else ''))
-        # The model decides the list, not the path map. The map above is
-        # the fallback: coarse by construction - a line moved in
-        # coaxial_mcp/tools.py pulls in four suites whatever the line
-        # was - and it only stands when there is no model to ask.
-        if not tags and not full and settled(chosen, why):
-            print('   the map knew every path and the answer is seconds - '
-                  'not asking the model')
-        elif not tags and not full:
-            tags, live_sections = _ask_model(args, live_sections)
-        if args.dry_run:
-            return None            # the plan was the whole point of the run
+    planned = (_smart(args, tags, live_sections)
+               if args.smart and not args.file else (tags, live_sections))
+    if planned is None:
+        return None                # the plan was the whole point of the run
+    tags, live_sections = planned
 
     # Typed explicitly, so it wins over the 'all' default and over a tier's
     # own pick. It used to be read only inside the --match branch, which
@@ -774,6 +712,100 @@ def _plan(args):
     if args.sections and args.live:
         live_sections = args.sections
 
+    return tags, live_sections
+
+
+def _commits():
+    """How many commits this tree has, or 0 outside git."""
+    import subprocess
+    try:
+        return int(subprocess.run(
+            ['git', 'rev-list', '--count', 'HEAD'], cwd=str(ROOT.parent),
+            capture_output=True, text=True, encoding='utf-8',
+            errors='replace', timeout=30).stdout.strip())
+    except Exception:                                         # noqa: BLE001
+        return 0
+
+
+def _chosen(paths, full, count):
+    """(suites, live sections, why) - everything on the full sweep, the
+    path map's pick otherwise."""
+    if full:
+        return (set(DEFAULT_SUITES) | {CONFORMANCE}, {'all'},
+                ['commit %d is a multiple of %d - everything'
+                 % (count, FULL_EVERY)])
+    chosen, picked_live, why = pick(paths)
+    if not chosen and not picked_live:
+        why.append('nothing changed that any suite covers')
+    return chosen, picked_live, why
+
+
+def _tiered(args, live_sections):
+    """The tier's cut of the smart pick: which subjects inside the big
+    suites is the judgement call, and it goes to the model - which can
+    only ever cost seconds by over-picking, because every way it fails
+    returns None and this runs the file whole. Not on the full sweep:
+    narrowing the one run that exists to catch what the narrowing missed
+    is the whole guarantee, spent."""
+    allowed, sections = plan_for(args.coverage)
+    args.file = [f for f in args.file if f in OLLAMA or f in allowed]
+    live_sections = sections or ''
+    args.live = bool(sections)
+    if sections:
+        args.file.append(LIVE)
+    print('   %d%% tier: %s%s'
+          % (args.coverage, ', '.join(args.file),
+             ' live:' + sections if sections else ''))
+    return live_sections
+
+
+def _smart(args, tags, live_sections):
+    """The smart plan: the changed files against the path map, the full
+    sweep every FULL_EVERY commits, the tier's cut, and the model's pick
+    of subjects where the map does not settle it. Returns (tags,
+    live_sections), or None when --dry-run means print and stop.
+
+    --minimal skips the sweep on purpose: it is the fix-test cycle's run,
+    and the sweep is the gate's. Anything --minimal misses is what the
+    next unqualified --smart is for. Not on a coverage tier: the sweep
+    exists to catch what narrowing missed, and a tier is narrowing by
+    definition.
+    """
+    count = _commits()
+    paths = changed_files()
+    full = bool(count) and count % FULL_EVERY == 0 and not args.coverage
+    chosen, picked_live, why = _chosen(paths, full, count)
+    print('-- smart: %d file%s changed --'
+          % (len(paths), '' if len(paths) == 1 else 's'))
+    for line in why[:12]:
+        print('   ' + line)
+    order = list(DEFAULT_SUITES) + [CONFORMANCE]
+    # The live suite is not run by name from --file: it is the one with
+    # sections, and it is added below. Editing it is a reason to run it.
+    if LIVE in chosen:
+        picked_live = picked_live or {'all'}
+    args.file = [name for name in order if name in chosen]
+    live_sections = ','.join(sorted(picked_live)) if picked_live else ''
+    if live_sections and 'all' in picked_live:
+        live_sections = 'all'
+    if live_sections:
+        args.live = True
+    print('   suites: %s%s' % (', '.join(args.file) or 'none',
+                               '  live: ' + live_sections
+                               if live_sections else ''))
+    if args.coverage:
+        live_sections = _tiered(args, live_sections)
+    # The model decides the list, not the path map. The map above is
+    # the fallback: coarse by construction - a line moved in
+    # coaxial_mcp/tools.py pulls in four suites whatever the line
+    # was - and it only stands when there is no model to ask.
+    if not tags and not full and settled(chosen, why):
+        print('   the map knew every path and the answer is seconds - '
+              'not asking the model')
+    elif not tags and not full:
+        tags, live_sections = _ask_model(args, live_sections)
+    if args.dry_run:
+        return None
     return tags, live_sections
 
 
@@ -795,8 +827,8 @@ def _extra_for(name, args, tags, live_sections):
         return extra + ['--only', args.only]
     if tags:
         extra += ['--tags', tags]
-        if args.coverage:
-            extra += ['--coverage', str(args.coverage)]
+    if tags and args.coverage:
+        extra += ['--coverage', str(args.coverage)]
     return extra
 
 
@@ -839,9 +871,9 @@ def _run(args, tags, live_sections):
             tally, code, failing, elapsed, crash, groups = run_one(
                 path, timeout=1200 if name == LIVE else 300, extra=extra)
             if tally is None:
-                print('%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed))
-                if crash:
-                    print(crash)
+                print('\n'.join(filter(None, [
+                    '%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed),
+                    crash])))
                 ok = False
                 continue
             passed, failed, skipped, rough = tally

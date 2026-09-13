@@ -1062,6 +1062,33 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   process group elsewhere - and the views suite runs each view
   through it with its own 120 s, so a hang costs two minutes and
   names the view.
+* THE TEST RUNNER AND THE ROTOR OBSERVER (2026-09-13): thirty nested ifs
+  -> 0. The runner's smart plan is `_smart` with `_commits`, `_chosen`
+  and `_tiered` under it; a changed path meets its rule in `_touched`;
+  the crash report is one print. The view's eighteen keys are one
+  function each and a table, `KEYS`; the foot's policy word is
+  `_policy_word`; the stand-in's demo numbers are `DEMO_*` constants
+  with their reasons beside them and the model's defaults
+  `_model_defaults`. FOUND ON THE WAY: `demo_defaults` set `view_step =
+  0.01` for the model stand-in and returned 0.1 regardless - a dead
+  local - so `+` and `-` walked a 0.06 A torque current in tenths; it
+  returns the step it computed, `DEMO_STEP`. The runner drove the
+  structure suite (621) and the smart dry run through the new plan; the
+  rotor view exits 0 on the stand-in; views 206; pyright 0.
+* `Import "matplotlib.pyplot" could not be resolved from source` (the
+  bench, 2026-09-13, every notebook). Pylance's wording for a module it
+  has stubs for and cannot find in the SELECTED interpreter. This laptop
+  has two CPython 3.14s: python.org's (`%LOCALAPPDATA%\Python\
+  pythoncore-3.14-64`, the one `python` on PATH launches and setup.ps1
+  installs into - matplotlib 3.11.1, pandas 3.0.5, numpy 2.5.2,
+  pyserial, PyYAML, mcp, rich all present) and a uv-managed
+  `cpython-3.14.7` under `%APPDATA%\uv` with none of the seven. The
+  Python extension had picked the uv one. `.vscode/settings.json` now
+  names python.org's launcher as `python.defaultInterpreterPath`; an
+  interpreter already chosen by hand outranks the setting, so the click
+  is "Python: Select Interpreter" -> the python.org 3.14, and the same
+  interpreter as the notebooks' kernel. The notebooks themselves were
+  executed on the right one - none holds an error output.
 
 ## The local model
 

@@ -892,14 +892,15 @@ def _legend_rows(view, left, right):
             # SWITCH SOA row ran six cells and then pointed at nothing.
             # The air belongs to the horizontal; the endpoint is the
             # whole errand.
-            if 0 <= column < ART_WIDTH and line[column] not in DROP:
+            turned = 0 <= column < ART_WIDTH and line[column] not in DROP
+            if turned:
                 line[column] = TURN[_lane(column, first)]
-                # ONE MARK A CELL. `_tinted` cuts the row at each mark
-                # and cannot overlap two - a second entry for a cell the
-                # run already marked emitted the character twice and
-                # every legend row came out a cell longer.
-                if column not in span:
-                    marks.append((column, 1, machine.LEADER_GREY))
+            # ONE MARK A CELL. `_tinted` cuts the row at each mark and
+            # cannot overlap two - a second entry for a cell the run
+            # already marked emitted the character twice and every legend
+            # row came out a cell longer.
+            if turned and column not in span:
+                marks.append((column, 1, machine.LEADER_GREY))
             marks.append((head, 1, machine.LEADER_GREY))
             for step in span:
                 marks.append((step, 1, machine.LEADER_GREY))
@@ -990,28 +991,36 @@ def _policy(view):
     ident = view.get('ident')
     state = ident['state'] if ident else None
     if state in POLICY_INK:
-        margin = ident.get('margin', 1.0)
-        percent = int(round(100.0 * margin))
-        # THE TRIP HOLDS IT, not the model's doubt. `margin` is the least
-        # of the identification's own and the trip cap (MINOR 17), and
-        # while the cap is the one in hand AND UNDER THE FLOOR the word
-        # says so in the trip's red: `STBL 72%` had the model sure of a
-        # number no state can give - "STBL visas även när det är 70 % av
-        # SOA" (bench, 2026-09-08). Above the floor the number is one the
-        # model could own, and the word goes back to the state's, the
-        # cap's percent still the one in force: `TRIP 89%` sat on the
-        # foot with the model STABLE underneath - "den får ju släppa TRIP
-        # när den når över 80 %" (bench, the same day). The floor is the
-        # wire's (MINOR 16), the record's 80 % unless a bench set it.
-        cap = ident.get('trip_cap', 1.0)
-        floor = ident.get('margin_floor', _thermal.IDENT_MARGIN_FLOOR)
-        if cap < 1.0 and abs(margin - cap) < 1e-6 and margin < floor - 1e-6:
-            return 'TH OBS', 'TRIP %d%%' % percent, machine.INK[machine.SOA_TRIP]
-        word = POLICY_WORD[state]
-        if percent < 100:
-            word = '%s %d%%' % (POLICY_SHORT.get(state, word), percent)
-        return 'TH OBS', word, machine.INK[POLICY_INK[state]]
+        word, ink = _policy_word(ident, state)
+        return 'TH OBS', word, ink
     return 'TH OBS', '-', machine.LEADER_GREY
+
+
+def _policy_word(ident, state):
+    """The state's word with the margin's percent, or the trip's.
+
+    THE TRIP HOLDS IT, not the model's doubt. `margin` is the least of
+    the identification's own and the trip cap (MINOR 17), and while the
+    cap is the one in hand AND UNDER THE FLOOR the word says so in the
+    trip's red: `STBL 72%` had the model sure of a number no state can
+    give - "STBL visas även när det är 70 % av SOA" (bench, 2026-09-08).
+    Above the floor the number is one the model could own, and the word
+    goes back to the state's, the cap's percent still the one in force:
+    `TRIP 89%` sat on the foot with the model STABLE underneath - "den
+    får ju släppa TRIP när den når över 80 %" (bench, the same day). The
+    floor is the wire's (MINOR 16), the record's 80 % unless a bench set
+    it.
+    """
+    margin = ident.get('margin', 1.0)
+    percent = int(round(100.0 * margin))
+    cap = ident.get('trip_cap', 1.0)
+    floor = ident.get('margin_floor', _thermal.IDENT_MARGIN_FLOOR)
+    if cap < 1.0 and abs(margin - cap) < 1e-6 and margin < floor - 1e-6:
+        return 'TRIP %d%%' % percent, machine.INK[machine.SOA_TRIP]
+    word = POLICY_WORD[state]
+    if percent < 100:
+        word = '%s %d%%' % (POLICY_SHORT.get(state, word), percent)
+    return word, machine.INK[POLICY_INK[state]]
 
 
 def gutter_caption(view):
@@ -2176,86 +2185,127 @@ def start(rig, view):
     return 'running %s' % view['mode']
 
 
+def _key_start_stop(rig, d, key, view):
+    if view['state']['mode'] != 'off':
+        d.off()
+        return 'stopped'
+    return start(rig, view)
+
+
+def _key_mode(rig, d, key, view):
+    view['mode'] = MODES[(MODES.index(view['mode']) + 1) % len(MODES)]
+    if view['state']['mode'] != 'off':
+        return start(rig, view)
+    return 'mode %s' % view['mode']
+
+
+def _key_source(rig, d, key, view):
+    view['source'] = 'adc' if view['source'] == 'model' else 'model'
+    d.source(view['source'])
+    return 'source %s' % view['source']
+
+
+def _key_inject(rig, d, key, view):
+    view['inject'] = not view['inject']
+    d.set_params(drv_inj_mv=view['v_inj'] if view['inject'] else 0.0)
+    return 'injection %s' % ('on' if view['inject'] else 'off')
+
+
+def _key_iq(rig, d, key, view):
+    view['iq'] += view['step'] if key in '+=' else -view['step']
+    view['iq'] = max(-view['i_max'], min(view['i_max'], view['iq']))
+    d.setpoint(iq_ref=view['iq'])
+    return 'iq_ref %+.2f A' % view['iq']
+
+
+def _key_step(rig, d, key, view):
+    i = STEPS.index(view['step']) + (1 if key == ']' else -1)
+    view['step'] = STEPS[max(0, min(len(STEPS) - 1, i))]
+    return 'step %.2f A' % view['step']
+
+
+def _key_omega(rig, d, key, view):
+    view['omega'] = max(0.0, min(LIMITS['omega'][1],
+                                 view['omega'] + (50.0 if key == 'o' else -50.0)))
+    d.setpoint(omega_target=view['omega'] if view['mode'] == 'hold' else 0.0)
+    return 'I/f target %.0f rad/s' % view['omega']
+
+
+def _key_burst(rig, d, key, view):
+    view['burst_at'] = time.time()
+    view['burst_until'] = view['burst_at'] + BURST_S + BURST_HOLD_S
+    return ('heavy start - %.0f A for %.1f s, then %.0f s at half '
+            'speed' % (BURST_A, BURST_S, BURST_HOLD_S))
+
+
+def _key_spin(rig, d, key, view):
+    view['spin'] = not view['spin']
+    view['spin_at'] = time.time()
+    if not view['spin']:
+        d.setpoint(omega_target=0.0)
+    return ('speed loop running - down through the floor and back'
+            if view['spin'] else 'speed loop off')
+
+
+def _key_load(rig, d, key, view):
+    view['load'] = not view['load']
+    view['load_at'] = time.time()
+    view['load_amps'] = view['load_written'] = 0.0
+    if not view['load']:
+        d.setpoint(id_ref=0.0)
+    return ('load loop running - d current in steps'
+            if view['load'] else 'load loop off')
+
+
+def _key_tare(rig, d, key, view):
+    """TARE: the pointer's zero, not the board's. Nothing is written to
+    the machine and no estimate moves - this is a mark on the can, and
+    where a mark on a can goes is a bench's decision. Pressed again
+    anywhere else it moves there, which is what makes it useful for
+    reading travel: zero it at a stop and the pointer counts from the
+    stop."""
+    view['tare'] = view['travel']
+    return 'tared - the pointer reads travel from here'
+
+
+def _key_reset(rig, d, key, view):
+    d.model_reset()
+    d.set_theta(view['theta0'] + 0.3)
+    return 'model rotor reset, theta_hat 0.3 rad off it'
+
+
+def _key_arm(rig, d, key, view):
+    if not view['switch']:
+        return ''
+    if view['state']['stage_enabled']:
+        rig.gates.disarm()
+        return 'stage disarmed'
+    rig.gates.arm(bypass_sto=True, ignore_interlock=not view['interlock'])
+    return 'STAGE ARMED - the gates switch'
+
+
+#: The keys the page answers, each a function of the rig, the drive, the
+#: key itself and the view, answering what to say. The box column scrolls
+#: on the arrows, a click on its arrows and a drag over it - `run_view`'s,
+#: on every page, so nothing of it here.
+KEYS = {
+    's': _key_start_stop, 'm': _key_mode, 'v': _key_source, 'i': _key_inject,
+    '+': _key_iq, '=': _key_iq, '-': _key_iq, '_': _key_iq,
+    '[': _key_step, ']': _key_step, 'o': _key_omega, 'l': _key_omega,
+    'b': _key_burst, 'e': _key_spin, 'w': _key_load, 't': _key_tare,
+    'r': _key_reset, 'a': _key_arm,
+}
+
+
 def act(rig, key, view):
     """One keystroke against the board; returns what to say."""
-    d = rig.board.drive
-    # The box column scrolls on the arrows, a click on its arrows and a
-    # drag over it - `run_view`'s, on every page, so nothing of it here.
+    handler = KEYS.get(key)
+    if handler is None:
+        return ''
     try:
-        if key == 's':
-            if view['state']['mode'] != 'off':
-                d.off()
-                return 'stopped'
-            return start(rig, view)
-        if key == 'm':
-            view['mode'] = MODES[(MODES.index(view['mode']) + 1) % len(MODES)]
-            if view['state']['mode'] != 'off':
-                return start(rig, view)
-            return 'mode %s' % view['mode']
-        if key == 'v':
-            view['source'] = 'adc' if view['source'] == 'model' else 'model'
-            d.source(view['source'])
-            return 'source %s' % view['source']
-        if key == 'i':
-            view['inject'] = not view['inject']
-            d.set_params(drv_inj_mv=view['v_inj'] if view['inject'] else 0.0)
-            return 'injection %s' % ('on' if view['inject'] else 'off')
-        if key in '+=-_':
-            view['iq'] += view['step'] if key in '+=' else -view['step']
-            view['iq'] = max(-view['i_max'], min(view['i_max'], view['iq']))
-            d.setpoint(iq_ref=view['iq'])
-            return 'iq_ref %+.2f A' % view['iq']
-        if key in '[]':
-            i = STEPS.index(view['step']) + (1 if key == ']' else -1)
-            view['step'] = STEPS[max(0, min(len(STEPS) - 1, i))]
-            return 'step %.2f A' % view['step']
-        if key in 'ol':
-            view['omega'] = max(0.0, min(LIMITS['omega'][1],
-                                         view['omega'] + (50.0 if key == 'o' else -50.0)))
-            d.setpoint(omega_target=view['omega'] if view['mode'] == 'hold' else 0.0)
-            return 'I/f target %.0f rad/s' % view['omega']
-        if key == 'b':
-            view['burst_at'] = time.time()
-            view['burst_until'] = view['burst_at'] + BURST_S + BURST_HOLD_S
-            return ('heavy start - %.0f A for %.1f s, then %.0f s at half '
-                    'speed' % (BURST_A, BURST_S, BURST_HOLD_S))
-        if key == 'e':
-            view['spin'] = not view['spin']
-            view['spin_at'] = time.time()
-            if not view['spin']:
-                d.setpoint(omega_target=0.0)
-            return ('speed loop running - down through the floor and back'
-                    if view['spin'] else 'speed loop off')
-        if key == 'w':
-            view['load'] = not view['load']
-            view['load_at'] = time.time()
-            view['load_amps'] = view['load_written'] = 0.0
-            if not view['load']:
-                d.setpoint(id_ref=0.0)
-            return ('load loop running - d current in steps'
-                    if view['load'] else 'load loop off')
-        if key == 't':
-            # TARE: the pointer's zero, not the board's. Nothing is
-            # written to the machine and no estimate moves - this is a
-            # mark on the can, and where a mark on a can goes is a
-            # bench's decision. Pressed again anywhere else it moves
-            # there, which is what makes it useful for reading travel:
-            # zero it at a stop and the pointer counts from the stop.
-            view['tare'] = view['travel']
-            return 'tared - the pointer reads travel from here'
-        if key == 'r':
-            d.model_reset()
-            d.set_theta(view['theta0'] + 0.3)
-            return 'model rotor reset, theta_hat 0.3 rad off it'
-        if key == 'a' and view['switch']:
-            if view['state']['stage_enabled']:
-                rig.gates.disarm()
-                return 'stage disarmed'
-            rig.gates.arm(bypass_sto=True, ignore_interlock=not view['interlock'])
-            return 'STAGE ARMED - the gates switch'
+        return handler(rig, rig.board.drive, key, view)
     except RigError as exc:
         return str(exc)
-    return ''
 
 
 def aspect_of(args):
@@ -2284,7 +2334,7 @@ def parse_args(argv):
     p.add_argument('--port', default='COM4')
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--frames', type=int, default=0)
-    p.add_argument('--hz', type=float, default=8.0)
+    p.add_argument('--hz', type=float, default=DEFAULT_HZ)
     p.add_argument('--source', choices=('model', 'adc'), default='model')
     p.add_argument('--motor', help='a profile under motors/, written first')
     p.add_argument('--cell-aspect', type=float, default=None,
@@ -2366,66 +2416,86 @@ def demo_stage(rig, origin):
     rig.board.gate_drivers.enable()
 
 
+#: The page's frame rate unless asked for: a page of numbers.
+DEFAULT_HZ = 8.0
+#: What the stand-in comes up doing on the model. A ROTOR MOVING AT ALL
+#: wants more frames than a page of numbers does, so the rate goes up
+#: from the page's default when the caller did not ask for one.
+DEMO_HZ = 12.0
+#: THE SPEED WORTH WATCHING IS THE SLOW ONE. The stand-in's own damping
+#: is 1e-5, which puts 0.08 A at 3900 rpm - past the hand-over, past the
+#: machine's envelope, and past anything a first turn of a real rotor
+#: will do. The profile's 5e-4 puts 0.1 A at 100 rpm instead, so `+` and
+#: `-` walk the range that decides whether this drive works at all: 27
+#: rpm, where 20 rad/s electrical is the leak's corner and the back-EMF
+#: observers stop, up to a hundred.
+DEMO_B = 5e-4
+#: AND SOMETHING TO TURN. The stand-in's placeholder inertia is 2e-5
+#: kg m^2, which is not even the bare rotor: a 63100 can is a steel shell
+#: 63 mm across with magnets in it, about 0.64 kg at an effective 29 mm,
+#: so 5.4e-4 on its own. At the placeholder the send reached three
+#: thousand rpm inside one frame - the page redraws every seventy
+#: milliseconds and the spin-up took less than one, so there was nothing
+#: to watch. This is the rotor AND a load on the shaft, which is what a
+#: drive on a bench is turning. It is a stand-in's number and says so; a
+#: bench with a real machine writes its own through `--j` or a motor
+#: profile.
+DEMO_J = 8e-3
+#: The torque current it comes up with, and the step `+` and `-` walk it
+#: by on the model.
+DEMO_IQ = 0.06
+DEMO_STEP = 0.01
+#: A CLAMP THE LOAD CAN REACH. The record's placeholder is 5 A and this
+#: machine turns on a tenth of one, so a load step hit the clamp before
+#: it made heat worth watching: three phases at 5 A across 5.3 milliohms
+#: is 0.4 W against 1.8 W of housekeeping. Forty amps is a fifth of the
+#: stage's rating and puts 25 W in the legs, which the thermal observer
+#: answers in seconds rather than in an afternoon.
+DEMO_I_MAX = 50.0
+DEMO_I_TRIP = 70.0
+#: The iq step on a board, and on the stand-in's ADC source.
+BOARD_STEP = 0.1
+
+
+def _model_defaults(args):
+    """The stand-in's machine on the model: the damping, the inertia, the
+    torque current and the clamps above, where the caller left them."""
+    if args.b is None:
+        args.b = DEMO_B
+    if args.j is None:
+        args.j = DEMO_J
+    if not args.iq:
+        args.iq = DEMO_IQ
+    if args.i_max is None:
+        args.i_max = DEMO_I_MAX
+    if args.i_trip is None:
+        args.i_trip = DEMO_I_TRIP
+
+
 def demo_defaults(args, origin):
     """What the stand-in comes up doing, and the iq step to walk it.
 
     Only the stand-in: on a board the view opens onto whatever the
     drive is already doing, and starting one is the operator's call.
+
+    A STAND-IN THAT SITS STILL SHOWS NOTHING. On a real board the view
+    opens onto whatever the drive is doing and starting it is the
+    operator's call - it is a power stage. The stand-in has no stage and
+    no rotor until something asks for torque, so every panel reads zero
+    and the dial does not move: the observers have no back-EMF to work
+    with, the chain is `no back-EMF`, and the page looks broken rather
+    than idle. Simulated, it therefore comes up turning, on the model,
+    with a torque current the caller can still override.
     """
-    # A STAND-IN THAT SITS STILL SHOWS NOTHING. On a real board the view
-    # opens onto whatever the drive is doing and starting it is the
-    # operator's call - it is a power stage. The stand-in has no stage and
-    # no rotor until something asks for torque, so every panel reads zero
-    # and the dial does not move: the observers have no back-EMF to work
-    # with, the chain is `no back-EMF`, and the page looks broken rather
-    # than idle. Simulated, it therefore comes up turning, on the model,
-    # with a torque current the caller can still override.
-    if not origin.real:
-        args.start = True
-        # A rotor moving at all wants more frames than a page of numbers
-        # does. Only when the caller did not ask for a rate themselves.
-        if args.hz == 8.0:
-            args.hz = 12.0
-        if args.source == 'model':
-            # THE SPEED WORTH WATCHING IS THE SLOW ONE. The stand-in's own
-            # damping is 1e-5, which puts 0.08 A at 3900 rpm - past the
-            # hand-over, past the machine's envelope, and past anything a
-            # first turn of a real rotor will do. The profile's 5e-4 puts
-            # 0.1 A at 100 rpm instead, so `+` and `-` walk the range that
-            # decides whether this drive works at all: 27 rpm, where 20
-            # rad/s electrical is the leak's corner and the back-EMF
-            # observers stop, up to a hundred.
-            if args.b is None:
-                args.b = 5e-4
-            # AND SOMETHING TO TURN. The stand-in's placeholder inertia
-            # is 2e-5 kg m^2, which is not even the bare rotor: a 63100
-            # can is a steel shell 63 mm across with magnets in it, about
-            # 0.64 kg at an effective 29 mm, so 5.4e-4 on its own. At the
-            # placeholder the send reached three thousand rpm inside one
-            # frame - the page redraws every seventy milliseconds and the
-            # spin-up took less than one, so there was nothing to watch.
-            #
-            # This is the rotor AND a load on the shaft, which is what a
-            # drive on a bench is turning. It is a stand-in's number and
-            # says so; a bench with a real machine writes its own through
-            # `--j` or a motor profile.
-            if args.j is None:
-                args.j = 8e-3
-            if not args.iq:
-                args.iq = 0.06
-            # A CLAMP THE LOAD CAN REACH. The record's placeholder is 5 A
-            # and this machine turns on a tenth of one, so a load step
-            # hit the clamp before it made heat worth watching: three
-            # phases at 5 A across 5.3 milliohms is 0.4 W against 1.8 W
-            # of housekeeping. Forty amps is a fifth of the stage's
-            # rating and puts 25 W in the legs, which the thermal
-            # observer answers in seconds rather than in an afternoon.
-            if args.i_max is None:
-                args.i_max = 50.0
-            if args.i_trip is None:
-                args.i_trip = 70.0
-            view_step = 0.01
-    return 0.1
+    if origin.real:
+        return BOARD_STEP
+    args.start = True
+    if args.hz == DEFAULT_HZ:
+        args.hz = DEMO_HZ
+    if args.source != 'model':
+        return BOARD_STEP
+    _model_defaults(args)
+    return DEMO_STEP
 
 
 def _link(args):
