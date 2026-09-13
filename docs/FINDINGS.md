@@ -1089,6 +1089,27 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   is "Python: Select Interpreter" -> the python.org 3.14, and the same
   interpreter as the notebooks' kernel. The notebooks themselves were
   executed on the right one - none holds an error output.
+* THE ROTOR OBSERVER'S MACHINE SCALES WITH THE TERMINAL (2026-09-13,
+  the bench: "gör grafiken/motorn i rotor observer så den skalar med
+  storleken på terminalen"). `fit(aspect, size)` sizes the box every
+  frame from the console's size: the width the page leaves beside the
+  forty-column instrument column and the viewport's four columns of
+  frame, the band it leaves under the five caption rows, the foot row
+  and the page's four; `machine.layout` bounds the can by whichever
+  binds, and `_width_for` inverts it so a machine bound by the rows
+  is drawn in a box its own width, the thermometers against it
+  rather than at the far edges of a wide terminal. Piped - the
+  suites, a log - the nominal fifty-two. `--width` and `--height`
+  fit a piped run to a terminal that size - the console's own width
+  and height too, since a pipe is assumed eighty columns and the
+  frame cropped the foot's WINDING to DING at the first try - so a
+  raster is one redirect and `tools/ansi2png.py` away. MEASURED on
+  the stand-in,
+  the page composed on a recording console at three sizes and read
+  in the raster: 100x30 draws the art 54 wide over a 20-row band,
+  140x45 84 over 35, 220x60 114 over 50 - the can filling the height
+  at every size, the legends' leaders landing on their gutters, the
+  foot's three words on one row. views 206, pyright 0.
 
 ## The local model
 

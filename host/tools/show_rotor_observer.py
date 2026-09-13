@@ -50,6 +50,7 @@ import math
 import os
 import sys
 import time
+import types
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -67,7 +68,7 @@ from screen import (ASH, SODIUM, TO_MENU,  # noqa: E402
                     closing, say, tint)
 
 import screen as _screen                                   # noqa: E402
-from stage import UP                                       # noqa: E402
+from stage import HUD_WIDTH, UP                            # noqa: E402
 _screen.CHATTER = False     # the boot bar replaced the scroll
 
 #: The stage's own rating, which is the name: no trip past it.
@@ -106,9 +107,10 @@ STEPS = (0.05, 0.1, 0.25, 0.5, 1.0)
 #: and scale everything after it". The width is what sizes the can -
 #: the gutters take their columns first and the machine gets the rest -
 #: so six more columns are six more dots of radius, a fifth more motor;
-#: the rows follow through `fit_rows`, the legend's runs and the foot's
+#: the rows follow through `fit`, the legend's runs and the foot's
 #: rules through `machine.gutters`, and the instrument column keeps its
-#: forty. Nothing else is placed by a number of its own.
+#: forty. Nothing else is placed by a number of its own. ON A TERMINAL
+#: BOTH FOLLOW ITS SIZE, every frame - `fit` below.
 ART_WIDTH, ART_HEIGHT = 52, 24
 
 #: Rows of the box that are captions rather than drawing: five above and
@@ -138,7 +140,7 @@ CAPTION_ROWS, FOOT_ROWS = 5, 1
 ART_ROWS = ART_HEIGHT - CAPTION_ROWS - FOOT_ROWS
 
 #: What the drawing keeps above the machine and below it - the two floor
-#: gauges. `fit_rows` adds these to the can's own rows.
+#: gauges. `fit` adds these to the can's own rows.
 #:
 #: NOTHING ABOVE. One row was kept for the leaders to hop into, so the
 #: legend on the bottom caption row arrived at its tube with a vertical
@@ -149,8 +151,37 @@ ART_ROWS = ART_HEIGHT - CAPTION_ROWS - FOOT_ROWS
 HOP_ROWS, FLOOR_GAUGES = 0, 2
 
 
-def fit_rows(aspect):
-    """Size the box to the can on THIS terminal.
+#: What the page puts round the drawing on a terminal - `stage.frame_of`
+#: places it: the viewport's heavy frame and its padding, two columns a
+#: side; the title band, the key bar and the frame's two edges in rows.
+VIEWPORT_COLUMNS = 4
+PAGE_ROWS = 4
+
+#: The drawing at its narrowest and its lowest band, whatever the
+#: terminal: under these the gutters' names run into the legend and the
+#: can into the foot gauges. Fifty-two wide is the bench's own size
+#: (above), and it stays the size a piped run draws.
+NOMINAL_WIDTH = 52
+MIN_WIDTH = 40
+MIN_BAND = 8
+
+
+def _width_for(can):
+    """The columns a can of `can` dots needs with the gutters beside it:
+    `machine.layout` inverted, so a machine bound by the rows is not left
+    in the middle of a wide box with its thermometers at the far edges."""
+    room = 2.0 * (can / machine.F_FIT + 1.0)
+    lead = LEFT_COLUMNS + machine.BAR_GAP
+    trail = RIGHT_COLUMNS + machine.BAR_GAP
+    return int(math.ceil(room / machine.DOTS_X)) + lead + trail
+
+
+def fit(aspect, size=None):
+    """Size the box to the can on THIS terminal - and, given the console's
+    `size`, to the terminal as it is NOW: the width the page leaves beside
+    the instrument column, the band it leaves under the captions, and the
+    can the smaller of the two allows, the gutters drawn in against it.
+    Without a size - a piped run, the start - the nominal width.
 
     THE BAND WAS A CONSTANT AND THE CAN IS NOT. The can is sized by the
     WIDTH the gutters leave it, and how many rows that is depends on how
@@ -165,16 +196,24 @@ def fit_rows(aspect):
     `+ 2` in the diameter because `_Radii` keeps a dot off each edge, and
     a band that forgot that shrank the can by half a dot to fit.
 
-    Module globals, set once at start-up from a measured aspect - the
-    same standing as `CELL_ASPECT` itself, and every place that needs the
-    height reads it when it draws.
+    Module globals, set from a measured aspect - the same standing as
+    `CELL_ASPECT` itself - and every place that needs the size reads them
+    when it draws; on a terminal `draw` sets them every frame, so a resize
+    is the next frame's size (bench 2026-09-13: "så den skalar med
+    storleken på terminalen").
     """
-    global ART_ROWS, ART_HEIGHT
+    global ART_WIDTH, ART_ROWS, ART_HEIGHT
     stretch = aspect / machine.DOTS_Y * machine.DOTS_X
-    # A box tall enough that the width limits, which is the can the
-    # drawing will get.
-    can = machine.layout(ART_WIDTH, 10 ** 6, LEFT_COLUMNS, RIGHT_COLUMNS)[1].can
+    width = (NOMINAL_WIDTH if size is None else
+             max(MIN_WIDTH, size.width - HUD_WIDTH - VIEWPORT_COLUMNS))
+    band = (10 ** 6 if size is None else
+            max(MIN_BAND, size.height - PAGE_ROWS - CAPTION_ROWS - FOOT_ROWS
+                - HOP_ROWS - FLOOR_GAUGES))
+    can = machine.layout(width, band, LEFT_COLUMNS, RIGHT_COLUMNS,
+                         stretch=stretch)[1].can
+    width = min(width, max(MIN_WIDTH, _width_for(can)))
     rows = int(math.ceil((2.0 * can + 2.0) / (machine.DOTS_Y * stretch)))
+    ART_WIDTH = width
     ART_ROWS = HOP_ROWS + rows + FLOOR_GAUGES
     ART_HEIGHT = ART_ROWS + CAPTION_ROWS + FOOT_ROWS
     return ART_ROWS
@@ -2335,6 +2374,11 @@ def parse_args(argv):
     p.add_argument('--simulated', action='store_true')
     p.add_argument('--frames', type=int, default=0)
     p.add_argument('--hz', type=float, default=DEFAULT_HZ)
+    # The terminal's size to fit the machine to, instead of the real
+    # one: both given, a piped run draws the page as that terminal
+    # would - `tools/ansi2png.py` on the output is the raster.
+    p.add_argument('--width', type=int, default=None)
+    p.add_argument('--height', type=int, default=None)
     p.add_argument('--source', choices=('model', 'adc'), default='model')
     p.add_argument('--motor', help='a profile under motors/, written first')
     p.add_argument('--cell-aspect', type=float, default=None,
@@ -2553,6 +2597,14 @@ def _link(args):
         return None, None, None, None
 
 
+def _sized(args, board_view):
+    """The size the page is fitted to: the one asked for, the terminal's,
+    or None piped - the nominal drawing."""
+    if args.width and args.height:
+        return types.SimpleNamespace(width=args.width, height=args.height)
+    return board_view.size if board_view.is_terminal else None
+
+
 def main(argv=None):
     args = parse_args(argv)
     sane(args)
@@ -2568,9 +2620,10 @@ def main(argv=None):
     origin, board = rig.origin, rig.board
 
     # MEASURED ONCE, at start-up: the cell's shape is the terminal's and
-    # cannot change under a running view, and the box is sized to it.
+    # cannot change under a running view. The box is sized to it here,
+    # and to the terminal's size again on every frame.
     aspect, aspect_how = aspect_of(args)
-    fit_rows(aspect)
+    fit(aspect)
     view = {'source': args.source, 'mode': args.mode, 'iq': args.iq,
             'id': args.id, 'omega': args.omega, 'accel': args.accel,
             'vd': args.vd, 'v_inj': args.v_inj, 'inject': True,
@@ -2596,6 +2649,11 @@ def main(argv=None):
         view['said'] = act(rig, 's', view)
 
     board_view = stage()
+    if args.width and args.height and not board_view.is_terminal:
+        # Piped at a size: the page is laid out for that terminal, not
+        # for the eighty columns a pipe is assumed to be - the frame
+        # cropped the foot's WINDING to DING otherwise, measured.
+        board_view.width, board_view.height = args.width, args.height
     console = board_view.is_terminal
     # THE CONSOLE ITSELF, not the boolean. `console` here is
     # `is_terminal` - every view in this tree passes that around under
@@ -2646,6 +2704,10 @@ def main(argv=None):
         # `console` - the comment above `board_view` was written and the
         # call was not changed. Bench 2026-09-05: "ROTOR OBSERVER has no
         # arrow up/down for more in the right column."
+        # AND ITS SIZE, this frame: the machine fills what the page
+        # leaves it, and a resized terminal is the next frame's drawing
+        # - or the size asked for, whatever this runs in.
+        fit(view['aspect'], _sized(args, board_view))
         return compose(rig, origin, board_view, view)
 
     def on_input(typed, _moved):
