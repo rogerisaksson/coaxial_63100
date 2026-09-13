@@ -23,6 +23,7 @@ import re
 import sys
 import textwrap
 import threading
+from importlib import import_module
 
 # host/ on the path: this file's own directory's parent, so it does
 # not matter what the working directory is or what any directory
@@ -1631,5 +1632,4 @@ def __getattr__(name):
     where = _ELSEWHERE.get(name)
     if where is None:
         raise AttributeError(name)
-    from importlib import import_module
     return getattr(import_module('.' + where, __package__), name)

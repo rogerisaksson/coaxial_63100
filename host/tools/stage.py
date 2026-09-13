@@ -17,6 +17,9 @@ Every style is NAMED here in the Theme and nowhere else - a view says
 """
 from contextlib import contextmanager
 
+import ctypes
+import threading
+import time
 import weakref
 
 from rich import box
@@ -29,6 +32,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
+from rich.progress import BarColumn, Progress, TextColumn
+from rich.measure import Measurement
 
 #: The palette, named. Blade Runner's teal and sodium over Alien's phosphor
 #: green chip. Meaning colours (LIVE green, SIMULATED yellow, alarm red)
@@ -56,7 +61,6 @@ def _vt_on():
     reaches the screen - measured: a bare conhost detects `windows`,
     legacy True. Nothing to do on a pipe or another platform."""
     try:
-        import ctypes
         kernel = ctypes.windll.kernel32
     except (ImportError, AttributeError):
         return
@@ -113,10 +117,7 @@ def boot(label, console=None):
     full and takes the bar down NOW, for a view whose body keeps
     running long after the link is up.
     """
-    import threading
-    import time as _time
 
-    from rich.progress import BarColumn, Progress, TextColumn
 
     court = console or stage()
     if not court.is_terminal:
@@ -139,7 +140,7 @@ def boot(label, console=None):
         while not stop.is_set():
             if bar.tasks[0].completed < ceiling[0]:
                 bar.update(task, advance=1.5)
-            _time.sleep(0.03)
+            time.sleep(0.03)
 
     def finish():
         """The bar to the end and gone - once."""
@@ -149,7 +150,7 @@ def boot(label, console=None):
         stop.set()
         walker.join(timeout=0.5)
         bar.update(task, completed=100)
-        _time.sleep(0.06)
+        time.sleep(0.06)
         bar.stop()
 
     def step(share=None, text=None):
@@ -286,7 +287,6 @@ def _slide(extra):
     """Where the window sits over art `extra` cells too wide: a ping-pong
     on the wall clock, held at each end. Wall time rather than a frame
     count, so every view slides at one pace whatever it redraws at."""
-    import time
 
     travel = extra / SLIDE_CPS
     cycle = 2.0 * (travel + SLIDE_HOLD)
@@ -316,7 +316,6 @@ class Marquee:
         self.wide = max((l.cell_len for l in self.lines), default=0)
 
     def __rich_measure__(self, console, options):
-        from rich.measure import Measurement
         return Measurement(min(self.wide, options.max_width), self.wide)
 
     def __rich_console__(self, console, options):

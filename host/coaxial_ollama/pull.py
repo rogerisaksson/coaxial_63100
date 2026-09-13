@@ -25,6 +25,7 @@ Nothing here judges (invariant 10): an `error` line is the daemon's
 words, raised as OllamaError with them. The exit code is the caller's:
 0 pulled, 2 the daemon refused or was not there, 130 Ctrl+C.
 """
+import argparse
 import json
 import sys
 import time
@@ -258,7 +259,6 @@ def pull(tag, host=DEFAULT_HOST, out=None, source=None, glyphs=None,
 
 
 def main(argv=None):
-    import argparse
     parser = argparse.ArgumentParser(
         prog='python -m coaxial_ollama.pull',
         description='Pull an ollama tag through the local daemon, drawn as '

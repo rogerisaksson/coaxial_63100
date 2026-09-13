@@ -20,6 +20,7 @@ Exit code is 0 only if every requested suite ran and nothing in it failed.
 import argparse
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -160,7 +161,6 @@ def kill_tree(pid):
         subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)],
                        capture_output=True)
         return
-    import signal
     try:
         os.killpg(os.getpgid(pid), signal.SIGKILL)
     except OSError:
@@ -569,7 +569,6 @@ def changed_files(against='HEAD'):
     pre-push check wants, and one picked for a change not yet staged is
     what an edit-test loop wants.
     """
-    import subprocess
     paths = set()
     for args in (['diff', '--name-only', against],
                  ['diff', '--name-only', '--cached'],
@@ -717,7 +716,6 @@ def _plan(args):
 
 def _commits():
     """How many commits this tree has, or 0 outside git."""
-    import subprocess
     try:
         return int(subprocess.run(
             ['git', 'rev-list', '--count', 'HEAD'], cwd=str(ROOT.parent),

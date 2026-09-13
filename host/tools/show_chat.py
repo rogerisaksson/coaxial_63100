@@ -8,8 +8,13 @@ ESC and Ctrl+C. `--frames` draws the page with a canned transcript and
 no model at all - the smoke path, like every view.
 """
 import argparse
+import glob
+import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -127,8 +132,6 @@ def find_claude():
     one window over. Same policy as setup.ps1's Find-Ollama - look in
     the known homes before concluding absent.
     """
-    import glob
-    import shutil
 
     found = shutil.which('claude')
     if found:
@@ -158,8 +161,6 @@ class _Claude:
     toolbox = None
 
     def __init__(self, port, script, exe='claude'):
-        import json
-        import tempfile
 
         self.turns = 0
         self.script = script
@@ -201,8 +202,6 @@ class _Claude:
             answer.append(event.get('result') or '')
 
     def ask(self, line):
-        import json
-        import subprocess
 
         cmd = ([self.exe, '-p'] + (['--continue'] if self.turns else [])
                + [line, '--allowedTools', 'mcp__coaxial',
@@ -235,7 +234,6 @@ def mcp_ready(chat, port, script, step):
     run it once against a closed stdin - a stdio server answers its
     startup line and exits on the EOF. The line lands in the transcript,
     so a dead port or a broken PYTHONPATH shows before anybody types."""
-    import subprocess
 
     host = os.path.join(chat.root, 'host')
     step(0.5, 'MCP SERVER')

@@ -14,6 +14,7 @@ put back the way it was found on the way out.
 """
 import argparse
 import collections
+import math
 import os
 import re
 import sys
@@ -549,7 +550,6 @@ def legend(rows, held):
     a peak the bar had let go of seconds before (2026-09-06). Values
     arrive converted, so the legend speaks each channel's own unit.
     """
-    from coaxial import desk
     from screen import hud
 
     lines = []
@@ -663,7 +663,6 @@ DEMO_S = 45.0
 def demo_machine(rig, origin):
     """Turn the stand-in's machine; the per-frame step that runs it up
     and down, or None on a board."""
-    import math
 
     if origin.real:
         return None

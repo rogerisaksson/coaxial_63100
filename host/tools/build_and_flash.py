@@ -31,6 +31,7 @@ import time
 from pathlib import Path
 
 from find_board import _text          # noqa: E402 - tools/ is the script dir
+from shutil import which
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -110,13 +111,11 @@ def toolchain_path():
 
 def find_programmer(path):
     """STM32_Programmer_CLI.exe, searched on the augmented PATH."""
-    from shutil import which
     return which('STM32_Programmer_CLI', path=path)
 
 
 def find_cube_cmake(path):
     """cube-cmake.exe, searched on the augmented PATH."""
-    from shutil import which
     return which('cube-cmake', path=path)
 
 

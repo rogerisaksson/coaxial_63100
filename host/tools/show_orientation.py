@@ -16,6 +16,7 @@ import argparse
 import os
 import sys
 import time
+from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -295,7 +296,6 @@ def put_back(board, part):
 
 def _lit(word):
     """One footer word in the live chip's colours."""
-    from rich.text import Text
 
     return Text(word, style='chip.live')
 
@@ -303,7 +303,6 @@ def _lit(word):
 def _mirror_keys(flip):
     """One footer pair per axis. An INVERTED axis burns sodium on the bar,
     so a wild ride on the empirical dial always shows where it is."""
-    from rich.text import Text
 
     for name, flipped in zip('XYZ', flip):
         yield (name, Text('INV', style='bold color(214) on grey15')

@@ -20,6 +20,8 @@ weaker check that passes here and fails there.
 """
 import argparse
 import os
+import re
+import subprocess
 import sys
 
 # host/ on the path: this file's own directory's parent, so it does
@@ -61,8 +63,6 @@ def check_power(timeout=15):
     no reading before its timeout killed it - not the same as 0.00V, which
     is a real reading that says the target has none.
     """
-    import re
-    import subprocess
 
     import build_and_flash
 

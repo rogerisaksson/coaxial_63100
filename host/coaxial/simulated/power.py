@@ -1100,7 +1100,6 @@ class SimulatedGateDrivers(GateControl):
         # latched because nFAULT is low, and clearing the latch does not
         # help while it stays low. Bypassing the break input is what gets
         # past it there, so it is what gets past it here.
-        from ..errors import RigError
         if not self._bypassed:
             raise RigError('the board refused to enable the gate drivers - check '
                            'fault, and whether the STO chain has released '
@@ -1114,7 +1113,6 @@ class SimulatedGateDrivers(GateControl):
         return True
 
     def duty(self, ticks, periods=0):
-        from ..errors import RigError
         ticks = tuple(int(t) for t in ticks)
         if not self._enabled:
             raise RigError('the gate drivers are not enabled (simulated)')
@@ -1131,7 +1129,6 @@ class SimulatedGateDrivers(GateControl):
         return True
 
     def duty_fine(self, fractions):
-        from ..errors import RigError
         fractions = tuple(fractions)
         if len(fractions) != 3:
             raise ValueError('%d duties, not 3' % len(fractions))
@@ -1142,7 +1139,6 @@ class SimulatedGateDrivers(GateControl):
         return True
 
     def alternate(self, ticks_a, ticks_b):
-        from ..errors import RigError
         ticks_a, ticks_b = tuple(int(t) for t in ticks_a), tuple(int(t) for t in ticks_b)
         if len(ticks_a) != 3 or len(ticks_b) != 3:
             raise ValueError('two triples of 3 compare values')

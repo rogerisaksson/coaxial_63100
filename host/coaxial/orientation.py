@@ -19,6 +19,7 @@ testable without a board; `tools/show_orientation.py` is what needs one.
 import functools
 import math
 import os
+import random
 
 from . import ansi, ascii3d, mesh
 
@@ -291,7 +292,6 @@ def _passives(count=26, seed=63100):
     Seeded, not random per frame: a picture whose passives move is a picture
     of a board that is coming apart.
     """
-    import random
 
     rng = random.Random(seed)
     taken = [(phi, r, dr, dphi) for _, phi, r, dr, dphi, _ in COMPONENTS]

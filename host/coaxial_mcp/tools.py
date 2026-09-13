@@ -17,6 +17,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 from coaxial import DividerParams, NtcParams, protocol, scaling
 from coaxial import orientation as orient
@@ -799,7 +800,6 @@ def _settle(session):
     The interval is the OBSERVER's, read off the board - it settles for the
     same reason and the number belongs there, not here (invariant 7).
     """
-    import time
 
     try:
         wait = session.board.thermal.state()['sample_settle_s']

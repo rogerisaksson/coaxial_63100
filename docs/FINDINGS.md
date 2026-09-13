@@ -1268,6 +1268,23 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   first parameter rather than a global main assigned. structure 621,
   render 79, views 206, drive core 81, mcp 50; pyright 0 on the eleven
   files; the render bench and the calibration tool answer.
+* THE STANDARD LIBRARY IS IMPORTED AT THE TOP (2026-09-13). Eighty-three
+  of the tree's 247 function-level imports were `import time`, `json`,
+  `subprocess`, `ctypes`, `glob`, `shutil`, `argparse`, `math`, `re`
+  and the like inside the function that used them - or a name the
+  module already bound at the top, imported again - or `import time as
+  _time` where the plain name was free. A scanner judged each: twenty-
+  one redundant ones dropped, fifty-five hoisted into the file's first
+  import block (a `rich` one beside the file's other `rich` lines, with
+  the block's noqa), seven aliases rewritten to the plain name. What
+  stays where it is: a `msvcrt` behind a try (the guard IS the import),
+  the optional pandas/numpy/PIL/nbformat at their call sites by the
+  tree's rule, and the relative and tree imports inside functions -
+  164 - which are import cycles (wireframe and orientation, board and
+  the stand-in, broker and board) or a page kept instant by loading a
+  heavy module on first use. Those are the next item, one at a time,
+  each tried and reverted where the cycle bites. structure 621, pyright
+  0 on the thirty-three files; the offline gate 2947 checks, 0 failed.
 
 ## The local model
 

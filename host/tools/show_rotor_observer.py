@@ -581,9 +581,8 @@ def travel(view):
     property: a pointer that has wandered off the mark it was tared to
     is an observer that has been wrong, and that is worth seeing.
     """
-    import time as _time
 
-    now = _time.monotonic()
+    now = time.monotonic()
     was = view.get('travel_at')
     view['travel_at'] = now
     if was is None:
@@ -1117,7 +1116,6 @@ def phase_rows(view):
     a third of a turn apart, which is what makes a still frame of a
     three-phase machine make sense.
     """
-    from coaxial import machine
 
     amps, full = phase_amps(view)
     scale = full or max((abs(a) for a in amps), default=0.0) or 1.0

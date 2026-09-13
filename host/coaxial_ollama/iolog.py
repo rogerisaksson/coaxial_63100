@@ -5,6 +5,7 @@ every answer, for reading back when there is no terminal scrollback to
 paste in. Overwritten each session, hidden on Windows so it does not
 clutter the working tree.
 """
+import ctypes
 import json
 import os
 import sys
@@ -29,7 +30,6 @@ def _set_attributes(path, value):
     if sys.platform != 'win32':
         return
     try:
-        import ctypes
         ctypes.windll.kernel32.SetFileAttributesW(str(path), value)
     except Exception:                                        # noqa: BLE001
         pass

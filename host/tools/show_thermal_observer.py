@@ -18,6 +18,7 @@ import argparse
 import os
 import sys
 import time
+from rich.text import Text
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
@@ -154,7 +155,6 @@ def soak(budget):
     colour with an orange tip, the figure beside it. It was `[⣿⣿⠒⠒]
     42 %`; the bench asked for the brackets gone, then for one row of
     `⣿` terminated with an orange `⢸` or `⡇`."""
-    from rich.text import Text
 
     used = budget['worst']
     line = gauges.bar(used, SOAK_CELLS,
@@ -180,7 +180,6 @@ def ident_rows(ident, hint=None):
     in SENSE" - and then, 2026-09-06, "the boxes on the right are messy,
     lots of text run together": the rows had carried three facts each at
     fifty cells into a forty-two-cell panel, and were cropped."""
-    from rich.text import Text
 
     state = ident['state']
     rows: list = [('model', Text(' %s ' % state, IDENT_STYLE.get(state, 'value')))]
@@ -320,7 +319,6 @@ def status_boxes(state, budget, aspect=None, ident=None, hint=None):
     board's - and, given `(aspect, how)`, the one number that is the
     terminal's: how tall its cell was measured, or assumed, to be.
     `ident` is `Thermal.identification()`, shown in SENSE when given."""
-    from rich.text import Text
 
     from screen import hud
 

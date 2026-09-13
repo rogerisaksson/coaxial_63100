@@ -19,13 +19,17 @@ and 100 A that is the honest arrangement: bounded by review, not by a sandbox.
 A failure in either is a *result*, not an exception: the model has to see its
 own traceback to correct itself.
 """
+import ast
 import importlib.util
 import contextlib
 import io
+import math
 import os
 import shlex
+import statistics
 import subprocess
 import sys
+import time
 import traceback
 
 # Shell punctuation, checked as whole tokens. Nothing here is dangerous once the
@@ -155,9 +159,6 @@ class Scope:
     """
 
     def __init__(self, board=None, extra=None):
-        import math
-        import statistics
-        import time
 
         import coaxial
         from coaxial import scaling
@@ -217,7 +218,6 @@ class Scope:
         snippet ending in `board.analog.ntc_temperature()` produces a value
         without the model having to remember to print it.
         """
-        import ast
 
         self.runs += 1
         buffer = io.StringIO()

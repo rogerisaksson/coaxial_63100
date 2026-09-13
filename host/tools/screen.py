@@ -5,7 +5,9 @@ Shared because every view wants them identically, and a second copy of any of
 them is the thing that drifts - the structure suite fails a definition that
 lives in two files.
 """
+import ctypes
 import re
+import select
 import time
 import sys
 import threading
@@ -181,7 +183,6 @@ def _read_now():
     try:
         import msvcrt
     except ImportError:
-        import select
 
         if select.select([sys.stdin], [], [], 0.01)[0]:
             return sys.stdin.read(1)
@@ -329,20 +330,19 @@ def paced(keys, period, step=0.02):
     view's zoom moved in board-round-trip-sized steps. Input is 50 Hz now
     whatever the view draws at.
     """
-    import time as _time
 
     zoom, typed = 0.0, []
-    deadline = _time.monotonic() + period
+    deadline = time.monotonic() + period
     while True:
         got, moved = keys.poll()
         zoom += moved
         typed.extend(keys.taken())
         if got:
             return got, zoom, typed
-        now = _time.monotonic()
+        now = time.monotonic()
         if now >= deadline:
             return None, zoom, typed
-        _time.sleep(min(step, deadline - now))
+        time.sleep(min(step, deadline - now))
 
 
 def aspect_of(cell_aspect=None):
@@ -431,7 +431,6 @@ class Feed:
         return self
 
     def _run(self):
-        import time as _time
 
         while not self._stop.is_set():
             try:
@@ -446,7 +445,7 @@ class Feed:
                 self.latest = got
                 self.reads += 1
             if self.period:
-                _time.sleep(self.period)
+                time.sleep(self.period)
 
     def stop(self, wait=1.0):
         """Ask it to stop and wait, so nothing touches the link after the
@@ -467,7 +466,6 @@ def open_rig(banner, **kwargs):
     the board unpowered on purpose, ROTOR OBSERVER traced back.
     """
     from coaxial import Coaxial63100
-    from coaxial.errors import RigError
 
     try:
         with boot(banner):
@@ -502,7 +500,6 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
     or a drag over it does the same. The state lives on `board_view`,
     where `frame_of` pages the boxes from it.
     """
-    import time as _time
 
     click, drag = on_click or _ignore, on_drag or _ignore
     count = 0
@@ -516,7 +513,7 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 # the view asked for twenty a second and drew ten,
                 # measured. A frame slower than the period pays no
                 # sleep at all and the keys are still polled once.
-                started = _time.monotonic()
+                started = time.monotonic()
                 # AND IT KEEPS DRAWING. Stepping out of the alternate
                 # screen to be copied from was a fix for the wrong
                 # thing: what stopped a drag was the view REPORTING the
@@ -529,7 +526,7 @@ def run_view(board_view, console, period, frames, draw, on_input=None,
                 if frames and count >= frames:
                     return None
                 leaving, moved, typed = paced(
-                    keys, max(0.0, period - (_time.monotonic() - started)))
+                    keys, max(0.0, period - (time.monotonic() - started)))
                 if leaving:
                     return leaving
                 if scroll_keys:
@@ -560,13 +557,11 @@ class Freshness:
     """
 
     def __init__(self):
-        import time
         self.seen, self.stale = -1, 0
         self.rate, self._rate_seen, self._rate_at = 0.0, None, time.time()
 
     def take(self, updates):
         """One frame's counter, or None for no reading."""
-        import time
         if updates is None or updates == self.seen:
             self.stale += 1
         else:
@@ -628,7 +623,6 @@ def steady(fn, *args, **kwargs):
     gone costs four timeouts to find out, which is the price of not redrawing
     a dashboard as empty every time the link hiccups.
     """
-    import time
 
     for _ in range(4):
         try:
@@ -714,7 +708,6 @@ def _set_console_mode(restore=None):
 
 def _console_records():
     """The Windows INPUT_RECORD layout, built once ctypes exists."""
-    import ctypes
 
     class Coord(ctypes.Structure):
         _fields_ = (('X', ctypes.c_short), ('Y', ctypes.c_short))
@@ -1047,7 +1040,6 @@ class Keys:
         return keys
 
     def _drain_records(self):
-        import ctypes
 
         try:
             kernel = ctypes.windll.kernel32
@@ -1094,7 +1086,6 @@ class Keys:
         return keys
 
     def _drain_posix(self):
-        import select
 
         keys = []
         while select.select([sys.stdin], [], [], 0)[0]:

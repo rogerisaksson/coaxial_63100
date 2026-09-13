@@ -27,6 +27,7 @@ import argparse
 import os
 import sys
 import time
+from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -302,7 +303,6 @@ def act(rig, key, view):
 
 def compose(rig, origin, console, view, layout, width):
     """One frame on the stage: stage state, gates and currents as boxes."""
-    from rich.text import Text
 
     from screen import hud, panels_of
 

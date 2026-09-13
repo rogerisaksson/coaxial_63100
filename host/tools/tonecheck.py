@@ -26,11 +26,14 @@ Pure Python: the PNG reader is zlib and the five filters, the statistics
 are means, deviations and percentiles over a few hundred cells.
 """
 import argparse
+import io
 import os
 import re
 import struct
 import sys
 import zlib
+from rich.text import Text
+from rich.console import Console
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -354,9 +357,6 @@ def staged_cells(pose, color_system, width=94, height=36):
     """Our render as the TERMINAL receives it: through a rich Console
     of the given colour depth into a buffer, then parsed back. What
     show() measures is what we send; this is what arrives."""
-    import io
-    from rich.console import Console
-    from rich.text import Text
     wireframe._SHADOWS.clear()
     art = wireframe.render(facecheck.euler(*rotation(pose), order='xyz'),
                            width, height, colour=True, 

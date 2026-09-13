@@ -26,6 +26,7 @@ import argparse
 import sys
 import time
 from typing import Any
+from rich.text import Text
 
 sys.path.insert(0, __file__.rsplit('tools', 1)[0])
 
@@ -605,7 +606,6 @@ def act_on(session, typed, by_key):
 
 def frame(session, console, note):
     """The dashboard on the stage: dash strip, six instruments, key bar."""
-    from rich.text import Text
 
     from screen import panels_of
 

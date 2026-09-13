@@ -93,7 +93,6 @@ def _answers(served, unit=1):
     trip below is the one `find_board.probe` makes, through the socket.
     """
     from coaxial import broker
-    from coaxial.errors import RigError
 
     # Long enough for the broker's own answer: it gives the board a
     # second and retries once across a console handover before saying no.

@@ -158,7 +158,6 @@ class SimulatedAnalog:
         would let a view ship with that path never taken.
         """
         if not self._afe.is_on():
-            from ..errors import DeviceStateError
             raise DeviceStateError(
                 'the scan reports the analog front end off, so every channel '
                 'read mid-scale: ntc_centidegc would be exactly 2500 and '

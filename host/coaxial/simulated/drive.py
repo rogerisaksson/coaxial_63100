@@ -1,6 +1,7 @@
 """The control law's stand-in rotor: one rotor, one lock, and the
 spring/inertia physics every motion verb is tested against."""
 import functools
+import json
 import math
 import random
 import threading
@@ -908,7 +909,6 @@ class SimulatedDrive:
         return True
 
     def profile(self, path):
-        import json
         with open(path, encoding='utf-8') as handle:
             data = json.load(handle)
         done = {'name': data.get('name', path)}

@@ -23,6 +23,8 @@ language the question was asked in". A detector that guesses is worse than one
 that abstains: mirroring the question is right most of the time, a wrong
 instruction none of it.
 """
+import ctypes
+import locale
 import re
 import unicodedata
 
@@ -236,14 +238,12 @@ def system_language(default='English'):
     through the API; both are handled, first match wins. Never raises - a
     greeting is not worth an exception.
     """
-    import locale
     candidates = []
     try:
         candidates.append(locale.getlocale()[0] or '')
     except (ValueError, TypeError):
         pass
     try:
-        import ctypes
         buffer = ctypes.create_unicode_buffer(85)
         if ctypes.windll.kernel32.GetUserDefaultLocaleName(buffer, 85):
             candidates.append(buffer.value)

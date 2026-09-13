@@ -72,7 +72,6 @@ class Later:
 
     def _live(self):
         if self._device.board is None:
-            from .errors import RigError
             raise RigError(
                 '%s is a handle on a session that is not open yet - '
                 'open() on it, or on the device, is what makes it live'
@@ -673,13 +672,12 @@ class Coaxial63100(Acquisition):
 
         Ends after `seconds`, or when the task does, or on a break.
         """
-        import time as _t
 
         deep = max(float(buffer or window), float(window))
         self._history = []
-        began = _t.time()
+        began = time.time()
         kw.setdefault('index', 'since')
-        while seconds is None or _t.time() - began < seconds:
+        while seconds is None or time.time() - began < seconds:
             got = self.read(-1)
             if not got and self.state().get('done'):
                 return

@@ -7,6 +7,8 @@ the rotor, and neither rounding nor the braille alphabet belongs to any
 one of them.
 """
 import math
+import os
+import struct
 
 #: The pixels: braille, a 2x4 dot matrix per cell, so a drawing rasters
 #: at twice the column and four times the row resolution and reads as a
@@ -88,8 +90,6 @@ def _bluenoise():
     output, 64 x 64 ranks 0..4095 by void-and-cluster - as rows. Read,
     not computed: the generator wants numpy and a second, and a renderer
     wants neither."""
-    import os
-    import struct
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         'bluenoise64.bin')
     with open(path, 'rb') as f:

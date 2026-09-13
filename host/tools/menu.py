@@ -28,6 +28,7 @@ from rich.layout import Layout                             # noqa: E402
 from rich.panel import Panel                               # noqa: E402
 from rich.text import Text                                 # noqa: E402
 from rich import box                                       # noqa: E402
+from rich.align import Align                               # noqa: E402
 
 from screen import (ENTER_KEYS, band_of, Keys, curtain, footer,  # noqa: E402
                     live, paced, stage)
@@ -312,7 +313,6 @@ BOX = 58
 
 
 def compose(port, picked, view, size=None, who=None):
-    from rich.align import Align
 
     tall = max(8, (size.height if size else 24) - 4)
     # The stand never outgrows the menu: at most BOX columns, at most

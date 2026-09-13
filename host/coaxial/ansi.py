@@ -11,6 +11,8 @@ surface read as shaded - eight levels of grey against a ramp of ten
 characters is most of the picture's information, and the basic set has one.
 """
 import re
+import sys
+import warnings
 
 
 def utf8_stdout():
@@ -27,7 +29,6 @@ def utf8_stdout():
     stdout is a side effect nobody asked for, and this module already
     says colour is added at the edge.
     """
-    import sys
     reconfigure = getattr(sys.stdout, 'reconfigure', None)
     if reconfigure is None:                # not a reconfigurable stream
         return
@@ -323,7 +324,6 @@ def _font(path, size):
     except OSError:
         if path not in _SAID:
             _SAID.add(path)
-            import warnings
             warnings.warn('no %s - Pillow\'s own face stands in, and the '
                           'braille seam it shows is not the bench\'s' % path)
         return ImageFont.load_default()

@@ -13,6 +13,7 @@ them.
 Only tools-capable tags are candidates: a tag without them describes a
 measurement instead of taking one.
 """
+import argparse
 import ctypes
 import json
 import os
@@ -545,7 +546,6 @@ def pulled(host='http://localhost:11434'):
 
 
 def main(argv=None):
-    import argparse
     parser = argparse.ArgumentParser(
         prog='python -m coaxial_ollama.capability',
         description='What this machine can run, and which local model to run.')

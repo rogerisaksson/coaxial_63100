@@ -5,6 +5,7 @@ type hints and docstrings, which is convenient and produces a bigger tool list
 than necessary; here the schemas are hand-written because their size is the
 thing being optimised.
 """
+import argparse
 import sys
 
 import anyio
@@ -89,7 +90,6 @@ async def serve(port='COM4', baud=115200, unit=1, level=detailmod.FULL,
 
 
 def main(argv=None):
-    import argparse
 
     parser = argparse.ArgumentParser(prog='python -m coaxial_mcp')
     parser.add_argument('--port', default='COM4')

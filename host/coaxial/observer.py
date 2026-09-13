@@ -26,6 +26,7 @@ numbers came off an instrument and which came out of the record already;
 a test executive beside a calibrated meter decides the rest (invariant 10).
 """
 import math
+import time
 
 from .errors import RigError
 from .motor import Parameters
@@ -154,7 +155,6 @@ class Observer(Subsystem):
         backwards. Sampling has to be quick enough that no half turn
         happens between two reads, which is what `WALK_RAD_S` is for.
         """
-        import time
 
         was = math.radians(angle.state()['degrees'])
         total = 0.0

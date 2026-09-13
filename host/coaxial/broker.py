@@ -18,6 +18,8 @@ import json
 import os
 import socket
 import socketserver
+import subprocess
+import sys
 import threading
 import time
 
@@ -457,7 +459,6 @@ class _Server(socketserver.ThreadingTCPServer):
         self.streaming = False
 
     def spoke(self):
-        import time
         self.heard = time.monotonic()
 
     def tick(self, stop):
@@ -465,9 +466,7 @@ class _Server(socketserver.ThreadingTCPServer):
         is attached. The broker knows a thinking session from a dead one:
         it counts clients. With none attached nothing ticks, and the
         firmware's deadman does exactly its job."""
-        import time
 
-        from . import protocol
         from .errors import RigError
 
         while not stop.wait(0.5):
@@ -519,7 +518,6 @@ def _stream_loop(served, stop):
     what one reader costs, however many clients are attached, which is the
     reason to put it here rather than in each of them.
     """
-    from . import protocol
 
     payload = bytes([protocol.DEVICE_DAQ, 4, 0])
     stride = served.fanout.stride
@@ -582,7 +580,6 @@ def stand_down(address=(HOST, PORT), wait=5.0):
     Refuses while sessions are using it, and says how many - the port is
     theirs until they let go.
     """
-    import time
 
     reached = attach(address, timeout=2.0)
     if reached is None:
@@ -619,7 +616,6 @@ def attach(address=(HOST, PORT), timeout=10.0):
 
 def _kind(port):
     """`debug probe` or `RS485`, off the port listing. None if it cannot say."""
-    import sys
 
     here = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, os.path.join(here, os.pardir, 'tools'))
@@ -637,9 +633,6 @@ def spawn(port, baud=115200, wait=8.0):
     would die with it and take the port from everyone else still attached.
     This way the last session out is what stops it, whichever one that is.
     """
-    import subprocess
-    import sys
-    import time
 
     here = os.path.dirname(os.path.abspath(__file__))
     script = os.path.join(here, os.pardir, 'tools', 'session.py')

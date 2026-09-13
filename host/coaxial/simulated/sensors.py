@@ -1,6 +1,7 @@
 """The two SPI sensors: a BNO08X that tumbles and an A1335 that
 follows the simulated shaft."""
 import math
+import random
 import time
 
 from .. import angle, imu
@@ -126,13 +127,12 @@ class SimulatedImu(PolledSensor):
         the same reason: zeros from a report that was never enabled
         must not look like a still part.
         """
-        import random as _r
 
         for name, report, bits, unit, rest in self.VECTORS:
             if report not in self._enabled:
                 got[name] = None
                 continue
-            value = [v + _r.gauss(0.0, 0.02) for v in rest]
+            value = [v + random.gauss(0.0, 0.02) for v in rest]
             got[name] = {
                 'accuracy': 'high',
                 'unit': unit,
