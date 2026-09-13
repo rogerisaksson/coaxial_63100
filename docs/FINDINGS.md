@@ -1239,6 +1239,18 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   repr that must not raise inside a debugger. structure 621, daq_api
   75, simulated 254, views 206, broker 33, mcp 50, tools 219; the
   offline gate 2947 checks, 0 failed; pyright 0 on the fourteen files.
+* A PLAIN MAPPING IS LIFTED TO A RECORD AT THE RIG'S BOUNDARY
+  (2026-09-13). `columns()`, `series()` and `channel_names()` accept
+  what `board.daq` hands out - a dict - beside the front door's
+  `Record`, and carried twelve `getattr(record, field, None)` reads to
+  tell the two apart at every field. `_lifted()` makes the dict a
+  Record on the layout once, its start time and gap what it carries
+  under those names or none - the same samples, in the same order, as
+  the plain-mapping branch listed - and everything below reads
+  `record.samples`, `.digital`, `.sensors`, `.start_time`, `.dt`. The
+  tree's getattr-with-default count is fourteen now, from ninety-seven
+  this morning, and every one left probes the I/O edge or the
+  platform. daq_api 75, simulated 254, structure 621; pyright 0.
 
 ## The local model
 

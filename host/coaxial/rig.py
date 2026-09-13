@@ -32,7 +32,7 @@ from .clock import NTP_SERVER, WRAP
 from .errors import CrcError, NoReplyError, RigError
 from .gates import GateStage
 from .reader import BufferedReader
-from .record import build
+from .record import Record, build
 
 #: Bytes the board leaves for records in one reply - `DAQ_REPLY_ROOM` in
 #: `cmd_daq.c`. Named here because it decides how many records a single
@@ -483,6 +483,17 @@ class Coaxial63100(Acquisition):
         """What the board says it has. Not a list written down here."""
         return self.board.analog.names()
 
+    def _lifted(self, records):
+        """The records as `Record`s. What the front door hands out is one
+        already; a plain mapping - from `board.daq` rather than the front
+        door, or one a caller built - is lifted on the layout here, once,
+        so everything below reads a record's attributes and nothing asks
+        a mapping whether it has them."""
+        fields = (self.layout or {}).get('fields') or []
+        return [r if isinstance(r, Record)
+                else Record(r, fields, r.get('start_time'), r.get('dt'))
+                for r in records]
+
     def channel_names(self, record=None):
         """What the records carry, in the order they carry it.
 
@@ -495,16 +506,9 @@ class Coaxial63100(Acquisition):
             names = daq.channel_names()          # before reading
             names = daq.channel_names(values[0]) # off what arrived
         """
-        fields = (self.layout or {}).get('fields') or []
         if record is None:
-            return [f['signal'] for f in fields]
-        got = getattr(record, 'channel_name', None)
-        if got is not None:
-            return list(got)
-        # A plain mapping - from `board.daq` rather than the front
-        # door, or one a caller built. The layout's order is what
-        # makes it a sequence rather than whatever the dict holds.
-        return [f['signal'] for f in fields if f['signal'] in record]
+            return [f['signal'] for f in (self.layout or {}).get('fields') or []]
+        return list(self._lifted([record])[0].channel_name)
 
     def series(self, records, name):
         """One channel out of a run, as a plain list of means.
@@ -525,12 +529,13 @@ class Coaxial63100(Acquisition):
         """
         if not records:
             return []
+        records = self._lifted(records)
         want = self._match(name)
         if want in ('time', 'starttime'):
             return [r.start_time for r in records]
         if want == 'dt':
             return [r.dt for r in records]
-        spelling = next((s.name for s in getattr(records[0], 'samples', ())
+        spelling = next((s.name for s in records[0].samples
                          if self._match(s.name) == want), None)
         if spelling is not None:
             return [r.value(spelling) for r in records]
@@ -538,8 +543,7 @@ class Coaxial63100(Acquisition):
         # mean - and named as loosely as everything else here.
         pin = self._pin_called(records[0], want)
         if pin is not None:
-            return [(getattr(r, 'digital', None) or {}).get(pin)
-                    for r in records]
+            return [(r.digital or {}).get(pin) for r in records]
         raise RigError(
             'no channel called %r in these records. They have: %s'
             % (name, ', '.join(records[0].channel_name)))
@@ -547,7 +551,7 @@ class Coaxial63100(Acquisition):
     def _pin_called(self, record, want):
         """The pin in a record's digital word that `want` names, loosely -
         with or without its port - or None."""
-        return next((pin for pin in (getattr(record, 'digital', None) or {})
+        return next((pin for pin in (record.digital or {})
                      if want in (self._match(pin),
                                  self._match(pin.split('/')[-1]))), None)
 
@@ -717,17 +721,17 @@ class Coaxial63100(Acquisition):
             cols = daq.columns(daq.read(-1))
             plot(cols['time'], cols['Phase U'])
         """
+        records = self._lifted(records)
         names = self.channel_names(records[0] if records else None)
         # THE PINS ARE COLUMNS TOO. They ride the same records as the
         # analog fields, so every point on both is the SAME window - which
         # is the whole reason to plot a gate against a phase current. They
         # were dropped here, and a live plot of the switches came back
         # empty with nothing saying why.
-        pins = list((getattr(records[0], 'digital', None) or {})
-                    if records else {})
+        pins = list((records[0].digital or {}) if records else {})
         # And the sensor snapshots (MINOR 7), one column per word:
         # 'shaft angle value' beside the currents it was latched with.
-        first = (getattr(records[0], 'sensors', None) or {}) if records else {}
+        first = (records[0].sensors or {}) if records else {}
         subs = {field: ['%s %s' % (field, w) for w in
                         SENSOR_WORDS.get(field,
                                          ('w0', 'w1', 'w2', 'w3'))]
@@ -737,19 +741,19 @@ class Coaxial63100(Acquisition):
         out['time'] = []
         out['dt'] = []
         for record in records:
-            for sample in getattr(record, 'samples', ()):
+            for sample in record.samples:
                 if sample.name in out:
                     out[sample.name].append(sample.value)
-            duties = getattr(record, 'digital', None) or {}
+            duties = record.digital or {}
             for pin in pins:
                 out[pin].append(duties.get(pin))
-            snaps = getattr(record, 'sensors', None) or {}
+            snaps = record.sensors or {}
             for field, cols in subs.items():
                 words = snaps.get(field) or (None,) * len(cols)
                 for col, word in zip(cols, words):
                     out[col].append(word)
-            out['time'].append(getattr(record, 'start_time', None))
-            out['dt'].append(getattr(record, 'dt', None))
+            out['time'].append(record.start_time)
+            out['dt'].append(record.dt)
         return out
 
     def catalogue(self):
