@@ -26,6 +26,7 @@
 #include "board_hw.h"
 #include "board_power.h"
 #include "shtp.h"
+#include "board_units.h"
 
 #include <string.h>
 
@@ -192,7 +193,7 @@ static void cs(bool low)
 
 static void settle(void)
 {
-  const uint32_t per_us = SystemCoreClock / 1000000U;
+  const uint32_t per_us = SystemCoreClock / US_PER_S;
   const uint32_t start = Board_Cycles();
 
   while ((uint32_t)(Board_Cycles() - start) < (IMU_SETTLE_US * per_us))

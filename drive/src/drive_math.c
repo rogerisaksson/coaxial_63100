@@ -14,6 +14,8 @@
 #include <math.h>
 
 #define TWO_PI      6.2831853f
+#define PI          3.1415927f
+#define HALF_PI     1.5707963f
 #define INV_SQRT3   0.57735027f
 #define HALF_SQRT3  0.8660254f
 
@@ -47,25 +49,25 @@ void drive_sincos(float theta, float *s, float *c)
      the worst point - a control law needs milliradians. newlib's sinf and
      cosf are a range reduction and a table each, and four of them a period
      were a fifth of the interrupt: measured 2026-08-31. */
-  float x = theta - TWO_PI * floorf((theta + 3.1415927f) / TWO_PI);   /* (-pi, pi] */
+  float x = theta - TWO_PI * floorf((theta + PI) / TWO_PI);   /* (-pi, pi] */
   float xs = x;
-  float xc = 1.5707963f - x;                       /* cos x = sin(pi/2 - x) */
+  float xc = HALF_PI - x;                       /* cos x = sin(pi/2 - x) */
 
-  if (xs > 1.5707963f)
+  if (xs > HALF_PI)
   {
-    xs = 3.1415927f - xs;
+    xs = PI - xs;
   }
-  else if (xs < -1.5707963f)
+  else if (xs < -HALF_PI)
   {
-    xs = -3.1415927f - xs;
+    xs = -PI - xs;
   }
-  if (xc > 1.5707963f)
+  if (xc > HALF_PI)
   {
-    xc = 3.1415927f - xc;
+    xc = PI - xc;
   }
-  else if (xc < -1.5707963f)
+  else if (xc < -HALF_PI)
   {
-    xc = -3.1415927f - xc;
+    xc = -PI - xc;
   }
 
   const float s2 = xs * xs;

@@ -188,6 +188,21 @@ extern "C" {
 /** Device 10's ops: the control law. Angles in microradians, speeds in
     milliradians a second, currents mA, volts mV; the window's means and
     deviations in micro-units. cmd_drive.c has the layouts. */
+/* The thermal observer, device 8. */
+#define THERMAL_OP_STATE        0U
+#define THERMAL_OP_SET_NODE     1U
+#define THERMAL_OP_SET_BOARD    2U
+#define THERMAL_OP_SET_SAMPLE   3U
+#define THERMAL_OP_BUDGET       4U
+#define THERMAL_OP_SET_LIMIT    5U
+#define THERMAL_OP_SET_WINDING  6U
+#define THERMAL_OP_NODES        7U
+#define THERMAL_OP_EDGES        8U
+#define THERMAL_OP_SET_EDGE     9U
+#define THERMAL_OP_IDENT        10U
+#define THERMAL_OP_IDENT_RESET  11U
+#define THERMAL_OP_SET_MARGIN   12U
+
 #define DRIVE_OP_STATE        0U  /**< -> mode, fault, flags, frames, dq, costs */
 #define DRIVE_OP_MODE         1U  /**< u8 mode -> u8 took                        */
 #define DRIVE_OP_SETPOINT     2U  /**< u8 id, i32 value -> u8 took               */

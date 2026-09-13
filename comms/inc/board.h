@@ -1276,6 +1276,10 @@ typedef struct
     no request can ever name a seventeenth channel however the table grows. */
 #define BOARD_BURST_MAX_CHAN 16U
 
+/** The most samples one burst takes: the reply is a summary, so this
+  * bounds the time the link waits, not a buffer. */
+#define BOARD_ADC_BURST_MAX 1000U
+
 /**
   * @brief  Sample a set of channels repeatedly and return per-channel statistics.
   * @param  mask         Bit i selects channel i of the channel table.

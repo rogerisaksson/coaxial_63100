@@ -1466,6 +1466,41 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   lines 9 -> 2, the scanner's literals 599 -> 593. The board modules'
   proof is the bench's after a flash: parity, conformance and the live
   views.
+* THE FIRMWARE'S LITERALS, BY MEANING (2026-09-13). The scanner's count
+  593 -> 406 across board, comms, modbus and drive, and the binary image
+  is byte-identical before and after but for the build stamp - the
+  committed tree built in a second worktree, both ELFs through objcopy,
+  197 080 bytes each, four differing, and those four the minute in the
+  two copies of `FW_BUILD_STRING` - which is the whole proof for the
+  board modules, since they have no host tests. THE
+  UNIT FACTORS ONCE: `board_units.h` moved beside board.h, where both
+  the board layer and the command handlers see it, and grew
+  `MICRO_PER_UNIT`, `PPM_PER_UNIT` (the same 1e6, a different meaning -
+  a micro-quantity against a ratio), `PPM_WHOLE`, `MICRO_PER_MILLI`,
+  `US_PER_S`, `MS_PER_S` and `KELVIN_AT_ZERO_C`; 130 sites in twelve
+  files wrote the numbers. THE NAMES THE HEADERS ALREADY HAD: the
+  request-length oracle reads as the protocol now - `MB_FC_*` from the
+  slave's header, `DEVICE_*` and the ops from cmd.h, `DEVICE_HEAD` for
+  the three bytes every 0x6E request starts with; the thermal handler's
+  thirteen file-local ops moved to cmd.h as `THERMAL_OP_*` beside every
+  other device's, which is what let the oracle name them. ONE ANSWER
+  WHERE THERE WERE TWO: the ADC burst's sample bound was 1000U in
+  cmd_board and again in board_adc - `BOARD_ADC_BURST_MAX` in board.h.
+  THE REST: the ADC's `ADC_CODES`, `ADC_HALF_CODES`, `ADC_MID_CODE`;
+  the A1335's `ANGLE_TEMP_LSB_PER_K`; the PWM's `PS_PER_S`, `PS_PER_NS`
+  and `PROBE_SETTLE_SPINS`, and the BSRR reset half by its CMSIS name
+  `GPIO_BSRR_BR0_Pos` where two sites wrote 16; the slave's
+  `MB_COIL_ON`/`MB_COIL_OFF`, `MB_WRITE_SINGLE_LEN`, `MB_SERVER_ID_HEAD`
+  and `_MAX`, and the specification's two user-defined function ranges;
+  the drive's `PI` and `HALF_PI` beside its `TWO_PI`, and the model's
+  noise generator as `MODEL_SEED`, `LCG_A`, `LCG_C`, `LCG_TOP_ONE`.
+  LEFT AS NUMBERS, BY DESIGN: tables and defaults - the RCC prescaler
+  dividers, the gate pin table (PE8..PE13, said in its comment), the
+  thermal network with its measurements, the motor model's and the
+  tune's defaults, the sine polynomial's coefficients - and the two
+  wire lengths whose comment counts the bytes in prose (the duty op's
+  9, 10 and 13). Build: 0 warnings, flash 197 068 B as before; modbus
+  core 77, drive core 81.
 
 ## The local model
 

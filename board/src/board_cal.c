@@ -21,6 +21,7 @@
 #include "board_hw.h"
 
 #include "modbus_crc.h"
+#include "board_units.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -504,7 +505,7 @@ bool Board_CalSetLimit(uint8_t node, int32_t limit_centi)
 
 bool Board_CalSetThrottle(uint32_t ppm)
 {
-  if ((ppm == 0U) || (ppm >= 1000000U))
+  if ((ppm == 0U) || (ppm >= PPM_WHOLE))
   {
     return false;
   }
@@ -572,7 +573,7 @@ bool Board_CalSetMarginFloor(uint32_t ppm)
   /* Zero would put every ceiling at the reference the moment the board
      booted and trip the stage on its first sample; above the span is a
      margin the record's own ceilings do not have. */
-  if ((ppm == 0U) || (ppm > 1000000UL))
+  if ((ppm == 0U) || (ppm > PPM_WHOLE))
   {
     return false;
   }

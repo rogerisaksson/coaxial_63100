@@ -27,6 +27,7 @@
 #include "dev_serial.h"
 
 #include "main.h"
+#include "board_units.h"
 
 /* Defined in main.c by the MX_*_Init functions. */
 extern UART_HandleTypeDef huart3;
@@ -287,7 +288,7 @@ static uint32_t u_ticks(void *ctx)
 static uint32_t u_ticks_per_us(void *ctx)
 {
   (void)ctx;
-  const uint32_t per = SystemCoreClock / 1000000U;
+  const uint32_t per = SystemCoreClock / US_PER_S;
   return (per == 0U) ? 1U : per;
 }
 

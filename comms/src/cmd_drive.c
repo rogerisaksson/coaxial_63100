@@ -18,19 +18,20 @@
 #include "board.h"
 #include "board_drive.h"
 #include "wire.h"
+#include "board_units.h"
 
 #include <math.h>
 
 
 static int32_t micro_of(float x)
 {
-  return (int32_t)lrintf(x * 1000000.0f);
+  return (int32_t)lrintf(x * MICRO_PER_UNIT);
 }
 
 
 static int32_t milli_of(float x)
 {
-  return (int32_t)lrintf(x * 1000.0f);
+  return (int32_t)lrintf(x * MILLI_PER_UNIT);
 }
 
 
@@ -168,12 +169,12 @@ static cmd_status_t h_drive_window(wr_t *out)
   Board_DriveWindowTake(&w);
 
   wr_u32(out, w.n);
-  wr_field(out, &w.acc[DRIVE_ACC_ID], 1e6f);     /* uA   */
-  wr_field(out, &w.acc[DRIVE_ACC_IQ], 1e6f);
-  wr_field(out, &w.acc[DRIVE_ACC_VD], 1e6f);     /* uV   */
-  wr_field(out, &w.acc[DRIVE_ACC_VQ], 1e6f);
-  wr_field(out, &w.acc[DRIVE_ACC_EPS], 1e6f);    /* urad */
-  wr_field(out, &w.acc[DRIVE_ACC_IH], 1e6f);     /* uA   */
+  wr_field(out, &w.acc[DRIVE_ACC_ID], MICRO_PER_UNIT);     /* uA   */
+  wr_field(out, &w.acc[DRIVE_ACC_IQ], MICRO_PER_UNIT);
+  wr_field(out, &w.acc[DRIVE_ACC_VD], MICRO_PER_UNIT);     /* uV   */
+  wr_field(out, &w.acc[DRIVE_ACC_VQ], MICRO_PER_UNIT);
+  wr_field(out, &w.acc[DRIVE_ACC_EPS], MICRO_PER_UNIT);    /* urad */
+  wr_field(out, &w.acc[DRIVE_ACC_IH], MICRO_PER_UNIT);     /* uA   */
   wr_field(out, &w.acc[DRIVE_ACC_VDC], 1e3f);    /* mV   */
 
   wr_u8(out, (uint8_t)DRIVE_LAGS);

@@ -124,7 +124,7 @@ static float margin_floor(void)
 {
   const uint32_t ppm = Board_Cal()->soa_margin_floor_ppm;
 
-  return (float)((ppm != 0U) ? ppm : BOARD_SOA_MARGIN_FLOOR_PPM) / 1000000.0f;
+  return (float)((ppm != 0U) ? ppm : BOARD_SOA_MARGIN_FLOOR_PPM) / PPM_PER_UNIT;
 }
 
 
@@ -171,7 +171,7 @@ static void soa_from_cal(void)
   /* The winding's ceiling is the record's own field, kept since 12 so
      op 6 and id 48 keep their meaning; zero disables it as before. */
   s_soa.limit_c[THERMAL_WINDING] = (float)cal->winding_limit_centi / CENTI_PER_UNIT;
-  s_soa.throttle_at = (float)cal->soa_throttle_ppm / 1000000.0f;
+  s_soa.throttle_at = (float)cal->soa_throttle_ppm / PPM_PER_UNIT;
   s_soa.lookahead_s = (float)cal->soa_lookahead_ms / MILLI_PER_UNIT;
 
   /* THE POLICY. While the model is doubted the ceilings are pulled in:
@@ -214,17 +214,17 @@ static void lay_bulk(thermal_cfg_t *cfg, const board_cal_t *cal)
   }
   if (cal->thermal_rad_share_ppm != 0U)
   {
-    cfg->board_rad_share = (float)cal->thermal_rad_share_ppm / 1.0e6f;
+    cfg->board_rad_share = (float)cal->thermal_rad_share_ppm / PPM_PER_UNIT;
   }
   if (cal->thermal_ntc_sees_ppm != 0U)
   {
-    cfg->ntc_sees = (float)cal->thermal_ntc_sees_ppm / 1.0e6f;
+    cfg->ntc_sees = (float)cal->thermal_ntc_sees_ppm / PPM_PER_UNIT;
   }
   if (cal->thermal_ntc_tau_ms != 0U)
   {
     cfg->ntc_tau_s = (float)cal->thermal_ntc_tau_ms / MILLI_PER_UNIT;
   }
-  cfg->rad_board_stator = (float)cal->thermal_rad_board_stator_micro / 1.0e6f;
+  cfg->rad_board_stator = (float)cal->thermal_rad_board_stator_micro / MICRO_PER_UNIT;
 }
 
 /** The bulk laminate shared out by area, as `thermal_set_board` does,
@@ -331,7 +331,7 @@ static void network_from_cal(thermal_cfg_t *cfg)
 static void losses_from_cal(void)
 {
   thermal_losses(&s_loss);
-  s_loss.r_phase = (float)Board_Cal()->motor_r_uohm / 1.0e6f;
+  s_loss.r_phase = (float)Board_Cal()->motor_r_uohm / MICRO_PER_UNIT;
   s_loss.k_iron = (float)Board_Cal()->thermal_k_iron_milli / MILLI_PER_UNIT;
 }
 
@@ -714,13 +714,13 @@ bool Board_ThermalState(board_thermal_t *out)
 
   out->ntc_measured = !isnan(s_last_seen.ntc_c);
   out->ntc_centidegc = out->ntc_measured
-                       ? (int32_t)(s_last_seen.ntc_c * 100.0f) : 0;
+                       ? (int32_t)(s_last_seen.ntc_c * CENTI_PER_UNIT) : 0;
   out->afe_measured = !isnan(s_last_seen.afe_c);
   out->afe_centidegc = out->afe_measured
-                       ? (int32_t)(s_last_seen.afe_c * 100.0f) : 0;
+                       ? (int32_t)(s_last_seen.afe_c * CENTI_PER_UNIT) : 0;
   out->mcu_measured = !isnan(s_last_seen.mcu_c);
   out->mcu_centidegc = out->mcu_measured
-                       ? (int32_t)(s_last_seen.mcu_c * 100.0f) : 0;
+                       ? (int32_t)(s_last_seen.mcu_c * CENTI_PER_UNIT) : 0;
   /* A flag, not `s_seen_ms != 0`: HAL_GetTick() is 0 at boot and again every
      49.7 days, and a sample taken on that tick would read "just now" for as
      long as the board stayed up. */
@@ -728,11 +728,11 @@ bool Board_ThermalState(board_thermal_t *out)
 
   for (int i = 0; i < THERMAL_NODES; i++)
   {
-    out->node_centidegc[i] = (int32_t)(s_th.t[i] * 100.0f);
+    out->node_centidegc[i] = (int32_t)(s_th.t[i] * CENTI_PER_UNIT);
   }
-  out->ambient_centidegc = (int32_t)(s_th.ambient * 100.0f);
-  out->expected_ntc_centidegc = (int32_t)(thermal_expected_ntc(&s_th) * 100.0f);
-  out->seconds = s_millis / 1000U;
+  out->ambient_centidegc = (int32_t)(s_th.ambient * CENTI_PER_UNIT);
+  out->expected_ntc_centidegc = (int32_t)(thermal_expected_ntc(&s_th) * CENTI_PER_UNIT);
+  out->seconds = s_millis / MS_PER_S;
   out->steps = s_steps;
   out->settled = s_th.settled;
   for (int leg = 0; leg < 3; leg++)
@@ -740,7 +740,7 @@ bool Board_ThermalState(board_thermal_t *out)
     const float over = thermal_junction(&s_th, &s_power, THERMAL_DRIVER(leg))
                        - s_th.t[THERMAL_DRIVER(leg)];
 
-    out->junction_over_centi[leg] = (int32_t)(over * 100.0f);
+    out->junction_over_centi[leg] = (int32_t)(over * CENTI_PER_UNIT);
   }
   out->speed_rpm = (int32_t)s_speed_rpm;
   return true;
@@ -798,9 +798,9 @@ bool Board_ThermalSetWinding(float limit_c, float k_per_w, float j_per_k)
   {
     return false;
   }
-  if (!Board_CalSetWinding((int32_t)(limit_c * 100.0f),
-                           (uint32_t)(k_per_w * 1000.0f),
-                           (uint32_t)(j_per_k * 1000.0f)))
+  if (!Board_CalSetWinding((int32_t)(limit_c * CENTI_PER_UNIT),
+                           (uint32_t)(k_per_w * MILLI_PER_UNIT),
+                           (uint32_t)(j_per_k * MILLI_PER_UNIT)))
   {
     return false;
   }
@@ -833,7 +833,7 @@ bool Board_ThermalSetLimit(uint8_t node, float limit_c, float throttle_at)
   }
   if ((throttle_at > 0.0f) && (throttle_at < 1.0f))
   {
-    (void)Board_CalSetThrottle((uint32_t)(throttle_at * 1000000.0f));
+    (void)Board_CalSetThrottle((uint32_t)(throttle_at * PPM_PER_UNIT));
   }
   soa_from_cal();
   return true;
@@ -855,15 +855,15 @@ bool Board_ThermalSetNode(uint8_t node, float k_per_w, float capacity)
   if (edge >= 0)
   {
     (void)Board_CalSetThermalEdge((uint8_t)edge,
-                                  (uint32_t)(k_per_w * 1000.0f));
-    (void)Board_CalSetThermalNode(node, (uint32_t)(capacity * 1000.0f),
+                                  (uint32_t)(k_per_w * MILLI_PER_UNIT));
+    (void)Board_CalSetThermalNode(node, (uint32_t)(capacity * MILLI_PER_UNIT),
                                   Board_Cal()->thermal_node[node]
                                       .to_ambient_milli);
   }
   else
   {
-    (void)Board_CalSetThermalNode(node, (uint32_t)(capacity * 1000.0f),
-                                  (uint32_t)(k_per_w * 1000.0f));
+    (void)Board_CalSetThermalNode(node, (uint32_t)(capacity * MILLI_PER_UNIT),
+                                  (uint32_t)(k_per_w * MILLI_PER_UNIT));
   }
   network_refresh();                   /* the record is the base; the scales stay */
   return true;
@@ -884,7 +884,7 @@ bool Board_ThermalSetEdge(uint8_t edge, float k_per_w)
   }
   const bool ok = Board_CalSetThermalEdge(edge, (k_per_w < 0.0f)
                                          ? BOARD_CAL_EDGE_OPEN
-                                         : (uint32_t)(k_per_w * 1000.0f));
+                                         : (uint32_t)(k_per_w * MILLI_PER_UNIT));
 
   network_refresh();
   return ok;
@@ -948,8 +948,8 @@ bool Board_ThermalSetBoard(float to_ambient, float capacity)
   {
     return false;
   }
-  const bool ok = Board_CalSetThermalBulk((uint32_t)(to_ambient * 1000.0f),
-                                         (uint32_t)(capacity * 1000.0f));
+  const bool ok = Board_CalSetThermalBulk((uint32_t)(to_ambient * MILLI_PER_UNIT),
+                                         (uint32_t)(capacity * MILLI_PER_UNIT));
 
   network_refresh();
   return ok;
@@ -1005,7 +1005,7 @@ bool Board_ThermalSetMarginFloor(float floor)
   }
   /* Through the record, so a save persists it and one place holds the
      envelope - the floor is a limit beside the ceilings. */
-  if (!Board_CalSetMarginFloor((uint32_t)(floor * 1000000.0f + 0.5f)))
+  if (!Board_CalSetMarginFloor((uint32_t)(floor * PPM_PER_UNIT + 0.5f)))
   {
     return false;
   }

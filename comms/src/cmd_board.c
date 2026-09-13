@@ -181,7 +181,7 @@ static cmd_status_t h_adc_noise(rd_t *in, wr_t *out)
     return CMD_ERR_VALUE;
   }
 
-  if ((samples < 1U) || (samples > 1000U))
+  if ((samples < 1U) || (samples > BOARD_ADC_BURST_MAX))
   {
     return CMD_ERR_VALUE;
   }

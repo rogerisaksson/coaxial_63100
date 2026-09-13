@@ -25,6 +25,15 @@
 #include <math.h>
 #include <string.h>
 
+/* The noise source: a linear congruential generator (Numerical Recipes'
+   constants), seeded the same on every reset so a run repeats, its top 24
+   bits taken as a fraction. */
+#define MODEL_SEED   0x2545F491UL
+#define LCG_A        1664525U
+#define LCG_C        1013904223U
+#define LCG_TOP_BITS 8
+#define LCG_TOP_ONE  16777216.0f   /* 2^24: the top 24 bits as a fraction */
+
 #define TWO_PI_F    6.2831853f
 #define HALF_SQRT3  0.8660254f
 #define INV_SQRT3   0.57735027f
@@ -62,7 +71,7 @@ void drive_model_init(drive_model_t *m)
   m->omega = 0.0f;
   m->id = 0.0f;
   m->iq = 0.0f;
-  m->rng = 0x2545F491UL;
+  m->rng = MODEL_SEED;
   memset(m->duty_prev, 0, sizeof(m->duty_prev));
   m->c = 1.0f;
   m->s = 0.0f;
@@ -81,11 +90,11 @@ static float model_noise(drive_model_t *m, float sd)
 
   for (uint8_t k = 0U; k < 3U; k++)
   {
-    m->rng = m->rng * 1664525U + 1013904223U;   /* U: the LCG wraps in
+    m->rng = m->rng * LCG_A + LCG_C;   /* U: the LCG wraps in
                                        uint32_t on every target; UL made an
                                        LP64 host widen the product to 64
                                        bits before the same wrap */
-    sum += (float)(m->rng >> 8) / 16777216.0f - 0.5f;
+    sum += (float)(m->rng >> LCG_TOP_BITS) / LCG_TOP_ONE - 0.5f;
   }
   return sum * 2.0f * sd;                 /* three uniforms: sd is 0.5 */
 }

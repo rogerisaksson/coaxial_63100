@@ -20,6 +20,7 @@
 #include "board_irq.h"
 #include "board_drive.h"
 #include "board_hw.h"
+#include "board_units.h"
 
 #include <math.h>
 
@@ -74,23 +75,24 @@ static int32_t s_v_off;
 static float   s_v_k;
 
 #define TWO_PI_F 6.2831853f
+#define CODES_PER_TURN 65536.0f   /* the wire's angle: a turn in 65536 */
 
 
 static float milli(uint32_t v)
 {
-  return (float)v / 1000.0f;
+  return (float)v / MILLI_PER_UNIT;
 }
 
 
 static float micro(uint32_t v)
 {
-  return (float)v / 1000000.0f;
+  return (float)v / MICRO_PER_UNIT;
 }
 
 
 static float milli_signed(uint32_t v)
 {
-  return (float)(int32_t)v / 1000.0f;
+  return (float)(int32_t)v / MILLI_PER_UNIT;
 }
 
 
@@ -111,7 +113,7 @@ void Board_DriveParamsFromCal(void)
   p->inj_volts = milli(cal->drv_inj_mv);
   p->inj_periods = (uint16_t)cal->drv_inj_periods;
   p->inj_phase = milli_signed(cal->drv_inj_phase_mrad);
-  p->eps_gain = (float)(int32_t)cal->drv_eps_gain_ua_per_rad / 1000000.0f;
+  p->eps_gain = (float)(int32_t)cal->drv_eps_gain_ua_per_rad / MICRO_PER_UNIT;
   s_i_max_cal = milli(cal->drv_i_max_ma);
   p->i_max = s_i_max_cal * s_derate;
   p->i_trip = milli(cal->drv_i_trip_ma);
@@ -205,14 +207,14 @@ const char *Board_DriveSetpoint(uint8_t id, int32_t value)
 
   switch (id)
   {
-    case 0U: sp->id_ref = f / 1000.0f; break;
-    case 1U: sp->iq_ref = f / 1000.0f; break;
-    case 2U: sp->theta = f / 1000.0f; break;
-    case 3U: sp->omega_target = f / 1000.0f; break;
-    case 4U: sp->accel = f / 1000.0f; break;
-    case 5U: sp->vd = f / 1000.0f; break;
-    case 6U: sp->vq = f / 1000.0f; break;
-    case 7U: sp->pol_volts = f / 1000.0f; break;
+    case 0U: sp->id_ref = f / MILLI_PER_UNIT; break;
+    case 1U: sp->iq_ref = f / MILLI_PER_UNIT; break;
+    case 2U: sp->theta = f / MILLI_PER_UNIT; break;
+    case 3U: sp->omega_target = f / MILLI_PER_UNIT; break;
+    case 4U: sp->accel = f / MILLI_PER_UNIT; break;
+    case 5U: sp->vd = f / MILLI_PER_UNIT; break;
+    case 6U: sp->vq = f / MILLI_PER_UNIT; break;
+    case 7U: sp->pol_volts = f / MILLI_PER_UNIT; break;
     case 8U:
       if ((value <= 0) || (value > 65535))
       {
@@ -240,14 +242,14 @@ void Board_DriveSetpointsGet(int32_t *out)
 {
   const drive_setpoints_t *sp = &s_drive.sp;
 
-  out[0] = (int32_t)(sp->id_ref * 1000.0f);
-  out[1] = (int32_t)(sp->iq_ref * 1000.0f);
-  out[2] = (int32_t)(sp->theta * 1000.0f);
-  out[3] = (int32_t)(sp->omega_target * 1000.0f);
-  out[4] = (int32_t)(sp->accel * 1000.0f);
-  out[5] = (int32_t)(sp->vd * 1000.0f);
-  out[6] = (int32_t)(sp->vq * 1000.0f);
-  out[7] = (int32_t)(sp->pol_volts * 1000.0f);
+  out[0] = (int32_t)(sp->id_ref * MILLI_PER_UNIT);
+  out[1] = (int32_t)(sp->iq_ref * MILLI_PER_UNIT);
+  out[2] = (int32_t)(sp->theta * MILLI_PER_UNIT);
+  out[3] = (int32_t)(sp->omega_target * MILLI_PER_UNIT);
+  out[4] = (int32_t)(sp->accel * MILLI_PER_UNIT);
+  out[5] = (int32_t)(sp->vd * MILLI_PER_UNIT);
+  out[6] = (int32_t)(sp->vq * MILLI_PER_UNIT);
+  out[7] = (int32_t)(sp->pol_volts * MILLI_PER_UNIT);
   out[8] = (int32_t)sp->pol_periods;
   out[9] = (int32_t)sp->pol_gap;
 }
@@ -280,28 +282,28 @@ const char *Board_DriveModelParam(uint8_t id, int32_t value)
 
   switch (id)
   {
-    case 0U:  p->r = f / 1e6f; break;
+    case 0U:  p->r = f / MICRO_PER_UNIT; break;
     case 1U:  if (value <= 0) { return "ld is nanohenry, above zero"; }
               p->ld = f * 1e-9f; break;
     case 2U:  if (value <= 0) { return "lq is nanohenry, above zero"; }
               p->lq = f * 1e-9f; break;
-    case 3U:  p->lambda = f / 1e6f; break;
+    case 3U:  p->lambda = f / MICRO_PER_UNIT; break;
     case 4U:  if (value <= 0) { return "pole pairs is a count above zero"; }
               p->pole_pairs = f; break;
-    case 5U:  p->sat = f / 1e6f; break;
+    case 5U:  p->sat = f / MICRO_PER_UNIT; break;
     case 6U:  if (value <= 0) { return "i_sat is milliamperes, above zero"; }
               p->i_sat = f / 1e3f; break;
     case 7U:  if (value <= 0) { return "J is nano kg m2, above zero"; }
               p->j = f * 1e-9f; break;
     case 8U:  p->b = f * 1e-9f; break;
-    case 9U:  p->load = f / 1e6f; break;
+    case 9U:  p->load = f / MICRO_PER_UNIT; break;
     case 10U: p->v_dt = f / 1e3f; break;
     case 11U: if (value <= 0) { return "i_knee is milliamperes, above zero"; }
               p->i_knee = f / 1e3f; break;
     case 12U: if (value <= 0) { return "vdc is millivolts, above zero"; }
               p->vdc = f / 1e3f; break;
-    case 13U: p->noise = f / 1e6f; break;
-    case 14U: p->theta0 = f / 1e6f; break;
+    case 13U: p->noise = f / MICRO_PER_UNIT; break;
+    case 14U: p->theta0 = f / MICRO_PER_UNIT; break;
     case 15U: if ((value < 1) || (value > 16)) { return "substeps is 1..16"; }
               p->sub = (uint8_t)value; break;
     default:
@@ -325,7 +327,7 @@ void Board_DriveModelReset(void)
 void Board_DriveSetTheta(int32_t microradians)
 {
   const uint32_t masked = Board_IrqHold();
-  drive_set_theta(&s_drive, (float)microradians / 1000000.0f);
+  drive_set_theta(&s_drive, (float)microradians / MICRO_PER_UNIT);
   Board_IrqRelease(masked);
 }
 
@@ -473,9 +475,9 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   if ((Board_LogSources() & (1U << BOARD_LOG_SOURCE_DRIVE)) != 0U)
   {
     const int16_t logged[4] = {
-      (int16_t)lrintf(s_drive.id * 100.0f),
-      (int16_t)lrintf(s_drive.iq * 100.0f),
-      (int16_t)(uint16_t)lrintf(s_drive.theta_hat / TWO_PI_F * 65536.0f),
+      (int16_t)lrintf(s_drive.id * CENTI_PER_UNIT),
+      (int16_t)lrintf(s_drive.iq * CENTI_PER_UNIT),
+      (int16_t)(uint16_t)lrintf(s_drive.theta_hat / TWO_PI_F * CODES_PER_TURN),
       (int16_t)lrintf(s_drive.eps * 10000.0f),
     };
 

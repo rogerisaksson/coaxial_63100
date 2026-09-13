@@ -10,6 +10,13 @@
 
 #include <math.h>
 
+/* The converter's 16-bit result: the full scale of codes, the half of it
+   that is a differential reading's span, and the mid code that reads 0 V
+   in offset binary. */
+#define ADC_CODES      65536.0f
+#define ADC_HALF_CODES 32768.0f
+#define ADC_MID_CODE   32768
+
 
 /* ADC+/- reference. VREFBUF is deliberately disabled and VREF+ left
    high-impedance, so the reference comes from the AFE - which is why every
@@ -20,7 +27,7 @@
    tolerance and this board should keep what it learns. */
 static float cal_vref(void)
 {
-  return (float)Board_Cal()->vref_uv / 1000000.0f;
+  return (float)Board_Cal()->vref_uv / MICRO_PER_UNIT;
 }
 
 
@@ -71,15 +78,15 @@ int32_t Board_AdcDifferential(uint32_t raw)
      input; see the note below. Named because two paths need it and the
      second one got it wrong: board_sync.c cast the injected JDR straight to
      int16_t and every quiet phase came back near the negative rail. */
-  return (int32_t)raw - 32768;
+  return (int32_t)raw - ADC_MID_CODE;
 }
 
 
 static float code_to_volts(int32_t code, uint32_t singleDiff)
 {
   return (singleDiff == ADC_SINGLE_ENDED)
-         ? ((float)code / 65536.0f) * cal_vref()
-         : ((float)code / 32768.0f) * cal_vref();
+         ? ((float)code / ADC_CODES) * cal_vref()
+         : ((float)code / ADC_HALF_CODES) * cal_vref();
 }
 
 
@@ -192,7 +199,7 @@ static float NTC_VoltsToCelsius(float v_node)
   float r_ntc = (float)cal->ntc_rfixed_ohm * (cal_vref() / v_node - 1.0f);
   float inv_T = (1.0f / t25) + (1.0f / beta) *
                 logf(r_ntc / (float)cal->ntc_r25_ohm);
-  return (1.0f / inv_T) - 273.15f;
+  return (1.0f / inv_T) - KELVIN_AT_ZERO_C;
 }
 
 /* PC0/IN10 is fed through an external 49.9k/2.2k resistor divider (R12/R11,
@@ -214,8 +221,8 @@ static float DC_BUS_VoltsFromDivider(float v_node)
 static float PHASE_AmpsFromShunt(float v_pin)
 {
   const board_cal_t *cal = Board_Cal();
-  const float volts_per_amp = ((float)cal->shunt_uohm / 1000000.0f) *
-                              ((float)cal->amp_gain_ppm / 1000000.0f);
+  const float volts_per_amp = ((float)cal->shunt_uohm / MICRO_PER_UNIT) *
+                              ((float)cal->amp_gain_ppm / PPM_PER_UNIT);
 
   return v_pin / volts_per_amp;
 }
@@ -500,7 +507,7 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
     return false;
   }
 
-  *microvolts = (int32_t)(v * 1000000.0f);
+  *microvolts = (int32_t)(v * MICRO_PER_UNIT);
   *scaled     = 0;
 
   if (d->unit == ADC_UNIT_DCBUS)
@@ -531,7 +538,7 @@ bool Board_AdcRead(uint8_t index, int32_t *raw, int32_t *microvolts, int32_t *sc
        (invariant 7): the calibration was taken at 3.3 V and the REF2033 is
        the part that decides what 3.3 V means here. */
     *scaled = (int32_t)(__LL_ADC_CALC_TEMPERATURE(
-                            Board_Cal()->vref_uv / 1000UL,
+                            Board_Cal()->vref_uv / MICRO_PER_MILLI,
                             (uint32_t)*raw, LL_ADC_RESOLUTION_16B) * 100);
   }
 
@@ -592,7 +599,7 @@ void Board_PhaseScale(uint8_t leg, int32_t *offset_raw, float *amps_per_code)
   }
   (void)Board_CalChannel(index[leg], &offset, &ppm);
   *offset_raw = offset;
-  *amps_per_code = (1.0f + (float)ppm / 1000000.0f)
+  *amps_per_code = (1.0f + (float)ppm / PPM_PER_UNIT)
                    * PHASE_AmpsFromShunt(code_to_volts(1, ADC_DIFFERENTIAL_ENDED));
 }
 
@@ -604,7 +611,7 @@ void Board_DcBusScale(int32_t *offset_raw, float *volts_per_code)
 
   (void)Board_CalChannel(CH_DCBUS, &offset, &ppm);
   *offset_raw = offset;
-  *volts_per_code = (1.0f + (float)ppm / 1000000.0f)
+  *volts_per_code = (1.0f + (float)ppm / PPM_PER_UNIT)
                     * DC_BUS_VoltsFromDivider(code_to_volts(1, ADC_SINGLE_ENDED));
 }
 
@@ -753,12 +760,12 @@ bool Board_CalSpan(uint8_t index, int32_t reference, int32_t *measured)
     return false;
   }
 
-  const float ppm = (((float)reference / now) - 1.0f) * 1000000.0f;
+  const float ppm = (((float)reference / now) - 1.0f) * PPM_PER_UNIT;
 
   /* Board_CalSetChannel refuses <= -1e6 for the sign flip; this catches the
      other end, where a reference off by orders of magnitude would store a
      factor nobody could later recognise as a mistake. */
-  if ((ppm <= -1000000.0f) || (ppm >= 1000000000.0f))
+  if ((ppm <= -PPM_PER_UNIT) || (ppm >= 1000.0f * PPM_PER_UNIT))
   {
     return false;
   }
@@ -779,7 +786,7 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
   else if (adc_index == 3U) { index = CH_PHASE_U; }
   else { return false; }
 
-  if ((samples < 1U) || (samples > 1000U))
+  if ((samples < 1U) || (samples > BOARD_ADC_BURST_MAX))
   {
     return false;
   }
@@ -815,7 +822,8 @@ bool Board_AdcNoise(uint8_t adc_index, uint16_t samples,
 
   /* One LSB of a differential reading is VREF/32768. Reported in microvolts so
      no float ever goes on the wire. */
-  const double lsb_uv = ((double)cal_vref() / 32768.0) * 1000000.0;
+  const double lsb_uv = ((double)cal_vref() / (double)ADC_HALF_CODES)
+                         * (double)MICRO_PER_UNIT;
 
   *mean_uv   = (int32_t)(mean * lsb_uv);
   *min_raw   = lo;
@@ -840,7 +848,7 @@ bool Board_AdcBurst(uint16_t mask, uint16_t samples, uint32_t interval_us,
                     board_burst_t *out, uint8_t *count, uint32_t *elapsed_us)
 {
   const uint8_t  total   = Board_AdcCount();
-  const uint32_t per_us  = SystemCoreClock / 1000000U;
+  const uint32_t per_us  = SystemCoreClock / US_PER_S;
 
   if ((samples < 1U) || (samples > BOARD_BURST_MAX_SAMPLES) || (mask == 0U))
   {

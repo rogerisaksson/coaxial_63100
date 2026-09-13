@@ -25,6 +25,7 @@
 extern uint32_t _etext;
 
 #define FLASH_IMAGE_BASE 0x08000000UL
+#define TIMEBASE_SETTLE_SPINS 1000U   /* the cycle counter moves in these at any plausible clock */
 
 static void add(board_check_t *out, uint8_t *n, uint8_t capacity,
                 const char *name, uint8_t status, int32_t value)
@@ -98,9 +99,8 @@ uint8_t Board_SelfTest(board_check_t *out, uint8_t capacity)
 
   /* ---- the timebase the protocol depends on ---- */
   const uint32_t first = Board_Cycles();
-  for (volatile uint32_t spin = 0U; spin < 1000U; spin++)
+  for (volatile uint32_t spin = 0U; spin < TIMEBASE_SETTLE_SPINS; spin++)
   {
-    /* long enough for the counter to move at any plausible clock */
   }
   add(out, &n, capacity, "cyccnt_runs", verdict(Board_Cycles() != first), 0);
 

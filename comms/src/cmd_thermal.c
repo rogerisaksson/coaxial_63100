@@ -45,20 +45,8 @@
 #include "board.h"
 #include "cmd.h"
 #include "wire.h"
+#include "board_units.h"
 
-#define OP_STATE      0U
-#define OP_SET_NODE   1U
-#define OP_SET_BOARD  2U
-#define OP_SET_SAMPLE 3U
-#define OP_BUDGET     4U
-#define OP_SET_LIMIT  5U
-#define OP_SET_WINDING 6U
-#define OP_NODES      7U
-#define OP_EDGES      8U
-#define OP_SET_EDGE   9U
-#define OP_IDENT      10U
-#define OP_IDENT_RESET 11U
-#define OP_SET_MARGIN 12U
 
 /** Nodes a page of op 7 carries: five i32 each, so ten fit a frame. */
 #define NODES_A_PAGE 10U
@@ -137,8 +125,8 @@ static cmd_status_t op_set_node(rd_t *in, wr_t *out)
                   "milli-units, so 12000 is 12 K/W");
     return CMD_OK;
   }
-  if (!Board_ThermalSetNode(node, (float)k_per_w / 1000.0f,
-                            (float)capacity / 1000.0f))
+  if (!Board_ThermalSetNode(node, (float)k_per_w / MILLI_PER_UNIT,
+                            (float)capacity / MILLI_PER_UNIT))
   {
     cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
@@ -163,8 +151,8 @@ static cmd_status_t op_set_board(rd_t *in, wr_t *out)
                   "49000 is 49 J/K");
     return CMD_OK;
   }
-  if (!Board_ThermalSetBoard((float)to_ambient / 1000.0f,
-                             (float)capacity / 1000.0f))
+  if (!Board_ThermalSetBoard((float)to_ambient / MILLI_PER_UNIT,
+                             (float)capacity / MILLI_PER_UNIT))
   {
     cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
@@ -224,20 +212,20 @@ static cmd_status_t op_budget(wr_t *out)
   /* MINOR 11, appended (invariant 3). The clamp's factor in micro, the
      joules each node can still absorb in milli, and the effective duty
      per phase in micro. */
-  wr_i32(out, (int32_t)(b.derate * 1000000.0f));
+  wr_i32(out, (int32_t)(b.derate * PPM_PER_UNIT));
   for (uint8_t i = 0U; i < (uint8_t)BOARD_THERMAL_NODES; i++)
   {
-    wr_i32(out, (int32_t)(b.soak_j[i] * 1000.0f));
+    wr_i32(out, (int32_t)(b.soak_j[i] * MILLI_PER_UNIT));
   }
   for (uint8_t i = 0U; i < (uint8_t)BOARD_PWM_PHASES; i++)
   {
-    wr_i32(out, (int32_t)(b.duty[i] * 1000000.0f));
+    wr_i32(out, (int32_t)(b.duty[i] * PPM_PER_UNIT));
   }
   /* MINOR 12, appended: the winding - its estimate in centi-degrees, its
      spend as a byte like a node's, and its OWN clamp factor in micro. */
-  wr_i32(out, (int32_t)(b.winding_c * 100.0f));
+  wr_i32(out, (int32_t)(b.winding_c * CENTI_PER_UNIT));
   wr_u8(out, b.winding_used);
-  wr_i32(out, (int32_t)(b.winding_derate * 1000000.0f));
+  wr_i32(out, (int32_t)(b.winding_derate * PPM_PER_UNIT));
   return CMD_OK;
 }
 
@@ -261,9 +249,9 @@ static cmd_status_t op_set_winding(rd_t *in, wr_t *out)
                   "both positive");
     return CMD_OK;
   }
-  if (!Board_ThermalSetWinding((float)limit_milli / 1000.0f,
-                               (float)k_per_w_milli / 1000.0f,
-                               (float)j_per_k_milli / 1000.0f))
+  if (!Board_ThermalSetWinding((float)limit_milli / MILLI_PER_UNIT,
+                               (float)k_per_w_milli / MILLI_PER_UNIT,
+                               (float)j_per_k_milli / MILLI_PER_UNIT))
   {
     cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
@@ -288,8 +276,8 @@ static cmd_status_t op_set_limit(rd_t *in, wr_t *out)
     cmd_took(out, "there are twenty nodes, 0..19 - op 0 lists them");
     return CMD_OK;
   }
-  if (!Board_ThermalSetLimit(node, (float)limit_milli / 1000.0f,
-                             (float)throttle_ppm / 1000000.0f))
+  if (!Board_ThermalSetLimit(node, (float)limit_milli / MILLI_PER_UNIT,
+                             (float)throttle_ppm / PPM_PER_UNIT))
   {
     cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
@@ -333,11 +321,11 @@ static cmd_status_t op_nodes(rd_t *in, wr_t *out)
     {
       return CMD_ERR_DEVICE;
     }
-    wr_i32(out, (int32_t)(capacity * 1000.0f));
-    wr_i32(out, (int32_t)(to_ambient * 1000.0f));
-    wr_i32(out, (int32_t)(share * 1000000.0f));
-    wr_i32(out, (int32_t)(rth * 1000.0f));
-    wr_i32(out, (int32_t)(forced * 1000.0f));
+    wr_i32(out, (int32_t)(capacity * MILLI_PER_UNIT));
+    wr_i32(out, (int32_t)(to_ambient * MILLI_PER_UNIT));
+    wr_i32(out, (int32_t)(share * PPM_PER_UNIT));
+    wr_i32(out, (int32_t)(rth * MILLI_PER_UNIT));
+    wr_i32(out, (int32_t)(forced * MILLI_PER_UNIT));
   }
   return CMD_OK;
 }
@@ -359,7 +347,7 @@ static cmd_status_t op_edges(wr_t *out)
     }
     wr_u8(out, a);
     wr_u8(out, b);
-    wr_i32(out, (int32_t)(r * 1000.0f));
+    wr_i32(out, (int32_t)(r * MILLI_PER_UNIT));
   }
   return CMD_OK;
 }
@@ -386,7 +374,7 @@ static cmd_status_t op_set_edge(rd_t *in, wr_t *out)
                   "edge, or a positive one in milli-units to set it");
     return CMD_OK;
   }
-  if (!Board_ThermalSetEdge(edge, (float)k_per_w_milli / 1000.0f))
+  if (!Board_ThermalSetEdge(edge, (float)k_per_w_milli / MILLI_PER_UNIT))
   {
     cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
@@ -416,22 +404,22 @@ static cmd_status_t op_ident(wr_t *out)
   wr_u8(out, (uint8_t)BOARD_THERMAL_IDENT_SCALES);
   for (uint8_t k = 0U; k < (uint8_t)BOARD_THERMAL_IDENT_SCALES; k++)
   {
-    wr_i32(out, (int32_t)(id.scale[k] * 1000.0f));
-    wr_i32(out, (int32_t)(id.sigma[k] * 1000.0f));
+    wr_i32(out, (int32_t)(id.scale[k] * MILLI_PER_UNIT));
+    wr_i32(out, (int32_t)(id.sigma[k] * MILLI_PER_UNIT));
   }
-  wr_i32(out, (int32_t)(id.innovation_k * 1000.0f));
-  wr_i32(out, (int32_t)(id.margin * 1000000.0f));
+  wr_i32(out, (int32_t)(id.innovation_k * MILLI_PER_UNIT));
+  wr_i32(out, (int32_t)(id.margin * PPM_PER_UNIT));
   wr_u32(out, id.updates);
   wr_u32(out, 0UL);                /* saves: none, the board keeps nothing */
   wr_u32(out, 0xFFFFFFFFUL);       /* since a save: never                  */
   /* MINOR 15, appended (invariant 3): the room as identified, centi-C,
      and its sigma in centi-kelvin. */
-  wr_i32(out, (int32_t)(id.ambient_c * 100.0f));
-  wr_i32(out, (int32_t)(id.ambient_sigma_k * 100.0f));
+  wr_i32(out, (int32_t)(id.ambient_c * CENTI_PER_UNIT));
+  wr_i32(out, (int32_t)(id.ambient_sigma_k * CENTI_PER_UNIT));
   /* MINOR 16, appended: the floor the margin rises from, micro. */
-  wr_i32(out, (int32_t)(id.margin_floor * 1000000.0f));
+  wr_i32(out, (int32_t)(id.margin_floor * PPM_PER_UNIT));
   /* MINOR 17, appended: the trip cap as it stands, micro; one with none. */
-  wr_i32(out, (int32_t)(id.trip_cap * 1000000.0f));
+  wr_i32(out, (int32_t)(id.trip_cap * PPM_PER_UNIT));
   return CMD_OK;
 }
 
@@ -465,7 +453,7 @@ static cmd_status_t op_set_margin(rd_t *in, wr_t *out)
                   "800 000 is the bench's; zero would trip the stage at boot");
     return CMD_OK;
   }
-  if (!Board_ThermalSetMarginFloor((float)floor_ppm / 1000000.0f))
+  if (!Board_ThermalSetMarginFloor((float)floor_ppm / PPM_PER_UNIT))
   {
     cmd_took(out, "the thermal observer is not running - it starts with the board");
     return CMD_OK;
@@ -479,19 +467,19 @@ cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
   {
-    case OP_STATE:       return op_state(out);
-    case OP_SET_NODE:    return op_set_node(in, out);
-    case OP_SET_BOARD:   return op_set_board(in, out);
-    case OP_SET_SAMPLE:  return op_set_sample(in, out);
-    case OP_BUDGET:      return op_budget(out);
-    case OP_SET_LIMIT:   return op_set_limit(in, out);
-    case OP_SET_WINDING: return op_set_winding(in, out);
-    case OP_NODES:       return op_nodes(in, out);
-    case OP_EDGES:       return op_edges(out);
-    case OP_SET_EDGE:    return op_set_edge(in, out);
-    case OP_IDENT:       return op_ident(out);
-    case OP_IDENT_RESET: return op_ident_reset(out);
-    case OP_SET_MARGIN:  return op_set_margin(in, out);
+    case THERMAL_OP_STATE:       return op_state(out);
+    case THERMAL_OP_SET_NODE:    return op_set_node(in, out);
+    case THERMAL_OP_SET_BOARD:   return op_set_board(in, out);
+    case THERMAL_OP_SET_SAMPLE:  return op_set_sample(in, out);
+    case THERMAL_OP_BUDGET:      return op_budget(out);
+    case THERMAL_OP_SET_LIMIT:   return op_set_limit(in, out);
+    case THERMAL_OP_SET_WINDING: return op_set_winding(in, out);
+    case THERMAL_OP_NODES:       return op_nodes(in, out);
+    case THERMAL_OP_EDGES:       return op_edges(out);
+    case THERMAL_OP_SET_EDGE:    return op_set_edge(in, out);
+    case THERMAL_OP_IDENT:       return op_ident(out);
+    case THERMAL_OP_IDENT_RESET: return op_ident_reset(out);
+    case THERMAL_OP_SET_MARGIN:  return op_set_margin(in, out);
     default:             return CMD_ERR_VALUE;
   }
 }

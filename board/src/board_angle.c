@@ -23,6 +23,7 @@
 #include "board.h"
 #include "board_hw.h"
 #include "board_power.h"
+#include "board_units.h"
 
 #include <string.h>
 
@@ -39,6 +40,7 @@
 #define ANGLE_REG_STA   0x22U
 #define ANGLE_REG_ERR   0x24U
 #define ANGLE_REG_TSEN  0x28U
+#define ANGLE_TEMP_LSB_PER_K 8.0f   /* TSEN counts kelvin in eighths */
 
 /* Figure 31's fields, from the bottom of a 20-bit word. */
 #define ANGLE_ADDR_SHIFT 12U
@@ -108,7 +110,7 @@ static void cs(bool low)
 
 static void settle(void)
 {
-  const uint32_t per_us = SystemCoreClock / 1000000U;
+  const uint32_t per_us = SystemCoreClock / US_PER_S;
   const uint32_t start = Board_Cycles();
 
   while ((uint32_t)(Board_Cycles() - start) < (ANGLE_SETTLE_US * per_us))
@@ -290,9 +292,9 @@ bool Board_AngleDie(int32_t *centidegc)
     return false;
   }
 
-  const float kelvin = (float)(counts & 0x0FFFU) / 8.0f;
+  const float kelvin = (float)(counts & 0x0FFFU) / ANGLE_TEMP_LSB_PER_K;
 
-  *centidegc = (int32_t)((kelvin - 273.15f) * 100.0f);
+  *centidegc = (int32_t)((kelvin - KELVIN_AT_ZERO_C) * CENTI_PER_UNIT);
   return true;
 }
 

@@ -21,6 +21,12 @@
 #include "board_irq.h"
 #include "stm32h7xx.h"
 
+#define PS_PER_S  1000000000000ULL
+#define PS_PER_NS 1000UL
+/* The gate-short probe's settle after driving a pin: the neighbour follows
+   a real short within 76 ns, measured; this is a few microseconds. */
+#define PROBE_SETTLE_SPINS 4000U
+
 /** Compare value per phase, mirrored so a read does not race the timer. */
 static uint16_t s_duty[BOARD_PWM_PHASES];
 
@@ -205,15 +211,15 @@ bool Board_PwmClearFault(void)
   * only a path well below its pull-down lifts it. */
 static bool leg_follows(uint32_t drv, uint32_t obs)
 {
-  GPIOE->BSRR = 1UL << (drv + 16U);
-  for (volatile uint32_t d = 0U; d < 4000U; d++) { }
+  GPIOE->BSRR = 1UL << (drv + GPIO_BSRR_BR0_Pos);
+  for (volatile uint32_t d = 0U; d < PROBE_SETTLE_SPINS; d++) { }
   if (((GPIOE->IDR >> obs) & 1UL) != 0U)
   {
     return false;              /* high with the driver low: no path */
   }
 
   GPIOE->BSRR = 1UL << drv;
-  for (volatile uint32_t d = 0U; d < 4000U; d++) { }
+  for (volatile uint32_t d = 0U; d < PROBE_SETTLE_SPINS; d++) { }
   return ((GPIOE->IDR >> obs) & 1UL) != 0U;
 }
 
@@ -254,7 +260,7 @@ uint8_t Board_PwmGateShorts(void)
       shorts |= (uint8_t)(1U << k);
     }
 
-    GPIOE->BSRR   = 1UL << (drv + 16U);
+    GPIOE->BSRR   = 1UL << (drv + GPIO_BSRR_BR0_Pos);
     GPIOE->MODER  = moder;
     GPIOE->PUPDR  = pupdr;
   }
@@ -627,7 +633,7 @@ static uint32_t dts_ps(void)
      0 - checked in the silicon, CR1 0xB1 - so t_DTS is one timer tick. */
   const uint32_t hz = Board_SysClkHz() / 2UL;   /* TIM1 kernel, 237.5 MHz */
 
-  return (hz != 0UL) ? (1000000000000ULL / hz) : 0UL;
+  return (hz != 0UL) ? (PS_PER_S / hz) : 0UL;
 }
 
 uint8_t Board_PwmDeadTimeFloor(void)
@@ -640,7 +646,7 @@ uint8_t Board_PwmDeadTimeFloor(void)
   }
 
   /* Round up: a floor that rounded down would be under the floor. */
-  const uint32_t counts = ((BOARD_PWM_DEADTIME_MIN_NS * 1000UL) + ps - 1UL) / ps;
+  const uint32_t counts = ((BOARD_PWM_DEADTIME_MIN_NS * PS_PER_NS) + ps - 1UL) / ps;
 
   return (counts < 1UL) ? 1U : (uint8_t)counts;
 }
@@ -650,7 +656,7 @@ uint32_t Board_PwmDeadTimeNs(void)
   /* What was asked for, not what BDTR holds this half-period. With a skew
      running the register alternates, and reading it gave 105 ns for an
      80 ns request - whichever half the read happened to land in. */
-  return (uint32_t)(((uint64_t)s_deadtime * dts_ps()) / 1000ULL);
+  return (uint32_t)(((uint64_t)s_deadtime * dts_ps()) / PS_PER_NS);
 }
 
 bool Board_PwmInit(void)
@@ -753,7 +759,7 @@ const char *Board_PwmSetDeadTime(uint32_t ns)
      is wrong is the one that shortens it. Measured 2026-08-29 - 30 ns
      truncated to 7 counts = 29.5, and the bench supply tripped its
      over-current protection on a dry-switching run. 8 counts is 33.7. */
-  uint32_t counts = (((uint64_t)ns * 1000ULL) + ps - 1ULL) / ps;
+  uint32_t counts = (((uint64_t)ns * PS_PER_NS) + ps - 1ULL) / ps;
   const uint8_t floor_counts = Board_PwmDeadTimeFloor();
 
   if (counts < floor_counts)

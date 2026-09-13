@@ -17,6 +17,18 @@
 #define MB_MAX_WRITE_BITS  1968U
 #define MB_MAX_WRITE_REGS   123U
 
+#define MB_COIL_ON          0xFF00U   /* the two values a single-coil write may carry */
+#define MB_COIL_OFF         0x0000U
+#define MB_WRITE_SINGLE_LEN 5U        /* fc, address, value - echoed back whole */
+#define MB_SERVER_ID_HEAD   3U        /* fc, byte count, run indicator */
+#define MB_SERVER_ID_MAX    249U
+
+/* The two ranges the specification reserves for user-defined functions. */
+#define MB_FC_USER_A_FIRST  65U
+#define MB_FC_USER_A_LAST   72U
+#define MB_FC_USER_B_FIRST  100U
+#define MB_FC_USER_B_LAST   110U
+
 static uint16_t rd_u16(const uint8_t *p)
 {
   /* Every 16-bit field in a PDU is big-endian. Only the CRC is not, and the
@@ -180,7 +192,7 @@ static size_t do_write_single_coil(mb_slave_t *s, const uint8_t *req, uint8_t *r
 
   /* The spec allows exactly two values here. Anything else is a malformed
      value, not an address problem. */
-  if ((val != 0xFF00U) && (val != 0x0000U))
+  if ((val != MB_COIL_ON) && (val != MB_COIL_OFF))
   {
     return make_exception(rsp, MB_FC_WRITE_SINGLE_COIL, MB_EX_ILLEGAL_DATA_VALUE);
   }
@@ -196,15 +208,15 @@ static size_t do_write_single_coil(mb_slave_t *s, const uint8_t *req, uint8_t *r
     return make_exception(rsp, MB_FC_WRITE_SINGLE_COIL, ex);
   }
 
-  ex = s->model->write_bit(s->model->ctx, addr, (val == 0xFF00U));
+  ex = s->model->write_bit(s->model->ctx, addr, (val == MB_COIL_ON));
   if (ex != MB_EX_NONE)
   {
     return make_exception(rsp, MB_FC_WRITE_SINGLE_COIL, ex);
   }
 
   /* A successful write echoes the request verbatim. */
-  memcpy(rsp, req, 5U);
-  return 5U;
+  memcpy(rsp, req, MB_WRITE_SINGLE_LEN);
+  return MB_WRITE_SINGLE_LEN;
 }
 
 /* ---- FC 0x06 write single register ------------------------------------- */
@@ -231,8 +243,8 @@ static size_t do_write_single_reg(mb_slave_t *s, const uint8_t *req, uint8_t *rs
     return make_exception(rsp, MB_FC_WRITE_SINGLE_REG, ex);
   }
 
-  memcpy(rsp, req, 5U);
-  return 5U;
+  memcpy(rsp, req, MB_WRITE_SINGLE_LEN);
+  return MB_WRITE_SINGLE_LEN;
 }
 
 /* ---- FC 0x0F write multiple coils -------------------------------------- */
@@ -370,22 +382,22 @@ static size_t do_report_server_id(mb_slave_t *s, uint8_t *rsp, size_t rsp_cap)
   /* Layout is fc, byte count, run indicator, then the id. Clamp so a long id
      string can never overrun the response buffer, and so the byte count field
      cannot exceed what one octet can express. */
-  const size_t room = (rsp_cap > 3U) ? (rsp_cap - 3U) : 0U;
+  const size_t room = (rsp_cap > MB_SERVER_ID_HEAD) ? (rsp_cap - MB_SERVER_ID_HEAD) : 0U;
   if (idlen > room)
   {
     idlen = room;
   }
-  if (idlen > 249U)
+  if (idlen > MB_SERVER_ID_MAX)
   {
-    idlen = 249U;
+    idlen = MB_SERVER_ID_MAX;
   }
 
   rsp[0] = MB_FC_REPORT_SERVER_ID;
   rsp[1] = (uint8_t)(1U + idlen);
   rsp[2] = run;
-  memcpy(&rsp[3], id, idlen);
+  memcpy(&rsp[MB_SERVER_ID_HEAD], id, idlen);
 
-  return 3U + idlen;
+  return MB_SERVER_ID_HEAD + idlen;
 }
 
 /* ---- dispatch ---------------------------------------------------------- */
@@ -504,7 +516,8 @@ static const mb_fc_desc_t *fc_find(uint8_t fc)
    board's own binary commands live. */
 static bool fc_is_user_defined(uint8_t fc)
 {
-  return ((fc >= 65U) && (fc <= 72U)) || ((fc >= 100U) && (fc <= 110U));
+  return ((fc >= MB_FC_USER_A_FIRST) && (fc <= MB_FC_USER_A_LAST))
+         || ((fc >= MB_FC_USER_B_FIRST) && (fc <= MB_FC_USER_B_LAST));
 }
 
 static size_t run_user_function(mb_slave_t *s, uint8_t fc, const uint8_t *req,

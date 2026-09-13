@@ -41,6 +41,7 @@
 #include "board_irq.h"
 #include "board_hw.h"
 #include "filter.h"
+#include "board_units.h"
 
 #include <math.h>
 #include <string.h>
@@ -161,7 +162,7 @@ static uint32_t s_pending_digital;
 static uint32_t interval_cycles(uint32_t interval_us)
 {
   const uint64_t cycles = (uint64_t)interval_us
-                          * (uint64_t)(SystemCoreClock / 1000000U);
+                          * (uint64_t)(SystemCoreClock / US_PER_S);
 
   return (cycles > (uint64_t)UINT32_MAX) ? UINT32_MAX : (uint32_t)cycles;
 }
@@ -643,7 +644,7 @@ static const char *refused_before_fields(const board_daq_config_t *cfg)
   {
     return "decimate counts triggers, so the smallest is 1";
   }
-  if ((uint64_t)cfg->interval_us * (uint64_t)(SystemCoreClock / 1000000U)
+  if ((uint64_t)cfg->interval_us * (uint64_t)(SystemCoreClock / US_PER_S)
       > (uint64_t)UINT32_MAX)
   {
     return "interval_us is more than the cycle counter can express - it is "

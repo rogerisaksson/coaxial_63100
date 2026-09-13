@@ -15,6 +15,7 @@
 #include "filter.h"
 #include "dev_serial.h"
 #include "wire.h"
+#include "board_units.h"
 
 /** What is left of MB_MAX_PDU once the count byte is spent. The reply is
     whole records only - half of one is not a short read, it is a corrupt
@@ -64,9 +65,9 @@ static void daq_substitute_interval(void)
   const uint32_t rps = cmd_link_records_per_second(st.stride);
   const uint32_t per_record = Board_DaqTriggersPerRecord();
 
-  if ((rps != 0U) && (per_record != 0U) && (rps < (1000000U / per_record)))
+  if ((rps != 0U) && (per_record != 0U) && (rps < (US_PER_S / per_record)))
   {
-    Board_DaqSetInterval(1000000U / (rps * per_record));
+    Board_DaqSetInterval(US_PER_S / (rps * per_record));
   }
   else
   {
