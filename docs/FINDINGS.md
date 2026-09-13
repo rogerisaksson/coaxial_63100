@@ -1216,6 +1216,29 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   no toolbox. structure 621, tools 219, link 109, bus 28, runner 223,
   prompt 113, board 28, reply 23, render 32, language 12, mcp 50;
   pyright 0; the chat page draws its frames.
+* THE STAND-IN'S STATE IS DECLARED, AND SO IS WHAT A TRANSPORT CAN DO
+  (2026-09-13). Twenty more `getattr(obj, name, default)` reads: the
+  acquisition stand-in grew its noise pool, its ladder and its wall
+  clock on first use and asked itself each time whether they were
+  there - they are set in the constructor now, beside the parts the
+  board wires; the drive's hand-set PWM and its accumulated shaft, the
+  power stand-in's counter, likewise. A transport declares `address`
+  and `stream` - only a broker's has either - so `connect` and the
+  rig's streaming read them rather than probing; the stand-in board
+  declares it has no transport; the observer reads `board.rig`, which
+  both boards declare. The key reader counts its mouse reports from
+  zero, the render page reads the count, the desk reads the rig's
+  baud, the runner reads a client's tag. The stage kept the instrument
+  column's scroll by setattr on the console, a try/except around it;
+  it is a weak table keyed by the console now, gone with it. The first
+  cut put the counters on the capture stand-in - the first `__init__`
+  in the file, not the acquisition's - and `show_capture` and
+  `show_desk` said so in the simulated suite. What stays as a probe is
+  the I/O edge: a stream's `reconfigure`, `encoding` and `isatty`,
+  `os.sysconf` on POSIX, a name looked up on the errors module, and a
+  repr that must not raise inside a debugger. structure 621, daq_api
+  75, simulated 254, views 206, broker 33, mcp 50, tools 219; the
+  offline gate 2947 checks, 0 failed; pyright 0 on the fourteen files.
 
 ## The local model
 

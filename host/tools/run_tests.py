@@ -274,9 +274,9 @@ def release_model(client=None):
     del _LOADED[:]
     done = set()
     for one in held:
-        tag = getattr(one, 'model', None)
-        if one is None or tag in done:
+        if one is None or one.model in done:
             continue
+        tag = one.model
         done.add(tag)
         try:
             one.unload()

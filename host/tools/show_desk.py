@@ -722,7 +722,7 @@ def watch(rig, args, layout, chain, params):
     link = {'host': 0, 'peak': 0, 'dropped': 0, 'backlog': None,
             'rate': 0.0, 'reads': 0, 'records': 0, 'seen': 0, 'bits': 0.0,
             'at': 0.0, 'stride': layout.get('stride') or 0,
-            'baud': getattr(rig, 'baud', 0) or 0}
+            'baud': rig.baud}
     # The host's own ring. `deque` because append and popleft are atomic
     # under the GIL - the reader fills one end and the frame empties the
     # other, and neither waits for the other to finish.

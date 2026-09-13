@@ -17,6 +17,8 @@ Every style is NAMED here in the Theme and nowhere else - a view says
 """
 from contextlib import contextmanager
 
+import weakref
+
 from rich import box
 from rich.align import Align
 from rich.columns import Columns
@@ -345,15 +347,15 @@ def viewport(title, art):
 def _rows_of(panel):
     """Content lines in a hud, for sizing its Layout. The renderable is a
     grid, so its row count is what the frame has to make room for."""
-    inner = getattr(panel, 'renderable', None)
-    return len(getattr(inner, 'rows', []) or [1])
+    inner = panel.renderable
+    return len(inner.rows) if isinstance(inner, Table) and inner.rows else 1
 
 
 def _fills(console):
     """Whether to build the full-screen layout: only on a live terminal.
     Piped - the tests, a log - gets the same parts stacked plainly.
     Accepts the Console or a view's plain bool for it."""
-    return bool(getattr(console, 'is_terminal', console))
+    return console.is_terminal if isinstance(console, Console) else bool(console)
 
 
 #: The instrument column's width. 40 since 2026-08-30: the thermal LEVELS
@@ -373,20 +375,24 @@ UP, DOWN = chr(0x25B4), chr(0x25BE)
 DRAG_ROWS = 6.0
 
 
+#: The instrument column's scroll PER CONSOLE, so every view that draws
+#: through `frame_of` has one without holding it - and gone with the
+#: console, which is what the weak keys are for.
+_SCROLLS = weakref.WeakKeyDictionary()
+
+
+def _fresh_scroll():
+    """`at` is the first box shown, `pages` is `(at, seen, total)` after
+    the last frame, `haul` the drag's remainder and `grip` whether a
+    drag began over the column."""
+    return {'at': 0, 'pages': (0, 0, 0), 'haul': 0.0, 'grip': False}
+
+
 def scroll_state(console):
-    """The instrument column's scroll, kept ON THE CONSOLE so every view
-    that draws through `frame_of` has one without holding it: `at` is
-    the first box shown, `pages` is `(at, seen, total)` after the last
-    frame, `haul` the drag's remainder and `grip` whether a drag began
-    over the column."""
-    state = getattr(console, 'coaxial_scroll', None)
-    if state is None:
-        state = {'at': 0, 'pages': (0, 0, 0), 'haul': 0.0, 'grip': False}
-        try:
-            setattr(console, 'coaxial_scroll', state)
-        except AttributeError:
-            pass
-    return state
+    """The instrument column's scroll on this console, made on first ask."""
+    if console not in _SCROLLS:
+        _SCROLLS[console] = _fresh_scroll()
+    return _SCROLLS[console]
 
 
 def _height_of(box):

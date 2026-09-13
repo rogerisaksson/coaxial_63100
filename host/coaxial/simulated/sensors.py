@@ -194,10 +194,10 @@ class SimulatedAngle(PolledSensor):
         reports one angle for ever is indistinguishable from a dead link.
         The wiring is `SimulatedBoard`'s, like the DAQ's: a servo closed
         over this sensor moves the SAME rotor the drive torques."""
-        drive = getattr(self, 'drive', None)
+        drive = self.drive
         if drive is not None and drive._source == 'model':
             drive.model()                      # advance to now
-            return int(getattr(drive, '_mech', 0.0)
+            return int(drive._mech
                        / (2.0 * math.pi) * 4096.0) % 4096
         return int(((time.monotonic() - self._at) / 12.0) * 4096.0) % 4096
 
@@ -208,7 +208,7 @@ class SimulatedAngle(PolledSensor):
             # The die sits on the board: its temperature is the thermal
             # stand-in's board node when the board wired one, else a
             # room's 296 K. Eighths of a kelvin, as the part counts.
-            thermal = getattr(self, 'thermal', None)
+            thermal = self.thermal
             kelvin = (273.15 + thermal.state()['nodes']['board']
                       if thermal is not None else 296.0)
             return 0xF000 | (int(kelvin * 8.0) & 0x0FFF)

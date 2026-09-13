@@ -1142,8 +1142,8 @@ class Coaxial63100(Acquisition):
         wire, and every other client on that broker gets the same records
         from its own place in it.
         """
-        wire = getattr(self.board, 'transport', None)
-        if not stride or wire is None or not hasattr(wire, 'stream'):
+        wire = self.board.transport
+        if not stride or wire is None or wire.stream is None:
             return None
         # This session's unit, so a segment with several nodes fills
         # the ring from the one this rig configured.

@@ -18,8 +18,10 @@ class SimulatedBoard:
     the tools above cannot tell which they are holding - except that
     every touchpoint labels itself."""
 
-    #: The rig that opened this board - `Board.rig`'s twin.
+    #: The rig that opened this board - `Board.rig`'s twin. And no wire:
+    #: nothing streams from a stand-in but its own reader thread.
     rig: Any = None
+    transport = None
     #: What it answers when asked its bitrate. There is no wire, so this is
     #: the rate it pretends to run at - enough for arithmetic about a link,
     #: and it is `origin.interface` that says the link is not real.

@@ -978,6 +978,7 @@ class SimulatedGateDrivers(GateControl):
 
     def __init__(self):
         self._deadtime = self.DEADTIME
+        self._at = 0                    # where in the period the counter is
         self._deadtime_ns = self.DEADTIME * 4210 // 1000
         self._skew = 0
         #: The drive whose sample point this register moves; the board
@@ -1056,7 +1057,7 @@ class SimulatedGateDrivers(GateControl):
 
     def _cnt(self):
         """Somewhere in the period, and somewhere else next time."""
-        self._at = (getattr(self, '_at', 0) + self.CNT_STEP) % self.PERIOD
+        self._at = (self._at + self.CNT_STEP) % self.PERIOD
         return self._at
 
     def _gates(self, at):

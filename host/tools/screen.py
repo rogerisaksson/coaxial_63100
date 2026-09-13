@@ -778,6 +778,7 @@ class Keys:
         self._quits = frozenset(quits)
         self.console = console
         self.mouse = mouse and console
+        self.reports = 0            # SGR mouse reports parsed, for a view's HUD
         self._clicked = []
         self._saved = None
         self._was_mode = None
@@ -943,7 +944,7 @@ class Keys:
         """
         # Shift, meta and ctrl ride as +4/+8/+16 on the button code; the
         # gesture is the same gesture.
-        self.reports = getattr(self, 'reports', 0) + 1
+        self.reports += 1
         button &= ~28
         if button == 64:
             return WHEEL_STEP

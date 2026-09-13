@@ -224,7 +224,7 @@ class Observer(Subsystem):
         commission - said here rather than as an AttributeError six frames
         down inside a step that has already armed the stage.
         """
-        rig = getattr(self._board, 'rig', None)
+        rig = self._board.rig
         if rig is None:
             raise RigError(
                 'autodetect needs the whole rig, not just the board - it '

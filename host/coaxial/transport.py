@@ -36,6 +36,13 @@ class Transport:
     bitrate gets its own, because one UART cannot run two bitrates at once.
     """
 
+    #: Only a broker's transport streams records from the ring it holds
+    #: (`BrokerTransport.stream`), and only that one has an address to
+    #: forward to; a UART has neither, and `connect` opens the binary
+    #: link itself on one.
+    address = None
+    stream = None
+
     @property
     def interframe_gap(self):
         """Silence before transmitting, from the bitrate rather than a guess.

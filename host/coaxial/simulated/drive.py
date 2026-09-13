@@ -88,7 +88,7 @@ class SimulatedDrive:
     @property
     def pwm_hz(self):
         """Where the stage switches, Hz."""
-        return getattr(self, '_pwm_hz', None) or self.PWM_HZ
+        return self._pwm_hz or self.PWM_HZ
 
     @pwm_hz.setter
     def pwm_hz(self, hz):
@@ -145,6 +145,11 @@ class SimulatedDrive:
         # same shape as `Transport.request`'s lock on the real wire.
         self._lock = threading.RLock()
         self._mode = 'off'
+        #: The stage's PWM when set by hand, else PWM_HZ; and the shaft,
+        #: accumulated - electrical theta wraps, the mechanical angle
+        #: a shaft sensor reads does not.
+        self._pwm_hz: Optional[float] = None
+        self._mech = 0.0
         self._fault: Optional[str] = None
         self._sp = {'id_ref': 0.0, 'iq_ref': 0.0, 'theta': 0.0,
                     'omega_target': 0.0, 'accel': 0.0, 'vd': 0.0, 'vq': 0.0,
@@ -705,8 +710,7 @@ class SimulatedDrive:
         # The SHAFT, accumulated: electrical theta wraps at 2 pi and a
         # shaft sensor reads the mechanical angle, which is 1/p of the
         # whole unwrapped travel - `SimulatedAngle` reads this.
-        self._mech = (getattr(self, '_mech', 0.0)
-                      + (theta - motor.theta) / motor.p)
+        self._mech += (theta - motor.theta) / motor.p
         motor.omega = wm * motor.p
         motor.theta = theta % (2.0 * math.pi)
 

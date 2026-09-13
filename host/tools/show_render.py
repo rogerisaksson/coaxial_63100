@@ -220,7 +220,7 @@ def loop(args, page, view, frame, last):
             if moved:
                 view['zoom'] = max(0.3, min(4.0,
                                             view['zoom'] * (1.0 + moved)))
-            view['reports'] = getattr(keys, 'reports', 0)
+            view['reports'] = keys.reports
             dx, dy = keys.dragged()
             cx, cy = view['carry']
             cx, cy = cx + dx, cy + dy

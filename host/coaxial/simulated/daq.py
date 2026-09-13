@@ -48,7 +48,6 @@ class SimulatedCapture:
         self._dropped = 0
 
     def _fill(self):
-        import random
         for src in (0, 1, 2):
             if not self._mask >> src & 1:
                 continue
@@ -169,6 +168,13 @@ class SimulatedDaq(Acquisition):
         self.drive: Any = None
         self.angle: Any = None
         self.imu: Any = None
+        #: The noise pool, drawn on first use, and where in it we are;
+        #: the ladder's rungs once a chain is configured; the wall clock
+        #: of the last software-clocked record.
+        self._noise_pool: Any = None
+        self._noise_at = 0
+        self._ladder = 0
+        self._wall: Any = None
         self._order = []
         self._running = False
         self._done = False
@@ -198,13 +204,11 @@ class SimulatedDaq(Acquisition):
 
     def _noise(self):
         """One unit-variance noise term, O(1) and no RNG call."""
-        pool = getattr(self, '_noise_pool', None)
-        if pool is None:
-            pool = [random.gauss(0.0, 1.0) for _ in range(self._POOL)]
-            self._noise_pool = pool
-            self._noise_at = 0
+        if self._noise_pool is None:
+            self._noise_pool = [random.gauss(0.0, 1.0)
+                                for _ in range(self._POOL)]
         self._noise_at = (self._noise_at + 1) % self._POOL
-        return pool[self._noise_at]
+        return self._noise_pool[self._noise_at]
 
     #: What each pin is doing, as a duty over the record's window.
     #: A STEADY OUTPUT IS STEADY: AFE_ON reads 1.0 when the rail is
@@ -235,7 +239,7 @@ class SimulatedDaq(Acquisition):
         Zero amps and a half duty when nothing is commanded, which is what
         a bench with the stage down looks like.
         """
-        drive = getattr(self, 'drive', None)
+        drive = self.drive
         if drive is None:
             return 0.0, 0.0, 0.0, 0.0
 
@@ -293,7 +297,7 @@ class SimulatedDaq(Acquisition):
         return self._imu_words(bit)
 
     def _shaft_words(self):
-        part = getattr(self, 'angle', None)
+        part = self.angle
         if part is None:
             return self.NO_WORDS
         got = part.read(angle.ANG)
@@ -301,7 +305,7 @@ class SimulatedDaq(Acquisition):
         return (value, got['crc'], angle.ANG, 1)
 
     def _imu_words(self, bit):
-        part = getattr(self, 'imu', None)
+        part = self.imu
         state = part.state() if part is not None else {}
         if bit == self.QUATERNION_BIT:
             q = state.get('quaternion') or {}
@@ -385,7 +389,7 @@ class SimulatedDaq(Acquisition):
                 'available': held, 'produced': self._produced,
                 'dropped': 0, 'capacity': capacity,
                 'worst': min(capacity, held),
-                'rung': 0, 'rungs': getattr(self, '_ladder', 0),
+                'rung': 0, 'rungs': self._ladder,
                 'rung_changes': 0,
                 # `cmd_link_records_per_second`, the board's own formula,
                 # against this stand-in's line. Missing here until now,
@@ -464,7 +468,6 @@ class SimulatedDaq(Acquisition):
                   decimate=1, accumulate=None, records=0, digital=False,
                   sample_rate=None, interval_us=None, adapt=False,
                   sensors=0):
-        from ..errors import RigError
         if accumulate is None:
             accumulate = 0 if sample_rate is not None else 1
         if clock not in ('software', 'tim1', 0, 1):
@@ -522,7 +525,6 @@ class SimulatedDaq(Acquisition):
         return True
 
     def start(self):
-        from ..errors import RigError
         if self._cfg is None:
             raise RigError('the board refused to start - configure it first '
                            '(simulated)')
@@ -591,7 +593,7 @@ class SimulatedDaq(Acquisition):
         """
         cfg = self._cfg or {}
         now = time.time()
-        since = getattr(self, '_wall', None)
+        since = self._wall
         if not n:
             return n, step_us
         if not cfg.get('interval_us'):
@@ -608,7 +610,6 @@ class SimulatedDaq(Acquisition):
         return n, step_us
 
     def acquire(self, want=0, layout=None):
-        import random
         if not self._running and not self._buffered():
             return []
         fields = (layout or self.layout())['fields']
@@ -705,8 +706,6 @@ class SimulatedDaq(Acquisition):
         return self.acquire(want=len(blob) // stride, layout=layout)
 
     def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
-        import random
-        from ..errors import RigError
         if not self._running and not block:
             return None
         if not self._running:
@@ -753,7 +752,6 @@ class SimulatedClock:
         self._t0 = None
 
     def _cycles(self):
-        import time
         if self._t0 is None:
             self._t0 = time.time()
         return int((time.time() - self._t0) * self.NOMINAL_HZ
@@ -788,7 +786,6 @@ class SimulatedClock:
         that already had it: `at_host` came out at exactly twice the
         epoch, and a DataFrame indexed by it landed in the year 2083.
         """
-        import time
         before = time.perf_counter()
         self.latch()
         after = time.perf_counter()
