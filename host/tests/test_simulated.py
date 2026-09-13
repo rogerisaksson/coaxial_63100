@@ -125,10 +125,17 @@ def test_analog_read(report):
     afe_on = SimulatedSession()
     toolmod.afe_power(afe_on, action='on')
     on_text = toolmod.analog_read(afe_on)
+    # Frozen is EVERY channel at the unpowered value - 32768.0 single-ended,
+    # 0.0 differential - not the string 32768 anywhere: MCUdie's nominal
+    # sits near mid-scale and a live reading walked through it, measured
+    # once on CI (2026-09-13). The codes column is the fourth word.
+    rows = [line.split() for line in on_text.splitlines()
+            if line[:1].isdigit() and len(line.split()) > 3]
+    frozen = [row for row in rows if row[3] in ('32768.0', '0.0')]
     report.check('AFE on drops the banner and reads near the nominal point, '
                  'not frozen at mid-scale',
-                 'AFE OFF' not in on_text and '32768' not in on_text,
-                 on_text[:200])
+                 'AFE OFF' not in on_text and len(frozen) < len(rows) // 2,
+                 '%d of %d frozen: %s' % (len(frozen), len(rows), on_text[:120]))
 
     single = SimulatedSession()
     toolmod.afe_power(single, action='on')

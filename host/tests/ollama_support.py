@@ -47,6 +47,7 @@ from coaxial_ollama import runner as runmod                # noqa: E402
 from coaxial_ollama import tools as toolmod                # noqa: E402
 from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
 from coaxial_mcp import detail                             # noqa: E402,F401
+from coaxial_mcp import session as sessionmod              # noqa: E402
 BSLASH = chr(92)
 
 
@@ -172,6 +173,14 @@ class SimulatedBoard:
     def close_binary(self):
         pass
 class SimulatedSession:
+    """A session over the scripted board above. THE SURFACE EVERY
+    SESSION HAS - coaxial_mcp.session.Session lists it - with no port
+    behind it: the tools read this as a stand-in with a board, and
+    nothing attached for a link check to reuse."""
+    port = bus = unit = attached = None
+    baud = 115200
+    simulated = True
+
     def __init__(self):
         self.board = SimulatedBoard()
         self.resets = 0
@@ -242,10 +251,10 @@ def build(tasks, turns, allow_writes=False, confirm=None, allow=('python',),
     runner = runmod.Runner(plan, model, toolbox,
                            transcript=runmod.Transcript(transcript), echo=False)
     return runner, model, session
-class _Held:
+class _Held(sessionmod.Session):
     """A session on a port something else has open."""
-    port, baud, unit = 'COM_TEST', 115200, 1
-    _board = None
+    def __init__(self):
+        super().__init__('COM_TEST', 115200, 1)
 class _NotATty:
     """A pipe, for _printable: records what it was reconfigured to."""
     asked = None

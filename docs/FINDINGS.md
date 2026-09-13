@@ -1176,6 +1176,27 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   621, drive core 81 - the Monte Carlo job through the Run, sigma_theta
   and i_peak as before - pyright 0 on the thirteen, and each answers
   --help.
+* ONE SESSION SURFACE, DECLARED (2026-09-13): `port`, `baud`, `unit`,
+  `bus`, `simulated` and `attached` on `coaxial_mcp.session.Session`,
+  the stand-in's session and dbg.py's NoBoard, listed once in
+  Session's docstring; the MCP tools, the runner's tools and the chat
+  read them as attributes where twenty getattr defaults stood -
+  `session.bus` is the port on a real bus, `attached` the board only
+  when the link is already open. The tests' doubles carry the surface
+  too: the ollama suites' scripted-board session says it has no port
+  and is simulated, and the held-port doubles are the real Session
+  with the link handed in. THE CODE HALF WENT UP FIRST: the tree was
+  committed mid-patch (d471c26) and CI crashed six suites on
+  `'SimulatedSession' object has no attribute 'bus'` - the ollama
+  suites' own double, not the library's stand-in, which had `bus` all
+  along. ONE FLAKE FOUND ON THE WAY: test_simulated's AFE-on check
+  asserted the string 32768 absent from the analog table; MCUdie's
+  nominal sits near mid-scale and a live reading walked through it
+  once (CI 3.10, 02827e2). Frozen is every channel at the unpowered
+  value - 32768.0 single-ended, 0.0 differential - and that is what it
+  checks now. structure 621, tools 219, link 109, bus 28, runner 223,
+  prompt 113, board 28, reply 23, render 32, language 12, mcp 50,
+  broker 33, simulated 254; pyright 0.
 
 ## The local model
 

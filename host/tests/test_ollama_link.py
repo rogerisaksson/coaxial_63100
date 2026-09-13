@@ -13,8 +13,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tests.ollama_support import (ConnectError, Scope, ScriptedModel, 
-    SimulatedSession, _Held, _NotATty, call, detail, io, toolmod)   # noqa: E402
+from tests.ollama_support import (ConnectError, Scope, ScriptedModel,   # noqa: E402
+    SimulatedSession, _Held, _NotATty, call, detail, io, sessionmod, toolmod)
 
 def test_power_check_cannot_halt(report):
     """Diagnosing the link must not be able to break it.
@@ -160,7 +160,11 @@ def test_link_recovery(report):
         """A link that answers only once the stale handle is dropped - the
         shape of a VCP that re-enumerated under a replugged cable. Stands
         in for both the toolbox and its session, which is all `_probe_link`
-        and `_link_down_message` touch."""
+        and `_link_down_message` touch - plus the session surface a Chat
+        reads on construction, with no port behind it."""
+        port = bus = unit = attached = None
+        baud = 115200
+        simulated = False
 
         def __init__(self, fails=1):
             self.fails, self.resets, self.calls = fails, 0, []
@@ -247,7 +251,6 @@ def test_link_diagnose(report):
     import coaxial
     import find_board
     import serial.tools.list_ports as list_ports
-    from types import SimpleNamespace
 
     class FakePort:
         def __init__(self, device):
@@ -270,14 +273,14 @@ def test_link_diagnose(report):
             ConnectError('nothing answered'))
         find_board.check_power = lambda timeout=15: (3.30, 'fake: powered')
 
-        missing = toolmod.Toolbox(SimpleNamespace(port='COM9', baud=115200, unit=1))
+        missing = toolmod.Toolbox(sessionmod.Session(port='COM9', baud=115200, unit=1))
         result = str(missing.call('link_diagnose', {}))
         report.check('powered, but a configured port absent from the OS '
                      'list is named as such, not folded into a generic '
                      'error',
                      'COM9' in result and 'not among' in result, result)
 
-        present = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
+        present = toolmod.Toolbox(sessionmod.Session(port='COM4', baud=115200, unit=1))
         result2 = str(present.call('link_diagnose', {}))
         report.check('powered and present, but silent, points at nothing '
                      'else having the port open, not the cable',
@@ -291,13 +294,13 @@ def test_link_diagnose(report):
                      'link is up' in result2b, result2b)
 
         list_ports.comports = lambda: []
-        empty = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
+        empty = toolmod.Toolbox(sessionmod.Session(port='COM4', baud=115200, unit=1))
         result3 = str(empty.call('link_diagnose', {}))
         report.check('no COM ports at all is named plainly',
                      'Nothing is enumerating' in result3, result3)
 
         find_board.check_power = lambda timeout=15: (0.0, 'fake: no power')
-        unpowered = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200, unit=1))
+        unpowered = toolmod.Toolbox(sessionmod.Session(port='COM4', baud=115200, unit=1))
         result4 = str(unpowered.call('link_diagnose', {}))
         report.check('no target power stops the checklist at step 1, before '
                      'even listing COM ports - later steps cannot explain '
@@ -356,8 +359,7 @@ def test_link_diagnose(report):
         coaxial.connect = lambda *a, **kw: (_ for _ in ()).throw(
             ConnectError('nothing answered'))
         find_board.check_power = lambda timeout=15: (None, 'fake: unknown')
-        unsure = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200,
-                                                 unit=1))
+        unsure = toolmod.Toolbox(sessionmod.Session(port='COM4', baud=115200, unit=1))
         result5 = str(unsure.call('link_diagnose', {}))
         report.check('a step 1 that could not check never closes by '
                      'asserting the board is powered',
@@ -366,8 +368,7 @@ def test_link_diagnose(report):
                      result5.splitlines()[-1][:60])
 
         find_board.port_state = lambda *a, **kw: find_board.BUSY
-        held = toolmod.Toolbox(SimpleNamespace(port='COM4', baud=115200,
-                                               unit=1))
+        held = toolmod.Toolbox(sessionmod.Session(port='COM4', baud=115200, unit=1))
         result6 = str(held.call('link_diagnose', {}))
         report.check('a port another process holds says so, rather than '
                      'guessing at a halted core',
@@ -438,7 +439,6 @@ def test_fallback(report):
     # number. The probe is told apart by its USB VID - measured here, an
     # STLINK-V3SET enumerates 0483:374F - so nothing has to be opened to
     # know which port is the debugger.
-    from coaxial_mcp import session as sessionmod
     for real, port, kind, want in ((True, 'COM3', 'probe', 'JTAG and COM3'),
                                    (True, 'COM5', 'serial', 'RS485 at COM5'),
                                    (False, None, None, 'Simulated')):
@@ -472,11 +472,11 @@ def test_fallback(report):
     # live hardware produced by the diagnostic itself. The session's own
     # handle is asked first now, and only a session with none falls through
     # to the second open.
-    class Held:
-        """A session holding an open link, shaped like coaxial_mcp.Session."""
-        port, baud, unit = 'COM_TEST', 115200, 1
-
+    class Held(sessionmod.Session):
+        """A session holding an open link - the real class, the link
+        handed in."""
         def __init__(self, board):
+            super().__init__('COM_TEST', 115200, 1)
             self._board = board
 
     live = toolmod.Toolbox(SimulatedSession(), scope=Scope())
@@ -605,7 +605,6 @@ def test_fallback(report):
     # plugged into this bench: the first version of this check passed only
     # while the board happened to be silent, and started failing the moment
     # it answered again.
-    import coaxial_mcp.session as sessionmod
     ordered.language = None
     was = sessionmod.open_session
     try:
@@ -625,12 +624,12 @@ def test_fallback(report):
     # answered" - and had the
     # session been on a live probe, the first of those would have dropped it
     # for a stand-in.
-    import coaxial_mcp.session as sessionmod
-
-    class Live:
+    class Live(sessionmod.Session):
         """A session that is already on a real board."""
-        port, baud, unit = 'COM4', 115200, 1
         closed = False
+
+        def __init__(self):
+            super().__init__('COM4', 115200, 1)
 
         def close(self):
             self.closed = True
