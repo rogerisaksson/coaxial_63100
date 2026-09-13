@@ -11,6 +11,8 @@ is checked in is what the code actually printed.
     python tools/make_notebooks.py                  # write them
     python tools/make_notebooks.py --execute        # write and run
     python tools/make_notebooks.py --execute daq_session foc_montecarlo
+    python tools/make_notebooks.py --kernel status    # which python runs them
+    python tools/make_notebooks.py --kernel install   # this one; setup.ps1 does it
 
 Executing needs a kernel and the library: `jupyter`, `nbclient`,
 `pandas` and `matplotlib`. Writing needs none of them. The notebooks
@@ -34,6 +36,17 @@ OUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
     'notebook_examples')
+
+#: THE KERNEL THE NOTEBOOKS NAME, registered on the interpreter setup.ps1
+#: installs into (`--kernel install`). An editor matches a notebook to a
+#: kernel by this name first and by the language's version second, and
+#: the second is not enough: this bench carries two CPython 3.14.7s, one
+#: with the packages and one - uv-managed - with none, and the editor
+#: opened every notebook on the empty one (2026-09-13). A name only one
+#: kernelspec carries settles it, and that kernelspec starts the
+#: interpreter by its absolute path.
+KERNEL = 'coaxial_63100'
+KERNEL_DISPLAY = 'Python (coaxial_63100)'
 
 KNOB = """SIMULATED = True          # False, and PORT, at the bench
 PORT = 'COM4'"""
@@ -3184,8 +3197,8 @@ def notebook(name, cells):
         'cells': [cell(kind, text, '%s-%02d' % (name.replace('_', '-'), i))
                   for i, (kind, text) in enumerate(cells)],
         'metadata': {
-            'kernelspec': {'display_name': 'Python 3', 'language': 'python',
-                           'name': 'python3'},
+            'kernelspec': {'display_name': KERNEL_DISPLAY, 'language': 'python',
+                           'name': KERNEL},
             'language_info': {'name': 'python'},
         },
         'nbformat': 4, 'nbformat_minor': 5,
@@ -3210,12 +3223,17 @@ def execute(path, out_dir, timeout=1800):
     cells that did work are what say where it went wrong.
     """
     import nbformat
+    from jupyter_client.kernelspec import NoSuchKernel
     from nbclient import NotebookClient
 
     book = nbformat.read(path, as_version=4)
-    NotebookClient(book, timeout=timeout, kernel_name='python3',
-                   resources={'metadata': {'path': out_dir}},
-                   allow_errors=True).execute()
+    try:
+        NotebookClient(book, timeout=timeout, kernel_name=KERNEL,
+                       resources={'metadata': {'path': out_dir}},
+                       allow_errors=True).execute()
+    except NoSuchKernel:
+        return ('kernel %s is not registered on this python: '
+                'make_notebooks.py --kernel install' % KERNEL)
     nbformat.write(book, path)
     for number, one in enumerate(book.cells):
         for output in one.get('outputs', []):
@@ -3225,6 +3243,59 @@ def execute(path, out_dir, timeout=1800):
     return None
 
 
+def _kernelspec_api():
+    """The registry and the installer, which arrive with ipykernel -
+    optional here, like nbclient: reading a notebook needs neither."""
+    try:
+        import ipykernel.kernelspec
+        import jupyter_client.kernelspec
+    except ImportError:
+        raise ImportError("the notebooks' kernel needs ipykernel: "
+                          'python -m pip install -r host/requirements.txt') from None
+    return ipykernel.kernelspec, jupyter_client.kernelspec
+
+
+def kernel_interpreter():
+    """The interpreter the registered kernel starts, or None when none is."""
+    _, registry = _kernelspec_api()
+    try:
+        return registry.KernelSpecManager().get_kernel_spec(KERNEL).argv[0]
+    except registry.NoSuchKernel:
+        return None
+
+
+def install_kernel():
+    """Register the kernel on this interpreter, for this user. Returns the
+    kernelspec's directory; its argv is this interpreter's absolute path."""
+    installer, _ = _kernelspec_api()
+    return installer.install(user=True, kernel_name=KERNEL,
+                             display_name=KERNEL_DISPLAY)
+
+
+def kernel_status():
+    """One line on the registered kernel, and whether it is this
+    interpreter - the property setup.ps1 checks."""
+    found = kernel_interpreter()
+    if found is None:
+        return 'not registered', False
+    if os.path.exists(found) and os.path.samefile(found, sys.executable):
+        return found, True
+    return '%s - not this python (%s)' % (found, sys.executable), False
+
+
+def kernel_command(action):
+    """`--kernel status` prints which interpreter the notebooks' kernel
+    starts and exits 1 unless it is this one; `--kernel install`
+    registers it here. A missing ipykernel is the line that installs it."""
+    try:
+        detail, fine = (('%s -> %s' % (install_kernel(), sys.executable), True)
+                        if action == 'install' else kernel_status())
+    except ImportError as absent:
+        detail, fine = str(absent), False
+    print(detail)
+    return 0 if fine else 1
+
+
 def main(argv=None):
     """Write the notebooks named on the command line, or all of them."""
     parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n')[0])
@@ -3232,7 +3303,12 @@ def main(argv=None):
     parser.add_argument('--execute', action='store_true',
                         help='run each one and keep its outputs')
     parser.add_argument('--out', default=OUT_DIR)
+    parser.add_argument('--kernel', choices=('status', 'install'),
+                        help='the kernel the notebooks name: which python '
+                             'it starts, or register it on this one')
     args = parser.parse_args(argv)
+    if args.kernel:
+        return kernel_command(args.kernel)
 
     unknown = [n for n in args.names if n not in NOTEBOOKS]
     if unknown:

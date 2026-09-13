@@ -1084,12 +1084,25 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   installs into - matplotlib 3.11.1, pandas 3.0.5, numpy 2.5.2,
   pyserial, PyYAML, mcp, rich all present) and a uv-managed
   `cpython-3.14.7` under `%APPDATA%\uv` with none of the seven. The
-  Python extension had picked the uv one. `.vscode/settings.json` now
-  names python.org's launcher as `python.defaultInterpreterPath`; an
-  interpreter already chosen by hand outranks the setting, so the click
-  is "Python: Select Interpreter" -> the python.org 3.14, and the same
-  interpreter as the notebooks' kernel. The notebooks themselves were
-  executed on the right one - none holds an error output.
+  Python extension had picked the uv one. `.vscode/settings.json` names
+  python.org's launcher as `python.defaultInterpreterPath` for the .py
+  files; an interpreter already chosen by hand outranks the setting, so
+  the click there is "Python: Select Interpreter" -> the python.org
+  3.14. THE NOTEBOOKS NO LONGER DEPEND ON THAT CHOICE (2026-09-13, the
+  bench: app_fixed_wing still flagged after the setting): an editor
+  matches a notebook to a kernel by the kernelspec's NAME first and by
+  the language's version second, and both interpreters are 3.14.7, so
+  the name is what settles it. Every notebook now names
+  `coaxial_63100`; `make_notebooks.py --kernel install` registers that
+  kernelspec on the interpreter it runs under, argv its absolute path,
+  and `--kernel status` says which python it starts, exit 1 unless it
+  is the one asking - the line setup.ps1 reports as `notebook kernel`
+  and registers on the python it fills. Measured: the uv python asking
+  status answers that it needs ipykernel, exit 1; python.org's, after
+  install, its own path and exit 0; `setup.ps1 -Check` prints the line
+  ok; daq_session executed through the named kernel in 8 s, 18 cells,
+  10 outputs, no error. The notebooks themselves were executed on the
+  right one all along - none holds an error output.
 * THE ROTOR OBSERVER'S MACHINE SCALES WITH THE TERMINAL (2026-09-13,
   the bench asking for the machine to scale with the terminal's size).
   `fit(aspect, size)` sizes the box every

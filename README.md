@@ -63,7 +63,12 @@ output part company:
 ```powershell
 python tools/make_notebooks.py --execute            # all of them
 python tools/make_notebooks.py --execute daq_session
+python tools/make_notebooks.py --kernel install   # once, on the python setup.ps1 fills
 ```
+
+Every notebook names its kernel, `coaxial_63100`: `setup.ps1` registers it
+on the interpreter it installs the packages into, so an editor with more
+than one CPython of that version opens them on the right one.
 
 | file | what it walks through |
 | --- | --- |

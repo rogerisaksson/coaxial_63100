@@ -15,6 +15,8 @@
       Python                             python.org, per-user installer
       git and VS Code                    winget
       six python packages               host/requirements.txt, via pip
+      the notebooks' kernel             registered on that python by
+                                        host/tools/make_notebooks.py
       ARM gcc, cmake, ninja             STM32 "bundles", fetched by cube.exe
       STM32_Programmer_CLI             same
       STM32CubeMX                       same - the stm32cubemx-application bundle
@@ -814,6 +816,32 @@ except Exception:
             }
         } else {
             Add-Todo 'python -m pip install -e host/'
+        }
+    }
+
+    # THE NOTEBOOKS NAME THEIR KERNEL - `coaxial_63100`, registered on this
+    # interpreter by make_notebooks.py - so an editor holding two CPythons
+    # of the same version opens them on the one the packages are in.
+    # Measured 2026-09-13: a uv-managed 3.14.7 with nothing in it was
+    # auto-selected and every notebook flagged matplotlib.pyplot as
+    # unresolved. A kernel registered on some other python is reported as
+    # missing, and install points it here.
+    $maker = Join-Path $Host_ 'tools\make_notebooks.py'
+    $kernel = (& $Python $maker --kernel status) -join ' '
+    if ($LASTEXITCODE -eq 0) {
+        Write-Item 'notebook kernel' 'ok' $kernel
+    } else {
+        Write-Item 'notebook kernel' 'missing' $kernel
+        if (Confirm-Step 'register the notebook kernel on this python ?  (one kernel.json under %APPDATA%\jupyter)') {
+            $kernel = (& $Python $maker --kernel install) -join ' '
+            if ($LASTEXITCODE -eq 0) {
+                Write-Item 'notebook kernel' 'done' $kernel
+            } else {
+                Write-Item 'notebook kernel' 'failed' $kernel
+                Add-Todo 'python tools/make_notebooks.py --kernel install failed - run it from host/ and read the output'
+            }
+        } else {
+            Add-Todo 'python tools/make_notebooks.py --kernel install   (from host/)'
         }
     }
 }
