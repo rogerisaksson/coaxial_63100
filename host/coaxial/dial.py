@@ -164,27 +164,16 @@ def _classify(dx, dy, geom, span, needle_at):
     if radius > geom.rim + geom.line + 1.0:
         return None
 
-    if needle_at is not None:
-        # The bead first: it is the reading, and it sits on top of
-        # whatever graduation it happens to be standing against.
-        tip_x = geom.needle * math.cos(needle_at)
-        tip_y = geom.needle * math.sin(needle_at)
-        if math.hypot(dx - tip_x, dy - tip_y) <= BEAD_R:
-            return BEAD
+    # The bead first: it is the reading, and it sits on top of whatever
+    # graduation it happens to be standing against.
+    if needle_at is not None and _on_bead(dx, dy, geom, needle_at):
+        return BEAD
 
     if radius <= HUB_R:
         return HUB
 
-    if needle_at is not None:
-        # A TAPERED SHAFT, measured along the needle and across it: `along`
-        # is how far out the point is and `across` how far off the line, so
-        # the half width can be a function of the first.
-        along = dx * math.cos(needle_at) + dy * math.sin(needle_at)
-        across = abs(-dx * math.sin(needle_at) + dy * math.cos(needle_at))
-        if 0.0 <= along <= geom.needle:
-            share = along / max(1e-6, geom.needle)
-            if across <= NEEDLE_ROOT + (NEEDLE_TIP - NEEDLE_ROOT) * share:
-                return NEEDLE
+    if needle_at is not None and _on_needle(dx, dy, geom, needle_at):
+        return NEEDLE
 
     phi = math.atan2(dy, dx) % math.tau
 
@@ -194,28 +183,47 @@ def _classify(dx, dy, geom, span, needle_at):
                               (6, MINOR_TICK, 0.0)):
         pitch = math.radians(step)
         off = abs(((phi + pitch / 2.0) % pitch) - pitch / 2.0)
-        if off * radius <= max(wide, geom.line) / 2.0:
-            if geom.rim - depth <= radius <= geom.rim:
-                return MAJOR if step == 30 else MINOR
+        if (off * radius <= max(wide, geom.line) / 2.0
+                and geom.rim - depth <= radius <= geom.rim):
+            return MAJOR if step == 30 else MINOR
 
     if abs(radius - geom.rim) <= geom.line:
         return FACE
 
-    if span is not None and geom.rim - SWEEP_IN <= radius <= geom.rim - SWEEP_OUT:
-        # ZERO TO THE READING, the way the angles run. A span of exactly
-        # zero draws nothing: an instrument reading zero has swept none of
-        # its scale, and a single stripe at the top of the band would read
-        # as a mark rather than as an empty sweep.
-        #
-        # AND FADED BY HOW FAR BEHIND THE NEEDLE IT IS, not by where it is
-        # on the face: `behind` is measured back from the reading, so the
-        # bright end travels with the needle and the far end keeps the
-        # trace back to zero.
-        if 0.0 < phi <= span:
-            behind = min(1.0, (span - phi) / SWEEP_FADE)
-            return SWEEP[int((1.0 - behind) * (SWEEP_STEPS - 1) + 0.5)]
+    # ZERO TO THE READING, the way the angles run. A span of exactly zero
+    # draws nothing: an instrument reading zero has swept none of its
+    # scale, and a single stripe at the top of the band would read as a
+    # mark rather than as an empty sweep.
+    #
+    # AND FADED BY HOW FAR BEHIND THE NEEDLE IT IS, not by where it is on
+    # the face: `behind` is measured back from the reading, so the bright
+    # end travels with the needle and the far end keeps the trace back to
+    # zero.
+    if (span is not None and 0.0 < phi <= span
+            and geom.rim - SWEEP_IN <= radius <= geom.rim - SWEEP_OUT):
+        behind = min(1.0, (span - phi) / SWEEP_FADE)
+        return SWEEP[int((1.0 - behind) * (SWEEP_STEPS - 1) + 0.5)]
 
     return None
+
+
+def _on_bead(dx, dy, geom, needle_at):
+    """Within the bead at the needle's tip."""
+    tip_x = geom.needle * math.cos(needle_at)
+    tip_y = geom.needle * math.sin(needle_at)
+    return math.hypot(dx - tip_x, dy - tip_y) <= BEAD_R
+
+
+def _on_needle(dx, dy, geom, needle_at):
+    """On the needle's TAPERED SHAFT, measured along the needle and across
+    it: `along` is how far out the point is and `across` how far off the
+    line, so the half width can be a function of the first."""
+    along = dx * math.cos(needle_at) + dy * math.sin(needle_at)
+    across = abs(-dx * math.sin(needle_at) + dy * math.cos(needle_at))
+    if not 0.0 <= along <= geom.needle:
+        return False
+    share = along / max(1e-6, geom.needle)
+    return across <= NEEDLE_ROOT + (NEEDLE_TIP - NEEDLE_ROOT) * share
 
 
 def _raster(degrees, width, height, weak, aspect):
@@ -230,27 +238,23 @@ def _raster(degrees, width, height, weak, aspect):
     stretch = aspect / DOTS_Y * DOTS_X
     for y in range(height * DOTS_Y):
         for x in range(width * DOTS_X):
-            cls, hits = None, 0
-            for ox, oy in SUBDOT:
-                at = _classify(x + ox - geom.cx, (geom.cy - y - oy) * stretch,
-                               geom, span, needle_at)
-                if at is not None:
-                    hits += 1
-                    if cls is None or at > cls:
-                        cls = at
+            seen = [at for at in (
+                _classify(x + ox - geom.cx, (geom.cy - y - oy) * stretch,
+                          geom, span, needle_at) for ox, oy in SUBDOT)
+                    if at is not None]
             # THE CORNERS ARE COVERAGE. One of four lit the dot whole, so
             # the rim and the sweep both came out a dot fat and stepped
             # against each other; half a dot or more still lights outright
             # - a one-dot tick is a mark the face means - and the fringe
             # beyond it is dithered. `machine._raster` reads them the
             # same way, and they are the same drawing problem.
-            if cls is None or not covered(hits, len(SUBDOT)):
+            if not seen or not covered(len(seen), len(SUBDOT)):
                 continue
             col, row = int(x) // DOTS_X, int(y) // DOTS_Y
-            if 0 <= row < height and 0 <= col < width:
-                dots[row][col] |= BRAILLE_BITS[int(x) % DOTS_X][int(y) % DOTS_Y]
-                if cls > owner[row][col]:
-                    owner[row][col] = cls
+            if not (0 <= row < height and 0 <= col < width):
+                continue
+            dots[row][col] |= BRAILLE_BITS[int(x) % DOTS_X][int(y) % DOTS_Y]
+            owner[row][col] = max(owner[row][col], max(seen))
 
     # THE NUMBERS LAST, and only onto cells no dot reached. They stand
     # outside the rim, so a collision means the face has outgrown its box

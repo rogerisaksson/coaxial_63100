@@ -214,41 +214,60 @@ def anchor(temps, ntc, cfg, power, seen, speed_rpm, since_s,
             temps[patch] += k * (implied - temps[patch])
             held.add(patch)
         dies += 1
-    if dies:
-        # THE REST OF THE LAMINATE MOVES WITH THE DIES.
-        common /= dies
-        for node in BOARD_NODES:
-            if node not in held and cfg['capacity'].get(node, 0.0) > 0.0:
-                temps[node] += k * common
-        reading = seen.get('ntc')
-        f = cfg.get('ntc_sees', thermal.NTC_SEES_DRIVERS)
-        if reading is not None and f > 0.01:
-            # THE THERMISTOR AGAINST THE ELEMENT AS MODELLED; the miss
-            # through the share and the lag, one for one at the leg.
-            miss = reading - ntc
-            leg, centre = temps[thermal.NTC_PATCH], temps['board']
-            at_leg = leg >= centre and (reading >= leg - NTC_AT_LEG_K
-                                        or ntc >= leg - NTC_AT_LEG_K)
-            fresh = since_s <= NTC_INVERT_MAX_S
-            tau, lag_gain = cfg.get('ntc_tau_s', thermal.NTC_TAU_S), 1.0
-            if tau > 0.0 and since_s > 0.0:
-                lag_gain = min(8.0, max(1.0, 0.5 * tau / since_s))
-            through = 1.0 if at_leg else ((lag_gain / f) if fresh else 0.0)
-            move = k * miss * through
-            ntc += k * miss
-            for patch in LEG_PATCHES:          # one layout, mirrored
-                if patch not in held:
-                    temps[patch] += move
-        return ntc, True
     reading = seen.get('ntc')
-    if reading is not None:
-        # Degraded: no die, the whole laminate on the thermistor's miss.
-        miss = reading - ntc
-        ntc += k * miss
-        for node in BOARD_NODES:
-            if cfg['capacity'].get(node, 0.0) > 0.0:
-                temps[node] += k * miss
-    return ntc, False
+    if not dies:
+        return _anchor_degraded(temps, ntc, cfg, reading, k), False
+    # THE REST OF THE LAMINATE MOVES WITH THE DIES.
+    _pull_laminate(temps, cfg, held, k * common / dies)
+    f = cfg.get('ntc_sees', thermal.NTC_SEES_DRIVERS)
+    if reading is not None and f > 0.01:
+        ntc = _anchor_ntc(temps, ntc, cfg, reading, f, held, k, since_s)
+    return ntc, True
+
+
+def _pull_laminate(temps, cfg, held, pull):
+    """Every laminate node nothing anchored, pulled by the dies' common
+    miss."""
+    for node in BOARD_NODES:
+        if node not in held and cfg['capacity'].get(node, 0.0) > 0.0:
+            temps[node] += pull
+
+
+def _lag_gain(cfg, since_s):
+    """How much of a fresh miss the thermistor's lag hides, 1 to 8."""
+    tau = cfg.get('ntc_tau_s', thermal.NTC_TAU_S)
+    if tau > 0.0 and since_s > 0.0:
+        return min(8.0, max(1.0, 0.5 * tau / since_s))
+    return 1.0
+
+
+def _anchor_ntc(temps, ntc, cfg, reading, f, held, k, since_s):
+    """THE THERMISTOR AGAINST THE ELEMENT AS MODELLED; the miss through
+    the share and the lag, one for one at the leg. Returns the corrected
+    ntc; the legs' patches move in place."""
+    miss = reading - ntc
+    leg, centre = temps[thermal.NTC_PATCH], temps['board']
+    at_leg = leg >= centre and (reading >= leg - NTC_AT_LEG_K
+                                or ntc >= leg - NTC_AT_LEG_K)
+    fresh = since_s <= NTC_INVERT_MAX_S
+    through = (1.0 if at_leg else
+               ((_lag_gain(cfg, since_s) / f) if fresh else 0.0))
+    move = k * miss * through
+    for patch in LEG_PATCHES:          # one layout, mirrored
+        if patch not in held:
+            temps[patch] += move
+    return ntc + k * miss
+
+
+def _anchor_degraded(temps, ntc, cfg, reading, k):
+    """Degraded: no die, the whole laminate on the thermistor's miss."""
+    if reading is None:
+        return ntc
+    miss = reading - ntc
+    for node in BOARD_NODES:
+        if cfg['capacity'].get(node, 0.0) > 0.0:
+            temps[node] += k * miss
+    return ntc + k * miss
 
 
 def _unit(x):
@@ -465,32 +484,109 @@ class Identifier:
         self.p[AMBIENT][AMBIENT] = PRIOR_SIGMA[AMBIENT] ** 2
 
     def _judge(self):
+        """The state after this sample: one transition rule per state,
+        `thermal_ident_judge`'s switch."""
         ratio = self.innovation_k / self.noise_k
-        if self.state == STABLE:
-            if ratio > RATIO_UNCERTAIN:
-                self.state, self.stable_runs = UNCERTAIN, 0
-                for k in range(PARAMS):
-                    self.p[k][k] += (FLOOR_SHARE[k] * PRIOR_SIGMA[k]) ** 2
-                self._room_reset()
-        elif self.state == CONVERGING:
-            if ratio > RATIO_UNCERTAIN:
-                self.state, self.stable_runs = UNCERTAIN, 0
-                self._room_reset()
-            elif self._known(SIGMA_STABLE) and ratio < RATIO_STABLE:
-                self.stable_runs += 1
-                if self.stable_runs >= STABLE_RUNS:
-                    self.state = STABLE
-            else:
-                self.stable_runs = 0
-        else:
-            if self._known(SIGMA_CONVERGING) and ratio < RATIO_UNCERTAIN:
-                self.state, self.stable_runs = CONVERGING, 0
-            elif ratio >= RATIO_UNCERTAIN:
-                # NOT PREDICTING, SO NOT SURE: the online quantities stay free.
-                for k in range(PARAMS):
-                    floor = (FLOOR_SHARE[k] * PRIOR_SIGMA[k]) ** 2
-                    if ONLINE[k] and self.p[k][k] < floor:
-                        self.p[k][k] = floor
+        {STABLE: self._judge_stable, CONVERGING: self._judge_converging,
+         UNCERTAIN: self._judge_uncertain}[self.state](ratio)
+
+    def _doubt_whole(self):
+        """Back to UNCERTAIN: the scales' variance up by the floor's share
+        of the prior, the room's back to its prior."""
+        self.state, self.stable_runs = UNCERTAIN, 0
+        for k in range(PARAMS):
+            self.p[k][k] += (FLOOR_SHARE[k] * PRIOR_SIGMA[k]) ** 2
+        self._room_reset()
+
+    def _judge_stable(self, ratio):
+        if ratio > RATIO_UNCERTAIN:
+            self._doubt_whole()
+
+    def _judge_converging(self, ratio):
+        if ratio > RATIO_UNCERTAIN:
+            self.state, self.stable_runs = UNCERTAIN, 0
+            self._room_reset()
+            return
+        if not (self._known(SIGMA_STABLE) and ratio < RATIO_STABLE):
+            self.stable_runs = 0
+            return
+        self.stable_runs += 1
+        if self.stable_runs >= STABLE_RUNS:
+            self.state = STABLE
+
+    def _judge_uncertain(self, ratio):
+        if self._known(SIGMA_CONVERGING) and ratio < RATIO_UNCERTAIN:
+            self.state, self.stable_runs = CONVERGING, 0
+            return
+        if ratio < RATIO_UNCERTAIN:
+            return
+        # NOT PREDICTING, SO NOT SURE: the online quantities stay free.
+        for k in range(PARAMS):
+            floor = (FLOOR_SHARE[k] * PRIOR_SIGMA[k]) ** 2
+            if ONLINE[k] and self.p[k][k] < floor:
+                self.p[k][k] = floor
+
+    def _channels(self, power):
+        """Each thermometer's prediction and regressor: the thermistor's
+        own, and each die's node plus its junction rise."""
+        channels = [('ntc', self.shadow_ntc, list(self.s_ntc))]
+        shadow_t, shadow_cfg = self._shadow()
+        for node in DIES:
+            over = power.get(node, 0.0) * shadow_cfg['rth_die'].get(node, 0.0)
+            channels.append((node, shadow_t[node] + over,
+                             [self.s[k][node] for k in range(PARAMS)]))
+        return channels
+
+    def _take(self, seen, power, still):
+        """Every seated thermometer against its prediction: the update it
+        makes unless the board is still, and the worst miss against what
+        was allowed. Returns (moved, judged, worst)."""
+        moved, judged, worst = False, False, 0.0
+        for name, predicted, h in self._channels(power):
+            reading = seen.get(name)
+            if reading is None or name not in self.seated:
+                continue
+            e = reading - predicted
+            moved = (not still and self._update(h, e)) or moved
+            allowed = self.noise_k + MOVE_SHARE * abs(
+                reading - self.seat_reading[name])
+            worst = max(worst, abs(e) * self.noise_k / allowed)
+            judged = True
+        return moved, judged, worst
+
+    def _drift(self, still):
+        """The online quantities' variance grows a little per judged
+        sample, so a machine that changes is followed - unless the board
+        is still, which teaches nothing."""
+        if still:
+            return
+        for k in range(PARAMS):
+            if ONLINE[k]:
+                self.p[k][k] += DRIFT_VAR[k]
+
+    def _sample(self, temps, ntc, base, power, speed_rpm, seen):
+        """One sample taken: the thermometers against their predictions,
+        the innovation followed, the state judged, and the seat moved.
+
+        A STILL BOARD TEACHES NOTHING: every seated thermometer within
+        STILL_GAIN floors of what it read at the seat is a board with
+        nothing burning, and the sample moves neither the quantities nor
+        their covariance - though its prediction error still says whether
+        the model predicts.
+        """
+        stirred = max([abs(seen[name] - self.seat_reading[name])
+                       for name in self.seated
+                       if seen.get(name) is not None] or [0.0])
+        still = stirred < STILL_GAIN * self.noise_k
+        moved, judged, worst = self._take(seen, power, still)
+        if judged:
+            self.innovation_k += INNOVATION_FOLLOW * (worst - self.innovation_k)
+            self._drift(still)
+            self._judge()
+        if moved:
+            self.updates += 1
+        self._reseat(temps, ntc, base, power, speed_rpm, seen)
+        return moved
 
     # -- one step beside the observer ---------------------------------
 
@@ -528,44 +624,7 @@ class Identifier:
             self._reseat(temps, ntc, base, power, speed_rpm, seen)
             return False
         if any_seen and self.horizon_s >= MIN_HORIZON_S:
-            # A STILL BOARD TEACHES NOTHING: every seated thermometer
-            # within STILL_GAIN floors of what it read at the seat is a
-            # board with nothing burning, and the sample moves neither
-            # the quantities nor their covariance - though its prediction
-            # error still says whether the model predicts.
-            stirred = max([abs(seen[name] - self.seat_reading[name])
-                           for name in self.seated
-                           if seen.get(name) is not None] or [0.0])
-            still = stirred < STILL_GAIN * self.noise_k
-            moved, judged, worst = False, False, 0.0
-            channels = [('ntc', self.shadow_ntc, list(self.s_ntc))]
-            shadow_t, shadow_cfg = self._shadow()
-            for node in DIES:
-                over = power.get(node, 0.0) * shadow_cfg['rth_die'].get(node, 0.0)
-                channels.append((node, shadow_t[node] + over,
-                                 [self.s[k][node] for k in range(PARAMS)]))
-            for name, predicted, h in channels:
-                reading = seen.get(name)
-                if reading is None or name not in self.seated:
-                    continue
-                e = reading - predicted
-                if not still:
-                    moved = self._update(h, e) or moved
-                allowed = self.noise_k + MOVE_SHARE * abs(
-                    reading - self.seat_reading[name])
-                worst = max(worst, abs(e) * self.noise_k / allowed)
-                judged = True
-            if judged:
-                self.innovation_k += INNOVATION_FOLLOW * (worst - self.innovation_k)
-                if not still:
-                    for k in range(PARAMS):
-                        if ONLINE[k]:
-                            self.p[k][k] += DRIFT_VAR[k]
-                self._judge()
-            if moved:
-                self.updates += 1
-            self._reseat(temps, ntc, base, power, speed_rpm, seen)
-            return moved
+            return self._sample(temps, ntc, base, power, speed_rpm, seen)
         if self.horizon_s >= MAX_HORIZON_S:
             self._reseat(temps, ntc, base, power, speed_rpm, None)
         return False

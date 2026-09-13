@@ -1010,6 +1010,25 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   seventeen test lines treating it as a string had never been
   flagged; with the type known they were, and they hold the result
   as a string now (`or ''`), the None contract unchanged.
+* THE IDENTIFIER, THE DIAL, THE ENGINE'S FOLD AND SHADE, THE ATTITUDE
+  FIT (2026-09-13): thirty-one nested ifs -> 0. `thermal_ident`'s
+  `_judge` is a transition rule per state - `_judge_stable`,
+  `_judge_converging`, `_judge_uncertain`, `thermal_ident_judge`'s
+  switch - with `_doubt_whole` the way back to UNCERTAIN; `anchor`
+  pulls the laminate, corrects the thermistor and degrades in three
+  functions of their own; `step` takes a sample in `_sample`, whose
+  thermometers are `_channels`, the update `_take`, the variance
+  growth `_drift`. The C's parity suite still walks with the mirror:
+  thermal core 144, 0 failed. The dial's classifier tests the bead
+  and the needle in `_on_bead` and `_on_needle`, its raster takes
+  the four corners as one list; the engine's art-plane hit is
+  `_art_hit` and its shadow test one boolean. MEASURED, since the
+  engine's inner loop was the risk: the attitude frame at 150x44
+  over twelve poses, plus six dial faces, digest 9753d65d99c7 before
+  and after - identical - at 132 ms a frame both ways (the same
+  tree, the four files stashed and restored; a copy of the package
+  elsewhere on disk had measured 177, its caches cold, and would
+  have read as a 45 ms gain). render 79, views 206: 0 failed.
 
 ## The local model
 

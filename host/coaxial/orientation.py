@@ -588,6 +588,8 @@ LAMP = tuple(sum(VIEWPOINT[r * 3 + k] * ascii3d.light_position()[k]
 
 #: The camera fit, per window size. See _fit().
 _FITS = {}
+#: Fits kept before the cache is emptied - a wheel spun for a while.
+FITS_KEPT = 64
 
 
 def _fit(cols, rows, zoom=1.0, model=None):
@@ -604,11 +606,11 @@ def _fit(cols, rows, zoom=1.0, model=None):
     model = _model() if model is None else model
     key = (id(model[0]), cols, rows, round(zoom, 3))
     got = _FITS.get(key)
-    if got is None:
-        got = ascii3d.fit(model[0], VIEWPOINT, cols, rows, zoom=zoom)
-        if len(_FITS) > 64:
-            _FITS.clear()       # a wheel spun for a while, not a leak
-        _FITS[key] = got
+    if got is not None:
+        return got
+    if len(_FITS) >= FITS_KEPT:
+        _FITS.clear()           # a wheel spun for a while, not a leak
+    got = _FITS[key] = ascii3d.fit(model[0], VIEWPOINT, cols, rows, zoom=zoom)
     return got
 
 

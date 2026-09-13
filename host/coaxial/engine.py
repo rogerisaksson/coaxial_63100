@@ -198,8 +198,8 @@ def fold(depth, top, sun, width, height):
                 if d:
                     hits += 1
                     bits |= bit
-                    if d > best:
-                        best, where = d, at
+                if d > best:
+                    best, where = d, at
             if hits:
                 out_depth[row + px] = best
                 out_top[row + px] = top[where]
@@ -207,6 +207,26 @@ def fold(depth, top, sun, width, height):
                 coverage[row + px] = hits / 4.0
                 quads[row + px] = bits
     return out_depth, out_top, out_sun, coverage, quads
+
+
+def _art_hit(m, u, v, distance, tz, back, art_w, art_h):
+    """Where a cell's view ray meets the art plane: the art cell it shows
+    and the cell's rise above the plane, or None when it misses the
+    plane's unit disc. The UNMIRRORED plane point is what the rise is
+    measured from, before the back view flips hx for the lookup."""
+    dz = m[2] * u + m[5] * v - m[8]
+    if abs(dz) <= 1e-9:
+        return None
+    t = -(distance * m[8]) / dz
+    hx = distance * m[6] + t * (m[0] * u + m[3] * v - m[6])
+    hy = distance * m[7] + t * (m[1] * u + m[4] * v - m[7])
+    if t <= 0.0 or hx * hx + hy * hy > 1.0:
+        return None
+    rise = tz - (m[6] * hx + m[7] * hy)
+    hx = -hx if back else hx
+    iy = int((1.0 - (hy + 1.0) * 0.5) * (art_h - 1))
+    ix = int((hx + 1.0) * 0.5 * (art_w - 1))
+    return ix, iy, rise
 
 
 def shade(depth, top, sun, cam, m, pivot, slope, floor,
@@ -259,29 +279,17 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
                 sb = tx * ux + ty * uy + tz * uz
                 si = int((sa / s_ext * 0.5 + 0.5) * (s_n - 1))
                 sj = int((sb / s_ext * 0.5 + 0.5) * (s_n - 1))
-                if 0 <= si < s_n and 0 <= sj < s_n and \
-                        sbuf[sj * s_n + si] > (tx * bx + ty * by
-                                               + tz * bz + bias):
-                    shaded = shadow_step
+                behind = (0 <= si < s_n and 0 <= sj < s_n
+                          and sbuf[sj * s_n + si] > (tx * bx + ty * by
+                                                     + tz * bz + bias))
+                shaded = shadow_step if behind else 0.0
             ink = -1
             ix, iy = px, py
-            if art_w and top[row + px]:
-                dz = m[2] * u + m[5] * v - m[8]
-                if abs(dz) > 1e-9:
-                    t = -(distance * m[8]) / dz
-                    hx = distance * m[6] + t * (m[0] * u + m[3] * v
-                                                - m[6])
-                    hy = distance * m[7] + t * (m[1] * u + m[4] * v
-                                                - m[7])
-                    if t > 0.0 and hx * hx + hy * hy <= 1.0:
-                        # The UNMIRRORED plane point, before the back
-                        # view flips hx for the lookup.
-                        rise = tz - (m[6] * hx + m[7] * hy)
-                        if back:
-                            hx = -hx
-                        iy = int((1.0 - (hy + 1.0) * 0.5) * (art_h - 1))
-                        ix = int((hx + 1.0) * 0.5 * (art_w - 1))
-                        ink = dense[iy][ix]
+            hit = (_art_hit(m, u, v, distance, tz, back, art_w, art_h)
+                   if art_w and top[row + px] else None)
+            if hit is not None:
+                ix, iy, rise = hit
+                ink = dense[iy][ix]
             level = pivot + slope * tz / reach
             if bare is not None:
                 bare[row + px] = level
@@ -304,9 +312,7 @@ def shade(depth, top, sun, cam, m, pivot, slope, floor,
                 level = (pivot + ink - 2 - LEAN * (1.0 - lean)
                          + slope * rise / reach - shaded)
             else:
-                level -= shaded
-                if level < floor:
-                    level = floor
+                level = max(level - shaded, floor)
             if seed is not None:
                 # A fixed 0..1 per cell for the glow's surface texture:
                 # hashed on the ART cell an art pixel shows, so the grain
