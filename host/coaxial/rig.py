@@ -289,21 +289,29 @@ class Coaxial63100(Acquisition):
         self.simulated = not self.origin.real
 
         if self.power_afe:
-            already = self.board.afe.is_on()
-            # ALWAYS take our own reference, even when the rail is already
-            # up: the rail is refcounted, and a session that merely
-            # observed it on held NOTHING - the other holder let go and the
-            # rail dropped mid-view. Measured 2026-08-29: the meter bridge
-            # opened onto a lit rail and its configure was refused with
-            # 'AFE_ON is off' one round trip later.
-            self.board.afe.enable()
-            self._afe_held = True
-            if not already:
-                # The parts need their supply up before anything talks to
-                # them. Enabling and configuring in the same breath answered
-                # SERVER DEVICE FAILURE.
-                time.sleep(0.3)
+            self._take_afe()
         return self
+
+    #: What the parts need after their rail comes up before anything talks
+    #: to them. Enabling and configuring in the same breath answered SERVER
+    #: DEVICE FAILURE.
+    AFE_SETTLE = 0.3
+
+    def _take_afe(self):
+        """This session's own reference on the rail, and the parts' settle
+        when it was this that switched the rail on.
+
+        ALWAYS its own reference, even when the rail is already up: the
+        rail is refcounted, and a session that merely observed it on held
+        NOTHING - the other holder let go and the rail dropped mid-view.
+        Measured 2026-08-29: the meter bridge opened onto a lit rail and its
+        configure was refused with 'AFE_ON is off' one round trip later.
+        """
+        already = self.board.afe.is_on()
+        self.board.afe.enable()
+        self._afe_held = True
+        if not already:
+            time.sleep(self.AFE_SETTLE)
 
     def __getattr__(self, name):
         """`device.imu` is `device.board.imu`, and it can be NAMED early.
@@ -328,11 +336,7 @@ class Coaxial63100(Acquisition):
 
         board = self.__dict__.get('_board')
         if board is None:
-            if name in _subsystem_names():
-                return Later(self, name)
-            raise AttributeError(
-                '%r is not a subsystem of this board. It has: %s'
-                % (name, ', '.join(sorted(_subsystem_names()))))
+            return self._later(name)
         try:
             return getattr(board, name)
         except AttributeError:
@@ -340,6 +344,15 @@ class Coaxial63100(Acquisition):
                 '%r is not a subsystem of this board. It has: %s'
                 % (name, ', '.join(sorted(
                     n for n in vars(board) if not n.startswith('_')))))
+
+    def _later(self, name):
+        """A handle on a subsystem named before open(), checked against the
+        board's declaration so a typo fails at the binding."""
+        if name in _subsystem_names():
+            return Later(self, name)
+        raise AttributeError(
+            '%r is not a subsystem of this board. It has: %s'
+            % (name, ', '.join(sorted(_subsystem_names()))))
 
     def _others_here(self):
         """Whether another session is on this board. False if unknowable.
@@ -370,42 +383,40 @@ class Coaxial63100(Acquisition):
             # gate drivers' supply away. A switching run started after that
             # toggles TIM1 into unpowered drivers and heats nothing, with
             # every counter reading normal. Measured 2026-08-28.
-            for step in (self.board.daq.stop,):
+            for step in (self.board.daq.stop, self._release_stage,
+                         self._release_afe):
                 try:
                     step()
                 except RigError:
-                    pass
-
-            # THE STAGE IS THE BOARD'S, NOT THIS SESSION'S. Disarming on the
-            # way out is the safety net for a run that was killed, and it
-            # stays that - but with a broker every session shares one board,
-            # and this used to run unconditionally. Measured 2026-08-29:
-            # three switching runs ended the moment a second session asked
-            # the board an unrelated question, MOE clear and no fault, which
-            # reads as a stage tripping rather than a peer tidying up.
-            #
-            # So it undoes what this session started, and otherwise only
-            # when nobody else is left to own it.
-            try:
-                if (self.gates is None or self.gates.armed_here
-                        or not self._others_here()):
-                    self.board.gate_drivers.disable()
-            except RigError:
-                pass
-            try:
-                if self._afe_held:
-                    # Release OUR reference; the refcount keeps the rail up
-                    # for whoever else holds it. Tracked rather than taken
-                    # from `power_afe`, so a session that called enable()
-                    # itself is released the same way.
-                    self.board.afe.disable()
-                    self._afe_held = False
-            except RigError:
-                pass                    # closing is not the place to raise
+                    pass                # closing is not the place to raise
         if self.session is not None:
             self.session.close()
         self.session = self._board = None
         vars(self).pop('gates', None)      # back to a Later, reopenable
+
+    def _release_stage(self):
+        """Disarm on the way out - the safety net for a run that was killed.
+
+        THE STAGE IS THE BOARD'S, NOT THIS SESSION'S. With a broker every
+        session shares one board, and this used to run unconditionally.
+        Measured 2026-08-29: three switching runs ended the moment a second
+        session asked the board an unrelated question, MOE clear and no
+        fault, which reads as a stage tripping rather than a peer tidying
+        up. So it undoes what this session started, and otherwise only when
+        nobody else is left to own it.
+        """
+        if (self.gates is None or self.gates.armed_here
+                or not self._others_here()):
+            self.board.gate_drivers.disable()
+
+    def _release_afe(self):
+        """Release OUR reference; the refcount keeps the rail up for whoever
+        else holds it. Tracked rather than taken from `power_afe`, so a
+        session that called enable() itself is released the same way."""
+        if not self._afe_held:
+            return
+        self.board.afe.disable()
+        self._afe_held = False
 
     def __enter__(self):
         return self.open()
@@ -484,17 +495,16 @@ class Coaxial63100(Acquisition):
             names = daq.channel_names()          # before reading
             names = daq.channel_names(values[0]) # off what arrived
         """
-        if record is not None:
-            got = getattr(record, 'channel_name', None)
-            if got is not None:
-                return list(got)
-            # A plain mapping - from `board.daq` rather than the front
-            # door, or one a caller built. The layout's order is what
-            # makes it a sequence rather than whatever the dict holds.
-            return [f['signal'] for f in (self.layout or {}).get('fields') or []
-                    if f['signal'] in record]
-        return [f['signal']
-                for f in (self.layout or {}).get('fields') or []]
+        fields = (self.layout or {}).get('fields') or []
+        if record is None:
+            return [f['signal'] for f in fields]
+        got = getattr(record, 'channel_name', None)
+        if got is not None:
+            return list(got)
+        # A plain mapping - from `board.daq` rather than the front
+        # door, or one a caller built. The layout's order is what
+        # makes it a sequence rather than whatever the dict holds.
+        return [f['signal'] for f in fields if f['signal'] in record]
 
     def series(self, records, name):
         """One channel out of a run, as a plain list of means.
@@ -520,24 +530,26 @@ class Coaxial63100(Acquisition):
             return [r.start_time for r in records]
         if want == 'dt':
             return [r.dt for r in records]
-        spelling = None
-        for s in getattr(records[0], 'samples', ()):
-            if self._match(s.name) == want:
-                spelling = s.name
-                break
-        if spelling is None:
-            # A pin, then. Same records, same window, a duty instead of a
-            # mean - and named as loosely as everything else here.
-            for pin in (getattr(records[0], 'digital', None) or {}):
-                if self._match(pin) == want or self._match(
-                        pin.split('/')[-1]) == want:
-                    return [(getattr(r, 'digital', None) or {}).get(pin)
-                            for r in records]
-        if spelling is None:
-            raise RigError(
-                'no channel called %r in these records. They have: %s'
-                % (name, ', '.join(records[0].channel_name)))
-        return [r.value(spelling) for r in records]
+        spelling = next((s.name for s in getattr(records[0], 'samples', ())
+                         if self._match(s.name) == want), None)
+        if spelling is not None:
+            return [r.value(spelling) for r in records]
+        # A pin, then. Same records, same window, a duty instead of a
+        # mean - and named as loosely as everything else here.
+        pin = self._pin_called(records[0], want)
+        if pin is not None:
+            return [(getattr(r, 'digital', None) or {}).get(pin)
+                    for r in records]
+        raise RigError(
+            'no channel called %r in these records. They have: %s'
+            % (name, ', '.join(records[0].channel_name)))
+
+    def _pin_called(self, record, want):
+        """The pin in a record's digital word that `want` names, loosely -
+        with or without its port - or None."""
+        return next((pin for pin in (getattr(record, 'digital', None) or {})
+                     if want in (self._match(pin),
+                                 self._match(pin.split('/')[-1]))), None)
 
     def frame(self, records, index='time', scaled=False):
         """A run as a pandas DataFrame: one column per channel.
@@ -665,22 +677,23 @@ class Coaxial63100(Acquisition):
         kw.setdefault('index', 'since')
         while seconds is None or _t.time() - began < seconds:
             got = self.read(-1)
-            if not got:
-                if self.state().get('done'):
-                    return
-                continue
-            self._history.extend(got)
-            edge = self._history[-1].start_time
-            if edge is not None:
-                self._history = [
-                    r for r in self._history
-                    if r.start_time is None or r.start_time > edge - deep]
-                shown = [r for r in self._history
-                         if r.start_time is None
-                         or r.start_time > edge - window]
-            else:
-                shown = self._history
-            yield self.frame(shown, scaled=scaled, **kw)
+            if not got and self.state().get('done'):
+                return
+            if got:
+                yield self.frame(self._window(got, deep, window),
+                                 scaled=scaled, **kw)
+
+    def _window(self, got, deep, window):
+        """`got` into the history, the history trimmed to `deep` seconds
+        behind its newest stamp, and the last `window` seconds of it."""
+        self._history.extend(got)
+        edge = self._history[-1].start_time
+        if edge is None:
+            return self._history
+        self._history = [r for r in self._history
+                         if r.start_time is None or r.start_time > edge - deep]
+        return [r for r in self._history
+                if r.start_time is None or r.start_time > edge - window]
 
     def history(self, scaled=False, **kw):
         """Everything `frames()` still holds - the buffer behind the window.
@@ -805,25 +818,48 @@ class Coaxial63100(Acquisition):
         """
         rows = self.catalogue()
         by_name = {self._match(r['name']): r for r in rows}
-        wanted, missing = [], []
-        for name in names:
-            row = by_name.get(self._match(name))
-            if row is None:
-                missing.append(str(name))
-            elif not row['selectable']:
-                raise RigError(
-                    '%r is a %s this board does not put in a record yet - '
-                    'read it through its own subsystem instead'
-                    % (row['name'], row['kind']))
-            else:
-                wanted.append(row)
+        found = {str(name): by_name.get(self._match(name)) for name in names}
+        missing = [name for name, row in found.items() if row is None]
         if missing:
             raise RigError(
                 'no channel called %s. This board has: %s'
                 % (', '.join(repr(m) for m in missing),
                    ', '.join(r['name'] for r in rows if r['selectable'])))
+        picked = [row for row in found.values() if row is not None]
+        unselectable = next((row for row in picked
+                             if not row['selectable']), None)
+        if unselectable is not None:
+            raise RigError(
+                '%r is a %s this board does not put in a record yet - '
+                'read it through its own subsystem instead'
+                % (unselectable['name'], unselectable['kind']))
         order = [r['name'] for r in rows]
-        return sorted({r['name'] for r in wanted}, key=order.index)
+        return sorted({row['name'] for row in picked}, key=order.index)
+
+    def _split(self, names):
+        """The picked names as what a record is made of: the analog
+        channels for the mask, whether a pin is among them, and the sensor
+        mask.
+
+        A pin among the names turns the group on, and the pins ride the
+        record as one - they are not analog fields and do not go in the
+        channel mask. A sensor among the names sets its bit in the SECOND
+        mask (MINOR 7): four snapshot words ride each record. pick()
+        already refused them on a board that cannot carry them.
+        """
+        kinds = {r['name']: r['kind'] for r in self.catalogue()}
+        picked = self.pick(*names)
+        analog = [c for c in picked if kinds.get(c) == 'analog']
+        if not analog:
+            raise RigError(
+                'a record needs at least one analog channel - '
+                'the pins and the sensors ride along, they do not '
+                'make a record on their own')
+        bits = {row['name']: b for b, row in enumerate(SENSOR_FIELDS)}
+        sensors = sum(1 << bits[c] for c in picked
+                      if kinds.get(c) == 'sensor')
+        pinned = any(kinds.get(c) == 'digital' for c in picked)
+        return analog, pinned, sensors
 
     def configure(self, *channels, **kw):
         """Set up the acquisition. Replaces whatever was there.
@@ -867,27 +903,8 @@ class Coaxial63100(Acquisition):
         channels = list(channels) if channels else None
         sensors = 0
         if channels is not None:
-            kinds = {r['name']: r['kind'] for r in self.catalogue()}
-            channels = self.pick(*channels)
-            # A pin among the names turns the group on, and the pins
-            # ride the record as one - they are not analog fields
-            # and do not go in the channel mask.
-            if any(kinds.get(c) == 'digital' for c in channels):
-                digital = True
-            # A sensor among the names sets its bit in the SECOND mask
-            # (MINOR 7): four snapshot words ride each record. pick()
-            # already refused them on a board that cannot carry them.
-            bits = {row['name']: b for b, row in enumerate(SENSOR_FIELDS)}
-            for c in channels:
-                if kinds.get(c) == 'sensor':
-                    sensors |= 1 << bits[c]
-            channels = [c for c in channels
-                        if kinds.get(c) == 'analog']
-            if not channels:
-                raise RigError(
-                    'a record needs at least one analog channel - '
-                    'the pins and the sensors ride along, they do not '
-                    'make a record on their own')
+            channels, pinned, sensors = self._split(channels)
+            digital = digital or pinned
 
         # Stopped first, because the board refuses to reconfigure under a
         # running task - a stride changing beneath a half-drained buffer
@@ -963,6 +980,10 @@ class Coaxial63100(Acquisition):
     #: How often an idle read asks whether a finite run has ended.
     #: A round trip, so not on every turn of a 2 ms poll.
     DONE_EVERY = 0.25
+    #: Consecutive looks that have to agree the run has ended.
+    DONE_LOOKS = 2
+    #: The idle read's pause between looks at an empty buffer.
+    TAKE_PAUSE = 0.002
 
     def enable(self):
         """Power the analog front end for this session.
@@ -1203,6 +1224,9 @@ class Coaxial63100(Acquisition):
 
     #: Consecutive unanswered reads that still count as a busy link.
     MISSES_ALLOWED = 5
+    #: The pause after a missed reply, and the one after an empty block.
+    RETRY_PAUSE = 0.01
+    EMPTY_PAUSE = 0.005
 
     #: Written by the main loop every few microseconds, so a write to it is
     #: gone before the reply is. Refused rather than accepted and lost.
@@ -1329,10 +1353,7 @@ class Coaxial63100(Acquisition):
                 # record capture - while the docstring said it drained what
                 # the board had. `drain()` takes what is queued and does not
                 # wait, so this still returns the moment the queue is dry.
-                reader = self._reader
-                if reader is not None:
-                    for more in reader.drain():
-                        out.extend(more)
+                out.extend(self._queued())
                 break
             if len(out) >= count:
                 break
@@ -1341,6 +1362,40 @@ class Coaxial63100(Acquisition):
         # `for ... break` - and asking a 5-record run for 50 spun forever:
         # the generator returned immediately and the while called it again.
         return out[:count] if count > 0 else out
+
+    def _queued(self):
+        """Every record the reader has queued, without waiting - and none
+        when nothing is buffering."""
+        reader = self._reader
+        blocks = reader.drain() if reader is not None else ()
+        return [record for block in blocks for record in block]
+
+    def _ended(self, reader):
+        """Whether a finite run has ended AND drained, asked of the board.
+
+        Without this the reader keeps polling an empty ring and a read
+        never returns, so a caller asking for more records than the run
+        makes waits for them forever. Asked only on the empty path and not
+        oftener than `DONE_EVERY`, because it is a round trip.
+
+        ENDED, EMPTY AT BOTH ENDS, AND STILL SO A MOMENT LATER. `done`
+        alone comes true while the ring still holds what the run made. Even
+        done-and-empty is not enough on its own: the reader may be
+        mid-read, and returning on one look threw away every record -
+        measured, a 5-record run answered 0 twice over. `DONE_LOOKS`
+        consecutive looks with a poll between them is what a read in flight
+        cannot survive.
+        """
+        now = time.time()
+        if now - self._asked_done <= self.DONE_EVERY:
+            return False
+        self._asked_done = now
+        state = self.state() or {}
+        ended = (state.get('done')
+                 and not (state.get('available') or 0)
+                 and not len(reader))
+        self._done_seen = self._done_seen + 1 if ended else 0
+        return self._done_seen >= self.DONE_LOOKS
 
     def read_buffer(self, count):
         """`count` blocks off the HOST buffer, one at a time.
@@ -1368,29 +1423,9 @@ class Coaxial63100(Acquisition):
                 continue
             if not self._reader.running:
                 return                    # the link is gone, or stopped
-            # A FINITE RUN THAT HAS ENDED AND DRAINED. Without this the
-            # reader keeps polling an empty ring and this never returns, so
-            # a caller asking for more records than the run makes waits for
-            # them forever. Asked only on the empty path and not oftener
-            # than `DONE_EVERY`, because it is a round trip.
-            now = time.time()
-            if now - self._asked_done > self.DONE_EVERY:
-                self._asked_done = now
-                state = self.state() or {}
-                # ENDED, EMPTY AT BOTH ENDS, AND STILL SO A MOMENT LATER.
-                # `done` alone comes true while the ring still holds what
-                # the run made. Even done-and-empty is not enough on its
-                # own: the reader may be mid-read, and returning on one
-                # look threw away every record - measured, a 5-record run
-                # answered 0 twice over. Two consecutive looks with a poll
-                # between them is what a read in flight cannot survive.
-                ended = (state.get('done')
-                         and not (state.get('available') or 0)
-                         and not len(self._reader))
-                self._done_seen = self._done_seen + 1 if ended else 0
-                if self._done_seen >= 2:
-                    return
-            time.sleep(0.002)
+            if self._ended(self._reader):
+                return
+            time.sleep(self.TAKE_PAUSE)
 
     def blocks(self, count):
         """`count` non-empty blocks, one at a time, for a `for` loop.
@@ -1430,13 +1465,13 @@ class Coaxial63100(Acquisition):
                         '%d replies in a row went missing, so the link is '
                         'gone rather than busy: %s'
                         % (missed, exc)) from exc
-                time.sleep(0.01)
+                time.sleep(self.RETRY_PAUSE)
                 continue
             missed = 0
+            if not block and count < 0 and self.state()['done']:
+                return              # the run ended and the buffer is dry
             if not block:
-                if count < 0 and self.state()['done']:
-                    return          # the run ended and the buffer is dry
-                time.sleep(0.005)
+                time.sleep(self.EMPTY_PAUSE)
                 continue
             seen += 1
             yield block
@@ -1497,12 +1532,19 @@ class Coaxial63100(Acquisition):
         """
         out = []
         for raw in (r['at'] for r in records):
-            if self._last_raw is None:
-                expected = (sync.at_cycles
-                            + (time.time() - sync.at_host) * sync.hz)
-                self._epoch = int(round((expected - raw) / WRAP)) * WRAP
-            elif raw < self._last_raw:
-                self._epoch += WRAP
+            self._epoch = self._epoch_of(raw, sync)
             self._last_raw = raw
             out.append(raw + self._epoch)
         return out
+
+    def _epoch_of(self, raw, sync):
+        """The wrap this stamp is in: the host clock picks the first, and
+        every stamp after follows the last, a wrap added where the count
+        falls."""
+        if self._last_raw is None:
+            expected = (sync.at_cycles
+                        + (time.time() - sync.at_host) * sync.hz)
+            return int(round((expected - raw) / WRAP)) * WRAP
+        if raw < self._last_raw:
+            return self._epoch + WRAP
+        return self._epoch

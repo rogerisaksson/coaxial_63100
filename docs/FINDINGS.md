@@ -928,8 +928,21 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   it too). The wrapper is annotated, and the tree reads 0 errors in
   basic mode.
 * The offline gate afterwards: 2947 checks, 2625 passed, 322 skipped
-  (parity and bench want a board), 0 failed. Left for the next item:
-  `rig.py`'s thirteen nested ifs.
+  (parity and bench want a board), 0 failed.
+* THE FRONT DOOR NEXT, the same day: `rig.py`'s thirteen nested ifs
+  -> 0, each lifted into a named step - `_take_afe`, `_later`,
+  `_release_stage` and `_release_afe` (close() is one loop of three
+  steps with one try each, which is what its own comment already
+  said), `_pin_called`, `_window`, `_split`, `_queued`, `_ended`,
+  `_epoch_of` - and `pick()` is three comprehensions where it was a
+  three-way ladder in a loop. Its refusals come in a fixed order now:
+  a misspelt name before an unselectable one, where the ladder
+  answered whichever came first in the caller's list. The pauses are
+  named beside the constants they pace - `AFE_SETTLE`, `TAKE_PAUSE`,
+  `RETRY_PAUSE`, `EMPTY_PAUSE`, `DONE_LOOKS` - so 12 literals became
+  8, the remaining ones the pandas index arithmetic. Five suites
+  through the rig (structure, daq_api, simulated, sensorless, views)
+  and pyright unchanged: 0 failed, 0 errors.
 
 ## The local model
 
