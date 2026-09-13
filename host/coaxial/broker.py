@@ -21,7 +21,7 @@ import socketserver
 import threading
 import time
 
-from . import errors
+from . import errors, protocol
 from .transport import Transport
 from typing import Any
 
@@ -264,80 +264,115 @@ class _Handler(socketserver.StreamRequestHandler):
 
     @staticmethod
     def _do(served, op, message):
-        if op == 'baud':
-            return {'baud': served.transport.baud}
-        if op == 'port':
-            return {'port': served.serial_port}
-        if op == 'clients':
-            return {'clients': served.clients}
-        if op == 'answers':
-            # A LOOK, NOT A USE - the staleness check asks this before it
-            # commits `auto` to a real port, and whoever asks whether the
-            # board is there must not become the last one out. The same
-            # read the keepalive makes, under the same lock.
-            from . import protocol
-            try:
-                with served.lock:
-                    served.transport.request(
-                        message.get('unit', 1), protocol.VERSION, b'',
-                        None, 1.0)
-            except (errors.RigError, OSError):
-                return {'answers': False}
-            served.spoke()
-            return {'answers': True}
-        if op == 'stand_down':
-            # Only with nobody using it. A suite that needs the port raw -
-            # conformance sends deliberately malformed frames, which is the
-            # one thing a broker cannot forward - takes it when it is free
-            # and is told who has it when it is not.
-            with served.lock:
-                busy = served.clients
-            if busy:
-                return {'error': 'DeviceStateError',
-                        'message': '%d session%s still using %s'
-                                   % (busy, '' if busy == 1 else 's',
-                                      served.serial_port)}
-            threading.Thread(target=served.shutdown, daemon=True).start()
-            return {'payload': ''}
-        if op == 'request':
-            with served.lock:
-                got = served.retrying(
-                    message['unit'], message['function'],
-                    bytes.fromhex(message['payload']),
-                    message['exact_payload'], message['timeout'],
-                    message.get('reply_shape'))
-            served.spoke()
-            return {'payload': bytes(got).hex()}
-        if op == 'daq_stream':
-            served.stream(int(message['stride']), int(message['records']),
-                          int(message.get('unit') or 1))
-            return served.fanout.state()
-        if op == 'daq_unstream':
-            served.unstream()
-            return {'streaming': False}
-        if op == 'daq_state':
-            if served.fanout is None:
-                return {'streaming': False}
-            got = served.fanout.state()
-            got['streaming'] = served.streaming
-            return got
-        if op == 'daq_take':
-            if served.fanout is None:
-                raise errors.RigError(
-                    'nothing is streaming - daq_stream first, and the '
-                    'broker will keep the ring for every client on it')
-            blob, first, lost, nxt = served.fanout.take(
-                int(message['from']), int(message.get('max') or 0))
-            return {'blob': blob.hex(), 'first': first, 'lost': lost,
-                    'next': nxt}
-        if op == 'broadcast':
-            with served.lock:
-                served.transport.broadcast(
-                    message['function'], bytes.fromhex(message['payload']),
-                    message['settle'])
-            served.spoke()
-            return {'payload': ''}
-        return {'error': 'RigError', 'message': 'unknown op %r' % (op,)}
+        """One op, by the table below - an op it does not list is refused
+        in words, as everything else here is."""
+        handler = OPS.get(op)
+        if handler is None:
+            return {'error': 'RigError', 'message': 'unknown op %r' % (op,)}
+        return handler(served, message)
+
+
+def _baud(served, message):
+    return {'baud': served.transport.baud}
+
+
+def _port(served, message):
+    return {'port': served.serial_port}
+
+
+def _clients(served, message):
+    return {'clients': served.clients}
+
+
+def _answers(served, message):
+    """A LOOK, NOT A USE - the staleness check asks this before it commits
+    `auto` to a real port, and whoever asks whether the board is there must
+    not become the last one out. The same read the keepalive makes, under
+    the same lock."""
+    try:
+        with served.lock:
+            served.transport.request(
+                message.get('unit', 1), protocol.VERSION, b'', None, 1.0)
+    except (errors.RigError, OSError):
+        return {'answers': False}
+    served.spoke()
+    return {'answers': True}
+
+
+def _stand_down(served, message):
+    """Only with nobody using it. A suite that needs the port raw -
+    conformance sends deliberately malformed frames, which is the one thing
+    a broker cannot forward - takes it when it is free and is told who has
+    it when it is not."""
+    with served.lock:
+        busy = served.clients
+    if busy:
+        return {'error': 'DeviceStateError',
+                'message': '%d session%s still using %s'
+                           % (busy, '' if busy == 1 else 's',
+                              served.serial_port)}
+    threading.Thread(target=served.shutdown, daemon=True).start()
+    return {'payload': ''}
+
+
+def _request(served, message):
+    with served.lock:
+        got = served.retrying(
+            message['unit'], message['function'],
+            bytes.fromhex(message['payload']),
+            message['exact_payload'], message['timeout'],
+            message.get('reply_shape'))
+    served.spoke()
+    return {'payload': bytes(got).hex()}
+
+
+def _daq_stream(served, message):
+    served.stream(int(message['stride']), int(message['records']),
+                  int(message.get('unit') or 1))
+    return served.fanout.state()
+
+
+def _daq_unstream(served, message):
+    served.unstream()
+    return {'streaming': False}
+
+
+def _daq_state(served, message):
+    if served.fanout is None:
+        return {'streaming': False}
+    got = served.fanout.state()
+    got['streaming'] = served.streaming
+    return got
+
+
+def _daq_take(served, message):
+    if served.fanout is None:
+        raise errors.RigError(
+            'nothing is streaming - daq_stream first, and the '
+            'broker will keep the ring for every client on it')
+    blob, first, lost, nxt = served.fanout.take(
+        int(message['from']), int(message.get('max') or 0))
+    return {'blob': blob.hex(), 'first': first, 'lost': lost, 'next': nxt}
+
+
+def _broadcast(served, message):
+    with served.lock:
+        served.transport.broadcast(
+            message['function'], bytes.fromhex(message['payload']),
+            message['settle'])
+    served.spoke()
+    return {'payload': ''}
+
+
+#: What a client may ask of the broker, by the `op` in its line: each a
+#: function of the server and the message, answering a dict the client
+#: reads back as the reply or the raise.
+OPS = {
+    'baud': _baud, 'port': _port, 'clients': _clients, 'answers': _answers,
+    'stand_down': _stand_down, 'request': _request, 'broadcast': _broadcast,
+    'daq_stream': _daq_stream, 'daq_unstream': _daq_unstream,
+    'daq_state': _daq_state, 'daq_take': _daq_take,
+}
 
 
 class _Server(socketserver.ThreadingTCPServer):

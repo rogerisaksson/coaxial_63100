@@ -943,6 +943,21 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   8, the remaining ones the pandas index arithmetic. Five suites
   through the rig (structure, daq_api, simulated, sensorless, views)
   and pyright unchanged: 0 failed, 0 errors.
+* THE LINK, THE READER, THE STAGE AND THE VERBS (2026-09-13): the
+  broker's eleven `if op == ...` were one ladder in `_do`; they are
+  eleven functions and one table, `OPS`, and an op it does not list
+  is refused in words as before. `frame_length` sizes an `ack` reply
+  through `_ack_length`, and a frame's fixed bytes are named where
+  the transport frames them - `HEAD_BYTES`, `CRC_BYTES`, `EXCEPTION`
+  - where the 2s, 4s and 5s were spelt out per line. `transmit` pays
+  its gap in `_pay_gap`; the reader counts its rate in `_count` with
+  the window and the smoothing named (`RATE_WINDOW` 0.5 s,
+  `RATE_MEMORY` 0.7); the stage's interlock is `_require_interlock`;
+  the servo's unwrap is `_turned` with `TURN` and `HALF_TURN`; the
+  bench table's closing line is `_verdict`, the gauges' label row
+  `_label_row`. Fourteen nested ifs -> 0 across the seven files;
+  structure, broker, daq_api, simulated, sensorless, views and the
+  Modbus core: 0 failed.
 
 ## The local model
 

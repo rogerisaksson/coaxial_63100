@@ -147,18 +147,19 @@ def table(results):
                         r.best * 1e3, r.median * 1e3, r.efficiency * 100,
                         r.payload_bytes_per_second))
     if results:
-        baud = results[0].baud
-        lines.append('')
-        if any(r.efficiency > 1.0 for r in results):
-            # A number from nowhere and one from hardware must not look
-            # alike. Nothing can beat its own bitrate, so this is the only
-            # thing it can mean.
-            lines.append('faster than %d baud allows, which is not a link '
-                         'being quick - it is the stand-in, with no wire to '
-                         'be slow' % baud)
-        else:
-            lines.append('%d baud 8N1 carries %d B/s; the flat cost of a '
-                         'transaction is %.1f ms'
-                         % (baud, baud // BITS_PER_BYTE,
-                            min(r.overhead for r in results) * 1e3))
+        lines.extend(['', _verdict(results)])
     return lines
+
+
+def _verdict(results):
+    """What the numbers say about the wire, in one line."""
+    baud = results[0].baud
+    if any(r.efficiency > 1.0 for r in results):
+        # A number from nowhere and one from hardware must not look
+        # alike. Nothing can beat its own bitrate, so this is the only
+        # thing it can mean.
+        return ('faster than %d baud allows, which is not a link being '
+                'quick - it is the stand-in, with no wire to be slow' % baud)
+    return ('%d baud 8N1 carries %d B/s; the flat cost of a transaction '
+            'is %.1f ms' % (baud, baud // BITS_PER_BYTE,
+                            min(r.overhead for r in results) * 1e3))

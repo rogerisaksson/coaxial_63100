@@ -21,6 +21,13 @@ from .errors import ConnectError, CrcError, FrameError, ModbusException, NoReply
 from .protocol import BROADCAST, MAX_PAYLOAD
 from typing import Any
 
+#: A frame's fixed bytes around the payload: the unit id and function
+#: code in front, the CRC behind.
+HEAD_BYTES = 2
+CRC_BYTES = 2
+#: The bit a slave sets on the function code to answer an exception.
+EXCEPTION = 0x80
+
 
 class Transport:
     """One serial port at one bitrate, shared by every unit on it.
@@ -65,7 +72,7 @@ class Transport:
 
     DEFAULT_TIMEOUT = 0.5
 
-    MAX_FRAME = 4 + MAX_PAYLOAD
+    MAX_FRAME = HEAD_BYTES + MAX_PAYLOAD + CRC_BYTES
     """Unit id, function code, the largest payload and the CRC. Nothing longer
     can be a frame, so a reader holding this many bytes need not wait for a gap
     to know the frame ended."""
@@ -157,6 +164,12 @@ class Transport:
 
     # -- framing -----------------------------------------------------------
 
+    def _pay_gap(self):
+        """What is left of t3.5 since the line went quiet, slept."""
+        owed = self.interframe_gap - (time.monotonic() - self._quiet_since)
+        if owed > 0:
+            time.sleep(owed)
+
     def transmit(self, unit, function, payload=b''):
         frame = bytes([unit, function]) + payload
         frame += struct.pack('<H', crc16(frame))    # low byte first, unlike every
@@ -175,10 +188,7 @@ class Transport:
         # unproven frame still ends by t3.5 over there, and the gap after
         # it is what delimits it.
         if not (self.proven_dispatch and self._last_proven):
-            owed = self.interframe_gap - (time.monotonic()
-                                          - self._quiet_since)
-            if owed > 0:
-                time.sleep(owed)
+            self._pay_gap()
         from .protocol import request_length
         pdu_len = len(frame) - 3
         self._last_proven = (request_length(frame[1:-2]) == pdu_len
@@ -248,15 +258,15 @@ class Transport:
 
         want = self.MAX_FRAME
         while len(buffer) < want:
-            if want == self.MAX_FRAME:
-                # The length is knowable for some replies as soon as the
-                # counted field has arrived, and once it is known the read
-                # stops on the last byte instead of on QUIET_TIME of
-                # silence after it. That wait is 8 ms of every transaction.
-                sized = frame_length(reply_shape, buffer)
-                if sized:
-                    want = min(sized, self.MAX_FRAME)
-                    continue
+            # The length is knowable for some replies as soon as the
+            # counted field has arrived, and once it is known the read
+            # stops on the last byte instead of on QUIET_TIME of
+            # silence after it. That wait is 8 ms of every transaction.
+            sized = (frame_length(reply_shape, buffer)
+                     if want == self.MAX_FRAME else 0)
+            if sized:
+                want = min(sized, self.MAX_FRAME)
+                continue
             waiting = self.serial.in_waiting
             chunk = self.serial.read(min(waiting, want - len(buffer))
                                      if waiting else 1)
@@ -315,24 +325,30 @@ def frame_length(shape, buffer):
     exactly one code byte, and a shaped read of a refused request
     otherwise waited out the quiet time to learn it was refused.
     """
-    if not shape or len(buffer) < 2:
+    if not shape or len(buffer) < HEAD_BYTES:
         return 0
-    if buffer[1] & 0x80:
-        return 5                              # unit, fc | 0x80, code, CRC
+    if buffer[1] & EXCEPTION:
+        return HEAD_BYTES + 1 + CRC_BYTES       # the exception code alone
     if shape.get('ack'):
-        if len(buffer) < 3:
-            return 0
-        if buffer[2]:
-            return 5                          # unit, fc, took=1, CRC
-        if len(buffer) < 4:
-            return 0
-        return 2 + 2 + buffer[3] + 2          # took=0, length, string, CRC
-    at = 2 + int(shape.get('at', 0))          # past unit and function code
+        return _ack_length(buffer)
+    at = HEAD_BYTES + int(shape.get('at', 0))
     if len(buffer) <= at:
         return 0
     payload = (int(shape['head']) + buffer[at] * int(shape['stride'])
                + int(shape.get('tail', 0)))
-    return 2 + payload + 2                    # unit, fc, payload, CRC
+    return HEAD_BYTES + payload + CRC_BYTES
+
+
+def _ack_length(buffer):
+    """The `u8 took` reply's length: `1` alone, or `0` and the board's
+    length-prefixed refusal - 0 until the byte that settles it is in."""
+    if len(buffer) < HEAD_BYTES + 1:
+        return 0
+    if buffer[HEAD_BYTES]:
+        return HEAD_BYTES + 1 + CRC_BYTES       # took=1
+    if len(buffer) < HEAD_BYTES + 2:
+        return 0
+    return HEAD_BYTES + 2 + buffer[HEAD_BYTES + 1] + CRC_BYTES
 
 
 def validate(reply, unit, function):
@@ -353,7 +369,7 @@ def validate(reply, unit, function):
         raise FrameError('reply came from unit %d, asked unit %d'
                          % (reply[0], unit))
 
-    if reply[1] == (function | 0x80):
+    if reply[1] == (function | EXCEPTION):
         raise ModbusException(unit, function, reply[2])
 
     if reply[1] != function:

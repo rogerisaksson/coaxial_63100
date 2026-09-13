@@ -24,6 +24,21 @@ import time
 from .errors import RigError
 from .sensorless import TWO_PI
 
+#: Mechanical degrees: a full turn, and the jump past which a reading
+#: has wrapped rather than the shaft having moved.
+TURN = 360.0
+HALF_TURN = TURN / 2
+
+
+def _turned(delta):
+    """The whole turn a reading stepped across, if it did: a jump past
+    half a turn is the sensor wrapping, not the shaft."""
+    if delta > HALF_TURN:
+        return -TURN
+    if delta < -HALF_TURN:
+        return TURN
+    return 0.0
+
 
 class _Mode:
 
@@ -185,11 +200,7 @@ class Servo(_Mode):
         """The shaft, unwrapped, mech degrees from where the block began."""
         now = self.device.angle.state()['degrees']
         if self._last is not None:
-            delta = now - self._last
-            if delta > 180.0:
-                self._turns -= 360.0
-            elif delta < -180.0:
-                self._turns += 360.0
+            self._turns += _turned(now - self._last)
         self._last = now
         return now + self._turns - (self._shaft0 or 0.0)
 

@@ -36,6 +36,14 @@ HOST_BLOCKS = 4096
 #: board is busy, so a run of these is the signal, not one.
 MISSES_ALLOWED = 20
 
+#: The pause after a missed reply, before the next read.
+RETRY_PAUSE = 0.01
+
+#: The rate is re-measured over windows this long, and smoothed with
+#: this much memory of the last window.
+RATE_WINDOW = 0.5
+RATE_MEMORY = 0.7
+
 
 class BufferedReader:
 
@@ -65,7 +73,7 @@ class BufferedReader:
         #: ceiling on it, so a stalled board cannot hold the reader.
         self._max_wait = float(max_wait)
         self._rate = 0.0                      # records/s, this reader's own
-        self._since = None
+        self._since = 0.0            # the rate window's start; _run sets it
         self._blocks = collections.deque()
         self._thread = None
         self._stop = threading.Event()
@@ -177,6 +185,19 @@ class BufferedReader:
         self._blocks.append(block)
         self.peak = max(self.peak, len(self._blocks))
 
+    def _count(self, block):
+        """The rate this reader is actually seeing, smoothed a window at
+        a time. It is what `_hold` divides the shortfall by."""
+        self.records += len(block)
+        span = time.time() - self._since
+        if span <= RATE_WINDOW:
+            return
+        seen = self.records / span
+        self._rate = seen if not self._rate else (
+            RATE_MEMORY * self._rate + (1.0 - RATE_MEMORY) * seen)
+        self.records, self._since = 0, time.time()
+        self._total += int(seen * span)
+
     def _run(self):
         misses = 0
         self._since = time.time()
@@ -199,7 +220,7 @@ class BufferedReader:
                         '%d replies in a row went missing, so the link is '
                         'gone rather than busy: %s' % (misses, exc))
                     return
-                time.sleep(0.01)
+                time.sleep(RETRY_PAUSE)
                 continue
             except Exception as exc:              # noqa: BLE001 - re-raised
                 self.error = exc
@@ -209,16 +230,7 @@ class BufferedReader:
             if self._backlog_of is not None:
                 self.backlog = self._backlog = self._backlog_of()
             if block:
-                self.records += len(block)
-                # The rate this reader is actually seeing, smoothed. It is
-                # what `_hold` divides the shortfall by.
-                span = time.time() - self._since
-                if span > 0.5:
-                    seen = self.records / span
-                    self._rate = seen if not self._rate else (
-                        0.7 * self._rate + 0.3 * seen)
-                    self.records, self._since = 0, time.time()
-                    self._total += int(seen * span)
+                self._count(block)
                 self._keep(block)
             # PACED BY THE BOARD, NOT BY A CLOCK. While records are still
             # queued on the target the next read goes out with no wait, so

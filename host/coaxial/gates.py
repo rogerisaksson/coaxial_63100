@@ -208,26 +208,28 @@ class GateStage:
         this. Both are decisions, which is why neither is silent.
         """
         self.check()
-
         if not ignore_interlock:
-            failed = [row for row in self.interlock() if not row[2]]
-            if failed:
-                raise RigError(
-                    'the arming interlock is not satisfied: %s. The '
-                    'schematic wants the charge pump up and the level '
-                    'detector tripped before the gate drive is armed. Pass '
-                    'ignore_interlock=True to arm anyway, which is what an '
-                    'unmodified bench board needs'
-                    % ', '.join(
-                        '%s %s' % (name, 'is off' if volts is None
-                                   else '%.2f V, wants %.1f' % (volts, want))
-                        for name, volts, _, want in failed))
-
+            self._require_interlock()
         if bypass_sto:
             self.control.bypass_break(True)
         self.control.enable()
         self._armed_here = True
         return self.control.state()
+
+    def _require_interlock(self):
+        """Raise unless every arming condition reads true now."""
+        failed = [row for row in self.interlock() if not row[2]]
+        if failed:
+            raise RigError(
+                'the arming interlock is not satisfied: %s. The '
+                'schematic wants the charge pump up and the level '
+                'detector tripped before the gate drive is armed. Pass '
+                'ignore_interlock=True to arm anyway, which is what an '
+                'unmodified bench board needs'
+                % ', '.join(
+                    '%s %s' % (name, 'is off' if volts is None
+                               else '%.2f V, wants %.1f' % (volts, want))
+                    for name, volts, _, want in failed))
 
     @property
     def armed_here(self):

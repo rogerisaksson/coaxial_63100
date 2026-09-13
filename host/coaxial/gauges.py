@@ -176,11 +176,15 @@ def tubes(entries, rows, labels=(), pitch=None, colour=True):
                       share, cls)
     lines = frame.lines(INK, colour=colour)
     if labels:
-        row = ''.join(label[:pitch].center(pitch)
-                      for label in labels + [''] * (len(entries)
-                                                    - len(labels)))
-        if colour:
-            from . import ansi
-            row = ansi.paint(row, INK[TRACK] + 6)
-        lines.append(row.rstrip() if not colour else row)
+        lines.append(_label_row(labels, len(entries), pitch, colour))
     return lines
+
+
+def _label_row(labels, count, pitch, colour):
+    """The labels under the tubes, one pitch each, padded to `count`."""
+    row = ''.join(label[:pitch].center(pitch)
+                  for label in labels + [''] * (count - len(labels)))
+    if not colour:
+        return row.rstrip()
+    from . import ansi
+    return ansi.paint(row, INK[TRACK] + 6)
