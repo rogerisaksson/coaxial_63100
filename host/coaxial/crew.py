@@ -21,10 +21,11 @@ import os
 from . import engine
 from .errors import RigError
 
-#: The solids and the art, set once per worker: 50,000 floats down a
-#: pipe every frame would cost more than the drawing.
-_BODIES = ()
-_ART = None
+class _Worker:
+    """The solids and the art, set once per worker by `_load`: 50,000
+    floats down a pipe every frame would cost more than the drawing."""
+    bodies = ()
+    art = None
 
 #: Past this the bands get thinner than the model is tall: most workers
 #: draw nothing and only the repeated vertex pass is left.
@@ -32,9 +33,7 @@ MAX_WORKERS = 8
 
 
 def _load(solids, art):
-    global _BODIES, _ART
-    _BODIES = solids
-    _ART = art
+    _Worker.bodies, _Worker.art = solids, art
 
 
 def _band(job) -> tuple:
@@ -47,7 +46,7 @@ def _band(job) -> tuple:
     fine = dict(cam, width=2 * width, height=2 * cam['height'],
                 scale=2.0 * cam['scale'], cx=2.0 * cam['cx'],
                 cy=2.0 * cam['cy'])
-    depth, top, sun = engine.raster(_BODIES[which], m, fine, beam=beam,
+    depth, top, sun = engine.raster(_Worker.bodies[which], m, fine, beam=beam,
                                     sun_min=sun_min,
                                     band=(2 * first, 2 * last))
     depth, top, sun, coverage, quads = engine.fold(depth, top, sun, width,
@@ -62,7 +61,7 @@ def _band(job) -> tuple:
     n = width * rows
     levels, bare, seed = [0.0] * n, [0.0] * n, [0.0] * n
     classes = engine.shade(depth, top, sun, strip, m, pivot, slope, floor,
-                           art=_ART if art else None, shadow=shadow,
+                           art=_Worker.art if art else None, shadow=shadow,
                            shadow_step=shadow_step, bias=bias,
                            levels=levels, bare=bare, seed=seed)
     return depth, coverage, quads, classes, levels, bare, seed

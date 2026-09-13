@@ -137,7 +137,7 @@ def announce(state, minutes, ntc, spread):
     print('%s\n' % bar, flush=True)
 
 
-def hold(state, dwell_s, poll_s=30.0):
+def hold(port, state, dwell_s, poll_s=30.0):
     """Set the state, hold it, read at the end."""
     if state == 'switch':
         # Switch in chunks and sample between: switch.py owns the port while
@@ -148,7 +148,7 @@ def hold(state, dwell_s, poll_s=30.0):
         done = 0.0
         while done < dwell_s:
             this = min(chunk, dwell_s - done)
-            subprocess.run([sys.executable, 'tools/switch.py', '--port', PORT,
+            subprocess.run([sys.executable, 'tools/switch.py', '--port', port,
                             '-P', 'U,V,W', '-d', '0.50', '-s', str(int(this))],
                            cwd=os.path.dirname(HERE), check=True)
             done += this
@@ -156,13 +156,13 @@ def hold(state, dwell_s, poll_s=30.0):
             # it does, the AFE is ON when the next chunk starts and the gate
             # drivers then have no supply - the gate is inverted. peek()
             # drives it itself and leaves it off.
-            with Coaxial63100(port=PORT, power_afe=False) as rig:
+            with Coaxial63100(port=port, power_afe=False) as rig:
                 ntc, _spread = peek(rig)
             print('  switch %5.1f min   NTC %s  (sample)'
                   % (done / 60.0,
                      '%6.2f C' % ntc if ntc is not None else 'quiet'),
                   flush=True)
-        with Coaxial63100(port=PORT, power_afe=False) as rig:
+        with Coaxial63100(port=port, power_afe=False) as rig:
             top = peek(rig)
             print('  right after stop : NTC %s'
                   % ('%.2f C' % top[0] if top[0] else 'quiet'), flush=True)
@@ -172,7 +172,7 @@ def hold(state, dwell_s, poll_s=30.0):
                   % ('%.2f C' % bulk[0] if bulk[0] else 'quiet'), flush=True)
         return bulk
 
-    with Coaxial63100(port=PORT) as rig:
+    with Coaxial63100(port=port) as rig:
         if state == 'passive':
             rig.board.afe.disable()
         else:
@@ -230,7 +230,6 @@ def wait_for_next():
 
 
 def main():
-    global PORT
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', default='COM4')
     p.add_argument('--minutes', type=float, default=25.0,
@@ -245,7 +244,6 @@ def main():
         print('moving to the next state')
         return
 
-    PORT = a.port
     want = a.only.split(',') if a.only else list(STATES)
     print('tau = %.1f min, holding %.0f min per state (%.1f tau)'
           % (tau_minutes(), a.minutes, a.minutes / tau_minutes()), flush=True)
@@ -254,7 +252,7 @@ def main():
 
     for state in want:
         print('--- %s: %s ---' % (state, WHAT[state]), flush=True)
-        ntc, spread = hold(state, a.minutes * 60.0)
+        ntc, spread = hold(a.port, state, a.minutes * 60.0)
         announce(state, a.minutes, ntc, spread)
         wait_for_next()
 

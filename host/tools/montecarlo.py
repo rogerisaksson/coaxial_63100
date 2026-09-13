@@ -64,7 +64,15 @@ KNOBS = {'bw_i': (300.0, 2500.0, True),     # current loop, Hz
          'w_ratio': (1.5, 4.0, True),       # w_hi over w_lo
          'bw_w': (1.0, 20.0, True)}         # speed loop, Hz
 
-_LIB = None
+class _Worker:
+    """The drive core's library, one per process: the parent builds it,
+    `_load` opens it in each worker, `hold` hands an open one in."""
+    lib = None
+
+
+def hold(lib):
+    """Use an already-open library - the test bench's, in process."""
+    _Worker.lib = lib
 
 
 def library():
@@ -79,8 +87,7 @@ def _load(path):
     # pools spiking together took a 24 GB machine down. The env var tames
     # the pool if one gets through anyway.
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
-    global _LIB
-    _LIB = ctypes.CDLL(path)
+    hold(ctypes.CDLL(path))
 
 
 def wrap(x):
@@ -162,7 +169,7 @@ class Run:
         k_prop = job.get('k_prop', APC20x10E.k)
         self.plant = draw(self.seed, self.vdc, self.motor, k_prop)
         self.model = {k: self.plant[k] for k in H.MODEL}
-        self.d = H.Drive(_LIB, TS)
+        self.d = H.Drive(_Worker.lib, TS)
         self.d.model_params(**self.model)
         self.d.source(True)
         self.params = design(self.knobs, self.vdc, self.motor, i_max, i_trip,

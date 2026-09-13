@@ -12,6 +12,7 @@ exporter draws the real assembly's thickness and connectors.
 
     python tools/facecheck.py
 """
+import functools
 import math
 import os
 import re
@@ -25,21 +26,20 @@ from coaxial.orientation import _qmul                      # noqa: E402
 HOST = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RENDERS = os.path.join(HOST, 'tests', 'renders')
 
-_CUBE = None
+
+@functools.cache
+def _cube():
+    """The exporter's cube, decimated in memory once - nothing written
+    beside the STL."""
+    return wireframe._decimated(
+        os.path.join(HOST, '..', 'render', 'models', 'cube.stl'), 400)
 
 
 def solid_for(name):
     """The mesh a fixture renders with: the exporter's cube for cube-*,
     the board (None, render's default) otherwise. The cube is the light
     model's proof - flat faces make a shading bug a wrong character."""
-    global _CUBE
-    if not name.startswith('cube-'):
-        return None
-    if _CUBE is None:
-        # wireframe's in-memory decimate: nothing written beside the STL.
-        _CUBE = wireframe._decimated(
-            os.path.join(HOST, '..', 'render', 'models', 'cube.stl'), 400)
-    return _CUBE
+    return _cube() if name.startswith('cube-') else None
 
 
 def euler(x, y, z, order):

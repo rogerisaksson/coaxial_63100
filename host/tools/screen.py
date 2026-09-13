@@ -66,12 +66,9 @@ SELECT_KEYS = frozenset({'f', 'F'})
 #: a chip that says who has it should not have to be handed the object to
 #: ask. Set on entry and cleared on exit, so a view outside a run reads
 #: False rather than a stale True.
-_HOLDER = None
-
-
 def holding():
     """Whether a view has the mouse right now, for a key legend."""
-    return _HOLDER is not None and _HOLDER.holding()
+    return Keys.holder is not None and Keys.holder.holding()
 
 #: What a view exits with when ESC sent it back. Distinct from 0 so the menu
 #: can tell "show me again" from "that is all", and from 130 so neither is
@@ -756,6 +753,11 @@ class Keys:
     terminal - reading stdin from a pipe would eat it.
     """
 
+    #: The Keys holding the mouse right now, if any: set on entry and
+    #: cleared on exit, so a view outside a run reads False rather than
+    #: a stale True.
+    holder: 'Keys | None' = None
+
     #: One SGR mouse report: ESC [ < button ; column ; row (M press, m release)
     MOUSE_RE = re.compile(r'\033\[<(\d+);(\d+);(\d+)([Mm])')
 
@@ -808,16 +810,14 @@ class Keys:
             self._saved = None
         # THE TERMINAL KEEPS THE MOUSE until a view is asked to take
         # it. `SELECT_KEYS` has why.
-        global _HOLDER
         if self.mouse:
-            _HOLDER = self
+            Keys.holder = self
         return self
 
     def __exit__(self, *exc_info):
-        global _HOLDER
         self.grab(False)
-        if _HOLDER is self:
-            _HOLDER = None
+        if Keys.holder is self:
+            Keys.holder = None
         if self._saved is not None and self._posix is not None:
             self._posix.tcsetattr(sys.stdin, self._posix.TCSADRAIN,
                                   self._saved)

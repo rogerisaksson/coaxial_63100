@@ -1251,6 +1251,23 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   tree's getattr-with-default count is fourteen now, from ninety-seven
   this morning, and every one left probes the I/O edge or the
   platform. daq_api 75, simulated 254, structure 621; pyright 0.
+* NO `global` STATEMENT IN host/ (2026-09-13): fourteen, in five
+  shapes. A once-built cache - the wire model, the parametric board,
+  the face art, the toon and photographic meshes, the exporter's cube
+  - is `functools.cache` on its loader, and the shadow casters ask the
+  mtime-keyed mesh cache each frame the way their docstring always
+  said, the parametric fallback cached beside it. A pool worker's
+  state - the crew's solids and art, the farm's model, the Monte
+  Carlo's library - is a `_Worker` holder the initializer fills, and
+  `montecarlo.hold(lib)` is how the drive-core bench hands in the
+  library it built. The key reader names the instance holding the
+  mouse (`Keys.holder`). The rotor observer's box - width, rows,
+  height - is one `Box` object `fit` sets from the terminal each frame
+  and every drawing function reads, thirty sites, where three module
+  globals were rebound. The thermal calibration's port is `hold`'s
+  first parameter rather than a global main assigned. structure 621,
+  render 79, views 206, drive core 81, mcp 50; pyright 0 on the eleven
+  files; the render bench and the calibration tool answer.
 
 ## The local model
 

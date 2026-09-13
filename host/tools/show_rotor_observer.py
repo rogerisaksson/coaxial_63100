@@ -111,7 +111,7 @@ STEPS = (0.05, 0.1, 0.25, 0.5, 1.0)
 #: rules through `machine.gutters`, and the instrument column keeps its
 #: forty. Nothing else is placed by a number of its own. ON A TERMINAL
 #: BOTH FOLLOW ITS SIZE, every frame - `fit` below.
-ART_WIDTH, ART_HEIGHT = 52, 24
+NOMINAL_HEIGHT = 24
 
 #: Rows of the box that are captions rather than drawing: five above and
 #: one below - the foot gauges' names with the thermal observer's policy
@@ -137,7 +137,14 @@ CAPTION_ROWS, FOOT_ROWS = 5, 1
 #: gauges they name; `machine.FLOOR_INSET` clears it the other way, by
 #: spending the row of air that was under the bottom gauge. Can 2..16,
 #: winding 17, watts 18, labels on the row below the box.
-ART_ROWS = ART_HEIGHT - CAPTION_ROWS - FOOT_ROWS
+class Box:
+    """The machine's drawing this frame: its columns, the braille rows
+    the art gets, and the rows the page spends on it with the captions
+    and the foot. `fit` sets it from the terminal every frame; the
+    nominal until then, and piped."""
+    def __init__(self, width, height):
+        self.width, self.height = width, height
+        self.rows = height - CAPTION_ROWS - FOOT_ROWS
 
 #: What the drawing keeps above the machine and below it - the two floor
 #: gauges. `fit` adds these to the can's own rows.
@@ -164,6 +171,8 @@ PAGE_ROWS = 4
 NOMINAL_WIDTH = 52
 MIN_WIDTH = 40
 MIN_BAND = 8
+
+BOX = Box(NOMINAL_WIDTH, NOMINAL_HEIGHT)
 
 
 def _width_for(can):
@@ -196,13 +205,12 @@ def fit(aspect, size=None):
     `+ 2` in the diameter because `_Radii` keeps a dot off each edge, and
     a band that forgot that shrank the can by half a dot to fit.
 
-    Module globals, set from a measured aspect - the same standing as
-    `CELL_ASPECT` itself - and every place that needs the size reads them
-    when it draws; on a terminal `draw` sets them every frame, so a resize
+    `BOX`, set from a measured aspect - the same standing as
+    `CELL_ASPECT` itself - and every place that needs the size reads it
+    when it draws; on a terminal `draw` sets it every frame, so a resize
     is the next frame's size (bench 2026-09-13: it scales with the
     terminal's size).
     """
-    global ART_WIDTH, ART_ROWS, ART_HEIGHT
     stretch = aspect / machine.DOTS_Y * machine.DOTS_X
     width = (NOMINAL_WIDTH if size is None else
              max(MIN_WIDTH, size.width - HUD_WIDTH - VIEWPORT_COLUMNS))
@@ -213,10 +221,10 @@ def fit(aspect, size=None):
                          stretch=stretch)[1].can
     width = min(width, max(MIN_WIDTH, _width_for(can)))
     rows = int(math.ceil((2.0 * can + 2.0) / (machine.DOTS_Y * stretch)))
-    ART_WIDTH = width
-    ART_ROWS = HOP_ROWS + rows + FLOOR_GAUGES
-    ART_HEIGHT = ART_ROWS + CAPTION_ROWS + FOOT_ROWS
-    return ART_ROWS
+    BOX.width = width
+    BOX.rows = HOP_ROWS + rows + FLOOR_GAUGES
+    BOX.height = BOX.rows + CAPTION_ROWS + FOOT_ROWS
+    return BOX.rows
 
 #: HOW CLOSE TO THE FLOOR IS TOO CLOSE. The chain reports `wc`, the leak's
 #: corner, and calls itself invalid below it - both observers live on
@@ -608,7 +616,7 @@ def _place(row, name, columns, right_edge=False, until=None):
     if not columns or not name:
         return None
     middle = (min(columns) + max(columns)) / 2.0
-    at = (ART_WIDTH - len(name) if right_edge
+    at = (BOX.width - len(name) if right_edge
           else int(round(middle - (len(name) - 1) / 2.0)))
     # A NAME WIDER THAN ITS GROUP LEANS INWARD. `BOARD` is five over four
     # columns of thermometers, and centred it ran one past them and took
@@ -618,7 +626,7 @@ def _place(row, name, columns, right_edge=False, until=None):
         at = min(at, max(columns) + 1 - len(name))
     if until is not None:
         at = min(at, until + 1 - len(name))
-    at = max(0, min(ART_WIDTH - len(name), at))
+    at = max(0, min(BOX.width - len(name), at))
     row[at:at + len(name)] = name
     return at
 
@@ -727,7 +735,7 @@ def _legend_targets(view, left, right):
     """
     bars = headrooms(view)
     said = []
-    first, last = machine.span(ART_WIDTH, ART_ROWS,
+    first, last = machine.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
     # THE MEASUREMENT FIRST, at the top, because everything under it is
     # an estimate and a page that opens with a model teaches a bench to
@@ -814,7 +822,7 @@ def foot_furniture():
     lower, so the left L climbs two rows and the right one, and neither
     passes through the other.
     """
-    first, last = machine.span(ART_WIDTH, ART_ROWS,
+    first, last = machine.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
     grey = machine.LEADER_GREY
     # BOTH RUN PAST THE LAST ART ROW, because both carry on into the
@@ -823,10 +831,10 @@ def foot_furniture():
     # ends at is a hook and one it falls through reaches the cell's
     # floor, and the kW corner came out `⠲` when the stroke below it
     # is an arrow one row down.
-    return ([(ART_ROWS - 2, 0, ART_ROWS + 1, grey, 0),
-             (ART_ROWS - 1, ART_WIDTH - 1, ART_ROWS + 1, grey, 1)],
-            [(ART_ROWS - 2, 0, max(0, first - 1), grey),
-             (ART_ROWS - 1, min(ART_WIDTH - 1, last + 1), ART_WIDTH - 1,
+    return ([(BOX.rows - 2, 0, BOX.rows + 1, grey, 0),
+             (BOX.rows - 1, BOX.width - 1, BOX.rows + 1, grey, 1)],
+            [(BOX.rows - 2, 0, max(0, first - 1), grey),
+             (BOX.rows - 1, min(BOX.width - 1, last + 1), BOX.width - 1,
               grey)])
 
 
@@ -845,7 +853,7 @@ def legend_drops(view, left, right):
     # function stays so the render call reads the same and a hop can
     # come back by one constant if a tube ever stops being a column.
     return [(0, column, HOP_ROWS, machine.LEADER_GREY,
-             _lane(column, machine.span(ART_WIDTH, ART_ROWS,
+             _lane(column, machine.span(BOX.width, BOX.rows,
                                         LEFT_COLUMNS, RIGHT_COLUMNS)[0]))
             for _row, _text, _ink, column, _centred
             in _legend_targets(view, left, right)] if HOP_ROWS else []
@@ -865,11 +873,11 @@ def _legend_rows(view, left, right):
     the tubes they land on.
     """
     said = _legend_targets(view, left, right)
-    first, last = machine.span(ART_WIDTH, ART_ROWS,
+    first, last = machine.span(BOX.width, BOX.rows,
                                LEFT_COLUMNS, RIGHT_COLUMNS)
     rows = []
     for index in range(CAPTION_ROWS):
-        line = [' '] * ART_WIDTH
+        line = [' '] * BOX.width
         marks = []
         # THE LINES ALREADY FALLING pass through before anything is
         # written, and the words are placed clear of them: without that a
@@ -896,7 +904,7 @@ def _legend_rows(view, left, right):
                 at = first + 2
             else:
                 at = last - 2 - len(text) + 1
-            at = max(0, min(ART_WIDTH - len(text), at))
+            at = max(0, min(BOX.width - len(text), at))
             line[at:at + len(text)] = text
             marks.append((at, len(text), ink))
             # THE HEAD AGAINST THE WORDS, the run in dots. An arrowhead
@@ -921,7 +929,7 @@ def _legend_rows(view, left, right):
             # line now, which is what makes them separate pointers.
             span = [step for step in span
                     if line[step] not in DROP
-                    and not (step + 1 < ART_WIDTH
+                    and not (step + 1 < BOX.width
                              and line[step + 1] in DROP)]
             for step in span:
                 line[step] = LEADER
@@ -931,7 +939,7 @@ def _legend_rows(view, left, right):
             # SWITCH SOA row ran six cells and then pointed at nothing.
             # The air belongs to the horizontal; the endpoint is the
             # whole errand.
-            turned = 0 <= column < ART_WIDTH and line[column] not in DROP
+            turned = 0 <= column < BOX.width and line[column] not in DROP
             if turned:
                 line[column] = TURN[_lane(column, first)]
             # ONE MARK A CELL. `_tinted` cuts the row at each mark and
@@ -992,7 +1000,7 @@ def _foot_line(view):
     # since; THERMAL OBSERVER with a policy word did not fit the row.
     label, word, ink = _policy(view)
     middle = len(label) + 1 + len(word)
-    room = ART_WIDTH - len(head) - len(tail)
+    room = BOX.width - len(head) - len(tail)
     left = max(0, (room - middle) // 2)
     right = max(0, room - middle - left)
     # THE FIGURE WEARS THE BAR'S INK: past 2 kW the bar goes the deep
@@ -1069,7 +1077,7 @@ def gutter_caption(view):
     and the foot keeps its own two, which name levels that lie along the
     bottom of the drawing rather than stand in a gutter.
     """
-    left, right = machine.gutters(ART_WIDTH, ART_ROWS,
+    left, right = machine.gutters(BOX.width, BOX.rows,
                                   LEFT_COLUMNS, RIGHT_COLUMNS)
     return _legend_rows(view, left, right) + [_foot_line(view)]
 
@@ -2135,7 +2143,7 @@ def compose(rig, origin, console, view):
     # travel this view has accumulated instead - the observed speed
     # integrated, which is mechanical revolutions and what a tare is for.
     art = machine.render(turned, view['slots'], 2 * pole_pairs,
-                         ART_WIDTH, ART_ROWS,
+                         BOX.width, BOX.rows,
                          # THE SENSOR'S OWN STROKE IS NOT DRAWN. It was
                          # the model's true angle as a radial mark, and
                          # in four sittings the bench read it as a
@@ -2154,7 +2162,7 @@ def compose(rig, origin, console, view):
                          right=(soa_bars(view, BOARD_NODES)
                                 + [None] * HEADROOM_GAP + headrooms(view)),
                          leaders=legend_drops(view, *machine.gutters(
-                             ART_WIDTH, ART_ROWS,
+                             BOX.width, BOX.rows,
                              LEFT_COLUMNS, RIGHT_COLUMNS))
                          + foot_furniture()[0],
                          rules=foot_furniture()[1],

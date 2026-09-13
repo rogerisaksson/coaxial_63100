@@ -19,9 +19,10 @@ import os
 from . import ascii3d
 from .errors import RigError
 
-#: The model, set once per worker. Sending 200,000 floats down a pipe every
-#: frame would cost more than the drawing.
-_MODEL = None
+class _Worker:
+    """The model, set once per worker by `_load`: 200,000 floats down a
+    pipe every frame would cost more than the drawing."""
+    model = None
 
 #: More than this many workers stops helping: the bands get thinner than the
 #: model is tall, so most of them draw nothing and the vertex pass - which
@@ -30,8 +31,7 @@ MAX_WORKERS = 16
 
 
 def _load(model):
-    global _MODEL
-    _MODEL = model
+    _Worker.model = model
 
 
 def _band(job):
@@ -39,7 +39,7 @@ def _band(job):
     (matrix, distance, scale, cx, cy, cols, top, bottom, lamp, cull,
      width, cell_rows, supersample, ramp, invert) = job
 
-    depth, value = ascii3d.rasterise(_MODEL, matrix, distance, scale, cx, cy,
+    depth, value = ascii3d.rasterise(_Worker.model, matrix, distance, scale, cx, cy,
                                      cols, top, bottom, lamp, cull)
     return ascii3d.resolve(depth, value, width, (bottom - top) // cell_rows,
                            cols, cell_rows, supersample, ramp, invert)

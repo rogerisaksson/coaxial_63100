@@ -731,7 +731,7 @@ def _open_orientation_window(session):
     tools_dir = os.path.dirname(os.path.abspath(__file__))
     script = os.path.join(os.path.dirname(tools_dir), 'tools',
                           'show_orientation.py')
-    port = getattr(session, 'port', None) or 'COM4'
+    port = session.port or 'COM4'
 
     if os.name != 'nt':
         return ('a live view needs its own console and this is not Windows - '

@@ -106,7 +106,7 @@ def test_the_instruments_stand_clear_of_the_machine(report):
     from coaxial import machine
     from tools import show_rotor_observer as view
 
-    width, height = view.ART_WIDTH, view.ART_ROWS
+    width, height = view.BOX.width, view.BOX.rows
     n_left, n_right = len(view.SOA_NODES), len(view.BOARD_NODES)
     frame, _lit = machine._raster(
         6.0, 24, 28, width, height, None, None, None,
@@ -359,7 +359,7 @@ def test_the_foot_carries_the_policy(report):
     report.check('the foot row names WINDING, TH OBS with its state, and '
                  'POWER, in that order, and is the art\'s width',
                  plain.find('WINDING') < plain.find('TH OBS STABLE')
-                 < plain.find('POWER') and len(plain) == view.ART_WIDTH,
+                 < plain.find('POWER') and len(plain) == view.BOX.width,
                  '%d: %s' % (len(plain), plain))
     at = plain.find('TH OBS')
     inks, trims = {}, {}
@@ -377,7 +377,7 @@ def test_the_foot_carries_the_policy(report):
                  'TH OBS UNCR 80%' in trims['UNCERTAIN']
                  and 'TH OBS CONV 90%' in trims['CONVERGING']
                  and 'TH OBS STABLE ' in trims['STABLE']
-                 and all(len(t) == view.ART_WIDTH for t in trims.values()),
+                 and all(len(t) == view.BOX.width for t in trims.values()),
                  ' | '.join(trims.values()))
     report.check('the word wears the margin\'s ink: STABLE green, CONV '
                  'yellow, UNCR red - and TH OBS the leaders\' grey',
@@ -398,7 +398,7 @@ def test_the_foot_carries_the_policy(report):
                  'TH OBS CONV 93%' in between['CONVERGING']
                  and 'TH OBS STBL 97%' in between['STABLE']
                  and 'TH OBS UNCR 81%' in between['UNCERTAIN']
-                 and all(len(t) == view.ART_WIDTH
+                 and all(len(t) == view.BOX.width
                          and t.find('POWER') == plain.find('POWER')
                          for t in between.values()),
                  ' | '.join(between.values()))
@@ -425,7 +425,7 @@ def test_the_foot_carries_the_policy(report):
                  'POWER keep their columns',
                  'WINDING 123.4' in three and three.find('TH OBS') == at
                  and three.find('POWER') == plain.find('POWER')
-                 and len(three) == view.ART_WIDTH, three)
+                 and len(three) == view.BOX.width, three)
 
 
 def test_the_soa_legend_reads_the_whole_soa(report):

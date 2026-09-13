@@ -867,7 +867,7 @@ def test_montecarlo(r, lib):
     controller was not told about, locked, spun and brought back."""
     sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'tools'))
     import montecarlo as mc
-    mc._LIB = lib
+    mc.hold(lib)
     job = {'vdc': 43.0, 'knobs': mc.candidates(4, 1)[0], 'seed': 3}
     row = mc.run_job(job)
     r.check('a drawn plant locks, spins and returns without a trip',

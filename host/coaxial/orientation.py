@@ -16,6 +16,7 @@ an animation angle, so the picture turns because the board did.
 Pure: a quaternion in, text out. No serial port, terminal or clock, so it is
 testable without a board; `tools/show_orientation.py` is what needs one.
 """
+import functools
 import math
 import os
 
@@ -479,21 +480,16 @@ TOON_STEPS = 72
 TOON_RAMP = ' .:=+'   # five bands: four read flat on a mostly-flat board
 TOON_INK = '#'
 
-_TOON = None
-
-
+@functools.cache
 def toon_mesh():
     """((positions, indices, normals), tints), built once on first use."""
-    global _TOON
-    if _TOON is None:
-        try:
-            got = mesh.facets(MODEL, divisions=TOON_DIVISIONS)
-            _TOON = (got, _height_tints(got))
-        except (OSError, ValueError):
-            pos, idx, nrm, tints = facets(steps=TOON_STEPS, tinted=True,
-                                          relief=3.0)
-            _TOON = ((pos, idx, nrm), tints)
-    return _TOON
+    try:
+        got = mesh.facets(MODEL, divisions=TOON_DIVISIONS)
+        return got, _height_tints(got)
+    except (OSError, ValueError):
+        pos, idx, nrm, tints = facets(steps=TOON_STEPS, tinted=True,
+                                      relief=3.0)
+        return (pos, idx, nrm), tints
 
 
 def _height_tints(model):
@@ -516,14 +512,9 @@ def _height_tints(model):
 #: never touches the STL, and loading its cache at import cost every view
 #: 53 ms it did not use (a stale cache costs a 2 s rebuild). External
 #: readers keep saying `orientation.MODEL_MESH`; PEP 562 serves them.
-_PHOTO_MESH = None
-
-
+@functools.cache
 def _model():
-    global _PHOTO_MESH
-    if _PHOTO_MESH is None:
-        _PHOTO_MESH = _load_model()
-    return _PHOTO_MESH
+    return _load_model()
 
 
 def __getattr__(name):

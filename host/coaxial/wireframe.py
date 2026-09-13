@@ -19,7 +19,9 @@ runs both.
 struts, bore and component cages, hidden lines removed by the same
 z-buffer, strokes following their screen direction.
 """
+import functools
 import math
+import os
 
 #: OUTER and BORE are the parametric board's own - one definition, and the
 #: two drawings can never disagree about the hole. THICK is this module's
@@ -104,8 +106,18 @@ def _build():
     return edges
 
 
-_EDGES = None
-_SOLID = None
+@functools.cache
+def _edges():
+    """The wire model, built once a process."""
+    return _build()
+
+
+@functools.cache
+def _parametric():
+    """The parametric board, only for a tree without the STL - once,
+    since `facets` at 48 steps is not free."""
+    from . import orientation
+    return orientation.facets(steps=48, relief=1.5)
 
 #: In-memory decimates of the STL, keyed on (path, divisions, mtime):
 #: a fresh export replaces them by itself, and NOTHING is written
@@ -115,7 +127,6 @@ _MESHES = {}
 
 
 def _decimated(path, divisions):
-    import os
     from . import mesh
     stamp = (path, divisions, os.path.getmtime(path))
     got = _MESHES.get(stamp)
@@ -152,7 +163,6 @@ def _lods(progress=None):
     since the zoom picks among them by identity. The ones not yet in
     memory decimate IN PARALLEL, one process each; `progress(done,
     total, divisions)` is called as each lands."""
-    import os
     from . import orientation
     path = orientation.MODEL
     stamp = os.path.getmtime(path)
@@ -203,20 +213,14 @@ def _model(zoom=1.0, least=0):
     Decimation fixed at 16 divisions, a zoomed-in board showed the same
     coarse facets bigger; the finer decimates cost real raster time, so
     they only load past the zoom that can see them."""
-    global _EDGES, _SOLID
-    if _EDGES is None:
-        _EDGES = _build()
     from . import orientation
     divisions = next(d for upto, d in LODS
                      if d >= least and (upto is None or zoom < upto))
     try:
         solid = _decimated(orientation.MODEL, divisions)
     except (OSError, ValueError):
-        # The parametric board, only for a tree without the STL.
-        if _SOLID is None:
-            _SOLID = orientation.facets(steps=48, relief=1.5)
-        solid = _SOLID
-    return _EDGES, solid
+        solid = _parametric()
+    return _edges(), solid
 
 
 #: The cast-shadow beam in VIEW space, over the viewer's shoulder. The
@@ -776,29 +780,26 @@ FEATHER = 1.5
 #: real layout, boardface.txt beside this module. Sampled as a texture
 #: on the board plane, so the picture turns WITH the attitude instead of
 #: a cage of edges suggesting it.
-_FACE = None
-
 
 #: Ink per art character, the emboss's height field.
 _DENSE = {' ': 0, '.': 1, ':': 2, '*': 3}
 
 
+@functools.cache
 def _face():
-    global _FACE
-    if _FACE is None:
-        import os
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            'boardface.txt')
-        try:
-            with open(path, encoding='ascii') as art:
-                rows = art.read().splitlines()
-        except OSError:
-            rows = []
-        wide = max((len(r) for r in rows), default=0)
-        rows = [r.ljust(wide) for r in rows]
-        dense = [[_DENSE.get(c, 2) for c in r] for r in rows]
-        _FACE = (rows, wide, len(rows), dense)
-    return _FACE
+    """(rows, width, height, ink density per cell) of the board face art,
+    read once; an empty face without the file."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        'boardface.txt')
+    try:
+        with open(path, encoding='ascii') as art:
+            rows = art.read().splitlines()
+    except OSError:
+        rows = []
+    wide = max((len(r) for r in rows), default=0)
+    rows = [r.ljust(wide) for r in rows]
+    dense = [[_DENSE.get(c, 2) for c in r] for r in rows]
+    return rows, wide, len(rows), dense
 
 
 #: Shadow maps per attitude bucket. Rebuilt only when the rotation
@@ -821,7 +822,7 @@ def _shadowmap(m, size=56, extent=1.3):
     if len(_SHADOWS) > 64:
         _SHADOWS.clear()
     from . import orientation
-    solid = _casters(orientation)
+    solid = _casters()
     pos, idx, _nrm = solid
     m0, m1, m2, m3, m4, m5, m6, m7, m8 = m
     lx, ly, lz = LIGHT
@@ -881,22 +882,22 @@ def _shadowmap(m, size=56, extent=1.3):
     return made
 
 
-_CASTERS = None
+@functools.cache
+def _parametric_casters():
+    """The parametric board for the shadow pass, without an STL."""
+    from . import orientation
+    return orientation.facets(steps=20, relief=1.5)
 
 
-def _casters(orientation) -> tuple:
+def _casters() -> tuple:
     """The shadow pass's own solid: the same STL, coarser still. The
     mesh cache keys on the file's mtime, so a fresh export replaces
     both solids by itself."""
-    global _CASTERS
-    casters = _CASTERS
-    if casters is None:
-        try:
-            casters = _decimated(orientation.MODEL, 10)
-        except (OSError, ValueError):
-            casters = orientation.facets(steps=20, relief=1.5)
-        _CASTERS = casters
-    return casters
+    from . import orientation
+    try:
+        return _decimated(orientation.MODEL, 10)
+    except (OSError, ValueError):
+        return _parametric_casters()
 #: The depth ramp: class = PIVOT + SLOPE * view-z / reach. Anchored on
 #: the exporter's cube - deepest visible face '.', near faces ':' -
 #: and fitted from there by tools/lightfit.py.
@@ -1573,10 +1574,7 @@ def _outline_source():
     try:
         solid = _decimated(orientation.MODEL, OUTLINE_EXACT)
     except (OSError, ValueError):
-        global _SOLID
-        if _SOLID is None:
-            _SOLID = orientation.facets(steps=48, relief=1.5)
-        solid = _SOLID
+        solid = _parametric()
     got = _OUTLINES.get(id(solid))
     if got is not None:
         return got
