@@ -448,10 +448,7 @@ def test_counts_are_measured(r):
 def _subsystems():
     from coaxial.board import Board
 
-    fake = Board.__new__(Board)          # no transport: only the names matter
-    Board.__init__(fake, None)
-    return {name: type(value) for name, value in vars(fake).items()
-            if hasattr(value, 'board') or hasattr(value, '_board')}
+    return Board.parts()                 # the declaration, no transport
 
 
 def test_subsystem_calls_resolve(r):

@@ -27,6 +27,7 @@ import time
 
 from . import angle as angle_scaling
 from .acquisition import Acquisition
+from .board import Board
 from .clock import NTP_SERVER, WRAP
 from .errors import CrcError, NoReplyError, RigError
 from .gates import GateStage
@@ -39,26 +40,16 @@ from .record import build
 REPLY_ROOM = 240
 
 
-_KNOWN_SUBSYSTEMS = None
-
-
 def _subsystem_names():
-    """The board's subsystem names, off the stand-in, plus `gates` and `daq`.
+    """The board's subsystem names, off its declaration, plus `gates` and
+    `daq`.
 
-    Read once from SimulatedSession rather than written down: the simulated
-    board carries the same names as the real one by construction - the
-    parity suite is what holds the two together - so a handle named before
-    open() is checked against the same set that will answer after.
+    `Board.parts()` is what the board is built from, so a handle named
+    before open() is checked against the same set that will answer after;
+    the stand-in answers the same names by construction, and the structure
+    suite holds it to them.
     """
-    global _KNOWN_SUBSYSTEMS
-    if _KNOWN_SUBSYSTEMS is None:
-        from .simulated import SimulatedSession
-
-        board = SimulatedSession().board
-        _KNOWN_SUBSYSTEMS = frozenset(
-            name for name in vars(board)
-            if not name.startswith('_')) | {'gates', 'daq'}
-    return _KNOWN_SUBSYSTEMS
+    return frozenset(Board.parts()) | {'gates', 'daq'}
 
 
 class Later:

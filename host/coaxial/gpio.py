@@ -16,15 +16,24 @@ protocol 1.3.
 """
 from . import protocol
 from .errors import RigError
-from .subsystem import Subsystem
+from .subsystem import Subsystem, remembered
 from .wire import Reader, pack
 
 
+def _letter(port):
+    return str(port).upper()[:1]
+
+
 def _port_byte(port):
-    letter = str(port).upper()[:1]
+    letter = _letter(port)
     if not 'A' <= letter <= 'K':
         raise ValueError('port %r is not one of A..K' % (port,))
     return ord(letter)
+
+
+def _pin_name(port, pin):
+    """'PB10', the way the board names a pin."""
+    return 'P%s%d' % (_letter(port), int(pin))
 
 
 def reserved_reason(port, pin):
@@ -33,7 +42,7 @@ def reserved_reason(port, pin):
     The static answer, from `protocol.RESERVED_PINS`. `Gpio._refusal` asks
     the board first and only falls back here - see that method.
     """
-    return protocol.RESERVED_PINS.get((str(port).upper()[:1], int(pin)))
+    return protocol.RESERVED_PINS.get((_letter(port), int(pin)))
 
 
 class Gpio(Subsystem):
@@ -41,6 +50,7 @@ class Gpio(Subsystem):
     """The digital pins a fixture may read or drive. USART3 and the debug
     port are refused in every mode - driving them severs the link the
     command arrived on."""
+
     def test_mode(self, enable):
         """Open or close the gate. Returns the state the firmware reports.
 
@@ -49,37 +59,38 @@ class Gpio(Subsystem):
         """
         reader = Reader(self.request(
             protocol.TEST_GATE,
-            pack(('u32', protocol.TEST_GATE_KEY), ('u8', 1 if enable else 0))))
+            pack(('u32', protocol.TEST_GATE_KEY), ('u8', int(bool(enable))))))
         return bool(reader.u8())
+
+    @remembered
+    def _reserved(self):
+        """The board's own reserved-pin table, or None on a board older than
+        protocol 1.3 - asked once, so an old board is not asked per pin."""
+        try:
+            return self._board.system.channel_map()['reserved']
+        except RigError:
+            return None
 
     def _refusal(self, port, pin):
         """Why this pin is refused, asked of the board that owns the answer.
 
         The firmware carries the pin table and reports it (command 0x6D), so
         a pin added there is refused here without a host edit.
-        `protocol.RESERVED_PINS` is the fallback for a board older than
-        protocol 1.3, and the failure is remembered so an old board is not
-        asked once per pin.
+        `protocol.RESERVED_PINS` is the fallback for a board that has none.
         """
-        if not getattr(self, '_no_map', False):
-            want = 'P%s%d' % (str(port).upper()[:1], int(pin))
-            try:
-                chart = self._board.system.channel_map()
-            except RigError:
-                self._no_map = True
-            else:
-                for row in chart['reserved']:
-                    if row['pin'].upper() == want:
-                        return row['signal']
-                return None
-        return reserved_reason(port, pin)
+        reserved = self._reserved()
+        if reserved is None:
+            return reserved_reason(port, pin)
+        want = _pin_name(port, pin)
+        return next((row['signal'] for row in reserved
+                     if row['pin'].upper() == want), None)
 
     def _guard(self, port, pin):
         reason = self._refusal(port, pin)
         if reason is not None:
-            raise ValueError('P%s%d is %s and is refused in every mode; driving '
+            raise ValueError('%s is %s and is refused in every mode; driving '
                              'it would cost the link or the debug port'
-                             % (str(port).upper()[:1], pin, reason))
+                             % (_pin_name(port, pin), reason))
 
     def pin_mode(self, port, pin, mode, pull='none'):
         """Configure one pin. Needs the gate open."""
@@ -112,7 +123,8 @@ class Gpio(Subsystem):
         self._guard(port, pin)
         reader = Reader(self.request(
             protocol.PIN_WRITE,
-            pack(('u8', _port_byte(port)), ('u8', pin), ('u8', 1 if level else 0))))
+            pack(('u8', _port_byte(port)), ('u8', pin),
+                 ('u8', int(bool(level))))))
         return bool(reader.u8())
 
     def port_read(self, port):

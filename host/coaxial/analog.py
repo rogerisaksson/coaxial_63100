@@ -14,8 +14,9 @@ named constant in scaling.py rather than a literal at a call site, and each
 says in its docstring where it came from.
 """
 from . import protocol, scaling
+from .afe import powered
 from .errors import DeviceStateError
-from .subsystem import Subsystem
+from .subsystem import Subsystem, remembered
 from .wire import Reader, pack
 
 
@@ -23,12 +24,9 @@ class Analog(Subsystem):
 
     """The ADC channels: what exists, and what they read now. Raw codes
     and pin volts; the host owns every conversion beyond that."""
-    def __init__(self, board):
-        super().__init__(board)
-        self._channels = None
-        self._scaling = None
 
-    def scaling(self, refresh=False):
+    @remembered
+    def scaling(self):
         '''The board's own conversion parameters, fetched once and cached.
 
         INVARIANT 7: these live in the calibration record. They used to be
@@ -36,17 +34,15 @@ class Analog(Subsystem):
         this side using the old reference, the old shunt and the old
         thermistor - and nothing said the two had parted company.
 
-        `refresh` after writing the record, which is the one time the cache
-        can be wrong.
+        `refresh=True` after writing the record, which is the one time the
+        cache can be wrong.
         '''
-        if self._scaling is None or refresh:
-            self._scaling = scaling.from_calibration(
-                self._board.calibration.read())
-        return self._scaling
+        return scaling.from_calibration(self._board.calibration.read())
 
     # -- the channel table -------------------------------------------------
 
-    def channels(self, refresh=False):
+    @remembered
+    def channels(self):
         """Channel metadata, fetched once and cached.
 
         The table is the board's own description of its ADC wiring: which ADC,
@@ -62,35 +58,37 @@ class Analog(Subsystem):
         reading is exactly the invented number this library refuses to produce;
         use read_all(), ntc_temperature() or scan() for live values.
         """
-        if self._channels is None or refresh:
-            # Asked for in pages. A row costs 18 bytes plus its two names and
-            # one reply holds 252: seven channels fitted, nine did not
-            # - the board sends what fits, says how many there are, and this
-            # asks again from where it stopped.
-            table = []
-            while True:
-                reader = Reader(self.request(protocol.ADC_TABLE,
-                                             bytes([len(table)])))
-                sent = reader.u8()
-                for _ in range(sent):
-                    row = {
-                        'index': len(table),
-                        'adc': reader.u8(),
-                        'channel': reader.u8(),
-                        'pin': reader.string(),
-                        'differential': bool(reader.u8()),
-                        'signal': reader.string(),
-                    }
-                    reader.i32()                      # raw, at fetch time
-                    reader.i32()                      # microvolts, at fetch
-                    row['unit'] = protocol.CHANNEL_UNITS.get(reader.u8())
-                    reader.i32()                      # scaled, at fetch time
-                    table.append(row)
-                total = reader.u8() if reader.remaining else len(table)
-                if len(table) >= total or not sent:
-                    break
-            self._channels = table
-        return self._channels
+        # Asked for in pages. A row costs 18 bytes plus its two names and
+        # one reply holds 252: seven channels fitted, nine did not
+        # - the board sends what fits, says how many there are, and this
+        # asks again from where it stopped.
+        table = []
+        while True:
+            reader = Reader(self.request(protocol.ADC_TABLE,
+                                         pack(('u8', len(table)))))
+            sent = reader.u8()
+            for _ in range(sent):
+                table.append(self._row(reader, len(table)))
+            total = reader.u8() if reader.remaining else len(table)
+            if len(table) >= total or not sent:
+                return table
+
+    @staticmethod
+    def _row(reader, index):
+        """One channel's metadata, the live conversion beside it dropped."""
+        row = {
+            'index': index,
+            'adc': reader.u8(),
+            'channel': reader.u8(),
+            'pin': reader.string(),
+            'differential': bool(reader.u8()),
+            'signal': reader.string(),
+        }
+        reader.i32()                      # raw, at fetch time
+        reader.i32()                      # microvolts, at fetch
+        row['unit'] = protocol.CHANNEL_UNITS.get(reader.u8())
+        reader.i32()                      # scaled, at fetch time
+        return row
 
     def index_of(self, signal):
         """Index of the channel carrying a named signal, e.g. 'NTC'.
@@ -103,12 +101,12 @@ class Analog(Subsystem):
         or not.
         """
         rows = self.board.system.channel_map()['analog']
-        for channel in rows:
-            if channel['signal'] == signal:
-                return channel['index']
-        named = [c['signal'] for c in rows if c['signal']]
-        raise KeyError('no channel carries signal %r; the board reports %r'
-                       % (signal, named))
+        index = next((c['index'] for c in rows if c['signal'] == signal), None)
+        if index is None:
+            named = [c['signal'] for c in rows if c['signal']]
+            raise KeyError('no channel carries signal %r; the board reports %r'
+                           % (signal, named))
+        return index
 
     def names(self):
         """Every channel's signal name, in the board's own order.
@@ -158,17 +156,8 @@ class Analog(Subsystem):
 
         samples = reader.u16()
         elapsed_us = reader.u32()
-        count = reader.u8()
-
-        per_channel = {}
-        for _ in range(count):
-            index = reader.u8()
-            per_channel[index] = {
-                'mean_raw': reader.i32() / 1000.0,
-                'min_raw': reader.i32(),
-                'max_raw': reader.i32(),
-                'stddev_raw': reader.u32() / 1000.0,
-            }
+        per_channel = {reader.u8(): self._statistics(reader)
+                       for _ in range(reader.u8())}
 
         return {
             'samples': samples,
@@ -177,9 +166,19 @@ class Analog(Subsystem):
             'channels': per_channel,
         }
 
+    @staticmethod
+    def _statistics(reader):
+        """One channel's four numbers off a burst reply."""
+        return {
+            'mean_raw': reader.milli(),
+            'min_raw': reader.i32(),
+            'max_raw': reader.i32(),
+            'stddev_raw': reader.milli('u32'),
+        }
+
+    @powered
     def _one(self, index, nr_of_samples, sample_rate):
         """Burst a single channel and return just its statistics."""
-        self._board.afe.require()
         result = self.burst(1 << index, nr_of_samples, sample_rate)
         stats = dict(result['channels'][index])
         stats['samples'] = result['samples']
@@ -188,6 +187,7 @@ class Analog(Subsystem):
 
     # -- readings ----------------------------------------------------------
 
+    @powered
     def read_all(self, nr_of_samples=64, sample_rate=1000.0, vref=3.3):
         """Every configured channel at once, with its table metadata merged in.
 
@@ -195,8 +195,6 @@ class Analog(Subsystem):
         ntc_temperature(), dcbus_voltage() or phase_current() for the three
         channels whose conversion is known.
         """
-        self._board.afe.require()
-
         table = self.channels()
         result = self.burst(self.mask_all(), nr_of_samples, sample_rate)
 
@@ -326,6 +324,7 @@ class Analog(Subsystem):
 
         return result
 
+    @powered
     def noise(self, adc, nr_of_samples=200):
         """The firmware's own noise measurement on one ADC's phase channel.
 
@@ -333,7 +332,6 @@ class Analog(Subsystem):
         at exact mid-scale and the spread collapses to nearly nothing, which as
         a noise floor reads as a very good board rather than an unpowered one.
         """
-        self._board.afe.require()
         reader = Reader(self.request(protocol.ADC_NOISE,
                                      pack(('u8', adc), ('u16', nr_of_samples))))
         return {

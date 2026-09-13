@@ -8,12 +8,11 @@ Nothing here judges a reading. `state()` returns registers and raw codes;
 the writers return what the board accepted, which is not always what was
 asked for.
 """
-import struct
-
 from . import protocol
 from .gates import GateControl
-from .subsystem import Subsystem
-from .wire import Reader
+from .protocol import GateOp
+from .subsystem import Device
+from .wire import Reader, pack, q16
 from typing import Any
 
 #: Bit positions in the state reply's first byte, in order.
@@ -22,35 +21,34 @@ FLAGS = ('pwm_ready', 'pwm_enabled', 'fault', 'sync_ready', 'sync_armed',
 
 PHASES = 3
 
-
-def _signed8(value):
-    """A skew off the wire, which carries it unsigned."""
-    return value - 256 if value & 0x80 else value
+#: The legs, in the order the gate-short mask names them.
+LEGS = ('U', 'V', 'W')
 
 #: PE8..PE13 in pin order, which is low side then high side per leg.
 GATES = ('UL', 'UH', 'VL', 'VH', 'WL', 'WH')
 
-OP_STATE = 0
-OP_DEADTIME = 9
-OP_PWM = 1
-OP_DUTY = 2
-OP_SYNC = 3
-OP_TRIGGER = 4
-OP_CLEAR = 5
-OP_BYPASS = 6
-OP_DUTY_FINE = 8
-OP_GAP_RESET = 7
-OP_ALTERNATE = 10
+#: The one-byte switch every on/off op takes.
+ON = pack(('u8', 1))
+OFF = pack(('u8', 0))
 
 
-class GateDrivers(Subsystem, GateControl):
+def _triple(ticks):
+    """Three compare values on the wire, or a raise: a half update would
+    run one cycle with two phases from this call and one from the last."""
+    ticks = tuple(ticks)
+    if len(ticks) != PHASES:
+        raise ValueError('%d compare values, not %d' % (PHASES, len(ticks)))
+    return pack(*(('u16', int(t)) for t in ticks))
+
+
+def _unit(fraction):
+    """A duty clamped to [0, 1]."""
+    return max(0.0, min(1.0, fraction))
+
+
+class GateDrivers(Device, GateControl, device=protocol.DEVICE_GATE_DRIVERS):
 
     """TIM1's compare registers, the injected triple and the STO chain."""
-
-    def _op(self, op, payload=b'', **kwargs):
-        """One 0x6E request for the gate drivers device."""
-        return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_GATE_DRIVERS, op]) + bytes(payload), **kwargs)
 
     def dead_time(self, nanoseconds=None, skew=0):
         """Read the dead time, or set it and its skew.
@@ -75,15 +73,14 @@ class GateDrivers(Subsystem, GateControl):
                     'skew': state['deadtime_skew'],
                     'floor': state['deadtime_floor']}
 
-        reply = self._op(OP_DEADTIME,
-                         struct.pack('>Ib', int(nanoseconds), int(skew)))
+        reply = self._op(GateOp.DEADTIME,
+                         pack(('u32', int(nanoseconds)), ('i8', int(skew))))
         # took() raises on a refusal and returns True otherwise, so the
         # reader is built here and the took byte read off it.
         r = Reader(reply)
         self.took(reply)
         r.u8()
-        return {'nanoseconds': r.u32(), 'skew': _signed8(r.u8()),
-                'floor': r.u8()}
+        return {'nanoseconds': r.u32(), 'skew': r.i8(), 'floor': r.u8()}
 
     def state(self):
         """Everything the gate drivers know, from one conversion's worth of time.
@@ -92,10 +89,8 @@ class GateDrivers(Subsystem, GateControl):
         sample was taken: measured, the handler runs about 965 ticks
         (4.06 us) after the trigger. The sample point itself is `trigger`.
         """
-        r = Reader(self._op(OP_STATE))
-        flags = r.u8()
-        out: dict[str, Any] = {name: bool(flags >> i & 1)
-                               for i, name in enumerate(FLAGS)}
+        r = Reader(self._op(GateOp.STATE))
+        out: dict[str, Any] = r.flags(FLAGS)
         out['period'] = r.u16()
         out['deadtime'] = r.u8()
         out['duty'] = tuple(r.u16() for _ in range(PHASES))
@@ -110,15 +105,14 @@ class GateDrivers(Subsystem, GateControl):
         out['pilot_microvolts'] = r.i32()
         out['level_raw'] = r.i32()
         out['level_microvolts'] = r.i32()
-        out['break_bypassed'] = bool(r.u8() & 0x01)
+        out.update(r.flags(('break_bypassed',)))
         # Asked for, in ticks Q16.16, beside what the register holds this
         # period. With the dither running they differ by a tick most of the
         # time and that is the point, not a rounding.
         # TICKS, not a fraction: the board sends Q16.16 of a CCR count,
         # so this is `requested_ticks` against `period`. Reading it as a
         # duty drew 118700 % on a stage running at half.
-        out['requested_ticks'] = tuple(r.u32() / 65536.0
-                                       for _ in range(PHASES))
+        out['requested_ticks'] = tuple(r.q16() for _ in range(PHASES))
         # Six gate signals in one IDR load with TIM1->CNT beside it: six
         # separate asks at 50 kHz can straddle an edge and show a leg with
         # both FETs on, the one state dead time prevents.
@@ -126,28 +120,26 @@ class GateDrivers(Subsystem, GateControl):
         # ONE INSTANT, NOT A DUTY. Averaging is only honest while `pins_at`
         # spreads across the period; with the sync armed CNT lands in the
         # same band every time - measured, 89.5 % high at 50 % duty.
-        pins = r.u8()
-        out['pins'] = {name: bool(pins >> i & 1) for i, name in enumerate(GATES)}
+        out['pins'] = r.flags(GATES)
         out['pins_at'] = r.u16()
         out['deadtime_ns'] = r.u32()
-        out['deadtime_skew'] = _signed8(r.u8())
+        out['deadtime_skew'] = r.i8()
         out['deadtime_floor'] = r.u8()
         # Which legs have their two gate pins on one node. A joined pair
         # cannot go complementary, so that leg never switches: its driver
         # sees a level and the phase node floats. The board measures it by
         # borrowing the pins, so it reads no legs while armed.
-        shorts = r.u8()
-        out['gate_shorts'] = tuple(
-            name for i, name in enumerate(('U', 'V', 'W')) if shorts >> i & 1)
+        out['gate_shorts'] = tuple(leg for leg, joined in r.flags(LEGS).items()
+                                   if joined)
         # The DC link the injected sequence read beside the triple, raw
         # single-ended - rank 2 on ADC3, MINOR 2. Older firmware stops
         # before it.
-        out['dcbus_raw'] = r.u32() if r.remaining >= 4 else None
+        out['dcbus_raw'] = r.maybe('u32')
         # And the NTC, rank 2 on ADC1 - the thermal observer's thermometer
         # while the drive holds the converters.
-        out['ntc_raw'] = r.u32() if r.remaining >= 4 else None
+        out['ntc_raw'] = r.maybe('u32')
         # Periods left of a counted hold, MINOR 8. Zero when free-running.
-        out['periods_left'] = r.u32() if r.remaining >= 4 else None
+        out['periods_left'] = r.maybe('u32')
         return out
 
     def enable(self):
@@ -157,12 +149,11 @@ class GateDrivers(Subsystem, GateControl):
         re-latches the moment it is cleared while nFAULT is still low, so a
         refusal here usually means the STO chain has not released.
         """
-        self._ack(OP_PWM, b'\x01')
-        return True
+        return self._ack(GateOp.PWM, ON)
 
     def disable(self):
         """Clear MOE. Every output drops to its idle level in hardware."""
-        self._op(OP_PWM, b'\x00')
+        self._op(GateOp.PWM, OFF)
         return True
 
     def duty(self, ticks, periods=0):
@@ -177,15 +168,8 @@ class GateDrivers(Subsystem, GateControl):
         periods - 500 is 10.000 ms at 50 kHz, where a link-timed hold was
         93-108. Older firmware refuses the longer payload in its own words.
         """
-        ticks = tuple(ticks)
-        if len(ticks) != PHASES:
-            raise ValueError('%d compare values, not %d' % (PHASES, len(ticks)))
-
-        payload = b''.join(int(t).to_bytes(2, 'big') for t in ticks)
-        if periods:
-            payload += int(periods).to_bytes(4, 'big')
-        self._ack(OP_DUTY, payload)
-        return True
+        counted = pack(('u32', int(periods))) if periods else b''
+        return self._ack(GateOp.DUTY, _triple(ticks) + counted)
 
     def alternate(self, ticks_a, ticks_b):
         """Two compare triples, A one PWM period and B the next, swapped by
@@ -196,14 +180,7 @@ class GateDrivers(Subsystem, GateControl):
         against V low, then V high against U low. Whole ticks against
         `period - 1`; the next duty() or duty_fine() ends it.
         """
-        ticks_a, ticks_b = tuple(ticks_a), tuple(ticks_b)
-        if len(ticks_a) != PHASES or len(ticks_b) != PHASES:
-            raise ValueError('two triples of %d compare values' % PHASES)
-
-        payload = b''.join(int(t).to_bytes(2, 'big')
-                           for t in ticks_a + ticks_b)
-        self._ack(OP_ALTERNATE, payload)
-        return True
+        return self._ack(GateOp.ALTERNATE, _triple(ticks_a) + _triple(ticks_b))
 
     def duty_fine(self, fractions):
         """Duty as a fraction of full scale, dithered to hit it exactly.
@@ -222,11 +199,9 @@ class GateDrivers(Subsystem, GateControl):
             raise ValueError('%d duties, not %d' % (PHASES, len(fractions)))
 
         period = self.state()['period'] - 1
-        payload = b''.join(
-            int(round(max(0.0, min(1.0, f)) * period * 65536)).to_bytes(4, 'big')
-            for f in fractions)
-        self._ack(OP_DUTY_FINE, payload)
-        return True
+        return self._ack(GateOp.DUTY_FINE,
+                         pack(*(('u32', q16(_unit(f) * period))
+                                for f in fractions)))
 
     def arm(self):
         """Start latching the injected triple.
@@ -235,12 +210,11 @@ class GateDrivers(Subsystem, GateControl):
         is armed: the injected sequence needs all three phases preselected at
         once, and the meter clears PCSEL per read.
         """
-        self._ack(OP_SYNC, b'\x01')
-        return True
+        return self._ack(GateOp.SYNC, ON)
 
     def disarm(self):
         """Stop latching, and give the converters back to the meter."""
-        self._op(OP_SYNC, b'\x00')
+        self._op(GateOp.SYNC, OFF)
         return True
 
     def trigger(self, ticks=None):
@@ -253,8 +227,8 @@ class GateDrivers(Subsystem, GateControl):
         """
         if ticks is None:
             return self.state()['trigger']
-        return int.from_bytes(self._op(OP_TRIGGER,
-                                       int(ticks).to_bytes(2, 'big')), 'big')
+        return Reader(self._op(GateOp.TRIGGER,
+                               pack(('u16', int(ticks))))).u16()
 
     def bypass_break(self, on=True):
         """Disconnect TIM1's break input so the gate drivers can run on the bench.
@@ -268,8 +242,7 @@ class GateDrivers(Subsystem, GateControl):
         tone the drivers have no supply and the six outputs toggle into
         unpowered inputs. A reset puts the break back.
         """
-        self._ack(OP_BYPASS, bytes([1 if on else 0]))
-        return True
+        return self._ack(GateOp.BYPASS, ON if on else OFF)
 
     def reset_worst_gap(self):
         """Forget the longest keepalive gap, so a run is measured on its own.
@@ -278,8 +251,8 @@ class GateDrivers(Subsystem, GateControl):
         moves the wrap off a power of two and the unsigned arithmetic breaks
         across it. Divide by the core clock here, where nothing wraps.
         """
-        return self._op(OP_GAP_RESET)[0] == 1
+        return bool(Reader(self._op(GateOp.GAP_RESET)).u8())
 
     def clear_fault(self):
         """Clear the break latch. Does NOT re-arm; the caller asks again."""
-        return self._op(OP_CLEAR)[0] == 1
+        return bool(Reader(self._op(GateOp.CLEAR)).u8())

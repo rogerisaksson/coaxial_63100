@@ -14,7 +14,15 @@ resizing an existing field creates a new MAJOR whether or not that was intended.
 A host selects its codec on the protocol MAJOR alone. The firmware version is
 for the test record - binding a host to firmware numbers means every rebuild of
 the firmware breaks the host.
+
+THE DEVICES
+-----------
+0x6E carries every peripheral, chosen by a device byte, and each device's ops
+are an `IntEnum` here - `ThermalOp.STATE`, `DriveOp.MODE` - so the op a
+subsystem sends and the op the length oracle proves are one name. The op
+tables mirror `comms/inc/cmd.h`; the subsystem behind each is named beside it.
 """
+from enum import IntEnum
 
 # Application commands, Modbus user range 65..72.
 VERSION = 0x41
@@ -51,19 +59,7 @@ DEVICE_IMU = 0
 DEVICE_ANGLE = 1
 """Which peripheral 0x6E's payload is addressed to. One function code for
 all of them because the user-defined ranges are spent - see cmd_device.c."""
-
-ANGLE_OP_READ = 0
-ANGLE_OP_WRITE = 1
-ANGLE_OP_LATEST = 2
-ANGLE_OP_HOLD = 3
-ANGLE_OP_RESUME = 4
-ANGLE_OP_POLLREG = 5
-ANGLE_OP_CLOCK = 6
-
 DEVICE_LINK = 2
-LINK_OP_ECHO = 0
-LINK_OP_STATS = 1
-
 DEVICE_CAL = 3
 DEVICE_GATE_DRIVERS = 4
 DEVICE_LOG = 5
@@ -72,15 +68,146 @@ DEVICE_TIME = 7
 DEVICE_THERMAL = 8
 DEVICE_POWER = 9
 DEVICE_DRIVE = 10
-CAL_OP_GET = 0
-CAL_OP_SET_PARAM = 1
-CAL_OP_SET_CHANNEL = 2
-CAL_OP_ZERO = 3
-CAL_OP_SPAN = 4
-CAL_OP_SAVE = 5
-CAL_OP_LOAD = 6
-CAL_OP_DEFAULTS = 7
-CAL_OP_PARAMS = 8
+
+
+class ImuOp(IntEnum):
+    """Device 0, the BNO08X on SPI2 - `coaxial.imu`."""
+    ID = 0
+    READ = 1
+    FEATURE = 2
+    PROBE = 3
+    RESET = 4
+    WRITE = 5
+    PINS = 6
+    WAKE = 7
+    LATEST = 8
+    HOLD = 9
+    RESUME = 10
+
+
+class AngleOp(IntEnum):
+    """Device 1, the A1335 on SPI4 - `coaxial.angle`."""
+    READ = 0
+    WRITE = 1
+    LATEST = 2
+    HOLD = 3
+    RESUME = 4
+    POLLREG = 5
+    CLOCK = 6
+
+
+class LinkOp(IntEnum):
+    """Device 2, the link's own loopback and port counters - `coaxial.link`."""
+    ECHO = 0
+    STATS = 1
+
+
+class CalOp(IntEnum):
+    """Device 3, the calibration record - `coaxial.calibration`."""
+    GET = 0
+    SET_PARAM = 1
+    SET_CHANNEL = 2
+    ZERO = 3
+    SPAN = 4
+    SAVE = 5
+    LOAD = 6
+    DEFAULTS = 7
+    PARAMS = 8
+
+
+class GateOp(IntEnum):
+    """Device 4, TIM1 and the STO chain - `coaxial.gate_drivers`."""
+    STATE = 0
+    PWM = 1
+    DUTY = 2
+    SYNC = 3
+    TRIGGER = 4
+    CLEAR = 5
+    BYPASS = 6
+    GAP_RESET = 7
+    DUTY_FINE = 8
+    DEADTIME = 9
+    ALTERNATE = 10
+
+
+class LogOp(IntEnum):
+    """Device 5, the measurement ring - `coaxial.capture`."""
+    STATE = 0
+    ARM = 1
+    TAKE = 2
+
+
+class DaqOp(IntEnum):
+    """Device 6, the acquisition task - `coaxial.daq`."""
+    STATE = 0
+    CONFIGURE = 1
+    START = 2
+    STOP = 3
+    READ = 4
+    LAYOUT = 5
+    LIVE = 6
+    FILTER = 7
+    TONE = 8
+    RUNG = 9
+
+
+class TimeOp(IntEnum):
+    """Device 7, the cycle counter - `coaxial.clock`."""
+    LATCH = 0
+    READ = 1
+
+
+class ThermalOp(IntEnum):
+    """Device 8, the thermal observer - `coaxial.thermal_device`."""
+    STATE = 0
+    SET_NODE = 1
+    SET_BOARD = 2
+    SET_SAMPLE = 3
+    BUDGET = 4
+    SET_LIMIT = 5
+    SET_WINDING = 6
+    NODES = 7
+    EDGES = 8
+    SET_EDGE = 9
+    IDENT = 10
+    IDENT_RESET = 11
+    SET_MARGIN = 12
+
+
+class PowerOp(IntEnum):
+    """Device 9, the rails' reference counts - `coaxial.power`."""
+    STATE = 0
+    RELEASE_ALL = 1
+
+
+class DriveOp(IntEnum):
+    """Device 10, the control law - `coaxial.drive`."""
+    STATE = 0
+    MODE = 1
+    SETPOINT = 2
+    SETPOINTS = 3
+    THETA = 4
+    WINDOW = 5
+    MOMENTS_ARM = 6
+    MOMENTS = 7
+    RELOAD = 8
+    CYCLES_RESET = 9
+    SOURCE = 10
+    MODEL_PARAM = 11
+    MODEL = 12
+    MODEL_RESET = 13
+    OBSERVERS = 14
+
+
+class MapKind(IntEnum):
+    """What command 0x6D is asked for: the sections of the channel map,
+    and the two lists that ride beside it."""
+    ANALOG = 0
+    DIGITAL = 1
+    RESERVED = 2
+    SUBSYSTEMS = 3
+    PARTS = 4
+
 
 CAL_PARAMS = ('vref_uv', 'shunt_uohm', 'amp_gain_ppm',
               'bus_r_top_ohm', 'bus_r_bottom_ohm',
@@ -131,6 +258,67 @@ order their ids run in. Integers in the unit that makes them integers, because
 the wire bans floating point - the names carry the unit for the same reason
 the firmware's do."""
 
+#: The MAJOR.MINOR from which the board dispatches a proven request on its
+#: own CRC (MINOR 9), so a host may drop its pre-TX gap after one.
+PROVEN_DISPATCH_SINCE = (2, 9)
+
+#: The audited fixed shapes behind 0x6E, mirroring `device_length` in
+#: `cmd_length.c`: (device, op) -> the whole request's length, `fc, device,
+#: op` being 3. A row exists only where the handler takes nothing optional
+#: past it; an op that grows an optional tail moves to GROWN_REQUESTS in the
+#: same commit, and the suite's prefix sweep fails the row that fires early.
+DEVICE_REQUESTS = {
+    (DEVICE_CAL, CalOp.GET): 3,
+    (DEVICE_CAL, CalOp.SET_PARAM): 8,                # u8 id, u32
+    (DEVICE_GATE_DRIVERS, GateOp.STATE): 3,
+    (DEVICE_DAQ, DaqOp.STATE): 3,
+    (DEVICE_DAQ, DaqOp.START): 3,
+    (DEVICE_DAQ, DaqOp.STOP): 3,
+    (DEVICE_DAQ, DaqOp.LAYOUT): 3,
+    (DEVICE_DAQ, DaqOp.LIVE): 3,
+    (DEVICE_TIME, TimeOp.LATCH): 3,
+    (DEVICE_TIME, TimeOp.READ): 3,
+    (DEVICE_THERMAL, ThermalOp.STATE): 3,
+    (DEVICE_THERMAL, ThermalOp.BUDGET): 3,
+    (DEVICE_POWER, PowerOp.STATE): 3,
+    (DEVICE_DRIVE, DriveOp.STATE): 3,
+    (DEVICE_DRIVE, DriveOp.MODE): 4,                 # u8
+    (DEVICE_DRIVE, DriveOp.SETPOINT): 8,             # u8 id, i32
+    (DEVICE_DRIVE, DriveOp.SETPOINTS): 3,
+    (DEVICE_DRIVE, DriveOp.THETA): 7,                # i32
+    (DEVICE_DRIVE, DriveOp.CYCLES_RESET): 3,
+    (DEVICE_DRIVE, DriveOp.MODEL): 3,
+    (DEVICE_DRIVE, DriveOp.MODEL_RESET): 3,
+}
+
+#: Ops with two shapes, proven only once enough bytes rule the shorter one
+#: out: (device, op) -> (bytes in hand that settle it, the long form).
+#: Gate op 2 is u16 x3 or that plus a u32 period count since MINOR 8 -
+#: nine bytes might be a whole short form, a tenth settles the long one.
+#: DAQ op 4's `want` is optional the same way; the host always sends it.
+GROWN_REQUESTS = {
+    (DEVICE_GATE_DRIVERS, GateOp.DUTY): (10, 13),
+    (DEVICE_DAQ, DaqOp.READ): (4, 4),
+}
+
+#: The custom commands outside 0x6E whose request length is fixed, as their
+#: dispatch rows state it - whole PDU, function code counted. The ADC
+#: table, the channel map and echo are variable and stay unproven.
+FIXED_REQUESTS = {
+    VERSION: 1, ADC_SCAN: 1, ADC_NOISE: 4, CLOCK: 1, AFE: 2, LINK_STATS: 1,
+    CONSOLE: 1, TEST_GATE: 6, PIN_MODE: 5, PIN_READ: 3, PIN_WRITE: 4,
+    PORT_READ: 2, PORT_WRITE: 6, ANALOG_BURST: 9, SELF_TEST: 1,
+}
+
+#: The specification's own shapes, which cannot drift with this repository:
+#: the six fixed five-byte functions, and the two whose byte count sits at
+#: index 5 with that many bytes behind it.
+STANDARD_FIXED = frozenset((0x01, 0x02, 0x03, 0x04, 0x05, 0x06))
+STANDARD_FIXED_LENGTH = 5
+STANDARD_COUNTED = frozenset((0x0F, 0x10))
+STANDARD_COUNT_AT = 5
+
+
 def request_length(pdu, have=None):
     """Full PDU length of the request these bytes begin, or 0 when the
     bytes so far cannot prove it - the Python mirror of the firmware's
@@ -146,42 +334,29 @@ def request_length(pdu, have=None):
     have = len(pdu) if have is None else have
     if have == 0:
         return 0
-    fc = pdu[0]
-    if fc == 0x6E:
-        if have < 3:
-            return 0
-        device, op = pdu[1], pdu[2]
-        if device == 3:
-            return 8 if op == 1 else (3 if op == 0 else 0)
-        if device == 4:
-            if op == 2:
-                return 13 if have >= 10 else 0
-            return 3 if op == 0 else 0
-        if device == 6:
-            if op == 4:
-                return 4 if have >= 4 else 0
-            return 3 if op in (0, 2, 3, 5, 6) else 0
-        if device == 7:
-            return 3 if op in (0, 1) else 0
-        if device == 8:
-            return 3 if op in (0, 4) else 0
-        if device == 9:
-            return 3 if op == 0 else 0
-        if device == 10:
-            return {0: 3, 1: 4, 2: 8, 3: 3, 4: 7,
-                    9: 3, 12: 3, 13: 3}.get(op, 0)
+    if pdu[0] == DEVICE:
+        return _device_length(pdu, have)
+    if pdu[0] in FIXED_REQUESTS:
+        return FIXED_REQUESTS[pdu[0]]
+    return _standard_length(pdu, have)
+
+
+def _device_length(pdu, have):
+    """0x6E: from the audited tables, once device and op are in hand."""
+    if have < 3:
         return 0
-    # The custom commands outside 0x6E state their length in the
-    # firmware's dispatch table; the fixed ones are mirrored here.
-    fixed = {0x41: 1, 0x43: 1, 0x44: 4, 0x45: 1, 0x46: 2, 0x47: 1,
-             0x48: 1, 0x64: 6, 0x66: 5, 0x67: 3, 0x68: 4, 0x69: 2,
-             0x6A: 6, 0x6B: 9, 0x6C: 1}
-    if fc in fixed:
-        return fixed[fc]
-    if fc in (0x01, 0x02, 0x03, 0x04, 0x05, 0x06):
-        return 5
-    if fc in (0x0F, 0x10):
-        return 6 + pdu[5] if have >= 6 else 0
+    key = (pdu[1], pdu[2])
+    settled_at, length = GROWN_REQUESTS.get(
+        key, (3, DEVICE_REQUESTS.get(key, 0)))
+    return length if have >= settled_at else 0
+
+
+def _standard_length(pdu, have):
+    """The specification's fixed and counted shapes; 0 for anything else."""
+    if pdu[0] in STANDARD_FIXED:
+        return STANDARD_FIXED_LENGTH
+    if pdu[0] in STANDARD_COUNTED and have > STANDARD_COUNT_AT:
+        return STANDARD_COUNT_AT + 1 + pdu[STANDARD_COUNT_AT]
     return 0
 
 
@@ -198,18 +373,6 @@ PART_STATES = {
 }
 """What the board can say about a fitted part without judging it. 'not
 probed' is what nothing on the board can prove either way - invariant 10."""
-
-IMU_OP_ID = 0
-IMU_OP_READ = 1
-IMU_OP_FEATURE = 2
-IMU_OP_PROBE = 3
-IMU_OP_RESET = 4
-IMU_OP_WRITE = 5
-IMU_OP_PINS = 6
-IMU_OP_WAKE = 7
-IMU_OP_LATEST = 8
-IMU_OP_HOLD = 9
-IMU_OP_RESUME = 10
 
 NAMES = {
     VERSION: 'version', ADC_TABLE: 'adc_table', ADC_SCAN: 'adc_scan',

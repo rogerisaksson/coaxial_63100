@@ -9,14 +9,17 @@ field is and `read()` decodes from that, so a channel added to
 `board/src/board_adc.c` shows up in a capture without this file being told.
 A decoder written against a fixed field order is the copy that goes stale.
 """
+import itertools
 import struct
 import time
 
 from . import protocol
 from .acquisition import Acquisition
 from .errors import RigError
-from .subsystem import Subsystem
-from .wire import Reader
+from .protocol import DaqOp
+from .subsystem import Device
+from .wire import BYTE_FRACTION, Reader, pack
+from typing import Any
 
 #: Clock sources. SOFTWARE is the main loop; TIM1 is the injected group, one
 #: record per PWM period, and it carries the three phases and nothing else.
@@ -24,29 +27,31 @@ SOFTWARE = 0
 TIM1 = 1
 
 CLOCKS = {'software': SOFTWARE, 'tim1': TIM1}
+CLOCK_NAMES = {code: name for name, code in CLOCKS.items()}
 
-DAQ_OP_STATE = 0
-DAQ_OP_CONFIGURE = 1
-DAQ_OP_START = 2
-DAQ_OP_STOP = 3
-DAQ_OP_READ = 4
-DAQ_OP_LAYOUT = 5
-DAQ_OP_LIVE = 6
-DAQ_OP_FILTER = 7
-DAQ_OP_TONE = 8
-DAQ_OP_RUNG = 9
+#: The state reply's first byte, bit by bit. `lost_power` is stopped
+#: because AFE_ON went off, and the buffers emptied with it: that pin
+#: powers the ADC reference, so anything held would have divided out to a
+#: plausible mid-scale (invariant 9).
+FLAGS = ('running', 'done', 'lost_power')
 
 #: Coefficients cross as Q28 - the wire carries no floating point, and a
 #: biquad's a1 reaches -2, so 2^28 leaves a range of +/-8 and a
 #: resolution three orders inside what a float holds anyway.
 COEFF_SCALE = 1 << 28
 
-#: BOARD_UNIT_* as comms/inc/board.h numbers them. Getting this wrong
-#: labelled the NTC 'mV' and the DC bus 'mA' without changing a value.
-UNITS = {0: None, 1: 'mV', 2: 'centi-degC', 3: 'mA'}
+#: A biquad section is five coefficients.
+SECTION = 5
 
 
-class Daq(Subsystem, Acquisition):
+def _sections(sections):
+    """Biquad sections as five Q28 words each, in the order given."""
+    return b''.join(pack(*(('i32', int(round(c * COEFF_SCALE)))
+                           for c in section))
+                    for section in sections)
+
+
+class Daq(Device, Acquisition, device=protocol.DEVICE_DAQ):
 
     """Configure, trigger, read - against the board's own channel table."""
 
@@ -55,11 +60,6 @@ class Daq(Subsystem, Acquisition):
     #: a board older than protocol MINOR 5.
     backlog = None
 
-    def _op(self, op, payload=b'', **kwargs):
-        return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_DAQ, op]) + bytes(payload),
-                            **kwargs)
-
     def state(self):
         """What the task is, what it has produced, and how full it is.
 
@@ -67,22 +67,16 @@ class Daq(Subsystem, Acquisition):
         fullest it has been, which is the number that says whether the
         next record drops. Both are None on a board older than MINOR 4.
         """
-        r = Reader(self._op(DAQ_OP_STATE))
-        flags = r.u8()
-        state = {
-            'running': bool(flags & 0x01),
-            'done': bool(flags & 0x02),
-            # Stopped because AFE_ON went off, and the buffers emptied with
-            # it: that pin powers the ADC reference, so anything held would
-            # have divided out to a plausible mid-scale (invariant 9).
-            'lost_power': bool(flags & 0x04),
+        r = Reader(self._op(DaqOp.STATE))
+        state: dict[str, Any] = r.flags(FLAGS)
+        state.update({
             'stride': r.u16(),
             'fields': r.u8(),
             'available': r.u32(),
             'produced': r.u32(),
             'dropped': r.u32(),
             'channels': r.u16(),
-            'clock': 'tim1' if r.u8() == TIM1 else 'software',
+            'clock': CLOCK_NAMES.get(r.u8(), 'software'),
             'sample_time': r.u8(),
             'decimate': r.u16(),
             'accumulate': r.u16(),
@@ -90,34 +84,24 @@ class Daq(Subsystem, Acquisition):
             'digital': bool(r.u8()),
             'interval_us': r.u32(),
             'max_rate_hz': r.u32(),
-        }
+        })
         # Appended by MINOR 4, and read only if it is there: a board
         # older than that answers a shorter reply, and a decoder that
         # assumed the field would raise on a board that is simply older.
-        if r.remaining >= 8:
-            state['capacity'] = r.u32()
-            state['worst'] = r.u32()
-        else:
-            state['capacity'] = state['worst'] = None
-        if r.remaining >= 6:
-            state['rung'] = r.u8()
-            state['rungs'] = r.u8()
-            state['rung_changes'] = r.u32()
-        else:
-            state['rung'] = state['rungs'] = 0
-            state['rung_changes'] = 0
+        state['capacity'] = r.maybe('u32')
+        state['worst'] = r.maybe('u32')
+        state['rung'] = r.maybe('u8') or 0
+        state['rungs'] = r.maybe('u8') or 0
+        state['rung_changes'] = r.maybe('u32') or 0
         # SWEEPS, not records: what the loop manages underneath the
         # decimation. Differentiate it and you have the rate the
         # chain was designed against, live.
-        state['triggers'] = r.u32() if r.remaining >= 4 else None
+        state['triggers'] = r.maybe('u32')
         # Appended, MINOR 7: which sensor fields this build can put in a
         # record, and which the task carries now. None on older boards -
         # `catalogue()` marks the rows unselectable off exactly this.
-        if r.remaining >= 4:
-            state['sensors'] = r.u16()
-            state['sensors_available'] = r.u16()
-        else:
-            state['sensors'] = state['sensors_available'] = None
+        state['sensors'] = r.maybe('u16')
+        state['sensors_available'] = r.maybe('u16')
         state['sensors_supported'] = state['sensors_available'] is not None
         return state
 
@@ -126,26 +110,31 @@ class Daq(Subsystem, Acquisition):
 
         This is the whole reason `read()` needs no field order of its own.
         """
-        r = Reader(self._op(DAQ_OP_LAYOUT))
+        r = Reader(self._op(DaqOp.LAYOUT))
         fields = r.u8()
         stride = r.u16()
-        out = []
-        for _ in range(fields):
-            index = r.u8()
-            unit = r.u8()
-            differential = bool(r.u8())
-            out.append({'channel': index, 'unit': UNITS.get(unit, unit),
-                        'differential': differential, 'signal': r.string()})
+        out = [self._field(r) for _ in range(fields)]
 
         # The digital word's bits, named by the board. Counting rows of a
         # table this file does not hold is the copy the layout exists to
         # avoid, so the names come off the wire with everything else.
         pins = []
         if r.remaining and r.u8():
-            for _ in range(r.u8()):
-                direction = ('in', 'out', 'inout')[r.u8()]
-                pins.append({'signal': r.string(), 'direction': direction})
+            pins = [self._pin(r) for _ in range(r.u8())]
         return {'stride': stride, 'fields': out, 'pins': pins}
+
+    @staticmethod
+    def _field(r):
+        index = r.u8()
+        unit = r.u8()
+        differential = bool(r.u8())
+        return {'channel': index, 'unit': protocol.CHANNEL_UNITS.get(unit, unit),
+                'differential': differential, 'signal': r.string()}
+
+    @staticmethod
+    def _pin(r):
+        direction = protocol.DIRECTIONS.get(r.u8())
+        return {'signal': r.string(), 'direction': direction}
 
     def _resolve(self, channels):
         """Channel names or indices to a bitmask, asking the board for names."""
@@ -186,7 +175,7 @@ class Daq(Subsystem, Acquisition):
         # Only what stops the request being FORMED is checked here - a name
         # that is not a clock cannot be packed into a byte. Everything the
         # board can judge, the board judges, and says why.
-        if clock not in CLOCKS and clock not in (SOFTWARE, TIM1):
+        if clock not in CLOCKS and clock not in CLOCK_NAMES:
             raise ValueError('clock is %s, not one of %s'
                              % (clock, ', '.join(CLOCKS)))
 
@@ -203,18 +192,19 @@ class Daq(Subsystem, Acquisition):
         # The mask is 16 bits: the ninth channel did not fit in eight, and
         # a mask that silently dropped one would configure a task the
         # caller did not ask for.
-        payload = struct.pack('>HBBHHIBIB', self._resolve(channels),
-                              CLOCKS.get(clock, clock), sample_time,
-                              decimate, accumulate, records,
-                              1 if digital else 0, int(interval_us),
-                              1 if adapt else 0)
+        payload = pack(('u16', self._resolve(channels)),
+                       ('u8', CLOCKS.get(clock, clock)),
+                       ('u8', sample_time), ('u16', decimate),
+                       ('u16', accumulate), ('u32', records),
+                       ('u8', int(bool(digital))), ('u32', int(interval_us)),
+                       ('u8', int(bool(adapt))))
         if sensors:
             # Appended, MINOR 7 - SNAPSHOT fields, software clock only.
             # Sent only when asked for: an older board ignores unread
             # tail bytes, and a silently dropped request is exactly what
             # the front door's `selectable` gate exists to refuse first.
-            payload += struct.pack('>H', int(sensors))
-        self._ack(DAQ_OP_CONFIGURE, payload)
+            payload += pack(('u16', int(sensors)))
+        self._ack(DaqOp.CONFIGURE, payload)
         return self.layout()
 
     def shape(self, sections=(), decimate=1):
@@ -227,11 +217,9 @@ class Daq(Subsystem, Acquisition):
 
         No arguments clears it and the task sums as it did.
         """
-        payload = struct.pack('>BH', len(sections), int(decimate))
-        for section in sections:
-            payload += struct.pack('>5i', *[int(round(c * COEFF_SCALE))
-                                            for c in section])
-        self._ack(DAQ_OP_FILTER, payload)
+        self._ack(DaqOp.FILTER,
+                  pack(('u8', len(sections)), ('u16', int(decimate)))
+                  + _sections(sections))
         return True
 
     #: What the generator makes. SINE has a frequency, so the chain's
@@ -255,14 +243,11 @@ class Daq(Subsystem, Acquisition):
         and `record['samples']` says it again, per record.
         """
         for n, chain in enumerate(chains):
-            payload = struct.pack('>BHBH', n, int(chain['boxcar']),
-                                  len(chain['sections']),
-                                  int(chain['decimate']))
-            for section in chain['sections']:
-                payload += struct.pack('>5i',
-                                       *[int(round(c * COEFF_SCALE))
-                                         for c in section])
-            self._ack(DAQ_OP_RUNG, payload)
+            self._ack(DaqOp.RUNG,
+                      pack(('u8', n), ('u16', int(chain['boxcar'])),
+                           ('u8', len(chain['sections'])),
+                           ('u16', int(chain['decimate'])))
+                      + _sections(chain['sections']))
         return True
 
     def tone(self, hz=0, rate_hz=0, amplitude=10000, offset=32768, kind=0):
@@ -274,18 +259,17 @@ class Daq(Subsystem, Acquisition):
         output sample should be, so a record that fell out of the ring
         shows up as a phase that jumped rather than as nothing at all.
         """
-        self._ack(DAQ_OP_TONE,
-                           struct.pack('>IIiiB', int(hz), int(rate_hz),
-                                       int(amplitude), int(offset),
-                                       int(kind)))
+        self._ack(DaqOp.TONE,
+                  pack(('u32', int(hz)), ('u32', int(rate_hz)),
+                       ('i32', int(amplitude)), ('i32', int(offset)),
+                       ('u8', int(kind))))
         return True
 
     def start(self):
-        self._ack(DAQ_OP_START)
-        return True
+        return self._ack(DaqOp.START)
 
     def stop(self):
-        self._op(DAQ_OP_STOP)
+        self._op(DaqOp.STOP)
         return True
 
     def decode(self, blob, layout=None):
@@ -303,34 +287,33 @@ class Daq(Subsystem, Acquisition):
         words = sum(x['words'] for x in sensors)
         stride = layout['stride']
         fmt = '>I%di%dB%dhH' % (len(fields), len(pins), words)
-        out = []
-        for i in range(len(blob) // stride):
-            at = i * stride
-            values = struct.unpack(fmt, blob[at:at + stride])
-            rec = {'at': values[0], 'samples': values[-1]}
-            rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
-            if pins:
-                # A DUTY, not a level: the pin went through the same
-                # window as everything else, and 255 is all of it. A
-                # level sampled once and decimated by two thousand is
-                # aliased by construction - KEEPALIVE toggles at
-                # ~100 kHz and read as a coin toss.
-                first = 1 + len(fields)
-                rec['digital'] = {
-                    p['signal']: values[first + n] / 255.0
-                    for n, p in enumerate(pins)}
-            if sensors:
-                # SNAPSHOTS, not sums: raw and source-defined, the way
-                # device 5 carries them - the scale stays this host's.
-                first = 1 + len(fields) + len(pins)
-                rec['sensors'] = {}
-                for x in sensors:
-                    rec['sensors'][x['signal']] = tuple(
-                        values[first:first + x['words']])
-                    first += x['words']
-            out.append(rec)
+        return [self._record(struct.unpack(fmt, blob[at:at + stride]),
+                             fields, pins, sensors)
+                for at in range(0, len(blob) // stride * stride, stride)]
 
-        return out
+    @staticmethod
+    def _record(values, fields, pins, sensors):
+        """One record from its unpacked words, laid out as the board said."""
+        rec = {'at': values[0], 'samples': values[-1]}
+        rec.update({f['signal']: v for f, v in zip(fields, values[1:])})
+        first = 1 + len(fields)
+        if pins:
+            # A DUTY, not a level: the pin went through the same
+            # window as everything else, and 255 is all of it. A
+            # level sampled once and decimated by two thousand is
+            # aliased by construction - KEEPALIVE toggles at
+            # ~100 kHz and read as a coin toss.
+            rec['digital'] = {p['signal']: values[first + n] / BYTE_FRACTION
+                              for n, p in enumerate(pins)}
+        first += len(pins)
+        if sensors:
+            # SNAPSHOTS, not sums: raw and source-defined, the way
+            # device 5 carries them - the scale stays this host's.
+            ends = list(itertools.accumulate((x['words'] for x in sensors),
+                                             initial=first))
+            rec['sensors'] = {x['signal']: tuple(values[a:b])
+                              for x, a, b in zip(sensors, ends, ends[1:])}
+        return rec
 
     def acquire(self, want=0, layout=None):
         """Whole records, oldest first, decoded from the board's layout.
@@ -338,7 +321,6 @@ class Daq(Subsystem, Acquisition):
         Pass `layout` to save a round trip when draining in a loop.
         """
         layout = layout or self.layout()
-        fields, pins = layout['fields'], layout.get('pins') or []
         # THE BOARD'S STRIDE, not one worked out here. It says so in the
         # layout for exactly this reason, and a decoder that recomputes it
         # mis-frames every record after the first the day the record grows
@@ -349,11 +331,12 @@ class Daq(Subsystem, Acquisition):
         # hand, which turns the 8 ms of silence that ends every other
         # transaction into nothing. `tail` is the backlog MINOR 5
         # appends.
-        raw = self._op(DAQ_OP_READ, bytes([min(int(want), 255)]),
+        raw = self._op(DaqOp.READ, pack(('u8', min(int(want), 255))),
                        reply_shape={'at': 0, 'head': 1, 'stride': stride,
                                     'tail': 4})
         got = raw[0]
-        out = self.decode(raw[1:1 + (got * stride)], layout)
+        end = 1 + (got * stride)
+        out = self.decode(raw[1:end], layout)
 
         # THE BACKLOG THE READ ITSELF ANSWERED, the way a DAQ card does
         # it: records still in the board's ring the instant this read
@@ -363,9 +346,7 @@ class Daq(Subsystem, Acquisition):
         #
         # Read only if it is there - appended by MINOR 5, and a board
         # older than that answers a reply that stops after the records.
-        end = 1 + (got * stride)
-        self.backlog = (struct.unpack('>I', raw[end:end + 4])[0]
-                        if len(raw) >= end + 4 else None)
+        self.backlog = Reader(raw[end:]).maybe('u32')
         return out
 
     def latest(self, layout=None, block=True, timeout=2.0, poll=0.002):
@@ -387,7 +368,7 @@ class Daq(Subsystem, Acquisition):
         deadline = time.time() + timeout
 
         while True:
-            r = Reader(self._op(DAQ_OP_LIVE))
+            r = Reader(self._op(DaqOp.LIVE))
             if r.u8():
                 break
             if not block:
@@ -418,4 +399,3 @@ class Daq(Subsystem, Acquisition):
             out['digital'] = {p['signal']: bool(bits >> n & 1)
                               for n, p in enumerate(pins)}
         return out
-

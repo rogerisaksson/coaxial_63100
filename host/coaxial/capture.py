@@ -11,8 +11,9 @@ moves the wrap off a power of two, and `v` is whatever the source put there.
 """
 from . import protocol
 from .errors import RigError
-from .subsystem import Subsystem
-from .wire import Reader
+from .protocol import LogOp
+from .subsystem import Device
+from .wire import Reader, pack
 
 #: Source ids, and what `v` means for each.
 PHASES = 0      #: v = U, V, W, TIM1->CNT at latch
@@ -24,14 +25,10 @@ DRIVE = 3       #: v = id, iq in 10 mA, theta_hat as a turn in 65536,
 NAMES = {PHASES: 'phases', ANGLE: 'angle', IMU: 'imu', DRIVE: 'drive'}
 BY_NAME = {v: k for k, v in NAMES.items()}
 
-# Named as the firmware names them, in comms/inc/cmd.h: the bare OP_STATE
-# is gate_drivers.py's, and one definition per name across the package is a rule
-# the structure suite enforces.
-LOG_OP_STATE = 0
-LOG_OP_ARM = 1
-LOG_OP_TAKE = 2
-
 MAX_BURST = 15
+
+#: The four i16 every source fills, whatever it means by them.
+WORDS = 4
 
 #: Wire size of one record - u32 at, u8 source, u8 seq, 4x i16 - which
 #: is what `take` parses below and not what the struct occupies in the
@@ -39,13 +36,23 @@ MAX_BURST = 15
 RECORD_BYTES = 14
 
 
-class Capture(Subsystem):
+def _mask(sources):
+    """A source mask from names, or the mask itself when given one."""
+    if isinstance(sources, int):
+        return sources
+    unknown = [s for s in sources if s not in BY_NAME]
+    if unknown:
+        raise ValueError('no such source: %s - have %s'
+                         % (', '.join(unknown), ', '.join(BY_NAME)))
+    mask = 0
+    for s in sources:
+        mask |= 1 << BY_NAME[s]
+    return mask
+
+
+class Capture(Device, device=protocol.DEVICE_LOG):
 
     """Arm a set of sources, then drain what they produced."""
-
-    def _op(self, op, payload=b'', **kwargs):
-        return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_LOG, op]) + bytes(payload), **kwargs)
 
     def state(self):
         """What is armed, how much is waiting, and how much did not make it.
@@ -57,7 +64,7 @@ class Capture(Subsystem):
         stops the angle loop, at about 24 000 pushes a second, from locking
         the IMU's fifty out of a ring that holds 1024.
         """
-        r = Reader(self._op(LOG_OP_STATE))
+        r = Reader(self._op(LogOp.STATE))
         mask = r.u8()
         return {
             'sources': [NAMES[i] for i in sorted(NAMES) if mask >> i & 1],
@@ -75,18 +82,8 @@ class Capture(Subsystem):
         first records predate the run is worse than an empty one, and no
         field in the record would say so.
         """
-        if isinstance(sources, int):
-            mask = sources
-        else:
-            unknown = [s for s in sources if s not in BY_NAME]
-            if unknown:
-                raise ValueError('no such source: %s - have %s'
-                                 % (', '.join(unknown), ', '.join(BY_NAME)))
-            mask = 0
-            for s in sources:
-                mask |= 1 << BY_NAME[s]
-
-        if self._op(LOG_OP_ARM, bytes([mask]))[0] != 1:
+        took = Reader(self._op(LogOp.ARM, pack(('u8', _mask(sources))))).u8()
+        if not took:
             raise RigError('the board refused to arm the capture ring')
         return True
 
@@ -97,15 +94,15 @@ class Capture(Subsystem):
     def take(self, want=MAX_BURST):
         """Up to `want` records, oldest first, freed from the ring as they go."""
         want = max(1, min(int(want), MAX_BURST))
-        r = Reader(self._op(LOG_OP_TAKE, bytes([want])))
-        out = []
-        for _ in range(r.u8()):
-            rec = {'at': r.u32()}
-            rec['source'] = NAMES.get(r.u8(), '?')
-            rec['seq'] = r.u8()
-            rec['v'] = tuple(r.i16() for _ in range(4))
-            out.append(rec)
-        return out
+        r = Reader(self._op(LogOp.TAKE, pack(('u8', want))))
+        return [self._record(r) for _ in range(r.u8())]
+
+    @staticmethod
+    def _record(r):
+        return {'at': r.u32(),
+                'source': NAMES.get(r.u8(), '?'),
+                'seq': r.u8(),
+                'v': tuple(r.i16() for _ in range(WORDS))}
 
     def drain(self, limit=None):
         """Everything waiting, in order, stopping at `limit` records.

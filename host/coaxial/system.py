@@ -1,8 +1,9 @@
 """Identity, versions and the clock tree."""
 from . import protocol
 from .errors import PayloadError, RigError
-from .subsystem import Subsystem
-from .wire import Reader, pack
+from .protocol import MapKind
+from .subsystem import Subsystem, remembered
+from .wire import Reader, pack, pages
 
 
 class System(Subsystem):
@@ -56,10 +57,11 @@ class System(Subsystem):
         # Appended, so a board older than this answers a shorter reply.
         # What the CONVERTERS run at, after the prescaler - the number
         # every sampling time on this board is quoted against.
-        out['adc_hz'] = reader.u32() if reader.remaining >= 4 else None
+        out['adc_hz'] = reader.maybe('u32')
         return out
 
-    def channel_map(self, refresh=False):
+    @remembered
+    def channel_map(self):
         """Every channel this board has, analog and digital, and which way
         each one runs.
 
@@ -78,56 +80,61 @@ class System(Subsystem):
 
         The map, not a reading: `analog.channels()` fetches the same metadata
         with a live conversion attached, `read_all()` measures. Cached, none of
-        it changes at run time.
+        it changes at run time; `refresh=True` asks again.
 
         The board describing itself - nothing above the firmware carries a
         copy. Needs protocol 1.3; an older board raises and the caller falls
         back to protocol.RESERVED_PINS.
+
+        Round trips per section rather than one: the analog and digital
+        sections together are 273 bytes against the 253-byte PDU, so the
+        wire carries them separately and this joins them. The split is the
+        frame's, not the map's.
         """
-        if getattr(self, '_map', None) is None or refresh:
-            # Two round trips, one per section: both together are 273 bytes
-            # against the 253-byte PDU, so the wire carries them separately
-            # and this joins them. The split is the frame's, not the map's.
-            reader = Reader(self.request(protocol.CHANNELS, pack(('u8', 0))))
-            analog = []
-            for _ in range(reader.u8()):
-                analog.append({
-                    'index': reader.u8(),
-                    'adc': reader.u8(),
-                    'channel': reader.u8(),
-                    'pin': reader.string(),
-                    'direction': protocol.DIRECTIONS.get(reader.u8()),
-                    'differential': bool(reader.u8()),
-                    'signal': reader.string(),
-                    'unit': protocol.CHANNEL_UNITS.get(reader.u8()),
-                })
-            pins = {}
-            for kind, name in ((1, 'digital'), (2, 'reserved')):
-                # Paged: the reserved section is 19 pins now that SPI2, SPI4
-                # and the IMU's control lines are listed, which is 418 bytes
-                # against a 253-byte PDU.
-                rows = []
-                first = 0
-                while True:
-                    reader = Reader(self.request(protocol.CHANNELS,
-                                                 pack(('u8', kind),
-                                                      ('u8', first))))
-                    total, _, count = reader.u8(), reader.u8(), reader.u8()
-                    for _ in range(count):
-                        rows.append({
-                            'pin': reader.string(),
-                            'direction': protocol.DIRECTIONS.get(reader.u8()),
-                            'signal': reader.string(),
-                        })
-                    first += count
-                    if count == 0 or first >= total:
-                        break
-                pins[name] = rows
-            self._map = {'analog': analog, 'digital': pins['digital'],
-                         'reserved': pins['reserved'],
-                         'subsystems': self._subsystems(),
-                         'parts': self._parts()}
-        return self._map
+        return {'analog': self._analog(),
+                'digital': self._pins(MapKind.DIGITAL),
+                'reserved': self._pins(MapKind.RESERVED),
+                'subsystems': self._subsystems(),
+                'parts': self._parts()}
+
+    def _section(self, kind, absent=()):
+        """The pages of one kind of the map."""
+        return pages(lambda first: self.request(
+            protocol.CHANNELS, pack(('u8', kind), ('u8', first))), absent)
+
+    def _analog(self):
+        """The ADC channels: one request, the section fits a frame."""
+        reader = Reader(self.request(protocol.CHANNELS,
+                                     pack(('u8', MapKind.ANALOG))))
+        return [self._analog_row(reader) for _ in range(reader.u8())]
+
+    @staticmethod
+    def _analog_row(reader):
+        return {
+            'index': reader.u8(),
+            'adc': reader.u8(),
+            'channel': reader.u8(),
+            'pin': reader.string(),
+            'direction': protocol.DIRECTIONS.get(reader.u8()),
+            'differential': bool(reader.u8()),
+            'signal': reader.string(),
+            'unit': protocol.CHANNEL_UNITS.get(reader.u8()),
+        }
+
+    def _pins(self, kind):
+        """One pin section, paged: the reserved section is 19 pins now that
+        SPI2, SPI4 and the IMU's control lines are listed, which is 418
+        bytes against a 253-byte PDU."""
+        return [self._pin_row(page)
+                for page in self._section(kind) for _ in page.rows()]
+
+    @staticmethod
+    def _pin_row(reader):
+        return {
+            'pin': reader.string(),
+            'direction': protocol.DIRECTIONS.get(reader.u8()),
+            'signal': reader.string(),
+        }
 
     def _subsystems(self):
         """What the firmware says it is made of: one entry per command table.
@@ -139,7 +146,8 @@ class System(Subsystem):
         making the whole map fail.
         """
         try:
-            reader = Reader(self.request(protocol.CHANNELS, pack(('u8', 3))))
+            reader = Reader(self.request(protocol.CHANNELS,
+                                         pack(('u8', MapKind.SUBSYSTEMS))))
         except RigError:
             return []
         return [{'name': reader.string(), 'what': reader.string(),
@@ -159,27 +167,19 @@ class System(Subsystem):
         the 253-byte PDU. An older firmware has no kind 4, and an empty list
         says so without making the whole map fail.
         """
-        out = []
-        first = 0
+        return [self._part_row(page)
+                for page in self._section(MapKind.PARTS, absent=RigError)
+                for _ in page.rows()]
 
-        while True:
-            try:
-                reader = Reader(self.request(protocol.CHANNELS,
-                                             pack(('u8', 4), ('u8', first))))
-            except RigError:
-                return out
-            total, _, count = reader.u8(), reader.u8(), reader.u8()
-            for _ in range(count):
-                out.append({
-                    'name': reader.string(),
-                    'what': reader.string(),
-                    'where': reader.string(),
-                    'power': reader.string(),
-                    'state': protocol.PART_STATES.get(reader.u8(), 'unknown'),
-                })
-            first += count
-            if count == 0 or first >= total:
-                return out
+    @staticmethod
+    def _part_row(reader):
+        return {
+            'name': reader.string(),
+            'what': reader.string(),
+            'where': reader.string(),
+            'power': reader.string(),
+            'state': protocol.PART_STATES.get(reader.u8(), 'unknown'),
+        }
 
     def self_test(self):
         """What the board can prove about itself, with nothing attached.

@@ -141,12 +141,24 @@ implementation so a name drifting between them fails at construction:
 `disarm`, `armed`. It re-reads BDTR DTG and refuses a stage with no
 dead time.
 
-`Board` (`board.py`) is the transport plus one `Subsystem` per device:
-`system`, `link`, `afe`, `analog`, `gpio`, `imu`, `angle`,
-`calibration`, `gate_drivers`, `thermal`, `power`, `capture`, `clock`,
-`daq`, `drive`. `Subsystem.request` and `_ack` are the two shapes a
-device speaks. Nothing returns a status code or None for failure
-(invariant 8): a result, or a raise from `errors.py`.
+`Board` (`board.py`) is the transport plus one subsystem per functional
+area, and its composition is its class-level declaration - `system:
+System`, `link: Link`, ... `observer: Observer` - which `__init__` builds
+from and `parts()` reads back for the rig's early handles and the
+structure suite. A peripheral behind 0x6E declares its device byte in
+the class statement, `class Thermal(Device,
+device=protocol.DEVICE_THERMAL)`, and `Device._op` frames every op from
+it; the ops are `IntEnum`s in `protocol.py` (`ThermalOp.STATE`), the
+same names the length oracle's tables are keyed on. `Subsystem.request`
+and `_ack` are the two shapes a device speaks. Three decorators carry
+what a method wants: `afe.powered` (refused while AFE_ON is off),
+`subsystem.remembered` (a fetch cached until `refresh=True`) and
+`subsystem.forgetting('read')` (a writer that drops it). `wire.py` names
+the wire's scales - `r.centi()`, `r.milli()`, `r.micro()`, `r.q16()`,
+`r.fraction()`, `r.maybe(width)` for an appended field, `pages()` for a
+paged reply - so no call site divides by a literal. Nothing returns a
+status code or None for failure (invariant 8): a result, or a raise from
+`errors.py`.
 
 `DaqView` is what `device.daq` is: `configure`, `shape`, `ladder`,
 `tone`, `start`, `stop`, `state`, `acquire`, `latest`, `blocks`,

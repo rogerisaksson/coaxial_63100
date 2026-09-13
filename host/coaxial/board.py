@@ -29,7 +29,8 @@ from .gpio import Gpio
 from .angle import Angle
 from .imu import Imu
 from .link import Link
-from .protocol import BROADCAST
+from .protocol import BROADCAST, PROVEN_DISPATCH_SINCE
+from .subsystem import Subsystem
 from .system import System
 from . import broker
 from .transport import Transport
@@ -37,7 +38,32 @@ from typing import Any
 
 
 class Board:
-    """One unit on one transport. Every method raises rather than reporting."""
+    """One unit on one transport. Every method raises rather than reporting.
+
+    THE COMPOSITION IS THE DECLARATION BELOW: one subsystem per functional
+    area, under the attribute it is annotated as, built in that order by
+    `__init__` and read back by `parts()`. The rig's early handles and the
+    structure suite ask `parts()`, so a part added here is reachable
+    everywhere with nothing else edited - a list of names anywhere else was
+    the second answer that went stale.
+    """
+
+    system: System
+    link: Link
+    afe: Afe
+    analog: Analog
+    gpio: Gpio
+    imu: Imu
+    angle: Angle
+    calibration: Calibration
+    gate_drivers: GateDrivers
+    thermal: Thermal
+    power: Power
+    capture: Capture
+    clock: Clock
+    daq: Daq
+    drive: Drive
+    observer: Observer
 
     #: The rig that opened this board, set by `Coaxial63100.open()` -
     #: `observer.autodetect` drives commissioning steps that are the
@@ -48,23 +74,14 @@ class Board:
         self.transport = transport
         self.unit = unit
         self.version_info = None
+        for name, part in self.parts().items():
+            setattr(self, name, part(self))
 
-        self.system = System(self)
-        self.link = Link(self)
-        self.afe = Afe(self)
-        self.analog = Analog(self)
-        self.gpio = Gpio(self)
-        self.imu = Imu(self)
-        self.angle = Angle(self)
-        self.calibration = Calibration(self)
-        self.gate_drivers = GateDrivers(self)
-        self.thermal = Thermal(self)
-        self.power = Power(self)
-        self.capture = Capture(self)
-        self.clock = Clock(self)
-        self.daq = Daq(self)
-        self.drive = Drive(self)
-        self.observer = Observer(self)
+    @classmethod
+    def parts(cls):
+        """The composition: attribute name -> the subsystem class there."""
+        return {name: part for name, part in cls.__annotations__.items()
+                if isinstance(part, type) and issubclass(part, Subsystem)}
 
     @property
     def baud(self):
@@ -129,20 +146,26 @@ class Board:
         for _ in range(max(1, tries)):
             try:
                 self.version_info = self.system.version()
-                # MINOR 9: the board dispatches proven requests on their
-                # own CRC, so the transport can stop paying the pre-TX
-                # gap after one. A broker proxy has no such attribute and
-                # keeps the spec gap - correct, just unoptimised there.
-                if (self.version_info.get('proto_major') == 2
-                        and self.version_info.get('proto_minor', 0) >= 9
-                        and hasattr(self.transport, 'proven_dispatch')):
-                    self.transport.proven_dispatch = True
+                self._dispatch_on_crc(self.version_info)
                 return self.version_info
             except (NoReplyError, CrcError, FrameError) as exc:
                 last = exc
         if last is None:                   # tries is at least one
             raise NoReplyError('the board never answered')
         raise last
+
+    def _dispatch_on_crc(self, info):
+        """MINOR 9: the board dispatches proven requests on their own CRC,
+        so the transport can stop paying the pre-TX gap after one. A broker
+        proxy has no such attribute and keeps the spec gap - correct, just
+        unoptimised there."""
+        major, minor = PROVEN_DISPATCH_SINCE
+        proven = (info.get('proto_major') == major
+                  and info.get('proto_minor', 0) >= minor)
+        if proven and hasattr(self.transport, 'proven_dispatch'):
+            self.transport.proven_dispatch = True
+
+
 # Protocol major -> the client class that speaks it. THIS is the lookup: a
 # firmware that bumps to major 2 gets a Board subclass on a new line here, and
 # every call site stays as it is. Nothing keys off the firmware version, because
@@ -182,14 +205,14 @@ def _build(probe):
 
 def _normalise(entry, default_port, default_baud):
     """Accept 1, (1, 19200) or (1, 19200, 'COM7') and return a full triple."""
-    if isinstance(entry, int):
-        return entry, default_baud, default_port
-    if isinstance(entry, (tuple, list)) and len(entry) == 2:
-        return entry[0], entry[1], default_port
-    if isinstance(entry, (tuple, list)) and len(entry) == 3:
-        return entry[0], entry[1], entry[2]
-    raise ValueError('bad unit spec %r: expected unit, (unit, baud) or '
-                     '(unit, baud, port)' % (entry,))
+    if not isinstance(entry, (int, tuple, list)):
+        raise ValueError('bad unit spec %r: expected unit, (unit, baud) or '
+                         '(unit, baud, port)' % (entry,))
+    spec = (entry,) if isinstance(entry, int) else tuple(entry)
+    if len(spec) not in (1, 2, 3):
+        raise ValueError('bad unit spec %r: expected unit, (unit, baud) or '
+                         '(unit, baud, port)' % (entry,))
+    return spec + (default_baud, default_port)[len(spec) - 1:]
 
 
 def scan(units=range(1, 17), port='COM4', baud=115200):
@@ -236,15 +259,9 @@ def _reach(port, baud):
     real error from the real port rather than one about a broker.
     """
     reached = _attach(port)
-    if reached is not None:
-        return reached
-
-    if broker.spawn(port, baud):
+    if reached is None and broker.spawn(port, baud):
         reached = _attach(port)
-        if reached is not None:
-            return reached
-
-    return Transport(port, baud)
+    return Transport(port, baud) if reached is None else reached
 
 
 def _attach(port):
@@ -315,6 +332,24 @@ def connect(units, port='COM4', baud=115200, verify=True):
         raise
 
 
+def _hand_back(board):
+    """Return one board's UART to its console and close its port.
+
+    A port already closed has nothing to hand back, which is what makes a
+    second call to `disconnect` a no-op rather than an error from pyserial.
+    Shutting down: a board that will not answer, or a port that will not
+    close, must not strand the ports of every board after it.
+    """
+    try:
+        try:
+            if board.transport.is_open:
+                board.close_binary()
+        finally:
+            board.transport.close()
+    except RigError:
+        pass
+
+
 def disconnect(boards):
     """Return every UART to its console and close the ports. Idempotent."""
     seen = set()
@@ -322,16 +357,4 @@ def disconnect(boards):
         if id(board.transport) in seen:
             continue
         seen.add(id(board.transport))
-        try:
-            try:
-                # A port already closed has nothing to hand back, which is what
-                # makes a second call to this function a no-op rather than an
-                # error from pyserial.
-                if board.transport.is_open:
-                    board.close_binary()
-            finally:
-                board.transport.close()
-        except RigError:
-            # Shutting down. A board that will not answer, or a port that will
-            # not close, must not strand the ports of every board after it.
-            pass
+        _hand_back(board)

@@ -13,8 +13,11 @@ an estimate under a few minutes has not settled against the network's
 6.8-minute constant.
 """
 from . import protocol
-from .subsystem import Subsystem
-from .thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES
+from .errors import RigError
+from .protocol import ThermalOp
+from .subsystem import Device
+from .thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES, PHASES
+from .wire import Reader, label, micro, milli, pack, pages
 
 #: Where the board starts backing off, as a fraction of a node's ceiling.
 #: `set_limit`'s default and therefore what is in the record unless a
@@ -29,37 +32,52 @@ from .thermal import ALL_NODES, IDENT_SCALES, IDENT_STATES
 #: there to survive. The record's `soa_throttle_ppm` carries the same
 #: number, and a bench that wants more warning writes a smaller one.
 THROTTLE_AT = 0.90
-from .wire import Reader, pack
-
-#: Op codes. Prefixed because every device has its own op 0 and the bare
-#: names collide between modules; `protocol.DEVICE_THERMAL` owns the device
-#: byte, so it does not belong here as well.
-THERMAL_OP_STATE = 0
-THERMAL_OP_SET_NODE = 1
-THERMAL_OP_SET_BOARD = 2
-THERMAL_OP_SET_SAMPLE = 3
-THERMAL_OP_BUDGET = 4
-THERMAL_OP_SET_LIMIT = 5
-THERMAL_OP_SET_WINDING = 6
-THERMAL_OP_NODES = 7
-THERMAL_OP_EDGES = 8
-THERMAL_OP_SET_EDGE = 9
-THERMAL_OP_IDENT = 10
-THERMAL_OP_IDENT_RESET = 11
-THERMAL_OP_SET_MARGIN = 12
 
 #: `since_save_s` on the wire when the record was never written this boot
 #: - always, since MINOR 16: the board keeps nothing it identified.
 _NEVER_SAVED = 0xFFFFFFFF
 
+#: An edge's K/W on the wire when the edge is open.
+OPEN_EDGE = -1
 
-class Thermal(Subsystem):
+
+def _node(index):
+    return label(ALL_NODES, index, 'node')
+
+
+def _index(node):
+    """A node by name or by index, as the wire wants it."""
+    return ALL_NODES.index(node) if isinstance(node, str) else int(node)
+
+
+def _thermometer(r):
+    """A flag and a centi-degree value, both always on the wire; the value
+    counts only when the flag says it was measured.
+
+    Both are read either way: skipping the read on a false flag would
+    leave the reader one field behind for everything after it.
+    """
+    measured = bool(r.u8())
+    value = r.centi()
+    return value if measured else None
+
+
+def _node_row(page):
+    return {'capacity': page.milli(),
+            'to_ambient': page.milli(),
+            'area_share': page.micro(),
+            'rth_die': page.milli(),
+            'forced': page.milli()}
+
+
+def _edge(r):
+    a, b = r.u8(), r.u8()
+    return (_node(a), _node(b), r.milli())
+
+
+class Thermal(Device, device=protocol.DEVICE_THERMAL):
 
     """What each region of the board is at: one measurement, the rest model."""
-
-    def _op(self, op, payload=b'', **kwargs):
-        return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_THERMAL, op]) + payload, **kwargs)
 
     def state(self):
         """The thermal observer's state.
@@ -71,50 +89,38 @@ class Thermal(Subsystem):
         `error` is the model's own NTC minus the measured one, when both
         exist. It is the only number that says whether the parameters hold.
         """
-        r = Reader(self._op(THERMAL_OP_STATE))
-        measured = bool(r.u8())
-        ntc_centi = r.i32()
-
-        count = r.u8()
-        nodes = {}
-        for i in range(count):
-            value = r.i32() / 100.0
-            nodes[ALL_NODES[i] if i < len(ALL_NODES) else 'node%d' % i] = value
+        r = Reader(self._op(ThermalOp.STATE))
+        ntc = _thermometer(r)
+        nodes = {_node(i): r.centi() for i in range(r.u8())}
 
         got = {
-            'ntc': (ntc_centi / 100.0) if measured else None,
+            'ntc': ntc,
             'nodes': nodes,
-            'ambient': r.i32() / 100.0,
-            'expected_ntc': r.i32() / 100.0,
+            'ambient': r.centi(),
+            'expected_ntc': r.centi(),
             'seconds': r.u32(),
             'settled': bool(r.u8()),
-            'sample_every_s': r.u32() / 1000.0,
-            'sample_settle_s': r.u32() / 1000.0,
+            'sample_every_s': r.milli('u32'),
+            'sample_settle_s': r.milli('u32'),
         }
 
         # The other two thermometers. Each is a die, so each anchors the node
         # it sits ON - not the board. `None` where it did not answer.
-        #
-        # The flag comes first on the wire and the value always follows, so
-        # both are read either way: skipping the read on a false flag would
-        # leave the reader one field behind for everything after it.
         for name in ('afe', 'mcu'):
-            measured = bool(r.u8())
-            value = r.i32() / 100.0
-            got[name] = value if measured else None
+            got[name] = _thermometer(r)
 
-        got['seen_s_ago'] = r.u32() / 1000.0
+        got['seen_s_ago'] = r.milli('u32')
 
         # `seconds` is wall clock and its rate is 1.0 whatever the thermal observer
         # does. `steps` is what a benchmark can watch fall.
         got['steps'] = r.u32()
-        got['error'] = ((got['expected_ntc'] - got['ntc'])
-                        if got['ntc'] is not None else None)
+        got['error'] = ((got['expected_ntc'] - ntc)
+                        if ntc is not None else None)
         # MINOR 13: each leg's FET junction over its node - half the node's
         # watts through R_th,JC - and the rotor speed the air paths were
         # evaluated at. Absent on older firmware, and absent is honest.
         if r.remaining >= 16:
-            got['junction_over'] = [r.i32() / 100.0 for _ in range(3)]
+            got['junction_over'] = [r.centi() for _ in PHASES]
             got['speed_rpm'] = r.i32()
         return got
 
@@ -125,36 +131,21 @@ class Thermal(Subsystem):
         core's defaults, as the observer holds it now. MINOR 13; a board
         without it refuses the op, and the raise says so.
         """
-        nodes = {}
-        first = 0
-        while True:
-            r = Reader(self._op(THERMAL_OP_NODES, pack(('u8', first))))
-            count, first, n = r.u8(), r.u8(), r.u8()
-            for i in range(first, first + n):
-                name = ALL_NODES[i] if i < len(ALL_NODES) else 'node%d' % i
-                nodes[name] = {'capacity': r.i32() / 1e3,
-                               'to_ambient': r.i32() / 1e3,
-                               'area_share': r.i32() / 1e6,
-                               'rth_die': r.i32() / 1e3,
-                               'forced': r.i32() / 1e3}
-            first += n
-            if first >= count or n == 0:
-                break
-        r = Reader(self._op(THERMAL_OP_EDGES))
-        edges = []
-        for _ in range(r.u8()):
-            a, b = r.u8(), r.u8()
-            edges.append((ALL_NODES[a] if a < len(ALL_NODES) else 'node%d' % a,
-                          ALL_NODES[b] if b < len(ALL_NODES) else 'node%d' % b,
-                          r.i32() / 1e3))
+        nodes = {_node(i): _node_row(page)
+                 for page in pages(self._nodes_from) for i in page.indices()}
+        r = Reader(self._op(ThermalOp.EDGES))
+        edges = [_edge(r) for _ in range(r.u8())]
         return {'nodes': nodes, 'edges': edges}
+
+    def _nodes_from(self, first):
+        return self._op(ThermalOp.NODES, pack(('u8', first)))
 
     def set_edge(self, edge, k_per_w):
         """One edge's K/W, by index in the table `network()` lists; None
         opens it. Written to the observer and to the record's RAM copy."""
-        milli = -1 if k_per_w is None else int(round(k_per_w * 1000))
-        return self._ack(THERMAL_OP_SET_EDGE, pack(('u8', int(edge)),
-                                                   ('i32', milli)))
+        on_wire = OPEN_EDGE if k_per_w is None else milli(k_per_w)
+        return self._ack(ThermalOp.SET_EDGE,
+                         pack(('u8', int(edge)), ('i32', on_wire)))
 
     def budget(self):
         """What is left of the thermal budget, per node.
@@ -171,20 +162,16 @@ class Thermal(Subsystem):
         not a verdict - the estimates are reported either way, and the limits
         came from the calibration record rather than from the firmware.
         """
-        r = Reader(self._op(THERMAL_OP_BUDGET))
-        used = {}
-        for i in range(r.u8()):
-            name = ALL_NODES[i] if i < len(ALL_NODES) else 'node%d' % i
-            used[name] = r.u8() / 255.0
+        r = Reader(self._op(ThermalOp.BUDGET))
+        used = {_node(i): r.fraction() for i in range(r.u8())}
 
-        worst = r.u8() / 255.0
+        worst = r.fraction()
         index = r.u8()
         millis = r.i32()
         got = {
             'used': used,
             'worst': worst,
-            'worst_node': (ALL_NODES[index] if index < len(ALL_NODES)
-                           else 'node%d' % index),
+            'worst_node': _node(index),
             'seconds_to_limit': (millis / 1000.0) if millis >= 0 else None,
             'throttling': bool(r.u8()),
             'tripped': bool(r.u8()),
@@ -195,12 +182,9 @@ class Thermal(Subsystem):
         # host selects on the protocol MAJOR alone (invariant 4) so it
         # cannot refuse one for being short.
         if r.remaining >= 4:
-            got['derate'] = r.i32() / 1e6
-            got['soak_j'] = {}
-            for i in range(len(used)):
-                name = ALL_NODES[i] if i < len(ALL_NODES) else 'node%d' % i
-                got['soak_j'][name] = r.i32() / 1e3
-            got['duty'] = [r.i32() / 1e6 for _ in range(3)]
+            got['derate'] = r.micro()
+            got['soak_j'] = {_node(i): r.milli() for i in range(len(used))}
+            got['duty'] = [r.micro() for _ in PHASES]
         # MINOR 12: the winding - the one node that is not on the board.
         # Its estimate, its spend against the record's ceiling, and its
         # OWN factor; `derate` above is what the stage got, the smaller
@@ -209,9 +193,9 @@ class Thermal(Subsystem):
         # honest: the page then estimates the winding itself and says
         # so.
         if r.remaining >= 9:
-            got['winding_c'] = r.i32() / 100.0
-            got['winding_used'] = r.u8() / 255.0
-            got['winding_derate'] = r.i32() / 1e6
+            got['winding_c'] = r.centi()
+            got['winding_used'] = r.fraction()
+            got['winding_derate'] = r.micro()
         return got
 
     def identification(self, **kwargs):
@@ -231,21 +215,18 @@ class Thermal(Subsystem):
         later - the board keeps nothing it identified; older firmware
         reports what it wrote.
         """
-        r = Reader(self._op(THERMAL_OP_IDENT, **kwargs))
-        index = r.u8()
-        state = IDENT_STATES[index] if index < len(IDENT_STATES) \
-            else 'state%d' % index
+        r = Reader(self._op(ThermalOp.IDENT, **kwargs))
+        state = label(IDENT_STATES, r.u8(), 'state')
         mask = r.u8()
-        scales, sigma, names = {}, {}, []
-        for k in range(r.u8()):
-            name = IDENT_SCALES[k] if k < len(IDENT_SCALES) else 'scale%d' % k
-            names.append(name)
-            scales[name] = r.i32() / 1000.0
-            sigma[name] = r.i32() / 1000.0
+        names = [label(IDENT_SCALES, k, 'scale') for k in range(r.u8())]
+        scales, sigma = {}, {}
+        for name in names:
+            scales[name] = r.milli()
+            sigma[name] = r.milli()
         got = {'state': state, 'scales': scales, 'sigma': sigma,
                'online': [n for k, n in enumerate(names) if (mask >> k) & 1],
-               'innovation_k': r.i32() / 1000.0,
-               'margin': r.i32() / 1e6,
+               'innovation_k': r.milli(),
+               'margin': r.micro(),
                'updates': r.u32(), 'saves': r.u32()}
         since = r.u32()
         got['since_save_s'] = None if since == _NEVER_SAVED else since
@@ -253,21 +234,21 @@ class Thermal(Subsystem):
         # sure - the board has no ambient sensor. Absent on older
         # firmware, and absent is honest.
         if r.remaining >= 8:
-            got['ambient'] = r.i32() / 100.0
-            got['ambient_sigma'] = r.i32() / 100.0
+            got['ambient'] = r.centi()
+            got['ambient_sigma'] = r.centi()
         # MINOR 16: the floor the margin rises from.
         if r.remaining >= 4:
-            got['margin_floor'] = r.i32() / 1e6
+            got['margin_floor'] = r.micro()
         # MINOR 17: the trip cap as it stands, one with no trip in hand.
         # `margin` is the least of it and the identification's own.
         if r.remaining >= 4:
-            got['trip_cap'] = r.i32() / 1e6
+            got['trip_cap'] = r.micro()
         return got
 
     def reset_identification(self):
         """Forget what was identified: scales to one, UNCERTAIN, the
         margin back at the floor. Nothing is written anywhere."""
-        return self._ack(THERMAL_OP_IDENT_RESET)
+        return self._ack(ThermalOp.IDENT_RESET)
 
     def set_margin_floor(self, floor):
         """The least of every ceiling's span the envelope keeps while the
@@ -279,8 +260,7 @@ class Thermal(Subsystem):
         bench's default is 0.8; the board refuses zero in its own words,
         since every ceiling would be at 25 C the moment it booted.
         """
-        return self._ack(THERMAL_OP_SET_MARGIN, pack(
-            ('i32', int(round(floor * 1000000)))))
+        return self._ack(ThermalOp.SET_MARGIN, pack(('i32', micro(floor))))
 
     def situation(self, name=None, switching=None):
         """A board has no ground truth to put in a situation: that is
@@ -289,7 +269,6 @@ class Thermal(Subsystem):
         identification to find. Here it is refused in words, so a page
         that asks on the wrong rig hears why rather than AttributeError.
         """
-        from .errors import RigError
         raise RigError('a board has no ground truth to put in a situation - '
                        'the stand-in has (simulated_device=True): box, fan, '
                        'heatsink, stuffy, bench, or random')
@@ -301,7 +280,6 @@ class Thermal(Subsystem):
         (`SimulatedThermal.load_cycle`), where a page in simulated mode
         cycles 30 A on and off so the map's regions warm and cool.
         Refused in words on a board, so the page hears why."""
-        from .errors import RigError
         raise RigError('a board has no load to lay on from the observer - '
                        'the drive and tools/switch.py put current through '
                        'it; the stand-in (simulated_device=True) cycles one')
@@ -315,10 +293,9 @@ class Thermal(Subsystem):
         and an estimated ceiling; a bench with a thermocouple on the
         winding writes what it measured over them.
         """
-        return self._ack(THERMAL_OP_SET_WINDING, pack(
-            ('i32', int(round(limit_c * 1000))),
-            ('i32', int(round(k_per_w * 1000))),
-            ('i32', int(round(j_per_k * 1000)))))
+        return self._ack(ThermalOp.SET_WINDING, pack(
+            ('i32', milli(limit_c)), ('i32', milli(k_per_w)),
+            ('i32', milli(j_per_k))))
 
     def set_limit(self, node, limit_c, throttle_at=THROTTLE_AT):
         """One node's ceiling in degrees C, and where derating starts.
@@ -327,11 +304,9 @@ class Thermal(Subsystem):
         node's ceiling, which is how a node with no measurement behind its
         limit should be left rather than guessed at.
         """
-        index = ALL_NODES.index(node) if isinstance(node, str) else int(node)
-        return self._ack(THERMAL_OP_SET_LIMIT, pack(
-            ('u8', index),
-            ('i32', int(round(limit_c * 1000)),
-            ('i32', int(round(throttle_at * 1000000))))))
+        return self._ack(ThermalOp.SET_LIMIT, pack(
+            ('u8', _index(node)), ('i32', milli(limit_c)),
+            ('i32', micro(throttle_at))))
 
     def set_sample(self, every_s, settle_s=0.3):
         """How often the thermal observer borrows AFE_ON for an NTC reading.
@@ -345,9 +320,8 @@ class Thermal(Subsystem):
         is shared with the gate drivers and an acquire is refused while the
         stage is armed.
         """
-        return self._ack(THERMAL_OP_SET_SAMPLE, pack(
-            ('u32', int(round(every_s * 1000)),
-            ('u32', int(round(settle_s * 1000))))))
+        return self._ack(ThermalOp.SET_SAMPLE, pack(
+            ('u32', milli(every_s)), ('u32', milli(settle_s))))
 
     def set_node(self, node, to_board, capacity):
         """Set one node's first path out (K/W) and heat capacity (J/K).
@@ -363,11 +337,9 @@ class Thermal(Subsystem):
         Re-fitting is one division per node: `(T_zone - T_patch) / P`, with
         T from a camera against a dead patch of soldermask.
         """
-        index = ALL_NODES.index(node) if isinstance(node, str) else int(node)
-        return self._ack(THERMAL_OP_SET_NODE, pack(
-            ('u8', index),
-            ('i32', int(round(to_board * 1000)),
-            ('i32', int(round(capacity * 1000))))))
+        return self._ack(ThermalOp.SET_NODE, pack(
+            ('u8', _index(node)), ('i32', milli(to_board)),
+            ('i32', milli(capacity))))
 
     def set_board(self, to_ambient, capacity):
         """The board's own two numbers: K/W to ambient and J/K.
@@ -377,6 +349,5 @@ class Thermal(Subsystem):
         the one that moves if the board is ever mounted behind a stator
         instead of lying on a bench. Still air is not a rotor.
         """
-        return self._ack(THERMAL_OP_SET_BOARD, pack(
-            ('i32', int(round(to_ambient * 1000)),
-            ('i32', int(round(capacity * 1000))))))
+        return self._ack(ThermalOp.SET_BOARD, pack(
+            ('i32', milli(to_ambient)), ('i32', milli(capacity))))

@@ -11,35 +11,29 @@ how they get there and `reload()` is how the drive picks them up.
 
 Every refusal is the board's own sentence.
 """
+import json
 import math
 import time
 
 from . import protocol
 from .errors import RigError
-from .subsystem import Subsystem
-from .wire import Reader
-
-DRIVE_OP_STATE = 0
-DRIVE_OP_MODE = 1
-DRIVE_OP_SETPOINT = 2
-DRIVE_OP_SETPOINTS = 3
-DRIVE_OP_THETA = 4
-DRIVE_OP_WINDOW = 5
-DRIVE_OP_MOMENTS_ARM = 6
-DRIVE_OP_MOMENTS = 7
-DRIVE_OP_RELOAD = 8
-DRIVE_OP_CYCLES_RESET = 9
-DRIVE_OP_SOURCE = 10
-DRIVE_OP_MODEL_PARAM = 11
-DRIVE_OP_MODEL = 12
-DRIVE_OP_MODEL_RESET = 13
-DRIVE_OP_OBSERVERS = 14
+from .protocol import DriveOp
+from .subsystem import Device
+from .wire import Reader, micro, pack
 
 MODES = {'off': 0, 'volt': 1, 'hold': 2, 'sensorless': 3, 'polarity': 4}
 MODE_NAMES = {v: k for k, v in MODES.items()}
 FAULTS = {0: None, 1: 'overcurrent', 2: 'stage', 3: 'supply'}
 SOURCES = {'adc': 0, 'model': 1}
 SOURCE_NAMES = {v: k for k, v in SOURCES.items()}
+
+#: The state reply's flag byte, bit by bit.
+FLAGS = ('stage_enabled', 'afe_on', 'injecting', 'owns_compares',
+         'sync_armed')
+#: The state's currents and volts, in wire order, milli-units each.
+MILLI_FIELDS = ('id', 'iq', 'vd', 'vq', 'vdc')
+#: The state's observer terms, in wire order, micro-units each.
+MICRO_FIELDS = ('eps', 'eps_amps', 'ih', 'e_bemf')
 
 #: The on-board motor model's parameters by id, and the factor an SI value
 #: is multiplied by on the wire. The model is the second sample source: the
@@ -98,44 +92,48 @@ def from_wire(name, raw):
     return raw / PARAMS[name]
 
 
-class Drive(Subsystem):
+def _known(table, name, what):
+    """`table[name]`, or a ValueError naming every `what` there is."""
+    if name not in table:
+        raise ValueError('%r is not a %s; they are %s'
+                         % (name, what, ', '.join(table)))
+    return table[name]
+
+
+def _wrapped(radians):
+    """An angle error folded into (-pi, pi]."""
+    return (radians + math.pi) % math.tau - math.pi
+
+
+class Drive(Device, device=protocol.DEVICE_DRIVE):
 
     """Device 10 behind 0x6E: the current loop, injection and rotor observer."""
-
-    def _op(self, op, payload=b'', **kwargs):
-        return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_DRIVE, op]) + bytes(payload), **kwargs)
 
     def state(self):
         """What the drive is doing now, in SI. Angles rad, speeds rad/s
         electrical, currents A, volts V; `isr_cycles_*` in raw CYCCNT."""
-        r = Reader(self._op(DRIVE_OP_STATE))
+        r = Reader(self._op(DriveOp.STATE))
         out = {'mode': MODE_NAMES.get(r.u8(), 'unknown'),
                'fault': FAULTS.get(r.u8(), 'unknown')}
-        flags = r.u8()
-        out['stage_enabled'] = bool(flags & 0x01)
-        out['afe_on'] = bool(flags & 0x02)
-        out['injecting'] = bool(flags & 0x04)
-        out['owns_compares'] = bool(flags & 0x08)
-        out['sync_armed'] = bool(flags & 0x10)
-        out['theta_hat'] = r.i32() / 1e6
-        out['omega_hat'] = r.i32() / 1e3
-        out['theta_cmd'] = r.i32() / 1e6
-        out['omega_cmd'] = r.i32() / 1e3
-        for name in ('id', 'iq', 'vd', 'vq', 'vdc'):
-            out[name] = r.i32() / 1e3
-        for name in ('eps', 'eps_amps', 'ih', 'e_bemf'):
-            out[name] = r.i32() / 1e6
+        out.update(r.flags(FLAGS))
+        out['theta_hat'] = r.micro()
+        out['omega_hat'] = r.milli()
+        out['theta_cmd'] = r.micro()
+        out['omega_cmd'] = r.milli()
+        for name in MILLI_FIELDS:
+            out[name] = r.milli()
+        for name in MICRO_FIELDS:
+            out[name] = r.micro()
         out['periods'] = r.u32()
         out['isr_cycles_last'] = r.u32()
         out['isr_cycles_max'] = r.u32()
-        out['pol_pos'] = r.i32() / 1e3
-        out['pol_neg'] = r.i32() / 1e3
+        out['pol_pos'] = r.milli()
+        out['pol_neg'] = r.milli()
         out['trigger'] = r.u16()
-        out['ts'] = r.u32() / 1e9
+        out['ts'] = r.nano()
         # The worst end of a step in TIM1 ticks past the trigger: the whole
         # interrupt, against the period's 2 x ARR ticks. Appended.
-        out['exit_ticks_max'] = r.u16() if r.remaining >= 2 else None
+        out['exit_ticks_max'] = r.maybe('u16')
         # The virtual step block by block, raw cycles; zero on the ADC.
         if r.remaining >= 12:
             out['cycles'] = {'sample': r.u32(), 'step': r.u32(),
@@ -145,49 +143,40 @@ class Drive(Subsystem):
     def mode(self, name):
         """Enter a mode by name. The board refuses with the reason: a
         switching mode needs MOE set (gates.arm()) and the AFE on."""
-        if name not in MODES:
-            raise ValueError('%r is not a mode; they are %s'
-                             % (name, ', '.join(MODES)))
-        self._ack(DRIVE_OP_MODE, bytes([MODES[name]]))
-        return True
+        return self._ack(DriveOp.MODE, pack(('u8', _known(MODES, name, 'mode'))))
 
     def off(self):
         """Mode off. Never refused."""
         return self.mode('off')
 
+    def _by_name(self, op, table, ids, what, values):
+        """Named SI values, one `u8 id, i32` op each; what landed, in SI."""
+        scales = dict(table)
+        done = {}
+        for name, value in values.items():
+            ident = _known(ids, name, what)
+            raw = int(round(value * scales[name]))
+            self._ack(op, pack(('u8', ident), ('i32', raw)))
+            done[name] = raw / scales[name]
+        return done
+
     def setpoint(self, **values):
         """Set setpoints by name, SI: id_ref/iq_ref A, theta rad,
         omega_target rad/s, accel rad/s^2, vd/vq V, pol_volts V,
         pol_periods/pol_gap PWM periods. Returns what was set."""
-        done = {}
-        for name, value in values.items():
-            if name not in SETPOINT_IDS:
-                raise ValueError('%r is not a setpoint; they are %s'
-                                 % (name, ', '.join(SETPOINT_IDS)))
-            scale = dict(SETPOINTS)[name]
-            raw = int(round(value * scale))
-            self._ack(DRIVE_OP_SETPOINT, bytes([SETPOINT_IDS[name]])
-                               + raw.to_bytes(4, 'big', signed=True))
-            done[name] = raw / scale
-        return done
+        return self._by_name(DriveOp.SETPOINT, SETPOINTS, SETPOINT_IDS,
+                             'setpoint', values)
 
     def setpoints(self):
         """Every setpoint as the board holds it, SI."""
-        r = Reader(self._op(DRIVE_OP_SETPOINTS))
-        count = r.u8()
-        out = {}
-        for i in range(count):
-            raw = r.i32()
-            if i < len(SETPOINTS):
-                name, scale = SETPOINTS[i]
-                out[name] = raw / scale
-        return out
+        r = Reader(self._op(DriveOp.SETPOINTS))
+        raws = [r.i32() for _ in range(r.u8())]
+        return {name: raw / scale
+                for (name, scale), raw in zip(SETPOINTS, raws)}
 
     def set_theta(self, radians):
         """Put both frames at an angle: the polarity flip, or a known start."""
-        raw = int(round(radians * 1e6))
-        self._ack(DRIVE_OP_THETA, raw.to_bytes(4, 'big', signed=True))
-        return True
+        return self._ack(DriveOp.THETA, pack(('i32', micro(radians))))
 
     def window(self):
         """The window since the last take, then a new one starts.
@@ -196,7 +185,7 @@ class Drive(Subsystem):
         innovation's autocorrelation at lag j+1, for the whiteness test;
         `i_peak` the largest |i_dq| seen. `n` counts periods.
         """
-        r = Reader(self._op(DRIVE_OP_WINDOW))
+        r = Reader(self._op(DriveOp.WINDOW))
         out = {'n': r.u32(), 'fields': {}}
         for name, scale in WINDOW_FIELDS:
             n = r.u32()
@@ -204,26 +193,24 @@ class Drive(Subsystem):
             sd = r.u32() / scale
             out['fields'][name] = {'n': n, 'mean': mean if n else None,
                                    'sd': sd if n else None}
-        lags = r.u8()
-        out['rho'] = [r.i32() / 1e6 for _ in range(lags)]
-        out['i_peak'] = r.i32() / 1e3
+        out['rho'] = [r.micro() for _ in range(r.u8())]
+        out['i_peak'] = r.milli()
         return out
 
     def moments_arm(self, periods):
         """Count raw codes at the sample point for this many periods.
         Needs the sync armed; the board says so otherwise."""
-        self._ack(DRIVE_OP_MOMENTS_ARM, int(periods).to_bytes(4, 'big'))
-        return True
+        return self._ack(DriveOp.MOMENTS_ARM, pack(('u32', int(periods))))
 
     def moments(self):
         """The moments so far: per channel mean, sd (codes), lowest,
         highest; `done` once `n` reached `want`; `trigger` is CCR5."""
-        r = Reader(self._op(DRIVE_OP_MOMENTS))
+        r = Reader(self._op(DriveOp.MOMENTS))
         out = {'done': bool(r.u8()), 'n': r.u32(), 'want': r.u32(),
                'trigger': r.u16(), 'channels': {}}
         for name in MOMENT_CHANNELS:
-            out['channels'][name] = {'mean': r.i32() / 1e3,
-                                     'sd': r.u32() / 1e3,
+            out['channels'][name] = {'mean': r.milli(),
+                                     'sd': r.milli('u32'),
                                      'lo': r.i32(), 'hi': r.i32()}
         return out
 
@@ -244,12 +231,11 @@ class Drive(Subsystem):
 
     def reload(self):
         """Take the parameters out of the calibration record again."""
-        self._ack(DRIVE_OP_RELOAD)
-        return True
+        return self._ack(DriveOp.RELOAD)
 
     def reset_cycles(self):
         """Forget the worst step cost, so a run is measured on its own."""
-        return self._op(DRIVE_OP_CYCLES_RESET)[0] == 1
+        return bool(Reader(self._op(DriveOp.CYCLES_RESET)).u8())
 
     # -- the model as the source -----------------------------------------
 
@@ -257,44 +243,31 @@ class Drive(Subsystem):
         """Where the samples come from: 'adc' or 'model'. Refused while a
         mode runs. With the model the law needs no reference and no stage,
         and its duties reach the gates only if MOE happens to be set."""
-        if name not in SOURCES:
-            raise ValueError('%r is not a source; they are %s'
-                             % (name, ', '.join(SOURCES)))
-        self._ack(DRIVE_OP_SOURCE, bytes([SOURCES[name]]))
-        return True
+        return self._ack(DriveOp.SOURCE,
+                         pack(('u8', _known(SOURCES, name, 'source'))))
 
     def model_param(self, **values):
         """Set model parameters by name, SI: r ohm, ld/lq H, lambda V.s,
         pole_pairs, sat (fraction Ld bends by at i_sat), i_sat A, j kg.m2,
         b N.m.s, load N.m, v_dt V, i_knee A, vdc V, noise A rms, theta0
         rad, sub steps. Returns what was set."""
-        done = {}
-        for name, value in values.items():
-            if name not in MODEL_IDS:
-                raise ValueError('%r is not a model parameter; they are %s'
-                                 % (name, ', '.join(MODEL_IDS)))
-            scale = dict(MODEL_PARAMS)[name]
-            raw = int(round(value * scale))
-            self._ack(DRIVE_OP_MODEL_PARAM, bytes([MODEL_IDS[name]])
-                               + raw.to_bytes(4, 'big', signed=True))
-            done[name] = raw / scale
-        return done
+        return self._by_name(DriveOp.MODEL_PARAM, MODEL_PARAMS, MODEL_IDS,
+                             'model parameter', values)
 
     def model(self):
         """The model's truth: source, the rotor's angle and speed
         (electrical), its dq currents, the link it runs from."""
-        r = Reader(self._op(DRIVE_OP_MODEL))
+        r = Reader(self._op(DriveOp.MODEL))
         out = {'source': SOURCE_NAMES.get(r.u8(), 'unknown'),
-               'theta': r.i32() / 1e6, 'omega': r.i32() / 1e3,
-               'id': r.i32() / 1e3, 'iq': r.i32() / 1e3,
-               'vdc': r.i32() / 1e3}
+               'theta': r.micro(), 'omega': r.milli(),
+               'id': r.milli(), 'iq': r.milli(),
+               'vdc': r.milli()}
         # The estimate in the same reply, so the error means something at
         # speed: two requests are 15 ms apart, six radians at 440 rad/s.
         if r.remaining >= 8:
-            out['theta_hat'] = r.i32() / 1e6
-            out['omega_hat'] = r.i32() / 1e3
-            err = out['theta_hat'] - out['theta']
-            out['error'] = (err + math.pi) % (2.0 * math.pi) - math.pi
+            out['theta_hat'] = r.micro()
+            out['omega_hat'] = r.milli()
+            out['error'] = _wrapped(out['theta_hat'] - out['theta'])
         return out
 
     def observers(self):
@@ -310,31 +283,27 @@ class Drive(Subsystem):
         the number a bench watches: two observers disagreeing is the
         first thing either of them being wrong looks like.
         """
-        r = Reader(self._op(DRIVE_OP_OBSERVERS))
+        r = Reader(self._op(DriveOp.OBSERVERS))
         out = {'valid': bool(r.u8()),
-               'theta': r.i32() / 1e6, 'omega': r.i32() / 1e3,
-               'blend': r.i32() / 1e6,
-               'dual_theta': r.i32() / 1e6, 'dual_omega': r.i32() / 1e3,
-               'flux_theta': r.i32() / 1e6, 'flux_omega': r.i32() / 1e3,
-               'lambda_hat': r.i32() / 1e6,
-               'theta_hat': r.i32() / 1e6, 'omega_hat': r.i32() / 1e3,
-               'blend_lo': r.i32() / 1e3, 'blend_hi': r.i32() / 1e3,
-               'wc': r.i32() / 1e3}
-        err = out['theta'] - out['theta_hat']
-        out['error'] = (err + math.pi) % (2.0 * math.pi) - math.pi
+               'theta': r.micro(), 'omega': r.milli(),
+               'blend': r.micro(),
+               'dual_theta': r.micro(), 'dual_omega': r.milli(),
+               'flux_theta': r.micro(), 'flux_omega': r.milli(),
+               'lambda_hat': r.micro(),
+               'theta_hat': r.micro(), 'omega_hat': r.milli(),
+               'blend_lo': r.milli(), 'blend_hi': r.milli(),
+               'wc': r.milli()}
+        out['error'] = _wrapped(out['theta'] - out['theta_hat'])
         return out
 
     def model_reset(self):
         """The rotor back to theta0, at rest."""
-        self._ack(DRIVE_OP_MODEL_RESET)
-        return True
+        return self._ack(DriveOp.MODEL_RESET)
 
     def profile(self, path):
         """A motor profile - a JSON file of `drive` parameters (the record's
         names, SI) and `model` parameters - written to the board. Returns
         what was written. The file says which motor; nothing here does."""
-        import json
-
         with open(path, encoding='utf-8') as handle:
             data = json.load(handle)
         done = {'name': data.get('name', path)}
@@ -356,9 +325,7 @@ class Drive(Subsystem):
         """Write drive parameters into the record (RAM) in SI, and reload.
         `board.calibration.save()` is what keeps them across a reset."""
         for name, value in values.items():
-            if name not in PARAMS:
-                raise ValueError('%r is not a drive parameter; they are %s'
-                                 % (name, ', '.join(PARAMS)))
+            _known(PARAMS, name, 'drive parameter')
             self.board.calibration.set_param(name, to_wire(name, value))
         self.reload()
         return {name: from_wire(name, to_wire(name, v))

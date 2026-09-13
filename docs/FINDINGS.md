@@ -863,6 +863,74 @@ record's own constants, no measurement.
   bytes, nine to 254); the table pages. The reserved pin list grew from
   7 to 19 rows = 418 bytes and the parts list past 253: both page.
 
+## The device layer as a declared model, 2026-09-12
+
+The bench's words: "en extremt slick systems engineering modell på
+koden ... utan nästade if-satser och konstanter i koden". Measured over
+the device layer - `subsystem.py`, `board.py`, `protocol.py`, `wire.py`
+and the sixteen subsystems, twenty modules - with an AST walk that
+counts an `if` inside an `if` (an `elif` ladder is not a nest) and a
+numeric literal in a function body other than 0, 1, -1 and 2:
+
+* Nested ifs 16 -> 0; numeric literals 321 -> 83, of which 29 are
+  `clock.py`'s NTP arithmetic and 16 `analog.py`'s call defaults, both
+  left alone. The whole library's top-level modules, renderers
+  included: 111 -> 95 nested and 1186 -> 948 literals - the rest is
+  `thermal_ident.py` (16, the identifier's own arithmetic), `rig.py`
+  (13), `machine.py` and the raster engines.
+* Ten subsystems carried the same three-line `_op` with one byte
+  different. `Device._op` frames it once from the byte the class
+  statement declares - `class Thermal(Device,
+  device=protocol.DEVICE_THERMAL)` - and a `Device` that declares none
+  is a TypeError at import.
+* The op codes were eleven sets of module constants, four in
+  `protocol.py` and seven beside their subsystem. They are `IntEnum`s
+  in `protocol.py` now (`ThermalOp.STATE`, `DriveOp.MODE`), which is
+  what let `request_length` become two tables keyed on them instead of
+  a four-deep `if` mirroring `cmd_length.c` by hand: `DEVICE_REQUESTS`
+  for the fixed shapes, `GROWN_REQUESTS` for gate op 2 and DAQ op 4.
+  The suite's prefix sweep drives both oracles and they still agree.
+* The wire's scales - centi, milli, micro, nano, Q16.16, a fraction of
+  255 - are named once in `wire.py`, and a reply is read in its unit:
+  `r.centi()`, `r.milli('u32')`, `r.q16()`, `r.fraction()`; a request
+  is packed with `milli(k_per_w)`. `r.maybe('u32')` is an appended
+  field or None; `pages()` walks a paged reply, and five copies of the
+  `total, first, count` loop - the map's two pin sections, the parts,
+  the record's tail, the thermal graph - are one each.
+* Three decorators say what a method wants: `afe.powered` (refused
+  while AFE_ON is off - `read_all`, `noise`, the burst behind the
+  cooked readings, and `tare`), `subsystem.remembered` (the channel
+  table, the map, the scaling and the record, cached until
+  `refresh=True`) and `subsystem.forgetting('read')` on every writer
+  of the record.
+* FOUND BY THE DECORATOR: `Calibration.defaults()` never dropped the
+  cached record, so a `read()` after it answered the record the board
+  no longer held until another writer ran. Every writer forgets now,
+  `defaults()` included.
+* FOUND BY THE MANIFEST: the stand-in's broadcast node listed the
+  subsystems it refuses by hand, and the list had missed `thermal` and
+  `power` - on unit 0 those two answered AttributeError instead of the
+  broadcast refusal. `SimulatedBoard.__getattr__` refuses every name on
+  unit 0 now, and the real board's composition is its class-level
+  declaration (`system: System` ... `observer: Observer`), read back by
+  `Board.parts()` for `__init__`, the rig's early handles and the
+  structure suite - none of which lists a name any more.
+* `PolledSensor.configuring` is concrete on the interface: the IMU, the
+  shaft sensor and both stand-ins carried the same seven lines.
+* Tried and taken out: a registry filled by `__init_subclass__` (the
+  board would then import sixteen modules it never names, which the
+  unused-import check refuses - the manifest is the annotations); a
+  `remembered` descriptor with `forget` on the method object (Pylance
+  basic: "Object of type remembered is not callable" at 27 call
+  sites); `functools.wraps` on the cache wrapper (pyright reads the
+  wrapped signature through it and refused `refresh=`); an untyped
+  wrapper (pyright treats an untyped decorator as identity and refused
+  it too). The wrapper is annotated, and the tree reads 0 errors in
+  basic mode.
+* The offline gate afterwards: 2947 checks, 2625 passed, 322 skipped
+  (parity and bench want a board), 0 failed. Left for the next item:
+  `rig.py`'s thirteen nested ifs.
+
 ## The local model
 
 * Asked for raw codes with the AFE deliberately off, a model wrote

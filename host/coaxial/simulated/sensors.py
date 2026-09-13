@@ -1,10 +1,9 @@
 """The two SPI sensors: a BNO08X that tumbles and an A1335 that
 follows the simulated shaft."""
-import contextlib
 import math
 import time
 
-from .. import angle
+from .. import angle, imu
 from ..sensor import PolledSensor
 from .values import _tumble
 from typing import Any
@@ -153,14 +152,6 @@ class SimulatedImu(PolledSensor):
         self._held = False
         return 'running'
 
-    @contextlib.contextmanager
-    def configuring(self):
-        self.hold()
-        try:
-            yield self
-        finally:
-            self.resume()
-
     def reset(self):
         return 3        # the advertisement and the two announcements
 
@@ -173,9 +164,8 @@ class SimulatedImu(PolledSensor):
                 'raw': bytes(length)}
 
     def pins(self):
-        names = {12: 'NSS/H_CSN', 13: 'SCK', 14: 'MISO', 15: 'MOSI'}
-        return [{'pin': 'PB%d' % p, 'signal': names[p], 'bits': 0x0F,
-                 'held': False} for p in sorted(names)]
+        return [{'pin': 'PB%d' % p, 'signal': name, 'bits': imu.ALL_BITS,
+                 'held': False} for p, name in sorted(imu.SPI2_PINS.items())]
 
     def wake_test(self, ms=200):
         return 0
@@ -275,11 +265,3 @@ class SimulatedAngle(PolledSensor):
     def resume(self):
         self._held = False
         return 'running'
-
-    @contextlib.contextmanager
-    def configuring(self):
-        self.hold()
-        try:
-            yield self
-        finally:
-            self.resume()

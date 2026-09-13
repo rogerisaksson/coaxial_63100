@@ -16,12 +16,20 @@ the class by a helper after the fact, so what a stand-in did and did not answer
 was invisible until a view running -Simulated hit the gap. A name missing here
 fails at construction.
 """
+import contextlib
+import time
 from abc import ABC, abstractmethod
+
+from .wire import Reader
 
 
 class PolledSensor(ABC):
 
     """One part, polled by the board's own loop, read through its record."""
+
+    #: What the board's poll loop can be doing, by the byte it reports -
+    #: each part's own table, since each has its own states.
+    LOOP_STATES: dict = {}
 
     def __repr__(self):
         return ('<%s - the board polls it; state() reads that record, '
@@ -36,7 +44,6 @@ class PolledSensor(ABC):
         wrote its Set Feature straight after raising the rail failed twice
         in a row while the example beside it, which waits, streamed fine.
         """
-        import time
         deadline = time.monotonic() + seconds
         while True:
             if self.state()['loop'] == 'running':
@@ -44,6 +51,10 @@ class PolledSensor(ABC):
             if time.monotonic() >= deadline:
                 return False
             time.sleep(poll)
+
+    def _loop_state(self, reply):
+        """The loop state a hold or resume reports back, as a word."""
+        return self.LOOP_STATES.get(Reader(reply).u8(), 'unknown')
 
     @abstractmethod
     def state(self) -> dict:
@@ -69,10 +80,17 @@ class PolledSensor(ABC):
     def resume(self):
         """Start the poll loop again."""
 
-    @abstractmethod
+    @contextlib.contextmanager
     def configuring(self):
         """Hold the loop for the block, and resume however the block ends.
 
-        The pairing that matters: an exception between `hold` and `resume`
-        otherwise leaves the loop stopped and the part silent afterwards.
+        The pairing that matters, written once for every part: an exception
+        between `hold` and `resume` otherwise leaves the loop stopped and
+        the part silent afterwards - a sensor that has silently stopped
+        reporting.
         """
+        self.hold()
+        try:
+            yield self
+        finally:
+            self.resume()

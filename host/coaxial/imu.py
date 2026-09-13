@@ -7,13 +7,13 @@ fixed-point integers, and the Q point belongs here.
 
 Datasheet references are to BNO080_085 v1.17, in datasheets/.
 """
-import contextlib
-
 from . import protocol
 from .errors import DeviceStateError, RigError
+from .protocol import ImuOp
 from .sensor import PolledSensor
-from .subsystem import Subsystem
-from .wire import Reader
+from .subsystem import Device
+from .wire import Reader, pack
+from typing import Any
 
 RESET_CAUSES = {
     0: 'not applicable', 1: 'power on reset', 2: 'internal system reset',
@@ -29,11 +29,23 @@ CHANNELS = {
 
 ACCURACY = {0: 'unreliable', 1: 'low', 2: 'medium', 3: 'high'}
 """Status bits 1:0 of an input report, section 1.3.5.2."""
+ACCURACY_MASK = 0x03
+
+#: The input report ids this host decodes, section 1.3.5.
+ACCELEROMETER = 0x01
+GYROSCOPE = 0x02
+MAGNETIC_FIELD = 0x03
+LINEAR_ACCELERATION = 0x04
+ROTATION_VECTOR = 0x05
+GRAVITY = 0x06
+GAME_ROTATION_VECTOR = 0x08
+TIMEBASE = 0xFB
 
 REPORTS = {
-    0x01: 'accelerometer', 0x02: 'gyroscope', 0x03: 'magnetic field',
-    0x04: 'linear acceleration', 0x05: 'rotation vector', 0x06: 'gravity',
-    0x08: 'game rotation vector', 0xFB: 'timebase',
+    ACCELEROMETER: 'accelerometer', GYROSCOPE: 'gyroscope',
+    MAGNETIC_FIELD: 'magnetic field', LINEAR_ACCELERATION: 'linear acceleration',
+    ROTATION_VECTOR: 'rotation vector', GRAVITY: 'gravity',
+    GAME_ROTATION_VECTOR: 'game rotation vector', TIMEBASE: 'timebase',
 }
 
 # Q point per report: the fixed-point counts are divided by 2**q to give the
@@ -41,14 +53,35 @@ REPORTS = {
 # datasheet actually tabulates are here - see shtp.c on why the quaternion
 # reports are absent rather than guessed.
 SCALE = {
-    0x01: (8, 'm/s^2'),
-    0x02: (9, 'rad/s'),
-    0x03: (4, 'uT'),
-    0x04: (8, 'm/s^2'),
-    0x06: (8, 'm/s^2'),
-    0x05: (14, ''),
-    0x08: (14, ''),
+    ACCELEROMETER: (8, 'm/s^2'),
+    GYROSCOPE: (9, 'rad/s'),
+    MAGNETIC_FIELD: (4, 'uT'),
+    LINEAR_ACCELERATION: (8, 'm/s^2'),
+    GRAVITY: (8, 'm/s^2'),
+    ROTATION_VECTOR: (14, ''),
+    GAME_ROTATION_VECTOR: (14, ''),
 }
+
+#: Bytes one input report occupies, the same table shtp.c keeps and for
+#: the same reason: reports are packed back to back and are not
+#: self-delimiting, so a length nobody checked mis-frames every byte after
+#: it. The datasheet does not tabulate the two rotation vectors; CEVA's own
+#: decoder does - github.com/ceva-dsp/sh2, sh2_SensorValue.c. The rotation
+#: vector carries i, j, k, real and an accuracy estimate behind the common
+#: header; the game rotation vector the same without the estimate.
+REPORT_LENGTHS = {
+    TIMEBASE: 5,
+    ACCELEROMETER: 10, GYROSCOPE: 10, MAGNETIC_FIELD: 10,
+    LINEAR_ACCELERATION: 10, GRAVITY: 10,
+    ROTATION_VECTOR: 14, GAME_ROTATION_VECTOR: 12,
+}
+
+#: An input report's common header: id, sequence, status, delay.
+HEADER = 4
+#: One axis, little-endian.
+WORD = 2
+#: The rotation vector's accuracy estimate, radians in Q12.
+ACCURACY_Q = 12
 
 LOOP_STATES = {0: 'off', 1: 'init', 2: 'running', 3: 'held'}
 """What the board's IMU poll loop is doing. 'off' means AFE_ON is low."""
@@ -60,39 +93,80 @@ LOOP_ERRORS = {
 }
 """The last thing that went wrong in the poll loop, not a running tally."""
 
-
-def _signed16(value):
-    """A 16-bit count off the wire, which carries them unsigned."""
-    return value - 0x10000 if value & 0x8000 else value
-
-
-QUATERNIONS = (0x05, 0x08)
+QUATERNIONS = (ROTATION_VECTOR, GAME_ROTATION_VECTOR)
 """Reports whose four fields are i, j, k, real rather than three axes. Q14,
 and unitless: a rotation vector is a direction, not a quantity."""
+QUATERNION_AXES = ('i', 'j', 'k', 'real')
+
+#: The three vectors appended to the shared record by MINOR 6, in order.
+VECTORS = (('accelerometer', ACCELEROMETER), ('gyroscope', GYROSCOPE),
+           ('magnetometer', MAGNETIC_FIELD))
+
+#: SPI2's four pins, as `pins()` names them.
+SPI2_PINS = {12: 'NSS/H_CSN', 13: 'SCK', 14: 'MISO', 15: 'MOSI'}
+#: What a pin that followed the MCU every way reads back as.
+ALL_BITS = 0x0F
+
+#: What `wake_test` answers for the two values that are not a time.
+WAKE_ANSWERS = {0xFFFF: None, 0xFFFE: 'busy'}
 
 
-class Imu(Subsystem, PolledSensor):
+def _report(r):
+    """The newest quaternion report in the shared record, or none."""
+    if not r.u8():
+        return {'quaternion': None}
+    report_id = r.u8()
+    status = r.u8()
+    counts = [r.i16() for _ in QUATERNION_AXES]
+    divisor = float(1 << SCALE[report_id][0])
+    return {
+        'report_id': report_id,
+        'name': REPORTS.get(report_id, 'unknown 0x%02X' % report_id),
+        'accuracy': ACCURACY.get(status & ACCURACY_MASK, 'unknown'),
+        'counts': dict(zip(QUATERNION_AXES, counts)),
+        'quaternion': dict(zip(QUATERNION_AXES,
+                               (c / divisor for c in counts))),
+    }
+
+
+def _vector(r, report_id):
+    """One three-axis report, or None when it never arrived.
+
+    EACH CARRIES ITS OWN `have`. A feature nobody enabled leaves
+    zeros, and zero is a legal reading - so the flag is what
+    tells a caller the difference, not the value.
+    """
+    if not r.remaining:
+        return None
+    have = bool(r.u8())
+    status = r.u8()
+    counts = [r.i16(), r.i16(), r.i16()]
+    if not have:
+        return None
+    q, unit = SCALE[report_id]
+    divisor = float(1 << q)
+    return {'accuracy': ACCURACY.get(status & ACCURACY_MASK, 'unknown'),
+            'unit': unit,
+            'counts': dict(zip('xyz', counts)),
+            'value': dict(zip('xyz', (c / divisor for c in counts)))}
+
+
+class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
     """The BNO08X behind SPI2. Every call raises rather than returning a
     status: a reading that did not happen is not a reading of zero."""
 
-    def _op(self, op, payload=b'', **kwargs):
-        """One 0x6E request for this device.
-
-        The device byte lives here and nowhere else: 0x6E carries every
-        peripheral, chosen by it, because the specification's user-defined
-        function codes are spent.
-        """
-        try:
-            return self.request(protocol.DEVICE,
-                                bytes([protocol.DEVICE_IMU, op])
-                                + bytes(payload), **kwargs)
-        except RigError as exc:
-            raise self._explain(op, exc) from exc
+    LOOP_STATES = LOOP_STATES
 
     #: Ops that do not drive the bus, so a running poll loop cannot be their
     #: problem: the shared record, and hold and resume themselves.
-    FREE_OPS = frozenset((protocol.IMU_OP_LATEST, protocol.IMU_OP_HOLD,
-                          protocol.IMU_OP_RESUME))
+    FREE_OPS = frozenset((ImuOp.LATEST, ImuOp.HOLD, ImuOp.RESUME))
+
+    def _op(self, op, payload=b'', **kwargs):
+        """One request for this device, and the reason when it is refused."""
+        try:
+            return super()._op(op, payload, **kwargs)
+        except RigError as exc:
+            raise self._explain(op, exc) from exc
 
     def _explain(self, op, exc):
         """Turn a bare device failure into what to do about it.
@@ -130,7 +204,7 @@ class Imu(Subsystem, PolledSensor):
         mis-strapped BNO08X looks like from here.
         """
         try:
-            reply = self._op(protocol.IMU_OP_ID)
+            reply = self._op(ImuOp.ID)
         except Exception as exc:
             raise DeviceStateError(
                 'the IMU did not answer a product id request: %s. '
@@ -159,11 +233,9 @@ class Imu(Subsystem, PolledSensor):
         mis-framing what follows it, so a short `reports` beside a long
         `cargo` means exactly that.
         """
-        reply = self._op(protocol.IMU_OP_READ)
-        r = Reader(reply)
+        r = Reader(self._op(ImuOp.READ))
         channel = r.u8()
-        length = r.u8()
-        cargo = bytes(r.take(length)) if length else b''
+        cargo = bytes(r.take(r.u8()))
 
         return {
             'channel': channel,
@@ -182,9 +254,7 @@ class Imu(Subsystem, PolledSensor):
         `updates` is monotonic, so the same reading read twice is telling
         rather than a guess from the values.
         """
-        reply = self._op(protocol.IMU_OP_LATEST)
-        r = Reader(reply)
-
+        r = Reader(self._op(ImuOp.LATEST))
         got = {
             'loop': LOOP_STATES.get(r.u8(), 'unknown'),
             'error': LOOP_ERRORS.get(r.u8(), 'unknown'),
@@ -192,23 +262,7 @@ class Imu(Subsystem, PolledSensor):
             'cargoes': r.u32(),
             'errors': r.u32(),
         }
-
-        if r.u8():
-            report_id = r.u8()
-            status = r.u8()
-            counts = [_signed16(r.u16()) for _ in range(4)]
-            divisor = float(1 << SCALE[report_id][0])
-
-            got.update({
-                'report_id': report_id,
-                'name': REPORTS.get(report_id, 'unknown 0x%02X' % report_id),
-                'accuracy': ACCURACY.get(status & 0x03, 'unknown'),
-                'counts': dict(zip(('i', 'j', 'k', 'real'), counts)),
-                'quaternion': dict(zip(('i', 'j', 'k', 'real'),
-                                       (c / divisor for c in counts))),
-            })
-        else:
-            got['quaternion'] = None
+        got.update(_report(r))
 
         # AFTER the report block, because the board writes it after. This was
         # read before it, so with a report present the interval came back as
@@ -229,34 +283,9 @@ class Imu(Subsystem, PolledSensor):
         # they are there - a board older than that answers a reply
         # that stops above, and a decoder that assumed the bytes
         # would raise on one that is simply older.
-        for name, report in (('accelerometer', 0x01),
-                             ('gyroscope', 0x02),
-                             ('magnetometer', 0x03)):
-            got[name] = self._vector(r, report)
+        for name, report in VECTORS:
+            got[name] = _vector(r, report)
         return got
-
-    @staticmethod
-    def _vector(r, report_id):
-        """One three-axis report, or None when it never arrived.
-
-        EACH CARRIES ITS OWN `have`. A feature nobody enabled leaves
-        zeros, and zero is a legal reading - so the flag is what
-        tells a caller the difference, not the value.
-        """
-        if not r.remaining:
-            return None
-        have = bool(r.u8())
-        status = r.u8()
-        counts = [r.i16(), r.i16(), r.i16()]
-        if not have:
-            return None
-        bits, unit = SCALE[report_id]
-        divisor = float(1 << bits)
-        return {'accuracy': ACCURACY.get(status & 0x03, 'unknown'),
-                'unit': unit,
-                'counts': dict(zip('xyz', counts)),
-                'value': dict(zip('xyz',
-                                  (c / divisor for c in counts)))}
 
     def latest(self):
         """The newest quaternion, or None when the loop has not seen one."""
@@ -269,27 +298,12 @@ class Imu(Subsystem, PolledSensor):
         probe - is refused while the loop runs, because both would be masters
         on one bus. Returns the loop state the board reports back.
         """
-        reply = self._op(protocol.IMU_OP_HOLD)
-        return LOOP_STATES.get(Reader(reply).u8(), 'unknown')
+        return self._loop_state(self._op(ImuOp.HOLD))
 
     def resume(self):
         """Start the poll loop again, through init - the usual reason to have
         held it was a reset, and the part needs bringing up after one."""
-        reply = self._op(protocol.IMU_OP_RESUME)
-        return LOOP_STATES.get(Reader(reply).u8(), 'unknown')
-
-    @contextlib.contextmanager
-    def configuring(self):
-        """Hold the loop for the block, and resume it however the block ends.
-
-        The sequence the board requires, written once: leaving the loop held
-        because a call raised is an IMU that has silently stopped reporting.
-        """
-        self.hold()
-        try:
-            yield self
-        finally:
-            self.resume()
+        return self._loop_state(self._op(ImuOp.RESUME))
 
     def reset(self):
         """Pulse NRSTN and collect what the part says coming up.
@@ -298,8 +312,7 @@ class Imu(Subsystem, PolledSensor):
         many cargoes the reset produced - three is the advertisement and the
         two announcements, and nothing at all means it did not come up.
         """
-        reply = self._op(protocol.IMU_OP_RESET)
-        return Reader(reply).u8()
+        return Reader(self._op(ImuOp.RESET)).u8()
 
     def wake_test(self, ms=200):
         """Milliseconds for H_INTN to answer PS0/WAKE on a drained part.
@@ -308,13 +321,8 @@ class Imu(Subsystem, PolledSensor):
         not accept a write; 'busy' when it was still holding the line low and
         the question could not be put.
         """
-        reply = self._op(protocol.IMU_OP_WAKE, ms.to_bytes(2, 'big'))
-        got = Reader(reply).u16()
-        if got == 0xFFFF:
-            return None
-        if got == 0xFFFE:
-            return 'busy'
-        return got
+        got = Reader(self._op(ImuOp.WAKE, pack(('u16', ms)))).u16()
+        return WAKE_ANSWERS.get(got, got)
 
     def pins(self):
         """Drive and release each of SPI2's four pins, and say what read back.
@@ -324,15 +332,14 @@ class Imu(Subsystem, PolledSensor):
         and chip select is proven, so this is what is left to check from
         inside the firmware.
         """
-        reply = self._op(protocol.IMU_OP_PINS)
-        r = Reader(reply)
-        names = {12: 'NSS/H_CSN', 13: 'SCK', 14: 'MISO', 15: 'MOSI'}
-        out = []
-        for _ in range(4):
-            pin, bits = r.u8(), r.u8()
-            out.append({'pin': 'PB%d' % pin, 'signal': names.get(pin, '?'),
-                        'bits': bits, 'held': bits != 0x0F})
-        return out
+        r = Reader(self._op(ImuOp.PINS))
+        return [self._pin(r) for _ in SPI2_PINS]
+
+    @staticmethod
+    def _pin(r):
+        pin, bits = r.u8(), r.u8()
+        return {'pin': 'PB%d' % pin, 'signal': SPI2_PINS.get(pin, '?'),
+                'bits': bits, 'held': bits != ALL_BITS}
 
     def probe(self, length=4, select=True):
         """`length` raw bytes off SPI2, unframed and uninterpreted.
@@ -342,9 +349,8 @@ class Imu(Subsystem, PolledSensor):
         and idle. Also the only way to see the header's true length field,
         which read() caps before the host sees it.
         """
-        reply = self._op(protocol.IMU_OP_PROBE,
-                         bytes([length, 1 if select else 0]))
-        r = Reader(reply)
+        r = Reader(self._op(ImuOp.PROBE,
+                            pack(('u8', length), ('u8', int(bool(select))))))
         kernel, bitrate = r.u32(), r.u32()
         return {'kernel_hz': kernel, 'bitrate_hz': bitrate,
                 'raw': bytes(r.take(r.u8()))}
@@ -356,49 +362,28 @@ class Imu(Subsystem, PolledSensor):
         exposed because a question with an answer nothing else produces is
         the only way to prove a write reached the part.
         """
-        if not 0 <= channel <= 5:
+        if channel not in CHANNELS:
             raise ValueError('channel %r is not one of the six' % (channel,))
-        self._op(protocol.IMU_OP_WRITE, bytes([channel]) + bytes(payload))
+        self._op(ImuOp.WRITE, pack(('u8', channel)) + bytes(payload))
 
     def feature(self, report_id, interval_us):
         """Enable a sensor report, or disable it with an interval of 0.
 
         The part may adopt a different period than the one asked for; it says
         so in a Get Feature Response, which arrives through read().
+
+        Big-endian: every integer on this board's wire is, and wire.c's
+        rd_u32 reads it that way. Sent little-endian, 60000 us arrived as
+        0x60EA0000 - about 27 minutes between reports, which looks exactly
+        like a sensor that was never enabled.
         """
-        if not 0 <= report_id <= 0xFF:
-            raise ValueError('report id %r is not a byte' % (report_id,))
-        if not 0 <= interval_us <= 0xFFFFFFFF:
-            raise ValueError('interval %r does not fit 32 bits'
-                             % (interval_us,))
-        # Big-endian: every integer on this board's wire is, and wire.c's
-        # rd_u32 reads it that way. Sent little-endian, 60000 us arrived as
-        # 0x60EA0000 - about 27 minutes between reports, which looks exactly
-        # like a sensor that was never enabled.
-        self._op(protocol.IMU_OP_FEATURE,
-                 bytes([report_id]) + interval_us.to_bytes(4, 'big'))
+        self._op(ImuOp.FEATURE,
+                 pack(('u8', report_id), ('u32', interval_us)))
 
 
 def report_length(report_id):
-    """Bytes one input report occupies, or 0 when it is not known here.
-
-    The same table shtp.c keeps, for the same reason: reports are packed back
-    to back and are not self-delimiting, so a length nobody checked
-    mis-frames every byte after it.
-    """
-    if report_id == 0xFB:
-        return 5
-    if report_id in (0x01, 0x02, 0x03, 0x04, 0x06):
-        return 10
-    # The datasheet does not tabulate these two; CEVA's own decoder does -
-    # github.com/ceva-dsp/sh2, sh2_SensorValue.c. The rotation vector carries
-    # i, j, k, real and an accuracy estimate behind the common header; the
-    # game rotation vector the same without the estimate.
-    if report_id == 0x05:
-        return 14
-    if report_id == 0x08:
-        return 12
-    return 0
+    """Bytes one input report occupies, or 0 when it is not known here."""
+    return REPORT_LENGTHS.get(report_id, 0)
 
 
 def decode(cargo):
@@ -415,26 +400,48 @@ def decode(cargo):
     return out
 
 
+def _axis(cargo, at, index):
+    """Axis `index` of the report at `at`: a little-endian signed word."""
+    start = at + HEADER + WORD * index
+    return int.from_bytes(cargo[start:start + WORD], 'little', signed=True)
+
+
+def _timebase(cargo, at):
+    """The timebase report: a signed delta in hundreds of microseconds."""
+    return {'report_id': TIMEBASE, 'name': REPORTS[TIMEBASE],
+            'base_delta_100us': int.from_bytes(
+                cargo[at + 1:at + 1 + HEADER], 'little', signed=True)}
+
+
+def _quaternion(scaled, cargo, at, report_id):
+    """i, j, k, real - the order the part sends them, which is not the
+    order most quaternion maths is written in. Named so a caller never
+    has to remember which end the scalar is on. The rotation vector
+    carries its accuracy estimate behind them, Q12 radians."""
+    got: dict[str, Any] = {'quaternion': dict(zip(QUATERNION_AXES, scaled))}
+    estimate = at + HEADER + WORD * len(QUATERNION_AXES)
+    if report_id == ROTATION_VECTOR and estimate + WORD <= len(cargo):
+        got['accuracy_rad'] = int.from_bytes(
+            cargo[estimate:estimate + WORD], 'little',
+            signed=True) / float(1 << ACCURACY_Q)
+    return got
+
+
 def _one(cargo, at, report_id):
     """One report, with its counts and - where the Q point is known - a
     physical quantity beside them. The counts are always present; the scaled
     value is not, and its absence says the Q point is not established here."""
-    named = REPORTS.get(report_id, 'unknown 0x%02X' % report_id)
-
-    if report_id == 0xFB:
-        delta = int.from_bytes(cargo[at + 1:at + 5], 'little', signed=True)
-        return {'report_id': report_id, 'name': named,
-                'base_delta_100us': delta}
+    if report_id == TIMEBASE:
+        return _timebase(cargo, at)
 
     status = cargo[at + 2]
-    fields = 4 if report_id in QUATERNIONS else 3
-    axes = [int.from_bytes(cargo[at + 4 + 2 * i:at + 6 + 2 * i],
-                           'little', signed=True) for i in range(fields)]
+    fields = len(QUATERNION_AXES) if report_id in QUATERNIONS else len('xyz')
+    axes = [_axis(cargo, at, i) for i in range(fields)]
     row = {
         'report_id': report_id,
-        'name': named,
+        'name': REPORTS.get(report_id, 'unknown 0x%02X' % report_id),
         'seq': cargo[at + 1],
-        'accuracy': ACCURACY.get(status & 3, 'unknown'),
+        'accuracy': ACCURACY.get(status & ACCURACY_MASK, 'unknown'),
         'delay_100us': ((status >> 2) << 8) | cargo[at + 3],
         'raw': axes,
     }
@@ -446,12 +453,5 @@ def _one(cargo, at, report_id):
         row['unit'] = unit
 
     if report_id in QUATERNIONS:
-        # i, j, k, real - the order the part sends them, which is not the
-        # order most quaternion maths is written in. Named so a caller never
-        # has to remember which end the scalar is on.
-        row['quaternion'] = {'i': row['scaled'][0], 'j': row['scaled'][1],
-                             'k': row['scaled'][2], 'real': row['scaled'][3]}
-        if report_id == 0x05 and at + 14 <= len(cargo):
-            row['accuracy_rad'] = int.from_bytes(
-                cargo[at + 12:at + 14], 'little', signed=True) / float(1 << 12)
+        row.update(_quaternion(row['scaled'], cargo, at, report_id))
     return row

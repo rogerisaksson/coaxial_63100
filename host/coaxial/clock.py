@@ -23,12 +23,10 @@ import struct
 import time
 
 from . import protocol
+from .protocol import TimeOp
 from .errors import RigError
-from .subsystem import Subsystem
+from .subsystem import Device
 from .wire import Reader
-
-TIME_OP_LATCH = 0
-TIME_OP_READ = 1
 
 #: CYCCNT is 32 bits and free-running.
 WRAP = 1 << 32
@@ -147,13 +145,9 @@ def unwrap(cycles, start=None):
     return out
 
 
-class Clock(Subsystem):
+class Clock(Device, device=protocol.DEVICE_TIME):
 
     """Tie the board's counter to this machine's, and keep the rate."""
-
-    def _op(self, op, payload=b'', **kwargs):
-        return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_TIME, op]) + bytes(payload), **kwargs)
 
     def latch(self, settle=0.05):
         """Broadcast a latch: the board takes CYCCNT, and nobody replies.
@@ -161,13 +155,11 @@ class Clock(Subsystem):
         Broadcast on purpose. A unicast would put a reply's turnaround
         inside the measurement, and the turnaround is the part that varies.
         """
-        self.board.broadcast(protocol.DEVICE,
-                             bytes([protocol.DEVICE_TIME, TIME_OP_LATCH]),
-                             settle=settle)
+        self._broadcast(TimeOp.LATCH, settle=settle)
 
     def read_latch(self):
         """What was latched, what the counter says now, and how fast it runs."""
-        r = Reader(self._op(TIME_OP_READ))
+        r = Reader(self._op(TimeOp.READ))
         return {'seq': r.u32(), 'latched': r.u32(), 'now': r.u32(),
                 'sysclk_hz': r.u32()}
 

@@ -15,11 +15,9 @@ indefinitely. The host's own hold does not expire - it was asked for by name
 over the wire, and only the wire takes it back.
 """
 from . import protocol
-from .subsystem import Subsystem
-from .wire import Reader
-
-POWER_OP_STATE = 0
-POWER_OP_RELEASE_ALL = 1
+from .protocol import PowerOp
+from .subsystem import Device
+from .wire import Reader, label
 
 #: Rails, in the order the board reports them.
 RAILS = ('afe',)
@@ -27,23 +25,19 @@ RAILS = ('afe',)
 #: Bit positions in the users mask, matching `board_user_t`.
 USERS = ('host', 'thermal', 'imu', 'angle', 'daq')
 
+#: The mask is one byte.
+MASK_BITS = 8
+
 
 def named(mask):
     """The users in a mask, as names. Unknown bits keep their number."""
-    got = []
-    for bit in range(8):
-        if mask & (1 << bit):
-            got.append(USERS[bit] if bit < len(USERS) else 'bit%d' % bit)
-    return got
+    return [label(USERS, bit, 'bit') for bit in range(MASK_BITS)
+            if mask >> bit & 1]
 
 
-class Power(Subsystem):
+class Power(Device, device=protocol.DEVICE_POWER):
 
     """The rail reference counts, and a way out of a leaked hold."""
-
-    def _op(self, op, payload=b'', **kwargs):
-        return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_POWER, op]) + payload, **kwargs)
 
     def state(self):
         """{rail: {...}} for every rail the board switches.
@@ -53,21 +47,21 @@ class Power(Subsystem):
         drivers' supply away, and six inputs switching into unpowered drivers
         is not a measurement worth having.
         """
-        r = Reader(self._op(POWER_OP_STATE))
-        got = {}
-        for i in range(r.u8()):
-            name = RAILS[i] if i < len(RAILS) else 'rail%d' % i
-            on = bool(r.u8())
-            users = r.u8()
-            got[name] = {
-                'on': on,
-                'users': named(users),
-                'mask': users,
-                'count': r.u8(),
-                'blocked': bool(r.u8()),
-                'leased': named(r.u8()),
-            }
-        return got
+        r = Reader(self._op(PowerOp.STATE))
+        return {label(RAILS, i, 'rail'): self._rail(r) for i in range(r.u8())}
+
+    @staticmethod
+    def _rail(r):
+        on = bool(r.u8())
+        users = r.u8()
+        return {
+            'on': on,
+            'users': named(users),
+            'mask': users,
+            'count': r.u8(),
+            'blocked': bool(r.u8()),
+            'leased': named(r.u8()),
+        }
 
     def release_all(self):
         """Drop every hold on every rail.
@@ -77,4 +71,4 @@ class Power(Subsystem):
         is armed - it switches AFE_ON off, which gives the drivers their
         supply rather than taking it away.
         """
-        return self._ack(POWER_OP_RELEASE_ALL)
+        return self._ack(PowerOp.RELEASE_ALL)

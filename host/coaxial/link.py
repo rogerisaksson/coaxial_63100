@@ -1,11 +1,22 @@
 """The communication link itself: echo and the protocol's own counters."""
 from . import protocol
 from .errors import FrameError
-from .subsystem import Subsystem
-from .wire import Reader
+from .protocol import LinkOp
+from .subsystem import Device
+from .wire import Reader, pack
+
+#: Every loopback pattern returned, one bit each.
+ALL_PATTERNS = (1 << len(protocol.ECHO_PATTERNS)) - 1
 
 
-class Link(Subsystem):
+def _port(port):
+    """`port` as the board numbers them, or a raise naming the three."""
+    if port not in protocol.PORTS:
+        raise ValueError('port %r is not one of the three' % (port,))
+    return port
+
+
+class Link(Device, device=protocol.DEVICE_LINK):
     """Diagnostics for the wire, as opposed to the board on the end of it."""
 
     def echo(self, data):
@@ -29,11 +40,6 @@ class Link(Subsystem):
 
         return data
 
-    def _op(self, op, payload=b'', **kwargs):
-        """One 0x6E request for the link device. The device byte lives here."""
-        return self.request(protocol.DEVICE,
-                            bytes([protocol.DEVICE_LINK, op]) + bytes(payload), **kwargs)
-
     def loopback(self, port):
         """Have the board send four patterns on `port` and say what returned.
 
@@ -46,10 +52,7 @@ class Link(Subsystem):
 
         Four bytes go on the bus. Nothing calls it on a timer.
         """
-        if port not in protocol.PORTS:
-            raise ValueError('port %r is not one of the three' % (port,))
-
-        r = Reader(self._op(protocol.LINK_OP_ECHO, bytes([port])))
+        r = Reader(self._op(LinkOp.ECHO, pack(('u8', _port(port)))))
         index, rs485, matched, seen = r.u8(), bool(r.u8()), r.u8(), r.u8()
 
         return {
@@ -60,7 +63,7 @@ class Link(Subsystem):
             'returned': seen,
             'patterns': [{'sent': p, 'back': bool(matched & (1 << i))}
                          for i, p in enumerate(protocol.ECHO_PATTERNS)],
-            'ok': matched == 0x0F if rs485 else matched == 0,
+            'ok': matched == (ALL_PATTERNS if rs485 else 0),
         }
 
     def port_stats(self, port):
@@ -72,10 +75,7 @@ class Link(Subsystem):
         what says the address filter is working rather than that the wire is
         quiet.
         """
-        if port not in protocol.PORTS:
-            raise ValueError('port %r is not one of the three' % (port,))
-
-        r = Reader(self._op(protocol.LINK_OP_STATS, bytes([port])))
+        r = Reader(self._op(LinkOp.STATS, pack(('u8', _port(port)))))
         got = {
             'port': r.u8(),
             'unit_id': r.u8(),
