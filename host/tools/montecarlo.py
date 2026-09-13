@@ -42,6 +42,17 @@ TICK = 40                  # periods per speed-loop step: 1.25 kHz
 TOP = 0.5                  # of the link's no-load speed the profile reaches
 I_MAX, I_TRIP, I_H_MAX = 60.0, 100.0, 5.0
 LOST = 0.35                # rad of truth angle error that is a lost rotor
+#: The run's clock, s: the lock before the profile starts, the raised
+#: cosine up, the hold at the top, the line down, and the whole run.
+#: The statistics start after the lock; a `bemf_only` run drops the
+#: injection once the top is reached.
+LOCK_S, RISE_S, HOLD_S, FALL_S, RUN_S = 0.15, 0.8, 0.4, 1.0, 2.5
+#: Under this fraction of the reference speed, past the top, the rotor
+#: counts as lost; and what a stage trip adds to the cost.
+LOST_SPEED = 0.5
+TRIP_COST = 10.0
+#: The plant's draws that ride along in the row, as plant_<name>.
+PLANT_COLUMNS = ('r', 'ld', 'lq', 'lambda', 'j', 'v_dt', 'noise', 'theta_err0')
 
 #: The search box: name -> (lo, hi, log). n_inj is 1, 2 or 4.
 KNOBS = {'bw_i': (300.0, 2500.0, True),     # current loop, Hz
@@ -122,7 +133,7 @@ def top_speed(vdc, motor=PLATINUM_5230SL):
     return TOP * inverter.V_FRAC * vdc / math.sqrt(3.0) / motor.lam
 
 
-def profile(t, w_top, t_lock=0.15, rise=0.8, hold=0.4, fall=1.0):
+def profile(t, w_top, t_lock=LOCK_S, rise=RISE_S, hold=HOLD_S, fall=FALL_S):
     """(w_ref, a_ref) at t: rest, a raised cosine up, a hold, a line down."""
     if t < t_lock:
         return 0.0, 0.0
@@ -137,6 +148,114 @@ def profile(t, w_top, t_lock=0.15, rise=0.8, hold=0.4, fall=1.0):
     return 0.0, 0.0
 
 
+class Run:
+    """One job's simulation: the firmware's drive stepping the model at
+    TS, the host speed loop ticking every TICK steps, the statistics
+    taken after the lock. `run_job` opens one, runs it and closes it."""
+
+    def __init__(self, job):
+        self.vdc, self.knobs, self.seed = job['vdc'], job['knobs'], job['seed']
+        self.motor = (Parameters(**job['motor']) if 'motor' in job
+                      else PLATINUM_5230SL)
+        i_max = job.get('i_max', I_MAX)
+        i_trip = job.get('i_trip', I_TRIP)
+        k_prop = job.get('k_prop', APC20x10E.k)
+        self.plant = draw(self.seed, self.vdc, self.motor, k_prop)
+        self.model = {k: self.plant[k] for k in H.MODEL}
+        self.d = H.Drive(_LIB, TS)
+        self.d.model_params(**self.model)
+        self.d.source(True)
+        self.params = design(self.knobs, self.vdc, self.motor, i_max, i_trip,
+                             job.get('i_h_max', I_H_MAX))
+        self.d.params(**self.params)
+        self.d.setpoints(id_ref=0.0, iq_ref=0.0)
+        self.d.set_theta(self.plant['theta0'] + self.plant['theta_err0'])
+        self.d.mode(H.SENSORLESS, enabled=False, powered=False)
+        self.speed = SpeedLoop(self.knobs['bw_w'], i_max, self.motor,
+                               load=Propeller(k_prop))
+        self.signals = Signals()
+        self.w_top = top_speed(self.vdc, self.motor)
+        self.sq_th = self.sq_w = self.n = 0
+        self.worst = self.lock = 0.0
+        self.trip = False
+        self.lost_at = None
+        self.bemf_only = job.get('bemf_only', False)
+        self.every = int(job.get('trace', 0))    # speed-loop ticks per trace row
+        self.trace = [] if self.every else None
+
+    def go(self):
+        """The whole run, or until the stage trips."""
+        for k in range(int(round(RUN_S / TS))):
+            if k % TICK == 0:
+                self.tick(k)
+            if self.d.step_virtual()[0]:
+                self.trip = True
+                return
+
+    def tick(self, k):
+        """One speed-loop step: the observer's error against the truth,
+        the injection dropped at the top when the job says so, the
+        statistics, the trace row, and the loop's own setpoint."""
+        t = k * TS
+        st, ms = self.d.state(), self.d.model_state()
+        err = wrap(st['theta_hat'] - ms['theta'])
+        w_ref, a_ref = profile(t, self.w_top)
+        if self.bemf_only and t >= LOCK_S + RISE_S and self.params['inj_volts']:
+            self.params.update(inj_volts=0.0, w_lo=0.0, w_hi=0.0)
+            self.d.params(**self.params)
+        self.tally(k, t, err, ms['omega'], w_ref)
+        if self.trace is not None and (k // TICK) % self.every == 0:
+            self.trace.append((t, w_ref, ms['omega'], st['omega_hat'],
+                               err, st['iq'], st['ih']))
+        s, poles = self.signals, self.motor.poles
+        s.w_ref, s.a_ref = w_ref / poles, a_ref / poles
+        s.w = st['omega_hat'] / poles
+        self.speed(s, TICK * TS)
+        self.d.setpoints(iq_ref=s.iq_ref)
+        wm = ms['omega'] / poles
+        self.model['load'] = self.plant['k_prop'] * wm * abs(wm)
+        self.d.model_params(**self.model)
+
+    def tally(self, k, t, err, omega, w_ref):
+        """The first tick's error is the lock; after it every tick
+        counts, and past the top a `bemf_only` run notes the speed the
+        rotor was lost at."""
+        if k == 0:
+            self.lock = abs(err)
+        if t < LOCK_S:
+            return
+        self.sq_th += err * err
+        self.sq_w += ((omega - w_ref) / self.w_top) ** 2
+        self.n += 1
+        self.worst = max(self.worst, abs(err))
+        lost = (self.bemf_only and t > LOCK_S + RISE_S and self.lost_at is None
+                and (abs(err) > LOST or omega < LOST_SPEED * w_ref))
+        if lost:
+            self.lost_at = omega / self.motor.poles * 60.0 / TWO_PI
+
+    def result(self):
+        """The row: the cost, and everything that shaped it."""
+        st = self.d.state()
+        sigma = math.sqrt(self.sq_th / self.n) if self.n else math.pi
+        speed_err = math.sqrt(self.sq_w / self.n) if self.n else 1.0
+        out = {'vdc': self.vdc, 'seed': self.seed, 'trip': self.trip,
+               'bemf_only': self.bemf_only, 'sigma_theta': sigma,
+               'worst_theta': self.worst, 'speed_err': speed_err,
+               'lock0': self.lock,
+               'lock': abs(wrap(st['theta_hat'] - self.d.model_state()['theta'])),
+               'i_peak': self.d.window()['i_peak'],
+               'i_h': (self.params['inj_volts'] * int(self.knobs['n_inj']) * TS
+                       / (2.0 * self.motor.ld)),
+               'cost': sigma + speed_err + TRIP_COST * self.trip,
+               'min_rpm': self.lost_at if self.lost_at is not None else 0.0}
+        out.update(self.knobs)
+        out.update(('plant_' + k, self.plant[k]) for k in PLANT_COLUMNS)
+        out['saliency'] = self.plant['lq'] / self.plant['ld']
+        if self.trace is not None:
+            out['trace'] = self.trace
+        return out
+
+
 def run_job(job):
     """One run. `job`: vdc, knobs, seed; `bemf_only` descends with the
     injection off from the hold on, and reports where the rotor was lost.
@@ -147,84 +266,12 @@ def run_job(job):
     search sizes itself to it. Absent, the 5230SL and the board's limits.
     The row carries everything that shaped it, `bemf_only` included.
     """
-    vdc, knobs, seed = job['vdc'], job['knobs'], job['seed']
-    motor = Parameters(**job['motor']) if 'motor' in job else PLATINUM_5230SL
-    i_max = job.get('i_max', I_MAX)
-    i_trip = job.get('i_trip', I_TRIP)
-    k_prop = job.get('k_prop', APC20x10E.k)
-    plant = draw(seed, vdc, motor, k_prop)
-    d = H.Drive(_LIB, TS)
+    run = Run(job)
     try:
-        d.model_params(**{k: plant[k] for k in H.MODEL})
-        d.source(True)
-        params = design(knobs, vdc, motor, i_max, i_trip,
-                        job.get('i_h_max', I_H_MAX))
-        d.params(**params)
-        d.setpoints(id_ref=0.0, iq_ref=0.0)
-        d.set_theta(plant['theta0'] + plant['theta_err0'])
-        d.mode(H.SENSORLESS, enabled=False, powered=False)
-        speed = SpeedLoop(knobs['bw_w'], i_max, motor, load=Propeller(k_prop))
-        s = Signals()
-        w_top = top_speed(vdc, motor)
-        t_hold = 0.15 + 0.8
-        model = {k: plant[k] for k in H.MODEL}
-        sq_th = sq_w = n = 0
-        worst = lock = 0.0
-        trip = False
-        lost_at = None
-        bemf_only = job.get('bemf_only', False)
-        every = int(job.get('trace', 0))    # speed-loop ticks per trace row
-        trace = [] if every else None
-        for k in range(int(round(2.5 / TS))):
-            t = k * TS
-            if k % TICK == 0:
-                st, ms = d.state(), d.model_state()
-                err = wrap(st['theta_hat'] - ms['theta'])
-                w_ref, a_ref = profile(t, w_top)
-                if bemf_only and t >= t_hold and params['inj_volts']:
-                    params.update(inj_volts=0.0, w_lo=0.0, w_hi=0.0)
-                    d.params(**params)
-                if t >= 0.15:
-                    sq_th += err * err
-                    sq_w += ((ms['omega'] - w_ref) / w_top) ** 2
-                    n += 1
-                    worst = max(worst, abs(err))
-                    if bemf_only and t > t_hold and lost_at is None and (
-                            abs(err) > LOST or ms['omega'] < 0.5 * w_ref):
-                        lost_at = ms['omega'] / motor.poles * 60.0 / TWO_PI
-                elif k == 0:
-                    lock = abs(err)
-                if trace is not None and (k // TICK) % every == 0:
-                    trace.append((t, w_ref, ms['omega'], st['omega_hat'],
-                                  err, st['iq'], st['ih']))
-                s.w_ref, s.a_ref = w_ref / motor.poles, a_ref / motor.poles
-                s.w = st['omega_hat'] / motor.poles
-                speed(s, TICK * TS)
-                d.setpoints(iq_ref=s.iq_ref)
-                wm = ms['omega'] / motor.poles
-                model['load'] = plant['k_prop'] * wm * abs(wm)
-                d.model_params(**model)
-            if d.step_virtual()[0]:
-                trip = True
-                break
-        st = d.state()
-        sigma = math.sqrt(sq_th / n) if n else math.pi
-        speed_err = math.sqrt(sq_w / n) if n else 1.0
-        out = {'vdc': vdc, 'seed': seed, 'trip': trip,
-               'bemf_only': bemf_only, 'sigma_theta': sigma,
-               'worst_theta': worst, 'speed_err': speed_err,
-               'lock0': lock, 'lock': abs(wrap(st['theta_hat'] - d.model_state()['theta'])),
-               'i_peak': d.window()['i_peak'], 'i_h': params['inj_volts'] * int(knobs['n_inj']) * TS / (2.0 * motor.ld),
-               'cost': sigma + speed_err + 10.0 * trip,
-               'min_rpm': lost_at if lost_at is not None else 0.0}
-        out.update(knobs)
-        out.update(('plant_' + k, plant[k]) for k in ('r', 'ld', 'lq', 'lambda', 'j', 'v_dt', 'noise', 'theta_err0'))
-        out['saliency'] = plant['lq'] / plant['ld']
-        if trace is not None:
-            out['trace'] = trace
-        return out
+        run.go()
+        return run.result()
     finally:
-        d.close()
+        run.d.close()
 
 
 def pool(workers=None, lib=None):

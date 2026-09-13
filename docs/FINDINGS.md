@@ -1157,6 +1157,25 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   place of an else. The render bench's panels are ENGINE, ORACLE and
   EXPORTER now. structure 621, views 206, pyright 0; the menu answers a
   piped `3` with 103 and draws its frames as before.
+* THE BENCH TOOLS READ FLAT (2026-09-13): thirty-two nested ifs across
+  thirteen tools -> 0, and host/tools/ holds none. The Monte Carlo's
+  job is a `Run` - the drive, the loop and the tallies one object,
+  `tick` and `tally` its methods - and the run's clock is named
+  (`LOCK_S`, `RISE_S`, `HOLD_S`, `FALL_S`, `RUN_S`) where the profile's
+  defaults and the tallies both read it; `find_board`'s answers share
+  `_reported`; tonecheck's two copies of the SGR-to-luma walk are one
+  `_tone` with the reset rule passed in, its PNG header is judged once
+  after the chunks, and its fit speaks English; build_and_flash's
+  extension binaries are a table, its regions have bases beside their
+  sizes, its warnings are a filter; deadtime_trim's rails are a
+  comprehension; pulse names its PWM, the protocol its counted pulse
+  arrived in and its slack, and hands the hold to `_held`;
+  thermal_identify logs a reading in `_logged`; commission imports
+  math rather than `__import__`ing it; switch's sweep ends are one pair
+  either way; the rest early returns and helpers. Measured: structure
+  621, drive core 81 - the Monte Carlo job through the Run, sigma_theta
+  and i_peak as before - pyright 0 on the thirteen, and each answers
+  --help.
 
 ## The local model
 

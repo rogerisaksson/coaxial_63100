@@ -36,6 +36,39 @@ from switch import PHASES                                  # noqa: E402
 #: Seconds a compare write takes to land, measured 14.9-16.0 ms over the
 #: probe's COM port: what an --on wait is shortened by.
 LANDING = 0.015
+#: The stage's PWM, Hz, and the ms one period is: the board's counted
+#: pulse is a whole number of periods, spoken since protocol 2.8.
+PWM_HZ = 50000
+MS_PER_PERIOD = 1000.0 / PWM_HZ
+COUNTED_SINCE = (2, 8)
+#: Seconds of slack: short of the spin the sleep stops, and past a
+#: counted pulse before the next write, so it cannot land inside it.
+SLACK_S = 0.002
+
+
+def _counted(rig, a):
+    """Periods the board counts for the on-time itself: none for a
+    link-timed hold, an alternate train (op 10 carries no count yet),
+    or a firmware from before the count."""
+    if a.on <= 0.0 or a.alternate:
+        return 0
+    info = rig.board.version_info or rig.board.system.version()
+    if (info['proto_major'], info['proto_minor']) < COUNTED_SINCE:
+        return 0
+    return max(1, round(a.on * PWM_HZ))
+
+
+def _held(t1, on):
+    """Sleep to SLACK_S short of the spin, then spin to LANDING before
+    the off-edge: Windows sleeps in ~15 ms steps, and 100 ms asked for
+    came out 109."""
+    if on <= LANDING:
+        return
+    until = t1 + on - LANDING
+    if until - time.perf_counter() > SLACK_S:
+        time.sleep(until - time.perf_counter() - SLACK_S)
+    while time.perf_counter() < until:
+        pass
 
 SHOWN = ('pwm_enabled', 'sync_armed', 'fault', 'break_bypassed', 'updates',
          'overruns', 'duty', 'pins', 'worst_gap_cycles', 'gate_shorts',
@@ -97,13 +130,10 @@ def main():
 
         # The counted pulse, where the firmware speaks it. The alternate
         # train stays link-timed - op 10 carries no count yet.
-        counted = 0
-        if a.on > 0.0 and not a.alternate:
-            info = rig.board.version_info or rig.board.system.version()
-            if (info['proto_major'], info['proto_minor']) >= (2, 8):
-                counted = max(1, round(a.on * 50000))
-                print('counted: %d periods on the board, %.3f ms exactly'
-                      % (counted, counted / 50.0))
+        counted = _counted(rig, a)
+        if counted:
+            print('counted: %d periods on the board, %.3f ms exactly'
+                  % (counted, counted * MS_PER_PERIOD))
         held = []
         for i in range(a.count):
             if i:
@@ -120,17 +150,10 @@ def main():
             if counted:
                 # The board owns the off-edge; the sleep only keeps the
                 # next pulse's write from landing inside this one.
-                time.sleep(a.on + 0.002)
-                held.append(counted / 50000.0)
+                time.sleep(a.on + SLACK_S)
+                held.append(counted / PWM_HZ)
             else:
-                if a.on > LANDING:
-                    # Sleep to 2 ms short, then spin: Windows sleeps in
-                    # ~15 ms steps, and 100 ms asked for came out 109.
-                    until = t1 + a.on - LANDING
-                    if until - time.perf_counter() > 0.002:
-                        time.sleep(until - time.perf_counter() - 0.002)
-                    while time.perf_counter() < until:
-                        pass
+                _held(t1, a.on)
                 rig.board.gate_drivers.duty(zeros)
                 held.append(time.perf_counter() - t1)
             if a.count == 1:
@@ -141,14 +164,14 @@ def main():
             print('%s at %.1f %% against %s low, %d pulse%s: %d periods '
                   'each, counted by the board - %.3f ms at 50 kHz'
                   % (high, 100 * a.duty, low, len(on),
-                     '' if len(on) == 1 else 's', counted, counted / 50.0))
+                     '' if len(on) == 1 else 's', counted, counted * MS_PER_PERIOD))
         else:
             print('%s at %.1f %% against %s low, %d pulse%s: on %.1f ms min, '
                   '%.1f median, %.1f max - ~%d cycles each at 50 kHz'
                   % (high, 100 * a.duty, low, len(on),
                      '' if len(on) == 1 else 's',
                      1000 * on[0], 1000 * on[len(on) // 2], 1000 * on[-1],
-                     int(on[len(on) // 2] * 50000)))
+                     int(on[len(on) // 2] * PWM_HZ)))
         print('after:', {k: after[k] for k in SHOWN})
     finally:
         try:

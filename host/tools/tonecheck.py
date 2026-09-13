@@ -51,6 +51,32 @@ SPREAD_CAP = 20.0
 
 
 TOK = re.compile(r'\x1b\[([0-9;]*)m|(.)')
+TRUE_RGB = re.compile(r'38;2;(\d+);(\d+);(\d+)$')
+PALETTE = re.compile(r'38;5;(\d+)$')
+
+
+def _raw_reset(code):
+    """An SGR code that drops the tone in the engine's own output."""
+    return code in ('0', '')
+
+
+def _console_reset(code):
+    """...and in rich's: a reset, the default foreground, or any of the
+    sixteen basic foregrounds."""
+    return code in ('0', '39') or (code.startswith('3') and len(code) == 2)
+
+
+def _tone(code, lum, reset):
+    """The luma an SGR code leaves: a truecolour or palette foreground
+    sets it, a code `reset` recognises clears it, anything else keeps
+    what it was."""
+    true = TRUE_RGB.match(code)
+    pal = PALETTE.match(code)
+    if true:
+        return luma(tuple(int(v) for v in true.groups()))
+    if pal:
+        return luma(xterm_rgb(int(pal.group(1))))
+    return None if reset(code) else lum
 
 
 def xterm_rgb(code):
@@ -84,7 +110,7 @@ def png(path):
     if data[:8] != b'\x89PNG\r\n\x1a\n':
         raise ValueError('%s is not a PNG' % path)
     at, width = 8, 0
-    height = depth = kind = 0
+    height = depth = kind = lace = 0
     idat = []
     while at < len(data):
         size, tag = struct.unpack('>I4s', data[at:at + 8])
@@ -92,14 +118,13 @@ def png(path):
         if tag == b'IHDR':
             width, height, depth, kind, _c, _f, lace = struct.unpack(
                 '>IIBBBBB', body)
-            if depth != 8 or kind not in (2, 6) or lace:
-                raise ValueError('%s: only 8-bit RGB/RGBA, not interlaced'
-                                 % path)
         elif tag == b'IDAT':
             idat.append(body)
         elif tag == b'IEND':
             break
         at += 12 + size
+    if depth != 8 or kind not in (2, 6) or lace:
+        raise ValueError('%s: only 8-bit RGB/RGBA, not interlaced' % path)
     raw = zlib.decompress(b''.join(idat))
     step = 3 if kind == 2 else 4
     stride = width * step
@@ -175,14 +200,7 @@ def our_cells(pose, width=52, height=34):
         lum, col = None, 0
         for m in TOK.finditer(line):
             if m.group(2) is None:
-                true = re.match(r'38;2;(\d+);(\d+);(\d+)$', m.group(1))
-                pal = re.match(r'38;5;(\d+)$', m.group(1))
-                if true:
-                    lum = luma(tuple(int(v) for v in true.groups()))
-                elif pal:
-                    lum = luma(xterm_rgb(int(pal.group(1))))
-                elif m.group(1) in ('0', ''):
-                    lum = None
+                lum = _tone(m.group(1), lum, _raw_reset)
                 continue
             if m.group(2) in '.:' and lum is not None:
                 got.append((py, col, m.group(2), lum))
@@ -283,9 +301,13 @@ KNOBS = (
 )
 
 
+#: The step scale under which a round that moved nothing ends the fit.
+FINEST = 0.3
+
+
 def fit(rounds=16):
     best = objective()
-    print('start: fel %.2f' % best)
+    print('start: error %.2f' % best)
     scale = 1.0
     for _ in range(rounds):
         moved = False
@@ -298,14 +320,14 @@ def fit(rounds=16):
                 got = objective()
                 if got < best - 1e-6:
                     best, base, moved = got, cand, True
-                    print('  %s = %.2f  fel %.2f' % (name, cand, got))
+                    print('  %s = %.2f  error %.2f' % (name, cand, got))
                     break
                 setattr(mod, name, base)
+        if not moved and scale < FINEST:
+            break
         if not moved:
-            if scale < 0.3:
-                break
             scale *= 0.5                # nothing moved: finer steps
-    print('slut: fel %.2f - baka in:' % best)
+    print('done: error %.2f - bake in:' % best)
     for mod, name, *_ in KNOBS:
         print('  %s.%s = %.2f' % (mod.__name__.split('.')[-1], name,
                                   getattr(mod, name)))
@@ -348,15 +370,7 @@ def staged_cells(pose, color_system, width=94, height=36):
         lum, col = None, 0
         for m in TOK.finditer(line):
             if m.group(2) is None:
-                true = re.match(r'38;2;(\d+);(\d+);(\d+)$', m.group(1))
-                pal = re.match(r'38;5;(\d+)$', m.group(1))
-                if true:
-                    lum = luma(tuple(int(v) for v in true.groups()))
-                elif pal:
-                    lum = luma(xterm_rgb(int(pal.group(1))))
-                elif m.group(1) in ('0', '39') or m.group(1).startswith('3') \
-                        and len(m.group(1)) == 2:
-                    lum = None
+                lum = _tone(m.group(1), lum, _console_reset)
                 continue
             if m.group(2) in '.:' and lum is not None:
                 got.append((m.group(2), 0.0, 0.0, lum, py, col))

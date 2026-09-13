@@ -227,6 +227,31 @@ def find(preferred=None, baud=115200, unit=1, ports=None):
     return None
 
 
+#: Target voltage over SWD above which the board counts as powered.
+POWERED_V = 1.0
+
+
+def _power_report():
+    """The target voltage over SWD, printed; exit 0 when the board is
+    powered."""
+    voltage, detail = check_power()
+    if voltage is None:
+        print('unknown - %s' % detail)
+        return 1
+    print('%.2fV' % voltage)
+    return 0 if voltage > POWERED_V else 1
+
+
+def _reported(found, line):
+    """What a search found, printed, exit 0 - or `none` on stderr,
+    exit 1."""
+    if not found:
+        print('none', file=sys.stderr)
+        return 1
+    print(line)
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--list', action='store_true',
@@ -253,12 +278,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if args.power:
-        voltage, detail = check_power()
-        if voltage is None:
-            print('unknown - %s' % detail)
-            return 1
-        print('%.2fV' % voltage)
-        return 0 if voltage > 1.0 else 1
+        return _power_report()
     if args.list:
         print('\n'.join(list_ports()))
         return 0
@@ -275,18 +295,10 @@ def main(argv=None):
         return 0 if ok else 1
     if args.discover:
         device, kind = discover(args.preferred, args.baud, args.unit)
-        if device:
-            print('%s %s' % (device, kind))
-            return 0
-        print('none', file=sys.stderr)
-        return 1
+        return _reported(device, '%s %s' % (device, kind))
     if args.find:
         found = find(args.preferred, args.baud, args.unit)
-        if found:
-            print(found)
-            return 0
-        print('none', file=sys.stderr)
-        return 1
+        return _reported(found, found)
 
     parser.print_help()
     return 2

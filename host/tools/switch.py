@@ -59,9 +59,9 @@ def main():
         if leg not in PHASES:
             raise SystemExit('unknown phase %r - pick from %s'
                              % (leg, ', '.join(PHASES)))
-    lo = hi = None
-    if a.sweep:
-        lo, hi = (float(x) / 100.0 for x in a.sweep.split(','))
+    # A sweep's two ends, or the one duty at both: one formula either way.
+    lo, hi = ((float(x) / 100.0 for x in a.sweep.split(',')) if a.sweep
+              else (a.duty, a.duty))
 
     if os.path.exists(STOP_FILE):
         os.remove(STOP_FILE)
@@ -76,13 +76,12 @@ def main():
         rig.gates.arm(bypass_sto=not a.keep_break,
                              ignore_interlock=not a.interlock)
         what = ('sweep %.0f-%.0f %% every %.0fs' % (lo * 100, hi * 100, a.period)
-                if lo is not None and hi is not None
-                else '%.0f %%' % (a.duty * 100))
+                if a.sweep else '%.0f %%' % (a.duty * 100))
         print('LIVE: %s at %s for %.0f s   (stop: python tools/switch.py --stop)'
               % ('+'.join(legs), what, a.seconds), flush=True)
 
         start = time.time()
-        write(rig, lo if a.sweep else a.duty)
+        write(rig, lo)
         while True:
             elapsed = time.time() - start
             if elapsed >= a.seconds:
@@ -93,8 +92,6 @@ def main():
                 break
             if a.sweep:
                 x = (elapsed / a.period) % 1.0
-                if lo is None or hi is None:
-                    break
                 duty = lo + (hi - lo) * (2 * x if x < 0.5 else 2 * (1 - x))
                 try:
                     write(rig, duty)

@@ -202,6 +202,11 @@ def measure_load(tag, timeout=180):
     return reply.get('load_duration', 0) / 1e9
 
 
+#: Free RAM wanted, as a multiple of the model, before warming it is
+#: likely to keep it rather than evict something else.
+HEADROOM = 1.2
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('tag')
@@ -229,9 +234,9 @@ def main(argv=None):
     print('%s: %.1f GB across %d file(s)' % (args.tag, total_gb, len(paths)))
     if total_ram is not None and free_ram is not None:
         print('this machine: %.1f GB free of %.1f GB' % (free_ram, total_ram))
-        if free_ram < total_gb * 1.2:
-            print('WARNING: not much headroom above the model itself - '
-                  'warming this may just evict something else.')
+    if free_ram is not None and free_ram < total_gb * HEADROOM:
+        print('WARNING: not much headroom above the model itself - '
+              'warming this may just evict something else.')
 
     try:
         print('measuring the load as it stands now...')

@@ -103,15 +103,14 @@ def peek(rig):
     if not ok:
         return None, None
     try:
+        if not was_on and not insist(rig.board.afe.enable)[0]:
+            return None, None
         if not was_on:
-            if not insist(rig.board.afe.enable)[0]:
-                return None, None
             time.sleep(PEEK_SETTLE_S)
         return sensors(rig)
     finally:
-        if not was_on:
-            if not insist(rig.board.afe.disable, tries=20, pause=0.5)[0]:
-                raise SystemExit(
+        if not was_on and not insist(rig.board.afe.disable, tries=20, pause=0.5)[0]:
+            raise SystemExit(
                     'COULD NOT SWITCH THE AFE BACK OFF after a sample. The '
                     'state is now wrong and everything measured after this is '
                     'worthless - stopping rather than reporting bad numbers.')

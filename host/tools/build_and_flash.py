@@ -70,6 +70,25 @@ def _newest_ext(pattern):
     return matches[0] if matches else None
 
 
+#: The STM32 VS Code extensions that carry binaries of their own, and
+#: where under each: `cube` in the core, `cube-cmake` in the build one.
+EXTENSION_BINS = (
+    ('stmicroelectronics.stm32cube-ide-core-*',
+     ('resources', 'binaries', 'win32', 'x86_64')),
+    ('stmicroelectronics.stm32cube-ide-build-cmake-*',
+     ('resources', 'cube-cmake', 'win32', 'x86_64')),
+)
+
+
+def _extension_bins():
+    """The extensions' bin directories, those that are there."""
+    for pattern, parts in EXTENSION_BINS:
+        ext = _newest_ext(pattern)
+        folder = ext.joinpath(*parts) if ext is not None else None
+        if folder is not None and folder.is_dir():
+            yield str(folder)
+
+
 def toolchain_path():
     """PATH entries env.ps1 adds before calling cube-cmake or the programmer.
 
@@ -85,18 +104,7 @@ def toolchain_path():
         if bin_dir is not None:
             dirs.append(str(bin_dir))
 
-    core = _newest_ext('stmicroelectronics.stm32cube-ide-core-*')
-    if core is not None:
-        cube_bin = core / 'resources' / 'binaries' / 'win32' / 'x86_64'
-        if cube_bin.is_dir():
-            dirs.append(str(cube_bin))
-
-    build_ext = _newest_ext('stmicroelectronics.stm32cube-ide-build-cmake-*')
-    if build_ext is not None:
-        cube_cmake_dir = build_ext / 'resources' / 'cube-cmake' / 'win32' / 'x86_64'
-        if cube_cmake_dir.is_dir():
-            dirs.append(str(cube_cmake_dir))
-
+    dirs.extend(_extension_bins())
     return os.pathsep.join(dirs + [os.environ.get('PATH', '')])
 
 
@@ -168,8 +176,16 @@ def run(argv, cwd, path):
 
 
 #: What the linker script gives each region, so the print says how much of it
-#: is spent rather than a byte count nobody can size up.
+#: is spent rather than a byte count nobody can size up - and where each
+#: region starts.
 REGIONS = {'FLASH': 2 * 1024 * 1024, 'DTCMRAM': 128 * 1024}
+BASES = {'FLASH': 0x08000000, 'DTCMRAM': 0x20000000}
+
+
+def _region_of(addr):
+    """The linker region an address falls in, or None."""
+    return next((name for name, base in BASES.items()
+                 if base <= addr < base + REGIONS[name]), None)
 
 
 def footprint(elf, path):
@@ -192,12 +208,12 @@ def footprint(elf, path):
         if len(part) != 3 or not part[1].isdigit():
             continue
         name, count, addr = part[0], int(part[1]), int(part[2])
-        if 0x08000000 <= addr < 0x08200000:
+        region = _region_of(addr)
+        if region == 'FLASH':
             flash += count
-        elif 0x20000000 <= addr < 0x20020000:
+        elif region == 'DTCMRAM':
             ram += count
-            if name == '.data':
-                flash += count       # its initialiser is stored in flash
+            flash += count if name == '.data' else 0   # its initialiser is in flash
     return flash, ram
 
 
@@ -221,10 +237,8 @@ def build(preset, path):
                used[1], 100.0 * used[1] / REGIONS['DTCMRAM'])) if used else ''
     print('BUILD  ok  %.1fs  %d warning%s%s'
           % (elapsed, warnings, '' if warnings == 1 else 's', room))
-    if warnings:
-        for line in output.splitlines():
-            if WARNING_RE.search(line):
-                print('  ' + line.strip())
+    for line in filter(WARNING_RE.search, output.splitlines()):
+        print('  ' + line.strip())
     return True
 
 

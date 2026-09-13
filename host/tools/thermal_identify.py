@@ -166,6 +166,19 @@ def thermal_observer(rig):
     return None
 
 
+def _logged(rig, load, state, now, series, nodes):
+    """One reading into the series: the NTC, and the thermal observer's
+    own estimates per node on the same clock - which is what is being
+    judged; the NTC is only what it had to work from."""
+    got = sample_while_switching(rig, load) if load else ntc(rig)
+    if got is not None:
+        series.append((now, got))
+        print('  %-8s %6.1f s   NTC %6.2f C' % (state, now, got), flush=True)
+    st = thermal_observer(rig)
+    for name, value in (st['nodes'].items() if st is not None else ()):
+        nodes.setdefault(name, []).append((now, value))
+
+
 def hold(rig, state, seconds, every):
     """Run one state and log (t, ntc). Returns (series, node series)."""
     load = enter(rig, state)
@@ -176,21 +189,8 @@ def hold(rig, state, seconds, every):
             if now >= seconds:
                 break
             if now - last >= every or not series:
-                got = (sample_while_switching(rig, load) if load
-                       else ntc(rig))
+                _logged(rig, load, state, now, series, nodes)
                 last = now
-                if got is not None:
-                    series.append((now, got))
-                    print('  %-8s %6.1f s   NTC %6.2f C'
-                          % (state, now, got), flush=True)
-
-                # The thermal observer's own estimates, per node, on the same clock.
-                # This is what is being judged: the NTC above is only what
-                # it had to work from.
-                st = thermal_observer(rig)
-                if st is not None:
-                    for name, value in st['nodes'].items():
-                        nodes.setdefault(name, []).append((now, value))
             time.sleep(1.0)
     finally:
         leave(rig, state, load)

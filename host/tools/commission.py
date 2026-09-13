@@ -15,6 +15,7 @@ supply is read and printed first, and a step that saw no current says
 """
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -55,6 +56,16 @@ def run_steps(c, steps, iq, seconds):
         print('%-13s %s' % (name, _brief(name, got)))
 
 
+def _budget_line(got):
+    """The injection budget's choice, or that nothing fits."""
+    c = got['choice']
+    if c is None:
+        return 'nothing fits the constraints'
+    return '%s AFE: f_inj %.0f Hz  V %.2f  SNR %.1f dB  sigma_theta %.1f deg  (%s)' % (
+        got['afe'], c['f_inj_hz'], c['v_inj'], c['snr_db'],
+        math.degrees(c['sigma_theta']), c['limited_by'])
+
+
 def _brief(name, got):
     """One line per step, the numbers that matter."""
     if name == 'afe':
@@ -87,12 +98,7 @@ def _brief(name, got):
         return 'lambda %.5f V.s  load angle %.2f rad' % (
             got['lambda'], got['load_angle'])
     if name == 'budget':
-        c = got['choice']
-        if c is None:
-            return 'nothing fits the constraints'
-        return '%s AFE: f_inj %.0f Hz  V %.2f  SNR %.1f dB  sigma_theta %.1f deg  (%s)' % (
-            got['afe'], c['f_inj_hz'], c['v_inj'], c['snr_db'],
-            __import__('math').degrees(c['sigma_theta']), c['limited_by'])
+        return _budget_line(got)
     if name == 'gains':
         k = got['kalman'] or {}
         return 'iloop %.0f Hz kp %.3f ki %.1f  PLL %.0f Hz zeta %.2f  crossover %.0f rpm' % (

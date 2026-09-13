@@ -51,14 +51,19 @@ def probe(rig, last=None):
     got = {'at': now,
            'channels': {name: (volts, want, ok) for name, volts, ok, want in rows},
            'fields': {name: state.get(name) for name, _ in FIELDS}}
-    rate = None
-    if last is not None and got['fields']['keepalive'] is not None \
-            and last['fields'].get('keepalive') is not None:
-        gap = now - last['at']
-        if gap > 0:
-            rate = (got['fields']['keepalive'] - last['fields']['keepalive']) / gap
-    got['pulses_per_s'] = rate
+    got['pulses_per_s'] = _pulse_rate(last, got, now)
     return got
+
+
+def _pulse_rate(last, got, now):
+    """Keepalive pulses a second between two rows, when both counted
+    them."""
+    if (last is None or got['fields']['keepalive'] is None
+            or last['fields'].get('keepalive') is None):
+        return None
+    gap = now - last['at']
+    pulses = got['fields']['keepalive'] - last['fields']['keepalive']
+    return pulses / gap if gap > 0 else None
 
 
 def _cell(value, width):

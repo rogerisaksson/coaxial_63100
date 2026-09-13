@@ -44,6 +44,20 @@ from screen import say, steady                                       # noqa: E40
 
 
 
+#: The rails a trim sample reads, by the board's own signal names.
+RAILS = ('DC bus', '+5V')
+
+
+def _rails(table, params):
+    """The rails off one analog table, in their own units - nothing
+    when the read did not answer."""
+    rows = table['channels'] if table is not None else ()
+    return {row['signal']: scaling.converter(row['unit'], row['differential'],
+                                             signal=row['signal'],
+                                             params=params)(row['mean_raw'])
+            for row in rows if row['signal'] in RAILS}
+
+
 def sample(rig, params):
     """Stand down, measure, and hand back what the board said.
 
@@ -52,30 +66,23 @@ def sample(rig, params):
     clear.
     """
     steady(rig.gates.disarm)
-    got = {}
-    if steady(rig.board.afe.enable) is not None:
-        time.sleep(SETTLE_S)
-        table = steady(rig.board.analog.read_all, nr_of_samples=32)
-        if table is not None:
-            for row in table['channels']:
-                if row['signal'] in ('DC bus', '+5V'):
-                    to = scaling.converter(row['unit'], row['differential'],
-                                           signal=row['signal'], params=params)
-                    got[row['signal']] = to(row['mean_raw'])
-        state = steady(rig.board.thermal.state)
-        spend = steady(rig.board.thermal.budget)
-        if state is not None:
-            got['ntc'] = state['ntc']
-        if state is not None:
-            got['uptime'] = state['seconds']
-        if spend is not None:
-            # THE HOTTEST LEG. A sweep drives one leg or three, and a mean
-            # over three hides the one that is closest to shoot-through.
-            used = spend['used']
-            got['drivers'] = max(used[n] for n in thermal.DRIVERS)
-            got['phases'] = max(used[n] for n in thermal.PHASES)
-        steady(rig.board.afe.disable)
-        time.sleep(SETTLE_S)
+    if steady(rig.board.afe.enable) is None:
+        return {}
+    time.sleep(SETTLE_S)
+    got = _rails(steady(rig.board.analog.read_all, nr_of_samples=32), params)
+    state = steady(rig.board.thermal.state)
+    spend = steady(rig.board.thermal.budget)
+    if state is not None:
+        got['ntc'] = state['ntc']
+        got['uptime'] = state['seconds']
+    if spend is not None:
+        # THE HOTTEST LEG. A sweep drives one leg or three, and a mean
+        # over three hides the one that is closest to shoot-through.
+        used = spend['used']
+        got['drivers'] = max(used[n] for n in thermal.DRIVERS)
+        got['phases'] = max(used[n] for n in thermal.PHASES)
+    steady(rig.board.afe.disable)
+    time.sleep(SETTLE_S)
     return got
 
 

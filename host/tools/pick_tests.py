@@ -251,6 +251,12 @@ def release(tag):
         pass                    # no ollama, or nothing loaded: nothing to do
 
 
+def _explained(args, why):
+    """The reason, on stderr, when --explain asked for it."""
+    if args.explain:
+        print('  %s' % why, file=sys.stderr)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=(__doc__ or '').splitlines()[0])
     parser.add_argument('--model', default='gemma4:12b')
@@ -269,14 +275,12 @@ def main(argv=None):
             release(args.model)
     if plan is None:
         print('all')
-        if args.explain:
-            print('  %s - running everything' % why, file=sys.stderr)
+        _explained(args, '%s - running everything' % why)
         return 0
     print('suites: %s' % ' '.join(plan.suites))
     print('tags:   %s' % (','.join(plan.tags) or 'all'))
     print('live:   %s' % plan.live)
-    if args.explain:
-        print('  %s' % (plan.why or 'no reason given'), file=sys.stderr)
+    _explained(args, plan.why or 'no reason given')
     return 0
 
 
