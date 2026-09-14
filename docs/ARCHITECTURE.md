@@ -75,7 +75,9 @@ both total. `link.c` owns which of the three ports carries the link
 and whether it is console or Modbus; `dev_uart.c` is the only file
 that touches a USART (invariant 1). `link_report.c` prints the link
 status the console's `r` key shows. `cmd_length.c` is the oracle
-`modbus_rtu.c` consults. PROTOCOL.md has the wire.
+`modbus_rtu.c` consults. PROTOCOL.md has the wire, and `test_structure`
+holds its op tables to the handlers' reads and writes, as it holds
+every fixed reply and request to the library.
 
 ### The board seam
 
@@ -337,12 +339,12 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-seven suites, 3072 checks, counted in `host/tests/.counts.json`
+Twenty-seven suites, 3084 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
 | --- | --- | --- |
-| test_structure.py | 653 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module |
+| test_structure.py | 665 | does host/ still hold together: imports, one definition per name, function size, the notebooks' code cells as one module; the wire's three answers held to each other - the enums, every fixed reply and request, PROTOCOL.md's op tables |
 | test_ollama_tools.py | 219 | the runner's tools, the docs tool |
 | test_ollama_runner.py | 223 | the runner, the path map, the docs index |
 | test_simulated.py | 254 | the stand-in and the renderers, the desk's braille bars, and the thermal stand-in identifying its ground truth - UNCERTAIN, CONVERGING, STABLE in a box, again under a fan, the margin rising off its floor and falling back along the walk, the floor a bench's to set, nothing kept between runs |

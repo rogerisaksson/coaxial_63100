@@ -185,9 +185,6 @@ extern "C" {
 #define DEVICE_POWER     9U
 #define DEVICE_DRIVE    10U
 
-/** Device 10's ops: the control law. Angles in microradians, speeds in
-    milliradians a second, currents mA, volts mV; the window's means and
-    deviations in micro-units. cmd_drive.c has the layouts. */
 /* The thermal observer, device 8. */
 #define THERMAL_OP_STATE        0U
 #define THERMAL_OP_SET_NODE     1U
@@ -203,6 +200,13 @@ extern "C" {
 #define THERMAL_OP_IDENT_RESET  11U
 #define THERMAL_OP_SET_MARGIN   12U
 
+/** Device 9's ops: the rails and who holds them. */
+#define POWER_OP_STATE        0U  /**< -> u8 rails, per rail on, users, count, blocked, leased */
+#define POWER_OP_RELEASE_ALL  1U  /**< every hold dropped -> u8 took; blunt, for a leak */
+
+/** Device 10's ops: the control law. Angles in microradians, speeds in
+    milliradians a second, currents mA, volts mV; the window's means and
+    deviations in micro-units. cmd_drive.c has the layouts. */
 #define DRIVE_OP_STATE        0U  /**< -> mode, fault, flags, frames, dq, costs */
 #define DRIVE_OP_MODE         1U  /**< u8 mode -> u8 took                        */
 #define DRIVE_OP_SETPOINT     2U  /**< u8 id, i32 value -> u8 took               */

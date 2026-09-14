@@ -285,8 +285,8 @@ BNO085 on SPI2. Ops:
 | --- | --- | --- |
 | 0 id | - | `u8 reset_cause, u8 sw_major, u8 sw_minor, u32 sw_part, u32 sw_build, u16 sw_patch` |
 | 1 read | - | `u8 channel, u8 len`, the SHTP cargo as it arrived; len 0 is nothing waiting |
-| 2 feature | `u8 report_id, u32 interval_us` | `u8 took`; 0 disables the report |
-| 3 probe | - | `u32 kernel_hz, u32 bitrate, u8 len` and what the bus answered |
+| 2 feature | `u8 report_id, u32 interval_us` | empty; 0 disables the report, 04 when the part will not take it |
+| 3 probe | `[u8 len, u8 select]` | `u32 kernel_hz, u32 bitrate, u8 len` and what the bus answered; len absent or 0 is the header, select absent is 1 |
 | 4 reset | - | `u8 drained` |
 | 5 write | `u8 channel, bytes` | raw SHTP |
 | 6 pins | - | per control pin `u8 pin, u8 check` |
@@ -309,27 +309,38 @@ when the hold spanned a reset. The part is powered by AFE_ON, and
 
 ### 1 ANGLE, `cmd_angle.c`
 
-A1335 on SPI4. Ops: 0 read (`u8 reg` → `u8 reg, u16 value, u8 crc`),
-1 write (`u8 reg, u8 value`), 2 latest (`u8 loop, u8 error,
-u32 updates, u32 errors, u8 have, u8 reg, u16 value, u8 crc`), 3 hold
-and 4 resume (→ `u8 loop`), 5 pollreg (`[u8 reg]` → `u8 reg` the loop
-reads), 6 clock (→ `u32 kernel_hz, u32 bitrate`). Six address bits, so
-a register above 0x3F is 03. Registers: ANG 0x20, STA 0x22, ERR 0x24,
-XERR 0x26, TSEN 0x28, FIELD 0x2A. A packet is 20 bits; the CRC is
-reported, not checked - the datasheet in this tree gives the field's
-width and not its polynomial. Read and write are refused while the poll
-loop runs. Also behind AFE_ON.
+A1335 on SPI4. Ops:
+
+| op | Request | Reply |
+| --- | --- | --- |
+| 0 read | `u8 reg` | `u8 reg, u16 value, u8 crc` |
+| 1 write | `u8 reg, u8 value` | empty; 03 above 0x3F, 04 when the part will not take it |
+| 2 latest | - | `u8 loop, u8 error, u32 updates, u32 errors, u8 have, u8 reg, u16 value, u8 crc` |
+| 3 hold | - | `u8 loop` |
+| 4 resume | - | `u8 loop` |
+| 5 pollreg | `[u8 reg]` | `u8 reg` the loop reads |
+| 6 clock | - | `u32 kernel_hz, u32 bitrate` |
+
+Six address bits, so a register above 0x3F is 03. Registers: ANG 0x20,
+STA 0x22, ERR 0x24, XERR 0x26, TSEN 0x28, FIELD 0x2A. A packet is 20
+bits; the CRC is reported, not checked - the datasheet in this tree
+gives the field's width and not its polynomial. Read and write are
+refused while the poll loop runs. Also behind AFE_ON.
 
 ### 2 LINK, `cmd_link.c`
 
-Op 0 echo: `u8 port` → `u8 port, u8 rs485, u8 matched, u8 seen,
-str name`; `matched` is one bit per pattern of 00 FF 5A A5, 0x0F is
-all four. Refused for the port carrying the request, whose own
-patterns would land in front of the reply. Op 1 stats: `u8 port` →
-`u8 port, u8 unit_id, u8 rs485, u8 open, u32 baud, u32 t15_ticks,
-u32 t35_ticks`, the six counters, `u32 dropped, str name`.
-`bus_message` counts every frame on the segment and `server_message`
-only the ones addressed to this unit.
+The serial links, by index. Ops:
+
+| op | Request | Reply |
+| --- | --- | --- |
+| 0 echo | `u8 port` | `u8 port, u8 rs485, u8 matched, u8 seen, str name` |
+| 1 stats | `u8 port` | `u8 port, u8 unit_id, u8 rs485, u8 open, u32 baud, u32 t15_ticks, u32 t35_ticks, u32 bus_message, u32 bus_comm_error, u32 server_message, u32 server_exception, u32 server_no_response, u32 char_overrun, u32 dropped, str name` |
+
+Op 0's `matched` is one bit per pattern of 00 FF 5A A5, 0x0F is all
+four; refused for the port carrying the request, whose own patterns
+would land in front of the reply. Op 1's `bus_message` counts every
+frame on the segment and `server_message` only the ones addressed to
+this unit.
 
 ### 3 CAL, `cmd_cal.c`
 
@@ -374,7 +385,7 @@ are in HARDWARE.md, "Calibration record".
 | 6 bypass | `u8 on` | `u8`; drops BDTR.BKE |
 | 7 gap reset | - | `u8`; forgets the worst keepalive gap |
 | 8 dutyq | `u32 x3 Q16.16 ticks` | `u8 took`; sigma-delta dither |
-| 9 deadtime | `u32 ns, i8 skew` | `u8 took`, then `u32 ns, u8 skew, u8 floor` as applied |
+| 9 deadtime | `u32 ns, i8 skew` | `u8 took`, then `u32 ns, i8 skew, u8 floor` as applied |
 | 10 alternate | `u16 x3 A, u16 x3 B` | `u8 took`; A one period, B the next |
 
 Op 0: `u8 flags` (0x01 ready, 0x02 enabled, 0x04 fault, 0x08 sync
@@ -383,7 +394,7 @@ ready, 0x10 sync armed, 0x20 afe_on, 0x40 pilot ok, 0x80 level ok),
 u32 updates, u32 overruns, u32 keepalive, u32 worst_gap, i32 pilot_raw,
 i32 pilot_uv, i32 level_raw, i32 level_uv`; appended in this order:
 `u8 bypassed`, `u32 requested x3` (Q16.16), `u8 pins, u16 pins_at` (the
-six gate lines in one instant), `u32 deadtime_ns, u8 skew, u8 floor`,
+six gate lines in one instant), `u32 deadtime_ns, i8 skew, u8 floor`,
 `u8 gate_shorts` (bit 0 U, 1 V, 2 W; 0 while armed), `u32 dcbus_raw,
 u32 ntc_raw` (MINOR 2), `u32 periods_left` (MINOR 8).
 
@@ -394,14 +405,18 @@ overflow.
 
 ### 5 LOG, `cmd_log.c`
 
-A ring of 1024 records in DTCM. Op 0 state: `u8 sources, u16 count,
-u16 depth, u32 dropped`, then `u32 thinned` appended - dropped is a
-sample the ring had no room for, thinned one it declined because the
-link could not carry it. Op 1 arm: `u8 source_mask` → `u8 1`, empties
-the ring; each armed source gets an equal share of what the link can
-drain. Op 2 take: `[u8 want]` → `u8 got` then `got` records of 14
-bytes: `u32 at, u8 source, u8 seq, i16 x4`. Fifteen fit a reply.
-Sources: 0 phases, 1 angle, 2 imu, 3 drive.
+A ring of 1024 records in DTCM. Ops:
+
+| op | Request | Reply |
+| --- | --- | --- |
+| 0 state | - | `u8 sources, u16 count, u16 depth, u32 dropped, u32 thinned` - the last appended |
+| 1 arm | `u8 source_mask` | `u8 1`; empties the ring |
+| 2 take | `[u8 want]` | `u8 got`, per record `u32 at, u8 source, u8 seq, i16 x4` - 14 bytes, fifteen fit a reply |
+
+`dropped` is a sample the ring had no room for, `thinned` one it
+declined because the link could not carry it. Each armed source gets an
+equal share of what the link can drain. Sources: 0 phases, 1 angle, 2
+imu, 3 drive.
 
 ### 6 DAQ, `cmd_daq.c`
 
@@ -451,77 +466,87 @@ leaves. The ring behind it is 448 KB in AXI SRAM.
 
 ### 7 TIME, `cmd_time.c`
 
-Op 0 latch: every node captures its CYCCNT at the frame; meant for
-broadcast, so no turnaround sits inside the measurement. Op 1 read:
-`u32 seq, u32 latched, u32 now, u32 sysclk_hz`. The host side is
-`coaxial.clock` and `set_time_from_pc()`.
+The cycle counter, latched. Ops:
+
+| op | Request | Reply |
+| --- | --- | --- |
+| 0 latch | - | `u8 1`; every node captures its CYCCNT at the frame |
+| 1 read | - | `u32 seq, u32 latched, u32 now, u32 sysclk_hz` |
+
+Op 0 is meant for broadcast, so no turnaround sits inside the
+measurement. The host side is `coaxial.clock` and `set_time_from_pc()`.
 
 ### 8 THERMAL, `cmd_thermal.c`
 
-Op 0 state: `u8 ntc_measured, i32 ntc_centi, u8 10`, per node
-`i32 centi`, `i32 ambient_centi, i32 expected_ntc_centi, u32 seconds,
-u8 settled`; appended `u32 every_ms, u32 settle_ms`, `u8 afe_measured,
-i32 afe_centi, u8 mcu_measured, i32 mcu_centi, u32 seen_ms_ago`,
-`u32 steps`. Op 1 set node: `u8 node, i32 to_board_milli,
-i32 capacity_milli` → `u8 took`. Op 2 set board: `i32 to_ambient_milli,
-i32 capacity_milli` → `u8 took`. Op 3 set sample: `u32 every_ms,
-u32 settle_ms` → `u8 took`. Op 4 budget: `u8 10`, per node `u8 used`
-(0 at ambient, 255 at the limit), `u8 worst, u8 worst_node,
-i32 millis_to_limit, u8 throttling, u8 tripped, u32 trips`; MINOR 11
-appends `i32 derate_micro`, per node `i32 soak_mj`, per phase
-`i32 duty_micro`; MINOR 12 appends the winding, `i32 winding_centi,
-u8 winding_used, i32 winding_derate_micro`. Op 5 set limit: `u8 node,
-i32 limit_milli_c, i32 throttle_ppm` → `u8 took`. Op 6 set winding
-(MINOR 12): `i32 limit_milli_c, i32 k_per_w_milli, i32 j_per_k_milli` →
-`u8 took`; a zero ceiling disables the winding, the constants must be
-positive. MINOR 13 appends to op 0 `i32 junction_over_centi[3]` - each
-leg's FET junction over its node - and `i32 speed_rpm`, and adds op 7
-nodes (`u8 first` → `u8 count, u8 first, u8 n`, then per node
-`i32 capacity_milli, i32 to_ambient_milli, i32 area_ppm, i32 rth_milli,
-i32 forced_milli`, ten a page), op 8 edges (`u8 count`, then per edge
-`u8 a, u8 b, i32 r_milli`, zero for an open one) and op 9 set edge
-(`u8 edge, i32 r_milli` → `u8 took`; negative opens it). Op 1's first
-value is the node's FIRST PATH OUT - its edge into the laminate under it
-for a source, its air path for a patch.
+The thermal observer and its envelope. Ops:
 
-MINOR 14 adds op 10 ident, THE ONLINE IDENTIFICATION beside the
-observer (`thermal/inc/thermal_ident.h`): `u8 state` (0 UNCERTAIN,
-1 CONVERGING, 2 STABLE - A WORD since MINOR 16, what a page says and
-not what the envelope acts on), `u8 online_mask` (bit k: the samples
-move scale k), `u8 count` (4), then per scale `i32 scale_milli,
-i32 sigma_milli` in the order air, capacity, spread, ntc - each a
-multiplier on the record's network, 1000 the derived default - then
-`i32 innovation_milli_k` (the filtered prediction error), `i32
-margin_micro` (what the envelope keeps in hand NOW: every ceiling's
-span over 25 C is multiplied by it on the board - continuous since
-MINOR 16 between the record's floor and 1 000 000 on how far the model
-is doubted, the innovation and the covariance normalised; it was
+| op | Request | Reply |
+| --- | --- | --- |
+| 0 state | - | below |
+| 1 set node | `u8 node, i32 to_board_milli, i32 capacity_milli` | `u8 took` |
+| 2 set board | `i32 to_ambient_milli, i32 capacity_milli` | `u8 took` |
+| 3 set sample | `u32 every_ms, u32 settle_ms` | `u8 took` |
+| 4 budget | - | below |
+| 5 set limit | `u8 node, i32 limit_milli_c, i32 throttle_ppm` | `u8 took` |
+| 6 set winding | `i32 limit_milli_c, i32 k_per_w_milli, i32 j_per_k_milli` | `u8 took`; a zero ceiling disables the winding, the constants must be positive (MINOR 12) |
+| 7 nodes | `u8 first` | `u8 count, u8 first, u8 n`, per node `i32 capacity_milli, i32 to_ambient_milli, i32 area_ppm, i32 rth_milli, i32 forced_milli` - ten a page (MINOR 13) |
+| 8 edges | - | `u8 count`, per edge `u8 a, u8 b, i32 r_milli`, zero for an open one (MINOR 13) |
+| 9 set edge | `u8 edge, i32 r_milli` | `u8 took`; negative opens it (MINOR 13) |
+| 10 ident | - | below |
+| 11 ident reset | - | `u8 took`; scales to one, UNCERTAIN, the margin at the floor - nothing is written, so nothing is refused for (MINOR 14) |
+| 12 set margin | `i32 floor_ppm` | `u8 took`; the floor into the record's RAM copy, cal op 2 persists it - refused outside 1 .. 1 000 000 in the board's words, zero would put every ceiling at 25 C the moment it booted (MINOR 16) |
+
+Op 0: `u8 ntc_measured, i32 ntc_centi, u8 count`, per node `i32 centi`,
+`i32 ambient_centi, i32 expected_ntc_centi, u32 seconds, u8 settled`;
+appended `u32 every_ms, u32 settle_ms`, `u8 afe_measured, i32 afe_centi,
+u8 mcu_measured, i32 mcu_centi, u32 seen_ms_ago`, `u32 steps`; MINOR 13
+appends `i32 x3 junction_over_centi` - each leg's FET junction over its
+node - and `i32 speed_rpm`.
+
+Op 1's first value is the node's FIRST PATH OUT - its edge into the
+laminate under it for a source, its air path for a patch.
+
+Op 4: `u8 count`, per node `u8 used` (0 at ambient, 255 at the limit),
+`u8 worst, u8 worst_node, i32 millis_to_limit, u8 throttling,
+u8 tripped, u32 trips`; MINOR 11 appends `i32 derate_micro`, per node
+`i32 soak_mj`, per phase `i32 duty_micro`; MINOR 12 appends the winding,
+`i32 winding_centi, u8 winding_used, i32 winding_derate_micro`.
+
+Op 10: THE ONLINE IDENTIFICATION beside the observer
+(`thermal/inc/thermal_ident.h`, MINOR 14): `u8 state` (0 UNCERTAIN,
+1 CONVERGING, 2 STABLE), `u8 online_mask` (bit k: the samples move
+scale k), `u8 count` (4), per scale `i32 scale_milli, i32 sigma_milli`
+in the order air, capacity, spread, ntc, `i32 innovation_milli_k,
+i32 margin_micro, u32 updates, u32 saves, u32 since_save_s`; MINOR 15
+appends `i32 ambient_centi, i32 ambient_sigma_centi`, MINOR 16
+`i32 margin_floor_micro`, MINOR 17 `i32 trip_cap_micro`.
+
+The state is A WORD since MINOR 16, what a page says and not what the
+envelope acts on. Each scale is a multiplier on the record's network,
+1000 the derived default; the innovation is the filtered prediction
+error. The margin is what the envelope keeps in hand NOW: every
+ceiling's span over 25 C is multiplied by it on the board - continuous
+since MINOR 16 between the record's floor and 1 000 000 on how far the
+model is doubted, the innovation and the covariance normalised; it was
 800 000 / 900 000 / 1 000 000 on the state; and after a thermal trip
 the trip cap instead while that keeps more in hand, 700 000 recovering
-a percent a minute), `u32 updates, u32 saves,
-u32 since_save_s` (since MINOR 16 always 0 and all ones, "never": the
-board keeps nothing it identified, and a wire field is never removed);
-MINOR 15 appends `i32 ambient_centi, i32 ambient_sigma_centi` - THE
-ROOM AS IDENTIFIED beside the scales, in the same Kalman step, since
-the board has no ambient sensor and the room is what the observer's
-`ambient` is set from; MINOR 16 appends `i32 margin_floor_micro`, the
-floor the margin rises from - the record's `soa_margin_floor_ppm`,
-800 000 unless a bench set it; MINOR 17 appends `i32 trip_cap_micro`,
-the trip cap as it stands - 700 000 at a trip, a percent a minute given
-back, 1 000 000 with no trip in hand - so a host can say which of the
-two holds `margin_micro`, which is the least of the identification's
-own and this. Only air, capacity and the room are
-online; spread and ntc ride at the record's values (FINDINGS,
-2026-09-05: unobservable from a cooldown). Op 11 ident reset →
-`u8 took`: scales to one, UNCERTAIN, the margin at the floor; nothing
-is written, so nothing is refused for. Op 12 set margin (`i32
-floor_ppm` → `u8 took`, MINOR 16): the floor into the record's RAM
-copy, cal op 2 persists it; refused outside 1 .. 1 000 000 in the
-board's words - zero would put every ceiling at 25 C the moment it
-booted. Until MINOR 16 the board wrote the identified scales to the
-record itself and resumed from them at boot (CAL_VERSION 14, one day);
-the bench's rule took that out: a good observer earns its span within
-a few cooldown samples, and a resumed one runs on last week's box.
+a percent a minute. The saves and the seconds since one are always 0
+and all ones, "never", since MINOR 16: the board keeps nothing it
+identified, and a wire field is never removed. The room (MINOR 15) is
+THE ROOM AS IDENTIFIED beside the scales, in the same Kalman step,
+since the board has no ambient sensor and the room is what the
+observer's `ambient` is set from. The floor (MINOR 16) is what the
+margin rises from - the record's `soa_margin_floor_ppm`, 800 000 unless
+a bench set it. The trip cap (MINOR 17) is the cap as it stands -
+700 000 at a trip, a percent a minute given back, 1 000 000 with no
+trip in hand - so a host can say which of the two holds the margin,
+which is the least of the identification's own and this. Only air,
+capacity and the room are online; spread and ntc ride at the record's
+values (FINDINGS, 2026-09-05: unobservable from a cooldown). Until
+MINOR 16 the board wrote the identified scales to the record itself and
+resumed from them at boot (CAL_VERSION 14, one day); the bench's rule
+took that out: a good observer earns its span within a few cooldown
+samples, and a resumed one runs on last week's box.
 
 TWENTY NODES SINCE MINOR 13, from ten. 0 .. 9 keep their indices and
 their meaning - driver U/V/W, phase U/V/W, mcu, regulators, afe, and
@@ -535,12 +560,17 @@ indices.
 
 ### 9 POWER, `cmd_power.c`
 
-Op 0 state: `u8 rails`, per rail `u8 on, u8 users, u8 count,
-u8 blocked, u8 leased`; the user bits are host, thermal, imu, angle,
-daq. The host's claim is unleased; the others hold 3 s leases. Op 1
-release: every claim dropped → `u8 took`. Releasing switches the AFE
-rail off, which gives the drivers their supply rather than taking it
-away - the direction that is safe while armed.
+The rails and who holds them. Ops:
+
+| op | Request | Reply |
+| --- | --- | --- |
+| 0 state | - | `u8 rails`, per rail `u8 on, u8 users, u8 count, u8 blocked, u8 leased` |
+| 1 release all | - | `u8 took`; every claim dropped |
+
+The user bits are host, thermal, imu, angle, daq. The host's claim is
+unleased; the others hold 3 s leases. Releasing switches the AFE rail
+off, which gives the drivers their supply rather than taking it away -
+the direction that is safe while armed.
 
 ### 10 DRIVE, `cmd_drive.c`
 

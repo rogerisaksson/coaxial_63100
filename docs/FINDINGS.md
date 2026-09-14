@@ -1893,6 +1893,33 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   is adopted here - the LOOP panel's cycle counters and the keepalive's
   worst gap are the numbers that decide, and they need a board. TODO
   carries it.
+* PROTOCOL.md IS HELD TO THE HANDLERS (2026-09-14). The document was
+  the wire's third answer and the one no suite read: cmd.h's enums are
+  held to the library's, the replies and requests to the decoders, and
+  the tables a reader trusts first were prose to every check.
+  `test_structure` reads each device section's op table now - the
+  backticked widths of the request and reply cells, an `Op N:`
+  paragraph where a cell says `below`, "per node" and "x count" as a
+  body repeated, a bracket as optional from where it opens, `str` and
+  `bytes` as whatever follows - and holds them to the dispatch table's
+  handlers, one check a device; a cell whose prose carries widths
+  outside backticks is skipped and named. Six sections described their
+  ops in prose (angle, link, log, time, thermal, power) and are tables
+  now, in the form the other five had; the power ops were the one set
+  named locally in the .c and are `POWER_OP_*` in cmd.h with a handler
+  for the release, so the enum check holds them too. THE FIRST RUNS
+  FOUND THREE DRIFTS: the gate drivers' skew stated `u8` twice where
+  the wire carries `i8`; the IMU feature op stated `u8 took` where the
+  handler answers nothing; the IMU probe stated no request where the
+  handler reads a length and a select byte. The rewrite found a
+  fourth: the thermal state's `u8 10` for a node count that has been
+  twenty since MINOR 13. Two parser rules were learned on the way: a
+  block that writes and then returns without an error is the reply
+  itself (the IMU id's answer inside its retry loop, `cmd_took`'s took
+  byte), not an alternative path to skip; and "then" before a span is
+  not a repeat. Proof: structure 653 -> 665, eleven devices one check
+  each, the counts synced, build 0 warnings (202 124 B of flash, 24 B
+  for the power handler), CI.
 
 ## The local model
 

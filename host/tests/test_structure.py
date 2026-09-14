@@ -569,7 +569,7 @@ MIRRORS = (
 OP_CLASSES = {'IMU': 'ImuOp', 'ANGLE': 'AngleOp', 'LINK': 'LinkOp',
               'CAL': 'CalOp', 'GATEDRIVERS': 'GateOp', 'LOG': 'LogOp',
               'DAQ': 'DaqOp', 'TIME': 'TimeOp', 'THERMAL': 'ThermalOp',
-              'DRIVE': 'DriveOp'}
+              'DRIVE': 'DriveOp', 'POWER': 'PowerOp'}
 
 _NUMBER = re.compile(r'\b(\d+(?:\.\d*)?(?:[eE][-+]?\d+)?)[uUlL]*[fF]?\b')
 
@@ -685,6 +685,9 @@ _C_TOKENS = re.compile(
     r'|(?P<leave>\b(?:return|continue)\b[^;]*;)'
     r'|for\s*\([^;]*;[^<]*<=?\s*(?:\([^)]*\)\s*)?(?P<bound>\w+)[^)]*\)'
     r'|\b(?P<callee>\w+)\s*\(\s*out\b')
+#: The command files whose helpers any handler may call - `cmd_took`
+#: writes the byte every acknowledging op answers with.
+_SHARED = ('comms/src/cmd_device.c', 'comms/src/cmd.c')
 _HEADERS = ('comms/inc', 'board/inc', 'drive/inc', 'thermal/inc', 'daq/inc',
             'filter/inc', 'shtp/inc', 'modbus/inc')
 
@@ -707,7 +710,7 @@ def _c_defines(extra_text=''):
 
 def _c_function(text, name):
     """The braces of `name` in `text`, or None when it is not defined there."""
-    m = re.search(r'^static\s+\w+\s+%s\s*\(\s*wr_t\s*\*\s*out' % re.escape(name), text, re.M)
+    m = re.search(r'^(?:static\s+)?\w+\s+%s\s*\(\s*wr_t\s*\*\s*out' % re.escape(name), text, re.M)
     return None if m is None else text[text.index('{', m.end()):]
 
 
@@ -716,7 +719,10 @@ def _c_writes_in(text, body, defines, depth_limit=4):
     its body that many times; over a count the wire carries, `('*', body)`;
     a helper taking `out` first is followed; a block that leaves - an
     early return, a continue - is an alternative path with the same shape
-    as the one that falls through, and is skipped."""
+    as the one that falls through, and is skipped - unless it wrote and
+    then returns without an error, which is the reply itself (an answer
+    found inside a retry loop, a helper's shorter form), and the writes
+    on the way to it are the whole of it."""
     stack = [[[], None, False]]      # [writes, repeat-or-'*'-or-None, ends-in-leave]
     depth, bound = 0, None
     for m in _C_TOKENS.finditer(body):
@@ -745,6 +751,8 @@ def _c_writes_in(text, body, defines, depth_limit=4):
             stack[-1][2] = False
             continue
         if m.group('leave'):
+            if depth > 1 and stack[-1][0] and re.search(r'\breturn\b(?![^;]*CMD_ERR)', m.group('leave')):
+                return [w for level in stack for w in level[0]]
             stack[-1][2] = True
             continue
         stack[-1][2] = False
@@ -752,8 +760,10 @@ def _c_writes_in(text, body, defines, depth_limit=4):
             bound = m.group('bound')
             continue
         callee = m.group('callee')
-        w = re.fullmatch(r'wr_(u8|i8|u16|i16|u32|i32)', callee)
-        if w:
+        w = re.fullmatch(r'wr_(u8|i8|u16|i16|u32|i32|str|bytes)', callee)
+        if w and w.group(1) in ('str', 'bytes'):
+            stack[-1][0].append(('rest',))
+        elif w:
             stack[-1][0].append(w.group(1))
         elif depth_limit and _c_function(text, callee) is not None:
             stack[-1][0].extend(_c_writes_in(text, _c_function(text, callee), defines,
@@ -761,9 +771,19 @@ def _c_writes_in(text, body, defines, depth_limit=4):
     return stack[0][0]
 
 
+def _c_source(rel):
+    """One command file's text with the shared files' after it, comments
+    stripped, so a helper is found whichever file defines it."""
+    texts = []
+    for each in (rel,) + _SHARED:
+        path = os.path.join(REPO, *each.split('/'))
+        if os.path.exists(path):
+            texts.append(io.open(path, encoding='utf-8').read())
+    return re.sub(r'/\*.*?\*/', ' ', '\n'.join(texts), flags=re.S)
+
+
 def _c_writes(rel, name):
-    text = io.open(os.path.join(REPO, *rel.split('/')), encoding='utf-8').read()
-    text = re.sub(r'/\*.*?\*/', ' ', text, flags=re.S)
+    text = _c_source(rel)
     body = _c_function(text, name)
     assert body is not None, '%s has no %s taking out first' % (rel, name)
     return _c_writes_in(text, body, _c_defines(text))
@@ -861,8 +881,19 @@ def _shapes_agree(wrote, read, i=0, j=0):
     if i == len(wrote) and j == len(read):
         return True, i
     if i >= len(wrote) or j >= len(read):
-        return False, i
+        rest = wrote[i:] if i < len(wrote) else read[j:]
+        return all(isinstance(x, tuple) and x[0] in ('?', 'rest') for x in rest), i
     a, b = wrote[i], read[j]
+    if (isinstance(a, tuple) and a[0] == 'rest') or (isinstance(b, tuple) and b[0] == 'rest'):
+        return True, len(wrote)
+    if isinstance(a, tuple) and a[0] == '?':
+        if isinstance(b, tuple) and b[0] == '?' and a[1] == b[1]:
+            return _shapes_agree(wrote, read, i + 1, j + 1)
+        taken = _shapes_agree(wrote, read, i + 1, j + 1) if b == a[1] else (False, i)
+        return taken if taken[0] else _shapes_agree(wrote, read, i + 1, j)
+    if isinstance(b, tuple) and b[0] == '?':
+        taken = _shapes_agree(wrote, read, i + 1, j + 1) if a == b[1] else (False, i)
+        return taken if taken[0] else _shapes_agree(wrote, read, i, j + 1)
     if isinstance(a, tuple) and isinstance(b, tuple):
         return _shapes_agree(wrote, read, i + 1, j + 1) if a[1] == b[1] else (False, i)
     if isinstance(a, tuple) or isinstance(b, tuple):
@@ -923,7 +954,7 @@ def test_wire_shapes_agree(r):
 _RD_TOKENS = re.compile(
     r'(?P<open>\{)|(?P<close>\})|(?P<semi>;)'
     r'|(?P<leave>\b(?:return|continue)\b[^;]*;)'
-    r'|(?P<guard>\brd_left\s*\(\s*in\s*\))'
+    r'|(?P<guard>\brd_left\s*\(\s*in\s*\)|\?)'
     r'|for\s*\([^;]*;[^<]*<=?\s*(?:\([^)]*\)\s*)?(?P<bound>\w+)[^)]*\)'
     r'|\brd_(?P<width>u8|i8|u16|i16|u32|i32|bytes)\s*\(\s*in\b')
 _DISPATCH = re.compile(r'case\s+(\w+?)_OP_(\w+)\s*:\s*return\s+(\w+)\s*\(\s*(in|out)')
@@ -1110,13 +1141,161 @@ def test_wire_requests_agree(r):
                     compared, (', not literal: ' + ', '.join(skipped)) if skipped else ''))
 
 
+#: PROTOCOL.md's third answer to a reply's shape, held to the code. A row
+#: `| N name | request | reply |` under `### N DEVICE` carries the widths in
+#: backticks - `u8 on`, `u16 x3 ticks [, u32 periods]`, `i32 x5 x count`,
+#: `u8 channel, bytes` - and a reply of `below` is the `Op N:` paragraph
+#: after the table. Prose is prose; only the backticked spans are read, a
+#: span after "per", "rows" or "of" is a body repeated an unknown number of
+#: times, and a cell whose prose carries widths outside backticks is skipped
+#: and named rather than half-read.
+_DOC_SECTION = re.compile(r'^### (\d+) ([A-Z_]+),', re.M)
+_DOC_ROW = re.compile(r'^\| (\d+) [a-z_ ]+ \| (.*?) \| (.*?) \|\s*$', re.M)
+_DOC_SPAN = re.compile(r'`([^`]*)`')
+_DOC_WIDTH = re.compile(r'\b([ui](?:8|16|32)|bytes|str)\b')
+_DOC_REPEATED = re.compile(r'(?:\bper(?: \w+){1,2}|\brows|\bof)\s*$')
+
+
+def _doc_widths(cell):
+    """The widths a document cell states, or None when its prose carries
+    widths the backticks do not."""
+    outside = _DOC_SPAN.sub(' ', cell)
+    if _DOC_WIDTH.search(outside) or 'below' in cell:
+        return None
+    out = []
+    for m in _DOC_SPAN.finditer(cell):
+        before = cell[max(0, m.start() - 24):m.start()]
+        body = []
+        optional = False
+        for item in m.group(1).split(','):
+            w = _DOC_WIDTH.search(item)
+            if w is None:
+                optional = optional or '[' in item
+                continue
+            # a bracket before the width opens the optional part here; one
+            # after it opens it for the fields that follow
+            opened = item.find('[')
+            optional = optional or (0 <= opened < w.start())
+            later = opened > w.start()
+            item = item.replace('[', ' ').replace(']', ' ')
+            width = w.group(1)
+            if width in ('bytes', 'str'):
+                body.append(('rest',))
+                continue
+            times = re.search(r'\bx(\d+)\b', item)
+            counted = re.search(r'\bx count\b|\bx n\b', item)
+            fields = [('?', width) if optional else width] * (int(times.group(1)) if times else 1)
+            if counted:
+                body.append(('*', tuple(fields)))
+            else:
+                body.extend(fields)
+            optional = optional or later
+        if _DOC_REPEATED.search(before) and body:
+            out.append(('*', tuple(body)))
+        else:
+            out.extend(body)
+    return out
+
+
+def _doc_ops():
+    """{(PREFIX, op number): (request widths, reply widths)} off PROTOCOL.md,
+    None for a cell this reader cannot take whole."""
+    text = io.open(os.path.join(REPO, 'docs', 'PROTOCOL.md'), encoding='utf-8').read()
+    found = {}
+    sections = list(_DOC_SECTION.finditer(text))
+    for k, sec in enumerate(sections):
+        end = sections[k + 1].start() if k + 1 < len(sections) else len(text)
+        chunk = text[sec.start():end]
+        prefix = sec.group(2).replace('_', '')
+        paragraphs = {int(m.group(1)): m.group(2) for m in re.finditer(
+            r'^Op (\d+): (.*?)(?:\n\n|\Z)', chunk, re.M | re.S)}
+        for m in _DOC_ROW.finditer(chunk):
+            op = int(m.group(1))
+            request = [] if m.group(2).strip() == '-' else _doc_widths(m.group(2))
+            reply_cell = m.group(3)
+            if 'below' in reply_cell:
+                reply = _doc_widths(paragraphs[op]) if op in paragraphs else None
+            else:
+                reply = [] if reply_cell.strip() == '-' else _doc_widths(reply_cell)
+            found[(prefix, op)] = (request, reply)
+    return found
+
+
+def _c_ops():
+    """{(PREFIX, op number): (reads, writes)} off the dispatch tables."""
+    found = {}
+    folder = os.path.join(REPO, 'comms', 'src')
+    for name in sorted(os.listdir(folder)):
+        if not name.startswith('cmd_') or name == 'cmd_length.c':
+            continue
+        own = re.sub(r'/\*.*?\*/', ' ',
+                     io.open(os.path.join(folder, name), encoding='utf-8').read(), flags=re.S)
+        text = _c_source('comms/src/' + name)
+        defines = _c_defines(text)
+        for prefix, op, handler, first in _DISPATCH.findall(own):
+            number = defines.get('%s_OP_%s' % (prefix, op))
+            if number is None:
+                continue
+            reads = _c_reads(text, handler, defines) if first == 'in' else []
+            body = _c_function(text, handler)
+            writes = _c_writes_in(text, body, defines) if body is not None else []
+            if body is None:
+                # a handler reading and writing: the writes parser wants
+                # `out` first, so read its writes off the `in, out` form
+                m = re.search(r'^static\s+\w+\s+%s\s*\(\s*rd_t\s*\*\s*in\s*,\s*wr_t\s*\*\s*out'
+                              % re.escape(handler), text, re.M)
+                if m is not None:
+                    writes = _c_writes_in(text, text[text.index('{', m.end()):], defines)
+            found[(prefix, number)] = (reads, writes)
+    return found
+
+
+def _same_shape(code, doc):
+    """A document's widths against the code's, either side repeating."""
+    return _shapes_agree(list(code), list(doc))[0]
+
+
+def test_protocol_agrees(r):
+    """PROTOCOL.md's op tables say what the handlers read and write.
+
+    The document is the third answer to a shape, and the one no compiler
+    or interpreter ever checked - the C's own comments warn that a moved
+    offset breaks every decoder, and a table that says `u8 skew` where
+    the wire carries `i8` is the same drift in prose. Each device's rows
+    are read for their backticked widths and held to the dispatch
+    table's handlers, both the request and the reply; what the prose
+    states outside backticks is skipped and named.
+    """
+    doc = _doc_ops()
+    code = _c_ops()
+    for prefix in sorted({p for p, _ in doc if any(q == p for q, _ in code)}):
+        wrong, compared, skipped = [], 0, []
+        for (p, op), (request, reply) in sorted(doc.items()):
+            if p != prefix or (p, op) not in code:
+                continue
+            reads, writes = code[(p, op)]
+            for side, stated, actual in (('request', request, reads), ('reply', reply, writes)):
+                if stated is None:
+                    skipped.append('%d %s' % (op, side))
+                    continue
+                compared += 1
+                if not _same_shape(actual, stated):
+                    wrong.append('op %d %s: C %s, document %s' % (
+                        op, side, ' '.join(str(w) for w in actual) or 'nothing',
+                        ' '.join(str(w) for w in stated) or 'nothing'))
+        r.check("PROTOCOL.md's %s table says what the handlers read and write" % prefix,
+                not wrong, '; '.join(wrong[:3]) or '%d cells%s' % (
+                    compared, (', prose: ' + ', '.join(skipped)) if skipped else ''))
+
+
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
           test_shape, test_documented, test_no_escaping_scars,
           test_counts_are_measured, test_subsystem_calls_resolve,
           test_limits_live_in_one_file, test_mirrors_agree,
-          test_wire_shapes_agree, test_wire_requests_agree)
+          test_wire_shapes_agree, test_wire_requests_agree,
+          test_protocol_agrees)
 
 
 def main():
