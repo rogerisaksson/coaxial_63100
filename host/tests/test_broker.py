@@ -286,7 +286,7 @@ def test_a_stale_address_is_not_a_broker(report):
         # port, and raised instead of falling back. Checked at the seam
         # rather than through open_session - that one discovers whatever
         # board is actually plugged in, and would start a broker for it.
-        from coaxial_mcp.session import _answers
+        from coaxial.session import _answers
         report.check('and the session layer says it does not answer',
                      _answers({'host': '127.0.0.1', 'tcp': 8792}) is False)
     finally:
@@ -297,7 +297,7 @@ def test_a_stale_address_is_not_a_broker(report):
     fake = Fake()
     served(fake)
     try:
-        from coaxial_mcp.session import _answers as asks
+        from coaxial.session import _answers as asks
         report.check('a live broker answers that question',
                      asks({'host': ADDRESS[0], 'tcp': ADDRESS[1]}) is True)
         report.check('and asking did not take it down',

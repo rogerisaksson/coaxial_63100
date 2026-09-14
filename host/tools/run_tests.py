@@ -340,7 +340,7 @@ TOUCHES = (
     ('host/coaxial/calibration.py',   (DAQ_API, 'test_simulated.py')),
     ('host/coaxial/board.py',         (BROKER, 'test_simulated.py',
                                        'test_parity.py', 'test_mcp.py')),
-    ('host/coaxial_mcp/session.py',   (BROKER, 'test_mcp.py',
+    ('host/coaxial/session.py',       (BROKER, 'test_mcp.py',
                                        'test_parity.py')),
     ('host/tools/session.py',         (BROKER,)),
     # The pure character renderers: a reading in, text out. Nothing reaches a

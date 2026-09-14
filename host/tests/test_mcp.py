@@ -299,7 +299,7 @@ def main():
     # coercion, the render - which is all of it that does not need
     # firmware. What it is NOT testing then is the firmware, so the tally
     # says which it ran against and never leaves that to be assumed.
-    from coaxial_mcp.session import open_session
+    from coaxial.session import open_session
     session, found = open_session('COM4', simulated=None)
     session.close()
     server = ServerProcess(['--port', found.port or 'COM4']

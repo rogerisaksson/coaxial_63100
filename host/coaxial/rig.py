@@ -35,6 +35,7 @@ from .reader import BufferedReader
 from .record import Record, build
 from .motion import Motion
 from . import broker
+from . import session as sessionmod
 from contextlib import suppress
 
 #: Bytes the board leaves for records in one reply - `DAQ_REPLY_ROOM` in
@@ -276,10 +277,7 @@ class Coaxial63100(Acquisition):
         simulated = True if self.simulated_device else (
             None if self.link == 'auto' else False)
 
-        # Imported here, not at the top: coaxial_mcp.session imports this
-        # library, and the pair at module level is a cycle - lazy by design.
-        from coaxial_mcp.session import open_session
-        self.session, self._origin = open_session(
+        self.session, self._origin = sessionmod.open_session(
             self.port, baud=self.baud, unit=self.unit, simulated=simulated)
         self._board = self.session.board
         self.gates = GateStage(self.board)

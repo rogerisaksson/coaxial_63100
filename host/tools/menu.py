@@ -116,7 +116,7 @@ def _watch_link(port):
     itself makes - the page must not say LIVE where the view gets the
     stand-in.
     """
-    from coaxial_mcp.session import board_answers
+    from coaxial.session import board_answers
 
     while True:
         try:

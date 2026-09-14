@@ -21,7 +21,7 @@ from coaxial.errors import RigError
 
 from. import detail as detailmod
 from . import render
-from .session import open_session
+from coaxial.session import open_session
 from .tools import HANDLERS, TOOLS
 
 SERVER_NAME = 'coaxial-63100'

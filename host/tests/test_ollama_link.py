@@ -423,7 +423,7 @@ def test_fallback(report):
     must never do is leave the caller unable to tell which it got: every
     suite and the prompt itself print it, and that is what these check.
     """
-    from coaxial_mcp.session import open_session
+    from coaxial.session import open_session
     from coaxial_ollama import debug
     from coaxial_ollama import spinner as spin
 

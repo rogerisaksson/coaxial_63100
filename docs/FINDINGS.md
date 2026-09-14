@@ -1594,6 +1594,27 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   ollama tools 219, ollama board 28, every moved module imported first
   in a bare process with the editable finder stripped, the offline
   gate, CI.
+* THE SESSION IS THE LIBRARY'S (2026-09-14). `coaxial_mcp/session.py`
+  held `Session` - one lazily opened board, the surface every tool
+  reads - with `Origin`, the label, the broker check and
+  `open_session`, and the rig imported `open_session` from it inside
+  its constructor because the pair at module level was a cycle: the
+  library's front door depending on the MCP server's module, the
+  server's module depending on the library. It is `coaxial/session.py`
+  now, moved whole with `git mv`; the rig imports it at the top like
+  any other module, the server, the model runner's command line and
+  chat, the chooser and the suites import it from the library, and the
+  stand-in's docstrings name it where it lives. The one definition the
+  move doubled - `BROADCAST = 0`, which `protocol.py` already had - the
+  structure suite caught on its first run, and the session reads the
+  protocol's. Nothing in `coaxial/` imports `coaxial_mcp` or reaches
+  into `tools/` any more; the function-level imports left in the
+  library are the broker's two of `Board` (board.py imports the
+  broker), the optional pandas, numpy and Pillow by the tree's rule,
+  and three plain hoists - the transport's ACK, the NTP server name,
+  the scaling module - taken with the broker next. Proof: structure 625, mcp 50,
+  broker 33, daq_api 75, simulated 254, link 109, every moved module
+  imported first in a bare process, the offline gate, CI.
 
 ## The local model
 

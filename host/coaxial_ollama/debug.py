@@ -29,7 +29,7 @@ from importlib import import_module
 from coaxial.simulated import bus_nodes
 from .client import Ollama, OllamaError
 from .capability import choose, probe
-from coaxial_mcp import session as sessionmod
+from coaxial import session as sessionmod
 from contextlib import suppress
 
 # host/ on the path: this file's own directory's parent, so it does

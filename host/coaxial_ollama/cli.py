@@ -11,7 +11,7 @@ import sys
 from .capability import choose, probe
 from .tools import Toolbox
 from coaxial.simulated import SimulatedSession
-from coaxial_mcp import session as sessionmod
+from coaxial import session as sessionmod
 from contextlib import suppress
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

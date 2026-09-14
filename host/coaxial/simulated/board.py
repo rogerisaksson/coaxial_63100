@@ -1,5 +1,5 @@
 """The assembly: SimulatedBoard wires every device together and
-SimulatedSession answers like coaxial_mcp.session.Session."""
+SimulatedSession answers like coaxial.session.Session."""
 from ..errors import DeviceStateError
 from ..protocol import BROADCAST
 from .link import DEFAULT_BUS, SIMULATED_BUSES, SimulatedLink, _BroadcastRefuses, bus_nodes
@@ -201,7 +201,7 @@ class SimulatedBoard:
 # one says so in its own description. What is not invented is the shape:
 # one unit id per device, and identity is how a host tells them apart.
 class SimulatedSession:
-    """Drop-in for `coaxial_mcp.session.Session` that never opens a port.
+    """Drop-in for `coaxial.session.Session` that never opens a port.
 
     Same public shape - `.board`, `.info()`, `.close()`, `.reset()` - so
     `Toolbox` and every handler in `coaxial_mcp/tools.py` work against it

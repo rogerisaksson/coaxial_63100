@@ -1,4 +1,5 @@
-"""One lazily-opened board connection, shared by every tool call.
+"""One lazily-opened board connection - the library's session, which the
+rig, the MCP server and the model runner all open through `open_session`.
 
 Connecting is not a tool. A model driving a production rig should not have to
 spend a turn on it, and a forgotten connect is a whole wasted round trip - so
@@ -9,17 +10,11 @@ to the binary protocol first. On the way out the console is handed back, which
 matters: a board left in binary mode looks dead to anyone with a terminal.
 """
 import collections
-import os
-import sys
 
-# host/ on the path: this file's own directory's parent, so it does
-# not matter what the working directory is or what any directory
-# along the way is called.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from coaxial import broker, connect, disconnect, ports, scan  # noqa: E402
-from coaxial.errors import RigError              # noqa: E402
-from coaxial.simulated import SimulatedSession   # noqa: E402
+from . import broker, ports, protocol
+from .board import connect, disconnect, scan
+from .errors import RigError
+from .simulated import SimulatedSession
 
 
 # `kind` is the *communication interface type*: how the host reaches the
@@ -32,8 +27,6 @@ Origin = collections.namedtuple(
     'Origin', 'real port baud kind label interface unit')
 
 
-BROADCAST = 0
-
 
 def _node(unit, where=None):
     """The node half of the prompt tag: which one, or all of them.
@@ -43,7 +36,7 @@ def _node(unit, where=None):
     and no read works there. It says so in words the operator cannot read
     as "node zero".
     """
-    if unit == BROADCAST:
+    if unit == protocol.BROADCAST:
         return 'ALL NODES'
     if where:
         return 'node %d %s' % (unit, where)
@@ -91,7 +84,7 @@ def _answers(served, unit=1):
     Measured 2026-08-31, the board deliberately unpowered: a lingering
     broker made `auto` commit to a real port, and ROTOR OBSERVER died of
     a ConnectError instead of falling back to the stand-in. The round
-    trip below is the one `find_board.probe` makes, through the socket.
+    trip below is the one `ports.probe` makes, through the socket.
     """
     # Long enough for the broker's own answer: it gives the board a
     # second and retries once across a console handover before saying no.

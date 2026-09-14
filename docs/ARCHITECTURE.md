@@ -190,6 +190,9 @@ included, as a Pillow image a notebook displays inline; `ansi.png`
 writes one, and `tools/ansi2png.py` is the command line over them.
 `ports.py` lists the COM ports and probes them - which is this board,
 the debug probe or RS485 - and `tools/find_board.py` is its command line.
+`session.py` is one lazily opened board behind `open_session()`: the rig,
+the MCP server and the model runner all open through it, and its
+`Origin` says what answered - the board, a broker, or the stand-in.
 
 ### The stand-in
 

@@ -3,7 +3,7 @@ codebase - the REPL, the spinner, a tool call - without touching a serial
 port at all.
 
 This is not a protocol simulator. Nothing here builds a Modbus frame or
-answers one; it is a duck-typed stand-in for `coaxial_mcp.session.Session`
+answers one; it is a duck-typed stand-in for `coaxial.session.Session`
 and `coaxial.board.Board`, shaped exactly like the real ones so every tool
 in `coaxial_mcp/tools.py` works against it unmodified. Every value it
 returns is invented, and every touchpoint says so - `firmware` and `build`

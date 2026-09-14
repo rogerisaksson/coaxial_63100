@@ -47,7 +47,7 @@ from coaxial_ollama import runner as runmod                # noqa: E402
 from coaxial_ollama import tools as toolmod                # noqa: E402
 from coaxial_ollama.sandbox import Scope, Shell            # noqa: E402
 from coaxial_mcp import detail                             # noqa: E402,F401
-from coaxial_mcp import session as sessionmod              # noqa: E402
+from coaxial import session as sessionmod              # noqa: E402
 from coaxial_ollama import client as clientmod             # noqa: E402
 BSLASH = chr(92)
 
@@ -175,7 +175,7 @@ class SimulatedBoard:
         pass
 class SimulatedSession:
     """A session over the scripted board above. THE SURFACE EVERY
-    SESSION HAS - coaxial_mcp.session.Session lists it - with no port
+    SESSION HAS - coaxial.session.Session lists it - with no port
     behind it: the tools read this as a stand-in with a board, and
     nothing attached for a link check to reuse."""
     port = bus = unit = attached = None

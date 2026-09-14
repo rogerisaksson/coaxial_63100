@@ -1,7 +1,7 @@
 """Which COM port this board is on - one implementation, called from every
 side, so "does this port answer" cannot drift between them:
 
-  * `coaxial_mcp.session.open_session`, looking for the board before it
+  * `coaxial.session.open_session`, looking for the board before it
     settles for the stand-in;
   * `coaxial.broker`, naming the path a held port is;
   * `coaxial_ollama`'s link_diagnose tool - the model, mid-session, when
