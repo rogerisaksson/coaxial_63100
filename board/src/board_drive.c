@@ -24,21 +24,36 @@
 
 #include <math.h>
 
-static drive_t  s_drive;
-static bool     s_ready;
-/** What the thermal envelope is scaling the current clamp by, 1 to 0.
-    Held here rather than read from the observer in the interrupt: the
-    poll runs at 10 Hz on the main loop and this is read at 50 kHz. */
-static float    s_derate = 1.0f;
-/** The clamp the record asked for, before any derating. */
-static float    s_i_max_cal = 0.0f;
-static bool     s_owned;          /**< the drive holds the compares       */
-static uint32_t s_cycles_last;    /**< what one step cost, raw CYCCNT     */
-static uint32_t s_cycles_max;
-/** Where TIM1 stood when the step ended, in ticks past the trigger: the
-    conversion, the HAL's interrupt entry and the step, all of it. The
-    cycle count above starts inside the step and misses the first two. */
-static uint16_t s_exit_ticks_max;
+/** The drive glue's state: the law, the record's derate and clamp, the
+  * ownership of the compares, the step's cost, and the converters' scaling.
+  * One object: what a debugger shows whole and a reset clears at once. */
+static struct
+{
+  drive_t drive;
+  bool ready;
+  /** What the thermal envelope is scaling the current clamp by, 1 to 0.
+      Held here rather than read from the observer in the interrupt: the
+      poll runs at 10 Hz on the main loop and this is read at 50 kHz. */
+  float derate;
+  /** The clamp the record asked for, before any derating. */
+  float i_max_cal;
+  bool owned;                     /**< the drive holds the compares       */
+  uint32_t cycles_last;           /**< what one step cost, raw CYCCNT     */
+  uint32_t cycles_max;
+  /** Where TIM1 stood when the step ended, in ticks past the trigger: the
+      conversion, the HAL's interrupt entry and the step, all of it. The
+      cycle count above starts inside the step and misses the first two. */
+  uint16_t exit_ticks_max;
+
+  /** The conversions, affine and cached: refreshed with the parameters.
+      A call into board_adc.c per sample was most of the interrupt. */
+  int32_t i_off[BOARD_PWM_PHASES];
+  float i_k[BOARD_PWM_PHASES];
+  int32_t v_off;
+  float v_k;
+} s = {
+  .derate = 1.0f, .i_max_cal = 0.0f
+};
 
 void Board_DriveDerate(float factor)
 {
@@ -53,26 +68,19 @@ void Board_DriveDerate(float factor)
   {
     factor = 1.0f;
   }
-  s_derate = factor;
-  if (s_ready)
+  s.derate = factor;
+  if (s.ready)
   {
-    s_drive.p.i_max = s_i_max_cal * s_derate;
+    s.drive.p.i_max = s.i_max_cal * s.derate;
   }
 }
 
 
 float Board_DriveDerating(void)
 {
-  return s_derate;
+  return s.derate;
 }
 
-
-/** The conversions, affine and cached: refreshed with the parameters.
-    A call into board_adc.c per sample was most of the interrupt. */
-static int32_t s_i_off[BOARD_PWM_PHASES];
-static float   s_i_k[BOARD_PWM_PHASES];
-static int32_t s_v_off;
-static float   s_v_k;
 
 #define TWO_PI_F 6.2831853f
 #define CODES_PER_TURN 65536.0f   /* the wire's angle: a turn in 65536 */
@@ -100,7 +108,7 @@ static float milli_signed(uint32_t v)
 void Board_DriveParamsFromCal(void)
 {
   const board_cal_t *cal = Board_Cal();
-  drive_params_t *p = &s_drive.p;
+  drive_params_t *p = &s.drive.p;
 
   p->r = micro(cal->motor_r_uohm);
   p->ld = (float)cal->motor_ld_nh / NANO_PER_UNIT;
@@ -115,8 +123,8 @@ void Board_DriveParamsFromCal(void)
   p->inj_periods = (uint16_t)cal->drv_inj_periods;
   p->inj_phase = milli_signed(cal->drv_inj_phase_mrad);
   p->eps_gain = (float)(int32_t)cal->drv_eps_gain_ua_per_rad / MICRO_PER_UNIT;
-  s_i_max_cal = milli(cal->drv_i_max_ma);
-  p->i_max = s_i_max_cal * s_derate;
+  s.i_max_cal = milli(cal->drv_i_max_ma);
+  p->i_max = s.i_max_cal * s.derate;
   p->i_trip = milli(cal->drv_i_trip_ma);
   p->v_frac = micro(cal->drv_v_frac_ppm);
   p->sign = ((int32_t)cal->drv_sign < 0) ? -1.0f : 1.0f;
@@ -130,9 +138,9 @@ void Board_DriveParamsFromCal(void)
 
   for (uint8_t k = 0U; k < BOARD_PWM_PHASES; k++)
   {
-    Board_PhaseScale(k, &s_i_off[k], &s_i_k[k]);
+    Board_PhaseScale(k, &s.i_off[k], &s.i_k[k]);
   }
-  Board_DcBusScale(&s_v_off, &s_v_k);
+  Board_DcBusScale(&s.v_off, &s.v_k);
 
   /* The sample point the commissioning chose, if it chose one. Zero is
      "never measured" and leaves the sync's own default alone. */
@@ -152,30 +160,30 @@ void Board_DriveInit(void)
   const float ts = ((ticks != 0U) && (hz != 0U))
                    ? ((float)ticks / (float)hz) : 20e-6f;
 
-  drive_init(&s_drive, ts);
-  s_drive.cycles = Board_Cycles;
+  drive_init(&s.drive, ts);
+  s.drive.cycles = Board_Cycles;
   Board_DriveParamsFromCal();
-  s_owned = false;
-  s_cycles_max = 0U;
-  s_ready = true;
+  s.owned = false;
+  s.cycles_max = 0U;
+  s.ready = true;
 }
 
 
 const drive_t *Board_Drive(void)
 {
-  return &s_drive;
+  return &s.drive;
 }
 
 
 float Board_DriveTs(void)
 {
-  return s_drive.ts;
+  return s.drive.ts;
 }
 
 
 const char *Board_DriveSetMode(uint8_t mode)
 {
-  if (!s_ready)
+  if (!s.ready)
   {
     return "the drive has not been initialised - the board has not "
            "finished starting";
@@ -194,7 +202,7 @@ const char *Board_DriveSetMode(uint8_t mode)
   Board_DriveParamsFromCal();
 
   const uint32_t masked = Board_IrqHold();
-  const char *why = drive_set_mode(&s_drive, (drive_mode_t)mode,
+  const char *why = drive_set_mode(&s.drive, (drive_mode_t)mode,
                                    Board_PwmIsEnabled(), Board_AfeOn());
   Board_IrqRelease(masked);
   return why;
@@ -203,7 +211,7 @@ const char *Board_DriveSetMode(uint8_t mode)
 
 const char *Board_DriveSetpoint(uint8_t id, int32_t value)
 {
-  drive_setpoints_t *sp = &s_drive.sp;
+  drive_setpoints_t *sp = &s.drive.sp;
   const float f = (float)value;
 
   switch (id)
@@ -241,7 +249,7 @@ const char *Board_DriveSetpoint(uint8_t id, int32_t value)
 
 void Board_DriveSetpointsGet(int32_t *out)
 {
-  const drive_setpoints_t *sp = &s_drive.sp;
+  const drive_setpoints_t *sp = &s.drive.sp;
 
   out[0] = (int32_t)(sp->id_ref * MILLI_PER_UNIT);
   out[1] = (int32_t)(sp->iq_ref * MILLI_PER_UNIT);
@@ -262,15 +270,15 @@ const char *Board_DriveSetSource(uint8_t source)
   {
     return "source is 0 for the converters or 1 for the model";
   }
-  if (s_drive.mode != DRIVE_OFF)
+  if (s.drive.mode != DRIVE_OFF)
   {
     return "the drive is running - mode 0 first, then change where its "
            "samples come from";
   }
 
   const uint32_t masked = Board_IrqHold();
-  s_drive.source = (source != 0U) ? DRIVE_SOURCE_MODEL : DRIVE_SOURCE_ADC;
-  drive_model_init(&s_drive.model);
+  s.drive.source = (source != 0U) ? DRIVE_SOURCE_MODEL : DRIVE_SOURCE_ADC;
+  drive_model_init(&s.drive.model);
   Board_IrqRelease(masked);
   return NULL;
 }
@@ -278,7 +286,7 @@ const char *Board_DriveSetSource(uint8_t source)
 
 const char *Board_DriveModelParam(uint8_t id, int32_t value)
 {
-  drive_model_params_t *p = &s_drive.model.p;
+  drive_model_params_t *p = &s.drive.model.p;
   const float f = (float)value;
 
   switch (id)
@@ -320,7 +328,7 @@ const char *Board_DriveModelParam(uint8_t id, int32_t value)
 void Board_DriveModelReset(void)
 {
   const uint32_t masked = Board_IrqHold();
-  drive_model_init(&s_drive.model);
+  drive_model_init(&s.drive.model);
   Board_IrqRelease(masked);
 }
 
@@ -328,7 +336,7 @@ void Board_DriveModelReset(void)
 void Board_DriveSetTheta(int32_t microradians)
 {
   const uint32_t masked = Board_IrqHold();
-  drive_set_theta(&s_drive, (float)microradians / MICRO_PER_UNIT);
+  drive_set_theta(&s.drive, (float)microradians / MICRO_PER_UNIT);
   Board_IrqRelease(masked);
 }
 
@@ -336,7 +344,7 @@ void Board_DriveSetTheta(int32_t microradians)
 void Board_DriveWindowTake(drive_window_t *out)
 {
   const uint32_t masked = Board_IrqHold();
-  drive_window_take(&s_drive, out);
+  drive_window_take(&s.drive, out);
   Board_IrqRelease(masked);
 }
 
@@ -344,7 +352,7 @@ void Board_DriveWindowTake(drive_window_t *out)
 void Board_DriveMomentsArm(uint32_t periods)
 {
   const uint32_t masked = Board_IrqHold();
-  drive_moments_arm(&s_drive, periods);
+  drive_moments_arm(&s.drive, periods);
   Board_IrqRelease(masked);
 }
 
@@ -352,46 +360,46 @@ void Board_DriveMomentsArm(uint32_t periods)
 void Board_DriveMoments(drive_moments_t *out)
 {
   const uint32_t masked = Board_IrqHold();
-  *out = s_drive.mom;
+  *out = s.drive.mom;
   Board_IrqRelease(masked);
 }
 
 
 void Board_DriveCycles(uint32_t *last, uint32_t *max)
 {
-  *last = s_cycles_last;
-  *max = s_cycles_max;
+  *last = s.cycles_last;
+  *max = s.cycles_max;
 }
 
 
 void Board_DriveCyclesReset(void)
 {
-  s_cycles_max = 0U;
-  s_exit_ticks_max = 0U;
+  s.cycles_max = 0U;
+  s.exit_ticks_max = 0U;
 }
 
 
 uint16_t Board_DriveExitTicks(void)
 {
-  return s_exit_ticks_max;
+  return s.exit_ticks_max;
 }
 
 
 bool Board_DriveOwnsCompares(void)
 {
-  return s_owned;
+  return s.owned;
 }
 
 /* The stage is the drive's from the first triple until it lets go -
    taken once, not asked for every period. */
 static void own_pwm(void)
 {
-  if (s_owned)
+  if (s.owned)
   {
     return;
   }
   Board_PwmDriveOwn(true);
-  s_owned = true;
+  s.owned = true;
 }
 
 /** What the law's duties do to the compares this period: nothing while
@@ -400,7 +408,7 @@ static void own_pwm(void)
   * stage drop, the host asking for OFF - before the compares are let go. */
 static void commit_duties(const drive_out_t *out, bool enabled, bool running)
 {
-  if (enabled && (s_drive.mode != DRIVE_OFF))
+  if (enabled && (s.drive.mode != DRIVE_OFF))
   {
     uint16_t ticks[BOARD_PWM_PHASES];
     const float arr = (float)(Board_PwmPeriod() - 1U);
@@ -413,7 +421,7 @@ static void commit_duties(const drive_out_t *out, bool enabled, bool running)
     Board_PwmSetNext(ticks);
     return;
   }
-  if (!(running || s_owned) || !s_owned)
+  if (!(running || s.owned) || !s.owned)
   {
     return;
   }
@@ -422,14 +430,14 @@ static void commit_duties(const drive_out_t *out, bool enabled, bool running)
 
   Board_PwmSetNext(zeros);
   Board_PwmDriveOwn(false);
-  s_owned = false;
+  s.owned = false;
 }
 
 void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
 {
   /* In ADC3's interrupt, straight after the triple was latched. Nothing
      here talks (invariant 5). */
-  if (!s_ready)
+  if (!s.ready)
   {
     return;
   }
@@ -442,27 +450,27 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   for (uint8_t k = 0U; k < BOARD_PWM_PHASES; k++)
   {
     codes[k] = (int32_t)phase[k];
-    in.i[k] = (float)(codes[k] - s_i_off[k]) * s_i_k[k];
+    in.i[k] = (float)(codes[k] - s.i_off[k]) * s.i_k[k];
   }
   codes[3] = (int32_t)dcbus_raw;
-  in.vdc = (float)(codes[3] - s_v_off) * s_v_k;
-  drive_moments_feed(&s_drive, codes);
+  in.vdc = (float)(codes[3] - s.v_off) * s.v_k;
+  drive_moments_feed(&s.drive, codes);
 
   const bool enabled = Board_PwmIsEnabled();
-  const bool running = (s_drive.mode != DRIVE_OFF);
+  const bool running = (s.drive.mode != DRIVE_OFF);
   /* The model as the source: the law runs on its currents whether or
      not a stage is armed, and the duties below reach the gates only if
      one is - which is how the rotor observer is watched on this bench, where
      the converters and the drivers are never powered together. */
-  const bool trip = (s_drive.source == DRIVE_SOURCE_MODEL)
-                    ? drive_step_virtual(&s_drive, &out)
-                    : drive_step(&s_drive, &in, enabled, &out);
+  const bool trip = (s.drive.source == DRIVE_SOURCE_MODEL)
+                    ? drive_step_virtual(&s.drive, &out)
+                    : drive_step(&s.drive, &in, enabled, &out);
 
   if (trip)
   {
     /* The trip: MOE down in hardware before this returns. */
     Board_PwmDisable();
-    s_owned = false;
+    s.owned = false;
   }
   else
   {
@@ -476,17 +484,17 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   if ((Board_LogSources() & (1U << BOARD_LOG_SOURCE_DRIVE)) != 0U)
   {
     const int16_t logged[4] = {
-      (int16_t)lrintf(s_drive.id * CENTI_PER_UNIT),
-      (int16_t)lrintf(s_drive.iq * CENTI_PER_UNIT),
-      (int16_t)(uint16_t)lrintf(s_drive.theta_hat / TWO_PI_F * CODES_PER_TURN),
-      (int16_t)lrintf(s_drive.eps * LOG_EPS_SCALE),
+      (int16_t)lrintf(s.drive.id * CENTI_PER_UNIT),
+      (int16_t)lrintf(s.drive.iq * CENTI_PER_UNIT),
+      (int16_t)(uint16_t)lrintf(s.drive.theta_hat / TWO_PI_F * CODES_PER_TURN),
+      (int16_t)lrintf(s.drive.eps * LOG_EPS_SCALE),
     };
 
     Board_LogPush(BOARD_LOG_SOURCE_DRIVE, logged, 4U);
   }
 
-  s_cycles_last = Board_Cycles() - t0;
-  s_cycles_max = (s_cycles_last > s_cycles_max) ? s_cycles_last : s_cycles_max;
+  s.cycles_last = Board_Cycles() - t0;
+  s.cycles_max = (s.cycles_last > s.cycles_max) ? s.cycles_last : s.cycles_max;
 
   /* The trigger fires on the down-slope at CCR5; the counter has fallen
      since, or turned at zero and climbed. Either way the ticks since. */
@@ -495,8 +503,8 @@ void Board_DriveOnSample(const int16_t *phase, uint32_t dcbus_raw)
   const uint32_t since = ((TIM1->CR1 & TIM_CR1_DIR) != 0U)
                          ? (trigger - cnt) : (trigger + cnt);
 
-  if (since > s_exit_ticks_max)
+  if (since > s.exit_ticks_max)
   {
-    s_exit_ticks_max = (uint16_t)since;
+    s.exit_ticks_max = (uint16_t)since;
   }
 }

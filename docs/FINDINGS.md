@@ -1743,6 +1743,31 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   -O0; structure 629; the board glue's proof is the bench's, parity,
   conformance and the live views over a flashed board. Twenty-seven
   suites now, 3048 checks, the counts synced.
+* A STRUCT PER FIRMWARE MODULE, THE FOUR LARGEST (2026-09-14). The
+  thermal glue had 26 file-scope statics, the IMU driver 18, the PWM
+  stage 16, the drive glue 12 - a module's state as seventy loose
+  variables a debugger shows one at a time and a reset clears one
+  assignment at a time. Each is one `static struct { ... } s` now,
+  placed where the first stood, every doc comment kept on its member,
+  every initialiser designated - the link volts at -1, the thermometers
+  at NaN, the margin and the trip cap at one - and every use `s.name`,
+  474 of them rewritten by a tool that refused a file where `s` was
+  already an identifier, a declaration whose initialiser ran past its
+  line, or a name that would collide. TWO THINGS THE TOOL LEARNED: a
+  `static const` table is not state and stays in flash - the IMU's zero
+  buffer went into the struct on the first pass and DTCM grew by its
+  size, 316 bytes, before the rule; and a member's array bound has to be
+  defined above the struct, so the IMU's feature count moved up. THE
+  COST, and it is -O0's: flash 197 856 -> 201 980 B, because every
+  `s.x` at -O0 is the struct's base plus an offset where a static was
+  one address, and the Debug preset is what the bench flashes; the two
+  modules on the interrupt path that matter, the drive and the sync,
+  are compiled at -O2 whatever the preset and pay nothing. DTCM 38 576
+  -> 38 572 B. The scanner's file-scope statics 167 -> 50, the fifty
+  the smaller modules' handful each - the log ring's 9, the sync's 8,
+  the acquisition glue's 5 - left for the same pass when they earn it.
+  Build 0 warnings; the proof is the bench's: parity, conformance and
+  the live views over a flashed board.
 
 ## The local model
 

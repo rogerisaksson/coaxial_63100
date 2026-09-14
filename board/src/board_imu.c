@@ -75,27 +75,75 @@
 #define IMU_BOOT_PORT GPIOD
 #define IMU_BOOT_PIN  GPIO_PIN_11
 
-static bool s_ready;
-static uint8_t s_seq[6];        /* one per SHTP channel, section 1.3.1 */
+/* EVERY FEATURE ASKED FOR, not the last one. A host wanting the
+   quaternion AND the three vectors asks four times, and a reset throws
+   away all four - re-applying only the most recent left the other three
+   silent while the loop still said `running`, which is the same defect
+   the single slot was written to fix, one report wider. Four slots
+   because four is what the part is asked for here; a fifth would say so
+   by being refused. */
+#define IMU_FEATURES 4U
 
-/* Static, not automatic. The linker script gives this firmware a 1 KB stack
-   (_Min_Stack_Size = 0x400) and the deepest path here - a command handler
-   into Board_ImuWrite into Board_ImuDrain into Board_ImuRead - had 1280
-   bytes of locals on it once IMU_BUF grew from 64 to 320 to hold the
-   advertisement. That is an overflow underneath the whole Modbus call chain,
-   and it read as the part resetting itself: garbage channels, cargoes that
-   arrived out of order, and a write that worked twice and failed a third
-   time. Nothing here is re-entrant - the board layer runs from one main
-   loop - so one buffer each is enough.
+/** The IMU driver's state: the link and its buffers, the part's clocks, the
+  * latest report, the bring-up stage, the features to set and the re-apply
+  * that waits for the part to go quiet. One object: what a debugger shows
+  * whole and a reset clears at once. */
+static struct
+{
+  bool ready;
+  uint8_t seq[6];                 /* one per SHTP channel, section 1.3.1 */
 
-   s_tx is separate from s_rx because a write builds its frame BEFORE
-   draining, and the drain reads through s_rx. */
-static uint8_t s_rx[IMU_BUF];
-static uint8_t s_tx[IMU_BUF];
+  /* Static, not automatic. The linker script gives this firmware a 1 KB stack
+     (_Min_Stack_Size = 0x400) and the deepest path here - a command handler
+     into Board_ImuWrite into Board_ImuDrain into Board_ImuRead - had 1280
+     bytes of locals on it once IMU_BUF grew from 64 to 320 to hold the
+     advertisement. That is an overflow underneath the whole Modbus call chain,
+     and it read as the part resetting itself: garbage channels, cargoes that
+     arrived out of order, and a write that worked twice and failed a third
+     time. Nothing here is re-entrant - the board layer runs from one main
+     loop - so one buffer each is enough.
+
+     s.tx is separate from s.rx because a write builds its frame BEFORE
+     draining, and the drain reads through s.rx. */
+  uint8_t rx[IMU_BUF];
+  uint8_t tx[IMU_BUF];
+
+  uint32_t kernel_hz;
+  uint32_t bitrate_hz;
+
+  /* The loop's own record. One writer - Board_ImuPoll - and one reader, both
+     on the main loop, so there is nothing to lock. */
+  board_imu_state_t state;
+
+  uint8_t stage;
+  uint32_t stage_at;
+
+  uint8_t feature_id_of[IMU_FEATURES];
+  uint32_t feature_us_of[IMU_FEATURES];
+  uint8_t features;
+
+  /* The most recent, for the command layer's one-feature question. */
+  uint8_t feature_id;
+  uint32_t feature_us;
+
+  /** Set when a reset has thrown the feature away and it has not been asked
+    * for again yet. Applied from the poll's quiet path, never from the init:
+    * `Board_ImuWrite` empties the part before speaking, a reset leaves three
+    * announcements queued at 276 bytes each, and doing that inside poll_init
+    * held the main loop long enough that the Modbus reply came back late -
+    * measured 2026-08-29 as `fc 0x6E: silence` right after the rail returned.
+    * Letting the ordinary read path consume the queue first makes the write
+    * short. */
+  bool feature_pending;
+
+  /** Which slot the re-apply has got to, since it does one a turn. */
+  uint8_t feature_next;
+  uint32_t cargoes_at_reset;      /**< to know the part has spoken */
+  uint32_t last_cargo_ms;         /**< when the last one arrived   */
+} s;
+
 static const uint8_t s_zeros[IMU_BUF];
 
-static uint32_t s_kernel_hz;
-static uint32_t s_bitrate_hz;
 
 /* The slowest divider that still clears the part's ceiling, chosen from the
    kernel clock the peripheral actually has rather than from a field in the
@@ -113,7 +161,7 @@ static uint32_t prescaler_under(uint32_t limit_hz)
 
   const uint32_t kernel = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI2);
 
-  s_kernel_hz = kernel;
+  s.kernel_hz = kernel;
 
   /* A kernel clock of zero means the peripheral clock is not configured, and
      the loop below would read 0 <= limit on the first divider and pick the
@@ -121,7 +169,7 @@ static uint32_t prescaler_under(uint32_t limit_hz)
      is a part that never answers. */
   if (kernel == 0U)
   {
-    s_bitrate_hz = 0U;
+    s.bitrate_hz = 0U;
     return SPI_BAUDRATEPRESCALER_256;
   }
 
@@ -129,12 +177,12 @@ static uint32_t prescaler_under(uint32_t limit_hz)
   {
     if ((kernel >> (i + 1U)) <= limit_hz)
     {
-      s_bitrate_hz = kernel >> (i + 1U);
+      s.bitrate_hz = kernel >> (i + 1U);
       return DIVIDERS[i];
     }
   }
 
-  s_bitrate_hz = kernel >> 8;
+  s.bitrate_hz = kernel >> 8;
   return SPI_BAUDRATEPRESCALER_256;
 }
 
@@ -298,8 +346,8 @@ bool Board_ImuBusInit(void)
   gpio.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(IMU_INTN_PORT, &gpio);
 
-  memset(s_seq, 0, sizeof(s_seq));
-  s_ready = true;
+  memset(s.seq, 0, sizeof(s.seq));
+  s.ready = true;
   return true;
 }
 
@@ -327,11 +375,11 @@ bool Board_ImuReady(void)
      seconds. Clearing the flag here is what makes the next command re-init. */
   if (!Board_AfeOn())
   {
-    s_ready = false;
+    s.ready = false;
     return false;
   }
 
-  return s_ready;
+  return s.ready;
 }
 
 static bool imu_xfer(const uint8_t *tx, uint8_t *rx, uint16_t len)
@@ -362,7 +410,7 @@ static bool transfer(const uint8_t *tx, uint8_t *rx, uint16_t len)
 {
   HAL_StatusTypeDef st;
 
-  if (!s_ready || (len == 0U) || (len > IMU_BUF))
+  if (!s.ready || (len == 0U) || (len > IMU_BUF))
   {
     return false;
   }
@@ -393,7 +441,7 @@ bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
 
   *len = 0U;
 
-  if (!s_ready)
+  if (!s.ready)
   {
     return false;
   }
@@ -418,24 +466,24 @@ bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
   cs(true);
   settle();
 
-  bool ok = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)s_zeros, s_rx,
+  bool ok = HAL_SPI_TransmitReceive(&hspi2, (uint8_t *)s_zeros, s.rx,
                                     SHTP_HEADER_LEN, IMU_SPI_TIMEOUT_MS) == HAL_OK;
 
-  if (ok && shtp_parse_header(s_rx, &head) && (head.length > SHTP_HEADER_LEN))
+  if (ok && shtp_parse_header(s.rx, &head) && (head.length > SHTP_HEADER_LEN))
   {
     const uint16_t rest = (uint16_t)(head.length - SHTP_HEADER_LEN);
 
     /* Clocked out whole even when the caller cannot hold it: leaving bytes
        in the part desynchronises every later read. What does not fit is
        dropped here rather than upstream, and *len says how much arrived. */
-    const uint16_t take = (rest > (uint16_t)sizeof(s_rx))
-                            ? (uint16_t)sizeof(s_rx) : rest;
+    const uint16_t take = (rest > (uint16_t)sizeof(s.rx))
+                            ? (uint16_t)sizeof(s.rx) : rest;
 
-    ok = imu_xfer(s_zeros, s_rx, take);
+    ok = imu_xfer(s_zeros, s.rx, take);
     if (ok)
     {
       *len = (take > cap) ? cap : take;
-      memcpy(cargo, s_rx, *len);
+      memcpy(cargo, s.rx, *len);
     }
   }
 
@@ -454,8 +502,8 @@ bool Board_ImuRead(uint8_t *channel, uint8_t *cargo, uint16_t cap,
 
 void Board_ImuClock(uint32_t *kernel_hz, uint32_t *bitrate_hz)
 {
-  if (kernel_hz != NULL)  { *kernel_hz = s_kernel_hz; }
-  if (bitrate_hz != NULL) { *bitrate_hz = s_bitrate_hz; }
+  if (kernel_hz != NULL)  { *kernel_hz = s.kernel_hz; }
+  if (bitrate_hz != NULL) { *bitrate_hz = s.bitrate_hz; }
 }
 
 bool Board_ImuProbe(uint8_t *out, uint8_t len, bool select)
@@ -468,7 +516,7 @@ bool Board_ImuProbe(uint8_t *out, uint8_t len, bool select)
     return false;
   }
 
-  if (!s_ready && !Board_ImuInit())
+  if (!s.ready && !Board_ImuInit())
   {
     return false;
   }
@@ -493,7 +541,7 @@ bool Board_ImuProbe(uint8_t *out, uint8_t len, bool select)
 
 uint16_t Board_ImuWakeTest(uint16_t ms)
 {
-  if (!s_ready && !Board_ImuInit())
+  if (!s.ready && !Board_ImuInit())
   {
     return IMU_WAKE_NOT_READY;
   }
@@ -581,24 +629,21 @@ uint8_t Board_ImuPinCheck(uint8_t pin)
 
   /* The pin is left as an input. The next IMU command re-runs the whole
      init, which hands PB12..PB15 back to SPI2. */
-  s_ready = false;
+  s.ready = false;
   return bits;
 }
 
-/* The loop's own record. One writer - Board_ImuPoll - and one reader, both
-   on the main loop, so there is nothing to lock. */
-static board_imu_state_t s_state;
 
 static void note(uint8_t err)
 {
-  s_state.error = err;
+  s.state.error = err;
   if (err != BOARD_IMU_ERR_NONE)
   {
-    s_state.errors++;
+    s.state.errors++;
     /* Kept, because `error` is cleared by the next good read and a host
        polling at 5 Hz never sees a fault at 400 reports a second. Without
        it the counter says how many and nothing says of what. */
-    s_state.last_fault = err;
+    s.state.last_fault = err;
   }
 }
 
@@ -608,16 +653,16 @@ static void note(uint8_t err)
 /** A rotation vector report into the shared record, and the ring. */
 static void take_rotation(uint8_t id, const uint8_t *r)
 {
-  s_state.report_id = id;
-  s_state.status    = r[2];
-  s_state.i    = (int16_t)((uint16_t)r[4] | ((uint16_t)r[5] << 8));
-  s_state.j    = (int16_t)((uint16_t)r[6] | ((uint16_t)r[7] << 8));
-  s_state.k    = (int16_t)((uint16_t)r[8] | ((uint16_t)r[9] << 8));
-  s_state.real = (int16_t)((uint16_t)r[10] | ((uint16_t)r[11] << 8));
-  s_state.have = true;
-  s_state.updates++;
+  s.state.report_id = id;
+  s.state.status    = r[2];
+  s.state.i    = (int16_t)((uint16_t)r[4] | ((uint16_t)r[5] << 8));
+  s.state.j    = (int16_t)((uint16_t)r[6] | ((uint16_t)r[7] << 8));
+  s.state.k    = (int16_t)((uint16_t)r[8] | ((uint16_t)r[9] << 8));
+  s.state.real = (int16_t)((uint16_t)r[10] | ((uint16_t)r[11] << 8));
+  s.state.have = true;
+  s.state.updates++;
 
-  const int16_t logged[4] = { s_state.i, s_state.j, s_state.k, s_state.real };
+  const int16_t logged[4] = { s.state.i, s.state.j, s.state.k, s.state.real };
   Board_LogPush(BOARD_LOG_SOURCE_IMU, logged, 4U);
   note(BOARD_IMU_ERR_NONE);
 }
@@ -639,7 +684,7 @@ static void take_vector(const uint8_t *r, int16_t *out, uint8_t *status)
 
 static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
 {
-  s_state.cargoes++;
+  s.state.cargoes++;
 
   if ((channel != SHTP_CH_INPUT) && (channel != SHTP_CH_WAKE))
   {
@@ -669,7 +714,7 @@ static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
          cut short" are two different defects and the counter alone cannot
          tell them apart. 0 length means unknown id; a known one means the
          cargo ended mid-report. */
-      s_state.last_fault_id = id;
+      s.state.last_fault_id = id;
       note(BOARD_IMU_ERR_FRAME);
       return;
     }
@@ -680,18 +725,18 @@ static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
     }
     else if (id == SH2_REPORT_ACCELEROMETER)
     {
-      take_vector(&cargo[at], s_state.accel, &s_state.accel_status);
-      s_state.have_accel = true;
+      take_vector(&cargo[at], s.state.accel, &s.state.accel_status);
+      s.state.have_accel = true;
     }
     else if (id == SH2_REPORT_GYROSCOPE)
     {
-      take_vector(&cargo[at], s_state.gyro, &s_state.gyro_status);
-      s_state.have_gyro = true;
+      take_vector(&cargo[at], s.state.gyro, &s.state.gyro_status);
+      s.state.have_gyro = true;
     }
     else if (id == SH2_REPORT_MAGNETIC_FIELD)
     {
-      take_vector(&cargo[at], s_state.mag, &s_state.mag_status);
-      s_state.have_mag = true;
+      take_vector(&cargo[at], s.state.mag, &s.state.mag_status);
+      s.state.have_mag = true;
     }
 
     at = (uint16_t)(at + step);
@@ -706,67 +751,35 @@ static void absorb(uint8_t channel, const uint8_t *cargo, uint16_t len)
 #define IMU_STAGE_HOLD  1U
 #define IMU_STAGE_WAIT  2U
 
-static uint8_t  s_stage;
-static uint32_t s_stage_at;
 
 /** The last Set Feature asked for, so it can be asked for again. The part
   * loses it on every reset and AFE_ON resets it; nothing re-applied it, so
   * one blink of the rail stopped the reports while the loop still said
   * `running`. Zero interval means nothing has been asked for. */
-/* EVERY FEATURE ASKED FOR, not the last one. A host wanting the
-   quaternion AND the three vectors asks four times, and a reset throws
-   away all four - re-applying only the most recent left the other three
-   silent while the loop still said `running`, which is the same defect
-   the single slot was written to fix, one report wider. Four slots
-   because four is what the part is asked for here; a fifth would say so
-   by being refused. */
-#define IMU_FEATURES 4U
-
-static uint8_t  s_feature_id_of[IMU_FEATURES];
-static uint32_t s_feature_us_of[IMU_FEATURES];
-static uint8_t  s_features;
-
-/* The most recent, for the command layer's one-feature question. */
-static uint8_t  s_feature_id;
-static uint32_t s_feature_us;
 
 
 /** Remember one, replacing an entry for the same report. Returns false
   * when there is no room, which is a refusal the caller must pass on. */
 static bool feature_keep(uint8_t report_id, uint32_t interval_us)
 {
-  for (uint8_t i = 0U; i < s_features; i++)
+  for (uint8_t i = 0U; i < s.features; i++)
   {
-    if (s_feature_id_of[i] == report_id)
+    if (s.feature_id_of[i] == report_id)
     {
-      s_feature_us_of[i] = interval_us;
+      s.feature_us_of[i] = interval_us;
       return true;
     }
   }
-  if (s_features >= IMU_FEATURES)
+  if (s.features >= IMU_FEATURES)
   {
     return false;
   }
-  s_feature_id_of[s_features] = report_id;
-  s_feature_us_of[s_features] = interval_us;
-  s_features++;
+  s.feature_id_of[s.features] = report_id;
+  s.feature_us_of[s.features] = interval_us;
+  s.features++;
   return true;
 }
 
-/** Set when a reset has thrown the feature away and it has not been asked
-  * for again yet. Applied from the poll's quiet path, never from the init:
-  * `Board_ImuWrite` empties the part before speaking, a reset leaves three
-  * announcements queued at 276 bytes each, and doing that inside poll_init
-  * held the main loop long enough that the Modbus reply came back late -
-  * measured 2026-08-29 as `fc 0x6E: silence` right after the rail returned.
-  * Letting the ordinary read path consume the queue first makes the write
-  * short. */
-static bool s_feature_pending;
-
-/** Which slot the re-apply has got to, since it does one a turn. */
-static uint8_t s_feature_next;
-static uint32_t s_cargoes_at_reset;   /**< to know the part has spoken */
-static uint32_t s_last_cargo_ms;      /**< when the last one arrived   */
 
 bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us)
 {
@@ -783,8 +796,8 @@ bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us)
 
   /* Remembered only once it took. A request that failed is not what the part
      is doing, and re-applying it after a reset would be a second lie. */
-  s_feature_id = report_id;
-  s_feature_us = interval_us;
+  s.feature_id = report_id;
+  s.feature_us = interval_us;
   (void)feature_keep(report_id, interval_us);
   return true;
 }
@@ -792,54 +805,54 @@ bool Board_ImuSetFeature(uint8_t report_id, uint32_t interval_us)
 void Board_ImuFeatureAsked(uint8_t *report_id, uint32_t *interval_us,
                            bool *pending)
 {
-  *report_id = s_feature_id;
-  *interval_us = s_feature_us;
-  *pending = s_feature_pending;
+  *report_id = s.feature_id;
+  *interval_us = s.feature_us;
+  *pending = s.feature_pending;
 }
 
 
 static void poll_init(void)
 {
-  switch (s_stage)
+  switch (s.stage)
   {
     case IMU_STAGE_BUS:
       if (!Board_ImuBusInit())
       {
         note(BOARD_IMU_ERR_INIT);
-        s_stage_at = HAL_GetTick();     /* and back off - see below */
+        s.stage_at = HAL_GetTick();     /* and back off - see below */
         return;
       }
       HAL_GPIO_WritePin(IMU_BOOT_PORT, IMU_BOOT_PIN, GPIO_PIN_SET);
       HAL_GPIO_WritePin(IMU_RST_PORT, IMU_RST_PIN, GPIO_PIN_RESET);
-      s_stage = IMU_STAGE_HOLD;
-      s_stage_at = HAL_GetTick();
+      s.stage = IMU_STAGE_HOLD;
+      s.stage_at = HAL_GetTick();
       return;
 
     case IMU_STAGE_HOLD:
-      if ((HAL_GetTick() - s_stage_at) < IMU_RESET_HOLD_MS)
+      if ((HAL_GetTick() - s.stage_at) < IMU_RESET_HOLD_MS)
       {
         return;
       }
       HAL_GPIO_WritePin(IMU_RST_PORT, IMU_RST_PIN, GPIO_PIN_SET);
-      s_stage = IMU_STAGE_WAIT;
-      s_stage_at = HAL_GetTick();
+      s.stage = IMU_STAGE_WAIT;
+      s.stage_at = HAL_GetTick();
       return;
 
     default:
-      if ((HAL_GetTick() - s_stage_at) < IMU_RESET_WAIT_MS)
+      if ((HAL_GetTick() - s.stage_at) < IMU_RESET_WAIT_MS)
       {
         return;
       }
-      s_stage = IMU_STAGE_BUS;
-      s_state.loop = BOARD_IMU_LOOP_RUN;
+      s.stage = IMU_STAGE_BUS;
+      s.state.loop = BOARD_IMU_LOOP_RUN;
       note(BOARD_IMU_ERR_NONE);
 
       /* Ask again for whatever was asked for before the reset - but not
          here. The part came up with a queue, and emptying it is what makes
          the write long. Flagged, and done below once the queue is gone. */
-      s_feature_pending = (s_features != 0U);
-      s_feature_next = 0U;
-      s_cargoes_at_reset = s_state.cargoes;
+      s.feature_pending = (s.features != 0U);
+      s.feature_next = 0U;
+      s.cargoes_at_reset = s.state.cargoes;
       return;
   }
 }
@@ -849,14 +862,14 @@ static void poll_init(void)
    said once, not every poll. */
 static void power_lost(void)
 {
-  if (s_state.loop == BOARD_IMU_LOOP_OFF)
+  if (s.state.loop == BOARD_IMU_LOOP_OFF)
   {
     return;
   }
-  s_state.loop = BOARD_IMU_LOOP_OFF;
-  s_state.have = false;
-  s_ready = false;
-  s_stage = IMU_STAGE_BUS;
+  s.state.loop = BOARD_IMU_LOOP_OFF;
+  s.state.have = false;
+  s.ready = false;
+  s.stage = IMU_STAGE_BUS;
   note(BOARD_IMU_ERR_POWER);
 }
 
@@ -877,8 +890,8 @@ static void power_lost(void)
   * worked every time, which is what ruled out the part needing longer. */
 static bool reapply_due(void)
 {
-  return s_feature_pending && (s_state.cargoes > s_cargoes_at_reset)
-         && ((HAL_GetTick() - s_last_cargo_ms) > IMU_QUIET_MS)
+  return s.feature_pending && (s.state.cargoes > s.cargoes_at_reset)
+         && ((HAL_GetTick() - s.last_cargo_ms) > IMU_QUIET_MS)
          && !intn_asserted();
 }
 
@@ -888,11 +901,11 @@ static bool reapply_due(void)
   * the first place. */
 static void reapply_one(void)
 {
-  if (Board_ImuSetFeature(s_feature_id_of[s_feature_next],
-                          s_feature_us_of[s_feature_next]))
+  if (Board_ImuSetFeature(s.feature_id_of[s.feature_next],
+                          s.feature_us_of[s.feature_next]))
   {
-    s_feature_next++;
-    s_feature_pending = (s_feature_next < s_features);
+    s.feature_next++;
+    s.feature_pending = (s.feature_next < s.features);
   }
 }
 
@@ -915,18 +928,18 @@ void Board_ImuPoll(void)
 
      A borrow is a measurement window, not a power-up. Who holds the rail is
      the reference count's to say, which is what BOARD_USER_THERMAL is for. */
-  if ((s_state.loop == BOARD_IMU_LOOP_HELD)
+  if ((s.state.loop == BOARD_IMU_LOOP_HELD)
       || Board_PowerHolds(BOARD_RAIL_AFE, BOARD_USER_THERMAL))
   {
     return;
   }
 
-  if (s_state.loop == BOARD_IMU_LOOP_OFF)
+  if (s.state.loop == BOARD_IMU_LOOP_OFF)
   {
-    s_state.loop = BOARD_IMU_LOOP_INIT;
+    s.state.loop = BOARD_IMU_LOOP_INIT;
   }
 
-  if (s_state.loop == BOARD_IMU_LOOP_INIT)
+  if (s.state.loop == BOARD_IMU_LOOP_INIT)
   {
     poll_init();
     return;
@@ -960,7 +973,7 @@ void Board_ImuPoll(void)
 
   if (len > 0U)
   {
-    s_last_cargo_ms = HAL_GetTick();
+    s.last_cargo_ms = HAL_GetTick();
     absorb(channel, cargo, len);
   }
 }
@@ -969,21 +982,21 @@ void Board_ImuState(board_imu_state_t *out)
 {
   if (out != NULL)
   {
-    *out = s_state;
+    *out = s.state;
   }
 }
 
 void Board_ImuHold(void)
 {
-  s_state.loop = BOARD_IMU_LOOP_HELD;
-  s_stage = IMU_STAGE_BUS;
+  s.state.loop = BOARD_IMU_LOOP_HELD;
+  s.stage = IMU_STAGE_BUS;
 
   /* A hold that lands mid-staged-reset leaves NRSTN low and the part half
      up, and every command the host then sends is refused or ignored -
      measured: hold, reset, Set Feature, resume, and the loop absorbed
      nothing. Finish it here instead. Blocking is what a command handler is
      allowed to do; the staging exists for the main loop, not for this. */
-  if (Board_AfeOn() && !s_ready && !Board_ImuInit())
+  if (Board_AfeOn() && !s.ready && !Board_ImuInit())
   {
     note(BOARD_IMU_ERR_INIT);
   }
@@ -996,12 +1009,12 @@ void Board_ImuResume(void)
      that away - measured: hold, Set Feature, resume, and the loop absorbed
      nothing at all afterwards. Init only when the part is genuinely not
      there, which is what a hold across a reset leaves behind. */
-  s_state.loop = s_ready ? BOARD_IMU_LOOP_RUN : BOARD_IMU_LOOP_INIT;
+  s.state.loop = s.ready ? BOARD_IMU_LOOP_RUN : BOARD_IMU_LOOP_INIT;
 }
 
 uint8_t Board_ImuDrain(uint8_t limit)
 {
-  /* Reads through s_rx like everything else and throws the result away, so
+  /* Reads through s.rx like everything else and throws the result away, so
      it needs no buffer of its own. */
   static uint8_t scratch[8];
   uint8_t channel = 0U;
@@ -1128,24 +1141,24 @@ static bool transfer_frame(size_t n)
   settle();
   wake(false);
 
-  bool ok = HAL_SPI_TransmitReceive(&hspi2, s_tx, s_rx, (uint16_t)n,
+  bool ok = HAL_SPI_TransmitReceive(&hspi2, s.tx, s.rx, (uint16_t)n,
                                     IMU_SPI_TIMEOUT_MS) == HAL_OK;
 
   shtp_header_t incoming;
 
-  if (ok && (n >= SHTP_HEADER_LEN) && shtp_parse_header(s_rx, &incoming) &&
+  if (ok && (n >= SHTP_HEADER_LEN) && shtp_parse_header(s.rx, &incoming) &&
       (incoming.length > (uint16_t)n))
   {
     uint16_t rest = (uint16_t)(incoming.length - (uint16_t)n);
 
-    if (rest > (uint16_t)sizeof(s_rx))
+    if (rest > (uint16_t)sizeof(s.rx))
     {
-      rest = (uint16_t)sizeof(s_rx);
+      rest = (uint16_t)sizeof(s.rx);
     }
 
     /* Discarded: this is the tail of something the part was already sending
        when the write went out, and the caller asked to write, not to read. */
-    ok = imu_xfer(s_zeros, s_rx, rest);
+    ok = imu_xfer(s_zeros, s.rx, rest);
   }
 
   settle();
@@ -1155,13 +1168,13 @@ static bool transfer_frame(size_t n)
 
 bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
 {
-  if (!s_ready ||
-      (channel >= (uint8_t)(sizeof(s_seq) / sizeof(s_seq[0]))))
+  if (!s.ready ||
+      (channel >= (uint8_t)(sizeof(s.seq) / sizeof(s.seq[0]))))
   {
     return false;
   }
 
-  const size_t n = shtp_build(s_tx, sizeof(s_tx), channel, s_seq[channel],
+  const size_t n = shtp_build(s.tx, sizeof(s.tx), channel, s.seq[channel],
                               payload, len);
   if ((n == 0U) || (n > IMU_BUF))
   {
@@ -1177,6 +1190,6 @@ bool Board_ImuWrite(uint8_t channel, const uint8_t *payload, uint16_t len)
 
   /* "Each channel and each direction has its own sequence number", 1.3.1.
      Advanced only on a transfer that went out. */
-  s_seq[channel]++;
+  s.seq[channel]++;
   return true;
 }
