@@ -70,3 +70,10 @@ class ModbusException(RigError):
         super().__init__('unit %d, fc 0x%02X: exception 0x%02X (%s)'
                          % (unit, function, code,
                             EXCEPTION_NAMES.get(code, 'reserved')))
+
+
+#: What a round trip over the link can raise: the library's own errors and
+#: the port or socket underneath them - the guard a caller uses where a
+#: quiet board must not stop it. Never a bare Exception: a bug in this
+#: library is not a quiet board, and must not read as one.
+LINK_FAULTS = (RigError, OSError)

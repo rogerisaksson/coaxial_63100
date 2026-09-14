@@ -21,13 +21,17 @@ import time
 
 from coaxial import DividerParams, NtcParams, ports, protocol, scaling
 from coaxial import orientation as orient
-from coaxial.errors import DeviceStateError
+from coaxial.errors import LINK_FAULTS, DeviceStateError
 from coaxial.wire import pack
 
 ROTATION_VECTOR = 0x05
 
 from. import render
 from .docs import docs as _docs
+
+#: What asking an older board for something newer raises: a link fault, no
+#: subsystem or op behind the attribute, no such field in the reply.
+OLDER_FIRMWARE = LINK_FAULTS + (AttributeError, KeyError)
 
 _PIN = {'type': 'string', 'description': 'Pin as PORT+NUMBER, e.g. B2 or E15'}
 _PORT = {'type': 'string', 'description': 'Port letter A-K'}
@@ -541,7 +545,7 @@ def board_info(session, refresh=False, kind='all', **_):
     section = 'reserved' if kind == 'reserved' else 'digital'
     try:
         pins = session.board.system.channel_map(refresh=refresh)[section]
-    except Exception:                                         # noqa: BLE001
+    except OLDER_FIRMWARE:
         pins = None
     return render.board_info(version, clock, channels, pins, kind)
 
@@ -803,7 +807,7 @@ def _settle(session):
 
     try:
         wait = session.board.thermal.state()['sample_settle_s']
-    except Exception:                       # noqa: BLE001 - older firmware
+    except OLDER_FIRMWARE:
         wait = 0.5
     time.sleep(min(2.0, max(0.0, wait)))
 
@@ -834,7 +838,7 @@ def _interface(session):
     port = session.port
     try:
         kind = ports.kind_of(port)
-    except Exception:                                         # noqa: BLE001
+    except OSError:                                    # the port listing
         return str(port)
     return '%s at %s' % ('debug probe' if kind == ports.PROBE
                          else 'RS485', port)

@@ -1665,6 +1665,32 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   cannot judge stays what it was: parity, conformance and the live
   views over a flashed board. A red run posts its log tail as a commit
   comment, like the host's.
+* THE PACKAGES' BROAD EXCEPTS, NARROWED TO WHAT THEIR REASONS NAMED
+  (2026-09-14). Eighteen `except Exception` in the library, the MCP
+  server and the model runner, each carrying a reason - a quiet board,
+  the port listing, a model call, older firmware - and the reasons were
+  three things. `errors.LINK_FAULTS` is the library's own errors and
+  the port or socket under them, `(RigError, OSError)`: the broker's
+  streaming loop, the IMU's second look, the probe, the rig's
+  who-else-is-here, the runner's has-a-board and is-it-alive, the chat's
+  link diagnosis. `client.FAULTS` is what a call to the daemon raises
+  from outside the client - its refusals, the socket, the HTTP layer
+  under urllib, a reply that is not JSON: the narration, the model swap,
+  the intent compile. The MCP tools' `OLDER_FIRMWARE` is the link's
+  faults plus the attribute and the key a newer question finds missing
+  on an older board - and the first run of the runner's suites found
+  that shape twice, a board double with no thermal observer and a
+  system with no channel map, which is what the two bare guards had
+  been covering without saying so. The port listing narrowed to OSError
+  twice; the intent parser to the JSON errors. Three stay broad with
+  their reason sharpened: the broker server's edge, where whatever a
+  request raised must reach the client as an error; the reader thread,
+  which carries anything across to the caller that raises it; and the
+  sandbox, which catches BaseException by its docstring. A bug in the
+  library no longer reads as a quiet board. Proof: structure 629,
+  broker 33, mcp 50, simulated 254, daq_api 75, the runner's tools 219,
+  link 109, board 28, reply 23, prompt 113, runner 223, the offline
+  gate, CI.
 
 ## The local model
 

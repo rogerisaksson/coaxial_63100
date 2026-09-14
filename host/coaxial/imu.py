@@ -8,7 +8,7 @@ fixed-point integers, and the Q point belongs here.
 Datasheet references are to BNO080_085 v1.17, in datasheets/.
 """
 from . import protocol
-from .errors import DeviceStateError, RigError
+from .errors import LINK_FAULTS, DeviceStateError, RigError
 from .protocol import ImuOp
 from .sensor import PolledSensor
 from .subsystem import Device
@@ -185,7 +185,7 @@ class Imu(Device, PolledSensor, device=protocol.DEVICE_IMU):
             return exc
         try:
             loop = self.state()['loop']
-        except Exception:                  # noqa: BLE001 - the first failure
+        except LINK_FAULTS:                # the first failure
             return exc                     # is the one worth reporting
         if loop == 'held':
             return exc

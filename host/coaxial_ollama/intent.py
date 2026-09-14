@@ -23,6 +23,7 @@ existed - the model picks its own tools, one pass:
   * an intent that plans nothing - `words`, `control`, `power`, `devices`
 """
 import json
+from .client import FAULTS
 
 # What an operator can be asking for at this bench. Seven, because the axis
 # that kept being confused is one line of it - map against read - and a model
@@ -182,7 +183,7 @@ def parse(reply):
         intent = str(got.get('intent') or '').strip().lower()
         kind = str(got.get('kind') or '').strip().lower() or 'none'
         why = str(got.get('why') or '').strip()
-    except Exception:                                         # noqa: BLE001
+    except (ValueError, AttributeError, TypeError):
         return None, None, 'not the JSON it was asked for'
     if intent not in INTENTS:
         return None, None, 'no such intent: %r' % (intent or 'nothing at all')
@@ -234,6 +235,6 @@ def compile_intent(client, text):
         message = client.chat([{'role': 'user',
                                 'content': ASK % (catalogue, text)}],
                               fmt=SCHEMA, think=False, num_predict=80)
-    except Exception as exc:                                  # noqa: BLE001
+    except FAULTS as exc:
         return None, None, 'could not compile: %s' % exc
     return parse((message.get('content') or '').strip())

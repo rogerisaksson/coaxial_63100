@@ -27,7 +27,7 @@ import textwrap
 import threading
 from importlib import import_module
 from coaxial.simulated import bus_nodes
-from .client import Ollama, OllamaError
+from .client import FAULTS, Ollama, OllamaError
 from .capability import choose, probe
 from coaxial import session as sessionmod
 from contextlib import suppress
@@ -37,7 +37,7 @@ from contextlib import suppress
 # along the way is called.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coaxial.errors import RigError                  # noqa: E402
+from coaxial.errors import LINK_FAULTS, RigError     # noqa: E402
 from coaxial_mcp import detail                       # noqa: E402
 
 from . import context                                # noqa: E402
@@ -776,7 +776,7 @@ class Chat:
         message = 'link is down, not answered: %s' % text
         try:
             diagnosis = self.toolbox.call('link_diagnose', {})
-        except Exception:                                     # noqa: BLE001
+        except LINK_FAULTS:
             return message
         if diagnosis and not str(diagnosis).startswith('ERR'):
             message += '\n' + str(diagnosis)
@@ -918,7 +918,7 @@ class Chat:
                  {'role': 'user', 'content': question},
                  {'role': 'user', 'content': BLANK_LINE.join(shown)}])
             answer = (said.get('content') or '').strip()
-        except Exception:                                     # noqa: BLE001
+        except FAULTS:
             answer = ''                # the rows are the answer either way
         if channels and replies.is_retype(answer, channels):
             answer = table if (self.quiet and table) else ''
@@ -1346,7 +1346,7 @@ class Chat:
 
         try:
             old.unload()
-        except Exception as exc:                              # noqa: BLE001
+        except FAULTS as exc:
             # Not fatal, and not silent: the session still works, the card is
             # just holding weights nobody is using until keep_alive expires.
             self.io_log.write('  ! could not unload %s: %s%s'

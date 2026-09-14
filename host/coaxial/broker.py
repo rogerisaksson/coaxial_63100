@@ -261,7 +261,8 @@ class _Handler(socketserver.StreamRequestHandler):
             return {'error': type(exc).__name__, 'message': str(exc),
                     'fields': {k: v for k, v in vars(exc).items()
                                if isinstance(v, (int, str))}}
-        except Exception as exc:                      # noqa: BLE001
+        except Exception as exc:          # noqa: BLE001 - the server's edge:
+            # the client gets whatever a request raised, as an error
             return {'error': 'RigError',
                     'message': '%s: %s' % (type(exc).__name__, exc)}
 
@@ -522,7 +523,7 @@ def _stream_loop(served, stop):
                 reply = served.transport.request(unit, protocol.DEVICE,
                                                  payload)
             served.spoke()
-        except Exception:                              # noqa: BLE001
+        except errors.LINK_FAULTS:
             # A quiet board is not a reason to stop streaming: the task may
             # be between configurations, and the next turn asks again.
             stop.wait(0.05)
@@ -605,7 +606,7 @@ def attach(address=(HOST, PORT), timeout=10.0):
 
 def _kind(port):
     """`debug probe` or `RS485`, off the port listing. None if it cannot say."""
-    with suppress(Exception):               # noqa: BLE001 - not fatal
+    with suppress(OSError):                 # the port listing, not fatal
         return ports.kind_of(port)
     return None
 

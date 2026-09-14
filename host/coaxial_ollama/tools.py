@@ -39,7 +39,7 @@ _TOOLS = os.path.join(_HOST, 'tools')
 sys.path.insert(0, _HOST)
 sys.path.insert(0, _TOOLS)
 
-from coaxial.errors import RigError                       # noqa: E402
+from coaxial.errors import LINK_FAULTS, RigError          # noqa: E402
 from coaxial_mcp import detail                            # noqa: E402
 from coaxial_mcp import render                            # noqa: E402
 from coaxial_mcp.tools import HANDLERS as BOARD_HANDLERS   # noqa: E402
@@ -228,7 +228,7 @@ def _stand_in(session):
     """
     try:
         session.board
-    except Exception:                                     # noqa: BLE001
+    except LINK_FAULTS:
         return 'no board'
     return 'simulated'
 
@@ -246,7 +246,7 @@ def _open_link_answers(session):
     try:
         board.link.echo(b'?')
         return True
-    except Exception:                                     # noqa: BLE001
+    except LINK_FAULTS:
         return False
 
 

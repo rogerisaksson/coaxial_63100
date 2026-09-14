@@ -19,6 +19,7 @@ import serial
 import serial.tools.list_ports
 
 from . import board
+from .errors import LINK_FAULTS
 
 # STMicroelectronics. Every ST-Link VCP enumerates under this VID - measured
 # here, an STLINK-V3SET reports 0483:374F - and it is what lets "which port is
@@ -95,7 +96,7 @@ def probe(candidate, baud=115200, unit=1):
     """
     try:
         boards = board.connect([(unit, baud, candidate)])
-    except Exception:                                    # noqa: BLE001
+    except LINK_FAULTS:
         return False
     with suppress(Exception):
         board.disconnect(boards)

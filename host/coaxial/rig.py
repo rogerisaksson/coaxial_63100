@@ -29,7 +29,7 @@ from . import angle as angle_scaling
 from .acquisition import Acquisition
 from .board import Board
 from .clock import NTP_SERVER, WRAP
-from .errors import CrcError, NoReplyError, RigError
+from .errors import LINK_FAULTS, CrcError, NoReplyError, RigError
 from .gates import GateStage
 from .reader import BufferedReader
 from .record import Record, build
@@ -365,7 +365,7 @@ class Coaxial63100(Acquisition):
 
         try:
             count = broker.clients()          # None: nobody is serving
-        except Exception:                                     # noqa: BLE001
+        except LINK_FAULTS + (ValueError,):   # the socket, the address file
             return False
         return count is not None and count > 1
 

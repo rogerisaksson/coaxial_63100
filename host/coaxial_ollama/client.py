@@ -27,6 +27,7 @@ desktop. See `_make_room`, and `notes` for what it did.
 Model output is never trusted here. What may touch the board is tools.py's
 problem; what counts as a pass is plan.py's.
 """
+import http.client
 import json
 import time
 import urllib.error
@@ -65,6 +66,14 @@ MIN_NUM_CTX = 2048
 
 class OllamaError(Exception):
     """Ollama was unreachable, refused the request, or has no such model."""
+
+
+#: What a call to the daemon can raise from outside this module: its own
+#: refusals, the socket, the HTTP layer under urllib, and a reply that is
+#: not the JSON it promised. The guard a caller uses where the model
+#: failing must not take the turn down with it.
+FAULTS = (OllamaError, OSError, http.client.HTTPException, ValueError,
+          KeyError)
 
 
 # What is left to say once every rung of the ladder has been climbed. The
