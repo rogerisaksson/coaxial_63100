@@ -1710,6 +1710,39 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   stop path twice, where the stop must finish and the session still
   end. Proof: structure 629, runner 223, views 206, the offline gate,
   CI.
+* THE ACQUISITION ENGINE IS A PORTABLE CORE, AND HAS A SUITE (2026-09-14).
+  board_daq.c was the largest module in the tree with no host test: 1363
+  lines, 54 file-scope statics, and everything from the ring to the tone
+  generator tested only by the bench after a flash. Cut along the line
+  the thermal core drew: `daq/` is the ring of records, the summing
+  window, the anti-alias chain and its ladder, the tone generator and
+  the live accumulator - portable C11 over the filter core, one `daq_t`
+  with every number arriving as a cycle count or a sample, the interrupt
+  hold and the sensor snapshot as two callbacks the glue supplies - and
+  board_daq.c is the hardware around it: the converter reads on either
+  clock, the cycle counter, the reference's power gate, the sensor
+  snapshot, the checks against the converter, and the public API, 460
+  lines. The engine builds lazily on first use, the shape the rest of
+  board/ uses. Static asserts hold the engine's sizes to board.h's and
+  its saturation bound to board_limits.h's. `test_daq_core.py`, 59
+  checks through the host gcc, decodes every record as a host does: the
+  ring's drop and high-water mark, the window's sum and count, the clock
+  close and its saturation at 32767, pin duties and sensor words in the
+  record's bytes, a finite task, power lost, the live accumulator, the
+  sweep and its gate, the chain's decimation and refusals, the ladder
+  climbing at six eighths and coming down after three looks at the low
+  mark, the tone's exact debt and bounded burst and a sine to the LSB.
+  THREE THINGS THE FIRST RUN SETTLED: the engine's feed guards on the
+  task running, which the glue's poll and interrupt paths had guarded
+  for it; the ring holds every whole record it has room for and not one
+  more, so a 4096-byte ring at stride 14 holds 292 - the test's first
+  guess of 291 was the test's; and the count-closed gate counts from the
+  counter's zero, so a first trigger is due once an interval has passed
+  since it, immediately on a running board. Build: 0 warnings, flash
+  197 060 -> 197 856 B and DTCM +60 B for the struct's indirection at
+  -O0; structure 629; the board glue's proof is the bench's, parity,
+  conformance and the live views over a flashed board. Twenty-seven
+  suites now, 3048 checks, the counts synced.
 
 ## The local model
 

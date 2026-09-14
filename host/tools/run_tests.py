@@ -46,6 +46,11 @@ FILTER = 'test_filter_core.py'
 #: and the SOA arithmetic that gates a real stage had nothing at all,
 #: only a tested Python mirror. That was the wrong way round.
 THERMAL = 'test_thermal_core.py'
+#: The acquisition engine as the C that will run on the board - the
+#: ring, the window, the ladder, the tone, the live accumulator -
+#: hardware-free since 2026-09-14 and, until then, tested only by the
+#: bench after a flash.
+DAQ_CORE = 'test_daq_core.py'
 SENSORLESS = 'test_sensorless.py'
 #: test_ollama.py was 5,496 lines and 733 checks - a third of every check
 #: this tree has, in one file, and the reason a tier could not be asked for at
@@ -62,7 +67,8 @@ BROKER = 'test_broker.py'
 DAQ_API = 'test_daq_api.py'
 VIEWS = 'test_views.py'
 RENDER = 'test_render.py'
-DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, SENSORLESS,
+DEFAULT_SUITES = ((STRUCTURE, CORE, SHTP, DRIVE, FILTER, THERMAL, DAQ_CORE,
+                   SENSORLESS,
                    BROKER, DAQ_API, VIEWS,
                    RENDER) + OLLAMA
                   + ('test_mcp.py', 'test_simulated.py', 'test_parity.py',
@@ -414,6 +420,11 @@ TOUCHES = (
     # so the host build is what covers them; the board glue that acts
     # on the budget lives in board/ and is the bench's.
     ('thermal/',                      (THERMAL, CONFORMANCE, BENCH)),
+    # The acquisition engine is hardware-free like the observer, so the
+    # host build covers it; the glue that reads the converter is
+    # board_daq.c and the bench's, and the record's bytes cross the wire.
+    ('daq/',                          (DAQ_CORE, CONFORMANCE, 'test_parity.py',
+                                       BENCH)),
     ('host/coaxial/thermal.py',       (THERMAL, 'test_sensorless.py',
                                        STRUCTURE)),
     # A NOTEBOOK EXAMPLE reaches the library and nothing else reaches it.

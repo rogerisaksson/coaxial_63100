@@ -253,7 +253,7 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-six suites, 2989 checks, sized from `host/tests/.counts.json` and so
+Twenty-seven suites, 3048 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (629),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (254), `test_live_model.py` (212, needs ollama, `--live`),
@@ -268,7 +268,9 @@ stand-in), `test_mcp.py` (50), `test_shtp_core.py` (38), `test_filter_core.py`
 `test_thermal_core.py` (144, the SOA envelope as the C that will run - the
 derate ramp, the lookahead, the soak joules and the conduction split - and the
 online identification against a ground truth whose situation changes, through
-the host gcc), `test_ollama_render.py` (32), `test_parity.py` (30),
+the host gcc), `test_daq_core.py` (59, the acquisition engine as the C that
+will run - the ring, the summing window, the anti-alias ladder, the tone and
+the live accumulator, every record decoded as a host decodes it), `test_ollama_render.py` (32), `test_parity.py` (30),
 `test_ollama_board.py` (28), `test_ollama_bus.py` (28), `test_render.py` (79,
 the 3D engine stage by stage against an analytic oracle -
 `render/render_demo.ps1` is its bench), `test_ollama_reply.py` (23),
@@ -305,7 +307,7 @@ that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 2989 checks are in those nine files.
+  773 of this tree's 3048 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.
@@ -529,8 +531,9 @@ board/       this hardware, behind comms/inc/board.h
 comms/       the comms stack: cmd over proto over dev, plus the console
 modbus/      the protocol. Portable C11, no HAL in crc/slave/rtu.
 drive/       the control law. Portable C11, host-tested against a motor model
-shtp/ thermal/ filter/  the other portable cores: the BNO08X transport, the
-             ten-node observer, the anti-alias chain - each host-tested
+shtp/ thermal/ filter/ daq/  the other portable cores: the BNO08X transport,
+             the observer, the anti-alias chain, the acquisition engine -
+             each host-tested; board_daq.c is the hardware around the last
 host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
              runner and dbg.py, testline/, tests, tools
 notebook_examples/  executed notebooks, checked in with the stand-in's

@@ -61,6 +61,12 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
 
+    # DAQ: the acquisition engine - the ring, the summing window, the
+    # anti-alias ladder, the tone and the live accumulator. Portable C11
+    # like thermal/, host-tested by test_daq_core.py through daq/test/
+    # harness.c; board_daq.c is the hardware around it.
+    daq/src/daq.c
+
     # Drive: the control law. Portable C11 like thermal/, host-tested by
     # test_drive_core.py against a motor model through drive/test/harness.c.
     drive/src/drive.c
@@ -128,6 +134,7 @@ set(COAXIAL_SOURCES
     # four camera-calibrated states with the host gcc.
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
+    daq/src/daq.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
     filter/src/filter.c
@@ -172,6 +179,7 @@ set_source_files_properties(
     # four camera-calibrated states with the host gcc.
     thermal/src/thermal.c
     thermal/src/thermal_ident.c
+    daq/src/daq.c
     drive/src/drive.c drive/src/drive_math.c drive/src/drive_model.c
     drive/src/drive_observer.c
     filter/src/filter.c
@@ -215,6 +223,7 @@ set_source_files_properties(
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     modbus/inc
+    daq/inc
     thermal/inc
     drive/inc
     filter/inc
