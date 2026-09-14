@@ -1830,6 +1830,33 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   buffer, the IMU's zero table, and the single flags of modules with
   one thing to remember. Build 0 warnings, flash 202 076 B, DTCM
   38 580 B; the proof is the bench's after a flash.
+* THE HOST'S LONG FUNCTIONS, THE ONES THAT WERE SEVERAL JOBS
+  (2026-09-14). The scanner lists forty past eighty lines, and most are
+  one thing by nature: the raster engines, whose proof is a picture the
+  bench judges, and the bench pages' mains, one page each. Six were
+  several jobs in one body, the shape the firmware's were, and are the
+  jobs now. The thermal stand-in's constructor lays the base network in
+  `_lay_base` and starts the board in its room in `_start_in_room`,
+  each with the paragraph that explained it; what is left of it is
+  attribute by attribute with its line of why, 92 lines of which two
+  thirds are those lines, and stays. The drive stand-in's
+  observers are `_observers_skip` (the periods not stepped, in closed
+  form), `_observers_window` (the window integrated period by period,
+  ending at the rotor) and `_observers_blend`. The clock's sync is
+  `_marks` over `_best_bracket`, `_ntp_or_pc` at both ends with one
+  guard where there were two, and `_against_utc` for the rate and the
+  epoch - as functions of the clock, not methods, because the stand-in
+  borrows `Clock.sync` with itself as the receiver and the first cut
+  hung them on the class where the stand-in could not reach them; the
+  simulated suite said so. The runner's argument parser is four groups
+  in its old order - the model, the turn, the board, the permissions -
+  and the prompt loop's turn is `_turn`, with `_greet` before it; the
+  link diagnosis is its steps, `_power_step`, `_ports_step` and
+  `_answers_step`, each returning whether the checklist goes on. The
+  bodies are unchanged and so are the comments; only the seams are
+  new. Proof: structure 643, simulated 254, sensorless 138, daq_api 75,
+  runner 223, ollama tools 219, link 109, board 28, the offline gate,
+  CI.
 
 ## The local model
 

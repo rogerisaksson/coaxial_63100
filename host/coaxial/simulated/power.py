@@ -219,17 +219,7 @@ class SimulatedThermal:
         #: or nothing.
         self._speed_rpm = 0.0
         self._speed_of = lambda: 0.0
-        #: THE GRAPH'S PARAMETERS, a copy this stand-in can move - the
-        #: mirror's tables with the winding's record fields laid over, as
-        #: `board_thermal.c` lays them.
-        self._base = copy.deepcopy(thermal.CFG)
-        self._base['capacity']['winding'] = self.WINDING_J_PER_K
-        self._base['edges'][thermal.EDGE_WINDING_STATOR] = \
-            thermal.WINDING_INTO_IRON * self.WINDING_K_PER_W
-        self._base['to_ambient']['stator'] = \
-            (1.0 - thermal.WINDING_INTO_IRON) * self.WINDING_K_PER_W
-        self._base['ntc_sees'] = thermal.NTC_SEES_DRIVERS
-        self._base['ntc_tau_s'] = thermal.NTC_TAU_S
+        self._lay_base()
         # THE GROUND TRUTH: a second board, the base with a situation laid
         # over it, integrated on the same power and read through three
         # noisy thermometers every sample. `_node` above is the OBSERVER
@@ -282,15 +272,31 @@ class SimulatedThermal:
         self._cycle_trip = None     # the cycle index a trip ended early
         self._cfg = self._ident.apply(self._base)
         self.situation(situation)
-        # THE BOARD STARTS IN ITS ROOM, as a board does: the truth at the
-        # room it was switched on in, the observer at its thermistor's
-        # reading and the identification's room at the same -
-        # `Board_ThermalInit` starts on the NTC. Both started at 25 C
-        # whatever the room, so a fresh start in the toasty room was a
-        # cold board carried in, and the warm-up under load read the room
-        # ten kelvin warm for three minutes (2026-09-06). A situation laid
-        # on LATER is a carry-in and moves nothing: the board is where it
-        # is.
+        self._start_in_room()
+
+    def _lay_base(self):
+        """THE GRAPH'S PARAMETERS, a copy this stand-in can move: the
+        mirror's tables with the winding's record fields laid over, as
+        `board_thermal.c` lays them."""
+        self._base = copy.deepcopy(thermal.CFG)
+        self._base['capacity']['winding'] = self.WINDING_J_PER_K
+        self._base['edges'][thermal.EDGE_WINDING_STATOR] = \
+            thermal.WINDING_INTO_IRON * self.WINDING_K_PER_W
+        self._base['to_ambient']['stator'] = \
+            (1.0 - thermal.WINDING_INTO_IRON) * self.WINDING_K_PER_W
+        self._base['ntc_sees'] = thermal.NTC_SEES_DRIVERS
+        self._base['ntc_tau_s'] = thermal.NTC_TAU_S
+
+    def _start_in_room(self):
+        """THE BOARD STARTS IN ITS ROOM, as a board does: the truth at the
+        room it was switched on in, the observer at its thermistor's
+        reading and the identification's room at the same -
+        `Board_ThermalInit` starts on the NTC. Both started at 25 C
+        whatever the room, so a fresh start in the toasty room was a
+        cold board carried in, and the warm-up under load read the room
+        ten kelvin warm for three minutes (2026-09-06). A situation laid
+        on LATER is a carry-in and moves nothing: the board is where it
+        is."""
         start = self._truth_ambient
         for temps in (self._truth, self._node):
             for name in self.NODES:

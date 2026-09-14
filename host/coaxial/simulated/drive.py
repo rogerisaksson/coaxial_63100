@@ -807,36 +807,59 @@ class SimulatedDrive:
             self._observer_sync(self._theta_hat, self._omega_hat)
 
         motor = self._machine() if self._source == 'model' else None
-        iid, iq, vd, vq = self._dq()
-        ts = self.TS
         now = time.time()
         elapsed = max(0.0, now - self._obs_at)
         self._obs_at = now
         window = min(elapsed, self.OBS_WINDOW)
-        n = int(window / ts)
         omega = motor.omega if motor is not None else self._omega_hat
         theta = motor.theta if motor is not None else self._theta_hat
 
-        # THE PERIODS THIS STAND-IN DID NOT STEP, IN CLOSED FORM. A caller
-        # polls at tens of hertz and the loop runs at fifty thousand, so
-        # most periods are never stepped here. Carrying the observers only
-        # through the ones that were leaves their frame behind the rotor
-        # by the difference, and it accumulates: measured, the chain read
-        # a settled 106 degrees from an estimate that was itself within
-        # 0.01. What is skipped is therefore advanced at each observer's
-        # own speed - state and angle together, so the flux vectors stay
-        # coherent with the angle they belong to - and only the window at
-        # the end is integrated period by period.
-        skipped = elapsed - window
-        if skipped > 0.0:
-            for obs, w in ((dual, dual.omega), (flux, self._obs_flux_omega)):
-                turn = w * skipped
-                c, s = math.cos(turn), math.sin(turn)
-                a, b = obs.psi_alpha, obs.psi_beta
-                obs.psi_alpha, obs.psi_beta = a * c - b * s, a * s + b * c
-                obs.theta = (obs.theta + turn + math.pi) % (2.0 * math.pi) \
-                    - math.pi
+        self._observers_skip(dual, flux, elapsed - window)
+        self._observers_window(dual, flux, int(window / self.TS), theta, omega)
+        w, lo, hi, blend, theta = self._observers_blend(dual, flux)
+        return {'valid': w > self.OBS_WC,
+                'theta': theta,
+                'omega': ((1.0 - blend) * dual.omega
+                          + blend * self._obs_flux_omega),
+                'blend': blend,
+                'dual_theta': dual.theta % (2.0 * math.pi),
+                'dual_omega': dual.omega,
+                'flux_theta': flux.theta % (2.0 * math.pi),
+                'flux_omega': self._obs_flux_omega,
+                'lambda_hat': flux.lam_hat,
+                'theta_hat': self._theta_hat, 'omega_hat': self._omega_hat,
+                'blend_lo': lo, 'blend_hi': hi, 'wc': self.OBS_WC,
+                'error': ((theta - self._theta_hat + math.pi)
+                          % (2.0 * math.pi) - math.pi)}
 
+    def _observers_skip(self, dual, flux, skipped):
+        """THE PERIODS THIS STAND-IN DID NOT STEP, IN CLOSED FORM. A caller
+        polls at tens of hertz and the loop runs at fifty thousand, so
+        most periods are never stepped here. Carrying the observers only
+        through the ones that were leaves their frame behind the rotor
+        by the difference, and it accumulates: measured, the chain read
+        a settled 106 degrees from an estimate that was itself within
+        0.01. What is skipped is therefore advanced at each observer's
+        own speed - state and angle together, so the flux vectors stay
+        coherent with the angle they belong to - and only the window at
+        the end is integrated period by period."""
+        if skipped <= 0.0:
+            return
+        for obs, w in ((dual, dual.omega), (flux, self._obs_flux_omega)):
+            turn = w * skipped
+            c, s = math.cos(turn), math.sin(turn)
+            a, b = obs.psi_alpha, obs.psi_beta
+            obs.psi_alpha, obs.psi_beta = a * c - b * s, a * s + b * c
+            obs.theta = (obs.theta + turn + math.pi) % (2.0 * math.pi) \
+                - math.pi
+
+    def _observers_window(self, dual, flux, n, theta, omega):
+        """The window at the end, integrated period by period at the
+        firmware's own step, ending at the rotor: the dq solution rotated
+        back out to the stationary frame, which is what the board's chain
+        gets too."""
+        iid, iq, vd, vq = self._dq()
+        ts = self.TS
         frame = theta - n * ts * omega       # the window ENDS at the rotor
         for _ in range(n):
             c, s = math.cos(frame), math.sin(frame)
@@ -854,27 +877,16 @@ class SimulatedDrive:
             frame += omega * ts
         self._obs_frame = frame % (2.0 * math.pi)
 
+    def _observers_blend(self, dual, flux):
+        """The two observers' angles blended by the PLL's speed between
+        the two marks: (speed, low mark, high mark, blend, angle)."""
         w = abs(dual.omega)
         lo = self.OBS_BLEND_LO * self.OBS_WC
         hi = self.OBS_BLEND_HI * self.OBS_WC
         blend = min(1.0, max(0.0, (w - lo) / (hi - lo)))
         x = (1.0 - blend) * math.cos(dual.theta) + blend * math.cos(flux.theta)
         y = (1.0 - blend) * math.sin(dual.theta) + blend * math.sin(flux.theta)
-        theta = math.atan2(y, x) % (2.0 * math.pi)
-        return {'valid': w > self.OBS_WC,
-                'theta': theta,
-                'omega': ((1.0 - blend) * dual.omega
-                          + blend * self._obs_flux_omega),
-                'blend': blend,
-                'dual_theta': dual.theta % (2.0 * math.pi),
-                'dual_omega': dual.omega,
-                'flux_theta': flux.theta % (2.0 * math.pi),
-                'flux_omega': self._obs_flux_omega,
-                'lambda_hat': flux.lam_hat,
-                'theta_hat': self._theta_hat, 'omega_hat': self._omega_hat,
-                'blend_lo': lo, 'blend_hi': hi, 'wc': self.OBS_WC,
-                'error': ((theta - self._theta_hat + math.pi)
-                          % (2.0 * math.pi) - math.pi)}
+        return w, lo, hi, blend, math.atan2(y, x) % (2.0 * math.pi)
 
     @_rotor_locked
     def model(self):

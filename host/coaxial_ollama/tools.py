@@ -590,48 +590,73 @@ class Toolbox:
                                   self.session.unit)
 
         steps = []
+        power_says = self._power_step(steps)
+        listed = self._ports_step(steps, configured) if power_says else None
+        if listed and self._answers_step(steps, configured, baud, unit, power_says):
+            if args.get('probe_other_ports'):
+                steps.extend(filter(None, [self._other_ports(listed, configured,
+                                                             baud, unit)]))
+        return '\n'.join(steps)
+
+    @staticmethod
+    def _power_step(steps):
+        """Step 1, target power over SWD. What step 4's closing advice
+        rests on, so the phrase it returns says what was found - it used
+        to say "Powered" whatever step 1 concluded, which on a pulled cable
+        asserted the one thing that was false. None stops the checklist:
+        nothing past no power can work."""
         voltage, detail = find_board.check_power()
         if voltage is None:
             steps.append('1. Target power (ST-Link/SWD): could not check - %s'
                          % detail)
-            # Step 4's closing advice rests on step 1. It used to say
-            # "Powered" whatever step 1 concluded, which on a pulled cable
-            # asserted the one thing that was false.
-            power_says = 'Power unconfirmed, but the port is right'
-        elif voltage < 1.0:
+            return 'Power unconfirmed, but the port is right'
+        if voltage < 1.0:
             steps.append(
                 '1. Target power (ST-Link/SWD): %.2fV - no power sensed. '
                 'Check the ST-Link USB cable is connected, and that the '
                 'board itself is powered. Nothing past this point can work '
                 'without it.' % voltage)
-            return '\n'.join(steps)
-        else:
-            steps.append('1. Target power (ST-Link/SWD): %.2fV - powered, '
-                         'cable seated.' % voltage)
-            power_says = 'Powered and the port is right'
+            return None
+        steps.append('1. Target power (ST-Link/SWD): %.2fV - powered, '
+                     'cable seated.' % voltage)
+        return 'Powered and the port is right'
 
+    @staticmethod
+    def _ports_step(steps, configured):
+        """Steps 2 and 3, the ports Windows sees and whether the configured
+        one is among them. The list when the checklist goes on, else None."""
         listed = find_board.list_ports()
         steps.append('2. COM ports Windows sees: %s' % (', '.join(listed)
                                                          or 'none'))
         if not listed:
             steps.append('   Nothing is enumerating as a serial device - '
                          "check the ST-Link or serial adapter's driver.")
-            return '\n'.join(steps)
-
+            return None
         if configured not in listed:
             steps.append("3. Configured port %s: not among the ports above "
                          "- the cable may be unplugged from this PC's side, "
                          "or the driver did not enumerate it." % configured)
-            return '\n'.join(steps)
+            return None
         steps.append('3. Configured port %s: present.' % configured)
+        return listed
 
-        # The session's own handle first, and a second open only if it
-        # has none. Measured: with the link up and the session holding
-        # COM4, find_board.probe opened it a second time, Windows
-        # refused, and the checklist printed "4. Board answers on COM4
-        # right now: no" one line under "3. Configured port COM4:
-        # present." - a false statement about live hardware, produced
-        # by the diagnostic itself.
+    def _answers_step(self, steps, configured, baud, unit, power_says):
+        """Step 4, whether the board answers right now, and why not when
+        not. True when the other ports are worth trying.
+
+        The session's own handle first, and a second open only if it has
+        none. Measured: with the link up and the session holding COM4,
+        find_board.probe opened it a second time, Windows refused, and the
+        checklist printed "4. Board answers on COM4 right now: no" one
+        line under "3. Configured port COM4: present." - a false statement
+        about live hardware, produced by the diagnostic itself. And why it
+        is not answering, not just that it is not: a port another process
+        holds open reads exactly like a board that stopped talking, and
+        this used to guess at the difference in prose - measured, two
+        dbg.py sessions had COM4 open, every probe read silent, and the
+        board was diagnosed as halted, started over SWD and reflashed.
+        None of that was the matter with it.
+        """
         if (_open_link_answers(self.session)
                 or find_board.probe(configured, baud, unit)):
             # Measured directly, not inferred from the port merely being
@@ -639,27 +664,16 @@ class Toolbox:
             # already recovered by the time anything reached for this tool.
             steps.append('4. Board answers on %s right now: yes - the link '
                          'is up.' % configured)
-            return '\n'.join(steps)
+            return False
         steps.append('4. Board answers on %s right now: no.' % configured)
-        # Why it is not answering, not just that it is not. A port another
-        # process holds open reads exactly like a board that stopped
-        # talking, and this used to guess at the difference in prose -
-        # measured, two dbg.py sessions had COM4 open, every probe read
-        # silent, and the board was diagnosed as halted, started over SWD
-        # and reflashed. None of that was the matter with it.
         if find_board.port_state(configured, baud, unit) == ports.BUSY:
             steps.append('   %s is open in another process - that is why nothing answers here. Close the other session, or point this one at another port.' % configured)
-            return '\n'.join(steps)
+            return False
         steps.append('   %s, so check nothing else has %s open, and that '
                      'the last programmer run ended with --start, not '
                      '-hardRst (a halted core answers nothing).'
                      % (power_says, configured))
-
-        if args.get('probe_other_ports'):
-            steps.extend(filter(None, [self._other_ports(listed, configured,
-                                                         baud, unit)]))
-
-        return '\n'.join(steps)
+        return True
 
     def _board(self, name, args):
         # Coerced against the tool's own schema first: see

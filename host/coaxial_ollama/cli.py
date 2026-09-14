@@ -93,6 +93,15 @@ def parse(argv):
     parser.add_argument('-t', '--tools', default='code',
                         help='read|code|pins|build|docs|all|none or a comma '
                              'separated list')
+    _model_arguments(parser)
+    _turn_arguments(parser)
+    _board_arguments(parser)
+    _permission_arguments(parser)
+    return parser.parse_args(argv)
+
+
+def _model_arguments(parser):
+    """Which model, where, and whether it may be far away."""
     parser.add_argument('-m', '--model', default='gemma4:12b',
                         help="ollama tag, or 'auto' to pick one from this"
                              " machine's cores, RAM and VRAM - see"
@@ -102,6 +111,12 @@ def parse(argv):
                         help='permit a cloud tag or a remote daemon; off by'
                              ' default, because the question carries the board'
                              ' with it')
+
+
+def _turn_arguments(parser):
+    """What one turn may cost and how it is shaped: tokens, format, the
+    model's residence, its language, the documentation each tool carries,
+    the context, the history, the attachments."""
     parser.add_argument('--words', type=int, default=300,
                         help='cap on generated tokens per turn - 180 clipped '
                              'an open-ended question often enough to be '
@@ -146,6 +161,10 @@ def parse(argv):
                         help='attach a clipped file to the first question')
     parser.add_argument('--chars', type=int, default=2000,
                         help='how much of each --file to attach')
+
+
+def _board_arguments(parser):
+    """Which board, or no board, or an invented one."""
     parser.add_argument('--port', default='COM4',
                         help='tried first. If it is silent the debug '
                              'probe is looked for, then every other '
@@ -160,6 +179,10 @@ def parse(argv):
                             help='board tools work, against an invented '
                                  'board that never opens a port - see '
                                  'coaxial.simulated')
+
+
+def _permission_arguments(parser):
+    """What the model's tools may launch, write and do unasked."""
     parser.add_argument('--allow', default='python',
                         help='programs /sh and run_command may launch. '
                              'Building and flashing does not need anything '
@@ -174,7 +197,6 @@ def parse(argv):
                              'as board_chat without the flag; the two tools '
                              'this loop is actually built for, analog_read '
                              'and docs, are reads and never ask.')
-    return parser.parse_args(argv)
 
 
 def ask_operator(name, args):
@@ -256,10 +278,10 @@ def build(args):
     return client, session, chat
 
 
-def repl(chat, hold=False):
-    # One line, in this machine's language. What the tools are, what the
-    # detail level is and what a turn costs are all a /help away; printed on
-    # the way in they were three lines nobody read twice.
+def _greet(chat):
+    """One line, in this machine's language. What the tools are, what the
+    detail level is and what a turn costs are all a /help away; printed on
+    the way in they were three lines nobody read twice."""
     print(language.greeting(chat.client.model, chat.language,
                             getattr(sys.stdout, 'encoding', None)))
     if not ({'run_command', 'build_firmware'} & set(chat.tool_names)):
@@ -278,6 +300,71 @@ def repl(chat, hold=False):
               'restart%s.' % confirmed)
     if not sys.stdin.isatty():
         print('(reading commands from stdin)')
+
+
+def _turn(chat, face, line):
+    """One line answered - a slash command, or a question to the model -
+    and the answer printed under a stopped prompt. True when the line
+    asked the loop to end.
+
+    Every question starts from nothing, on purpose: a growing history is
+    a growing prompt, and a growing prompt is more for llama-server's own
+    prompt cache to hold onto right up to the std::bad_alloc it has
+    crashed with more than once this session. A slash command never
+    touched history in the first place, so it is left alone.
+    """
+    asked = False
+    try:
+        done = chat.command(line)
+        if done is None:
+            asked = True
+            # See tools.py's afe_power gate: set from the real question
+            # text, here rather than inside ask() itself, so a scripted
+            # test driving Chat.ask() directly keeps its old, permissive
+            # default instead of needing "afe" in every unrelated fixture
+            # question.
+            chat.toolbox.afe_mentioned = 'afe' in line.lower()
+            chat.toolbox.asked = line
+            # No note when the lock moves. It used to print a language
+            # note above the answer - a host line, in a mix of two
+            # languages, saying what the answer itself already shows by
+            # being in the new one. A bare switch answers one word in the
+            # new language and nothing else, without a model turn.
+            done = chat.ask(line)
+        # Stop ticking before the answer prints, not after. stop()'s own
+        # repaint climbs back to the prompt row by the same newline count
+        # _paint() uses, and a long answer with no embedded '\n' that the
+        # terminal itself wraps across two or more rows is invisible to
+        # that count either way - the difference is *when* the wrong climb
+        # can land on top of the answer. Frozen first, the climb happens
+        # while nothing but the prompt's own row exists below it; done
+        # after, the same wrong "one row up" lands mid-answer instead,
+        # which is exactly what a bench session saw: the prompt group
+        # spliced into the middle of a sentence. The exception branch
+        # below already stops before it prints - this makes the ordinary
+        # answer match it, rather than being the odd one out.
+        face.stop(chat.link_ok)
+        print(done, file=face.out)
+    except SystemExit:
+        face.stop(chat.link_ok)
+        return True
+    except (RigError, ValueError, OllamaError) as exc:
+        # A dead board and a dead model backend are the same shape of
+        # failure here: something the session doesn't own crashed
+        # mid-turn. One bad turn is not a reason to lose the rest of the
+        # conversation - ollama respawns llama-server on the next request,
+        # same as the board answers again once reconnected.
+        asked = True
+        face.stop(False)
+        print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)),
+              file=face.out)
+    if asked:
+        chat.history = []
+    return False
+
+
+def repl(chat, hold=False):
+    _greet(chat)
     try:
         while True:
             # Read fresh every time, not captured once: /reconnect flips this
@@ -301,61 +388,8 @@ def repl(chat, hold=False):
                 face.stop(chat.link_ok)
                 continue
             face.busy()
-            asked = False
-            try:
-                done = chat.command(line)
-                if done is None:
-                    asked = True
-                    # See tools.py's afe_power gate: set from the real
-                    # question text, here rather than inside ask() itself,
-                    # so a scripted test driving Chat.ask() directly keeps
-                    # its old, permissive default instead of needing "afe"
-                    # in every unrelated fixture question.
-                    chat.toolbox.afe_mentioned = 'afe' in line.lower()
-                    chat.toolbox.asked = line
-                    # No note when the lock moves. It used to print a
-                    # language note above the answer - a host line, in
-                    # a mix of two languages, saying what the answer
-                    # itself already shows by being in the new one. A
-                    # bare switch answers one word in the new language
-                    # and nothing else, without a model turn.
-                    done = chat.ask(line)
-                # Stop ticking before the answer prints, not after. stop()'s
-                # own repaint climbs back to the prompt row by the same
-                # newline count _paint() uses, and a long answer with no
-                # embedded '\n' that the terminal itself wraps across two
-                # or more rows is invisible to that count either way - the
-                # difference is *when* the wrong climb can land on top of
-                # the answer. Frozen first, the climb happens while nothing
-                # but the prompt's own row exists below it; done after, the
-                # same wrong "one row up" lands mid-answer instead, which is
-                # exactly what a bench session saw: the prompt group spliced
-                # into the middle of a sentence. The exception branch below
-                # already stops before it prints - this makes the ordinary
-                # answer match it, rather than being the odd one out.
-                face.stop(chat.link_ok)
-                print(done, file=face.out)
-            except SystemExit:
-                face.stop(chat.link_ok)
+            if _turn(chat, face, line):
                 break
-            except (RigError, ValueError, OllamaError) as exc:
-                # A dead board and a dead model backend are the same shape of
-                # failure here: something the session doesn't own crashed
-                # mid-turn. One bad turn is not a reason to lose the rest of
-                # the conversation - ollama respawns llama-server on the next
-                # request, same as the board answers again once reconnected.
-                asked = True
-                face.stop(False)
-                print('%s: %s%s' % (type(exc).__name__, exc, render.hint(exc)),
-                      file=face.out)
-            if asked:
-                # Every question starts from nothing, on purpose: a growing
-                # history is a growing prompt, and a growing prompt is more
-                # for llama-server's own prompt cache to hold onto right up
-                # to the std::bad_alloc it has crashed with more than once
-                # this session. A slash command never touched history in the
-                # first place, so it is left alone here.
-                chat.history = []
         print(chat.cost_line())
     finally:
         # The 30-minute keep_alive that makes turn nine as quick as turn two

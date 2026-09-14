@@ -234,72 +234,91 @@ class Clock(Device, device=protocol.DEVICE_TIME):
         unwrapping unambiguous; the rate comes from the two ends, which are
         the brackets worth spending `rounds` on.
         """
-        def best_of(n):
-            best = None
-            for _ in range(n):
-                host, width = self._bracket()
-                got = self.read_latch()
-                if best is None or width < best[2]:
-                    best = (got['latched'], host, width)
-            if best is None:
-                raise RigError('sync() needs at least one round')
-            return best
         nominal = self.read_latch()['sysclk_hz']
         step = WRAP / nominal / 2.0                  # 4.52 s at 475 MHz
-        note = ''
-        first_offset = None
 
-        if reference == 'utc':
-            try:
-                # Short and few: an unreachable server must not cost the
-                # caller half a minute of timeouts to find that out.
-                first_offset, _ = ntp_offset(ntp_server, rounds=4, timeout=1.0)
-            except (RigError, OSError) as why:
-                reference, note = 'pc', 'NTP did not answer (%s)' % why
-
-        marks = [best_of(rounds)]
-        while True:
-            left = seconds - (marks[-1][1] - marks[0][1])
-            if left <= 0:
-                break
-            time.sleep(min(step, left))
-            marks.append(best_of(rounds if left <= step else 1))
-
+        first_offset, reference, note = _ntp_or_pc(
+            ntp_server, reference, 'NTP did not answer')
+        marks = _marks(self, seconds, rounds, step)
         cycles = unwrap([m[0] for m in marks])
         elapsed = marks[-1][1] - marks[0][1]
         hz = (cycles[-1] - cycles[0]) / elapsed
         # One tie to the wall clock, taken once. Everything above is
         # perf_counter, which has no epoch of its own.
         at_host = marks[-1][1] + (time.time() - time.perf_counter())
-        pc_ppm = None
         floor = max(m[2] for m in (marks[0], marks[-1])) / elapsed * 1e6
 
-        last_offset = None
-        if reference == 'utc':
-            # GUARDED LIKE THE FIRST. The second query can fail where the
-            # first did not - measured on CI 2026-09-05, a runner that
-            # reached time.google.com once and timed out on the return,
-            # and the whole DAQ suite crashed on a clock nobody asked
-            # about. A rate against UTC needs both ends; with one it is
-            # the PC's clock, said.
-            try:
-                last_offset, _ = ntp_offset(ntp_server, rounds=4, timeout=1.0)
-            except (RigError, OSError) as why:
-                reference = 'pc'
-                note = 'NTP answered at the start and not at the end (%s)' % why
-        if last_offset is not None:
-            # Positive pc_ppm is this machine falling behind UTC, which
-            # means it under-counts: a real second arrives as slightly less
-            # than one of its own. Dividing cycles by that short elapsed
-            # makes the board look fast by exactly as much, so this comes
-            # off. Signed wrong first, and it showed - the board came back
-            # +35 ppm where an independent heartbeat measurement had -13.
-            pc_ppm = (last_offset - first_offset) / elapsed * 1e6
-            hz /= (1.0 + pc_ppm * 1e-6)
-            at_host += last_offset
-            # NTP repeatability on this bench is about a millisecond at
-            # each end, and that, not the bracket, is what bounds the rate.
-            floor = 1e-3 / elapsed * 1e6
-
+        last_offset, reference, said = _ntp_or_pc(
+            ntp_server, reference, 'NTP answered at the start and not at the end')
+        note = said or note
+        hz, at_host, floor, pc_ppm = _against_utc(
+            hz, at_host, floor, first_offset, last_offset, elapsed)
         return Sync(cycles[-1], at_host, hz, max(marks[0][2], marks[-1][2])
                     * 1e6, nominal, reference, pc_ppm, floor, note)
+
+
+# The sync's steps, as functions of the clock they bracket: the stand-in
+# borrows `Clock.sync` with itself as the receiver, so nothing sync calls
+# may be a method the stand-in would have to carry too.
+def _best_bracket(clock, n):
+    """The tightest of `n` brackets: (latched cycles, host time, width)."""
+    best = None
+    for _ in range(n):
+        host, width = clock._bracket()
+        got = clock.read_latch()
+        if best is None or width < best[2]:
+            best = (got['latched'], host, width)
+    if best is None:
+        raise RigError('sync() needs at least one round')
+    return best
+
+def _marks(clock, seconds, rounds, step):
+    """The two ends bracketed `rounds` times, and one mark every
+    half-wrap between them so the unwrapping stays unambiguous."""
+    marks = [_best_bracket(clock, rounds)]
+    while True:
+        left = seconds - (marks[-1][1] - marks[0][1])
+        if left <= 0:
+            return marks
+        time.sleep(min(step, left))
+        marks.append(_best_bracket(clock, rounds if left <= step else 1))
+
+def _ntp_or_pc(ntp_server, reference, when):
+    """NTP's offset when the reference is UTC and the server answers;
+    otherwise no offset, the reference fallen back to the PC's clock,
+    and a note saying `when` it failed - or nothing to say.
+
+    Short and few: an unreachable server must not cost the caller half
+    a minute of timeouts to find that out. GUARDED AT BOTH ENDS: the
+    second query can fail where the first did not - measured on CI
+    2026-09-05, a runner that reached time.google.com once and timed
+    out on the return, and the whole DAQ suite crashed on a clock
+    nobody asked about. A rate against UTC needs both ends; with one
+    it is the PC's clock, said."""
+    if reference != 'utc':
+        return None, reference, ''
+    try:
+        offset, _ = ntp_offset(ntp_server, rounds=4, timeout=1.0)
+    except (RigError, OSError) as why:
+        return None, 'pc', '%s (%s)' % (when, why)
+    return offset, reference, ''
+
+def _against_utc(hz, at_host, floor, first_offset, last_offset, elapsed):
+    """The rate and the epoch taken against UTC when both ends
+    answered: (hz, at_host, floor, pc_ppm).
+
+    Positive pc_ppm is this machine falling behind UTC, which means it
+    under-counts: a real second arrives as slightly less than one of
+    its own. Dividing cycles by that short elapsed makes the board look
+    fast by exactly as much, so this comes off. Signed wrong first, and
+    it showed - the board came back +35 ppm where an independent
+    heartbeat measurement had -13. NTP repeatability on this bench is
+    about a millisecond at each end, and that, not the bracket, is
+    what bounds the rate."""
+    if last_offset is None or first_offset is None:
+        return hz, at_host, floor, None
+    pc_ppm = (last_offset - first_offset) / elapsed * 1e6
+    return (hz / (1.0 + pc_ppm * 1e-6), at_host + last_offset,
+            1e-3 / elapsed * 1e6, pc_ppm)
+
+
