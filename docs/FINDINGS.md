@@ -1632,6 +1632,24 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   the optional pandas, numpy and Pillow, by the tree's rule. Proof:
   structure 625, broker 33, mcp 50, simulated 254, daq_api 75, the
   modules imported first in a bare process, the offline gate, CI.
+* THE HOST'S MIRRORS OF FIRMWARE CONSTANTS ARE HELD TO THE C, EVERY RUN
+  (2026-09-14). The stand-in accumulates to the board's bound, the
+  thermal mirror splits the winding as board_thermal.c does, the
+  identifier runs thermal_ident.c's constants, protocol.py is cmd.h's
+  device and op numbers - each a copy by hand, and a copy that drifts
+  is a wire that lies quietly. `test_structure` reads the `#define`s
+  off the C now (suffixes stripped, arithmetic evaluated) and compares:
+  seven named pairs (the winding split, the SOA floor in ppm, the
+  accumulate bound twice, the ring, sin 60 and two pi as drive_math.c
+  rounds them), every `DEVICE_*`, every `*_OP_*` against the matching
+  enum by name and number in both directions, and the identifier's
+  thirteen constants by name. Four checks, 625 -> 629, the counts
+  synced. THE FIRST RUN FOUND A DRIFT: two gate-driver ops carried the
+  same numbers under different names - `GAPRST` and `DUTYQ` in cmd.h,
+  `GAP_RESET` and `DUTY_FINE` in protocol.py - harmless on the wire and
+  exactly the kind of thing that stops being harmless the day one side
+  is renumbered; the C took the host's names, two sites each, build 0
+  warnings. Proof: structure 629, modbus core 77, CI.
 
 ## The local model
 

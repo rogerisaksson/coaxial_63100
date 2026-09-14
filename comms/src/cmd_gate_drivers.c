@@ -212,7 +212,7 @@ static cmd_status_t h_gate_drivers_alternate(rd_t *in, wr_t *out)
   *
   * All three or none, for the same reason op 2 is.
   */
-static cmd_status_t h_gate_drivers_dutyq(rd_t *in, wr_t *out)
+static cmd_status_t h_gate_drivers_duty_fine(rd_t *in, wr_t *out)
 {
   uint32_t ticks[BOARD_PWM_PHASES];
 
@@ -276,7 +276,7 @@ static cmd_status_t h_gate_drivers_trigger(rd_t *in, wr_t *out)
 
 
 /** op 7 - forget the worst keepalive gap, so a run is measured on its own. */
-static cmd_status_t h_gate_drivers_gapreset(wr_t *out)
+static cmd_status_t h_gate_drivers_gap_reset(wr_t *out)
 {
   Board_StoKeepaliveReset();
   wr_u8(out, 1U);
@@ -356,8 +356,8 @@ cmd_status_t cmd_gate_drivers_op(uint8_t op, rd_t *in, wr_t *out)
     case GATEDRIVERS_OP_TRIGGER: return h_gate_drivers_trigger(in, out);
     case GATEDRIVERS_OP_CLEAR:   return h_gate_drivers_clear(out);
     case GATEDRIVERS_OP_BYPASS:  return h_gate_drivers_bypass(in, out);
-    case GATEDRIVERS_OP_GAPRST:  return h_gate_drivers_gapreset(out);
-    case GATEDRIVERS_OP_DUTYQ:   return h_gate_drivers_dutyq(in, out);
+    case GATEDRIVERS_OP_GAP_RESET: return h_gate_drivers_gap_reset(out);
+    case GATEDRIVERS_OP_DUTY_FINE: return h_gate_drivers_duty_fine(in, out);
     case GATEDRIVERS_OP_DEADTIME: return h_gate_drivers_deadtime(in, out);
     case GATEDRIVERS_OP_ALTERNATE: return h_gate_drivers_alternate(in, out);
     default:                return CMD_ERR_VALUE;

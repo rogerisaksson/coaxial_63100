@@ -227,8 +227,8 @@ extern "C" {
 #define GATEDRIVERS_OP_TRIGGER  4U   /**< u16 CCR4 -> u16 as it reads back      */
 #define GATEDRIVERS_OP_CLEAR    5U   /**< -> u8 took; does NOT re-arm           */
 #define GATEDRIVERS_OP_BYPASS   6U   /**< u8 on -> u8 took; drops BDTR.BKE      */
-#define GATEDRIVERS_OP_GAPRST   7U   /**< -> u8; forget the worst keepalive gap */
-#define GATEDRIVERS_OP_DUTYQ    8U   /**< u32 x3 ticks Q16.16 -> u8 took        */
+#define GATEDRIVERS_OP_GAP_RESET 7U   /**< -> u8; forget the worst keepalive gap */
+#define GATEDRIVERS_OP_DUTY_FINE 8U   /**< u32 x3 ticks Q16.16 -> u8 took        */
 #define GATEDRIVERS_OP_DEADTIME 9U   /**< u32 ns, i8 skew -> u8 took            */
 #define GATEDRIVERS_OP_ALTERNATE 10U /**< u16 x3 ticks A, u16 x3 ticks B -> u8 took: A one period, B the next */
 

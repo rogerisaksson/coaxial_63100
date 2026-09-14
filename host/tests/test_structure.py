@@ -543,12 +543,119 @@ def test_limits_live_in_one_file(r):
             not up, ', '.join(up))
 
 
+#: What the host says a firmware macro is worth, and where the macro lives:
+#: (module, name, C file, macro, host units per macro unit). A mirror that
+#: drifts is the second answer this tree keeps deleting, so they are held
+#: to each other here rather than remembered.
+MIRRORS = (
+    ('coaxial.thermal', 'WINDING_INTO_IRON',
+     'board/src/board_thermal.c', 'WINDING_INTO_IRON', 1.0),
+    ('coaxial.thermal', 'IDENT_MARGIN_FLOOR',
+     'comms/inc/board.h', 'BOARD_SOA_MARGIN_FLOOR_PPM', 1e-6),
+    ('coaxial.simulated.values', 'ACCUMULATE_MAX',
+     'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
+    ('coaxial.bessel', 'MAX_BOXCAR',
+     'board/inc/board_limits.h', 'LIVE_MAX_ADDITIONS', 1.0),
+    ('coaxial.simulated.values', 'RING_BYTES',
+     'board/inc/board_limits.h', 'DAQ_BYTES', 1.0),
+    ('coaxial.sensorless', 'HALF_SQRT3',
+     'drive/src/drive_math.c', 'HALF_SQRT3', 1.0),
+    ('coaxial.sensorless', 'TWO_PI',
+     'drive/src/drive_math.c', 'TWO_PI', 1.0),
+)
+
+#: The command header's op prefixes and the protocol module's enums. The
+#: rails have one op and no enum on the C side.
+OP_CLASSES = {'IMU': 'ImuOp', 'ANGLE': 'AngleOp', 'LINK': 'LinkOp',
+              'CAL': 'CalOp', 'GATEDRIVERS': 'GateOp', 'LOG': 'LogOp',
+              'DAQ': 'DaqOp', 'TIME': 'TimeOp', 'THERMAL': 'ThermalOp',
+              'DRIVE': 'DriveOp'}
+
+_NUMBER = re.compile(r'\b(\d+(?:\.\d*)?(?:[eE][-+]?\d+)?)[uUlL]*[fF]?\b')
+
+
+def _defines(rel):
+    """`#define NAME <number or arithmetic>` in one C file, evaluated -
+    suffixes and a trailing comment stripped, anything else skipped."""
+    found = {}
+    for line in io.open(os.path.join(REPO, *rel.split('/')), encoding='utf-8'):
+        m = re.match(r'#define\s+(\w+)\s+(.+)', line)
+        if not m:
+            continue
+        expr = _NUMBER.sub(r'\1', m.group(2).split('/*')[0].split('//')[0])
+        if re.fullmatch(r'[\d.eE+\-*/() ]+', expr.strip()):
+            found[m.group(1)] = eval(expr)          # noqa: S307 - numbers only
+    return found
+
+
+def _agree(host, target):
+    return abs(host - target) <= 1e-6 * max(1.0, abs(target))
+
+
+def test_mirrors_agree(r):
+    """The host's copies of firmware constants are the firmware's.
+
+    The stand-in accumulates to the board's bound, the thermal mirror
+    splits the winding as board_thermal.c does, the identifier runs
+    thermal_ident.c's constants, and protocol.py is cmd.h's device and op
+    numbers - each a copy by hand, and a copy that drifts is a wire that
+    lies quietly. Read off the C, compared, every run.
+    """
+    off = []
+    for module, name, rel, macro, scale in MIRRORS:
+        host = getattr(importlib.import_module(module), name)
+        target = _defines(rel).get(macro)
+        if target is None or not _agree(host, target * scale):
+            off.append('%s.%s = %r, %s %s = %r' % (module, name, host, rel,
+                                                   macro, target))
+    r.check('every named mirror is the macro it names', not off,
+            '; '.join(off[:3]) or '%d pairs' % len(MIRRORS))
+
+    from coaxial import protocol
+    header = _defines('comms/inc/cmd.h')
+    devices = {k: v for k, v in header.items() if k.startswith('DEVICE_')}
+    wrong = ['%s: cmd.h %d, protocol %r' % (k, v, getattr(protocol, k, None))
+             for k, v in sorted(devices.items()) if getattr(protocol, k, None) != v]
+    r.check('protocol.py numbers the devices as cmd.h does',
+            len(devices) >= 10 and not wrong,
+            '; '.join(wrong[:3]) or '%d devices' % len(devices))
+
+    ops = {}
+    for k, v in header.items():
+        m = re.fullmatch(r'(\w+?)_OP_(\w+)', k)
+        if m:
+            ops.setdefault(m.group(1), {})[m.group(2)] = v
+    wrong = []
+    for prefix, table in sorted(ops.items()):
+        cls = getattr(protocol, OP_CLASSES.get(prefix, ''), None)
+        members = {m.name: m.value for m in cls} if cls else {}
+        wrong += ['%s_OP_%s: cmd.h %d, %s %r' % (prefix, op, v, OP_CLASSES.get(prefix),
+                                                 members.get(op))
+                  for op, v in sorted(table.items()) if members.get(op) != v]
+        wrong += ['%s.%s: no %s_OP_%s in cmd.h' % (OP_CLASSES.get(prefix), op, prefix, op)
+                  for op in sorted(set(members) - set(table))]
+    r.check('and every op by name and number, both ways',
+            len(ops) >= 9 and not wrong,
+            '; '.join(wrong[:3]) or '%d op tables' % len(ops))
+
+    from coaxial import thermal_ident as mirror
+    named = dict(_defines('thermal/src/thermal_ident.c'),
+                 **_defines('thermal/inc/thermal_ident.h'))
+    pairs = [(k, v, k.split('IDENT_', 1)[1]) for k, v in named.items()
+             if 'IDENT_' in k and hasattr(mirror, k.split('IDENT_', 1)[1])]
+    off = ['%s %r != thermal_ident.%s %r' % (k, v, n, getattr(mirror, n))
+           for k, v, n in pairs if not _agree(getattr(mirror, n), v)]
+    r.check("the identifier's constants are thermal_ident.c's, by name",
+            len(pairs) >= 10 and not off,
+            '; '.join(off[:3]) or '%d by name' % len(pairs))
+
+
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
           test_shape, test_documented, test_no_escaping_scars,
           test_counts_are_measured, test_subsystem_calls_resolve,
-          test_limits_live_in_one_file)
+          test_limits_live_in_one_file, test_mirrors_agree)
 
 
 def main():
