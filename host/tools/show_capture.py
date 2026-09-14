@@ -342,16 +342,16 @@ def main(argv=None):
 
 
     board_view = stage()
-    console = board_view.is_terminal
+    terminal = board_view.is_terminal
     leaving, frame = None, 0
 
     try:
-        with curtain(board_view) as show, Keys(console) as keys:
+        with curtain(board_view) as show, Keys(terminal) as keys:
             while True:
                 width = shutil_width()
                 drain(rig, layout, view)
                 layout = adapt(rig, layout, args, view)
-                show.update(compose(origin, console, layout, view, width),
+                show.update(compose(origin, board_view, layout, view, width),
                             refresh=True)
                 frame += 1
                 if args.frames and frame >= args.frames:
@@ -367,7 +367,7 @@ def main(argv=None):
         rig.close()
         done.append(('AFE_ON', 'back the way it was found'))
         sys.stdout.write('\n')
-        closing(done, console, 0)
+        closing(done, terminal, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 

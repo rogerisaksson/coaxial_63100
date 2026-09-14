@@ -353,8 +353,17 @@ def _rows_of(panel):
 def _fills(console):
     """Whether to build the full-screen layout: only on a live terminal.
     Piped - the tests, a log - gets the same parts stacked plainly.
-    Accepts the Console or a view's plain bool for it."""
-    return console.is_terminal if isinstance(console, Console) else bool(console)
+
+    THE CONSOLE ITSELF, never a view's `is_terminal` flag for it: the
+    paging asks the terminal how big it is and keeps the scroll per
+    console, and a flag has neither. Five pages handed the flag over -
+    the two with a column silently never paged it, and the weak table
+    turned that into a crash - so the flag is refused here, on the
+    piped path too, where every page's test runs."""
+    if isinstance(console, bool):
+        raise TypeError('the stage draws on the console, not on its '
+                        'is_terminal flag')
+    return console.is_terminal
 
 
 #: The instrument column's width. 40 since 2026-08-30: the thermal LEVELS

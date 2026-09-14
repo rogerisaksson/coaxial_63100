@@ -413,7 +413,7 @@ def main(argv=None):
 
 
     board_view = stage()
-    console = board_view.is_terminal
+    terminal = board_view.is_terminal
     leaving = None
 
     def draw():
@@ -421,14 +421,14 @@ def main(argv=None):
             view['gate_drivers'] = board.gate_drivers.state()
             if not refused:
                 view['live'] = rig.latest(block=False)
-        return compose(rig, origin, console, view, layout, shutil_width())
+        return compose(rig, origin, board_view, view, layout, shutil_width())
 
     def on_input(typed, _moved):
         for key in typed:
             view['said'] = act(rig, key, view) or view['said']
 
     try:
-        leaving = run_view(board_view, console, 1.0 / max(args.hz, 0.5),
+        leaving = run_view(board_view, terminal, 1.0 / max(args.hz, 0.5),
                            args.frames, draw, on_input)
     finally:
         done = []
@@ -446,7 +446,7 @@ def main(argv=None):
             done.append(('putting it back', 'FAILED: %s' % exc))
         rig.close()
         sys.stdout.write('\n')
-        closing(done, console, 0)
+        closing(done, terminal, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 

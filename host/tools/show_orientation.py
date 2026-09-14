@@ -509,7 +509,7 @@ def main(argv=None):
     period = period_of(args.hz)
 
     board_view = stage()
-    console = board_view.is_terminal
+    terminal = board_view.is_terminal
     leaving = None
 
     # zoom: 1.0 is the guaranteed fit at ANY attitude; 1.5 rests larger and
@@ -543,7 +543,8 @@ def main(argv=None):
                      wide=wide, tall=tall,
                      scroll=time.monotonic() - state['t0'])
         return compose(origin, args, shown,
-                       colour=console and not args.photo, console=console)
+                       colour=terminal and not args.photo,
+                       console=board_view)
 
     def on_input(typed, moved):
         # THE KEYS ZOOM TOO. The wheel needs the view to hold the mouse,
@@ -557,7 +558,7 @@ def main(argv=None):
         bindings(typed, state, view['quaternion'])
 
     try:
-        leaving = run_view(board_view, console, period, args.frames, draw,
+        leaving = run_view(board_view, terminal, period, args.frames, draw,
                            on_input, mouse=True)
     finally:
         sys.stdout.write('\n')
@@ -569,7 +570,7 @@ def main(argv=None):
         rig.close()
         done.append((part['power'] or 'supply',
                      'back the way it was found'))
-        closing(done, console, 0)
+        closing(done, terminal, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 

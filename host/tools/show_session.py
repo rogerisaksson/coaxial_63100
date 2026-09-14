@@ -900,7 +900,7 @@ def main():
         sampled = [time.time()]
 
         def draw():
-            return frame(session, console, session.note)
+            return frame(session, dashboard, session.note)
 
         def tick():
             # The thermal observer is blind while the stage is armed, so a

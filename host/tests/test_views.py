@@ -1570,6 +1570,14 @@ def test_every_page_scrolls_its_boxes(report):
 
     report.check('piped, nothing is windowed',
                  len(stage.paged(Pipe(), boxes)) == 6)
+    try:
+        stage.paged(True, boxes)
+        refused = False
+    except TypeError:
+        refused = True
+    report.check('and a view handing over its is_terminal flag instead of '
+                 'the console is refused - where a piped test run sees it',
+                 refused)
 
 
 def test_the_dial_is_round_on_this_terminal(report):

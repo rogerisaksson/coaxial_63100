@@ -2669,12 +2669,10 @@ def main(argv=None):
 
     board_view = _console_for(args)
     console = board_view.is_terminal
-    # THE CONSOLE ITSELF, not the boolean. `console` here is
-    # `is_terminal` - every view in this tree passes that around under
-    # that name and `frame_of` only wants its truth - but the paging has
-    # to ASK THE TERMINAL HOW BIG IT IS. Reading `.size` off the boolean
-    # raised, the guard swallowed it, `rows_of` answered zero, and the
-    # column silently never paged: no arrows, and nothing to drag.
+    # `console` here is the flag the key reader and the closing want;
+    # `compose` gets THE CONSOLE ITSELF - the paging asks the terminal
+    # how big it is and keeps the scroll on it. The stage refuses the
+    # flag now; FINDINGS has the two pages that handed it over.
     leaving = None
     thermal_at = [0.0]
     # HOW OFTEN THE THERMAL OBSERVER IS READ. Two seconds against a board

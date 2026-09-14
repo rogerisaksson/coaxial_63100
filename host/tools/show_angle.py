@@ -140,7 +140,7 @@ def reread(board, field, kelvin):
     return field, kelvin
 
 
-def _foot(console, degrees, field, width=ART_WIDTH):
+def _foot(colour, degrees, field, width=ART_WIDTH):
     """The reading under the face, in the needle's own colour.
 
     THE SAME RULE THE ROTOR OBSERVER'S FOOT FOLLOWS: a scale says how far
@@ -151,24 +151,25 @@ def _foot(console, degrees, field, width=ART_WIDTH):
 
     text = dial.caption(degrees, field)
     line = ' ' * max(0, (width - len(text)) // 2) + text
-    return ansi.paint(line, dial.INK[dial.NEEDLE]) if console else line
+    return ansi.paint(line, dial.INK[dial.NEEDLE]) if colour else line
 
 
-def _face(degrees, field, kelvin, width, aspect, console, scales):
+def _face(degrees, field, kelvin, width, aspect, colour, scales):
     """The dial between its two scales, or alone with its caption
     under it."""
     if scales:
         return dial.instrument(degrees, field, kelvin, width, ART_HEIGHT,
-                               aspect, colour=console)
+                               aspect, colour=colour)
     return '\n'.join([dial.render(degrees, width, ART_HEIGHT, field,
-                                  aspect=aspect, colour=console),
-                      _foot(console, degrees, field, width)])
+                                  aspect=aspect, colour=colour),
+                      _foot(colour, degrees, field, width)])
 
 
 def compose(origin, console, part, state, field, kelvin, rate, note,
             aspect=(dial.CELL_ASPECT, 'assumed'), scales=False,
             width=ART_WIDTH):
     """One frame on the stage: the dial left, the target's numbers right.
+    `console` is the Console the page draws on, coloured on a terminal.
     `aspect` is `(cell aspect, how it was known)` - the face is drawn
     round for THIS terminal, and the box says whether that was measured.
     With `scales` the face stands between the die's temperature and the
@@ -190,8 +191,8 @@ def compose(origin, console, part, state, field, kelvin, rate, note,
         # holding a plain space, and every cell of a dot drawing holds
         # U+2800 instead - the mark could never land, and a call that
         # cannot do anything is worse than no call.
-        art = _face(degrees, field, kelvin, width, aspect[0], console,
-                    scales)
+        art = _face(degrees, field, kelvin, width, aspect[0],
+                    console.is_terminal, scales)
 
         side = [hud(part['name'], [
                     ('angle', '--   (no magnet)' if weak
@@ -269,7 +270,7 @@ def main(argv=None):
 
 
     board_view = stage()
-    console = board_view.is_terminal
+    terminal = board_view.is_terminal
     leaving = None
     # THE CELL'S SHAPE, ASKED ONCE: the face is drawn round for this
     # terminal the way the rotor observer's can is, and the box says
@@ -294,19 +295,19 @@ def main(argv=None):
             side['field'], side['kelvin'] = reread(board, side['field'],
                                                    side['kelvin'])
             side['at'] = time.time()
-        return compose(origin, console, part, state, side['field'],
+        return compose(origin, board_view, part, state, side['field'],
                        side['kelvin'], tally.rate, tally.note, aspect,
                        scales=args.scales, width=width)
 
     try:
-        leaving = run_view(board_view, console, period, args.frames, draw)
+        leaving = run_view(board_view, terminal, period, args.frames, draw)
     finally:
         done = [('poll loop', 'running, as the board left it'),
                 ('registers', 'untouched - this view only reads')]
         rig.close()
         done.append((part['power'] or 'supply', 'back the way it was found'))
         sys.stdout.write('\n')
-        closing(done, console, 0)
+        closing(done, terminal, 0)
 
     return TO_MENU if leaving == 'menu' else 0
 

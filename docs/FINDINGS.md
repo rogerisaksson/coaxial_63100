@@ -1920,6 +1920,36 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   not a repeat. Proof: structure 653 -> 665, eleven devices one check
   each, the counts synced, build 0 warnings (202 124 B of flash, 24 B
   for the power handler), CI.
+* THE STAGE DRAWS ON THE CONSOLE, NOT ON ITS FLAG (2026-09-14). The
+  bench opened BOARD ATTITUDE and it fell over on the first frame, in
+  `scroll_state`: `cannot create weak reference to 'bool' object`. The
+  attitude and angle pages handed `frame_of` their `is_terminal` flag
+  under the name `console`, where the desk, the thermal observer and
+  the rotor observer hand the Console; the rotor observer had met the
+  same slip the day the column learned to page and fixed it in its own
+  main with a comment, and the other two kept the flag. Before the weak
+  table the slip was silent: `setattr` on a bool failed inside a try,
+  `paged` read `.size` off the bool, the guard swallowed it and
+  answered no room - so on those two pages the column never paged, the
+  wheel scrolled a state the drawing never read, and the piped test
+  runs saw nothing because a piped page takes the plain path before
+  any of it. The weak table made it a crash on a terminal. THE FIX IS
+  AT THE SEAM: `_fills` refuses a bool with a sentence, on the piped
+  path too, so every page's two-frame run in the views suite fails on
+  the slip - and the first run found three more pages handing the flag
+  to `panels_of`, the table template, where it had been harmless:
+  session, capture, gate drivers. All five pass the Console now, and
+  the angle page colours its dial on `console.is_terminal` rather than
+  on the truth of whatever it was handed. PROVED ON A TERMINAL WITHOUT
+  ONE: every page's main run with its `stage()` swapped for a
+  forced-terminal Console, 120 by 36, three frames each - ten pages,
+  the chooser and the chat included, all left cleanly; the five with
+  an instrument column paged it (attitude 3 of 3 boxes, angle 2 of 2,
+  desk 3 of 3, thermal 2 of 5, rotor 4 of 7), the table pages have no
+  column; and the template alone on 100 by 30 with eight boxes showed
+  five, two arrows down moved it, the flag was refused. That runner is
+  the scratchpad's `prove_page.py`; the views suite keeps the guard's
+  check. views 206 -> 207, structure 665.
 
 ## The local model
 
