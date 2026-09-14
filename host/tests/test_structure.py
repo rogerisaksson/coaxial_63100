@@ -650,12 +650,163 @@ def test_mirrors_agree(r):
             '; '.join(off[:3]) or '%d by name' % len(pairs))
 
 
+#: A fixed-shape reply written field by field in C and read field by field
+#: in Python, and the two sequences held to each other: the C file and
+#: handler, the Python module, class and method. PROTOCOL.md describes the
+#: same shape in prose, which no parser holds; these two are what a wire
+#: actually crosses, and the C's own comments say what one moved offset
+#: costs every decoder.
+WIRE_SHAPES = (
+    ('comms/src/cmd_gate_drivers.c', 'h_gate_drivers_state',
+     'coaxial.gate_drivers', 'GateDrivers', 'state'),
+    ('comms/src/cmd_drive.c', 'h_drive_state', 'coaxial.drive', 'Drive', 'state'),
+    ('comms/src/cmd_daq.c', 'h_daq_state', 'coaxial.daq', 'Daq', 'state'),
+)
+
+#: What each Reader method takes off the wire; the scaled ones take a width
+#: as their first argument when it is not the default.
+_READS = {'u8': 'u8', 'i8': 'i8', 'u16': 'u16', 'i16': 'i16', 'u32': 'u32',
+          'i32': 'i32', 'q16': 'u32', 'flags': 'u8', 'fraction': 'u8',
+          'centi': 'i32', 'milli': 'i32', 'micro': 'i32', 'nano': 'u32'}
+_WIDTH_ARG = ('centi', 'milli', 'micro', 'nano')
+_C_TOKENS = re.compile(r'(?P<open>\{)|(?P<close>\})'
+                       r'|for\s*\([^;]*;[^<]*<\s*(?P<bound>\w+)[^)]*\)'
+                       r'|wr_(?P<width>u8|i8|u16|i16|u32|i32)\s*\(')
+
+
+def _c_defines():
+    found = {}
+    for rel in ('comms/inc/board.h', 'board/inc/board_limits.h'):
+        for line in io.open(os.path.join(REPO, *rel.split('/')), encoding='utf-8'):
+            m = re.match(r'#define\s+(\w+)\s+(\d+)U?\b', line)
+            if m:
+                found[m.group(1)] = int(m.group(2))
+    return found
+
+
+def _c_writes(rel, name, defines):
+    """The widths a handler writes, in order - a loop's body counted its
+    bound's times, a nested loop's the product."""
+    text = io.open(os.path.join(REPO, *rel.split('/')), encoding='utf-8').read()
+    text = re.sub(r'/\*.*?\*/', ' ', text, flags=re.S)
+    start = text.index('static cmd_status_t %s(' % name)
+    body = text[text.index('{', start):]
+    widths, scopes, depth, bound = [], [], 0, None
+    for m in _C_TOKENS.finditer(body):
+        if m.group('open'):
+            depth += 1
+            if bound is not None:
+                scopes.append((depth, (scopes[-1][1] if scopes else 1) * defines[bound]))
+                bound = None
+        elif m.group('close'):
+            if scopes and scopes[-1][0] == depth:
+                scopes.pop()
+            depth -= 1
+            if depth == 0:
+                break
+        elif m.group('bound'):
+            bound = m.group('bound')
+        else:
+            widths += [m.group('width')] * (scopes[-1][1] if scopes else 1)
+    return widths
+
+
+def _py_reads(module, cls, method, reader='r'):
+    """The widths a decoder reads, in order, each with whether it is an
+    appended field the reader takes only when it is there."""
+    mod = importlib.import_module(module)
+    source = inspect.getsource(getattr(getattr(mod, cls), method))
+    tree = ast.parse(textwrap.dedent(source))
+    out = []
+
+    def count(node):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == 'range'):
+            arg = node.args[-1]
+            return arg.value if isinstance(arg, ast.Constant) else getattr(mod, arg.id)
+        if isinstance(node, (ast.Tuple, ast.List)):
+            return len(node.elts)
+        if isinstance(node, ast.Name):
+            return len(getattr(mod, node.id))       # a module's tuple of names
+        raise ValueError('cannot count a loop over %s' % ast.dump(node))
+
+    def visit(node, times):
+        if isinstance(node, (ast.For, ast.GeneratorExp, ast.ListComp,
+                             ast.DictComp)):
+            # A loop over a read's own result - the bits of a flags byte,
+            # say - reads once, in the iterable, and its body must not.
+            source = node.iter if isinstance(node, ast.For) else node.generators[0].iter
+            body = node.body if isinstance(node, ast.For) else (
+                [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt])
+            try:
+                times *= count(source)
+            except ValueError:
+                visit(source, times)
+                seen = len(out)
+                for child in body:
+                    visit(child, 1)
+                assert len(out) == seen, 'a read inside a loop this check cannot size'
+                return
+            for child in body:
+                visit(child, times)
+            return
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == reader):
+            name = node.func.attr
+            if name == 'maybe':
+                out.extend([(node.args[0].value, True)] * times)
+            elif name in _READS:
+                width = _READS[name]
+                if name in _WIDTH_ARG and node.args and isinstance(node.args[0], ast.Constant):
+                    width = node.args[0].value
+                out.extend([(width, False)] * times)
+            else:
+                raise ValueError('a read this check cannot size: r.%s' % name)
+        for child in ast.iter_child_nodes(node):
+            visit(child, times)
+
+    visit(tree, 1)
+    return out
+
+
+def test_wire_shapes_agree(r):
+    """A reply's shape is one sequence of widths, written in C and read in
+    Python, and the two are held to each other field by field.
+
+    The C handlers carry the warning already - an offset moved breaks
+    every decoder for one bit - and until now the only thing holding the
+    two sides together was the bench's parity suite over a flashed board.
+    A loop counts its bound's times on both sides; an appended field the
+    reader takes with `maybe` is counted like any other, since this build
+    writes them all.
+    """
+    import inspect
+    import textwrap
+    globals()['inspect'], globals()['textwrap'] = inspect, textwrap
+    defines = _c_defines()
+    for rel, func, module, cls, method in WIRE_SHAPES:
+        wrote = _c_writes(rel, func, defines)
+        read = _py_reads(module, cls, method)
+        first = next((i for i, (w, (p, _)) in enumerate(zip(wrote, read)) if w != p),
+                     None)
+        same = len(wrote) == len(read) and first is None
+        where = ('%d fields both ways' % len(wrote) if same else
+                 'field %s: C %s, Python %s' % (
+                     first if first is not None else min(len(wrote), len(read)),
+                     wrote[first] if first is not None else len(wrote),
+                     read[first][0] if first is not None else len(read)))
+        r.check('%s writes what %s.%s reads, field for field' % (func, cls, method),
+                same, where)
+
+
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
           test_shape, test_documented, test_no_escaping_scars,
           test_counts_are_measured, test_subsystem_calls_resolve,
-          test_limits_live_in_one_file, test_mirrors_agree)
+          test_limits_live_in_one_file, test_mirrors_agree,
+          test_wire_shapes_agree)
 
 
 def main():

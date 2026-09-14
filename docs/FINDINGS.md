@@ -1768,6 +1768,30 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   the acquisition glue's 5 - left for the same pass when they earn it.
   Build 0 warnings; the proof is the bench's: parity, conformance and
   the live views over a flashed board.
+* THE WIRE'S SHAPE, HELD TO ITSELF ON BOTH SIDES (2026-09-14). A
+  fixed-shape reply is one sequence of widths: the C handler writes it
+  field by field, the Python decoder reads it field by field, and
+  PROTOCOL.md tells it in prose. The C handlers carry the warning -
+  an offset moved breaks every decoder for one bit - and the only thing
+  holding the two sides together was the bench's parity suite over a
+  flashed board. `test_structure` parses both now: the handler's
+  `wr_*` calls, a `for` loop's body counted its bound's times off the
+  headers, and the decoder's `r.*` calls through the reader's own
+  vocabulary - `milli`, `micro` and `nano` as the widths they take,
+  `q16` a u32, `flags` a byte, a loop over a tuple of names its length,
+  a loop over a read's own result once, `maybe` an appended field
+  counted like any other since this build writes them all. Three
+  pairs, three checks: the gate drivers' state, the drive's, the
+  acquisition task's. THE FIRST RUN FOUND ONE: field 26 of the gate
+  drivers' state, the dead-time skew, written as `wr_u8` with a cast
+  where cmd.h says `i8` and the decoder reads `i8` - the same byte, so
+  no decoder was wrong, and exactly the kind of drift that stops being
+  harmless the day someone reads the writer instead of the header. The
+  wire has `wr_i8` now, two's complement in one byte, and the skew is
+  written with it at both sites. The generated layout the suggestion
+  asked for is the step after this one; what this settles is that the
+  two answers a wire crosses cannot disagree without a suite saying so.
+  Proof: structure 629 -> 632, build 0 warnings, flash 202 012 B, CI.
 
 ## The local model
 

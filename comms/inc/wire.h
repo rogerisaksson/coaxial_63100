@@ -33,6 +33,7 @@ typedef struct
 
 void wr_init(wr_t *w, uint8_t *buf, uint16_t cap);
 void wr_u8(wr_t *w, uint8_t v);
+void wr_i8(wr_t *w, int8_t v);       /**< two's complement, one byte */
 void wr_u16(wr_t *w, uint16_t v);
 void wr_u32(wr_t *w, uint32_t v);
 void wr_i16(wr_t *w, int16_t v);

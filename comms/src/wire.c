@@ -39,6 +39,13 @@ void wr_u8(wr_t *w, uint8_t v)
   wr_bytes(w, &v, 1U);
 }
 
+/* A signed byte says so on the wire and in the writer: a reader that
+   takes it as i8 is reading what was written, not guessing at a cast. */
+void wr_i8(wr_t *w, int8_t v)
+{
+  wr_u8(w, (uint8_t)v);
+}
+
 void wr_u16(wr_t *w, uint16_t v)
 {
   const uint8_t b[2] = { (uint8_t)(v >> 8), (uint8_t)v };

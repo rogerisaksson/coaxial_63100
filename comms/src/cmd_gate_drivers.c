@@ -92,7 +92,7 @@ static cmd_status_t h_gate_drivers_state(wr_t *out)
   /* The dead time in nanoseconds beside the raw DTG above, its skew, and
      the smallest DTG this timer clock allows. Appended. */
   wr_u32(out, Board_PwmDeadTimeNs());
-  wr_u8(out, (uint8_t)Board_PwmDeadTimeSkew());
+  wr_i8(out, Board_PwmDeadTimeSkew());
   wr_u8(out, Board_PwmDeadTimeFloor());
 
   /* Which legs have their two gate pins on one node - bit 0 U, 1 V, 2 W.
@@ -339,7 +339,7 @@ static cmd_status_t h_gate_drivers_deadtime(rd_t *in, wr_t *out)
 
   cmd_took(out, refusal);
   wr_u32(out, Board_PwmDeadTimeNs());
-  wr_u8(out, (uint8_t)Board_PwmDeadTimeSkew());
+  wr_i8(out, Board_PwmDeadTimeSkew());
   wr_u8(out, Board_PwmDeadTimeFloor());
   return CMD_OK;
 }
