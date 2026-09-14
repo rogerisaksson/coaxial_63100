@@ -319,7 +319,7 @@ static cmd_status_t h_gate_drivers_clear(wr_t *out)
 static cmd_status_t h_gate_drivers_deadtime(rd_t *in, wr_t *out)
 {
   const uint32_t ns = rd_u32(in);
-  const int8_t skew = (int8_t)rd_u8(in);
+  const int8_t skew = rd_i8(in);
 
   if (!rd_ok(in))
   {

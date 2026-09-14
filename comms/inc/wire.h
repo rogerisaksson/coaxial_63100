@@ -60,6 +60,7 @@ typedef struct
 
 void     rd_init(rd_t *r, const uint8_t *buf, uint16_t len);
 uint8_t  rd_u8(rd_t *r);
+int8_t   rd_i8(rd_t *r);              /**< two's complement, one byte */
 uint16_t rd_u16(rd_t *r);
 uint32_t rd_u32(rd_t *r);
 int32_t  rd_i32(rd_t *r);

@@ -1857,6 +1857,26 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   new. Proof: structure 643, simulated 254, sensorless 138, daq_api 75,
   runner 223, ollama tools 219, link 109, board 28, the offline gate,
   CI.
+* THE WIRE'S OTHER HALF, THE REQUESTS (2026-09-14). The replies were
+  held field for field; what the library packs into a request and what
+  the handler reads off it were not. `test_structure` pairs them now
+  by the op's name alone - the dispatch table says which handler reads
+  which op, the enums are already held to cmd.h, and the decoder names
+  the op it sends - and compares the handler's `rd_*` reads to the
+  `pack(...)` widths: a field read under an `rd_left` guard, a ternary
+  or the block the guard opens, is optional and taken when it is there;
+  a loop over a count is its body that many times; `rd_bytes` is
+  whatever is left. Sixty-odd ops on ten devices, one check a device; a
+  payload built some other way than a literal pack - the gate stage's
+  on and off constants, the duty triples' concatenations, the IMU
+  write's bytes - is skipped and named. THE FIRST RUN FOUND THE MIRROR
+  OF THE MORNING'S DRIFT: the dead-time op's skew, packed `i8` by the
+  library as cmd.h says, was read with `rd_u8` and cast - the same
+  byte, and the same silence about it that `wr_u8` kept on the reply
+  side until the reply check spoke. The wire has `rd_i8` beside `wr_i8`
+  now and the handler reads with it. A request cannot drift on either
+  side without a suite saying so. Proof: structure 643 -> 653, the
+  counts synced, build 0 warnings, CI.
 
 ## The local model
 

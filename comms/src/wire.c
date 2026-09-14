@@ -115,6 +115,13 @@ uint8_t rd_u8(rd_t *r)
   return rd_take(r, 1U, &p) ? p[0] : 0U;
 }
 
+/* A signed byte says so in the reader as in the writer: what was packed
+   as i8 is read as i8, not as a cast a header has to explain. */
+int8_t rd_i8(rd_t *r)
+{
+  return (int8_t)rd_u8(r);
+}
+
 uint16_t rd_u16(rd_t *r)
 {
   const uint8_t *p;

@@ -915,13 +915,208 @@ def test_wire_shapes_agree(r):
                 same, where)
 
 
+#: The requests' side of the same check. Every `case PREFIX_OP_NAME: return
+#: handler(in, out);` names the handler that reads an op's request, and
+#: every `self._op(XOp.NAME, pack(...))` names what the decoder sends; the
+#: enums are already held to cmd.h by name, so the two pair up by the op's
+#: name and the reads are held to the widths.
+_RD_TOKENS = re.compile(
+    r'(?P<open>\{)|(?P<close>\})|(?P<semi>;)'
+    r'|(?P<leave>\b(?:return|continue)\b[^;]*;)'
+    r'|(?P<guard>\brd_left\s*\(\s*in\s*\))'
+    r'|for\s*\([^;]*;[^<]*<=?\s*(?:\([^)]*\)\s*)?(?P<bound>\w+)[^)]*\)'
+    r'|\brd_(?P<width>u8|i8|u16|i16|u32|i32|bytes)\s*\(\s*in\b')
+_DISPATCH = re.compile(r'case\s+(\w+?)_OP_(\w+)\s*:\s*return\s+(\w+)\s*\(\s*(in|out)')
+
+
+def _c_reads(text, name, defines):
+    """The widths a handler reads off its request, in order: a field read
+    under an `rd_left` guard - a ternary, or a block the guard opens - is
+    `('?', width)`, taken when it is there; a loop over a count is its body
+    that many times or `('*', body)`; `rd_bytes` is `('rest',)`, whatever
+    is left. A block that leaves is an alternative path and is skipped."""
+    m = re.search(r'^static\s+\w+\s+%s\s*\(\s*rd_t\s*\*\s*in' % re.escape(name), text, re.M)
+    if m is None:
+        return []
+    body = text[text.index('{', m.end()):]
+    stack = [[[], None, False, False]]   # [reads, repeat, ends-in-leave, optional]
+    depth, bound, armed = 0, None, False
+    for t in _RD_TOKENS.finditer(body):
+        if t.group('open'):
+            depth += 1
+            optional = armed or stack[-1][3]
+            if bound is not None:
+                repeat = (int(bound.rstrip('U')) if bound.rstrip('U').isdigit()
+                          else defines.get(bound, '*'))
+                stack.append([[], repeat, False, optional])
+                bound = None
+            elif depth > 1:
+                stack.append([[], None, False, optional])
+            armed = False
+            continue
+        if t.group('close'):
+            depth -= 1
+            if depth == 0:
+                break
+            reads, repeat, left, _ = stack.pop()
+            if repeat == '*':
+                if reads:
+                    stack[-1][0].append(('*', tuple(reads)))
+            elif repeat is not None:
+                stack[-1][0].extend(reads * repeat)
+            elif not left:
+                stack[-1][0].extend(reads)
+            stack[-1][2] = False
+            continue
+        if t.group('semi'):
+            armed = False
+            continue
+        if t.group('leave'):
+            stack[-1][2] = True
+            armed = False
+            continue
+        stack[-1][2] = False
+        if t.group('guard'):
+            armed = True
+            continue
+        if t.group('bound'):
+            bound = t.group('bound')
+            continue
+        width = t.group('width')
+        if width == 'bytes':
+            stack[-1][0].append(('rest',))
+        elif armed or stack[-1][3]:
+            stack[-1][0].append(('?', width))
+        else:
+            stack[-1][0].append(width)
+    return stack[0][0]
+
+
+def _c_requests():
+    """{(PREFIX, OP): reads} for every op a command file dispatches."""
+    found = {}
+    folder = os.path.join(REPO, 'comms', 'src')
+    for name in sorted(os.listdir(folder)):
+        if not name.startswith('cmd_') or name == 'cmd_length.c':
+            continue
+        text = io.open(os.path.join(folder, name), encoding='utf-8').read()
+        text = re.sub(r'/\*.*?\*/', ' ', text, flags=re.S)
+        defines = _c_defines(text)
+        for prefix, op, handler, first in _DISPATCH.findall(text):
+            found[(prefix, op)] = _c_reads(text, handler, defines) if first == 'in' else []
+    return found
+
+
+def _py_requests():
+    """{(EnumName, OP): widths} for every request the library sends whose
+    payload is a literal `pack(...)`, nothing, or a name bound to one in
+    the same function; None where it is built some other way."""
+    found = {}
+    folder = os.path.join(HOST, 'coaxial')
+
+    def widths_of(node, scope):
+        if node is None:
+            return []
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == 'pack'):
+            out = []
+            for arg in node.args:
+                if not (isinstance(arg, ast.Tuple) and arg.elts
+                        and isinstance(arg.elts[0], ast.Constant)):
+                    return None
+                out.append(arg.elts[0].value)
+            return out
+        if isinstance(node, ast.Name) and node.id in scope:
+            return widths_of(scope[node.id], {})
+        return None
+
+    for name in sorted(os.listdir(folder)):
+        if not name.endswith('.py'):
+            continue
+        tree = ast.parse(io.open(os.path.join(folder, name), encoding='utf-8').read())
+        for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]:
+            scope = {t.id: s.value for s in fn.body if isinstance(s, ast.Assign)
+                     for t in s.targets if isinstance(t, ast.Name)}
+            for call in ast.walk(fn):
+                if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                        and call.func.attr in ('_op', '_ack') and call.args):
+                    continue
+                op = call.args[0]
+                if not (isinstance(op, ast.Attribute) and isinstance(op.value, ast.Name)
+                        and op.value.id.endswith('Op')):
+                    continue
+                payload = call.args[1] if len(call.args) > 1 else None
+                key = (op.value.id, op.attr)
+                widths = widths_of(payload, scope)
+                if key not in found or found[key] is None:
+                    found[key] = widths
+    return found
+
+
+def _request_agrees(reads, widths):
+    """Whether packed `widths` are what the handler reads: an optional field
+    taken when it is there, the rest whatever is left, a repeat once or
+    more."""
+    def go(i, j):
+        if i == len(reads):
+            return j == len(widths)
+        a = reads[i]
+        if isinstance(a, tuple) and a[0] == 'rest':
+            return True
+        if isinstance(a, tuple) and a[0] == '?':
+            return (j < len(widths) and widths[j] == a[1] and go(i + 1, j + 1)) or go(i + 1, j)
+        if isinstance(a, tuple) and a[0] == '*':
+            body = list(a[1])
+            n = 0
+            while body and widths[j + n * len(body):j + (n + 1) * len(body)] == body:
+                n += 1
+            return any(go(i + 1, j + k * len(body)) for k in range(n, 0, -1))
+        return j < len(widths) and widths[j] == a and go(i + 1, j + 1)
+    return go(0, 0)
+
+
+def test_wire_requests_agree(r):
+    """What the library packs into a request is what the handler reads.
+
+    The replies are held field for field; this is the other half of the
+    wire. Paired by the op's name through the dispatch table and the enum
+    the mirror check already holds to cmd.h, so a request's shape cannot
+    drift on either side without a suite saying so. A payload built some
+    other way than a literal `pack` - a constant, a concatenation - is
+    skipped and named.
+    """
+    enum_of = {prefix: cls for prefix, cls in OP_CLASSES.items()}
+    reads = _c_requests()
+    packs = _py_requests()
+    for prefix in sorted({p for p, _ in reads}):
+        cls = enum_of.get(prefix)
+        wrong, compared, skipped = [], 0, []
+        for (p, op), sequence in sorted(reads.items()):
+            if p != prefix:
+                continue
+            widths = packs.get((cls, op), 'absent')
+            if widths == 'absent':
+                continue                      # no request from the library
+            if widths is None:
+                skipped.append(op)
+                continue
+            compared += 1
+            if not _request_agrees(sequence, widths):
+                wrong.append('%s: C reads %s, Python packs %s' % (
+                    op, ' '.join(str(w) for w in sequence) or 'nothing',
+                    ' '.join(widths) or 'nothing'))
+        r.check("%s's requests are packed as its handlers read them" % prefix,
+                not wrong, '; '.join(wrong[:3]) or '%d ops%s' % (
+                    compared, (', not literal: ' + ', '.join(skipped)) if skipped else ''))
+
+
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
           test_shape, test_documented, test_no_escaping_scars,
           test_counts_are_measured, test_subsystem_calls_resolve,
           test_limits_live_in_one_file, test_mirrors_agree,
-          test_wire_shapes_agree)
+          test_wire_shapes_agree, test_wire_requests_agree)
 
 
 def main():
