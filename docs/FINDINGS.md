@@ -1615,6 +1615,23 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   the scaling module - taken with the broker next. Proof: structure 625, mcp 50,
   broker 33, daq_api 75, simulated 254, link 109, every moved module
   imported first in a bare process, the offline gate, CI.
+* THE HANDOVER IS THE TRANSPORT'S, AND THE BROKER NO LONGER IMPORTS
+  BOARD (2026-09-14). The broker needed `Board` for one thing, twice:
+  handing USART3 from the text console to the binary protocol - the
+  console key, a settle, the input discarded - for a port it takes and
+  for a request whose first try met silence. board.py imports the
+  broker at the top (to spawn and attach), so those two were the
+  library's last function-level imports born of a cycle. The handover
+  touches nothing but the transport, so it is `transport.hand_to_binary`
+  now; `Board.open_binary` delegates and keeps its name for the stand-in
+  and every caller. The three plain hoists went with it: the ACK reply
+  shape in subsystem.py (transport imports nothing of it), the NTP
+  server name beside the clock the stand-in already imported, the
+  scaling module beside the two constants the stand-in's front end
+  already took from it. What is left inside functions in the library is
+  the optional pandas, numpy and Pillow, by the tree's rule. Proof:
+  structure 625, broker 33, mcp 50, simulated 254, daq_api 75, the
+  modules imported first in a bare process, the offline gate, CI.
 
 ## The local model
 

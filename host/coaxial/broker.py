@@ -26,7 +26,7 @@ import time
 from . import errors, ports, protocol
 from .errors import NoReplyError, RigError
 from .fanout import Fanout
-from .transport import Transport
+from .transport import Transport, hand_to_binary
 from typing import Any
 from contextlib import suppress
 
@@ -494,8 +494,7 @@ class _Server(socketserver.ThreadingTCPServer):
             return self.transport.request(unit, function, payload,
                                           exact_payload, timeout, reply_shape)
 
-        from .board import Board
-        Board(self.transport, unit).open_binary()
+        hand_to_binary(self.transport)
         return self.transport.request(unit, function, payload,
                                       exact_payload, timeout, reply_shape)
 
@@ -658,12 +657,10 @@ def serve(port, baud=115200, address=(HOST, PORT), transport=None,
     is the other case: a bench where the port should stay taken between
     runs.
     """
-    from .board import Board          # here: board.py reaches for this one
-
     handed = transport is not None
     if not handed:
         transport = Transport(port, baud)
-        Board(transport, 1).open_binary()
+        hand_to_binary(transport)
     server = _Server(address, _Handler)
     server.transport = transport
     server.serial_port = port

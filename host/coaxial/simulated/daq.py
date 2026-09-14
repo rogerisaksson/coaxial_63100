@@ -13,7 +13,7 @@ from .system import UNITS
 from .. import angle, imu
 from typing import cast
 from typing import Any
-from ..clock import Clock
+from ..clock import Clock, NTP_SERVER
 
 #: What one read answers, in bytes of records, and the share of the line
 #: rate the stand-in quotes as its ceiling.
@@ -775,7 +775,6 @@ class SimulatedClock:
     def probe(self, rounds=16):
         return Clock.probe(cast(Clock, self), rounds=rounds)
     def sync(self, seconds=2.0, rounds=8, reference='utc', ntp_server=None):
-        from ..clock import Clock, NTP_SERVER
         # Its cycles come off this machine's clock, so against UTC it is
         # this machine's error plus its own 12 ppm - which is the honest
         # answer, not a bug.

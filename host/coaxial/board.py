@@ -10,7 +10,6 @@ The split follows the hardware rather than the protocol: someone reading a test
 script should be able to tell which part of the board a line touches without
 knowing a single function code.
 """
-import time
 
 from .afe import Afe
 from .analog import Analog
@@ -33,7 +32,7 @@ from .protocol import BROADCAST, PROVEN_DISPATCH_SINCE
 from .subsystem import Subsystem
 from .system import System
 from . import broker
-from .transport import Transport
+from .transport import Transport, hand_to_binary
 from typing import Any
 from .simulated import BROADCAST_REFUSAL
 from contextlib import suppress
@@ -116,14 +115,8 @@ class Board:
     # -- getting the link open and shut ------------------------------------
 
     def open_binary(self, settle=0.5):
-        """Hand USART3 from the text console to the binary protocol.
-
-        The board boots into its console because that is how a human drives it;
-        'm' is the console key that gives the line up. Not part of Modbus.
-        """
-        self.transport.write_text('m')
-        time.sleep(settle)
-        self.transport.discard_input()
+        """Hand the line from the text console to the binary protocol."""
+        hand_to_binary(self.transport, settle)
 
     def close_binary(self):
         """Give the line back to the console."""

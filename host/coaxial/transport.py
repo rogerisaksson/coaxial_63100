@@ -30,6 +30,19 @@ CRC_BYTES = 2
 EXCEPTION = 0x80
 
 
+def hand_to_binary(transport, settle=0.5):
+    """Hand USART3 from the text console to the binary protocol.
+
+    The board boots into its console because that is how a human drives
+    it; 'm' is the console key that gives the line up. Not part of Modbus,
+    and a link-level act: the broker does it for a port it takes, `Board`
+    for a link it opens.
+    """
+    transport.write_text('m')
+    time.sleep(settle)
+    transport.discard_input()
+
+
 class Transport:
     """One serial port at one bitrate, shared by every unit on it.
 

@@ -4,7 +4,7 @@ import math
 import random
 import time
 
-from .. import protocol
+from .. import protocol, scaling
 from ..calibration import CalibrationOps
 from ..errors import DeviceStateError
 from ..scaling import ADC_CODES, ADC_HALF_CODES
@@ -67,8 +67,7 @@ class SimulatedAnalog:
         one would be a number pretending to be a measurement.
         """
         del refresh
-        from .. import scaling as _scaling
-        return _scaling.from_calibration({})
+        return scaling.from_calibration({})
 
     def channels(self, refresh=False):
         return CHANNELS

@@ -27,6 +27,8 @@ switch it reads.
 import functools
 from typing import Any, Callable
 
+from .transport import ACK
+
 from . import protocol
 from .errors import RigError
 from .wire import Reader
@@ -65,7 +67,6 @@ class Subsystem:
         stops on the last byte instead of waiting out QUIET_TIME. That
         wait was 8 ms of the ~15 ms every write-class transaction cost.
         """
-        from .transport import ACK
         return self.took(self._op(op, payload, reply_shape=ACK))
 
     @staticmethod
