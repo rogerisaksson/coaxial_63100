@@ -1650,6 +1650,21 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   exactly the kind of thing that stops being harmless the day one side
   is renumbered; the C took the host's names, two sites each, build 0
   warnings. Proof: structure 629, modbus core 77, CI.
+* THE FIRMWARE BUILDS IN CI (2026-09-14). Every push ran the host
+  suites and nothing else; a C commit's proof was the bench's build
+  and a flash. `.github/workflows/firmware.yml` now configures and
+  builds the tree on every push with the presets the bench uses -
+  `cmake --preset Debug`, then the build preset, no cube-cmake - on
+  Arm's GCC 14.2.Rel1, the major the ST bundle's 14.3.1 shares; fails
+  on any `warning:` in the log, which is the bench's rule made the
+  runner's; prints the size line; and uploads the ELF as an artifact,
+  so a commit that says 197 060 B can be checked against what a clean
+  machine made. Proven first here: plain cmake with the bundle's gcc,
+  ninja and cmake on PATH configured and built the tree with 0
+  warnings, so the presets stand without ST's wrapper. What the runner
+  cannot judge stays what it was: parity, conformance and the live
+  views over a flashed board. A red run posts its log tail as a commit
+  comment, like the host's.
 
 ## The local model
 

@@ -363,7 +363,7 @@ was the order, and every step skipped was paid for later.
    after anything under `host/`. The offline gate (`python
    tools/run_tests.py --offline`, ~6 min, in the background) before a
    push that changes `coaxial/` itself; CI runs it on every push either
-   way. A new check counts: sync the number in this file,
+   way, and builds the firmware. A new check counts: sync the number in this file,
    `run_tests.ps1`, ARCHITECTURE's table and `tests/.counts.json` -
    test_structure holds them to each other and fails one run behind.
 2. **A picture is judged in a raster, not in glyph counts.** Anything
