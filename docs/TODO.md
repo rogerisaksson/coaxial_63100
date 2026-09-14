@@ -67,6 +67,16 @@ is still arithmetic. Every item names the file or record it lives in.
 
 ## Still arithmetic
 
+* **The Debug preset's optimisation level is a measurement, not a
+  choice** (2026-09-14): the bench flashes Debug at `-O0`, and the pass
+  that made every module's state one struct cost four kilobytes of flash
+  because a member access at `-O0` is a base plus an offset. `-Og` is
+  debuggable and optimised, and `daq.c` runs once per converter sample -
+  the reason `filter.c` is at `-O2` whatever the preset - and could join
+  it. The numbers that decide: the LOOP panel's cycle counters for the
+  drive step and the acquisition feed, and the keepalive's worst gap
+  with a tone running (FINDINGS has the 440-cycles-a-sample measurement
+  the tone burst bound rests on). Release builds clean in CI either way.
 * **The thermal graph's new numbers are derived, none measured** (2026-09-05):
   the seven patches' areas off the outline, the sheet conductance chosen to
   reproduce the camera's lumped 15.2 K/W, the sources' edges into their

@@ -422,8 +422,8 @@ behind in two of them); `docs/`, `CLAUDE.md` and `README.md` map to
 `-Structure`. Ctrl+C is `STOPPED`, exit 130, and the `finally` hands
 the model back. `.github/workflows/host.yml` runs `--offline` on
 Python 3.10 and 3.12; `firmware.yml` configures and builds the firmware
-with the bench's presets on Arm's GCC 14, fails on any warning, and
-keeps the ELF as an artifact.
+in both presets, Debug and Release, on Arm's GCC 14, fails on any
+warning, and keeps each ELF as an artifact.
 
 ## Build and flash
 

@@ -1,10 +1,12 @@
 # The firmware, built on every push with the same presets the bench uses -
-# `cmake --preset Debug`, then the build preset - on Arm's own GCC 14, the
+# `cmake --preset <name>`, then the build preset - on Arm's own GCC 14, the
 # major the ST bundle ships. What it proves without a board: the tree
 # configures from a bare clone, compiles with zero warnings under the flags
 # the HAL-free cores carry (-Wextra -Wshadow -Wconversion), links, and how
 # big it is - the size line is in the log and the ELF is an artifact, so a
 # commit that says "197 060 B" can be checked against what the runner made.
+# Both presets: the bench flashes Debug, and Release is what the optimiser
+# sees - -Wall at -O0 cannot warn of a use before a store that -Os can.
 # What it cannot judge stays the bench's: parity, conformance and the live
 # views over a flashed board.
 name: firmware
@@ -20,14 +22,18 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [Debug, Release]
     steps:
       - uses: actions/checkout@v4
       - uses: carlosperate/arm-none-eabi-gcc-action@v1
         with:
           release: '14.2.Rel1'
       - run: sudo apt-get install -y --no-install-recommends ninja-build
-      - run: cmake --preset Debug
-      - run: cmake --build --preset Debug 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+      - run: cmake --preset ${{ matrix.preset }}
+      - run: cmake --build --preset ${{ matrix.preset }} 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
         shell: bash
       # Zero warnings is the bench's rule (CLAUDE.md), so it is the runner's.
       - run: |
@@ -35,11 +41,11 @@ jobs:
             echo "the build must be warning-free"; exit 1
           fi
         shell: bash
-      - run: arm-none-eabi-size build/Debug/coaxial_63100.elf
+      - run: arm-none-eabi-size build/${{ matrix.preset }}/coaxial_63100.elf
       - uses: actions/upload-artifact@v4
         with:
-          name: coaxial_63100-elf
-          path: build/Debug/coaxial_63100.elf
+          name: coaxial_63100-${{ matrix.preset }}-elf
+          path: build/${{ matrix.preset }}/coaxial_63100.elf
       # A red run must be readable without the Actions UI, like the host's.
       - if: failure()
         env:
@@ -47,5 +53,5 @@ jobs:
         run: |
           tail -c 60000 build.log > tail.log 2>/dev/null || true
           gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
-            -f body="$(printf 'CI firmware failed. Log tail:\n\n~~~\n'; cat tail.log; printf '\n~~~\n')" \
+            -f body="$(printf 'CI firmware (%s) failed. Log tail:\n\n~~~\n' '${{ matrix.preset }}'; cat tail.log; printf '\n~~~\n')" \
             || true

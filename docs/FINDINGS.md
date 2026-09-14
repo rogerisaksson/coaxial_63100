@@ -1877,6 +1877,22 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   now and the handler reads with it. A request cannot drift on either
   side without a suite saying so. Proof: structure 643 -> 653, the
   counts synced, build 0 warnings, CI.
+* CI BUILDS RELEASE TOO (2026-09-14). `-Wall` at `-O0` cannot warn of
+  a use before a store, a dead store or a path that returns nothing -
+  those need the optimiser's dataflow, and the bench flashes Debug.
+  The firmware job is a matrix over both presets now, each with its
+  size line and its ELF as an artifact. Built first here with the
+  bundle's own cmake, ninja and gcc on PATH: Release configures and
+  compiles with 0 warnings, 120 968 B of text against Debug's 202 100
+  B of flash - so today the optimiser has nothing to add, and the job
+  is there for the day it does. THE MEASUREMENT THAT IS THE BENCH'S:
+  the struct pass cost four kilobytes because every member access at
+  -O0 is a base plus an offset, and `-Og` would be debuggable and
+  optimised; `daq.c` runs once per converter sample, the reason
+  `filter.c` is at -O2 whatever the preset, and could join it. Neither
+  is adopted here - the LOOP panel's cycle counters and the keepalive's
+  worst gap are the numbers that decide, and they need a board. TODO
+  carries it.
 
 ## The local model
 
