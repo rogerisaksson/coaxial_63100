@@ -248,7 +248,7 @@ def hold_model(tag):
         print('holding %s for the run' % client.model)
         client.preload()
         return client
-    except Exception as exc:                                  # noqa: BLE001
+    except clientmod.FAULTS as exc:
         print('could not preload %s: %s' % (tag, exc))
         return None
 
@@ -257,7 +257,7 @@ def _client_for(tag):
     """A handle on a tag, for unloading it. None if ollama is not there."""
     try:
         return clientmod.Ollama(tag)
-    except Exception:                                         # noqa: BLE001
+    except clientmod.FAULTS:
         return None
 
 
@@ -280,7 +280,7 @@ def release_model(client=None):
         try:
             one.unload()
             print('released %s' % tag)
-        except Exception as exc:                              # noqa: BLE001
+        except clientmod.FAULTS as exc:
             print('could not release %s: %s' % (tag, exc))
 
 
@@ -295,7 +295,7 @@ def board_note():
     try:
         sys.path.insert(0, str(ROOT / 'tools'))
         ports = find_board.list_ports()
-    except Exception as exc:                                  # noqa: BLE001
+    except OSError as exc:                                 # the port listing
         return '  (could not check whether the board is attached: %s)' % exc
     if not ports:
         return ('  NOTE: Windows sees no COM ports at all - every failure '
@@ -516,7 +516,8 @@ def _ask_model(args, live_sections):
         # anyway, so the name only has to be a name.
         try:
             args.model = choose(probe()).tag
-        except Exception:                                     # noqa: BLE001
+        except (OSError, ValueError, KeyError, AttributeError,
+                subprocess.SubprocessError):       # what the probe can meet
             args.model = 'gemma4:12b'
     plan, reason = pick_tests.pick(args.model)
     _LOADED.append(_client_for(args.model))
@@ -576,7 +577,7 @@ def changed_files(against='HEAD'):
                                   capture_output=True, text=True,
                                   encoding='utf-8', errors='replace',
                                   timeout=30)
-        except Exception:                                     # noqa: BLE001
+        except (OSError, subprocess.SubprocessError):
             continue
         if done.returncode == 0:
             paths |= {line.strip().replace('\\', '/')
@@ -719,7 +720,7 @@ def _commits():
             ['git', 'rev-list', '--count', 'HEAD'], cwd=str(ROOT.parent),
             capture_output=True, text=True, encoding='utf-8',
             errors='replace', timeout=30).stdout.strip())
-    except Exception:                                         # noqa: BLE001
+    except (OSError, ValueError, subprocess.SubprocessError):
         return 0
 
 

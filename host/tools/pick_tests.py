@@ -125,7 +125,7 @@ def diff_text(against='HEAD'):
                                   capture_output=True, text=True,
                                   encoding='utf-8', errors='replace',
                                   timeout=30)
-        except Exception:                                     # noqa: BLE001
+        except (OSError, subprocess.SubprocessError):
             continue
         # `or ''`: measured None here, from a git invocation that returned 0
         # with nothing captured. A picker that raises is worse than one that
@@ -146,7 +146,7 @@ def changed(against='HEAD'):
                                   capture_output=True, text=True,
                                   encoding='utf-8', errors='replace',
                                   timeout=30)
-        except Exception:                                     # noqa: BLE001
+        except (OSError, subprocess.SubprocessError):
             continue
         for line in (done.stdout or '').splitlines():
             if line.strip() and line.strip() not in seen:
@@ -181,7 +181,7 @@ def parse(reply, catalogue=None):
         wanted = [str(t).strip().lower() for t in got.get('tags') or []]
         live = str(got.get('live') or 'none').strip().lower()
         why = str(got.get('why') or '').strip()
-    except Exception:                                         # noqa: BLE001
+    except (ValueError, AttributeError, TypeError):
         return None, 'the reply was not the JSON it was asked for'
 
     files = [name for name in SUITES if name in suites]
@@ -234,7 +234,7 @@ def pick(model='gemma4:12b', against='HEAD', keep_alive='30m'):
         client.model = client.require_model()
         message = client.chat([{'role': 'user',
                                 'content': ASK % catalogue}])
-    except Exception as exc:                                  # noqa: BLE001
+    except clientmod.FAULTS as exc:
         return None, 'could not ask %s: %s' % (model, exc)
     return parse((message.get('content') or '').strip())
 

@@ -1691,6 +1691,25 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   broker 33, mcp 50, simulated 254, daq_api 75, the runner's tools 219,
   link 109, board 28, reply 23, prompt 113, runner 223, the offline
   gate, CI.
+* THE BENCH TOOLS' EXCEPTS, THE SAME WAY (2026-09-14). Twenty-one in
+  tools/, and fifteen named one of the same three things: the test
+  runner's model handles (preload, a handle for unloading, the release)
+  and the picker's model call take `client.FAULTS`; the runner's and
+  the picker's four `git` calls take the process errors, the revision
+  count the parse error too; the runner's port listing takes OSError;
+  the picker's reading of the model's JSON takes the JSON errors; the
+  chooser's broker count and its board watch take `LINK_FAULTS`,
+  imported inside the two functions beside `coaxial` itself, because
+  the chooser's page is instant and imports the library off the frame
+  loop; the capability probe behind `--model auto` takes what the
+  probe can meet. Six stay broad, each with its reason sharpened: the
+  two terminal probes, where termios is absent on Windows and has its
+  own error class where it is not; the view loop, which shows the
+  exception and keeps drawing because a bench page that dies hides its
+  own reason; the chat loop, shown and kept; and the session page's
+  stop path twice, where the stop must finish and the session still
+  end. Proof: structure 629, runner 223, views 206, the offline gate,
+  CI.
 
 ## The local model
 

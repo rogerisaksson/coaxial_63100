@@ -707,7 +707,7 @@ def teardown(session, console, drawn, hold=True):
 
     try:
         undone = session.stop_all()
-    except Exception as exc:                       # noqa: BLE001
+    except Exception as exc:          # noqa: BLE001 - the stop must finish
         # The lines matter more than the exception: this is the only place
         # that says what was put back, and a stop that raised is exactly
         # when somebody needs to read it.
@@ -799,7 +799,8 @@ def leave(port, simulated):
     except QUIET as exc:
         say('warn', 'leaving', 'the board did not answer: %s' % str(exc)[:60])
         return 0
-    except Exception as exc:                          # noqa: BLE001
+    except Exception as exc:          # noqa: BLE001 - shown, and the session
+        # still ends the way it should
         say('warn', 'leaving', '%s: %s' % (type(exc).__name__, str(exc)[:50]))
         return 0
 

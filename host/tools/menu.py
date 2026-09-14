@@ -92,13 +92,14 @@ PROBE_EVERY = 30.0
 def _watch_broker():
     """Keep the masthead's broker status fresh, off the frame loop."""
     from coaxial import broker
+    from coaxial.errors import LINK_FAULTS
 
     while True:
         try:
             # Nobody serving means no connect: the file outlives a killed
             # broker, and a connect nothing answers takes its full 2 s.
             count = broker.clients() if broker.serving() else None
-        except Exception:                                     # noqa: BLE001
+        except LINK_FAULTS + (ValueError,):   # the socket, the address file
             count = None
         # The broker holding the port IS a session; its clients ride on
         # it. Counting clients alone read 0 SESSIONS on a page opened by
@@ -117,11 +118,12 @@ def _watch_link(port):
     stand-in.
     """
     from coaxial.session import board_answers
+    from coaxial.errors import LINK_FAULTS
 
     while True:
         try:
             _BROKER['board'] = board_answers(port)
-        except Exception:                                     # noqa: BLE001
+        except LINK_FAULTS:
             _BROKER['board'] = False
         time.sleep(PROBE_EVERY)
 

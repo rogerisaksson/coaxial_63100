@@ -163,7 +163,8 @@ def probe_aspect(console=True, wait=ASPECT_WAIT):
             tty = importlib.import_module('tty')
             posix, saved = termios, termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin.fileno())
-        except Exception:               # noqa: BLE001 - Windows, or no tty
+        except Exception:       # noqa: BLE001 - Windows, or no tty; and
+            # termios has its own error class, absent where it is absent
             saved = None
         out = sys.__stdout__ or sys.stdout
         out.write(ASPECT_QUERY)
@@ -176,7 +177,7 @@ def probe_aspect(console=True, wait=ASPECT_WAIT):
         if '4' not in seen or '8' not in seen:
             return None
         return cell_aspect_of(seen['4'], seen['8'])
-    except Exception:                   # noqa: BLE001 - never fatal
+    except (OSError, ValueError, TypeError):    # the terminal's answer, or none
         return None
     finally:
         if saved is not None and posix is not None:
@@ -436,7 +437,8 @@ class Feed:
         while not self._stop.is_set():
             try:
                 got = self.read()
-            except Exception as exc:                     # noqa: BLE001
+            except Exception as exc:    # noqa: BLE001 - the view shows it and
+                # keeps drawing: a bench page that dies hides its own reason
                 # The board's own sentence, kept for the drawer to show.
                 # Raising here would kill the thread and freeze the view on
                 # its last frame with nothing saying why.
@@ -799,7 +801,8 @@ class Keys:
             self._posix = termios
             self._saved = termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin.fileno())
-        except Exception:               # noqa: BLE001 - Windows, or no tty
+        except Exception:       # noqa: BLE001 - Windows, or no tty; and
+            # termios has its own error class, absent where it is absent
             self._saved = None
         # THE TERMINAL KEEPS THE MOUSE until a view is asked to take
         # it. `SELECT_KEYS` has why.
