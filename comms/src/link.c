@@ -32,14 +32,28 @@ typedef struct
   bool                close_pending;
 } link_port_t;
 
-static link_port_t s_links[LINK_COUNT];
+/** The link's state: the port in use, the console's handover, and the per-
+  * port counters. One object: what a debugger shows whole and a reset
+  * clears at once. */
+static struct
+{
+  link_port_t links[LINK_COUNT];
 
-/* Which port is inside mb_rtu_service, and so which one a command handler is
-   answering on. A handler that puts bytes on the wire needs to know: the
-   loopback check transmitted its four patterns on the port carrying the
-   request, and the reply came back with 00 ff 5a a5 in front of it and a
-   failed checksum. */
-static uint8_t s_current = LINK_CONSOLE;
+  /* Which port is inside mb_rtu_service, and so which one a command handler is
+     answering on. A handler that puts bytes on the wire needs to know: the
+     loopback check transmitted its four patterns on the port carrying the
+     request, and the reply came back with 00 ff 5a a5 in front of it and a
+     failed checksum. */
+  uint8_t current;
+
+  /* Bytes in, from any port. A COUNT and not a timestamp: this file gets its
+     clock injected through the device and has none of its own, so whoever
+     wants to know how long ago keeps the time themselves. */
+  uint32_t rx_count;
+} s = {
+  .current = LINK_CONSOLE
+};
+
 
 /* GateDrivers from the protocol's user-defined function space into the command
    table. The mapping of failures onto Modbus exceptions is the only judgement
@@ -92,7 +106,7 @@ static void build(link_port_t *l)
   l->model = *modbus_map_model(&l->rtu, user_function);
   mb_slave_init(&l->slave, &l->model);
   mb_rtu_init(&l->rtu, &l->slave, modbus_map_unit_id(),
-              dev_uart_port_baud((uint8_t)(l - s_links)),
+              dev_uart_port_baud((uint8_t)(l - s.links)),
               LINK_BITS_PER_CHAR,
               l->dev->ticks_per_us(l->dev->ctx));
 
@@ -109,14 +123,14 @@ void link_init(void)
 {
   for (uint8_t i = 0U; i < LINK_COUNT; i++)
   {
-    s_links[i].dev = dev_uart(i);
-    build(&s_links[i]);
+    s.links[i].dev = dev_uart(i);
+    build(&s.links[i]);
 
     /* The RS485 pair answers from boot. There is no console on a bus with
        other devices on it, and a port that has to be opened by a console
        command cannot be opened at all from the far end of one. */
-    s_links[i].open          = dev_uart_rs485(i);
-    s_links[i].close_pending = false;
+    s.links[i].open          = dev_uart_rs485(i);
+    s.links[i].close_pending = false;
   }
 }
 
@@ -127,14 +141,14 @@ const char *link_proto_name(void)
 
 bool link_active(void)
 {
-  return s_links[LINK_CONSOLE].open;
+  return s.links[LINK_CONSOLE].open;
 }
 
 bool link_busy(void)
 {
   for (uint8_t i = 0U; i < LINK_COUNT; i++)
   {
-    if (s_links[i].open && mb_rtu_busy(&s_links[i].rtu))
+    if (s.links[i].open && mb_rtu_busy(&s.links[i].rtu))
     {
       return true;
     }
@@ -145,7 +159,7 @@ bool link_busy(void)
 
 void link_open(void)
 {
-  link_port_t *l = &s_links[LINK_CONSOLE];
+  link_port_t *l = &s.links[LINK_CONSOLE];
 
   l->dev->purge(l->dev->ctx);
   build(l);
@@ -156,7 +170,7 @@ void link_open(void)
 
 void link_close(void)
 {
-  link_port_t *l = &s_links[LINK_CONSOLE];
+  link_port_t *l = &s.links[LINK_CONSOLE];
 
   l->open          = false;
   l->close_pending = false;
@@ -165,25 +179,21 @@ void link_close(void)
 
 void link_request_close(void)
 {
-  s_links[LINK_CONSOLE].close_pending = true;
+  s.links[LINK_CONSOLE].close_pending = true;
 }
 
 uint32_t link_ticks_per_us(void)
 {
-  const link_port_t *l = &s_links[LINK_CONSOLE];
+  const link_port_t *l = &s.links[LINK_CONSOLE];
 
   return l->dev->ticks_per_us(l->dev->ctx);
 }
 
 /* One port's pump. Four steps, no nesting beyond a guard each. */
-/* Bytes in, from any port. A COUNT and not a timestamp: this file gets its
-   clock injected through the device and has none of its own, so whoever
-   wants to know how long ago keeps the time themselves. */
-static uint32_t s_rx_count;
 
 uint32_t link_rx_count(void)
 {
-  return s_rx_count;
+  return s.rx_count;
 }
 
 
@@ -207,12 +217,12 @@ static void pump(link_port_t *l)
        ports is not when this loop reached it. Framing is silence, so the
        difference is the whole measurement. */
     mb_rtu_on_byte(&l->rtu, byte, at);
-    s_rx_count++;
+    s.rx_count++;
   }
 
   const uint8_t *frame = NULL;
 
-  s_current = (uint8_t)(l - s_links);
+  s.current = (uint8_t)(l - s.links);
 
   const size_t n = mb_rtu_service(&l->rtu, l->dev->ticks(l->dev->ctx),
                                   &frame);
@@ -226,7 +236,7 @@ static void pump(link_port_t *l)
        changed over. */
     for (uint8_t i = 0U; i < LINK_COUNT; i++)
     {
-      s_links[i].rtu.unit_id = modbus_map_unit_id();
+      s.links[i].rtu.unit_id = modbus_map_unit_id();
     }
   }
 
@@ -240,7 +250,7 @@ void link_poll(void)
 {
   for (uint8_t i = 0U; i < LINK_COUNT; i++)
   {
-    pump(&s_links[i]);
+    pump(&s.links[i]);
   }
 }
 
@@ -261,7 +271,7 @@ void link_stats_of(uint8_t index, link_stats_t *out)
     return;
   }
 
-  const mb_rtu_t *rtu = &s_links[index].rtu;
+  const mb_rtu_t *rtu = &s.links[index].rtu;
 
   out->unit_id            = modbus_map_unit_id();
   out->t15_ticks          = rtu->t15_ticks;
@@ -276,12 +286,12 @@ void link_stats_of(uint8_t index, link_stats_t *out)
 
 uint8_t link_current(void)
 {
-  return s_current;
+  return s.current;
 }
 
 bool link_port_open(uint8_t index)
 {
-  return (index < LINK_COUNT) && s_links[index].open;
+  return (index < LINK_COUNT) && s.links[index].open;
 }
 
 const char *link_name(uint8_t index)

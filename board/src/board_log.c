@@ -22,15 +22,21 @@
 
 #include <string.h>
 
-static board_sample_t s_ring[BOARD_LOG_DEPTH];
-static volatile uint16_t s_head;        /* next slot to write */
-static volatile uint16_t s_tail;        /* next slot to read  */
-static volatile uint32_t s_dropped;
-static volatile uint8_t  s_sources;     /* bitmask; 0 disables the lot */
-static uint8_t  s_seq[BOARD_LOG_SOURCES];
-static volatile uint32_t s_thinned;     /* pushes refused by the rate limit */
-static uint32_t s_min_gap;              /* cycles a source must leave        */
-static uint32_t s_last_at[BOARD_LOG_SOURCES];
+/** The log ring's state: the ring, its fill, what has been dropped and
+  * thinned, and which sources are armed. One object: what a debugger shows
+  * whole and a reset clears at once. */
+static struct
+{
+  board_sample_t ring[BOARD_LOG_DEPTH];
+  volatile uint16_t head;         /* next slot to write */
+  volatile uint16_t tail;         /* next slot to read  */
+  volatile uint32_t dropped;
+  volatile uint8_t sources;       /* bitmask; 0 disables the lot */
+  uint8_t seq[BOARD_LOG_SOURCES];
+  volatile uint32_t thinned;      /* pushes refused by the rate limit */
+  uint32_t min_gap;               /* cycles a source must leave        */
+  uint32_t last_at[BOARD_LOG_SOURCES];
+} s;
 
 
 static uint16_t next_of(uint16_t i)
@@ -45,20 +51,20 @@ void Board_LogEnable(uint8_t sources, uint32_t min_gap_cycles)
      ones: a burst whose first records predate the run is worse than an empty
      one, and there is no field that would say so. */
   const uint32_t masked = Board_IrqHold();
-  s_sources = sources;
-  s_min_gap = min_gap_cycles;
-  s_head = 0U;
-  s_tail = 0U;
-  s_dropped = 0U;
-  s_thinned = 0U;
-  memset(s_seq, 0, sizeof(s_seq));
+  s.sources = sources;
+  s.min_gap = min_gap_cycles;
+  s.head = 0U;
+  s.tail = 0U;
+  s.dropped = 0U;
+  s.thinned = 0U;
+  memset(s.seq, 0, sizeof(s.seq));
   /* A whole gap in the past, so every source's first push is free. Unsigned
      underflow is the point and not an accident - the comparison below is
      the same subtraction, and both wrap together (invariant 2). */
   const uint32_t now = Board_Cycles();
   for (uint8_t i = 0U; i < BOARD_LOG_SOURCES; i++)
   {
-    s_last_at[i] = now - min_gap_cycles;
+    s.last_at[i] = now - min_gap_cycles;
   }
   Board_IrqRelease(masked);
 }
@@ -66,14 +72,14 @@ void Board_LogEnable(uint8_t sources, uint32_t min_gap_cycles)
 
 uint8_t Board_LogSources(void)
 {
-  return s_sources;
+  return s.sources;
 }
 
 
 void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n)
 {
   if ((source >= BOARD_LOG_SOURCES) ||
-      ((s_sources & (uint8_t)(1U << source)) == 0U))
+      ((s.sources & (uint8_t)(1U << source)) == 0U))
   {
     return;
   }
@@ -89,17 +95,17 @@ void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n)
      (invariant 2). A source producing under its share never reaches this. */
   const uint32_t now = Board_Cycles();
 
-  if ((s_min_gap != 0U) && ((now - s_last_at[source]) < s_min_gap))
+  if ((s.min_gap != 0U) && ((now - s.last_at[source]) < s.min_gap))
   {
-    s_thinned++;
+    s.thinned++;
     return;
   }
-  s_last_at[source] = now;
+  s.last_at[source] = now;
 
   board_sample_t rec;
   rec.at = now;
   rec.source = source;
-  rec.seq = s_seq[source]++;
+  rec.seq = s.seq[source]++;
   rec.v[0] = 0;
   rec.v[1] = 0;
   rec.v[2] = 0;
@@ -112,16 +118,16 @@ void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n)
   /* Short on purpose. This runs inside ADC3's interrupt at 50 kHz, and the
      window where interrupts are off is one struct copy and one index. */
   const uint32_t masked = Board_IrqHold();
-  const uint16_t next = next_of(s_head);
+  const uint16_t next = next_of(s.head);
 
-  if (next == s_tail)
+  if (next == s.tail)
   {
-    s_dropped++;
+    s.dropped++;
   }
   else
   {
-    s_ring[s_head] = rec;
-    s_head = next;
+    s.ring[s.head] = rec;
+    s.head = next;
   }
   Board_IrqRelease(masked);
 }
@@ -129,8 +135,8 @@ void Board_LogPush(uint8_t source, const int16_t *v, uint8_t n)
 
 uint16_t Board_LogCount(void)
 {
-  const uint16_t head = s_head;
-  const uint16_t tail = s_tail;
+  const uint16_t head = s.head;
+  const uint16_t tail = s.tail;
 
   return (head >= tail) ? (uint16_t)(head - tail)
                         : (uint16_t)(BOARD_LOG_DEPTH - tail + head);
@@ -139,13 +145,13 @@ uint16_t Board_LogCount(void)
 
 uint32_t Board_LogThinned(void)
 {
-  return s_thinned;
+  return s.thinned;
 }
 
 
 uint32_t Board_LogDropped(void)
 {
-  return s_dropped;
+  return s.dropped;
 }
 
 
@@ -163,10 +169,10 @@ uint16_t Board_LogTake(board_sample_t *out, uint16_t max)
      one. The copy is outside the critical section for that reason: the slot
      being read cannot be the slot being written unless the ring is empty,
      and then the loop has already stopped. */
-  while ((taken < max) && (s_tail != s_head))
+  while ((taken < max) && (s.tail != s.head))
   {
-    out[taken] = s_ring[s_tail];
-    s_tail = next_of(s_tail);
+    out[taken] = s.ring[s.tail];
+    s.tail = next_of(s.tail);
     taken++;
   }
   return taken;

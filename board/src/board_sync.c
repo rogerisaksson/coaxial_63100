@@ -53,38 +53,49 @@ extern ADC_HandleTypeDef hadc3;
 #define SYNC_TRIGGER_LEAD 15U
 
 
-/** CCR5 as last set. Zero means nobody has chosen, so arming picks the
-    default lead. Kept across disarm so a tuning run is not undone by it. */
-static uint16_t s_trigger;
+/** The injected group's state: whether it is armed and ready, the trigger,
+  * the latest triple and the counts of updates and overruns. One object:
+  * what a debugger shows whole and a reset clears at once. */
+static struct
+{
+  /** CCR5 as last set. Zero means nobody has chosen, so arming picks the
+      default lead. Kept across disarm so a tuning run is not undone by it. */
+  uint16_t trigger;
 
-/* THE MEAN SQUARE, ACCUMULATED WHERE THE SAMPLES ARE. The thermal model
-   needs a cycle average of i^2 and a poll at 10 Hz cannot give it one: the
-   trigger is a tick inside the PWM period, so the sampler is synchronous
-   and the alias can LOCK - a leg at its peak reading as a leg at zero for
-   as long as the speed holds. Summed here it is exact whatever the speed,
-   and whatever the balance, because each leg keeps its own sum.
+  /* THE MEAN SQUARE, ACCUMULATED WHERE THE SAMPLES ARE. The thermal model
+     needs a cycle average of i^2 and a poll at 10 Hz cannot give it one: the
+     trigger is a tick inside the PWM period, so the sampler is synchronous
+     and the alias can LOCK - a leg at its peak reading as a leg at zero for
+     as long as the speed holds. Summed here it is exact whatever the speed,
+     and whatever the balance, because each leg keeps its own sum.
 
-   IN COUNTS, not amperes. The conversion is the calibration record's
-   (invariant 7) and belongs in `Board_PhaseAmps`; squaring counts is three
-   integer multiply-accumulates in an interrupt whose budget is measured in
-   the LOOP panel, and the affine conversion is undone once per read
-   instead - see `Board_SyncMeanSquare`. */
-static int64_t s_sq[3];
-static int64_t s_sum[3];
-static uint32_t s_squares;
+     IN COUNTS, not amperes. The conversion is the calibration record's
+     (invariant 7) and belongs in `Board_PhaseAmps`; squaring counts is three
+     integer multiply-accumulates in an interrupt whose budget is measured in
+     the LOOP panel, and the affine conversion is undone once per read
+     instead - see `Board_SyncMeanSquare`. */
+  int64_t sq[3];
+  int64_t sum[3];
+  uint32_t squares;
+
+  board_sync_sample_t latest;
+  uint32_t updates;
+  uint32_t overruns;
+  bool armed;
+} s;
 
 
 static void SYNC_ConfigTrigger(void)
 {
-  if (s_trigger == 0U)
+  if (s.trigger == 0U)
   {
-    s_trigger = (uint16_t)(TIM1->ARR - SYNC_TRIGGER_LEAD);
+    s.trigger = (uint16_t)(TIM1->ARR - SYNC_TRIGGER_LEAD);
   }
   /* Channel 5, not 4: CubeMX reported channel 4 in conflict with another
      peripheral and it moved to 5. Both are internal - neither has an output
      pin - and OC5REF drives TRGO2 exactly as OC4REF did. Anything reading
      `trigger` sees the same number it always did. */
-  TIM1->CCR5 = s_trigger;
+  TIM1->CCR5 = s.trigger;
   MODIFY_REG(TIM1->CR2, TIM_CR2_MMS2, TIM_TRGO2_OC5REF);
 }
 
@@ -97,7 +108,7 @@ bool Board_SyncSetTrigger(uint16_t ticks)
   {
     return false;
   }
-  s_trigger = ticks;
+  s.trigger = ticks;
   TIM1->CCR5 = ticks;
   return true;
 }
@@ -137,15 +148,9 @@ static bool SYNC_ConfigPhase(ADC_HandleTypeDef *hadc, uint32_t channel,
 }
 
 
-static board_sync_sample_t s_latest;
-static uint32_t s_updates;
-static uint32_t s_overruns;
-static bool s_armed;
-
-
 bool Board_SyncArmed(void)
 {
-  return s_armed;
+  return s.armed;
 }
 
 
@@ -175,13 +180,13 @@ bool Board_SyncMeanSquare(float *out)
   const uint32_t masked = Board_IrqHold();
   for (uint8_t leg = 0U; leg < 3U; leg++)
   {
-    sq[leg] = s_sq[leg];
-    sum[leg] = s_sum[leg];
-    s_sq[leg] = 0;
-    s_sum[leg] = 0;
+    sq[leg] = s.sq[leg];
+    sum[leg] = s.sum[leg];
+    s.sq[leg] = 0;
+    s.sum[leg] = 0;
   }
-  n = s_squares;
-  s_squares = 0U;
+  n = s.squares;
+  s.squares = 0U;
   Board_IrqRelease(masked);
 
   if (n == 0U)
@@ -228,7 +233,7 @@ void Board_SyncLatest(board_sync_sample_t *out)
      them from this triple and one from the last would see a current sum that
      never existed. */
   const uint32_t masked = Board_IrqHold();
-  *out = s_latest;
+  *out = s.latest;
   Board_IrqRelease(masked);
 }
 
@@ -239,7 +244,7 @@ void Board_SyncOnInjected(const void *hadc)
      latches and returns. Anything that talks - a printf, a frame - inside
      here corrupts RTU framing and latches a UART overrun, which on this
      silicon kills reception for good (invariant 5). */
-  if (!s_armed)
+  if (!s.armed)
   {
     return;
   }
@@ -252,34 +257,34 @@ void Board_SyncOnInjected(const void *hadc)
     /* The data registers themselves. HAL_ADCEx_InjectedGetValue is a
        switch on the rank behind two asserts, compiled at -O0 five times
        a period; JDRx is the number it returns. */
-    s_latest.phase[SYNC_U] = (int16_t)Board_AdcDifferential(hadc3.Instance->JDR1);
-    s_latest.phase[SYNC_V] = (int16_t)Board_AdcDifferential(hadc1.Instance->JDR1);
-    s_latest.phase[SYNC_W] = (int16_t)Board_AdcDifferential(hadc2.Instance->JDR1);
+    s.latest.phase[SYNC_U] = (int16_t)Board_AdcDifferential(hadc3.Instance->JDR1);
+    s.latest.phase[SYNC_V] = (int16_t)Board_AdcDifferential(hadc1.Instance->JDR1);
+    s.latest.phase[SYNC_W] = (int16_t)Board_AdcDifferential(hadc2.Instance->JDR1);
     for (uint8_t leg = 0U; leg < 3U; leg++)
     {
-      const int32_t c = s_latest.phase[leg];
+      const int32_t c = s.latest.phase[leg];
 
-      s_sq[leg] += (int64_t)c * (int64_t)c;
-      s_sum[leg] += c;
+      s.sq[leg] += (int64_t)c * (int64_t)c;
+      s.sum[leg] += c;
     }
-    s_squares++;
-    s_latest.at = TIM1->CNT;
-    s_latest.dcbus = hadc3.Instance->JDR2;
-    s_latest.ntc = hadc1.Instance->JDR2;
-    s_updates++;
+    s.squares++;
+    s.latest.at = TIM1->CNT;
+    s.latest.dcbus = hadc3.Instance->JDR2;
+    s.latest.ntc = hadc1.Instance->JDR2;
+    s.updates++;
 
-    const int16_t logged[4] = { s_latest.phase[SYNC_U], s_latest.phase[SYNC_V],
-                                s_latest.phase[SYNC_W], (int16_t)s_latest.at };
+    const int16_t logged[4] = { s.latest.phase[SYNC_U], s.latest.phase[SYNC_V],
+                                s.latest.phase[SYNC_W], (int16_t)s.latest.at };
     Board_LogPush(BOARD_LOG_SOURCE_PHASES, logged, 4U);
-    Board_DaqOnInjected(&s_latest);
-    Board_DriveOnSample(s_latest.phase, s_latest.dcbus);
+    Board_DaqOnInjected(&s.latest);
+    Board_DriveOnSample(s.latest.phase, s.latest.dcbus);
   }
 }
 
 
 void Board_SyncOverrun(void)
 {
-  s_overruns++;
+  s.overruns++;
 }
 
 
@@ -304,7 +309,7 @@ const char *Board_SyncArm(void)
     return "no timer to trigger from - TIM1 is not configured, so the "
            "firmware needs regenerating and reflashing";
   }
-  if (s_armed)
+  if (s.armed)
   {
     return NULL;                 /* already armed is not a refusal */
   }
@@ -358,12 +363,12 @@ const char *Board_SyncArm(void)
 
   SYNC_ConfigTrigger();
 
-  s_latest.phase[SYNC_U] = 0;
-  s_latest.phase[SYNC_V] = 0;
-  s_latest.phase[SYNC_W] = 0;
-  s_latest.at = 0U;
-  s_updates = 0U;
-  s_overruns = 0U;
+  s.latest.phase[SYNC_U] = 0;
+  s.latest.phase[SYNC_V] = 0;
+  s.latest.phase[SYNC_W] = 0;
+  s.latest.at = 0U;
+  s.updates = 0U;
+  s.overruns = 0U;
 
   if (HAL_ADCEx_InjectedStart_IT(&hadc3) != HAL_OK
       || HAL_ADCEx_InjectedStart(&hadc1) != HAL_OK
@@ -374,14 +379,14 @@ const char *Board_SyncArm(void)
            "and arm again";
   }
 
-  s_armed = true;
+  s.armed = true;
   return NULL;
 }
 
 
 void Board_SyncDisarm(void)
 {
-  s_armed = false;
+  s.armed = false;
 
   if (Board_PwmReady())
   {
@@ -400,9 +405,9 @@ void Board_SyncState(board_sync_state_t *out)
   }
 
   out->ready = Board_SyncReady();
-  out->armed = s_armed;
-  out->updates = s_updates;
-  out->overruns = s_overruns;
+  out->armed = s.armed;
+  out->updates = s.updates;
+  out->overruns = s.overruns;
   out->trigger = Board_SyncTrigger();
   Board_SyncLatest(&out->latest);
 }

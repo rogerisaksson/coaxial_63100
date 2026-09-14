@@ -1816,6 +1816,20 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   field list. No drift this time - the skew was the one - and the
   fourteen are held from here on. Proof: structure 632 -> 643, the
   counts synced, CI.
+* A STRUCT PER FIRMWARE MODULE, THE REST (2026-09-14). The same pass
+  over the six modules the first left: the log ring's 9 statics, the
+  injected group's 8, the acquisition glue's 5, the angle sensor's 5,
+  the link's 3 and the STO chain's 3 are one object each now, 162 uses
+  rewritten. Two things the tool learned here: a buffer placed by the
+  linker script - the acquisition ring in AXI SRAM, with its section
+  attribute - is not state and stays where the script put it, like the
+  constant tables before it; and a table with a multi-line initialiser
+  - the UART driver's three ports - is refused rather than guessed at,
+  so dev_uart.c keeps its four. The scanner's file-scope statics
+  50 -> 17, and the seventeen are those: the port table, the placed
+  buffer, the IMU's zero table, and the single flags of modules with
+  one thing to remember. Build 0 warnings, flash 202 076 B, DTCM
+  38 580 B; the proof is the bench's after a flash.
 
 ## The local model
 

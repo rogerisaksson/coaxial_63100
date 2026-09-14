@@ -52,11 +52,18 @@ _Static_assert((DAQ_TONE_SINE == BOARD_DAQ_TONE_SINE)
    so a quarter of a megabyte of zeroes is not carried in the image. */
 static uint8_t s_buf[DAQ_BYTES] __attribute__((section(".buffers")));
 
-static daq_t s_daq;
-static bool s_built;
-static board_daq_config_t s_cfg;      /**< the task as the wire gave it     */
-static bool s_rate_auto;              /**< no rate asked for: one was chosen*/
-static volatile bool s_lost_power;
+/** The acquisition glue's state: the engine, whether it is built yet, the
+  * task as the wire gave it, and whether the rate was chosen or the
+  * reference lost. One object: what a debugger shows whole and a reset
+  * clears at once. */
+static struct
+{
+  daq_t daq;
+  bool built;
+  board_daq_config_t cfg;         /**< the task as the wire gave it     */
+  bool rate_auto;                 /**< no rate asked for: one was chosen*/
+  volatile bool lost_power;
+} s;
 
 #define IMU_SENSORS  0x0FU             /* the four sensor bits the IMU serves */
 #define SHAFT_SENSOR 4U
@@ -101,18 +108,18 @@ static void snapshot(void *ctx, uint16_t sensors,
   * uses, since any of this file's entry points may be the first. */
 static daq_t *engine(void)
 {
-  if (!s_built)
+  if (!s.built)
   {
     static const daq_guard_t guard = { Board_IrqHold, Board_IrqRelease };
     static const daq_ladder_t ladder = {
       BOARD_DAQ_CLIMB_AT, BOARD_DAQ_FALL_AT, BOARD_DAQ_RUNG_EIGHTHS,
       BOARD_DAQ_CLIMB_MAX, BOARD_DAQ_FALL_AFTER };
 
-    daq_init(&s_daq, s_buf, DAQ_BYTES, &guard, snapshot, NULL);
-    daq_set_ladder(&s_daq, &ladder);
-    s_built = true;
+    daq_init(&s.daq, s_buf, DAQ_BYTES, &guard, snapshot, NULL);
+    daq_set_ladder(&s.daq, &ladder);
+    s.built = true;
   }
-  return &s_daq;
+  return &s.daq;
 }
 
 /**
@@ -135,7 +142,7 @@ static uint32_t interval_cycles(uint32_t interval_us)
 
 static uint32_t digital_now(void)
 {
-  return (s_cfg.digital != 0U) ? Board_DigitalMask() : 0U;
+  return (s.cfg.digital != 0U) ? Board_DigitalMask() : 0U;
 }
 
 uint32_t Board_DaqAvailable(void)
@@ -298,10 +305,10 @@ const char *Board_DaqConfigure(const board_daq_config_t *cfg)
   task.adapt = (cfg->adapt != 0U);
   daq_begin(d, &task);
 
-  s_cfg = *cfg;
+  s.cfg = *cfg;
   /* Remembered here, where the ASK is still visible. */
-  s_rate_auto = (cfg->interval_us == 0U) && (cfg->records == 0U);
-  s_lost_power = false;
+  s.rate_auto = (cfg->interval_us == 0U) && (cfg->records == 0U);
+  s.lost_power = false;
   return NULL;
 }
 
@@ -330,7 +337,7 @@ const char *Board_DaqSetTone(uint32_t hz, uint32_t rate_hz,
 
 void Board_DaqTonePoll(void)
 {
-  if (s_cfg.clock != BOARD_DAQ_CLOCK_SOFTWARE)
+  if (s.cfg.clock != BOARD_DAQ_CLOCK_SOFTWARE)
   {
     return;
   }
@@ -347,7 +354,7 @@ bool Board_DaqToneOn(void)
 
 bool Board_DaqRateIsAuto(void)
 {
-  return s_rate_auto;
+  return s.rate_auto;
 }
 
 uint32_t Board_DaqTriggersPerRecord(void)
@@ -357,7 +364,7 @@ uint32_t Board_DaqTriggersPerRecord(void)
 
 void Board_DaqSetInterval(uint32_t interval_us)
 {
-  s_cfg.interval_us = interval_us;
+  s.cfg.interval_us = interval_us;
   engine()->task.interval_cycles = interval_cycles(interval_us);
 }
 
@@ -378,7 +385,7 @@ const char *Board_DaqStart(void)
     return "AFE_ON is off, and it powers the converter's reference - every "
            "channel would read exact mid-scale, which is not a measurement";
   }
-  s_lost_power = false;
+  s.lost_power = false;
   (void)daq_start(d, Board_Cycles());
   return NULL;
 }
@@ -421,7 +428,7 @@ void Board_DaqState(board_daq_state_t *out)
 
   out->running = d->running;
   out->done = d->done;
-  out->lost_power = s_lost_power;
+  out->lost_power = s.lost_power;
   out->stride = d->stride;
   out->fields = d->task.fields;
   out->available = daq_available(d);
@@ -436,7 +443,7 @@ void Board_DaqState(board_daq_state_t *out)
   out->rungs = d->rungs_held;
   out->rung_changes = d->rung_changes;
   out->triggers = d->triggers;
-  out->config = s_cfg;
+  out->config = s.cfg;
   /* The accumulate is the rung's while a ladder runs: what the engine is
      summing, not what the wire first asked for. */
   out->config.accumulate = d->task.accumulate;
@@ -468,7 +475,7 @@ static bool powered(daq_t *d)
   if (d->running)
   {
     daq_lose_power(d);
-    s_lost_power = true;
+    s.lost_power = true;
   }
   return false;
 }
@@ -480,7 +487,7 @@ void Board_DaqPoll(void)
   int32_t uv;
   int32_t scaled;
 
-  if (!d->running || (s_cfg.clock != BOARD_DAQ_CLOCK_SOFTWARE) || !powered(d))
+  if (!d->running || (s.cfg.clock != BOARD_DAQ_CLOCK_SOFTWARE) || !powered(d))
   {
     return;
   }
@@ -524,7 +531,7 @@ void Board_DaqOnInjected(const board_sync_sample_t *sample)
   daq_t *d = engine();
   int32_t values[DAQ_MAX_CHANNELS];
 
-  if (!d->running || (s_cfg.clock != BOARD_DAQ_CLOCK_TIM1) ||
+  if (!d->running || (s.cfg.clock != BOARD_DAQ_CLOCK_TIM1) ||
       (sample == NULL) || !powered(d))
   {
     return;

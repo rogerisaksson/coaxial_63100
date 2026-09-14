@@ -56,18 +56,27 @@
 #define ANGLE_TEMP_MASK  0x0FFFU  /* TSEN's 12-bit count */
 #define ANGLE_SPI_TIMEOUT_MS 100U
 
-static bool     s_ready;
-static uint32_t s_kernel_hz;
-static uint32_t s_bitrate_hz;
+/** The angle sensor's state: the link, the latest word and its register,
+  * and the hold. One object: what a debugger shows whole and a reset clears
+  * at once. */
+static struct
+{
+  bool ready;
+  uint32_t kernel_hz;
+  uint32_t bitrate_hz;
 
-/* The loop's own record. One writer - Board_AnglePoll - and one reader, both
-   on the main loop, so there is nothing to lock. */
-static board_angle_state_t s_state;
+  /* The loop's own record. One writer - Board_AnglePoll - and one reader, both
+     on the main loop, so there is nothing to lock. */
+  board_angle_state_t state;
 
-/* Where the poll loop looks. Settable, because the register map above came
-   from a reference implementation rather than from the datasheet in this
-   tree, and a host that finds a better address must not need a rebuild. */
-static uint8_t s_poll_reg = ANGLE_REG_ANG;
+  /* Where the poll loop looks. Settable, because the register map above came
+     from a reference implementation rather than from the datasheet in this
+     tree, and a host that finds a better address must not need a rebuild. */
+  uint8_t poll_reg;
+} s = {
+  .poll_reg = ANGLE_REG_ANG
+};
+
 
 static uint32_t prescaler_under(uint32_t limit_hz)
 {
@@ -81,7 +90,7 @@ static uint32_t prescaler_under(uint32_t limit_hz)
 
   const uint32_t kernel = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI4);
 
-  s_kernel_hz = kernel;
+  s.kernel_hz = kernel;
 
   /* A kernel clock of zero means the peripheral clock is not configured, and
      the loop below would read 0 <= limit on the first divider and pick the
@@ -89,7 +98,7 @@ static uint32_t prescaler_under(uint32_t limit_hz)
      a part that never answers. */
   if (kernel == 0U)
   {
-    s_bitrate_hz = 0U;
+    s.bitrate_hz = 0U;
     return SPI_BAUDRATEPRESCALER_256;
   }
 
@@ -97,12 +106,12 @@ static uint32_t prescaler_under(uint32_t limit_hz)
   {
     if ((kernel >> (i + 1U)) <= limit_hz)
     {
-      s_bitrate_hz = kernel >> (i + 1U);
+      s.bitrate_hz = kernel >> (i + 1U);
       return DIVIDERS[i];
     }
   }
 
-  s_bitrate_hz = kernel >> 8;
+  s.bitrate_hz = kernel >> 8;
   return SPI_BAUDRATEPRESCALER_256;
 }
 
@@ -167,7 +176,7 @@ bool Board_AngleInit(void)
   HAL_GPIO_Init(ANGLE_CS_PORT, &gpio);
   cs(false);
 
-  s_ready = true;
+  s.ready = true;
   return true;
 }
 
@@ -178,17 +187,17 @@ bool Board_AngleReady(void)
      carrying on. The IMU learned this the expensive way. */
   if (!Board_AfeOn())
   {
-    s_ready = false;
+    s.ready = false;
     return false;
   }
 
-  return s_ready;
+  return s.ready;
 }
 
 void Board_AngleClock(uint32_t *kernel_hz, uint32_t *bitrate_hz)
 {
-  if (kernel_hz != NULL)  { *kernel_hz = s_kernel_hz; }
-  if (bitrate_hz != NULL) { *bitrate_hz = s_bitrate_hz; }
+  if (kernel_hz != NULL)  { *kernel_hz = s.kernel_hz; }
+  if (bitrate_hz != NULL) { *bitrate_hz = s.bitrate_hz; }
 }
 
 /* One packet in, one packet out, chip select down across both. The part
@@ -203,7 +212,7 @@ static bool packet(uint32_t out, uint32_t *in)
   uint8_t tx[ANGLE_WORDS];
   uint8_t rx[ANGLE_WORDS] = {0};
 
-  if (!s_ready)
+  if (!s.ready)
   {
     return false;
   }
@@ -316,10 +325,10 @@ bool Board_AngleWrite(uint8_t reg, uint8_t value)
 
 static void note(uint8_t err)
 {
-  s_state.error = err;
+  s.state.error = err;
   if (err != BOARD_ANGLE_ERR_NONE)
   {
-    s_state.errors++;
+    s.state.errors++;
   }
 }
 
@@ -327,13 +336,13 @@ static void note(uint8_t err)
    error says why - once, not every poll. */
 static void power_lost(void)
 {
-  if (s_state.loop == BOARD_ANGLE_LOOP_OFF)
+  if (s.state.loop == BOARD_ANGLE_LOOP_OFF)
   {
     return;
   }
-  s_state.loop = BOARD_ANGLE_LOOP_OFF;
-  s_state.have = false;
-  s_ready = false;
+  s.state.loop = BOARD_ANGLE_LOOP_OFF;
+  s.state.have = false;
+  s.ready = false;
   note(BOARD_ANGLE_ERR_POWER);
 }
 
@@ -351,7 +360,7 @@ void Board_AnglePoll(void)
     return;
   }
 
-  if (s_state.loop == BOARD_ANGLE_LOOP_HELD)
+  if (s.state.loop == BOARD_ANGLE_LOOP_HELD)
   {
     return;                        /* the host is configuring it */
   }
@@ -370,19 +379,19 @@ void Board_AnglePoll(void)
   }
 
 
-  if ((s_state.loop == BOARD_ANGLE_LOOP_OFF) && !Board_AngleInit())
+  if ((s.state.loop == BOARD_ANGLE_LOOP_OFF) && !Board_AngleInit())
   {
     note(BOARD_ANGLE_ERR_INIT);
     return;                        /* try again next time round */
   }
-  if (s_state.loop == BOARD_ANGLE_LOOP_OFF)
+  if (s.state.loop == BOARD_ANGLE_LOOP_OFF)
   {
-    s_state.loop = BOARD_ANGLE_LOOP_RUN;
+    s.state.loop = BOARD_ANGLE_LOOP_RUN;
     note(BOARD_ANGLE_ERR_NONE);
     return;
   }
 
-  if (!Board_AngleRead(s_poll_reg, &value, &crc))
+  if (!Board_AngleRead(s.poll_reg, &value, &crc))
   {
     note(BOARD_ANGLE_ERR_READ);
     return;
@@ -392,19 +401,19 @@ void Board_AnglePoll(void)
      reading: the low twelve bits would be a plausible angle. */
   if (value == 0xFFFFU)
   {
-    s_state.have = false;
+    s.state.have = false;
     note(BOARD_ANGLE_ERR_SILENT);
     return;
   }
 
-  s_state.reg   = s_poll_reg;
-  s_state.value = value;
-  s_state.crc   = crc;
-  s_state.have  = true;
-  s_state.updates++;
+  s.state.reg   = s.poll_reg;
+  s.state.value = value;
+  s.state.crc   = crc;
+  s.state.have  = true;
+  s.state.updates++;
 
   const int16_t logged[3] = { (int16_t)value, (int16_t)crc,
-                              (int16_t)s_poll_reg };
+                              (int16_t)s.poll_reg };
   Board_LogPush(BOARD_LOG_SOURCE_ANGLE, logged, 3U);
   note(BOARD_ANGLE_ERR_NONE);
 }
@@ -413,18 +422,18 @@ void Board_AngleState(board_angle_state_t *out)
 {
   if (out != NULL)
   {
-    *out = s_state;
+    *out = s.state;
   }
 }
 
 void Board_AngleHold(void)
 {
-  s_state.loop = BOARD_ANGLE_LOOP_HELD;
+  s.state.loop = BOARD_ANGLE_LOOP_HELD;
 
   /* A hold hands the host a part that is up, the way the IMU's does: one
      that landed before the bus was configured left every command after it
      refused for a reason that had nothing to do with the part. */
-  if (!s_ready && !Board_AngleInit())
+  if (!s.ready && !Board_AngleInit())
   {
     note(BOARD_ANGLE_ERR_INIT);
   }
@@ -432,7 +441,7 @@ void Board_AngleHold(void)
 
 void Board_AngleResume(void)
 {
-  s_state.loop = s_ready ? BOARD_ANGLE_LOOP_RUN : BOARD_ANGLE_LOOP_OFF;
+  s.state.loop = s.ready ? BOARD_ANGLE_LOOP_RUN : BOARD_ANGLE_LOOP_OFF;
 }
 
 bool Board_AnglePollReg(uint8_t reg)
@@ -442,12 +451,12 @@ bool Board_AnglePollReg(uint8_t reg)
     return false;                  /* six address bits, Figure 31 */
   }
 
-  s_poll_reg = reg;
-  s_state.have = false;
+  s.poll_reg = reg;
+  s.state.have = false;
   return true;
 }
 
 uint8_t Board_AnglePollRegGet(void)
 {
-  return s_poll_reg;
+  return s.poll_reg;
 }
