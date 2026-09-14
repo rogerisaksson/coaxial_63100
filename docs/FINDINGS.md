@@ -1792,6 +1792,30 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   asked for is the step after this one; what this settles is that the
   two answers a wire crosses cannot disagree without a suite saying so.
   Proof: structure 629 -> 632, build 0 warnings, flash 202 012 B, CI.
+* THE WIRE'S SHAPE, EVERY FIXED REPLY (2026-09-14). Three pairs became
+  fourteen: the gate drivers' state, the drive's state, setpoints,
+  window, moments, model and observers, the acquisition task's state,
+  the log's, the rails', the thermal observer's state, budget and
+  edges, the cycle counter's read. What the parsers had to learn to
+  get there, each from a reply that refused the first cut: a loop over a
+  count the reply itself carries - the node table, the edge table, the
+  rails, the setpoints - is a body repeated an unknown number of times
+  on both sides, and the two bodies are compared; a loop over a header's
+  count is read off any header in the tree, `DRIVE_LAGS` from drive.h
+  as much as the phase count from board.h, and a literal bound is a
+  number; `<=` and a cast in a loop's condition; a helper handed the
+  writer or the reader is followed - `wr_field` on the C side,
+  `_thermometer`, `_edge` and `_rail` on the Python side; a block that
+  leaves - an early return, a continue - is an alternative path with the
+  fall-through's shape and is skipped; a loop that reads nothing emits
+  nothing; and the matcher backtracks over how many times a body
+  repeats, because the field after twenty node temperatures is another
+  i32 and a greedy run swallowed it. Two replies stay out by nature:
+  the layout, whose rows carry strings and whose pins are optional, and
+  the live accumulator, whose rows are counted by another reply's
+  field list. No drift this time - the skew was the one - and the
+  fourteen are held from here on. Proof: structure 632 -> 643, the
+  counts synced, CI.
 
 ## The local model
 

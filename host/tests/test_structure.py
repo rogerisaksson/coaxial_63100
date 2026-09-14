@@ -661,6 +661,17 @@ WIRE_SHAPES = (
      'coaxial.gate_drivers', 'GateDrivers', 'state'),
     ('comms/src/cmd_drive.c', 'h_drive_state', 'coaxial.drive', 'Drive', 'state'),
     ('comms/src/cmd_daq.c', 'h_daq_state', 'coaxial.daq', 'Daq', 'state'),
+    ('comms/src/cmd_drive.c', 'h_drive_setpoints', 'coaxial.drive', 'Drive', 'setpoints'),
+    ('comms/src/cmd_drive.c', 'h_drive_window', 'coaxial.drive', 'Drive', 'window'),
+    ('comms/src/cmd_drive.c', 'h_drive_moments', 'coaxial.drive', 'Drive', 'moments'),
+    ('comms/src/cmd_drive.c', 'h_drive_model', 'coaxial.drive', 'Drive', 'model'),
+    ('comms/src/cmd_drive.c', 'h_drive_observers', 'coaxial.drive', 'Drive', 'observers'),
+    ('comms/src/cmd_log.c', 'h_log_state', 'coaxial.capture', 'Capture', 'state'),
+    ('comms/src/cmd_power.c', 'op_state', 'coaxial.power', 'Power', 'state'),
+    ('comms/src/cmd_thermal.c', 'op_state', 'coaxial.thermal_device', 'Thermal', 'state'),
+    ('comms/src/cmd_thermal.c', 'op_budget', 'coaxial.thermal_device', 'Thermal', 'budget'),
+    ('comms/src/cmd_thermal.c', 'op_edges', 'coaxial.thermal_device', 'Thermal', 'network'),
+    ('comms/src/cmd_time.c', 'h_time_read', 'coaxial.clock', 'Clock', 'read_latch'),
 )
 
 #: What each Reader method takes off the wire; the scaled ones take a width
@@ -669,105 +680,211 @@ _READS = {'u8': 'u8', 'i8': 'i8', 'u16': 'u16', 'i16': 'i16', 'u32': 'u32',
           'i32': 'i32', 'q16': 'u32', 'flags': 'u8', 'fraction': 'u8',
           'centi': 'i32', 'milli': 'i32', 'micro': 'i32', 'nano': 'u32'}
 _WIDTH_ARG = ('centi', 'milli', 'micro', 'nano')
-_C_TOKENS = re.compile(r'(?P<open>\{)|(?P<close>\})'
-                       r'|for\s*\([^;]*;[^<]*<\s*(?P<bound>\w+)[^)]*\)'
-                       r'|wr_(?P<width>u8|i8|u16|i16|u32|i32)\s*\(')
+_C_TOKENS = re.compile(
+    r'(?P<open>\{)|(?P<close>\})'
+    r'|(?P<leave>\b(?:return|continue)\b[^;]*;)'
+    r'|for\s*\([^;]*;[^<]*<=?\s*(?:\([^)]*\)\s*)?(?P<bound>\w+)[^)]*\)'
+    r'|\b(?P<callee>\w+)\s*\(\s*out\b')
+_HEADERS = ('comms/inc', 'board/inc', 'drive/inc', 'thermal/inc', 'daq/inc',
+            'filter/inc', 'shtp/inc', 'modbus/inc')
 
 
-def _c_defines():
+def _c_defines(extra_text=''):
+    """Every `#define NAME <int>` in the tree's headers, and in the text
+    given: what a loop bound may be."""
     found = {}
-    for rel in ('comms/inc/board.h', 'board/inc/board_limits.h'):
-        for line in io.open(os.path.join(REPO, *rel.split('/')), encoding='utf-8'):
-            m = re.match(r'#define\s+(\w+)\s+(\d+)U?\b', line)
-            if m:
-                found[m.group(1)] = int(m.group(2))
+    texts = [extra_text]
+    for rel in _HEADERS:
+        folder = os.path.join(REPO, *rel.split('/'))
+        for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else ():
+            if name.endswith('.h'):
+                texts.append(io.open(os.path.join(folder, name), encoding='utf-8').read())
+    for text in texts:
+        for m in re.finditer(r'#define\s+(\w+)\s+\(?(\d+)U?\)?\s*(?:/|$)', text, re.M):
+            found[m.group(1)] = int(m.group(2))
     return found
 
 
-def _c_writes(rel, name, defines):
-    """The widths a handler writes, in order - a loop's body counted its
-    bound's times, a nested loop's the product."""
-    text = io.open(os.path.join(REPO, *rel.split('/')), encoding='utf-8').read()
-    text = re.sub(r'/\*.*?\*/', ' ', text, flags=re.S)
-    start = text.index('static cmd_status_t %s(' % name)
-    body = text[text.index('{', start):]
-    widths, scopes, depth, bound = [], [], 0, None
+def _c_function(text, name):
+    """The braces of `name` in `text`, or None when it is not defined there."""
+    m = re.search(r'^static\s+\w+\s+%s\s*\(\s*wr_t\s*\*\s*out' % re.escape(name), text, re.M)
+    return None if m is None else text[text.index('{', m.end()):]
+
+
+def _c_writes_in(text, body, defines, depth_limit=4):
+    """The widths a body writes, in order. A loop over a known count is
+    its body that many times; over a count the wire carries, `('*', body)`;
+    a helper taking `out` first is followed; a block that leaves - an
+    early return, a continue - is an alternative path with the same shape
+    as the one that falls through, and is skipped."""
+    stack = [[[], None, False]]      # [writes, repeat-or-'*'-or-None, ends-in-leave]
+    depth, bound = 0, None
     for m in _C_TOKENS.finditer(body):
         if m.group('open'):
             depth += 1
             if bound is not None:
-                scopes.append((depth, (scopes[-1][1] if scopes else 1) * defines[bound]))
+                repeat = (int(bound.rstrip('U')) if bound.rstrip('U').isdigit()
+                          else defines.get(bound, '*'))
+                stack.append([[], repeat, False])
                 bound = None
-        elif m.group('close'):
-            if scopes and scopes[-1][0] == depth:
-                scopes.pop()
+            elif depth > 1:
+                stack.append([[], None, False])
+            continue
+        if m.group('close'):
             depth -= 1
             if depth == 0:
                 break
-        elif m.group('bound'):
+            writes, repeat, left = stack.pop()
+            if repeat == '*':
+                if writes:
+                    stack[-1][0].append(('*', tuple(writes)))
+            elif repeat is not None:
+                stack[-1][0].extend(writes * repeat)
+            elif not left:
+                stack[-1][0].extend(writes)
+            stack[-1][2] = False
+            continue
+        if m.group('leave'):
+            stack[-1][2] = True
+            continue
+        stack[-1][2] = False
+        if m.group('bound'):
             bound = m.group('bound')
-        else:
-            widths += [m.group('width')] * (scopes[-1][1] if scopes else 1)
-    return widths
+            continue
+        callee = m.group('callee')
+        w = re.fullmatch(r'wr_(u8|i8|u16|i16|u32|i32)', callee)
+        if w:
+            stack[-1][0].append(w.group(1))
+        elif depth_limit and _c_function(text, callee) is not None:
+            stack[-1][0].extend(_c_writes_in(text, _c_function(text, callee), defines,
+                                             depth_limit - 1))
+    return stack[0][0]
 
 
-def _py_reads(module, cls, method, reader='r'):
-    """The widths a decoder reads, in order, each with whether it is an
-    appended field the reader takes only when it is there."""
+def _c_writes(rel, name):
+    text = io.open(os.path.join(REPO, *rel.split('/')), encoding='utf-8').read()
+    text = re.sub(r'/\*.*?\*/', ' ', text, flags=re.S)
+    body = _c_function(text, name)
+    assert body is not None, '%s has no %s taking out first' % (rel, name)
+    return _c_writes_in(text, body, _c_defines(text))
+
+
+def _py_reads(module, cls, method):
+    """The widths a decoder reads, in order, the same way: a loop over a
+    module's tuple or a constant is its body that many times, a loop over
+    a count read off the wire is `('*', body)`, a helper handed the reader
+    is followed."""
     mod = importlib.import_module(module)
-    source = inspect.getsource(getattr(getattr(mod, cls), method))
-    tree = ast.parse(textwrap.dedent(source))
-    out = []
+    owner = getattr(mod, cls)
 
     def count(node):
+        """A loop's repeat when a constant or the module knows it, else None."""
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
                 and node.func.id == 'range'):
             arg = node.args[-1]
-            return arg.value if isinstance(arg, ast.Constant) else getattr(mod, arg.id)
+            if isinstance(arg, ast.Constant):
+                return arg.value
+            if isinstance(arg, ast.Name) and hasattr(mod, arg.id):
+                return getattr(mod, arg.id)
+            return None
         if isinstance(node, (ast.Tuple, ast.List)):
             return len(node.elts)
-        if isinstance(node, ast.Name):
-            return len(getattr(mod, node.id))       # a module's tuple of names
-        raise ValueError('cannot count a loop over %s' % ast.dump(node))
+        if isinstance(node, ast.Name) and hasattr(mod, node.id):
+            return len(getattr(mod, node.id))
+        return None
 
-    def visit(node, times):
-        if isinstance(node, (ast.For, ast.GeneratorExp, ast.ListComp,
-                             ast.DictComp)):
-            # A loop over a read's own result - the bits of a flags byte,
-            # say - reads once, in the iterable, and its body must not.
-            source = node.iter if isinstance(node, ast.For) else node.generators[0].iter
+    def helper(node):
+        """The function a call hands the reader to, or None."""
+        if isinstance(node.func, ast.Name):
+            return getattr(mod, node.func.id, None)
+        if (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == 'self'):
+            return getattr(owner, node.func.attr, None)
+        return None
+
+    def function_reads(fn, reader_at, out, depth):
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+        params = [a.arg for a in tree.body[0].args.args]
+        if params and params[0] == 'self':
+            params = params[1:]
+        visit(tree.body[0], out, params[reader_at], depth + 1)
+
+    def visit(node, out, reader, depth=0):
+        if isinstance(node, (ast.For, ast.GeneratorExp, ast.ListComp, ast.DictComp)):
+            source_ = node.iter if isinstance(node, ast.For) else node.generators[0].iter
             body = node.body if isinstance(node, ast.For) else (
                 [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt])
-            try:
-                times *= count(source)
-            except ValueError:
-                visit(source, times)
-                seen = len(out)
-                for child in body:
-                    visit(child, 1)
-                assert len(out) == seen, 'a read inside a loop this check cannot size'
-                return
+            inner = []
             for child in body:
-                visit(child, times)
+                visit(child, inner, reader, depth)
+            heads = []
+            visit(source_, heads, reader, depth)
+            out.extend(heads)
+            repeat = None if heads else count(source_)
+            if inner:
+                out.extend(inner * repeat if repeat else [('*', tuple(inner))])
             return
-        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == reader):
-            name = node.func.attr
-            if name == 'maybe':
-                out.extend([(node.args[0].value, True)] * times)
-            elif name in _READS:
-                width = _READS[name]
-                if name in _WIDTH_ARG and node.args and isinstance(node.args[0], ast.Constant):
-                    width = node.args[0].value
-                out.extend([(width, False)] * times)
-            else:
-                raise ValueError('a read this check cannot size: r.%s' % name)
+        if isinstance(node, ast.Call):
+            if (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == reader):
+                name = node.func.attr
+                if name == 'maybe':
+                    out.append(node.args[0].value)
+                elif name in _READS:
+                    width = _READS[name]
+                    if name in _WIDTH_ARG and node.args and isinstance(node.args[0], ast.Constant):
+                        width = node.args[0].value
+                    out.append(width)
+                else:
+                    raise ValueError('a read this check cannot size: %s.%s' % (reader, name))
+            handed = [k for k, a in enumerate(node.args)
+                      if isinstance(a, ast.Name) and a.id == reader]
+            fn = helper(node) if handed else None
+            if fn is not None and depth < 4:
+                function_reads(fn, handed[0], out, depth)
+                return
         for child in ast.iter_child_nodes(node):
-            visit(child, times)
+            visit(child, out, reader, depth)
 
-    visit(tree, 1)
+    out = []
+    tree = ast.parse(textwrap.dedent(inspect.getsource(getattr(owner, method))))
+    visit(tree, out, 'r')
     return out
+
+
+def _shapes_agree(wrote, read, i=0, j=0):
+    """Whether the reader's sequence is the writer's. A body repeated an
+    unknown number of times on either side matches the other side's run
+    of that body, once or more - and not greedily, since the field after
+    the run may look like the body; two such repeats must share a body.
+    Returns (agree, the furthest index reached on the writer's side)."""
+    if i == len(wrote) and j == len(read):
+        return True, i
+    if i >= len(wrote) or j >= len(read):
+        return False, i
+    a, b = wrote[i], read[j]
+    if isinstance(a, tuple) and isinstance(b, tuple):
+        return _shapes_agree(wrote, read, i + 1, j + 1) if a[1] == b[1] else (False, i)
+    if isinstance(a, tuple) or isinstance(b, tuple):
+        # the side with the repeat, and the side laying the run out
+        laid, body = ((read, list(a[1])) if isinstance(a, tuple)
+                      else (wrote, list(b[1])))
+        at = j if isinstance(a, tuple) else i
+        n = 0
+        while body and laid[at + n * len(body):at + (n + 1) * len(body)] == body:
+            n += 1
+        furthest = i
+        for k in range(n, 0, -1):
+            ni, nj = ((i + 1, j + k * len(body)) if isinstance(a, tuple)
+                      else (i + k * len(body), j + 1))
+            ok, reached = _shapes_agree(wrote, read, ni, nj)
+            if ok:
+                return True, reached
+            furthest = max(furthest, reached)
+        return False, furthest
+    if a != b:
+        return False, i
+    return _shapes_agree(wrote, read, i + 1, j + 1)
 
 
 def test_wire_shapes_agree(r):
@@ -777,25 +894,23 @@ def test_wire_shapes_agree(r):
     The C handlers carry the warning already - an offset moved breaks
     every decoder for one bit - and until now the only thing holding the
     two sides together was the bench's parity suite over a flashed board.
-    A loop counts its bound's times on both sides; an appended field the
-    reader takes with `maybe` is counted like any other, since this build
-    writes them all.
+    A loop over a header's count is its body that many times on both
+    sides; a loop over a count the reply carries is its body, matched
+    once or more; a helper handed the writer or the reader is followed;
+    an appended field the reader takes with `maybe` is counted like any
+    other, since this build writes them all.
     """
     import inspect
     import textwrap
     globals()['inspect'], globals()['textwrap'] = inspect, textwrap
-    defines = _c_defines()
     for rel, func, module, cls, method in WIRE_SHAPES:
-        wrote = _c_writes(rel, func, defines)
+        wrote = _c_writes(rel, func)
         read = _py_reads(module, cls, method)
-        first = next((i for i, (w, (p, _)) in enumerate(zip(wrote, read)) if w != p),
-                     None)
-        same = len(wrote) == len(read) and first is None
+        same, at = _shapes_agree(wrote, read)
         where = ('%d fields both ways' % len(wrote) if same else
-                 'field %s: C %s, Python %s' % (
-                     first if first is not None else min(len(wrote), len(read)),
-                     wrote[first] if first is not None else len(wrote),
-                     read[first][0] if first is not None else len(read)))
+                 'from field %d: C %s, Python %s' % (
+                     at, ' '.join(str(w) for w in wrote[at:at + 4]) or 'nothing',
+                     ' '.join(str(w) for w in read[at:at + 4]) or 'nothing'))
         r.check('%s writes what %s.%s reads, field for field' % (func, cls, method),
                 same, where)
 
