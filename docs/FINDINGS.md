@@ -1993,6 +1993,32 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   too: `HAL_ADC_IRQHandler` is every flag check in the peripheral before
   the callback, fifty thousand times a second; a handler of the board's
   own in its place needs the .ioc to stop generating it.
+* THE ROUND RASTERISERS WORK THEIR GEOMETRY OUT ONCE (2026-09-16). The
+  bench asked for the host's simulators and renderers optimised too, so
+  every page was profiled on a forced-terminal Console, 120 by 36,
+  thirty frames each (`prof_page.py`, `prof_cum.py` in the scratchpad).
+  The two largest single costs were the two round drawings, each
+  classifying every sample of every dot from scratch every frame - a
+  hypot, an atan2 and a walk through the rings and bands, four times a
+  dot: the machine's cross-section 173 ms a frame on the rotor observer
+  page (1.65 million classifications for thirty frames), the dial 107
+  ms on the shaft angle page. A sample's radius and angle, and whether
+  it lies on a ring that never moves, in a band the rotor or the drive
+  decides, or in the air, depend on the box and the cell aspect alone;
+  so each seat and each face keeps a sample table now, built on first
+  ask and kept per size through `raster.table` (eight sizes, a runaway
+  set clears them), and a frame only turns the rotor, stubs the teeth
+  and moves the needle. The votes are kept in `SUBDOT` order so the
+  sums are the same floats: 269 frames rendered from the committed
+  library and from this one, over readings, drives, sizes and aspects,
+  compared cell for cell - identical. Measured, a frame of each: the
+  dial at 64x23 52.3 -> 8.9 ms, at 46x19 in colour 38.6 -> 6.5; the
+  motor at 70x30 111.5 -> 19.9 ms, at 40x22 49.1 -> 9.1; the whole
+  rotor observer drawing at 80x36 158 -> 36 ms. On the pages: the rotor
+  observer's loop 410 -> 118 ms a frame (its observers' window shrinks
+  with the frame, since the stand-in integrates the time that passed);
+  the shaft angle page 204 -> 52 ms, which is its own 20 Hz pacing.
+  views 207, structure 665.
 
 ## The local model
 

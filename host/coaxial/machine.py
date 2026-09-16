@@ -36,7 +36,7 @@ import math
 from . import ansi
 from .ascii3d import CELL_ASPECT
 from . import braille
-from .raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT,
+from .raster import (BRAILLE, BRAILLE_BITS, DOTS_X, DOTS_Y, SUBDOT, table,
                      covered)
 
 #: HOW TALL A CELL ACTUALLY IS, in units of its width - `ascii3d`'s, not
@@ -442,32 +442,74 @@ def _tooth_class(radius, phi, slots, r, drive):
     return PHASE_CLASS[phase], 1.0
 
 
-def _classify(radius, phi, rotor, slots, poles, r, drive):
-    """What owns the point at (radius, phi), and how much of a dot there
-    it covers - `(class, 0..1)`, or `(None, 0.0)` for air.
+#: What a sample in a seat's table is: a vote a ring casts with its
+#: coverage, a tooth-band sample the drive decides, a magnet-band sample
+#: the rotor decides.
+_FIXED, _TOOTH, _MAGNET = 0, 1, 2
+
+#: Each seat's sample table, by the numbers that place the machine in
+#: its box - one per size and cell aspect a page draws at.
+_SEATS = {}
+
+
+def _samples(frame, seat):
+    """Every dot the machine reaches, with its four samples in `SUBDOT`
+    order, each `(kind, a, b)`: a fixed vote `(class, coverage)`, or the
+    `(radius, angle)` of a sample in the tooth band or the magnet band.
+
+    THE GEOMETRY IS THE SEAT'S AND THE FRAME ONLY TURNS THE ROTOR. A
+    sample's radius and angle, and whether it lies on the bore, the yoke
+    or the can - rings that never move - or in the tooth band, the magnet
+    band or the air, depend on the box and the cell aspect alone; worked
+    out for every sample of every frame it was two thirds of the rotor
+    observer's frame time, measured. Once per seat, then - and a dot in
+    the air is not in the table at all.
 
     THE COVERAGE TRAVELS WITH THE CLASS because only the shape knows it.
     A ring answers a ramp across its own edge; a tooth or a magnet is a
     filled area and answers one, its edges being angles that `_body`
-    supersamples. Returned as a pair rather than worked out afterwards:
-    the caller would have to ask which of six shapes it had hit to know
-    which rule applied.
+    supersamples.
     """
-    cover = r.ring(radius, r.bore)
-    if cover:
-        return BORE, cover
-    cover = r.ring(radius, r.tooth_in)
-    if cover:
-        return YOKE, cover
-    if radius <= r.tooth_out:
-        return _tooth_class(radius, phi, slots, r, drive)
-    if r.magnet_in <= radius <= r.magnet_out:
-        return _magnet_class(radius, phi, rotor, poles, r)
-    cover = max(r.ring(radius, r.can, CAN_WEIGHT),
-                r.ring(radius, r.can_inner))
-    if cover:
-        return CAN, cover
-    return None, 0.0
+    r = seat.radii
+    key = (frame.width, frame.height, seat.cx, seat.cy, seat.stretch,
+           r.can, r.line)
+    return table(_SEATS, key, lambda: _sampled(frame, seat))
+
+
+def _sampled(frame, seat):
+    """The table `_samples` keeps, built by walking every dot's samples
+    through the seat's rings and bands."""
+    r = seat.radii
+    made = []
+    for y in range(frame.height * DOTS_Y):
+        for x in range(frame.width * DOTS_X):
+            samples = []
+            for ox, oy in SUBDOT:
+                dx = x + ox - seat.cx
+                dy = (seat.cy - y - oy) * seat.stretch
+                radius, phi = math.hypot(dx, dy), math.atan2(dy, dx)
+                cover = r.ring(radius, r.bore)
+                if cover:
+                    samples.append((_FIXED, BORE, cover))
+                    continue
+                cover = r.ring(radius, r.tooth_in)
+                if cover:
+                    samples.append((_FIXED, YOKE, cover))
+                    continue
+                if radius <= r.tooth_out:
+                    if r.tooth_in <= radius:
+                        samples.append((_TOOTH, radius, phi))
+                    continue
+                if r.magnet_in <= radius <= r.magnet_out:
+                    samples.append((_MAGNET, radius, phi))
+                    continue
+                cover = max(r.ring(radius, r.can, CAN_WEIGHT),
+                            r.ring(radius, r.can_inner))
+                if cover:
+                    samples.append((_FIXED, CAN, cover))
+            if samples:
+                made.append((x, y, tuple(samples)))
+    return made
 
 
 def layout(width, height, n_left=0, n_right=0, rows=None, stretch=1.0):
@@ -970,27 +1012,29 @@ def _body(frame, seat, rotor_deg, slots, poles, drive):
     the page.
     """
     rotor = math.radians(rotor_deg)
-    for y in range(frame.height * DOTS_Y):
-        for x in range(frame.width * DOTS_X):
-            # EACH SAMPLE VOTES WITH ITS COVERAGE, and the dot goes to the
-            # class that covers most of it. It went to the highest RANK
-            # among the samples, which is a rule about which shape is
-            # more important and not about what is there: at the yoke a
-            # tooth outranks the ring, so every cell the ring passed
-            # through where a tooth roots took the tooth's colour and
-            # the yoke came out chopped into phase-coloured segments that
-            # changed with the drive. That is the colour fault a bench
-            # sees in the stator. Rank only breaks a tie now.
-            votes = {}
-            for ox, oy in SUBDOT:
-                dx = x + ox - seat.cx
-                dy = (seat.cy - y - oy) * seat.stretch
-                at, share = _classify(math.hypot(dx, dy), math.atan2(dy, dx),
-                                      rotor, slots, poles, seat.radii, drive)
-                if at is not None:
-                    votes[at] = votes.get(at, 0.0) + share
-            if votes and covered(sum(votes.values()), len(SUBDOT)):
-                frame.put(x, y, max(votes, key=lambda c: (votes[c], c)))
+    r = seat.radii
+    for x, y, samples in _samples(frame, seat):
+        # EACH SAMPLE VOTES WITH ITS COVERAGE, and the dot goes to the
+        # class that covers most of it. It went to the highest RANK
+        # among the samples, which is a rule about which shape is
+        # more important and not about what is there: at the yoke a
+        # tooth outranks the ring, so every cell the ring passed
+        # through where a tooth roots took the tooth's colour and
+        # the yoke came out chopped into phase-coloured segments that
+        # changed with the drive. That is the colour fault a bench
+        # sees in the stator. Rank only breaks a tie now.
+        votes = {}
+        for kind, a, b in samples:
+            if kind == _FIXED:
+                at, share = a, b
+            elif kind == _TOOTH:
+                at, share = _tooth_class(a, b, slots, r, drive)
+            else:
+                at, share = _magnet_class(a, b, rotor, poles, r)
+            if at is not None:
+                votes[at] = votes.get(at, 0.0) + share
+        if votes and covered(sum(votes.values()), len(SUBDOT)):
+            frame.put(x, y, max(votes, key=lambda c: (votes[c], c)))
 
 
 def _bead(frame, seat, pointer_deg, glyph=None, rate=None):

@@ -35,7 +35,7 @@ from . import angle
 from . import ansi
 from .ascii3d import CELL_ASPECT
 from .scaling import KELVIN_AT_ZERO_C
-from .raster import (BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y,
+from .raster import (BRAILLE, BRAILLE_BITS, cell, DOTS_X, DOTS_Y, table,
                      SUBDOT, covered)
 
 #: Dots between the rim and the ring the numbers stand on, and the room
@@ -159,27 +159,21 @@ def _sweep_span(degrees):
     return math.radians(degrees % 360.0)
 
 
-def _classify(dx, dy, geom, span, needle_at):
-    """What is at `(dx, dy)` dots from the centre, or None for air."""
-    radius = math.hypot(dx, dy)
-    if radius > geom.rim + geom.line + 1.0:
-        return None
+#: A sample in the band the sweep may light, decided per reading.
+_SWEEP_BAND = object()
 
-    # The bead first: it is the reading, and it sits on top of whatever
-    # graduation it happens to be standing against.
-    if needle_at is not None and _on_bead(dx, dy, geom, needle_at):
-        return BEAD
+#: The face's sample tables by (width, height, aspect) - one per size
+#: a page draws at.
+_FACES = {}
 
+
+def _fixed(radius, phi, geom):
+    """What the face alone puts at a sample, in the order the drawing
+    layers them: the hub, a graduation, the rim, the band the sweep may
+    light, or nothing. A tick is a radial band: its ends in radius, its
+    width in dots across at the radius it is drawn."""
     if radius <= HUB_R:
         return HUB
-
-    if needle_at is not None and _on_needle(dx, dy, geom, needle_at):
-        return NEEDLE
-
-    phi = math.atan2(dy, dx) % math.tau
-
-    # The graduations, outermost first. A tick is a radial band: its ends
-    # in radius, its width in dots across at the radius it is drawn.
     for step, depth, wide in ((30, MAJOR_TICK, MAJOR_WIDE),
                               (6, MINOR_TICK, 0.0)):
         pitch = math.radians(step)
@@ -187,9 +181,73 @@ def _classify(dx, dy, geom, span, needle_at):
         if (off * radius <= max(wide, geom.line) / 2.0
                 and geom.rim - depth <= radius <= geom.rim):
             return MAJOR if step == 30 else MINOR
-
     if abs(radius - geom.rim) <= geom.line:
         return FACE
+    if geom.rim - SWEEP_IN <= radius <= geom.rim - SWEEP_OUT:
+        return _SWEEP_BAND
+    return None
+
+
+def _samples(width, height, aspect):
+    """Every dot within the face, with its samples in `SUBDOT` order -
+    `(dx, dy, radius, angle, what the face alone puts there)`.
+
+    THE FACE IS A PROPERTY OF THE BOX AND THE READING ONLY MOVES THE
+    NEEDLE. Where each sample lies, and whether it is hub, tick or rim,
+    depend on the box and the cell aspect alone, and working that out
+    for every sample of every frame was most of the shaft angle page's
+    frame time, measured - so it is worked out once per size, and a dot
+    in the air outside the rim is not in the table at all.
+    """
+    return table(_FACES, (width, height, aspect),
+                 lambda: _sampled(width, height, aspect))
+
+
+def _sampled(width, height, aspect):
+    """The table `_samples` keeps, built by walking every dot's samples
+    over the face."""
+    geom = _Geometry(width, height)
+    stretch = aspect / DOTS_Y * DOTS_X
+    made = []
+    for y in range(height * DOTS_Y):
+        for x in range(width * DOTS_X):
+            samples = []
+            for ox, oy in SUBDOT:
+                dx, dy = x + ox - geom.cx, (geom.cy - y - oy) * stretch
+                radius = math.hypot(dx, dy)
+                if radius > geom.rim + geom.line + 1.0:
+                    continue
+                phi = math.atan2(dy, dx) % math.tau
+                samples.append((dx, dy, radius, phi,
+                                _fixed(radius, phi, geom)))
+            if samples:
+                made.append((x, y, tuple(samples)))
+    return made
+
+
+def _needle(geom, at):
+    """The needle at `at` radians, laid out once a frame: its direction
+    as a cosine and a sine, and its tip, where the bead sits."""
+    c, s = math.cos(at), math.sin(at)
+    return c, s, geom.needle * c, geom.needle * s
+
+
+def _classify(sample, geom, span, needle):
+    """What is at a sample this reading, or None for air.
+
+    The bead first: it is the reading, and it sits on top of whatever
+    graduation it happens to be standing against. Then the hub, the
+    needle, the face's own marks, and last the sweep.
+    """
+    dx, dy, _radius, phi, fixed = sample
+    if needle is not None and _on_bead(dx, dy, needle):
+        return BEAD
+    if fixed == HUB:
+        return HUB
+    if needle is not None and _on_needle(dx, dy, geom, needle):
+        return NEEDLE
+    if fixed is not _SWEEP_BAND:
+        return fixed
 
     # ZERO TO THE READING, the way the angles run. A span of exactly zero
     # draws nothing: an instrument reading zero has swept none of its
@@ -200,27 +258,25 @@ def _classify(dx, dy, geom, span, needle_at):
     # the face: `behind` is measured back from the reading, so the bright
     # end travels with the needle and the far end keeps the trace back to
     # zero.
-    if (span is not None and 0.0 < phi <= span
-            and geom.rim - SWEEP_IN <= radius <= geom.rim - SWEEP_OUT):
+    if span is not None and 0.0 < phi <= span:
         behind = min(1.0, (span - phi) / SWEEP_FADE)
         return SWEEP[int((1.0 - behind) * (SWEEP_STEPS - 1) + 0.5)]
-
     return None
 
 
-def _on_bead(dx, dy, geom, needle_at):
+def _on_bead(dx, dy, needle):
     """Within the bead at the needle's tip."""
-    tip_x = geom.needle * math.cos(needle_at)
-    tip_y = geom.needle * math.sin(needle_at)
+    _c, _s, tip_x, tip_y = needle
     return math.hypot(dx - tip_x, dy - tip_y) <= BEAD_R
 
 
-def _on_needle(dx, dy, geom, needle_at):
+def _on_needle(dx, dy, geom, needle):
     """On the needle's TAPERED SHAFT, measured along the needle and across
     it: `along` is how far out the point is and `across` how far off the
     line, so the half width can be a function of the first."""
-    along = dx * math.cos(needle_at) + dy * math.sin(needle_at)
-    across = abs(-dx * math.sin(needle_at) + dy * math.cos(needle_at))
+    c, s, _tip_x, _tip_y = needle
+    along = dx * c + dy * s
+    across = abs(-dx * s + dy * c)
     if not 0.0 <= along <= geom.needle:
         return False
     share = along / max(1e-6, geom.needle)
@@ -234,28 +290,25 @@ def _raster(degrees, width, height, weak, aspect):
     text = [[None] * width for _ in range(height)]
     geom = _Geometry(width, height)
     span = None if weak else _sweep_span(degrees)
-    needle_at = None if weak else math.radians(degrees)
+    needle = None if weak else _needle(geom, math.radians(degrees))
 
     stretch = aspect / DOTS_Y * DOTS_X
-    for y in range(height * DOTS_Y):
-        for x in range(width * DOTS_X):
-            seen = [at for at in (
-                _classify(x + ox - geom.cx, (geom.cy - y - oy) * stretch,
-                          geom, span, needle_at) for ox, oy in SUBDOT)
-                    if at is not None]
-            # THE CORNERS ARE COVERAGE. One of four lit the dot whole, so
-            # the rim and the sweep both came out a dot fat and stepped
-            # against each other; half a dot or more still lights outright
-            # - a one-dot tick is a mark the face means - and the fringe
-            # beyond it is dithered. `machine._raster` reads them the
-            # same way, and they are the same drawing problem.
-            if not seen or not covered(len(seen), len(SUBDOT)):
-                continue
-            col, row = int(x) // DOTS_X, int(y) // DOTS_Y
-            if not (0 <= row < height and 0 <= col < width):
-                continue
-            dots[row][col] |= BRAILLE_BITS[int(x) % DOTS_X][int(y) % DOTS_Y]
-            owner[row][col] = max(owner[row][col], max(seen))
+    for x, y, samples in _samples(width, height, aspect):
+        seen = [at for at in (_classify(sample, geom, span, needle)
+                              for sample in samples) if at is not None]
+        # THE CORNERS ARE COVERAGE. One of four lit the dot whole, so
+        # the rim and the sweep both came out a dot fat and stepped
+        # against each other; half a dot or more still lights outright
+        # - a one-dot tick is a mark the face means - and the fringe
+        # beyond it is dithered. `machine._raster` reads them the
+        # same way, and they are the same drawing problem.
+        if not seen or not covered(len(seen), len(SUBDOT)):
+            continue
+        col, row = x // DOTS_X, y // DOTS_Y
+        if not (0 <= row < height and 0 <= col < width):
+            continue
+        dots[row][col] |= BRAILLE_BITS[x % DOTS_X][y % DOTS_Y]
+        owner[row][col] = max(owner[row][col], max(seen))
 
     # THE NUMBERS LAST, and only onto cells no dot reached. They stand
     # outside the rim, so a collision means the face has outgrown its box

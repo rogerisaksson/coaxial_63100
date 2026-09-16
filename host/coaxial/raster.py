@@ -156,3 +156,23 @@ def cell(value):
     "o x a  3 0 0".
     """
     return int(math.floor(value + 0.5))
+
+
+#: Sample tables a page's sizes are worth keeping: a resize builds
+#: another, a runaway set clears them.
+TABLES_KEPT = 8
+
+
+def table(kept, key, build):
+    """The table for `key` in `kept`, built by `build()` on first ask.
+
+    The round rasterisers - the dial's face, the machine's seat - work
+    their geometry out once per size and keep it this way; only a
+    runaway set of sizes, a terminal resized by hand, clears the lot.
+    """
+    got = kept.get(key)
+    if got is None:
+        if len(kept) > TABLES_KEPT:
+            kept.clear()
+        got = kept[key] = build()
+    return got
