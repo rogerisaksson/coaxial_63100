@@ -19,6 +19,8 @@ produce and a depth ramp does exactly.
 """
 import math
 
+from .raster import BRAILLE_BITS, DOTS_X, DOTS_Y
+
 #: Classes an art face loses leaning 90 degrees from the viewer:
 #: 3.4 * (1 - cos 45) is one full class, the exporter's own y45 step.
 LEAN = 3.4
@@ -79,8 +81,28 @@ def project(cam, m, point):
     ty = m[3] * x + m[4] * y + m[5] * z
     tz = m[6] * x + m[7] * y + m[8] * z
     w = 1.0 / (cam['distance'] - tz)
+    # `aspect` is the row's share of the column's scale: 0.5 for a
+    # character cell, about twice as tall as wide; 1.0 for the braille
+    # dot raster `fine` makes, whose samples are square.
     return (cam['cx'] + cam['scale'] * w * tx,
-            cam['cy'] - cam['scale'] * 0.5 * w * ty, w)
+            cam['cy'] - cam['scale'] * cam.get('aspect', 0.5) * w * ty, w)
+
+
+def fine(cam):
+    """The camera at braille dot resolution: DOTS_X columns and DOTS_Y
+    rows of samples per cell, square on screen, for the raster `fold`
+    brings back down to cells. Doubling both axes was the first form -
+    2x2, a quadrant one dot wide and two tall - and along a shallow
+    silhouette the rim could only sit on two of a cell's four dot rows,
+    so the edge stepped by whole cells; the bench saw it jagged. The
+    fine y is DOTS_Y times the cell y, so the fine scale is DOTS_X
+    times the cell scale with the aspect that makes the row DOTS_Y
+    times taller."""
+    return dict(cam, width=DOTS_X * cam['width'],
+                height=DOTS_Y * cam['height'],
+                scale=DOTS_X * cam['scale'],
+                aspect=0.5 * DOTS_Y / DOTS_X,
+                cx=DOTS_X * cam['cx'], cy=DOTS_Y * cam['cy'])
 
 
 def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
@@ -157,16 +179,31 @@ def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
             row = (py - first) * width
             r0 = e0x * (py - y1)
             r1 = e1x * (py - y2)
+            # A triangle's pixels on a row are one span, so the first
+            # miss after a hit ends the row: the same three tests on
+            # the same floats, and the half of the bounding box past
+            # the far edge is not visited. Measured at 108x40 on the
+            # grid-32 solid: the dot raster 79 ms to 69, the old 2x2
+            # 49 to 45 - the setup per triangle is most of what is
+            # left, since the triangles are small.
+            inside = False
             for px in range(lo_x, hi_x + 1):
                 w0 = (r0 - e0y * (px - x1)) * inv
                 if w0 < 0.0:
+                    if inside:
+                        break
                     continue
                 w1 = (r1 - e1y * (px - x2)) * inv
                 if w1 < 0.0:
+                    if inside:
+                        break
                     continue
                 w2 = 1.0 - w0 - w1
                 if w2 < 0.0:
+                    if inside:
+                        break
                     continue
+                inside = True
                 here = w0 * oa + w1 * ob + w2 * og
                 at = row + px
                 if here > depth[at]:
@@ -176,47 +213,57 @@ def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
     return depth, top, sun
 
 
+#: A cell's eight dot samples in the fine raster: (column, row) offset
+#: within the cell and the braille bit that dot is, so the fold's mask
+#: IS the glyph's own bit order and a dot grid can be clipped by one
+#: `&`.
+DOT_SAMPLES = tuple((lane, y, BRAILLE_BITS[lane][y])
+                    for y in range(DOTS_Y) for lane in range(DOTS_X))
+
+
 def fold(depth, top, sun, width, height):
-    """A 2x2-supersampled raster down to cells: (depth, top, sun,
-    coverage, quads). A cell takes its NEAREST subsample's depth and
-    flags, and the share of its four subsamples that hit - the
-    anti-aliasing a glyph grid can carry: a rim cell a quarter covered
-    draws faint, one three-quarters covered nearly full. Neighbour-
+    """A dot-resolution raster (`fine`) down to cells: (depth, top, sun,
+    coverage, reached). A cell takes its NEAREST subsample's depth and
+    flags, and the share of its eight subsamples that hit - the
+    anti-aliasing a glyph grid can carry: a rim cell an eighth covered
+    draws faint, one seven-eighths covered nearly full. Neighbour-
     counting stood in for this and could not tell a straight edge from
     a stair.
 
-    `quads` is WHICH of the four hit, a bit each - top-left 1, top-right
-    2, bottom-left 4, bottom-right 8. A braille dot sits in the quadrant
-    its lane and its half of the cell name, so a dot grid can be clipped
-    to the model's own silhouette: a dot in a quadrant the model missed
-    is a dot outside the board, and the bench saw those spill past the
-    rim."""
-    wide = 2 * width
+    `reached` is WHICH of the eight hit, as the braille bit of each dot
+    (`DOT_SAMPLES`), so a dot grid can be clipped to the model's own
+    silhouette by masking: a dot the model missed is a dot outside the
+    board, and the bench saw those spill past the rim. It was four
+    quadrants first, one dot wide and two tall, and a shallow rim then
+    sat on two of a cell's four rows and stepped by whole cells."""
+    wide = DOTS_X * width
     out_depth = [0.0] * (width * height)
     out_top = bytearray(width * height)
     out_sun = bytearray(width * height)
     coverage = [0.0] * (width * height)
-    quads = bytearray(width * height)
+    reached = bytearray(width * height)
+    per = float(len(DOT_SAMPLES))
     for py in range(height):
         row = py * width
-        above, below = 2 * py * wide, (2 * py + 1) * wide
+        base = DOTS_Y * py * wide
         for px in range(width):
-            a, b = above + 2 * px, below + 2 * px
-            best, hits, where, bits = 0.0, 0, a, 0
-            for bit, at in ((1, a), (2, a + 1), (4, b), (8, b + 1)):
+            cell = base + DOTS_X * px
+            best, hits, where, bits = 0.0, 0, cell, 0
+            for lane, y, bit in DOT_SAMPLES:
+                at = cell + y * wide + lane
                 d = depth[at]
                 if d:
                     hits += 1
                     bits |= bit
-                if d > best:
-                    best, where = d, at
+                    if d > best:
+                        best, where = d, at
             if hits:
                 out_depth[row + px] = best
                 out_top[row + px] = top[where]
                 out_sun[row + px] = sun[where]
-                coverage[row + px] = hits / 4.0
-                quads[row + px] = bits
-    return out_depth, out_top, out_sun, coverage, quads
+                coverage[row + px] = hits / per
+                reached[row + px] = bits
+    return out_depth, out_top, out_sun, coverage, reached
 
 
 def _art_hit(m, u, v, distance, tz, back, art_w, art_h):

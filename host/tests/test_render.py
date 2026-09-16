@@ -17,7 +17,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from coaxial import engine, mesh, orientation                # noqa: E402
+from coaxial import engine, mesh, orientation, raster        # noqa: E402
 from coaxial.orientation import _qmul                        # noqa: E402
 from coaxial import wireframe                                # noqa: E402
 
@@ -192,16 +192,29 @@ def test_shade_units(report):
     report.check('shade: art blank opens the cell',
                  one(0.0, top=1, art=art) == 0)
 
-    # One cell of a 2x2 raster: three subsamples hit, the nearest (0.9)
-    # sits bottom-right with top set and sun clear.
+    # One cell of the dot raster, 2 wide by 4 tall: five subsamples hit,
+    # the nearest (0.9) sits at lane 1 row 3 with top set and sun clear,
+    # and the reached mask is those five dots' braille bits.
     depth2 = [0.5, 0.0,
-              0.7, 0.9]
-    top2, sun2 = bytearray([0, 0, 0, 1]), bytearray([1, 1, 1, 0])
-    fdepth, ftop, fsun, cover, _quads = engine.fold(depth2, top2, sun2,
-                                                    1, 1)
-    report.check('fold: nearest subsample, its flags, and 3/4 coverage',
-                 (fdepth, bytes(ftop), bytes(fsun), cover)
-                 == ([0.9], b'\x01', b'\x00', [0.75]))
+              0.7, 0.0,
+              0.0, 0.6,
+              0.8, 0.9]
+    top2 = bytearray([0, 0, 0, 0, 0, 0, 0, 1])
+    sun2 = bytearray([1, 1, 1, 1, 1, 1, 1, 0])
+    fdepth, ftop, fsun, cover, reached = engine.fold(depth2, top2, sun2,
+                                                     1, 1)
+    hit = (raster.BRAILLE_BITS[0][0] | raster.BRAILLE_BITS[0][1]
+           | raster.BRAILLE_BITS[1][2] | raster.BRAILLE_BITS[0][3]
+           | raster.BRAILLE_BITS[1][3])
+    report.check('fold: nearest subsample, its flags, 5/8 coverage and '
+                 'the reached dots as braille bits',
+                 (fdepth, bytes(ftop), bytes(fsun), cover, bytes(reached))
+                 == ([0.9], b'\x01', b'\x00', [0.625], bytes([hit])))
+    fine = engine.fine(engine.camera(10, 5, 1.0))
+    report.check('fine: the dot camera is 2x4 the cells, square samples',
+                 (fine['width'], fine['height'], fine['aspect'],
+                  fine['scale'] / engine.camera(10, 5, 1.0)['scale'])
+                 == (20, 20, 1.0, 2.0))
     always = ([9.0], 1, 1.0, (1, 0, 0), (0, 1, 0), (0, 0, 1))
     report.check('shade: a shadowed art cell steps down',
                  one(0.0, top=1, sun=1, art=(['.'], 1, 1, [[2]]),
@@ -480,7 +493,7 @@ def test_the_face_is_a_halftone(report):
     cam = engine.camera(width, height, reach, distance=3.2, zoom=zoom,
                         tip=w.CAMERA_TIP, lift=orientation.LIFT)
     m = engine.multiply(cam['view'], orientation.matrix(q))
-    buf, coverage, quads, classes, levels, bare, seed = w._cells(
+    buf, coverage, reached, classes, levels, bare, seed = w._cells(
         solid, m, cam, None, True, False)
     if classes is None:
         raise AssertionError('no classes came back')
@@ -490,8 +503,8 @@ def test_the_face_is_a_halftone(report):
     w._glow(grid, tone, classes, levels, bare, seed, coverage, width,
             height, True, cam=cam, buf=buf, heat_out=heat)
     w._dots(grid, heat, classes, coverage, width, height,
-            w._expose(heat, classes), quads)
-    w._rim(grid, tone, classes, quads, heat, width, height, True)
+            w._expose(heat, classes), reached)
+    w._rim(grid, tone, classes, reached, heat, width, height, True)
     face = [grid[i // width][i % width] for i in range(width * height)
             if classes[i]]
     # NO SURFACE UNDER THE DOTS. A background per cell - the face's tone
@@ -522,9 +535,9 @@ def test_the_face_is_a_halftone(report):
     report.check('and it wears more glyphs than a carpet of one',
                  len(set(face)) >= 8, '%d distinct' % len(set(face)))
 
-    # THE RIM, CLIPPED AND LIT. A part-covered cell's dots all lie in
-    # quadrants the 2x2 raster reached - nothing spills past the board -
-    # and the rim cells wear the edge tone, brighter than the face.
+    # THE RIM, CLIPPED AND LIT. A part-covered cell's dots are all dots
+    # the fine raster reached - nothing spills past the board - and the
+    # rim cells wear the edge tone, brighter than the face.
     def luma(rgb):
         return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
 
@@ -533,21 +546,17 @@ def test_the_face_is_a_halftone(report):
         if not classes[i]:
             continue
         cell = tone[i // width][i % width]
-        if quads[i] in (0, 15):
+        if reached[i] in (0, 0xFF):
             inside.append(luma(cell))
             continue
         rim += 1
         edge.append(luma(cell))
         mask = ord(grid[i // width][i % width]) - raster.BRAILLE
-        for lane in range(2):
-            for y in range(4):
-                if (mask & raster.BRAILLE_BITS[lane][y]
-                        and not quads[i] & (1 << (lane + 2 * (y // 2)))):
-                    spilled += 1
+        spilled += bin(mask & ~reached[i] & 0xFF).count('1')
     edge.sort()
     inside.sort()
     report.check('no dot past the rim: every dot of a part-covered cell is '
-                 'in a quadrant the model reaches',
+                 'one the model reaches',
                  rim > 0 and spilled == 0,
                  '%d spilled over %d rim cells' % (spilled, rim))
     report.check('and the rim is a line of light, brighter than the face',

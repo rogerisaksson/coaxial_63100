@@ -2174,6 +2174,54 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   tracemalloc diff of the running page was not taken: 900 frames under
   a 25-deep trace had not finished in twenty minutes, and the resident
   tables above are the measurement.
+* "JAGGED" WAS THE DECIMATION, NOT THE ANTI-ALIASING (2026-09-16). The
+  bench asked for the anti-aliasing code: the board's edge in BOARD
+  ATTITUDE sometimes looked too jagged. Judged in the raster first -
+  seven poses at the page's framing (108x40, zoom 1.267), rendered and
+  rasterised, then the shallow arcs cropped and magnified - and the
+  rim was two things a dot or four apart: the exact outline's dotted
+  chain, smooth, and inside it the face's fill ending on a staircase of
+  whole cells with a black gap between that varied cell by cell. THE
+  GAP WAS THE DECIMATED SOLID'S OWN RIM: `mesh._clustered` snapped
+  every vertex to its grid cell's MIDDLE, so a rim vertex moved up to
+  half a cell in or out by where the grid happened to fall. Measured
+  as the outer radius per five degrees against the exact mesh, in
+  braille dots at the page's framing (88.6 a model unit): grid 32
+  -2.8 to +2.8 dots, 48 -1.9..+1.7, 64 -1.4..+1.1, 24 -1.2..+15 (a
+  dropped triangle's notch). The page earns grid 48 at that size, the
+  menu's turntable 32. THE VERTEX IS THE CELL'S MEAN NOW - the corners
+  that landed in it, summed, and the collapse test still on the cell
+  middles - and the rim's shortfall is 0.00 dots in every bin at 48
+  and 64, 0.3 mean and one bin of 3.5 at 32, 9.6 in one bin at 24;
+  never outward, since a mean of points inside the disc is inside.
+  Face counts unchanged (1809, 5570, 5645, 12430). In the raster the
+  fill runs to the chain at every pose, and the parts' outlines draw
+  whole where the lumpy depth buffer had hidden their far edges -
+  the picture reads busier, which is the bench's to judge. THE
+  ANTI-ALIASING WAS READ TOO, AND WAS HALF A CELL COARSE: the fine
+  raster was 2x2 a cell - a quadrant one dot wide, two tall - so the
+  face's clipping and the rim line could sit on two of a cell's four
+  dot rows, and a shallow edge stepped by half cells. `engine.fine`
+  makes the camera at the braille dots, 2x4 a cell and square
+  (`project` takes an `aspect`, 0.5 for a cell, 1.0 for the dots),
+  `fold` answers `reached` as the glyph's own bit order, `_dots` clips
+  by the dot's bit, and `EDGE_GLYPH` is 256 masks, the reached dots
+  beside a missed one, so the line sits on the row the edge crosses.
+  And `_rim` lays that line OVER the face's reached dots instead of
+  replacing the cell: replaced, the fill stopped a whole cell short of
+  the silhouette wherever the rim crossed one - a second stair. COST:
+  twice the fine pixels. The raster's rows are one span each, so the
+  first miss after a hit ends the row - same tests, same floats - and
+  at 108x40 on the grid-32 solid the dot raster went 79 ms to 69, the
+  old 2x2 49 to 45; the setup per triangle is most of what is left.
+  A full frame single-process at the page's size, the grid-48 solid,
+  78 ms before to 100-113 after; with the eight-worker crew, the
+  page's own way, 46.9 ms against the 52 recorded on 2026-09-06. The
+  chooser's turntable and a run of four frames draw single-process
+  and pay it. test_render: the fold checked at 2x4 with the mask as
+  bits and `fine`'s shape (79 -> 80); the cube oracle passes with the
+  mean vertices (a lone corner's mean is the corner, so the cube is
+  exact now). views 207, simulated 254, structure 667; 3088 checks.
 
 ## The local model
 

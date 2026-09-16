@@ -65,11 +65,12 @@ def _faces_ascii(text):
 def _clustered(faces, divisions):
     """(positions, indices, normals) for `faces`, vertices snapped to a grid.
 
-    Vertex clustering: every vertex in a grid cell becomes that cell, and a
-    triangle whose corners land in fewer than three cells has collapsed and
-    is dropped. Crude next to a proper edge-collapse decimator, and it needs
-    no topology, no error quadrics and no half-edges - which is what makes it
-    forty lines instead of four hundred.
+    Vertex clustering: every vertex in a grid cell becomes that cell's one
+    vertex - the mean of the corners that landed in it - and a triangle
+    whose corners land in fewer than three cells has collapsed and is
+    dropped. Crude next to a proper edge-collapse decimator, and it needs
+    no topology, no error quadrics and no half-edges - which is what makes
+    it forty lines instead of four hundred.
 
     Indexed, because clustering is what makes sharing worth having: this
     board's 48,899 triangles have only 23,810 distinct corners between them,
@@ -83,8 +84,9 @@ def _clustered(faces, divisions):
     """
     step = 2.0 / divisions
     cells = {}
-    positions = []
-    indices = []
+    centres = []            # the cell's middle, for the collapse test
+    sums = []               # the corners that landed in it, summed, and
+    indices = []            # how many: the vertex is their MEAN
     normals = []
 
     for corners, stated in faces:
@@ -95,20 +97,23 @@ def _clustered(faces, divisions):
                    int(math.floor(corner[2] / step)))
             got = cells.get(key)
             if got is None:
-                got = len(positions) // 3
-                positions.append((key[0] + 0.5) * step)
-                positions.append((key[1] + 0.5) * step)
-                positions.append((key[2] + 0.5) * step)
+                got = len(sums)
+                centres.append(((key[0] + 0.5) * step, (key[1] + 0.5) * step,
+                                (key[2] + 0.5) * step))
+                sums.append([0.0, 0.0, 0.0, 0])
                 cells[key] = got
+            acc = sums[got]
+            acc[0] += corner[0]
+            acc[1] += corner[1]
+            acc[2] += corner[2]
+            acc[3] += 1
             found.append(got)
 
         a, b, c = found
         if a == b or b == c or a == c:
             continue
 
-        normal = face_normal(positions[a * 3:a * 3 + 3],
-                             positions[b * 3:b * 3 + 3],
-                             positions[c * 3:c * 3 + 3], stated)
+        normal = face_normal(centres[a], centres[b], centres[c], stated)
         if normal is None:
             continue
 
@@ -128,6 +133,18 @@ def _clustered(faces, divisions):
         normals.append(normal[1])
         normals.append(normal[2])
 
+    # THE VERTEX IS THE MEAN OF WHAT LANDED IN THE CELL, not the cell's
+    # middle. Snapped to the middle, a rim vertex moved up to half a
+    # cell in or out by where the grid happened to fall, and the
+    # board's silhouette came out lumpy by that much - measured at grid
+    # 32, the attitude page's own, +-0.031 of the radius, +-2.8 braille
+    # dots at the page's framing - beside the exact outline drawn over
+    # it. The mean of a cell's rim corners lies on the rim's chord.
+    positions = []
+    for sx, sy, sz, n in sums:
+        positions.append(sx / n)
+        positions.append(sy / n)
+        positions.append(sz / n)
     return positions, indices, normals
 
 

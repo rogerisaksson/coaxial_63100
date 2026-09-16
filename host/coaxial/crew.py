@@ -38,22 +38,21 @@ def _load(solids, art):
 
 
 def _band(job) -> tuple:
-    """One strip: 2x2 raster, fold to cells, shade - all of a cell's
-    work that needs no neighbour."""
+    """One strip: the dot-resolution raster, fold to cells, shade - all
+    of a cell's work that needs no neighbour."""
     which, m, cam, beam, sun_min, band, shading = job
     first, last = band
     rows = last - first
     width = cam['width']
-    fine = dict(cam, width=2 * width, height=2 * cam['height'],
-                scale=2.0 * cam['scale'], cx=2.0 * cam['cx'],
-                cy=2.0 * cam['cy'])
+    fine = engine.fine(cam)
     depth, top, sun = engine.raster(_Worker.bodies[which], m, fine, beam=beam,
                                     sun_min=sun_min,
-                                    band=(2 * first, 2 * last))
-    depth, top, sun, coverage, quads = engine.fold(depth, top, sun, width,
-                                                   rows)
+                                    band=(engine.DOTS_Y * first,
+                                          engine.DOTS_Y * last))
+    depth, top, sun, coverage, reached = engine.fold(depth, top, sun, width,
+                                                     rows)
     if shading is None:
-        return depth, top, sun, coverage, quads
+        return depth, top, sun, coverage, reached
     pivot, slope, floor, shadow, shadow_step, bias, art = shading
     # shade() back-projects each cell from its row: hand it a camera
     # whose cy is shifted by the band's first row so row 0 of the strip
@@ -65,7 +64,7 @@ def _band(job) -> tuple:
                            art=_Worker.art if art else None, shadow=shadow,
                            shadow_step=shadow_step, bias=bias,
                            levels=levels, bare=bare, seed=seed)
-    return depth, coverage, quads, classes, levels, bare, seed
+    return depth, coverage, reached, classes, levels, bare, seed
 
 
 def _decimate(job):
@@ -144,36 +143,36 @@ class Crew:
         return next(i for i, held in enumerate(self.solids) if held is solid)
 
     def raster(self, solid, m, cam, beam=None, sun_min=0.0):
-        """(depth, top, sun, coverage, quads) at cell resolution for the
-        whole frame: 2x2 raster and fold, as bands, concatenated in
+        """(depth, top, sun, coverage, reached) at cell resolution for the
+        whole frame: the dot raster and fold, as bands, concatenated in
         order."""
         jobs = [(self._which(solid), m, cam, beam, sun_min, band, None)
                 for band in split(cam['height'], self.workers)]
         depth, top, sun, coverage = [], bytearray(), bytearray(), []
-        quads = bytearray()
+        reached = bytearray()
         for d, t, s, c, q in self._live().map(_band, jobs):
             depth += d
             top += t
             sun += s
             coverage += c
-            quads += q
-        return depth, top, sun, coverage, quads
+            reached += q
+        return depth, top, sun, coverage, reached
 
     def frame(self, solid, m, cam, beam, sun_min, shading):
-        """(depth, coverage, quads, classes, levels, bare, seed) for the
+        """(depth, coverage, reached, classes, levels, bare, seed) for the
         whole frame, each band rastered, folded AND shaded by its worker.
         `shading` = (pivot, slope, floor, shadow, shadow_step, bias,
         art) - `art` a flag: the worker holds the face itself."""
         jobs = [(self._which(solid), m, cam, beam, sun_min, band, shading)
                 for band in split(cam['height'], self.workers)]
-        depth, coverage, quads, classes = [], [], bytearray(), bytearray()
+        depth, coverage, reached, classes = [], [], bytearray(), bytearray()
         levels, bare, seed = [], [], []
         for d, c, q, k, lv, b, s in self._live().map(_band, jobs):
             depth += d
             coverage += c
-            quads += q
+            reached += q
             classes += k
             levels += lv
             bare += b
             seed += s
-        return depth, coverage, quads, classes, levels, bare, seed
+        return depth, coverage, reached, classes, levels, bare, seed

@@ -610,15 +610,14 @@ DENSITY_CEIL = 0.5
 #: cap at the bench's framing; the lines were the smooth one.
 SCAN_ROWS = (0, 2)
 
-#: The dots `_dots` samples, worked out once: offset, bit, the quadrant
-#: bit the clipping tests, the lane and the row in the cell - only the
-#: SCAN_ROWS, so the loop over a cell is four dots and no arithmetic
-#: about which four. Measured: the per-dot `int()` and membership test
-#: on all eight were a third of the pass.
+#: The dots `_dots` samples, worked out once: offset, bit, the lane and
+#: the row in the cell - only the SCAN_ROWS, so the loop over a cell is
+#: four dots and no arithmetic about which four. The bit is also what
+#: the clipping tests: the fold's `reached` mask is in the glyph's own
+#: bit order. Measured: the per-dot `int()` and membership test on all
+#: eight were a third of the pass.
 SCAN_DOTS = tuple(
-    (ox, oy, bit,
-     1 << ((0 if ox < 0.0 else 1) + (0 if oy < 0.0 else 2)),
-     0 if ox < 0.0 else 1, int((oy + 0.5) * 4.0))
+    (ox, oy, bit, 0 if ox < 0.0 else 1, int((oy + 0.5) * 4.0))
     for ox, oy, bit in DOT_AT if int((oy + 0.5) * 4.0) in SCAN_ROWS)
 
 #: How many frames a NEW pose is drawn in full before the face is held
@@ -1134,7 +1133,7 @@ def _slope(before, here, after):
 
 
 def _dots(grid, heat, classes, coverage, width, height, window,
-          quads=None):
+          reached=None):
     """The glyphs, off the heat field: each of a cell's eight dots is lit
     where the density at the dot clears its Bayer threshold.
 
@@ -1148,12 +1147,16 @@ def _dots(grid, heat, classes, coverage, width, height, window,
     class already decided there is something here, and a cell whose
     density clears no dot keeps one.
 
-    CLIPPED TO THE MODEL: `quads` says which quadrants of a cell the
-    2x2 raster reached, and a dot in a quadrant it missed stays dark -
-    that dot is outside the board. Before this a rim cell a quarter
-    covered drew its whole cell's density thinned by two rungs, and the
-    dots spilled past the rim; the bench asked for them cut. With the
-    clipping the thinning has nothing left to do and is gone."""
+    CLIPPED TO THE MODEL: `reached` says which of a cell's eight dots
+    the fine raster reached, in the glyph's own bit order, and a dot it
+    missed stays dark - that dot is outside the board. Before this a
+    rim cell a quarter covered drew its whole cell's density thinned by
+    two rungs, and the dots spilled past the rim; the bench asked for
+    them cut. With the clipping the thinning has nothing left to do
+    and is gone. It clipped by quadrant first - one dot wide, two
+    tall - and along a shallow rim the face ended two rows short or
+    two rows long of the silhouette, cell by cell: the stair the bench
+    saw as jagged."""
     lo, hi = window
     gain = 1.0 / (hi - lo) if hi > lo else 0.0
     levels = float(NOISE_N * NOISE_N)
@@ -1171,7 +1174,8 @@ def _dots(grid, heat, classes, coverage, width, height, window,
             at = row + px
             if not classes[at]:
                 continue
-            reach = quads[at] if quads is not None and quads[at] else 15
+            reach = (reached[at] if reached is not None and reached[at]
+                     else 0xFF)
             here = heat[at]
             gx = _slope(heat[at - 1] if px and classes[at - 1] else None,
                         here,
@@ -1184,8 +1188,8 @@ def _dots(grid, heat, classes, coverage, width, height, window,
                         and classes[at + width] else None)
             base = (here - lo) * gain
             mask = 0
-            for ox, oy, bit, quadrant, lane, y in SCAN_DOTS:
-                if not reach & quadrant:
+            for ox, oy, bit, lane, y in SCAN_DOTS:
+                if not reach & bit:
                     continue
                 share = base + (gx * ox + gy * oy) * gain
                 share = 0.0 if share < 0.0 else (1.0 if share > 1.0
@@ -1210,27 +1214,29 @@ def _edge_tone(base):
 
 def _edge_glyphs():
     """The braille LINE for every way a cell can be part-covered: of the
-    quadrants the model reaches, the dots that border a quadrant it
-    misses. A cell reached on its right half draws `⢸`, on its top
-    half `⠒`, in one corner a stub like `⠃`, three-quarters a bend -
-    so along a rim the cells join into a drawn line that follows the
+    dots the model reaches, those beside a dot it misses - across the
+    lane, or the row above or below, inside the cell. A cell reached on
+    its right half draws `⢸`, on its bottom two rows `⠤`, in one corner
+    a stub, on a slant a stair of single dots - so along a rim the
+    cells join into a drawn line one dot wide that follows the
     silhouette, and the face inside it stays a stipple. Two vocabularies
     on one board, which is what the bench asked for: "the highlight and
-    the edges in another braille character"."""
-    table = [0] * 16
-    for reach in range(1, 15):
+    the edges in another braille character". The table was sixteen
+    quadrant masks first, the line on two of a cell's four rows only;
+    at dot resolution it is one of 256 and sits on the row the edge
+    crosses."""
+    table = [0] * 256
+    for reach in range(1, 255):
         bits = 0
         for lane in range(2):
-            for half in range(2):
-                if not reach & (1 << (lane + 2 * half)):
+            for y in range(4):
+                if not reach & BRAILLE_BITS[lane][y]:
                     continue
-                if not reach & (1 << ((1 - lane) + 2 * half)):
-                    # Across from a missed quadrant: the whole column.
-                    bits |= (BRAILLE_BITS[lane][2 * half]
-                             | BRAILLE_BITS[lane][2 * half + 1])
-                if not reach & (1 << (lane + 2 * (1 - half))):
-                    # Above or below one: the row that borders it.
-                    bits |= BRAILLE_BITS[lane][2 * half + (1 - half)]
+                beside = (BRAILLE_BITS[1 - lane][y],
+                          BRAILLE_BITS[lane][y - 1] if y else 0,
+                          BRAILLE_BITS[lane][y + 1] if y < 3 else 0)
+                if any(b and not reach & b for b in beside):
+                    bits |= BRAILLE_BITS[lane][y]
         table[reach] = bits or BRAILLE_BITS[0][0]
     return tuple(table)
 
@@ -1238,7 +1244,7 @@ def _edge_glyphs():
 EDGE_GLYPH = _edge_glyphs()
 
 
-def _rim(grid, tone, classes, quads, heat, width, height, colour):
+def _rim(grid, tone, classes, reached, heat, width, height, colour):
     """THE EDGE, ENHANCED. A cell the model covers only in part is on a
     silhouette - the board's rim, a hole's edge - and is drawn as the
     braille LINE along that edge (`EDGE_GLYPH`), in the outline's tone:
@@ -1256,19 +1262,29 @@ def _rim(grid, tone, classes, quads, heat, width, height, colour):
     the board's far edge every cell has such a neighbour - the region
     came out as solid bright blobs, blocks by another route, in the
     bench's screenshot. The part-covered cells are the silhouette at
-    quadrant resolution, and that is thin enough to be a line. The
-    mono render takes the solid glyph and no tone: there the edge is
-    the dots alone."""
+    dot resolution, and that is thin enough to be a line. The mono
+    render takes the solid glyph and no tone: there the edge is the
+    dots alone."""
     for py in range(height):
         row = py * width
         for px in range(width):
             at = row + px
             if not classes[at]:
                 continue
-            reach = quads[at] if quads is not None and quads[at] else 15
-            if reach == 15:
+            reach = (reached[at] if reached is not None and reached[at]
+                     else 0xFF)
+            if reach == 0xFF:
                 continue
-            grid[py][px] = chr(BRAILLE + EDGE_GLYPH[reach])
+            # The line OVER the face's own dots in the cell, not instead
+            # of them: replaced, the fill stopped a whole cell short of
+            # the silhouette wherever the rim crossed one, and the
+            # face's edge stepped by cells behind a line that did not -
+            # the stair the bench saw. Masked to the reach, since
+            # `_dots` keeps one dot in a cell it lit nothing in.
+            face = ord(grid[py][px]) - BRAILLE
+            if not 0 <= face <= 0xFF:
+                face = 0
+            grid[py][px] = chr(BRAILLE + ((face & reach) | EDGE_GLYPH[reach]))
             if colour:
                 base = (heat[at] if heat is not None and heat[at]
                         else OUTLINE_BASE)
@@ -1389,7 +1405,7 @@ def _glow(grid, tone, classes, levels, bare, seed, coverage, width, height,
             # the silhouette and round every hole sat at 55-62 luma
             # against 101-103 inside, a dark contour the exporter's
             # screenshots do not have (his rim 99, his interior 101).
-            # Anti-aliasing by COVERAGE, from the 2x2 fold: a rim cell
+            # Anti-aliasing by COVERAGE, from the dot fold: a rim cell
             # dims by the share of it the model misses and thins its
             # glyph at half or less. A flat feather on every rim cell
             # drew a dark contour round the board and every hole (55
@@ -1938,14 +1954,12 @@ def _glyph(dx, dy):
 
 
 def _raster(solid, m, cam, crew):
-    """(depth, top, sun, coverage, quads) at cell resolution: rastered
-    at 2x2 subsamples per cell - the camera doubled - and FOLDED, so
-    every cell knows its coverage and which quadrants of it the model
-    reaches, which the rim's clipping runs on. Four times the raster,
-    which is what the crew is for."""
-    fine = dict(cam, width=2 * cam['width'], height=2 * cam['height'],
-                scale=2.0 * cam['scale'], cx=2.0 * cam['cx'],
-                cy=2.0 * cam['cy'])
+    """(depth, top, sun, coverage, reached) at cell resolution: rastered
+    at the braille dots - 2x4 subsamples per cell, `engine.fine` - and
+    FOLDED, so every cell knows its coverage and which of its dots the
+    model reaches, which the rim's clipping runs on. Eight times the
+    raster, which is what the crew is for."""
+    fine = engine.fine(cam)
     if crew is not None and crew.holds(solid):
         buf, topf, sun = crew.raster(solid, m, fine, beam=LIGHT,
                                      sun_min=SUN_MIN)
@@ -1956,7 +1970,7 @@ def _raster(solid, m, cam, crew):
 
 
 def _cells(solid, m, cam, crew, face, foreign):
-    """Every per-cell stage: (depth, coverage, quads, classes, levels,
+    """Every per-cell stage: (depth, coverage, reached, classes, levels,
     bare, seed). With a crew holding the solid the workers raster, fold
     and shade their own bands and the parent keeps only the glow, which
     needs neighbours. A foreign solid gets no cast shadows and no art;
@@ -1966,9 +1980,9 @@ def _cells(solid, m, cam, crew, face, foreign):
         shading = (PIVOT, SLOPE, FLOOR, None if foreign else _shadowmap(m),
                    SHADOW_DIM, BIAS, not foreign)
         return crew.frame(solid, m, cam, LIGHT, SUN_MIN, shading)
-    buf, topf, sun, coverage, quads = _raster(solid, m, cam, crew)
+    buf, topf, sun, coverage, reached = _raster(solid, m, cam, crew)
     if not face:
-        return buf, coverage, quads, None, None, None, None
+        return buf, coverage, reached, None, None, None, None
     levels = [0.0] * (width * height)
     bare = [0.0] * (width * height)
     seed = [0.0] * (width * height)
@@ -1978,7 +1992,7 @@ def _cells(solid, m, cam, crew, face, foreign):
         shadow=None if foreign else _shadowmap(m),
         shadow_step=SHADOW_DIM, bias=BIAS, levels=levels, bare=bare,
         seed=seed)
-    return buf, coverage, quads, classes, levels, bare, seed
+    return buf, coverage, reached, classes, levels, bare, seed
 
 
 def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
@@ -1990,15 +2004,15 @@ def _paint(grid, tone, cells, cam, m, colour, persist, foreign):
     bench's word: the flat one made the parts hard rectangles of colour,
     the blurred one a haze over the board, and the crispest picture is
     the braille alone with the edges drawn."""
-    buf, coverage, quads, classes, levels, bare, seed = cells
+    buf, coverage, reached, classes, levels, bare, seed = cells
     width, height = cam['width'], cam['height']
     heat = [0.0] * (width * height) if colour else None
     _glow(grid, tone, classes, levels, bare, seed, coverage, width,
           height, colour, cam=cam, buf=buf, heat_out=heat)
     if colour:
         _dots(grid, heat, classes, coverage, width, height,
-              _expose(heat, classes, persist), quads)
-    _rim(grid, tone, classes, quads, heat, width, height, colour)
+              _expose(heat, classes, persist), reached)
+    _rim(grid, tone, classes, reached, heat, width, height, colour)
     # The outline, last of the ink, over the shading: the parts' edges
     # as a wireframe overlay from the mesh's own creases - see
     # OUTLINE_DEG. Measured before any of this: the parts were tone
