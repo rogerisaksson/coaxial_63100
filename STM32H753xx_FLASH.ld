@@ -81,6 +81,41 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
+  /* THE SAMPLE PATH RUNS FROM ITCM. The M7 fetches from flash through a
+     16 K instruction cache that the main loop - Modbus, the thermal
+     observer, the IMU poll, the console - shares with the interrupt
+     that runs fifty thousand times a second, so an ADC interrupt could
+     begin by refilling the lines the loop had evicted. ITCM is 64 K of
+     zero-wait memory on the instruction bus that no cache touches, and
+     nothing used it. Placed by object, so no source carries an
+     attribute: the control law and its observers, the anti-alias
+     chain, the acquisition engine and its glue, the sync and PWM
+     interrupts, the cycle counter, one ADC read, and the HAL's ADC
+     interrupt handler in front of them all - 29 K in the Debug image,
+     26 K in Release. Loaded from flash by the startup the way .data is; the
+     vector table stays in flash and reaches these through the veneers
+     the linker adds. Before .text, since the first pattern that
+     matches an input section wins. */
+  _siitcm = LOADADDR(.itcm);
+  .itcm :
+  {
+    . = ALIGN(4);
+    _sitcm = .;
+    *drive/src/*.c.obj(.text .text.*)
+    *filter/src/filter.c.obj(.text .text.*)
+    *daq/src/daq.c.obj(.text .text.*)
+    *board/src/board_daq.c.obj(.text .text.*)
+    *board/src/board_drive.c.obj(.text .text.*)
+    *board/src/board_sync.c.obj(.text .text.*)
+    *board/src/board_pwm.c.obj(.text .text.*)
+    *board/src/board_clock.c.obj(.text .text.*)
+    *(.text.Board_AdcInjectedSlot)
+    *stm32h7xx_hal_adc.c.obj(.text .text.*)
+    *stm32h7xx_hal_adc_ex.c.obj(.text .text.*)
+    . = ALIGN(4);
+    _eitcm = .;
+  } >ITCMRAM AT> FLASH
+
   /* The program code and other data goes into FLASH */
   .text :
   {
@@ -245,12 +280,14 @@ SECTIONS
      while the acquisition ring made do with 16 K of DTCM.
 
      Here rather than DTCM because DTCM is 128 K and holds .data,
-     .bss, the heap and the stack; and because nothing on an
-     interrupt path touches these. The ring is filled by the main
-     loop and emptied by a command handler, both a byte-copy at a
-     time, so the AXI bus costs it nothing that matters. There is no
-     DMA and the data cache is off, so no coherency question either
-     - the two things that usually make this region awkward. */
+     .bss, the heap and the stack. The ring is filled by the ADC
+     interrupt since the TIM1 clock (by the main loop's poll on the
+     software clock) and emptied by a command handler, a record at a
+     time by memcpy on both sides, so the AXI bus sees a few whole-word
+     writes a record. There is no DMA and the data cache is off, so no
+     coherency question either - the two things that usually make this
+     region awkward - and the cache would not help here: a streaming
+     write into cached memory reads each line before writing it. */
   .buffers (NOLOAD) : ALIGN(8)
   {
     *(.buffers)

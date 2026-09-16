@@ -80,16 +80,34 @@ uint32_t daq_capacity(const daq_t *d)
   return (d->stride != 0U) ? (d->bytes / d->stride) : 0U;
 }
 
+/* Wraps at the end of the buffer, not at a record boundary: the stride
+   divides nothing in particular and rounding the buffer down to whole
+   records for every possible stride wastes more than it saves. So a
+   record is at most two runs, and each run is one memcpy. The ring is in
+   AXI SRAM, outside the core's zero-wait memory, and since the TIM1 clock
+   this runs inside the ADC interrupt up to fifty thousand times a second;
+   a byte at a time with a division each, as it was, is forty bus writes
+   and forty divisions a record. */
 static void put(daq_t *d, const uint8_t *src, uint16_t len)
 {
-  /* Wraps at the end of the buffer, not at a record boundary: the stride
-     divides nothing in particular and rounding the buffer down to whole
-     records for every possible stride wastes more than it saves. */
-  for (uint16_t i = 0U; i < len; i++)
-  {
-    d->buf[d->head] = src[i];
-    d->head = (d->head + 1U) % d->bytes;
-  }
+  const uint32_t whole = len;
+  const uint32_t to_end = d->bytes - d->head;
+  const uint32_t first = (whole < to_end) ? whole : to_end;
+
+  memcpy(d->buf + d->head, src, first);
+  memcpy(d->buf, src + first, whole - first);
+  d->head = (d->head + whole) % d->bytes;
+}
+
+/* The mirror of put: a record out of the ring, in at most two runs. */
+static void get(const daq_t *d, uint32_t from, uint8_t *dst, uint16_t len)
+{
+  const uint32_t whole = len;
+  const uint32_t to_end = d->bytes - from;
+  const uint32_t first = (whole < to_end) ? whole : to_end;
+
+  memcpy(dst, d->buf + from, first);
+  memcpy(dst + first, d->buf, whole - first);
 }
 
 /* Big endian, like every other u32 this board puts on the wire. Writing it
@@ -121,11 +139,8 @@ uint16_t daq_take(daq_t *d, uint8_t *out, uint16_t max_records)
   }
   while ((taken < max_records) && (daq_available(d) > 0U))
   {
-    for (uint16_t i = 0U; i < d->stride; i++)
-    {
-      out[(taken * d->stride) + i] = d->buf[d->tail];
-      d->tail = (d->tail + 1U) % d->bytes;
-    }
+    get(d, d->tail, out + ((uint32_t)taken * d->stride), d->stride);
+    d->tail = (d->tail + d->stride) % d->bytes;
     taken++;
   }
   return taken;

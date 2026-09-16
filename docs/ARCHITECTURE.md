@@ -94,7 +94,9 @@ them, so adding hardware is a row there, its pins, and a probe case.
 subsystem. `board_pwm.c` owns TIM1, the dead time, the counted hold,
 the alternate, the dither, the gate short probe and
 `Board_PwmSessionDrop`. `board_sync.c` owns the injected ADC group TIM1
-triggers. `board_daq.c` owns the ring in AXI SRAM and the software and
+triggers - and the path from the converters to the ring runs from
+ITCM, placed by object in the linker script (HARDWARE has the memory
+map). `board_daq.c` owns the ring in AXI SRAM and the software and
 TIM1 clocks. `board_drive.c` runs the law from the sync's ISR and
 commits the compares at underflow.
 

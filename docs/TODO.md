@@ -71,12 +71,21 @@ is still arithmetic. Every item names the file or record it lives in.
   choice** (2026-09-14): the bench flashes Debug at `-O0`, and the pass
   that made every module's state one struct cost four kilobytes of flash
   because a member access at `-O0` is a base plus an offset. `-Og` is
-  debuggable and optimised, and `daq.c` runs once per converter sample -
-  the reason `filter.c` is at `-O2` whatever the preset - and could join
-  it. The numbers that decide: the LOOP panel's cycle counters for the
-  drive step and the acquisition feed, and the keepalive's worst gap
-  with a tone running (FINDINGS has the 440-cycles-a-sample measurement
-  the tone burst bound rests on). Release builds clean in CI either way.
+  debuggable and optimised. The numbers that decide: the LOOP panel's
+  cycle counters for the drive step and the acquisition feed, and the
+  keepalive's worst gap with a tone running (FINDINGS has the
+  440-cycles-a-sample measurement the tone burst bound rests on).
+  Release builds clean in CI either way.
+* **The sample path's memory traffic is cut, unmeasured** (2026-09-16):
+  `daq.c` and `board_daq.c` joined `filter.c` at `-O2`, the ring is
+  written and read a record at a time by memcpy instead of a byte and a
+  division at a time, and the path's code runs from ITCM instead of
+  flash behind the instruction cache. Built and inspected, not run: the
+  first flash is the proof the startup's copy and the section are right
+  (a wrong one hard-faults on the first ADC interrupt), and
+  `test_bench.py` against its recorded baseline, the LOOP panel's cycle
+  counters and the acquisition's `worst` are the numbers. FINDINGS has
+  what was inspected.
 * **The thermal graph's new numbers are derived, none measured** (2026-09-05):
   the seven patches' areas off the outline, the sheet conductance chosen to
   reproduce the camera's lumped 15.2 K/W, the sources' edges into their

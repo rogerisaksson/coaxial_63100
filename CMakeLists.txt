@@ -196,7 +196,7 @@ set_source_files_properties(
 # control law at -O0 is not a thing: measured 2026-08-31 on the Debug
 # build, one step of drive_step() cost 10 040 cycles, 21 us against the
 # 20 us PWM period, and the main loop's worst keepalive gap went to 16 ms.
-# None of these four carries debugger-facing state worth -O0.
+# None of these carries debugger-facing state worth -O0.
 # COMPILE_OPTIONS replaces rather than appends, so each set carries the
 # warnings the lists above gave it.
 set_source_files_properties(
@@ -204,11 +204,13 @@ set_source_files_properties(
     drive/src/drive_observer.c
     # filter.c runs ONCE PER CONVERTER SAMPLE, which is the fastest thing
     # on this board - the boxcar's single add is the whole point of the
-    # first stage, and at -O0 it is not a single add.
+    # first stage, and at -O0 it is not a single add. daq.c feeds it and
+    # writes the record, on the same interrupt.
     filter/src/filter.c
+    daq/src/daq.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow;-Wconversion")
 set_source_files_properties(
-    board/src/board_drive.c board/src/board_sync.c
+    board/src/board_drive.c board/src/board_sync.c board/src/board_daq.c
     PROPERTIES COMPILE_OPTIONS "-O2;-fno-math-errno;-Wextra;-Wshadow")
 # And the HAL in front of it: HAL_ADC_IRQHandler is every flag check in
 # the peripheral before the callback runs, fifty thousand times a second.

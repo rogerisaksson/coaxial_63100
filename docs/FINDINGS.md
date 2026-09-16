@@ -1950,6 +1950,49 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   five, two arrows down moved it, the flag was refused. That runner is
   the scratchpad's `prove_page.py`; the views suite keeps the guard's
   check. views 206 -> 207, structure 665.
+* THE SAMPLE PATH'S MEMORY TRAFFIC, BY INSPECTION (2026-09-16). The
+  bench asked for fewer cache misses and RAM accesses without obscuring
+  the code. The map first: `.data`, `.bss` and the stack are in DTCM,
+  zero-wait and uncached, so struct layout there is a size question and
+  not a miss question - `-Wpadded` over the tree's own sources with the
+  target compiler counts 141 padded sites, all left as they are, since
+  the fields group by concern and a hole in DTCM costs bytes, not
+  cycles. Nothing on the fifty-kilohertz path reads a constant out of
+  flash: the chain's coefficients, the drive's parameters and the
+  ladder are copied into the structs that own them. Three things were
+  left. THE RING WAS WRITTEN A BYTE AT A TIME: `put` copied a record
+  into AXI SRAM byte by byte with a modulo each - forty bus writes and
+  forty divisions a record, up to fifty thousand times a second since
+  the TIM1 clock feeds it from the ADC interrupt - and the linker
+  script's comment still said the main loop filled it a byte at a time
+  and the bus cost nothing. It is two memcpys a record now, on both
+  sides and wrap included, the 59 core checks holding the ring's
+  semantics. THE CODE FETCHED FROM FLASH THROUGH THE ONE INSTRUCTION
+  CACHE the main loop shares with the interrupt, so an ADC interrupt
+  could begin by refilling the lines Modbus or the thermal observer
+  had evicted; the path's objects - the control law and its observers,
+  the anti-alias chain, the acquisition engine and its glue, the sync
+  and PWM interrupts, the cycle counter, the injected ADC read and the
+  HAL's ADC interrupt handler in front of them - are placed in ITCM by
+  the linker script, by object with no attribute in any source, and
+  copied out of flash by the startup beside `.data`: 28 976 B in Debug
+  and 26 480 B in Release of the 64 K, the linker's stubs carrying the
+  calls between the two (288 B in ITCM, 656 B in flash). And `daq.c`
+  and `board_daq.c` joined `filter.c` at `-O2`, since a member access at
+  `-O0` is a load and a store each. Debug flash 202 124 -> 200 856 B
+  with the ITCM image counted - the tally had counted it as neither
+  flash nor RAM, fixed - and 0 warnings in both presets. THE DATA CACHE
+  STAYS OFF, on inspection as well as for the record's read-back: a
+  streaming write into cached memory reads each 32-byte line before
+  writing it, so the ring would cost more, not less, and nothing else on
+  the path lives where a cache reaches. NOT MEASURED - no board here.
+  The first flash is the proof the section and the copy are right (a
+  wrong one hard-faults on the first ADC interrupt), and `test_bench.py`
+  against its baseline, the LOOP panel's cycle counters and the
+  acquisition's `worst` are the numbers. The next candidate, unmeasured
+  too: `HAL_ADC_IRQHandler` is every flag check in the peripheral before
+  the callback, fifty thousand times a second; a handler of the board's
+  own in its place needs the .ioc to stop generating it.
 
 ## The local model
 

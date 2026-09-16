@@ -15,12 +15,18 @@ M2 N76 P2 gives SYSCLK 475 MHz, HCLK 237.5 MHz, and TIM1's kernel clock
 237.5 MHz. The ADC kernel clock is PLL2 at 75 MHz through DIV2 =
 37.5 MHz; command 0x45 reports it. SPI2's kernel clock is 190 MHz,
 SPI4's 100 MHz. `DWT->CYCCNT` runs at SYSCLK and wraps every 9.04 s.
-The instruction cache is on, the data cache off.
+The instruction cache is on and serves the main loop; the sample
+path's code runs from ITCM, which no cache touches. The data cache
+stays off: everything a sample path touches lives in DTCM, which it
+would not cache; the ring's streaming writes would cost it a line read
+per line written; and the calibration record's flash read-back would
+need an invalidate.
 
 | Memory | Use |
 | --- | --- |
-| DTCM 128 KB | `.data`, `.bss`, the 1 KB stack, the 1024 x 16 B log ring |
-| AXI SRAM 512 KB | the `.buffers` NOLOAD section - the 448 KB DAQ ring |
+| ITCM 64 KB | the sample path's code, the linker script's `.itcm` by object, copied in by the startup: the control law, the anti-alias chain, the acquisition engine and its glue, the sync and PWM interrupts, the HAL's ADC interrupt handler - 29 KB in the Debug image, 26 KB in Release |
+| DTCM 128 KB | `.data`, `.bss`, the 1 KB stack, the 1024 x 16 B log ring - every struct a sample path touches |
+| AXI SRAM 512 KB | the `.buffers` NOLOAD section - the 448 KB DAQ ring, written a record at a time by memcpy from the ADC interrupt |
 | Flash bank 2 sector 7, 0x081E0000 | the calibration record, magic 'CX63', CAL_VERSION 15, padded to a 32-byte flash word |
 
 ## ADC channels

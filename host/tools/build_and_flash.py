@@ -187,8 +187,9 @@ def _region_of(addr):
 def footprint(elf, path):
     """(flash, dtcmram) bytes from the ELF's own section table.
 
-    Flash holds every loaded section including `.data`'s initialisers;
-    DTCMRAM holds `.data`, `.bss` and the heap/stack reservation. Written
+    Flash holds every loaded section including `.data`'s initialisers
+    and the sample path's code, which runs from ITCM but is stored in
+    flash; DTCMRAM holds `.data`, `.bss` and the heap/stack reservation. Written
     here because a number in a document is one nobody re-measures - TODO
     carried 134 748 B for as long as it took to grow by ten kilobytes.
     """
@@ -210,6 +211,8 @@ def footprint(elf, path):
         elif region == 'DTCMRAM':
             ram += count
             flash += count if name == '.data' else 0   # its initialiser is in flash
+        elif name == '.itcm':
+            flash += count      # copied out of flash by the startup
     return flash, ram
 
 
