@@ -146,23 +146,33 @@ def raster(solid, m, cam, beam=None, sun_min=0.0, band=None):
         if hi_x < lo_x or hi_y < lo_y:
             continue
         inv = 1.0 / area
+        # The two edge functions, each a row term less a column term.
+        # The row term and the edge's slopes are the same for every
+        # pixel of a row, so they are worked out once per row: the same
+        # products in the same order as the plain form, so every weight
+        # is the same float, and a third of the work per pixel.
+        e0x, e0y = x2 - x1, y2 - y1
+        e1x, e1y = x0 - x2, y0 - y2
         for py in range(lo_y, hi_y + 1):
             row = (py - first) * width
+            r0 = e0x * (py - y1)
+            r1 = e1x * (py - y2)
             for px in range(lo_x, hi_x + 1):
-                w0 = ((x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)) * inv
+                w0 = (r0 - e0y * (px - x1)) * inv
                 if w0 < 0.0:
                     continue
-                w1 = ((x0 - x2) * (py - y2) - (y0 - y2) * (px - x2)) * inv
+                w1 = (r1 - e1y * (px - x2)) * inv
                 if w1 < 0.0:
                     continue
                 w2 = 1.0 - w0 - w1
                 if w2 < 0.0:
                     continue
                 here = w0 * oa + w1 * ob + w2 * og
-                if here > depth[row + px]:
-                    depth[row + px] = here
-                    top[row + px] = flat
-                    sun[row + px] = lit
+                at = row + px
+                if here > depth[at]:
+                    depth[at] = here
+                    top[at] = flat
+                    sun[at] = lit
     return depth, top, sun
 
 

@@ -2042,6 +2042,24 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   three frames, start to exit: the shaft angle 0.84 s, the gate
   drivers 0.70 s, against 2 s of close alone before. broker 33,
   simulated 254, views 207, structure 665.
+* THE TRIANGLE RASTERISERS DO A THIRD LESS PER PIXEL, FOR THE SAME
+  FLOATS (2026-09-16). The vector drawing's cost is `engine.raster`
+  and the shadow map's twin loop in `wireframe._shadowmap`: per
+  triangle, per pixel of its box, two edge functions of the form
+  `(x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)`, scaled by the
+  area's inverse. The first product and both edge slopes are the same
+  for every pixel of a row; they are worked out once per row now, and
+  the cell index once per hit. NOT the incremental stepping a GPU
+  does: stepping a weight along a row accumulates rounding, and a
+  depth test at a shared edge could then go the other way in the last
+  bit. This keeps the same products in the same order, so every
+  weight and every depth is the same float - forty frames of the
+  chooser's turntable at 52x18 and the attitude page's board at 76x30,
+  from the committed library and this one, identical to the character.
+  Measured a frame: the turntable 36.9 -> 32.1 ms, the attitude board
+  75.0 -> 61.7 ms. The rest of a vector frame is the shading pass and
+  the outline, and on the attitude page the crew's band raster runs
+  this same loop in eight processes. render 79, structure 665.
 
 ## The local model
 

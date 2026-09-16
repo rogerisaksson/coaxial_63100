@@ -856,21 +856,28 @@ def _shadowmap(m, size=56, extent=1.3):
         lo_y = max(0, int(min(y0, y1, y2)))
         hi_y = min(size - 1, int(max(y0, y1, y2)) + 1)
         inv = 1.0 / area
+        # The row terms hoisted as in engine.raster: the same floats,
+        # less work per pixel.
+        e0x, e0y = x2 - x1, y2 - y1
+        e1x, e1y = x0 - x2, y0 - y2
         for py in range(lo_y, hi_y + 1):
             row = py * size
+            r0 = e0x * (py - y1)
+            r1 = e1x * (py - y2)
             for px in range(lo_x, hi_x + 1):
-                w0 = ((x2 - x1) * (py - y1) - (y2 - y1) * (px - x1)) * inv
+                w0 = (r0 - e0y * (px - x1)) * inv
                 if w0 < 0.0:
                     continue
-                w1 = ((x0 - x2) * (py - y2) - (y0 - y2) * (px - x2)) * inv
+                w1 = (r1 - e1y * (px - x2)) * inv
                 if w1 < 0.0:
                     continue
                 w2 = 1.0 - w0 - w1
                 if w2 < 0.0:
                     continue
                 here = w0 * da + w1 * db + w2 * dc
-                if here > sbuf[row + px]:
-                    sbuf[row + px] = here
+                at = row + px
+                if here > sbuf[at]:
+                    sbuf[at] = here
     made = (sbuf, size, extent, right, up, (lx, ly, lz))
     _SHADOWS[key] = made
     return made
