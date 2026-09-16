@@ -86,6 +86,14 @@ is still arithmetic. Every item names the file or record it lives in.
   `test_bench.py` against its recorded baseline, the LOOP panel's cycle
   counters and the acquisition's `worst` are the numbers. FINDINGS has
   what was inspected.
+* **The firmware heap end, unread** (2026-09-16): by inspection the
+  target allocates nothing after boot - no malloc in the tree's C, and
+  newlib's is reachable only from the console's printf, once, for
+  stdout's buffer - but no board was on the bench the day it was asked.
+  The number: `__sbrk_heap_end` (0x200033c0 in this build's map, `nm`
+  has the current one) over SWD before and after an hour of the views;
+  `_end` 0x200090b8 or one buffer past it is the answer, anything
+  climbing is not. FINDINGS has the host side of that day.
 * **The thermal graph's new numbers are derived, none measured** (2026-09-05):
   the seven patches' areas off the outline, the sheet conductance chosen to
   reproduce the camera's lumped 15.2 K/W, the sources' edges into their

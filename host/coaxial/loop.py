@@ -11,13 +11,29 @@ down. The firmware's own loop lives in `drive/`; this module exists so a
 notebook and a Monte Carlo can close a speed loop without a board.
 """
 import math
-import numpy
-import random
+import os
 
-from .sensorless import TWO_PI
-from . import sysid
-from .motor import Parameters
-from .motor import Motor
+# NUMPY'S OPENBLAS COMMITS 32 MB A CORE THE MOMENT IT IS IMPORTED - a
+# scratch buffer per worker thread, never touched, but charged against
+# the machine's commit limit. Measured 2026-09-16 on the sixteen-core
+# laptop: `import numpy` 499 MB of commit at 27 MB resident; with one
+# thread, 17 MB. This is the package's one numpy import - `rig` ->
+# `motion` -> here - so every process importing `coaxial` paid it: the
+# attitude page's fifteen (six decimating, eight drawing, the page) were
+# 7.5 GB of commit before a frame was drawn, on a machine with no page
+# file, and it was the editor Windows failed to grow, not the page
+# (System log 2004; docs/FINDINGS.md). Nothing here multiplies a matrix
+# worth a thread pool. Set BEFORE numpy loads in this process, and only
+# if the shell has not said otherwise.
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
+
+import numpy                                                     # noqa: E402
+import random                                                    # noqa: E402
+
+from .sensorless import TWO_PI                                   # noqa: E402
+from . import sysid                                              # noqa: E402
+from .motor import Parameters                                    # noqa: E402
+from .motor import Motor                                         # noqa: E402
 
 SQRT3 = math.sqrt(3.0)
 

@@ -2105,6 +2105,75 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   before this one had relinked for another reason (the CMake file or
   an object changed), so the images shipped were right; a script edit
   alone would not have been.
+* THE 3D RENDER DID NOT LEAK; NUMPY'S IDLE THREAD POOL WAS CHARGED ONCE
+  A PROCESS (2026-09-16). The bench reported a memory leak in the 3D
+  render crashing VS Code. The machine was measured before the drawing
+  was read for it: this laptop has NO PAGE FILE (AutomaticManagedPagefile
+  false, no Win32_PageFileSetting), so the commit limit is the 23.7 GB of
+  RAM; when asked, 21.5 GB was charged and 2.2 free, the editor, a
+  browser, a VM and this session holding 12 GB between them, and
+  Windows' own log (System 2004, low virtual memory) had fired seven
+  times that day - python.exe processes of 690-750 MB each at 14:12-14:13,
+  Code.exe on top at 17:54 and 17:59. Without a page file Windows fails
+  the next allocation instead of slowing down, and the editor is what
+  asks next. THEN THE PAGES, each run 400-900 frames on a forced-terminal
+  Console into a counting sink with the process tree sampled every half
+  second (the scratchpad's memwatch.py): the attitude page with its
+  eight-worker crew 236 -> 251 MB resident over the first 45 s - the
+  backdrop's 24 rung steps, the shadow buckets and the fits filling - and
+  flat within a megabyte for the next 60 s, its workers flat at 47 MB
+  each; the rotor observer 54 -> 58 MB and flat; the chooser's turntable
+  223 -> 226 and flat. Every module cache was read for its bound as
+  well - MESHES_KEPT 8, OUTLINES_KEPT 4, 64 shadow buckets, 24 backdrop
+  steps a window size, FITS_KEPT 64, the seats' and faces' TABLES_KEPT,
+  persist's three frames - none grows with time. Nothing to fix in the
+  drawing. WHAT LEAKED WAS COMMIT, NOT MEMORY, AND AT IMPORT: a fresh
+  interpreter after `import numpy` commits 499 MB at 27 MB resident -
+  fifteen regions of exactly 32 MB, OpenBLAS's per-thread scratch for
+  the sixteen cores, never touched but charged (VirtualQueryEx over the
+  process, the scratchpad's regions.py; a bare interpreter with ten
+  sleeping threads commits 8 MB, so it is not the stacks). `import
+  coaxial` costs the same 504 MB because rig -> motion -> loop imports
+  numpy at the top, and every process the views spawn imports coaxial:
+  the attitude page is one page, six decimating workers and eight
+  drawing ones - 7.5 GB of commit before a frame - and the MCP server
+  this session ran sat at 545 MB commit against 49 MB resident all day.
+  The first harness run died of it: MemoryError reading the 5.8 MB STL
+  in a decimate worker, with 11 GB of RAM free. `tools/montecarlo.py`
+  had met the same thing on the threadripper and set
+  OPENBLAS_NUM_THREADS=1 in its own worker; the views paid it anyway.
+  THE FIX IS WHERE NUMPY ENTERS: `loop.py` sets OPENBLAS_NUM_THREADS to
+  1 (setdefault, so a shell that wants the pool keeps it) before its
+  import - `import coaxial` 504 -> 22 MB, the attitude page's whole tree
+  peaks at 1 269 MB during decimation and rests at 530 (page 242, eight
+  workers 285); nothing in the tree multiplies a matrix worth a thread
+  pool. test_structure holds it: numpy is imported at module level in
+  loop.py alone and the cap precedes it (2 checks; 665 -> 667, 3085 ->
+  3087). NOT MEASURED: the render inside the bench's own VS Code
+  terminal - the sink counts 50 kB a frame, 1 MB/s at 20 Hz into
+  xterm.js, which the alternate screen discards but the parser still
+  reads. THE TARGET DOES NOT LEAK, BY INSPECTION: no malloc, calloc or
+  free in the tree's own C (only the host test harnesses); the map
+  links newlib's malloc through `-Wl,-u,_printf_float` (CubeMX's
+  default) -> dtoa, and findfp's one-time buffer for printf - reachable
+  only from the console's printf, which formats no float; `_sbrk`
+  refuses past `_sstack` (the heap starts at `_end` 0x200090b8, 92 KB
+  below the stack top, `_Min_Heap_Size` 0x200); every ring and table is
+  static - the DAQ buffer, the rail users and their expiry, the UART
+  ports. No board was attached today (COM4 absent, `--discover` none),
+  so the heap end (`__sbrk_heap_end`, 0x200033c0) was not read over
+  SWD; it is the number to read after a long session, TODO has it.
+  THE HEADROOM IS STILL THE BENCH'S: with the fix in, the offline gate
+  run beside a 600 MB tracemalloc pass of the same page (1.0 GB of
+  commit free at the time) failed three checks with MemoryError, all of
+  them the attitude page decimating - and passed 207/207 and 254/254
+  run alone once that pass was stopped. The page's own peak is now the
+  six decimate workers each parsing the 5.8 MB STL into Python lists,
+  ~150 MB apiece by tracemalloc, 1 269 MB for the tree; that is the
+  next thing to shrink if the machine keeps no page file. The
+  tracemalloc diff of the running page was not taken: 900 frames under
+  a 25-deep trace had not finished in twenty minutes, and the resident
+  tables above are the measurement.
 
 ## The local model
 

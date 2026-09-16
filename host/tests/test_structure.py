@@ -253,6 +253,54 @@ def test_no_unused_imports(r):
                 not dead, ', '.join(dead))
 
 
+def _names_imported(node):
+    """The top-level package names one import statement brings in."""
+    if isinstance(node, ast.Import):
+        return [a.name.split('.')[0] for a in node.names]
+    if isinstance(node, ast.ImportFrom) and node.module:
+        return [node.module.split('.')[0]]
+    return []
+
+
+def _caps_openblas(node):
+    """Whether `node` is `os.environ.setdefault('OPENBLAS_NUM_THREADS', ...)`."""
+    call = getattr(node, 'value', None)
+    return (isinstance(node, ast.Expr) and isinstance(call, ast.Call)
+            and ast.unparse(call.func) == 'os.environ.setdefault'
+            and bool(call.args)
+            and getattr(call.args[0], 'value', None) == 'OPENBLAS_NUM_THREADS')
+
+
+def test_numpy_enters_behind_the_thread_cap(r):
+    """numpy is imported at module level in one package module, loop.py,
+    and that module caps OpenBLAS's thread pool before importing it.
+
+    OpenBLAS commits 32 MB of scratch per core the moment numpy loads -
+    499 MB on a sixteen-core laptop, 17 with one thread, measured
+    2026-09-16 - and every process that imports `coaxial` reaches numpy
+    through `rig` -> `motion` -> `loop`. The attitude page's fifteen
+    processes were 7.5 GB of commit on a machine with no page file, and
+    the editor was what Windows failed to grow. A second module-level
+    import elsewhere, or the cap slipping below the import, puts it back
+    silently: nothing fails, the commit charge just climbs by half a
+    gigabyte a process.
+    """
+    importers, capped = [], False
+    for path, _text, tree in sources(beside=False):
+        if not path.startswith(PACKAGES):
+            continue
+        for i, node in enumerate(tree.body):
+            if 'numpy' in _names_imported(node):
+                importers.append(path)
+                capped = any(_caps_openblas(n) for n in tree.body[:i])
+                break
+    r.check('numpy enters the packages at module level in loop.py alone',
+            importers == [os.path.join('coaxial', 'loop.py')],
+            ', '.join(importers) or 'nowhere')
+    r.check('and loop.py sets OPENBLAS_NUM_THREADS before importing it',
+            capped)
+
+
 def _bound(tree):
     """Every name a module binds, anywhere: imports, defs, targets, args."""
     names = set(vars(builtins)) | {'__file__', '__name__',
@@ -1291,6 +1339,7 @@ def test_protocol_agrees(r):
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
+          test_numpy_enters_behind_the_thread_cap,
           test_shape, test_documented, test_no_escaping_scars,
           test_counts_are_measured, test_subsystem_calls_resolve,
           test_limits_live_in_one_file, test_mirrors_agree,
