@@ -24,7 +24,7 @@ need an invalidate.
 
 | Memory | Use |
 | --- | --- |
-| ITCM 64 KB | the sample path's code, the linker script's `.itcm` by object, copied in by the startup: the control law, the anti-alias chain, the acquisition engine and its glue, the sync and PWM interrupts, the HAL's ADC interrupt handler - 29 KB in the Debug image, 26 KB in Release |
+| ITCM 64 KB | the sample path's code, the linker script's `.itcm` by object, copied in by the startup: the control law, the anti-alias chain, the acquisition engine and its glue, the sync and PWM interrupts, the log ring's push, the pin mask, the HAL's ADC interrupt handler - 29 KB in the Debug image, 26 KB in Release |
 | DTCM 128 KB | `.data`, `.bss`, the 1 KB stack, the 1024 x 16 B log ring - every struct a sample path touches |
 | AXI SRAM 512 KB | the `.buffers` NOLOAD section - the 448 KB DAQ ring, written a record at a time by memcpy from the ADC interrupt |
 | Flash bank 2 sector 7, 0x081E0000 | the calibration record, magic 'CX63', CAL_VERSION 15, padded to a 32-byte flash word |

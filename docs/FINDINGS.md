@@ -2084,6 +2084,27 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   window (28 ms a frame, and it shrinks with the frame), the shadow map
   rebuilt each frame while the stand-in's board turns (a real IMU at
   rest hits its bucket), and rich's layout.
+* THE SAMPLE PATH READ END TO END, AND A LINK THAT DID NOT RELINK
+  (2026-09-16). The injected callback and what it calls were read for
+  anything left to take out of the fifty-kilohertz path: it reads the
+  three JDRs and the two rank-2 registers straight off the peripherals
+  (the HAL's getter is a switch behind two asserts, and the tree took
+  it out before), squares and sums, pushes the log ring, feeds the
+  acquisition - which reads the pin mask straight off IDR, again by an
+  earlier measurement - and steps the drive. Nothing is left to
+  inspect out; what remains is the bench's to measure. Two more
+  residents went into ITCM, since the path runs through them per
+  sample: the log ring's push (946 B, per sample while a source is
+  armed) and the pin mask with its count (160 B), 30 064 B in Debug
+  and 26 944 B in Release. THE FIRST BUILD SAID OK IN A SECOND AND
+  NOTHING HAD CHANGED: the toolchain file passes the linker script as
+  a flag, which CMake does not track, so an edited script leaves the
+  old image in place - the two objects were not in the map. The
+  target now names the script as a `LINK_DEPENDS`; proved by touching
+  the script and seeing the image's time move. Every ITCM build
+  before this one had relinked for another reason (the CMake file or
+  an object changed), so the images shipped were right; a script edit
+  alone would not have been.
 
 ## The local model
 

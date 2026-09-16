@@ -248,3 +248,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
     # Add user defined libraries
 )
+
+# THE LINKER SCRIPT IS A DEPENDENCY OF THE LINK. The toolchain file passes
+# it as a flag, which CMake does not track: an edited script left the old
+# image in place and the build said ok in a second - measured when two
+# objects added to .itcm did not appear in it.
+set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
+    LINK_DEPENDS ${CMAKE_SOURCE_DIR}/STM32H753xx_FLASH.ld)

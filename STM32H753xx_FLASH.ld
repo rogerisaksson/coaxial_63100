@@ -90,9 +90,9 @@ SECTIONS
      nothing used it. Placed by object, so no source carries an
      attribute: the control law and its observers, the anti-alias
      chain, the acquisition engine and its glue, the sync and PWM
-     interrupts, the cycle counter, one ADC read, and the HAL's ADC
-     interrupt handler in front of them all - 29 K in the Debug image,
-     26 K in Release. Loaded from flash by the startup the way .data is; the
+     interrupts, the cycle counter, one ADC read, the log ring's push
+     and the pin mask, and the HAL's ADC interrupt handler in front of
+     them all - 29 K in the Debug image, 26 K in Release. Loaded from flash by the startup the way .data is; the
      vector table stays in flash and reaches these through the veneers
      the linker adds. Before .text, since the first pattern that
      matches an input section wins. */
@@ -109,7 +109,10 @@ SECTIONS
     *board/src/board_sync.c.obj(.text .text.*)
     *board/src/board_pwm.c.obj(.text .text.*)
     *board/src/board_clock.c.obj(.text .text.*)
+    *board/src/board_log.c.obj(.text .text.*)
     *(.text.Board_AdcInjectedSlot)
+    *(.text.Board_DigitalMask)
+    *(.text.Board_DigitalCount)
     *stm32h7xx_hal_adc.c.obj(.text .text.*)
     *stm32h7xx_hal_adc_ex.c.obj(.text .text.*)
     . = ALIGN(4);
