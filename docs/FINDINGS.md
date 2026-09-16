@@ -2060,6 +2060,30 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   75.0 -> 61.7 ms. The rest of a vector frame is the shading pass and
   the outline, and on the attitude page the crew's band raster runs
   this same loop in eight processes. render 79, structure 665.
+* WHAT THE HOST PROFILES DID NOT PAY FOR (2026-09-16). Measured and
+  left, so the next pass does not measure them again. A MEMO OF
+  DECODED ART LINES: rich decodes each line's escape codes into a Text
+  every frame, and a page's lines repeat between frames - the rotor
+  observer 87 % of its lines, the thermal observer 35 %, the attitude
+  page 31 % over thirty frames. Built and timed on the captured lines:
+  the attitude page 15.4 -> 15.4 ms a frame, the rotor 2.3 -> 0.3, the
+  thermal 3.4 -> 2.9. The lines that repeat are the cheap ones, and
+  what rich costs a frame - 12 to 46 ms by page - is its layout and
+  segments, not the decode. Taken out. THE MESH WARM-UP: the chooser
+  spends 3.2 s before its turntable turns - the STL parsed and centred
+  in 0.5 s, three vertex clusterings at 0.65 s each - and the attitude
+  page's pool does the same in six processes. A cache file beside the
+  STL was tried before and is not wanted in the tree (`mesh.facets`),
+  and one in another folder is the same decision moved, so it is the
+  bench's to reopen. Under cProfile that pool's workers ran out of
+  memory twice on this laptop while the page itself runs; one worker's
+  parse and centring peaks at 152 MB by tracemalloc, 116 880 faces, so
+  the profiler's slower parent lets six of them peak together - noted,
+  not chased. Within budget and left: the thermal stand-in's step (54
+  ms a frame at the page's 2.5 Hz), the drive stand-in's observer
+  window (28 ms a frame, and it shrinks with the frame), the shadow map
+  rebuilt each frame while the stand-in's board turns (a real IMU at
+  rest hits its bucket), and rich's layout.
 
 ## The local model
 
