@@ -35,6 +35,15 @@ from contextlib import suppress
 HOST = '127.0.0.1'
 PORT = 8763
 
+#: How long a connect may take. A broker that is serving accepts in the
+#: kernel at once, busy or not, so a connect that has not completed in
+#: a second is one nobody is listening for - and on this bench that
+#: takes the whole timeout to find out: a loopback port with no
+#: listener is not refused here, the SYN is dropped, measured 2.0 s
+#: against a 2.0 s timeout. The timeout a caller gives is for the
+#: asks, where a reply waits on the serial port.
+CONNECT_S = 1.0
+
 #: Where the broker says what it is serving, so a client can name the port it
 #: ended up on rather than guessing. Beside the session snapshot, and removed
 #: on the way out.
@@ -91,7 +100,8 @@ class BrokerTransport:
         self.address = address
         self.port = '?'
         self._lock = threading.Lock()
-        self._sock = socket.create_connection(address, timeout=timeout)
+        self._sock = socket.create_connection(address, timeout=CONNECT_S)
+        self._sock.settimeout(timeout)
         self._file = self._sock.makefile('rwb')
         self.baud = self._ask({'op': 'baud'})['baud']
         self.port = self._ask({'op': 'port'})['port']

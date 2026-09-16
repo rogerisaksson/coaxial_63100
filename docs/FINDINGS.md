@@ -2019,6 +2019,29 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   with the frame, since the stand-in integrates the time that passed);
   the shaft angle page 204 -> 52 ms, which is its own 20 Hz pacing.
   views 207, structure 665.
+* TWO SECONDS ON EVERY PAGE'S WAY OUT, AND WHERE A CONNECT WAITS
+  (2026-09-16). The page profiles showed `rig.close` at 2.0 s on every
+  simulated page: `_release_stage` asks `broker.clients()` whether
+  another session shares the board, `clients` attaches on a 2 s
+  timeout, and on this bench a loopback connect to the broker's port
+  with nobody listening is not refused - the SYN is dropped, netstat
+  shows no listener, and `socket.create_connection` waits the whole
+  timeout: measured 2.012 s at 2.0, and 4.0 s for `localhost`, which
+  tries both families. So every page's exit, every views-suite
+  subprocess and every `attach` with the 10 s default paid for a
+  question with a known answer. Two fixes at the two seams. The
+  transport connects on its own `CONNECT_S` of one second and puts the
+  caller's timeout on the socket for the asks - a serving broker
+  accepts in the kernel at once, busy or not, so a connect that has
+  not completed in a second is one nobody is listening for, and the
+  long timeout was only ever meant for a reply waiting on the serial
+  port. And a stand-in is served by no broker by construction, so a
+  simulated rig's close does not ask - `self.simulated`, the rig's own
+  word; the stand-in session carries no origin, which the first cut
+  read and the stand-in suite caught. Measured, a page's whole run at
+  three frames, start to exit: the shaft angle 0.84 s, the gate
+  drivers 0.70 s, against 2 s of close alone before. broker 33,
+  simulated 254, views 207, structure 665.
 
 ## The local model
 

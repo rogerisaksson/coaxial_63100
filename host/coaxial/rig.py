@@ -360,9 +360,12 @@ class Coaxial63100(Acquisition):
 
         False and not True on failure: without a broker there is nobody else
         by construction, and an unknown answer must not be what stops a
-        stage being disarmed.
+        stage being disarmed. A stand-in is served by no broker at all,
+        so it is not asked - asking cost every simulated page two
+        seconds on its way out, measured.
         """
-
+        if self.simulated:
+            return False
         try:
             count = broker.clients()          # None: nobody is serving
         except LINK_FAULTS + (ValueError,):   # the socket, the address file
