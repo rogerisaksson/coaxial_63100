@@ -379,6 +379,15 @@ and falls back to the stand-in - a missing cable is not a failing
 suite. The model is loaded once per run and released once, by
 `run_tests.py`.
 
+The suites that open the stand-in or nothing run SIDE BY SIDE, four at
+most (`--jobs`, half the cores): a suite's wall time is mostly sleep on
+the stand-in's clock - measured, sensorless 24 s of CPU in 151 s - so
+the offline gate takes as long as its longest suite, 142 s against 400.
+They start longest first by what each took last time (`.counts.json`,
+`seconds`) and report in the plan's order. The five that may reach a
+board or hold the model - mcp, parity, bench, conformance, live - run
+alone, after the rest: the bench suite measures the link's own rates.
+
 ### Tiers
 
 `run_tests.py` sells checks by percentage in 5 % steps. Structure and

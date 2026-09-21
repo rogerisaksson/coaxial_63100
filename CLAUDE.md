@@ -363,7 +363,7 @@ was the order, and every step skipped was paid for later.
 1. **Test the narrow thing.** The suites whose names match the change,
    from `host/`: `python -X utf8 tests/<suite>.py`; then `-Structure`
    after anything under `host/`. The offline gate (`python
-   tools/run_tests.py --offline`, ~6 min, in the background) before a
+   tools/run_tests.py --offline`, ~2.5 min, in the background) before a
    push that changes `coaxial/` itself; CI runs it on every push either
    way, and builds the firmware. A new check counts: sync the number in this file,
    `run_tests.ps1`, ARCHITECTURE's table and `tests/.counts.json` -

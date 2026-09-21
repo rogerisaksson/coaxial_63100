@@ -2222,6 +2222,30 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   bits and `fine`'s shape (79 -> 80); the cube oracle passes with the
   mean vertices (a lone corner's mean is the corner, so the cube is
   exact now). views 207, simulated 254, structure 667; 3088 checks.
+* THE GATE WAS FOUR HUNDRED SECONDS OF WAITING IN A QUEUE (2026-09-21).
+  The offline gate ran its twenty-five suites one after another: 400 s,
+  of which five suites are 350 - sensorless 151.5, the acquisition front
+  door 72.0, simulated 59.8, views 36.6, the broker 30.7. Each of those
+  was then measured by its own process' CPU time (GetProcessTimes on the
+  child, the scratchpad's `par_probe.py`): sensorless 23.8 s of CPU,
+  the front door 0.9 s, the broker 2.2 s, views 3.0 s with its pages
+  apart, simulated 47.6 s - so all but the last are SLEEP, the stand-ins
+  pacing themselves on the wall clock the way a board does, and a
+  machine with sixteen cores was waiting on one sleeper at a time. The
+  five run side by side all passed, each in the time it takes alone.
+  `run_tests.py` now runs the suites that open the stand-in or nothing
+  four at a time (`--jobs`, half the cores, four at most: this laptop
+  has no page file and one views page is fourteen processes), started
+  longest first by what each took last time - `.counts.json` grew a
+  `seconds` section, measured rather than a list somebody keeps - and
+  reported in the plan's order, so the tally reads as it always has.
+  The five that may reach a board or hold the model (mcp, parity,
+  bench, conformance, live) run alone after the rest, since the bench
+  suite measures the link's own rates and conformance its frame gaps.
+  A stopped run cancels what has not started. Measured: the gate 400 s
+  -> 141.7 s, 2732 passed, 0 failed, every suite within a few seconds
+  of its time alone; it now ends with sensorless, which is where the
+  next seconds are.
 
 ## The local model
 

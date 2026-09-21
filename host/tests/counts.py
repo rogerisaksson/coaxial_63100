@@ -4,6 +4,10 @@ Written by every run, read only to say what a narrowed run did *not* run. A
 count is never used to decide which tests execute, so a stale one costs a
 display digit and nothing else - and a group with no count yet marks the
 number approximate rather than quietly under-reporting it.
+
+And how many seconds each suite last took, read only to start the longest
+first when suites run side by side: a stale one costs a few seconds of
+wall time, and never decides what runs either.
 """
 import io
 import json

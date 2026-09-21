@@ -24,6 +24,7 @@ import signal
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from contextlib import suppress
 
@@ -150,6 +151,22 @@ def plan_for(percent):
 # wrong assumption it exists to rule out. test_parity is not: with no board
 # both sides are the stand-in and it skips itself rather than passing.
 NEEDS_BOARD = (CONFORMANCE,)
+
+#: Suites that may reach the board's port, or hold the model on the card.
+#: Each wants the machine to itself - the bench suite measures the link's
+#: own rates, conformance its frame gaps - so they run one at a time after
+#: the rest. Every other suite opens the stand-in or nothing at all.
+ALONE = ('test_mcp.py', 'test_parity.py', BENCH, CONFORMANCE, LIVE)
+
+#: How many of the others run side by side. A SUITE'S WALL TIME IS MOSTLY
+#: SLEEP: measured 2026-09-21, each suite's own process - sensorless 24 s
+#: of CPU in 151 s of wall, the acquisition front door 0.9 s in 72, the
+#: broker 2.2 s in 31 - because the stand-ins pace themselves on the wall
+#: clock the way a board does. One after another that was a 400 s gate;
+#: the five longest side by side all pass and end with the longest. Half
+#: the cores and never more than four: the bench laptop has no page file,
+#: and one views page is fourteen processes on its own.
+JOBS = max(1, min(4, (os.cpu_count() or 2) // 2))
 
 TALLY_RE = re.compile(r'^(\d+) passed, (\d+) failed(?:, ~?(\d+) skipped)?$')
 # The whole line after FAIL, detail included: a check's detail is the
@@ -676,6 +693,12 @@ def _options(argv):
                              'board (%s). The default set runs either way - '
                              'it falls back to the simulated board and says '
                              'so.' % ', '.join(NEEDS_BOARD))
+    parser.add_argument('--jobs', type=int, default=JOBS,
+                        help='how many suites run side by side, %d here; 1 '
+                             'is one after another. The suites that may '
+                             'reach a board or hold the model (%s) run '
+                             'alone whatever this says.'
+                             % (JOBS, ', '.join(ALONE)))
     return parser.parse_args(argv)
 
 
@@ -840,6 +863,43 @@ def _extra_for(name, args, tags, live_sections):
     return extra
 
 
+def _job(name, args, tags, live_sections):
+    """One suite run - `run_one`'s tuple, or None where the file is not."""
+    path = ROOT / 'tests' / name
+    if not path.exists():
+        return None
+    return run_one(path, timeout=1200 if name == LIVE else 300,
+                   extra=_extra_for(name, args, tags, live_sections))
+
+
+def _results(suites, args, tags, live_sections):
+    """(suite, its result) in the order the report lists them: the suites
+    that share the machine, in the plan's order, then the ones that want
+    it alone.
+
+    The sharers START longest first, by what each took last time
+    (`.counts.json`; one never timed goes first of all), so the run ends
+    with its longest suite and not some while after it. They REPORT in
+    the plan's order whatever order they finish in, so the tally reads as
+    it always has. A stopped run cancels what has not started; what is
+    running got the Ctrl+C itself.
+    """
+    took = counts.load().get('seconds') or {}
+    sharing = [name for name in suites if name not in ALONE]
+    pool = ThreadPoolExecutor(max_workers=max(1, args.jobs))
+    try:
+        started = {name: pool.submit(_job, name, args, tags, live_sections)
+                   for name in sorted(
+                       sharing, key=lambda n: -took.get(n, float('inf')))}
+        for name in sharing:
+            yield name, started[name].result()
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
+    for name in suites:
+        if name in ALONE:
+            yield name, _job(name, args, tags, live_sections)
+
+
 def _run(args, tags, live_sections):
     """Run what the plan chose, and report it."""
     suites = list(args.file) if args.file else list(DEFAULT_SUITES)
@@ -866,18 +926,17 @@ def _run(args, tags, live_sections):
     total_pass = total_fail = total_skip = ran = 0
     approx = False
     suite_sizes = {}
+    seconds = {}
     failing_lines = []
     ok = True
     try:
-        for name in suites:
-            path = ROOT / 'tests' / name
-            if not path.exists():
-                print('%-20s MISSING %s' % (name, path))
+        for name, result in _results(suites, args, tags, live_sections):
+            if result is None:
+                print('%-20s MISSING %s' % (name, ROOT / 'tests' / name))
                 ok = False
                 continue
-            extra = _extra_for(name, args, tags, live_sections)
-            tally, code, failing, elapsed, crash, groups = run_one(
-                path, timeout=1200 if name == LIVE else 300, extra=extra)
+            tally, code, failing, elapsed, crash, groups = result
+            seconds[name] = round(elapsed, 1)
             if tally is None:
                 print('\n'.join(filter(None, [
                     '%-20s CRASHED exit=%s %.1fs' % (name, code, elapsed),
@@ -904,6 +963,7 @@ def _run(args, tags, live_sections):
         # approximate rather than silently short - hence the tilde.
         sizes = {n: p + f + s for n, (p, f, s) in suite_sizes.items()}
         counts.record('suites', sizes)
+        counts.record('seconds', seconds)
         missed, never = counts.missing(
             'suites', [n for n in ALL_SUITES if n not in suite_sizes])
         total_skip += missed
