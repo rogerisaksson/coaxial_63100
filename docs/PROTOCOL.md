@@ -632,7 +632,7 @@ arithmetic and not an angle; the injection is what knows where the rotor
 is down there. The board says so and judges nothing further - invariant
 10.
 
-The pair, and the two it beat, are `notebook_examples/foc_montecarlo.ipynb`.
+The pair, and the two it beat, are `notebook_examples/drive.ipynb`.
 
 ### The thermal envelope: derate, soak, duty
 

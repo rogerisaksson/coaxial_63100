@@ -16,7 +16,7 @@ came from.
 """
 import math
 
-from .sensorless import HALF_SQRT3, TWO_PI
+from .sensorless import HALF_SQRT3, RAD_S_PER_RPM, TWO_PI
 
 
 def flux_from_kv(kv_rpm_per_volt, pole_pairs):
@@ -203,6 +203,23 @@ class Propeller:
 
     def __repr__(self):
         return '<%s: %.3e N.m/(rad/s)^2>' % (self.name or 'propeller', self.k)
+
+    def on_model(self, drive, log=None):
+        """A `watch` for `Velocity.rpm` that puts this propeller on the
+        STAND-IN'S rotor: each pass it reads the model's speed and feeds
+        the load this law gives at it to `model_param`. `log`, if given,
+        collects `(seconds, rpm asked, rpm now, iq asked)` a pass.
+
+        The loop's own `load_k` is what the loop KNOWS; this is what the
+        air does, and at the bench the air is the air.
+        """
+        def watch(verb):
+            wm = drive.model()['omega'] / verb.poles
+            drive.model_param(load=self.torque(wm * verb.poles, verb.poles))
+            if log is not None:
+                log.append((len(log) * verb.pause, verb.bus.w_ref / RAD_S_PER_RPM,
+                            verb.rpm_now, verb.bus.iq_ref))
+        return watch
 
 
 #: The thrust stand `APC20x10E.k` was fitted over: Hobbywing's own 190KV

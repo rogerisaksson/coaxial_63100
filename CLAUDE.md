@@ -198,17 +198,18 @@ Subsystems hang off it by name - `device.daq`, `.imu`, `.angle`, `.thermal`,
 `.gates`, `.drive` - and `device.motion` is the drive as three verbs: `stepper`
 (HOLD as a microstepper), `servo` (position over the A1335, corrected between
 moves - a per-pass loop at link rate samples the load-angle ring aliased and
-pumps it), `velocity` (sensorless under `coaxial.loop`). Notebooks:
-`position_servo`, `position_and_sensorless`, and the four `app_*` missions.
-`notebook_examples/daq_session.ipynb` is the flow, executed;
-`notebook_examples/propeller_sweep.ipynb` is the 5230SL and its propeller from
-rest to 6717 rpm and back, checked against Hobbywing's own thrust stand;
-`thermal_identification.ipynb` walks the stand-in's tour on model time and
-plots the margin, the room and the air path against the truth;
-`speed_loop.ipynb` closes `coaxial.loop`'s chain over the model and identifies
-it back out; `foc_montecarlo.ipynb` Monte Carlos the firmware's own control law
-over the 23-63 V link sweep (`tools/montecarlo.py`, one process per core) and
-puts a number on the sensorless floor; `auto_tune.ipynb` is the bench-day
+pumps it), `velocity` (sensorless under `coaxial.loop`). The notebooks are nine
+short papers, one per functional area, executed on the stand-in and
+checked in with their outputs (`notebook_examples/`, written from
+`host/tools/notebooks/`): `acquisition` is the flow; `motion` is the
+verbs - stepper and servo with ring and sag measured, the 5230SL and its
+propeller from rest to 6717 rpm and back, checked against Hobbywing's own
+thrust stand, and `coaxial.loop`'s chain identified back out of its own
+run; `applications` the four missions on them; `thermal` walks the
+stand-in's tour on model time and plots the margin, the room and the air
+path against the truth; `drive` Monte Carlos the firmware's own control law
+over the 23-63 V link sweep (`tools/montecarlo.py`, one process per core)
+and puts a number on the sensorless floor; `commissioning` is the bench-day
 procedure - commission, identify, search a robust tune for exactly that
 machine, write the record, and the drive verifies itself.
 
@@ -253,8 +254,8 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-seven suites, 3088 checks, sized from `host/tests/.counts.json` and so
-measured rather than remembered: `test_structure.py` (667),
+Twenty-seven suites, 3095 checks, sized from `host/tests/.counts.json` and so
+measured rather than remembered: `test_structure.py` (674),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (254), `test_live_model.py` (212, needs ollama, `--live`),
 `test_ollama_prompt.py` (113), `test_conformance.py` (110, `--conformance`),
@@ -307,7 +308,7 @@ that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 3088 checks are in those nine files.
+  773 of this tree's 3095 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

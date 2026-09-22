@@ -754,7 +754,7 @@ def test_virtual_sensorless(r, lib):
 def test_observer_chain(r, lib):
     """The firmware's observer chain against the Python it was ported from.
 
-    foc_montecarlo.ipynb ranked five observers and picked this pair;
+    drive.ipynb ranked five observers and picked this pair;
     drive_observer.c is that pair in C. Both are driven with the same
     voltages and currents from the same machine, so agreement here is
     what says the notebook's numbers describe what the board will do.

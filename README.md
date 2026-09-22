@@ -53,16 +53,21 @@ answers.
 
 ## notebook_examples
 
-Executed notebooks, checked in with the stand-in's outputs so they read
-without running; `SIMULATED = False` and a port at the bench.
+Nine executed notebooks, one per functional area, checked in with the
+stand-in's outputs so they read without running; `SIMULATED = False` and
+a port at the bench. Each is a short paper in one shape: an abstract,
+numbered sections that measure something and read the number back, the
+conclusions with the numbers in them, what to do with them at the bench,
+and the tree's own files as references.
 
-They are written from `host/tools/make_notebooks.py`, which holds every
-cell - edit there, not in the JSON, or a cell's code and its printed
-output part company:
+They are written from `host/tools/notebooks/`, one module per area, laid
+out by `notebooks/parts.py` so the shape is the builder's and not a
+discipline - edit there, not in the JSON, or a cell's code and its
+printed output part company:
 
 ```powershell
 python tools/make_notebooks.py --execute            # all of them
-python tools/make_notebooks.py --execute daq_session
+python tools/make_notebooks.py --execute acquisition thermal
 python tools/make_notebooks.py --kernel install   # once, on the python setup.ps1 fills
 ```
 
@@ -70,27 +75,17 @@ Every notebook names its kernel, `coaxial_63100`: `setup.ps1` registers it
 on the interpreter it installs the packages into, so an editor with more
 than one CPython of that version opens them on the right one.
 
-| file | what it walks through |
+| file | the area, and what it measures |
 | --- | --- |
-| `daq_session.ipynb` | connect, configure, set the clock, acquire in a loop |
-| `gate_drivers_session.ipynb` | dead time, arm, duty, the gate snapshot, a burst |
-| `shared_session.ipynb` | two sessions on one port, and who else is attached |
-| `imu_session.ipynb` | the BNO085, and the three things it refuses over |
-| `daq_pandas.ipynb` | a run into a DataFrame, scaled by the board's record |
-| `daq_live_plot.ipynb` | currents over the switches, one time base, live |
-| `angle_session.ipynb` | the A1335's registers, and whether there is a magnet |
-| `thermal_budget.ipynb` | the SOA budget, and a burst planned against it |
-| `thermal_model.ipynb` | the node network in Python, and how it was fitted |
-| `thermal_identification.ipynb` | the room, the air path and the capacity identified off the thermometers on the stand-in's tour, the margin, and a trip |
-| `loss_calculation.ipynb` | switching loss from the SPICE models, no board |
-| `rotor_observer_session.ipynb` | the rotor observer on the board's own PMSM model |
-| `propeller_sweep.ipynb` | the 5230SL and its propeller against Hobbywing's stand |
-| `speed_loop.ipynb` | `coaxial.loop`'s chain, identified back out of its own run |
-| `foc_montecarlo.ipynb` | the SMO and flux linkage observers, then the firmware's law over the 23-63 V sweep |
-| `auto_tune.ipynb` | commissioning: measure the machine, tune against it, write the record |
-| `position_servo.ipynb` | the PMSM as stepper and servo, ring and sag measured |
-| `position_and_sensorless.ipynb` | observer vs shaft sensor, one rotor two answers |
-| `app_*.ipynb` | quad lane, wing cruise, two-joint arm, precision hold |
+| `acquisition.ipynb` | the converters into records: the catalogue, the clock, a task read in a loop, a run scaled into a frame by the calibration record, currents over the switches live |
+| `link.ipynb` | one port shared by sessions through the broker, and who else is attached |
+| `sensors.ipynb` | the BNO085 and the three things it refuses over; the A1335's registers, and whether there is a magnet |
+| `power_stage.ipynb` | dead time, arm, duty, the gate snapshot, a burst; and what switching costs, from the SPICE models, no board |
+| `thermal.ipynb` | the node network and how it was fitted, the SOA budget and a burst planned against it, the room, the air path and the capacity identified on the stand-in's tour, the margin, a trip |
+| `drive.ipynb` | five sensorless observers ranked by measurement, the firmware's law over the 23-63 V sweep, speed and torque against the tolerances, the rotor observer on the board's own PMSM model |
+| `motion.ipynb` | the PMSM as stepper and servo with ring and sag measured, observer against shaft sensor on one rotor, `coaxial.loop`'s chain identified back out of its own run, the 5230SL and its propeller against Hobbywing's stand |
+| `applications.ipynb` | four missions on the verbs: a quad ESC lane, fixed-wing cruise, a two-joint arm, a precision hold |
+| `commissioning.ipynb` | the bench day: measure the machine, identify it, tune against it, write the record, and the drive verifies itself |
 
 ## The library
 

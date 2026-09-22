@@ -315,13 +315,13 @@ class Velocity(_Mode):
     """Sensorless speed under `coaxial.loop`'s own law - the ESC's job.
 
     The drive commutates itself at 50 kHz from the record's tune
-    (`auto_tune.ipynb` is what writes it); this loop reads `omega_hat`
+    (`commissioning.ipynb` is what writes it); this loop reads `omega_hat`
     and writes `iq_ref` at link rate. `j`/`b` default to the SMALLEST
     plausible machine - the stand-in's own - because an overstated j
     scales kp by the same factor and the discrete loop flips sign and
     doubles: measured, j five times the plant took +900 rpm asked to
     -1552 delivered. Understating only makes a big machine sluggish;
-    identify the real pair (`speed_loop.ipynb`) at the bench.
+    identify the real pair (`motion.ipynb`) at the bench.
     """
 
     #: `load_k` is the LOOP's knowledge - the propeller law its

@@ -1336,6 +1336,88 @@ def test_protocol_agrees(r):
                     compared, (', prose: ' + ', '.join(skipped)) if skipped else ''))
 
 
+#: The notebooks' shape, as `tools/notebooks/parts.paper` lays it out:
+#: what a reader finds in every one, in this order. Held here so a cell
+#: edited by hand, or a module that stops using the builder, fails a run
+#: later rather than reading differently from the other eight.
+_PAPER_KEYS = ('# ', '*', '**Abstract.** ', '## 1 Setup', 'SIMULATED = ',
+               'Coaxial63100(', 'device.close()', 'Conclusions',
+               '**At the bench.** ', '## References')
+_FORBIDDEN = (('plt.subplots(', 'a figure outside coaxial.figures'),
+              ('figsize=', 'a figure size of its own'),
+              ('!', 'an exclamation mark'))
+
+
+def _paper(path):
+    """The cells of one notebook, and every way it departs from the shape."""
+    import json
+    with io.open(path, encoding='utf-8') as handle:
+        cells = json.load(handle)['cells']
+    text = lambda c: ''.join(c['source'])
+    kinds = [c['cell_type'] for c in cells]
+    said = [text(c) for c in cells]
+    wrong = []
+    head = said[0].splitlines() if said else []
+    if kinds[:2] != ['markdown', 'markdown'] or not head or not head[0].startswith('# '):
+        wrong.append('no title cell')
+    elif len(head) < 5 or not head[2].startswith('*') or not head[4].startswith('**Abstract.** '):
+        wrong.append('the title cell is not title, subtitle, abstract')
+    if len(cells) < 4 or said[1] != '## 1 Setup' or 'SIMULATED = ' not in said[2] \
+            or 'Coaxial63100(' not in said[3]:
+        wrong.append('Setup is not the knob and the open cell')
+    headings = [s for k, s in zip(kinds, said) if k == 'markdown' and s.startswith('## ')]
+    numbers = [h.split()[1] for h in headings if h[3].isdigit()]
+    if numbers != [str(n) for n in range(1, len(numbers) + 1)]:
+        wrong.append('sections not numbered 1.. in order: %s' % numbers)
+    if not headings or not headings[-1].startswith('## References'):
+        wrong.append('References is not the last section')
+    if len(headings) < 2 or not headings[-2].endswith(' Conclusions'):
+        wrong.append('Conclusions is not the section before References')
+    if not any(s.startswith('**At the bench.** ') for s in said):
+        wrong.append('no At the bench paragraph')
+    if not any(k == 'code' and 'device.close()' in s for k, s in zip(kinds, said)):
+        wrong.append('the device is never closed')
+    for k, c in zip(kinds, cells):
+        if k != 'code':
+            continue
+        if not c.get('outputs') and 'print(' in text(c):
+            wrong.append('a cell that prints has no output - not executed')
+            break
+        if any(o.get('output_type') == 'error' for o in c['outputs']):
+            wrong.append('a cell raised: %s' % next(
+                o['ename'] for o in c['outputs'] if o.get('output_type') == 'error'))
+            break
+    code = '\n'.join(s for k, s in zip(kinds, said) if k == 'code')
+    prose = '\n'.join(s for k, s in zip(kinds, said) if k == 'markdown')
+    wrong += ['%s in the code' % why for what, why in _FORBIDDEN[:2] if what in code]
+    wrong += [why for what, why in _FORBIDDEN[2:] if what in prose]
+    return wrong
+
+
+def test_notebooks_are_papers(r):
+    """Every example notebook is one paper in the builder's shape, executed.
+
+    Twenty-two notebooks in as many shapes became nine, one per functional
+    area, laid out by `tools/notebooks/parts.paper`; this holds the
+    generated files to that shape - title, subtitle, abstract, a numbered
+    Setup with the knob and the open cell, numbered sections, the close,
+    Conclusions, At the bench, References - with outputs in every cell
+    that prints and no cell that raised, figures through
+    `coaxial.figures`, and no exclamation mark in the prose.
+    """
+    folder = os.path.join(REPO, 'notebook_examples')
+    names = sorted(n for n in os.listdir(folder) if n.endswith('.ipynb'))
+    for name in names:
+        wrong = _paper(os.path.join(folder, name))
+        r.check('%s is a paper in the builder\'s shape, executed' % name,
+                not wrong, '; '.join(wrong[:3]))
+    r.check('and there is one notebook per functional area',
+            names == ['%s.ipynb' % a for a in sorted(
+                ('acquisition', 'link', 'sensors', 'power_stage', 'thermal',
+                 'drive', 'motion', 'applications', 'commissioning'))],
+            ', '.join(names))
+
+
 ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_reexports,
           test_no_duplicate_definitions, test_no_unused_imports,
@@ -1344,7 +1426,7 @@ ROSTER = (test_imports, test_no_undefined_names, test_no_cycles,
           test_counts_are_measured, test_subsystem_calls_resolve,
           test_limits_live_in_one_file, test_mirrors_agree,
           test_wire_shapes_agree, test_wire_requests_agree,
-          test_protocol_agrees)
+          test_protocol_agrees, test_notebooks_are_papers)
 
 
 def main():

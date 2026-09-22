@@ -2259,6 +2259,48 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   within a minute). 0 warnings, structure 667. The proof of the
   behaviour is the bench's parity, conformance and live suites after a
   flash, as for every C change without a host test.
+* TWENTY-TWO NOTEBOOKS BECAME NINE PAPERS (2026-09-22). The bench asked
+  for the examples filed to real uniformity - short academic papers
+  with a pragmatic undertone - and merged to one per functional area.
+  Counted first: twenty-two notebooks in as many shapes, nine figure
+  sizes and no shared style, a helper defined in two of them, two
+  patching `sys.path`, every one opening the device with the same line
+  and closing it in the cell before last, so what varied was the form
+  and not the flow. THE FORM IS THE BUILDER'S NOW: `host/tools/
+  notebooks/parts.paper` lays every paper out - title, italic subtitle,
+  an abstract, `## 1 Setup` with the knob and the open cell identical
+  everywhere, numbered sections each a paragraph then the code that
+  measures then the number read back, the close, Conclusions as one
+  cell printing numbered findings with their numbers and one paragraph
+  reading them, an `At the bench` paragraph saying what to run and what
+  the stand-in could not show, and References to the tree's own files -
+  so uniformity is a property of the builder and not a discipline each
+  author keeps, and `test_structure` holds the generated files to it
+  (nine checks, plus one that there is one per area). The figures go
+  through `coaxial.figures`, one shape, matplotlib imported there the
+  way the front door imports pandas; the propeller law fed to the
+  stand-in's rotor is `Propeller.on_model` in `coaxial.motor`, defined
+  once. THE MERGE: acquisition (the DAQ session, pandas, the live plot),
+  link (the shared session, with the broker measured on a scripted wire
+  in-process since it cannot serve the stand-in), sensors (IMU and
+  angle), the power stage (gate drivers and the loss arithmetic),
+  thermal (budget, model, identification), the drive (the Monte Carlo's
+  three parts and the rotor observer), motion (stepper, servo, sensorless
+  against the shaft, the speed loop, the propeller sweep), applications
+  (the four missions), commissioning (auto_tune). Every old conclusion
+  number has a home in a new one; the two Monte Carlo cells keep the
+  one `sys.path` line the tree allows, since the tool sits beside the
+  library. Written by eight authors in parallel, each verified by a
+  skeptic against the old notebooks - the session died under them once
+  and the link module came back cut mid-sentence, finished by hand -
+  then executed one at a time on the stand-in: 33 to 56 cells, 6 to 66
+  s each, 27 figures, no cell raised. Two things the run found: a paper
+  that rebinds `top` from a spread to a plot panel prints nothing for
+  its conclusions (the panels are named for what they show now), and
+  the structure suite's copied-definition check counts an identical
+  `CELLS = paper(...)` or `SETUP = []` across modules as a copy - so the
+  package lays the papers out in one place and a paper that arms the
+  stage says so in a section of its own. structure 667 -> 674.
 
 ## The local model
 
