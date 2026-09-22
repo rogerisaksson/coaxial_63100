@@ -269,6 +269,16 @@ against MB_MAX_PDU's 253. Part `state` is 0 unknown, 1 ready,
 hardware is one row in `s_parts` in `board/src/board_io.c`, its pins in
 `s_digital`, and a probe case.
 
+### 0x6F BOOT
+
+The bootloader's function code, served by a node in its bootloader and
+by nothing else: a blank node takes its image and its record from the
+master over broadcast, addressed by unique id until assigned a unit.
+The ops, the master's sequence, the flash map and what a node knows are
+in [BOOT.md](BOOT.md); the table there is held to `boot_core.c` by the
+same structure check as the device tables here. Designed 2026-09-22,
+not yet on a board.
+
 ### 0x6E DEVICE
 
 Request: `u8 device, u8 op, parameters`. Devices 0 .. 10; an unknown

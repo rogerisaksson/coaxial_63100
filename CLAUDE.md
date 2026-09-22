@@ -102,6 +102,7 @@ board_chat -Ask "what is fitted on the board?"    # the model, off the same wire
 | --- | --- |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | touching the source layout |
 | [docs/PROTOCOL.md](docs/PROTOCOL.md) | changing anything on the wire |
+| [docs/BOOT.md](docs/BOOT.md) | touching the bootloader, the flash map or how a node gets its image and record |
 | [docs/HARDWARE.md](docs/HARDWARE.md) | interpreting any measurement |
 | [docs/MODELS.md](docs/MODELS.md) | changing the local model, its tag or its tools |
 | [docs/FINDINGS.md](docs/FINDINGS.md) | **investigating anything** — it records what is already ruled out |
