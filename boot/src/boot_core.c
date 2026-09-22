@@ -13,6 +13,13 @@
   * eight vectors is kept here in RAM from `erase` until `seal`, so an image
   * interrupted anywhere leaves it erased and the image invalid: a node is
   * blank then, not bricked, and the master starts over.
+  *
+  * NOTHING ON THE NODE IS VERSIONED. The master offers an image by its
+  * checksum and a record by its bytes; a node holding exactly that keeps
+  * it and programs nothing, a node holding anything else is overwritten.
+  * An `erase` whose crc is the held image's leaves the image where it is
+  * and the node whole; a `seal` whose record is the one in flash leaves
+  * the sector alone. A boot where nothing changed writes nothing.
   ******************************************************************************
   */
 #include "boot.h"
@@ -101,17 +108,54 @@ static bool prefix_fits(uint8_t bits, const uint8_t *prefix)
   return ((prefix[whole] ^ s.layout.uid[whole]) & mask) == 0U;
 }
 
-/* CRC over the image as it will stand: the first word from RAM until it
-   is programmed, the rest from flash. */
-static uint32_t image_crc(void)
+/* CRC over `size` bytes of the image as it will stand: the first word
+   from RAM until it is programmed, the rest from flash. */
+static uint32_t image_crc(uint32_t size)
 {
   uint32_t crc = CRC32_INIT;
 
   crc = boot_crc32(crc, s.first_held ? s.first : s.port->read(s.ctx, s.layout.app_base),
                    BOOT_WORD_BYTES);
   crc = boot_crc32(crc, s.port->read(s.ctx, s.layout.app_base + BOOT_WORD_BYTES),
-                   s.size - BOOT_WORD_BYTES);
+                   size - BOOT_WORD_BYTES);
   return crc ^ CRC32_INIT;
+}
+
+/* Whether the image in flash is valid and is, byte for byte, the one an
+   erase offers - the header's size and the crc over it. */
+static bool image_held(uint32_t size, uint32_t crc)
+{
+  return boot_app_valid()
+         && (read_u32(s.layout.app_base + BOOT_HEADER_OFFSET + 4U) == size)
+         && (image_crc(size) == crc);
+}
+
+/* One flash word of the record as `seal` would program it: the bytes,
+   then 0xFF to the word's end. */
+static void record_word(uint32_t offset, uint8_t *word)
+{
+  const uint32_t have = ((s.record_bytes - offset) < BOOT_WORD_BYTES)
+                        ? (s.record_bytes - offset) : BOOT_WORD_BYTES;
+
+  memset(word, 0xFF, BOOT_WORD_BYTES);
+  memcpy(word, &s.record[offset], have);
+}
+
+/* Whether the record's sector already holds every word `seal` would
+   program - then it is not erased and not programmed. */
+static bool record_held(void)
+{
+  uint8_t word[BOOT_WORD_BYTES];
+
+  for (uint32_t offset = 0U; offset < s.record_bytes; offset += BOOT_WORD_BYTES)
+  {
+    record_word(offset, word);
+    if (memcmp(s.port->read(s.ctx, s.layout.record_base + offset), word, sizeof(word)) != 0)
+    {
+      return false;
+    }
+  }
+  return true;
 }
 
 /* -- the ops --------------------------------------------------------------- */
@@ -169,6 +213,22 @@ static boot_answer_t h_boot_assign(rd_t *in, wr_t *out)
   return BOOT_REPLY;
 }
 
+/* The image an erase offers, taken as the node's: held whole already,
+   or erased and waiting for every chunk. The record starts over. */
+static void offered(uint32_t size, uint32_t crc, uint16_t chunks, bool held)
+{
+  s.size = size;
+  s.crc = crc;
+  s.chunks = chunks;
+  s.held = held ? chunks : 0U;
+  memset(s.bitmap, held ? 0xFF : 0x00, sizeof(s.bitmap));
+  memset(s.first, 0xFF, sizeof(s.first));
+  s.first_held = false;
+  s.verified = held;
+  s.record_bytes = 0U;
+  s.state = held ? BOOT_VERIFIED : BOOT_ERASED;
+}
+
 static boot_answer_t h_boot_erase(rd_t *in, wr_t *out)
 {
   const uint8_t type = rd_u8(in);
@@ -188,21 +248,20 @@ static boot_answer_t h_boot_erase(rd_t *in, wr_t *out)
     s.port->say(s.ctx, "boot: an erase named an image that does not fit");
     return BOOT_SILENT;
   }
+  if (image_held(size, crc))
+  {
+    /* The image offered is the one in flash: kept whole, every chunk
+       of the stream a repeat, and verify will say so. */
+    offered(size, crc, chunks, true);
+    s.port->say(s.ctx, "boot: the image offered is the one held - kept");
+    return BOOT_SILENT;
+  }
   if (!s.port->erase(s.ctx, s.layout.app_base, size))
   {
     s.port->say(s.ctx, "boot: the sectors did not erase");
     return BOOT_SILENT;
   }
-  s.size = size;
-  s.crc = crc;
-  s.chunks = chunks;
-  s.held = 0U;
-  memset(s.bitmap, 0, sizeof(s.bitmap));
-  memset(s.first, 0xFF, sizeof(s.first));
-  s.first_held = false;
-  s.verified = false;
-  s.record_bytes = 0U;
-  s.state = BOOT_ERASED;
+  offered(size, crc, chunks, false);
   return BOOT_SILENT;
 }
 
@@ -240,7 +299,7 @@ static boot_answer_t h_boot_chunk(rd_t *in, wr_t *out)
   const uint8_t *data = rd_bytes(in, len);
 
   (void)out;
-  if (s.state != BOOT_ERASED)
+  if ((s.state != BOOT_ERASED) && (s.state != BOOT_VERIFIED))
   {
     s.ignored++;
     return BOOT_SILENT;
@@ -284,7 +343,7 @@ static boot_answer_t h_boot_verify(rd_t *in, wr_t *out)
     wr_u32(out, 0U);
     return BOOT_REPLY;
   }
-  const uint32_t crc = image_crc();
+  const uint32_t crc = image_crc(s.size);
 
   s.verified = (crc == s.crc);
   s.state = s.verified ? BOOT_VERIFIED : s.state;
@@ -329,11 +388,7 @@ static bool program_record(void)
   }
   for (uint32_t offset = 0U; offset < s.record_bytes; offset += BOOT_WORD_BYTES)
   {
-    const uint32_t have = ((s.record_bytes - offset) < BOOT_WORD_BYTES)
-                          ? (s.record_bytes - offset) : BOOT_WORD_BYTES;
-
-    memset(word, 0xFF, sizeof(word));
-    memcpy(word, &s.record[offset], have);
+    record_word(offset, word);
     if (!s.port->program(s.ctx, s.layout.record_base + offset, word))
     {
       return false;
@@ -350,12 +405,12 @@ static boot_answer_t h_boot_seal(rd_t *in, wr_t *out)
     took(out, "the image is not verified - verify first, and it must say ok");
     return BOOT_REPLY;
   }
-  if ((s.record_bytes != 0U) && !program_record())
+  if ((s.record_bytes != 0U) && !record_held() && !program_record())
   {
     took(out, "the record's sector did not program");
     return BOOT_REPLY;
   }
-  if (!s.port->program(s.ctx, s.layout.app_base, s.first))
+  if (s.first_held && !s.port->program(s.ctx, s.layout.app_base, s.first))
   {
     took(out, "the first word did not program - the image stays invalid");
     return BOOT_REPLY;

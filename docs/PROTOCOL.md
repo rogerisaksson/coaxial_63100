@@ -626,12 +626,12 @@ is written last - is [BOOT.md](BOOT.md). Ops:
 | 0 hold | `u32 session` | none; every node in its window stays |
 | 1 who | `u8 bits, bytes` | `u8 x12 uid, u8 type, u8 state, u8 unit`, from every node whose uid begins with those bits of the prefix; silence from the rest |
 | 2 assign | `u8 x12 uid, u8 unit, u8 position, u8 flags` | `u8 took`, from that node only; bit 0 of flags closes the termination |
-| 3 erase | `u8 type, u32 size, u32 crc, u16 chunks` | none; a node of that type erases and takes the image's shape, another ignores it |
+| 3 erase | `u8 type, u32 size, u32 crc, u16 chunks` | none; a node of that type erases and takes the image's shape, another ignores it - and a node whose flash already holds a valid image of that size and crc keeps it, verified at once, nothing programmed |
 | 4 chunk | `u16 index, bytes` | none; 224 bytes at `index * 224`, programmed as it lands, the first word kept in RAM |
 | 5 missing | - | `u16 first, u16 count, bytes` - the bitmap of chunks held |
 | 6 verify | - | `u8 ok, u32 crc` over the image as it will stand |
 | 7 record | `u16 offset, bytes` | `u8 took`; the record's bytes into RAM |
-| 8 seal | - | `u8 took`; the record programmed, the first word programmed, the image valid |
+| 8 seal | - | `u8 took`; the record programmed where its words differ from the sector's, the first word programmed where it was held back, the image valid |
 | 9 go | `u32 session` | none; a sealed node of the session jumps |
 | 10 state | - | `u8 state, u8 type, u8 unit, u8 position, u32 chunks_held, u32 chunks_of, u8 app_valid, u8 x12 uid` |
 | 11 dump | `u16 offset` | `u16 offset, bytes` - the record sector, 224 bytes a page |

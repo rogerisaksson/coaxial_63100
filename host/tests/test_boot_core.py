@@ -80,6 +80,10 @@ class Node:
     def write(self, address, data):
         self.lib.boot_h_write(address, data, len(data))
 
+    def reboot(self):
+        """A power cycle: the state gone, the flash kept."""
+        self.lib.boot_h_reboot()
+
     state = property(lambda self: self.lib.boot_h_state())
     unit = property(lambda self: self.lib.boot_h_unit())
     go = property(lambda self: bool(self.lib.boot_h_go()))
@@ -172,6 +176,40 @@ def test_an_image_streamed(report, node):
                  node.op(GO, struct.pack('>I', SESSION)) == b'' and node.go)
     report.check('dump pages the record back, 224 bytes at a time',
                  node.op(DUMP, struct.pack('>H', 224)) == struct.pack('>H', 224) + record[224:448])
+
+
+def test_the_same_image_offered_again(report, node):
+    """Nothing on the node is versioned: the master offers an image by
+    its checksum and a record by its bytes, and a node holding exactly
+    those keeps them and programs nothing."""
+    img = image(5 * CHUNK + 40)
+    record = bytes(range(200))
+    session(node, img, record)
+    node.took(SEAL)
+    node.reboot()
+    ok, crc = session(node, img, record)
+    report.check('the image offered is the one held: no erase, verified at once, in words',
+                 node.erases == 0 and ok == 1 and crc == zlib.crc32(img)
+                 and node.state == VERIFIED and 'kept' in node.said, node.said)
+    report.check('the stream landed on a whole image: nothing missing, nothing programmed',
+                 missing(node) == [] and node.programs == 0)
+    report.check('seal with the record already in flash writes nothing and seals',
+                 node.took(SEAL) == (True, '') and node.state == SEALED
+                 and node.programs == 0 and node.erases == 0 and node.valid)
+    report.check('go for the session sets the jump',
+                 node.op(GO, struct.pack('>I', SESSION)) == b'' and node.go)
+    node.reboot()
+    session(node, img, bytes(range(200, 0, -1)))
+    report.check('a different record with the same image: the record sector alone is rewritten',
+                 node.took(SEAL) == (True, '') and node.erases == 1
+                 and node.programs == (200 + WORD - 1) // WORD
+                 and node.read(RECORD_BASE, 200) == bytes(range(200, 0, -1)))
+    node.reboot()
+    other = image(5 * CHUNK + 40, version=8)
+    ok, crc = session(node, other, record)
+    report.check('a different image of the same size: erased and streamed as ever',
+                 node.erases == 1 and ok == 1 and crc == zlib.crc32(other)
+                 and node.programs == (len(other) + WORD - 1) // WORD - 1)
 
 
 def test_chunks_lost_and_resent(report, node):
@@ -290,7 +328,8 @@ def test_crc32_is_the_ieee_one(report, node):
                  node.lib.boot_h_crc32(data, len(data)) == zlib.crc32(data))
 
 
-ROSTER = (test_a_blank_node, test_an_image_streamed, test_chunks_lost_and_resent,
+ROSTER = (test_a_blank_node, test_an_image_streamed, test_the_same_image_offered_again,
+          test_chunks_lost_and_resent,
           test_seal_before_verify_is_refused, test_the_master_dies,
           test_a_wrong_crc_and_a_wrong_type, test_the_debuggers_way_in, test_faults,
           test_crc32_is_the_ieee_one)

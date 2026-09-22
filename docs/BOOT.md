@@ -21,6 +21,37 @@ electromechanical system - a bus, a position down the limb. Everything,
 calibration parameters included, is stored on the master; the nodes are
 blank at boot. And it must work at the bench with a debugger attached.
 
+## The principle: nothing on a node is versioned
+
+The point of the exercise is to be rid of versioning - of the Modbus
+protocol, the code, the data structures and the binaries running on
+the nodes. A node gets all but a sliver of its firmware over Modbus;
+the sliver is a Modbus shell, the boot code, and every pin put in a
+known state so nothing floats and makes trouble. What the master
+offers is a binary payload straight into memory: what is already in
+non-volatile memory is overwritten where the checksums do not match,
+and left alone where they do.
+
+So the node never asks what version anything is. An `erase` names an
+image by its size and its CRC-32, and a node whose flash holds a valid
+image of exactly that size and that CRC keeps it: no erase, the whole
+stream ignored as repeats, `verify` says ok at once. A `seal` compares
+the record it was sent, word for word, with the record's sector, and
+programs nothing where they agree. A boot where nothing changed writes
+nothing to flash, and a node with a stale image or a stale record is
+overwritten without a question asked - there is no upgrade path,
+because there is nothing to upgrade from. The header the application
+carries has a version field because a build has one; nothing decides
+on it. The record is opaque to the bootloader: bytes the master kept
+from the board that wrote them, or wrote itself, and the application's
+own loader reads its layout - a layout the master and the node were
+built from together, since the node's image came from the master.
+`test_the_same_image_offered_again` is this paragraph as checks: the
+same image and record offered to a node holding them costs no erase
+and no programmed word; a different record with the same image rewrites
+the record's sector alone; a different image of the same size erases
+and streams as ever.
+
 ## What a node knows, and what the master holds
 
 A node knows three things at reset:
@@ -125,29 +156,38 @@ At reset, in order:
 2. Clocks: HSE 25 MHz through PLL1 to 160 MHz, APB1 at 80 MHz, so a
    USART with 8x oversampling divides to exactly 10 Mbit (`BRR` 16, no
    fractional error). Five register writes and a wait for the lock.
-3. The two RS485 USARTs at `BOOT_BAUD`, transmit-enable pins as the
+3. Every pin the type's table names, driven to its safe level before
+   anything else is clocked - the six gate inputs low as outputs, so
+   both FETs of every leg are held off by a driven line and not by a
+   pull-down the driver may or may not have; AFE_ON low; PA10 low, so
+   the STO pump is not fed; the termination open; both transceivers'
+   driver-enable low. A pin nobody drives is a pin that floats, and
+   a floating gate input inside a switching stage is the one thing this
+   sliver of firmware exists to prevent.
+4. The two RS485 USARTs at `BOOT_BAUD`, transmit-enable pins as the
    type's table says; the console USART at 115 200 for one line a state,
    since a bench terminal is the cheapest instrument there is. A 1 ms
    SysTick. The DWT cycle counter, for the RTU gaps (invariant 2).
-4. If the application asked to be here - the handover slot's `stay`
+5. If the application asked to be here - the handover slot's `stay`
    word equals `STAY`, written by the application before it reset
    itself - clear it and stay.
-5. Else if the application is valid: listen for `HOLD_MS` = 300 ms. A
+6. Else if the application is valid: listen for `HOLD_MS` = 300 ms. A
    master that wants the node broadcasts `hold` at power-up and keeps
    broadcasting it while it enumerates; a node that hears one stays. A
    node that hears nothing fills the slot, loads the stack pointer and
    jumps; the application's own startup sets VTOR to its table before
    the first SysTick, so the bootloader need not. A debugger changes
    nothing: a bench with no master pays 0.3 s.
-6. Else stay, and say so on the console once a second: `boot: no
+7. Else stay, and say so on the console once a second: `boot: no
    application - waiting for the master`.
 
 In the bootloader the node is an RTU slave on both segments at once,
 unit id 0 until assigned - it answers only what is addressed to it by
-unique id, and broadcasts. The gate drivers are off by construction:
-the bootloader never touches PA10, so the STO pump is not fed, the
-drivers' supply is not released, and TIM1 is in reset with every leg's
-pins high-impedance. AFE_ON stays low. Nothing switches.
+unique id, and broadcasts. The gate drivers are off by construction
+and by a driven line: PA10 is held low, so the STO pump is not fed and
+the drivers' supply is not released; TIM1 is in reset and every leg's
+six pins are outputs driven low. AFE_ON stays low. Nothing switches,
+and nothing floats.
 
 ## The protocol
 
@@ -176,7 +216,9 @@ who              prefix search on the unique id: 0 bits first; a garbled
 assign           each uid its unit and position off the table; unknown
                  uid: stop, and name it for the operator to place
 erase            one broadcast per type present, then wait: a sector is
-                 about a second to erase and a 200 K image spans two
+                 about a second to erase and a 200 K image spans two;
+                 a node already holding that image by size and CRC
+                 keeps it and skips straight to verified
 chunk stream     every chunk once, in order, 2 ms apart - flash programs
                  a 224-byte chunk in 0.7 ms and the wire carries it in
                  0.25 ms, so the flash and not the wire sets the pace
@@ -184,7 +226,8 @@ missing          unicast to each node; the union of what is missing is
                  re-broadcast; three rounds, then the node is named
 verify           unicast to each node; a mismatch names the node
 record           unicast to each node, 224 bytes a page, from the store
-seal             unicast to each node
+seal             unicast to each node; the record's sector is
+                 rewritten only where its words differ from those sent
 go               broadcast
 state            unicast, 400 ms later: the ones that answer stayed
 ```
@@ -192,7 +235,10 @@ state            unicast, 400 ms later: the ones that answer stayed
 A 200 K image is 915 chunks: 1.8 s of stream after 2 s of erase, plus
 the round trips - about five seconds for a bus of four nodes taking
 the same image, whatever the count. Chunk 0's first word is held back
-by the node itself, so the stream's order is free.
+by the node itself, so the stream's order is free. A bus where every
+node already holds the image costs the round trips alone: the master
+reads `missing` after the erase and finds nothing missing anywhere, and
+the stream is skipped.
 
 ## Identity and enumeration
 
@@ -347,6 +393,7 @@ Changed:
 | programming a chunk | ~0.7 ms; the stream is paced at 2 ms a chunk |
 | a 200 K image | 915 chunks, 1.8 s of stream, after ~2 s of erase for two sectors |
 | a bus of four nodes | ~5 s from `hold` to `go`, whatever the count of nodes |
+| the same image again | the round trips alone, no erase, no stream, no programmed word |
 | worst case | three `missing` rounds at a full re-stream each: 4 × 1.8 s, then the node is named |
 | the bench's reset | +0.3 s in the bootloader with no master |
 

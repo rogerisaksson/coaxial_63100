@@ -349,7 +349,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-eight suites, 3136 checks, counted in `host/tests/.counts.json`
+Twenty-eight suites, 3142 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -366,7 +366,7 @@ by `counts.py`:
 | test_modbus_core.py | 77 | the Modbus core through ctypes, clock injected, the oracle's prefix sweep |
 | test_daq_api.py | 75 | the acquisition front door against the stand-in |
 | test_drive_core.py | 81 | the control law against the motor model through the host gcc, the Monte Carlo included |
-| test_boot_core.py | 39 | the bootloader's state machine through the host gcc on a RAM flash: the chunk stream, loss and re-send, the seal and the first word written last, the master dying, wrong crc and wrong type, the debugger's way in, the faults |
+| test_boot_core.py | 45 | the bootloader's state machine through the host gcc on a RAM flash: the chunk stream, loss and re-send, the seal and the first word written last, the master dying, wrong crc and wrong type, the debugger's way in, the faults |
 | test_mcp.py | 50 | the MCP server |
 | test_render.py | 80 | the 3D engine stage by stage against an analytic oracle, the scanline halftone and the drawn rim |
 | test_filter_core.py | 42 | the anti-alias chain against its transfer function |

@@ -255,7 +255,7 @@ python dbg.py --repl                     # prompt loop; /py and /sh cost no toke
 python dbg.py -m auto -q "read the NTC"  # one question, the model that fits
 ```
 
-Twenty-eight suites, 3136 checks, sized from `host/tests/.counts.json` and so
+Twenty-eight suites, 3142 checks, sized from `host/tests/.counts.json` and so
 measured rather than remembered: `test_structure.py` (676),
 `test_ollama_tools.py` (219), `test_ollama_runner.py` (223),
 `test_simulated.py` (254), `test_live_model.py` (212, needs ollama, `--live`),
@@ -273,7 +273,7 @@ online identification against a ground truth whose situation changes, through
 the host gcc), `test_daq_core.py` (59, the acquisition engine as the C that
 will run - the ring, the summing window, the anti-alias ladder, the tone and
 the live accumulator, every record decoded as a host decodes it),
-`test_boot_core.py` (39, the bootloader's state machine as the C that will
+`test_boot_core.py` (45, the bootloader's state machine as the C that will
 run, on a RAM flash - the chunk stream, loss and re-send, the seal, the
 master dying, the debugger's way in), `test_ollama_render.py` (32), `test_parity.py` (30),
 `test_ollama_board.py` (28), `test_ollama_bus.py` (28), `test_render.py` (80,
@@ -312,7 +312,7 @@ that bind you:
 * **Any 5 % step is a tier.** Suites join by seconds per check - measured:
   simulated 0.003 s, ollama 0.019, core 0.03, parity 0.13, mcp 0.14,
   conformance 0.29, live 4.6. The `test_ollama_*` suites narrow themselves;
-  773 of this tree's 3136 checks are in those nine files.
+  773 of this tree's 3142 checks are in those nine files.
 * **The model is not asked when the path map already knows.** Every changed
   file on an explicit rule with a `CHEAP` answer - structure, core, shtp,
   simulated, views, render; no board, no ollama - settles without a model.

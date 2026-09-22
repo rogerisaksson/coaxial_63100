@@ -2395,6 +2395,38 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   story in the commit comment its failure step posts, read off the
   public API with no token - the way a red run is meant to be read
   here.
+* NOTHING ON A NODE IS VERSIONED (2026-09-22). The bench put the
+  bootloader's point in one breath: the exercise exists to be rid of
+  versioning - of the Modbus protocol, the code, the data structures
+  and the binaries on the nodes. A node gets all but a sliver of its
+  firmware over Modbus; the sliver is a Modbus shell, the boot code and
+  every pin in a known state so nothing floats; what the master offers
+  is a binary payload straight into memory, and what non-volatile
+  memory already holds is overwritten where the checksums do not match.
+  The core as written erased on every `erase` and programmed on every
+  `seal`, so a boot where nothing changed cost two sector erases and
+  every word of the image and the record - the opposite of the
+  principle. NOW: `erase` compares first - a valid image in flash whose
+  header size and CRC-32 are the ones offered is kept, the bitmap is
+  set whole, the state goes to VERIFIED and the console says `kept`;
+  the stream that follows for the other nodes lands as repeats and
+  programs nothing; `seal` compares the record word for word with its
+  sector and programs nothing where they agree, and programs the first
+  word only where it was held back. `test_the_same_image_offered_again`
+  measures it on the RAM flash: the same image and record offered to a
+  node holding them - zero erases, zero words; a different record with
+  the same image - one erase, seven words, the record's sector alone; a
+  different image of the same size - erased and streamed as ever. The
+  harness gained a power cycle (`boot_h_reboot`: the state gone, the
+  flash kept) to say it, since a node that just sealed still knows what
+  it holds and the question is about one that does not. The header's
+  version field stays because a build has one; BOOT.md now says in so
+  many words that nothing decides on it, and that the bootloader's
+  first act after the clocks is every pin the type's table names driven
+  to its safe level - the six gate inputs low as outputs (TIM1's idle
+  state is RESET on all six, board_pwm.c), AFE_ON low, PA10 low, the
+  termination open, both driver-enables low - which is commit 4's
+  `boot_main.c` to write. Boot core 39 -> 45, tree 3142.
 
 ## The local model
 

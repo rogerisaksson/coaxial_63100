@@ -92,21 +92,28 @@ static const boot_port_t s_port = { erase, program, read, say };
 
 /* -- what the test drives -------------------------------------------------- */
 
-API void boot_h_reset(uint8_t type, const uint8_t *uid)
+/* A power cycle: the node from nothing, the flash as it was. */
+API void boot_h_reboot(void)
 {
-  memset(s_flash, 0xFF, sizeof(s_flash));
   s_erases = 0U;
   s_programs = 0U;
   s_fail_program_at = 0U;
   s_fail_erase = 0;
   s_said[0] = '\0';
+  boot_init(&s_port, NULL, &s_layout);
+}
+
+/* A new part: blank flash, this type, this unique id. */
+API void boot_h_reset(uint8_t type, const uint8_t *uid)
+{
+  memset(s_flash, 0xFF, sizeof(s_flash));
   s_layout.app_base = APP_BASE;
   s_layout.app_bytes = APP_BYTES;
   s_layout.record_base = RECORD_BASE;
   s_layout.record_bytes = RECORD_BYTES;
   s_layout.type = type;
   memcpy(s_layout.uid, uid, BOOT_UID_BYTES);
-  boot_init(&s_port, NULL, &s_layout);
+  boot_h_reboot();
 }
 
 /* One request - the PDU after the device byte - answered; the reply's
