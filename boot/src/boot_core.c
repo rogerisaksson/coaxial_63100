@@ -27,8 +27,6 @@
 #define CRC32_INIT      0xFFFFFFFFUL
 /** A thumb address is odd. */
 #define THUMB_BIT       1UL
-/** assign's flags. */
-#define FLAG_TERMINATE  0x01U
 
 static struct
 {
@@ -482,7 +480,7 @@ bool boot_wants_go(void)
 
 bool boot_terminates(void)
 {
-  return (s.flags & FLAG_TERMINATE) != 0U;
+  return (s.flags & BOOT_FLAG_TERMINATE) != 0U;
 }
 
 uint32_t boot_chunks_ignored(void)

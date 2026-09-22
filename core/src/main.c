@@ -152,6 +152,10 @@ int main(void)
      schematic's numbers. */
   Board_CalInit();
 
+  /* What the bootloader left in the handover slot - the unit id and the
+     termination - or nothing, on a bench board it never saw. */
+  Board_BootInit();
+
   /* The dead time comes from the record, and so has to wait for it. Board_
      PwmInit runs first because it drives the gates down, and it cannot wait
      on flash to do that - so the .ioc's value stands for those few
@@ -205,6 +209,10 @@ int main(void)
        back when its owner stopped running, so it cannot sit behind
        the branch that starved the owner. */
     Board_PowerPoll();
+
+    /* A `stay` resets into the bootloader once its reply has left the
+       wire - the reset waits here, not in the handler. */
+    Board_BootPoll();
 
     /* The IMU polls itself into shared memory; the host only ever reads that.
        Held off mid-frame because a 276-byte cargo at 1.48 MHz is 1.5 ms, and

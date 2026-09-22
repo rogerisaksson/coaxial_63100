@@ -1276,7 +1276,12 @@ def _doc_ops():
 
 
 def _c_ops():
-    """{(PREFIX, op number): (reads, writes)} off the dispatch tables."""
+    """{(PREFIX, op number): [(reads, writes), ...]} off the dispatch tables.
+
+    A list, since an op can have two servers: device 11's `state` and
+    `stay` are the bootloader's in boot_core.c and the application's in
+    cmd_boot.c, and the table holds both.
+    """
     found = {}
     for rel in _command_files():
         own = re.sub(r'/\*.*?\*/', ' ',
@@ -1297,7 +1302,7 @@ def _c_ops():
                               % re.escape(handler), text, re.M)
                 if m is not None:
                     writes = _c_writes_in(text, text[text.index('{', m.end()):], defines)
-            found[(prefix, number)] = (reads, writes)
+            found.setdefault((prefix, number), []).append((reads, writes))
     return found
 
 
@@ -1324,16 +1329,16 @@ def test_protocol_agrees(r):
         for (p, op), (request, reply) in sorted(doc.items()):
             if p != prefix or (p, op) not in code:
                 continue
-            reads, writes = code[(p, op)]
-            for side, stated, actual in (('request', request, reads), ('reply', reply, writes)):
-                if stated is None:
-                    skipped.append('%d %s' % (op, side))
-                    continue
-                compared += 1
-                if not _same_shape(actual, stated):
-                    wrong.append('op %d %s: C %s, document %s' % (
-                        op, side, ' '.join(str(w) for w in actual) or 'nothing',
-                        ' '.join(str(w) for w in stated) or 'nothing'))
+            for reads, writes in code[(p, op)]:
+                for side, stated, actual in (('request', request, reads), ('reply', reply, writes)):
+                    if stated is None:
+                        skipped.append('%d %s' % (op, side))
+                        continue
+                    compared += 1
+                    if not _same_shape(actual, stated):
+                        wrong.append('op %d %s: C %s, document %s' % (
+                            op, side, ' '.join(str(w) for w in actual) or 'nothing',
+                            ' '.join(str(w) for w in stated) or 'nothing'))
         r.check("PROTOCOL.md's %s table says what the handlers read and write" % prefix,
                 not wrong, '; '.join(wrong[:3]) or '%d cells%s' % (
                     compared, (', prose: ' + ', '.join(skipped)) if skipped else ''))

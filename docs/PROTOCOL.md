@@ -610,10 +610,12 @@ mrad/s, 4 accel mrad/s², 5 vd mV, 6 vq mV, 7 pol_volts, 8 pol_periods,
 9 pol_gap. The host names and scales are `coaxial.drive.SETPOINTS` and
 `PARAMS`.
 
-### 11 BOOT, `boot_core.c`
+### 11 BOOT, `boot_core.c` and `cmd_boot.c`
 
 The bootloader's device, served by a node in its bootloader; a running
-application serves ops 10 and 12 and refuses the rest in words. A
+application serves ops 10 and 12 (`cmd_boot.c`, MINOR 18) and refuses
+the rest in words, and `state` from an application is always sealed and
+valid with the position and flags the bootloader handed over. A
 blank node answers to unit 247 until `assign` gives it its own; `hold`,
 `erase`, `chunk` and `go` are broadcast and answered by nobody. The
 design - the flash map, the master's sequence, why the first flash word
@@ -746,8 +748,9 @@ MAJOR breaks a codec; MINOR appends. The MINOR history, from `cmd.h`:
 | 13 | twenty thermal nodes, the count says so; op 0 appends the FET junction rises and the speed; ops 7, 8, 9 read the node table, the edge table, set an edge |
 | 14 | thermal op 10 reads the online identification - state, which scales move, each scale and sigma, innovation, the envelope's margin, saves; op 11 resets it |
 | 15 | thermal op 10 appends the room as identified, `i32 ambient_centi, i32 ambient_sigma_centi` - the board has no ambient sensor |
-| 17 | thermal op 10 appends `i32 trip_cap_micro`, the trip cap as it stands, so a host can say whether the trip or the model holds the margin |
 | 16 | thermal op 10 appends `i32 margin_floor_micro` and writes `saves` 0, `since_save_s` never - the margin is continuous on the doubt, the state a word, nothing kept; op 12 sets the floor; op 11 no longer refuses while armed |
+| 17 | thermal op 10 appends `i32 trip_cap_micro`, the trip cap as it stands, so a host can say whether the trip or the model holds the margin |
+| 18 | device 11 BOOT as the application serves it: op 10 `state`, op 12 `stay`; the rest refused in words. The image sits at 0x08020000 with its header, and a bootloader's assignment reaches it through the handover slot (BOOT.md) |
 
 MAJOR 2, 2026-08-29: the thermal nodes went per leg and the node
 indices were repurposed - a host could follow the length and not the

@@ -539,6 +539,8 @@ drive/       the control law. Portable C11, host-tested against a motor model
 shtp/ thermal/ filter/ daq/  the other portable cores: the BNO08X transport,
              the observer, the anti-alias chain, the acquisition engine -
              each host-tested; board_daq.c is the hardware around the last
+boot/        the bootloader's state machine, C11, host-tested; the
+             application sits behind it at 0x08020000 (docs/BOOT.md)
 host/        Python: coaxial/ library, coaxial_mcp/ server, coaxial_ollama/
              runner and dbg.py, testline/, tests, tools
 notebook_examples/  executed notebooks, checked in with the stand-in's

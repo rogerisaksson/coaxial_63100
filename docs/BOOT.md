@@ -40,14 +40,22 @@ Everything else is the master's: a table from unique id to bus,
 position and type; one image per type; one calibration record per
 (bus, position), kept as the opaque flash word the board itself wrote;
 the link settings. A node's position and its unit id - the two are one
-number, unit id is position down the limb - come from that table and
-are written into its record, which is where the application reads them:
-`modbus_map_set_unit_id` exists and nothing calls it today, so commit 3
-gives the record a `unit_id` beside `link_baud` (CAL_VERSION 16) and the
-record's load in `main` sets it. So the
-identity a running node has IS its record, and the master rewrites the
-record on every boot it chooses to: nothing is kept on the node that the
-master did not put there.
+number, unit id is position down the limb - come from that table, and
+reach the application through THE HANDOVER SLOT: the top 32 bytes of
+DTCM, `boot_hand_t` in `boot.h`, which both linker scripts place at the
+same address, `NOLOAD` and outside `.bss`, so neither startup zeroes or
+copies it. The bootloader writes the unit, the position and the flags
+there under a magic before it jumps; `Board_BootInit` reads them after
+the record loads and applies them - `modbus_map_set_unit_id`, which
+nothing called before, and the termination. Not the record, because a
+record field would have been CAL_VERSION 16 and a bench board's
+version-13 record upgraded through the two-versions-back rule; not
+flash at all, because the master assigns on every boot and an identity
+that outlives the boot is one the master no longer holds. A bench board
+flashed over SWD and reset finds no magic in the slot and is unit 1 as
+it always was. So the identity a running node has is what the master
+gave it this boot: nothing is kept on the node that the master did not
+put there.
 
 The switches the ask names are these two: the master switches on TYPE
 to pick the image and the record's layout; the node switches on POSITION
@@ -69,11 +77,13 @@ is the smallest thing that can be erased, so the bootloader takes bank
 
 The application's linker script moves its FLASH origin to 0x08020000
 and its length to 1792 K; nothing else in it moves - DTCM, the `.itcm`
-copy, `.buffers` in AXI SRAM, the record's address. Its vector table is
-at 0x08020000 and the bootloader sets `SCB->VTOR` there before it jumps;
-the generated `SystemInit` leaves VTOR alone (`USER_VECT_TAB_ADDRESS` is
-not defined), so the setting survives into the application. A header
-follows the vector table at a fixed offset, `KEEP`'d by the linker:
+copy, `.buffers` in AXI SRAM, the record's address - except the stack's
+top, 32 bytes lower to leave the handover slot above it. Its vector
+table is at 0x08020000 and its startup writes `SCB->VTOR` there as its
+first act after the stack pointer, so the image is whole wherever the
+core arrived from; the generated `SystemInit` leaves VTOR alone
+(`USER_VECT_TAB_ADDRESS` is not defined). A header follows the vector
+table at a fixed offset, `KEEP`'d by the linker:
 
 ```text
 APP_BASE + 0x400:  u32 magic 'CXAP'   u32 size (bytes, from the linker)
@@ -81,8 +91,9 @@ APP_BASE + 0x400:  u32 magic 'CXAP'   u32 size (bytes, from the linker)
 ```
 
 The size is a linker symbol taken by address, so the header is right by
-construction and needs no post-link step; the version and the type are
-the application's own constants. What makes an image VALID is four
+construction and needs no post-link step - measured on the first build:
+the header's 202 096 against `objcopy -O binary`'s 202 096; the version
+and the type are the application's own constants. What makes an image VALID is four
 tests the bootloader runs at reset: the first word is a stack pointer
 inside DTCM, the second is a thumb address inside the application's
 range, the header's magic and type match, and the size fits the range.
@@ -118,15 +129,16 @@ At reset, in order:
    type's table says; the console USART at 115 200 for one line a state,
    since a bench terminal is the cheapest instrument there is. A 1 ms
    SysTick. The DWT cycle counter, for the RTU gaps (invariant 2).
-4. If the application asked to be here - a word in the last sixteen
-   bytes of DTCM equals `STAY`, written by the application before it
-   reset itself, in a `.noinit` slot both linker scripts place at the
-   same address - clear it and stay.
+4. If the application asked to be here - the handover slot's `stay`
+   word equals `STAY`, written by the application before it reset
+   itself - clear it and stay.
 5. Else if the application is valid: listen for `HOLD_MS` = 300 ms. A
    master that wants the node broadcasts `hold` at power-up and keeps
    broadcasting it while it enumerates; a node that hears one stays. A
-   node that hears nothing sets VTOR, loads the stack pointer and jumps.
-   A debugger changes nothing: a bench with no master pays 0.3 s.
+   node that hears nothing fills the slot, loads the stack pointer and
+   jumps; the application's own startup sets VTOR to its table before
+   the first SysTick, so the bootloader need not. A debugger changes
+   nothing: a bench with no master pays 0.3 s.
 6. Else stay, and say so on the console once a second: `boot: no
    application - waiting for the master`.
 
@@ -231,10 +243,13 @@ wrote. The master's path verifies over the wire, before the seal.
   and the application starts. Breakpoints, the console, the record's
   ops all as before. `STM32_Programmer_CLI -d app.elf` writes sectors 1
   on; the bootloader's sector is untouched.
-* Device op `LINK_OP_REBOOT` (`u8 to_bootloader` -> `u8 took`) is how a
-  running node is sent back for a re-flash: the application writes
-  `STAY` into the shared DTCM slot and resets. The MCP tool and the
-  library get a `reboot()` beside `stand_down`.
+* Device 11's `stay` (`-> u8 took`) is how a running node is sent back
+  for a re-flash: the application answers, waits 50 ms for the reply to
+  leave the wire, writes `STAY` into the handover slot and resets
+  (`cmd_boot.c`, `Board_BootPoll`). Its `state` answers sealed, valid,
+  and the identity the bootloader handed over; the other ops are refused
+  in words. The MCP tool and the library get a `stay()` beside
+  `stand_down`.
 * `-Wall -Wextra -Wshadow -Wconversion`, zero warnings, like the cores.
 
 ## The master's store on disk
@@ -293,10 +308,11 @@ New:
 Changed:
 
 * `STM32H753xx_FLASH.ld` - origin 0x08020000, the header section, the
-  shared DTCM slot
-* `core/src/main.c` - nothing; the header is a `const` in `board/src/
-  board_boot.c` with the `reboot()` the op calls
-* `comms/inc/cmd.h`, `comms/src/cmd_link.c` - `LINK_OP_REBOOT`
+  handover slot; `startup_stm32h753xx.s` - VTOR
+* `board/src/board_boot.c` - the header, the slot, `Board_BootInit`,
+  `Board_Identity`, `Board_Uid`, the way back; `comms/src/cmd_boot.c` -
+  device 11 as the application serves it; `core/src/main.c` - the init
+  after the record loads and the poll beside the power poll
 * `CMakeLists.txt` - the second executable, its warnings, its size line
 * `.github/workflows/firmware.yml` - both images sized and kept
 * `host/tools/build_and_flash.py` - `--boot`
@@ -309,9 +325,10 @@ Changed:
 1. This document, and PROTOCOL.md's pointer.
 2. `boot_core.c` with its harness and `test_boot_core.py` - the state
    machine proven on the host before any register is touched.
-3. The application relocated: the linker script, the header, the DTCM
-   slot, `LINK_OP_REBOOT`; builds, flashes as before, the wire checks
-   hold the new op.
+3. The application relocated: the linker script, the header, the
+   handover slot, device 11's `state` and `stay` in the application;
+   builds, the wire checks hold both servers of the two ops to the
+   table. MINOR 18.
 4. The bootloader target: `boot_main.c`, its script and startup, the
    second executable in CMake and CI, `--boot` in the flash tool. Built
    and sized; not run.

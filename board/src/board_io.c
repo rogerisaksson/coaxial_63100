@@ -357,6 +357,11 @@ bool Board_Pe15(void)
   return (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_15) == GPIO_PIN_SET);
 }
 
+void Board_SetTermination(bool closed)
+{
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, closed ? GPIO_PIN_SET : GPIO_PIN_RESET);
+}
+
 void Board_RequestConsoleMode(void)
 {
   link_request_close();

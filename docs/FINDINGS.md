@@ -2337,6 +2337,51 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   4), the application relocated (commit 3), the master in Python
   (commit 5); nothing has run on a board. structure 674 -> 676, the
   boot core 39, tree 3136, firmware 0 warnings.
+* THE APPLICATION RELOCATED BEHIND THE BOOTLOADER (2026-09-22). The
+  bootloader's third commit (docs/BOOT.md): the linker script's FLASH
+  origin moves to 0x08020000 and its length to 1792 K, a `.app_header`
+  section at +0x400 holds the magic, the size, the version and the type,
+  and the size is `_app_size`, a linker symbol taken by address - on the
+  first build the header read 202 096 and `objcopy -O binary` wrote
+  202 096, so the header is right by construction and no stamping step
+  exists to go stale. TWO DECISIONS TAKEN AGAINST THE DESIGN AS WRITTEN.
+  The identity - unit, position, flags - does not go into the record:
+  that would have been CAL_VERSION 16, and the bench board's version-13
+  record rides the two-versions-back upgrade rule, which a new version
+  would have pushed it off; and an identity in flash outlives the boot
+  the master assigned it in. It goes through THE HANDOVER SLOT instead:
+  the top 32 bytes of DTCM, `boot_hand_t` in boot.h, placed by
+  `.boot_hand (NOLOAD)` at `_estack` with the stack's top lowered by
+  those 32 bytes, outside `.bss` so no startup zeroes it - the
+  bootloader writes the assignment under a magic before it jumps, and
+  `Board_BootInit` applies it after the record loads
+  (`modbus_map_set_unit_id`, which nothing had called, and the UART5
+  termination on PE14); a bench board flashed over SWD finds no magic
+  and is unit 1 as before. And the way back is device 11's own `stay`,
+  not a new link op: `cmd_boot.c` serves `state` and `stay` from the
+  application and refuses the other eleven in words, so the structure
+  check now reads BOTH servers of an op - `_c_ops` keeps a list per op
+  where it kept one handler, and cmd_boot.c's had been silently
+  shadowed by boot_core.c's until it did. The reset waits 50 ms in
+  `Board_BootPoll` for the took byte to leave the wire, then writes
+  STAY into the slot and resets; the bootloader will find it there. THE
+  VECTOR TABLE IS SET BY THE IMAGE ITSELF: the generated `SystemInit`
+  leaves VTOR alone unless `USER_VECT_TAB_ADDRESS` is defined, and that
+  define lives in a CubeMX file compiled inside the drivers' object
+  library, so the startup writes `SCB->VTOR = g_pfnVectors` as its first
+  act after the stack pointer - three instructions, and an image that
+  is whole wherever the core arrived from, the bootloader's jump or the
+  debugger's `--start`. Verified off the ELF: vectors at 0x08020000,
+  the header at 0x08020400 reading `CXAP`, 1.6.0, type 1; SP
+  0x2001FFE0 under the slot at 0x2001FFE0..0x2001FFFF; the reset
+  vector thumb inside the image. Both presets 0 warnings, Debug 202 K
+  of the 1792 K, Release 135 K. `build_and_flash.py` sizes against the
+  application's region now and says after a flash that a reset reaches
+  the image through the bootloader's sector: a board with the OLD
+  layout at 0x08000000 and this image at 0x08020000 has half an old
+  image at its reset vector, so the bench's first act is commit 4's
+  bootloader over SWD. MINOR 18: device 11 in the application's
+  dispatch. Not run on a board; the registers are the next commit.
 
 ## The local model
 

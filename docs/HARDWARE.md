@@ -25,8 +25,10 @@ need an invalidate.
 | Memory | Use |
 | --- | --- |
 | ITCM 64 KB | the sample path's code, the linker script's `.itcm` by object, copied in by the startup: the control law, the anti-alias chain, the acquisition engine and its glue, the sync and PWM interrupts, the log ring's push, the pin mask, the HAL's ADC interrupt handler - 29 KB in the Debug image, 26 KB in Release |
-| DTCM 128 KB | `.data`, `.bss`, the 1 KB stack, the 1024 x 16 B log ring - every struct a sample path touches |
+| DTCM 128 KB | `.data`, `.bss`, the 1 KB stack, the 1024 x 16 B log ring - every struct a sample path touches; the top 32 bytes are the handover slot both images share (BOOT.md) |
 | AXI SRAM 512 KB | the `.buffers` NOLOAD section - the 448 KB DAQ ring, written a record at a time by memcpy from the ADC interrupt |
+| Flash bank 1 sector 0, 0x08000000 | the bootloader's 128 K (BOOT.md) |
+| Flash 0x08020000, 1792 K | the application: its vector table, its header at +0x400 (magic 'CXAP', size, version, type), `.itcm`'s and `.data`'s copies - 202 K in the Debug image, 135 K in Release |
 | Flash bank 2 sector 7, 0x081E0000 | the calibration record, magic 'CX63', CAL_VERSION 15, padded to a 32-byte flash word |
 
 ## ADC channels

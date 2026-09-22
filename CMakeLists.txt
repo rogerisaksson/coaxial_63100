@@ -94,6 +94,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     board/src/board_thermal.c
     board/src/board_power.c
     board/src/board_drive.c
+    board/src/board_boot.c
 
     # Comms stack: cmd (request/response) over proto (Modbus) over dev (USART3).
     comms/src/console.c
@@ -115,6 +116,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     comms/src/cmd_thermal.c
     comms/src/cmd_power.c
     comms/src/cmd_drive.c
+    comms/src/cmd_boot.c
     comms/src/testrig.c
     comms/src/link.c
     comms/src/link_report.c
@@ -147,14 +149,14 @@ set(COAXIAL_SOURCES
     board/src/board_daq.c
     board/src/board_thermal.c
     board/src/board_power.c
-    board/src/board_drive.c
+    board/src/board_drive.c board/src/board_boot.c
     comms/src/console.c comms/src/wire.c comms/src/dev_uart.c
     comms/src/cmd.c comms/src/cmd_board.c comms/src/cmd_test.c
     comms/src/cmd_angle.c comms/src/cmd_device.c comms/src/cmd_link.c
     comms/src/cmd_cal.c comms/src/cmd_gate_drivers.c comms/src/cmd_log.c
     comms/src/cmd_daq.c comms/src/cmd_time.c
     comms/src/cmd_power.c
-    comms/src/cmd_drive.c
+    comms/src/cmd_drive.c comms/src/cmd_boot.c
     comms/src/testrig.c comms/src/link.c comms/src/link_report.c
 )
 set_source_files_properties(${COAXIAL_SOURCES} PROPERTIES
@@ -188,7 +190,7 @@ set_source_files_properties(
     comms/src/cmd_gate_drivers.c
     comms/src/cmd_log.c comms/src/cmd_daq.c comms/src/cmd_time.c
     comms/src/cmd_power.c
-    comms/src/cmd_drive.c
+    comms/src/cmd_drive.c comms/src/cmd_boot.c
     comms/src/link.c comms/src/link_report.c
     PROPERTIES COMPILE_OPTIONS "-Wextra;-Wshadow;-Wconversion")
 
@@ -232,6 +234,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     shtp/inc
     comms/inc
     board/inc
+    boot/inc
 )
 
 # Add project symbols (macros)

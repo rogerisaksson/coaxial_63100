@@ -11,6 +11,7 @@
 #ifndef BOARD_H
 #define BOARD_H
 
+#include "boot.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -1235,6 +1236,10 @@ bool Board_AfeOn(void);
 void Board_SetAfeOn(bool on);
 bool Board_Pe15(void);
 
+/** UART5's 120 ohm termination, PE14: closed by the last node on the
+    segment, open on the rest (docs/BOOT.md). */
+void Board_SetTermination(bool closed);
+
 uint32_t Board_SysClkHz(void);
 uint32_t Board_HclkHz(void);
 
@@ -1505,6 +1510,36 @@ bool Board_ThermalSetSample(uint32_t every_ms, uint32_t settle_ms);
 
 /** What the sampling is set to now. */
 void Board_ThermalSampling(uint32_t *every_ms, uint32_t *settle_ms);
+
+/* ---- the bootloader's side (board_boot.c) ------------------------------- */
+
+/** This board's type as the bootloader names it. The header carries it,
+    and a bootloader built for another type ignores this image. */
+#define BOARD_BOOT_TYPE  BOOT_TYPE_COAXIAL_63100
+
+/** Who this node is: what a bootloader left in the handover slot, or the
+    defaults where none did (docs/BOOT.md). */
+typedef struct
+{
+  uint8_t type;       /**< BOARD_BOOT_TYPE                              */
+  uint8_t unit;       /**< the unit id answered to                      */
+  uint8_t position;   /**< down the limb; 0 where nobody assigned one   */
+  uint8_t flags;      /**< assign's flags; 0 where nobody assigned them */
+  bool    assigned;   /**< a bootloader left these, or they are defaults */
+} board_identity_t;
+
+/** Apply what the bootloader left: the unit id and the termination.
+    Nothing left, nothing applied - a bench board is unit 1. */
+void Board_BootInit(void);
+board_identity_t Board_Identity(void);
+
+/** The MCU's unique id, twelve bytes little-endian off UID_BASE. */
+void Board_Uid(uint8_t *out);
+
+/** Back to the bootloader: the reset waits for the reply to leave the
+    wire, and the bootloader finds STAY in the slot. */
+void Board_BootStay(void);
+void Board_BootPoll(void);
 
 #ifdef __cplusplus
 }

@@ -15,6 +15,7 @@
   * has a different answer: command 0x6D kind 4, the parts list.
   ******************************************************************************
   */
+#include "boot.h"
 #include "cmd.h"
 #include "dev_serial.h"
 #include "wire.h"
@@ -62,6 +63,7 @@ static cmd_status_t h_device(rd_t *in, wr_t *out)
     case DEVICE_THERMAL: return cmd_thermal_op(op, in, out);
     case DEVICE_POWER:  return cmd_power_op(op, in, out);
     case DEVICE_DRIVE:  return cmd_drive_op(op, in, out);
+    case DEVICE_BOOT:   return cmd_boot_op(op, in, out);
     default:           return CMD_ERR_VALUE;
   }
 }

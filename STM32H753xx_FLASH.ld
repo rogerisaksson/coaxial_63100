@@ -52,7 +52,12 @@
 /* Entry Point */
 ENTRY(Reset_Handler)
 
-/* Specify the memory areas */
+/* THE APPLICATION LIVES BEHIND THE BOOTLOADER. Sector 0 of bank 1, the
+   128 K at 0x08000000, is the bootloader's; this image starts at sector
+   1 and ends where the calibration record's sector begins, 0x081E0000
+   (docs/BOOT.md, the flash map). A bench board is flashed with the
+   bootloader once, over SWD; after that this image alone, as before,
+   and a reset costs 0.3 s in the bootloader before it starts. */
 MEMORY
 {
 DTCMRAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
@@ -60,11 +65,17 @@ RAM (xrw)      : ORIGIN = 0x24000000, LENGTH = 512K
 RAM_D2 (xrw)      : ORIGIN = 0x30000000, LENGTH = 288K
 RAM_D3 (xrw)      : ORIGIN = 0x38000000, LENGTH = 64K
 ITCMRAM (xrw)      : ORIGIN = 0x00000000, LENGTH = 64K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 2048K
+FLASH (rx)      : ORIGIN = 0x08020000, LENGTH = 1792K
 }
 
+/* THE HANDOVER SLOT: the top 32 bytes of DTCM, above the stack, which
+   the bootloader's script places at the same address. NOLOAD and outside
+   .bss, so neither startup touches it and each image finds what the
+   other left - the assignment on the way in, STAY on the way back. */
+_Boot_Hand_Size = 32;
+
 /* Highest address of the user mode stack */
-_estack = ORIGIN(DTCMRAM) + LENGTH(DTCMRAM);    /* end of RAM */
+_estack = ORIGIN(DTCMRAM) + LENGTH(DTCMRAM) - _Boot_Hand_Size;
 _sstack = _estack - _Min_Stack_Size;
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
@@ -79,6 +90,14 @@ SECTIONS
     . = ALIGN(4);
     KEEP(*(.isr_vector)) /* Startup code */
     . = ALIGN(4);
+  } >FLASH
+
+  /* THE HEADER the bootloader validates before it jumps: magic, size,
+     version, type, 0x400 into the image behind the vector table
+     (board/src/board_boot.c fills it; boot.h names the offset). */
+  .app_header ORIGIN(FLASH) + 0x400 :
+  {
+    KEEP(*(.app_header))
   } >FLASH
 
   /* THE SAMPLE PATH RUNS FROM ITCM. The M7 fetches from flash through a
@@ -229,6 +248,11 @@ SECTIONS
   PROVIDE( __data_source = LOADADDR(.data) );
   PROVIDE( __data_source_end = __tdata_source_end );
   PROVIDE( __data_source_size = __data_source_end - __data_source );
+
+  /* The image's bytes in flash, for the header: from the vector table to
+     the end of the last section loaded, which is .tdata's copy. What
+     objcopy -O binary writes is exactly this. */
+  _app_size = __tdata_source_end - ORIGIN(FLASH);
   /* Uninitialized data section */
   .tbss (NOLOAD) : ALIGN(4)
   {
@@ -277,6 +301,11 @@ SECTIONS
     . = . + _Min_Heap_Size;
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
+  } >DTCMRAM
+
+  .boot_hand _estack (NOLOAD) :
+  {
+    KEEP(*(.boot_hand))
   } >DTCMRAM
 
   /* THE BIG BUFFERS, in the 512 K of AXI SRAM that was standing empty

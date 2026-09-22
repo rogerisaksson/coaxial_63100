@@ -60,6 +60,13 @@ defined in linker script */
 Reset_Handler:
   ldr   sp, =_estack      /* set stack pointer */
 
+/* The vector table is this image's, wherever the core arrived from: a
+   bootloader jumps here with VTOR still at its own table, and the first
+   SysTick would land there (docs/BOOT.md). SCB->VTOR is 0xE000ED08. */
+  ldr   r0, =g_pfnVectors
+  ldr   r1, =0xE000ED08
+  str   r0, [r1]
+
 /* Call the ExitRun0Mode function to configure the power supply */
   bl  ExitRun0Mode
 /* Call the clock system initialization function.*/

@@ -173,9 +173,10 @@ def run(argv, cwd, path):
 
 #: What the linker script gives each region, so the print says how much of it
 #: is spent rather than a byte count nobody can size up - and where each
-#: region starts.
-REGIONS = {'FLASH': 2 * 1024 * 1024, 'DTCMRAM': 128 * 1024}
-BASES = {'FLASH': 0x08000000, 'DTCMRAM': 0x20000000}
+#: region starts. The application's flash begins behind the bootloader's
+#: sector and ends before the record's (docs/BOOT.md).
+REGIONS = {'FLASH': 1792 * 1024, 'DTCMRAM': 128 * 1024}
+BASES = {'FLASH': 0x08020000, 'DTCMRAM': 0x20000000}
 
 
 def _region_of(addr):
@@ -260,6 +261,10 @@ def flash(elf, path):
         print('\n'.join(output.splitlines()[-40:]))
         return False
     print('FLASH  ok  %.1fs  %s' % (elapsed, elf.name))
+    # --start runs the image now; a reset goes through sector 0, the
+    # bootloader's, and finds the application only if one is there.
+    print('       the image sits at 0x%08X behind the bootloader sector - '
+          'a reset reaches it through the bootloader' % BASES['FLASH'])
     return True
 
 

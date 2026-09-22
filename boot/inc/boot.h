@@ -56,6 +56,37 @@ extern "C" {
 #define BOOT_STACK_BASE      0x20000000UL
 #define BOOT_STACK_BYTES     0x20000UL
 
+/** The board types as `erase`, `who` and the header name them: the two
+    inverter types the machine already names. A bootloader is built for
+    one; an image carries its own; they must agree. */
+#define BOOT_TYPE_COAXIAL_63100  1U
+#define BOOT_TYPE_COAXIAL_63020  2U
+
+/** assign's flags. */
+#define BOOT_FLAG_TERMINATE  0x01U    /**< the last node on the segment closes the 120 ohm */
+
+/** THE HANDOVER SLOT: the top 32 bytes of DTCM, which both linker
+    scripts place at the same address and neither startup zeroes or
+    copies, so it is exactly what the last image left. The bootloader
+    fills the identity before it jumps; the application writes STAY
+    before it resets itself; a board with no bootloader finds neither
+    magic and is unit 1 as it always was. */
+#define BOOT_HAND_BYTES      32U
+#define BOOT_HAND_MAGIC      0x444E4148UL   /**< 'HAND' */
+#define BOOT_STAY_MAGIC      0x59415453UL   /**< 'STAY' */
+
+typedef struct
+{
+  uint32_t magic;      /**< BOOT_HAND_MAGIC once a bootloader assigned the rest */
+  uint32_t stay;       /**< BOOT_STAY_MAGIC when the application asks back      */
+  uint8_t  unit;
+  uint8_t  position;
+  uint8_t  flags;
+  uint8_t  reserved;
+} boot_hand_t;
+
+_Static_assert(sizeof(boot_hand_t) <= BOOT_HAND_BYTES, "the handover slot is 32 bytes");
+
 /** The ops, PROTOCOL.md's device 11. */
 #define BOOT_OP_HOLD      0U   /**< u32 session -> none; broadcast: stay in the bootloader */
 #define BOOT_OP_WHO       1U   /**< u8 bits, bytes prefix -> u8 x12 uid, u8 type, u8 state, u8 unit; from every node the prefix fits */

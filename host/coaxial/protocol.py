@@ -308,6 +308,8 @@ DEVICE_REQUESTS = {
     (DEVICE_DRIVE, DriveOp.CYCLES_RESET): 3,
     (DEVICE_DRIVE, DriveOp.MODEL): 3,
     (DEVICE_DRIVE, DriveOp.MODEL_RESET): 3,
+    (DEVICE_BOOT, BootOp.STATE): 3,
+    (DEVICE_BOOT, BootOp.STAY): 3,
 }
 
 #: Ops with two shapes, proven only once enough bytes rule the shorter one
