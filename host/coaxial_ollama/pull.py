@@ -148,19 +148,27 @@ class Progress:
     def pulled_bytes(self):
         return self.done_bytes + self.total
 
-    def row(self, glyphs=BRAILLE):
-        """The row's text: the tag, then the bar with its figures while a
-        layer is coming down, the daemon's status word otherwise."""
-        if not self.downloading:
-            return '%s  %s' % (self.tag, self.status)
-        text = '%s  %s %3.0f %%  %s of %s' % (
-            self.tag, bar(self.completed, self.total, glyphs=glyphs),
+    def figures(self):
+        """What follows the bar: the percent, the bytes of the bytes, and
+        the rate and what is left at it once it can be said. On its own
+        for a caller whose bar is somebody else's - the chooser's boot
+        strip draws the layer's share and puts these beside it."""
+        text = '%3.0f %%  %s of %s' % (
             self.percent(), gigabytes(self.completed), gigabytes(self.total))
         rate = self.rate()
         if rate > 0.0:
             text += '  %s/s  %s left' % (
                 gigabytes(rate), clock((self.total - self.completed) / rate))
         return text
+
+    def row(self, glyphs=BRAILLE):
+        """The row's text: the tag, then the bar with its figures while a
+        layer is coming down, the daemon's status word otherwise."""
+        if not self.downloading:
+            return '%s  %s' % (self.tag, self.status)
+        return '%s  %s %s' % (
+            self.tag, bar(self.completed, self.total, glyphs=glyphs),
+            self.figures())
 
 
 class Rows:
@@ -172,7 +180,10 @@ class Rows:
         self.tty = _vt(out)
         self.widest = 0
 
-    def show(self, state, column, text, final=False):
+    def show(self, state, column, text, final=False, progress=None):
+        """One row. `progress` is the pull as it stands, for a drawer
+        with a bar of its own to take the share from; these columns
+        carry it in the text already and leave it be."""
         row = '  %-6s %-22s %s' % (state, column, text)
         pad = ' ' * max(0, self.widest - len(row))
         self.widest = max(self.widest, len(row))
@@ -221,15 +232,17 @@ def events(tag, host=DEFAULT_HOST, timeout=TIMEOUT_S):
 
 
 def pull(tag, host=DEFAULT_HOST, out=None, source=None, glyphs=None,
-         now=time.monotonic):
+         now=time.monotonic, rows=None):
     """Pull `tag` and draw it; the daemon's last status word ('success').
 
     `out` is drawn on - stderr unless given, so the bar never lands in an
     answer somebody is capturing; `source` is the event stream, the
     daemon's unless a suite feeds one; `glyphs` BRAILLE unless the stream
-    cannot carry it. Refuses before any request what no pull can do: a
-    cloud tag, which ollama runs on their hardware, and a daemon that is
-    not this machine's.
+    cannot carry it; `rows` where each row goes - Say's columns on `out`
+    unless a page hands in a drawer of its own with the same `show` and
+    `tty`, as the chooser's chat page does with its boot strip. Refuses
+    before any request what no pull can do: a cloud tag, which ollama
+    runs on their hardware, and a daemon that is not this machine's.
     """
     if is_cloud(tag):
         raise OllamaError('%s is a cloud tag: ollama runs those on their '
@@ -239,22 +252,23 @@ def pull(tag, host=DEFAULT_HOST, out=None, source=None, glyphs=None,
                           'daemon only' % host)
     out = out if out is not None else sys.stderr
     glyphs = glyphs or (BRAILLE if carries(out) else ASCII)
-    rows = Rows(out)
+    rows = rows if rows is not None else Rows(out)
     state = Progress(tag, now)
     shown = -STEP_PERCENT
     for event in (source if source is not None else events(tag, host)):
         words = event.get('error')
         if words:
-            rows.show('fail', 'model', '%s  %s' % (tag, words), final=True)
+            rows.show('fail', 'model', '%s  %s' % (tag, words), final=True,
+                      progress=state)
             raise OllamaError('ollama pull %s: %s' % (tag, words))
         changed = state.feed(event)
         step = int(state.percent()) // STEP_PERCENT * STEP_PERCENT
         if rows.tty or changed or step != shown:
             shown = step
-            rows.show('wait', 'model', state.row(glyphs))
+            rows.show('wait', 'model', state.row(glyphs), progress=state)
     rows.show('ok', 'model', 'pulled %s, %s in %s' % (
         tag, gigabytes(state.pulled_bytes()), clock(now() - state.began)),
-        final=True)
+        final=True, progress=state)
     return state.status
 
 

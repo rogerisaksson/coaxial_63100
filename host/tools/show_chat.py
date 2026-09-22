@@ -29,7 +29,8 @@ from rich import box                                       # noqa: E402
 
 from screen import (ENTER_KEYS, TO_MENU, Keys, boot, curtain,  # noqa: E402
                     footer, header, hud, paced, stage)
-from coaxial_ollama import cli, language                   # noqa: E402
+from coaxial_ollama import cli, language, pull as pulling  # noqa: E402
+from coaxial_ollama.client import OllamaError              # noqa: E402
 from coaxial_mcp.tools import TOOLS                        # noqa: E402
 
 #: Rows the page spends outside the transcript: band, input, key bar,
@@ -91,8 +92,50 @@ class _Taps:
         pass
 
 
-def open_chat(a, script):
-    """The same Chat the bench prompt builds, its prints tapped."""
+def fit(said, room):
+    """`said` within `room` cells, cut at a gap between its figures and
+    never through one: the strip's text column wraps past the console's
+    width, and a strip on two rows is two strips."""
+    if len(said) <= room:
+        return said
+    gap = said.rfind('  ', 0, room + 1)
+    return said[:gap] if gap > 0 else said[:room]
+
+
+class Strip:
+    """pull()'s rows on the boot strip: the bar is the layer's share and
+    the bracketed text the pull's own figures, in place of pull's row.
+    Not both - the strip's Progress repaints its row on its own clock
+    and the pull's carriage-return rewrite on stderr would land in the
+    middle of it: one bar on the line, and it is the strip's."""
+
+    #: Every event, not one per five percent: the strip is a TTY's.
+    tty = True
+
+    def __init__(self, step, room):
+        self._step, self._room = step, room
+
+    def show(self, state, column, text, final=False, progress=None):
+        if final or progress is None:
+            self._step(1.0 if state == 'ok' else 0.0, fit(text, self._room))
+            return
+        said = progress.figures() if progress.downloading else progress.status
+        self._step(progress.percent() / 100.0,
+                   fit('PULLING %s  %s' % (progress.tag, said), self._room))
+
+
+def pulled_on(strip):
+    """ensure_pulled's pull, drawn on `strip` - or on pull's own rows
+    when the page is not a terminal and there is no strip."""
+
+    def pull_with(tag, host, out):
+        return pulling.pull(tag, host=host, out=out, rows=strip)
+    return pull_with
+
+
+def open_chat(a, script, strip=None):
+    """The same Chat the bench prompt builds, its prints tapped; the
+    picker's tag pulled first when `ollama list` lacks it, on `strip`."""
 
     # NOT --quiet: quiet suppresses _trace, and _trace is where a tool
     # result's value grid prints - without it the model's one-line summary
@@ -103,7 +146,13 @@ def open_chat(a, script):
         argv.append('--simulated')
     args = cli.parse(argv)
     client, _session, chat = cli.build(args)
-    client.model = client.require_model()
+    # Through ensure_pulled, as dbg.py's start and the bench prompt's
+    # preflight: the picker names the tag that fits this card, and the
+    # day it named one `ollama list` lacked (2026-09-22, llama3.1:8b
+    # beside a pulled gemma4:12b that did not fit) this page died in a
+    # traceback with the command to type as its last line.
+    client.model = cli.ensure_pulled(client, sys.stderr,
+                                     pull_with=pulled_on(strip))
     chat.io_log = cli.IOLog()
     chat.compile_intent = True
     chat.out = _Taps(script)
@@ -416,8 +465,20 @@ def main():
     elif a.claude:
         chat, origin = _claude_chat(a, script, state)
     else:
-        with boot('LINKING MODEL'):
-            chat = open_chat(a, script)
+        try:
+            with boot('LINKING MODEL') as step:
+                # The strip's bar is 28 cells, its text bracketed a cell
+                # on; what is left of the row is the pull's.
+                width = page.size.width if page.size else 80
+                strip = Strip(step, max(24, width - 34)) if console else None
+                chat = open_chat(a, script, strip)
+        except OllamaError as exc:
+            # The daemon's words on one line and exit 2, as dbg.py's
+            # start ends: the chooser prints the code, says the last
+            # lines above say why, and waits for a key - so those lines
+            # are the words, not forty of traceback over them.
+            print('ollama: %s' % exc, file=sys.stderr)
+            return 2
         label, real = chat.origin or ('unknown', False)
         origin = _Origin(label, real, a.port)
         state['tools'] = tuple(sorted(chat.tool_names))

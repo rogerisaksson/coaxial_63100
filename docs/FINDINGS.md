@@ -2522,6 +2522,36 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   exit 0, the tag removed again; the scripted 4.9 GB stream in the
   suite is 26 rows off a TTY and one row rewritten 106 times on one,
   closed once. link 109, structure 621, 2978 in all.
+* **The chooser's chat page pulls too, on its boot strip** (2026-09-22,
+  the bench: an error when the model is not there - make the terminal
+  download the suitable model). `coaxial_tty.ps1`'s CCC page ran the
+  picker, which named llama3.1:8b on an 11 GB card with 1.4 GB already
+  taken and 3.4 GB held back - 7.6 GB to spend, so the pulled
+  gemma4:12b at 7.8 GB did not fit - and died in a traceback from
+  `require_model` with `ollama pull llama3.1:8b` as its last line,
+  while both prompts had pulled through `ensure_pulled` since
+  2026-09-12. The page goes through `ensure_pulled` now, and the pull's
+  rows go to the page's amber boot strip rather than to stderr under
+  it: `pull()` takes a `rows` drawer, and the page's `Strip` sets the
+  strip's bar to the layer's share and its bracketed text to the tag
+  and the figures (`Progress.figures()`, the row minus its bar), cut at
+  a gap between figures for the console's width - a strip that wraps
+  is two strips. Two bars on one row was not tried, by reasoning: the
+  strip's rich Progress repaints its row on its own clock and the
+  pull's carriage-return rewrite would land inside it. Off a terminal
+  there is no strip and the pull draws its own rows on stderr; a daemon
+  that refuses ends the page with `ollama: <its words>` and exit 2, as
+  dbg.py's start does, so the chooser's "exited 2 - its last lines
+  above say why" points at one line and not forty of traceback.
+  Measured on a recording console with the suite's scripted 4.9 GB
+  stream paced at 15 ms an event: 17 frames at 100 columns, the longest
+  95 cells, `PULLING llama3.1:8b   53 %  2.6 GB of 4.9 GB  49 MB/s
+  47 s left` halfway; at 80 columns the same 17 frames, the longest 75,
+  the rate and the estimate cut off at the gap; no frame on two rows at
+  either width; the two-frame smoke exit 0. `python -m coaxial_ollama`
+  - the plan runner - still refuses an absent tag with the command to
+  type: a plan names its model, and a typo there is a command, not
+  gigabytes. link 114, 3147 in all.
 
 ## The SOA envelope
 

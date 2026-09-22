@@ -9,22 +9,29 @@ The code is `host/coaxial_ollama/`, `host/board_chat.ps1` with
 ## The picker
 
 `python -m coaxial_ollama.capability` measures the machine and the
-tag follows: VRAM minus a reserve, free RAM, and cores. `board_chat`
-and `dbg.py -m auto` both use it and pull the tag if it is absent.
+tag follows: VRAM minus a reserve, free RAM, and cores. `board_chat`,
+`dbg.py -m auto` and the chooser's CCC page all use it and pull the tag
+if it is absent.
 
 ### Pulling
 
-`python -m coaxial_ollama.pull TAG` is the one pull both entry points
-make: the daemon's `/api/pull` stream drawn in the page's own columns -
+`python -m coaxial_ollama.pull TAG` is the one pull every entry point
+makes: the daemon's `/api/pull` stream drawn in the page's own columns -
 a braille bar at half-cell resolution, the percent, the bytes, the
 layer's rate and what is left at it - rewritten in place on a TTY and a
 row every five percent off one, so a captured run still reads. An
 `error` line from the daemon is raised in its words, exit 2. The page
 runs it when the tag is not in `ollama list`; dbg.py's start does the
-same through `ensure_pulled`; `/model TAG` mid-session still refuses an
-absent tag, so a typo there costs a command and not a download. Since
-2026-09-12 - before it the page shelled out to `ollama pull` and dbg.py
-refused with the command to type (FINDINGS).
+same through `ensure_pulled`; the chooser's CCC page
+(`tools/show_chat.py`) goes through `ensure_pulled` too and hands
+`pull()` its boot strip as the drawer - the strip's bar is the layer's
+share and its bracketed text the tag and the figures, cut at a gap for
+the console's width - since 2026-09-22, when the picker named a tag
+`ollama list` lacked and the page died in a traceback. `/model TAG`
+mid-session still refuses an absent tag, so a typo there costs a
+command and not a download. Since 2026-09-12 - before it the page
+shelled out to `ollama pull` and dbg.py refused with the command to
+type (FINDINGS).
 
 ### The catalogue
 

@@ -349,7 +349,7 @@ back because of one is (invariant 10).
 
 ## The test system
 
-Twenty-eight suites, 3142 checks, counted in `host/tests/.counts.json`
+Twenty-eight suites, 3147 checks, counted in `host/tests/.counts.json`
 by `counts.py`:
 
 | Suite | Checks | What |
@@ -361,7 +361,7 @@ by `counts.py`:
 | test_live_model.py | 212 | the model, `--live` |
 | test_ollama_prompt.py | 113 | the SYSTEM prompt |
 | test_conformance.py | 110 | the live board against PROTOCOL.md, `--conformance` |
-| test_ollama_link.py | 109 | the link diagnosis, and a pull drawn from the daemon's own numbers |
+| test_ollama_link.py | 114 | the link diagnosis, and a pull drawn from the daemon's own numbers |
 | test_sensorless.py | 138 | the design arithmetic, the commissioning and the motion verbs against the stand-in, its thermistor bounded, its stage throttled on the winding |
 | test_modbus_core.py | 77 | the Modbus core through ctypes, clock injected, the oracle's prefix sweep |
 | test_daq_api.py | 75 | the acquisition front door against the stand-in |

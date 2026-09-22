@@ -899,6 +899,52 @@ def test_pull_draws_the_daemons_numbers(report):
                  and 'llama-server binary not found' in page
                  and 'install.ps1' in page)
 
+    # THE CHOOSER'S CHAT PAGE PULLS ON ITS BOOT STRIP. Its picker named
+    # llama3.1:8b on a card where the pulled gemma4:12b did not fit, and
+    # the page died in a traceback with `ollama pull llama3.1:8b` as its
+    # last line (2026-09-22) while both prompts pulled. It goes through
+    # ensure_pulled now, and the pull's rows go to the page's boot strip
+    # - its bar the layer's share, its text the figures - not to stderr
+    # under a strip repainting the same row.
+    sys.path.insert(0, os.path.join(host, 'tools'))
+    import show_chat
+    text = io.open(os.path.join(host, 'tools', 'show_chat.py'),
+                   encoding='utf-8').read()
+    report.check('the chooser\'s chat page pulls through ensure_pulled, '
+                 'not require_model',
+                 'cli.ensure_pulled(' in text
+                 and 'client.require_model()' not in text)
+    steps = []
+    strip = show_chat.Strip(lambda share, said: steps.append((share, said)),
+                            80)
+    source, now = scripted()
+    got = pull.pull('llama3.1:8b', source=source, now=now, rows=strip)
+    report.check('every event lands on the strip and the stream still ends '
+                 'in the daemon\'s word',
+                 got == 'success' and len(steps) == len(script) + 1,
+                 (got, len(steps)))
+    halfway = [s for s in steps if ' 50 %' in s[1]]
+    report.check('halfway the strip holds the layer\'s share and the figures '
+                 'with no bar of their own',
+                 len(halfway) == 1 and halfway[0][0] == 0.5
+                 and halfway[0][1].startswith('PULLING llama3.1:8b')
+                 and full not in halfway[0][1] and '=' not in halfway[0][1]
+                 and 'of 4.9 GB' in halfway[0][1]
+                 and '49 MB/s' in halfway[0][1]
+                 and '50 s left' in halfway[0][1],
+                 halfway[0] if halfway else steps[:2])
+    report.check('the first row is the daemon\'s status word and the last '
+                 'what was pulled, the bar snapped full',
+                 steps[0] == (0.0, 'PULLING llama3.1:8b  pulling manifest')
+                 and steps[-1] == (1.0, 'pulled llama3.1:8b, 4.9 GB in '
+                                        '1 min 46 s'),
+                 (steps[0], steps[-1]))
+    narrow = show_chat.fit(halfway[0][1], 40) if halfway else ''
+    report.check('on a narrow console the text is cut at a gap between '
+                 'figures, never through one',
+                 0 < len(narrow) <= 40 and narrow.endswith('%')
+                 and halfway[0][1].startswith(narrow), narrow)
+
 
 ROSTER = (
     (test_power_check_cannot_halt, ('link',)),
