@@ -715,10 +715,10 @@ WIRE_SHAPES = (
     ('comms/src/cmd_drive.c', 'h_drive_model', 'coaxial.drive', 'Drive', 'model'),
     ('comms/src/cmd_drive.c', 'h_drive_observers', 'coaxial.drive', 'Drive', 'observers'),
     ('comms/src/cmd_log.c', 'h_log_state', 'coaxial.capture', 'Capture', 'state'),
-    ('comms/src/cmd_power.c', 'op_state', 'coaxial.power', 'Power', 'state'),
-    ('comms/src/cmd_thermal.c', 'op_state', 'coaxial.thermal_device', 'Thermal', 'state'),
-    ('comms/src/cmd_thermal.c', 'op_budget', 'coaxial.thermal_device', 'Thermal', 'budget'),
-    ('comms/src/cmd_thermal.c', 'op_edges', 'coaxial.thermal_device', 'Thermal', 'network'),
+    ('comms/src/cmd_power.c', 'h_power_state', 'coaxial.power', 'Power', 'state'),
+    ('comms/src/cmd_thermal.c', 'h_thermal_state', 'coaxial.thermal_device', 'Thermal', 'state'),
+    ('comms/src/cmd_thermal.c', 'h_thermal_budget', 'coaxial.thermal_device', 'Thermal', 'budget'),
+    ('comms/src/cmd_thermal.c', 'h_thermal_edges', 'coaxial.thermal_device', 'Thermal', 'network'),
     ('comms/src/cmd_time.c', 'h_time_read', 'coaxial.clock', 'Clock', 'read_latch'),
 )
 

@@ -21,7 +21,7 @@
 #include "wire.h"
 
 
-static cmd_status_t op_state(wr_t *out)
+static cmd_status_t h_power_state(wr_t *out)
 {
   wr_u8(out, (uint8_t)BOARD_RAIL_COUNT);
 
@@ -46,7 +46,7 @@ static cmd_status_t op_state(wr_t *out)
 /* No guard on the gate stage here. Releasing every hold switches the AFE
    rail OFF, which gives the drivers their supply rather than taking it
    away - the direction that is safe while armed. */
-static cmd_status_t op_release_all(wr_t *out)
+static cmd_status_t h_power_release_all(wr_t *out)
 {
   Board_PowerReleaseAll();
   cmd_took(out, NULL);
@@ -60,8 +60,8 @@ cmd_status_t cmd_power_op(uint8_t op, rd_t *in, wr_t *out)
 
   switch (op)
   {
-    case POWER_OP_STATE:       return op_state(out);
-    case POWER_OP_RELEASE_ALL: return op_release_all(out);
+    case POWER_OP_STATE:       return h_power_state(out);
+    case POWER_OP_RELEASE_ALL: return h_power_release_all(out);
 
     default:
       return CMD_ERR_VALUE;

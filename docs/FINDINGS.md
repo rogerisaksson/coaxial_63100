@@ -2246,6 +2246,19 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   -> 141.7 s, 2732 passed, 0 failed, every suite within a few seconds
   of its time alone; it now ends with sensorless, which is where the
   next seconds are.
+* EVERY HANDLER IS NAMED FOR ITS DEVICE AND ITS OP (2026-09-22). The
+  bench asked what was left to make uniform. Counted: thirteen command
+  files name a handler `h_<device>_<op>`; `cmd_thermal.c` and
+  `cmd_power.c` named theirs `op_<op>`, fifteen handlers, and both
+  defined an `op_state` the wire checks could tell apart only by file.
+  Renamed to the form the rest use, the wire-shape table with them.
+  Proof of a pure rename: the committed tree built in a second worktree
+  and both images compared byte for byte - 200 912 B each, twelve
+  bytes differ, all inside the two copies of the build stamp (day,
+  hour, minute, second; the earlier four-byte figure was two builds
+  within a minute). 0 warnings, structure 667. The proof of the
+  behaviour is the bench's parity, conformance and live suites after a
+  flash, as for every C change without a host test.
 
 ## The local model
 

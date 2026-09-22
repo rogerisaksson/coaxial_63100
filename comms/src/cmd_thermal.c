@@ -52,7 +52,7 @@
 #define NODES_A_PAGE 10U
 
 
-static cmd_status_t op_state(wr_t *out)
+static cmd_status_t h_thermal_state(wr_t *out)
 {
   board_thermal_t th;
 
@@ -104,7 +104,7 @@ static cmd_status_t op_state(wr_t *out)
 }
 
 
-static cmd_status_t op_set_node(rd_t *in, wr_t *out)
+static cmd_status_t h_thermal_set_node(rd_t *in, wr_t *out)
 {
   const uint8_t node = rd_u8(in);
   const int32_t k_per_w = rd_i32(in);
@@ -136,7 +136,7 @@ static cmd_status_t op_set_node(rd_t *in, wr_t *out)
 }
 
 
-static cmd_status_t op_set_board(rd_t *in, wr_t *out)
+static cmd_status_t h_thermal_set_board(rd_t *in, wr_t *out)
 {
   const int32_t to_ambient = rd_i32(in);
   const int32_t capacity = rd_i32(in);
@@ -162,7 +162,7 @@ static cmd_status_t op_set_board(rd_t *in, wr_t *out)
 }
 
 
-static cmd_status_t op_set_sample(rd_t *in, wr_t *out)
+static cmd_status_t h_thermal_set_sample(rd_t *in, wr_t *out)
 {
   const uint32_t every_ms = rd_u32(in);
   const uint32_t settle_ms = rd_u32(in);
@@ -189,7 +189,7 @@ static cmd_status_t op_set_sample(rd_t *in, wr_t *out)
 
 /** op 4 - what is left of the thermal budget. One byte a node, 0 at
   * ambient and 255 at the limit; degrees stay on op 0. */
-static cmd_status_t op_budget(wr_t *out)
+static cmd_status_t h_thermal_budget(wr_t *out)
 {
   board_budget_t b;
 
@@ -232,7 +232,7 @@ static cmd_status_t op_budget(wr_t *out)
 
 /** op 6 - the winding's envelope: ceiling, K/W and J/K, milli-units. A
   * zero ceiling disables the winding; the constants must be positive. */
-static cmd_status_t op_set_winding(rd_t *in, wr_t *out)
+static cmd_status_t h_thermal_set_winding(rd_t *in, wr_t *out)
 {
   const int32_t limit_milli = rd_i32(in);
   const int32_t k_per_w_milli = rd_i32(in);
@@ -261,7 +261,7 @@ static cmd_status_t op_set_winding(rd_t *in, wr_t *out)
 }
 
 
-static cmd_status_t op_set_limit(rd_t *in, wr_t *out)
+static cmd_status_t h_thermal_set_limit(rd_t *in, wr_t *out)
 {
   const uint8_t node = rd_u8(in);
   const int32_t limit_milli = rd_i32(in);
@@ -290,7 +290,7 @@ static cmd_status_t op_set_limit(rd_t *in, wr_t *out)
 /** op 7 - the node table from `first`, NODES_A_PAGE at most: capacity in
   * milli J/K, the air path in milli K/W (0: none), the area share in ppm,
   * R_th in milli K/W, the forced-convection gain in milli. */
-static cmd_status_t op_nodes(rd_t *in, wr_t *out)
+static cmd_status_t h_thermal_nodes(rd_t *in, wr_t *out)
 {
   const uint8_t first = rd_u8(in);
 
@@ -333,7 +333,7 @@ static cmd_status_t op_nodes(rd_t *in, wr_t *out)
 
 /** op 8 - every edge: the two nodes it joins and the K/W across it in
   * milli, zero for an open one. */
-static cmd_status_t op_edges(wr_t *out)
+static cmd_status_t h_thermal_edges(wr_t *out)
 {
   wr_u8(out, (uint8_t)BOARD_THERMAL_EDGES);
   for (uint8_t e = 0U; e < (uint8_t)BOARD_THERMAL_EDGES; e++)
@@ -354,7 +354,7 @@ static cmd_status_t op_edges(wr_t *out)
 
 
 /** op 9 - one edge's K/W, milli; negative opens it. */
-static cmd_status_t op_set_edge(rd_t *in, wr_t *out)
+static cmd_status_t h_thermal_set_edge(rd_t *in, wr_t *out)
 {
   const uint8_t edge = rd_u8(in);
   const int32_t k_per_w_milli = rd_i32(in);
@@ -391,7 +391,7 @@ static cmd_status_t op_set_edge(rd_t *in, wr_t *out)
   * "never", since MINOR 16: the fields stay (invariant 3) and the board
   * keeps nothing - then the room, since 16 the margin's floor, and since
   * 17 the trip cap, so a host can say which of the two holds the margin. */
-static cmd_status_t op_ident(wr_t *out)
+static cmd_status_t h_thermal_ident(wr_t *out)
 {
   board_thermal_ident_t id;
 
@@ -425,7 +425,7 @@ static cmd_status_t op_ident(wr_t *out)
 
 
 /** op 11 - forget what was identified: the margin back at the floor. */
-static cmd_status_t op_ident_reset(wr_t *out)
+static cmd_status_t h_thermal_ident_reset(wr_t *out)
 {
   if (!Board_ThermalIdentReset())
   {
@@ -439,7 +439,7 @@ static cmd_status_t op_ident_reset(wr_t *out)
 
 /** op 12 - the margin floor, ppm of every ceiling's span, into the
   * record; cal op 2 is what persists it. */
-static cmd_status_t op_set_margin(rd_t *in, wr_t *out)
+static cmd_status_t h_thermal_set_margin(rd_t *in, wr_t *out)
 {
   const int32_t floor_ppm = rd_i32(in);
 
@@ -467,19 +467,19 @@ cmd_status_t cmd_thermal_op(uint8_t op, rd_t *in, wr_t *out)
 {
   switch (op)
   {
-    case THERMAL_OP_STATE:       return op_state(out);
-    case THERMAL_OP_SET_NODE:    return op_set_node(in, out);
-    case THERMAL_OP_SET_BOARD:   return op_set_board(in, out);
-    case THERMAL_OP_SET_SAMPLE:  return op_set_sample(in, out);
-    case THERMAL_OP_BUDGET:      return op_budget(out);
-    case THERMAL_OP_SET_LIMIT:   return op_set_limit(in, out);
-    case THERMAL_OP_SET_WINDING: return op_set_winding(in, out);
-    case THERMAL_OP_NODES:       return op_nodes(in, out);
-    case THERMAL_OP_EDGES:       return op_edges(out);
-    case THERMAL_OP_SET_EDGE:    return op_set_edge(in, out);
-    case THERMAL_OP_IDENT:       return op_ident(out);
-    case THERMAL_OP_IDENT_RESET: return op_ident_reset(out);
-    case THERMAL_OP_SET_MARGIN:  return op_set_margin(in, out);
+    case THERMAL_OP_STATE:       return h_thermal_state(out);
+    case THERMAL_OP_SET_NODE:    return h_thermal_set_node(in, out);
+    case THERMAL_OP_SET_BOARD:   return h_thermal_set_board(in, out);
+    case THERMAL_OP_SET_SAMPLE:  return h_thermal_set_sample(in, out);
+    case THERMAL_OP_BUDGET:      return h_thermal_budget(out);
+    case THERMAL_OP_SET_LIMIT:   return h_thermal_set_limit(in, out);
+    case THERMAL_OP_SET_WINDING: return h_thermal_set_winding(in, out);
+    case THERMAL_OP_NODES:       return h_thermal_nodes(in, out);
+    case THERMAL_OP_EDGES:       return h_thermal_edges(out);
+    case THERMAL_OP_SET_EDGE:    return h_thermal_set_edge(in, out);
+    case THERMAL_OP_IDENT:       return h_thermal_ident(out);
+    case THERMAL_OP_IDENT_RESET: return h_thermal_ident_reset(out);
+    case THERMAL_OP_SET_MARGIN:  return h_thermal_set_margin(in, out);
     default:             return CMD_ERR_VALUE;
   }
 }
