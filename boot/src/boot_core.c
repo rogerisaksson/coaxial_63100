@@ -23,10 +23,10 @@
 #define BITS_PER_BYTE   8U
 /** The IEEE polynomial, reflected, bit by bit: a table is 1 K the
     bootloader has no reason to carry for a sum it takes once. */
-#define CRC32_POLY      0xEDB88320UL
-#define CRC32_INIT      0xFFFFFFFFUL
+#define CRC32_POLY      0xEDB88320U
+#define CRC32_INIT      0xFFFFFFFFU
 /** A thumb address is odd. */
-#define THUMB_BIT       1UL
+#define THUMB_BIT       1U
 
 static struct
 {

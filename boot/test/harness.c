@@ -18,11 +18,11 @@
 
 #define SECTOR_BYTES  (128U * 1024U)
 #define FLASH_BYTES   (2U * 1024U * 1024U)
-#define APP_BASE      0x08020000UL
+#define APP_BASE      0x08020000U
 #define APP_BYTES     (14U * SECTOR_BYTES)
-#define RECORD_BASE   0x081E0000UL
+#define RECORD_BASE   0x081E0000U
 #define RECORD_BYTES  SECTOR_BYTES
-#define FLASH_BASE    0x08000000UL
+#define FLASH_BASE    0x08000000U
 #define LINE_MAX      120U
 
 static uint8_t   s_flash[FLASH_BYTES];
@@ -148,5 +148,5 @@ API void     boot_h_fail_program(uint32_t address) { s_fail_program_at = address
 API void     boot_h_fail_erase(int on)  { s_fail_erase = on; }
 API uint32_t boot_h_crc32(const uint8_t *data, uint32_t n)
 {
-  return boot_crc32(0xFFFFFFFFUL, data, n) ^ 0xFFFFFFFFUL;
+  return boot_crc32(0xFFFFFFFFU, data, n) ^ 0xFFFFFFFFU;
 }

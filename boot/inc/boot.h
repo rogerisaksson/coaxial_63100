@@ -51,10 +51,10 @@ extern "C" {
 /** The header behind the application's vector table, and its magic:
     'CXAP' as the bytes read in flash. */
 #define BOOT_HEADER_OFFSET   0x400U
-#define BOOT_HEADER_MAGIC    0x50415843UL
+#define BOOT_HEADER_MAGIC    0x50415843U
 /** Where a stack pointer must point to be one: DTCM. */
-#define BOOT_STACK_BASE      0x20000000UL
-#define BOOT_STACK_BYTES     0x20000UL
+#define BOOT_STACK_BASE      0x20000000U
+#define BOOT_STACK_BYTES     0x20000U
 
 /** The board types as `erase`, `who` and the header name them: the two
     inverter types the machine already names. A bootloader is built for
@@ -72,8 +72,8 @@ extern "C" {
     before it resets itself; a board with no bootloader finds neither
     magic and is unit 1 as it always was. */
 #define BOOT_HAND_BYTES      32U
-#define BOOT_HAND_MAGIC      0x444E4148UL   /**< 'HAND' */
-#define BOOT_STAY_MAGIC      0x59415453UL   /**< 'STAY' */
+#define BOOT_HAND_MAGIC      0x444E4148U   /**< 'HAND' */
+#define BOOT_STAY_MAGIC      0x59415453U   /**< 'STAY' */
 
 typedef struct
 {

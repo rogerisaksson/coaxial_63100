@@ -2382,6 +2382,19 @@ numeric literal in a function body other than 0, 1, -1 and 2:
   image at its reset vector, so the bench's first act is commit 4's
   bootloader over SWD. MINOR 18: device 11 in the application's
   dispatch. Not run on a board; the registers are the next commit.
+* A `UL` LITERAL IS 64 BITS ON THE RUNNER (2026-09-22). The boot core's
+  commit went red on CI while it was green here: `boot/ builds
+  warning-free with the firmware flags` failed on both Pythons with
+  `conversion from 'long unsigned int' to 'uint32_t' may change value`
+  at harness.c's sector arithmetic. `0x08000000UL` is `unsigned long`,
+  32 bits under MinGW and on the target, 64 on Ubuntu's LP64 gcc - so
+  the same `-Wconversion` that is silent on both of this bench's
+  compilers speaks on the runner's. Thirteen literals across boot.h,
+  boot_core.c and harness.c are `U` now: every one fits an unsigned int
+  on every host the tree builds on. The runner had told the whole
+  story in the commit comment its failure step posts, read off the
+  public API with no token - the way a red run is meant to be read
+  here.
 
 ## The local model
 
